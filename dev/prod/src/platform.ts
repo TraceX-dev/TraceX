@@ -561,7 +561,7 @@ export async function configurePlatform() {
       [calendarId, calendar.component.ConnectApp],
       [guestId, guest.component.GuestApp],
       [globalProfileRoute, globalProfile.component.GlobalProfileApp],
-      ['meetings', love.component.GuestApp]
+      ['meetings', love.component.GuestMeetingApp]
     ])
   )
 
