@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { type Client, type Doc, type Ref } from '@hcengineering/core'
+import { type Doc, type Ref } from '@hcengineering/core'
 import { type NotificationType } from '@hcengineering/notification'
 import { type Resource, mergeIds } from '@hcengineering/platform'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
@@ -49,9 +49,6 @@ export default mergeIds(loveId, love, {
     MeetingMinutesChatNotification: '' as Ref<NotificationType>,
     ModulePermissionGroup: '' as Ref<Doc>,
     ModulePermissionGroupReadOnlyGuest: '' as Ref<Doc>
-  },
-  function: {
-    MeetingMinutesTitleProvider: '' as Resource<(client: Client, ref: Ref<Doc>, doc?: Doc) => Promise<string>>
   },
   completion: {
     MeetingMinutesQuery: '' as Resource<ObjectSearchFactory>,
