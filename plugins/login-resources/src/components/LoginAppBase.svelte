@@ -30,6 +30,8 @@
   import loginBackWebp from '../../img/login_back.webp'
   import loginBack2xWebp from '../../img/login_back_2x.webp'
 
+  export let wide: boolean = false
+
   import { loginTheme, setLoginTheme, type LoginThemeName } from '../theme'
 
   onMount(() => {
@@ -52,10 +54,9 @@
 </script>
 
 <div
-  class="theme-dark w-full h-full backd"
+  class="w-full h-full backd"
   class:accent-intabia={activeTheme.name === 'intabia'}
   class:paneld={$deviceInfo.docWidth <= 768}
-  class:white={!$themeStore.dark}
   class:login-theme-intabia={activeTheme.name === 'intabia'}
   class:login-theme-huly={activeTheme.name === 'huly'}
 >
@@ -100,7 +101,7 @@
       </div>
     {/if}
 
-    <div class="panel-base panel" class:white={!$themeStore.dark}>
+    <div class:panel-base={!wide} class="panel" class:wide>
       <Scroller padding={'1rem 0'}>
         <div class="form-content">
           <slot name="form-content" />
@@ -116,6 +117,18 @@
 <style lang="scss">
   @use './themes/intabia.scss';
   @use './themes/huly.scss';
+
+  .wide {
+    position: fixed !important;
+    top: 10rem !important;
+    left: 2rem !important;
+    right: 2rem !important;
+    bottom: 2rem !important;
+
+    transform: none !important;
+    /* width: calc(100% - 4rem) !important;
+    height: calc(100% - 5rem) !important; */
+  }
 
   .back-image {
     position: fixed;
@@ -148,7 +161,6 @@
 
   /* Centralized layout: panel sizing/positioning is identical across themes.
      Themes control visuals only (colors, gradients, images). */
-  .panel,
   .panel-base {
     position: fixed !important;
     z-index: 1000 !important;
@@ -229,8 +241,8 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    flex-grow: 1;
-    height: max-content;
+    /* flex-grow: 1; */
+    height: 100%;
   }
 
   /* Intabia-scoped primary button visuals */

@@ -18,7 +18,6 @@ import board from '@hcengineering/board'
 import calendarPlugin, { type Visibility } from '@hcengineering/calendar'
 import contactPlugin, { type Employee } from '@hcengineering/contact'
 import {
-  AccountRole,
   DOMAIN_MODEL,
   DateRangeMode,
   IndexKind,
