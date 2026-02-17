@@ -123,6 +123,8 @@
     "CheckingLink": "Verificando o link e preparando...",
     "PreparingGuestConnection": "Preparando a conexão do convidado...",
     "Error": "Erro",
-    "Scheduled": "Agendado"
+    "Scheduled": "Agendado",
+    "ScheduledIn": "Agendado em",
+    "WaitForHost": "Por favor, aguarde o anfitrião iniciar a reunião."
   }
 }
