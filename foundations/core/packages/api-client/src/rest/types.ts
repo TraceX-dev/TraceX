@@ -65,7 +65,8 @@ export interface RestClient extends Storage, FulltextStorage {
     socialType: SocialIdType,
     socialValue: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    options?: EnsurePersonOptions
   ) => Promise<{ uuid: PersonUuid, socialId: PersonId, localPerson: string }>
 
   createDoc: <T extends Doc>(
@@ -119,3 +120,8 @@ export interface RestClient extends Storage, FulltextStorage {
     modifiedBy?: PersonId
   ) => Promise<TxResult>
 }
+
+export interface EnsurePersonOptions {
+  addGuestEmployee?: boolean
+}
+>>>>>>> 662d376d32 (Fix guest identity to match other social ids)

@@ -26,7 +26,9 @@ import {
   DateRangeMode,
   IndexKind,
   type ClassCollaborators,
-  type AccountUuid
+  type AccountUuid,
+  SocialIdType
+
 } from '@hcengineering/core'
 import {
   type DevicesPreference,
@@ -800,5 +802,16 @@ export function createModel (builder: Builder): void {
     love.class.MeetingMinutes,
     'meetingEnd',
     'attribute'
+  )
+
+  builder.createDoc(
+    contact.class.SocialIdentityProvider,
+    core.space.Model,
+    {
+      label: love.string.Office,
+      icon: love.icon.Love,
+      type: SocialIdType.LOVE
+    },
+    love.socialIdentityProvider.Love
   )
 }
