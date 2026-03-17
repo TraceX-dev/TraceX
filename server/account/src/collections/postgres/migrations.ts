@@ -82,7 +82,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV22Migration(ns, flavor),
     getV23Migration(ns, flavor),
     getV24Migration(ns, flavor),
-    getV25Migration(ns, flavor)
+    getV25Migration(ns, flavor),
+    getV26Migration(ns, flavor)
   ]
 }
 
@@ -811,6 +812,16 @@ function getV25Migration(ns: string, flavor: DBFlavor): [string, string] {
 
     CREATE INDEX IF NOT EXISTS api_tokens_expires_on_idx
     ON ${ns}.api_tokens (expires_on);
+    `
+  ]
+}
+
+function getV26Migration (ns: string, flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v26_add_api_token_scopes',
+    `
+    ALTER TABLE ${ns}.api_tokens
+    ADD COLUMN IF NOT EXISTS scopes TEXT[] DEFAULT NULL;
     `
   ]
 }

@@ -118,6 +118,7 @@ export interface ApiTokenInfo {
   createdOn: number
   expiresOn: number
   revoked: boolean
+  scopes?: string[]
 }
 
 export interface ApiTokenResult {
