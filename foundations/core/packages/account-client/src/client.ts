@@ -35,6 +35,8 @@ import {
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import type {
   AccountAggregatedInfo,
+  ApiTokenInfo,
+  ApiTokenResult,
   Integration,
   IntegrationKey,
   IntegrationSecret,
@@ -251,6 +253,12 @@ export interface AccountClient {
   hasWorkspacePermission: (params: { accountId: AccountUuid, permission: string }) => Promise<boolean>
   getWorkspacePermissions: (params: { accountId: AccountUuid, permission: string }) => Promise<WorkspaceUuid[]>
   getWorkspaceUsersWithPermission: (params: { permission: string }) => Promise<AccountUuid[]>
+
+  createApiToken: (name: string, workspaceUuid: WorkspaceUuid, expiryDays: number) => Promise<ApiTokenResult>
+  listApiTokens: () => Promise<ApiTokenInfo[]>
+  revokeApiToken: (tokenId: string) => Promise<void>
+  listWorkspaceApiTokens: (workspaceUuid: WorkspaceUuid) => Promise<ApiTokenInfo[]>
+  revokeWorkspaceApiToken: (tokenId: string, workspaceUuid: WorkspaceUuid) => Promise<void>
 
   setCookie: () => Promise<void>
   deleteCookie: () => Promise<void>
@@ -1193,6 +1201,51 @@ class AccountClientImpl implements AccountClient {
     const request = {
       method: 'refreshHulyAssistantToken' as const,
       params: {}
+    }
+
+    await this.rpc(request)
+  }
+
+  async createApiToken (name: string, workspaceUuid: WorkspaceUuid, expiryDays: number): Promise<ApiTokenResult> {
+    const request = {
+      method: 'createApiToken' as const,
+      params: { name, workspaceUuid, expiryDays }
+    }
+
+    return await this.rpc(request)
+  }
+
+  async listApiTokens (): Promise<ApiTokenInfo[]> {
+    const request = {
+      method: 'listApiTokens' as const,
+      params: {}
+    }
+
+    return await this.rpc(request)
+  }
+
+  async revokeApiToken (tokenId: string): Promise<void> {
+    const request = {
+      method: 'revokeApiToken' as const,
+      params: { tokenId }
+    }
+
+    await this.rpc(request)
+  }
+
+  async listWorkspaceApiTokens (workspaceUuid: WorkspaceUuid): Promise<ApiTokenInfo[]> {
+    const request = {
+      method: 'listWorkspaceApiTokens' as const,
+      params: { workspaceUuid }
+    }
+
+    return await this.rpc(request)
+  }
+
+  async revokeWorkspaceApiToken (tokenId: string, workspaceUuid: WorkspaceUuid): Promise<void> {
+    const request = {
+      method: 'revokeWorkspaceApiToken' as const,
+      params: { tokenId, workspaceUuid }
     }
 
     await this.rpc(request)

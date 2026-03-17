@@ -199,7 +199,8 @@ export default plugin(settingId, {
     Export: '' as Ref<Doc>,
     OfficeSettings: '' as Ref<Doc>,
     DisablePermissionsConfiguration: '' as Ref<Configuration>,
-    Mailboxes: '' as Ref<Doc>
+    Mailboxes: '' as Ref<Doc>,
+    ApiTokens: '' as Ref<Doc>
   },
   mixin: {
     Editable: '' as Ref<Mixin<Editable>>,
@@ -244,7 +245,8 @@ export default plugin(settingId, {
     Mailboxes: '' as AnyComponent,
     AddEmailSocialId: '' as AnyComponent,
     OfficeSettings: '' as AnyComponent,
-    UserRoleSelect: '' as AnyComponent
+    UserRoleSelect: '' as AnyComponent,
+    ApiTokens: '' as AnyComponent
   },
   string: {
     Settings: '' as IntlString,
@@ -336,7 +338,41 @@ export default plugin(settingId, {
     Disconnected: '' as IntlString,
     Available: '' as IntlString,
     NotConnectedIntegration: '' as IntlString,
-    IntegrationIsUnstable: '' as IntlString
+    IntegrationIsUnstable: '' as IntlString,
+    ApiTokenStatusActive: '' as IntlString,
+    ApiTokenStatusExpiring: '' as IntlString,
+    ApiTokenStatusRevoked: '' as IntlString,
+    ApiTokenStatusExpired: '' as IntlString,
+    ApiTokenExpiry7Days: '' as IntlString,
+    ApiTokenExpiry30Days: '' as IntlString,
+    ApiTokenExpiry90Days: '' as IntlString,
+    ApiTokenExpiry180Days: '' as IntlString,
+    ApiTokenExpiry365Days: '' as IntlString,
+    ApiTokenLoadError: '' as IntlString,
+    ApiTokenCreateError: '' as IntlString,
+    ApiTokens: '' as IntlString,
+    CreateApiToken: '' as IntlString,
+    ApiTokenName: '' as IntlString,
+    ApiTokenExpiry: '' as IntlString,
+    ApiTokenCreated: '' as IntlString,
+    ApiTokenRevoke: '' as IntlString,
+    ApiTokenRevokeConfirm: '' as IntlString,
+    ApiTokenCopyWarning: '' as IntlString,
+    ApiTokenNoTokens: '' as IntlString,
+    ApiTokenWorkspace: '' as IntlString,
+    Created: '' as IntlString,
+    Expires: '' as IntlString,
+    TokenStatus: '' as IntlString,
+    ApiUsageTitle: '' as IntlString,
+    ApiUsageDescription: '' as IntlString,
+    ApiEndpointPing: '' as IntlString,
+    ApiEndpointFindAll: '' as IntlString,
+    ApiEndpointFindAllPost: '' as IntlString,
+    ApiEndpointTx: '' as IntlString,
+    ApiEndpointLoadModel: '' as IntlString,
+    ApiEndpointAccount: '' as IntlString,
+    ApiBaseUrl: '' as IntlString,
+    ApiWorkspaceId: '' as IntlString
   },
   icon: {
     AccountSettings: '' as Asset,
@@ -357,7 +393,8 @@ export default plugin(settingId, {
     Relations: '' as Asset,
     Mailbox: '' as Asset,
     OfficeSettings: '' as Asset,
-    Reset: '' as Asset
+    Reset: '' as Asset,
+    ApiToken: '' as Asset
   },
   templateFieldCategory: {
     Integration: '' as Ref<TemplateFieldCategory>
