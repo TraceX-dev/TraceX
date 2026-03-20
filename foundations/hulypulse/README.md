@@ -211,7 +211,7 @@ docker run -p 8095:8095 -it --rm hardcoreeng/service_hulypulse:{tag}
 
 Run from source using Redis:
 ```bash
-HULY_REDIS_URLS=redis://huly.local:6379 cargo run
+HULY_REDIS_URLS=redis://tracex.local:6379 cargo run
 ```
 
 Run from source in in-memory mode:
@@ -221,7 +221,7 @@ HULY_BACKEND=memory cargo run
 
 If you want to run the service as a part of local huly development environment use the following command:
 ```bash
- export HULY_REDIS_URLS="redis://huly.local:6379"
+ export HULY_REDIS_URLS="redis://tracex.local:6379"
  docker run --rm -it --network dev_default -p 8095:8095 hardcoreeng/service_hulypulse:{tag}
 ```
 This will run Hulypulse in the same network as the rest of huly services, and set the redis connection string to the one matching the local dev redis instance.
@@ -238,7 +238,7 @@ The following environment variables are used to configure hulypulse:
    - ```HULY_BIND_PORT```: port to bind the server to (default: 8094)
    - ```HULY_TOKEN_SECRET```: secret used to sign JWT tokens (default: secret)
    - ```HULY_BACKEND```: storage backend "redis" or "memory" (default: "redis")
-   - ```HULY_REDIS_URLS```: redis connection string (default: redis://huly.local:6379)
+   - ```HULY_REDIS_URLS```: redis connection string (default: redis://tracex.local:6379)
    - ```HULY_REDIS_PASSWORD```: redis password (default: "&lt;invalid&gt;")
    - ```HULY_REDIS_MODE```: redis mode "direct" or "sentinel" (default: "direct")
    - ```HULY_REDIS_SERVICE```: redis service (default: "mymaster")

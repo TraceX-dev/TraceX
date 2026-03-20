@@ -63,7 +63,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
 
         token_secret = "secret"
 
-        db_connection = "postgresql://root@huly.local:26257/defaultdb?sslmode=disable"
+        db_connection = "postgresql://root@tracex.local:26257/defaultdb?sslmode=disable"
         db_scheme = "hulylake"
 
         s3_bucket = "hulylake"
