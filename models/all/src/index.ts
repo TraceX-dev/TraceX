@@ -19,8 +19,6 @@ import { Builder } from '@hcengineering/model'
 import { activityId, createModel as activityModel } from '@hcengineering/model-activity'
 import { aiBotId, createModel as aiBotModel } from '@hcengineering/model-ai-bot'
 import { attachmentId, createModel as attachmentModel } from '@hcengineering/model-attachment'
-import bitrix, { bitrixId, createModel as bitrixModel } from '@hcengineering/model-bitrix'
-import board, { boardId, createModel as boardModel } from '@hcengineering/model-board'
 import calendar, { calendarId, createModel as calendarModel } from '@hcengineering/model-calendar'
 import card, { cardId, createModel as cardModel } from '@hcengineering/model-card'
 import chunter, { chunterId, createModel as chunterModel } from '@hcengineering/model-chunter'
@@ -32,7 +30,6 @@ import { driveId, createModel as driveModel } from '@hcengineering/model-drive'
 import gmail, { gmailId, createModel as gmailModel } from '@hcengineering/model-gmail'
 import { guestId, createModel as guestModel } from '@hcengineering/model-guest'
 import hr, { hrId, createModel as hrModel } from '@hcengineering/model-hr'
-import inventory, { inventoryId, createModel as inventoryModel } from '@hcengineering/model-inventory'
 import lead, { leadId, createModel as leadModel } from '@hcengineering/model-lead'
 import { mediaId, createModel as mediaModel } from '@hcengineering/model-media'
 import notification, { notificationId, createModel as notificationModel } from '@hcengineering/model-notification'
@@ -58,7 +55,6 @@ import { serverDriveId, createModel as serverDriveModel } from '@hcengineering/m
 import { serverGmailId, createModel as serverGmailModel } from '@hcengineering/model-server-gmail'
 import { serverGuestId, createModel as serverGuestModel } from '@hcengineering/model-server-guest'
 import { serverHrId, createModel as serverHrModel } from '@hcengineering/model-server-hr'
-import { serverInventoryId, createModel as serverInventoryModel } from '@hcengineering/model-server-inventory'
 import { serverLeadId, createModel as serverLeadModel } from '@hcengineering/model-server-lead'
 import { serverNotificationId, createModel as serverNotificationModel } from '@hcengineering/model-server-notification'
 import { serverRecruitId, createModel as serverRecruitModel } from '@hcengineering/model-server-recruit'
@@ -275,18 +271,6 @@ export default function buildModel (): Builder {
         classFilter: defaultFilter
       }
     ],
-    [
-      inventoryModel,
-      inventoryId,
-      {
-        label: inventory.string.ConfigLabel,
-        description: inventory.string.ConfigDescription,
-        enabled: false,
-        beta: true,
-        icon: inventory.icon.InventoryApplication,
-        classFilter: defaultFilter
-      }
-    ],
     [presentationModel, presentationId],
     [templatesModel, templatesId],
     [textEditorModel, textEditorId],
@@ -329,32 +313,6 @@ export default function buildModel (): Builder {
         enabled: true,
         beta: false,
         icon: document.icon.DocumentApplication,
-        classFilter: defaultFilter
-      }
-    ],
-    [
-      boardModel,
-      boardId,
-      {
-        label: board.string.ConfigLabel,
-        description: board.string.ConfigDescription,
-        enabled: false,
-        beta: true,
-        hidden: true,
-        icon: board.icon.Board,
-        classFilter: defaultFilter
-      }
-    ],
-    [
-      bitrixModel,
-      bitrixId,
-      {
-        label: bitrix.string.ConfigLabel,
-        description: bitrix.string.ConfigDescription,
-        enabled: false,
-        beta: true,
-        hidden: true,
-        icon: bitrix.icon.Bitrix,
         classFilter: defaultFilter
       }
     ],
@@ -543,7 +501,6 @@ export default function buildModel (): Builder {
     [serverContactModel, serverContactId],
     [serveSettingModel, serverSettingId],
     [serverChunterModel, serverChunterId],
-    [serverInventoryModel, serverInventoryId],
     [serverLeadModel, serverLeadId],
     [serverTagsModel, serverTagsId],
     [serverTaskModel, serverTaskId],

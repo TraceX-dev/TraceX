@@ -34,7 +34,6 @@ import { serverDriveId } from '@hcengineering/server-drive'
 import { serverGmailId } from '@hcengineering/server-gmail'
 import { serverGuestId } from '@hcengineering/server-guest'
 import { serverHrId } from '@hcengineering/server-hr'
-import { serverInventoryId } from '@hcengineering/server-inventory'
 import { serverLeadId } from '@hcengineering/server-lead'
 import { serverNotificationId } from '@hcengineering/server-notification'
 import { serverRecruitId } from '@hcengineering/server-recruit'
@@ -53,7 +52,6 @@ addLocation(serverCollaborationId, () => import('@hcengineering/server-collabora
 addLocation(serverContactId, () => import('@hcengineering/server-contact-resources'))
 addLocation(serverNotificationId, () => import('@hcengineering/server-notification-resources'))
 addLocation(serverChunterId, () => import('@hcengineering/server-chunter-resources'))
-addLocation(serverInventoryId, () => import('@hcengineering/server-inventory-resources'))
 addLocation(serverLeadId, () => import('@hcengineering/server-lead-resources'))
 addLocation(serverRecruitId, () => import('@hcengineering/server-recruit-resources'))
 addLocation(serverSettingId, () => import('@hcengineering/server-setting-resources'))

@@ -26,8 +26,6 @@ import {
 import { activityId } from '@hcengineering/activity'
 import aiBot, { aiBotId } from '@hcengineering/ai-bot'
 import { attachmentId } from '@hcengineering/attachment'
-import { bitrixId } from '@hcengineering/bitrix'
-import { boardId } from '@hcengineering/board'
 import calendar, { calendarId } from '@hcengineering/calendar'
 import { cardId } from '@hcengineering/card'
 import { chunterId } from '@hcengineering/chunter'
@@ -46,7 +44,6 @@ import globalProfile, { globalProfileId, globalProfileRoute } from '@hcengineeri
 import guest, { guestId } from '@hcengineering/guest'
 import { hrId } from '@hcengineering/hr'
 import { imageCropperId } from '@hcengineering/image-cropper'
-import { inventoryId } from '@hcengineering/inventory'
 import { leadId } from '@hcengineering/lead'
 import login, { loginId } from '@hcengineering/login'
 import notification, { notificationId } from '@hcengineering/notification'
@@ -90,8 +87,6 @@ import { qalicoId } from '@tracex/qalico'
 import '@hcengineering/activity-assets'
 import '@hcengineering/analytics-collector-assets'
 import '@hcengineering/attachment-assets'
-import '@hcengineering/bitrix-assets'
-import '@hcengineering/board-assets'
 import '@hcengineering/calendar-assets'
 import '@hcengineering/card-assets'
 import '@hcengineering/chunter-assets'
@@ -107,7 +102,6 @@ import '@hcengineering/gmail-assets'
 import '@hcengineering/guest-assets'
 import '@hcengineering/global-profile-assets'
 import '@hcengineering/hr-assets'
-import '@hcengineering/inventory-assets'
 import '@hcengineering/lead-assets'
 import '@hcengineering/login-assets'
 import '@hcengineering/love-assets'
@@ -206,18 +200,12 @@ function configureI18n (): void {
     attachmentId,
     async (lang: string) => await import(`@hcengineering/attachment-assets/lang/${lang}.json`)
   )
-  addStringsLoader(bitrixId, async (lang: string) => await import(`@hcengineering/bitrix-assets/lang/${lang}.json`))
-  addStringsLoader(boardId, async (lang: string) => await import(`@hcengineering/board-assets/lang/${lang}.json`))
   addStringsLoader(calendarId, async (lang: string) => await import(`@hcengineering/calendar-assets/lang/${lang}.json`))
   addStringsLoader(chunterId, async (lang: string) => await import(`@hcengineering/chunter-assets/lang/${lang}.json`))
   addStringsLoader(contactId, async (lang: string) => await import(`@hcengineering/contact-assets/lang/${lang}.json`))
   addStringsLoader(driveId, async (lang: string) => await import(`@hcengineering/drive-assets/lang/${lang}.json`))
   addStringsLoader(gmailId, async (lang: string) => await import(`@hcengineering/gmail-assets/lang/${lang}.json`))
   addStringsLoader(hrId, async (lang: string) => await import(`@hcengineering/hr-assets/lang/${lang}.json`))
-  addStringsLoader(
-    inventoryId,
-    async (lang: string) => await import(`@hcengineering/inventory-assets/lang/${lang}.json`)
-  )
   addStringsLoader(leadId, async (lang: string) => await import(`@hcengineering/lead-assets/lang/${lang}.json`))
   addStringsLoader(loginId, async (lang: string) => await import(`@hcengineering/login-assets/lang/${lang}.json`))
   addStringsLoader(
@@ -451,7 +439,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   addLocation(attachmentId, async () => await import('@hcengineering/attachment-resources'))
   addLocation(gmailId, async () => await import('@hcengineering/gmail-resources'))
   addLocation(imageCropperId, async () => await import('@hcengineering/image-cropper-resources'))
-  addLocation(inventoryId, async () => await import('@hcengineering/inventory-resources'))
   addLocation(templatesId, async () => await import('@hcengineering/templates-resources'))
   addLocation(notificationId, async () => await import('@hcengineering/notification-resources'))
   addLocation(tagsId, async () => await import('@hcengineering/tags-resources'))
@@ -460,9 +447,7 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   addLocation(aiBotId, async () => await import('@hcengineering/ai-bot-resources'))
 
   addLocation(trackerId, async () => await import('@hcengineering/tracker-resources'))
-  addLocation(boardId, async () => await import('@hcengineering/board-resources'))
   addLocation(hrId, async () => await import('@hcengineering/hr-resources'))
-  addLocation(bitrixId, async () => await import('@hcengineering/bitrix-resources'))
   addLocation(requestId, async () => await import('@hcengineering/request-resources'))
   addLocation(driveId, async () => await import('@hcengineering/drive-resources'))
   addLocation(supportId, async () => await import('@hcengineering/support-resources'))

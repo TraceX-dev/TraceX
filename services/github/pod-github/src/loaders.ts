@@ -2,15 +2,12 @@ import { coreId } from '@hcengineering/core'
 
 import { activityId } from '@hcengineering/activity'
 import { attachmentId } from '@hcengineering/attachment'
-import { bitrixId } from '@hcengineering/bitrix'
-import { boardId } from '@hcengineering/board'
 import { calendarId } from '@hcengineering/calendar'
 import { chunterId } from '@hcengineering/chunter'
 import { contactId } from '@hcengineering/contact'
 import { driveId } from '@hcengineering/drive'
 import { gmailId } from '@hcengineering/gmail'
 import { hrId } from '@hcengineering/hr'
-import { inventoryId } from '@hcengineering/inventory'
 import { leadId } from '@hcengineering/lead'
 import { loginId } from '@hcengineering/login'
 import { notificationId } from '@hcengineering/notification'
@@ -31,8 +28,6 @@ import { githubId } from '@hcengineering/github'
 
 import activityEn from '@hcengineering/activity-assets/lang/en.json'
 import attachmentEn from '@hcengineering/attachment-assets/lang/en.json'
-import bitrixEn from '@hcengineering/bitrix-assets/lang/en.json'
-import boardEn from '@hcengineering/board-assets/lang/en.json'
 import calendarEn from '@hcengineering/calendar-assets/lang/en.json'
 import chunterEn from '@hcengineering/chunter-assets/lang/en.json'
 import contactEn from '@hcengineering/contact-assets/lang/en.json'
@@ -40,7 +35,6 @@ import coreEng from '@hcengineering/core/lang/en.json'
 import driveEn from '@hcengineering/drive-assets/lang/en.json'
 import gmailEn from '@hcengineering/gmail-assets/lang/en.json'
 import hrEn from '@hcengineering/hr-assets/lang/en.json'
-import inventoryEn from '@hcengineering/inventory-assets/lang/en.json'
 import leadEn from '@hcengineering/lead-assets/lang/en.json'
 import loginEng from '@hcengineering/login-assets/lang/en.json'
 import platformEng from '@hcengineering/platform/lang/en.json'
@@ -78,17 +72,14 @@ export function registerLoaders (): void {
   addStringsLoader(leadId, async (lang: string) => leadEn)
   addStringsLoader(gmailId, async (lang: string) => gmailEn)
   addStringsLoader(workbenchId, async (lang: string) => workbenchEn)
-  addStringsLoader(inventoryId, async (lang: string) => inventoryEn)
   addStringsLoader(templatesId, async (lang: string) => templatesEn)
   addStringsLoader(notificationId, async (lang: string) => notificationEn)
   addStringsLoader(tagsId, async (lang: string) => tagsEn)
   addStringsLoader(calendarId, async (lang: string) => calendarEn)
   addStringsLoader(trackerId, async (lang: string) => trackerEn)
-  addStringsLoader(boardId, async (lang: string) => boardEn)
   addStringsLoader(preferenceId, async (lang: string) => preferenceEn)
   addStringsLoader(hrId, async (lang: string) => hrEn)
   addStringsLoader(documentId, async (lang: string) => documentEn)
-  addStringsLoader(bitrixId, async (lang: string) => bitrixEn)
   addStringsLoader(requestId, async (lang: string) => requestEn)
   addStringsLoader(supportId, async (lang: string) => supportEn)
   addStringsLoader(githubId, async (lang: string) => githubEn)

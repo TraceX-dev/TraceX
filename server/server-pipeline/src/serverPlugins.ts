@@ -13,7 +13,6 @@ import { serverGithubId } from '@hcengineering/server-github'
 import { serverGmailId } from '@hcengineering/server-gmail'
 import { serverGuestId } from '@hcengineering/server-guest'
 import { serverHrId } from '@hcengineering/server-hr'
-import { serverInventoryId } from '@hcengineering/server-inventory'
 import { serverLeadId } from '@hcengineering/server-lead'
 import { serverLoveId } from '@hcengineering/server-love'
 import { serverNotificationId } from '@hcengineering/server-notification'
@@ -38,7 +37,6 @@ export function registerServerPlugins (): void {
   addLocation(serverNotificationId, () => import('@hcengineering/server-notification-resources'))
   addLocation(serverSettingId, () => import('@hcengineering/server-setting-resources'))
   addLocation(serverChunterId, () => import('@hcengineering/server-chunter-resources'))
-  addLocation(serverInventoryId, () => import('@hcengineering/server-inventory-resources'))
   addLocation(serverLeadId, () => import('@hcengineering/server-lead-resources'))
   addLocation(serverRecruitId, () => import('@hcengineering/server-recruit-resources'))
   addLocation(serverTaskId, () => import('@hcengineering/server-task-resources'))
