@@ -1,32 +1,32 @@
 {
-  "huly.local:8080": {
-    "key": "huly-dev",
-    "title": "Huly",
+  "tracex.local:8080": {
+    "key": "tracex-dev",
+    "title": "TraceX",
     "protocol": "http",
     "language": "en",
     "lastNameFirst": "true"
   },
-  "huly.local:8087": {
-    "key": "huly",
-    "title": "Huly",
+  "tracex.local:8087": {
+    "key": "tracex",
+    "title": "TraceX",
     "protocol": "http",
     "language": "en",
     "lastNameFirst": "true"
   },
   "host.docker.internal:8087": {
-    "key": "huly-docker",
-    "title": "Huly",
+    "key": "tracex-docker",
+    "title": "TraceX",
     "protocol": "http",
     "language": "en",
     "lastNameFirst": "true"
   },
-  "huly.local:8081": {
+  "tracex.local:8081": {
     "key": "tracex-dev",
     "title": "TraceX",
     "protocol": "http",
     "language": "en"
   },
-  "huly.local:8088": {
+  "tracex.local:8088": {
     "key": "tracex",
     "title": "TraceX",
     "protocol": "http",
@@ -34,7 +34,7 @@
   },
   "host.docker.internal:8088": {
     "key": "tracex-docker",
-    "title": "Huly",
+    "title": "TraceX",
     "protocol": "http",
     "language": "en",
     "lastNameFirst": "true"
