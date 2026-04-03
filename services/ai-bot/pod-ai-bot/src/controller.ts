@@ -38,11 +38,10 @@ import core, {
   type WorkspaceUuid
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
-import { WorkspaceInfoRecord } from '@hcengineering/server-ai-bot'
 import { getAccountClient } from '@hcengineering/server-client'
 import { generateToken } from '@hcengineering/server-token'
 import { htmlToMarkup, jsonToHTML, jsonToMarkup, markupToJSON } from '@hcengineering/text'
-import { encodingForModel, getEncoding } from 'js-tiktoken'
+import { getEncoding } from 'js-tiktoken'
 import OpenAI from 'openai'
 
 import chunter from '@hcengineering/chunter'
@@ -50,11 +49,11 @@ import { StorageAdapter } from '@hcengineering/server-core'
 import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
 import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 import config from './config'
-import { DbStorage } from './storage'
 import { tryAssignToWorkspace } from './utils/account'
 import { summarizeMessages, translateHtml } from './utils/openai'
 import { WorkspaceClient } from './workspace/workspaceClient'
 import contact, { Contact, getName, SocialIdentityRef } from '@hcengineering/contact'
+// import { ensureProviderIntegrations } from './providers/bootstrap'
 
 const CLOSE_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 
@@ -66,37 +65,26 @@ export class AIControl {
   readonly storageAdapter: StorageAdapter
 
   private readonly openai?: OpenAI
+  private readonly openaiModel: string
 
-  // Try to obtain the encoding for the configured model. If the model is not recognised by js-tiktoken
-  // (e.g. non-OpenAI models such as Together AI Llama derivatives) we gracefully fall back to the
-  // universal `cl100k_base` encoding. This prevents a runtime "Unknown model" error while still
-  // giving us a reasonable token count estimate for summaries.
-  private readonly openaiEncoding = (() => {
-    try {
-      return encodingForModel(config.OpenAIModel as any)
-    } catch (err) {
-      return getEncoding('cl100k_base')
-    }
-  })()
+  private readonly openaiEncoding = getEncoding('cl100k_base')
 
   constructor (
     readonly personUuid: AccountUuid,
     readonly socialIds: SocialId[],
-    private readonly storage: DbStorage,
     private readonly ctx: MeasureContext
   ) {
+    // Find the first enabled openai-type provider to use for legacy translate/summarize
+    const openaiProvider = config.AIProviders.find((p) => (p.type === 'openai' || p.type === 'openai-compatible') && p.enabled)
     this.openai =
-      config.OpenAIKey !== ''
+      openaiProvider !== undefined
         ? new OpenAI({
-          apiKey: config.OpenAIKey,
-          baseURL: config.OpenAIBaseUrl === '' ? undefined : config.OpenAIBaseUrl
+          apiKey: openaiProvider.token,
+          ...(openaiProvider.baseUrl !== undefined ? { baseURL: openaiProvider.baseUrl } : {})
         })
         : undefined
+    this.openaiModel = openaiProvider?.models[0] ?? 'gpt-4o-mini'
     this.storageAdapter = buildStorageFromConfig(storageConfigFromEnv())
-  }
-
-  async getWorkspaceRecord (workspace: string): Promise<WorkspaceInfoRecord | undefined> {
-    return await this.storage.getWorkspace(workspace)
   }
 
   async closeWorkspaceClient (workspace: WorkspaceUuid): Promise<void> {
@@ -128,10 +116,7 @@ export class AIControl {
     this.closeWorkspaceTimeouts.set(workspace, newTimeoutId)
   }
 
-  async createWorkspaceClient (
-    workspace: WorkspaceUuid,
-    info: WorkspaceInfoRecord
-  ): Promise<WorkspaceClient | undefined> {
+  async createWorkspaceClient (workspace: WorkspaceUuid): Promise<WorkspaceClient | undefined> {
     const isAssigned = await tryAssignToWorkspace(workspace, this.ctx)
 
     if (!isAssigned) {
@@ -157,16 +142,12 @@ export class AIControl {
 
     return new WorkspaceClient(
       this.storageAdapter,
-      this.storage,
       wsLoginInfo.endpoint,
       token,
       wsIds,
       this.personUuid,
       this.socialIds,
-      this.ctx.newChild('create-workspace', {}, { span: false }),
-      this.openai,
-      this.openaiEncoding,
-      info
+      this.ctx.newChild('create-workspace', {}, { span: false })
     )
   }
 
@@ -178,8 +159,7 @@ export class AIControl {
     const initPromise = (async () => {
       try {
         if (!this.workspaces.has(workspace)) {
-          const record = (await this.getWorkspaceRecord(workspace)) ?? { workspace }
-          const client = await this.createWorkspaceClient(workspace, record)
+          const client = await this.createWorkspaceClient(workspace)
           if (client === undefined) {
             return
           }

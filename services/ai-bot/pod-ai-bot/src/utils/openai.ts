@@ -23,8 +23,95 @@ import contact, { Contact } from '@hcengineering/contact'
 import config from '../config'
 import { HistoryRecord } from '../types'
 import { WorkspaceClient } from '../workspace/workspaceClient'
-import { getTools } from './tools'
+import { getTools } from '../tools'
 import { pushTokensData } from '../billing'
+import { ContextMode } from '../providers/types'
+
+interface PromptParams {
+  lang?: string
+  contextMode?: ContextMode
+  assistantMemory?: string
+  userMemory?: string
+  sharedContext?: string
+}
+
+const PROMPTS = {
+  DIRECT: (params: PromptParams): string => {
+    const { assistantMemory, userMemory, sharedContext } = params
+
+    return `You are a helpful AI assistant in a direct chat with a user.
+
+**Your role:**
+- Assist users with their questions and tasks
+- Provide accurate, factual responses based on available information and tools
+- Adapt your communication style to user preferences when explicitly specified
+
+${assistantMemory !== '' ? `**Your persona and behavior:**\n${assistantMemory}\n` : ''}
+${userMemory !== '' ? `**User preferences and context:**\n${userMemory}\n` : ''}
+${sharedContext !== '' ? `**Shared preferences:**\n${sharedContext}\n` : ''}
+
+**Available tools:**
+- update_assistant_memory: Update assistant personality (name, behavior, etc.)
+- update_user_memory: Update information about the user (preferences, context, personal info, how to address user in direct chats)
+- update_shared_context: Update shared context (language, timezone, group chat preferences, how to address user in group or general chats)
+- get_assistant_memory: Check current information about yourself
+- get_user_memory: Check current information about the user
+- get_history_summary: Get a summary of past conversations — use this when you need context beyond the last ~20 messages
+- clear_assistant_memory / clear_user_memory / clear_history: Clear respective data — only use these when the user explicitly requests it
+
+**Memory tool guidelines:**
+- Save to memory when the user shares important personal information or instructs you to change your behavior
+- Do not save ephemeral, sensitive, or one-off information (e.g. temporary tasks, passwords, private data)
+- Use get_history_summary proactively in long conversations before assuming you lack context
+
+**Accuracy guidelines:**
+- Only use information explicitly present in the conversation, context, or retrieved via tools
+- Never invent, assume, or fabricate details not present in available data
+- If you lack information to answer accurately, say so clearly — e.g. "I don't have information about this"
+- Distinguish clearly between confirmed facts and any inferences you make`
+  },
+
+  THREAD: (params: PromptParams): string => {
+    const { sharedContext } = params
+
+    return `You are a helpful AI assistant participating in a group conversation.
+
+**Your role:**
+- Assist all participants with their questions and tasks
+- Contribute meaningfully to group discussions while staying on topic
+- Treat all participants equally and maintain a professional tone
+
+${sharedContext !== '' ? `**Shared preferences:**\n${sharedContext}\n` : ''}
+
+**Group chat guidelines:**
+- This is a shared conversation — do not reference or use personal information about any individual participant
+- Do not use memory tools (update_assistant_memory, update_user_memory, etc.)
+- Keep responses neutral and avoid personalization
+- Focus only on the current discussion context; do not assume relationships or context not explicitly stated in the messages
+
+**Accuracy guidelines:**
+- Only use information explicitly present in the conversation or message history
+- Never invent, assume, or fabricate details not present in the discussion
+- If you lack information to answer accurately, say so clearly — e.g. "I don't have information about this"
+- Distinguish clearly between confirmed facts and any inferences you make`
+  },
+
+  SUMMARIZE: (params: PromptParams): string => {
+    const { lang } = params
+    return `Generate a summary from the provided sequence of messages by creating separate bullet lists for each participant, ensuring that each bullet point includes only the key points, problems and further work plans without any chit-chat, and clearly label each participant so that their individual contributions are distinctly summarized.
+  Use following structure for output:
+    **@Participant Name**
+      - Key point 1
+      - Key point 2
+      - ...
+    **@Participant Name**
+      - Key point 1
+      - ...
+  Don't introduce any other elements of the structure.
+  If a bullet point implies a reference to another participant include a reference according to this format: **@Participant Name**
+  The response should be translated into ${lang} regardless of the original language. Don't translate the names of the participants and leave them exactly as they appear in the text.`
+  }
+}
 
 export async function translateHtml (
   ctx: MeasureContext,
@@ -88,18 +175,7 @@ export async function summarizeMessages (
 
   const text = messages.map((p) => '---\n\n@' + p.personName + '\n' + p.text).join('\n\n')
 
-  const prompt = `Generate a summary from the provided sequence of messages by creating separate bullet lists for each participant, ensuring that each bullet point includes only the key points, problems and further work plans without any chit-chat, and clearly label each participant so that their individual contributions are distinctly summarized.
-  Use following structure for output:
-    **@Participant Name**
-      - Key point 1
-      - Key point 2
-      - ...
-    **@Participant Name**
-      - Key point 1
-      - ...
-  Don't introduce any other elements of the structure.
-  If a bullet point implies a reference to another participant include a reference according to this format: **@Participant Name**
-  The response should be translated into ${lang} regardless of the original language. Don't translate the names of the participants and leave them exactly as they appear in the text.`
+  const prompt = PROMPTS.SUMMARIZE({ lang })
 
   const response = await client.chat.completions.create({
     model: config.OpenAIModel,
@@ -190,7 +266,11 @@ export async function createChatCompletionWithTools (
   workspaceClient: WorkspaceClient,
   client: OpenAI,
   message: OpenAI.ChatCompletionMessageParam,
-  user?: AccountUuid,
+  contextMode: ContextMode,
+  user: AccountUuid,
+  assistantMemory: string,
+  userMemory: string,
+  sharedContext: string,
   history: OpenAI.ChatCompletionMessageParam[] = [],
   skipCache = true,
   reason = 'chat'
@@ -207,25 +287,36 @@ export async function createChatCompletionWithTools (
     opt.headers = { 'cf-skip-cache': 'true' }
   }
   try {
+    const isDirectMode = contextMode === 'direct'
+
+    const prompt = isDirectMode
+      ? PROMPTS.DIRECT({ assistantMemory, userMemory, sharedContext })
+      : PROMPTS.THREAD({ sharedContext })
+
     const res = client.beta.chat.completions.runTools(
       {
         messages: [
           {
             role: 'system',
-            content: 'Use tools if possible, don`t use previous information after success using tool for user request'
+            content: prompt
           },
           ...history,
           message
         ],
         model: config.OpenAIModel,
         user,
-        tools: getTools(workspaceClient, user)
+        tools: getTools(workspaceClient, contextMode, user)
       },
       opt
     )
 
-    const str = await res.finalContent()
+    let str = await res.finalContent()
     const usage = await res.totalUsage()
+
+    const pos = (str ?? '').indexOf('</think>')
+    if (pos > 0) {
+      str = (str ?? '').substring(pos + 8)
+    }
 
     if (usage != null) {
       void pushTokensData(workspaceClient.ctx, [

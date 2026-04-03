@@ -16,7 +16,6 @@ import core, { Client, Ref, TxOperations, AccountUuid } from '@hcengineering/cor
 import { createClient } from '@hcengineering/server-client'
 import contact, { Employee, Person } from '@hcengineering/contact'
 import chunter, { DirectMessage } from '@hcengineering/chunter'
-import { aiBotEmailSocialKey } from '@hcengineering/ai-bot'
 import notification from '@hcengineering/notification'
 
 export async function connectPlatform (token: string, endpoint: string): Promise<Client> {
@@ -40,37 +39,39 @@ export async function getDirect (
   account: AccountUuid,
   aiPerson?: Ref<Person>
 ): Promise<Ref<DirectMessage> | undefined> {
-  const aibotAccount = await getAccountBySocialKey(client, aiBotEmailSocialKey)
-  if (aibotAccount == null) return undefined
+  return undefined
 
-  const existingDm = (await client.findAll(chunter.class.DirectMessage, { members: aibotAccount })).find((dm) =>
-    dm.members.every((m) => m === aibotAccount || m === account)
-  )
+  // const aibotAccount = await getAccountBySocialKey(client, aiBotEmailSocialKey)
+  // if (aibotAccount == null) return undefined
 
-  if (existingDm !== undefined) {
-    return existingDm._id
-  }
+  // const existingDm = (await client.findAll(chunter.class.DirectMessage, { members: aibotAccount })).find((dm) =>
+  //   dm.members.every((m) => m === aibotAccount || m === account)
+  // )
 
-  const dmId = await client.createDoc<DirectMessage>(chunter.class.DirectMessage, core.space.Space, {
-    name: '',
-    description: '',
-    private: true,
-    archived: false,
-    members: [aibotAccount, account]
-  })
+  // if (existingDm !== undefined) {
+  //   return existingDm._id
+  // }
 
-  if (aiPerson === undefined) return dmId
+  // const dmId = await client.createDoc<DirectMessage>(chunter.class.DirectMessage, core.space.Space, {
+  //   name: '',
+  //   description: '',
+  //   private: true,
+  //   archived: false,
+  //   members: [aibotAccount, account]
+  // })
 
-  const space = await client.findOne(contact.class.PersonSpace, { person: aiPerson })
-  if (space === undefined) return dmId
-  await client.createDoc(notification.class.DocNotifyContext, space._id, {
-    user: aibotAccount,
-    objectId: dmId,
-    objectClass: chunter.class.DirectMessage,
-    objectSpace: core.space.Space,
-    isPinned: false,
-    hidden: false
-  })
+  // if (aiPerson === undefined) return dmId
 
-  return dmId
+  // const space = await client.findOne(contact.class.PersonSpace, { person: aiPerson })
+  // if (space === undefined) return dmId
+  // await client.createDoc(notification.class.DocNotifyContext, space._id, {
+  //   user: aibotAccount,
+  //   objectId: dmId,
+  //   objectClass: chunter.class.DirectMessage,
+  //   objectSpace: core.space.Space,
+  //   isPinned: false,
+  //   hidden: false
+  // })
+
+  // return dmId
 }
