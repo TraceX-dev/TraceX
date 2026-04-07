@@ -1,6 +1,6 @@
 services:
   stream:
-    image: 'hardcoreeng/stream'
+    image: 'tracex/stream'
     pull_policy: always
     extra_hosts:
       - 'tracex.local:host-gateway'
@@ -103,7 +103,7 @@ services:
       interval: 5s
       retries: 10
   datalake:
-    image: hardcoreeng/datalake
+    image: tracex/datalake
     depends_on:
       minio:
         condition: service_healthy
@@ -143,7 +143,7 @@ services:
       retries: 10
       test: curl -s http://tracex.local:9200/_cluster/health | grep -vq '"status":"red"'
   account:
-    image: hardcoreeng/account
+    image: tracex/account
     pull_policy: never
     extra_hosts:
       - 'tracex.local:host-gateway'
@@ -178,7 +178,7 @@ services:
       # - DISABLE_SIGNUP=true
     restart: unless-stopped
   stats:
-    image: hardcoreeng/stats
+    image: tracex/stats
     extra_hosts:
       - 'tracex.local:host-gateway'
     ports:
@@ -188,7 +188,7 @@ services:
       - SERVER_SECRET=secret
     restart: unless-stopped
   workspace:
-    image: hardcoreeng/workspace
+    image: tracex/workspace
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -213,7 +213,7 @@ services:
       # - INIT_WORKSPACE=huly
     restart: unless-stopped
   workspace_europe:
-    image: hardcoreeng/workspace
+    image: tracex/workspace
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -238,7 +238,7 @@ services:
       # - INIT_WORKSPACE=huly
     restart: unless-stopped
   collaborator:
-    image: hardcoreeng/collaborator
+    image: tracex/collaborator
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -256,7 +256,7 @@ services:
       - STATS_URL=http://tracex.local:4901
     restart: unless-stopped
   front:
-    image: hardcoreeng/front
+    image: tracex/front
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -293,7 +293,7 @@ services:
       # - DISABLE_SIGNUP=true
     restart: unless-stopped
   transactor:
-    image: hardcoreeng/transactor
+    image: tracex/transactor
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -325,7 +325,7 @@ services:
       - RATE_LIMIT_MAX=25000
       - RATE_LIMIT_WINDOW=1000
   transactor-europe:
-    image: hardcoreeng/transactor
+    image: tracex/transactor
     extra_hosts:
       - 'tracex.local:host-gateway'
     pull_policy: never
@@ -359,7 +359,7 @@ services:
       - RATE_LIMIT_WINDOW=1000
     restart: unless-stopped
   rekoni:
-    image: hardcoreeng/rekoni-service
+    image: tracex/rekoni-service
     extra_hosts:
       - 'tracex.local:host-gateway'
     restart: unless-stopped
@@ -368,7 +368,7 @@ services:
     environment:
       - STATS_URL=http://tracex.local:4901
   fulltext:
-    image: hardcoreeng/fulltext
+    image: tracex/fulltext
     extra_hosts:
       - 'tracex.local:host-gateway'
     restart: unless-stopped
@@ -390,7 +390,7 @@ services:
       - REKONI_URL=http://tracex.local:4007
       - ACCOUNTS_URL=http://tracex.local:3003
   fulltext-europe:
-    image: hardcoreeng/fulltext
+    image: tracex/fulltext
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -413,7 +413,7 @@ services:
       - ACCOUNTS_URL=http://tracex.local:3003
     restart: unless-stopped
   aiBot:
-    image: hardcoreeng/ai-bot
+    image: tracex/ai-bot
     ports:
       - 4011:4010
     extra_hosts:

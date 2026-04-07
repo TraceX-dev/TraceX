@@ -1,4 +1,4 @@
-FROM hardcoreeng/base-slim:v20250915
+FROM tracex/base-slim:v20250915
 
 WORKDIR /usr/src/app
 

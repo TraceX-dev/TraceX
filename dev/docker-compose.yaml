@@ -1,6 +1,6 @@
 services:
   stream:
-    image: 'hardcoreeng/stream'
+    image: 'tracex/stream'
     extra_hosts:
       - 'tracex.local:host-gateway'
     container_name: stream
@@ -18,7 +18,7 @@ services:
       - 1080:1080
     restart: unless-stopped
   media:
-    image: 'hardcoreeng/media'
+    image: 'tracex/media'
     extra_hosts:
       - 'tracex.local:host-gateway'
     container_name: media
@@ -29,7 +29,7 @@ services:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
     restart: unless-stopped
   preview:
-    image: 'hardcoreeng/preview'
+    image: 'tracex/preview'
     extra_hosts:
       - 'tracex.local:host-gateway'
     container_name: preview
@@ -41,7 +41,7 @@ services:
       - 4040:4040
     restart: unless-stopped
   link-preview:
-    image: 'hardcoreeng/link-preview'
+    image: 'tracex/link-preview'
     extra_hosts:
       - 'tracex.local:host-gateway'
     container_name: link-preview
@@ -166,7 +166,7 @@ services:
     restart: unless-stopped
 
   account:
-    image: hardcoreeng/account
+    image: tracex/account
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -200,7 +200,7 @@ services:
       - MAILBOX_MAX_COUNT_PER_ACCOUNT=2
     restart: unless-stopped
   stats:
-    image: hardcoreeng/stats
+    image: tracex/stats
     extra_hosts:
       - 'tracex.local:host-gateway'
     ports:
@@ -211,7 +211,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   payment:
-    image: hardcoreeng/payment
+    image: tracex/payment
     extra_hosts:
       - 'tracex.local:host-gateway'
     ports:
@@ -228,7 +228,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   workspace_cockroach:
-    image: hardcoreeng/workspace
+    image: tracex/workspace
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -258,7 +258,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   collaborator:
-    image: hardcoreeng/collaborator
+    image: tracex/collaborator
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -276,7 +276,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   front:
-    image: hardcoreeng/front
+    image: tracex/front
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -320,7 +320,7 @@ services:
       - LINK_PREVIEW_URL=http://tracex.local:4041
     restart: unless-stopped
   transactor_cockroach:
-    image: hardcoreeng/transactor
+    image: tracex/transactor
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -362,7 +362,7 @@ services:
       - HYLYLAKE_URL=http://tracex.local:8096
     restart: unless-stopped
   rekoni:
-    image: hardcoreeng/rekoni-service
+    image: tracex/rekoni-service
     extra_hosts:
       - 'tracex.local:host-gateway'
     restart: unless-stopped
@@ -372,7 +372,7 @@ services:
       - STATS_URL=http://tracex.local:4901
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
   fulltext_cockroach:
-    image: hardcoreeng/fulltext
+    image: tracex/fulltext
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
@@ -401,7 +401,7 @@ services:
       - HULYLAKE_URL=http://tracex.local:8096
       - COMMUNICATION_API_ENABLED=true
   print:
-    image: hardcoreeng/print
+    image: tracex/print
     extra_hosts:
       - 'tracex.local:host-gateway'
     restart: unless-stopped
@@ -416,7 +416,7 @@ services:
       - ACCOUNTS_URL=http://tracex.local:3000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
   sign:
-    image: hardcoreeng/sign
+    image: tracex/sign
     extra_hosts:
       - 'tracex.local:host-gateway'
     restart: unless-stopped
@@ -438,7 +438,7 @@ services:
       - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
   # aiBot:
-  #   image: hardcoreeng/ai-bot
+  #   image: tracex/ai-bot
   #   ports:
   #     - 4010:4010
   #   extra_hosts:
@@ -459,7 +459,7 @@ services:
   # #      - LOVE_ENDPOINT=http://tracex.local:8096
   # #      - OPENAI_API_KEY=token
   analytics:
-    image: hardcoreeng/analytics-collector
+    image: tracex/analytics-collector
     extra_hosts:
       - 'tracex.local:host-gateway'
     restart: unless-stopped
@@ -476,7 +476,7 @@ services:
       # - POSTHOG_API_KEY=${POSTHOG_API_KEY}
       # - MAX_PAYLOAD_SIZE=10mb
   export:
-    image: hardcoreeng/export
+    image: tracex/export
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -495,7 +495,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   datalake:
-    image: hardcoreeng/datalake
+    image: tracex/datalake
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
@@ -521,7 +521,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   hulylake:
-    image: hardcoreeng/hulylake
+    image: tracex/hulylake
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
@@ -540,7 +540,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=minioadmin
     restart: unless-stopped
   hulykvs:
-    image: hardcoreeng/hulykvs
+    image: tracex/hulykvs
     depends_on:
       cockroach:
         condition: service_started
@@ -553,7 +553,7 @@ services:
       - HULY_TOKEN_SECRET=secret
     restart: unless-stopped
   hulygun:
-    image: hardcoreeng/hulygun
+    image: tracex/hulygun
     depends_on:
       redpanda:
         condition: service_started
@@ -568,7 +568,7 @@ services:
       - HULY_ACCOUNT_SERVICE=http://tracex.local:3000
     restart: unless-stopped
   hulypulse:
-    image: hardcoreeng/hulypulse
+    image: tracex/hulypulse
     depends_on:
       redis:
         condition: service_started
@@ -580,7 +580,7 @@ services:
     restart: unless-stopped
 
   process-service:
-    image: hardcoreeng/process
+    image: tracex/process
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
@@ -595,7 +595,7 @@ services:
       - QUEUE_REGION=cockroach
     restart: unless-stopped
   time-machine:
-    image: hardcoreeng/worker
+    image: tracex/worker
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
@@ -611,7 +611,7 @@ services:
       - QUEUE_REGION=cockroach
     restart: unless-stopped
   #  translate:
-  #    image: hardcoreeng/translate
+  #    image: tracex/translate
   #    extra_hosts:
   #      - 'tracex.local:host-gateway'
   #    depends_on:
@@ -628,7 +628,7 @@ services:
   #      - OPENAI_API_KEY=
   #    restart: unless-stopped
   backup-cockroach:
-    image: hardcoreeng/backup
+    image: tracex/backup
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
@@ -656,7 +656,7 @@ services:
       - TEMPORAL_ADDRESS=localhost:7233
     restart: unless-stopped
   backup-api:
-    image: hardcoreeng/backup-api
+    image: tracex/backup-api
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
@@ -679,7 +679,7 @@ services:
     restart: unless-stopped
 
   rating_cockroach:
-    image: hardcoreeng/rating
+    image: tracex/rating
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:

@@ -361,38 +361,38 @@ sequenceDiagram
 | Service | Container | Port | Purpose | Dependencies |
 |---------|-----------|------|---------|--------------|
 | **Frontend** | | | | |
-| front | hardcoreeng/front | 8087/8088 | Web application server | account, transactor, collaborator, datalake |
+| front | tracex/front | 8087/8088 | Web application server | account, transactor, collaborator, datalake |
 | **Core** | | | | |
-| account | hardcoreeng/account | 3000 | Authentication & user management | cockroach, redpanda, stats |
-| transactor | hardcoreeng/transactor | 3332 | Transaction processing (WebSocket) | cockroach, redpanda, fulltext, account |
-| workspace | hardcoreeng/workspace | - | Workspace management | cockroach, redpanda, minio, account |
-| stats | hardcoreeng/stats | 4900 | Metrics collection | - |
+| account | tracex/account | 3000 | Authentication & user management | cockroach, redpanda, stats |
+| transactor | tracex/transactor | 3332 | Transaction processing (WebSocket) | cockroach, redpanda, fulltext, account |
+| workspace | tracex/workspace | - | Workspace management | cockroach, redpanda, minio, account |
+| stats | tracex/stats | 4900 | Metrics collection | - |
 | **Storage** | | | | |
-| datalake | hardcoreeng/datalake | 4030 | Blob storage & metadata | cockroach, minio, account |
-| hulylake | hardcoreeng/hulylake | 8096 | Storage adapter API | cockroach, minio |
-| hulykvs | hardcoreeng/hulykvs | 8094 | Key-value store | cockroach |
+| datalake | tracex/datalake | 4030 | Blob storage & metadata | cockroach, minio, account |
+| hulylake | tracex/hulylake | 8096 | Storage adapter API | cockroach, minio |
+| hulykvs | tracex/hulykvs | 8094 | Key-value store | cockroach |
 | **Search** | | | | |
-| fulltext | hardcoreeng/fulltext | 4702 | Full-text search indexing | elasticsearch, cockroach, rekoni, redpanda |
-| rekoni | hardcoreeng/rekoni-service | 4004 | Document intelligence | stats |
+| fulltext | tracex/fulltext | 4702 | Full-text search indexing | elasticsearch, cockroach, rekoni, redpanda |
+| rekoni | tracex/rekoni-service | 4004 | Document intelligence | stats |
 | **Real-time** | | | | |
-| collaborator | hardcoreeng/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
-| hulypulse | hardcoreeng/hulypulse | 8099 | WebSocket notifications | redis |
-| hulygun | hardcoreeng/hulygun | - | Event processor | redpanda, account |
+| collaborator | tracex/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
+| hulypulse | tracex/hulypulse | 8099 | WebSocket notifications | redis |
+| hulygun | tracex/hulygun | - | Event processor | redpanda, account |
 | **Media** | | | | |
-| stream | hardcoreeng/stream | 1080 | Video streaming | datalake, redpanda |
-| media | hardcoreeng/media | - | Media processing | redpanda, account |
-| preview | hardcoreeng/preview | 4040 | Thumbnail generation | datalake |
+| stream | tracex/stream | 1080 | Video streaming | datalake, redpanda |
+| media | tracex/media | - | Media processing | redpanda, account |
+| preview | tracex/preview | 4040 | Thumbnail generation | datalake |
 | **Features** | | | | |
-| print | hardcoreeng/print | 4005 | PDF generation | cockroach, minio, account |
-| sign | hardcoreeng/sign | 4006 | Digital signatures | cockroach, minio, account |
-| payment | hardcoreeng/payment | 3040 | Payment processing | account |
-| export | hardcoreeng/export | 4009 | Data export | cockroach, minio, account |
-| analytics | hardcoreeng/analytics-collector | 4017 | Analytics collection | account, stats |
-| process | hardcoreeng/process | - | Workflow automation | redpanda, account |
-| rating | hardcoreeng/rating | - | Content rating | cockroach, redpanda, account |
+| print | tracex/print | 4005 | PDF generation | cockroach, minio, account |
+| sign | tracex/sign | 4006 | Digital signatures | cockroach, minio, account |
+| payment | tracex/payment | 3040 | Payment processing | account |
+| export | tracex/export | 4009 | Data export | cockroach, minio, account |
+| analytics | tracex/analytics-collector | 4017 | Analytics collection | account, stats |
+| process | tracex/process | - | Workflow automation | redpanda, account |
+| rating | tracex/rating | - | Content rating | cockroach, redpanda, account |
 | **Backup** | | | | |
-| backup | hardcoreeng/backup | - | Automated backup | cockroach, minio, account |
-| backup-api | hardcoreeng/backup-api | 4039 | Backup REST API | minio, account |
+| backup | tracex/backup | - | Automated backup | cockroach, minio, account |
+| backup-api | tracex/backup-api | 4039 | Backup REST API | minio, account |
 | **Primary Database** | | | | |
 | cockroach | cockroachdb/cockroach:latest-v24.3 | 26257, 8089 | **Main application database** - stores users, workspaces, documents, transactions, metadata, permissions | - |
 | **Supporting Infrastructure** | | | | |

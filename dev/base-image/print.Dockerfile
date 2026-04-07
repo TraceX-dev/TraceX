@@ -1,4 +1,4 @@
-FROM hardcoreeng/base
+FROM tracex/base
 
 # Chromium hangs when usging LD_PRELOAD and MALLOC_CONF
 ENV LD_PRELOAD=
