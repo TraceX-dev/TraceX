@@ -3,7 +3,7 @@
 clear
 
 # URL="http://localhost:8095/api"
-URL="http://huly.local:8099/api"
+URL="http://tracex.local:8099/api"
 
 R='\033[0;31m' # Color red
 G='\033[0;32m' # Color green

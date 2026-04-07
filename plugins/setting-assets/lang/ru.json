@@ -215,10 +215,25 @@
     "OfficeDefaultSettings": "Настройки по умолчанию для переговорных",
     "DefaultStartWithTranscription": "Включить транскрипцию в новых комнатах",
     "DefaultStartWithRecording": "Включить запись в новых комнатах",
+    "GuestPermissionsSettings": "Гости",
+    "GuestPermissionsApplicationPermissions": "Права приложений",
+    "GuestPermissionsApplicationPermissionsHint": "Выберите, какие приложения доступны гостям, затем настройте права для каждого приложения ниже.",
+    "GuestPermissionsTabGuest": "Гость",
+    "GuestPermissionsTabAnonymousGuest": "Анонимный гость",
+    "GuestPermissionsAnonymousApplicationHint": "Доступ к приложениям для анонимных гостей (только чтение). Видимые приложения также могут зависеть от конфигурации развёртывания.",
     "ImportDocumentPermission": "Импорт документов",
     "ImportDocumentDescription": "Предоставляет пользователям возможность импортировать документы в рабочее пространство",
     "SelectUsers": "Выбрать пользователей",
     "ShowInTitle": "Показывать в заголовке",
-    "SpaceMembersOnly": "Только участники пространства"
+    "SpaceMembersOnly": "Только участники пространства",
+    "Security": "Безопасность",
+    "TwoFactorAuth": "Двухфакторная аутентификация",
+    "TwoFactorAuthDescription": "Двухфакторная аутентификация добавляет дополнительный уровень безопасности к вашей учетной записи",
+    "EnableTwoFactorAuth": "Включить двухфакторную аутентификацию",
+    "DisableTwoFactorAuth": "Отключить двухфакторную аутентификацию",
+    "TwoFactorAuthEnabled": "Двухфакторная аутентификация включена",
+    "TwoFactorAuthDisabled": "Двухфакторная аутентификация отключена",
+    "ShowQRCode": "Показать QR-код",
+    "EnterVerificationCode": "Введите код подтверждения"
   }
 }

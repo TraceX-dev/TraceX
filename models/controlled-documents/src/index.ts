@@ -1111,6 +1111,33 @@ export function createModel (builder: Builder): void {
   createPrintAction(documents.class.Document, documents.action.Print)
 
   defineSpaceType(builder)
+  builder.createDoc(
+    core.class.ModulePermissionGroup,
+    core.space.Model,
+    {
+      application: documents.app.Documents,
+      role: AccountRole.Guest,
+      permissions: [],
+      spaceClass: documents.class.OrgSpace,
+      enabled: true,
+      order: 42
+    },
+    documents.ids.ModulePermissionGroup
+  )
+
+  builder.createDoc(
+    core.class.ModulePermissionGroup,
+    core.space.Model,
+    {
+      application: documents.app.Documents,
+      role: AccountRole.ReadOnlyGuest,
+      permissions: [],
+      spaceClass: documents.class.OrgSpace,
+      enabled: false,
+      order: 42
+    },
+    documents.ids.ModulePermissionGroupReadOnlyGuest
+  )
   definePermissions(builder)
   defineNotifications(builder)
   defineSearch(builder)

@@ -199,7 +199,8 @@ export default plugin(settingId, {
     Export: '' as Ref<Doc>,
     OfficeSettings: '' as Ref<Doc>,
     DisablePermissionsConfiguration: '' as Ref<Configuration>,
-    Mailboxes: '' as Ref<Doc>
+    Mailboxes: '' as Ref<Doc>,
+    Security: '' as Ref<Doc>
   },
   mixin: {
     Editable: '' as Ref<Mixin<Editable>>,
@@ -244,7 +245,8 @@ export default plugin(settingId, {
     Mailboxes: '' as AnyComponent,
     AddEmailSocialId: '' as AnyComponent,
     OfficeSettings: '' as AnyComponent,
-    UserRoleSelect: '' as AnyComponent
+    UserRoleSelect: '' as AnyComponent,
+    TwoFactorSettings: '' as AnyComponent
   },
   string: {
     Settings: '' as IntlString,
@@ -309,6 +311,12 @@ export default plugin(settingId, {
     OfficeDefaultSettings: '' as IntlString,
     DefaultStartWithTranscription: '' as IntlString,
     DefaultStartWithRecording: '' as IntlString,
+    GuestPermissionsSettings: '' as IntlString,
+    GuestPermissionsApplicationPermissions: '' as IntlString,
+    GuestPermissionsApplicationPermissionsHint: '' as IntlString,
+    GuestPermissionsTabGuest: '' as IntlString,
+    GuestPermissionsTabAnonymousGuest: '' as IntlString,
+    GuestPermissionsAnonymousApplicationHint: '' as IntlString,
     MailboxErrorInvalidName: '' as IntlString,
     MailboxErrorDomainNotFound: '' as IntlString,
     MailboxErrorNameRulesViolated: '' as IntlString,
@@ -316,6 +324,15 @@ export default plugin(settingId, {
     MailboxErrorMailboxCountLimit: '' as IntlString,
     DeleteMailbox: '' as IntlString,
     MailboxDeleteConfirmation: '' as IntlString,
+    Security: '' as IntlString,
+    TwoFactorAuth: '' as IntlString,
+    TwoFactorAuthDescription: '' as IntlString,
+    EnableTwoFactorAuth: '' as IntlString,
+    DisableTwoFactorAuth: '' as IntlString,
+    TwoFactorAuthEnabled: '' as IntlString,
+    TwoFactorAuthDisabled: '' as IntlString,
+    ShowQRCode: '' as IntlString,
+    EnterVerificationCode: '' as IntlString,
     IntegrationFailed: '' as IntlString,
     IntegrationError: '' as IntlString,
     EmailIsUsed: '' as IntlString,
@@ -341,6 +358,8 @@ export default plugin(settingId, {
   icon: {
     AccountSettings: '' as Asset,
     Owners: '' as Asset,
+    Members: '' as Asset,
+    GuestPermissions: '' as Asset,
     Password: '' as Asset,
     Setting: '' as Asset,
     Integrations: '' as Asset,

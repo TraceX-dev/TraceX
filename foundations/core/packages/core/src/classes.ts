@@ -139,6 +139,7 @@ export interface Association extends Doc {
   nameA: string
   nameB: string
   type: '1:1' | '1:N' | 'N:N'
+  automationOnly?: boolean
 }
 
 /**
@@ -585,6 +586,19 @@ export interface ClassPermission extends Permission {
 /**
  * @public
  */
+export interface ModulePermissionGroup extends Doc {
+  application: Ref<Doc>
+  role: AccountRole
+  permissions: Ref<Permission>[]
+  disabledPermissions?: Ref<Permission>[]
+  spaceClass: Ref<Class<Space>>
+  enabled: boolean
+  order?: number
+}
+
+/**
+ * @public
+ */
 export enum AccountRole {
   ReadOnlyGuest = 'READONLYGUEST',
   DocGuest = 'DocGuest',
@@ -960,6 +974,7 @@ export interface SocialId {
 export interface AccountInfo {
   timezone?: string
   locale?: string
+  tfaEnabled?: boolean
 }
 
 export type SocialKey = Pick<SocialId, 'type' | 'value'>

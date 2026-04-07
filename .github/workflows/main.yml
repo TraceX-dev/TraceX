@@ -278,7 +278,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - name: Configure /etc/hosts
         run: |
-          sudo echo "127.0.0.1 huly.local" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
       - name: Prepare server
         run: |
           cd ./tests
@@ -410,7 +410,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - name: Configure /etc/hosts
         run: |
-          sudo echo "127.0.0.1 huly.local" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
       - name: Prepare server
         run: |
           cd ./tests
@@ -462,6 +462,8 @@ jobs:
   uitest-qms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -507,7 +509,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - name: Configure /etc/hosts
         run: |
-          sudo echo "127.0.0.1 huly.local" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
       - name: Prepare server
         run: |
           cd ./qms-tests
@@ -534,6 +536,24 @@ jobs:
         with:
           name: playwright-results-qms
           path: ./qms-tests/sanity/playwright-report/
+      - name: Publish QMS report to gh-pages
+        if: ${{ always() && github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && hashFiles('qms-tests/sanity/playwright-report/index.html') != '' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./qms-tests/sanity/playwright-report
+          destination_dir: qms/${{ startsWith(github.ref, 'refs/tags/v') && 'v' || 's' }}/${{ github.ref_name }}
+          keep_files: true
+      - name: Update latest QMS report pointer
+        if: ${{ always() && github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && hashFiles('qms-tests/sanity/playwright-report/index.html') != '' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./qms-tests/sanity/playwright-report
+          destination_dir: qms/${{ startsWith(github.ref, 'refs/tags/v') && 'v' || 's' }}/latest
+          keep_files: true
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v6
@@ -591,7 +611,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - name: Configure /etc/hosts
         run: |
-          sudo echo "127.0.0.1 huly.local" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
       - name: Prepare server
         run: |
           cd ./ws-tests

@@ -209,6 +209,22 @@ export function createModel (builder: Builder): void {
     },
     setting.ids.Password
   )
+
+  builder.createDoc(
+    setting.class.SettingsCategory,
+    core.space.Model,
+    {
+      name: 'security',
+      label: setting.string.Security,
+      icon: setting.icon.Password,
+      component: setting.component.TwoFactorSettings,
+      group: 'settings-account',
+      role: AccountRole.Guest,
+      order: 1200
+    },
+    setting.ids.Security
+  )
+
   builder.createDoc(
     setting.class.SettingsCategory,
     core.space.Model,
@@ -295,6 +311,19 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Maintainer
     },
     setting.ids.Owners
+  )
+  builder.createDoc(
+    setting.class.WorkspaceSettingCategory,
+    core.space.Model,
+    {
+      name: 'guestPermissions',
+      label: setting.string.GuestPermissionsSettings,
+      icon: setting.icon.GuestPermissions,
+      component: setting.component.GuestPermissionsSettings,
+      role: AccountRole.Owner,
+      order: 1050
+    },
+    'setting:ids:AccountPermissionsSettings' as Ref<any>
   )
   builder.createDoc(
     setting.class.WorkspaceSettingCategory,
@@ -410,6 +439,7 @@ export function createModel (builder: Builder): void {
     },
     setting.ids.OfficeSettings
   )
+
   // Currently remove Support item from settings
   // builder.createDoc(
   //   setting.class.SettingsCategory,

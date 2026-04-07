@@ -214,11 +214,26 @@
     "OfficeDefaultSettings": "Paramètres par défaut pour les salles de réunion",
     "DefaultStartWithTranscription": "Activer la transcription dans les nouveaux bureaux",
     "DefaultStartWithRecording": "Activer l'enregistrement dans les nouveaux bureaux",
+    "GuestPermissionsSettings": "Invités",
+    "GuestPermissionsApplicationPermissions": "Permissions des applications",
+    "GuestPermissionsApplicationPermissionsHint": "Choisissez les applications accessibles aux invités, puis ajustez les permissions pour chaque application ci-dessous.",
+    "GuestPermissionsTabGuest": "Invité",
+    "GuestPermissionsTabAnonymousGuest": "Invité anonyme",
+    "GuestPermissionsAnonymousApplicationHint": "Accès aux applications pour les invités anonymes (lecture seule). Les applications visibles peuvent aussi dépendre de la configuration de déploiement.",
     "ImportDocumentPermission": "Importer des documents",
     "ImportDocumentDescription": "Accorde aux utilisateurs la possibilité d'importer des documents dans l'espace de travail",
     "SelectUsers": "Sélectionner des utilisateurs",
     "ShowInTitle": "Afficher dans le titre",
     "SpaceMembersOnly": "Membres de l'espace uniquement",
-    "Reset": "Réinitialiser"
+    "Reset": "Réinitialiser",
+    "Security": "Sécurité",
+    "TwoFactorAuth": "Authentification à deux facteurs",
+    "TwoFactorAuthDescription": "L'authentification à deux facteurs ajoute une couche de sécurité supplémentaire à votre compte",
+    "EnableTwoFactorAuth": "Activer l'authentification à deux facteurs",
+    "DisableTwoFactorAuth": "Désactiver l'authentification à deux facteurs",
+    "TwoFactorAuthEnabled": "L'authentification à deux facteurs est activée",
+    "TwoFactorAuthDisabled": "L'authentification à deux facteurs est désactivée",
+    "ShowQRCode": "Afficher le code QR",
+    "EnterVerificationCode": "Entrer le code de vérification"
   }
 }

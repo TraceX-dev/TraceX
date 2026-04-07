@@ -5,6 +5,7 @@
     "Cards": "Karten",
     "Content": "Inhalt",
     "CreateCard": "Karte erstellen",
+    "AllowCreatingCards": "Erstellen von Karten erlauben",
     "CreateMasterTag": "Typ erstellen",
     "CreateTag": "Tag erstellen",
     "MasterTag": "Typ",
@@ -74,6 +75,13 @@
     "CardUpdated": "Karte aktualisiert",
     "CardCreated": "Karte erstellt",
     "MyCards": "Meine Karten",
-    "GotoMyCards": "Zu meinen Karten"
+    "GotoMyCards": "Zu meinen Karten",
+    "LockSection": "Sperren",
+    "UnLockSection": "Entsperren",
+    "SectionLocked": "Sektion {section} gesperrt",
+    "SectionUnlocked": "Sektion {section} entsperrt",
+    "LayoutAuto": "Auto",
+    "SingleColumn": "Einspaltig",
+    "TwoColumns": "Zwei spaltig"
   }
 }

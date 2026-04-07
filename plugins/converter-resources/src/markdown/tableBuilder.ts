@@ -253,10 +253,7 @@ export async function buildMarkdownTableFromDocs (
         const linkValue = await createMarkdownLink(hierarchy, card, value)
         row.push(linkValue)
       } else {
-        // If formatter already returned a markdown link, do not escape it again.
-        const looksLikeMarkdownLink =
-          typeof value === 'string' && value.startsWith('[') && value.includes('](') && value.endsWith(')')
-        row.push(looksLikeMarkdownLink ? value : escapeMarkdownLinkText(value))
+        row.push(escapeMarkdownLinkText(value == null ? '' : String(value)))
       }
     }
     rows.push(row)
@@ -378,7 +375,7 @@ export async function buildRelationshipTableMarkdown (
       if (isDocumentTitle) {
         value = await createMarkdownLink(hierarchy, docToUse, value)
       } else {
-        value = escapeMarkdownLinkText(value)
+        value = escapeMarkdownLinkText(value == null ? '' : String(value))
       }
 
       row[attrIndex] = value

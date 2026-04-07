@@ -29,5 +29,11 @@ export function escapeMarkdownLinkText (text: string): string {
  * Escape markdown link URL (backslashes and closing parentheses)
  */
 export function escapeMarkdownLinkUrl (url: string): string {
-  return url.replace(/\\/g, '\\\\').replace(/\)/g, '\\)')
+  return (
+    url
+      .replace(/\\/g, '\\\\')
+      .replace(/\)/g, '\\)')
+      // Pipes break markdown tables unless escaped, and are safe to escape in URLs.
+      .replace(/\|/g, '\\|')
+  )
 }
