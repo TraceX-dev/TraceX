@@ -1,0 +1,422 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e7]:
+      - generic [ref=e9]:
+        - img [ref=e11]
+        - generic [ref=e13]: Complete document-69d5fd57676c8a25a5000000 (v1.1)
+      - button [ref=e14] [cursor=pointer]:
+        - generic:
+          - img
+    - generic [ref=e15]:
+      - button [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+      - 'button "07 : 01" [ref=e20] [cursor=pointer]':
+        - generic [ref=e21]: "07"
+        - generic [ref=e22]: ":"
+        - generic [ref=e23]: "01"
+      - generic [ref=e24]:
+        - button [ref=e26] [cursor=pointer]:
+          - img [ref=e27]
+        - button [ref=e31] [cursor=pointer]:
+          - img [ref=e32]
+  - generic [ref=e34]:
+    - img
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e39] [cursor=pointer]: S
+          - button [ref=e41] [cursor=pointer]:
+            - img [ref=e43]
+          - link [ref=e46] [cursor=pointer]:
+            - /url: /workbench/sanity-ws-qms/notification
+            - button [ref=e47]:
+              - img [ref=e49]
+          - generic [ref=e53]:
+            - generic [ref=e56]:
+              - link [ref=e57] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/chat
+                - button [ref=e58]:
+                  - img [ref=e60]
+              - link [ref=e62] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/time
+                - button [ref=e63]:
+                  - img [ref=e65]
+              - link [ref=e67] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/love
+                - button [ref=e68]:
+                  - img [ref=e70]
+              - link [ref=e73] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/card
+                - button [ref=e74]:
+                  - img [ref=e76]
+              - link [ref=e78] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/contact
+                - button [ref=e79]:
+                  - img [ref=e81]
+              - link [ref=e83] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/chunter
+                - button [ref=e84]:
+                  - img [ref=e86]
+              - link [ref=e88] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/recruit
+                - button [ref=e89]:
+                  - img [ref=e91]
+              - link [ref=e93] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/lead
+                - button [ref=e94]:
+                  - img [ref=e96]
+              - link [ref=e98] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/inventory
+                - button [ref=e99]:
+                  - img [ref=e101]
+              - link [ref=e103] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/hr
+                - button [ref=e104]:
+                  - img [ref=e106]
+              - link [ref=e108] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/tracker
+                - button [ref=e109]:
+                  - img [ref=e111]
+              - link [ref=e113] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/document
+                - button [ref=e114]:
+                  - img [ref=e116]
+              - link [ref=e118] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/board
+                - button [ref=e119]:
+                  - img [ref=e121]
+              - link [ref=e123] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/team
+                - button [ref=e124]:
+                  - img [ref=e126]
+              - link [ref=e128] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/process
+                - button [ref=e129]:
+                  - img [ref=e131]
+              - link [ref=e133] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/drive
+                - button [ref=e134]:
+                  - img [ref=e136]
+              - button [ref=e138] [cursor=pointer]:
+                - img [ref=e140]
+              - link [ref=e142] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/training
+                - button [ref=e143]:
+                  - img [ref=e145]
+              - link [ref=e147] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/products
+                - button [ref=e148]:
+                  - img [ref=e150]
+              - link [ref=e152] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/testManagement
+                - button [ref=e153]:
+                  - img [ref=e155]
+              - link [ref=e157] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/survey
+                - button [ref=e158]:
+                  - img [ref=e160]
+            - button [ref=e163] [cursor=pointer]:
+              - img [ref=e164]
+        - generic [ref=e167]:
+          - button [ref=e168] [cursor=pointer]:
+            - img [ref=e170]
+          - link [ref=e173] [cursor=pointer]:
+            - /url: https://huly.link/slack
+            - button [ref=e174]:
+              - img [ref=e176]
+          - generic [ref=e182] [cursor=pointer]:
+            - generic: AJ
+      - generic [ref=e184]:
+        - generic [ref=e187]:
+          - generic [ref=e189]: Controlled Documents
+          - generic [ref=e191]:
+            - button "New document" [ref=e192] [cursor=pointer]:
+              - generic:
+                - img
+              - generic [ref=e194]: New document
+            - button [ref=e196] [cursor=pointer]:
+              - img [ref=e198]
+          - generic [ref=e203]:
+            - link "My documents" [ref=e204] [cursor=pointer]:
+              - /url: /workbench/sanity-ws-qms/documents/my-documents
+              - button "My documents" [ref=e205]:
+                - img [ref=e207]
+                - generic [ref=e209]: My documents
+            - link "Library" [ref=e210] [cursor=pointer]:
+              - /url: /workbench/sanity-ws-qms/documents/library
+              - button "Library" [ref=e211]:
+                - img [ref=e213]
+                - generic [ref=e215]: Library
+            - link "Templates" [ref=e216] [cursor=pointer]:
+              - /url: /workbench/sanity-ws-qms/documents/templates
+              - button "Templates" [ref=e217]:
+                - img [ref=e219]
+                - generic [ref=e221]: Templates
+            - link "Categories" [ref=e222] [cursor=pointer]:
+              - /url: /workbench/sanity-ws-qms/documents/categories
+              - button "Categories" [ref=e223]:
+                - img [ref=e225]
+                - generic [ref=e227]: Categories
+            - link "All document spaces" [ref=e229] [cursor=pointer]:
+              - /url: /workbench/sanity-ws-qms/documents/space-browser
+              - button "All document spaces" [ref=e230]:
+                - img [ref=e232]
+                - generic [ref=e234]: All document spaces
+            - generic [ref=e236]:
+              - button "General documentation" [ref=e237] [cursor=pointer]:
+                - button [ref=e238]:
+                  - img [ref=e239]
+                - generic [ref=e242]: General documentation
+                - button [ref=e244]:
+                  - generic:
+                    - img
+              - generic [ref=e245]:
+                - generic [ref=e247]:
+                  - button "Quality documents" [ref=e248] [cursor=pointer]:
+                    - generic [ref=e249]:
+                      - img [ref=e251]
+                      - generic [ref=e254]: Quality documents
+                    - button [ref=e256]:
+                      - generic:
+                        - img
+                  - generic [ref=e257]:
+                    - button "TMPL-9 CAPA" [ref=e259] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e261]
+                      - generic [ref=e263]: TMPL-9 CAPA
+                    - button "TMPL-18 HR" [ref=e265] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e267]
+                      - generic [ref=e269]: TMPL-18 HR
+                    - button "HR-1 Existing document" [ref=e271] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e273]
+                      - generic [ref=e275]: HR-1 Existing document
+                    - button "TMPL-47 Change Control Template for new Product Version" [ref=e277] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e279]
+                      - generic [ref=e281]: TMPL-47 Change Control Template for new Product Version
+                    - button "abf600000f Can not Delete Category Template-69d5fc7e363194abf600000d" [ref=e283] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e285]
+                      - generic [ref=e287]: abf600000f Can not Delete Category Template-69d5fc7e363194abf600000d
+                    - button "HR-2 New Document-69d5fc86363194abf6000010" [ref=e289] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e291]
+                      - generic [ref=e293]: HR-2 New Document-69d5fc86363194abf6000010
+                    - button "HR-3 Edit Document-69d5fc8a363194abf6000012" [ref=e295] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e297]
+                      - generic [ref=e299]: HR-3 Edit Document-69d5fc8a363194abf6000012
+                    - generic [ref=e300]:
+                      - button "HR-5 Parent Document-69d5fc93363194abf6000017" [ref=e301] [cursor=pointer]:
+                        - button [ref=e302]:
+                          - img [ref=e303]
+                        - img [ref=e306]
+                        - generic [ref=e308]: HR-5 Parent Document-69d5fc93363194abf6000017
+                      - button "HR-6 Child Document-69d5fc93363194abf6000019" [ref=e311] [cursor=pointer]:
+                        - button [disabled]
+                        - img [ref=e313]
+                        - generic [ref=e315]: HR-6 Child Document-69d5fc93363194abf6000019
+                    - button "HR-8 Send for review document-69d5fc9e363194abf600001d" [ref=e317] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e319]
+                      - generic [ref=e321]: HR-8 Send for review document-69d5fc9e363194abf600001d
+                    - button "HR-9 Send for approval document-69d5fca3363194abf600001f" [ref=e323] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e325]
+                      - generic [ref=e327]: HR-9 Send for approval document-69d5fca3363194abf600001f
+                    - button "HR-10 Add and Done Comments document-69d5fca9363194abf6000021" [ref=e329] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e331]
+                      - generic [ref=e333]: HR-10 Add and Done Comments document-69d5fca9363194abf6000021
+                    - button "HR-11 Approve document-69d5fcb2363194abf6000025" [ref=e335] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e337]
+                      - generic [ref=e339]: HR-11 Approve document-69d5fcb2363194abf6000025
+                    - button "HR-12 Reject document-69d5fcb9363194abf6000028" [ref=e341] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e343]
+                      - generic [ref=e345]: HR-12 Reject document-69d5fcb9363194abf6000028
+                    - button "HR-13 Make Review document-69d5fcc0363194abf600002a" [ref=e347] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e349]
+                      - generic [ref=e351]: HR-13 Make Review document-69d5fcc0363194abf600002a
+                    - button "HR-14 Comparing document versions-69d5fcc9363194abf600002f" [ref=e353] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e355]
+                      - generic [ref=e357]: HR-14 Comparing document versions-69d5fcc9363194abf600002f
+                    - button "HR-15 Check comment popup elements document-69d5fcd1363194abf6000033" [ref=e359] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e361]
+                      - generic [ref=e363]: HR-15 Check comment popup elements document-69d5fcd1363194abf6000033
+                    - button "HR-16 Change document author by QARA user Document-69d5fcd8363194abf6000038" [ref=e365] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e367]
+                      - generic [ref=e369]: HR-16 Change document author by QARA user Document-69d5fcd8363194abf6000038
+                    - button "HR-17 Test Reason and Impact section-69d5fce6363194abf600003a" [ref=e371] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e373]
+                      - generic [ref=e375]: HR-17 Test Reason and Impact section-69d5fce6363194abf600003a
+                    - button "HR-18 Complete document-69d5fcee363194abf600003c" [ref=e377] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e379]
+                      - generic [ref=e381]: HR-18 Complete document-69d5fcee363194abf600003c
+                    - button "HR-19 Complete document-69d5fd3b363194abf6000046" [ref=e383] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e385]
+                      - generic [ref=e387]: HR-19 Complete document-69d5fd3b363194abf6000046
+                    - button "HR-20 Complete document-69d5fd4ac1b104e435000000" [ref=e389] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e391]
+                      - generic [ref=e393]: HR-20 Complete document-69d5fd4ac1b104e435000000
+                    - button "HR-21 Complete document-69d5fd57676c8a25a5000000" [ref=e395]:
+                      - button [disabled]
+                      - img [ref=e397]
+                      - generic [ref=e399]: HR-21 Complete document-69d5fd57676c8a25a5000000
+                - generic [ref=e401]:
+                  - button "ah" [ref=e402] [cursor=pointer]:
+                    - generic [ref=e403]:
+                      - img [ref=e405]
+                      - generic [ref=e408]: ah
+                  - generic [ref=e410]: No documents
+                - generic [ref=e412]:
+                  - button "eek" [ref=e413] [cursor=pointer]:
+                    - generic [ref=e414]:
+                      - img [ref=e416]
+                      - generic [ref=e419]: eek
+                  - button "CC-1 rejoin minority" [ref=e422] [cursor=pointer]:
+                    - button [disabled]
+                    - img [ref=e424]
+                    - generic [ref=e426]: CC-1 rejoin minority
+            - button "Technical documentation" [ref=e428] [cursor=pointer]:
+              - generic [ref=e430]: Technical documentation
+          - generic [ref=e434] [cursor=pointer]:
+            - img [ref=e436]
+            - generic [ref=e438]: Help & Support
+            - generic [ref=e439]: 0.7.409
+        - generic [ref=e443]:
+          - button [ref=e445] [cursor=pointer]:
+            - img [ref=e447]
+          - button [ref=e450] [cursor=pointer]:
+            - img [ref=e452]
+          - button [ref=e455] [cursor=pointer]:
+            - img [ref=e457]
+    - img
+    - generic [ref=e460]:
+      - generic [ref=e461]:
+        - generic [ref=e462]:
+          - button [ref=e464] [cursor=pointer]:
+            - generic:
+              - img
+          - button "HR-21 Complete document-69d5fd57676c8a25a5000000 v1.1 Draft" [ref=e468] [cursor=pointer]:
+            - generic [ref=e469]:
+              - generic [ref=e472]: HR-21
+              - text: Complete document-69d5fd57676c8a25a5000000
+            - generic [ref=e473]: v1.1
+            - generic [ref=e475]: Draft
+            - img [ref=e477]
+          - generic [ref=e479]:
+            - button [ref=e480] [cursor=pointer]:
+              - generic:
+                - img
+            - button [ref=e481] [cursor=pointer]:
+              - generic:
+                - img
+            - button [ref=e482] [cursor=pointer]:
+              - generic:
+                - img
+            - button [ref=e484] [cursor=pointer]:
+              - generic:
+                - img
+        - generic [ref=e487]:
+          - button "Send for review" [ref=e488] [cursor=pointer]:
+            - generic: Send for review
+          - button "Send for approval" [ref=e489] [cursor=pointer]:
+            - generic: Send for approval
+          - button "Editing" [ref=e491] [cursor=pointer]:
+            - generic: Editing
+            - img [ref=e492]
+      - generic [ref=e494]:
+        - generic [ref=e496]:
+          - generic [ref=e497]:
+            - generic [ref=e498] [cursor=pointer]: Content
+            - generic [ref=e499] [cursor=pointer]: Reason & Impact
+            - generic [ref=e500] [cursor=pointer]: Team
+            - generic [ref=e501]: Release
+            - generic [ref=e502] [cursor=pointer]: History
+          - generic [ref=e507]:
+            - generic [ref=e508]:
+              - generic [ref=e509]: Change severity
+              - generic [ref=e510]:
+                - generic [ref=e511] [cursor=pointer]:
+                  - radio "Minor" [checked] [ref=e512]
+                  - generic [ref=e514]: Minor
+                - generic [ref=e515] [cursor=pointer]:
+                  - radio "Major" [ref=e516]
+                  - generic [ref=e518]: Major
+              - generic [ref=e519]: Effective document lifecycle
+              - generic [ref=e520]:
+                - generic [ref=e521]: Periodic review to be completed within
+                - button "12" [ref=e523] [cursor=pointer]:
+                  - generic: "12"
+                - generic [ref=e524]: months after its effective date
+            - generic [ref=e526]:
+              - generic [ref=e527]: Training
+              - checkbox [ref=e529]
+        - generic [ref=e537]:
+          - generic [ref=e538]:
+            - text: General Info
+            - button [ref=e539] [cursor=pointer]:
+              - generic:
+                - img
+          - generic [ref=e543]:
+            - generic [ref=e544]:
+              - generic [ref=e545]:
+                - generic [ref=e547]: ID
+                - generic [ref=e551] [cursor=pointer]: HR-21
+              - generic [ref=e552]:
+                - generic [ref=e554]: Category
+                - generic [ref=e556] [cursor=pointer]: Human Resources
+              - generic [ref=e557]:
+                - generic [ref=e559]: Template name
+                - generic [ref=e560]: HR
+              - generic [ref=e561]:
+                - generic [ref=e563]: Version
+                - generic [ref=e564]: v1.1
+              - generic [ref=e565]:
+                - generic [ref=e567]: Modified
+                - 'button "8 Apr 07 : 01" [ref=e569]':
+                  - text: 8 Apr
+                  - text: "07"
+                  - generic [ref=e571]: ":"
+                  - text: "01"
+              - generic [ref=e572]:
+                - generic [ref=e574]: Status
+                - generic [ref=e575]: Draft
+              - generic [ref=e576]:
+                - generic [ref=e578]: Author
+                - link "AJ Appleseed John" [ref=e580] [cursor=pointer]:
+                  - /url: http://tracex.local:8083/workbench/sanity-ws-qms/contact/65a04886e644ab2b8506c434
+                  - generic [ref=e581]:
+                    - generic [ref=e584]:
+                      - generic: AJ
+                    - generic [ref=e585]: Appleseed John
+              - generic [ref=e586]:
+                - generic [ref=e588]: Creator
+                - generic [ref=e591]:
+                  - generic [ref=e594]:
+                    - generic: AJ
+                  - generic [ref=e595]: Appleseed John
+            - generic [ref=e596]:
+              - generic [ref=e598]: Abstract
+              - textbox "What is this document about? Who will need it and when? ..." [ref=e602]: Complete document description-69d5fd57676c8a25a5000001
+            - generic [ref=e603]:
+              - generic [ref=e605]: Document in hierarchy
+              - generic [ref=e607] [cursor=pointer]:
+                - img [ref=e609]
+                - generic [ref=e611]: HR-21 Complete document-69d5fd57676c8a25a5000000
+```
