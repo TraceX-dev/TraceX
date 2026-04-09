@@ -1,4 +1,4 @@
-FROM tracex/rekoni-base:v20250916
+FROM tracexapp/rekoni-base:v20250916
 WORKDIR /usr/src/app
 
 COPY bundle/bundle.js ./

@@ -4,4 +4,4 @@
  -e MINIO_ACCESS_KEY=minioadmin \
  -e MINIO_SECRET_KEY=minioadmin \
  --rm --network host \
- tracex/tool node ./bundle upgrade
+ tracexapp/tool node ./bundle upgrade

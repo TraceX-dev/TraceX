@@ -10,21 +10,21 @@
     "links": [
       {
         "rel": "manifest",
-        "href": "/tracex/site.webmanifest"
+        "href": "/tracexapp/site.webmanifest"
       },
       {
         "rel": "icon",
-        "href": "/tracex/favicon.svg",
+        "href": "/tracexapp/favicon.svg",
         "type": "image/svg+xml"
       },
       {
         "rel": "shortcut icon",
-        "href": "/tracex/favicon.ico",
+        "href": "/tracexapp/favicon.ico",
         "sizes": "any"
       },
       {
         "rel": "apple-touch-icon",
-        "href": "/tracex/apple-touch-icon.png"
+        "href": "/tracexapp/apple-touch-icon.png"
       }
     ]
   },
@@ -39,21 +39,21 @@
     "links": [
       {
         "rel": "manifest",
-        "href": "/tracex/site.webmanifest"
+        "href": "/tracexapp/site.webmanifest"
       },
       {
         "rel": "icon",
-        "href": "/tracex/favicon.svg",
+        "href": "/tracexapp/favicon.svg",
         "type": "image/svg+xml"
       },
       {
         "rel": "shortcut icon",
-        "href": "/tracex/favicon.ico",
+        "href": "/tracexapp/favicon.ico",
         "sizes": "any"
       },
       {
         "rel": "apple-touch-icon",
-        "href": "/tracex/apple-touch-icon.png"
+        "href": "/tracexapp/apple-touch-icon.png"
       }
     ]
   },
@@ -69,31 +69,31 @@
       {
         "rel": "shortcut icon",
         "type": "image/x-icon",
-        "href": "/tracex/favicon.ico"
+        "href": "/tracexapp/favicon.ico"
       },
       {
         "rel": "icon",
         "type": "image/svg+xml",
         "sizes": "any",
-        "href": "/tracex/favicon.svg"
+        "href": "/tracexapp/favicon.svg"
       },
       {
         "rel": "icon",
         "type": "image/png",
         "sizes": "16x16",
-        "href": "/tracex/favicon_16.png"
+        "href": "/tracexapp/favicon_16.png"
       },
       {
         "rel": "icon",
         "type": "image/png",
         "sizes": "32x32",
-        "href": "/tracex/favicon_32.png"
+        "href": "/tracexapp/favicon_32.png"
       },
       {
         "rel": "icon",
         "type": "image/png",
         "sizes": "192x192",
-        "href": "/tracex/favicon_192.png"
+        "href": "/tracexapp/favicon_192.png"
       }
     ]
   },
@@ -108,31 +108,31 @@
       {
         "rel": "shortcut icon",
         "type": "image/x-icon",
-        "href": "/tracex/favicon.ico"
+        "href": "/tracexapp/favicon.ico"
       },
       {
         "rel": "icon",
         "type": "image/svg+xml",
         "sizes": "any",
-        "href": "/tracex/favicon.svg"
+        "href": "/tracexapp/favicon.svg"
       },
       {
         "rel": "icon",
         "type": "image/png",
         "sizes": "16x16",
-        "href": "/tracex/favicon_16.png"
+        "href": "/tracexapp/favicon_16.png"
       },
       {
         "rel": "icon",
         "type": "image/png",
         "sizes": "32x32",
-        "href": "/tracex/favicon_32.png"
+        "href": "/tracexapp/favicon_32.png"
       },
       {
         "rel": "icon",
         "type": "image/png",
         "sizes": "192x192",
-        "href": "/tracex/favicon_192.png"
+        "href": "/tracexapp/favicon_192.png"
       }
     ]
   }

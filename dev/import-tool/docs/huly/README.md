@@ -195,7 +195,7 @@ Document content in Markdown...
 docker run \
   -e FRONT_URL="https://huly.app" \
   -v /path/to/workspace:/data \
-  tracex/import-tool:latest \
+  tracexapp/import-tool:latest \
   -- bundle.js import /data \
   --user your.email@company.com \
   --password yourpassword \

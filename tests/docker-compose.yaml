@@ -1,6 +1,6 @@
 services:
   stream:
-    image: 'tracex/stream'
+    image: 'tracexapp/stream'
     pull_policy: always
     environment:
       - STREAM_ENDPOINT_URL=s3://localhost:9002
@@ -12,7 +12,7 @@ services:
       - 1081:1080
     restart: unless-stopped
   time-machine:
-    image: tracex/worker
+    image: tracexapp/worker
     pull_policy: never
     depends_on:
       redpanda:
@@ -138,7 +138,7 @@ services:
       retries: 10
       test: curl -s http://localhost:9200/_cluster/health | grep -vq '"status":"red"'
   account:
-    image: tracex/account
+    image: tracexapp/account
     pull_policy: never
     depends_on:
       postgres:
@@ -166,7 +166,7 @@ services:
       - BRANDING_PATH=/var/cfg/branding.json
       - STATS_URL=http://stats:4901
   workspace:
-    image: tracex/workspace
+    image: tracexapp/workspace
     links:
       - mongodb
       - cockroach
@@ -191,7 +191,7 @@ services:
       - STATS_URL=http://stats:4901
     restart: unless-stopped
   front:
-    image: tracex/front
+    image: tracexapp/front
     pull_policy: never
     links:
       - account
@@ -222,7 +222,7 @@ services:
       - STATS_URL=http://stats:4901
       - STATS_API=http://localhost:4901
   transactor:
-    image: tracex/transactor
+    image: tracexapp/transactor
     pull_policy: never
     depends_on:
       redpanda:
@@ -261,7 +261,7 @@ services:
       - RATE_LIMIT_MAX=25000
       - RATE_LIMIT_WINDOW=1000
   collaborator:
-    image: tracex/collaborator
+    image: tracexapp/collaborator
     links:
       - mongodb
       - minio
@@ -277,7 +277,7 @@ services:
       - STATS_URL=http://stats:4901
     restart: unless-stopped
   rekoni:
-    image: tracex/rekoni-service
+    image: tracexapp/rekoni-service
     restart: on-failure
     ports:
       - 4007:4004
@@ -285,7 +285,7 @@ services:
       - STATS_URL=http://stats:4901
 
   fulltext:
-    image: tracex/fulltext
+    image: tracexapp/fulltext
     restart: unless-stopped
     depends_on:
       redpanda:
@@ -314,7 +314,7 @@ services:
       - ACCOUNTS_URL=http://account:3003
       - STATS_URL=http://stats:4901
   stats:
-    image: tracex/stats
+    image: tracexapp/stats
     ports:
       - 4901:4901
     environment:

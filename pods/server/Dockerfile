@@ -1,4 +1,4 @@
-FROM tracex/base:v20250916
+FROM tracexapp/base:v20250916
 WORKDIR /usr/src/app
 
 COPY bundle/model.json ./

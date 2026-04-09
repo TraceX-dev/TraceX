@@ -277,7 +277,7 @@ cd pods/network-pod
 npm run docker:build
 
 # Run the container
-docker run -p 3737:3737 tracex/network-pod
+docker run -p 3737:3737 tracexapp/network-pod
 ```
 
 ### Quick Start Example

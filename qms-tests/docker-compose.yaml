@@ -86,7 +86,7 @@ services:
       retries: 10
       test: curl -s http://localhost:9200/_cluster/health | grep -vq '"status":"red"'
   account:
-    image: tracex/account
+    image: tracexapp/account
     extra_hosts:
       - 'tracex.local:host-gateway'
     pull_policy: never
@@ -107,7 +107,7 @@ services:
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - BRANDING_PATH=/var/cfg/branding-test.json
   workspace:
-    image: tracex/workspace
+    image: tracexapp/workspace
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -126,7 +126,7 @@ services:
       - BRANDING_PATH=/var/cfg/branding.json
     restart: unless-stopped
   front:
-    image: tracex/front
+    image: tracexapp/front
     extra_hosts:
       - 'tracex.local:host-gateway'
     pull_policy: never
@@ -156,7 +156,7 @@ services:
       - PRINT_URL=http://tracex.local:4003
       - SIGN_URL=http://tracex.local:4008
   transactor:
-    image: tracex/transactor
+    image: tracexapp/transactor
     extra_hosts:
       - 'tracex.local:host-gateway'
     pull_policy: never
@@ -187,7 +187,7 @@ services:
       - RATE_LIMIT_MAX=25000
       - RATE_LIMIT_WINDOW=1000
   collaborator:
-    image: tracex/collaborator
+    image: tracexapp/collaborator
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
@@ -204,12 +204,12 @@ services:
       - STORAGE_CONFIG=${STORAGE_CONFIG}
     restart: unless-stopped
   rekoni:
-    image: tracex/rekoni-service
+    image: tracexapp/rekoni-service
     restart: on-failure
     ports:
       - 4007:4004
   print:
-    image: tracex/print
+    image: tracexapp/print
     extra_hosts:
       - 'tracex.local:host-gateway'
     restart: unless-stopped
@@ -224,7 +224,7 @@ services:
         limits:
           memory: 300M
   sign:
-    image: tracex/sign
+    image: tracexapp/sign
     extra_hosts:
       - 'tracex.local:host-gateway'
     restart: unless-stopped
@@ -247,7 +247,7 @@ services:
         limits:
           memory: 300M
   fulltext:
-    image: tracex/fulltext
+    image: tracexapp/fulltext
     restart: unless-stopped
     depends_on:
       redpanda:

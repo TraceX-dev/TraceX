@@ -361,38 +361,38 @@ sequenceDiagram
 | Service | Container | Port | Purpose | Dependencies |
 |---------|-----------|------|---------|--------------|
 | **Frontend** | | | | |
-| front | tracex/front | 8087/8088 | Web application server | account, transactor, collaborator, datalake |
+| front | tracexapp/front | 8087/8088 | Web application server | account, transactor, collaborator, datalake |
 | **Core** | | | | |
-| account | tracex/account | 3000 | Authentication & user management | cockroach, redpanda, stats |
-| transactor | tracex/transactor | 3332 | Transaction processing (WebSocket) | cockroach, redpanda, fulltext, account |
-| workspace | tracex/workspace | - | Workspace management | cockroach, redpanda, minio, account |
-| stats | tracex/stats | 4900 | Metrics collection | - |
+| account | tracexapp/account | 3000 | Authentication & user management | cockroach, redpanda, stats |
+| transactor | tracexapp/transactor | 3332 | Transaction processing (WebSocket) | cockroach, redpanda, fulltext, account |
+| workspace | tracexapp/workspace | - | Workspace management | cockroach, redpanda, minio, account |
+| stats | tracexapp/stats | 4900 | Metrics collection | - |
 | **Storage** | | | | |
-| datalake | tracex/datalake | 4030 | Blob storage & metadata | cockroach, minio, account |
-| hulylake | tracex/hulylake | 8096 | Storage adapter API | cockroach, minio |
-| hulykvs | tracex/hulykvs | 8094 | Key-value store | cockroach |
+| datalake | tracexapp/datalake | 4030 | Blob storage & metadata | cockroach, minio, account |
+| hulylake | tracexapp/hulylake | 8096 | Storage adapter API | cockroach, minio |
+| hulykvs | tracexapp/hulykvs | 8094 | Key-value store | cockroach |
 | **Search** | | | | |
-| fulltext | tracex/fulltext | 4702 | Full-text search indexing | elasticsearch, cockroach, rekoni, redpanda |
-| rekoni | tracex/rekoni-service | 4004 | Document intelligence | stats |
+| fulltext | tracexapp/fulltext | 4702 | Full-text search indexing | elasticsearch, cockroach, rekoni, redpanda |
+| rekoni | tracexapp/rekoni-service | 4004 | Document intelligence | stats |
 | **Real-time** | | | | |
-| collaborator | tracex/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
-| hulypulse | tracex/hulypulse | 8099 | WebSocket notifications | redis |
-| hulygun | tracex/hulygun | - | Event processor | redpanda, account |
+| collaborator | tracexapp/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
+| hulypulse | tracexapp/hulypulse | 8099 | WebSocket notifications | redis |
+| hulygun | tracexapp/hulygun | - | Event processor | redpanda, account |
 | **Media** | | | | |
-| stream | tracex/stream | 1080 | Video streaming | datalake, redpanda |
-| media | tracex/media | - | Media processing | redpanda, account |
-| preview | tracex/preview | 4040 | Thumbnail generation | datalake |
+| stream | tracexapp/stream | 1080 | Video streaming | datalake, redpanda |
+| media | tracexapp/media | - | Media processing | redpanda, account |
+| preview | tracexapp/preview | 4040 | Thumbnail generation | datalake |
 | **Features** | | | | |
-| print | tracex/print | 4005 | PDF generation | cockroach, minio, account |
-| sign | tracex/sign | 4006 | Digital signatures | cockroach, minio, account |
-| payment | tracex/payment | 3040 | Payment processing | account |
-| export | tracex/export | 4009 | Data export | cockroach, minio, account |
-| analytics | tracex/analytics-collector | 4017 | Analytics collection | account, stats |
-| process | tracex/process | - | Workflow automation | redpanda, account |
-| rating | tracex/rating | - | Content rating | cockroach, redpanda, account |
+| print | tracexapp/print | 4005 | PDF generation | cockroach, minio, account |
+| sign | tracexapp/sign | 4006 | Digital signatures | cockroach, minio, account |
+| payment | tracexapp/payment | 3040 | Payment processing | account |
+| export | tracexapp/export | 4009 | Data export | cockroach, minio, account |
+| analytics | tracexapp/analytics-collector | 4017 | Analytics collection | account, stats |
+| process | tracexapp/process | - | Workflow automation | redpanda, account |
+| rating | tracexapp/rating | - | Content rating | cockroach, redpanda, account |
 | **Backup** | | | | |
-| backup | tracex/backup | - | Automated backup | cockroach, minio, account |
-| backup-api | tracex/backup-api | 4039 | Backup REST API | minio, account |
+| backup | tracexapp/backup | - | Automated backup | cockroach, minio, account |
+| backup-api | tracexapp/backup-api | 4039 | Backup REST API | minio, account |
 | **Primary Database** | | | | |
 | cockroach | cockroachdb/cockroach:latest-v24.3 | 26257, 8089 | **Main application database** - stores users, workspaces, documents, transactions, metadata, permissions | - |
 | **Supporting Infrastructure** | | | | |

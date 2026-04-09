@@ -1,6 +1,6 @@
 services:
   network:
-    image: tracex/network-pod
+    image: tracexapp/network-pod
     pull_policy: never
     extra_hosts:
       - 'tracex.local:host-gateway'

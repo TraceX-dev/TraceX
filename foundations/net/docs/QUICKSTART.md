@@ -44,13 +44,13 @@ node common/scripts/install-run-rush.js test
 
 ```bash
 # Pull the network server image
-docker pull tracex/network-pod:latest
+docker pull tracexapp/network-pod:latest
 
 # Run the network server
 docker run -d \
   --name huly-network \
   -p 3737:3737 \
-  tracex/network-pod:latest
+  tracexapp/network-pod:latest
 ```
 
 ### Option 3: NPM Packages (Coming Soon)
