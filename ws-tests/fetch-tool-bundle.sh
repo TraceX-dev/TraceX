@@ -6,7 +6,7 @@ set -e
 DOCKER_COMPOSE_PATH="./docker-compose.override.yml"
 
 # Extract the version of tracexapp/transactor from the docker-compose file
-VERSION=$(grep "image: tracexapp/transactor:" "$DOCKER_COMPOSE_PATH" | head -1 | sed -E 's/.*image: tracex\/transactor:([^[:space:]]+).*/\1/')
+VERSION=$(grep "image: tracexapp/transactor:" "$DOCKER_COMPOSE_PATH" | head -1 | sed -E 's/.*image: tracexapp\/transactor:([^[:space:]]+).*/\1/')
 
 if [ -z "$VERSION" ]; then
   echo "Error: Could not find transactor version in docker-compose file"
