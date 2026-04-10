@@ -1,5 +1,6 @@
 //
 // Copyright © 2024-2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,84 +15,62 @@
 //
 
 import Anthropic from '@anthropic-ai/sdk'
+import { MeasureContext } from '@hcengineering/core'
+import { getEncoding, Tiktoken } from 'js-tiktoken'
+
 import {
   type LLMProvider,
-  type CompletionRequest,
-  type CompletionResponse,
-  type Message
+  type ChatCompletionResult,
+  type ChatCompletionOptions,
+  type ChatMessage,
+  type LLMToolDefinition
 } from './types'
 
 export class AnthropicProvider implements LLMProvider {
   private readonly client: Anthropic
+  private readonly model: string
+  private readonly encoding: Tiktoken
 
-  constructor (apiKey: string) {
+  constructor (apiKey: string, model: string) {
     this.client = new Anthropic({ apiKey })
+    this.model = model
+    this.encoding = getEncoding('cl100k_base')
   }
 
-  async chatCompletion (request: CompletionRequest): Promise<CompletionResponse> {
-    const messages: Anthropic.MessageParam[] = []
+  countTokens (messages: ChatMessage[]): number {
+    const tokensPerMessage = 3
+    let result = 0
 
-    for (const msg of request.messages) {
-      if (msg.role === 'system') {
-        continue // System prompt handled separately
-      }
-
-      if (msg.role === 'tool') {
-        messages.push({
-          role: 'user',
-          content: [
-            {
-              type: 'tool_result',
-              tool_use_id: msg.toolCallId ?? '',
-              content: msg.content
-            }
-          ]
-        })
-      } else if (msg.role === 'assistant' && msg.toolCalls !== undefined && msg.toolCalls.length > 0) {
-        const content: Anthropic.ContentBlockParam[] = []
-        if (msg.content !== null && msg.content !== '') {
-          content.push({ type: 'text', text: msg.content })
-        }
-        for (const tc of msg.toolCalls) {
-          content.push({
-            type: 'tool_use',
-            id: tc.id,
-            name: tc.name,
-            input: JSON.parse(tc.arguments)
-          })
-        }
-        messages.push({ role: 'assistant', content })
-      } else {
-        messages.push({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        })
-      }
+    for (const message of messages) {
+      result += tokensPerMessage
+      result += this.encoding.encode(message.role).length
+      result += this.encoding.encode(message.content).length
     }
 
-    const tools: Anthropic.Tool[] | undefined =
-      request.tools !== undefined && request.tools.length > 0
-        ? request.tools.map((t) => ({
-          name: t.name,
-          description: t.description,
-          input_schema: t.inputSchema as Anthropic.Tool.InputSchema
-        }))
-        : undefined
+    result += 3
+    return result
+  }
+
+  async chatCompletion (
+    ctx: MeasureContext,
+    messages: ChatMessage[],
+    options?: ChatCompletionOptions
+  ): Promise<ChatCompletionResult> {
+    const { systemContent, nonSystemMessages } = splitMessages(messages)
 
     const response = await this.client.messages.create({
-      model: request.model,
-      max_tokens: 4096,
-      system: request.systemPrompt ?? '',
-      messages,
-      ...(tools !== undefined ? { tools } : {})
+      model: this.model,
+      max_tokens: options?.maxTokens ?? 4096,
+      system: systemContent,
+      messages: nonSystemMessages.map(toMessage)
     })
 
-    let textContent: string | null = null
+    let text: string = ''
     const toolCalls: Array<{ id: string, name: string, arguments: string }> = []
 
     for (const block of response.content) {
       if (block.type === 'text') {
-        textContent = block.text
+        text = block.text
       } else if (block.type === 'tool_use') {
         toolCalls.push({
           id: block.id,
@@ -101,14 +80,118 @@ export class AnthropicProvider implements LLMProvider {
       }
     }
 
+    const usage = toTokens(response.usage)
+
     return {
-      content: textContent,
-      toolCalls,
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens
-      },
-      finishReason: response.stop_reason === 'tool_use' ? 'tool_calls' : response.stop_reason === 'max_tokens' ? 'length' : 'stop'
+      text,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      usage
     }
   }
+
+  async chatCompletionWithTools (
+    ctx: MeasureContext,
+    messages: ChatMessage[],
+    tools: LLMToolDefinition[],
+    options?: ChatCompletionOptions
+  ): Promise<ChatCompletionResult> {
+    const { systemContent, nonSystemMessages } = splitMessages(messages)
+
+    const anthropicTools: Anthropic.Tool[] = tools.map(toTool)
+
+    const response = await this.client.messages.create({
+      model: this.model,
+      max_tokens: options?.maxTokens ?? 4096,
+      system: systemContent,
+      messages: nonSystemMessages.map(toMessage),
+      tools: anthropicTools
+    })
+
+    let text: string = ''
+    const toolCalls: Array<{ id: string, name: string, arguments: string }> = []
+
+    for (const block of response.content) {
+      if (block.type === 'text') {
+        text = block.text
+      } else if (block.type === 'tool_use') {
+        toolCalls.push({
+          id: block.id,
+          name: block.name,
+          arguments: JSON.stringify(block.input)
+        })
+      }
+    }
+
+    const usage = toTokens(response.usage)
+
+    return {
+      text,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      usage
+    }
+  }
+}
+
+function splitMessages (messages: ChatMessage[]): { systemContent: string, nonSystemMessages: ChatMessage[] } {
+  const systemContent = messages
+    .filter((it) => it.role === 'system')
+    .map((it) => it.content)
+    .join('\n')
+
+  const nonSystemMessages = messages.filter((it) => it.role !== 'system')
+
+  return { systemContent, nonSystemMessages }
+}
+
+function toTool (tool: LLMToolDefinition): Anthropic.Tool {
+  return {
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.parameters as Anthropic.Tool.InputSchema
+  }
+}
+
+function toMessage (message: ChatMessage): Anthropic.MessageParam {
+  const { role, content, toolCallId, toolCalls } = message
+
+  if (role === 'tool') {
+    return {
+      role: 'user',
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: toolCallId ?? '',
+          content
+        }
+      ]
+    }
+  } else if (role === 'assistant') {
+    const blocks: Anthropic.ContentBlockParam[] = []
+    if (content !== null && content !== '') {
+      blocks.push({ type: 'text', text: content })
+    }
+    if (toolCalls != null) {
+      for (const tc of toolCalls) {
+        blocks.push({
+          type: 'tool_use',
+          id: tc.id,
+          name: tc.name,
+          input: JSON.parse(tc.arguments)
+        })
+      }
+    }
+    return { role: 'assistant', content: blocks }
+  } else {
+    return {
+      role: role as 'user' | 'assistant',
+      content
+    }
+  }
+}
+
+function toTokens (usage?: Anthropic.Usage): number {
+  if (usage === undefined) {
+    return 0
+  }
+  return usage.input_tokens + usage.output_tokens
 }

@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import config, { AIProviderConfig } from '../config'
+import config, { LlmModelConfig } from '../config'
 
 import { type LLMProvider } from './types'
 import { OpenAIProvider } from './openai'
@@ -21,21 +21,21 @@ import { AnthropicProvider } from './anthropic'
 
 export function createProviders (): Map<string, LLMProvider> {
   const providers = new Map<string, LLMProvider>()
-  for (const providerConfig of config.AIProviders) {
-    providers.set(providerConfig.id, createProvider(providerConfig))
+  for (const llmConfig of config.Llm) {
+    providers.set(llmConfig.id, createProvider(llmConfig))
   }
 
   return providers
 }
 
-function createProvider (provider: AIProviderConfig): LLMProvider {
-  const { kind, apiKey, baseUrl } = provider
+function createProvider (provider: LlmModelConfig): LLMProvider {
+  const { apiKey, baseUrl, kind, model } = provider
 
   switch (kind) {
     case 'openai':
-      return new OpenAIProvider(apiKey, baseUrl)
+      return new OpenAIProvider(apiKey, model, baseUrl)
     case 'anthropic':
-      return new AnthropicProvider(apiKey)
+      return new AnthropicProvider(apiKey, model)
     default:
       throw new Error(`Unknown provider kind: ${kind}`)
   }

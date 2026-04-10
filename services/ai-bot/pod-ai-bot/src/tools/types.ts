@@ -1,5 +1,5 @@
 //
-// Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,26 +13,34 @@
 // limitations under the License.
 //
 
-import { AccountUuid } from '@hcengineering/core'
-import {
-  RunnableFunctionWithoutParse,
-  RunnableFunctionWithParse,
-  RunnableToolFunction
-} from 'openai/lib/RunnableFunction'
-import { WorkspaceClient } from '../workspace/workspaceClient'
+import { AccountUuid, MeasureContext, TxOperations, type WorkspaceIds } from '@hcengineering/core'
+import { StorageAdapter } from '@hcengineering/server-core'
 import { ContextMode } from '../providers/types'
+import { MemoryStorage } from '../storage'
 
-export type Tool<T extends object | string> = [PredefinedTool<T>, ToolFunc, ContextMode | 'any']
-
-export type ChangeFields<T, R> = Omit<T, keyof R> & R
-export type PredefinedTool<T extends object | string> = ChangeFields<
-RunnableToolFunction<T>,
-{
-  function: PredefinedToolFunction<T>
+export interface ToolDefinition {
+  name: string
+  description: string
+  parameters: Record<string, any>
 }
->
-export type PredefinedToolFunction<T extends object | string> = Omit<
-T extends string ? RunnableFunctionWithoutParse : RunnableFunctionWithParse<any>,
-'function'
->
-export type ToolFunc = (workspaceClient: WorkspaceClient, user: AccountUuid | undefined, args: any) => Promise<string> | string
+
+export type ToolExecutor = (args: any) => Promise<string> | string
+
+export interface WorkspaceOps {
+  storage: StorageAdapter
+  ctx: MeasureContext
+  wsIds: WorkspaceIds
+  getClient: () => Promise<TxOperations>
+}
+
+export interface ToolDependencies {
+  memoryStorage: MemoryStorage
+  user: AccountUuid | undefined
+  workspaceOps?: WorkspaceOps
+}
+
+export interface RegisteredTool {
+  definition: ToolDefinition
+  createExecutor: (deps: ToolDependencies) => ToolExecutor
+  contextMode: ContextMode | 'any'
+}

@@ -18,7 +18,6 @@ import {
   DisconnectMeetingRequest,
   IdentityResponse
 } from '@hcengineering/ai-bot'
-import aiBot, { type AIPerson, type AIProvider } from '@hcengineering/ai-bot'
 import attachment, { Attachment } from '@hcengineering/attachment'
 import chunter, { ChatMessage, ThreadMessage } from '@hcengineering/chunter'
 import contact, {
@@ -30,65 +29,55 @@ import contact, {
   Person
 } from '@hcengineering/contact'
 import core, {
-  type Account,
   AccountRole,
+  AccountUuid,
   Blob,
-  Class,
   Client,
   Doc,
   MeasureContext,
   PersonId,
   PersonUuid,
+  pickPrimarySocialId,
   RateLimiter,
   Ref,
   SocialId,
+  SortingOrder,
   Space,
-  Tx,
-  TxCUD,
+  toIdMap,
   TxOperations,
-  type WorkspaceIds,
-  AccountUuid,
-  pickPrimarySocialId
+  type Account,
+  type WorkspaceIds
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
 import fs from 'fs'
-import OpenAI from 'openai'
-import { Tiktoken } from 'js-tiktoken'
+import type { ChatMessage as LLMChatMessage } from '../providers'
+import { type LLMService } from '../services'
+import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
+import { type ToolDependencies, type WorkspaceOps } from '../tools'
 
+import { getAccountClient } from '@hcengineering/server-client'
 import { StorageAdapter } from '@hcengineering/server-core'
-import config from '../config'
-import { HistoryRecord } from '../types'
-import { createChatCompletionWithTools } from '../utils/openai'
-import { connectPlatform } from '../utils/platform'
-import { LoveController } from './love'
 import { jsonToMarkup, markupToText } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
-import { countTokens } from '@hcengineering/openai'
-import { getAccountClient } from '@hcengineering/server-client'
+import config from '../config'
 import { getGlobalPerson } from '../utils/account'
-import { createProvider } from '../providers/factory'
-import { getProviderAPIKey } from '../providers/bootstrap'
-import type { LLMProvider } from '../providers/types'
+import { connectPlatform } from '../utils/platform'
+import { LoveController } from './love'
 
-interface PersonHistoryRecord {
-  assistantMemory: string // Info about assistant: name, behavior style, how to address user
-  userMemory: string // Info about user: preferences, context, personal info
-  sharedContext: string // Shared context: language, timezone, non-personal preferences
-  history: HistoryRecord[]
+interface LLMHistoryRecord {
+  role: 'user' | 'assistant' | 'system'
+  content: string
 }
 
 export class WorkspaceClient {
-  client: Client | undefined
-  opClient: Promise<TxOperations> | TxOperations
-
   rate = new RateLimiter(1)
 
   primarySocialId: SocialId
   aiPerson: Person | undefined
   personUuidBySocialId = new Map<PersonId, PersonUuid>()
 
-  historyMap = new Map<PersonUuid, PersonHistoryRecord>()
   love: LoveController | undefined
+  clientPromise: Promise<TxOperations>
 
   constructor (
     readonly storage: StorageAdapter,
@@ -98,14 +87,34 @@ export class WorkspaceClient {
     readonly personUuid: AccountUuid,
     readonly socialIds: SocialId[],
     readonly ctx: MeasureContext,
-    readonly openai: OpenAI | undefined,
-    readonly openaiEncoding: Tiktoken
+    readonly llmService: LLMService,
+    readonly memoryStorage: MemoryStorage
   ) {
-    this.opClient = this.initClient()
-    void this.opClient.then((opClient) => {
-      this.opClient = opClient
-    })
     this.primarySocialId = pickPrimarySocialId(this.socialIds)
+    this.clientPromise = this.initClient()
+  }
+
+  private async initClient (): Promise<TxOperations> {
+    const client = await connectPlatform(this.token, this.wsIds.uuid, this.transactorUrl)
+
+    const txOps = new TxOperations(client, core.account.System)
+
+    await this.ensureEmployee(txOps)
+    await this.checkEmployeeInfo(txOps)
+
+    if (this.aiPerson !== undefined && config.LoveEndpoint !== '') {
+      this.love = new LoveController(
+        this.wsIds.uuid,
+        this.ctx.newChild('love', {}, { span: false }),
+        this.token,
+        txOps,
+        this.aiPerson
+      )
+    }
+
+    this.ctx.info('Initialized workspace', { workspace: this.wsIds })
+
+    return new TxOperations(client, this.primarySocialId._id)
   }
 
   private async ensureEmployee (client: Client): Promise<void> {
@@ -119,91 +128,70 @@ export class WorkspaceClient {
     await ensureEmployee(this.ctx, me, client, this.socialIds, async () => await getGlobalPerson(this.token))
   }
 
-  private async initClient (): Promise<TxOperations> {
-    this.client = await connectPlatform(this.token, this.transactorUrl)
-    const opClient = new TxOperations(this.client, this.primarySocialId._id)
-
-    await this.ensureEmployee(this.client)
-    await this.checkEmployeeInfo(opClient)
-
-    if (this.aiPerson !== undefined && config.LoveEndpoint !== '') {
-      this.love = new LoveController(
-        this.wsIds.uuid,
-        this.ctx.newChild('love', {}, { span: false }),
-        this.token,
-        opClient,
-        this.aiPerson
-      )
-    }
-
-    this.client.notify = (...txes: Tx[]) => {
-      void this.txHandler(opClient, txes as TxCUD<Doc>[])
-    }
-    this.ctx.info('Initialized workspace', { workspace: this.wsIds })
-
-    return opClient
-  }
-
   private async checkEmployeeInfo (client: TxOperations): Promise<void> {
     this.ctx.info('Upload avatar file', { workspace: this.wsIds })
 
-    // try {
-    //   const stat = fs.statSync(config.AvatarPath)
-    //   const lastModified = stat.mtime.getTime()
+    try {
+      const stat = fs.statSync(config.BotAvatarPath)
+      const lastModified = stat.mtime.getTime()
 
-    //   const uploadInfo = await this.storage.stat(this.ctx, this.wsIds, config.AvatarName)
-    //   const isAlreadyUploaded = uploadInfo !== undefined && uploadInfo.modifiedOn !== lastModified
-    //   if (!isAlreadyUploaded) {
-    //     const data = fs.readFileSync(config.AvatarPath)
+      const uploadInfo = await this.storage.stat(this.ctx, this.wsIds, config.BotAvatarName)
 
-    //     await this.storage.put(this.ctx, this.wsIds, config.AvatarName, data, config.AvatarContentType, data.length)
-    //     this.ctx.info('Avatar file uploaded successfully', { workspace: this.wsIds, path: config.AvatarPath })
-    //   }
-    // } catch (e) {
-    //   this.ctx.error('Failed to upload avatar file', { e })
-    // }
+      const isAlreadyUploaded = uploadInfo !== undefined && uploadInfo.modifiedOn !== lastModified
+      if (!isAlreadyUploaded) {
+        const data = fs.readFileSync(config.BotAvatarPath)
 
-    // await this.checkPersonData(client)
+        await this.storage.put(this.ctx, this.wsIds, config.BotAvatarName, data, config.BotAvatarContentType, data.length)
+        this.ctx.info('Avatar file uploaded successfully', { workspace: this.wsIds, path: config.BotAvatarPath })
+      }
+    } catch (e) {
+      this.ctx.error('Failed to upload avatar file', { e })
+    }
+
+    await this.checkPersonData(client)
   }
 
-  // private async checkPersonData (client: TxOperations): Promise<void> {
-  //   this.aiPerson = this.aiPerson ?? (await client.findOne(contact.class.Person, { personUuid: this.personUuid }))
+  private async checkPersonData (client: TxOperations): Promise<void> {
+    this.aiPerson = this.aiPerson ?? (await client.findOne(contact.class.Person, { personUuid: this.personUuid }))
 
-  //   if (this.aiPerson === undefined) {
-  //     this.ctx.error('Cannot find AI Person ', { personUuid: this.personUuid })
-  //     return
-  //   }
+    if (this.aiPerson === undefined) {
+      this.ctx.error('Cannot find AI Person ', { personUuid: this.personUuid })
+      return
+    }
 
-  //   const firstName = getFirstName(this.aiPerson.name)
-  //   const lastName = getLastName(this.aiPerson.name)
+    const firstName = getFirstName(this.aiPerson.name)
+    const lastName = getLastName(this.aiPerson.name)
 
-  //   if (lastName !== config.LastName || firstName !== config.FirstName) {
-  //     await client.update(this.aiPerson, {
-  //       name: combineName(config.FirstName, config.LastName)
-  //     })
-  //   }
+    if (lastName !== config.BotLastName || firstName !== config.BotFirstName) {
+      await client.update(this.aiPerson, {
+        name: combineName(config.BotFirstName, config.BotLastName)
+      })
+    }
 
-  //   if (this.aiPerson.avatar === config.AvatarName) {
-  //     return
-  //   }
+    if (this.aiPerson.avatar === config.BotAvatarName) {
+      return
+    }
 
-  //   const exist = await this.storage.stat(this.ctx, this.wsIds, config.AvatarName)
+    const exist = await this.storage.stat(this.ctx, this.wsIds, config.BotAvatarName)
 
-  //   if (exist === undefined) {
-  //     this.ctx.error('Cannot find file', { file: config.AvatarName, workspace: this.wsIds })
-  //     return
-  //   }
+    if (exist === undefined) {
+      this.ctx.error('Cannot find file', { file: config.BotAvatarName, workspace: this.wsIds })
+      return
+    }
+    const pData = await client.findOne(this.aiPerson._class, { _id: this.aiPerson._id })
+    if (pData?.avatar !== config.BotAvatarName || pData.avatarType !== AvatarType.IMAGE) {
+      await client.update(this.aiPerson, {
+        avatar: config.BotAvatarName as Ref<Blob>,
+        avatarType: AvatarType.IMAGE
+      })
+    }
+  }
 
-  //   await client.diffUpdate(this.aiPerson, { avatar: config.AvatarName as Ref<Blob>, avatarType: AvatarType.IMAGE })
-  // }
-
-  // TODO: In feature we also should use embeddings
-  private toOpenAiHistory (history: PersonHistoryRecord, promptTokens: number): any[] {
+  private toLlmHistory (history: PersonHistoryRecord, promptTokens: number): Array<LLMHistoryRecord> {
     const result: Array<{ role: 'user' | 'assistant' | 'system', content: string }> = []
     let totalTokens = promptTokens
-    const maxRecentMessages = 20 // Keep last 20 messages in full detail
+    const maxRecentMessages = 20
 
-    // Only use recent messages for context
     const recentMessages = history.history.slice(-maxRecentMessages)
 
     for (let i = recentMessages.length - 1; i >= 0; i--) {
@@ -219,265 +207,173 @@ export class WorkspaceClient {
     return result
   }
 
-  async getHistory (personUuid: PersonUuid): Promise<PersonHistoryRecord> {
-    if (this.historyMap.has(personUuid)) {
-      return (
-        this.historyMap.get(personUuid) ?? {
-          assistantMemory: '',
-          userMemory: '',
-          sharedContext: '',
-          history: []
-        }
-      )
-    }
-
-    // Try to read a person summary and history.
-    try {
-      const personHistory: PersonHistoryRecord = JSON.parse(
-        Buffer.concat(await this.storage.read(this.ctx, this.wsIds, 'ai-bot-phr-' + personUuid)).toString()
-      )
-
-      // Migration: add sharedContext if missing
-      if (personHistory.sharedContext === undefined) {
-        personHistory.sharedContext = ''
-      }
-
-      this.historyMap.set(personUuid, personHistory)
-      return personHistory
-    } catch (err: any) {
-      // Ignore, no history available
-    }
-
-    // We need to load person info
-
-    const personData = await this.client?.findOne(contact.mixin.Employee, { personUuid: personUuid as AccountUuid })
-
-    const v = {
-      assistantMemory: '',
-      userMemory: personData !== undefined ? `User name: ${personData.name}` : '',
-      sharedContext: '',
-      history: []
-    }
-    this.historyMap.set(personUuid, v)
-    return v
-  }
-
-  async saveHistory (personUuid: PersonUuid, history: PersonHistoryRecord): Promise<void> {
-    await this.storage.put(
-      this.ctx,
-      this.wsIds,
-      'ai-bot-phr-' + personUuid,
-      JSON.stringify(history),
-      'application/json'
-    )
-  }
-
-  private async pushHistory (
-    personUuid: PersonUuid,
-    message: string,
-    role: 'user' | 'assistant',
-    tokens: number,
-    user: PersonUuid,
-    objectId: Ref<Doc>,
-    objectClass: Ref<Class<Doc>>
-  ): Promise<void> {
-    const currentHistory = (await this.getHistory(personUuid)) ?? []
-    const newRecord: HistoryRecord = {
-      workspace: this.wsIds.uuid,
-      message,
-      objectId,
-      objectClass,
-      role,
-      user,
-      tokens,
-      timestamp: Date.now()
-    }
-    currentHistory.history.push({ ...newRecord })
-    this.historyMap.set(personUuid, currentHistory)
-  }
-
   private async getAttachments (client: TxOperations, objectId: Ref<Doc>): Promise<Attachment[]> {
     return await client.findAll(attachment.class.Attachment, { attachedTo: objectId })
   }
 
   async processMessageEvent (event: AIEventRequest): Promise<void> {
+    const client = await this.clientPromise
+
     const { user, objectId, objectClass, messageClass } = event
-    const client = await this.opClient
     const accountClient = getAccountClient(this.token)
+    const personUuid = this.personUuidBySocialId.get(user) ?? (await accountClient.findPersonBySocialId(user))
 
-    // // Determine which AI person to use
-    // let targetPersonUuid: PersonUuid | undefined
-    // let targetPerson: Person | undefined
+    const contextMode = objectClass === chunter.class.DirectMessage ? 'direct' : 'thread'
 
-    // if (event.targetAiPersonSocialId !== undefined) {
-    //   // Event specifies which AI person to use
-    //   targetPersonUuid = await accountClient.findPersonBySocialId(event.targetAiPersonSocialId)
-    //   if (targetPersonUuid !== undefined) {
-    //     targetPerson = await client.findOne(contact.class.Person, { personUuid: targetPersonUuid })
-    //   }
-    // } else {
-    //   // Fallback: use the default AI person (this instance)
-    //   targetPersonUuid = this.personUuid
-    //   targetPerson = this.aiPerson
-    // }
+    if (personUuid === undefined) {
+      return
+    }
 
-    // if (targetPersonUuid === undefined || targetPerson === undefined) {
-    //   this.ctx.error('No target AI person found', { event })
-    //   return
-    // }
+    this.personUuidBySocialId.set(user, personUuid)
 
-    // // Load AIPerson mixin
-    // const aiPerson = client.getHierarchy().as<Person, AIPerson>(targetPerson, aiBot.mixin.AIPerson)
-    // if (aiPerson.integrationId === undefined || aiPerson.model === undefined) {
-    //   this.ctx.error('Person is not an AI person or missing configuration', { personUuid: targetPersonUuid })
-    //   return
-    // }
+    let promptText = markupToText(event.message)
+    const files = await this.getAttachments(client, event.messageId)
+    if (files.length > 0) {
+      promptText += '\n\nAttachments:'
+      for (const file of files) {
+        promptText += `\nName:${file.name} FileId:${file.file} Type:${file.type}`
+      }
+    }
+    const prompt: LLMChatMessage = { content: promptText, role: 'user' as const }
+    const promptTokens = this.llmService.countTokens([prompt])
 
-    // if (!aiPerson.enabled) {
-    //   this.ctx.info('AI person is disabled, skipping event', { personUuid: targetPersonUuid })
-    //   return
-    // }
+    const space = (event as any).objectIdIsSpace != null ? (objectId as Ref<Space>) : event.objectSpace
 
-    // // Load AI provider integration
-    // const integration = await client.findOne(aiBot.class.AIProviderIntegration, { _id: aiPerson.integrationId })
-    // if (integration === undefined) {
-    //   this.ctx.error('AI provider integration not found', { integrationId: aiPerson.integrationId })
-    //   return
-    // }
+    const rawHistory = await this.memoryStorage.getHistory(personUuid)
+    const history = this.toLlmHistory(rawHistory, promptTokens)
 
-    // if (!integration.enabled) {
-    //   this.ctx.info('AI provider integration is disabled', { integrationId: integration._id })
-    //   return
-    // }
+    await this.memoryStorage.pushHistory(personUuid, promptText, 'user', promptTokens, personUuid, objectId, objectClass)
 
-    // // Validate model is available
-    // if (!integration.availableModels.includes(aiPerson.model)) {
-    //   this.ctx.error('Model not available in integration', {
-    //     model: aiPerson.model,
-    //     availableModels: integration.availableModels
-    //   })
-    //   return
-    // }
+    const useHistory = history.filter((it) => it.role !== 'system')
 
-    // // Get provider API key using the integration's provider ID
-    // const apiKey = await getProviderAPIKey(
-    //   this.ctx,
-    //   this.token,
-    //   integration.providerType,
-    //   integration.workspace as any ?? null,
-    //   integration.integrationSecretKey
-    // )
-    // if (apiKey === null) {
-    //   this.ctx.error('No API key configured for provider', {
-    //     integrationId: integration._id,
-    //     providerKind: integration.providerType,
-    //     providerId: integration.integrationSecretKey
-    //   })
-    //   return
-    // }
+    const systemPrompts: LLMHistoryRecord[] = []
 
-    // Create AI provider
-    // const provider = createProvider(integration.providerType, apiKey, integration.baseUrl)
+    if (contextMode !== 'direct') {
+      const msg = await client.findOne<Doc>(objectClass, { _id: objectId })
+      if (msg !== undefined) {
+        systemPrompts.push({
+          role: 'system' as const,
+          content: 'Document type:' + msg?._class
+        })
+        if (msg._class === chunter.class.ThreadMessage || msg._class === chunter.class.ChatMessage) {
+          systemPrompts.push({
+            role: 'system' as const,
+            content: 'Content: ' + markupToText((msg as ChatMessage).message)
+          })
+        }
+      }
 
-    // Get user who sent the message
-    // const personUuid = this.personUuidBySocialId.get(user) ?? (await accountClient.findPersonBySocialId(user))
-    // const contextMode = objectClass === chunter.class.DirectMessage ? 'direct' : 'thread'
+      const lastMessages =
+        (await client.findAll(
+          chunter.class.ChatMessage,
+          { attachedTo: objectId, attachedToClass: objectClass },
+          { limit: 500, sort: { modifiedOn: SortingOrder.Descending } }
+        )) ?? []
 
-    // if (personUuid === undefined) {
-    //   return
-    // }
+      lastMessages.sort((a, b) => a.modifiedOn - b.modifiedOn)
 
-    // this.personUuidBySocialId.set(user, personUuid)
+      const personIds = new Set(lastMessages.map((it) => it.modifiedBy))
 
-    // let promptText = markupToText(event.message)
-    // const files = await this.getAttachments(client, event.messageId)
-    // if (files.length > 0) {
-    //   promptText += '\n\nAttachments:'
-    //   for (const file of files) {
-    //     promptText += `\nName:${file.name} FileId:${file.file} Type:${file.type}`
-    //   }
-    // }
+      const socialIds = toIdMap(
+        (await client.findAll(contact.class.SocialIdentity, { _id: { $in: Array.from(personIds) as any } })) ?? []
+      )
 
-    // const op = client.apply(undefined, 'AIMessageRequestEvent')
-    // const hierarchy = client.getHierarchy()
+      const employeesInChannel =
+        (await client.findAll(contact.class.Person, {
+          _id: { $in: Array.from(socialIds.values()).map((it) => it.attachedTo) }
+        })) ?? []
+      const empAsMap = toIdMap(employeesInChannel.filter((it) => it.personUuid !== undefined))
 
-    // const space = hierarchy.isDerived(objectClass, core.class.Space) ? (objectId as Ref<Space>) : event.objectSpace
+      for (const msg of lastMessages) {
+        let emp: Person | undefined
+        const sid = socialIds.get(msg.modifiedBy as any)
+        if (sid !== undefined) {
+          emp = empAsMap.get(sid.attachedTo)
+        }
+        const msgRole: 'assistant' | 'user' = this.aiPerson?.personUuid === emp?.personUuid ? 'assistant' : 'user'
+        useHistory.push({
+          role: msgRole,
+          content: markupToText(msg.message)
+        })
+      }
+    }
 
-    // // Use the new provider abstraction
-    // const providerResponse = await provider.chatCompletion({
-    //   messages: [{ role: 'user', content: promptText }],
-    //   model: aiPerson.model,
-    //   systemPrompt: aiPerson.systemPrompt
-    // })
+    const workspaceOps: WorkspaceOps = {
+      storage: this.storage,
+      ctx: this.ctx,
+      wsIds: this.wsIds,
+      getClient: () => this.clientPromise
+    }
 
-    // const response = providerResponse.content
+    const toolDeps: ToolDependencies = {
+      memoryStorage: this.memoryStorage,
+      user: personUuid as AccountUuid,
+      workspaceOps
+    }
 
-    // if (response == null || response === '') {
-    //   return
-    // }
+    const chatMessages: LLMChatMessage[] = [
+      ...systemPrompts,
+      ...useHistory,
+      prompt
+    ]
 
-    // this.ctx.info('AI response generated', {
-    //   integration: integration.name,
-    //   provider: integration.providerType,
-    //   model: aiPerson.model,
-    //   inputTokens: providerResponse.usage.inputTokens,
-    //   outputTokens: providerResponse.usage.outputTokens
-    // })
+    const chatCompletion = await this.llmService.chat(
+      this.ctx,
+      this.wsIds.uuid,
+      chatMessages,
+      contextMode,
+      rawHistory.assistantMemory,
+      rawHistory.userMemory,
+      rawHistory.sharedContext,
+      toolDeps,
+      { user: personUuid as AccountUuid }
+    )
+    const response = chatCompletion?.completion
 
-    // const parseResponse = jsonToMarkup(markdownToMarkup(response, { refUrl: '', imageUrl: '' }))
+    if (response == null) {
+      return
+    }
+    const responseTokens =
+      chatCompletion?.usage ?? this.llmService.countTokens([{ role: 'assistant', content: response }])
 
-    // if (messageClass === chunter.class.ChatMessage) {
-    //   await op.addCollection<Doc, ChatMessage>(
-    //     chunter.class.ChatMessage,
-    //     space,
-    //     objectId,
-    //     objectClass,
-    //     event.collection,
-    //     { message: parseResponse }
-    //   )
-    // } else if (messageClass === chunter.class.ThreadMessage) {
-    //   const parent = await client.findOne<ChatMessage>(chunter.class.ChatMessage, {
-    //     _id: objectId as Ref<ChatMessage>
-    //   })
+    await this.memoryStorage.pushHistory(personUuid, response, 'assistant', responseTokens, personUuid, objectId, objectClass)
+    await this.memoryStorage.saveHistory(personUuid, await this.memoryStorage.getHistory(personUuid))
 
-    //   if (parent !== undefined) {
-    //     await op.addCollection<Doc, ThreadMessage>(
-    //       chunter.class.ThreadMessage,
-    //       space,
-    //       objectId,
-    //       objectClass,
-    //       event.collection,
-    //       { message: parseResponse, objectId: parent.attachedTo, objectClass: parent.attachedToClass }
-    //     )
-    //   }
-    // }
-    // await op.commit()
+    const parseResponse = jsonToMarkup(markdownToMarkup(response, { refUrl: '', imageUrl: '' }))
+
+    if (messageClass === chunter.class.ChatMessage) {
+      await client.addCollection<Doc, ChatMessage>(
+        chunter.class.ChatMessage,
+        space,
+        objectId,
+        objectClass,
+        event.collection,
+        { message: parseResponse }
+      )
+    } else if (messageClass === chunter.class.ThreadMessage) {
+      const parent = await client.findOne<ChatMessage>(chunter.class.ChatMessage, {
+        _id: objectId as Ref<ChatMessage>
+      })
+
+      if (parent !== undefined) {
+        await client.addCollection<Doc, ThreadMessage>(
+          chunter.class.ThreadMessage,
+          space,
+          objectId,
+          objectClass,
+          event.collection,
+          { message: parseResponse, objectId: parent.attachedTo, objectClass: parent.attachedToClass }
+        )
+      }
+    }
   }
 
   async close (): Promise<void> {
-    if (this.client !== undefined) {
-      await this.client.close()
-    }
-
-    if (this.opClient instanceof Promise) {
-      void this.opClient.then((opClient) => {
-        void opClient.close()
-      })
-    } else {
-      await this.opClient.close()
-    }
-
     this.ctx.info('Closed workspace client: ', { workspace: this.wsIds })
   }
 
-  private async txHandler (_: TxOperations, txes: TxCUD<Doc>[]): Promise<void> {
-    if (this.love !== undefined) {
-      this.love.txHandler(txes)
-    }
-  }
-
   async loveConnect (request: ConnectMeetingRequest): Promise<void> {
-    await this.opClient
+    await this.clientPromise
     if (this.love === undefined) {
       this.ctx.error('Love controller is not initialized')
       return
@@ -486,8 +382,7 @@ export class WorkspaceClient {
   }
 
   async loveDisconnect (request: DisconnectMeetingRequest): Promise<void> {
-    // Just wait initialization
-    await this.opClient
+    await this.clientPromise
 
     if (this.love === undefined) {
       this.ctx.error('Love controller is not initialized')
@@ -498,9 +393,7 @@ export class WorkspaceClient {
   }
 
   async processLoveTranscript (text: string, participant: Ref<Person>, room: Ref<Room>): Promise<void> {
-    // Just wait initialization
-    await this.opClient
-
+    await this.clientPromise
     if (this.love === undefined) {
       this.ctx.error('Love controller is not initialized')
       return
@@ -510,53 +403,13 @@ export class WorkspaceClient {
   }
 
   async getLoveIdentity (): Promise<IdentityResponse | undefined> {
-    // Just wait initialization
-    await this.opClient
-
+    await this.clientPromise
     if (this.love === undefined) {
       this.ctx.error('Love is not initialized')
       return
     }
 
     return this.love.getIdentity()
-  }
-
-  // memory utils
-
-  async updateAssistantMemory (user: PersonUuid | undefined, args: Record<string, any>): Promise<void> {
-    if (user === undefined) return
-
-    const currentHistory = await this.getHistory(user)
-    currentHistory.assistantMemory = args.memory ?? currentHistory.assistantMemory
-
-    await this.saveHistory(user, currentHistory)
-  }
-
-  async updateUserMemory (user: PersonUuid | undefined, args: Record<string, any>): Promise<void> {
-    if (user === undefined) return
-
-    const currentHistory = await this.getHistory(user)
-    currentHistory.userMemory = args.memory ?? currentHistory.userMemory
-
-    await this.saveHistory(user, currentHistory)
-  }
-
-  async updateSharedContext (user: PersonUuid | undefined, args: Record<string, any>): Promise<void> {
-    if (user === undefined) return
-
-    const currentHistory = await this.getHistory(user)
-    currentHistory.sharedContext = args.context ?? currentHistory.sharedContext
-
-    await this.saveHistory(user, currentHistory)
-  }
-
-  async clearHistory (user: PersonUuid | undefined, args: Record<string, any>): Promise<void> {
-    if (user === undefined) return
-
-    const currentHistory = await this.getHistory(user)
-    currentHistory.history = []
-
-    await this.saveHistory(user, currentHistory)
   }
 
   canClose (): boolean {

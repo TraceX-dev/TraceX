@@ -1,5 +1,5 @@
 //
-// Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { AccountUuid, MarkupBlobRef, Ref } from '@hcengineering/core'
+import { MarkupBlobRef, Ref } from '@hcengineering/core'
 import document, { Document, getFirstRank, Teamspace } from '@hcengineering/document'
 import { makeRank } from '@hcengineering/rank'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
@@ -21,74 +21,68 @@ import { Stream } from 'stream'
 import { v4 as uuid } from 'uuid'
 
 import config from '../config'
-import { WorkspaceClient } from '../workspace/workspaceClient'
+import { RegisteredTool, ToolDependencies, WorkspaceOps } from './types'
 
-import { Tool } from './types'
-
-export const getDataBeforeImportTool: Tool<string> = [
-  {
-    type: 'function',
-    function: {
-      name: 'getDataBeforeImport',
-      parameters: {
-        type: 'object',
-        properties: {}
-      },
-      description:
-        'Get folders and parents for documents. This step necessery before saveFile tool. YOU MUST USE IT BEFORE import file.'
+export const getDataBeforeImportTool: RegisteredTool = {
+  definition: {
+    name: 'getDataBeforeImport',
+    description:
+      'Get folders and parents for documents. This step necessery before saveFile tool. YOU MUST USE IT BEFORE import file.',
+    parameters: {
+      type: 'object',
+      properties: {}
     }
   },
-  getFoldersForDocuments,
-  'any'
-]
+  createExecutor: (deps: ToolDependencies) => async () => {
+    if (deps.workspaceOps === undefined) return 'Workspace operations not available'
+    return await getFoldersForDocuments(deps)
+  },
+  contextMode: 'any'
+}
 
-export const saveFileTool: Tool<object> = [
-  {
-    type: 'function',
-    function: {
-      name: 'saveFile',
-      parse: JSON.parse,
-      parameters: {
-        type: 'object',
-        required: ['fileId, folder, name'],
-        properties: {
-          fileId: { type: 'string', description: 'File id to parse' },
-          folder: {
-            type: 'string',
-            default: '',
-            description:
-              'Folder, id from getDataBeforeImport. If not provided you can guess by file name and folder name, or by another file names, if you can`t, just ask user. Don`t provide empty, this field is required. If no folders at all, you should stop pipeline execution and ask user to create teamspace'
-          },
-          parent: {
-            type: 'string',
-            default: '',
-            description:
-              'Parent document, use id from getDataBeforeImport, leave empty string if not provided, it is not necessery, please feel free to pass empty string'
-          },
-          name: {
-            type: 'string',
-            description: 'Name for file, try to recognize from user input, if not provided use attached file name'
-          }
+export const saveFileTool: RegisteredTool = {
+  definition: {
+    name: 'saveFile',
+    description:
+      'Parse pdf to markdown and save it, using for import files. Use only if provide file in current message and user require to import/save, if file not provided ask user to attach it. You MUST call getDataBeforeImport tool before for get ids. Use file name as name if user not provide it, don`t use old parameters. You can ask user about folder if you have not enough data to get folder id',
+    parameters: {
+      type: 'object',
+      required: ['fileId, folder, name'],
+      properties: {
+        fileId: { type: 'string', description: 'File id to parse' },
+        folder: {
+          type: 'string',
+          default: '',
+          description:
+            'Folder, id from getDataBeforeImport. If not provided you can guess by file name and folder name, or by another file names, if you can`t, just ask user. Don`t provide empty, this field is required. If no folders at all, you should stop pipeline execution and ask user to create teamspace'
+        },
+        parent: {
+          type: 'string',
+          default: '',
+          description:
+            'Parent document, use id from getDataBeforeImport, leave empty string if not provided, it is not necessery, please feel free to pass empty string'
+        },
+        name: {
+          type: 'string',
+          description: 'Name for file, try to recognize from user input, if not provided use attached file name'
         }
-      },
-      description:
-        'Parse pdf to markdown and save it, using for import files. Use only if provide file in current message and user require to import/save, if file not provided ask user to attach it. You MUST call getDataBeforeImport tool before for get ids. Use file name as name if user not provide it, don`t use old parameters. You can ask user about folder if you have not enough data to get folder id'
+      }
     }
   },
-  saveFile,
-  'any'
-]
+  createExecutor: (deps: ToolDependencies) => async (args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }) => {
+    if (deps.workspaceOps === undefined) return 'Workspace operations not available'
+    return await saveFile(deps.workspaceOps, args)
+  },
+  contextMode: 'any'
+}
 
-async function getFoldersForDocuments (
-  workspaceClient: WorkspaceClient,
-  user: AccountUuid | undefined,
-  args: Record<string, any>
-): Promise<string> {
-  const client = await workspaceClient.opClient
-  // TODO: need a set of user PersonIds here
+async function getFoldersForDocuments (deps: ToolDependencies): Promise<string> {
+  const ops = deps.workspaceOps
+  if (ops === undefined) return 'Workspace operations not available'
+  const client = await ops.getClient()
   const spaces = await client.findAll(
     document.class.Teamspace,
-    user !== undefined ? { members: user, archived: false } : { archived: false }
+    deps.user !== undefined ? { members: deps.user, archived: false } : { archived: false }
   )
   let res = 'Folders:\n'
   for (const space of spaces) {
@@ -103,20 +97,19 @@ async function getFoldersForDocuments (
 }
 
 async function saveFile (
-  workspaceClient: WorkspaceClient,
-  user: AccountUuid | undefined,
+  ops: WorkspaceOps,
   args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }
 ): Promise<string> {
   console.log('Save file', args)
-  const content = await pdfToMarkdown(workspaceClient, args.fileId, args.name)
+  const content = await pdfToMarkdown(ops, args.fileId, args.name)
   if (content === undefined) {
     return 'Error while converting pdf to markdown'
   }
   const converted = JSON.stringify(markdownToMarkup(content))
 
-  const client = await workspaceClient.opClient
+  const client = await ops.getClient()
   const fileId = uuid()
-  await workspaceClient.storage.put(workspaceClient.ctx, workspaceClient.wsIds, fileId, converted, 'application/json')
+  await ops.storage.put(ops.ctx, ops.wsIds, fileId, converted, 'application/json')
 
   const teamspaces = await client.findAll(document.class.Teamspace, {})
   const parent = await client.findOne(document.class.Document, { _id: args.parent as Ref<Document> })
@@ -135,17 +128,17 @@ async function saveFile (
 }
 
 async function pdfToMarkdown (
-  workspaceClient: WorkspaceClient,
+  ops: WorkspaceOps,
   fileId: string,
   name: string | undefined
 ): Promise<string | undefined> {
   if (config.DataLabApiKey !== '') {
     try {
-      const stat = await workspaceClient.storage.stat(workspaceClient.ctx, workspaceClient.wsIds, fileId)
+      const stat = await ops.storage.stat(ops.ctx, ops.wsIds, fileId)
       if (stat?.contentType !== 'application/pdf') {
         return
       }
-      const file = await workspaceClient.storage.get(workspaceClient.ctx, workspaceClient.wsIds, fileId)
+      const file = await ops.storage.get(ops.ctx, ops.wsIds, fileId)
       const buffer = await stream2buffer(file)
 
       const url = 'https://www.datalab.to/api/v1/marker'

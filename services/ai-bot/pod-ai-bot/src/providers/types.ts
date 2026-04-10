@@ -1,5 +1,6 @@
 //
 // Copyright © 2024-2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,41 +14,56 @@
 // limitations under the License.
 //
 
+import { type MeasureContext } from '@hcengineering/core'
+
 export type ContextMode = 'direct' | 'thread'
 
-export interface Message {
+export type TokenUsage = number
+
+export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
   toolCallId?: string
-  toolCalls?: ToolCall[]
+  toolCalls?: ChatMessageToolCall[]
 }
 
-export interface ToolDefinition {
-  name: string
-  description: string
-  inputSchema: Record<string, any>
-}
-
-export interface ToolCall {
+export interface ChatMessageToolCall {
   id: string
   name: string
   arguments: string
 }
 
-export interface CompletionRequest {
-  messages: Message[]
-  tools?: ToolDefinition[]
-  model: string
-  systemPrompt?: string
+export interface ChatCompletionResult {
+  text?: string
+  usage?: TokenUsage
+  created?: number
+  toolCalls?: ChatMessageToolCall[]
 }
 
-export interface CompletionResponse {
-  content: string | null
-  toolCalls: ToolCall[]
-  usage: { inputTokens: number, outputTokens: number }
-  finishReason: 'stop' | 'tool_calls' | 'length'
+export interface ChatCompletionOptions {
+  user?: string
+  maxTokens?: number
+}
+
+export interface LLMToolDefinition {
+  name: string
+  description: string
+  parameters: Record<string, any>
 }
 
 export interface LLMProvider {
-  chatCompletion: (request: CompletionRequest) => Promise<CompletionResponse>
+  chatCompletion: (
+    ctx: MeasureContext,
+    messages: ChatMessage[],
+    options?: ChatCompletionOptions
+  ) => Promise<ChatCompletionResult>
+
+  chatCompletionWithTools: (
+    ctx: MeasureContext,
+    messages: ChatMessage[],
+    tools: LLMToolDefinition[],
+    options?: ChatCompletionOptions
+  ) => Promise<ChatCompletionResult>
+
+  countTokens: (messages: ChatMessage[]) => number
 }

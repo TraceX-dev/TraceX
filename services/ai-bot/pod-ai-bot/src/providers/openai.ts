@@ -13,92 +13,165 @@
 // limitations under the License.
 //
 
+import { MeasureContext } from '@hcengineering/core'
+import { countTokens } from '@hcengineering/openai'
+
 import OpenAI from 'openai'
+import { CompletionUsage } from 'openai/resources/completions'
+import { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources'
+import { encodingForModel, getEncoding, Tiktoken, TiktokenModel } from 'js-tiktoken'
+
 import {
   type LLMProvider,
-  type CompletionRequest,
-  type CompletionResponse,
-  type Message
+  type ChatCompletionResult,
+  type ChatCompletionOptions,
+  type ChatMessage,
+  type LLMToolDefinition
 } from './types'
 
 export class OpenAIProvider implements LLMProvider {
   private readonly client: OpenAI
+  private readonly model: string
+  private readonly encoding: Tiktoken
 
-  constructor (apiKey: string, baseUrl?: string) {
+  constructor (
+    apiKey: string,
+    model: string,
+    baseUrl?: string
+  ) {
     this.client = new OpenAI({
       apiKey,
       ...(baseUrl !== undefined && baseUrl !== '' ? { baseURL: baseUrl } : {})
     })
+    this.model = model
+
+    this.encoding = (() => {
+      try {
+        return encodingForModel(model as TiktokenModel)
+      } catch {
+        return getEncoding('cl100k_base')
+      }
+    })()
   }
 
-  async chatCompletion (request: CompletionRequest): Promise<CompletionResponse> {
-    const messages: OpenAI.ChatCompletionMessageParam[] = []
+  countTokens (messages: ChatMessage[]): number {
+    const openaiMessages = messages.map(toMessage)
+    return countTokens(openaiMessages, this.encoding)
+  }
 
-    if (request.systemPrompt !== undefined && request.systemPrompt !== '') {
-      messages.push({ role: 'system', content: request.systemPrompt })
-    }
+  async chatCompletion (
+    ctx: MeasureContext,
+    messages: ChatMessage[],
+    options?: ChatCompletionOptions
+  ): Promise<ChatCompletionResult> {
+    const { systemContent, nonSystemMessages } = splitMessages(messages)
 
-    for (const msg of request.messages) {
-      if (msg.role === 'tool') {
-        messages.push({
-          role: 'tool',
-          content: msg.content,
-          tool_call_id: msg.toolCallId ?? ''
-        })
-      } else if (msg.role === 'assistant' && msg.toolCalls !== undefined && msg.toolCalls.length > 0) {
-        messages.push({
-          role: 'assistant',
-          content: msg.content ?? null,
-          tool_calls: msg.toolCalls.map((tc) => ({
-            id: tc.id,
-            type: 'function' as const,
-            function: {
-              name: tc.name,
-              arguments: tc.arguments
-            }
-          }))
-        })
-      } else {
-        messages.push({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        })
+    const response = await this.client.chat.completions.create(
+      {
+        messages: [
+          ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
+          ...nonSystemMessages.map(toMessage)
+        ],
+        model: this.model,
+        user: options?.user,
+        ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+        stream: false
       }
-    }
+    )
 
-    const tools: OpenAI.ChatCompletionTool[] | undefined =
-      request.tools !== undefined && request.tools.length > 0
-        ? request.tools.map((t) => ({
-          type: 'function' as const,
-          function: {
-            name: t.name,
-            description: t.description,
-            parameters: t.inputSchema
-          }
-        }))
-        : undefined
+    const text = response.choices?.[0]?.message?.content ?? undefined
+    const created = response.created
+    const usage = toTokens(response.usage)
 
-    const response = await this.client.chat.completions.create({
-      model: request.model,
-      messages,
-      tools
-    })
+    return { text, usage, created }
+  }
 
-    const choice = response.choices[0]
-    const toolCalls = (choice.message.tool_calls ?? []).map((tc) => ({
+  async chatCompletionWithTools (
+    ctx: MeasureContext,
+    messages: ChatMessage[],
+    tools: LLMToolDefinition[],
+    options?: ChatCompletionOptions
+  ): Promise<ChatCompletionResult> {
+    const { systemContent, nonSystemMessages } = splitMessages(messages)
+
+    const openaiTools: ChatCompletionTool[] = tools.map(toTool)
+
+    const response = await this.client.chat.completions.create(
+      {
+        messages: [
+          ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
+          ...nonSystemMessages.map(toMessage)
+        ],
+        model: this.model,
+        tools: openaiTools,
+        user: options?.user,
+        ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+        stream: false
+      }
+    )
+
+    const choice = response.choices?.[0]
+    const text = choice?.message?.content ?? undefined
+    const created = response.created
+    const usage = toTokens(response.usage)
+
+    const toolCalls = choice?.message?.tool_calls?.map((tc) => ({
       id: tc.id,
       name: tc.function.name,
       arguments: tc.function.arguments
     }))
 
-    return {
-      content: choice.message.content,
-      toolCalls,
-      usage: {
-        inputTokens: response.usage?.prompt_tokens ?? 0,
-        outputTokens: response.usage?.completion_tokens ?? 0
-      },
-      finishReason: choice.finish_reason === 'tool_calls' ? 'tool_calls' : choice.finish_reason === 'length' ? 'length' : 'stop'
+    return { text, usage, created, toolCalls }
+  }
+}
+
+function splitMessages (messages: ChatMessage[]): { systemContent: string, nonSystemMessages: ChatMessage[] } {
+  const systemContent = messages
+    .filter((it) => it.role === 'system')
+    .map((it) => it.content)
+    .join('\n')
+
+  const nonSystemMessages = messages.filter((it) => it.role !== 'system')
+
+  return { systemContent, nonSystemMessages }
+}
+
+function toTool (tool: LLMToolDefinition): ChatCompletionTool {
+  return {
+    type: 'function',
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters
     }
   }
+}
+
+function toMessage (message: ChatMessage): ChatCompletionMessageParam {
+  const { role, content, toolCallId, toolCalls } = message
+  if (role === 'tool') {
+    return { role, content, tool_call_id: toolCallId ?? '' }
+  }
+  if (role === 'assistant' && toolCalls !== undefined && toolCalls.length > 0) {
+    return {
+      role,
+      content,
+      tool_calls: toolCalls.map((tc) => ({
+        id: tc.id,
+        type: 'function' as const,
+        function: {
+          name: tc.name,
+          arguments: tc.arguments
+        }
+      }))
+    }
+  }
+  return { role, content }
+}
+
+function toTokens (usage?: CompletionUsage): number {
+  if (usage === undefined) {
+    return 0
+  }
+  return usage.total_tokens ?? (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0)
 }

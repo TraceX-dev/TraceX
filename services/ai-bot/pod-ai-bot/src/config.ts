@@ -15,15 +15,14 @@
 
 import fs from 'fs'
 import yaml from 'js-yaml'
-import convict from 'convict'
+import convict, { Schema } from 'convict'
 
-export interface AIProviderConfig {
+export interface LlmModelConfig {
   id: string
-  name: string
-  kind: string
+  kind: 'openai' | 'anthropic'
+  model: string
   apiKey: string
   baseUrl?: string
-  enabled?: boolean
 }
 
 interface YamlConfig {
@@ -31,13 +30,15 @@ interface YamlConfig {
   dbUrl: string
   serverSecret: string
   serviceId: string
-  firstName: string
-  lastName: string
-  avatarPath: string
-  avatarName: string
-  avatarContentType: string
-  password: string
   port: number
+  bot: {
+    firstName: string
+    lastName: string
+    avatarPath: string
+    avatarName: string
+    avatarContentType: string
+    password: string
+  }
   openai: {
     apiKey: string
     baseUrl: string
@@ -67,7 +68,7 @@ interface YamlConfig {
   queue: {
     region: string
   }
-  providers: AIProviderConfig[]
+  llm: LlmModelConfig[]
 }
 
 export interface Config {
@@ -75,6 +76,12 @@ export interface Config {
   DbURL: string
   ServerSecret: string
   ServiceID: string
+  BotFirstName: string
+  BotLastName: string
+  BotAvatarPath: string
+  BotAvatarName: string
+  BotAvatarContentType: string
+  BotPassword: string
   OpenAIKey: string
   OpenAIModel: string
   OpenAITranslateModel: string
@@ -91,39 +98,34 @@ export interface Config {
   DeepgramProjectId: string
   DeepgramTag: string
   QueueRegion: string
-  AIProviders: AIProviderConfig[]
+  Llm: LlmModelConfig[]
 }
 
-const providerSchema = {
+const llmModelSchema: Schema<LlmModelConfig> = {
   id: {
-    doc: 'Provider ID',
+    doc: 'LLM Model Id',
     format: 'required-string',
-    default: undefined
-  },
-  name: {
-    doc: 'Provider name',
-    format: 'required-string',
-    default: undefined
+    default: null
   },
   kind: {
     doc: 'Provider kind',
     format: 'required-string',
-    default: undefined
+    default: null
+  },
+  model: {
+    doc: 'Provider model',
+    format: 'required-string',
+    default: null
   },
   apiKey: {
     doc: 'Provider API key',
     format: 'required-string',
-    default: undefined
+    default: null
   },
   baseUrl: {
     doc: 'Provider base URL',
     format: 'required-string',
-    default: undefined
-  },
-  enabled: {
-    doc: 'Provider enabled',
-    format: Boolean,
-    default: true
+    default: null
   }
 }
 
@@ -158,23 +160,23 @@ convict.addFormat({
   }
 })
 
-const configSchema = {
+const configSchema: Schema<YamlConfig> = {
   accountsUrl: {
     doc: 'Accounts service URL',
     format: 'required-string',
-    default: undefined,
+    default: null,
     env: 'ACCOUNTS_URL'
   },
   dbUrl: {
     doc: 'Database URL',
     format: 'required-string',
-    default: undefined,
+    default: null,
     env: 'DB_URL'
   },
   serverSecret: {
     doc: 'Server secret',
     format: 'required-string',
-    default: undefined,
+    default: null,
     env: 'SERVER_SECRET'
   },
   serviceId: {
@@ -188,6 +190,38 @@ const configSchema = {
     format: 'nat',
     default: 4010,
     env: 'PORT'
+  },
+  bot: {
+    firstName: {
+      doc: 'AI Bot First Name',
+      format: 'required-string',
+      default: null
+    },
+    lastName: {
+      doc: 'AI Bot Last Name',
+      format: 'required-string',
+      default: null
+    },
+    password: {
+      doc: 'AI Bot Password',
+      format: 'required-string',
+      default: null
+    },
+    avatarPath: {
+      doc: 'AI Bot Avatar Path',
+      format: 'required-string',
+      default: null
+    },
+    avatarName: {
+      doc: 'AI Bot Avatar Name',
+      format: 'required-string',
+      default: null
+    },
+    avatarContentType: {
+      doc: 'AI Bot Avatar Content Type',
+      format: 'required-string',
+      default: null
+    }
   },
   openai: {
     apiKey: {
@@ -293,7 +327,7 @@ const configSchema = {
       env: 'QUEUE_REGION'
     }
   },
-  providers: {
+  llm: {
     doc: 'AI providers configuration',
     format: 'providers-array',
     default: []
@@ -314,6 +348,12 @@ function loadConfig (): Config {
     DbURL: parsed.dbUrl,
     ServerSecret: parsed.serverSecret,
     ServiceID: parsed.serviceId,
+    BotFirstName: parsed.bot.firstName,
+    BotLastName: parsed.bot.lastName,
+    BotPassword: parsed.bot.password,
+    BotAvatarName: parsed.bot.avatarName,
+    BotAvatarPath: parsed.bot.avatarPath,
+    BotAvatarContentType: parsed.bot.avatarContentType,
     OpenAIKey: parsed.openai.apiKey,
     OpenAIModel: parsed.openai.model,
     OpenAITranslateModel: parsed.openai.translateModel,
@@ -330,7 +370,7 @@ function loadConfig (): Config {
     DeepgramProjectId: parsed.deepgram.projectId,
     DeepgramTag: parsed.deepgram.tag,
     QueueRegion: parsed.queue.region,
-    AIProviders: parsed.providers
+    Llm: parsed.llm
   }
 }
 
@@ -359,7 +399,7 @@ function loadYamlConfig (): YamlConfig | undefined {
 }
 
 function validateProvider (value: Record<string, unknown>, index: number): void {
-  const providerConfig = convict<AIProviderConfig>(providerSchema)
+  const providerConfig = convict<LlmModelConfig>(llmModelSchema)
   providerConfig.load(value)
   try {
     providerConfig.validate({ allowed: 'strict' })

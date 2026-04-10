@@ -41,19 +41,18 @@ import { Room } from '@hcengineering/love'
 import { getAccountClient } from '@hcengineering/server-client'
 import { generateToken } from '@hcengineering/server-token'
 import { htmlToMarkup, jsonToHTML, jsonToMarkup, markupToJSON } from '@hcengineering/text'
-import { getEncoding } from 'js-tiktoken'
-import OpenAI from 'openai'
+import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 
 import chunter from '@hcengineering/chunter'
 import { StorageAdapter } from '@hcengineering/server-core'
 import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
-import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
-import config from './config'
+import { createProviders } from './providers'
+import { type LLMProvider } from './providers/types'
+import { DefaultLLMService, type LLMService } from './services'
+import { BlobMemoryStorage } from './storage'
 import { tryAssignToWorkspace } from './utils/account'
-import { summarizeMessages, translateHtml } from './utils/openai'
 import { WorkspaceClient } from './workspace/workspaceClient'
 import contact, { Contact, getName, SocialIdentityRef } from '@hcengineering/contact'
-// import { ensureProviderIntegrations } from './providers/bootstrap'
 
 const CLOSE_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 
@@ -64,26 +63,21 @@ export class AIControl {
 
   readonly storageAdapter: StorageAdapter
 
-  private readonly openai?: OpenAI
-  private readonly openaiModel: string
-
-  private readonly openaiEncoding = getEncoding('cl100k_base')
+  private readonly providers: Map<string, LLMProvider>
+  private readonly llmService: LLMService
 
   constructor (
     readonly personUuid: AccountUuid,
     readonly socialIds: SocialId[],
     private readonly ctx: MeasureContext
   ) {
-    // Find the first enabled openai-type provider to use for legacy translate/summarize
-    const openaiProvider = config.AIProviders.find((p) => (p.type === 'openai' || p.type === 'openai-compatible') && p.enabled)
-    this.openai =
-      openaiProvider !== undefined
-        ? new OpenAI({
-          apiKey: openaiProvider.token,
-          ...(openaiProvider.baseUrl !== undefined ? { baseURL: openaiProvider.baseUrl } : {})
-        })
-        : undefined
-    this.openaiModel = openaiProvider?.models[0] ?? 'gpt-4o-mini'
+    this.providers = createProviders()
+    const primaryProvider = this.providers.values().next().value
+    if (primaryProvider === undefined) {
+      throw new Error('No LLM providers configured')
+    }
+    this.llmService = new DefaultLLMService(primaryProvider)
+
     this.storageAdapter = buildStorageFromConfig(storageConfigFromEnv())
   }
 
@@ -140,15 +134,35 @@ export class AIControl {
 
     this.ctx.info('Listen workspace: ', { workspace })
 
-    return new WorkspaceClient(
+    const ref: { clientPromise?: Promise<any> } = {}
+
+    const memoryStorage = new BlobMemoryStorage(
+      this.storageAdapter,
+      this.ctx,
+      wsIds,
+      () => {
+        if (ref.clientPromise === undefined) {
+          throw new Error('WorkspaceClient not initialized yet')
+        }
+        return ref.clientPromise
+      }
+    )
+
+    const wsClient = new WorkspaceClient(
       this.storageAdapter,
       wsLoginInfo.endpoint,
       token,
       wsIds,
       this.personUuid,
       this.socialIds,
-      this.ctx.newChild('create-workspace', {}, { span: false })
+      this.ctx.newChild('create-workspace', {}, { span: false }),
+      this.llmService,
+      memoryStorage
     )
+
+    ref.clientPromise = wsClient.clientPromise
+
+    return wsClient
   }
 
   async initWorkspaceClient (workspace: WorkspaceUuid): Promise<void> {
@@ -199,12 +213,9 @@ export class AIControl {
   }
 
   async translate (workspace: WorkspaceUuid, req: TranslateRequest): Promise<TranslateResponse | undefined> {
-    if (this.openai === undefined) {
-      return undefined
-    }
     const html = jsonToHTML(markupToJSON(req.text))
-    const result = await translateHtml(this.ctx, workspace, this.openai, html, req.lang)
-    const text = result !== undefined ? htmlToMarkup(result) : req.text
+    const result = await this.llmService.translateHtml(this.ctx, workspace, html, req.lang)
+    const text = result.text !== undefined ? htmlToMarkup(result.text) : req.text
     return {
       text,
       lang: req.lang
@@ -215,16 +226,12 @@ export class AIControl {
     workspace: WorkspaceUuid,
     req: SummarizeMessagesRequest
   ): Promise<SummarizeMessagesResponse | undefined> {
-    if (this.openai === undefined) return
     if (req.target === undefined || req.targetClass === undefined) return
 
     const wsClient = await this.getWorkspaceClient(workspace)
     if (wsClient === undefined) return
 
-    const opClient = await wsClient.opClient
-    if (opClient === undefined) return
-
-    const client = wsClient.client
+    const client = await wsClient.clientPromise
     if (client === undefined) return
 
     const target = await client.findOne(req.targetClass, { _id: req.target })
@@ -282,10 +289,10 @@ export class AIControl {
       }
     }
 
-    const summary = await summarizeMessages(this.ctx, workspace, this.openai, messagesToSummarize, req.lang)
-    if (summary === undefined) return
+    const result = await this.llmService.summarizeMessages(this.ctx, workspace, messagesToSummarize, req.lang)
+    if (result.text === undefined) return
 
-    const summaryMarkup = jsonToMarkup(markdownToMarkup(summary))
+    const summaryMarkup = jsonToMarkup(markdownToMarkup(result.text))
 
     const lastMessage = await client.findOne(
       chunter.class.ChatMessage,
@@ -299,9 +306,9 @@ export class AIControl {
       }
     )
 
-    const op = opClient.apply(undefined, 'AISummarizeMessagesRequestEvent')
+    const op = client.apply(undefined, 'AISummarizeMessagesRequestEvent')
 
-    if (lastMessage?.collection === 'summary' && lastMessage.createdBy === opClient.user) {
+    if (lastMessage?.collection === 'summary' && lastMessage.createdBy === client.user) {
       await op.update(lastMessage, { message: summaryMarkup, editedOn: Date.now() })
     } else {
       await op.addCollection(chunter.class.ChatMessage, core.space.Workspace, target._id, target._class, 'summary', {
@@ -317,8 +324,6 @@ export class AIControl {
   }
 
   async processEvent (workspace: WorkspaceUuid, events: AIEventRequest[]): Promise<void> {
-    if (this.openai === undefined) return
-
     for (const event of events) {
       const wsClient = await this.getWorkspaceClient(workspace)
       if (wsClient === undefined) continue

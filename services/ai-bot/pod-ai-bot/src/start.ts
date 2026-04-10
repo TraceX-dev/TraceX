@@ -28,7 +28,6 @@ import { createServer, listen } from './server/server'
 import { getAccountUuid } from './utils/account'
 import { updateDeepgramBilling } from './billing'
 import { startQueue } from './queue'
-import { bootstrapPlatformProviders } from './providers/bootstrap'
 
 export const start = async (): Promise<void> => {
   setMetadata(serverToken.metadata.Secret, config.ServerSecret)
@@ -54,13 +53,15 @@ export const start = async (): Promise<void> => {
 
   ctx.info('AI Bot Service started', { config })
 
-  // Bootstrap platform-wide AI provider API keys from environment variables
-  try {
-    const bootstrapToken = generateToken(config.ServiceID, undefined, { service: 'ai-bot-service' })
-    await bootstrapPlatformProviders(ctx, bootstrapToken)
-    ctx.info('AI provider keys bootstrapped successfully')
-  } catch (err: any) {
-    ctx.error('Failed to bootstrap AI provider keys', { error: err })
+  const personUuid = await withRetry(
+    async () => await getAccountUuid(ctx),
+    (_, attempt) => attempt >= 5,
+    5000
+  )()
+
+  if (personUuid === undefined) {
+    ctx.error('AI Bot Service failed to start. No person found.')
+    process.exit()
   }
 
   const socialIds: SocialId[] = await getAccountClient(
