@@ -3,9 +3,9 @@
 # Default version if not set
 VERSION=${VERSION:-"latest"}
 
-docker push hardcoreeng/base:${VERSION}
-docker push hardcoreeng/base-slim:${VERSION}
-docker push hardcoreeng/rekoni-base:${VERSION}
-docker push hardcoreeng/print-base:${VERSION}
-docker push hardcoreeng/front-base:${VERSION}
-docker push hardcoreeng/preview-base:${VERSION}
+docker push tracexapp/base:${VERSION}
+docker push tracexapp/base-slim:${VERSION}
+docker push tracexapp/rekoni-base:${VERSION}
+docker push tracexapp/print-base:${VERSION}
+docker push tracexapp/front-base:${VERSION}
+docker push tracexapp/preview-base:${VERSION}

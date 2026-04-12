@@ -202,11 +202,11 @@ Size of data is limited to some reasonable size
 
 ## Running
 
-Pre-build docker images is available at: hardcoreeng/service_hulypulse:{tag}.
+Pre-build docker images is available at: tracexapp/service_hulypulse:{tag}.
 
 You can use the following command to run the image locally:
 ```bash
-docker run -p 8095:8095 -it --rm hardcoreeng/service_hulypulse:{tag}
+docker run -p 8095:8095 -it --rm tracexapp/service_hulypulse:{tag}
 ```
 
 Run from source using Redis:
@@ -222,7 +222,7 @@ HULY_BACKEND=memory cargo run
 If you want to run the service as a part of local huly development environment use the following command:
 ```bash
  export HULY_REDIS_URLS="redis://tracex.local:6379"
- docker run --rm -it --network dev_default -p 8095:8095 hardcoreeng/service_hulypulse:{tag}
+ docker run --rm -it --network dev_default -p 8095:8095 tracexapp/service_hulypulse:{tag}
 ```
 This will run Hulypulse in the same network as the rest of huly services, and set the redis connection string to the one matching the local dev redis instance.
 
