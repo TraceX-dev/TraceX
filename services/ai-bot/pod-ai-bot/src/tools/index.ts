@@ -27,6 +27,12 @@ import {
 import { saveFileTool, getDataBeforeImportTool } from './pdf'
 import { type RegisteredTool } from './types'
 
+const dynamicTools: RegisteredTool[] = []
+
+export function registerLlmTools (tools: RegisteredTool[]): void {
+  dynamicTools.push(...tools)
+}
+
 const registeredTools: RegisteredTool[] = [
   // Assistant Memory
   getAssistantMemoryTool,
@@ -51,7 +57,7 @@ const registeredTools: RegisteredTool[] = [
 ]
 
 export function getRegisteredTools (): RegisteredTool[] {
-  return registeredTools
+  return [...registeredTools, ...dynamicTools]
 }
 
 export { type RegisteredTool, type ToolDefinition, type ToolDependencies, type ToolExecutor, type WorkspaceOps } from './types'

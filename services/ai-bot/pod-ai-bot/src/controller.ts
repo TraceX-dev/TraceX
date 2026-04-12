@@ -46,10 +46,13 @@ import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown
 import chunter from '@hcengineering/chunter'
 import { StorageAdapter } from '@hcengineering/server-core'
 import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
+import config from './config'
 import { createProviders } from './providers'
 import { type LLMProvider } from './providers/types'
 import { DefaultLLMService, type LLMService } from './services'
 import { BlobMemoryStorage } from './storage'
+import { createLlmTool } from './tools/llmTool'
+import { registerLlmTools } from './tools'
 import { tryAssignToWorkspace } from './utils/account'
 import { WorkspaceClient } from './workspace/workspaceClient'
 import contact, { Contact, getName, SocialIdentityRef } from '@hcengineering/contact'
@@ -77,6 +80,25 @@ export class AIControl {
       throw new Error('No LLM providers configured')
     }
     this.llmService = new DefaultLLMService(primaryProvider)
+
+    // Register LLM-backed tools
+    for (const llmConfig of config.Llm) {
+      if (llmConfig.tools !== undefined && llmConfig.tools.length > 0) {
+        const provider = this.providers.get(llmConfig.id)
+        if (provider === undefined) continue
+
+        const tools = llmConfig.tools.map((toolConfig) =>
+          createLlmTool({
+            name: toolConfig.name,
+            description: toolConfig.description,
+            systemPrompt: toolConfig.systemPrompt,
+            provider,
+            ctx: this.ctx
+          })
+        )
+        registerLlmTools(tools)
+      }
+    }
 
     this.storageAdapter = buildStorageFromConfig(storageConfigFromEnv())
   }

@@ -43,4 +43,5 @@ export interface RegisteredTool {
   definition: ToolDefinition
   createExecutor: (deps: ToolDependencies) => ToolExecutor
   contextMode: ContextMode | 'any'
+  isLlmTool?: boolean
 }

@@ -17,12 +17,19 @@ import fs from 'fs'
 import yaml from 'js-yaml'
 import convict, { Schema } from 'convict'
 
+export interface LlmToolConfig {
+  name: string
+  description: string
+  systemPrompt?: string
+}
+
 export interface LlmModelConfig {
   id: string
   kind: 'openai' | 'anthropic'
   model: string
   apiKey: string
   baseUrl?: string
+  tools?: LlmToolConfig[]
 }
 
 interface YamlConfig {
@@ -126,6 +133,11 @@ const llmModelSchema: Schema<LlmModelConfig> = {
     doc: 'Provider base URL',
     format: 'required-string',
     default: null
+  },
+  tools: {
+    doc: 'LLM-backed tool definitions',
+    format: 'tools-array',
+    default: undefined
   }
 }
 
@@ -135,6 +147,30 @@ convict.addFormat({
     if (typeof value !== 'string' || value.trim() === '') {
       throw new Error('must be a non-empty string')
     }
+  }
+})
+
+convict.addFormat({
+  name: 'tools-array',
+  validate: (value: unknown): void => {
+    if (value === undefined || value === null) return
+    if (!Array.isArray(value)) {
+      throw new Error('must be an array')
+    }
+    value.forEach((entry, index) => {
+      if (!isPlainObject(entry)) {
+        throw new Error(`tools[${index}] must be an object`)
+      }
+      if (typeof entry.name !== 'string' || entry.name.trim() === '') {
+        throw new Error(`tools[${index}].name must be a non-empty string`)
+      }
+      if (typeof entry.description !== 'string' || entry.description.trim() === '') {
+        throw new Error(`tools[${index}].description must be a non-empty string`)
+      }
+      if (entry.systemPrompt !== undefined && typeof entry.systemPrompt !== 'string') {
+        throw new Error(`tools[${index}].systemPrompt must be a string`)
+      }
+    })
   }
 })
 

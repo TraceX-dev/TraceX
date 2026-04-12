@@ -13,17 +13,31 @@
 // limitations under the License.
 //
 
+export interface LlmToolInfo {
+  name: string
+  description: string
+}
+
 interface PromptParams {
   lang?: string
   contextMode?: 'direct' | 'thread'
   assistantMemory?: string
   userMemory?: string
   sharedContext?: string
+  llmTools?: LlmToolInfo[]
+}
+
+function buildLlmToolsSection (llmTools?: LlmToolInfo[]): string {
+  if (llmTools === undefined || llmTools.length === 0) return ''
+  const lines = llmTools.map((t) => `- ${t.name}: ${t.description}`)
+  return `\n**Specialist AI tools:**
+You have access to specialist AI tools that provide domain expertise. When the user's question matches a specialist tool's domain, you MUST call it before answering.
+${lines.join('\n')}\n`
 }
 
 export const PROMPTS = {
   DIRECT: (params: PromptParams): string => {
-    const { assistantMemory, userMemory, sharedContext } = params
+    const { assistantMemory, userMemory, sharedContext, llmTools } = params
 
     return `You are a helpful AI assistant in a direct chat with a user.
 
@@ -54,11 +68,12 @@ ${sharedContext !== '' ? `**Shared preferences:**\n${sharedContext}\n` : ''}
 - Only use information explicitly present in the conversation, context, or retrieved via tools
 - Never invent, assume, or fabricate details not present in available data
 - If you lack information to answer accurately, say so clearly — e.g. "I don't have information about this"
-- Distinguish clearly between confirmed facts and any inferences you make`
+- Distinguish clearly between confirmed facts and any inferences you make
+${buildLlmToolsSection(llmTools)}`
   },
 
   THREAD: (params: PromptParams): string => {
-    const { sharedContext } = params
+    const { sharedContext, llmTools } = params
 
     return `You are a helpful AI assistant participating in a group conversation.
 
@@ -79,7 +94,8 @@ ${sharedContext !== '' ? `**Shared preferences:**\n${sharedContext}\n` : ''}
 - Only use information explicitly present in the conversation or message history
 - Never invent, assume, or fabricate details not present in the discussion
 - If you lack information to answer accurately, say so clearly — e.g. "I don't have information about this"
-- Distinguish clearly between confirmed facts and any inferences you make`
+- Distinguish clearly between confirmed facts and any inferences you make
+${buildLlmToolsSection(llmTools)}`
   },
 
   SUMMARIZE: (params: PromptParams): string => {
