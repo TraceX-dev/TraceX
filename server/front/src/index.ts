@@ -275,7 +275,6 @@ export function start (
     mailUrl?: string
     billingUrl?: string
     paymentUrl?: string
-    pulseUrl?: string
     hulylakeUrl?: string
     datalakeUrl?: string
   },
@@ -354,7 +353,6 @@ export function start (
       MAIL_URL: config.mailUrl,
       BILLING_URL: config.billingUrl,
       PAYMENT_URL: config.paymentUrl,
-      PULSE_URL: config.pulseUrl,
       HULYLAKE_URL: config.hulylakeUrl,
       DATALAKE_URL: config.datalakeUrl,
       ...(extraConfig ?? {})

@@ -33,7 +33,6 @@ The Huly platform consists of **30+ microservices** working together in a distri
 | Service | Port | Description |
 |---------|------|-------------|
 | **collaborator** | 3078 | Real-time document collaboration using Y.js CRDT. Enables simultaneous editing with conflict resolution. |
-| **hulypulse** | 8099 | WebSocket notification server. Handles real-time push notifications to connected clients. |
 | **hulygun** | - | Event processor. Consumes and processes events from Redpanda for real-time updates. |
 
 ### Media Services
@@ -77,7 +76,6 @@ The Huly platform consists of **30+ microservices** working together in a distri
 | **elastic** | 9200 | Elasticsearch search engine. Stores full-text search indexes managed by fulltext service. |
 | **minio** | 9000, 9001 | S3-compatible object storage. Stores binary files, attachments, images, and blobs in buckets (blobs, eu, backups). |
 | **redpanda** | 9092, 19092 | Kafka-compatible event streaming. Provides reliable async messaging between services. |
-| **redis** | 6379 | In-memory cache and pub/sub. Used by HulyPulse for real-time notifications. |
 
 ### Monitoring & Observability
 
@@ -93,7 +91,6 @@ The Huly platform consists of **30+ microservices** working together in a distri
 - **Primary Database**: All services → CockroachDB (main application data)
 - **Search Index**: Fulltext → Elasticsearch
 - **Object Storage**: Services → MinIO (S3 API)
-- **Cache/Pub-Sub**: HulyPulse → Redis
 - **Real-time Updates**: Client ↔ Transactor (WebSocket), Client ↔ Collaborator (WebSocket)
 
 ---
@@ -131,7 +128,6 @@ graph TB
     
     subgraph "Real-time"
         Collaborator[Collaborator<br/>:3078<br/>Doc Sync]
-        Pulse[HulyPulse<br/>:8099<br/>WebSocket]
         Gun[HulyGun<br/>Events]
     end
     
@@ -376,7 +372,6 @@ sequenceDiagram
 | rekoni | hardcoreeng/rekoni-service | 4004 | Document intelligence | stats |
 | **Real-time** | | | | |
 | collaborator | hardcoreeng/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
-| hulypulse | hardcoreeng/hulypulse | 8099 | WebSocket notifications | redis |
 | hulygun | hardcoreeng/hulygun | - | Event processor | redpanda, account |
 | **Media** | | | | |
 | stream | hardcoreeng/stream | 1080 | Video streaming | datalake, redpanda |
@@ -441,7 +436,6 @@ sequenceDiagram
 - `COLLABORATOR_URL`: `ws://huly.local:3078`
 - `DATALAKE_URL`: `http://huly.local:4030`
 - `HULYLAKE_URL`: `http://huly.local:8096`
-- `PULSE_URL`: `ws://huly.local:8099/ws`
 - `PREVIEW_URL`: `http://huly.local:4040`
 - `STREAM_URL`: `http://huly.local:1080/recording`
 - `PAYMENT_URL`: `http://huly.local:3040`
@@ -480,10 +474,6 @@ sequenceDiagram
 - `BUCKET_NAME`: `backups`
 - `BACKUP_STORAGE`: `${BACKUP_STORAGE_CONFIG}`
 - `INTERVAL`: `60` - Backup interval in seconds
-
-### Redis Configuration (HulyPulse)
-- `HULY_REDIS_URLS`: `redis://redis:6379`
-- `HULY_BIND_PORT`: `8099`
 
 ### Stream Service
 - `STREAM_ENDPOINT_URL`: `datalake://huly.local:4030`
