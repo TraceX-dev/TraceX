@@ -34,8 +34,8 @@ export const getDataBeforeImportTool: RegisteredTool = {
     }
   },
   createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.workspaceOps === undefined) return 'Workspace operations not available'
-    return await getFoldersForDocuments(deps)
+    if (deps.workspaceOps === undefined) return { text: 'Workspace operations not available' }
+    return { text: await getFoldersForDocuments(deps) }
   },
   contextMode: 'any'
 }
@@ -70,8 +70,8 @@ export const saveFileTool: RegisteredTool = {
     }
   },
   createExecutor: (deps: ToolDependencies) => async (args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }) => {
-    if (deps.workspaceOps === undefined) return 'Workspace operations not available'
-    return await saveFile(deps.workspaceOps, args)
+    if (deps.workspaceOps === undefined) return { text: 'Workspace operations not available' }
+    return { text: await saveFile(deps.workspaceOps, args) }
   },
   contextMode: 'any'
 }

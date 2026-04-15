@@ -308,6 +308,7 @@ export class WorkspaceClient {
     const toolDeps: ToolDependencies = {
       memoryStorage: this.memoryStorage,
       user: personUuid as AccountUuid,
+      workspace: this.wsIds.uuid,
       workspaceOps
     }
 

@@ -68,7 +68,7 @@ export function createLlmTool (options: LlmToolOptions): RegisteredTool {
 
       historyMap.set(userKey, updatedHistory)
 
-      return response
+      return { text: response, usage: result.usage }
     },
     contextMode: 'any',
     isLlmTool: true

@@ -27,7 +27,7 @@ import {
 } from '../providers/types'
 import { PROMPTS } from '../providers/prompts'
 import { pushTokensData } from '../billing'
-import { getRegisteredTools, type ToolDependencies } from '../tools'
+import { getRegisteredTools, type ToolDependencies, type ToolExecutorResult } from '../tools'
 
 const MAX_TOOL_ROUNDS = 10
 
@@ -182,7 +182,7 @@ export class DefaultLLMService implements LLMService {
 
       const toolDefinitions: LLMToolDefinition[] = filteredTools.map((t) => t.definition)
 
-      const executorMap = new Map<string, (args: any) => Promise<string> | string>()
+      const executorMap = new Map<string, (args: any) => Promise<ToolExecutorResult>>()
       for (const t of filteredTools) {
         executorMap.set(t.definition.name, t.createExecutor(toolDeps))
       }
@@ -244,7 +244,9 @@ export class DefaultLLMService implements LLMService {
           if (executor !== undefined) {
             try {
               const args = JSON.parse(toolCall.arguments)
-              toolResult = await executor(args)
+              const execResult = await executor(args)
+              toolResult = execResult.text
+              totalUsage += execResult.usage ?? 0
             } catch (e: any) {
               toolResult = `Error executing tool: ${e.message ?? String(e)}`
             }

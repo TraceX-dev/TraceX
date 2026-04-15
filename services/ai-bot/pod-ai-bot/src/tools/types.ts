@@ -13,9 +13,9 @@
 // limitations under the License.
 //
 
-import { AccountUuid, MeasureContext, TxOperations, type WorkspaceIds } from '@hcengineering/core'
+import { AccountUuid, MeasureContext, TxOperations, WorkspaceUuid, type WorkspaceIds } from '@hcengineering/core'
 import { StorageAdapter } from '@hcengineering/server-core'
-import { ContextMode } from '../providers/types'
+import { ContextMode, type TokenUsage } from '../providers/types'
 import { MemoryStorage } from '../storage'
 
 export interface ToolDefinition {
@@ -24,7 +24,12 @@ export interface ToolDefinition {
   parameters: Record<string, any>
 }
 
-export type ToolExecutor = (args: any) => Promise<string> | string
+export interface ToolExecutorResult {
+  text: string
+  usage?: TokenUsage
+}
+
+export type ToolExecutor = (args: any) => Promise<ToolExecutorResult>
 
 export interface WorkspaceOps {
   storage: StorageAdapter
@@ -36,6 +41,7 @@ export interface WorkspaceOps {
 export interface ToolDependencies {
   memoryStorage: MemoryStorage
   user: AccountUuid | undefined
+  workspace: WorkspaceUuid
   workspaceOps?: WorkspaceOps
 }
 

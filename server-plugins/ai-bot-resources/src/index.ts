@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import core, { AccountUuid, Doc, PersonId, Ref, SortingOrder, Tx, TxCreateDoc, TxProcessor } from '@hcengineering/core'
+import { AccountUuid, Doc, PersonId, Ref, SortingOrder, Tx, TxCreateDoc, TxProcessor } from '@hcengineering/core'
 import { PlatformQueueProducer, QueueTopic, TriggerControl } from '@hcengineering/server-core'
 import { aiBotEmailSocialKey, AIEventRequest } from '@hcengineering/ai-bot'
 import chunter, { ChatMessage, DirectMessage, ThreadMessage } from '@hcengineering/chunter'
@@ -29,7 +29,7 @@ interface WorkspaceCacheEntry {
 const cacheKey = 'ai-info'
 
 async function getAIWorkspaceID (control: TriggerControl): Promise<WorkspaceCacheEntry | undefined> {
-  let wsEntry = control.cache.get(cacheKey) as | WorkspaceCacheEntry | undefined
+  let wsEntry = control.cache.get(cacheKey) as WorkspaceCacheEntry | undefined
   if (wsEntry === undefined) {
     const primaryIdentities = await control.findAll(
       control.ctx,
