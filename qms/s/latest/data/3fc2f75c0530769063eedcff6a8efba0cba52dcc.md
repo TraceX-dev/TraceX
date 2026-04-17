@@ -1,0 +1,549 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e7]:
+        - generic [ref=e9]:
+          - img [ref=e11]
+          - generic [ref=e13]: Complete document-69e1db1d8769463353000012 (v1.0)
+        - button [ref=e14] [cursor=pointer]:
+          - generic:
+            - img
+      - generic [ref=e15]:
+        - button [ref=e16] [cursor=pointer]:
+          - img [ref=e17]
+        - 'button "07 : 03" [ref=e20] [cursor=pointer]':
+          - generic [ref=e21]: "07"
+          - generic [ref=e22]: ":"
+          - generic [ref=e23]: "03"
+        - generic [ref=e24]:
+          - button [ref=e26] [cursor=pointer]:
+            - img [ref=e27]
+          - button [ref=e31] [cursor=pointer]:
+            - img [ref=e32]
+    - generic [ref=e34]:
+      - img
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e39] [cursor=pointer]: S
+            - button [ref=e41] [cursor=pointer]:
+              - img [ref=e43]
+            - link [ref=e46] [cursor=pointer]:
+              - /url: /workbench/sanity-ws-qms/notification
+              - button [ref=e47]:
+                - img [ref=e49]
+            - generic [ref=e53]:
+              - generic [ref=e56]:
+                - link [ref=e57] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/chat
+                  - button [ref=e58]:
+                    - img [ref=e60]
+                - link [ref=e62] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/time
+                  - button [ref=e63]:
+                    - img [ref=e65]
+                - link [ref=e67] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/love
+                  - button [ref=e68]:
+                    - img [ref=e70]
+                - link [ref=e73] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/card
+                  - button [ref=e74]:
+                    - img [ref=e76]
+                - link [ref=e78] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/contact
+                  - button [ref=e79]:
+                    - img [ref=e81]
+                - link [ref=e83] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/chunter
+                  - button [ref=e84]:
+                    - img [ref=e86]
+                - link [ref=e88] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/recruit
+                  - button [ref=e89]:
+                    - img [ref=e91]
+                - link [ref=e93] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/lead
+                  - button [ref=e94]:
+                    - img [ref=e96]
+                - link [ref=e98] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/inventory
+                  - button [ref=e99]:
+                    - img [ref=e101]
+                - link [ref=e103] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/hr
+                  - button [ref=e104]:
+                    - img [ref=e106]
+                - link [ref=e108] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/tracker
+                  - button [ref=e109]:
+                    - img [ref=e111]
+                - link [ref=e113] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/document
+                  - button [ref=e114]:
+                    - img [ref=e116]
+                - link [ref=e118] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/board
+                  - button [ref=e119]:
+                    - img [ref=e121]
+                - link [ref=e123] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/team
+                  - button [ref=e124]:
+                    - img [ref=e126]
+                - link [ref=e128] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/process
+                  - button [ref=e129]:
+                    - img [ref=e131]
+                - link [ref=e133] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/drive
+                  - button [ref=e134]:
+                    - img [ref=e136]
+                - button [ref=e138] [cursor=pointer]:
+                  - img [ref=e140]
+                - link [ref=e142] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/training
+                  - button [ref=e143]:
+                    - img [ref=e145]
+                - link [ref=e147] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/products
+                  - button [ref=e148]:
+                    - img [ref=e150]
+                - link [ref=e152] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/testManagement
+                  - button [ref=e153]:
+                    - img [ref=e155]
+                - link [ref=e157] [cursor=pointer]:
+                  - /url: /workbench/sanity-ws-qms/survey
+                  - button [ref=e158]:
+                    - img [ref=e160]
+              - button [ref=e163] [cursor=pointer]:
+                - img [ref=e164]
+          - generic [ref=e168]:
+            - button [ref=e169] [cursor=pointer]:
+              - img [ref=e171]
+            - link [ref=e174] [cursor=pointer]:
+              - /url: https://link.huly.io/slack
+              - button [ref=e175]:
+                - img [ref=e177]
+            - generic [ref=e183] [cursor=pointer]:
+              - generic: AJ
+        - generic [ref=e185]:
+          - generic [ref=e188]:
+            - generic [ref=e190]: Controlled Documents
+            - generic [ref=e192]:
+              - button "New document" [ref=e193] [cursor=pointer]:
+                - generic:
+                  - img
+                - generic [ref=e195]: New document
+              - button [ref=e197] [cursor=pointer]:
+                - img [ref=e199]
+            - generic [ref=e204]:
+              - link "My documents" [ref=e205] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/documents/my-documents
+                - button "My documents" [ref=e206]:
+                  - img [ref=e208]
+                  - generic [ref=e210]: My documents
+              - link "Library" [ref=e211] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/documents/library
+                - button "Library" [ref=e212]:
+                  - img [ref=e214]
+                  - generic [ref=e216]: Library
+              - link "Templates" [ref=e217] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/documents/templates
+                - button "Templates" [ref=e218]:
+                  - img [ref=e220]
+                  - generic [ref=e222]: Templates
+              - link "Categories" [ref=e223] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/documents/categories
+                - button "Categories" [ref=e224]:
+                  - img [ref=e226]
+                  - generic [ref=e228]: Categories
+              - link "All document spaces" [ref=e230] [cursor=pointer]:
+                - /url: /workbench/sanity-ws-qms/documents/space-browser
+                - button "All document spaces" [ref=e231]:
+                  - img [ref=e233]
+                  - generic [ref=e235]: All document spaces
+              - generic [ref=e237]:
+                - button "General documentation" [ref=e238] [cursor=pointer]:
+                  - button [ref=e239]:
+                    - img [ref=e240]
+                  - generic [ref=e243]: General documentation
+                  - button [ref=e245]:
+                    - generic:
+                      - img
+                - generic [ref=e248]:
+                  - button "Quality documents" [ref=e249] [cursor=pointer]:
+                    - generic [ref=e250]:
+                      - img [ref=e252]
+                      - generic [ref=e255]: Quality documents
+                    - button [ref=e257]:
+                      - generic:
+                        - img
+                  - generic [ref=e258]:
+                    - button "TMPL-9 CAPA" [ref=e260] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e262]
+                      - generic [ref=e264]: TMPL-9 CAPA
+                    - button "TMPL-18 HR" [ref=e266] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e268]
+                      - generic [ref=e270]: TMPL-18 HR
+                    - button "HR-1 Existing document" [ref=e272] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e274]
+                      - generic [ref=e276]: HR-1 Existing document
+                    - button "TMPL-47 Change Control Template for new Product Version" [ref=e278] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e280]
+                      - generic [ref=e282]: TMPL-47 Change Control Template for new Product Version
+                    - button "8d8100000f Can not Delete Category Template-69e1da3ee2f2238d8100000d" [ref=e284] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e286]
+                      - generic [ref=e288]: 8d8100000f Can not Delete Category Template-69e1da3ee2f2238d8100000d
+                    - button "HR-2 New Document-69e1da45e2f2238d81000010" [ref=e290] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e292]
+                      - generic [ref=e294]: HR-2 New Document-69e1da45e2f2238d81000010
+                    - button "HR-3 Edit Document-69e1da48e2f2238d81000012" [ref=e296] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e298]
+                      - generic [ref=e300]: HR-3 Edit Document-69e1da48e2f2238d81000012
+                    - generic [ref=e301]:
+                      - button "HR-5 Parent Document-69e1da51e2f2238d81000017" [ref=e302] [cursor=pointer]:
+                        - button [ref=e303]:
+                          - img [ref=e304]
+                        - img [ref=e307]
+                        - generic [ref=e309]: HR-5 Parent Document-69e1da51e2f2238d81000017
+                      - button "HR-6 Child Document-69e1da51e2f2238d81000019" [ref=e312] [cursor=pointer]:
+                        - button [disabled]
+                        - img [ref=e314]
+                        - generic [ref=e316]: HR-6 Child Document-69e1da51e2f2238d81000019
+                    - button "HR-8 Send for review document-69e1da5ce2f2238d8100001d" [ref=e318] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e320]
+                      - generic [ref=e322]: HR-8 Send for review document-69e1da5ce2f2238d8100001d
+                    - button "HR-9 Send for approval document-69e1da60e2f2238d8100001f" [ref=e324] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e326]
+                      - generic [ref=e328]: HR-9 Send for approval document-69e1da60e2f2238d8100001f
+                    - button "HR-10 Add and Done Comments document-69e1da64e2f2238d81000021" [ref=e330] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e332]
+                      - generic [ref=e334]: HR-10 Add and Done Comments document-69e1da64e2f2238d81000021
+                    - button "HR-11 Add and Done Comments document-69e1daa3ed5df2e4ca000000" [ref=e336] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e338]
+                      - generic [ref=e340]: HR-11 Add and Done Comments document-69e1daa3ed5df2e4ca000000
+                    - button "HR-12 Approve document-69e1daaced5df2e4ca000004" [ref=e342] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e344]
+                      - generic [ref=e346]: HR-12 Approve document-69e1daaced5df2e4ca000004
+                    - button "HR-13 Reject document-69e1dab1ed5df2e4ca000007" [ref=e348] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e350]
+                      - generic [ref=e352]: HR-13 Reject document-69e1dab1ed5df2e4ca000007
+                    - button "HR-14 Make Review document-69e1dab8ed5df2e4ca000009" [ref=e354] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e356]
+                      - generic [ref=e358]: HR-14 Make Review document-69e1dab8ed5df2e4ca000009
+                    - button "HR-15 Make Review document-69e1daf78769463353000000" [ref=e360] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e362]
+                      - generic [ref=e364]: HR-15 Make Review document-69e1daf78769463353000000
+                    - button "HR-16 Comparing document versions-69e1db008769463353000005" [ref=e366] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e368]
+                      - generic [ref=e370]: HR-16 Comparing document versions-69e1db008769463353000005
+                    - button "HR-17 Check comment popup elements document-69e1db078769463353000009" [ref=e372] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e374]
+                      - generic [ref=e376]: HR-17 Check comment popup elements document-69e1db078769463353000009
+                    - button "HR-18 Change document author by QARA user Document-69e1db0c876946335300000e" [ref=e378] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e380]
+                      - generic [ref=e382]: HR-18 Change document author by QARA user Document-69e1db0c876946335300000e
+                    - button "HR-19 Test Reason and Impact section-69e1db178769463353000010" [ref=e384] [cursor=pointer]:
+                      - button [disabled]
+                      - img [ref=e386]
+                      - generic [ref=e388]: HR-19 Test Reason and Impact section-69e1db178769463353000010
+                    - button "HR-20 Complete document-69e1db1d8769463353000012" [ref=e390]:
+                      - button [disabled]
+                      - img [ref=e392]
+                      - generic [ref=e394]: HR-20 Complete document-69e1db1d8769463353000012
+              - button "Technical documentation" [ref=e396] [cursor=pointer]:
+                - generic [ref=e398]: Technical documentation
+            - generic [ref=e403] [cursor=pointer]:
+              - img [ref=e405]
+              - generic [ref=e407]: Help & Support
+              - generic [ref=e408]: 0.7.415
+          - generic [ref=e412]:
+            - button [ref=e414] [cursor=pointer]:
+              - img [ref=e416]
+            - button [ref=e419] [cursor=pointer]:
+              - img [ref=e421]
+            - button [ref=e424] [cursor=pointer]:
+              - img [ref=e426]
+      - img
+      - generic [ref=e429]:
+        - generic [ref=e430]:
+          - generic [ref=e431]:
+            - button [ref=e433] [cursor=pointer]:
+              - generic:
+                - img
+            - button "HR-20 Complete document-69e1db1d8769463353000012 v1.0 In Review" [ref=e437] [cursor=pointer]:
+              - generic [ref=e438]:
+                - generic [ref=e441]: HR-20
+                - text: Complete document-69e1db1d8769463353000012
+              - generic [ref=e442]: v1.0
+              - generic [ref=e444]: In Review
+              - img [ref=e446]
+            - generic [ref=e448]:
+              - button [ref=e449] [cursor=pointer]:
+                - generic:
+                  - img
+              - button [ref=e450] [cursor=pointer]:
+                - generic:
+                  - img
+              - button [ref=e451] [cursor=pointer]:
+                - generic:
+                  - img
+              - button [ref=e453] [cursor=pointer]:
+                - generic:
+                  - img
+          - button "Viewing" [disabled] [ref=e458]:
+            - generic: Viewing
+            - img [ref=e459]
+        - generic [ref=e461]:
+          - generic [ref=e463]:
+            - generic [ref=e464]:
+              - generic [ref=e465]: Content
+              - generic [ref=e466] [cursor=pointer]: Reason & Impact
+              - generic [ref=e467] [cursor=pointer]: Team
+              - generic [ref=e468] [cursor=pointer]: Release
+              - generic [ref=e469] [cursor=pointer]: History
+            - generic [ref=e476]:
+              - generic [ref=e477]: Complete document-69e1db1d8769463353000012
+              - generic [ref=e482]:
+                - paragraph [ref=e483]:
+                  - generic [ref=e484]: Complete document. New content-69e1db1d8769463353000014!!!!
+                - paragraph [ref=e485]: Complete document. New content Description-69e1db1d8769463353000016!!!!
+              - generic [ref=e487]:
+                - generic [ref=e488]:
+                  - img [ref=e490]
+                  - generic [ref=e492]: Activity
+                  - generic [ref=e493]: All
+                  - button [ref=e495] [cursor=pointer]:
+                    - generic:
+                      - img
+                - generic [ref=e499]:
+                  - textbox [ref=e502]:
+                    - paragraph [ref=e503]: Start typing...
+                  - generic [ref=e504]:
+                    - generic [ref=e505]:
+                      - button [ref=e506] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e507] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e509] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e510] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e512] [cursor=pointer]:
+                        - generic:
+                          - img
+                    - button [disabled] [ref=e513]:
+                      - generic:
+                        - img
+                - generic [ref=e516]:
+                  - generic [ref=e517]:
+                    - generic [ref=e520]:
+                      - generic: DK
+                    - generic [ref=e521]:
+                      - generic [ref=e522]:
+                        - link "Dirak Kainin" [ref=e525] [cursor=pointer]:
+                          - /url: http://tracex.local:8083/workbench/sanity-ws-qms/contact/65a04887e1043543cd5f21a5
+                          - generic [ref=e527]: Dirak Kainin
+                        - generic [ref=e528]: Changed
+                        - generic [ref=e529]: Collaborative document
+                        - generic [ref=e530]: at
+                        - generic [ref=e531]: 7:03 AM
+                      - generic [ref=e532] [cursor=pointer]: Show more
+                  - generic [ref=e534]:
+                    - generic [ref=e537]:
+                      - generic: DK
+                    - generic [ref=e538]:
+                      - generic [ref=e539]:
+                        - link "Dirak Kainin" [ref=e542] [cursor=pointer]:
+                          - /url: http://tracex.local:8083/workbench/sanity-ws-qms/contact/65a04887e1043543cd5f21a5
+                          - generic [ref=e544]: Dirak Kainin
+                        - generic [ref=e545]: at
+                        - generic [ref=e546]: 7:03 AM
+                      - paragraph [ref=e551]: Complete document. Message to the content-second-69e1db1d8769463353000018
+                  - generic [ref=e552]:
+                    - generic [ref=e555]:
+                      - generic: AJ
+                    - generic [ref=e556]:
+                      - generic [ref=e557]:
+                        - link "Appleseed John" [ref=e560] [cursor=pointer]:
+                          - /url: http://tracex.local:8083/workbench/sanity-ws-qms/contact/65a04886e644ab2b8506c434
+                          - generic [ref=e562]: Appleseed John
+                        - generic [ref=e563]: at
+                        - generic [ref=e564]: 7:02 AM
+                      - paragraph [ref=e569]: Complete document. Message to the content-69e1db1d8769463353000017
+                  - generic [ref=e570]:
+                    - generic [ref=e573]:
+                      - generic: AJ
+                    - generic [ref=e574]:
+                      - generic [ref=e575]:
+                        - link "Appleseed John" [ref=e578] [cursor=pointer]:
+                          - /url: http://tracex.local:8083/workbench/sanity-ws-qms/contact/65a04886e644ab2b8506c434
+                          - generic [ref=e580]: Appleseed John
+                        - generic [ref=e581]: at
+                        - generic [ref=e582]: 7:02 AM
+                      - generic [ref=e585]:
+                        - img [ref=e587]
+                        - text: New
+                        - generic [ref=e589]: "Requests:"
+                        - generic [ref=e591]:
+                          - text: Document review request
+                          - link "HR-20" [ref=e592] [cursor=pointer]:
+                            - /url: http://tracex.local:8083/workbench/sanity-ws-qms/documents/complete-document-69e1db1d8769463353000012---69e1db1f022a31d5343040a3
+                            - generic [ref=e594]: HR-20
+                  - generic [ref=e597]:
+                    - img [ref=e599]
+                    - text: Reviewers
+                    - generic [ref=e601]: set
+                    - generic [ref=e602]: to
+                    - link "Dirak Kainin" [ref=e604] [cursor=pointer]:
+                      - /url: http://tracex.local:8083/workbench/sanity-ws-qms/contact/65a04887e1043543cd5f21a5
+                      - generic [ref=e606]: Dirak Kainin
+                  - generic [ref=e609]:
+                    - img [ref=e611]
+                    - text: Controlled status
+                    - generic [ref=e614]: set
+                    - generic [ref=e615]: to
+                    - generic [ref=e618]: In Review
+                  - generic [ref=e623]:
+                    - img [ref=e625]
+                    - text: New
+                    - generic [ref=e627]: "Controlled document:"
+                    - link "HR-20" [ref=e629] [cursor=pointer]:
+                      - /url: http://tracex.local:8083/workbench/sanity-ws-qms/documents/complete-document-69e1db1d8769463353000012---69e1db1f022a31d5343040a3
+                      - generic [ref=e631]: HR-20
+          - generic [ref=e641]:
+            - generic [ref=e642]:
+              - generic [ref=e643]:
+                - text: Comments
+                - button [ref=e645] [cursor=pointer]:
+                  - generic:
+                    - img
+              - button [ref=e646] [cursor=pointer]:
+                - generic:
+                  - img
+            - generic [ref=e648]:
+              - generic [ref=e649]:
+                - generic [ref=e650]:
+                  - generic [ref=e651]: "#2"
+                  - text: • Pending
+                - button [ref=e653] [cursor=pointer]:
+                  - generic:
+                    - img
+              - generic [ref=e659]:
+                - generic [ref=e661]:
+                  - generic [ref=e664]:
+                    - generic: DK
+                  - generic [ref=e665]:
+                    - generic [ref=e666]:
+                      - link "Dirak Kainin" [ref=e669] [cursor=pointer]:
+                        - /url: http://tracex.local:8083/workbench/sanity-ws-qms/contact/65a04887e1043543cd5f21a5
+                        - generic [ref=e671]: Dirak Kainin
+                      - generic [ref=e672]: 7:03 AM
+                    - paragraph [ref=e675]: Complete document. Message to the content-second-69e1db1d8769463353000018
+                  - generic [ref=e677]:
+                    - button [ref=e678] [cursor=pointer]:
+                      - generic:
+                        - img
+                    - button [ref=e679] [cursor=pointer]:
+                      - generic:
+                        - img
+                    - button [ref=e680] [cursor=pointer]:
+                      - generic:
+                        - img
+                    - button [ref=e681] [cursor=pointer]:
+                      - generic:
+                        - img
+                    - button [ref=e682] [cursor=pointer]:
+                      - generic:
+                        - img
+                - generic [ref=e686]:
+                  - textbox [active] [ref=e689]:
+                    - paragraph [ref=e690]: Start typing...
+                  - generic [ref=e691]:
+                    - generic [ref=e692]:
+                      - button [ref=e693] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e694] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e696] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e697] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e699] [cursor=pointer]:
+                        - generic:
+                          - img
+                    - button [disabled] [ref=e700]:
+                      - generic:
+                        - img
+            - generic [ref=e703]:
+              - generic [ref=e705]:
+                - generic [ref=e706]: "#1"
+                - text: • Pending
+              - generic [ref=e712]:
+                - generic [ref=e714]:
+                  - generic [ref=e717]:
+                    - generic: AJ
+                  - generic [ref=e718]:
+                    - generic [ref=e719]:
+                      - link "Appleseed John" [ref=e722] [cursor=pointer]:
+                        - /url: http://tracex.local:8083/workbench/sanity-ws-qms/contact/65a04886e644ab2b8506c434
+                        - generic [ref=e724]: Appleseed John
+                      - generic [ref=e725]: 7:02 AM
+                    - paragraph [ref=e728]: Complete document. Message to the content-69e1db1d8769463353000017
+                - generic [ref=e732]:
+                  - textbox [ref=e735]:
+                    - paragraph [ref=e736]: Start typing...
+                  - generic [ref=e737]:
+                    - generic [ref=e738]:
+                      - button [ref=e739] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e740] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e742] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e743] [cursor=pointer]:
+                        - generic:
+                          - img
+                      - button [ref=e745] [cursor=pointer]:
+                        - generic:
+                          - img
+                    - button [disabled] [ref=e746]:
+                      - generic:
+                        - img
+  - tooltip [ref=e750]:
+    - button [ref=e755] [cursor=pointer]:
+      - img [ref=e756]
+```
