@@ -62,11 +62,14 @@ import {
   type LoginInfoRequestData,
   type Account,
   type PersonWithProfile,
+  type SecurityAuthMethod,
+  type SecurityLoginEvent,
   type Subscription,
   SubscriptionStatus,
   type Query,
   type InviteInfo
 } from './types'
+import { assertSecurityLoginTelemetryRateLimit } from './securityLoginTelemetryRateLimit'
 import {
   addSocialIdBase,
   checkInvite,
@@ -126,7 +129,8 @@ import {
   checkPasswordAging,
   generateTotpSecret,
   verifyTotpCode,
-  getTotpUrl
+  getTotpUrl,
+  recordSecurityLoginEvent
 } from './utils'
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000' as AccountUuid
@@ -174,7 +178,8 @@ export async function login (
   params: {
     email: string
     password: string
-  }
+  },
+  meta?: Meta
 ): Promise<LoginInfo> {
   const { email, password } = params
 
@@ -183,6 +188,7 @@ export async function login (
   }
 
   const normalizedEmail = cleanEmail(email)
+  let existingAccount: Account | null = null
 
   try {
     const emailSocialId = await getEmailSocialId(db, normalizedEmail)
@@ -191,7 +197,7 @@ export async function login (
       throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
     }
 
-    const existingAccount = await db.account.findOne({ uuid: emailSocialId.personUuid as AccountUuid })
+    existingAccount = await db.account.findOne({ uuid: emailSocialId.personUuid as AccountUuid })
 
     if (existingAccount == null) {
       throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
@@ -202,6 +208,14 @@ export async function login (
       ctx.warn('Login attempt on locked account - password login locked', {
         email: normalizedEmail,
         failedAttempts: existingAccount.failedLoginAttempts
+      })
+      await recordSecurityLoginEvent(ctx, db, {
+        accountUuid: existingAccount.uuid,
+        success: false,
+        authMethod: 'password',
+        reason: 'password_login_locked',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
       })
       throw new PlatformError(
         new Status(Severity.ERROR, platform.status.PasswordLoginLocked, { account: normalizedEmail })
@@ -219,6 +233,14 @@ export async function login (
       } catch (err) {
         ctx.warn('Failed to record failed login attempt', { error: err, account: existingAccount.uuid })
       }
+      await recordSecurityLoginEvent(ctx, db, {
+        accountUuid: existingAccount.uuid,
+        success: false,
+        authMethod: 'password',
+        reason: 'invalid_password',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
       throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
     }
 
@@ -231,6 +253,14 @@ export async function login (
       ? { admin: 'true', authMethod: 'password' }
       : { authMethod: 'password' }
     ctx.info('Login succeeded', { email, normalizedEmail, isConfirmed, emailSocialId, ...extraToken })
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid: existingAccount.uuid,
+      success: true,
+      authMethod: 'password',
+      reason: isConfirmed ? 'login_success' : 'email_not_confirmed',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
 
     return {
       account: existingAccount.uuid,
@@ -248,6 +278,16 @@ export async function login (
   } catch (err: any) {
     Analytics.handleError(err)
     ctx.error('Login failed', { email, normalizedEmail, err })
+    if (existingAccount != null) {
+      await recordSecurityLoginEvent(ctx, db, {
+        accountUuid: existingAccount.uuid,
+        success: false,
+        authMethod: 'password',
+        reason: 'login_failed',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
+    }
     throw err
   }
 }
@@ -260,7 +300,8 @@ export async function loginOtp (
   db: AccountDB,
   branding: Branding | null,
   token: string,
-  params: { email: string }
+  params: { email: string },
+  meta?: Meta
 ): Promise<OtpInfo> {
   const { email } = params
 
@@ -270,19 +311,46 @@ export async function loginOtp (
 
   // Note: can support OTP based on any other social logins later
   const normalizedEmail = cleanEmail(email)
-  const emailSocialId = await getEmailSocialId(db, normalizedEmail)
+  let accountUuid: AccountUuid | undefined
 
-  if (emailSocialId == null) {
-    throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
+  try {
+    const emailSocialId = await getEmailSocialId(db, normalizedEmail)
+
+    if (emailSocialId == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
+    }
+
+    accountUuid = emailSocialId.personUuid as AccountUuid
+    const account = await getAccount(db, accountUuid)
+
+    if (account == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
+    }
+
+    const otpInfo = await sendOtp(ctx, db, branding, emailSocialId)
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid: account.uuid,
+      success: true,
+      authMethod: 'otp',
+      reason: 'otp_requested',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
+
+    return otpInfo
+  } catch (err) {
+    if (accountUuid != null) {
+      await recordSecurityLoginEvent(ctx, db, {
+        accountUuid,
+        success: false,
+        authMethod: 'otp',
+        reason: 'otp_request_failed',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
+    }
+    throw err
   }
-
-  const account = await getAccount(db, emailSocialId.personUuid as AccountUuid)
-
-  if (account == null) {
-    throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
-  }
-
-  return await sendOtp(ctx, db, branding, emailSocialId)
 }
 
 /**
@@ -394,7 +462,8 @@ export async function validateOtp (
     code: string
     password?: string
     action?: 'verify'
-  }
+  },
+  meta?: Meta
 ): Promise<LoginInfo> {
   const { email, code, password, action } = params
 
@@ -534,6 +603,15 @@ export async function validateOtp (
       )
       : undefined
 
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid: emailSocialId.personUuid as AccountUuid,
+      success: true,
+      authMethod: 'otp',
+      reason: action === 'verify' ? 'otp_verified_social_id' : 'otp_login_success',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
+
     return {
       account: emailSocialId.personUuid as AccountUuid,
       name: getPersonName(person),
@@ -544,6 +622,22 @@ export async function validateOtp (
   } catch (err: any) {
     Analytics.handleError(err)
     ctx.error(action === 'verify' ? 'OTP verification error' : 'OTP login/sign up error', { email, err })
+    try {
+      const normalizedEmail = cleanEmail(email)
+      const emailSocialId = await getEmailSocialId(db, normalizedEmail)
+      if (emailSocialId != null) {
+        await recordSecurityLoginEvent(ctx, db, {
+          accountUuid: emailSocialId.personUuid as AccountUuid,
+          success: false,
+          authMethod: 'otp',
+          reason: action === 'verify' ? 'otp_verify_failed' : 'otp_login_failed',
+          ip: meta?.ip,
+          userAgent: meta?.userAgent
+        })
+      }
+    } catch (recordErr) {
+      ctx.warn('Failed to write OTP failure security event', { recordErr })
+    }
     throw err
   }
 }
@@ -2100,6 +2194,16 @@ export async function getLoginInfoByToken (
     token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub })
   }
 
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid,
+    workspaceUuid: workspaceUuid === '' ? undefined : workspaceUuid,
+    success: true,
+    authMethod: 'token',
+    reason: 'token_refresh',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent
+  })
+
   if (!isSystem) {
     void setTimezone(ctx, db, accountUuid, null, meta)
   }
@@ -3187,6 +3291,254 @@ export async function getWorkspaceUsersWithPermission (
   return await db.getWorkspaceUsersWithPermission(workspace, permission)
 }
 
+const SECURITY_AUTH_METHODS: readonly SecurityAuthMethod[] = ['password', 'otp', 'token', 'session', 'unknown']
+
+const UA_REDACT_LEN = 80
+
+function maskIpForApiResponse (ip?: string): string | undefined {
+  if (ip == null || ip.trim() === '') return undefined
+  const t = ip.trim()
+  if (t.includes(':')) {
+    const parts = t.split(':').filter((p) => p.length > 0)
+    if (parts.length === 0) return '***'
+    if (parts.length === 1) return `${parts[0].slice(0, 8)}:***`
+    return `${parts.slice(0, 2).join(':')}:***`
+  }
+  const octets = t.split('.')
+  if (octets.length !== 4) return '***'
+  return `${octets[0]}.${octets[1]}.***.***`
+}
+
+function redactSecurityLoginEventRow (row: SecurityLoginEvent): SecurityLoginEvent {
+  const ua = row.userAgent?.trim() ?? ''
+  const shortUa =
+    ua === ''
+      ? undefined
+      : ua.length <= UA_REDACT_LEN
+        ? ua
+        : `${ua.slice(0, UA_REDACT_LEN - 1)}…`
+  return {
+    ...row,
+    ip: maskIpForApiResponse(row.ip),
+    userAgent: shortUa,
+    sessionId: undefined
+  }
+}
+
+function assertAuthMethodFilter (authMethod: string | undefined): SecurityAuthMethod | undefined {
+  if (authMethod === undefined) return undefined
+  if (!SECURITY_AUTH_METHODS.includes(authMethod as SecurityAuthMethod)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+  return authMethod as SecurityAuthMethod
+}
+
+interface MySecurityLoginHistoryFilterParams {
+  since?: number
+  until?: number
+  success?: boolean
+  authMethod?: string
+  ip?: string
+  limit?: number
+}
+
+async function findMySecurityLoginEventRows (
+  db: AccountDB,
+  account: AccountUuid,
+  params: MySecurityLoginHistoryFilterParams
+): Promise<SecurityLoginEvent[]> {
+  const { since, until, success, ip } = params
+  const authMethod = assertAuthMethodFilter(params.authMethod)
+  const limit = Math.min(Math.max(params.limit ?? 100, 1), 500)
+
+  const query: Query<SecurityLoginEvent> = {
+    accountUuid: account
+  }
+
+  if (success !== undefined) {
+    query.success = success
+  }
+  if (authMethod !== undefined) {
+    query.authMethod = authMethod
+  }
+  if (ip !== undefined) {
+    query.ip = ip
+  }
+
+  if (since !== undefined || until !== undefined) {
+    query.eventTime = {}
+    if (since !== undefined) {
+      query.eventTime.$gte = since
+    }
+    if (until !== undefined) {
+      query.eventTime.$lte = until
+    }
+  }
+
+  return await db.securityLoginEvent.find(query, { eventTime: 'descending' }, limit)
+}
+
+export async function getMySecurityLoginHistory (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: {
+    since?: number
+    until?: number
+    success?: boolean
+    authMethod?: string
+    ip?: string
+    limit?: number
+    redact?: boolean
+  }
+): Promise<SecurityLoginEvent[]> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'getMySecurityLoginHistory', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
+  const redact = params.redact === true
+  const rows = await findMySecurityLoginEventRows(db, account, params)
+  return redact ? rows.map(redactSecurityLoginEventRow) : rows
+}
+
+export async function getWorkspaceSecurityLoginHistory (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: {
+    accountUuid?: AccountUuid
+    since?: number
+    until?: number
+    success?: boolean
+    authMethod?: string
+    ip?: string
+    limit?: number
+  }
+): Promise<SecurityLoginEvent[]> {
+  const { account, workspace } = decodeTokenVerbose(ctx, token)
+  if (workspace == null || workspace === '') {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid: workspace }))
+  }
+
+  const role = account === systemAccountUuid ? AccountRole.Owner : await db.getWorkspaceRole(account, workspace)
+  if (role == null || getRolePower(role) < getRolePower(AccountRole.Maintainer)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  assertSecurityLoginTelemetryRateLimit(account, 'getWorkspaceSecurityLoginHistory', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
+
+  const { since, until, success, ip } = params
+  let accountUuid = params.accountUuid
+  // Non-system callers must scope to their own account unless they pass an explicit accountUuid
+  // (avoids returning all workspace members' login telemetry by default).
+  if (account !== systemAccountUuid && accountUuid === undefined) {
+    accountUuid = account
+  }
+  const authMethod = assertAuthMethodFilter(params.authMethod)
+  const limit = Math.min(Math.max(params.limit ?? 100, 1), 500)
+
+  const query: Query<SecurityLoginEvent> = {
+    workspaceUuid: workspace
+  }
+
+  if (accountUuid !== undefined) {
+    query.accountUuid = accountUuid
+  }
+  if (success !== undefined) {
+    query.success = success
+  }
+  if (authMethod !== undefined) {
+    query.authMethod = authMethod
+  }
+  if (ip !== undefined) {
+    query.ip = ip
+  }
+
+  if (since !== undefined || until !== undefined) {
+    query.eventTime = {}
+    if (since !== undefined) {
+      query.eventTime.$gte = since
+    }
+    if (until !== undefined) {
+      query.eventTime.$lte = until
+    }
+  }
+
+  return await db.securityLoginEvent.find(query, { eventTime: 'descending' }, limit)
+}
+
+const MAX_SECURITY_LOGIN_EVENT_ID_LEN = 128
+
+export async function exportMySecurityLoginHistory (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params?: MySecurityLoginHistoryFilterParams
+): Promise<SecurityLoginEvent[]> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'exportMySecurityLoginHistory', 'SECURITY_LOGIN_EXPORT_RPM', 5)
+  return await findMySecurityLoginEventRows(db, account, {
+    since: params?.since,
+    until: params?.until,
+    success: params?.success,
+    authMethod: params?.authMethod,
+    ip: params?.ip,
+    limit: 500
+  })
+}
+
+export async function eraseMySecurityLoginHistory (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  _params?: Record<string, never>
+): Promise<void> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'eraseMySecurityLoginHistory', 'SECURITY_LOGIN_ERASE_RPM', 10)
+  await db.securityLoginEvent.deleteMany({ accountUuid: account })
+}
+
+export async function reportSecurityLoginConcern (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params?: { loginEventId?: string }
+): Promise<void> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'reportSecurityLoginConcern', 'SECURITY_LOGIN_REPORT_RPM', 20)
+
+  let loginEventId = params?.loginEventId?.trim()
+  if (loginEventId === '') loginEventId = undefined
+  if (loginEventId !== undefined && loginEventId.length > MAX_SECURITY_LOGIN_EVENT_ID_LEN) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  let data: Record<string, unknown> | undefined
+  if (loginEventId !== undefined) {
+    const row = await db.securityLoginEvent.findOne({ id: loginEventId, accountUuid: account })
+    if (row == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+    }
+    data = {
+      loginEventId: row.id,
+      eventTime: row.eventTime,
+      workspaceUuid: row.workspaceUuid
+    }
+  } else {
+    data = { source: 'profile_recent_activity' }
+  }
+
+  await db.accountEvent.insertOne({
+    accountUuid: account,
+    eventType: AccountEventType.SECURITY_LOGIN_CONCERN_REPORTED,
+    time: Date.now(),
+    data
+  })
+}
+
 export type AccountMethods =
   | AccountServiceMethods
   | 'login'
@@ -3264,6 +3616,11 @@ export type AccountMethods =
   | 'hasWorkspacePermission'
   | 'getWorkspacePermissions'
   | 'getWorkspaceUsersWithPermission'
+  | 'getMySecurityLoginHistory'
+  | 'getWorkspaceSecurityLoginHistory'
+  | 'exportMySecurityLoginHistory'
+  | 'eraseMySecurityLoginHistory'
+  | 'reportSecurityLoginConcern'
 
 /**
  * @public
@@ -3330,6 +3687,11 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     hasWorkspacePermission: wrap(hasWorkspacePermission),
     getWorkspacePermissions: wrap(getWorkspacePermissions),
     getWorkspaceUsersWithPermission: wrap(getWorkspaceUsersWithPermission),
+    getMySecurityLoginHistory: wrap(getMySecurityLoginHistory),
+    getWorkspaceSecurityLoginHistory: wrap(getWorkspaceSecurityLoginHistory),
+    exportMySecurityLoginHistory: wrap(exportMySecurityLoginHistory),
+    eraseMySecurityLoginHistory: wrap(eraseMySecurityLoginHistory),
+    reportSecurityLoginConcern: wrap(reportSecurityLoginConcern),
 
     /* READ OPERATIONS */
     getRegionInfo: wrap(getRegionInfo),

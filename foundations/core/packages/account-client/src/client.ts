@@ -51,6 +51,8 @@ import type {
   PersonWithProfile,
   ProviderInfo,
   RegionInfo,
+  SecurityLoginHistoryEvent,
+  SecurityLoginHistoryParams,
   SocialId,
   Subscription,
   SubscriptionData,
@@ -242,6 +244,10 @@ export interface AccountClient {
 
   setMyProfile: (profile: Partial<Omit<UserProfile, 'personUuid'>>) => Promise<void>
   getUserProfile: (personUuid?: PersonUuid) => Promise<PersonWithProfile | null>
+  getMySecurityLoginHistory: (params?: SecurityLoginHistoryParams) => Promise<SecurityLoginHistoryEvent[]>
+  exportMySecurityLoginHistory: (params?: SecurityLoginHistoryParams) => Promise<SecurityLoginHistoryEvent[]>
+  eraseMySecurityLoginHistory: () => Promise<void>
+  reportSecurityLoginConcern: (params?: { loginEventId?: string }) => Promise<void>
 
   getSubscriptions: (workspaceUuid?: WorkspaceUuid | undefined, activeOnly?: boolean) => Promise<Subscription[]>
   getSubscriptionByProviderId: (provider: string, providerSubscriptionId: string) => Promise<Subscription | null>
@@ -1265,6 +1271,34 @@ class AccountClientImpl implements AccountClient {
       params: {
         personUuid
       }
+    })
+  }
+
+  async getMySecurityLoginHistory (params: SecurityLoginHistoryParams = {}): Promise<SecurityLoginHistoryEvent[]> {
+    return await this._rpc({
+      method: 'getMySecurityLoginHistory',
+      params
+    })
+  }
+
+  async exportMySecurityLoginHistory (params: SecurityLoginHistoryParams = {}): Promise<SecurityLoginHistoryEvent[]> {
+    return await this._rpc({
+      method: 'exportMySecurityLoginHistory',
+      params
+    })
+  }
+
+  async eraseMySecurityLoginHistory (): Promise<void> {
+    await this._rpc({
+      method: 'eraseMySecurityLoginHistory',
+      params: {}
+    })
+  }
+
+  async reportSecurityLoginConcern (params?: { loginEventId?: string }): Promise<void> {
+    await this._rpc({
+      method: 'reportSecurityLoginConcern',
+      params: params ?? {}
     })
   }
 

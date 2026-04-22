@@ -51,6 +51,7 @@ import type {
   SocialId,
   Sort,
   UserProfile,
+  SecurityLoginEvent,
   Subscription,
   WorkspaceData,
   WorkspaceInfoWithStatus,
@@ -408,6 +409,7 @@ export class MongoAccountDB implements AccountDB {
   integrationSecret: MongoDbCollection<IntegrationSecret>
   userProfile: MongoDbCollection<UserProfile, 'personUuid'>
   subscription: MongoDbCollection<Subscription, 'id'>
+  securityLoginEvent: MongoDbCollection<SecurityLoginEvent, 'id'>
 
   workspaceMembers: MongoDbCollection<WorkspaceMember>
   workspacePermission: MongoDbCollection<WorkspacePermission>
@@ -428,6 +430,7 @@ export class MongoAccountDB implements AccountDB {
     this.integrationSecret = new MongoDbCollection<IntegrationSecret>('integrationSecret', db)
     this.userProfile = new MongoDbCollection<UserProfile, 'personUuid'>('user_profile', db, 'personUuid')
     this.subscription = new MongoDbCollection<Subscription, 'id'>('subscription', db, 'id')
+    this.securityLoginEvent = new MongoDbCollection<SecurityLoginEvent, 'id'>('securityLoginEvent', db, 'id')
 
     this.workspaceMembers = new MongoDbCollection<WorkspaceMember>('workspaceMembers', db)
     this.workspacePermission = new MongoDbCollection<WorkspacePermission>('workspacePermissions', db)
@@ -481,6 +484,27 @@ export class MongoAccountDB implements AccountDB {
         key: { accountUuid: 1 },
         options: {
           name: 'hc_account_workspace_members_account_uuid_1'
+        }
+      }
+    ])
+
+    await this.securityLoginEvent.ensureIndices([
+      {
+        key: { accountUuid: 1, eventTime: -1 },
+        options: {
+          name: 'hc_account_security_login_event_account_uuid_event_time_1'
+        }
+      },
+      {
+        key: { ip: 1, eventTime: -1 },
+        options: {
+          name: 'hc_account_security_login_event_ip_event_time_1'
+        }
+      },
+      {
+        key: { success: 1, eventTime: -1 },
+        options: {
+          name: 'hc_account_security_login_event_success_event_time_1'
         }
       }
     ])
@@ -865,6 +889,8 @@ export class MongoAccountDB implements AccountDB {
     }
 
     await this.mailbox.deleteMany({ accountUuid })
+
+    await this.securityLoginEvent.deleteMany({ accountUuid })
 
     await this.socialId.update({ personUuid: accountUuid }, { verifiedOn: undefined })
     await this.workspaceMembers.deleteMany({ accountUuid })

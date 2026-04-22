@@ -680,6 +680,7 @@ describe('MongoAccountDB', () => {
   let mockWorkspaceMembers: any
   let mockWorkspaceStatus: any
   let mockMigration: any
+  let mockSecurityLoginEvent: any
 
   beforeEach(() => {
     mockDb = {}
@@ -733,6 +734,10 @@ describe('MongoAccountDB', () => {
       findOne: jest.fn()
     }
 
+    mockSecurityLoginEvent = {
+      ensureIndices: jest.fn()
+    }
+
     accountDb = new MongoAccountDB(mockDb)
 
     // Override the getters to return our mocks
@@ -742,7 +747,8 @@ describe('MongoAccountDB', () => {
       workspace: { get: () => mockWorkspace },
       workspaceMembers: { get: () => mockWorkspaceMembers },
       workspaceStatus: { get: () => mockWorkspaceStatus },
-      migration: { get: () => mockMigration }
+      migration: { get: () => mockMigration },
+      securityLoginEvent: { get: () => mockSecurityLoginEvent }
     })
   })
 
@@ -788,6 +794,27 @@ describe('MongoAccountDB', () => {
           key: { accountUuid: 1 },
           options: {
             name: 'hc_account_workspace_members_account_uuid_1'
+          }
+        }
+      ])
+
+      expect(accountDb.securityLoginEvent.ensureIndices).toHaveBeenCalledWith([
+        {
+          key: { accountUuid: 1, eventTime: -1 },
+          options: {
+            name: 'hc_account_security_login_event_account_uuid_event_time_1'
+          }
+        },
+        {
+          key: { ip: 1, eventTime: -1 },
+          options: {
+            name: 'hc_account_security_login_event_ip_event_time_1'
+          }
+        },
+        {
+          key: { success: 1, eventTime: -1 },
+          options: {
+            name: 'hc_account_security_login_event_success_event_time_1'
           }
         }
       ])

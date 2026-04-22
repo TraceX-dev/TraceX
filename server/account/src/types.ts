@@ -76,11 +76,33 @@ export interface AccountEvent {
   time: Timestamp
 }
 
+export type SecurityAuthMethod = 'password' | 'otp' | 'token' | 'session' | 'unknown'
+
+export interface SecurityLoginEvent {
+  id: string
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  eventTime: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  success: boolean
+  authMethod: SecurityAuthMethod
+  reason?: string
+  sessionId?: string
+  anomalyCodes?: string[]
+  policyVersion?: string
+  createdOn: Timestamp
+}
+
 export enum AccountEventType {
   ACCOUNT_CREATED = 'account_created',
   SOCIAL_ID_RELEASED = 'social_id_released',
   ACCOUNT_DELETED = 'account_deleted',
-  PASSWORD_CHANGED = 'password_changed'
+  PASSWORD_CHANGED = 'password_changed',
+  /** User reported a login row as suspicious (audit / support follow-up). */
+  SECURITY_LOGIN_CONCERN_REPORTED = 'security_login_concern_reported'
 }
 
 export interface Member {
@@ -323,6 +345,7 @@ export interface AccountDB {
   integrationSecret: DbCollection<IntegrationSecret>
   userProfile: DbCollection<UserProfile>
   subscription: DbCollection<Subscription>
+  securityLoginEvent: DbCollection<SecurityLoginEvent>
   workspacePermission: DbCollection<WorkspacePermission>
 
   init: () => Promise<void>
@@ -505,6 +528,8 @@ export type ClientNetworkPosition = 'internal' | 'external'
 export interface Meta {
   timezone?: string
   clientNetworkPosition?: ClientNetworkPosition
+  ip?: string
+  userAgent?: string
 }
 
 export interface AccountAggregatedInfo extends Omit<Account, 'hash' | 'salt'>, Person {

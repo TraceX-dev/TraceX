@@ -92,6 +92,37 @@ export interface OtpInfo {
   retryOn: Timestamp
 }
 
+export type SecurityAuthMethod = 'password' | 'otp' | 'token' | 'session' | 'unknown'
+
+export interface SecurityLoginHistoryEvent {
+  id: string
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  eventTime: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  success: boolean
+  authMethod: SecurityAuthMethod
+  reason?: string
+  sessionId?: string
+  anomalyCodes?: string[]
+  policyVersion?: string
+  createdOn: Timestamp
+}
+
+export interface SecurityLoginHistoryParams {
+  since?: number
+  until?: number
+  success?: boolean
+  authMethod?: SecurityAuthMethod
+  ip?: string
+  limit?: number
+  /** When true, masks IP, truncates user agent, and omits session id in the response. */
+  redact?: boolean
+}
+
 export interface RegionInfo {
   region: string
   name: string

@@ -236,6 +236,21 @@
     "TwoFactorAuthEnabled": "L'autenticazione a due fattori è abilitata",
     "TwoFactorAuthDisabled": "L'autenticazione a due fattori è disabilitata",
     "ShowQRCode": "Mostra codice QR",
-    "EnterVerificationCode": "Inserisci codice di verifica"
+    "EnterVerificationCode": "Inserisci codice di verifica",
+    "RecentLoginActivityTitle": "Attività di accesso recente",
+    "RecentLoginActivityLoading": "Caricamento attività di accesso recente...",
+    "RecentLoginActivityEmpty": "Nessun evento di accesso recente.",
+    "RecentLoginActivityError": "Impossibile caricare l'attività di accesso recente.",
+    "RecentLoginActivityRetry": "Riprova",
+    "RecentLoginActivityMethod": "Metodo",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Posizione",
+    "RecentLoginActivityDevice": "Dispositivo",
+    "RecentLoginActivitySuccess": "Riuscito",
+    "RecentLoginActivityFailure": "Fallito",
+    "NotMeAction": "Non sono stato io",
+    "NotMeDialogTitle": "Segnala accesso sospetto",
+    "NotMeDialogMessage": "Se questo accesso non è stato effettuato da te, cambia la password, verifica le impostazioni 2FA e controlla le sessioni attive. La segnalazione aggiunge una voce al registro di audit dell’account per il follow-up; non disconnette automaticamente né termina altre sessioni.",
+    "NotMeDialogAction": "Segnala"
   }
 }

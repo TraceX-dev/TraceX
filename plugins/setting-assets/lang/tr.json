@@ -236,6 +236,21 @@
     "TwoFactorAuthEnabled": "İki faktörlü kimlik doğrulama etkin",
     "TwoFactorAuthDisabled": "İki faktörlü kimlik doğrulama devre dışı",
     "ShowQRCode": "QR kodu göster",
-    "EnterVerificationCode": "Doğrulama kodunu gir"
+    "EnterVerificationCode": "Doğrulama kodunu gir",
+    "RecentLoginActivityTitle": "Son giriş etkinliği",
+    "RecentLoginActivityLoading": "Son giriş etkinliği yükleniyor...",
+    "RecentLoginActivityEmpty": "Henüz son giriş etkinliği yok.",
+    "RecentLoginActivityError": "Son giriş etkinliği yüklenemedi.",
+    "RecentLoginActivityRetry": "Tekrar dene",
+    "RecentLoginActivityMethod": "Yöntem",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Konum",
+    "RecentLoginActivityDevice": "Cihaz",
+    "RecentLoginActivitySuccess": "Başarılı",
+    "RecentLoginActivityFailure": "Başarısız",
+    "NotMeAction": "Bu ben değildim",
+    "NotMeDialogTitle": "Şüpheli girişi bildir",
+    "NotMeDialogMessage": "Bu giriş size ait değilse parolanızı değiştirin, 2FA ayarlarını kontrol edin ve aktif oturumları gözden geçirin. Bildirmek, takip için hesap denetim günlüğüne bir kayıt ekler; sizi otomatik olarak oturumdan çıkarmaz veya diğer oturumları sonlandırmaz.",
+    "NotMeDialogAction": "Bildir"
   }
 }

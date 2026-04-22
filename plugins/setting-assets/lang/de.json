@@ -236,6 +236,21 @@
     "TwoFactorAuthEnabled": "Zweistufige Authentifizierung ist aktiviert",
     "TwoFactorAuthDisabled": "Zweistufige Authentifizierung ist deaktiviert",
     "ShowQRCode": "QR-Code anzeigen",
-    "EnterVerificationCode": "Verifizierungscode eingeben"
+    "EnterVerificationCode": "Verifizierungscode eingeben",
+    "RecentLoginActivityTitle": "Letzte Anmeldeaktivität",
+    "RecentLoginActivityLoading": "Letzte Anmeldeaktivität wird geladen...",
+    "RecentLoginActivityEmpty": "Noch keine letzten Anmeldeereignisse.",
+    "RecentLoginActivityError": "Die zuletzt angezeigte Anmeldeaktivität konnte nicht geladen werden.",
+    "RecentLoginActivityRetry": "Erneut versuchen",
+    "RecentLoginActivityMethod": "Methode",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Standort",
+    "RecentLoginActivityDevice": "Gerät",
+    "RecentLoginActivitySuccess": "Erfolgreich",
+    "RecentLoginActivityFailure": "Fehlgeschlagen",
+    "NotMeAction": "Ich war das nicht",
+    "NotMeDialogTitle": "Verdächtige Anmeldung melden",
+    "NotMeDialogMessage": "Wenn diese Anmeldung nicht von Ihnen war, ändern Sie Ihr Passwort, prüfen Sie die 2FA-Einstellungen und überprüfen Sie aktive Sitzungen. Mit „Melden“ wird ein Eintrag im Kontoauditprotokoll für die Nachverfolgung gespeichert; Sie werden dadurch nicht automatisch abgemeldet und andere Sitzungen werden nicht beendet.",
+    "NotMeDialogAction": "Melden"
   }
 }

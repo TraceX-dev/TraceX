@@ -236,6 +236,21 @@
     "TwoFactorAuthEnabled": "Two-factor authentication is enabled",
     "TwoFactorAuthDisabled": "Two-factor authentication is disabled",
     "ShowQRCode": "Show QR code",
-    "EnterVerificationCode": "Enter verification code"
+    "EnterVerificationCode": "Enter verification code",
+    "RecentLoginActivityTitle": "Recent login activity",
+    "RecentLoginActivityLoading": "Loading recent login activity...",
+    "RecentLoginActivityEmpty": "No recent login events yet.",
+    "RecentLoginActivityError": "Failed to load recent login activity.",
+    "RecentLoginActivityRetry": "Retry",
+    "RecentLoginActivityMethod": "Method",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Location",
+    "RecentLoginActivityDevice": "Device",
+    "RecentLoginActivitySuccess": "Success",
+    "RecentLoginActivityFailure": "Failed",
+    "NotMeAction": "This wasn't me",
+    "NotMeDialogTitle": "Report suspicious login",
+    "NotMeDialogMessage": "If this login was not you, change your password, verify 2FA settings, and review active sessions. Reporting adds an entry to your account audit log for follow-up; it does not automatically sign you out or end other sessions.",
+    "NotMeDialogAction": "Report"
   }
 }

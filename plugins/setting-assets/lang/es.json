@@ -227,6 +227,21 @@
     "TwoFactorAuthEnabled": "La autenticación de dos factores está habilitada",
     "TwoFactorAuthDisabled": "La autenticación de dos factores está deshabilitada",
     "ShowQRCode": "Mostrar código QR",
-    "EnterVerificationCode": "Introducir código de verificación"
+    "EnterVerificationCode": "Introducir código de verificación",
+    "RecentLoginActivityTitle": "Actividad reciente de inicio de sesión",
+    "RecentLoginActivityLoading": "Cargando actividad reciente de inicio de sesión...",
+    "RecentLoginActivityEmpty": "Todavía no hay eventos recientes de inicio de sesión.",
+    "RecentLoginActivityError": "No se pudo cargar la actividad reciente de inicio de sesión.",
+    "RecentLoginActivityRetry": "Reintentar",
+    "RecentLoginActivityMethod": "Método",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Ubicación",
+    "RecentLoginActivityDevice": "Dispositivo",
+    "RecentLoginActivitySuccess": "Éxito",
+    "RecentLoginActivityFailure": "Fallido",
+    "NotMeAction": "No fui yo",
+    "NotMeDialogTitle": "Reportar inicio de sesión sospechoso",
+    "NotMeDialogMessage": "Si este inicio de sesión no fue tuyo, cambia tu contraseña, verifica la configuración de 2FA y revisa las sesiones activas. Informar añade una entrada al registro de auditoría de la cuenta para su seguimiento; no cierra la sesión automáticamente ni finaliza otras sesiones.",
+    "NotMeDialogAction": "Reportar"
   }
 }

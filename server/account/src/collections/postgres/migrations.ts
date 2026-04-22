@@ -82,7 +82,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV22Migration(ns, flavor),
     getV23Migration(ns, flavor),
     getV24Migration(ns, flavor),
-    getV25Migration(ns, flavor)
+    getV25Migration(ns, flavor),
+    getV26Migration(ns, flavor)
   ]
 }
 
@@ -791,6 +792,45 @@ function getV25Migration (ns: string, flavor: DBFlavor): [string, string] {
     `
     ALTER TABLE ${ns}.account
     ADD COLUMN IF NOT EXISTS tfa_secret ${types.string};
+    `
+  ]
+}
+
+function getV26Migration (ns: string, flavor: DBFlavor): [string, string] {
+  const types = dbTypes[flavor]
+  return [
+    'account_db_v26_add_security_login_event_table',
+    `
+    /* ======= S E C U R I T Y   L O G I N   E V E N T ======= */
+    CREATE TABLE IF NOT EXISTS ${ns}.security_login_event (
+        id ${types.string} NOT NULL DEFAULT gen_random_uuid()::TEXT,
+        account_uuid UUID NOT NULL,
+        workspace_uuid UUID,
+        event_time BIGINT NOT NULL DEFAULT current_epoch_ms(),
+        ip ${types.string},
+        country ${types.string},
+        city ${types.string},
+        user_agent ${types.string},
+        success ${types.bool} NOT NULL,
+        auth_method ${types.string} NOT NULL,
+        reason ${types.string},
+        session_id ${types.string},
+        anomaly_codes JSONB,
+        policy_version ${types.string},
+        created_on BIGINT NOT NULL DEFAULT current_epoch_ms(),
+        CONSTRAINT security_login_event_pk PRIMARY KEY (id),
+        CONSTRAINT security_login_event_account_fk FOREIGN KEY (account_uuid) REFERENCES ${ns}.account(uuid),
+        CONSTRAINT security_login_event_workspace_fk FOREIGN KEY (workspace_uuid) REFERENCES ${ns}.workspace(uuid)
+    );
+
+    CREATE INDEX IF NOT EXISTS security_login_event_account_time_idx
+    ON ${ns}.security_login_event (account_uuid, event_time DESC);
+
+    CREATE INDEX IF NOT EXISTS security_login_event_ip_time_idx
+    ON ${ns}.security_login_event (ip, event_time DESC);
+
+    CREATE INDEX IF NOT EXISTS security_login_event_success_time_idx
+    ON ${ns}.security_login_event (success, event_time DESC);
     `
   ]
 }

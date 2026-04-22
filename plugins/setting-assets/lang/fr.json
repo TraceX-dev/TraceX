@@ -236,6 +236,21 @@
     "TwoFactorAuthEnabled": "L'authentification à deux facteurs est activée",
     "TwoFactorAuthDisabled": "L'authentification à deux facteurs est désactivée",
     "ShowQRCode": "Afficher le code QR",
-    "EnterVerificationCode": "Entrer le code de vérification"
+    "EnterVerificationCode": "Entrer le code de vérification",
+    "RecentLoginActivityTitle": "Activité de connexion récente",
+    "RecentLoginActivityLoading": "Chargement de l'activité de connexion récente...",
+    "RecentLoginActivityEmpty": "Aucun événement de connexion récent pour le moment.",
+    "RecentLoginActivityError": "Impossible de charger l'activité de connexion récente.",
+    "RecentLoginActivityRetry": "Réessayer",
+    "RecentLoginActivityMethod": "Méthode",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Emplacement",
+    "RecentLoginActivityDevice": "Appareil",
+    "RecentLoginActivitySuccess": "Réussi",
+    "RecentLoginActivityFailure": "Échec",
+    "NotMeAction": "Ce n'était pas moi",
+    "NotMeDialogTitle": "Signaler une connexion suspecte",
+    "NotMeDialogMessage": "Si cette connexion ne vient pas de vous, changez votre mot de passe, vérifiez les paramètres 2FA et examinez les sessions actives. Le signalement ajoute une entrée au journal d’audit du compte pour suivi ; il ne vous déconnecte pas automatiquement et ne met pas fin aux autres sessions.",
+    "NotMeDialogAction": "Signaler"
   }
 }

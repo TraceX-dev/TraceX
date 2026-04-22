@@ -227,6 +227,21 @@
     "TwoFactorAuthEnabled": "Autenticação de dois fatores está ativada",
     "TwoFactorAuthDisabled": "Autenticação de dois fatores está desativada",
     "ShowQRCode": "Mostrar código QR",
-    "EnterVerificationCode": "Inserir código de verificação"
+    "EnterVerificationCode": "Inserir código de verificação",
+    "RecentLoginActivityTitle": "Atividade recente de login",
+    "RecentLoginActivityLoading": "Carregando atividade recente de login...",
+    "RecentLoginActivityEmpty": "Ainda não há eventos recentes de login.",
+    "RecentLoginActivityError": "Falha ao carregar a atividade recente de login.",
+    "RecentLoginActivityRetry": "Tentar novamente",
+    "RecentLoginActivityMethod": "Método",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Localização",
+    "RecentLoginActivityDevice": "Dispositivo",
+    "RecentLoginActivitySuccess": "Sucesso",
+    "RecentLoginActivityFailure": "Falhou",
+    "NotMeAction": "Não fui eu",
+    "NotMeDialogTitle": "Reportar login suspeito",
+    "NotMeDialogMessage": "Se este login não foi seu, altere sua senha, verifique as configurações de 2FA e revise as sessões ativas. Denunciar adiciona uma entrada ao registro de auditoria da conta para acompanhamento; não encerra a sessão automaticamente nem encerra outras sessões.",
+    "NotMeDialogAction": "Reportar"
   }
 }

@@ -49,6 +49,7 @@ import type {
   AccountAggregatedInfo,
   UserProfile,
   Subscription,
+  SecurityLoginEvent,
   WorkspacePermission,
   DBFlavor
 } from '../../types'
@@ -539,6 +540,7 @@ export class PostgresAccountDB implements AccountDB {
   integrationSecret: PostgresDbCollection<IntegrationSecret>
   userProfile: PostgresDbCollection<UserProfile, 'personUuid'>
   subscription: PostgresDbCollection<Subscription, 'id'>
+  securityLoginEvent: PostgresDbCollection<SecurityLoginEvent, 'id'>
   workspacePermission: PostgresDbCollection<WorkspacePermission>
 
   constructor (
@@ -602,6 +604,12 @@ export class PostgresAccountDB implements AccountDB {
       ns,
       idKey: 'id',
       timestampFields: ['periodStart', 'periodEnd', 'trialEnd', 'canceledAt', 'willCancelAt', 'createdOn', 'updatedOn'],
+      withRetryClient
+    })
+    this.securityLoginEvent = new PostgresDbCollection<SecurityLoginEvent, 'id'>('security_login_event', client, {
+      ns,
+      idKey: 'id',
+      timestampFields: ['eventTime', 'createdOn'],
       withRetryClient
     })
     this.workspacePermission = new PostgresDbCollection<WorkspacePermission>('workspace_permissions', client, {
@@ -1079,6 +1087,8 @@ export class PostgresAccountDB implements AccountDB {
       }
 
       await this.mailbox.deleteMany({ accountUuid }, rTx)
+
+      await this.securityLoginEvent.deleteMany({ accountUuid }, rTx)
 
       await this.socialId.update({ personUuid: accountUuid }, { verifiedOn: undefined }, rTx)
 

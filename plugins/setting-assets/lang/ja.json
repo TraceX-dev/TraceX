@@ -236,6 +236,21 @@
     "TwoFactorAuthEnabled": "二要素認証は有効です",
     "TwoFactorAuthDisabled": "二要素認証は無効です",
     "ShowQRCode": "QRコードを表示",
-    "EnterVerificationCode": "確認コードを入力"
+    "EnterVerificationCode": "確認コードを入力",
+    "RecentLoginActivityTitle": "最近のログインアクティビティ",
+    "RecentLoginActivityLoading": "最近のログインアクティビティを読み込み中...",
+    "RecentLoginActivityEmpty": "最近のログインイベントはまだありません。",
+    "RecentLoginActivityError": "最近のログインアクティビティの読み込みに失敗しました。",
+    "RecentLoginActivityRetry": "再試行",
+    "RecentLoginActivityMethod": "方法",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "場所",
+    "RecentLoginActivityDevice": "デバイス",
+    "RecentLoginActivitySuccess": "成功",
+    "RecentLoginActivityFailure": "失敗",
+    "NotMeAction": "これは私ではありません",
+    "NotMeDialogTitle": "不審なログインを報告",
+    "NotMeDialogMessage": "このログインに心当たりがない場合は、パスワードを変更し、2FA設定を確認し、アクティブなセッションを見直してください。報告するとアカウントの監査ログに記録され、後続の確認に利用されます。自動的にサインアウトされたり、他のセッションが終了することはありません。",
+    "NotMeDialogAction": "報告"
   }
 }

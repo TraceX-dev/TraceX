@@ -45,6 +45,7 @@ import { Analytics } from '@hcengineering/analytics'
 import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } from '@hcengineering/server-token'
 import { MongoAccountDB } from './collections/mongo'
 import { PostgresAccountDB } from './collections/postgres/postgres'
+import { resolveSecurityPolicyEngine } from './securityPolicy'
 import { accountPlugin } from './plugin'
 import {
   type Account,
@@ -56,6 +57,8 @@ import {
   type LoginInfo,
   type LoginInfoRequestData,
   type Meta,
+  type SecurityAuthMethod,
+  type SecurityLoginEvent,
   type Operations,
   type OtpInfo,
   type RegionInfo,
@@ -800,6 +803,15 @@ export async function selectWorkspace (
     }
 
     // Guest mode select workspace
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid,
+      workspaceUuid: workspace.uuid,
+      success: true,
+      authMethod: 'session',
+      reason: 'workspace_select_guest',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
     return {
       account: accountUuid,
       endpoint: getEndpoint(workspace.uuid, workspace.region, getKind(workspace.region)),
@@ -812,6 +824,15 @@ export async function selectWorkspace (
   }
 
   if (accountUuid === systemAccountUuid) {
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid,
+      workspaceUuid: workspace.uuid,
+      success: true,
+      authMethod: 'session',
+      reason: 'workspace_select_system',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
     return {
       account: accountUuid,
       token: generateToken(accountUuid, workspace.uuid, extra, undefined, {
@@ -873,6 +894,16 @@ export async function selectWorkspace (
   if (person == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
+
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid,
+    workspaceUuid: workspace.uuid,
+    success: true,
+    authMethod: 'session',
+    reason: 'workspace_select',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent
+  })
 
   return {
     account: accountUuid,
@@ -1690,6 +1721,36 @@ export async function cleanExpiredOtp (db: AccountDB): Promise<void> {
   await db.otp.deleteMany({ expiresOn: { $lte: Date.now() } })
 }
 
+const DEFAULT_SECURITY_LOGIN_RETENTION_DAYS = 365
+
+/**
+ * Deletes security_login_event rows older than SECURITY_LOGIN_EVENT_RETENTION_DAYS (default 365).
+ * Set SECURITY_LOGIN_EVENT_RETENTION_DAYS=0 (or "off"/"false") to disable purging.
+ */
+export async function purgeExpiredSecurityLoginEvents (
+  db: AccountDB,
+  log?: { warn: (msg: string, data?: Record<string, unknown>) => void }
+): Promise<void> {
+  const rawTrim = process.env.SECURITY_LOGIN_EVENT_RETENTION_DAYS?.trim()
+  const rawLower = rawTrim?.toLowerCase()
+  if (rawLower === '0' || rawLower === 'off' || rawLower === 'false') {
+    return
+  }
+  const days =
+    rawTrim !== undefined && rawTrim !== ''
+      ? parseInt(rawTrim, 10)
+      : DEFAULT_SECURITY_LOGIN_RETENTION_DAYS
+  if (!Number.isFinite(days) || days <= 0) {
+    return
+  }
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+  try {
+    await db.securityLoginEvent.deleteMany({ eventTime: { $lt: cutoff } })
+  } catch (err) {
+    log?.warn('purgeExpiredSecurityLoginEvents failed', { err, days, cutoff })
+  }
+}
+
 export async function getWorkspaces (
   db: AccountDB,
   isDisabled?: boolean | null,
@@ -1986,6 +2047,85 @@ export async function setTimezone (
     await db.account.update({ uuid: accountId }, { timezone: meta.timezone })
   } catch (err: any) {
     ctx.error('Failed to set account timezone', err)
+  }
+}
+
+export interface SecurityEventInput {
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  success: boolean
+  authMethod: SecurityAuthMethod
+  reason?: string
+  eventTime?: number
+  ip?: string
+  userAgent?: string
+  country?: string
+  city?: string
+  sessionId?: string
+}
+
+function trimOptional (value: string | undefined, maxLen: number): string | undefined {
+  if (value == null) {
+    return undefined
+  }
+
+  const normalized = value.trim()
+  if (normalized === '') {
+    return undefined
+  }
+
+  return normalized.length > maxLen ? normalized.slice(0, maxLen) : normalized
+}
+
+export async function recordSecurityLoginEvent (
+  ctx: MeasureContext,
+  db: AccountDB,
+  input: SecurityEventInput
+): Promise<void> {
+  const logWarn =
+    typeof (ctx as any).warn === 'function'
+      ? (ctx as any).warn.bind(ctx)
+      : typeof (ctx as any).error === 'function'
+        ? (ctx as any).error.bind(ctx)
+        : console.warn
+
+  try {
+    const eventTime = input.eventTime ?? Date.now()
+    const eventData: Omit<SecurityLoginEvent, 'id' | 'createdOn'> = {
+      accountUuid: input.accountUuid,
+      workspaceUuid: input.workspaceUuid,
+      eventTime,
+      ip: trimOptional(input.ip, 128),
+      country: trimOptional(input.country, 8),
+      city: trimOptional(input.city, 128),
+      userAgent: trimOptional(input.userAgent, 1024),
+      success: input.success,
+      authMethod: input.authMethod,
+      reason: trimOptional(input.reason, 256),
+      sessionId: trimOptional(input.sessionId, 128)
+    }
+
+    const recentHistory = await db.securityLoginEvent.find(
+      { accountUuid: input.accountUuid },
+      { eventTime: 'descending' },
+      50
+    )
+    const policyEngine = await resolveSecurityPolicyEngine(ctx)
+    const policyResult = await policyEngine.evaluateEvent({ event: eventData, recentHistory })
+
+    await db.securityLoginEvent.insertOne({
+      ...eventData,
+      anomalyCodes: policyResult.anomalyCodes,
+      policyVersion: policyResult.policyVersion,
+      createdOn: eventTime
+    })
+  } catch (err) {
+    const payload = { err, accountUuid: input.accountUuid, authMethod: input.authMethod }
+    if (typeof (ctx as any).error === 'function') {
+      ;(ctx as any).error('Failed to persist security login event', payload)
+    } else {
+      logWarn('Failed to persist security login event', payload)
+    }
   }
 }
 

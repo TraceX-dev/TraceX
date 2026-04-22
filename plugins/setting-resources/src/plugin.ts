@@ -163,6 +163,21 @@ export default mergeIds(settingId, setting, {
     ShowInTitle: '' as IntlString,
     SpaceMembersOnly: '' as IntlString,
     LastOwnerLeaveTitle: '' as IntlString,
-    LastOwnerLeaveMessage: '' as IntlString
+    LastOwnerLeaveMessage: '' as IntlString,
+    RecentLoginActivityTitle: '' as IntlString,
+    RecentLoginActivityLoading: '' as IntlString,
+    RecentLoginActivityEmpty: '' as IntlString,
+    RecentLoginActivityError: '' as IntlString,
+    RecentLoginActivityRetry: '' as IntlString,
+    RecentLoginActivityMethod: '' as IntlString,
+    RecentLoginActivityIp: '' as IntlString,
+    RecentLoginActivityLocation: '' as IntlString,
+    RecentLoginActivityDevice: '' as IntlString,
+    RecentLoginActivitySuccess: '' as IntlString,
+    RecentLoginActivityFailure: '' as IntlString,
+    NotMeAction: '' as IntlString,
+    NotMeDialogTitle: '' as IntlString,
+    NotMeDialogMessage: '' as IntlString,
+    NotMeDialogAction: '' as IntlString
   }
 })

@@ -234,6 +234,21 @@
     "TwoFactorAuthEnabled": "Dvoufaktorové ověřování je povoleno",
     "TwoFactorAuthDisabled": "Dvoufaktorové ověřování je zakázáno",
     "ShowQRCode": "Zobrazit QR kód",
-    "EnterVerificationCode": "Zadejte ověřovací kód"
+    "EnterVerificationCode": "Zadejte ověřovací kód",
+    "RecentLoginActivityTitle": "Nedávná aktivita přihlášení",
+    "RecentLoginActivityLoading": "Načítá se nedávná aktivita přihlášení...",
+    "RecentLoginActivityEmpty": "Zatím žádné nedávné události přihlášení.",
+    "RecentLoginActivityError": "Nepodařilo se načíst nedávnou aktivitu přihlášení.",
+    "RecentLoginActivityRetry": "Zkusit znovu",
+    "RecentLoginActivityMethod": "Metoda",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Poloha",
+    "RecentLoginActivityDevice": "Zařízení",
+    "RecentLoginActivitySuccess": "Úspěšné",
+    "RecentLoginActivityFailure": "Neúspěšné",
+    "NotMeAction": "To jsem nebyl já",
+    "NotMeDialogTitle": "Nahlásit podezřelé přihlášení",
+    "NotMeDialogMessage": "Pokud toto přihlášení nebylo vaše, změňte heslo, zkontrolujte nastavení 2FA a projděte aktivní relace. Nahlášení přidá záznam do auditu účtu pro následné řešení; automaticky vás neodhlásí ani neukončí ostatní relace.",
+    "NotMeDialogAction": "Nahlásit"
   }
 }

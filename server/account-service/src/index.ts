@@ -11,7 +11,8 @@ import account, {
   getAccountDB,
   getAllTransactors,
   getMethods,
-  cleanExpiredOtp
+  cleanExpiredOtp,
+  purgeExpiredSecurityLoginEvents
 } from '@hcengineering/account'
 import accountEn from '@hcengineering/account/lang/en.json'
 import accountRu from '@hcengineering/account/lang/ru.json'
@@ -180,6 +181,12 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       },
       3 * 60 * 1000
     )
+    setInterval(
+      () => {
+        void purgeExpiredSecurityLoginEvents(db, measureCtx)
+      },
+      3 * 60 * 1000
+    )
   })
 
   const extractCookieToken = (headers: IncomingHttpHeaders): string | undefined => {
@@ -204,6 +211,23 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     return extractAuthorizationToken(headers) ?? extractCookieToken(headers)
   }
 
+  const getClientIp = (headers: IncomingHttpHeaders): string | undefined => {
+    const forwardedFor = headers['x-forwarded-for']
+    if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
+      return forwardedFor.split(',')[0].trim()
+    }
+
+    const candidates = ['cf-connecting-ip', 'x-real-ip', 'x-client-ip', 'true-client-ip'] as const
+    for (const header of candidates) {
+      const value = headers[header]
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value.trim()
+      }
+    }
+
+    return undefined
+  }
+
   const getRequestMeta = (headers: IncomingHttpHeaders, isServiceRequest: boolean): Meta => {
     const meta: Meta = {}
 
@@ -215,6 +239,13 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       const val = headers['x-client-network-position'] as string
       if (['internal', 'external'].includes(val)) {
         meta.clientNetworkPosition = val as ClientNetworkPosition
+      }
+    }
+
+    if (!isServiceRequest) {
+      meta.ip = getClientIp(headers)
+      if (typeof headers['user-agent'] === 'string') {
+        meta.userAgent = headers['user-agent']
       }
     }
 

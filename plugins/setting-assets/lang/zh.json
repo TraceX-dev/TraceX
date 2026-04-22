@@ -236,6 +236,21 @@
     "TwoFactorAuthEnabled": "双因素认证已启用",
     "TwoFactorAuthDisabled": "双因素认证已禁用",
     "ShowQRCode": "显示QR码",
-    "EnterVerificationCode": "输入验证码"
+    "EnterVerificationCode": "输入验证码",
+    "RecentLoginActivityTitle": "最近登录活动",
+    "RecentLoginActivityLoading": "正在加载最近登录活动...",
+    "RecentLoginActivityEmpty": "暂无最近登录事件。",
+    "RecentLoginActivityError": "加载最近登录活动失败。",
+    "RecentLoginActivityRetry": "重试",
+    "RecentLoginActivityMethod": "方式",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "位置",
+    "RecentLoginActivityDevice": "设备",
+    "RecentLoginActivitySuccess": "成功",
+    "RecentLoginActivityFailure": "失败",
+    "NotMeAction": "这不是我",
+    "NotMeDialogTitle": "报告可疑登录",
+    "NotMeDialogMessage": "如果这次登录不是您本人，请修改密码、检查 2FA 设置，并查看活动会话。提交报告会在账户审计日志中新增一条记录以便跟进；不会自动注销您，也不会结束其他会话。",
+    "NotMeDialogAction": "报告"
   }
 }

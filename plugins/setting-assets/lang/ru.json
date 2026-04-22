@@ -236,6 +236,21 @@
     "TwoFactorAuthEnabled": "Двухфакторная аутентификация включена",
     "TwoFactorAuthDisabled": "Двухфакторная аутентификация отключена",
     "ShowQRCode": "Показать QR-код",
-    "EnterVerificationCode": "Введите код подтверждения"
+    "EnterVerificationCode": "Введите код подтверждения",
+    "RecentLoginActivityTitle": "Последняя активность входов",
+    "RecentLoginActivityLoading": "Загружаем историю входов...",
+    "RecentLoginActivityEmpty": "История входов пока пуста.",
+    "RecentLoginActivityError": "Не удалось загрузить историю входов.",
+    "RecentLoginActivityRetry": "Повторить",
+    "RecentLoginActivityMethod": "Метод",
+    "RecentLoginActivityIp": "IP",
+    "RecentLoginActivityLocation": "Локация",
+    "RecentLoginActivityDevice": "Устройство",
+    "RecentLoginActivitySuccess": "Успешно",
+    "RecentLoginActivityFailure": "Ошибка",
+    "NotMeAction": "Это был не я",
+    "NotMeDialogTitle": "Сообщить о подозрительном входе",
+    "NotMeDialogMessage": "Если это были не вы, смените пароль, проверьте настройки 2FA и активные сессии. Сообщение добавляет запись в журнал аудита учётной записи для последующей проверки; оно не завершает текущий сеанс и не завершает другие сеансы автоматически.",
+    "NotMeDialogAction": "Сообщить"
   }
 }
