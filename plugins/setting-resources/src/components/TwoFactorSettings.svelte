@@ -17,7 +17,7 @@
   import { getCurrentAccount } from '@hcengineering/core'
   import { OK, unknownError, getEmbeddedLabel } from '@hcengineering/platform'
   import setting from '@hcengineering/setting'
-  import { Breadcrumb, Button, EditBox, Header, Label, Spinner, Status } from '@hcengineering/ui'
+  import { Button, EditBox, Label, Spinner, Status } from '@hcengineering/ui'
   import { getAccountClient } from '../utils'
   import presentation from '@hcengineering/presentation'
 
@@ -96,10 +96,6 @@
 </script>
 
 <div class="hulyComponent">
-  <Header adaptive={'disabled'}>
-    <Breadcrumb icon={setting.icon.Password} label={setting.string.TwoFactorAuth} size="large" isCurrent />
-  </Header>
-
   <div class="flex-col p-6 gap-8 max-w-2xl">
     <div class="flex flex-between">
       <Label label={setting.string.TwoFactorAuthDescription} />

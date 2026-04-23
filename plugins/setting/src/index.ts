@@ -246,7 +246,8 @@ export default plugin(settingId, {
     AddEmailSocialId: '' as AnyComponent,
     OfficeSettings: '' as AnyComponent,
     UserRoleSelect: '' as AnyComponent,
-    TwoFactorSettings: '' as AnyComponent
+    TwoFactorSettings: '' as AnyComponent,
+    SecuritySettings: '' as AnyComponent
   },
   string: {
     Settings: '' as IntlString,

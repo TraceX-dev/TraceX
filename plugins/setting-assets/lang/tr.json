@@ -229,6 +229,7 @@
     "SpaceMembersOnly": "Yalnızca alan üyeleri",
     "Reset": "Sıfırla",
     "Security": "Güvenlik",
+    "SecurityTabSessions": "Oturum geçmişi",
     "TwoFactorAuth": "İki faktörlü kimlik doğrulama",
     "TwoFactorAuthDescription": "İki faktörlü kimlik doğrulama hesabınıza ek bir güvenlik katmanı ekler",
     "EnableTwoFactorAuth": "İki faktörlü kimlik doğrulamayı etkinleştir",

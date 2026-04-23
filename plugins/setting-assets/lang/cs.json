@@ -227,6 +227,7 @@
     "SpaceMembersOnly": "Pouze členové prostoru",
     "Reset": "Resetovat",
     "Security": "Zabezpečení",
+    "SecurityTabSessions": "Historie relací",
     "TwoFactorAuth": "Dvoufaktorové ověřování",
     "TwoFactorAuthDescription": "Dvoufaktorové ověřování přidává další vrstvu zabezpečení k vašemu účtu",
     "EnableTwoFactorAuth": "Povolit dvoufaktorové ověřování",

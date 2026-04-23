@@ -178,6 +178,7 @@ export default mergeIds(settingId, setting, {
     NotMeAction: '' as IntlString,
     NotMeDialogTitle: '' as IntlString,
     NotMeDialogMessage: '' as IntlString,
-    NotMeDialogAction: '' as IntlString
+    NotMeDialogAction: '' as IntlString,
+    SecurityTabSessions: '' as IntlString
   }
 })

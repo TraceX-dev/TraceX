@@ -217,7 +217,7 @@ export function createModel (builder: Builder): void {
       name: 'security',
       label: setting.string.Security,
       icon: setting.icon.Password,
-      component: setting.component.TwoFactorSettings,
+      component: setting.component.SecuritySettings,
       group: 'settings-account',
       role: AccountRole.Guest,
       order: 1200

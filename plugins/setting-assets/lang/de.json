@@ -229,6 +229,7 @@
     "SpaceMembersOnly": "Nur Bereichsmitglieder",
     "Reset": "Zurücksetzen",
     "Security": "Sicherheit",
+    "SecurityTabSessions": "Sitzungsverlauf",
     "TwoFactorAuth": "Zweistufige Authentifizierung",
     "TwoFactorAuthDescription": "Zweistufige Authentifizierung fügt eine zusätzliche Sicherheitsebene zu Ihrem Konto hinzu",
     "EnableTwoFactorAuth": "Zweistufige Authentifizierung aktivieren",

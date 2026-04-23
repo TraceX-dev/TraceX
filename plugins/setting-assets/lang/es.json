@@ -220,6 +220,7 @@
     "SpaceMembersOnly": "Solo miembros del espacio",
     "Reset": "Reiniciar",
     "Security": "Seguridad",
+    "SecurityTabSessions": "Historial de sesiones",
     "TwoFactorAuth": "Autenticación de dos factores",
     "TwoFactorAuthDescription": "La autenticación de dos factores añade una capa adicional de seguridad a tu cuenta",
     "EnableTwoFactorAuth": "Habilitar autenticación de dos factores",
