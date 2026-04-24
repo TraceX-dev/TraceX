@@ -27,7 +27,7 @@ describe('rest-api-server', () => {
   const wsName = 'api-tests'
 
   beforeAll(async () => {
-    await loadServerConfig('http://huly.local:8083')
+    await loadServerConfig('http://tracex.local:8083')
   }, 10000)
 
   async function connect (): Promise<PlatformClient> {
@@ -39,7 +39,7 @@ describe('rest-api-server', () => {
       connectionTimeout: 30000
     }
 
-    return await connectWs('http://huly.local:8083', options)
+    return await connectWs('http://tracex.local:8083', options)
   }
 
   it('handles many duplicate create doc attempts without breaking subsequent requests', async () => {
