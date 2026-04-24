@@ -348,8 +348,21 @@ export class AIControl {
   async processEvent (workspace: WorkspaceUuid, events: AIEventRequest[]): Promise<void> {
     for (const event of events) {
       const wsClient = await this.getWorkspaceClient(workspace)
-      if (wsClient === undefined) continue
-      await wsClient.processMessageEvent(event)
+      if (wsClient === undefined) {
+        this.ctx.warn('No workspace client for event, skipping', { workspace })
+        continue
+      }
+      try {
+        await wsClient.processMessageEvent(event)
+      } catch (e: any) {
+        this.ctx.error('Failed to process message event', {
+          workspace,
+          user: event.user,
+          objectId: event.objectId,
+          error: e.message ?? String(e),
+          stack: e.stack
+        })
+      }
     }
   }
 

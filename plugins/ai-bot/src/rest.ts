@@ -25,6 +25,7 @@ export interface AIEventRequest {
   objectClass: Ref<Class<Doc>>
   objectId: Ref<Doc>
   objectSpace: Ref<Space>
+  objectIdIsSpace: boolean
   user: PersonId
   collection: string
   createdOn: Timestamp

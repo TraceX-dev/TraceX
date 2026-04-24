@@ -214,13 +214,17 @@ export class WorkspaceClient {
   async processMessageEvent (event: AIEventRequest): Promise<void> {
     const client = await this.clientPromise
 
-    const { user, objectId, objectClass, messageClass } = event
+    const { user, objectId, objectClass, objectSpace, messageClass } = event
     const accountClient = getAccountClient(this.token)
     const personUuid = this.personUuidBySocialId.get(user) ?? (await accountClient.findPersonBySocialId(user))
 
     const contextMode = objectClass === chunter.class.DirectMessage ? 'direct' : 'thread'
 
     if (personUuid === undefined) {
+      this.ctx.warn('Cannot resolve personUuid for user, skipping event', {
+        workspace: this.wsIds.uuid,
+        user
+      })
       return
     }
 
@@ -237,7 +241,7 @@ export class WorkspaceClient {
     const prompt: LLMChatMessage = { content: promptText, role: 'user' as const }
     const promptTokens = this.llmService.countTokens([prompt])
 
-    const space = (event as any).objectIdIsSpace != null ? (objectId as Ref<Space>) : event.objectSpace
+    const space = (event as any).objectIdIsSpace != null ? (objectId as Ref<Space>) : objectSpace
 
     const rawHistory = await this.memoryStorage.getHistory(personUuid)
     const history = this.toLlmHistory(rawHistory, promptTokens)

@@ -283,12 +283,19 @@ export class DefaultLLMService implements LLMService {
         text = (text ?? '').substring(pos + 8)
       }
 
+      ctx.info('LLM chat completed after max rounds', {
+        workspace,
+        totalUsage,
+        hasResponse: text !== undefined && text !== null && text.length > 0,
+        responseLength: text?.length ?? 0
+      })
+
       return {
         completion: text ?? undefined,
         usage: totalUsage
       }
-    } catch (e) {
-      console.error(e)
+    } catch (e: any) {
+      ctx.error('LLM chat failed with exception', { workspace, error: e.message ?? String(e), stack: e.stack })
     }
 
     return undefined

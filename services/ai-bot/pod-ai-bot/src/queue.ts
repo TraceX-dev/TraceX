@@ -12,13 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { QueueTopic, QueueWorkspaceEvent, QueueWorkspaceMessage } from '@hcengineering/server-core'
+import { ConsumerControl, QueueTopic, QueueWorkspaceEvent, QueueWorkspaceMessage } from '@hcengineering/server-core'
 import { AIEventRequest } from '@hcengineering/ai-bot'
 import { MeasureContext } from '@hcengineering/core'
 import { getPlatformQueue } from '@hcengineering/kafka'
 
 import config from './config'
 import { AIControl } from './controller'
+
+const groupId = 'ai-bot'
+
+const HEARTBEAT_INTERVAL = 5000
+
+async function withHeartbeat<T> (queue: ConsumerControl, fn: () => Promise<T>): Promise<T> {
+  const interval = setInterval(() => {
+    void queue.heartbeat()
+  }, HEARTBEAT_INTERVAL)
+  try {
+    return await fn()
+  } finally {
+    clearInterval(interval)
+  }
+}
 
 export const startQueue = async (
   ctx: MeasureContext,
@@ -29,14 +44,15 @@ export const startQueue = async (
   const workspaceConsumer = queue.createConsumer<QueueWorkspaceMessage>(
     ctx,
     QueueTopic.Workspace,
-    'ai-bot',
-    async (ctx, message, control) => {
+    groupId,
+    async (ctx, message) => {
       try {
         if (message.value.type === QueueWorkspaceEvent.Up) {
+          ctx.info('Received Workspace event from queue', { workspace: message.workspace })
           await aiControl.connect(message.workspace)
         }
       } catch (err: any) {
-        ctx.error('failed to handle operation', { error: err.message })
+        ctx.error('failed to handle workspace event', { error: err.message })
       }
     }
   )
@@ -44,11 +60,11 @@ export const startQueue = async (
   const aiEventConsumer = queue.createConsumer<AIEventRequest>(
     ctx,
     QueueTopic.AI,
-    'ai-bot',
-    async (ctx, message) => {
+    groupId,
+    async (ctx, message, control) => {
       try {
         ctx.info('Received AI event from queue', { workspace: message.workspace })
-        await aiControl.processEvent(message.workspace, [message.value])
+        await withHeartbeat(control, () => aiControl.processEvent(message.workspace, [message.value]))
       } catch (err: any) {
         ctx.error('failed to handle ai event', { error: err.message })
       }
