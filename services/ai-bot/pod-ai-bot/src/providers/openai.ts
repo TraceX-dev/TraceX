@@ -36,10 +36,8 @@ export class OpenAIProvider implements LLMProvider {
   private readonly encoding: Tiktoken
 
   constructor (apiKey: string, model: string, baseUrl?: string) {
-    this.client = new OpenAI({
-      apiKey,
-      ...(baseUrl !== undefined && baseUrl !== '' ? { baseURL: baseUrl } : {})
-    })
+    this.client =
+      baseUrl !== undefined && baseUrl !== '' ? new OpenAI({ apiKey, baseURL: baseUrl }) : new OpenAI({ apiKey })
     this.model = model
 
     this.encoding = (() => {
@@ -89,15 +87,13 @@ export class OpenAIProvider implements LLMProvider {
   ): Promise<ChatCompletionResult> {
     const { systemContent, nonSystemMessages } = splitMessages(messages)
 
-    const openaiTools: ChatCompletionTool[] = tools.map(toTool)
-
     const response = await this.client.chat.completions.create({
       messages: [
         ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
         ...nonSystemMessages.map(toMessage)
       ],
       model: this.model,
-      tools: openaiTools,
+      tools: tools.map(toTool),
       user: options?.user,
       ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
       stream: false

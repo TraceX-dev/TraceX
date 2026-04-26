@@ -98,14 +98,12 @@ export class AnthropicProvider implements LLMProvider {
   ): Promise<ChatCompletionResult> {
     const { systemContent, nonSystemMessages } = splitMessages(messages)
 
-    const anthropicTools: Anthropic.Tool[] = tools.map(toTool)
-
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: options?.maxTokens ?? 4096,
       system: systemContent,
       messages: nonSystemMessages.map(toMessage),
-      tools: anthropicTools
+      tools: tools.map(toTool)
     })
 
     let text: string = ''

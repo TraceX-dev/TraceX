@@ -13,7 +13,17 @@
 // limitations under the License.
 //
 
-import { AccountUuid, MeasureContext, TxOperations, WorkspaceUuid, type WorkspaceIds } from '@hcengineering/core'
+import {
+  AccountUuid,
+  Class,
+  Doc,
+  MeasureContext,
+  Ref,
+  Space,
+  TxOperations,
+  WorkspaceUuid,
+  type WorkspaceIds
+} from '@hcengineering/core'
 import { StorageAdapter } from '@hcengineering/server-core'
 import { ContextMode, type TokenUsage } from '../providers/types'
 import { MemoryStorage } from '../storage'
@@ -43,6 +53,9 @@ export interface ToolDependencies {
   user: AccountUuid | undefined
   workspace: WorkspaceUuid
   workspaceOps?: WorkspaceOps
+  objectId?: Ref<Doc>
+  objectClass?: Ref<Class<Doc>>
+  objectSpace?: Ref<Space>
 }
 
 export interface RegisteredTool {

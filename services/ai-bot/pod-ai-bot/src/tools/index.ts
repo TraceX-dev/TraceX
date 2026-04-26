@@ -24,8 +24,10 @@ import {
   clearHistoryTool,
   clearUserMemoryTool
 } from './memory'
+import { getObjectContentTool } from './document'
 import { saveFileTool, getDataBeforeImportTool } from './pdf'
 import { type RegisteredTool } from './types'
+import { ContextMode } from '../providers'
 
 const dynamicTools: RegisteredTool[] = []
 
@@ -53,11 +55,20 @@ const registeredTools: RegisteredTool[] = [
 
   // PDF
   saveFileTool,
-  getDataBeforeImportTool
+  getDataBeforeImportTool,
+
+  // Context Object
+  // getObjectAttributesTool,
+  getObjectContentTool
 ]
 
 export function getRegisteredTools (): RegisteredTool[] {
   return [...registeredTools, ...dynamicTools]
+}
+
+export function getTools (contextMode: ContextMode): RegisteredTool[] {
+  const tools = getRegisteredTools()
+  return tools.filter((t) => t.contextMode === contextMode || t.contextMode === 'any')
 }
 
 export {

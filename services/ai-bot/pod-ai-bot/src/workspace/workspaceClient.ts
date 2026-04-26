@@ -42,7 +42,6 @@ import core, {
   Ref,
   SocialId,
   SortingOrder,
-  Space,
   toIdMap,
   TxOperations,
   type Account,
@@ -353,7 +352,10 @@ export class WorkspaceClient {
       memoryStorage: this.memoryStorage,
       user: personUuid as AccountUuid,
       workspace: this.wsIds.uuid,
-      workspaceOps
+      workspaceOps,
+      objectId: event.objectId,
+      objectClass: event.objectClass,
+      objectSpace: event.objectSpace
     }
 
     const chatMessages: LLMChatMessage[] = [...systemPrompts, ...useHistory, prompt]
@@ -423,11 +425,12 @@ export class WorkspaceClient {
     const { objectId, objectClass, messageId, messageClass, messageSpace, collection } = event
     const message = jsonToMarkup(markdownToMarkup(markdown, { refUrl: '', imageUrl: '' }))
 
-    const replyTo = messageClass === chunter.class.ThreadMessage
-      // If already in a thread, reply to the thread
-      ? 'thread'
-      // Otherwise reply depending on context mode
-      : contextMode === 'thread' ? 'thread' : 'chat'
+    const replyTo =
+      messageClass === chunter.class.ThreadMessage
+        ? 'thread' // If already in a thread, reply to the thread
+        : contextMode === 'thread'
+          ? 'thread'
+          : 'chat' // Otherwise reply depending on context mode
 
     if (replyTo === 'chat') {
       await client.addCollection<Doc, ChatMessage>(

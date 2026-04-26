@@ -27,7 +27,7 @@ import {
 } from '../providers/types'
 import { PROMPTS } from '../providers/prompts'
 import { pushTokensData } from '../billing'
-import { getRegisteredTools, type ToolDependencies, type ToolExecutorResult } from '../tools'
+import { getTools, type ToolDependencies, type ToolExecutorResult } from '../tools'
 
 const MAX_TOOL_ROUNDS = 10
 
@@ -180,10 +180,8 @@ export class DefaultLLMService implements LLMService {
     try {
       const isDirectMode = contextMode === 'direct'
 
-      const allTools = getRegisteredTools()
-      const filteredTools = allTools.filter((t) => t.contextMode === contextMode || t.contextMode === 'any')
-
-      const llmTools = filteredTools
+      const tools = getTools(contextMode)
+      const llmTools = tools
         .filter((t) => t.isLlmTool === true)
         .map((t) => ({ name: t.definition.name, description: t.definition.description }))
 
@@ -191,10 +189,10 @@ export class DefaultLLMService implements LLMService {
         ? PROMPTS.DIRECT({ assistantMemory, userMemory, sharedContext, llmTools })
         : PROMPTS.THREAD({ sharedContext, llmTools })
 
-      const toolDefinitions: LLMToolDefinition[] = filteredTools.map((t) => t.definition)
+      const toolDefinitions: LLMToolDefinition[] = tools.map((t) => t.definition)
 
       const executorMap = new Map<string, (args: any) => Promise<ToolExecutorResult>>()
-      for (const t of filteredTools) {
+      for (const t of tools) {
         executorMap.set(t.definition.name, t.createExecutor(toolDeps))
       }
 
