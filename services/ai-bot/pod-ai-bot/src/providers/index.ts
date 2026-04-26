@@ -1,5 +1,5 @@
 //
-// Copyright © 2024-2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,17 +13,6 @@
 // limitations under the License.
 //
 
-import type { Metadata, Plugin, Resource } from '@hcengineering/platform'
-import { plugin } from '@hcengineering/platform'
-import { TriggerFunc } from '@hcengineering/server-core'
-
-export const serverAiBotId = 'server-ai-bot' as Plugin
-
-export default plugin(serverAiBotId, {
-  metadata: {
-    EndpointURL: '' as Metadata<string>
-  },
-  trigger: {
-    OnMessageSend: '' as Resource<TriggerFunc>
-  }
-})
+export * from './types'
+export { createProviders } from './factory'
+export { PROMPTS } from './prompts'

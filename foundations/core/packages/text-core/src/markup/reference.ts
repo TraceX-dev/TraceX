@@ -13,9 +13,10 @@
 // limitations under the License.
 //
 
-import { Class, Doc, Ref } from '@hcengineering/core'
+import { Class, Doc, Markup, Ref } from '@hcengineering/core'
 import { MarkupNode, MarkupNodeType, ReferenceMarkupNode } from '../markup/model'
 import { traverseNode } from '../markup/traverse'
+import { markupToJSON } from './utils'
 
 /**
  * @public
@@ -29,8 +30,12 @@ export interface Reference {
 /**
  * @public
  */
-export function extractReferences (content: MarkupNode): Array<Reference> {
+export function extractReferences (content: MarkupNode | Markup | string): Array<Reference> {
   const result: Array<Reference> = []
+
+  if (typeof content === 'string') {
+    content = markupToJSON(content)
+  }
 
   traverseNode(content, (node, parent) => {
     if (node.type === MarkupNodeType.reference) {

@@ -25,9 +25,9 @@ import config from './config'
 import { AIControl } from './controller'
 import { registerLoaders } from './loaders'
 import { createServer, listen } from './server/server'
-import { getDbStorage } from './storage'
 import { getAccountUuid } from './utils/account'
 import { updateDeepgramBilling } from './billing'
+import { startQueue } from './queue'
 
 export const start = async (): Promise<void> => {
   setMetadata(serverToken.metadata.Secret, config.ServerSecret)
@@ -50,7 +50,8 @@ export const start = async (): Promise<void> => {
         })
       )
   })
-  ctx.info('AI Bot Service started', { firstName: config.FirstName, lastName: config.LastName })
+
+  ctx.info('AI Bot Service started', { config })
 
   const personUuid = await withRetry(
     async () => await getAccountUuid(ctx),
@@ -62,15 +63,13 @@ export const start = async (): Promise<void> => {
     ctx.error('AI Bot Service failed to start. No person found.')
     process.exit()
   }
-  ctx.info('AI person uuid', { personUuid })
 
-  const storage = await getDbStorage()
   const socialIds: SocialId[] = await getAccountClient(
     config.AccountsURL,
     generateToken(personUuid, undefined, { service: 'aibot' })
   ).getSocialIds()
 
-  const aiControl = new AIControl(personUuid, socialIds, storage, ctx)
+  const aiControl = new AIControl(personUuid, socialIds, ctx)
 
   const app = createServer(aiControl, ctx)
   const server = listen(app, config.Port)
@@ -90,12 +89,14 @@ export const start = async (): Promise<void> => {
     } catch {}
   }
 
+  const closeQueue = await startQueue(ctx, aiControl)
+
   const onClose = (): void => {
     if (billingIntervalId !== undefined) {
       clearInterval(billingIntervalId)
     }
     void aiControl.close()
-    storage.close()
+    closeQueue()
     server.close(() => process.exit())
   }
 
