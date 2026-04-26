@@ -31853,7 +31853,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
       '@hcengineering/platform':
-        specifier: workspace:^0.7.20
+        specifier: workspace:^0.7.30
         version: link:../../foundations/core/packages/platform
       '@hcengineering/server-ai-bot':
         specifier: workspace:^0.7.0
@@ -31861,15 +31861,9 @@ importers:
       '@hcengineering/server-core':
         specifier: workspace:^0.7.19
         version: link:../../foundations/server/packages/core
-      '@hcengineering/server-templates':
-        specifier: workspace:^0.7.0
-        version: link:../templates
-      '@hcengineering/server-token':
-        specifier: workspace:^0.7.18
-        version: link:../../foundations/core/packages/token
-      '@hcengineering/templates':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/templates
+      '@hcengineering/text-core':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/text-core
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
