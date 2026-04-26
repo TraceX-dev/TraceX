@@ -158,17 +158,12 @@ export class AIControl {
 
     const ref: { clientPromise?: Promise<any> } = {}
 
-    const memoryStorage = new BlobMemoryStorage(
-      this.storageAdapter,
-      this.ctx,
-      wsIds,
-      () => {
-        if (ref.clientPromise === undefined) {
-          throw new Error('WorkspaceClient not initialized yet')
-        }
-        return ref.clientPromise
+    const memoryStorage = new BlobMemoryStorage(this.storageAdapter, this.ctx, wsIds, () => {
+      if (ref.clientPromise === undefined) {
+        throw new Error('WorkspaceClient not initialized yet')
       }
-    )
+      return ref.clientPromise
+    })
 
     const wsClient = new WorkspaceClient(
       this.storageAdapter,

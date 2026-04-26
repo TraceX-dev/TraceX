@@ -69,10 +69,12 @@ export const saveFileTool: RegisteredTool = {
       }
     }
   },
-  createExecutor: (deps: ToolDependencies) => async (args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }) => {
-    if (deps.workspaceOps === undefined) return { text: 'Workspace operations not available' }
-    return { text: await saveFile(deps.workspaceOps, args) }
-  },
+  createExecutor:
+    (deps: ToolDependencies) =>
+      async (args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }) => {
+        if (deps.workspaceOps === undefined) return { text: 'Workspace operations not available' }
+        return { text: await saveFile(deps.workspaceOps, args) }
+      },
   contextMode: 'any'
 }
 
@@ -127,11 +129,7 @@ async function saveFile (
   return `File saved as ${args.name} with id ${_id}, always provide mention link as: [](ref://?_class=document%3Aclass%3ADocument&_id=${_id}&label=${args.name})`
 }
 
-async function pdfToMarkdown (
-  ops: WorkspaceOps,
-  fileId: string,
-  name: string | undefined
-): Promise<string | undefined> {
+async function pdfToMarkdown (ops: WorkspaceOps, fileId: string, name: string | undefined): Promise<string | undefined> {
   if (config.DataLabApiKey !== '') {
     try {
       const stat = await ops.storage.stat(ops.ctx, ops.wsIds, fileId)

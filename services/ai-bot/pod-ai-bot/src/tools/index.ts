@@ -60,4 +60,11 @@ export function getRegisteredTools (): RegisteredTool[] {
   return [...registeredTools, ...dynamicTools]
 }
 
-export { type RegisteredTool, type ToolDefinition, type ToolDependencies, type ToolExecutor, type ToolExecutorResult, type WorkspaceOps } from './types'
+export {
+  type RegisteredTool,
+  type ToolDefinition,
+  type ToolDependencies,
+  type ToolExecutor,
+  type ToolExecutorResult,
+  type WorkspaceOps
+} from './types'

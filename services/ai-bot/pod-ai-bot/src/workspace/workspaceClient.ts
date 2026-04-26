@@ -50,7 +50,7 @@ import core, {
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
 import fs from 'fs'
-import type { ChatMessage as LLMChatMessage } from '../providers'
+import type { ContextMode, ChatMessage as LLMChatMessage } from '../providers'
 import { type LLMService } from '../services'
 import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
 import { type ToolDependencies, type WorkspaceOps } from '../tools'
@@ -75,6 +75,7 @@ export class WorkspaceClient {
   primarySocialId: SocialId
   aiPerson: Person | undefined
   personUuidBySocialId = new Map<PersonId, PersonUuid>()
+  processedMessages = new Set<Ref<Doc>>()
 
   love: LoveController | undefined
   clientPromise: Promise<TxOperations>
@@ -141,7 +142,14 @@ export class WorkspaceClient {
       if (!isAlreadyUploaded) {
         const data = fs.readFileSync(config.BotAvatarPath)
 
-        await this.storage.put(this.ctx, this.wsIds, config.BotAvatarName, data, config.BotAvatarContentType, data.length)
+        await this.storage.put(
+          this.ctx,
+          this.wsIds,
+          config.BotAvatarName,
+          data,
+          config.BotAvatarContentType,
+          data.length
+        )
         this.ctx.info('Avatar file uploaded successfully', { workspace: this.wsIds, path: config.BotAvatarPath })
       }
     } catch (e) {
@@ -212,9 +220,20 @@ export class WorkspaceClient {
   }
 
   async processMessageEvent (event: AIEventRequest): Promise<void> {
+    if (this.processedMessages.has(event.messageId)) {
+      this.ctx.warn('Duplicate message event, skipping', {
+        workspace: this.wsIds.uuid,
+        messageId: event.messageId
+      })
+      return
+    }
+    this.processedMessages.add(event.messageId)
+
+    this.ctx.info('Processing message event', { workspace: this.wsIds.uuid, event })
+
     const client = await this.clientPromise
 
-    const { user, objectId, objectClass, objectSpace, messageClass } = event
+    const { user, objectId, objectClass } = event
     const accountClient = getAccountClient(this.token)
     const personUuid = this.personUuidBySocialId.get(user) ?? (await accountClient.findPersonBySocialId(user))
 
@@ -241,12 +260,27 @@ export class WorkspaceClient {
     const prompt: LLMChatMessage = { content: promptText, role: 'user' as const }
     const promptTokens = this.llmService.countTokens([prompt])
 
-    const space = (event as any).objectIdIsSpace != null ? (objectId as Ref<Space>) : objectSpace
+    this.ctx.info('Prepared prompt', {
+      workspace: this.wsIds.uuid,
+      personUuid,
+      contextMode,
+      promptTokens,
+      promptLength: promptText.length,
+      attachments: files.length
+    })
 
     const rawHistory = await this.memoryStorage.getHistory(personUuid)
     const history = this.toLlmHistory(rawHistory, promptTokens)
 
-    await this.memoryStorage.pushHistory(personUuid, promptText, 'user', promptTokens, personUuid, objectId, objectClass)
+    await this.memoryStorage.pushHistory(
+      personUuid,
+      promptText,
+      'user',
+      promptTokens,
+      personUuid,
+      objectId,
+      objectClass
+    )
 
     const useHistory = history.filter((it) => it.role !== 'system')
 
@@ -300,6 +334,12 @@ export class WorkspaceClient {
           content: markupToText(msg.message)
         })
       }
+
+      this.ctx.info('Thread context loaded', {
+        workspace: this.wsIds.uuid,
+        threadMessages: lastMessages.length,
+        systemPrompts: systemPrompts.length
+      })
     }
 
     const workspaceOps: WorkspaceOps = {
@@ -316,11 +356,7 @@ export class WorkspaceClient {
       workspaceOps
     }
 
-    const chatMessages: LLMChatMessage[] = [
-      ...systemPrompts,
-      ...useHistory,
-      prompt
-    ]
+    const chatMessages: LLMChatMessage[] = [...systemPrompts, ...useHistory, prompt]
 
     const chatCompletion = await this.llmService.chat(
       this.ctx,
@@ -336,40 +372,94 @@ export class WorkspaceClient {
     const response = chatCompletion?.completion
 
     if (response == null) {
-      return
-    }
-    const responseTokens =
-      chatCompletion?.usage ?? this.llmService.countTokens([{ role: 'assistant', content: response }])
-
-    await this.memoryStorage.pushHistory(personUuid, response, 'assistant', responseTokens, personUuid, objectId, objectClass)
-    await this.memoryStorage.saveHistory(personUuid, await this.memoryStorage.getHistory(personUuid))
-
-    const parseResponse = jsonToMarkup(markdownToMarkup(response, { refUrl: '', imageUrl: '' }))
-
-    if (messageClass === chunter.class.ChatMessage) {
-      await client.addCollection<Doc, ChatMessage>(
-        chunter.class.ChatMessage,
-        space,
-        objectId,
-        objectClass,
-        event.collection,
-        { message: parseResponse }
-      )
-    } else if (messageClass === chunter.class.ThreadMessage) {
-      const parent = await client.findOne<ChatMessage>(chunter.class.ChatMessage, {
-        _id: objectId as Ref<ChatMessage>
+      this.ctx.warn('LLM returned no response', {
+        workspace: this.wsIds.uuid,
+        personUuid,
+        contextMode,
+        chatCompletionUndefined: chatCompletion === undefined,
+        completionNull: chatCompletion?.completion === null,
+        completionUndefined: chatCompletion?.completion === undefined,
+        usage: chatCompletion?.usage
       })
 
-      if (parent !== undefined) {
-        await client.addCollection<Doc, ThreadMessage>(
-          chunter.class.ThreadMessage,
-          space,
-          objectId,
-          objectClass,
-          event.collection,
-          { message: parseResponse, objectId: parent.attachedTo, objectClass: parent.attachedToClass }
-        )
+      const errorMessage = 'Sorry, I was unable to process your request. Please try again later.'
+      await this.sendReply(client, contextMode, event, errorMessage)
+      return
+    }
+
+    this.ctx.info('LLM response received', {
+      workspace: this.wsIds.uuid,
+      personUuid,
+      responseLength: response.length,
+      usage: chatCompletion?.usage
+    })
+
+    const usage = chatCompletion?.usage
+    const responseTokens =
+      usage !== undefined
+        ? usage.inputTokens + usage.outputTokens
+        : this.llmService.countTokens([{ role: 'assistant', content: response }])
+
+    await this.memoryStorage.pushHistory(
+      personUuid,
+      response,
+      'assistant',
+      responseTokens,
+      personUuid,
+      objectId,
+      objectClass
+    )
+    await this.memoryStorage.saveHistory(personUuid, await this.memoryStorage.getHistory(personUuid))
+
+    await this.sendReply(client, contextMode, event, response)
+  }
+
+  private async sendReply (
+    client: TxOperations,
+    contextMode: ContextMode,
+    event: AIEventRequest,
+    markdown: string
+  ): Promise<void> {
+    const { objectId, objectClass, messageId, messageClass, messageSpace, collection } = event
+    const message = jsonToMarkup(markdownToMarkup(markdown, { refUrl: '', imageUrl: '' }))
+
+    const replyTo = messageClass === chunter.class.ThreadMessage
+      // If already in a thread, reply to the thread
+      ? 'thread'
+      // Otherwise reply depending on context mode
+      : contextMode === 'thread' ? 'thread' : 'chat'
+
+    if (replyTo === 'chat') {
+      await client.addCollection<Doc, ChatMessage>(
+        chunter.class.ChatMessage,
+        messageSpace,
+        objectId,
+        objectClass,
+        collection,
+        { message }
+      )
+    } else if (replyTo === 'thread') {
+      let parentId = messageId
+      let parentClass = messageClass
+
+      if (messageClass === chunter.class.ThreadMessage) {
+        const parent = await client.findOne<ThreadMessage>(chunter.class.ThreadMessage, {
+          _id: messageId as Ref<ThreadMessage>
+        })
+        if (parent !== undefined) {
+          parentId = parent.attachedTo as Ref<ChatMessage>
+          parentClass = parent.attachedToClass
+        }
       }
+
+      await client.addCollection<Doc, ThreadMessage>(
+        chunter.class.ThreadMessage,
+        messageSpace,
+        parentId,
+        parentClass,
+        'replies',
+        { message, objectId, objectClass }
+      )
     }
   }
 

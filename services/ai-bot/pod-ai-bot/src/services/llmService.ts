@@ -31,6 +31,19 @@ import { getRegisteredTools, type ToolDependencies, type ToolExecutorResult } fr
 
 const MAX_TOOL_ROUNDS = 10
 
+const ZERO_USAGE: TokenUsage = { inputTokens: 0, outputTokens: 0 }
+
+function addUsage (a: TokenUsage, b: TokenUsage): TokenUsage {
+  return {
+    inputTokens: a.inputTokens + b.inputTokens,
+    outputTokens: a.outputTokens + b.outputTokens
+  }
+}
+
+function totalTokens (usage: TokenUsage): number {
+  return usage.inputTokens + usage.outputTokens
+}
+
 export interface LLMService {
   translateHtml: (
     ctx: MeasureContext,
@@ -56,7 +69,7 @@ export interface LLMService {
     sharedContext: string,
     toolDeps: ToolDependencies,
     options?: ChatCompletionOptions
-  ) => Promise<{ completion: string | undefined, usage: number } | undefined>
+  ) => Promise<{ completion: string | undefined, usage: TokenUsage } | undefined>
 
   countTokens: (messages: ChatMessage[]) => number
 }
@@ -74,26 +87,25 @@ export class DefaultLLMService implements LLMService {
     html: string,
     lang: string
   ): Promise<{ text?: string, usage?: TokenUsage }> {
-    const result = await this.provider.chatCompletion(
-      ctx,
-      [
-        { role: 'system', content: PROMPTS.TRANSLATE_HTML({ lang }) },
-        { role: 'user', content: html }
-      ]
-    )
+    const result = await this.provider.chatCompletion(ctx, [
+      { role: 'system', content: PROMPTS.TRANSLATE_HTML({ lang }) },
+      { role: 'user', content: html }
+    ])
 
-    if (result.usage !== undefined && result.usage > 0) {
+    const usage = result.usage ?? ZERO_USAGE
+    if (totalTokens(usage) > 0) {
       void pushTokensData(ctx, [
         {
           workspace,
           reason: 'manual-translate',
-          tokens: result.usage,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
           date: new Date((result.created ?? Math.floor(Date.now() / 1000)) * 1000).toISOString()
         }
       ])
     }
 
-    return { text: result.text, usage: result.usage }
+    return { text: result.text, usage }
   }
 
   async summarizeMessages (
@@ -120,20 +132,19 @@ export class DefaultLLMService implements LLMService {
 
     const content = messages.map((p) => `---\n\n@${p.personName}\n${p.text}`).join('\n\n')
 
-    const result = await this.provider.chatCompletion(
-      ctx,
-      [
-        { role: 'system', content: PROMPTS.SUMMARIZE({ lang }) },
-        { role: 'user', content }
-      ]
-    )
+    const result = await this.provider.chatCompletion(ctx, [
+      { role: 'system', content: PROMPTS.SUMMARIZE({ lang }) },
+      { role: 'user', content }
+    ])
 
-    if (result.usage !== undefined && result.usage > 0) {
+    const summarizeUsage = result.usage ?? ZERO_USAGE
+    if (totalTokens(summarizeUsage) > 0) {
       void pushTokensData(ctx, [
         {
           workspace,
           reason: 'summarize',
-          tokens: result.usage,
+          inputTokens: summarizeUsage.inputTokens,
+          outputTokens: summarizeUsage.outputTokens,
           date: new Date((result.created ?? Math.floor(Date.now() / 1000)) * 1000).toISOString()
         }
       ])
@@ -150,7 +161,7 @@ export class DefaultLLMService implements LLMService {
       }
     }
 
-    return { text: summary, usage: result.usage }
+    return { text: summary, usage: summarizeUsage }
   }
 
   async chat (
@@ -163,7 +174,7 @@ export class DefaultLLMService implements LLMService {
     sharedContext: string,
     toolDeps: ToolDependencies,
     options?: ChatCompletionOptions
-  ): Promise<{ completion: string | undefined, usage: number } | undefined> {
+  ): Promise<{ completion: string | undefined, usage: TokenUsage } | undefined> {
     const date = new Date()
 
     try {
@@ -187,22 +198,14 @@ export class DefaultLLMService implements LLMService {
         executorMap.set(t.definition.name, t.createExecutor(toolDeps))
       }
 
-      const conversationMessages: ChatMessage[] = [
-        { role: 'system', content: prompt },
-        ...messages
-      ]
+      const conversationMessages: ChatMessage[] = [{ role: 'system', content: prompt }, ...messages]
 
-      let totalUsage = 0
+      let accumulatedUsage: TokenUsage = { ...ZERO_USAGE }
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-        const result = await this.provider.chatCompletionWithTools(
-          ctx,
-          conversationMessages,
-          toolDefinitions,
-          options
-        )
+        const result = await this.provider.chatCompletionWithTools(ctx, conversationMessages, toolDefinitions, options)
 
-        totalUsage += result.usage ?? 0
+        accumulatedUsage = addUsage(accumulatedUsage, result.usage ?? ZERO_USAGE)
 
         if (result.toolCalls === undefined || result.toolCalls.length === 0) {
           let text = result.text
@@ -212,12 +215,13 @@ export class DefaultLLMService implements LLMService {
             text = (text ?? '').substring(pos + 8)
           }
 
-          if (totalUsage > 0) {
+          if (totalTokens(accumulatedUsage) > 0) {
             void pushTokensData(ctx, [
               {
                 workspace,
                 reason: 'chat',
-                tokens: totalUsage,
+                inputTokens: accumulatedUsage.inputTokens,
+                outputTokens: accumulatedUsage.outputTokens,
                 date: date.toISOString()
               }
             ])
@@ -225,7 +229,7 @@ export class DefaultLLMService implements LLMService {
 
           return {
             completion: text ?? undefined,
-            usage: totalUsage
+            usage: accumulatedUsage
           }
         }
 
@@ -246,11 +250,13 @@ export class DefaultLLMService implements LLMService {
               const args = JSON.parse(toolCall.arguments)
               const execResult = await executor(args)
               toolResult = execResult.text
-              totalUsage += execResult.usage ?? 0
+              accumulatedUsage = addUsage(accumulatedUsage, execResult.usage ?? ZERO_USAGE)
             } catch (e: any) {
+              ctx.error('Tool execution failed', { workspace, tool: toolCall.name, error: e.message ?? String(e) })
               toolResult = `Error executing tool: ${e.message ?? String(e)}`
             }
           } else {
+            ctx.warn('Unknown tool requested by LLM', { workspace, tool: toolCall.name })
             toolResult = `Unknown tool: ${toolCall.name}`
           }
 
@@ -264,14 +270,15 @@ export class DefaultLLMService implements LLMService {
 
       // Max rounds reached, do a final call without tools
       const finalResult = await this.provider.chatCompletion(ctx, conversationMessages, options)
-      totalUsage += finalResult.usage ?? 0
+      accumulatedUsage = addUsage(accumulatedUsage, finalResult.usage ?? ZERO_USAGE)
 
-      if (totalUsage > 0) {
+      if (totalTokens(accumulatedUsage) > 0) {
         void pushTokensData(ctx, [
           {
             workspace,
             reason: 'chat',
-            tokens: totalUsage,
+            inputTokens: accumulatedUsage.inputTokens,
+            outputTokens: accumulatedUsage.outputTokens,
             date: date.toISOString()
           }
         ])
@@ -283,16 +290,9 @@ export class DefaultLLMService implements LLMService {
         text = (text ?? '').substring(pos + 8)
       }
 
-      ctx.info('LLM chat completed after max rounds', {
-        workspace,
-        totalUsage,
-        hasResponse: text !== undefined && text !== null && text.length > 0,
-        responseLength: text?.length ?? 0
-      })
-
       return {
         completion: text ?? undefined,
-        usage: totalUsage
+        usage: accumulatedUsage
       }
     } catch (e: any) {
       ctx.error('LLM chat failed with exception', { workspace, error: e.message ?? String(e), stack: e.stack })

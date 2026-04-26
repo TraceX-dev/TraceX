@@ -26,7 +26,8 @@ import {
   type ChatCompletionResult,
   type ChatCompletionOptions,
   type ChatMessage,
-  type LLMToolDefinition
+  type LLMToolDefinition,
+  type TokenUsage
 } from './types'
 
 export class OpenAIProvider implements LLMProvider {
@@ -34,11 +35,7 @@ export class OpenAIProvider implements LLMProvider {
   private readonly model: string
   private readonly encoding: Tiktoken
 
-  constructor (
-    apiKey: string,
-    model: string,
-    baseUrl?: string
-  ) {
+  constructor (apiKey: string, model: string, baseUrl?: string) {
     this.client = new OpenAI({
       apiKey,
       ...(baseUrl !== undefined && baseUrl !== '' ? { baseURL: baseUrl } : {})
@@ -66,18 +63,16 @@ export class OpenAIProvider implements LLMProvider {
   ): Promise<ChatCompletionResult> {
     const { systemContent, nonSystemMessages } = splitMessages(messages)
 
-    const response = await this.client.chat.completions.create(
-      {
-        messages: [
-          ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
-          ...nonSystemMessages.map(toMessage)
-        ],
-        model: this.model,
-        user: options?.user,
-        ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
-        stream: false
-      }
-    )
+    const response = await this.client.chat.completions.create({
+      messages: [
+        ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
+        ...nonSystemMessages.map(toMessage)
+      ],
+      model: this.model,
+      user: options?.user,
+      ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+      stream: false
+    })
 
     const text = response.choices?.[0]?.message?.content ?? undefined
     const created = response.created
@@ -96,19 +91,17 @@ export class OpenAIProvider implements LLMProvider {
 
     const openaiTools: ChatCompletionTool[] = tools.map(toTool)
 
-    const response = await this.client.chat.completions.create(
-      {
-        messages: [
-          ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
-          ...nonSystemMessages.map(toMessage)
-        ],
-        model: this.model,
-        tools: openaiTools,
-        user: options?.user,
-        ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
-        stream: false
-      }
-    )
+    const response = await this.client.chat.completions.create({
+      messages: [
+        ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
+        ...nonSystemMessages.map(toMessage)
+      ],
+      model: this.model,
+      tools: openaiTools,
+      user: options?.user,
+      ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+      stream: false
+    })
 
     const choice = response.choices?.[0]
     const text = choice?.message?.content ?? undefined
@@ -169,9 +162,12 @@ function toMessage (message: ChatMessage): ChatCompletionMessageParam {
   return { role, content }
 }
 
-function toTokens (usage?: CompletionUsage): number {
+function toTokens (usage?: CompletionUsage): TokenUsage {
   if (usage === undefined) {
-    return 0
+    return { inputTokens: 0, outputTokens: 0 }
   }
-  return usage.total_tokens ?? (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0)
+  return {
+    inputTokens: usage.prompt_tokens ?? 0,
+    outputTokens: usage.completion_tokens ?? 0
+  }
 }

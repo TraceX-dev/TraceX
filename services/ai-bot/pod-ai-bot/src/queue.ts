@@ -35,10 +35,7 @@ async function withHeartbeat<T> (queue: ConsumerControl, fn: () => Promise<T>): 
   }
 }
 
-export const startQueue = async (
-  ctx: MeasureContext,
-  aiControl: AIControl
-): Promise<() => void> => {
+export const startQueue = async (ctx: MeasureContext, aiControl: AIControl): Promise<() => void> => {
   const queue = getPlatformQueue(config.ServiceID, config.QueueRegion)
 
   const workspaceConsumer = queue.createConsumer<QueueWorkspaceMessage>(

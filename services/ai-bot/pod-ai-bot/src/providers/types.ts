@@ -14,11 +14,22 @@
 // limitations under the License.
 //
 
-import { type MeasureContext } from '@hcengineering/core'
+import { type Class, type Doc, type Ref, type Space, type MeasureContext } from '@hcengineering/core'
 
 export type ContextMode = 'direct' | 'thread'
 
-export type TokenUsage = number
+export interface Context<T extends Doc> {
+  mode: ContextMode
+  objectId: Ref<T>
+  objectClass: Ref<Class<T>>
+  objectSpace: Ref<Space>
+  objectIsSpace: boolean
+}
+
+export interface TokenUsage {
+  inputTokens: number
+  outputTokens: number
+}
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'

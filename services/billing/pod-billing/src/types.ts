@@ -57,6 +57,8 @@ export interface AiTranscriptUsage {
 export interface AiTokensUsage {
   reason: string
   totalTokens: number
+  inputTokens: number
+  outputTokens: number
 }
 
 export interface AiUsageData {
@@ -76,7 +78,8 @@ export interface AiTranscriptData {
 export interface AiTokensData {
   workspace: WorkspaceUuid
   reason: string
-  tokens: number
+  inputTokens: number
+  outputTokens: number
   date: string
 }
 

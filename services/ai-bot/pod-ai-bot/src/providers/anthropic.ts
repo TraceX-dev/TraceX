@@ -23,7 +23,8 @@ import {
   type ChatCompletionResult,
   type ChatCompletionOptions,
   type ChatMessage,
-  type LLMToolDefinition
+  type LLMToolDefinition,
+  type TokenUsage
 } from './types'
 
 export class AnthropicProvider implements LLMProvider {
@@ -189,9 +190,9 @@ function toMessage (message: ChatMessage): Anthropic.MessageParam {
   }
 }
 
-function toTokens (usage?: Anthropic.Usage): number {
+function toTokens (usage?: Anthropic.Usage): TokenUsage {
   if (usage === undefined) {
-    return 0
+    return { inputTokens: 0, outputTokens: 0 }
   }
-  return usage.input_tokens + usage.output_tokens
+  return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens }
 }

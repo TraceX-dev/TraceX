@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import core, { AccountUuid, Doc, PersonId, Ref, SortingOrder, Tx, TxCreateDoc, TxProcessor } from '@hcengineering/core'
+import { AccountUuid, Doc, PersonId, Ref, SortingOrder, Tx, TxCreateDoc, TxProcessor } from '@hcengineering/core'
 import { PlatformQueueProducer, QueueTopic, TriggerControl } from '@hcengineering/server-core'
 import { aiBotEmailSocialKey, AIEventRequest } from '@hcengineering/ai-bot'
 import chunter, { ChatMessage, DirectMessage, ThreadMessage } from '@hcengineering/chunter'
@@ -125,26 +125,26 @@ function getMessageData (doc: Doc, message: ChatMessage): AIEventRequest {
     objectClass: message.attachedToClass,
     objectSpace: doc.space,
     collection: message.collection,
+    message: message.message,
     messageClass: message._class,
     messageId: message._id,
-    message: message.message,
-    user: message.createdBy ?? message.modifiedBy,
-    objectIdIsSpace: false
+    messageSpace: message.space,
+    user: message.createdBy ?? message.modifiedBy
   }
 }
 
 function getThreadMessageData (message: ThreadMessage): AIEventRequest {
   return {
     createdOn: message.createdOn ?? message.modifiedOn,
-    objectId: message.attachedTo,
-    objectClass: message.attachedToClass,
+    objectId: message.objectId,
+    objectClass: message.objectClass,
     objectSpace: message.space,
     collection: message.collection,
-    messageClass: message._class,
     message: message.message,
+    messageClass: message._class,
     messageId: message._id,
-    user: message.createdBy ?? message.modifiedBy,
-    objectIdIsSpace: false
+    messageSpace: message.space,
+    user: message.createdBy ?? message.modifiedBy
   }
 }
 
@@ -187,13 +187,11 @@ async function handleBotDirectMessage (
   if (!isAvailable) {
     return
   }
-  let messageEvent: AIEventRequest
-  if (control.hierarchy.isDerived(message._class, chunter.class.ThreadMessage)) {
-    messageEvent = getThreadMessageData(message as ThreadMessage)
-  } else {
-    messageEvent = getMessageData(direct, message)
-  }
-  messageEvent.objectIdIsSpace = control.hierarchy.isDerived(messageEvent.objectClass, core.class.Space)
+
+  const messageEvent = control.hierarchy.isDerived(message._class, chunter.class.ThreadMessage)
+    ? getThreadMessageData(message as ThreadMessage)
+    : getMessageData(direct, message)
+
   await producer.send(control.ctx, control.workspace.uuid, [messageEvent])
 }
 
@@ -202,13 +200,9 @@ async function handleBotMention (
   message: ChatMessage,
   producer: PlatformQueueProducer<AIEventRequest>
 ): Promise<void> {
-  let messageEvent: AIEventRequest
-  if (control.hierarchy.isDerived(message._class, chunter.class.ThreadMessage)) {
-    messageEvent = getThreadMessageData(message as ThreadMessage)
-  } else {
-    messageEvent = getMessageData(message, message)
-  }
-  messageEvent.objectIdIsSpace = control.hierarchy.isDerived(messageEvent.objectClass, core.class.Space)
+  const messageEvent = control.hierarchy.isDerived(message._class, chunter.class.ThreadMessage)
+    ? getThreadMessageData(message as ThreadMessage)
+    : getMessageData(message, message)
   await producer.send(control.ctx, control.workspace.uuid, [messageEvent])
 }
 

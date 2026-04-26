@@ -22,10 +22,10 @@ export interface AIEventRequest {
   message: string
   messageClass: Ref<Class<ChatMessage>>
   messageId: Ref<ChatMessage>
+  messageSpace: Ref<Space>
   objectClass: Ref<Class<Doc>>
   objectId: Ref<Doc>
   objectSpace: Ref<Space>
-  objectIdIsSpace: boolean
   user: PersonId
   collection: string
   createdOn: Timestamp

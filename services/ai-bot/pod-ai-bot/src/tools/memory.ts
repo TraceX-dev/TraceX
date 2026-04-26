@@ -126,8 +126,7 @@ export const updateUserMemoryTool: RegisteredTool = {
 export const clearUserMemoryTool: RegisteredTool = {
   definition: {
     name: 'clear_user_memory',
-    description:
-      'Clear all memory about the user. Use only if user explicitly asks to forget everything about them.',
+    description: 'Clear all memory about the user. Use only if user explicitly asks to forget everything about them.',
     parameters: {
       type: 'object',
       properties: {}
@@ -144,8 +143,7 @@ export const clearUserMemoryTool: RegisteredTool = {
 export const getSharedContextTool: RegisteredTool = {
   definition: {
     name: 'get_shared_context',
-    description:
-      'Retrieve current shared context. Check language preference, timezone, or other general settings.',
+    description: 'Retrieve current shared context. Check language preference, timezone, or other general settings.',
     parameters: {
       type: 'object',
       properties: {}
