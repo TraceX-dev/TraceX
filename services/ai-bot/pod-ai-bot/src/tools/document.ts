@@ -29,7 +29,11 @@ function isMarkupType (attr: AnyAttribute): boolean {
 export const getObjectContentTool: RegisteredTool = {
   definition: {
     name: 'get_object_content',
-    description: 'Read the rich text content of the context document. Use when tool user asks about document content.',
+    description:
+      'Read the rich text content of the object whose thread this conversation is in. ' +
+      'When the user says "this document", "the document", "this issue", "this object", or similar phrases referring to the current context, ' +
+      'they mean the object attached to this thread — use this tool to retrieve its content. ' +
+      'Do NOT ask the user to upload or provide a document; the content is already available via this tool.',
     parameters: {
       type: 'object',
       properties: {}
