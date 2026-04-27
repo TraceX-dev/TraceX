@@ -358,21 +358,23 @@ class PostgresDB implements BillingDB {
       let paramIndex = 1
 
       for (const item of batch) {
-        const { workspace, reason, tokens, date } = item
+        const { workspace, reason, inputTokens, outputTokens, date } = item
 
         values.push(
-          `($${paramIndex++}::uuid, $${paramIndex++}::date, $${paramIndex++}::string, $${paramIndex++}::int8)`
+          `($${paramIndex++}::uuid, $${paramIndex++}::date, $${paramIndex++}::string, $${paramIndex++}::int8, $${paramIndex++}::int8, $${paramIndex++}::int8)`
         )
 
-        params.push(workspace, date, reason, tokens)
+        params.push(workspace, date, reason, inputTokens + outputTokens, inputTokens, outputTokens)
       }
 
       const sql = `
-      INSERT INTO billing.ai_tokens_usage (workspace, day, reason, total_tokens)
+      INSERT INTO billing.ai_tokens_usage (workspace, day, reason, total_tokens, input_tokens, output_tokens)
       VALUES ${values.join(',')}
       ON CONFLICT (workspace, day, reason)
       DO UPDATE SET
-        total_tokens = billing.ai_tokens_usage.total_tokens + EXCLUDED.total_tokens;
+        total_tokens = billing.ai_tokens_usage.total_tokens + EXCLUDED.total_tokens,
+        input_tokens = billing.ai_tokens_usage.input_tokens + EXCLUDED.input_tokens,
+        output_tokens = billing.ai_tokens_usage.output_tokens + EXCLUDED.output_tokens;
     `
 
       await this.execute(sql, params)
@@ -388,7 +390,9 @@ class PostgresDB implements BillingDB {
     const baseSql = `
     SELECT
       reason,
-      SUM(total_tokens) AS total_tokens
+      SUM(total_tokens) AS total_tokens,
+      SUM(input_tokens) AS input_tokens,
+      SUM(output_tokens) AS output_tokens
     FROM billing.ai_tokens_usage
   `
 
@@ -420,7 +424,9 @@ class PostgresDB implements BillingDB {
 
     return result.map((row: any) => ({
       reason: row.reason,
-      totalTokens: Number(row.total_tokens ?? 0)
+      totalTokens: Number(row.total_tokens ?? 0),
+      inputTokens: Number(row.input_tokens ?? 0),
+      outputTokens: Number(row.output_tokens ?? 0)
     }))
   }
 }

@@ -48,13 +48,10 @@ import {
   getReceiversInfo,
   type NotificationProviderControl
 } from '@hcengineering/server-notification-resources'
-import { areEqualJson, extractReferences, jsonToMarkup, markupToJSON } from '@hcengineering/text-core'
+import { areEqualJson, extractReferences, jsonToMarkup } from '@hcengineering/text-core'
 
 export function isDocMentioned (doc: Ref<Doc>, content: string): boolean {
-  const references = []
-
-  const node = markupToJSON(content)
-  references.push(...extractReferences(node))
+  const references = extractReferences(content)
 
   for (const ref of references) {
     if (ref.objectId === doc) {
@@ -376,10 +373,7 @@ export function getReferencesData (
   content: Markup
 ): Array<Data<ActivityReference>> {
   const result: Array<Data<ActivityReference>> = []
-  const references = []
-
-  const node = markupToJSON(content)
-  references.push(...extractReferences(node))
+  const references = extractReferences(content)
 
   for (const ref of references) {
     if (ref.objectId !== attachedDocId && ref.objectId !== srcDocId) {

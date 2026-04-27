@@ -31840,15 +31840,9 @@ importers:
 
   ../../server-plugins/ai-bot-resources:
     dependencies:
-      '@hcengineering/activity':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/activity
       '@hcengineering/ai-bot':
         specifier: workspace:^0.7.0
         version: link:../../plugins/ai-bot
-      '@hcengineering/analytics-collector':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/analytics-collector
       '@hcengineering/chunter':
         specifier: workspace:^0.7.0
         version: link:../../plugins/chunter
@@ -31858,33 +31852,18 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
-      '@hcengineering/notification':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/notification
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
-      '@hcengineering/server-activity-resources':
-        specifier: workspace:^0.7.0
-        version: link:../activity-resources
       '@hcengineering/server-ai-bot':
         specifier: workspace:^0.7.0
         version: link:../ai-bot
-      '@hcengineering/server-contact':
-        specifier: workspace:^0.7.0
-        version: link:../contact
       '@hcengineering/server-core':
         specifier: workspace:^0.7.19
         version: link:../../foundations/server/packages/core
-      '@hcengineering/server-templates':
-        specifier: workspace:^0.7.0
-        version: link:../templates
-      '@hcengineering/server-token':
-        specifier: workspace:^0.7.18
-        version: link:../../foundations/core/packages/token
-      '@hcengineering/templates':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/templates
+      '@hcengineering/text-core':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/text-core
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -34283,6 +34262,9 @@ importers:
       '@hcengineering/server-process':
         specifier: workspace:^0.7.0
         version: link:../process
+      '@hcengineering/text-core':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/text-core
       '@hcengineering/time':
         specifier: workspace:^0.7.0
         version: link:../../plugins/time
@@ -37301,6 +37283,9 @@ importers:
 
   ../../services/ai-bot/pod-ai-bot:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.39.0
+        version: 0.39.0(encoding@0.1.13)
       '@hcengineering/account':
         specifier: workspace:^0.7.0
         version: link:../../../server/account
@@ -37313,6 +37298,9 @@ importers:
       '@hcengineering/analytics-service':
         specifier: workspace:^0.7.19
         version: link:../../../foundations/core/packages/analytics-service
+      '@hcengineering/api-client':
+        specifier: workspace:^0.7.25
+        version: link:../../../foundations/core/packages/api-client
       '@hcengineering/attachment':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/attachment
@@ -37337,12 +37325,12 @@ importers:
       '@hcengineering/document':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/document
+      '@hcengineering/kafka':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/server/packages/kafka
       '@hcengineering/love':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/love
-      '@hcengineering/mongo':
-        specifier: workspace:^0.7.16
-        version: link:../../../foundations/server/packages/mongo
       '@hcengineering/notification':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/notification
@@ -37388,6 +37376,9 @@ importers:
       '@hcengineering/workbench':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/workbench
+      convict:
+        specifier: ^6.2.4
+        version: 6.2.5
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -37406,12 +37397,15 @@ importers:
       js-tiktoken:
         specifier: ^1.0.14
         version: 1.0.21
-      mongodb:
-        specifier: ^6.16.0
-        version: 6.20.0(gcp-metadata@5.3.0(encoding@0.1.13))(snappy@7.3.3)(socks@2.8.7)
+      js-yaml:
+        specifier: ^4.1.0
+        version: 4.1.0
       openai:
         specifier: ^4.56.0
         version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.7
       uuid:
         specifier: ^8.3.2
         version: 8.3.2
@@ -37425,6 +37419,9 @@ importers:
       '@tsconfig/node16':
         specifier: ^1.0.4
         version: 1.0.4
+      '@types/convict':
+        specifier: ^6.1.6
+        version: 6.1.6
       '@types/cors':
         specifier: ^2.8.12
         version: 2.8.19
@@ -37434,6 +37431,9 @@ importers:
       '@types/jest':
         specifier: ^29.5.5
         version: 29.5.14
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: ^22.18.1
         version: 22.19.0
@@ -41916,6 +41916,9 @@ packages:
   '@antfu/utils@9.3.0':
     resolution: {integrity: sha512-9hFT4RauhcUzqOE4f1+frMKLZrgNog5b06I7VmZQV1BkvwvqrbC8EBZf3L1eEL2AKb6rNKjER0sEvJiSP1FXEA==}
 
+  '@anthropic-ai/sdk@0.39.0':
+    resolution: {integrity: sha512-eMyDIPRZbt1CCLErRCi3exlAvNkBtRe+kW5vvJyef93PmNr/clstYgHhtvmkxN82nlKgzyGPCyGxrm0JQ1ZIdg==}
+
   '@anticrm/skillset@0.6.0':
     resolution: {integrity: sha512-k5/57q9ie73oCFKAxZrKy/BSnakiaVZsJmfjzmqhoko+3dZq2M2o/h1r+RSZrQ6re51iMqFdsVZAtfdPL15hjA==}
 
@@ -44686,6 +44689,9 @@ packages:
   '@types/content-disposition@0.5.9':
     resolution: {integrity: sha512-8uYXI3Gw35MhiVYhG3s295oihrxRyytcRHjSjqnqZVDDy/xcGBRny7+Xj1Wgfhv5QzRtN2hB2dVRBUX9XW3UcQ==}
 
+  '@types/convict@6.1.6':
+    resolution: {integrity: sha512-1B6jqWHWQud+7yyWAqbxnPmzlHrrOtJzZr1DhhYJ/NbpS4irfZSnq+N5Fm76J9LNRlUZvCmYxTVhhohWRvtqHw==}
+
   '@types/cookies@0.9.2':
     resolution: {integrity: sha512-1AvkDdZM2dbyFybL4fxpuNCaWyv//0AwsuUk2DWeXyM1/5ZKm6W3z6mQi24RZ4l2ucY+bkSHzbDVpySqPGuV8A==}
 
@@ -46225,6 +46231,10 @@ packages:
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
+
+  convict@6.2.5:
+    resolution: {integrity: sha512-JtXpxqDqJ8P0UwEHwhxLzCIXQy97vlYBZR222Sbzb1q1Erex9ASrztJ29SyhWFQjod1AeFBaPzEEC8YvtZMIYg==}
+    engines: {node: '>=6'}
 
   cookie-signature@1.0.6:
     resolution: {integrity: sha512-QADzlaHc8icV8I7vbaJXJwod9HWYp8uCqf1xa4OfNu1T7JVxQIrUgOWtHdNDtPiywmFbiS12VjotIXLrKM3orQ==}
@@ -48949,6 +48959,9 @@ packages:
 
   lodash.camelcase@4.3.0:
     resolution: {integrity: sha512-TwuEnCnxbc3rAvhf/LbG7tJUDzhqXyFnv3dtzLOPgCG/hODL7WFnsbwktkD7yUV0RrreP/l1PALq/YSg6VvjlA==}
+
+  lodash.clonedeep@4.5.0:
+    resolution: {integrity: sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==}
 
   lodash.defaults@4.2.0:
     resolution: {integrity: sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ==}
@@ -52047,6 +52060,10 @@ packages:
     resolution: {integrity: sha512-o50j0JeToy/4K6OZcaQmW6lyXXKhq7csREXcDwk2omFPJEwUNOVtJKvmDr9EI1fAJZUyZcRF7kxGBWmRXudrCQ==}
     engines: {node: '>=6'}
 
+  yargs-parser@20.2.9:
+    resolution: {integrity: sha512-y11nGElTIV+CT3Zv9t7VKl+Q3hTQoT9a1Qzezhhl6Rp21gJ/IVTW7Z3y9EWXhuUBC2Shnf+DX0antecpAwSP8w==}
+    engines: {node: '>=10'}
+
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
@@ -52121,6 +52138,18 @@ snapshots:
       tinyexec: 1.0.2
 
   '@antfu/utils@9.3.0': {}
+
+  '@anthropic-ai/sdk@0.39.0(encoding@0.1.13)':
+    dependencies:
+      '@types/node': 18.19.130
+      '@types/node-fetch': 2.6.13
+      abort-controller: 3.0.0
+      agentkeepalive: 4.6.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
 
   '@anticrm/skillset@0.6.0': {}
 
@@ -55801,6 +55830,10 @@ snapshots:
 
   '@types/content-disposition@0.5.9': {}
 
+  '@types/convict@6.1.6':
+    dependencies:
+      '@types/node': 22.19.0
+
   '@types/cookies@0.9.2':
     dependencies:
       '@types/connect': 3.4.38
@@ -57643,6 +57676,11 @@ snapshots:
   content-type@1.0.5: {}
 
   convert-source-map@2.0.0: {}
+
+  convict@6.2.5:
+    dependencies:
+      lodash.clonedeep: 4.5.0
+      yargs-parser: 20.2.9
 
   cookie-signature@1.0.6: {}
 
@@ -61059,6 +61097,8 @@ snapshots:
 
   lodash.camelcase@4.3.0: {}
 
+  lodash.clonedeep@4.5.0: {}
+
   lodash.defaults@4.2.0: {}
 
   lodash.escaperegexp@4.1.2: {}
@@ -61584,7 +61624,7 @@ snapshots:
   node-loader@2.0.0(webpack@5.102.1):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.102.1(esbuild@0.25.12)(webpack-cli@5.1.4)
+      webpack: 5.102.1
 
   node-localstorage@2.2.1:
     dependencies:
@@ -64629,6 +64669,8 @@ snapshots:
     dependencies:
       camelcase: 5.3.1
       decamelize: 1.2.0
+
+  yargs-parser@20.2.9: {}
 
   yargs-parser@21.1.1: {}
 

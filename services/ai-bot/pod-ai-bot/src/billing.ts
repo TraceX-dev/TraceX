@@ -15,14 +15,23 @@
 import { groupByArray, MeasureContext, systemAccountUuid, WorkspaceUuid } from '@hcengineering/core'
 import { generateToken } from '@hcengineering/server-token'
 import {
-  getClient as getBillingClient,
+  getClient as getHttpBillingClient,
+  LogBillingClient,
   type BillingClient,
-  AiTranscriptData,
-  AiTokensData
+  type AiTranscriptData,
+  type AiTokensData
 } from '@hcengineering/billing-client'
 import { withRetry } from '@hcengineering/retry'
 
 import config from './config'
+
+function createBillingClient (ctx: MeasureContext): BillingClient {
+  if (config.BillingUrl !== '') {
+    const token = generateToken(systemAccountUuid, undefined, { service: 'ai-bot' })
+    return getHttpBillingClient(config.BillingUrl, token)
+  }
+  return new LogBillingClient(ctx)
+}
 
 interface DeepgramRequest {
   request_id: string
@@ -128,8 +137,7 @@ export async function updateDeepgramBilling (ctx: MeasureContext): Promise<void>
   if (config.DeepgramApiKey === '' || config.DeepgramProjectId === '' || config.DeepgramTag === '') return
   ctx.info('Starting deepgram billing update')
 
-  const token = generateToken(systemAccountUuid, undefined, { service: 'ai-bot' })
-  const billingClient = getBillingClient(config.BillingUrl, token)
+  const billingClient = createBillingClient(ctx)
 
   const lastData = await withRetry(() => fetchLastData(ctx, billingClient))
   ctx.info('Last deepgram request', lastData)
@@ -208,10 +216,8 @@ export async function updateDeepgramBilling (ctx: MeasureContext): Promise<void>
 }
 
 export async function pushTokensData (ctx: MeasureContext, data: AiTokensData[]): Promise<void> {
-  if (config.BillingUrl === '') return
   try {
-    const token = generateToken(systemAccountUuid, undefined, { service: 'ai-bot' })
-    const billingClient = getBillingClient(config.BillingUrl, token)
+    const billingClient = createBillingClient(ctx)
     await billingClient.postAiTokensData(data)
   } catch (e) {
     ctx.error('Failed to push tokens data', { e })

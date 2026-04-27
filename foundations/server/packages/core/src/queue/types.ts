@@ -21,7 +21,9 @@ export enum QueueTopic {
   // A topic about process events
   Process = 'process',
 
-  TimeMachine = 'timeMachine'
+  TimeMachine = 'timeMachine',
+
+  AI = 'ai'
 }
 
 export interface ConsumerHandle {

@@ -13,11 +13,10 @@
 // limitations under the License.
 //
 
-import { ObjectId } from 'mongodb'
 import { Class, Doc, Ref, PersonUuid } from '@hcengineering/core'
 
 export interface HistoryRecord {
-  _id?: ObjectId
+  id?: number
   workspace: string
   message: string
   objectId: Ref<Doc>
