@@ -1,6 +1,6 @@
 {
   "name": "@hcengineering/desktop",
-  "version": "0.7.327",
+  "version": "0.7.421",
   "main": "dist/main/electron.js",
   "template": "@hcengineering/webpack-package",
   "scripts": {
@@ -274,6 +274,8 @@
     "@hcengineering/rating": "workspace:^0.7.0",
     "@hcengineering/rating-assets": "workspace:^0.7.0",
     "@hcengineering/rating-resources": "workspace:^0.7.0",
+    "@tracex/qalico": "workspace:^0.7.0",
+    "@tracex/qalico-assets": "workspace:^0.7.0",
     "electron-squirrel-startup": "~1.0.0",
     "dotenv": "^16.4.5",
     "electron-context-menu": "^4.0.4",

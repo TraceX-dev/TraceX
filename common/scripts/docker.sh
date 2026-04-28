@@ -59,5 +59,5 @@ else
     --to @hcengineering/pod-rating \
     --to @hcengineering/pod-payment \
     --to @hcengineering/pod-worker \
-    --to @hcengineering/pod-qalico
+    --to @tracex/pod-qalico
 fi

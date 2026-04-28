@@ -1,5 +1,5 @@
 //
-// Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,7 +15,7 @@
 
 import { Analytics } from '@hcengineering/analytics'
 import { MeasureContext } from '@hcengineering/core'
-import { extractToken } from '@hcengineering/server-client'
+import { extractToken, readToken } from '@hcengineering/server-client'
 import { Token } from '@hcengineering/server-token'
 import { type Response, type Request, type NextFunction, type RequestHandler, type ErrorRequestHandler } from 'express'
 
@@ -26,6 +26,7 @@ export interface KeepAliveOptions {
 
 export interface RequestWithAuth extends Request {
   token?: Token
+  rawToken?: string
 }
 
 export const keepAlive = (options: KeepAliveOptions): RequestHandler => {
@@ -39,12 +40,14 @@ export const keepAlive = (options: KeepAliveOptions): RequestHandler => {
 
 export const withAuthorization = (req: RequestWithAuth, res: Response, next: NextFunction): void => {
   try {
+    const rawToken = readToken(req.headers)
     const token = extractToken(req.headers)
-    if (token == null) {
+    if (token == null || rawToken == null) {
       res.status(401).json({ message: 'Unauthorized' })
       return
     }
     req.token = token
+    req.rawToken = rawToken
 
     next()
   } catch (err: any) {

@@ -1,5 +1,5 @@
 //
-// Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,23 +13,21 @@
 // limitations under the License.
 //
 
-import { Class, Doc, makeCollabId, Markup, MeasureContext, Ref, Space } from '@hcengineering/core'
-import { type Card } from '@hcengineering/card'
+import { makeCollabId, Markup, MeasureContext, Ref } from '@hcengineering/core'
 import { saveCollabJson } from '@hcengineering/collaboration'
 import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
 import { htmlToJSON, jsonToMarkup } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
+import qalico, { type RegulatoryDocument } from '@tracex/qalico'
 
 import cors from 'cors'
 import express, { type Express, type NextFunction, type Response } from 'express'
 import { type Server } from 'http'
 
+import { getClient } from './client'
 import { type Config } from './config'
 import { type RequestWithAuth, errorHandler, keepAlive, withAuthorization } from './middleware'
-import { isValidRegulatoryDocument, type RegulatoryDocument } from './types'
-import { getClient } from './client'
-import { getAttributeMapping } from './attributeMapping'
-import { readToken } from '@hcengineering/server-client'
+import { isValidRegulatoryDocument, type RegulatoryDocument as RegulatoryDocumentDTO } from './types'
 
 const KEEP_ALIVE_TIMEOUT = 5 // seconds
 const KEEP_ALIVE_MAX = 1000
@@ -74,16 +72,12 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
         handleRequest(ctx, name, fn, req, res, next)
       }
 
-  const mapping = getAttributeMapping()
-
   app.put(
     '/v1/document',
     withAuthorization,
     wrapRequest(ctx, 'createDocument', async (ctx, req, res) => {
-      const token = readToken(req.headers)
-      const document = req.body as RegulatoryDocument
-
       // Validate document structure
+      const document = req.body as RegulatoryDocumentDTO
       if (!isValidRegulatoryDocument(document)) {
         res.status(400).json({ message: 'Invalid document structure' })
         return
@@ -91,11 +85,11 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
 
       const workspace = req.token?.workspace
       if (workspace === undefined) {
-        res.status(401).json({ message: 'Workspace not found in token' })
+        res.status(401).json({ message: 'Workspace not found' })
         return
       }
 
-      ctx.info('Received regulatory document', {
+      ctx.info('received regulatory document', {
         workspace,
         document: {
           uuid: document.uuid,
@@ -112,58 +106,50 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
         case 'markdown':
           markup = jsonToMarkup(markdownToMarkup(document.summary.content, { refUrl: '', imageUrl: '' }))
           break
+        default:
+          ctx.warn('unexpected content type', { type: document.summary.type })
+          res.status(400).json({ message: 'unexpected content type' })
+          return
       }
 
-      try {
-        const objectClass = config.DocumentClass as Ref<Class<Doc>>
-        const objectId = document.uuid as Ref<Doc>
-        const objectSpace = 'card:space:Default' as Ref<Space>
+      const txOps = await getClient(workspace, req.rawToken ?? '')
 
-        // Get workspace client
-        const txOps = await getClient(workspace, token)
+      try {
+        const objectId = document.uuid as Ref<RegulatoryDocument>
+        const objectClass = qalico.class.RegulatoryDocument
+        const objectSpace = qalico.space.Qalico
 
         const wsIds = { uuid: workspace, url: '' }
         const collabId = makeCollabId(objectClass, objectId, 'description')
         const contentId = await saveCollabJson(ctx, storageAdapter, wsIds, collabId, markup)
 
-        // Convert summary to markup format based on type
-        let summaryMarkup = document.summary.content
-        if (document.summary.type === 'html') {
-          // Keep HTML as-is
-          summaryMarkup = document.summary.content
-        } else if (document.summary.type === 'markdown') {
-          // For markdown, we could convert it to HTML or keep as-is
-          // For now, keeping as-is
-          summaryMarkup = document.summary.content
-        }
-
         const ops = txOps.apply(document.uuid)
 
-        const current = await ops.findOne(objectClass, { _id: objectId })
+        const current = await ops.findOne(qalico.class.RegulatoryDocument, { _id: objectId })
 
         if (current != null) {
-          await ops.diffUpdate<Card>(
-            current,
-            {
-              title: document.title,
-              content: contentId,
-              [mapping.dateAttribute]: new Date(document.date).getTime(),
-              [mapping.externalLinkAttribute]: document.externalLink,
-              [mapping.qalicoLinkAttribute]: document.qalicoLink,
-              [mapping.applicabilityAttribute]: document.applicability
-            }
-          )
+          await ops.diffUpdate<RegulatoryDocument>(current, {
+            title: document.title,
+            content: contentId,
+            date: new Date(document.date).getTime(),
+            externalLink: document.externalLink,
+            qalicoLink: document.qalicoLink,
+            applicable: document.applicability
+          })
         } else {
-          await ops.createDoc<Doc>(
+          await ops.createDoc<RegulatoryDocument>(
             objectClass,
             objectSpace,
             {
               title: document.title,
               content: contentId,
-              [mapping.dateAttribute]: new Date(document.date).getTime(),
-              [mapping.externalLinkAttribute]: document.externalLink,
-              [mapping.qalicoLinkAttribute]: document.qalicoLink,
-              [mapping.applicabilityAttribute]: document.applicability
+              date: new Date(document.date).getTime(),
+              externalLink: document.externalLink,
+              qalicoLink: document.qalicoLink,
+              applicable: document.applicability,
+              parentInfo: [],
+              blobs: {},
+              rank: ''
             },
             objectId
           )
@@ -171,25 +157,21 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
 
         await ops.commit()
 
-        // Create document in the platform with collaborative summary
         ctx.info('document created', {
           workspace,
           uuid: document.uuid,
           title: document.title
         })
 
-        res.status(201).json({
-          message: 'Document created successfully'
-        })
+        res.status(201).json({ message: 'Document created successfully' })
       } catch (err: any) {
-        ctx.error('Failed to create document', {
+        ctx.error('failed to create document', {
           error: err.message,
           stack: err.stack
         })
-        res.status(500).json({
-          message: 'Failed to create document',
-          error: err.message
-        })
+        res.status(500).json({ message: 'Failed to create document' })
+      } finally {
+        await txOps.close()
       }
     })
   )
@@ -209,7 +191,9 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
 
   return {
     app,
-    close: () => {}
+    close: () => {
+      void storageAdapter.close()
+    }
   }
 }
 

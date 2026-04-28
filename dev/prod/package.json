@@ -294,6 +294,8 @@
     "@hcengineering/rating": "workspace:^0.7.0",
     "@hcengineering/rating-assets": "workspace:^0.7.0",
     "@hcengineering/rating-resources": "workspace:^0.7.0",
+    "@tracex/qalico": "workspace:^0.7.0",
+    "@tracex/qalico-assets": "workspace:^0.7.0",
     "readable-stream": "^4.7.0",
     "svelte": "^4.2.20"
   }

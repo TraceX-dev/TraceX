@@ -1,0 +1,12 @@
+{
+  "string": {
+    "RegulatoryDocument": "Düzenleyici Belge",
+    "RegulatoryDocuments": "Düzenleyici Belgeler",
+    "Applicability": "Uygulanabilirlik",
+    "ExternalLink": "Harici Bağlantı",
+    "QalicoLink": "Qalico Bağlantısı",
+    "Date": "Tarih",
+    "Owner": "Sahip",
+    "ActionsNeeded": "Gerekli Eylemler"
+  }
+}

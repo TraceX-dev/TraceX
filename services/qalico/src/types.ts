@@ -1,5 +1,5 @@
 //
-// Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-
-import { type Data, type Ref, type Class, type Doc } from '@hcengineering/core'
-import { type AttributeMapping } from './attributeMapping'
 
 export interface RegulatoryDocument {
   uuid: string
@@ -29,28 +26,6 @@ export interface RegulatoryDocument {
   applicability: boolean
 }
 
-/**
- * Create a dynamic document data object with mapped attributes
- */
-export function createDocumentData (
-  document: RegulatoryDocument,
-  mapping: AttributeMapping,
-): Data<Doc> & Record<string, any> {
-  const data: Data<Doc> & Record<string, any> = {
-    title: document.title
-  }
-
-  // Map date to dynamic attribute (convert ISO string to timestamp)
-  const dateTimestamp = new Date(document.date).getTime()
-  data[mapping.dateAttribute] = dateTimestamp
-
-  data[mapping.externalLinkAttribute] = document.externalLink
-  data[mapping.qalicoLinkAttribute] = document.qalicoLink
-  data[mapping.applicabilityAttribute] = document.applicability
-
-  return data
-}
-
 export function isValidRegulatoryDocument (data: any): data is RegulatoryDocument {
   if (typeof data !== 'object' || data === null) {
     return false
@@ -60,7 +35,7 @@ export function isValidRegulatoryDocument (data: any): data is RegulatoryDocumen
   if (typeof data.uuid !== 'string') {
     return false
   }
-  
+
   // Validate date (ISO string format)
   if (typeof data.date !== 'string') {
     return false

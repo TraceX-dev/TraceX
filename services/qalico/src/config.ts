@@ -1,5 +1,5 @@
 //
-// Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,10 +22,6 @@ export interface Config {
   Secret: string
   ServiceID: string
   AccountsUrl: string
-  DocumentClass: string
-  DocumentSpace: string
-  StorageProviderName: string
-  SummaryAttribute: string
 }
 
 const config: Config = (() => {
@@ -33,11 +29,7 @@ const config: Config = (() => {
     Port: parseInt(process.env.PORT ?? '4042'),
     Secret: process.env.SECRET,
     ServiceID: process.env.SERVICE_ID ?? 'qalico',
-    AccountsUrl: process.env.ACCOUNTS_URL,
-    DocumentClass: process.env.QALICO_DOCUMENT_CLASS ?? '69bd83caf66a7420cb3677d8',
-    DocumentSpace: process.env.QALICO_DOCUMENT_SPACE,
-    StorageProviderName: process.env.STORAGE_PROVIDER_NAME ?? 'minio',
-    SummaryAttribute: process.env.QALICO_SUMMARY_ATTR ?? 'description'
+    AccountsUrl: process.env.ACCOUNTS_URL
   }
 
   const missingEnv = (Object.keys(params) as Array<keyof Config>).filter((key) => params[key] === undefined)

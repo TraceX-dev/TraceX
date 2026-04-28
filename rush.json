@@ -2737,7 +2737,22 @@
       "shouldPublish": false
     },
     {
-      "packageName": "@hcengineering/pod-qalico",
+      "packageName": "@tracex/qalico",
+      "projectFolder": "plugins/qalico",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@tracex/qalico-assets",
+      "projectFolder": "plugins/qalico-assets",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@tracex/model-qalico",
+      "projectFolder": "models/qalico",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@tracex/pod-qalico",
       "projectFolder": "services/qalico",
       "shouldPublish": false
     }
