@@ -136,6 +136,7 @@
     "@hcengineering/model-huly-mail": "workspace:^0.7.0",
     "@hcengineering/model-ai-assistant": "workspace:^0.7.0",
     "@hcengineering/model-inbox": "workspace:^0.7.0",
-    "@hcengineering/model-rating": "workspace:^0.7.0"
+    "@hcengineering/model-rating": "workspace:^0.7.0",
+    "@tracex/model-qalico": "workspace:^0.7.0"
   }
 }

@@ -1,0 +1,12 @@
+{
+  "string": {
+    "RegulatoryDocument": "Regulierungsdokument",
+    "RegulatoryDocuments": "Regulierungsdokumente",
+    "Applicability": "Anwendbarkeit",
+    "ExternalLink": "Externer Link",
+    "QalicoLink": "Qalico-Link",
+    "Date": "Datum",
+    "Owner": "Eigentümer",
+    "ActionsNeeded": "Erforderliche Maßnahmen"
+  }
+}
