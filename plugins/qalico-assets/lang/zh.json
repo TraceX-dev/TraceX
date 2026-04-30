@@ -1,0 +1,12 @@
+{
+  "string": {
+    "RegulatoryDocument": "法规文件",
+    "RegulatoryDocuments": "法规文件列表",
+    "Applicability": "适用性",
+    "ExternalLink": "外部链接",
+    "QalicoLink": "Qalico链接",
+    "Date": "日期",
+    "Owner": "所有者",
+    "ActionsNeeded": "所需操作"
+  }
+}

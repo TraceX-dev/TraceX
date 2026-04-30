@@ -125,6 +125,7 @@ import {
   createModel as serverDocumentsModel
 } from '@hcengineering/model-server-controlled-documents'
 import survey, { surveyId, createModel as surveyModel } from '@hcengineering/model-survey'
+import { qalicoId, createModel as qalicoModel } from '@tracex/model-qalico'
 import { type Plugin } from '@hcengineering/platform'
 
 interface ConfigurablePlugin extends Omit<Data<PluginConfiguration>, 'pluginId' | 'transactions'> {}
@@ -526,6 +527,7 @@ export default function buildModel (): Builder {
       }
     ],
     [converterModel, converterId],
+    [qalicoModel, qalicoId],
 
     [serverCoreModel, serverCoreId],
     [serverAttachmentModel, serverAttachmentId],

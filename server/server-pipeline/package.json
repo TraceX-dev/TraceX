@@ -185,6 +185,8 @@
     "@hcengineering/communication-types": "workspace:^0.7.12",
     "@hcengineering/communication-sdk-types": "workspace:^0.7.12",
     "@hcengineering/communication": "workspace:^0.7.0",
-    "@hcengineering/communication-assets": "workspace:^0.7.0"
+    "@hcengineering/communication-assets": "workspace:^0.7.0",
+    "@tracex/qalico": "workspace:^0.7.0",
+    "@tracex/qalico-assets": "workspace:^0.7.0"
   }
 }
