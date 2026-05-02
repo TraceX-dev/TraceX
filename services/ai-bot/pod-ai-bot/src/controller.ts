@@ -214,6 +214,7 @@ export class AIControl {
   }
 
   async close (): Promise<void> {
+    await this.storageAdapter.close()
     for (const workspace of this.workspaces.values()) {
       await workspace.close()
     }

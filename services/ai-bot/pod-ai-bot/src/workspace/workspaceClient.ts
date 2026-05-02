@@ -49,6 +49,7 @@ import core, {
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
 import fs from 'fs'
+import { LRUCache } from 'lru-cache'
 import type { ContextMode, ChatMessage as LLMChatMessage } from '../providers'
 import { type LLMService } from '../services'
 import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
@@ -74,7 +75,7 @@ export class WorkspaceClient {
   primarySocialId: SocialId
   aiPerson: Person | undefined
   personUuidBySocialId = new Map<PersonId, PersonUuid>()
-  processedMessages = new Set<Ref<Doc>>()
+  processedMessages = new LRUCache({ max: 10000, ttl: 1000 * 60 * 5 })
 
   love: LoveController | undefined
   clientPromise: Promise<TxOperations>
@@ -137,8 +138,8 @@ export class WorkspaceClient {
 
       const uploadInfo = await this.storage.stat(this.ctx, this.wsIds, config.BotAvatarName)
 
-      const isAlreadyUploaded = uploadInfo !== undefined && uploadInfo.modifiedOn !== lastModified
-      if (!isAlreadyUploaded) {
+      const shouldUpload = uploadInfo === undefined || uploadInfo.modifiedOn !== lastModified
+      if (shouldUpload) {
         const data = fs.readFileSync(config.BotAvatarPath)
 
         await this.storage.put(
@@ -226,7 +227,7 @@ export class WorkspaceClient {
       })
       return
     }
-    this.processedMessages.add(event.messageId)
+    this.processedMessages.set(event.messageId, true)
 
     this.ctx.info('Processing message event', { workspace: this.wsIds.uuid, event })
 
@@ -468,6 +469,8 @@ export class WorkspaceClient {
 
   async close (): Promise<void> {
     this.ctx.info('Closed workspace client: ', { workspace: this.wsIds })
+    const client = await this.clientPromise
+    await client.close()
   }
 
   async loveConnect (request: ConnectMeetingRequest): Promise<void> {

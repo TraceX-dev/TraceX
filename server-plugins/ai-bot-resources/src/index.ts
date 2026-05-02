@@ -15,7 +15,8 @@
 
 import { AccountUuid, Doc, PersonId, Ref, SortingOrder, Tx, TxCreateDoc, TxProcessor } from '@hcengineering/core'
 import { PlatformQueueProducer, QueueTopic, TriggerControl } from '@hcengineering/server-core'
-import { aiBotEmailSocialKey, AIEventRequest } from '@hcengineering/ai-bot'
+import aiBot, { aiBotEmailSocialKey, AIEventRequest } from '@hcengineering/ai-bot'
+import activity from '@hcengineering/activity'
 import chunter, { ChatMessage, DirectMessage, ThreadMessage } from '@hcengineering/chunter'
 import contact, { Employee, SocialIdentity } from '@hcengineering/contact'
 import { extractReferences } from '@hcengineering/text-core'
@@ -27,6 +28,14 @@ interface WorkspaceCacheEntry {
 }
 
 const cacheKey = 'ai-info'
+
+function isBotMentioned (entry: WorkspaceCacheEntry, personRef: Ref<Doc>): boolean {
+  return entry.primary.some((it) => personRef === it.attachedTo)
+}
+
+function isBotTx (entry: WorkspaceCacheEntry, tx: Tx): boolean {
+  return entry.all.includes(tx.modifiedBy)
+}
 
 async function getAIWorkspaceID (control: TriggerControl): Promise<WorkspaceCacheEntry | undefined> {
   let wsEntry = control.cache.get(cacheKey) as WorkspaceCacheEntry | undefined
@@ -70,52 +79,66 @@ async function getAIWorkspaceID (control: TriggerControl): Promise<WorkspaceCach
   return wsEntry
 }
 
-async function OnMessageSend (originTxs: TxCreateDoc<ChatMessage>[], control: TriggerControl): Promise<Tx[]> {
+async function OnMessageSend (txes: TxCreateDoc<ChatMessage>[], control: TriggerControl): Promise<Tx[]> {
   const wsID = await getAIWorkspaceID(control)
   if (wsID === undefined) {
     return []
   }
-
-  const { hierarchy } = control
 
   const producer = control.queue?.getProducer<AIEventRequest>(control.ctx, QueueTopic.AI)
   if (producer === undefined) {
     return []
   }
 
-  // IGNORE AI operations
-  const txes = originTxs.filter((it) => !wsID.all.includes(it.modifiedBy))
-
-  if (txes.length === 0) {
-    return []
-  }
+  const { hierarchy } = control
+  const result: Tx[] = []
 
   for (const tx of txes) {
-    const message = TxProcessor.createDoc2Doc(tx)
+    // IGNORE AI operations
+    if (isBotTx(wsID, tx)) continue
 
+    const message = TxProcessor.createDoc2Doc(tx)
     const isThread = hierarchy.isDerived(tx.objectClass, chunter.class.ThreadMessage)
     const docClass = isThread ? (message as ThreadMessage).objectClass : message.attachedToClass
 
     try {
-      let mentioned = false
       const references = extractReferences(message.message)
-      for (const reference of references) {
-        if (wsID.primary.some((it) => reference.objectId === it.attachedTo)) {
-          mentioned = true
-        }
-      }
+      const mentioned = references.some((p) => isBotMentioned(wsID, p.objectId))
 
       if (docClass === chunter.class.DirectMessage) {
         await handleBotDirectMessage(control, message, wsID, producer)
       } else if (mentioned) {
         await handleBotMention(control, message, producer)
+        result.push(markAsAIThread(control, message))
+      } else if (isThread) {
+        const threadMsg = message as ThreadMessage
+        await handleBotThreadMessage(control, threadMsg, wsID, producer)
       }
     } catch (err: any) {
       control.ctx.error('Failed to prepare a ai bot message', { err })
     }
   }
 
-  return []
+  return result
+}
+
+function markAsAIThread (control: TriggerControl, message: ChatMessage): Tx {
+  const { hierarchy } = control
+  const isThread = hierarchy.isDerived(message._class, chunter.class.ThreadMessage)
+
+  if (isThread) {
+    // Mark thread root so future replies get forwarded
+    const threadMsg = message as ThreadMessage
+    return control.txFactory.createTxMixin(
+      threadMsg.attachedTo,
+      threadMsg.attachedToClass,
+      threadMsg.space,
+      aiBot.mixin.AIBotThread,
+      {}
+    )
+  } else {
+    return control.txFactory.createTxMixin(message._id, message._class, message.space, aiBot.mixin.AIBotThread, {})
+  }
 }
 
 function getMessageData (doc: Doc, message: ChatMessage): AIEventRequest {
@@ -204,6 +227,25 @@ async function handleBotMention (
     ? getThreadMessageData(message as ThreadMessage)
     : getMessageData(message, message)
   await producer.send(control.ctx, control.workspace.uuid, [messageEvent])
+}
+
+async function handleBotThreadMessage (
+  control: TriggerControl,
+  message: ThreadMessage,
+  wsID: WorkspaceCacheEntry,
+  producer: PlatformQueueProducer<AIEventRequest>
+): Promise<void> {
+  const parentMessages = await control.findAll(
+    control.ctx,
+    activity.class.ActivityMessage,
+    { _id: message.attachedTo },
+    { limit: 1 }
+  )
+  const parentMsg = parentMessages[0]
+  if (parentMsg !== undefined && control.hierarchy.hasMixin(parentMsg, aiBot.mixin.AIBotThread)) {
+    const messageEvent = getThreadMessageData(message)
+    await producer.send(control.ctx, control.workspace.uuid, [messageEvent])
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
