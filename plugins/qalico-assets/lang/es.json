@@ -1,7 +1,6 @@
 {
   "string": {
-    "RegulatoryDocument": "Documento regulatorio",
-    "RegulatoryDocuments": "Documentos regulatorios",
+    "RegulatoryUpdate": "Actualización regulatoria",
     "Applicability": "Aplicabilidad",
     "ExternalLink": "Enlace externo",
     "QalicoLink": "Enlace Qalico",

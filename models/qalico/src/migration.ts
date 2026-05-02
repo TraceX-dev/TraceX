@@ -22,23 +22,23 @@ import qalico from '.'
 
 async function ensureSpace (tx: TxOperations): Promise<void> {
   const current = await tx.findOne(core.class.Space, {
-    _id: qalico.space.Qalico
+    _id: qalico.space.RegulatoryMonitoring
   })
   if (current === undefined) {
     await tx.createDoc<CardSpace>(
       card.class.CardSpace,
       core.space.Space,
       {
-        name: 'Qalico',
-        description: 'Regulatory documents',
+        name: 'Regulatory Monitoring',
+        description: 'Regulatory monitoring',
         private: false,
         archived: false,
         autoJoin: true,
         members: [],
         type: card.spaceType.SpaceType,
-        types: [qalico.masterTag.RegulatoryDocument]
+        types: [qalico.masterTag.RegulatoryUpdate]
       },
-      qalico.space.Qalico
+      qalico.space.RegulatoryMonitoring
     )
   }
 }

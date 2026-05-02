@@ -18,7 +18,7 @@ import { saveCollabJson } from '@hcengineering/collaboration'
 import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
 import { htmlToJSON, jsonToMarkup } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
-import qalico, { type RegulatoryDocument } from '@tracex/qalico'
+import qalico, { type RegulatoryUpdate } from '@tracex/qalico'
 
 import cors from 'cors'
 import express, { type Express, type NextFunction, type Response } from 'express'
@@ -115,9 +115,9 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
       const txOps = await getClient(workspace, req.rawToken ?? '')
 
       try {
-        const objectId = document.uuid as Ref<RegulatoryDocument>
-        const objectClass = qalico.class.RegulatoryDocument
-        const objectSpace = qalico.space.Qalico
+        const objectId = document.uuid as Ref<RegulatoryUpdate>
+        const objectClass = qalico.class.RegulatoryUpdate
+        const objectSpace = qalico.space.RegulatoryMonitoring
 
         const wsIds = { uuid: workspace, url: '' }
         const collabId = makeCollabId(objectClass, objectId, 'description')
@@ -125,10 +125,10 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
 
         const ops = txOps.apply(document.uuid)
 
-        const current = await ops.findOne(qalico.class.RegulatoryDocument, { _id: objectId })
+        const current = await ops.findOne(qalico.class.RegulatoryUpdate, { _id: objectId })
 
         if (current != null) {
-          await ops.diffUpdate<RegulatoryDocument>(current, {
+          await ops.diffUpdate<RegulatoryUpdate>(current, {
             title: document.title,
             content: contentId,
             date: new Date(document.date).getTime(),
@@ -137,7 +137,7 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
             applicable: document.applicability
           })
         } else {
-          await ops.createDoc<RegulatoryDocument>(
+          await ops.createDoc<RegulatoryUpdate>(
             objectClass,
             objectSpace,
             {

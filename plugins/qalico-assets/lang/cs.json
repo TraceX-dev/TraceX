@@ -1,7 +1,6 @@
 {
   "string": {
-    "RegulatoryDocument": "Regulační dokument",
-    "RegulatoryDocuments": "Regulační dokumenty",
+    "RegulatoryUpdate": "Regulační aktualizace",
     "Applicability": "Použitelnost",
     "ExternalLink": "Externí odkaz",
     "QalicoLink": "Odkaz Qalico",

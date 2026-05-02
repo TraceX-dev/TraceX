@@ -1,7 +1,6 @@
 {
   "string": {
-    "RegulatoryDocument": "規制文書",
-    "RegulatoryDocuments": "規制文書一覧",
+    "RegulatoryUpdate": "規制更新",
     "Applicability": "適用性",
     "ExternalLink": "外部リンク",
     "QalicoLink": "Qalicoリンク",

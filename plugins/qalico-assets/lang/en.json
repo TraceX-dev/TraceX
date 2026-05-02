@@ -1,7 +1,6 @@
 {
   "string": {
-    "RegulatoryDocument": "Regulatory Document",
-    "RegulatoryDocuments": "Regulatory Documents",
+    "RegulatoryUpdate": "Regulatory Update",
     "Applicability": "Applicability",
     "ExternalLink": "External Link",
     "QalicoLink": "Qalico Link",

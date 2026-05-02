@@ -28,17 +28,17 @@ export { qalico as default }
 export function createModel (builder: Builder): void {
   createSystemType(
     builder,
-    qalico.masterTag.RegulatoryDocument,
+    qalico.masterTag.RegulatoryUpdate,
     qalico.icon.Qalico,
-    qalico.string.RegulatoryDocument,
-    qalico.string.RegulatoryDocuments,
+    qalico.string.RegulatoryUpdate,
+    undefined,
     undefined,
     PaletteColorIndexes.Crocodile
   )
 
   builder.createDoc(core.class.Attribute, core.space.Model, {
     name: 'date',
-    attributeOf: qalico.masterTag.RegulatoryDocument,
+    attributeOf: qalico.masterTag.RegulatoryUpdate,
     type: TypeTimestamp(),
     label: qalico.string.Date,
     readonly: true
@@ -46,7 +46,7 @@ export function createModel (builder: Builder): void {
 
   builder.createDoc(core.class.Attribute, core.space.Model, {
     name: 'applicable',
-    attributeOf: qalico.masterTag.RegulatoryDocument,
+    attributeOf: qalico.masterTag.RegulatoryUpdate,
     type: TypeBoolean(),
     label: qalico.string.Applicability,
     readonly: true
@@ -54,7 +54,7 @@ export function createModel (builder: Builder): void {
 
   builder.createDoc(core.class.Attribute, core.space.Model, {
     name: 'externalLink',
-    attributeOf: qalico.masterTag.RegulatoryDocument,
+    attributeOf: qalico.masterTag.RegulatoryUpdate,
     type: TypeString(),
     label: qalico.string.ExternalLink,
     readonly: true
@@ -62,7 +62,7 @@ export function createModel (builder: Builder): void {
 
   builder.createDoc(core.class.Attribute, core.space.Model, {
     name: 'qalicoLink',
-    attributeOf: qalico.masterTag.RegulatoryDocument,
+    attributeOf: qalico.masterTag.RegulatoryUpdate,
     type: TypeString(),
     label: qalico.string.QalicoLink,
     readonly: true
@@ -70,7 +70,7 @@ export function createModel (builder: Builder): void {
 
   builder.createDoc(core.class.Attribute, core.space.Model, {
     name: 'owner',
-    attributeOf: qalico.masterTag.RegulatoryDocument,
+    attributeOf: qalico.masterTag.RegulatoryUpdate,
     type: TypeRef(contact.mixin.Employee),
     label: qalico.string.Owner,
     readonly: true
@@ -78,7 +78,7 @@ export function createModel (builder: Builder): void {
 
   builder.createDoc(core.class.Attribute, core.space.Model, {
     name: 'actionsNeeded',
-    attributeOf: qalico.masterTag.RegulatoryDocument,
+    attributeOf: qalico.masterTag.RegulatoryUpdate,
     type: TypeBoolean(),
     label: qalico.string.ActionsNeeded,
     readonly: true

@@ -15,11 +15,11 @@
 import { Card, CardSpace, MasterTag } from '@hcengineering/card'
 import { Class, Ref, Timestamp } from '@hcengineering/core'
 import { Employee } from '@hcengineering/contact'
-import { Asset, IntlString, plugin, Plugin } from '@hcengineering/platform'
+import { Asset, plugin, Plugin } from '@hcengineering/platform'
 
 export const qalicoId = 'qalico' as Plugin
 
-export interface RegulatoryDocument extends Card {
+export interface RegulatoryUpdate extends Card {
   applicable: boolean
   date: Timestamp
   externalLink: string
@@ -33,19 +33,16 @@ export interface RegulatoryDocument extends Card {
  */
 const qalicoPlugin = plugin(qalicoId, {
   class: {
-    RegulatoryDocument: '' as Ref<Class<RegulatoryDocument>>
+    RegulatoryUpdate: '' as Ref<Class<RegulatoryUpdate>>
   },
   space: {
-    Qalico: '' as Ref<CardSpace>
+    RegulatoryMonitoring: '' as Ref<CardSpace>
   },
   icon: {
     Qalico: '' as Asset
   },
   masterTag: {
-    RegulatoryDocument: '' as Ref<MasterTag>
-  },
-  string: {
-    RegulatoryDocument: '' as IntlString
+    RegulatoryUpdate: '' as Ref<MasterTag>
   }
 })
 

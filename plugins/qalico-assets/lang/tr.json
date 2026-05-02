@@ -1,7 +1,6 @@
 {
   "string": {
-    "RegulatoryDocument": "Düzenleyici Belge",
-    "RegulatoryDocuments": "Düzenleyici Belgeler",
+    "RegulatoryUpdate": "Düzenleyici Güncelleme",
     "Applicability": "Uygulanabilirlik",
     "ExternalLink": "Harici Bağlantı",
     "QalicoLink": "Qalico Bağlantısı",

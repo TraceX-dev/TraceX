@@ -18,7 +18,7 @@ import { type IntlString, mergeIds } from '@hcengineering/platform'
 
 export default mergeIds(qalicoId, qalico, {
   string: {
-    RegulatoryDocuments: '' as IntlString,
+    RegulatoryUpdate: '' as IntlString,
     Applicability: '' as IntlString,
     ExternalLink: '' as IntlString,
     QalicoLink: '' as IntlString,
