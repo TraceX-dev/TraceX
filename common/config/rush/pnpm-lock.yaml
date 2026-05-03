@@ -5880,12 +5880,18 @@ importers:
       '@hcengineering/ai-bot':
         specifier: workspace:^0.7.0
         version: link:../../plugins/ai-bot
+      '@hcengineering/chunter':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/chunter
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
       '@hcengineering/model':
         specifier: workspace:^0.7.17
         version: link:../../foundations/core/packages/model
+      '@hcengineering/model-chunter':
+        specifier: workspace:^0.7.0
+        version: link:../chunter
       '@hcengineering/model-core':
         specifier: workspace:^0.7.0
         version: link:../core
@@ -19187,6 +19193,12 @@ importers:
       '@hcengineering/presentation':
         specifier: workspace:^0.7.0
         version: link:../../packages/presentation
+      '@hcengineering/text':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/text
+      '@hcengineering/text-markdown':
+        specifier: workspace:^0.7.21
+        version: link:../../foundations/core/packages/text-markdown
       '@hcengineering/theme':
         specifier: workspace:^0.7.0
         version: link:../../packages/theme
@@ -24847,6 +24859,9 @@ importers:
       '@hcengineering/setting-resources':
         specifier: workspace:^0.7.0
         version: link:../setting-resources
+      '@hcengineering/text-core':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/text-core
       '@hcengineering/time':
         specifier: workspace:^0.7.0
         version: link:../time
@@ -32047,6 +32062,9 @@ importers:
 
   ../../server-plugins/ai-bot-resources:
     dependencies:
+      '@hcengineering/activity':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/activity
       '@hcengineering/ai-bot':
         specifier: workspace:^0.7.0
         version: link:../../plugins/ai-bot
@@ -37613,6 +37631,9 @@ importers:
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
+      lru-cache:
+        specifier: ^11.1.0
+        version: 11.2.2
       openai:
         specifier: ^4.56.0
         version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
@@ -61952,7 +61973,7 @@ snapshots:
   node-loader@2.0.0(webpack@5.102.1):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.102.1
+      webpack: 5.102.1(esbuild@0.25.12)(webpack-cli@5.1.4)
 
   node-localstorage@2.2.1:
     dependencies:

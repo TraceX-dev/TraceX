@@ -18,8 +18,6 @@ import { type MeasureContext } from '@hcengineering/core'
 import { type LLMProvider, type ChatMessage } from '../providers/types'
 import { type RegisteredTool } from './types'
 
-const MAX_TOOL_HISTORY = 20
-
 interface LlmToolOptions {
   name: string
   description: string
@@ -30,7 +28,6 @@ interface LlmToolOptions {
 
 export function createLlmTool (options: LlmToolOptions): RegisteredTool {
   const { name, description, systemPrompt, provider, ctx } = options
-  const historyMap = new Map<string, ChatMessage[]>()
 
   return {
     definition: {
@@ -47,26 +44,14 @@ export function createLlmTool (options: LlmToolOptions): RegisteredTool {
         required: ['query']
       }
     },
-    createExecutor: (deps) => async (args: { query: string }) => {
-      const userKey = deps.user ?? 'anonymous'
-      const history = historyMap.get(userKey) ?? []
-
+    createExecutor: () => async (args: { query: string }) => {
       const messages: ChatMessage[] = [
         ...(systemPrompt != null ? [{ role: 'system' as const, content: systemPrompt }] : []),
-        ...history,
         { role: 'user' as const, content: args.query }
       ]
 
       const result = await provider.chatCompletion(ctx, messages)
       const response = result.text ?? 'No response'
-
-      const updatedHistory = [
-        ...history,
-        { role: 'user' as const, content: args.query },
-        { role: 'assistant' as const, content: response }
-      ].slice(-MAX_TOOL_HISTORY)
-
-      historyMap.set(userKey, updatedHistory)
 
       return { text: response, usage: result.usage }
     },
