@@ -13,23 +13,9 @@
 // limitations under the License.
 //
 
-import { Class, Doc, Markup, PersonId, Ref, Space, Timestamp } from '@hcengineering/core'
+import { Class, Doc, Markup, Ref, Timestamp } from '@hcengineering/core'
 import { Room, RoomLanguage } from '@hcengineering/love'
 import { Contact, Person } from '@hcengineering/contact'
-import { ChatMessage } from '@hcengineering/chunter'
-
-export interface AIEventRequest {
-  message: string
-  messageClass: Ref<Class<ChatMessage>>
-  messageId: Ref<ChatMessage>
-  messageSpace: Ref<Space>
-  objectClass: Ref<Class<Doc>>
-  objectId: Ref<Doc>
-  objectSpace: Ref<Space>
-  user: PersonId
-  collection: string
-  createdOn: Timestamp
-}
 
 export interface TranslateRequest {
   text: Markup

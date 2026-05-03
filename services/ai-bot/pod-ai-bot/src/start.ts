@@ -61,7 +61,7 @@ export const start = async (): Promise<void> => {
 
   if (personUuid === undefined) {
     ctx.error('AI Bot Service failed to start. No person found.')
-    process.exit()
+    process.exit(1)
   }
 
   const socialIds: SocialId[] = await getAccountClient(
@@ -78,15 +78,15 @@ export const start = async (): Promise<void> => {
   if (config.BillingUrl !== '') {
     billingIntervalId = setInterval(
       () => {
-        try {
-          void updateDeepgramBilling(ctx)
-        } catch {}
+        updateDeepgramBilling(ctx).catch((err) => {
+          ctx.error('Deepgram billing update failed', { error: err.message ?? String(err) })
+        })
       },
       config.DeepgramPollIntervalMinutes * 60 * 1000
     )
-    try {
-      void updateDeepgramBilling(ctx)
-    } catch {}
+    updateDeepgramBilling(ctx).catch((err) => {
+      ctx.error('Deepgram billing update failed', { error: err.message ?? String(err) })
+    })
   }
 
   const closeQueue = await startQueue(ctx, aiControl)

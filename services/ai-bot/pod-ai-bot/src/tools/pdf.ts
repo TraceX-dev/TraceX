@@ -47,7 +47,7 @@ export const saveFileTool: RegisteredTool = {
       'Parse pdf to markdown and save it, using for import files. Use only if provide file in current message and user require to import/save, if file not provided ask user to attach it. You MUST call getDataBeforeImport tool before for get ids. Use file name as name if user not provide it, don`t use old parameters. You can ask user about folder if you have not enough data to get folder id',
     parameters: {
       type: 'object',
-      required: ['fileId, folder, name'],
+      required: ['fileId', 'folder', 'name'],
       properties: {
         fileId: { type: 'string', description: 'File id to parse' },
         folder: {
@@ -102,7 +102,6 @@ async function saveFile (
   ops: WorkspaceOps,
   args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }
 ): Promise<string> {
-  console.log('Save file', args)
   const content = await pdfToMarkdown(ops, args.fileId, args.name)
   if (content === undefined) {
     return 'Error while converting pdf to markdown'

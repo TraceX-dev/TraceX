@@ -13,7 +13,10 @@
 // limitations under the License.
 //
 
-import { type Builder } from '@hcengineering/model'
+import { type Builder, Mixin } from '@hcengineering/model'
+import chunter from '@hcengineering/chunter'
+import { TChatMessage } from '@hcengineering/model-chunter'
+import { type AIBotThread } from '@hcengineering/ai-bot'
 
 import aiBot from './plugin'
 
@@ -21,4 +24,9 @@ export { aiBotId } from '@hcengineering/ai-bot'
 export { aiBotOperation } from './migration'
 export default aiBot
 
-export function createModel (builder: Builder): void {}
+@Mixin(aiBot.mixin.AIBotThread, chunter.class.ChatMessage)
+export class TAIBotThread extends TChatMessage implements AIBotThread {}
+
+export function createModel (builder: Builder): void {
+  builder.createModel(TAIBotThread)
+}

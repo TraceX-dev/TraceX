@@ -1,5 +1,6 @@
 //
 // Copyright © 2024-2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,11 +14,13 @@
 // limitations under the License.
 //
 
-import { buildSocialIdString, SocialIdType } from '@hcengineering/core'
+import { buildSocialIdString, type Mixin, type Ref, SocialIdType } from '@hcengineering/core'
 import type { Metadata, Plugin } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
+import { AIBotThread } from './types'
 
 export * from './rest'
+export * from './types'
 
 export const aiBotId = 'ai-bot' as Plugin
 
@@ -30,6 +33,9 @@ export const aiBotEmailSocialKey = buildSocialIdString({
 const aiBot = plugin(aiBotId, {
   metadata: {
     EndpointURL: '' as Metadata<string>
+  },
+  mixin: {
+    AIBotThread: '' as Ref<Mixin<AIBotThread>>
   }
 })
 
