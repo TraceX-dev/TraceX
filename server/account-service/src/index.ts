@@ -18,7 +18,14 @@ import accountRu from '@hcengineering/account/lang/ru.json'
 import { Analytics } from '@hcengineering/analytics'
 import { registerProviders } from '@hcengineering/auth-providers'
 import { metricsAggregate, type Branding, type BrandingMap, type MeasureContext } from '@hcengineering/core'
-import platform, { Severity, Status, addStringsLoader, setMetadata, unknownStatus } from '@hcengineering/platform'
+import platform, {
+  Severity,
+  Status,
+  addStringsLoader,
+  getMetadata,
+  setMetadata,
+  unknownStatus
+} from '@hcengineering/platform'
 import serverToken, { decodeToken, decodeTokenVerbose, generateToken } from '@hcengineering/server-token'
 import cors from '@koa/cors'
 import type Cookies from 'cookies'
@@ -130,6 +137,8 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   setMetadata(account.metadata.FrontURL, frontURL)
   setMetadata(account.metadata.WsLivenessDays, wsLivenessDays)
 
+  setMetadata(account.metadata.DefaultBrandingKey, process.env.DEFAULT_BRANDING_KEY ?? 'huly')
+
   setMetadata(serverToken.metadata.Secret, serverSecret)
   // Force undefied, for user tokens do not include service
   setMetadata(serverToken.metadata.Service, undefined)
@@ -222,11 +231,8 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   }
 
   function getBranding (ctx: Koa.Context): Branding | null {
-    let host: string | undefined
-    const origin = ctx.request.headers.origin ?? ctx.request.headers.referer
-    if (origin !== undefined) {
-      host = new URL(origin).host
-    }
+    const origin = ctx.request.headers.origin ?? ctx.request.headers.referer ?? getMetadata(account.metadata.FrontURL)
+    const host = origin !== undefined ? new URL(origin).host : undefined
     return host !== undefined ? brandings[host] : null
   }
 

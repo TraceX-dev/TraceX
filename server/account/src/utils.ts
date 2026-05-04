@@ -1122,7 +1122,7 @@ export async function createWorkspaceRecord (
   initMode: WorkspaceMode = 'pending-creation',
   dataId?: WorkspaceDataId
 ): Promise<CreateWorkspaceRecordResult> {
-  const brandingKey = branding?.key ?? 'huly'
+  const brandingKey = branding?.key ?? getMetadata(accountPlugin.metadata.DefaultBrandingKey) ?? 'huly'
   const regionInfo = getRegions().find((it) => it.region === region)
 
   if (regionInfo === undefined) {
