@@ -184,16 +184,8 @@ export class DefaultLLMService implements LLMService {
     const date = new Date()
 
     try {
-      const isDirectMode = contextMode === 'direct'
-
-      const tools = getTools(contextMode)
-      const llmTools = tools
-        .filter((t) => t.isLlmTool === true)
-        .map((t) => ({ name: t.definition.name, description: t.definition.description }))
-
-      const prompt = isDirectMode
-        ? PROMPTS.DIRECT({ assistantMemory, userMemory, sharedContext, llmTools })
-        : PROMPTS.THREAD({ sharedContext, llmTools })
+      const allTools = getTools(contextMode)
+      const tools = allTools.filter((t) => t.contextMode === contextMode || t.contextMode === 'any')
 
       const toolDefinitions: LLMToolDefinition[] = tools.map((t) => t.definition)
 
