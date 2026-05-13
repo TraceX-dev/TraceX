@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import {
+import aiBot, {
   AIEventRequest,
   ConnectMeetingRequest,
   DisconnectMeetingRequest,
@@ -51,7 +51,7 @@ import { Room } from '@hcengineering/love'
 import fs from 'fs'
 import { LRUCache } from 'lru-cache'
 import type { ContextMode, ChatMessage as LLMChatMessage } from '../providers'
-import { type LLMService } from '../services'
+import { ChatResult, type LLMService } from '../services'
 import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
 import { type ToolDependencies, type WorkspaceOps } from '../tools'
 
@@ -372,57 +372,46 @@ export class WorkspaceClient {
       toolDeps,
       { user: personUuid as AccountUuid }
     )
-    const response = chatCompletion?.completion
 
-    if (response == null) {
-      this.ctx.warn('LLM returned no response', {
+    if (chatCompletion !== undefined) {
+      const response = chatCompletion.completion ?? ''
+      this.ctx.info('LLM response received', {
         workspace: this.wsIds.uuid,
         personUuid,
-        contextMode,
-        chatCompletionUndefined: chatCompletion === undefined,
-        completionNull: chatCompletion?.completion === null,
-        completionUndefined: chatCompletion?.completion === undefined,
+        responseLength: response.length,
         usage: chatCompletion?.usage
       })
 
-      const errorMessage = 'Sorry, I was unable to process your request. Please try again later.'
-      await this.sendReply(client, contextMode, event, errorMessage)
-      return
+      const usage = chatCompletion.usage
+      const responseTokens =
+        usage !== undefined
+          ? usage.inputTokens + usage.outputTokens
+          : this.llmService.countTokens([{ role: 'assistant', content: response }])
+
+      await this.memoryStorage.pushHistory(
+        personUuid,
+        response,
+        'assistant',
+        responseTokens,
+        personUuid,
+        objectId,
+        objectClass
+      )
+      await this.memoryStorage.saveHistory(personUuid, await this.memoryStorage.getHistory(personUuid))
     }
 
-    this.ctx.info('LLM response received', {
-      workspace: this.wsIds.uuid,
-      personUuid,
-      responseLength: response.length,
-      usage: chatCompletion?.usage
-    })
-
-    const usage = chatCompletion?.usage
-    const responseTokens =
-      usage !== undefined
-        ? usage.inputTokens + usage.outputTokens
-        : this.llmService.countTokens([{ role: 'assistant', content: response }])
-
-    await this.memoryStorage.pushHistory(
-      personUuid,
-      response,
-      'assistant',
-      responseTokens,
-      personUuid,
-      objectId,
-      objectClass
-    )
-    await this.memoryStorage.saveHistory(personUuid, await this.memoryStorage.getHistory(personUuid))
-
-    await this.sendReply(client, contextMode, event, response)
+    await this.sendReply(client, contextMode, event, chatCompletion)
   }
 
   private async sendReply (
     client: TxOperations,
     contextMode: ContextMode,
     event: AIEventRequest,
-    markdown: string
+    chatCompletion: ChatResult | undefined
   ): Promise<void> {
+    const markdown =
+      chatCompletion?.completion ?? 'Sorry, I was unable to process your request. Please try again later.'
+
     const { objectId, objectClass, messageId, messageClass, messageSpace, collection } = event
     const message = jsonToMarkup(markdownToMarkup(markdown, { refUrl: '', imageUrl: '' }))
 
@@ -433,8 +422,9 @@ export class WorkspaceClient {
           ? 'thread'
           : 'chat' // Otherwise reply depending on context mode
 
+    let replyId: Ref<ChatMessage> | undefined
     if (replyTo === 'chat') {
-      await client.addCollection<Doc, ChatMessage>(
+      replyId = await client.addCollection<Doc, ChatMessage>(
         chunter.class.ChatMessage,
         messageSpace,
         objectId,
@@ -456,14 +446,22 @@ export class WorkspaceClient {
         }
       }
 
-      await client.addCollection<Doc, ThreadMessage>(
+      replyId = (await client.addCollection<Doc, ThreadMessage>(
         chunter.class.ThreadMessage,
         messageSpace,
         parentId,
         parentClass,
         'replies',
         { message, objectId, objectClass }
-      )
+      )) as unknown as Ref<ChatMessage>
+
+      if (replyId !== undefined && chatCompletion !== undefined) {
+        await client.createMixin(replyId, chunter.class.ChatMessage, event.messageSpace, aiBot.mixin.AIBotMessage, {
+          tools: chatCompletion.tools,
+          inputTokens: chatCompletion.usage.inputTokens,
+          outputTokens: chatCompletion.usage.outputTokens
+        })
+      }
     }
   }
 

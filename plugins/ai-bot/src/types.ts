@@ -30,3 +30,9 @@ export interface AIEventRequest {
 }
 
 export interface AIBotThread extends ChatMessage {}
+
+export interface AIBotMessage extends ChatMessage {
+  tools: string[]
+  inputTokens: number
+  outputTokens: number
+}

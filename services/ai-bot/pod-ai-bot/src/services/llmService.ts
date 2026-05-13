@@ -29,6 +29,12 @@ import { PROMPTS } from '../providers/prompts'
 import { pushTokensData } from '../billing'
 import { getTools, type ToolDependencies, type ToolExecutorResult } from '../tools'
 
+export interface ChatResult {
+  completion: string | undefined
+  usage: TokenUsage
+  tools: string[]
+}
+
 const MAX_TOOL_ROUNDS = 10
 
 const ZERO_USAGE: TokenUsage = { inputTokens: 0, outputTokens: 0 }
@@ -69,7 +75,7 @@ export interface LLMService {
     sharedContext: string,
     toolDeps: ToolDependencies,
     options?: ChatCompletionOptions
-  ) => Promise<{ completion: string | undefined, usage: TokenUsage } | undefined>
+  ) => Promise<ChatResult | undefined>
 
   countTokens: (messages: ChatMessage[]) => number
 }
@@ -174,7 +180,7 @@ export class DefaultLLMService implements LLMService {
     sharedContext: string,
     toolDeps: ToolDependencies,
     options?: ChatCompletionOptions
-  ): Promise<{ completion: string | undefined, usage: TokenUsage } | undefined> {
+  ): Promise<ChatResult | undefined> {
     const date = new Date()
 
     try {
@@ -199,6 +205,7 @@ export class DefaultLLMService implements LLMService {
       const conversationMessages: ChatMessage[] = [{ role: 'system', content: prompt }, ...messages]
 
       let accumulatedUsage: TokenUsage = { ...ZERO_USAGE }
+      const invokedToolNames = new Set<string>()
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const result = await this.provider.chatCompletionWithTools(ctx, conversationMessages, toolDefinitions, options)
@@ -227,7 +234,8 @@ export class DefaultLLMService implements LLMService {
 
           return {
             completion: text ?? undefined,
-            usage: accumulatedUsage
+            usage: accumulatedUsage,
+            tools: Array.from(invokedToolNames)
           }
         }
 
@@ -240,6 +248,7 @@ export class DefaultLLMService implements LLMService {
 
         // Execute each tool and append results
         for (const toolCall of result.toolCalls) {
+          invokedToolNames.add(toolCall.name)
           const executor = executorMap.get(toolCall.name)
           let toolResult: string
 
@@ -290,7 +299,8 @@ export class DefaultLLMService implements LLMService {
 
       return {
         completion: text ?? undefined,
-        usage: accumulatedUsage
+        usage: accumulatedUsage,
+        tools: Array.from(invokedToolNames)
       }
     } catch (e: any) {
       ctx.error('LLM chat failed with exception', { workspace, error: e.message ?? String(e), stack: e.stack })

@@ -75,9 +75,13 @@ export class AIControl {
     private readonly ctx: MeasureContext
   ) {
     this.providers = createProviders()
-    const primaryProvider = this.providers.values().next().value
-    if (primaryProvider === undefined) {
+    const primaryConfig = config.Llm[0]
+    if (primaryConfig === undefined) {
       throw new Error('No LLM providers configured')
+    }
+    const primaryProvider = this.providers.get(primaryConfig.id)
+    if (primaryProvider === undefined) {
+      throw new Error(`LLM provider '${primaryConfig.id}' not found`)
     }
     this.llmService = new DefaultLLMService(primaryProvider)
 
