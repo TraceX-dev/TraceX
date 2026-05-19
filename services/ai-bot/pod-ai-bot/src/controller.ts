@@ -38,6 +38,7 @@ import core, {
   type WorkspaceUuid
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
+import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-client'
 import { getAccountClient } from '@hcengineering/server-client'
 import { generateToken } from '@hcengineering/server-token'
 import { htmlToMarkup, jsonToHTML, jsonToMarkup, markupToJSON } from '@hcengineering/text'
@@ -169,8 +170,10 @@ export class AIControl {
       return ref.clientPromise
     })
 
+    const collaborator = getCollaboratorClient(workspace, token, config.CollaboratorURL)
     const wsClient = new WorkspaceClient(
       this.storageAdapter,
+      collaborator,
       wsLoginInfo.endpoint,
       token,
       wsIds,

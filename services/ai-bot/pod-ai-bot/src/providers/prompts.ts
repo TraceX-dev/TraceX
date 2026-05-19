@@ -24,20 +24,11 @@ interface PromptParams {
   assistantMemory?: string
   userMemory?: string
   sharedContext?: string
-  llmTools?: LlmToolInfo[]
-}
-
-function buildLlmToolsSection (llmTools?: LlmToolInfo[]): string {
-  if (llmTools === undefined || llmTools.length === 0) return ''
-  const lines = llmTools.map((t) => `- ${t.name}: ${t.description}`)
-  return `\n**Specialist AI tools:**
-You have access to specialist AI tools that provide domain expertise. When the user's question matches a specialist tool's domain, you MUST call it before answering.
-${lines.join('\n')}\n`
 }
 
 export const PROMPTS = {
   DIRECT: (params: PromptParams): string => {
-    const { assistantMemory, userMemory, sharedContext, llmTools } = params
+    const { assistantMemory, userMemory, sharedContext } = params
 
     return `You are a helpful AI assistant in a direct chat with a user.
 
@@ -50,15 +41,6 @@ ${assistantMemory !== '' ? `**Your persona and behavior:**\n${assistantMemory}\n
 ${userMemory !== '' ? `**User preferences and context:**\n${userMemory}\n` : ''}
 ${sharedContext !== '' ? `**Shared preferences:**\n${sharedContext}\n` : ''}
 
-**Available tools:**
-- update_assistant_memory: Update assistant personality (name, behavior, etc.)
-- update_user_memory: Update information about the user (preferences, context, personal info, how to address user in direct chats)
-- update_shared_context: Update shared context (language, timezone, group chat preferences, how to address user in group or general chats)
-- get_assistant_memory: Check current information about yourself
-- get_user_memory: Check current information about the user
-- get_history_summary: Get a summary of past conversations — use this when you need context beyond the last ~20 messages
-- clear_assistant_memory / clear_user_memory / clear_history: Clear respective data — only use these when the user explicitly requests it
-
 **Memory tool guidelines:**
 - Save to memory when the user shares important personal information or instructs you to change your behavior
 - Do not save ephemeral, sensitive, or one-off information (e.g. temporary tasks, passwords, private data)
@@ -68,12 +50,11 @@ ${sharedContext !== '' ? `**Shared preferences:**\n${sharedContext}\n` : ''}
 - Only use information explicitly present in the conversation, context, or retrieved via tools
 - Never invent, assume, or fabricate details not present in available data
 - If you lack information to answer accurately, say so clearly — e.g. "I don't have information about this"
-- Distinguish clearly between confirmed facts and any inferences you make
-${buildLlmToolsSection(llmTools)}`
+- Distinguish clearly between confirmed facts and any inferences you make`
   },
 
   THREAD: (params: PromptParams): string => {
-    const { sharedContext, llmTools } = params
+    const { sharedContext } = params
 
     return `You are a helpful AI assistant participating in a group conversation.
 
@@ -86,7 +67,6 @@ ${sharedContext !== '' ? `**Shared preferences:**\n${sharedContext}\n` : ''}
 
 **Group chat guidelines:**
 - This is a shared conversation — do not reference or use personal information about any individual participant
-- Do not use memory tools (update_assistant_memory, update_user_memory, etc.)
 - Keep responses neutral and avoid personalization
 - Focus only on the current discussion context; do not assume relationships or context not explicitly stated in the messages
 
@@ -94,8 +74,7 @@ ${sharedContext !== '' ? `**Shared preferences:**\n${sharedContext}\n` : ''}
 - Only use information explicitly present in the conversation or message history
 - Never invent, assume, or fabricate details not present in the discussion
 - If you lack information to answer accurately, say so clearly — e.g. "I don't have information about this"
-- Distinguish clearly between confirmed facts and any inferences you make
-${buildLlmToolsSection(llmTools)}`
+- Distinguish clearly between confirmed facts and any inferences you make`
   },
 
   SUMMARIZE: (params: PromptParams): string => {

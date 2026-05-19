@@ -27,7 +27,7 @@ import {
 } from '../providers/types'
 import { PROMPTS } from '../providers/prompts'
 import { pushTokensData } from '../billing'
-import { getTools, type ToolDependencies, type ToolExecutorResult } from '../tools'
+import { getTools, type ToolContext, type ToolExecutorResult } from '../tools'
 
 export interface ChatResult {
   completion: string | undefined
@@ -73,7 +73,7 @@ export interface LLMService {
     assistantMemory: string,
     userMemory: string,
     sharedContext: string,
-    toolDeps: ToolDependencies,
+    toolCtx: ToolContext,
     options?: ChatCompletionOptions
   ) => Promise<ChatResult | undefined>
 
@@ -178,7 +178,7 @@ export class DefaultLLMService implements LLMService {
     assistantMemory: string,
     userMemory: string,
     sharedContext: string,
-    toolDeps: ToolDependencies,
+    toolCtx: ToolContext,
     options?: ChatCompletionOptions
   ): Promise<ChatResult | undefined> {
     const date = new Date()
@@ -189,9 +189,14 @@ export class DefaultLLMService implements LLMService {
 
       const toolDefinitions: LLMToolDefinition[] = tools.map((t) => t.definition)
 
+      const prompt =
+        contextMode === 'direct'
+          ? PROMPTS.DIRECT({ assistantMemory, userMemory, sharedContext })
+          : PROMPTS.THREAD({ sharedContext })
+
       const executorMap = new Map<string, (args: any) => Promise<ToolExecutorResult>>()
       for (const t of tools) {
-        executorMap.set(t.definition.name, t.createExecutor(toolDeps))
+        executorMap.set(t.definition.name, t.createExecutor(toolCtx))
       }
 
       const conversationMessages: ChatMessage[] = [{ role: 'system', content: prompt }, ...messages]

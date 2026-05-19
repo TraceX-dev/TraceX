@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -48,20 +49,22 @@ import core, {
   type WorkspaceIds
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
-import fs from 'fs'
-import { LRUCache } from 'lru-cache'
-import type { ContextMode, ChatMessage as LLMChatMessage } from '../providers'
-import { ChatResult, type LLMService } from '../services'
-import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
-import { type ToolDependencies, type WorkspaceOps } from '../tools'
-
+import { CollaboratorClient } from '@hcengineering/collaborator-client'
 import { getAccountClient } from '@hcengineering/server-client'
 import { StorageAdapter } from '@hcengineering/server-core'
 import { jsonToMarkup, markupToText } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
-import config from '../config'
+
+import fs from 'fs'
+import { LRUCache } from 'lru-cache'
+
+import type { ContextMode, ChatMessage as LLMChatMessage } from '../providers'
+import { ChatResult, type LLMService } from '../services'
+import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
+import { type ToolContext, type WorkspaceOps } from '../tools'
 import { getGlobalPerson } from '../utils/account'
 import { connectPlatform } from '../utils/platform'
+import config from '../config'
 import { LoveController } from './love'
 
 interface LLMHistoryRecord {
@@ -82,6 +85,7 @@ export class WorkspaceClient {
 
   constructor (
     readonly storage: StorageAdapter,
+    readonly collaborator: CollaboratorClient,
     readonly transactorUrl: string,
     readonly token: string,
     readonly wsIds: WorkspaceIds,
@@ -349,8 +353,9 @@ export class WorkspaceClient {
       getClient: () => this.clientPromise
     }
 
-    const toolDeps: ToolDependencies = {
+    const toolCtx: ToolContext = {
       memoryStorage: this.memoryStorage,
+      collaborator: this.collaborator,
       user: personUuid as AccountUuid,
       workspace: this.wsIds.uuid,
       workspaceOps,
@@ -369,7 +374,7 @@ export class WorkspaceClient {
       rawHistory.assistantMemory,
       rawHistory.userMemory,
       rawHistory.sharedContext,
-      toolDeps,
+      toolCtx,
       { user: personUuid as AccountUuid }
     )
 

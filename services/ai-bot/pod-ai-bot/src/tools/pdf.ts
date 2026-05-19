@@ -21,7 +21,7 @@ import { Stream } from 'stream'
 import { v4 as uuid } from 'uuid'
 
 import config from '../config'
-import { RegisteredTool, ToolDependencies, WorkspaceOps } from './types'
+import { RegisteredTool, ToolContext, WorkspaceOps } from './types'
 
 export const getDataBeforeImportTool: RegisteredTool = {
   definition: {
@@ -33,9 +33,9 @@ export const getDataBeforeImportTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.workspaceOps === undefined) return { text: 'Workspace operations not available' }
-    return { text: await getFoldersForDocuments(deps) }
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    if (toolCtx.workspaceOps === undefined) return { text: 'Workspace operations not available' }
+    return { text: await getFoldersForDocuments(toolCtx) }
   },
   contextMode: 'any'
 }
@@ -70,21 +70,21 @@ export const saveFileTool: RegisteredTool = {
     }
   },
   createExecutor:
-    (deps: ToolDependencies) =>
+    (toolCtx: ToolContext) =>
       async (args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }) => {
-        if (deps.workspaceOps === undefined) return { text: 'Workspace operations not available' }
-        return { text: await saveFile(deps.workspaceOps, args) }
+        if (toolCtx.workspaceOps === undefined) return { text: 'Workspace operations not available' }
+        return { text: await saveFile(toolCtx.workspaceOps, args) }
       },
   contextMode: 'any'
 }
 
-async function getFoldersForDocuments (deps: ToolDependencies): Promise<string> {
-  const ops = deps.workspaceOps
+async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
+  const ops = toolCtx.workspaceOps
   if (ops === undefined) return 'Workspace operations not available'
   const client = await ops.getClient()
   const spaces = await client.findAll(
     document.class.Teamspace,
-    deps.user !== undefined ? { members: deps.user, archived: false } : { archived: false }
+    toolCtx.user !== undefined ? { members: toolCtx.user, archived: false } : { archived: false }
   )
   let res = 'Folders:\n'
   for (const space of spaces) {

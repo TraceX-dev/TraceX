@@ -13,22 +13,18 @@
 // limitations under the License.
 //
 
-import core, { type AnyAttribute, type MarkupBlobRef } from '@hcengineering/core'
-import { markupToText } from '@hcengineering/text'
+import core, { type Doc, type AnyAttribute, makeCollabId, Hierarchy } from '@hcengineering/core'
+import { markupToHtml } from '@hcengineering/text-html'
 
-import { type RegisteredTool, type ToolDependencies, type WorkspaceOps } from './types'
+import { type RegisteredTool, type ToolContext } from './types'
 
 function isCollaborativeDocType (attr: AnyAttribute): boolean {
   return attr.type._class === core.class.TypeCollaborativeDoc
 }
 
-function isMarkupType (attr: AnyAttribute): boolean {
-  return attr.type._class === core.class.TypeMarkup
-}
-
-export const getObjectContentTool: RegisteredTool = {
+export const readObjectContentTool: RegisteredTool = {
   definition: {
-    name: 'get_object_content',
+    name: 'readObjectContent',
     description:
       'Read the rich text content of the object whose thread this conversation is in. ' +
       'When the user says "this document", "the document", "this issue", "this object", or similar phrases referring to the current context, ' +
@@ -39,50 +35,48 @@ export const getObjectContentTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.objectId === undefined || deps.objectClass === undefined) {
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    if (toolCtx.objectId === undefined || toolCtx.objectClass === undefined) {
       return {
         text: 'No context document available. This tool can only be used when the conversation is on an object thread.'
       }
     }
-    if (deps.workspaceOps === undefined) {
+    if (toolCtx.workspaceOps === undefined) {
       return { text: 'Workspace operations not available.' }
     }
 
-    const ops = deps.workspaceOps
-    const client = await deps.workspaceOps.getClient()
-    const doc = await client.findOne(deps.objectClass, { _id: deps.objectId })
+    const client = await toolCtx.workspaceOps.getClient()
+    const doc = await client.findOne(toolCtx.objectClass, { _id: toolCtx.objectId })
 
     if (doc === undefined) {
       return { text: 'Could not find the context object. It may have been deleted.' }
     }
 
-    const hierarchy = client.getHierarchy()
-    const attributes = hierarchy.getAllAttributes(doc._class)
-    const sections: string[] = []
-
-    for (const [name, attr] of attributes) {
-      const value = (doc as any)[name]
-      if (value === undefined) continue
-
-      try {
-        if (isCollaborativeDocType(attr)) {
-          const text = await readCollaborativeContent(ops, value as MarkupBlobRef)
-          sections.push(`--- ${name} ---\n${text}`)
-        } else if (isMarkupType(attr)) {
-          const text = markupToText(value as string)
-          sections.push(`--- ${name} ---\n${text}`)
-        }
-      } catch {}
+    try {
+      const text = await readCollaborativeContent(toolCtx, client.getHierarchy(), doc)
+      return { text }
+    } catch {
+      return { text: 'Could not read the context object content.' }
     }
-
-    return { text: sections.join('\n\n') }
   },
   contextMode: 'any'
 }
 
-async function readCollaborativeContent (ops: WorkspaceOps, blobRef: MarkupBlobRef): Promise<string> {
-  const buffers = await ops.storage.read(ops.ctx, ops.wsIds, blobRef)
-  const markup = Buffer.concat(buffers).toString()
-  return markupToText(markup)
+async function readCollaborativeContent (toolCtx: ToolContext, hierarchy: Hierarchy, doc: Doc): Promise<string> {
+  const attr = findCollaborativeField(hierarchy, doc)
+  if (attr !== undefined) {
+    const collabId = makeCollabId(doc._class, doc._id, attr)
+    const markup = await toolCtx.collaborator.getMarkup(collabId, (doc as any)[attr])
+    return markupToHtml(markup)
+  }
+  return '<p/>'
+}
+
+function findCollaborativeField (hierarchy: Hierarchy, doc: Doc): string | undefined {
+  const attributes = hierarchy.getAllAttributes(doc._class)
+  for (const [name, attr] of attributes) {
+    if (isCollaborativeDocType(attr)) {
+      return name
+    }
+  }
 }
