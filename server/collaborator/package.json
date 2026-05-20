@@ -69,7 +69,6 @@
     "@hocuspocus/server": "^3.4.4",
     "@hocuspocus/transformer": "^3.4.4",
     "@tiptap/core": "^3.23.5",
-    "@tiptap/html": "^3.23.5",
     "mongodb": "^6.16.0",
     "yjs": "^13.6.30",
     "express": "^4.21.2",
