@@ -83,7 +83,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV23Migration(ns, flavor),
     getV24Migration(ns, flavor),
     getV25Migration(ns, flavor),
-    getV26Migration(ns, flavor)
+    getV26Migration(ns, flavor),
+    getV27Migration(ns, flavor)
   ]
 }
 
@@ -797,6 +798,20 @@ function getV25Migration (ns: string, flavor: DBFlavor): [string, string] {
 }
 
 function getV26Migration (ns: string, flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v26_add_workspace_pending_configuration',
+    `
+    -- Captures the initial-state choices made by the user in the
+    -- workspace creation dialog (which apps to disable on first run,
+    -- whether to populate with demo content). Read once by workspace-service
+    -- after model init, then cleared back to NULL.
+    ALTER TABLE ${ns}.workspace
+    ADD COLUMN IF NOT EXISTS pending_configuration JSONB;
+    `
+  ]
+}
+
+function getV27Migration (ns: string, flavor: DBFlavor): [string, string] {
   const types = dbTypes[flavor]
   return [
     'account_db_v26_add_security_login_event_table',

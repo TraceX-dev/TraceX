@@ -48,6 +48,7 @@ import process, {
   UserResult
 } from '@hcengineering/process'
 import { ExecuteResult, ProcessControl, SuccessExecutionContext } from '@hcengineering/server-process'
+import { isEmptyMarkup } from '@hcengineering/text-core'
 import time, { ToDoPriority } from '@hcengineering/time'
 
 function checkResult (execution: Execution, results: Record<string, any> | undefined): boolean {
@@ -143,11 +144,32 @@ export function MatchCardCheck (
   params: Record<string, any>,
   context: Record<string, any>
 ): boolean {
-  if (context.card === undefined) return false
+  let card = context.card
+  if (card === undefined) return false
   const process = control.client.getModel().findObject(execution.process)
   if (process === undefined) return false
-  const res = matchQuery([context.card], params, process.masterTag, control.client.getHierarchy(), true)
+  const markup = getMarkupParams(process, params, control)
+  const h = control.client.getHierarchy()
+  if (h.isMixin(process.masterTag)) {
+    card = h.as(card, process.masterTag)
+  }
+  for (const key of Object.keys(markup)) {
+    if (isEmptyMarkup(card[key])) return false
+  }
+
+  const res = matchQuery([card], params, process.masterTag, control.client.getHierarchy(), true)
   return res.length > 0
+}
+
+function getMarkupParams (process: Process, params: Record<string, any>, control: ProcessControl): Record<string, any> {
+  const markup: Record<string, any> = {}
+  for (const [key, value] of Object.entries(params)) {
+    const attr = control.client.getHierarchy().findAttribute(process.masterTag, key)
+    if (attr?.type?._class === core.class.TypeMarkup) {
+      markup[key] = value
+    }
+  }
+  return markup
 }
 
 export function EventCheck (
@@ -173,7 +195,17 @@ export function FieldChangedCheck (
   const operations = context.operations as DocumentUpdate<Doc>
   const target = Object.keys(params)[0]
   if (!TxProcessor.hasUpdate(operations, target)) return false
-  const res = matchQuery([context.card], params, process.masterTag, control.client.getHierarchy(), true)
+  const markup = getMarkupParams(process, params, control)
+  const h = control.client.getHierarchy()
+  let card = context.card
+  if (h.isMixin(process.masterTag)) {
+    card = h.as(card, process.masterTag)
+  }
+  for (const key of Object.keys(markup)) {
+    if (isEmptyMarkup(card[key])) return false
+  }
+
+  const res = matchQuery([card], params, process.masterTag, control.client.getHierarchy(), true)
   return res.length > 0
 }
 
@@ -187,7 +219,6 @@ export async function AddRelation (
   execution: Execution,
   control: ProcessControl
 ): Promise<ExecuteResult> {
-  const _id = generateId<Relation>()
   const association = params.association as Ref<Association>
   if (isEmpty(association)) {
     throw processError(process.error.RequiredParamsNotProvided, { params: 'association' })
@@ -198,35 +229,34 @@ export async function AddRelation (
   if (isEmpty(params.direction)) {
     throw processError(process.error.RequiredParamsNotProvided, { params: 'direction' })
   }
-  const targetId = params._id as Ref<Doc>
+  const targetIds = Array.isArray(params._id) ? params._id : [params._id]
   const direction = params.direction as 'A' | 'B'
-  const docA = direction === 'A' ? targetId : execution.card
-  const docB = direction === 'A' ? execution.card : targetId
-  const data: Data<Relation> = {
-    association,
-    docA,
-    docB
-  }
-  const exists = await control.client.findOne(core.class.Relation, { docA, docB, association })
-  if (exists !== undefined) {
-    return {
-      txes: [],
-      rollback: [],
-      context: []
+  const res: Tx[] = []
+  const rollback: Tx[] = []
+  const context: SuccessExecutionContext[] = []
+  for (const targetId of targetIds) {
+    const docA = direction === 'A' ? targetId : execution.card
+    const docB = direction === 'A' ? execution.card : targetId
+    const data: Data<Relation> = {
+      association,
+      docA,
+      docB
     }
+    const exists = await control.client.findOne(core.class.Relation, { docA, docB, association })
+    if (exists !== undefined) continue
+    const _id = generateId<Relation>()
+    const resTx = control.client.txFactory.createTxCreateDoc(core.class.Relation, core.space.Workspace, data, _id)
+    res.push(resTx)
+    rollback.push(control.client.txFactory.createTxRemoveDoc(core.class.Relation, core.space.Workspace, _id))
+    context.push({
+      _id,
+      value: TxProcessor.createDoc2Doc(resTx, true)
+    })
   }
-  const resTx = control.client.txFactory.createTxCreateDoc(core.class.Relation, core.space.Workspace, data, _id)
-  const res: Tx[] = [resTx]
-  const rollback: Tx[] = [control.client.txFactory.createTxRemoveDoc(core.class.Relation, core.space.Workspace, _id)]
   return {
     txes: res,
     rollback,
-    context: [
-      {
-        _id,
-        value: TxProcessor.createDoc2Doc(resTx, true)
-      }
-    ]
+    context
   }
 }
 
@@ -554,7 +584,8 @@ export async function LockSection (
   if (params._id === undefined) throw processError(process.error.RequiredParamsNotProvided, { params: '_id' })
   const res: Tx[] = []
   const rollback: Tx[] = []
-  const card = await control.client.findOne(cardPlugin.class.Card, { _id: execution.card })
+  const card: Card =
+    control.cache.get(execution.card) ?? (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
   if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
   const readonlySections = new Set(card.readonlySections ?? [])
   const target = params._id as Ref<MasterTag>
@@ -598,7 +629,8 @@ export async function UnlockSection (
   if (params._id === undefined) throw processError(process.error.RequiredParamsNotProvided, { params: '_id' })
   const res: Tx[] = []
   const rollback: Tx[] = []
-  const card = await control.client.findOne(cardPlugin.class.Card, { _id: execution.card })
+  const card: Card =
+    control.cache.get(execution.card) ?? (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
   if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
   const target = params._id as Ref<MasterTag>
   const readonlySections = new Set(card.readonlySections ?? [])
@@ -623,7 +655,8 @@ export async function LockField (
   if (params.value === undefined) throw processError(process.error.RequiredParamsNotProvided, { params: 'value' })
   const res: Tx[] = []
   const rollback: Tx[] = []
-  const card = await control.client.findOne(cardPlugin.class.Card, { _id: execution.card })
+  const card: Card =
+    control.cache.get(execution.card) ?? (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
   if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
   const oldReadonlyFields = card.readonlyFields ?? []
   const readonlyFields = [...oldReadonlyFields]
@@ -658,7 +691,8 @@ export async function UnlockField (
   if (params.value === undefined) throw processError(process.error.RequiredParamsNotProvided, { params: 'value' })
   const res: Tx[] = []
   const rollback: Tx[] = []
-  const card = await control.client.findOne(cardPlugin.class.Card, { _id: execution.card })
+  const card: Card =
+    control.cache.get(execution.card) ?? (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
   if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
   const oldReadonlyFields = card.readonlyFields ?? []
   const targets = Array.isArray(params.value) ? params.value : [params.value]

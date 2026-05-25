@@ -58,6 +58,7 @@ import {
   type UpdateCriteriaComponent,
   type UserResult
 } from '@hcengineering/process'
+import { isEmptyMarkup } from '@hcengineering/text-core'
 import { showPopup } from '@hcengineering/ui'
 import { type AttributeCategory } from '@hcengineering/view'
 import process from './plugin'
@@ -739,8 +740,14 @@ export async function requestResult (
   const client = getClient()
   const doc = await client.findOne(card.class.Card, { _id: execution.card })
   if (doc === undefined) return
+  const _process = client.getModel().findObject(execution.process)
+  if (_process === undefined) return
+  const h = client.getHierarchy()
+  const isMixin = h.isMixin(_process.masterTag)
+  const targetDoc = isMixin ? h.as(doc, _process.masterTag) : doc
+
   const promise = new Promise<void>((resolve, reject) => {
-    showPopup(process.component.ResultInput, { results, context, doc }, undefined, (res) => {
+    showPopup(process.component.ResultInput, { results, context, doc: targetDoc }, undefined, (res) => {
       if (res !== undefined) {
         for (const contextId in res) {
           const val = res[contextId]
@@ -815,6 +822,17 @@ export async function approveRequestRejected (
   return context.todo?.group === params._id && context.todo?.approved === false
 }
 
+function getMarkupParams (process: Process, params: Record<string, any>, client: Client): Record<string, any> {
+  const markup: Record<string, any> = {}
+  for (const [key, value] of Object.entries(params)) {
+    const attr = client.getHierarchy().findAttribute(process.masterTag, key)
+    if (attr?.type?._class === core.class.TypeMarkup) {
+      markup[key] = value
+    }
+  }
+  return markup
+}
+
 export function matchCardCheck (
   client: Client,
   execution: Execution,
@@ -828,6 +846,11 @@ export function matchCardCheck (
   if (client.getHierarchy().isMixin(process.masterTag)) {
     doc = client.getHierarchy().as(doc, process.masterTag)
   }
+  const markup = getMarkupParams(process, params, client)
+  for (const key of Object.keys(markup)) {
+    if (isEmptyMarkup(doc[key])) return false
+  }
+
   const res = matchQuery([doc], params, doc._class, client.getHierarchy(), true)
   return res.length > 0
 }
@@ -838,11 +861,21 @@ export function fieldChangesCheck (
   params: Record<string, any>,
   context: Record<string, any>
 ): boolean {
-  const doc = context.card
+  let doc = context.card
   if (doc === undefined) return false
+  const process = client.getModel().findObject(execution.process)
+  if (process === undefined) return false
+  if (client.getHierarchy().isMixin(process.masterTag)) {
+    doc = client.getHierarchy().as(doc, process.masterTag)
+  }
   const operations = (context.operations ?? {}) as DocumentUpdate<Doc>
   const target = Object.keys(params)[0]
   if (!TxProcessor.hasUpdate(operations, target)) return false
+  const markup = getMarkupParams(process, params, client)
+  for (const key of Object.keys(markup)) {
+    if (isEmptyMarkup(doc[key])) return false
+  }
+
   const res = matchQuery([doc], params, doc._class, client.getHierarchy(), true)
   return res.length > 0
 }
@@ -931,6 +964,9 @@ export function getMockAttribute (_class: Ref<Class<Doc>>, label: IntlString, ty
 export async function checkProcessSectionVisibility (doc: Card): Promise<boolean> {
   const client = getClient()
   const anc = client.getHierarchy().getAncestors(doc._class)
-  const processes = client.getModel().findAllSync(process.class.Process, { masterTag: { $in: anc } })
+  const processes = client.getModel().findAllSync(process.class.Process, {
+    masterTag: { $in: anc },
+    automationOnly: { $ne: true }
+  })
   return processes.length > 0
 }
