@@ -103,7 +103,7 @@ import documents, { documentsId, createModel as documentsModel } from '@hcengine
 import { hulyMailId, createModel as hulyMailModel } from '@hcengineering/model-huly-mail'
 import { mailId, createModel as mailModel } from '@hcengineering/model-mail'
 import products, { productsId, createModel as productsModel } from '@hcengineering/model-products'
-import { questionsId, createModel as questionsModel } from '@hcengineering/model-questions'
+import questions, { questionsId, createModel as questionsModel } from '@hcengineering/model-questions'
 import { serverProductsId, createModel as serverProductsModel } from '@hcengineering/model-server-products'
 import { serverTrainingId, createModel as serverTrainingModel } from '@hcengineering/model-server-training'
 import testManagement, {
@@ -247,6 +247,7 @@ export default function buildModel (): Builder {
         description: telegram.string.ConfigDescription,
         enabled: true,
         beta: true,
+        icon: contact.icon.Telegram,
         classFilter: defaultFilter
       }
     ],
@@ -270,6 +271,7 @@ export default function buildModel (): Builder {
         description: gmail.string.ConfigDescription,
         enabled: true,
         beta: true,
+        icon: contact.icon.Email,
         classFilter: defaultFilter
       }
     ],
@@ -421,6 +423,7 @@ export default function buildModel (): Builder {
         description: documents.string.ConfigDescription,
         enabled: false,
         beta: false,
+        icon: documents.icon.DocumentApplication,
         classFilter: defaultFilter
       }
     ],
@@ -428,10 +431,11 @@ export default function buildModel (): Builder {
       questionsModel,
       questionsId,
       {
-        label: setting.string.Configure,
+        label: questions.string.ConfigLabel,
+        description: questions.string.ConfigDescription,
         enabled: true,
         beta: false,
-        hidden: false,
+        icon: questions.icon.Question,
         classFilter: defaultFilter
       }
     ],
@@ -443,6 +447,7 @@ export default function buildModel (): Builder {
         description: trainings.string.ConfigDescription,
         enabled: false,
         beta: false,
+        icon: trainings.icon.TrainingApplication,
         classFilter: defaultFilter
       }
     ],
@@ -454,6 +459,7 @@ export default function buildModel (): Builder {
         description: products.string.ConfigDescription,
         enabled: false,
         beta: false,
+        icon: products.icon.ProductsApplication,
         classFilter: defaultFilter
       }
     ],
@@ -465,6 +471,7 @@ export default function buildModel (): Builder {
         description: testManagement.string.ConfigDescription,
         enabled: true,
         beta: true,
+        icon: testManagement.icon.TestManagementApplication,
         classFilter: defaultFilter
       }
     ],
@@ -476,6 +483,7 @@ export default function buildModel (): Builder {
         description: survey.string.ConfigDescription,
         enabled: false,
         beta: true,
+        icon: survey.icon.Survey,
         classFilter: defaultFilter
       }
     ],
