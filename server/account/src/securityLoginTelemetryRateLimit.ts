@@ -20,7 +20,12 @@ function parsePositiveInt (raw: string | undefined, fallback: number): number {
  * In-process sliding-window rate limiter (per account + RPC name).
  * Multi-instance deployments only get per-process limits unless replaced with shared storage.
  */
-export function assertSecurityLoginTelemetryRateLimit (accountKey: string, rpcName: string, envVar: string, fallbackRpm: number): void {
+export function assertSecurityLoginTelemetryRateLimit (
+  accountKey: string,
+  rpcName: string,
+  envVar: string,
+  fallbackRpm: number
+): void {
   const maxPerMinute = parsePositiveInt(process.env[envVar], fallbackRpm)
   const key = `${accountKey}:${rpcName}`
   const now = Date.now()

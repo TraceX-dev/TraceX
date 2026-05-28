@@ -326,6 +326,7 @@ export default plugin(settingId, {
     DeleteMailbox: '' as IntlString,
     MailboxDeleteConfirmation: '' as IntlString,
     Security: '' as IntlString,
+    SessionHistory: '' as IntlString,
     TwoFactorAuth: '' as IntlString,
     TwoFactorAuthDescription: '' as IntlString,
     EnableTwoFactorAuth: '' as IntlString,

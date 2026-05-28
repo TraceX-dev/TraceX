@@ -35,7 +35,9 @@ export class NoopPolicyEngine implements SecurityPolicyEngine {
     const { event, recentHistory } = input
     const anomalyCodes = new Set<string>()
 
-    const sameIpFailures = recentHistory.filter((entry) => !entry.success && entry.ip != null && event.ip != null && entry.ip === event.ip)
+    const sameIpFailures = recentHistory.filter(
+      (entry) => !entry.success && entry.ip != null && event.ip != null && entry.ip === event.ip
+    )
     if (!event.success && sameIpFailures.length >= 4) {
       anomalyCodes.add('repeated_failed_attempts_from_ip')
     }
@@ -129,7 +131,9 @@ export async function resolveSecurityPolicyEngine (ctx: MeasureContext): Promise
       | undefined
 
     if (typeof createEngine !== 'function') {
-      ctx.warn('SECURITY_POLICY_MODULE loaded but createSecurityPolicyEngine is missing, fallback to noop', { moduleName })
+      ctx.warn('SECURITY_POLICY_MODULE loaded but createSecurityPolicyEngine is missing, fallback to noop', {
+        moduleName
+      })
       cachedPolicyEngine = new NoopPolicyEngine()
       return cachedPolicyEngine
     }

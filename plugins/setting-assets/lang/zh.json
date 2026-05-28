@@ -233,6 +233,7 @@
     "Reset": "重置",
     "Security": "安全",
     "SecurityTabSessions": "会话历史",
+    "SessionHistory": "会话历史",
     "TwoFactorAuth": "双因素认证",
     "TwoFactorAuthDescription": "双因素认证为您的帐户增加额外的安全层",
     "EnableTwoFactorAuth": "启用双因素认证",

@@ -19,6 +19,7 @@
   import login, { loginId } from '@hcengineering/login'
   import platform, { getResource, PlatformError } from '@hcengineering/platform'
   import { AttributeEditor, createQuery, getClient, hasResource, MessageBox } from '@hcengineering/presentation'
+  import { settingId } from '@hcengineering/setting'
   import {
     Breadcrumb,
     Button,
@@ -26,11 +27,13 @@
     createFocusManager,
     EditBox,
     FocusHandler,
+    getCurrentResolvedLocation,
     Header,
     navigate,
     Scroller,
     showPopup
   } from '@hcengineering/ui'
+  import view from '@hcengineering/view'
   import { logIn, logOut } from '@hcengineering/workbench-resources'
 
   import rating, { type PersonRating } from '@hcengineering/rating'
@@ -48,8 +51,6 @@
   levelQuery.query(rating.class.PersonRating, { accountId: account.uuid }, (res) => {
     personRating = res[0]
   })
-
-  $: console.log('SYS', personRating)
 
   let firstName = ''
   let lastName = ''
@@ -117,6 +118,17 @@
         name: combineName(firstName, lastName)
       })
     }
+  }
+
+  function openSessionHistory (): void {
+    const loc = getCurrentResolvedLocation()
+    loc.path[2] = settingId
+    loc.path[3] = 'security'
+    loc.path[4] = 'sessions'
+    loc.path.length = 5
+    loc.fragment = undefined
+    loc.query = undefined
+    navigate(loc)
   }
 </script>
 
@@ -196,6 +208,12 @@
       <SocialIdsEditor rating={personRating} />
       <div class="footer">
         <Button
+          icon={view.icon.Timeline}
+          label={setting.string.SessionHistory}
+          kind="secondary"
+          on:click={openSessionHistory}
+        />
+        <Button
           icon={setting.icon.Signout}
           label={setting.string.Leave}
           kind="dangerous"
@@ -226,6 +244,9 @@
 
   .footer {
     margin-top: 2rem;
-    align-self: flex-end;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
   }
 </style>

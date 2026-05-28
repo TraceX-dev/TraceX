@@ -233,6 +233,7 @@
     "Reset": "リセット",
     "Security": "セキュリティ",
     "SecurityTabSessions": "セッション履歴",
+    "SessionHistory": "セッション履歴",
     "TwoFactorAuth": "二要素認証",
     "TwoFactorAuthDescription": "二要素認証はアカウントにセキュリティの追加レイヤーを追加します",
     "EnableTwoFactorAuth": "二要素認証を有効にする",

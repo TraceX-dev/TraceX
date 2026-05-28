@@ -47,3 +47,64 @@ export function getShortUserAgent (userAgent?: string): string {
 export function shouldShowNotMeAction (event: Pick<SecurityLoginHistoryEvent, 'success'>): boolean {
   return event.success
 }
+
+/**
+ * A group of consecutive login events that share the same observable
+ * attributes (auth method, success, IP, location, user agent). Used to
+ * collapse noisy runs — most commonly `authMethod: 'session'` events
+ * recorded on every workspace switch — into a single row in the UI.
+ */
+export interface SecurityLoginHistoryGroup {
+  id: string
+  event: SecurityLoginHistoryEvent
+  count: number
+  firstEventTime: number
+  lastEventTime: number
+  ids: string[]
+}
+
+function sameSignature (a: SecurityLoginHistoryEvent, b: SecurityLoginHistoryEvent): boolean {
+  return (
+    a.authMethod === b.authMethod &&
+    a.success === b.success &&
+    (a.ip ?? '') === (b.ip ?? '') &&
+    (a.country ?? '') === (b.country ?? '') &&
+    (a.city ?? '') === (b.city ?? '') &&
+    (a.userAgent ?? '') === (b.userAgent ?? '')
+  )
+}
+
+/**
+ * Returns true for events safe to collapse into a previous identical row.
+ */
+function isCoalescable (event: SecurityLoginHistoryEvent): boolean {
+  return event.success && event.authMethod === 'session'
+}
+
+/**
+ * Collapses consecutive same-signature events into a single group.
+ * Input is expected to be ordered newest-first (matching the server
+ * response).
+ */
+export function coalesceLoginHistory (events: SecurityLoginHistoryEvent[]): SecurityLoginHistoryGroup[] {
+  const groups: SecurityLoginHistoryGroup[] = []
+  for (const event of events) {
+    const last = groups[groups.length - 1]
+    if (last !== undefined && isCoalescable(event) && isCoalescable(last.event) && sameSignature(last.event, event)) {
+      last.count += 1
+      last.firstEventTime = Math.min(last.firstEventTime, event.eventTime)
+      last.lastEventTime = Math.max(last.lastEventTime, event.eventTime)
+      last.ids.push(event.id)
+      continue
+    }
+    groups.push({
+      id: event.id,
+      event,
+      count: 1,
+      firstEventTime: event.eventTime,
+      lastEventTime: event.eventTime,
+      ids: [event.id]
+    })
+  }
+  return groups
+}

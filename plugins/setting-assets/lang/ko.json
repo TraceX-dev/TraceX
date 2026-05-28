@@ -232,6 +232,7 @@
         "ShowInTitle": "제목에 표시",
         "SpaceMembersOnly": "스페이스 멤버 전용",
         "Security": "보안",
+        "SessionHistory": "세션 기록",
         "TwoFactorAuth": "2단계 인증",
         "TwoFactorAuthDescription": "2단계 인증은 계정에 추가적인 보안 계층을 더해 줍니다",
         "EnableTwoFactorAuth": "2단계 인증 활성화",

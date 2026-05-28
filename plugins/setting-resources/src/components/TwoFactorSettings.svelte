@@ -95,7 +95,7 @@
   }
 </script>
 
-<div class="hulyComponent">
+<div class="hulyComponent w-full">
   <div class="flex-col p-6 gap-8 max-w-2xl">
     <div class="flex flex-between">
       <Label label={setting.string.TwoFactorAuthDescription} />

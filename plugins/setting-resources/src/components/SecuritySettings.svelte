@@ -18,23 +18,51 @@
   import {
     Breadcrumb,
     defineSeparators,
+    getCurrentResolvedLocation,
     Header,
+    navigate,
     NavItem,
+    resolvedLocationStore,
     Scroller,
     Separator,
     twoPanelsSeparators
   } from '@hcengineering/ui'
+  import { onDestroy } from 'svelte'
 
   import settingsRes from '../plugin'
   import SessionHistorySettings from './SessionHistorySettings.svelte'
   import TwoFactorSettings from './TwoFactorSettings.svelte'
 
-  let securityTab: 'twoFactor' | 'sessions' = 'twoFactor'
+  type SecurityTab = 'twoFactor' | 'sessions'
+
+  function tabFromPath (segment: string | undefined): SecurityTab {
+    return segment === 'sessions' ? 'sessions' : 'twoFactor'
+  }
+
+  let securityTab: SecurityTab = tabFromPath(getCurrentResolvedLocation().path[4])
+
+  onDestroy(
+    resolvedLocationStore.subscribe((loc) => {
+      const next = tabFromPath(loc.path[4])
+      if (next !== securityTab) {
+        securityTab = next
+      }
+    })
+  )
+
+  function selectTab (tab: SecurityTab): void {
+    if (securityTab === tab) return
+    securityTab = tab
+    const loc = getCurrentResolvedLocation()
+    loc.path[4] = tab
+    loc.path.length = 5
+    navigate(loc)
+  }
 
   defineSeparators('securitySettings', twoPanelsSeparators)
 </script>
 
-<div class="hulyComponent">
+<div class="hulyComponent w-full">
   <Header adaptive={'disabled'}>
     <Breadcrumb icon={setting.icon.Password} label={setting.string.Security} size={'large'} isCurrent />
   </Header>
@@ -46,7 +74,7 @@
           label={setting.string.TwoFactorAuth}
           selected={securityTab === 'twoFactor'}
           on:click={() => {
-            securityTab = 'twoFactor'
+            selectTab('twoFactor')
           }}
         />
         <NavItem
@@ -54,7 +82,7 @@
           label={settingsRes.string.SecurityTabSessions}
           selected={securityTab === 'sessions'}
           on:click={() => {
-            securityTab = 'sessions'
+            selectTab('sessions')
           }}
         />
       </Scroller>

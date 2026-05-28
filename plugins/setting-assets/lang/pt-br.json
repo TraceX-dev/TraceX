@@ -224,6 +224,7 @@
     "Reset": "Reiniciar",
     "Security": "Segurança",
     "SecurityTabSessions": "Histórico de sessões",
+    "SessionHistory": "Histórico de sessões",
     "TwoFactorAuth": "Autenticação de dois fatores",
     "TwoFactorAuthDescription": "A autenticação de dois fatores adiciona uma camada extra de segurança à sua conta",
     "EnableTwoFactorAuth": "Ativar autenticação de dois fatores",

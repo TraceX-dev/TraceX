@@ -3404,12 +3404,7 @@ function maskIpForApiResponse (ip?: string): string | undefined {
 
 function redactSecurityLoginEventRow (row: SecurityLoginEvent): SecurityLoginEvent {
   const ua = row.userAgent?.trim() ?? ''
-  const shortUa =
-    ua === ''
-      ? undefined
-      : ua.length <= UA_REDACT_LEN
-        ? ua
-        : `${ua.slice(0, UA_REDACT_LEN - 1)}…`
+  const shortUa = ua === '' ? undefined : ua.length <= UA_REDACT_LEN ? ua : `${ua.slice(0, UA_REDACT_LEN - 1)}…`
   return {
     ...row,
     ip: maskIpForApiResponse(row.ip),
@@ -3518,7 +3513,12 @@ export async function getWorkspaceSecurityLoginHistory (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
-  assertSecurityLoginTelemetryRateLimit(account, 'getWorkspaceSecurityLoginHistory', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
+  assertSecurityLoginTelemetryRateLimit(
+    account,
+    'getWorkspaceSecurityLoginHistory',
+    'SECURITY_LOGIN_HISTORY_READ_RPM',
+    120
+  )
 
   const { since, until, success, ip } = params
   let accountUuid = params.accountUuid

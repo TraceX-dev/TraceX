@@ -1741,10 +1741,7 @@ export async function purgeExpiredSecurityLoginEvents (
   if (rawLower === '0' || rawLower === 'off' || rawLower === 'false') {
     return
   }
-  const days =
-    rawTrim !== undefined && rawTrim !== ''
-      ? parseInt(rawTrim, 10)
-      : DEFAULT_SECURITY_LOGIN_RETENTION_DAYS
+  const days = rawTrim !== undefined && rawTrim !== '' ? parseInt(rawTrim, 10) : DEFAULT_SECURITY_LOGIN_RETENTION_DAYS
   if (!Number.isFinite(days) || days <= 0) {
     return
   }
