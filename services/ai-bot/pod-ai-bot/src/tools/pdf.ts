@@ -34,7 +34,6 @@ export const getDataBeforeImportTool: RegisteredTool = {
     }
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
-    if (toolCtx.workspaceOps === undefined) return { text: 'Workspace operations not available' }
     return { text: await getFoldersForDocuments(toolCtx) }
   },
   contextMode: 'any'
@@ -72,7 +71,6 @@ export const saveFileTool: RegisteredTool = {
   createExecutor:
     (toolCtx: ToolContext) =>
       async (args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }) => {
-        if (toolCtx.workspaceOps === undefined) return { text: 'Workspace operations not available' }
         return { text: await saveFile(toolCtx.workspaceOps, args) }
       },
   contextMode: 'any'
@@ -80,7 +78,6 @@ export const saveFileTool: RegisteredTool = {
 
 async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
   const ops = toolCtx.workspaceOps
-  if (ops === undefined) return 'Workspace operations not available'
   const client = await ops.getClient()
   const spaces = await client.findAll(
     document.class.Teamspace,
@@ -128,7 +125,11 @@ async function saveFile (
   return `File saved as ${args.name} with id ${_id}, always provide mention link as: [](ref://?_class=document%3Aclass%3ADocument&_id=${_id}&label=${args.name})`
 }
 
-async function pdfToMarkdown (ops: WorkspaceOps, fileId: string, name: string | undefined): Promise<string | undefined> {
+export async function pdfToMarkdown (
+  ops: WorkspaceOps,
+  fileId: string,
+  name: string | undefined
+): Promise<string | undefined> {
   if (config.DataLabApiKey !== '') {
     try {
       const stat = await ops.storage.stat(ops.ctx, ops.wsIds, fileId)
@@ -189,11 +190,11 @@ function getTeamspace (
   return teamspaces[0]._id
 }
 
-async function stream2buffer (stream: Stream): Promise<Buffer> {
+export async function stream2buffer (stream: Stream): Promise<Buffer> {
   return await new Promise<Buffer>((resolve, reject) => {
-    const _buf = Array<any>()
+    const _buf = Array<Buffer | Uint8Array>()
     stream.on('data', (chunk) => {
-      _buf.push(chunk)
+      _buf.push(typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk)
     })
     stream.on('end', () => {
       resolve(Buffer.concat(_buf))

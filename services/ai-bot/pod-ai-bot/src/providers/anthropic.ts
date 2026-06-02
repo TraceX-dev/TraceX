@@ -38,15 +38,13 @@ export class AnthropicProvider implements LLMProvider {
     this.encoding = getEncoding('cl100k_base')
   }
 
-  countTokens (messages: ChatMessage[]): number {
+  countTokens (message: ChatMessage): number {
     const tokensPerMessage = 3
     let result = 0
 
-    for (const message of messages) {
-      result += tokensPerMessage
-      result += this.encoding.encode(message.role).length
-      result += this.encoding.encode(message.content).length
-    }
+    result += tokensPerMessage
+    result += this.encoding.encode(message.role).length
+    result += this.encoding.encode(message.content).length
 
     result += 3
     return result

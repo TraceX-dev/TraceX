@@ -35,10 +35,15 @@ export interface ToolDefinition {
   parameters: Record<string, any>
 }
 
-export interface ToolExecutorResult {
-  text: string
-  usage?: TokenUsage
-}
+export type ToolExecutorResult =
+  | {
+    text: string
+    usage?: TokenUsage
+  }
+  | {
+    error: string
+    usage?: TokenUsage
+  }
 
 export type ToolExecutor = (args: any) => Promise<ToolExecutorResult>
 
@@ -54,7 +59,7 @@ export interface ToolContext {
   collaborator: CollaboratorClient
   user: AccountUuid | undefined
   workspace: WorkspaceUuid
-  workspaceOps?: WorkspaceOps
+  workspaceOps: WorkspaceOps
   objectId?: Ref<Doc>
   objectClass?: Ref<Class<Doc>>
   objectSpace?: Ref<Space>

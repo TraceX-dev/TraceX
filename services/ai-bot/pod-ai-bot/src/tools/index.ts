@@ -24,8 +24,9 @@ import {
   clearHistoryTool,
   clearUserMemoryTool
 } from './memory'
-import { readObjectContentTool } from './document'
+import { readObjectContentTool, readReferencedObjectContentTool } from './document'
 import { saveFileTool, getDataBeforeImportTool } from './pdf'
+import { tiptapEditTool } from './tiptap'
 import { type RegisteredTool } from './types'
 import { ContextMode } from '../providers'
 
@@ -59,7 +60,9 @@ const registeredTools: RegisteredTool[] = [
 
   // Context Object
   // getObjectAttributesTool,
-  readObjectContentTool
+  readObjectContentTool,
+  readReferencedObjectContentTool,
+  tiptapEditTool
 ]
 
 export function getRegisteredTools (): RegisteredTool[] {

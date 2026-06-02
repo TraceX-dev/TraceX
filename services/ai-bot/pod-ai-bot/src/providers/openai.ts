@@ -1,5 +1,6 @@
 //
 // Copyright © 2024-2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,11 +15,19 @@
 //
 
 import { MeasureContext } from '@hcengineering/core'
-import { countTokens } from '@hcengineering/openai'
+import { countResponseItemTokens } from '@hcengineering/openai'
 
 import OpenAI from 'openai'
-import { CompletionUsage } from 'openai/resources/completions'
-import { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources'
+import {
+  type EasyInputMessage,
+  type FunctionTool,
+  type Response,
+  type ResponseCreateParamsNonStreaming,
+  type ResponseFunctionToolCall,
+  type ResponseInputContent,
+  type ResponseInputItem,
+  type ResponseUsage
+} from 'openai/resources/responses/responses'
 import { encodingForModel, getEncoding, Tiktoken, TiktokenModel } from 'js-tiktoken'
 
 import {
@@ -26,6 +35,7 @@ import {
   type ChatCompletionResult,
   type ChatCompletionOptions,
   type ChatMessage,
+  type ChatMessageAttachment,
   type LLMToolDefinition,
   type TokenUsage
 } from './types'
@@ -49,9 +59,9 @@ export class OpenAIProvider implements LLMProvider {
     })()
   }
 
-  countTokens (messages: ChatMessage[]): number {
-    const openaiMessages = messages.map(toMessage)
-    return countTokens(openaiMessages, this.encoding)
+  countTokens (message: ChatMessage): number {
+    const openaiMessages = toResponseInputItems(message)
+    return countResponseItemTokens(openaiMessages, this.encoding)
   }
 
   async chatCompletion (
@@ -61,22 +71,18 @@ export class OpenAIProvider implements LLMProvider {
   ): Promise<ChatCompletionResult> {
     const { systemContent, nonSystemMessages } = splitMessages(messages)
 
-    const response = await this.client.chat.completions.create({
-      messages: [
-        ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
-        ...nonSystemMessages.map(toMessage)
-      ],
+    const body: ResponseCreateParamsNonStreaming = {
+      input: nonSystemMessages.flatMap(toResponseInputItems),
       model: this.model,
       user: options?.user,
-      ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+      ...(systemContent !== '' ? { instructions: systemContent } : {}),
+      ...(options?.maxTokens !== undefined ? { max_output_tokens: options.maxTokens } : {}),
+      store: false,
       stream: false
-    })
+    }
 
-    const text = response.choices?.[0]?.message?.content ?? undefined
-    const created = response.created
-    const usage = toTokens(response.usage)
-
-    return { text, usage, created }
+    const response = await ctx.with('responses.create', {}, () => this.client.responses.create(body))
+    return toChatCompletionResult(response)
   }
 
   async chatCompletionWithTools (
@@ -87,30 +93,18 @@ export class OpenAIProvider implements LLMProvider {
   ): Promise<ChatCompletionResult> {
     const { systemContent, nonSystemMessages } = splitMessages(messages)
 
-    const response = await this.client.chat.completions.create({
-      messages: [
-        ...(systemContent !== '' ? [{ role: 'system' as const, content: systemContent }] : []),
-        ...nonSystemMessages.map(toMessage)
-      ],
+    const body: ResponseCreateParamsNonStreaming = {
+      input: nonSystemMessages.flatMap(toResponseInputItems),
       model: this.model,
-      tools: tools.map(toTool),
+      tools: tools.map(toFunctionTool),
       user: options?.user,
-      ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+      ...(systemContent !== '' ? { instructions: systemContent } : {}),
+      ...(options?.maxTokens !== undefined ? { max_output_tokens: options.maxTokens } : {}),
       stream: false
-    })
+    }
 
-    const choice = response.choices?.[0]
-    const text = choice?.message?.content ?? undefined
-    const created = response.created
-    const usage = toTokens(response.usage)
-
-    const toolCalls = choice?.message?.tool_calls?.map((tc) => ({
-      id: tc.id,
-      name: tc.function.name,
-      arguments: tc.function.arguments
-    }))
-
-    return { text, usage, created, toolCalls }
+    const response = await ctx.with('responses.create', {}, () => this.client.responses.create(body))
+    return toChatCompletionResult(response)
   }
 }
 
@@ -125,45 +119,131 @@ function splitMessages (messages: ChatMessage[]): { systemContent: string, nonSy
   return { systemContent, nonSystemMessages }
 }
 
-function toTool (tool: LLMToolDefinition): ChatCompletionTool {
+function toFunctionTool (tool: LLMToolDefinition): FunctionTool {
   return {
     type: 'function',
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters
-    }
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+    strict: null
   }
 }
 
-function toMessage (message: ChatMessage): ChatCompletionMessageParam {
+function toResponseInputItems (message: ChatMessage): ResponseInputItem[] {
   const { role, content, toolCallId, toolCalls } = message
+
   if (role === 'tool') {
-    return { role, content, tool_call_id: toolCallId ?? '' }
+    return [
+      {
+        type: 'function_call_output',
+        call_id: toolCallId ?? '',
+        output: content
+      }
+    ]
   }
+
   if (role === 'assistant' && toolCalls !== undefined && toolCalls.length > 0) {
-    return {
-      role,
-      content,
-      tool_calls: toolCalls.map((tc) => ({
-        id: tc.id,
-        type: 'function' as const,
-        function: {
-          name: tc.name,
-          arguments: tc.arguments
-        }
-      }))
+    const result: ResponseInputItem[] = []
+    if (content !== '') {
+      result.push({
+        type: 'message',
+        role,
+        content
+      } satisfies EasyInputMessage)
+    }
+
+    for (const tc of toolCalls) {
+      result.push({
+        type: 'function_call',
+        call_id: tc.id,
+        name: tc.name,
+        arguments: tc.arguments
+      })
+    }
+
+    return result
+  }
+
+  const inputFiles: ResponseInputContent[] = []
+  if (role === 'user' && message.attachments !== undefined && message.attachments.length > 0) {
+    for (const attachment of message.attachments) {
+      const attachmentContent = toAttachmentContent(attachment)
+      if (attachmentContent != null) {
+        inputFiles.push(attachmentContent)
+      }
     }
   }
-  return { role, content }
+
+  return [
+    {
+      type: 'message',
+      role: role as 'user' | 'assistant' | 'system',
+      content: [{ type: 'input_text', text: content }, ...inputFiles]
+    } satisfies EasyInputMessage
+  ]
 }
 
-function toTokens (usage?: CompletionUsage): TokenUsage {
-  if (usage === undefined) {
-    return { inputTokens: 0, outputTokens: 0 }
+function toAttachmentContent (attachment: ChatMessageAttachment): ResponseInputContent | null {
+  const type = normalizeMimeType(attachment.type)
+  if (type === 'application/pdf') {
+    return {
+      type: 'input_file',
+      filename: attachment.name,
+      file_data: toFileData(type, attachment.data)
+    }
   }
+
+  if (isTextLike(type)) {
+    return {
+      type: 'input_text',
+      text: `\n\nAttachment "${attachment.name}" (${type}):\n${Buffer.from(attachment.data, 'base64').toString('utf8')}`
+    }
+  }
+
+  return null
+}
+
+function normalizeMimeType (type: string | undefined): string {
+  return (type ?? '').split(';')[0].trim().toLowerCase()
+}
+
+function isTextLike (type: string): boolean {
+  return (
+    type.startsWith('text/') ||
+    type === 'application/json' ||
+    type === 'application/markdown' ||
+    type === 'application/x-markdown'
+  )
+}
+
+function toFileData (type: string, data: string): string {
+  if (data.startsWith('data:')) {
+    return data
+  }
+
+  return `data:${type};base64,${data}`
+}
+
+function toChatCompletionResult (response: Response): ChatCompletionResult {
+  const toolCalls = response.output
+    .filter((item): item is ResponseFunctionToolCall => item.type === 'function_call')
+    .map((item) => ({
+      id: item.call_id,
+      name: item.name,
+      arguments: item.arguments
+    }))
+
   return {
-    inputTokens: usage.prompt_tokens ?? 0,
-    outputTokens: usage.completion_tokens ?? 0
+    text: response.output_text !== '' ? response.output_text : undefined,
+    usage: toTokenUsage(response.usage),
+    created: response.created_at,
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined
+  }
+}
+
+function toTokenUsage (usage?: ResponseUsage): TokenUsage {
+  return {
+    inputTokens: usage?.input_tokens ?? 0,
+    outputTokens: usage?.output_tokens ?? 0
   }
 }

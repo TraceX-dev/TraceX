@@ -21,16 +21,25 @@ export interface AIEventRequest {
   messageClass: Ref<Class<ChatMessage>>
   messageId: Ref<ChatMessage>
   messageSpace: Ref<Space>
+
   objectClass: Ref<Class<Doc>>
   objectId: Ref<Doc>
   objectSpace: Ref<Space>
-  user: PersonId
+
   collection: string
+
+  user: PersonId
   createdOn: Timestamp
 }
 
+/**
+ * A mixin for ChatMessage that indicates start of AI thread
+ */
 export interface AIBotThread extends ChatMessage {}
 
+/**
+ * A mixin for ChatMessage that contains additional response details
+ */
 export interface AIBotMessage extends ChatMessage {
   tools: string[]
   inputTokens: number

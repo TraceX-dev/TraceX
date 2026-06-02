@@ -13,11 +13,6 @@
 // limitations under the License.
 //
 
-export interface LlmToolInfo {
-  name: string
-  description: string
-}
-
 interface PromptParams {
   lang?: string
   contextMode?: 'direct' | 'thread'

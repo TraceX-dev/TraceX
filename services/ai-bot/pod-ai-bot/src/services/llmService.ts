@@ -35,8 +35,6 @@ export interface ChatResult {
   tools: string[]
 }
 
-const MAX_TOOL_ROUNDS = 10
-
 const ZERO_USAGE: TokenUsage = { inputTokens: 0, outputTokens: 0 }
 
 function addUsage (a: TokenUsage, b: TokenUsage): TokenUsage {
@@ -77,14 +75,21 @@ export interface LLMService {
     options?: ChatCompletionOptions
   ) => Promise<ChatResult | undefined>
 
-  countTokens: (messages: ChatMessage[]) => number
+  countTokens: (messages: ChatMessage) => number
+}
+
+export interface LLMServiceConfig {
+  maxToolRounds: number
 }
 
 export class DefaultLLMService implements LLMService {
-  constructor (private readonly provider: LLMProvider) {}
+  constructor (
+    private readonly provider: LLMProvider,
+    private readonly config: LLMServiceConfig
+  ) {}
 
-  countTokens (messages: ChatMessage[]): number {
-    return this.provider.countTokens(messages)
+  countTokens (message: ChatMessage): number {
+    return this.provider.countTokens(message)
   }
 
   async translateHtml (
@@ -143,14 +148,14 @@ export class DefaultLLMService implements LLMService {
       { role: 'user', content }
     ])
 
-    const summarizeUsage = result.usage ?? ZERO_USAGE
-    if (totalTokens(summarizeUsage) > 0) {
+    const usage = result.usage ?? ZERO_USAGE
+    if (totalTokens(usage) > 0) {
       void pushTokensData(ctx, [
         {
           workspace,
           reason: 'summarize',
-          inputTokens: summarizeUsage.inputTokens,
-          outputTokens: summarizeUsage.outputTokens,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
           date: new Date((result.created ?? Math.floor(Date.now() / 1000)) * 1000).toISOString()
         }
       ])
@@ -167,7 +172,7 @@ export class DefaultLLMService implements LLMService {
       }
     }
 
-    return { text: summary, usage: summarizeUsage }
+    return { text: summary, usage }
   }
 
   async chat (
@@ -204,7 +209,7 @@ export class DefaultLLMService implements LLMService {
       let accumulatedUsage: TokenUsage = { ...ZERO_USAGE }
       const invokedToolNames = new Set<string>()
 
-      for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      for (let round = 0; round < this.config.maxToolRounds; round++) {
         const result = await this.provider.chatCompletionWithTools(ctx, conversationMessages, toolDefinitions, options)
 
         accumulatedUsage = addUsage(accumulatedUsage, result.usage ?? ZERO_USAGE)
@@ -247,26 +252,28 @@ export class DefaultLLMService implements LLMService {
         for (const toolCall of result.toolCalls) {
           invokedToolNames.add(toolCall.name)
           const executor = executorMap.get(toolCall.name)
-          let toolResult: string
+          let toolResult: ToolExecutorResult
 
           if (executor !== undefined) {
             try {
               const args = JSON.parse(toolCall.arguments)
-              const execResult = await executor(args)
-              toolResult = execResult.text
-              accumulatedUsage = addUsage(accumulatedUsage, execResult.usage ?? ZERO_USAGE)
+              toolResult = await executor(args)
+
+              accumulatedUsage = addUsage(accumulatedUsage, toolResult.usage ?? ZERO_USAGE)
             } catch (e: any) {
               ctx.error('Tool execution failed', { workspace, tool: toolCall.name, error: e.message ?? String(e) })
-              toolResult = `Error executing tool: ${e.message ?? String(e)}`
+              toolResult = { error: `Error executing tool: ${e.message ?? String(e)}` }
             }
           } else {
             ctx.warn('Unknown tool requested by LLM', { workspace, tool: toolCall.name })
-            toolResult = `Unknown tool: ${toolCall.name}`
+            toolResult = { error: `Unknown tool: ${toolCall.name}` }
           }
+
+          const toolResultText = 'error' in toolResult ? `Error: ${toolResult.error}` : toolResult.text
 
           conversationMessages.push({
             role: 'tool',
-            content: toolResult,
+            content: toolResultText,
             toolCallId: toolCall.id
           })
         }
@@ -304,5 +311,69 @@ export class DefaultLLMService implements LLMService {
     }
 
     return undefined
+  }
+}
+
+export class LoggingLLMService implements LLMService {
+  constructor (private readonly llm: LLMService) {}
+
+  countTokens (message: ChatMessage): number {
+    return this.llm.countTokens(message)
+  }
+
+  async translateHtml (
+    ctx: MeasureContext,
+    workspace: WorkspaceUuid,
+    html: string,
+    lang: string
+  ): Promise<{ text?: string, usage?: TokenUsage }> {
+    const params = { workspace, lang }
+    return await ctx.with('translateHtml', {}, (ctx) => this.llm.translateHtml(ctx, workspace, html, lang), params)
+  }
+
+  async summarizeMessages (
+    ctx: MeasureContext,
+    workspace: WorkspaceUuid,
+    messages: PersonMessage[],
+    lang: string
+  ): Promise<{ text?: string, usage?: TokenUsage }> {
+    const params = { workspace, lang }
+    return await ctx.with(
+      'summarizeMessages',
+      {},
+      (ctx) => this.llm.summarizeMessages(ctx, workspace, messages, lang),
+      params
+    )
+  }
+
+  async chat (
+    ctx: MeasureContext,
+    workspace: WorkspaceUuid,
+    messages: ChatMessage[],
+    contextMode: ContextMode,
+    assistantMemory: string,
+    userMemory: string,
+    sharedContext: string,
+    toolCtx: ToolContext,
+    options?: ChatCompletionOptions
+  ): Promise<ChatResult | undefined> {
+    const params = { workspace }
+    return await ctx.with(
+      'chat',
+      {},
+      (ctx) =>
+        this.llm.chat(
+          ctx,
+          workspace,
+          messages,
+          contextMode,
+          assistantMemory,
+          userMemory,
+          sharedContext,
+          toolCtx,
+          options
+        ),
+      params
+    )
   }
 }
