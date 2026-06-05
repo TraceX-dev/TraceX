@@ -13,10 +13,11 @@
 // limitations under the License.
 //
 
-import { type Builder, Mixin } from '@hcengineering/model'
+import { ArrOf, type Builder, Hidden, Mixin, Prop, TypeNumber, TypeString } from '@hcengineering/model'
+import core from '@hcengineering/model-core'
 import chunter from '@hcengineering/chunter'
 import { TChatMessage } from '@hcengineering/model-chunter'
-import { type AIBotThread } from '@hcengineering/ai-bot'
+import { type AIBotThread, type AIBotMessage } from '@hcengineering/ai-bot'
 
 import aiBot from './plugin'
 
@@ -27,6 +28,29 @@ export default aiBot
 @Mixin(aiBot.mixin.AIBotThread, chunter.class.ChatMessage)
 export class TAIBotThread extends TChatMessage implements AIBotThread {}
 
+@Mixin(aiBot.mixin.AIBotMessage, chunter.class.ChatMessage)
+export class TAIBotMessage extends TChatMessage implements AIBotMessage {
+  @Prop(ArrOf(TypeString()), core.string.String)
+  @Hidden()
+    tools!: string[]
+
+  @Prop(TypeString(), core.string.String)
+  @Hidden()
+    modelName!: string
+
+  @Prop(TypeString(), core.string.String)
+  @Hidden()
+    providerKind!: string
+
+  @Prop(TypeNumber(), core.string.String)
+  @Hidden()
+    inputTokens!: number
+
+  @Prop(TypeNumber(), core.string.String)
+  @Hidden()
+    outputTokens!: number
+}
+
 export function createModel (builder: Builder): void {
-  builder.createModel(TAIBotThread)
+  builder.createModel(TAIBotThread, TAIBotMessage)
 }

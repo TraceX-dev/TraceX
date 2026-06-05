@@ -24181,8 +24181,8 @@ importers:
         specifier: ^1.0.14
         version: 1.0.21
       openai:
-        specifier: ^4.56.0
-        version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
+        specifier: ^6.39.0
+        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -37547,6 +37547,9 @@ importers:
       '@hcengineering/client-resources':
         specifier: workspace:^0.7.19
         version: link:../../../foundations/core/packages/client-resources
+      '@hcengineering/collaborator-client':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/core/packages/collaborator-client
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/contact
@@ -37556,6 +37559,9 @@ importers:
       '@hcengineering/document':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/document
+      '@hcengineering/drive':
+        specifier: workspace:^0.7.0
+        version: link:../../../plugins/drive
       '@hcengineering/kafka':
         specifier: workspace:^0.7.18
         version: link:../../../foundations/server/packages/kafka
@@ -37635,8 +37641,8 @@ importers:
         specifier: ^11.1.0
         version: 11.2.2
       openai:
-        specifier: ^4.56.0
-        version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
+        specifier: ^6.39.0
+        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
       postgres:
         specifier: ^3.4.7
         version: 3.4.7
@@ -41812,8 +41818,8 @@ importers:
         specifier: ^16.4.5
         version: 16.6.1
       openai:
-        specifier: ^4.56.0
-        version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
+        specifier: ^6.39.0
+        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -50000,12 +50006,12 @@ packages:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
 
-  openai@4.104.0:
-    resolution: {integrity: sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA==}
+  openai@6.39.1:
+    resolution: {integrity: sha512-z3dO9fEWOXBzlXynVb/xZ/tujzUjFWQWn3C0n0mw6Vo0zJTbEkaN4b2cLWjhJ6haJQx8LlREoafHRl+Gu/Hl+A==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
-      zod: ^3.23.8
+      zod: ^3.25 || ^4.0
     peerDependenciesMeta:
       ws:
         optional: true
@@ -62129,20 +62135,10 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76):
-    dependencies:
-      '@types/node': 18.19.130
-      '@types/node-fetch': 2.6.13
-      abort-controller: 3.0.0
-      agentkeepalive: 4.6.0
-      form-data-encoder: 1.7.2
-      formdata-node: 4.4.1
-      node-fetch: 2.7.0(encoding@0.1.13)
+  openai@6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76):
     optionalDependencies:
       ws: 8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5)
       zod: 3.25.76
-    transitivePeerDependencies:
-      - encoding
 
   opener@1.5.2: {}
 

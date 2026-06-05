@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { RegisteredTool, ToolDependencies } from './types'
+import { RegisteredTool, ToolContext } from './types'
 
 export const getAssistantMemoryTool: RegisteredTool = {
   definition: {
@@ -25,9 +25,9 @@ export const getAssistantMemoryTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.user === undefined) return { text: 'No user context available' }
-    const history = await deps.memoryStorage.getHistory(deps.user)
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    if (toolCtx.user === undefined) return { text: 'No user context available' }
+    const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
     if (history.assistantMemory === '') {
       return { text: 'No assistant memory stored yet.' }
     }
@@ -53,8 +53,8 @@ export const updateAssistantMemoryTool: RegisteredTool = {
       required: ['memory']
     }
   },
-  createExecutor: (deps: ToolDependencies) => async (args: Record<string, any>) => {
-    await deps.memoryStorage.updateAssistantMemory(deps.user, args)
+  createExecutor: (toolCtx: ToolContext) => async (args: Record<string, any>) => {
+    await toolCtx.memoryStorage.updateAssistantMemory(toolCtx.user, args)
     return { text: 'Assistant memory updated.' }
   },
   contextMode: 'direct'
@@ -70,9 +70,9 @@ export const clearAssistantMemoryTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.user === undefined) return { text: 'No user context available' }
-    await deps.memoryStorage.updateAssistantMemory(deps.user, { memory: '' })
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    if (toolCtx.user === undefined) return { text: 'No user context available' }
+    await toolCtx.memoryStorage.updateAssistantMemory(toolCtx.user, { memory: '' })
     return { text: 'Assistant memory cleared.' }
   },
   contextMode: 'direct'
@@ -87,9 +87,9 @@ export const getUserMemoryTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.user === undefined) return { text: 'No user context available' }
-    const history = await deps.memoryStorage.getHistory(deps.user)
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    if (toolCtx.user === undefined) return { text: 'No user context available' }
+    const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
     if (history.userMemory === '') {
       return { text: 'No user memory stored yet.' }
     }
@@ -115,9 +115,9 @@ export const updateUserMemoryTool: RegisteredTool = {
       required: ['memory']
     }
   },
-  createExecutor: (deps: ToolDependencies) => async (args: Record<string, any>) => {
-    if (deps.user === undefined) return { text: 'No user context available' }
-    await deps.memoryStorage.updateUserMemory(deps.user, args)
+  createExecutor: (toolCtx: ToolContext) => async (args: Record<string, any>) => {
+    if (toolCtx.user === undefined) return { text: 'No user context available' }
+    await toolCtx.memoryStorage.updateUserMemory(toolCtx.user, args)
     return { text: 'User memory updated' }
   },
   contextMode: 'direct'
@@ -132,9 +132,9 @@ export const clearUserMemoryTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.user === undefined) return { text: 'No user context available' }
-    await deps.memoryStorage.updateUserMemory(deps.user, { memory: '' })
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    if (toolCtx.user === undefined) return { text: 'No user context available' }
+    await toolCtx.memoryStorage.updateUserMemory(toolCtx.user, { memory: '' })
     return { text: 'User memory cleared.' }
   },
   contextMode: 'direct'
@@ -149,9 +149,9 @@ export const getSharedContextTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.user === undefined) return { text: 'No user context available' }
-    const history = await deps.memoryStorage.getHistory(deps.user)
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    if (toolCtx.user === undefined) return { text: 'No user context available' }
+    const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
     if (history.sharedContext === '') {
       return { text: 'No shared context stored yet.' }
     }
@@ -177,9 +177,9 @@ export const updateSharedContextTool: RegisteredTool = {
       required: ['context']
     }
   },
-  createExecutor: (deps: ToolDependencies) => async (args: Record<string, any>) => {
-    if (deps.user === undefined) return { text: 'No shared context available' }
-    await deps.memoryStorage.updateSharedContext(deps.user, args)
+  createExecutor: (toolCtx: ToolContext) => async (args: Record<string, any>) => {
+    if (toolCtx.user === undefined) return { text: 'No shared context available' }
+    await toolCtx.memoryStorage.updateSharedContext(toolCtx.user, args)
     return { text: 'Shared context memory updated' }
   },
   contextMode: 'direct'
@@ -195,9 +195,9 @@ export const clearHistoryTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.user === undefined) return { text: 'No shared context available' }
-    await deps.memoryStorage.clearHistory(deps.user)
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    if (toolCtx.user === undefined) return { text: 'No shared context available' }
+    await toolCtx.memoryStorage.clearHistory(toolCtx.user)
     return { text: 'Conversation history has been cleared. Starting fresh conversation.' }
   },
   contextMode: 'direct'

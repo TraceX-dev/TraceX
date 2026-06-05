@@ -34,6 +34,7 @@ export interface LlmModelConfig {
 
 interface YamlConfig {
   accountsUrl: string
+  collaboratorUrl: string
   dbUrl: string
   serverSecret: string
   serviceId: string
@@ -80,6 +81,7 @@ interface YamlConfig {
 
 export interface Config {
   AccountsURL: string
+  CollaboratorURL: string
   DbURL: string
   ServerSecret: string
   ServiceID: string
@@ -202,6 +204,12 @@ const configSchema: Schema<YamlConfig> = {
     format: 'required-string',
     default: null,
     env: 'ACCOUNTS_URL'
+  },
+  collaboratorUrl: {
+    doc: 'Collaborator service URL',
+    format: 'required-string',
+    default: null,
+    env: 'COLLABORATOR_URL'
   },
   dbUrl: {
     doc: 'Database URL',
@@ -381,6 +389,7 @@ function loadConfig (): Config {
 
   return {
     AccountsURL: parsed.accountsUrl,
+    CollaboratorURL: parsed.collaboratorUrl,
     DbURL: parsed.dbUrl,
     ServerSecret: parsed.serverSecret,
     ServiceID: parsed.serviceId,
