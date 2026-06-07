@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -38,6 +39,7 @@ import core, {
   type WorkspaceUuid
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
+import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-client'
 import { getAccountClient } from '@hcengineering/server-client'
 import { generateToken } from '@hcengineering/server-token'
 import { htmlToMarkup, jsonToHTML, jsonToMarkup, markupToJSON } from '@hcengineering/text'
@@ -56,6 +58,7 @@ import { registerLlmTools } from './tools'
 import { tryAssignToWorkspace } from './utils/account'
 import { WorkspaceClient } from './workspace/workspaceClient'
 import contact, { Contact, getName, SocialIdentityRef } from '@hcengineering/contact'
+import { LoggingLLMService } from './services/llmService'
 
 const CLOSE_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 
@@ -75,11 +78,15 @@ export class AIControl {
     private readonly ctx: MeasureContext
   ) {
     this.providers = createProviders()
-    const primaryProvider = this.providers.values().next().value
-    if (primaryProvider === undefined) {
+    const primaryConfig = config.Llm[0]
+    if (primaryConfig === undefined) {
       throw new Error('No LLM providers configured')
     }
-    this.llmService = new DefaultLLMService(primaryProvider)
+    const primaryProvider = this.providers.get(primaryConfig.id)
+    if (primaryProvider === undefined) {
+      throw new Error(`LLM provider '${primaryConfig.id}' not found`)
+    }
+    this.llmService = new LoggingLLMService(new DefaultLLMService(primaryProvider, { maxToolRounds: 10 }))
 
     // Register LLM-backed tools
     for (const llmConfig of config.Llm) {
@@ -165,8 +172,10 @@ export class AIControl {
       return ref.clientPromise
     })
 
+    const collaborator = getCollaboratorClient(workspace, token, config.CollaboratorURL)
     const wsClient = new WorkspaceClient(
       this.storageAdapter,
+      collaborator,
       wsLoginInfo.endpoint,
       token,
       wsIds,
@@ -349,7 +358,7 @@ export class AIControl {
         continue
       }
       try {
-        await wsClient.processMessageEvent(event)
+        await this.ctx.with('processMessageEvent', {}, (ctx) => wsClient.processMessageEvent(ctx, event))
       } catch (e: any) {
         this.ctx.error('Failed to process message event', {
           workspace,

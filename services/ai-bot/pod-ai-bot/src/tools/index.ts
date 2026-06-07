@@ -24,7 +24,7 @@ import {
   clearHistoryTool,
   clearUserMemoryTool
 } from './memory'
-import { getObjectContentTool } from './document'
+import { readObjectContentTool, readReferencedObjectContentTool } from './document'
 import { saveFileTool, getDataBeforeImportTool } from './pdf'
 import { type RegisteredTool } from './types'
 import { ContextMode } from '../providers'
@@ -59,7 +59,8 @@ const registeredTools: RegisteredTool[] = [
 
   // Context Object
   // getObjectAttributesTool,
-  getObjectContentTool
+  readObjectContentTool,
+  readReferencedObjectContentTool
 ]
 
 export function getRegisteredTools (): RegisteredTool[] {
@@ -74,7 +75,7 @@ export function getTools (contextMode: ContextMode): RegisteredTool[] {
 export {
   type RegisteredTool,
   type ToolDefinition,
-  type ToolDependencies,
+  type ToolContext,
   type ToolExecutor,
   type ToolExecutorResult,
   type WorkspaceOps

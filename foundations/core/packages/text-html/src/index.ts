@@ -13,11 +13,13 @@
 // limitations under the License.
 //
 
-import { type MarkupNode } from '@hcengineering/text-core'
+import { markupToJSON, type MarkupNode } from '@hcengineering/text-core'
 import { type HtmlParserOptions, HtmlParser } from './parser'
 import { type HtmlSerializerOptions, HtmlSerializer } from './serializer'
+import { Markup } from '../../core/types/classes'
 
-export function markupToHtml (markup: MarkupNode, options: HtmlSerializerOptions = {}): string {
+export function markupToHtml (markup: MarkupNode | Markup, options: HtmlSerializerOptions = {}): string {
+  markup = typeof markup === 'string' ? markupToJSON(markup) : markup
   const serializer = new HtmlSerializer(options)
   return serializer.serialize(markup)
 }

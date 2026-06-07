@@ -24,6 +24,7 @@ import { markupToJSON } from './utils'
 export interface Reference {
   objectId: Ref<Doc>
   objectClass: Ref<Class<Doc>>
+  objectLabel: string
   parentNode: MarkupNode | null
 }
 
@@ -42,9 +43,10 @@ export function extractReferences (content: MarkupNode | Markup | string): Array
       const reference = node as ReferenceMarkupNode
       const objectId = reference.attrs.id as Ref<Doc>
       const objectClass = reference.attrs.objectclass as Ref<Class<Doc>>
+      const objectLabel = reference.attrs.label ?? node.text ?? ''
       const e = result.find((e) => e.objectId === objectId && e.objectClass === objectClass)
       if (e === undefined) {
-        result.push({ objectId, objectClass, parentNode: parent ?? node })
+        result.push({ objectId, objectClass, objectLabel, parentNode: parent ?? node })
       }
     }
     return true

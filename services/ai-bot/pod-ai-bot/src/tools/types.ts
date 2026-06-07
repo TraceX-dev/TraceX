@@ -27,6 +27,7 @@ import {
 import { StorageAdapter } from '@hcengineering/server-core'
 import { ContextMode, type TokenUsage } from '../providers/types'
 import { MemoryStorage } from '../storage'
+import { CollaboratorClient } from '@hcengineering/collaborator-client'
 
 export interface ToolDefinition {
   name: string
@@ -34,10 +35,15 @@ export interface ToolDefinition {
   parameters: Record<string, any>
 }
 
-export interface ToolExecutorResult {
-  text: string
-  usage?: TokenUsage
-}
+export type ToolExecutorResult =
+  | {
+    text: string
+    usage?: TokenUsage
+  }
+  | {
+    error: string
+    usage?: TokenUsage
+  }
 
 export type ToolExecutor = (args: any) => Promise<ToolExecutorResult>
 
@@ -48,11 +54,12 @@ export interface WorkspaceOps {
   getClient: () => Promise<TxOperations>
 }
 
-export interface ToolDependencies {
+export interface ToolContext {
   memoryStorage: MemoryStorage
+  collaborator: CollaboratorClient
   user: AccountUuid | undefined
   workspace: WorkspaceUuid
-  workspaceOps?: WorkspaceOps
+  workspaceOps: WorkspaceOps
   objectId?: Ref<Doc>
   objectClass?: Ref<Class<Doc>>
   objectSpace?: Ref<Space>
@@ -60,7 +67,6 @@ export interface ToolDependencies {
 
 export interface RegisteredTool {
   definition: ToolDefinition
-  createExecutor: (deps: ToolDependencies) => ToolExecutor
+  createExecutor: (toolCtx: ToolContext) => ToolExecutor
   contextMode: ContextMode | 'any'
-  isLlmTool?: boolean
 }
