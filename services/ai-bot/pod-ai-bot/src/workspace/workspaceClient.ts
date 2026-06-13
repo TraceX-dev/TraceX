@@ -77,7 +77,7 @@ interface LLMHistoryRecord {
   content: string
 }
 
-const MAX_PROMPT_ATTACHMENT_BYTES = 1024 * 1024
+const MAX_PROMPT_ATTACHMENT_BYTES = 1024 * 1024 * 10
 
 export class WorkspaceClient {
   rate = new RateLimiter(1)
