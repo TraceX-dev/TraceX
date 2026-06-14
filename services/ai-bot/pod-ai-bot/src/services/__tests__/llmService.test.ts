@@ -18,6 +18,7 @@ const workspace = '00000000-0000-4000-8000-000000000001' as any
 
 function createCtx (): any {
   return {
+    info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn()
   }
@@ -198,8 +199,9 @@ describe('DefaultLLMService', () => {
       })
     const service = new DefaultLLMService(provider, { maxToolRounds: 3 })
 
+    const ctx = createCtx()
     const result = await service.chat(
-      createCtx(),
+      ctx,
       workspace,
       [{ role: 'user', content: 'Use a tool' }],
       'thread',

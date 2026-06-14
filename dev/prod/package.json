@@ -62,6 +62,7 @@
     "@hcengineering/activity-assets": "workspace:^0.7.0",
     "@hcengineering/activity-resources": "workspace:^0.7.0",
     "@hcengineering/ai-bot": "workspace:^0.7.0",
+    "@hcengineering/ai-bot-assets": "workspace:^0.7.0",
     "@hcengineering/ai-bot-resources": "workspace:^0.7.0",
     "@hcengineering/analytics": "workspace:^0.7.19",
     "@hcengineering/analytics-providers": "workspace:^0.7.0",

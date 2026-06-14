@@ -1,5 +1,4 @@
 //
-// Copyright © 2024 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,15 +12,3 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-
-import { type Resources } from '@hcengineering/platform'
-import AiTokenUsagePresenter from './components/AiTokenUsagePresenter.svelte'
-
-export * from './requests'
-export * from './utils'
-
-export default async (): Promise<Resources> => ({
-  component: {
-    AiTokenUsagePresenter
-  }
-})

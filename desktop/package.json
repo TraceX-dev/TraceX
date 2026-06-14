@@ -232,6 +232,7 @@
     "@hcengineering/analytics-collector-assets": "workspace:^0.7.0",
     "@hcengineering/analytics-collector-resources": "workspace:^0.7.0",
     "@hcengineering/ai-bot": "workspace:^0.7.0",
+    "@hcengineering/ai-bot-assets": "workspace:^0.7.0",
     "@hcengineering/ai-bot-resources": "workspace:^0.7.0",
     "@hcengineering/test-management": "workspace:^0.7.0",
     "@hcengineering/test-management-assets": "workspace:^0.7.0",
