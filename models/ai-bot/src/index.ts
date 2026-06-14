@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,8 @@ import core from '@hcengineering/model-core'
 import chunter from '@hcengineering/chunter'
 import { TChatMessage } from '@hcengineering/model-chunter'
 import { type AIBotThread, type AIBotMessage } from '@hcengineering/ai-bot'
+import activity from '@hcengineering/activity'
+import presentation from '@hcengineering/model-presentation'
 
 import aiBot from './plugin'
 
@@ -53,4 +56,14 @@ export class TAIBotMessage extends TChatMessage implements AIBotMessage {
 
 export function createModel (builder: Builder): void {
   builder.createModel(TAIBotThread, TAIBotMessage)
+  builder.createDoc(
+    presentation.class.ComponentPointExtension,
+    core.space.Model,
+    {
+      extension: activity.extension.ActivityMessageHeader,
+      component: aiBot.component.AiTokenUsagePresenter,
+      props: {}
+    },
+    aiBot.extensions.AiTokenUsagePresenter
+  )
 }

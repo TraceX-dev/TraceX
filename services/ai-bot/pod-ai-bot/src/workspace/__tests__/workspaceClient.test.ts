@@ -1,3 +1,4 @@
+import aiBot from '@hcengineering/ai-bot'
 import chunter from '@hcengineering/chunter'
 import { jsonToMarkup, MarkupNodeType } from '@hcengineering/text'
 
@@ -187,7 +188,17 @@ describe('WorkspaceClient', () => {
       'messages',
       expect.objectContaining({ message: expect.any(String) })
     )
-    expect(txClient.createMixin).not.toHaveBeenCalled()
+    expect(txClient.createMixin).toHaveBeenCalledWith(
+      'reply-1',
+      chunter.class.ChatMessage,
+      'space-1',
+      aiBot.mixin.AIBotMessage,
+      {
+        tools: ['lookup'],
+        inputTokens: 5,
+        outputTokens: 7
+      }
+    )
   })
 
   it('uses thread context mode and replies to object threads', async () => {
@@ -219,7 +230,7 @@ describe('WorkspaceClient', () => {
       'reply-1',
       chunter.class.ChatMessage,
       'space-1',
-      expect.any(String),
+      aiBot.mixin.AIBotMessage,
       {
         tools: ['lookup'],
         inputTokens: 5,
