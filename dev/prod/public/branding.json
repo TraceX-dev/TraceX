@@ -1,7 +1,7 @@
 {
-  "tracex.local:8080": {
-    "title": "TraceX",
-    "languages": "en,ru,pt,pt-br,es,zh,fr,de,ja,ko,tr",
+  "huly.local:8080": {
+    "title": "Huly",
+    "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "en",
     "defaultApplication": "tracker",
     "defaultSpace": "tracker:project:DefaultProject",
@@ -28,9 +28,9 @@
       }
     ]
   },
-  "tracex.local:8087": {
-    "title": "TraceX",
-    "languages": "en,ru,pt,pt-br,es,zh,fr,de,ja,ko,tr",
+  "huly.local:8087": {
+    "title": "Huly",
+    "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "en",
     "defaultApplication": "tracker",
     "defaultSpace": "tracker:project:DefaultProject",
