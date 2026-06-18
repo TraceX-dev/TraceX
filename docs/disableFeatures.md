@@ -16,7 +16,6 @@ Please set a DISABLED_FEATURES environment variable for front service container,
 - invites - Will disable invites UI
 - documents - Will disable Control Documents
 - calendar - Will disable Calendar UI
-- inventory - Will disable inventory
 - survey - Will disable Surveys
 - lead - Will disable leada
 - products - Will disable products

@@ -19,8 +19,6 @@ import { activityOperation } from '@hcengineering/model-activity'
 import { aiBotId, aiBotOperation } from '@hcengineering/model-ai-bot'
 import { analyticsCollectorOperation } from '@hcengineering/model-analytics-collector'
 import { attachmentOperation } from '@hcengineering/model-attachment'
-import { bitrixOperation } from '@hcengineering/model-bitrix'
-import { boardOperation } from '@hcengineering/model-board'
 import { calendarOperation } from '@hcengineering/model-calendar'
 import { cardOperation } from '@hcengineering/model-card'
 import { chatId, chatOperation } from '@hcengineering/model-chat'
@@ -36,7 +34,6 @@ import { gmailOperation } from '@hcengineering/model-gmail'
 import { guestOperation } from '@hcengineering/model-guest'
 import { hrOperation } from '@hcengineering/model-hr'
 import { inboxId, inboxOperation } from '@hcengineering/model-inbox'
-import { inventoryOperation } from '@hcengineering/model-inventory'
 import { leadOperation } from '@hcengineering/model-lead'
 import { loveId, loveOperation } from '@hcengineering/model-love'
 import { notificationOperation } from '@hcengineering/model-notification'
@@ -90,12 +87,9 @@ export const migrateOperations: [string, MigrateOperation][] = [
   ['training', trainingOperation],
   ['request', requestOperation],
   ['products', productsOperation],
-  ['board', boardOperation],
   ['hr', hrOperation],
   ['document', documentOperation],
   ['drive', driveOperation],
-  ['bitrix', bitrixOperation],
-  ['inventiry', inventoryOperation],
   ['github', githubOperation],
   ['pre-time', githubOperationPreTime],
   ['time', timeOperation],

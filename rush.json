@@ -1191,26 +1191,6 @@
       "shouldPublish": false
     },
     {
-      "packageName": "@hcengineering/model-inventory",
-      "projectFolder": "models/inventory",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/inventory",
-      "projectFolder": "plugins/inventory",
-      "shouldPublish": true
-    },
-    {
-      "packageName": "@hcengineering/inventory-assets",
-      "projectFolder": "plugins/inventory-assets",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/inventory-resources",
-      "projectFolder": "plugins/inventory-resources",
-      "shouldPublish": false
-    },
-    {
       "packageName": "@hcengineering/templates",
       "projectFolder": "plugins/templates",
       "shouldPublish": true
@@ -1338,21 +1318,6 @@
     {
       "packageName": "@hcengineering/server-chunter-resources",
       "projectFolder": "server-plugins/chunter-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/server-inventory",
-      "projectFolder": "server-plugins/inventory",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/model-server-inventory",
-      "projectFolder": "models/server-inventory",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/server-inventory-resources",
-      "projectFolder": "server-plugins/inventory-resources",
       "shouldPublish": false
     },
     {
@@ -1530,27 +1495,6 @@
       "projectFolder": "models/tracker",
       "shouldPublish": false
     },
-
-    {
-      "packageName": "@hcengineering/board",
-      "projectFolder": "plugins/board",
-      "shouldPublish": true
-    },
-    {
-      "packageName": "@hcengineering/board-assets",
-      "projectFolder": "plugins/board-assets",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/board-resources",
-      "projectFolder": "plugins/board-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/model-board",
-      "projectFolder": "models/board",
-      "shouldPublish": false
-    },
     {
       "packageName": "@hcengineering/kanban",
       "projectFolder": "packages/kanban",
@@ -1644,26 +1588,6 @@
     {
       "packageName": "@hcengineering/server-hr-resources",
       "projectFolder": "server-plugins/hr-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/bitrix",
-      "projectFolder": "plugins/bitrix",
-      "shouldPublish": true
-    },
-    {
-      "packageName": "@hcengineering/bitrix-assets",
-      "projectFolder": "plugins/bitrix-assets",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/bitrix-resources",
-      "projectFolder": "plugins/bitrix-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/model-bitrix",
-      "projectFolder": "models/bitrix",
       "shouldPublish": false
     },
     {

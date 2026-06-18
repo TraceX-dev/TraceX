@@ -222,7 +222,7 @@ describe('rest-api-server', () => {
     const { hierarchy, model } = await conn.getModel()
 
     const dsc = hierarchy.getDescendants(core.class.Space)
-    expect(dsc.length).toBe(33) // todo fix this stupid test
+    expect(dsc.length).toBe(32) // todo fix this stupid test
     expect(model.getObject(core.class.Space)).not.toBeNull()
   })
 
