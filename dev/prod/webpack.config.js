@@ -67,11 +67,6 @@ const devProxy = {
     changeOrigin: true,
     logLevel: 'debug'
   },
-  '/import': {
-    target: 'http://tracex.local:8087',
-    changeOrigin: true,
-    logLevel: 'debug'
-  },
   '/rekoni/recognize': {
     target: 'http://tracex.local:4004',
     changeOrigin: true,
@@ -93,11 +88,6 @@ const devProxyTest = {
     logLevel: 'debug'
   },
   '/api/v1': {
-    target: 'http://tracex.local:8083',
-    changeOrigin: true,
-    logLevel: 'debug'
-  },
-  '/import': {
     target: 'http://tracex.local:8083',
     changeOrigin: true,
     logLevel: 'debug'
