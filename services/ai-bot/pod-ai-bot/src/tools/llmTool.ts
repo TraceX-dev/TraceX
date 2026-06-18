@@ -55,7 +55,6 @@ export function createLlmTool (options: LlmToolOptions): RegisteredTool {
 
       return { text: response, usage: result.usage }
     },
-    contextMode: 'any',
-    isLlmTool: true
+    contextMode: 'any'
   }
 }

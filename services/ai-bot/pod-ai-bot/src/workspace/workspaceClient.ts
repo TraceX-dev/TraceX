@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import {
+import aiBot, {
   AIEventRequest,
   ConnectMeetingRequest,
   DisconnectMeetingRequest,
@@ -48,26 +49,35 @@ import core, {
   type WorkspaceIds
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
-import fs from 'fs'
-import { LRUCache } from 'lru-cache'
-import type { ContextMode, ChatMessage as LLMChatMessage } from '../providers'
-import { type LLMService } from '../services'
-import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
-import { type ToolDependencies, type WorkspaceOps } from '../tools'
-
+import { CollaboratorClient } from '@hcengineering/collaborator-client'
 import { getAccountClient } from '@hcengineering/server-client'
 import { StorageAdapter } from '@hcengineering/server-core'
-import { jsonToMarkup, markupToText } from '@hcengineering/text'
+import { extractReferences, jsonToMarkup, markupToText } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
-import config from '../config'
+
+import fs from 'fs'
+import { LRUCache } from 'lru-cache'
+
+import type {
+  ChatMessageAttachment,
+  ChatMessageReference,
+  ContextMode,
+  ChatMessage as LLMChatMessage
+} from '../providers'
+import { ChatResult, type LLMService } from '../services'
+import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
+import { type ToolContext, type WorkspaceOps } from '../tools'
 import { getGlobalPerson } from '../utils/account'
 import { connectPlatform } from '../utils/platform'
+import config from '../config'
 import { LoveController } from './love'
 
 interface LLMHistoryRecord {
   role: 'user' | 'assistant' | 'system'
   content: string
 }
+
+const MAX_PROMPT_ATTACHMENT_BYTES = 1024 * 1024 * 10
 
 export class WorkspaceClient {
   rate = new RateLimiter(1)
@@ -82,6 +92,7 @@ export class WorkspaceClient {
 
   constructor (
     readonly storage: StorageAdapter,
+    readonly collaborator: CollaboratorClient,
     readonly transactorUrl: string,
     readonly token: string,
     readonly wsIds: WorkspaceIds,
@@ -215,13 +226,23 @@ export class WorkspaceClient {
     return result
   }
 
-  private async getAttachments (client: TxOperations, objectId: Ref<Doc>): Promise<Attachment[]> {
-    return await client.findAll(attachment.class.Attachment, { attachedTo: objectId })
+  async findPersonUuid (user: PersonId): Promise<PersonUuid | undefined> {
+    const cachedUuid = this.personUuidBySocialId.get(user)
+    if (cachedUuid !== undefined) {
+      return cachedUuid
+    }
+
+    const accountClient = getAccountClient(this.token)
+    const personUuid = await accountClient.findPersonBySocialId(user)
+    if (personUuid !== undefined) {
+      this.personUuidBySocialId.set(user, personUuid)
+      return personUuid
+    }
   }
 
-  async processMessageEvent (event: AIEventRequest): Promise<void> {
+  async processMessageEvent (ctx: MeasureContext, event: AIEventRequest): Promise<void> {
     if (this.processedMessages.has(event.messageId)) {
-      this.ctx.warn('Duplicate message event, skipping', {
+      ctx.warn('Duplicate message event, skipping', {
         workspace: this.wsIds.uuid,
         messageId: event.messageId
       })
@@ -229,44 +250,38 @@ export class WorkspaceClient {
     }
     this.processedMessages.set(event.messageId, true)
 
-    this.ctx.info('Processing message event', { workspace: this.wsIds.uuid, event })
+    ctx.info('Processing message event', { workspace: this.wsIds.uuid, event })
 
-    const client = await this.clientPromise
-
-    const { user, objectId, objectClass } = event
-    const accountClient = getAccountClient(this.token)
-    const personUuid = this.personUuidBySocialId.get(user) ?? (await accountClient.findPersonBySocialId(user))
-
-    const contextMode = objectClass === chunter.class.DirectMessage ? 'direct' : 'thread'
-
+    const personUuid = await this.findPersonUuid(event.user)
     if (personUuid === undefined) {
-      this.ctx.warn('Cannot resolve personUuid for user, skipping event', {
+      ctx.warn('Cannot resolve personUuid for user, skipping event', {
         workspace: this.wsIds.uuid,
-        user
+        user: event.user
       })
       return
     }
 
-    this.personUuidBySocialId.set(user, personUuid)
+    const { objectId, objectClass } = event
 
-    let promptText = markupToText(event.message)
-    const files = await this.getAttachments(client, event.messageId)
-    if (files.length > 0) {
-      promptText += '\n\nAttachments:'
-      for (const file of files) {
-        promptText += `\nName:${file.name} FileId:${file.file} Type:${file.type}`
-      }
+    const client = await this.clientPromise
+
+    const references = this.extractReferences(event.message)
+    const attachments = await this.readAttachments(ctx, client, event)
+    const promptText = buildPrompt(event.message, references, attachments)
+
+    const prompt: LLMChatMessage = {
+      content: promptText,
+      role: 'user' as const,
+      attachments
     }
-    const prompt: LLMChatMessage = { content: promptText, role: 'user' as const }
-    const promptTokens = this.llmService.countTokens([prompt])
+    const promptTokens = this.llmService.countTokens(prompt)
 
-    this.ctx.info('Prepared prompt', {
+    ctx.info('Prepared prompt', {
       workspace: this.wsIds.uuid,
       personUuid,
-      contextMode,
       promptTokens,
-      promptLength: promptText.length,
-      attachments: files.length
+      references: references.length,
+      attachments: attachments.length
     })
 
     const rawHistory = await this.memoryStorage.getHistory(personUuid)
@@ -274,7 +289,7 @@ export class WorkspaceClient {
 
     await this.memoryStorage.pushHistory(
       personUuid,
-      promptText,
+      prompt.content,
       'user',
       promptTokens,
       personUuid,
@@ -286,6 +301,7 @@ export class WorkspaceClient {
 
     const systemPrompts: LLMHistoryRecord[] = []
 
+    const contextMode = objectClass === chunter.class.DirectMessage ? 'direct' : 'thread'
     if (contextMode !== 'direct') {
       const msg = await client.findOne<Doc>(objectClass, { _id: objectId })
       if (msg !== undefined) {
@@ -335,7 +351,7 @@ export class WorkspaceClient {
         })
       }
 
-      this.ctx.info('Thread context loaded', {
+      ctx.info('Thread context loaded', {
         workspace: this.wsIds.uuid,
         threadMessages: lastMessages.length,
         systemPrompts: systemPrompts.length
@@ -343,14 +359,15 @@ export class WorkspaceClient {
     }
 
     const workspaceOps: WorkspaceOps = {
+      ctx,
       storage: this.storage,
-      ctx: this.ctx,
       wsIds: this.wsIds,
       getClient: () => this.clientPromise
     }
 
-    const toolDeps: ToolDependencies = {
+    const toolCtx: ToolContext = {
       memoryStorage: this.memoryStorage,
+      collaborator: this.collaborator,
       user: personUuid as AccountUuid,
       workspace: this.wsIds.uuid,
       workspaceOps,
@@ -362,67 +379,56 @@ export class WorkspaceClient {
     const chatMessages: LLMChatMessage[] = [...systemPrompts, ...useHistory, prompt]
 
     const chatCompletion = await this.llmService.chat(
-      this.ctx,
+      ctx,
       this.wsIds.uuid,
       chatMessages,
       contextMode,
       rawHistory.assistantMemory,
       rawHistory.userMemory,
       rawHistory.sharedContext,
-      toolDeps,
+      toolCtx,
       { user: personUuid as AccountUuid }
     )
-    const response = chatCompletion?.completion
 
-    if (response == null) {
-      this.ctx.warn('LLM returned no response', {
+    if (chatCompletion !== undefined) {
+      const response = chatCompletion.completion ?? ''
+      ctx.info('LLM response received', {
         workspace: this.wsIds.uuid,
         personUuid,
-        contextMode,
-        chatCompletionUndefined: chatCompletion === undefined,
-        completionNull: chatCompletion?.completion === null,
-        completionUndefined: chatCompletion?.completion === undefined,
+        responseLength: response.length,
         usage: chatCompletion?.usage
       })
 
-      const errorMessage = 'Sorry, I was unable to process your request. Please try again later.'
-      await this.sendReply(client, contextMode, event, errorMessage)
-      return
+      const usage = chatCompletion.usage
+      const responseTokens =
+        usage !== undefined
+          ? usage.inputTokens + usage.outputTokens
+          : this.llmService.countTokens({ role: 'assistant', content: response })
+
+      await this.memoryStorage.pushHistory(
+        personUuid,
+        response,
+        'assistant',
+        responseTokens,
+        personUuid,
+        objectId,
+        objectClass
+      )
+      await this.memoryStorage.saveHistory(personUuid, await this.memoryStorage.getHistory(personUuid))
     }
 
-    this.ctx.info('LLM response received', {
-      workspace: this.wsIds.uuid,
-      personUuid,
-      responseLength: response.length,
-      usage: chatCompletion?.usage
-    })
-
-    const usage = chatCompletion?.usage
-    const responseTokens =
-      usage !== undefined
-        ? usage.inputTokens + usage.outputTokens
-        : this.llmService.countTokens([{ role: 'assistant', content: response }])
-
-    await this.memoryStorage.pushHistory(
-      personUuid,
-      response,
-      'assistant',
-      responseTokens,
-      personUuid,
-      objectId,
-      objectClass
-    )
-    await this.memoryStorage.saveHistory(personUuid, await this.memoryStorage.getHistory(personUuid))
-
-    await this.sendReply(client, contextMode, event, response)
+    await this.sendReply(client, contextMode, event, chatCompletion)
   }
 
   private async sendReply (
     client: TxOperations,
     contextMode: ContextMode,
     event: AIEventRequest,
-    markdown: string
+    chatCompletion: ChatResult | undefined
   ): Promise<void> {
+    const markdown =
+      chatCompletion?.completion ?? 'Sorry, I was unable to process your request. Please try again later.'
+
     const { objectId, objectClass, messageId, messageClass, messageSpace, collection } = event
     const message = jsonToMarkup(markdownToMarkup(markdown, { refUrl: '', imageUrl: '' }))
 
@@ -433,8 +439,9 @@ export class WorkspaceClient {
           ? 'thread'
           : 'chat' // Otherwise reply depending on context mode
 
+    let replyId: Ref<ChatMessage> | undefined
     if (replyTo === 'chat') {
-      await client.addCollection<Doc, ChatMessage>(
+      replyId = await client.addCollection<Doc, ChatMessage>(
         chunter.class.ChatMessage,
         messageSpace,
         objectId,
@@ -456,15 +463,75 @@ export class WorkspaceClient {
         }
       }
 
-      await client.addCollection<Doc, ThreadMessage>(
+      replyId = (await client.addCollection<Doc, ThreadMessage>(
         chunter.class.ThreadMessage,
         messageSpace,
         parentId,
         parentClass,
         'replies',
         { message, objectId, objectClass }
-      )
+      )) as unknown as Ref<ChatMessage>
+
+      if (replyId !== undefined && chatCompletion !== undefined) {
+        await client.createMixin(replyId, chunter.class.ChatMessage, event.messageSpace, aiBot.mixin.AIBotMessage, {
+          tools: chatCompletion.tools,
+          inputTokens: chatCompletion.usage.inputTokens,
+          outputTokens: chatCompletion.usage.outputTokens
+        })
+      }
     }
+  }
+
+  private extractReferences (message: string): ChatMessageReference[] {
+    const refs = extractReferences(message)
+    return refs.map((p) => ({
+      objectId: p.objectId,
+      objectClass: p.objectClass,
+      objectLabel: p.objectLabel
+    }))
+  }
+
+  private async readAttachments (
+    ctx: MeasureContext,
+    client: TxOperations,
+    { messageId }: AIEventRequest
+  ): Promise<ChatMessageAttachment[]> {
+    const attachments = await client.findAll(attachment.class.Attachment, { attachedTo: messageId })
+    const promises = attachments.map((p) => this.readAttachment(ctx, p))
+    return (await Promise.all(promises)).filter((p): p is ChatMessageAttachment => p != null)
+  }
+
+  private async readAttachment (ctx: MeasureContext, attachment: Attachment): Promise<ChatMessageAttachment | null> {
+    if (attachment.size >= MAX_PROMPT_ATTACHMENT_BYTES) {
+      ctx.warn('Ignore attachment because it is too large', {
+        workspace: this.wsIds.uuid,
+        file: attachment.file,
+        name: attachment.name,
+        type: attachment.type,
+        size: attachment.size
+      })
+      return null
+    }
+
+    try {
+      const buffer = await this.storage.read(ctx, this.wsIds, attachment.file)
+      return {
+        uuid: attachment.file,
+        name: attachment.name,
+        type: attachment.type,
+        data: Buffer.concat(buffer).toString('base64')
+      }
+    } catch (e: any) {
+      ctx.warn('Failed to read attachment', {
+        workspace: this.wsIds.uuid,
+        file: attachment.file,
+        name: attachment.name,
+        type: attachment.type,
+        error: e.message ?? String(e)
+      })
+    }
+
+    return null
   }
 
   async close (): Promise<void> {
@@ -518,4 +585,22 @@ export class WorkspaceClient {
 
     return !this.love.hasActiveConnections()
   }
+}
+
+function buildPrompt (markup: string, references: ChatMessageReference[], attachments: ChatMessageAttachment[]): string {
+  let promptText = markupToText(markup)
+  if (references.length > 0) {
+    promptText += '\n\nReferences:'
+    for (const reference of references) {
+      promptText += `\nObjectId:${reference.objectId} ObjectClass:${reference.objectClass} ObjectLabel:${reference.objectLabel}`
+    }
+  }
+
+  if (attachments.length > 0) {
+    promptText += '\n\nAttachments:'
+    for (const attachment of attachments) {
+      promptText += `\nName:${attachment.name} FileId:${attachment.uuid} Type:${attachment.type}`
+    }
+  }
+  return promptText
 }

@@ -36,6 +36,20 @@ export interface ChatMessage {
   content: string
   toolCallId?: string
   toolCalls?: ChatMessageToolCall[]
+  attachments?: ChatMessageAttachment[]
+}
+
+export interface ChatMessageReference {
+  objectId: string
+  objectClass: string
+  objectLabel: string
+}
+
+export interface ChatMessageAttachment {
+  uuid: string
+  name: string
+  type: string // MIME type
+  data: string // base64 encoded data
 }
 
 export interface ChatMessageToolCall {
@@ -76,5 +90,5 @@ export interface LLMProvider {
     options?: ChatCompletionOptions
   ) => Promise<ChatCompletionResult>
 
-  countTokens: (messages: ChatMessage[]) => number
+  countTokens: (message: ChatMessage) => number
 }

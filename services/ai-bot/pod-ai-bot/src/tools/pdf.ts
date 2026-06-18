@@ -21,7 +21,7 @@ import { Stream } from 'stream'
 import { v4 as uuid } from 'uuid'
 
 import config from '../config'
-import { RegisteredTool, ToolDependencies, WorkspaceOps } from './types'
+import { RegisteredTool, ToolContext, WorkspaceOps } from './types'
 
 export const getDataBeforeImportTool: RegisteredTool = {
   definition: {
@@ -33,9 +33,8 @@ export const getDataBeforeImportTool: RegisteredTool = {
       properties: {}
     }
   },
-  createExecutor: (deps: ToolDependencies) => async () => {
-    if (deps.workspaceOps === undefined) return { text: 'Workspace operations not available' }
-    return { text: await getFoldersForDocuments(deps) }
+  createExecutor: (toolCtx: ToolContext) => async () => {
+    return { text: await getFoldersForDocuments(toolCtx) }
   },
   contextMode: 'any'
 }
@@ -70,21 +69,19 @@ export const saveFileTool: RegisteredTool = {
     }
   },
   createExecutor:
-    (deps: ToolDependencies) =>
+    (toolCtx: ToolContext) =>
       async (args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }) => {
-        if (deps.workspaceOps === undefined) return { text: 'Workspace operations not available' }
-        return { text: await saveFile(deps.workspaceOps, args) }
+        return { text: await saveFile(toolCtx.workspaceOps, args) }
       },
   contextMode: 'any'
 }
 
-async function getFoldersForDocuments (deps: ToolDependencies): Promise<string> {
-  const ops = deps.workspaceOps
-  if (ops === undefined) return 'Workspace operations not available'
+async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
+  const ops = toolCtx.workspaceOps
   const client = await ops.getClient()
   const spaces = await client.findAll(
     document.class.Teamspace,
-    deps.user !== undefined ? { members: deps.user, archived: false } : { archived: false }
+    toolCtx.user !== undefined ? { members: toolCtx.user, archived: false } : { archived: false }
   )
   let res = 'Folders:\n'
   for (const space of spaces) {
@@ -128,7 +125,11 @@ async function saveFile (
   return `File saved as ${args.name} with id ${_id}, always provide mention link as: [](ref://?_class=document%3Aclass%3ADocument&_id=${_id}&label=${args.name})`
 }
 
-async function pdfToMarkdown (ops: WorkspaceOps, fileId: string, name: string | undefined): Promise<string | undefined> {
+export async function pdfToMarkdown (
+  ops: WorkspaceOps,
+  fileId: string,
+  name: string | undefined
+): Promise<string | undefined> {
   if (config.DataLabApiKey !== '') {
     try {
       const stat = await ops.storage.stat(ops.ctx, ops.wsIds, fileId)
@@ -189,11 +190,11 @@ function getTeamspace (
   return teamspaces[0]._id
 }
 
-async function stream2buffer (stream: Stream): Promise<Buffer> {
+export async function stream2buffer (stream: Stream): Promise<Buffer> {
   return await new Promise<Buffer>((resolve, reject) => {
-    const _buf = Array<any>()
+    const _buf = Array<Buffer | Uint8Array>()
     stream.on('data', (chunk) => {
-      _buf.push(chunk)
+      _buf.push(typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk)
     })
     stream.on('end', () => {
       resolve(Buffer.concat(_buf))

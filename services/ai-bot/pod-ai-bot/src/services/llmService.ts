@@ -27,9 +27,13 @@ import {
 } from '../providers/types'
 import { PROMPTS } from '../providers/prompts'
 import { pushTokensData } from '../billing'
-import { getTools, type ToolDependencies, type ToolExecutorResult } from '../tools'
+import { getTools, type ToolContext, type ToolExecutorResult } from '../tools'
 
-const MAX_TOOL_ROUNDS = 10
+export interface ChatResult {
+  completion: string | undefined
+  usage: TokenUsage
+  tools: string[]
+}
 
 const ZERO_USAGE: TokenUsage = { inputTokens: 0, outputTokens: 0 }
 
@@ -67,18 +71,25 @@ export interface LLMService {
     assistantMemory: string,
     userMemory: string,
     sharedContext: string,
-    toolDeps: ToolDependencies,
+    toolCtx: ToolContext,
     options?: ChatCompletionOptions
-  ) => Promise<{ completion: string | undefined, usage: TokenUsage } | undefined>
+  ) => Promise<ChatResult | undefined>
 
-  countTokens: (messages: ChatMessage[]) => number
+  countTokens: (messages: ChatMessage) => number
+}
+
+export interface LLMServiceConfig {
+  maxToolRounds: number
 }
 
 export class DefaultLLMService implements LLMService {
-  constructor (private readonly provider: LLMProvider) {}
+  constructor (
+    private readonly provider: LLMProvider,
+    private readonly config: LLMServiceConfig
+  ) {}
 
-  countTokens (messages: ChatMessage[]): number {
-    return this.provider.countTokens(messages)
+  countTokens (message: ChatMessage): number {
+    return this.provider.countTokens(message)
   }
 
   async translateHtml (
@@ -137,14 +148,14 @@ export class DefaultLLMService implements LLMService {
       { role: 'user', content }
     ])
 
-    const summarizeUsage = result.usage ?? ZERO_USAGE
-    if (totalTokens(summarizeUsage) > 0) {
+    const usage = result.usage ?? ZERO_USAGE
+    if (totalTokens(usage) > 0) {
       void pushTokensData(ctx, [
         {
           workspace,
           reason: 'summarize',
-          inputTokens: summarizeUsage.inputTokens,
-          outputTokens: summarizeUsage.outputTokens,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
           date: new Date((result.created ?? Math.floor(Date.now() / 1000)) * 1000).toISOString()
         }
       ])
@@ -161,7 +172,7 @@ export class DefaultLLMService implements LLMService {
       }
     }
 
-    return { text: summary, usage: summarizeUsage }
+    return { text: summary, usage }
   }
 
   async chat (
@@ -172,35 +183,33 @@ export class DefaultLLMService implements LLMService {
     assistantMemory: string,
     userMemory: string,
     sharedContext: string,
-    toolDeps: ToolDependencies,
+    toolCtx: ToolContext,
     options?: ChatCompletionOptions
-  ): Promise<{ completion: string | undefined, usage: TokenUsage } | undefined> {
+  ): Promise<ChatResult | undefined> {
     const date = new Date()
 
     try {
-      const isDirectMode = contextMode === 'direct'
-
-      const tools = getTools(contextMode)
-      const llmTools = tools
-        .filter((t) => t.isLlmTool === true)
-        .map((t) => ({ name: t.definition.name, description: t.definition.description }))
-
-      const prompt = isDirectMode
-        ? PROMPTS.DIRECT({ assistantMemory, userMemory, sharedContext, llmTools })
-        : PROMPTS.THREAD({ sharedContext, llmTools })
+      const allTools = getTools(contextMode)
+      const tools = allTools.filter((t) => t.contextMode === contextMode || t.contextMode === 'any')
 
       const toolDefinitions: LLMToolDefinition[] = tools.map((t) => t.definition)
 
+      const prompt =
+        contextMode === 'direct'
+          ? PROMPTS.DIRECT({ assistantMemory, userMemory, sharedContext })
+          : PROMPTS.THREAD({ sharedContext })
+
       const executorMap = new Map<string, (args: any) => Promise<ToolExecutorResult>>()
       for (const t of tools) {
-        executorMap.set(t.definition.name, t.createExecutor(toolDeps))
+        executorMap.set(t.definition.name, t.createExecutor(toolCtx))
       }
 
       const conversationMessages: ChatMessage[] = [{ role: 'system', content: prompt }, ...messages]
 
       let accumulatedUsage: TokenUsage = { ...ZERO_USAGE }
+      const invokedToolNames = new Set<string>()
 
-      for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      for (let round = 0; round < this.config.maxToolRounds; round++) {
         const result = await this.provider.chatCompletionWithTools(ctx, conversationMessages, toolDefinitions, options)
 
         accumulatedUsage = addUsage(accumulatedUsage, result.usage ?? ZERO_USAGE)
@@ -227,7 +236,8 @@ export class DefaultLLMService implements LLMService {
 
           return {
             completion: text ?? undefined,
-            usage: accumulatedUsage
+            usage: accumulatedUsage,
+            tools: Array.from(invokedToolNames)
           }
         }
 
@@ -240,27 +250,30 @@ export class DefaultLLMService implements LLMService {
 
         // Execute each tool and append results
         for (const toolCall of result.toolCalls) {
+          invokedToolNames.add(toolCall.name)
           const executor = executorMap.get(toolCall.name)
-          let toolResult: string
+          let toolResult: ToolExecutorResult
 
           if (executor !== undefined) {
             try {
               const args = JSON.parse(toolCall.arguments)
-              const execResult = await executor(args)
-              toolResult = execResult.text
-              accumulatedUsage = addUsage(accumulatedUsage, execResult.usage ?? ZERO_USAGE)
+              toolResult = await executor(args)
+
+              accumulatedUsage = addUsage(accumulatedUsage, toolResult.usage ?? ZERO_USAGE)
             } catch (e: any) {
               ctx.error('Tool execution failed', { workspace, tool: toolCall.name, error: e.message ?? String(e) })
-              toolResult = `Error executing tool: ${e.message ?? String(e)}`
+              toolResult = { error: `Error executing tool: ${e.message ?? String(e)}` }
             }
           } else {
             ctx.warn('Unknown tool requested by LLM', { workspace, tool: toolCall.name })
-            toolResult = `Unknown tool: ${toolCall.name}`
+            toolResult = { error: `Unknown tool: ${toolCall.name}` }
           }
+
+          const toolResultText = 'error' in toolResult ? `Error: ${toolResult.error}` : toolResult.text
 
           conversationMessages.push({
             role: 'tool',
-            content: toolResult,
+            content: toolResultText,
             toolCallId: toolCall.id
           })
         }
@@ -290,12 +303,77 @@ export class DefaultLLMService implements LLMService {
 
       return {
         completion: text ?? undefined,
-        usage: accumulatedUsage
+        usage: accumulatedUsage,
+        tools: Array.from(invokedToolNames)
       }
     } catch (e: any) {
       ctx.error('LLM chat failed with exception', { workspace, error: e.message ?? String(e), stack: e.stack })
     }
 
     return undefined
+  }
+}
+
+export class LoggingLLMService implements LLMService {
+  constructor (private readonly llm: LLMService) {}
+
+  countTokens (message: ChatMessage): number {
+    return this.llm.countTokens(message)
+  }
+
+  async translateHtml (
+    ctx: MeasureContext,
+    workspace: WorkspaceUuid,
+    html: string,
+    lang: string
+  ): Promise<{ text?: string, usage?: TokenUsage }> {
+    const params = { workspace, lang }
+    return await ctx.with('translateHtml', {}, (ctx) => this.llm.translateHtml(ctx, workspace, html, lang), params)
+  }
+
+  async summarizeMessages (
+    ctx: MeasureContext,
+    workspace: WorkspaceUuid,
+    messages: PersonMessage[],
+    lang: string
+  ): Promise<{ text?: string, usage?: TokenUsage }> {
+    const params = { workspace, lang }
+    return await ctx.with(
+      'summarizeMessages',
+      {},
+      (ctx) => this.llm.summarizeMessages(ctx, workspace, messages, lang),
+      params
+    )
+  }
+
+  async chat (
+    ctx: MeasureContext,
+    workspace: WorkspaceUuid,
+    messages: ChatMessage[],
+    contextMode: ContextMode,
+    assistantMemory: string,
+    userMemory: string,
+    sharedContext: string,
+    toolCtx: ToolContext,
+    options?: ChatCompletionOptions
+  ): Promise<ChatResult | undefined> {
+    const params = { workspace }
+    return await ctx.with(
+      'chat',
+      {},
+      (ctx) =>
+        this.llm.chat(
+          ctx,
+          workspace,
+          messages,
+          contextMode,
+          assistantMemory,
+          userMemory,
+          sharedContext,
+          toolCtx,
+          options
+        ),
+      params
+    )
   }
 }

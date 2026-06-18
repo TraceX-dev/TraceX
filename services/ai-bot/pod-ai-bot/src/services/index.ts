@@ -13,4 +13,4 @@
 // limitations under the License.
 //
 
-export { type LLMService, DefaultLLMService } from './llmService'
+export { type LLMService, type ChatResult, DefaultLLMService } from './llmService'
