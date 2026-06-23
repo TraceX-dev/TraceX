@@ -471,14 +471,14 @@ export class WorkspaceClient {
         'replies',
         { message, objectId, objectClass }
       )) as unknown as Ref<ChatMessage>
+    }
 
-      if (replyId !== undefined && chatCompletion !== undefined) {
-        await client.createMixin(replyId, chunter.class.ChatMessage, event.messageSpace, aiBot.mixin.AIBotMessage, {
-          tools: chatCompletion.tools,
-          inputTokens: chatCompletion.usage.inputTokens,
-          outputTokens: chatCompletion.usage.outputTokens
-        })
-      }
+    if (replyId !== undefined && chatCompletion !== undefined) {
+      await client.createMixin(replyId, chunter.class.ChatMessage, event.messageSpace, aiBot.mixin.AIBotMessage, {
+        tools: chatCompletion.tools,
+        inputTokens: chatCompletion.usage.inputTokens,
+        outputTokens: chatCompletion.usage.outputTokens
+      })
     }
   }
 

@@ -86,6 +86,7 @@ import { qalicoId } from '@tracex/qalico'
 
 import '@hcengineering/activity-assets'
 import '@hcengineering/analytics-collector-assets'
+import '@hcengineering/ai-bot-assets'
 import '@hcengineering/attachment-assets'
 import '@hcengineering/bitrix-assets'
 import '@hcengineering/board-assets'
@@ -316,6 +317,7 @@ function configureI18n(): void {
     attachmentId,
     async (lang: string) => await import(`@hcengineering/attachment-assets/lang/${lang}.json`)
   )
+  addStringsLoader(aiBotId, async (lang: string) => await import(`@hcengineering/ai-bot-assets/lang/${lang}.json`))
   addStringsLoader(bitrixId, async (lang: string) => await import(`@hcengineering/bitrix-assets/lang/${lang}.json`))
   addStringsLoader(boardId, async (lang: string) => await import(`@hcengineering/board-assets/lang/${lang}.json`))
   addStringsLoader(calendarId, async (lang: string) => await import(`@hcengineering/calendar-assets/lang/${lang}.json`))

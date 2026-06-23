@@ -15,7 +15,7 @@
 //
 
 import { buildSocialIdString, type Mixin, type Ref, SocialIdType } from '@hcengineering/core'
-import type { Metadata, Plugin } from '@hcengineering/platform'
+import type { IntlString, Metadata, Plugin } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import { AIBotThread, AIBotMessage } from './types'
 
@@ -37,6 +37,10 @@ const aiBot = plugin(aiBotId, {
   mixin: {
     AIBotThread: '' as Ref<Mixin<AIBotThread>>,
     AIBotMessage: '' as Ref<Mixin<AIBotMessage>>
+  },
+  string: {
+    TokenUsage: '' as IntlString,
+    TokenUsageTooltip: '' as IntlString
   }
 })
 
