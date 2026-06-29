@@ -5,15 +5,6 @@
 Built for compliance and productivity across regulated industries.
 ![TraceX screenshot](./docs/assets/tracex.png)
 
-> [!IMPORTANT]
-> **Hosted Huly is shutting down — please migrate your data.**
->
-> The hosted Huly service is being discontinued because its hosting is no longer being funded. If you keep important data on the hosted platform, export and back it up, and migrate as soon as possible — we can help you move to either a [self-hosted setup](https://github.com/hcengineering/huly-selfhost) or a hosted option.
->
-> The nearest event is around **July 3**, when the Cloudflare bill may go unpaid and the service could be disrupted. This date is approximate and not a guarantee, so it's best to play it safe and migrate ahead of it rather than wait until the last day.
->
-> Have questions or want updates? Join the [Huly community](https://link.huly.io/slack) to discuss migration and stay informed, or email us at [huly.migration@gmail.com](mailto:huly.migration@gmail.com) for migration questions. This affects only the hosted **Huly** service — self-hosted deployments are not affected.
-
 ## About
 
 TraceX is an all-in-one platform built on Huly platform technology, helping teams manage risks, quality processes, development and test activities, technical documentation, and compliance across the full product lifecycle.
