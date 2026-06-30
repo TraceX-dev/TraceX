@@ -69,7 +69,7 @@
       "notarize": false,
       "publish": {
         "provider": "generic",
-        "url": "https://dist.huly.io",
+        "url": "https://dist.tracex.co",
         "channel": "qms-latest"
       }
     },
@@ -83,7 +83,7 @@
       "icon": "./src/AppIcon.ico",
       "publish": {
         "provider": "generic",
-        "url": "https://dist.huly.io",
+        "url": "https://dist.tracex.co",
         "channel": "qms-latest"
       },
       "extraResources": [
@@ -112,7 +112,7 @@
       "category": "Utility",
       "publish": {
         "provider": "generic",
-        "url": "https://dist.huly.io",
+        "url": "https://dist.tracex.co",
         "channel": "qms-latest"
       }
     }
