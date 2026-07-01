@@ -2,7 +2,7 @@
   "name": "qms-desktop",
   "version": "0.7.326",
   "main": "dist/main/electron.js",
-  "author": "Hardcore Engineering <hey@huly.io>",
+  "author": "TraceX",
   "template": "@hcengineering/default-package",
   "scripts": {
     "_phase:package": "rushx package",
@@ -42,6 +42,7 @@
   "description": "TraceX Desktop experience",
   "build": {
     "productName": "TraceX",
+    "copyright": "Copyright © 2026 TraceX",
     "appId": "app.huly.TraceX",
     "directories": {
       "output": "deploy"
