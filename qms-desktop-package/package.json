@@ -1,6 +1,6 @@
 {
   "name": "qms-desktop",
-  "version": "0.7.326",
+  "version": "0.7.426",
   "main": "dist/main/electron.js",
   "author": "TraceX",
   "template": "@hcengineering/default-package",

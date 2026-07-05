@@ -1,6 +1,6 @@
 {
   "name": "@hcengineering/desktop",
-  "version": "0.7.421",
+  "version": "0.7.426",
   "main": "dist/main/electron.js",
   "template": "@hcengineering/webpack-package",
   "scripts": {
@@ -287,8 +287,8 @@
     "electron-log": "^5.1.7",
     "electron-updater": "^6.3.4",
     "livekit-client": "^2.15.6",
-    "@hcengineering/server-backup": "workspace:^0.7.382",
-    "@hcengineering/communication-types": "workspace:^0.7.382",
+    "@hcengineering/server-backup": "workspace:^0.7.0",
+    "@hcengineering/communication-types": "workspace:^0.7.12",
     "ws": "^8.18.2"
   },
   "productName": "Huly Desktop",
