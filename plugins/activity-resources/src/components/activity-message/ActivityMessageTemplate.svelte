@@ -25,11 +25,11 @@
   import notification from '@hcengineering/notification'
   import { Asset } from '@hcengineering/platform'
   import { ComponentExtensions, getClient } from '@hcengineering/presentation'
-  import { Action, Icon, Label } from '@hcengineering/ui'
+  import { Action, Icon, Label, type ComponentExtensionId } from '@hcengineering/ui'
   import { Action as ViewAction } from '@hcengineering/view'
   import { getActions, restrictionStore, showMenu } from '@hcengineering/view-resources'
 
-  import { savedMessagesStore } from '../../activity'
+  import { clearMessageInLocation, savedMessagesStore } from '../../activity'
   import { MessageInlineAction } from '../../types'
   import ActivityMessageActions from '../ActivityMessageActions.svelte'
   import MessageTimestamp from '../MessageTimestamp.svelte'
@@ -106,6 +106,13 @@
     isActionsOpened = false
   }
 
+  function handleAnimationEnd (event: AnimationEvent): void {
+    const name = event.animationName.split('-').pop()
+    if (name === 'highlight') {
+      clearMessageInLocation()
+    }
+  }
+
   $: key = parentMessage != null ? `${message._id}_${parentMessage._id}` : message._id
 
   $: isHidden = !!viewlet?.onlyWithParent && parentMessage === undefined
@@ -180,6 +187,7 @@
       class:stale
       on:click={onClick}
       on:contextmenu={handleContextMenu}
+      on:animationend={handleAnimationEnd}
     >
       {#if showNotify && !embedded && !isShort}
         <div class="notify" />
@@ -243,6 +251,11 @@
             {#if message.editedOn}
               <span class="text-sm lower">(<Label label={notification.string.Edited} />)</span>
             {/if}
+
+            <ComponentExtensions
+              extension={activity.extension.ActivityMessageHeader}
+              props={{ message, parentMessage, viewlet, type, embedded, readonly }}
+            />
 
             {#if withActions && inlineActions.length > 0 && !readonly}
               <div class="flex-presenter flex-gap-2 ml-2">

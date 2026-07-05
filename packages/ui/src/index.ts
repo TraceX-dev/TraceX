@@ -52,6 +52,7 @@ export type {
 export { themeStore, languageStore } from '@hcengineering/theme'
 // export { applicationShortcutKey } from './utils'
 export { getCurrentLocation, locationToUrl, navigate, location, setLocationStorageKey } from './location'
+export { isAppFocusedStore, printModeStore } from './stores'
 
 export { default as EditBox } from './components/EditBox.svelte'
 export { default as Label } from './components/Label.svelte'
@@ -288,6 +289,7 @@ export { default as EmbeddedHTML } from './components/EmbeddedHTML.svelte'
 export { default as EmbeddedPDF } from './components/EmbeddedPDF.svelte'
 export { default as NestedMenu } from './components/NestedMenu.svelte'
 export { default as NestedDropdown } from './components/NestedDropdown.svelte'
+export { default as NestedSelectPopup } from './components/NestedSelectPopup.svelte'
 export { default as StatusBarButton } from './components/StatusBarButton.svelte'
 export { default as AppLoading } from './components/AppLoading.svelte'
 

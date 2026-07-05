@@ -65,7 +65,7 @@ import serverNotification, {
   TextPresenter
 } from '@hcengineering/server-notification'
 import serverView from '@hcengineering/server-view'
-import { extractReferences, markupToJSON, Reference } from '@hcengineering/text-core'
+import { extractReferences, Reference } from '@hcengineering/text-core'
 import { encodeObjectURI } from '@hcengineering/view'
 import { workbenchId } from '@hcengineering/workbench'
 
@@ -107,10 +107,9 @@ export const mentionTypeMatch = (
   if (tx._class !== core.class.TxCreateDoc) return false
   if (!hierarchy.isDerived(tx.objectClass, chunter.class.ChatMessage)) return false
   const message = TxProcessor.createDoc2Doc(tx)
-  const content: string = message.message
 
   const references: Reference[] =
-    control.contextCache.get(`${message._id}_references`) ?? extractReferences(markupToJSON(content))
+    control.contextCache.get(`${message._id}_references`) ?? extractReferences(message.message)
   control.contextCache.set(`${message._id}_references`, references)
 
   if (references.length === 0) return false

@@ -94,6 +94,7 @@ import ActionTypePresenter from './components/ActionTypePresenter.svelte'
 import LockFieldEditor from './components/settings/LockFieldEditor.svelte'
 import LockFieldPresenter from './components/settings/LockFieldPresenter.svelte'
 import UnLockFieldPresenter from './components/settings/UnLockFieldPresenter.svelte'
+import ContextSelectorPopup from './components/attributeEditors/ContextSelectorPopup.svelte'
 
 import { exportProcesses, importProcess } from './exporter'
 import { ProcessMiddleware } from './middleware'
@@ -101,11 +102,11 @@ import {
   approveRequestApproved,
   approveRequestRejected,
   checkProcessSectionVisibility,
-  checkRequestsSectionVisibility,
   continueExecution,
   eventCheck,
   fieldChangesCheck,
   matchCardCheck,
+  requiredFieldsFilledCheck,
   showDoneQuery,
   subProcessesDoneCheck,
   subProcessMatchCheck,
@@ -186,7 +187,8 @@ export default async (): Promise<Resources> => ({
     ActionTypePresenter,
     LockFieldEditor,
     LockFieldPresenter,
-    UnLockFieldPresenter
+    UnLockFieldPresenter,
+    ContextSelectorPopup
   },
   criteriaEditor: {
     BaseCriteria,
@@ -211,6 +213,7 @@ export default async (): Promise<Resources> => ({
   triggerCheck: {
     MatchCheck: matchCardCheck,
     FieldChangedCheck: fieldChangesCheck,
+    RequiredFieldsFilledCheck: requiredFieldsFilledCheck,
     SubProcessesDoneCheck: subProcessesDoneCheck,
     SubProcessMatchCheck: subProcessMatchCheck,
     ToDo: todoTranstionCheck,
@@ -224,7 +227,6 @@ export default async (): Promise<Resources> => ({
     ImportProcess: importProcess,
     ShowDoneQuery: showDoneQuery,
     CheckProcessSectionVisibility: checkProcessSectionVisibility,
-    CheckRequestsSectionVisibility: checkRequestsSectionVisibility,
     // eslint-disable-next-line @typescript-eslint/unbound-method
     CreateMiddleware: ProcessMiddleware.create
   }

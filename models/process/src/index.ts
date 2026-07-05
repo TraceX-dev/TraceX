@@ -33,7 +33,9 @@ import {
   ReadOnly,
   TypeAny,
   TypeBoolean,
+  TypeIntlString,
   TypeRank,
+  TypeRecord,
   TypeRef,
   TypeString,
   UX
@@ -44,7 +46,7 @@ import { TToDo } from '@hcengineering/model-time'
 import view, { createAction } from '@hcengineering/model-view'
 import workbench from '@hcengineering/model-workbench'
 import notification, { type NotificationGroup } from '@hcengineering/notification'
-import { type Asset, type IntlString, type Resource } from '@hcengineering/platform'
+import { type Asset, type IntlString, type Resource, getEmbeddedLabel } from '@hcengineering/platform'
 import {
   type ApproveRequest,
   type CheckFunc,
@@ -64,6 +66,7 @@ import {
   type ProcessCustomEvent,
   type ProcessFunction,
   type ProcessToDo,
+  type SlotModel,
   type State,
   type Step,
   type Transition,
@@ -105,6 +108,12 @@ export class TProcess extends TDoc implements Process {
 
   @Prop(TypeBoolean(), process.string.AutomationOnly)
     automationOnly: boolean | undefined
+
+  @Prop(TypeRecord(), process.string.RequiredSlots)
+    requiredSlots?: Record<string, SlotModel>
+
+  @Prop(TypeRecord(), process.string.Bindings)
+    bindings?: Record<string, string>
 
   context!: Record<ContextId, ProcessContext>
 }
@@ -207,6 +216,9 @@ export class TProcessToDo extends TToDo implements ProcessToDo {
 
   @Prop(TypeBoolean(), process.string.Rollback)
     withRollback!: boolean
+
+  @Prop(TypeBoolean(), process.string.AskRequired)
+    askRequired?: boolean
 }
 
 @Model(process.class.ApproveRequest, process.class.ProcessToDo)
@@ -285,24 +297,40 @@ export class TEventButton extends TDoc implements EventButton {
 
 @Model(process.class.ProcessFunction, core.class.Doc, DOMAIN_MODEL)
 export class TProcessFunction extends TDoc implements ProcessFunction {
-  of!: Ref<Class<Doc<Space>>>
-  category: AttributeCategory | undefined
-  label!: IntlString
+  @Prop(TypeRef(core.class.Class), getEmbeddedLabel('To'))
+    to?: Ref<Class<Doc>>
+
+  @Prop(TypeRef(core.class.Class), getEmbeddedLabel('Of'))
+    of!: Ref<Class<Doc<Space>>>
+
+  @Prop(TypeString(), getEmbeddedLabel('Category'))
+    category: AttributeCategory | undefined
+
+  @Prop(TypeIntlString(), getEmbeddedLabel('Label'))
+    label!: IntlString
+
   editor?: AnyComponent
   presenter?: AnyComponent
-  allowMany?: boolean
-  type!: 'transform' | 'reduce' | 'context'
+
+  @Prop(TypeBoolean(), getEmbeddedLabel('AllowMany'))
+    allowMany?: boolean
+
+  @Prop(TypeString(), getEmbeddedLabel('Type'))
+    type!: 'transform' | 'reduce' | 'context' | 'convert'
 }
 
 @Model(process.class.UpdateCriteriaComponent, core.class.Doc, DOMAIN_MODEL)
 export class TUpdateCriteriaComponent extends TDoc implements UpdateCriteriaComponent {
-  category!: AttributeCategory
+  @Prop(TypeString(), getEmbeddedLabel('Category'))
+    category!: AttributeCategory
 
   editor!: AnyComponent
 
-  of!: Ref<Class<Doc<Space>>>
+  @Prop(TypeRef(core.class.Class), getEmbeddedLabel('Of'))
+    of!: Ref<Class<Doc<Space>>>
 
-  props!: Record<string, any>
+  @Prop(TypeRecord(), getEmbeddedLabel('Props'))
+    props!: Record<string, any>
 }
 
 export * from './migration'
@@ -532,7 +560,7 @@ export function createModel (builder: Builder): void {
           {
             key: 'showDone',
             type: 'toggle',
-            defaultValue: true,
+            defaultValue: false,
             actionTarget: 'query',
             action: process.function.ShowDoneQuery,
             label: process.string.ShowDone
@@ -734,7 +762,6 @@ export function createModel (builder: Builder): void {
     {
       label: process.string.ApproveRequest,
       component: process.component.RequestsCardSection,
-      checkVisibility: process.function.CheckRequestsSectionVisibility,
       order: 360,
       navigation: []
     },
@@ -777,6 +804,24 @@ export function createModel (builder: Builder): void {
     of: core.class.TypeString,
     props: {
       modes: ['Equal', 'StringContains', 'Exists']
+    }
+  })
+
+  builder.createDoc(process.class.UpdateCriteriaComponent, core.space.Model, {
+    category: 'attribute',
+    editor: process.criteriaEditor.BaseCriteria,
+    of: core.class.TypeMarkup,
+    props: {
+      modes: ['StringContains', 'Exists']
+    }
+  })
+
+  builder.createDoc(process.class.UpdateCriteriaComponent, core.space.Model, {
+    category: 'inplace',
+    editor: process.criteriaEditor.BaseCriteria,
+    of: core.class.TypeMarkup,
+    props: {
+      modes: ['StringContains', 'Exists']
     }
   })
 

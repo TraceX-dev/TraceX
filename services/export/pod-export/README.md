@@ -262,14 +262,14 @@ Storage configuration (via `storageConfigFromEnv`):
 ### Docker Deployment
 
 ```bash
-docker build -t hardcoreeng/export .
+docker build -t tracexapp/export .
 docker run -p 4006:4006 \
   -e SECRET=your-secret \
   -e ACCOUNTS_URL=http://accounts:3000 \
   -e SERVICE_ID=export-service \
   -e STORAGE_PROVIDER=minio \
   -e STORAGE_ENDPOINT=http://minio:9000 \
-  hardcoreeng/export
+  tracexapp/export
 ```
 
 ## Development
@@ -284,7 +284,7 @@ rush build --to @hcengineering/pod-export
 
 ```bash
 cd services/export/pod-export
-ACCOUNTS_URL="http://127.0.0.1:3000" SECRET="secret" DB_URL=postgresql://root@huly.local:26257/defaultdb?sslmode=disable SERVICE_ID="export" STORAGE_CONFIG="datalake|http://huly.local:4030" rushx run-local
+ACCOUNTS_URL="http://127.0.0.1:3000" SECRET="secret" DB_URL=postgresql://root@tracex.local:26257/defaultdb?sslmode=disable SERVICE_ID="export" STORAGE_CONFIG="datalake|http://tracex.local:4030" rushx run-local
 ```
 
 ### Testing

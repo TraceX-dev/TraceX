@@ -67,7 +67,7 @@
     "Next": "Další",
     "Skip": "Přeskočit",
     "SignUpCompleted": "Registrace dokončena",
-    "StartUsingHuly": "Začněte používat Huly",
+    "StartUsingHuly": "Začněte používat TraceX",
     "PasswordMinLength": "{count, plural, =1 {Heslo musí být alespoň # znak dlouhé} other {Heslo musí být alespoň # znaků dlouhé}}",
     "PasswordMinSpecialChars": "{count, plural, =1 {Heslo musí obsahovat alespoň # speciální znak} other {Heslo musí obsahovat alespoň # speciálních znaků}}",
     "PasswordMinDigits": "{count, plural, =1 {Heslo musí obsahovat alespoň # číslo} other {Heslo musí obsahovat alespoň # čísel}}",
@@ -92,6 +92,16 @@
     "LogInAndJoin": "Přihlásit se a připojit",
     "SignUpAndJoin": "Registrovat se a připojit",
     "CreateNewAccount": "Vytvořit nový účet",
-    "SignedInAs": "Přihlášen jako {name}"
+    "SignedInAs": "Přihlášen jako {name}",
+    "TwoFactorAuth": "Dvoufaktorové ověření",
+    "EnterTwoFactorCode": "Zadejte dvoufaktorový ověřovací kód",
+    "TwoFactorCode": "Dvoufaktorový ověřovací kód",
+    "Verify": "Ověřit",
+    "SetPassword": "Nastavit heslo",
+    "SSOPasswordDescription": "Váš účet používá externí přihlášení. Nastavte si heslo prostřednictvím e-mailové potvrzení.",
+    "SendSetupLink": "Odeslat odkaz na nastavení",
+    "SSOPasswordEmailSent": "Zkontrolujte svůj e-mail, zda neobsahuje odkaz pro nastavení hesla.",
+    "SSONoEmailLinked": "K vašemu účtu není přidružena žádná e-mailová adresa. Nejprve ji přidejte v Nastavení účtu → Spravovat identity.",
+    "CreateSampleProjects": "Vytvořit ukázkové projekty a demo obsah"
   }
 }

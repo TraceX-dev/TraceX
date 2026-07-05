@@ -13,8 +13,8 @@
   "type": "module",
   "scripts": {
     "build": "node esbuild.config.js",
-    "docker:build": "../../../common/scripts/docker_build.sh hardcoreeng/love-agent",
-    "docker:push": "../../../common/scripts/docker_tag.sh hardcoreeng/love-agent",
+    "docker:build": "../../../common/scripts/docker_build.sh tracexapp/love-agent",
+    "docker:push": "../../../common/scripts/docker_tag.sh tracexapp/love-agent",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint --fix src/**/*.ts",
     "format": "prettier --write src/**/*.ts && pnpm lint:fix"
@@ -39,5 +39,8 @@
     "@livekit/rtc-node": "^0.13.11",
     "dotenv": "^16.4.5",
     "ws": "^8.18.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   }
 }

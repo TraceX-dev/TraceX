@@ -361,38 +361,38 @@ sequenceDiagram
 | Service | Container | Port | Purpose | Dependencies |
 |---------|-----------|------|---------|--------------|
 | **Frontend** | | | | |
-| front | hardcoreeng/front | 8087/8088 | Web application server | account, transactor, collaborator, datalake |
+| front | tracexapp/front | 8087/8088 | Web application server | account, transactor, collaborator, datalake |
 | **Core** | | | | |
-| account | hardcoreeng/account | 3000 | Authentication & user management | cockroach, redpanda, stats |
-| transactor | hardcoreeng/transactor | 3332 | Transaction processing (WebSocket) | cockroach, redpanda, fulltext, account |
-| workspace | hardcoreeng/workspace | - | Workspace management | cockroach, redpanda, minio, account |
-| stats | hardcoreeng/stats | 4900 | Metrics collection | - |
+| account | tracexapp/account | 3000 | Authentication & user management | cockroach, redpanda, stats |
+| transactor | tracexapp/transactor | 3332 | Transaction processing (WebSocket) | cockroach, redpanda, fulltext, account |
+| workspace | tracexapp/workspace | - | Workspace management | cockroach, redpanda, minio, account |
+| stats | tracexapp/stats | 4900 | Metrics collection | - |
 | **Storage** | | | | |
-| datalake | hardcoreeng/datalake | 4030 | Blob storage & metadata | cockroach, minio, account |
-| hulylake | hardcoreeng/hulylake | 8096 | Storage adapter API | cockroach, minio |
-| hulykvs | hardcoreeng/hulykvs | 8094 | Key-value store | cockroach |
+| datalake | tracexapp/datalake | 4030 | Blob storage & metadata | cockroach, minio, account |
+| hulylake | tracexapp/hulylake | 8096 | Storage adapter API | cockroach, minio |
+| hulykvs | tracexapp/hulykvs | 8094 | Key-value store | cockroach |
 | **Search** | | | | |
-| fulltext | hardcoreeng/fulltext | 4702 | Full-text search indexing | elasticsearch, cockroach, rekoni, redpanda |
-| rekoni | hardcoreeng/rekoni-service | 4004 | Document intelligence | stats |
+| fulltext | tracexapp/fulltext | 4702 | Full-text search indexing | elasticsearch, cockroach, rekoni, redpanda |
+| rekoni | tracexapp/rekoni-service | 4004 | Document intelligence | stats |
 | **Real-time** | | | | |
-| collaborator | hardcoreeng/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
-| hulypulse | hardcoreeng/hulypulse | 8099 | WebSocket notifications | redis |
-| hulygun | hardcoreeng/hulygun | - | Event processor | redpanda, account |
+| collaborator | tracexapp/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
+| hulypulse | tracexapp/hulypulse | 8099 | WebSocket notifications | redis |
+| hulygun | tracexapp/hulygun | - | Event processor | redpanda, account |
 | **Media** | | | | |
-| stream | hardcoreeng/stream | 1080 | Video streaming | datalake, redpanda |
-| media | hardcoreeng/media | - | Media processing | redpanda, account |
-| preview | hardcoreeng/preview | 4040 | Thumbnail generation | datalake |
+| stream | tracexapp/stream | 1080 | Video streaming | datalake, redpanda |
+| media | tracexapp/media | - | Media processing | redpanda, account |
+| preview | tracexapp/preview | 4040 | Thumbnail generation | datalake |
 | **Features** | | | | |
-| print | hardcoreeng/print | 4005 | PDF generation | cockroach, minio, account |
-| sign | hardcoreeng/sign | 4006 | Digital signatures | cockroach, minio, account |
-| payment | hardcoreeng/payment | 3040 | Payment processing | account |
-| export | hardcoreeng/export | 4009 | Data export | cockroach, minio, account |
-| analytics | hardcoreeng/analytics-collector | 4017 | Analytics collection | account, stats |
-| process | hardcoreeng/process | - | Workflow automation | redpanda, account |
-| rating | hardcoreeng/rating | - | Content rating | cockroach, redpanda, account |
+| print | tracexapp/print | 4005 | PDF generation | cockroach, minio, account |
+| sign | tracexapp/sign | 4006 | Digital signatures | cockroach, minio, account |
+| payment | tracexapp/payment | 3040 | Payment processing | account |
+| export | tracexapp/export | 4009 | Data export | cockroach, minio, account |
+| analytics | tracexapp/analytics-collector | 4017 | Analytics collection | account, stats |
+| process | tracexapp/process | - | Workflow automation | redpanda, account |
+| rating | tracexapp/rating | - | Content rating | cockroach, redpanda, account |
 | **Backup** | | | | |
-| backup | hardcoreeng/backup | - | Automated backup | cockroach, minio, account |
-| backup-api | hardcoreeng/backup-api | 4039 | Backup REST API | minio, account |
+| backup | tracexapp/backup | - | Automated backup | cockroach, minio, account |
+| backup-api | tracexapp/backup-api | 4039 | Backup REST API | minio, account |
 | **Primary Database** | | | | |
 | cockroach | cockroachdb/cockroach:latest-v24.3 | 26257, 8089 | **Main application database** - stores users, workspaces, documents, transactions, metadata, permissions | - |
 | **Supporting Infrastructure** | | | | |
@@ -411,15 +411,15 @@ sequenceDiagram
 ### Common Configuration (Shared by Most Services)
 - `SERVER_SECRET` / `SECRET`: `secret` - Shared authentication secret
 - `REGION`: `cockroach` - Deployment region identifier
-- `ACCOUNTS_URL`: `http://huly.local:3000` - Account service URL
-- `STATS_URL`: `http://huly.local:4900` - Metrics collection URL
+- `ACCOUNTS_URL`: `http://tracex.local:3000` - Account service URL
+- `STATS_URL`: `http://tracex.local:4900` - Metrics collection URL
 - `OTEL_EXPORTER_OTLP_ENDPOINT`: `http://jaeger:4318/v1/traces` - Tracing endpoint
 - `STORAGE_CONFIG`: `${STORAGE_CONFIG}` - MinIO connection string
 - `QUEUE_CONFIG`: `${QUEUE_CONFIG}` - Redpanda/Kafka configuration
 
 ### Database Configuration
 - `DB_URL` / `DB_CR_URL`: CockroachDB connection string
-- `FULLTEXT_DB_URL`: `http://huly.local:9200` - Elasticsearch URL
+- `FULLTEXT_DB_URL`: `http://tracex.local:9200` - Elasticsearch URL
 - `HULY_DB_CONNECTION`: CockroachDB connection for Huly* services
 
 ### Storage Configuration
@@ -434,26 +434,26 @@ sequenceDiagram
 - `HULY_KAFKA_BOOTSTRAP`: `redpanda:9092` - Kafka bootstrap servers
 
 ### Service URLs (Internal)
-- `ACCOUNTS_URL`: `http://huly.local:3000`
-- `TRANSACTOR_URL`: `ws://huly.local:3332`
-- `FULLTEXT_URL`: `http://huly.local:4702`
-- `REKONI_URL`: `http://huly.local:4004`
-- `COLLABORATOR_URL`: `ws://huly.local:3078`
-- `DATALAKE_URL`: `http://huly.local:4030`
-- `HULYLAKE_URL`: `http://huly.local:8096`
-- `PULSE_URL`: `ws://huly.local:8099/ws`
-- `PREVIEW_URL`: `http://huly.local:4040`
-- `STREAM_URL`: `http://huly.local:1080/recording`
-- `PAYMENT_URL`: `http://huly.local:3040`
-- `PRINT_URL`: `http://huly.local:4005`
-- `SIGN_URL`: `http://huly.local:4006`
-- `BACKUP_URL`: `http://huly.local:4039/api/backup`
-- `AI_BOT_URL`: `http://huly.local:4010`
+- `ACCOUNTS_URL`: `http://tracex.local:3000`
+- `TRANSACTOR_URL`: `ws://tracex.local:3332`
+- `FULLTEXT_URL`: `http://tracex.local:4702`
+- `REKONI_URL`: `http://tracex.local:4004`
+- `COLLABORATOR_URL`: `ws://tracex.local:3078`
+- `DATALAKE_URL`: `http://tracex.local:4030`
+- `HULYLAKE_URL`: `http://tracex.local:8096`
+- `PULSE_URL`: `ws://tracex.local:8099/ws`
+- `PREVIEW_URL`: `http://tracex.local:4040`
+- `STREAM_URL`: `http://tracex.local:1080/recording`
+- `PAYMENT_URL`: `http://tracex.local:3040`
+- `PRINT_URL`: `http://tracex.local:4005`
+- `SIGN_URL`: `http://tracex.local:4006`
+- `BACKUP_URL`: `http://tracex.local:4039/api/backup`
+- `AI_BOT_URL`: `http://tracex.local:4010`
 
 ### Frontend Configuration
-- `FILES_URL`: `http://huly.local:4030/blob/:workspace/:blobId/:filename` - File download URL pattern
-- `FRONT_URL`: `http://huly.local:8087` - Frontend base URL
-- `BRANDING_URL`: `http://huly.local:8087/branding.json`
+- `FILES_URL`: `http://tracex.local:4030/blob/:workspace/:blobId/:filename` - File download URL pattern
+- `FRONT_URL`: `http://tracex.local:8087` - Frontend base URL
+- `BRANDING_URL`: `http://tracex.local:8087/branding.json`
 - `DESKTOP_UPDATES_URL`: `https://dist.huly.io`
 
 ### Authentication & Security
@@ -486,7 +486,7 @@ sequenceDiagram
 - `HULY_BIND_PORT`: `8099`
 
 ### Stream Service
-- `STREAM_ENDPOINT_URL`: `datalake://huly.local:4030`
+- `STREAM_ENDPOINT_URL`: `datalake://tracex.local:4030`
 - `STREAM_INSECURE`: `true`
 - `STREAM_MAX_PARALLEL_SCALING_COUNT`: `6`
 

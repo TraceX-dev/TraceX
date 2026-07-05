@@ -1,0 +1,47 @@
+//
+// Copyright © 2026 TraceX.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+import type { ChatMessage } from '@hcengineering/chunter'
+import type { Class, Doc, PersonId, Ref, Space, Timestamp } from '@hcengineering/core'
+
+export interface AIEventRequest {
+  message: string
+  messageClass: Ref<Class<ChatMessage>>
+  messageId: Ref<ChatMessage>
+  messageSpace: Ref<Space>
+
+  objectClass: Ref<Class<Doc>>
+  objectId: Ref<Doc>
+  objectSpace: Ref<Space>
+
+  collection: string
+
+  user: PersonId
+  createdOn: Timestamp
+}
+
+/**
+ * A mixin for ChatMessage that indicates start of AI thread
+ */
+export interface AIBotThread extends ChatMessage {}
+
+/**
+ * A mixin for ChatMessage that contains additional response details
+ */
+export interface AIBotMessage extends ChatMessage {
+  tools: string[]
+  inputTokens: number
+  outputTokens: number
+}

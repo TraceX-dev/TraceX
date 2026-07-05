@@ -12,7 +12,6 @@
 // limitations under the License.
 
 import activity from '@hcengineering/activity'
-import communication from '@hcengineering/communication'
 import {
   type CanCreateCardResource,
   type Card,
@@ -23,6 +22,7 @@ import {
   type CardViewDefaults,
   type CreateCardExtension,
   DOMAIN_CARD,
+  type DuplicateSetting,
   type ExportExtension,
   type ExportFunc,
   type FavoriteCard,
@@ -34,6 +34,8 @@ import {
   type Tag
 } from '@hcengineering/card'
 import chunter from '@hcengineering/chunter'
+import communication from '@hcengineering/communication'
+import converter from '@hcengineering/converter'
 import core, {
   AccountRole,
   type Blobs,
@@ -46,6 +48,7 @@ import core, {
   DOMAIN_SPACE,
   IndexKind,
   type MarkupBlobRef,
+  type Mixin as MixinType,
   type MixinData,
   type Rank,
   type Ref,
@@ -61,8 +64,10 @@ import {
   Model,
   Prop,
   ReadOnly,
+  TypeBoolean,
   TypeCollaborativeDoc,
   TypeNumber,
+  TypeRank,
   TypeRef,
   TypeString,
   UX
@@ -75,16 +80,15 @@ import presentation from '@hcengineering/model-presentation'
 import setting from '@hcengineering/model-setting'
 import view, { type Viewlet } from '@hcengineering/model-view'
 import workbench, { WidgetType } from '@hcengineering/model-workbench'
-import converter from '@hcengineering/converter'
+import notification from '@hcengineering/notification'
 import { type Asset, getEmbeddedLabel, type IntlString, type Resource } from '@hcengineering/platform'
 import time, { type ToDo } from '@hcengineering/time'
 import { PaletteColorIndexes } from '@hcengineering/ui/src/colors'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
-import { type BuildModelKey } from '@hcengineering/view'
+import { type BuildModelKey, type ViewOptionModel } from '@hcengineering/view'
 import { createActions } from './actions'
-import { definePermissions } from './permissions'
+import { defineActionPermissions, definePermissions } from './permissions'
 import card from './plugin'
-import notification from '@hcengineering/notification'
 
 export { cardId } from '@hcengineering/card'
 
@@ -93,6 +97,12 @@ export class TMasterTag extends TClass implements MasterTag {
   color?: number
   background?: number
   removed?: boolean
+
+  @Prop(TypeBoolean(), card.string.SingleColumn)
+    singleColumn?: boolean
+
+  @Prop(TypeBoolean(), card.string.BaseType)
+    baseType?: boolean
 }
 
 @Model(card.class.Tag, core.class.Mixin)
@@ -127,7 +137,9 @@ export class TCard extends TDoc implements Card {
   @Prop(Collection(attachment.class.Attachment), attachment.string.Attachments, { shortLabel: attachment.string.Files })
     attachments?: number
 
-  rank!: Rank
+  @Prop(TypeRank(), core.string.Rank)
+  @Hidden()
+    rank!: Rank
 
   @Prop(Collection(time.class.ToDo), getEmbeddedLabel('Action Items'))
     todos?: CollectionSize<ToDo>
@@ -216,7 +228,23 @@ export class TExportExtension extends TDoc implements ExportExtension {
   func!: Resource<ExportFunc>
 }
 
+@Mixin(card.mixin.DuplicateSetting, card.class.MasterTag)
+export class TDuplicateSetting extends TMasterTag implements DuplicateSetting {
+  excludedProperties?: string[]
+  excludedRelations?: string[] // ${associationId}_${a|b}
+  excludeMixins?: Ref<MixinType<Doc>>[]
+}
+
 export * from './migration'
+
+const showAllVersionsOption: ViewOptionModel = {
+  key: 'showAllVersions',
+  type: 'toggle',
+  defaultValue: false,
+  actionTarget: 'query',
+  action: card.function.ShowAllVersions,
+  label: card.string.ShowAllVersions
+}
 
 const listConfig: (BuildModelKey | string)[] = [
   { key: '' },
@@ -343,6 +371,11 @@ export function createSystemType (
       hiddenKeys: ['content', 'title'],
       sortable: true
     },
+    viewOptions: {
+      groupBy: [],
+      orderBy: [],
+      other: [showAllVersionsOption]
+    },
     baseQuery: {
       isLatest: true
     },
@@ -376,7 +409,7 @@ export function createSystemType (
         ['modifiedOn', SortingOrder.Descending],
         ['rank', SortingOrder.Ascending]
       ],
-      other: []
+      other: [showAllVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -385,6 +418,20 @@ export function createSystemType (
       hiddenKeys: ['content', 'title']
     },
     config: listConfig
+  })
+
+  builder.createDoc(view.class.Viewlet, core.space.Model, {
+    attachTo: type,
+    descriptor: card.viewlet.CardGridDescriptor,
+    viewOptions: {
+      groupBy: [],
+      orderBy: [],
+      other: [showAllVersionsOption]
+    },
+    baseQuery: {
+      isLatest: true
+    },
+    config: []
   })
 
   if (viewDefaults !== undefined) {
@@ -406,7 +453,8 @@ export function createModel (builder: Builder): void {
     TFavoriteCard,
     TFavoriteType,
     TCreateCardExtension,
-    TExportExtension
+    TExportExtension,
+    TDuplicateSetting
   )
 
   builder.createDoc(
@@ -423,6 +471,7 @@ export function createModel (builder: Builder): void {
 
   defineTabs(builder)
   definePermissions(builder)
+  defineActionPermissions(builder)
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ObjectIcon, {
     component: card.component.CardIcon
@@ -566,6 +615,21 @@ export function createModel (builder: Builder): void {
       navigatorModel: {
         specials: [
           {
+            id: 'my-cards',
+            label: card.string.MyCards,
+            icon: card.icon.Card,
+            component: card.component.MyCards,
+            componentProps: {
+              icon: card.icon.Card,
+              config: [
+                ['assigned', view.string.Assigned, {}],
+                ['created', view.string.Created, {}],
+                ['subscribed', view.string.Subscribed, {}]
+              ]
+            },
+            position: 'top'
+          },
+          {
             id: 'all',
             label: card.string.AllCards,
             icon: card.icon.All,
@@ -649,6 +713,11 @@ export function createModel (builder: Builder): void {
         hiddenKeys: ['content', 'title'],
         sortable: true
       },
+      viewOptions: {
+        groupBy: [],
+        orderBy: [],
+        other: [showAllVersionsOption]
+      },
       baseQuery: {
         isLatest: true
       },
@@ -681,7 +750,7 @@ export function createModel (builder: Builder): void {
           ['modifiedOn', SortingOrder.Descending],
           ['rank', SortingOrder.Ascending]
         ],
-        other: []
+        other: [showAllVersionsOption]
       },
       configOptions: {
         hiddenKeys: ['content', 'title']
@@ -707,7 +776,7 @@ export function createModel (builder: Builder): void {
           ['modifiedOn', SortingOrder.Descending],
           ['rank', SortingOrder.Ascending]
         ],
-        other: []
+        other: [showAllVersionsOption]
       },
       configOptions: {
         strict: true,
@@ -750,12 +819,54 @@ export function createModel (builder: Builder): void {
         hiddenKeys: ['content', 'title'],
         sortable: true
       },
+      viewOptions: {
+        groupBy: [],
+        orderBy: [],
+        other: [showAllVersionsOption]
+      },
       baseQuery: {
         isLatest: true
       },
       config: ['']
     },
     card.viewlet.CardRelationshipTable
+  )
+
+  builder.createDoc(
+    view.class.ViewletDescriptor,
+    core.space.Model,
+    {
+      label: card.string.Grid,
+      icon: card.icon.Grid,
+      component: card.component.CardGridView
+    },
+    card.viewlet.CardGridDescriptor
+  )
+
+  builder.createDoc(
+    view.class.Viewlet,
+    core.space.Model,
+    {
+      attachTo: card.class.Card,
+      descriptor: card.viewlet.CardGridDescriptor,
+      baseQuery: {
+        isLatest: true
+      },
+      config: [''],
+      configOptions: {
+        strict: true
+      },
+      viewOptions: {
+        groupBy: [],
+        orderBy: [
+          ['modifiedOn', SortingOrder.Descending],
+          ['rank', SortingOrder.Ascending],
+          ['title', SortingOrder.Descending]
+        ],
+        other: [showAllVersionsOption]
+      }
+    },
+    card.viewlet.CardGrid
   )
 
   builder.createDoc(
@@ -852,6 +963,10 @@ export function createModel (builder: Builder): void {
     titleProvider: card.function.CardTitleProvider
   })
 
+  builder.mixin(card.class.Card, core.class.Class, view.mixin.ReferenceObjectProvider, {
+    provider: card.function.CardReferenceObjectProvider
+  })
+
   builder.mixin(card.class.Card, core.class.Class, view.mixin.LinkProvider, {
     encode: card.function.GetCardLink
   })
@@ -899,6 +1014,45 @@ export function createModel (builder: Builder): void {
     card.ids.ManageMasterTags
   )
 
+  builder.createDoc(
+    core.class.ClassPermission,
+    core.space.Model,
+    {
+      label: card.string.AllowCreatingCards,
+      scope: 'space',
+      targetClass: card.class.Card
+    },
+    card.ids.GuestCardClassPermission
+  )
+
+  builder.createDoc(
+    core.class.ModulePermissionGroup,
+    core.space.Model,
+    {
+      application: card.app.Card,
+      role: AccountRole.Guest,
+      permissions: [card.ids.GuestCardClassPermission],
+      spaceClass: card.class.CardSpace,
+      enabled: true,
+      order: 20
+    },
+    card.ids.ModulePermissionGroup
+  )
+
+  builder.createDoc(
+    core.class.ModulePermissionGroup,
+    core.space.Model,
+    {
+      application: card.app.Card,
+      role: AccountRole.ReadOnlyGuest,
+      permissions: [],
+      spaceClass: card.class.CardSpace,
+      enabled: false,
+      order: 20
+    },
+    card.ids.ModulePermissionGroupReadOnlyGuest
+  )
+
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ClassFilters, {
     filters: ['space'],
     ignoreKeys: ['parent']
@@ -911,6 +1065,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ObjectFactory, {
+    component: card.component.CreateCard,
     create: card.function.CardFactory
   })
 
@@ -1035,7 +1190,8 @@ function defineTabs (builder: Builder): void {
       label: card.string.Children,
       component: card.sectionComponent.ChildrenSection,
       order: 400,
-      navigation: []
+      navigation: [],
+      checkVisibility: card.function.CheckChildrenSectionVisibility
     },
     card.section.Children
   )

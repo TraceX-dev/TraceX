@@ -1,6 +1,6 @@
 {
   "name": "@hcengineering/qms-tests-sanity",
-  "version": "0.7.382",
+  "version": "0.7.0",
   "main": "lib/index.js",
   "svelte": "src/index.ts",
   "types": "types/index.d.ts",
@@ -19,18 +19,18 @@
     "format": "format tests",
     "ci": "playwright install --with-deps chromium",
     "test": "",
-    "uitest": "cross-env LOCAL_URL=http://huly.local:3003/ DEV_URL= playwright test -c ./tests/playwright.config.ts --grep-invert @PDF",
-    "uitest-pdf": "cross-env LOCAL_URL=http://huly.local:3003/ DEV_URL= playwright test -c ./tests/playwright.config.ts --grep @PDF",
+    "uitest": "cross-env LOCAL_URL=http://tracex.local:3003/ DEV_URL= playwright test -c ./tests/playwright.config.ts --grep-invert @PDF",
+    "uitest-pdf": "cross-env LOCAL_URL=http://tracex.local:3003/ DEV_URL= playwright test -c ./tests/playwright.config.ts --grep @PDF",
     "staging-uitest": "cross-env PLATFORM_URI=https://front.hc.engineering/ playwright test -c ./tests/playwright.config.ts --grep @staging --grep-invert @PDF",
     "dev-uitest": "cross-env PLATFORM_URI=http://localhost:8081 PLATFORM_TRANSACTOR=ws://localhost:3333 DEV_URL=http://localhost:8080/account playwright test -c ./tests/playwright.config.ts --grep-invert @PDF",
     "debug": "playwright test -c ./tests/playwright.config.ts --debug --headed",
-    "dev-debug": "cross-env PLATFORM_URI=http://localhost:8081 PLATFORM_TRANSACTOR=ws://huly.local:3333 playwright test -c ./tests/playwright.config.ts --debug --headed",
-    "codegen": "playwright codegen --load-storage storage.json http://huly.local:8083/workbench/sanity-ws/",
+    "dev-debug": "cross-env PLATFORM_URI=http://localhost:8081 PLATFORM_TRANSACTOR=ws://tracex.local:3333 playwright test -c ./tests/playwright.config.ts --debug --headed",
+    "codegen": "playwright codegen --load-storage storage.json http://tracex.local:8083/workbench/sanity-ws/",
     "dev-codegen": "cross-env playwright codegen --load-storage storage-dev.json http://localhost:8080/workbench/sanity-ws/",
     "allure:generate": "allure generate allure-results -o allure-report --clean"
   },
   "devDependencies": {
-    "@hcengineering/platform-rig": "workspace:^0.7.382",
+    "@hcengineering/platform-rig": "workspace:^0.7.21",
     "@types/jest": "^29.5.5",
     "@types/node": "^22.18.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
@@ -50,7 +50,7 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "cross-env": "~7.0.3",
-    "@hcengineering/core": "workspace:^0.7.382",
-    "@hcengineering/client-resources": "workspace:^0.7.382"
+    "@hcengineering/core": "workspace:^0.7.26",
+    "@hcengineering/client-resources": "workspace:^0.7.19"
   }
 }

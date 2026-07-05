@@ -1,6 +1,6 @@
 {
   "name": "@hcengineering/pod-backup",
-  "version": "0.7.382",
+  "version": "0.7.0",
   "main": "lib/index.js",
   "svelte": "src/index.ts",
   "types": "types/index.d.ts",
@@ -16,11 +16,11 @@
     "_phase:docker-staging": "rushx docker:staging",
     "get-model": "node ../../common/scripts/esbuild.js --entry=src/get-model.ts --keep-names=true --bundle=true --define=MODEL_VERSION --define=VERSION --define=GIT_REVISION  && node ./bundle/bundle.js > ./bundle/model.json",
     "bundle": "rushx get-model && node ../../common/scripts/esbuild.js --entry=src/index.ts --keep-names=true --bundle=true --sourcemap=external --external=*.node",
-    "docker:build": "../../common/scripts/docker_build.sh hardcoreeng/backup",
-    "docker:tbuild": "docker build -t hardcoreeng/backup . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh hardcoreeng/backup",
-    "docker:abuild": "docker build -t hardcoreeng/backup . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh hardcoreeng/backup",
-    "docker:staging": "../../common/scripts/docker_tag.sh hardcoreeng/backup staging",
-    "docker:push": "../../common/scripts/docker_tag.sh hardcoreeng/backup",
+    "docker:build": "../../common/scripts/docker_build.sh tracexapp/backup",
+    "docker:tbuild": "docker build -t tracexapp/backup . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/backup",
+    "docker:abuild": "docker build -t tracexapp/backup . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/backup",
+    "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/backup staging",
+    "docker:push": "../../common/scripts/docker_tag.sh tracexapp/backup",
     "run-local": "cross-env ACCOUNTS_URL=http://localhost:3000/ SECRET=secret MINIO_ACCESS_KEY=minioadmin MINIO_SECRET_KEY=minioadmin MINIO_ENDPOINT=localhost BUCKET_NAME=backups INTERVAL=30 ts-node src/index.ts",
     "format": "format src",
     "test": "jest --passWithNoTests --silent --forceExit",
@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "cross-env": "~7.0.3",
-    "@hcengineering/platform-rig": "workspace:^0.7.382",
+    "@hcengineering/platform-rig": "workspace:^0.7.21",
     "@types/node": "^22.18.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "eslint-plugin-import": "^2.26.0",
@@ -47,21 +47,21 @@
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",
     "@types/jest": "^29.5.5",
-    "@hcengineering/model-all": "workspace:^0.7.382"
+    "@hcengineering/model-all": "workspace:^0.7.0"
   },
   "dependencies": {
-    "@hcengineering/platform": "workspace:^0.7.382",
-    "@hcengineering/server-token": "workspace:^0.7.382",
-    "@hcengineering/server-core": "workspace:^0.7.382",
-    "@hcengineering/server-pipeline": "workspace:^0.7.382",
-    "@hcengineering/client": "workspace:^0.7.382",
-    "@hcengineering/client-resources": "workspace:^0.7.382",
-    "@hcengineering/core": "workspace:^0.7.382",
+    "@hcengineering/platform": "workspace:^0.7.20",
+    "@hcengineering/server-token": "workspace:^0.7.18",
+    "@hcengineering/server-core": "workspace:^0.7.19",
+    "@hcengineering/server-pipeline": "workspace:^0.7.0",
+    "@hcengineering/client": "workspace:^0.7.19",
+    "@hcengineering/client-resources": "workspace:^0.7.19",
+    "@hcengineering/core": "workspace:^0.7.26",
     "dotenv": "^16.4.5",
-    "@hcengineering/backup-service": "workspace:^0.7.382",
-    "@hcengineering/analytics": "workspace:^0.7.382",
-    "@hcengineering/analytics-service": "workspace:^0.7.382",
-    "@hcengineering/mongo": "workspace:^0.7.382",
-    "@hcengineering/postgres": "workspace:^0.7.382"
+    "@hcengineering/backup-service": "workspace:^0.7.0",
+    "@hcengineering/analytics": "workspace:^0.7.19",
+    "@hcengineering/analytics-service": "workspace:^0.7.19",
+    "@hcengineering/mongo": "workspace:^0.7.16",
+    "@hcengineering/postgres": "workspace:^0.7.22"
   }
 }

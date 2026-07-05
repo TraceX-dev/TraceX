@@ -1,0 +1,12 @@
+{
+  "string": {
+    "RegulatoryDocument": "Нормативный документ",
+    "RegulatoryDocuments": "Нормативные документы",
+    "Applicability": "Применимость",
+    "ExternalLink": "Внешняя ссылка",
+    "QalicoLink": "Ссылка Qalico",
+    "Date": "Дата",
+    "Owner": "Владелец",
+    "ActionsNeeded": "Требуемые действия"
+  }
+}

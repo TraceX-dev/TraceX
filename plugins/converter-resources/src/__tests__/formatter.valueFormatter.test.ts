@@ -26,8 +26,17 @@ jest.mock('@hcengineering/platform', () => {
   }
 })
 
+jest.mock('@hcengineering/presentation', () => ({
+  getClient: jest.fn()
+}))
+
 jest.mock('../data/personLoader', () => ({
   loadPersonName: jest.fn(async (personId: string) => personId)
+}))
+
+// Avoid pulling in Svelte/UI dependencies via createMarkdownLink
+jest.mock('../markdown/link', () => ({
+  createMarkdownLink: jest.fn(async (_hierarchy: any, _doc: any, text: string) => text)
 }))
 
 describe('formatter/valueFormatter', () => {

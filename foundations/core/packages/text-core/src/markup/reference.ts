@@ -13,9 +13,10 @@
 // limitations under the License.
 //
 
-import { Class, Doc, Ref } from '@hcengineering/core'
+import { Class, Doc, Markup, Ref } from '@hcengineering/core'
 import { MarkupNode, MarkupNodeType, ReferenceMarkupNode } from '../markup/model'
 import { traverseNode } from '../markup/traverse'
+import { markupToJSON } from './utils'
 
 /**
  * @public
@@ -23,23 +24,29 @@ import { traverseNode } from '../markup/traverse'
 export interface Reference {
   objectId: Ref<Doc>
   objectClass: Ref<Class<Doc>>
+  objectLabel: string
   parentNode: MarkupNode | null
 }
 
 /**
  * @public
  */
-export function extractReferences (content: MarkupNode): Array<Reference> {
+export function extractReferences (content: MarkupNode | Markup | string): Array<Reference> {
   const result: Array<Reference> = []
+
+  if (typeof content === 'string') {
+    content = markupToJSON(content)
+  }
 
   traverseNode(content, (node, parent) => {
     if (node.type === MarkupNodeType.reference) {
       const reference = node as ReferenceMarkupNode
       const objectId = reference.attrs.id as Ref<Doc>
       const objectClass = reference.attrs.objectclass as Ref<Class<Doc>>
+      const objectLabel = reference.attrs.label ?? node.text ?? ''
       const e = result.find((e) => e.objectId === objectId && e.objectClass === objectClass)
       if (e === undefined) {
-        result.push({ objectId, objectClass, parentNode: parent ?? node })
+        result.push({ objectId, objectClass, objectLabel, parentNode: parent ?? node })
       }
     }
     return true

@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -38,23 +39,26 @@ import core, {
   type WorkspaceUuid
 } from '@hcengineering/core'
 import { Room } from '@hcengineering/love'
-import { WorkspaceInfoRecord } from '@hcengineering/server-ai-bot'
+import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-client'
 import { getAccountClient } from '@hcengineering/server-client'
 import { generateToken } from '@hcengineering/server-token'
 import { htmlToMarkup, jsonToHTML, jsonToMarkup, markupToJSON } from '@hcengineering/text'
-import { encodingForModel, getEncoding } from 'js-tiktoken'
-import OpenAI from 'openai'
+import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 
 import chunter from '@hcengineering/chunter'
 import { StorageAdapter } from '@hcengineering/server-core'
 import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
-import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 import config from './config'
-import { DbStorage } from './storage'
+import { createProviders } from './providers'
+import { type LLMProvider } from './providers/types'
+import { DefaultLLMService, type LLMService } from './services'
+import { BlobMemoryStorage } from './storage'
+import { createLlmTool } from './tools/llmTool'
+import { registerLlmTools } from './tools'
 import { tryAssignToWorkspace } from './utils/account'
-import { summarizeMessages, translateHtml } from './utils/openai'
 import { WorkspaceClient } from './workspace/workspaceClient'
 import contact, { Contact, getName, SocialIdentityRef } from '@hcengineering/contact'
+import { LoggingLLMService } from './services/llmService'
 
 const CLOSE_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 
@@ -65,38 +69,45 @@ export class AIControl {
 
   readonly storageAdapter: StorageAdapter
 
-  private readonly openai?: OpenAI
-
-  // Try to obtain the encoding for the configured model. If the model is not recognised by js-tiktoken
-  // (e.g. non-OpenAI models such as Together AI Llama derivatives) we gracefully fall back to the
-  // universal `cl100k_base` encoding. This prevents a runtime "Unknown model" error while still
-  // giving us a reasonable token count estimate for summaries.
-  private readonly openaiEncoding = (() => {
-    try {
-      return encodingForModel(config.OpenAIModel as any)
-    } catch (err) {
-      return getEncoding('cl100k_base')
-    }
-  })()
+  private readonly providers: Map<string, LLMProvider>
+  private readonly llmService: LLMService
 
   constructor (
     readonly personUuid: AccountUuid,
     readonly socialIds: SocialId[],
-    private readonly storage: DbStorage,
     private readonly ctx: MeasureContext
   ) {
-    this.openai =
-      config.OpenAIKey !== ''
-        ? new OpenAI({
-          apiKey: config.OpenAIKey,
-          baseURL: config.OpenAIBaseUrl === '' ? undefined : config.OpenAIBaseUrl
-        })
-        : undefined
-    this.storageAdapter = buildStorageFromConfig(storageConfigFromEnv())
-  }
+    this.providers = createProviders()
+    const primaryConfig = config.Llm[0]
+    if (primaryConfig === undefined) {
+      throw new Error('No LLM providers configured')
+    }
+    const primaryProvider = this.providers.get(primaryConfig.id)
+    if (primaryProvider === undefined) {
+      throw new Error(`LLM provider '${primaryConfig.id}' not found`)
+    }
+    this.llmService = new LoggingLLMService(new DefaultLLMService(primaryProvider, { maxToolRounds: 10 }))
 
-  async getWorkspaceRecord (workspace: string): Promise<WorkspaceInfoRecord | undefined> {
-    return await this.storage.getWorkspace(workspace)
+    // Register LLM-backed tools
+    for (const llmConfig of config.Llm) {
+      if (llmConfig.tools !== undefined && llmConfig.tools.length > 0) {
+        const provider = this.providers.get(llmConfig.id)
+        if (provider === undefined) continue
+
+        const tools = llmConfig.tools.map((toolConfig) =>
+          createLlmTool({
+            name: toolConfig.name,
+            description: toolConfig.description,
+            systemPrompt: toolConfig.systemPrompt,
+            provider,
+            ctx: this.ctx
+          })
+        )
+        registerLlmTools(tools)
+      }
+    }
+
+    this.storageAdapter = buildStorageFromConfig(storageConfigFromEnv())
   }
 
   async closeWorkspaceClient (workspace: WorkspaceUuid): Promise<void> {
@@ -128,10 +139,7 @@ export class AIControl {
     this.closeWorkspaceTimeouts.set(workspace, newTimeoutId)
   }
 
-  async createWorkspaceClient (
-    workspace: WorkspaceUuid,
-    info: WorkspaceInfoRecord
-  ): Promise<WorkspaceClient | undefined> {
+  async createWorkspaceClient (workspace: WorkspaceUuid): Promise<WorkspaceClient | undefined> {
     const isAssigned = await tryAssignToWorkspace(workspace, this.ctx)
 
     if (!isAssigned) {
@@ -155,19 +163,32 @@ export class AIControl {
 
     this.ctx.info('Listen workspace: ', { workspace })
 
-    return new WorkspaceClient(
+    const ref: { clientPromise?: Promise<any> } = {}
+
+    const memoryStorage = new BlobMemoryStorage(this.storageAdapter, this.ctx, wsIds, () => {
+      if (ref.clientPromise === undefined) {
+        throw new Error('WorkspaceClient not initialized yet')
+      }
+      return ref.clientPromise
+    })
+
+    const collaborator = getCollaboratorClient(workspace, token, config.CollaboratorURL)
+    const wsClient = new WorkspaceClient(
       this.storageAdapter,
-      this.storage,
+      collaborator,
       wsLoginInfo.endpoint,
       token,
       wsIds,
       this.personUuid,
       this.socialIds,
       this.ctx.newChild('create-workspace', {}, { span: false }),
-      this.openai,
-      this.openaiEncoding,
-      info
+      this.llmService,
+      memoryStorage
     )
+
+    ref.clientPromise = wsClient.clientPromise
+
+    return wsClient
   }
 
   async initWorkspaceClient (workspace: WorkspaceUuid): Promise<void> {
@@ -178,8 +199,7 @@ export class AIControl {
     const initPromise = (async () => {
       try {
         if (!this.workspaces.has(workspace)) {
-          const record = (await this.getWorkspaceRecord(workspace)) ?? { workspace }
-          const client = await this.createWorkspaceClient(workspace, record)
+          const client = await this.createWorkspaceClient(workspace)
           if (client === undefined) {
             return
           }
@@ -203,6 +223,7 @@ export class AIControl {
   }
 
   async close (): Promise<void> {
+    await this.storageAdapter.close()
     for (const workspace of this.workspaces.values()) {
       await workspace.close()
     }
@@ -219,12 +240,9 @@ export class AIControl {
   }
 
   async translate (workspace: WorkspaceUuid, req: TranslateRequest): Promise<TranslateResponse | undefined> {
-    if (this.openai === undefined) {
-      return undefined
-    }
     const html = jsonToHTML(markupToJSON(req.text))
-    const result = await translateHtml(this.ctx, workspace, this.openai, html, req.lang)
-    const text = result !== undefined ? htmlToMarkup(result) : req.text
+    const result = await this.llmService.translateHtml(this.ctx, workspace, html, req.lang)
+    const text = result.text !== undefined ? htmlToMarkup(result.text) : req.text
     return {
       text,
       lang: req.lang
@@ -235,16 +253,12 @@ export class AIControl {
     workspace: WorkspaceUuid,
     req: SummarizeMessagesRequest
   ): Promise<SummarizeMessagesResponse | undefined> {
-    if (this.openai === undefined) return
     if (req.target === undefined || req.targetClass === undefined) return
 
     const wsClient = await this.getWorkspaceClient(workspace)
     if (wsClient === undefined) return
 
-    const opClient = await wsClient.opClient
-    if (opClient === undefined) return
-
-    const client = wsClient.client
+    const client = await wsClient.clientPromise
     if (client === undefined) return
 
     const target = await client.findOne(req.targetClass, { _id: req.target })
@@ -302,10 +316,10 @@ export class AIControl {
       }
     }
 
-    const summary = await summarizeMessages(this.ctx, workspace, this.openai, messagesToSummarize, req.lang)
-    if (summary === undefined) return
+    const result = await this.llmService.summarizeMessages(this.ctx, workspace, messagesToSummarize, req.lang)
+    if (result.text === undefined) return
 
-    const summaryMarkup = jsonToMarkup(markdownToMarkup(summary))
+    const summaryMarkup = jsonToMarkup(markdownToMarkup(result.text))
 
     const lastMessage = await client.findOne(
       chunter.class.ChatMessage,
@@ -319,9 +333,9 @@ export class AIControl {
       }
     )
 
-    const op = opClient.apply(undefined, 'AISummarizeMessagesRequestEvent')
+    const op = client.apply(undefined, 'AISummarizeMessagesRequestEvent')
 
-    if (lastMessage?.collection === 'summary' && lastMessage.createdBy === opClient.user) {
+    if (lastMessage?.collection === 'summary' && lastMessage.createdBy === client.user) {
       await op.update(lastMessage, { message: summaryMarkup, editedOn: Date.now() })
     } else {
       await op.addCollection(chunter.class.ChatMessage, core.space.Workspace, target._id, target._class, 'summary', {
@@ -337,12 +351,23 @@ export class AIControl {
   }
 
   async processEvent (workspace: WorkspaceUuid, events: AIEventRequest[]): Promise<void> {
-    if (this.openai === undefined) return
-
     for (const event of events) {
       const wsClient = await this.getWorkspaceClient(workspace)
-      if (wsClient === undefined) continue
-      await wsClient.processMessageEvent(event)
+      if (wsClient === undefined) {
+        this.ctx.warn('No workspace client for event, skipping', { workspace })
+        continue
+      }
+      try {
+        await this.ctx.with('processMessageEvent', {}, (ctx) => wsClient.processMessageEvent(ctx, event))
+      } catch (e: any) {
+        this.ctx.error('Failed to process message event', {
+          workspace,
+          user: event.user,
+          objectId: event.objectId,
+          error: e.message ?? String(e),
+          stack: e.stack
+        })
+      }
     }
   }
 

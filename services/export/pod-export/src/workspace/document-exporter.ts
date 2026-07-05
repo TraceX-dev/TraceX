@@ -32,7 +32,7 @@ import { type AttachmentExporter } from './attachment-exporter'
 import { type DataMapper } from './data-mapper'
 import { type RelationExporter } from './relation-exporter'
 import { type SpaceExporter } from './space-exporter'
-import { type ExportState, type RelationDefinition } from './types'
+import { type CustomExportHandler, type ExportState, type RelationDefinition } from './types'
 
 /**
  * Handles document export logic
@@ -40,6 +40,7 @@ import { type ExportState, type RelationDefinition } from './types'
 export class DocumentExporter {
   private relationExporter: RelationExporter | undefined
   private dataMapper: DataMapper
+  private customHandlers: CustomExportHandler[] = []
 
   constructor (
     private readonly context: MeasureContext,
@@ -60,6 +61,10 @@ export class DocumentExporter {
     this.dataMapper = dataMapper
   }
 
+  setCustomHandlers (handlers: CustomExportHandler[]): void {
+    this.customHandlers = handlers
+  }
+
   /**
    * Export a single document
    */
@@ -78,6 +83,13 @@ export class DocumentExporter {
 
     if (this.state.idMapping.has(doc._id)) {
       return false
+    }
+
+    // Class-specific custom handlers take precedence over the default flow.
+    const customTargetId = await this.runCustomHandlers(doc, sourceHierarchy, sourceLowLevel)
+    if (customTargetId !== undefined) {
+      this.state.idMapping.set(doc._id, customTargetId)
+      return true
     }
 
     if (conflictStrategy === 'skip') {
@@ -135,6 +147,15 @@ export class DocumentExporter {
         sourceHierarchy,
         sourceLowLevel
       )
+      await this.exportSpaceRelations(
+        doc,
+        doc.space,
+        conflictStrategy,
+        includeAttachments,
+        sourceHierarchy,
+        sourceLowLevel,
+        relations
+      )
 
       // Handle attachments
       if (includeAttachments) {
@@ -154,6 +175,94 @@ export class DocumentExporter {
       throw err
     } finally {
       this.state.processingDocs.delete(doc._id)
+    }
+  }
+
+  /**
+   * Run any registered custom handlers whose class matches `doc._class`.
+   * Returns the target id from the first handler that resolves the doc.
+   * Returns `undefined` when no handler matches or all handlers fall through.
+   */
+  private async runCustomHandlers (
+    doc: Doc,
+    sourceHierarchy: Hierarchy,
+    sourceLowLevel: LowLevelStorage
+  ): Promise<Ref<Doc> | undefined> {
+    if (this.customHandlers.length === 0) {
+      return undefined
+    }
+
+    const targetHierarchy = this.targetClient.getHierarchy()
+
+    for (const handler of this.customHandlers) {
+      if (!targetHierarchy.isDerived(doc._class, handler.class)) {
+        continue
+      }
+
+      try {
+        const targetId = await handler.resolve(doc, {
+          context: this.context,
+          targetClient: this.targetClient,
+          state: this.state,
+          spaceExporter: this.spaceExporter,
+          sourceHierarchy,
+          sourceLowLevel
+        })
+        if (targetId !== undefined) {
+          return targetId
+        }
+      } catch (err: any) {
+        this.context.error(`Custom export handler for ${handler.class} failed on ${doc._id}:`, {
+          error: err instanceof Error ? err.message : String(err),
+          docId: doc._id
+        })
+        throw err
+      }
+    }
+
+    return undefined
+  }
+
+  private async exportSpaceRelations (
+    doc: Doc,
+    space: Ref<Space>,
+    conflictStrategy: 'skip' | 'duplicate',
+    includeAttachments: boolean,
+    sourceHierarchy: Hierarchy,
+    sourceLowLevel: LowLevelStorage,
+    relations: RelationDefinition[]
+  ): Promise<void> {
+    try {
+      if (this.relationExporter === undefined) {
+        return
+      }
+
+      const spaceDomain = sourceHierarchy.findDomain(core.class.Space)
+      if (spaceDomain === undefined) {
+        this.context.warn('Space domain not found')
+        return
+      }
+
+      const sourceSpaces = await sourceLowLevel.rawFindAll<Space>(spaceDomain, { _id: space })
+      const spaceDoc = sourceSpaces[0]
+      if (spaceDoc == null) {
+        this.context.warn(`Source space ${space} not found for exporting relations`)
+        return
+      }
+
+      await this.relationExporter.exportAllRelations(
+        spaceDoc,
+        relations,
+        conflictStrategy,
+        includeAttachments,
+        sourceHierarchy,
+        sourceLowLevel
+      )
+    } catch (err: any) {
+      this.context.error(`Failed to export relations for space ${space}:`, {
+        error: err instanceof Error ? err.message : String(err),
+        docId: doc._id
+      })
     }
   }
 

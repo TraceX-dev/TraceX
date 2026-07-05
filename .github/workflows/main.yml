@@ -97,7 +97,7 @@ jobs:
             node common/scripts/install-run-rush.js install
           fi
 
-      # - name: Cheking model is updated...
+      # - name: Checking model version is updated...
       #   run: node common/scripts/check_model_version.js
 
       - name: Checking for mis-matching dependencies...
@@ -215,9 +215,9 @@ jobs:
       - name: Login to Docker Hub
         if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         continue-on-error: true
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          username: hardcoreeng
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Prepare server
@@ -265,9 +265,9 @@ jobs:
       - name: Login to Docker Hub
         if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         continue-on-error: true
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          username: hardcoreeng
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
       - name: Free space
         uses: ./.github/actions/free-disk-space
@@ -278,7 +278,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - name: Configure /etc/hosts
         run: |
-          sudo echo "127.0.0.1 huly.local" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
       - name: Prepare server
         run: |
           cd ./tests
@@ -397,9 +397,9 @@ jobs:
       - name: Login to Docker Hub
         if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         continue-on-error: true
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          username: hardcoreeng
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
       - name: Free space
         uses: ./.github/actions/free-disk-space
@@ -410,7 +410,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - name: Configure /etc/hosts
         run: |
-          sudo echo "127.0.0.1 huly.local" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
       - name: Prepare server
         run: |
           cd ./tests
@@ -462,6 +462,8 @@ jobs:
   uitest-qms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -494,9 +496,9 @@ jobs:
       - name: Login to Docker Hub
         if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         continue-on-error: true
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          username: hardcoreeng
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
       - name: Free space
         uses: ./.github/actions/free-disk-space
@@ -507,7 +509,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - name: Configure /etc/hosts
         run: |
-          sudo echo "127.0.0.1 huly.local" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
       - name: Prepare server
         run: |
           cd ./qms-tests
@@ -534,6 +536,24 @@ jobs:
         with:
           name: playwright-results-qms
           path: ./qms-tests/sanity/playwright-report/
+      - name: Publish QMS report to gh-pages
+        if: ${{ always() && github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && hashFiles('qms-tests/sanity/playwright-report/index.html') != '' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./qms-tests/sanity/playwright-report
+          destination_dir: qms/${{ startsWith(github.ref, 'refs/tags/v') && 'v' || 's' }}/${{ github.ref_name }}
+          keep_files: true
+      - name: Update latest QMS report pointer
+        if: ${{ always() && github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && hashFiles('qms-tests/sanity/playwright-report/index.html') != '' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./qms-tests/sanity/playwright-report
+          destination_dir: qms/${{ startsWith(github.ref, 'refs/tags/v') && 'v' || 's' }}/latest
+          keep_files: true
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v6
@@ -578,9 +598,9 @@ jobs:
       - name: Login to Docker Hub
         if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         continue-on-error: true
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          username: hardcoreeng
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
       - name: Free space
         uses: ./.github/actions/free-disk-space
@@ -591,7 +611,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - name: Configure /etc/hosts
         run: |
-          sudo echo "127.0.0.1 huly.local" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
       - name: Prepare server
         run: |
           cd ./ws-tests
@@ -649,9 +669,9 @@ jobs:
       - name: Free space
         uses: ./.github/actions/free-disk-space
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Configure docker
-        uses: docker/setup-docker-action@v4
+        uses: docker/setup-docker-action@v5
         with:
           daemon-config: |
             {
@@ -670,9 +690,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
-          version: latest
+          version: 10
       - name: Cache node modules
         uses: actions/cache@v5
         env:
@@ -693,9 +713,9 @@ jobs:
       - name: Login to Docker Hub
         if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         continue-on-error: true
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          username: hardcoreeng
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Docker build
@@ -707,20 +727,11 @@ jobs:
           DOCKER_EXTRA: --platform=linux/amd64,linux/arm64
           DOCKER_BUILDKIT: 1
           DOCKER_BUILD_CLEANUP: true
-      - name: Docker build love-agent
-        run: |
-          cd ./services/ai-bot/love-agent
-          pnpm install && pnpm build
-          pnpm docker:build -v
-        env:
-          DOCKER_CLI_HINTS: false
-          DOCKER_EXTRA: --platform=linux/amd64,linux/arm64
-          DOCKER_BUILDKIT: 1
       - name: Login to Docker Hub
         if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          username: hardcoreeng
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
       # - name: Docker push staging
       #   if: ${{ github.ref == 'refs/heads/main' }}
@@ -730,115 +741,6 @@ jobs:
         run: |
           echo Pushing release of tag ${{ github.ref }}
           node common/scripts/install-run-rush.js docker:push -v
-      - name: Docker push love-agent
-        if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
-        run: |
-          echo Pushing love-agent release of tag ${{ github.ref }}
-          cd ./services/ai-bot/love-agent
-          pnpm docker:push
-
-  dist-build:
-    # if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-    needs: build
-    runs-on: macos-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          filter: tree:0
-          submodules: recursive
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Cache node modules
-        uses: actions/cache@v5
-        env:
-          cache-name: node
-        with:
-          path: |
-            common/temp
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Installing...
-        run: node common/scripts/install-run-rush.js install --purge
-      - name: Model version from git tags
-        run: node common/scripts/install-run-rush.js model-version
-      - name: Package
-        run: node common/scripts/install-run-rush.js package --to desktop -v
-      - name: Bump package JSON version
-        run: |
-          cd desktop-package
-          node ../common/scripts/install-run-rushx.js bump
-          cat ./package.json
-      - name: Install the Apple certificate and provisioning profile
-        env:
-          DEV_ID_P12_BASE64: ${{ secrets.DEV_ID_P12_BASE64 }}
-          DEV_ID_P12_PASSWORD: ${{ secrets.DEV_ID_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          # create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-          # import certificate from secret
-          echo -n "$DEV_ID_P12_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-
-          # create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          # import certificate to keychain
-          security import $CERTIFICATE_PATH -P "$DEV_ID_P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-      - name: Build distribution's
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_APP_PASS: ${{ secrets.APPLE_ID_APP_PASS }}
-          TEAM_ID: ${{ secrets.TEAM_ID }}
-        run: |
-          cd desktop-package
-          node ../common/scripts/install-run-rushx.js dist --linux --x64
-          node ../common/scripts/install-run-rushx.js dist --windows --x64 --arm64
-          node ../common/scripts/install-run-rushx.js dist-signed --macos --x64 --arm64
-          ./scripts/copy-publish-artifacts.sh ${{ env.PublishTempFolder}}
-      - name: Publish distribution assets and version
-        if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
-        uses: ryand56/r2-upload-action@latest
-        with:
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: desktop-distro
-          source-dir: desktop-package/${{ env.PublishTempFolder}}
-          destination-dir: ./
-      - name: Upload MacOS
-        uses: actions/upload-artifact@v6
-        with:
-          name: Huly-MacOS-x64
-          path: ./desktop-package/deploy/Huly-macos-*-x64.dmg
-      - name: Upload MacOS arm64
-        uses: actions/upload-artifact@v6
-        with:
-          name: Huly-MacOS-arm64
-          path: ./desktop-package/deploy/Huly-macos-*-arm64.dmg
-      - name: Upload Windows
-        uses: actions/upload-artifact@v6
-        with:
-          name: Huly-Windows
-          path: ./desktop-package/deploy/Huly-windows-*.zip
-      - name: Upload Linux
-        uses: actions/upload-artifact@v6
-        with:
-          name: Huly-Linux
-          path: ./desktop-package/deploy/Huly-linux-*.zip
 
   qms-dist-build:
     # if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
@@ -914,14 +816,14 @@ jobs:
           ./scripts/copy-publish-artifacts.sh ${{ env.PublishTempFolder}}
       - name: Publish distribution assets and version
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
-        uses: ryand56/r2-upload-action@latest
-        with:
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: desktop-distro
-          source-dir: qms-desktop-package/${{ env.PublishTempFolder}}
-          destination-dir: ./
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.S3_REGION }}
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+        run: |
+          aws s3 sync "qms-desktop-package/${{ env.PublishTempFolder }}" "s3://${{ secrets.DIST_S3_BUCKET }}/" \
+            --endpoint-url "${{ secrets.S3_ENDPOINT }}"
       - name: Upload MacOS
         uses: actions/upload-artifact@v6
         with:
@@ -968,15 +870,17 @@ jobs:
         run: node common/scripts/install-run-rush.js install
       - name: Building...
         run: node common/scripts/install-run-rush.js build
+      - name: Emit TypeScript declarations
+        run: node common/scripts/install-run-rush.js validate
       - name: Publish to npm
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/common/config/rush/.npmrc-publish
         run: |
           if [ -z "$NPM_TOKEN" ]; then
             echo "::error::NPM_TOKEN secret is not set. Add it in repository Settings > Secrets and variables > Actions."
             exit 1
           fi
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
           REF="${{ github.event.inputs.ref || github.ref }}"
           VERSION="${REF#refs/tags/v}"
           VERSION="${VERSION#v}"

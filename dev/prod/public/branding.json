@@ -1,7 +1,7 @@
 {
-  "huly.local:8080": {
-    "title": "Huly",
-    "languages": "en,ru,pt,pt-br,es,zh,fr,de,ja,tr",
+  "tracex.local:8080": {
+    "title": "TraceX",
+    "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "en",
     "defaultApplication": "tracker",
     "defaultSpace": "tracker:project:DefaultProject",
@@ -10,27 +10,27 @@
     "links": [
       {
         "rel": "manifest",
-        "href": "/huly/site.webmanifest"
+        "href": "/tracex/site.webmanifest"
       },
       {
         "rel": "icon",
-        "href": "/huly/favicon.svg",
+        "href": "/tracex/favicon.svg",
         "type": "image/svg+xml"
       },
       {
         "rel": "shortcut icon",
-        "href": "/huly/favicon.ico",
+        "href": "/tracex/favicon.ico",
         "sizes": "any"
       },
       {
         "rel": "apple-touch-icon",
-        "href": "/huly/apple-touch-icon.png"
+        "href": "/tracex/apple-touch-icon.png"
       }
     ]
   },
-  "huly.local:8087": {
-    "title": "Huly",
-    "languages": "en,ru,pt,pt-br,es,zh,fr,de,ja,tr",
+  "tracex.local:8087": {
+    "title": "TraceX",
+    "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "en",
     "defaultApplication": "tracker",
     "defaultSpace": "tracker:project:DefaultProject",
@@ -39,25 +39,25 @@
     "links": [
       {
         "rel": "manifest",
-        "href": "/huly/site.webmanifest"
+        "href": "/tracex/site.webmanifest"
       },
       {
         "rel": "icon",
-        "href": "/huly/favicon.svg",
+        "href": "/tracex/favicon.svg",
         "type": "image/svg+xml"
       },
       {
         "rel": "shortcut icon",
-        "href": "/huly/favicon.ico",
+        "href": "/tracex/favicon.ico",
         "sizes": "any"
       },
       {
         "rel": "apple-touch-icon",
-        "href": "/huly/apple-touch-icon.png"
+        "href": "/tracex/apple-touch-icon.png"
       }
     ]
   },
-  "huly.local:8081": {
+  "tracex.local:8081": {
     "title": "TraceX",
     "languages": "en",
     "defaultLanguage": "en",
@@ -97,7 +97,7 @@
       }
     ]
   },
-  "huly.local:8088": {
+  "tracex.local:8088": {
     "title": "TraceX",
     "languages": "en",
     "defaultLanguage": "en",

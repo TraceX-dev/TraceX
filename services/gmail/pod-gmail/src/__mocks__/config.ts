@@ -5,7 +5,7 @@ const config = {
   Secret: 'test-secret',
   Credentials: 'test-credentials',
   WATCH_TOPIC_NAME: 'test-watch-topic',
-  FooterMessage: '<br><br><p>Sent via <a href="https://huly.io">Huly</a></p>',
+  FooterMessage: '<br><br><p>Sent via <a href="https://tracex.co">TraceX</a></p>',
   InitLimit: 50,
   WorkspaceInactivityInterval: 3
 }

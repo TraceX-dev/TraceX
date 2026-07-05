@@ -70,6 +70,11 @@ export function createModel (builder: Builder): void {
     serverCheckFunc: serverProcess.func.FieldChangedCheck
   })
 
+  builder.mixin(process.trigger.WhenRequiredFieldsFilled, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true,
+    serverCheckFunc: serverProcess.func.RequiredFieldsFilledCheck
+  })
+
   builder.mixin(process.trigger.OnApproveRequestApproved, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
     preventRollback: true,
     serverCheckFunc: serverProcess.func.ApproveRequestApproved
@@ -171,6 +176,70 @@ export function createModel (builder: Builder): void {
     func: serverProcess.transform.LastValue
   })
 
+  builder.mixin(process.function.StringFromNumber, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.StringFromNumber
+  })
+
+  builder.mixin(process.function.StringFromDate, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.StringFromDate
+  })
+
+  builder.mixin(process.function.StringFromMarkup, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.StringFromMarkup
+  })
+
+  builder.mixin(process.function.StringFromBoolean, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.StringFromBoolean
+  })
+
+  builder.mixin(process.function.MarkupFromString, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.MarkupFromString
+  })
+
+  builder.mixin(process.function.StringFromEnum, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.StringFromEnum
+  })
+
+  builder.mixin(process.function.EnumFromString, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.EnumFromString
+  })
+
+  builder.mixin(process.function.NumberFromDate, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.NumberFromDate
+  })
+
+  builder.mixin(process.function.DateFromNumber, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.DateFromNumber
+  })
+
+  builder.mixin(process.function.StringFromIdentifier, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.StringFromIdentifier
+  })
+
+  builder.mixin(process.function.NumberFromString, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.NumberFromString
+  })
+
+  builder.mixin(process.function.DateFromString, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.DateFromString
+  })
+
+  builder.mixin(process.function.YearFromDate, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.YearFromDate
+  })
+
+  builder.mixin(process.function.MonthFromDate, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.MonthFromDate
+  })
+
+  builder.mixin(process.function.DayFromDate, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.DayFromDate
+  })
+
+  builder.mixin(process.function.DateDifference, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.DateDifference
+  })
+
   builder.mixin(process.function.Random, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.Random
   })
@@ -259,6 +328,14 @@ export function createModel (builder: Builder): void {
     func: serverProcess.transform.Floor
   })
 
+  builder.mixin(process.function.Min, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.Min
+  })
+
+  builder.mixin(process.function.Max, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.Max
+  })
+
   builder.mixin(process.function.Offset, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.Offset
   })
@@ -297,6 +374,10 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(process.function.RemoveLast, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.RemoveLast
+  })
+
+  builder.mixin(process.function.EmptyValue, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.EmptyValue
   })
 
   builder.mixin(process.function.EmptyArray, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
@@ -338,6 +419,17 @@ export function createModel (builder: Builder): void {
     },
     isAsync: true
   })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverProcess.trigger.OnExecutionDone,
+    txMatch: {
+      _class: core.class.TxUpdateDoc,
+      objectClass: process.class.Execution,
+      'operations.status': ExecutionStatus.Done
+    },
+    isAsync: true
+  })
+
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverProcess.trigger.OnExecutionCreate,
     txMatch: {
@@ -422,6 +514,15 @@ export function createModel (builder: Builder): void {
     trigger: serverProcess.trigger.OnCardCreate,
     txMatch: {
       _class: core.class.TxCreateDoc,
+      objectClass: cardPlugin.class.Card
+    },
+    isAsync: true
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverProcess.trigger.OnCardRemove,
+    txMatch: {
+      _class: core.class.TxRemoveDoc,
       objectClass: cardPlugin.class.Card
     },
     isAsync: true

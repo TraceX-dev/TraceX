@@ -55,6 +55,7 @@ import type {
   Subscription,
   SubscriptionData,
   UserProfile,
+  WorkspaceConfiguration,
   WorkspaceLoginInfo,
   WorkspaceOperation
 } from './types'
@@ -92,7 +93,9 @@ export interface AccountClient {
   ) => Promise<string>
   leaveWorkspace: (account: AccountUuid) => Promise<LoginInfo | null>
   changeUsername: (first: string, last: string) => Promise<void>
+  checkHasPassword: () => Promise<boolean>
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>
+  requestPasswordSetup: () => Promise<void>
   signUpJoin: (
     email: string,
     password: string,
@@ -132,7 +135,11 @@ export interface AccountClient {
   getWorkspacesInfo: (workspaces: WorkspaceUuid[]) => Promise<WorkspaceInfoWithStatus[]>
   updateLastVisit: (workspaces: WorkspaceUuid[]) => Promise<void>
   getRegionInfo: () => Promise<RegionInfo[]>
-  createWorkspace: (name: string, region?: string) => Promise<WorkspaceLoginInfo>
+  createWorkspace: (
+    name: string,
+    region?: string,
+    configuration?: WorkspaceConfiguration
+  ) => Promise<WorkspaceLoginInfo>
   signUpOtp: (email: string, first: string, last: string) => Promise<OtpInfo>
   /**
    * Deprecated. Only to be used for dev setups without mail service.
@@ -235,7 +242,7 @@ export interface AccountClient {
   addEmailSocialId: (email: string) => Promise<OtpInfo>
   addHulyAssistantSocialId: () => Promise<PersonId>
   refreshHulyAssistantToken: () => Promise<void>
-  updatePasswordAgingRule: (days: number) => Promise<void>
+  updatePasswordAgingRule: (days?: number) => Promise<void>
   checkPasswordAging: () => Promise<boolean>
 
   setMyProfile: (profile: Partial<Omit<UserProfile, 'personUuid'>>) => Promise<void>
@@ -252,8 +259,14 @@ export interface AccountClient {
   getWorkspacePermissions: (params: { accountId: AccountUuid, permission: string }) => Promise<WorkspaceUuid[]>
   getWorkspaceUsersWithPermission: (params: { permission: string }) => Promise<AccountUuid[]>
 
+  verify2fa: (code: string) => Promise<LoginInfo>
+
   setCookie: () => Promise<void>
   deleteCookie: () => Promise<void>
+
+  generate2faSecret: () => Promise<{ secret: string, url: string }>
+  enable2fa: (secret: string, code: string) => Promise<void>
+  disable2fa: (code: string) => Promise<void>
 }
 
 /** @public */
@@ -510,6 +523,15 @@ class AccountClientImpl implements AccountClient {
     await this.rpc(request)
   }
 
+  async checkHasPassword (): Promise<boolean> {
+    const request = {
+      method: 'checkHasPassword' as const,
+      params: {}
+    }
+
+    return await this.rpc(request)
+  }
+
   async changePassword (oldPassword: string, newPassword: string): Promise<void> {
     const request = {
       method: 'changePassword' as const,
@@ -519,7 +541,16 @@ class AccountClientImpl implements AccountClient {
     await this.rpc(request)
   }
 
-  async updatePasswordAgingRule (days: number): Promise<void> {
+  async requestPasswordSetup (): Promise<void> {
+    const request = {
+      method: 'requestPasswordSetup' as const,
+      params: {}
+    }
+
+    await this.rpc(request)
+  }
+
+  async updatePasswordAgingRule (days?: number): Promise<void> {
     const request = {
       method: 'updatePasswordAgingRule' as const,
       params: { days }
@@ -642,10 +673,14 @@ class AccountClientImpl implements AccountClient {
     return await this.rpc(request)
   }
 
-  async createWorkspace (workspaceName: string, region?: string): Promise<WorkspaceLoginInfo> {
+  async createWorkspace (
+    workspaceName: string,
+    region?: string,
+    configuration?: WorkspaceConfiguration
+  ): Promise<WorkspaceLoginInfo> {
     const request = {
       method: 'createWorkspace' as const,
-      params: { workspaceName, region }
+      params: { workspaceName, region, configuration }
     }
 
     return await this.rpc(request)
@@ -1314,6 +1349,42 @@ class AccountClientImpl implements AccountClient {
       method: 'getWorkspaceUsersWithPermission',
       params
     })
+  }
+
+  async verify2fa (code: string): Promise<LoginInfo> {
+    const request = {
+      method: 'verify2fa' as const,
+      params: { code }
+    }
+
+    return await this.rpc(request)
+  }
+
+  async generate2faSecret (): Promise<{ secret: string, url: string }> {
+    const request = {
+      method: 'generate2faSecret' as const,
+      params: {}
+    }
+
+    return await this.rpc(request)
+  }
+
+  async enable2fa (secret: string, code: string): Promise<void> {
+    const request = {
+      method: 'enable2fa' as const,
+      params: { secret, code }
+    }
+
+    await this.rpc(request)
+  }
+
+  async disable2fa (code: string): Promise<void> {
+    const request = {
+      method: 'disable2fa' as const,
+      params: { code }
+    }
+
+    await this.rpc(request)
   }
 }
 

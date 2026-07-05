@@ -92,6 +92,8 @@ import {
   type ObjectValidator,
   type PreviewPresenter,
   type ReferenceObjectProvider,
+  type ReferenceVersion,
+  type ReferenceVersionsProvider,
   type SortFunc,
   type SpaceHeader,
   type SpaceName,
@@ -273,6 +275,11 @@ export class TObjectIdentifier extends TClass implements ObjectIdentifier {
 @Mixin(view.mixin.ReferenceObjectProvider, core.class.Class)
 export class TReferenceObjectProvider extends TClass implements ReferenceObjectProvider {
   provider!: Resource<<T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<Doc | undefined>>
+}
+
+@Mixin(view.mixin.ReferenceVersionsProvider, core.class.Class)
+export class TReferenceVersionsProvider extends TClass implements ReferenceVersionsProvider {
+  provider!: Resource<<T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<ReferenceVersion[]>>
 }
 
 @Mixin(view.mixin.ObjectTooltip, core.class.Class)
@@ -523,6 +530,7 @@ export function createModel (builder: Builder): void {
     TGroupping,
     TObjectIdentifier,
     TReferenceObjectProvider,
+    TReferenceVersionsProvider,
     TObjectTooltip,
     TObjectIcon,
     TAttrPresenter,
@@ -890,24 +898,28 @@ export function createModel (builder: Builder): void {
     view.action.Join
   )
 
-  createAction(builder, {
-    action: view.actionImpl.ShowPopup,
-    actionProps: {
-      component: view.component.AddRelationPopup,
-      fillProps: {
-        _objects: 'value'
+  createAction(
+    builder,
+    {
+      action: view.actionImpl.ShowPopup as ViewAction<Record<string, any>>,
+      actionProps: {
+        component: view.component.AddRelationPopup,
+        fillProps: {
+          _objects: 'value'
+        }
+      },
+      label: core.string.AddRelation,
+      input: 'any',
+      icon: view.icon.CopyLink,
+      category: view.category.Editor,
+      target: core.class.Doc,
+      context: {
+        mode: ['context', 'browser'],
+        group: 'associate'
       }
     },
-    label: core.string.AddRelation,
-    input: 'any',
-    icon: view.icon.CopyLink,
-    category: view.category.Editor,
-    target: core.class.Doc,
-    context: {
-      mode: ['context', 'browser'],
-      group: 'associate'
-    }
-  })
+    view.action.AddRelation
+  )
 
   createAction(
     builder,

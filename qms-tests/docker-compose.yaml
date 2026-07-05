@@ -3,7 +3,7 @@ services:
   cockroach:
     image: cockroachdb/cockroach:v24.1.2
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     ports:
       - '26258:26257'
       - '18089:8080'
@@ -12,7 +12,7 @@ services:
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     command:
       - redpanda
       - start
@@ -39,7 +39,7 @@ services:
   redpanda_console:
     image: docker.redpanda.com/redpandadata/console:v2.8.3
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     entrypoint: /bin/sh
     command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'
     environment:
@@ -86,9 +86,9 @@ services:
       retries: 10
       test: curl -s http://localhost:9200/_cluster/health | grep -vq '"status":"red"'
   account:
-    image: hardcoreeng/account
+    image: tracexapp/account
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     pull_policy: never
     links:
       - cockroach
@@ -103,13 +103,13 @@ services:
       - SERVER_SECRET=secret
       - WORKSPACE_LIMIT_PER_USER=100
       - DB_URL=${DB_PG_URL}
-      - TRANSACTOR_URL=ws://transactor:3334;ws://huly.local:3334
+      - TRANSACTOR_URL=ws://transactor:3334;ws://tracex.local:3334
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - BRANDING_PATH=/var/cfg/branding-test.json
   workspace:
-    image: hardcoreeng/workspace
+    image: tracexapp/workspace
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     links:
       - cockroach
       - minio
@@ -119,16 +119,16 @@ services:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - SERVER_SECRET=secret
       - DB_URL=${DB_PG_URL}
-      - TRANSACTOR_URL=ws://transactor:3334;ws://huly.local:3334
+      - TRANSACTOR_URL=ws://transactor:3334;ws://tracex.local:3334
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://account:3003
       - ACCOUNTS_DB_URL=${DB_PG_URL}
       - BRANDING_PATH=/var/cfg/branding.json
     restart: unless-stopped
   front:
-    image: hardcoreeng/front
+    image: tracexapp/front
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     pull_policy: never
     links:
       - account
@@ -144,21 +144,21 @@ services:
     environment:
       - SERVER_PORT=8083
       - SERVER_SECRET=secret
-      - ACCOUNTS_URL=http://huly.local:3003
+      - ACCOUNTS_URL=http://tracex.local:3003
       - UPLOAD_URL=/files
-      - GMAIL_URL=http://huly.local:8088
-      - CALENDAR_URL=http://huly.local:8095
+      - GMAIL_URL=http://tracex.local:8088
+      - CALENDAR_URL=http://tracex.local:8095
       - REKONI_URL=http://rekoni:4007
-      - TELEGRAM_URL=http://huly.local:8086
-      - COLLABORATOR_URL=ws://huly.local:3079
+      - TELEGRAM_URL=http://tracex.local:8086
+      - COLLABORATOR_URL=ws://tracex.local:3079
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - BRANDING_URL=http://huly.local:8083/branding-test.json
-      - PRINT_URL=http://huly.local:4003
-      - SIGN_URL=http://huly.local:4008
+      - BRANDING_URL=http://tracex.local:8083/branding-test.json
+      - PRINT_URL=http://tracex.local:4003
+      - SIGN_URL=http://tracex.local:4008
   transactor:
-    image: hardcoreeng/transactor
+    image: tracexapp/transactor
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     pull_policy: never
     links:
       - cockroach
@@ -178,8 +178,8 @@ services:
       - METRICS_CONSOLE=false
       - METRICS_FILE=metrics.txt
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - FRONT_URL=http://huly.local:8083
-      - UPLOAD_URL=http://huly.local:8083/files
+      - FRONT_URL=http://tracex.local:8083
+      - UPLOAD_URL=http://tracex.local:8083/files
       - ACCOUNTS_URL=http://account:3003
       - LAST_NAME_FIRST=true
       - FULLTEXT_URL=http://fulltext:4710
@@ -187,9 +187,9 @@ services:
       - RATE_LIMIT_MAX=25000
       - RATE_LIMIT_WINDOW=1000
   collaborator:
-    image: hardcoreeng/collaborator
+    image: tracexapp/collaborator
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     links:
       - cockroach
       - minio
@@ -204,14 +204,14 @@ services:
       - STORAGE_CONFIG=${STORAGE_CONFIG}
     restart: unless-stopped
   rekoni:
-    image: hardcoreeng/rekoni-service
+    image: tracexapp/rekoni-service
     restart: on-failure
     ports:
       - 4007:4004
   print:
-    image: hardcoreeng/print
+    image: tracexapp/print
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     restart: unless-stopped
     ports:
       - 4003:4005
@@ -219,14 +219,15 @@ services:
       - SECRET=secret
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://account:3003
+      - FRONT_URL=http://tracex.local:8087
     deploy:
       resources:
         limits:
           memory: 300M
   sign:
-    image: hardcoreeng/sign
+    image: tracexapp/sign
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     restart: unless-stopped
     ports:
       - 4008:4006
@@ -247,7 +248,7 @@ services:
         limits:
           memory: 300M
   fulltext:
-    image: hardcoreeng/fulltext
+    image: tracexapp/fulltext
     restart: unless-stopped
     depends_on:
       redpanda:

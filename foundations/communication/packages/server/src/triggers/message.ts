@@ -25,7 +25,6 @@ import {
 import { CardPeer, MessageType, Peer } from '@hcengineering/communication-types'
 import { type AccountUuid, generateId } from '@hcengineering/core'
 import { extractReferences } from '@hcengineering/text-core'
-import { markdownToMarkup } from '@hcengineering/text-markdown'
 
 import type { Enriched, TriggerCtx, TriggerFn, Triggers } from '../types'
 import { generateMessageId } from '../messageId'
@@ -41,8 +40,7 @@ async function addCollaborators (ctx: TriggerCtx, event: Enriched<CreateMessageE
   }
 
   if (event.options?.ignoreMentions !== true) {
-    const markup = markdownToMarkup(content)
-    const references = extractReferences(markup)
+    const references = extractReferences(content)
     const personIds = references
       .filter((it) => ['contact:class:Person', 'contact:mixin:Employee'].includes(it.objectClass))
       .map((it) => it.objectId)

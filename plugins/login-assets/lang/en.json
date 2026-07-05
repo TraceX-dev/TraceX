@@ -7,6 +7,11 @@
   },
   "string": {
     "ChangePassword": "Change password",
+    "SetPassword": "Set a password",
+    "SSOPasswordDescription": "Your account uses external login. Set up a password via email confirmation.",
+    "SendSetupLink": "Send setup link",
+    "SSOPasswordEmailSent": "Check your email for a link to set your password.",
+    "SSONoEmailLinked": "No email address is linked to your account. Add one in Account Settings → Manage Identities first.",
     "CurrentPassword": "Current password",
     "NewPassword": "New password",
     "EnterCurrentPassword": "Enter current password",
@@ -66,7 +71,7 @@
     "Next": "Next",
     "Skip": "Skip",
     "SignUpCompleted": "Sign up completed",
-    "StartUsingHuly": "Start using Huly",
+    "StartUsingHuly": "Start using TraceX",
     "PasswordMinLength": "{count, plural, =1 {Password must be at least # character long} other {Password must be at least # characters long}}",
     "PasswordMinSpecialChars": "{count, plural, =1 {Password must contain at least # special character} other {Password must contain at least # special characters}}",
     "PasswordMinDigits": "{count, plural, =1 {Password must contain at least # number} other {Password must contain at least # numbers}}",
@@ -91,6 +96,11 @@
     "LogInAndJoin": "Log In & Join",
     "SignUpAndJoin": "Sign Up & Join",
     "CreateNewAccount": "Create new account",
-    "SignedInAs": "Signed in as {name}"
+    "SignedInAs": "Signed in as {name}",
+    "TwoFactorAuth": "Two-factor authentication",
+    "EnterTwoFactorCode": "Enter two-factor authentication code",
+    "TwoFactorCode": "Two-factor authentication code",
+    "Verify": "Verify",
+    "CreateSampleProjects": "Create sample projects and demo content"
   }
 }

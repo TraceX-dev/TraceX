@@ -1,0 +1,6 @@
+{
+  "string": {
+    "TokenUsage": "{input} / {output} tokens",
+    "TokenUsageTooltip": "Input: {input}, Output: {output}"
+  }
+}

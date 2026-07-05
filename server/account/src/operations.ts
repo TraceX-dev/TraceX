@@ -31,6 +31,7 @@ import {
   SocialIdType,
   systemAccountUuid,
   readOnlyGuestAccountUuid,
+  type WorkspaceConfiguration,
   type WorkspaceMemberInfo,
   type WorkspaceUuid,
   type IntegrationKind
@@ -123,8 +124,13 @@ import {
   recordFailedLoginAttempt,
   resetFailedLoginAttempts,
   updatePasswordAgingRule,
-  checkPasswordAging
+  checkPasswordAging,
+  generateTotpSecret,
+  verifyTotpCode,
+  getTotpUrl
 } from './utils'
+
+const NIL_UUID = '00000000-0000-0000-0000-000000000000' as AccountUuid
 
 // Note: it is IMPORTANT to always destructure params passed here to avoid sending extra params
 // to the database layer when searching/inserting as they may contain SQL injection
@@ -229,9 +235,16 @@ export async function login (
 
     return {
       account: existingAccount.uuid,
-      token: isConfirmed ? generateToken(existingAccount.uuid, undefined, extraToken) : undefined,
+      token: isConfirmed
+        ? generateToken(
+          existingAccount.tfaSecret != null ? NIL_UUID : existingAccount.uuid,
+          undefined,
+          existingAccount.tfaSecret != null ? { ...extraToken, tfaAccount: existingAccount.uuid } : extraToken
+        )
+        : undefined,
       name: getPersonName(person),
-      socialId: emailSocialId._id
+      socialId: emailSocialId._id,
+      tfaRequired: isConfirmed && existingAccount.tfaSecret != null
     }
   } catch (err: any) {
     Analytics.handleError(err)
@@ -508,15 +521,26 @@ export async function validateOtp (
 
     await resetFailedLoginAttempts(db, emailSocialId.personUuid as AccountUuid)
 
+    const isConfirmed = emailSocialId.verifiedOn != null || action !== 'verify'
+
     const extraToken: Record<string, string> = isAdminEmail(normalizedEmail)
       ? { admin: 'true', authMethod: 'otp' }
       : { authMethod: 'otp' }
+
+    const _token = isConfirmed
+      ? generateToken(
+        targetAccount?.tfaSecret != null ? NIL_UUID : emailSocialId.personUuid,
+        undefined,
+        targetAccount?.tfaSecret != null ? { ...extraToken, tfaAccount: emailSocialId.personUuid } : extraToken
+      )
+      : undefined
 
     return {
       account: emailSocialId.personUuid as AccountUuid,
       name: getPersonName(person),
       socialId: emailSocialId._id,
-      token: generateToken(emailSocialId.personUuid, undefined, extraToken)
+      token: _token,
+      tfaRequired: targetAccount?.tfaSecret != null
     }
   } catch (err: any) {
     Analytics.handleError(err)
@@ -533,9 +557,10 @@ export async function createWorkspace (
   params: {
     workspaceName: string
     region?: string
+    configuration?: WorkspaceConfiguration
   }
 ): Promise<WorkspaceLoginInfo> {
-  const { workspaceName, region } = params
+  const { workspaceName, region, configuration } = params
 
   if (workspaceName == null || workspaceName.length === 0) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
@@ -573,7 +598,23 @@ export async function createWorkspace (
     )
   }
 
-  const { workspaceUuid, workspaceUrl } = await createWorkspaceRecord(ctx, db, branding, workspaceName, account, region)
+  // Persist the client-provided configuration as-is. The only currently
+  // supported field is `withDemoContent`; future fields can be added without
+  // changing the wire shape.
+  const pendingConfiguration =
+    configuration?.withDemoContent !== undefined ? { withDemoContent: configuration.withDemoContent } : undefined
+
+  const { workspaceUuid, workspaceUrl } = await createWorkspaceRecord(
+    ctx,
+    db,
+    branding,
+    workspaceName,
+    account,
+    region,
+    'pending-creation',
+    undefined,
+    pendingConfiguration
+  )
 
   await db.assignWorkspace(account, workspaceUuid, AccountRole.Owner)
 
@@ -1063,6 +1104,11 @@ export async function checkJoin (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid }))
   }
 
+  const role = await db.getWorkspaceRole(accountUuid, workspace.uuid)
+  if (role == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
   const wsLoginInfo = await selectWorkspace(ctx, db, branding, token, { workspaceUrl: workspace.url, kind: 'external' })
 
   if (getRolePower(wsLoginInfo.role) < getRolePower(invite.role)) {
@@ -1245,7 +1291,7 @@ export async function signUpJoin (
     workspaceUrl: string
   },
   meta?: Meta
-): Promise<WorkspaceLoginInfo> {
+): Promise<WorkspaceLoginInfo | LoginInfo> {
   const { email, password, first, last, inviteId, workspaceUrl } = params
 
   if (password == null || password === '' || first == null || first === '') {
@@ -1261,8 +1307,47 @@ export async function signUpJoin (
     inviteId
   })
 
-  const { account } = await signUpByEmail(ctx, db, branding, email, password, first, last ?? '', true)
+  // Require email confirmation just like the regular signUp flow.
+  // Auto-confirm only when no mail service is configured (dev setups).
+  const mailURL = getMetadata(accountPlugin.metadata.MAIL_URL)
+  const forceConfirmation = mailURL !== undefined && mailURL !== ''
+
+  const { account, socialId } = await signUpByEmail(
+    ctx,
+    db,
+    branding,
+    email,
+    password,
+    first,
+    last ?? '',
+    !forceConfirmation
+  )
   void setTimezone(ctx, db, account, null, meta)
+
+  if (forceConfirmation) {
+    const person = await db.person.findOne({ uuid: account })
+    if (person == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
+    }
+
+    const normalizedEmail = cleanEmail(email)
+    // Thread the invite info through the confirmation token so the user
+    // is auto-joined to the workspace once they confirm their email.
+    await sendEmailConfirmation(ctx, branding, account, normalizedEmail, {
+      inviteId,
+      workspaceUrl
+    })
+
+    return {
+      account,
+      name: getPersonName(person),
+      socialId,
+      token: undefined
+    }
+  }
+
+  ctx.warn('Please provide MAIL_URL to enable sign up email confirmations.')
+  await confirmHulyIds(ctx, db, account)
 
   return await doJoinByInvite(
     ctx,
@@ -1280,7 +1365,7 @@ export async function confirm (
   db: AccountDB,
   branding: Branding | null,
   token: string
-): Promise<LoginInfo> {
+): Promise<LoginInfo | WorkspaceLoginInfo> {
   const { account, extra } = decodeTokenVerbose(ctx, token)
 
   const email = extra?.confirmEmail
@@ -1298,16 +1383,65 @@ export async function confirm (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.PersonNotFound, { person: account }))
   }
 
-  const result = {
+  const result: LoginInfo = {
     account,
     name: getPersonName(person),
     socialId,
     token: generateToken(account)
   }
 
+  // If invite info was carried through the confirmation token (signUpJoin flow),
+  // finish the workspace join now that the email is verified.
+  const inviteId = typeof extra?.inviteId === 'string' ? extra.inviteId : ''
+  const workspaceUrl = typeof extra?.workspaceUrl === 'string' ? extra.workspaceUrl : ''
+  if (inviteId !== '' || workspaceUrl !== '') {
+    try {
+      const joinInfo = await getWorkspaceJoinInfo(ctx, db, email, inviteId, workspaceUrl)
+      const joinResult = await doJoinByInvite(
+        ctx,
+        db,
+        branding,
+        generateToken(account, joinInfo.workspace?.uuid),
+        account,
+        joinInfo.workspace,
+        joinInfo.invite
+      )
+      ctx.info('Email confirmed and workspace joined via invite', { account, email, inviteId })
+      return joinResult
+    } catch (err: any) {
+      // The email is now verified, but the invite is stale/expired/invalid.
+      // Fall back to returning the basic login info so the user is at least signed in.
+      ctx.error('Email confirmed but failed to auto-join workspace via invite', {
+        account,
+        email,
+        inviteId,
+        workspaceUrl,
+        err
+      })
+    }
+  }
+
   ctx.info('Email confirmed', { account, email })
 
   return result
+}
+
+/**
+ * Checks whether the authenticated account has a password set.
+ * SSO-only accounts (Google, GitHub, OIDC) have no password hash.
+ */
+export async function checkHasPassword (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string
+): Promise<boolean> {
+  const { account: accountUuid } = decodeTokenVerbose(ctx, token)
+  const account = await getAccount(db, accountUuid)
+  if (account == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
+  }
+  return account.hash != null && account.salt != null
 }
 
 export async function changePassword (
@@ -1414,6 +1548,72 @@ export async function requestPasswordReset (
       normalizedEmail,
       account: account.uuid
     })
+  }
+}
+
+/**
+ * Sends a password-setup email to an SSO-only account so they can add
+ * email+password as a secondary sign-in method.
+ *
+ * Requires authentication (session token). Only valid for accounts that have
+ * no password set — accounts with an existing password must use changePassword.
+ */
+export async function requestPasswordSetup (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string
+): Promise<void> {
+  const { account: accountUuid } = decodeTokenVerbose(ctx, token)
+
+  // Guard: reject if the account already has a password. The setup flow
+  // bypasses the old-password requirement in changePassword, so it must only
+  // be accessible to accounts that have no password yet.
+  const existingAccount = await getAccount(db, accountUuid)
+  if (existingAccount?.hash != null && existingAccount?.salt != null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  ctx.info('Requesting password setup', { accountUuid })
+
+  const emailSocialId = await db.socialId.findOne({
+    type: SocialIdType.EMAIL,
+    personUuid: accountUuid
+  })
+
+  if (emailSocialId == null) {
+    ctx.error('Email social id not found for account', { accountUuid })
+    throw new PlatformError(
+      new Status(Severity.ERROR, platform.status.SocialIdNotFound, { value: '', type: SocialIdType.EMAIL })
+    )
+  }
+
+  const { mailURL, mailAuth } = getMailUrl()
+  const front = getFrontUrl(branding)
+  const resetToken = generateToken(accountUuid, undefined, { restoreEmail: emailSocialId.value })
+  const link = concatLink(front, `/login/recovery?id=${resetToken}`)
+  const lang = branding?.language
+  const text = await translate(accountPlugin.string.PasswordSetupText, { link }, lang)
+  const html = await translate(accountPlugin.string.PasswordSetupHTML, { link }, lang)
+  const subject = await translate(accountPlugin.string.PasswordSetupSubject, {}, lang)
+
+  const response = await fetch(concatLink(mailURL, '/send'), {
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(mailAuth != null ? { Authorization: `Bearer ${mailAuth}` } : {})
+    },
+    body: JSON.stringify({
+      text,
+      html,
+      subject,
+      to: emailSocialId.value
+    })
+  })
+  if (response.ok) {
+    ctx.info('Password setup email sent', { accountUuid })
+  } else {
+    ctx.error(`Failed to send password setup email: ${response.statusText}`, { accountUuid })
   }
 }
 
@@ -1608,6 +1808,112 @@ export async function deleteWorkspace (
       mode: 'pending-deletion'
     }
   )
+}
+
+export async function generate2faSecret (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string
+): Promise<{ secret: string, url: string }> {
+  const { account: accountUuid } = decodeTokenVerbose(ctx, token)
+  const account = await getAccount(db, accountUuid)
+  if (account == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
+  }
+
+  const emailSocialId = await db.socialId.findOne({ personUuid: accountUuid, type: SocialIdType.EMAIL })
+  if (emailSocialId == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const secret = generateTotpSecret()
+  const app = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName) ?? 'Huly'
+  const url = getTotpUrl(emailSocialId.value, app, secret)
+
+  return { secret, url }
+}
+
+export async function enable2fa (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { secret: string, code: string }
+): Promise<void> {
+  const { secret, code } = params
+  const { account: accountUuid } = decodeTokenVerbose(ctx, token)
+
+  if (!verifyTotpCode(secret, code)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.InvalidOtp, {}))
+  }
+
+  await db.account.update({ uuid: accountUuid }, { tfaSecret: secret })
+  ctx.info('2FA enabled', { accountUuid })
+}
+
+export async function disable2fa (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { code: string }
+): Promise<void> {
+  const { code } = params
+  const { account: accountUuid } = decodeTokenVerbose(ctx, token)
+
+  const account = await getAccount(db, accountUuid)
+  if (account?.tfaSecret == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  if (!verifyTotpCode(account.tfaSecret, code)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.InvalidOtp, {}))
+  }
+
+  await db.account.update({ uuid: accountUuid }, { tfaSecret: undefined })
+  ctx.info('2FA disabled', { accountUuid })
+}
+
+export async function verify2fa (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { code: string }
+): Promise<LoginInfo> {
+  const { code } = params
+  const decoded = decodeTokenVerbose(ctx, token)
+  const accountUuid =
+    decoded.account === NIL_UUID || decoded.account == null
+      ? (decoded.extra?.tfaAccount as AccountUuid)
+      : decoded.account
+  const extra = decoded.extra
+
+  const account = await getAccount(db, accountUuid)
+  if (account?.tfaSecret == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  if (!verifyTotpCode(account.tfaSecret, code)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.InvalidOtp, {}))
+  }
+
+  const person = await db.person.findOne({ uuid: accountUuid })
+  if (person == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
+  }
+
+  const socialId = await db.socialId.findOne({ personUuid: accountUuid, verifiedOn: { $gt: 0 } })
+
+  const { tfaAccount, ...filteredExtra } = extra ?? {}
+
+  return {
+    account: accountUuid,
+    token: generateToken(accountUuid, undefined, filteredExtra),
+    name: getPersonName(person),
+    socialId: socialId?._id
+  }
 }
 
 /* =================================== */
@@ -2185,12 +2491,22 @@ export async function getAccountInfo (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
   }
 
-  decodeTokenVerbose(ctx, token)
+  const { account: caller, extra } = decodeTokenVerbose(ctx, token)
+
+  if (accountId !== caller) {
+    const isAdmin = extra?.admin === 'true'
+    const isAllowedService = verifyAllowedServices(['workspace', 'tool'], extra, false)
+
+    if (!isAdmin && !isAllowedService) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+    }
+  }
+
   const account = await getAccount(db, accountId)
   if (account === undefined || account === null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
   }
-  return { timezone: account?.timezone, locale: account?.locale }
+  return { timezone: account?.timezone, locale: account?.locale, tfaEnabled: account?.tfaSecret != null }
 }
 
 export async function ensurePerson (
@@ -2996,13 +3312,19 @@ export type AccountMethods =
   | 'getInviteInfo'
   | 'signUpJoin'
   | 'confirm'
+  | 'checkHasPassword'
   | 'changePassword'
   | 'requestPasswordReset'
+  | 'requestPasswordSetup'
   | 'restorePassword'
   | 'leaveWorkspace'
   | 'changeUsername'
   | 'updateWorkspaceName'
   | 'deleteWorkspace'
+  | 'generate2faSecret'
+  | 'enable2fa'
+  | 'disable2fa'
+  | 'verify2fa'
   | 'getRegionInfo'
   | 'getUserWorkspaces'
   | 'getWorkspaceInfo'
@@ -3072,13 +3394,19 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     getInviteInfo: wrap(getInviteInfo),
     signUpJoin: wrap(signUpJoin),
     confirm: wrap(confirm),
+    checkHasPassword: wrap(checkHasPassword),
     changePassword: wrap(changePassword),
     requestPasswordReset: wrap(requestPasswordReset),
+    requestPasswordSetup: wrap(requestPasswordSetup),
     restorePassword: wrap(restorePassword),
     leaveWorkspace: wrap(leaveWorkspace),
     changeUsername: wrap(changeUsername),
     updateWorkspaceName: wrap(updateWorkspaceName),
     deleteWorkspace: wrap(deleteWorkspace),
+    generate2faSecret: wrap(generate2faSecret),
+    enable2fa: wrap(enable2fa),
+    disable2fa: wrap(disable2fa),
+    verify2fa: wrap(verify2fa),
     updateWorkspaceRole: wrap(updateWorkspaceRole),
     updateAllowReadOnlyGuests: wrap(updateAllowReadOnlyGuests),
     updateAllowGuestSignUp: wrap(updateAllowGuestSignUp),

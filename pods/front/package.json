@@ -1,6 +1,6 @@
 {
   "name": "@hcengineering/pod-front",
-  "version": "0.7.382",
+  "version": "0.7.0",
   "main": "lib/index.js",
   "svelte": "src/index.ts",
   "types": "types/index.d.ts",
@@ -16,11 +16,11 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/__start.ts --keep-names=true --define=MODEL_VERSION --define=VERSION --sourcemap=external --minify --external=sharp",
     "package": "rm -rf ./dist && cp -r ../../dev/prod/dist . && cp -r ../../dev/prod/public/* ./dist/ && rm ./dist/config.json",
-    "docker:build": "../../common/scripts/docker_build.sh hardcoreeng/front",
-    "docker:staging": "../../common/scripts/docker_tag.sh hardcoreeng/front staging",
-    "docker:push": "../../common/scripts/docker_tag.sh hardcoreeng/front",
-    "docker:tbuild": "docker build -t hardcoreeng/front . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh hardcoreeng/front",
-    "docker:abuild": "docker build -t hardcoreeng/front . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh hardcoreeng/front",
+    "docker:build": "../../common/scripts/docker_build.sh tracexapp/front",
+    "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/front staging",
+    "docker:push": "../../common/scripts/docker_tag.sh tracexapp/front",
+    "docker:tbuild": "docker build -t tracexapp/front . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/front",
+    "docker:abuild": "docker build -t tracexapp/front . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/front",
     "format": "format src",
     "run-local": "cross-env MINIO_ACCESS_KEY=minioadmin MINIO_SECRET_KEY=minioadmin MINIO_ENDPOINT=localhost SERVER_SECRET='secret' ACCOUNTS_URL=http://localhost:3000 UPLOAD_URL=/files MODEL_VERSION=$(node ../../common/scripts/show_version.js) VERSION=$(node ../../common/scripts/show_tag.js) PUBLIC_DIR='.' ts-node ./src/__start.ts",
     "test": "jest --passWithNoTests --silent --forceExit",
@@ -30,7 +30,7 @@
     "_phase:validate": "compile validate"
   },
   "devDependencies": {
-    "@hcengineering/platform-rig": "workspace:^0.7.382",
+    "@hcengineering/platform-rig": "workspace:^0.7.21",
     "@types/node": "^22.18.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
@@ -55,20 +55,20 @@
     "@types/jest": "^29.5.5"
   },
   "dependencies": {
-    "@hcengineering/prod": "workspace:^0.7.382",
-    "@hcengineering/front": "workspace:^0.7.382",
-    "@hcengineering/core": "workspace:^0.7.382",
-    "@hcengineering/platform": "workspace:^0.7.382",
+    "@hcengineering/prod": "workspace:^1.0.1",
+    "@hcengineering/front": "workspace:^0.7.0",
+    "@hcengineering/core": "workspace:^0.7.26",
+    "@hcengineering/platform": "workspace:^0.7.20",
     "express": "^4.21.2",
     "express-fileupload": "^1.5.1",
     "uuid": "^8.3.2",
     "cors": "^2.8.5",
-    "@hcengineering/server-core": "workspace:^0.7.382",
-    "@hcengineering/server-token": "workspace:^0.7.382",
-    "@hcengineering/attachment": "workspace:^0.7.382",
+    "@hcengineering/server-core": "workspace:^0.7.19",
+    "@hcengineering/server-token": "workspace:^0.7.18",
+    "@hcengineering/attachment": "workspace:^0.7.0",
     "body-parser": "^1.20.3",
     "sharp": "~0.34.3",
-    "@hcengineering/analytics": "workspace:^0.7.382",
-    "@hcengineering/analytics-service": "workspace:^0.7.382"
+    "@hcengineering/analytics": "workspace:^0.7.19",
+    "@hcengineering/analytics-service": "workspace:^0.7.19"
   }
 }

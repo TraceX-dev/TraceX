@@ -17,7 +17,6 @@ import type { Metadata, Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import { TriggerFunc } from '@hcengineering/server-core'
 
-export * from './types'
 export const serverAiBotId = 'server-ai-bot' as Plugin
 
 export default plugin(serverAiBotId, {
@@ -25,7 +24,6 @@ export default plugin(serverAiBotId, {
     EndpointURL: '' as Metadata<string>
   },
   trigger: {
-    OnUserStatus: '' as Resource<TriggerFunc>,
     OnMessageSend: '' as Resource<TriggerFunc>
   }
 })

@@ -66,7 +66,7 @@
     "Next": "Suivant",
     "Skip": "Passer",
     "SignUpCompleted": "Inscription terminée",
-    "StartUsingHuly": "Commencez à utiliser Huly",
+    "StartUsingHuly": "Commencez à utiliser TraceX",
     "PasswordMinLength": "{count, plural, =1 {Le mot de passe doit contenir au moins # caractère} other {Le mot de passe doit contenir au moins # caractères}}",
     "PasswordMinSpecialChars": "{count, plural, =1 {Le mot de passe doit contenir au moins # caractère spécial} other {Le mot de passe doit contenir au moins # caractères spéciaux}}",
     "PasswordMinDigits": "{count, plural, =1 {Le mot de passe doit contenir au moins # chiffre} other {Le mot de passe doit contenir au moins # chiffres}}",
@@ -91,6 +91,16 @@
     "LogInAndJoin": "Se connecter et rejoindre",
     "SignUpAndJoin": "S'inscrire et rejoindre",
     "CreateNewAccount": "Créer un nouveau compte",
-    "SignedInAs": "Connecté en tant que {name}"
+    "SignedInAs": "Connecté en tant que {name}",
+    "TwoFactorAuth": "Authentification à deux facteurs",
+    "EnterTwoFactorCode": "Entrez le code d'authentification à deux facteurs",
+    "TwoFactorCode": "Code d'authentification à deux facteurs",
+    "Verify": "Vérifier",
+    "SetPassword": "Définir un mot de passe",
+    "SSOPasswordDescription": "Votre compte utilise une connexion externe. Définissez un mot de passe via confirmation par e-mail.",
+    "SendSetupLink": "Envoyer le lien de configuration",
+    "SSOPasswordEmailSent": "Vérifiez votre e-mail pour trouver un lien de configuration de mot de passe.",
+    "SSONoEmailLinked": "Aucune adresse e-mail n'est liée à votre compte. Ajoutez-en une dans Paramètres du compte → Gérer les identités d'abord.",
+    "CreateSampleProjects": "Créer des projets d'exemple et du contenu de démonstration"
   }
 }

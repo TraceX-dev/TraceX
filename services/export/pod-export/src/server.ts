@@ -78,6 +78,7 @@ import envConfig from './config'
 import { ApiError } from './error'
 import { ExportFormat, WorkspaceExporter } from './exporter'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
+import { createProductVersionHandler } from './handlers/product-version-handler'
 
 const extractCookieToken = (cookie?: string): string | null => {
   if (cookie === undefined || cookie === null) {
@@ -126,6 +127,7 @@ const extractQueryToken = (queryParams: any): string | null => {
 }
 
 interface RelationPayloadEntry {
+  sourceClass?: Ref<Class<Doc>>
   field?: string
   class?: Ref<Class<Doc>>
   direction?: 'forward' | 'inverse'
@@ -154,6 +156,7 @@ const normalizeRelations = (input: unknown): RelationDefinition[] | undefined =>
       }
 
       result.push({
+        ...(item.sourceClass !== undefined ? { sourceClass: item.sourceClass } : {}),
         field: item.field,
         class: item.class,
         direction: item.direction ?? 'forward'
@@ -180,7 +183,12 @@ const normalizeRelations = (input: unknown): RelationDefinition[] | undefined =>
       }
 
       const field = typeof value.field === 'string' ? value.field : key
-      result.push({ field, class: value.class, direction: value.direction ?? 'forward' })
+      result.push({
+        ...(value.sourceClass !== undefined ? { sourceClass: value.sourceClass } : {}),
+        field,
+        class: value.class,
+        direction: value.direction ?? 'forward'
+      })
     }
 
     return result.length > 0 ? result : undefined
@@ -534,12 +542,17 @@ export function createServer (
             relations,
             fieldMappers,
             skipDeletedObsolete: skipDeletedObsolete ?? true,
-            exportOnlyEffective: exportOnlyEffective ?? false
+            exportOnlyEffective: exportOnlyEffective ?? false,
+            customHandlers: [createProductVersionHandler()]
           }
 
           const exportResult: ExportResult = await exporter.export(options)
 
-          if (exportResult.success && exportResult.exportedCount > 0) {
+          if (exportResult.exportedCount === 0) {
+            res.status(400).send({ message: 'No documents found to export' })
+          }
+
+          if (exportResult.success) {
             await sendExportCompletionNotification(
               measureCtx,
               targetTxOps,

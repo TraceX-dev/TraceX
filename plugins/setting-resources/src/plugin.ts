@@ -30,7 +30,8 @@ export default mergeIds(settingId, setting, {
     ManageSpaceTypesTools: '' as AnyComponent,
     ManageSpaceTypeContent: '' as AnyComponent,
     Spaces: '' as AnyComponent,
-    AddSocialId: '' as AnyComponent
+    AddSocialId: '' as AnyComponent,
+    GuestPermissionsSettings: '' as AnyComponent
   },
   string: {
     IntegrationDisabled: '' as IntlString,
@@ -136,6 +137,11 @@ export default mergeIds(settingId, setting, {
     GuestSignUpDescription: '' as IntlString,
     GuestChannelsDescription: '' as IntlString,
     GuestChannelsArrayLabel: '' as IntlString,
+    GuestSelectSpaces: '' as IntlString,
+    GuestAutoJoinAvailableSpaces: '' as IntlString,
+    GuestAutoJoinAvailableSpacesHint: '' as IntlString,
+    GuestAnonymousVisibleSpaces: '' as IntlString,
+    GuestAnonymousVisibleSpacesHint: '' as IntlString,
     ApiAccess: '' as IntlString,
     ApiToken: '' as IntlString,
     GenerateApiToken: '' as IntlString,
@@ -152,6 +158,7 @@ export default mergeIds(settingId, setting, {
     Login: '' as IntlString,
     Primary: '' as IntlString,
     IdentifierExists: '' as IntlString,
+    Reset: '' as IntlString,
     Restricted: '' as IntlString,
     RestrictedAttributeWarning: '' as IntlString,
     PasswordAgingRule: '' as IntlString,
@@ -159,6 +166,8 @@ export default mergeIds(settingId, setting, {
     ShowInTitle: '' as IntlString,
     SpaceMembersOnly: '' as IntlString,
     LastOwnerLeaveTitle: '' as IntlString,
-    LastOwnerLeaveMessage: '' as IntlString
+    LastOwnerLeaveMessage: '' as IntlString,
+    OverrideAttribute: '' as IntlString,
+    Required: '' as IntlString
   }
 })
