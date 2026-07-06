@@ -13,7 +13,6 @@
 // limitations under the License.
 //
 
-import { aiBotEmailSocialKey } from '@hcengineering/ai-bot'
 import contact, { Employee, getName, Person } from '@hcengineering/contact'
 import core, {
   type AccountUuid,
