@@ -13,7 +13,6 @@
 // limitations under the License.
 //
 
-import { aiBotEmailSocialKey } from '@hcengineering/ai-bot'
 import contact, { type Employee, type Person } from '@hcengineering/contact'
 import core, {
   generateId,
@@ -29,7 +28,7 @@ import core, {
 import love, { type Office } from '@hcengineering/love'
 import { type TriggerControl } from '@hcengineering/server-core'
 
-import { OnEmployee } from '../index'
+import { aiBotEmailSocialKey, OnEmployee } from '../index'
 
 interface MockData {
   employees: Array<{ _id: Ref<Employee>, role: string }>

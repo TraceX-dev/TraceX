@@ -17,11 +17,13 @@ import { aiBotEmailSocialKey } from '@hcengineering/ai-bot'
 import contact, { Employee, getName, Person } from '@hcengineering/contact'
 import core, {
   type AccountUuid,
+  buildSocialIdString,
   combineAttributes,
   concatLink,
   Doc,
   generateId,
   Ref,
+  SocialIdType,
   Timestamp,
   Tx,
   TxCreateDoc,
@@ -108,6 +110,15 @@ export async function OnEmployee (txes: Tx[], control: TriggerControl): Promise<
   }
   return result
 }
+
+// Keep in sync with aiBotAccountEmail from @hcengineering/ai-bot
+// (not imported to avoid adding the package to server bundles)
+export const aiBotAccountEmail = 'huly.ai.bot@hc.engineering'
+
+export const aiBotEmailSocialKey = buildSocialIdString({
+  type: SocialIdType.EMAIL,
+  value: aiBotAccountEmail
+})
 
 const aiBotPersonsCacheKey = 'love:ai-bot-persons'
 
