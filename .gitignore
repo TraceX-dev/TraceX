@@ -117,3 +117,4 @@ ws-tests/docker-compose.override.yml
 
 # AI
 .serena
+CLAUDE.md
