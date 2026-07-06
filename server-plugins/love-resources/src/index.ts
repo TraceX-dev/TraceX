@@ -13,6 +13,7 @@
 // limitations under the License.
 //
 
+import { aiBotEmailSocialKey } from '@hcengineering/ai-bot'
 import contact, { Employee, getName, Person } from '@hcengineering/contact'
 import core, {
   type AccountUuid,
@@ -48,6 +49,7 @@ import { workbenchId } from '@hcengineering/workbench'
 
 export async function OnEmployee (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const result: Tx[] = []
+  const assigned = new Set<Ref<Office>>()
   for (const tx of txes) {
     const actualTx = tx as TxMixin<Person, Employee>
     if (actualTx._class !== core.class.TxMixin) {
@@ -70,17 +72,32 @@ export async function OnEmployee (txes: Tx[], control: TriggerControl): Promise<
       continue
     }
     if (val) {
-      const freeRoom = (await control.findAll(control.ctx, love.class.Office, { person: null }))[0]
+      // AI bot does not need an office
+      if (await isAiBotPerson(actualTx.objectId, control)) {
+        continue
+      }
+      // Do not assign one more office if the person already has one
+      const existingOffice = (
+        await control.findAll(control.ctx, love.class.Office, { person: actualTx.objectId }, { limit: 1 })
+      )[0]
+      if (existingOffice !== undefined) {
+        continue
+      }
+      const freeRoom = (await control.findAll(control.ctx, love.class.Office, { person: null })).find(
+        (it) => !assigned.has(it._id)
+      )
       if (freeRoom !== undefined) {
-        return [
+        assigned.add(freeRoom._id)
+        result.push(
           control.txFactory.createTxUpdateDoc(freeRoom._class, freeRoom.space, freeRoom._id, {
             person: actualTx.objectId
           })
-        ]
+        )
       }
     } else {
-      const room = (await control.findAll(control.ctx, love.class.Office, { person: actualTx.objectId }))[0]
-      if (room !== undefined) {
+      // Release all offices held by the person
+      const rooms = await control.findAll(control.ctx, love.class.Office, { person: actualTx.objectId })
+      for (const room of rooms) {
         result.push(
           control.txFactory.createTxUpdateDoc(room._class, room.space, room._id, {
             person: null
@@ -90,6 +107,22 @@ export async function OnEmployee (txes: Tx[], control: TriggerControl): Promise<
     }
   }
   return result
+}
+
+const aiBotPersonsCacheKey = 'love:ai-bot-persons'
+
+async function isAiBotPerson (person: Ref<Person>, control: TriggerControl): Promise<boolean> {
+  let persons = control.cache.get(aiBotPersonsCacheKey) as Set<Ref<Person>> | undefined
+  if (persons === undefined) {
+    const identities = await control.findAll(control.ctx, contact.class.SocialIdentity, {
+      key: aiBotEmailSocialKey
+    })
+    // Do not cache the negative result: the bot may join the workspace later
+    if (identities.length === 0) return false
+    persons = new Set(identities.map((it) => it.attachedTo))
+    control.cache.set(aiBotPersonsCacheKey, persons)
+  }
+  return persons.has(person)
 }
 
 async function createUserInfo (user: AccountUuid, control: TriggerControl): Promise<Tx[]> {
