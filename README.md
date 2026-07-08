@@ -1,6 +1,6 @@
 # TraceX
 
-![GitHub License](https://img.shields.io/github/license/hcengineering/platform?style=for-the-badge)
+[![License](https://img.shields.io/badge/license-EPL--2.0%20%2B%20PolyForm%20Shield-blue?style=for-the-badge)](#licensing)
 
 Built for compliance and productivity across regulated industries.
 ![TraceX screenshot](./docs/assets/tracex.png)
