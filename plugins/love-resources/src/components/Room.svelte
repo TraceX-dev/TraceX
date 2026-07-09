@@ -32,6 +32,7 @@
   import ControlBar from './meeting/ControlBar.svelte'
   import ParticipantsListView from './meeting/ParticipantsListView.svelte'
   import ScreenSharingView from './meeting/ScreenSharingView.svelte'
+  import SpeakingWhileMutedIndicator from './meeting/SpeakingWhileMutedIndicator.svelte'
 
   export let canMaximize: boolean = true
   export let room: TypeRoom
@@ -199,6 +200,11 @@
       </div>
     {/if}
   </div>
+  {#if $isFullScreen}
+    <div class="speaking-muted-overlay">
+      <SpeakingWhileMutedIndicator />
+    </div>
+  {/if}
   {#if $currentRoom}
     <ControlBar room={$currentRoom} fullScreen={$isFullScreen} {onFullScreen} {canMaximize} {isModal} />
   {/if}
@@ -210,6 +216,15 @@
     font-size: 1.5rem;
     align-items: center;
   }
+  .speaking-muted-overlay {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+  }
+
+
   .room-container {
     display: flex;
     justify-content: center;
