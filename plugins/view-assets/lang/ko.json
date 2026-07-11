@@ -139,7 +139,7 @@
         "Document": "문서",
         "Loading": "로딩 중...",
         "NoRelations": "관계 없음",
-        "ReadOnlyWarningTitle": "✨ 익명 게스트 데모",
+        "ReadOnlyWarningTitle": "✨ 익명 게스트",
         "ReadOnlyWarningMessage": "읽기 전용 모드입니다. 경로를 선택하세요. 이 워크스페이스에 게스트로 참여해 협업하거나, 직접 워크스페이스를 만들어 작업, 마감일, 팀까지 프로젝트 전체를 관리해 보세요!",
         "ReadOnlyJoinWorkspace": "워크스페이스 참여",
         "ReadOnlySignUp": "워크스페이스 만들기",

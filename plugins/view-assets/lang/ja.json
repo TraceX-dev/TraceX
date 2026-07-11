@@ -139,7 +139,7 @@
     "Document": "ドキュメント",
     "Loading": "読み込み中...",
     "NoRelations": "関係なし",
-    "ReadOnlyWarningTitle": "✨ 匿名ゲストデモ",
+    "ReadOnlyWarningTitle": "✨ 匿名ゲスト",
     "ReadOnlyWarningMessage": "閲覧モードです。選択してください：このワークスペースに参加して共同作業（ゲストとして）するか、独自のスペースを作成してプロジェクトを完全に管理（タスク、期限、チーム）しましょう！",
     "ReadOnlyJoinWorkspace": "ワークスペースに参加",
     "ReadOnlySignUp": "ワークスペースを作成",
