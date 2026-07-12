@@ -105,6 +105,7 @@ describe('rest-api-server', () => {
       priority: IssuePriority.Urgent,
       assignee: null,
       component: null,
+      startDate: null,
       estimation: 0,
       remainingTime: 0,
       reportedTime: 0,
