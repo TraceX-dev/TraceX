@@ -168,6 +168,12 @@ export const $isDocumentCoAuthor = $controlledDocument.map((doc) => {
   return doc.coAuthors.includes(employee)
 })
 
+export const $isDocumentOwnerOrCoAuthor = combine(
+  $isDocumentOwner,
+  $isDocumentCoAuthor,
+  (isOwner, isCoAuthor) => isOwner || isCoAuthor
+)
+
 export const $isDocumentReviewer = $controlledDocument.map((doc) => {
   if (doc == null) {
     return false

@@ -20,7 +20,7 @@ import { $documentComments } from './documentComments'
 import {
   $controlledDocument,
   $documentState,
-  $isDocumentOwner,
+  $isDocumentOwnerOrCoAuthor,
   $isLatestVersion,
   $reviewRequestHistory,
   $training
@@ -33,9 +33,9 @@ export const $canSendForApproval = combine(
   $documentComments,
   $training,
   $reviewRequestHistory,
-  $isDocumentOwner,
-  (document, isLatestVersion, state, comments, training, reviewHistory, isDocumentOwner) => {
-    if (!isDocumentOwner) return false
+  $isDocumentOwnerOrCoAuthor,
+  (document, isLatestVersion, state, comments, training, reviewHistory, isDocumentOwnerOrCoAuthor) => {
+    if (!isDocumentOwnerOrCoAuthor) return false
 
     let haveBeenReviewedOnce = false
     if (document !== null) {
