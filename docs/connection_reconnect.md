@@ -1,11 +1,11 @@
-# Схема подключения и переподключения клиента
+# Client connection and reconnection scheme
 
-## Обзор
+## Overview
 
-Клиент связан с сервером через один WebSocket. Все запросы (findAll, tx, loadModel,
-ping) идут через него. Состояние хранится в `foundations/core/packages/client-resources/src/connection.ts`.
+The client talks to the server over a single WebSocket. All requests (findAll, tx, loadModel,
+ping) go through it. State lives in `foundations/core/packages/client-resources/src/connection.ts`.
 
-## Жизненный цикл соединения
+## Connection lifecycle
 
 ```
    [ new Connection() ]
@@ -30,13 +30,13 @@ ping) идут через него. Состояние хранится в `foun
      |   |-- for req in requests:  |
      |   |      req.reconnect() ---+---> setTimeout 50ms -> sendData()
      |   |-- onConnect(event)      |         |
-     |   |     event =             |         +-- ШТОРМ одновременных
-     |   |       Connected         |             отправок
+     |   |     event =             |         +-- STORM of simultaneous
+     |   |       Connected         |             sends
      |   |       | Reconnected     |
      |   |       | Maintenance     |
      |   |-- schedulePing()        |
      |                             |
-     |-- (обычные ответы)          |
+     |-- (regular responses)       |
      |                             |
    wsocket.onclose                 |
      |-- scheduleOpen(force=true) -+
@@ -45,41 +45,41 @@ ping) идут через него. Состояние хранится в `foun
      |-- delay += 1 (max 3s)
 ```
 
-## Ключевые тайминги
+## Key timings
 
-| Константа | Значение | Назначение |
+| Constant | Value | Purpose |
 |-----------|----------|-----------|
-| `pingTimeout` | 10s | Интервал отправки ping |
-| `hangTimeout` | **5 min** | Порог "висящего" сокета → force close |
-| `dialTimeout` | 30s | Таймаут hello. Нет hello → reconnect |
-| `reconnect delay` | 50ms | Задержка перед retry каждого pending request |
+| `pingTimeout` | 10s | Ping send interval |
+| `hangTimeout` | **5 min** | "Hung" socket threshold → force close |
+| `dialTimeout` | 30s | Hello timeout. No hello → reconnect |
+| `reconnect delay` | 50ms | Delay before retrying each pending request |
 
-## Состояние в Connection
+## Connection state
 
-- `requests: Map<ReqId, RequestPromise>` — все pending request.
-- `onConnectHandlers: OnConnectHandler[]` — ждут `waitOpenConnection`.
-- `websocket` — текущий сокет (при reconnect пересоздаётся).
-- `sockets` — счётчик, защищает от race двух параллельных connect.
-- `pingResponse` — timestamp последнего pong.
-- `helloReceived` — hello прошёл → можно слать request.
-- `slowDownTimer` — адаптивная задержка при rate limiting.
+- `requests: Map<ReqId, RequestPromise>` — all pending requests.
+- `onConnectHandlers: OnConnectHandler[]` — waiting on `waitOpenConnection`.
+- `websocket` — current socket (recreated on reconnect).
+- `sockets` — counter guarding against a race between two parallel connects.
+- `pingResponse` — timestamp of the last pong.
+- `helloReceived` — hello completed → requests may be sent.
+- `slowDownTimer` — adaptive delay under rate limiting.
 
-## Что происходит на reconnect
+## What happens on reconnect
 
-### 1. Детекция разрыва
+### 1. Disconnect detection
 
-Три источника:
+Three sources:
 1. `wsocket.onclose` → `scheduleOpen(force=true)`.
-2. Ping-проверка `pingResponse > hangTimeout` → close(1000).
-3. `dialTimer` не сработал за 30s → `onDialTimeout` + force.
+2. Ping check `pingResponse > hangTimeout` → close(1000).
+3. `dialTimer` did not fire within 30s → `onDialTimeout` + force.
 
-**Проблема для мобильного**: при backgrounding iOS/Android браузер замораживает
-timers и WS. Сокет формально `OPEN`, но данные не идут. Детектор hangTimeout=5min
-просыпается через 5 минут — **всё это время UI зависает**.
+**Mobile problem**: when backgrounded, iOS/Android browsers freeze
+timers and the WS. The socket is formally `OPEN`, but no data flows. The hangTimeout=5min
+detector wakes up after 5 minutes — **the UI hangs for that entire time**.
 
-### 2. Повторный openConnection
+### 2. Repeated openConnection
 
-`openConnection()` создаёт новый WebSocket, шлёт Hello. На ответе:
+`openConnection()` creates a new WebSocket and sends Hello. On the response:
 
 ```ts
 for (const [, v] of this.requests.entries()) {
@@ -87,101 +87,101 @@ for (const [, v] of this.requests.entries()) {
 }
 ```
 
-Каждый pending request через 50ms шлёт `sendData()` повторно.
+Each pending request resends `sendData()` after 50ms.
 
 ### 3. onConnect callback → refresh UI
 
-В `plugins/workbench-resources/src/connect.ts:363`:
+In `plugins/workbench-resources/src/connect.ts:363`:
 
-| Event | Действие |
+| Event | Action |
 |-------|---------|
 | `Connected` + `_clientSet` | `refreshClient(tokenChanged)` + `refreshCommunicationClient` |
-| `Reconnected` | **только** `refreshCommunicationClient` |
+| `Reconnected` | **only** `refreshCommunicationClient` |
 | `Refresh` | `refreshClient(true)` |
 | `Upgraded` | `window.location.reload()` |
-| `Maintenance` | Показать баннер |
+| `Maintenance` | Show banner |
 
-**Важно**: на `Reconnected` **НЕ** вызывается `refreshClient`. LiveQuery сохраняют
-старый результат; обновление ждут через tx-стрим.
+**Important**: `refreshClient` is **NOT** called on `Reconnected`. LiveQueries keep
+their old results; updates arrive via the tx stream.
 
 ### 4. refreshClient → LiveQueries.refreshConnect
 
 `foundations/core/packages/query/src/index.ts:112` `refreshConnect(clean)`:
 
-- Проходит по всем queries (`this.queries` + `this.queue`).
-- При `clean=true` очищает результаты, шлёт callback с пустым массивом.
-- Вызывает `this.refresh(q)` для каждой → **ещё один findAll на сервер**.
+- Iterates over all queries (`this.queries` + `this.queue`).
+- With `clean=true` it clears results and invokes callbacks with an empty array.
+- Calls `this.refresh(q)` for each one → **another findAll to the server**.
 
-Для N активных queries это N параллельных findAll — дополнительная нагрузка
-поверх уже перепосланных pending-requests.
+For N active queries this means N parallel findAll calls — extra load
+on top of the already resent pending requests.
 
-## Что накапливается пока приложение спит
+## What accumulates while the app sleeps
 
-Пока вкладка в фоне, WebSocket может быть заморожен. В это время:
+While the tab is in the background, the WebSocket may be frozen. During that time:
 
-1. **Ping-запросы** (10s интервал). Защита `once:true` (connection.ts:693) не даёт
-   дублировать, но один pending ping висит.
-2. **UI запросы** запущенные перед backgrounding — например, переход по ссылке
-   успел создать findAll, который остался в `requests`.
-3. **Первый запрос при возврате**: UI становится активным раньше чем детектится
-   мёртвый сокет → Svelte компоненты дёргают findAll → они лягут в `requests` и
-   будут ждать `waitOpenConnection` до конца hangTimeout (до 5 мин).
-4. **LiveQuery subscription requests** — primary findAll для каждой подписки.
+1. **Ping requests** (10s interval). The `once:true` guard (connection.ts:693) prevents
+   duplicates, but one pending ping stays hanging.
+2. **UI requests** started before backgrounding — e.g. a link navigation
+   managed to create a findAll that remained in `requests`.
+3. **The first request on resume**: the UI becomes active before the dead socket is
+   detected → Svelte components fire findAll → they land in `requests` and
+   wait on `waitOpenConnection` until hangTimeout expires (up to 5 min).
+4. **LiveQuery subscription requests** — the primary findAll for each subscription.
 
-Когда reconnect наконец случится:
-- Все эти N запросов получат `reconnect()` → через 50ms **все одновременно**
-  летят на сервер.
-- Сервер отвечает, но клиент при этом занят: Svelte reactivity + JSON parse +
-  обработка tx-стрима → event loop забит.
-- Из лога: `time=1800ms`, `serverTime=200ms`, `toReceive~0` → **задержка на
-  клиенте**, не в сети.
+When the reconnect finally happens:
+- All those N requests get `reconnect()` → after 50ms **all of them fly to the
+  server at once**.
+- The server responds, but the client is busy: Svelte reactivity + JSON parse +
+  tx-stream processing → the event loop is saturated.
+- From the log: `time=1800ms`, `serverTime=200ms`, `toReceive~0` → **the delay is on
+  the client**, not the network.
 
-## Почему при `Reconnected` кажется что данные устарели
+## Why data looks stale after `Reconnected`
 
-`refreshConnect` НЕ вызывается на `Reconnected`. LiveQueries показывают
-последний известный результат. Актуализация идёт только через tx-стрим от
-сервера (broadcasted events). Если за время сна сервер накопил tx для этой
-сессии, они придут — но после hello и после того как разгребётся очередь
-перепосланных requests.
+`refreshConnect` is NOT called on `Reconnected`. LiveQueries show
+the last known result. Updates arrive only via the tx stream from the
+server (broadcasted events). If the server accumulated txes for this session
+while it slept, they will arrive — but only after hello and after the queue of
+resent requests is worked through.
 
-## Очередь на сервере (поле `queue`)
+## Server-side queue (the `queue` field)
 
-`service.requests.size` — количество pending requests серверной сессии.
-Видно в логе: `queue=13` — т.е. клиент отправил 13 запросов одновременно.
-Это не ограничивающая очередь, а метрика.
+`service.requests.size` — the number of pending requests in the server session.
+Visible in the log: `queue=13` — i.e. the client sent 13 requests at once.
+It is not a limiting queue, just a metric.
 
-## Что делает visibilitychange
+## What visibilitychange does
 
-В клиенте **есть** хендлер `document.visibilitychange` (`installVisibilityHandler`).
-Когда вкладка снова становится видимой, клиент проверяет состояние сокета и при
-необходимости форсирует переподключение:
+The client **does** have a `document.visibilitychange` handler (`installVisibilityHandler`).
+When the tab becomes visible again, the client checks the socket state and forces
+a reconnect if needed:
 
-- Если сокет `null` / `readyState !== OPEN` / hello не получен → немедленный
+- If the socket is `null` / `readyState !== OPEN` / hello not received → immediate
   `scheduleOpen(force=true)`.
-- Иначе шлём короткий ping (`once=true`); если pong не пришёл за
-  `visibilityProbeTimeout` (1s) → форс-reconnect.
+- Otherwise send a short ping (`once=true`); if no pong arrives within
+  `visibilityProbeTimeout` (1s) → force reconnect.
 
-Это не означает отдельный `refreshConnect` на `Reconnected`: LiveQueries
-по-прежнему остаются на последнем известном результате, а актуализация приходит
-через tx-стрим после hello и обработки очереди перепосланных requests.
+This does not imply a separate `refreshConnect` on `Reconnected`: LiveQueries
+still keep the last known result, and updates arrive
+via the tx stream after hello and after the resent request queue is processed.
 
 ---
 
-## Точки для добавления логов (диагностика шторма)
+## Logging points (storm diagnostics)
 
-### 1. Connection — трекать накопление requests
+### 1. Connection — track request accumulation
 
 `foundations/core/packages/client-resources/src/connection.ts`:
 
-- В `sendRequest` при добавлении в `this.requests`: лог `size, method, id`.
-- В `handleMsg` при удалении: лог `size, age = Date.now() - startTime, method`.
-- В hello-response reconnect-ветке (line 384): лог `reconnectingCount, oldest
+- In `sendRequest` when adding to `this.requests`: log `size, method, id`.
+- In `handleMsg` on removal: log `size, age = Date.now() - startTime, method`.
+- In the hello-response reconnect branch (line 384): log `reconnectingCount, oldest
   pending age`.
-- В `schedulePing` ветке hangTimeout: лог `timeSinceLastPong, pendingCount`.
+- In the `schedulePing` hangTimeout branch: log `timeSinceLastPong, pendingCount`.
 
-### 2. Визибилити
+### 2. Visibility
 
-Добавить в `Connection`:
+Add to `Connection`:
 
 ```ts
 if (typeof document !== 'undefined') {
@@ -196,13 +196,13 @@ if (typeof document !== 'undefined') {
     })
     // Force ping probe on resume
     if (visible && this.websocket?.readyState === ClientSocketReadyState.OPEN) {
-      // проверка живости с коротким таймаутом
+      // liveness probe with a short timeout
     }
   })
 }
 ```
 
-### 3. LiveQuery — трекать refresh-штормы
+### 3. LiveQuery — track refresh storms
 
 `foundations/core/packages/query/src/index.ts` `refreshConnect`:
 
@@ -217,19 +217,19 @@ const t0 = Date.now()
 console.log('[lq] refreshConnect done', { ms: Date.now() - t0 })
 ```
 
-### 4. measure findAll — уже есть, но расширить
+### 4. measure findAll — exists already, but extend
 
-`connection.ts:778-792` — в лог добавить `pendingCount, sinceReconnect`.
+`connection.ts:778-792` — add `pendingCount, sinceReconnect` to the log.
 
-### 5. Серверная сторона (опционально)
+### 5. Server side (optional)
 
-`foundations/server/packages/server/src/sessionManager.ts` — при обработке
-request логировать `sessionId, queueSize, sinceReconnect`. Поможет понять
-действительно ли сервер в очереди, или клиент.
+`foundations/server/packages/server/src/sessionManager.ts` — when handling a
+request, log `sessionId, queueSize, sinceReconnect`. Helps determine whether
+the queue is really on the server or on the client.
 
-### 6. Reconnect шторм
+### 6. Reconnect storm
 
-В `handleMsg` ветке hello (line 384) обернуть в `setTimeout` с джиттером:
+In the `handleMsg` hello branch (line 384), wrap in `setTimeout` with jitter:
 
 ```ts
 const reqs = [...this.requests.values()]
@@ -238,25 +238,25 @@ reqs.forEach((v, idx) => {
 })
 ```
 
-Для диагностики сначала просто залогировать длину reqs и времена жизни.
+For diagnostics, start by simply logging the length of reqs and request lifetimes.
 
-## Гипотеза по корневой причине
+## Root-cause hypothesis
 
-Комбинация:
-1. iOS/Android замораживает WebSocket и setInterval.
-2. После возврата сокет формально OPEN, данные не идут.
-3. UI уже активен, дёргает 10-20 findAll.
-4. Детекция мёртвого сокета ждёт до 5 минут (hangTimeout).
-5. Когда detect наконец: reconnect → шторм через 50ms на всех pending.
-6. Svelte reactivity + парсинг забивают event loop → time 1800ms на findAll
-   при serverTime 200ms.
-7. `Reconnected` не перезапускает queries → UI данные старые пока не придут tx.
+A combination of:
+1. iOS/Android freezes the WebSocket and setInterval.
+2. After resume the socket is formally OPEN, but no data flows.
+3. The UI is already active and fires 10-20 findAll calls.
+4. Dead-socket detection waits up to 5 minutes (hangTimeout).
+5. When finally detected: reconnect → a storm after 50ms across all pending requests.
+6. Svelte reactivity + parsing saturate the event loop → findAll time of 1800ms
+   with serverTime of 200ms.
+7. `Reconnected` does not restart queries → UI data stays stale until txes arrive.
 
-## Рекомендации (на обсуждение, не реализация)
+## Recommendations (for discussion, not implementation)
 
-1. `visibilitychange` → probe ping 2s timeout → при провале force reconnect.
-2. `hangTimeout` снизить до 30-60s или сделать adaptive на mobile.
-3. Jitter 50-500ms вместо общего 50ms в reconnect-ветке.
-4. При `Reconnected` вызывать `refreshClient(false)` (без clean) для
-   актуализации критичных queries.
-5. Ограничивать parallelism перепосылки через семафор (например, 5 одновременно).
+1. `visibilitychange` → probe ping with 2s timeout → force reconnect on failure.
+2. Lower `hangTimeout` to 30-60s or make it adaptive on mobile.
+3. Jitter of 50-500ms instead of the shared 50ms in the reconnect branch.
+4. On `Reconnected`, call `refreshClient(false)` (without clean) to
+   refresh critical queries.
+5. Cap resend parallelism with a semaphore (e.g. 5 concurrent).
