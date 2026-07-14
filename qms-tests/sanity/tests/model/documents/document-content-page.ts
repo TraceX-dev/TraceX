@@ -833,7 +833,10 @@ export class DocumentContentPage extends DocumentCommonPage {
     for (let attempt = 0; attempt < 5; attempt++) {
       if ((await overlay.count()) === 0) break
       await this.textPageHeader.press('Escape', { delay: 300 })
-      await overlay.first().waitFor({ state: 'detached', timeout: 1000 }).catch(() => {})
+      await overlay
+        .first()
+        .waitFor({ state: 'detached', timeout: 1000 })
+        .catch(() => {})
     }
     await this.textPageHeader.click({ force: true, delay: 300, position: { x: 1, y: 1 } })
     await expect(overlay).toHaveCount(0, { timeout: 5000 })
