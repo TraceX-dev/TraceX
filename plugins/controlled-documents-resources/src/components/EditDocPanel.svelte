@@ -398,13 +398,13 @@
             {:else if $canCreateNewSnapshot}
               <Button label={documentRes.string.EditDocument} kind="regular" on:click={onEditDocument} />
             {/if}
-          {:else if $documentReviewIsActive}
+          {:else if $isDocumentOwner && $documentReviewIsActive}
             <Button
               label={documentRes.string.CompleteReview}
               kind="positive"
               on:click={(ev) => completeReviewRequest(ev)}
             />
-          {:else if $documentApprovalIsActive}
+          {:else if $isDocumentOwner && $documentApprovalIsActive}
             <Button
               label={documentRes.string.Reject}
               kind="negative"
