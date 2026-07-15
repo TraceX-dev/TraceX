@@ -23,7 +23,7 @@
     "PasswordLoginLocked": "Password login is locked due to too many failed attempts. Please use an OTP login method to unlock your account.",
     "InviteNotFound": "Invitation with email:{email} not found.",
     "WorkspaceLimitReached": "You have reached the workspace limit. Please contact us...",
-    "ReadOnlyAccount": "Anonymous Guest Demo",
+    "ReadOnlyAccount": "Anonymous Guest",
     "SystemAccount": "System account",
     "SocialIdAlreadyExists": "Social ID already exists"
   }

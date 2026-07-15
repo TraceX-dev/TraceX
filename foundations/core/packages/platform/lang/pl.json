@@ -23,7 +23,7 @@
     "PasswordLoginLocked": "Logowanie hasłem jest zablokowane z powodu zbyt wielu nieudanych prób. Użyj metody logowania hasłem jednorazowym, aby odblokować konto.",
     "InviteNotFound": "Zaproszenie za pomocą adresu e-mail: nie znaleziono adresu {email}.",
     "WorkspaceLimitReached": "Osiągnąłeś limit przestrzeni roboczych. Skontaktuj się z nami...",
-    "ReadOnlyAccount": "Wersja demonstracyjna dla anonimowego gościa",
+    "ReadOnlyAccount": "Anonimowy gość",
     "SystemAccount": "Konto systemowe",
     "SocialIdAlreadyExists": "Identyfikator społecznościowy już istnieje"
   }

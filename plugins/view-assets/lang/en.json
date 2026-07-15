@@ -144,7 +144,7 @@
     "Document": "Document",
     "Loading": "Loading...",
     "NoRelations": "No relations",
-    "ReadOnlyWarningTitle": "✨ Anonymous Guest Demo",
+    "ReadOnlyWarningTitle": "✨ Anonymous Guest",
     "ReadOnlyWarningMessage": "You're in view-only mode. Choose your path: Join this workspace to collaborate (as guest) or create your own space to fully manage projects — tasks, deadlines, team!",
     "ReadOnlyJoinWorkspace": "Join workspace",
     "ReadOnlySignUp": "Create workspace",
