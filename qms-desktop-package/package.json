@@ -2,7 +2,7 @@
   "name": "qms-desktop",
   "version": "0.7.326",
   "main": "dist/main/electron.js",
-  "author": "TraceX",
+  "author": "TraceX <charles.rollet@tracex.co>",
   "template": "@hcengineering/default-package",
   "scripts": {
     "_phase:package": "rushx package",
