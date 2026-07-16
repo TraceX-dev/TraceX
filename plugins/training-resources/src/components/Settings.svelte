@@ -28,9 +28,11 @@
     type WithLookup
   } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { Breadcrumb, Header, Loading } from '@hcengineering/ui'
+  import { Breadcrumb, EditBox, Header, Label, Loading } from '@hcengineering/ui'
 
   import training from '../plugin'
+
+  const DEFAULT_OFFSETS_DAYS = [30, 7, 1]
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -39,6 +41,7 @@
   let spaceType: SpaceType | null = null
   let roles: Role[] | null = null
   let rolesAssignment: RolesAssignment | null = null
+  let reminderOffsetsInput: string = ''
   $: {
     query.query<TypedSpace>(
       core.class.TypedSpace,
@@ -62,6 +65,13 @@
             {}
           )
         }
+
+        if (space !== null) {
+          const offsets = hierarchy.hasMixin(space, training.mixin.TrainingReminderSettings)
+            ? (hierarchy.as(space, training.mixin.TrainingReminderSettings).reminderOffsetsDays ?? DEFAULT_OFFSETS_DAYS)
+            : DEFAULT_OFFSETS_DAYS
+          reminderOffsetsInput = offsets.join(', ')
+        }
       },
       {
         lookup: {
@@ -79,6 +89,24 @@
     rolesAssignment ??= {}
     rolesAssignment[roleId] = members
     await client.updateMixin(space._id, space._class, space.space, spaceType.targetClass, rolesAssignment)
+  }
+
+  // Parse a comma/space separated list of positive day offsets, de-duplicated and sorted descending.
+  function parseOffsets (input: string): number[] {
+    const parsed = input
+      .split(/[\s,]+/)
+      .map((s) => Number.parseInt(s, 10))
+      .filter((n) => Number.isFinite(n) && n > 0)
+    return Array.from(new Set(parsed)).sort((a, b) => b - a)
+  }
+
+  async function onOffsetsChange (): Promise<void> {
+    if (space === null) return
+    const reminderOffsetsDays = parseOffsets(reminderOffsetsInput)
+    reminderOffsetsInput = reminderOffsetsDays.join(', ')
+    await client.updateMixin(space._id, space._class, space.space, training.mixin.TrainingReminderSettings, {
+      reminderOffsetsDays
+    })
   }
 </script>
 
@@ -106,6 +134,18 @@
             allowGuests
           />
         {/each}
+
+        <div class="labelOnPanel">
+          <Label label={training.string.TrainingReminderOffsetsDays} />
+        </div>
+        <EditBox
+          bind:value={reminderOffsetsInput}
+          format={'text'}
+          placeholder={training.string.TrainingReminderOffsetsDays}
+          on:blur={() => {
+            void onOffsetsChange()
+          }}
+        />
       </div>
     {/if}
   </div>

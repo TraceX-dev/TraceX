@@ -99,6 +99,13 @@
     "ViewSentRequests": "学员的请求",
     "ViewTraineesResults": "学员的结果",
     "ConfigLabel": "培训",
-    "ConfigDescription": "用于管理培训的扩展"
+    "ConfigDescription": "用于管理培训的扩展",
+    "TrainingDeadlineReminder": "培训截止提醒",
+    "TrainingReminderOffsetsDays": "提醒提前时间（天）",
+    "Permission_SendTrainingRequestReminder": "发送培训提醒",
+    "Permission_SendTrainingRequestReminder_Description": "向未完成培训请求的学员发送跟进提醒",
+    "SendReminder": "发送提醒",
+    "ConfirmSendReminder": "向未完成此培训的 {count} 名学员发送提醒？",
+    "ReminderSent": "已向 {count} 名学员发送提醒"
   }
 }

@@ -304,6 +304,30 @@ export interface DocNotifyContext extends Doc<PersonSpace> {
 }
 
 /**
+ * A generic, domain-agnostic request to deliver an inbox notification to a set of users on demand.
+ *
+ * Created by any client (in a space the caller can write to); a server trigger fans it out into each
+ * target's private space with system trust, then the doc is discarded (it lives in `DOMAIN_TRANSIENT`,
+ * so it is never persisted). Reusable by any module that needs a "notify these users now" button.
+ *
+ * @public
+ */
+export interface OnDemandNotification extends Doc {
+  /** Recipients, as account uuids (e.g. `Employee.personUuid`). */
+  targets: AccountUuid[]
+  /** The doc the notification points at (its click target). */
+  objectId: Ref<Doc>
+  objectClass: Ref<Class<Doc>>
+  objectSpace: Ref<Space>
+  /** The NotificationType to file under (drives per-channel settings). */
+  notificationType: Ref<NotificationType>
+  header?: IntlString
+  message?: IntlString
+  messageHtml?: Markup
+  icon?: Asset
+}
+
+/**
  * @public
  */
 export interface InboxNotificationsClient {
@@ -370,7 +394,8 @@ const notification = plugin(notificationId, {
     NotificationTypeSetting: '' as Ref<Class<NotificationTypeSetting>>,
     NotificationProviderSetting: '' as Ref<Class<NotificationProviderSetting>>,
     NotificationProviderDefaults: '' as Ref<Mixin<NotificationProviderDefaults>>,
-    ReactionInboxNotification: '' as Ref<Class<ReactionInboxNotification>>
+    ReactionInboxNotification: '' as Ref<Class<ReactionInboxNotification>>,
+    OnDemandNotification: '' as Ref<Class<OnDemandNotification>>
   },
   ids: {
     NotificationSettings: '' as Ref<Doc>,

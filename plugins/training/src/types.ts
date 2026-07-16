@@ -1,4 +1,5 @@
 import type { Attachment } from '@hcengineering/attachment'
+import type { Event } from '@hcengineering/calendar'
 import type { Employee } from '@hcengineering/contact'
 import {
   type AttachedDoc,
@@ -67,6 +68,37 @@ export interface TrainingRequest extends AttachedDoc<Training, 'requests', Typed
   attempts: CollectionSize<TrainingAttempt>
   canceledOn: Timestamp | null
   canceledBy: Ref<Employee> | null
+}
+
+/**
+ * Per-space (per-workspace training area) configuration for deadline reminders.
+ *
+ * Mixed into the Trainings `TypedSpace`. `reminderOffsetsDays` is the series of lead times, in days,
+ * at which a reminder fires before a `TrainingRequest.dueDate` (e.g. `[30, 7, 1]`). The server trigger
+ * reads this when creating deadline events; a default is used when the mixin is absent.
+ *
+ * @public
+ */
+export interface TrainingReminderSettings extends TypedSpace {
+  reminderOffsetsDays: number[]
+}
+
+/**
+ * A calendar event that materializes a training deadline on a trainee's calendar.
+ *
+ * One `TrainingDeadlineEvent` is created per trainee of a {@link TrainingRequest}, dated on the
+ * request's `dueDate`. Because it is a `calendar.Event` subclass, the existing `OnEvent` trigger
+ * schedules / reschedules / cancels its `reminders` automatically. The event is `attachedTo` the
+ * `TrainingRequest`, which lets the events-processor redirect the reminder notification to the
+ * training and suppress it once the trainee has passed.
+ *
+ * @public
+ */
+export interface TrainingDeadlineEvent extends Event {
+  /** The assignment this deadline belongs to (also mirrored in `attachedTo`). */
+  request: Ref<TrainingRequest>
+  /** The single trainee this event (and its reminders) is for. */
+  trainee: Ref<Employee>
 }
 
 /** @public */

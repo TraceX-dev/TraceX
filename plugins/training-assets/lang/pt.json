@@ -99,6 +99,13 @@
     "ViewSentRequests": "Solicitações dos treinandos",
     "ViewTraineesResults": "Resultados dos treinandos",
     "ConfigLabel": "Treinamentos",
-    "ConfigDescription": "Extensão para gerenciar treinamentos"
+    "ConfigDescription": "Extensão para gerenciar treinamentos",
+    "TrainingDeadlineReminder": "Lembrete de prazo de formação",
+    "TrainingReminderOffsetsDays": "Antecedências de lembrete (dias)",
+    "Permission_SendTrainingRequestReminder": "Enviar lembrete de formação",
+    "Permission_SendTrainingRequestReminder_Description": "Enviar lembretes de acompanhamento aos formandos que não concluíram um pedido de formação",
+    "SendReminder": "Enviar lembrete",
+    "ConfirmSendReminder": "Enviar um lembrete a {count} formando(s) que não concluíram esta formação?",
+    "ReminderSent": "Lembrete enviado a {count} formando(s)"
   }
 }

@@ -20,6 +20,7 @@ import {
   type PrimaryCalendar,
   type Calendar,
   type CalendarEventPresenter,
+  type ReminderNotificationPresenter,
   type Event,
   type ExternalCalendar,
   type ReccuringEvent,
@@ -63,7 +64,8 @@ import attachment from '@hcengineering/model-attachment'
 import contact from '@hcengineering/model-contact'
 import core, { TAttachedDoc, TClass, TDoc } from '@hcengineering/model-core'
 import view, { createAction } from '@hcengineering/model-view'
-import notification from '@hcengineering/notification'
+import notification, { type NotificationType } from '@hcengineering/notification'
+import { type Asset, type IntlString } from '@hcengineering/platform'
 import setting from '@hcengineering/setting'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 import workbench from '@hcengineering/model-workbench'
@@ -196,6 +198,15 @@ export class TCalendarEventPresenter extends TClass implements CalendarEventPres
   presenter!: AnyComponent
 }
 
+@Mixin(calendar.mixin.ReminderNotificationPresenter, core.class.Class)
+export class TReminderNotificationPresenter extends TClass implements ReminderNotificationPresenter {
+  redirectToAttached?: boolean
+  notificationType?: Ref<NotificationType>
+  headerIcon?: Asset
+  header?: IntlString
+  message?: IntlString
+}
+
 export function createModel (builder: Builder): void {
   builder.createModel(
     TCalendar,
@@ -205,6 +216,7 @@ export function createModel (builder: Builder): void {
     TEvent,
     TSchedule,
     TCalendarEventPresenter,
+    TReminderNotificationPresenter,
     TPrimaryCalendar
   )
 

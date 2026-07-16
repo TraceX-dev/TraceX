@@ -14,6 +14,7 @@
 //
 
 import activity from '@hcengineering/activity'
+import calendar from '@hcengineering/calendar'
 import notification, { type NotificationType } from '@hcengineering/notification'
 import { type Asset, type IntlString } from '@hcengineering/platform'
 import type { BuildModelKey, KeyFilterPreset, Viewlet, ViewletDescriptor } from '@hcengineering/view'
@@ -50,6 +51,8 @@ import {
   TTraining,
   TTrainingAttempt,
   TTrainingAttemptState,
+  TTrainingDeadlineEvent,
+  TTrainingReminderSettings,
   TTrainingRequest,
   TTrainingState,
   TTrainingsTypeData
@@ -107,6 +110,7 @@ function defineSpaceType (builder: Builder): void {
   }
 
   builder.createModel(TTrainingsTypeData)
+  builder.createModel(TTrainingReminderSettings)
 
   builder.createDoc(
     core.class.SpaceTypeDescriptor,
@@ -124,7 +128,8 @@ function defineSpaceType (builder: Builder): void {
         training.permission.CreateRequestOnSomeoneElsesTraining,
         training.permission.ChangeSomeoneElsesSentRequestOwner,
         training.permission.ViewSomeoneElsesSentRequest,
-        training.permission.ViewSomeoneElsesTraineesResults
+        training.permission.ViewSomeoneElsesTraineesResults,
+        training.permission.SendTrainingRequestReminder
       ]
     },
     training.spaceTypeDescriptor.Trainings
@@ -582,6 +587,21 @@ function defineTrainingRequest (builder: Builder): void {
     training.action.TrainingRequestCancel
   )
 
+  createAction(
+    builder,
+    {
+      action: training.action.TrainingRequestSendReminderAction,
+      visibilityTester: training.action.TrainingRequestSendReminderIsAvailable,
+      input: 'focus',
+      label: training.string.SendReminder,
+      icon: training.icon.TrainingRequest,
+      target: training.class.TrainingRequest,
+      context: { mode: ['context'], group: 'tools' },
+      category: training.actionCategory.Training
+    },
+    training.action.TrainingRequestSendReminder
+  )
+
   builder.mixin(training.class.TrainingRequest, core.class.Class, activity.mixin.ActivityDoc, {})
 
   builder.mixin(training.class.TrainingRequest, core.class.Class, view.mixin.ObjectTitle, {
@@ -613,6 +633,60 @@ function defineTrainingRequest (builder: Builder): void {
     },
     training.notification.TrainingRequest
   )
+
+  // Deadline reminder: the actual notification is materialized by the events-processor worker
+  // (via a direct createDoc), but the type + provider defaults still declare which channels it
+  // supports and let users toggle them per-type. Mirrors calendar's ReminderNotification.
+  builder.createModel(TTrainingDeadlineEvent)
+
+  // Declaratively tell the events-processor how to present this event's reminders: point them at the
+  // TrainingRequest and use the training deadline notification type/content. No pod-side code needed.
+  builder.mixin(training.class.TrainingDeadlineEvent, core.class.Class, calendar.mixin.ReminderNotificationPresenter, {
+    redirectToAttached: true,
+    notificationType: training.ids.TrainingDeadlineReminder,
+    headerIcon: training.icon.TrainingRequest,
+    header: training.string.TrainingDeadlineReminder,
+    message: training.string.TrainingDeadlineReminder
+  })
+
+  builder.createDoc<NotificationType>(
+    notification.class.NotificationType,
+    core.space.Model,
+    {
+      hidden: false,
+      generated: false,
+      allowedForAuthor: true,
+      label: training.string.TrainingDeadlineReminder,
+      group: training.notification.TrainingGroup,
+      txClasses: [core.class.TxCreateDoc],
+      objectClass: training.class.TrainingRequest,
+      defaultEnabled: true,
+      templates: {
+        textTemplate: 'Training {doc} is due soon',
+        htmlTemplate: '<p>Training <b>{doc}</b> is due soon</p>',
+        subjectTemplate: 'Training deadline: {doc}'
+      }
+    },
+    training.ids.TrainingDeadlineReminder
+  )
+
+  builder.createDoc(notification.class.NotificationProviderDefaults, core.space.Model, {
+    provider: notification.providers.InboxNotificationProvider,
+    ignoredTypes: [],
+    enabledTypes: [training.ids.TrainingDeadlineReminder]
+  })
+
+  builder.createDoc(notification.class.NotificationProviderDefaults, core.space.Model, {
+    provider: notification.providers.PushNotificationProvider,
+    ignoredTypes: [],
+    enabledTypes: [training.ids.TrainingDeadlineReminder]
+  })
+
+  definePermission(builder, training.permission.SendTrainingRequestReminder, {
+    label: training.string.Permission_SendTrainingRequestReminder,
+    scope: 'space',
+    description: training.string.Permission_SendTrainingRequestReminder_Description
+  })
 }
 
 function defineTrainingAttempt (builder: Builder): void {

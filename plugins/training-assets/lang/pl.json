@@ -99,6 +99,13 @@
     "ViewSentRequests": "Wnioski szkolonych",
     "ViewTraineesResults": "Wyniki szkolonych",
     "ConfigLabel": "Szkolenia",
-    "ConfigDescription": "Rozszerzenie do zarządzania szkoleniami"
+    "ConfigDescription": "Rozszerzenie do zarządzania szkoleniami",
+    "TrainingDeadlineReminder": "Przypomnienie o terminie szkolenia",
+    "TrainingReminderOffsetsDays": "Wyprzedzenia przypomnień (dni)",
+    "Permission_SendTrainingRequestReminder": "Wyślij przypomnienie o szkoleniu",
+    "Permission_SendTrainingRequestReminder_Description": "Wysyłaj przypomnienia do uczestników, którzy nie ukończyli żądania szkolenia",
+    "SendReminder": "Wyślij przypomnienie",
+    "ConfirmSendReminder": "Wysłać przypomnienie do {count} uczestników, którzy nie ukończyli tego szkolenia?",
+    "ReminderSent": "Przypomnienie wysłane do {count} uczestników"
   }
 }

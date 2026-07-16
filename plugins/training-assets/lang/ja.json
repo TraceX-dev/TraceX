@@ -99,6 +99,13 @@
     "ViewSentRequests": "受講者のリクエスト",
     "ViewTraineesResults": "受講者の結果",
     "ConfigLabel": "トレーニング",
-    "ConfigDescription": "トレーニングを管理するための拡張機能"
+    "ConfigDescription": "トレーニングを管理するための拡張機能",
+    "TrainingDeadlineReminder": "研修期限のリマインダー",
+    "TrainingReminderOffsetsDays": "リマインダーの事前日数（日）",
+    "Permission_SendTrainingRequestReminder": "研修リマインダーを送信",
+    "Permission_SendTrainingRequestReminder_Description": "研修リクエストを完了していない受講者にフォローアップのリマインダーを送信する",
+    "SendReminder": "リマインダーを送信",
+    "ConfirmSendReminder": "この研修を完了していない{count}名の受講者にリマインダーを送信しますか？",
+    "ReminderSent": "{count}名の受講者にリマインダーを送信しました"
   }
 }

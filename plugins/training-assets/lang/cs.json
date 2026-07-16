@@ -99,6 +99,13 @@
     "ViewSentRequests": "Žádosti školených",
     "ViewTraineesResults": "Výsledky školených",
     "ConfigLabel": "Školení",
-    "ConfigDescription": "Rozšíření pro správu školení"
+    "ConfigDescription": "Rozšíření pro správu školení",
+    "TrainingDeadlineReminder": "Připomenutí termínu školení",
+    "TrainingReminderOffsetsDays": "Předstihy připomenutí (dny)",
+    "Permission_SendTrainingRequestReminder": "Odeslat připomenutí školení",
+    "Permission_SendTrainingRequestReminder_Description": "Odesílat následná připomenutí účastníkům, kteří nedokončili žádost o školení",
+    "SendReminder": "Odeslat připomenutí",
+    "ConfirmSendReminder": "Odeslat připomenutí {count} účastníkům, kteří nedokončili toto školení?",
+    "ReminderSent": "Připomenutí odesláno {count} účastníkům"
   }
 }

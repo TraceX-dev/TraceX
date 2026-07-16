@@ -99,6 +99,13 @@
     "ViewSentRequests": "Demandes des stagiaires",
     "ViewTraineesResults": "Résultats des stagiaires",
     "ConfigLabel": "Formations",
-    "ConfigDescription": "Extension pour gérer les formations"
+    "ConfigDescription": "Extension pour gérer les formations",
+    "TrainingDeadlineReminder": "Rappel d'échéance de formation",
+    "TrainingReminderOffsetsDays": "Délais de rappel (jours)",
+    "Permission_SendTrainingRequestReminder": "Envoyer un rappel de formation",
+    "Permission_SendTrainingRequestReminder_Description": "Envoyer des rappels de suivi aux apprenants qui n'ont pas terminé une demande de formation",
+    "SendReminder": "Envoyer un rappel",
+    "ConfirmSendReminder": "Envoyer un rappel à {count} apprenant(s) n'ayant pas terminé cette formation ?",
+    "ReminderSent": "Rappel envoyé à {count} apprenant(s)"
   }
 }

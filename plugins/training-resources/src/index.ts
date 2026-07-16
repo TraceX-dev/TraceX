@@ -9,6 +9,7 @@ import { trainingDeleteAction } from './actions/trainingDeleteAction'
 import { trainingDuplicateAction } from './actions/trainingDuplicateAction'
 import { trainingReleaseAction } from './actions/trainingReleaseAction'
 import { trainingRequestCancelAction } from './actions/trainingRequestCancelAction'
+import { trainingRequestSendReminderAction } from './actions/trainingRequestSendReminderAction'
 import { trainingRequestChangeOwnerAction } from './actions/trainingRequestChangeOwnerAction'
 import { trainingRequestCreateAction } from './actions/trainingRequestCreateAction'
 import EmployeeEditor from './components/EmployeeEditor.svelte'
@@ -114,6 +115,8 @@ export default async (): Promise<Resources> => ({
 
     TrainingRequestCancelAction: trainingRequestCancelAction.action,
     TrainingRequestCancelIsAvailable: trainingRequestCancelAction.isAvailable,
+    TrainingRequestSendReminderAction: trainingRequestSendReminderAction.action,
+    TrainingRequestSendReminderIsAvailable: trainingRequestSendReminderAction.isAvailable,
 
     TrainingRequestChangeOwnerAction: trainingRequestChangeOwnerAction.action,
     TrainingRequestChangeOwnerIsAvailable: trainingRequestChangeOwnerAction.isAvailable,
