@@ -107,6 +107,7 @@
     "SendReminder": "Wyślij przypomnienie",
     "ConfirmSendReminder": "Wysłać przypomnienie do {count} uczestników, którzy nie ukończyli tego szkolenia?",
     "ReminderSent": "Przypomnienie wysłane do {count} uczestników",
-    "TrainingRemindersEnabled": "Przypomnienia o terminie"
+    "TrainingRemindersEnabled": "Przypomnienia o terminie",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {termin dzisiaj} one {pozostał # dzień} few {pozostały # dni} many {pozostało # dni} other {pozostało # dni}}"
   }
 }

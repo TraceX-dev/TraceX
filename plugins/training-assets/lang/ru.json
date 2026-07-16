@@ -108,6 +108,7 @@
     "SendReminder": "Отправить напоминание",
     "ConfirmSendReminder": "Отправить напоминание {count} обучаемым, не завершившим это обучение?",
     "ReminderSent": "Напоминание отправлено {count} обучаемым",
-    "TrainingRemindersEnabled": "Напоминания о дедлайне"
+    "TrainingRemindersEnabled": "Напоминания о дедлайне",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {дедлайн сегодня} one {остался # день} few {осталось # дня} many {осталось # дней} other {осталось # дней}}"
   }
 }

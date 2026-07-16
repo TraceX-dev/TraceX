@@ -107,6 +107,7 @@
     "SendReminder": "Enviar lembrete",
     "ConfirmSendReminder": "Enviar um lembrete a {count} participante(s) que não concluíram este treinamento?",
     "ReminderSent": "Lembrete enviado a {count} participante(s)",
-    "TrainingRemindersEnabled": "Lembretes de prazo"
+    "TrainingRemindersEnabled": "Lembretes de prazo",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {vence hoje} one {vence em # dia} other {vence em # dias}}"
   }
 }

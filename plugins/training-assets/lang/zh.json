@@ -107,6 +107,7 @@
     "SendReminder": "发送提醒",
     "ConfirmSendReminder": "向未完成此培训的 {count} 名学员发送提醒？",
     "ReminderSent": "已向 {count} 名学员发送提醒",
-    "TrainingRemindersEnabled": "截止提醒"
+    "TrainingRemindersEnabled": "截止提醒",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {今天截止} other {距截止还有 # 天}}"
   }
 }

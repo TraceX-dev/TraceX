@@ -107,6 +107,7 @@
     "SendReminder": "Enviar recordatorio",
     "ConfirmSendReminder": "¿Enviar un recordatorio a {count} alumno(s) que no han completado esta formación?",
     "ReminderSent": "Recordatorio enviado a {count} alumno(s)",
-    "TrainingRemindersEnabled": "Recordatorios de fecha límite"
+    "TrainingRemindersEnabled": "Recordatorios de fecha límite",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {vence hoy} one {vence en # día} other {vence en # días}}"
   }
 }

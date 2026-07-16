@@ -107,6 +107,7 @@
     "SendReminder": "알림 보내기",
     "ConfirmSendReminder": "이 교육을 완료하지 않은 학습자 {count}명에게 알림을 보내시겠습니까?",
     "ReminderSent": "학습자 {count}명에게 알림을 보냈습니다",
-    "TrainingRemindersEnabled": "마감 알림"
+    "TrainingRemindersEnabled": "마감 알림",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {오늘 마감} other {마감까지 # 일}}"
   }
 }

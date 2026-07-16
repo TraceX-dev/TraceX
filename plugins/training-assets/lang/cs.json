@@ -107,6 +107,7 @@
     "SendReminder": "Odeslat připomenutí",
     "ConfirmSendReminder": "Odeslat připomenutí {count} účastníkům, kteří nedokončili toto školení?",
     "ReminderSent": "Připomenutí odesláno {count} účastníkům",
-    "TrainingRemindersEnabled": "Připomenutí termínu"
+    "TrainingRemindersEnabled": "Připomenutí termínu",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {termín je dnes} one {zbývá # den} few {zbývají # dny} other {zbývá # dní}}"
   }
 }

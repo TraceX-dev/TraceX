@@ -107,6 +107,7 @@
     "SendReminder": "Invia promemoria",
     "ConfirmSendReminder": "Inviare un promemoria a {count} partecipante/i che non hanno completato questa formazione?",
     "ReminderSent": "Promemoria inviato a {count} partecipante/i",
-    "TrainingRemindersEnabled": "Promemoria scadenza"
+    "TrainingRemindersEnabled": "Promemoria scadenza",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {scade oggi} one {scade tra # giorno} other {scade tra # giorni}}"
   }
 }

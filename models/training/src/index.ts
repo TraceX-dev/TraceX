@@ -646,7 +646,8 @@ function defineTrainingRequest (builder: Builder): void {
     notificationType: training.ids.TrainingDeadlineReminder,
     headerIcon: training.icon.TrainingRequest,
     header: training.string.TrainingDeadlineReminder,
-    message: training.string.TrainingDeadlineReminder
+    // Interpolated by the events-processor with the generic `{ title, days }` params.
+    message: training.string.TrainingDeadlineReminderMessage
   })
 
   builder.createDoc<NotificationType>(

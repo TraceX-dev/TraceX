@@ -38,6 +38,8 @@ import time, { type ToDo } from '@hcengineering/time'
 import { getClient, type ClientBundle } from './client'
 import type { ScheduledNotificationMessage } from './types'
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 interface MinimalEvent extends Doc {
   attachedTo?: Ref<Doc>
   attachedToClass?: Ref<Class<Doc>>
@@ -135,6 +137,14 @@ export async function handleScheduledNotification (
   }
 
   await control.heartbeat()
+
+  // Generic params any reminder message may interpolate. `shiftMs` is the configured lead time, so at
+  // fire time it is exactly how long is left until the event — no clock arithmetic needed.
+  const params = {
+    title: target.titleText,
+    days: Math.max(0, Math.round(msg.shiftMs / DAY_MS))
+  }
+
   try {
     await client.createDoc(
       notification.class.CommonInboxNotification,
@@ -145,8 +155,14 @@ export async function handleScheduledNotification (
         objectClass: target.objectClass,
         headerIcon: target.headerIcon ?? calendar.icon.Reminder,
         header: target.header ?? calendar.string.Reminder,
+        intlParams: params,
         message: target.message ?? calendar.string.Reminder,
-        messageHtml: jsonToMarkup(nodeDoc(nodeParagraph(nodeText(target.titleText)))),
+        props: params,
+        // `messageHtml` wins over `message` in the inbox presenter, so it is only used as the plain
+        // calendar fallback (raw event title). A declarative presenter supplies its own parameterised
+        // `message` instead, which renders with `props`.
+        messageHtml:
+          target.message === undefined ? jsonToMarkup(nodeDoc(nodeParagraph(nodeText(target.titleText)))) : undefined,
         types: target.notificationTypes ?? [calendar.ids.ReminderNotification],
         isViewed: false,
         archived: false,

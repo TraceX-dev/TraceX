@@ -107,6 +107,7 @@
     "SendReminder": "Envoyer un rappel",
     "ConfirmSendReminder": "Envoyer un rappel à {count} apprenant(s) n'ayant pas terminé cette formation ?",
     "ReminderSent": "Rappel envoyé à {count} apprenant(s)",
-    "TrainingRemindersEnabled": "Rappels d'échéance"
+    "TrainingRemindersEnabled": "Rappels d'échéance",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {échéance aujourd'hui} one {échéance dans # jour} other {échéance dans # jours}}"
   }
 }

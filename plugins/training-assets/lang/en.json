@@ -108,6 +108,7 @@
     "SendReminder": "Send reminder",
     "ConfirmSendReminder": "Send a reminder to {count} trainee(s) who haven't completed this training?",
     "ReminderSent": "Reminder sent to {count} trainee(s)",
-    "TrainingRemindersEnabled": "Deadline reminders"
+    "TrainingRemindersEnabled": "Deadline reminders",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {due today} =1 {due in # day} other {due in # days}}"
   }
 }

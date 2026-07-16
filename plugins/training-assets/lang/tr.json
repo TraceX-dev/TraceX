@@ -107,6 +107,7 @@
     "SendReminder": "Hatırlatma gönder",
     "ConfirmSendReminder": "Bu eğitimi tamamlamayan {count} katılımcıya hatırlatma gönderilsin mi?",
     "ReminderSent": "{count} katılımcıya hatırlatma gönderildi",
-    "TrainingRemindersEnabled": "Son tarih hatırlatmaları"
+    "TrainingRemindersEnabled": "Son tarih hatırlatmaları",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {bugün son gün} other {son tarihe # gün}}"
   }
 }

@@ -91,6 +91,7 @@ export default plugin(trainingId, {
     TrainingCreate: '' as IntlString,
     TrainingCreated: '' as IntlString,
     TrainingDeadlineReminder: '' as IntlString,
+    TrainingDeadlineReminderMessage: '' as IntlString,
     TrainingDocuments: '' as IntlString,
     TrainingOverview: '' as IntlString,
     TrainingPassingScore: '' as IntlString,

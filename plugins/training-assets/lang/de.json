@@ -107,6 +107,7 @@
     "SendReminder": "Erinnerung senden",
     "ConfirmSendReminder": "Erinnerung an {count} Teilnehmer senden, die diese Schulung nicht abgeschlossen haben?",
     "ReminderSent": "Erinnerung an {count} Teilnehmer gesendet",
-    "TrainingRemindersEnabled": "Fristerinnerungen"
+    "TrainingRemindersEnabled": "Fristerinnerungen",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {heute fällig} one {fällig in # Tag} other {fällig in # Tagen}}"
   }
 }
