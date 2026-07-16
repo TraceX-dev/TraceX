@@ -1,6 +1,6 @@
 # TraceX
 
-![GitHub License](https://img.shields.io/github/license/hcengineering/platform?style=for-the-badge)
+[![License](https://img.shields.io/badge/license-EPL--2.0%20%2B%20PolyForm%20Shield-blue?style=for-the-badge)](#licensing)
 
 Built for compliance and productivity across regulated industries.
 ![TraceX screenshot](./docs/assets/tracex.png)
@@ -72,6 +72,14 @@ The TraceX platform uses two types of version tags to distinguish between produc
 
 For detailed information about the platform architecture, services, and their interactions, see our [Architecture Overview](./ARCHITECTURE_OVERVIEW.md).
 
+## Licensing
+
+TraceX is built on the open-source [Huly Platform](https://github.com/hcengineering/platform). Code inherited or modified from Huly remains licensed under the [Eclipse Public License 2.0](./LICENSE).
+
+Some new, wholly TraceX-original files are licensed separately under the [PolyForm Shield License 1.0.0](./LICENSE-POLYFORM-SHIELD), which permits use and modification but restricts building competing products with them. This currently covers.
+
+Each source file's header states which license applies to it; that header is authoritative over a package's `license` field, which for mixed packages uses the SPDX `AND` form (e.g. `(EPL-2.0 AND LicenseRef-PolyForm-Shield-1.0.0)`).
+
 ## Table of Contents
 
 - [TraceX Platform](#tracex-platform)
@@ -81,6 +89,7 @@ For detailed information about the platform architecture, services, and their in
   - [Changelog](#changelog)
   - [Versions](#versions)
   - [Architecture](#architecture)
+  - [Licensing](#licensing)
   - [Table of Contents](#table-of-contents)
   - [Pre-requisites](#pre-requisites)
   - [Verification](#verification)
