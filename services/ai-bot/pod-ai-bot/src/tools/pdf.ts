@@ -17,21 +17,40 @@ import { MarkupBlobRef, Ref } from '@hcengineering/core'
 import document, { Document, getFirstRank, Teamspace } from '@hcengineering/document'
 import { makeRank } from '@hcengineering/rank'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
+import { Type, type Static } from '@sinclair/typebox'
 import { Stream } from 'stream'
 import { v4 as uuid } from 'uuid'
 
 import config from '../config'
 import { RegisteredTool, ToolContext, WorkspaceOps } from './types'
 
+const SaveFileParametersSchema = Type.Object({
+  fileId: Type.String({ description: 'File id to parse' }),
+  folder: Type.String({
+    default: '',
+    description:
+      'Folder, id from getDataBeforeImport. If not provided you can guess by file name and folder name, or by another file names, if you can`t, just ask user. Don`t provide empty, this field is required. If no folders at all, you should stop pipeline execution and ask user to create teamspace'
+  }),
+  parent: Type.Optional(
+    Type.String({
+      default: '',
+      description:
+        'Parent document, use id from getDataBeforeImport, leave empty string if not provided, it is not necessery, please feel free to pass empty string'
+    })
+  ),
+  name: Type.String({
+    description: 'Name for file, try to recognize from user input, if not provided use attached file name'
+  })
+})
+
+type SaveFileArgs = Static<typeof SaveFileParametersSchema>
+
 export const getDataBeforeImportTool: RegisteredTool = {
   definition: {
     name: 'getDataBeforeImport',
     description:
       'Get folders and parents for documents. This step necessery before saveFile tool. YOU MUST USE IT BEFORE import file.',
-    parameters: {
-      type: 'object',
-      properties: {}
-    }
+    parameters: Type.Object({})
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
     return { text: await getFoldersForDocuments(toolCtx) }
@@ -44,35 +63,11 @@ export const saveFileTool: RegisteredTool = {
     name: 'saveFile',
     description:
       'Parse pdf to markdown and save it, using for import files. Use only if provide file in current message and user require to import/save, if file not provided ask user to attach it. You MUST call getDataBeforeImport tool before for get ids. Use file name as name if user not provide it, don`t use old parameters. You can ask user about folder if you have not enough data to get folder id',
-    parameters: {
-      type: 'object',
-      required: ['fileId', 'folder', 'name'],
-      properties: {
-        fileId: { type: 'string', description: 'File id to parse' },
-        folder: {
-          type: 'string',
-          default: '',
-          description:
-            'Folder, id from getDataBeforeImport. If not provided you can guess by file name and folder name, or by another file names, if you can`t, just ask user. Don`t provide empty, this field is required. If no folders at all, you should stop pipeline execution and ask user to create teamspace'
-        },
-        parent: {
-          type: 'string',
-          default: '',
-          description:
-            'Parent document, use id from getDataBeforeImport, leave empty string if not provided, it is not necessery, please feel free to pass empty string'
-        },
-        name: {
-          type: 'string',
-          description: 'Name for file, try to recognize from user input, if not provided use attached file name'
-        }
-      }
-    }
+    parameters: SaveFileParametersSchema
   },
-  createExecutor:
-    (toolCtx: ToolContext) =>
-      async (args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }) => {
-        return { text: await saveFile(toolCtx.workspaceOps, args) }
-      },
+  createExecutor: (toolCtx: ToolContext) => async (args: SaveFileArgs) => {
+    return { text: await saveFile(toolCtx.workspaceOps, args) }
+  },
   contextMode: 'any'
 }
 
@@ -81,7 +76,7 @@ async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
   const client = await ops.getClient()
   const spaces = await client.findAll(
     document.class.Teamspace,
-    toolCtx.user !== undefined ? { members: toolCtx.user, archived: false } : { archived: false }
+    { members: toolCtx.user, archived: false }
   )
   let res = 'Folders:\n'
   for (const space of spaces) {
@@ -97,7 +92,7 @@ async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
 
 async function saveFile (
   ops: WorkspaceOps,
-  args: { fileId: string, folder: string | undefined, parent: string | undefined, name: string }
+  args: SaveFileArgs
 ): Promise<string> {
   const content = await pdfToMarkdown(ops, args.fileId, args.name)
   if (content === undefined) {

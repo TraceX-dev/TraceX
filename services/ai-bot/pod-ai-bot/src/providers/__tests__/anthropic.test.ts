@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { Type } from '@sinclair/typebox'
 
 import { AnthropicProvider } from '../anthropic'
 import { type ChatMessage, type LLMToolDefinition } from '../types'
@@ -97,11 +98,9 @@ describe('AnthropicProvider', () => {
       {
         name: 'lookup',
         description: 'Lookup data',
-        parameters: {
-          type: 'object',
-          properties: { q: { type: 'string' } },
-          required: ['q']
-        }
+        parameters: Type.Object({
+          q: Type.String({})
+        })
       }
     ]
 

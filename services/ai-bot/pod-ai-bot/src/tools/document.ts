@@ -16,9 +16,26 @@
 import core, { type Doc, type AnyAttribute, makeCollabId, Hierarchy, type Class, type Ref } from '@hcengineering/core'
 import drive, { type File, type FileVersion } from '@hcengineering/drive'
 import { markupToHtml } from '@hcengineering/text-html'
+import { Type, type Static } from '@sinclair/typebox'
 
 import { pdfToMarkdown, stream2buffer } from './pdf'
-import { ToolExecutorResult, type RegisteredTool, type ToolContext, type WorkspaceOps } from './types'
+import {
+  ToolExecutorResult,
+  type RegisteredTool,
+  type ToolContext,
+  type WorkspaceOps
+} from './types'
+
+const ReferencedObjectParametersSchema = Type.Object({
+  objectId: Type.String({
+    description: 'Referenced object id from the prompt References list.'
+  }),
+  objectClass: Type.String({
+    description: 'Referenced object class from the prompt References list.'
+  })
+})
+
+type ReferencedObjectArgs = Static<typeof ReferencedObjectParametersSchema>
 
 function isCollaborativeDocType (attr: AnyAttribute): boolean {
   return attr.type._class === core.class.TypeCollaborativeDoc
@@ -32,10 +49,7 @@ export const readObjectContentTool: RegisteredTool = {
       'When the user says "this document", "this file", "the document", "this issue", "this object", or similar phrases referring to the current context, ' +
       'they mean the object attached to this thread — use this tool to retrieve its content. ' +
       'Do NOT ask the user to upload or provide a document; the content is already available via this tool.',
-    parameters: {
-      type: 'object',
-      properties: {}
-    }
+    parameters: Type.Object({})
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
     if (toolCtx.objectId === undefined || toolCtx.objectClass === undefined) {
@@ -71,19 +85,7 @@ export const readReferencedObjectContentTool: RegisteredTool = {
       'Read the content of one explicitly referenced document or Drive file. ' +
       'Use this when the user asks about a referenced object from the message References list. ' +
       'Pass objectId and objectClass.',
-    parameters: {
-      type: 'object',
-      properties: {
-        objectId: {
-          type: 'string',
-          description: 'Referenced object id from the prompt References list.'
-        },
-        objectClass: {
-          type: 'string',
-          description: 'Referenced object class from the prompt References list.'
-        }
-      }
-    }
+    parameters: ReferencedObjectParametersSchema
   },
   createExecutor:
     (toolCtx: ToolContext) =>
@@ -129,11 +131,6 @@ export const readReferencedObjectContentTool: RegisteredTool = {
         }
       },
   contextMode: 'any'
-}
-
-interface ReferencedObjectArgs {
-  objectId: string
-  objectClass: string
 }
 
 async function readCollaborativeContent (toolCtx: ToolContext, hierarchy: Hierarchy, doc: Doc): Promise<string> {

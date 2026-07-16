@@ -24,15 +24,21 @@ import {
   WorkspaceUuid,
   type WorkspaceIds
 } from '@hcengineering/core'
+import { CollaboratorClient } from '@hcengineering/collaborator-client'
 import { StorageAdapter } from '@hcengineering/server-core'
+import { type TObject } from '@sinclair/typebox'
 import { ContextMode, type TokenUsage } from '../providers/types'
 import { MemoryStorage } from '../storage'
-import { CollaboratorClient } from '@hcengineering/collaborator-client'
+
+export type ToolParametersSchema = TObject
 
 export interface ToolDefinition {
+  // Tool name for LLM
   name: string
+  // Tool description for LLM
   description: string
-  parameters: Record<string, any>
+  // Tool parameters schema
+  parameters: ToolParametersSchema
 }
 
 export type ToolExecutorResult =
@@ -57,7 +63,7 @@ export interface WorkspaceOps {
 export interface ToolContext {
   memoryStorage: MemoryStorage
   collaborator: CollaboratorClient
-  user: AccountUuid | undefined
+  user: AccountUuid
   workspace: WorkspaceUuid
   workspaceOps: WorkspaceOps
   objectId?: Ref<Doc>

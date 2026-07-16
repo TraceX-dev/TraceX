@@ -26,8 +26,11 @@ import {
 } from './memory'
 import { readObjectContentTool, readReferencedObjectContentTool } from './document'
 import { saveFileTool, getDataBeforeImportTool } from './pdf'
+import { mcpTools } from './mcp'
 import { type RegisteredTool } from './types'
 import { ContextMode } from '../providers'
+
+export * from './types'
 
 const dynamicTools: RegisteredTool[] = []
 
@@ -60,7 +63,10 @@ const registeredTools: RegisteredTool[] = [
   // Context Object
   // getObjectAttributesTool,
   readObjectContentTool,
-  readReferencedObjectContentTool
+  readReferencedObjectContentTool,
+
+  // MCP tools
+  ...mcpTools
 ]
 
 export function getRegisteredTools (): RegisteredTool[] {
@@ -71,12 +77,3 @@ export function getTools (contextMode: ContextMode): RegisteredTool[] {
   const tools = getRegisteredTools()
   return tools.filter((t) => t.contextMode === contextMode || t.contextMode === 'any')
 }
-
-export {
-  type RegisteredTool,
-  type ToolDefinition,
-  type ToolContext,
-  type ToolExecutor,
-  type ToolExecutorResult,
-  type WorkspaceOps
-} from './types'

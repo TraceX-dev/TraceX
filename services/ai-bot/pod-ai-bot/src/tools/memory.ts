@@ -13,25 +13,48 @@
 // limitations under the License.
 //
 
+import { Type, type Static } from '@sinclair/typebox'
+
 import { RegisteredTool, ToolContext } from './types'
+
+const UpdateAssistantMemoryParametersSchema = Type.Object({
+  memory: Type.String({
+    description:
+      'Complete updated memory about yourself (the assistant): your name, behavior style, how to address the user, your role, etc.'
+  })
+})
+
+type UpdateAssistantMemoryArgs = Static<typeof UpdateAssistantMemoryParametersSchema>
+
+const UpdateUserMemoryParametersSchema = Type.Object({
+  memory: Type.String({
+    description: 'Complete updated memory about the user: their preferences, context, personal info, interests, etc.'
+  })
+})
+
+type UpdateUserMemoryArgs = Static<typeof UpdateAssistantMemoryParametersSchema>
+
+const UpdateSharedContextParametersSchema = Type.Object({
+  context: Type.String({
+    description: 'Complete updated shared context: language preference, timezone, general non-personal settings, etc.'
+  })
+})
+
+type UpdateSharedContextArgs = Static<typeof UpdateSharedContextParametersSchema>
 
 export const getAssistantMemoryTool: RegisteredTool = {
   definition: {
     name: 'get_assistant_memory',
     description:
       'Retrieve current memory about yourself (the assistant). Check your name, behavior style, and how you should address the user.',
-    parameters: {
-      type: 'object',
-      properties: {}
-    }
+    parameters: Type.Object({})
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
-    if (toolCtx.user === undefined) return { text: 'No user context available' }
     const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
-    if (history.assistantMemory === '') {
-      return { text: 'No assistant memory stored yet.' }
-    }
-    return { text: `Current assistant memory:\n${history.assistantMemory}` }
+    const text = history.assistantMemory !== ''
+      ? `Current assistant memory:\n${history.assistantMemory}`
+      : 'No assistant memory stored yet.'
+    return { text }
   },
   contextMode: 'direct'
 }
@@ -41,19 +64,9 @@ export const updateAssistantMemoryTool: RegisteredTool = {
     name: 'update_assistant_memory',
     description:
       'Update information about yourself (the assistant). Use this when user tells you how to behave, what name to use, how to address them, or defines your role/personality.',
-    parameters: {
-      type: 'object',
-      properties: {
-        memory: {
-          type: 'string',
-          description:
-            'Complete updated memory about yourself (the assistant): your name, behavior style, how to address the user, your role, etc.'
-        }
-      },
-      required: ['memory']
-    }
+    parameters: UpdateAssistantMemoryParametersSchema
   },
-  createExecutor: (toolCtx: ToolContext) => async (args: Record<string, any>) => {
+  createExecutor: (toolCtx: ToolContext) => async (args: UpdateAssistantMemoryArgs) => {
     await toolCtx.memoryStorage.updateAssistantMemory(toolCtx.user, args)
     return { text: 'Assistant memory updated.' }
   },
@@ -65,13 +78,9 @@ export const clearAssistantMemoryTool: RegisteredTool = {
     name: 'clear_assistant_memory',
     description:
       'Clear all memory about yourself (the assistant). Use only if user explicitly asks to reset your persona.',
-    parameters: {
-      type: 'object',
-      properties: {}
-    }
+    parameters: Type.Object({})
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
-    if (toolCtx.user === undefined) return { text: 'No user context available' }
     await toolCtx.memoryStorage.updateAssistantMemory(toolCtx.user, { memory: '' })
     return { text: 'Assistant memory cleared.' }
   },
@@ -82,18 +91,14 @@ export const getUserMemoryTool: RegisteredTool = {
   definition: {
     name: 'get_user_memory',
     description: 'Retrieve current memory about the user. Check what information is stored about them.',
-    parameters: {
-      type: 'object',
-      properties: {}
-    }
+    parameters: Type.Object({})
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
-    if (toolCtx.user === undefined) return { text: 'No user context available' }
     const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
-    if (history.userMemory === '') {
-      return { text: 'No user memory stored yet.' }
-    }
-    return { text: `Current user memory:\n${history.userMemory}` }
+    const text = history.userMemory !== ''
+      ? `Current user memory:\n${history.userMemory}`
+      : 'No user memory stored yet.'
+    return { text }
   },
   contextMode: 'direct'
 }
@@ -103,20 +108,9 @@ export const updateUserMemoryTool: RegisteredTool = {
     name: 'update_user_memory',
     description:
       'Update information about the user. Use this when user shares personal information, preferences, or context about themselves.',
-    parameters: {
-      type: 'object',
-      properties: {
-        memory: {
-          type: 'string',
-          description:
-            'Complete updated memory about the user: their preferences, context, personal info, interests, etc.'
-        }
-      },
-      required: ['memory']
-    }
+    parameters: UpdateUserMemoryParametersSchema
   },
-  createExecutor: (toolCtx: ToolContext) => async (args: Record<string, any>) => {
-    if (toolCtx.user === undefined) return { text: 'No user context available' }
+  createExecutor: (toolCtx: ToolContext) => async (args: UpdateUserMemoryArgs) => {
     await toolCtx.memoryStorage.updateUserMemory(toolCtx.user, args)
     return { text: 'User memory updated' }
   },
@@ -127,13 +121,9 @@ export const clearUserMemoryTool: RegisteredTool = {
   definition: {
     name: 'clear_user_memory',
     description: 'Clear all memory about the user. Use only if user explicitly asks to forget everything about them.',
-    parameters: {
-      type: 'object',
-      properties: {}
-    }
+    parameters: Type.Object({})
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
-    if (toolCtx.user === undefined) return { text: 'No user context available' }
     await toolCtx.memoryStorage.updateUserMemory(toolCtx.user, { memory: '' })
     return { text: 'User memory cleared.' }
   },
@@ -144,18 +134,14 @@ export const getSharedContextTool: RegisteredTool = {
   definition: {
     name: 'get_shared_context',
     description: 'Retrieve current shared context. Check language preference, timezone, or other general settings.',
-    parameters: {
-      type: 'object',
-      properties: {}
-    }
+    parameters: Type.Object({})
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
-    if (toolCtx.user === undefined) return { text: 'No user context available' }
     const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
-    if (history.sharedContext === '') {
-      return { text: 'No shared context stored yet.' }
-    }
-    return { text: `Current shared context memory:\n${history.sharedContext}` }
+    const text = history.sharedContext !== ''
+      ? `Current shared context memory:\n${history.sharedContext}`
+      : 'No shared context memory stored yet.'
+    return { text }
   },
   contextMode: 'any'
 }
@@ -165,20 +151,9 @@ export const updateSharedContextTool: RegisteredTool = {
     name: 'update_shared_context',
     description:
       'Update shared context that can be used in both direct and group chats. Use for preferences that apply to group chats (like how to address user in public), language, timezone, or public settings.',
-    parameters: {
-      type: 'object',
-      properties: {
-        context: {
-          type: 'string',
-          description:
-            'Complete updated shared context: language preference, timezone, general non-personal settings, etc.'
-        }
-      },
-      required: ['context']
-    }
+    parameters: UpdateSharedContextParametersSchema
   },
-  createExecutor: (toolCtx: ToolContext) => async (args: Record<string, any>) => {
-    if (toolCtx.user === undefined) return { text: 'No shared context available' }
+  createExecutor: (toolCtx: ToolContext) => async (args: UpdateSharedContextArgs) => {
     await toolCtx.memoryStorage.updateSharedContext(toolCtx.user, args)
     return { text: 'Shared context memory updated' }
   },
@@ -190,13 +165,9 @@ export const clearHistoryTool: RegisteredTool = {
     name: 'clear_history',
     description:
       'Clear conversation history. Use when user asks to clear/forget the conversation history or start fresh. This removes all previous messages but keeps assistant and user memory.',
-    parameters: {
-      type: 'object',
-      properties: {}
-    }
+    parameters: Type.Object({})
   },
   createExecutor: (toolCtx: ToolContext) => async () => {
-    if (toolCtx.user === undefined) return { text: 'No shared context available' }
     await toolCtx.memoryStorage.clearHistory(toolCtx.user)
     return { text: 'Conversation history has been cleared. Starting fresh conversation.' }
   },

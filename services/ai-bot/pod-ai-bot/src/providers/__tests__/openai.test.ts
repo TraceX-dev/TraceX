@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { Type } from '@sinclair/typebox'
 
 import { OpenAIProvider } from '../openai'
 import { type ChatMessage, type LLMToolDefinition } from '../types'
@@ -144,11 +145,9 @@ describe('OpenAIProvider', () => {
       {
         name: 'lookup',
         description: 'Lookup data',
-        parameters: {
-          type: 'object',
-          properties: { q: { type: 'string' } },
-          required: ['q']
-        }
+        parameters: Type.Object({
+          q: Type.String({})
+        })
       }
     ]
 

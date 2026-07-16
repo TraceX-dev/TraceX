@@ -15,6 +15,7 @@
 //
 
 import { type Class, type Doc, type Ref, type Space, type MeasureContext } from '@hcengineering/core'
+import { type ToolParametersSchema } from '../tools'
 
 export type ContextMode = 'direct' | 'thread'
 
@@ -73,7 +74,7 @@ export interface ChatCompletionOptions {
 export interface LLMToolDefinition {
   name: string
   description: string
-  parameters: Record<string, any>
+  parameters: ToolParametersSchema
 }
 
 export interface LLMProvider {
