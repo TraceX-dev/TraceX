@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "Folgeerinnerungen an Teilnehmer senden, die eine Schulungsanfrage nicht abgeschlossen haben",
     "SendReminder": "Erinnerung senden",
     "ConfirmSendReminder": "Erinnerung an {count} Teilnehmer senden, die diese Schulung nicht abgeschlossen haben?",
-    "ReminderSent": "Erinnerung an {count} Teilnehmer gesendet"
+    "ReminderSent": "Erinnerung an {count} Teilnehmer gesendet",
+    "TrainingRemindersEnabled": "Fristerinnerungen"
   }
 }

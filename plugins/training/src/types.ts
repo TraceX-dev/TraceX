@@ -80,6 +80,11 @@ export interface TrainingRequest extends AttachedDoc<Training, 'requests', Typed
  * @public
  */
 export interface TrainingReminderSettings extends TypedSpace {
+  /**
+   * When `false`, deadline events are still created (the deadline stays visible on the trainee's
+   * calendar) but carry no reminders, so nothing is scheduled. Defaults to enabled when unset.
+   */
+  remindersEnabled?: boolean
   reminderOffsetsDays: number[]
 }
 

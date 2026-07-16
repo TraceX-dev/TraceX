@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "Enviar recordatorios de seguimiento a los alumnos que no han completado una solicitud de formación",
     "SendReminder": "Enviar recordatorio",
     "ConfirmSendReminder": "¿Enviar un recordatorio a {count} alumno(s) que no han completado esta formación?",
-    "ReminderSent": "Recordatorio enviado a {count} alumno(s)"
+    "ReminderSent": "Recordatorio enviado a {count} alumno(s)",
+    "TrainingRemindersEnabled": "Recordatorios de fecha límite"
   }
 }

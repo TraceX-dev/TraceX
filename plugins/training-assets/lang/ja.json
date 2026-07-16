@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "研修リクエストを完了していない受講者にフォローアップのリマインダーを送信する",
     "SendReminder": "リマインダーを送信",
     "ConfirmSendReminder": "この研修を完了していない{count}名の受講者にリマインダーを送信しますか？",
-    "ReminderSent": "{count}名の受講者にリマインダーを送信しました"
+    "ReminderSent": "{count}名の受講者にリマインダーを送信しました",
+    "TrainingRemindersEnabled": "期限リマインダー"
   }
 }

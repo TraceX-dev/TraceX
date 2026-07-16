@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "Enviar lembretes de acompanhamento aos participantes que não concluíram uma solicitação de treinamento",
     "SendReminder": "Enviar lembrete",
     "ConfirmSendReminder": "Enviar um lembrete a {count} participante(s) que não concluíram este treinamento?",
-    "ReminderSent": "Lembrete enviado a {count} participante(s)"
+    "ReminderSent": "Lembrete enviado a {count} participante(s)",
+    "TrainingRemindersEnabled": "Lembretes de prazo"
   }
 }

@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "Wysyłaj przypomnienia do uczestników, którzy nie ukończyli żądania szkolenia",
     "SendReminder": "Wyślij przypomnienie",
     "ConfirmSendReminder": "Wysłać przypomnienie do {count} uczestników, którzy nie ukończyli tego szkolenia?",
-    "ReminderSent": "Przypomnienie wysłane do {count} uczestników"
+    "ReminderSent": "Przypomnienie wysłane do {count} uczestników",
+    "TrainingRemindersEnabled": "Przypomnienia o terminie"
   }
 }

@@ -107,6 +107,7 @@
     "TrainingReminderOffsetsDays": "Напоминания за (дней)",
     "SendReminder": "Отправить напоминание",
     "ConfirmSendReminder": "Отправить напоминание {count} обучаемым, не завершившим это обучение?",
-    "ReminderSent": "Напоминание отправлено {count} обучаемым"
+    "ReminderSent": "Напоминание отправлено {count} обучаемым",
+    "TrainingRemindersEnabled": "Напоминания о дедлайне"
   }
 }

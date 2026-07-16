@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "向未完成培训请求的学员发送跟进提醒",
     "SendReminder": "发送提醒",
     "ConfirmSendReminder": "向未完成此培训的 {count} 名学员发送提醒？",
-    "ReminderSent": "已向 {count} 名学员发送提醒"
+    "ReminderSent": "已向 {count} 名学员发送提醒",
+    "TrainingRemindersEnabled": "截止提醒"
   }
 }

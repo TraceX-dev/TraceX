@@ -100,6 +100,7 @@ export default plugin(trainingId, {
     TrainingReleasedBy: '' as IntlString,
     TrainingReleasedOn: '' as IntlString,
     TrainingReminderOffsetsDays: '' as IntlString,
+    TrainingRemindersEnabled: '' as IntlString,
     TrainingRequest: '' as IntlString,
     TrainingRequestAssign: '' as IntlString,
     TrainingRequestAttempt: '' as IntlString,

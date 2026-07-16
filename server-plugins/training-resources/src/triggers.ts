@@ -42,21 +42,26 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const DEFAULT_OFFSETS_DAYS = [30, 7, 1]
 
 function sameOffsets (a: number[] | undefined, b: number[]): boolean {
-  if (a === undefined || a.length !== b.length) return false
-  const sa = [...a].sort((x, y) => x - y)
+  const sa = [...(a ?? [])].sort((x, y) => x - y)
   const sb = [...b].sort((x, y) => x - y)
+  if (sa.length !== sb.length) return false
   return sa.every((v, i) => v === sb[i])
 }
 
 /**
  * Resolve the reminder lead-time series (in ms before `dueDate`) configured for a Trainings space.
- * Reads the {@link training.mixin.TrainingReminderSettings} mixin on the space; falls back to a default.
+ * Reads the {@link training.mixin.TrainingReminderSettings} mixin on the space; falls back to a default
+ * when the space was never configured.
+ *
+ * Returns an empty series when reminders are disabled — the deadline event is still created (so the
+ * deadline stays visible on the trainee's calendar), it just carries no reminders to schedule.
  */
 async function resolveReminderOffsetsMs (control: TriggerControl, spaceRef: Ref<TypedSpace>): Promise<number[]> {
   let days = DEFAULT_OFFSETS_DAYS
   const space = (await control.findAll(control.ctx, core.class.TypedSpace, { _id: spaceRef }, { limit: 1 }))[0]
   if (space !== undefined && control.hierarchy.hasMixin(space, training.mixin.TrainingReminderSettings)) {
     const settings = control.hierarchy.as(space, training.mixin.TrainingReminderSettings)
+    if (settings.remindersEnabled === false) return []
     if (Array.isArray(settings.reminderOffsetsDays) && settings.reminderOffsetsDays.length > 0) {
       days = settings.reminderOffsetsDays
     }

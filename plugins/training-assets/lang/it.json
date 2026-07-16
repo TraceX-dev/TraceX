@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "Invia promemoria di follow-up ai partecipanti che non hanno completato una richiesta di formazione",
     "SendReminder": "Invia promemoria",
     "ConfirmSendReminder": "Inviare un promemoria a {count} partecipante/i che non hanno completato questa formazione?",
-    "ReminderSent": "Promemoria inviato a {count} partecipante/i"
+    "ReminderSent": "Promemoria inviato a {count} partecipante/i",
+    "TrainingRemindersEnabled": "Promemoria scadenza"
   }
 }

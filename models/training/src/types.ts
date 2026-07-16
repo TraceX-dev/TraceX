@@ -51,6 +51,7 @@ import {
   Mixin,
   Model,
   Prop,
+  TypeBoolean,
   TypeMarkup,
   TypeNumber,
   TypeRef,
@@ -277,6 +278,9 @@ export class TTrainingsTypeData extends TTypedSpace implements RolesAssignment {
 @Mixin(training.mixin.TrainingReminderSettings, core.class.TypedSpace)
 @UX(getEmbeddedLabel('Training reminders'), training.icon.TrainingApplication)
 export class TTrainingReminderSettings extends TTypedSpace implements TrainingReminderSettings {
+  @Prop(TypeBoolean(), training.string.TrainingRemindersEnabled)
+    remindersEnabled: boolean = true
+
   @Prop(ArrOf(TypeNumber()), training.string.TrainingReminderOffsetsDays)
     reminderOffsetsDays: number[] = [30, 7, 1]
 }

@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "Envoyer des rappels de suivi aux apprenants qui n'ont pas terminé une demande de formation",
     "SendReminder": "Envoyer un rappel",
     "ConfirmSendReminder": "Envoyer un rappel à {count} apprenant(s) n'ayant pas terminé cette formation ?",
-    "ReminderSent": "Rappel envoyé à {count} apprenant(s)"
+    "ReminderSent": "Rappel envoyé à {count} apprenant(s)",
+    "TrainingRemindersEnabled": "Rappels d'échéance"
   }
 }

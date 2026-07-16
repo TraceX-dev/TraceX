@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "Bir eğitim talebini tamamlamayan katılımcılara takip hatırlatmaları gönder",
     "SendReminder": "Hatırlatma gönder",
     "ConfirmSendReminder": "Bu eğitimi tamamlamayan {count} katılımcıya hatırlatma gönderilsin mi?",
-    "ReminderSent": "{count} katılımcıya hatırlatma gönderildi"
+    "ReminderSent": "{count} katılımcıya hatırlatma gönderildi",
+    "TrainingRemindersEnabled": "Son tarih hatırlatmaları"
   }
 }

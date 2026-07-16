@@ -106,6 +106,7 @@
     "Permission_SendTrainingRequestReminder_Description": "교육 요청을 완료하지 않은 학습자에게 후속 알림 보내기",
     "SendReminder": "알림 보내기",
     "ConfirmSendReminder": "이 교육을 완료하지 않은 학습자 {count}명에게 알림을 보내시겠습니까?",
-    "ReminderSent": "학습자 {count}명에게 알림을 보냈습니다"
+    "ReminderSent": "학습자 {count}명에게 알림을 보냈습니다",
+    "TrainingRemindersEnabled": "마감 알림"
   }
 }
