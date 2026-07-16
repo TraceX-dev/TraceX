@@ -21,6 +21,7 @@ import core, {
   pickPrimarySocialId,
   type Ref,
   type Space,
+  type Timestamp,
   type Tx,
   type TxCreateDoc,
   type TxMixin,
@@ -40,6 +41,19 @@ import training, {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DEFAULT_OFFSETS_DAYS = [30, 7, 1]
+// Matches `allDayDuration` used by the calendar UI when creating all-day events.
+const ALL_DAY_DURATION_MS = DAY_MS - 1
+
+/**
+ * All-day events are stored day-aligned on UTC midnight and span the whole day (the calendar UI does
+ * the same via `setHours(0,0,0,0)` + `saveUTC`). A zero-length event would be rendered without a title:
+ * `EventElement` treats anything shorter than 25 minutes as `narrow` and hides the label.
+ */
+function allDayRange (ts: Timestamp): { date: Timestamp, dueDate: Timestamp } {
+  const d = new Date(ts)
+  const date = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  return { date, dueDate: date + ALL_DAY_DURATION_MS }
+}
 
 function sameOffsets (a: number[] | undefined, b: number[]): boolean {
   const sa = [...(a ?? [])].sort((x, y) => x - y)
@@ -93,6 +107,7 @@ async function buildDeadlineEventTx (
 
   const calendars = await control.findAll(control.ctx, calendar.class.Calendar, { user: primary, hidden: false })
   const cal = getPrimaryCalendar(calendars, undefined, acc)
+  const { date, dueDate } = allDayRange(request.dueDate)
 
   const data: Data<TrainingDeadlineEvent> = {
     attachedTo: request._id,
@@ -103,8 +118,8 @@ async function buildDeadlineEventTx (
     title,
     description: '',
     allDay: true,
-    date: request.dueDate,
-    dueDate: request.dueDate,
+    date,
+    dueDate,
     participants: [trainee as unknown as Ref<Person>],
     reminders: offsetsMs,
     access: AccessLevel.Reader,
@@ -150,9 +165,10 @@ async function reconcileDeadlineEvents (control: TriggerControl, requestId: Ref<
       if (tx !== undefined) res.push(tx)
     } else {
       const ops: DocumentUpdate<TrainingDeadlineEvent> = {}
-      if (ev.date !== request.dueDate) {
-        ops.date = request.dueDate
-        ops.dueDate = request.dueDate
+      const { date, dueDate } = allDayRange(request.dueDate)
+      if (ev.date !== date || ev.dueDate !== dueDate) {
+        ops.date = date
+        ops.dueDate = dueDate
       }
       if (!sameOffsets(ev.reminders, offsetsMs)) {
         ops.reminders = offsetsMs
