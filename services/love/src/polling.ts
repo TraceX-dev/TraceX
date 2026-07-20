@@ -1,3 +1,4 @@
+import { parseParticipantMetadata } from './utils'
 /**
   Copyright © 2026 Intabia Fusion.
 
@@ -373,7 +374,8 @@ export class LiveKitPollingService {
               participant.name ?? participant.identity ?? 'Unknown',
               null,
               meetingId,
-              participant.sid
+              participant.sid,
+              parseParticipantMetadata(participant.metadata)
             )
           }
         }

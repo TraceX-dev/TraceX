@@ -432,14 +432,8 @@ export const main = async (): Promise<void> => {
     pollingService.addWorkspaceToCheck(msg.workspace)
   })
 
-  const workspaceTxConsumer = queue.createBatchConsumer(ctx, QueueTopic.Tx, 'love-client', async (ctx, msgs, queue) => {
-    const workspaces = new Set<WorkspaceUuid>()
-    for (const msg of msgs) {
-      workspaces.add(msg.workspace)
-    }
-    for (const ws of workspaces) {
-      pollingService.addWorkspaceToCheck(ws)
-    }
+  const workspaceTxConsumer = queue.createConsumer(ctx, QueueTopic.Tx, 'love-client', async (ctx, msg) => {
+    pollingService.addWorkspaceToCheck(msg.workspace)
   })
 
   ctx.info('LiveKit polling service started', {
