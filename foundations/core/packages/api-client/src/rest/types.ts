@@ -124,4 +124,3 @@ export interface RestClient extends Storage, FulltextStorage {
 export interface EnsurePersonOptions {
   addGuestEmployee?: boolean
 }
->>>>>>> 662d376d32 (Fix guest identity to match other social ids)
