@@ -115,8 +115,6 @@
 </div>
 
 <style lang="scss">
-  @use './themes/intabia.scss';
-  @use './themes/huly.scss';
 
   .wide {
     position: fixed !important;
