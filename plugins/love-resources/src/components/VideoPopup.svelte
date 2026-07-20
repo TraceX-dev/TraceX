@@ -52,7 +52,7 @@
     bind:divScroll
     noStretch
     padding={'.5rem'}
-    containerName={'videoPopupСontainer'}
+    containerName={'videoPopupContainer'}
     onResize={dispatchFit}
     stickedScrollBars
   >
@@ -112,12 +112,12 @@
     grid-auto-flow: row;
     gap: var(--spacing-1);
   }
-  @container videoPopupСontainer (max-width: 60rem) {
+  @container videoPopupContainer (max-width: 60rem) {
     .videoGrid {
       grid-template-columns: repeat(2, 1fr);
     }
   }
-  @container videoPopupСontainer (max-width: 30rem) {
+  @container videoPopupContainer (max-width: 30rem) {
     .videoGrid {
       grid-template-columns: 1fr;
     }
