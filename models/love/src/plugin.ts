@@ -46,7 +46,6 @@ export default mergeIds(loveId, love, {
   },
   ids: {
     Settings: '' as Ref<Doc>,
-    LoveNotificationGroup: '' as Ref<NotificationGroup>,
     MeetingMinutesChatNotification: '' as Ref<NotificationType>,
     ModulePermissionGroup: '' as Ref<Doc>,
     ModulePermissionGroupReadOnlyGuest: '' as Ref<Doc>
