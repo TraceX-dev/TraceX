@@ -51,7 +51,7 @@ import {
   createStorageBackupStorage,
   restore
 } from '@hcengineering/server-backup'
-import serverClientPlugin, { getAccountClient, getTransactorEndpoint } from '@hcengineering/server-client'
+import serverClientPlugin, { BlobClient, getAccountClient, getTransactorEndpoint } from '@hcengineering/server-client'
 import {
   createBackupPipeline,
   createEmptyBroadcastOps,
@@ -75,6 +75,7 @@ import { RatingCalculator, ratingEvents, type QueueRatingMessage } from '@hcengi
 
 import core, {
   AccountRole,
+  generateId,
   isArchivingMode,
   isDeletingMode,
   MeasureMetricsContext,
@@ -84,11 +85,14 @@ import core, {
   systemAccountUuid,
   TxOperations,
   type AccountUuid,
+  type Class,
+  type Client,
   type Data,
   type Doc,
   type PersonId,
   type PersonUuid,
   type Ref,
+  type Space,
   type Tx,
   type Version,
   type WorkspaceDataId,
@@ -1126,6 +1130,173 @@ export function devTool (
         }
       }
       await storageAdapter.close()
+    })
+
+  program
+    .command('validate-workspace <workspace>')
+    .description('Validate a (restored) workspace: connect as system, check model, data counts and blob download')
+    .option('--blobs <blobs>', 'Number of sample blobs to download-check (0 to skip)', '5')
+    .option('--write', 'Run a write smoke-test (creates and removes a temporary space; use on clones only)', false)
+    .action(async (workspace: string, cmd: { blobs: string, write: boolean }) => {
+      await withAccountDatabase(async (db) => {
+        const ws = await getWorkspace(db, workspace)
+        if (ws === null) {
+          throw new Error(`workspace ${workspace} not found`)
+        }
+        const wsIds = { uuid: ws.uuid, dataId: ws.dataId, url: ws.url ?? '' }
+
+        const failures: string[] = []
+        const pass = (m: string): void => {
+          console.log(`  ✓ ${m}`)
+        }
+        const fail = (m: string): void => {
+          console.error(`  ✗ ${m}`)
+          failures.push(m)
+        }
+        const info = (m: string): void => {
+          console.log(`  • ${m}`)
+        }
+        const emsg = (err: any): string => (err instanceof Error ? err.message : String(err))
+
+        console.log(`Validating workspace ${ws.url ?? ws.uuid} (${ws.uuid})`)
+
+        const workspaceStorage: StorageAdapter = buildStorageFromConfig(storageConfigFromEnv())
+        let connection: Client | undefined
+        try {
+          // 1. Connectivity: resolve transactor endpoint and connect as system user
+          let endpoint: string
+          try {
+            endpoint = await getWorkspaceTransactorEndpoint(ws.uuid)
+            pass('resolved transactor endpoint')
+          } catch (err: any) {
+            fail(`cannot resolve transactor endpoint: ${emsg(err)}`)
+            process.exitCode = 1
+            return
+          }
+
+          try {
+            connection = await connect(endpoint, ws.uuid, undefined, { service: 'tool', admin: 'true' })
+            pass('connected to transactor as system user')
+          } catch (err: any) {
+            fail(`connect failed: ${emsg(err)}`)
+            process.exitCode = 1
+            return
+          }
+
+          const ops = new TxOperations(connection, core.account.System)
+
+          // 2. Model loads and hierarchy is populated
+          try {
+            const classes = ops.getHierarchy().getDescendants(core.class.Doc).length
+            if (classes > 0) {
+              pass(`model loaded: ${classes} classes in hierarchy`)
+            } else {
+              fail('model loaded but hierarchy is empty')
+            }
+          } catch (err: any) {
+            fail(`model load failed: ${emsg(err)}`)
+          }
+
+          // 3. Read path: count key domains
+          const countOf = async (label: string, _class: Ref<Class<Doc>>): Promise<number> => {
+            try {
+              const r = await ops.findAll(_class, {}, { limit: 1, total: true })
+              info(`${label}: ${r.total}`)
+              return r.total
+            } catch (err: any) {
+              fail(`findAll ${label} failed: ${emsg(err)}`)
+              return -1
+            }
+          }
+          await countOf('transactions (Tx)', core.class.Tx)
+          const blobTotal = await countOf('blobs (Blob)', core.class.Blob)
+          await countOf('spaces (Space)', core.class.Space)
+
+          // 4. Blob end-to-end: download a sample and verify bytes match metadata
+          const nBlobs = parseInt(cmd.blobs)
+          if (!Number.isNaN(nBlobs) && nBlobs > 0) {
+            if (blobTotal === 0) {
+              fail('no blobs found in workspace — attachments/files would be missing')
+            } else if (blobTotal > 0) {
+              try {
+                const blobClient = new BlobClient(workspaceStorage, wsIds)
+                const sample = await ops.findAll(core.class.Blob, {}, { limit: nBlobs })
+                let okCount = 0
+                for (const blob of sample) {
+                  try {
+                    let bytes = 0
+                    await blobClient.writeTo(toolCtx, blob._id, blob.size, {
+                      write: (buffer: Buffer, cb: (err?: any) => void) => {
+                        bytes += buffer.length
+                        cb()
+                      },
+                      end: (cb: () => void) => {
+                        cb()
+                      }
+                    })
+                    if (bytes === blob.size) {
+                      okCount++
+                    } else {
+                      fail(`blob ${blob._id}: downloaded ${bytes} of ${blob.size} bytes`)
+                    }
+                  } catch (err: any) {
+                    fail(`blob ${blob._id} download failed: ${emsg(err)}`)
+                  }
+                }
+                if (okCount === sample.length && okCount > 0) {
+                  pass(`downloaded ${okCount}/${sample.length} sample blobs, sizes match metadata`)
+                }
+              } catch (err: any) {
+                fail(`blob download check failed: ${emsg(err)}`)
+              }
+            }
+          }
+
+          // 5. Optional write smoke-test (mutating — clones only)
+          if (cmd.write) {
+            const spaceId = generateId<Space>()
+            try {
+              await ops.createDoc(
+                core.class.Space,
+                core.space.Space,
+                {
+                  name: `__validate_${spaceId}`,
+                  description: 'temporary workspace validation space',
+                  private: true,
+                  archived: false,
+                  members: []
+                },
+                spaceId
+              )
+              const readBack = await ops.findOne(core.class.Space, { _id: spaceId })
+              if (readBack !== undefined) {
+                pass('write smoke-test: created and read back a temporary space')
+              } else {
+                fail('write smoke-test: created space not found on read-back')
+              }
+            } catch (err: any) {
+              fail(`write smoke-test (create) failed: ${emsg(err)}`)
+            } finally {
+              try {
+                await ops.removeDoc(core.class.Space, core.space.Space, spaceId)
+                pass('write smoke-test: removed temporary space')
+              } catch (err: any) {
+                fail(`write smoke-test (cleanup) failed, temporary space ${spaceId} may remain: ${emsg(err)}`)
+              }
+            }
+          }
+        } finally {
+          await connection?.close()
+          await workspaceStorage.close()
+        }
+
+        if (failures.length > 0) {
+          console.error(`\nVALIDATION FAILED: ${failures.length} issue(s)`)
+          process.exitCode = 1
+        } else {
+          console.log('\nVALIDATION PASSED')
+        }
+      })
     })
 
   program
