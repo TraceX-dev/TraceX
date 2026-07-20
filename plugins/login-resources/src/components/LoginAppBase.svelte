@@ -37,7 +37,7 @@
   onMount(() => {
     // Initialize login theme from platform metadata if provided
     const lTheme = getMetadata(login.metadata.LoginTheme) as LoginThemeName | undefined
-    if (lTheme === 'intabia' || lTheme === 'huly') {
+    if (lTheme === 'huly') {
       setLoginTheme(lTheme)
     }
   })
@@ -55,9 +55,7 @@
 
 <div
   class="w-full h-full backd"
-  class:accent-intabia={activeTheme.name === 'intabia'}
   class:paneld={$deviceInfo.docWidth <= 768}
-  class:login-theme-intabia={activeTheme.name === 'intabia'}
   class:login-theme-huly={activeTheme.name === 'huly'}
 >
   <div class="bg-image clear-mins p-4 back">
