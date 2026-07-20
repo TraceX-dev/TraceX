@@ -113,7 +113,6 @@
 </div>
 
 <style lang="scss">
-
   .wide {
     position: fixed !important;
     top: 10rem !important;

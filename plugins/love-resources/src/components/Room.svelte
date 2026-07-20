@@ -224,7 +224,6 @@
     z-index: 1000;
   }
 
-
   .room-container {
     display: flex;
     justify-content: center;

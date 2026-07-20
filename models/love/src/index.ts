@@ -28,7 +28,6 @@ import {
   type ClassCollaborators,
   type AccountUuid,
   SocialIdType
-
 } from '@hcengineering/core'
 import {
   type DevicesPreference,

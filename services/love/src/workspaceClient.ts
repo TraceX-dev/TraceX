@@ -435,7 +435,10 @@ export class WorkspaceClient {
 
         const place =
           roomDoc !== undefined
-            ? getFreeRoomPlace(roomDoc, participants, person, { x: participantMetadata.x ?? 0, y: participantMetadata.y ?? 0 })
+            ? getFreeRoomPlace(roomDoc, participants, person, {
+              x: participantMetadata.x ?? 0,
+              y: participantMetadata.y ?? 0
+            })
             : { x: 0, y: 0 }
         const oid = generateId<ParticipantInfo>()
 

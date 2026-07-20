@@ -36,7 +36,13 @@ import core, {
   AccountRole
 } from '@hcengineering/core'
 import { rpcJSONReplacer, type RateLimitInfo } from '@hcengineering/rpc'
-import { wrapPipeline, type ClientSessionCtx, type ConnectionSocket, type Session, type SessionManager } from '@hcengineering/server-core'
+import {
+  wrapPipeline,
+  type ClientSessionCtx,
+  type ConnectionSocket,
+  type Session,
+  type SessionManager
+} from '@hcengineering/server-core'
 import { decodeToken } from '@hcengineering/server-token'
 
 import { createHash } from 'crypto'

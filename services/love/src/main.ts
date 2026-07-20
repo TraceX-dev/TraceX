@@ -18,7 +18,7 @@ import {
   type AccountClient
 } from '@hcengineering/account-client'
 import { createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
-import { MeasureContext, newMetrics, systemAccountUuid, WorkspaceUuid } from '@hcengineering/core'
+import { MeasureContext, newMetrics, systemAccountUuid } from '@hcengineering/core'
 import {
   parseRoomName,
   ParticipantMetadata,
