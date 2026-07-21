@@ -39,10 +39,13 @@
   },
   "dependencies": {
     "@hcengineering/core": "workspace:^0.7.26",
+    "@hcengineering/integration": "workspace:^0.7.0",
     "@hcengineering/platform": "workspace:^0.7.20",
+    "@hcengineering/rank": "workspace:^0.7.0",
     "@hcengineering/workbench": "workspace:^0.7.0",
     "@hcengineering/server-core": "workspace:^0.7.19",
     "@hcengineering/document": "workspace:^0.7.0",
+    "@hcengineering/text": "workspace:^0.7.19",
     "slugify": "^1.6.6"
   }
 }

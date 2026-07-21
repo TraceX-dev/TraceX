@@ -164,6 +164,7 @@ import { Branding, Config } from './types'
 import { ipcMainExposed } from './typesUtils'
 
 import github, { githubId } from '@hcengineering/github'
+import { githubNextId } from '@hcengineering/github-next'
 import '@hcengineering/github-assets'
 import { preferenceId } from '@hcengineering/preference'
 import { uiId } from '@hcengineering/ui/src/plugin'
@@ -480,6 +481,10 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   addLocation(recorderId, async () => await import('@hcengineering/recorder-resources'))
   addLocation(presenceId, async () => await import('@hcengineering/presence-resources'))
   addLocation(githubId, async () => await import(/* webpackChunkName: "github" */ '@hcengineering/github-resources'))
+  addLocation(
+    githubNextId,
+    async () => await import(/* webpackChunkName: "github-next" */ '@hcengineering/github-next-resources')
+  )
   addLocation(
     desktopPreferencesId,
     async () =>

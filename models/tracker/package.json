@@ -39,6 +39,7 @@
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/converter": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
+    "@hcengineering/integration": "workspace:^0.7.0",
     "@hcengineering/model": "workspace:^0.7.17",
     "@hcengineering/model-attachment": "workspace:^0.7.0",
     "@hcengineering/model-contact": "workspace:^0.7.0",

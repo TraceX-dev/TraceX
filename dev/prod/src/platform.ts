@@ -73,7 +73,9 @@ import workbench, { workbenchId } from '@hcengineering/workbench'
 import { mailId } from '@hcengineering/mail'
 import { chatId } from '@hcengineering/chat'
 import github, { githubId } from '@hcengineering/github'
+import githubNext, { githubNextId } from '@hcengineering/github-next'
 import { bitrixId } from '@hcengineering/bitrix'
+import { integrationId } from '@hcengineering/integration'
 import { inboxId } from '@hcengineering/inbox'
 import { achievementId } from '@hcengineering/achievement'
 import communication, { communicationId } from '@hcengineering/communication'
@@ -173,7 +175,9 @@ export interface Config {
   APP_PROTOCOL?: string
   GITHUB_APP?: string
   GITHUB_CLIENTID?: string
+  GITHUB_NEXT_CLIENTID?: string
   GITHUB_URL: string
+  GITHUB_NEXT_URL?: string
   LOVE_ENDPOINT?: string
   LIVEKIT_WS?: string
   SIGN_URL?: string
@@ -525,6 +529,8 @@ export async function configurePlatform() {
   setMetadata(github.metadata.GithubApplication, config.GITHUB_APP ?? '')
   setMetadata(github.metadata.GithubClientID, config.GITHUB_CLIENTID ?? '')
   setMetadata(github.metadata.GithubURL, config.GITHUB_URL)
+  setMetadata(githubNext.metadata.GithubClientID, config.GITHUB_NEXT_CLIENTID ?? '')
+  setMetadata(githubNext.metadata.GithubNextURL, config.GITHUB_NEXT_URL ?? 'http://tracex.local:3510')
 
   setMetadata(rekoni.metadata.RekoniUrl, config.REKONI_URL)
 
@@ -646,6 +652,10 @@ export async function configurePlatform() {
   )
   addLocation(githubId, async () => await import(/* webpackChunkName: "github" */ '@hcengineering/github-resources'))
   addLocation(
+    githubNextId,
+    async () => await import(/* webpackChunkName: "github-next" */ '@hcengineering/github-next-resources')
+  )
+  addLocation(
     questionsId,
     async () => await import(/* webpackChunkName: "training" */ '@hcengineering/questions-resources')
   )
@@ -695,6 +705,10 @@ export async function configurePlatform() {
   addLocation(cardId, async () => await import(/* webpackChunkName: "card" */ '@hcengineering/card-resources'))
   addLocation(chatId, async () => await import(/* webpackChunkName: "chat" */ '@hcengineering/chat-resources'))
   addLocation(processId, async () => await import(/* webpackChunkName: "process" */ '@hcengineering/process-resources'))
+  addLocation(
+    integrationId,
+    async () => await import(/* webpackChunkName: "integration" */ '@hcengineering/integration-resources')
+  )
   addLocation(
     achievementId,
     async () => await import(/* webpackChunkName: "achievement" */ '@hcengineering/achievement-resources')

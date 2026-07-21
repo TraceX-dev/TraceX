@@ -104,6 +104,7 @@
     "@hcengineering/model-document": "workspace:^0.7.0",
     "@hcengineering/model-server-document": "workspace:^0.7.0",
     "@hcengineering/model-github": "workspace:^0.7.0",
+    "@hcengineering/model-github-next": "workspace:^0.7.0",
     "@hcengineering/server-github-model": "workspace:^0.7.0",
     "@hcengineering/model-love": "workspace:^0.7.0",
     "@hcengineering/model-server-love": "workspace:^0.7.0",
@@ -137,6 +138,7 @@
     "@hcengineering/model-ai-assistant": "workspace:^0.7.0",
     "@hcengineering/model-inbox": "workspace:^0.7.0",
     "@hcengineering/model-rating": "workspace:^0.7.0",
+    "@hcengineering/model-integration": "workspace:^0.7.0",
     "@tracex/model-qalico": "workspace:^0.7.0"
   }
 }

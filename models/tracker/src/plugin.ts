@@ -16,6 +16,7 @@
 import { type DocUpdateMessageViewlet } from '@hcengineering/activity'
 import { type ChatMessageViewlet } from '@hcengineering/chunter'
 import { type Doc, type DocManager, type Ref, type StatusCategory } from '@hcengineering/core'
+import type { IntegrationTargetFactory } from '@hcengineering/integration'
 import { type NotificationGroup, type NotificationType } from '@hcengineering/notification'
 import { mergeIds, type IntlString, type Resource } from '@hcengineering/platform'
 import { type ProjectType } from '@hcengineering/task'
@@ -93,6 +94,9 @@ export default mergeIds(trackerId, tracker, {
     ComponentChatMessageViewlet: '' as Ref<ChatMessageViewlet>,
     MilestoneChatMessageViewlet: '' as Ref<ChatMessageViewlet>,
     DefaultProjectType: '' as Ref<ProjectType>
+  },
+  integration: {
+    TargetFactory: '' as Ref<IntegrationTargetFactory>
   },
   actionImpl: {
     Move: '' as ViewAction,

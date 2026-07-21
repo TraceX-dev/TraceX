@@ -29,6 +29,8 @@ import {
   type PersonId,
   type PersonUuid,
   SocialIdType,
+  systemAccount,
+  systemAccountEmail,
   systemAccountUuid,
   readOnlyGuestAccountUuid,
   type WorkspaceConfiguration,
@@ -138,6 +140,17 @@ const NIL_UUID = '00000000-0000-0000-0000-000000000000' as AccountUuid
 
 const workspaceLimitPerUser =
   process.env.WORKSPACE_LIMIT_PER_USER != null ? parseInt(process.env.WORKSPACE_LIMIT_PER_USER) : 10
+
+function getSystemSocialId (): SocialId {
+  return {
+    _id: systemAccount.primarySocialId,
+    type: SocialIdType.HULY,
+    value: systemAccountEmail,
+    key: buildSocialIdString({ type: SocialIdType.HULY, value: systemAccountEmail }),
+    personUuid: systemAccountUuid as unknown as PersonUuid,
+    verifiedOn: 1
+  }
+}
 
 /* =================================== */
 /* ============OPERATIONS============= */
@@ -2154,7 +2167,9 @@ export async function getLoginInfoByToken (
 
   let socialId: SocialId | null = null
 
-  if (!isDocGuest && !isSystem) {
+  if (isSystem) {
+    socialId = getSystemSocialId()
+  } else if (!isDocGuest) {
     // Any confirmed social ID will do
     socialId = (await getSocialIds(ctx, db, branding, token, { confirmed: true, includeDeleted: false }))[0]
     if (socialId == null) {
@@ -2270,7 +2285,9 @@ export async function getLoginWithWorkspaceInfo (
   const isSystem = accountUuid === systemAccountUuid
   let socialIds: SocialId[] = []
 
-  if (!isDocGuest && !isSystem) {
+  if (isSystem) {
+    socialIds = [getSystemSocialId()]
+  } else if (!isDocGuest) {
     // Any confirmed social ID will do
     socialIds = await db.socialId.find({ personUuid: accountUuid, verifiedOn: { $gt: 0 } })
     if (socialIds.length === 0) {
@@ -2361,6 +2378,10 @@ export async function getSocialIds (
   // do not expose not-confirmed social ids for now
   if (!confirmed) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  if (account === systemAccountUuid) {
+    return [getSystemSocialId()]
   }
 
   const socialIds = await db.socialId.find({ personUuid: account, verifiedOn: { $gt: 0 } })

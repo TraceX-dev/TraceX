@@ -2,6 +2,7 @@
 
 - Do not run build commands automatically for verification.
 - When finishing work, state that the task is complete and ask the user to verify it manually.
+- In plugin id descriptions, declare each id only once at one level. If a model plugin merges a resources plugin, resource ids must stay in the resources plugin and must not be redeclared in the model plugin.
 
 ## Copyright headers
 

@@ -16,6 +16,7 @@
 import activity from '@hcengineering/activity'
 import chunter from '@hcengineering/chunter'
 import { AccountRole, type ClassCollaborators, type Ref, type Status } from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import { type Builder } from '@hcengineering/model'
 import core from '@hcengineering/model-core'
 import { generateClassNotificationTypes } from '@hcengineering/model-notification'
@@ -658,6 +659,19 @@ export function createModel (builder: Builder): void {
     role: AccountRole.Maintainer,
     order: 4000
   })
+
+  builder.createDoc(
+    integration.class.IntegrationTargetFactory,
+    core.space.Model,
+    {
+      targetClass: tracker.class.Issue,
+      create: tracker.function.CreateIntegrationTarget,
+      update: tracker.function.UpdateIntegrationTarget,
+      canCreate: tracker.function.CanCreateIntegrationTarget,
+      getAllowedSpaceClasses: tracker.function.GetIntegrationTargetAllowedSpaceClasses
+    },
+    tracker.integration.TargetFactory
+  )
 
   builder.createDoc(
     core.class.ClassPermission,
