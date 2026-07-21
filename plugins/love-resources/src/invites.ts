@@ -39,11 +39,11 @@ export const outgoingInvitesStore = derived(allInvites, (all) => {
 // All waiting for confirmation
 export const incomingInvitesStore = derived(allInvites, (all) => {
   const now = Date.now()
-  const incoming = all.filter((it) => it.kind === 'invite-response' && it.expiresAt > now)
+  const incoming = all.filter((it) => it.kind === 'invite-response' && it.status === 'pending' && it.expiresAt > now)
 
   if (incoming.length > 0 && stopIncomingSound == null) {
     stopIncomingSound = playIncomingSound()
-  } else if (stopIncomingSound != null) {
+  } else if (incoming.length === 0 && stopIncomingSound != null) {
     void stopIncomingInviteSound()
   }
 

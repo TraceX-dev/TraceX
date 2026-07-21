@@ -180,39 +180,46 @@ async function connectToMeeting (mm: MeetingMinutes, room?: Room): Promise<void>
 
   currentMeeting = mm._id
 
-  if (mm.attachedToClass === love.class.Room) {
-    room = room ?? (await getClient().findOne<Room>(mm.attachedToClass, { _id: mm.attachedTo as Ref<Room> }))
-    currentMeetingRoom = room?._id
-  }
-
-  await navigateToOfficeDoc(mm) // TODO: Select room?
-  await moveToMeetingRoom(mm, room)
-
-  // Resolve current person so we can cleanup pending entries after connect
-  const me = getCurrentEmployee()
-  const currentPerson = await getPersonByPersonRef(me)
-  if (currentPerson == null) {
-    return
-  }
-  const token = await loveClient.getRoomToken(mm)
-  const wsURL = getLiveKitEndpoint()
-
-  // Mark local session as connecting (prevents accidental disconnects while connecting)
-  const sessionId = getMetadata(presentation.metadata.SessionId) ?? null
-  myConnectingSessionId.set(sessionId)
-
   try {
+    if (mm.attachedToClass === love.class.Room) {
+      room = room ?? (await getClient().findOne<Room>(mm.attachedToClass, { _id: mm.attachedTo as Ref<Room> }))
+      currentMeetingRoom = room?._id
+    }
+
+    await navigateToOfficeDoc(mm) // TODO: Select room?
+    await moveToMeetingRoom(mm, room)
+
+    // Resolve current person so we can cleanup pending entries after connect
+    const me = getCurrentEmployee()
+    const currentPerson = await getPersonByPersonRef(me)
+    if (currentPerson == null) {
+      // Could not resolve current person: unwind so a later attempt is not blocked by the guard above.
+      currentMeeting = undefined
+      currentMeetingRoom = undefined
+      return
+    }
+    const token = await loveClient.getRoomToken(mm)
+    const wsURL = getLiveKitEndpoint()
+
+    // Mark local session as connecting (prevents accidental disconnects while connecting)
+    const sessionId = getMetadata(presentation.metadata.SessionId) ?? null
+    myConnectingSessionId.set(sessionId)
+
     await liveKitClient.connect(wsURL, token, room?.type === RoomType.Video)
     await navigateToMeetingMinutes(mm)
+
+    // Connection completed successfully: clear connecting flag
+    myConnectingSessionId.set(null)
   } catch (err: any) {
     console.error('[connectToMeeting] Error connecting:', err)
     // Ensure local connecting flag is cleared on error
     myConnectingSessionId.set(null)
+    // Reset meeting state so the `currentMeeting === mm._id` guard above does not
+    // permanently block a retry after a failed connect.
+    currentMeeting = undefined
+    currentMeetingRoom = undefined
     throw err
   }
-
-  // Connection completed successfully: clear connecting flag
-  myConnectingSessionId.set(null)
 }
 
 async function moveToMeetingRoom (mm: MeetingMinutes, room?: Room): Promise<void> {

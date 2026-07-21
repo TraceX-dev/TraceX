@@ -64,6 +64,8 @@
   } | null = null
   let resolving = false
   let resolveError: string | null = null
+  // Last guest token we fetched info for, so we fetch exactly once per token change.
+  let lastFetchedToken: string | undefined
   // When we fail to fetch guest info, surface the error to the UI
   // (resolveError will be displayed in the modal)
 
@@ -199,17 +201,15 @@
       guestInfo = null
     } else {
       errorMessage = null
-      // Fire-and-forget: fetch guest info and attempt to resolve workspace
-      void fetchGuestInfo(0)
+      // Guest info is fetched by the reactive block below, once per token change.
     }
   }
 
-  async function fetchGuestInfo (_time: number): Promise<void> {
+  async function fetchGuestInfo (): Promise<void> {
     if (guestToken == null) return
 
-    if (guestToken === null) {
-      resolving = true
-    }
+    lastFetchedToken = guestToken
+    resolving = true
     resolveError = null
 
     try {
@@ -261,7 +261,11 @@
     }
   }
 
-  $: void fetchGuestInfo($ticker)
+  // Fetch guest info once per token change — never from $ticker, which would POST
+  // /guestInfo every second and re-run workspace select/navigate on each tick.
+  $: if (guestToken != null && guestToken !== lastFetchedToken) {
+    void fetchGuestInfo()
+  }
 
   onMount(() => {
     roomEl && roomEl.addEventListener('fullscreenchange', handleFullScreen)

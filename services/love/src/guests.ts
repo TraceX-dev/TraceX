@@ -1,5 +1,5 @@
 import { MeasureContext, readOnlyGuestAccountUuid, Ref } from '@hcengineering/core'
-import { MeetingMinutes, MeetingStatus, ParticipantMetadata } from '@hcengineering/love'
+import love, { MeetingMinutes, MeetingStatus, ParticipantMetadata, Room, RoomAccess } from '@hcengineering/love'
 import { RoomServiceClient } from 'livekit-server-sdk'
 import { WorkspaceClient } from './workspaceClient'
 import { isWorkspaceLoginInfo, WorkspaceLoginInfo } from '@hcengineering/account-client'
@@ -169,6 +169,19 @@ export class GuestManager {
           error: 'Meeting has already finished.'
         })
         return
+      }
+
+      // Respect the room's current access level: a host who set the room to "Do Not
+      // Disturb" (locked) must not remain joinable via a previously shared guest link.
+      // Access is enforced server-side here rather than only in the UI. Knock rooms are
+      // intentionally allowed — sharing a guest link is itself the host's authorization.
+      if (meetingDoc.attachedToClass === love.class.Room) {
+        const meetingRoom = await wsClient.findRoomById(meetingDoc.attachedTo as Ref<Room>)
+        if (meetingRoom !== undefined && meetingRoom.access === RoomAccess.DND) {
+          this.ctx.info('[guestJoin] Room is locked (DND), rejecting guest join', { roomName })
+          res.status(403).send({ error: 'The room is locked by the host.' })
+          return
+        }
       }
 
       // Ensure LiveKit room exists

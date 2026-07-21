@@ -550,6 +550,15 @@ export class WorkspaceClient {
     }
   }
 
+  async findRoomById (roomId: Ref<Room>): Promise<Room | undefined> {
+    try {
+      return await this.client.findOne(love.class.Room, { _id: roomId })
+    } catch (err: any) {
+      this.ctx.error('[WorkspaceClient.findRoomById] Failed', { error: err?.message ?? String(err), roomId })
+      return undefined
+    }
+  }
+
   /**
    * Find all ParticipantInfo entries for a given meeting.
    */
