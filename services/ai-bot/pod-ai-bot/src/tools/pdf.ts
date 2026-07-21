@@ -17,12 +17,14 @@ import { MarkupBlobRef, Ref } from '@hcengineering/core'
 import document, { Document, getFirstRank, Teamspace } from '@hcengineering/document'
 import { makeRank } from '@hcengineering/rank'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
-import { Type, type Static } from '@sinclair/typebox'
+import { createTool, toolOk } from '@hcengineering/ai-core'
+import { Type, type Static } from 'typebox'
 import { Stream } from 'stream'
 import { v4 as uuid } from 'uuid'
 
 import config from '../config'
-import { RegisteredTool, ToolContext, WorkspaceOps } from './types'
+
+import { ToolContext, WorkspaceOps } from './types'
 
 const SaveFileParametersSchema = Type.Object({
   fileId: Type.String({ description: 'File id to parse' }),
@@ -45,31 +47,31 @@ const SaveFileParametersSchema = Type.Object({
 
 type SaveFileArgs = Static<typeof SaveFileParametersSchema>
 
-export const getDataBeforeImportTool: RegisteredTool = {
-  definition: {
-    name: 'getDataBeforeImport',
-    description:
-      'Get folders and parents for documents. This step necessery before saveFile tool. YOU MUST USE IT BEFORE import file.',
-    parameters: Type.Object({})
+export const getDataBeforeImportTool = createTool({
+  name: 'getDataBeforeImport',
+  description:
+    'Get folders and parents for documents. This step necessery before saveFile tool. YOU MUST USE IT BEFORE import file.',
+  inputSchema: Type.Object({}),
+  execute: async (args, toolCtx: ToolContext) => {
+    return toolOk(await getFoldersForDocuments(toolCtx))
   },
-  createExecutor: (toolCtx: ToolContext) => async () => {
-    return { text: await getFoldersForDocuments(toolCtx) }
-  },
-  contextMode: 'any'
-}
+  metadata: {
+    contextMode: 'any'
+  }
+})
 
-export const saveFileTool: RegisteredTool = {
-  definition: {
-    name: 'saveFile',
-    description:
-      'Parse pdf to markdown and save it, using for import files. Use only if provide file in current message and user require to import/save, if file not provided ask user to attach it. You MUST call getDataBeforeImport tool before for get ids. Use file name as name if user not provide it, don`t use old parameters. You can ask user about folder if you have not enough data to get folder id',
-    parameters: SaveFileParametersSchema
+export const saveFileTool = createTool({
+  name: 'saveFile',
+  description:
+    'Parse pdf to markdown and save it, using for import files. Use only if provide file in current message and user require to import/save, if file not provided ask user to attach it. You MUST call getDataBeforeImport tool before for get ids. Use file name as name if user not provide it, don`t use old parameters. You can ask user about folder if you have not enough data to get folder id',
+  inputSchema: SaveFileParametersSchema,
+  execute: async (args, toolCtx: ToolContext) => {
+    return toolOk(await saveFile(toolCtx.workspaceOps, args))
   },
-  createExecutor: (toolCtx: ToolContext) => async (args: SaveFileArgs) => {
-    return { text: await saveFile(toolCtx.workspaceOps, args) }
-  },
-  contextMode: 'any'
-}
+  metadata: {
+    contextMode: 'any'
+  }
+})
 
 async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
   const ops = toolCtx.workspaceOps

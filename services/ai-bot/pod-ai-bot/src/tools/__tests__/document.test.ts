@@ -52,7 +52,11 @@ describe('document tools', () => {
     } as any)
 
     expect(result).toEqual({
-      error: 'Could not read PDF content from Drive file "ISO 13485V.2016 EN.pdf".'
+      ok: false,
+      error: {
+        code: 'content_read_failed',
+        message: 'Could not read PDF content from Drive file "ISO 13485V.2016 EN.pdf".'
+      }
     })
     expect(ops.storage.get).not.toHaveBeenCalled()
   })

@@ -26,19 +26,19 @@ import {
 } from './memory'
 import { readObjectContentTool, readReferencedObjectContentTool } from './document'
 import { saveFileTool, getDataBeforeImportTool } from './pdf'
-import { mcpTools } from './mcp'
-import { type RegisteredTool } from './types'
+import { type AIBotTool } from './types'
+
 import { ContextMode } from '../providers'
 
 export * from './types'
 
-const dynamicTools: RegisteredTool[] = []
+const dynamicTools: AIBotTool[] = []
 
-export function registerLlmTools (tools: RegisteredTool[]): void {
+export function registerLlmTools (tools: AIBotTool[]): void {
   dynamicTools.push(...tools)
 }
 
-const registeredTools: RegisteredTool[] = [
+const registeredTools: AIBotTool[] = [
   // Assistant Memory
   getAssistantMemoryTool,
   updateAssistantMemoryTool,
@@ -61,19 +61,18 @@ const registeredTools: RegisteredTool[] = [
   getDataBeforeImportTool,
 
   // Context Object
-  // getObjectAttributesTool,
   readObjectContentTool,
-  readReferencedObjectContentTool,
-
-  // MCP tools
-  ...mcpTools
+  readReferencedObjectContentTool
 ]
 
-export function getRegisteredTools (): RegisteredTool[] {
+export function getRegisteredTools (): AIBotTool[] {
   return [...registeredTools, ...dynamicTools]
 }
 
-export function getTools (contextMode: ContextMode): RegisteredTool[] {
+export function getTools (contextMode: ContextMode): AIBotTool[] {
   const tools = getRegisteredTools()
-  return tools.filter((t) => t.contextMode === contextMode || t.contextMode === 'any')
+  return tools.filter((t) => {
+    const toolContextMode = t.metadata?.contextMode
+    return toolContextMode === contextMode || toolContextMode === 'any'
+  })
 }

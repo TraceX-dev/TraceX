@@ -26,41 +26,29 @@ import {
 } from '@hcengineering/core'
 import { CollaboratorClient } from '@hcengineering/collaborator-client'
 import { StorageAdapter } from '@hcengineering/server-core'
-import { type TObject } from '@sinclair/typebox'
+import {
+  type Tool,
+  type ToolExecutorContext,
+  type ToolInputSchema,
+  type ToolMetadata as CoreToolMetadata,
+  type ToolOutputSchema
+} from '@hcengineering/ai-core'
 import { ContextMode, type TokenUsage } from '../providers/types'
 import { MemoryStorage } from '../storage'
 
-export type ToolParametersSchema = TObject
+export type AIBotTool = Tool<ToolInputSchema, ToolOutputSchema, AIBotToolContext, CoreToolMetadata>
 
-export interface ToolDefinition {
-  // Tool name for LLM
-  name: string
-  // Tool description for LLM
-  description: string
-  // Tool parameters schema
-  parameters: ToolParametersSchema
+export interface AIBotToolMetadata {
+  contextMode: ContextMode | 'any'
 }
 
-export type ToolExecutorResult =
-  | {
-    text: string
-    usage?: TokenUsage
-  }
-  | {
-    error: string
-    usage?: TokenUsage
-  }
+export type ToolMetadata = AIBotToolMetadata
 
-export type ToolExecutor = (args: any) => Promise<ToolExecutorResult>
-
-export interface WorkspaceOps {
-  storage: StorageAdapter
-  ctx: MeasureContext
-  wsIds: WorkspaceIds
-  getClient: () => Promise<TxOperations>
+export interface ToolTokenUsageCollector {
+  addTokenUsage: (usage: TokenUsage, details: { tool: string }) => void
 }
 
-export interface ToolContext {
+export interface AIBotToolContext extends ToolExecutorContext {
   memoryStorage: MemoryStorage
   collaborator: CollaboratorClient
   user: AccountUuid
@@ -69,10 +57,89 @@ export interface ToolContext {
   objectId?: Ref<Doc>
   objectClass?: Ref<Class<Doc>>
   objectSpace?: Ref<Space>
+  tokenUsage?: ToolTokenUsageCollector
 }
 
-export interface RegisteredTool {
-  definition: ToolDefinition
-  createExecutor: (toolCtx: ToolContext) => ToolExecutor
-  contextMode: ContextMode | 'any'
+export type ToolContext = AIBotToolContext
+
+// export type ToolInputSchema = TObject
+// export type ToolOutputSchema = TObject | TString
+
+// export interface ToolDefinition<TOutputSchema extends ToolOutputSchema | undefined = ToolOutputSchema | undefined> {
+//   // Tool name for LLM
+//   name: string
+//   // Tool description for LLM
+//   description: string
+//   // Tool input arguments schema
+//   inputSchema: ToolInputSchema
+//   // Tool successful output schema. Omit for string/text output.
+//   outputSchema?: TOutputSchema
+// }
+
+// export type ToolExecutorOutput<TOutputSchema extends ToolOutputSchema | undefined = ToolOutputSchema | undefined> =
+//   TOutputSchema extends ToolOutputSchema ? Static<TOutputSchema> : string
+
+// export type ToolExecutorError = string
+// export interface ToolExecutionError {
+//   code: string
+//   message: string
+//   details?: unknown
+//   retryable?: boolean
+// }
+
+// export type ToolExecutorResult<TOutputSchema extends ToolOutputSchema | undefined = ToolOutputSchema | undefined> =
+//   | {
+//     ok: true
+//     output: ToolExecutorOutput<TOutputSchema>
+//     usage?: TokenUsage
+//   }
+//   | {
+//     ok: false
+//     error: ToolExecutionError
+//     usage?: TokenUsage
+//   }
+
+// export type ToolExecutor<TOutputSchema extends ToolOutputSchema | undefined = ToolOutputSchema | undefined> = (
+//   args: any
+// ) => Promise<ToolExecutorResult<TOutputSchema>>
+
+// export function toolOk<TOutputSchema extends ToolOutputSchema | undefined = undefined> (
+//   output: ToolExecutorOutput<TOutputSchema>,
+//   usage?: TokenUsage
+// ): ToolExecutorResult<TOutputSchema> {
+//   return {
+//     ok: true,
+//     output,
+//     ...(usage !== undefined ? { usage } : {})
+//   }
+// }
+
+// export function toolFail<TOutputSchema extends ToolOutputSchema | undefined = ToolOutputSchema | undefined> (
+//   message: string,
+//   code: string = 'tool_error',
+//   options?: { details?: unknown, retryable?: boolean, usage?: TokenUsage }
+// ): ToolExecutorResult<TOutputSchema> {
+//   return {
+//     ok: false,
+//     error: {
+//       code,
+//       message,
+//       ...(options?.details !== undefined ? { details: options.details } : {}),
+//       ...(options?.retryable !== undefined ? { retryable: options.retryable } : {})
+//     },
+//     ...(options?.usage !== undefined ? { usage: options.usage } : {})
+//   }
+// }
+
+export interface WorkspaceOps {
+  storage: StorageAdapter
+  ctx: MeasureContext
+  wsIds: WorkspaceIds
+  getClient: () => Promise<TxOperations>
 }
+
+// export interface RegisteredTool<TOutputSchema extends ToolOutputSchema | undefined = ToolOutputSchema | undefined> {
+//   definition: ToolDefinition<TOutputSchema>
+//   createExecutor: (toolCtx: ToolContext) => ToolExecutor<TOutputSchema>
+//   contextMode: ContextMode | 'any'
+// }

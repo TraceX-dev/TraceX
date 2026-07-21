@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { Type } from '@sinclair/typebox'
+import { Type } from 'typebox'
 
 import { OpenAIProvider } from '../openai'
 import { type ChatMessage, type LLMToolDefinition } from '../types'
@@ -145,8 +145,11 @@ describe('OpenAIProvider', () => {
       {
         name: 'lookup',
         description: 'Lookup data',
-        parameters: Type.Object({
+        inputSchema: Type.Object({
           q: Type.String({})
+        }),
+        outputSchema: Type.Object({
+          value: Type.String({})
         })
       }
     ]
@@ -168,7 +171,7 @@ describe('OpenAIProvider', () => {
           type: 'function',
           name: 'lookup',
           description: 'Lookup data',
-          parameters: tools[0].parameters,
+          parameters: tools[0].inputSchema,
           strict: null
         }
       ],

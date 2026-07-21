@@ -144,7 +144,7 @@ function toTool (tool: LLMToolDefinition): Anthropic.Tool {
   return {
     name: tool.name,
     description: tool.description,
-    input_schema: tool.parameters
+    input_schema: tool.inputSchema as unknown as Anthropic.Tool.InputSchema
   }
 }
 

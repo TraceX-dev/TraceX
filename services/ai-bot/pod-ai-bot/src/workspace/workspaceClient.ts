@@ -366,6 +366,7 @@ export class WorkspaceClient {
     }
 
     const toolCtx: ToolContext = {
+      ctx,
       memoryStorage: this.memoryStorage,
       collaborator: this.collaborator,
       user: personUuid as AccountUuid,

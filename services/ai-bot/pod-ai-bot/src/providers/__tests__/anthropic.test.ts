@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { Type } from '@sinclair/typebox'
+import { Type } from 'typebox'
 
 import { AnthropicProvider } from '../anthropic'
 import { type ChatMessage, type LLMToolDefinition } from '../types'
@@ -98,9 +98,10 @@ describe('AnthropicProvider', () => {
       {
         name: 'lookup',
         description: 'Lookup data',
-        parameters: Type.Object({
+        inputSchema: Type.Object({
           q: Type.String({})
-        })
+        }),
+        outputSchema: Type.String({})
       }
     ]
 
@@ -120,7 +121,7 @@ describe('AnthropicProvider', () => {
         {
           name: 'lookup',
           description: 'Lookup data',
-          input_schema: tools[0].parameters
+          input_schema: tools[0].inputSchema
         }
       ]
     })

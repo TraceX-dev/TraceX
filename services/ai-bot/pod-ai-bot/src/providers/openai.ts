@@ -124,7 +124,7 @@ function toFunctionTool (tool: LLMToolDefinition): FunctionTool {
     type: 'function',
     name: tool.name,
     description: tool.description,
-    parameters: tool.parameters,
+    parameters: tool.inputSchema as unknown as { [key: string]: unknown },
     strict: null
   }
 }

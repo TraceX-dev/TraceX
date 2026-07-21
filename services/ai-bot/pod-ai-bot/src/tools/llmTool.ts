@@ -13,48 +13,94 @@
 // limitations under the License.
 //
 
-import { type MeasureContext } from '@hcengineering/core'
-import { Type, type Static } from '@sinclair/typebox'
+import {
+  createTool,
+  type Tool,
+  type ToolExecutorOutput,
+  type ToolMetadata,
+  type ToolOutputSchema,
+  toolFail,
+  toolOk
+} from '@hcengineering/ai-core'
+import { Type } from 'typebox'
 
 import { type LLMProvider, type ChatMessage } from '../providers/types'
-import { type RegisteredTool } from './types'
+import { type ToolContext } from './types'
 
-const LlmToolParametersSchema = Type.Object({
+const LlmToolInputSchema = Type.Object({
   query: Type.String({
     description: 'The query to send'
   })
 })
 
-type LlmToolArgs = Static<typeof LlmToolParametersSchema>
-
-interface LlmToolOptions {
+const LlmToolOutputSchema = Type.String({})
+interface LlmToolOptions<TOutputSchema extends ToolOutputSchema = typeof LlmToolOutputSchema> {
   name: string
   description: string
   systemPrompt?: string
+  outputSchema?: TOutputSchema
   provider: LLMProvider
-  ctx: MeasureContext
 }
 
-export function createLlmTool (options: LlmToolOptions): RegisteredTool {
-  const { name, description, systemPrompt, provider, ctx } = options
+export function createLlmTool<TOutputSchema extends ToolOutputSchema = typeof LlmToolOutputSchema> (
+  options: LlmToolOptions<TOutputSchema>
+): Tool<typeof LlmToolInputSchema, TOutputSchema, ToolContext, ToolMetadata> {
+  const { name, description, systemPrompt, outputSchema, provider } = options
 
-  return {
-    definition: {
-      name,
-      description,
-      parameters: LlmToolParametersSchema
-    },
-    createExecutor: () => async (args: LlmToolArgs) => {
+  return createTool({
+    name,
+    description,
+    inputSchema: LlmToolInputSchema,
+    outputSchema,
+    execute: async (args, toolCtx: ToolContext) => {
+      const ctx = toolCtx.ctx
+
       const messages: ChatMessage[] = [
         ...(systemPrompt != null ? [{ role: 'system' as const, content: systemPrompt }] : []),
         { role: 'user' as const, content: args.query }
       ]
 
       const result = await provider.chatCompletion(ctx, messages)
-      const response = result.text ?? 'No response'
+      if (result.usage !== undefined) {
+        toolCtx.tokenUsage?.addTokenUsage(result.usage, { tool: name })
+      }
 
-      return { text: response, usage: result.usage }
+      const response = result.text ?? 'No response'
+      const output = parseLlmToolOutput<TOutputSchema>(response, outputSchema)
+      if (output === undefined) {
+        return toolFail(
+          'LLM tool response does not match the configured object output schema.',
+          'invalid_tool_output',
+          {
+            details: { response }
+          }
+        )
+      }
+
+      return toolOk(output)
     },
-    contextMode: 'any'
+    metadata: {
+      contextMode: 'any'
+    }
+  })
+}
+
+function parseLlmToolOutput<TOutputSchema extends ToolOutputSchema> (
+  response: string,
+  outputSchema: TOutputSchema | undefined
+): ToolExecutorOutput<TOutputSchema> | undefined {
+  if (outputSchema?.type !== 'object') {
+    return response as ToolExecutorOutput<TOutputSchema>
   }
+
+  try {
+    const parsed = JSON.parse(response)
+    return isRecord(parsed) ? (parsed as ToolExecutorOutput<TOutputSchema>) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function isRecord (value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

@@ -16,15 +16,11 @@
 import core, { type Doc, type AnyAttribute, makeCollabId, Hierarchy, type Class, type Ref } from '@hcengineering/core'
 import drive, { type File, type FileVersion } from '@hcengineering/drive'
 import { markupToHtml } from '@hcengineering/text-html'
-import { Type, type Static } from '@sinclair/typebox'
+import { createTool, ToolExecutorResult, toolFail, toolOk } from '@hcengineering/ai-core'
+import { Type } from 'typebox'
 
 import { pdfToMarkdown, stream2buffer } from './pdf'
-import {
-  ToolExecutorResult,
-  type RegisteredTool,
-  type ToolContext,
-  type WorkspaceOps
-} from './types'
+import { ToolContext, WorkspaceOps } from './types'
 
 const ReferencedObjectParametersSchema = Type.Object({
   objectId: Type.String({
@@ -35,34 +31,31 @@ const ReferencedObjectParametersSchema = Type.Object({
   })
 })
 
-type ReferencedObjectArgs = Static<typeof ReferencedObjectParametersSchema>
-
 function isCollaborativeDocType (attr: AnyAttribute): boolean {
   return attr.type._class === core.class.TypeCollaborativeDoc
 }
 
-export const readObjectContentTool: RegisteredTool = {
-  definition: {
-    name: 'readObjectContent',
-    description:
-      'Read the content of the object whose thread this conversation is in, including rich text objects and Drive files. ' +
-      'When the user says "this document", "this file", "the document", "this issue", "this object", or similar phrases referring to the current context, ' +
-      'they mean the object attached to this thread — use this tool to retrieve its content. ' +
-      'Do NOT ask the user to upload or provide a document; the content is already available via this tool.',
-    parameters: Type.Object({})
-  },
-  createExecutor: (toolCtx: ToolContext) => async () => {
+export const readObjectContentTool = createTool({
+  name: 'readObjectContent',
+  description:
+    'Read the content of the object whose thread this conversation is in, including rich text objects and Drive files. ' +
+    'When the user says "this document", "this file", "the document", "this issue", "this object", or similar phrases referring to the current context, ' +
+    'they mean the object attached to this thread — use this tool to retrieve its content. ' +
+    'Do NOT ask the user to upload or provide a document; the content is already available via this tool.',
+  inputSchema: Type.Object({}),
+  execute: async (args, toolCtx: ToolContext) => {
     if (toolCtx.objectId === undefined || toolCtx.objectClass === undefined) {
-      return {
-        error: 'No context document available. This tool can only be used when the conversation is on an object thread.'
-      }
+      return toolFail(
+        'No context document available. This tool can only be used when the conversation is on an object thread.',
+        'missing_context_object'
+      )
     }
 
     const client = await toolCtx.workspaceOps.getClient()
     const doc = await client.findOne(toolCtx.objectClass, { _id: toolCtx.objectId })
 
     if (doc === undefined) {
-      return { error: 'Could not find the context object. It may have been deleted.' }
+      return toolFail('Could not find the context object. It may have been deleted.', 'object_not_found')
     }
 
     try {
@@ -70,68 +63,71 @@ export const readObjectContentTool: RegisteredTool = {
         return await readDriveFile(toolCtx.workspaceOps, doc as File)
       }
       const text = await readCollaborativeContent(toolCtx, client.getHierarchy(), doc)
-      return { text }
+      return toolOk(text)
     } catch {
-      return { error: 'Could not read the context object content.' }
+      return toolFail('Could not read the context object content.', 'content_read_failed')
     }
   },
-  contextMode: 'any'
-}
+  metadata: {
+    contextMode: 'any'
+  }
+})
 
-export const readReferencedObjectContentTool: RegisteredTool = {
-  definition: {
-    name: 'readReferencedObjectContent',
-    description:
-      'Read the content of one explicitly referenced document or Drive file. ' +
-      'Use this when the user asks about a referenced object from the message References list. ' +
-      'Pass objectId and objectClass.',
-    parameters: ReferencedObjectParametersSchema
+export const readReferencedObjectContentTool = createTool({
+  name: 'readReferencedObjectContent',
+  description:
+    'Read the content of one explicitly referenced document or Drive file. ' +
+    'Use this when the user asks about a referenced object from the message References list. ' +
+    'Pass objectId and objectClass.',
+  inputSchema: ReferencedObjectParametersSchema,
+  execute: async (args, toolCtx: ToolContext) => {
+    const objectId = args.objectId as Ref<Doc>
+    const objectClass = args.objectClass as Ref<Class<Doc>>
+
+    if (objectId === undefined || objectId.trim() === '') {
+      return toolFail('Missing objectId for referenced object.', 'missing_object_id')
+    }
+
+    if (objectClass === undefined || objectClass.trim() === '') {
+      return toolFail('Missing objectClass for referenced object.', 'missing_object_class')
+    }
+
+    const client = await toolCtx.workspaceOps.getClient()
+    const doc = await client.findOne(objectClass, { _id: objectId })
+
+    if (doc === undefined) {
+      return toolFail(
+        `Could not find referenced object "${objectId}" of class "${objectClass}". It may have been deleted.`,
+        'object_not_found'
+      )
+    }
+
+    try {
+      if (doc._class === drive.class.File) {
+        return await readDriveFile(toolCtx.workspaceOps, doc as File)
+      }
+
+      const attr = findCollaborativeField(client.getHierarchy(), doc)
+      if (attr === undefined) {
+        return toolFail(
+          `Referenced object "${objectId}" of class "${objectClass}" does not have readable document content.`,
+          'unsupported_content_type'
+        )
+      }
+
+      const text = await readCollaborativeContent(toolCtx, client.getHierarchy(), doc)
+      return toolOk(text)
+    } catch {
+      return toolFail(
+        `Could not read referenced object "${objectId}" of class "${objectClass}".`,
+        'content_read_failed'
+      )
+    }
   },
-  createExecutor:
-    (toolCtx: ToolContext) =>
-      async (args: ReferencedObjectArgs): Promise<ToolExecutorResult> => {
-        const objectId = args.objectId as Ref<Doc>
-        const objectClass = args.objectClass as Ref<Class<Doc>>
-
-        if (objectId === undefined || objectId.trim() === '') {
-          return { error: 'Missing objectId for referenced object.' }
-        }
-
-        if (objectClass === undefined || objectClass.trim() === '') {
-          return { error: 'Missing objectClass for referenced object.' }
-        }
-
-        const client = await toolCtx.workspaceOps.getClient()
-        const doc = await client.findOne(objectClass, { _id: objectId })
-
-        if (doc === undefined) {
-          return {
-            error: `Could not find referenced object "${objectId}" of class "${objectClass}". It may have been deleted.`
-          }
-        }
-
-        try {
-          if (doc._class === drive.class.File) {
-            return await readDriveFile(toolCtx.workspaceOps, doc as File)
-          }
-
-          const attr = findCollaborativeField(client.getHierarchy(), doc)
-          if (attr === undefined) {
-            return {
-              error: `Referenced object "${objectId}" of class "${objectClass}" does not have readable document content.`
-            }
-          }
-
-          const text = await readCollaborativeContent(toolCtx, client.getHierarchy(), doc)
-          return { text }
-        } catch {
-          return {
-            error: `Could not read referenced object "${objectId}" of class "${objectClass}".`
-          }
-        }
-      },
-  contextMode: 'any'
-}
+  metadata: {
+    contextMode: 'any'
+  }
+})
 
 async function readCollaborativeContent (toolCtx: ToolContext, hierarchy: Hierarchy, doc: Doc): Promise<string> {
   const attr = findCollaborativeField(hierarchy, doc)
@@ -156,7 +152,7 @@ export async function readDriveFile (ops: WorkspaceOps, file: File): Promise<Too
   const client = await ops.getClient()
   const version = await client.findOne(drive.class.FileVersion, { _id: file.file })
   if (version === undefined) {
-    return { error: `Could not find the current version of Drive file "${file.title}".` }
+    return toolFail(`Could not find the current version of Drive file "${file.title}".`, 'file_version_not_found')
   }
 
   return await readDriveFileVersion(ops, file, version)
@@ -168,21 +164,21 @@ async function readDriveFileVersion (ops: WorkspaceOps, file: File, version: Fil
   if (isPdf(type)) {
     const markdown = await pdfToMarkdown(ops, version.file, version.title ?? file.title)
     return markdown !== undefined && markdown !== ''
-      ? { text: markdown }
-      : { error: `Could not read PDF content from Drive file "${file.title}".` }
+      ? toolOk(markdown)
+      : toolFail(`Could not read PDF content from Drive file "${file.title}".`, 'content_read_failed')
   }
 
   if (isTextLike(type)) {
     try {
       const stream = await ops.storage.get(ops.ctx, ops.wsIds, version.file)
       const buffer = await stream2buffer(stream)
-      return { text: buffer.toString('utf8') }
+      return toolOk(buffer.toString('utf8'))
     } catch {
-      return { error: `Could not read content from Drive file "${file.title}".` }
+      return toolFail(`Could not read content from Drive file "${file.title}".`, 'content_read_failed')
     }
   }
 
-  return { error: `Drive file "${file.title}" has unsupported content type "${version.type}".` }
+  return toolFail(`Drive file "${file.title}" has unsupported content type "${version.type}".`, 'unsupported_content_type')
 }
 
 function normalizeMimeType (type: string | undefined): string {
