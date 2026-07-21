@@ -57,7 +57,7 @@
     "@hcengineering/calendar": "workspace:^0.7.0",
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
-    "@hcengineering/kafka": "workspace:^0.7.18",
+    "@hcengineering/kafka": "workspace:^0.7.20",
     "@hcengineering/notification": "workspace:^0.7.0",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/server-client": "workspace:^0.7.16",
@@ -68,4 +68,3 @@
     "dotenv": "^16.4.5"
   }
 }
-

@@ -61,7 +61,7 @@
     "@hcengineering/hulylake-client": "workspace:^0.7.18",
     "@hcengineering/integration": "workspace:^0.7.0",
     "@hcengineering/kafka": "workspace:^0.7.20",
-    "@hcengineering/platform": "workspace:^0.7.21",
+    "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/server-card-resources": "workspace:^0.7.0",
     "@hcengineering/server-core": "workspace:^0.7.19",
     "@hcengineering/server-document-resources": "workspace:^0.7.0",
