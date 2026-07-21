@@ -30,7 +30,7 @@ import { desktopDownloadsId, createModel as desktopDownloadsModel } from '@hceng
 import { desktopPreferencesId, createModel as desktopPreferencesModel } from '@hcengineering/model-desktop-preferences'
 import { driveId, createModel as driveModel } from '@hcengineering/model-drive'
 import gmail, { gmailId, createModel as gmailModel } from '@hcengineering/model-gmail'
-import integration, { integrationId, createModel as integrationModel } from '@hcengineering/model-integration'
+import { integrationId, createModel as integrationModel } from '@hcengineering/model-integration'
 import { guestId, createModel as guestModel } from '@hcengineering/model-guest'
 import hr, { hrId, createModel as hrModel } from '@hcengineering/model-hr'
 import inventory, { inventoryId, createModel as inventoryModel } from '@hcengineering/model-inventory'

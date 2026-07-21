@@ -9,6 +9,7 @@
     IntegrationSlotProvider,
     IntegrationValueMapping
   } from '@hcengineering/integration'
+  import { getEmbeddedLabel } from '@hcengineering/platform'
   import type { Integration as WorkspaceIntegration } from '@hcengineering/setting'
   import { createEventDispatcher, onMount } from 'svelte'
   import { Button, showPopup } from '@hcengineering/ui'
@@ -146,7 +147,9 @@
       selectedOwnerKeys =
         existingOwners.size === 0
           ? [...new Set(loadedRepositories.map((repository) => repository.owner))]
-          : [...new Set(loadedRepositories.map((repository) => repository.owner))].filter((owner) => existingOwners.has(owner))
+          : [...new Set(loadedRepositories.map((repository) => repository.owner))].filter((owner) =>
+              existingOwners.has(owner)
+            )
 
       info = `Loaded ${loadedRepositories.length} repositories for ${user.login}.`
     } catch (err: any) {
@@ -161,7 +164,9 @@
     if (enabled) {
       selectedOwnerKeys = selectedOwnerKeys.filter((item) => item !== owner)
       const repositoryKeys = new Set(
-        repositories.filter((repository) => repository.owner === owner).map((repository) => getRepositoryKey(repository))
+        repositories
+          .filter((repository) => repository.owner === owner)
+          .map((repository) => getRepositoryKey(repository))
       )
       selectedRepositoryKeys = selectedRepositoryKeys.filter((key) => !repositoryKeys.has(key))
     } else {
@@ -279,8 +284,13 @@
 
   <div class="content">
     <div class="actions">
-      <Button label={'Authorize GitHub'} kind={'primary'} loading={authorizing} on:click={authorize} />
-      <Button label={'Load repositories'} kind={'secondary'} disabled={loading} on:click={loadRepositories} />
+      <Button label={getEmbeddedLabel('Authorize GitHub')} kind="primary" loading={authorizing} on:click={authorize} />
+      <Button
+        label={getEmbeddedLabel('Load repositories')}
+        kind="secondary"
+        disabled={loading}
+        on:click={loadRepositories}
+      />
     </div>
 
     <div class="identity">
@@ -312,7 +322,9 @@
                 <input
                   checked={selectedOwnerKeys.includes(group.owner)}
                   type="checkbox"
-                  on:change={() => toggleOwner(group.owner)}
+                  on:change={() => {
+                    toggleOwner(group.owner)
+                  }}
                 />
                 <span class="owner-name">{group.owner}</span>
                 <span class="muted">{group.repositories.length}</span>
@@ -331,11 +343,16 @@
               <div class="muted">Select an organization first.</div>
             {:else}
               {#each visibleRepositories as repository (getRepositoryKey(repository))}
-                <label class:selected={selectedRepositoryKeys.includes(getRepositoryKey(repository))} class="repository">
+                <label
+                  class:selected={selectedRepositoryKeys.includes(getRepositoryKey(repository))}
+                  class="repository"
+                >
                   <input
                     checked={selectedRepositoryKeys.includes(getRepositoryKey(repository))}
                     type="checkbox"
-                    on:change={() => toggleRepository(repository)}
+                    on:change={() => {
+                      toggleRepository(repository)
+                    }}
                   />
                   <span class="repository-name">{repository.name}</span>
                   <span class="muted">{repository.owner}</span>
@@ -360,9 +377,11 @@
           </div>
         </div>
         <Button
-          label={'Configure mapping'}
-          kind={'secondary'}
-          on:click={() => openMappingSetup(issueProvider, issueBinding, issueRoutingPolicy, 'issue')}
+          label={getEmbeddedLabel('Configure mapping')}
+          kind="secondary"
+          on:click={() => {
+            openMappingSetup(issueProvider, issueBinding, issueRoutingPolicy, 'issue')
+          }}
         />
       </div>
       {#if issueMappingMessage !== ''}
@@ -380,9 +399,11 @@
           </div>
         </div>
         <Button
-          label={'Configure mapping'}
-          kind={'secondary'}
-          on:click={() => openMappingSetup(discussionProvider, discussionBinding, discussionRoutingPolicy, 'discussion')}
+          label={getEmbeddedLabel('Configure mapping')}
+          kind="secondary"
+          on:click={() => {
+            openMappingSetup(discussionProvider, discussionBinding, discussionRoutingPolicy, 'discussion')
+          }}
         />
       </div>
       {#if discussionMappingMessage !== ''}
@@ -399,7 +420,7 @@
   </div>
 
   <div class="footer">
-    <Button label={'Save'} kind={'primary'} loading={saving} on:click={save} />
+    <Button label={getEmbeddedLabel('Save')} kind="primary" loading={saving} on:click={save} />
   </div>
 </div>
 

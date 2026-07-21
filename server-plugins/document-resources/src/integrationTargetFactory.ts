@@ -92,13 +92,7 @@ async function updateMarkup<T extends Doc> (
 
   const uploader = getMarkupUploader(ctx)
   if (current !== undefined && current !== null && current !== '' && uploader.updateMarkup !== undefined) {
-    await uploader.updateMarkup(
-      targetClass as unknown as Ref<Class<Doc>>,
-      objectId as Ref<Doc>,
-      attr,
-      value,
-      'markup'
-    )
+    await uploader.updateMarkup(targetClass as unknown as Ref<Class<Doc>>, objectId as Ref<Doc>, attr, value, 'markup')
     return undefined
   }
 
@@ -185,14 +179,7 @@ export const updateIntegrationTarget: UpdateIntegrationTarget = async (ctx, doc,
   const existing = doc as Document
   const update = toDocumentData(values)
   if (update.content !== undefined) {
-    const content = await updateMarkup(
-      ctx,
-      existing._class,
-      existing._id,
-      'content',
-      update.content,
-      existing.content
-    )
+    const content = await updateMarkup(ctx, existing._class, existing._id, 'content', update.content, existing.content)
     if (content === undefined) {
       delete update.content
     } else {

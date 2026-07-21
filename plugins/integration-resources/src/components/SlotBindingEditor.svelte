@@ -52,7 +52,8 @@
     const slot = provider.requiredSlots[slotId] ?? provider.optionalSlots?.[slotId]
     if (slot === undefined) return
 
-    const possible = slot.slotKind === 'class' ? getPossibleClasses(client, slot) : getPossibleAttributes(client, allAttrs, slot)
+    const possible =
+      slot.slotKind === 'class' ? getPossibleClasses(client, slot) : getPossibleAttributes(client, allAttrs, slot)
 
     showPopup(
       SelectPopup,
@@ -74,9 +75,7 @@
     dispatch('close', bindings)
   }
 
-  function filterBindingsForTargetClass (
-    currentBindings: Record<string, string>
-  ): Record<string, string> {
+  function filterBindingsForTargetClass (currentBindings: Record<string, string>): Record<string, string> {
     const nextBindings: Record<string, string> = {}
     for (const [slotId, value] of Object.entries(currentBindings)) {
       const slot = provider.requiredSlots[slotId] ?? provider.optionalSlots?.[slotId]

@@ -73,7 +73,7 @@ async function requestGithub<T> (path: string, token: string): Promise<T> {
 
   if (!response.ok) {
     const message = await response.text()
-    throw new Error(message || `GitHub request failed with ${response.status}`)
+    throw new Error(message !== '' ? message : `GitHub request failed with ${response.status}`)
   }
 
   return await response.json()
@@ -184,7 +184,7 @@ export async function listAuthorizedGithubRepositories (): Promise<{
 
   if (!response.ok) {
     const message = await response.text()
-    throw new Error(message || `GitHub Next service request failed with ${response.status}`)
+    throw new Error(message !== '' ? message : `GitHub Next service request failed with ${response.status}`)
   }
 
   return await response.json()
@@ -213,6 +213,6 @@ export async function triggerGithubNextSync (): Promise<void> {
 
   if (!response.ok) {
     const message = await response.text()
-    throw new Error(message || `GitHub Next sync request failed with ${response.status}`)
+    throw new Error(message !== '' ? message : `GitHub Next sync request failed with ${response.status}`)
   }
 }

@@ -159,17 +159,15 @@ async function retryGithub<T> (fn: () => Promise<T>): Promise<T> {
       return await fn()
     } catch (err) {
       lastError = err
-      const retryable =
-        err instanceof GithubHttpError
-          ? shouldRetryGithubRequest(err.status)
-          : err instanceof TypeError
+      const retryable = err instanceof GithubHttpError ? shouldRetryGithubRequest(err.status) : err instanceof TypeError
       if (!retryable || attempt === githubMaxAttempts - 1) {
         throw err
       }
 
-      const delay = err instanceof GithubHttpError
-        ? getGithubRetryDelay(err.headers, attempt)
-        : Math.min(githubBaseRetryDelayMs * 2 ** attempt, githubMaxRetryDelayMs)
+      const delay =
+        err instanceof GithubHttpError
+          ? getGithubRetryDelay(err.headers, attempt)
+          : Math.min(githubBaseRetryDelayMs * 2 ** attempt, githubMaxRetryDelayMs)
       await sleep(delay)
     }
   }
@@ -199,7 +197,11 @@ async function requestGithub<T> (
 
     if (!response.ok) {
       const message = await response.text()
-      throw new GithubHttpError(response.status, response.headers, message || `GitHub request failed with status ${response.status}`)
+      throw new GithubHttpError(
+        response.status,
+        response.headers,
+        message !== '' ? message : `GitHub request failed with status ${response.status}`
+      )
     }
 
     if (response.status === 204) {
@@ -210,11 +212,7 @@ async function requestGithub<T> (
   })
 }
 
-async function requestGithubGraphql<T> (
-  token: string,
-  query: string,
-  variables?: Record<string, unknown>
-): Promise<T> {
+async function requestGithubGraphql<T> (token: string, query: string, variables?: Record<string, unknown>): Promise<T> {
   return await retryGithub(async () => {
     const response = await fetch('https://api.github.com/graphql', {
       method: 'POST',
@@ -382,10 +380,7 @@ export async function getGithubRepository (
   token: string,
   repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>
 ): Promise<GithubNextRepositorySelection> {
-  const response = await requestGithub<GithubRepositoryResponse>(
-    `/repos/${repository.owner}/${repository.name}`,
-    token
-  )
+  const response = await requestGithub<GithubRepositoryResponse>(`/repos/${repository.owner}/${repository.name}`, token)
   return toRepositorySelection(response)
 }
 
@@ -424,10 +419,14 @@ export async function getGithubIssue (
     `/repos/${repository.owner}/${repository.name}/issues/${issueNumber}`,
     token
   )
-  return await enrichGithubIssueAssignees(token, toGithubIssue(issue, {
-    owner: repository.owner,
-    name: repository.name
-  }), context)
+  return await enrichGithubIssueAssignees(
+    token,
+    toGithubIssue(issue, {
+      owner: repository.owner,
+      name: repository.name
+    }),
+    context
+  )
 }
 
 export async function patchGithubIssue (
@@ -451,10 +450,14 @@ export async function patchGithubIssue (
       body: patch
     }
   )
-  return await enrichGithubIssueAssignees(token, toGithubIssue(issue, {
-    owner: repository.owner,
-    name: repository.name
-  }), context)
+  return await enrichGithubIssueAssignees(
+    token,
+    toGithubIssue(issue, {
+      owner: repository.owner,
+      name: repository.name
+    }),
+    context
+  )
 }
 
 export async function createGithubIssue (
@@ -481,10 +484,14 @@ export async function createGithubIssue (
       }
     }
   )
-  return await enrichGithubIssueAssignees(token, toGithubIssue(created, {
-    owner: repository.owner,
-    name: repository.name
-  }), context)
+  return await enrichGithubIssueAssignees(
+    token,
+    toGithubIssue(created, {
+      owner: repository.owner,
+      name: repository.name
+    }),
+    context
+  )
 }
 
 async function findGithubUserLoginByQuery (
@@ -586,13 +593,9 @@ export async function deleteGithubIssueComment (
   commentId: number
 ): Promise<void> {
   try {
-    await requestGithub<void>(
-      `/repos/${repository.owner}/${repository.name}/issues/comments/${commentId}`,
-      token,
-      {
-        method: 'DELETE'
-      }
-    )
+    await requestGithub<unknown>(`/repos/${repository.owner}/${repository.name}/issues/comments/${commentId}`, token, {
+      method: 'DELETE'
+    })
   } catch (err) {
     if (err instanceof GithubHttpError && err.status === 404) return
     throw err
@@ -696,13 +699,15 @@ export async function listGithubDiscussions (
       }
     )
 
-    const connection: {
+    const connection:
+    | {
       nodes: GithubDiscussionResponse[]
       pageInfo: {
         hasNextPage: boolean
         endCursor: string | null
       }
-    } | undefined = data.repository?.discussions
+    }
+    | undefined = data.repository?.discussions
     if (connection == null) {
       break
     }
@@ -721,21 +726,20 @@ export async function listGithubDiscussions (
   return discussions
 }
 
-export async function getGithubDiscussion (
-  token: string,
-  discussionId: string
-): Promise<GithubNextDiscussion> {
+export async function getGithubDiscussion (token: string, discussionId: string): Promise<GithubNextDiscussion> {
   const data = await requestGithubGraphql<{
-    node: (GithubDiscussionResponse & {
+    node:
+    | (GithubDiscussionResponse & {
       repository: {
         owner: {
           login: string
         }
         name: string
       }
-    }) | null
+    })
+    | null
   }>(
-    token,
+      token,
     `
       query GetDiscussion($id: ID!) {
         node(id: $id) {
@@ -762,7 +766,7 @@ export async function getGithubDiscussion (
       }
     `,
     { id: discussionId }
-  )
+      )
 
   if (data.node == null) {
     throw new Error(`GitHub discussion not found: ${discussionId}`)

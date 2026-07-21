@@ -30,8 +30,7 @@ import {
   type UpdateIntegrationTarget,
   type GetIntegrationTargetAllowedSpaceClasses,
   type GetIntegrationTargetCommentBackend,
-  type ResolveIntegrationValue,
-  integrationId
+  type ResolveIntegrationValue
 } from '@hcengineering/integration'
 import {
   ArrOf,

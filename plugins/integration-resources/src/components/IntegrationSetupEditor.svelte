@@ -25,13 +25,13 @@
     type IntegrationValueOption
   } from '@hcengineering/integration'
   import { getEmbeddedLabel } from '@hcengineering/platform'
-  import presentation, { Card, SpaceSelect, getClient } from '@hcengineering/presentation'
+  import presentation, { Card, getClient, SpaceSelect } from '@hcengineering/presentation'
   import { Button, eventToHTMLElement, Label, SelectPopup, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
   import {
-    getBindingLabel,
     getAllowedSpaceClasses,
+    getBindingLabel,
     getPossibleAttributes,
     getPossibleClasses,
     getTargetAttributeValueOptions,
@@ -42,7 +42,7 @@
   interface SlotViewModel {
     id: string
     label: ReturnType<typeof getEmbeddedLabel>
-    bindingLabel: ReturnType<typeof getEmbeddedLabel> | string
+    bindingLabel: ReturnType<typeof getEmbeddedLabel>
     canMapValues: boolean
     mappingExpanded: boolean
     mappingMode: IntegrationValueMappingMode
@@ -64,7 +64,8 @@
   const hierarchy = client.getHierarchy()
   const dispatch = createEventDispatcher()
 
-  let selectedTargetClass: Ref<Class<Doc>> | undefined = targetClass ?? binding?.targetClass ?? routingPolicy?.fallback?.targetClass
+  let selectedTargetClass: Ref<Class<Doc>> | undefined =
+    targetClass ?? binding?.targetClass ?? routingPolicy?.fallback?.targetClass
   let fallbackSpace: Ref<Space> | undefined = space ?? routingPolicy?.fallback?.space
   let bindings: Record<string, string> = { ...(binding?.bindings ?? {}) }
   let valueMappings: Record<string, IntegrationValueMapping> = { ...(binding?.valueMappings ?? {}) }
@@ -134,11 +135,20 @@
       requiredSlotIds.every((id) => bindings[id] !== undefined) &&
       (allowedSpaceClasses.length === 0 || fallbackSpace !== undefined)
     selectedTargetClassLabel =
-      selectedTargetClass === undefined ? presentation.string.NotSelected : getTargetClassLabel(client, selectedTargetClass)
+      selectedTargetClass === undefined
+        ? presentation.string.NotSelected
+        : getTargetClassLabel(client, selectedTargetClass)
     refreshSpaceSelector()
-    requiredSlotRows = buildSlotRows(Object.entries(provider.requiredSlots), bindings, valueMappings, expandedMappings, allAttrs, fallbackSpace)
+    requiredSlotRows = buildSlotRows(
+      Object.entries(provider.requiredSlots),
+      bindings,
+      valueMappings,
+      expandedMappings,
+      allAttrs,
+      fallbackSpace
+    )
     optionalSlotRows = buildSlotRows(
-      Object.entries(provider.optionalSlots ?? {}) as Array<[string, IntegrationSlotModel]>,
+      Object.entries(provider.optionalSlots ?? {}),
       bindings,
       valueMappings,
       expandedMappings,
@@ -154,9 +164,7 @@
     allowedSpaceClassesKey = nextAllowedSpaceClassesKey
     spaceSelectClass = allowedSpaceClasses.length === 1 ? allowedSpaceClasses[0] : core.class.Space
     spaceQuery =
-      allowedSpaceClasses.length > 1
-        ? { archived: false, _class: { $in: allowedSpaceClasses } }
-        : { archived: false }
+      allowedSpaceClasses.length > 1 ? { archived: false, _class: { $in: allowedSpaceClasses } } : { archived: false }
   }
 
   function setBindingValue (slotId: string, value: string): void {
@@ -186,7 +194,8 @@
     const slot = provider.requiredSlots[slotId] ?? provider.optionalSlots?.[slotId]
     if (slot === undefined) return
 
-    const possible = slot.slotKind === 'class' ? getPossibleClasses(client, slot) : getPossibleAttributes(client, allAttrs, slot)
+    const possible =
+      slot.slotKind === 'class' ? getPossibleClasses(client, slot) : getPossibleAttributes(client, allAttrs, slot)
 
     showPopup(
       SelectPopup,
@@ -222,12 +231,19 @@
         label: slot.label ?? getEmbeddedLabel(slot.name ?? id),
         bindingLabel: getBindingLabel(client, currentAttrs, currentBindings, id),
         canMapValues,
-        mappingExpanded: currentExpandedMappings[id] === true,
+        mappingExpanded: currentExpandedMappings[id],
         mappingMode,
         valueRows: (slot.values ?? []).map((option) => ({
           value: option.value,
           label: option.label ?? getEmbeddedLabel(option.value),
-          mappedLabel: getMappedValueLabel(id, option.value, currentBindings, currentValueMappings, currentAttrs, currentFallbackSpace)
+          mappedLabel: getMappedValueLabel(
+            id,
+            option.value,
+            currentBindings,
+            currentValueMappings,
+            currentAttrs,
+            currentFallbackSpace
+          )
         }))
       }
     })
@@ -285,6 +301,7 @@
         const current = valueMappings[slotId] ?? { mode: 'map' as IntegrationValueMappingMode, values: {} }
         const values = { ...(current.values ?? {}) }
         if (res === '') {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
           delete values[externalValue]
         } else {
           values[externalValue] = res as string
@@ -311,7 +328,11 @@
     const mappedValue = currentValueMappings[slotId]?.values?.[externalValue]
     if (mappedValue === undefined) return getEmbeddedLabel('Skip')
 
-    return getTargetValueOptions(slotId, currentBindings, currentAttrs, currentFallbackSpace).find((option) => option.value === mappedValue)?.label ?? getEmbeddedLabel(`Missing: ${mappedValue}`)
+    return (
+      getTargetValueOptions(slotId, currentBindings, currentAttrs, currentFallbackSpace).find(
+        (option) => option.value === mappedValue
+      )?.label ?? getEmbeddedLabel(`Missing: ${mappedValue}`)
+    )
   }
 
   function toggleValueMapping (slotId: string): void {
@@ -357,12 +378,7 @@
   <div class="flex-column flex-gap-4">
     <div class="flex-column flex-gap-1">
       <Label label={integration.string.TargetClass} />
-      <Button
-        label={selectedTargetClassLabel}
-        kind="secondary"
-        width="100%"
-        on:click={selectTargetClass}
-      />
+      <Button label={selectedTargetClassLabel} kind="secondary" width="100%" on:click={selectTargetClass} />
     </div>
 
     <div class="flex-column flex-gap-1">

@@ -14,32 +14,42 @@
 //
 
 import { getClient as getAccountClient, type Integration, type IntegrationSecret } from '@hcengineering/account-client'
-import { createMarkupOperations, createRestTxOperations, type MarkupOperations, type MarkupRef } from '@hcengineering/api-client'
+import {
+  createMarkupOperations,
+  createRestTxOperations,
+  type MarkupOperations,
+  type MarkupRef
+} from '@hcengineering/api-client'
 import chunter, { type ChatMessage } from '@hcengineering/chunter'
+import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-client'
 import communication, { communicationId } from '@hcengineering/communication'
 import { createRestClient as createCommunicationRestClient } from '@hcengineering/communication-rest-client'
 import { loadMessages } from '@hcengineering/communication-shared'
-import { MessageType, SortingOrder, type CardID, type MessageID, type SocialID } from '@hcengineering/communication-types'
-import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-client'
+import {
+  MessageType,
+  SortingOrder,
+  type CardID,
+  type MessageID,
+  type SocialID
+} from '@hcengineering/communication-types'
 import contact, { type Person } from '@hcengineering/contact'
 import core, {
-  type AttachedData,
   buildSocialIdString,
-  type Class,
   concatLink,
   makeCollabId,
-  type Markup,
   SocialIdType,
   systemAccountUuid,
   TxOperations,
+  type AttachedData,
+  type Class,
   type Doc,
   type MeasureContext,
   type PersonId,
   type Ref,
   type Space,
   type Tx,
-  type TxCUD,
   type TxCreateDoc,
+  type TxCUD,
   type TxDomainEvent,
   type TxWorkspaceEvent,
   type WorkspaceUuid
@@ -55,6 +65,7 @@ import githubNext, {
   type GithubNextRepository,
   type GithubNextRepositorySelection
 } from '@hcengineering/github-next'
+import { getWorkspaceClient as getHulylakeWorkspaceClient } from '@hcengineering/hulylake-client'
 import integration, {
   applyIntegrationSlotBinding,
   applyIntegrationSlotReverseBinding,
@@ -68,7 +79,6 @@ import integration, {
   type IntegrationSlotProvider,
   type IntegrationTargetContext
 } from '@hcengineering/integration'
-import { getWorkspaceClient as getHulylakeWorkspaceClient } from '@hcengineering/hulylake-client'
 import { generateToken } from '@hcengineering/server-token'
 import setting, { type Integration as WorkspaceIntegration } from '@hcengineering/setting'
 import tags from '@hcengineering/tags'
@@ -79,11 +89,10 @@ import {
   createGithubDiscussion,
   createGithubIssue,
   createGithubIssueComment,
+  createGithubRequestContext,
   deleteGithubIssueComment,
   findGithubUserLoginByEmail,
   findGithubUserLoginByName,
-  type GithubIssueComment,
-  createGithubRequestContext,
   getGithubDiscussion,
   getGithubIssue,
   getGithubUser,
@@ -92,8 +101,9 @@ import {
   listGithubIssueComments,
   listGithubIssues,
   patchGithubIssue,
-  updateGithubIssueComment,
   updateGithubDiscussion,
+  updateGithubIssueComment,
+  type GithubIssueComment,
   type GithubRequestContext
 } from './github'
 
@@ -209,7 +219,7 @@ function createGithubNextMarkupOperations (
       if (format !== 'markup') {
         throw new Error('Unknown content format')
       }
-      await collaborator.updateMarkup(makeCollabId(objectClass, objectId, objectAttr), value as Markup)
+      await collaborator.updateMarkup(makeCollabId(objectClass, objectId, objectAttr), value)
     }
   }
 }
@@ -288,7 +298,11 @@ function createGithubNextCommunicationOperations (
 async function createWorkspaceClient (
   accountsUrl: string,
   workspaceUuid: WorkspaceUuid
-): Promise<{ client: TxOperations, markup: GithubNextMarkupOperations, communication: GithubNextCommunicationOperations }> {
+): Promise<{
+    client: TxOperations
+    markup: GithubNextMarkupOperations
+    communication: GithubNextCommunicationOperations
+  }> {
   const serviceToken = generateToken(systemAccountUuid, workspaceUuid, { service: 'github-next' })
   const accountClient = getAccountClient(accountsUrl, serviceToken)
   const loginInfo = await accountClient.getLoginInfoByToken()
@@ -313,7 +327,7 @@ async function createWorkspaceClient (
 
 async function getWorkspaceIntegration (client: TxOperations): Promise<WorkspaceIntegration | undefined> {
   return await client.findOne(setting.class.Integration, {
-    type: githubNext.integrationType.GithubNext,  
+    type: githubNext.integrationType.GithubNext,
     value: githubNextIntegrationSettingValue
   })
 }
@@ -425,12 +439,7 @@ function getInboundWinningTargetValues (
     )
     if (!externalChanged) continue
 
-    const localChanged = isValueChangedFromSnapshot(
-      currentValues,
-      state.targetValues,
-      targetAttr,
-      localChangedFallback
-    )
+    const localChanged = isValueChangedFromSnapshot(currentValues, state.targetValues, targetAttr, localChangedFallback)
     if (!hasSnapshots && localChanged) continue
     if (!localChanged || externalUpdatedOn >= localModifiedOn) {
       changes[targetAttr] = incomingValues[targetAttr]
@@ -468,10 +477,12 @@ function getOutboundWinningIssuePatch (
   const isLocalWinner = (slot: string): boolean => {
     const targetAttr = getSlotTargetAttr(binding, slot)
     if (targetAttr === undefined) return false
-    if (isStableEqual(
-      normalizeComparableValue(currentTargetValues[targetAttr]),
-      normalizeComparableValue(externalMappedValues[targetAttr])
-    )) {
+    if (
+      isStableEqual(
+        normalizeComparableValue(currentTargetValues[targetAttr]),
+        normalizeComparableValue(externalMappedValues[targetAttr])
+      )
+    ) {
       return false
     }
 
@@ -566,10 +577,12 @@ function getOutboundWinningDiscussionPatch (
   const isLocalWinner = (slot: string): boolean => {
     const targetAttr = getSlotTargetAttr(binding, slot)
     if (targetAttr === undefined) return false
-    if (isStableEqual(
-      normalizeComparableValue(currentTargetValues[targetAttr]),
-      normalizeComparableValue(externalMappedValues[targetAttr])
-    )) {
+    if (
+      isStableEqual(
+        normalizeComparableValue(currentTargetValues[targetAttr]),
+        normalizeComparableValue(externalMappedValues[targetAttr])
+      )
+    ) {
       return false
     }
 
@@ -622,9 +635,7 @@ function isIssueCommentExternalId (externalId: string): boolean {
 
 function isTxCUD (tx: Tx): tx is TxCUD<Doc> {
   return (
-    tx._class === core.class.TxCreateDoc ||
-    tx._class === core.class.TxUpdateDoc ||
-    tx._class === core.class.TxRemoveDoc
+    tx._class === core.class.TxCreateDoc || tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxRemoveDoc
   )
 }
 
@@ -642,14 +653,15 @@ function isTxWorkspaceEvent (tx: Tx): tx is TxWorkspaceEvent {
 
 function isIgnoredGithubNextInternalClass (objectClass: Ref<Class<Doc>>): boolean {
   return (
-    objectClass === githubNext.class.GithubNextObjectSyncState ||
-    objectClass === githubNext.class.GithubNextRepository
+    objectClass === githubNext.class.GithubNextObjectSyncState || objectClass === githubNext.class.GithubNextRepository
   )
 }
 
 function getTxObjectSpace (tx: TxCUD<Doc>): Ref<Space> | undefined {
-  return (tx as unknown as { objectSpace?: Ref<Space>, space?: Ref<Space> }).objectSpace ??
+  return (
+    (tx as unknown as { objectSpace?: Ref<Space>, space?: Ref<Space> }).objectSpace ??
     (tx as unknown as { objectSpace?: Ref<Space>, space?: Ref<Space> }).space
+  )
 }
 
 function getTxCreateAttributes (tx: TxCreateDoc<Doc>): Record<string, unknown> {
@@ -675,11 +687,13 @@ async function hasExistingSyncStateForTx (
   const attachedToClass = attrs.attachedToClass as Ref<Class<Doc>> | undefined
   if (attachedTo === undefined || attachedToClass === undefined) return false
 
-  return await client.findOne(githubNext.class.GithubNextObjectSyncState, {
-    integration: workspaceIntegration._id,
-    targetClass: attachedToClass,
-    targetId: attachedTo
-  }) !== undefined
+  return (
+    (await client.findOne(githubNext.class.GithubNextObjectSyncState, {
+      integration: workspaceIntegration._id,
+      targetClass: attachedToClass,
+      targetId: attachedTo
+    })) !== undefined
+  )
 }
 
 async function matchesOutboundCreateRoute (
@@ -698,14 +712,15 @@ async function matchesOutboundCreateRoute (
     const integrationData = accountIntegration.data as GithubNextIntegrationData | undefined
     const repositories = integrationData?.repositories ?? []
     for (const repository of repositories) {
-      const target = await resolveIntegrationRoute(providerContext.policy, {}, {
-        externalPattern: `${repository.owner}/${repository.name}`,
-        targetClass: providerContext.binding.targetClass
-      })
-      if (
-        target?.space === objectSpace &&
-        client.getHierarchy().isDerived(tx.objectClass, target.targetClass)
-      ) {
+      const target = await resolveIntegrationRoute(
+        providerContext.policy,
+        {},
+        {
+          externalPattern: `${repository.owner}/${repository.name}`,
+          targetClass: providerContext.binding.targetClass
+        }
+      )
+      if (target?.space === objectSpace && client.getHierarchy().isDerived(tx.objectClass, target.targetClass)) {
         return true
       }
     }
@@ -751,8 +766,10 @@ export async function isGithubNextOutboundRelevantTx (
       workspaceIntegration,
       githubNext.ids.GithubNextDiscussionProvider
     )
-    return discussionProvider !== undefined &&
+    return (
+      discussionProvider !== undefined &&
       (await matchesOutboundCreateRoute(client, accountIntegrations, discussionProvider, tx))
+    )
   } finally {
     await client.close()
   }
@@ -818,11 +835,9 @@ function getNameVariants (name: string | undefined): Set<string> {
 function getPersonSearchNames (person: Person): string[] {
   const rawName = person.name ?? ''
   const [lastName = '', firstName = ''] = rawName.split(',')
-  return [
-    rawName,
-    `${firstName} ${lastName}`,
-    `${lastName} ${firstName}`
-  ].map((name) => name.trim()).filter((name) => name !== '')
+  return [rawName, `${firstName} ${lastName}`, `${lastName} ${firstName}`]
+    .map((name) => name.trim())
+    .filter((name) => name !== '')
 }
 
 async function findPersonByEmail (client: TxOperations, email: string | undefined): Promise<Ref<Person> | undefined> {
@@ -834,11 +849,13 @@ async function findPersonByEmail (client: TxOperations, email: string | undefine
     key: socialKey,
     attachedToClass: contact.class.Person
   })
-  const socialIdentity = socialIdentityByKey ?? await client.findOne(contact.class.SocialIdentity, {
-    type: SocialIdType.EMAIL,
-    value: normalizedEmail,
-    attachedToClass: contact.class.Person
-  })
+  const socialIdentity =
+    socialIdentityByKey ??
+    (await client.findOne(contact.class.SocialIdentity, {
+      type: SocialIdType.EMAIL,
+      value: normalizedEmail,
+      attachedToClass: contact.class.Person
+    }))
 
   return socialIdentity?.attachedTo
 }
@@ -873,11 +890,13 @@ async function resolveGithubAssigneeToPerson (
     key: socialKey,
     attachedToClass: contact.class.Person
   })
-  const socialIdentity = socialIdentityByKey ?? await client.findOne(contact.class.SocialIdentity, {
-    type: SocialIdType.GITHUB,
-    value: githubLogin,
-    attachedToClass: contact.class.Person
-  })
+  const socialIdentity =
+    socialIdentityByKey ??
+    (await client.findOne(contact.class.SocialIdentity, {
+      type: SocialIdType.GITHUB,
+      value: githubLogin,
+      attachedToClass: contact.class.Person
+    }))
 
   if (socialIdentity !== undefined) {
     console.info('[github-next-service] assignee inbound resolved by GitHub social identity', {
@@ -929,14 +948,16 @@ async function resolveGithubLoginToSocialId (
 
   const githubLogin = login.trim().toLowerCase()
   const socialKey = buildSocialIdString({ type: SocialIdType.GITHUB, value: githubLogin })
-  const socialIdentity = await client.findOne(contact.class.SocialIdentity, {
-    key: socialKey,
-    attachedToClass: contact.class.Person
-  }) ?? await client.findOne(contact.class.SocialIdentity, {
-    type: SocialIdType.GITHUB,
-    value: githubLogin,
-    attachedToClass: contact.class.Person
-  })
+  const socialIdentity =
+    (await client.findOne(contact.class.SocialIdentity, {
+      key: socialKey,
+      attachedToClass: contact.class.Person
+    })) ??
+    (await client.findOne(contact.class.SocialIdentity, {
+      type: SocialIdType.GITHUB,
+      value: githubLogin,
+      attachedToClass: contact.class.Person
+    }))
   return socialIdentity?._id
 }
 
@@ -950,11 +971,10 @@ async function resolvePersonToAnySocialId (
     attachedTo: person,
     attachedToClass: contact.class.Person
   })
-  const socialId = (
+  const socialId =
     socialIds.find((socialId) => socialId.type === SocialIdType.GITHUB)?._id ??
     socialIds.find((socialId) => socialId.type === SocialIdType.EMAIL)?._id ??
     socialIds[0]?._id
-  )
   return socialId as PersonId | undefined
 }
 
@@ -1145,13 +1165,9 @@ function normalizeDiscussionSlots (discussion: GithubNextDiscussion): Record<str
   }
 }
 
-async function normalizeIssueSlots (
-  client: TxOperations,
-  issue: GithubNextIssue
-): Promise<Record<string, unknown>> {
-  const assignee = issue.assignees?.[0] !== undefined
-    ? await resolveGithubAssigneeToPerson(client, issue.assignees[0])
-    : undefined
+async function normalizeIssueSlots (client: TxOperations, issue: GithubNextIssue): Promise<Record<string, unknown>> {
+  const assignee =
+    issue.assignees?.[0] !== undefined ? await resolveGithubAssigneeToPerson(client, issue.assignees[0]) : undefined
 
   return {
     title: issue.title,
@@ -1173,7 +1189,9 @@ async function ensureRepositoryDocs (
   const existing = await client.findAll(githubNext.class.GithubNextRepository, {
     integration: workspaceIntegration._id
   })
-  const repositoryByKey = new Map<string, GithubNextRepository>(existing.map((doc) => [`${doc.owner}/${doc.name}`, doc]))
+  const repositoryByKey = new Map<string, GithubNextRepository>(
+    existing.map((doc) => [`${doc.owner}/${doc.name}`, doc])
+  )
   const selectedKeys = new Set(repositories.map((repository) => `${repository.owner}/${repository.name}`))
 
   for (const repository of repositories) {
@@ -1251,10 +1269,14 @@ async function getOutboundRoutes (
   for (const repository of repositories) {
     if (!repository.enabled) continue
 
-    const target = await resolveIntegrationRoute(providerContext.policy, {}, {
-      externalPattern: getRepositoryKey(repository),
-      targetClass: providerContext.binding.targetClass
-    })
+    const target = await resolveIntegrationRoute(
+      providerContext.policy,
+      {},
+      {
+        externalPattern: getRepositoryKey(repository),
+        targetClass: providerContext.binding.targetClass
+      }
+    )
     if (target?.space === undefined) continue
 
     const route: OutboundRoute = {
@@ -1300,7 +1322,9 @@ async function findOutboundTargetDocs (
 
   for (const targetClass of targetClasses) {
     const targetDocs = await client.findAll<Doc>(targetClass, { space: route.target.space })
-    docs.push(...targetDocs.filter((doc) => !syncedTargetKeys.has(doc._id) && !syncedTargetKeys.has(`${doc._class}:${doc._id}`)))
+    docs.push(
+      ...targetDocs.filter((doc) => !syncedTargetKeys.has(doc._id) && !syncedTargetKeys.has(`${doc._class}:${doc._id}`))
+    )
   }
 
   return docs
@@ -1323,11 +1347,10 @@ async function getSyncedTargetKeys (
   )
 }
 
-async function getTokenSecret (
-  accountsUrl: string,
-  accountIntegration: Integration
-): Promise<IntegrationSecret | null> {
-  const serviceToken = generateToken(systemAccountUuid, accountIntegration.workspaceUuid ?? undefined, { service: 'github-next' })
+async function getTokenSecret (accountsUrl: string, accountIntegration: Integration): Promise<IntegrationSecret | null> {
+  const serviceToken = generateToken(systemAccountUuid, accountIntegration.workspaceUuid ?? undefined, {
+    service: 'github-next'
+  })
   const accountClient = getAccountClient(accountsUrl, serviceToken)
   return await accountClient.getIntegrationSecret({
     socialId: accountIntegration.socialId,
@@ -1399,19 +1422,29 @@ async function upsertInboundObject (
 
   if (existingState === undefined) {
     const createdDoc = await createIntegrationTarget(integrationTargetContext, target, mappedValues)
-    const targetValues = await fetchMappedTargetValues(workspace.client, workspace.markup, createdDoc, binding, 'markup')
-    await workspace.client.createDoc(githubNext.class.GithubNextObjectSyncState, core.space.Workspace, withoutUndefined({
-      integration: workspace.workspaceIntegration._id,
-      provider: provider._id,
-      repository: workspace.repositoryDoc._id,
-      externalId: external.externalId,
-      targetClass: createdDoc._class,
-      targetId: createdDoc._id,
-      targetHash: stableHash(targetValues),
-      externalValues: mappedValues,
-      targetValues,
-      ...syncUpdate
-    }))
+    const targetValues = await fetchMappedTargetValues(
+      workspace.client,
+      workspace.markup,
+      createdDoc,
+      binding,
+      'markup'
+    )
+    await workspace.client.createDoc(
+      githubNext.class.GithubNextObjectSyncState,
+      core.space.Workspace,
+      withoutUndefined({
+        integration: workspace.workspaceIntegration._id,
+        provider: provider._id,
+        repository: workspace.repositoryDoc._id,
+        externalId: external.externalId,
+        targetClass: createdDoc._class,
+        targetId: createdDoc._id,
+        targetHash: stableHash(targetValues),
+        externalValues: mappedValues,
+        targetValues,
+        ...syncUpdate
+      })
+    )
     return 'created'
   }
 
@@ -1426,7 +1459,13 @@ async function upsertInboundObject (
   let targetHash = existingState.targetHash
   let targetValues = existingState.targetValues
   if (targetDoc !== undefined) {
-    const currentTargetValues = await fetchMappedTargetValues(workspace.client, workspace.markup, targetDoc, binding, 'markup')
+    const currentTargetValues = await fetchMappedTargetValues(
+      workspace.client,
+      workspace.markup,
+      targetDoc,
+      binding,
+      'markup'
+    )
     const currentTargetHash = stableHash(currentTargetValues)
     const hasLocalPendingChanges = currentTargetHash !== existingState.targetHash
     const changedValues = getInboundWinningTargetValues(
@@ -1444,18 +1483,18 @@ async function upsertInboundObject (
         targetId: targetDoc._id,
         fields: Object.keys(changedValues)
       })
-      await updateIntegrationTarget(
-        integrationTargetContext,
-        targetDoc,
-        changedValues
-      )
-      const updatedTargetDoc = await workspace.client.findOne(existingState.targetClass, { _id: existingState.targetId })
-      const updatedTargetValues = updatedTargetDoc !== undefined
-        ? await fetchMappedTargetValues(workspace.client, workspace.markup, updatedTargetDoc, binding, 'markup')
-        : currentTargetValues
-      targetValues = hasLocalPendingChanges && existingState.targetValues !== undefined
-        ? { ...existingState.targetValues, ...changedValues }
-        : updatedTargetValues
+      await updateIntegrationTarget(integrationTargetContext, targetDoc, changedValues)
+      const updatedTargetDoc = await workspace.client.findOne(existingState.targetClass, {
+        _id: existingState.targetId
+      })
+      const updatedTargetValues =
+        updatedTargetDoc !== undefined
+          ? await fetchMappedTargetValues(workspace.client, workspace.markup, updatedTargetDoc, binding, 'markup')
+          : currentTargetValues
+      targetValues =
+        hasLocalPendingChanges && existingState.targetValues !== undefined
+          ? { ...existingState.targetValues, ...changedValues }
+          : updatedTargetValues
       targetHash = stableHash(targetValues)
     } else {
       if (currentTargetHash === existingState.targetHash) {
@@ -1465,12 +1504,15 @@ async function upsertInboundObject (
     }
   }
 
-  await workspace.client.update(existingState, withoutUndefined({
-    ...syncUpdate,
-    targetHash,
-    externalValues: mappedValues,
-    targetValues
-  }))
+  await workspace.client.update(
+    existingState,
+    withoutUndefined({
+      ...syncUpdate,
+      targetHash,
+      externalValues: mappedValues,
+      targetValues
+    })
+  )
   return targetHash !== existingState.targetHash || mappedHash !== existingState.externalHash ? 'updated' : 'skipped'
 }
 
@@ -1487,7 +1529,8 @@ function normalizeIssueComment (comment: GithubIssueComment): Record<string, unk
 function compareGithubIssueComments (left: GithubIssueComment, right: GithubIssueComment): number {
   const leftCreated = Date.parse(left.createdAt)
   const rightCreated = Date.parse(right.createdAt)
-  const createdDiff = (Number.isFinite(leftCreated) ? leftCreated : 0) - (Number.isFinite(rightCreated) ? rightCreated : 0)
+  const createdDiff =
+    (Number.isFinite(leftCreated) ? leftCreated : 0) - (Number.isFinite(rightCreated) ? rightCreated : 0)
   return createdDiff !== 0 ? createdDiff : left.id - right.id
 }
 
@@ -1538,10 +1581,9 @@ function putCachedCommunicationComment (
 ): void {
   if (comment === undefined || cache.communicationComments === undefined) return
 
-  cache.communicationComments = [
-    ...cache.communicationComments.filter((it) => it.id !== comment.id),
-    comment
-  ].sort(compareCommunicationComments)
+  cache.communicationComments = [...cache.communicationComments.filter((it) => it.id !== comment.id), comment].sort(
+    compareCommunicationComments
+  )
 }
 
 async function upsertInboundIssueComment (
@@ -1576,11 +1618,12 @@ async function upsertInboundIssueComment (
     issueDoc
   )
   const useCommunication = backend.useCommunication && existingState?.targetClass !== chunter.class.ChatMessage
-  const existingBackendMatches = existingState === undefined
-    ? true
-    : useCommunication
-      ? existingState.targetClass === core.class.Doc
-      : existingState.targetClass === chunter.class.ChatMessage
+  const existingBackendMatches =
+    existingState === undefined
+      ? true
+      : useCommunication
+        ? existingState.targetClass === core.class.Doc
+        : existingState.targetClass === chunter.class.ChatMessage
   console.info('[github-next-service] inbound comment evaluate', {
     issue: issueState.externalNumber,
     issueExternalId: issueState.externalId,
@@ -1618,35 +1661,42 @@ async function upsertInboundIssueComment (
         const messageId = await workspace.communication.createTextComment(
           issueDoc,
           comment.body ?? '',
-          (author ?? workspace.client.user) as SocialID,
+          author ?? workspace.client.user,
           createMessageIdForGithubComment(comment),
           Number.isFinite(createdOn) ? new Date(createdOn) : undefined
         )
-        putCachedCommunicationComment(cache, messageId !== undefined
-          ? {
-              id: messageId,
-              content: comment.body ?? '',
-              created: Number.isFinite(createdOn) ? new Date(createdOn) : new Date(),
-              creator: (author ?? workspace.client.user) as SocialID
-            }
-          : undefined)
-        await workspace.client.createDoc(githubNext.class.GithubNextObjectSyncState, core.space.Workspace, withoutUndefined({
-          integration: workspace.workspaceIntegration._id,
-          provider: workspace.providerContext.provider._id,
-          repository: workspace.repositoryDoc._id,
-          externalId,
-          externalNumber: issueState.externalNumber,
-          externalUrl: comment.htmlUrl,
-          externalNodeId: comment.nodeId,
-          externalVersion: comment.updatedAt,
-          externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
-          externalHash,
-          targetHash: communicationHash,
-          targetClass: core.class.Doc,
-          targetId: (messageId ?? externalId) as Ref<Doc>,
-          lastDirection: 'inbound' as const,
-          lastSyncedOn: Date.now()
-        }))
+        putCachedCommunicationComment(
+          cache,
+          messageId !== undefined
+            ? {
+                id: messageId,
+                content: comment.body ?? '',
+                created: Number.isFinite(createdOn) ? new Date(createdOn) : new Date(),
+                creator: author ?? workspace.client.user
+              }
+            : undefined
+        )
+        await workspace.client.createDoc(
+          githubNext.class.GithubNextObjectSyncState,
+          core.space.Workspace,
+          withoutUndefined({
+            integration: workspace.workspaceIntegration._id,
+            provider: workspace.providerContext.provider._id,
+            repository: workspace.repositoryDoc._id,
+            externalId,
+            externalNumber: issueState.externalNumber,
+            externalUrl: comment.htmlUrl,
+            externalNodeId: comment.nodeId,
+            externalVersion: comment.updatedAt,
+            externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
+            externalHash,
+            targetHash: communicationHash,
+            targetClass: core.class.Doc,
+            targetId: (messageId ?? externalId) as Ref<Doc>,
+            lastDirection: 'inbound' as const,
+            lastSyncedOn: Date.now()
+          })
+        )
         console.info('[github-next-service] inbound comment created communication message', {
           issue: issueState.externalNumber,
           comment: comment.id,
@@ -1666,34 +1716,39 @@ async function upsertInboundIssueComment (
       }
     }
 
+    const messageData: AttachedData<ChatMessage> = { message: messageMarkup }
     const messageId = await workspace.client.addCollection<Doc, ChatMessage>(
       chunter.class.ChatMessage,
       issueDoc.space,
       issueDoc._id,
       issueDoc._class,
       'messages',
-      { message: messageMarkup } as AttachedData<ChatMessage>,
+      messageData,
       undefined,
       Number.isFinite(createdOn) ? createdOn : undefined,
       author
     )
-    await workspace.client.createDoc(githubNext.class.GithubNextObjectSyncState, core.space.Workspace, withoutUndefined({
-      integration: workspace.workspaceIntegration._id,
-      provider: workspace.providerContext.provider._id,
-      repository: workspace.repositoryDoc._id,
-      externalId,
-      externalNumber: issueState.externalNumber,
-      externalUrl: comment.htmlUrl,
-      externalNodeId: comment.nodeId,
-      externalVersion: comment.updatedAt,
-      externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
-      externalHash,
-      targetHash: messageHash,
-      targetClass: chunter.class.ChatMessage,
-      targetId: messageId,
-      lastDirection: 'inbound' as const,
-      lastSyncedOn: Date.now()
-    }))
+    await workspace.client.createDoc(
+      githubNext.class.GithubNextObjectSyncState,
+      core.space.Workspace,
+      withoutUndefined({
+        integration: workspace.workspaceIntegration._id,
+        provider: workspace.providerContext.provider._id,
+        repository: workspace.repositoryDoc._id,
+        externalId,
+        externalNumber: issueState.externalNumber,
+        externalUrl: comment.htmlUrl,
+        externalNodeId: comment.nodeId,
+        externalVersion: comment.updatedAt,
+        externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
+        externalHash,
+        targetHash: messageHash,
+        targetClass: chunter.class.ChatMessage,
+        targetId: messageId,
+        lastDirection: 'inbound' as const,
+        lastSyncedOn: Date.now()
+      })
+    )
     console.info('[github-next-service] inbound comment created legacy chunter message', {
       issue: issueState.externalNumber,
       comment: comment.id,
@@ -1710,7 +1765,7 @@ async function upsertInboundIssueComment (
     let message: GithubNextCommunicationComment | undefined
     try {
       message = (await getCachedCommunicationComments(workspace, issueDoc, cache)).find(
-        (it) => it.id === existingState.targetId as any
+        (it) => it.id === (existingState.targetId as any)
       )
     } catch (err) {
       console.warn('[github-next-service] failed to read communication comments for inbound update', {
@@ -1725,30 +1780,36 @@ async function upsertInboundIssueComment (
       const messageId = await workspace.communication.createTextComment(
         issueDoc,
         comment.body ?? '',
-        (author ?? workspace.client.user) as SocialID,
+        author ?? workspace.client.user,
         createMessageIdForGithubComment(comment),
         Number.isFinite(createdOn) ? new Date(createdOn) : undefined
       )
-      putCachedCommunicationComment(cache, messageId !== undefined
-        ? {
-            id: messageId,
-            content: comment.body ?? '',
-            created: Number.isFinite(createdOn) ? new Date(createdOn) : new Date(),
-            creator: (author ?? workspace.client.user) as SocialID
-          }
-        : undefined)
-      await workspace.client.update(existingState, withoutUndefined({
-        externalUrl: comment.htmlUrl,
-        externalNodeId: comment.nodeId,
-        externalVersion: comment.updatedAt,
-        externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
-        externalHash,
-        targetHash: communicationHash,
-        targetClass: core.class.Doc,
-        targetId: (messageId ?? externalId) as Ref<Doc>,
-        lastDirection: 'inbound' as const,
-        lastSyncedOn: Date.now()
-      }))
+      putCachedCommunicationComment(
+        cache,
+        messageId !== undefined
+          ? {
+              id: messageId,
+              content: comment.body ?? '',
+              created: Number.isFinite(createdOn) ? new Date(createdOn) : new Date(),
+              creator: author ?? workspace.client.user
+            }
+          : undefined
+      )
+      await workspace.client.update(
+        existingState,
+        withoutUndefined({
+          externalUrl: comment.htmlUrl,
+          externalNodeId: comment.nodeId,
+          externalVersion: comment.updatedAt,
+          externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
+          externalHash,
+          targetHash: communicationHash,
+          targetClass: core.class.Doc,
+          targetId: (messageId ?? externalId) as Ref<Doc>,
+          lastDirection: 'inbound' as const,
+          lastSyncedOn: Date.now()
+        })
+      )
       console.info('[github-next-service] inbound comment restored missing communication message', {
         issue: issueState.externalNumber,
         comment: comment.id,
@@ -1776,23 +1837,26 @@ async function upsertInboundIssueComment (
       issueDoc,
       existingState.targetId as any as MessageID,
       comment.body ?? '',
-      (author ?? workspace.client.user) as SocialID,
+      author ?? workspace.client.user,
       Number.isFinite(modifiedOn) ? new Date(modifiedOn) : undefined
     )
     putCachedCommunicationComment(cache, {
       ...message,
       content: comment.body ?? ''
     })
-    await workspace.client.update(existingState, withoutUndefined({
-      externalUrl: comment.htmlUrl,
-      externalNodeId: comment.nodeId,
-      externalVersion: comment.updatedAt,
-      externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
-      externalHash,
-      targetHash: communicationHash,
-      lastDirection: 'inbound' as const,
-      lastSyncedOn: Date.now()
-    }))
+    await workspace.client.update(
+      existingState,
+      withoutUndefined({
+        externalUrl: comment.htmlUrl,
+        externalNodeId: comment.nodeId,
+        externalVersion: comment.updatedAt,
+        externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
+        externalHash,
+        targetHash: communicationHash,
+        lastDirection: 'inbound' as const,
+        lastSyncedOn: Date.now()
+      })
+    )
     console.info('[github-next-service] inbound comment updated communication message', {
       issue: issueState.externalNumber,
       comment: comment.id,
@@ -1804,34 +1868,37 @@ async function upsertInboundIssueComment (
     return 'updated'
   }
 
-  const message = await workspace.client.findOne<ChatMessage>(
-    chunter.class.ChatMessage,
-    { _id: existingState.targetId as Ref<ChatMessage> }
-  )
+  const message = await workspace.client.findOne<ChatMessage>(chunter.class.ChatMessage, {
+    _id: existingState.targetId as Ref<ChatMessage>
+  })
   if (message === undefined) {
+    const messageData: AttachedData<ChatMessage> = { message: messageMarkup }
     const messageId = await workspace.client.addCollection<Doc, ChatMessage>(
       chunter.class.ChatMessage,
       issueDoc.space,
       issueDoc._id,
       issueDoc._class,
       'messages',
-      { message: messageMarkup } as AttachedData<ChatMessage>,
+      messageData,
       undefined,
       Number.isFinite(createdOn) ? createdOn : undefined,
       author
     )
-    await workspace.client.update(existingState, withoutUndefined({
-      externalUrl: comment.htmlUrl,
-      externalNodeId: comment.nodeId,
-      externalVersion: comment.updatedAt,
-      externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
-      externalHash,
-      targetHash: messageHash,
-      targetClass: chunter.class.ChatMessage,
-      targetId: messageId,
-      lastDirection: 'inbound' as const,
-      lastSyncedOn: Date.now()
-    }))
+    await workspace.client.update(
+      existingState,
+      withoutUndefined({
+        externalUrl: comment.htmlUrl,
+        externalNodeId: comment.nodeId,
+        externalVersion: comment.updatedAt,
+        externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
+        externalHash,
+        targetHash: messageHash,
+        targetClass: chunter.class.ChatMessage,
+        targetId: messageId,
+        lastDirection: 'inbound' as const,
+        lastSyncedOn: Date.now()
+      })
+    )
     console.info('[github-next-service] inbound comment restored missing legacy chunter message', {
       issue: issueState.externalNumber,
       comment: comment.id,
@@ -1854,17 +1921,23 @@ async function upsertInboundIssueComment (
     return 'skipped'
   }
 
-  await workspace.client.update(message, { message: messageMarkup, editedOn: Number.isFinite(modifiedOn) ? modifiedOn : Date.now() })
-  await workspace.client.update(existingState, withoutUndefined({
-    externalUrl: comment.htmlUrl,
-    externalNodeId: comment.nodeId,
-    externalVersion: comment.updatedAt,
-    externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
-    externalHash,
-    targetHash: messageHash,
-    lastDirection: 'inbound' as const,
-    lastSyncedOn: Date.now()
-  }))
+  await workspace.client.update(message, {
+    message: messageMarkup,
+    editedOn: Number.isFinite(modifiedOn) ? modifiedOn : Date.now()
+  })
+  await workspace.client.update(
+    existingState,
+    withoutUndefined({
+      externalUrl: comment.htmlUrl,
+      externalNodeId: comment.nodeId,
+      externalVersion: comment.updatedAt,
+      externalUpdatedAt: Number.isFinite(modifiedOn) ? modifiedOn : undefined,
+      externalHash,
+      targetHash: messageHash,
+      lastDirection: 'inbound' as const,
+      lastSyncedOn: Date.now()
+    })
+  )
   console.info('[github-next-service] inbound comment updated legacy chunter message', {
     issue: issueState.externalNumber,
     comment: comment.id,
@@ -1900,19 +1973,14 @@ async function deleteLocalSyncedIssueComment (
   })
 
   if (useCommunication) {
-    await workspace.communication.removeTextComment(
-      issueDoc,
-      state.targetId as any as MessageID,
-      workspace.client.user as SocialID
-    )
+    await workspace.communication.removeTextComment(issueDoc, state.targetId as any as MessageID, workspace.client.user)
     await workspace.client.removeDoc(state._class, state.space, state._id)
     return true
   }
 
-  const message = await workspace.client.findOne<ChatMessage>(
-    chunter.class.ChatMessage,
-    { _id: state.targetId as Ref<ChatMessage> }
-  )
+  const message = await workspace.client.findOne<ChatMessage>(chunter.class.ChatMessage, {
+    _id: state.targetId as Ref<ChatMessage>
+  })
   if (message !== undefined) {
     await workspace.client.removeCollection(
       message._class,
@@ -1961,7 +2029,9 @@ async function syncInboundIssueComments (
     return
   }
 
-  const comments = (await listGithubIssueComments(token, issue.repository, issue.number)).sort(compareGithubIssueComments)
+  const comments = (await listGithubIssueComments(token, issue.repository, issue.number)).sort(
+    compareGithubIssueComments
+  )
   console.info('[github-next-service] inbound comments fetched', {
     issue: issue.number,
     issueExternalId: issue.id,
@@ -1972,9 +2042,19 @@ async function syncInboundIssueComments (
     comments: comments.length
   })
   const cache: GithubNextCommentSyncCache = {}
-  const currentExternalIds = new Set(comments.map((comment) => getIssueCommentExternalId(issueState.externalId, comment.id)))
+  const currentExternalIds = new Set(
+    comments.map((comment) => getIssueCommentExternalId(issueState.externalId, comment.id))
+  )
   for (const comment of comments) {
-    const result = await upsertInboundIssueComment(workspace, issueState, issueDoc, comment, token, githubContext, cache)
+    const result = await upsertInboundIssueComment(
+      workspace,
+      issueState,
+      issueDoc,
+      comment,
+      token,
+      githubContext,
+      cache
+    )
     if (result !== 'skipped') {
       ctx.info('GitHub Next issue comment inbound sync', {
         result,
@@ -1990,7 +2070,9 @@ async function syncInboundIssueComments (
     provider: workspace.providerContext.provider._id,
     repository: workspace.repositoryDoc._id
   })
-  for (const state of syncedCommentStates.filter((state) => state.externalId.startsWith(`issue:${issueState.externalId}:comment:`))) {
+  for (const state of syncedCommentStates.filter((state) =>
+    state.externalId.startsWith(`issue:${issueState.externalId}:comment:`)
+  )) {
     if (currentExternalIds.has(state.externalId)) continue
 
     if (await deleteLocalSyncedIssueComment(workspace, issueDoc, state)) {
@@ -2038,7 +2120,7 @@ async function syncInboundIssues (
     for (const accountIntegration of accountIntegrations) {
       const integrationData = accountIntegration.data as GithubNextIntegrationData | undefined
       const repositories = integrationData?.repositories ?? []
-      if (!integrationData?.capabilities?.issues || repositories.length === 0) continue
+      if (integrationData?.capabilities?.issues !== true || repositories.length === 0) continue
 
       const secret = await getTokenSecret(accountsUrl, accountIntegration)
       if (secret == null || secret.secret.trim() === '') continue
@@ -2136,7 +2218,7 @@ async function syncInboundDiscussions (
     for (const accountIntegration of accountIntegrations) {
       const integrationData = accountIntegration.data as GithubNextIntegrationData | undefined
       const repositories = integrationData?.repositories ?? []
-      if (!integrationData?.capabilities?.discussions || repositories.length === 0) continue
+      if (integrationData?.capabilities?.discussions !== true || repositories.length === 0) continue
 
       const secret = await getTokenSecret(accountsUrl, accountIntegration)
       if (secret == null || secret.secret.trim() === '') continue
@@ -2194,24 +2276,25 @@ async function buildIssuePatch (
     localModifiedOn: number
   }
 ): Promise<{
-  title?: string
-  body?: string
-  state?: 'open' | 'closed'
-  assignees?: string[]
-  labels?: string[]
-  targetHash: string
-}> {
+    title?: string
+    body?: string
+    state?: 'open' | 'closed'
+    assignees?: string[]
+    labels?: string[]
+    targetHash: string
+  }> {
   const markdownTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markdown')
   const currentTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markup')
-  const reversed = applyIntegrationSlotReverseBinding(markdownTargetValues, binding) as Record<string, unknown>
+  const reversed = applyIntegrationSlotReverseBinding(markdownTargetValues, binding)
   const assigneeAttr = binding.bindings.assignee
   const labelsAttr = binding.bindings.labels
   const assignee = assigneeAttr !== undefined ? (doc as Record<string, any>)[assigneeAttr] : undefined
 
   const assigneeLogin =
-    assigneeAttr !== undefined ? await resolvePersonToGithubLogin(client, token, assignee ?? null, githubContext) : undefined
-  const labelTitles =
-    labelsAttr !== undefined ? ((await getDocLabelTitles(client, doc, labelsAttr)) ?? []) : undefined
+    assigneeAttr !== undefined
+      ? await resolvePersonToGithubLogin(client, token, assignee ?? null, githubContext)
+      : undefined
+  const labelTitles = labelsAttr !== undefined ? ((await getDocLabelTitles(client, doc, labelsAttr)) ?? []) : undefined
   let assignees: string[] | undefined
   if (assigneeAttr !== undefined && assignee == null) {
     assignees = []
@@ -2232,16 +2315,17 @@ async function buildIssuePatch (
     assignees,
     labels: labelTitles
   }
-  const patch = outboundState === undefined
-    ? fullPatch
-    : getOutboundWinningIssuePatch(
-      binding,
-      fullPatch,
-      currentTargetValues,
-      outboundState.externalMappedValues,
-      outboundState.state,
-      outboundState.localModifiedOn
-    )
+  const patch =
+    outboundState === undefined
+      ? fullPatch
+      : getOutboundWinningIssuePatch(
+        binding,
+        fullPatch,
+        currentTargetValues,
+        outboundState.externalMappedValues,
+        outboundState.state,
+        outboundState.localModifiedOn
+      )
 
   return {
     ...patch,
@@ -2270,13 +2354,13 @@ async function buildDiscussionPatch (
     localModifiedOn: number
   }
 ): Promise<{
-  title?: string
-  body?: string
-  categoryId?: string
-  targetHash: string
-}> {
+    title?: string
+    body?: string
+    categoryId?: string
+    targetHash: string
+  }> {
   const markdownTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markdown')
-  const reversed = applyIntegrationSlotReverseBinding(markdownTargetValues, binding) as Record<string, unknown>
+  const reversed = applyIntegrationSlotReverseBinding(markdownTargetValues, binding)
   const categoryName = typeof reversed.category === 'string' ? reversed.category : undefined
   let categoryId: string | undefined
 
@@ -2294,16 +2378,17 @@ async function buildDiscussionPatch (
     categoryId
   }
   const currentTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markup')
-  const patch = outboundState === undefined
-    ? fullPatch
-    : getOutboundWinningDiscussionPatch(
-      binding,
-      fullPatch,
-      currentTargetValues,
-      outboundState.externalMappedValues,
-      outboundState.state,
-      outboundState.localModifiedOn
-    )
+  const patch =
+    outboundState === undefined
+      ? fullPatch
+      : getOutboundWinningDiscussionPatch(
+        binding,
+        fullPatch,
+        currentTargetValues,
+        outboundState.externalMappedValues,
+        outboundState.state,
+        outboundState.localModifiedOn
+      )
 
   return {
     ...patch,
@@ -2337,28 +2422,35 @@ async function createOutboundIssue (
     },
     githubContext
   )
-  const externalValues = applyIntegrationSlotBinding(await normalizeIssueSlots(client, created), providerContext.binding)
+  const externalValues = applyIntegrationSlotBinding(
+    await normalizeIssueSlots(client, created),
+    providerContext.binding
+  )
   const targetValues = await fetchMappedTargetValues(client, markup, doc, providerContext.binding, 'markup')
 
-  await client.createDoc(githubNext.class.GithubNextObjectSyncState, core.space.Workspace, withoutUndefined({
-    integration: workspaceIntegration._id,
-    provider: providerContext.provider._id,
-    repository: route.repository._id,
-    externalId: String(created.id),
-    externalNumber: created.number,
-    externalUrl: created.htmlUrl,
-    externalNodeId: created.nodeId,
-    externalVersion: created.updatedAt,
-    externalUpdatedAt: Date.parse(created.updatedAt),
-    externalHash: stableHash(externalValues),
-    externalValues,
-    targetHash: stableHash(targetValues),
-    targetValues,
-    targetClass: doc._class,
-    targetId: doc._id,
-    lastDirection: 'outbound' as const,
-    lastSyncedOn: Date.now()
-  }))
+  await client.createDoc(
+    githubNext.class.GithubNextObjectSyncState,
+    core.space.Workspace,
+    withoutUndefined({
+      integration: workspaceIntegration._id,
+      provider: providerContext.provider._id,
+      repository: route.repository._id,
+      externalId: String(created.id),
+      externalNumber: created.number,
+      externalUrl: created.htmlUrl,
+      externalNodeId: created.nodeId,
+      externalVersion: created.updatedAt,
+      externalUpdatedAt: Date.parse(created.updatedAt),
+      externalHash: stableHash(externalValues),
+      externalValues,
+      targetHash: stableHash(targetValues),
+      targetValues,
+      targetClass: doc._class,
+      targetId: doc._id,
+      lastDirection: 'outbound' as const,
+      lastSyncedOn: Date.now()
+    })
+  )
 }
 
 async function createOutboundDiscussion (
@@ -2386,24 +2478,28 @@ async function createOutboundDiscussion (
   const externalValues = applyIntegrationSlotBinding(normalizeDiscussionSlots(created), providerContext.binding)
   const targetValues = await fetchMappedTargetValues(client, markup, doc, providerContext.binding, 'markup')
 
-  await client.createDoc(githubNext.class.GithubNextObjectSyncState, core.space.Workspace, withoutUndefined({
-    integration: workspaceIntegration._id,
-    provider: providerContext.provider._id,
-    repository: route.repository._id,
-    externalId: created.id,
-    externalNumber: created.number,
-    externalUrl: created.htmlUrl,
-    externalVersion: created.updatedAt,
-    externalUpdatedAt: Date.parse(created.updatedAt),
-    externalHash: stableHash(externalValues),
-    externalValues,
-    targetHash: stableHash(targetValues),
-    targetValues,
-    targetClass: doc._class,
-    targetId: doc._id,
-    lastDirection: 'outbound' as const,
-    lastSyncedOn: Date.now()
-  }))
+  await client.createDoc(
+    githubNext.class.GithubNextObjectSyncState,
+    core.space.Workspace,
+    withoutUndefined({
+      integration: workspaceIntegration._id,
+      provider: providerContext.provider._id,
+      repository: route.repository._id,
+      externalId: created.id,
+      externalNumber: created.number,
+      externalUrl: created.htmlUrl,
+      externalVersion: created.updatedAt,
+      externalUpdatedAt: Date.parse(created.updatedAt),
+      externalHash: stableHash(externalValues),
+      externalValues,
+      targetHash: stableHash(targetValues),
+      targetValues,
+      targetClass: doc._class,
+      targetId: doc._id,
+      lastDirection: 'outbound' as const,
+      lastSyncedOn: Date.now()
+    })
+  )
 }
 
 async function syncOutboundCreatesForProvider (
@@ -2425,7 +2521,16 @@ async function syncOutboundCreatesForProvider (
     for (const doc of docs) {
       try {
         if (kind === 'issue') {
-          await createOutboundIssue(client, markup, workspaceIntegration, providerContext, token, githubContext, route, doc)
+          await createOutboundIssue(
+            client,
+            markup,
+            workspaceIntegration,
+            providerContext,
+            token,
+            githubContext,
+            route,
+            doc
+          )
         } else {
           await createOutboundDiscussion(client, markup, workspaceIntegration, providerContext, token, route, doc)
         }
@@ -2499,9 +2604,7 @@ async function syncOutboundIssueComments (
     }
     if (messages !== undefined) {
       const messagesById = new Map(messages.map((message) => [message.id, message]))
-      const syncedMessageIds: Set<string> = new Set(
-        communicationCommentStates.map((state) => state.targetId)
-      )
+      const syncedMessageIds = new Set<string>(communicationCommentStates.map((state) => state.targetId))
       const result = { created: 0, updated: 0, skipped: 0 }
 
       console.info('[github-next-service] syncing communication comments', {
@@ -2525,15 +2628,18 @@ async function syncOutboundIssueComments (
 
         const message = messagesById.get(state.targetId as any as MessageID)
         if (message === undefined || message.content.trim() === '') {
-          console.info('[github-next-service] outbound communication comment deleting GitHub comment: local missing or empty', {
-            issue: issueState.externalNumber,
-            externalId: state.externalId,
-            comment: commentId,
-            state: state._id,
-            targetId: state.targetId,
-            messageFound: message !== undefined,
-            empty: message?.content.trim() === ''
-          })
+          console.info(
+            '[github-next-service] outbound communication comment deleting GitHub comment: local missing or empty',
+            {
+              issue: issueState.externalNumber,
+              externalId: state.externalId,
+              comment: commentId,
+              state: state._id,
+              targetId: state.targetId,
+              messageFound: message !== undefined,
+              empty: message?.content.trim() === ''
+            }
+          )
           await deleteGithubIssueComment(token, { owner: repository.owner, name: repository.name }, commentId)
           await client.removeDoc(state._class, state.space, state._id)
           result.updated++
@@ -2614,23 +2720,27 @@ async function syncOutboundIssueComments (
         const externalId = getIssueCommentExternalId(issueState.externalId, created.id)
         const externalHash = stableHash(normalizeIssueComment(created))
         const targetHash = stableHash({ content: message.content })
-        await client.createDoc(githubNext.class.GithubNextObjectSyncState, core.space.Workspace, withoutUndefined({
-          integration: workspaceIntegration._id,
-          provider: providerContext.provider._id,
-          repository: repository._id,
-          externalId,
-          externalNumber: issueState.externalNumber,
-          externalUrl: created.htmlUrl,
-          externalNodeId: created.nodeId,
-          externalVersion: created.updatedAt,
-          externalUpdatedAt: Date.parse(created.updatedAt),
-          externalHash,
-          targetHash,
-          targetClass: core.class.Doc,
-          targetId: message.id,
-          lastDirection: 'outbound' as const,
-          lastSyncedOn: Date.now()
-        }))
+        await client.createDoc(
+          githubNext.class.GithubNextObjectSyncState,
+          core.space.Workspace,
+          withoutUndefined({
+            integration: workspaceIntegration._id,
+            provider: providerContext.provider._id,
+            repository: repository._id,
+            externalId,
+            externalNumber: issueState.externalNumber,
+            externalUrl: created.htmlUrl,
+            externalNodeId: created.nodeId,
+            externalVersion: created.updatedAt,
+            externalUpdatedAt: Date.parse(created.updatedAt),
+            externalHash,
+            targetHash,
+            targetClass: core.class.Doc,
+            targetId: message.id,
+            lastDirection: 'outbound' as const,
+            lastSyncedOn: Date.now()
+          })
+        )
         syncedMessageIds.add(message.id)
         result.created++
         ctx.info('GitHub Next issue communication comment outbound sync', {
@@ -2650,9 +2760,7 @@ async function syncOutboundIssueComments (
     collection: 'messages'
   })
   const messagesById = new Map(messages.map((message) => [message._id, message]))
-  const syncedMessageIds: Set<string> = new Set(
-    legacyCommentStates.map((state) => state.targetId)
-  )
+  const syncedMessageIds = new Set<string>(legacyCommentStates.map((state) => state.targetId))
   const result = { created: 0, updated: 0, skipped: 0 }
 
   console.info('[github-next-service] syncing legacy chunter comments', {
@@ -2778,23 +2886,27 @@ async function syncOutboundIssueComments (
     const externalId = getIssueCommentExternalId(issueState.externalId, created.id)
     const externalHash = stableHash(normalizeIssueComment(created))
     const targetHash = stableHash({ message: message.message })
-    await client.createDoc(githubNext.class.GithubNextObjectSyncState, core.space.Workspace, withoutUndefined({
-      integration: workspaceIntegration._id,
-      provider: providerContext.provider._id,
-      repository: repository._id,
-      externalId,
-      externalNumber: issueState.externalNumber,
-      externalUrl: created.htmlUrl,
-      externalNodeId: created.nodeId,
-      externalVersion: created.updatedAt,
-      externalUpdatedAt: Date.parse(created.updatedAt),
-      externalHash,
-      targetHash,
-      targetClass: message._class,
-      targetId: message._id,
-      lastDirection: 'outbound' as const,
-      lastSyncedOn: Date.now()
-    }))
+    await client.createDoc(
+      githubNext.class.GithubNextObjectSyncState,
+      core.space.Workspace,
+      withoutUndefined({
+        integration: workspaceIntegration._id,
+        provider: providerContext.provider._id,
+        repository: repository._id,
+        externalId,
+        externalNumber: issueState.externalNumber,
+        externalUrl: created.htmlUrl,
+        externalNodeId: created.nodeId,
+        externalVersion: created.updatedAt,
+        externalUpdatedAt: Date.parse(created.updatedAt),
+        externalHash,
+        targetHash,
+        targetClass: message._class,
+        targetId: message._id,
+        lastDirection: 'outbound' as const,
+        lastSyncedOn: Date.now()
+      })
+    )
     syncedMessageIds.add(message._id)
     result.created++
     ctx.info('GitHub Next issue comment outbound sync', {
@@ -2837,15 +2949,17 @@ async function syncOutboundForProvider (
     const workspaceIntegration = await getWorkspaceIntegration(client)
     if (workspaceIntegration === undefined) return result
 
-    const providerId = kind === 'issue' ? githubNext.ids.GithubNextIssueProvider : githubNext.ids.GithubNextDiscussionProvider
+    const providerId =
+      kind === 'issue' ? githubNext.ids.GithubNextIssueProvider : githubNext.ids.GithubNextDiscussionProvider
     const providerContext = await getProviderContext(client, workspaceIntegration, providerId)
     if (providerContext === undefined) return result
 
     for (const accountIntegration of accountIntegrations) {
       const integrationData = accountIntegration.data as GithubNextIntegrationData | undefined
       const repositories = integrationData?.repositories ?? []
-      const capabilityEnabled = kind === 'issue' ? integrationData?.capabilities?.issues : integrationData?.capabilities?.discussions
-      if (!capabilityEnabled || repositories.length === 0) continue
+      const capabilityEnabled =
+        kind === 'issue' ? integrationData?.capabilities?.issues : integrationData?.capabilities?.discussions
+      if (capabilityEnabled !== true || repositories.length === 0) continue
 
       const secret = await getTokenSecret(accountsUrl, accountIntegration)
       if (secret == null || secret.secret.trim() === '') continue
@@ -2910,7 +3024,13 @@ async function syncOutboundForProvider (
           result.skipped += commentsResult.skipped
 
           let outboundTargetDoc = targetDoc
-          const currentTargetValues = await fetchMappedTargetValues(client, markup, outboundTargetDoc, providerContext.binding, 'markup')
+          const currentTargetValues = await fetchMappedTargetValues(
+            client,
+            markup,
+            outboundTargetDoc,
+            providerContext.binding,
+            'markup'
+          )
           const currentTargetHash = stableHash(currentTargetValues)
           if (currentTargetHash === state.targetHash) {
             result.skipped++
@@ -2959,11 +3079,19 @@ async function syncOutboundForProvider (
             }
           }
 
-          const diffPatch = await buildIssuePatch(client, markup, outboundTargetDoc, providerContext.binding, secret.secret, githubContext, {
-            state,
-            externalMappedValues,
-            localModifiedOn: getObjectModifiedOn(outboundTargetDoc)
-          })
+          const diffPatch = await buildIssuePatch(
+            client,
+            markup,
+            outboundTargetDoc,
+            providerContext.binding,
+            secret.secret,
+            githubContext,
+            {
+              state,
+              externalMappedValues,
+              localModifiedOn: getObjectModifiedOn(outboundTargetDoc)
+            }
+          )
           const githubPatch = withoutUndefined({
             title: diffPatch.title,
             body: diffPatch.body,
@@ -2983,7 +3111,13 @@ async function syncOutboundForProvider (
           })
           if (!hasDefinedValue(githubPatch)) {
             if (Object.keys(externalWinningValues).length > 0) {
-              const targetValues = await fetchMappedTargetValues(client, markup, outboundTargetDoc, providerContext.binding, 'markup')
+              const targetValues = await fetchMappedTargetValues(
+                client,
+                markup,
+                outboundTargetDoc,
+                providerContext.binding,
+                'markup'
+              )
               await client.update(state, {
                 externalVersion: externalIssue.updatedAt,
                 externalUpdatedAt: Date.parse(externalIssue.updatedAt),
@@ -3012,7 +3146,13 @@ async function syncOutboundForProvider (
             await normalizeIssueSlots(client, updated),
             providerContext.binding
           )
-          const targetValues = await fetchMappedTargetValues(client, markup, outboundTargetDoc, providerContext.binding, 'markup')
+          const targetValues = await fetchMappedTargetValues(
+            client,
+            markup,
+            outboundTargetDoc,
+            providerContext.binding,
+            'markup'
+          )
           await client.update(state, {
             externalVersion: updated.updatedAt,
             externalUpdatedAt: Date.parse(updated.updatedAt),
@@ -3029,7 +3169,13 @@ async function syncOutboundForProvider (
 
         result.discussionsSeen++
         let outboundTargetDoc = targetDoc
-        const currentTargetValues = await fetchMappedTargetValues(client, markup, outboundTargetDoc, providerContext.binding, 'markup')
+        const currentTargetValues = await fetchMappedTargetValues(
+          client,
+          markup,
+          outboundTargetDoc,
+          providerContext.binding,
+          'markup'
+        )
         const externalDiscussion = await getGithubDiscussion(secret.secret, state.externalId)
         const externalMappedValues = applyIntegrationSlotBinding(
           normalizeDiscussionSlots(externalDiscussion),
@@ -3081,7 +3227,13 @@ async function syncOutboundForProvider (
         })
         if (!hasDefinedValue(discussionPatch)) {
           if (Object.keys(externalWinningValues).length > 0) {
-            const targetValues = await fetchMappedTargetValues(client, markup, outboundTargetDoc, providerContext.binding, 'markup')
+            const targetValues = await fetchMappedTargetValues(
+              client,
+              markup,
+              outboundTargetDoc,
+              providerContext.binding,
+              'markup'
+            )
             await client.update(state, {
               externalVersion: externalDiscussion.updatedAt,
               externalUpdatedAt: Date.parse(externalDiscussion.updatedAt),
@@ -3100,8 +3252,17 @@ async function syncOutboundForProvider (
         }
 
         const updated = await updateGithubDiscussion(secret.secret, state.externalId, discussionPatch)
-        const updatedExternalValues = applyIntegrationSlotBinding(normalizeDiscussionSlots(updated), providerContext.binding)
-        const targetValues = await fetchMappedTargetValues(client, markup, outboundTargetDoc, providerContext.binding, 'markup')
+        const updatedExternalValues = applyIntegrationSlotBinding(
+          normalizeDiscussionSlots(updated),
+          providerContext.binding
+        )
+        const targetValues = await fetchMappedTargetValues(
+          client,
+          markup,
+          outboundTargetDoc,
+          providerContext.binding,
+          'markup'
+        )
         await client.update(state, {
           externalVersion: updated.updatedAt,
           externalUpdatedAt: Date.parse(updated.updatedAt),

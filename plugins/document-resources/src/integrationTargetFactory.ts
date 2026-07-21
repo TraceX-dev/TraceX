@@ -13,7 +13,15 @@
 // limitations under the License.
 //
 
-import { type Class, type Data, generateId, makeCollabId, type Markup, type MarkupBlobRef, type Ref, SortingOrder } from '@hcengineering/core'
+import {
+  type Class,
+  type Data,
+  generateId,
+  makeCollabId,
+  type MarkupBlobRef,
+  type Ref,
+  SortingOrder
+} from '@hcengineering/core'
 import document, { type Document, type Teamspace } from '@hcengineering/document'
 import type {
   CanCreateIntegrationTarget,
@@ -34,11 +42,11 @@ async function createContent (
   documentId: Ref<Document>,
   content: unknown
 ): Promise<MarkupBlobRef | null> {
-  if (typeof content !== 'string' || isEmptyMarkup(content as Markup)) {
+  if (typeof content !== 'string' || isEmptyMarkup(content)) {
     return null
   }
 
-  return await createMarkup(makeCollabId(targetClass, documentId, 'content'), content as Markup)
+  return await createMarkup(makeCollabId(targetClass, documentId, 'content'), content)
 }
 
 export const canCreateIntegrationTarget: CanCreateIntegrationTarget = async (ctx, target) => {
@@ -98,7 +106,7 @@ export const createIntegrationTarget: CreateIntegrationTarget = async (ctx, targ
       rank,
       icon: incomingData.icon,
       color: incomingData.color
-    } as Data<Document>,
+    },
     id
   )
 
@@ -118,7 +126,7 @@ export const updateIntegrationTarget: UpdateIntegrationTarget = async (ctx, doc,
   const existing = doc as Document
   const update = toDocumentData(values)
   if (update.content !== undefined) {
-    update.content = await createContent(existing._class as Ref<Class<Document>>, existing._id, update.content)
+    update.content = await createContent(existing._class, existing._id, update.content)
   }
 
   await ctx.client.update(existing, update)

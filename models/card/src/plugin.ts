@@ -76,6 +76,6 @@ export default mergeIds(cardId, card, {
     CheckRelationsSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
     CheckOldMessagesSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
     CheckCommunicationMessagesSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
-    ShowAllVersions: '' as Resource<(value: any, query: DocumentQuery<Doc>) => DocumentQuery<Doc>>,
+    ShowAllVersions: '' as Resource<(value: any, query: DocumentQuery<Doc>) => DocumentQuery<Doc>>
   }
 })

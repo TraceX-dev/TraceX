@@ -18,7 +18,6 @@ import core, {
   fillDefaults,
   generateId,
   makeCollabId,
-  type Markup,
   type MarkupBlobRef,
   type Ref
 } from '@hcengineering/core'
@@ -36,12 +35,16 @@ function toCardData (values: Record<string, unknown>): Partial<Data<Card>> {
   return values as Partial<Data<Card>>
 }
 
-async function createContent (targetClass: Ref<Class<Card>>, cardId: Ref<Card>, content: unknown): Promise<MarkupBlobRef> {
-  if (typeof content !== 'string' || isEmptyMarkup(content as Markup)) {
+async function createContent (
+  targetClass: Ref<Class<Card>>,
+  cardId: Ref<Card>,
+  content: unknown
+): Promise<MarkupBlobRef> {
+  if (typeof content !== 'string' || isEmptyMarkup(content)) {
     return '' as MarkupBlobRef
   }
 
-  return await createMarkup(makeCollabId(targetClass, cardId, 'content'), content as Markup)
+  return await createMarkup(makeCollabId(targetClass, cardId, 'content'), content)
 }
 
 export const canCreateIntegrationTarget: CanCreateIntegrationTarget = async (ctx, target) => {

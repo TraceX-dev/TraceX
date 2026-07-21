@@ -308,7 +308,9 @@ export async function resolveIntegrationValues (
   resolverContext: Record<string, unknown> = {}
 ): Promise<Record<string, unknown>> {
   const resolvers = await client.findAll(integration.class.IntegrationValueResolver, { provider })
-  const resolverBySlot = new Map<string, IntegrationValueResolver>(resolvers.map((resolver) => [resolver.slot, resolver]))
+  const resolverBySlot = new Map<string, IntegrationValueResolver>(
+    resolvers.map((resolver) => [resolver.slot, resolver])
+  )
   const result: Record<string, unknown> = { ...values }
 
   for (const [slot, value] of Object.entries(values)) {
@@ -336,16 +338,12 @@ export async function saveIntegrationSetup (
   })
 
   if (binding === undefined) {
-    const id = await client.createDoc(
-      integration.class.IntegrationSlotBinding,
-      core.space.Workspace,
-      {
-        provider: params.provider,
-        targetClass: params.targetClass,
-        bindings: params.bindings,
-        valueMappings: params.valueMappings
-      }
-    )
+    const id = await client.createDoc(integration.class.IntegrationSlotBinding, core.space.Workspace, {
+      provider: params.provider,
+      targetClass: params.targetClass,
+      bindings: params.bindings,
+      valueMappings: params.valueMappings
+    })
     binding = await client.findOne(integration.class.IntegrationSlotBinding, { _id: id })
   } else {
     await client.update(binding, {
@@ -367,16 +365,12 @@ export async function saveIntegrationSetup (
   })
 
   if (policy === undefined) {
-    const id = await client.createDoc(
-      integration.class.IntegrationRoutingPolicy,
-      core.space.Workspace,
-      {
-        integration: params.integration,
-        provider: params.provider,
-        rules: [],
-        fallback: params.fallback
-      }
-    )
+    const id = await client.createDoc(integration.class.IntegrationRoutingPolicy, core.space.Workspace, {
+      integration: params.integration,
+      provider: params.provider,
+      rules: [],
+      fallback: params.fallback
+    })
     policy = await client.findOne(integration.class.IntegrationRoutingPolicy, { _id: id })
   } else {
     await client.update(policy, { fallback: params.fallback })

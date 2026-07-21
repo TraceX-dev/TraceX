@@ -16,13 +16,11 @@
 import core, { IndexKind, type Class, type Doc, type Domain, type Ref } from '@hcengineering/core'
 import contact from '@hcengineering/contact'
 import githubNext, {
-  githubNextId,
   githubNextIntegrationKind,
   type GithubNextObjectSyncState,
   type GithubNextRepository
 } from '@hcengineering/github-next'
-import {
-  default as integration,
+import integration, {
   type IntegrationAttributeSlotModel,
   type IntegrationSlotProvider
 } from '@hcengineering/integration'
@@ -230,26 +228,18 @@ export function createModel (builder: Builder): void {
     type: TypeString()
   }
 
-  builder.createDoc(
-    core.class.DomainIndexConfiguration,
-    core.space.Model,
-    {
-      domain: DOMAIN_GITHUB_NEXT_SYNC,
-      indexes: [
-        { keys: { integration: 1, provider: 1, repository: 1, externalId: 1 } },
-        { keys: { integration: 1, targetClass: 1, targetId: 1 } }
-      ]
-    }
-  )
+  builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {
+    domain: DOMAIN_GITHUB_NEXT_SYNC,
+    indexes: [
+      { keys: { integration: 1, provider: 1, repository: 1, externalId: 1 } },
+      { keys: { integration: 1, targetClass: 1, targetId: 1 } }
+    ]
+  })
 
-  builder.createDoc(
-    core.class.DomainIndexConfiguration,
-    core.space.Model,
-    {
-      domain: DOMAIN_GITHUB_NEXT,
-      indexes: [{ keys: { integration: 1, owner: 1, name: 1 } }]
-    }
-  )
+  builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {
+    domain: DOMAIN_GITHUB_NEXT,
+    indexes: [{ keys: { integration: 1, owner: 1, name: 1 } }]
+  })
 
   builder.createDoc(
     integration.class.IntegrationSlotProvider,

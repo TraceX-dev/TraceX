@@ -18,7 +18,7 @@ import {
   type AccountClient,
   type Integration as AccountIntegration
 } from '@hcengineering/account-client'
-import core, { getCurrentAccount, type Class, type Doc, type Ref, type Space } from '@hcengineering/core'
+import core, { getCurrentAccount, type Class, type Doc, type Ref } from '@hcengineering/core'
 import githubNext, {
   githubNextIntegrationKind,
   githubNextIntegrationSettingValue,
@@ -77,9 +77,7 @@ export async function ensureWorkspaceGithubNextIntegration (): Promise<Workspace
   return integrationDoc
 }
 
-export async function getGithubNextProviderSetup (
-  workspaceIntegration: WorkspaceIntegration
-): Promise<{
+export async function getGithubNextProviderSetup (workspaceIntegration: WorkspaceIntegration): Promise<{
   provider: IntegrationSlotProvider | undefined
   binding: IntegrationSlotBinding | undefined
   routingPolicy: IntegrationRoutingPolicy | undefined
@@ -91,10 +89,10 @@ export async function getGithubNextProviderSetupById (
   workspaceIntegration: WorkspaceIntegration,
   providerId: Ref<IntegrationSlotProvider>
 ): Promise<{
-  provider: IntegrationSlotProvider | undefined
-  binding: IntegrationSlotBinding | undefined
-  routingPolicy: IntegrationRoutingPolicy | undefined
-}> {
+    provider: IntegrationSlotProvider | undefined
+    binding: IntegrationSlotBinding | undefined
+    routingPolicy: IntegrationRoutingPolicy | undefined
+  }> {
   const client = getClient()
   const provider = await client.findOne(integration.class.IntegrationSlotProvider, {
     _id: providerId
@@ -122,9 +120,9 @@ export async function saveGithubNextProviderSetup (
     valueMappings?: Record<string, IntegrationValueMapping>
   }
 ): Promise<{
-  binding: IntegrationSlotBinding
-  policy: IntegrationRoutingPolicy
-}> {
+    binding: IntegrationSlotBinding
+    policy: IntegrationRoutingPolicy
+  }> {
   return await saveGithubNextProviderSetupById(workspaceIntegration, params)
 }
 
@@ -138,9 +136,9 @@ export async function saveGithubNextProviderSetupById (
     valueMappings?: Record<string, IntegrationValueMapping>
   }
 ): Promise<{
-  binding: IntegrationSlotBinding
-  policy: IntegrationRoutingPolicy
-}> {
+    binding: IntegrationSlotBinding
+    policy: IntegrationRoutingPolicy
+  }> {
   const client = getClient()
   return await saveIntegrationSetup(client, {
     integration: workspaceIntegration._id,
@@ -149,7 +147,7 @@ export async function saveGithubNextProviderSetupById (
     bindings: params.bindings,
     valueMappings: params.valueMappings,
     fallback: {
-      space: params.fallback.space as Ref<Space> | undefined,
+      space: params.fallback.space,
       targetClass: params.fallback.targetClass
     }
   })
@@ -220,12 +218,14 @@ export async function upsertGithubNextIntegration (
 
 export async function disconnectGithubNextIntegration (integration: AccountIntegration): Promise<void> {
   const accountClient = getAccountClient()
-  await accountClient.deleteIntegrationSecret({
-    socialId: integration.socialId,
-    kind: integration.kind,
-    workspaceUuid: integration.workspaceUuid,
-    key: 'token'
-  }).catch(() => {})
+  await accountClient
+    .deleteIntegrationSecret({
+      socialId: integration.socialId,
+      kind: integration.kind,
+      workspaceUuid: integration.workspaceUuid,
+      key: 'token'
+    })
+    .catch(() => {})
 
   await accountClient.deleteIntegration({
     socialId: integration.socialId,

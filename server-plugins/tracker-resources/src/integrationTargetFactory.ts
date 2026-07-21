@@ -14,12 +14,11 @@
 //
 
 import core, {
+  fillDefaults,
+  generateId,
   type AttachedData,
   type Class,
   type Doc,
-  fillDefaults,
-  generateId,
-  type Markup,
   type MarkupBlobRef,
   type Ref
 } from '@hcengineering/core'
@@ -30,8 +29,8 @@ import type {
   IntegrationTargetContext,
   UpdateIntegrationTarget
 } from '@hcengineering/integration'
+import tags, { type ExpertKnowledge, type InitialKnowledge, type MeaningfullKnowledge } from '@hcengineering/tags'
 import task from '@hcengineering/task'
-import tags, { type ExpertKnowledge, type InitialKnowledge, type MeaningfullKnowledge, type TagReference } from '@hcengineering/tags'
 import { isEmptyMarkup } from '@hcengineering/text'
 import tracker, { IssuePriority, type Issue, type IssueStatus, type Project } from '@hcengineering/tracker'
 
@@ -67,7 +66,7 @@ async function uploadMarkup<T extends Doc> (
   attr: string,
   value: unknown
 ): Promise<MarkupBlobRef | null> {
-  if (typeof value !== 'string' || isEmptyMarkup(value as Markup)) {
+  if (typeof value !== 'string' || isEmptyMarkup(value)) {
     return null
   }
 
@@ -88,19 +87,13 @@ async function updateMarkup<T extends Doc> (
   value: unknown,
   current: MarkupBlobRef | null | undefined
 ): Promise<MarkupBlobRef | null | undefined> {
-  if (typeof value !== 'string' || isEmptyMarkup(value as Markup)) {
+  if (typeof value !== 'string' || isEmptyMarkup(value)) {
     return null
   }
 
   const uploader = getMarkupUploader(ctx)
   if (current !== undefined && current !== null && current !== '' && uploader.updateMarkup !== undefined) {
-    await uploader.updateMarkup(
-      targetClass as unknown as Ref<Class<Doc>>,
-      objectId as Ref<Doc>,
-      attr,
-      value,
-      'markup'
-    )
+    await uploader.updateMarkup(targetClass as unknown as Ref<Class<Doc>>, objectId as Ref<Doc>, attr, value, 'markup')
     return undefined
   }
 
@@ -112,7 +105,9 @@ function toIssueData (values: Record<string, unknown>): Partial<AttachedData<Iss
 }
 
 function getLabelTitles (value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim() !== '') : []
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+    : []
 }
 
 async function syncIssueLabels (
@@ -162,25 +157,25 @@ async function syncIssueLabels (
       })
       existingByTitle.delete(title)
     } else {
-      await ctx.client.addCollection(
-        tags.class.TagReference,
-        core.space.Workspace,
-        issueId,
-        issueClass,
-        'labels',
-        {
-          tag: tagElement._id,
-          title,
-          color: tagElement.color,
-          weight: tagWeight
-        } as Omit<TagReference, 'attachedTo' | 'attachedToClass' | 'collection' | '_id' | '_class' | 'space' | 'modifiedOn' | 'modifiedBy'>
-      )
+      await ctx.client.addCollection(tags.class.TagReference, core.space.Workspace, issueId, issueClass, 'labels', {
+        tag: tagElement._id,
+        title,
+        color: tagElement.color,
+        weight: tagWeight
+      })
     }
     weight++
   }
 
   for (const ref of existingByTitle.values()) {
-    await ctx.client.removeCollection(ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection)
+    await ctx.client.removeCollection(
+      ref._class,
+      ref.space,
+      ref._id,
+      ref.attachedTo,
+      ref.attachedToClass,
+      ref.collection
+    )
   }
 }
 
@@ -306,7 +301,7 @@ export const updateIntegrationTarget: UpdateIntegrationTarget = async (ctx, doc,
   if (update.description !== undefined) {
     const description = await updateMarkup(
       ctx,
-      issue._class as Ref<Class<Issue>>,
+      issue._class,
       issue._id,
       'description',
       update.description,
@@ -321,6 +316,6 @@ export const updateIntegrationTarget: UpdateIntegrationTarget = async (ctx, doc,
 
   await ctx.client.update(issue, update)
   if (values.labels !== undefined) {
-    await syncIssueLabels(ctx, issue._id, issue._class as Ref<Class<Issue>>, labelTitles)
+    await syncIssueLabels(ctx, issue._id, issue._class, labelTitles)
   }
 }

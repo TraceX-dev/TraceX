@@ -14,7 +14,6 @@
 //
 
 import { getClient as getAccountClient } from '@hcengineering/account-client'
-import chunter from '@hcengineering/chunter'
 import core, {
   MeasureMetricsContext,
   systemAccountUuid,
@@ -28,21 +27,25 @@ import core, {
   type TxWorkspaceEvent,
   type WorkspaceUuid
 } from '@hcengineering/core'
-import githubNext, { githubNextIntegrationKind, type GithubNextCapabilities, type GithubNextIntegrationData } from '@hcengineering/github-next'
+import githubNext, {
+  githubNextIntegrationKind,
+  type GithubNextCapabilities,
+  type GithubNextIntegrationData
+} from '@hcengineering/github-next'
 import { getPlatformQueue } from '@hcengineering/kafka'
 import { QueueTopic, type ConsumerHandle, type PlatformQueue } from '@hcengineering/server-core'
 import { generateToken } from '@hcengineering/server-token'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import config from './config'
 import {
-  listGithubRepositories,
   isGithubNextOutboundRelevantTx,
+  listGithubRepositories,
   syncGithubNextDiscussions,
   syncGithubNextOutboundDiscussions,
   syncGithubNextOutboundIssues,
   syncGithubNextWorkspace,
   validateGithubToken
 } from './index'
-import config from './config'
 import { prepare } from './init'
 
 const defaultCapabilities: GithubNextCapabilities = {
@@ -137,8 +140,9 @@ async function saveGithubNextToken (state: GithubNextAuthorizationState, token: 
     ...((existing?.data ?? {}) as Partial<GithubNextIntegrationData>),
     accountLogin: user.login,
     accountType: user.type,
-    repositories: ((existing?.data as Partial<GithubNextIntegrationData> | undefined)?.repositories) ?? [],
-    capabilities: ((existing?.data as Partial<GithubNextIntegrationData> | undefined)?.capabilities) ?? defaultCapabilities
+    repositories: (existing?.data as Partial<GithubNextIntegrationData> | undefined)?.repositories ?? [],
+    capabilities:
+      (existing?.data as Partial<GithubNextIntegrationData> | undefined)?.capabilities ?? defaultCapabilities
   }
 
   if (existing == null) {
@@ -183,13 +187,17 @@ async function handleRepositories (req: IncomingMessage, res: ServerResponse): P
     throw new Error('GitHub Next token is not available. Authorize GitHub first.')
   }
 
-  const [user, repositories] = await Promise.all([validateGithubToken(secret.secret), listGithubRepositories(secret.secret)])
+  const [user, repositories] = await Promise.all([
+    validateGithubToken(secret.secret),
+    listGithubRepositories(secret.secret)
+  ])
   const data: GithubNextIntegrationData = {
     ...((integration.data ?? {}) as Partial<GithubNextIntegrationData>),
     accountLogin: user.login,
     accountType: user.type,
-    repositories: ((integration.data as Partial<GithubNextIntegrationData> | undefined)?.repositories) ?? [],
-    capabilities: ((integration.data as Partial<GithubNextIntegrationData> | undefined)?.capabilities) ?? defaultCapabilities
+    repositories: (integration.data as Partial<GithubNextIntegrationData> | undefined)?.repositories ?? [],
+    capabilities:
+      (integration.data as Partial<GithubNextIntegrationData> | undefined)?.capabilities ?? defaultCapabilities
   }
   await accountClient.updateIntegration({ ...integration, data })
 
@@ -235,7 +243,11 @@ function startHttpServer (): { close: () => void } {
         }
         const parsedState = parseState(state)
         await saveGithubNextToken(parsedState, await requestGithubAccessToken(code))
-        textResponse(res, 200, '<html><body>GitHub authorization completed.<script>window.close()</script></body></html>')
+        textResponse(
+          res,
+          200,
+          '<html><body>GitHub authorization completed.<script>window.close()</script></body></html>'
+        )
         scheduleTick()
         enqueueOutboundWorkspace(parsedState.workspaceUuid, 'oauth')
         return
@@ -376,9 +388,7 @@ function enqueueOutboundWorkspace (workspaceUuid: WorkspaceUuid, reason: string)
 
 function isTxCUD (tx: Tx): tx is TxCUD<Doc> {
   return (
-    tx._class === core.class.TxCreateDoc ||
-    tx._class === core.class.TxUpdateDoc ||
-    tx._class === core.class.TxRemoveDoc
+    tx._class === core.class.TxCreateDoc || tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxRemoveDoc
   )
 }
 
@@ -392,8 +402,7 @@ function isTxWorkspaceEvent (tx: Tx): tx is TxWorkspaceEvent {
 
 function isIgnoredGithubNextInternalClass (objectClass: Ref<Class<Doc>>): boolean {
   return (
-    objectClass === githubNext.class.GithubNextObjectSyncState ||
-    objectClass === githubNext.class.GithubNextRepository
+    objectClass === githubNext.class.GithubNextObjectSyncState || objectClass === githubNext.class.GithubNextRepository
   )
 }
 
@@ -419,8 +428,10 @@ async function drainOutboundQueue (reason: string): Promise<void> {
   const ctx = new MeasureMetricsContext(config.ServiceID, {})
 
   try {
-    while (outboundWorkspaces.size > 0 && !stopped) {
-      const workspaceUuid = outboundWorkspaces.values().next().value as WorkspaceUuid | undefined
+    while (outboundWorkspaces.size > 0) {
+      if (stopped) break
+
+      const workspaceUuid = outboundWorkspaces.values().next().value
       if (workspaceUuid === undefined) break
       outboundWorkspaces.delete(workspaceUuid)
       if (inboundWorkspaces.has(workspaceUuid)) {
@@ -443,7 +454,7 @@ async function drainOutboundQueue (reason: string): Promise<void> {
   } finally {
     outboundRunning = false
     if (outboundWorkspaces.size > 0 && !stopped) {
-      const nextWorkspace = outboundWorkspaces.values().next().value as WorkspaceUuid | undefined
+      const nextWorkspace = outboundWorkspaces.values().next().value
       if (nextWorkspace !== undefined) enqueueOutboundWorkspace(nextWorkspace, 'drain')
     }
   }

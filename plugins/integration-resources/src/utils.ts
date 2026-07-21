@@ -18,7 +18,6 @@ import core, {
   type Class,
   type Client,
   type Doc,
-  type Enum,
   type EnumOf,
   type Ref,
   type RefTo,
@@ -28,9 +27,9 @@ import core, {
 } from '@hcengineering/core'
 import integration, {
   type IntegrationAttributeSlotModel,
-  type IntegrationValueOption,
   type IntegrationSlotModel,
-  type IntegrationTargetFactory
+  type IntegrationTargetFactory,
+  type IntegrationValueOption
 } from '@hcengineering/integration'
 import { getEmbeddedLabel, getResource, type IntlString } from '@hcengineering/platform'
 import presentation from '@hcengineering/presentation'
@@ -62,7 +61,10 @@ function isAttributeSlot (slot: IntegrationSlotModel): slot is IntegrationAttrib
 
 function isStatusRefAttribute (client: Client, attr: AnyAttribute): boolean {
   try {
-    return attr.type._class === core.class.RefTo && client.getHierarchy().isDerived((attr.type as RefTo<Status>).to, core.class.Status)
+    return (
+      attr.type._class === core.class.RefTo &&
+      client.getHierarchy().isDerived((attr.type as RefTo<Status>).to, core.class.Status)
+    )
   } catch (e) {
     return false
   }
@@ -80,7 +82,9 @@ export function isTypeEqual (
   const attrRef = getTypeReference(attrType)
   if (slotRef !== undefined || attrRef !== undefined) {
     if (slotType._class === core.class.RefTo && typeof slotRef === 'string' && typeof attrRef === 'string') {
-      return attrRef === slotRef || client.getHierarchy().isDerived(attrRef as Ref<Class<Doc>>, slotRef as Ref<Class<Doc>>)
+      return (
+        attrRef === slotRef || client.getHierarchy().isDerived(attrRef as Ref<Class<Doc>>, slotRef as Ref<Class<Doc>>)
+      )
     }
     return slotRef === attrRef
   }
@@ -196,7 +200,9 @@ export function getPossibleAttributes (
     .filter((attr) => {
       if (attr.hidden ?? false) return false
       if (getSlotTypes(slot).some((slotType) => isTypeEqual(client, slotType, attr.type))) return true
-      return (slot.values?.length ?? 0) > 0 && (attr.type._class === core.class.EnumOf || isStatusRefAttribute(client, attr))
+      return (
+        (slot.values?.length ?? 0) > 0 && (attr.type._class === core.class.EnumOf || isStatusRefAttribute(client, attr))
+      )
     })
     .map((attr) => ({
       id: attr.name,
@@ -216,7 +222,7 @@ export function getTargetAttributeValueOptions (
   const attr = allAttrs.get(attributeName)
   if (attr?.type._class === core.class.EnumOf) {
     const enumId = (attr.type as EnumOf).of
-    const enumDoc = client.getModel().findObject(enumId) as Enum | undefined
+    const enumDoc = client.getModel().findObject(enumId)
     return (
       enumDoc?.enumValues.map((value) => ({
         value,
@@ -227,10 +233,13 @@ export function getTargetAttributeValueOptions (
 
   if (attr !== undefined && isStatusRefAttribute(client, attr)) {
     const statusClass = (attr.type as RefTo<Status>).to
-    return client.getModel().findAllSync<Status>(statusClass, { ofAttribute: attr._id }).map((status) => ({
-      value: status._id,
-      label: getEmbeddedLabel(status.name)
-    }))
+    return client
+      .getModel()
+      .findAllSync<Status>(statusClass, { ofAttribute: attr._id })
+      .map((status) => ({
+        value: status._id,
+        label: getEmbeddedLabel(status.name)
+      }))
   }
 
   return []
@@ -238,9 +247,9 @@ export function getTargetAttributeValueOptions (
 
 export function getPossibleClasses (client: Client, slot: IntegrationSlotModel): IntegrationSelectOption[] {
   const hierarchy = client.getHierarchy()
-  let descendants: Ref<Class<Doc>>[] = []
+  let descendants: Array<Ref<Class<Doc>>> = []
   try {
-    descendants = hierarchy.getDescendants(core.class.Obj) as Ref<Class<Doc>>[]
+    descendants = hierarchy.getDescendants(core.class.Obj) as Array<Ref<Class<Doc>>>
   } catch (e) {}
 
   return descendants
@@ -267,15 +276,15 @@ export function getBindingLabel (
   allAttrs: Map<string, AnyAttribute>,
   bindings: Record<string, string>,
   id: string
-): IntlString | string {
+): IntlString {
   const value = bindings[id]
   if (value === undefined) return presentation.string.NotSelected
 
   const attr = Array.from(allAttrs.values()).find((a) => a.name === value)
-  if (attr !== undefined) return attr.label ?? attr.name
+  if (attr !== undefined) return attr.label ?? getEmbeddedLabel(attr.name)
 
   const cls = client.getModel().findObject(value as Ref<Class<Doc>>)
-  if (isClassLike(client, cls)) return cls?.label ?? value
+  if (isClassLike(client, cls)) return cls?.label ?? getEmbeddedLabel(value)
 
-  return value
+  return getEmbeddedLabel(value)
 }

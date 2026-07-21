@@ -111,8 +111,8 @@ export function createIntegrationFixtureRoutingPolicy (
 export function createIntegrationFixtureTargetFactory (
   targetClass: Ref<Class<Doc>>,
   factory: Pick<
-    IntegrationTargetFactory,
-    'create' | 'update' | 'canCreate' | 'getAllowedSpaceClasses' | 'getCommentBackend'
+  IntegrationTargetFactory,
+  'create' | 'update' | 'canCreate' | 'getAllowedSpaceClasses' | 'getCommentBackend'
   >
 ): IntegrationTargetFactory {
   return createIntegrationFixtureDoc(integration.class.IntegrationTargetFactory, {
