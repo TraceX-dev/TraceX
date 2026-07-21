@@ -88,6 +88,11 @@ export class TransientMiddleware extends BaseMiddleware implements Middleware {
     }
 
     if (docsToRemove.length > 0) {
+      // Drop the expired entries from the map so they are not reprocessed and
+      // re-broadcast on every tick (and the map cannot grow unbounded).
+      for (const id of docsToRemove) {
+        this.ttlObjectMap.delete(id)
+      }
       const f = new TxFactory(core.account.System)
       const docs = await this.dbProvider.load(this.ctx, DOMAIN_TRANSIENT, docsToRemove)
       // We need to remove all of this docs
@@ -100,11 +105,19 @@ export class TransientMiddleware extends BaseMiddleware implements Middleware {
     }
   })
 
+  override async close (): Promise<void> {
+    if (this.ttlChecker !== undefined) {
+      clearInterval(this.ttlChecker)
+      this.ttlChecker = undefined
+    }
+    await super.close()
+  }
+
   tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
     for (const tx of txes.filter((it) => TxProcessor.isExtendsCUD(it._class)) as TxCUD<Doc>[]) {
       const ttl = this.ttlValues.get(tx.objectClass)
       if (ttl !== undefined && this.context.hierarchy.findDomain(tx.objectClass) === DOMAIN_TRANSIENT) {
-        if (tx.objectClass === core.class.TxRemoveDoc) {
+        if (tx._class === core.class.TxRemoveDoc) {
           // ok we have operation against our TTL object.
           this.ttlObjectMap.delete(tx.objectId)
         } else {

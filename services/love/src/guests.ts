@@ -47,11 +47,15 @@ export class GuestManager {
     }
 
     const workspaceUrl = wsLoginInfo.workspaceUrl ?? ''
+    // Sign the guest platform token with the platform SECRET (not the LiveKit API secret),
+    // so it validates against the transactor for read-only guest access. Using ApiSecret
+    // here would only work if operators set LIVEKIT_API_SECRET === SECRET, dangerously
+    // conflating the two secrets.
     const guestToken = generateToken(
       readOnlyGuestAccountUuid,
       wsLoginInfo.workspace,
       { meetingId, workspaceUrl },
-      config.ApiSecret
+      config.Secret
     )
 
     return guestToken
@@ -68,7 +72,7 @@ export class GuestManager {
     try {
       let decoded: Token
       try {
-        decoded = decodeToken(guestToken, true, config.ApiSecret)
+        decoded = decodeToken(guestToken, true, config.Secret)
       } catch (err) {
         res.status(401).send({ error: 'Invalid or expired token' })
         return
@@ -127,7 +131,7 @@ export class GuestManager {
       // Validate guest token and extract meeting + workspace
       let decoded: Token
       try {
-        decoded = decodeToken(guestToken, true, config.ApiSecret)
+        decoded = decodeToken(guestToken, true, config.Secret)
       } catch (err) {
         res.status(401).send({ error: 'Invalid or expired token' })
         return

@@ -152,6 +152,19 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
     return getAccountClientRaw(accountsUrl, token)
   }
 
+  // The direct create/update/remove/mixin operations below build their client with
+  // `wrapPipeline(..., true)`, which runs as the system account and therefore bypasses
+  // space-membership, role and read-only checks. They must only be reachable by trusted
+  // system/service accounts. Regular clients must go through `/api/v1/tx`, which is
+  // executed via the permission-checked `session.txRaw` path.
+  function ensureSystemAccount (session: Session, res: ExpressResponse): boolean {
+    if (session.getUser() !== systemAccountUuid) {
+      sendError(res, 403, { message: 'Forbidden: system account required for direct operations' })
+      return false
+    }
+    return true
+  }
+
   async function withSession (
     req: Request,
     res: ExpressResponse,
@@ -312,6 +325,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
 
   app.post('/api/v1/create/:workspaceId', (req, res) => {
     void withSession(req, res, 'v1-create', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
       const request: {
         _class: Ref<Class<any>>
         space: Ref<Space>
@@ -343,6 +357,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
 
   app.post('/api/v1/addCollection/:workspaceId', (req, res) => {
     void withSession(req, res, 'v1-addCollection', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
       const request: {
         _class: Ref<Class<any>>
         space: Ref<Space>
@@ -380,6 +395,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
 
   app.post('/api/v1/update/:workspaceId', (req, res) => {
     void withSession(req, res, 'v1-update', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
       const request: {
         _class: Ref<Class<any>>
         _id: Ref<any>
@@ -429,6 +445,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
 
   app.post('/api/v1/createMixin/:workspaceId', (req, res) => {
     void withSession(req, res, 'v1-create', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
       const request: {
         objectId: Ref<Doc>
         objectClass: Ref<Class<Doc>>
@@ -461,6 +478,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
   })
   app.post('/api/v1/updateMixin/:workspaceId', (req, res) => {
     void withSession(req, res, 'v1-create', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
       const request: {
         objectId: Ref<Doc>
         objectClass: Ref<Class<Doc>>
@@ -494,6 +512,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
 
   app.post('/api/v1/remove/:workspaceId', (req, res) => {
     void withSession(req, res, 'v1-create', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
       const request: {
         _class: Ref<Class<any>>
         _id: Ref<any>
