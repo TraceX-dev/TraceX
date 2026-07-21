@@ -2001,7 +2001,7 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/hulylake-client
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/kvs-client':
         specifier: workspace:^0.7.0
@@ -31479,7 +31479,7 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/hulylake-client
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/middleware':
         specifier: workspace:^0.7.21
@@ -31736,7 +31736,7 @@ importers:
         specifier: workspace:^0.7.0
         version: link:../../plugins/drive
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
@@ -31963,7 +31963,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/middleware':
         specifier: workspace:^0.7.21
@@ -32238,7 +32238,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/model-all':
         specifier: workspace:^0.7.0
@@ -33015,7 +33015,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
@@ -33849,7 +33849,7 @@ importers:
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
       '@hcengineering/rank':
-        specifier: workspace:^0.7.0
+        specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/rank
       '@hcengineering/server-core':
         specifier: workspace:^0.7.19
@@ -37474,7 +37474,7 @@ importers:
         specifier: workspace:^0.7.0
         version: link:../../plugins/inventory-assets
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/lead':
         specifier: workspace:^0.7.0
@@ -38167,7 +38167,7 @@ importers:
         specifier: workspace:^0.7.0
         version: link:../../../plugins/drive
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/love':
         specifier: workspace:^0.7.0
@@ -38850,7 +38850,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/love':
         specifier: workspace:^0.7.0
@@ -38953,7 +38953,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
@@ -39306,7 +39306,7 @@ importers:
         specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/platform':
-        specifier: workspace:^0.7.21
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
       '@hcengineering/server-card-resources':
         specifier: workspace:^0.7.0
@@ -40506,7 +40506,7 @@ importers:
         specifier: workspace:^0.7.0
         version: link:../../../packages/integration-client
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/kvs-client':
         specifier: workspace:^0.7.0
@@ -40817,7 +40817,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/kvs-client':
         specifier: workspace:^0.7.0
@@ -41056,7 +41056,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/kvs-client':
         specifier: workspace:^0.7.0
@@ -41201,7 +41201,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/notification':
         specifier: workspace:^0.7.0
@@ -41676,7 +41676,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
@@ -41900,7 +41900,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/middleware':
         specifier: workspace:^0.7.21
@@ -42326,7 +42326,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
       '@hcengineering/mongo':
         specifier: workspace:^0.7.16
@@ -42646,7 +42646,7 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/hulylake-client
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
@@ -42737,7 +42737,7 @@ importers:
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
       '@hcengineering/kafka':
-        specifier: workspace:^0.7.18
+        specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
       '@hcengineering/process':
         specifier: workspace:^0.7.0
