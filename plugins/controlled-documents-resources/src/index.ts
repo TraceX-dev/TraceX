@@ -36,6 +36,7 @@ import { showPopup } from '@hcengineering/ui'
 import { getCurrentEmployee } from '@hcengineering/contact'
 
 import CreateDocument from './components/CreateDocument.svelte'
+import { exportDocumentToWord, importWordIntoDocument } from './docxActions'
 import DeleteCategoryPopup from './components/category/popups/DeleteCategoryPopup.svelte'
 import QmsDocumentWizard from './components/create-doc/QmsDocumentWizard.svelte'
 import QmsTemplateWizard from './components/create-doc/QmsTemplateWizard.svelte'
@@ -463,7 +464,9 @@ export default async (): Promise<Resources> => ({
     ArchiveDocument: archiveDocuments,
     MakeDocumentObsolete: makeDocumentObsolete,
     TransferDocument: transferDocuments,
-    EditDocSpace: editDocSpace
+    EditDocSpace: editDocSpace,
+    ExportToWord: exportDocumentToWord,
+    ImportFromWord: importWordIntoDocument
   },
   resolver: {
     Location: resolveLocation

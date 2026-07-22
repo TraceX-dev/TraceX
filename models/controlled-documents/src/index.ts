@@ -517,6 +517,34 @@ export function createModel (builder: Builder): void {
   createAction<Document>(
     builder,
     {
+      action: documents.actionImpl.ExportToWord,
+      label: documentsPlugin.string.ExportToWord,
+      icon: documents.icon.Document,
+      category: view.category.General,
+      input: 'focus',
+      target: documents.class.ControlledDocument,
+      context: { mode: ['context'], group: 'tools' }
+    },
+    documentsPlugin.action.ExportToWord
+  )
+
+  createAction<Document>(
+    builder,
+    {
+      action: documents.actionImpl.ImportFromWord,
+      label: documentsPlugin.string.ImportFromWord,
+      icon: documents.icon.Document,
+      category: view.category.General,
+      input: 'focus',
+      target: documents.class.ControlledDocument,
+      context: { mode: ['context'], group: 'tools' }
+    },
+    documentsPlugin.action.ImportFromWord
+  )
+
+  createAction<Document>(
+    builder,
+    {
       action: documents.actionImpl.CreateChildDocument,
       label: documentsPlugin.string.CreateChildDocument,
       icon: documents.icon.NewDocument,

@@ -1,9 +1,9 @@
 //
-// Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
-// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// Licensed under the PolyForm Shield License 1.0.0 (the "License");
 // you may not use this file except in compliance with the License. You may
-// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+// obtain a copy of the License at https://polyformproject.org/licenses/shield/1.0.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -44,7 +44,11 @@ function authHeaders (): Record<string, string> {
 }
 
 /** Export a document's body to a .docx file and trigger a browser download. */
-export async function exportDocumentToWord (doc: ControlledDocument): Promise<void> {
+export async function exportDocumentToWord (obj: ControlledDocument | ControlledDocument[]): Promise<void> {
+  const doc = Array.isArray(obj) ? obj[0] : obj
+  if (doc === undefined) {
+    return
+  }
   const response = await fetch(`${getExportBaseUrl()}/document-to-docx`, {
     method: 'POST',
     headers: authHeaders(),
@@ -63,7 +67,11 @@ export async function exportDocumentToWord (doc: ControlledDocument): Promise<vo
 }
 
 /** Import an edited .docx: convert, preview the diff, and on confirm write it back. */
-export async function importWordIntoDocument (doc: ControlledDocument): Promise<void> {
+export async function importWordIntoDocument (obj: ControlledDocument | ControlledDocument[]): Promise<void> {
+  const doc = Array.isArray(obj) ? obj[0] : obj
+  if (doc === undefined) {
+    return
+  }
   const file = await pickFile('.docx')
   if (file === undefined) {
     return

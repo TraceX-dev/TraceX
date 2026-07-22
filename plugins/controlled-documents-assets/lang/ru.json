@@ -1,5 +1,7 @@
 {
   "string": {
+    "ExportToWord": "Экспорт в Word",
+    "ImportFromWord": "Импорт из Word",
     "ID": "ID",
     "Code": "Код",
     "Number": "Номер",
