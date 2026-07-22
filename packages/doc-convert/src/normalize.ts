@@ -39,9 +39,7 @@ function normalizeNode (node: MarkupNode): MarkupNode | undefined {
     return node
   }
 
-  const content = node.content
-    .map(normalizeNode)
-    .filter((child): child is MarkupNode => child !== undefined)
+  const content = node.content.map(normalizeNode).filter((child): child is MarkupNode => child !== undefined)
 
   while (content.length > 0) {
     const last = content[content.length - 1]

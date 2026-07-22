@@ -107,8 +107,8 @@ async function applyImportedContent (doc: ControlledDocument, markup: MarkupNode
   await client.updateDoc(doc._class, doc.space, doc._id, { content: blobId })
 }
 
-function pickFile (accept: string): Promise<File | undefined> {
-  return new Promise((resolve) => {
+async function pickFile (accept: string): Promise<File | undefined> {
+  return await new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = accept

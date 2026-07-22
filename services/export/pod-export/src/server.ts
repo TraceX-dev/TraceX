@@ -449,7 +449,7 @@ export function createServer (
       const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
       const markup =
         contentRef != null
-          ? (await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup
+          ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
           : emptyMarkup
 
       const buffer = await markupToDocx(markup)
@@ -457,10 +457,7 @@ export function createServer (
       const title = (doc as unknown as { title?: string }).title ?? 'document'
       const fileName = `${sanitizeSpaceFileName(title)}.docx`
 
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      )
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
       res.end(buffer)
     })
@@ -469,11 +466,7 @@ export function createServer (
   app.post(
     '/docx-diff',
     wrapRequest(async (req, res, wsIds, token, socialId) => {
-      const {
-        blobId,
-        _class,
-        _id
-      }: { blobId?: Ref<Blob>, _class?: Ref<Class<Doc>>, _id?: Ref<Doc> } = req.body
+      const { blobId, _class, _id }: { blobId?: Ref<Blob>, _class?: Ref<Class<Doc>>, _id?: Ref<Doc> } = req.body
       if (blobId == null || _class == null || _id == null) {
         throw new ApiError(400, 'Missing required parameters: blobId, _class, _id')
       }
@@ -499,7 +492,7 @@ export function createServer (
       const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
       const currentMarkup =
         contentRef != null
-          ? (await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup
+          ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
           : emptyMarkup
 
       const current: MarkupNode = markupToJSON(currentMarkup)

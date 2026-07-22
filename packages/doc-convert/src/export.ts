@@ -14,7 +14,13 @@
 //
 
 import { type Markup } from '@hcengineering/core'
-import { markupToJSON, MarkupMarkType, type MarkupMark, type MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
+import {
+  markupToJSON,
+  MarkupMarkType,
+  type MarkupMark,
+  type MarkupNode,
+  MarkupNodeType
+} from '@hcengineering/text-core'
 import {
   AlignmentType,
   Document,
