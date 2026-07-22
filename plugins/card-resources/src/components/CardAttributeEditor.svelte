@@ -18,9 +18,9 @@
   import { getClient } from '@hcengineering/presentation'
   import { Button, Grid, IconDownOutline, IconUpOutline, resizeObserver } from '@hcengineering/ui'
   import card from '../plugin'
+  import { viewStore } from '../utils'
   import MasterTagAttributes from './MasterTagAttributes.svelte'
   import TagAttributes from './TagAttributes.svelte'
-  import { viewStore } from '../utils'
 
   export let value: Card
   export let readonly: boolean = false

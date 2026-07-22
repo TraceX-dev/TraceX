@@ -176,6 +176,8 @@
     "@hcengineering/time-resources": "workspace:^0.7.0",
     "@hcengineering/github": "workspace:^0.7.0",
     "@hcengineering/github-assets": "workspace:^0.7.0",
+    "@hcengineering/github-next": "workspace:^0.7.0",
+    "@hcengineering/github-next-resources": "workspace:^0.7.0",
     "@hcengineering/github-resources": "workspace:^0.7.0",
     "@hcengineering/desktop-preferences": "workspace:^0.7.0",
     "@hcengineering/desktop-preferences-assets": "workspace:^0.7.0",

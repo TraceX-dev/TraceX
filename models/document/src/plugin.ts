@@ -17,6 +17,7 @@ import type { Doc, Ref } from '@hcengineering/core'
 import {} from '@hcengineering/core'
 import { documentId } from '@hcengineering/document'
 import document from '@hcengineering/document-resources/src/plugin'
+import type { IntegrationTargetFactory } from '@hcengineering/integration'
 import { type ObjectSearchCategory, type ObjectSearchFactory } from '@hcengineering/model-presentation'
 import { type IntlString, mergeIds, type Resource } from '@hcengineering/platform'
 import { type TagCategory } from '@hcengineering/tags'
@@ -64,6 +65,9 @@ export default mergeIds(documentId, document, {
   ids: {
     ModulePermissionGroup: '' as Ref<Doc>,
     ModulePermissionGroupReadOnlyGuest: '' as Ref<Doc>
+  },
+  integration: {
+    TargetFactory: '' as Ref<IntegrationTargetFactory>
   },
   string: {
     ConfigDescription: '' as IntlString,

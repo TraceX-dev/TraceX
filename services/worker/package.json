@@ -54,7 +54,7 @@
     "@hcengineering/server-process": "workspace:^0.7.0"
   },
   "dependencies": {
-    "@hcengineering/kafka": "workspace:^0.7.18",
+    "@hcengineering/kafka": "workspace:^0.7.20",
     "@hcengineering/process": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/server-core": "workspace:^0.7.19",

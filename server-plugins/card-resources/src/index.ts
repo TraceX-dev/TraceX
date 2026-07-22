@@ -63,6 +63,13 @@ import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import setting from '@hcengineering/setting'
 import view, { type BuildModelKey, type Viewlet } from '@hcengineering/view'
 import { workbenchId } from '@hcengineering/workbench'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getCommentBackend,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
 
 type ViewletConfigItem = BuildModelKey | string
 interface IndexedViewletConfigItem {
@@ -1043,7 +1050,12 @@ export async function CardHTMLPresenter (doc: Doc, control: TriggerControl): Pro
 export default async () => ({
   function: {
     CardTextPresenter,
-    CardHTMLPresenter
+    CardHTMLPresenter,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses,
+    GetIntegrationTargetCommentBackend: getCommentBackend
   },
   trigger: {
     OnAttribute,

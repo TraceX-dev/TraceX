@@ -175,8 +175,7 @@ export default async () => {
           return txes
         }
 
-        const client = createClient(handler, modelFilter, createModelPersistence(getWSFromToken(token)), opt?.ctx)
-        return await client
+        return await createClient(handler, modelFilter, createModelPersistence(getWSFromToken(token)), opt?.ctx)
       }
     }
   }

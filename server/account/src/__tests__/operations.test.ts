@@ -22,6 +22,8 @@ import {
   type PersonUuid,
   type WorkspaceUuid,
   type AccountUuid,
+  systemAccount,
+  systemAccountEmail,
   systemAccountUuid
 } from '@hcengineering/core'
 import platform, { PlatformError, Status, Severity, getMetadata } from '@hcengineering/platform'
@@ -560,6 +562,37 @@ describe('account operations', () => {
         }
         return undefined
       })
+    })
+
+    test('should return system social id for system account token', async () => {
+      const mockWorkspace = {
+        uuid: 'workspace-uuid' as WorkspaceUuid,
+        name: 'Test Workspace',
+        url: 'test-workspace',
+        region: 'eu'
+      }
+
+      ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+        account: systemAccountUuid,
+        workspace: mockWorkspace.uuid,
+        extra: {}
+      })
+      ;(mockDb.workspace.findOne as jest.Mock).mockResolvedValue(mockWorkspace)
+
+      const result = await getLoginInfoByToken(mockCtx, mockDb, mockBranding, mockToken)
+
+      expect(result).toEqual({
+        account: systemAccountUuid,
+        name: 'System User',
+        socialId: systemAccount.primarySocialId,
+        token: expect.any(String),
+        workspace: mockWorkspace.uuid,
+        workspaceUrl: mockWorkspace.url,
+        endpoint: expect.any(String),
+        role: AccountRole.Owner
+      })
+      expect(mockDb.socialId.find).not.toHaveBeenCalled()
+      expect(mockDb.person.findOne).not.toHaveBeenCalled()
     })
 
     describe('endpoint selection', () => {
@@ -2834,6 +2867,29 @@ describe('account operations', () => {
         })
 
         expect(result).toEqual([mockSocialIds[0]])
+      })
+
+      test('should return system social id for system account', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: systemAccountUuid
+        })
+
+        const result = await getSocialIds(mockCtx, mockDb, mockBranding, mockToken, {
+          confirmed: true,
+          includeDeleted: false
+        })
+
+        expect(result).toEqual([
+          {
+            _id: systemAccount.primarySocialId,
+            personUuid: systemAccountUuid,
+            type: SocialIdType.HULY,
+            value: systemAccountEmail,
+            key: `huly:${systemAccountEmail}`,
+            verifiedOn: 1
+          }
+        ])
+        expect(mockDb.socialId.find).not.toHaveBeenCalled()
       })
 
       test('should fail when requesting unconfirmed social ids', async () => {
