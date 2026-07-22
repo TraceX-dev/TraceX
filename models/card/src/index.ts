@@ -54,6 +54,7 @@ import core, {
   type Ref,
   SortingOrder
 } from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import {
   ArrOf,
   type Builder,
@@ -601,6 +602,20 @@ export function createModel (builder: Builder): void {
       component: card.component.Main
     }
   })
+
+  builder.createDoc(
+    integration.class.IntegrationTargetFactory,
+    core.space.Model,
+    {
+      targetClass: card.class.Card,
+      create: card.function.CreateIntegrationTarget,
+      update: card.function.UpdateIntegrationTarget,
+      canCreate: card.function.CanCreateIntegrationTarget,
+      getAllowedSpaceClasses: card.function.GetIntegrationTargetAllowedSpaceClasses,
+      getCommentBackend: card.function.GetIntegrationTargetCommentBackend
+    },
+    card.integration.TargetFactory
+  )
 
   builder.createDoc(
     workbench.class.Application,

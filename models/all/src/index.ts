@@ -30,6 +30,7 @@ import { desktopDownloadsId, createModel as desktopDownloadsModel } from '@hceng
 import { desktopPreferencesId, createModel as desktopPreferencesModel } from '@hcengineering/model-desktop-preferences'
 import { driveId, createModel as driveModel } from '@hcengineering/model-drive'
 import gmail, { gmailId, createModel as gmailModel } from '@hcengineering/model-gmail'
+import { integrationId, createModel as integrationModel } from '@hcengineering/model-integration'
 import { guestId, createModel as guestModel } from '@hcengineering/model-guest'
 import hr, { hrId, createModel as hrModel } from '@hcengineering/model-hr'
 import inventory, { inventoryId, createModel as inventoryModel } from '@hcengineering/model-inventory'
@@ -88,6 +89,7 @@ import document, { documentId, createModel as documentModel } from '@hcengineeri
 import { serverDocumentId, createModel as serverDocumentModel } from '@hcengineering/model-server-document'
 
 import github, { githubId, createModel as githubModel } from '@hcengineering/model-github'
+import { githubNextId, createModel as githubNextModel } from '@hcengineering/model-github-next'
 import { serverGithubId, createModel as serverGithubModel } from '@hcengineering/server-github-model'
 
 import { analyticsCollectorId, createModel as analyticsCollectorModel } from '@hcengineering/model-analytics-collector'
@@ -176,6 +178,8 @@ export default function buildModel (): Builder {
     [tagsModel, tagsId],
     [viewModel, viewId],
     [workbenchModel, workbenchId],
+    [integrationModel, integrationId],
+    [githubNextModel, githubNextId],
     [
       cardModel,
       cardId,

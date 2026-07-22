@@ -18,6 +18,7 @@ import { type Card, cardId } from '@hcengineering/card'
 import card from '@hcengineering/card-resources/src/plugin'
 import type { Client, Doc, DocumentQuery, Ref } from '@hcengineering/core'
 import {} from '@hcengineering/core'
+import type { IntegrationTargetFactory } from '@hcengineering/integration'
 import { mergeIds, type Resource } from '@hcengineering/platform'
 import { type TagCategory } from '@hcengineering/tags'
 import { type Location, type ResolvedLocation } from '@hcengineering/ui/src/types'
@@ -59,6 +60,9 @@ export default mergeIds(cardId, card, {
     CardCreateNotification: '' as Ref<NotificationType>,
     CardNotification: '' as Ref<NotificationType>,
     CardMessageNotification: '' as Ref<NotificationType>
+  },
+  integration: {
+    TargetFactory: '' as Ref<IntegrationTargetFactory>
   },
   resolver: {
     Location: '' as Resource<(loc: Location) => Promise<ResolvedLocation | undefined>>,

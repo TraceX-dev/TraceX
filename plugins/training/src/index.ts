@@ -20,9 +20,12 @@ import {
   type TrainingRequest,
   type TrainingAttempt,
   type TrainingAttemptState,
+  type TrainingDeadlineEvent,
+  type TrainingReminderSettings,
   TrainingState
 } from './types'
 import type { AnyComponent } from '@hcengineering/ui/src/types'
+import { type NotificationType } from '@hcengineering/notification'
 
 /** @public */
 export const trainingId = 'training' as Plugin
@@ -37,6 +40,7 @@ export default plugin(trainingId, {
     Canceled: '' as IntlString,
     ChangeOwner: '' as IntlString,
     Completed: '' as IntlString,
+    ConfirmSendReminder: '' as IntlString,
     CreateNewVersion: '' as IntlString,
     Duplicate: '' as IntlString,
     IncomingRequestStateCanceled: '' as IntlString,
@@ -54,6 +58,8 @@ export default plugin(trainingId, {
     Permission_CreateRequestOnSomeoneElsesTraining_Description: '' as IntlString,
     Permission_CreateTraining: '' as IntlString,
     Permission_CreateTraining_Description: '' as IntlString,
+    Permission_SendTrainingRequestReminder: '' as IntlString,
+    Permission_SendTrainingRequestReminder_Description: '' as IntlString,
     Permission_ViewSomeoneElsesSentRequest: '' as IntlString,
     Permission_ViewSomeoneElsesSentRequest_Description: '' as IntlString,
     Permission_ViewSomeoneElsesTraineesResults: '' as IntlString,
@@ -62,7 +68,9 @@ export default plugin(trainingId, {
     Permission_ViewSomeoneElsesTrainingOverview_Description: '' as IntlString,
     Permission_ViewSomeoneElsesTrainingQuestions: '' as IntlString,
     Permission_ViewSomeoneElsesTrainingQuestions_Description: '' as IntlString,
+    ReminderSent: '' as IntlString,
     Revision: '' as IntlString,
+    SendReminder: '' as IntlString,
     SentYouATrainingRequest: '' as IntlString,
     State: '' as IntlString,
     Training: '' as IntlString,
@@ -82,6 +90,8 @@ export default plugin(trainingId, {
     TrainingAuthor: '' as IntlString,
     TrainingCreate: '' as IntlString,
     TrainingCreated: '' as IntlString,
+    TrainingDeadlineReminder: '' as IntlString,
+    TrainingDeadlineReminderMessage: '' as IntlString,
     TrainingDocuments: '' as IntlString,
     TrainingOverview: '' as IntlString,
     TrainingPassingScore: '' as IntlString,
@@ -90,6 +100,8 @@ export default plugin(trainingId, {
     TrainingRelease: '' as IntlString,
     TrainingReleasedBy: '' as IntlString,
     TrainingReleasedOn: '' as IntlString,
+    TrainingReminderOffsetsDays: '' as IntlString,
+    TrainingRemindersEnabled: '' as IntlString,
     TrainingRequest: '' as IntlString,
     TrainingRequestAssign: '' as IntlString,
     TrainingRequestAttempt: '' as IntlString,
@@ -155,6 +167,7 @@ export default plugin(trainingId, {
     Training: '' as Ref<Class<Training>>,
     TrainingRequest: '' as Ref<Class<TrainingRequest>>,
     TrainingAttempt: '' as Ref<Class<TrainingAttempt>>,
+    TrainingDeadlineEvent: '' as Ref<Class<TrainingDeadlineEvent>>,
     TypeTrainingAttemptState: '' as Ref<Class<Type<TrainingAttemptState>>>,
     TypeTrainingState: '' as Ref<Class<Type<TrainingState>>>
   },
@@ -163,13 +176,15 @@ export default plugin(trainingId, {
     ChangeSomeoneElsesTrainingOwner: '' as Ref<Class<Permission>>,
     CreateRequestOnSomeoneElsesTraining: '' as Ref<Class<Permission>>,
     CreateTraining: '' as Ref<Class<Permission>>,
+    SendTrainingRequestReminder: '' as Ref<Class<Permission>>,
     ViewSomeoneElsesSentRequest: '' as Ref<Class<Permission>>,
     ViewSomeoneElsesTraineesResults: '' as Ref<Class<Permission>>,
     ViewSomeoneElsesTrainingOverview: '' as Ref<Class<Permission>>,
     ViewSomeoneElsesTrainingQuestions: '' as Ref<Class<Permission>>
   },
   mixin: {
-    TrainingsTypeData: '' as Ref<Mixin<TypedSpace>>
+    TrainingsTypeData: '' as Ref<Mixin<TypedSpace>>,
+    TrainingReminderSettings: '' as Ref<Mixin<TrainingReminderSettings>>
   },
   space: {
     Trainings: '' as Ref<TypedSpace>
@@ -190,5 +205,9 @@ export default plugin(trainingId, {
   },
   setting: {
     Trainings: '' as Ref<Doc>
+  },
+  ids: {
+    // Declared on the runtime plugin (not the model) so the events-processor worker can reference it.
+    TrainingDeadlineReminder: '' as Ref<NotificationType>
   }
 })

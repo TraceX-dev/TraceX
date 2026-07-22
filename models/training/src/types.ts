@@ -21,9 +21,13 @@ import {
   type Training,
   type TrainingAttempt,
   TrainingAttemptState,
+  type TrainingDeadlineEvent,
+  type TrainingReminderSettings,
   type TrainingRequest,
   TrainingState
 } from '@hcengineering/training'
+import calendar from '@hcengineering/calendar'
+import { TEvent } from '@hcengineering/model-calendar'
 import contact, { type Employee } from '@hcengineering/contact'
 import core, {
   type Class,
@@ -47,6 +51,7 @@ import {
   Mixin,
   Model,
   Prop,
+  TypeBoolean,
   TypeMarkup,
   TypeNumber,
   TypeRef,
@@ -263,4 +268,35 @@ export class TTrainingAttempt extends TAttachedDoc implements TrainingAttempt {
 @UX(getEmbeddedLabel('Default Trainings'), training.icon.TrainingApplication)
 export class TTrainingsTypeData extends TTypedSpace implements RolesAssignment {
   [key: Ref<Role>]: AccountUuid[]
+}
+
+/**
+ * Per-space configuration for training deadline reminders.
+ * Kept as its own mixin (rather than a field on {@link TTrainingsTypeData}, whose `RolesAssignment`
+ * index signature forbids non-`AccountUuid[]` fields).
+ */
+@Mixin(training.mixin.TrainingReminderSettings, core.class.TypedSpace)
+@UX(getEmbeddedLabel('Training reminders'), training.icon.TrainingApplication)
+export class TTrainingReminderSettings extends TTypedSpace implements TrainingReminderSettings {
+  @Prop(TypeBoolean(), training.string.TrainingRemindersEnabled)
+    remindersEnabled: boolean = true
+
+  @Prop(ArrOf(TypeNumber()), training.string.TrainingReminderOffsetsDays)
+    reminderOffsetsDays: number[] = [30, 7, 1]
+}
+
+/**
+ * A training deadline materialized as a calendar event (one per trainee of a request).
+ * Subclasses `calendar.Event`, so the existing `OnEvent` trigger schedules its reminders.
+ */
+@Model(training.class.TrainingDeadlineEvent, calendar.class.Event)
+@UX(training.string.TrainingDeadlineReminder, training.icon.TrainingRequest)
+export class TTrainingDeadlineEvent extends TEvent implements TrainingDeadlineEvent {
+  @Prop(TypeRef(training.class.TrainingRequest), training.string.TrainingRequest)
+  @Index(IndexKind.Indexed)
+    request!: Ref<TrainingRequest>
+
+  @Prop(TypeRef(contact.mixin.Employee), training.string.TrainingRequestTrainee)
+  @Index(IndexKind.Indexed)
+    trainee!: Ref<Employee>
 }

@@ -37,8 +37,10 @@
   },
   "dependencies": {
     "@hcengineering/attachment": "workspace:^0.7.0",
+    "@hcengineering/calendar": "workspace:^0.7.0",
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
+    "@hcengineering/notification": "workspace:^0.7.0",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/ui": "workspace:^0.7.0",
     "@hcengineering/questions": "workspace:^0.7.0"

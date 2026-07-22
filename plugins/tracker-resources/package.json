@@ -58,6 +58,7 @@
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/preference": "workspace:^0.7.0",
     "@hcengineering/presentation": "workspace:^0.7.0",
+    "@hcengineering/integration": "workspace:^0.7.0",
     "@hcengineering/query": "workspace:^0.7.18",
     "@hcengineering/setting": "workspace:^0.7.0",
     "@hcengineering/tags": "workspace:^0.7.0",

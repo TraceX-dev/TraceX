@@ -2765,6 +2765,41 @@
       "packageName": "@tracex/pod-qalico",
       "projectFolder": "services/qalico",
       "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/model-integration",
+      "projectFolder": "models/integration",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/integration",
+      "projectFolder": "plugins/integration",
+      "shouldPublish": true
+    },
+    {
+      "packageName": "@hcengineering/integration-resources",
+      "projectFolder": "plugins/integration-resources",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/github-next",
+      "projectFolder": "plugins/github-next",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/github-next-resources",
+      "projectFolder": "plugins/github-next-resources",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/model-github-next",
+      "projectFolder": "models/github-next",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/github-next-service",
+      "projectFolder": "services/github-next/github-next-service",
+      "shouldPublish": false
     }
   ]
 }

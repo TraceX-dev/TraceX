@@ -41,6 +41,13 @@ import {
   showAllVersions
 } from './utils'
 import { formatCardValue } from './cardTableFormatter'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getCommentBackend,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
 import CardGridView from './components/CardGridView.svelte'
 import ManageMasterTagsContent from './components/settings/ManageMasterTagsContent.svelte'
 import ManageMasterTagsTools from './components/settings/ManageMasterTagsTools.svelte'
@@ -183,6 +190,11 @@ export default async (): Promise<Resources> => ({
     CanGetSpaceAccessPublicLink: canGetSpaceAccessPublicLink,
     CardFactory: cardFactory,
     FormatCardMarkdownValue: formatCardValue,
-    ShowAllVersions: showAllVersions
+    ShowAllVersions: showAllVersions,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses,
+    GetIntegrationTargetCommentBackend: getCommentBackend
   }
 })
