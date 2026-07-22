@@ -38,13 +38,15 @@ const UpdateSharedContextParametersSchema = Type.Object({
 
 export const getAssistantMemoryTool = createTool({
   name: 'get_assistant_memory',
-  description: 'Retrieve current memory about yourself (the assistant). Check your name, behavior style, and how you should address the user.',
+  description:
+    'Retrieve current memory about yourself (the assistant). Check your name, behavior style, and how you should address the user.',
   inputSchema: Type.Object({}),
   execute: async (args, toolCtx: ToolContext) => {
     const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
-    const text = history.assistantMemory !== ''
-      ? `Current assistant memory:\n${history.assistantMemory}`
-      : 'No assistant memory stored yet.'
+    const text =
+      history.assistantMemory !== ''
+        ? `Current assistant memory:\n${history.assistantMemory}`
+        : 'No assistant memory stored yet.'
     return toolOk(text)
   },
   metadata: {
@@ -54,7 +56,8 @@ export const getAssistantMemoryTool = createTool({
 
 export const updateAssistantMemoryTool = createTool({
   name: 'update_assistant_memory',
-  description: 'Update information about yourself (the assistant). Use this when user tells you how to behave, what name to use, how to address them, or defines your role/personality.',
+  description:
+    'Update information about yourself (the assistant). Use this when user tells you how to behave, what name to use, how to address them, or defines your role/personality.',
   inputSchema: UpdateAssistantMemoryParametersSchema,
   execute: async (args, toolCtx: ToolContext) => {
     await toolCtx.memoryStorage.updateAssistantMemory(toolCtx.user, args)
@@ -85,9 +88,8 @@ export const getUserMemoryTool = createTool({
   inputSchema: Type.Object({}),
   execute: async (args, toolCtx: ToolContext) => {
     const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
-    const text = history.userMemory !== ''
-      ? `Current user memory:\n${history.userMemory}`
-      : 'No user memory stored yet.'
+    const text =
+      history.userMemory !== '' ? `Current user memory:\n${history.userMemory}` : 'No user memory stored yet.'
     return toolOk(text)
   },
   metadata: {
@@ -128,9 +130,10 @@ export const getSharedContextTool = createTool({
   inputSchema: Type.Object({}),
   execute: async (args, toolCtx: ToolContext) => {
     const history = await toolCtx.memoryStorage.getHistory(toolCtx.user)
-    const text = history.sharedContext !== ''
-      ? `Current shared context memory:\n${history.sharedContext}`
-      : 'No shared context memory stored yet.'
+    const text =
+      history.sharedContext !== ''
+        ? `Current shared context memory:\n${history.sharedContext}`
+        : 'No shared context memory stored yet.'
     return toolOk(text)
   },
   metadata: {

@@ -21,14 +21,12 @@ import {
   Ref,
   Space,
   TxOperations,
-  WorkspaceUuid,
   type WorkspaceIds
 } from '@hcengineering/core'
-import { CollaboratorClient } from '@hcengineering/collaborator-client'
 import { StorageAdapter } from '@hcengineering/server-core'
 import {
+  type PlatformContext,
   type Tool,
-  type ToolExecutorContext,
   type ToolInputSchema,
   type ToolMetadata as CoreToolMetadata,
   type ToolOutputSchema
@@ -48,11 +46,9 @@ export interface ToolTokenUsageCollector {
   addTokenUsage: (usage: TokenUsage, details: { tool: string }) => void
 }
 
-export interface AIBotToolContext extends ToolExecutorContext {
+export interface AIBotToolContext extends PlatformContext {
   memoryStorage: MemoryStorage
-  collaborator: CollaboratorClient
   user: AccountUuid
-  workspace: WorkspaceUuid
   workspaceOps: WorkspaceOps
   objectId?: Ref<Doc>
   objectClass?: Ref<Class<Doc>>

@@ -13,6 +13,12 @@
 // limitations under the License.
 //
 
-export * from './error'
-export * from './tools'
-export * from './types'
+export class ToolError extends Error {
+  code: string
+
+  constructor (message: string, code: string) {
+    super(message)
+    this.name = 'ToolError'
+    this.code = code
+  }
+}

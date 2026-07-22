@@ -149,17 +149,19 @@ describe('toolFail', () => {
   })
 
   it('returns failed tool result with optional error fields', () => {
-    expect(toolFail('Rate limit exceeded', 'rate_limit', { details: { retryAfterMs: 1000 }, retryable: true })).toEqual({
-      ok: false,
-      error: {
-        code: 'rate_limit',
-        message: 'Rate limit exceeded',
-        details: {
-          retryAfterMs: 1000
-        },
-        retryable: true
+    expect(toolFail('Rate limit exceeded', 'rate_limit', { details: { retryAfterMs: 1000 }, retryable: true })).toEqual(
+      {
+        ok: false,
+        error: {
+          code: 'rate_limit',
+          message: 'Rate limit exceeded',
+          details: {
+            retryAfterMs: 1000
+          },
+          retryable: true
+        }
       }
-    })
+    )
   })
 })
 

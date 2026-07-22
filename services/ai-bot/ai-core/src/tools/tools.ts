@@ -47,28 +47,34 @@ class ToolImpl<
 
     this.execute = async (args, context) => {
       const valid = this.inputSchemaValidator.Check(args)
-      if (valid !== true) {
-        const { name: tool, inputSchema: schema } = this
+      if (!valid) {
+        const { name: tool } = this
         const errors = getValidationErrors(this.inputSchemaValidator, args)
-        context.ctx.warn('invalid tool input format', { tool, value: args, schema, errors })
+
+        context.ctx.warn('invalid tool input format', { tool, value: args, errors })
         return toolFail('Invalid tool input format', 'input_format_error', { details: { errors } })
       }
 
-      const result = await opts.execute(args, context)
+      try {
+        const result = await opts.execute(args, context)
 
-      if (result.ok) {
-        if (this.outputSchemaValidator !== undefined) {
-          const valid = this.outputSchemaValidator.Check(result.output)
-          if (valid !== true) {
-            const { name: tool, outputSchema: schema } = this
-            const errors = getValidationErrors(this.outputSchemaValidator, result.output)
-            context.ctx.warn('invalid tool output format', { tool, value: result.output, schema, errors })
-            return toolFail('Invalid tool output format', 'output_format_error', { details: { errors } })
+        if (result.ok) {
+          if (this.outputSchemaValidator !== undefined) {
+            const valid = this.outputSchemaValidator.Check(result.output)
+            if (!valid) {
+              const { name: tool } = this
+              const errors = getValidationErrors(this.outputSchemaValidator, result.output)
+
+              context.ctx.warn('invalid tool output format', { tool, value: result.output, errors })
+              return toolFail('Invalid tool output format', 'output_format_error', { details: { errors } })
+            }
           }
         }
-      }
 
-      return result
+        return result
+      } catch (error: any) {
+        return toolFail(error.message, error.code)
+      }
     }
   }
 }
@@ -86,7 +92,9 @@ export function createTool<
   TOutputSchema extends ToolOutputSchema,
   TContext extends ToolExecutorContext,
   TMetadata extends ToolMetadata
-> (tool: ToolAction<TInputSchema, TOutputSchema, TContext, TMetadata>): Tool<TInputSchema, TOutputSchema, TContext, TMetadata> {
+> (
+  tool: ToolAction<TInputSchema, TOutputSchema, TContext, TMetadata>
+): Tool<TInputSchema, TOutputSchema, TContext, TMetadata> {
   return new ToolImpl(tool)
 }
 

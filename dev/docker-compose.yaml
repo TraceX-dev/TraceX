@@ -3,7 +3,6 @@ services:
     image: 'tracexapp/stream'
     extra_hosts:
       - 'tracex.local:host-gateway'
-    container_name: stream
     environment:
       - STREAM_ENDPOINT_URL=datalake://tracex.local:4030
       - STREAM_INSECURE=true
@@ -21,7 +20,6 @@ services:
     image: 'tracexapp/media'
     extra_hosts:
       - 'tracex.local:host-gateway'
-    container_name: media
     environment:
       - ACCOUNTS_URL=http://tracex.local:3000
       - SECRET=secret
@@ -32,7 +30,6 @@ services:
     image: 'tracexapp/preview'
     extra_hosts:
       - 'tracex.local:host-gateway'
-    container_name: preview
     environment:
       - SECRET=secret
       - STORAGE_CONFIG=${STORAGE_CONFIG}
@@ -44,7 +41,6 @@ services:
     image: 'tracexapp/link-preview'
     extra_hosts:
       - 'tracex.local:host-gateway'
-    container_name: link-preview
     environment:
       - SECRET=secret
       - PORT=4041
@@ -80,7 +76,6 @@ services:
       - --smp 1
       - --default-log-level=info
       - --memory 512M
-    container_name: redpanda
     volumes:
       - redpanda:/var/lib/redpanda/data
     ports:
@@ -274,6 +269,24 @@ services:
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    restart: unless-stopped
+  mcp:
+    image: tracexapp/mcp
+    extra_hosts:
+      - 'tracex.local:host-gateway'
+    depends_on:
+      - account
+      - collaborator
+      - transactor_cockroach
+    ports:
+      - 4020:4020
+    environment:
+      - PORT=4020
+      - SERVER_SECRET=secret
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - COLLABORATOR_URL=ws://tracex.local:3078
+      - SERVICE_ID=mcp-service
+      - WORKSPACE_CLIENT_CACHE_MS=0
     restart: unless-stopped
   front:
     image: tracexapp/front
@@ -645,7 +658,7 @@ services:
       - QUEUE_REGION=cockroach
     restart: unless-stopped
   events-processor:
-    image: hardcoreeng/events-processor
+    image: tracexapp/events-processor
     extra_hosts:
       - 'huly.local:host-gateway'
     depends_on:

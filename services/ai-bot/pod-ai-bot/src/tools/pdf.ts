@@ -76,10 +76,7 @@ export const saveFileTool = createTool({
 async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
   const ops = toolCtx.workspaceOps
   const client = await ops.getClient()
-  const spaces = await client.findAll(
-    document.class.Teamspace,
-    { members: toolCtx.user, archived: false }
-  )
+  const spaces = await client.findAll(document.class.Teamspace, { members: toolCtx.user, archived: false })
   let res = 'Folders:\n'
   for (const space of spaces) {
     res += `Id: ${space._id} Name: ${space.name}\n`
@@ -92,10 +89,7 @@ async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
   return res
 }
 
-async function saveFile (
-  ops: WorkspaceOps,
-  args: SaveFileArgs
-): Promise<string> {
+async function saveFile (ops: WorkspaceOps, args: SaveFileArgs): Promise<string> {
   const content = await pdfToMarkdown(ops, args.fileId, args.name)
   if (content === undefined) {
     return 'Error while converting pdf to markdown'

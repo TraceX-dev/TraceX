@@ -178,7 +178,10 @@ async function readDriveFileVersion (ops: WorkspaceOps, file: File, version: Fil
     }
   }
 
-  return toolFail(`Drive file "${file.title}" has unsupported content type "${version.type}".`, 'unsupported_content_type')
+  return toolFail(
+    `Drive file "${file.title}" has unsupported content type "${version.type}".`,
+    'unsupported_content_type'
+  )
 }
 
 function normalizeMimeType (type: string | undefined): string {

@@ -24765,7 +24765,7 @@ importers:
         version: 1.0.21
       openai:
         specifier: ^6.39.0
-        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
+        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@4.4.3)
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -38134,6 +38134,152 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  ../../services/ai-bot/ai-core:
+    dependencies:
+      '@hcengineering/ai-bot':
+        specifier: workspace:^0.7.0
+        version: link:../../../plugins/ai-bot
+      '@hcengineering/collaborator-client':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/core/packages/collaborator-client
+      '@hcengineering/core':
+        specifier: workspace:^0.7.26
+        version: link:../../../foundations/core/packages/core
+      '@hcengineering/platform':
+        specifier: workspace:^0.7.20
+        version: link:../../../foundations/core/packages/platform
+      '@hcengineering/retry':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/core/packages/retry
+      '@hcengineering/server-core':
+        specifier: workspace:^0.7.19
+        version: link:../../../foundations/server/packages/core
+      '@hcengineering/server-token':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/core/packages/token
+      lru-cache:
+        specifier: ^11.1.0
+        version: 11.2.2
+      typebox:
+        specifier: ^1.3.6
+        version: 1.3.6
+      uuid:
+        specifier: ^8.3.2
+        version: 8.3.2
+    devDependencies:
+      '@hcengineering/platform-rig':
+        specifier: workspace:^0.7.21
+        version: link:../../../foundations/utils/packages/platform-rig
+      '@types/jest':
+        specifier: ^29.5.5
+        version: 29.5.14
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^6.21.0
+        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^6.21.0
+        version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^8.54.0
+        version: 8.57.1
+      eslint-config-standard-with-typescript:
+        specifier: ^40.0.0
+        version: 40.0.0(@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint-plugin-import@2.32.0(eslint@8.57.1))(eslint-plugin-n@15.7.0(eslint@8.57.1))(eslint-plugin-promise@6.6.0(eslint@8.57.1))(eslint@8.57.1)(typescript@5.9.3)
+      eslint-plugin-import:
+        specifier: ^2.26.0
+        version: 2.32.0(eslint@8.57.1)
+      eslint-plugin-n:
+        specifier: ^15.4.0
+        version: 15.7.0(eslint@8.57.1)
+      eslint-plugin-promise:
+        specifier: ^6.1.1
+        version: 6.6.0(eslint@8.57.1)
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@22.19.0)(ts-node@10.9.2(@types/node@22.19.0)(typescript@5.9.3))
+      prettier:
+        specifier: ^3.6.2
+        version: 3.6.2
+      ts-jest:
+        specifier: ^29.1.1
+        version: 29.4.5(@babel/core@7.28.5)(@jest/transform@29.7.0)(@jest/types@30.2.0)(babel-jest@29.7.0(@babel/core@7.28.5))(jest-util@30.2.0)(jest@29.7.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  ../../services/ai-bot/ai-tools:
+    dependencies:
+      '@hcengineering/ai-core':
+        specifier: workspace:^0.7.0
+        version: link:../ai-core
+      '@hcengineering/card':
+        specifier: workspace:^0.7.0
+        version: link:../../../plugins/card
+      '@hcengineering/collaborator-client':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/core/packages/collaborator-client
+      '@hcengineering/core':
+        specifier: workspace:^0.7.26
+        version: link:../../../foundations/core/packages/core
+      '@hcengineering/platform':
+        specifier: workspace:^0.7.20
+        version: link:../../../foundations/core/packages/platform
+      '@hcengineering/server-token':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/core/packages/token
+      typebox:
+        specifier: ^1.3.6
+        version: 1.3.6
+    devDependencies:
+      '@hcengineering/platform-rig':
+        specifier: workspace:^0.7.21
+        version: link:../../../foundations/utils/packages/platform-rig
+      '@tsconfig/node16':
+        specifier: ^1.0.4
+        version: 1.0.4
+      '@types/jest':
+        specifier: ^29.5.5
+        version: 29.5.14
+      '@types/node':
+        specifier: ^22.18.1
+        version: 22.19.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^6.21.0
+        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^6.21.0
+        version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^8.54.0
+        version: 8.57.1
+      eslint-config-standard-with-typescript:
+        specifier: ^40.0.0
+        version: 40.0.0(@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint-plugin-import@2.32.0(eslint@8.57.1))(eslint-plugin-n@15.7.0(eslint@8.57.1))(eslint-plugin-promise@6.6.0(eslint@8.57.1))(eslint@8.57.1)(typescript@5.9.3)
+      eslint-plugin-import:
+        specifier: ^2.26.0
+        version: 2.32.0(eslint@8.57.1)
+      eslint-plugin-n:
+        specifier: ^15.4.0
+        version: 15.7.0(eslint@8.57.1)
+      eslint-plugin-node:
+        specifier: ^11.1.0
+        version: 11.1.0(eslint@8.57.1)
+      eslint-plugin-promise:
+        specifier: ^6.1.1
+        version: 6.6.0(eslint@8.57.1)
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@22.19.0)(ts-node@10.9.2(@types/node@22.19.0)(typescript@5.9.3))
+      prettier:
+        specifier: ^3.6.2
+        version: 3.6.2
+      ts-jest:
+        specifier: ^29.1.1
+        version: 29.4.5(@babel/core@7.28.5)(@jest/transform@29.7.0)(@jest/types@30.2.0)(babel-jest@29.7.0(@babel/core@7.28.5))(esbuild@0.25.12)(jest-util@30.2.0)(jest@29.7.0(@types/node@22.19.0))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   ../../services/ai-bot/pod-ai-bot:
     dependencies:
       '@anthropic-ai/sdk':
@@ -38148,6 +38294,12 @@ importers:
       '@hcengineering/ai-bot':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/ai-bot
+      '@hcengineering/ai-core':
+        specifier: workspace:^0.7.0
+        version: link:../ai-core
+      '@hcengineering/ai-tools':
+        specifier: workspace:^0.7.0
+        version: link:../ai-tools
       '@hcengineering/analytics-service':
         specifier: workspace:^0.7.19
         version: link:../../../foundations/core/packages/analytics-service
@@ -38264,10 +38416,13 @@ importers:
         version: 11.2.2
       openai:
         specifier: ^6.39.0
-        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
+        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@4.4.3)
       postgres:
         specifier: ^3.4.7
         version: 3.4.7
+      typebox:
+        specifier: ^1.3.6
+        version: 1.3.6
       uuid:
         specifier: ^8.3.2
         version: 8.3.2
@@ -38281,9 +38436,6 @@ importers:
       '@tsconfig/node16':
         specifier: ^1.0.4
         version: 1.0.4
-      '@types/convict':
-        specifier: ^6.1.6
-        version: 6.1.6
       '@types/cors':
         specifier: ^2.8.12
         version: 2.8.19
@@ -41195,6 +41347,133 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  ../../services/mcp/pod-mcp:
+    dependencies:
+      '@hcengineering/ai-core':
+        specifier: workspace:^0.7.0
+        version: link:../../ai-bot/ai-core
+      '@hcengineering/ai-tools':
+        specifier: workspace:^0.7.0
+        version: link:../../ai-bot/ai-tools
+      '@hcengineering/analytics-service':
+        specifier: workspace:^0.7.19
+        version: link:../../../foundations/core/packages/analytics-service
+      '@hcengineering/api-client':
+        specifier: workspace:^0.7.19
+        version: link:../../../foundations/core/packages/api-client
+      '@hcengineering/card':
+        specifier: workspace:^0.7.0
+        version: link:../../../plugins/card
+      '@hcengineering/collaborator-client':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/core/packages/collaborator-client
+      '@hcengineering/core':
+        specifier: workspace:^0.7.26
+        version: link:../../../foundations/core/packages/core
+      '@hcengineering/platform':
+        specifier: workspace:^0.7.20
+        version: link:../../../foundations/core/packages/platform
+      '@hcengineering/server-client':
+        specifier: workspace:^0.7.16
+        version: link:../../../foundations/server/packages/client
+      '@hcengineering/server-core':
+        specifier: workspace:^0.7.19
+        version: link:../../../foundations/server/packages/core
+      '@hcengineering/server-pipeline':
+        specifier: workspace:^0.7.0
+        version: link:../../../server/server-pipeline
+      '@hcengineering/server-storage':
+        specifier: workspace:^0.7.16
+        version: link:../../../foundations/server/packages/server-storage
+      '@hcengineering/server-token':
+        specifier: workspace:^0.7.18
+        version: link:../../../foundations/core/packages/token
+      '@modelcontextprotocol/express':
+        specifier: ^2.0.0-beta.5
+        version: 2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)(express@4.21.2)
+      '@modelcontextprotocol/node':
+        specifier: ^2.0.0-beta.5
+        version: 2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)(hono@4.12.31)
+      '@modelcontextprotocol/server':
+        specifier: ^2.0.0-beta.5
+        version: 2.0.0-beta.5
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      express:
+        specifier: ^4.21.2
+        version: 4.21.2
+      hono:
+        specifier: ^4.11.4
+        version: 4.12.31
+      zod:
+        specifier: ^4.2.0
+        version: 4.4.3
+    devDependencies:
+      '@hcengineering/platform-rig':
+        specifier: workspace:^0.7.21
+        version: link:../../../foundations/utils/packages/platform-rig
+      '@tsconfig/node16':
+        specifier: ^1.0.4
+        version: 1.0.4
+      '@types/cors':
+        specifier: ^2.8.12
+        version: 2.8.19
+      '@types/express':
+        specifier: ^4.17.13
+        version: 4.17.25
+      '@types/jest':
+        specifier: ^29.5.5
+        version: 29.5.14
+      '@types/node':
+        specifier: ^22.18.1
+        version: 22.19.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^6.21.0
+        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^6.21.0
+        version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
+      esbuild:
+        specifier: ^0.25.10
+        version: 0.25.12
+      eslint:
+        specifier: ^8.54.0
+        version: 8.57.1
+      eslint-config-standard-with-typescript:
+        specifier: ^40.0.0
+        version: 40.0.0(@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint-plugin-import@2.32.0(eslint@8.57.1))(eslint-plugin-n@15.7.0(eslint@8.57.1))(eslint-plugin-promise@6.6.0(eslint@8.57.1))(eslint@8.57.1)(typescript@5.9.3)
+      eslint-plugin-import:
+        specifier: ^2.26.0
+        version: 2.32.0(eslint@8.57.1)
+      eslint-plugin-n:
+        specifier: ^15.4.0
+        version: 15.7.0(eslint@8.57.1)
+      eslint-plugin-node:
+        specifier: ^11.1.0
+        version: 11.1.0(eslint@8.57.1)
+      eslint-plugin-promise:
+        specifier: ^6.1.1
+        version: 6.6.0(eslint@8.57.1)
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@22.19.0)(ts-node@10.9.2(@types/node@22.19.0)(typescript@5.9.3))
+      prettier:
+        specifier: ^3.6.2
+        version: 3.6.2
+      ts-jest:
+        specifier: ^29.1.1
+        version: 29.4.5(@babel/core@7.28.5)(@jest/transform@29.7.0)(@jest/types@30.2.0)(babel-jest@29.7.0(@babel/core@7.28.5))(esbuild@0.25.12)(jest-util@30.2.0)(jest@29.7.0(@types/node@22.19.0)(ts-node@10.9.2(@types/node@22.19.0)(typescript@5.9.3)))(typescript@5.9.3)
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@22.19.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   ../../services/notification/pod-events-processor:
     dependencies:
       '@hcengineering/account-client':
@@ -42686,7 +42965,7 @@ importers:
         version: 16.6.1
       openai:
         specifier: ^6.39.0
-        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76)
+        version: 6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@4.4.3)
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -43834,6 +44113,12 @@ packages:
       y-prosemirror: ^1.2.1
       yjs: ^13.6.8
 
+  '@hono/node-server@1.19.14':
+    resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      hono: ^4
+
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
     engines: {node: '>=10.10.0'}
@@ -44351,6 +44636,31 @@ packages:
 
   '@mixmark-io/domino@2.2.0':
     resolution: {integrity: sha512-Y28PR25bHXUg88kCV7nivXrP2Nj2RueZ3/l/jdx6J9f8J4nsEGcgX0Qe6lt7Pa+J79+kPiJU3LguR6O/6zrLOw==}
+
+  '@modelcontextprotocol/core@2.0.0-beta.5':
+    resolution: {integrity: sha512-HKbY9XTbsDy1Y6r2I55TGE3JEapM0vg96e1MUmBIF9LGjos5gjhcIrTz1yvBPLg2aFKHjwhUAQfRdrCEnPxNew==}
+    engines: {node: '>=20'}
+
+  '@modelcontextprotocol/express@2.0.0-beta.5':
+    resolution: {integrity: sha512-SDHAAKCOkHrxuBRyh6fRQJpjWBt5vrRCmvV7OIyWdmIksQzmTYsw7oEX1p9Kje6PSDqKJHpmqLJzZNUnOhrfCQ==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@modelcontextprotocol/server': ^2.0.0-beta.5
+      express: ^4.18.0 || ^5.0.0
+
+  '@modelcontextprotocol/node@2.0.0-beta.5':
+    resolution: {integrity: sha512-flrOzx5qFLBM9I8IYRGfYUY02erFmxOvYQ9sEE6iSj/ZZpRYKorXWscM/qrfW9rwlcGLyymHhnP2AaDbMB1lIA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@modelcontextprotocol/server': ^2.0.0-beta.5
+      hono: ^4.11.4
+    peerDependenciesMeta:
+      hono:
+        optional: true
+
+  '@modelcontextprotocol/server@2.0.0-beta.5':
+    resolution: {integrity: sha512-i1E5l75rQKsgY/AKAIspgMBH1vEL7dqiK7tHr0L+raYcb0SWOziqNGJXGIG6NY4AlXDWIKGJQGB7Nqfs3oUi5g==}
+    engines: {node: '>=20'}
 
   '@mongodb-js/saslprep@1.3.2':
     resolution: {integrity: sha512-QgA5AySqB27cGTXBFmnpifAi7HxoGUeezwo6p9dI03MuDB6Pp33zgclqVb6oVK3j6I9Vesg0+oojW2XxB59SGg==}
@@ -45913,9 +46223,6 @@ packages:
 
   '@types/content-disposition@0.5.9':
     resolution: {integrity: sha512-8uYXI3Gw35MhiVYhG3s295oihrxRyytcRHjSjqnqZVDDy/xcGBRny7+Xj1Wgfhv5QzRtN2hB2dVRBUX9XW3UcQ==}
-
-  '@types/convict@6.1.6':
-    resolution: {integrity: sha512-1B6jqWHWQud+7yyWAqbxnPmzlHrrOtJzZr1DhhYJ/NbpS4irfZSnq+N5Fm76J9LNRlUZvCmYxTVhhohWRvtqHw==}
 
   '@types/cookies@0.9.2':
     resolution: {integrity: sha512-1AvkDdZM2dbyFybL4fxpuNCaWyv//0AwsuUk2DWeXyM1/5ZKm6W3z6mQi24RZ4l2ucY+bkSHzbDVpySqPGuV8A==}
@@ -49167,6 +49474,10 @@ packages:
   hogan.js@3.0.2:
     resolution: {integrity: sha512-RqGs4wavGYJWE07t35JQccByczmNUXQT0E12ZYV1VKYu5UiAU9lsos/yBAcf840+zrUQQxgVduCR5/B8nNtibg==}
     hasBin: true
+
+  hono@4.12.31:
+    resolution: {integrity: sha512-zJIHFrl6bq3RDd2YusFNCDlM8qUprxKswyi/OPzPyzKDdyBXDqWx8bZlZ7R+saTdSTatUmb3O7K4SspGPaEOQg==}
+    engines: {node: '>=16.9.0'}
 
   hosted-git-info@4.1.0:
     resolution: {integrity: sha512-kyCuEOWjJqZuDbRHzL8V93NzQhwIB71oFWSyzVo+KPZI+pnQPPxucdkrOZvkLRnrf5URsQM+IJ09Dw29cRALIA==}
@@ -52736,6 +53047,9 @@ packages:
   type@2.7.3:
     resolution: {integrity: sha512-8j+1QmAbPvLZow5Qpi6NCaN8FB60p/6x8/vfNqOk/hC+HuvFZhL4+WfekuhQLiqFZXOgQdrs3B+XxEmCc6b3FQ==}
 
+  typebox@1.3.6:
+    resolution: {integrity: sha512-Sc8RA0NCMEFmApHNU9ZMzqcpQj46She44J8ffpLM/bdhLNUZKq7DJumcLcsFx1gRmDfQPgCgOmFFJ7rcnfWNyA==}
+
   typed-array-buffer@1.0.3:
     resolution: {integrity: sha512-nAYYwfY3qnzX30IkA6AQZjVbtK6duGontcQm1WSG1MD94YLqK0515GNApXkoxKOWMusVssAHWLh9SeaoefYFGw==}
     engines: {node: '>= 0.4'}
@@ -52899,7 +53213,7 @@ packages:
 
   uuid@3.4.0:
     resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
-    deprecated: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@8.3.2:
@@ -52908,6 +53222,7 @@ packages:
 
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -53339,6 +53654,9 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
 
@@ -54454,6 +54772,10 @@ snapshots:
       y-prosemirror: 1.3.7(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.3)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27)
       yjs: 13.6.27
 
+  '@hono/node-server@1.19.14(hono@4.12.31)':
+    dependencies:
+      hono: 4.12.31
+
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
@@ -55166,6 +55488,28 @@ snapshots:
       langium: 3.3.1
 
   '@mixmark-io/domino@2.2.0': {}
+
+  '@modelcontextprotocol/core@2.0.0-beta.5':
+    dependencies:
+      zod: 4.4.3
+
+  '@modelcontextprotocol/express@2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)(express@4.21.2)':
+    dependencies:
+      '@modelcontextprotocol/server': 2.0.0-beta.5
+      cors: 2.8.5
+      express: 4.21.2
+
+  '@modelcontextprotocol/node@2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)(hono@4.12.31)':
+    dependencies:
+      '@hono/node-server': 1.19.14(hono@4.12.31)
+      '@modelcontextprotocol/server': 2.0.0-beta.5
+    optionalDependencies:
+      hono: 4.12.31
+
+  '@modelcontextprotocol/server@2.0.0-beta.5':
+    dependencies:
+      '@modelcontextprotocol/core': 2.0.0-beta.5
+      zod: 4.4.3
 
   '@mongodb-js/saslprep@1.3.2':
     dependencies:
@@ -57050,10 +57394,6 @@ snapshots:
       '@types/node': 22.19.0
 
   '@types/content-disposition@0.5.9': {}
-
-  '@types/convict@6.1.6':
-    dependencies:
-      '@types/node': 22.19.0
 
   '@types/cookies@0.9.2':
     dependencies:
@@ -60963,6 +61303,8 @@ snapshots:
       mkdirp: 0.3.0
       nopt: 1.0.10
 
+  hono@4.12.31: {}
+
   hosted-git-info@4.1.0:
     dependencies:
       lru-cache: 6.0.0
@@ -63002,10 +63344,10 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.76):
+  openai@6.39.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@4.4.3):
     optionalDependencies:
       ws: 8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5)
-      zod: 3.25.76
+      zod: 4.4.3
 
   opener@1.5.2: {}
 
@@ -65174,6 +65516,8 @@ snapshots:
 
   type@2.7.3: {}
 
+  typebox@1.3.6: {}
+
   typed-array-buffer@1.0.3:
     dependencies:
       call-bound: 1.0.4
@@ -65954,3 +66298,5 @@ snapshots:
       readable-stream: 4.7.0
 
   zod@3.25.76: {}
+
+  zod@4.4.3: {}

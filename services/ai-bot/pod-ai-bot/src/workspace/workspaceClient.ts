@@ -52,6 +52,7 @@ import { Room } from '@hcengineering/love'
 import { CollaboratorClient } from '@hcengineering/collaborator-client'
 import { getAccountClient } from '@hcengineering/server-client'
 import { StorageAdapter } from '@hcengineering/server-core'
+import { decodeToken } from '@hcengineering/server-token'
 import { extractReferences, jsonToMarkup, markupToText } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
 
@@ -264,6 +265,7 @@ export class WorkspaceClient {
     const { objectId, objectClass } = event
 
     const client = await this.clientPromise
+    const token = decodeToken(this.token)
 
     const references = this.extractReferences(event.message)
     const attachments = await this.readAttachments(ctx, client, event)
@@ -367,10 +369,16 @@ export class WorkspaceClient {
 
     const toolCtx: ToolContext = {
       ctx,
-      memoryStorage: this.memoryStorage,
-      collaborator: this.collaborator,
-      user: personUuid as AccountUuid,
+      token,
+      rawToken: this.token,
       workspace: this.wsIds.uuid,
+      client,
+      hierarchy: client.getHierarchy(),
+      model: client.getModel(),
+      storage: this.storage,
+      collaborator: this.collaborator,
+      memoryStorage: this.memoryStorage,
+      user: personUuid as AccountUuid,
       workspaceOps,
       objectId: event.objectId,
       objectClass: event.objectClass,
