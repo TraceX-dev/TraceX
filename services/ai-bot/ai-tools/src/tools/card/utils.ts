@@ -21,6 +21,7 @@ const systemFields = new Set([
   'createdBy',
   'rank',
   'title',
+  'content',
   'version',
   'icon',
   'color',
@@ -38,6 +39,10 @@ const systemFields = new Set([
 
 export function isSystemAttribute (attr: AnyAttribute): boolean {
   return systemFields.has(attr.name)
+}
+
+export function isCollaborativeAttribute (attr: AnyAttribute): boolean {
+  return attr.type._class === core.class.TypeCollaborativeDoc
 }
 
 export function isReadonlyAttribute (attr: AnyAttribute): boolean {
@@ -65,6 +70,7 @@ export function attributesForOwner (
     if (!includeHidden && hidden) continue
     if (!includeReadonly && readonly) continue
     if (isSystemAttribute(attr)) continue
+    if (isCollaborativeAttribute(attr)) continue
 
     result.push(attr)
   }

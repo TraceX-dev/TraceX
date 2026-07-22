@@ -18,6 +18,7 @@ import {
   buildClassSummary,
   buildSpaceSummary,
   ClassSummarySchema,
+  readCardContentHtml,
   SpaceSummarySchema
 } from '../shared'
 
@@ -42,7 +43,8 @@ const GetCardOutputTagSchema = Type.Union(
     Type.Object(
       {
         attributes: Type.Array(AttributeSchema, {
-          description: 'Attribute values owned by this active tag mixin.'
+          description:
+            'Attribute values owned by this active tag mixin. Collaborative attributes are omitted; exposed collaborative content is HTML.'
         })
       },
       {
@@ -65,6 +67,9 @@ const GetCardOutputSchema = Type.Object(
     }),
     title: Type.String({
       description: 'Card title.'
+    }),
+    content: Type.String({
+      description: 'Card collaborative content as HTML.'
     }),
     space: Type.With(SpaceSummarySchema, {
       description: 'Card space summary.'
@@ -113,17 +118,18 @@ const GetCardOutputSchema = Type.Object(
       description: 'Active tag mixins on the card.'
     }),
     attributes: Type.Array(AttributeSchema, {
-      description: 'Master tag attribute values on the card.'
+      description:
+        'Master tag attribute values on the card. Collaborative attributes are omitted; card content is returned as top-level HTML content.'
     })
   },
   {
-    description: 'Card details with master attributes and active tag attributes.'
+    description: 'Card details with top-level HTML collaborative content, master attributes, and active tag attributes.'
   }
 )
 
 export const cardGetTool = createTool({
   name: cardGetToolId,
-  description: 'Get a card with compact attribute values.',
+  description: 'Get a card with top-level HTML collaborative content and compact attribute values.',
   inputSchema: GetCardInputSchema,
   outputSchema: GetCardOutputSchema,
   execute: async (args: GetCardArgs, toolCtx: PlatformContext) => {
@@ -143,6 +149,7 @@ export const cardGetTool = createTool({
       id: doc._id,
       masterTag: await buildClassSummary(hierarchy, doc._class),
       title: doc.title,
+      content: await readCardContentHtml(toolCtx, doc),
       space: buildSpaceSummary(doc.space, space),
       parent: doc.parent,
       readonly: doc.readonly,

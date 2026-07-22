@@ -21,7 +21,8 @@ import core, {
 import { Type } from 'typebox'
 import { cardMasterTagDetailsTool } from './card.master_tag_details'
 import { cardCreateToolId, cardListMasterTagsToolId, cardListSpacesToolId } from './tool-ids'
-import { AttributeUpdateSchema } from '../shared'
+import { isCollaborativeAttribute } from './utils'
+import { AttributeUpdateSchema, createCardContentRef } from '../shared'
 
 export const CreateCardInputSchema = Type.Object(
   {
@@ -36,7 +37,7 @@ export const CreateCardInputSchema = Type.Object(
     }),
     content: Type.Optional(
       Type.String({
-        description: 'Initial card collaborative content as plain text or markup text.'
+        description: 'Initial card collaborative content as HTML.'
       })
     ),
     parentId: Type.Optional(
@@ -46,7 +47,8 @@ export const CreateCardInputSchema = Type.Object(
     ),
     attributes: Type.Optional(
       Type.Array(AttributeUpdateSchema, {
-        description: 'Master tag attribute values. Use only attribute ids from masterTag.attributes.'
+        description:
+          'Master tag attribute values. Use only attribute ids from masterTag.attributes. Collaborative attributes are not accepted here; use top-level content for card content HTML.'
       })
     ),
     tags: Type.Optional(
@@ -58,7 +60,8 @@ export const CreateCardInputSchema = Type.Object(
             }),
             attributes: Type.Optional(
               Type.Array(AttributeUpdateSchema, {
-                description: 'Tag attribute values. Use only attribute ids from this tag attributes.'
+                description:
+                  'Tag attribute values. Use only attribute ids from this tag attributes. Collaborative attributes are not accepted here; exposed collaborative content values are HTML.'
               })
             )
           },
@@ -90,7 +93,8 @@ export const CreateCardOutputSchema = Type.Object(
 
 export const cardCreateTool = createTool({
   name: cardCreateToolId,
-  description: 'Create a card. Master attributes go to attributes; tag mixins are assigned with tags[].attributes.',
+  description:
+    'Create a card. Card collaborative content goes to top-level content as HTML. Master attributes go to attributes; tag mixins are assigned with tags[].attributes.',
   inputSchema: CreateCardInputSchema,
   outputSchema: CreateCardOutputSchema,
   execute: async (args, toolCtx: PlatformContext) => {
@@ -148,6 +152,10 @@ export const cardCreateTool = createTool({
       if (!allAttributes.has(attr.key)) {
         return toolFail(`Attribute not found: ${attr.key}`, 'invalid_attribute')
       }
+      const attribute = allAttributes.get(attr.key)
+      if (attribute !== undefined && isCollaborativeAttribute(attribute)) {
+        return toolFail(`Collaborative attribute is not supported in attributes: ${attr.key}`, 'invalid_attribute')
+      }
       ;(data as any)[attr.key] = attr.value
     }
 
@@ -175,9 +183,19 @@ export const cardCreateTool = createTool({
         if (!tagAttributes.has(attr.key)) {
           return toolFail(`Attribute not found for tag ${tagId}: ${attr.key}`, 'invalid_attribute')
         }
+        const attribute = tagAttributes.get(attr.key)
+        if (attribute !== undefined && isCollaborativeAttribute(attribute)) {
+          return toolFail(`Collaborative attribute is not supported for tag ${tagId}: ${attr.key}`, 'invalid_attribute')
+        }
         data[attr.key] = attr.value
       }
       tagMixins.set(tagId, data)
+    }
+
+    try {
+      data.content = await createCardContentRef(toolCtx, masterTagId, cardId, args.content)
+    } catch {
+      return toolFail('Could not create card collaborative content', 'collaborative_content_failed')
     }
 
     const dataWithDefaults = fillDefaults(hierarchy, data, masterTagId)

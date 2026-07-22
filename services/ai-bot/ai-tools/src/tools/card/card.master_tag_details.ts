@@ -13,6 +13,7 @@ import { translate } from '@hcengineering/platform'
 import { Type } from 'typebox'
 import { cardCreateToolId, cardListMasterTagsToolId, cardMasterTagDetailsToolId, cardUpdateToolId } from './tool-ids'
 import { AttributeDetailsSchema, buildAttributeDetails } from '../shared'
+import { isCollaborativeAttribute } from './utils'
 
 export const MasterTagDetailsInputSchema = Type.Object(
   {
@@ -47,7 +48,8 @@ export const MasterTagDetailsOutputSchema = Type.Object(
       }
     ),
     attributes: Type.Array(AttributeDetailsSchema, {
-      description: 'Attributes owned by the master tag. Use these ids in top-level card attributes.'
+      description:
+        'Attributes owned by the master tag. Use these ids in top-level card attributes. Collaborative attributes are omitted; card content is exposed as top-level HTML content.'
     }),
     tags: Type.Array(
       Type.Object(
@@ -62,7 +64,8 @@ export const MasterTagDetailsOutputSchema = Type.Object(
             description: 'Whether the tag has been removed.'
           }),
           attributes: Type.Array(AttributeDetailsSchema, {
-            description: 'Attributes owned by this tag. Use these ids inside the matching tag attributes.'
+            description:
+              'Attributes owned by this tag. Use these ids inside the matching tag attributes. Collaborative attributes are omitted; exposed collaborative content values are HTML.'
           })
         },
         {
@@ -82,7 +85,7 @@ export const MasterTagDetailsOutputSchema = Type.Object(
 export const cardMasterTagDetailsTool = createTool({
   name: cardMasterTagDetailsToolId,
   description:
-    'Returns master tag details, including master attributes and applicable tag mixins with their attributes.',
+    'Returns master tag details, including master attributes and applicable tag mixins with their attributes. Collaborative attributes are omitted; card content is HTML in top-level content fields.',
   inputSchema: MasterTagDetailsInputSchema,
   outputSchema: MasterTagDetailsOutputSchema,
   execute: async (args, toolCtx: PlatformContext) => {
@@ -109,6 +112,7 @@ export const cardMasterTagDetailsTool = createTool({
       attributes: await Promise.all(
         attributes
           .entries()
+          .filter(([, attr]) => !isCollaborativeAttribute(attr))
           .map(([, attr]) => buildAttributeDetails(toolCtx, attr))
           .toArray()
       ),
@@ -121,6 +125,7 @@ export const cardMasterTagDetailsTool = createTool({
             hierarchy
               .getOwnAttributes(tag._id)
               .entries()
+              .filter(([, attr]) => !isCollaborativeAttribute(attr))
               .map(([, attr]) => buildAttributeDetails(toolCtx, attr))
               .toArray()
           )

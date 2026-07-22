@@ -11,7 +11,8 @@ import card, { type Card, type MasterTag, type Tag } from '@hcengineering/card'
 import core, { Hierarchy, type Class, type Data, type Doc, type Mixin, type Ref } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
 import { cardCreateToolId, cardMasterTagDetailsToolId, cardSearchToolId, cardUpdateToolId } from './tool-ids'
-import { AttributeUpdateSchema } from '../shared'
+import { isCollaborativeAttribute } from './utils'
+import { AttributeUpdateSchema, updateCardContentHtml } from '../shared'
 
 const TagUpdateSchema = Type.Object(
   {
@@ -20,7 +21,8 @@ const TagUpdateSchema = Type.Object(
     }),
     attributes: Type.Optional(
       Type.Array(AttributeUpdateSchema, {
-        description: 'Tag attribute updates. If the tag is not active, it will be added with these values.'
+        description:
+          'Tag attribute updates. If the tag is not active, it will be added with these values. Collaborative attributes are not accepted here; exposed collaborative content values are HTML.'
       })
     )
   },
@@ -41,12 +43,13 @@ export const UpdateCardInputSchema = Type.Object(
     ),
     content: Type.Optional(
       Type.String({
-        description: 'New card collaborative content as plain text or markup text.'
+        description: 'New card collaborative content as HTML.'
       })
     ),
     attributes: Type.Optional(
       Type.Array(AttributeUpdateSchema, {
-        description: 'Master tag attribute updates. Use only attribute keys from masterTag.attributes.'
+        description:
+          'Master tag attribute updates. Use only attribute keys from masterTag.attributes. Collaborative attributes are not accepted here; use top-level content for card content HTML.'
       })
     ),
     tags: Type.Optional(
@@ -101,7 +104,7 @@ type CardDataUpdate = Partial<Data<Card>>
 export const cardUpdateTool = createTool({
   name: cardUpdateToolId,
   description:
-    'Update a card. Master attributes go to attributes; tag mixins are added, updated, or removed with tags[].',
+    'Update a card. Card collaborative content goes to top-level content as HTML. Master attributes go to attributes; tag mixins are added, updated, or removed with tags[].',
   inputSchema: UpdateCardInputSchema,
   outputSchema: UpdateCardOutputSchema,
   execute: async (args: UpdateCardInput, toolCtx: PlatformContext) => {
@@ -125,10 +128,6 @@ export const cardUpdateTool = createTool({
       update.title = args.title
     }
 
-    if (typeof args.content === 'string') {
-      // TODO: Support collaborative fields
-    }
-
     const attributes = args.attributes ?? []
 
     const allAttributes = hierarchy.getAllAttributes(doc._class, core.class.Doc)
@@ -137,7 +136,22 @@ export const cardUpdateTool = createTool({
       if (!allAttributes.has(attr.key)) {
         return toolFail(`Attribute ${attr.key} not found`, 'attribute_not_found')
       }
+      const attribute = allAttributes.get(attr.key)
+      if (attribute !== undefined && isCollaborativeAttribute(attribute)) {
+        return toolFail(`Collaborative attribute ${attr.key} is not supported in attributes`, 'attribute_not_found')
+      }
       ;(update as any)[attr.key] = attr.value
+    }
+
+    if (typeof args.content === 'string') {
+      try {
+        const contentRef = await updateCardContentHtml(toolCtx, doc, args.content)
+        if (contentRef !== undefined) {
+          update.content = contentRef
+        }
+      } catch {
+        return toolFail('Could not update card collaborative content', 'collaborative_content_failed')
+      }
     }
 
     await client.diffUpdate(doc, update)
@@ -158,6 +172,13 @@ function prepareTagAttributes (toolCtx: PlatformContext, tagId: Ref<Tag>, update
   for (const attr of updates) {
     if (!tagAttributes.has(attr.key)) {
       throw new ToolError(`Attribute ${attr.key} not found for tag ${tagId}`, 'attribute_not_found')
+    }
+    const attribute = tagAttributes.get(attr.key)
+    if (attribute !== undefined && isCollaborativeAttribute(attribute)) {
+      throw new ToolError(
+        `Collaborative attribute ${attr.key} is not supported for tag ${tagId}`,
+        'attribute_not_found'
+      )
     }
     ;(tagData as any)[attr.key] = attr.value
   }

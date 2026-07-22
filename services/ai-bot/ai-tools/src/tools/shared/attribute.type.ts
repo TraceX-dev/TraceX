@@ -30,7 +30,8 @@ import { buildClassSummary, ClassSummarySchema } from './class.summary'
 export const AttributeTypeSchema = Type.Union(
   [
     Type.String({
-      description: 'Simple attribute type name, such as string, number, boolean, date, markup, or collaborative.'
+      description:
+        'Simple attribute type name, such as string, number, boolean, date, markup, or collaborative. Collaborative content is represented as HTML when exposed by card tools.'
     }),
     Type.Object(
       {

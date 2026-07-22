@@ -14,7 +14,8 @@ export const AttributeUpdateSchema = Type.Object(
       description: 'Stable attribute key returned by card.master_tag_details.'
     }),
     value: Type.Any({
-      description: 'Attribute value. The value shape must match the attribute type from card.master_tag_details.'
+      description:
+        'Attribute value. The value shape must match the attribute type from card.master_tag_details. Collaborative content values are HTML when exposed by a tool.'
     })
   },
   {

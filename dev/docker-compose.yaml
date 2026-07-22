@@ -287,6 +287,7 @@ services:
       - COLLABORATOR_URL=ws://tracex.local:3078
       - SERVICE_ID=mcp-service
       - WORKSPACE_CLIENT_CACHE_MS=0
+      - STORAGE_CONFIG=${STORAGE_CONFIG}
     restart: unless-stopped
   front:
     image: tracexapp/front
