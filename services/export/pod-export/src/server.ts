@@ -76,7 +76,9 @@ import { v4 as uuid } from 'uuid'
 import WebSocket from 'ws'
 import envConfig from './config'
 import { ApiError } from './error'
-import { ExportFormat, WorkspaceExporter } from './exporter'
+import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
+import { loadCollabJson } from '@hcengineering/collaboration'
+import { markupToDocx } from '@hcengineering/doc-convert'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
 
@@ -420,6 +422,45 @@ export function createServer (
       } finally {
         void fs.rm(exportDir, { recursive: true, force: true })
       }
+    })
+  )
+
+  app.post(
+    '/document-to-docx',
+    wrapRequest(async (req, res, wsIds, token, socialId) => {
+      const { _class, _id }: { _class?: Ref<Class<Doc>>, _id?: Ref<Doc> } = req.body
+      if (_class == null || _id == null) {
+        throw new ApiError(400, 'Missing required parameters: _class, _id')
+      }
+
+      const platformClient = await createPlatformClient(token)
+      const txOperations = new TxOperations(platformClient, socialId)
+
+      const doc = await txOperations.findOne(_class, { _id })
+      if (doc === undefined) {
+        throw new ApiError(404, 'Document not found')
+      }
+
+      // Content is stored as a JSON collab blob (Markup string); read it via the
+      // collaboration helper rather than a raw storage read so the format is handled.
+      const emptyMarkup = '{"type":"doc","content":[]}'
+      const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
+      const markup =
+        contentRef != null
+          ? (await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup
+          : emptyMarkup
+
+      const buffer = await markupToDocx(markup)
+
+      const title = (doc as unknown as { title?: string }).title ?? 'document'
+      const fileName = `${sanitizeSpaceFileName(title)}.docx`
+
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      )
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+      res.end(buffer)
     })
   )
 
