@@ -14,7 +14,7 @@
 //
 
 import { MarkupMarkType, type MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
-import { docxToMarkup, markupToDocx } from '..'
+import { docxToMarkup, markupToDocx, normalizeMarkup } from '..'
 
 const sample: MarkupNode = {
   type: MarkupNodeType.doc,
@@ -69,5 +69,21 @@ describe('docxToMarkup', () => {
     expect(serialized).toContain('Title')
     expect(serialized).toContain('world')
     expect(serialized).toContain('first')
+  })
+})
+
+describe('normalizeMarkup', () => {
+  it('drops empty text nodes and trailing empty paragraphs', () => {
+    const messy: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        { type: MarkupNodeType.paragraph, content: [{ type: MarkupNodeType.text, text: 'keep' }] },
+        { type: MarkupNodeType.paragraph, content: [{ type: MarkupNodeType.text, text: '' }] },
+        { type: MarkupNodeType.paragraph, content: [] }
+      ]
+    }
+    const normalized = normalizeMarkup(messy)
+    expect(normalized.content).toHaveLength(1)
+    expect(JSON.stringify(normalized)).toContain('keep')
   })
 })

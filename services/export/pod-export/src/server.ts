@@ -26,6 +26,7 @@ import core, {
   DocumentQuery,
   generateId,
   Hierarchy,
+  makeCollabId,
   MeasureContext,
   ModelDb,
   type PersonId,
@@ -77,8 +78,9 @@ import WebSocket from 'ws'
 import envConfig from './config'
 import { ApiError } from './error'
 import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
-import { loadCollabJson } from '@hcengineering/collaboration'
-import { markupToDocx } from '@hcengineering/doc-convert'
+import { loadCollabJson, saveCollabJson } from '@hcengineering/collaboration'
+import { docxToMarkup, markupToDocx } from '@hcengineering/doc-convert'
+import { jsonToMarkup, markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
 
@@ -461,6 +463,70 @@ export function createServer (
       )
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
       res.end(buffer)
+    })
+  )
+
+  app.post(
+    '/docx-diff',
+    wrapRequest(async (req, res, wsIds, token, socialId) => {
+      const {
+        blobId,
+        _class,
+        _id
+      }: { blobId?: Ref<Blob>, _class?: Ref<Class<Doc>>, _id?: Ref<Doc> } = req.body
+      if (blobId == null || _class == null || _id == null) {
+        throw new ApiError(400, 'Missing required parameters: blobId, _class, _id')
+      }
+
+      const platformClient = await createPlatformClient(token)
+      const txOperations = new TxOperations(platformClient, socialId)
+
+      const doc = await txOperations.findOne(_class, { _id })
+      if (doc === undefined) {
+        throw new ApiError(404, 'Document not found')
+      }
+
+      // Convert the uploaded .docx blob into candidate markup.
+      const stat = await storageAdapter.stat(measureCtx, wsIds, blobId)
+      if (stat === undefined) {
+        throw new ApiError(404, `File ${blobId} not found`)
+      }
+      const raw = await storageAdapter.read(measureCtx, wsIds, blobId)
+      const { markup: candidate } = await docxToMarkup(Buffer.concat(raw as any))
+
+      // Current content of the acted document (for the "before" side of the diff).
+      const emptyMarkup = '{"type":"doc","content":[]}'
+      const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
+      const currentMarkup =
+        contentRef != null
+          ? (await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup
+          : emptyMarkup
+
+      const current: MarkupNode = markupToJSON(currentMarkup)
+      res.contentType('application/json')
+      res.send({ current, candidate })
+    })
+  )
+
+  app.post(
+    '/markup-to-content',
+    wrapRequest(async (req, res, wsIds, token, socialId) => {
+      const {
+        _class,
+        _id,
+        objectAttr,
+        markup
+      }: { _class?: Ref<Class<Doc>>, _id?: Ref<Doc>, objectAttr?: string, markup?: MarkupNode } = req.body
+      if (_class == null || _id == null || markup == null) {
+        throw new ApiError(400, 'Missing required parameters: _class, _id, markup')
+      }
+
+      const collabId = makeCollabId(_class, _id, objectAttr ?? 'content')
+      const content = jsonToMarkup(markup)
+      const contentBlob = await saveCollabJson(measureCtx, storageAdapter, wsIds, collabId, content)
+
+      res.contentType('application/json')
+      res.send({ blobId: contentBlob })
     })
   )
 
