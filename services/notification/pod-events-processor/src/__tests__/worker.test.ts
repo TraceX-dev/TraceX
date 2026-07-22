@@ -54,7 +54,10 @@ describe('handleScheduledNotification', () => {
     }
     return false
   })
-  const getHierarchy = jest.fn(() => ({ isDerived }))
+  // By default no event class carries a ReminderNotificationPresenter mixin; individual tests can
+  // override this to exercise the declarative-presenter branch.
+  const classHierarchyMixin = jest.fn(() => undefined)
+  const getHierarchy = jest.fn(() => ({ isDerived, classHierarchyMixin }))
   const client = { findOne, createDoc, getHierarchy }
   const accountClient = { findPersonBySocialId }
 
@@ -403,6 +406,96 @@ describe('handleScheduledNotification', () => {
       })
 
       await handleScheduledNotification(ctx, workspaceUuid, eventMessage, control)
+      expect(createDoc).not.toHaveBeenCalled()
+    })
+  })
+
+  // --------------------------------------------------------------------------------
+  // Declarative ReminderNotificationPresenter branch (e.g. training deadline events).
+  // --------------------------------------------------------------------------------
+  describe('ReminderNotificationPresenter branch', () => {
+    const expectedNotificationId = buildReminderNotificationId(eventMessage.id)
+    const presenter = {
+      redirectToAttached: true,
+      notificationType: 'training:ids:TrainingDeadlineReminder',
+      header: 'training:string:TrainingDeadlineReminder',
+      message: 'training:string:TrainingDeadlineReminder',
+      headerIcon: 'training:icon:TrainingRequest'
+    }
+
+    it('redirects the notification to the attached parent and applies the mixin content', async () => {
+      classHierarchyMixin.mockReturnValueOnce(presenter as any)
+      findPersonBySocialId.mockResolvedValue('trainee-uuid-1')
+      findOne.mockImplementation(async (klass: any, query: any) => {
+        if (klass === eventClassRef) {
+          return {
+            _id: eventMessage.eventId,
+            _class: eventClassRef,
+            space: 'event-space-1',
+            attachedTo: 'request-1',
+            attachedToClass: 'training:class:TrainingRequest',
+            user: 'social:1',
+            title: 'Safety training',
+            date: Date.now()
+          }
+        }
+        if (klass === 'training:class:TrainingRequest' && query?._id === 'request-1') {
+          return { _id: 'request-1', _class: 'training:class:TrainingRequest', space: 'training-space-1' }
+        }
+        if (klass === contact.class.Person && query?.personUuid === 'trainee-uuid-1') {
+          return { _id: 'trainee-1-doc' }
+        }
+        if (klass === contact.class.PersonSpace) return { _id: 'trainee-space-1' }
+        return undefined
+      })
+      createDoc.mockResolvedValueOnce('doc-notify-created-id').mockResolvedValueOnce(expectedNotificationId)
+
+      await handleScheduledNotification(ctx, workspaceUuid, eventMessage, control)
+
+      // DocNotifyContext points at the redirected parent, not the event.
+      expect(createDoc).toHaveBeenNthCalledWith(
+        1,
+        notification.class.DocNotifyContext,
+        'trainee-space-1',
+        expect.objectContaining({
+          objectId: 'request-1',
+          objectClass: 'training:class:TrainingRequest',
+          objectSpace: 'training-space-1',
+          user: 'trainee-uuid-1'
+        }),
+        undefined,
+        undefined,
+        core.account.System
+      )
+
+      // Notification points at the parent and uses the mixin's content + notification type.
+      expect(createDoc).toHaveBeenNthCalledWith(
+        2,
+        notification.class.CommonInboxNotification,
+        'trainee-space-1',
+        expect.objectContaining({
+          objectId: 'request-1',
+          objectClass: 'training:class:TrainingRequest',
+          header: presenter.header,
+          message: presenter.message,
+          headerIcon: presenter.headerIcon,
+          types: [presenter.notificationType]
+        }),
+        expectedNotificationId,
+        undefined,
+        core.account.System
+      )
+    })
+
+    it('skips (no notification) when the event is already gone — covers suppression on completion', async () => {
+      // When a trainee passes, the deadline event is removed; the pod finds no event and returns.
+      findOne.mockImplementation(async (klass: any) => {
+        if (klass === eventClassRef) return undefined
+        return undefined
+      })
+
+      await handleScheduledNotification(ctx, workspaceUuid, eventMessage, control)
+
       expect(createDoc).not.toHaveBeenCalled()
     })
   })

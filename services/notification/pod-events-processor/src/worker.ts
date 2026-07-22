@@ -26,12 +26,19 @@ import core, {
   type Space,
   type WorkspaceUuid
 } from '@hcengineering/core'
+import { type Asset, type IntlString } from '@hcengineering/platform'
 import type { ConsumerControl } from '@hcengineering/server-core'
-import notification, { type CommonInboxNotification, type DocNotifyContext } from '@hcengineering/notification'
+import notification, {
+  type CommonInboxNotification,
+  type DocNotifyContext,
+  type NotificationType
+} from '@hcengineering/notification'
 import { jsonToMarkup, nodeDoc, nodeParagraph, nodeText } from '@hcengineering/text-core'
 import time, { type ToDo } from '@hcengineering/time'
 import { getClient, type ClientBundle } from './client'
 import type { ScheduledNotificationMessage } from './types'
+
+const DAY_MS = 24 * 60 * 60 * 1000
 
 interface MinimalEvent extends Doc {
   attachedTo?: Ref<Doc>
@@ -51,6 +58,11 @@ interface ReminderTarget {
   titleText: string
   receiverAccount: AccountUuid
   receiverSpace: Ref<PersonSpace>
+  // Optional content overrides; default to calendar's generic reminder strings when absent.
+  headerIcon?: Asset
+  header?: IntlString
+  message?: IntlString
+  notificationTypes?: Ref<NotificationType>[]
 }
 
 export async function handleScheduledNotification (
@@ -125,6 +137,14 @@ export async function handleScheduledNotification (
   }
 
   await control.heartbeat()
+
+  // Generic params any reminder message may interpolate. `shiftMs` is the configured lead time, so at
+  // fire time it is exactly how long is left until the event — no clock arithmetic needed.
+  const params = {
+    title: target.titleText,
+    days: Math.max(0, Math.round(msg.shiftMs / DAY_MS))
+  }
+
   try {
     await client.createDoc(
       notification.class.CommonInboxNotification,
@@ -133,11 +153,17 @@ export async function handleScheduledNotification (
         user: target.receiverAccount,
         objectId: target.objectId,
         objectClass: target.objectClass,
-        headerIcon: calendar.icon.Reminder,
-        header: calendar.string.Reminder,
-        message: calendar.string.Reminder,
-        messageHtml: jsonToMarkup(nodeDoc(nodeParagraph(nodeText(target.titleText)))),
-        types: [calendar.ids.ReminderNotification],
+        headerIcon: target.headerIcon ?? calendar.icon.Reminder,
+        header: target.header ?? calendar.string.Reminder,
+        intlParams: params,
+        message: target.message ?? calendar.string.Reminder,
+        props: params,
+        // `messageHtml` wins over `message` in the inbox presenter, so it is only used as the plain
+        // calendar fallback (raw event title). A declarative presenter supplies its own parameterised
+        // `message` instead, which renders with `props`.
+        messageHtml:
+          target.message === undefined ? jsonToMarkup(nodeDoc(nodeParagraph(nodeText(target.titleText)))) : undefined,
+        types: target.notificationTypes ?? [calendar.ids.ReminderNotification],
         isViewed: false,
         archived: false,
         docNotifyContext: docNotifyContext._id
@@ -170,16 +196,43 @@ export async function handleScheduledNotification (
   })
 }
 
+// Resolves the receiver of a plain calendar event from `event.user` (a PersonId / social id).
+async function resolveEventUserReceiver (
+  bundle: ClientBundle,
+  event: MinimalEvent
+): Promise<{ receiverAccount: AccountUuid, receiverSpace: Ref<PersonSpace> } | undefined> {
+  const { client, accountClient } = bundle
+  const receiverSocialId = event.user
+  if (receiverSocialId == null) return undefined
+
+  const personUuid = await accountClient.findPersonBySocialId(receiverSocialId, true)
+  if (personUuid == null) return undefined
+
+  const person = await client.findOne(contact.class.Person, { personUuid }, { projection: { _id: 1 } })
+  if (person === undefined) return undefined
+
+  const space = await client.findOne(
+    contact.class.PersonSpace,
+    { person: person._id as Ref<Person> },
+    { projection: { _id: 1 } }
+  )
+  if (space === undefined) return undefined
+
+  return { receiverAccount: personUuid as AccountUuid, receiverSpace: space._id }
+}
+
 // Resolves where a reminder fires:
 //  - For Events whose `attachedToClass` is `time:class:ToDo` (or a subclass like `ProjectToDo`),
 //    the notification points at the parent ToDo and is suppressed when the ToDo is already done.
+//  - For Event subclasses carrying a `ReminderNotificationPresenter` mixin, the mixin declaratively
+//    overrides the redirect target and content (no per-domain code in this pod).
 //  - For any other Event the notification points at the Event itself.
 async function resolveReminderTarget (
   bundle: ClientBundle,
   event: MinimalEvent,
   hierarchy: Hierarchy
 ): Promise<ReminderTarget | undefined> {
-  const { client, accountClient } = bundle
+  const { client } = bundle
 
   const isToDoBacked = event.attachedToClass != null && hierarchy.isDerived(event.attachedToClass, time.class.ToDo)
   if (isToDoBacked && event.attachedTo != null && event.attachedToClass != null) {
@@ -205,29 +258,49 @@ async function resolveReminderTarget (
     }
   }
 
-  // Plain calendar event: receiver is identified by `event.user` (a PersonId / social id).
-  const receiverSocialId = event.user
-  if (receiverSocialId == null) return undefined
+  // Declarative per-class customization: any Event subclass may carry a `ReminderNotificationPresenter`
+  // mixin to redirect the reminder to its attached parent and/or override its content. Read straight
+  // from the model — the pod stays domain-agnostic (no dependency on the subclass's plugin).
+  const presenter = hierarchy.classHierarchyMixin(event._class, calendar.mixin.ReminderNotificationPresenter)
+  if (presenter !== undefined) {
+    const receiver = await resolveEventUserReceiver(bundle, event)
+    if (receiver === undefined) return undefined
 
-  const personUuid = await accountClient.findPersonBySocialId(receiverSocialId, true)
-  if (personUuid == null) return undefined
+    let objectId: Ref<Doc> = event._id
+    let objectClass: Ref<Class<Doc>> = event._class
+    let objectSpace: Ref<Space> = event.space
+    if (presenter.redirectToAttached === true && event.attachedTo != null && event.attachedToClass != null) {
+      const parent = await client.findOne(event.attachedToClass, { _id: event.attachedTo })
+      if (parent === undefined) return undefined
+      objectId = parent._id
+      objectClass = parent._class
+      objectSpace = parent.space
+    }
 
-  const person = await client.findOne(contact.class.Person, { personUuid }, { projection: { _id: 1 } })
-  if (person === undefined) return undefined
+    return {
+      objectId,
+      objectClass,
+      objectSpace,
+      titleText: event.title ?? '',
+      receiverAccount: receiver.receiverAccount,
+      receiverSpace: receiver.receiverSpace,
+      headerIcon: presenter.headerIcon,
+      header: presenter.header,
+      message: presenter.message,
+      notificationTypes: presenter.notificationType != null ? [presenter.notificationType] : undefined
+    }
+  }
 
-  const space = await client.findOne(
-    contact.class.PersonSpace,
-    { person: person._id as Ref<Person> },
-    { projection: { _id: 1 } }
-  )
-  if (space === undefined) return undefined
+  // Plain calendar event: the notification points at the Event itself.
+  const receiver = await resolveEventUserReceiver(bundle, event)
+  if (receiver === undefined) return undefined
 
   return {
     objectId: event._id,
     objectClass: event._class,
     objectSpace: event.space,
     titleText: event.title ?? '',
-    receiverAccount: personUuid as AccountUuid,
-    receiverSpace: space._id
+    receiverAccount: receiver.receiverAccount,
+    receiverSpace: receiver.receiverSpace
   }
 }

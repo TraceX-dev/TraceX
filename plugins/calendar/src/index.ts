@@ -158,6 +158,25 @@ export interface CalendarEventPresenter extends Class<Event> {
   presenter: AnyComponent
 }
 
+/**
+ * Declarative, per-event-class customization of the reminder notification produced by the
+ * events-processor. Attach this mixin to any `Event` subclass to override how its reminders are
+ * delivered — without the events-processor needing to depend on that subclass's plugin.
+ *
+ * All fields are optional; unset fields fall back to the generic calendar reminder behaviour.
+ *
+ * @public
+ */
+export interface ReminderNotificationPresenter extends Class<Event> {
+  /** Point the reminder at the event's attached parent (`attachedTo`/`attachedToClass`) rather than the event. */
+  redirectToAttached?: boolean
+  /** NotificationType to file the reminder under (drives per-channel settings). */
+  notificationType?: Ref<NotificationType>
+  headerIcon?: Asset
+  header?: IntlString
+  message?: IntlString
+}
+
 export type ScheduleAvailability = Record<number, { start: number, end: number }[]>
 
 /**
@@ -203,7 +222,8 @@ const calendarPlugin = plugin(calendarId, {
     PrimaryCalendar: '' as Ref<Class<PrimaryCalendar>>
   },
   mixin: {
-    CalendarEventPresenter: '' as Ref<Mixin<CalendarEventPresenter>>
+    CalendarEventPresenter: '' as Ref<Mixin<CalendarEventPresenter>>,
+    ReminderNotificationPresenter: '' as Ref<Mixin<ReminderNotificationPresenter>>
   },
   icon: {
     Calendar: '' as Asset,

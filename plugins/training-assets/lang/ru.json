@@ -99,6 +99,16 @@
     "ViewSentRequests": "Запросы респондентам",
     "ViewTraineesResults": "Результаты респондентов",
     "ConfigLabel": "Тренинги",
-    "ConfigDescription": "Расширение для управления тренингами"
+    "ConfigDescription": "Расширение для управления тренингами",
+    "Permission_SendTrainingRequestReminder": "Отправлять напоминания о тренинге",
+    "Permission_SendTrainingRequestReminder_Description": "Отправлять повторные напоминания обучаемым, не завершившим запрос на обучение",
+    "TrainingDeadlineReminder": "Напоминание о дедлайне тренинга",
+    "TrainingDeadlineReminderTitle": "Скоро дедлайн по тренингу",
+    "TrainingReminderOffsetsDays": "Напоминания за (дней)",
+    "SendReminder": "Отправить напоминание",
+    "ConfirmSendReminder": "Отправить напоминание {count} обучаемым, не завершившим это обучение?",
+    "ReminderSent": "Напоминание отправлено {count} обучаемым",
+    "TrainingRemindersEnabled": "Напоминания о дедлайне",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {дедлайн сегодня} one {остался # день} few {осталось # дня} many {осталось # дней} other {осталось # дней}}"
   }
 }

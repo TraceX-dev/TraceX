@@ -110,6 +110,10 @@ export default mergeIds(trainingId, training, {
     TrainingRequestCancelAction: '' as Resource<ViewActionFunction<TrainingRequest>>,
     TrainingRequestCancelIsAvailable: '' as Resource<ViewActionAvailabilityFunction<TrainingRequest>>,
 
+    TrainingRequestSendReminder: '' as Ref<Action<TrainingRequest>>,
+    TrainingRequestSendReminderAction: '' as Resource<ViewActionFunction<TrainingRequest>>,
+    TrainingRequestSendReminderIsAvailable: '' as Resource<ViewActionAvailabilityFunction<TrainingRequest>>,
+
     TrainingRequestChangeOwner: '' as Ref<Action<TrainingRequest>>,
     TrainingRequestChangeOwnerAction: '' as Resource<ViewActionFunction<TrainingRequest>>,
     TrainingRequestChangeOwnerIsAvailable: '' as Resource<ViewActionAvailabilityFunction<TrainingRequest>>,

@@ -13794,6 +13794,9 @@ importers:
       '@hcengineering/attachment':
         specifier: workspace:^0.7.0
         version: link:../../plugins/attachment
+      '@hcengineering/calendar':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/calendar
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../../plugins/contact
@@ -13806,6 +13809,9 @@ importers:
       '@hcengineering/model-attachment':
         specifier: workspace:^0.7.0
         version: link:../attachment
+      '@hcengineering/model-calendar':
+        specifier: workspace:^0.7.0
+        version: link:../calendar
       '@hcengineering/model-contact':
         specifier: workspace:^0.7.0
         version: link:../contact
@@ -29952,12 +29958,18 @@ importers:
       '@hcengineering/attachment':
         specifier: workspace:^0.7.0
         version: link:../attachment
+      '@hcengineering/calendar':
+        specifier: workspace:^0.7.0
+        version: link:../calendar
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../contact
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/notification':
+        specifier: workspace:^0.7.0
+        version: link:../notification
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
@@ -36392,6 +36404,9 @@ importers:
 
   ../../server-plugins/training-resources:
     dependencies:
+      '@hcengineering/calendar':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/calendar
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../../plugins/contact
@@ -36404,6 +36419,9 @@ importers:
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
+      '@hcengineering/server-contact':
+        specifier: workspace:^0.7.0
+        version: link:../contact
       '@hcengineering/server-core':
         specifier: workspace:^0.7.19
         version: link:../../foundations/server/packages/core

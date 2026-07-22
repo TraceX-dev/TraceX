@@ -82,6 +82,14 @@ export function createModel (builder: Builder): void {
   })
 
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverNotification.trigger.OnDemandNotificationSend,
+    txMatch: {
+      _class: core.class.TxCreateDoc,
+      objectClass: notification.class.OnDemandNotification
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverNotification.trigger.OnEmployeeDeactivate,
     isAsync: true,
     txMatch: {
