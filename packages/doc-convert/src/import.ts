@@ -15,6 +15,7 @@
 
 import { type MarkupNode } from '@hcengineering/text-core'
 import { htmlToMarkup } from '@hcengineering/text-html'
+import { conformToSchema } from './normalize'
 import mammoth from 'mammoth'
 
 /** @public */
@@ -39,7 +40,7 @@ export interface DocxToMarkupResult {
 export async function docxToMarkup (buffer: Buffer): Promise<DocxToMarkupResult> {
   const result = await mammoth.convertToHtml({ buffer })
   const html = result.value
-  const markup = htmlToMarkup(html)
+  const markup = conformToSchema(htmlToMarkup(html))
   return {
     markup,
     html,

@@ -14,7 +14,7 @@
 //
 
 import { MarkupMarkType, type MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
-import { docxToMarkup, markupToDocx, normalizeMarkup } from '..'
+import { conformToSchema, docxToMarkup, markupToDocx, normalizeMarkup } from '..'
 
 const sample: MarkupNode = {
   type: MarkupNodeType.doc,
@@ -85,5 +85,28 @@ describe('normalizeMarkup', () => {
     const normalized = normalizeMarkup(messy)
     expect(normalized.content).toHaveLength(1)
     expect(JSON.stringify(normalized)).toContain('keep')
+  })
+})
+
+describe('conformToSchema', () => {
+  it('wraps bare text in a list item into a paragraph (schema validity)', () => {
+    const invalid: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.bullet_list,
+          content: [
+            {
+              type: MarkupNodeType.list_item,
+              content: [{ type: MarkupNodeType.text, text: 'bare' }]
+            }
+          ]
+        }
+      ]
+    }
+    const fixed = conformToSchema(invalid)
+    const listItem = fixed.content?.[0].content?.[0]
+    expect(listItem?.content?.[0].type).toBe(MarkupNodeType.paragraph)
+    expect(JSON.stringify(fixed)).toContain('bare')
   })
 })
