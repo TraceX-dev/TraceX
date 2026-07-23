@@ -7,7 +7,16 @@
 //
 
 import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
-import core, { SortingOrder, type Class, type Doc, type Ref, type Space, type WithLookup } from '@hcengineering/core'
+import core, {
+  SortingOrder,
+  type Class,
+  type Doc,
+  type DocumentQuery,
+  type Ref,
+  type SortingQuery,
+  type Space,
+  type WithLookup
+} from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import serverNotification, { type Presenter } from '@hcengineering/server-notification'
 import { Type, type Static } from 'typebox'
@@ -15,11 +24,51 @@ import { Type, type Static } from 'typebox'
 import { buildClassSummary, buildSpaceSummary, ClassSummarySchema, SpaceSummarySchema } from '../shared'
 import { objectLookupToolId } from './tool-ids'
 
+const ObjectQueryFilterSchema = Type.Object(
+  {
+    key: Type.String({
+      description: 'Object field key to filter by.'
+    }),
+    value: Type.Any({
+      description: 'TxOperations.findAll query value for this field.'
+    })
+  },
+  {
+    description: 'Object query field value.'
+  }
+)
+
+const ObjectQuerySortSchema = Type.Object(
+  {
+    key: Type.String({
+      description: 'Object field key to sort by.'
+    }),
+    value: Type.Enum(['asc', 'desc'], {
+      description: 'Sort direction.'
+    })
+  },
+  {
+    description: 'Object sort field direction.'
+  }
+)
+
 export const ObjectLookupInputSchema = Type.Object(
   {
     classId: Type.String({
       description: 'Class or mixin identifier to list objects for.'
     }),
+    query: Type.Optional(
+      Type.Array(ObjectQueryFilterSchema, {
+        description:
+          'Optional TxOperations.findAll query by object fields. Each item is converted to a query record entry as key: value.'
+      })
+    ),
+    sort: Type.Optional(
+      Type.Array(ObjectQuerySortSchema, {
+        description:
+          'Optional TxOperations.findAll sort by object fields. Each item is converted to a sort record entry as key: asc/desc. Defaults to modifiedOn desc.'
+      })
+    ),
     limit: Type.Optional(
       Type.Number({
         default: 50,
@@ -63,12 +112,14 @@ export const ObjectLookupOutputSchema = Type.Object(
 
 type ObjectLookupInput = Static<typeof ObjectLookupInputSchema>
 type ObjectLookupOutput = Static<typeof ObjectLookupOutputSchema>
+type ObjectQueryEntry = Static<typeof ObjectQueryFilterSchema>
+type ObjectSortEntry = Static<typeof ObjectQuerySortSchema>
 
 type ObjectTitleProvider = (doc: Doc, space: Space | undefined) => Promise<string | undefined>
 
 export const objectLookupTool = createTool({
   name: objectLookupToolId,
-  description: 'List workspace objects by class or mixin and return compact object references.',
+  description: 'List workspace objects by class or mixin, optionally filtering and sorting by object fields.',
   inputSchema: ObjectLookupInputSchema,
   outputSchema: ObjectLookupOutputSchema,
   execute: async (args: ObjectLookupInput, toolCtx: PlatformContext) => {
@@ -76,13 +127,15 @@ export const objectLookupTool = createTool({
 
     const classId = args.classId as Ref<Class<Doc>>
     const limit = args.limit ?? 50
+    const query = toQueryRecord(args.query)
+    const sort = toSortRecord(args.sort)
 
     const docs = (await toolCtx.client.findAll(
       classId,
-      {},
+      query,
       {
         limit,
-        sort: { modifiedOn: SortingOrder.Descending },
+        sort,
         lookup: { space: core.class.Space }
       }
     )) as Array<WithLookup<Doc>>
@@ -109,6 +162,17 @@ export const objectLookupTool = createTool({
     return toolOk(output)
   }
 })
+
+function toQueryRecord (query: ObjectQueryEntry[] | undefined): DocumentQuery<Doc> {
+  return Object.fromEntries((query ?? []).map(({ key, value }) => [key, value])) as DocumentQuery<Doc>
+}
+
+function toSortRecord (sort: ObjectSortEntry[] | undefined): SortingQuery<Doc> {
+  const entries = sort !== undefined && sort.length > 0 ? sort : [{ key: 'modifiedOn', value: 'desc' as const }]
+  return Object.fromEntries(
+    entries.map(({ key, value }) => [key, value === 'asc' ? SortingOrder.Ascending : SortingOrder.Descending])
+  ) as SortingQuery<Doc>
+}
 
 async function getLookupTitle (providers: ObjectTitleProvider[], doc: Doc, space: Space | undefined): Promise<string> {
   for (const provider of providers) {
