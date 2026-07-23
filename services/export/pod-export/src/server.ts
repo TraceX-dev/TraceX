@@ -440,12 +440,15 @@ export function createServer (
           ext: 'docx'
         }
       default:
-        throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
+        throw new ApiError(
+          400,
+          `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`
+        )
     }
   }
 
   const exportDocumentHandler: AsyncRequestHandler = async (req, res, wsIds, token, socialId) => {
-    const params = { ...req.query, ...(req.body ?? {}) } as Record<string, unknown>
+    const params: Record<string, unknown> = { ...req.query, ...(req.body ?? {}) }
     const _class = params._class as Ref<Class<Doc>> | undefined
     const _id = params._id as Ref<Doc> | undefined
     const format = ((params.format as string | undefined) ?? 'docx').toLowerCase()

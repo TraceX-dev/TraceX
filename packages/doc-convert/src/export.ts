@@ -157,13 +157,7 @@ function appendBlock (out: Block[], node: MarkupNode, numbering: NumberingCtx): 
   }
 }
 
-function appendList (
-  out: Block[],
-  list: MarkupNode,
-  ordered: boolean,
-  level: number,
-  numbering: NumberingCtx
-): void {
+function appendList (out: Block[], list: MarkupNode, ordered: boolean, level: number, numbering: NumberingCtx): void {
   const reference = ordered ? allocateOrderedNumbering(numbering) : undefined
   for (const item of list.content ?? []) {
     for (const child of item.content ?? []) {
