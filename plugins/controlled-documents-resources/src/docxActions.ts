@@ -14,12 +14,13 @@
 //
 
 import attachment from '@hcengineering/attachment'
-import { type Blob, type Ref } from '@hcengineering/core'
+import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-client'
+import { makeDocCollabId } from '@hcengineering/core'
 import { type ControlledDocument } from '@hcengineering/controlled-documents'
 import exportPlugin from '@hcengineering/export'
 import { getMetadata, getResource } from '@hcengineering/platform'
-import presentation, { getClient } from '@hcengineering/presentation'
-import { type MarkupNode } from '@hcengineering/text'
+import presentation from '@hcengineering/presentation'
+import { jsonToMarkup, type MarkupNode } from '@hcengineering/text'
 import { showPopup } from '@hcengineering/ui'
 
 import ImportDocxPopup from './components/document/ImportDocxPopup.svelte'
@@ -101,18 +102,20 @@ async function applyImportedContent (doc: ControlledDocument, markup: MarkupNode
   // NOTE: writes into the current (Draft) document's content. Creating a brand-new
   // version/snapshot before applying (createNewDraftForControlledDoc + snapshot) is a
   // follow-up — it needs project/version resolution owned by the CD "new draft" flow.
-  const response = await fetch(`${getExportBaseUrl()}/markup-to-content`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ _class: doc._class, _id: doc._id, objectAttr: 'content', markup })
-  })
-  if (!response.ok) {
-    throw new Error('Failed to apply imported content')
+  //
+  // The write goes through the collaborator (updateMarkup), NOT a raw content-blob
+  // write: the editor and collaborator serve the live Y.Doc, and a document that has
+  // ever been opened has a Y.Doc blob that takes precedence over the JSON content blob.
+  // Only updateMarkup updates that live Y.Doc, so the change actually becomes visible.
+  const token = getMetadata(presentation.metadata.Token) ?? ''
+  const collaboratorUrl = getMetadata(presentation.metadata.CollaboratorUrl) ?? ''
+  const workspace = getMetadata(presentation.metadata.WorkspaceUuid)
+  if (workspace === undefined || collaboratorUrl === '') {
+    throw new Error('Collaborator service is not configured')
   }
-  const { blobId }: { blobId: Ref<Blob> } = await response.json()
 
-  const client = getClient()
-  await client.updateDoc(doc._class, doc.space, doc._id, { content: blobId })
+  const collaborator = getCollaboratorClient(workspace, token, collaboratorUrl)
+  await collaborator.updateMarkup(makeDocCollabId(doc, 'content'), jsonToMarkup(markup))
 }
 
 async function pickFile (accept: string): Promise<File | undefined> {
