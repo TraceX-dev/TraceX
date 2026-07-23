@@ -427,81 +427,71 @@ export function createServer (
     })
   )
 
-  app.post(
-    '/document-to-docx',
-    wrapRequest(async (req, res, wsIds, token, socialId) => {
-      const { _class, _id }: { _class?: Ref<Class<Doc>>, _id?: Ref<Doc> } = req.body
-      if (_class == null || _id == null) {
-        throw new ApiError(400, 'Missing required parameters: _class, _id')
-      }
+  const supportedDocumentFormats = ['docx']
 
-      const platformClient = await createPlatformClient(token)
-      const txOperations = new TxOperations(platformClient, socialId)
+  const renderDocumentExport = async (
+    format: string,
+    markup: string
+  ): Promise<{ buffer: Buffer, contentType: string, ext: string }> => {
+    switch (format) {
+      case 'docx':
+        return {
+          buffer: await markupToDocx(markup),
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          ext: 'docx'
+        }
+      default:
+        throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
+    }
+  }
 
-      const doc = await txOperations.findOne(_class, { _id })
-      if (doc === undefined) {
-        throw new ApiError(404, 'Document not found')
-      }
+  const exportDocumentHandler: AsyncRequestHandler = async (req, res, wsIds, token, socialId) => {
+    const params = { ...req.query, ...(req.body ?? {}) } as Record<string, unknown>
+    const _class = params._class as Ref<Class<Doc>> | undefined
+    const _id = params._id as Ref<Doc> | undefined
+    const format = ((params.format as string | undefined) ?? 'docx').toLowerCase()
 
-      // Content is stored as a JSON collab blob (Markup string); read it via the
-      // collaboration helper rather than a raw storage read so the format is handled.
-      const emptyMarkup = '{"type":"doc","content":[]}'
-      const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
-      const markup =
-        contentRef != null
-          ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
-          : emptyMarkup
+    if (_class == null || _id == null) {
+      throw new ApiError(400, 'Missing required parameters: _class, _id')
+    }
+    if (!supportedDocumentFormats.includes(format)) {
+      throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
+    }
 
-      const buffer = await markupToDocx(markup)
+    const platformClient = await createPlatformClient(token)
+    const txOperations = new TxOperations(platformClient, socialId)
 
-      const title = (doc as unknown as { title?: string }).title ?? 'document'
-      const fileName = `${sanitizeSpaceFileName(title)}.docx`
+    const doc = await txOperations.findOne(_class, { _id })
+    if (doc === undefined) {
+      throw new ApiError(404, 'Document not found')
+    }
 
-      // Set Content-Length explicitly: without it the response goes out chunked, and
-      // some local setups never see the terminating chunk, so the browser download
-      // hangs ("in progress") until a manual retry. A bounded body completes cleanly.
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
-      res.setHeader('Content-Length', buffer.length)
-      res.end(buffer)
-    })
-  )
+    // Content is stored as a JSON collab blob (Markup string); read it via the
+    // collaboration helper rather than a raw storage read so the format is handled.
+    const emptyMarkup = '{"type":"doc","content":[]}'
+    const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
+    const markup =
+      contentRef != null
+        ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
+        : emptyMarkup
 
-  app.get(
-    '/document-to-docx',
-    wrapRequest(async (req, res, wsIds, token, socialId) => {
-      const _class = req.query._class as Ref<Class<Doc>> | undefined
-      const _id = req.query._id as Ref<Doc> | undefined
-      if (_class == null || _id == null) {
-        throw new ApiError(400, 'Missing required parameters: _class, _id')
-      }
+    const rendered = await renderDocumentExport(format, markup)
 
-      const platformClient = await createPlatformClient(token)
-      const txOperations = new TxOperations(platformClient, socialId)
+    const title = (doc as unknown as { title?: string }).title ?? 'document'
+    const fileName = `${sanitizeSpaceFileName(title)}.${rendered.ext}`
 
-      const doc = await txOperations.findOne(_class, { _id })
-      if (doc === undefined) {
-        throw new ApiError(404, 'Document not found')
-      }
+    // Explicit Content-Length: without it the response is chunked and some local setups
+    // never see the terminating chunk, so downloads hang until a manual retry.
+    res.setHeader('Content-Type', rendered.contentType)
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    res.setHeader('Content-Length', rendered.buffer.length)
+    res.end(rendered.buffer)
+  }
 
-      const emptyMarkup = '{"type":"doc","content":[]}'
-      const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
-      const markup =
-        contentRef != null
-          ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
-          : emptyMarkup
-
-      const buffer = await markupToDocx(markup)
-
-      const title = (doc as unknown as { title?: string }).title ?? 'document'
-      const fileName = `${sanitizeSpaceFileName(title)}.docx`
-
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
-      res.setHeader('Content-Length', buffer.length)
-      res.end(buffer)
-    })
-  )
+  // GET drives native browser downloads (token via query string); POST is for
+  // programmatic callers. Both take an optional `format` (default: docx).
+  app.get('/document-export', wrapRequest(exportDocumentHandler))
+  app.post('/document-export', wrapRequest(exportDocumentHandler))
 
   app.post(
     '/docx-diff',

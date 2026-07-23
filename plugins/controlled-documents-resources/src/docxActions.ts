@@ -58,9 +58,10 @@ export function exportDocumentToWord (obj: ControlledDocument | ControlledDocume
   const params = new URLSearchParams({
     _class: String(doc._class),
     _id: String(doc._id),
+    format: 'docx',
     token: getToken()
   })
-  const url = `${getExportBaseUrl()}/document-to-docx?${params.toString()}`
+  const url = `${getExportBaseUrl()}/document-export?${params.toString()}`
 
   const anchor = document.createElement('a')
   anchor.style.display = 'none'
