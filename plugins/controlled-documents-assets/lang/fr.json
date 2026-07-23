@@ -1,5 +1,7 @@
 {
   "string": {
+    "ExportToWord": "Exporter vers Word",
+    "ImportFromWord": "Importer depuis Word",
     "ID": "ID",
     "Code": "Code",
     "Number": "Numéro",

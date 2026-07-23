@@ -1,5 +1,7 @@
 {
   "string": {
+    "ExportToWord": "Wordにエクスポート",
+    "ImportFromWord": "Wordからインポート",
     "ID": "ID",
     "Code": "コード",
     "Number": "番号",

@@ -1,5 +1,7 @@
 {
     "string": {
+    "ExportToWord": "Word로 내보내기",
+    "ImportFromWord": "Word에서 가져오기",
         "ID": "ID",
         "Code": "코드",
         "Number": "번호",
