@@ -16,4 +16,3 @@
 export { docxToMarkup, type DocxToMarkupResult } from './import'
 export { markupToDocx } from './export'
 export { normalizeMarkup, conformToSchema } from './normalize'
-export { type DocContentProvider, registerDocContentProvider, getDocContentProvider } from './providers'

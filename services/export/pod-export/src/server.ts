@@ -78,7 +78,7 @@ import envConfig from './config'
 import { ApiError } from './error'
 import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
 import { loadCollabJson } from '@hcengineering/collaboration'
-import { docxToMarkup, markupToDocx } from '@hcengineering/doc-convert'
+import { docxToMarkup, markupToDocx, normalizeMarkup } from '@hcengineering/doc-convert'
 import { markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
@@ -277,7 +277,7 @@ export function createServer (
 
   const app = express()
   app.use(cors({ exposedHeaders: 'Content-Disposition' }))
-  app.use(express.json({ limit: '50mb' }))
+  app.use(express.json())
 
   app.post(
     '/exportAsync',
@@ -487,9 +487,7 @@ export function createServer (
     res.end(rendered.buffer)
   }
 
-  // GET drives native browser downloads (token via query string); POST is for
-  // programmatic callers. Both take an optional `format` (default: docx).
-  app.get('/document-export', wrapRequest(exportDocumentHandler))
+  // Auth via Authorization header; body carries { _class, _id, format? }.
   app.post('/document-export', wrapRequest(exportDocumentHandler))
 
   const supportedImportFormats = ['docx']
@@ -537,7 +535,14 @@ export function createServer (
         throw new ApiError(404, `File ${blobId} not found`)
       }
       const raw = await storageAdapter.read(measureCtx, wsIds, blobId)
-      const candidate = await renderDocumentImport(format, Buffer.concat(raw as any))
+      const candidate = normalizeMarkup(await renderDocumentImport(format, Buffer.concat(raw as any)))
+
+      // The uploaded file is a transient upload; drop it now that it's converted.
+      try {
+        await storageAdapter.remove(measureCtx, wsIds, [blobId])
+      } catch (err) {
+        measureCtx.warn('failed to remove temporary import blob', { blobId: String(blobId) })
+      }
 
       // Current content of the target document (for the "before" side of the diff).
       const emptyMarkup = '{"type":"doc","content":[]}'
@@ -547,7 +552,7 @@ export function createServer (
           ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
           : emptyMarkup
 
-      const current: MarkupNode = markupToJSON(currentMarkup)
+      const current: MarkupNode = normalizeMarkup(markupToJSON(currentMarkup))
       res.contentType('application/json')
       res.send({ current, candidate })
     })

@@ -91,6 +91,7 @@ import './styles/_colors.scss'
 import { comment, isCommentVisible } from './text'
 import {
   canChangeDocumentOwner,
+  canImportDocument,
   canCreateChildDocument,
   canCreateChildFolder,
   canCreateChildTemplate,
@@ -421,6 +422,7 @@ export default async (): Promise<Resources> => ({
     // CheckAreDomainsDisabled: getDisablingChecker(document.functionalityItem.Domains),
     // CheckIsLibraryDisabled: getDisablingChecker(document.functionalityItem.EffectiveLibrary)
     CanChangeDocumentOwner: canChangeDocumentOwner,
+    CanImportDocument: canImportDocument,
     CanCreateTemplate: canCreateChildTemplate,
     CanCreateDocument: canCreateChildDocument,
     CanCreateFolder: canCreateChildFolder,

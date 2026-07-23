@@ -26,6 +26,7 @@ import {
   Document,
   ExternalHyperlink,
   HeadingLevel,
+  type ILevelsOptions,
   LevelFormat,
   Packer,
   Paragraph,
@@ -37,7 +38,25 @@ import {
   WidthType
 } from 'docx'
 
-const ORDERED_NUMBERING = 'doc-convert-ordered'
+interface NumberingCtx {
+  configs: Array<{ reference: string, levels: ILevelsOptions[] }>
+}
+
+// Each ordered list gets its own numbering instance, so two separate lists restart
+// at 1 instead of sharing one continuous counter. `level` still drives nesting indent.
+function allocateOrderedNumbering (ctx: NumberingCtx): string {
+  const reference = `ordered-${ctx.configs.length}`
+  ctx.configs.push({
+    reference,
+    levels: [0, 1, 2, 3].map((level) => ({
+      level,
+      format: LevelFormat.DECIMAL,
+      text: `%${level + 1}.`,
+      alignment: AlignmentType.START
+    }))
+  })
+  return reference
+}
 
 const HEADINGS = [
   HeadingLevel.HEADING_1,
@@ -70,37 +89,26 @@ interface MarkState {
  */
 export async function markupToDocx (markup: Markup | MarkupNode): Promise<Buffer> {
   const root = typeof markup === 'string' ? markupToJSON(markup) : markup
-  const children = blocksFromContent(root.content ?? [])
+  const numbering: NumberingCtx = { configs: [] }
+  const children = blocksFromContent(root.content ?? [], numbering)
 
   const doc = new Document({
-    numbering: {
-      config: [
-        {
-          reference: ORDERED_NUMBERING,
-          levels: [0, 1, 2, 3].map((level) => ({
-            level,
-            format: LevelFormat.DECIMAL,
-            text: `%${level + 1}.`,
-            alignment: AlignmentType.START
-          }))
-        }
-      ]
-    },
+    ...(numbering.configs.length > 0 ? { numbering: { config: numbering.configs } } : {}),
     sections: [{ children: children.length > 0 ? children : [new Paragraph({})] }]
   })
 
   return await Packer.toBuffer(doc)
 }
 
-function blocksFromContent (content: MarkupNode[]): Block[] {
+function blocksFromContent (content: MarkupNode[], numbering: NumberingCtx): Block[] {
   const out: Block[] = []
   for (const node of content) {
-    appendBlock(out, node)
+    appendBlock(out, node, numbering)
   }
   return out
 }
 
-function appendBlock (out: Block[], node: MarkupNode): void {
+function appendBlock (out: Block[], node: MarkupNode, numbering: NumberingCtx): void {
   switch (node.type) {
     case MarkupNodeType.paragraph:
       out.push(new Paragraph({ children: inlines(node.content ?? []) }))
@@ -116,10 +124,10 @@ function appendBlock (out: Block[], node: MarkupNode): void {
       break
     }
     case MarkupNodeType.bullet_list:
-      appendList(out, node, false, 0)
+      appendList(out, node, false, 0, numbering)
       break
     case MarkupNodeType.ordered_list:
-      appendList(out, node, true, 0)
+      appendList(out, node, true, 0, numbering)
       break
     case MarkupNodeType.blockquote:
       for (const child of node.content ?? []) {
@@ -137,45 +145,52 @@ function appendBlock (out: Block[], node: MarkupNode): void {
       out.push(new Paragraph({ thematicBreak: true }))
       break
     case MarkupNodeType.table:
-      out.push(renderTable(node))
+      out.push(renderTable(node, numbering))
       break
     // image/file/embed: reference blobs; embedding is a host (I/O) concern, skipped here.
     default:
       if (node.content !== undefined && node.content.length > 0) {
         for (const child of node.content) {
-          appendBlock(out, child)
+          appendBlock(out, child, numbering)
         }
       }
   }
 }
 
-function appendList (out: Block[], list: MarkupNode, ordered: boolean, level: number): void {
+function appendList (
+  out: Block[],
+  list: MarkupNode,
+  ordered: boolean,
+  level: number,
+  numbering: NumberingCtx
+): void {
+  const reference = ordered ? allocateOrderedNumbering(numbering) : undefined
   for (const item of list.content ?? []) {
     for (const child of item.content ?? []) {
       if (child.type === MarkupNodeType.bullet_list) {
-        appendList(out, child, false, level + 1)
+        appendList(out, child, false, level + 1, numbering)
       } else if (child.type === MarkupNodeType.ordered_list) {
-        appendList(out, child, true, level + 1)
+        appendList(out, child, true, level + 1, numbering)
       } else if (child.type === MarkupNodeType.paragraph) {
         out.push(
           new Paragraph({
             children: inlines(child.content ?? []),
-            ...(ordered ? { numbering: { reference: ORDERED_NUMBERING, level } } : { bullet: { level } })
+            ...(reference !== undefined ? { numbering: { reference, level } } : { bullet: { level } })
           })
         )
       } else {
-        appendBlock(out, child)
+        appendBlock(out, child, numbering)
       }
     }
   }
 }
 
-function renderTable (node: MarkupNode): Table {
+function renderTable (node: MarkupNode, numbering: NumberingCtx): Table {
   const rows = (node.content ?? []).map(
     (row) =>
       new TableRow({
         children: (row.content ?? []).map(
-          (cell) => new TableCell({ children: withFallback(blocksFromContent(cell.content ?? [])) })
+          (cell) => new TableCell({ children: withFallback(blocksFromContent(cell.content ?? [], numbering)) })
         )
       })
   )

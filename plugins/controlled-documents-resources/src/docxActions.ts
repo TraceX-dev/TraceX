@@ -18,7 +18,7 @@ import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-
 import { makeDocCollabId } from '@hcengineering/core'
 import { type ControlledDocument } from '@hcengineering/controlled-documents'
 import exportPlugin from '@hcengineering/export'
-import { getMetadata, getResource } from '@hcengineering/platform'
+import { getMetadata, getResource, setPlatformStatus, unknownError } from '@hcengineering/platform'
 import presentation from '@hcengineering/presentation'
 import { jsonToMarkup, type MarkupNode } from '@hcengineering/text'
 import { showPopup } from '@hcengineering/ui'
@@ -45,32 +45,39 @@ function authHeaders (): Record<string, string> {
 }
 
 /** Export a document's body to a .docx file and trigger a browser download. */
-export function exportDocumentToWord (obj: ControlledDocument | ControlledDocument[]): Promise<void> {
+export async function exportDocumentToWord (obj: ControlledDocument | ControlledDocument[]): Promise<void> {
   const doc = Array.isArray(obj) ? obj[0] : obj
   if (doc === undefined) {
-    return Promise.resolve()
+    return
   }
 
-  // Native browser download straight from the server (Content-Disposition: attachment).
-  // This deliberately avoids fetch -> Blob -> object URL: in some local setups that path
-  // leaves the download stuck as an "unconfirmed" .crdownload. The GET route reads the
-  // token from the query string (pod-export supports query tokens).
-  const params = new URLSearchParams({
-    _class: String(doc._class),
-    _id: String(doc._id),
-    format: 'docx',
-    token: getToken()
+  const response = await fetch(`${getExportBaseUrl()}/document-export`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ _class: doc._class, _id: doc._id, format: 'docx' })
   })
-  const url = `${getExportBaseUrl()}/document-export?${params.toString()}`
+  if (!response.ok) {
+    throw new Error('Failed to export document to Word')
+  }
 
+  const blob = await response.blob()
+  const contentDisposition = response.headers.get('Content-Disposition')
+  const filename = contentDisposition?.match(/filename="([^"]*)"/)?.[1] ?? `${doc.title ?? 'document'}.docx`
+
+  // Attach the anchor to the DOM before click() (detached anchors are ignored by some
+  // browsers) and defer the revoke — revoking synchronously drops the blob mid-read and
+  // the download stalls.
+  const url = window.URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.style.display = 'none'
   anchor.href = url
+  anchor.download = filename
   document.body.appendChild(anchor)
   anchor.click()
-  document.body.removeChild(anchor)
-
-  return Promise.resolve()
+  setTimeout(() => {
+    document.body.removeChild(anchor)
+    window.URL.revokeObjectURL(url)
+  }, 10000)
 }
 
 /** Import an edited .docx: convert, preview the diff, and on confirm write it back. */
@@ -99,7 +106,9 @@ export async function importWordIntoDocument (obj: ControlledDocument | Controll
 
   showPopup(ImportDocxPopup, { current, candidate }, undefined, (apply) => {
     if (apply === true) {
-      void applyImportedContent(doc, candidate)
+      void applyImportedContent(doc, candidate).catch((err) => {
+        void setPlatformStatus(unknownError(err))
+      })
     }
   })
 }

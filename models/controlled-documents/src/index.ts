@@ -536,6 +536,10 @@ export function createModel (builder: Builder): void {
       icon: documents.icon.Document,
       category: view.category.General,
       input: 'focus',
+      visibilityTester: documents.function.CanImportDocument,
+      query: {
+        state: DocumentState.Draft
+      },
       target: documents.class.ControlledDocument,
       context: { mode: ['context'], group: 'tools' }
     },
