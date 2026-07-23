@@ -14,7 +14,7 @@
 //
 
 import { type Markup } from '@hcengineering/core'
-import { markupToJSON, type MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
+import { markupToJSON, MarkupMarkType, type MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
 
 /**
  * Normalize a markup tree to reduce spurious diffs across an export -> edit -> import
@@ -32,7 +32,10 @@ export function normalizeMarkup (markup: Markup | MarkupNode): MarkupNode {
 
 function normalizeNode (node: MarkupNode): MarkupNode | undefined {
   if (node.type === MarkupNodeType.text) {
-    return node.text === undefined || node.text === '' ? undefined : node
+    if (node.text === undefined || node.text === '') {
+      return undefined
+    }
+    return sanitizeMarks(node)
   }
 
   if (node.content === undefined) {
@@ -92,7 +95,10 @@ function conformNode (node: MarkupNode): MarkupNode | undefined {
   }
   // Drop empty text nodes (invalid in the schema).
   if (node.type === MarkupNodeType.text) {
-    return node.text === undefined || node.text === '' ? undefined : node
+    if (node.text === undefined || node.text === '') {
+      return undefined
+    }
+    return sanitizeMarks(node)
   }
 
   const isContainer = BLOCK_CONTAINERS.has(node.type)
@@ -102,9 +108,7 @@ function conformNode (node: MarkupNode): MarkupNode | undefined {
     return node
   }
 
-  let content = (node.content ?? [])
-    .map(conformNode)
-    .filter((child): child is MarkupNode => child !== undefined)
+  let content = (node.content ?? []).map(conformNode).filter((child): child is MarkupNode => child !== undefined)
 
   if (isContainer) {
     content = wrapInlineChildren(content)
@@ -137,4 +141,21 @@ function wrapInlineChildren (children: MarkupNode[]): MarkupNode[] {
   }
   flush()
   return out
+}
+
+/**
+ * Enforce mark-exclusivity rules the schema requires. `code` is an exclusive mark: a
+ * text node cannot carry `code` together with bold/italic/etc. Markdown like
+ * `**\`x\`**` yields such a combination and would be rejected ("Invalid collection of
+ * marks for node text"), corrupting the editor/Y.Doc.
+ */
+function sanitizeMarks (node: MarkupNode): MarkupNode {
+  const marks = node.marks
+  if (marks === undefined || marks.length <= 1) {
+    return node
+  }
+  if (marks.some((mark) => mark.type === MarkupMarkType.code)) {
+    return { ...node, marks: marks.filter((mark) => mark.type === MarkupMarkType.code) }
+  }
+  return node
 }

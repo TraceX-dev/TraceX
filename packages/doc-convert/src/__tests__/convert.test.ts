@@ -160,6 +160,28 @@ describe('conformToSchema (schema validity)', () => {
     expect(cell?.content?.[0].type).toBe(MarkupNodeType.paragraph)
   })
 
+  it('strips non-code marks from inline code (mark exclusivity)', () => {
+    const doc: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.paragraph,
+          content: [
+            {
+              type: MarkupNodeType.text,
+              text: 'x',
+              marks: [{ type: MarkupMarkType.bold }, { type: MarkupMarkType.code }]
+            }
+          ]
+        }
+      ]
+    }
+    const fixed = conformToSchema(doc)
+    const marks = fixed.content?.[0].content?.[0].marks
+    expect(marks).toHaveLength(1)
+    expect(marks?.[0].type).toBe(MarkupMarkType.code)
+  })
+
   it('drops malformed nodes without a type', () => {
     const doc: MarkupNode = {
       type: MarkupNodeType.doc,
