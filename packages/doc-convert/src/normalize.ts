@@ -55,7 +55,6 @@ function normalizeNode (node: MarkupNode): MarkupNode | undefined {
   return { ...node, content }
 }
 
-
 const BLOCK_CONTAINERS = new Set<string>([
   MarkupNodeType.list_item,
   MarkupNodeType.table_cell,

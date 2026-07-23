@@ -19088,6 +19088,9 @@ importers:
       '@hcengineering/chunter-resources':
         specifier: workspace:^0.7.0
         version: link:../chunter-resources
+      '@hcengineering/collaborator-client':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/core/packages/collaborator-client
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../contact
@@ -62471,7 +62474,7 @@ snapshots:
   node-loader@2.0.0(webpack@5.102.1):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.102.1(esbuild@0.25.12)(webpack-cli@5.1.4)
+      webpack: 5.102.1
 
   node-localstorage@2.2.1:
     dependencies:
