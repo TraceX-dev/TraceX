@@ -457,8 +457,12 @@ export function createServer (
       const title = (doc as unknown as { title?: string }).title ?? 'document'
       const fileName = `${sanitizeSpaceFileName(title)}.docx`
 
+      // Set Content-Length explicitly: without it the response goes out chunked, and
+      // some local setups never see the terminating chunk, so the browser download
+      // hangs ("in progress") until a manual retry. A bounded body completes cleanly.
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+      res.setHeader('Content-Length', buffer.length)
       res.end(buffer)
     })
   )
