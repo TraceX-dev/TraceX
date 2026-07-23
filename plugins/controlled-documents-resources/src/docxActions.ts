@@ -72,8 +72,14 @@ export async function exportDocumentToWord (obj: ControlledDocument | Controlled
   anchor.download = filename
   document.body.appendChild(anchor)
   anchor.click()
-  document.body.removeChild(anchor)
-  window.URL.revokeObjectURL(url)
+
+  // Defer cleanup: revoking the object URL synchronously after click() makes the
+  // browser lose the blob mid-read, so the download starts but hangs in "in progress"
+  // and never completes. Give it time to consume the URL first.
+  setTimeout(() => {
+    document.body.removeChild(anchor)
+    window.URL.revokeObjectURL(url)
+  }, 10000)
 }
 
 /** Import an edited .docx: convert, preview the diff, and on confirm write it back. */
