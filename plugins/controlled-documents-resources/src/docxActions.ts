@@ -59,12 +59,21 @@ export async function exportDocumentToWord (obj: ControlledDocument | Controlled
     throw new Error('Failed to export document to Word')
   }
   const blob = await response.blob()
-  const objectUrl = URL.createObjectURL(blob)
+  const contentDisposition = response.headers.get('Content-Disposition')
+  const filename = contentDisposition?.match(/filename="([^"]*)"/)?.[1] ?? `${doc.title ?? 'document'}.docx`
+
+  // Mirror the working download pattern (export-resources/ExportButton): the anchor
+  // MUST be attached to the DOM before click(), otherwise several browsers silently
+  // ignore the programmatic click and nothing downloads.
+  const url = window.URL.createObjectURL(blob)
   const anchor = document.createElement('a')
-  anchor.href = objectUrl
-  anchor.download = `${doc.title ?? 'document'}.docx`
+  anchor.style.display = 'none'
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
   anchor.click()
-  URL.revokeObjectURL(objectUrl)
+  document.body.removeChild(anchor)
+  window.URL.revokeObjectURL(url)
 }
 
 /** Import an edited .docx: convert, preview the diff, and on confirm write it back. */
