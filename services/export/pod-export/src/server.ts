@@ -467,6 +467,42 @@ export function createServer (
     })
   )
 
+  app.get(
+    '/document-to-docx',
+    wrapRequest(async (req, res, wsIds, token, socialId) => {
+      const _class = req.query._class as Ref<Class<Doc>> | undefined
+      const _id = req.query._id as Ref<Doc> | undefined
+      if (_class == null || _id == null) {
+        throw new ApiError(400, 'Missing required parameters: _class, _id')
+      }
+
+      const platformClient = await createPlatformClient(token)
+      const txOperations = new TxOperations(platformClient, socialId)
+
+      const doc = await txOperations.findOne(_class, { _id })
+      if (doc === undefined) {
+        throw new ApiError(404, 'Document not found')
+      }
+
+      const emptyMarkup = '{"type":"doc","content":[]}'
+      const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
+      const markup =
+        contentRef != null
+          ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
+          : emptyMarkup
+
+      const buffer = await markupToDocx(markup)
+
+      const title = (doc as unknown as { title?: string }).title ?? 'document'
+      const fileName = `${sanitizeSpaceFileName(title)}.docx`
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+      res.setHeader('Content-Length', buffer.length)
+      res.end(buffer)
+    })
+  )
+
   app.post(
     '/docx-diff',
     wrapRequest(async (req, res, wsIds, token, socialId) => {

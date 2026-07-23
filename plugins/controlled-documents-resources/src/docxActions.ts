@@ -45,41 +45,31 @@ function authHeaders (): Record<string, string> {
 }
 
 /** Export a document's body to a .docx file and trigger a browser download. */
-export async function exportDocumentToWord (obj: ControlledDocument | ControlledDocument[]): Promise<void> {
+export function exportDocumentToWord (obj: ControlledDocument | ControlledDocument[]): Promise<void> {
   const doc = Array.isArray(obj) ? obj[0] : obj
   if (doc === undefined) {
-    return
+    return Promise.resolve()
   }
-  const response = await fetch(`${getExportBaseUrl()}/document-to-docx`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ _class: doc._class, _id: doc._id })
-  })
-  if (!response.ok) {
-    throw new Error('Failed to export document to Word')
-  }
-  const blob = await response.blob()
-  const contentDisposition = response.headers.get('Content-Disposition')
-  const filename = contentDisposition?.match(/filename="([^"]*)"/)?.[1] ?? `${doc.title ?? 'document'}.docx`
 
-  // Mirror the working download pattern (export-resources/ExportButton): the anchor
-  // MUST be attached to the DOM before click(), otherwise several browsers silently
-  // ignore the programmatic click and nothing downloads.
-  const url = window.URL.createObjectURL(blob)
+  // Native browser download straight from the server (Content-Disposition: attachment).
+  // This deliberately avoids fetch -> Blob -> object URL: in some local setups that path
+  // leaves the download stuck as an "unconfirmed" .crdownload. The GET route reads the
+  // token from the query string (pod-export supports query tokens).
+  const params = new URLSearchParams({
+    _class: String(doc._class),
+    _id: String(doc._id),
+    token: getToken()
+  })
+  const url = `${getExportBaseUrl()}/document-to-docx?${params.toString()}`
+
   const anchor = document.createElement('a')
   anchor.style.display = 'none'
   anchor.href = url
-  anchor.download = filename
   document.body.appendChild(anchor)
   anchor.click()
+  document.body.removeChild(anchor)
 
-  // Defer cleanup: revoking the object URL synchronously after click() makes the
-  // browser lose the blob mid-read, so the download starts but hangs in "in progress"
-  // and never completes. Give it time to consume the URL first.
-  setTimeout(() => {
-    document.body.removeChild(anchor)
-    window.URL.revokeObjectURL(url)
-  }, 10000)
+  return Promise.resolve()
 }
 
 /** Import an edited .docx: convert, preview the diff, and on confirm write it back. */
