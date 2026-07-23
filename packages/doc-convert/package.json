@@ -11,8 +11,8 @@
     "!src/**/__tests__/**",
     "tsconfig.json"
   ],
-  "author": "Anticrm Platform Contributors",
-  "license": "EPL-2.0",
+  "author": "TraceX SAS",
+  "license": "PolyForm-Shield-1.0.0",
   "scripts": {
     "build": "compile",
     "test": "jest --passWithNoTests --silent --coverage",
