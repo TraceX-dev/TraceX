@@ -78,7 +78,7 @@ import envConfig from './config'
 import { ApiError } from './error'
 import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
 import { loadCollabJson } from '@hcengineering/collaboration'
-import { collectImageRefs, docxToMarkup, markupToDocx, normalizeMarkup } from '@hcengineering/doc-convert'
+import { collectImageRefs, conformToSchema, docxToMarkup, markupToDocx, normalizeMarkup } from '@hcengineering/doc-convert'
 import { markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
@@ -554,7 +554,7 @@ export function createServer (
         throw new ApiError(404, `File ${blobId} not found`)
       }
       const raw = await storageAdapter.read(measureCtx, wsIds, blobId)
-      const candidate = normalizeMarkup(await renderDocumentImport(format, Buffer.concat(raw as any)))
+      const candidate = conformToSchema(normalizeMarkup(await renderDocumentImport(format, Buffer.concat(raw as any))))
 
       // The uploaded file is a transient upload; drop it now that it's converted.
       try {
@@ -571,7 +571,7 @@ export function createServer (
           ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
           : emptyMarkup
 
-      const current: MarkupNode = normalizeMarkup(markupToJSON(currentMarkup))
+      const current: MarkupNode = conformToSchema(normalizeMarkup(markupToJSON(currentMarkup)))
       res.contentType('application/json')
       res.send({ current, candidate })
     })

@@ -137,3 +137,39 @@ describe('images', () => {
     expect(buf.length).toBeGreaterThan(0)
   })
 })
+
+describe('conformToSchema (schema validity)', () => {
+  it('gives an empty table cell a fallback paragraph', () => {
+    const table: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.table,
+          content: [
+            {
+              type: MarkupNodeType.table_row,
+              content: [{ type: MarkupNodeType.table_cell, content: [] }]
+            }
+          ]
+        }
+      ]
+    }
+    const fixed = conformToSchema(table)
+    const cell = fixed.content?.[0].content?.[0].content?.[0]
+    expect(cell?.content).toHaveLength(1)
+    expect(cell?.content?.[0].type).toBe(MarkupNodeType.paragraph)
+  })
+
+  it('drops malformed nodes without a type', () => {
+    const doc: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        { type: MarkupNodeType.paragraph, content: [{ type: MarkupNodeType.text, text: 'ok' }] },
+        {} as unknown as MarkupNode
+      ]
+    }
+    const fixed = conformToSchema(doc)
+    expect(fixed.content).toHaveLength(1)
+    expect(JSON.stringify(fixed)).toContain('ok')
+  })
+})

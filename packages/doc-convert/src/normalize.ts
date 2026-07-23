@@ -82,17 +82,39 @@ const INLINE_TYPES = new Set<string>([
  */
 export function conformToSchema (markup: Markup | MarkupNode): MarkupNode {
   const root = typeof markup === 'string' ? markupToJSON(markup) : markup
-  return conformNode(root)
+  return conformNode(root) ?? { type: MarkupNodeType.doc, content: [] }
 }
 
-function conformNode (node: MarkupNode): MarkupNode {
-  if (node.content === undefined) {
+function conformNode (node: MarkupNode): MarkupNode | undefined {
+  // Drop malformed nodes (e.g. `{}` with no type) — they crash the PM schema and the diff.
+  if (node === null || node === undefined || typeof node.type !== 'string') {
+    return undefined
+  }
+  // Drop empty text nodes (invalid in the schema).
+  if (node.type === MarkupNodeType.text) {
+    return node.text === undefined || node.text === '' ? undefined : node
+  }
+
+  const isContainer = BLOCK_CONTAINERS.has(node.type)
+
+  // Leaf nodes (image, hardBreak, horizontalRule, …) keep their shape untouched.
+  if (node.content === undefined && !isContainer) {
     return node
   }
-  const content = node.content.map(conformNode)
-  if (BLOCK_CONTAINERS.has(node.type)) {
-    return { ...node, content: wrapInlineChildren(content) }
+
+  let content = (node.content ?? [])
+    .map(conformNode)
+    .filter((child): child is MarkupNode => child !== undefined)
+
+  if (isContainer) {
+    content = wrapInlineChildren(content)
+    // A block container (list item, table cell, blockquote, …) must hold at least one
+    // block node; an empty one (e.g. `<td></td>`) is rejected by the schema.
+    if (content.length === 0) {
+      content = [{ type: MarkupNodeType.paragraph, content: [] }]
+    }
   }
+
   return { ...node, content }
 }
 
