@@ -497,16 +497,16 @@ export function createServer (
     const images = new Map<string, Uint8Array>()
     if (format === 'docx') {
       for (const ref of collectImageRefs(markup)) {
-      try {
-        const stat = await storageAdapter.stat(measureCtx, wsIds, ref as Ref<Blob>)
-        if (stat === undefined) {
-          continue
+        try {
+          const stat = await storageAdapter.stat(measureCtx, wsIds, ref as Ref<Blob>)
+          if (stat === undefined) {
+            continue
+          }
+          const raw = await storageAdapter.read(measureCtx, wsIds, ref as Ref<Blob>)
+          images.set(ref, Buffer.concat(raw as any))
+        } catch (err) {
+          measureCtx.warn('failed to read image blob for export', { ref })
         }
-        const raw = await storageAdapter.read(measureCtx, wsIds, ref as Ref<Blob>)
-        images.set(ref, Buffer.concat(raw as any))
-      } catch (err) {
-        measureCtx.warn('failed to read image blob for export', { ref })
-      }
       }
     }
 
