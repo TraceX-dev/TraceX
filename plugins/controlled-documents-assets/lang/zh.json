@@ -1,5 +1,9 @@
 {
   "string": {
+    "Export": "导出",
+    "Import": "导入",
+    "ImportingDocument": "正在导入文档",
+    "ConvertingDocument": "正在转换文档…",
     "ImportingFromWord": "正在从 Word 导入",
     "ConvertingWordDocument": "正在转换文档…",
     "DocumentConverted": "文档已转换",

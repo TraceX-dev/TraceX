@@ -76,9 +76,7 @@ export default mergeIds(documentsId, documents, {
     ArchiveDocument: '' as ViewAction,
     MakeDocumentObsolete: '' as ViewAction,
     TransferDocument: '' as ViewAction,
-    EditDocSpace: '' as ViewAction,
-    ExportToWord: '' as ViewAction,
-    ImportFromWord: '' as ViewAction
+    EditDocSpace: '' as ViewAction
   },
   specialViewAction: {
     TableDocument: '' as Ref<ViewletViewAction>

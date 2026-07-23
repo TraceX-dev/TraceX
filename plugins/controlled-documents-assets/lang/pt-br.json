@@ -1,5 +1,9 @@
 {
   "string": {
+    "Export": "Exportar",
+    "Import": "Importar",
+    "ImportingDocument": "Importando o documento",
+    "ConvertingDocument": "Convertendo o documento…",
     "ImportingFromWord": "Importando do Word",
     "ConvertingWordDocument": "Convertendo o documento…",
     "DocumentConverted": "Documento convertido",

@@ -54,6 +54,8 @@ export default mergeIds(documentsId, documents, {
     ReviewImportedChanges: '' as IntlString,
     Apply: '' as IntlString,
     ImportingFromWord: '' as IntlString,
+    ImportingDocument: '' as IntlString,
+    ConvertingDocument: '' as IntlString,
     ConvertingWordDocument: '' as IntlString,
     DocumentConverted: '' as IntlString,
     ImportFailed: '' as IntlString,

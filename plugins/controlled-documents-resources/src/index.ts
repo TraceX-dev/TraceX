@@ -36,13 +36,14 @@ import { showPopup } from '@hcengineering/ui'
 import { getCurrentEmployee } from '@hcengineering/contact'
 
 import CreateDocument from './components/CreateDocument.svelte'
-import { exportDocumentToWord, importWordIntoDocument } from './docxActions'
 import DeleteCategoryPopup from './components/category/popups/DeleteCategoryPopup.svelte'
 import QmsDocumentWizard from './components/create-doc/QmsDocumentWizard.svelte'
 import QmsTemplateWizard from './components/create-doc/QmsTemplateWizard.svelte'
 import DocumentStatusTag from './components/document/common/DocumentStatusTag.svelte'
 import AddCommentPopup from './components/document/popups/AddCommentPopup.svelte'
 import ChangeOwnerPopup from './components/document/popups/ChangeOwnerPopup.svelte'
+import ExportFormatPopup from './components/document/ExportFormatPopup.svelte'
+import ImportFormatPopup from './components/document/ImportFormatPopup.svelte'
 import DocumentCommentsPopup from './components/document/popups/DocumentCommentsPopup.svelte'
 import DocumentPresenter from './components/document/presenters/DocumentPresenter.svelte'
 import OwnerPresenter from './components/document/presenters/OwnerPresenter.svelte'
@@ -402,6 +403,8 @@ export default async (): Promise<Resources> => ({
     AddCommentPopup,
     DocumentCommentsPopup,
     ChangeOwnerPopup,
+    ExportFormatPopup,
+    ImportFormatPopup,
     DeleteCategoryPopup,
     Projects,
     ProjectPresenter,
@@ -466,9 +469,7 @@ export default async (): Promise<Resources> => ({
     ArchiveDocument: archiveDocuments,
     MakeDocumentObsolete: makeDocumentObsolete,
     TransferDocument: transferDocuments,
-    EditDocSpace: editDocSpace,
-    ExportToWord: exportDocumentToWord,
-    ImportFromWord: importWordIntoDocument
+    EditDocSpace: editDocSpace
   },
   resolver: {
     Location: resolveLocation

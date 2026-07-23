@@ -1,5 +1,9 @@
 {
     "string": {
+    "Export": "내보내기",
+    "Import": "가져오기",
+    "ImportingDocument": "문서 가져오는 중",
+    "ConvertingDocument": "문서 변환 중…",
     "ImportingFromWord": "Word에서 가져오는 중",
     "ConvertingWordDocument": "문서 변환 중…",
     "DocumentConverted": "문서 변환 완료",

@@ -1,5 +1,9 @@
 {
   "string": {
+    "Export": "Exportovat",
+    "Import": "Importovat",
+    "ImportingDocument": "Import dokumentu",
+    "ConvertingDocument": "Převod dokumentu…",
     "ImportingFromWord": "Import z Wordu",
     "ConvertingWordDocument": "Převod dokumentu…",
     "DocumentConverted": "Dokument převeden",

@@ -1,5 +1,9 @@
 {
   "string": {
+    "Export": "Dışa aktar",
+    "Import": "İçe aktar",
+    "ImportingDocument": "Belge içe aktarılıyor",
+    "ConvertingDocument": "Belge dönüştürülüyor…",
     "ImportingFromWord": "Word'den içe aktarılıyor",
     "ConvertingWordDocument": "Belge dönüştürülüyor…",
     "DocumentConverted": "Belge dönüştürüldü",

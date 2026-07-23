@@ -46,29 +46,23 @@ function authHeaders (): Record<string, string> {
   }
 }
 
-/** Export a document's body to a .docx file and trigger a browser download. */
-export async function exportDocumentToWord (obj: ControlledDocument | ControlledDocument[]): Promise<void> {
-  const doc = Array.isArray(obj) ? obj[0] : obj
-  if (doc === undefined) {
-    return
-  }
-
+/** Export a document's body in the given format ('docx' | 'md') and download it. */
+export async function exportDocument (doc: ControlledDocument, format: string): Promise<void> {
   const response = await fetch(`${getExportBaseUrl()}/document-export`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ _class: doc._class, _id: doc._id, format: 'docx' })
+    body: JSON.stringify({ _class: doc._class, _id: doc._id, format })
   })
   if (!response.ok) {
-    throw new Error('Failed to export document to Word')
+    throw new Error('Failed to export document')
   }
 
   const blob = await response.blob()
   const contentDisposition = response.headers.get('Content-Disposition')
-  const filename = contentDisposition?.match(/filename="([^"]*)"/)?.[1] ?? `${doc.title ?? 'document'}.docx`
+  const filename = contentDisposition?.match(/filename="([^"]*)"/)?.[1] ?? `${doc.title ?? 'document'}.${format}`
 
   // Attach the anchor to the DOM before click() (detached anchors are ignored by some
-  // browsers) and defer the revoke — revoking synchronously drops the blob mid-read and
-  // the download stalls.
+  // browsers) and defer the revoke — revoking synchronously drops the blob mid-read.
   const url = window.URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.style.display = 'none'
@@ -82,13 +76,10 @@ export async function exportDocumentToWord (obj: ControlledDocument | Controlled
   }, 10000)
 }
 
-/** Import an edited .docx: convert, preview the diff, and on confirm write it back. */
-export async function importWordIntoDocument (obj: ControlledDocument | ControlledDocument[]): Promise<void> {
-  const doc = Array.isArray(obj) ? obj[0] : obj
-  if (doc === undefined) {
-    return
-  }
-  const file = await pickFile('.docx')
+/** Import an edited document ('docx' | 'md'): convert, preview the diff, apply. */
+export async function importDocument (doc: ControlledDocument, format: string): Promise<void> {
+  const accept = format === 'md' ? '.md,.markdown' : '.docx'
+  const file = await pickFile(accept)
   if (file === undefined) {
     return
   }
@@ -100,8 +91,8 @@ export async function importWordIntoDocument (obj: ControlledDocument | Controll
     // long-running-task toast shows a spinner until it settles.
     converted = await withProgress(
       {
-        title: await translate(plugin.string.ImportingFromWord, {}, lang),
-        message: await translate(plugin.string.ConvertingWordDocument, {}, lang),
+        title: await translate(plugin.string.ImportingDocument, {}, lang),
+        message: await translate(plugin.string.ConvertingDocument, {}, lang),
         done: await translate(plugin.string.DocumentConverted, {}, lang),
         failed: await translate(plugin.string.ImportFailed, {}, lang)
       },
@@ -112,10 +103,10 @@ export async function importWordIntoDocument (obj: ControlledDocument | Controll
         const diffResponse = await fetch(`${getExportBaseUrl()}/document-import`, {
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({ blobId: uuid, _class: doc._class, _id: doc._id, format: 'docx' })
+          body: JSON.stringify({ blobId: uuid, _class: doc._class, _id: doc._id, format })
         })
         if (!diffResponse.ok) {
-          throw new Error('Failed to convert Word document')
+          throw new Error('Failed to convert document')
         }
         return (await diffResponse.json()) as { current: MarkupNode, candidate: MarkupNode }
       }
