@@ -1,5 +1,9 @@
 {
   "string": {
+    "ImportingFromWord": "Importing from Word",
+    "ConvertingWordDocument": "Converting document…",
+    "DocumentConverted": "Document converted",
+    "ImportFailed": "Import failed",
     "ReviewImportedChanges": "Review imported changes",
     "Apply": "Apply",
     "ExportToWord": "Export to Word",

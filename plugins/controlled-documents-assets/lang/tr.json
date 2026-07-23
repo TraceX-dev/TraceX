@@ -1,5 +1,9 @@
 {
   "string": {
+    "ImportingFromWord": "Word'den içe aktarılıyor",
+    "ConvertingWordDocument": "Belge dönüştürülüyor…",
+    "DocumentConverted": "Belge dönüştürüldü",
+    "ImportFailed": "İçe aktarma başarısız",
     "ReviewImportedChanges": "İçe aktarılan değişiklikleri gözden geçir",
     "Apply": "Uygula",
     "ExportToWord": "Word'e aktar",

@@ -18,12 +18,14 @@ import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-
 import { makeDocCollabId } from '@hcengineering/core'
 import { type ControlledDocument } from '@hcengineering/controlled-documents'
 import exportPlugin from '@hcengineering/export'
-import { getMetadata, getResource, setPlatformStatus, unknownError } from '@hcengineering/platform'
+import { getMetadata, getResource, setPlatformStatus, translate, unknownError } from '@hcengineering/platform'
 import presentation from '@hcengineering/presentation'
 import { jsonToMarkup, type MarkupNode } from '@hcengineering/text'
-import { showPopup } from '@hcengineering/ui'
+import { showPopup, withProgress } from '@hcengineering/ui'
+import { getCurrentLanguage } from '@hcengineering/theme'
 
 import ImportDocxPopup from './components/document/ImportDocxPopup.svelte'
+import plugin from './plugin'
 
 function getExportBaseUrl (): string {
   const url = getMetadata(exportPlugin.metadata.ExportUrl)
@@ -91,22 +93,41 @@ export async function importWordIntoDocument (obj: ControlledDocument | Controll
     return
   }
 
-  const uploadFile = await getResource(attachment.helper.UploadFile)
-  const { uuid } = await uploadFile(file)
+  const lang = getCurrentLanguage()
+  let converted: { current: MarkupNode, candidate: MarkupNode }
+  try {
+    // Conversion can take a while with no incremental progress, so a shared
+    // long-running-task toast shows a spinner until it settles.
+    converted = await withProgress(
+      {
+        title: await translate(plugin.string.ImportingFromWord, {}, lang),
+        message: await translate(plugin.string.ConvertingWordDocument, {}, lang),
+        done: await translate(plugin.string.DocumentConverted, {}, lang),
+        failed: await translate(plugin.string.ImportFailed, {}, lang)
+      },
+      async () => {
+        const uploadFile = await getResource(attachment.helper.UploadFile)
+        const { uuid } = await uploadFile(file)
 
-  const diffResponse = await fetch(`${getExportBaseUrl()}/document-import`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ blobId: uuid, _class: doc._class, _id: doc._id, format: 'docx' })
-  })
-  if (!diffResponse.ok) {
-    throw new Error('Failed to convert Word document')
+        const diffResponse = await fetch(`${getExportBaseUrl()}/document-import`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ blobId: uuid, _class: doc._class, _id: doc._id, format: 'docx' })
+        })
+        if (!diffResponse.ok) {
+          throw new Error('Failed to convert Word document')
+        }
+        return (await diffResponse.json()) as { current: MarkupNode, candidate: MarkupNode }
+      }
+    )
+  } catch {
+    // The progress toast already surfaced the failure.
+    return
   }
-  const { current, candidate }: { current: MarkupNode, candidate: MarkupNode } = await diffResponse.json()
 
-  showPopup(ImportDocxPopup, { current, candidate }, undefined, (apply) => {
+  showPopup(ImportDocxPopup, { current: converted.current, candidate: converted.candidate }, undefined, (apply) => {
     if (apply === true) {
-      void applyImportedContent(doc, candidate).catch((err) => {
+      void applyImportedContent(doc, converted.candidate).catch((err) => {
         void setPlatformStatus(unknownError(err))
       })
     }

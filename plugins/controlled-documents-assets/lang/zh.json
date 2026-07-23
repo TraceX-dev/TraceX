@@ -1,5 +1,9 @@
 {
   "string": {
+    "ImportingFromWord": "正在从 Word 导入",
+    "ConvertingWordDocument": "正在转换文档…",
+    "DocumentConverted": "文档已转换",
+    "ImportFailed": "导入失败",
     "ReviewImportedChanges": "查看导入的更改",
     "Apply": "应用",
     "ExportToWord": "导出为 Word",

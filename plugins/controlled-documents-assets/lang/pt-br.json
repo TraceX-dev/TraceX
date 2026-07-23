@@ -1,5 +1,9 @@
 {
   "string": {
+    "ImportingFromWord": "Importando do Word",
+    "ConvertingWordDocument": "Convertendo o documento…",
+    "DocumentConverted": "Documento convertido",
+    "ImportFailed": "Falha na importação",
     "ReviewImportedChanges": "Revisar as alterações importadas",
     "Apply": "Aplicar",
     "ExportToWord": "Exportar para Word",

@@ -1,5 +1,9 @@
 {
   "string": {
+    "ImportingFromWord": "Import z Wordu",
+    "ConvertingWordDocument": "Převod dokumentu…",
+    "DocumentConverted": "Dokument převeden",
+    "ImportFailed": "Import selhal",
     "ReviewImportedChanges": "Zkontrolovat importované změny",
     "Apply": "Použít",
     "ExportToWord": "Exportovat do Wordu",

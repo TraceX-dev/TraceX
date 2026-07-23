@@ -1,5 +1,9 @@
 {
   "string": {
+    "ImportingFromWord": "Импорт из Word",
+    "ConvertingWordDocument": "Конвертация документа…",
+    "DocumentConverted": "Документ сконвертирован",
+    "ImportFailed": "Ошибка импорта",
     "ReviewImportedChanges": "Просмотрите импортированные изменения",
     "Apply": "Применить",
     "ExportToWord": "Экспорт в Word",
