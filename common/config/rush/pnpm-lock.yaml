@@ -14089,9 +14089,15 @@ importers:
       '@hcengineering/text-html':
         specifier: workspace:^0.7.19
         version: link:../../foundations/core/packages/text-html
+      '@hcengineering/text-markdown':
+        specifier: workspace:^0.7.21
+        version: link:../../foundations/core/packages/text-markdown
       docx:
         specifier: ^9.0.0
         version: 9.7.1
+      image-size:
+        specifier: ^1.1.1
+        version: 1.2.1
       mammoth:
         specifier: ^1.9.0
         version: 1.11.0
