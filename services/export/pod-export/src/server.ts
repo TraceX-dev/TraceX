@@ -78,7 +78,7 @@ import envConfig from './config'
 import { ApiError } from './error'
 import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
 import { loadCollabJson } from '@hcengineering/collaboration'
-import { docxToMarkup, markupToDocx, normalizeMarkup } from '@hcengineering/doc-convert'
+import { collectImageRefs, docxToMarkup, markupToDocx, normalizeMarkup } from '@hcengineering/doc-convert'
 import { markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
@@ -430,12 +430,13 @@ export function createServer (
 
   const renderDocumentExport = async (
     format: string,
-    markup: string
+    markup: string,
+    images: Map<string, Uint8Array>
   ): Promise<{ buffer: Buffer, contentType: string, ext: string }> => {
     switch (format) {
       case 'docx':
         return {
-          buffer: await markupToDocx(markup),
+          buffer: await markupToDocx(markup, { images }),
           contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           ext: 'docx'
         }
@@ -477,7 +478,22 @@ export function createServer (
         ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
         : emptyMarkup
 
-    const rendered = await renderDocumentExport(format, markup)
+    // Resolve image blobs referenced by the content so they can be embedded.
+    const images = new Map<string, Uint8Array>()
+    for (const ref of collectImageRefs(markup)) {
+      try {
+        const stat = await storageAdapter.stat(measureCtx, wsIds, ref as Ref<Blob>)
+        if (stat === undefined) {
+          continue
+        }
+        const raw = await storageAdapter.read(measureCtx, wsIds, ref as Ref<Blob>)
+        images.set(ref, Buffer.concat(raw as any))
+      } catch (err) {
+        measureCtx.warn('failed to read image blob for export', { ref })
+      }
+    }
+
+    const rendered = await renderDocumentExport(format, markup, images)
 
     const title = (doc as unknown as { title?: string }).title ?? 'document'
     const fileName = `${sanitizeSpaceFileName(title)}.${rendered.ext}`

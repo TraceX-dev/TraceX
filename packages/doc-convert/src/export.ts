@@ -27,6 +27,7 @@ import {
   ExternalHyperlink,
   HeadingLevel,
   type ILevelsOptions,
+  ImageRun,
   LevelFormat,
   Packer,
   Paragraph,
@@ -37,25 +38,25 @@ import {
   TextRun,
   WidthType
 } from 'docx'
+import imageSize from 'image-size'
 
-interface NumberingCtx {
-  configs: Array<{ reference: string, levels: ILevelsOptions[] }>
+// Approx. usable content width of a default A4/Letter page at 96 dpi (points ~= px here).
+const MAX_IMAGE_WIDTH = 600
+
+type DocxImageType = 'png' | 'jpg' | 'gif' | 'bmp'
+
+/** @public */
+export interface MarkupToDocxOptions {
+  /**
+   * Raw image bytes keyed by the markup image node's `file-id`. The host is expected to
+   * resolve blobs (storage/network) and pass them in — this package stays pure.
+   */
+  images?: Map<string, Uint8Array>
 }
 
-// Each ordered list gets its own numbering instance, so two separate lists restart
-// at 1 instead of sharing one continuous counter. `level` still drives nesting indent.
-function allocateOrderedNumbering (ctx: NumberingCtx): string {
-  const reference = `ordered-${ctx.configs.length}`
-  ctx.configs.push({
-    reference,
-    levels: [0, 1, 2, 3].map((level) => ({
-      level,
-      format: LevelFormat.DECIMAL,
-      text: `%${level + 1}.`,
-      alignment: AlignmentType.START
-    }))
-  })
-  return reference
+interface DocxCtx {
+  configs: Array<{ reference: string, levels: ILevelsOptions[] }>
+  images?: Map<string, Uint8Array>
 }
 
 const HEADINGS = [
@@ -78,60 +79,111 @@ interface MarkState {
   link?: string
 }
 
+// Each ordered list gets its own numbering instance, so two separate lists restart
+// at 1 instead of sharing one continuous counter. `level` still drives nesting indent.
+function allocateOrderedNumbering (ctx: DocxCtx): string {
+  const reference = `ordered-${ctx.configs.length}`
+  ctx.configs.push({
+    reference,
+    levels: [0, 1, 2, 3].map((level) => ({
+      level,
+      format: LevelFormat.DECIMAL,
+      text: `%${level + 1}.`,
+      alignment: AlignmentType.START
+    }))
+  })
+  return reference
+}
+
 /**
- * Convert collaborator markup (content body only) into a .docx buffer.
- *
- * Pure transformation: no storage/network. QMS metadata (title, approvals,
- * revision history) is intentionally NOT included — the goal is round-trip
- * editing of the document body in an external editor.
+ * Reference (blob id) an image markup node points at. Huly image nodes carry the blob
+ * in the `file-id` attribute.
  *
  * @public
  */
-export async function markupToDocx (markup: Markup | MarkupNode): Promise<Buffer> {
+export function imageRef (node: MarkupNode): string | undefined {
+  const id = node.attrs?.['file-id']
+  return typeof id === 'string' && id !== '' ? id : undefined
+}
+
+/**
+ * Collect the unique blob references of every image in the markup, so a host can fetch
+ * them before calling markupToDocx.
+ *
+ * @public
+ */
+export function collectImageRefs (markup: Markup | MarkupNode): string[] {
   const root = typeof markup === 'string' ? markupToJSON(markup) : markup
-  const numbering: NumberingCtx = { configs: [] }
-  const children = blocksFromContent(root.content ?? [], numbering)
+  const refs = new Set<string>()
+  const visit = (node: MarkupNode): void => {
+    if (node.type === MarkupNodeType.image) {
+      const ref = imageRef(node)
+      if (ref !== undefined) {
+        refs.add(ref)
+      }
+    }
+    for (const child of node.content ?? []) {
+      visit(child)
+    }
+  }
+  visit(root)
+  return Array.from(refs)
+}
+
+/**
+ * Convert collaborator markup (content body only) into a .docx buffer.
+ *
+ * Pure transformation: no storage/network. QMS metadata (title, approvals, revision
+ * history) is intentionally NOT included — the goal is round-trip editing of the body.
+ * Images are embedded only when their bytes are supplied via `options.images`.
+ *
+ * @public
+ */
+export async function markupToDocx (markup: Markup | MarkupNode, options: MarkupToDocxOptions = {}): Promise<Buffer> {
+  const root = typeof markup === 'string' ? markupToJSON(markup) : markup
+  const ctx: DocxCtx = { configs: [], images: options.images }
+  const children = blocksFromContent(root.content ?? [], ctx)
 
   const doc = new Document({
-    ...(numbering.configs.length > 0 ? { numbering: { config: numbering.configs } } : {}),
+    ...(ctx.configs.length > 0 ? { numbering: { config: ctx.configs } } : {}),
     sections: [{ children: children.length > 0 ? children : [new Paragraph({})] }]
   })
 
   return await Packer.toBuffer(doc)
 }
 
-function blocksFromContent (content: MarkupNode[], numbering: NumberingCtx): Block[] {
+function blocksFromContent (content: MarkupNode[], ctx: DocxCtx): Block[] {
   const out: Block[] = []
   for (const node of content) {
-    appendBlock(out, node, numbering)
+    appendBlock(out, node, ctx)
   }
   return out
 }
 
-function appendBlock (out: Block[], node: MarkupNode, numbering: NumberingCtx): void {
+function appendBlock (out: Block[], node: MarkupNode, ctx: DocxCtx): void {
   switch (node.type) {
     case MarkupNodeType.paragraph:
-      out.push(new Paragraph({ children: inlines(node.content ?? []) }))
+      out.push(new Paragraph({ children: inlines(node.content ?? [], ctx) }))
       break
     case MarkupNodeType.heading: {
       const level = Number(node.attrs?.level ?? 1)
       out.push(
         new Paragraph({
           heading: HEADINGS[Math.min(Math.max(level, 1), 6) - 1],
-          children: inlines(node.content ?? [])
+          children: inlines(node.content ?? [], ctx)
         })
       )
       break
     }
     case MarkupNodeType.bullet_list:
-      appendList(out, node, false, 0, numbering)
+      appendList(out, node, false, 0, ctx)
       break
     case MarkupNodeType.ordered_list:
-      appendList(out, node, true, 0, numbering)
+      appendList(out, node, true, 0, ctx)
       break
     case MarkupNodeType.blockquote:
       for (const child of node.content ?? []) {
-        out.push(new Paragraph({ children: inlines(child.content ?? []), style: 'IntenseQuote' }))
+        out.push(new Paragraph({ children: inlines(child.content ?? [], ctx), style: 'IntenseQuote' }))
       }
       break
     case MarkupNodeType.code_block:
@@ -144,47 +196,54 @@ function appendBlock (out: Block[], node: MarkupNode, numbering: NumberingCtx): 
     case MarkupNodeType.horizontal_rule:
       out.push(new Paragraph({ thematicBreak: true }))
       break
-    case MarkupNodeType.table:
-      out.push(renderTable(node, numbering))
+    case MarkupNodeType.image: {
+      const run = makeImageRun(node, ctx)
+      if (run !== undefined) {
+        out.push(new Paragraph({ children: [run] }))
+      }
       break
-    // image/file/embed: reference blobs; embedding is a host (I/O) concern, skipped here.
+    }
+    case MarkupNodeType.table:
+      out.push(renderTable(node, ctx))
+      break
+    // file/embed: reference blobs; embedding is out of scope here.
     default:
       if (node.content !== undefined && node.content.length > 0) {
         for (const child of node.content) {
-          appendBlock(out, child, numbering)
+          appendBlock(out, child, ctx)
         }
       }
   }
 }
 
-function appendList (out: Block[], list: MarkupNode, ordered: boolean, level: number, numbering: NumberingCtx): void {
-  const reference = ordered ? allocateOrderedNumbering(numbering) : undefined
+function appendList (out: Block[], list: MarkupNode, ordered: boolean, level: number, ctx: DocxCtx): void {
+  const reference = ordered ? allocateOrderedNumbering(ctx) : undefined
   for (const item of list.content ?? []) {
     for (const child of item.content ?? []) {
       if (child.type === MarkupNodeType.bullet_list) {
-        appendList(out, child, false, level + 1, numbering)
+        appendList(out, child, false, level + 1, ctx)
       } else if (child.type === MarkupNodeType.ordered_list) {
-        appendList(out, child, true, level + 1, numbering)
+        appendList(out, child, true, level + 1, ctx)
       } else if (child.type === MarkupNodeType.paragraph) {
         out.push(
           new Paragraph({
-            children: inlines(child.content ?? []),
+            children: inlines(child.content ?? [], ctx),
             ...(reference !== undefined ? { numbering: { reference, level } } : { bullet: { level } })
           })
         )
       } else {
-        appendBlock(out, child, numbering)
+        appendBlock(out, child, ctx)
       }
     }
   }
 }
 
-function renderTable (node: MarkupNode, numbering: NumberingCtx): Table {
+function renderTable (node: MarkupNode, ctx: DocxCtx): Table {
   const rows = (node.content ?? []).map(
     (row) =>
       new TableRow({
         children: (row.content ?? []).map(
-          (cell) => new TableCell({ children: withFallback(blocksFromContent(cell.content ?? [], numbering)) })
+          (cell) => new TableCell({ children: withFallback(blocksFromContent(cell.content ?? [], ctx)) })
         )
       })
   )
@@ -195,7 +254,7 @@ function withFallback (blocks: Block[]): Block[] {
   return blocks.length > 0 ? blocks : [new Paragraph({})]
 }
 
-function inlines (content: MarkupNode[], inherited: MarkState = {}): ParagraphChild[] {
+function inlines (content: MarkupNode[], ctx: DocxCtx, inherited: MarkState = {}): ParagraphChild[] {
   const runs: ParagraphChild[] = []
   for (const node of content) {
     if (node.type === MarkupNodeType.text) {
@@ -216,11 +275,66 @@ function inlines (content: MarkupNode[], inherited: MarkState = {}): ParagraphCh
       }
     } else if (node.type === MarkupNodeType.hard_break) {
       runs.push(new TextRun({ break: 1 }))
+    } else if (node.type === MarkupNodeType.image) {
+      const run = makeImageRun(node, ctx)
+      if (run !== undefined) {
+        runs.push(run)
+      }
     } else if (node.content !== undefined) {
-      runs.push(...inlines(node.content, inherited))
+      runs.push(...inlines(node.content, ctx, inherited))
     }
   }
   return runs
+}
+
+function makeImageRun (node: MarkupNode, ctx: DocxCtx): ImageRun | undefined {
+  const ref = imageRef(node)
+  if (ref === undefined || ctx.images === undefined) {
+    return undefined
+  }
+  const data = ctx.images.get(ref)
+  if (data === undefined) {
+    return undefined
+  }
+
+  let dimensions: { width?: number, height?: number, type?: string }
+  try {
+    dimensions = imageSize(Buffer.from(data))
+  } catch {
+    return undefined
+  }
+
+  const type = docxImageType(dimensions.type)
+  if (type === undefined || dimensions.width == null || dimensions.height == null) {
+    return undefined
+  }
+
+  const { width, height } = scaleToFit(dimensions.width, dimensions.height, MAX_IMAGE_WIDTH)
+  return new ImageRun({ type, data, transformation: { width, height } })
+}
+
+function docxImageType (type?: string): DocxImageType | undefined {
+  switch (type) {
+    case 'png':
+      return 'png'
+    case 'jpg':
+    case 'jpeg':
+      return 'jpg'
+    case 'gif':
+      return 'gif'
+    case 'bmp':
+      return 'bmp'
+    default:
+      return undefined
+  }
+}
+
+function scaleToFit (width: number, height: number, maxWidth: number): { width: number, height: number } {
+  if (width <= maxWidth) {
+    return { width, height }
+  }
+  const ratio = maxWidth / width
+  return { width: maxWidth, height: Math.round(height * ratio) }
 }
 
 function applyMarks (base: MarkState, marks: MarkupMark[]): MarkState {

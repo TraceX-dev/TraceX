@@ -14,7 +14,7 @@
 //
 
 import { MarkupMarkType, type MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
-import { conformToSchema, docxToMarkup, markupToDocx, normalizeMarkup } from '..'
+import { collectImageRefs, conformToSchema, docxToMarkup, markupToDocx, normalizeMarkup } from '..'
 
 const sample: MarkupNode = {
   type: MarkupNodeType.doc,
@@ -108,5 +108,32 @@ describe('conformToSchema', () => {
     const listItem = fixed.content?.[0].content?.[0]
     expect(listItem?.content?.[0].type).toBe(MarkupNodeType.paragraph)
     expect(JSON.stringify(fixed)).toContain('bare')
+  })
+})
+
+describe('images', () => {
+  // 1x1 transparent PNG
+  const png1x1 = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64'
+  )
+  const withImage: MarkupNode = {
+    type: MarkupNodeType.doc,
+    content: [{ type: MarkupNodeType.image, attrs: { 'file-id': 'blob-1' } }]
+  }
+
+  it('collectImageRefs returns image blob references', () => {
+    expect(collectImageRefs(withImage)).toEqual(['blob-1'])
+  })
+
+  it('embeds an image when its bytes are supplied', async () => {
+    const images = new Map<string, Uint8Array>([['blob-1', png1x1]])
+    const buf = await markupToDocx(withImage, { images })
+    expect(buf.subarray(0, 2).toString('latin1')).toBe('PK')
+  })
+
+  it('skips images without supplied bytes (no throw)', async () => {
+    const buf = await markupToDocx(withImage)
+    expect(buf.length).toBeGreaterThan(0)
   })
 })
