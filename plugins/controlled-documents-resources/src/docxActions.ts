@@ -87,10 +87,10 @@ export async function importWordIntoDocument (obj: ControlledDocument | Controll
   const uploadFile = await getResource(attachment.helper.UploadFile)
   const { uuid } = await uploadFile(file)
 
-  const diffResponse = await fetch(`${getExportBaseUrl()}/docx-diff`, {
+  const diffResponse = await fetch(`${getExportBaseUrl()}/document-import`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ blobId: uuid, _class: doc._class, _id: doc._id })
+    body: JSON.stringify({ blobId: uuid, _class: doc._class, _id: doc._id, format: 'docx' })
   })
   if (!diffResponse.ok) {
     throw new Error('Failed to convert Word document')
