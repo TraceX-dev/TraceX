@@ -1,5 +1,7 @@
 {
     "string": {
+    "ReviewImportedChanges": "가져온 변경사항 검토",
+    "Apply": "적용",
     "ExportToWord": "Word로 내보내기",
     "ImportFromWord": "Word에서 가져오기",
         "ID": "ID",

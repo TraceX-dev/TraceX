@@ -1,5 +1,7 @@
 {
   "string": {
+    "ReviewImportedChanges": "Просмотрите импортированные изменения",
+    "Apply": "Применить",
     "ExportToWord": "Экспорт в Word",
     "ImportFromWord": "Импорт из Word",
     "ID": "ID",

@@ -1,5 +1,7 @@
 {
   "string": {
+    "ReviewImportedChanges": "Zkontrolovat importované změny",
+    "Apply": "Použít",
     "ExportToWord": "Exportovat do Wordu",
     "ImportFromWord": "Importovat z Wordu",
     "ID": "ID",

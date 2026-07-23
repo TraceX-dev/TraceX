@@ -1,5 +1,7 @@
 {
   "string": {
+    "ReviewImportedChanges": "インポートした変更を確認",
+    "Apply": "適用",
     "ExportToWord": "Wordにエクスポート",
     "ImportFromWord": "Wordからインポート",
     "ID": "ID",

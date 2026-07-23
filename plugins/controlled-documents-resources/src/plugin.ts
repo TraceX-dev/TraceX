@@ -51,6 +51,8 @@ export default mergeIds(documentsId, documents, {
     ID: '' as IntlString,
     ValidationWorkflow: '' as IntlString,
     Cancel: '' as IntlString,
+    ReviewImportedChanges: '' as IntlString,
+    Apply: '' as IntlString,
     NewDocumentDialogClose: '' as IntlString,
     NewDocumentCloseNote: '' as IntlString,
     CreateDocumentCategory: '' as IntlString,

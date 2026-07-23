@@ -1,5 +1,7 @@
 {
   "string": {
+    "ReviewImportedChanges": "Revisar los cambios importados",
+    "Apply": "Aplicar",
     "ExportToWord": "Exportar a Word",
     "ImportFromWord": "Importar desde Word",
     "ID": "ID",

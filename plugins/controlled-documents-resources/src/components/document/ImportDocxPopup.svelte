@@ -13,8 +13,8 @@
   import { createEventDispatcher } from 'svelte'
   import { type MarkupNode } from '@hcengineering/text'
   import { MarkupDiffViewer } from '@hcengineering/text-editor-resources'
-  import { getEmbeddedLabel } from '@hcengineering/platform'
-  import { Button, Scroller } from '@hcengineering/ui'
+  import { Button, Label, Scroller } from '@hcengineering/ui'
+  import plugin from '../../plugin'
 
   // Current document content (before) and imported candidate (after).
   export let current: MarkupNode
@@ -24,15 +24,15 @@
 </script>
 
 <div class="docx-import-popup antiPopup">
-  <div class="header">Review imported changes</div>
+  <div class="header"><Label label={plugin.string.ReviewImportedChanges} /></div>
   <Scroller>
     <div class="diff">
       <MarkupDiffViewer content={candidate} comparedVersion={current} />
     </div>
   </Scroller>
   <div class="footer">
-    <Button label={getEmbeddedLabel('Cancel')} on:click={() => dispatch('close', false)} />
-    <Button label={getEmbeddedLabel('Apply')} kind={'primary'} on:click={() => dispatch('close', true)} />
+    <Button label={plugin.string.Cancel} on:click={() => dispatch('close', false)} />
+    <Button label={plugin.string.Apply} kind={'primary'} on:click={() => dispatch('close', true)} />
   </div>
 </div>
 

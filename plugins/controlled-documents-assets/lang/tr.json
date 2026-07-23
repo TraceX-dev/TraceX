@@ -1,5 +1,7 @@
 {
   "string": {
+    "ReviewImportedChanges": "İçe aktarılan değişiklikleri gözden geçir",
+    "Apply": "Uygula",
     "ExportToWord": "Word'e aktar",
     "ImportFromWord": "Word'den içe aktar",
     "ID": "ID",

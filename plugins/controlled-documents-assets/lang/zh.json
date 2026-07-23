@@ -1,5 +1,7 @@
 {
   "string": {
+    "ReviewImportedChanges": "查看导入的更改",
+    "Apply": "应用",
     "ExportToWord": "导出为 Word",
     "ImportFromWord": "从 Word 导入",
     "ID": "ID",
