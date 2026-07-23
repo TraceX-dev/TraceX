@@ -48,7 +48,8 @@
     "prettier": "^3.6.2",
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@types/convict": "^6.1.6"
   },
   "dependencies": {
     "@hcengineering/analytics-service": "workspace:^0.7.19",
@@ -69,6 +70,7 @@
     "@modelcontextprotocol/server": "^2.0.0-beta.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "convict": "^6.2.4"
   }
 }
