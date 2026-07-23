@@ -42,6 +42,7 @@
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/text-core": "workspace:^0.7.19",
     "@hcengineering/text-html": "workspace:^0.7.19",
+    "@hcengineering/text-markdown": "workspace:^0.7.21",
     "mammoth": "^1.9.0",
     "docx": "^9.0.0",
     "image-size": "^1.1.1"

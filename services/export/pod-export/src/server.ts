@@ -78,7 +78,15 @@ import envConfig from './config'
 import { ApiError } from './error'
 import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
 import { loadCollabJson } from '@hcengineering/collaboration'
-import { collectImageRefs, conformToSchema, docxToMarkup, markupToDocx, normalizeMarkup } from '@hcengineering/doc-convert'
+import {
+  collectImageRefs,
+  conformToSchema,
+  docxToMarkup,
+  markupToDocx,
+  markupToMd,
+  mdToMarkup,
+  normalizeMarkup
+} from '@hcengineering/doc-convert'
 import { markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
@@ -426,7 +434,7 @@ export function createServer (
     })
   )
 
-  const supportedDocumentFormats = ['docx']
+  const supportedDocumentFormats = ['docx', 'md']
 
   const renderDocumentExport = async (
     format: string,
@@ -439,6 +447,12 @@ export function createServer (
           buffer: await markupToDocx(markup, { images }),
           contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           ext: 'docx'
+        }
+      case 'md':
+        return {
+          buffer: Buffer.from(markupToMd(markup), 'utf-8'),
+          contentType: 'text/markdown; charset=utf-8',
+          ext: 'md'
         }
       default:
         throw new ApiError(
@@ -478,9 +492,11 @@ export function createServer (
         ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
         : emptyMarkup
 
-    // Resolve image blobs referenced by the content so they can be embedded.
+    // Resolve image blobs referenced by the content so they can be embedded (docx only;
+    // Markdown keeps images as links).
     const images = new Map<string, Uint8Array>()
-    for (const ref of collectImageRefs(markup)) {
+    if (format === 'docx') {
+      for (const ref of collectImageRefs(markup)) {
       try {
         const stat = await storageAdapter.stat(measureCtx, wsIds, ref as Ref<Blob>)
         if (stat === undefined) {
@@ -490,6 +506,7 @@ export function createServer (
         images.set(ref, Buffer.concat(raw as any))
       } catch (err) {
         measureCtx.warn('failed to read image blob for export', { ref })
+      }
       }
     }
 
@@ -509,7 +526,7 @@ export function createServer (
   // Auth via Authorization header; body carries { _class, _id, format? }.
   app.post('/document-export', wrapRequest(exportDocumentHandler))
 
-  const supportedImportFormats = ['docx']
+  const supportedImportFormats = ['docx', 'md']
 
   const renderDocumentImport = async (format: string, buffer: Buffer): Promise<MarkupNode> => {
     switch (format) {
@@ -517,6 +534,8 @@ export function createServer (
         const { markup } = await docxToMarkup(buffer)
         return markup
       }
+      case 'md':
+        return mdToMarkup(buffer.toString('utf-8'))
       default:
         throw new ApiError(400, `Unsupported import format: ${format}. Supported: ${supportedImportFormats.join(', ')}`)
     }

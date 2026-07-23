@@ -16,3 +16,4 @@
 export { docxToMarkup, type DocxToMarkupResult } from './import'
 export { markupToDocx, collectImageRefs, imageRef, type MarkupToDocxOptions } from './export'
 export { normalizeMarkup, conformToSchema } from './normalize'
+export { markupToMd, mdToMarkup } from './markdown'
