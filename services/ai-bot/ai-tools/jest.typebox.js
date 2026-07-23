@@ -2,6 +2,11 @@ const Type = {
   Any: (options = {}) => ({ ...options }),
   Array: (items, options = {}) => ({ ...options, items, type: 'array' }),
   Boolean: (options = {}) => ({ ...options, type: 'boolean' }),
+  Enum: (values, options = {}) => ({
+    ...options,
+    enum: values,
+    type: values.every((value) => typeof value === 'string') ? 'string' : undefined
+  }),
   Null: (options = {}) => ({ ...options, type: 'null' }),
   Number: (options = {}) => ({ ...options, type: 'number' }),
   Object: (properties, options = {}) => ({

@@ -9,8 +9,10 @@
 import { PlatformContext, Tool } from '@hcengineering/ai-core'
 import { cardTools } from './tools/card'
 import { fulltextTools } from './tools/fulltext'
+import { objectTools } from './tools/object'
 
 export { cardTools } from './tools/card'
 export { fulltextTools } from './tools/fulltext'
+export { objectTools } from './tools/object'
 
-export const tools: Tool<any, any, PlatformContext, any>[] = [...cardTools, ...fulltextTools]
+export const tools: Tool<any, any, PlatformContext, any>[] = [...cardTools, ...fulltextTools, ...objectTools]

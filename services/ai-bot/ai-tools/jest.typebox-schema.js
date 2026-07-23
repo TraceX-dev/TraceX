@@ -20,7 +20,13 @@ function check (schema, value) {
   }
 
   if (schema?.type === 'number') {
-    return typeof value === 'number'
+    if (typeof value !== 'number') {
+      return false
+    }
+    if (schema.maximum !== undefined && value > schema.maximum) {
+      return false
+    }
+    return true
   }
 
   if (schema?.type === 'object') {
@@ -34,7 +40,13 @@ function check (schema, value) {
   }
 
   if (schema?.type === 'string') {
-    return typeof value === 'string'
+    if (typeof value !== 'string') {
+      return false
+    }
+    if (schema.enum !== undefined && !schema.enum.includes(value)) {
+      return false
+    }
+    return true
   }
 
   return true

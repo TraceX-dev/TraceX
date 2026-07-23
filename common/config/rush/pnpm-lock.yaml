@@ -38224,6 +38224,9 @@ importers:
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
+      '@hcengineering/server-notification':
+        specifier: workspace:^0.7.0
+        version: link:../../../server-plugins/notification
       '@hcengineering/server-token':
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
