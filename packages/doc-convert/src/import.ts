@@ -29,7 +29,7 @@ export interface DocxToMarkupResult {
 }
 
 /**
- * Convert a .docx document into Huly Markup.
+ * Convert a .docx document into collaborator Markup.
  *
  * Pure transformation: no storage, network or workspace access.
  * Images arrive as inline data: URIs in the resulting markup — extraction into

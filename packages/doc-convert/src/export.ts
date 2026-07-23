@@ -60,7 +60,7 @@ interface MarkState {
 }
 
 /**
- * Convert Huly Markup (content body only) into a .docx buffer.
+ * Convert collaborator markup (content body only) into a .docx buffer.
  *
  * Pure transformation: no storage/network. QMS metadata (title, approvals,
  * revision history) is intentionally NOT included — the goal is round-trip
