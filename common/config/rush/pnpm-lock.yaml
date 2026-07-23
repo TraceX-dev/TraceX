@@ -41365,7 +41365,7 @@ importers:
         specifier: workspace:^0.7.19
         version: link:../../../foundations/core/packages/analytics-service
       '@hcengineering/api-client':
-        specifier: workspace:^0.7.19
+        specifier: workspace:^0.7.25
         version: link:../../../foundations/core/packages/api-client
       '@hcengineering/card':
         specifier: workspace:^0.7.0
@@ -41399,7 +41399,7 @@ importers:
         version: 2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)(express@4.21.2)
       '@modelcontextprotocol/node':
         specifier: ^2.0.0-beta.5
-        version: 2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)(hono@4.12.31)
+        version: 2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)
       '@modelcontextprotocol/server':
         specifier: ^2.0.0-beta.5
         version: 2.0.0-beta.5
@@ -41412,12 +41412,6 @@ importers:
       express:
         specifier: ^4.21.2
         version: 4.21.2
-      hono:
-        specifier: ^4.11.4
-        version: 4.12.31
-      zod:
-        specifier: ^4.2.0
-        version: 4.4.3
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -49481,10 +49475,6 @@ packages:
     resolution: {integrity: sha512-RqGs4wavGYJWE07t35JQccByczmNUXQT0E12ZYV1VKYu5UiAU9lsos/yBAcf840+zrUQQxgVduCR5/B8nNtibg==}
     hasBin: true
 
-  hono@4.12.31:
-    resolution: {integrity: sha512-zJIHFrl6bq3RDd2YusFNCDlM8qUprxKswyi/OPzPyzKDdyBXDqWx8bZlZ7R+saTdSTatUmb3O7K4SspGPaEOQg==}
-    engines: {node: '>=16.9.0'}
-
   hosted-git-info@4.1.0:
     resolution: {integrity: sha512-kyCuEOWjJqZuDbRHzL8V93NzQhwIB71oFWSyzVo+KPZI+pnQPPxucdkrOZvkLRnrf5URsQM+IJ09Dw29cRALIA==}
     engines: {node: '>=10'}
@@ -54778,9 +54768,7 @@ snapshots:
       y-prosemirror: 1.3.7(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.3)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27)
       yjs: 13.6.27
 
-  '@hono/node-server@1.19.14(hono@4.12.31)':
-    dependencies:
-      hono: 4.12.31
+  '@hono/node-server@1.19.14': {}
 
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
@@ -55505,12 +55493,10 @@ snapshots:
       cors: 2.8.5
       express: 4.21.2
 
-  '@modelcontextprotocol/node@2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)(hono@4.12.31)':
+  '@modelcontextprotocol/node@2.0.0-beta.5(@modelcontextprotocol/server@2.0.0-beta.5)':
     dependencies:
-      '@hono/node-server': 1.19.14(hono@4.12.31)
+      '@hono/node-server': 1.19.14
       '@modelcontextprotocol/server': 2.0.0-beta.5
-    optionalDependencies:
-      hono: 4.12.31
 
   '@modelcontextprotocol/server@2.0.0-beta.5':
     dependencies:
@@ -61308,8 +61294,6 @@ snapshots:
     dependencies:
       mkdirp: 0.3.0
       nopt: 1.0.10
-
-  hono@4.12.31: {}
 
   hosted-git-info@4.1.0:
     dependencies:

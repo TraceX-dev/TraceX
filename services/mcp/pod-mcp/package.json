@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@hcengineering/analytics-service": "workspace:^0.7.19",
-    "@hcengineering/api-client": "workspace:^0.7.19",
+    "@hcengineering/api-client": "workspace:^0.7.25",
     "@hcengineering/card": "workspace:^0.7.0",
     "@hcengineering/collaborator-client": "workspace:^0.7.18",
     "@hcengineering/core": "workspace:^0.7.26",
@@ -69,8 +69,6 @@
     "@modelcontextprotocol/server": "^2.0.0-beta.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.2",
-    "hono": "^4.11.4",
-    "zod": "^4.2.0"
+    "express": "^4.21.2"
   }
 }
