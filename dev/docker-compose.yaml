@@ -599,7 +599,7 @@ services:
       - QUEUE_REGION=cockroach
     restart: unless-stopped
   github-next:
-    image: hardcoreeng/github-next-service
+    image: tracexapp/github-next-service
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
@@ -645,7 +645,7 @@ services:
       - QUEUE_REGION=cockroach
     restart: unless-stopped
   events-processor:
-    image: hardcoreeng/events-processor
+    image: tracexapp/events-processor
     extra_hosts:
       - 'huly.local:host-gateway'
     depends_on:
