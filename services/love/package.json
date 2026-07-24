@@ -22,7 +22,7 @@
     "docker:tbuild": "docker build -t hardcoreeng/love . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh hardcoreeng/love",
     "docker:staging": "../../common/scripts/docker_tag.sh hardcoreeng/love staging",
     "docker:push": "../../common/scripts/docker_tag.sh hardcoreeng/love",
-    "run-local": "cross-env ts-node src/index.ts",
+    "run-local": "cross-env ACCOUNTS_URL=http://localhost:3000 MINIO_ENDPOINT=http://minio:9000 MINIO_ACCESS_KEY=minioadmin MINIO_SECRET_KEY=minioadmin LIVEKIT_PROJECT=dev LIVEKIT_HOST=http://127.0.0.1:7880 LIVEKIT_API_KEY=devkey LIVEKIT_API_SECRET=secret SECRET=secret QUEUE_CONFIG=localhost:19092 REGION=cockroach ts-node src/index.ts",
     "format": "format src",
     "_phase:build": "compile transpile src",
     "_phase:test": "jest --passWithNoTests --silent",
@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@tsconfig/node16": "^1.0.4",
+    "cross-env": "~7.0.3",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
     "@types/node": "^22.18.1",
