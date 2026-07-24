@@ -1,5 +1,17 @@
 {
   "string": {
+    "Export": "エクスポート",
+    "Import": "インポート",
+    "ImportingDocument": "ドキュメントをインポート中",
+    "ConvertingDocument": "ドキュメントを変換中…",
+    "ImportingFromWord": "Wordからインポート中",
+    "ConvertingWordDocument": "ドキュメントを変換中…",
+    "DocumentConverted": "ドキュメントを変換しました",
+    "ImportFailed": "インポートに失敗しました",
+    "ReviewImportedChanges": "インポートした変更を確認",
+    "Apply": "適用",
+    "ExportToWord": "Wordにエクスポート",
+    "ImportFromWord": "Wordからインポート",
     "ID": "ID",
     "Code": "コード",
     "Number": "番号",

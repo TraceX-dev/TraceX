@@ -76,7 +76,18 @@ import { v4 as uuid } from 'uuid'
 import WebSocket from 'ws'
 import envConfig from './config'
 import { ApiError } from './error'
-import { ExportFormat, WorkspaceExporter } from './exporter'
+import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
+import { loadCollabJson } from '@hcengineering/collaboration'
+import {
+  collectImageRefs,
+  conformToSchema,
+  docxToMarkup,
+  markupToDocx,
+  markupToMd,
+  mdToMarkup,
+  normalizeMarkup
+} from '@hcengineering/doc-convert'
+import { markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
 
@@ -451,6 +462,168 @@ export function createServer (
           void fs.rm(archiveDir, { recursive: true, force: true })
         }
       }
+    })
+  )
+
+  const supportedDocumentFormats = ['docx', 'md']
+
+  const renderDocumentExport = async (
+    format: string,
+    markup: string,
+    images: Map<string, Uint8Array>
+  ): Promise<{ buffer: Buffer, contentType: string, ext: string }> => {
+    switch (format) {
+      case 'docx':
+        return {
+          buffer: await markupToDocx(markup, { images }),
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          ext: 'docx'
+        }
+      case 'md':
+        return {
+          buffer: Buffer.from(markupToMd(markup), 'utf-8'),
+          contentType: 'text/markdown; charset=utf-8',
+          ext: 'md'
+        }
+      default:
+        throw new ApiError(
+          400,
+          `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`
+        )
+    }
+  }
+
+  const exportDocumentHandler: AsyncRequestHandler = async (req, res, wsIds, token, socialId) => {
+    const params: Record<string, unknown> = { ...req.query, ...(req.body ?? {}) }
+    const _class = params._class as Ref<Class<Doc>> | undefined
+    const _id = params._id as Ref<Doc> | undefined
+    const format = ((params.format as string | undefined) ?? 'docx').toLowerCase()
+
+    if (_class == null || _id == null) {
+      throw new ApiError(400, 'Missing required parameters: _class, _id')
+    }
+    if (!supportedDocumentFormats.includes(format)) {
+      throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
+    }
+
+    const platformClient = await createPlatformClient(token)
+    const txOperations = new TxOperations(platformClient, socialId)
+
+    const doc = await txOperations.findOne(_class, { _id })
+    if (doc === undefined) {
+      throw new ApiError(404, 'Document not found')
+    }
+
+    // Content is stored as a JSON collab blob (Markup string); read it via the
+    // collaboration helper rather than a raw storage read so the format is handled.
+    const emptyMarkup = '{"type":"doc","content":[]}'
+    const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
+    const markup =
+      contentRef != null
+        ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
+        : emptyMarkup
+
+    // Resolve image blobs referenced by the content so they can be embedded (docx only;
+    // Markdown keeps images as links).
+    const images = new Map<string, Uint8Array>()
+    if (format === 'docx') {
+      for (const ref of collectImageRefs(markup)) {
+        try {
+          const stat = await storageAdapter.stat(measureCtx, wsIds, ref as Ref<Blob>)
+          if (stat === undefined) {
+            continue
+          }
+          const raw = await storageAdapter.read(measureCtx, wsIds, ref as Ref<Blob>)
+          images.set(ref, Buffer.concat(raw as any))
+        } catch (err) {
+          measureCtx.warn('failed to read image blob for export', { ref })
+        }
+      }
+    }
+
+    const rendered = await renderDocumentExport(format, markup, images)
+
+    const title = (doc as unknown as { title?: string }).title ?? 'document'
+    const fileName = `${sanitizeSpaceFileName(title)}.${rendered.ext}`
+
+    // Explicit Content-Length: without it the response is chunked and some local setups
+    // never see the terminating chunk, so downloads hang until a manual retry.
+    res.setHeader('Content-Type', rendered.contentType)
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    res.setHeader('Content-Length', rendered.buffer.length)
+    res.end(rendered.buffer)
+  }
+
+  // Auth via Authorization header; body carries { _class, _id, format? }.
+  app.post('/document-export', wrapRequest(exportDocumentHandler))
+
+  const supportedImportFormats = ['docx', 'md']
+
+  const renderDocumentImport = async (format: string, buffer: Buffer): Promise<MarkupNode> => {
+    switch (format) {
+      case 'docx': {
+        const { markup } = await docxToMarkup(buffer)
+        return markup
+      }
+      case 'md':
+        return mdToMarkup(buffer.toString('utf-8'))
+      default:
+        throw new ApiError(400, `Unsupported import format: ${format}. Supported: ${supportedImportFormats.join(', ')}`)
+    }
+  }
+
+  app.post(
+    '/document-import',
+    wrapRequest(async (req, res, wsIds, token, socialId) => {
+      const {
+        blobId,
+        _class,
+        _id,
+        format: rawFormat
+      }: { blobId?: Ref<Blob>, _class?: Ref<Class<Doc>>, _id?: Ref<Doc>, format?: string } = req.body
+      const format = (rawFormat ?? 'docx').toLowerCase()
+
+      if (blobId == null || _class == null || _id == null) {
+        throw new ApiError(400, 'Missing required parameters: blobId, _class, _id')
+      }
+      if (!supportedImportFormats.includes(format)) {
+        throw new ApiError(400, `Unsupported import format: ${format}. Supported: ${supportedImportFormats.join(', ')}`)
+      }
+
+      const platformClient = await createPlatformClient(token)
+      const txOperations = new TxOperations(platformClient, socialId)
+
+      const doc = await txOperations.findOne(_class, { _id })
+      if (doc === undefined) {
+        throw new ApiError(404, 'Document not found')
+      }
+
+      // Convert the uploaded file into candidate markup.
+      const stat = await storageAdapter.stat(measureCtx, wsIds, blobId)
+      if (stat === undefined) {
+        throw new ApiError(404, `File ${blobId} not found`)
+      }
+      const raw = await storageAdapter.read(measureCtx, wsIds, blobId)
+      const candidate = conformToSchema(normalizeMarkup(await renderDocumentImport(format, Buffer.concat(raw as any))))
+
+      // The uploaded file is a transient upload; drop it now that it's converted.
+      try {
+        await storageAdapter.remove(measureCtx, wsIds, [blobId])
+      } catch (err) {
+        measureCtx.warn('failed to remove temporary import blob', { blobId: String(blobId) })
+      }
+
+      // Current content of the target document (for the "before" side of the diff).
+      const emptyMarkup = '{"type":"doc","content":[]}'
+      const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
+      const currentMarkup =
+        contentRef != null
+          ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
+          : emptyMarkup
+
+      const current: MarkupNode = conformToSchema(normalizeMarkup(markupToJSON(currentMarkup)))
+      res.contentType('application/json')
+      res.send({ current, candidate })
     })
   )
 
