@@ -14,8 +14,7 @@ import core, {
   type DocumentQuery,
   type Ref,
   type SortingQuery,
-  type Space,
-  type WithLookup
+  type Space
 } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import serverNotification, { type Presenter } from '@hcengineering/server-notification'
@@ -130,15 +129,11 @@ export const objectLookupTool = createTool({
     const query = toQueryRecord(args.query)
     const sort = toSortRecord(args.sort)
 
-    const docs = (await toolCtx.client.findAll(
-      classId,
-      query,
-      {
-        limit,
-        sort,
-        lookup: { space: core.class.Space }
-      }
-    )) as Array<WithLookup<Doc>>
+    const docs = await toolCtx.client.findAll(classId, query, {
+      limit,
+      sort,
+      lookup: { space: core.class.Space }
+    })
 
     const titleProviders = [createTextPresenterTitleProvider(toolCtx, classId), createFallbackTitleProvider()]
 
