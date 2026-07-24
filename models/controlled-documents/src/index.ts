@@ -514,7 +514,7 @@ export function createModel (builder: Builder): void {
     documentsPlugin.action.ChangeDocumentOwner
   )
 
-  createAction<Document>(
+  createAction(
     builder,
     {
       action: view.actionImpl.ShowPopup,
@@ -534,7 +534,7 @@ export function createModel (builder: Builder): void {
     documentsPlugin.action.Export
   )
 
-  createAction<Document>(
+  createAction(
     builder,
     {
       action: view.actionImpl.ShowPopup,

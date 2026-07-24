@@ -29,12 +29,14 @@
   const state = notification.params?.state as Readable<ProgressState>
 
   // The toast has no closeTimeout, so it persists until removed: auto-dismiss shortly
-  // after the task reaches a terminal (success/error) state.
+  // after the task first reaches a terminal (success/error) state. The timer is armed
+  // exactly once on the running->terminal transition; it must not read and write itself
+  // inside the reactive block, or the assignment would re-invalidate and re-arm it on
+  // every flush.
   let dismissTimer: ReturnType<typeof setTimeout> | undefined
-  $: if ($state !== undefined && $state.status !== 'running') {
-    if (dismissTimer !== undefined) {
-      clearTimeout(dismissTimer)
-    }
+  let armed = false
+  $: if (!armed && $state !== undefined && $state.status !== 'running') {
+    armed = true
     dismissTimer = setTimeout(onRemove, 4000)
   }
   onDestroy(() => {
