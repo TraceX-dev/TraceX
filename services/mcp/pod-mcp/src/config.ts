@@ -12,7 +12,6 @@ export interface McpConfig {
   ServerSecret: string
   CollaboratorURL: string
   ServiceID: string
-  AllowedOrigins: string[]
   WorkspaceClientCacheMs: number
 }
 
@@ -46,7 +45,6 @@ const config: McpConfig = {
   ServerSecret: optionalEnv('SERVER_SECRET', optionalEnv('SECRET', 'secret')),
   CollaboratorURL: requiredEnv('COLLABORATOR_URL'),
   ServiceID: optionalEnv('SERVICE_ID', 'tracex-mcp-service'),
-  AllowedOrigins: splitList(optionalEnv('ALLOWED_ORIGINS', '')),
   WorkspaceClientCacheMs: optionalNumberEnv('WORKSPACE_CLIENT_CACHE_MS', 0)
 }
 
