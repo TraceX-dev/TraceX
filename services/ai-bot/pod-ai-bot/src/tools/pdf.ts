@@ -24,7 +24,7 @@ import { v4 as uuid } from 'uuid'
 
 import config from '../config'
 
-import { ToolContext, WorkspaceOps } from './types'
+import { type AIBotToolContext } from './types'
 
 const SaveFileParametersSchema = Type.Object({
   fileId: Type.String({ description: 'File id to parse' }),
@@ -52,7 +52,7 @@ export const getDataBeforeImportTool = createTool({
   description:
     'Get folders and parents for documents. This step necessery before saveFile tool. YOU MUST USE IT BEFORE import file.',
   inputSchema: Type.Object({}),
-  execute: async (args, toolCtx: ToolContext) => {
+  execute: async (args, toolCtx: AIBotToolContext) => {
     return toolOk(await getFoldersForDocuments(toolCtx))
   },
   metadata: {
@@ -65,17 +65,16 @@ export const saveFileTool = createTool({
   description:
     'Parse pdf to markdown and save it, using for import files. Use only if provide file in current message and user require to import/save, if file not provided ask user to attach it. You MUST call getDataBeforeImport tool before for get ids. Use file name as name if user not provide it, don`t use old parameters. You can ask user about folder if you have not enough data to get folder id',
   inputSchema: SaveFileParametersSchema,
-  execute: async (args, toolCtx: ToolContext) => {
-    return toolOk(await saveFile(toolCtx.workspaceOps, args))
+  execute: async (args, toolCtx: AIBotToolContext) => {
+    return toolOk(await saveFile(toolCtx, args))
   },
   metadata: {
     contextMode: 'any'
   }
 })
 
-async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
-  const ops = toolCtx.workspaceOps
-  const client = await ops.getClient()
+async function getFoldersForDocuments (toolCtx: AIBotToolContext): Promise<string> {
+  const { client } = toolCtx
   const spaces = await client.findAll(document.class.Teamspace, { members: toolCtx.user, archived: false })
   let res = 'Folders:\n'
   for (const space of spaces) {
@@ -89,16 +88,17 @@ async function getFoldersForDocuments (toolCtx: ToolContext): Promise<string> {
   return res
 }
 
-async function saveFile (ops: WorkspaceOps, args: SaveFileArgs): Promise<string> {
-  const content = await pdfToMarkdown(ops, args.fileId, args.name)
+async function saveFile (toolCtx: AIBotToolContext, args: SaveFileArgs): Promise<string> {
+  const { client } = toolCtx
+
+  const content = await pdfToMarkdown(toolCtx, args.fileId, args.name)
   if (content === undefined) {
     return 'Error while converting pdf to markdown'
   }
   const converted = JSON.stringify(markdownToMarkup(content))
 
-  const client = await ops.getClient()
   const fileId = uuid()
-  await ops.storage.put(ops.ctx, ops.wsIds, fileId, converted, 'application/json')
+  await toolCtx.storage.put(toolCtx.ctx, toolCtx.wsIds, fileId, converted, 'application/json')
 
   const teamspaces = await client.findAll(document.class.Teamspace, {})
   const parent = await client.findOne(document.class.Document, { _id: args.parent as Ref<Document> })
@@ -117,17 +117,17 @@ async function saveFile (ops: WorkspaceOps, args: SaveFileArgs): Promise<string>
 }
 
 export async function pdfToMarkdown (
-  ops: WorkspaceOps,
+  toolCtx: AIBotToolContext,
   fileId: string,
   name: string | undefined
 ): Promise<string | undefined> {
   if (config.DataLabApiKey !== '') {
     try {
-      const stat = await ops.storage.stat(ops.ctx, ops.wsIds, fileId)
+      const stat = await toolCtx.storage.stat(toolCtx.ctx, toolCtx.wsIds, fileId)
       if (stat?.contentType !== 'application/pdf') {
         return
       }
-      const file = await ops.storage.get(ops.ctx, ops.wsIds, fileId)
+      const file = await toolCtx.storage.get(toolCtx.ctx, toolCtx.wsIds, fileId)
       const buffer = await stream2buffer(file)
 
       const url = 'https://www.datalab.to/api/v1/marker'

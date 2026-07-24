@@ -188,8 +188,6 @@ function createTextPresenterTitleProvider (toolCtx: PlatformContext, classId: Re
 
     try {
       const fn = await getResource<Presenter>(presenter.presenter)
-      // TODO this may not work because presenter requires TriggerControl
-      // find a better way to generate title
       return await fn(doc, toolCtx as any)
     } catch (err) {
       toolCtx.ctx.warn('Failed to format text presenter title', errorLog(err, classId, doc))

@@ -27,13 +27,6 @@ function optionalEnv (name: string, defaultValue: string): string {
   return process.env[name] ?? defaultValue
 }
 
-function splitList (value: string): string[] {
-  return value
-    .split(',')
-    .map((it) => it.trim())
-    .filter((it) => it.length > 0)
-}
-
 function optionalNumberEnv (name: string, defaultValue: number): number {
   const value = Number.parseInt(optionalEnv(name, String(defaultValue)), 10)
   return Number.isFinite(value) ? value : defaultValue

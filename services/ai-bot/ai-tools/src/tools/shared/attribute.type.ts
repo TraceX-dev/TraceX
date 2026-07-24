@@ -21,12 +21,6 @@ import core, {
 import { Type, type Static } from 'typebox'
 import { buildClassSummary, ClassSummarySchema } from './class.summary'
 
-// export const PrimitiveTypeSchema = Type.Object({
-//   kind: Type.String({
-//     description: 'Attribute type kind, such as reference, enum, array, collection, or unknown.'
-//   })
-// })
-
 export const AttributeTypeSchema = Type.Union(
   [
     Type.String({

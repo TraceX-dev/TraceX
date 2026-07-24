@@ -29,23 +29,23 @@ describe('document tools', () => {
     ;(pdfToMarkdown as jest.Mock).mockResolvedValue(undefined)
 
     const fileContent = Buffer.from('pdf bytes')
-    const ops: any = {
+    const toolCtx: any = {
       ctx: { warn: jest.fn() },
       wsIds: {},
-      getClient: jest.fn(async () => ({
+      client: {
         findOne: jest.fn(async () => ({
           _id: 'version-1',
           file: 'blob-1',
           title: 'ISO 13485V.2016 EN.pdf',
           type: 'application/pdf'
         }))
-      })),
+      },
       storage: {
         get: jest.fn(async () => Readable.from([fileContent]))
       }
     }
 
-    const result = await readDriveFile(ops, {
+    const result = await readDriveFile(toolCtx, {
       _id: 'file-1',
       file: 'version-1',
       title: 'ISO 13485V.2016 EN.pdf'
@@ -58,6 +58,6 @@ describe('document tools', () => {
         message: 'Could not read PDF content from Drive file "ISO 13485V.2016 EN.pdf".'
       }
     })
-    expect(ops.storage.get).not.toHaveBeenCalled()
+    expect(toolCtx.storage.get).not.toHaveBeenCalled()
   })
 })

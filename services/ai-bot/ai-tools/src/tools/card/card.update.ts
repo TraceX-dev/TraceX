@@ -122,8 +122,6 @@ export const cardUpdateTool = createTool({
 
     const update: Partial<Data<Card>> = {}
 
-    // TODO handle readonly fields
-
     if (typeof args.title === 'string') {
       update.title = args.title
     }

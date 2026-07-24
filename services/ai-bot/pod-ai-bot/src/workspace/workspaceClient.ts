@@ -67,7 +67,7 @@ import type {
 } from '../providers'
 import { ChatResult, type LLMService } from '../services'
 import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
-import { type ToolContext, type WorkspaceOps } from '../tools'
+import { type AIBotToolContext } from '../tools'
 import { getGlobalPerson } from '../utils/account'
 import { connectPlatform } from '../utils/platform'
 import config from '../config'
@@ -360,14 +360,7 @@ export class WorkspaceClient {
       })
     }
 
-    const workspaceOps: WorkspaceOps = {
-      ctx,
-      storage: this.storage,
-      wsIds: this.wsIds,
-      getClient: () => this.clientPromise
-    }
-
-    const toolCtx: ToolContext = {
+    const toolCtx: AIBotToolContext = {
       ctx,
       token,
       rawToken: this.token,
@@ -376,10 +369,10 @@ export class WorkspaceClient {
       hierarchy: client.getHierarchy(),
       model: client.getModel(),
       storage: this.storage,
+      wsIds: this.wsIds,
       collaborator: this.collaborator,
       memoryStorage: this.memoryStorage,
       user: personUuid as AccountUuid,
-      workspaceOps,
       objectId: event.objectId,
       objectClass: event.objectClass,
       objectSpace: event.objectSpace

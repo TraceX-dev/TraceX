@@ -20,7 +20,7 @@ import { createTool, ToolExecutorResult, toolFail, toolOk } from '@hcengineering
 import { Type } from 'typebox'
 
 import { pdfToMarkdown, stream2buffer } from './pdf'
-import { ToolContext, WorkspaceOps } from './types'
+import { AIBotToolContext } from './types'
 
 const ReferencedObjectParametersSchema = Type.Object({
   objectId: Type.String({
@@ -43,7 +43,9 @@ export const readObjectContentTool = createTool({
     'they mean the object attached to this thread — use this tool to retrieve its content. ' +
     'Do NOT ask the user to upload or provide a document; the content is already available via this tool.',
   inputSchema: Type.Object({}),
-  execute: async (args, toolCtx: ToolContext) => {
+  execute: async (args, toolCtx: AIBotToolContext) => {
+    const { client } = toolCtx
+
     if (toolCtx.objectId === undefined || toolCtx.objectClass === undefined) {
       return toolFail(
         'No context document available. This tool can only be used when the conversation is on an object thread.',
@@ -51,7 +53,6 @@ export const readObjectContentTool = createTool({
       )
     }
 
-    const client = await toolCtx.workspaceOps.getClient()
     const doc = await client.findOne(toolCtx.objectClass, { _id: toolCtx.objectId })
 
     if (doc === undefined) {
@@ -60,7 +61,7 @@ export const readObjectContentTool = createTool({
 
     try {
       if (doc._class === drive.class.File) {
-        return await readDriveFile(toolCtx.workspaceOps, doc as File)
+        return await readDriveFile(toolCtx, doc as File)
       }
       const text = await readCollaborativeContent(toolCtx, client.getHierarchy(), doc)
       return toolOk(text)
@@ -80,7 +81,9 @@ export const readReferencedObjectContentTool = createTool({
     'Use this when the user asks about a referenced object from the message References list. ' +
     'Pass objectId and objectClass.',
   inputSchema: ReferencedObjectParametersSchema,
-  execute: async (args, toolCtx: ToolContext) => {
+  execute: async (args, toolCtx: AIBotToolContext) => {
+    const { client } = toolCtx
+
     const objectId = args.objectId as Ref<Doc>
     const objectClass = args.objectClass as Ref<Class<Doc>>
 
@@ -92,7 +95,6 @@ export const readReferencedObjectContentTool = createTool({
       return toolFail('Missing objectClass for referenced object.', 'missing_object_class')
     }
 
-    const client = await toolCtx.workspaceOps.getClient()
     const doc = await client.findOne(objectClass, { _id: objectId })
 
     if (doc === undefined) {
@@ -104,7 +106,7 @@ export const readReferencedObjectContentTool = createTool({
 
     try {
       if (doc._class === drive.class.File) {
-        return await readDriveFile(toolCtx.workspaceOps, doc as File)
+        return await readDriveFile(toolCtx, doc as File)
       }
 
       const attr = findCollaborativeField(client.getHierarchy(), doc)
@@ -129,7 +131,7 @@ export const readReferencedObjectContentTool = createTool({
   }
 })
 
-async function readCollaborativeContent (toolCtx: ToolContext, hierarchy: Hierarchy, doc: Doc): Promise<string> {
+async function readCollaborativeContent (toolCtx: AIBotToolContext, hierarchy: Hierarchy, doc: Doc): Promise<string> {
   const attr = findCollaborativeField(hierarchy, doc)
   if (attr !== undefined) {
     const collabId = makeCollabId(doc._class, doc._id, attr)
@@ -148,21 +150,24 @@ function findCollaborativeField (hierarchy: Hierarchy, doc: Doc): string | undef
   }
 }
 
-export async function readDriveFile (ops: WorkspaceOps, file: File): Promise<ToolExecutorResult> {
-  const client = await ops.getClient()
-  const version = await client.findOne(drive.class.FileVersion, { _id: file.file })
+export async function readDriveFile (toolCtx: AIBotToolContext, file: File): Promise<ToolExecutorResult> {
+  const version = await toolCtx.client.findOne(drive.class.FileVersion, { _id: file.file })
   if (version === undefined) {
     return toolFail(`Could not find the current version of Drive file "${file.title}".`, 'file_version_not_found')
   }
 
-  return await readDriveFileVersion(ops, file, version)
+  return await readDriveFileVersion(toolCtx, file, version)
 }
 
-async function readDriveFileVersion (ops: WorkspaceOps, file: File, version: FileVersion): Promise<ToolExecutorResult> {
+async function readDriveFileVersion (
+  toolCtx: AIBotToolContext,
+  file: File,
+  version: FileVersion
+): Promise<ToolExecutorResult> {
   const type = normalizeMimeType(version.type)
 
   if (isPdf(type)) {
-    const markdown = await pdfToMarkdown(ops, version.file, version.title ?? file.title)
+    const markdown = await pdfToMarkdown(toolCtx, version.file, version.title ?? file.title)
     return markdown !== undefined && markdown !== ''
       ? toolOk(markdown)
       : toolFail(`Could not read PDF content from Drive file "${file.title}".`, 'content_read_failed')
@@ -170,7 +175,7 @@ async function readDriveFileVersion (ops: WorkspaceOps, file: File, version: Fil
 
   if (isTextLike(type)) {
     try {
-      const stream = await ops.storage.get(ops.ctx, ops.wsIds, version.file)
+      const stream = await toolCtx.storage.get(toolCtx.ctx, toolCtx.wsIds, version.file)
       const buffer = await stream2buffer(stream)
       return toolOk(buffer.toString('utf8'))
     } catch {
