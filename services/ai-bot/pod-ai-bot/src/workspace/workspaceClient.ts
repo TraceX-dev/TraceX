@@ -52,6 +52,7 @@ import { Room } from '@hcengineering/love'
 import { CollaboratorClient } from '@hcengineering/collaborator-client'
 import { getAccountClient } from '@hcengineering/server-client'
 import { StorageAdapter } from '@hcengineering/server-core'
+import { decodeToken } from '@hcengineering/server-token'
 import { extractReferences, jsonToMarkup, markupToText } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
 
@@ -66,7 +67,7 @@ import type {
 } from '../providers'
 import { ChatResult, type LLMService } from '../services'
 import { type MemoryStorage, type PersonHistoryRecord } from '../storage'
-import { type ToolContext, type WorkspaceOps } from '../tools'
+import { type AIBotToolContext } from '../tools'
 import { getGlobalPerson } from '../utils/account'
 import { connectPlatform } from '../utils/platform'
 import config from '../config'
@@ -264,6 +265,7 @@ export class WorkspaceClient {
     const { objectId, objectClass } = event
 
     const client = await this.clientPromise
+    const token = decodeToken(this.token)
 
     const references = this.extractReferences(event.message)
     const attachments = await this.readAttachments(ctx, client, event)
@@ -358,19 +360,19 @@ export class WorkspaceClient {
       })
     }
 
-    const workspaceOps: WorkspaceOps = {
+    const toolCtx: AIBotToolContext = {
       ctx,
+      token,
+      rawToken: this.token,
+      workspace: this.wsIds.uuid,
+      client,
+      hierarchy: client.getHierarchy(),
+      model: client.getModel(),
       storage: this.storage,
       wsIds: this.wsIds,
-      getClient: () => this.clientPromise
-    }
-
-    const toolCtx: ToolContext = {
-      memoryStorage: this.memoryStorage,
       collaborator: this.collaborator,
+      memoryStorage: this.memoryStorage,
       user: personUuid as AccountUuid,
-      workspace: this.wsIds.uuid,
-      workspaceOps,
       objectId: event.objectId,
       objectClass: event.objectClass,
       objectSpace: event.objectSpace

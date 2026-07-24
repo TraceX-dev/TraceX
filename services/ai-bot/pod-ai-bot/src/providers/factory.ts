@@ -36,7 +36,5 @@ function createProvider (provider: LlmModelConfig): LLMProvider {
       return new OpenAIProvider(apiKey, model, baseUrl)
     case 'anthropic':
       return new AnthropicProvider(apiKey, model)
-    // default:
-    //   throw new Error(`Unknown provider kind: ${kind}`)
   }
 }

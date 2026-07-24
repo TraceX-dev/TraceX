@@ -26,16 +26,19 @@ import {
 } from './memory'
 import { readObjectContentTool, readReferencedObjectContentTool } from './document'
 import { saveFileTool, getDataBeforeImportTool } from './pdf'
-import { type RegisteredTool } from './types'
+import { type AIBotTool } from './types'
+
 import { ContextMode } from '../providers'
 
-const dynamicTools: RegisteredTool[] = []
+export * from './types'
 
-export function registerLlmTools (tools: RegisteredTool[]): void {
+const dynamicTools: AIBotTool[] = []
+
+export function registerLlmTools (tools: AIBotTool[]): void {
   dynamicTools.push(...tools)
 }
 
-const registeredTools: RegisteredTool[] = [
+const registeredTools: AIBotTool[] = [
   // Assistant Memory
   getAssistantMemoryTool,
   updateAssistantMemoryTool,
@@ -58,25 +61,18 @@ const registeredTools: RegisteredTool[] = [
   getDataBeforeImportTool,
 
   // Context Object
-  // getObjectAttributesTool,
   readObjectContentTool,
   readReferencedObjectContentTool
 ]
 
-export function getRegisteredTools (): RegisteredTool[] {
+export function getRegisteredTools (): AIBotTool[] {
   return [...registeredTools, ...dynamicTools]
 }
 
-export function getTools (contextMode: ContextMode): RegisteredTool[] {
+export function getTools (contextMode: ContextMode): AIBotTool[] {
   const tools = getRegisteredTools()
-  return tools.filter((t) => t.contextMode === contextMode || t.contextMode === 'any')
+  return tools.filter((t) => {
+    const toolContextMode = t.metadata?.contextMode
+    return toolContextMode === contextMode || toolContextMode === 'any'
+  })
 }
-
-export {
-  type RegisteredTool,
-  type ToolDefinition,
-  type ToolContext,
-  type ToolExecutor,
-  type ToolExecutorResult,
-  type WorkspaceOps
-} from './types'

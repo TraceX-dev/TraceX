@@ -60,5 +60,6 @@ else
     --to @hcengineering/pod-payment \
     --to @hcengineering/pod-worker \
     --to @hcengineering/pod-events-processor \
+    --to @hcengineering/pod-mcp \
     --to @tracex/pod-qalico
 fi

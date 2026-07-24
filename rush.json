@@ -2332,6 +2332,21 @@
       "shouldPublish": false
     },
     {
+      "packageName": "@hcengineering/ai-core",
+      "projectFolder": "services/ai-bot/ai-core",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/ai-tools",
+      "projectFolder": "services/ai-bot/ai-tools",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/pod-mcp",
+      "projectFolder": "services/mcp/pod-mcp",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@hcengineering/ai-bot",
       "projectFolder": "plugins/ai-bot",
       "shouldPublish": false
