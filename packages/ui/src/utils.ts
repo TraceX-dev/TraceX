@@ -17,10 +17,11 @@ import { generateId } from '@hcengineering/core'
 import type { IntlString, Metadata } from '@hcengineering/platform'
 import { setMetadata, translate } from '@hcengineering/platform'
 import autolinker from 'autolinker'
-import { writable } from 'svelte/store'
+import { get, writable } from 'svelte/store'
 import { NotificationPosition, NotificationSeverity, notificationsStore, type Notification } from '.'
 import ui, { DAY, HOUR, MINUTE } from '..'
 import RootStatusComponent from './components/RootStatusComponent.svelte'
+import ProgressToast from './components/ProgressToast.svelte'
 import { deviceSizes, type AnyComponent, type AnySvelteComponent, type WidthType } from './types'
 
 /**
@@ -121,6 +122,82 @@ export function addNotification (
 
   if (closeTimeout !== 0) {
     notificationsStore.addNotification(notification)
+  }
+}
+
+/**
+ * @public
+ */
+export interface ProgressState {
+  status: 'running' | 'success' | 'error'
+  title: string
+  message?: string
+}
+
+/**
+ * @public
+ */
+export interface ProgressHandle {
+  update: (patch: { title?: string, message?: string }) => void
+  done: (final?: { title?: string, message?: string }) => void
+  fail: (final?: { title?: string, message?: string }) => void
+}
+
+/**
+ * Show a persistent progress toast for a long-running task. It stays (with a spinner)
+ * until done()/fail() is called, then auto-dismisses. Pass already-translated strings.
+ *
+ * @public
+ */
+export function showProgress (initial: { title: string, message?: string }): ProgressHandle {
+  const state = writable<ProgressState>({ status: 'running', title: initial.title, message: initial.message })
+  const notification: Notification = {
+    id: generateId(),
+    title: initial.title,
+    severity: NotificationSeverity.Info,
+    position: NotificationPosition.BottomLeft,
+    component: ProgressToast,
+    params: { state }
+    // no closeTimeout: the toast persists until it removes itself on a terminal state
+  }
+  notificationsStore.addNotification(notification)
+  return {
+    update: (patch) => {
+      state.set({ status: 'running', title: patch.title ?? get(state).title, message: patch.message })
+    },
+    done: (final) => {
+      state.set({ status: 'success', title: final?.title ?? get(state).title, message: final?.message })
+    },
+    fail: (final) => {
+      state.set({ status: 'error', title: final?.title ?? get(state).title, message: final?.message })
+    }
+  }
+}
+
+/**
+ * Run a long-running task while showing a progress toast: a spinner until it settles,
+ * then a success/error toast that auto-dismisses. The error is surfaced and re-thrown.
+ * `report` lets the task update the toast message between phases.
+ *
+ * @public
+ */
+export async function withProgress<T> (
+  labels: { title: string, message?: string, done?: string, failed?: string },
+  task: (report: (message: string) => void) => Promise<T>
+): Promise<T> {
+  const handle = showProgress({ title: labels.title, message: labels.message })
+  try {
+    const result = await task((message) => {
+      handle.update({ message })
+    })
+    handle.done({ title: labels.done ?? labels.title })
+    return result
+  } catch (err) {
+    handle.fail({
+      title: labels.failed ?? labels.title,
+      message: err instanceof Error ? err.message : String(err)
+    })
+    throw err
   }
 }
 

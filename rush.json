@@ -415,6 +415,11 @@
       "shouldPublish": true
     },
     {
+      "packageName": "@hcengineering/doc-convert",
+      "projectFolder": "packages/doc-convert",
+      "shouldPublish": true
+    },
+    {
       "packageName": "@hcengineering/text-html",
       "projectFolder": "foundations/core/packages/text-html",
       "shouldPublish": true
