@@ -33,8 +33,9 @@ import githubNext, {
   type GithubNextIntegrationData
 } from '@hcengineering/github-next'
 import { getPlatformQueue } from '@hcengineering/kafka'
+import { setMetadata } from '@hcengineering/platform'
 import { QueueTopic, type ConsumerHandle, type PlatformQueue } from '@hcengineering/server-core'
-import { generateToken } from '@hcengineering/server-token'
+import serverToken, { generateToken } from '@hcengineering/server-token'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import config from './config'
 import {
@@ -544,6 +545,9 @@ function startOutboundQueueConsumer (ctx: MeasureMetricsContext): { close: () =>
 }
 
 async function main (): Promise<void> {
+  setMetadata(serverToken.metadata.Secret, config.Secret)
+  setMetadata(serverToken.metadata.Service, config.ServiceID)
+
   const httpServer = startHttpServer()
   const ctx = new MeasureMetricsContext(config.ServiceID, {})
   const outboundConsumer = startOutboundQueueConsumer(ctx)
