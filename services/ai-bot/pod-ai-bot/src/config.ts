@@ -16,11 +16,13 @@
 import fs from 'fs'
 import yaml from 'js-yaml'
 import convict, { Schema } from 'convict'
+import { type ToolOutputSchema } from '@hcengineering/ai-core'
 
 export interface LlmToolConfig {
   name: string
   description: string
   systemPrompt?: string
+  outputSchema?: ToolOutputSchema
 }
 
 export interface LlmModelConfig {
@@ -171,6 +173,9 @@ convict.addFormat({
       }
       if (entry.systemPrompt !== undefined && typeof entry.systemPrompt !== 'string') {
         throw new Error(`tools[${index}].systemPrompt must be a string`)
+      }
+      if (entry.outputSchema !== undefined && !isPlainObject(entry.outputSchema)) {
+        throw new Error(`tools[${index}].outputSchema must be an object`)
       }
     })
   }

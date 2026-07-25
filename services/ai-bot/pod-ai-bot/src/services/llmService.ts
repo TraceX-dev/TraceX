@@ -27,7 +27,8 @@ import {
 } from '../providers/types'
 import { PROMPTS } from '../providers/prompts'
 import { pushTokensData } from '../billing'
-import { getTools, type ToolContext, type ToolExecutorResult } from '../tools'
+import { renderToolResult, toolFail, type ToolExecutorResult } from '@hcengineering/ai-core'
+import { getTools, type ToolContext } from '../tools'
 
 export interface ChatResult {
   completion: string | undefined
@@ -190,23 +191,39 @@ export class DefaultLLMService implements LLMService {
 
     try {
       const allTools = getTools(contextMode)
-      const tools = allTools.filter((t) => t.contextMode === contextMode || t.contextMode === 'any')
+      const tools = allTools.filter((t) => t.metadata?.contextMode === contextMode || t.metadata?.contextMode === 'any')
 
-      const toolDefinitions: LLMToolDefinition[] = tools.map((t) => t.definition)
+      const toolDefinitions: LLMToolDefinition[] = tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+        outputSchema: t.outputSchema
+      }))
 
       const prompt =
         contextMode === 'direct'
           ? PROMPTS.DIRECT({ assistantMemory, userMemory, sharedContext })
           : PROMPTS.THREAD({ sharedContext })
 
-      const executorMap = new Map<string, (args: any) => Promise<ToolExecutorResult>>()
+      let accumulatedUsage: TokenUsage = { ...ZERO_USAGE }
+      const previousTokenUsage = toolCtx.tokenUsage
+      const toolExecutionCtx: ToolContext = {
+        ...toolCtx,
+        tokenUsage: {
+          addTokenUsage: (usage, details) => {
+            accumulatedUsage = addUsage(accumulatedUsage, usage)
+            previousTokenUsage?.addTokenUsage(usage, details)
+          }
+        }
+      }
+
+      const executorMap = new Map<string, (args: any) => Promise<ToolExecutorResult<any>>>()
       for (const t of tools) {
-        executorMap.set(t.definition.name, t.createExecutor(toolCtx))
+        executorMap.set(t.name, async (args) => await t.execute(args, toolExecutionCtx))
       }
 
       const conversationMessages: ChatMessage[] = [{ role: 'system', content: prompt }, ...messages]
 
-      let accumulatedUsage: TokenUsage = { ...ZERO_USAGE }
       const invokedToolNames = new Set<string>()
 
       for (let round = 0; round < this.config.maxToolRounds; round++) {
@@ -252,28 +269,24 @@ export class DefaultLLMService implements LLMService {
         for (const toolCall of result.toolCalls) {
           invokedToolNames.add(toolCall.name)
           const executor = executorMap.get(toolCall.name)
-          let toolResult: ToolExecutorResult
+          let toolResult: ToolExecutorResult<any>
 
           if (executor !== undefined) {
             try {
               const args = JSON.parse(toolCall.arguments)
               toolResult = await executor(args)
-
-              accumulatedUsage = addUsage(accumulatedUsage, toolResult.usage ?? ZERO_USAGE)
             } catch (e: any) {
               ctx.error('Tool execution failed', { workspace, tool: toolCall.name, error: e.message ?? String(e) })
-              toolResult = { error: `Error executing tool: ${e.message ?? String(e)}` }
+              toolResult = toolFail(e.message ?? String(e), 'tool_execution_failed')
             }
           } else {
             ctx.warn('Unknown tool requested by LLM', { workspace, tool: toolCall.name })
-            toolResult = { error: `Unknown tool: ${toolCall.name}` }
+            toolResult = toolFail(`Unknown tool: ${toolCall.name}`, 'unknown_tool')
           }
-
-          const toolResultText = 'error' in toolResult ? `Error: ${toolResult.error}` : toolResult.text
 
           conversationMessages.push({
             role: 'tool',
-            content: toolResultText,
+            content: renderToolResult(toolResult),
             toolCallId: toolCall.id
           })
         }
