@@ -21,7 +21,20 @@ export enum QueueTopic {
   // A topic about process events
   Process = 'process',
 
-  TimeMachine = 'timeMachine'
+  TimeMachine = 'timeMachine',
+
+  // Queue for AI requests
+  AIQueue = 'ai-queue',
+
+  // Queue for audio transcription tasks
+  TranscriptionQueue = 'transcription-queue',
+
+  // All OTP and notifications to mail/notify services are goes here first
+  // And services will take them and send to a proper places.
+  NotificationQueue = 'notifications',
+
+  // Events about meetings and operations with meetings
+  LoveQueue = 'love-queue'
 }
 
 export interface ConsumerHandle {

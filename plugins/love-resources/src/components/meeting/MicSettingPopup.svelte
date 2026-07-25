@@ -29,6 +29,25 @@
     }
     await krispProcessor.setEnabled(value)
   }
+
+  async function saveSpeakingWhileMutedPreference (
+    myPreferences: DevicesPreference | undefined,
+    value: boolean
+  ): Promise<void> {
+    if (myPreferences !== undefined) {
+      await client.update(myPreferences, { speakingWhileMutedAlert: value })
+    } else {
+      const acc = getCurrentAccount().uuid
+      await client.createDoc(love.class.DevicesPreference, core.space.Workspace, {
+        attachedTo: acc,
+        noiseCancellation: true,
+        camEnabled: true,
+        micEnabled: true,
+        blurRadius: 0,
+        speakingWhileMutedAlert: value
+      })
+    }
+  }
 </script>
 
 <div class="antiPopup mediaPopup">
@@ -39,17 +58,24 @@
   {:then mediaInfo}
     <Component is={mediaPlugin.component.MediaPopupMicSelector} props={{ mediaInfo }} />
     <Component is={mediaPlugin.component.MediaPopupSpkSelector} props={{ mediaInfo }} />
-    {#if isKrispNoiseFilterSupported()}
-      <div class="grid p-3">
+    <div class="grid p-3">
+      {#if isKrispNoiseFilterSupported()}
         <Label label={love.string.NoiseCancellation} />
         <Toggle
           on={$myPreferences?.noiseCancellation ?? true}
           on:change={(e) => {
-            saveNoiseCancellationPreference($myPreferences, e.detail)
+            void saveNoiseCancellationPreference($myPreferences, e.detail)
           }}
         />
-      </div>
-    {/if}
+      {/if}
+      <Label label={love.string.SpeakingWhileMutedAlert} />
+      <Toggle
+        on={$myPreferences?.speakingWhileMutedAlert ?? true}
+        on:change={(e) => {
+          void saveSpeakingWhileMutedPreference($myPreferences, e.detail)
+        }}
+      />
+    </div>
   {/await}
 </div>
 
