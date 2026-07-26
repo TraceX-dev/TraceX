@@ -138,7 +138,9 @@ import {
   createActiveSession,
   listActiveSessions,
   revokeActiveSession,
-  isActiveSessionRevoked
+  isActiveSessionRevoked,
+  accessTokenOptions,
+  mintRefreshToken
 } from './utils'
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000' as AccountUuid
@@ -292,9 +294,13 @@ export async function login (
           undefined,
           noTfa ? extraToken : { ...extraToken, tfaAccount: existingAccount.uuid },
           undefined,
-          noTfa ? { sessionId } : undefined
+          noTfa && sessionId !== undefined ? accessTokenOptions(sessionId) : undefined
         )
         : undefined,
+      refreshToken:
+        isConfirmed && noTfa && sessionId !== undefined
+          ? mintRefreshToken(existingAccount.uuid, sessionId, 0)
+          : undefined,
       name: getPersonName(person),
       socialId: emailSocialId._id,
       tfaRequired: isConfirmed && existingAccount.tfaSecret != null
@@ -449,7 +455,14 @@ export async function signUp (
     account,
     name: getPersonName(person),
     socialId,
-    token: !forceConfirmation ? generateToken(account, undefined, undefined, undefined, { sessionId }) : undefined
+    token:
+      !forceConfirmation && sessionId !== undefined
+        ? generateToken(account, undefined, undefined, undefined, accessTokenOptions(sessionId))
+        : !forceConfirmation
+          ? generateToken(account)
+          : undefined,
+    refreshToken:
+      !forceConfirmation && sessionId !== undefined ? mintRefreshToken(account, sessionId, 0) : undefined
   }
 }
 
@@ -660,9 +673,13 @@ export async function validateOtp (
         undefined,
         noTfa ? extraToken : { ...extraToken, tfaAccount: emailSocialId.personUuid },
         undefined,
-        noTfa ? { sessionId } : undefined
+        noTfa && sessionId !== undefined ? accessTokenOptions(sessionId) : undefined
       )
       : undefined
+    const _refreshToken =
+      isConfirmed && noTfa && sessionId !== undefined
+        ? mintRefreshToken(emailSocialId.personUuid as AccountUuid, sessionId, 0)
+        : undefined
 
     await recordSecurityLoginEvent(ctx, db, {
       accountUuid: emailSocialId.personUuid as AccountUuid,
@@ -679,6 +696,7 @@ export async function validateOtp (
       name: getPersonName(person),
       socialId: emailSocialId._id,
       token: _token,
+      refreshToken: _refreshToken,
       tfaRequired: targetAccount?.tfaSecret != null
     }
   } catch (err: any) {
@@ -1562,7 +1580,11 @@ export async function confirm (
     account,
     name: getPersonName(person),
     socialId,
-    token: generateToken(account, undefined, undefined, undefined, { sessionId })
+    token:
+      sessionId !== undefined
+        ? generateToken(account, undefined, undefined, undefined, accessTokenOptions(sessionId))
+        : generateToken(account),
+    refreshToken: sessionId !== undefined ? mintRefreshToken(account, sessionId, 0) : undefined
   }
 
   // If invite info was carried through the confirmation token (signUpJoin flow),
@@ -2106,7 +2128,14 @@ export async function verify2fa (
 
   return {
     account: accountUuid,
-    token: generateToken(accountUuid, undefined, filteredExtra, undefined, { sessionId }),
+    token: generateToken(
+      accountUuid,
+      undefined,
+      filteredExtra,
+      undefined,
+      sessionId !== undefined ? accessTokenOptions(sessionId) : undefined
+    ),
+    refreshToken: sessionId !== undefined ? mintRefreshToken(accountUuid, sessionId, 0) : undefined,
     name: getPersonName(person),
     socialId: socialId?._id
   }

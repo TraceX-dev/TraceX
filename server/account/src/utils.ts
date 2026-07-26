@@ -791,6 +791,12 @@ export async function selectWorkspace (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
   }
 
+  // selectWorkspace is the per-connect "connect token" source, so refuse to
+  // mint a fresh workspace token for a revoked session.
+  if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+  }
+
   const getKind = (region: string | undefined): EndpointKind => {
     switch (kind) {
       case 'external':
@@ -922,12 +928,16 @@ export async function selectWorkspace (
 
   return {
     account: accountUuid,
+    // For a real login session this is the short-lived "connect token": fresh
+    // access `exp` + `kind:'access'`. Grant/guest/system tokens (no sessionId)
+    // keep their carried `exp`/`nbf` and no kind.
     token: generateToken(accountUuid, workspace.uuid, extra, undefined, {
       grant,
       sub,
-      exp,
+      exp: sessionId !== undefined ? expiresInSec(getAccessTokenTtlSec()) : exp,
       nbf,
-      sessionId
+      sessionId,
+      kind: sessionId !== undefined ? 'access' : undefined
     }),
     endpoint: getEndpoint(workspace.uuid, workspace.region, getKind(workspace.region)),
     workspace: workspace.uuid,
@@ -2201,6 +2211,32 @@ export function expiresInSec (ttlSec: number | undefined): number | undefined {
 }
 
 /**
+ * `generateToken` options for an interactive-login **access** token: carries the
+ * `sessionId`, marks `kind:'access'`, and stamps a fresh `exp` from the
+ * configured access TTL (undefined TTL → no `exp`, legacy non-expiring).
+ */
+export function accessTokenOptions (sessionId?: string): {
+  sessionId?: string
+  kind: 'access'
+  exp?: number
+} {
+  return { sessionId, kind: 'access', exp: expiresInSec(getAccessTokenTtlSec()) }
+}
+
+/**
+ * Mints a rotating **refresh** token for a session. Embeds the session's
+ * current `generation` (as `extra.gen`) so the refresh endpoint can detect
+ * replay of an already-rotated token (see docs/token-rotation-plan.md §3).
+ */
+export function mintRefreshToken (accountUuid: AccountUuid, sessionId: string, generation: number): string {
+  return generateToken(accountUuid, undefined, { gen: String(generation) }, undefined, {
+    sessionId,
+    kind: 'refresh',
+    exp: expiresInSec(getRefreshTokenTtlSec())
+  })
+}
+
+/**
  * Optional hook invoked after a session is revoked so live connections can be
  * torn down immediately (e.g. by publishing to the transactor's queue). Wired
  * by the account service at startup; when unset (or on error) revocation still
@@ -2243,7 +2279,8 @@ export async function createActiveSession (
       country: trimOptional(input.country, 8),
       city: trimOptional(input.city, 128),
       userAgent: trimOptional(input.userAgent, 1024),
-      authMethod: input.authMethod
+      authMethod: input.authMethod,
+      refreshGeneration: 0
     })
     return sessionId
   } catch (err) {

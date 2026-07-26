@@ -120,7 +120,9 @@ export interface ActiveSession {
   authMethod: SecurityAuthMethod
   revokedOn?: Timestamp
   revokedReason?: 'user' | 'user-not-me' | 'admin' | 'expired'
-  // Monotonic counter for rotating refresh tokens.
+  // Monotonic counter for rotating refresh tokens. A refresh token embeds the
+  // generation it was minted with; presenting an older generation means the
+  // token was already rotated (replay) and triggers session revocation.
   refreshGeneration?: number
 }
 
@@ -501,6 +503,8 @@ export interface LoginInfo {
   name?: string
   socialId?: PersonId
   token?: string
+  /** Rotating refresh token (see docs/token-rotation-plan.md). */
+  refreshToken?: string
   tfaRequired?: boolean
 }
 

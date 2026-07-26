@@ -13,13 +13,16 @@
 // limitations under the License.
 //
 
-import { type AccountUuid, type MeasureContext, type WorkspaceUuid } from '@hcengineering/core'
+import { generateUuid, type AccountUuid, type MeasureContext, type WorkspaceUuid } from '@hcengineering/core'
+import { decodeToken } from '@hcengineering/server-token'
 import type { AccountDB, ActiveSession, SecurityLoginEvent } from '../types'
 import {
+  accessTokenOptions,
   classifySecurityEventType,
   createActiveSession,
   isActiveSessionRevoked,
   listActiveSessions,
+  mintRefreshToken,
   revokeActiveSession,
   setSessionRevokeNotifier,
   touchActiveSession
@@ -148,6 +151,25 @@ describe('createActiveSession', () => {
     expect(row.workspaceUuid).toBe(WS)
     expect(row.revokedOn).toBeUndefined()
     expect(row.createdOn).toBe(row.lastSeen)
+    expect(row.refreshGeneration).toBe(0)
+  })
+})
+
+describe('token mint helpers', () => {
+  it('accessTokenOptions marks the token as an access token', () => {
+    const opts = accessTokenOptions('sess-1')
+    expect(opts.kind).toBe('access')
+    expect(opts.sessionId).toBe('sess-1')
+  })
+
+  it('mintRefreshToken encodes kind=refresh, sessionId and generation', () => {
+    const acc = generateUuid() as AccountUuid
+    const token = mintRefreshToken(acc, 'sess-9', 3)
+    const decoded = decodeToken(token)
+    expect(decoded.account).toBe(acc)
+    expect(decoded.kind).toBe('refresh')
+    expect(decoded.sessionId).toBe('sess-9')
+    expect(decoded.extra?.gen).toBe('3')
   })
 })
 

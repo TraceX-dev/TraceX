@@ -132,7 +132,11 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   setMetadata(account.metadata.WsLivenessDays, wsLivenessDays)
 
   // Token rotation TTLs (seconds). See docs/token-rotation-plan.md.
-  setMetadata(account.metadata.AccessTokenTtlSec, parseInt(process.env.ACCESS_TOKEN_TTL_SEC ?? '1800', 10))
+  // Access TTL defaults to 0 (no expiry) so nothing changes for users until the
+  // front refresh loop is deployed; set ACCESS_TOKEN_TTL_SEC (e.g. 1800) to
+  // enable short-lived access tokens. Refresh tokens are minted regardless but
+  // are only consumed once the refresh endpoint (phase 3) ships.
+  setMetadata(account.metadata.AccessTokenTtlSec, parseInt(process.env.ACCESS_TOKEN_TTL_SEC ?? '0', 10))
   setMetadata(account.metadata.RefreshTokenTtlSec, parseInt(process.env.REFRESH_TOKEN_TTL_SEC ?? '2592000', 10))
 
   setMetadata(serverToken.metadata.Secret, serverSecret)

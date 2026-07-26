@@ -21,6 +21,12 @@ export interface LoginInfo {
   name?: string
   socialId?: PersonId
   token?: string
+  /**
+   * Rotating refresh token (see docs/token-rotation-plan.md). Long-lived,
+   * accepted only by the account refresh endpoint; the client exchanges it for
+   * short-lived access tokens. Absent for service/guest/legacy logins.
+   */
+  refreshToken?: string
   tfaRequired?: boolean
   extra?: Record<string, string>
 }
