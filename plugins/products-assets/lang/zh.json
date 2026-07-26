@@ -33,6 +33,14 @@
     "UpdateProductDescription": "授予用户更新产品的权限",
     "ChangeControl": "变更控制",
     "ChangeSeverity": "变更严重性",
+    "ChangeControlCardTypes": "变更控制卡片",
+    "ChangeControlCardTypesDescription": "可作为变更控制附加到产品版本的卡片类别（及可选筛选器）。适用于所有产品。",
+    "NoChangeControlCardTypes": "未配置卡片类型",
+    "AddCardType": "添加卡片类型",
+    "AddCard": "添加卡片",
+    "AddFilter": "添加筛选器",
+    "CardType": "卡片类型",
+    "CardFilter": "筛选器",
     "ConfigLabel": "产品",
     "ConfigDescription": "用于管理产品的扩展"
   }

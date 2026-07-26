@@ -87,6 +87,9 @@
     "TwoColumns": "Dva sloupce",
     "Grid": "Mřížka",
     "RichtextProperties": "Textová pole",
-    "ShowAllVersions": "Ukázat všechny verze"
+    "ShowAllVersions": "Ukázat všechny verze",
+    "CardRelationPurpose": "Účel",
+    "CardRelationFilter": "Filtr",
+    "CardRelationRequireLatest": "Vyžadovat nejnovější verzi"
   }
 }

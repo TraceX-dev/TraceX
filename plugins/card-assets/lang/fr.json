@@ -87,6 +87,9 @@
     "TwoColumns": "Deux colonnes",
     "Grid": "Grille",
     "RichtextProperties": "Champs de texte",
-    "ShowAllVersions": "Toutes les versions"
+    "ShowAllVersions": "Toutes les versions",
+    "CardRelationPurpose": "Objectif",
+    "CardRelationFilter": "Filtre",
+    "CardRelationRequireLatest": "Exiger la dernière version"
   }
 }

@@ -87,6 +87,9 @@
     "TwoColumns": "Duas colunas",
     "Grid": "Grade",
     "RichtextProperties": "Campos de texto",
-    "ShowAllVersions": "Todas as versões"
+    "ShowAllVersions": "Todas as versões",
+    "CardRelationPurpose": "Objetivo",
+    "CardRelationFilter": "Filtro",
+    "CardRelationRequireLatest": "Exigir versão mais recente"
   }
 }

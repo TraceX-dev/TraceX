@@ -87,6 +87,9 @@
     "TwoColumns": "两列",
     "Grid": "网格",
     "RichtextProperties": "富文本字段",
-    "ShowAllVersions": "显示所有版本"
+    "ShowAllVersions": "显示所有版本",
+    "CardRelationPurpose": "用途",
+    "CardRelationFilter": "筛选器",
+    "CardRelationRequireLatest": "要求最新版本"
   }
 }

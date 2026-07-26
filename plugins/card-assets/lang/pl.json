@@ -87,6 +87,9 @@
     "TwoColumns": "Dwie kolumny",
     "Grid": "Siatka",
     "RichtextProperties": "Właściwości tekstu formatowanego",
-    "ShowAllVersions": "Pokaż wszystkie wersje"
+    "ShowAllVersions": "Pokaż wszystkie wersje",
+    "CardRelationPurpose": "Cel",
+    "CardRelationFilter": "Filtr",
+    "CardRelationRequireLatest": "Wymagaj najnowszej wersji"
   }
 }

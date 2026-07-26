@@ -33,6 +33,14 @@
     "UpdateProductDescription": "Kullanıcılara ürün güncelleme yetkisi verir",
     "ChangeControl": "Değişiklik kontrolü",
     "ChangeSeverity": "Değişiklik şiddeti",
+    "ChangeControlCardTypes": "Değişiklik kontrol kartları",
+    "ChangeControlCardTypesDescription": "Ürün sürümlerine değişiklik kontrolü olarak eklenebilen kart kategorileri (ve isteğe bağlı filtreler). Tüm ürünler için geçerlidir.",
+    "NoChangeControlCardTypes": "Yapılandırılmış kart türü yok",
+    "AddCardType": "Kart türü ekle",
+    "AddCard": "Kart ekle",
+    "AddFilter": "Filtre ekle",
+    "CardType": "Kart türü",
+    "CardFilter": "Filtre",
     "ConfigLabel": "Ürünler",
     "ConfigDescription": "Ürünleri yönetmek için uzantı"
   }

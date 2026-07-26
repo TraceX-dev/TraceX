@@ -33,6 +33,14 @@
     "UpdateProductDescription": "Concede agli utenti la possibilità di aggiornare un prodotto",
     "ChangeControl": "Controllo delle modifiche",
     "ChangeSeverity": "Gravità della modifica",
+    "ChangeControlCardTypes": "Carte di controllo delle modifiche",
+    "ChangeControlCardTypesDescription": "Categorie di carte (e filtri opzionali) che possono essere associate alle versioni di prodotto come controllo delle modifiche. Si applica a tutti i prodotti.",
+    "NoChangeControlCardTypes": "Nessun tipo di carta configurato",
+    "AddCardType": "Aggiungi tipo di carta",
+    "AddCard": "Aggiungi carta",
+    "AddFilter": "Aggiungi filtro",
+    "CardType": "Tipo di carta",
+    "CardFilter": "Filtro",
     "ConfigLabel": "Prodotti",
     "ConfigDescription": "Estensione per gestire i prodotti"
   }

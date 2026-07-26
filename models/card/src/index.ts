@@ -200,13 +200,13 @@ export class TCardViewDefaults extends TMasterTag implements CardViewDefaults {
 
 @Mixin(card.mixin.CardRelation, core.class.Association)
 export class TCardRelation extends TAssociation implements CardRelation {
-  @Prop(TypeString(), getEmbeddedLabel('Purpose'))
+  @Prop(TypeString(), card.string.CardRelationPurpose)
     purpose?: string
 
-  @Prop(TypeString(), getEmbeddedLabel('Filter'))
+  @Prop(TypeString(), card.string.CardRelationFilter)
     filter?: string
 
-  @Prop(TypeBoolean(), getEmbeddedLabel('Require latest'))
+  @Prop(TypeBoolean(), card.string.CardRelationRequireLatest)
     requireLatest?: boolean
 }
 

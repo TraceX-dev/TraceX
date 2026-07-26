@@ -87,6 +87,9 @@
     "TwoColumns": "Zwei spaltig",
     "Grid": "Gitter",
     "RichtextProperties": "Textfelder",
-    "ShowAllVersions": "Alle Versionen anzeigen"
+    "ShowAllVersions": "Alle Versionen anzeigen",
+    "CardRelationPurpose": "Zweck",
+    "CardRelationFilter": "Filter",
+    "CardRelationRequireLatest": "Neueste Version erforderlich"
   }
 }
