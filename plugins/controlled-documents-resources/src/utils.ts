@@ -569,6 +569,22 @@ export function isDocOwner (ownableDocument: { owner?: Ref<Employee> }): boolean
   return ownableDocument.owner === currentPerson
 }
 
+export async function canImportDocument (doc?: Document | Document[]): Promise<boolean> {
+  if (doc === null || doc === undefined || Array.isArray(doc)) {
+    return false
+  }
+  // Import overwrites the document body, so restrict it to the same conditions under
+  // which content is editable in the editor: a Draft owned/co-authored by the user.
+  if (doc.state !== DocumentState.Draft) {
+    return false
+  }
+  const me = getCurrentEmployee()
+  const controlled = doc as ControlledDocument
+  const isOwner = doc.owner === me
+  const isCoAuthor = controlled.coAuthors?.includes(me) ?? false
+  return isOwner || isCoAuthor
+}
+
 export async function canChangeDocumentOwner (doc?: Document | Document[]): Promise<boolean> {
   if (doc === null || doc === undefined) {
     return false

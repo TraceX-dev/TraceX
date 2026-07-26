@@ -1,5 +1,17 @@
 {
   "string": {
+    "Export": "Exportar",
+    "Import": "Importar",
+    "ImportingDocument": "A importar o documento",
+    "ConvertingDocument": "A converter o documento…",
+    "ImportingFromWord": "A importar do Word",
+    "ConvertingWordDocument": "A converter o documento…",
+    "DocumentConverted": "Documento convertido",
+    "ImportFailed": "Falha na importação",
+    "ReviewImportedChanges": "Rever as alterações importadas",
+    "Apply": "Aplicar",
+    "ExportToWord": "Exportar para Word",
+    "ImportFromWord": "Importar do Word",
     "ID": "ID",
     "Code": "Código",
     "Number": "Número",

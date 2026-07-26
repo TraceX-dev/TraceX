@@ -42,6 +42,8 @@ import QmsTemplateWizard from './components/create-doc/QmsTemplateWizard.svelte'
 import DocumentStatusTag from './components/document/common/DocumentStatusTag.svelte'
 import AddCommentPopup from './components/document/popups/AddCommentPopup.svelte'
 import ChangeOwnerPopup from './components/document/popups/ChangeOwnerPopup.svelte'
+import ExportFormatPopup from './components/document/ExportFormatPopup.svelte'
+import ImportFormatPopup from './components/document/ImportFormatPopup.svelte'
 import DocumentCommentsPopup from './components/document/popups/DocumentCommentsPopup.svelte'
 import DocumentPresenter from './components/document/presenters/DocumentPresenter.svelte'
 import OwnerPresenter from './components/document/presenters/OwnerPresenter.svelte'
@@ -90,6 +92,7 @@ import './styles/_colors.scss'
 import { comment, isCommentVisible } from './text'
 import {
   canChangeDocumentOwner,
+  canImportDocument,
   canCreateChildDocument,
   canCreateChildFolder,
   canCreateChildTemplate,
@@ -400,6 +403,8 @@ export default async (): Promise<Resources> => ({
     AddCommentPopup,
     DocumentCommentsPopup,
     ChangeOwnerPopup,
+    ExportFormatPopup,
+    ImportFormatPopup,
     DeleteCategoryPopup,
     Projects,
     ProjectPresenter,
@@ -420,6 +425,7 @@ export default async (): Promise<Resources> => ({
     // CheckAreDomainsDisabled: getDisablingChecker(document.functionalityItem.Domains),
     // CheckIsLibraryDisabled: getDisablingChecker(document.functionalityItem.EffectiveLibrary)
     CanChangeDocumentOwner: canChangeDocumentOwner,
+    CanImportDocument: canImportDocument,
     CanCreateTemplate: canCreateChildTemplate,
     CanCreateDocument: canCreateChildDocument,
     CanCreateFolder: canCreateChildFolder,

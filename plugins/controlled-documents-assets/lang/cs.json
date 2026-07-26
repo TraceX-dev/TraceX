@@ -1,5 +1,17 @@
 {
   "string": {
+    "Export": "Exportovat",
+    "Import": "Importovat",
+    "ImportingDocument": "Import dokumentu",
+    "ConvertingDocument": "Převod dokumentu…",
+    "ImportingFromWord": "Import z Wordu",
+    "ConvertingWordDocument": "Převod dokumentu…",
+    "DocumentConverted": "Dokument převeden",
+    "ImportFailed": "Import selhal",
+    "ReviewImportedChanges": "Zkontrolovat importované změny",
+    "Apply": "Použít",
+    "ExportToWord": "Exportovat do Wordu",
+    "ImportFromWord": "Importovat z Wordu",
     "ID": "ID",
     "Code": "Kód",
     "Number": "Číslo",

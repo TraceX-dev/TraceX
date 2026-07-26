@@ -1,5 +1,17 @@
 {
   "string": {
+    "Export": "导出",
+    "Import": "导入",
+    "ImportingDocument": "正在导入文档",
+    "ConvertingDocument": "正在转换文档…",
+    "ImportingFromWord": "正在从 Word 导入",
+    "ConvertingWordDocument": "正在转换文档…",
+    "DocumentConverted": "文档已转换",
+    "ImportFailed": "导入失败",
+    "ReviewImportedChanges": "查看导入的更改",
+    "Apply": "应用",
+    "ExportToWord": "导出为 Word",
+    "ImportFromWord": "从 Word 导入",
     "ID": "ID",
     "Code": "代码",
     "Number": "编号",
