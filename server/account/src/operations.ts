@@ -460,10 +460,9 @@ export async function signUp (
       !forceConfirmation && sessionId !== undefined
         ? generateToken(account, undefined, undefined, undefined, accessTokenOptions(sessionId))
         : !forceConfirmation
-          ? generateToken(account)
-          : undefined,
-    refreshToken:
-      !forceConfirmation && sessionId !== undefined ? mintRefreshToken(account, sessionId, 0) : undefined
+            ? generateToken(account)
+            : undefined,
+    refreshToken: !forceConfirmation && sessionId !== undefined ? mintRefreshToken(account, sessionId, 0) : undefined
   }
 }
 
@@ -3796,10 +3795,20 @@ export async function reportSecurityLoginConcern (
   })
 }
 
-function activeSessionToInfo (row: ActiveSession, currentSessionId: string | undefined, redact: boolean): ActiveSessionInfo {
+function activeSessionToInfo (
+  row: ActiveSession,
+  currentSessionId: string | undefined,
+  redact: boolean
+): ActiveSessionInfo {
   const ua = row.userAgent?.trim() ?? ''
   const userAgent =
-    !redact || ua === '' ? (ua === '' ? undefined : ua) : ua.length <= UA_REDACT_LEN ? ua : `${ua.slice(0, UA_REDACT_LEN - 1)}…`
+    !redact || ua === ''
+      ? ua === ''
+        ? undefined
+        : ua
+      : ua.length <= UA_REDACT_LEN
+        ? ua
+        : `${ua.slice(0, UA_REDACT_LEN - 1)}…`
   return {
     sessionId: row.sessionId,
     workspaceUuid: row.workspaceUuid,
@@ -3825,8 +3834,7 @@ export async function getMyActiveSessions (
   assertSecurityLoginTelemetryRateLimit(account, 'getMyActiveSessions', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
   const redact = params?.redact === true
   // Scope to the current workspace (the token's workspace) when present.
-  const workspaceUuid =
-    typeof workspace === 'string' && workspace !== '' ? (workspace as WorkspaceUuid) : undefined
+  const workspaceUuid = typeof workspace === 'string' && workspace !== '' ? (workspace) : undefined
   const rows = await listActiveSessions(db, account, workspaceUuid)
   return rows.map((row) => activeSessionToInfo(row, sessionId, redact))
 }

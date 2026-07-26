@@ -63,7 +63,7 @@ export async function refreshAccessToken (): Promise<string | undefined> {
 async function runExclusive<T> (fn: () => Promise<T>): Promise<T> {
   const locks: any = (globalThis as any).navigator?.locks
   if (locks?.request != null) {
-    return await locks.request('tracex-token-refresh', fn)
+    return await (locks.request('tracex-token-refresh', fn) as Promise<T>)
   }
   return await fn()
 }

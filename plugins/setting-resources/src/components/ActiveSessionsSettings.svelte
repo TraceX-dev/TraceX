@@ -128,11 +128,7 @@
     <ul class="active-sessions__list">
       {#each sessions as session (session.sessionId)}
         <li class="active-sessions__row" class:active-sessions__row--current={session.isCurrent}>
-          <span
-            class="active-sessions__status"
-            class:active-sessions__status--current={session.isCurrent}
-            role="img"
-          />
+          <span class="active-sessions__status" class:active-sessions__status--current={session.isCurrent} role="img" />
           <div class="active-sessions__body">
             <div class="active-sessions__line active-sessions__line--head">
               <span class="active-sessions__device" title={session.userAgent ?? ''}>

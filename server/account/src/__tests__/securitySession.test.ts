@@ -188,7 +188,15 @@ describe('rotateSessionRefresh', () => {
   it('rejects a revoked or unknown session', async () => {
     const { db, activeSession } = makeDb()
     activeSession.rows = [
-      { sessionId: 's1', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', refreshGeneration: 0, revokedOn: 9 }
+      {
+        sessionId: 's1',
+        accountUuid: ACC,
+        createdOn: 1,
+        lastSeen: 1,
+        authMethod: 'password',
+        refreshGeneration: 0,
+        revokedOn: 9
+      }
     ] as ActiveSession[]
 
     expect(await rotateSessionRefresh(ctx, db, ACC, 's1', 0)).toEqual({ error: 'revoked' })
@@ -303,7 +311,7 @@ describe('revokeActiveSession', () => {
     expect(await revokeActiveSession(ctx, db, ACC, 'nope')).toBe(false)
   })
 
-  it("returns false when the session belongs to another account", async () => {
+  it('returns false when the session belongs to another account', async () => {
     const { db, activeSession, securityLoginEvent } = makeDb()
     activeSession.rows = [
       { sessionId: 's1', accountUuid: OTHER, createdOn: 1, lastSeen: 1, authMethod: 'password' }
@@ -316,7 +324,15 @@ describe('revokeActiveSession', () => {
   it('revokes, records a logout event, and is idempotent', async () => {
     const { db, activeSession, securityLoginEvent } = makeDb()
     activeSession.rows = [
-      { sessionId: 's1', accountUuid: ACC, workspaceUuid: WS, createdOn: 1, lastSeen: 1, authMethod: 'password', ip: '1.2.3.4' }
+      {
+        sessionId: 's1',
+        accountUuid: ACC,
+        workspaceUuid: WS,
+        createdOn: 1,
+        lastSeen: 1,
+        authMethod: 'password',
+        ip: '1.2.3.4'
+      }
     ] as ActiveSession[]
 
     const ok = await revokeActiveSession(ctx, db, ACC, 's1')

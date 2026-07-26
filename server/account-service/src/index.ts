@@ -20,7 +20,14 @@ import accountRu from '@hcengineering/account/lang/ru.json'
 import { Analytics } from '@hcengineering/analytics'
 import { registerProviders } from '@hcengineering/auth-providers'
 import { metricsAggregate, type Branding, type BrandingMap, type MeasureContext } from '@hcengineering/core'
-import platform, { getMetadata, Severity, Status, addStringsLoader, setMetadata, unknownStatus } from '@hcengineering/platform'
+import platform, {
+  getMetadata,
+  Severity,
+  Status,
+  addStringsLoader,
+  setMetadata,
+  unknownStatus
+} from '@hcengineering/platform'
 import serverToken, { decodeToken, decodeTokenVerbose, generateToken } from '@hcengineering/server-token'
 import cors from '@koa/cors'
 import type Cookies from 'cookies'
@@ -506,12 +513,12 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
           // The refresh endpoint authenticates with the refresh cookie (web) and
           // falls back to the Authorization token (non-cookie clients).
           const effectiveToken =
-            request.method === 'refreshToken' ? extractRefreshCookie(ctx.request.headers) ?? token : token
+            request.method === 'refreshToken' ? (extractRefreshCookie(ctx.request.headers) ?? token) : token
           const result = await method(_ctx, db, branding, request, effectiveToken, meta)
 
           // Persist a rotating refresh token as an httpOnly cookie so it is not
           // exposed to JS at rest; it stays in the JSON for non-cookie clients.
-          const refreshTok = (result as any)?.refreshToken
+          const refreshTok = (result)?.refreshToken
           if (typeof refreshTok === 'string' && refreshTok !== '') {
             const refreshTtlSec = getMetadata(account.metadata.RefreshTokenTtlSec) ?? 0
             const maxAge = refreshTtlSec > 0 ? refreshTtlSec * 1000 : undefined
