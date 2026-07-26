@@ -22,6 +22,8 @@ import {
   type PersonUuid,
   type WorkspaceUuid,
   type AccountUuid,
+  systemAccount,
+  systemAccountEmail,
   systemAccountUuid
 } from '@hcengineering/core'
 import platform, { PlatformError, Status, Severity, getMetadata } from '@hcengineering/platform'
@@ -49,6 +51,7 @@ import {
   changePassword,
   getPerson,
   getSocialIds,
+  getAccountInfo,
   createAccessLink,
   getSubscriptions,
   leaveWorkspace,
@@ -559,6 +562,37 @@ describe('account operations', () => {
         }
         return undefined
       })
+    })
+
+    test('should return system social id for system account token', async () => {
+      const mockWorkspace = {
+        uuid: 'workspace-uuid' as WorkspaceUuid,
+        name: 'Test Workspace',
+        url: 'test-workspace',
+        region: 'eu'
+      }
+
+      ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+        account: systemAccountUuid,
+        workspace: mockWorkspace.uuid,
+        extra: {}
+      })
+      ;(mockDb.workspace.findOne as jest.Mock).mockResolvedValue(mockWorkspace)
+
+      const result = await getLoginInfoByToken(mockCtx, mockDb, mockBranding, mockToken)
+
+      expect(result).toEqual({
+        account: systemAccountUuid,
+        name: 'System User',
+        socialId: systemAccount.primarySocialId,
+        token: expect.any(String),
+        workspace: mockWorkspace.uuid,
+        workspaceUrl: mockWorkspace.url,
+        endpoint: expect.any(String),
+        role: AccountRole.Owner
+      })
+      expect(mockDb.socialId.find).not.toHaveBeenCalled()
+      expect(mockDb.person.findOne).not.toHaveBeenCalled()
     })
 
     describe('endpoint selection', () => {
@@ -2835,6 +2869,29 @@ describe('account operations', () => {
         expect(result).toEqual([mockSocialIds[0]])
       })
 
+      test('should return system social id for system account', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: systemAccountUuid
+        })
+
+        const result = await getSocialIds(mockCtx, mockDb, mockBranding, mockToken, {
+          confirmed: true,
+          includeDeleted: false
+        })
+
+        expect(result).toEqual([
+          {
+            _id: systemAccount.primarySocialId,
+            personUuid: systemAccountUuid,
+            type: SocialIdType.HULY,
+            value: systemAccountEmail,
+            key: `huly:${systemAccountEmail}`,
+            verifiedOn: 1
+          }
+        ])
+        expect(mockDb.socialId.find).not.toHaveBeenCalled()
+      })
+
       test('should fail when requesting unconfirmed social ids', async () => {
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
           account: mockAccountId
@@ -2879,6 +2936,103 @@ describe('account operations', () => {
         await expect(getPerson(mockCtx, mockDb, mockBranding, mockToken)).rejects.toThrow(
           new PlatformError(new Status(Severity.ERROR, platform.status.PersonNotFound, { person: mockAccountId }))
         )
+      })
+    })
+
+    describe('getAccountInfo', () => {
+      const callerAccount = 'caller-account-uuid' as AccountUuid
+      const otherAccount = 'other-account-uuid' as AccountUuid
+
+      const accountInfoDb = {
+        account: {
+          findOne: jest.fn()
+        }
+      } as unknown as AccountDB
+
+      beforeEach(() => {
+        jest.clearAllMocks()
+      })
+
+      test('returns own info when accountId matches caller', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: callerAccount, extra: {} })
+        ;(accountInfoDb.account.findOne as jest.Mock).mockResolvedValue({
+          uuid: callerAccount,
+          timezone: 'America/New_York',
+          locale: 'en-US',
+          tfaSecret: 'secret'
+        })
+
+        const result = await getAccountInfo(mockCtx, accountInfoDb, mockBranding, mockToken, {
+          accountId: callerAccount
+        })
+
+        expect(result).toEqual({ timezone: 'America/New_York', locale: 'en-US', tfaEnabled: true })
+        expect(accountInfoDb.account.findOne).toHaveBeenCalledWith({ uuid: callerAccount })
+      })
+
+      test('rejects cross-account lookup for non-admin, non-service caller', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: callerAccount, extra: {} })
+
+        await expect(
+          getAccountInfo(mockCtx, accountInfoDb, mockBranding, mockToken, { accountId: otherAccount })
+        ).rejects.toThrow(new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {})))
+
+        expect(accountInfoDb.account.findOne).not.toHaveBeenCalled()
+      })
+
+      test('allows admin to read other account info', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: callerAccount, extra: { admin: 'true' } })
+        ;(accountInfoDb.account.findOne as jest.Mock).mockResolvedValue({
+          uuid: otherAccount,
+          timezone: 'Europe/London',
+          locale: 'en-GB',
+          tfaSecret: null
+        })
+
+        const result = await getAccountInfo(mockCtx, accountInfoDb, mockBranding, mockToken, {
+          accountId: otherAccount
+        })
+
+        expect(result).toEqual({ timezone: 'Europe/London', locale: 'en-GB', tfaEnabled: false })
+        expect(accountInfoDb.account.findOne).toHaveBeenCalledWith({ uuid: otherAccount })
+      })
+
+      test('allows workspace service token to read other account info', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: callerAccount,
+          extra: { service: 'workspace' }
+        })
+        ;(accountInfoDb.account.findOne as jest.Mock).mockResolvedValue({
+          uuid: otherAccount,
+          timezone: 'Asia/Tokyo',
+          locale: 'ja-JP',
+          tfaSecret: null
+        })
+
+        const result = await getAccountInfo(mockCtx, accountInfoDb, mockBranding, mockToken, {
+          accountId: otherAccount
+        })
+
+        expect(result).toEqual({ timezone: 'Asia/Tokyo', locale: 'ja-JP', tfaEnabled: false })
+      })
+
+      test('throws BadRequest when accountId is missing', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: callerAccount, extra: {} })
+
+        await expect(
+          getAccountInfo(mockCtx, accountInfoDb, mockBranding, mockToken, { accountId: '' as AccountUuid })
+        ).rejects.toThrow(new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {})))
+
+        expect(accountInfoDb.account.findOne).not.toHaveBeenCalled()
+      })
+
+      test('throws AccountNotFound when account does not exist', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: callerAccount, extra: {} })
+        ;(accountInfoDb.account.findOne as jest.Mock).mockResolvedValue(null)
+
+        await expect(
+          getAccountInfo(mockCtx, accountInfoDb, mockBranding, mockToken, { accountId: callerAccount })
+        ).rejects.toThrow(new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {})))
       })
     })
   })

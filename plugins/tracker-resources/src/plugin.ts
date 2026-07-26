@@ -13,6 +13,12 @@
 // limitations under the License.
 //
 import { type StatusCategory, type Client, type Doc, type Ref, type Space } from '@hcengineering/core'
+import type {
+  CanCreateIntegrationTarget,
+  CreateIntegrationTarget,
+  GetIntegrationTargetAllowedSpaceClasses,
+  UpdateIntegrationTarget
+} from '@hcengineering/integration'
 import type { Asset, IntlString, Metadata, Resource } from '@hcengineering/platform'
 import { mergeIds } from '@hcengineering/platform'
 import type { ObjectSearchCategory, ObjectSearchFactory } from '@hcengineering/presentation/src/types'
@@ -401,7 +407,11 @@ export default mergeIds(trackerId, tracker, {
     GetIssueStatusCategories: '' as Resource<(project: ProjectType) => Array<Ref<StatusCategory>>>,
     GetIssueIdByIdentifier: '' as Resource<(id: string) => Promise<Ref<Issue> | undefined>>,
     OpenIssuesOfTaskType: '' as Resource<(taskType: TaskType) => Promise<void>>,
-    FormatIssueMarkdownValue: '' as Resource<ValueFormatter>
+    FormatIssueMarkdownValue: '' as Resource<ValueFormatter>,
+    CreateIntegrationTarget: '' as Resource<CreateIntegrationTarget>,
+    UpdateIntegrationTarget: '' as Resource<UpdateIntegrationTarget>,
+    CanCreateIntegrationTarget: '' as Resource<CanCreateIntegrationTarget>,
+    GetIntegrationTargetAllowedSpaceClasses: '' as Resource<GetIntegrationTargetAllowedSpaceClasses>
   },
   aggregation: {
     CreateComponentAggregationManager: '' as CreateAggregationManagerFunc,

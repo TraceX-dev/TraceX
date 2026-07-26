@@ -50,7 +50,7 @@ const handleRequest = async (
 }
 
 const wrapRequest = (fn: AsyncRequestHandler) => (req: Request, res: Response, next: NextFunction) => {
-  void handleRequest(fn, req, res, next)
+  handleRequest(fn, req, res, next).catch(next)
 }
 
 export function createServer (controller: AIControl, ctx: MeasureContext): Express {

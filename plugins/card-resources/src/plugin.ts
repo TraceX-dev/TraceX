@@ -14,7 +14,14 @@
 //
 
 import card, { type Card, cardId } from '@hcengineering/card'
-import { type Permission, type Doc, type Ref } from '@hcengineering/core'
+import { type Client, type Permission, type Doc, type Ref } from '@hcengineering/core'
+import type {
+  CanCreateIntegrationTarget,
+  CreateIntegrationTarget,
+  GetIntegrationTargetAllowedSpaceClasses,
+  GetIntegrationTargetCommentBackend,
+  UpdateIntegrationTarget
+} from '@hcengineering/integration'
 import { type IntlString, mergeIds, type Resource } from '@hcengineering/platform'
 import { type ObjectSearchCategory, type ObjectSearchFactory } from '@hcengineering/presentation'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
@@ -62,8 +69,16 @@ export default mergeIds(cardId, card, {
   },
   function: {
     CardFactory: '' as Resource<(props?: Record<string, any>) => Promise<Ref<Doc> | undefined>>,
+    CardReferenceObjectProvider: '' as Resource<
+      <T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<Doc | undefined>
+    >,
     FormatCardMarkdownValue: '' as Resource<ValueFormatter>,
-    CheckChildrenSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>
+    CheckChildrenSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
+    CreateIntegrationTarget: '' as Resource<CreateIntegrationTarget>,
+    UpdateIntegrationTarget: '' as Resource<UpdateIntegrationTarget>,
+    CanCreateIntegrationTarget: '' as Resource<CanCreateIntegrationTarget>,
+    GetIntegrationTargetAllowedSpaceClasses: '' as Resource<GetIntegrationTargetAllowedSpaceClasses>,
+    GetIntegrationTargetCommentBackend: '' as Resource<GetIntegrationTargetCommentBackend>
   },
   permission: {
     CreateCard: '' as Ref<Permission>,
@@ -174,6 +189,8 @@ export default mergeIds(cardId, card, {
     MyCards: '' as IntlString,
     GotoMyCards: '' as IntlString,
     SingleColumn: '' as IntlString,
+    BaseType: '' as IntlString,
+    BaseTypeDescription: '' as IntlString,
     TwoColumns: '' as IntlString,
     LayoutAuto: '' as IntlString
   }

@@ -66,6 +66,7 @@
     $editorMode as editorMode,
     editorModeUpdated,
     $isDocumentOwner as isDocumentOwner,
+    $isDocumentOwnerOrCoAuthor as isDocumentOwnerOrCoAuthor,
     $isProjectEditable as isProjectEditable,
     rightPanelTabChanged
   } from '../stores/editors/document'
@@ -364,7 +365,7 @@
     <svelte:fragment slot="extra">
       <div class="flex flex-gap-1 no-print">
         {#if $isProjectEditable}
-          {#if $isDocumentOwner && !$documentReviewIsActive && !$documentApprovalIsActive}
+          {#if $isDocumentOwnerOrCoAuthor && !$documentReviewIsActive && !$documentApprovalIsActive}
             {#if $canSendForReview}
               <Button
                 label={documentRes.string.SendForReview}

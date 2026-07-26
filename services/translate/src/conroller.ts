@@ -319,7 +319,8 @@ Do not add any explanations, comments, or extra text outside the JSON.
         {
           workspace,
           reason: 'auto-translate',
-          tokens: response.usage.total_tokens,
+          inputTokens: response.usage.prompt_tokens ?? 0,
+          outputTokens: response.usage.completion_tokens ?? 0,
           date: new Date(response.created * 1000).toISOString()
         }
       ])

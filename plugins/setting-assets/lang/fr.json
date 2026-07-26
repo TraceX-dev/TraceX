@@ -141,6 +141,12 @@
     "BackupFileDownload": "Télécharger le fichier",
     "BackupFiles": "Fichiers de sauvegarde",
     "BackupNoBackup": "Aucune sauvegarde n'est actuellement disponible.",
+    "BackupDownloadAll": "Télécharger la sauvegarde complète",
+    "BackupPreparingDownload": "Préparation de la sauvegarde…",
+    "BackupDownloadAllInfo": "Téléchargez tous les fichiers de sauvegarde dans une seule archive .zip que vous pouvez conserver sur votre ordinateur.",
+    "BackupCopyScript": "Copier le script de téléchargement",
+    "BackupCopyToken": "Copier le jeton",
+    "BackupScriptInfo": "Un script shell qui télécharge tous les fichiers de sauvegarde avec curl. Enregistrez-le et exécutez-le dans un terminal ; il demande votre jeton de sauvegarde, aucun secret n'est donc stocké dans le script.",
     "NonBackupedBlobs": "Non Backed up blobs",
     "Calendar": "Calendrier",
     "StartOfTheWeek": "Début de semaine",
@@ -257,6 +263,7 @@
     "NotMeAction": "Ce n'était pas moi",
     "NotMeDialogTitle": "Signaler une connexion suspecte",
     "NotMeDialogMessage": "Si cette connexion ne vient pas de vous, changez votre mot de passe, vérifiez les paramètres 2FA et examinez les sessions actives. Le signalement ajoute une entrée au journal d’audit du compte pour suivi ; il ne vous déconnecte pas automatiquement et ne met pas fin aux autres sessions.",
-    "NotMeDialogAction": "Signaler"
+    "NotMeDialogAction": "Signaler",
+    "Required": "Requis"
   }
 }

@@ -15,6 +15,7 @@
 
 import { plugin, type Plugin, type Resource } from '@hcengineering/platform'
 import { type Presenter, TypeMatchFunc } from '@hcengineering/server-notification'
+import { type TriggerFunc } from '@hcengineering/server-core'
 import type { TrainingRequest } from '@hcengineering/training'
 
 /**
@@ -30,5 +31,10 @@ export default plugin(serverTrainingId, {
     TrainingRequestHTMLPresenter: '' as Resource<Presenter<TrainingRequest>>,
     TrainingRequestNotificationTypeMatch: '' as TypeMatchFunc,
     TrainingRequestTextPresenter: '' as Resource<Presenter<TrainingRequest>>
+  },
+  trigger: {
+    OnTrainingRequest: '' as Resource<TriggerFunc>,
+    OnTrainingAttempt: '' as Resource<TriggerFunc>,
+    OnTrainingReminderSettings: '' as Resource<TriggerFunc>
   }
 })

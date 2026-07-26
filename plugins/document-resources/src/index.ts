@@ -54,6 +54,12 @@ import {
   parseDocumentId,
   resolveLocation
 } from './utils'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
 
 const toObjectSearchResult = (e: WithLookup<Document>): ObjectSearchResult => ({
   doc: e,
@@ -179,7 +185,11 @@ export default async (): Promise<Resources> => ({
     CanLockDocument: canLockDocument,
     CanUnlockDocument: canUnlockDocument,
     GetDocumentLinkId: getDocumentLinkId,
-    ParseDocumentId: parseDocumentId
+    ParseDocumentId: parseDocumentId,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses
   },
   resolver: {
     Location: resolveLocation

@@ -19,7 +19,8 @@ export const accountPlugin = plugin(accountId, {
     OtpRetryDelaySec: '' as Metadata<number>,
     WsLivenessDays: '' as Metadata<number>,
     AccessTokenTtlSec: '' as Metadata<number>,
-    RefreshTokenTtlSec: '' as Metadata<number>
+    RefreshTokenTtlSec: '' as Metadata<number>,
+    DefaultBrandingKey: '' as Metadata<string>
   },
   string: {
     ConfirmationText: '' as IntlString,

@@ -1180,7 +1180,7 @@ export async function createWorkspaceRecord (
   dataId?: WorkspaceDataId,
   pendingConfiguration?: WorkspaceConfiguration
 ): Promise<CreateWorkspaceRecordResult> {
-  const brandingKey = branding?.key ?? 'huly'
+  const brandingKey = branding?.key ?? getMetadata(accountPlugin.metadata.DefaultBrandingKey) ?? 'huly'
   const regionInfo = getRegions().find((it) => it.region === region)
 
   if (regionInfo === undefined) {
@@ -2452,6 +2452,7 @@ export async function revokeActiveSession (
 // Move to config?
 export const integrationServices = [
   'github',
+  'github-next',
   'telegram-bot',
   'hulygram',
   'mailbox',

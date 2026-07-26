@@ -56,7 +56,8 @@ import notification, {
   DocNotifyContext,
   InboxNotification,
   MentionInboxNotification,
-  NotificationType
+  NotificationType,
+  type OnDemandNotification
 } from '@hcengineering/notification'
 import { getResource, translate } from '@hcengineering/platform'
 import { getAccountBySocialId, getEmployeesBySocialIds } from '@hcengineering/server-contact'
@@ -75,6 +76,7 @@ import {
   NotifyResult
 } from './types'
 import {
+  getAllowedProviders,
   getHTMLPresenter,
   getNotificationContent,
   getNotificationLink,
@@ -1660,12 +1662,74 @@ export * from './push'
 export * from './types'
 export * from './utils'
 
+/**
+ * Generic on-demand delivery: fans an {@link OnDemandNotification} command doc out into each target's
+ * private space (system trust), reusing {@link getCommonNotificationTxes}. Domain-agnostic — any module
+ * can create the command doc to "notify these users now" about any object.
+ */
+export async function OnDemandNotificationSend (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (!control.hierarchy.isDerived(tx._class, core.class.TxCreateDoc)) continue
+    const createTx = tx as TxCreateDoc<OnDemandNotification>
+    if (!control.hierarchy.isDerived(createTx.objectClass, notification.class.OnDemandNotification)) continue
+
+    const req = TxProcessor.createDoc2Doc(createTx)
+    if (req.targets.length === 0) continue
+
+    const type = control.modelDb.findAllSync(notification.class.NotificationType, { _id: req.notificationType })[0]
+    if (type === undefined) continue
+
+    const targetDoc = (await control.findAll(control.ctx, req.objectClass, { _id: req.objectId }, { limit: 1 }))[0]
+    if (targetDoc === undefined) continue
+
+    const sender: SenderInfo = await getSenderInfo(control.ctx, createTx.modifiedBy, control)
+    const receivers = await getReceiversInfo(control.ctx, req.targets, control)
+    if (receivers.length === 0) continue
+    const notificationControl = await getNotificationProviderControl(control.ctx, control)
+
+    for (const receiver of receivers) {
+      const data: Partial<Data<CommonInboxNotification>> = {
+        header: req.header,
+        message: req.message,
+        messageHtml: req.messageHtml,
+        icon: req.icon,
+        objectId: req.objectId,
+        objectClass: req.objectClass,
+        user: receiver.account,
+        isViewed: false,
+        archived: false
+      }
+      const allowedProviders = getAllowedProviders(control, receiver.socialIds, type, notificationControl)
+      const notifyResult: NotifyResult = new Map(allowedProviders.map((it) => [it, [type]]))
+      if (notifyResult.has(notification.providers.InboxNotificationProvider)) {
+        const notifyTxes = await getCommonNotificationTxes(
+          control.ctx,
+          control,
+          targetDoc,
+          data,
+          receiver,
+          sender,
+          req.objectId,
+          req.objectClass,
+          req.objectSpace,
+          createTx.modifiedOn,
+          notifyResult
+        )
+        res.push(...notifyTxes)
+      }
+    }
+  }
+  return res
+}
+
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export default async () => ({
   trigger: {
     OnAttributeCreate,
     OnAttributeUpdate,
     OnDocRemove,
+    OnDemandNotificationSend,
     OnEmployeeDeactivate,
     PushNotificationsHandler
   },

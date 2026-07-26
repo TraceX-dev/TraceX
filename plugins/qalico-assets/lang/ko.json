@@ -1,0 +1,12 @@
+{
+  "string": {
+    "RegulatoryDocument": "규제 문서",
+    "RegulatoryDocuments": "규제 문서",
+    "Applicability": "적용 여부",
+    "ExternalLink": "외부 링크",
+    "QalicoLink": "Qalico 링크",
+    "Date": "날짜",
+    "Owner": "담당자",
+    "ActionsNeeded": "필요 조치"
+  }
+}

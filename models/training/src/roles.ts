@@ -26,7 +26,8 @@ export const roles = [
       training.permission.CreateRequestOnSomeoneElsesTraining,
       training.permission.ChangeSomeoneElsesSentRequestOwner,
       training.permission.ViewSomeoneElsesSentRequest,
-      training.permission.ViewSomeoneElsesTraineesResults
+      training.permission.ViewSomeoneElsesTraineesResults,
+      training.permission.SendTrainingRequestReminder
     ]
   },
   {
@@ -38,7 +39,8 @@ export const roles = [
       training.permission.ViewSomeoneElsesTrainingQuestions,
       training.permission.CreateRequestOnSomeoneElsesTraining,
       training.permission.ViewSomeoneElsesSentRequest,
-      training.permission.ViewSomeoneElsesTraineesResults
+      training.permission.ViewSomeoneElsesTraineesResults,
+      training.permission.SendTrainingRequestReminder
     ]
   },
   {

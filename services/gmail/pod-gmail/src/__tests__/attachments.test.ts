@@ -32,6 +32,7 @@ describe('AttachmentHandler', () => {
       info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
+      debug: jest.fn(),
       logOperation: jest.fn(),
       childLogger: jest.fn(),
       close: jest.fn()
@@ -40,6 +41,7 @@ describe('AttachmentHandler', () => {
     error: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
+    debug: jest.fn(),
     end: jest.fn(),
     getParams: jest.fn()
   }
@@ -233,7 +235,7 @@ describe('AttachmentHandler', () => {
       expect(decodedResult).toContain('Test Content')
       expect(decodedResult).toContain('test.txt')
       expect(decodedResult).toContain('Content-Disposition: attachment; filename="test.txt"')
-      expect(decodedResult).toContain('<br><br><p>Sent via <a href="https://huly.io">Huly</a></p>')
+      expect(decodedResult).toContain('<br><br><p>Sent via <a href="https://tracex.co">TraceX</a></p>')
     })
   })
 })

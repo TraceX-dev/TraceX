@@ -141,6 +141,12 @@
     "BackupFileDownload": "下载文件",
     "BackupFiles": "备份文件",
     "BackupNoBackup": "当前没有可用的备份。",
+    "BackupDownloadAll": "下载完整备份",
+    "BackupPreparingDownload": "正在准备备份…",
+    "BackupDownloadAllInfo": "将所有备份文件下载为一个 .zip 压缩包，可保存到您的计算机上。",
+    "BackupCopyScript": "复制下载脚本",
+    "BackupCopyToken": "复制令牌",
+    "BackupScriptInfo": "一个使用 curl 下载所有备份文件的 shell 脚本。保存并在终端中运行；它会提示输入您的备份令牌，因此脚本中不会存储任何机密信息。",
     "NonBackupedBlobs": "未备份的 Blob",
     "Calendar": "日历",
     "StartOfTheWeek": "本周开始",
@@ -257,6 +263,7 @@
     "NotMeAction": "这不是我",
     "NotMeDialogTitle": "报告可疑登录",
     "NotMeDialogMessage": "如果这次登录不是您本人，请修改密码、检查 2FA 设置，并查看活动会话。提交报告会在账户审计日志中新增一条记录以便跟进；不会自动注销您，也不会结束其他会话。",
-    "NotMeDialogAction": "报告"
+    "NotMeDialogAction": "报告",
+    "Required": "必须"
   }
 }

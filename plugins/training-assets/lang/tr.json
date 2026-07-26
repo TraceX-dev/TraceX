@@ -99,6 +99,15 @@
     "ViewSentRequests": "Eğitim alanların talepleri",
     "ViewTraineesResults": "Eğitim alanların sonuçları",
     "ConfigLabel": "Eğitimler",
-    "ConfigDescription": "Eğitimleri yönetmek için uzantı"
+    "ConfigDescription": "Eğitimleri yönetmek için uzantı",
+    "TrainingDeadlineReminder": "Eğitim son tarih hatırlatması",
+    "TrainingReminderOffsetsDays": "Hatırlatma ön süreleri (gün)",
+    "Permission_SendTrainingRequestReminder": "Eğitim hatırlatması gönder",
+    "Permission_SendTrainingRequestReminder_Description": "Bir eğitim talebini tamamlamayan katılımcılara takip hatırlatmaları gönder",
+    "SendReminder": "Hatırlatma gönder",
+    "ConfirmSendReminder": "Bu eğitimi tamamlamayan {count} katılımcıya hatırlatma gönderilsin mi?",
+    "ReminderSent": "{count} katılımcıya hatırlatma gönderildi",
+    "TrainingRemindersEnabled": "Son tarih hatırlatmaları",
+    "TrainingDeadlineReminderMessage": "{title} — {days, plural, =0 {bugün son gün} other {son tarihe # gün}}"
   }
 }

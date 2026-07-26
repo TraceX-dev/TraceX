@@ -1,5 +1,17 @@
 {
   "string": {
+    "Export": "Export",
+    "Import": "Import",
+    "ImportingDocument": "Importing document",
+    "ConvertingDocument": "Converting document…",
+    "ImportingFromWord": "Importing from Word",
+    "ConvertingWordDocument": "Converting document…",
+    "DocumentConverted": "Document converted",
+    "ImportFailed": "Import failed",
+    "ReviewImportedChanges": "Review imported changes",
+    "Apply": "Apply",
+    "ExportToWord": "Export to Word",
+    "ImportFromWord": "Import from Word",
     "ID": "ID",
     "Code": "Code",
     "Number": "Number",
@@ -71,6 +83,8 @@
 
     "Compare": "Compare:",
     "Against": "Against:",
+    "RemovedAttachments": "Removed attachments",
+    "Restore": "Restore",
 
     "ComparisonModeNotSupported": "Comparison mode is not supported.",
 
@@ -272,6 +286,7 @@
     "Page": "Page ",
     "Of": " of ",
     "CreatedFromTemplate": "Created from template: ",
+    "UncontrolledCopy": "Uncontrolled copy",
 
     "ViewAll": "View all",
     "Readonly": "Readonly",

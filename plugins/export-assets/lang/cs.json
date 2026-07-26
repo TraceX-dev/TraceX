@@ -12,7 +12,7 @@
     "ExportFormat": "Formát exportu",
     "ExportJSON": "JSON",
     "ExportCSV": "CSV",
-    "ExportUnifiedFormat": "Jednotný formát Huly",
+    "ExportUnifiedFormat": "Jednotný formát TraceX",
     "ExportIncludeContent": "Zahrnout obsah",
     "ExportEverything": "Vše",
     "ExportAttributesOnly": "Pouze atributy",
@@ -53,6 +53,8 @@
     "ExportFilterEffectiveOnly": "Pouze platné dokumenty",
     "ExportFilterSkipArchivedObsolete": "Vše kromě archivovaných a zastaralých",
     "ExportFilterAll": "Všechny dokumenty",
+    "ExportChildDocuments": "Exportovat podřízené dokumenty",
+    "ExportChildDocumentsDescription": "Také exportovat dokumenty připojené k vybraným",
     "ExportResultRecordTitle": "Export dokumentů z pracovního prostoru {workspace} ({date})"
   }
 }

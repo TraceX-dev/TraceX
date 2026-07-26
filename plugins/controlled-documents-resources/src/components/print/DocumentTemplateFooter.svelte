@@ -33,6 +33,20 @@
     font-size: 7pt;
   `
 
+  const sideStyle = /* css */ `
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  `
+
+  const centerStyle = /* css */ `
+    flex: 0 0 auto;
+    font-size: 7pt;
+    text-align: center;
+    white-space: nowrap;
+  `
+
   // Note: cannot use standard puppeteer "date" class as format cannot be easily adjusted for it
   const dtf = new Intl.DateTimeFormat('default', {
     day: 'numeric',
@@ -46,19 +60,24 @@
 </script>
 
 <footer style={rootStyle}>
-  <div style:flex="1 1 0">
+  <div style={sideStyle}>
     {#if templateReference !== ''}
       <Label label={plugin.string.CreatedFromTemplate} />
       <span>{templateReference}</span>
     {/if}
   </div>
-  <div style={metaStyle}>
-    {dtf.format(new Date())}
+  <div style={centerStyle}>
+    <Label label={plugin.string.UncontrolledCopy} />
   </div>
-  <div style={metaStyle}>
-    <Label label={plugin.string.Page} />
-    <span class="pageNumber" />
-    <Label label={plugin.string.Of} />
-    <span class="totalPages" />
+  <div style={`${sideStyle} justify-content: flex-end; gap: 1cm;`}>
+    <div style={metaStyle}>
+      {dtf.format(new Date())}
+    </div>
+    <div style={metaStyle}>
+      <Label label={plugin.string.Page} />
+      <span class="pageNumber" />
+      <Label label={plugin.string.Of} />
+      <span class="totalPages" />
+    </div>
   </div>
 </footer>

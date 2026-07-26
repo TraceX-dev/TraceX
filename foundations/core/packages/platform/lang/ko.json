@@ -23,7 +23,7 @@
         "PasswordLoginLocked": "로그인 시도가 너무 많아 비밀번호 로그인이 잠겼습니다. OTP 로그인으로 계정 잠금을 해제하세요.",
         "InviteNotFound": "{email}로 보낸 초대를 찾을 수 없습니다.",
         "WorkspaceLimitReached": "워크스페이스 한도에 도달했습니다. 문의해 주세요...",
-        "ReadOnlyAccount": "익명 게스트 데모",
+        "ReadOnlyAccount": "익명 게스트",
         "SystemAccount": "시스템 계정",
         "SocialIdAlreadyExists": "이미 존재하는 소셜 ID입니다"
     }

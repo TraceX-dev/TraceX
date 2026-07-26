@@ -196,6 +196,7 @@ export default mergeIds(settingId, setting, {
     SignOutAction: '' as IntlString,
     SignOutDialogTitle: '' as IntlString,
     SignOutDialogMessage: '' as IntlString,
-    SignOutDialogAction: '' as IntlString
+    SignOutDialogAction: '' as IntlString,
+    Required: '' as IntlString
   }
 })

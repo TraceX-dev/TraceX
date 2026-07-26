@@ -14,10 +14,11 @@
 //
 
 import OpenAI from 'openai'
+import { ResponseInputItem } from 'openai/resources/responses/responses'
 import { Tiktoken } from 'js-tiktoken'
 
 // Based on https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
-export function countTokens (messages: OpenAI.ChatCompletionMessageParam[], encoding: Tiktoken): number {
+export function countChatCompletionTokens (messages: OpenAI.ChatCompletionMessageParam[], encoding: Tiktoken): number {
   const tokensPerMessage = 3 // every message follows <|start|>{role/name}\n{content}<|end|>\n
   const tokensPerName = 1 // every name follows <|name|>{name}<|end|>\n
 
@@ -26,11 +27,36 @@ export function countTokens (messages: OpenAI.ChatCompletionMessageParam[], enco
   for (const message of messages) {
     result += tokensPerMessage
     for (const key in message) {
-      const value = message[key as keyof OpenAI.ChatCompletionMessageParam] as string
-      if (value == null) continue
-      result += encoding.encode(value).length
-      if (key === 'name') {
-        result += tokensPerName
+      const value = message[key as keyof OpenAI.ChatCompletionMessageParam]
+      if (typeof value === 'string') {
+        result += encoding.encode(value).length
+        if (key === 'name') {
+          result += tokensPerName
+        }
+      }
+    }
+  }
+
+  result += 3 // every reply is primed with <|start|>assistant<|message|>
+
+  return result
+}
+
+export function countResponseItemTokens (messages: ResponseInputItem[], encoding: Tiktoken): number {
+  const tokensPerMessage = 3 // every message follows <|start|>{role/name}\n{content}<|end|>\n
+  const tokensPerName = 1 // every name follows <|name|>{name}<|end|>\n
+
+  let result = 0
+
+  for (const message of messages) {
+    result += tokensPerMessage
+    for (const key in message) {
+      const value = message[key as keyof ResponseInputItem]
+      if (typeof value === 'string') {
+        result += encoding.encode(value).length
+        if (key === 'name') {
+          result += tokensPerName
+        }
       }
     }
   }

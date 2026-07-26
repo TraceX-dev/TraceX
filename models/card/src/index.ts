@@ -54,6 +54,7 @@ import core, {
   type Ref,
   SortingOrder
 } from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import {
   ArrOf,
   type Builder,
@@ -100,6 +101,9 @@ export class TMasterTag extends TClass implements MasterTag {
 
   @Prop(TypeBoolean(), card.string.SingleColumn)
     singleColumn?: boolean
+
+  @Prop(TypeBoolean(), card.string.BaseType)
+    baseType?: boolean
 }
 
 @Model(card.class.Tag, core.class.Mixin)
@@ -600,6 +604,20 @@ export function createModel (builder: Builder): void {
   })
 
   builder.createDoc(
+    integration.class.IntegrationTargetFactory,
+    core.space.Model,
+    {
+      targetClass: card.class.Card,
+      create: card.function.CreateIntegrationTarget,
+      update: card.function.UpdateIntegrationTarget,
+      canCreate: card.function.CanCreateIntegrationTarget,
+      getAllowedSpaceClasses: card.function.GetIntegrationTargetAllowedSpaceClasses,
+      getCommentBackend: card.function.GetIntegrationTargetCommentBackend
+    },
+    card.integration.TargetFactory
+  )
+
+  builder.createDoc(
     workbench.class.Application,
     core.space.Model,
     {
@@ -960,6 +978,10 @@ export function createModel (builder: Builder): void {
     titleProvider: card.function.CardTitleProvider
   })
 
+  builder.mixin(card.class.Card, core.class.Class, view.mixin.ReferenceObjectProvider, {
+    provider: card.function.CardReferenceObjectProvider
+  })
+
   builder.mixin(card.class.Card, core.class.Class, view.mixin.LinkProvider, {
     encode: card.function.GetCardLink
   })
@@ -1058,6 +1080,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ObjectFactory, {
+    component: card.component.CreateCard,
     create: card.function.CardFactory
   })
 

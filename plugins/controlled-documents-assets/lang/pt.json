@@ -1,5 +1,17 @@
 {
   "string": {
+    "Export": "Exportar",
+    "Import": "Importar",
+    "ImportingDocument": "A importar o documento",
+    "ConvertingDocument": "A converter o documento…",
+    "ImportingFromWord": "A importar do Word",
+    "ConvertingWordDocument": "A converter o documento…",
+    "DocumentConverted": "Documento convertido",
+    "ImportFailed": "Falha na importação",
+    "ReviewImportedChanges": "Rever as alterações importadas",
+    "Apply": "Aplicar",
+    "ExportToWord": "Exportar para Word",
+    "ImportFromWord": "Importar do Word",
     "ID": "ID",
     "Code": "Código",
     "Number": "Número",
@@ -66,6 +78,8 @@
     "ComparisonMode": "Comparar",
     "Compare": "Comparar:",
     "Against": "Contra:",
+    "RemovedAttachments": "Anexos removidos",
+    "Restore": "Restaurar",
     "ComparisonModeNotSupported": "Modo de comparação não suportado.",
     "CreateDraft": "Criar rascunho",
     "SendForApproval": "Enviar para aprovação",
@@ -101,7 +115,8 @@
     "CreateFolder": "Criar nova pasta",
     "RenameFolder": "Renomear pasta",
     "CreateChildFolder": "Criar subpasta",
-    "AllDocumentSpaces": "Todos os espaços de documentos"
+    "AllDocumentSpaces": "Todos os espaços de documentos",
+    "UncontrolledCopy": "Cópia não controlada"
   },
   "controlledDocStates": {
     "Empty": "",

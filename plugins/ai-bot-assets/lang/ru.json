@@ -1,0 +1,6 @@
+{
+  "string": {
+    "TokenUsage": "{input} / {output} токенов",
+    "TokenUsageTooltip": "Входящие: {input}, исходящие: {output}"
+  }
+}

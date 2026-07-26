@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,5 +16,10 @@
 
 import { mergeIds } from '@hcengineering/platform'
 import aiBot, { aiBotId } from '@hcengineering/ai-bot'
+import { type AnyComponent } from '@hcengineering/ui'
 
-export default mergeIds(aiBotId, aiBot, {})
+export default mergeIds(aiBotId, aiBot, {
+  component: {
+    AiTokenUsagePresenter: '' as AnyComponent
+  }
+})

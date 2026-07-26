@@ -43,6 +43,12 @@ import tracker, {
   type Project
 } from '@hcengineering/tracker'
 import { workbenchId } from '@hcengineering/workbench'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
 
 async function updateSubIssues (
   updateTx: TxUpdateDoc<Issue>,
@@ -510,7 +516,11 @@ export default async () => ({
     IssueHTMLPresenter: issueHTMLPresenter,
     IssueTextPresenter: issueTextPresenter,
     IssueNotificationContentProvider: getIssueNotificationContent,
-    IssueLinkIdProvider: issueLinkIdProvider
+    IssueLinkIdProvider: issueLinkIdProvider,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses
   },
   trigger: {
     OnIssueUpdate,

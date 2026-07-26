@@ -12,7 +12,7 @@
     "ExportFormat": "Exportformat",
     "ExportJSON": "JSON",
     "ExportCSV": "CSV",
-    "ExportUnifiedFormat": "Huly Einheitliches Format",
+    "ExportUnifiedFormat": "TraceX Einheitliches Format",
     "ExportIncludeContent": "Inhalt einschließen",
     "ExportEverything": "Alles",
     "ExportAttributesOnly": "Nur Attribute",
@@ -53,6 +53,8 @@
     "ExportFilterEffectiveOnly": "Nur wirksame Dokumente exportieren",
     "ExportFilterSkipArchivedObsolete": "Alle Dokumente außer archivierten und veralteten",
     "ExportFilterAll": "Alle Dokumente",
+    "ExportChildDocuments": "Untergeordnete Dokumente exportieren",
+    "ExportChildDocumentsDescription": "Auch Dokumente exportieren, die an die ausgewählten angehängt sind",
     "ExportResultRecordTitle": "Export von Dokumenten aus dem Arbeitsbereich {workspace} ({date})"
   }
 }

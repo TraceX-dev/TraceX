@@ -150,6 +150,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   // are only consumed once the refresh endpoint (phase 3) ships.
   setMetadata(account.metadata.AccessTokenTtlSec, parseInt(process.env.ACCESS_TOKEN_TTL_SEC ?? '0', 10))
   setMetadata(account.metadata.RefreshTokenTtlSec, parseInt(process.env.REFRESH_TOKEN_TTL_SEC ?? '2592000', 10))
+  setMetadata(account.metadata.DefaultBrandingKey, process.env.DEFAULT_BRANDING_KEY ?? 'huly')
 
   setMetadata(serverToken.metadata.Secret, serverSecret)
   // Force undefied, for user tokens do not include service
@@ -289,11 +290,8 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   }
 
   function getBranding (ctx: Koa.Context): Branding | null {
-    let host: string | undefined
-    const origin = ctx.request.headers.origin ?? ctx.request.headers.referer
-    if (origin !== undefined) {
-      host = new URL(origin).host
-    }
+    const origin = ctx.request.headers.origin ?? ctx.request.headers.referer ?? getMetadata(account.metadata.FrontURL)
+    const host = origin !== undefined ? new URL(origin).host : undefined
     return host !== undefined ? brandings[host] : null
   }
 

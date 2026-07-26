@@ -28,7 +28,7 @@ put "8599eebe-1d10-4a46-a21e-89cd328b4ffa/typing/68e259323d9a9ae45c7dd0ea/68e258
 
 exit
 
-http://huly.local:8099/status
+http://tracex.local:8099/status
 
 
 

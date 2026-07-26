@@ -1,11 +1,10 @@
 services:
   stream:
-    image: 'hardcoreeng/stream'
+    image: 'tracexapp/stream'
     extra_hosts:
-      - 'huly.local:host-gateway'
-    container_name: stream
+      - 'tracex.local:host-gateway'
     environment:
-      - STREAM_ENDPOINT_URL=datalake://huly.local:4030
+      - STREAM_ENDPOINT_URL=datalake://tracex.local:4030
       - STREAM_INSECURE=true
       - STREAM_SERVER_SECRET=secret
       - STREAM_MAX_PARALLEL_SCALING_COUNT=6
@@ -18,21 +17,19 @@ services:
       - 1080:1080
     restart: unless-stopped
   media:
-    image: 'hardcoreeng/media'
+    image: 'tracexapp/media'
     extra_hosts:
-      - 'huly.local:host-gateway'
-    container_name: media
+      - 'tracex.local:host-gateway'
     environment:
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - SECRET=secret
       - REGION=cockroach
       - QUEUE_CONFIG=${QUEUE_CONFIG}
     restart: unless-stopped
   preview:
-    image: 'hardcoreeng/preview'
+    image: 'tracexapp/preview'
     extra_hosts:
-      - 'huly.local:host-gateway'
-    container_name: preview
+      - 'tracex.local:host-gateway'
     environment:
       - SECRET=secret
       - STORAGE_CONFIG=${STORAGE_CONFIG}
@@ -41,10 +38,9 @@ services:
       - 4040:4040
     restart: unless-stopped
   link-preview:
-    image: 'hardcoreeng/link-preview'
+    image: 'tracexapp/link-preview'
     extra_hosts:
-      - 'huly.local:host-gateway'
-    container_name: link-preview
+      - 'tracex.local:host-gateway'
     environment:
       - SECRET=secret
       - PORT=4041
@@ -54,7 +50,7 @@ services:
   cockroach:
     image: cockroachdb/cockroach:latest-v24.3
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     ports:
       - '26257:26257'
       - '8089:8080'
@@ -65,7 +61,7 @@ services:
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     command:
       - redpanda
       - start
@@ -80,7 +76,6 @@ services:
       - --smp 1
       - --default-log-level=info
       - --memory 512M
-    container_name: redpanda
     volumes:
       - redpanda:/var/lib/redpanda/data
     ports:
@@ -97,7 +92,7 @@ services:
   redpanda_console:
     image: docker.redpanda.com/redpandadata/console:v2.8.3
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     entrypoint: /bin/sh
     command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'
     environment:
@@ -121,7 +116,7 @@ services:
     image: 'minio/minio'
     command: server /data --address ":9000" --console-address ":9001"
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     expose:
       - 9000
       - 9001
@@ -140,7 +135,7 @@ services:
     expose:
       - 9200
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     volumes:
       - elastic:/usr/share/elasticsearch/data
     ports:
@@ -166,9 +161,9 @@ services:
     restart: unless-stopped
 
   account:
-    image: hardcoreeng/account
+    image: tracexapp/account
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     links:
       - stats
     ports:
@@ -180,19 +175,19 @@ services:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - SERVER_SECRET=secret
       - ADMIN_EMAILS=admin,${PLATFORM_ADMIN_EMAILS}
-      - STATS_URL=http://huly.local:4900
+      - STATS_URL=http://tracex.local:4900
       - WORKSPACE_LIMIT_PER_USER=10000
       - DB_URL=${DB_CR_URL}
       # - DB_NS=account-2
       # Pass only one region to disallow selection for new workspaces.
       - REGION_INFO=cockroach|CockroachDB
-      - TRANSACTOR_URL=ws://huly.local:3332;;cockroach,
+      - TRANSACTOR_URL=ws://tracex.local:3332;;cockroach,
       - MAIL_URL=
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - FRONT_URL=http://huly.local:8087
+      - FRONT_URL=http://tracex.local:8087
       - LAST_NAME_FIRST=true
       # - WS_LIVENESS_DAYS=1
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - BRANDING_PATH=/var/cfg/branding.json
       # - DISABLE_SIGNUP=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
@@ -200,9 +195,9 @@ services:
       - MAILBOX_MAX_COUNT_PER_ACCOUNT=2
     restart: unless-stopped
   stats:
-    image: hardcoreeng/stats
+    image: tracexapp/stats
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     ports:
       - 4900:4900
     environment:
@@ -210,10 +205,27 @@ services:
       - SERVER_SECRET=secret
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
-  workspace_cockroach:
-    image: hardcoreeng/workspace
+  payment:
+    image: tracexapp/payment
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
+    ports:
+      - 3040:3040
+    environment:
+      - SECRET=secret
+      - PORT=3040
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - FRONT_URL=http://tracex.local:8087
+      - USE_SANDBOX=true
+      - POLAR_ACCESS_TOKEN=${POLAR_ACCESS_TOKEN}
+      - POLAR_WEBHOOK_SECRET=${POLAR_WEBHOOK_SECRET}
+      - POLAR_SUBSCRIPTION_PLANS=${POLAR_SUBSCRIPTION_PLANS}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    restart: unless-stopped
+  workspace_cockroach:
+    image: tracexapp/workspace
+    extra_hosts:
+      - 'tracex.local:host-gateway'
     links:
       - cockroach
       - minio
@@ -229,9 +241,9 @@ services:
       - SERVER_SECRET=secret
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - DB_URL=${DB_CR_URL}
-      - STATS_URL=http://huly.local:4900
+      - STATS_URL=http://tracex.local:4900
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - ACCOUNTS_DB_URL=${DB_CR_URL}
       - BRANDING_PATH=/var/cfg/branding.json
       - BACKUP_STORAGE=${BACKUP_STORAGE_CONFIG}
@@ -241,9 +253,9 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   collaborator:
-    image: hardcoreeng/collaborator
+    image: tracexapp/collaborator
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     links:
       - minio
       - transactor_cockroach
@@ -253,15 +265,34 @@ services:
     environment:
       - COLLABORATOR_PORT=3078
       - SECRET=secret
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - STATS_URL=http://huly.local:4900
+      - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
-  front:
-    image: hardcoreeng/front
+  mcp:
+    image: tracexapp/mcp
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
+    depends_on:
+      - account
+      - collaborator
+      - transactor_cockroach
+    ports:
+      - 4020:4020
+    environment:
+      - PORT=4020
+      - SERVER_SECRET=secret
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - COLLABORATOR_URL=ws://tracex.local:3078
+      - SERVICE_ID=mcp-service
+      - WORKSPACE_CLIENT_CACHE_MS=0
+      - STORAGE_CONFIG=${STORAGE_CONFIG}
+    restart: unless-stopped
+  front:
+    image: tracexapp/front
+    extra_hosts:
+      - 'tracex.local:host-gateway'
     links:
       - stats
     ports:
@@ -270,43 +301,45 @@ services:
     environment:
       - SERVER_PORT=8080
       - SERVER_SECRET=secret
-      - ACCOUNTS_URL=http://huly.local:3000
-      - STATS_URL=http://huly.local:4900
-      - FILES_URL=http://huly.local:4030/blob/:workspace/:blobId/:filename
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - STATS_URL=http://tracex.local:4900
+      - FILES_URL=http://tracex.local:4030/blob/:workspace/:blobId/:filename
       - UPLOAD_URL=/files
-      - PREVIEW_URL=http://huly.local:4040
-      - GMAIL_URL=http://huly.local:8093
-      - CALENDAR_URL=http://huly.local:8095
-      - TELEGRAM_URL=http://huly.local:8086
-      - REKONI_URL=http://huly.local:4004
-      - COLLABORATOR_URL=ws://huly.local:3078
+      - PREVIEW_URL=http://tracex.local:4040
+      - GMAIL_URL=http://tracex.local:8093
+      - CALENDAR_URL=http://tracex.local:8095
+      - TELEGRAM_URL=http://tracex.local:8086
+      - REKONI_URL=http://tracex.local:4004
+      - COLLABORATOR_URL=ws://tracex.local:3078
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - GITHUB_URL=http://huly.local:3500
-      - PRINT_URL=http://huly.local:4005
-      - SIGN_URL=http://huly.local:4006
-      #      - ANALYTICS_COLLECTOR_URL=http://huly.local:4017
+      - GITHUB_URL=http://tracex.local:3500
+      - GITHUB_NEXT_CLIENTID=Ov23liv6hK0ifBRInXFz
+      - GITHUB_NEXT_URL=http://tracex.local:3510
+      - PRINT_URL=http://tracex.local:4005
+      - SIGN_URL=http://tracex.local:4006
+      #      - ANALYTICS_COLLECTOR_URL=http://tracex.local:4017
       - DESKTOP_UPDATES_URL=https://dist.huly.io
       - DESKTOP_UPDATES_CHANNEL=dev
       - DESKTOP_UPDATES_CHANNELS=dev;tracex:dev-tracex
-      - BRANDING_URL=http://huly.local:8087/branding.json
-      - STREAM_URL=http://huly.local:1080/recording
-      - PAYMENT_URL=http://huly.local:3040
+      - BRANDING_URL=http://tracex.local:8087/branding.json
+      - STREAM_URL=http://tracex.local:1080/recording
+      - PAYMENT_URL=http://tracex.local:3040
       - COMMUNICATION_API_ENABLED=true
-      - BACKUP_URL=http://huly.local:4039/api/backup,
+      - BACKUP_URL=http://tracex.local:4039/api/backup,
       - EXCLUDED_APPLICATIONS_FOR_ANONYMOUS=[]
       - DISABLED_FEATURES=auto-translate,mailboxes
       # - DISABLE_SIGNUP=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-      - PULSE_URL=ws://huly.local:8099/ws
-      - DATALAKE_URL=http://huly.local:4030
-      - HULYLAKE_URL=http://huly.local:8096
-      - EXPORT_URL=http://huly.local:4009
-      - LINK_PREVIEW_URL=http://huly.local:4041
+      - PULSE_URL=ws://tracex.local:8099/ws
+      - DATALAKE_URL=http://tracex.local:4030
+      - HULYLAKE_URL=http://tracex.local:8096
+      - EXPORT_URL=http://tracex.local:4009
+      - LINK_PREVIEW_URL=http://tracex.local:4041
     restart: unless-stopped
   transactor_cockroach:
-    image: hardcoreeng/transactor
+    image: tracexapp/transactor
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     links:
       - cockroach
       - minio
@@ -325,40 +358,40 @@ services:
       - REGION=cockroach
       - SERVER_SECRET=secret
       - ENABLE_COMPRESSION=true
-      - FULLTEXT_URL=http://huly.local:4702
-      - STATS_URL=http://huly.local:4900
+      - FULLTEXT_URL=http://tracex.local:4702
+      - STATS_URL=http://tracex.local:4900
       - DB_URL=${DB_CR_URL}
       - METRICS_CONSOLE=false
       - METRICS_FILE=metrics.txt
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - FRONT_URL=http://huly.local:8087
+      - FRONT_URL=http://tracex.local:8087
       - MAIL_URL=''
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - LAST_NAME_FIRST=true
       - BRANDING_PATH=/var/cfg/branding.json
-      - AI_BOT_URL=http://huly.local:4010
+      - AI_BOT_URL=http://tracex.local:4010
       - COMMUNICATION_TIME_LOGGING_ENABLED=true
       - RATE_LIMIT_MAX=250 # 250 requests per 30 seconds
       - RATE_LIMIT_WINDOW=30000
-      - FILES_URL=http://huly.local:4030/blob/:workspace/:blobId/:filename
+      - FILES_URL=http://tracex.local:4030/blob/:workspace/:blobId/:filename
       - COMMUNICATION_API_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-      - HYLYLAKE_URL=http://huly.local:8096
+      - HYLYLAKE_URL=http://tracex.local:8096
     restart: unless-stopped
   rekoni:
-    image: hardcoreeng/rekoni-service
+    image: tracexapp/rekoni-service
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     restart: unless-stopped
     ports:
       - 4004:4004
     environment:
-      - STATS_URL=http://huly.local:4901
+      - STATS_URL=http://tracex.local:4901
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
   fulltext_cockroach:
-    image: hardcoreeng/fulltext
+    image: tracexapp/fulltext
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     depends_on:
       elastic:
         condition: service_healthy
@@ -375,19 +408,19 @@ services:
       - SERVER_SECRET=secret
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - DB_URL=${DB_CR_URL}
-      - FULLTEXT_DB_URL=http://huly.local:9200
+      - FULLTEXT_DB_URL=http://tracex.local:9200
       - ELASTIC_INDEX_NAME=local_storage_index # Same index for simplicity
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - STATS_URL=http://huly.local:4900
-      - REKONI_URL=http://huly.local:4004
-      - ACCOUNTS_URL=http://huly.local:3000
+      - STATS_URL=http://tracex.local:4900
+      - REKONI_URL=http://tracex.local:4004
+      - ACCOUNTS_URL=http://tracex.local:3000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-      - HULYLAKE_URL=http://huly.local:8096
+      - HULYLAKE_URL=http://tracex.local:8096
       - COMMUNICATION_API_ENABLED=true
   print:
-    image: hardcoreeng/print
+    image: tracexapp/print
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     restart: unless-stopped
     ports:
       - 4005:4005
@@ -396,14 +429,14 @@ services:
       - REGION=cockroach
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - STATS_URL=http://huly.local:4900
-      - ACCOUNTS_URL=http://huly.local:3000
+      - STATS_URL=http://tracex.local:4900
+      - ACCOUNTS_URL=http://tracex.local:3000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-      - FRONT_URL=http://huly.local:8087
+      - FRONT_URL=http://tracex.local:8087
   sign:
-    image: hardcoreeng/sign
+    image: tracexapp/sign
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     restart: unless-stopped
     ports:
       - 4006:4006
@@ -416,37 +449,37 @@ services:
       - REGION=cockroach
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - CERTIFICATE_PATH=/var/cfg/certificate.p12
       - SERVICE_ID=sign-service
       - BRANDING_PATH=/var/cfg/branding.json
-      - STATS_URL=http://huly.local:4900
+      - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
   # aiBot:
-  #   image: hardcoreeng/ai-bot
+  #   image: tracexapp/ai-bot
   #   ports:
   #     - 4010:4010
   #   extra_hosts:
-  #     - 'huly.local:host-gateway'
+  #     - 'tracex.local:host-gateway'
   #   restart: unless-stopped
   #   environment:
   #     - SERVER_SECRET=secret
   #     - DB_URL=${DB_CR_URL}
   #     - QUEUE_CONFIG=${QUEUE_CONFIG}
-  #     - ACCOUNTS_URL=http://huly.local:3000
+  #     - ACCOUNTS_URL=http://tracex.local:3000
   #     - STORAGE_CONFIG=${STORAGE_CONFIG}
   #     - FIRST_NAME=Jolie
   #     - LAST_NAME=AI
   #     - PASSWORD=password
   #     - AVATAR_PATH=./avatar.png
   #     - AVATAR_CONTENT_TYPE=.png
-  #     - STATS_URL=http://huly.local:4900
-  # #      - LOVE_ENDPOINT=http://huly.local:8096
+  #     - STATS_URL=http://tracex.local:4900
+  # #      - LOVE_ENDPOINT=http://tracex.local:8096
   # #      - OPENAI_API_KEY=token
   analytics:
-    image: hardcoreeng/analytics-collector
+    image: tracexapp/analytics-collector
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     restart: unless-stopped
     ports:
       - 4017:4017
@@ -454,16 +487,16 @@ services:
       - SECRET=secret
       - PORT=4017
       - SERVICE_ID=analytics-collector-service
-      - ACCOUNTS_URL=http://huly.local:3000
-      - STATS_URL=http://huly.local:4900
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
       # - POSTHOG_HOST=${POSTHOG_HOST}
       # - POSTHOG_API_KEY=${POSTHOG_API_KEY}
       # - MAX_PAYLOAD_SIZE=10mb
   export:
-    image: hardcoreeng/export
+    image: tracexapp/export
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     links:
       - minio
       - stats
@@ -474,15 +507,15 @@ services:
       - SECRET=secret
       - SERVICE_ID=export-service
       - DB_URL=${DB_CR_URL}
-      - STATS_URL=http://huly.local:4900
+      - STATS_URL=http://tracex.local:4900
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   datalake:
-    image: hardcoreeng/datalake
+    image: tracexapp/datalake
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     depends_on:
       minio:
         condition: service_healthy
@@ -497,8 +530,8 @@ services:
     environment:
       - PORT=4030
       - SECRET=secret
-      - ACCOUNTS_URL=http://huly.local:3000
-      - STATS_URL=http://huly.local:4900
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - STATS_URL=http://tracex.local:4900
       - DB_URL=${DB_CR_URL}
       - BUCKETS=blobs,eu|http://minio:9000?accessKey=minioadmin&secretKey=minioadmin
       - REGION=cockroach
@@ -506,9 +539,9 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   hulylake:
-    image: hardcoreeng/hulylake
+    image: tracexapp/hulylake
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     depends_on:
       minio:
         condition: service_healthy
@@ -525,12 +558,12 @@ services:
       - AWS_SECRET_ACCESS_KEY=minioadmin
     restart: unless-stopped
   hulykvs:
-    image: hardcoreeng/hulykvs
+    image: tracexapp/hulykvs
     depends_on:
       cockroach:
         condition: service_started
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     ports:
       - 8094:8094
     environment:
@@ -538,22 +571,22 @@ services:
       - HULY_TOKEN_SECRET=secret
     restart: unless-stopped
   hulygun:
-    image: hardcoreeng/hulygun
+    image: tracexapp/hulygun
     depends_on:
       redpanda:
         condition: service_started
       account:
         condition: service_started
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     environment:
       - HULY_LOG=debug
       - HULY_KAFKA_BOOTSTRAP=redpanda:9092
       - HULY_TOKEN_SECRET=secret
-      - HULY_ACCOUNT_SERVICE=http://huly.local:3000
+      - HULY_ACCOUNT_SERVICE=http://tracex.local:3000
     restart: unless-stopped
   hulypulse:
-    image: hardcoreeng/hulypulse
+    image: tracexapp/hulypulse
     depends_on:
       redis:
         condition: service_started
@@ -565,9 +598,9 @@ services:
     restart: unless-stopped
 
   process-service:
-    image: hardcoreeng/process
+    image: tracexapp/process
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     depends_on:
       redpanda:
         condition: service_started
@@ -575,14 +608,44 @@ services:
         condition: service_started
     environment:
       - SECRET=secret
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - QUEUE_REGION=cockroach
     restart: unless-stopped
-  time-machine:
-    image: hardcoreeng/worker
+  github-next:
+    image: tracexapp/github-next-service
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
+    depends_on:
+      account:
+        condition: service_started
+      redpanda:
+        condition: service_started
+      transactor_cockroach:
+        condition: service_started
+    ports:
+      - 3510:3510
+    environment:
+      - SERVICE_ID=github-next-service
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - FRONT_URL=http://tracex.local:8087
+      - COLLABORATOR_URL=ws://tracex.local:3078
+      - HULYLAKE_URL=http://tracex.local:8096
+      - PORT=3510
+      - PUBLIC_URL=http://tracex.local:3510
+      - CLIENT_ID=Ov23liv6hK0ifBRInXFz
+      - CLIENT_SECRET=e1832f57c6432350126bc97f7ea5c7c87374e0a5
+      - POLL_INTERVAL_MS=30000
+      - OUTBOUND_DEBOUNCE_MS=1000
+      - QUEUE_CONFIG=${QUEUE_CONFIG}
+      - QUEUE_REGION=cockroach
+      - SYNC_INBOUND=true
+      - SYNC_OUTBOUND=true
+    restart: unless-stopped
+  time-machine:
+    image: tracexapp/worker
+    extra_hosts:
+      - 'tracex.local:host-gateway'
     depends_on:
       redpanda:
         condition: service_started
@@ -595,10 +658,28 @@ services:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - QUEUE_REGION=cockroach
     restart: unless-stopped
+  events-processor:
+    image: tracexapp/events-processor
+    extra_hosts:
+      - 'huly.local:host-gateway'
+    depends_on:
+      redpanda:
+        condition: service_started
+      account:
+        condition: service_started
+    environment:
+      - SERVICE_ID=events-processor
+      - LOG_LEVEL=debug
+      - SECRET=secret
+      - ACCOUNTS_URL=http://huly.local:3000
+      - QUEUE_CONFIG=${QUEUE_CONFIG}
+      - QUEUE_REGION=cockroach
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    restart: unless-stopped
   #  translate:
-  #    image: hardcoreeng/translate
+  #    image: tracexapp/translate
   #    extra_hosts:
-  #      - 'huly.local:host-gateway'
+  #      - 'tracex.local:host-gateway'
   #    depends_on:
   #      redpanda:
   #        condition: service_started
@@ -606,16 +687,16 @@ services:
   #        condition: service_started
   #    environment:
   #      - SECRET=secret
-  #      - ACCOUNTS_URL=http://huly.local:3000
-  #      - HULYLAKE_URL=http://huly.local:8096
+  #      - ACCOUNTS_URL=http://tracex.local:3000
+  #      - HULYLAKE_URL=http://tracex.local:8096
   #      - QUEUE_CONFIG=${QUEUE_CONFIG}
   #      - QUEUE_REGION=cockroach
   #      - OPENAI_API_KEY=
   #    restart: unless-stopped
   backup-cockroach:
-    image: hardcoreeng/backup
+    image: tracexapp/backup
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     depends_on:
       minio:
         condition: service_healthy
@@ -627,9 +708,9 @@ services:
         condition: service_started
     environment:
       - SECRET=secret
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - ACCOUNTS_DB_URL=${DB_CR_URL}
-      - STATS_URL=http://huly.local:4900
+      - STATS_URL=http://tracex.local:4900
       - DB_URL=${DB_CR_URL}
       - REGION=cockroach
       - BUCKET_NAME=backups
@@ -641,9 +722,9 @@ services:
       - TEMPORAL_ADDRESS=localhost:7233
     restart: unless-stopped
   backup-api:
-    image: hardcoreeng/backup-api
+    image: tracexapp/backup-api
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     depends_on:
       minio:
         condition: service_healthy
@@ -656,17 +737,17 @@ services:
     environment:
       - PORT=4039
       - SECRET=secret
-      - ACCOUNTS_URL=http://huly.local:3000
-      - STATS_URL=http://huly.local:4900
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - STATS_URL=http://tracex.local:4900
       - BUCKET_NAME=backups
       - STORAGE=minio|minio?accessKey=minioadmin&secretKey=minioadmin
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
 
   rating_cockroach:
-    image: hardcoreeng/rating
+    image: tracexapp/rating
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     links:
       - cockroach
       - minio
@@ -679,19 +760,19 @@ services:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - REGION=cockroach
       - SERVER_SECRET=secret
-      - STATS_URL=http://huly.local:4900
+      - STATS_URL=http://tracex.local:4900
       - DB_URL=${DB_CR_URL}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
-      - ACCOUNTS_URL=http://huly.local:3000
+      - ACCOUNTS_URL=http://tracex.local:3000
       - COMMUNICATION_TIME_LOGGING_ENABLED=true
       - COMMUNICATION_API_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-      - HYLYLAKE_URL=http://huly.local:8096
+      - HYLYLAKE_URL=http://tracex.local:8096
     restart: unless-stopped
   jaeger:
     image: jaegertracing/all-in-one:latest
     extra_hosts:
-      - 'huly.local:host-gateway'
+      - 'tracex.local:host-gateway'
     ports:
       - 16686:16686 # Web UI
       - 4317:4317

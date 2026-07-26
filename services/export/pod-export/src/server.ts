@@ -67,7 +67,7 @@ import archiver from 'archiver'
 import { sendExportCompletionNotification } from './notifications'
 import cors from 'cors'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
-import { createWriteStream } from 'fs'
+import { createReadStream, createWriteStream } from 'fs'
 import fs from 'fs/promises'
 import { IncomingHttpHeaders, type Server } from 'http'
 import { tmpdir } from 'os'
@@ -76,7 +76,18 @@ import { v4 as uuid } from 'uuid'
 import WebSocket from 'ws'
 import envConfig from './config'
 import { ApiError } from './error'
-import { ExportFormat, WorkspaceExporter } from './exporter'
+import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
+import { loadCollabJson } from '@hcengineering/collaboration'
+import {
+  collectImageRefs,
+  conformToSchema,
+  docxToMarkup,
+  markupToDocx,
+  markupToMd,
+  mdToMarkup,
+  normalizeMarkup
+} from '@hcengineering/doc-convert'
+import { markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
 
@@ -254,6 +265,27 @@ const wrapRequest = (fn: AsyncRequestHandler) => (req: Request, res: Response, n
   handleRequest(fn, req, res, next)
 }
 
+// Only formats actually supported by WorkspaceExporter
+const supportedExportFormats: readonly ExportFormat[] = [ExportFormat.JSON, ExportFormat.CSV]
+
+function parseExportFormat (rawFormat: unknown): ExportFormat {
+  if (typeof rawFormat !== 'string' || !supportedExportFormats.includes(rawFormat as ExportFormat)) {
+    throw new ApiError(400, `Invalid format. Supported formats: ${supportedExportFormats.join(', ')}`)
+  }
+  return rawFormat as ExportFormat
+}
+
+function toSafeFormatFileToken (format: ExportFormat): 'json' | 'csv' {
+  switch (format) {
+    case ExportFormat.JSON:
+      return 'json'
+    case ExportFormat.CSV:
+      return 'csv'
+    default:
+      throw new ApiError(400, `Invalid format. Supported formats: ${supportedExportFormats.join(', ')}`)
+  }
+}
+
 export function createServer (
   storageConfig: StorageConfiguration,
   dbUrl: string,
@@ -269,7 +301,7 @@ export function createServer (
   app.post(
     '/exportAsync',
     wrapRequest(async (req, res, wsIds, token, socialId) => {
-      const format = req.query.format as ExportFormat
+      const format = parseExportFormat(req.query.format)
 
       const {
         _class,
@@ -281,7 +313,7 @@ export function createServer (
         attributesOnly: boolean
       } = req.body
 
-      if (_class == null || format == null) {
+      if (_class == null) {
         throw new ApiError(400, 'Missing required parameters')
       }
 
@@ -343,9 +375,23 @@ export function createServer (
           await sendSuccessNotification(txOperations, account, exportDrive, archiveName)
         } catch (err: any) {
           measureCtx.error('Export failed:', err)
-          await sendFailureNotification(txOperations, account, err.message ?? 'Unknown error when exporting')
+          try {
+            // Attach the failure notification to the export drive, otherwise
+            // the user is never notified that the export has failed
+            const exportDrive = await ensureExportDrive(txOperations, account)
+            await sendFailureNotification(
+              txOperations,
+              account,
+              err.message ?? 'Unknown error when exporting',
+              drive.class.Drive,
+              exportDrive,
+              core.space.Space
+            )
+          } catch (notifyErr: any) {
+            measureCtx.error('Failed to send export failure notification:', notifyErr)
+          }
         } finally {
-          await fs.rmdir(exportDir, { recursive: true })
+          await fs.rm(exportDir, { recursive: true, force: true })
         }
       })()
     })
@@ -354,7 +400,7 @@ export function createServer (
   app.post(
     '/exportSync',
     wrapRequest(async (req, res, wsIds, token, socialId) => {
-      const format = req.query.format as ExportFormat
+      const format = parseExportFormat(req.query.format)
       const {
         _class,
         query,
@@ -367,7 +413,7 @@ export function createServer (
         config?: TransformConfig
       } = req.body
 
-      if (_class == null || format == null) {
+      if (_class == null) {
         throw new ApiError(400, 'Missing required parameters')
       }
 
@@ -375,6 +421,7 @@ export function createServer (
       const txOperations = new TxOperations(platformClient, socialId)
 
       const exportDir = await fs.mkdtemp(join(tmpdir(), 'export-'))
+      let archiveDir: string | undefined
       try {
         const exporter = new WorkspaceExporter(measureCtx, txOperations, storageAdapter, wsIds, config)
         await exporter.export(_class, exportDir, { format, attributesOnly: attributesOnly ?? false, query })
@@ -384,18 +431,199 @@ export function createServer (
           throw new ApiError(400, 'No data to export')
         }
 
-        if (files.length !== 1) {
-          throw new ApiError(400, 'Unexpected number of files exported')
+        let exportedFile: string
+        if (files.length === 1) {
+          // Single space exported: return its file directly.
+          exportedFile = join(exportDir, files[0])
+        } else {
+          // Pack all spaces into a single archive so the sync endpoint can still return exactly one downloadable file.
+          archiveDir = await fs.mkdtemp(join(tmpdir(), 'export-archive-'))
+          const safeFormatToken = toSafeFormatFileToken(format)
+          const archiveName = `export-${wsIds.uuid}-${safeFormatToken}-${Date.now()}.zip`
+          exportedFile = join(archiveDir, archiveName)
+          await saveToArchive(exportDir, exportedFile)
         }
 
-        const exportedFile = join(exportDir, files[0])
-        res.download(exportedFile, basename(exportedFile), () => {})
+        await new Promise<void>((resolve, reject) => {
+          res.download(exportedFile, basename(exportedFile), (err) => {
+            if (err != null && !res.headersSent) {
+              reject(err)
+            } else {
+              resolve()
+            }
+          })
+        })
       } catch (err: any) {
         measureCtx.error('Export failed:', err)
         throw err
       } finally {
-        void fs.rmdir(exportDir, { recursive: true })
+        void fs.rm(exportDir, { recursive: true, force: true })
+        if (archiveDir !== undefined) {
+          void fs.rm(archiveDir, { recursive: true, force: true })
+        }
       }
+    })
+  )
+
+  const supportedDocumentFormats = ['docx', 'md']
+
+  const renderDocumentExport = async (
+    format: string,
+    markup: string,
+    images: Map<string, Uint8Array>
+  ): Promise<{ buffer: Buffer, contentType: string, ext: string }> => {
+    switch (format) {
+      case 'docx':
+        return {
+          buffer: await markupToDocx(markup, { images }),
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          ext: 'docx'
+        }
+      case 'md':
+        return {
+          buffer: Buffer.from(markupToMd(markup), 'utf-8'),
+          contentType: 'text/markdown; charset=utf-8',
+          ext: 'md'
+        }
+      default:
+        throw new ApiError(
+          400,
+          `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`
+        )
+    }
+  }
+
+  const exportDocumentHandler: AsyncRequestHandler = async (req, res, wsIds, token, socialId) => {
+    const params: Record<string, unknown> = { ...req.query, ...(req.body ?? {}) }
+    const _class = params._class as Ref<Class<Doc>> | undefined
+    const _id = params._id as Ref<Doc> | undefined
+    const format = ((params.format as string | undefined) ?? 'docx').toLowerCase()
+
+    if (_class == null || _id == null) {
+      throw new ApiError(400, 'Missing required parameters: _class, _id')
+    }
+    if (!supportedDocumentFormats.includes(format)) {
+      throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
+    }
+
+    const platformClient = await createPlatformClient(token)
+    const txOperations = new TxOperations(platformClient, socialId)
+
+    const doc = await txOperations.findOne(_class, { _id })
+    if (doc === undefined) {
+      throw new ApiError(404, 'Document not found')
+    }
+
+    // Content is stored as a JSON collab blob (Markup string); read it via the
+    // collaboration helper rather than a raw storage read so the format is handled.
+    const emptyMarkup = '{"type":"doc","content":[]}'
+    const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
+    const markup =
+      contentRef != null
+        ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
+        : emptyMarkup
+
+    // Resolve image blobs referenced by the content so they can be embedded (docx only;
+    // Markdown keeps images as links).
+    const images = new Map<string, Uint8Array>()
+    if (format === 'docx') {
+      for (const ref of collectImageRefs(markup)) {
+        try {
+          const stat = await storageAdapter.stat(measureCtx, wsIds, ref as Ref<Blob>)
+          if (stat === undefined) {
+            continue
+          }
+          const raw = await storageAdapter.read(measureCtx, wsIds, ref as Ref<Blob>)
+          images.set(ref, Buffer.concat(raw as any))
+        } catch (err) {
+          measureCtx.warn('failed to read image blob for export', { ref })
+        }
+      }
+    }
+
+    const rendered = await renderDocumentExport(format, markup, images)
+
+    const title = (doc as unknown as { title?: string }).title ?? 'document'
+    const fileName = `${sanitizeSpaceFileName(title)}.${rendered.ext}`
+
+    // Explicit Content-Length: without it the response is chunked and some local setups
+    // never see the terminating chunk, so downloads hang until a manual retry.
+    res.setHeader('Content-Type', rendered.contentType)
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    res.setHeader('Content-Length', rendered.buffer.length)
+    res.end(rendered.buffer)
+  }
+
+  // Auth via Authorization header; body carries { _class, _id, format? }.
+  app.post('/document-export', wrapRequest(exportDocumentHandler))
+
+  const supportedImportFormats = ['docx', 'md']
+
+  const renderDocumentImport = async (format: string, buffer: Buffer): Promise<MarkupNode> => {
+    switch (format) {
+      case 'docx': {
+        const { markup } = await docxToMarkup(buffer)
+        return markup
+      }
+      case 'md':
+        return mdToMarkup(buffer.toString('utf-8'))
+      default:
+        throw new ApiError(400, `Unsupported import format: ${format}. Supported: ${supportedImportFormats.join(', ')}`)
+    }
+  }
+
+  app.post(
+    '/document-import',
+    wrapRequest(async (req, res, wsIds, token, socialId) => {
+      const {
+        blobId,
+        _class,
+        _id,
+        format: rawFormat
+      }: { blobId?: Ref<Blob>, _class?: Ref<Class<Doc>>, _id?: Ref<Doc>, format?: string } = req.body
+      const format = (rawFormat ?? 'docx').toLowerCase()
+
+      if (blobId == null || _class == null || _id == null) {
+        throw new ApiError(400, 'Missing required parameters: blobId, _class, _id')
+      }
+      if (!supportedImportFormats.includes(format)) {
+        throw new ApiError(400, `Unsupported import format: ${format}. Supported: ${supportedImportFormats.join(', ')}`)
+      }
+
+      const platformClient = await createPlatformClient(token)
+      const txOperations = new TxOperations(platformClient, socialId)
+
+      const doc = await txOperations.findOne(_class, { _id })
+      if (doc === undefined) {
+        throw new ApiError(404, 'Document not found')
+      }
+
+      // Convert the uploaded file into candidate markup.
+      const stat = await storageAdapter.stat(measureCtx, wsIds, blobId)
+      if (stat === undefined) {
+        throw new ApiError(404, `File ${blobId} not found`)
+      }
+      const raw = await storageAdapter.read(measureCtx, wsIds, blobId)
+      const candidate = conformToSchema(normalizeMarkup(await renderDocumentImport(format, Buffer.concat(raw as any))))
+
+      // The uploaded file is a transient upload; drop it now that it's converted.
+      try {
+        await storageAdapter.remove(measureCtx, wsIds, [blobId])
+      } catch (err) {
+        measureCtx.warn('failed to remove temporary import blob', { blobId: String(blobId) })
+      }
+
+      // Current content of the target document (for the "before" side of the diff).
+      const emptyMarkup = '{"type":"doc","content":[]}'
+      const contentRef = (doc as unknown as { content?: Ref<Blob> | null }).content
+      const currentMarkup =
+        contentRef != null
+          ? ((await loadCollabJson(measureCtx, storageAdapter, wsIds, contentRef)) ?? emptyMarkup)
+          : emptyMarkup
+
+      const current: MarkupNode = conformToSchema(normalizeMarkup(markupToJSON(currentMarkup)))
+      res.contentType('application/json')
+      res.send({ current, candidate })
     })
   )
 
@@ -414,7 +642,8 @@ export function createServer (
           relations: rawRelations,
           fieldMappers,
           skipDeletedObsolete,
-          exportOnlyEffective
+          exportOnlyEffective,
+          includeChildren
         }: {
           targetWorkspace: WorkspaceUuid
           _class: Ref<Class<Doc>>
@@ -427,6 +656,7 @@ export function createServer (
           fieldMappers?: Record<string, Record<string, any>>
           skipDeletedObsolete?: boolean
           exportOnlyEffective?: boolean
+          includeChildren?: boolean
         } = req.body
 
         // Validate required parameters
@@ -543,6 +773,7 @@ export function createServer (
             fieldMappers,
             skipDeletedObsolete: skipDeletedObsolete ?? true,
             exportOnlyEffective: exportOnlyEffective ?? false,
+            includeChildren: includeChildren ?? false,
             customHandlers: [createProductVersionHandler()]
           }
 
@@ -652,14 +883,16 @@ async function saveToDrive (
 ): Promise<Ref<Drive>> {
   const exportDrive = await ensureExportDrive(client, account)
 
-  const fileContent = await fs.readFile(archivePath)
+  // Stream the archive instead of reading it into memory:
+  // fs.readFile fails with ERR_FS_FILE_TOO_LARGE for archives larger than 2 GiB
+  const { size } = await fs.stat(archivePath)
   const blobId = uuid() as Ref<Blob>
-  await storage.put(ctx, wsIds, blobId, fileContent, 'application/zip', fileContent.length)
+  await storage.put(ctx, wsIds, blobId, createReadStream(archivePath), 'application/zip', size)
 
   await createFile(client, exportDrive, drive.ids.Root, {
     title: basename(archivePath),
     file: blobId,
-    size: fileContent.length,
+    size,
     type: 'application/zip',
     lastModified: Date.now()
   })

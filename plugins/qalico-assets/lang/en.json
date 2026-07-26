@@ -1,0 +1,12 @@
+{
+  "string": {
+    "RegulatoryDocument": "Regulatory Document",
+    "RegulatoryDocuments": "Regulatory Documents",
+    "Applicability": "Applicability",
+    "ExternalLink": "External Link",
+    "QalicoLink": "Qalico Link",
+    "Date": "Date",
+    "Owner": "Owner",
+    "ActionsNeeded": "Actions Needed"
+  }
+}

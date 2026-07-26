@@ -73,7 +73,9 @@ import workbench, { workbenchId } from '@hcengineering/workbench'
 import { mailId } from '@hcengineering/mail'
 import { chatId } from '@hcengineering/chat'
 import github, { githubId } from '@hcengineering/github'
+import githubNext, { githubNextId } from '@hcengineering/github-next'
 import { bitrixId } from '@hcengineering/bitrix'
+import { integrationId } from '@hcengineering/integration'
 import { inboxId } from '@hcengineering/inbox'
 import { achievementId } from '@hcengineering/achievement'
 import communication, { communicationId } from '@hcengineering/communication'
@@ -82,9 +84,11 @@ import billingPlugin, { billingId } from '@hcengineering/billing'
 import { hulyMailId } from '@hcengineering/huly-mail'
 import { aiAssistantId } from '@hcengineering/ai-assistant'
 import { ratingId } from '@hcengineering/rating'
+import { qalicoId } from '@tracex/qalico'
 
 import '@hcengineering/activity-assets'
 import '@hcengineering/analytics-collector-assets'
+import '@hcengineering/ai-bot-assets'
 import '@hcengineering/attachment-assets'
 import '@hcengineering/bitrix-assets'
 import '@hcengineering/board-assets'
@@ -142,6 +146,7 @@ import '@hcengineering/billing-assets'
 import '@hcengineering/huly-mail-assets'
 import '@hcengineering/ai-assistant-assets'
 import '@hcengineering/rating-assets'
+import '@tracex/qalico-assets'
 
 import { coreId } from '@hcengineering/core'
 import presentation, { loadServerConfig, createFileStorage, presentationId } from '@hcengineering/presentation'
@@ -170,7 +175,9 @@ export interface Config {
   APP_PROTOCOL?: string
   GITHUB_APP?: string
   GITHUB_CLIENTID?: string
+  GITHUB_NEXT_CLIENTID?: string
   GITHUB_URL: string
+  GITHUB_NEXT_URL?: string
   LOVE_ENDPOINT?: string
   LIVEKIT_WS?: string
   SIGN_URL?: string
@@ -314,6 +321,7 @@ function configureI18n(): void {
     attachmentId,
     async (lang: string) => await import(`@hcengineering/attachment-assets/lang/${lang}.json`)
   )
+  addStringsLoader(aiBotId, async (lang: string) => await import(`@hcengineering/ai-bot-assets/lang/${lang}.json`))
   addStringsLoader(bitrixId, async (lang: string) => await import(`@hcengineering/bitrix-assets/lang/${lang}.json`))
   addStringsLoader(boardId, async (lang: string) => await import(`@hcengineering/board-assets/lang/${lang}.json`))
   addStringsLoader(calendarId, async (lang: string) => await import(`@hcengineering/calendar-assets/lang/${lang}.json`))
@@ -414,6 +422,7 @@ function configureI18n(): void {
     async (lang: string) => await import(`@hcengineering/ai-assistant-assets/lang/${lang}.json`)
   )
   addStringsLoader(ratingId, async (lang: string) => await import(`@hcengineering/rating-assets/lang/${lang}.json`))
+  addStringsLoader(qalicoId, async (lang: string) => await import(`@tracex/qalico-assets/lang/${lang}.json`))
 }
 
 export async function configurePlatform() {
@@ -508,7 +517,7 @@ export async function configurePlatform() {
     setMetadata(presentation.metadata.FrontVersion, config.VERSION)
   }
   setMetadata(telegram.metadata.TelegramURL, config.TELEGRAM_URL ?? 'http://localhost:8086')
-  setMetadata(telegram.metadata.BotUrl, config.TELEGRAM_BOT_URL ?? 'http://huly.local:4020')
+  setMetadata(telegram.metadata.BotUrl, config.TELEGRAM_BOT_URL ?? 'http://tracex.local:4020')
   setMetadata(gmail.metadata.GmailURL, config.GMAIL_URL ?? 'http://localhost:8087')
   setMetadata(calendar.metadata.CalendarServiceURL, config.CALENDAR_URL ?? 'http://localhost:8095')
   setMetadata(calendar.metadata.PublicScheduleURL, config.PUBLIC_SCHEDULE_URL)
@@ -520,6 +529,8 @@ export async function configurePlatform() {
   setMetadata(github.metadata.GithubApplication, config.GITHUB_APP ?? '')
   setMetadata(github.metadata.GithubClientID, config.GITHUB_CLIENTID ?? '')
   setMetadata(github.metadata.GithubURL, config.GITHUB_URL)
+  setMetadata(githubNext.metadata.GithubClientID, config.GITHUB_NEXT_CLIENTID ?? '')
+  setMetadata(githubNext.metadata.GithubNextURL, config.GITHUB_NEXT_URL ?? 'http://tracex.local:3510')
 
   setMetadata(rekoni.metadata.RekoniUrl, config.REKONI_URL)
 
@@ -545,7 +556,7 @@ export async function configurePlatform() {
 
   const languages = myBranding.languages
     ? myBranding.languages.split(',').map((l) => l.trim())
-    : ['en', 'ru', 'es', 'pt', 'pt-br', 'zh', 'fr', 'cs', 'it', 'de', 'ja', 'ko', 'tr']
+    : ['en', 'ru', 'es', 'pl', 'pt', 'pt-br', 'zh', 'fr', 'cs', 'it', 'de', 'ja', 'ko', 'tr']
 
   setMetadata(uiPlugin.metadata.Languages, languages)
 
@@ -641,6 +652,10 @@ export async function configurePlatform() {
   )
   addLocation(githubId, async () => await import(/* webpackChunkName: "github" */ '@hcengineering/github-resources'))
   addLocation(
+    githubNextId,
+    async () => await import(/* webpackChunkName: "github-next" */ '@hcengineering/github-next-resources')
+  )
+  addLocation(
     questionsId,
     async () => await import(/* webpackChunkName: "training" */ '@hcengineering/questions-resources')
   )
@@ -691,6 +706,10 @@ export async function configurePlatform() {
   addLocation(chatId, async () => await import(/* webpackChunkName: "chat" */ '@hcengineering/chat-resources'))
   addLocation(processId, async () => await import(/* webpackChunkName: "process" */ '@hcengineering/process-resources'))
   addLocation(
+    integrationId,
+    async () => await import(/* webpackChunkName: "integration" */ '@hcengineering/integration-resources')
+  )
+  addLocation(
     achievementId,
     async () => await import(/* webpackChunkName: "achievement" */ '@hcengineering/achievement-resources')
   )
@@ -718,7 +737,7 @@ export async function configurePlatform() {
 
   setMetadata(client.metadata.FilterModel, 'ui')
   setMetadata(client.metadata.ExtraFilter, disabledFeatures)
-  setMetadata(client.metadata.ExtraPlugins, ['preference' as Plugin])
+  setMetadata(client.metadata.ExtraPlugins, [preferenceId, qalicoId])
   setMetadata(login.metadata.TransactorOverride, config.TRANSACTOR_OVERRIDE)
 
   // Use binary response transfer for faster performance and small transfer sizes.

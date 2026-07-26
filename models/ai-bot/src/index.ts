@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,13 @@
 // limitations under the License.
 //
 
-import { type Builder } from '@hcengineering/model'
+import { ArrOf, type Builder, Hidden, Mixin, Prop, TypeNumber, TypeString } from '@hcengineering/model'
+import core from '@hcengineering/model-core'
+import chunter from '@hcengineering/chunter'
+import { TChatMessage } from '@hcengineering/model-chunter'
+import { type AIBotThread, type AIBotMessage } from '@hcengineering/ai-bot'
+import activity from '@hcengineering/activity'
+import presentation from '@hcengineering/model-presentation'
 
 import aiBot from './plugin'
 
@@ -21,4 +28,42 @@ export { aiBotId } from '@hcengineering/ai-bot'
 export { aiBotOperation } from './migration'
 export default aiBot
 
-export function createModel (builder: Builder): void {}
+@Mixin(aiBot.mixin.AIBotThread, chunter.class.ChatMessage)
+export class TAIBotThread extends TChatMessage implements AIBotThread {}
+
+@Mixin(aiBot.mixin.AIBotMessage, chunter.class.ChatMessage)
+export class TAIBotMessage extends TChatMessage implements AIBotMessage {
+  @Prop(ArrOf(TypeString()), core.string.String)
+  @Hidden()
+    tools!: string[]
+
+  @Prop(TypeString(), core.string.String)
+  @Hidden()
+    modelName!: string
+
+  @Prop(TypeString(), core.string.String)
+  @Hidden()
+    providerKind!: string
+
+  @Prop(TypeNumber(), core.string.String)
+  @Hidden()
+    inputTokens!: number
+
+  @Prop(TypeNumber(), core.string.String)
+  @Hidden()
+    outputTokens!: number
+}
+
+export function createModel (builder: Builder): void {
+  builder.createModel(TAIBotThread, TAIBotMessage)
+  builder.createDoc(
+    presentation.class.ComponentPointExtension,
+    core.space.Model,
+    {
+      extension: activity.extension.ActivityMessageHeader,
+      component: aiBot.component.AiTokenUsagePresenter,
+      props: {}
+    },
+    aiBot.extensions.AiTokenUsagePresenter
+  )
+}

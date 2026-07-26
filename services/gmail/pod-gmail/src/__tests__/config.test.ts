@@ -46,7 +46,7 @@ describe('Config', () => {
     expect(config.Port).toBe(8087)
     expect(config.ServiceID).toBe('gmail-service')
     expect(config.InitLimit).toBe(50)
-    expect(config.FooterMessage).toContain('Sent via <a href="https://huly.io">Huly</a>')
+    expect(config.FooterMessage).toContain('Sent via <a href="https://tracex.co">TraceX</a>')
     expect(config.Version).toBe(IntegrationVersion.V1)
     expect(config.QueueRegion).toBe('')
     expect(config.CommunicationTopic).toBe('hulygun')

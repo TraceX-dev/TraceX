@@ -183,8 +183,7 @@ async function OnChatMessageCreated (ctx: MeasureContext, tx: TxCUD<Doc>, contro
   const isChannel = hierarchy.isDerived(targetDoc._class, chunter.class.Channel)
   const res: Tx[] = []
   const account = await getAccountBySocialId(control, message.modifiedBy)
-  const node = markupToJSON(message.message)
-  const references = extractReferences(node)
+  const references = extractReferences(message.message)
   const mentionedPersons = references
     .filter(({ objectClass }) => control.hierarchy.isDerived(objectClass, contact.class.Person))
     .map(({ objectId }) => objectId as Ref<Person>)

@@ -24,7 +24,7 @@
     "PasswordLoginLocked": "由于登录尝试失败次数过多，密码登录已被锁定。请使用 OTP 登录方式解锁您的账户。",
     "InviteNotFound": "未找到包含以下电子邮件的邀请:{email}。",
     "WorkspaceLimitReached": "您已达到工作区限制。请联系我们...",
-    "ReadOnlyAccount": "匿名访客演示",
+    "ReadOnlyAccount": "匿名访客",
     "SocialIdAlreadyExists": "社交ID已存在"
   }
 }

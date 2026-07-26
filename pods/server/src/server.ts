@@ -53,6 +53,7 @@ import {
 import { readFileSync } from 'node:fs'
 import { startHttpServer } from './server_http'
 import type { ServerApi } from '@hcengineering/communication-sdk-types'
+
 const model = JSON.parse(readFileSync(process.env.MODEL_JSON ?? 'model.json').toString()) as Tx[]
 
 registerStringLoaders()

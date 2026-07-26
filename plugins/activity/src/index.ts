@@ -346,7 +346,8 @@ export default plugin(activityId, {
     AddReactionNotification: '' as Ref<any>
   },
   extension: {
-    ActivityEmployeePresenter: '' as ComponentExtensionId
+    ActivityEmployeePresenter: '' as ComponentExtensionId,
+    ActivityMessageHeader: '' as ComponentExtensionId
   },
   function: {
     ShouldScrollToActivity: '' as Resource<() => boolean>,

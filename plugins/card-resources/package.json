@@ -72,6 +72,7 @@
     "@hcengineering/notification": "workspace:^0.7.0",
     "@hcengineering/time": "workspace:^0.7.0",
     "@hcengineering/contact": "workspace:^0.7.0",
+    "@hcengineering/integration": "workspace:^0.7.0",
     "@hcengineering/workbench": "workspace:^0.7.0",
     "@tiptap/core": "^2.11.7",
     "@hcengineering/platform": "workspace:^0.7.20",

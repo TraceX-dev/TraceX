@@ -12,7 +12,7 @@
     "ExportFormat": "Dışa aktarma formatı",
     "ExportJSON": "JSON",
     "ExportCSV": "CSV",
-    "ExportUnifiedFormat": "Huly Birleşik Format",
+    "ExportUnifiedFormat": "TraceX Birleşik Format",
     "ExportIncludeContent": "İçerik dahil et",
     "ExportEverything": "Her şey",
     "ExportAttributesOnly": "Sadece öznitelikler",
@@ -53,6 +53,8 @@
     "ExportFilterEffectiveOnly": "Yalnızca geçerli belgeler",
     "ExportFilterSkipArchivedObsolete": "Arşivlenmiş ve geçersiz hariç tümü",
     "ExportFilterAll": "Tüm belgeler",
+    "ExportChildDocuments": "Alt belgeleri dışa aktar",
+    "ExportChildDocumentsDescription": "Seçili belgelere ekli belgeleri de dışa aktar",
     "ExportResultRecordTitle": "{workspace} çalışma alanından belge dışa aktarma ({date})"
   }
 }

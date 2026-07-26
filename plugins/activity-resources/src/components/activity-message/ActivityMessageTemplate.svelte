@@ -25,7 +25,7 @@
   import notification from '@hcengineering/notification'
   import { Asset } from '@hcengineering/platform'
   import { ComponentExtensions, getClient } from '@hcengineering/presentation'
-  import { Action, Icon, Label } from '@hcengineering/ui'
+  import { Action, Icon, Label, type ComponentExtensionId } from '@hcengineering/ui'
   import { Action as ViewAction } from '@hcengineering/view'
   import { getActions, restrictionStore, showMenu } from '@hcengineering/view-resources'
 
@@ -251,6 +251,11 @@
             {#if message.editedOn}
               <span class="text-sm lower">(<Label label={notification.string.Edited} />)</span>
             {/if}
+
+            <ComponentExtensions
+              extension={activity.extension.ActivityMessageHeader}
+              props={{ message, parentMessage, viewlet, type, embedded, readonly }}
+            />
 
             {#if withActions && inlineActions.length > 0 && !readonly}
               <div class="flex-presenter flex-gap-2 ml-2">

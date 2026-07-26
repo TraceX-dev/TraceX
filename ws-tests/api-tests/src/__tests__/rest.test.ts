@@ -57,11 +57,11 @@ describe('rest-api-server', () => {
   let adminAccountClient: AccountClient
 
   beforeAll(async () => {
-    serverConfig = await loadServerConfig('http://huly.local:8083')
+    serverConfig = await loadServerConfig('http://tracex.local:8083')
     const config = serverConfig
 
     apiWorkspace1 = await getWorkspaceToken(
-      'http://huly.local:8083',
+      'http://tracex.local:8083',
       {
         email: 'user1',
         password: '1234',
@@ -71,7 +71,7 @@ describe('rest-api-server', () => {
     )
 
     apiWorkspace2 = await getWorkspaceToken(
-      'http://huly.local:8083',
+      'http://tracex.local:8083',
       {
         email: 'user1',
         password: '1234',
@@ -222,7 +222,7 @@ describe('rest-api-server', () => {
     const { hierarchy, model } = await conn.getModel()
 
     const dsc = hierarchy.getDescendants(core.class.Space)
-    expect(dsc.length).toBe(33) // todo fix this stupid test
+    expect(dsc.length).toBe(34) // todo fix this stupid test
     expect(model.getObject(core.class.Space)).not.toBeNull()
   })
 

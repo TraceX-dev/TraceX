@@ -31,6 +31,7 @@ import type {
   DocumentSpaceType,
   DocumentSpaceTypeDescriptor,
   DocumentState,
+  DocumentAttachment,
   DocumentTemplate,
   DocumentTraining,
   HierarchyDocument,
@@ -81,6 +82,7 @@ export const documentsPlugin = plugin(documentsId, {
   mixin: {
     DocumentTemplate: '' as Ref<Mixin<DocumentTemplate>>,
     DocumentTraining: '' as Ref<Mixin<DocumentTraining>>,
+    DocumentAttachment: '' as Ref<Mixin<DocumentAttachment>>,
     DocumentSpaceTypeData: '' as Ref<Mixin<DocumentSpace>>
     // DocTemplateActions: '' as Ref<Mixin<DocTemplateActions>>
   },
@@ -106,7 +108,9 @@ export const documentsPlugin = plugin(documentsId, {
     DocumentVersionPresenter: '' as AnyComponent,
     DeleteCategoryPopup: '' as AnyComponent,
     DocumentIcon: '' as AnyComponent,
-    CreateFolder: '' as AnyComponent
+    CreateFolder: '' as AnyComponent,
+    ExportFormatPopup: '' as AnyComponent,
+    ImportFormatPopup: '' as AnyComponent
   },
   action: {
     ChangeDocumentOwner: '' as Ref<Action<Doc, any>>,
@@ -132,10 +136,13 @@ export const documentsPlugin = plugin(documentsId, {
     OpenDocument: '' as Ref<Action<Doc, { signed: boolean }>>,
     OpenDocumentInNewTab: '' as Ref<Action<Doc, { signed: boolean }>>,
     CopyAsMarkdownTable: '' as Ref<Action<Doc, any>>,
-    CopyDocumentMarkdown: '' as Ref<Action<Doc, any>>
+    CopyDocumentMarkdown: '' as Ref<Action<Doc, any>>,
+    Export: '' as Ref<Action<Document, any>>,
+    Import: '' as Ref<Action<Document, any>>
   },
   function: {
     CanChangeDocumentOwner: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
+    CanImportDocument: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     CanDeleteDocumentCategory: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     FormatDocumentMarkdownValue: '' as Resource<import('@hcengineering/converter').ValueFormatter>
   },
@@ -168,6 +175,10 @@ export const documentsPlugin = plugin(documentsId, {
     Documents: '' as Ref<Doc>
   },
   string: {
+    ExportToWord: '' as IntlString,
+    ImportFromWord: '' as IntlString,
+    Export: '' as IntlString,
+    Import: '' as IntlString,
     Document: '' as IntlString,
     Documents: '' as IntlString,
     DocumentTemplate: '' as IntlString,

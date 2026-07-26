@@ -1,32 +1,52 @@
-# Huly Platform
+# TraceX
 
-[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/huly_io?style=for-the-badge)](https://x.com/huly_io)
-![GitHub License](https://img.shields.io/github/license/hcengineering/platform?style=for-the-badge)
+[![License](https://img.shields.io/badge/license-EPL--2.0%20%2B%20PolyForm%20Shield-blue?style=for-the-badge)](#licensing)
 
-⭐️ Your star shines on us. Star us on GitHub!
+Built for compliance and productivity across regulated industries.
+![TraceX screenshot](./docs/assets/tracex.png)
 
 ## About
 
-The Huly Platform is a robust framework designed to accelerate the development of business applications, such as CRM systems.
-This repository includes several applications, such as Chat, Project Management, CRM, HRM, and ATS.
-Various teams are building products on top of the Platform, including [Huly](https://huly.io) and [TraceX](https://tracex.co).
+TraceX is an all-in-one platform built on Huly platform technology, helping teams manage risks, quality processes, development and test activities, technical documentation, and compliance across the full product lifecycle.
 
-![Huly](https://repository-images.githubusercontent.com/392073243/6d27d5cc-38cd-4d88-affe-bb88b393180c)
+Built for consultants, startups, and established companies, TraceX adapts to your processes while keeping teams audit-ready.
 
-## Self-Hosting
+Whether you are targeting GxP, CE, FDA, or ISO standards, TraceX helps simplify compliance and operational execution.
 
-If you're primarily interested in self-hosting Huly without the intention to modify or contribute to its development, please use [huly-selfhost](https://github.com/hcengineering/huly-selfhost).
-This project offers a convenient method to host Huly using `docker`, designed for ease of use and quick setup. Explore this option to effortlessly enjoy Huly on your own server.
+## What is TraceX?
+
+Think of TraceX as a single workspace for quality, product development, and compliance.
+
+It enables your team to:
+
+- Maintain structured quality processes and traceability
+- Align development and verification work with regulatory expectations
+- Prepare continuously for internal and external audits
+- Scale workflows from early-stage products to mature organizations
+
+Compliance can be complicated. TraceX makes it simple.
+
+## Core Pillars
+
+### Electronic Quality Management System (eQMS)
+
+Manage document versions with audit trails, approval workflows, and electronic signatures; track training and risk activities; and prepare for audits in one intuitive and customizable platform.
+
+Built to adapt to your needs and keep you always audit-ready.
+
+### Product Lifecycle Management (PLM)
+
+Track and manage your product lifecycle from concept to market release and post-market surveillance.
+
+Teams collaborate on design control, requirement specifications, development, and verification and validation while maintaining compliance at every stage.
+
+
 
 ## Activity
 
 ![Alt](https://repobeats.axiom.co/api/embed/c42c99e21691fa60ea61b5cdf11c2e0647621534.svg 'Repobeats analytics image')
 
-## API Client
 
-If you want to interact with Huly programmatically, check out our [API Client](https://github.com/hcengineering/huly.core/tree/main/packages/api-client) documentation. The API client provides a typed interface for all Huly operations and can be used to build integrations and custom applications.
-
-You can find API usage examples in the [Huly examples](https://github.com/hcengineering/huly-examples) repository.
 
 ## Changelog
 
@@ -34,7 +54,7 @@ For detailed information about changes, improvements, and bug fixes in each vers
 
 ## Versions
 
-The Huly Platform uses two types of version tags to distinguish between production-ready and development releases:
+The TraceX platform uses two types of version tags to distinguish between production-ready and development releases:
 
 - **Production Versions (`v*`)** - Stable releases for end users
   - Example: `v0.7.310`, `v0.7.307`, `v0.6.501`
@@ -52,16 +72,24 @@ The Huly Platform uses two types of version tags to distinguish between producti
 
 For detailed information about the platform architecture, services, and their interactions, see our [Architecture Overview](./ARCHITECTURE_OVERVIEW.md).
 
+## Licensing
+
+TraceX is built on the open-source [Huly Platform](https://github.com/hcengineering/platform). Code inherited or modified from Huly remains licensed under the [Eclipse Public License 2.0](./LICENSE).
+
+Some new, wholly TraceX-original files are licensed separately under the [PolyForm Shield License 1.0.0](./LICENSE-POLYFORM-SHIELD), which permits use and modification but restricts building competing products with them. This currently covers.
+
+Each source file's header states which license applies to it; that header is authoritative over a package's `license` field, which for mixed packages uses the SPDX `AND` form (e.g. `(EPL-2.0 AND LicenseRef-PolyForm-Shield-1.0.0)`).
+
 ## Table of Contents
 
-- [Huly Platform](#huly-platform)
+- [TraceX Platform](#tracex-platform)
   - [About](#about)
-  - [Self-Hosting](#self-hosting)
   - [Activity](#activity)
   - [API Client](#api-client)
   - [Changelog](#changelog)
   - [Versions](#versions)
   - [Architecture](#architecture)
+  - [Licensing](#licensing)
   - [Table of Contents](#table-of-contents)
   - [Pre-requisites](#pre-requisites)
   - [Verification](#verification)
@@ -87,6 +115,12 @@ For detailed information about the platform architecture, services, and their in
   - [Node.js](https://nodejs.org/en/download/) (v20.11.0 is required)
   - [Docker](https://docs.docker.com/get-docker/)
   - [Docker Compose](https://docs.docker.com/compose/install/)
+
+If you use `nvm`, run this after entering the repo to align your shell with the repository Node version:
+
+```bash
+nvm use
+```
 
 ## Verification
 
@@ -212,11 +246,11 @@ Add the following lines to your hosts file:
 - **Windows:** `C:\Windows\System32\drivers\etc\hosts`
 
 ```plain
-127.0.0.1 huly.local
-::1 huly.local
+127.0.0.1 tracex.local
+::1 tracex.local
 ```
 
-Accessing the URL <http://huly.local:8087> will lead you to the app in development mode.
+Accessing the URL <http://tracex.local:8087> will lead you to the app in development mode.
 
 Limitations:
 

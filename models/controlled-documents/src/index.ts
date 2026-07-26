@@ -66,6 +66,7 @@ import {
   TDocumentSpaceTypeDescriptor,
   TDocumentTemplate,
   TDocumentTraining,
+  TDocumentAttachment,
   TExternalSpace,
   THierarchyDocument,
   TOrgSpace,
@@ -128,6 +129,7 @@ export function createModel (builder: Builder): void {
     THierarchyDocument,
     TDocumentTemplate,
     TDocumentTraining,
+    TDocumentAttachment,
     TDocumentCategory,
     TControlledDocument,
     TChangeControl,
@@ -471,6 +473,10 @@ export function createModel (builder: Builder): void {
     titleProvider: documents.function.DocumentMetaTitleProvider
   })
 
+  builder.mixin(documents.class.DocumentMeta, core.class.Class, view.mixin.ReferenceVersionsProvider, {
+    provider: documents.function.DocumentMetaReferenceVersionsProvider
+  })
+
   builder.mixin(documents.class.DocumentMeta, core.class.Class, view.mixin.LinkProvider, {
     encode: documents.function.GetDocumentMetaLinkFragment
   })
@@ -506,6 +512,50 @@ export function createModel (builder: Builder): void {
       context: { mode: ['context'], group: 'edit' }
     },
     documentsPlugin.action.ChangeDocumentOwner
+  )
+
+  createAction(
+    builder,
+    {
+      action: view.actionImpl.ShowPopup,
+      actionPopup: documents.component.ExportFormatPopup,
+      actionProps: {
+        component: documents.component.ExportFormatPopup,
+        element: 'top',
+        fillProps: { _object: 'value' }
+      },
+      label: documentsPlugin.string.Export,
+      icon: documents.icon.Document,
+      category: view.category.General,
+      input: 'focus',
+      target: documents.class.ControlledDocument,
+      context: { mode: ['context'], group: 'tools' }
+    },
+    documentsPlugin.action.Export
+  )
+
+  createAction(
+    builder,
+    {
+      action: view.actionImpl.ShowPopup,
+      actionPopup: documents.component.ImportFormatPopup,
+      actionProps: {
+        component: documents.component.ImportFormatPopup,
+        element: 'top',
+        fillProps: { _object: 'value' }
+      },
+      label: documentsPlugin.string.Import,
+      icon: documents.icon.Document,
+      category: view.category.General,
+      input: 'focus',
+      visibilityTester: documents.function.CanImportDocument,
+      query: {
+        state: DocumentState.Draft
+      },
+      target: documents.class.ControlledDocument,
+      context: { mode: ['context'], group: 'tools' }
+    },
+    documentsPlugin.action.Import
   )
 
   createAction<Document>(

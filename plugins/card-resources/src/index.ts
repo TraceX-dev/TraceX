@@ -28,6 +28,7 @@ import {
   editSpace,
   cardCustomLinkEncode,
   cardCustomLinkMatch,
+  cardReferenceObjectProvider,
   openCardInSidebar,
   checkRelationsSectionVisibility,
   checkOldMessagesSectionVisibility,
@@ -40,6 +41,13 @@ import {
   showAllVersions
 } from './utils'
 import { formatCardValue } from './cardTableFormatter'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getCommentBackend,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
 import CardGridView from './components/CardGridView.svelte'
 import ManageMasterTagsContent from './components/settings/ManageMasterTagsContent.svelte'
 import ManageMasterTagsTools from './components/settings/ManageMasterTagsTools.svelte'
@@ -57,6 +65,7 @@ import CardEditor from './components/CardEditor.svelte'
 import CardRefPresenter from './components/CardRefPresenter.svelte'
 import ChangeType from './components/ChangeType.svelte'
 import CreateCardButton from './components/CreateCardButton.svelte'
+import CreateCardPopup from './components/CreateCardPopup.svelte'
 import CardArrayEditor from './components/CardArrayEditor.svelte'
 import SpacePresenter from './components/navigator/SpacePresenter.svelte'
 import TypesNavigator from './components/navigator/TypesNavigator.svelte'
@@ -124,6 +133,7 @@ export default async (): Promise<Resources> => ({
     CardsPresenter,
     ChangeType,
     CreateCardButton,
+    CreateCard: CreateCardPopup,
     CardArrayEditor,
     SpacePresenter,
     TypesNavigator,
@@ -167,6 +177,7 @@ export default async (): Promise<Resources> => ({
   },
   function: {
     CardTitleProvider: getCardTitle,
+    CardReferenceObjectProvider: cardReferenceObjectProvider,
     GetCardLink: getCardLink,
     CardCustomLinkMatch: cardCustomLinkMatch,
     CardCustomLinkEncode: cardCustomLinkEncode,
@@ -179,6 +190,11 @@ export default async (): Promise<Resources> => ({
     CanGetSpaceAccessPublicLink: canGetSpaceAccessPublicLink,
     CardFactory: cardFactory,
     FormatCardMarkdownValue: formatCardValue,
-    ShowAllVersions: showAllVersions
+    ShowAllVersions: showAllVersions,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses,
+    GetIntegrationTargetCommentBackend: getCommentBackend
   }
 })

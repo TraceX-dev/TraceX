@@ -1,0 +1,12 @@
+{
+  "string": {
+    "RegulatoryDocument": "Regulační dokument",
+    "RegulatoryDocuments": "Regulační dokumenty",
+    "Applicability": "Použitelnost",
+    "ExternalLink": "Externí odkaz",
+    "QalicoLink": "Odkaz Qalico",
+    "Date": "Datum",
+    "Owner": "Vlastník",
+    "ActionsNeeded": "Požadované akce"
+  }
+}

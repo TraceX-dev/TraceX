@@ -9,6 +9,12 @@ import { getMetadata } from '@hcengineering/platform'
 import { workbenchId } from '@hcengineering/workbench'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import slugify from 'slugify'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
 
 function getDocumentId (doc: Document): string {
   const slug = slugify(doc.title, { lower: true })
@@ -59,6 +65,10 @@ export default async () => ({
     DocumentHTMLPresenter: documentHTMLPresenter,
     DocumentTextPresenter: documentTextPresenter,
     DocumentLinkIdProvider: documentLinkIdProvider,
-    FindChildDocuments: findChildDocuments
+    FindChildDocuments: findChildDocuments,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses
   }
 })

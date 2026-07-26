@@ -4,7 +4,7 @@ bind_host = "0.0.0.0"
 token_secret = "secret"
 
 backend = "redis"
-redis_urls = "redis://huly.local:6379"
+redis_urls = "redis://tracex.local:6379"
 redis_password = "<invalid>"
 redis_mode = "direct"
 redis_service = "mymaster"

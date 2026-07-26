@@ -1,0 +1,42 @@
+accountsUrl: http://localhost:3000
+dbUrl: postgresql://root@tracex.local:26257/defaultdb?sslmode=disable
+serverSecret: secret
+serviceId: ai-bot-service
+port: 4010
+
+openai:
+  apiKey: ""
+  baseUrl: ""
+  model: gpt-4o-mini
+  translateModel: gpt-4o-mini
+  summaryModel: gpt-4o-mini
+
+limits:
+  maxContentTokens: 12800
+  maxHistoryRecords: 500
+
+love:
+  endpoint: ""
+
+datalab:
+  apiKey: ""
+
+billing:
+  url: ""
+
+deepgram:
+  pollIntervalMinutes: 60
+  apiKey: ""
+  projectId: ""
+  tag: ""
+
+queue:
+  region: ""
+
+providers:
+  - id: openai-default
+    name: OpenAI
+    type: openai
+    token: "foo"
+    baseUrl: "https://foo/bar"
+    enabled: true

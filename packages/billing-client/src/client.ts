@@ -1,4 +1,4 @@
-import { concatLink, WorkspaceUuid } from '@hcengineering/core'
+import { concatLink, type MeasureContext, WorkspaceUuid } from '@hcengineering/core'
 import { BillingError, NetworkError } from './error'
 import {
   AiTokensData,
@@ -12,6 +12,19 @@ import {
   LiveKitStats
 } from './types'
 
+export interface BillingClient {
+  getBillingStats: (workspace: WorkspaceUuid) => Promise<BillingStats>
+  getDatalakeStats: (workspace: WorkspaceUuid) => Promise<DatalakeStats>
+  getLiveKitStats: (workspace: WorkspaceUuid) => Promise<LiveKitStats>
+  getLiveKitSessionsStats: (workspace: WorkspaceUuid) => Promise<LiveKitSessionsStats[]>
+  getLiveKitEgressStats: (workspace: WorkspaceUuid) => Promise<LiveKitEgressStats[]>
+  postLiveKitSessions: (sessions: LiveKitSessionData[]) => Promise<void>
+  postLiveKitEgress: (egress: LiveKitEgressData[]) => Promise<void>
+  getAiTranscriptLastData: () => Promise<AiTranscriptData | undefined>
+  postAiTranscriptData: (data: AiTranscriptData[]) => Promise<void>
+  postAiTokensData: (data: AiTokensData[]) => Promise<void>
+}
+
 /** @public */
 export function getClient (billingUrl?: string, token?: string): BillingClient {
   if (billingUrl === undefined || billingUrl == null || billingUrl === '') {
@@ -21,15 +34,15 @@ export function getClient (billingUrl?: string, token?: string): BillingClient {
     throw new Error('Token not specified')
   }
 
-  return new BillingClient(billingUrl, token)
+  return new HttpBillingClient(billingUrl, token)
 }
 
-export class BillingClient {
+export class HttpBillingClient implements BillingClient {
   private readonly headers: Record<string, string>
 
   constructor (
     private readonly endpoint: string,
-    private readonly token: string
+    token: string
   ) {
     this.headers = {
       Authorization: 'Bearer ' + token,
@@ -107,6 +120,75 @@ export class BillingClient {
     const body = JSON.stringify(data)
 
     await fetchSafe(url, { method: 'POST', headers: { ...this.headers }, body })
+  }
+}
+
+export class LogBillingClient implements BillingClient {
+  constructor (private readonly ctx: MeasureContext) {}
+
+  async getBillingStats (workspace: WorkspaceUuid): Promise<BillingStats> {
+    this.ctx.info('getBillingStats', { workspace })
+    return {
+      liveKitStats: { sessions: [], egress: [] },
+      datalakeStats: { count: 0, size: 0 },
+      aiStats: { transcript: { totalDurationSeconds: 0 }, tokens: [] }
+    }
+  }
+
+  async getDatalakeStats (workspace: WorkspaceUuid): Promise<DatalakeStats> {
+    this.ctx.info('getDatalakeStats', { workspace })
+    return { count: 0, size: 0 }
+  }
+
+  async getLiveKitStats (workspace: WorkspaceUuid): Promise<LiveKitStats> {
+    this.ctx.info('getLiveKitStats', { workspace })
+    return { sessions: [], egress: [] }
+  }
+
+  async getLiveKitSessionsStats (workspace: WorkspaceUuid): Promise<LiveKitSessionsStats[]> {
+    this.ctx.info('getLiveKitSessionsStats', { workspace })
+    return []
+  }
+
+  async getLiveKitEgressStats (workspace: WorkspaceUuid): Promise<LiveKitEgressStats[]> {
+    this.ctx.info('getLiveKitEgressStats', { workspace })
+    return []
+  }
+
+  async postLiveKitSessions (sessions: LiveKitSessionData[]): Promise<void> {
+    this.ctx.info('postLiveKitSessions', { count: sessions.length })
+  }
+
+  async postLiveKitEgress (egress: LiveKitEgressData[]): Promise<void> {
+    this.ctx.info('postLiveKitEgress', { count: egress.length })
+  }
+
+  async getAiTranscriptLastData (): Promise<AiTranscriptData | undefined> {
+    this.ctx.info('getAiTranscriptLastData')
+    return undefined
+  }
+
+  async postAiTranscriptData (data: AiTranscriptData[]): Promise<void> {
+    for (const item of data) {
+      this.ctx.info('postAiTranscriptData', {
+        workspace: item.workspace,
+        day: item.day,
+        durationSeconds: item.durationSeconds,
+        usd: item.usd
+      })
+    }
+  }
+
+  async postAiTokensData (data: AiTokensData[]): Promise<void> {
+    for (const item of data) {
+      this.ctx.info('postAiTokensData', {
+        workspace: item.workspace,
+        reason: item.reason,
+        inputTokens: item.inputTokens,
+        outputTokens: item.outputTokens,
+        date: item.date
+      })
+    }
   }
 }
 

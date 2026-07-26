@@ -1,5 +1,17 @@
 {
   "string": {
+    "Export": "Экспорт",
+    "Import": "Импорт",
+    "ImportingDocument": "Импорт документа",
+    "ConvertingDocument": "Конвертация документа…",
+    "ImportingFromWord": "Импорт из Word",
+    "ConvertingWordDocument": "Конвертация документа…",
+    "DocumentConverted": "Документ сконвертирован",
+    "ImportFailed": "Ошибка импорта",
+    "ReviewImportedChanges": "Просмотрите импортированные изменения",
+    "Apply": "Применить",
+    "ExportToWord": "Экспорт в Word",
+    "ImportFromWord": "Импорт из Word",
     "ID": "ID",
     "Code": "Код",
     "Number": "Номер",
@@ -71,6 +83,8 @@
 
     "Compare": "Сравнить:",
     "Against": "с:",
+    "RemovedAttachments": "Удалённые вложения",
+    "Restore": "Восстановить",
 
     "ComparisonModeNotSupported": "Сравнение не поддерживается.",
 
@@ -267,6 +281,7 @@
     "Page": "Страница ",
     "Of": " из ",
     "CreatedFromTemplate": "Создан из шаблона: ",
+    "UncontrolledCopy": "Неконтролируемая копия",
 
     "ViewAll": "Показать все",
     "Readonly": "Только для чтения",

@@ -82,6 +82,7 @@ import {
   type NotificationTemplate,
   type NotificationType,
   type NotificationTypeSetting,
+  type OnDemandNotification,
   type PushSubscription,
   type PushSubscriptionKeys,
   type ReactionInboxNotification
@@ -109,6 +110,20 @@ export class TBrowserNotification extends TDoc implements BrowserNotification {
   objectId!: Ref<Doc>
   objectClass!: Ref<Class<Doc>>
   soundAlert!: boolean
+}
+
+// Transient (never persisted): created by a client, consumed by the OnDemandNotification trigger.
+@Model(notification.class.OnDemandNotification, core.class.Doc, DOMAIN_TRANSIENT)
+export class TOnDemandNotification extends TDoc implements OnDemandNotification {
+  targets!: AccountUuid[]
+  objectId!: Ref<Doc>
+  objectClass!: Ref<Class<Doc>>
+  objectSpace!: Ref<Space>
+  notificationType!: Ref<NotificationType>
+  header?: IntlString
+  message?: IntlString
+  messageHtml?: Markup
+  icon?: Asset
 }
 
 @Model(notification.class.PushSubscription, core.class.Doc, DOMAIN_USER_NOTIFY)
@@ -371,7 +386,8 @@ export function createModel (builder: Builder): void {
     TNotificationProviderSetting,
     TNotificationTypeSetting,
     TNotificationProviderDefaults,
-    TReactionInboxNotification
+    TReactionInboxNotification,
+    TOnDemandNotification
   )
 
   builder.mixin(notification.class.BrowserNotification, core.class.Class, core.mixin.TransientConfiguration, {

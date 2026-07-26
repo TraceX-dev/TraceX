@@ -14,6 +14,7 @@
 //
 
 import activity from '@hcengineering/activity'
+import integration from '@hcengineering/integration'
 import type {
   ClassCollaborators,
   CollectionSize,
@@ -532,6 +533,19 @@ function defineApplication (builder: Builder): void {
       navHeaderComponent: document.component.NewDocumentHeader
     },
     document.app.Documents
+  )
+
+  builder.createDoc(
+    integration.class.IntegrationTargetFactory,
+    core.space.Model,
+    {
+      targetClass: document.class.Document,
+      create: document.function.CreateIntegrationTarget,
+      update: document.function.UpdateIntegrationTarget,
+      canCreate: document.function.CanCreateIntegrationTarget,
+      getAllowedSpaceClasses: document.function.GetIntegrationTargetAllowedSpaceClasses
+    },
+    document.integration.TargetFactory
   )
 }
 

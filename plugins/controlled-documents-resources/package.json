@@ -59,6 +59,8 @@
     "@hcengineering/text": "workspace:^0.7.19",
     "@hcengineering/text-editor": "workspace:^0.7.0",
     "@hcengineering/text-editor-resources": "workspace:^0.7.0",
+    "@hcengineering/export": "workspace:^0.7.0",
+    "@hcengineering/collaborator-client": "workspace:^0.7.18",
     "@hcengineering/activity": "workspace:^0.7.0",
     "@hcengineering/request": "workspace:^0.7.0",
     "@hcengineering/request-resources": "workspace:^0.7.0",

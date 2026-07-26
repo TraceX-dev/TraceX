@@ -145,7 +145,12 @@ export async function getAccountUuid (ctx?: MeasureContext): Promise<AccountUuid
     return account
   }
 
-  const result = await accountClient.signUp(aiBotAccountEmail, config.Password, config.FirstName, config.LastName)
+  const result = await accountClient.signUp(
+    aiBotAccountEmail,
+    config.BotPassword,
+    config.BotFirstName,
+    config.BotLastName
+  )
 
   if (result !== undefined) {
     await confirmAccount(result.account)

@@ -58,5 +58,8 @@ else
     --to @hcengineering/pod-process \
     --to @hcengineering/pod-rating \
     --to @hcengineering/pod-payment \
-    --to @hcengineering/pod-worker
+    --to @hcengineering/pod-worker \
+    --to @hcengineering/pod-events-processor \
+    --to @hcengineering/pod-mcp \
+    --to @tracex/pod-qalico
 fi

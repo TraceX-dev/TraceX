@@ -1,6 +1,6 @@
 set -e
 
-registry=hardcoreeng
+registry=tracexapp
 tag=latest
 
 # Create temp directory for tracking built images
