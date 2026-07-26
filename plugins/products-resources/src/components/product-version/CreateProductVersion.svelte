@@ -26,13 +26,15 @@
     deleteProjectDrafts
   } from '@hcengineering/controlled-documents'
   import { Product, ProductVersion, ProductVersionState } from '@hcengineering/products'
-  import { Data, Ref, SortingOrder, generateId } from '@hcengineering/core'
+  import core, { type Association, Data, Ref, SortingOrder, generateId } from '@hcengineering/core'
+  import { type Card as CardDoc } from '@hcengineering/card'
   import { Card, MessageBox, SpaceSelector, createQuery, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
   import { DropdownLabelsIntl, EditBox, FocusHandler, createFocusManager, showPopup } from '@hcengineering/ui'
   import { ObjectBox } from '@hcengineering/view-resources'
 
   import products from '../../plugin'
+  import ChangeControlCardsSelect from './ChangeControlCardsSelect.svelte'
 
   type Severity = 'major' | 'minor' | 'patch'
   type ProductVersionDraft = Omit<Data<ProductVersion>, 'parent' | 'name'>
@@ -51,6 +53,9 @@
 
   let parent: ProductVersion | null | undefined
   let severity: Severity = 'minor'
+
+  let ccSelection: Array<{ association: Ref<Association>, card: Ref<CardDoc> }> = []
+  let ccConfigured: boolean = false
 
   $: query.query(
     products.class.ProductVersion,
@@ -114,9 +119,18 @@
     await deleteProjectDrafts(ops, version.parent)
     await copyProjectDocuments(ops, version.parent, id)
 
+    for (const sel of ccSelection) {
+      await ops.createDoc(core.class.Relation, core.space.Workspace, {
+        docA: id,
+        docB: sel.card,
+        association: sel.association
+      })
+    }
+
     await ops.commit()
 
     object = createDefaultObject()
+    ccSelection = []
     dispatch('close', id)
   }
 
@@ -162,7 +176,8 @@
     object.minor >= 0 &&
     object.patch !== undefined &&
     object.patch >= 0 &&
-    (parent == null || object.changeControl !== undefined)
+    (parent == null || object.changeControl !== undefined) &&
+    (parent == null || !ccConfigured || ccSelection.length > 0)
 </script>
 
 <FocusHandler {manager} />
@@ -249,6 +264,7 @@
         label={products.string.ChangeControl}
         showNavigate={false}
       />
+      <ChangeControlCardsSelect bind:selection={ccSelection} bind:configured={ccConfigured} />
     {/if}
   </svelte:fragment>
 </Card>

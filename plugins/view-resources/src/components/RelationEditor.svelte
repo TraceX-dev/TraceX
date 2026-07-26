@@ -1,11 +1,12 @@
 <script lang="ts">
   import card, { type MasterTag } from '@hcengineering/card'
-  import core, { Association, Doc, WithLookup } from '@hcengineering/core'
+  import core, { Association, Doc, DocumentQuery, WithLookup } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { getClient, ObjectCreate } from '@hcengineering/presentation'
   import { Button, IconAdd, Label, Scroller, Section, showPopup } from '@hcengineering/ui'
   import { Viewlet, ViewletPreference } from '@hcengineering/view'
   import { showMenu } from '../actions'
+  import { filtersToQuery } from '../filter'
   import view from '../plugin'
   import DocTable from './DocTable.svelte'
   import ObjectBoxPopup from './ObjectBoxPopup.svelte'
@@ -63,11 +64,30 @@
     })
   }
 
-  function add (): void {
+  async function add (): Promise<void> {
     const create = getCreate()
-    const isVersionable = client.getHierarchy().classHierarchyMixin(_class, core.mixin.VersionableClass) !== undefined
-    const baseQuery = { _id: { $nin: uniqueDocs.map((p) => p._id) } }
-    const docQuery = isVersionable ? { isLatest: true, ...baseQuery } : baseQuery
+    const hierarchy = client.getHierarchy()
+    const isVersionable = hierarchy.classHierarchyMixin(_class, core.mixin.VersionableClass) !== undefined
+
+    // Honor the optional CardRelation mixin on the association: an eligibility filter and an
+    // override of the default "latest version only" restriction for versionable cards.
+    const rel = hierarchy.hasMixin(association, card.mixin.CardRelation)
+      ? hierarchy.as(association, card.mixin.CardRelation)
+      : undefined
+    const requireLatest = rel?.requireLatest !== false
+
+    let docQuery: DocumentQuery<Doc> = { _id: { $nin: uniqueDocs.map((p) => p._id) } }
+    if (isVersionable && requireLatest) {
+      docQuery = { isLatest: true, ...docQuery }
+    }
+    if (rel?.filter != null && rel.filter !== '' && hierarchy.isDerived(_class, card.class.Card)) {
+      try {
+        docQuery = (await filtersToQuery(JSON.parse(rel.filter), docQuery))
+      } catch (e) {
+        console.error('Failed to apply card relation filter', e)
+      }
+    }
+
     showPopup(
       ObjectBoxPopup,
       {

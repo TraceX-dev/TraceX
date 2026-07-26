@@ -4,6 +4,7 @@ import core, {
   type Class,
   type Collection,
   type Doc,
+  type DocumentQuery,
   type FindResult,
   type Hierarchy,
   type ObjQueryType,
@@ -49,6 +50,43 @@ export function updateFilter (filter: Filter): void {
     old[index] = filter
   }
   filterStore.set(old)
+}
+
+/**
+ * Converts a set of {@link Filter} into a `DocumentQuery`, mirroring the conversion `FilterBar`
+ * performs at runtime. Lets stored filters (e.g. a card-relation eligibility filter) be
+ * re-applied to a query without mounting the filter bar. Each filter's value is resolved via
+ * its {@link FilterMode} `result` resource and merged into the base query.
+ *
+ * @public
+ */
+export async function filtersToQuery (filters: Filter[], base: DocumentQuery<Doc> = {}): Promise<DocumentQuery<Doc>> {
+  const client = getClient()
+  const hierarchy = client.getHierarchy()
+  const newQuery: Record<string, any> = hierarchy.clone(base)
+
+  for (const filter of filters) {
+    const mode = await client.findOne(view.class.FilterMode, { _id: filter.mode })
+    if (mode === undefined) continue
+    const result = await getResource(mode.result)
+    const newValue = await result(filter, () => {})
+
+    let filterKey = filter.key.key
+    const attr = hierarchy.getAttribute(filter.key._class, filter.key.key)
+    if (hierarchy.isMixin(attr.attributeOf)) {
+      filterKey = attr.attributeOf + '.' + filter.key.key
+    }
+
+    if (newQuery[filterKey] === undefined || newQuery[filterKey] === null) {
+      newQuery[filterKey] = newValue
+    } else if (typeof newQuery[filterKey] === 'object' && typeof newValue === 'object') {
+      Object.assign(newQuery[filterKey], newValue)
+    } else {
+      newQuery[filterKey] = newValue
+    }
+  }
+
+  return newQuery
 }
 
 export async function arrayAllResult (filter: Filter): Promise<ObjQueryType<any>> {

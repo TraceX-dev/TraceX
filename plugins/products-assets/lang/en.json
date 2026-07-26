@@ -33,6 +33,14 @@
     "UpdateProductDescription": "Grants users ability to update a product",
     "ChangeControl": "Change control",
     "ChangeSeverity": "Change severity",
+    "ChangeControlCardTypes": "Change control cards",
+    "ChangeControlCardTypesDescription": "Card categories (and optional filters) that can be attached to product versions as change control. Applies to all products.",
+    "NoChangeControlCardTypes": "No card types configured",
+    "AddCardType": "Add card type",
+    "AddCard": "Add card",
+    "AddFilter": "Add filter",
+    "CardType": "Card type",
+    "CardFilter": "Filter",
     "ConfigLabel": "Products",
     "ConfigDescription": "Extension to manage products"
   }

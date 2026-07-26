@@ -23,7 +23,16 @@
   import { Panel } from '@hcengineering/panel'
   import { getResource } from '@hcengineering/platform'
   import { ActionContext, MessageViewer, IconWithEmoji, createQuery, getClient } from '@hcengineering/presentation'
-  import { Button, EditBox, IconMixin, IconMoreH, getPlatformColorDef, showPopup, themeStore } from '@hcengineering/ui'
+  import {
+    Button,
+    EditBox,
+    IconMixin,
+    IconMoreH,
+    Label,
+    getPlatformColorDef,
+    showPopup,
+    themeStore
+  } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { DocAttributeBar, IconPicker, getDocMixins, showMenu } from '@hcengineering/view-resources'
   import type { Product } from '@hcengineering/products'
@@ -31,6 +40,7 @@
 
   import products from '../../plugin'
   import ProductVersionsEditor from '../product-version/ProductVersionsEditor.svelte'
+  import ChangeControlSetting from './ChangeControlSetting.svelte'
   import DocIcon from '../DocIcon.svelte'
 
   export let _id: Ref<Product>
@@ -184,6 +194,18 @@
 
     <div class="w-full mt-6">
       <ProductVersionsEditor objectId={object._id} readonly={!canEdit} />
+    </div>
+
+    <div class="w-full mt-6">
+      <div class="fs-title mb-2">
+        <Label label={products.string.ChangeControlCardTypes} />
+      </div>
+      <span class="content-dark-color text-sm">
+        <Label label={products.string.ChangeControlCardTypesDescription} />
+      </span>
+      <div class="mt-2">
+        <ChangeControlSetting {object} readonly={!canEdit} />
+      </div>
     </div>
 
     <svelte:fragment slot="utils">
