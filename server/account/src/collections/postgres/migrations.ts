@@ -85,7 +85,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV25Migration(ns, flavor),
     getV26Migration(ns, flavor),
     getV27Migration(ns, flavor),
-    getV28Migration(ns, flavor)
+    getV28Migration(ns, flavor),
+    getV29Migration(ns, flavor)
   ]
 }
 
@@ -893,6 +894,17 @@ function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
 
     CREATE INDEX IF NOT EXISTS security_login_event_account_type_time_idx
     ON ${ns}.security_login_event (account_uuid, event_type, event_time DESC);
+    `
+  ]
+}
+
+function getV29Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v29_add_active_session_refresh_generation',
+    `
+    /* ======= A C T I V E   S E S S I O N :  refresh_generation ======= */
+    ALTER TABLE ${ns}.active_session
+    ADD COLUMN IF NOT EXISTS refresh_generation BIGINT NOT NULL DEFAULT 0;
     `
   ]
 }

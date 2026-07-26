@@ -713,6 +713,11 @@ export class TSessionManager implements SessionManager {
             if (token.account === undefined) {
               return { error: UNAUTHORIZED, terminate: true }
             }
+            // Refresh tokens are only valid at the account refresh endpoint —
+            // they must never authenticate a transactor connection.
+            if (token.kind === 'refresh') {
+              return { error: UNAUTHORIZED, terminate: true }
+            }
             account =
               token.account === systemAccountUuid
                 ? this.sysAccount

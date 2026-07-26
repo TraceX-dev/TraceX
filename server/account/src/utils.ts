@@ -2178,6 +2178,28 @@ export interface CreateActiveSessionInput {
   eventTime?: number
 }
 
+/** Configured access-token TTL in seconds, or undefined for no expiry (legacy). */
+export function getAccessTokenTtlSec (): number | undefined {
+  const v = getMetadata(accountPlugin.metadata.AccessTokenTtlSec)
+  return typeof v === 'number' && v > 0 ? v : undefined
+}
+
+/** Configured refresh-token TTL in seconds, or undefined for no expiry. */
+export function getRefreshTokenTtlSec (): number | undefined {
+  const v = getMetadata(accountPlugin.metadata.RefreshTokenTtlSec)
+  return typeof v === 'number' && v > 0 ? v : undefined
+}
+
+/**
+ * Absolute expiry (`exp`, seconds since epoch) for a TTL, matching the unit
+ * `jwt-simple` compares against. Returns undefined when there is no TTL, so the
+ * token is minted without `exp` (legacy, non-expiring).
+ */
+export function expiresInSec (ttlSec: number | undefined): number | undefined {
+  if (ttlSec === undefined || ttlSec <= 0) return undefined
+  return Math.floor(Date.now() / 1000) + ttlSec
+}
+
 /**
  * Optional hook invoked after a session is revoked so live connections can be
  * torn down immediately (e.g. by publishing to the transactor's queue). Wired

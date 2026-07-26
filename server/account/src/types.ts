@@ -120,6 +120,8 @@ export interface ActiveSession {
   authMethod: SecurityAuthMethod
   revokedOn?: Timestamp
   revokedReason?: 'user' | 'user-not-me' | 'admin' | 'expired'
+  // Monotonic counter for rotating refresh tokens.
+  refreshGeneration?: number
 }
 
 /** Wire shape returned by `getMyActiveSessions` (mirrors account-client). */

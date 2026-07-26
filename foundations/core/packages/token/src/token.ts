@@ -22,6 +22,12 @@ export interface Token {
   // and revoked (see account `ActiveSession`). Absent on service/guest/
   // legacy tokens, which are not individually revocable.
   sessionId?: string
+
+  // Token role for rotation (see docs/token-rotation-plan.md):
+  // - 'access'  — short-lived, authenticates API/WebSocket connections
+  // - 'refresh' — longer-lived, accepted ONLY by the account refresh endpoint
+  // Absent = legacy/access (back-compat): treated as an access token.
+  kind?: 'access' | 'refresh'
 }
 
 // Permissions grant provides the token presenter access to a specific workspace
@@ -69,6 +75,7 @@ export function generateToken (
     exp?: number
     sub?: PersonUuid
     sessionId?: string
+    kind?: 'access' | 'refresh'
   }
 ): string {
   if (!validate(accountUuid)) {
@@ -77,7 +84,7 @@ export function generateToken (
   if (workspaceUuid !== undefined && !validate(workspaceUuid)) {
     throw new TokenError(`Invalid workspace uuid: "${workspaceUuid}"`)
   }
-  const { grant, nbf, exp, sub, sessionId } = options ?? {}
+  const { grant, nbf, exp, sub, sessionId, kind } = options ?? {}
   if (grant?.workspace !== undefined && !validate(grant?.workspace)) {
     throw new TokenError(`Invalid grant workspace uuid: "${grant?.workspace}"`)
   }
@@ -113,7 +120,8 @@ export function generateToken (
       sub,
       exp,
       nbf,
-      ...(sessionId !== undefined ? { sessionId } : {})
+      ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(kind !== undefined ? { kind } : {})
     },
     secret ?? getSecret()
   )

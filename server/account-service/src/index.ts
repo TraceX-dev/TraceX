@@ -131,6 +131,10 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   setMetadata(account.metadata.FrontURL, frontURL)
   setMetadata(account.metadata.WsLivenessDays, wsLivenessDays)
 
+  // Token rotation TTLs (seconds). See docs/token-rotation-plan.md.
+  setMetadata(account.metadata.AccessTokenTtlSec, parseInt(process.env.ACCESS_TOKEN_TTL_SEC ?? '1800', 10))
+  setMetadata(account.metadata.RefreshTokenTtlSec, parseInt(process.env.REFRESH_TOKEN_TTL_SEC ?? '2592000', 10))
+
   setMetadata(serverToken.metadata.Secret, serverSecret)
   // Force undefied, for user tokens do not include service
   setMetadata(serverToken.metadata.Service, undefined)
@@ -432,14 +436,29 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
 
     let source = ''
     let isServiceRequest = false
+    let tokenKind: string | undefined
     try {
       const decodedToken = token != null ? decodeToken(token) : null
       const serviceName = decodedToken?.extra?.service
       source = serviceName ?? '🤦‍♂️user'
       isServiceRequest = serviceName !== undefined
+      tokenKind = decodedToken?.kind
     } catch (err) {
       // Ignore
     }
+
+    // Refresh tokens authenticate only the refresh endpoint; reject them
+    // everywhere else so a refresh token cannot act as an access token.
+    if (tokenKind === 'refresh' && request.method !== 'refreshToken') {
+      const response = {
+        id: request.id,
+        error: new Status(Severity.ERROR, platform.status.Unauthorized, {})
+      }
+      ctx.res.writeHead(401, KEEP_ALIVE_HEADERS)
+      ctx.res.end(JSON.stringify(response))
+      return
+    }
+
     const meta = getRequestMeta(ctx.request.headers, isServiceRequest)
 
     await measureCtx.with(
