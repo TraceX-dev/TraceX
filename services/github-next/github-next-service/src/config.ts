@@ -49,7 +49,14 @@ const envMap: { [key in keyof Config]: string } = {
   SyncOutbound: 'SYNC_OUTBOUND'
 }
 
-const required: Array<keyof Config> = ['Secret', 'AccountsURL', 'FrontURL', 'CollaboratorURL', 'ClientID', 'ClientSecret']
+const required: Array<keyof Config> = [
+  'Secret',
+  'AccountsURL',
+  'FrontURL',
+  'CollaboratorURL',
+  'ClientID',
+  'ClientSecret'
+]
 
 function parseNumber (value: string | undefined, fallback: number): number {
   return value !== undefined ? Number(value) : fallback
