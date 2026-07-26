@@ -118,3 +118,6 @@ ws-tests/docker-compose.override.yml
 # AI
 .serena
 CLAUDE.md
+
+# FUSE mount artifacts (must never be committed)
+.fuse_hidden*
