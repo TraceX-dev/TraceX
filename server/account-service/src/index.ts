@@ -19,7 +19,7 @@ import accountRu from '@hcengineering/account/lang/ru.json'
 import { Analytics } from '@hcengineering/analytics'
 import { registerProviders } from '@hcengineering/auth-providers'
 import { metricsAggregate, type Branding, type BrandingMap, type MeasureContext } from '@hcengineering/core'
-import platform, { Severity, Status, addStringsLoader, setMetadata, unknownStatus } from '@hcengineering/platform'
+import platform, { getMetadata, Severity, Status, addStringsLoader, setMetadata, unknownStatus } from '@hcengineering/platform'
 import serverToken, { decodeToken, decodeTokenVerbose, generateToken } from '@hcengineering/server-token'
 import cors from '@koa/cors'
 import type Cookies from 'cookies'
@@ -34,6 +34,10 @@ export * from './migration/utils'
 export * from './migration/types'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
+// httpOnly cookie holding the rotating refresh token (token rotation, see
+// docs/token-rotation-plan.md). Kept separate from the access-token cookie so
+// it is only ever read for the refresh endpoint.
+const AUTH_REFRESH_COOKIE = 'account-metadata-RefreshToken'
 
 const KEEP_ALIVE_HEADERS = {
   'Content-Type': 'application/json',
@@ -219,6 +223,16 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     return extractAuthorizationToken(headers) ?? extractCookieToken(headers)
   }
 
+  const extractRefreshCookie = (headers: IncomingHttpHeaders): string | undefined => {
+    if (headers.cookie != null) {
+      const cookies = headers.cookie.split(';')
+      const refreshCookie = cookies.find((cookie) => cookie.includes(AUTH_REFRESH_COOKIE))
+      const value = refreshCookie?.split('=')[1]
+      return value != null && value !== '' ? value : undefined
+    }
+    return undefined
+  }
+
   const getClientIp = (headers: IncomingHttpHeaders): string | undefined => {
     const forwardedFor = headers['x-forwarded-for']
     if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
@@ -367,6 +381,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     const cookieOpts = getCookieOptions(ctx)
     for (const opt of cookieOpts) {
       ctx.cookies.set(AUTH_TOKEN_COOKIE, '', { ...opt, maxAge: 0 })
+      ctx.cookies.set(AUTH_REFRESH_COOKIE, '', { ...opt, maxAge: 0 })
     }
 
     ctx.res.writeHead(204)
@@ -481,7 +496,26 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
         }
 
         try {
-          const result = await method(_ctx, db, branding, request, token, meta)
+          // The refresh endpoint authenticates with the refresh cookie (web) and
+          // falls back to the Authorization token (non-cookie clients).
+          const effectiveToken =
+            request.method === 'refreshToken' ? extractRefreshCookie(ctx.request.headers) ?? token : token
+          const result = await method(_ctx, db, branding, request, effectiveToken, meta)
+
+          // Persist a rotating refresh token as an httpOnly cookie so it is not
+          // exposed to JS at rest; it stays in the JSON for non-cookie clients.
+          const refreshTok = (result as any)?.refreshToken
+          if (typeof refreshTok === 'string' && refreshTok !== '') {
+            const refreshTtlSec = getMetadata(account.metadata.RefreshTokenTtlSec) ?? 0
+            const maxAge = refreshTtlSec > 0 ? refreshTtlSec * 1000 : undefined
+            for (const opt of getCookieOptions(ctx)) {
+              ctx.cookies.set(AUTH_REFRESH_COOKIE, refreshTok, {
+                ...opt,
+                sameSite: 'lax',
+                ...(maxAge !== undefined ? { maxAge } : {})
+              })
+            }
+          }
 
           const body = JSON.stringify(result)
           ctx.res.writeHead(200, KEEP_ALIVE_HEADERS)

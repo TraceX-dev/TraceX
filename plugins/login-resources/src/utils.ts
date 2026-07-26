@@ -64,6 +64,7 @@ import { logIn, workbenchId } from '@hcengineering/workbench'
 
 import { LoginEvents } from './analytics'
 import { type Pages } from './index'
+import { nextRefreshDelayMs, refreshAccessToken } from './tokenRefresh'
 import login from './plugin'
 
 /**
@@ -513,6 +514,57 @@ export function setLoginInfo (loginInfo: WorkspaceLoginInfo): void {
   setMetadataLocalStorage(login.metadata.LoginEndpoint, loginInfo.endpoint)
   setMetadataLocalStorage(login.metadata.LoginAccount, loginInfo.account)
   setMetadataLocalStorage(login.metadata.LastAccount, loginInfo.account)
+  // (Re)arm token rotation for this workspace's short-lived access token.
+  startTokenRefresh(loginInfo.workspaceUrl)
+}
+
+let tokenRefreshTimer: ReturnType<typeof setTimeout> | undefined
+
+/** Stops the proactive access-token refresh loop. */
+export function stopTokenRefresh (): void {
+  if (tokenRefreshTimer !== undefined) {
+    clearTimeout(tokenRefreshTimer)
+    tokenRefreshTimer = undefined
+  }
+}
+
+/**
+ * Arms a one-shot timer to refresh the access token before it expires (token
+ * rotation, docs/token-rotation-plan.md phase 4). Dormant when the current
+ * access token has no `exp` (rotation disabled server-side) or no refresh token
+ * is stored, so it is a no-op until short-lived access tokens are enabled.
+ */
+export function startTokenRefresh (workspaceUrl: string): void {
+  stopTokenRefresh()
+  // Dormant unless the access token carries an `exp` (rotation enabled server-side).
+  const delay = nextRefreshDelayMs(getMetadata(presentation.metadata.Token))
+  if (delay === undefined) return
+  tokenRefreshTimer = setTimeout(() => {
+    void runTokenRefresh(workspaceUrl)
+  }, delay)
+}
+
+async function runTokenRefresh (workspaceUrl: string): Promise<void> {
+  const accessToken = await refreshAccessToken()
+  if (accessToken === undefined) {
+    // Refresh cookie missing/expired or the session was revoked — drop to login.
+    stopTokenRefresh()
+    setMetadata(presentation.metadata.Token, null)
+    navigate({ path: [loginId] })
+    return
+  }
+  try {
+    // Exchange the fresh account token for a fresh workspace connect token;
+    // setLoginInfo re-arms the timer for the new token.
+    const [, wsInfo] = await selectWorkspace(workspaceUrl, accessToken)
+    if (wsInfo?.token != null) {
+      setLoginInfo(wsInfo)
+    } else {
+      startTokenRefresh(workspaceUrl)
+    }
+  } catch {
+    startTokenRefresh(workspaceUrl)
+  }
 }
 
 export function navigateToWorkspace (
