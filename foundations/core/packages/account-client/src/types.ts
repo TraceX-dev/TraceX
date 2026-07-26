@@ -96,6 +96,16 @@ export interface OtpInfo {
 
 export type SecurityAuthMethod = 'password' | 'otp' | 'token' | 'session' | 'unknown'
 
+/**
+ * Classifies a security login event so the Login history view can show only
+ * real sign-ins/outs and keep out the churn a user generates just by working:
+ * - `login`    — an interactive authentication (password/otp)
+ * - `logout`   — an explicit sign-out / session revocation
+ * - `refresh`  — token re-validation / workspace switch (`authMethod: 'session'`)
+ * - `session`  — any other session-scoped event
+ */
+export type SecurityEventType = 'login' | 'logout' | 'refresh' | 'session'
+
 export interface SecurityLoginHistoryEvent {
   id: string
   accountUuid: AccountUuid
@@ -107,6 +117,7 @@ export interface SecurityLoginHistoryEvent {
   userAgent?: string
   success: boolean
   authMethod: SecurityAuthMethod
+  eventType?: SecurityEventType
   reason?: string
   sessionId?: string
   anomalyCodes?: string[]
@@ -119,10 +130,34 @@ export interface SecurityLoginHistoryParams {
   until?: number
   success?: boolean
   authMethod?: SecurityAuthMethod
+  eventType?: SecurityEventType
   ip?: string
   limit?: number
+  /**
+   * When true, the response is restricted to real sign-in/out events
+   * (`login`/`logout`); session churn (`refresh`/`session`) is omitted.
+   */
+  loginsAndLogoutsOnly?: boolean
   /** When true, masks IP, truncates user agent, and omits session id in the response. */
   redact?: boolean
+}
+
+/**
+ * A currently-active login session of the caller, as shown in the
+ * Active sessions view. Backed by the account `ActiveSession` record.
+ */
+export interface ActiveSessionInfo {
+  sessionId: string
+  workspaceUuid?: WorkspaceUuid
+  createdOn: Timestamp
+  lastSeen: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  authMethod: SecurityAuthMethod
+  /** True for the session the calling token itself belongs to. */
+  isCurrent: boolean
 }
 
 export interface RegionInfo {

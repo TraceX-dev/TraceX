@@ -257,6 +257,19 @@
     "NotMeAction": "Это был не я",
     "NotMeDialogTitle": "Сообщить о подозрительном входе",
     "NotMeDialogMessage": "Если это были не вы, смените пароль, проверьте настройки 2FA и активные сессии. Сообщение добавляет запись в журнал аудита учётной записи для последующей проверки; оно не завершает текущий сеанс и не завершает другие сеансы автоматически.",
-    "NotMeDialogAction": "Сообщить"
+    "NotMeDialogAction": "Сообщить",
+    "SecurityTabLoginHistory": "История входов",
+    "SecurityTabActiveSessions": "Активные сессии",
+    "ActiveSessionsTitle": "Активные сессии",
+    "ActiveSessionsEmpty": "Активных сессий нет.",
+    "ActiveSessionsError": "Не удалось загрузить активные сессии.",
+    "ActiveSessionsRetry": "Повторить",
+    "ActiveSessionsCurrent": "Это устройство",
+    "ActiveSessionsLastSeen": "Активность",
+    "ActiveSessionsSignedIn": "Вход",
+    "SignOutAction": "Завершить",
+    "SignOutDialogTitle": "Завершить эту сессию?",
+    "SignOutDialogMessage": "Устройство этой сессии будет разлогинено и потребует повторного входа. Действие вступает в силу немедленно.",
+    "SignOutDialogAction": "Завершить"
   }
 }

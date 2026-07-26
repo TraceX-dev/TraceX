@@ -79,6 +79,9 @@ export interface AccountEvent {
 
 export type SecurityAuthMethod = 'password' | 'otp' | 'token' | 'session' | 'unknown'
 
+/** See account-client `SecurityEventType`. */
+export type SecurityEventType = 'login' | 'logout' | 'refresh' | 'session'
+
 export interface SecurityLoginEvent {
   id: string
   accountUuid: AccountUuid
@@ -90,11 +93,47 @@ export interface SecurityLoginEvent {
   userAgent?: string
   success: boolean
   authMethod: SecurityAuthMethod
+  eventType?: SecurityEventType
   reason?: string
   sessionId?: string
   anomalyCodes?: string[]
   policyVersion?: string
   createdOn: Timestamp
+}
+
+/**
+ * A durable record of a login session. Created on interactive login
+ * (password/otp), one per issued login token, and referenced by that token's
+ * `sessionId` claim. Powers the Active sessions view and per-session
+ * revocation: `revokedOn` set = the session's tokens are rejected at connect.
+ */
+export interface ActiveSession {
+  sessionId: string
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  createdOn: Timestamp
+  lastSeen: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  authMethod: SecurityAuthMethod
+  revokedOn?: Timestamp
+  revokedReason?: 'user' | 'user-not-me' | 'admin' | 'expired'
+}
+
+/** Wire shape returned by `getMyActiveSessions` (mirrors account-client). */
+export interface ActiveSessionInfo {
+  sessionId: string
+  workspaceUuid?: WorkspaceUuid
+  createdOn: Timestamp
+  lastSeen: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  authMethod: SecurityAuthMethod
+  isCurrent: boolean
 }
 
 export enum AccountEventType {
@@ -349,6 +388,7 @@ export interface AccountDB {
   userProfile: DbCollection<UserProfile>
   subscription: DbCollection<Subscription>
   securityLoginEvent: DbCollection<SecurityLoginEvent>
+  activeSession: DbCollection<ActiveSession>
   workspacePermission: DbCollection<WorkspacePermission>
 
   init: () => Promise<void>

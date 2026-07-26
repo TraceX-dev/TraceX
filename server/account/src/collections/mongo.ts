@@ -52,6 +52,7 @@ import type {
   Sort,
   UserProfile,
   SecurityLoginEvent,
+  ActiveSession,
   Subscription,
   WorkspaceData,
   WorkspaceInfoWithStatus,
@@ -410,6 +411,7 @@ export class MongoAccountDB implements AccountDB {
   userProfile: MongoDbCollection<UserProfile, 'personUuid'>
   subscription: MongoDbCollection<Subscription, 'id'>
   securityLoginEvent: MongoDbCollection<SecurityLoginEvent, 'id'>
+  activeSession: MongoDbCollection<ActiveSession, 'sessionId'>
 
   workspaceMembers: MongoDbCollection<WorkspaceMember>
   workspacePermission: MongoDbCollection<WorkspacePermission>
@@ -431,6 +433,7 @@ export class MongoAccountDB implements AccountDB {
     this.userProfile = new MongoDbCollection<UserProfile, 'personUuid'>('user_profile', db, 'personUuid')
     this.subscription = new MongoDbCollection<Subscription, 'id'>('subscription', db, 'id')
     this.securityLoginEvent = new MongoDbCollection<SecurityLoginEvent, 'id'>('securityLoginEvent', db, 'id')
+    this.activeSession = new MongoDbCollection<ActiveSession, 'sessionId'>('activeSession', db, 'sessionId')
 
     this.workspaceMembers = new MongoDbCollection<WorkspaceMember>('workspaceMembers', db)
     this.workspacePermission = new MongoDbCollection<WorkspacePermission>('workspacePermissions', db)
@@ -891,6 +894,8 @@ export class MongoAccountDB implements AccountDB {
     await this.mailbox.deleteMany({ accountUuid })
 
     await this.securityLoginEvent.deleteMany({ accountUuid })
+
+    await this.activeSession.deleteMany({ accountUuid })
 
     await this.socialId.update({ personUuid: accountUuid }, { verifiedOn: undefined })
     await this.workspaceMembers.deleteMany({ accountUuid })

@@ -18,6 +18,7 @@ import {
   type Branding,
   concatLink,
   generateId,
+  generateUuid,
   groupByArray,
   isActiveMode,
   type MeasureContext,
@@ -59,7 +60,10 @@ import {
   type LoginInfoRequestData,
   type Meta,
   type SecurityAuthMethod,
+  type SecurityEventType,
   type SecurityLoginEvent,
+  type ActiveSession,
+  type Query,
   type Operations,
   type OtpInfo,
   type RegionInfo,
@@ -759,6 +763,9 @@ export async function selectWorkspace (
   let sub: AccountUuid | undefined
   let exp: number | undefined
   let nbf: number | undefined
+  // Carried from the incoming login token so every workspace-scoped token
+  // issued for this login shares one session identity (see ActiveSession).
+  let sessionId: string | undefined
   try {
     const decodedToken = decodeTokenVerbose(ctx, token ?? '')
     accountUuid = decodedToken.account
@@ -770,6 +777,7 @@ export async function selectWorkspace (
     sub = decodedToken.sub
     exp = decodedToken.exp
     nbf = decodedToken.nbf
+    sessionId = decodedToken.sessionId
   } catch (e) {
     if (workspace?.allowReadOnlyGuest === true) {
       accountUuid = readOnlyGuestAccountUuid
@@ -840,7 +848,8 @@ export async function selectWorkspace (
         grant,
         sub,
         exp,
-        nbf
+        nbf,
+        sessionId
       }),
       endpoint: getEndpoint(workspace.uuid, workspace.region, getKind(workspace.region)),
       workspace: workspace.uuid,
@@ -903,8 +912,13 @@ export async function selectWorkspace (
     authMethod: 'session',
     reason: 'workspace_select',
     ip: meta?.ip,
-    userAgent: meta?.userAgent
+    userAgent: meta?.userAgent,
+    sessionId
   })
+
+  if (sessionId !== undefined) {
+    void touchActiveSession(db, sessionId)
+  }
 
   return {
     account: accountUuid,
@@ -912,7 +926,8 @@ export async function selectWorkspace (
       grant,
       sub,
       exp,
-      nbf
+      nbf,
+      sessionId
     }),
     endpoint: getEndpoint(workspace.uuid, workspace.region, getKind(workspace.region)),
     workspace: workspace.uuid,
@@ -2057,6 +2072,7 @@ export interface SecurityEventInput {
   workspaceUuid?: WorkspaceUuid
   success: boolean
   authMethod: SecurityAuthMethod
+  eventType?: SecurityEventType
   reason?: string
   eventTime?: number
   ip?: string
@@ -2077,6 +2093,25 @@ function trimOptional (value: string | undefined, maxLen: number): string | unde
   }
 
   return normalized.length > maxLen ? normalized.slice(0, maxLen) : normalized
+}
+
+/**
+ * Default classification of a login event when the caller doesn't specify one.
+ * Interactive auth (password/otp/token) is a real sign-in (`login`); session
+ * re-validation / workspace switch (`authMethod: 'session'`) is `refresh` churn
+ * that is kept out of the Login history ins/outs view.
+ */
+export function classifySecurityEventType (authMethod: SecurityAuthMethod): SecurityEventType {
+  switch (authMethod) {
+    case 'password':
+    case 'otp':
+    case 'token':
+      return 'login'
+    case 'session':
+      return 'refresh'
+    default:
+      return 'session'
+  }
 }
 
 export async function recordSecurityLoginEvent (
@@ -2103,6 +2138,7 @@ export async function recordSecurityLoginEvent (
       userAgent: trimOptional(input.userAgent, 1024),
       success: input.success,
       authMethod: input.authMethod,
+      eventType: input.eventType ?? classifySecurityEventType(input.authMethod),
       reason: trimOptional(input.reason, 256),
       sessionId: trimOptional(input.sessionId, 128)
     }
@@ -2129,6 +2165,146 @@ export async function recordSecurityLoginEvent (
       logWarn('Failed to persist security login event', payload)
     }
   }
+}
+
+export interface CreateActiveSessionInput {
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  authMethod: SecurityAuthMethod
+  ip?: string
+  userAgent?: string
+  country?: string
+  city?: string
+  eventTime?: number
+}
+
+/**
+ * Optional hook invoked after a session is revoked so live connections can be
+ * torn down immediately (e.g. by publishing to the transactor's queue). Wired
+ * by the account service at startup; when unset (or on error) revocation still
+ * takes effect at the next connect via the `revokedOn` check.
+ */
+export type SessionRevokeNotifier = (params: {
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  sessionId: string
+}) => void | Promise<void>
+
+let sessionRevokeNotifier: SessionRevokeNotifier | undefined
+
+export function setSessionRevokeNotifier (notifier: SessionRevokeNotifier | undefined): void {
+  sessionRevokeNotifier = notifier
+}
+
+/**
+ * Creates a durable {@link ActiveSession} record for an interactive login and
+ * returns its `sessionId`, which the caller embeds in the issued token's
+ * `sessionId` claim. Best-effort: a persistence failure must not block login,
+ * so on error we log and return `undefined` (the token is then simply not
+ * individually revocable, matching legacy behaviour).
+ */
+export async function createActiveSession (
+  ctx: MeasureContext,
+  db: AccountDB,
+  input: CreateActiveSessionInput
+): Promise<string | undefined> {
+  try {
+    const now = input.eventTime ?? Date.now()
+    const sessionId = generateUuid()
+    await db.activeSession.insertOne({
+      sessionId,
+      accountUuid: input.accountUuid,
+      workspaceUuid: input.workspaceUuid,
+      createdOn: now,
+      lastSeen: now,
+      ip: trimOptional(input.ip, 128),
+      country: trimOptional(input.country, 8),
+      city: trimOptional(input.city, 128),
+      userAgent: trimOptional(input.userAgent, 1024),
+      authMethod: input.authMethod
+    })
+    return sessionId
+  } catch (err) {
+    if (typeof (ctx as any).error === 'function') {
+      ;(ctx as any).error('Failed to create active session', { err, accountUuid: input.accountUuid })
+    }
+    return undefined
+  }
+}
+
+/** Updates a session's `lastSeen` (best-effort; ignores unknown/revoked ids). */
+export async function touchActiveSession (db: AccountDB, sessionId: string, at?: number): Promise<void> {
+  try {
+    await db.activeSession.update({ sessionId, revokedOn: null }, { lastSeen: at ?? Date.now() })
+  } catch {
+    // best-effort
+  }
+}
+
+/** Returns the caller's non-revoked sessions, newest first. */
+export async function listActiveSessions (
+  db: AccountDB,
+  accountUuid: AccountUuid,
+  workspaceUuid?: WorkspaceUuid
+): Promise<ActiveSession[]> {
+  const query: Query<ActiveSession> = { accountUuid, revokedOn: null }
+  if (workspaceUuid !== undefined) {
+    query.workspaceUuid = workspaceUuid
+  }
+  return await db.activeSession.find(query, { lastSeen: 'descending' }, 200)
+}
+
+/** True when the session is unknown or already revoked — used at connect. */
+export async function isActiveSessionRevoked (db: AccountDB, sessionId: string): Promise<boolean> {
+  const row = await db.activeSession.findOne({ sessionId })
+  return row == null || row.revokedOn != null
+}
+
+/**
+ * Marks a session revoked (idempotent) and records a `logout` security event.
+ * Returns false when the session doesn't belong to the account or is already
+ * revoked. Does not tear down a live socket — see the design doc for the
+ * deferred `forceClose` follow-up.
+ */
+export async function revokeActiveSession (
+  ctx: MeasureContext,
+  db: AccountDB,
+  accountUuid: AccountUuid,
+  sessionId: string,
+  reason: ActiveSession['revokedReason'] = 'user'
+): Promise<boolean> {
+  const row = await db.activeSession.findOne({ sessionId, accountUuid })
+  if (row == null || row.revokedOn != null) {
+    return false
+  }
+  const now = Date.now()
+  await db.activeSession.update({ sessionId, accountUuid }, { revokedOn: now, revokedReason: reason })
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid,
+    workspaceUuid: row.workspaceUuid,
+    success: true,
+    authMethod: 'session',
+    eventType: 'logout',
+    reason: reason === 'user-not-me' ? 'session_revoked_not_me' : 'session_revoked',
+    eventTime: now,
+    ip: row.ip,
+    userAgent: row.userAgent,
+    country: row.country,
+    city: row.city,
+    sessionId
+  })
+  // Best-effort immediate teardown of live connections; falls back to the
+  // connect-time revocation check if the notifier is unset or fails.
+  if (sessionRevokeNotifier !== undefined) {
+    try {
+      await sessionRevokeNotifier({ accountUuid, workspaceUuid: row.workspaceUuid, sessionId })
+    } catch (err) {
+      if (typeof (ctx as any).error === 'function') {
+        ;(ctx as any).error('Session revoke notifier failed', { err, sessionId })
+      }
+    }
+  }
+  return true
 }
 
 // Move to config?

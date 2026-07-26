@@ -53,6 +53,7 @@ import type {
   RegionInfo,
   SecurityLoginHistoryEvent,
   SecurityLoginHistoryParams,
+  ActiveSessionInfo,
   SocialId,
   Subscription,
   SubscriptionData,
@@ -253,6 +254,8 @@ export interface AccountClient {
   exportMySecurityLoginHistory: (params?: SecurityLoginHistoryParams) => Promise<SecurityLoginHistoryEvent[]>
   eraseMySecurityLoginHistory: () => Promise<void>
   reportSecurityLoginConcern: (params?: { loginEventId?: string }) => Promise<void>
+  getMyActiveSessions: (params?: { redact?: boolean }) => Promise<ActiveSessionInfo[]>
+  revokeSession: (params: { sessionId: string }) => Promise<void>
 
   getSubscriptions: (workspaceUuid?: WorkspaceUuid | undefined, activeOnly?: boolean) => Promise<Subscription[]>
   getSubscriptionByProviderId: (provider: string, providerSubscriptionId: string) => Promise<Subscription | null>
@@ -1308,6 +1311,20 @@ class AccountClientImpl implements AccountClient {
     await this._rpc({
       method: 'reportSecurityLoginConcern',
       params: params ?? {}
+    })
+  }
+
+  async getMyActiveSessions (params: { redact?: boolean } = {}): Promise<ActiveSessionInfo[]> {
+    return await this._rpc({
+      method: 'getMyActiveSessions',
+      params
+    })
+  }
+
+  async revokeSession (params: { sessionId: string }): Promise<void> {
+    await this._rpc({
+      method: 'revokeSession',
+      params
     })
   }
 

@@ -1,5 +1,5 @@
 <!--
-// Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © TraceX SAS 2026
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,13 +30,17 @@
   import { onDestroy } from 'svelte'
 
   import settingsRes from '../plugin'
+  import ActiveSessionsSettings from './ActiveSessionsSettings.svelte'
   import SessionHistorySettings from './SessionHistorySettings.svelte'
   import TwoFactorSettings from './TwoFactorSettings.svelte'
 
-  type SecurityTab = 'twoFactor' | 'sessions'
+  type SecurityTab = 'twoFactor' | 'loginHistory' | 'activeSessions'
 
   function tabFromPath (segment: string | undefined): SecurityTab {
-    return segment === 'sessions' ? 'sessions' : 'twoFactor'
+    if (segment === 'activeSessions') return 'activeSessions'
+    // 'sessions' kept for backward-compatible deep links to the old tab.
+    if (segment === 'loginHistory' || segment === 'sessions') return 'loginHistory'
+    return 'twoFactor'
   }
 
   let securityTab: SecurityTab = tabFromPath(getCurrentResolvedLocation().path[4])
@@ -79,10 +83,18 @@
         />
         <NavItem
           icon={view.icon.Timeline}
-          label={settingsRes.string.SecurityTabSessions}
-          selected={securityTab === 'sessions'}
+          label={settingsRes.string.SecurityTabLoginHistory}
+          selected={securityTab === 'loginHistory'}
           on:click={() => {
-            selectTab('sessions')
+            selectTab('loginHistory')
+          }}
+        />
+        <NavItem
+          icon={setting.icon.Signout}
+          label={settingsRes.string.SecurityTabActiveSessions}
+          selected={securityTab === 'activeSessions'}
+          on:click={() => {
+            selectTab('activeSessions')
           }}
         />
       </Scroller>
@@ -94,8 +106,10 @@
       <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
         {#if securityTab === 'twoFactor'}
           <TwoFactorSettings />
-        {:else}
+        {:else if securityTab === 'loginHistory'}
           <SessionHistorySettings />
+        {:else}
+          <ActiveSessionsSettings />
         {/if}
       </Scroller>
     </div>

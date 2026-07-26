@@ -84,7 +84,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV24Migration(ns, flavor),
     getV25Migration(ns, flavor),
     getV26Migration(ns, flavor),
-    getV27Migration(ns, flavor)
+    getV27Migration(ns, flavor),
+    getV28Migration(ns, flavor)
   ]
 }
 
@@ -846,6 +847,52 @@ function getV27Migration (ns: string, flavor: DBFlavor): [string, string] {
 
     CREATE INDEX IF NOT EXISTS security_login_event_success_time_idx
     ON ${ns}.security_login_event (success, event_time DESC);
+    `
+  ]
+}
+
+function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
+  const types = dbTypes[flavor]
+  return [
+    'account_db_v28_add_active_session_and_event_type',
+    `
+    /* ======= A C T I V E   S E S S I O N ======= */
+    CREATE TABLE IF NOT EXISTS ${ns}.active_session (
+        session_id ${types.string} NOT NULL,
+        account_uuid UUID NOT NULL,
+        workspace_uuid UUID,
+        created_on BIGINT NOT NULL DEFAULT current_epoch_ms(),
+        last_seen BIGINT NOT NULL DEFAULT current_epoch_ms(),
+        ip ${types.string},
+        country ${types.string},
+        city ${types.string},
+        user_agent ${types.string},
+        auth_method ${types.string} NOT NULL,
+        revoked_on BIGINT,
+        revoked_reason ${types.string},
+        CONSTRAINT active_session_pk PRIMARY KEY (session_id),
+        CONSTRAINT active_session_account_fk FOREIGN KEY (account_uuid) REFERENCES ${ns}.account(uuid),
+        CONSTRAINT active_session_workspace_fk FOREIGN KEY (workspace_uuid) REFERENCES ${ns}.workspace(uuid)
+    );
+
+    CREATE INDEX IF NOT EXISTS active_session_account_idx
+    ON ${ns}.active_session (account_uuid, revoked_on);
+
+    /* ======= S E C U R I T Y   L O G I N   E V E N T :  event_type ======= */
+    ALTER TABLE ${ns}.security_login_event
+    ADD COLUMN IF NOT EXISTS event_type ${types.string};
+
+    /* Backfill so the logins/logouts filter works for pre-existing rows. */
+    UPDATE ${ns}.security_login_event
+    SET event_type = CASE
+        WHEN auth_method IN ('password', 'otp', 'token') THEN 'login'
+        WHEN auth_method = 'session' THEN 'refresh'
+        ELSE 'session'
+    END
+    WHERE event_type IS NULL;
+
+    CREATE INDEX IF NOT EXISTS security_login_event_account_type_time_idx
+    ON ${ns}.security_login_event (account_uuid, event_type, event_time DESC);
     `
   ]
 }

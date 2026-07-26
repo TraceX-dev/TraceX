@@ -50,6 +50,7 @@ import type {
   UserProfile,
   Subscription,
   SecurityLoginEvent,
+  ActiveSession,
   WorkspacePermission,
   DBFlavor
 } from '../../types'
@@ -541,6 +542,7 @@ export class PostgresAccountDB implements AccountDB {
   userProfile: PostgresDbCollection<UserProfile, 'personUuid'>
   subscription: PostgresDbCollection<Subscription, 'id'>
   securityLoginEvent: PostgresDbCollection<SecurityLoginEvent, 'id'>
+  activeSession: PostgresDbCollection<ActiveSession, 'sessionId'>
   workspacePermission: PostgresDbCollection<WorkspacePermission>
 
   constructor (
@@ -610,6 +612,12 @@ export class PostgresAccountDB implements AccountDB {
       ns,
       idKey: 'id',
       timestampFields: ['eventTime', 'createdOn'],
+      withRetryClient
+    })
+    this.activeSession = new PostgresDbCollection<ActiveSession, 'sessionId'>('active_session', client, {
+      ns,
+      idKey: 'sessionId',
+      timestampFields: ['createdOn', 'lastSeen', 'revokedOn'],
       withRetryClient
     })
     this.workspacePermission = new PostgresDbCollection<WorkspacePermission>('workspace_permissions', client, {
@@ -1090,6 +1098,8 @@ export class PostgresAccountDB implements AccountDB {
       await this.mailbox.deleteMany({ accountUuid }, rTx)
 
       await this.securityLoginEvent.deleteMany({ accountUuid }, rTx)
+
+      await this.activeSession.deleteMany({ accountUuid }, rTx)
 
       await this.socialId.update({ personUuid: accountUuid }, { verifiedOn: undefined }, rTx)
 

@@ -64,7 +64,10 @@ import {
   type Account,
   type PersonWithProfile,
   type SecurityAuthMethod,
+  type SecurityEventType,
   type SecurityLoginEvent,
+  type ActiveSession,
+  type ActiveSessionInfo,
   type Subscription,
   SubscriptionStatus,
   type Query,
@@ -131,7 +134,11 @@ import {
   generateTotpSecret,
   verifyTotpCode,
   getTotpUrl,
-  recordSecurityLoginEvent
+  recordSecurityLoginEvent,
+  createActiveSession,
+  listActiveSessions,
+  revokeActiveSession,
+  isActiveSessionRevoked
 } from './utils'
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000' as AccountUuid
@@ -254,22 +261,38 @@ export async function login (
       ? { admin: 'true', authMethod: 'password' }
       : { authMethod: 'password' }
     ctx.info('Login succeeded', { email, normalizedEmail, isConfirmed, emailSocialId, ...extraToken })
+    // A session is established only when the login yields a usable token, i.e.
+    // the account is confirmed and no second factor is still pending (the 2FA
+    // pre-auth token is not a real session — that is minted in verify2fa).
+    const noTfa = existingAccount.tfaSecret == null
+    let sessionId: string | undefined
+    if (isConfirmed && noTfa) {
+      sessionId = await createActiveSession(ctx, db, {
+        accountUuid: existingAccount.uuid,
+        authMethod: 'password',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
+    }
     await recordSecurityLoginEvent(ctx, db, {
       accountUuid: existingAccount.uuid,
       success: true,
       authMethod: 'password',
       reason: isConfirmed ? 'login_success' : 'email_not_confirmed',
       ip: meta?.ip,
-      userAgent: meta?.userAgent
+      userAgent: meta?.userAgent,
+      sessionId
     })
 
     return {
       account: existingAccount.uuid,
       token: isConfirmed
         ? generateToken(
-          existingAccount.tfaSecret != null ? NIL_UUID : existingAccount.uuid,
+          noTfa ? existingAccount.uuid : NIL_UUID,
           undefined,
-          existingAccount.tfaSecret != null ? { ...extraToken, tfaAccount: existingAccount.uuid } : extraToken
+          noTfa ? extraToken : { ...extraToken, tfaAccount: existingAccount.uuid },
+          undefined,
+          noTfa ? { sessionId } : undefined
         )
         : undefined,
       name: getPersonName(person),
@@ -398,11 +421,35 @@ export async function signUp (
   }
 
   void setTimezone(ctx, db, account, null, meta)
+
+  // When no email confirmation is required the sign-up immediately signs the
+  // user in, so establish a session; otherwise the session is created later in
+  // `confirm` once the email is verified.
+  let sessionId: string | undefined
+  if (!forceConfirmation) {
+    sessionId = await createActiveSession(ctx, db, {
+      accountUuid: account,
+      authMethod: 'password',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid: account,
+      success: true,
+      authMethod: 'password',
+      eventType: 'login',
+      reason: 'signup_login',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      sessionId
+    })
+  }
+
   return {
     account,
     name: getPersonName(person),
     socialId,
-    token: !forceConfirmation ? generateToken(account) : undefined
+    token: !forceConfirmation ? generateToken(account, undefined, undefined, undefined, { sessionId }) : undefined
   }
 }
 
@@ -596,11 +643,24 @@ export async function validateOtp (
       ? { admin: 'true', authMethod: 'otp' }
       : { authMethod: 'otp' }
 
+    const noTfa = targetAccount?.tfaSecret == null
+    let sessionId: string | undefined
+    if (isConfirmed && noTfa) {
+      sessionId = await createActiveSession(ctx, db, {
+        accountUuid: emailSocialId.personUuid as AccountUuid,
+        authMethod: 'otp',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
+    }
+
     const _token = isConfirmed
       ? generateToken(
-        targetAccount?.tfaSecret != null ? NIL_UUID : emailSocialId.personUuid,
+        noTfa ? emailSocialId.personUuid : NIL_UUID,
         undefined,
-        targetAccount?.tfaSecret != null ? { ...extraToken, tfaAccount: emailSocialId.personUuid } : extraToken
+        noTfa ? extraToken : { ...extraToken, tfaAccount: emailSocialId.personUuid },
+        undefined,
+        noTfa ? { sessionId } : undefined
       )
       : undefined
 
@@ -610,7 +670,8 @@ export async function validateOtp (
       authMethod: 'otp',
       reason: action === 'verify' ? 'otp_verified_social_id' : 'otp_login_success',
       ip: meta?.ip,
-      userAgent: meta?.userAgent
+      userAgent: meta?.userAgent,
+      sessionId
     })
 
     return {
@@ -1458,7 +1519,9 @@ export async function confirm (
   ctx: MeasureContext,
   db: AccountDB,
   branding: Branding | null,
-  token: string
+  token: string,
+  params?: Record<string, never>,
+  meta?: Meta
 ): Promise<LoginInfo | WorkspaceLoginInfo> {
   const { account, extra } = decodeTokenVerbose(ctx, token)
 
@@ -1477,11 +1540,29 @@ export async function confirm (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.PersonNotFound, { person: account }))
   }
 
+  // Email is verified — the user is now signed in, so establish a session.
+  const sessionId = await createActiveSession(ctx, db, {
+    accountUuid: account,
+    authMethod: 'password',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent
+  })
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid: account,
+    success: true,
+    authMethod: 'password',
+    eventType: 'login',
+    reason: 'email_confirmed_login',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+    sessionId
+  })
+
   const result: LoginInfo = {
     account,
     name: getPersonName(person),
     socialId,
-    token: generateToken(account)
+    token: generateToken(account, undefined, undefined, undefined, { sessionId })
   }
 
   // If invite info was carried through the confirmation token (signUpJoin flow),
@@ -1495,7 +1576,7 @@ export async function confirm (
         ctx,
         db,
         branding,
-        generateToken(account, joinInfo.workspace?.uuid),
+        generateToken(account, joinInfo.workspace?.uuid, undefined, undefined, { sessionId }),
         account,
         joinInfo.workspace,
         joinInfo.invite
@@ -1974,7 +2055,8 @@ export async function verify2fa (
   db: AccountDB,
   branding: Branding | null,
   token: string,
-  params: { code: string }
+  params: { code: string },
+  meta?: Meta
 ): Promise<LoginInfo> {
   const { code } = params
   const decoded = decodeTokenVerbose(ctx, token)
@@ -2002,9 +2084,29 @@ export async function verify2fa (
 
   const { tfaAccount, ...filteredExtra } = extra ?? {}
 
+  // The second factor completed — this is where the real session begins (the
+  // pre-2FA token was not a session). Carry the original auth method through.
+  const authMethod: SecurityAuthMethod = extra?.authMethod === 'otp' ? 'otp' : 'password'
+  const sessionId = await createActiveSession(ctx, db, {
+    accountUuid,
+    authMethod,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent
+  })
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid,
+    success: true,
+    authMethod,
+    eventType: 'login',
+    reason: '2fa_verified',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+    sessionId
+  })
+
   return {
     account: accountUuid,
-    token: generateToken(accountUuid, undefined, filteredExtra),
+    token: generateToken(accountUuid, undefined, filteredExtra, undefined, { sessionId }),
     name: getPersonName(person),
     socialId: socialId?._id
   }
@@ -2358,8 +2460,9 @@ export async function getLoginWithWorkspaceInfo (
   let accountUuid: AccountUuid
   let extra: any
   let workspace: WorkspaceUuid | undefined
+  let sessionId: string | undefined
   try {
-    ;({ account: accountUuid, extra, workspace } = decodeTokenVerbose(ctx, token))
+    ;({ account: accountUuid, extra, workspace, sessionId } = decodeTokenVerbose(ctx, token))
   } catch (err: any) {
     Analytics.handleError(err)
     ctx.error('Invalid token', { token })
@@ -2368,6 +2471,15 @@ export async function getLoginWithWorkspaceInfo (
 
   if (accountUuid == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
+  }
+
+  // Per-session revocation: this call is made by the transactor on connect, so
+  // rejecting a revoked session here drops it at (re)connection time without a
+  // per-request check. Tokens without a sessionId (service/guest/legacy) are
+  // unaffected.
+  if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
+    ctx.warn('Rejecting revoked session', { accountUuid })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
 
   const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
@@ -3426,8 +3538,19 @@ interface MySecurityLoginHistoryFilterParams {
   until?: number
   success?: boolean
   authMethod?: string
+  eventType?: string
+  /** When true, restrict to real sign-in/out events (`login`/`logout`). */
+  loginsAndLogoutsOnly?: boolean
   ip?: string
   limit?: number
+}
+
+const SECURITY_EVENT_TYPES = ['login', 'logout', 'refresh', 'session'] as const
+
+function assertEventTypeFilter (value?: string): SecurityEventType | undefined {
+  if (value === undefined) return undefined
+  if ((SECURITY_EVENT_TYPES as readonly string[]).includes(value)) return value as SecurityEventType
+  throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
 }
 
 async function findMySecurityLoginEventRows (
@@ -3437,6 +3560,7 @@ async function findMySecurityLoginEventRows (
 ): Promise<SecurityLoginEvent[]> {
   const { since, until, success, ip } = params
   const authMethod = assertAuthMethodFilter(params.authMethod)
+  const eventType = assertEventTypeFilter(params.eventType)
   const limit = Math.min(Math.max(params.limit ?? 100, 1), 500)
 
   const query: Query<SecurityLoginEvent> = {
@@ -3448,6 +3572,11 @@ async function findMySecurityLoginEventRows (
   }
   if (authMethod !== undefined) {
     query.authMethod = authMethod
+  }
+  if (eventType !== undefined) {
+    query.eventType = eventType
+  } else if (params.loginsAndLogoutsOnly === true) {
+    query.eventType = { $in: ['login', 'logout'] }
   }
   if (ip !== undefined) {
     query.ip = ip
@@ -3476,6 +3605,8 @@ export async function getMySecurityLoginHistory (
     until?: number
     success?: boolean
     authMethod?: string
+    eventType?: string
+    loginsAndLogoutsOnly?: boolean
     ip?: string
     limit?: number
     redact?: boolean
@@ -3484,7 +3615,10 @@ export async function getMySecurityLoginHistory (
   const { account } = decodeTokenVerbose(ctx, token)
   assertSecurityLoginTelemetryRateLimit(account, 'getMySecurityLoginHistory', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
   const redact = params.redact === true
-  const rows = await findMySecurityLoginEventRows(db, account, params)
+  // The Login history view shows real sign-ins/outs by default; session churn
+  // (`refresh`/`session`) is included only when explicitly requested.
+  const loginsAndLogoutsOnly = params.loginsAndLogoutsOnly ?? params.eventType === undefined
+  const rows = await findMySecurityLoginEventRows(db, account, { ...params, loginsAndLogoutsOnly })
   return redact ? rows.map(redactSecurityLoginEventRow) : rows
 }
 
@@ -3632,6 +3766,61 @@ export async function reportSecurityLoginConcern (
   })
 }
 
+function activeSessionToInfo (row: ActiveSession, currentSessionId: string | undefined, redact: boolean): ActiveSessionInfo {
+  const ua = row.userAgent?.trim() ?? ''
+  const userAgent =
+    !redact || ua === '' ? (ua === '' ? undefined : ua) : ua.length <= UA_REDACT_LEN ? ua : `${ua.slice(0, UA_REDACT_LEN - 1)}…`
+  return {
+    sessionId: row.sessionId,
+    workspaceUuid: row.workspaceUuid,
+    createdOn: row.createdOn,
+    lastSeen: row.lastSeen,
+    ip: redact ? maskIpForApiResponse(row.ip) : row.ip,
+    country: row.country,
+    city: row.city,
+    userAgent,
+    authMethod: row.authMethod,
+    isCurrent: currentSessionId !== undefined && row.sessionId === currentSessionId
+  }
+}
+
+export async function getMyActiveSessions (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { redact?: boolean }
+): Promise<ActiveSessionInfo[]> {
+  const { account, workspace, sessionId } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'getMyActiveSessions', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
+  const redact = params?.redact === true
+  // Scope to the current workspace (the token's workspace) when present.
+  const workspaceUuid =
+    typeof workspace === 'string' && workspace !== '' ? (workspace as WorkspaceUuid) : undefined
+  const rows = await listActiveSessions(db, account, workspaceUuid)
+  return rows.map((row) => activeSessionToInfo(row, sessionId, redact))
+}
+
+const MAX_SESSION_ID_LEN = 128
+
+export async function revokeSession (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { sessionId?: string }
+): Promise<void> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'revokeSession', 'SECURITY_LOGIN_REPORT_RPM', 20)
+
+  const sessionId = params?.sessionId?.trim()
+  if (sessionId === undefined || sessionId === '' || sessionId.length > MAX_SESSION_ID_LEN) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  await revokeActiveSession(ctx, db, account, sessionId, 'user')
+}
+
 export type AccountMethods =
   | AccountServiceMethods
   | 'login'
@@ -3714,6 +3903,8 @@ export type AccountMethods =
   | 'exportMySecurityLoginHistory'
   | 'eraseMySecurityLoginHistory'
   | 'reportSecurityLoginConcern'
+  | 'getMyActiveSessions'
+  | 'revokeSession'
 
 /**
  * @public
@@ -3785,6 +3976,8 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     exportMySecurityLoginHistory: wrap(exportMySecurityLoginHistory),
     eraseMySecurityLoginHistory: wrap(eraseMySecurityLoginHistory),
     reportSecurityLoginConcern: wrap(reportSecurityLoginConcern),
+    getMyActiveSessions: wrap(getMyActiveSessions),
+    revokeSession: wrap(revokeSession),
 
     /* READ OPERATIONS */
     getRegionInfo: wrap(getRegionInfo),

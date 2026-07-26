@@ -183,6 +183,19 @@ export default mergeIds(settingId, setting, {
     NotMeDialogTitle: '' as IntlString,
     NotMeDialogMessage: '' as IntlString,
     NotMeDialogAction: '' as IntlString,
-    SecurityTabSessions: '' as IntlString
+    SecurityTabSessions: '' as IntlString,
+    SecurityTabLoginHistory: '' as IntlString,
+    SecurityTabActiveSessions: '' as IntlString,
+    ActiveSessionsTitle: '' as IntlString,
+    ActiveSessionsEmpty: '' as IntlString,
+    ActiveSessionsError: '' as IntlString,
+    ActiveSessionsRetry: '' as IntlString,
+    ActiveSessionsCurrent: '' as IntlString,
+    ActiveSessionsLastSeen: '' as IntlString,
+    ActiveSessionsSignedIn: '' as IntlString,
+    SignOutAction: '' as IntlString,
+    SignOutDialogTitle: '' as IntlString,
+    SignOutDialogMessage: '' as IntlString,
+    SignOutDialogAction: '' as IntlString
   }
 })

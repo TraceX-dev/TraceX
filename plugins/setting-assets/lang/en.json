@@ -257,6 +257,19 @@
     "NotMeAction": "This wasn't me",
     "NotMeDialogTitle": "Report suspicious login",
     "NotMeDialogMessage": "If this login was not you, change your password, verify 2FA settings, and review active sessions. Reporting adds an entry to your account audit log for follow-up; it does not automatically sign you out or end other sessions.",
-    "NotMeDialogAction": "Report"
+    "NotMeDialogAction": "Report",
+    "SecurityTabLoginHistory": "Login history",
+    "SecurityTabActiveSessions": "Active sessions",
+    "ActiveSessionsTitle": "Active sessions",
+    "ActiveSessionsEmpty": "No active sessions.",
+    "ActiveSessionsError": "Failed to load active sessions.",
+    "ActiveSessionsRetry": "Retry",
+    "ActiveSessionsCurrent": "This device",
+    "ActiveSessionsLastSeen": "Last active",
+    "ActiveSessionsSignedIn": "Signed in",
+    "SignOutAction": "Sign out",
+    "SignOutDialogTitle": "Sign out this session?",
+    "SignOutDialogMessage": "The device on this session will be signed out and will need to log in again. This takes effect immediately.",
+    "SignOutDialogAction": "Sign out"
   }
 }
