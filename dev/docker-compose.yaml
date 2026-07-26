@@ -627,6 +627,7 @@ services:
       - 3510:3510
     environment:
       - SERVICE_ID=github-next-service
+      - SERVER_SECRET=secret
       - ACCOUNTS_URL=http://tracex.local:3000
       - FRONT_URL=http://tracex.local:8087
       - COLLABORATOR_URL=ws://tracex.local:3078

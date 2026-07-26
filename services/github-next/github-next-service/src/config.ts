@@ -15,6 +15,7 @@
 
 interface Config {
   ServiceID: string
+  Secret: string
   AccountsURL: string
   FrontURL: string
   CollaboratorURL: string
@@ -32,6 +33,7 @@ interface Config {
 
 const envMap: { [key in keyof Config]: string } = {
   ServiceID: 'SERVICE_ID',
+  Secret: 'SERVER_SECRET',
   AccountsURL: 'ACCOUNTS_URL',
   FrontURL: 'FRONT_URL',
   CollaboratorURL: 'COLLABORATOR_URL',
@@ -47,7 +49,14 @@ const envMap: { [key in keyof Config]: string } = {
   SyncOutbound: 'SYNC_OUTBOUND'
 }
 
-const required: Array<keyof Config> = ['AccountsURL', 'FrontURL', 'CollaboratorURL', 'ClientID', 'ClientSecret']
+const required: Array<keyof Config> = [
+  'Secret',
+  'AccountsURL',
+  'FrontURL',
+  'CollaboratorURL',
+  'ClientID',
+  'ClientSecret'
+]
 
 function parseNumber (value: string | undefined, fallback: number): number {
   return value !== undefined ? Number(value) : fallback
@@ -61,6 +70,7 @@ const config: Config = (() => {
   const port = parseNumber(process.env[envMap.Port], 3510)
   const params: Partial<Config> = {
     ServiceID: process.env[envMap.ServiceID] ?? 'github-next-service',
+    Secret: process.env[envMap.Secret],
     AccountsURL: process.env[envMap.AccountsURL],
     FrontURL: process.env[envMap.FrontURL],
     CollaboratorURL: process.env[envMap.CollaboratorURL],
