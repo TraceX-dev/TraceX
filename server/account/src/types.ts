@@ -119,7 +119,7 @@ export interface ActiveSession {
   userAgent?: string
   authMethod: SecurityAuthMethod
   revokedOn?: Timestamp
-  revokedReason?: 'user' | 'user-not-me' | 'admin' | 'expired'
+  revokedReason?: 'user' | 'user-not-me' | 'admin' | 'expired' | 'reuse'
   // Monotonic counter for rotating refresh tokens. A refresh token embeds the
   // generation it was minted with; presenting an older generation means the
   // token was already rotated (replay) and triggers session revocation.

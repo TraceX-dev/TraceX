@@ -2236,6 +2236,47 @@ export function mintRefreshToken (accountUuid: AccountUuid, sessionId: string, g
   })
 }
 
+export type RefreshRotationResult = { newGen: number } | { error: 'revoked' | 'reuse' | 'invalid' }
+
+/**
+ * Validates and rotates a session's refresh generation for a presented refresh
+ * token (see docs/token-rotation-plan.md §3):
+ * - session missing/revoked → `revoked`
+ * - presented generation older than stored → replay of an already-rotated token:
+ *   revoke the whole session (`reuse`) as theft detection
+ * - generation mismatch (newer than stored) → `invalid`
+ * - generation matches → bump and return the new generation (compare-and-swap on
+ *   `refreshGeneration` in the update query guards against races)
+ */
+export async function rotateSessionRefresh (
+  ctx: MeasureContext,
+  db: AccountDB,
+  accountUuid: AccountUuid,
+  sessionId: string,
+  presentedGen: number
+): Promise<RefreshRotationResult> {
+  const row = await db.activeSession.findOne({ sessionId, accountUuid })
+  if (row == null || row.revokedOn != null) {
+    return { error: 'revoked' }
+  }
+  const current = row.refreshGeneration ?? 0
+  if (!Number.isFinite(presentedGen) || presentedGen < current) {
+    // An already-rotated (or malformed) refresh token was replayed — treat as
+    // theft and kill the session.
+    await revokeActiveSession(ctx, db, accountUuid, sessionId, 'reuse')
+    return { error: 'reuse' }
+  }
+  if (presentedGen !== current) {
+    return { error: 'invalid' }
+  }
+  const newGen = current + 1
+  await db.activeSession.update(
+    { sessionId, accountUuid, refreshGeneration: current },
+    { refreshGeneration: newGen, lastSeen: Date.now() }
+  )
+  return { newGen }
+}
+
 /**
  * Optional hook invoked after a session is revoked so live connections can be
  * torn down immediately (e.g. by publishing to the transactor's queue). Wired

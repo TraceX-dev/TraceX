@@ -140,7 +140,8 @@ import {
   revokeActiveSession,
   isActiveSessionRevoked,
   accessTokenOptions,
-  mintRefreshToken
+  mintRefreshToken,
+  rotateSessionRefresh
 } from './utils'
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000' as AccountUuid
@@ -3850,6 +3851,51 @@ export async function revokeSession (
   await revokeActiveSession(ctx, db, account, sessionId, 'user')
 }
 
+/**
+ * Exchanges a rotating refresh token for a fresh access token + a new refresh
+ * token (see docs/token-rotation-plan.md §3). The refresh token is presented as
+ * the request's auth token; the account RPC dispatch only lets `kind:'refresh'`
+ * tokens reach this method. Rejects revoked/expired/replayed refresh tokens.
+ */
+export async function refreshToken (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  _params?: Record<string, never>
+): Promise<LoginInfo> {
+  // Throws on invalid signature or expired refresh token.
+  const decoded = decodeTokenVerbose(ctx, token)
+  if (decoded.kind !== 'refresh' || decoded.sessionId === undefined) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+  }
+  const account = decoded.account
+  assertSecurityLoginTelemetryRateLimit(account, 'refreshToken', 'SECURITY_LOGIN_REFRESH_RPM', 240)
+
+  const presentedGen = Number.parseInt(decoded.extra?.gen ?? '', 10)
+  const result = await rotateSessionRefresh(ctx, db, account, decoded.sessionId, presentedGen)
+  if ('error' in result) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+  }
+
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid: account,
+    success: true,
+    authMethod: 'session',
+    eventType: 'refresh',
+    reason: 'token_refresh',
+    sessionId: decoded.sessionId
+  })
+
+  return {
+    account,
+    // Account-level access token; the client scopes it to a workspace (and gets
+    // the connect token) via selectWorkspace, which re-checks revocation.
+    token: generateToken(account, undefined, undefined, undefined, accessTokenOptions(decoded.sessionId)),
+    refreshToken: mintRefreshToken(account, decoded.sessionId, result.newGen)
+  }
+}
+
 export type AccountMethods =
   | AccountServiceMethods
   | 'login'
@@ -3934,6 +3980,7 @@ export type AccountMethods =
   | 'reportSecurityLoginConcern'
   | 'getMyActiveSessions'
   | 'revokeSession'
+  | 'refreshToken'
 
 /**
  * @public
@@ -4007,6 +4054,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     reportSecurityLoginConcern: wrap(reportSecurityLoginConcern),
     getMyActiveSessions: wrap(getMyActiveSessions),
     revokeSession: wrap(revokeSession),
+    refreshToken: wrap(refreshToken),
 
     /* READ OPERATIONS */
     getRegionInfo: wrap(getRegionInfo),

@@ -24,6 +24,7 @@ import {
   listActiveSessions,
   mintRefreshToken,
   revokeActiveSession,
+  rotateSessionRefresh,
   setSessionRevokeNotifier,
   touchActiveSession
 } from '../utils'
@@ -152,6 +153,52 @@ describe('createActiveSession', () => {
     expect(row.revokedOn).toBeUndefined()
     expect(row.createdOn).toBe(row.lastSeen)
     expect(row.refreshGeneration).toBe(0)
+  })
+})
+
+describe('rotateSessionRefresh', () => {
+  it('bumps the generation when the presented generation matches', async () => {
+    const { db, activeSession } = makeDb()
+    activeSession.rows = [
+      { sessionId: 's1', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', refreshGeneration: 2 }
+    ] as ActiveSession[]
+
+    const res = await rotateSessionRefresh(ctx, db, ACC, 's1', 2)
+    expect(res).toEqual({ newGen: 3 })
+    expect(activeSession.rows[0].refreshGeneration).toBe(3)
+  })
+
+  it('revokes the session on replay of an older generation (reuse detection)', async () => {
+    const { db, activeSession, securityLoginEvent } = makeDb()
+    activeSession.rows = [
+      { sessionId: 's1', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', refreshGeneration: 5 }
+    ] as ActiveSession[]
+
+    const res = await rotateSessionRefresh(ctx, db, ACC, 's1', 3)
+    expect(res).toEqual({ error: 'reuse' })
+    expect(activeSession.rows[0].revokedOn).toBeDefined()
+    expect(activeSession.rows[0].revokedReason).toBe('reuse')
+    expect(securityLoginEvent.rows.find((e) => e.eventType === 'logout')).toBeDefined()
+  })
+
+  it('rejects a revoked or unknown session', async () => {
+    const { db, activeSession } = makeDb()
+    activeSession.rows = [
+      { sessionId: 's1', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', refreshGeneration: 0, revokedOn: 9 }
+    ] as ActiveSession[]
+
+    expect(await rotateSessionRefresh(ctx, db, ACC, 's1', 0)).toEqual({ error: 'revoked' })
+    expect(await rotateSessionRefresh(ctx, db, ACC, 'nope', 0)).toEqual({ error: 'revoked' })
+  })
+
+  it('rejects a generation newer than stored as invalid', async () => {
+    const { db, activeSession } = makeDb()
+    activeSession.rows = [
+      { sessionId: 's1', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', refreshGeneration: 1 }
+    ] as ActiveSession[]
+
+    expect(await rotateSessionRefresh(ctx, db, ACC, 's1', 4)).toEqual({ error: 'invalid' })
+    expect(activeSession.rows[0].revokedOn).toBeUndefined()
   })
 })
 
