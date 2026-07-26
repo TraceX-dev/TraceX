@@ -297,8 +297,8 @@ describe('touchActiveSession', () => {
       { sessionId: 'dead', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', revokedOn: 5 }
     ] as ActiveSession[]
 
-    await touchActiveSession(db, 'live', 123)
-    await touchActiveSession(db, 'dead', 123)
+    await touchActiveSession(db, 'live', undefined, 123)
+    await touchActiveSession(db, 'dead', undefined, 123)
 
     expect(activeSession.rows.find((r) => r.sessionId === 'live')?.lastSeen).toBe(123)
     expect(activeSession.rows.find((r) => r.sessionId === 'dead')?.lastSeen).toBe(1)

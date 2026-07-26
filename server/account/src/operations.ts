@@ -3861,12 +3861,10 @@ export async function getMyActiveSessions (
   token: string,
   params: { redact?: boolean }
 ): Promise<ActiveSessionInfo[]> {
-  const { account, workspace, sessionId } = decodeTokenVerbose(ctx, token)
+  const { account, sessionId } = decodeTokenVerbose(ctx, token)
   assertSecurityLoginTelemetryRateLimit(account, 'getMyActiveSessions', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
   const redact = params?.redact === true
-  // Scope to the current workspace (the token's workspace) when present.
-  const workspaceUuid = typeof workspace === 'string' && workspace !== '' ? (workspace) : undefined
-  const rows = await listActiveSessions(db, account, workspaceUuid)
+  const rows = await listActiveSessions(db, account)
   return rows.map((row) => activeSessionToInfo(row, sessionId, redact))
 }
 

@@ -86,7 +86,9 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV26Migration(ns, flavor),
     getV27Migration(ns, flavor),
     getV28Migration(ns, flavor),
-    getV29Migration(ns, flavor)
+    getV29Migration(ns, flavor),
+    getV30Migration(ns, flavor),
+    getV31Migration(ns, flavor)
   ]
 }
 
@@ -880,20 +882,11 @@ function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
     ON ${ns}.active_session (account_uuid, revoked_on);
 
     /* ======= S E C U R I T Y   L O G I N   E V E N T :  event_type ======= */
+    /* Add the column only. The backfill (v30) and index (v31) live in separate
+       migrations/transactions because CockroachDB cannot UPDATE or index a
+       column added in the same transaction ("column is being backfilled"). */
     ALTER TABLE ${ns}.security_login_event
     ADD COLUMN IF NOT EXISTS event_type ${types.string};
-
-    /* Backfill so the logins/logouts filter works for pre-existing rows. */
-    UPDATE ${ns}.security_login_event
-    SET event_type = CASE
-        WHEN auth_method IN ('password', 'otp', 'token') THEN 'login'
-        WHEN auth_method = 'session' THEN 'refresh'
-        ELSE 'session'
-    END
-    WHERE event_type IS NULL;
-
-    CREATE INDEX IF NOT EXISTS security_login_event_account_type_time_idx
-    ON ${ns}.security_login_event (account_uuid, event_type, event_time DESC);
     `
   ]
 }
@@ -905,6 +898,33 @@ function getV29Migration (ns: string, _flavor: DBFlavor): [string, string] {
     /* ======= A C T I V E   S E S S I O N :  refresh_generation ======= */
     ALTER TABLE ${ns}.active_session
     ADD COLUMN IF NOT EXISTS refresh_generation BIGINT NOT NULL DEFAULT 0;
+    `
+  ]
+}
+
+function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v30_backfill_security_login_event_type',
+    `
+    /* Backfill event_type for pre-existing rows (separate transaction from the
+       column add in v28 — see the note there). */
+    UPDATE ${ns}.security_login_event
+    SET event_type = CASE
+        WHEN auth_method IN ('password', 'otp', 'token') THEN 'login'
+        WHEN auth_method = 'session' THEN 'refresh'
+        ELSE 'session'
+    END
+    WHERE event_type IS NULL;
+    `
+  ]
+}
+
+function getV31Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v31_add_security_login_event_type_index',
+    `
+    CREATE INDEX IF NOT EXISTS security_login_event_account_type_time_idx
+    ON ${ns}.security_login_event (account_uuid, event_type, event_time DESC);
     `
   ]
 }
