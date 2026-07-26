@@ -22,8 +22,10 @@
 -->
 <script lang="ts">
   import { type Association, type Ref } from '@hcengineering/core'
+  import { type IntlString } from '@hcengineering/platform'
   import { type Card } from '@hcengineering/card'
   import { Button, IconAdd, IconClose, Label, showPopup } from '@hcengineering/ui'
+  import { getClient } from '@hcengineering/presentation'
   import { ObjectBox, ObjectBoxPopup } from '@hcengineering/view-resources'
 
   import products from '../../plugin'
@@ -33,15 +35,26 @@
   export let configured: boolean = false
   export let readonly: boolean = false
 
+  const hierarchy = getClient().getHierarchy()
   const associations = getChangeControlAssociations()
   $: configured = associations.length > 0
 
-  function cardsFor (a: Association): Array<Ref<Card>> {
-    return selection.filter((s) => s.association === a._id).map((s) => s.card)
+  // Reactive map assocId → selected cards, so added/removed cards re-render immediately
+  // (referencing `selection` directly, unlike a function call inside an each-block).
+  $: cardsByAssoc = new Map<Ref<Association>, Array<Ref<Card>>>(
+    associations.map((a) => [a._id, selection.filter((s) => s.association === a._id).map((s) => s.card)])
+  )
+
+  function typeLabel (a: Association): IntlString {
+    try {
+      return hierarchy.getClass(a.classB).label ?? products.string.ChangeControl
+    } catch {
+      return products.string.ChangeControl
+    }
   }
 
   async function addCard (a: Association): Promise<void> {
-    const docQuery = await buildCardRelationQuery(a, cardsFor(a))
+    const docQuery = await buildCardRelationQuery(a, cardsByAssoc.get(a._id) ?? [])
     showPopup(
       ObjectBoxPopup,
       { _class: a.classB, docQuery, docProps: { shouldShowAvatar: true } },
@@ -64,10 +77,10 @@
     {#each associations as a (a._id)}
       <div class="flex-row-center flex-gap-2 flex-wrap">
         <span class="content-dark-color text-sm">
-          <Label label={products.string.ChangeControl} />
+          <Label label={typeLabel(a)} />
         </span>
 
-        {#each cardsFor(a) as c (c)}
+        {#each cardsByAssoc.get(a._id) ?? [] as c (c)}
           <div class="flex-row-center flex-gap-1">
             <ObjectBox value={c} _class={a.classB} readonly kind={'regular'} size={'small'} showNavigate={false} />
             {#if !readonly}
