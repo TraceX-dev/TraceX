@@ -1778,6 +1778,35 @@ export async function purgeExpiredSecurityLoginEvents (
   }
 }
 
+const DEFAULT_ACTIVE_SESSION_RETENTION_DAYS = 30
+
+/**
+ * Reaps revoked {@link ActiveSession} rows older than the retention window so
+ * the table doesn't grow without bound (see docs/token-rotation-plan.md). Only
+ * revoked rows are removed — live sessions (revokedOn null) are untouched.
+ * Configurable via `ACTIVE_SESSION_RETENTION_DAYS` (0/off disables).
+ */
+export async function purgeRevokedActiveSessions (
+  db: AccountDB,
+  log?: { warn: (msg: string, data?: Record<string, unknown>) => void }
+): Promise<void> {
+  const rawTrim = process.env.ACTIVE_SESSION_RETENTION_DAYS?.trim()
+  const rawLower = rawTrim?.toLowerCase()
+  if (rawLower === '0' || rawLower === 'off' || rawLower === 'false') {
+    return
+  }
+  const days = rawTrim !== undefined && rawTrim !== '' ? parseInt(rawTrim, 10) : DEFAULT_ACTIVE_SESSION_RETENTION_DAYS
+  if (!Number.isFinite(days) || days <= 0) {
+    return
+  }
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+  try {
+    await db.activeSession.deleteMany({ revokedOn: { $lt: cutoff } })
+  } catch (err) {
+    log?.warn('purgeRevokedActiveSessions failed', { err, days, cutoff })
+  }
+}
+
 export async function getWorkspaces (
   db: AccountDB,
   isDisabled?: boolean | null,
@@ -2262,7 +2291,15 @@ export async function rotateSessionRefresh (
   const current = row.refreshGeneration ?? 0
   if (!Number.isFinite(presentedGen) || presentedGen < current) {
     // An already-rotated (or malformed) refresh token was replayed — treat as
-    // theft and kill the session.
+    // theft and kill the session. Logged as a security signal to monitor.
+    if (typeof (ctx as any).warn === 'function') {
+      ;(ctx as any).warn('Refresh token reuse detected — revoking session', {
+        accountUuid,
+        sessionId,
+        presentedGen,
+        current
+      })
+    }
     await revokeActiveSession(ctx, db, accountUuid, sessionId, 'reuse')
     return { error: 'reuse' }
   }
@@ -2385,7 +2422,12 @@ export async function revokeActiveSession (
     success: true,
     authMethod: 'session',
     eventType: 'logout',
-    reason: reason === 'user-not-me' ? 'session_revoked_not_me' : 'session_revoked',
+    reason:
+      reason === 'user-not-me'
+        ? 'session_revoked_not_me'
+        : reason === 'reuse'
+          ? 'session_revoked_reuse'
+          : 'session_revoked',
     eventTime: now,
     ip: row.ip,
     userAgent: row.userAgent,

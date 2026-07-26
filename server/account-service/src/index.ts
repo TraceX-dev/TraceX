@@ -12,7 +12,8 @@ import account, {
   getAllTransactors,
   getMethods,
   cleanExpiredOtp,
-  purgeExpiredSecurityLoginEvents
+  purgeExpiredSecurityLoginEvents,
+  purgeRevokedActiveSessions
 } from '@hcengineering/account'
 import accountEn from '@hcengineering/account/lang/en.json'
 import accountRu from '@hcengineering/account/lang/ru.json'
@@ -196,6 +197,12 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     setInterval(
       () => {
         void purgeExpiredSecurityLoginEvents(db, measureCtx)
+      },
+      3 * 60 * 1000
+    )
+    setInterval(
+      () => {
+        void purgeRevokedActiveSessions(db, measureCtx)
       },
       3 * 60 * 1000
     )

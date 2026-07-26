@@ -23,6 +23,7 @@ import {
   isActiveSessionRevoked,
   listActiveSessions,
   mintRefreshToken,
+  purgeRevokedActiveSessions,
   revokeActiveSession,
   rotateSessionRefresh,
   setSessionRevokeNotifier,
@@ -41,6 +42,7 @@ function matches (row: Record<string, any>, query: Record<string, any>): boolean
       if ('$gte' in cond && !(value >= cond.$gte)) return false
       if ('$lte' in cond && !(value <= cond.$lte)) return false
       if ('$gt' in cond && !(value > cond.$gt)) return false
+      if ('$lt' in cond && !(value < cond.$lt)) return false
       if ('$ne' in cond && value === cond.$ne) return false
     } else if (value !== cond) {
       return false
@@ -178,7 +180,9 @@ describe('rotateSessionRefresh', () => {
     expect(res).toEqual({ error: 'reuse' })
     expect(activeSession.rows[0].revokedOn).toBeDefined()
     expect(activeSession.rows[0].revokedReason).toBe('reuse')
-    expect(securityLoginEvent.rows.find((e) => e.eventType === 'logout')).toBeDefined()
+    const logout = securityLoginEvent.rows.find((e) => e.eventType === 'logout')
+    expect(logout).toBeDefined()
+    expect(logout?.reason).toBe('session_revoked_reuse')
   })
 
   it('rejects a revoked or unknown session', async () => {
@@ -199,6 +203,23 @@ describe('rotateSessionRefresh', () => {
 
     expect(await rotateSessionRefresh(ctx, db, ACC, 's1', 4)).toEqual({ error: 'invalid' })
     expect(activeSession.rows[0].revokedOn).toBeUndefined()
+  })
+})
+
+describe('purgeRevokedActiveSessions', () => {
+  it('deletes revoked rows past the retention window, keeps live and recent', async () => {
+    const { db, activeSession } = makeDb()
+    const now = Date.now()
+    activeSession.rows = [
+      { sessionId: 'old', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', revokedOn: 1000 },
+      { sessionId: 'recent', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', revokedOn: now },
+      { sessionId: 'live', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password' }
+    ] as ActiveSession[]
+
+    await purgeRevokedActiveSessions(db)
+
+    const ids = activeSession.rows.map((r) => r.sessionId).sort()
+    expect(ids).toEqual(['live', 'recent'])
   })
 })
 
