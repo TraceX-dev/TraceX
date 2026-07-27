@@ -16,7 +16,12 @@ export const SpaceSummarySchema = Type.Object(
     }),
     name: Type.String({
       description: 'Human-readable space name.'
-    })
+    }),
+    description: Type.Optional(
+      Type.String({
+        description: 'Human-readable space description.'
+      })
+    )
   },
   {
     description: 'Space summary.'
@@ -28,6 +33,7 @@ export type SpaceSummary = Static<typeof SpaceSummarySchema>
 export function buildSpaceSummary (spaceId: Ref<Space>, space: Space | undefined): SpaceSummary {
   return {
     id: spaceId,
-    name: space?.name ?? spaceId
+    name: space?.name ?? spaceId,
+    description: space?.description
   }
 }
