@@ -661,8 +661,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       livekit-client:
-        specifier: ^2.15.6
-        version: 2.15.14
+        specifier: ^2.19.0
+        version: 2.20.2
       svelte:
         specifier: ^4.2.20
         version: 4.2.20
@@ -23927,6 +23927,9 @@ importers:
       '@hcengineering/login':
         specifier: workspace:^0.7.0
         version: link:../login
+      '@hcengineering/login-resources':
+        specifier: workspace:^0.7.0
+        version: link:../login-resources
       '@hcengineering/love':
         specifier: workspace:^0.7.0
         version: link:../love
@@ -23973,14 +23976,14 @@ importers:
         specifier: workspace:^0.7.0
         version: link:../workbench-resources
       '@livekit/krisp-noise-filter':
-        specifier: ^0.3.0
-        version: 0.3.4(livekit-client@2.15.14)
+        specifier: ^0.4.1
+        version: 0.4.3(livekit-client@2.20.2)
       '@livekit/track-processors':
-        specifier: ^0.5.6
-        version: 0.5.8(livekit-client@2.15.14)
+        specifier: ^0.7.2
+        version: 0.7.2(livekit-client@2.20.2)
       livekit-client:
-        specifier: ^2.15.6
-        version: 2.15.14
+        specifier: ^2.19.0
+        version: 2.20.2
       svelte:
         specifier: ^4.2.20
         version: 4.2.20
@@ -34814,6 +34817,9 @@ importers:
       '@hcengineering/server-core':
         specifier: workspace:^0.7.19
         version: link:../../foundations/server/packages/core
+      '@hcengineering/server-notification':
+        specifier: workspace:^0.7.0
+        version: link:../notification
       '@hcengineering/server-notification-resources':
         specifier: workspace:^0.7.0
         version: link:../notification-resources
@@ -40899,9 +40905,15 @@ importers:
       '@hcengineering/account-client':
         specifier: workspace:^0.7.25
         version: link:../../foundations/core/packages/account-client
+      '@hcengineering/activity':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/activity
       '@hcengineering/analytics-service':
         specifier: workspace:^0.7.19
         version: link:../../foundations/core/packages/analytics-service
+      '@hcengineering/api-client':
+        specifier: workspace:^0.7.25
+        version: link:../../foundations/core/packages/api-client
       '@hcengineering/attachment':
         specifier: workspace:^0.7.0
         version: link:../../plugins/attachment
@@ -40914,6 +40926,9 @@ importers:
       '@hcengineering/client-resources':
         specifier: workspace:^0.7.19
         version: link:../../foundations/core/packages/client-resources
+      '@hcengineering/contact':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/contact
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
@@ -40923,6 +40938,9 @@ importers:
       '@hcengineering/drive':
         specifier: workspace:^0.7.0
         version: link:../../plugins/drive
+      '@hcengineering/kafka':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/server/packages/kafka
       '@hcengineering/love':
         specifier: workspace:^0.7.0
         version: link:../../plugins/love
@@ -40996,6 +41014,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^6.21.0
         version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
+      cross-env:
+        specifier: ~7.0.3
+        version: 7.0.3
       esbuild:
         specifier: ^0.25.10
         version: 0.25.12
@@ -44674,22 +44695,25 @@ packages:
   '@lifeomic/attempt@3.1.0':
     resolution: {integrity: sha512-QZqem4QuAnAyzfz+Gj5/+SLxqwCAw2qmt7732ZXodr6VDWGeYLG6w1i/vYLa55JQM9wRuBKLmXmiZ2P0LtE5rw==}
 
-  '@livekit/krisp-noise-filter@0.3.4':
-    resolution: {integrity: sha512-gvC0OevzIPBAr8f2S4P/BdUxVJYp7rvDoORHAmU6yppK6NKn+GNbkMosz0NpsI+Te18etBBOjaKmhoD7/PoXVA==}
+  '@livekit/krisp-noise-filter@0.4.3':
+    resolution: {integrity: sha512-Ciu6GO+i49UM1zpTy5RD+N4ylwePJYaiu2DwzcvfxT4oH51ZMdAvAqb3kJD5WRGEq8ZuvJbgfa+/xuAu+/3zQw==}
     peerDependencies:
-      livekit-client: ^2.0.8
+      livekit-client: ^2.18.7
 
   '@livekit/mutex@1.1.1':
     resolution: {integrity: sha512-EsshAucklmpuUAfkABPxJNhzj9v2sG7JuzFDL4ML1oJQSV14sqrpTYnsaOudMAw9yOaW53NU3QQTlUQoRs4czw==}
 
-  '@livekit/protocol@1.42.2':
-    resolution: {integrity: sha512-0jeCwoMJKcwsZICg5S6RZM4xhJoF78qMvQELjACJQn6/VB+jmiySQKOSELTXvPBVafHfEbMlqxUw2UR1jTXs2g==}
-
   '@livekit/protocol@1.43.0':
     resolution: {integrity: sha512-WCJ97fa4CBqPDh8pzdszOm/2xmelJ3Dx2vjKBlyb9BzmPQx1LjzVciP6uYFFMCMdrq2l1mjFQBXEz8Z20UCkyw==}
 
-  '@livekit/track-processors@0.5.8':
-    resolution: {integrity: sha512-ez1OwTouGO58sDLfLLduTS52wkiRiRXWoeclw1fdgcE0kEEs2XTuF04z0eSt2PUFJKIpJ/3nnZMTsA8nthsz+Q==}
+  '@livekit/protocol@1.46.6':
+    resolution: {integrity: sha512-upzlHP1vi/kZ/QqALZTFskQ0ifqc2f15RKucHYOsIHJsaXvEYanG75mAb7o+Yomfs4XhQ4BaRsdY+TFHXpaqrg==}
+
+  '@livekit/protocol@1.50.1':
+    resolution: {integrity: sha512-gdpc64u1v4tk3efZXxA90GYqnpBH+AhUnpez1oFXL90b2rpGMTYYZVDw7LTfblRjzZSQIalD7k+HF16Yq0uFFA==}
+
+  '@livekit/track-processors@0.7.2':
+    resolution: {integrity: sha512-lzARBKTbBwqycdR/SwTu6//N0l20BzfDd7grxCXl07676SwRApNtZAK1GJjL1m3dCM3KBqH1aVxjMpNcbOw5uQ==}
     peerDependencies:
       '@types/dom-mediacapture-transform': ^0.1.9
       livekit-client: ^1.12.0 || ^2.1.0
@@ -50509,8 +50533,8 @@ packages:
   linkifyjs@4.3.2:
     resolution: {integrity: sha512-NT1CJtq3hHIreOianA8aSXn6Cw0JzYOuDQbOrSPe7gqFnCpKP++MQe3ODgO3oh2GJFORkAAdqredOa60z63GbA==}
 
-  livekit-client@2.15.14:
-    resolution: {integrity: sha512-q3QY1Md6+2l4LpV7OPSrKYbuMfMoEbcu+UaJL2e8Btrkh7R2wGJzWh8A852Stx4It1508IP9PK4q7U6trDzvYA==}
+  livekit-client@2.20.2:
+    resolution: {integrity: sha512-rGV0Y+HgqI4yROq/4Get7wZ62DbYI55GumrI7FHJsUNFzPCl6xSqYBVlkVaCEvyOk14PdANLK/EHgMPJbvD68w==}
     peerDependencies:
       '@types/dom-mediacapture-record': ^1
 
@@ -53005,9 +53029,6 @@ packages:
     resolution: {integrity: sha512-5OX1tzOjxWEgsr/YEUWSuPrQ00deKLh6D7OTWcvNHm12/7QPyRh8SYpyWvA4IZv8H/+GQWQEh/kwo95Q9OVW1A==}
     engines: {node: '>=14.0.0'}
 
-  ts-debounce@4.0.0:
-    resolution: {integrity: sha512-+1iDGY6NmOGidq7i7xZGA4cm8DAa6fqdYcvO5Z6yBevH++Bdo9Qt/mN0TzHUgcCcKv1gmh9+W5dHqz8pMWbCbg==}
-
   ts-dedent@2.2.0:
     resolution: {integrity: sha512-q5W7tVM71e2xjHZTlgfTDoPF/SmqKG5hddq9SzR49CH2hayqRKJtQ4mtRlSxKaJlR/+9rEM+mnBHf7I2/BQcpQ==}
     engines: {node: '>=6.10'}
@@ -53464,8 +53485,8 @@ packages:
       webpack-cli:
         optional: true
 
-  webrtc-adapter@9.0.3:
-    resolution: {integrity: sha512-5fALBcroIl31OeXAdd1YUntxiZl1eHlZZWzNg3U4Fn+J9/cGL3eT80YlrsWGvj2ojuz1rZr2OXkgCzIxAZ7vRQ==}
+  webrtc-adapter@9.0.6:
+    resolution: {integrity: sha512-CHbl2ZQbxx164IgWRgzJno4hWtM4tFbRam1QfI3Yxhs3w/DvqluVxVWeXs3oL5/fbGkSNLKo0Ty5MgUWceNhog==}
     engines: {node: '>=6.0.0', npm: '>=3.10.0'}
 
   websocket-driver@0.7.4:
@@ -55571,25 +55592,30 @@ snapshots:
 
   '@lifeomic/attempt@3.1.0': {}
 
-  '@livekit/krisp-noise-filter@0.3.4(livekit-client@2.15.14)':
+  '@livekit/krisp-noise-filter@0.4.3(livekit-client@2.20.2)':
     dependencies:
       '@livekit/mutex': 1.1.1
-      livekit-client: 2.15.14
+      '@livekit/protocol': 1.50.1
+      livekit-client: 2.20.2
 
   '@livekit/mutex@1.1.1': {}
-
-  '@livekit/protocol@1.42.2':
-    dependencies:
-      '@bufbuild/protobuf': 1.10.1
 
   '@livekit/protocol@1.43.0':
     dependencies:
       '@bufbuild/protobuf': 1.10.1
 
-  '@livekit/track-processors@0.5.8(livekit-client@2.15.14)':
+  '@livekit/protocol@1.46.6':
+    dependencies:
+      '@bufbuild/protobuf': 1.10.1
+
+  '@livekit/protocol@1.50.1':
+    dependencies:
+      '@bufbuild/protobuf': 1.10.1
+
+  '@livekit/track-processors@0.7.2(livekit-client@2.20.2)':
     dependencies:
       '@mediapipe/tasks-vision': 0.10.14
-      livekit-client: 2.15.14
+      livekit-client: 2.20.2
 
   '@malept/cross-spawn-promise@2.0.0':
     dependencies:
@@ -62875,18 +62901,17 @@ snapshots:
 
   linkifyjs@4.3.2: {}
 
-  livekit-client@2.15.14:
+  livekit-client@2.20.2:
     dependencies:
       '@livekit/mutex': 1.1.1
-      '@livekit/protocol': 1.42.2
+      '@livekit/protocol': 1.46.6
       events: 3.3.0
       jose: 6.1.0
       loglevel: 1.9.2
       sdp-transform: 2.15.0
-      ts-debounce: 4.0.0
       tslib: 2.8.1
       typed-emitter: 2.1.0
-      webrtc-adapter: 9.0.3
+      webrtc-adapter: 9.0.6
 
   livekit-server-sdk@2.14.0:
     dependencies:
@@ -65695,8 +65720,6 @@ snapshots:
 
   ts-custom-error@3.3.1: {}
 
-  ts-debounce@4.0.0: {}
-
   ts-dedent@2.2.0: {}
 
   ts-interface-checker@0.1.13: {}
@@ -66377,7 +66400,7 @@ snapshots:
       - esbuild
       - uglify-js
 
-  webrtc-adapter@9.0.3:
+  webrtc-adapter@9.0.6:
     dependencies:
       sdp: 3.2.1
 

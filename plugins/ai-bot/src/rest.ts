@@ -13,9 +13,22 @@
 // limitations under the License.
 //
 
-import { Class, Doc, Markup, Ref, Timestamp } from '@hcengineering/core'
-import { Room, RoomLanguage } from '@hcengineering/love'
+import { Class, Doc, Markup, PersonId, Ref, Space, Timestamp } from '@hcengineering/core'
+import { MeetingMinutes, RoomLanguage } from '@hcengineering/love'
 import { Contact, Person } from '@hcengineering/contact'
+import { ChatMessage } from '@hcengineering/chunter'
+
+export interface AIEventRequest {
+  message: string
+  messageClass: Ref<Class<ChatMessage>>
+  messageId: Ref<ChatMessage>
+  objectClass: Ref<Class<Doc>>
+  objectId: Ref<Doc>
+  objectSpace: Ref<Space>
+  user: PersonId
+  collection: string
+  createdOn: Timestamp
+}
 
 export interface TranslateRequest {
   text: Markup
@@ -48,13 +61,13 @@ export interface TranslateResponse {
 }
 
 export interface ConnectMeetingRequest {
-  roomId: Ref<Room>
+  meetingId: Ref<MeetingMinutes>
   language: RoomLanguage
   transcription: boolean
 }
 
 export interface DisconnectMeetingRequest {
-  roomId: Ref<Room>
+  meetingId: Ref<MeetingMinutes>
 }
 
 export interface PostTranscriptRequest {
