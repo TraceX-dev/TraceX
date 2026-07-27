@@ -62,16 +62,15 @@ export async function OnEmployee (txes: Tx[], control: TriggerControl): Promise<
   const assigned = new Set<Ref<Office>>()
   for (const tx of txes) {
     let employeeId: Ref<Person> | undefined
-    let employee: Employee | undefined
     let active: boolean | undefined
 
     // Handle TxCreateDoc (direct Employee creation)
     if (tx._class === core.class.TxCreateDoc) {
       const createTx = tx as TxCreateDoc<Employee>
       if (createTx.objectClass === contact.mixin.Employee) {
-        employee = TxProcessor.createDoc2Doc(createTx)
+        const created = TxProcessor.createDoc2Doc(createTx)
         employeeId = createTx.objectId as Ref<Person>
-        active = employee.active
+        active = created.active
       }
     } else if (tx._class === core.class.TxMixin) {
       // Handle TxMixin (Employee added as mixin to Person) - used by AI bot
@@ -79,20 +78,22 @@ export async function OnEmployee (txes: Tx[], control: TriggerControl): Promise<
       if (mixinTx.mixin === contact.mixin.Employee) {
         employeeId = mixinTx.objectId
         active = mixinTx.attributes.active
-        employee = mixinTx.attributes as Employee
       }
     }
 
-    if (employeeId === undefined || employee === undefined) {
+    // Nothing to do if this tx does not touch the active state of an employee
+    if (employeeId === undefined || active === undefined) {
       continue
     }
 
-    // Ignore txes that do not change the active state
-    if (active === undefined) {
+    // A mixin tx only carries the changed fields, so fetch the full employee to read its role
+    const user = (
+      await control.findAll(control.ctx, contact.mixin.Employee, { _id: employeeId as Ref<Employee> })
+    )[0]
+    if (user === undefined) {
       continue
     }
-
-    if (employee.role === 'GUEST') {
+    if (user.role === 'GUEST') {
       continue
     }
 
