@@ -33,14 +33,6 @@
     "UpdateProductDescription": "Umožňuje uživatelům aktualizovat produkt",
     "ChangeControl": "Změnit kontrolu",
     "ChangeSeverity": "Změnit závažnost",
-    "ChangeControlCardTypes": "Karty řízení změn",
-    "ChangeControlCardTypesDescription": "Kategorie karet (a volitelné filtry), které lze připojit k verzím produktu jako řízení změn. Platí pro všechny produkty.",
-    "NoChangeControlCardTypes": "Nejsou nakonfigurovány žádné typy karet",
-    "AddCardType": "Přidat typ karty",
-    "AddCard": "Přidat kartu",
-    "AddFilter": "Přidat filtr",
-    "CardType": "Typ karty",
-    "CardFilter": "Filtr",
     "ConfigLabel": "Produkty",
     "ConfigDescription": "Rozšíření pro správu produktů"
   }

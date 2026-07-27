@@ -26,15 +26,18 @@
     deleteProjectDrafts
   } from '@hcengineering/controlled-documents'
   import { Product, ProductVersion, ProductVersionState } from '@hcengineering/products'
-  import core, { type Association, Data, Ref, SortingOrder, generateId } from '@hcengineering/core'
-  import { type Card as CardDoc } from '@hcengineering/card'
+  import { Data, Ref, SortingOrder, generateId } from '@hcengineering/core'
   import { Card, MessageBox, SpaceSelector, createQuery, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
   import { DropdownLabelsIntl, EditBox, FocusHandler, createFocusManager, showPopup } from '@hcengineering/ui'
-  import { ObjectBox } from '@hcengineering/view-resources'
+  import {
+    ObjectBox,
+    RelationsCreateEditor,
+    commitPendingRelations,
+    type PendingRelation
+  } from '@hcengineering/view-resources'
 
   import products from '../../plugin'
-  import ChangeControlCardsSelect from './ChangeControlCardsSelect.svelte'
 
   type Severity = 'major' | 'minor' | 'patch'
   type ProductVersionDraft = Omit<Data<ProductVersion>, 'parent' | 'name'>
@@ -54,8 +57,7 @@
   let parent: ProductVersion | null | undefined
   let severity: Severity = 'minor'
 
-  let ccSelection: Array<{ association: Ref<Association>, card: Ref<CardDoc> }> = []
-  let ccConfigured: boolean = false
+  let pendingRelations: PendingRelation[] = []
 
   $: query.query(
     products.class.ProductVersion,
@@ -119,18 +121,12 @@
     await deleteProjectDrafts(ops, version.parent)
     await copyProjectDocuments(ops, version.parent, id)
 
-    for (const sel of ccSelection) {
-      await ops.createDoc(core.class.Relation, core.space.Workspace, {
-        docA: id,
-        docB: sel.card,
-        association: sel.association
-      })
-    }
+    await commitPendingRelations(ops, id, pendingRelations)
 
     await ops.commit()
 
     object = createDefaultObject()
-    ccSelection = []
+    pendingRelations = []
     dispatch('close', id)
   }
 
@@ -176,8 +172,7 @@
     object.minor >= 0 &&
     object.patch !== undefined &&
     object.patch >= 0 &&
-    (parent == null || object.changeControl !== undefined) &&
-    (parent == null || !ccConfigured || ccSelection.length > 0)
+    (parent == null || object.changeControl !== undefined)
 </script>
 
 <FocusHandler {manager} />
@@ -264,7 +259,7 @@
         label={products.string.ChangeControl}
         showNavigate={false}
       />
-      <ChangeControlCardsSelect bind:selection={ccSelection} bind:configured={ccConfigured} />
     {/if}
+    <RelationsCreateEditor _class={products.class.ProductVersion} bind:selection={pendingRelations} />
   </svelte:fragment>
 </Card>

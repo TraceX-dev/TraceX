@@ -87,9 +87,6 @@
     "TwoColumns": "İki sütun",
     "Grid": "Izgara",
     "RichtextProperties": "Zengin metin alanları",
-    "ShowAllVersions": "Tüm sürümleri göster",
-    "CardRelationPurpose": "Amaç",
-    "CardRelationFilter": "Filtre",
-    "CardRelationRequireLatest": "En son sürümü gerektir"
+    "ShowAllVersions": "Tüm sürümleri göster"
   }
 }

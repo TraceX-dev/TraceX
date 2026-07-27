@@ -247,6 +247,8 @@
     "ShowQRCode": "Pokaż kod QR",
     "EnterVerificationCode": "Wpisz kod weryfikacyjny",
     "OverrideAttribute": "Nadpisz atrybut",
-    "Required": "Obowiązkowe"
+    "Required": "Obowiązkowe",
+    "RelationFilter": "Filtr",
+    "AddRelationFilter": "Dodaj filtr"
   }
 }

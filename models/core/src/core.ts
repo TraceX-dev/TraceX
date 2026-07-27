@@ -152,6 +152,10 @@ export class TAssociation extends TDoc implements Association {
   type!: '1:1' | '1:N' | 'N:N'
 
   automationOnly?: boolean
+
+  filterA?: string
+
+  filterB?: string
 }
 
 @Model(core.class.Relation, core.class.Doc, DOMAIN_RELATION)

@@ -33,14 +33,6 @@
     "UpdateProductDescription": "ユーザーに製品を更新する権限を付与します",
     "ChangeControl": "変更管理",
     "ChangeSeverity": "重要度を変更",
-    "ChangeControlCardTypes": "変更管理カード",
-    "ChangeControlCardTypesDescription": "変更管理として製品バージョンに添付できるカードのカテゴリ（および任意のフィルター）。すべての製品に適用されます。",
-    "NoChangeControlCardTypes": "カードタイプが設定されていません",
-    "AddCardType": "カードタイプを追加",
-    "AddCard": "カードを追加",
-    "AddFilter": "フィルターを追加",
-    "CardType": "カードタイプ",
-    "CardFilter": "フィルター",
     "ConfigLabel": "製品",
     "ConfigDescription": "製品を管理するための拡張機能"
   }

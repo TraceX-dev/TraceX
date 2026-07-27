@@ -63,14 +63,6 @@ export default mergeIds(productsId, products, {
     ProductVersionStateActive: '' as IntlString,
     ProductVersionStateReleased: '' as IntlString,
     ChangeControl: '' as IntlString,
-    ChangeSeverity: '' as IntlString,
-    ChangeControlCardTypes: '' as IntlString,
-    ChangeControlCardTypesDescription: '' as IntlString,
-    NoChangeControlCardTypes: '' as IntlString,
-    AddCardType: '' as IntlString,
-    AddCard: '' as IntlString,
-    AddFilter: '' as IntlString,
-    CardType: '' as IntlString,
-    CardFilter: '' as IntlString
+    ChangeSeverity: '' as IntlString
   }
 })

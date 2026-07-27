@@ -247,6 +247,8 @@
     "ShowQRCode": "QR kodu göster",
     "EnterVerificationCode": "Doğrulama kodunu gir",
     "OverrideAttribute": "Özniteliği geçersiz kıl",
-    "Required": "Zorunlu"
+    "Required": "Zorunlu",
+    "RelationFilter": "Filtre",
+    "AddRelationFilter": "Filtre ekle"
   }
 }

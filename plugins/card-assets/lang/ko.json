@@ -87,9 +87,6 @@
     "TwoColumns": "2열",
     "Grid": "그리드",
     "RichtextProperties": "리치 텍스트 속성",
-    "ShowAllVersions": "모든 버전 보기",
-    "CardRelationPurpose": "목적",
-    "CardRelationFilter": "필터",
-    "CardRelationRequireLatest": "최신 버전 필요"
+    "ShowAllVersions": "모든 버전 보기"
   }
 }

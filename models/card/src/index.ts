@@ -17,7 +17,6 @@ import {
   type Card,
   cardId,
   type CardNavigation,
-  type CardRelation,
   type CardSection,
   type CardSpace,
   type CardViewDefaults,
@@ -75,7 +74,7 @@ import {
   UX
 } from '@hcengineering/model'
 import attachment from '@hcengineering/model-attachment'
-import { TAssociation, TRole as TBaseRole, TClass, TDoc, TMixin, TTypedSpace } from '@hcengineering/model-core'
+import { TRole as TBaseRole, TClass, TDoc, TMixin, TTypedSpace } from '@hcengineering/model-core'
 import { createPublicLinkAction } from '@hcengineering/model-guest'
 import preference, { TPreference } from '@hcengineering/model-preference'
 import presentation from '@hcengineering/model-presentation'
@@ -196,18 +195,6 @@ export class TCardSection extends TDoc implements CardSection {
 export class TCardViewDefaults extends TMasterTag implements CardViewDefaults {
   defaultSection!: Ref<CardSection>
   defaultNavigation?: string
-}
-
-@Mixin(card.mixin.CardRelation, core.class.Association)
-export class TCardRelation extends TAssociation implements CardRelation {
-  @Prop(TypeString(), card.string.CardRelationPurpose)
-    purpose?: string
-
-  @Prop(TypeString(), card.string.CardRelationFilter)
-    filter?: string
-
-  @Prop(TypeBoolean(), card.string.CardRelationRequireLatest)
-    requireLatest?: boolean
 }
 
 @Model(card.class.Role, core.class.Role, DOMAIN_MODEL)
@@ -468,8 +455,7 @@ export function createModel (builder: Builder): void {
     TFavoriteType,
     TCreateCardExtension,
     TExportExtension,
-    TDuplicateSetting,
-    TCardRelation
+    TDuplicateSetting
   )
 
   builder.createDoc(

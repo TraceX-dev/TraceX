@@ -359,7 +359,9 @@ export default plugin(settingId, {
     Disconnected: '' as IntlString,
     Available: '' as IntlString,
     NotConnectedIntegration: '' as IntlString,
-    IntegrationIsUnstable: '' as IntlString
+    IntegrationIsUnstable: '' as IntlString,
+    RelationFilter: '' as IntlString,
+    AddRelationFilter: '' as IntlString
   },
   icon: {
     AccountSettings: '' as Asset,

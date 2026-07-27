@@ -87,9 +87,6 @@
     "TwoColumns": "Два столбца",
     "Grid": "Сетка",
     "RichtextProperties": "Текстовые поля",
-    "ShowAllVersions": "Показывать все версии",
-    "CardRelationPurpose": "Назначение",
-    "CardRelationFilter": "Фильтр",
-    "CardRelationRequireLatest": "Требовать последнюю версию"
+    "ShowAllVersions": "Показывать все версии"
   }
 }

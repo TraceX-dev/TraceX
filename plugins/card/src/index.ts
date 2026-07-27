@@ -12,7 +12,6 @@
 // limitations under the License.
 
 import {
-  Association,
   Role as BaseRole,
   Blobs,
   Class,
@@ -54,25 +53,6 @@ export interface DuplicateSetting extends Class<MasterTag> {
   excludedProperties?: string[]
   excludedRelations?: string[] // ${associationId}_${a|b}
   excludeMixins?: Ref<Mixin<Doc>>[]
-}
-
-/**
- * Mixin on {@link Association} that attaches "custom card logic" to a relation between an
- * arbitrary class and cards. Lets any object class link cards with a semantic purpose and an
- * optional eligibility filter, on top of the platform's generic relations.
- *
- * - `purpose` — a well-known key identifying what the relation is for (e.g. `'changeControl'`),
- *   so consumers can single it out among an object's relations.
- * - `filter` — serialized `@hcengineering/view` filters (same format as `FilteredView.filters`)
- *   that further restrict which cards are eligible, beyond the association's `classB` type.
- * - `requireLatest` — when `false`, disables the default "latest card version only" restriction.
- *
- * @public
- */
-export interface CardRelation extends Association {
-  purpose?: string
-  filter?: string
-  requireLatest?: boolean
 }
 
 export interface Card extends Doc, IconProps, VersionableDoc {
@@ -185,8 +165,7 @@ const cardPlugin = plugin(cardId, {
   mixin: {
     CardViewDefaults: '' as Ref<Mixin<CardViewDefaults>>,
     CreateCardExtension: '' as Ref<Mixin<CreateCardExtension>>,
-    DuplicateSetting: '' as Ref<Mixin<DuplicateSetting>>,
-    CardRelation: '' as Ref<Mixin<CardRelation>>
+    DuplicateSetting: '' as Ref<Mixin<DuplicateSetting>>
   },
   space: {
     Default: '' as Ref<CardSpace>
@@ -244,10 +223,7 @@ const cardPlugin = plugin(cardId, {
     UnLockSection: '' as IntlString,
     SectionLocked: '' as IntlString,
     SectionUnlocked: '' as IntlString,
-    ShowAllVersions: '' as IntlString,
-    CardRelationPurpose: '' as IntlString,
-    CardRelationFilter: '' as IntlString,
-    CardRelationRequireLatest: '' as IntlString
+    ShowAllVersions: '' as IntlString
   },
   section: {
     Attachments: '' as Ref<CardSection>,

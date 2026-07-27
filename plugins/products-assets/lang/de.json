@@ -33,14 +33,6 @@
     "UpdateProductDescription": "Gewährt Benutzern die Möglichkeit, ein Produkt zu aktualisieren",
     "ChangeControl": "Änderungskontrolle",
     "ChangeSeverity": "Schweregrad der Änderung",
-    "ChangeControlCardTypes": "Änderungskontroll-Karten",
-    "ChangeControlCardTypesDescription": "Kartenkategorien (und optionale Filter), die Produktversionen als Änderungskontrolle zugeordnet werden können. Gilt für alle Produkte.",
-    "NoChangeControlCardTypes": "Keine Kartentypen konfiguriert",
-    "AddCardType": "Kartentyp hinzufügen",
-    "AddCard": "Karte hinzufügen",
-    "AddFilter": "Filter hinzufügen",
-    "CardType": "Kartentyp",
-    "CardFilter": "Filter",
     "ConfigLabel": "Produkte",
     "ConfigDescription": "Erweiterung zur Verwaltung von Produkten"
   }

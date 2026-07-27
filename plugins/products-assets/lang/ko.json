@@ -33,14 +33,6 @@
     "UpdateProductDescription": "사용자에게 제품 업데이트 권한을 부여합니다",
     "ChangeControl": "변경 관리",
     "ChangeSeverity": "심각도 변경",
-    "ChangeControlCardTypes": "변경 관리 카드",
-    "ChangeControlCardTypesDescription": "변경 관리로 제품 버전에 첨부할 수 있는 카드 범주(및 선택적 필터)입니다. 모든 제품에 적용됩니다.",
-    "NoChangeControlCardTypes": "구성된 카드 유형이 없습니다",
-    "AddCardType": "카드 유형 추가",
-    "AddCard": "카드 추가",
-    "AddFilter": "필터 추가",
-    "CardType": "카드 유형",
-    "CardFilter": "필터",
     "ConfigLabel": "제품",
     "ConfigDescription": "제품 관리 확장 기능"
   }

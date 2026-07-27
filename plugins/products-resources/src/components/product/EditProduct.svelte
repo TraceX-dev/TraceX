@@ -40,7 +40,6 @@
 
   import products from '../../plugin'
   import ProductVersionsEditor from '../product-version/ProductVersionsEditor.svelte'
-  import ChangeControlSetting from './ChangeControlSetting.svelte'
   import DocIcon from '../DocIcon.svelte'
 
   export let _id: Ref<Product>
@@ -194,18 +193,6 @@
 
     <div class="w-full mt-6">
       <ProductVersionsEditor objectId={object._id} readonly={!canEdit} />
-    </div>
-
-    <div class="w-full mt-6">
-      <div class="fs-title mb-2">
-        <Label label={products.string.ChangeControlCardTypes} />
-      </div>
-      <span class="content-dark-color text-sm">
-        <Label label={products.string.ChangeControlCardTypesDescription} />
-      </span>
-      <div class="mt-2">
-        <ChangeControlSetting {object} readonly={!canEdit} />
-      </div>
     </div>
 
     <svelte:fragment slot="utils">

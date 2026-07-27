@@ -87,9 +87,6 @@
     "TwoColumns": "2列",
     "Grid": "グリッド",
     "RichtextProperties": "リッチテキストフィールド",
-    "ShowAllVersions": "すべてのバージョンを表示",
-    "CardRelationPurpose": "目的",
-    "CardRelationFilter": "フィルター",
-    "CardRelationRequireLatest": "最新バージョンを必須にする"
+    "ShowAllVersions": "すべてのバージョンを表示"
   }
 }

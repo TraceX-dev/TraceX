@@ -1,0 +1,107 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the PolyForm Shield License 1.0.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://polyformproject.org/licenses/shield/1.0.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+// Keep the svelte-heavy `@hcengineering/ui` and the live-query presentation layer out of the
+// unit under test; only `getClient` and `getResource` are exercised by `filtersToQuery`.
+jest.mock('@hcengineering/presentation', () => ({
+  getClient: jest.fn(),
+  createQuery: jest.fn()
+}))
+jest.mock('@hcengineering/ui', () => ({
+  getCurrentResolvedLocation: jest.fn(),
+  locationToUrl: jest.fn()
+}))
+jest.mock('@hcengineering/platform', () => {
+  const actual = jest.requireActual('@hcengineering/platform')
+  return { ...actual, getResource: jest.fn() }
+})
+
+import { getResource } from '@hcengineering/platform'
+import { getClient } from '@hcengineering/presentation'
+
+import { filtersToQuery } from '../filter'
+
+function makeHierarchy (isMixin = false): any {
+  return {
+    clone: (v: any) => JSON.parse(JSON.stringify(v)),
+    getAttribute: () => ({ attributeOf: 'test:class:Owner' }),
+    isMixin: () => isMixin
+  }
+}
+
+function makeFilter (key: string, value: any[] = []): any {
+  return {
+    key: { key, _class: 'test:class:Owner', label: 'test:string:Label' },
+    mode: 'test:filterMode:Is',
+    modes: ['test:filterMode:Is'],
+    value,
+    index: 1
+  }
+}
+
+function mockClient (hierarchy: any): void {
+  ;(getClient as jest.Mock).mockReturnValue({
+    getHierarchy: () => hierarchy,
+    findOne: jest.fn(async () => ({ _id: 'test:filterMode:Is', result: 'test:resource:Is' }))
+  })
+}
+
+describe('filtersToQuery', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('returns the base query unchanged when there are no filters', async () => {
+    mockClient(makeHierarchy())
+    const q = await filtersToQuery([], { isLatest: true })
+    expect(q).toEqual({ isLatest: true })
+  })
+
+  it('resolves a filter via its mode and writes the value under the attribute key', async () => {
+    mockClient(makeHierarchy())
+    ;(getResource as jest.Mock).mockResolvedValue(async () => ({ $in: ['final'] }))
+
+    const q = await filtersToQuery([makeFilter('status', ['final'])])
+    expect(q).toEqual({ status: { $in: ['final'] } })
+  })
+
+  it('preserves the base query and adds the filter alongside it', async () => {
+    mockClient(makeHierarchy())
+    ;(getResource as jest.Mock).mockResolvedValue(async () => ({ $in: ['final'] }))
+
+    const q = await filtersToQuery([makeFilter('status', ['final'])], { isLatest: true })
+    expect(q).toEqual({ isLatest: true, status: { $in: ['final'] } })
+  })
+
+  it('prefixes the key with the mixin id for mixin attributes', async () => {
+    mockClient(makeHierarchy(true))
+    ;(getResource as jest.Mock).mockResolvedValue(async () => ({ $in: ['x'] }))
+
+    const q = await filtersToQuery([makeFilter('grade', ['x'])])
+    expect(q).toEqual({ 'test:class:Owner.grade': { $in: ['x'] } })
+  })
+
+  it('skips a filter whose mode cannot be resolved', async () => {
+    const hierarchy = makeHierarchy()
+    ;(getClient as jest.Mock).mockReturnValue({
+      getHierarchy: () => hierarchy,
+      findOne: jest.fn(async () => undefined)
+    })
+
+    const q = await filtersToQuery([makeFilter('status', ['final'])], { isLatest: true })
+    expect(q).toEqual({ isLatest: true })
+    expect(getResource as jest.Mock).not.toHaveBeenCalled()
+  })
+})

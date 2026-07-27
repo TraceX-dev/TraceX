@@ -25731,12 +25731,6 @@ importers:
       '@hcengineering/attachment-resources':
         specifier: workspace:^0.7.0
         version: link:../attachment-resources
-      '@hcengineering/card':
-        specifier: workspace:^0.7.0
-        version: link:../card
-      '@hcengineering/card-resources':
-        specifier: workspace:^0.7.0
-        version: link:../card-resources
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../contact

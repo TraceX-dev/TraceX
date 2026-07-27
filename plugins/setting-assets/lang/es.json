@@ -238,6 +238,8 @@
     "ShowQRCode": "Mostrar código QR",
     "EnterVerificationCode": "Introducir código de verificación",
     "OverrideAttribute": "Sobreescribir atributo",
-    "Required": "Requerido"
+    "Required": "Requerido",
+    "RelationFilter": "Filtro",
+    "AddRelationFilter": "Agregar filtro"
   }
 }

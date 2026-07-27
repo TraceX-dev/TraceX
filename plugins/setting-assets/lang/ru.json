@@ -247,6 +247,8 @@
     "ShowQRCode": "Показать QR-код",
     "EnterVerificationCode": "Введите код подтверждения",
     "OverrideAttribute": "Переопределить атрибут",
-    "Required": "Обязательный"
+    "Required": "Обязательный",
+    "RelationFilter": "Фильтр",
+    "AddRelationFilter": "Добавить фильтр"
   }
 }

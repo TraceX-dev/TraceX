@@ -247,6 +247,8 @@
     "ShowQRCode": "QRコードを表示",
     "EnterVerificationCode": "確認コードを入力",
     "OverrideAttribute": "属性を上書き",
-    "Required": "必須"
+    "Required": "必須",
+    "RelationFilter": "フィルター",
+    "AddRelationFilter": "フィルターを追加"
   }
 }

@@ -140,6 +140,15 @@ export interface Association extends Doc {
   nameB: string
   type: '1:1' | '1:N' | 'N:N'
   automationOnly?: boolean
+
+  /**
+   * Optional eligibility filters narrowing which documents may be linked, beyond `classA`/`classB`.
+   *
+   * Serialized `@hcengineering/view` filters (same format as `FilteredView.filters`). `filterA`
+   * applies when picking documents of `classA`, `filterB` when picking documents of `classB`.
+   */
+  filterA?: string
+  filterB?: string
 }
 
 /**
