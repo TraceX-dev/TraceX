@@ -26,7 +26,7 @@
   import { ObjectBox, ObjectBoxPopup } from '@hcengineering/view-resources'
 
   import products from '../../plugin'
-  import { buildCardRelationQuery, getChangeControlAssociations } from '../../utils'
+  import { buildCardRelationQuery, getChangeControlAssociations } from '../../changeControl'
 
   export let selection: Array<{ association: Ref<Association>, card: Ref<Card> }> = []
   export let configured: boolean = false

@@ -49,8 +49,7 @@
       .findAllSync(core.class.Association, { classA: products.class.ProductVersion })
       .filter(
         (a) =>
-          hierarchy.hasMixin(a, card.mixin.CardRelation) &&
-          hierarchy.as(a, card.mixin.CardRelation).purpose === PURPOSE
+          hierarchy.hasMixin(a, card.mixin.CardRelation) && hierarchy.as(a, card.mixin.CardRelation).purpose === PURPOSE
       )
   }
 
