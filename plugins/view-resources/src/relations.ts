@@ -70,10 +70,15 @@ export async function buildRelationCandidatesQuery (
 
   const filter = direction === 'B' ? association.filterB : association.filterA
   if (filter != null && filter !== '') {
+    let parsed: Filter[] | undefined
     try {
-      query = await filtersToQuery(JSON.parse(filter) as Filter[], query)
+      parsed = JSON.parse(filter) as Filter[]
     } catch (e) {
-      console.error('Failed to apply relation filter', e)
+      console.error('Failed to parse relation filter', e)
+    }
+    if (parsed !== undefined) {
+      // Individual stale filters are skipped inside `filtersToQuery`; the rest still narrow the query.
+      query = await filtersToQuery(parsed, query)
     }
   }
 

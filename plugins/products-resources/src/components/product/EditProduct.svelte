@@ -28,7 +28,6 @@
     EditBox,
     IconMixin,
     IconMoreH,
-    Label,
     getPlatformColorDef,
     showPopup,
     themeStore

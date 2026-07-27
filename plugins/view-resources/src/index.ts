@@ -175,6 +175,7 @@ export { default as ParentsNavigator } from './components/ParentsNavigator.svelt
 export { default as PersonIdPresenter } from './components/PersonIdPresenter.svelte'
 export { default as RelationsEditor } from './components/RelationsEditor.svelte'
 export { default as RelationsCreateEditor } from './components/RelationsCreateEditor.svelte'
+export { default as FilterTypePopup } from './components/filter/FilterTypePopup.svelte'
 export { default as SpaceTypeSelector } from './components/SpaceTypeSelector.svelte'
 export { default as TableBrowser } from './components/TableBrowser.svelte'
 export { default as ValueSelector } from './components/ValueSelector.svelte'

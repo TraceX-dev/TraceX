@@ -104,4 +104,37 @@ describe('filtersToQuery', () => {
     expect(q).toEqual({ isLatest: true })
     expect(getResource as jest.Mock).not.toHaveBeenCalled()
   })
+
+  it('intersects two $in conditions on the same key instead of clobbering', async () => {
+    mockClient(makeHierarchy())
+    ;(getResource as jest.Mock)
+      .mockResolvedValueOnce(async () => ({ $in: ['a', 'b', 'c'] }))
+      .mockResolvedValueOnce(async () => ({ $in: ['b', 'c', 'd'] }))
+
+    const q = await filtersToQuery([makeFilter('status'), makeFilter('status')])
+    expect(q).toEqual({ status: { $in: ['b', 'c'] } })
+  })
+
+  it('concatenates $nin conditions on the same key', async () => {
+    mockClient(makeHierarchy())
+    ;(getResource as jest.Mock)
+      .mockResolvedValueOnce(async () => ({ $nin: ['a'] }))
+      .mockResolvedValueOnce(async () => ({ $nin: ['b'] }))
+
+    const q = await filtersToQuery([makeFilter('status'), makeFilter('status')])
+    expect(q).toEqual({ status: { $nin: ['a', 'b'] } })
+  })
+
+  it('skips only the stale filter when its attribute no longer exists', async () => {
+    const hierarchy = makeHierarchy()
+    hierarchy.getAttribute = jest.fn((_class: string, key: string) => {
+      if (key === 'gone') throw new Error('no such attribute')
+      return { attributeOf: 'test:class:Owner' }
+    })
+    mockClient(hierarchy)
+    ;(getResource as jest.Mock).mockResolvedValue(async () => ({ $in: ['final'] }))
+
+    const q = await filtersToQuery([makeFilter('gone'), makeFilter('status')], { isLatest: true })
+    expect(q).toEqual({ isLatest: true, status: { $in: ['final'] } })
+  })
 })

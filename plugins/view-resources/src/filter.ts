@@ -66,27 +66,61 @@ export async function filtersToQuery (filters: Filter[], base: DocumentQuery<Doc
   const newQuery: Record<string, any> = hierarchy.clone(base)
 
   for (const filter of filters) {
-    const mode = await client.findOne(view.class.FilterMode, { _id: filter.mode })
-    if (mode === undefined) continue
-    const result = await getResource(mode.result)
-    const newValue = await result(filter, () => {})
+    try {
+      const mode = await client.findOne(view.class.FilterMode, { _id: filter.mode })
+      if (mode === undefined) continue
+      const result = await getResource(mode.result)
+      const newValue = await result(filter, () => {})
 
-    let filterKey = filter.key.key
-    const attr = hierarchy.getAttribute(filter.key._class, filter.key.key)
-    if (hierarchy.isMixin(attr.attributeOf)) {
-      filterKey = attr.attributeOf + '.' + filter.key.key
-    }
+      let filterKey = filter.key.key
+      // Throws for a stale filter whose attribute or class no longer exists — such a filter is
+      // skipped individually so the remaining ones still apply.
+      const attr = hierarchy.getAttribute(filter.key._class, filter.key.key)
+      if (hierarchy.isMixin(attr.attributeOf)) {
+        filterKey = attr.attributeOf + '.' + filter.key.key
+      }
 
-    if (newQuery[filterKey] === undefined || newQuery[filterKey] === null) {
-      newQuery[filterKey] = newValue
-    } else if (typeof newQuery[filterKey] === 'object' && typeof newValue === 'object') {
-      Object.assign(newQuery[filterKey], newValue)
-    } else {
-      newQuery[filterKey] = newValue
+      newQuery[filterKey] = mergeFilterValue(newQuery[filterKey], newValue)
+    } catch (e) {
+      console.error('Failed to apply filter', filter.key?.key, e)
     }
   }
 
   return newQuery
+}
+
+/**
+ * Combines two conditions on the same query key, mirroring how `FilterBar` narrows a query:
+ * `$in` intersects, `$nin` concatenates, `$lt`/`$gt` keep the tightest bound. Anything else is
+ * shallow-merged, and a non-object value replaces what was there.
+ */
+function mergeFilterValue (current: any, next: any): any {
+  if (current === undefined || current === null) return next
+  if (typeof current !== 'object' || typeof next !== 'object') return next
+
+  const merged = { ...current }
+  for (const key of Object.keys(next)) {
+    const a = merged[key]
+    const b = next[key]
+    if (a === undefined) {
+      if (key === '$in' && typeof current === 'string') {
+        merged[key] = (b as any[]).filter((p) => p === current)
+      } else {
+        merged[key] = b
+      }
+    } else if (key === '$in') {
+      merged[key] = (a as any[]).filter((p) => (b as any[]).includes(p))
+    } else if (key === '$nin') {
+      merged[key] = [...(a as any[]), ...(b as any[])]
+    } else if (key === '$lt') {
+      merged[key] = a < b ? a : b
+    } else if (key === '$gt') {
+      merged[key] = a > b ? a : b
+    } else {
+      merged[key] = b
+    }
+  }
+  return merged
 }
 
 export async function arrayAllResult (filter: Filter): Promise<ObjQueryType<any>> {

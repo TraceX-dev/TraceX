@@ -33,7 +33,7 @@
   } from '@hcengineering/ui'
   import view, { type Filter } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
-  import FilterTypePopup from '@hcengineering/view-resources/src/components/filter/FilterTypePopup.svelte'
+  import { FilterTypePopup } from '@hcengineering/view-resources'
   import setting from '../plugin'
 
   export let association: Association | Data<Association>
