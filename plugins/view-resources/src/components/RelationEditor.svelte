@@ -82,7 +82,7 @@
     }
     if (rel?.filter != null && rel.filter !== '' && hierarchy.isDerived(_class, card.class.Card)) {
       try {
-        docQuery = (await filtersToQuery(JSON.parse(rel.filter), docQuery))
+        docQuery = await filtersToQuery(JSON.parse(rel.filter), docQuery)
       } catch (e) {
         console.error('Failed to apply card relation filter', e)
       }
