@@ -36,6 +36,7 @@ import { IconProps } from '@hcengineering/view'
 export * from './analytics'
 
 export interface MasterTag extends Class<Card> {
+  description?: string
   background?: number
   removed?: boolean
   roles?: CollectionSize<Role>

@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -98,6 +99,9 @@ export class TMasterTag extends TClass implements MasterTag {
   color?: number
   background?: number
   removed?: boolean
+
+  @Prop(TypeString(), card.string.Description)
+    description?: string
 
   @Prop(TypeBoolean(), card.string.SingleColumn)
     singleColumn?: boolean

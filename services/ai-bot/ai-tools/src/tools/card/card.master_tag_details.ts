@@ -34,6 +34,11 @@ export const MasterTagDetailsOutputSchema = Type.Object(
     label: Type.String({
       description: 'Human-readable master tag label.'
     }),
+    description: Type.Optional(
+      Type.String({
+        description: 'Human-readable master tag description.'
+      })
+    ),
     removed: Type.Boolean({
       description: 'Whether the master tag has been removed.'
     }),
@@ -60,6 +65,11 @@ export const MasterTagDetailsOutputSchema = Type.Object(
           label: Type.String({
             description: 'Human-readable tag label.'
           }),
+          description: Type.Optional(
+            Type.String({
+              description: 'Human-readable tag description.'
+            })
+          ),
           removed: Type.Boolean({
             description: 'Whether the tag has been removed.'
           }),
@@ -105,6 +115,7 @@ export const cardMasterTagDetailsTool = createTool({
     const result = {
       id: masterTag._id,
       label: await translate(masterTag.label, {}),
+      description: masterTag.description,
       removed: masterTag.removed === true,
       versioning: {
         enabled: versionable?.enabled ?? false
@@ -117,19 +128,23 @@ export const cardMasterTagDetailsTool = createTool({
           .toArray()
       ),
       tags: await Promise.all(
-        tags.map(async (tag) => ({
-          id: tag._id,
-          label: await translate(tag.label, {}),
-          removed: tag.removed === true,
-          attributes: await Promise.all(
-            hierarchy
-              .getOwnAttributes(tag._id)
-              .entries()
-              .filter(([, attr]) => !isCollaborativeAttribute(attr))
-              .map(([, attr]) => buildAttributeDetails(toolCtx, attr))
-              .toArray()
-          )
-        }))
+        tags.map(async (tag) => {
+          const label = await translate(tag.label, {})
+          return {
+            id: tag._id,
+            label,
+            description: tag.description,
+            removed: tag.removed === true,
+            attributes: await Promise.all(
+              hierarchy
+                .getOwnAttributes(tag._id)
+                .entries()
+                .filter(([, attr]) => !isCollaborativeAttribute(attr))
+                .map(([, attr]) => buildAttributeDetails(toolCtx, attr))
+                .toArray()
+            )
+          }
+        })
       )
     }
 

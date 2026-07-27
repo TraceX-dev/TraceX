@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,6 +26,7 @@
   export let parent: MasterTag | Tag | undefined = undefined
   export let _class: Ref<Class<MasterTag>> | Ref<Class<Tag>>
   let name: string
+  let description: string = ''
 
   const client = getClient()
   const dispatch = createEventDispatcher()
@@ -35,6 +37,7 @@
     const data: Data<MasterTag> = {
       extends: parent?._id ?? card.class.Card,
       label: getEmbeddedLabel(name),
+      description: description.trim().length > 0 ? description.trim() : undefined,
       kind: isMasterTag ? ClassifierKind.CLASS : ClassifierKind.MIXIN,
       icon: isMasterTag ? card.icon.MasterTag : card.icon.Tag,
       background: getColorNumberByText(name)
@@ -66,4 +69,7 @@
   </svelte:fragment>
 
   <div class="mb-2"><EditBox autoFocus bind:value={name} placeholder={core.string.Name} /></div>
+  <div class="mb-2">
+    <EditBox bind:value={description} placeholder={core.string.Description} format={'text-multiline'} />
+  </div>
 </Card>
