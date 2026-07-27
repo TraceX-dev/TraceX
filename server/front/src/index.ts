@@ -278,6 +278,8 @@ export function start (
     pulseUrl?: string
     hulylakeUrl?: string
     datalakeUrl?: string
+    githubNextClientID?: string
+    githubNextUrl?: string
   },
   port: number,
   extraConfig?: Record<string, string | undefined>
@@ -357,6 +359,8 @@ export function start (
       PULSE_URL: config.pulseUrl,
       HULYLAKE_URL: config.hulylakeUrl,
       DATALAKE_URL: config.datalakeUrl,
+      GITHUB_NEXT_CLIENTID: config.githubNextClientID,
+      GITHUB_NEXT_URL: config.githubNextUrl,
       ...(extraConfig ?? {})
     }
     res.status(200)
