@@ -71,6 +71,8 @@ export interface Config {
   HULYLAKE_URL?: string
   DISABLED_FEATURES?: string
   SIGNUP_URL?: string
+  GITHUB_NEXT_CLIENTID?: string
+  GITHUB_NEXT_URL?: string
 }
 
 export interface Branding {

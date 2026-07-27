@@ -125,6 +125,10 @@ export function startFront (ctx: MeasureContext, extraConfig?: Record<string, st
 
   const datalakeUrl = process.env.DATALAKE_URL
 
+  const githubNextClientID = process.env.GITHUB_NEXT_CLIENTID
+
+  const githubNextUrl = process.env.GITHUB_NEXT_URL
+
   setMetadata(serverToken.metadata.Secret, serverSecret)
   setMetadata(serverToken.metadata.Service, 'front')
 
@@ -157,7 +161,9 @@ export function startFront (ctx: MeasureContext, extraConfig?: Record<string, st
     paymentUrl,
     pulseUrl,
     hulylakeUrl,
-    datalakeUrl
+    datalakeUrl,
+    githubNextClientID,
+    githubNextUrl
   }
   console.log('Starting Front service with', config)
   const shutdown = start(ctx, config, SERVER_PORT, extraConfig)
