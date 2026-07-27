@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,9 +15,19 @@
 -->
 <script lang="ts">
   import core, { Association } from '@hcengineering/core'
-  import { getEmbeddedLabel, IntlString } from '@hcengineering/platform'
+  import { getEmbeddedLabel, IntlString, translateCB } from '@hcengineering/platform'
   import presentation, { getClient, MessageBox } from '@hcengineering/presentation'
-  import { Button, DropdownIntlItem, EditBox, IconDelete, Label, Modal, showPopup, Toggle } from '@hcengineering/ui'
+  import {
+    Button,
+    DropdownIntlItem,
+    EditBox,
+    IconDelete,
+    Label,
+    Modal,
+    showPopup,
+    themeStore,
+    Toggle
+  } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import setting from '../plugin'
   import { clearSettingsStore } from '../store'
@@ -30,12 +41,18 @@
   const classB = hierarchy.getClass(association.classB)
   let nameA = association.nameA
   let nameB = association.nameB
+  let description = ''
   let automationOnly = association.automationOnly ?? false
+
+  translateCB(association.description ?? getEmbeddedLabel(''), {}, $themeStore.language, (p) => {
+    description = p
+  })
 
   async function save (): Promise<void> {
     await client.diffUpdate(association, {
       nameA,
       nameB,
+      description: description.trim().length > 0 ? getEmbeddedLabel(description.trim()) : undefined,
       automationOnly
     })
     clearSettingsStore()
@@ -84,33 +101,46 @@
     <Button icon={IconDelete} kind={'dangerous'} on:click={remove} />
   </svelte:fragment>
   <div class="hulyModal-content__settingsSet">
-    <div class="flex flex-gap-4">
-      <div class="flex-col p-4 flex-gap-2">
-        <div class="flex-col-center">A</div>
-        <div>
-          <EditBox bind:value={nameA} placeholder={core.string.Name} kind={'default'} />
+    <div class="flex-row-center items-stretch flex-gap-4 w-full p-4">
+      <div class="flex-col flex-grow min-w-0 flex-gap-2" style:flex="1 1 0">
+        <div class="flex-center">A</div>
+        <div class="w-full">
+          <EditBox bind:value={nameA} placeholder={core.string.Name} kind={'default'} maxWidth="100%" fullSize />
         </div>
-        <div>
+        <div class="w-full">
           <Label label={classA.label} />
         </div>
       </div>
-      <div class="flex-col p-4 flex-gap-2">
-        <span class="label">
+
+      <div class="flex-col flex-no-shrink flex-gap-2">
+        <div class="flex-center">
           <Label label={setting.string.Type} />
-        </span>
-        <Label {label} />
-      </div>
-      <div class="flex-col p-4 flex-gap-2">
-        <div class="flex-col-center">B</div>
-        <div>
-          <EditBox bind:value={nameB} placeholder={core.string.Name} kind={'default'} />
         </div>
         <div>
+          <Label {label} />
+        </div>
+        <div />
+      </div>
+
+      <div class="flex-col flex-grow min-w-0 flex-gap-2" style:flex="1 1 0">
+        <div class="flex-center">B</div>
+        <div class="w-full">
+          <EditBox bind:value={nameB} placeholder={core.string.Name} kind={'default'} maxWidth="100%" fullSize />
+        </div>
+        <div class="w-full">
           <Label label={classB.label} />
         </div>
       </div>
     </div>
-    <div class="flex-between p-4 flex-gap-2">
+    <div class="p-4 pt-0">
+      <EditBox
+        bind:value={description}
+        placeholder={core.string.Description}
+        kind={'default'}
+        format={'text-multiline'}
+      />
+    </div>
+    <div class="px-4 pb-4 flex-between items-center">
       <span class="label">
         <Label label={view.string.AutomationOnly} />
       </span>

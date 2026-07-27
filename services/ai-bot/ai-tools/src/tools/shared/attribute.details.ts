@@ -21,6 +21,9 @@ export const AttributeDetailsSchema = Type.Object(
     label: Type.String({
       description: 'Human-readable attribute label.'
     }),
+    description: Type.String({
+      description: 'Human-readable attribute description.'
+    }),
     type: Type.With(AttributeTypeSchema, {
       description: 'Attribute type summary.'
     }),
@@ -50,6 +53,7 @@ export async function buildAttributeDetails (toolCtx: PlatformContext, attr: Any
     key: attr.name,
     type: await buildAttributeType(hierarchy, model, attr.type),
     label: await translate(attr.label, {}),
+    description: await translate(attr.description ?? attr.label, {}),
     system: isSystemAttribute(attr),
     readonly: isReadonlyAttribute(attr),
     required: attr.required ?? false,

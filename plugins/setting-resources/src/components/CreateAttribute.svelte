@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -31,6 +32,7 @@
     ButtonIcon,
     Component,
     DropdownLabelsIntl,
+    EditBox,
     IconCopy,
     IconDelete,
     Label,
@@ -44,12 +46,12 @@
   import { IconPicker } from '@hcengineering/view-resources'
   import setting from '../plugin'
   import { clearSettingsStore } from '../store'
-  import { debug } from 'console'
 
   export let _class: Ref<Class<Doc>>
   export let isCard: boolean = false
 
   let name: string
+  let description: string = ''
   let icon: Asset | undefined
   let type: Type<PropertyType> | undefined
   let index: IndexKind | undefined
@@ -68,6 +70,7 @@
       attributeOf: _class,
       name: 'custom' + generateId(),
       label: getEmbeddedLabel(name),
+      description: description.trim().length > 0 ? getEmbeddedLabel(description.trim()) : undefined,
       icon,
       isCustom: true,
       type,
@@ -166,6 +169,7 @@
       />
       <ModernEditbox bind:value={name} label={core.string.Name} size={'large'} kind={'ghost'} autoFocus />
     </div>
+    <EditBox bind:value={description} placeholder={core.string.Description} kind={'ghost'} />
   </div>
   <div class="grid">
     <span class="label">

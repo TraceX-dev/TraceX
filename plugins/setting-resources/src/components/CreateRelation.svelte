@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -96,6 +97,7 @@
   let classBRef: Ref<Class<Doc>> | undefined = undefined
   let nameA: string = ''
   let nameB: string = ''
+  let description: string = ''
   let automationOnly = false
 
   async function save (): Promise<void> {
@@ -108,6 +110,7 @@
       type: mode,
       nameA,
       nameB,
+      description: description.trim().length > 0 ? getEmbeddedLabel(description.trim()) : undefined,
       automationOnly
     })
     dispatch('close', _id)
@@ -152,58 +155,71 @@
   okAction={save}
   on:close
 >
-  <div class="flex-between flex-gap-4">
-    <div class="flex-col p-4 flex-gap-2">
-      <div class="flex-col-center">A</div>
-      <div>
-        <EditBox bind:value={nameA} placeholder={core.string.Name} kind={'default'} />
+  <div class="flex-col w-full">
+    <div class="flex-row-center items-stretch flex-gap-4 w-full p-4">
+      <div class="flex-col flex-grow min-w-0 flex-gap-2" style:flex="1 1 0">
+        <div class="flex-center">A</div>
+        <div class="w-full">
+          <EditBox bind:value={nameA} placeholder={core.string.Name} kind={'default'} maxWidth="100%" fullSize />
+        </div>
+        <div class="w-full">
+          {#if classA !== undefined}
+            <DropdownLabelsIntl items={[classA]} selected={classA.id} width="100%" disabled />
+          {:else}
+            <NestedDropdown
+              items={classes}
+              withSearch
+              width="100%"
+              on:selected={(e) => {
+                classARef = e.detail
+              }}
+            />
+          {/if}
+        </div>
       </div>
-      <div>
-        {#if classA !== undefined}
-          <DropdownLabelsIntl items={[classA]} selected={classA.id} disabled />
-        {:else}
+
+      <div class="flex-col flex-no-shrink flex-gap-2">
+        <div class="flex-center">
+          <Label label={setting.string.Type} />
+        </div>
+        <div>
+          <DropdownLabelsIntl
+            selected={mode}
+            {items}
+            on:selected={(res) => {
+              mode = res.detail
+            }}
+          />
+        </div>
+        <div />
+      </div>
+
+      <div class="flex-col flex-grow min-w-0 flex-gap-2" style:flex="1 1 0">
+        <div class="flex-center">B</div>
+        <div class="w-full">
+          <EditBox bind:value={nameB} placeholder={core.string.Name} kind={'default'} maxWidth="100%" fullSize />
+        </div>
+        <div class="w-full">
           <NestedDropdown
             items={classes}
             withSearch
+            width="100%"
             on:selected={(e) => {
-              classARef = e.detail
+              classBRef = e.detail
             }}
           />
-        {/if}
+        </div>
       </div>
     </div>
-
-    <div class="flex-col p-4 flex-gap-2">
-      <span class="label">
-        <Label label={setting.string.Type} />
-      </span>
-      <DropdownLabelsIntl
-        selected={mode}
-        {items}
-        label={setting.string.Type}
-        on:selected={(res) => {
-          mode = res.detail
-        }}
+    <div class="p-4 pt-0">
+      <EditBox
+        bind:value={description}
+        placeholder={core.string.Description}
+        kind={'default'}
+        format={'text-multiline'}
       />
     </div>
-
-    <div class="flex-col p-4 flex-gap-2">
-      <div class="flex-col-center">B</div>
-      <div>
-        <EditBox bind:value={nameB} placeholder={core.string.Name} kind={'default'} />
-      </div>
-      <div>
-        <NestedDropdown
-          items={classes}
-          withSearch
-          on:selected={(e) => {
-            classBRef = e.detail
-          }}
-        />
-      </div>
-    </div>
-
-    <div class="flex p-4 flex-gap-2">
+    <div class="px-4 pb-4 flex-between items-center">
       <span class="label">
         <Label label={view.string.AutomationOnly} />
       </span>
