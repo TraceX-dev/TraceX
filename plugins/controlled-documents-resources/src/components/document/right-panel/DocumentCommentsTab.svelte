@@ -15,7 +15,7 @@
 <script lang="ts">
   import chunter from '@hcengineering/chunter'
   import { Ref } from '@hcengineering/core'
-  import { Button, Label, showPopup } from '@hcengineering/ui'
+  import { Button, Label, Scroller, showPopup } from '@hcengineering/ui'
   import documents, { type DocumentComment } from '@hcengineering/controlled-documents'
   import { onDestroy } from 'svelte'
   import {
@@ -77,22 +77,26 @@
     </div>
   </div>
 </RightPanelTabHeader>
-{#if $documentComments.length > 0}
-  {#each $documentComments as object}
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div
-      bind:this={elements[object._id]}
-      on:click={handleItemHighlight(object)}
-      on:keydown={handleItemHighlight(object)}
-      data-testid="comment"
-    >
-      <DocumentCommentThread
-        value={object}
-        highlighted={!!$highlightedLocation && isDocumentCommentAttachedTo(object, $highlightedLocation)}
-      />
-    </div>
-  {/each}
-{/if}
+<Scroller>
+  <div class="comments">
+    {#if $documentComments.length > 0}
+      {#each $documentComments as object}
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div
+          bind:this={elements[object._id]}
+          on:click={handleItemHighlight(object)}
+          on:keydown={handleItemHighlight(object)}
+          data-testid="comment"
+        >
+          <DocumentCommentThread
+            value={object}
+            highlighted={!!$highlightedLocation && isDocumentCommentAttachedTo(object, $highlightedLocation)}
+          />
+        </div>
+      {/each}
+    {/if}
+  </div>
+</Scroller>
 
 <style lang="scss">
   .configure-button {
@@ -107,5 +111,9 @@
     height: 0.5rem;
     border-radius: 50%;
     background-color: var(--highlight-red);
+  }
+
+  .comments :global(.scroll.disableOverscroll) {
+    overscroll-behavior: auto;
   }
 </style>
