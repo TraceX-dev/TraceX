@@ -16,3 +16,4 @@
 export const meAccountToolId = 'me.account'
 export const meInboxToolId = 'me.inbox'
 export const meInboxReadAllToolId = 'me.inbox_read_all'
+export const meWorkspaceToolId = 'me.workspace'
