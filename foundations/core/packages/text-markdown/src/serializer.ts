@@ -191,9 +191,6 @@ export const storeNodes: Record<string, NodeProcessor> = {
       )
     } else if (attrs['file-id'] != null) {
       // Convert image to fileid format.
-      // The `?file=` query parameter is required: MarkdownParser restores `file-id`
-      // from it, and the editor's image node resolves the blob by `file-id`.
-      // Without it the parsed image has no `file-id` and renders as a broken image.
       state.write(
         '![' +
           state.esc(`${attrs.alt ?? ''}`) +
