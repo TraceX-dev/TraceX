@@ -1,3 +1,19 @@
+//
+// Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import { getClient as getAccountClientRaw, type AccountClient } from '@hcengineering/account-client'
 import contact, {
   AvatarType,
@@ -56,6 +72,7 @@ import { retrieveJson } from './utils'
 import platform, { PlatformError, unknownError } from '@hcengineering/platform'
 
 export const COMMUNICATION_DOMAIN = 'communication' as OperationDomain
+
 interface RPCClientInfo {
   client: ConnectionSocket
   session: Session
@@ -194,6 +211,15 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
       if (workspaceId !== decodedToken.workspace) {
         sendError(res, 403, { message: 'Invalid workspace', workspace: decodedToken.workspace })
         return
+      }
+
+      if (decodedToken.extra?.apiKey != null) {
+        try {
+          await getAccountClient(token).getLoginInfoByToken()
+        } catch {
+          sendError(res, 401, { message: 'Invalid API key' })
+          return
+        }
       }
 
       let transactorRpc = rpcSessions.get(token)

@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -54,6 +55,7 @@ import {
   TypeBoolean,
   TypeDate,
   TypeMarkup,
+  TypePersonId,
   TypeRef,
   TypeString,
   TypeTimestamp,
@@ -85,10 +87,16 @@ export const DOMAIN_EVENT = 'event' as Domain
 @Model(calendar.class.Calendar, core.class.Doc, DOMAIN_CALENDAR)
 @UX(calendar.string.Calendar, calendar.icon.Calendar)
 export class TCalendar extends TDoc implements Calendar {
-  name!: string
-  hidden!: boolean
+  @Prop(TypeString(), core.string.Name)
+    name!: string
+
+  @Prop(TypeBoolean(), calendar.string.Hidden)
+    hidden!: boolean
+
+  @Prop(TypePersonId(), contact.string.Contact)
+    user!: PersonId
+
   visibility!: Visibility
-  user!: PersonId
   access!: AccessLevel
 }
 

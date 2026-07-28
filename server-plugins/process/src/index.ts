@@ -1,4 +1,5 @@
 import { Doc, Mixin, Ref } from '@hcengineering/core'
+import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import type { Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import { Execution, Method, ProcessFunction, Trigger } from '@hcengineering/process'
@@ -75,6 +76,11 @@ export default plugin(serverProcessId, {
     ApproveRequestApproved: '' as Resource<CheckFunc>,
     ApproveRequestRejected: '' as Resource<CheckFunc>,
     CancelToDo: '' as Resource<ExecuteFunc>
+  },
+  workspaceApi: {
+    FindProcessToDos: '' as Resource<WorkspaceApiOperation>,
+    GetProcessToDo: '' as Resource<WorkspaceApiOperation>,
+    PatchProcessToDo: '' as Resource<WorkspaceApiOperation>
   },
   transform: {
     FirstValue: '' as Resource<TransformFunc>,

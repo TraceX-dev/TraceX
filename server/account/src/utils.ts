@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -173,7 +174,8 @@ export function isGuest (account: AccountUuid, extra: Record<string, any> | unde
 }
 
 export function wrap (
-  accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>
+  accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>,
+  allowApiKey: boolean = false
 ): AccountMethodHandler {
   return async function (
     ctx: MeasureContext,
@@ -183,7 +185,18 @@ export function wrap (
     token?: string,
     meta?: Meta
   ): Promise<any> {
-    return await accountMethod(ctx, db, branding, token, { ...request.params }, meta)
+    const invoke = async (): Promise<any> => {
+      if (token !== undefined && !allowApiKey) {
+        const { extra } = decodeTokenVerbose(ctx, token)
+        if (extra?.apiKey != null) {
+          throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+        }
+      }
+
+      return await accountMethod(ctx, db, branding, token, { ...request.params }, meta)
+    }
+
+    return await invoke()
       .then((result) => ({ id: request.id, result }))
       .catch((err: Error) => {
         const status =
@@ -756,9 +769,11 @@ export async function selectWorkspace (
   let sub: AccountUuid | undefined
   let exp: number | undefined
   let nbf: number | undefined
+  let tokenWorkspace: WorkspaceUuid | undefined
   try {
     const decodedToken = decodeTokenVerbose(ctx, token ?? '')
     accountUuid = decodedToken.account
+    tokenWorkspace = decodedToken.workspace
     if (workspace == null) {
       workspace = await getWorkspaceById(db, decodedToken.workspace)
     }
@@ -778,6 +793,29 @@ export async function selectWorkspace (
   if (workspace == null) {
     ctx.error('Workspace not found in selectWorkspace', { workspaceUrl, kind, accountUuid, extra })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
+  }
+
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (
+      typeof apiKeyId !== 'string' ||
+      tokenWorkspace == null ||
+      tokenWorkspace !== workspace.uuid ||
+      grant != null ||
+      sub != null
+    ) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid,
+      workspaceUuid: tokenWorkspace,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
   }
 
   const getKind = (region: string | undefined): EndpointKind => {

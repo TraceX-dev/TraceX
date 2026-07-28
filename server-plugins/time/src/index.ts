@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
 import { Class, Doc, Mixin, Ref, Tx } from '@hcengineering/core'
 import type { Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
+import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import type { TriggerControl, TriggerFunc } from '@hcengineering/server-core'
 import { Task } from '@hcengineering/task'
 import { ToDo, WorkSlot } from '@hcengineering/time'
@@ -60,5 +62,11 @@ export default plugin(serverTimeId, {
     OnToDoCreate: '' as Resource<TriggerFunc>,
     OnWorkSlotCreate: '' as Resource<TriggerFunc>,
     OnWorkSlotUpdate: '' as Resource<TriggerFunc>
+  },
+  workspaceApi: {
+    FindToDos: '' as Resource<WorkspaceApiOperation>,
+    GetToDo: '' as Resource<WorkspaceApiOperation>,
+    CreateToDo: '' as Resource<WorkspaceApiOperation>,
+    PatchToDo: '' as Resource<WorkspaceApiOperation>
   }
 })

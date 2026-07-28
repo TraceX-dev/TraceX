@@ -1,5 +1,6 @@
 //
 // Copyright © 2022, 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -44,6 +45,15 @@ import { getMetadata, IntlString, translate } from '@hcengineering/platform'
 import { getAccountBySocialId, getPerson } from '@hcengineering/server-contact'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import {
+  CreateChannelMessage,
+  CreateChannelMessageByName,
+  CreateLegacyComment,
+  GetChannelMessages,
+  GetChannelMessagesByName,
+  GetLegacyComments
+} from './workspaceApi'
+
+import {
   createCollaboratorNotifications,
   getAddCollaboratTxes,
   getDocCollaborators
@@ -54,6 +64,15 @@ import { workbenchId } from '@hcengineering/workbench'
 
 import { NOTIFICATION_BODY_SIZE } from '@hcengineering/server-notification'
 import { encodeObjectURI } from '@hcengineering/view'
+
+export {
+  CreateChannelMessage,
+  CreateChannelMessageByName,
+  CreateLegacyComment,
+  GetChannelMessages,
+  GetChannelMessagesByName,
+  GetLegacyComments
+}
 
 const updateChatInfoDelay = 12 * 60 * 60 * 1000 // 12 hours
 const hideChannelDelay = 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -544,5 +563,13 @@ export default async () => ({
     ChatMessageTextPresenter,
     ChatMessageHtmlPresenter,
     JoinChannelTypeMatch
+  },
+  workspaceApi: {
+    GetLegacyComments,
+    CreateLegacyComment,
+    GetChannelMessages,
+    CreateChannelMessage,
+    GetChannelMessagesByName,
+    CreateChannelMessageByName
   }
 })
