@@ -157,6 +157,7 @@ import { initThemeStore, setDefaultLanguage } from '@hcengineering/theme'
 import { preferenceId } from '@hcengineering/preference'
 import { uiId } from '@hcengineering/ui/src/plugin'
 import { configureAnalytics } from './analytics'
+import { Analytics } from '@hcengineering/analytics'
 
 export interface Config {
   ACCOUNTS_URL: string
@@ -434,7 +435,8 @@ export async function configurePlatform() {
         if (err.message.includes('Loading chunk') && i != 4) {
           continue
         }
-        console.log('reload due to loading error')
+        Analytics.handleError(err)
+        console.error(err)
         location.reload()
       }
     }
@@ -536,7 +538,7 @@ export async function configurePlatform() {
 
   setMetadata(uiPlugin.metadata.DefaultApplication, login.component.LoginApp)
   setMetadata(contactPlugin.metadata.LastNameFirst, myBranding.lastNameFirst === 'true')
-  setMetadata(love.metadata.ServiceEnpdoint, config.LOVE_ENDPOINT)
+  setMetadata(love.metadata.ServiceEndpoint, config.LOVE_ENDPOINT)
   setMetadata(love.metadata.WebSocketURL, config.LIVEKIT_WS)
   setMetadata(print.metadata.PrintURL, config.PRINT_URL)
   setMetadata(sign.metadata.SignURL, config.SIGN_URL)
@@ -569,7 +571,8 @@ export async function configurePlatform() {
       [githubId, github.component.ConnectApp],
       [calendarId, calendar.component.ConnectApp],
       [guestId, guest.component.GuestApp],
-      [globalProfileRoute, globalProfile.component.GlobalProfileApp]
+      [globalProfileRoute, globalProfile.component.GlobalProfileApp],
+      ['meetings', love.component.GuestMeetingApp]
     ])
   )
 

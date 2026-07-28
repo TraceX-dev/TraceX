@@ -83,7 +83,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV23Migration(ns, flavor),
     getV24Migration(ns, flavor),
     getV25Migration(ns, flavor),
-    getV26Migration(ns, flavor)
+    getV26Migration(ns, flavor),
+    getV27Migration(ns, flavor)
   ]
 }
 
@@ -808,4 +809,28 @@ function getV26Migration (ns: string, flavor: DBFlavor): [string, string] {
     ADD COLUMN IF NOT EXISTS pending_configuration JSONB;
     `
   ]
+}
+
+function getV27Migration (ns: string, flavor: DBFlavor): [string, string] {
+  // For PostgreSQL, we need to check if the value exists before adding it
+  const addValueSql =
+    flavor === 'postgres'
+      ? `
+    -- Add office value to social_id_type enum (PostgreSQL)
+    DO $$     BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_enum
+            WHERE enumlabel = 'office'
+            AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'social_id_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = '${ns}'))
+        ) THEN
+            ALTER TYPE ${ns}.social_id_type ADD VALUE 'office';
+        END IF;
+    END $$;
+    `
+      : `
+    -- Add office value to social_id_type enum (CockroachDB)
+    ALTER TYPE ${ns}.social_id_type ADD VALUE IF NOT EXISTS 'office';
+    `
+
+  return ['account_db_v27_add_office_social_id_type', addValueSql]
 }

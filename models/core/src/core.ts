@@ -62,7 +62,8 @@ import {
   type Type,
   type TypeAny,
   type Version,
-  type VersionableClass
+  type VersionableClass,
+  type TransientTTL
 } from '@hcengineering/core'
 import {
   Hidden,
@@ -455,4 +456,9 @@ export class TVersionableClass extends TClass implements VersionableClass {
   excludedProperties?: string[]
   excludedRelations?: string[] // ${associationId}_${a|b}
   excludeMixins?: Ref<Mixin<Doc>>[]
+}
+
+@MMixin(core.mixin.TransientTTL, core.class.Class)
+export class TTTransientTTL extends TClass implements TransientTTL {
+  ttl!: number
 }

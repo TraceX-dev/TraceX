@@ -58,6 +58,25 @@
     }
     await krispProcessor.setEnabled(value)
   }
+
+  async function saveSpeakingWhileMutedPreference (
+    myPreferences: DevicesPreference | undefined,
+    value: boolean
+  ): Promise<void> {
+    if (myPreferences !== undefined) {
+      await client.update(myPreferences, { speakingWhileMutedAlert: value })
+    } else {
+      const acc = getCurrentAccount().uuid
+      await client.createDoc(love.class.DevicesPreference, core.space.Workspace, {
+        attachedTo: acc,
+        noiseCancellation: true,
+        camEnabled: true,
+        micEnabled: true,
+        blurRadius: 0,
+        speakingWhileMutedAlert: value
+      })
+    }
+  }
 </script>
 
 <div class="hulyComponent">
@@ -94,6 +113,15 @@
             : undefined}
           on:change={(e) => {
             saveNoiseCancellationPreference($myPreferences, e.detail)
+          }}
+        />
+      </div>
+      <div class="flex-row-center flex-gap-4">
+        <Label label={love.string.SpeakingWhileMutedAlert} />
+        <Toggle
+          on={$myPreferences?.speakingWhileMutedAlert ?? true}
+          on:change={(e) => {
+            saveSpeakingWhileMutedPreference($myPreferences, e.detail)
           }}
         />
       </div>

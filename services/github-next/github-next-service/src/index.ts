@@ -776,6 +776,8 @@ export async function isGithubNextOutboundRelevantTx (
 }
 
 async function isCommunicationPluginEnabled (client: TxOperations): Promise<boolean> {
+  if (!config.CommunicationApiEnabled) return false
+
   const hasCommunicationModel = client.getModel().findObject(communication.class.MessageAction) !== undefined
   if (!hasCommunicationModel) return false
 
