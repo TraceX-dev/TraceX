@@ -87,9 +87,7 @@ export async function OnEmployee (txes: Tx[], control: TriggerControl): Promise<
     }
 
     // A mixin tx only carries the changed fields, so fetch the full employee to read its role
-    const user = (
-      await control.findAll(control.ctx, contact.mixin.Employee, { _id: employeeId as Ref<Employee> })
-    )[0]
+    const user = (await control.findAll(control.ctx, contact.mixin.Employee, { _id: employeeId as Ref<Employee> }))[0]
     if (user === undefined) {
       continue
     }
