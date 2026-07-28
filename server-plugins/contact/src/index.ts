@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
 
 import type { Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
+import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import type { TriggerFunc, SearchPresenterProvider } from '@hcengineering/server-core'
 import { Presenter } from '@hcengineering/server-notification'
 import { TemplateFieldServerFunc } from '@hcengineering/server-templates'
@@ -52,5 +54,17 @@ export default plugin(serverContactId, {
     GetCurrentEmployeePosition: '' as Resource<TemplateFieldServerFunc>,
     GetContactFirstName: '' as Resource<TemplateFieldServerFunc>,
     GetContactLastName: '' as Resource<TemplateFieldServerFunc>
+  },
+  workspaceApi: {
+    FindPersons: '' as Resource<WorkspaceApiOperation>,
+    GetPerson: '' as Resource<WorkspaceApiOperation>,
+    CreatePerson: '' as Resource<WorkspaceApiOperation>,
+    PatchPerson: '' as Resource<WorkspaceApiOperation>,
+    FindOrganizations: '' as Resource<WorkspaceApiOperation>,
+    GetOrganization: '' as Resource<WorkspaceApiOperation>,
+    CreateOrganization: '' as Resource<WorkspaceApiOperation>,
+    PatchOrganization: '' as Resource<WorkspaceApiOperation>,
+    FindEmployees: '' as Resource<WorkspaceApiOperation>,
+    GetEmployee: '' as Resource<WorkspaceApiOperation>
   }
 })

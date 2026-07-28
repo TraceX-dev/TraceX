@@ -194,7 +194,8 @@ export function createModel (builder: Builder): void {
     type: TypeString(),
     values: [
       { value: 'open', label: getEmbeddedLabel('Open') },
-      { value: 'closed', label: getEmbeddedLabel('Closed') }
+      { value: 'closed', label: getEmbeddedLabel('Closed') },
+      { value: 'merged', label: getEmbeddedLabel('Merged') }
     ]
   }
   const externalUrlSlot: IntegrationAttributeSlotModel = {
@@ -225,6 +226,18 @@ export function createModel (builder: Builder): void {
     slotKind: 'attribute',
     _class: core.class.Attribute,
     label: getEmbeddedLabel('Category'),
+    type: TypeString()
+  }
+  const baseBranchSlot: IntegrationAttributeSlotModel = {
+    slotKind: 'attribute',
+    _class: core.class.Attribute,
+    label: getEmbeddedLabel('Base branch'),
+    type: TypeString()
+  }
+  const headBranchSlot: IntegrationAttributeSlotModel = {
+    slotKind: 'attribute',
+    _class: core.class.Attribute,
+    label: getEmbeddedLabel('Head branch'),
     type: TypeString()
   }
 
@@ -280,5 +293,26 @@ export function createModel (builder: Builder): void {
       }
     },
     githubNext.ids.GithubNextDiscussionProvider
+  )
+
+  builder.createDoc(
+    integration.class.IntegrationSlotProvider,
+    core.space.Model,
+    {
+      integrationType: githubNext.integrationType.GithubNext,
+      label: getEmbeddedLabel('GitHub pull request'),
+      requiredSlots: {
+        title: titleSlot
+      },
+      optionalSlots: {
+        description: descriptionSlot,
+        state: stateSlot,
+        externalUrl: externalUrlSlot,
+        number: numberSlot,
+        baseBranch: baseBranchSlot,
+        headBranch: headBranchSlot
+      }
+    },
+    githubNext.ids.GithubNextPullRequestProvider
   )
 }

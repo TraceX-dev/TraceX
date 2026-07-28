@@ -120,6 +120,22 @@ export interface MailboxSecret {
   secret: string
 }
 
+/** A revocable API key for one workspace. */
+export interface ApiKey {
+  id: string
+  name: string
+  /** Last characters of the key, retained solely to identify it in the settings list. */
+  keySuffix?: string
+  workspaceUuid: WorkspaceUuid
+  createdOn: Timestamp
+}
+
+/** The key is returned only when the API key is created. */
+export interface CreatedApiKey {
+  apiKey: ApiKey
+  key: string
+}
+
 export interface Integration {
   socialId: PersonId
   kind: IntegrationKind // Integration kind. E.g. 'github', 'mail', 'telegram-bot', 'telegram' etc.

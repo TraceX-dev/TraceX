@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 
-import type { Class, Client, Doc, Domain, Ref, Space, TxOperations, Type } from '@hcengineering/core'
+import type { Class, Client, Doc, Domain, PersonId, Ref, Space, TxOperations, Type } from '@hcengineering/core'
 import { type IntlString, type Resource } from '@hcengineering/platform'
 import type { Integration, IntegrationType } from '@hcengineering/setting'
 import type { AnyComponent } from '@hcengineering/ui'
@@ -142,6 +143,27 @@ export interface IntegrationTargetFactory extends Doc {
   getAllowedSpaceClasses?: Resource<GetIntegrationTargetAllowedSpaceClasses>
   getCommentBackend?: Resource<GetIntegrationTargetCommentBackend>
 }
+
+/**
+ * Model-declared operations exposed by the workspace API. Implementations are
+ * server resources; the API pod only resolves and invokes this contract.
+ */
+export interface WorkspaceApiCapability extends Doc {
+  targetClass: Ref<Class<Doc>>
+  find?: Resource<WorkspaceApiOperation>
+  get?: Resource<WorkspaceApiOperation>
+  create?: Resource<WorkspaceApiOperation>
+  patch?: Resource<WorkspaceApiOperation>
+  commands?: Record<string, Resource<WorkspaceApiOperation>>
+}
+
+export interface WorkspaceApiContext {
+  client: TxOperations & Client
+  currentUser: PersonId
+  markup?: unknown
+}
+
+export type WorkspaceApiOperation = (context: WorkspaceApiContext, input: Record<string, unknown>) => Promise<unknown>
 
 /**
  * @public

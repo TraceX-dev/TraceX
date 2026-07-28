@@ -20,36 +20,19 @@ import { type AttributeModel } from '@hcengineering/view'
 import { getClient } from '@hcengineering/presentation'
 import { isIntlString } from '@hcengineering/converter-resources'
 import { markupToJSON } from '@hcengineering/text'
-import { markupToMarkdown } from '@hcengineering/text-markdown'
+import { markdownToInlineCell, markupToMarkdown } from '@hcengineering/text-markdown'
 import { getCardIds, getCardVersion } from './cardUtils'
 import { formatCardTagsForMarkdown, isTagsColumn } from './tagFormatter'
-
-const HTML_TAG_RE = /<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^>]*)?\/?>/g
-const HTML_COMMENT_RE = /<!--[\s\S]*?-->/g
-const HTML_ANCHOR_RE = /<a\b[^>]*?\bhref="([^"]*)"[^>]*?>([\s\S]*?)<\/a>/gi
-
-function stripInlineHtml (s: string): string {
-  return s.replace(HTML_COMMENT_RE, ' ').replace(HTML_TAG_RE, ' ').replace(/\s+/g, ' ').trim()
-}
 
 /**
  * Convert a stored markup value (serialized ProseMirror JSON) into a single-line
  * markdown string safe to embed inside an outer markdown table cell.
+ *
+ * Images, inline emphasis, links, line breaks (as `<br>`) and list items (as bullets)
+ * are preserved; see `markdownToInlineCell`.
  */
 export function formatMarkupForCell (markup: string): string {
-  const markdown = markupToMarkdown(markupToJSON(markup))
-  return markdown
-    .replace(HTML_ANCHOR_RE, (_match, href: string, inner: string) => {
-      const text = stripInlineHtml(inner)
-      if (text === '' || text === href) {
-        return href
-      }
-      return `[${text}](${href})`
-    })
-    .replace(HTML_COMMENT_RE, ' ')
-    .replace(HTML_TAG_RE, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return markdownToInlineCell(markupToMarkdown(markupToJSON(markup)))
 }
 
 /**

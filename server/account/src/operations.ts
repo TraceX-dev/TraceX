@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,6 +20,7 @@ import {
   type AccountUuid,
   type Branding,
   buildSocialIdString,
+  generateId,
   concatLink,
   isActiveMode,
   isDeletingMode,
@@ -70,6 +72,7 @@ import {
   type LoginInfoRequest,
   type LoginInfoRequestData,
   type Account,
+  type ApiKey,
   type PersonWithProfile,
   type Subscription,
   SubscriptionStatus,
@@ -2026,6 +2029,22 @@ export async function getWorkspaceInfo (
   const { updateLastVisit = false } = params
 
   const { account, workspace: workspaceUuid, extra } = decodeTokenVerbose(ctx, token)
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (typeof apiKeyId !== 'string' || workspaceUuid == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid: account,
+      workspaceUuid,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+  }
   const isGuest = extra?.guest === 'true'
   const isAdmin = extra?.admin === 'true'
   const skipAssignmentCheck = isGuest || account === systemAccountUuid
@@ -2108,6 +2127,30 @@ export async function getLoginInfoByToken (
 
   if (accountUuid == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
+  }
+
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (
+      typeof apiKeyId !== 'string' ||
+      account == null ||
+      workspaceUuid == null ||
+      account !== accountUuid ||
+      grant != null ||
+      sub != null
+    ) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid,
+      workspaceUuid,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
   }
 
   const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
@@ -2287,6 +2330,23 @@ export async function getLoginWithWorkspaceInfo (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
   }
 
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (typeof apiKeyId !== 'string' || workspace == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid,
+      workspaceUuid: workspace,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+  }
+
   const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
   let socialIds: SocialId[] = []
@@ -2326,7 +2386,9 @@ export async function getLoginWithWorkspaceInfo (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
 
-  const userWorkspaces = (await db.getAccountWorkspaces(accountUuid)).filter((it) => isActiveMode(it.status.mode))
+  const userWorkspaces = (await db.getAccountWorkspaces(accountUuid)).filter(
+    (it) => isActiveMode(it.status.mode) && (apiKeyId == null || it.uuid === workspace)
+  )
   const roles: Map<WorkspaceUuid, AccountRole | null> = await getWorkspaceRoles(db, accountUuid)
 
   const info = getEndpointInfo()
@@ -2594,6 +2656,111 @@ async function getMailboxOptions (
     maxNameLength: parseInt(process.env.MAILBOX_MAX_NAME_LENGTH ?? '30'),
     maxMailboxCount: parseInt(process.env.MAILBOX_MAX_COUNT_PER_ACCOUNT ?? '1')
   }
+}
+
+async function getApiKeyOwner (
+  ctx: MeasureContext,
+  db: AccountDB,
+  token: string
+): Promise<{ account: AccountUuid, workspace: WorkspaceUuid }> {
+  const { account, workspace, extra } = decodeTokenVerbose(ctx, token)
+
+  if (workspace == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, {}))
+  }
+  if (extra?.apiKey != null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  const role = await db.getWorkspaceRole(account, workspace)
+  if (role == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  return { account, workspace }
+}
+
+async function createApiKey (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { name?: string }
+): Promise<{ apiKey: Omit<ApiKey, 'accountUuid' | 'revokedOn'>, key: string }> {
+  const { account, workspace } = await getApiKeyOwner(ctx, db, token)
+  const name = params.name?.trim() ?? 'API key'
+  if (name.length === 0 || name.length > 128) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const id = generateId()
+  const key = generateToken(account, workspace, { apiKey: id })
+  const apiKey: ApiKey = {
+    id,
+    name,
+    keySuffix: key.slice(-6),
+    accountUuid: account,
+    workspaceUuid: workspace,
+    createdOn: Date.now()
+  }
+  await db.apiKey.insertOne(apiKey)
+
+  return {
+    apiKey: {
+      id: apiKey.id,
+      name: apiKey.name,
+      keySuffix: apiKey.keySuffix,
+      workspaceUuid: apiKey.workspaceUuid,
+      createdOn: apiKey.createdOn
+    },
+    key
+  }
+}
+
+async function getApiKeys (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string
+): Promise<Array<Omit<ApiKey, 'accountUuid' | 'revokedOn'>>> {
+  const { account, workspace } = await getApiKeyOwner(ctx, db, token)
+  const apiKeys = await db.apiKey.find(
+    { accountUuid: account, workspaceUuid: workspace, revokedOn: null },
+    { createdOn: 'descending' }
+  )
+
+  return apiKeys.map(({ id, name, keySuffix, workspaceUuid, createdOn }) => ({
+    id,
+    name,
+    keySuffix,
+    workspaceUuid,
+    createdOn
+  }))
+}
+
+async function revokeApiKey (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { id: string }
+): Promise<void> {
+  if (params.id == null || params.id === '') {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const { account, workspace } = await getApiKeyOwner(ctx, db, token)
+  const apiKey = await db.apiKey.findOne({
+    id: params.id,
+    accountUuid: account,
+    workspaceUuid: workspace,
+    revokedOn: null
+  })
+  if (apiKey == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  await db.apiKey.update({ id: apiKey.id, revokedOn: null }, { revokedOn: Date.now() })
 }
 
 async function createMailbox (
@@ -3454,6 +3621,9 @@ export type AccountMethods =
   | 'createMailbox'
   | 'getMailboxes'
   | 'getMailboxSecret'
+  | 'createApiKey'
+  | 'getApiKeys'
+  | 'revokeApiKey'
   | 'deleteMailbox'
   | 'getAccountInfo'
   | 'isReadOnlyGuest'
@@ -3494,7 +3664,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     createAccessLink: wrap(createAccessLink),
     sendInvite: wrap(sendInvite),
     resendInvite: wrap(resendInvite),
-    selectWorkspace: wrap(selectWorkspace),
+    selectWorkspace: wrap(selectWorkspace, true),
     join: wrap(join),
     joinByToken: wrap(joinByToken),
     checkJoin: wrap(checkJoin),
@@ -3521,6 +3691,9 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     updatePasswordAgingRule: wrap(updatePasswordAgingRule),
     checkPasswordAging: wrap(checkPasswordAging),
     createMailbox: wrap(createMailbox),
+    createApiKey: wrap(createApiKey),
+    getApiKeys: wrap(getApiKeys),
+    revokeApiKey: wrap(revokeApiKey),
     getMailboxes: wrap(getMailboxes),
     deleteMailbox: wrap(deleteMailbox),
     ensurePerson: wrap(ensurePerson),
@@ -3545,11 +3718,11 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     /* READ OPERATIONS */
     getRegionInfo: wrap(getRegionInfo),
     getUserWorkspaces: wrap(getUserWorkspaces),
-    getWorkspaceInfo: wrap(getWorkspaceInfo),
+    getWorkspaceInfo: wrap(getWorkspaceInfo, true),
     getWorkspacesInfo: wrap(getWorkspacesInfo),
     updateLastVisit: wrap(updateLastVisit),
-    getLoginInfoByToken: wrap(getLoginInfoByToken),
-    getLoginWithWorkspaceInfo: wrap(getLoginWithWorkspaceInfo),
+    getLoginInfoByToken: wrap(getLoginInfoByToken, true),
+    getLoginWithWorkspaceInfo: wrap(getLoginWithWorkspaceInfo, true),
     getSocialIds: wrap(getSocialIds),
     getPerson: wrap(getPerson),
     findPersonBySocialId: wrap(findPersonBySocialId),

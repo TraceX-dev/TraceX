@@ -37,6 +37,7 @@
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/controlled-documents": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
+    "@hcengineering/integration": "workspace:^0.7.0",
     "@hcengineering/model": "workspace:^0.7.17",
     "@hcengineering/model-core": "workspace:^0.7.0",
     "@hcengineering/notification": "workspace:^0.7.0",

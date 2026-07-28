@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -37,6 +38,7 @@ import { UUID } from 'mongodb'
 
 import type {
   Account,
+  ApiKey,
   AccountDB,
   AccountEvent,
   AccountAggregatedInfo,
@@ -407,6 +409,7 @@ export class MongoAccountDB implements AccountDB {
   integration: MongoDbCollection<Integration>
   integrationSecret: MongoDbCollection<IntegrationSecret>
   userProfile: MongoDbCollection<UserProfile, 'personUuid'>
+  apiKey: MongoDbCollection<ApiKey, 'id'>
   subscription: MongoDbCollection<Subscription, 'id'>
 
   workspaceMembers: MongoDbCollection<WorkspaceMember>
@@ -427,6 +430,7 @@ export class MongoAccountDB implements AccountDB {
     this.integration = new MongoDbCollection<Integration>('integration', db)
     this.integrationSecret = new MongoDbCollection<IntegrationSecret>('integrationSecret', db)
     this.userProfile = new MongoDbCollection<UserProfile, 'personUuid'>('user_profile', db, 'personUuid')
+    this.apiKey = new MongoDbCollection<ApiKey, 'id'>('api_keys', db, 'id')
     this.subscription = new MongoDbCollection<Subscription, 'id'>('subscription', db, 'id')
 
     this.workspaceMembers = new MongoDbCollection<WorkspaceMember>('workspaceMembers', db)
@@ -482,6 +486,14 @@ export class MongoAccountDB implements AccountDB {
         options: {
           name: 'hc_account_workspace_members_account_uuid_1'
         }
+      }
+    ])
+
+    await this.apiKey.ensureIndices([
+      { key: { id: 1 }, options: { unique: true, name: 'hc_account_api_key_id_1' } },
+      {
+        key: { accountUuid: 1, workspaceUuid: 1, revokedOn: 1 },
+        options: { name: 'hc_account_api_key_owner_workspace_active_1' }
       }
     ])
   }

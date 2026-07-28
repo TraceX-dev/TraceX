@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
 import { Mixin, type Builder } from '@hcengineering/model'
 
 import core, { type Tx } from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import { TClass } from '@hcengineering/model-core'
 import { type Resource } from '@hcengineering/platform'
 import serverCore, { type TriggerControl } from '@hcengineering/server-core'
@@ -35,6 +37,14 @@ export class TOnToDo extends TClass implements OnToDo {
 
 export function createModel (builder: Builder): void {
   builder.createModel(TToDoFactory, TOnToDo)
+
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: time.class.ToDo,
+    find: serverTime.workspaceApi.FindToDos,
+    get: serverTime.workspaceApi.GetToDo,
+    create: serverTime.workspaceApi.CreateToDo,
+    patch: serverTime.workspaceApi.PatchToDo
+  })
 
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverTime.trigger.OnTask,

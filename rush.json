@@ -976,6 +976,11 @@
       "shouldPublish": false
     },
     {
+      "packageName": "@tracex/pod-api",
+      "projectFolder": "pods/api",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@hcengineering/pod-stats",
       "projectFolder": "pods/stats",
       "shouldPublish": false

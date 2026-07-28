@@ -40,6 +40,7 @@
     "@hcengineering/time": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/contact": "workspace:^0.7.0",
+    "@hcengineering/integration": "workspace:^0.7.0",
     "@hcengineering/card": "workspace:^0.7.0",
     "@hcengineering/server-process": "workspace:^0.7.0",
     "@hcengineering/text-core": "workspace:^0.7.19",
