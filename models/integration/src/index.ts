@@ -128,7 +128,7 @@ export class TIntegrationTargetFactory extends TDoc implements IntegrationTarget
 @Model(integration.class.WorkspaceApiCapability, core.class.Doc, DOMAIN_MODEL)
 @UX(integration.string.WorkspaceApiCapability)
 export class TWorkspaceApiCapability extends TDoc implements WorkspaceApiCapability {
-  @Prop(TypeRef(core.class.Class), integration.string.TargetClass)
+  @Prop(TypeRef(core.class.Class), core.string.TargetClass)
     targetClass!: Ref<Class<Doc>>
 
   find?: Resource<WorkspaceApiOperation>
