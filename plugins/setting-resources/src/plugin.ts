@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -144,7 +145,11 @@ export default mergeIds(settingId, setting, {
     GuestAnonymousVisibleSpacesHint: '' as IntlString,
     ApiAccess: '' as IntlString,
     ApiToken: '' as IntlString,
+    ApiKeyTitle: '' as IntlString,
+    ApiKeyShownOnce: '' as IntlString,
+    WorkspaceId: '' as IntlString,
     GenerateApiToken: '' as IntlString,
+    RevokeApiKeyConfirm: '' as IntlString,
     ImportDocumentPermission: '' as IntlString,
     ImportDocumentDescription: '' as IntlString,
     SelectUsers: '' as IntlString,

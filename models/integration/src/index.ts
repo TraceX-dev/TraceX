@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,7 +31,9 @@ import {
   type UpdateIntegrationTarget,
   type GetIntegrationTargetAllowedSpaceClasses,
   type GetIntegrationTargetCommentBackend,
-  type ResolveIntegrationValue
+  type ResolveIntegrationValue,
+  type WorkspaceApiCapability,
+  type WorkspaceApiOperation
 } from '@hcengineering/integration'
 import {
   ArrOf,
@@ -122,6 +125,19 @@ export class TIntegrationTargetFactory extends TDoc implements IntegrationTarget
   getCommentBackend?: Resource<GetIntegrationTargetCommentBackend>
 }
 
+@Model(integration.class.WorkspaceApiCapability, core.class.Doc, DOMAIN_MODEL)
+@UX(integration.string.WorkspaceApiCapability)
+export class TWorkspaceApiCapability extends TDoc implements WorkspaceApiCapability {
+  @Prop(TypeRef(core.class.Class), integration.string.TargetClass)
+    targetClass!: Ref<Class<Doc>>
+
+  find?: Resource<WorkspaceApiOperation>
+  get?: Resource<WorkspaceApiOperation>
+  create?: Resource<WorkspaceApiOperation>
+  patch?: Resource<WorkspaceApiOperation>
+  commands?: Record<string, Resource<WorkspaceApiOperation>>
+}
+
 @Model(integration.class.IntegrationValueResolver, core.class.Doc, DOMAIN_MODEL)
 @UX(integration.string.IntegrationValueResolver)
 export class TIntegrationValueResolver extends TDoc implements IntegrationValueResolver {
@@ -140,6 +156,7 @@ export function createModel (builder: Builder): void {
     TIntegrationSlotBinding,
     TIntegrationRoutingPolicy,
     TIntegrationTargetFactory,
+    TWorkspaceApiCapability,
     TIntegrationValueResolver
   )
 }

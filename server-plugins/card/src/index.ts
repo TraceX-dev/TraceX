@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 
 import type { Metadata, Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
+import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import type { TriggerFunc } from '@hcengineering/server-core'
 import { type Presenter } from '@hcengineering/server-notification'
 
@@ -47,5 +49,9 @@ export default plugin(serverCardId, {
     OnCardUpdate: '' as Resource<TriggerFunc>,
     OnCardTag: '' as Resource<TriggerFunc>,
     OnCardRemove: '' as Resource<TriggerFunc>
+  },
+  workspaceApi: {
+    GetCommunicationMessages: '' as Resource<WorkspaceApiOperation>,
+    CreateCommunicationMessage: '' as Resource<WorkspaceApiOperation>
   }
 })

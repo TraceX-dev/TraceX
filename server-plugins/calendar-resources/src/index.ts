@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -43,6 +44,10 @@ import { getAccountBySocialId, getPerson, getSocialIds, getSocialStrings } from 
 import { QueueTopic, TriggerControl } from '@hcengineering/server-core'
 import { getHTMLPresenter, getTextPresenter } from '@hcengineering/server-notification-resources'
 import { generateToken } from '@hcengineering/server-token'
+
+import { CreateEvent, FindEvents, GetEvent, PatchEvent } from './workspaceApi'
+
+export { CreateEvent, FindEvents, GetEvent, PatchEvent }
 
 const scheduledNotificationTopic = 'scheduledNotification'
 
@@ -547,6 +552,12 @@ export default async () => ({
     ReminderHTMLPresenter,
     ReminderTextPresenter,
     FindReminders
+  },
+  workspaceApi: {
+    FindEvents,
+    GetEvent,
+    CreateEvent,
+    PatchEvent
   },
   trigger: {
     OnEmployee,

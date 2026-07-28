@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -221,6 +222,17 @@ export interface UserProfile {
   isPublic: boolean // Public visibility toggle (default: false)
 }
 
+export interface ApiKey {
+  id: string
+  name: string
+  /** Last characters of the key, retained solely to identify it in the settings list. */
+  keySuffix?: string
+  accountUuid: AccountUuid
+  workspaceUuid: WorkspaceUuid
+  createdOn: Timestamp
+  revokedOn?: Timestamp
+}
+
 export type PersonWithProfile = Person & Omit<UserProfile, 'personUuid'>
 
 /**
@@ -325,6 +337,7 @@ export interface AccountDB {
   integration: DbCollection<Integration>
   integrationSecret: DbCollection<IntegrationSecret>
   userProfile: DbCollection<UserProfile>
+  apiKey: DbCollection<ApiKey>
   subscription: DbCollection<Subscription>
   workspacePermission: DbCollection<WorkspacePermission>
 

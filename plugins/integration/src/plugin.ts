@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,7 +22,8 @@ import type {
   IntegrationSlotBinding,
   IntegrationSlotProvider,
   IntegrationTargetFactory,
-  IntegrationValueResolver
+  IntegrationValueResolver,
+  WorkspaceApiCapability
 } from './index'
 
 /**
@@ -35,7 +37,8 @@ export default plugin(integrationId, {
     IntegrationSlotBinding: '' as Ref<Class<IntegrationSlotBinding>>,
     IntegrationRoutingPolicy: '' as Ref<Class<IntegrationRoutingPolicy>>,
     IntegrationTargetFactory: '' as Ref<Class<IntegrationTargetFactory>>,
-    IntegrationValueResolver: '' as Ref<Class<IntegrationValueResolver>>
+    IntegrationValueResolver: '' as Ref<Class<IntegrationValueResolver>>,
+    WorkspaceApiCapability: '' as Ref<Class<WorkspaceApiCapability>>
   },
   string: {
     IntegrationSlotProvider: '' as IntlString,
@@ -43,6 +46,7 @@ export default plugin(integrationId, {
     IntegrationRoutingPolicy: '' as IntlString,
     IntegrationTargetFactory: '' as IntlString,
     IntegrationValueResolver: '' as IntlString,
+    WorkspaceApiCapability: '' as IntlString,
     RequiredSlots: '' as IntlString,
     OptionalSlots: '' as IntlString,
     Bindings: '' as IntlString,

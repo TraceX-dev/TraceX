@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -27,7 +28,9 @@ import type {
   IntegrationTargetContext,
   IntegrationTargetFactory,
   IntegrationValueMapping,
-  IntegrationValueResolver
+  IntegrationValueResolver,
+  WorkspaceApiCapability,
+  WorkspaceApiOperation
 } from './index'
 
 /**
@@ -148,6 +151,47 @@ export async function findIntegrationTargetFactory (
     return hierarchy.getAncestors(b.targetClass).length - hierarchy.getAncestors(a.targetClass).length
   })
   return candidates[0]
+}
+
+/** Resolves all matching Workspace API capabilities, most-specific first. */
+export async function findWorkspaceApiCapabilities (
+  client: Client,
+  targetClass: Ref<Class<Doc>>
+): Promise<WorkspaceApiCapability[]> {
+  const exact = await client.findOne(integration.class.WorkspaceApiCapability, { targetClass })
+  const hierarchy = client.getHierarchy()
+  const capabilities = await client.findAll(integration.class.WorkspaceApiCapability, {})
+  return [
+    ...(exact === undefined ? [] : [exact]),
+    ...capabilities
+      .filter((capability) => capability._id !== exact?._id && hierarchy.isDerived(targetClass, capability.targetClass))
+      .sort((a, b) => hierarchy.getAncestors(b.targetClass).length - hierarchy.getAncestors(a.targetClass).length)
+  ]
+}
+
+/** Resolves the most-specific Workspace API capability for a model class. */
+export async function findWorkspaceApiCapability (
+  client: Client,
+  targetClass: Ref<Class<Doc>>
+): Promise<WorkspaceApiCapability | undefined> {
+  return (await findWorkspaceApiCapabilities(client, targetClass))[0]
+}
+
+export async function getWorkspaceApiOperation (
+  capability: WorkspaceApiCapability,
+  operation: 'find' | 'get' | 'create' | 'patch' | string
+): Promise<WorkspaceApiOperation | undefined> {
+  const resource =
+    operation === 'find'
+      ? capability.find
+      : operation === 'get'
+        ? capability.get
+        : operation === 'create'
+          ? capability.create
+          : operation === 'patch'
+            ? capability.patch
+            : capability.commands?.[operation]
+  return typeof resource === 'string' ? await getResource(resource as any) : undefined
 }
 
 /**
