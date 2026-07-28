@@ -35,7 +35,7 @@ function eventFor (user: PersonId, props?: Partial<Event> | Partial<MeetingEvent
     user,
     date: Date.now() + 3600000,
     ...props
-  }
+  } as any
 }
 
 function pastDate (): number {
