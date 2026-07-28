@@ -253,12 +253,70 @@ describe('cardTableFormatter.formatCardValue (markup)', () => {
       'en'
     )
 
-    expect(result).not.toMatch(/<[^>]+>/)
+    expect(result).not.toMatch(/<(?!br|img)[^>]+>/)
     expect(result).not.toContain('\n')
     expect(result).toBe('h 1')
   })
 
-  it('flattens multi-paragraph markup to a single line', async () => {
+  it('keeps an image from a markup field so it renders in the copied table', async () => {
+    const markup = JSON.stringify({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'image', attrs: { 'file-id': 'blob123', width: 200, alt: 'shot' } }]
+        }
+      ]
+    })
+
+    const card = {
+      _class: cardPlugin.class.Card,
+      richtext: markup
+    } as unknown as Doc
+
+    const result = await formatCardValue(
+      buildMarkupAttr('richtext'),
+      card,
+      buildHierarchy(),
+      cardPlugin.class.Card as Ref<Class<Doc>>,
+      'en'
+    )
+
+    expect(result).toBe('![shot](image://blob123?file=blob123&width=200)')
+  })
+
+  it('keeps bullet points from a markup field as inline bullets', async () => {
+    const markup = JSON.stringify({
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Steps' }] },
+        {
+          type: 'bulletList',
+          content: [
+            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }] },
+            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }] }
+          ]
+        }
+      ]
+    })
+
+    const card = {
+      _class: cardPlugin.class.Card,
+      richtext: markup
+    } as unknown as Doc
+
+    const result = await formatCardValue(
+      buildMarkupAttr('richtext'),
+      card,
+      buildHierarchy(),
+      cardPlugin.class.Card as Ref<Class<Doc>>,
+      'en'
+    )
+
+    expect(result).toBe('Steps<br>• one<br>• two')
+  })
+
+  it('flattens multi-paragraph markup to a single line, keeping the break as <br>', async () => {
     const markup = JSON.stringify({
       type: 'doc',
       content: [
@@ -280,7 +338,7 @@ describe('cardTableFormatter.formatCardValue (markup)', () => {
       'en'
     )
 
-    expect(result).toBe('first second')
+    expect(result).toBe('first<br>second')
   })
 
   it('flattens markup for a custom-attribute column (attr.key === "" and label starts with "custom")', async () => {
@@ -344,7 +402,7 @@ describe('cardTableFormatter.formatCardValue (markup)', () => {
 
     const result = await formatCardValue(attr, card, hierarchy, cardPlugin.class.Card as Ref<Class<Doc>>, 'en')
 
-    expect(result).not.toMatch(/<[^>]+>/)
+    expect(result).not.toMatch(/<(?!br|img)[^>]+>/)
     expect(result).not.toContain('\n')
     expect(result).toBe('h 1')
   })
@@ -434,7 +492,7 @@ describe('cardTableFormatter.formatMarkupForCell', () => {
     const result = formatMarkupForCell(markup)
 
     // Critical invariants: no HTML tags survive, no embedded newlines, content preserved.
-    expect(result).not.toMatch(/<[^>]+>/)
+    expect(result).not.toMatch(/<(?!br|img)[^>]+>/)
     expect(result).not.toContain('\n')
     expect(result).toBe('header body')
   })
