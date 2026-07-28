@@ -13,16 +13,6 @@
 // limitations under the License.
 //
 
-jest.mock('@hcengineering/presentation', () => ({
-  getClient: jest.fn(),
-  createQuery: jest.fn()
-}))
-jest.mock('@hcengineering/ui', () => ({
-  getCurrentResolvedLocation: jest.fn(),
-  locationToUrl: jest.fn()
-}))
-jest.mock('../filter', () => ({ filtersToQuery: jest.fn() }))
-
 import core, { type Association } from '@hcengineering/core'
 import { getClient } from '@hcengineering/presentation'
 
@@ -33,6 +23,16 @@ import {
   getRelationCandidatesClass,
   type PendingRelation
 } from '../relations'
+
+jest.mock('@hcengineering/presentation', () => ({
+  getClient: jest.fn(),
+  createQuery: jest.fn()
+}))
+jest.mock('@hcengineering/ui', () => ({
+  getCurrentResolvedLocation: jest.fn(),
+  locationToUrl: jest.fn()
+}))
+jest.mock('../filter', () => ({ filtersToQuery: jest.fn() }))
 
 const association = {
   _id: 'assoc1',

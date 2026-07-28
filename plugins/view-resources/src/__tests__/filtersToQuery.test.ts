@@ -15,6 +15,11 @@
 
 // Keep the svelte-heavy `@hcengineering/ui` and the live-query presentation layer out of the
 // unit under test; only `getClient` and `getResource` are exercised by `filtersToQuery`.
+import { getResource } from '@hcengineering/platform'
+import { getClient } from '@hcengineering/presentation'
+
+import { filtersToQuery } from '../filter'
+
 jest.mock('@hcengineering/presentation', () => ({
   getClient: jest.fn(),
   createQuery: jest.fn()
@@ -27,11 +32,6 @@ jest.mock('@hcengineering/platform', () => {
   const actual = jest.requireActual('@hcengineering/platform')
   return { ...actual, getResource: jest.fn() }
 })
-
-import { getResource } from '@hcengineering/platform'
-import { getClient } from '@hcengineering/presentation'
-
-import { filtersToQuery } from '../filter'
 
 function makeHierarchy (isMixin = false): any {
   return {
