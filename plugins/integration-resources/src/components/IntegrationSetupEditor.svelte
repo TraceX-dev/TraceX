@@ -377,7 +377,7 @@
 >
   <div class="flex-column flex-gap-4">
     <div class="flex-column flex-gap-1">
-      <Label label={integration.string.TargetClass} />
+      <Label label={core.string.Class} />
       <Button label={selectedTargetClassLabel} kind="secondary" width="100%" on:click={selectTargetClass} />
     </div>
 

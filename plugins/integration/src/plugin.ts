@@ -45,7 +45,6 @@ export default plugin(integrationId, {
     IntegrationValueResolver: '' as IntlString,
     RequiredSlots: '' as IntlString,
     OptionalSlots: '' as IntlString,
-    TargetClass: '' as IntlString,
     Bindings: '' as IntlString,
     ValueMappings: '' as IntlString,
     Rules: '' as IntlString,

@@ -79,7 +79,7 @@ export class TIntegrationSlotBinding extends TDoc implements IntegrationSlotBind
   @Prop(TypeRef(integration.class.IntegrationSlotProvider), integration.string.IntegrationSlotProvider)
     provider!: Ref<IntegrationSlotProvider>
 
-  @Prop(TypeRef(core.class.Class), integration.string.TargetClass)
+  @Prop(TypeRef(core.class.Class), core.string.Class)
     targetClass!: Ref<Class<Doc>>
 
   @Prop(TypeRecord(), integration.string.Bindings)
@@ -108,7 +108,7 @@ export class TIntegrationRoutingPolicy extends TDoc implements IntegrationRoutin
 @Model(integration.class.IntegrationTargetFactory, core.class.Doc, DOMAIN_MODEL)
 @UX(integration.string.IntegrationTargetFactory)
 export class TIntegrationTargetFactory extends TDoc implements IntegrationTargetFactory {
-  @Prop(TypeRef(core.class.Class), integration.string.TargetClass)
+  @Prop(TypeRef(core.class.Class), core.string.Class)
     targetClass!: Ref<Class<Doc>>
 
   create!: Resource<CreateIntegrationTarget>

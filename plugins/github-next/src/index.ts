@@ -49,6 +49,20 @@ export interface GithubNextIssue {
   repository: GithubNextRepositorySelection
 }
 
+export interface GithubNextPullRequest {
+  id: number
+  nodeId: string
+  number: number
+  title: string
+  body?: string
+  state: 'open' | 'closed' | 'merged'
+  htmlUrl: string
+  updatedAt: string
+  baseBranch: string
+  headBranch: string
+  repository: GithubNextRepositorySelection
+}
+
 export interface GithubNextAssignee {
   login: string
   email?: string
@@ -132,7 +146,8 @@ export default plugin(githubNextId, {
   },
   ids: {
     GithubNextIssueProvider: '' as Ref<IntegrationSlotProvider>,
-    GithubNextDiscussionProvider: '' as Ref<IntegrationSlotProvider>
+    GithubNextDiscussionProvider: '' as Ref<IntegrationSlotProvider>,
+    GithubNextPullRequestProvider: '' as Ref<IntegrationSlotProvider>
   },
   kind: {
     GithubNext: '' as IntegrationKind,

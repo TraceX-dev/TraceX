@@ -18,6 +18,7 @@ import type {
   GithubNextDiscussion,
   GithubNextDiscussionCategory,
   GithubNextIssue,
+  GithubNextPullRequest,
   GithubNextRepositorySelection
 } from '@hcengineering/github-next'
 
@@ -51,6 +52,20 @@ interface GithubIssueResponse {
   assignees?: Array<{ login: string }>
   labels?: Array<{ name?: string | null }>
   pull_request?: Record<string, unknown>
+}
+
+interface GithubPullRequestResponse {
+  id: number
+  node_id: string
+  number: number
+  title: string
+  body?: string | null
+  state: 'open' | 'closed'
+  merged_at?: string | null
+  html_url: string
+  updated_at: string
+  base: { ref: string }
+  head: { ref: string }
 }
 
 interface GithubSearchUsersResponse {
@@ -274,6 +289,25 @@ function toGithubIssue (issue: GithubIssueResponse, repository: GithubNextReposi
   }
 }
 
+function toGithubPullRequest (
+  pullRequest: GithubPullRequestResponse,
+  repository: GithubNextRepositorySelection
+): GithubNextPullRequest {
+  return {
+    id: pullRequest.id,
+    nodeId: pullRequest.node_id,
+    number: pullRequest.number,
+    title: pullRequest.title,
+    body: pullRequest.body ?? undefined,
+    state: pullRequest.merged_at !== null && pullRequest.merged_at !== undefined ? 'merged' : pullRequest.state,
+    htmlUrl: pullRequest.html_url,
+    updatedAt: pullRequest.updated_at,
+    baseBranch: pullRequest.base.ref,
+    headBranch: pullRequest.head.ref,
+    repository
+  }
+}
+
 export async function getGithubUser (
   token: string,
   login: string,
@@ -407,6 +441,24 @@ export async function listGithubIssues (
   }
 
   return issues
+}
+
+export async function listGithubPullRequests (
+  token: string,
+  repository: GithubNextRepositorySelection
+): Promise<GithubNextPullRequest[]> {
+  const pullRequests: GithubNextPullRequest[] = []
+
+  for (let page = 1; page <= 10; page++) {
+    const batch = await requestGithub<GithubPullRequestResponse[]>(
+      `/repos/${repository.owner}/${repository.name}/pulls?state=all&per_page=100&page=${page}`,
+      token
+    )
+    pullRequests.push(...batch.map((pullRequest) => toGithubPullRequest(pullRequest, repository)))
+    if (batch.length < 100) break
+  }
+
+  return pullRequests
 }
 
 export async function getGithubIssue (
