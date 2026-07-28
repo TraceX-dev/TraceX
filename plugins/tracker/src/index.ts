@@ -511,6 +511,7 @@ const pluginState = plugin(trackerId, {
   },
   action: {
     CopyAsMarkdownTable: '' as Ref<Action<Doc, any>>,
+    ExportTable: '' as Ref<Action<Doc, any>>,
     SetDueDate: '' as Ref<Action<Doc, any>>,
     SetParent: '' as Ref<Action<Doc, any>>,
     SetStatus: '' as Ref<Action>,

@@ -15,6 +15,7 @@ import { type Builder } from '@hcengineering/model'
 import presentation from '@hcengineering/model-presentation'
 import setting from '@hcengineering/model-setting'
 import view, { actionTemplates, createAction } from '@hcengineering/model-view'
+import exportPlugin from '@hcengineering/export'
 import workbench from '@hcengineering/model-workbench'
 import card from './plugin'
 
@@ -135,6 +136,27 @@ export function createActions (builder: Builder): void {
       group: 'tools'
     }
   })
+
+  createAction(
+    builder,
+    {
+      action: exportPlugin.actionImpl.ExportTable,
+      actionProps: {
+        cardClass: card.class.Card
+      },
+      label: exportPlugin.string.Export,
+      icon: exportPlugin.icon.Export,
+      input: 'any',
+      category: card.category.Card,
+      target: card.class.Card,
+      query: {},
+      context: {
+        mode: ['context', 'browser'],
+        group: 'tools'
+      }
+    },
+    card.action.ExportTable
+  )
 
   createAction(builder, {
     action: view.actionImpl.ShowPopup,

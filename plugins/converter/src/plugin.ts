@@ -22,7 +22,8 @@ import type {
   CopyAsMarkdownTableFunction,
   CopyRelationshipTableAsMarkdownFunction,
   MarkdownValueFormatter,
-  CopyAsMarkdownTableProps
+  CopyAsMarkdownTableProps,
+  TableData
 } from './types'
 
 export const converterId = 'converter' as Plugin
@@ -39,6 +40,15 @@ export const converterPlugin = plugin(converterId, {
     >,
     BuildMarkdownTableFromDocs: '' as Resource<
     (docs: Doc[], props: CopyAsMarkdownTableProps, client: Client) => Promise<string>
+    >,
+    BuildTableData: '' as Resource<
+    (
+      docs: Doc[],
+      props: CopyAsMarkdownTableProps,
+      client: Client,
+    /** How a referenced document is rendered in a cell; omit for the markdown link flavour. */
+      elementFormatter?: (doc: Doc, title: string) => Promise<string>
+    ) => Promise<TableData>
     >
   },
   extensions: {

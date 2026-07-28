@@ -17,6 +17,7 @@ import type { Class, Client, Doc, Ref } from '@hcengineering/core'
 import { type IntlString, type Metadata, type Plugin, plugin, type Resource, type Asset } from '@hcengineering/platform'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 import type { NotificationGroup, NotificationType } from '@hcengineering/notification'
+import type { ViewAction } from '@hcengineering/view'
 import type { ExportResultRecord } from './types'
 
 export const exportId = 'export' as Plugin
@@ -50,7 +51,11 @@ export const exportPlugin = plugin(exportId, {
     ExportButton: '' as AnyComponent,
     ExportSettings: '' as AnyComponent,
     ExportToWorkspaceModal: '' as AnyComponent,
-    ExportResultPanel: '' as AnyComponent
+    ExportResultPanel: '' as AnyComponent,
+    ExportTableDialog: '' as AnyComponent
+  },
+  actionImpl: {
+    ExportTable: '' as ViewAction<Record<string, any>>
   },
   icon: {
     Export: '' as Asset

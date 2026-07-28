@@ -55,6 +55,10 @@
     "ExportFilterAll": "Tous les documents",
     "ExportChildDocuments": "Exporter les documents enfants",
     "ExportChildDocumentsDescription": "Exporter aussi les documents rattachés aux éléments sélectionnés",
-    "ExportResultRecordTitle": "Export de documents depuis l'espace de travail {workspace} ({date})"
+    "ExportResultRecordTitle": "Export de documents depuis l'espace de travail {workspace} ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "Sélectionnés ({count})",
+    "ExportScopeLoaded": "Chargés sur cette page ({count})",
+    "ExportFileName": "Nom du fichier"
   }
 }
