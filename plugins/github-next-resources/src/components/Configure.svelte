@@ -42,6 +42,7 @@
   let info = ''
   let issueMappingMessage = ''
   let discussionMappingMessage = ''
+  let pullRequestMappingMessage = ''
   let accountLogin = ''
   let accountType: 'User' | 'Organization' | undefined
   let repositories: GithubNextRepositorySelection[] = []
@@ -49,7 +50,7 @@
   let selectedRepositoryKeys: string[] = []
   let issues = true
   let discussions = false
-  const pullRequests = false
+  let pullRequests = false
   let workspaceIntegration: WorkspaceIntegration | undefined
   let issueProvider: IntegrationSlotProvider | undefined
   let issueBinding: IntegrationSlotBinding | undefined
@@ -57,6 +58,9 @@
   let discussionProvider: IntegrationSlotProvider | undefined
   let discussionBinding: IntegrationSlotBinding | undefined
   let discussionRoutingPolicy: IntegrationRoutingPolicy | undefined
+  let pullRequestProvider: IntegrationSlotProvider | undefined
+  let pullRequestBinding: IntegrationSlotBinding | undefined
+  let pullRequestRoutingPolicy: IntegrationRoutingPolicy | undefined
 
   function applyIntegrationData (): void {
     const data = integration?.data
@@ -67,6 +71,7 @@
     selectedOwnerKeys = [...new Set(repositories.map((repository) => repository.owner))]
     issues = data?.capabilities?.issues ?? true
     discussions = data?.capabilities?.discussions ?? false
+    pullRequests = data?.capabilities?.pullRequests ?? false
   }
 
   function isSetupResult (value: unknown): value is IntegrationSetupResult {
@@ -77,9 +82,10 @@
 
   async function loadWorkspaceSetup (): Promise<void> {
     workspaceIntegration = await ensureWorkspaceGithubNextIntegration()
-    const [issueSetup, discussionSetup] = await Promise.all([
+    const [issueSetup, discussionSetup, pullRequestSetup] = await Promise.all([
       getGithubNextProviderSetupById(workspaceIntegration, githubNext.ids.GithubNextIssueProvider),
-      getGithubNextProviderSetupById(workspaceIntegration, githubNext.ids.GithubNextDiscussionProvider)
+      getGithubNextProviderSetupById(workspaceIntegration, githubNext.ids.GithubNextDiscussionProvider),
+      getGithubNextProviderSetupById(workspaceIntegration, githubNext.ids.GithubNextPullRequestProvider)
     ])
     issueProvider = issueSetup.provider
     issueBinding = issueSetup.binding
@@ -87,6 +93,9 @@
     discussionProvider = discussionSetup.provider
     discussionBinding = discussionSetup.binding
     discussionRoutingPolicy = discussionSetup.routingPolicy
+    pullRequestProvider = pullRequestSetup.provider
+    pullRequestBinding = pullRequestSetup.binding
+    pullRequestRoutingPolicy = pullRequestSetup.routingPolicy
   }
 
   onMount(() => {
@@ -226,11 +235,12 @@
     provider: IntegrationSlotProvider | undefined,
     binding: IntegrationSlotBinding | undefined,
     routingPolicy: IntegrationRoutingPolicy | undefined,
-    kind: 'issue' | 'discussion'
+    kind: 'issue' | 'discussion' | 'pullRequest'
   ): void {
     if (provider === undefined || workspaceIntegration === undefined) {
       if (kind === 'issue') issueMappingMessage = 'Workspace integration or provider is missing.'
-      else discussionMappingMessage = 'Workspace integration or provider is missing.'
+      else if (kind === 'discussion') discussionMappingMessage = 'Workspace integration or provider is missing.'
+      else pullRequestMappingMessage = 'Workspace integration or provider is missing.'
       return
     }
 
@@ -259,9 +269,15 @@
           issueRoutingPolicy = saved.policy
           issueMappingMessage = 'Issue mapping saved.'
         } else {
-          discussionBinding = saved.binding
-          discussionRoutingPolicy = saved.policy
-          discussionMappingMessage = 'Discussion mapping saved.'
+          if (kind === 'discussion') {
+            discussionBinding = saved.binding
+            discussionRoutingPolicy = saved.policy
+            discussionMappingMessage = 'Discussion mapping saved.'
+          } else {
+            pullRequestBinding = saved.binding
+            pullRequestRoutingPolicy = saved.policy
+            pullRequestMappingMessage = 'Pull request mapping saved.'
+          }
         }
       }
     )
@@ -305,6 +321,7 @@
     <div class="capabilities">
       <label><input bind:checked={issues} type="checkbox" /> Issues</label>
       <label><input bind:checked={discussions} type="checkbox" /> Discussions</label>
+      <label><input bind:checked={pullRequests} type="checkbox" /> Pull requests</label>
     </div>
 
     <div class="repository-picker">
@@ -408,6 +425,28 @@
       </div>
       {#if discussionMappingMessage !== ''}
         <div class="info">{discussionMappingMessage}</div>
+      {/if}
+      <div class="mapping-row">
+        <div class="mapping-copy">
+          <div class="mapping-title">Pull request mapping</div>
+          <div class="muted">
+            {#if pullRequestRoutingPolicy !== undefined && pullRequestBinding !== undefined}
+              Configured
+            {:else}
+              Not configured yet
+            {/if}
+          </div>
+        </div>
+        <Button
+          label={getEmbeddedLabel('Configure mapping')}
+          kind="secondary"
+          on:click={() => {
+            openMappingSetup(pullRequestProvider, pullRequestBinding, pullRequestRoutingPolicy, 'pullRequest')
+          }}
+        />
+      </div>
+      {#if pullRequestMappingMessage !== ''}
+        <div class="info">{pullRequestMappingMessage}</div>
       {/if}
     </div>
 
