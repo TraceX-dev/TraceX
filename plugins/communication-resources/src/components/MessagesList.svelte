@@ -31,6 +31,7 @@
   import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte'
   import { deviceOptionsStore as deviceInfo, isAppFocusedStore } from '@hcengineering/ui'
   import { translationStore } from '@hcengineering/contact-resources'
+  import { permissions } from '@hcengineering/view-resources'
 
   import { createMessagesObserver, getGroupDay, groupMessagesByDay, MessagesGroup } from '../messages'
   import MessagesGroupPresenter from './message/MessagesGroupPresenter.svelte'
@@ -471,6 +472,8 @@
   let unsubscribeObserver: (() => void) | undefined = undefined
 
   function readNotifications (date: Date): void {
+    // Read only guests are not allowed to write anything, including the read status.
+    if (!$permissions.canTrackReadStatus) return
     if (readNotificationsTimer != null) {
       clearTimeout(readNotificationsTimer)
       readNotificationsTimer = undefined

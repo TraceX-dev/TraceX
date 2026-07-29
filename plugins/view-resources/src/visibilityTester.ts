@@ -18,23 +18,13 @@ import core, {
   checkForbiddenPermission,
   getCurrentAccount,
   toIdMap,
-  AccountRole,
   type Doc,
-  type Space,
-  type TypedSpace
+  type Space
 } from '@hcengineering/core'
 import { getClient } from '@hcengineering/presentation'
 import { get } from 'svelte/store'
+import { getPermissions, isSpaceOwner, isTypedSpace } from './permissions'
 import { spaceSpace } from './utils'
-
-function isTypedSpace (space: Space): space is TypedSpace {
-  return getClient().getHierarchy().isDerived(space._class, core.class.TypedSpace)
-}
-
-function isSpaceOwner (space: Space): boolean {
-  const currentAccount = getCurrentAccount()
-  return currentAccount.role === AccountRole.Owner || (space.owners ?? []).includes(currentAccount.uuid)
-}
 
 export async function canDeleteObject (doc?: Doc | Doc[]): Promise<boolean> {
   if (doc === undefined) {
@@ -62,25 +52,7 @@ export async function canEditSpace (doc?: Doc | Doc[]): Promise<boolean> {
     return false
   }
 
-  const space = doc as Space
-
-  if (isSpaceOwner(space)) {
-    return true
-  }
-
-  const client = getClient()
-
-  const _spaceSpace = get(spaceSpace) ?? (await client.findOne(core.class.TypedSpace, { _id: core.space.Space }))
-
-  if (await checkPermission(client, core.permission.UpdateObject, core.space.Space, _spaceSpace)) {
-    return true
-  }
-
-  if (isTypedSpace(space) && (await checkPermission(client, core.permission.UpdateSpace, space._id, space))) {
-    return true
-  }
-
-  return false
+  return getPermissions().canEditSpace(doc as Space)
 }
 
 export async function canArchiveSpace (doc?: Doc | Doc[]): Promise<boolean> {
@@ -90,7 +62,7 @@ export async function canArchiveSpace (doc?: Doc | Doc[]): Promise<boolean> {
 
   const space = doc as Space
 
-  if (isSpaceOwner(space)) {
+  if (isSpaceOwner(space, getCurrentAccount())) {
     return true
   }
 
@@ -116,7 +88,7 @@ export async function canDeleteSpace (doc?: Doc | Doc[]): Promise<boolean> {
 
   const space = doc as Space
 
-  if (isSpaceOwner(space)) {
+  if (isSpaceOwner(space, getCurrentAccount())) {
     return true
   }
 

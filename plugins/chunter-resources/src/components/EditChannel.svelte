@@ -19,6 +19,7 @@
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { SpaceMembers } from '@hcengineering/contact-resources'
   import { Label, Panel, Scroller } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../plugin'
@@ -39,6 +40,8 @@
   $: query.query(chunter.class.ChunterSpace, { _id }, (result) => {
     channel = result[0]
   })
+
+  $: canManageMembers = channel !== undefined && $permissions.canManageMembers(channel)
 </script>
 
 <Panel
@@ -87,7 +90,7 @@
           <span class="fs-title text-xl overflow-label mb-2 flex-no-shrink">
             <Label label={chunter.string.Members} />
           </span>
-          <SpaceMembers space={channel} withAddButton={true} />
+          <SpaceMembers space={channel} withAddButton={canManageMembers} />
         </div>
       {/if}
     </div>

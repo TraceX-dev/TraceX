@@ -27,6 +27,8 @@
     getPersonRefByPersonIdCb
   } from '@hcengineering/contact-resources'
 
+  import { permissions } from '@hcengineering/view-resources'
+
   import ChannelMembers from '../ChannelMembers.svelte'
   import DocAside from './DocAside.svelte'
   import { joinChannel, leaveChannel } from '../../utils'
@@ -112,7 +114,8 @@
       }
     )
   }
-  $: readonly = object?.archived ?? false
+  // Only space owners and users with the update space permission may change the members.
+  $: readonly = (object?.archived ?? false) || !$permissions.canManageMembers(object)
 </script>
 
 <DocAside {object} {objectChatPanel}>

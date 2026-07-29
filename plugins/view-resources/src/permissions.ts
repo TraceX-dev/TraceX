@@ -1,5 +1,11 @@
-import { type PermissionsStore } from '@hcengineering/contact'
+import contact, { type PermissionsStore } from '@hcengineering/contact'
 import core, {
+  AccountRole,
+  hasAccountRole,
+  isGuestRole,
+  isReadOnlyRole,
+  onCurrentAccountChanged,
+  type Account,
   type AnyAttribute,
   type Class,
   type Doc,
@@ -8,8 +14,12 @@ import core, {
   type Space,
   type TypedSpace
 } from '@hcengineering/core'
-import { getMetadata } from '@hcengineering/platform'
+import { type Restrictions } from '@hcengineering/guest'
+import { getMetadata, getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
+import { derived, get, writable, type Readable } from 'svelte/store'
+
+import { restrictionStore } from './utils'
 
 export function canChangeAttribute (
   attr: AnyAttribute,
@@ -127,4 +137,207 @@ export function canCreateObject (_class: Ref<Class<Doc>>, space: Ref<Space>, sto
   }
 
   return !store.restrictedSpaces.has(space)
+}
+
+/**
+ * Describes what the current user is allowed to do.
+ *
+ * This is the single entry point for the UI: components ask what the user *can do*
+ * instead of checking who the user *is*. All AccountRole comparisons, space permissions
+ * and guest link restrictions are resolved inside this module.
+ *
+ * @public
+ */
+export interface Permissions {
+  // Workspace level
+  canManageWorkspace: boolean
+
+  // Space level
+  canEditSpace: (space: Space | undefined) => boolean
+  canManageMembers: (space: Space | undefined) => boolean
+  canJoinSpace: (space: Space | undefined) => boolean
+  canLeaveSpace: (space: Space | undefined) => boolean
+
+  // Document level
+  canCreate: (_class: Ref<Class<Doc>>, space: Ref<Space>) => boolean
+  canEdit: (doc: Doc | undefined) => boolean
+  canEditAttribute: (doc: Doc | undefined, attr: AnyAttribute) => boolean
+  canRemove: (doc: Doc | undefined) => boolean
+
+  // Activity and communications
+  canViewActivity: (doc: Doc | undefined) => boolean
+  canComment: (doc: Doc | undefined) => boolean
+  canReact: (doc: Doc | undefined) => boolean
+  canTrackReadStatus: boolean
+}
+
+/**
+ * Nothing is allowed. Used until permissions data is loaded, so the UI never flashes
+ * controls the user is not allowed to use.
+ */
+const forbidAll: Permissions = {
+  canManageWorkspace: false,
+  canEditSpace: () => false,
+  canManageMembers: () => false,
+  canJoinSpace: () => false,
+  canLeaveSpace: () => false,
+  canCreate: () => false,
+  canEdit: () => false,
+  canEditAttribute: () => false,
+  canRemove: () => false,
+  canViewActivity: () => false,
+  canComment: () => false,
+  canReact: () => false,
+  canTrackReadStatus: false
+}
+
+export function isTypedSpace (space: Space): space is TypedSpace {
+  return getClient().getHierarchy().isDerived(space._class, core.class.TypedSpace)
+}
+
+export function isSpaceOwner (space: Space, account: Account): boolean {
+  return account.role === AccountRole.Owner || (space.owners ?? []).includes(account.uuid)
+}
+
+function hasSpacePermission (permission: Ref<Permission>, space: Ref<Space>, store: PermissionsStore): boolean {
+  const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
+  if (arePermissionsDisabled) return true
+  return (store.whitelist.has(space) || store.ps[space]?.has(permission)) ?? false
+}
+
+function buildPermissions (
+  account: Account,
+  store: PermissionsStore | undefined,
+  restrictions: Restrictions
+): Permissions {
+  const isGuest = isGuestRole(account.role)
+  const isReadOnly = isReadOnlyRole(account.role) || restrictions.readonly
+  const isUser = hasAccountRole(account, AccountRole.User)
+
+  // Guests are never allowed to change space membership or settings. This mirrors
+  // GuestPermissionsMiddleware.isForbiddenSpaceTx on the server, which rejects any change
+  // of members, private, archived, owners, autoJoin and any $push/$pull.
+  const canEditSpace = (space: Space | undefined): boolean => {
+    if (space === undefined || isReadOnly || isGuest) return false
+    if (isSpaceOwner(space, account)) return true
+    if (store === undefined) return false
+    if (hasSpacePermission(core.permission.UpdateObject, core.space.Space, store)) return true
+    if (isTypedSpace(space) && hasSpacePermission(core.permission.UpdateSpace, space._id, store)) return true
+    return false
+  }
+
+  const canManageMembers = (space: Space | undefined): boolean => {
+    if (space === undefined || isReadOnly || isGuest) return false
+    if (canEditSpace(space)) return true
+    // Preserved from the previous checks in SpaceMembers and ChannelAside.
+    if (hasAccountRole(account, AccountRole.Maintainer)) return true
+    if (space.createdBy !== undefined && account.socialIds.includes(space.createdBy)) return true
+    // Spaces without a space type are not permission controlled, same as the whitelist in
+    // PermissionsStore, so their members may manage the membership. This keeps chunter channels
+    // working the way they did before.
+    return !isTypedSpace(space) && (space.members ?? []).includes(account.uuid)
+  }
+
+  const canComment = (doc: Doc | undefined): boolean => {
+    if (doc === undefined || isReadOnly || restrictions.disableComments) return false
+    if (isUser) return true
+    // A public link guest is restricted by the link, not by the role.
+    return account.role === AccountRole.DocGuest
+  }
+
+  return {
+    canManageWorkspace: hasAccountRole(account, AccountRole.Maintainer),
+
+    canEditSpace,
+    canManageMembers,
+    canJoinSpace: (space) => space !== undefined && !isReadOnly && !(space.members ?? []).includes(account.uuid),
+    canLeaveSpace: (space) =>
+      space !== undefined && !isReadOnly && (space.members ?? []).includes(account.uuid),
+
+    canCreate: (_class, space) => !isReadOnly && store !== undefined && canCreateObject(_class, space, store),
+    canEdit: (doc) =>
+      doc !== undefined && !isReadOnly && store !== undefined && canChangeDoc(doc._class, doc.space, store),
+    canEditAttribute: (doc, attr) =>
+      doc !== undefined &&
+      !isReadOnly &&
+      store !== undefined &&
+      canChangeAttribute(attr, doc.space as Ref<TypedSpace>, store, doc._class),
+    canRemove: (doc) =>
+      doc !== undefined && !isReadOnly && store !== undefined && canRemoveDoc(doc._class, doc.space, store),
+
+    // Access to the document itself is enforced by space security, so anyone who is able
+    // to read the document is able to read its activity.
+    canViewActivity: (doc) => doc !== undefined && !restrictions.disableComments,
+    canComment,
+    canReact: canComment,
+    canTrackReadStatus: !isReadOnly
+  }
+}
+
+const accountStore = writable<Account | undefined>(undefined)
+onCurrentAccountChanged((account) => {
+  accountStore.set(account)
+})
+
+const permissionsDataStore = writable<PermissionsStore | undefined>(undefined)
+void Promise.resolve().then(async () => {
+  const store = await getResource(contact.store.Permissions)
+  store.subscribe((value) => {
+    permissionsDataStore.set(value)
+  })
+})
+
+const basePermissions: Readable<Permissions> = derived(
+  [accountStore, permissionsDataStore, restrictionStore],
+  ([account, store, restrictions]) => {
+    // Space permissions are loaded asynchronously. Predicates which depend on them stay
+    // fail closed until then, the role and restriction based ones work right away.
+    if (account === undefined) return forbidAll
+    return buildPermissions(account, store, restrictions)
+  }
+)
+
+const extensionOrder: Array<Readable<Partial<Permissions>>> = []
+const extensionValues = new Map<Readable<Partial<Permissions>>, Partial<Permissions>>()
+const extensionOverrides = writable<Partial<Permissions>>({})
+
+function recalcOverrides (): void {
+  let result: Partial<Permissions> = {}
+  for (const extension of extensionOrder) {
+    result = { ...result, ...(extensionValues.get(extension) ?? {}) }
+  }
+  extensionOverrides.set(result)
+}
+
+/**
+ * Allows a plugin to contribute domain specific permissions which cannot be resolved here,
+ * e.g. communications need the guest allowed cards list. Registered later wins.
+ *
+ * @public
+ */
+export function registerPermissions (extension: Readable<Partial<Permissions>>): void {
+  if (extensionValues.has(extension)) return
+  extensionValues.set(extension, {})
+  extensionOrder.push(extension)
+  extension.subscribe((value) => {
+    extensionValues.set(extension, value ?? {})
+    recalcOverrides()
+  })
+}
+
+/**
+ * What the current user is allowed to do. Use in components as `$permissions.canComment(doc)`.
+ * @public
+ */
+export const permissions: Readable<Permissions> = derived(
+  [basePermissions, extensionOverrides],
+  ([base, overrides]) => ({ ...base, ...overrides })
+)
+
+/**
+ * Non reactive access to permissions, for action visibility testers and utils.
+ * @public
+ */
+export function getPermissions (): Permissions {
+  return get(permissions)
 }

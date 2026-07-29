@@ -14,20 +14,11 @@
 -->
 <script lang="ts">
   import contact, { Employee, Person } from '@hcengineering/contact'
-  import {
-    AccountRole,
-    DocumentQuery,
-    Ref,
-    SortingOrder,
-    Space,
-    getCurrentAccount,
-    hasAccountRole,
-    notEmpty,
-    AccountUuid
-  } from '@hcengineering/core'
+  import { DocumentQuery, Ref, SortingOrder, Space, notEmpty, AccountUuid } from '@hcengineering/core'
   import { translateCB } from '@hcengineering/platform'
   import presentation, { getClient } from '@hcengineering/presentation'
   import { ActionIcon, IconAdd, IconClose, Label, SearchEdit, showPopup, themeStore } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
   import AddMembersPopup from './AddMembersPopup.svelte'
   import UserInfo from './UserInfo.svelte'
   import { employeeByIdStore, employeeRefByAccountUuidStore } from '../utils'
@@ -92,10 +83,7 @@
     })
   }
 
-  const account = getCurrentAccount()
-  $: canRemove =
-    hasAccountRole(account, AccountRole.Maintainer) ||
-    (space.createdBy !== undefined && account.socialIds.includes(space.createdBy))
+  $: canEditMembers = $permissions.canManageMembers(space)
 </script>
 
 <div class="flex-row-reverse mb-3 mt-3"><SearchEdit bind:value={search} /></div>
@@ -115,7 +103,7 @@
         </div>
       {/if}
     {/if}
-    {#if !isSearch && withAddButton}
+    {#if !isSearch && withAddButton && canEditMembers}
       <div class="item fs-title">
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -130,7 +118,7 @@
     {#each current as person}
       <div class="flex-between">
         <div class="item fs-title"><UserInfo size={'medium'} value={person} /></div>
-        {#if canRemove}
+        {#if canEditMembers}
           <ActionIcon
             icon={IconClose}
             size={'small'}
@@ -141,7 +129,7 @@
         {/if}
       </div>
     {/each}
-    {#if foreign.length}
+    {#if foreign.length && canEditMembers}
       <div class="mt-4 notIn h-full">
         <div class="divider w-full mb-4" />
         <div class="pr-8 pl-8"><Label label={presentation.string.NotInThis} params={{ space: spaceClass }} /></div>
