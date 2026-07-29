@@ -42,8 +42,10 @@ import {
   isGithubNextOutboundRelevantTx,
   listGithubRepositories,
   syncGithubNextDiscussions,
+  syncGithubNextPullRequests,
   syncGithubNextOutboundDiscussions,
   syncGithubNextOutboundIssues,
+  syncGithubNextOutboundPullRequests,
   syncGithubNextWorkspace,
   validateGithubToken
 } from './index'
@@ -314,6 +316,13 @@ async function syncInboundWorkspace (ctx: MeasureMetricsContext, workspaceUuid: 
         `repositories=${discussionsResult.repositories}, discussions=${discussionsResult.discussionsSeen}, ` +
         `created=${discussionsResult.created}, updated=${discussionsResult.updated}, skipped=${discussionsResult.skipped}`
     )
+
+    const pullRequestsResult = await syncGithubNextPullRequests(ctx, config.AccountsURL, workspaceUuid)
+    console.info(
+      `[${config.ServiceID}] inbound pull requests ${workspaceUuid}: integrations=${pullRequestsResult.integrations}, ` +
+        `repositories=${pullRequestsResult.repositories}, pullRequests=${pullRequestsResult.pullRequestsSeen}, ` +
+        `created=${pullRequestsResult.created}, updated=${pullRequestsResult.updated}, skipped=${pullRequestsResult.skipped}`
+    )
   } finally {
     inboundWorkspaces.delete(workspaceUuid)
   }
@@ -334,6 +343,13 @@ async function syncOutboundWorkspace (ctx: MeasureMetricsContext, workspaceUuid:
     `[${config.ServiceID}] outbound discussions ${workspaceUuid}: integrations=${outboundDiscussionsResult.integrations}, ` +
       `repositories=${outboundDiscussionsResult.repositories}, discussions=${outboundDiscussionsResult.discussionsSeen}, ` +
       `updated=${outboundDiscussionsResult.updated}, skipped=${outboundDiscussionsResult.skipped}`
+  )
+
+  const outboundPullRequestsResult = await syncGithubNextOutboundPullRequests(ctx, config.AccountsURL, workspaceUuid)
+  console.info(
+    `[${config.ServiceID}] outbound pull requests ${workspaceUuid}: integrations=${outboundPullRequestsResult.integrations}, ` +
+      `repositories=${outboundPullRequestsResult.repositories}, pullRequests=${outboundPullRequestsResult.pullRequestsSeen}, ` +
+      `updated=${outboundPullRequestsResult.updated}, skipped=${outboundPullRequestsResult.skipped}`
   )
 }
 

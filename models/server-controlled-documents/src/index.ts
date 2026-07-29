@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 import { type Builder } from '@hcengineering/model'
 import core from '@hcengineering/core'
@@ -9,10 +10,23 @@ import documents, { DocumentState } from '@hcengineering/controlled-documents'
 import serverDocuments from '@hcengineering/server-controlled-documents'
 import serverNotification from '@hcengineering/server-notification'
 import notification from '@hcengineering/notification'
+import integration from '@hcengineering/integration'
 
 export { serverDocumentsId } from '@hcengineering/server-controlled-documents/src/index'
 
 export function createModel (builder: Builder): void {
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: documents.class.ControlledDocument,
+    find: serverDocuments.workspaceApi.FindControlledDocuments,
+    get: serverDocuments.workspaceApi.GetControlledDocument,
+    commands: {
+      versions: serverDocuments.workspaceApi.GetControlledDocumentVersions,
+      'create-draft': serverDocuments.workspaceApi.CreateControlledDocumentDraft,
+      'send-review': serverDocuments.workspaceApi.SendControlledDocumentForReview,
+      'send-approval': serverDocuments.workspaceApi.SendControlledDocumentForApproval
+    }
+  })
+
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverDocuments.trigger.OnDocEnteredNonActionableState,
     txMatch: {

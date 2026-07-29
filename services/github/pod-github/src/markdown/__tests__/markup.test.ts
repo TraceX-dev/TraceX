@@ -72,8 +72,10 @@ describe('server', () => {
     await stripGuestLink(json)
     const newMarkdown = serializeMessage(json, refUrl, imageUrl)
     console.log(json, newMarkdown)
+    // The serialized image URL carries `?file=<id>`: MarkdownParser restores `file-id`
+    // from that query parameter, and the image node resolves the blob by `file-id`.
     expect(newMarkdown).toBe(
-      'qwe4 qwe6\n\n![](http://localhost76e25453-186d-46e5-b9cd-d296a5342ce2&width=997)qwe 77\n\nzzz2 3'
+      'qwe4 qwe6\n\n![](http://localhost76e25453-186d-46e5-b9cd-d296a5342ce2?file=76e25453-186d-46e5-b9cd-d296a5342ce2&width=997)qwe 77\n\nzzz2 3'
     )
   })
   it('code block', async () => {

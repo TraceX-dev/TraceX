@@ -27,14 +27,25 @@ export function looksLikeHttpOrRefMarkdownLink (s: string): boolean {
 }
 
 /**
- * Escape plain text for a pipe-table cell. Leaves full document links untouched (RefTo cells from formatValue).
+ * Prepare a value for a markdown pipe-table cell.
+ *
+ * Cell values legitimately carry inline markdown produced upstream: document links from
+ * `createMarkdownLink`, and — for markup (rich text) attributes — emphasis, links and
+ * images from `markdownToInlineCell`. Escaping brackets here turned `![alt](src)` into
+ * literal text, which is why images from markup fields never rendered after paste.
+ *
+ * A pipe-table cell only needs the row separator escaped and line breaks expressed as
+ * `<br>`; the rest is left for the markdown parser. Content that must not be interpreted
+ * (raw HTML of nested tables, block structure) is already stripped by `markdownToInlineCell`.
  */
 export function escapeMarkdownTableCellContent (value: string): string {
   const s = value == null ? '' : String(value)
-  if (looksLikeHttpOrRefMarkdownLink(s)) {
-    return s.trim()
-  }
-  return escapeMarkdownLinkText(s)
+  return (
+    s
+      // `\?\|` also normalizes an already escaped pipe instead of double escaping it.
+      .replace(/\\?\|/g, '\\|')
+      .replace(/\r?\n/g, '<br>')
+  )
 }
 
 /**

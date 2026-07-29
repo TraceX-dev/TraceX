@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,12 +15,14 @@
 -->
 <script lang="ts">
   import { AvatarType } from '@hcengineering/contact'
+  import type { ApiKey } from '@hcengineering/account-client'
   import { EditableAvatar, getAccountClient } from '@hcengineering/contact-resources'
   import core, { Configuration, WorkspaceAccountPermission } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
   import { translateCB } from '@hcengineering/platform'
-  import { createQuery, getClient, MessageBox } from '@hcengineering/presentation'
+  import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
   import { WorkspaceSetting } from '@hcengineering/setting'
+  import view from '@hcengineering/view'
   import {
     Breadcrumb,
     Button,
@@ -33,6 +36,7 @@
     Header,
     IconCheckmark,
     IconClose,
+    IconDelete,
     IconEdit,
     Label,
     Loading,
@@ -43,7 +47,8 @@
     Toggle
   } from '@hcengineering/ui'
   import settingsRes from '../plugin'
-  import ApiTokenPopup from './ApiTokenPopup.svelte'
+  import ApiKeyPopup from './ApiTokenPopup.svelte'
+  import CreateApiKey from './CreateApiKey.svelte'
   import WorkspacePermissionEditor from './WorkspacePermissionEditor.svelte'
 
   let loading = true
@@ -51,7 +56,10 @@
   let oldName: string
   let name: string = ''
   let workspaceUrl = ''
+  let workspaceId = ''
+  let workspaceIdCopied = false
   let passwordAgingRule: number | undefined = undefined
+  let apiKeys: ApiKey[] = []
 
   const accountClient = getAccountClient()
   const disabledSet = ['\n', '<', '>', '/', '\\']
@@ -64,11 +72,13 @@
       disabledSet.some((it) => name.includes(it)))
 
   void loadWorkspaceName()
+  void loadApiKeys()
 
   async function loadWorkspaceName (): Promise<void> {
     const res = await accountClient.getWorkspaceInfo()
 
     workspaceUrl = res.url
+    workspaceId = res.uuid
     oldName = res.name
     name = oldName
     passwordAgingRule = res.passwordAgingRule ?? undefined
@@ -153,9 +163,38 @@
     await accountClient.updatePasswordAgingRule(passwordAgingRule)
   }
 
-  async function handleGenerateApiToken (): Promise<void> {
-    const { token } = await accountClient.selectWorkspace(workspaceUrl)
-    showPopup(ApiTokenPopup, { token })
+  async function loadApiKeys (): Promise<void> {
+    apiKeys = await accountClient.getApiKeys()
+  }
+
+  async function copyWorkspaceId (): Promise<void> {
+    await copyTextToClipboard(workspaceId)
+    workspaceIdCopied = true
+    setTimeout(() => {
+      workspaceIdCopied = false
+    }, 1000)
+  }
+
+  function handleCreateApiKey (): void {
+    showPopup(CreateApiKey, {}, 'top', async (title?: string) => {
+      if (title === undefined) return
+      const { key } = await accountClient.createApiKey(title)
+      showPopup(ApiKeyPopup, { apiKey: key })
+      await loadApiKeys()
+    })
+  }
+
+  function handleRevokeApiKey (apiKey: ApiKey): void {
+    showPopup(MessageBox, {
+      label: settingsRes.string.ApiToken,
+      message: settingsRes.string.RevokeApiKeyConfirm,
+      params: { name: apiKey.name },
+      dangerous: true,
+      action: async () => {
+        await accountClient.revokeApiKey(apiKey.id)
+        await loadApiKeys()
+      }
+    })
   }
 
   function handleTogglePermissions (): void {
@@ -320,15 +359,47 @@
 
           <div class="flex-col flex-gap-4 mt-6">
             <div class="title"><Label label={settingsRes.string.ApiAccess} /></div>
+            {#if workspaceId !== ''}
+              <div class="flex-row-center flex-gap-2">
+                <span><Label label={settingsRes.string.WorkspaceId} />: {workspaceId}</span>
+                <Button
+                  label={workspaceIdCopied ? view.string.Copied : view.string.CopyToClipboard}
+                  kind="ghost"
+                  size="small"
+                  on:click={copyWorkspaceId}
+                />
+              </div>
+            {/if}
             <div class="w-32">
               <Button
                 label={settingsRes.string.GenerateApiToken}
                 kind="regular"
                 disabled={workspaceUrl === ''}
                 showTooltip={{ label: settingsRes.string.GenerateApiToken }}
-                on:click={handleGenerateApiToken}
+                on:click={handleCreateApiKey}
               />
             </div>
+            {#if apiKeys.length > 0}
+              <div class="flex-col flex-gap-2">
+                {#each apiKeys as apiKey (apiKey.id)}
+                  <div class="flex-row-center flex-gap-2">
+                    <span>
+                      {apiKey.name}{apiKey.keySuffix !== undefined ? ` · …${apiKey.keySuffix}` : ''} · {new Date(
+                        apiKey.createdOn
+                      ).toLocaleString()}
+                    </span>
+                    <Button
+                      icon={IconDelete}
+                      kind="ghost"
+                      size="small"
+                      on:click={() => {
+                        handleRevokeApiKey(apiKey)
+                      }}
+                    />
+                  </div>
+                {/each}
+              </div>
+            {/if}
           </div>
 
           <div class="flex-col flex-gap-4 mt-6">
