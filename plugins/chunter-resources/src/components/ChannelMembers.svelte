@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,6 +25,8 @@
   export let ids: Ref<Person>[] = []
   export let disableRemoveFor: Ref<Person>[] = []
   export let readonly = false
+  export let canAdd = true
+  export let canRemove = true
 
   const dispatch = createEventDispatcher()
 
@@ -32,7 +35,7 @@
 </script>
 
 <div class="root">
-  {#if !readonly}
+  {#if !readonly && canAdd}
     <div class="item" style:padding="var(--spacing-1_5)" class:withoutBorder={persons.length === 0}>
       <ModernButton
         label={chunter.string.AddMembers}
@@ -47,9 +50,12 @@
   <Scroller>
     {#each persons as person, index (person._id)}
       <div class="item" class:withoutBorder={index === persons.length - 1}>
-        <div class="item__content" class:disabled={readonly || disableRemoveFor.includes(person._id)}>
+        <div
+          class="item__content"
+          class:disabled={readonly || !canRemove || disableRemoveFor.includes(person._id)}
+        >
           <UserDetails {person} showStatus />
-          {#if !readonly && !disableRemoveFor.includes(person._id)}
+          {#if !readonly && canRemove && !disableRemoveFor.includes(person._id)}
             <div class="item__action">
               <ButtonIcon
                 icon={IconDelete}

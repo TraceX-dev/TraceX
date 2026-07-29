@@ -154,7 +154,9 @@ export interface Permissions {
 
   // Space level
   canEditSpace: (space: Space | undefined) => boolean
-  canManageMembers: (space: Space | undefined) => boolean
+  canArchiveSpace: (space: Space | undefined) => boolean
+  canAddMembers: (space: Space | undefined) => boolean
+  canRemoveMembers: (space: Space | undefined) => boolean
   canJoinSpace: (space: Space | undefined) => boolean
   canLeaveSpace: (space: Space | undefined) => boolean
 
@@ -178,7 +180,9 @@ export interface Permissions {
 const forbidAll: Permissions = {
   canManageWorkspace: false,
   canEditSpace: () => false,
-  canManageMembers: () => false,
+  canArchiveSpace: () => false,
+  canAddMembers: () => false,
+  canRemoveMembers: () => false,
   canJoinSpace: () => false,
   canLeaveSpace: () => false,
   canCreate: () => false,
@@ -226,16 +230,29 @@ function buildPermissions (
     return false
   }
 
-  const canManageMembers = (space: Space | undefined): boolean => {
+  const canRemoveMembers = (space: Space | undefined): boolean => {
     if (space === undefined || isReadOnly || isGuest) return false
     if (canEditSpace(space)) return true
-    // Preserved from the previous checks in SpaceMembers and ChannelAside.
     if (hasAccountRole(account, AccountRole.Maintainer)) return true
     if (space.createdBy !== undefined && account.socialIds.includes(space.createdBy)) return true
+    return false
+  }
+
+  const canAddMembers = (space: Space | undefined): boolean => {
+    if (space === undefined || isReadOnly || isGuest) return false
+    if (canRemoveMembers(space)) return true
     // Spaces without a space type are not permission controlled, same as the whitelist in
-    // PermissionsStore, so their members may manage the membership. This keeps chunter channels
-    // working the way they did before.
+    // PermissionsStore. Their members may invite other users, but removing members remains
+    // restricted to owners, maintainers and space creators.
     return !isTypedSpace(space) && (space.members ?? []).includes(account.uuid)
+  }
+
+  const canArchiveSpace = (space: Space | undefined): boolean => {
+    if (space === undefined || isReadOnly || isGuest) return false
+    if (isSpaceOwner(space, account)) return true
+    if (store === undefined) return false
+    if (hasSpacePermission(core.permission.DeleteObject, core.space.Space, store)) return true
+    return isTypedSpace(space) && hasSpacePermission(core.permission.ArchiveSpace, space._id, store)
   }
 
   const canComment = (doc: Doc | undefined): boolean => {
@@ -249,21 +266,26 @@ function buildPermissions (
     canManageWorkspace: hasAccountRole(account, AccountRole.Maintainer),
 
     canEditSpace,
-    canManageMembers,
-    canJoinSpace: (space) => space !== undefined && !isReadOnly && !(space.members ?? []).includes(account.uuid),
+    canArchiveSpace,
+    canAddMembers,
+    canRemoveMembers,
+    canJoinSpace: (space) =>
+      space !== undefined && !isReadOnly && !isGuest && !(space.members ?? []).includes(account.uuid),
     canLeaveSpace: (space) =>
-      space !== undefined && !isReadOnly && (space.members ?? []).includes(account.uuid),
+      space !== undefined && !isReadOnly && !isGuest && (space.members ?? []).includes(account.uuid),
 
-    canCreate: (_class, space) => !isReadOnly && store !== undefined && canCreateObject(_class, space, store),
+    canCreate: (_class, space) =>
+      !isReadOnly && !isGuest && store !== undefined && canCreateObject(_class, space, store),
     canEdit: (doc) =>
-      doc !== undefined && !isReadOnly && store !== undefined && canChangeDoc(doc._class, doc.space, store),
+      doc !== undefined && !isReadOnly && !isGuest && store !== undefined && canChangeDoc(doc._class, doc.space, store),
     canEditAttribute: (doc, attr) =>
       doc !== undefined &&
       !isReadOnly &&
+      !isGuest &&
       store !== undefined &&
       canChangeAttribute(attr, doc.space as Ref<TypedSpace>, store, doc._class),
     canRemove: (doc) =>
-      doc !== undefined && !isReadOnly && store !== undefined && canRemoveDoc(doc._class, doc.space, store),
+      doc !== undefined && !isReadOnly && !isGuest && store !== undefined && canRemoveDoc(doc._class, doc.space, store),
 
     // Access to the document itself is enforced by space security, so anyone who is able
     // to read the document is able to read its activity.

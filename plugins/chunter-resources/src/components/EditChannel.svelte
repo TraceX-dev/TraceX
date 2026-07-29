@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -41,7 +42,7 @@
     channel = result[0]
   })
 
-  $: canManageMembers = channel !== undefined && $permissions.canManageMembers(channel)
+  $: canAddMembers = channel !== undefined && $permissions.canAddMembers(channel)
 </script>
 
 <Panel
@@ -90,7 +91,7 @@
           <span class="fs-title text-xl overflow-label mb-2 flex-no-shrink">
             <Label label={chunter.string.Members} />
           </span>
-          <SpaceMembers space={channel} withAddButton={canManageMembers} />
+          <SpaceMembers space={channel} withAddButton={canAddMembers} />
         </div>
       {/if}
     </div>

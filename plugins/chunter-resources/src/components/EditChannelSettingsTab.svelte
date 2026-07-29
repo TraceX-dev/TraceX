@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,6 +27,7 @@
   export let channel: Channel
 
   $: readonly = !$permissions.canEditSpace(channel)
+  $: canArchive = $permissions.canArchiveSpace(channel)
 
   const dispatch = createEventDispatcher()
   const client = getClient()
@@ -84,12 +86,13 @@
       <span class="text-sm content-dark-color"><Label label={core.string.AutoJoinGuestsDescr} /></span>
     </div>
   </div>
-  {#if !readonly}
+  {#if canArchive}
     <Button
       label={chunter.string.ArchiveChannel}
       justify={'left'}
       size={'x-large'}
       on:click={(evt) => {
+        if (!canArchive) return
         ArchiveChannel(channel, evt, { afterArchive: () => dispatch('close') })
       }}
     />

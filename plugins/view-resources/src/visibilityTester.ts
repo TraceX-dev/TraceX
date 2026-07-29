@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -60,25 +61,7 @@ export async function canArchiveSpace (doc?: Doc | Doc[]): Promise<boolean> {
     return false
   }
 
-  const space = doc as Space
-
-  if (isSpaceOwner(space, getCurrentAccount())) {
-    return true
-  }
-
-  const client = getClient()
-
-  const _spaceSpace = get(spaceSpace) ?? (await client.findOne(core.class.TypedSpace, { _id: core.space.Space }))
-
-  if (await checkPermission(client, core.permission.DeleteObject, core.space.Space, _spaceSpace)) {
-    return true
-  }
-
-  if (isTypedSpace(space) && (await checkPermission(client, core.permission.ArchiveSpace, space._id, space))) {
-    return true
-  }
-
-  return false
+  return getPermissions().canArchiveSpace(doc as Space)
 }
 
 export async function canDeleteSpace (doc?: Doc | Doc[]): Promise<boolean> {

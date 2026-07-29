@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -72,16 +73,18 @@
       return
     }
 
-    const personsToLeave = Array.from(members).filter((_id) => !personRefs.includes(_id))
+    const personsToLeave = canRemoveMembers
+      ? Array.from(members).filter((_id) => !personRefs.includes(_id))
+      : []
     const accountsToLeave = getAccountsByPersons(personsToLeave)
-    const personsToJoin = personRefs.filter((_id) => !members.has(_id))
+    const personsToJoin = canAddMembers ? personRefs.filter((_id) => !members.has(_id)) : []
     const accountsToJoin = getAccountsByPersons(personsToJoin)
 
     await Promise.all([leaveChannel(object, accountsToLeave), joinChannel(object, accountsToJoin)])
   }
 
   async function removeMember (ev: CustomEvent): Promise<void> {
-    if (object === undefined) {
+    if (object === undefined || !canRemoveMembers) {
       return
     }
 
@@ -97,11 +100,13 @@
   }
 
   function openSelectUsersPopup (): void {
+    if (!canAddMembers && !canRemoveMembers) return
+
     showPopup(
       SelectUsersPopup,
       {
         okLabel: presentation.string.Add,
-        disableDeselectFor: disabledRemoveFor,
+        disableDeselectFor: canRemoveMembers ? disabledRemoveFor : Array.from(members),
         skipInactive: true,
         selected: members,
         showStatus: true
@@ -114,8 +119,8 @@
       }
     )
   }
-  // Only space owners and users with the update space permission may change the members.
-  $: readonly = (object?.archived ?? false) || !$permissions.canManageMembers(object)
+  $: canAddMembers = !(object?.archived ?? false) && $permissions.canAddMembers(object)
+  $: canRemoveMembers = !(object?.archived ?? false) && $permissions.canRemoveMembers(object)
 </script>
 
 <DocAside {object} {objectChatPanel}>
@@ -149,7 +154,8 @@
     <ChannelMembers
       ids={Array.from(members)}
       disableRemoveFor={disabledRemoveFor}
-      {readonly}
+      canAdd={canAddMembers}
+      canRemove={canRemoveMembers}
       on:add={openSelectUsersPopup}
       on:remove={removeMember}
     />
