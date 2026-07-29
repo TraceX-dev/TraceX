@@ -73,9 +73,7 @@
       return
     }
 
-    const personsToLeave = canRemoveMembers
-      ? Array.from(members).filter((_id) => !personRefs.includes(_id))
-      : []
+    const personsToLeave = canRemoveMembers ? Array.from(members).filter((_id) => !personRefs.includes(_id)) : []
     const accountsToLeave = getAccountsByPersons(personsToLeave)
     const personsToJoin = canAddMembers ? personRefs.filter((_id) => !members.has(_id)) : []
     const accountsToJoin = getAccountsByPersons(personsToJoin)

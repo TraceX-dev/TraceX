@@ -137,7 +137,7 @@
         {/if}
       </div>
     {/each}
-    {#if foreign.length && canAddMembers}
+    {#if (foreign.length > 0) && canAddMembers}
       <div class="mt-4 notIn h-full">
         <div class="divider w-full mb-4" />
         <div class="pr-8 pl-8"><Label label={presentation.string.NotInThis} params={{ space: spaceClass }} /></div>

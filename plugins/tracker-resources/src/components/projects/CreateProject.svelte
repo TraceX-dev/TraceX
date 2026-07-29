@@ -41,7 +41,7 @@
   import task, { ProjectType, TaskType } from '@hcengineering/task'
   import { taskTypeStore, typeStore } from '@hcengineering/task-resources'
   import { IssueStatus, Project, TimeReportDayType, TrackerEvents } from '@hcengineering/tracker'
-  import { permissions } from '@hcengineering/view-resources'
+  import { permissions, IconPicker } from '@hcengineering/view-resources'
   import {
     Button,
     Component,
@@ -55,8 +55,7 @@
     themeStore
   } from '@hcengineering/ui'
   import view from '@hcengineering/view'
-  import { IconPicker } from '@hcengineering/view-resources'
-  import { deepEqual } from 'fast-equals'
+    import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
 
   import tracker from '../../plugin'

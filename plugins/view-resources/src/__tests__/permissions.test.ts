@@ -26,6 +26,7 @@ import core, {
   type Space,
   type TypedSpace
 } from '@hcengineering/core'
+import type { Permissions } from '../permissions'
 
 interface MockReadable<T> {
   subscribe: (listener: (value: T) => void) => () => void
@@ -136,7 +137,7 @@ jest.doMock('../utils', () => ({
   restrictionStore: mockRestrictions
 }))
 
-let getPermissions: typeof import('../permissions').getPermissions
+let getPermissions: () => Permissions
 
 function createAccount (role: AccountRole, uuid: string = 'account'): Account {
   return {
@@ -154,7 +155,7 @@ function createSpace (
   members: AccountUuid[] = [],
   createdBy?: PersonId
 ): Space {
-  return {
+  const result: Space = {
     _id: id as Ref<Space>,
     _class: objectClass,
     space: core.space.Space,
@@ -166,7 +167,8 @@ function createSpace (
     createdBy,
     modifiedBy: 'system' as PersonId,
     modifiedOn: 0
-  } as Space
+  }
+  return result
 }
 
 function resetPermissionStore (): void {

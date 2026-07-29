@@ -50,10 +50,7 @@
   <Scroller>
     {#each persons as person, index (person._id)}
       <div class="item" class:withoutBorder={index === persons.length - 1}>
-        <div
-          class="item__content"
-          class:disabled={readonly || !canRemove || disableRemoveFor.includes(person._id)}
-        >
+        <div class="item__content" class:disabled={readonly || !canRemove || disableRemoveFor.includes(person._id)}>
           <UserDetails {person} showStatus />
           {#if !readonly && canRemove && !disableRemoveFor.includes(person._id)}
             <div class="item__action">
