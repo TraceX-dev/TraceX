@@ -55,6 +55,10 @@
     "ExportFilterAll": "Tüm belgeler",
     "ExportChildDocuments": "Alt belgeleri dışa aktar",
     "ExportChildDocumentsDescription": "Seçili belgelere ekli belgeleri de dışa aktar",
-    "ExportResultRecordTitle": "{workspace} çalışma alanından belge dışa aktarma ({date})"
+    "ExportResultRecordTitle": "{workspace} çalışma alanından belge dışa aktarma ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "Seçili ({count})",
+    "ExportScopeLoaded": "Bu sayfada yüklü ({count})",
+    "ExportFileName": "Dosya adı"
   }
 }
