@@ -632,6 +632,10 @@ describe('account utils', () => {
 
     beforeEach(() => {
       jest.clearAllMocks()
+      // `wrap` decodes the token to reject api keys before calling the method. Without a return
+      // value the destructuring of the result throws, and every case below lands on
+      // InternalServerError instead of exercising what it means to test.
+      ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ extra: {} })
     })
 
     test('should handle successful execution', async () => {
