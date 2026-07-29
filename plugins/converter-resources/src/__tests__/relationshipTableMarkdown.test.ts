@@ -86,8 +86,8 @@ function getTable (markup: MarkupNode): MarkupNode {
 }
 
 describe('buildRelationshipTableMarkdown', () => {
-  const hierarchy = {} as Hierarchy
-  const client = {} as Client
+  const hierarchy: Hierarchy = {} as any
+  const client: Client = {} as any
   const cardClass = 'test:class:Doc' as Ref<Class<Doc>>
 
   it('preserves row spans through the markdown round trip', async () => {
