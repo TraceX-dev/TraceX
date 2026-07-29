@@ -25,6 +25,7 @@ The OpenAPI 3.0 specification is served by the API pod:
 
 - `GET /api/v2/swagger.json`
 - `GET /api/v2/openapi.json`
+- `GET /api/v2/swagger` — public interactive Swagger UI for the base contract
 
 For a workspace-specific specification, including the currently allowed enum
 and status values, use:
@@ -38,6 +39,12 @@ current browser page, and applies it to the schema request and Try it out
 requests. It loads the pinned Swagger UI assets from unpkg. The JSON URLs can
 also be used in another OpenAPI client; they require the same Bearer API key as
 the rest of the workspace API.
+
+The public page describes the stable contract for every endpoint, with generic
+request and response shapes, parameters, authentication, and errors. Enter the
+workspace UUID in the path parameter and use Swagger's **Authorize** button to
+provide an API key. For the actual classes, custom fields, enums, statuses, and
+allowed space types of one workspace, use its workspace-specific Swagger page.
 
 Every collection `GET` shows an optional `limit` query parameter in Swagger.
 It defaults to `100` and must not exceed `1000`. Parameters that select or

@@ -86,7 +86,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV25Migration(ns, flavor),
     getV26Migration(ns, flavor),
     getV27Migration(ns, flavor),
-    getV28Migration(ns, flavor)
+    getV28Migration(ns, flavor),
+    getV29Migration(ns, flavor)
   ]
 }
 
@@ -858,6 +859,18 @@ function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
     CREATE INDEX IF NOT EXISTS api_key_owner_workspace_active_idx
       ON ${ns}.api_key (account_uuid, workspace_uuid)
       WHERE revoked_on IS NULL;
+    `
+  ]
+}
+
+function getV29Migration (ns: string, flavor: DBFlavor): [string, string] {
+  const types = dbTypes[flavor]
+
+  return [
+    'account_db_v29_add_api_key_suffix',
+    `
+    ALTER TABLE ${ns}.api_key
+    ADD COLUMN IF NOT EXISTS key_suffix ${types.string};
     `
   ]
 }
