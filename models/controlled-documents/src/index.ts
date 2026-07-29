@@ -1031,6 +1031,26 @@ export function createModel (builder: Builder): void {
   createAction(
     builder,
     {
+      action: exportPlugin.actionImpl.ExportTable,
+      actionProps: {
+        cardClass: documents.class.Document
+      },
+      label: exportPlugin.string.Export,
+      icon: exportPlugin.icon.Export,
+      input: 'any',
+      category: view.category.General,
+      target: documents.class.Document,
+      context: {
+        mode: ['context', 'browser'],
+        group: 'copy'
+      }
+    },
+    documents.action.ExportTable
+  )
+
+  createAction(
+    builder,
+    {
       action: view.actionImpl.CopyDocumentMarkdown,
       actionProps: {
         contentClass: documents.class.Document,

@@ -36,6 +36,7 @@ import {
   showPanel,
   showPopup
 } from '@hcengineering/ui'
+import { TABLE_METADATA_MARKER } from '@hcengineering/view'
 import { get } from 'svelte/store'
 import MoveView from './components/Move.svelte'
 import view from './plugin'
@@ -130,7 +131,7 @@ export async function copyMarkdown (markdown: string, metadata?: Record<string, 
   let markdownToCopy = markdown
   if (metadata !== undefined) {
     try {
-      markdownToCopy = markdown + '\n' + `<!-- platform-table-metadata:${JSON.stringify(metadata)} -->`
+      markdownToCopy = markdown + '\n' + `${TABLE_METADATA_MARKER}${JSON.stringify(metadata)} -->`
     } catch (e) {
       console.error('Failed to embed metadata in markdown:', e)
     }

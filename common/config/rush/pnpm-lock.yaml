@@ -6920,6 +6920,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/integration':
         specifier: workspace:^0.7.0
         version: link:../../plugins/integration
@@ -13694,6 +13697,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/integration':
         specifier: workspace:^0.7.0
         version: link:../../plugins/integration
@@ -21105,6 +21111,9 @@ importers:
       '@hcengineering/ui':
         specifier: workspace:^0.7.0
         version: link:../../packages/ui
+      '@hcengineering/view':
+        specifier: workspace:^0.7.0
+        version: link:../view
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -21206,6 +21215,9 @@ importers:
 
   ../../plugins/export-resources:
     dependencies:
+      '@hcengineering/converter':
+        specifier: workspace:^0.7.0
+        version: link:../converter
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
@@ -63743,7 +63755,7 @@ snapshots:
   node-loader@2.0.0(webpack@5.102.1):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.102.1
+      webpack: 5.102.1(esbuild@0.25.12)(webpack-cli@5.1.4)
 
   node-localstorage@2.2.1:
     dependencies:

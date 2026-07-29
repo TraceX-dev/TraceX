@@ -23,6 +23,7 @@ export { createMarkdownLink } from './link'
 export {
   buildMarkdownTableFromDocs,
   buildMarkdownTableFromMetadata,
-  buildRelationshipTableMarkdown
+  buildRelationshipTableMarkdown,
+  buildTableData
 } from './tableBuilder'
 export { copyAsMarkdownTable, copyAsMarkdownTableFromResource, copyRelationshipTableAsMarkdown } from './copyActions'

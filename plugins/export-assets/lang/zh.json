@@ -55,6 +55,10 @@
     "ExportFilterAll": "全部文档",
     "ExportChildDocuments": "导出子文档",
     "ExportChildDocumentsDescription": "同时导出附加到所选文档上的文档",
-    "ExportResultRecordTitle": "从工作区 {workspace} 导出文档 ({date})"
+    "ExportResultRecordTitle": "从工作区 {workspace} 导出文档 ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "已选 ({count})",
+    "ExportScopeLoaded": "本页已加载 ({count})",
+    "ExportFileName": "文件名"
   }
 }

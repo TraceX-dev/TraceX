@@ -55,6 +55,10 @@
     "ExportFilterAll": "Все документы",
     "ExportChildDocuments": "Экспортировать дочерние документы",
     "ExportChildDocumentsDescription": "Также экспортировать документы, прикреплённые к выбранным",
-    "ExportResultRecordTitle": "Экспорт документов из пространства {workspace} ({date})"
+    "ExportResultRecordTitle": "Экспорт документов из пространства {workspace} ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "Выделенные ({count})",
+    "ExportScopeLoaded": "Загруженные на странице ({count})",
+    "ExportFileName": "Имя файла"
   }
 }

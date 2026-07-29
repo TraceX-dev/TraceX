@@ -137,6 +137,7 @@ export const documentsPlugin = plugin(documentsId, {
     OpenDocumentInNewTab: '' as Ref<Action<Doc, { signed: boolean }>>,
     CopyAsMarkdownTable: '' as Ref<Action<Doc, any>>,
     CopyDocumentMarkdown: '' as Ref<Action<Doc, any>>,
+    ExportTable: '' as Ref<Action<Doc, any>>,
     Export: '' as Ref<Action<Document, any>>,
     Import: '' as Ref<Action<Document, any>>
   },

@@ -15,6 +15,8 @@ export interface ViewletContext {
   query?: DocumentQuery<Doc>
   viewOptions?: ViewOptions
   _class?: Ref<Class<Doc>>
+  /** Rows currently rendered, in render order. Used by export to offer "current page". */
+  objects?: Doc[]
   relationshipTableData?: CopyRelationshipTableAsMarkdownProps
 }
 

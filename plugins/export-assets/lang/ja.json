@@ -55,6 +55,10 @@
     "ExportFilterAll": "すべてのドキュメント",
     "ExportChildDocuments": "子ドキュメントをエクスポート",
     "ExportChildDocumentsDescription": "選択したドキュメントに添付されたドキュメントもエクスポートします",
-    "ExportResultRecordTitle": "ワークスペース {workspace} からのドキュメントのエクスポート ({date})"
+    "ExportResultRecordTitle": "ワークスペース {workspace} からのドキュメントのエクスポート ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "選択項目 ({count})",
+    "ExportScopeLoaded": "このページに読み込み済み ({count})",
+    "ExportFileName": "ファイル名"
   }
 }
