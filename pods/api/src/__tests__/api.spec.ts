@@ -41,6 +41,7 @@ import time from '@hcengineering/time'
 process.env.PORT = '8080'
 process.env.ACCOUNTS_URL = 'http://accounts.test'
 process.env.TRANSACTOR_URL = 'ws://transactor.test'
+process.env.SERVER_SECRET = 'secret'
 process.env.COLLABORATOR_URL = 'http://collaborator.test'
 
 let mockCollaboratorContent = ''
@@ -63,7 +64,12 @@ jest.mock('@hcengineering/server-client', () => ({ createClient: jest.fn() }))
 jest.mock('@hcengineering/collaborator-client', () => ({ getClient: jest.fn(() => mockCollaborator) }))
 jest.mock('@hcengineering/server-token', () => {
   class TokenError extends Error {}
-  return { decodeToken: jest.fn(() => ({ workspace: 'workspace-1' })), TokenError }
+  return {
+    __esModule: true,
+    default: { metadata: { Secret: 'server-token:metadata:Secret' } },
+    decodeToken: jest.fn(() => ({ workspace: 'workspace-1' })),
+    TokenError
+  }
 })
 
 interface RouteLayer {
@@ -218,6 +224,33 @@ describe('Workspace API routes with local plugin resources', () => {
     })
   })
 
+  it('serves a public Swagger page for the base API contract', async () => {
+    expect(await api('get', '/api/v2/swagger')).toMatchObject({
+      status: 200,
+      body: expect.stringContaining("url: '/api/v2/openapi.json'")
+    })
+    expect(await api('get', '/api/v2/openapi.json')).toMatchObject({
+      status: 200,
+      body: {
+        paths: expect.objectContaining({
+          '/api/v2/{workspaceId}/documents': expect.objectContaining({
+            get: expect.any(Object),
+            post: expect.any(Object)
+          }),
+          '/api/v2/{workspaceId}/comments': expect.objectContaining({
+            get: expect.any(Object),
+            post: expect.any(Object)
+          }),
+          '/api/v2/{workspaceId}/calendar/events': expect.objectContaining({
+            get: expect.any(Object),
+            post: expect.any(Object)
+          }),
+          '/api/v2/{workspaceId}/todos': expect.objectContaining({ get: expect.any(Object), post: expect.any(Object) })
+        })
+      }
+    })
+  })
+
   it('uses the real document factory and validates plugin capability discovery', async () => {
     const created = await api('post', '/api/v2/:workspaceId/documents', {
       body: { space: 'Knowledge base', fields: { title: 'API guide' } }
@@ -342,6 +375,10 @@ describe('Workspace API routes with local plugin resources', () => {
           return res
         },
         json: (body: unknown) => {
+          resolve({ status, body })
+        },
+        type: () => res,
+        send: (body: unknown) => {
           resolve({ status, body })
         }
       }

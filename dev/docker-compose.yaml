@@ -391,6 +391,7 @@ services:
       - PORT=8080
       - TRANSACTOR_URL=ws://transactor_cockroach:3332
       - ACCOUNTS_URL=http://tracex.local:3000
+      - SERVER_SECRET=secret
       - COLLABORATOR_URL=ws://collaborator:3078
       - LAST_NAME_FIRST=true
     restart: unless-stopped

@@ -24,7 +24,7 @@ import document from '@hcengineering/document'
 import platform, { errorToStatus, PlatformError, setMetadata } from '@hcengineering/platform'
 import processPlugin from '@hcengineering/process'
 import { createClient } from '@hcengineering/server-client'
-import { decodeToken, TokenError } from '@hcengineering/server-token'
+import serverToken, { decodeToken, TokenError } from '@hcengineering/server-token'
 import time from '@hcengineering/time'
 import { type Express, type Request, type Response } from 'express'
 import express from 'express'
@@ -45,13 +45,16 @@ import { registerWorkspaceApiResources } from './resources'
 const port = Number(process.env.PORT ?? 8080)
 const transactorUrl = process.env.TRANSACTOR_URL
 const accountsUrl = process.env.ACCOUNTS_URL
+const serverSecret = process.env.SERVER_SECRET
 const workspaceClientConnectTimeoutMs = 10_000
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be a valid port number')
 if (transactorUrl === undefined || transactorUrl === '') throw new Error('TRANSACTOR_URL is required')
 if (accountsUrl === undefined || accountsUrl === '') throw new Error('ACCOUNTS_URL is required')
+if (serverSecret === undefined || serverSecret === '') throw new Error('SERVER_SECRET is required')
 
 setMetadata(contact.metadata.LastNameFirst, process.env.LAST_NAME_FIRST === 'true')
+setMetadata(serverToken.metadata.Secret, serverSecret)
 
 const app: Express = express()
 app.disable('x-powered-by')
@@ -133,6 +136,7 @@ const toDoClass = (type: unknown): Ref<Class<Doc>> => {
 }
 app.get('/api/v2/swagger.json', (_req, res) => res.json(openApi))
 app.get('/api/v2/openapi.json', (_req, res) => res.json(openApi))
+app.get('/api/v2/swagger', (_req, res) => res.type('html').send(publicSwaggerUiHtml()))
 app.get('/api/v2/:workspaceId/swagger', (_req, res) => res.type('html').send(swaggerUiHtml()))
 app.get(
   '/api/v2/:workspaceId/swagger.json',
@@ -467,72 +471,95 @@ const openApi = {
   openapi: '3.0.3',
   info: { title: 'TraceX workspace API v2', version: 'v2' },
   paths: {
-    '/api/v2/{workspaceId}/schema': { get: { summary: 'Get workspace schema', responses: standardErrorResponses } },
+    '/api/v2/{workspaceId}/schema': {
+      get: {
+        summary: 'Get classes, visible fields, enum/status values, and allowed space classes',
+        parameters: workspacePathParameters(),
+        responses: successResponses('WorkspaceSchema')
+      }
+    },
     '/api/v2/{workspaceId}/spaces': {
       get: {
         summary: 'List visible spaces with their visible class names',
-        parameters: [
+        parameters: workspacePathParameters(
           optionalQueryParameter(
             'class',
             'Optional visible class name. When specified, returns only spaces where that class can be created.'
           ),
           listLimitParameter()
-        ],
-        responses: standardErrorResponses
+        ),
+        responses: successResponses('Spaces')
       }
     },
     '/api/v2/{workspaceId}/documents': {
       get: {
         summary: 'List documents',
-        parameters: [
+        parameters: workspacePathParameters(
           optionalQueryParameter('class', 'Visible Document subclass name. Omit for Document.', {
             default: 'Document'
           }),
           optionalQueryParameter('space', 'Optional visible space name used to filter the result'),
           listLimitParameter()
-        ],
-        responses: standardErrorResponses
+        ),
+        responses: successResponses('DocumentList')
       },
-      post: { summary: 'Create document', responses: standardErrorResponses },
-      patch: { summary: 'Update document by id', responses: standardErrorResponses }
+      post: {
+        summary: 'Create document',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('CreateDocumentRequest'),
+        responses: successResponses('Document')
+      },
+      patch: {
+        summary: 'Update document by id',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('PatchDocumentRequest'),
+        responses: successResponses('Document')
+      }
     },
     '/api/v2/{workspaceId}/cards': {
       get: {
         summary: 'List cards',
-        parameters: [
+        parameters: workspacePathParameters(
           optionalQueryParameter('class', 'Visible Card subclass name. Omit for Card.', { default: 'Card' }),
           optionalQueryParameter('space', 'Optional visible Card space name used to filter the result'),
           listLimitParameter()
-        ],
-        responses: standardErrorResponses
+        ),
+        responses: successResponses('DocumentList')
       },
-      post: { summary: 'Create card', responses: standardErrorResponses },
-      patch: { summary: 'Update card by id', responses: standardErrorResponses }
+      post: { summary: 'Create card', parameters: workspacePathParameters(), responses: standardErrorResponses },
+      patch: { summary: 'Update card by id', parameters: workspacePathParameters(), responses: standardErrorResponses }
     },
     '/api/v2/{workspaceId}/cards/{id}': {
       get: {
         summary: 'Get card strictly by id',
-        parameters: [
+        parameters: workspacePathParameters(
+          idPathParameter(),
           optionalQueryParameter('class', 'Visible Card subclass name. Omit for Card.', { default: 'Card' })
-        ],
-        responses: standardErrorResponses
+        ),
+        responses: successResponses('Document')
       }
     },
     '/api/v2/{workspaceId}/comments': {
       get: {
         summary: 'Read comments using the workspace-selected backend',
-        parameters: [
+        parameters: workspacePathParameters(
           optionalQueryParameter('class', 'Target class name. Omit for a Card target.', { default: 'Card' }),
           requiredQueryParameter('id', 'Target document id'),
           listLimitParameter()
-        ]
+        ),
+        responses: successResponses('CommentList')
       },
-      post: { summary: 'Create a comment using the workspace-selected backend' }
+      post: {
+        summary: 'Create a comment using the workspace-selected backend',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('CommentRequest'),
+        responses: successResponses('Comment')
+      }
     },
     '/api/v2/{workspaceId}/chats/messages': {
       get: {
         summary: 'Read chat messages using the workspace-selected backend',
-        parameters: [
+        parameters: workspacePathParameters(
           optionalQueryParameter(
             'class',
             'Target class name. Omit for a Card target; channel selects a legacy Channel.',
@@ -543,55 +570,121 @@ const openApi = {
           optionalQueryParameter('id', 'Target document id; use with class for a target-based chat'),
           optionalQueryParameter('channel', 'Unique legacy channel name; use instead of id'),
           listLimitParameter()
-        ]
+        ),
+        responses: successResponses('CommentList')
       },
-      post: { summary: 'Write a chat message using the workspace-selected backend' }
+      post: {
+        summary: 'Write a chat message using the workspace-selected backend',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('ChatMessageRequest'),
+        responses: successResponses('Comment')
+      }
     },
     '/api/v2/{workspaceId}/contacts': {
       get: {
         summary: 'List contacts',
-        parameters: [
+        parameters: workspacePathParameters(
           optionalQueryParameter('type', 'Contact kind', {
             enum: ['Person', 'Organization', 'Employee'],
             default: 'Person'
           }),
           listLimitParameter()
-        ]
+        ),
+        responses: successResponses('DocumentList')
       },
-      post: { summary: 'Create contact' },
-      patch: { summary: 'Update contact' }
+      post: {
+        summary: 'Create contact',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('ContactCreateRequest'),
+        responses: successResponses('Document')
+      },
+      patch: {
+        summary: 'Update contact',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('ContactPatchRequest'),
+        responses: successResponses('Document')
+      }
     },
     '/api/v2/{workspaceId}/calendar/events': {
       get: {
         summary: 'List events',
-        parameters: [requiredQueryParameter('calendar', 'Visible calendar name'), listLimitParameter()]
+        parameters: workspacePathParameters(
+          requiredQueryParameter('calendar', 'Visible calendar name'),
+          listLimitParameter()
+        ),
+        responses: successResponses('DocumentList')
       },
-      post: { summary: 'Create event' },
-      patch: { summary: 'Update event' }
+      post: {
+        summary: 'Create event',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('CalendarEventCreateRequest'),
+        responses: successResponses('Document')
+      },
+      patch: {
+        summary: 'Update event',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('CalendarEventPatchRequest'),
+        responses: successResponses('Document')
+      }
     },
     '/api/v2/{workspaceId}/todos': {
       get: {
         summary: 'List ToDos',
-        parameters: [
+        parameters: workspacePathParameters(
           optionalQueryParameter('type', 'ToDo kind', { enum: ['ToDo', 'ProcessToDo'], default: 'ToDo' }),
           listLimitParameter()
-        ]
+        ),
+        responses: successResponses('DocumentList')
       },
-      post: { summary: 'Create ToDo' },
-      patch: { summary: 'Update ToDo without completing it' }
+      post: {
+        summary: 'Create ToDo',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('ToDoCreateRequest'),
+        responses: successResponses('Document')
+      },
+      patch: {
+        summary: 'Update ToDo without completing it',
+        parameters: workspacePathParameters(),
+        requestBody: jsonRequestBody('ToDoPatchRequest'),
+        responses: successResponses('Document')
+      }
     },
     '/api/v2/{workspaceId}/controlled-documents': {
-      get: { summary: 'List controlled documents', parameters: [listLimitParameter()] }
+      get: {
+        summary: 'List controlled documents',
+        parameters: workspacePathParameters(listLimitParameter()),
+        responses: successResponses('DocumentList')
+      }
     },
     '/api/v2/{workspaceId}/controlled-documents/{id}/versions': {
-      get: { summary: 'Read current and archived versions' }
+      get: {
+        summary: 'Read current and archived versions',
+        parameters: workspacePathParameters(idPathParameter()),
+        responses: successResponses('DocumentList')
+      }
     },
-    '/api/v2/{workspaceId}/controlled-documents/{id}/drafts': { post: { summary: 'Create controlled document draft' } },
+    '/api/v2/{workspaceId}/controlled-documents/{id}/drafts': {
+      post: {
+        summary: 'Create controlled document draft',
+        parameters: workspacePathParameters(idPathParameter()),
+        responses: successResponses('Document')
+      }
+    },
     '/api/v2/{workspaceId}/controlled-documents/{id}/review': {
-      post: { summary: 'Send controlled document for review' }
+      post: {
+        summary: 'Send controlled document for review',
+        parameters: workspacePathParameters(idPathParameter()),
+        requestBody: jsonRequestBody('ReviewRequest'),
+        responses: successResponses('Document')
+      }
     },
     '/api/v2/{workspaceId}/controlled-documents/{id}/approval': {
-      post: { summary: 'Send controlled document for approval' }
+      post: {
+        summary: 'Send controlled document for approval',
+        parameters: workspacePathParameters(idPathParameter()),
+        requestBody: jsonRequestBody('ApprovalRequest'),
+        responses: successResponses('Document')
+      }
     }
   },
   components: {
@@ -617,8 +710,240 @@ const openApi = {
           }
         }
       },
-      CreateDocumentRequest: {},
-      PatchDocumentRequest: {}
+      WorkspaceSchema: {
+        type: 'object',
+        required: ['classes'],
+        properties: {
+          classes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['name', 'fields'],
+              properties: {
+                name: { type: 'string' },
+                factory: { type: 'boolean' },
+                createIn: { type: 'array', items: { type: 'string' } },
+                operations: { type: 'array', items: { type: 'string' } },
+                fields: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['name', 'type', 'required', 'custom'],
+                    properties: {
+                      name: { type: 'string' },
+                      type: { type: 'string' },
+                      required: { type: 'boolean' },
+                      custom: { type: 'boolean' },
+                      markdown: { type: 'boolean' },
+                      values: { type: 'array', items: { type: 'string' } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      Spaces: {
+        type: 'object',
+        required: ['spaces', 'total'],
+        properties: {
+          spaces: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['name', 'class'],
+              properties: { name: { type: 'string' }, class: { type: 'string' } }
+            }
+          },
+          total: { type: 'integer' }
+        }
+      },
+      Document: {
+        type: 'object',
+        required: ['id', 'class', 'space', 'fields'],
+        properties: {
+          id: { type: 'string', description: 'Document id; use it for PATCH and exact-object routes.' },
+          class: { type: 'string', description: 'Visible class name.' },
+          space: { type: 'string', description: 'Visible space name.' },
+          fields: { type: 'object', additionalProperties: true }
+        }
+      },
+      DocumentList: {
+        type: 'object',
+        required: ['documents', 'total'],
+        properties: {
+          documents: { type: 'array', items: { $ref: '#/components/schemas/Document' } },
+          total: { type: 'integer' }
+        }
+      },
+      CreateDocumentRequest: {
+        type: 'object',
+        required: ['space'],
+        properties: {
+          class: { type: 'string', description: 'Visible class name. Omit only on a class-specific endpoint.' },
+          space: { type: 'string', description: 'Visible name of a compatible space.' },
+          fields: { type: 'object', additionalProperties: true }
+        }
+      },
+      PatchDocumentRequest: {
+        type: 'object',
+        required: ['id', 'fields'],
+        properties: {
+          id: { type: 'string' },
+          class: { type: 'string', description: 'Visible class name when needed to select an endpoint subclass.' },
+          fields: { type: 'object', minProperties: 1, additionalProperties: true }
+        }
+      },
+      Comment: {
+        type: 'object',
+        required: ['id', 'content'],
+        properties: {
+          id: { type: 'string' },
+          content: { type: 'string', description: 'Markdown text.' },
+          createdOn: { type: 'integer', format: 'int64', description: 'Unix timestamp in milliseconds.' },
+          createdBy: { type: 'string', description: 'Author identifier.' }
+        }
+      },
+      CommentList: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/Comment' }
+      },
+      CommentRequest: {
+        type: 'object',
+        required: ['target', 'content'],
+        properties: {
+          target: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              class: { type: 'string', description: 'Visible target class name. Omit for Card.' },
+              id: { type: 'string', description: 'Target document id.' }
+            }
+          },
+          content: { type: 'string', minLength: 1, description: 'Comment body in Markdown.' }
+        }
+      },
+      ChatMessageRequest: {
+        type: 'object',
+        required: ['content'],
+        properties: {
+          target: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              class: { type: 'string', description: 'Visible target class name. Omit for Card.' },
+              id: { type: 'string', description: 'Target document id.' }
+            }
+          },
+          channel: { type: 'string', description: 'Unique legacy channel name. Use instead of target.' },
+          content: { type: 'string', minLength: 1, description: 'Message body in Markdown.' }
+        },
+        oneOf: [{ required: ['target'] }, { required: ['channel'] }]
+      },
+      ContactCreateRequest: {
+        type: 'object',
+        required: ['type', 'name'],
+        properties: {
+          type: { type: 'string', enum: ['Person', 'Organization'] },
+          name: { type: 'string', minLength: 1, description: 'Full display name.' },
+          city: { type: 'string' },
+          birthday: { type: 'integer', format: 'int64', nullable: true, description: 'Unix timestamp in milliseconds.' }
+        }
+      },
+      ContactPatchRequest: {
+        type: 'object',
+        required: ['id', 'type'],
+        properties: {
+          id: { type: 'string' },
+          type: { type: 'string', enum: ['Person', 'Organization'] },
+          name: { type: 'string', minLength: 1, description: 'Full display name.' },
+          city: { type: 'string' },
+          birthday: { type: 'integer', format: 'int64', nullable: true, description: 'Unix timestamp in milliseconds.' }
+        }
+      },
+      CalendarEventCreateRequest: {
+        type: 'object',
+        required: ['calendar', 'title', 'date', 'dueDate'],
+        properties: {
+          calendar: { type: 'string', description: 'Visible calendar name.' },
+          title: { type: 'string', minLength: 1 },
+          date: { type: 'integer', format: 'int64', description: 'Start time as a Unix timestamp in milliseconds.' },
+          dueDate: { type: 'integer', format: 'int64', description: 'End time as a Unix timestamp in milliseconds.' },
+          allDay: { type: 'boolean' },
+          description: { type: 'string', description: 'Description in Markdown.' },
+          location: { type: 'string' },
+          participants: { type: 'array', items: { type: 'string' } },
+          externalParticipants: { type: 'array', items: { type: 'string' } },
+          visibility: { type: 'string', enum: ['public', 'freeBusy', 'private'] },
+          reminders: { type: 'array', items: { type: 'integer' } },
+          timeZone: { type: 'string' }
+        }
+      },
+      CalendarEventPatchRequest: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string', minLength: 1 },
+          date: { type: 'integer', format: 'int64', description: 'Start time as a Unix timestamp in milliseconds.' },
+          dueDate: { type: 'integer', format: 'int64', description: 'End time as a Unix timestamp in milliseconds.' },
+          allDay: { type: 'boolean' },
+          description: { type: 'string', description: 'Description in Markdown.' },
+          location: { type: 'string' },
+          participants: { type: 'array', items: { type: 'string' } },
+          externalParticipants: { type: 'array', items: { type: 'string' } },
+          visibility: { type: 'string', enum: ['public', 'freeBusy', 'private'] },
+          reminders: { type: 'array', items: { type: 'integer' } },
+          timeZone: { type: 'string' }
+        }
+      },
+      ToDoCreateRequest: {
+        type: 'object',
+        required: ['title'],
+        properties: {
+          title: { type: 'string', minLength: 1 },
+          description: { type: 'string', description: 'Description in Markdown.' },
+          dueDate: { type: 'integer', format: 'int64', nullable: true, description: 'Unix timestamp in milliseconds.' },
+          priority: {
+            type: 'integer',
+            enum: [0, 1, 2, 3, 4],
+            description: 'Priority: 0 = High, 1 = Medium, 2 = Low, 3 = No priority, 4 = Urgent.'
+          },
+          visibility: { type: 'string', enum: ['public', 'freeBusy', 'private'] }
+        }
+      },
+      ToDoPatchRequest: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+          type: { type: 'string', enum: ['ToDo', 'ProcessToDo'], default: 'ToDo' },
+          title: { type: 'string', minLength: 1 },
+          description: { type: 'string', description: 'Description in Markdown.' },
+          dueDate: { type: 'integer', format: 'int64', nullable: true, description: 'Unix timestamp in milliseconds.' },
+          priority: {
+            type: 'integer',
+            enum: [0, 1, 2, 3, 4],
+            description: 'Priority: 0 = High, 1 = Medium, 2 = Low, 3 = No priority, 4 = Urgent.'
+          },
+          visibility: { type: 'string', enum: ['public', 'freeBusy', 'private'] }
+        }
+      },
+      ReviewRequest: {
+        type: 'object',
+        required: ['reviewers'],
+        properties: {
+          reviewers: { type: 'array', minItems: 1, items: { type: 'string', description: 'Employee display name.' } }
+        }
+      },
+      ApprovalRequest: {
+        type: 'object',
+        required: ['approvers'],
+        properties: {
+          approvers: { type: 'array', minItems: 1, items: { type: 'string', description: 'Employee display name.' } }
+        }
+      }
     },
     responses: {
       ValidationError: {
@@ -658,6 +983,46 @@ function optionalQueryParameter (name: string, description: string, schema: Reco
   return { name, in: 'query', required: false, description, schema: { type: 'string', ...schema } }
 }
 
+function workspacePathParameters (...parameters: object[]): object[] {
+  return [
+    {
+      name: 'workspaceId',
+      in: 'path',
+      required: true,
+      description: 'Workspace UUID. It must match the workspace embedded in the API key.',
+      schema: { type: 'string', format: 'uuid' }
+    },
+    ...parameters
+  ]
+}
+
+function idPathParameter (): object {
+  return {
+    name: 'id',
+    in: 'path',
+    required: true,
+    description: 'Exact document id.',
+    schema: { type: 'string' }
+  }
+}
+
+function jsonRequestBody (schema: string): object {
+  return {
+    required: true,
+    content: { 'application/json': { schema: { $ref: `#/components/schemas/${schema}` } } }
+  }
+}
+
+function successResponses (schema: string): object {
+  return {
+    200: {
+      description: 'Successful response',
+      content: { 'application/json': { schema: { $ref: `#/components/schemas/${schema}` } } }
+    },
+    ...standardErrorResponses
+  }
+}
+
 function listLimitParameter (): object {
   return {
     name: 'limit',
@@ -666,6 +1031,31 @@ function listLimitParameter (): object {
     description: 'Maximum number of items to return. Defaults to 100; maximum is 1000.',
     schema: { type: 'integer', minimum: 1, maximum: 1000, default: 100 }
   }
+}
+
+function publicSwaggerUiHtml (): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TraceX Workspace API v2</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui.css">
+    <style>body { margin: 0; background: #fafafa; font-family: sans-serif; }</style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui-bundle.js"></script>
+    <script>
+      SwaggerUIBundle({
+        url: '/api/v2/openapi.json',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        persistAuthorization: false
+      })
+    </script>
+  </body>
+</html>`
 }
 
 function swaggerUiHtml (): string {
