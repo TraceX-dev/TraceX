@@ -378,13 +378,13 @@ test.describe('Channel tests', () => {
     await channelPage.clickChannel('general')
     await channelPage.clickChannel(data.channelName)
     await channelPage.clickOnOpenChannelDetails()
-    await channelPage.checkChannelManagementPermissions(true, true, true)
+    await channelPage.checkChannelMembersPermissions(true, true)
     await channelPage.addMemberToChannelPreview(newUser2.lastName + ' ' + newUser2.firstName)
 
     await channelPageSecond.checkIfChannelDefaultExist(true, data.channelName)
     await channelPageSecond.clickChooseChannel(data.channelName)
     await channelPageSecond.clickOnOpenChannelDetails()
-    await channelPageSecond.checkChannelManagementPermissions(true, false, false)
+    await channelPageSecond.checkChannelMembersPermissions(true, false)
   })
 
   test('Checking backlinks in the Chat', async ({ browser, page, request }) => {

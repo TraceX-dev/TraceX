@@ -82,7 +82,6 @@ export class ChannelPage extends CommonPage {
   readonly userAdded = (user: string): Locator => this.page.locator('.members').getByText(user)
   private readonly addMemberPreview = (): Locator => this.page.getByRole('button', { name: 'Add members' })
   private readonly removeMemberPreview = (): Locator => this.page.locator('.members .item__action button')
-  private readonly archiveChannel = (): Locator => this.page.getByRole('button', { name: 'Archive channel' })
   private readonly addButtonPreview = (): Locator => this.page.getByRole('button', { name: 'Add', exact: true })
 
   readonly inputSearchIcon = (): Locator => this.page.locator('.searchInput-wrapper')
@@ -173,27 +172,23 @@ export class ChannelPage extends CommonPage {
     }
   }
 
-  async checkChannelManagementPermissions (
-    canAddMembers: boolean,
-    canRemoveMembers: boolean,
-    canArchive: boolean
-  ): Promise<void> {
+  /**
+   * Checks the member management controls of the channel aside. Archiving lives in the channel
+   * settings panel, not in the aside, so it is not covered here.
+   */
+  async checkChannelMembersPermissions (canAddMembers: boolean, canRemoveMembers: boolean): Promise<void> {
     if (canAddMembers) {
       await expect(this.addMemberPreview()).toBeVisible()
     } else {
       await expect(this.addMemberPreview()).toBeHidden()
     }
 
+    // Permissions are resolved asynchronously and fail closed until then, so the assertion has
+    // to retry instead of reading the count once.
     if (canRemoveMembers) {
-      expect(await this.removeMemberPreview().count()).toBeGreaterThan(0)
+      await expect(this.removeMemberPreview()).not.toHaveCount(0)
     } else {
       await expect(this.removeMemberPreview()).toHaveCount(0)
-    }
-
-    if (canArchive) {
-      await expect(this.archiveChannel()).toBeVisible()
-    } else {
-      await expect(this.archiveChannel()).toBeHidden()
     }
   }
 
