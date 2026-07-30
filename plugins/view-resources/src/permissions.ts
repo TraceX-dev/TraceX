@@ -17,7 +17,7 @@ import core, {
 import { type Restrictions } from '@hcengineering/guest'
 import { getMetadata, getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
-import { derived, get, writable, type Readable } from 'svelte/store'
+import { derived, writable, type Readable } from 'svelte/store'
 
 import { restrictionStore } from './utils'
 
@@ -301,13 +301,26 @@ onCurrentAccountChanged((account) => {
   accountStore.set(account)
 })
 
+/**
+ * The account permissions are resolved for. Exported so that permission extensions do not have
+ * to maintain their own copy of it.
+ * @public
+ */
+export const currentAccountStore: Readable<Account | undefined> = accountStore
+
 const permissionsDataStore = writable<PermissionsStore | undefined>(undefined)
-void Promise.resolve().then(async () => {
-  const store = await getResource(contact.store.Permissions)
-  store.subscribe((value) => {
-    permissionsDataStore.set(value)
+void Promise.resolve()
+  .then(async () => {
+    const store = await getResource(contact.store.Permissions)
+    store.subscribe((value) => {
+      permissionsDataStore.set(value)
+    })
   })
-})
+  .catch((err) => {
+    // Without the store every store backed permission stays denied, so make the reason visible
+    // instead of leaving the user with a silently crippled UI.
+    console.error('failed to load the permissions store, space permissions will be denied', err)
+  })
 
 const basePermissions: Readable<Permissions> = derived(
   [accountStore, permissionsDataStore, restrictionStore],
@@ -356,10 +369,18 @@ export const permissions: Readable<Permissions> = derived(
   ([base, overrides]) => ({ ...base, ...overrides })
 )
 
+// Keep a permanent subscription so that the derived chain stays hot and getPermissions() is a
+// field read. Otherwise every call would re-run the whole derivation, and it is called per
+// document and per action by the visibility testers.
+let snapshot: Permissions = forbidAll
+permissions.subscribe((value) => {
+  snapshot = value
+})
+
 /**
  * Non reactive access to permissions, for action visibility testers and utils.
  * @public
  */
 export function getPermissions (): Permissions {
-  return get(permissions)
+  return snapshot
 }

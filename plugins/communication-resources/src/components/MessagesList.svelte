@@ -472,14 +472,15 @@
   let unsubscribeObserver: (() => void) | undefined = undefined
 
   function readNotifications (date: Date): void {
-    // Read only guests are not allowed to write anything, including the read status.
-    if (!$permissions.canTrackReadStatus) return
     if (readNotificationsTimer != null) {
       clearTimeout(readNotificationsTimer)
       readNotificationsTimer = undefined
     }
+    // Read only guests are not allowed to write anything, including the read status.
+    if (!$permissions.canTrackReadStatus) return
     readNotificationsTimer = setTimeout(() => {
       if (context == null || context.lastView >= date) return
+      if (!$permissions.canTrackReadStatus) return
       void communicationClient.updateNotificationContext(context.id, date)
     }, 500)
   }

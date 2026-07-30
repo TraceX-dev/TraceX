@@ -100,17 +100,27 @@ jest.doMock('@hcengineering/contact', () => ({
   }
 }))
 
-const mockPermissionsStore: PermissionsStore = {
-  ps: {},
-  ap: {},
-  ms: {},
-  whitelist: new Set(),
-  restrictedSpaces: new Set()
+function emptyPermissionsStore (): PermissionsStore {
+  return {
+    ps: {},
+    ap: {},
+    ms: {},
+    whitelist: new Set(),
+    restrictedSpaces: new Set()
+  }
+}
+
+const mockPermissionsData = mockWritable<PermissionsStore>(emptyPermissionsStore())
+
+// The real store is derived and emits a new object on every change, so tests must do the same
+// instead of mutating the current value in place.
+function setPermissionsStore (patch: Partial<PermissionsStore>): void {
+  mockPermissionsData.set({ ...emptyPermissionsStore(), ...patch })
 }
 
 jest.doMock('@hcengineering/platform', () => ({
   getMetadata: jest.fn(() => false),
-  getResource: jest.fn(async () => mockWritable(mockPermissionsStore))
+  getResource: jest.fn(async () => mockPermissionsData)
 }))
 
 jest.doMock('@hcengineering/presentation', () => ({
@@ -171,14 +181,6 @@ function createSpace (
   return result
 }
 
-function resetPermissionStore (): void {
-  mockPermissionsStore.ps = {}
-  mockPermissionsStore.ap = {}
-  mockPermissionsStore.ms = {}
-  mockPermissionsStore.whitelist.clear()
-  mockPermissionsStore.restrictedSpaces.clear()
-}
-
 describe('permissions', () => {
   beforeAll(async () => {
     const permissionsModule = await import('../permissions')
@@ -187,7 +189,7 @@ describe('permissions', () => {
   })
 
   beforeEach(async () => {
-    resetPermissionStore()
+    setPermissionsStore({})
     mockRestrictions.set({
       readonly: false,
       disableComments: false,
@@ -208,7 +210,7 @@ describe('permissions', () => {
         modifiedBy: 'system' as PersonId,
         modifiedOn: 0
       }
-      mockPermissionsStore.whitelist.add(space._id)
+      setPermissionsStore({ whitelist: new Set([space._id]) })
       setCurrentAccount(createAccount(role))
 
       const current = getPermissions()
@@ -244,7 +246,7 @@ describe('permissions', () => {
   test('keeps archive and update permissions independent', () => {
     const account = createAccount(AccountRole.User)
     const space = createSpace('project', core.class.TypedSpace) as TypedSpace
-    mockPermissionsStore.ps[space._id] = new Set([core.permission.ArchiveSpace])
+    setPermissionsStore({ ps: { [space._id]: new Set([core.permission.ArchiveSpace]) } })
     setCurrentAccount(account)
 
     let current = getPermissions()
@@ -252,11 +254,80 @@ describe('permissions', () => {
     expect(current.canArchiveSpace(space)).toBe(true)
     expect(current.canEditSpace(space)).toBe(false)
 
-    mockPermissionsStore.ps[space._id] = new Set([core.permission.UpdateSpace])
-    setCurrentAccount({ ...account })
+    setPermissionsStore({ ps: { [space._id]: new Set([core.permission.UpdateSpace]) } })
     current = getPermissions()
 
     expect(current.canArchiveSpace(space)).toBe(false)
     expect(current.canEditSpace(space)).toBe(true)
+  })
+
+  test('denies everything but reading for a read only guest link', () => {
+    const account = createAccount(AccountRole.User)
+    const space = createSpace('channel', core.class.Space, [account.uuid], account.primarySocialId)
+    const doc = {
+      _id: 'doc' as Ref<Doc>,
+      _class: 'test:class:Doc' as Ref<Class<Doc>>,
+      space: space._id,
+      modifiedBy: 'system' as PersonId,
+      modifiedOn: 0
+    }
+    setPermissionsStore({ whitelist: new Set([space._id]) })
+    setCurrentAccount(account)
+    mockRestrictions.set({
+      readonly: true,
+      disableComments: false,
+      disableNavigation: false,
+      disableActions: false
+    })
+
+    const current = getPermissions()
+
+    expect(current.canEdit(doc)).toBe(false)
+    expect(current.canAddMembers(space)).toBe(false)
+    expect(current.canRemoveMembers(space)).toBe(false)
+    expect(current.canComment(doc)).toBe(false)
+    expect(current.canTrackReadStatus).toBe(false)
+  })
+
+  test.each([
+    [AccountRole.ReadOnlyGuest, false],
+    [AccountRole.DocGuest, true]
+  ])('resolves commenting for %s to %s', (role, expected) => {
+    const doc = {
+      _id: 'doc' as Ref<Doc>,
+      _class: 'test:class:Doc' as Ref<Class<Doc>>,
+      space: core.space.Space,
+      modifiedBy: 'system' as PersonId,
+      modifiedOn: 0
+    }
+    setCurrentAccount(createAccount(role))
+
+    const current = getPermissions()
+
+    expect(current.canComment(doc)).toBe(expected)
+    expect(current.canReact(doc)).toBe(expected)
+    expect(current.canTrackReadStatus).toBe(role !== AccountRole.ReadOnlyGuest)
+  })
+
+  test('denies commenting when the guest link disables comments', () => {
+    const doc = {
+      _id: 'doc' as Ref<Doc>,
+      _class: 'test:class:Doc' as Ref<Class<Doc>>,
+      space: core.space.Space,
+      modifiedBy: 'system' as PersonId,
+      modifiedOn: 0
+    }
+    setCurrentAccount(createAccount(AccountRole.User))
+    mockRestrictions.set({
+      readonly: false,
+      disableComments: true,
+      disableNavigation: false,
+      disableActions: false
+    })
+
+    const current = getPermissions()
+
+    expect(current.canComment(doc)).toBe(false)
+    expect(current.canViewActivity(doc)).toBe(false)
   })
 })
