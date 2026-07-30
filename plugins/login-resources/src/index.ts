@@ -79,6 +79,9 @@ export interface BottomAction {
   page?: Pages
   func: () => void
   caption?: IntlString
+  // Renders with muted secondary-text styling instead of the default link color,
+  // e.g. for lower-priority actions like "Continue as a guest".
+  muted?: boolean
 }
 
 export * from './utils'

@@ -16,15 +16,12 @@
 <script lang="ts">
   import { type IntlString, Severity, Status } from '@hcengineering/platform'
   import { signupStore } from '@hcengineering/analytics-providers'
-  import { deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
-  import { onMount } from 'svelte'
-
-  import { loginFormPaddingInline } from '../loginFormLayout'
+  import { onDestroy, onMount } from 'svelte'
 
   import { type BottomAction, doLoginAsGuest, doLoginNavigate, LoginMethods } from '../index'
+  import { loginFooterActions } from '../footerActions'
   import LoginPasswordForm from './LoginPasswordForm.svelte'
   import LoginOtpForm from './LoginOtpForm.svelte'
-  import BottomActionComponent from './BottomAction.svelte'
   import login from '../plugin'
   import { LoginInfo } from '@hcengineering/account-client'
 
@@ -80,10 +77,18 @@
 
   const loginAsGuest: BottomAction = {
     i18n: login.string.LoginAsGuest,
+    muted: true,
     func: () => {
       void guestLogin()
     }
   }
+
+  $: loginFooterActions.set([
+    method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction,
+    loginAsGuest
+  ])
+
+  onDestroy(() => loginFooterActions.set([]))
 </script>
 
 {#if method === LoginMethods.Otp}
@@ -91,15 +96,3 @@
 {:else}
   <LoginPasswordForm {navigateUrl} {signUpDisabled} {email} {caption} {subtitle} {onLogin} on:change={changeMethod} />
 {/if}
-<div class="actions" style:margin-inline-start={loginFormPaddingInline($deviceInfo.docWidth, $deviceInfo.docHeight)}>
-  <BottomActionComponent action={method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction} />
-  <div class="login-as-guest">
-    <BottomActionComponent action={loginAsGuest} />
-  </div>
-</div>
-
-<style lang="scss">
-  .login-as-guest {
-    margin-top: 1rem;
-  }
-</style>
