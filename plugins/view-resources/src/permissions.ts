@@ -203,6 +203,29 @@ export function isSpaceOwner (space: Space, account: Account): boolean {
   return account.role === AccountRole.Owner || (space.owners ?? []).includes(account.uuid)
 }
 
+/**
+ * Whether the document was created by the account. Mirrors
+ * GuestPermissionsMiddleware.isCreatedByAccount on the server.
+ * @public
+ */
+export function isDocCreatedByAccount (doc: Doc, account: Account): boolean {
+  const creator = doc.createdBy
+  if (creator === undefined) return false
+  if (creator === account.primarySocialId) return true
+  return account.socialIds.includes(creator)
+}
+
+/**
+ * A guest owns what it created and may act on it. DocGuest and ReadOnlyGuest are deliberately
+ * excluded: the server rejects every transaction coming from those roles.
+ * @public
+ */
+export function ownsDoc (doc: Doc | undefined, account: Account): boolean {
+  if (doc === undefined) return false
+  if (account.role !== AccountRole.Guest) return false
+  return isDocCreatedByAccount(doc, account)
+}
+
 function hasSpacePermission (permission: Ref<Permission>, space: Ref<Space>, store: PermissionsStore): boolean {
   const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
   if (arePermissionsDisabled) return true
@@ -217,6 +240,10 @@ function buildPermissions (
   const isGuest = isGuestRole(account.role)
   const isReadOnly = isReadOnlyRole(account.role) || restrictions.readonly
   const isUser = hasAccountRole(account, AccountRole.User)
+
+  // A guest is allowed to work with the documents it created itself. This mirrors
+  // GuestPermissionsMiddleware.isGuestMutationOnOwnDoc on the server.
+  const isOwn = (doc: Doc | undefined): boolean => ownsDoc(doc, account)
 
   // Guests are never allowed to change space membership or settings. This mirrors
   // GuestPermissionsMiddleware.isForbiddenSpaceTx on the server, which rejects any change
@@ -259,7 +286,10 @@ function buildPermissions (
     if (doc === undefined || isReadOnly || restrictions.disableComments) return false
     if (isUser) return true
     // A public link guest is restricted by the link, not by the role.
-    return account.role === AccountRole.DocGuest
+    if (account.role === AccountRole.DocGuest) return true
+    // A guest may always comment its own documents. Other documents are decided by the
+    // communication extension, which knows the guest allowed cards list.
+    return isOwn(doc)
   }
 
   return {
@@ -277,15 +307,23 @@ function buildPermissions (
     canCreate: (_class, space) =>
       !isReadOnly && !isGuest && store !== undefined && canCreateObject(_class, space, store),
     canEdit: (doc) =>
-      doc !== undefined && !isReadOnly && !isGuest && store !== undefined && canChangeDoc(doc._class, doc.space, store),
+      doc !== undefined &&
+      !isReadOnly &&
+      (!isGuest || isOwn(doc)) &&
+      store !== undefined &&
+      canChangeDoc(doc._class, doc.space, store),
     canEditAttribute: (doc, attr) =>
       doc !== undefined &&
       !isReadOnly &&
-      !isGuest &&
+      (!isGuest || isOwn(doc)) &&
       store !== undefined &&
       canChangeAttribute(attr, doc.space as Ref<TypedSpace>, store, doc._class),
     canRemove: (doc) =>
-      doc !== undefined && !isReadOnly && !isGuest && store !== undefined && canRemoveDoc(doc._class, doc.space, store),
+      doc !== undefined &&
+      !isReadOnly &&
+      (!isGuest || isOwn(doc)) &&
+      store !== undefined &&
+      canRemoveDoc(doc._class, doc.space, store),
 
     // Access to the document itself is enforced by space security, so anyone who is able
     // to read the document is able to read its activity.

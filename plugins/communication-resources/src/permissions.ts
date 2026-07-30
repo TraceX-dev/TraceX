@@ -17,6 +17,7 @@ import { type Card } from '@hcengineering/card'
 import { AccountRole, type Doc, type Ref } from '@hcengineering/core'
 import {
   currentAccountStore,
+  ownsDoc,
   registerPermissions,
   restrictionStore,
   type Permissions
@@ -36,8 +37,12 @@ function isCardAllowed (doc: Doc | undefined, allowedCards: Array<Ref<Card>>): b
 }
 
 /**
- * Guests may write to the cards explicitly allowed in GuestCommunicationSettings.
- * Everything else is decided by the base permission store, hence the empty overrides.
+ * Guests may write to the cards explicitly allowed in GuestCommunicationSettings and to the
+ * cards they created themselves. Everything else is decided by the base permission store,
+ * hence the empty overrides.
+ *
+ * Note that an override replaces the base predicate instead of extending it, so the own card
+ * case has to be repeated here.
  */
 export const communicationPermissions: Readable<Partial<Permissions>> = derived(
   [currentAccountStore, guestCommunicationAllowedCards, restrictionStore],
@@ -45,7 +50,7 @@ export const communicationPermissions: Readable<Partial<Permissions>> = derived(
     if (account === undefined || account.role !== AccountRole.Guest) return {}
     if (restrictions.readonly || restrictions.disableComments) return {}
 
-    const canComment = (doc: Doc | undefined): boolean => isCardAllowed(doc, allowedCards)
+    const canComment = (doc: Doc | undefined): boolean => isCardAllowed(doc, allowedCards) || ownsDoc(doc, account)
     return { canComment, canReact: canComment }
   }
 )

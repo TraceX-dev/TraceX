@@ -309,6 +309,82 @@ describe('permissions', () => {
     expect(current.canTrackReadStatus).toBe(role !== AccountRole.ReadOnlyGuest)
   })
 
+  test('allows a guest to work with the documents it created', () => {
+    const account = createAccount(AccountRole.Guest)
+    const space = createSpace('channel', core.class.Space)
+    const own = {
+      _id: 'own' as Ref<Doc>,
+      _class: 'test:class:Doc' as Ref<Class<Doc>>,
+      space: space._id,
+      createdBy: account.primarySocialId,
+      modifiedBy: account.primarySocialId,
+      modifiedOn: 0
+    }
+    const foreign = { ...own, _id: 'foreign' as Ref<Doc>, createdBy: 'someone:primary' as PersonId }
+    setPermissionsStore({ whitelist: new Set([space._id]) })
+    setCurrentAccount(account)
+
+    const current = getPermissions()
+
+    expect(current.canEdit(own)).toBe(true)
+    expect(current.canRemove(own)).toBe(true)
+    expect(current.canComment(own)).toBe(true)
+    expect(current.canReact(own)).toBe(true)
+
+    expect(current.canEdit(foreign)).toBe(false)
+    expect(current.canRemove(foreign)).toBe(false)
+    expect(current.canComment(foreign)).toBe(false)
+  })
+
+  test.each([AccountRole.DocGuest, AccountRole.ReadOnlyGuest])(
+    'does not extend own document rights to %s, the server rejects all their transactions',
+    (role) => {
+      const account = createAccount(role)
+      const space = createSpace('channel', core.class.Space)
+      const own = {
+        _id: 'own' as Ref<Doc>,
+        _class: 'test:class:Doc' as Ref<Class<Doc>>,
+        space: space._id,
+        createdBy: account.primarySocialId,
+        modifiedBy: account.primarySocialId,
+        modifiedOn: 0
+      }
+      setPermissionsStore({ whitelist: new Set([space._id]) })
+      setCurrentAccount(account)
+
+      const current = getPermissions()
+
+      expect(current.canEdit(own)).toBe(false)
+      expect(current.canRemove(own)).toBe(false)
+    }
+  )
+
+  test('does not let a read only link bypass own document rights', () => {
+    const account = createAccount(AccountRole.Guest)
+    const space = createSpace('channel', core.class.Space)
+    const own = {
+      _id: 'own' as Ref<Doc>,
+      _class: 'test:class:Doc' as Ref<Class<Doc>>,
+      space: space._id,
+      createdBy: account.primarySocialId,
+      modifiedBy: account.primarySocialId,
+      modifiedOn: 0
+    }
+    setPermissionsStore({ whitelist: new Set([space._id]) })
+    setCurrentAccount(account)
+    mockRestrictions.set({
+      readonly: true,
+      disableComments: false,
+      disableNavigation: false,
+      disableActions: false
+    })
+
+    const current = getPermissions()
+
+    expect(current.canEdit(own)).toBe(false)
+    expect(current.canComment(own)).toBe(false)
+  })
+
   test('denies commenting when the guest link disables comments', () => {
     const doc = {
       _id: 'doc' as Ref<Doc>,
