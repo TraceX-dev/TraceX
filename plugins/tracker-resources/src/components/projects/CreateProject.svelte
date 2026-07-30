@@ -55,7 +55,7 @@
     themeStore
   } from '@hcengineering/ui'
   import view from '@hcengineering/view'
-    import { deepEqual } from 'fast-equals'
+  import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
 
   import tracker from '../../plugin'
