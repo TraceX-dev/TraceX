@@ -163,6 +163,13 @@
     }
   }
 
+  function hasChangeControl (): boolean {
+    if (object.changeControl !== undefined) {
+      return true
+    }
+    return pendingRelations.length > 0 && pendingRelations.every((relation) => relation.doc != null)
+  }
+
   $: canSave =
     space !== undefined &&
     parent !== undefined &&
@@ -172,7 +179,7 @@
     object.minor >= 0 &&
     object.patch !== undefined &&
     object.patch >= 0 &&
-    (parent == null || object.changeControl !== undefined)
+    (parent == null || hasChangeControl())
 </script>
 
 <FocusHandler {manager} />
