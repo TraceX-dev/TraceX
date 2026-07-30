@@ -40,7 +40,8 @@ export default mergeIds(cardId, card, {
     UnsetParent: '' as Ref<Action<Doc, any>>,
     PublicLink: '' as Ref<Action<Doc, any>>,
     Duplicate: '' as Ref<Action<Doc, any>>,
-    CreateChild: '' as Ref<Action>
+    CreateChild: '' as Ref<Action>,
+    ExportTable: '' as Ref<Action<Doc, any>>
   },
   category: {
     Card: '' as Ref<ActionCategory>,

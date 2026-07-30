@@ -24,8 +24,8 @@ import type {
 } from '@hcengineering/view'
 import viewPlugin from '@hcengineering/view'
 import { buildConfigLookup, buildModel, getAttributeValue, buildConfigAssociation } from '@hcengineering/view-resources'
-import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from '../types'
-import { formatValue } from '../formatter'
+import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps, TableData } from '../types'
+import { formatValue, type ElementFormatter } from '../formatter'
 import { generateHeaders, loadViewletConfig, buildTableModel } from '../model'
 import { rebuildRelationshipTableViewModel, isRelationshipTable } from '../data'
 import { escapeMarkdownTableCellContent } from './escape'
@@ -235,14 +235,59 @@ export async function buildMarkdownTableFromDocs (
   props: CopyAsMarkdownTableProps,
   client: Client
 ): Promise<string> {
-  if (docs.length === 0) {
+  const data = await buildTableData(docs, props, client)
+  return await renderMarkdownTable(data, client.getHierarchy())
+}
+
+/**
+ * Render table data as a markdown table.
+ *
+ * Escaping and object links live here rather than in the cell loop: other renderers (csv, json)
+ * need the plain text, and duplicating the loop is how the two would drift apart.
+ */
+async function renderMarkdownTable (data: TableData, hierarchy: Hierarchy): Promise<string> {
+  if (data.headers.length === 0) {
     return ''
+  }
+
+  const rendered: string[][] = []
+  for (let r = 0; r < data.rows.length; r++) {
+    const row: string[] = []
+    for (let c = 0; c < data.rows[r].length; c++) {
+      const value = data.rows[r][c] ?? ''
+      if (data.linkColumns.includes(c)) {
+        row.push(await createMarkdownLink(hierarchy, data.docs[r], value))
+      } else {
+        row.push(escapeMarkdownTableCellContent(value))
+      }
+    }
+    rendered.push(row)
+  }
+
+  let markdown = '| ' + data.headers.join(' | ') + ' |\n'
+  markdown += '| ' + data.headers.map(() => '---').join(' | ') + ' |\n'
+  for (const row of rendered) {
+    markdown += '| ' + row.join(' | ') + ' |\n'
+  }
+
+  return markdown
+}
+
+export async function buildTableData (
+  docs: Doc[],
+  props: CopyAsMarkdownTableProps,
+  client: Client,
+  elementFormatter?: ElementFormatter
+): Promise<TableData> {
+  const empty: TableData = { headers: [], rows: [], docs: [], linkColumns: [] }
+  if (docs.length === 0) {
+    return empty
   }
 
   const hierarchy = client.getHierarchy()
   const cardClass = hierarchy.getClass(props.cardClass)
   if (cardClass == null) {
-    return ''
+    return empty
   }
 
   const { viewlet, config: actualConfig } = await loadViewletConfig(
@@ -277,7 +322,7 @@ export async function buildMarkdownTableFromDocs (
   }
 
   if (displayableModel.length === 0) {
-    return ''
+    return empty
   }
 
   // Preload referenced documents for RefTo / ArrOf<RefTo> attributes into $lookup
@@ -304,26 +349,19 @@ export async function buildMarkdownTableFromDocs (
         language,
         isFirstColumn,
         userCache,
-        props.valueFormatter
+        props.valueFormatter,
+        elementFormatter
       )
-
-      if (isFirstColumn && attr.key === '') {
-        const linkValue = await createMarkdownLink(hierarchy, card, value)
-        row.push(linkValue)
-      } else {
-        row.push(escapeMarkdownTableCellContent(value == null ? '' : String(value)))
-      }
+      row.push(value == null ? '' : String(value))
     }
     rows.push(row)
   }
 
-  let markdown = '| ' + headers.join(' | ') + ' |\n'
-  markdown += '| ' + headers.map(() => '---').join(' | ') + ' |\n'
-  for (const row of rows) {
-    markdown += '| ' + row.join(' | ') + ' |\n'
-  }
+  // The object column carries no attribute of its own; markdown turns it into a link to the row's
+  // document, other formats keep the plain title.
+  const linkColumns = displayableModel.length > 0 && displayableModel[0].key === '' ? [0] : []
 
-  return markdown
+  return { headers, rows, docs: [...docs], linkColumns }
 }
 
 /**

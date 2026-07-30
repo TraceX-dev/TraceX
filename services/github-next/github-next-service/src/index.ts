@@ -62,6 +62,7 @@ import githubNext, {
   type GithubNextIntegrationData,
   type GithubNextIssue,
   type GithubNextObjectSyncState,
+  type GithubNextPullRequest,
   type GithubNextRepository,
   type GithubNextRepositorySelection
 } from '@hcengineering/github-next'
@@ -100,6 +101,7 @@ import {
   listGithubDiscussions,
   listGithubIssueComments,
   listGithubIssues,
+  listGithubPullRequests,
   patchGithubIssue,
   updateGithubDiscussion,
   updateGithubIssueComment,
@@ -109,13 +111,14 @@ import {
 
 export * from './github'
 
-type SyncKind = 'issue' | 'discussion'
+type SyncKind = 'issue' | 'discussion' | 'pullRequest'
 
 export interface SyncGithubNextWorkspaceResult {
   integrations: number
   repositories: number
   issuesSeen: number
   discussionsSeen: number
+  pullRequestsSeen: number
   created: number
   updated: number
   skipped: number
@@ -766,9 +769,21 @@ export async function isGithubNextOutboundRelevantTx (
       workspaceIntegration,
       githubNext.ids.GithubNextDiscussionProvider
     )
-    return (
+    if (
       discussionProvider !== undefined &&
       (await matchesOutboundCreateRoute(client, accountIntegrations, discussionProvider, tx))
+    ) {
+      return true
+    }
+
+    const pullRequestProvider = await getProviderContext(
+      client,
+      workspaceIntegration,
+      githubNext.ids.GithubNextPullRequestProvider
+    )
+    return (
+      pullRequestProvider !== undefined &&
+      (await matchesOutboundCreateRoute(client, accountIntegrations, pullRequestProvider, tx))
     )
   } finally {
     await client.close()
@@ -776,6 +791,8 @@ export async function isGithubNextOutboundRelevantTx (
 }
 
 async function isCommunicationPluginEnabled (client: TxOperations): Promise<boolean> {
+  if (!config.CommunicationApiEnabled) return false
+
   const hasCommunicationModel = client.getModel().findObject(communication.class.MessageAction) !== undefined
   if (!hasCommunicationModel) return false
 
@@ -1162,6 +1179,18 @@ function normalizeDiscussionSlots (discussion: GithubNextDiscussion): Record<str
     state: discussion.state,
     externalUrl: discussion.htmlUrl,
     number: discussion.number
+  }
+}
+
+function normalizePullRequestSlots (pullRequest: GithubNextPullRequest): Record<string, unknown> {
+  return {
+    title: pullRequest.title,
+    description: pullRequest.body !== undefined ? jsonToMarkup(markdownToMarkup(pullRequest.body)) : undefined,
+    state: pullRequest.state,
+    externalUrl: pullRequest.htmlUrl,
+    number: pullRequest.number,
+    baseBranch: pullRequest.baseBranch,
+    headBranch: pullRequest.headBranch
   }
 }
 
@@ -2000,7 +2029,7 @@ async function syncInboundIssueComments (
   workspace: WorkspaceContext,
   token: string,
   githubContext: GithubRequestContext,
-  issue: GithubNextIssue
+  issue: GithubNextIssue | GithubNextPullRequest
 ): Promise<void> {
   const issueState = await workspace.client.findOne(githubNext.class.GithubNextObjectSyncState, {
     integration: workspace.workspaceIntegration._id,
@@ -2102,6 +2131,7 @@ async function syncInboundIssues (
     repositories: 0,
     issuesSeen: 0,
     discussionsSeen: 0,
+    pullRequestsSeen: 0,
     created: 0,
     updated: 0,
     skipped: 0
@@ -2197,6 +2227,7 @@ async function syncInboundDiscussions (
     repositories: 0,
     issuesSeen: 0,
     discussionsSeen: 0,
+    pullRequestsSeen: 0,
     created: 0,
     updated: 0,
     skipped: 0
@@ -2253,6 +2284,89 @@ async function syncInboundDiscussions (
             }
           )
           result[syncResult]++
+        }
+      }
+    }
+  } finally {
+    await client.close()
+  }
+
+  return result
+}
+
+async function syncInboundPullRequests (
+  ctx: MeasureContext,
+  accountsUrl: string,
+  workspaceUuid: WorkspaceUuid
+): Promise<SyncGithubNextWorkspaceResult> {
+  const serviceToken = generateToken(systemAccountUuid, workspaceUuid, { service: 'github-next' })
+  const accountClient = getAccountClient(accountsUrl, serviceToken)
+  const accountIntegrations = await accountClient.listIntegrations({
+    kind: githubNextIntegrationKind,
+    workspaceUuid
+  })
+
+  const result: SyncGithubNextWorkspaceResult = {
+    integrations: accountIntegrations.length,
+    repositories: 0,
+    issuesSeen: 0,
+    discussionsSeen: 0,
+    pullRequestsSeen: 0,
+    created: 0,
+    updated: 0,
+    skipped: 0
+  }
+  if (accountIntegrations.length === 0) return result
+
+  const { client, markup, communication } = await createWorkspaceClient(accountsUrl, workspaceUuid)
+  const githubContext = createGithubRequestContext()
+  try {
+    const workspaceIntegration = await getWorkspaceIntegration(client)
+    if (workspaceIntegration === undefined) return result
+
+    const providerContext = await getProviderContext(
+      client,
+      workspaceIntegration,
+      githubNext.ids.GithubNextPullRequestProvider
+    )
+    if (providerContext === undefined) return result
+
+    for (const accountIntegration of accountIntegrations) {
+      const integrationData = accountIntegration.data as GithubNextIntegrationData | undefined
+      const repositories = integrationData?.repositories ?? []
+      if (integrationData?.capabilities?.pullRequests !== true || repositories.length === 0) continue
+
+      const secret = await getTokenSecret(accountsUrl, accountIntegration)
+      if (secret == null || secret.secret.trim() === '') continue
+
+      const repositoryDocs = await ensureRepositoryDocs(ctx, client, workspaceIntegration, repositories)
+      result.repositories += repositories.length
+
+      for (const repository of repositories) {
+        const repositoryDoc = repositoryDocs.get(`${repository.owner}/${repository.name}`)
+        if (repositoryDoc === undefined || !repositoryDoc.enabled) continue
+
+        const pullRequests = await listGithubPullRequests(secret.secret, repository)
+        result.pullRequestsSeen += pullRequests.length
+
+        for (const pullRequest of pullRequests) {
+          const workspace: WorkspaceContext = {
+            client,
+            markup,
+            communication,
+            workspaceIntegration,
+            repositoryDoc,
+            providerContext
+          }
+          const syncResult = await upsertInboundObject(ctx, workspace, normalizePullRequestSlots(pullRequest), {
+            externalId: String(pullRequest.id),
+            externalNumber: pullRequest.number,
+            externalUrl: pullRequest.htmlUrl,
+            externalNodeId: pullRequest.nodeId,
+            externalVersion: pullRequest.updatedAt
+          })
+          result[syncResult]++
+          await syncInboundIssueComments(ctx, workspace, secret.secret, githubContext, pullRequest)
         }
       }
     }
@@ -2937,6 +3051,7 @@ async function syncOutboundForProvider (
     repositories: 0,
     issuesSeen: 0,
     discussionsSeen: 0,
+    pullRequestsSeen: 0,
     created: 0,
     updated: 0,
     skipped: 0
@@ -2950,7 +3065,11 @@ async function syncOutboundForProvider (
     if (workspaceIntegration === undefined) return result
 
     const providerId =
-      kind === 'issue' ? githubNext.ids.GithubNextIssueProvider : githubNext.ids.GithubNextDiscussionProvider
+      kind === 'issue'
+        ? githubNext.ids.GithubNextIssueProvider
+        : kind === 'discussion'
+          ? githubNext.ids.GithubNextDiscussionProvider
+          : githubNext.ids.GithubNextPullRequestProvider
     const providerContext = await getProviderContext(client, workspaceIntegration, providerId)
     if (providerContext === undefined) return result
 
@@ -2958,7 +3077,11 @@ async function syncOutboundForProvider (
       const integrationData = accountIntegration.data as GithubNextIntegrationData | undefined
       const repositories = integrationData?.repositories ?? []
       const capabilityEnabled =
-        kind === 'issue' ? integrationData?.capabilities?.issues : integrationData?.capabilities?.discussions
+        kind === 'issue'
+          ? integrationData?.capabilities?.issues
+          : kind === 'discussion'
+            ? integrationData?.capabilities?.discussions
+            : integrationData?.capabilities?.pullRequests
       if (capabilityEnabled !== true || repositories.length === 0) continue
 
       const secret = await getTokenSecret(accountsUrl, accountIntegration)
@@ -2968,19 +3091,21 @@ async function syncOutboundForProvider (
       const routes = await getOutboundRoutes(ctx, providerContext, repositoryDocs.values())
       result.repositories += routes.length
 
-      const createResult = await syncOutboundCreatesForProvider(
-        ctx,
-        client,
-        markup,
-        workspaceIntegration,
-        providerContext,
-        secret.secret,
-        githubContext,
-        routes,
-        kind
-      )
-      result.created += createResult.created
-      result.skipped += createResult.skipped
+      if (kind !== 'pullRequest') {
+        const createResult = await syncOutboundCreatesForProvider(
+          ctx,
+          client,
+          markup,
+          workspaceIntegration,
+          providerContext,
+          secret.secret,
+          githubContext,
+          routes,
+          kind
+        )
+        result.created += createResult.created
+        result.skipped += createResult.skipped
+      }
 
       const states = await client.findAll(githubNext.class.GithubNextObjectSyncState, {
         integration: workspaceIntegration._id,
@@ -3167,6 +3292,25 @@ async function syncOutboundForProvider (
           continue
         }
 
+        if (kind === 'pullRequest') {
+          result.pullRequestsSeen++
+          const commentsResult = await syncOutboundIssueComments(
+            ctx,
+            client,
+            communication,
+            repository,
+            workspaceIntegration,
+            providerContext,
+            secret.secret,
+            state,
+            targetDoc
+          )
+          result.created += commentsResult.created
+          result.updated += commentsResult.updated
+          result.skipped += commentsResult.skipped
+          continue
+        }
+
         result.discussionsSeen++
         let outboundTargetDoc = targetDoc
         const currentTargetValues = await fetchMappedTargetValues(
@@ -3299,6 +3443,14 @@ export async function syncGithubNextDiscussions (
   return await syncInboundDiscussions(ctx, accountsUrl, workspaceUuid)
 }
 
+export async function syncGithubNextPullRequests (
+  ctx: MeasureContext,
+  accountsUrl: string,
+  workspaceUuid: WorkspaceUuid
+): Promise<SyncGithubNextWorkspaceResult> {
+  return await syncInboundPullRequests(ctx, accountsUrl, workspaceUuid)
+}
+
 export async function syncGithubNextOutboundIssues (
   ctx: MeasureContext,
   accountsUrl: string,
@@ -3313,4 +3465,12 @@ export async function syncGithubNextOutboundDiscussions (
   workspaceUuid: WorkspaceUuid
 ): Promise<SyncGithubNextWorkspaceResult> {
   return await syncOutboundForProvider(ctx, accountsUrl, workspaceUuid, 'discussion')
+}
+
+export async function syncGithubNextOutboundPullRequests (
+  ctx: MeasureContext,
+  accountsUrl: string,
+  workspaceUuid: WorkspaceUuid
+): Promise<SyncGithubNextWorkspaceResult> {
+  return await syncOutboundForProvider(ctx, accountsUrl, workspaceUuid, 'pullRequest')
 }

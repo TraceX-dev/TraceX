@@ -37,6 +37,11 @@ export const ListMasterTagsOutputSchema = Type.Object(
           label: Type.String({
             description: 'Human-readable master tag label.'
           }),
+          description: Type.Optional(
+            Type.String({
+              description: 'Human-readable master tag description.'
+            })
+          ),
           removed: Type.Boolean({
             description: 'Whether the master tag has been removed.'
           }),
@@ -96,6 +101,7 @@ export const cardListMasterTagsTool = createTool({
         return {
           id: p._id,
           label: await translate(p.label, {}),
+          description: p.description,
           removed: p.removed === true,
           versioning: {
             enabled: versionable?.enabled ?? false

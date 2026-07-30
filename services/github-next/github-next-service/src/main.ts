@@ -33,16 +33,19 @@ import githubNext, {
   type GithubNextIntegrationData
 } from '@hcengineering/github-next'
 import { getPlatformQueue } from '@hcengineering/kafka'
+import { setMetadata } from '@hcengineering/platform'
 import { QueueTopic, type ConsumerHandle, type PlatformQueue } from '@hcengineering/server-core'
-import { generateToken } from '@hcengineering/server-token'
+import serverToken, { generateToken } from '@hcengineering/server-token'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import config from './config'
 import {
   isGithubNextOutboundRelevantTx,
   listGithubRepositories,
   syncGithubNextDiscussions,
+  syncGithubNextPullRequests,
   syncGithubNextOutboundDiscussions,
   syncGithubNextOutboundIssues,
+  syncGithubNextOutboundPullRequests,
   syncGithubNextWorkspace,
   validateGithubToken
 } from './index'
@@ -313,6 +316,13 @@ async function syncInboundWorkspace (ctx: MeasureMetricsContext, workspaceUuid: 
         `repositories=${discussionsResult.repositories}, discussions=${discussionsResult.discussionsSeen}, ` +
         `created=${discussionsResult.created}, updated=${discussionsResult.updated}, skipped=${discussionsResult.skipped}`
     )
+
+    const pullRequestsResult = await syncGithubNextPullRequests(ctx, config.AccountsURL, workspaceUuid)
+    console.info(
+      `[${config.ServiceID}] inbound pull requests ${workspaceUuid}: integrations=${pullRequestsResult.integrations}, ` +
+        `repositories=${pullRequestsResult.repositories}, pullRequests=${pullRequestsResult.pullRequestsSeen}, ` +
+        `created=${pullRequestsResult.created}, updated=${pullRequestsResult.updated}, skipped=${pullRequestsResult.skipped}`
+    )
   } finally {
     inboundWorkspaces.delete(workspaceUuid)
   }
@@ -333,6 +343,13 @@ async function syncOutboundWorkspace (ctx: MeasureMetricsContext, workspaceUuid:
     `[${config.ServiceID}] outbound discussions ${workspaceUuid}: integrations=${outboundDiscussionsResult.integrations}, ` +
       `repositories=${outboundDiscussionsResult.repositories}, discussions=${outboundDiscussionsResult.discussionsSeen}, ` +
       `updated=${outboundDiscussionsResult.updated}, skipped=${outboundDiscussionsResult.skipped}`
+  )
+
+  const outboundPullRequestsResult = await syncGithubNextOutboundPullRequests(ctx, config.AccountsURL, workspaceUuid)
+  console.info(
+    `[${config.ServiceID}] outbound pull requests ${workspaceUuid}: integrations=${outboundPullRequestsResult.integrations}, ` +
+      `repositories=${outboundPullRequestsResult.repositories}, pullRequests=${outboundPullRequestsResult.pullRequestsSeen}, ` +
+      `updated=${outboundPullRequestsResult.updated}, skipped=${outboundPullRequestsResult.skipped}`
   )
 }
 
@@ -544,6 +561,9 @@ function startOutboundQueueConsumer (ctx: MeasureMetricsContext): { close: () =>
 }
 
 async function main (): Promise<void> {
+  setMetadata(serverToken.metadata.Secret, config.Secret)
+  setMetadata(serverToken.metadata.Service, config.ServiceID)
+
   const httpServer = startHttpServer()
   const ctx = new MeasureMetricsContext(config.ServiceID, {})
   const outboundConsumer = startOutboundQueueConsumer(ctx)

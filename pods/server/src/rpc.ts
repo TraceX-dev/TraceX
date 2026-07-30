@@ -1,3 +1,19 @@
+//
+// Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import { getClient as getAccountClientRaw, type AccountClient } from '@hcengineering/account-client'
 import contact, {
   AvatarType,
@@ -12,21 +28,37 @@ import core, {
   pickPrimarySocialId,
   systemAccountUuid,
   TxFactory,
+  TxOperations,
   TxProcessor,
   type AttachedData,
   type Class,
   type Data,
   type Doc,
+  type DocumentUpdate,
   type MeasureContext,
+  type Mixin,
+  type MixinData,
+  type MixinUpdate,
   type OperationDomain,
+  type PersonId,
   type Ref,
   type SearchOptions,
   type SearchQuery,
+  type Space,
+  type Timestamp,
   type TxCUD,
-  type TxDomainEvent
+  type TxDomainEvent,
+  type SocialIdType,
+  AccountRole
 } from '@hcengineering/core'
 import { rpcJSONReplacer, type RateLimitInfo } from '@hcengineering/rpc'
-import type { ClientSessionCtx, ConnectionSocket, Session, SessionManager } from '@hcengineering/server-core'
+import {
+  wrapPipeline,
+  type ClientSessionCtx,
+  type ConnectionSocket,
+  type Session,
+  type SessionManager
+} from '@hcengineering/server-core'
 import { decodeToken } from '@hcengineering/server-token'
 
 import { createHash } from 'crypto'
@@ -40,6 +72,7 @@ import { retrieveJson } from './utils'
 import platform, { PlatformError, unknownError } from '@hcengineering/platform'
 
 export const COMMUNICATION_DOMAIN = 'communication' as OperationDomain
+
 interface RPCClientInfo {
   client: ConnectionSocket
   session: Session
@@ -136,6 +169,19 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
     return getAccountClientRaw(accountsUrl, token)
   }
 
+  // The direct create/update/remove/mixin operations below build their client with
+  // `wrapPipeline(..., true)`, which runs as the system account and therefore bypasses
+  // space-membership, role and read-only checks. They must only be reachable by trusted
+  // system/service accounts. Regular clients must go through `/api/v1/tx`, which is
+  // executed via the permission-checked `session.txRaw` path.
+  function ensureSystemAccount (session: Session, res: ExpressResponse): boolean {
+    if (session.getUser() !== systemAccountUuid) {
+      sendError(res, 403, { message: 'Forbidden: system account required for direct operations' })
+      return false
+    }
+    return true
+  }
+
   async function withSession (
     req: Request,
     res: ExpressResponse,
@@ -165,6 +211,15 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
       if (workspaceId !== decodedToken.workspace) {
         sendError(res, 403, { message: 'Invalid workspace', workspace: decodedToken.workspace })
         return
+      }
+
+      if (decodedToken.extra?.apiKey != null) {
+        try {
+          await getAccountClient(token).getLoginInfoByToken()
+        } catch {
+          sendError(res, 401, { message: 'Invalid API key' })
+          return
+        }
       }
 
       let transactorRpc = rpcSessions.get(token)
@@ -294,6 +349,239 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
     })
   })
 
+  app.post('/api/v1/create/:workspaceId', (req, res) => {
+    void withSession(req, res, 'v1-create', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
+      const request: {
+        _class: Ref<Class<any>>
+        space: Ref<Space>
+        attributes: Data<any>
+        id?: Ref<any>
+        modifiedOn?: Timestamp
+        modifiedBy?: PersonId
+      } = (await retrieveJson(req)) ?? {}
+
+      const pid = session.getRawAccount().primarySocialId
+      const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
+      const ops = new TxOperations(client, pid)
+
+      await sendJson(
+        req,
+        res,
+        await ops.createDoc(
+          request._class,
+          request.space,
+          request.attributes,
+          request.id ?? generateId(),
+          request.modifiedOn,
+          request.modifiedBy ?? pid
+        ),
+        rateLimitToHeaders(rateLimit)
+      )
+    })
+  })
+
+  app.post('/api/v1/addCollection/:workspaceId', (req, res) => {
+    void withSession(req, res, 'v1-addCollection', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
+      const request: {
+        _class: Ref<Class<any>>
+        space: Ref<Space>
+        attachedTo: Ref<any>
+        attachedToClass: Ref<Class<any>>
+        collection: string
+        attributes: AttachedData<any>
+        id?: Ref<any>
+        modifiedOn?: Timestamp
+        modifiedBy?: PersonId
+      } = (await retrieveJson(req)) ?? {}
+
+      const pid = session.getRawAccount().primarySocialId
+      const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
+      const ops = new TxOperations(client, pid)
+
+      await sendJson(
+        req,
+        res,
+        await ops.addCollection(
+          request._class,
+          request.space,
+          request.attachedTo,
+          request.attachedToClass,
+          request.collection,
+          request.attributes,
+          request.id ?? generateId(),
+          request.modifiedOn,
+          request.modifiedBy ?? pid
+        ),
+        rateLimitToHeaders(rateLimit)
+      )
+    })
+  })
+
+  app.post('/api/v1/update/:workspaceId', (req, res) => {
+    void withSession(req, res, 'v1-update', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
+      const request: {
+        _class: Ref<Class<any>>
+        _id: Ref<any>
+        space: Ref<Space>
+        attachedTo: Ref<any>
+        attachedToClass: Ref<Class<any>>
+        collection: string
+        update: DocumentUpdate<any>
+        retrieve?: boolean
+        modifiedOn?: Timestamp
+        modifiedBy?: PersonId
+      } = (await retrieveJson(req)) ?? {}
+
+      const pid = session.getRawAccount().primarySocialId
+      const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
+      const rops = new TxOperations(client, pid)
+
+      const hierarchy = ctx.pipeline.context.hierarchy
+      async function doOp (): Promise<any> {
+        if (hierarchy.isDerived(request._class, core.class.AttachedDoc)) {
+          return await rops.updateCollection(
+            request._class,
+            request.space,
+            request._id,
+            request.attachedTo,
+            request.attachedToClass,
+            request.collection,
+            request.update,
+            request.retrieve,
+            request.modifiedOn,
+            request.modifiedBy ?? pid
+          )
+        }
+        return await rops.updateDoc(
+          request._class,
+          request.space,
+          request._id,
+          request.update,
+          request.retrieve,
+          request.modifiedOn,
+          request.modifiedBy ?? pid
+        )
+      }
+      await sendJson(req, res, await doOp(), rateLimitToHeaders(rateLimit))
+    })
+  })
+
+  app.post('/api/v1/createMixin/:workspaceId', (req, res) => {
+    void withSession(req, res, 'v1-create', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
+      const request: {
+        objectId: Ref<Doc>
+        objectClass: Ref<Class<Doc>>
+        objectSpace: Ref<Space>
+        mixin: Ref<Mixin<Doc>>
+        attributes: MixinData<Doc, Doc>
+        modifiedOn?: Timestamp
+        modifiedBy?: PersonId
+      } = (await retrieveJson(req)) ?? {}
+
+      const pid = session.getRawAccount().primarySocialId
+      const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
+      const ops = new TxOperations(client, pid)
+
+      await sendJson(
+        req,
+        res,
+        await ops.createMixin(
+          request.objectId,
+          request.objectClass,
+          request.objectSpace,
+          request.mixin,
+          request.attributes,
+          request.modifiedOn,
+          request.modifiedBy ?? pid
+        ),
+        rateLimitToHeaders(rateLimit)
+      )
+    })
+  })
+  app.post('/api/v1/updateMixin/:workspaceId', (req, res) => {
+    void withSession(req, res, 'v1-create', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
+      const request: {
+        objectId: Ref<Doc>
+        objectClass: Ref<Class<Doc>>
+        objectSpace: Ref<Space>
+        mixin: Ref<Mixin<Doc>>
+        attributes: MixinUpdate<Doc, Doc>
+        modifiedOn?: Timestamp
+        modifiedBy?: PersonId
+      } = (await retrieveJson(req)) ?? {}
+
+      const pid = session.getRawAccount().primarySocialId
+      const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
+      const ops = new TxOperations(client, pid)
+
+      await sendJson(
+        req,
+        res,
+        await ops.updateMixin(
+          request.objectId,
+          request.objectClass,
+          request.objectSpace,
+          request.mixin,
+          request.attributes,
+          request.modifiedOn,
+          request.modifiedBy ?? pid
+        ),
+        rateLimitToHeaders(rateLimit)
+      )
+    })
+  })
+
+  app.post('/api/v1/remove/:workspaceId', (req, res) => {
+    void withSession(req, res, 'v1-create', async (ctx, session, rateLimit) => {
+      if (!ensureSystemAccount(session, res)) return
+      const request: {
+        _class: Ref<Class<any>>
+        _id: Ref<any>
+        space: Ref<Space>
+        modifiedOn?: Timestamp
+        modifiedBy?: PersonId
+
+        attachedTo: Ref<any>
+        attachedToClass: Ref<Class<any>>
+        collection: string
+      } = (await retrieveJson(req)) ?? {}
+
+      const pid = session.getRawAccount().primarySocialId
+      const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
+      const ops = new TxOperations(client, pid)
+
+      if (ctx.pipeline.context.hierarchy.isDerived(request._class, core.class.AttachedDoc)) {
+        await sendJson(
+          req,
+          res,
+          await ops.removeCollection(
+            request._class,
+            request.space,
+            request._id,
+            request.attachedTo,
+            request.attachedToClass,
+            request.collection,
+            request.modifiedOn,
+            request.modifiedBy ?? pid
+          ),
+          rateLimitToHeaders(rateLimit)
+        )
+      } else {
+        await sendJson(
+          req,
+          res,
+          await ops.removeDoc(request._class, request.space, request._id),
+          rateLimitToHeaders(rateLimit)
+        )
+      }
+    })
+  })
+
   /**
    * @deprecated Use /api/v1/tx/:workspaceIdd instead
    */
@@ -386,9 +674,25 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
     })
   })
 
+  interface EnsurePersonOptions {
+    addGuestEmployee?: boolean
+  }
+
   app.post('/api/v1/ensure-person/:workspaceId', (req, res) => {
     void withSession(req, res, 'ensurePerson', async (ctx, session, rateLimit, token) => {
-      const { socialType, socialValue, firstName, lastName } = (await retrieveJson(req)) ?? {}
+      const {
+        socialType,
+        socialValue,
+        firstName,
+        lastName,
+        options
+      }: {
+        socialType: SocialIdType
+        socialValue: string
+        firstName: string
+        lastName: string
+        options?: EnsurePersonOptions
+      } = (await retrieveJson(req)) ?? {}
       const accountClient = getAccountClient(token)
 
       const { uuid, socialId } = await accountClient.ensurePerson(socialType, socialValue, firstName, lastName)
@@ -396,7 +700,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         session.getUser() === systemAccountUuid ? core.account.System : pickPrimarySocialId(session.getSocialIds())._id
       const txFactory: TxFactory = new TxFactory(primaryPersonId)
 
-      const [person] = await session.findAllRaw(ctx, contact.class.Person, { personUuid: uuid }, { limit: 1 })
+      let [person] = await session.findAllRaw(ctx, contact.class.Person, { personUuid: uuid }, { limit: 1 })
       let personRef: Ref<Person> = person?._id
 
       if (personRef === undefined) {
@@ -421,6 +725,20 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
 
         await session.txRaw(ctx, createUniquePersonTx)
         personRef = createPersonTx.objectId
+        if (options?.addGuestEmployee === true) {
+          ;[person] = await session.findAllRaw(ctx, contact.class.Person, { personUuid: uuid }, { limit: 1 })
+        }
+      }
+
+      if (person !== undefined && options?.addGuestEmployee === true) {
+        const h = ctx.pipeline.context.hierarchy
+        if (!h.hasMixin(person, contact.mixin.Employee)) {
+          const op = txFactory.createTxMixin(person._id, contact.class.Person, person.space, contact.mixin.Employee, {
+            active: true,
+            role: AccountRole.Guest
+          })
+          await session.txRaw(ctx, op)
+        }
       }
 
       const [socialIdentity] = await session.findAllRaw(

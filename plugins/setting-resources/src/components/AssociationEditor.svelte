@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 -->
 <script lang="ts">
   import core, { Association, Class, Data, Doc, Ref } from '@hcengineering/core'
-  import { getEmbeddedLabel, IntlString } from '@hcengineering/platform'
+  import { getEmbeddedLabel, IntlString, translateCB } from '@hcengineering/platform'
   import presentation, { getClient } from '@hcengineering/presentation'
   import {
     Button,
@@ -27,6 +28,7 @@
     IconClose,
     Label,
     NestedDropdown,
+    themeStore,
     Toggle,
     eventToHTMLElement,
     showPopup
@@ -101,6 +103,7 @@
   let classBRef: Ref<Class<Doc>> | undefined = undefined
   let nameA = association.nameA
   let nameB = association.nameB
+  let description = ''
   let automationOnly = association.automationOnly ?? false
   let filterA = association.filterA
   let filterB = association.filterB
@@ -121,6 +124,10 @@
     classARef = !isEmptyClass(association.classA) ? association.classA : undefined
     nameA = association.nameA
     nameB = association.nameB
+
+    translateCB(association.description ?? getEmbeddedLabel(''), {}, $themeStore.language, (p) => {
+      description = p
+    })
     automationOnly = association.automationOnly ?? false
     filterA = association.filterA
     filterB = association.filterB
@@ -188,6 +195,7 @@
       await client.diffUpdate(association, {
         nameA,
         nameB,
+        description: description.trim().length > 0 ? getEmbeddedLabel(description.trim()) : undefined,
         automationOnly,
         filterA,
         filterB
@@ -199,6 +207,7 @@
         type: mode,
         nameA,
         nameB,
+        description: description.trim().length > 0 ? getEmbeddedLabel(description.trim()) : undefined,
         automationOnly,
         filterA,
         filterB
@@ -231,92 +240,98 @@
 </script>
 
 <div class="flex-between p-4 w-full items-stretch">
-  <div class="flex flex-gap-4">
-    <div class="flex-col p-4 flex-gap-2">
-      <div class="flex-col-center">A</div>
-      <div>
-        <EditBox bind:value={nameA} placeholder={core.string.Name} kind={'default'} />
-      </div>
-      <div>
-        {#if editable}
-          <NestedDropdown
-            items={classes}
-            on:selected={(e) => {
-              classARef = e.detail
-            }}
-          />
-        {:else if classA}
-          <Label label={classA.label} />
-        {/if}
-      </div>
-      <div class="flex-col flex-gap-1">
-        <span class="label">
-          <Label label={setting.string.RelationFilter} />
-        </span>
-        <div class="flex-row-center flex-gap-1 flex-wrap">
-          {#each parseFilters(filterA) as f, i (i)}
-            <div class="flex-row-center filter-chip">
-              <Label label={f.key?.label ?? setting.string.RelationFilter} />
-              <Button
-                icon={IconClose}
-                kind={'ghost'}
-                size={'small'}
-                on:click={() => {
-                  removeFilter('A', i)
-                }}
-              />
-            </div>
-          {/each}
-          <Button
-            icon={IconAdd}
-            label={setting.string.AddRelationFilter}
-            kind={'ghost'}
-            size={'small'}
-            disabled={classARef === undefined}
-            on:click={(e) => {
-              addFilter('A', e)
-            }}
-          />
+  <div class="flex-col flex-grow min-w-0 flex-gap-2">
+    <div class="flex-row-center items-stretch flex-gap-4 w-full p-4">
+      <div class="flex-col flex-grow min-w-0 flex-gap-2" style:flex="1 1 0">
+        <div class="flex-center">A</div>
+        <div class="w-full">
+          <EditBox bind:value={nameA} placeholder={core.string.Name} kind={'default'} maxWidth="100%" fullSize />
+        </div>
+        <div class="w-full">
+          {#if editable}
+            <NestedDropdown
+              items={classes}
+              width="100%"
+              on:selected={(e) => {
+                classARef = e.detail
+              }}
+            />
+          {:else if classA}
+            <Label label={classA.label} />
+          {/if}
+        </div>
+        <div class="flex-col flex-gap-1">
+          <span class="label">
+            <Label label={setting.string.RelationFilter} />
+          </span>
+          <div class="flex-row-center flex-gap-1 flex-wrap">
+            {#each parseFilters(filterA) as f, i (i)}
+              <div class="flex-row-center filter-chip">
+                <Label label={f.key?.label ?? setting.string.RelationFilter} />
+                <Button
+                  icon={IconClose}
+                  kind={'ghost'}
+                  size={'small'}
+                  on:click={() => {
+                    removeFilter('A', i)
+                  }}
+                />
+              </div>
+            {/each}
+            <Button
+              icon={IconAdd}
+              label={setting.string.AddRelationFilter}
+              kind={'ghost'}
+              size={'small'}
+              disabled={classARef === undefined}
+              on:click={(e) => {
+                addFilter('A', e)
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="flex-col p-4 flex-gap-2">
-      <span class="label">
-        <Label label={setting.string.Type} />
-      </span>
-      {#if editable}
-        <DropdownLabelsIntl
-          selected={mode}
-          {items}
-          {kind}
-          {size}
-          label={setting.string.Type}
-          on:selected={(res) => {
-            mode = res.detail
-          }}
-        />
-      {:else}
-        <Label {label} />
-      {/if}
-    </div>
-
-    <div class="flex-col p-4 flex-gap-2">
-      <div class="flex-col-center">B</div>
-      <div>
-        <EditBox bind:value={nameB} placeholder={core.string.Name} kind={'default'} />
+      <div class="flex-col flex-no-shrink flex-gap-2">
+        <div class="flex-center">
+          <Label label={setting.string.Type} />
+        </div>
+        <div>
+          {#if editable}
+            <DropdownLabelsIntl
+              selected={mode}
+              {items}
+              {kind}
+              {size}
+              on:selected={(res) => {
+                mode = res.detail
+              }}
+            />
+          {:else}
+            <Label {label} />
+          {/if}
+        </div>
+        <div />
       </div>
-      <div>
-        {#if editable}
-          <NestedDropdown
-            items={classes}
-            on:selected={(e) => {
-              classBRef = e.detail
-            }}
-          />
-        {:else if classB}
-          <Label label={classB.label} />
-        {/if}
+
+      <div class="flex-col flex-grow min-w-0 flex-gap-2" style:flex="1 1 0">
+        <div class="flex-center">B</div>
+        <div class="w-full">
+          <EditBox bind:value={nameB} placeholder={core.string.Name} kind={'default'} maxWidth="100%" fullSize />
+        </div>
+        <div class="w-full">
+          {#if editable}
+            <NestedDropdown
+              items={classes}
+              width="100%"
+              on:selected={(e) => {
+                classBRef = e.detail
+              }}
+            />
+          {:else if classB}
+            <Label label={classB.label} />
+          {/if}
+        </div>
       </div>
       <div class="flex-col flex-gap-1">
         <span class="label">
@@ -350,7 +365,18 @@
       </div>
     </div>
 
-    <div class="flex-col p-4 flex-gap-2">
+    <div class="flex-col px-4 pb-2 flex-gap-2">
+      <span class="label">
+        <Label label={core.string.Description} />
+      </span>
+      <EditBox
+        bind:value={description}
+        placeholder={core.string.Description}
+        kind={'default'}
+        format={'text-multiline'}
+      />
+    </div>
+    <div class="px-4 pt-2 pb-4 flex-between items-center">
       <span class="label">
         <Label label={view.string.AutomationOnly} />
       </span>

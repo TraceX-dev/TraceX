@@ -22,11 +22,18 @@ import ExportButton from './components/ExportButton.svelte'
 import ExportSettings from './components/ExportSettings.svelte'
 import ExportToWorkspaceModal from './components/ExportToWorkspaceModal.svelte'
 import ExportResultPanel from './components/ExportResultPanel.svelte'
+import ExportTableDialog from './components/ExportTableDialog.svelte'
+import { exportTableAction } from './actionImpl'
 
 export { default as ExportButton } from './components/ExportButton.svelte'
 export { default as ExportSettings } from './components/ExportSettings.svelte'
 export { default as ExportToWorkspaceModal } from './components/ExportToWorkspaceModal.svelte'
 export { default as ExportResultPanel } from './components/ExportResultPanel.svelte'
+export { default as ExportTableDialog } from './components/ExportTableDialog.svelte'
+export { exportTableAction } from './actionImpl'
+export { downloadBlob, fileNameFromResponse } from './download'
+export { buildTable, exportTable, type TableExportFormat, type TableExportScope } from './tableExport'
+export * from './serializers'
 
 export async function getExportResultTitle (_client: Client, _ref: Ref<Doc>, doc?: Doc): Promise<string> {
   const record = doc as ExportResultRecord | undefined
@@ -54,9 +61,13 @@ export default async (): Promise<Resources> => ({
     ExportButton,
     ExportSettings,
     ExportToWorkspaceModal,
-    ExportResultPanel
+    ExportResultPanel,
+    ExportTableDialog
   },
   function: {
     ExportResultTitleProvider: getExportResultTitle
+  },
+  actionImpl: {
+    ExportTable: exportTableAction
   }
 })

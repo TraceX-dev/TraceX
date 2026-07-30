@@ -1,5 +1,6 @@
 //
 // Copyright © 2022, 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
 import { type Builder } from '@hcengineering/model'
 
 import core, { type Class, type Doc } from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import chunter from '@hcengineering/chunter'
 import serverNotification from '@hcengineering/server-notification'
 import serverCore, { type ObjectDDParticipant } from '@hcengineering/server-core'
@@ -25,6 +27,23 @@ import notification from '@hcengineering/notification'
 export { serverChunterId } from '@hcengineering/server-chunter'
 
 export function createModel (builder: Builder): void {
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: core.class.Doc,
+    commands: {
+      'legacy-comments': serverChunter.workspaceApi.GetLegacyComments,
+      'create-legacy-comment': serverChunter.workspaceApi.CreateLegacyComment
+    }
+  })
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: chunter.class.Channel,
+    commands: {
+      messages: serverChunter.workspaceApi.GetChannelMessages,
+      'send-message': serverChunter.workspaceApi.CreateChannelMessage,
+      'messages-by-name': serverChunter.workspaceApi.GetChannelMessagesByName,
+      'send-message-by-name': serverChunter.workspaceApi.CreateChannelMessageByName
+    }
+  })
+
   builder.mixin(chunter.class.ChunterSpace, core.class.Class, serverNotification.mixin.HTMLPresenter, {
     presenter: serverChunter.function.ChannelHTMLPresenter
   })

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the 'License');
 // you may not use this file except in compliance with the License. You may
@@ -21,7 +22,7 @@
 
   import settings from '../plugin'
 
-  export let token: string
+  export let apiKey: string
 
   const isSecureContext = window.isSecureContext
   const dispatch = createEventDispatcher()
@@ -34,10 +35,9 @@
   }
 
   async function copy (): Promise<void> {
-    if (!isSecureContext) return
-    if (token === undefined) return
+    if (apiKey === undefined) return
 
-    await copyTextToClipboard(token)
+    await copyTextToClipboard(apiKey)
     copied = true
     copiedTime = Date.now()
   }
@@ -48,10 +48,14 @@
     <Label label={settings.string.ApiToken} />
   </div>
 
+  <div class="warning">
+    <Label label={settings.string.ApiKeyShownOnce} />
+  </div>
+
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="token" class:notSecure={!isSecureContext} class:over-underline={isSecureContext} on:click={copy}>
-    {token}
+    {apiKey}
   </div>
 
   <div class="buttons">
@@ -63,9 +67,7 @@
         dispatch('close')
       }}
     />
-    {#if isSecureContext}
-      <Button label={copied ? view.string.Copied : view.string.CopyToClipboard} size={'medium'} on:click={copy} />
-    {/if}
+    <Button label={copied ? view.string.Copied : view.string.CopyToClipboard} size={'medium'} on:click={copy} />
   </div>
 </div>
 
@@ -100,6 +102,11 @@
       justify-content: flex-start;
       align-items: center;
       column-gap: 0.5rem;
+    }
+
+    .warning {
+      margin-top: 0.75rem;
+      color: var(--theme-caption-color);
     }
   }
 </style>

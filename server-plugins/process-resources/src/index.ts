@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -142,6 +143,10 @@ import {
   StringFromEnum,
   EnumFromString
 } from './transform'
+
+import { FindProcessToDos, GetProcessToDo, PatchProcessToDo } from './workspaceApi'
+
+export { FindProcessToDos, GetProcessToDo, PatchProcessToDo }
 
 async function putEventToQueue (value: Omit<ProcessMessage, 'account'>, control: TriggerControl): Promise<void> {
   if (control.queue === undefined) return
@@ -846,6 +851,11 @@ export default async () => ({
     ToDoCloseRollback,
     ToDoCancellRollback,
     FieldChangedRollback
+  },
+  workspaceApi: {
+    FindProcessToDos,
+    GetProcessToDo,
+    PatchProcessToDo
   },
   trigger: {
     OnProcessRemove,

@@ -7,8 +7,14 @@
   $: commentsForNode = $documentComments.filter((c) => c.nodeId === nodeId)
 </script>
 
-<div class="text-editor-popup max-h-80 min-w-100 overflow-y-auto">
+<div class="comments-popup text-editor-popup max-h-80 min-w-100 overflow-y-auto">
   {#each commentsForNode as object}
     <DocumentCommentThread value={object} />
   {/each}
 </div>
+
+<style lang="scss">
+  .comments-popup :global(.scroll.disableOverscroll) {
+    overscroll-behavior: auto;
+  }
+</style>

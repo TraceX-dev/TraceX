@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { type Sql, type TransactionSql } from 'postgres'
+import { type Sql } from 'postgres'
 import {
   type Data,
   type Version,
@@ -33,6 +34,7 @@ import type {
   WorkspaceOperation,
   AccountDB,
   Account,
+  ApiKey,
   OTP,
   WorkspaceInvite,
   AccountEvent,
@@ -538,6 +540,7 @@ export class PostgresAccountDB implements AccountDB {
   integration: PostgresDbCollection<Integration>
   integrationSecret: PostgresDbCollection<IntegrationSecret>
   userProfile: PostgresDbCollection<UserProfile, 'personUuid'>
+  apiKey: PostgresDbCollection<ApiKey, 'id'>
   subscription: PostgresDbCollection<Subscription, 'id'>
   workspacePermission: PostgresDbCollection<WorkspacePermission>
 
@@ -596,6 +599,12 @@ export class PostgresAccountDB implements AccountDB {
     this.userProfile = new PostgresDbCollection<UserProfile, 'personUuid'>('user_profile', client, {
       ns,
       idKey: 'personUuid',
+      withRetryClient
+    })
+    this.apiKey = new PostgresDbCollection<ApiKey, 'id'>('api_key', client, {
+      ns,
+      idKey: 'id',
+      timestampFields: ['createdOn', 'revokedOn'],
       withRetryClient
     })
     this.subscription = new PostgresDbCollection<Subscription, 'id'>('subscription', client, {
@@ -770,13 +779,13 @@ export class PostgresAccountDB implements AccountDB {
     }
   }
 
-  withRetry = async <T>(callback: (client: TransactionSql) => Promise<T>): Promise<T> => {
+  withRetry = async <T>(operation: (client: Sql) => Promise<T>): Promise<T> => {
     let attempt = 0
     let delay = this.retryOptions.initialDelayMs
 
     while (true) {
       try {
-        return (await this.client.begin(callback)) as T
+        return (await this.client.begin(async (client) => await operation(client as unknown as Sql))) as T
       } catch (err: any) {
         attempt++
 
@@ -784,7 +793,11 @@ export class PostgresAccountDB implements AccountDB {
           throw err
         }
 
-        await new Promise((resolve) => setTimeout(resolve, delay))
+        await new Promise<void>((resolve) =>
+          setTimeout(() => {
+            resolve()
+          }, delay)
+        )
 
         delay = Math.min(delay * 2, this.retryOptions.maxDelayMs)
       }

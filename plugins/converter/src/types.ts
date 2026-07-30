@@ -52,6 +52,15 @@ export interface CopyAsMarkdownTableProps {
   query?: DocumentQuery<Doc>
 }
 
+export interface TableData {
+  headers: string[]
+  /** Cell text without markdown escaping and without links. `rows[i]` belongs to `docs[i]`. */
+  rows: string[][]
+  docs: Doc[]
+  /** Columns a renderer may turn into a link to the row's document (the object column). */
+  linkColumns: number[]
+}
+
 /**
  * Interface for RelationshipTable's cell model
  */

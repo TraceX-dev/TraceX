@@ -190,13 +190,14 @@ export const storeNodes: Record<string, NodeProcessor> = {
           ')'
       )
     } else if (attrs['file-id'] != null) {
-      // Convert image to fileid format
+      // Convert image to fileid format.
       state.write(
         '![' +
           state.esc(`${attrs.alt ?? ''}`) +
           '](' +
           (state.imageUrl +
             `${attrs['file-id']}` +
+            `?file=${attrs['file-id']}` +
             (attrs.width != null ? '&width=' + state.esc(`${attrs.width}`) : '') +
             (attrs.height != null ? '&height=' + state.esc(`${attrs.height}`) : '')) +
           (attrs.title != null ? ' ' + state.quote(`${attrs.title}`) : '') +

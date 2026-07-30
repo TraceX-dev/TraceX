@@ -680,6 +680,7 @@ describe('MongoAccountDB', () => {
   let mockWorkspaceMembers: any
   let mockWorkspaceStatus: any
   let mockMigration: any
+  let mockApiKey: any
 
   beforeEach(() => {
     mockDb = {}
@@ -733,6 +734,10 @@ describe('MongoAccountDB', () => {
       findOne: jest.fn()
     }
 
+    mockApiKey = {
+      ensureIndices: jest.fn()
+    }
+
     accountDb = new MongoAccountDB(mockDb)
 
     // Override the getters to return our mocks
@@ -742,7 +747,8 @@ describe('MongoAccountDB', () => {
       workspace: { get: () => mockWorkspace },
       workspaceMembers: { get: () => mockWorkspaceMembers },
       workspaceStatus: { get: () => mockWorkspaceStatus },
-      migration: { get: () => mockMigration }
+      migration: { get: () => mockMigration },
+      apiKey: { get: () => mockApiKey }
     })
   })
 
@@ -789,6 +795,15 @@ describe('MongoAccountDB', () => {
           options: {
             name: 'hc_account_workspace_members_account_uuid_1'
           }
+        }
+      ])
+
+      // Verify api key indices
+      expect(accountDb.apiKey.ensureIndices).toHaveBeenCalledWith([
+        { key: { id: 1 }, options: { unique: true, name: 'hc_account_api_key_id_1' } },
+        {
+          key: { accountUuid: 1, workspaceUuid: 1, revokedOn: 1 },
+          options: { name: 'hc_account_api_key_owner_workspace_active_1' }
         }
       ])
     })

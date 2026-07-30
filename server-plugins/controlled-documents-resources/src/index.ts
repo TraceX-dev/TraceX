@@ -1,5 +1,6 @@
 //
 // Copyright © 2023-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 import { Person, type Employee } from '@hcengineering/contact'
 import core, {
@@ -39,6 +40,24 @@ import training, { TrainingState, type TrainingRequest } from '@hcengineering/tr
 import { getMetadata } from '@hcengineering/platform'
 import { workbenchId } from '@hcengineering/workbench'
 import slugify from 'slugify'
+
+import {
+  CreateControlledDocumentDraft,
+  FindControlledDocuments,
+  GetControlledDocument,
+  GetControlledDocumentVersions,
+  SendControlledDocumentForApproval,
+  SendControlledDocumentForReview
+} from './workspaceApi'
+
+export {
+  CreateControlledDocumentDraft,
+  FindControlledDocuments,
+  GetControlledDocument,
+  GetControlledDocumentVersions,
+  SendControlledDocumentForApproval,
+  SendControlledDocumentForReview
+}
 
 async function getDocs (
   control: TriggerControl,
@@ -477,5 +496,13 @@ export default async () => ({
     ControlledDocumentHTMLPresenter,
     CoAuthorsTypeMatch,
     DocumentReviewedTypeMatch
+  },
+  workspaceApi: {
+    FindControlledDocuments,
+    GetControlledDocument,
+    GetControlledDocumentVersions,
+    CreateControlledDocumentDraft,
+    SendControlledDocumentForReview,
+    SendControlledDocumentForApproval
   }
 })

@@ -97,12 +97,36 @@ describe('markdown/escape', () => {
       expect(escapeMarkdownTableCellContent(cell)).toBe(cell)
     })
 
-    it('still escapes plain text that is not a full link', () => {
-      expect(escapeMarkdownTableCellContent('[not a link]')).toBe('\\[not a link\\]')
+    it('leaves an inline image intact so it renders after paste', () => {
+      const cell = '![shot](image://blob1?file=blob1&width=200)'
+      expect(escapeMarkdownTableCellContent(cell)).toBe(cell)
+    })
+
+    it('leaves a link that is only part of the cell intact', () => {
+      const cell = 'see [t](http://x) and **bold**'
+      expect(escapeMarkdownTableCellContent(cell)).toBe(cell)
+    })
+
+    it('no longer escapes brackets of plain text', () => {
+      expect(escapeMarkdownTableCellContent('[not a link]')).toBe('[not a link]')
     })
 
     it('escapes title text with pipes', () => {
       expect(escapeMarkdownTableCellContent('a|b')).toBe('a\\|b')
+    })
+
+    it('does not double escape an already escaped pipe', () => {
+      expect(escapeMarkdownTableCellContent('a\\|b')).toBe('a\\|b')
+    })
+
+    it('turns newlines into <br> so the row is not terminated', () => {
+      expect(escapeMarkdownTableCellContent('a\nb')).toBe('a<br>b')
+      expect(escapeMarkdownTableCellContent('a\r\nb')).toBe('a<br>b')
+    })
+
+    it('handles null and undefined', () => {
+      expect(escapeMarkdownTableCellContent(undefined as unknown as string)).toBe('')
+      expect(escapeMarkdownTableCellContent(null as unknown as string)).toBe('')
     })
   })
 })

@@ -948,6 +948,27 @@ export interface BuildMarkdownTableMetadata {
  * Complete table metadata including persistence fields
  * Extends BuildMarkdownTableMetadata with additional fields for storage and versioning
  */
+/**
+ * Token of the HTML comment that carries table metadata alongside copied markdown.
+ *
+ * The copier writes it and the editor's paste handler looks for it, so both sides must use this
+ * constant. When they drifted apart, a copied table pasted back as plain text with no error shown.
+ * @public
+ */
+export const TABLE_METADATA_TOKEN = 'huly-table-metadata:'
+
+/**
+ * Opening marker of the metadata comment.
+ * @public
+ */
+export const TABLE_METADATA_MARKER = `<!-- ${TABLE_METADATA_TOKEN}`
+
+/**
+ * Clipboard MIME type used where the browser allows a custom flavour.
+ * @public
+ */
+export const TABLE_METADATA_MIME_TYPE = 'application/x-huly-table-metadata'
+
 export interface TableMetadata extends BuildMarkdownTableMetadata {
   version: string // For future compatibility
   documentIds: Array<string | Ref<Doc>> // Document IDs used in the table

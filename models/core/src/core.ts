@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -61,7 +62,8 @@ import {
   type Type,
   type TypeAny,
   type Version,
-  type VersionableClass
+  type VersionableClass,
+  type TransientTTL
 } from '@hcengineering/core'
 import {
   Hidden,
@@ -150,6 +152,9 @@ export class TAssociation extends TDoc implements Association {
   nameB!: string
 
   type!: '1:1' | '1:N' | 'N:N'
+
+  @Prop(TypeIntlString(), core.string.Description)
+    description?: IntlString
 
   automationOnly?: boolean
 
@@ -455,4 +460,9 @@ export class TVersionableClass extends TClass implements VersionableClass {
   excludedProperties?: string[]
   excludedRelations?: string[] // ${associationId}_${a|b}
   excludeMixins?: Ref<Mixin<Doc>>[]
+}
+
+@MMixin(core.mixin.TransientTTL, core.class.Class)
+export class TTTransientTTL extends TClass implements TransientTTL {
+  ttl!: number
 }
