@@ -27,9 +27,6 @@
 
   let pressed: boolean = false
 
-  // The location loses the selected class (path[4]) once a card is opened
-  // (opening a card sets path[3] to the card id and truncates the path), so
-  // remember the last selected class/space to keep the create action working.
   let _class: Ref<MasterTag> | undefined
   let space: string | undefined
 
