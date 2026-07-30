@@ -49,6 +49,11 @@ export class CardsPage extends CommonPage {
   readonly cardRow = (title: string): Locator =>
     this.page.locator('.antiTable-body__row', { has: this.page.locator(`td:has-text("${title}")`) })
 
+  // The row's bulk-select checkbox (CheckBox.svelte renders "input.chBox"), inside
+  // ".antiTable-cells__checkCell". It is only "visibility: visible" on row :hover (see
+  // packages/theme/styles/components.scss), so callers must hover the row first.
+  readonly cardRowCheckbox = (title: string): Locator => this.cardRow(title).locator('input.chBox')
+
   async clickCardApp (): Promise<void> {
     await this.buttonCardApp().click()
   }
@@ -84,11 +89,16 @@ export class CardsPage extends CommonPage {
     await expect(this.inputCardTitle()).not.toBeVisible()
   }
 
-  // Mirrors IssuesPage.doActionOnIssue - right-clicking a single, unchecked table row passes
-  // just that row's document to the context menu (Table.svelte's showContextMenu clears any
-  // stale selection when the clicked row isn't already checked), so no checkbox interaction is
-  // required beforehand.
+  // Unlike IssuesPage.doActionOnIssue, this checks the row's bulk-select checkbox first.
+  // Table.svelte's showContextMenu() only passes an *array* of docs to the menu (`checked`)
+  // when at least one row is checked; otherwise it passes the single bare Doc. Actions
+  // registered with input: 'selection' (like "Copy as Markdown Table") are filtered out by
+  // filterAvailableActions() unless the doc passed in is an array
+  // (plugins/view-resources/src/actions.ts), so a plain right-click on an unchecked row will
+  // never show them - only input: 'focus'/'any' actions (like "Copy as Markdown") appear then.
   async doActionOnCard (title: string, action: string): Promise<void> {
+    await this.cardRow(title).hover()
+    await this.cardRowCheckbox(title).click()
     await this.cardRow(title).click({ button: 'right' })
     await this.selectFromDropdown(this.page, action)
   }
