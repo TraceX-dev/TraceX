@@ -83,12 +83,9 @@
     }
   }
 
-  $: loginFooterActions.set([
-    method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction,
-    loginAsGuest
-  ])
+  $: loginFooterActions.set([method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction, loginAsGuest])
 
-  onDestroy(() => loginFooterActions.set([]))
+  onDestroy(() => { loginFooterActions.set([]) })
 </script>
 
 {#if method === LoginMethods.Otp}

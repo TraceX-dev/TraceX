@@ -130,7 +130,7 @@
 
   $: loginFooterActions.set(useOTP ? [withPasswordAction] : [])
 
-  onDestroy(() => loginFooterActions.set([]))
+  onDestroy(() => { loginFooterActions.set([]) })
 </script>
 
 {#if step === OtpLoginSteps.Email}
