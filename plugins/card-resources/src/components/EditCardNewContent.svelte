@@ -17,11 +17,12 @@
   import { Card } from '@hcengineering/card'
   import communication from '@hcengineering/communication'
   import { NotificationContext } from '@hcengineering/communication-types'
-  import { AccountRole, getCurrentAccount, hasAccountRole, Ref } from '@hcengineering/core'
+  import { Ref } from '@hcengineering/core'
   import { resizeObserver } from '@hcengineering/ui'
 
   import { MessageInput } from '@hcengineering/communication-resources'
   import { getMetadata } from '@hcengineering/platform'
+  import { permissions } from '@hcengineering/view-resources'
   import EditCardTableOfContents from './EditCardTableOfContents.svelte'
 
   export let _id: Ref<Card>
@@ -57,7 +58,7 @@
     <EditCardTableOfContents bind:this={content} bind:scrollDiv {doc} {readonly} {context} {isContextLoaded} />
   {/key}
 {/if}
-{#if !readonly && getMetadata(communication.metadata.Enabled) === true && hasAccountRole(getCurrentAccount(), AccountRole.User)}
+{#if !readonly && getMetadata(communication.metadata.Enabled) === true && $permissions.canComment(doc)}
   <div class="message-input" use:resizeObserver={onInputResize}>
     <MessageInput
       card={doc}

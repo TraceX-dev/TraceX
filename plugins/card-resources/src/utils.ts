@@ -65,7 +65,7 @@ import {
   showPopup
 } from '@hcengineering/ui'
 import view, { canCopyLink, encodeObjectURI } from '@hcengineering/view'
-import { accessDeniedStore } from '@hcengineering/view-resources'
+import { accessDeniedStore, getPermissions } from '@hcengineering/view-resources'
 import workbench, { type LocationData, type Widget, type WidgetTab } from '@hcengineering/workbench'
 import { createWidgetTab } from '@hcengineering/workbench-resources'
 
@@ -737,7 +737,7 @@ export function cardCustomLinkEncode (doc: Card): Location {
 }
 
 export async function checkOldMessagesSectionVisibility (doc: Card): Promise<boolean> {
-  if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) {
+  if (!getPermissions().canViewActivity(doc)) {
     return false
   }
 
@@ -745,7 +745,7 @@ export async function checkOldMessagesSectionVisibility (doc: Card): Promise<boo
 }
 
 export async function checkCommunicationMessagesSectionVisibility (doc: Card): Promise<boolean> {
-  if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) {
+  if (!getPermissions().canViewActivity(doc)) {
     return false
   }
 

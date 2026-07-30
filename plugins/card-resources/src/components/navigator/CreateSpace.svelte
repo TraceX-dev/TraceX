@@ -26,6 +26,7 @@
   } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { EditBox, Label, Toggle } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import { CardSpace, MasterTag, Role } from '@hcengineering/card'
@@ -62,6 +63,9 @@
   let owners: AccountUuid[] = space?.owners !== undefined ? hierarchy.clone(space.owners) : [getCurrentAccount().uuid]
 
   $: isNew = space === undefined
+  // An existing space may be opened by a user who is not allowed to change it,
+  // in that case the dialog is shown in a read only mode.
+  $: readonly = !isNew && !$permissions.canEditSpace(space)
 
   let rolesAssignment = getRolesAssignment(roles)
   $: rolesAssignment = getRolesAssignment(roles)
@@ -189,6 +193,7 @@
   let autoJoin = space?.autoJoin ?? false
 
   $: canSave =
+    !readonly &&
     name.trim().length > 0 &&
     !(members.length === 0 && isPrivate) &&
     owners.length > 0 &&
@@ -222,7 +227,14 @@
         <Label label={core.string.Name} />
       </div>
       <div class="padding">
-        <EditBox id="teamspace-title" bind:value={name} placeholder={core.string.Name} kind={'large-style'} autoFocus />
+        <EditBox
+          id="teamspace-title"
+          bind:value={name}
+          placeholder={core.string.Name}
+          kind={'large-style'}
+          disabled={readonly}
+          autoFocus
+        />
       </div>
     </div>
   </div>
@@ -232,7 +244,7 @@
       <div class="antiGrid-row__header withDesciption">
         <Label label={card.string.MasterTags} />
       </div>
-      <TypesSelector bind:value={types} />
+      <TypesSelector bind:value={types} {readonly} />
     </div>
 
     <div class="antiGrid-row">
@@ -240,7 +252,11 @@
         <Label label={presentation.string.MakePrivate} />
         <span><Label label={presentation.string.MakePrivateDescription} /></span>
       </div>
-      <Toggle id={'teamspace-private'} bind:on={isPrivate} disabled={!isPrivate && members.length === 0} />
+      <Toggle
+        id={'teamspace-private'}
+        bind:on={isPrivate}
+        disabled={readonly || (!isPrivate && members.length === 0)}
+      />
     </div>
 
     <div class="antiGrid-row">
@@ -252,6 +268,7 @@
         excludeItems={readOnlyGuestOwnerExcludeItems}
         label={core.string.Owners}
         onChange={handleOwnersChanged}
+        {readonly}
         kind={'regular'}
         size={'large'}
       />
@@ -266,6 +283,7 @@
         allowGuests
         label={core.string.Members}
         onChange={handleMembersChanged}
+        {readonly}
         kind={'regular'}
         size={'large'}
       />
@@ -276,7 +294,7 @@
         <Label label={core.string.AutoJoin} />
         <span><Label label={core.string.AutoJoinDescr} /></span>
       </div>
-      <Toggle id={'space-autoJoin'} bind:on={autoJoin} />
+      <Toggle id={'space-autoJoin'} bind:on={autoJoin} disabled={readonly} />
     </div>
 
     <div class="antiGrid-row">
@@ -286,6 +304,7 @@
       </div>
       <Toggle
         on={autoJoinForRoles.includes(AccountRole.Guest)}
+        disabled={readonly}
         on:change={(ev) => {
           setGuestAutoJoin(ev.detail)
         }}
@@ -297,7 +316,7 @@
         <Label label={core.string.RBAC} />
         <span><Label label={core.string.RBACDescr} /></span>
       </div>
-      <Toggle id={'space-restricted'} bind:on={restricted} />
+      <Toggle id={'space-restricted'} bind:on={restricted} disabled={readonly} />
     </div>
 
     {#each roles as role}
@@ -309,7 +328,7 @@
           value={rolesAssignment?.[role._id] ?? []}
           label={core.string.Members}
           includeItems={membersPersons}
-          readonly={membersPersons.length === 0}
+          readonly={readonly || membersPersons.length === 0}
           onChange={(refs) => {
             handleRoleAssignmentChanged(role._id, refs)
           }}

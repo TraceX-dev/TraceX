@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,6 +20,7 @@
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { SpaceMembers } from '@hcengineering/contact-resources'
   import { Label, Panel, Scroller } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../plugin'
@@ -39,6 +41,8 @@
   $: query.query(chunter.class.ChunterSpace, { _id }, (result) => {
     channel = result[0]
   })
+
+  $: canAddMembers = channel !== undefined && $permissions.canAddMembers(channel)
 </script>
 
 <Panel
@@ -87,7 +91,7 @@
           <span class="fs-title text-xl overflow-label mb-2 flex-no-shrink">
             <Label label={chunter.string.Members} />
           </span>
-          <SpaceMembers space={channel} withAddButton={true} />
+          <SpaceMembers space={channel} withAddButton={canAddMembers} />
         </div>
       {/if}
     </div>
