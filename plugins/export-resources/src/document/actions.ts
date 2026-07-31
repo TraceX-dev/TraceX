@@ -49,7 +49,7 @@ function authHeaders (): Record<string, string> {
 }
 
 async function readErrorMessage (response: Response): Promise<string | undefined> {
-  const body = await response.json().catch(() => undefined)
+  const body = await response.json().catch((): undefined => undefined)
   return typeof body?.message === 'string' && body.message.length > 0 ? body.message : undefined
 }
 
