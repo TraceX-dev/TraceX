@@ -146,7 +146,7 @@ export function createActions (builder: Builder): void {
       },
       label: exportPlugin.string.Export,
       icon: exportPlugin.icon.Export,
-      input: 'any',
+      input: 'selection',
       category: card.category.Card,
       target: card.class.Card,
       query: {},
