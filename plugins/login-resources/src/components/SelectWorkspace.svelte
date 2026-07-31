@@ -53,6 +53,22 @@
 
   export let navigateUrl: string | undefined = undefined
 
+  // Workspaces have no icon/logo of their own, so we derive a stable
+  // colored initial as a lightweight stand-in for a real workspace icon.
+  const workspaceAvatarColors = ['#5B9BF0', '#63BC8B', '#E0A64D', '#D96B6B', '#9B7FE0', '#4DB6C7', '#E08FC0', '#8CC152']
+
+  function workspaceAvatarColor (id: string): string {
+    let hash = 0
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) | 0
+    }
+    return workspaceAvatarColors[Math.abs(hash) % workspaceAvatarColors.length]
+  }
+
+  function workspaceInitial (name: string): string {
+    return name.trim().charAt(0).toUpperCase() || '?'
+  }
+
   let workspaces: WorkspaceInfoWithStatus[] = []
   let status = OK
   let accountPromise: Promise<LoginInfo | null>
@@ -138,7 +154,7 @@
   let search: string = ''
 </script>
 
-<form class="container" style:padding={$deviceInfo.docWidth <= 480 ? '1.25rem' : '5rem'}>
+<form class="container" style:padding={$deviceInfo.docWidth <= 480 ? '1.25rem' : '2rem'} on:submit|preventDefault>
   <div class="grow-separator" />
   <div class="fs-title">
     {#if account != null}
@@ -161,7 +177,7 @@
       <Spinner />
     </div>
   {:then}
-    <Scroller padding={'.125rem 0'} maxHeight={35}>
+    <Scroller padding={'.125rem 0'} maxHeight={22}>
       {#if workspaces.length === 0 && account?.token != null && isReadOnlyGuest}
         <span class="readonly-warning"><Label label={login.string.SignUpToCreateWorkspace} /></span>
       {/if}
@@ -176,26 +192,20 @@
               : Math.round((Date.now() - workspace.lastVisit) / (1000 * 3600 * 24))}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
-          <div
-            class="workspace flex-center fs-title cursor-pointer focused-button bordered form-row"
-            on:click={() => select(workspace.url)}
-          >
-            <div class="flex flex-col flex-grow">
-              <span class="label overflow-label flex-center">
-                {wsName}
-                {#if isArchivingMode(workspace.mode)}
-                  - <Label label={presentation.string.Archived} />
-                {/if}
-                {#if !isActiveMode(workspace.mode) && !isArchivingMode(workspace.mode)}
-                  ({workspace.processingProgress}%)
-                {/if}
-              </span>
-              <span class="text-xs flex-row-center flex-center">
-                <div class="text-sm">
-                  ({lastUsageDays} days)
-                </div>
-              </span>
+          <div class="workspace cursor-pointer focused-button bordered form-row" on:click={() => select(workspace.url)}>
+            <div class="workspace-icon" style:background={workspaceAvatarColor(workspace.uuid)}>
+              {workspaceInitial(wsName)}
             </div>
+            <span class="workspace-name overflow-label">
+              {wsName}
+              {#if isArchivingMode(workspace.mode)}
+                - <Label label={presentation.string.Archived} />
+              {/if}
+              {#if !isActiveMode(workspace.mode) && !isArchivingMode(workspace.mode)}
+                ({workspace.processingProgress}%)
+              {/if}
+            </span>
+            <span class="workspace-meta">{lastUsageDays} d</span>
           </div>
         {/each}
 
@@ -248,6 +258,8 @@
     flex-direction: column;
     justify-content: space-between;
     flex-grow: 1;
+    min-height: 0;
+    min-width: 0;
     overflow: hidden;
 
     .workspace-loader {
@@ -263,16 +275,15 @@
       color: var(--theme-caption-color);
     }
     .status {
-      min-height: 7.5rem;
-      max-height: 7.5rem;
-      padding-top: 1.25rem;
+      min-height: 0;
+      padding-top: 0.75rem;
     }
 
     .form {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       column-gap: 0.75rem;
-      row-gap: 1.5rem;
+      row-gap: 0.625rem;
 
       .form-row {
         grid-column-start: 1;
@@ -280,8 +291,39 @@
       }
 
       .workspace {
-        padding: 1rem;
-        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.625rem 0.875rem;
+        border-radius: 0.75rem;
+        text-align: left;
+      }
+
+      .workspace-icon {
+        flex-shrink: 0;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #fff;
+      }
+
+      .workspace-name {
+        flex: 1;
+        min-width: 0;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--theme-caption-color);
+      }
+
+      .workspace-meta {
+        flex-shrink: 0;
+        font-size: 0.75rem;
+        color: var(--theme-dark-color);
       }
     }
     .readonly-warning {
@@ -292,7 +334,7 @@
       flex-grow: 1;
     }
     .footer {
-      margin-top: 3.5rem;
+      margin-top: 1.25rem;
       font-size: 0.8rem;
       color: var(--theme-caption-color);
       span {

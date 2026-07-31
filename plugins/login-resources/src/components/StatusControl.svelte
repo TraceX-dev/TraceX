@@ -38,7 +38,7 @@
   .error {
     color: var(--system-error-color);
     fill: var(--system-error-color);
-    background-color: var(--theme-button-default);
+    background-color: rgba(238, 122, 122, 0.1);
     border-color: var(--system-error-60-color);
   }
 </style>
