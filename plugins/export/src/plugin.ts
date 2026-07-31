@@ -45,14 +45,31 @@ export const exportPlugin = plugin(exportId, {
     ExportedDocumentClass: '' as IntlString,
     Import: '' as IntlString,
     ImportedDocuments: '' as IntlString,
-    ExportResultRecordTitle: '' as IntlString
+    ExportResultRecordTitle: '' as IntlString,
+
+    // Shared markup->docx/md content export & import (used by controlled documents, cards, ...).
+    ExportFormatWord: '' as IntlString,
+    ExportFormatMarkdown: '' as IntlString,
+    ExportDocumentContent: '' as IntlString,
+    ImportDocumentContent: '' as IntlString,
+    ExportingDocumentContent: '' as IntlString,
+    DocumentContentExported: '' as IntlString,
+    DocumentContentExportFailed: '' as IntlString,
+    ImportingDocumentContent: '' as IntlString,
+    ConvertingDocumentContent: '' as IntlString,
+    DocumentContentConverted: '' as IntlString,
+    DocumentContentImportFailed: '' as IntlString,
+    ReviewDocumentContentChanges: '' as IntlString,
+    ApplyDocumentContentChanges: '' as IntlString
   },
   component: {
     ExportButton: '' as AnyComponent,
     ExportSettings: '' as AnyComponent,
     ExportToWorkspaceModal: '' as AnyComponent,
     ExportResultPanel: '' as AnyComponent,
-    ExportTableDialog: '' as AnyComponent
+    ExportTableDialog: '' as AnyComponent,
+    DocumentExportFormatPopup: '' as AnyComponent,
+    DocumentImportFormatPopup: '' as AnyComponent
   },
   actionImpl: {
     ExportTable: '' as ViewAction<Record<string, any>>

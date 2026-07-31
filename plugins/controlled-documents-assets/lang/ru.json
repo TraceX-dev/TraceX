@@ -2,17 +2,6 @@
   "string": {
     "Export": "Экспорт",
     "Import": "Импорт",
-    "ImportingDocument": "Импорт документа",
-    "ConvertingDocument": "Конвертация документа…",
-    "ImportingFromWord": "Импорт из Word",
-    "ConvertingWordDocument": "Конвертация документа…",
-    "DocumentConverted": "Документ сконвертирован",
-    "ImportFailed": "Ошибка импорта",
-    "ExportingDocument": "Экспорт документа…",
-    "DocumentExported": "Документ экспортирован",
-    "ExportFailed": "Ошибка экспорта",
-    "ReviewImportedChanges": "Просмотрите импортированные изменения",
-    "Apply": "Применить",
     "ExportToWord": "Экспорт в Word",
     "ImportFromWord": "Импорт из Word",
     "ID": "ID",
@@ -49,7 +38,6 @@
     "Document": "Документ",
     "NewDocumentDialogClose": "Вы действительно хотите закрыть окно?",
     "NewDocumentCloseNote": "Все внесенные изменения будут потеряны",
-    "Cancel": "Отмена",
     "EditorPlaceholder": "введите для начала...",
     "Version": "Версия",
     "TemplateVersion": "Версия шаблона",
@@ -70,32 +58,24 @@
     "Approval": "Утверждение",
     "Reviewer": "Рецензент",
     "Approver": "Утверждающий",
-
     "DeleteCategory": "Удалить категорию?",
     "DeleteCategoryHint": "Это действие не может быть отменено",
     "DeleteCategoryWarning": "Эта категория используется, поэтому не может быть удалена",
-
     "Latest": "Актуально",
     "Draft": "Рабочая копия",
-
     "Reviewers": "Рецензенты",
-
     "ViewMode": "Просмотр",
     "EditMode": "Редактирование",
     "ComparisonMode": "Сравнение",
-
     "Compare": "Сравнить:",
     "Against": "с:",
     "RemovedAttachments": "Удалённые вложения",
     "Restore": "Восстановить",
-
     "ComparisonModeNotSupported": "Сравнение не поддерживается.",
-
     "CreateDraft": "Создать рабочую копию",
     "SendForApproval": "Попросить утверждения",
     "SendForReview": "Попросить рецензию",
     "CompleteReview": "Закончить рецензию",
-
     "Approve": "Утвердить",
     "Reject": "Отказать",
     "ConfirmApproval": "Подтвердите согласие",
@@ -112,7 +92,6 @@
     "AddApprovalDescription4": "если запланирован тренинг, то этот тренинг должен иметь статус 'Опубликован'",
     "NoApprovalsDescription": "Нет утверждений для этой версии документа",
     "CurrentVersion": "Текущая версия",
-
     "DocumentTemplate": "Шаблон",
     "DocumentTemplates": "Шаблоны",
     "DocumentCode": "Код документа",
@@ -133,19 +112,16 @@
     "ShowResolved": "Показать выполненные",
     "Ordering": "Сортировка",
     "Title": "Заголовок",
-
     "Effective": "Актуальная",
     "Archived": "Архивированный",
     "Deleted": "Удаленный",
     "MetaAbstract": "Описание",
-
     "ContentTab": "Документ",
     "TeamTab": "Команда",
     "MetaTab": "Метаданные",
     "ChangeControlTab": "Контроль изменений",
     "ReleaseTab": "Выпуск",
     "HistoryTab": "История",
-
     "ModificationDate": "Модифицированно",
     "Modified": "Модифицированно",
     "Owner": "Владелец",
@@ -153,7 +129,6 @@
     "Unassigned": "Не назначено",
     "Untitled": "Без названия",
     "Copy": "копия",
-
     "AccessWorkarea": "Доступ к рабочей области",
     "EffectiveLibrary": "Действующая библиотека",
     "WorkingLibrary": "Рабочая библиотека",
@@ -163,10 +138,8 @@
     "ReassignOwnershipToAnotherUser": "Переназначение права владения другому пользователю",
     "MakeDocumentEffective": "Сделать документ действующим",
     "CreateDraftQmsTemplates": "Создание черновых QMS шаблонов",
-
     "ChangeControl": "Контроль Изменений",
     "ReviewInterval": "Интервал ревью",
-
     "SelectReviewers": "Выберите рецензентов",
     "SelectApprovers": "Выберите утверждающих",
     "RequestsToReviewTheDoc": "запрашивает у вас рецензию на документ",
@@ -175,19 +148,15 @@
     "Template": "Шаблон",
     "GeneralInfo": "Общая информация",
     "InProgress": "Выполняется",
-
     "EditDescription": "Редактировать описание",
     "EditGuidance": "Редактировать руководство",
-
     "NewDocument": "Новый документ",
     "NewDocumentCategory": "Новая категория",
     "NewDocumentTemplate": "Новый шаблон",
-
     "LocationStepTitle": "Расположение",
     "TemplateStepTitle": "Шаблон",
     "InfoStepTitle": "Инфо",
     "TeamStepTitle": "Команда",
-
     "TitleAndDescr": "Заголовок и описание",
     "Reason": "Причина",
     "AbstractPlaceholder": "О чем этот документ? Кто будет его использовать и как? ...",
@@ -196,17 +165,13 @@
     "NewTemplatePlaceholder": "О чем этот шаблон? Опишите как правильно его использовать...",
     "CustomReason": "Другая",
     "ReasonPlaceholder": "Укажите причину...",
-
     "EditDocument": "Редактировать документ",
-
     "Key": "Ключ",
     "CommentsSequence": "Последовательность комментариев",
-
     "Email": "Email",
     "Password": "Пароль",
     "FieldIsEmpty": "{field} не задан",
     "ValidatingCredentials": "Проверка информации...",
-
     "GeneralDocumentation": "Общая документация",
     "TechnicalDocumentation": "Техническая документация",
     "UnsortedTemplates": "Несортированные шаблоны",
@@ -214,59 +179,45 @@
     "Projects": "Проекты",
     "ExternalSpace": "Пространства проектов",
     "DocumentSpaceType": "Тип пространства документов",
-
     "EffectiveImmediately": "Сразу после утверждения",
     "EffectiveOn": "Сделать эффективным:",
-
     "PeriodicReviewToBeCompleted": "Периодическое ревью документа в течение",
     "MonthsAfterEffectiveDate": "месяцев после даты, когда документ стал эффективным",
     "ToBePassedWithin": "Пройти в течение",
     "AttemptsAnd": "попыток и",
     "DaysAfterEffectiveDate": "дней после даты, когда документ стал эффективным",
-
     "Index": "Индекс",
     "Path": "Путь",
-
     "CreateChildDocument": "Создать дочерний документ",
     "CreateChildTemplate": "Создать дочерний шаблон",
-
     "All": "Все",
-
     "Space": "Пространство",
     "SelectParent": "Выберите родительский объект для Вашего документа",
-
     "PrefixInUse": "Этот префикс уже используется",
     "CodeInUse": "Этот код уже используется",
     "ChangeCode": "Изменить код",
     "ChangePrefix": "Изменить префикс",
-
     "MarkDocAsDeleted": "Пометить документ как удаленный",
     "MarkDocsAsDeleted": "Пометить несколько документов как удаленные",
     "MarkDocAsDeletedConfirm": "Вы действительно хотите пометить следующие документы как удаленные: {titles}?",
     "ArchiveDocs": "Архивировать {count, plural, =0 {документ} other {документы}}",
     "ArchiveDocsConfirm": "Вы действительно хотите архивировать следующие документы: {titles}?",
-
     "DocumentInHierarchy": "Документ в иерархии",
-        "FirstDraftVersion": "Это первая рабочая копия документа. Для него пока нет истории.",
+    "FirstDraftVersion": "Это первая рабочая копия документа. Для него пока нет истории.",
     "FirstOrNotAvailable": "Это первая доступная версия документа. История еще не создана или недоступна.",
-
     "EffectiveDocumentLifecycle": "Эффективный жизненный цикл документа",
-
     "ReasonAndImpact": "Причина и Воздействие",
     "ImpactAnalysis": "Анализ воздействия",
     "ImpactedDocuments": "Подверженные документы",
-
     "CreateDocumentFailed": "Ошибка при создании документа",
     "CreateDocumentTemplateFailed": "Ошибка при создании шаблона",
     "TryAgain": "Пожалуйста, попробуйте снова",
-
     "DescribeChanges": "Опишите, что поменялось...",
     "DescribeReason": "Опишите, почему это поменялось...",
     "DescribeImpact": "Воздействует на...",
     "AddDocument": "Добавить документ",
     "NoDocuments": "Нет документов",
     "SysTemplate": "Системный шаблон",
-
     "DocumentTrainingDueDays": "Срок",
     "DocumentTrainingEnabled": "Включен",
     "Own": "Собственный",
@@ -285,17 +236,13 @@
     "Of": " из ",
     "CreatedFromTemplate": "Создан из шаблона: ",
     "UncontrolledCopy": "Неконтролируемая копия",
-
     "ViewAll": "Показать все",
     "Readonly": "Только для чтения",
-
     "NewDocumentSpace": "Новое пространство документов",
     "EditDocumentSpace": "Редактировать пространство документов",
-
     "DocSpaceDescriptionPlaceholder": "Опишите Ваше пространство...",
     "Members": "Участники",
     "CreateOrgSpace": "Создать пространство организации",
-
     "ReviewDocumentPermission": "Рецензировать документ",
     "ReviewDocumentDescription": "Предоставляет пользователям разрешение рецензировать документ",
     "ApproveDocumentPermission": "Утверждать документ",
@@ -308,7 +255,6 @@
     "CreateDocumentDescription": "Предоставляет пользователям разрешение создавать документ",
     "UpdateDocumentOwnerPermission": "Изменять владельца документа",
     "UpdateDocumentOwnerDescription": "Предоставляет пользователям разрешение изменять владельца документа",
-
     "CreateDocumentCategoryPermission": "Создавать категорию",
     "CreateDocumentCategoryDescription": "Предоставляет пользователям разрешение создавать категорию",
     "UpdateDocumentCategoryPermission": "Обновлять категорию",
@@ -317,26 +263,20 @@
     "DeleteDocumentCategoryDescription": "Предоставляет пользователям разрешение удалять категорию",
     "ConfigLabel": "Управляемые Документы",
     "ConfigDescription": "Расширение для управления управляемыми документами",
-
     "Transfer": "Трансфер",
     "TransferWarning": "После этого действия некоторые члены команды могут потерять возможность просматривать или редактировать этот документ.",
     "TransferDocuments": "Трансфер управляемых документов",
     "TransferDocumentsHint": "Документы, которые будут перенесены в выбранное пространство:",
-
     "CreateFolder": "Создать новую папку",
     "RenameFolder": "Переименовать папку",
     "CreateChildFolder": "Создать подпапку",
-
     "Obsolete": "Устаревший",
     "MakeDocumentObsolete": "Пометить как устаревшее",
     "MakeDocumentObsoleteDialog": "Пометить {count, plural, one {документ как устаревший} other {документы как устаревшие}}",
     "MakeDocumentObsoleteConfirm": "Вы действительно хотите пометить следующие документы как устаревшие: {titles}?",
-
     "LatestVersionHint": "последняя",
-
     "CannotDeleteFolder": "Папка не может быть удалена",
     "CannotDeleteFolderHint": "Пожалуйста, переместите все дочерние документы в другое место перед удалением папки.",
-
     "AllDocumentSpaces": "Все пространства документов"
   },
   "controlledDocStates": {

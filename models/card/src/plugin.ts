@@ -41,7 +41,9 @@ export default mergeIds(cardId, card, {
     PublicLink: '' as Ref<Action<Doc, any>>,
     Duplicate: '' as Ref<Action<Doc, any>>,
     CreateChild: '' as Ref<Action>,
-    ExportTable: '' as Ref<Action<Doc, any>>
+    ExportTable: '' as Ref<Action<Doc, any>>,
+    ExportDocumentContent: '' as Ref<Action<Doc, any>>,
+    ImportDocumentContent: '' as Ref<Action<Doc, any>>
   },
   category: {
     Card: '' as Ref<ActionCategory>,

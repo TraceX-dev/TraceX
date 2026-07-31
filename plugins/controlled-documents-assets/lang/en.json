@@ -2,17 +2,6 @@
   "string": {
     "Export": "Export",
     "Import": "Import",
-    "ImportingDocument": "Importing document",
-    "ConvertingDocument": "Converting document…",
-    "ImportingFromWord": "Importing from Word",
-    "ConvertingWordDocument": "Converting document…",
-    "DocumentConverted": "Document converted",
-    "ImportFailed": "Import failed",
-    "ExportingDocument": "Exporting document…",
-    "DocumentExported": "Document exported",
-    "ExportFailed": "Export failed",
-    "ReviewImportedChanges": "Review imported changes",
-    "Apply": "Apply",
     "ExportToWord": "Export to Word",
     "ImportFromWord": "Import from Word",
     "ID": "ID",
@@ -49,7 +38,6 @@
     "Document": "Document",
     "NewDocumentDialogClose": "Do you want to close this dialog?",
     "NewDocumentCloseNote": "All changes will be lost",
-    "Cancel": "Cancel",
     "EditorPlaceholder": "type to start editing...",
     "Version": "Version",
     "TemplateVersion": "Template version",
@@ -70,32 +58,24 @@
     "Approval": "Approval",
     "Reviewer": "Reviewer",
     "Approver": "Approver",
-
     "DeleteCategory": "Delete category?",
     "DeleteCategoryHint": "That action cannot be undone",
     "DeleteCategoryWarning": "The category cannot be deleted because it is in use",
-
     "Latest": "Actual",
     "Draft": "Draft",
-
     "Reviewers": "Reviewers",
-
     "ViewMode": "Viewing",
     "EditMode": "Editing",
     "ComparisonMode": "Comparing",
-
     "Compare": "Compare:",
     "Against": "Against:",
     "RemovedAttachments": "Removed attachments",
     "Restore": "Restore",
-
     "ComparisonModeNotSupported": "Comparison mode is not supported.",
-
     "CreateDraft": "Create Draft",
     "SendForApproval": "Send for approval",
     "SendForReview": "Send for review",
     "CompleteReview": "Complete review",
-
     "Approve": "Approve",
     "Reject": "Reject",
     "ConfirmApproval": "Confirm approval",
@@ -112,7 +92,6 @@
     "AddApprovalDescription4": "if training is planned, the training has status 'Released'",
     "NoApprovalsDescription": "There are no approvals for this version of document",
     "CurrentVersion": "Current version",
-
     "DocumentTemplate": "Template",
     "DocumentTemplates": "Templates",
     "DocumentCode": "Document code",
@@ -133,24 +112,20 @@
     "ShowResolved": "Show resolved comments",
     "Ordering": "Ordering",
     "Title": "Title",
-
     "Effective": "Effective",
     "Archived": "Archived",
     "Deleted": "Deleted",
     "MetaAbstract": "Abstract",
-    
     "Obsolete": "Obsolete",
     "MakeDocumentObsolete": "Mark as obsolete",
     "MakeDocumentObsoleteDialog": "Mark {count, plural, =0 {document} other {documents}} as obsolete",
     "MakeDocumentObsoleteConfirm": "Do you really want to mark the following documents as obsolete: {titles}?",
-
     "ContentTab": "Content",
     "TeamTab": "Team",
     "MetaTab": "Metadata",
     "ChangeControlTab": "Change control",
     "ReleaseTab": "Release",
     "HistoryTab": "History",
-
     "ModificationDate": "Modified at",
     "Modified": "Modified",
     "Owner": "Owner",
@@ -158,7 +133,6 @@
     "Unassigned": "Unassigned",
     "Untitled": "Untitled",
     "Copy": "copy",
-
     "AccessWorkarea": "Access Workarea",
     "EffectiveLibrary": "Effective library",
     "WorkingLibrary": "Working library",
@@ -168,10 +142,8 @@
     "ReassignOwnershipToAnotherUser": "Reassign ownership to another user",
     "MakeDocumentEffective": "Make document effective",
     "CreateDraftQmsTemplates": "Create draft QMS templates",
-
     "ChangeControl": "Change Control",
     "ReviewInterval": "Review interval",
-
     "SelectReviewers": "Select reviewers",
     "SelectApprovers": "Select approvers",
     "RequestsToReviewTheDoc": "requests you to review the document",
@@ -180,19 +152,15 @@
     "Template": "Template",
     "GeneralInfo": "General Info",
     "InProgress": "In progress",
-
     "EditDescription": "Edit description",
     "EditGuidance": "Edit guidance",
-
     "NewDocument": "New document",
     "NewDocumentCategory": "New category",
     "NewDocumentTemplate": "New template",
-
     "LocationStepTitle": "Location",
     "TemplateStepTitle": "Template",
     "InfoStepTitle": "Info",
     "TeamStepTitle": "Team",
-
     "TitleAndDescr": "Title and description",
     "Reason": "Reason",
     "AbstractPlaceholder": "What is this document about? Who will need it and when? ...",
@@ -201,17 +169,13 @@
     "NewTemplatePlaceholder": "What is this template about? Describe how to properly use it...",
     "CustomReason": "Custom",
     "ReasonPlaceholder": "Specify the reason...",
-
     "EditDocument": "Edit document",
-
     "Key": "Key",
     "CommentsSequence": "Comments sequence",
-
     "Email": "Email",
     "Password": "Password",
     "FieldIsEmpty": "{field} is empty",
     "ValidatingCredentials": "Validating credentials...",
-
     "GeneralDocumentation": "General documentation",
     "TechnicalDocumentation": "Technical documentation",
     "UnsortedTemplates": "Unsorted templates",
@@ -219,53 +183,39 @@
     "Projects": "Projects",
     "ExternalSpace": "Project space",
     "DocumentSpaceType": "Documents space type",
-
     "EffectiveImmediately": "Immediately upon approval",
     "EffectiveOn": "Make effective on",
-
     "PeriodicReviewToBeCompleted": "Periodic review to be completed within",
     "MonthsAfterEffectiveDate": "months after its effective date",
     "ToBePassedWithin": "To be passed within",
     "AttemptsAnd": "attempts and",
     "DaysAfterEffectiveDate": "days after effective date",
-
     "Index": "Index",
     "Path": "Path",
-
     "CreateChildDocument": "Create child document",
     "CreateChildTemplate": "Create child template",
-
     "All": "All",
-
     "Space": "Space",
     "SelectParent": "Select the parent object for your document",
-
     "PrefixInUse": "This prefix is already in use by",
     "CodeInUse": "This code is already in use by",
     "ChangeCode": "Change Code",
     "ChangePrefix": "Change Prefix",
-
     "MarkDocAsDeleted": "Marking document as deleted",
     "MarkDocsAsDeleted": "Marking multiple documents as deleted",
     "MarkDocAsDeletedConfirm": "Do you really want to mark the following documents as deleted: {titles}?",
-
     "ArchiveDocs": "Archive {count, plural, =0 {document} other {documents}}",
     "ArchiveDocsConfirm": "Do you really want to archive the following documents: {titles}?",
-
     "DocumentInHierarchy": "Document in hierarchy",
     "FirstDraftVersion": "This is the first draft version of the document. There's no history yet.",
     "FirstOrNotAvailable": "This is the first available version of the document. There's no history yet or it's not available.",
-
     "EffectiveDocumentLifecycle": "Effective document lifecycle",
-
     "ReasonAndImpact": "Reason & Impact",
     "ImpactAnalysis": "Impact analysis",
     "ImpactedDocuments": "Impacted documents",
-
     "CreateDocumentFailed": "Failed to create document",
     "CreateDocumentTemplateFailed": "Failed to create template",
     "TryAgain": "Please try again",
-
     "DescribeChanges": "Describe what was changed...",
     "DescribeReason": "Describe why it was changed...",
     "DescribeImpact": "Has an impact on...",
@@ -290,17 +240,13 @@
     "Of": " of ",
     "CreatedFromTemplate": "Created from template: ",
     "UncontrolledCopy": "Uncontrolled copy",
-
     "ViewAll": "View all",
     "Readonly": "Readonly",
-
     "NewDocumentSpace": "New documents space",
     "EditDocumentSpace": "Edit documents space",
-
     "DocSpaceDescriptionPlaceholder": "Describe your space...",
     "Members": "Members",
     "CreateOrgSpace": "Create organisation space",
-
     "ReviewDocumentPermission": "Review document",
     "ReviewDocumentDescription": "Grants users ability to review a document",
     "ApproveDocumentPermission": "Approve document",
@@ -313,7 +259,6 @@
     "CreateDocumentDescription": "Grants users ability to create a document",
     "UpdateDocumentOwnerPermission": "Update document owner",
     "UpdateDocumentOwnerDescription": "Grants users ability to update a document owner",
-    
     "CreateDocumentCategoryPermission": "Create document category",
     "CreateDocumentCategoryDescription": "Grants users ability to create a document category",
     "UpdateDocumentCategoryPermission": "Update document category",
@@ -322,21 +267,16 @@
     "DeleteDocumentCategoryDescription": "Grants users ability to delete a document category",
     "ConfigLabel": "Controlled Documents",
     "ConfigDescription": "Extension to manage controlled documents",
-
     "Transfer": "Transfer",
     "TransferWarning": "Some team members may lose the ability to view or edit this document after this action.",
     "TransferDocuments": "Transfer controlled documents",
     "TransferDocumentsHint": "Documents to be transferred to the selected space:",
-
     "CreateFolder": "Create new folder",
     "RenameFolder": "Rename folder",
     "CreateChildFolder": "Create child folder",
-
     "LatestVersionHint": "latest",
-
     "CannotDeleteFolder": "The folder cannot be deleted",
     "CannotDeleteFolderHint": "Please move all child documents to another location before deleting the folder.",
-
     "AllDocumentSpaces": "All document spaces"
   },
   "controlledDocStates": {
