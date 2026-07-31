@@ -16,10 +16,10 @@
 <script lang="ts">
   import { type IntlString, Severity, Status } from '@hcengineering/platform'
   import { signupStore } from '@hcengineering/analytics-providers'
-  import { onDestroy, onMount } from 'svelte'
+  import { Label } from '@hcengineering/ui'
+  import { onMount } from 'svelte'
 
   import { type BottomAction, doLoginAsGuest, doLoginNavigate, LoginMethods } from '../index'
-  import { loginFooterActions } from '../footerActions'
   import LoginPasswordForm from './LoginPasswordForm.svelte'
   import LoginOtpForm from './LoginOtpForm.svelte'
   import login from '../plugin'
@@ -77,15 +77,12 @@
 
   const loginAsGuest: BottomAction = {
     i18n: login.string.LoginAsGuest,
-    muted: true,
     func: () => {
       void guestLogin()
     }
   }
 
-  $: loginFooterActions.set([method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction, loginAsGuest])
-
-  onDestroy(() => { loginFooterActions.set([]) })
+  $: methodToggleAction = method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction
 </script>
 
 {#if method === LoginMethods.Otp}
@@ -93,3 +90,46 @@
 {:else}
   <LoginPasswordForm {navigateUrl} {signUpDisabled} {email} {caption} {subtitle} {onLogin} on:change={changeMethod} />
 {/if}
+
+<div class="login-extra-actions">
+  <a class="method-toggle" href="." on:click|preventDefault={methodToggleAction.func}>
+    <Label label={methodToggleAction.i18n} />
+  </a>
+  <span class="divider-dot">•</span>
+  <a class="guest-link" href="." on:click|preventDefault={loginAsGuest.func}>
+    <Label label={loginAsGuest.i18n} />
+  </a>
+</div>
+
+<style lang="scss">
+  .login-extra-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .divider-dot {
+    color: var(--theme-dark-color);
+  }
+
+  .method-toggle,
+  .guest-link {
+    font-weight: 500;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .method-toggle {
+    color: var(--theme-link-color);
+  }
+
+  .guest-link {
+    color: var(--theme-content-color);
+  }
+</style>

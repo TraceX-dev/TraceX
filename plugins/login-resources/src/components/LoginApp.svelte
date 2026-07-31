@@ -203,6 +203,7 @@
   }
 
   .tracex-login-card {
+    position: relative;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
