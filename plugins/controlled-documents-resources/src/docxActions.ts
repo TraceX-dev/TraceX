@@ -48,32 +48,51 @@ function authHeaders (): Record<string, string> {
 
 /** Export a document's body in the given format ('docx' | 'md') and download it. */
 export async function exportDocument (doc: ControlledDocument, format: string): Promise<void> {
-  const response = await fetch(`${getExportBaseUrl()}/document-export`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ _class: doc._class, _id: doc._id, format })
-  })
-  if (!response.ok) {
-    throw new Error('Failed to export document')
+  const lang = getCurrentLanguage()
+  try {
+    // The conversion can take a while with no incremental progress, so a shared
+    // long-running-task toast shows a spinner until it settles and surfaces failures
+    // (e.g. content the exporter can't convert) instead of silently doing nothing.
+    await withProgress(
+      {
+        title: await translate(plugin.string.ExportingDocument, {}, lang),
+        done: await translate(plugin.string.DocumentExported, {}, lang),
+        failed: await translate(plugin.string.ExportFailed, {}, lang)
+      },
+      async () => {
+        const response = await fetch(`${getExportBaseUrl()}/document-export`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ _class: doc._class, _id: doc._id, format })
+        })
+        if (!response.ok) {
+          const body = await response.json().catch(() => undefined)
+          const message = typeof body?.message === 'string' && body.message.length > 0 ? body.message : undefined
+          throw new Error(message ?? `Failed to export document (${response.status})`)
+        }
+
+        const blob = await response.blob()
+        const contentDisposition = response.headers.get('Content-Disposition')
+        const filename = contentDisposition?.match(/filename="([^"]*)"/)?.[1] ?? `${doc.title ?? 'document'}.${format}`
+
+        // Attach the anchor to the DOM before click() (detached anchors are ignored by some
+        // browsers) and defer the revoke — revoking synchronously drops the blob mid-read.
+        const url = window.URL.createObjectURL(blob)
+        const anchor = document.createElement('a')
+        anchor.style.display = 'none'
+        anchor.href = url
+        anchor.download = filename
+        document.body.appendChild(anchor)
+        anchor.click()
+        setTimeout(() => {
+          document.body.removeChild(anchor)
+          window.URL.revokeObjectURL(url)
+        }, 10000)
+      }
+    )
+  } catch {
+    // The progress toast already surfaced the failure.
   }
-
-  const blob = await response.blob()
-  const contentDisposition = response.headers.get('Content-Disposition')
-  const filename = contentDisposition?.match(/filename="([^"]*)"/)?.[1] ?? `${doc.title ?? 'document'}.${format}`
-
-  // Attach the anchor to the DOM before click() (detached anchors are ignored by some
-  // browsers) and defer the revoke — revoking synchronously drops the blob mid-read.
-  const url = window.URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.style.display = 'none'
-  anchor.href = url
-  anchor.download = filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  setTimeout(() => {
-    document.body.removeChild(anchor)
-    window.URL.revokeObjectURL(url)
-  }, 10000)
 }
 
 /** Import an edited document ('docx' | 'md'): convert, preview the diff, apply. */
