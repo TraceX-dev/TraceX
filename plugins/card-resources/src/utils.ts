@@ -65,7 +65,7 @@ import {
   showPopup
 } from '@hcengineering/ui'
 import view, { canCopyLink, encodeObjectURI } from '@hcengineering/view'
-import { accessDeniedStore } from '@hcengineering/view-resources'
+import { accessDeniedStore, getPermissions } from '@hcengineering/view-resources'
 import workbench, { type LocationData, type Widget, type WidgetTab } from '@hcengineering/workbench'
 import { createWidgetTab } from '@hcengineering/workbench-resources'
 
@@ -610,15 +610,20 @@ export async function createCard (
   return _id
 }
 
-export function isBaseTypeWithSubtypes (hierarchy: Hierarchy, type: Ref<MasterTag>): boolean {
-  const clazz = hierarchy.getClass(type) as MasterTag | undefined
-  if (clazz?.baseType !== true) return false
+export function isBaseTypeWithSubtypes (hierarchy: Hierarchy, type: Ref<MasterTag> | undefined): boolean {
+  if (type === undefined) return false
+  try {
+    const clazz = hierarchy.findClass(type) as MasterTag
+    if (clazz?.baseType !== true) return false
 
-  return hierarchy.getDescendants(type).some((descendant) => {
-    if (descendant === type || hierarchy.isMixin(descendant)) return false
-    const descendantClass = hierarchy.getClass(descendant) as MasterTag | undefined
-    return descendantClass?._class === card.class.MasterTag && descendantClass.removed !== true
-  })
+    return hierarchy.getDescendants(type).some((descendant) => {
+      if (descendant === type || hierarchy.isMixin(descendant)) return false
+      const descendantClass = hierarchy.getClass(descendant) as MasterTag | undefined
+      return descendantClass?._class === card.class.MasterTag && descendantClass.removed !== true
+    })
+  } catch {
+    return false
+  }
 }
 
 export function getFirstCreatableSubtype (hierarchy: Hierarchy, type: Ref<MasterTag>): Ref<MasterTag> | undefined {
@@ -732,7 +737,7 @@ export function cardCustomLinkEncode (doc: Card): Location {
 }
 
 export async function checkOldMessagesSectionVisibility (doc: Card): Promise<boolean> {
-  if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) {
+  if (!getPermissions().canViewActivity(doc)) {
     return false
   }
 
@@ -740,7 +745,7 @@ export async function checkOldMessagesSectionVisibility (doc: Card): Promise<boo
 }
 
 export async function checkCommunicationMessagesSectionVisibility (doc: Card): Promise<boolean> {
-  if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) {
+  if (!getPermissions().canViewActivity(doc)) {
     return false
   }
 

@@ -41,6 +41,7 @@
   import task, { ProjectType, TaskType } from '@hcengineering/task'
   import { taskTypeStore, typeStore } from '@hcengineering/task-resources'
   import { IssueStatus, Project, TimeReportDayType, TrackerEvents } from '@hcengineering/tracker'
+  import { permissions, IconPicker } from '@hcengineering/view-resources'
   import {
     Button,
     Component,
@@ -54,7 +55,6 @@
     themeStore
   } from '@hcengineering/ui'
   import view from '@hcengineering/view'
-  import { IconPicker } from '@hcengineering/view-resources'
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
 
@@ -108,6 +108,9 @@
   }
 
   $: isNew = project == null
+  // An existing project may be opened by a user who is not allowed to change it,
+  // in that case the dialog is shown in a read only mode.
+  $: readonly = !isNew && !$permissions.canEditSpace(project)
 
   async function handleSave (): Promise<void> {
     if (isNew) {
@@ -366,6 +369,7 @@
   }
 
   $: canSave =
+    !readonly &&
     name.trim().length > 0 &&
     identifier.trim().length > 0 &&
     !projectsIdentifiers.has(identifier.toUpperCase()) &&
@@ -414,6 +418,7 @@
           bind:value={name}
           placeholder={tracker.string.ProjectTitlePlaceholder}
           kind={'large-style'}
+          disabled={readonly}
           autoFocus
           on:input={() => {
             if (isNew) {
@@ -434,7 +439,7 @@
         <EditBox
           id="project-identifier"
           bind:value={identifier}
-          disabled={!isNew}
+          disabled={!isNew || readonly}
           placeholder={tracker.string.ProjectIdentifierPlaceholder}
           kind={'large-style'}
           uppercase
@@ -456,6 +461,7 @@
           id="project-description"
           bind:value={description}
           placeholder={tracker.string.IssueDescriptionPlaceholder}
+          disabled={readonly}
         />
       </div>
     </div>
@@ -522,6 +528,7 @@
         label={core.string.Owners}
         allowGuests
         onChange={handleOwnersChanged}
+        {readonly}
         kind={'regular'}
         size={'large'}
       />
@@ -532,7 +539,7 @@
         <Label label={presentation.string.MakePrivate} />
         <span><Label label={presentation.string.MakePrivateDescription} /></span>
       </div>
-      <Toggle id={'project-private'} bind:on={isPrivate} disabled={!isPrivate && members.length === 0} />
+      <Toggle id={'project-private'} bind:on={isPrivate} disabled={readonly || (!isPrivate && members.length === 0)} />
     </div>
 
     <div class="antiGrid-row">
@@ -543,6 +550,7 @@
         value={members}
         label={tracker.string.Members}
         onChange={handleMembersChanged}
+        {readonly}
         kind={'regular'}
         size={'large'}
         allowGuests
@@ -554,7 +562,7 @@
         <Label label={core.string.AutoJoin} />
         <span><Label label={core.string.AutoJoinDescr} /></span>
       </div>
-      <Toggle bind:on={autoJoin} />
+      <Toggle bind:on={autoJoin} disabled={readonly} />
     </div>
 
     <div class="antiGrid-row">
@@ -564,6 +572,7 @@
       </div>
       <Toggle
         on={autoJoinForRoles.includes(AccountRole.Guest)}
+        disabled={readonly}
         on:change={(ev) => {
           setGuestAutoJoin(ev.detail)
         }}
@@ -579,7 +588,7 @@
           value={rolesAssignment?.[role._id] ?? []}
           label={tracker.string.Members}
           includeItems={membersPersons}
-          readonly={membersPersons.length === 0}
+          readonly={readonly || membersPersons.length === 0}
           onChange={(refs) => {
             handleRoleAssignmentChanged(role._id, refs)
           }}

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,12 +18,16 @@
   import core, { AccountRole, setWorkspaceGuestAutoJoinRoles } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { Button, Label, Toggle } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import { ArchiveChannel } from '../index'
   import chunter from '../plugin'
 
   export let channel: Channel
+
+  $: readonly = !$permissions.canEditSpace(channel)
+  $: canArchive = $permissions.canArchiveSpace(channel)
 
   const dispatch = createEventDispatcher()
   const client = getClient()
@@ -37,6 +42,7 @@
   }
 
   async function persistAutoJoin (): Promise<void> {
+    if (readonly) return
     await client.diffUpdate(channel, {
       autoJoin,
       autoJoinForRoles: normalizeAutoJoinForRoles(autoJoinForRoles)
@@ -56,6 +62,7 @@
         <Label label={core.string.AutoJoin} />
         <Toggle
           data-id="channel-auto-join-toggle"
+          disabled={readonly}
           bind:on={autoJoin}
           on:change={() => {
             void persistAutoJoin()
@@ -69,6 +76,7 @@
         <Label label={core.string.AutoJoinGuests} />
         <Toggle
           data-id="channel-guest-auto-join-toggle"
+          disabled={readonly}
           on={autoJoinForRoles.includes(AccountRole.Guest)}
           on:change={(ev) => {
             setGuestAutoJoin(ev.detail)
@@ -78,12 +86,15 @@
       <span class="text-sm content-dark-color"><Label label={core.string.AutoJoinGuestsDescr} /></span>
     </div>
   </div>
-  <Button
-    label={chunter.string.ArchiveChannel}
-    justify={'left'}
-    size={'x-large'}
-    on:click={(evt) => {
-      ArchiveChannel(channel, evt, { afterArchive: () => dispatch('close') })
-    }}
-  />
+  {#if canArchive}
+    <Button
+      label={chunter.string.ArchiveChannel}
+      justify={'left'}
+      size={'x-large'}
+      on:click={(evt) => {
+        if (!canArchive) return
+        ArchiveChannel(channel, evt, { afterArchive: () => dispatch('close') })
+      }}
+    />
+  {/if}
 {/if}

@@ -1037,7 +1037,7 @@ export function createModel (builder: Builder): void {
       },
       label: exportPlugin.string.Export,
       icon: exportPlugin.icon.Export,
-      input: 'any',
+      input: 'selection',
       category: view.category.General,
       target: documents.class.Document,
       context: {

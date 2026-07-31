@@ -27,8 +27,17 @@
 
   let pressed: boolean = false
 
-  $: _class = $location.path[4] as Ref<MasterTag>
-  $: space = $location.path[3]
+  let _class: Ref<MasterTag> | undefined
+  let space: string | undefined
+
+  $: updateContext($location.path[3], $location.path[4] as Ref<MasterTag> | undefined)
+
+  function updateContext (pathSpace: string | undefined, pathClass: Ref<MasterTag> | undefined): void {
+    if (pathClass !== undefined) {
+      _class = pathClass
+      space = pathSpace
+    }
+  }
 
   async function navigateToCard (cardId: string): Promise<void> {
     const loc = getCurrentLocation()
@@ -38,7 +47,7 @@
   }
 
   async function handleCreateCard (): Promise<void> {
-    const changeType = isBaseTypeWithSubtypes(getClient().getHierarchy(), _class)
+    const changeType = _class !== undefined && isBaseTypeWithSubtypes(getClient().getHierarchy(), _class)
     showPopup(CreateCardPopup, { type: _class, space, changeType }, 'center', async (result) => {
       if (result != null && result !== '') {
         await navigateToCard(result)
