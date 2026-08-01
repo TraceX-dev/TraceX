@@ -114,6 +114,10 @@ export class TMasterTag extends TClass implements MasterTag {
 export class TTag extends TMixin implements Tag {
   color?: number
   background?: number
+
+  @Prop(TypeRank(), core.string.Rank)
+  @Hidden()
+    rank?: Rank
 }
 
 @Model(card.class.Card, core.class.Doc, DOMAIN_CARD)
