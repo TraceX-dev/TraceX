@@ -57,9 +57,16 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
+import contact, { type Person } from '@hcengineering/contact'
+import {
+  applyGuestSensitiveClassRestriction,
+  getDisabledModuleSpaceClasses,
+  getGuestVisiblePersonIds,
+  hasNarrowIdQuery,
+  isGuestVisibilityRestrictedRole,
+  type SpaceWithMembers
+} from './guestVisibility'
 import { isOwner, isSystem } from './utils'
-
-type SpaceWithMembers = Pick<Space, '_id' | 'members' | 'private' | '_class' | 'archived'>
 
 /**
  * @public
@@ -679,7 +686,53 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       }
     }
 
-    let findResult = await this.provideFindAll(ctx, _class, !this.skipFindCheck ? newQuery : query, options)
+    // Person/Employee visibility for Guest / ReadOnlyGuest / DocGuest: restrict open browse/search
+    // queries to accounts sharing a real space with the caller. Applied on top of whichever query
+    // object the backend actually executes (`skipFindCheck` deployments rely on the DB adapter for
+    // space-level security and pass the original `query` through untouched, so the restriction is
+    // layered on there too, not only on `newQuery`).
+    let baseQuery: DocumentQuery<T> = !this.skipFindCheck ? newQuery : query
+    if (
+      !isSystem(account, ctx) &&
+      isGuestVisibilityRestrictedRole(account.role) &&
+      this.context.hierarchy.isDerived(_class, contact.class.Person) &&
+      !hasNarrowIdQuery(baseQuery)
+    ) {
+      const allowedPersonIds = await getGuestVisiblePersonIds(
+        this.next,
+        ctx,
+        account,
+        this.allowedSpaces,
+        this.spacesMap
+      )
+      if (allowedPersonIds.size === 0) {
+        return toFindResult([], 0)
+      }
+      const restrictedQuery: DocumentQuery<T> = { ...baseQuery, _id: { $in: Array.from(allowedPersonIds) } }
+      baseQuery = restrictedQuery
+    }
+
+    // A handful of other classes (love meeting minutes/room presence, HR requests, push
+    // subscriptions, public share links, raw Collaborator records) live in spaces that are never
+    // filtered by role (see `mainSpaces`) despite holding per-account/per-meeting sensitive data.
+    if (!isSystem(account, ctx) && isGuestVisibilityRestrictedRole(account.role)) {
+      const restriction = await applyGuestSensitiveClassRestriction(
+        this.context.hierarchy,
+        this.next,
+        ctx,
+        account,
+        _class,
+        baseQuery
+      )
+      if (restriction !== undefined) {
+        if ('deny' in restriction) {
+          return toFindResult([], 0)
+        }
+        baseQuery = restriction.query
+      }
+    }
+
+    let findResult = await this.provideFindAll(ctx, _class, baseQuery, options)
     if (clientFilterSpaces !== undefined) {
       const cfs = clientFilterSpaces
       findResult = toFindResult(
@@ -708,6 +761,8 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     await this.init(ctx)
     const newQuery = { ...query }
     const account = ctx.contextData.account
+    const personRestricted = isGuestVisibilityRestrictedRole(account.role)
+    let personClassesSearched = false
     if (!isSystem(account, ctx)) {
       const allSpaces = this.getAllAllowedSpaces(account, true, false, true)
       if (query.classes !== undefined) {
@@ -715,6 +770,19 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         const passedDomains = new Set<string>()
         for (const _class of query.classes) {
           const domain = this.context.hierarchy.getDomain(_class)
+          const isPersonClass = this.context.hierarchy.isDerived(_class, contact.class.Person)
+          if (isPersonClass) {
+            personClassesSearched = true
+          }
+          if (personRestricted && isPersonClass) {
+            // contact.space.Contacts is a SystemSpace, normally excluded from `allSpaces` here
+            // (see getAllAllowedSpaces's forSearch branch) specifically for these roles — which is
+            // what makes the @-mention/People search come back empty for guests today. Let it
+            // through for Person/Employee classes only; the actual visibility restriction is
+            // enforced below, on the results, via getGuestVisiblePersonIds.
+            res.add(contact.space.Contacts)
+            continue
+          }
           if (passedDomains.has(domain)) {
             continue
           }
@@ -728,8 +796,41 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       } else {
         newQuery.spaces = allSpaces
       }
+
+      // Drop spaces belonging to a module/application the caller's role has disabled in
+      // Settings → Guest permissions, so a disabled module's cards stop turning up in
+      // search/mention results (previously only the sidebar icon and writes were gated).
+      const disabledSpaceClasses = await getDisabledModuleSpaceClasses(this.next, ctx, account)
+      if (disabledSpaceClasses.size > 0 && newQuery.spaces !== undefined) {
+        const disabledSpaceIds = new Set<Ref<Space>>()
+        for (const space of this.spacesMap.values()) {
+          for (const spaceClass of disabledSpaceClasses) {
+            if (this.context.hierarchy.isDerived(space._class, spaceClass)) {
+              disabledSpaceIds.add(space._id)
+              break
+            }
+          }
+        }
+        if (disabledSpaceIds.size > 0) {
+          newQuery.spaces = newQuery.spaces.filter((s) => !disabledSpaceIds.has(s))
+        }
+      }
     }
     const result = await this.provideSearchFulltext(ctx, newQuery, options)
+    if (personRestricted && personClassesSearched && !isSystem(account, ctx)) {
+      const allowedPersonIds = await getGuestVisiblePersonIds(
+        this.next,
+        ctx,
+        account,
+        this.allowedSpaces,
+        this.spacesMap
+      )
+      result.docs = result.docs.filter(
+        (d) =>
+          !this.context.hierarchy.isDerived(d.doc._class, contact.class.Person) ||
+          allowedPersonIds.has(d.doc._id as Ref<Person>)
+      )
+    }
     return result
   }
 
