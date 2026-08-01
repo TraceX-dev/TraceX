@@ -667,8 +667,19 @@ function getTxObjectSpace (tx: TxCUD<Doc>): Ref<Space> | undefined {
   )
 }
 
-function getTxCreateAttributes (tx: TxCreateDoc<Doc>): Record<string, unknown> {
-  return (tx as unknown as { attributes?: Record<string, unknown> }).attributes ?? {}
+function getTxCollectionContext (
+  tx: TxCUD<Doc>
+): { attachedTo?: Ref<Doc>, attachedToClass?: Ref<Class<Doc>>, collection?: string } {
+  const collectionTx = tx as unknown as {
+    attachedTo?: Ref<Doc>
+    attachedToClass?: Ref<Class<Doc>>
+    collection?: string
+  }
+  return {
+    attachedTo: collectionTx.attachedTo,
+    attachedToClass: collectionTx.attachedToClass,
+    collection: collectionTx.collection
+  }
 }
 
 async function hasExistingSyncStateForTx (
@@ -685,16 +696,20 @@ async function hasExistingSyncStateForTx (
 
   if (tx.objectClass !== chunter.class.ChatMessage || !isTxCreateDoc(tx)) return false
 
-  const attrs = getTxCreateAttributes(tx)
-  const attachedTo = attrs.attachedTo as Ref<Doc> | undefined
-  const attachedToClass = attrs.attachedToClass as Ref<Class<Doc>> | undefined
-  if (attachedTo === undefined || attachedToClass === undefined) return false
+  const collectionContext = getTxCollectionContext(tx)
+  if (
+    collectionContext.collection !== 'messages' ||
+    collectionContext.attachedTo === undefined ||
+    collectionContext.attachedToClass === undefined
+  ) {
+    return false
+  }
 
   return (
     (await client.findOne(githubNext.class.GithubNextObjectSyncState, {
       integration: workspaceIntegration._id,
-      targetClass: attachedToClass,
-      targetId: attachedTo
+      targetClass: collectionContext.attachedToClass,
+      targetId: collectionContext.attachedTo
     })) !== undefined
   )
 }
