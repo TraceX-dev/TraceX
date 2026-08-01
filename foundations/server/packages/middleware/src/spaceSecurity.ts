@@ -60,10 +60,12 @@ import {
 import contact, { type Person } from '@hcengineering/contact'
 import {
   applyGuestSensitiveClassRestriction,
+  excludeSpacesFromQuery,
   getDisabledModuleSpaceClasses,
   getGuestVisiblePersonIds,
   hasNarrowIdQuery,
   isGuestVisibilityRestrictedRole,
+  resolveDisabledModuleSpaceIds,
   type SpaceWithMembers
 } from './guestVisibility'
 import { isOwner, isSystem } from './utils'
@@ -732,6 +734,39 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       }
     }
 
+    // A whole application/module can be turned off per role in Settings → Guest permissions
+    // (`ModulePermissionGroup.enabled`). That used to only hide the sidebar icon, gate writes, and
+    // (searchFulltext below) exclude the module from @-mention/search results — plain `findAll`
+    // reads (e.g. opening a card by direct navigation) were untouched, so a guest who still
+    // happened to be a member of the module's space (e.g. via auto-join) could still read its
+    // documents. Excluding the module's spaces from the space field here closes that gap for both
+    // `core.class.Space`-derived classes (field `_id`) and ordinary content classes (field
+    // `space`/`objectSpace`) — unlike the Person/sensitive-class restrictions above, this is a
+    // blanket exclusion with no known-ref bypass: a disabled module means no read access to it.
+    if (!isSystem(account, ctx) && isGuestVisibilityRestrictedRole(account.role) && domain !== DOMAIN_MODEL) {
+      const disabledSpaceClasses = await getDisabledModuleSpaceClasses(this.next, ctx, account)
+      const disabledSpaceIds = resolveDisabledModuleSpaceIds(
+        this.context.hierarchy,
+        disabledSpaceClasses,
+        this.spacesMap
+      )
+      if (disabledSpaceIds.size > 0) {
+        const current = (baseQuery as Record<string, any>)[field]
+        const excluded = excludeSpacesFromQuery(current, disabledSpaceIds)
+        if ('deny' in excluded) {
+          return toFindResult([], 0)
+        }
+        const updatedQuery: DocumentQuery<T> = { ...baseQuery }
+        if (excluded.query === undefined) {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete (updatedQuery as Record<string, any>)[field]
+        } else {
+          ;(updatedQuery as Record<string, any>)[field] = excluded.query
+        }
+        baseQuery = updatedQuery
+      }
+    }
+
     let findResult = await this.provideFindAll(ctx, _class, baseQuery, options)
     if (clientFilterSpaces !== undefined) {
       const cfs = clientFilterSpaces
@@ -801,19 +836,13 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       // Settings → Guest permissions, so a disabled module's cards stop turning up in
       // search/mention results (previously only the sidebar icon and writes were gated).
       const disabledSpaceClasses = await getDisabledModuleSpaceClasses(this.next, ctx, account)
-      if (disabledSpaceClasses.size > 0 && newQuery.spaces !== undefined) {
-        const disabledSpaceIds = new Set<Ref<Space>>()
-        for (const space of this.spacesMap.values()) {
-          for (const spaceClass of disabledSpaceClasses) {
-            if (this.context.hierarchy.isDerived(space._class, spaceClass)) {
-              disabledSpaceIds.add(space._id)
-              break
-            }
-          }
-        }
-        if (disabledSpaceIds.size > 0) {
-          newQuery.spaces = newQuery.spaces.filter((s) => !disabledSpaceIds.has(s))
-        }
+      const disabledSpaceIds = resolveDisabledModuleSpaceIds(
+        this.context.hierarchy,
+        disabledSpaceClasses,
+        this.spacesMap
+      )
+      if (disabledSpaceIds.size > 0 && newQuery.spaces !== undefined) {
+        newQuery.spaces = newQuery.spaces.filter((s) => !disabledSpaceIds.has(s))
       }
     }
     const result = await this.provideSearchFulltext(ctx, newQuery, options)

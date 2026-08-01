@@ -158,6 +158,53 @@ export async function getDisabledModuleSpaceClasses (
   return classes
 }
 
+/** Resolves `getDisabledModuleSpaceClasses`'s class refs into concrete space ids, using the
+ * space-membership tracking state (`spacesMap`) `SpaceSecurityMiddleware` already maintains. */
+export function resolveDisabledModuleSpaceIds (
+  hierarchy: Hierarchy,
+  disabledClasses: Set<Ref<Class<Space>>>,
+  spacesMap: Map<Ref<Space>, SpaceWithMembers>
+): Set<Ref<Space>> {
+  const ids = new Set<Ref<Space>>()
+  if (disabledClasses.size === 0) return ids
+  for (const space of spacesMap.values()) {
+    for (const spaceClass of disabledClasses) {
+      if (hierarchy.isDerived(space._class, spaceClass)) {
+        ids.add(space._id)
+        break
+      }
+    }
+  }
+  return ids
+}
+
+/**
+ * Excludes `excluded` space ids from a space-field query condition (the `space` / `objectSpace` /
+ * `_id` field `SpaceSecurityMiddleware.findAll` narrows queries to, depending on domain), whatever
+ * shape it is already in (`undefined`, a bare ref, or an object with `$in`/`$nin`/other
+ * operators). Returns `{ deny: true }` when the exclusion would leave no space eligible at all.
+ */
+export function excludeSpacesFromQuery (
+  current: Record<string, any> | Ref<Space> | undefined,
+  excluded: Set<Ref<Space>>
+): { query: Record<string, any> | Ref<Space> | undefined } | { deny: true } {
+  if (excluded.size === 0) return { query: current }
+  if (current === undefined) {
+    return { query: { $nin: Array.from(excluded) } }
+  }
+  if (typeof current === 'string') {
+    return excluded.has(current) ? { deny: true } : { query: current }
+  }
+  if (Array.isArray(current.$in)) {
+    const filtered = (current.$in as Ref<Space>[]).filter((id) => !excluded.has(id))
+    if (filtered.length === 0) return { deny: true }
+    return { query: { ...current, $in: filtered } }
+  }
+  const existingNin = new Set<Ref<Space>>((current.$nin as Ref<Space>[] | undefined) ?? [])
+  for (const id of excluded) existingNin.add(id)
+  return { query: { ...current, $nin: Array.from(existingNin) } }
+}
+
 /**
  * `Ref<Doc>`s of every object the account has an existing `Collaborator` record for - used both
  * to scope Collaborator-record browsing to the caller's own grants, and to resolve which
