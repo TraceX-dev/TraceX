@@ -11,6 +11,8 @@
     "MasterTag": "Tipo",
     "MasterTags": "Tipos",
     "Parent": "Principal",
+    "ChangeTagParent": "Alterar etiqueta principal",
+    "ChangeTagParentBlocked": "Não é possível mover uma etiqueta atribuída a cartões ou cujos descendentes estejam atribuídos a cartões.",
     "Tags": "Tags",
     "Tag": "Tag",
     "AddTag": "Adicionar Tag",

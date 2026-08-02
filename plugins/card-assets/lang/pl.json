@@ -11,6 +11,8 @@
     "MasterTag": "Typ",
     "MasterTags": "Typy",
     "Parent": "Karta nadrzędna",
+    "ChangeTagParent": "Zmień tag nadrzędny",
+    "ChangeTagParentBlocked": "Nie można przenieść tagu przypisanego do kart ani tagu, którego potomkowie są przypisani do kart.",
     "Tags": "Etykiety",
     "Tag": "Etykieta",
     "AddTag": "Dodaj etykietę",

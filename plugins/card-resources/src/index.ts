@@ -58,6 +58,7 @@ import ProperitiesSection from './components/settings/ProperitiesSection.svelte'
 import TagsSection from './components/settings/TagsSection.svelte'
 import RelationsSection from './components/settings/RelationsSection.svelte'
 import ChildsSection from './components/settings/ChildsSection.svelte'
+import ChangeTagParentPopup from './components/settings/ChangeTagParentPopup.svelte'
 import SetParentActionPopup from './components/SetParentActionPopup.svelte'
 import RelationSetting from './components/settings/RelationSetting.svelte'
 import ViewsSection from './components/settings/view/ViewsSection.svelte'
@@ -125,6 +126,7 @@ export default async (): Promise<Resources> => ({
     TagsSection,
     RelationsSection,
     ChildsSection,
+    ChangeTagParentPopup,
     SetParentActionPopup,
     RelationSetting,
     ViewsSection,

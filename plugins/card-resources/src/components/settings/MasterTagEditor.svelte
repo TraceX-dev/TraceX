@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,12 +27,14 @@
     secondNavSeparators
   } from '@hcengineering/ui'
   import card from '../../plugin'
+  import { createEventDispatcher } from 'svelte'
 
   export let masterTag: MasterTag
   export let visibleSecondNav: boolean = true
   export let readonly: boolean = true
 
   const client = getClient()
+  const dispatch = createEventDispatcher()
 
   $: isMasterTag = masterTag._class === card.class.MasterTag
   $: sections = client
@@ -74,6 +77,7 @@
               props={{
                 masterTag
               }}
+              on:change={() => dispatch('change')}
             />
           </div>
         {/each}

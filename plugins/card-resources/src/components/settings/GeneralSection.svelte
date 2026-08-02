@@ -14,13 +14,14 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { MasterTag } from '@hcengineering/card'
-  import core from '@hcengineering/core'
+  import { type Card, MasterTag } from '@hcengineering/card'
+  import core, { type Class, type Ref } from '@hcengineering/core'
   import { TypeNumber } from '@hcengineering/model'
   import { getEmbeddedLabel, translateCB } from '@hcengineering/platform'
   import { getClient, IconDownload, IconWithEmoji, MessageBox } from '@hcengineering/presentation'
   import setting from '@hcengineering/setting'
   import {
+    Button,
     ButtonIcon,
     type ColorDefinition,
     eventToHTMLElement,
@@ -38,10 +39,11 @@
   } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { ColorsPopup, IconPicker } from '@hcengineering/view-resources'
-  import { onDestroy, onMount } from 'svelte'
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import { exportModule } from '../../exporter'
   import card from '../../plugin'
   import { deleteMasterTag } from '../../utils'
+  import ChangeTagParentPopup from './ChangeTagParentPopup.svelte'
   import VersioningSetting from './VersioningSetting.svelte'
   import DuplicateSetting from './DuplicateSetting.svelte'
 
@@ -63,6 +65,10 @@
   }
 
   const client = getClient()
+  const h = client.getHierarchy()
+  const dispatch = createEventDispatcher()
+  let canChangeTagParent = false
+  let parentChangeAvailabilitySource = ''
 
   async function attributeUpdated<T extends keyof MasterTag> (field: T, value: MasterTag[T]): Promise<void> {
     if (masterTag === undefined || masterTag[field] === value) {
@@ -113,8 +119,37 @@
     )
   }
 
-  const h = client.getHierarchy()
   $: isEditable = h.hasMixin(masterTag, setting.mixin.Editable) && h.as(masterTag, setting.mixin.Editable).value
+
+  $: void updateParentChangeAvailability(masterTag)
+
+  async function canChangeParent (tag: MasterTag): Promise<boolean> {
+    if (tag._class !== card.class.Tag) return false
+    const cards = await client.findAll<Card>(tag._id as Ref<Class<Card>>, {}, { limit: 1 })
+    return cards.length === 0
+  }
+
+  async function updateParentChangeAvailability (tag: MasterTag): Promise<void> {
+    const source = `${tag._id}:${tag._class}`
+    parentChangeAvailabilitySource = source
+    canChangeTagParent = false
+    const canChange = await canChangeParent(tag)
+    if (parentChangeAvailabilitySource === source) {
+      canChangeTagParent = canChange
+    }
+  }
+
+  async function openChangeTagParentPopup (): Promise<void> {
+    if (!(await canChangeParent(masterTag))) {
+      canChangeTagParent = false
+      return
+    }
+    showPopup(ChangeTagParentPopup, { tag: masterTag }, undefined, (result) => {
+      if (result?.changed === true) {
+        dispatch('change')
+      }
+    })
+  }
 
   const showColorPopup = (evt: MouseEvent): void => {
     showPopup(
@@ -251,6 +286,16 @@
     {/if}
   </div>
   <div class="settings-list">
+    {#if masterTag._class === card.class.Tag}
+      <div class="settings-row">
+        <Label label={card.string.Parent} />
+        <Button
+          label={card.string.ChangeTagParent}
+          disabled={!canChangeTagParent}
+          on:click={openChangeTagParentPopup}
+        />
+      </div>
+    {/if}
     <div class="description-field">
       <Label label={core.string.Description} />
       <TextArea

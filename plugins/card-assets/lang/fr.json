@@ -11,6 +11,8 @@
     "MasterTag": "Type",
     "MasterTags": "Types",
     "Parent": "Parent",
+    "ChangeTagParent": "Modifier le tag parent",
+    "ChangeTagParentBlocked": "Un tag attribué à des cartes, ou dont des descendants sont attribués à des cartes, ne peut pas être déplacé.",
     "Tags": "Étiquettes",
     "Tag": "Étiquette",
     "AddTag": "Ajouter une étiquette",
