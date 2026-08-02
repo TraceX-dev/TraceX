@@ -175,7 +175,8 @@ export function isGuest (account: AccountUuid, extra: Record<string, any> | unde
 
 export function wrap (
   accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>,
-  allowApiKey: boolean = false
+  allowApiKey: boolean = false,
+  noAuth: boolean = false
 ): AccountMethodHandler {
   return async function (
     ctx: MeasureContext,
@@ -186,7 +187,10 @@ export function wrap (
     meta?: Meta
   ): Promise<any> {
     const invoke = async (): Promise<any> => {
-      if (token !== undefined && !allowApiKey) {
+      // Public/unauthenticated methods (login, signup, otp, etc.) must not fail because a stale
+      // or invalid token happened to be attached to the request (e.g. via a leftover cookie) -
+      // these methods don't require a token at all, so skip verification for them here.
+      if (token !== undefined && !allowApiKey && !noAuth) {
         const { extra } = decodeTokenVerbose(ctx, token)
         if (extra?.apiKey != null) {
           throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))

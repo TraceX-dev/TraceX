@@ -27,7 +27,7 @@ import {
   systemAccountUuid
 } from '@hcengineering/core'
 import platform, { PlatformError, Status, Severity, getMetadata } from '@hcengineering/platform'
-import { decodeToken, decodeTokenVerbose } from '@hcengineering/server-token'
+import { decodeToken, decodeTokenVerbose, TokenError } from '@hcengineering/server-token'
 
 import * as utils from '../utils'
 import { type AccountDB, type SocialId } from '../types'
@@ -57,7 +57,8 @@ import {
   leaveWorkspace,
   checkJoin,
   mergeSpecifiedPersons,
-  canMergeSpecifiedPersons
+  canMergeSpecifiedPersons,
+  getMethods
 } from '../operations'
 import { accountPlugin } from '../plugin'
 
@@ -74,6 +75,7 @@ jest.mock('@hcengineering/platform', () => {
 
 // Mock server-token
 jest.mock('@hcengineering/server-token', () => ({
+  TokenError: jest.requireActual('@hcengineering/server-token').TokenError,
   decodeTokenVerbose: jest.fn(),
   decodeToken: jest.fn(),
   generateToken: jest.fn().mockImplementation((account, workspace, extra, _, options) => {
@@ -1596,6 +1598,71 @@ describe('account operations', () => {
         await expect(loginAsGuest(mockCtx, mockDb, mockBranding, mockToken)).rejects.toThrow(
           new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
         )
+      })
+    })
+
+    // Regression coverage for a bug where a stale/invalid token attached to the request (e.g. a
+    // leftover cookie in the browser) made public/unauthenticated endpoints fail with Unauthorized,
+    // even though these methods never read the token at all. See wrap()'s `noAuth` param.
+    describe('public endpoints must ignore a stale/invalid token', () => {
+      const publicMethods: Array<[string, string]> = [
+        ['login', 'login'],
+        ['loginOtp', 'loginOtp'],
+        ['loginAsGuest', 'loginAsGuest'],
+        ['signUp', 'signUp'],
+        ['signUpOtp', 'signUpOtp'],
+        ['validateOtp', 'validateOtp']
+      ]
+
+      beforeEach(() => {
+        jest.clearAllMocks()
+        // Simulate exactly the production bug: any token verification attempt fails.
+        ;(decodeTokenVerbose as jest.Mock).mockImplementation(() => {
+          throw new TokenError('Signature verification failed')
+        })
+      })
+
+      test.each(publicMethods)('%s is registered with wrap(..., noAuth: true)', (_label, methodName) => {
+        const wrapSpy = jest.spyOn(utils, 'wrap')
+
+        getMethods(true)
+
+        const call = wrapSpy.mock.calls.find((args) => (args[0] as { name: string }).name === methodName)
+
+        expect(call).toBeDefined()
+        expect(call?.[2]).toBe(true) // noAuth
+
+        wrapSpy.mockRestore()
+      })
+
+      test('loginOtp succeeds with a stale/invalid token instead of returning Unauthorized', async () => {
+        const mockEmail = 'test@example.com'
+        const mockAccountId = 'account-uuid' as AccountUuid
+        const mockSocialId: SocialId = {
+          _id: 'social-id' as PersonId,
+          personUuid: mockAccountId,
+          type: SocialIdType.EMAIL,
+          value: mockEmail,
+          key: `email:${mockEmail}`
+        }
+        const mockOtpInfo = { email: mockEmail, sent: true, retryOn: Date.now() }
+
+        jest.spyOn(utils, 'cleanEmail').mockReturnValue(mockEmail)
+        jest.spyOn(utils, 'getEmailSocialId').mockResolvedValue(mockSocialId)
+        jest.spyOn(utils, 'sendOtp').mockResolvedValue(mockOtpInfo)
+        ;(mockDb.account.findOne as jest.Mock).mockResolvedValue({ uuid: mockAccountId })
+
+        const methods = getMethods(true)
+        const result = await methods.loginOtp?.(
+          mockCtx,
+          mockDb,
+          mockBranding,
+          { id: 'req1', params: { email: mockEmail } },
+          'stale-invalid-token'
+        )
+
+        expect(result).toEqual({ id: 'req1', result: mockOtpInfo })
+        expect(decodeTokenVerbose).not.toHaveBeenCalled()
       })
     })
   })
