@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -90,6 +91,10 @@ const DOMAIN_PROCESS_LOG = 'process-log' as Domain
 export class TProcess extends TDoc implements Process {
   @Prop(TypeString(), core.string.Name)
     name!: string
+
+  @Prop(TypeRank(), core.string.Rank)
+  @Hidden()
+    rank!: Rank
 
   @Prop(TypeString(), core.string.Description)
     description!: string

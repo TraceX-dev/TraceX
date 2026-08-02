@@ -44,6 +44,7 @@ describe('Process Export/Import Integration', () => {
       process.class.Process,
       {
         masterTag,
+        rank: '0',
         name: 'Integration Process',
         context: {
           __CONTEXT_0__: {

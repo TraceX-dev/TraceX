@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -46,6 +47,11 @@ export const processOperation: MigrateOperation = {
         state: 'fillStatesRanks',
         mode: 'upgrade',
         func: fillStatesRanks
+      },
+      {
+        state: 'fillProcessRanks',
+        mode: 'upgrade',
+        func: fillProcessRanks
       }
     ])
   }
@@ -69,6 +75,18 @@ async function fillStatesRanks (client: Client): Promise<void> {
   for (const transition of transitions) {
     prevRank = makeRank(prevRank, undefined)
     await txOp.update(transition, { rank: prevRank })
+  }
+}
+
+async function fillProcessRanks (client: Client): Promise<void> {
+  const txOp = new TxOperations(client, core.account.System)
+  const processes = await client.findAll(process.class.Process, { rank: { $exists: false } })
+  const ranksByMasterTag = new Map<string, Rank>()
+
+  for (const item of processes) {
+    const rank = makeRank(ranksByMasterTag.get(item.masterTag), undefined)
+    ranksByMasterTag.set(item.masterTag, rank)
+    await txOp.update(item, { rank })
   }
 }
 
