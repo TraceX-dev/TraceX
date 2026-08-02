@@ -193,7 +193,7 @@ Document content in Markdown...
 ### Run Import Tool
 ```bash
 docker run \
-  -e FRONT_URL="https://huly.app" \
+  -e FRONT_URL="https://app.tracex.co" \
   -v /path/to/workspace:/data \
   tracexapp/import-tool:latest \
   -- bundle.js import /data \
