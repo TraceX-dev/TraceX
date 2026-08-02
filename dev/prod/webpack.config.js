@@ -102,24 +102,24 @@ const devProxyTest = {
 
 const devHulyProxy = {
   '/account': {
-    target: 'https://account.huly.app/',
+    target: 'https://account.app.tracex.co/',
     changeOrigin: true,
     pathRewrite: { '^/account': '' },
     logLevel: 'debug'
   },
   '/api/v1': {
-    target: 'http://huly.app',
+    target: 'http://app.tracex.co',
     changeOrigin: true,
     logLevel: 'debug'
   },
   '/files': {
-    target: 'https://huly.app/files',
+    target: 'https://app.tracex.co/files',
     changeOrigin: true,
     pathRewrite: { '^/files': '' },
     logLevel: 'debug'
   },
   '/rekoni/recognize': {
-    target: 'https://rekoni.huly.app',
+    target: 'https://rekoni.app.tracex.co',
     changeOrigin: true,
     pathRewrite: { '^/rekoni/recognize': '/recognize' },
     logLevel: 'debug'

@@ -14,7 +14,7 @@
     "headers": [
       [
         "Received",
-        " from mail-nwsmtp-mxback-production-main-38.iva.yp-c.yandex.net (mail-nwsmtp-mxback-production-main-38.iva.yp-c.yandex.net [IPv6:2a02:6b8:c0c:1724:0:640:dee6:0])\r\n\tby forward500b.mail.yandex.net (Yandex) with ESMTPS id 65A23611AA\r\n\tfor <artyom@huly.app>; Tue,  3 Jun 2025 06:35:44 +0300 (MSK)\r\n"
+        " from mail-nwsmtp-mxback-production-main-38.iva.yp-c.yandex.net (mail-nwsmtp-mxback-production-main-38.iva.yp-c.yandex.net [IPv6:2a02:6b8:c0c:1724:0:640:dee6:0])\r\n\tby forward500b.mail.yandex.net (Yandex) with ESMTPS id 65A23611AA\r\n\tfor <artyom@app.tracex.co>; Tue,  3 Jun 2025 06:35:44 +0300 (MSK)\r\n"
       ],
       [
         "Received",

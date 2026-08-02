@@ -54,7 +54,7 @@ describe('StripeProvider', () => {
   })
 
   test('createSubscription removes trailing slash from frontUrl to avoid double slashes in URLs', async () => {
-    const frontUrlWithTrailingSlash = 'https://huly.app/'
+    const frontUrlWithTrailingSlash = 'https://app.tracex.co/'
     const provider = new StripeProvider(
       apiKey,
       webhookSecret,
@@ -88,15 +88,15 @@ describe('StripeProvider', () => {
     const cancelUrl = (stripeClient.createCheckout as jest.Mock).mock.calls[0][1].cancelUrl
 
     expect(successUrl).toBe(
-      'https://huly.app/workbench/tup/setting/setting/billing/subscriptions?payment=success&checkout_id={CHECKOUT_SESSION_ID}'
+      'https://app.tracex.co/workbench/tup/setting/setting/billing/subscriptions?payment=success&checkout_id={CHECKOUT_SESSION_ID}'
     )
-    expect(cancelUrl).toBe('https://huly.app/workbench/tup/setting/setting/billing/subscriptions?payment=canceled')
+    expect(cancelUrl).toBe('https://app.tracex.co/workbench/tup/setting/setting/billing/subscriptions?payment=canceled')
     expect(successUrl).not.toContain('//workbench')
     expect(cancelUrl).not.toContain('//workbench')
   })
 
   test('createSubscription strips multiple trailing slashes from frontUrl', async () => {
-    const frontUrlWithMultipleSlashes = 'https://huly.app///'
+    const frontUrlWithMultipleSlashes = 'https://app.tracex.co///'
     const provider = new StripeProvider(
       apiKey,
       webhookSecret,
@@ -128,7 +128,7 @@ describe('StripeProvider', () => {
 
     const successUrl = (stripeClient.createCheckout as jest.Mock).mock.calls[0][1].successUrl
     expect(successUrl).toBe(
-      'https://huly.app/workbench/ws1/setting/setting/billing/subscriptions?payment=success&checkout_id={CHECKOUT_SESSION_ID}'
+      'https://app.tracex.co/workbench/ws1/setting/setting/billing/subscriptions?payment=success&checkout_id={CHECKOUT_SESSION_ID}'
     )
   })
 

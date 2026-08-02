@@ -13,7 +13,7 @@
 #### Option 1: Import with Original Teamspace Structure
 ```
 docker run \
-  -e FRONT_URL="https://huly.app" \
+  -e FRONT_URL="https://app.tracex.co" \
   -v /path/to/export:/data \
   tracexapp/import-tool:latest \
   -- bundle.js import-notion-with-teamspaces /data \
@@ -24,7 +24,7 @@ docker run \
 #### Option 2: Import to Single Teamspace
 ```
 docker run \
-  -e FRONT_URL="https://huly.app" \
+  -e FRONT_URL="https://app.tracex.co" \
   -v /path/to/export:/data \
   tracexapp/import-tool:latest \
   -- bundle.js import-notion-to-teamspace /data \
