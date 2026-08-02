@@ -19336,9 +19336,6 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
-      '@hcengineering/export':
-        specifier: workspace:^0.7.0
-        version: link:../export
       '@hcengineering/login':
         specifier: workspace:^0.7.0
         version: link:../login
@@ -21215,6 +21212,12 @@ importers:
 
   ../../plugins/export-resources:
     dependencies:
+      '@hcengineering/attachment':
+        specifier: workspace:^0.7.0
+        version: link:../attachment
+      '@hcengineering/collaborator-client':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/core/packages/collaborator-client
       '@hcengineering/converter':
         specifier: workspace:^0.7.0
         version: link:../converter
@@ -21239,6 +21242,12 @@ importers:
       '@hcengineering/presentation':
         specifier: workspace:^0.7.0
         version: link:../../packages/presentation
+      '@hcengineering/text':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/text
+      '@hcengineering/text-editor-resources':
+        specifier: workspace:^0.7.0
+        version: link:../text-editor-resources
       '@hcengineering/theme':
         specifier: workspace:^0.7.0
         version: link:../../packages/theme

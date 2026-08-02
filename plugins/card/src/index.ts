@@ -44,7 +44,9 @@ export interface MasterTag extends Class<Card> {
   baseType?: boolean
 }
 
-export interface Tag extends MasterTag, Mixin<Card> {}
+export interface Tag extends MasterTag, Mixin<Card> {
+  rank?: Rank
+}
 
 export interface Role extends BaseRole {
   types: Ref<MasterTag | Tag>[]

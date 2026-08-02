@@ -11,6 +11,8 @@
     "MasterTag": "Type",
     "MasterTags": "Types",
     "Parent": "Parent",
+    "ChangeTagParent": "Change tag parent",
+    "ChangeTagParentBlocked": "A tag that is assigned to cards, or has descendants assigned to cards, cannot be moved.",
     "Tags": "Tags",
     "Tag": "Tag",
     "AddTag": "Add Tag",

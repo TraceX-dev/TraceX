@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -38,6 +39,8 @@
   let masterTag: MasterTag | undefined
   let visibleSecondNav: boolean = true
   let selectedTagId: Ref<MasterTag> | undefined
+  let editorRefreshVersion = 0
+  let items: BreadcrumbItem[] = []
 
   function handleLocationChanged ({ path }: Location): void {
     if (path[3] !== 'types' || path[4] === undefined) {
@@ -109,6 +112,11 @@
 
   $: items = getBreadcrumbs(masterTag?._id, subEditorParamas)
 
+  function refreshEditor (): void {
+    editorRefreshVersion += 1
+    items = getBreadcrumbs(masterTag?._id, subEditorParamas)
+  }
+
   onMount(() => {
     setTimeout(() => {
       if (masterTag === undefined) $deviceInfo.navigator.visible = true
@@ -145,8 +153,8 @@
       <Breadcrumbs {items} selected={items.length - 1} size={'large'} on:select={handleSelect} />
     </Header>
     {#if subEditor === undefined}
-      {#key masterTag._id}
-        <MasterTagEditor {masterTag} {visibleSecondNav} on:change />
+      {#key `${masterTag._id}:${editorRefreshVersion}`}
+        <MasterTagEditor {masterTag} {visibleSecondNav} on:change={refreshEditor} />
       {/key}
     {:else}
       <svelte:component

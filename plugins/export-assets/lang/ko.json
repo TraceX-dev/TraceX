@@ -59,6 +59,19 @@
     "ExportMarkdown": "Markdown",
     "ExportScopeSelected": "선택한 항목 ({count})",
     "ExportScopeLoaded": "이 페이지에 불러온 항목 ({count})",
-    "ExportFileName": "파일 이름"
+    "ExportFileName": "파일 이름",
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "콘텐츠 내보내기",
+    "ImportDocumentContent": "콘텐츠 가져오기",
+    "ExportingDocumentContent": "문서 내보내는 중…",
+    "DocumentContentExported": "문서 내보내기 완료",
+    "DocumentContentExportFailed": "내보내기 실패",
+    "ImportingDocumentContent": "문서 가져오는 중",
+    "ConvertingDocumentContent": "문서 변환 중…",
+    "DocumentContentConverted": "문서 변환 완료",
+    "DocumentContentImportFailed": "가져오기 실패",
+    "ReviewDocumentContentChanges": "가져온 변경사항 검토",
+    "ApplyDocumentContentChanges": "적용"
   }
 }

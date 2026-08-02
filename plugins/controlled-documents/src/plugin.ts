@@ -108,9 +108,7 @@ export const documentsPlugin = plugin(documentsId, {
     DocumentVersionPresenter: '' as AnyComponent,
     DeleteCategoryPopup: '' as AnyComponent,
     DocumentIcon: '' as AnyComponent,
-    CreateFolder: '' as AnyComponent,
-    ExportFormatPopup: '' as AnyComponent,
-    ImportFormatPopup: '' as AnyComponent
+    CreateFolder: '' as AnyComponent
   },
   action: {
     ChangeDocumentOwner: '' as Ref<Action<Doc, any>>,

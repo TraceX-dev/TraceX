@@ -745,6 +745,65 @@ describe('account utils', () => {
         { timezone: mockTimezone }
       )
     })
+
+    describe('noAuth methods (public endpoints, e.g. login/loginOtp/signUp/validateOtp)', () => {
+      test('should not verify the token at all when noAuth is true', async () => {
+        const mockResult = { data: 'test' }
+        const mockMethod = jest.fn().mockResolvedValue(mockResult)
+        const wrappedMethod = wrap(mockMethod, false, true)
+        const request = { id: 'req1', params: { email: 'test@example.com' } }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'some-token')
+
+        expect(result).toEqual({ id: 'req1', result: mockResult })
+        expect(decodeTokenVerbose).not.toHaveBeenCalled()
+        // the (unverified) token must still be forwarded to the handler, since e.g. validateOtp's
+        // 'verify' action needs to decode it itself
+        expect(mockMethod).toHaveBeenCalledWith(
+          mockCtx,
+          mockDb,
+          mockBranding,
+          'some-token',
+          { email: 'test@example.com' },
+          undefined
+        )
+      })
+
+      test('should still succeed when a stale/invalid token is attached and noAuth is true', async () => {
+        // Regression test: a stale cookie token used to make wrap() throw Unauthorized for public
+        // methods like loginOtp/login/signUp/validateOtp even though those methods never read the
+        // token themselves. With noAuth: true, wrap() must skip verification entirely.
+        ;(decodeTokenVerbose as jest.Mock).mockImplementation(() => {
+          throw new TokenError('Signature verification failed')
+        })
+
+        const mockResult = { sent: true }
+        const mockMethod = jest.fn().mockResolvedValue(mockResult)
+        const wrappedMethod = wrap(mockMethod, false, true)
+        const request = { id: 'req1', params: { email: 'test@example.com' } }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'stale-invalid-token')
+
+        expect(result).toEqual({ id: 'req1', result: mockResult })
+      })
+
+      test('should still reject with Unauthorized on a bad token when noAuth is false (default)', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockImplementation(() => {
+          throw new TokenError('Signature verification failed')
+        })
+
+        const mockMethod = jest.fn().mockResolvedValue({ data: 'test' })
+        const wrappedMethod = wrap(mockMethod)
+        const request = { id: 'req1', params: {} }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'stale-invalid-token')
+
+        expect(result).toEqual({
+          error: new Status(Severity.ERROR, platform.status.Unauthorized, {})
+        })
+        expect(mockMethod).not.toHaveBeenCalled()
+      })
+    })
   })
 
   describe('with mocked fetch', () => {

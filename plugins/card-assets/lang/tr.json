@@ -11,6 +11,8 @@
     "MasterTag": "Tip",
     "MasterTags": "Tipler",
     "Parent": "Üst",
+    "ChangeTagParent": "Üst etiketi değiştir",
+    "ChangeTagParentBlocked": "Kartlara atanmış veya alt etiketleri kartlara atanmış bir etiket taşınamaz.",
     "Tags": "Etiketler",
     "Tag": "Etiket",
     "AddTag": "Etiket Ekle",

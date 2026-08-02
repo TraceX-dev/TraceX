@@ -11,6 +11,8 @@
     "MasterTag": "Typ",
     "MasterTags": "Typy",
     "Parent": "Nadřazený",
+    "ChangeTagParent": "Změnit nadřazený štítek",
+    "ChangeTagParentBlocked": "Štítek přiřazený ke kartám nebo štítek, jehož potomci jsou přiřazeni ke kartám, nelze přesunout.",
     "Tags": "Štítky",
     "Tag": "Štítek",
     "AddTag": "Přidat štítek",
