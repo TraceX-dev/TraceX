@@ -667,9 +667,11 @@ function getTxObjectSpace (tx: TxCUD<Doc>): Ref<Space> | undefined {
   )
 }
 
-function getTxCollectionContext (
-  tx: TxCUD<Doc>
-): { attachedTo?: Ref<Doc>, attachedToClass?: Ref<Class<Doc>>, collection?: string } {
+function getTxCollectionContext (tx: TxCUD<Doc>): {
+  attachedTo?: Ref<Doc>
+  attachedToClass?: Ref<Class<Doc>>
+  collection?: string
+} {
   const collectionTx = tx as unknown as {
     attachedTo?: Ref<Doc>
     attachedToClass?: Ref<Class<Doc>>
