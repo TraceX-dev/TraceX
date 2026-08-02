@@ -11,6 +11,8 @@
         "MasterTag": "유형",
         "MasterTags": "유형",
         "Parent": "상위 카드",
+        "ChangeTagParent": "상위 태그 변경",
+        "ChangeTagParentBlocked": "카드에 할당되었거나 하위 태그가 카드에 할당된 태그는 이동할 수 없습니다.",
         "Tags": "태그",
         "Tag": "태그",
         "AddTag": "태그 추가",

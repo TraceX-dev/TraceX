@@ -11,6 +11,8 @@
     "MasterTag": "Typ",
     "MasterTags": "Typen",
     "Parent": "Eltern",
+    "ChangeTagParent": "Übergeordneten Tag ändern",
+    "ChangeTagParentBlocked": "Ein Tag, der Karten zugewiesen ist oder dessen Untertags Karten zugewiesen sind, kann nicht verschoben werden.",
     "Tags": "Tags",
     "Tag": "Tag",
     "AddTag": "Tag hinzufügen",

@@ -11,6 +11,8 @@
     "MasterTag": "Tipo",
     "MasterTags": "Tipi",
     "Parent": "Genitore",
+    "ChangeTagParent": "Cambia tag padre",
+    "ChangeTagParentBlocked": "Non è possibile spostare un tag assegnato a delle schede o con discendenti assegnati a delle schede.",
     "Tags": "Tag",
     "Tag": "Tag",
     "AddTag": "Aggiungi Tag",

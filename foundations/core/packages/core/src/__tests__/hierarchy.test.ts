@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,6 +22,7 @@ import core from '../component'
 import { Hierarchy } from '../hierarchy'
 import * as Proxy from '../proxy'
 import { genMinModel, test } from './minmodel'
+import { getEmbeddedLabel } from '@hcengineering/platform'
 
 const txes = genMinModel()
 
@@ -923,6 +925,42 @@ describe('hierarchy', () => {
 
     const spaceClass = hierarchy.getClass(core.class.Space)
     expect(spaceClass.label).toBe('Updated Space' as any)
+  })
+
+  it('should update the hierarchy when a classifier parent changes', async () => {
+    const hierarchy = prepare()
+    const txFactory = new TxFactory(core.account.System)
+    const parentA = 'class:test.ParentA' as Ref<Class<Obj>>
+    const parentB = 'class:test.ParentB' as Ref<Class<Obj>>
+    const child = 'class:test.Child' as Ref<Class<Obj>>
+    const grandchild = 'class:test.Grandchild' as Ref<Class<Obj>>
+
+    for (const [id, parent] of [
+      [parentA, core.class.Doc],
+      [parentB, core.class.Doc],
+      [child, parentA],
+      [grandchild, child]
+    ] as Array<[Ref<Class<Obj>>, Ref<Class<Obj>>]>) {
+      hierarchy.tx(
+        txFactory.createTxCreateDoc(
+          core.class.Class,
+          core.space.Model,
+          { label: getEmbeddedLabel(id), extends: parent, kind: ClassifierKind.CLASS },
+          id
+        )
+      )
+    }
+
+    hierarchy.tx(txFactory.createTxUpdateDoc(core.class.Class, core.space.Model, child, { extends: parentB }))
+
+    expect(hierarchy.getAncestors(child)).toContain(parentB)
+    expect(hierarchy.getAncestors(child)).not.toContain(parentA)
+    expect(hierarchy.getAncestors(grandchild)).toContain(parentB)
+    expect(hierarchy.getAncestors(grandchild)).not.toContain(parentA)
+    expect(hierarchy.getDescendants(parentA)).not.toContain(child)
+    expect(hierarchy.getDescendants(parentA)).not.toContain(grandchild)
+    expect(hierarchy.getDescendants(parentB)).toContain(child)
+    expect(hierarchy.getDescendants(parentB)).toContain(grandchild)
   })
 
   it('should handle txRemoveDoc with Classifier', async () => {

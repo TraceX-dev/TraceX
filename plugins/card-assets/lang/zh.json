@@ -11,6 +11,8 @@
     "MasterTag": "类型",
     "MasterTags": "类型",
     "Parent": "父级",
+    "ChangeTagParent": "更改父标签",
+    "ChangeTagParentBlocked": "无法移动已分配给卡片的标签，或其后代已分配给卡片的标签。",
     "Tags": "标签",
     "Tag": "标签",
     "AddTag": "添加标签",

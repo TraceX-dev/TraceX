@@ -11,6 +11,8 @@
     "MasterTag": "タイプ",
     "MasterTags": "タイプ",
     "Parent": "親",
+    "ChangeTagParent": "親タグを変更",
+    "ChangeTagParentBlocked": "カードに割り当てられているタグ、またはその子孫がカードに割り当てられているタグは移動できません。",
     "Tags": "タグ",
     "Tag": "タグ",
     "AddTag": "タグを追加",
