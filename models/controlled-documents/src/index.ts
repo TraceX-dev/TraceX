@@ -518,9 +518,9 @@ export function createModel (builder: Builder): void {
     builder,
     {
       action: view.actionImpl.ShowPopup,
-      actionPopup: documents.component.ExportFormatPopup,
+      actionPopup: exportPlugin.component.DocumentExportFormatPopup,
       actionProps: {
-        component: documents.component.ExportFormatPopup,
+        component: exportPlugin.component.DocumentExportFormatPopup,
         element: 'top',
         fillProps: { _object: 'value' }
       },
@@ -538,9 +538,9 @@ export function createModel (builder: Builder): void {
     builder,
     {
       action: view.actionImpl.ShowPopup,
-      actionPopup: documents.component.ImportFormatPopup,
+      actionPopup: exportPlugin.component.DocumentImportFormatPopup,
       actionProps: {
-        component: documents.component.ImportFormatPopup,
+        component: exportPlugin.component.DocumentImportFormatPopup,
         element: 'top',
         fillProps: { _object: 'value' }
       },

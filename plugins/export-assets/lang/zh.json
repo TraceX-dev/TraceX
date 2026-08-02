@@ -59,6 +59,19 @@
     "ExportMarkdown": "Markdown",
     "ExportScopeSelected": "已选 ({count})",
     "ExportScopeLoaded": "本页已加载 ({count})",
-    "ExportFileName": "文件名"
+    "ExportFileName": "文件名",
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "导出内容",
+    "ImportDocumentContent": "导入内容",
+    "ExportingDocumentContent": "正在导出文档…",
+    "DocumentContentExported": "文档已导出",
+    "DocumentContentExportFailed": "导出失败",
+    "ImportingDocumentContent": "正在导入文档",
+    "ConvertingDocumentContent": "正在转换文档…",
+    "DocumentContentConverted": "文档已转换",
+    "DocumentContentImportFailed": "导入失败",
+    "ReviewDocumentContentChanges": "查看导入的更改",
+    "ApplyDocumentContentChanges": "应用"
   }
 }

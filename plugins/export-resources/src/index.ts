@@ -24,6 +24,8 @@ import ExportToWorkspaceModal from './components/ExportToWorkspaceModal.svelte'
 import ExportResultPanel from './components/ExportResultPanel.svelte'
 import ExportTableDialog from './components/ExportTableDialog.svelte'
 import { exportTableAction } from './actionImpl'
+import DocumentExportFormatPopup from './document/components/DocumentExportFormatPopup.svelte'
+import DocumentImportFormatPopup from './document/components/DocumentImportFormatPopup.svelte'
 
 export { default as ExportButton } from './components/ExportButton.svelte'
 export { default as ExportSettings } from './components/ExportSettings.svelte'
@@ -34,6 +36,10 @@ export { exportTableAction } from './actionImpl'
 export { downloadBlob, fileNameFromResponse } from './download'
 export { buildTable, exportTable, type TableExportFormat, type TableExportScope } from './tableExport'
 export * from './serializers'
+export { default as DocumentExportFormatPopup } from './document/components/DocumentExportFormatPopup.svelte'
+export { default as DocumentImportFormatPopup } from './document/components/DocumentImportFormatPopup.svelte'
+export { default as DocumentImportDiffPopup } from './document/components/DocumentImportDiffPopup.svelte'
+export { exportDocumentContent, importDocumentContent, type DocumentContentTarget } from './document/actions'
 
 export async function getExportResultTitle (_client: Client, _ref: Ref<Doc>, doc?: Doc): Promise<string> {
   const record = doc as ExportResultRecord | undefined
@@ -62,7 +68,9 @@ export default async (): Promise<Resources> => ({
     ExportSettings,
     ExportToWorkspaceModal,
     ExportResultPanel,
-    ExportTableDialog
+    ExportTableDialog,
+    DocumentExportFormatPopup,
+    DocumentImportFormatPopup
   },
   function: {
     ExportResultTitleProvider: getExportResultTitle

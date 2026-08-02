@@ -59,6 +59,19 @@
     "ExportMarkdown": "Markdown",
     "ExportScopeSelected": "Selecionados ({count})",
     "ExportScopeLoaded": "Carregados nesta página ({count})",
-    "ExportFileName": "Nome do ficheiro"
+    "ExportFileName": "Nome do ficheiro",
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "Exportar conteúdo",
+    "ImportDocumentContent": "Importar conteúdo",
+    "ExportingDocumentContent": "A exportar o documento…",
+    "DocumentContentExported": "Documento exportado",
+    "DocumentContentExportFailed": "Falha na exportação",
+    "ImportingDocumentContent": "A importar o documento",
+    "ConvertingDocumentContent": "A converter o documento…",
+    "DocumentContentConverted": "Documento convertido",
+    "DocumentContentImportFailed": "Falha na importação",
+    "ReviewDocumentContentChanges": "Rever as alterações importadas",
+    "ApplyDocumentContentChanges": "Aplicar"
   }
 }
