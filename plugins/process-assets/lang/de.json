@@ -70,6 +70,7 @@
     "Data": "Daten",
     "Transitions": "Übergänge",
     "OnExecutionStart": "Bei Ausführungsstart",
+    "OnNewVersion": "Bei neuer Version",
     "Prepend": "Voranstellen",
     "Append": "Anhängen",
     "Replace": "Ersetzen",

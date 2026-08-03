@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -181,17 +182,17 @@ async function findTransitions (
   record: ProcessMessage,
   execution: Execution
 ): Promise<Transition | undefined> {
-  if (record.event.includes(process.trigger.OnExecutionStart)) {
-    const transitions = control.client.getModel().findAllSync(
-      process.class.Transition,
-      {
-        process: execution.process,
-        from: null,
-        trigger: process.trigger.OnExecutionStart
-      },
-      { sort: { rank: SortingOrder.Ascending } }
-    )
-    return await pickTransition(control, execution, transitions, record.context)
+  const initTransitions = control.client.getModel().findAllSync(
+    process.class.Transition,
+    {
+      process: execution.process,
+      from: null,
+      trigger: { $in: record.event }
+    },
+    { sort: { rank: SortingOrder.Ascending } }
+  )
+  if (initTransitions.length > 0) {
+    return await pickTransition(control, execution, initTransitions, record.context)
   }
   if (record.event.includes(process.trigger.OnExecutionContinue)) {
     const transition = execution.error?.[0].transition

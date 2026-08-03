@@ -74,6 +74,7 @@
     "Data": "数据",
     "Transitions": "转换",
     "OnExecutionStart": "执行开始时",
+    "OnNewVersion": "创建新版本时",
     "Prepend": "前置",
     "Append": "追加",
     "Replace": "替换",

@@ -70,6 +70,7 @@
         "Data": "데이터",
         "Transitions": "전환",
         "OnExecutionStart": "실행 시작 시",
+        "OnNewVersion": "새 버전 생성 시",
         "Prepend": "앞에 추가",
         "Append": "뒤에 추가",
         "Replace": "교체",
