@@ -35,7 +35,8 @@ import notification, {
   MentionInboxNotification,
   notificationId,
   PushData,
-  PushSubscription
+  PushSubscription,
+  PushSubscriptionSetting
 } from '@hcengineering/notification'
 import activity, { ActivityMessage } from '@hcengineering/activity'
 import chunter, { ThreadMessage } from '@hcengineering/chunter'
@@ -272,6 +273,19 @@ async function sendPushToSubscription (
   }
 }
 
+/**
+ * Drops subscriptions the user has explicitly disabled via the per-device toggle
+ * (`PushSubscriptionSetting.enabled === false`). A subscription with no matching
+ * setting is treated as enabled. Exported for unit testing.
+ */
+export function filterEnabledSubscriptions (
+  subscriptions: PushSubscription[],
+  settings: PushSubscriptionSetting[]
+): PushSubscription[] {
+  const disabled = new Set(settings.filter((s) => !s.enabled).map((s) => s.attachedTo))
+  return subscriptions.filter((it) => !disabled.has(it._id))
+}
+
 export async function PushNotificationsHandler (
   txes: TxCreateDoc<InboxNotification>[],
   control: TriggerControl
@@ -316,9 +330,14 @@ export async function PushNotificationsHandler (
   }
 
   const receivers = new Set(pushEnabled.map((it) => it.user))
-  const subscriptions = (await control.queryFind(control.ctx, notification.class.PushSubscription, {})).filter((it) =>
-    receivers.has(it.user)
+  const allSubscriptions = (await control.queryFind(control.ctx, notification.class.PushSubscription, {})).filter(
+    (it) => receivers.has(it.user)
   )
+
+  // Honor the per-device enable toggle: a PushSubscriptionSetting with enabled === false
+  // suppresses delivery to that subscription. Absence of a setting means enabled.
+  const settings = await control.queryFind(control.ctx, notification.class.PushSubscriptionSetting, {})
+  const subscriptions = filterEnabledSubscriptions(allSubscriptions, settings)
 
   const res: Tx[] = []
 

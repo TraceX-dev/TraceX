@@ -22,10 +22,14 @@ import core, {
   type TxCreateDoc,
   type WorkspaceUuid
 } from '@hcengineering/core'
-import notification, { type InboxNotification } from '@hcengineering/notification'
+import notification, {
+  type InboxNotification,
+  type PushSubscription,
+  type PushSubscriptionSetting
+} from '@hcengineering/notification'
 import { QueueTopic, type TriggerControl } from '@hcengineering/server-core'
 
-import { OnInboxNotificationCreate } from '../push'
+import { filterEnabledSubscriptions, OnInboxNotificationCreate } from '../push'
 
 describe('OnInboxNotificationCreate', () => {
   const workspace = 'ws-1' as WorkspaceUuid
@@ -96,5 +100,34 @@ describe('OnInboxNotificationCreate', () => {
 
     await expect(OnInboxNotificationCreate([makeTx(a)], control)).resolves.toEqual([])
     expect(control.ctx.error).toHaveBeenCalled()
+  })
+})
+
+describe('filterEnabledSubscriptions', () => {
+  const sub = (id: string): PushSubscription => ({ _id: id }) as unknown as PushSubscription
+  const setting = (attachedTo: string, enabled: boolean): PushSubscriptionSetting =>
+    ({ attachedTo, enabled }) as unknown as PushSubscriptionSetting
+
+  it('keeps a subscription with no setting (enabled by default)', () => {
+    const s = sub('device-1')
+    expect(filterEnabledSubscriptions([s], [])).toEqual([s])
+  })
+
+  it('keeps a subscription whose setting is enabled', () => {
+    const s = sub('device-1')
+    expect(filterEnabledSubscriptions([s], [setting('device-1', true)])).toEqual([s])
+  })
+
+  it('drops a subscription whose setting is disabled', () => {
+    const s = sub('device-1')
+    expect(filterEnabledSubscriptions([s], [setting('device-1', false)])).toEqual([])
+  })
+
+  it('only drops the disabled device, leaving the others', () => {
+    const a = sub('device-a')
+    const b = sub('device-b')
+    const c = sub('device-c')
+    const res = filterEnabledSubscriptions([a, b, c], [setting('device-b', false)])
+    expect(res).toEqual([a, c])
   })
 })
