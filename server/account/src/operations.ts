@@ -119,6 +119,7 @@ import {
   setTimezone,
   signUpByEmail,
   updateWorkspaceRole,
+  setWorkspaceMemberUnread,
   verifyAllowedRole,
   verifyAllowedServices,
   verifyPassword,
@@ -3611,6 +3612,7 @@ export type AccountMethods =
   | 'getPerson'
   | 'getWorkspaceMembers'
   | 'updateWorkspaceRole'
+  | 'setWorkspaceMemberUnread'
   | 'updateAllowReadOnlyGuests'
   | 'updateAllowGuestSignUp'
   | 'findPersonBySocialId'
@@ -3689,6 +3691,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     disable2fa: wrap(disable2fa),
     verify2fa: wrap(verify2fa),
     updateWorkspaceRole: wrap(updateWorkspaceRole),
+    setWorkspaceMemberUnread: wrap(setWorkspaceMemberUnread),
     updateAllowReadOnlyGuests: wrap(updateAllowReadOnlyGuests),
     updateAllowGuestSignUp: wrap(updateAllowGuestSignUp),
     updatePasswordAgingRule: wrap(updatePasswordAgingRule),

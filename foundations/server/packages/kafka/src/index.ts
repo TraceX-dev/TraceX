@@ -48,8 +48,19 @@ export function parseQueueConfig (config: string, serviceId: string, region: str
   }
 }
 
+// Global (non-region-scoped) topics. Most topics are produced and consumed
+// within a single region, so they are namespaced with the producer's region.
+// These few are produced by region-specific services but consumed by a single
+// global service (e.g. account-service raising the cross-workspace unread flag),
+// so they must resolve to the same name regardless of the producer's region.
+// Referenced by value (not a module-level Set of QueueTopic) so this file has no
+// top-level dependency on server-core's enum being initialized first.
+function isGlobalTopic (topic: QueueTopic | string): boolean {
+  return topic === QueueTopic.WorkspaceMemberUnread
+}
+
 function getKafkaTopicId (topic: QueueTopic | string, config: QueueConfig): string {
-  if (config.region !== '') {
+  if (config.region !== '' && !isGlobalTopic(topic)) {
     return `${config.region}.${topic}${config.postfix ?? ''}`
   }
   return `${topic}${config.postfix ?? ''}`
@@ -153,6 +164,7 @@ class PlatformQueueImpl implements PlatformQueue {
       await this.checkCreateTopic(QueueTopic.TranscriptionQueue, topics, 10)
       await this.checkCreateTopic(QueueTopic.NotificationQueue, topics, 2)
       await this.checkCreateTopic(QueueTopic.LoveQueue, topics, 1)
+      await this.checkCreateTopic(QueueTopic.WorkspaceMemberUnread, topics, 2)
     } finally {
       await admin.disconnect()
     }
