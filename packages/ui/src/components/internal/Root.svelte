@@ -24,6 +24,7 @@
   import { isAppFocusedStore } from '../../stores'
 
   let application: AnyComponent | undefined
+  let currentRoute: string | undefined
 
   function updateAppFocused (isFocused: boolean): void {
     const isFocusedCurrent = $isAppFocusedStore
@@ -72,6 +73,7 @@
     location.subscribe((loc) => {
       const routes = getMetadata(uiPlugin.metadata.Routes) ?? new Map()
       const component = loc.path[0]
+      currentRoute = component
 
       application = routes.get(component)
       if (application === undefined && Array.from(routes.values()).includes(component as AnyComponent)) {
@@ -219,84 +221,86 @@
 
 <Theme>
   <div id="ui-root" class:mobile-theme={isMobile}>
-    <div class="antiStatusBar">
-      <div class="flex-row-center h-full content-color gap-3 px-4">
-        {#if desktopPlatform}
-          <div class="history-box flex-row-center gap-3">
-            <button
-              id="statusbar-back"
-              class="antiButton ghost jf-center bs-none no-focus resetIconSize statusButton square"
-              style:color={'var(--theme-dark-color)'}
-              on:click={() => {
-                history.back()
-              }}
+    {#if currentRoute !== 'login'}
+      <div class="antiStatusBar">
+        <div class="flex-row-center h-full content-color gap-3 px-4">
+          {#if desktopPlatform}
+            <div class="history-box flex-row-center gap-3">
+              <button
+                id="statusbar-back"
+                class="antiButton ghost jf-center bs-none no-focus resetIconSize statusButton square"
+                style:color={'var(--theme-dark-color)'}
+                on:click={() => {
+                  history.back()
+                }}
+              >
+                <IconArrowLeft size={'small'} />
+              </button>
+              <button
+                id="statusbar-forward"
+                class="antiButton ghost jf-center bs-none no-focus resetIconSize statusButton square"
+                style:color={'var(--theme-dark-color)'}
+                on:click={() => {
+                  history.forward()
+                }}
+              >
+                <IconArrowRight size={'small'} />
+              </button>
+            </div>
+          {/if}
+          {#if !secondRow}
+            <div
+              class="flex-row-center left-items flex-gap-1"
+              class:ml-14={appsMini}
+              style:-webkit-app-region={'no-drag'}
             >
-              <IconArrowLeft size={'small'} />
-            </button>
-            <button
-              id="statusbar-forward"
-              class="antiButton ghost jf-center bs-none no-focus resetIconSize statusButton square"
-              style:color={'var(--theme-dark-color)'}
-              on:click={() => {
-                history.forward()
-              }}
-            >
-              <IconArrowRight size={'small'} />
-            </button>
-          </div>
-        {/if}
-        {#if !secondRow}
+              <RootBarExtension position="left" />
+            </div>
+          {/if}
           <div
-            class="flex-row-center left-items flex-gap-1"
-            class:ml-14={appsMini}
-            style:-webkit-app-region={'no-drag'}
+            class="flex-row-center justify-center status-info"
+            style:margin-left={(isPortrait && docWidth <= 480) || (!isPortrait && docHeight <= 480) ? '1.5rem' : '0'}
           >
-            <RootBarExtension position="left" />
-          </div>
-        {/if}
-        <div
-          class="flex-row-center justify-center status-info"
-          style:margin-left={(isPortrait && docWidth <= 480) || (!isPortrait && docHeight <= 480) ? '1.5rem' : '0'}
-        >
-          {#if maintenanceTime > 0}
-            <div class="flex-grow flex-center flex-row-center" class:maintenanceScheduled={maintenanceTime > 0}>
-              {#if maintenanceMessage !== undefined && maintenanceMessage.trim() !== ''}
-                {maintenanceMessage}
-              {:else}
-                <Label label={platform.status.MaintenanceWarning} />
-              {/if}
-              <Label label={platform.status.MaintenanceWarningTime} params={{ time: maintenanceTime }} />
-            </div>
-          {:else if status.severity !== Severity.OK}
-            <StatusComponent {status} />
-          {/if}
-          {#if systemAccount}
-            <div class="flex-row-center maintenanceScheduled">
-              <Label label={platform.status.SystemAccount} />
-            </div>
-          {/if}
-        </div>
-        <div class="flex-row-reverse flex-gap-0-5" style:-webkit-app-region={'no-drag'}>
-          <Settings />
-          <Clock />
-          <div class="flex-row-center flex-gap-0-5">
-            {#if !secondRow}
-              <RootBarExtension position="right" />
+            {#if maintenanceTime > 0}
+              <div class="flex-grow flex-center flex-row-center" class:maintenanceScheduled={maintenanceTime > 0}>
+                {#if maintenanceMessage !== undefined && maintenanceMessage.trim() !== ''}
+                  {maintenanceMessage}
+                {:else}
+                  <Label label={platform.status.MaintenanceWarning} />
+                {/if}
+                <Label label={platform.status.MaintenanceWarningTime} params={{ time: maintenanceTime }} />
+              </div>
+            {:else if status.severity !== Severity.OK}
+              <StatusComponent {status} />
+            {/if}
+            {#if systemAccount}
+              <div class="flex-row-center maintenanceScheduled">
+                <Label label={platform.status.SystemAccount} />
+              </div>
             {/if}
           </div>
+          <div class="flex-row-reverse flex-gap-0-5" style:-webkit-app-region={'no-drag'}>
+            <Settings />
+            <Clock />
+            <div class="flex-row-center flex-gap-0-5">
+              {#if !secondRow}
+                <RootBarExtension position="right" />
+              {/if}
+            </div>
+          </div>
         </div>
+        {#if secondRow}
+          <div class="flex-between h-full content-color gap-3 px-2 second-row" style:-webkit-app-region={'no-drag'}>
+            <div class="flex-row-center flex-gap-0-5">
+              <RootBarExtension position="left" />
+            </div>
+            <div class="flex-row-center flex-gap-0-5">
+              <RootBarExtension position="right" />
+            </div>
+          </div>
+        {/if}
       </div>
-      {#if secondRow}
-        <div class="flex-between h-full content-color gap-3 px-2 second-row" style:-webkit-app-region={'no-drag'}>
-          <div class="flex-row-center flex-gap-0-5">
-            <RootBarExtension position="left" />
-          </div>
-          <div class="flex-row-center flex-gap-0-5">
-            <RootBarExtension position="right" />
-          </div>
-        </div>
-      {/if}
-    </div>
+    {/if}
     <div class="app">
       {#if application}
         <Component is={application} appLoading={true} props={{}} />
