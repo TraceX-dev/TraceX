@@ -972,6 +972,9 @@ export interface WorkspaceInfoWithStatus extends WorkspaceInfo {
   backupInfo?: BackupStatus
   usageInfo?: UsageStatus
   processingAttemps: number
+  // Whether the current account has unread notifications in this workspace.
+  // Only populated by getAccountWorkspaces(); absent/undefined elsewhere.
+  hasUnread?: boolean
 }
 
 export interface WorkspaceMemberInfo {

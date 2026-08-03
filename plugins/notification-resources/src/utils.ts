@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 Intabia Fusion.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -534,6 +535,8 @@ async function generateLocation (
   }
 }
 
+let navigateToInboxDocToken = 0
+
 async function navigateToInboxDoc (
   providers: LinkIdProvider[],
   context: Ref<DocNotifyContext>,
@@ -542,6 +545,7 @@ async function navigateToInboxDoc (
   thread?: Ref<ActivityMessage>,
   message?: Ref<ActivityMessage>
 ): Promise<void> {
+  const token = ++navigateToInboxDocToken
   const loc = getLocation()
 
   if (loc.path[2] !== notificationId) {
@@ -553,14 +557,13 @@ async function navigateToInboxDoc (
     return
   }
 
-  const id = await getObjectLinkId(providers, _id, _class)
-
-  loc.path[3] = encodeObjectURI(id, _class)
+  loc.path[3] = encodeObjectURI(_id, _class)
 
   if (thread !== undefined) {
     loc.path[4] = thread
     loc.path.length = 5
     const fn = await getResource(chunter.function.OpenThreadInSidebar)
+    if (token !== navigateToInboxDocToken) return
     void fn(thread, undefined, undefined, message, { autofocus: false })
   } else {
     loc.path[4] = ''
@@ -569,8 +572,22 @@ async function navigateToInboxDoc (
 
   loc.query = { ...loc.query, context, message: message ?? null }
   messageInFocus.set(message)
-  Analytics.handleEvent('inbox.ReadDoc', { objectId: id, objectClass: _class, thread, message })
+  Analytics.handleEvent('inbox.ReadDoc', { objectId: _id, objectClass: _class, thread, message })
   navigate(loc)
+
+  const provider = providers.find(({ _id }) => _id === _class)
+  if (provider !== undefined) {
+    void getObjectLinkId(providers, _id, _class).then((resolvedId) => {
+      if (token !== navigateToInboxDocToken) return
+      if (resolvedId !== _id) {
+        const currentLoc = getCurrentLocation()
+        if (currentLoc.path[2] === notificationId && currentLoc.path[3] === encodeObjectURI(_id, _class)) {
+          currentLoc.path[3] = encodeObjectURI(resolvedId, _class)
+          navigate(currentLoc, true)
+        }
+      }
+    })
+  }
 }
 
 export function resetInboxContext (): void {
@@ -741,10 +758,12 @@ export function pushAvailable (): boolean {
   )
 }
 
-export async function subscribePush (): Promise<boolean> {
+export type PushSubscribeResult = 'success' | 'permission_denied' | 'network_error' | 'not_supported'
+
+export async function subscribePush (): Promise<PushSubscribeResult> {
   if (isDesktopClient()) {
     pushAllowed.set(false)
-    return false
+    return 'not_supported'
   }
   const client = getClient()
   const publicKey = getPushPublicKey()
@@ -761,6 +780,14 @@ export async function subscribePush (): Promise<boolean> {
       }
       const current = await registration.pushManager.getSubscription()
       if (current == null) {
+        // Some browsers (notably Edge) don't implicitly prompt for
+        // notification permission from pushManager.subscribe() - request it
+        // explicitly first, otherwise subscribe() can silently fail.
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          pushAllowed.set(false)
+          return 'permission_denied'
+        }
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: publicKey
@@ -768,6 +795,7 @@ export async function subscribePush (): Promise<boolean> {
         await client.createDoc(notification.class.PushSubscription, core.space.Workspace, {
           user: getCurrentAccount().uuid,
           endpoint: subscription.endpoint,
+          name: navigator.userAgent,
           keys: {
             p256dh: arrayBufferToBase64(subscription.getKey('p256dh')),
             auth: arrayBufferToBase64(subscription.getKey('auth'))
@@ -782,6 +810,7 @@ export async function subscribePush (): Promise<boolean> {
           await client.createDoc(notification.class.PushSubscription, core.space.Workspace, {
             user: getCurrentAccount().uuid,
             endpoint: current.endpoint,
+            name: navigator.userAgent,
             keys: {
               p256dh: arrayBufferToBase64(current.getKey('p256dh')),
               auth: arrayBufferToBase64(current.getKey('auth'))
@@ -791,18 +820,20 @@ export async function subscribePush (): Promise<boolean> {
       }
       addWorkerListener()
       pushAllowed.set(true)
-      return true
+      return 'success'
     } catch (err) {
-      console.error('Service Worker registration failed:', err)
+      const error = err as Error
+      console.error('Service Worker registration failed:', error)
       pushAllowed.set(false)
-      return false
+      if (error?.name === 'NotAllowedError') return 'permission_denied'
+      return 'network_error'
     }
   }
   pushAllowed.set(false)
-  return false
+  return 'not_supported'
 }
 
-function getPushPublicKey (): string | undefined {
+export function getPushPublicKey (): string | undefined {
   const publicKey = getMetadata(notification.metadata.PushPublicKey)
   if (publicKey === undefined) return undefined
   return publicKey.trim() !== '' ? publicKey : undefined
@@ -894,4 +925,31 @@ export async function locationDataResolver (loc: Location): Promise<LocationData
   } catch (e) {
     return {}
   }
+}
+
+/**
+ * Renders a stored webpush subscription's User-Agent string as a short
+ * "<browser> on <OS>" label for the web push subscriptions settings list.
+ */
+export function parseUserAgent (userAgent: string): string {
+  const browsers = [
+    { name: 'Edge', pattern: /Edg\/[\d.]+/ },
+    { name: 'Opera', pattern: /OPR\/[\d.]+/ },
+    { name: 'Chrome', pattern: /CriOS\/[\d.]+|Chrome\/[\d.]+/ },
+    { name: 'Firefox', pattern: /FxiOS\/[\d.]+|Firefox\/[\d.]+/ },
+    { name: 'Safari', pattern: /Safari\/[\d.]+/ }
+  ]
+
+  const os = [
+    { name: 'Windows', pattern: /Windows/ },
+    { name: 'Mac', pattern: /Macintosh/ },
+    { name: 'Linux', pattern: /Linux/ },
+    { name: 'Android', pattern: /Android/ },
+    { name: 'iOS', pattern: /iPhone|iPad/ }
+  ]
+
+  const browser = browsers.find(({ pattern }) => pattern.test(userAgent))?.name ?? 'Unknown browser'
+  const system = os.find(({ pattern }) => pattern.test(userAgent))?.name ?? 'Unknown OS'
+
+  return `${browser} on ${system}`
 }

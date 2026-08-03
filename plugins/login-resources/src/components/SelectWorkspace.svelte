@@ -198,6 +198,9 @@
             </div>
             <span class="workspace-name overflow-label">
               {wsName}
+              {#if workspace.hasUnread === true}
+                <div class="unread-marker" />
+              {/if}
               {#if isArchivingMode(workspace.mode)}
                 - <Label label={presentation.string.Archived} />
               {/if}
@@ -253,6 +256,14 @@
 </form>
 
 <style lang="scss">
+  .unread-marker {
+    flex-shrink: 0;
+    margin-left: 0.375rem;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 50%;
+    background-color: var(--global-higlight-Color);
+  }
   .container {
     display: flex;
     flex-direction: column;
