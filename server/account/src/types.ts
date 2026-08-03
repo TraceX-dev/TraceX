@@ -336,6 +336,18 @@ export interface AccountDB {
   assignWorkspace: (accountId: AccountUuid, workspaceId: WorkspaceUuid, role: AccountRole) => Promise<void>
   batchAssignWorkspace: (data: [AccountUuid, WorkspaceUuid, AccountRole][]) => Promise<void>
   updateWorkspaceRole: (accountId: AccountUuid, workspaceId: WorkspaceUuid, role: AccountRole) => Promise<void>
+  // Marks/clears the "has unread notifications in this workspace" flag for a member.
+  // Set with a service token by the workspace's own notification trigger; cleared
+  // by the member themselves (self-service token) once their unread count hits zero.
+  setWorkspaceMemberUnread: (accountId: AccountUuid, workspaceId: WorkspaceUuid, hasUnread: boolean) => Promise<void>
+  // Bulk variant of setWorkspaceMemberUnread for a single workspace. Used by the
+  // account-service consumer of the cross-workspace unread queue to raise the flag
+  // for a whole batch of members in one statement instead of one call per member.
+  setWorkspaceMembersUnread: (
+    accountIds: AccountUuid[],
+    workspaceId: WorkspaceUuid,
+    hasUnread: boolean
+  ) => Promise<void>
   unassignWorkspace: (accountId: AccountUuid, workspaceId: WorkspaceUuid) => Promise<void>
   getWorkspaceRole: (accountId: AccountUuid, workspaceId: WorkspaceUuid) => Promise<AccountRole | null>
   getWorkspaceRoles: (accountId: AccountUuid) => Promise<Map<WorkspaceUuid, AccountRole>>
