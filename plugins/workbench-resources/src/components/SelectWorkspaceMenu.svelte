@@ -23,6 +23,7 @@
     Component,
     fetchMetadataLocalStorage,
     getCurrentLocation,
+    getWorkspaceLastVisitDays,
     Icon,
     IconCheck,
     isSameSegments,
@@ -34,22 +35,32 @@
     navigate,
     resolvedLocationStore,
     SearchEdit,
-    ticker
+    ticker,
+    WorkspaceAvatar
   } from '@hcengineering/ui'
   import { workbenchId } from '@hcengineering/workbench'
-  import { onDestroy, onMount } from 'svelte'
+  import { afterUpdate, onDestroy, onMount } from 'svelte'
 
   import { Analytics } from '@hcengineering/analytics'
-  import { NotifyMarker } from '@hcengineering/notification-resources'
   import type { PersonRating } from '@hcengineering/rating'
   import ratingPlugin from '@hcengineering/rating'
+  import workbench from '../plugin'
   import { workspacesStore } from '../utils'
   // import Drag from './icons/Drag.svelte'
 
+  type LoadState = 'pending' | 'loaded' | 'error'
+  let loadState: LoadState = 'pending'
+
   onMount(() => {
-    void getResource(login.function.GetWorkspaces).then(async (f) => {
-      $workspacesStore = await f()
-    })
+    void getResource(login.function.GetWorkspaces)
+      .then(async (f) => {
+        $workspacesStore = await f()
+        loadState = 'loaded'
+      })
+      .catch((err: any) => {
+        loadState = 'error'
+        Analytics.handleError(err)
+      })
   })
 
   const levelQuery = createQuery()
@@ -61,6 +72,21 @@
   })
 
   const hasRating = hasResource(ratingPlugin.component.RatingRing)
+
+  // Only show the "there's more below" fade when the list is actually
+  // scrolled somewhere above the bottom — not when everything fits, and not
+  // once the user has scrolled all the way down.
+  let scrollEl: HTMLElement | undefined
+  let canScrollMore = false
+
+  function updateScrollFade (): void {
+    if (scrollEl == null) return
+    canScrollMore = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight > 1
+  }
+
+  afterUpdate(() => {
+    updateScrollFade()
+  })
 
   function getWorkspaceLink (ws: WorkspaceInfoWithStatus): string {
     const loc: Location = {
@@ -123,6 +149,12 @@
   $: isAdmin = isAdminUser()
 
   let search: string = ''
+  // Show the search box for everyone once the list is long enough to need
+  // it (same threshold as the login page), always show it for admins.
+  // While loading, the count isn't known yet, so treat it like "few
+  // workspaces" (hidden) unless admin — it only pops in once loaded if the
+  // list actually turns out to be long, rather than flashing on then off.
+  $: showSearch = isAdmin || $workspacesStore.length > 10
 
   const _endpoint: string = fetchMetadataLocalStorage(login.metadata.LoginEndpoint) ?? ''
   const token: string = getMetadata(presentation.metadata.Token) ?? ''
@@ -153,143 +185,241 @@
       data?: Record<string, any>
     }>
     >) ?? {}
+
+  $: currentWsUrl = $resolvedLocationStore.path[1]
+
+  // The currently open workspace is always shown first, regardless of its
+  // position in the last-visit sort order.
+  $: sortedWorkspaces = (() => {
+    const filtered = $workspacesStore.filter(
+      (it) => search === '' || (it.name?.includes(search) ?? false) || it.url.includes(search)
+    )
+    const current = filtered.filter((it) => it.url === currentWsUrl)
+    const rest = filtered.filter((it) => it.url !== currentWsUrl)
+    return [...current, ...rest].slice(0, 500)
+  })()
 </script>
 
-{#if $workspacesStore.length}
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="antiPopup" on:keydown={keyDown}>
-    <div class="ap-space x2" />
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div class="antiPopup ws-switcher" on:keydown={keyDown}>
+  <div class="ap-space x2" />
 
-    <div class="p-2 ml-2 mr-2 mb-2 flex-grow flex flex-col">
-      <div class="text-lg font-bold">
-        {getMetadata(presentation.metadata.WorkspaceName) ?? ''}
+  <div class="p-2 ml-2 mr-2 mb-2 flex-grow flex flex-col">
+    <div class="ws-switcher-title">
+      <Label label={login.string.SelectWorkspace} />
+    </div>
+    {#if hasRating}
+      <div class="flex-row-center text-sm">
+        <Component
+          is={ratingPlugin.component.RatingRing}
+          props={{ rating: sysRating?.rating ?? 0, showValues: true }}
+        />
       </div>
-      {#if hasRating}
-        <div class="flex-row-center text-sm">
-          <Component
-            is={ratingPlugin.component.RatingRing}
-            props={{ rating: sysRating?.rating ?? 0, showValues: true }}
-          />
-        </div>
-        <div class="flex-row-center mt-2">
-          <Component is={ratingPlugin.component.RatingActivities} props={{ rating: sysRating }} />
+      <div class="flex-row-center mt-2">
+        <Component is={ratingPlugin.component.RatingActivities} props={{ rating: sysRating }} />
+      </div>
+    {/if}
+  </div>
+
+  {#if showSearch}
+    <div class="p-2 ml-2 mr-2 mb-2 flex-grow flex-row-center" class:ws-switcher-disabled={loadState === 'pending'}>
+      <SearchEdit bind:value={search} width={'100%'} />
+      {#if isAdmin}
+        <div class="p-1">
+          {#if $workspacesStore.length > 500}
+            500 /
+          {/if}
+          {$workspacesStore.length}
         </div>
       {/if}
     </div>
-
-    {#if isAdmin}
-      <div class="p-2 ml-2 mr-2 mb-2 flex-grow flex-row-center">
-        <SearchEdit bind:value={search} width={'100%'} />
-        {#if isAdminUser()}
-          <div class="p-1">
-            {#if $workspacesStore.length > 500}
-              500 /
-            {/if}
-            {$workspacesStore.length}
-          </div>
-        {/if}
-      </div>
-      <div class="p-2 ml-2 mb-4 select-text flex-col bordered">
-        {decodeTokenPayload(getMetadata(presentation.metadata.Token) ?? '').workspace ?? ''}
-      </div>
-    {/if}
-    <div class="ap-scroll">
-      <div class="ap-box">
-        {#each $workspacesStore
-          .filter((it) => search === '' || (it.name?.includes(search) ?? false) || it.url.includes(search))
-          .slice(0, 500) as ws, i}
-          {@const wsName = ws.name ?? ws.url}
-          {@const _activeSession = activeSessions[ws.uuid]}
-          {@const lastUsageDays = Math.round((Date.now() - (ws.lastVisit ?? 0)) / (1000 * 3600 * 24))}
-          <a
-            class="stealth"
-            href={getWorkspaceLink(ws)}
-            on:click={async (e) => {
-              await clickHandler(e, ws.url)
-            }}
-          >
-            <button
-              bind:this={btns[i]}
-              class="ap-menuItem flex-row-center flex-grow"
-              class:active={isAdmin && (_activeSession?.length ?? 0) > 0}
-              class:hover={btns[i] === activeElement}
-              on:mousemove={() => {
-                focusTarget(btns[i])
+  {/if}
+  {#if isAdmin}
+    <div class="p-2 ml-2 mb-4 select-text flex-col bordered">
+      {decodeTokenPayload(getMetadata(presentation.metadata.Token) ?? '').workspace ?? ''}
+    </div>
+  {/if}
+  <div class="ap-scroll-wrap">
+    <div class="ap-scroll" bind:this={scrollEl} on:scroll={updateScrollFade}>
+      {#if loadState === 'error'}
+        <div class="ws-switcher-message">
+          <Label label={workbench.string.FailedToLoadWorkspaces} />
+        </div>
+      {:else if loadState === 'pending'}
+        <div class="ws-switcher-message">
+          <Loading />
+        </div>
+      {:else if $workspacesStore.length === 0}
+        <div class="ws-switcher-message">
+          <Label label={workbench.string.NoWorkspacesFound} />
+        </div>
+      {:else}
+        <div class="ap-box">
+          {#each sortedWorkspaces as ws, i}
+            {@const wsName = ws.name ?? ws.url}
+            {@const _activeSession = activeSessions[ws.uuid]}
+            {@const isCurrentWs = ws.url === currentWsUrl}
+            {@const lastUsageDays = getWorkspaceLastVisitDays(ws.lastVisit)}
+            <a
+              class="stealth"
+              href={getWorkspaceLink(ws)}
+              on:click={async (e) => {
+                await clickHandler(e, ws.url)
               }}
             >
-              <!-- <div class="drag"><Drag size={'small'} /></div> -->
-              <!-- <div class="logo empty" /> -->
-              <!-- <div class="flex-col flex-grow"> -->
-              <div class="flex-col flex-grow">
-                <span class="label overflow-label flex flex-grow flex-between">
-                  <span class="flex-row-center">
-                    {wsName}
-                    {#if ws.hasUnread === true && $resolvedLocationStore.path[1] !== ws.url}
-                      <div class="ml-1">
-                        <NotifyMarker kind={'simple'} size={'xx-small'} />
+              <button
+                bind:this={btns[i]}
+                class="ap-menuItem flex-row-center flex-grow"
+                class:active={isAdmin && (_activeSession?.length ?? 0) > 0}
+                class:current-ws={isCurrentWs}
+                class:hover={btns[i] === activeElement}
+                on:mousemove={() => {
+                  focusTarget(btns[i])
+                }}
+              >
+                <!-- <div class="drag"><Drag size={'small'} /></div> -->
+                <div class="mr-2">
+                  <WorkspaceAvatar
+                    colorSeed={ws.uuid}
+                    displayName={wsName}
+                    size={'small'}
+                    hasUnread={ws.hasUnread === true && !isCurrentWs}
+                    ringColor={'var(--theme-popup-color)'}
+                  />
+                </div>
+                <!-- <div class="flex-col flex-grow"> -->
+                <div class="flex-col flex-grow">
+                  <span class="label overflow-label flex flex-grow flex-between">
+                    <span class="flex-row-center" class:current-ws-name={isCurrentWs}>
+                      {wsName}
+                    </span>
+                    {#if isArchivingMode(ws.mode)}
+                      - <Label label={presentation.string.Archived} />
+                    {/if}
+                    {#if isAdmin}
+                      {#if ws.region != null && ws.region !== ''}
+                        - ({ws.region})
+                      {/if}
+                    {/if}
+                    {#if isAdmin && ws.lastVisit != null && ws.lastVisit !== 0}
+                      <div class="text-sm">
+                        {#if ws.backupInfo != null}
+                          {@const sz = Math.max(
+                            ws.backupInfo.backupSize,
+                            ws.backupInfo.dataSize + ws.backupInfo.blobsSize
+                          )}
+                          {@const szGb = Math.round((sz * 100) / 1024) / 100}
+                          {#if szGb > 0}
+                            {Math.round((sz * 100) / 1024) / 100}Gb -
+                          {:else}
+                            {Math.round(sz)}Mb -
+                          {/if}
+                        {/if}
+                        ({lastUsageDays ?? 0} days)
                       </div>
                     {/if}
                   </span>
-                  {#if isArchivingMode(ws.mode)}
-                    - <Label label={presentation.string.Archived} />
+                  {#if isAdmin && wsName !== ws.url}
+                    <span class="text-xs">
+                      ({ws.url})
+                    </span>
                   {/if}
-                  {#if isAdmin}
-                    {#if ws.region != null && ws.region !== ''}
-                      - ({ws.region})
-                    {/if}
+                  {#if isAdmin && (_activeSession?.length ?? 0) > 0}
+                    <span class="text-xs flex-row-center">
+                      <div class="mr-1">
+                        <Icon icon={contact.icon.Person} size={'x-small'} />
+                      </div>
+                      {_activeSession?.length ?? 0}
+                    </span>
                   {/if}
-                  {#if isAdmin && ws.lastVisit != null && ws.lastVisit !== 0}
-                    <div class="text-sm">
-                      {#if ws.backupInfo != null}
-                        {@const sz = Math.max(
-                          ws.backupInfo.backupSize,
-                          ws.backupInfo.dataSize + ws.backupInfo.blobsSize
-                        )}
-                        {@const szGb = Math.round((sz * 100) / 1024) / 100}
-                        {#if szGb > 0}
-                          {Math.round((sz * 100) / 1024) / 100}Gb -
-                        {:else}
-                          {Math.round(sz)}Mb -
-                        {/if}
-                      {/if}
-                      ({lastUsageDays} days)
-                    </div>
-                  {/if}
+                </div>
+                <!-- <span class="description overflow-label">Description</span> -->
+                <!-- </div> -->
+                <span class="ws-lastvisit">
+                  {lastUsageDays === undefined ? '' : `${lastUsageDays} d`}
                 </span>
-                {#if isAdmin && wsName !== ws.url}
-                  <span class="text-xs">
-                    ({ws.url})
-                  </span>
-                {/if}
-                {#if isAdmin && (_activeSession?.length ?? 0) > 0}
-                  <span class="text-xs flex-row-center">
-                    <div class="mr-1">
-                      <Icon icon={contact.icon.Person} size={'x-small'} />
-                    </div>
-                    {_activeSession?.length ?? 0}
-                  </span>
-                {/if}
-              </div>
-              <!-- <span class="description overflow-label">Description</span> -->
-              <!-- </div> -->
-              <div class="ap-check">
-                {#if $resolvedLocationStore.path[1] === ws.url}
-                  <IconCheck size={'small'} />
-                {/if}
-              </div>
-            </button>
-          </a>
-        {/each}
-      </div>
+                <div class="ap-check">
+                  {#if isCurrentWs}
+                    <IconCheck size={'small'} />
+                  {/if}
+                </div>
+              </button>
+            </a>
+          {/each}
+        </div>
+      {/if}
     </div>
-    <div class="ap-space x2" />
+    {#if canScrollMore}
+      <div class="ap-scroll-fade" />
+    {/if}
   </div>
-{:else}
-  <div class="antiPopup"><Loading /></div>
-{/if}
+  <div class="ap-space x2" />
+</div>
 
 <style lang="scss">
   .active {
     background-color: var(--theme-inbox-people-counter-bgcolor);
+  }
+  .ws-switcher {
+    min-width: 20rem;
+  }
+  .ws-switcher-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--theme-caption-color);
+  }
+  .current-ws {
+    background-color: var(--theme-button-default);
+  }
+  .current-ws-name {
+    font-weight: 600;
+  }
+  .ap-scroll-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+  }
+  .ap-scroll {
+    max-height: 31.5rem;
+    min-height: 2rem;
+    padding: 0 0.375rem;
+    scrollbar-color: var(--scrollbar-bar-hover) transparent;
+
+    &::-webkit-scrollbar {
+      width: 0.5rem;
+    }
+    &::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-bar-hover);
+    }
+  }
+  .ap-scroll-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1.5rem;
+    background: linear-gradient(to bottom, transparent, var(--theme-popup-color));
+    pointer-events: none;
+  }
+  .ws-switcher-message {
+    height: 8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--theme-dark-color);
+    font-size: 0.8125rem;
+  }
+  .ws-switcher-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .ws-lastvisit {
+    flex-shrink: 0;
+    margin-left: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--theme-dark-color);
   }
 </style>
