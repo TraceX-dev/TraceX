@@ -181,7 +181,7 @@
               displayName={wsName}
               size={'small'}
               hasUnread={workspace.hasUnread === true}
-              ringColor={'var(--theme-button-default)'}
+              ringColor={'var(--theme-bg-color)'}
             />
             <span class="workspace-name overflow-label">
               {wsName}
