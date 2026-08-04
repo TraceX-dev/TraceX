@@ -242,6 +242,8 @@
     "ShowQRCode": "Mostrar código QR",
     "EnterVerificationCode": "Inserir código de verificação",
     "OverrideAttribute": "Sobrescrever atributo",
-    "Required": "Obrigatório"
+    "Required": "Obrigatório",
+    "RemoveMemberFromSpace": "Remover usuário do espaço",
+    "MemberSpacesTitle": "Espaços de {name}"
   }
 }

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -37,13 +38,21 @@
   let categories: SettingsCategory[] = []
   const account = getCurrentAccount()
   const admin = isAdminUser()
+  const deprecatedCategoryRedirects = new Map([
+    ['guestPermissions', 'accessControl'],
+    ['owners', 'accessControl'],
+    ['allSpaces', 'accessControl']
+  ])
+  const deprecatedCategoryNames = new Set(deprecatedCategoryRedirects.keys())
 
   const settingsQuery = createQuery()
   settingsQuery.query(
     setting.class.WorkspaceSettingCategory,
     {},
     (res) => {
-      categories = res.filter((p) => hasAccountRole(account, p.role) && !isDisabled(p.feature ?? ''))
+      categories = res.filter(
+        (p) => !deprecatedCategoryNames.has(p.name) && hasAccountRole(account, p.role) && !isDisabled(p.feature ?? '')
+      )
       if (!admin) {
         categories = categories.filter((p) => !(p.adminOnly ?? false))
       }
@@ -53,7 +62,11 @@
   )
 
   function findCategory (name: string): SettingsCategory | undefined {
-    return categories.find((x) => x.name === name)
+    return categories.find((x) => x.name === (deprecatedCategoryRedirects.get(name) ?? name))
+  }
+
+  function isSelectedCategory (name: string): boolean {
+    return name === (deprecatedCategoryRedirects.get(categoryId) ?? categoryId)
   }
 
   onDestroy(
@@ -89,7 +102,7 @@
     <NavItem
       icon={category.icon}
       label={category.label}
-      selected={category.name === categoryId}
+      selected={isSelectedCategory(category.name)}
       on:click={() => {
         selectCategory(category.name)
       }}

@@ -251,6 +251,8 @@
         "ShowQRCode": "QR 코드 표시",
         "EnterVerificationCode": "인증 코드 입력",
         "OverrideAttribute": "속성 재정의",
-        "Required": "필수"
+        "Required": "필수",
+        "RemoveMemberFromSpace": "스페이스에서 사용자 제거",
+        "MemberSpacesTitle": "{name}님의 스페이스"
     }
 }

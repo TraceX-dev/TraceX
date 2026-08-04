@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -73,7 +74,7 @@ import EditRelation from './components/EditRelation.svelte'
 import AddSocialId from './components/socialIds/AddSocialId.svelte'
 import AddEmailSocialId from './components/socialIds/AddEmailSocialId.svelte'
 import Mailboxes from './components/Mailboxes.svelte'
-import GuestPermissionsSettings from './components/GuestPermissionsSettings.svelte'
+import SpaceAccessSettings from './components/SpaceAccessSettings.svelte'
 import OfficeSettings from './components/OfficeSettings.svelte'
 import BaseIntegrationState from './components/integrations/BaseIntegrationState.svelte'
 import IntegrationStateRow from './components/integrations/IntegrationStateRow.svelte'
@@ -83,6 +84,7 @@ import { filterDescendants, getOwnerFirstName, getOwnerLastName, getOwnerPositio
 import { hasRoleCapabilityAsync } from './hasRoleCapabilityAsync'
 
 export * from './store'
+export * from './accessPermissions'
 export { hasRoleCapability, getRolesForCapability } from './roleCapability'
 export { hasRoleCapabilityAsync } from './hasRoleCapabilityAsync'
 export * from './inviteSettingsUtils'
@@ -167,7 +169,7 @@ export default async (): Promise<Resources> => ({
     CreateRelation,
     EditRelation,
     Mailboxes,
-    GuestPermissionsSettings,
+    SpaceAccessSettings,
     OfficeSettings,
     AddSocialId,
     AddEmailSocialId,

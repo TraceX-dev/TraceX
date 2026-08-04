@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -106,6 +107,7 @@ export { default as TimeInputBox } from './components/calendar/TimeInputBox.svel
 export { default as Html } from './components/Html.svelte'
 export { default as StylishEdit } from './components/StylishEdit.svelte'
 export { default as Grid } from './components/Grid.svelte'
+export { default as DataTable } from './components/DataTable.svelte'
 export { default as Row } from './components/Row.svelte'
 // export { default as CheckBoxWithLabel } from './components/CheckBoxWithLabel.svelte'
 // export { default as CheckBoxList } from './components/CheckBoxList.svelte.txt'
@@ -263,6 +265,7 @@ export { default as Month } from './components/calendar/Month.svelte'
 
 export { default as FocusHandler } from './components/FocusHandler.svelte'
 export { default as ListView } from './components/ListView.svelte'
+export { default as ListViewItem } from './components/ListViewItem.svelte'
 export { default as ToggleButton } from './components/ToggleButton.svelte'
 export { default as ExpandCollapse } from './components/ExpandCollapse.svelte'
 export { default as BooleanIcon } from './components/BooleanIcon.svelte'

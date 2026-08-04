@@ -251,6 +251,8 @@
     "ShowQRCode": "QR kodu göster",
     "EnterVerificationCode": "Doğrulama kodunu gir",
     "OverrideAttribute": "Özniteliği geçersiz kıl",
-    "Required": "Zorunlu"
+    "Required": "Zorunlu",
+    "RemoveMemberFromSpace": "Kullanıcıyı alandan çıkar",
+    "MemberSpacesTitle": "{name} kullanıcısının alanları"
   }
 }

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,40 +16,27 @@
 <script lang="ts">
   import contact, { Employee, formatName } from '@hcengineering/contact'
   import { EmployeePresenter } from '@hcengineering/contact-resources'
-  import { Account, AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
+  import { type WorkspaceMemberInfo, AccountRole, getCurrentAccount, isGuestRole } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { Breadcrumb, DropdownIntlItem, DropdownLabelsIntl, Header, Scroller, SearchInput } from '@hcengineering/ui'
+  import { Breadcrumb, Header, Scroller, SearchInput } from '@hcengineering/ui'
   import { onMount } from 'svelte'
 
   import setting from '../plugin'
+  import { canChangeWorkspaceRole, getAssignableWorkspaceRoles, getWorkspaceMemberRole } from '../accessPermissions'
   import { getAccountClient } from '../utils'
+  import UserRoleSelect from './UserRoleSelect.svelte'
   import { Analytics } from '@hcengineering/analytics'
 
   const query = createQuery()
   const currentAccount = getCurrentAccount()
   const client = getClient()
 
-  const items: DropdownIntlItem[] = [
-    { id: AccountRole.ReadOnlyGuest, label: setting.string.ReadonlyGuest },
-    { id: AccountRole.Guest, label: setting.string.Guest },
-    { id: AccountRole.User, label: setting.string.User },
-    { id: AccountRole.Maintainer, label: setting.string.Maintainer },
-    { id: AccountRole.Owner, label: setting.string.Owner }
-  ]
-
-  const guestRoles = [AccountRole.ReadOnlyGuest, AccountRole.DocGuest, AccountRole.Guest]
-
   const accountClient = getAccountClient()
-  let workspaceMembers: Record<string, AccountRole> = {}
+  let workspaceMembers: WorkspaceMemberInfo[] = []
   let employees: Employee[] = []
 
   onMount(async () => {
-    const members = await accountClient.getWorkspaceMembers()
-    workspaceMembers = members.reduce<Record<string, AccountRole>>((wm, m) => {
-      wm[m.person] = m.role
-
-      return wm
-    }, {})
+    workspaceMembers = await accountClient.getWorkspaceMembers()
   })
 
   query.query(contact.mixin.Employee, { active: true }, (res) => {
@@ -64,11 +52,13 @@
 
     try {
       await accountClient.updateWorkspaceRole(personUuid, value)
-      workspaceMembers[personUuid] = value
+      workspaceMembers = workspaceMembers.map((member) =>
+        member.person === personUuid ? { ...member, role: value } : member
+      )
 
       const employee = employees.find((e) => e.personUuid === personUuid)
       if (employee !== undefined) {
-        const employeeRole = guestRoles.includes(value) ? 'GUEST' : 'USER'
+        const employeeRole = isGuestRole(value) ? 'GUEST' : 'USER'
         await client.update(employee, { role: employeeRole })
       }
     } catch (e: any) {
@@ -76,14 +66,6 @@
     }
   }
   let search = ''
-
-  $: ownersCount = employees.filter(
-    (e) => e.personUuid != null && workspaceMembers[e.personUuid] === AccountRole.Owner
-  ).length
-
-  function getItems (role: AccountRole, currentAccount: Account): DropdownIntlItem[] {
-    return items.filter((i) => i.id === role || hasAccountRole(currentAccount, i.id as AccountRole))
-  }
 </script>
 
 <div class="hulyComponent">
@@ -98,20 +80,18 @@
       <div class="hulyComponent-content">
         {#each employees as employee (employee._id)}
           {@const personUuid = employee.personUuid ?? undefined}
-          {@const role = personUuid !== undefined ? workspaceMembers[personUuid] : undefined}
+          {@const role = personUuid !== undefined ? getWorkspaceMemberRole(workspaceMembers, personUuid) : undefined}
           {#if personUuid !== undefined && role !== undefined && employee.name?.includes(search)}
             <div class="flex-row-center p-2 flex-no-shrink" data-id="owners-member-row">
               <div class="p-1 min-w-80">
                 <EmployeePresenter value={employee} disabled={false} />
               </div>
-              <DropdownLabelsIntl
-                label={setting.string.Role}
-                disabled={!hasAccountRole(currentAccount, role) ||
-                  (role === AccountRole.Owner && ownersCount === 1) ||
-                  currentAccount.uuid === personUuid}
+              <UserRoleSelect
+                disabled={!canChangeWorkspaceRole(currentAccount, personUuid, role, workspaceMembers)}
                 kind={'primary'}
                 size={'medium'}
-                items={getItems(role, currentAccount)}
+                roles={getAssignableWorkspaceRoles(currentAccount, role)}
+                securityFilter={false}
                 selected={role}
                 on:selected={(e) => {
                   void change(personUuid, e.detail)

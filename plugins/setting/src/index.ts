@@ -364,7 +364,6 @@ export default plugin(settingId, {
   icon: {
     AccountSettings: '' as Asset,
     Members: '' as Asset,
-    GuestPermissions: '' as Asset,
     Password: '' as Asset,
     Setting: '' as Asset,
     Integrations: '' as Asset,
