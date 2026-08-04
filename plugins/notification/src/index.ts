@@ -85,6 +85,12 @@ export interface PushSubscription extends Doc {
   user: AccountUuid
   endpoint: string
   keys: PushSubscriptionKeys
+  name?: string
+}
+
+export interface PushSubscriptionSetting extends Preference {
+  attachedTo: Ref<PushSubscription>
+  enabled: boolean
 }
 
 /**
@@ -381,6 +387,7 @@ const notification = plugin(notificationId, {
   class: {
     BrowserNotification: '' as Ref<Class<BrowserNotification>>,
     PushSubscription: '' as Ref<Class<PushSubscription>>,
+    PushSubscriptionSetting: '' as Ref<Class<PushSubscriptionSetting>>,
     NotificationType: '' as Ref<Class<NotificationType>>,
     NotificationGroup: '' as Ref<Class<NotificationGroup>>,
     NotificationPreferencesGroup: '' as Ref<Class<NotificationPreferencesGroup>>,
@@ -421,7 +428,8 @@ const notification = plugin(notificationId, {
     DocNotifyContextPresenter: '' as AnyComponent,
     NotificationCollaboratorsChanged: '' as AnyComponent,
     GeneralPreferencesGroup: '' as AnyComponent,
-    CollaboratorEditor: '' as AnyComponent
+    CollaboratorEditor: '' as AnyComponent,
+    WebpushesPreferencesPresenter: '' as AnyComponent
   },
   action: {
     PinDocNotifyContext: '' as Ref<Action>,
@@ -471,7 +479,22 @@ const notification = plugin(notificationId, {
     Sound: '' as IntlString,
     NoAccessToObject: '' as IntlString,
     ViewIn: '' as IntlString,
-    Collaborators: '' as IntlString
+    Collaborators: '' as IntlString,
+    Value: '' as IntlString,
+    Subscribe: '' as IntlString,
+    UnknownDevice: '' as IntlString,
+    Current: '' as IntlString,
+    RemoveWebpush: '' as IntlString,
+    WebpushRemoveConfirm: '' as IntlString,
+    PushSubscribeError: '' as IntlString,
+    PushSubscribeErrorPermissionDenied: '' as IntlString,
+    PushSubscribeErrorNetwork: '' as IntlString,
+    PushSubscribeErrorNotSupported: '' as IntlString,
+    PushOnDesktop: '' as IntlString,
+    AlreadySubscribed: '' as IntlString,
+    PushNotConfigured: '' as IntlString,
+    PushNotSupported: '' as IntlString,
+    PushDenied: '' as IntlString
   },
   function: {
     Notify: '' as Resource<NotifyFunc>,

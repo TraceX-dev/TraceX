@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -148,7 +149,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
       const hierarchy = this.client.getHierarchy()
       if (!hierarchy.isDerived(createTx.objectClass, cardPlugin.class.Card)) return
 
-      // We don't need to start new processes for new version
+      // New-version processes are created by the server trigger to avoid duplicate executions.
       if (doc.baseId !== undefined && doc.baseId !== doc._id) return
 
       const ancestors = hierarchy
@@ -160,6 +161,12 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
         autoStart: true
       })
       for (const proc of processes) {
+        const initTransition = this.client.getModel().findAllSync(process.class.Transition, {
+          process: proc._id,
+          from: null,
+          trigger: process.trigger.OnExecutionStart
+        })[0]
+        if (initTransition === undefined) continue
         const res = await createExecution(createTx.objectId, proc._id, createTx.objectSpace, this.txFactory)
         if (res !== undefined) postTx.push(res)
       }
@@ -177,6 +184,12 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
       .getModel()
       .findAllSync(process.class.Process, { masterTag: mixinTx.mixin, autoStart: true })
     for (const proc of processes) {
+      const initTransition = this.client.getModel().findAllSync(process.class.Transition, {
+        process: proc._id,
+        from: null,
+        trigger: process.trigger.OnExecutionStart
+      })[0]
+      if (initTransition === undefined) continue
       const res = await createExecution(mixinTx.objectId, proc._id, mixinTx.objectSpace, this.txFactory)
       if (res !== undefined) postTx.push(res)
     }

@@ -245,9 +245,14 @@ export async function OnExecutionCreate (txes: Tx[], control: TriggerControl): P
     const createTx = tx as TxCreateDoc<Execution>
     if (!control.hierarchy.isDerived(createTx.objectClass, process.class.Execution)) continue
     const execution = TxProcessor.createDoc2Doc(createTx)
+    const initTransition = control.modelDb.findAllSync(process.class.Transition, {
+      process: execution.process,
+      from: null
+    })[0]
+    if (initTransition === undefined) continue
     await putEventToQueue(
       {
-        event: [process.trigger.OnExecutionStart],
+        event: [initTransition.trigger],
         execution: execution._id,
         createdOn: tx.modifiedOn,
         _id: tx._id,
@@ -435,6 +440,12 @@ async function getVersionExecutionTxes (card: Card, control: TriggerControl): Pr
   })
   for (const proc of processes) {
     if (alreadyStarted.has(proc._id)) continue
+    const initTransition = control.modelDb.findAllSync(process.class.Transition, {
+      process: proc._id,
+      from: null,
+      trigger: process.trigger.OnNewVersion
+    })[0]
+    if (initTransition === undefined) continue
     const tx = createExecution(control, proc._id, card._id, card.space)
     if (tx !== undefined) res.push(tx)
   }
@@ -568,6 +579,12 @@ async function getNewCardExecutionTxes (card: Card, control: TriggerControl): Pr
 
   for (const proc of processes) {
     if (alreadyStarted.has(proc._id)) continue
+    const initTransition = control.modelDb.findAllSync(process.class.Transition, {
+      process: proc._id,
+      from: null,
+      trigger: process.trigger.OnExecutionStart
+    })[0]
+    if (initTransition === undefined) continue
     const tx = createExecution(control, proc._id, card._id, card.space)
     if (tx !== undefined) res.push(tx)
   }
@@ -587,6 +604,12 @@ async function getTagAddExecutionTxes (card: Card, mixin: Ref<Mixin<Card>>, cont
 
   for (const proc of processes) {
     if (alreadyStarted.has(proc._id)) continue
+    const initTransition = control.modelDb.findAllSync(process.class.Transition, {
+      process: proc._id,
+      from: null,
+      trigger: process.trigger.OnExecutionStart
+    })[0]
+    if (initTransition === undefined) continue
     const tx = createExecution(control, proc._id, card._id, card.space)
     if (tx !== undefined) res.push(tx)
   }

@@ -287,6 +287,7 @@ export default plugin(processId, {
     OnToDoClose: '' as Ref<Trigger>,
     OnToDoRemove: '' as Ref<Trigger>,
     OnExecutionStart: '' as Ref<Trigger>,
+    OnNewVersion: '' as Ref<Trigger>,
     OnExecutionContinue: '' as Ref<Trigger>,
     OnTime: '' as Ref<Trigger>,
     OnEvent: '' as Ref<Trigger>,

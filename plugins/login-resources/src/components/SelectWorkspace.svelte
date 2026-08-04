@@ -23,14 +23,16 @@
   } from '@hcengineering/core'
   import { LoginInfo } from '@hcengineering/login'
   import { OK, Severity, Status } from '@hcengineering/platform'
-  import presentation, { MessageBox, NavLink, isAdminUser, reduceCalls } from '@hcengineering/presentation'
+  import presentation, { MessageBox, NavLink, reduceCalls } from '@hcengineering/presentation'
   import {
     Button,
     Label,
     Scroller,
     SearchEdit,
     Spinner,
+    WorkspaceAvatar,
     deviceOptionsStore as deviceInfo,
+    getWorkspaceLastVisitDays,
     showPopup,
     ticker
   } from '@hcengineering/ui'
@@ -52,22 +54,6 @@
   import StatusControl from './StatusControl.svelte'
 
   export let navigateUrl: string | undefined = undefined
-
-  // Workspaces have no icon/logo of their own, so we derive a stable
-  // colored initial as a lightweight stand-in for a real workspace icon.
-  const workspaceAvatarColors = ['#5B9BF0', '#63BC8B', '#E0A64D', '#D96B6B', '#9B7FE0', '#4DB6C7', '#E08FC0', '#8CC152']
-
-  function workspaceAvatarColor (id: string): string {
-    let hash = 0
-    for (let i = 0; i < id.length; i++) {
-      hash = (hash * 31 + id.charCodeAt(i)) | 0
-    }
-    return workspaceAvatarColors[Math.abs(hash) % workspaceAvatarColors.length]
-  }
-
-  function workspaceInitial (name: string): string {
-    return name.trim().charAt(0).toUpperCase() || '?'
-  }
 
   let workspaces: WorkspaceInfoWithStatus[] = []
   let status = OK
@@ -186,16 +172,17 @@
           .filter((it) => search === '' || (it.name?.includes(search) ?? false) || it.url.includes(search))
           .slice(0, 500) as workspace}
           {@const wsName = workspace.name ?? workspace.url}
-          {@const lastUsageDays =
-            workspace.lastVisit === undefined
-              ? 'N/A'
-              : Math.round((Date.now() - workspace.lastVisit) / (1000 * 3600 * 24))}
+          {@const lastUsageDays = getWorkspaceLastVisitDays(workspace.lastVisit)}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div class="workspace cursor-pointer focused-button bordered form-row" on:click={() => select(workspace.url)}>
-            <div class="workspace-icon" style:background={workspaceAvatarColor(workspace.uuid)}>
-              {workspaceInitial(wsName)}
-            </div>
+            <WorkspaceAvatar
+              colorSeed={workspace.uuid}
+              displayName={wsName}
+              size={'small'}
+              hasUnread={workspace.hasUnread === true}
+              ringColor={'var(--theme-bg-color)'}
+            />
             <span class="workspace-name overflow-label">
               {wsName}
               {#if isArchivingMode(workspace.mode)}
@@ -205,7 +192,7 @@
                 ({workspace.processingProgress}%)
               {/if}
             </span>
-            <span class="workspace-meta">{lastUsageDays} d</span>
+            <span class="workspace-meta">{lastUsageDays === undefined ? 'N/A' : `${lastUsageDays} d`}</span>
           </div>
         {/each}
 
@@ -297,19 +284,6 @@
         padding: 0.625rem 0.875rem;
         border-radius: 0.75rem;
         text-align: left;
-      }
-
-      .workspace-icon {
-        flex-shrink: 0;
-        width: 1.75rem;
-        height: 1.75rem;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #fff;
       }
 
       .workspace-name {

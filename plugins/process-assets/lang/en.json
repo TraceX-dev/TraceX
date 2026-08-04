@@ -70,6 +70,7 @@
     "Data": "Data",
     "Transitions": "Transitions",
     "OnExecutionStart": "On execution start",
+    "OnNewVersion": "On new version",
     "Prepend": "Prepend",
     "Append": "Append",
     "Replace": "Replace",

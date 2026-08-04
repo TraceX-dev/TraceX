@@ -70,6 +70,7 @@
     "Data": "Dane",
     "Transitions": "Przejścia",
     "OnExecutionStart": "Przy rozpoczęciu wykonania",
+    "OnNewVersion": "Przy utworzeniu nowej wersji",
     "Prepend": "Dodaj na początku",
     "Append": "Dodaj na końcu",
     "Replace": "Zamień",

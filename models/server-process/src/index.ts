@@ -98,6 +98,10 @@ export function createModel (builder: Builder): void {
     preventRollback: true
   })
 
+  builder.mixin(process.trigger.OnNewVersion, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true
+  })
+
   // builder.mixin(process.trigger.OnEvent, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
   //   serverCheckFunc: serverProcess.func.EventCheck
   // })

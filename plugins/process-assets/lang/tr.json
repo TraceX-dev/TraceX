@@ -70,6 +70,7 @@
     "Data": "Veri",
     "Transitions": "Geçişler",
     "OnExecutionStart": "Yürütme başlangıcında",
+    "OnNewVersion": "Yeni sürüm oluşturulduğunda",
     "Prepend": "Başa ekle",
     "Append": "Sona ekle",
     "Replace": "Değiştir",
