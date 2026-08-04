@@ -28,6 +28,8 @@
     "ServerUnderMaintenance": "Il server è in manutenzione",
     "WorkspaceCreating": "Creazione in corso...",
     "AccessDenied": "L'oggetto non esiste o non hai autorizzazione per accedervi.",
-    "WorkspaceIsMigrating": "Il workspace è in fase di aggiornamento. Attendi..."
+    "WorkspaceIsMigrating": "Il workspace è in fase di aggiornamento. Attendi...",
+    "FailedToLoadWorkspaces": "Impossibile caricare gli spazi di lavoro",
+    "NoWorkspacesFound": "Nessuno spazio di lavoro trovato"
   }
 }

@@ -35,6 +35,8 @@
     "ConfigureWidgets": "Configurar widgets",
     "Tab": "Pestaña",
     "WorkspaceIsArchived": "El espacio de trabajo está archivado por no estar en uso, por favor contáctenos para restaurarlo...",
-    "WorkspaceIsMigrating": "El espacio de trabajo se está actualizando. Por favor, espere..."
+    "WorkspaceIsMigrating": "El espacio de trabajo se está actualizando. Por favor, espere...",
+    "FailedToLoadWorkspaces": "No se pudieron cargar los espacios de trabajo",
+    "NoWorkspacesFound": "No se encontraron espacios de trabajo"
   }
 }
