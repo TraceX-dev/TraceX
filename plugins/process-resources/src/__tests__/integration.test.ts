@@ -171,4 +171,54 @@ describe('Process Export/Import Integration', () => {
     const restoredCtxId = importedParams.contextRef.match(/\$\{?\$context\(([^)]+)\)\}/)![1]
     expect(restoredCtxId).toHaveLength(24) // Should be a real generated ID
   })
+
+  test('enum type is exported as a slot without its source enum document', async () => {
+    const enumId = generateId()
+    const enumTx = createDoc(core.class.Enum, { name: 'Priority', enumValues: ['low', 'high'] }, enumId)
+    h.tx(enumTx)
+    await m.tx(enumTx)
+
+    const proc = m.findObject(processId) as Process
+    const transition: any = {
+      _id: generateId(),
+      _class: process.class.Transition,
+      process: processId,
+      from: null,
+      to: stateId,
+      trigger: process.trigger.OnExecutionStart,
+      triggerParams: {},
+      actions: [
+        {
+          _id: generateId(),
+          _class: 'process:Action',
+          methodId: process.method.CreateCard,
+          params: {},
+          results: [
+            {
+              _id: generateId(),
+              name: 'priority',
+              type: { _class: core.class.EnumOf, of: enumId }
+            }
+          ]
+        }
+      ],
+      rank: '0'
+    }
+
+    m.findAllSync = jest.fn().mockImplementation((_class, filter) => {
+      if (_class === process.class.State) return [m.findObject(stateId)]
+      if (_class === process.class.Transition) return [transition]
+      return []
+    })
+
+    const { docs } = exportProcess(proc)
+    const exportedProcess = docs.find((doc) => doc._class === process.class.Process) as Process
+    const enumSlot = Object.entries(exportedProcess.requiredSlots ?? {}).find(([, slot]) => slot.slotKind === 'enum')
+    const exportedTransition = docs.find((doc) => doc._class === process.class.Transition) as any
+
+    expect(enumSlot).toBeDefined()
+    expect(enumSlot?.[1]).toMatchObject({ name: 'Priority', enumValues: ['low', 'high'] })
+    expect(exportedTransition.actions[0].results[0].type.of).toBe(`__SLOT_${enumSlot?.[0]}__`)
+    expect(docs.some((doc) => doc._class === core.class.Enum)).toBe(false)
+  })
 })

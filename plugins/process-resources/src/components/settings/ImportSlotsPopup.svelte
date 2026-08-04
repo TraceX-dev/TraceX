@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { Class, Doc, Ref } from '@hcengineering/core'
+  import core, { type Class, type Doc, type Enum, type Ref } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { Button, eventToHTMLElement, Label, SelectPopup, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
@@ -36,6 +36,7 @@
   $: allAttrs = hierarchy.getAllAttributes(masterTag, core.class.Doc)
   $: allAssociations = model.findAllSync(core.class.Association, {})
   $: allProcesses = model.findAllSync(processPlugin.class.Process, {})
+  $: allEnums = model.findAllSync(core.class.Enum, {})
 
   function isClassLike (obj: Doc | undefined): boolean {
     if (!obj || !obj._class) return false
@@ -83,7 +84,12 @@
 
     let possible: Array<{ id: string, label?: any, text?: string }> = []
 
-    if (slot.slotKind === 'association' || slot._class === core.class.Association) {
+    if (slot.slotKind === 'enum' || slot._class === core.class.Enum) {
+      possible = allEnums.map((enumeration: Enum) => ({
+        id: enumeration._id,
+        text: enumeration.name
+      }))
+    } else if (slot.slotKind === 'association' || slot._class === core.class.Association) {
       possible = allAssociations
         .filter((assoc) => {
           const isA =
@@ -209,6 +215,9 @@
 
     const proc = allProcesses.find((p) => p._id === value)
     if (proc !== undefined) return getEmbeddedLabel(proc.name)
+
+    const enumeration = allEnums.find((item) => item._id === value)
+    if (enumeration !== undefined) return getEmbeddedLabel(enumeration.name)
 
     const cls = model.findObject(value as any)
     if (isClassLike(cls)) return (cls as any).label ?? (cls as any).name

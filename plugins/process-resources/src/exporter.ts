@@ -6,6 +6,7 @@ import core, {
   type Attribute,
   type Class,
   type Doc,
+  type Enum,
   type EnumOf,
   generateId,
   type Hierarchy,
@@ -15,7 +16,13 @@ import core, {
   type Type
 } from '@hcengineering/core'
 import { getClient } from '@hcengineering/presentation'
-import { type AttributeSlotModel, type Process, type SlotModel, type Transition } from '@hcengineering/process'
+import {
+  type AttributeSlotModel,
+  type EnumSlotModel,
+  type Process,
+  type SlotModel,
+  type Transition
+} from '@hcengineering/process'
 import { deepEqual } from 'fast-equals'
 import processPlugin from './plugin'
 
@@ -26,9 +33,9 @@ interface ExportResult {
   required: Array<Ref<Class<Doc>>>
 }
 
-export type { AttributeSlotModel, SlotModel }
+export type { AttributeSlotModel, EnumSlotModel, SlotModel }
 
-type DetailedSlotModel = AttributeSlotModel | SlotModel
+type DetailedSlotModel = AttributeSlotModel | EnumSlotModel | SlotModel
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -99,6 +106,15 @@ function unknownToSlot (id: string, memberOf?: string): SlotModel {
     label: id as any,
     name: id,
     memberOf
+  }
+}
+
+function enumToSlot (enumeration: Enum): EnumSlotModel {
+  return {
+    slotKind: 'enum',
+    _class: core.class.Enum,
+    name: enumeration.name,
+    enumValues: enumeration.enumValues
   }
 }
 
@@ -253,6 +269,20 @@ export function exportProcess (proc: Process, withSlots: boolean = true): Export
     const requiredSlots: Record<string, SlotModel> = {}
     const bindings: Record<string, string> = {}
     detectSlots(proc, transitions, requiredSlots, bindings, m, h)
+    detectEnumSlots(proc, transitions, requiredSlots, bindings, m)
+
+    // Enum values are represented by slots. Do not export source enum documents
+    // because their IDs belong to the source environment.
+    const enumIds = new Set(
+      Object.entries(requiredSlots)
+        .filter(([, slot]) => slot.slotKind === 'enum')
+        .map(([slotId]) => bindings[slotId])
+    )
+    for (let index = docs.length - 1; index >= 0; index--) {
+      if (docs[index]._class === core.class.Enum && enumIds.has(docs[index]._id)) {
+        docs.splice(index, 1)
+      }
+    }
 
     // Attach slots/bindings to the process doc for serialization
     const clonedProc = { ...proc, requiredSlots, bindings }
@@ -277,6 +307,54 @@ export function exportProcess (proc: Process, withSlots: boolean = true): Export
   }
 
   return { docs: withSlots ? normalizeIds(docs) : docs, required }
+}
+
+/** Registers enum dependencies as slots so templates do not retain source enum IDs. */
+function detectEnumSlots (
+  proc: Process,
+  transitions: Transition[],
+  slots: Record<string, SlotModel>,
+  bindings: Record<string, string>,
+  m: ModelDb
+): void {
+  const enumIds = new Set<string>()
+
+  const collectType = (type: Type<any> | undefined): void => {
+    if (type === undefined) return
+    if (type._class === core.class.EnumOf) {
+      enumIds.add((type as EnumOf).of)
+    } else if (type._class === core.class.ArrOf) {
+      collectType((type as ArrOf<Doc>).of)
+    }
+  }
+
+  collectType(proc.resultType)
+  for (const context of Object.values(proc.context ?? {})) collectType(context.type)
+  for (const transition of transitions) {
+    for (const action of transition.actions) {
+      for (const result of action.results ?? []) collectType(result.type)
+    }
+  }
+  for (const slot of Object.values(slots)) {
+    if (slot.slotKind === 'attribute') collectType((slot as AttributeSlotModel).type)
+  }
+
+  for (const enumId of enumIds) {
+    const enumeration = m.findObject(enumId as Ref<Enum>)
+    if (enumeration === undefined) continue
+
+    const existingSlotId = Object.entries(bindings).find(([, boundId]) => boundId === enumId)?.[0]
+    if (existingSlotId !== undefined) continue
+
+    const baseName = enumeration.name
+    let slotId = baseName
+    let suffix = 2
+    while (slots[slotId] !== undefined || bindings[slotId] !== undefined) {
+      slotId = `${baseName}${suffix++}`
+    }
+    slots[slotId] = enumToSlot(enumeration)
+    bindings[slotId] = enumId
+  }
 }
 
 // ─── Import API ──────────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
   import card from '@hcengineering/card'
-  import core, { AnyAttribute, Class, Doc, Ref } from '@hcengineering/core'
+  import core, { type AnyAttribute, type Class, type Doc, type Enum, type Ref } from '@hcengineering/core'
   import { getEmbeddedLabel, IntlString } from '@hcengineering/platform'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { Process } from '@hcengineering/process'
@@ -33,6 +33,7 @@
   $: allAttrs = hierarchy.getAllAttributes(process.masterTag as any, core.class.Doc)
   $: allAssociations = model.findAllSync(core.class.Association, {})
   $: allProcesses = model.findAllSync(processPlugin.class.Process, {})
+  $: allEnums = model.findAllSync(core.class.Enum, {})
 
   function isClassLike (obj: Doc | undefined): boolean {
     if (!obj || !obj._class) return false
@@ -66,7 +67,9 @@
 
     let possible: Array<{ id: string, label?: IntlString, name?: string }> = []
 
-    if (slot.slotKind === 'association') {
+    if (slot.slotKind === 'enum') {
+      possible = allEnums.map((enumeration: Enum) => ({ id: enumeration._id, name: enumeration.name }))
+    } else if (slot.slotKind === 'association') {
       const aAssociations = allAssociations
         .filter((assoc) => {
           return (
@@ -155,6 +158,9 @@
 
     const proc = allProcesses.find((p) => p._id === value)
     if (proc !== undefined) return getEmbeddedLabel(proc.name)
+
+    const enumeration = allEnums.find((item) => item._id === value)
+    if (enumeration !== undefined) return getEmbeddedLabel(enumeration.name)
 
     const cls = model.findObject(value as any)
     if (isClassLike(cls)) return (cls as Class<Doc>).label

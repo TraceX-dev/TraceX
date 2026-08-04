@@ -26,7 +26,7 @@ import { SelectedExecutionContext } from './types'
 export const processId = 'process' as Plugin
 
 export interface SlotModel {
-  slotKind: 'attribute' | 'class' | 'association' | 'process' | 'unknown'
+  slotKind: 'attribute' | 'class' | 'association' | 'process' | 'enum' | 'unknown'
   _class: Ref<Class<Doc>>
   label?: IntlString
   name?: string
@@ -36,6 +36,11 @@ export interface SlotModel {
 export interface AttributeSlotModel extends SlotModel {
   slotKind: 'attribute'
   type: Type<any>
+}
+
+export interface EnumSlotModel extends SlotModel {
+  slotKind: 'enum'
+  enumValues: string[]
 }
 
 // Process model dscription
