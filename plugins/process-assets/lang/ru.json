@@ -74,6 +74,7 @@
     "Data": "Данные",
     "Transitions": "Переходы",
     "OnExecutionStart": "При запуске",
+    "OnNewVersion": "При создании новой версии",
     "Prepend": "Добавить в начало",
     "Append": "Добавить в конец",
     "Replace": "Заменить",

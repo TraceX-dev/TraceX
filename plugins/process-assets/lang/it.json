@@ -74,6 +74,7 @@
     "Data": "Dati",
     "Transitions": "Transizioni",
     "OnExecutionStart": "All'avvio dell'esecuzione",
+    "OnNewVersion": "Alla creazione di una nuova versione",
     "Prepend": "Anteporre",
     "Append": "Aggiungere",
     "Replace": "Sostituire",
