@@ -17,12 +17,14 @@
   import contact, { type Employee, formatName } from '@hcengineering/contact'
   import core, {
     type AccountUuid,
+    type Ref,
     type Space,
     type WorkspaceMemberInfo,
     AccountRole,
     isGuestRole,
     setWorkspaceGuestAutoJoinRoles
   } from '@hcengineering/core'
+  import { getMetadata } from '@hcengineering/platform'
   import presentation, { createQuery, getClient } from '@hcengineering/presentation'
   import {
     Breadcrumb,
@@ -36,21 +38,35 @@
     defineSeparators,
     twoPanelsSeparators
   } from '@hcengineering/ui'
+  import workbench, {
+    type Application,
+    type ApplicationNavModel,
+    createSpaceApplicationResolver
+  } from '@hcengineering/workbench'
 
   import setting from '../plugin'
   import { getSpaceOperationKey, type SpaceOperation } from '../spaceAccessUtils'
   import { getAccountClient } from '../utils'
-  import AutojoinAccessSettings from './access/AutojoinAccessSettings.svelte'
   import MembersAccessSettings from './access/MembersAccessSettings.svelte'
   import SpacesAccessSettings from './access/SpacesAccessSettings.svelte'
   import GuestPermissionsSettings from './GuestPermissionsSettings.svelte'
 
-  type Tab = 'spaces' | 'autojoin' | 'users' | 'guests' | 'anonymous'
+  type Tab = 'spaces' | 'users' | 'guests' | 'anonymous'
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
   const accountClient = getAccountClient()
-  const excludedSpaceClasses = new Set<string>(['chunter:class:DirectMessage', 'lead:class:Funnel'])
+  const excludedSpaceClasses = new Set<string>([
+    'board:class:Board',
+    'chunter:class:DirectMessage',
+    'lead:class:Funnel',
+    'templates:class:TemplateCategory'
+  ])
+  const excludedSpaceIds = new Set<Ref<Space>>([core.space.Space])
+  const excludedApplicationIds = getMetadata(workbench.metadata.ExcludedApplications) ?? []
+  const applicationNavModels = client
+    .getModel()
+    .findAllSync<ApplicationNavModel>(workbench.class.ApplicationNavModel, {})
 
   let activeTab: Tab = 'users'
   let spaces: Space[] = []
@@ -62,6 +78,21 @@
   let operationError = false
   let pendingSpaceOperations = new Set<string>()
   let pendingRoleUpdates = new Set<AccountUuid>()
+  let hiddenApplicationIds: Array<Ref<Application>> = []
+
+  const hiddenAppsQuery = createQuery()
+  hiddenAppsQuery.query(workbench.class.HiddenApplication, { space: core.space.Workspace }, (result) => {
+    hiddenApplicationIds = result.map((preference) => preference.attachedTo)
+  })
+
+  $: workspaceApplications = client
+    .getModel()
+    .findAllSync<Application>(workbench.class.Application, {
+    hidden: false,
+    _id: { $nin: excludedApplicationIds }
+  })
+    .filter((application) => !hiddenApplicationIds.includes(application._id))
+  $: spaceApplicationResolver = createSpaceApplicationResolver(hierarchy, workspaceApplications, applicationNavModels)
 
   const spacesQuery = createQuery()
   spacesQuery.query(core.class.Space, { archived: false }, (result) => {
@@ -71,7 +102,8 @@
         (space) =>
           !hierarchy.isDerived(space._class, core.class.SystemSpace) &&
           !hierarchy.isDerived(space._class, contact.class.PersonSpace) &&
-          !excludedSpaceClasses.has(space._class)
+          !excludedSpaceClasses.has(space._class) &&
+          !excludedSpaceIds.has(space._id)
       )
       .sort((left, right) => left.name.localeCompare(right.name))
   })
@@ -193,14 +225,6 @@
           }}
         />
         <NavItem
-          icon={setting.icon.InviteWorkspace}
-          label={setting.string.Autojoin}
-          selected={activeTab === 'autojoin'}
-          on:click={() => {
-            activeTab = 'autojoin'
-          }}
-        />
-        <NavItem
           icon={contact.icon.Person}
           label={setting.string.GuestPermissionsTabGuest}
           selected={activeTab === 'guests'}
@@ -239,6 +263,7 @@
       {#if activeTab === 'users'}
         <MembersAccessSettings
           {spaces}
+          {spaceApplicationResolver}
           {employees}
           {workspaceMembers}
           {employeesLoading}
@@ -252,18 +277,12 @@
       {:else if activeTab === 'spaces'}
         <SpacesAccessSettings
           {spaces}
+          {spaceApplicationResolver}
           {employees}
           {spacesLoading}
           {employeesLoading}
           {pendingSpaceOperations}
           {updateMembers}
-          handleError={handleOperationError}
-        />
-      {:else if activeTab === 'autojoin'}
-        <AutojoinAccessSettings
-          {spaces}
-          {spacesLoading}
-          {pendingSpaceOperations}
           {setAutoJoin}
           {setGuestAutoJoin}
           handleError={handleOperationError}

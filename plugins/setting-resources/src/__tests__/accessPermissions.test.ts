@@ -25,7 +25,9 @@ import {
 import {
   canChangeWorkspaceRole,
   canRevokeSpaceAccess,
+  getAvailableSpacesForMember,
   getAssignableWorkspaceRoles,
+  getMemberSpaceAvailability,
   getSpacesForMember
 } from '../accessPermissions'
 
@@ -106,5 +108,26 @@ describe('access permissions', () => {
 
     expect(getSpacesForMember(spaces, USER)).toEqual(spaces.slice(0, 2))
     expect(getSpacesForMember(spaces, undefined)).toEqual([])
+  })
+
+  it('distinguishes memberships from public spaces a user can join', () => {
+    const memberSpace = { id: 'member', members: [USER], private: true }
+    const publicSpace = { id: 'public', members: [OWNER], private: false }
+    const privateSpace = { id: 'private', members: [OWNER], private: true }
+
+    expect(getMemberSpaceAvailability(memberSpace, USER, AccountRole.User)).toBe('member')
+    expect(getMemberSpaceAvailability(publicSpace, USER, AccountRole.User)).toBe('joinable')
+    expect(getMemberSpaceAvailability(privateSpace, USER, AccountRole.User)).toBeUndefined()
+    expect(getAvailableSpacesForMember([memberSpace, publicSpace, privateSpace], USER, AccountRole.User)).toEqual([
+      memberSpace,
+      publicSpace
+    ])
+  })
+
+  it('does not offer non-member spaces to guests', () => {
+    const publicSpace = { id: 'public', members: [OWNER], private: false }
+
+    expect(getMemberSpaceAvailability(publicSpace, USER, AccountRole.Guest)).toBeUndefined()
+    expect(getMemberSpaceAvailability(publicSpace, USER, AccountRole.ReadOnlyGuest)).toBeUndefined()
   })
 })

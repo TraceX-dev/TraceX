@@ -253,6 +253,10 @@
     "OverrideAttribute": "Özniteliği geçersiz kıl",
     "Required": "Zorunlu",
     "RemoveMemberFromSpace": "Kullanıcıyı alandan çıkar",
-    "MemberSpacesTitle": "{name} kullanıcısının alanları"
+    "MemberSpacesTitle": "{name} kullanıcısının alanları",
+    "OtherSpaces": "Diğer alanlar",
+    "Public": "Herkese açık",
+    "Member": "Üye",
+    "CanJoin": "Katılabilir"
   }
 }

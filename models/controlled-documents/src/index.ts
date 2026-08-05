@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -182,6 +183,8 @@ export function createModel (builder: Builder): void {
       locationResolver: documents.resolver.Location,
       alias: documentsId,
       hidden: false,
+      spaceClasses: [documents.class.DocumentSpace],
+      spaceIds: [documents.space.Documents],
       navigatorModel: {
         specials: [
           {

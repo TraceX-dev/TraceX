@@ -213,9 +213,7 @@
     "MaxValue": "Maximum value",
     "IntegerOnly": "Integer numbers only",
     "AccessControl": "Access & Membership",
-    "AccessControlSpacesHint": "Review active spaces and their members. Automatic joining of new users and guests is configured on the Autojoin tab.",
-    "Autojoin": "Autojoin",
-    "AutojoinHint": "Toggles control automatic joining of new users and guests for each space.",
+    "AccessControlSpacesHint": "Review active spaces, memberships, and automatic joining in one place.",
     "Active": "Active",
     "SearchSpaces": "Search spaces",
     "SearchMembers": "Search members",
@@ -263,6 +261,10 @@
     "OverrideAttribute": "Override attribute",
     "Required": "Required",
     "RemoveMemberFromSpace": "Remove user from space",
-    "MemberSpacesTitle": "Spaces for {name}"
+    "MemberSpacesTitle": "Spaces for {name}",
+    "OtherSpaces": "Other spaces",
+    "Public": "Public",
+    "Member": "Member",
+    "CanJoin": "Can join"
   }
 }

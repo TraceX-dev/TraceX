@@ -244,6 +244,10 @@
     "OverrideAttribute": "Sobrescrever atributo",
     "Required": "Obrigatório",
     "RemoveMemberFromSpace": "Remover usuário do espaço",
-    "MemberSpacesTitle": "Espaços de {name}"
+    "MemberSpacesTitle": "Espaços de {name}",
+    "OtherSpaces": "Outros espaços",
+    "Public": "Público",
+    "Member": "Membro",
+    "CanJoin": "Pode participar"
   }
 }

@@ -253,6 +253,10 @@
     "OverrideAttribute": "Nadpisz atrybut",
     "Required": "Obowiązkowe",
     "RemoveMemberFromSpace": "Usuń użytkownika z przestrzeni",
-    "MemberSpacesTitle": "Przestrzenie użytkownika {name}"
+    "MemberSpacesTitle": "Przestrzenie użytkownika {name}",
+    "OtherSpaces": "Inne przestrzenie",
+    "Public": "Publiczne",
+    "Member": "Członek",
+    "CanJoin": "Może dołączyć"
   }
 }

@@ -253,6 +253,10 @@
     "OverrideAttribute": "覆盖属性",
     "Required": "必须",
     "RemoveMemberFromSpace": "将用户移出空间",
-    "MemberSpacesTitle": "{name} 的空间"
+    "MemberSpacesTitle": "{name} 的空间",
+    "OtherSpaces": "其他空间",
+    "Public": "公开",
+    "Member": "成员",
+    "CanJoin": "可加入"
   }
 }

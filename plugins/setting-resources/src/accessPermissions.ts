@@ -16,6 +16,7 @@
 import {
   AccountRole,
   hasAccountRole,
+  isGuestRole,
   readOnlyGuestAccountUuid,
   type Account,
   type AccountUuid,
@@ -33,6 +34,12 @@ export const WORKSPACE_ROLES: AccountRole[] = [
 interface SpaceMembership {
   members: AccountUuid[]
 }
+
+interface AccessibleSpaceMembership extends SpaceMembership {
+  private?: boolean
+}
+
+export type MemberSpaceAvailability = 'member' | 'joinable'
 
 export function getWorkspaceMemberRole (
   members: WorkspaceMemberInfo[],
@@ -75,4 +82,23 @@ export function canRevokeSpaceAccess (
 export function getSpacesForMember<T extends SpaceMembership> (spaces: T[], person: AccountUuid | undefined): T[] {
   if (person === undefined) return []
   return spaces.filter((space) => space.members.includes(person))
+}
+
+export function getMemberSpaceAvailability (
+  space: AccessibleSpaceMembership,
+  person: AccountUuid | undefined,
+  role: AccountRole | undefined
+): MemberSpaceAvailability | undefined {
+  if (person === undefined || role === undefined) return undefined
+  if (space.members.includes(person)) return 'member'
+  if (space.private !== true && !isGuestRole(role)) return 'joinable'
+  return undefined
+}
+
+export function getAvailableSpacesForMember<T extends AccessibleSpaceMembership> (
+  spaces: T[],
+  person: AccountUuid | undefined,
+  role: AccountRole | undefined
+): T[] {
+  return spaces.filter((space) => getMemberSpaceAvailability(space, person, role) !== undefined)
 }

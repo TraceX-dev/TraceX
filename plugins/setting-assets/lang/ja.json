@@ -253,6 +253,10 @@
     "OverrideAttribute": "属性を上書き",
     "Required": "必須",
     "RemoveMemberFromSpace": "スペースからユーザーを削除",
-    "MemberSpacesTitle": "{name}のスペース"
+    "MemberSpacesTitle": "{name}のスペース",
+    "OtherSpaces": "その他のスペース",
+    "Public": "公開",
+    "Member": "メンバー",
+    "CanJoin": "参加可能"
   }
 }

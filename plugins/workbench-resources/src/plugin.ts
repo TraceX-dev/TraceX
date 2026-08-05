@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,6 +22,8 @@ import { type AnyComponent } from '@hcengineering/ui/src/types'
 
 export default mergeIds(workbenchId, workbench, {
   string: {
+    Application: '' as IntlString,
+    HiddenApplication: '' as IntlString,
     More: '' as IntlString,
     Delete: '' as IntlString,
     ShowMenu: '' as IntlString,

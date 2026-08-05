@@ -251,6 +251,10 @@
     "OverrideAttribute": "Přepsat atribut",
     "Required": "Požadované",
     "RemoveMemberFromSpace": "Odebrat uživatele z prostoru",
-    "MemberSpacesTitle": "Prostory uživatele {name}"
+    "MemberSpacesTitle": "Prostory uživatele {name}",
+    "OtherSpaces": "Ostatní prostory",
+    "Public": "Veřejné",
+    "Member": "Člen",
+    "CanJoin": "Může se připojit"
   }
 }

@@ -107,7 +107,6 @@ export { default as TimeInputBox } from './components/calendar/TimeInputBox.svel
 export { default as Html } from './components/Html.svelte'
 export { default as StylishEdit } from './components/StylishEdit.svelte'
 export { default as Grid } from './components/Grid.svelte'
-export { default as DataTable } from './components/DataTable.svelte'
 export { default as Row } from './components/Row.svelte'
 // export { default as CheckBoxWithLabel } from './components/CheckBoxWithLabel.svelte'
 // export { default as CheckBoxList } from './components/CheckBoxList.svelte.txt'
