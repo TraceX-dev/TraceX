@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,7 +20,6 @@
   import { createEventDispatcher } from 'svelte'
   import Button from './Button.svelte'
   import IconFilter from './icons/Filter.svelte'
-  import IconClose from './icons/Close.svelte'
   import { eventToHTMLElement, showPopup } from '../popups'
   import FilterCategoryPopup from './FilterCategoryPopup.svelte'
   import type { ButtonKind, ActiveFilter, FilterCategory } from '../types'
@@ -61,7 +61,8 @@
         categories,
         activeFilters,
         onFilterChange: addFilter,
-        onFilterRemove: removeFilter
+        onFilterRemove: removeFilter,
+        onFiltersClear: clearFilters
       },
       target
     )
@@ -70,18 +71,44 @@
   $: hasFilters = activeFilters.length > 0
 </script>
 
-<Button
-  icon={hasFilters ? IconClose : IconFilter}
-  label={showLabel ? (hasFilters ? ui.string.Clear : ui.string.Filter) : undefined}
-  {kind}
-  {size}
-  pressed={hasFilters}
-  {disabled}
-  on:click={(ev) => {
-    if (hasFilters) {
-      clearFilters()
-    } else {
-      showFilterPopup(ev)
-    }
-  }}
-/>
+{#if hasFilters}
+  <Button
+    icon={IconFilter}
+    label={showLabel ? ui.string.Filter : undefined}
+    {kind}
+    {size}
+    pressed
+    {disabled}
+    on:click={showFilterPopup}
+  >
+    <svelte:fragment slot="content">
+      <span class="filterCount">{activeFilters.length}</span>
+    </svelte:fragment>
+  </Button>
+{:else}
+  <Button
+    icon={IconFilter}
+    label={showLabel ? ui.string.Filter : undefined}
+    {kind}
+    {size}
+    {disabled}
+    on:click={showFilterPopup}
+  />
+{/if}
+
+<style lang="scss">
+  .filterCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1rem;
+    height: 1rem;
+    margin-left: var(--spacing-1);
+    padding: 0 0.25rem;
+    border-radius: 0.5rem;
+    background: var(--theme-primary-bg-color);
+    color: var(--theme-primary-color);
+    font-size: 0.6875rem;
+    line-height: 1;
+  }
+</style>

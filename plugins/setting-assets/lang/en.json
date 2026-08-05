@@ -75,6 +75,7 @@
     "User": "User",
     "Maintainer": "Maintainer",
     "Owner": "Owner",
+    "Admin": "Admin",
     "OwnerFirstName": "Owner's First name",
     "OwnerLastName": "Owner's Last name",
     "Role": "Role",
@@ -211,7 +212,15 @@
     "MinValue": "Minimum value",
     "MaxValue": "Maximum value",
     "IntegerOnly": "Integer numbers only",
-    "AccessControl": "Access control",
+    "AccessControl": "Access management",
+    "SpaceRoles": "Space roles",
+    "AccessControlSpacesHint": "Review active spaces, memberships, and automatic joining in one place.",
+    "Active": "Active",
+    "SearchSpaces": "Search spaces",
+    "SearchMembers": "Search members",
+    "MembersAndTheirSpaces": "Members and their spaces",
+    "NoSpaces": "No spaces",
+    "SelectMemberToViewSpaces": "Select a member to see their spaces",
     "DangerZone": "Danger zone",
     "ApiAccess": "API access",
     "ApiToken": "API key",
@@ -251,6 +260,11 @@
     "ShowQRCode": "Show QR code",
     "EnterVerificationCode": "Enter verification code",
     "OverrideAttribute": "Override attribute",
-    "Required": "Required"
+    "Required": "Required",
+    "RemoveMemberFromSpace": "Remove user from space",
+    "OtherSpaces": "Other spaces",
+    "Public": "Public",
+    "Member": "Member",
+    "CanJoin": "Can join"
   }
 }

@@ -213,7 +213,8 @@
     "RestrictedAttributeWarning": "Sei sicuro di voler limitare la modifica di questo attributo? Questa azione creerà permessi per questo attributo e non può essere annullata.",
     "MaxValue": "Valore massimo",
     "IntegerOnly": "Solo numeri interi",
-    "AccessControl": "Controllo accessi",
+    "AccessControl": "Gestione degli accessi",
+    "SpaceRoles": "Ruoli negli spazi",
     "DangerZone": "Zona pericolosa",
     "ApiAccess": "Accesso API",
     "ApiToken": "Chiave API",
@@ -251,6 +252,11 @@
     "ShowQRCode": "Mostra codice QR",
     "EnterVerificationCode": "Inserisci codice di verifica",
     "OverrideAttribute": "Sovrascrivi attributo",
-    "Required": "Richiesto"
+    "Required": "Richiesto",
+    "RemoveMemberFromSpace": "Rimuovi l'utente dallo spazio",
+    "OtherSpaces": "Altri spazi",
+    "Public": "Pubblico",
+    "Member": "Membro",
+    "CanJoin": "Può partecipare"
   }
 }

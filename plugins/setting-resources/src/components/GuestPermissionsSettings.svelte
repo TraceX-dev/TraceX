@@ -23,6 +23,7 @@
     AccountUuid,
     ModulePermissionGroup,
     getCurrentAccount,
+    hasAccountRole,
     pickPrimarySocialId,
     readOnlyGuestAccountUuid,
     type Doc,
@@ -52,6 +53,9 @@
   import AvailableSpacesInput from './AvailableSpacesInput.svelte'
   import settingsRes from '../plugin'
 
+  export let embedded = false
+  export let initialTab: 'guest' | 'anonymous' = 'guest'
+
   let loadingSettings = true
   let loadingPermissions = true
   let workspaceAppsReady = false
@@ -71,6 +75,7 @@
   const communicationApiEnabled = getMetadata(communication.metadata.Enabled) === true
 
   let guestPermissionsTab: 'guest' | 'anonymous' = 'guest'
+  const canManageAnonymousAccess = hasAccountRole(getCurrentAccount(), AccountRole.Owner)
 
   const client = getClient()
   const moduleGroupsQuery = createQuery()
@@ -138,7 +143,12 @@
   $: sortedVisibleModuleGroups = [...visibleModuleGroups].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
 
   /** Anonymous (read-only guest) module rows are view-only until workspace allows anonymous guests. */
-  $: anonymousModulePermissionsReadOnly = guestPermissionsTab === 'anonymous' && !allowReadOnlyGuests
+  $: anonymousModulePermissionsReadOnly =
+    guestPermissionsTab === 'anonymous' && (!allowReadOnlyGuests || !canManageAnonymousAccess)
+
+  $: if (embedded && guestPermissionsTab !== initialTab) {
+    guestPermissionsTab = initialTab
+  }
 
   function getApplicationLabel (applicationId: Ref<Doc>): IntlString {
     return applicationsMap.get(applicationId)?.label ?? getEmbeddedLabel(applicationId)
@@ -274,37 +284,41 @@
 </script>
 
 <div class="hulyComponent">
-  <Header adaptive={'disabled'}>
-    <Breadcrumb
-      icon={setting.icon.GuestPermissions}
-      label={setting.string.GuestPermissionsSettings}
-      size={'large'}
-      isCurrent
-    />
-  </Header>
+  {#if !embedded}
+    <Header adaptive={'disabled'}>
+      <Breadcrumb
+        icon={setting.icon.Members}
+        label={setting.string.GuestPermissionsSettings}
+        size={'large'}
+        isCurrent
+      />
+    </Header>
+  {/if}
   <div class="hulyComponent-content__container columns">
-    <div class="hulyComponent-content__column navigation py-2">
-      <Scroller shrink>
-        <NavItem
-          icon={contact.icon.Person}
-          label={setting.string.GuestPermissionsTabGuest}
-          selected={guestPermissionsTab === 'guest'}
-          on:click={() => {
-            guestPermissionsTab = 'guest'
-          }}
-        />
-        <NavItem
-          icon={contact.icon.Persona}
-          label={setting.string.GuestPermissionsTabAnonymousGuest}
-          selected={guestPermissionsTab === 'anonymous'}
-          on:click={() => {
-            guestPermissionsTab = 'anonymous'
-          }}
-        />
-      </Scroller>
-    </div>
+    {#if !embedded}
+      <div class="hulyComponent-content__column navigation py-2">
+        <Scroller shrink>
+          <NavItem
+            icon={contact.icon.Person}
+            label={setting.string.GuestPermissionsTabGuest}
+            selected={guestPermissionsTab === 'guest'}
+            on:click={() => {
+              guestPermissionsTab = 'guest'
+            }}
+          />
+          <NavItem
+            icon={contact.icon.Persona}
+            label={setting.string.GuestPermissionsTabAnonymousGuest}
+            selected={guestPermissionsTab === 'anonymous'}
+            on:click={() => {
+              guestPermissionsTab = 'anonymous'
+            }}
+          />
+        </Scroller>
+      </div>
 
-    <Separator name={'guestPermissionsSettings'} index={0} color={'var(--theme-divider-color)'} />
+      <Separator name={'guestPermissionsSettings'} index={0} color={'var(--theme-divider-color)'} />
+    {/if}
 
     <div class="hulyComponent-content__column content">
       {#if loading}
@@ -327,7 +341,11 @@
                       <Label label={settingsRes.string.GuestAccessDescription} />
                     </div>
                     <div class="guestAccessRow-toggleCell">
-                      <Toggle on={allowReadOnlyGuests} on:change={onReadonlyGuestsToggle} />
+                      <Toggle
+                        disabled={!canManageAnonymousAccess}
+                        on={allowReadOnlyGuests}
+                        on:change={onReadonlyGuestsToggle}
+                      />
                     </div>
                   </div>
                   <div class="guestAccessRow">
@@ -335,7 +353,11 @@
                       <Label label={settingsRes.string.GuestSignUpDescription} />
                     </div>
                     <div class="guestAccessRow-toggleCell">
-                      <Toggle disabled={!allowReadOnlyGuests} on={allowGuestSignUp} on:change={onGuestSignUpToggle} />
+                      <Toggle
+                        disabled={!allowReadOnlyGuests || !canManageAnonymousAccess}
+                        on={allowGuestSignUp}
+                        on:change={onGuestSignUpToggle}
+                      />
                     </div>
                   </div>
                   {#if communicationApiEnabled}

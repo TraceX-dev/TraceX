@@ -213,7 +213,8 @@
     "RestrictedAttributeWarning": "Bu özniteliğin değiştirilmesini kısıtlamak istediğinizden emin misiniz? Bu işlem bu öznitelik için izinler oluşturacak ve geri alınamaz.",
     "MaxValue": "Maksimum değer",
     "IntegerOnly": "Sadece tam sayılar",
-    "AccessControl": "Erişim kontrolü",
+    "AccessControl": "Erişim yönetimi",
+    "SpaceRoles": "Alan rolleri",
     "DangerZone": "Tehlike bölgesi",
     "ApiAccess": "API erişimi",
     "ApiToken": "API anahtarı",
@@ -251,6 +252,11 @@
     "ShowQRCode": "QR kodu göster",
     "EnterVerificationCode": "Doğrulama kodunu gir",
     "OverrideAttribute": "Özniteliği geçersiz kıl",
-    "Required": "Zorunlu"
+    "Required": "Zorunlu",
+    "RemoveMemberFromSpace": "Kullanıcıyı alandan çıkar",
+    "OtherSpaces": "Diğer alanlar",
+    "Public": "Herkese açık",
+    "Member": "Üye",
+    "CanJoin": "Katılabilir"
   }
 }

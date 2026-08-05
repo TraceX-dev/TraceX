@@ -213,7 +213,8 @@
     "RestrictedAttributeWarning": "Möchten Sie wirklich die Bearbeitung dieses Attributs einschränken? Diese Aktion erstellt Berechtigungen für dieses Attribut und kann nicht rückgängig gemacht werden.",
     "MaxValue": "Maximalwert",
     "IntegerOnly": "Nur ganze Zahlen",
-    "AccessControl": "Zugriffskontrolle",
+    "AccessControl": "Zugriffsverwaltung",
+    "SpaceRoles": "Rollen in Bereichen",
     "DangerZone": "Gefahrenzone",
     "ApiAccess": "API-Zugriff",
     "ApiToken": "API-Schlüssel",
@@ -251,6 +252,11 @@
     "ShowQRCode": "QR-Code anzeigen",
     "EnterVerificationCode": "Verifizierungscode eingeben",
     "OverrideAttribute": "Überschreibattribut",
-    "Required": "Pflichtfeld"
+    "Required": "Pflichtfeld",
+    "RemoveMemberFromSpace": "Benutzer aus dem Bereich entfernen",
+    "OtherSpaces": "Andere Bereiche",
+    "Public": "Öffentlich",
+    "Member": "Mitglied",
+    "CanJoin": "Kann beitreten"
   }
 }

@@ -193,6 +193,7 @@ export default plugin(settingId, {
     InviteSettings: '' as Ref<Doc>,
     RoleCapabilitySettings: '' as Ref<Doc>,
     WorkspaceSetting: '' as Ref<Doc>,
+    SpaceAccessSettings: '' as Ref<Doc>,
     ManageSpaces: '' as Ref<Doc>,
     Spaces: '' as Ref<Doc>,
     Backup: '' as Ref<Doc>,
@@ -364,7 +365,6 @@ export default plugin(settingId, {
   icon: {
     AccountSettings: '' as Asset,
     Members: '' as Asset,
-    GuestPermissions: '' as Asset,
     Password: '' as Asset,
     Setting: '' as Asset,
     Integrations: '' as Asset,

@@ -211,7 +211,8 @@
     "MinValue": "Wartość minimalna",
     "MaxValue": "Wartość maksymalna",
     "IntegerOnly": "Tylko liczby całkowite",
-    "AccessControl": "Kontrola dostępu",
+    "AccessControl": "Zarządzanie dostępem",
+    "SpaceRoles": "Role w przestrzeniach",
     "DangerZone": "Strefa wrażliwa",
     "ApiAccess": "Dostęp API",
     "ApiToken": "Klucz API",
@@ -251,6 +252,11 @@
     "ShowQRCode": "Pokaż kod QR",
     "EnterVerificationCode": "Wpisz kod weryfikacyjny",
     "OverrideAttribute": "Nadpisz atrybut",
-    "Required": "Obowiązkowe"
+    "Required": "Obowiązkowe",
+    "RemoveMemberFromSpace": "Usuń użytkownika z przestrzeni",
+    "OtherSpaces": "Inne przestrzenie",
+    "Public": "Publiczne",
+    "Member": "Członek",
+    "CanJoin": "Może dołączyć"
   }
 }

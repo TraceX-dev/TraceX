@@ -80,6 +80,7 @@
     "User": "Пользователь",
     "Maintainer": "Сопровождающий",
     "Owner": "Владелец",
+    "Admin": "Админ",
     "OwnerFirstName": "Имя владельца",
     "OwnerLastName": "Фамилия владельца",
     "Role": "Роль",
@@ -213,7 +214,15 @@
     "Available": "Доступно",
     "NotConnectedIntegration": "Учетная запись {account} не интегрирована с рабочим пространством",
     "IntegrationIsUnstable": "Сервис интеграции испытывает проблемы. Некоторые функции могут работать некорректно.",
-    "AccessControl": "Контроль доступа",
+    "AccessControl": "Управление доступом",
+    "SpaceRoles": "Роли в пространствах",
+    "AccessControlSpacesHint": "Управляйте пространствами, участниками и автоматическим вступлением в одном месте.",
+    "Active": "Активно",
+    "SearchSpaces": "Поиск пространств",
+    "SearchMembers": "Поиск участников",
+    "MembersAndTheirSpaces": "Участники и их пространства",
+    "NoSpaces": "Нет пространств",
+    "SelectMemberToViewSpaces": "Выберите участника, чтобы увидеть его пространства",
     "DangerZone": "Опасная зона",
     "ApiAccess": "Доступ к API",
     "ApiToken": "API-ключ",
@@ -251,6 +260,11 @@
     "ShowQRCode": "Показать QR-код",
     "EnterVerificationCode": "Введите код подтверждения",
     "OverrideAttribute": "Переопределить атрибут",
-    "Required": "Обязательный"
+    "Required": "Обязательный",
+    "RemoveMemberFromSpace": "Исключить пользователя из пространства",
+    "OtherSpaces": "Другие пространства",
+    "Public": "Публичное",
+    "Member": "Участник",
+    "CanJoin": "Может присоединиться"
   }
 }

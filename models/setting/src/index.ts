@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -303,40 +304,14 @@ export function createModel (builder: Builder): void {
     setting.class.WorkspaceSettingCategory,
     core.space.Model,
     {
-      name: 'owners',
-      label: setting.string.Members,
+      name: 'accessControl',
+      label: setting.string.AccessControl,
       icon: setting.icon.Members,
-      component: setting.component.Members,
-      order: 1000,
-      role: AccountRole.Maintainer
-    },
-    setting.ids.Members
-  )
-  builder.createDoc(
-    setting.class.WorkspaceSettingCategory,
-    core.space.Model,
-    {
-      name: 'guestPermissions',
-      label: setting.string.GuestPermissionsSettings,
-      icon: setting.icon.GuestPermissions,
-      component: setting.component.GuestPermissionsSettings,
-      role: AccountRole.Owner,
+      component: setting.component.SpaceAccessSettings,
+      role: AccountRole.Maintainer,
       order: 1050
     },
-    'setting:ids:AccountPermissionsSettings' as Ref<any>
-  )
-  builder.createDoc(
-    setting.class.WorkspaceSettingCategory,
-    core.space.Model,
-    {
-      name: 'allSpaces',
-      label: setting.string.Spaces,
-      icon: setting.icon.Views,
-      component: setting.component.Spaces,
-      order: 1100,
-      role: AccountRole.Maintainer
-    },
-    setting.ids.Spaces
+    setting.ids.SpaceAccessSettings
   )
   builder.createDoc(
     setting.class.WorkspaceSettingCategory,
