@@ -1,4 +1,5 @@
 <!--
+//
 // Copyright © 2026 TraceX SAS.
 //
 // Licensed under the PolyForm Shield License 1.0.0 (the "License");
@@ -16,10 +17,7 @@
   export let columns: 1 | 2 = 1
 </script>
 
-<div
-  class='settings-cards-layout'
-  class:two-columns={columns === 2}
->
+<div class="settings-cards-layout" class:two-columns={columns === 2}>
   <slot />
 </div>
 

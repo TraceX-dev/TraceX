@@ -17,6 +17,8 @@
   import setting, { type OfficeSettings } from '@hcengineering/setting'
   import { Breadcrumb, Header, Label, Scroller, Toggle } from '@hcengineering/ui'
   import settingsRes from '../plugin'
+  import SettingsCard from './settings-card/SettingsCard.svelte'
+  import SettingsCardsLayout from './settings-card/SettingsCardsLayout.svelte'
 
   let loading = true
   let defaultStartWithTranscription = false
@@ -87,30 +89,32 @@
       </div>
     {:else}
       <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
-        <div class="hulyComponent-content flex-col flex-gap-4">
-          <div class="title"><Label label={settingsRes.string.OfficeDefaultSettings} /></div>
+        <div class="hulyComponent-content w-full">
+          <SettingsCardsLayout columns={1}>
+            <SettingsCard label={settingsRes.string.OfficeDefaultSettings}>
+              <div class="flex-col flex-gap-4">
+                <div class="flex-between flex-gap-4">
+                  <Label label={settingsRes.string.DefaultStartWithTranscription} />
+                  <Toggle
+                    on={defaultStartWithTranscription}
+                    on:change={(e) => {
+                      void toggleDefaultTranscription(e)
+                    }}
+                  />
+                </div>
 
-          <div class="flex-col flex-gap-4 mt-6">
-            <div class="flex-row-center flex-gap-4">
-              <Label label={settingsRes.string.DefaultStartWithTranscription} />
-              <Toggle
-                on={defaultStartWithTranscription}
-                on:change={(e) => {
-                  void toggleDefaultTranscription(e)
-                }}
-              />
-            </div>
-
-            <div class="flex-row-center flex-gap-4">
-              <Label label={settingsRes.string.DefaultStartWithRecording} />
-              <Toggle
-                on={defaultStartWithRecording}
-                on:change={(e) => {
-                  void toggleDefaultRecording(e)
-                }}
-              />
-            </div>
-          </div>
+                <div class="flex-between flex-gap-4">
+                  <Label label={settingsRes.string.DefaultStartWithRecording} />
+                  <Toggle
+                    on={defaultStartWithRecording}
+                    on:change={(e) => {
+                      void toggleDefaultRecording(e)
+                    }}
+                  />
+                </div>
+              </div>
+            </SettingsCard>
+          </SettingsCardsLayout>
         </div>
       </Scroller>
     {/if}

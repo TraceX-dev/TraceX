@@ -68,7 +68,7 @@
   <div class="hulyComponent-content__column content">
     <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
       <div class="hulyComponent-content security-content">
-        <SettingsCardsLayout columns={2}>
+        <SettingsCardsLayout columns={1}>
           <div class="security-column">
             <SettingsCard label={setting.string.ChangePassword}>
               <div class="simple-card">

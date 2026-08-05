@@ -33,6 +33,8 @@
     Toggle
   } from '@hcengineering/ui'
   import settingRes from '../plugin'
+  import SettingsCard from './settings-card/SettingsCard.svelte'
+  import SettingsCardsLayout from './settings-card/SettingsCardsLayout.svelte'
   import UserRoleSelect from './UserRoleSelect.svelte'
 
   const client = getClient()
@@ -185,58 +187,51 @@
       </div>
     {:else}
       <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
-        <div class="hulyComponent-content flex-col flex-gap-4">
-          <div class="title"><Label label={settingRes.string.InviteSettings} /></div>
-
-          <div class="settings-list mt-6">
-            <div class="setting-row">
-              <Label label={login.string.LinkValidHours} />
-              <div class="max-w-60">
-                <EditBox
-                  format={'number'}
-                  minValue={1}
-                  maxDigitsAfterPoint={0}
-                  bind:value={expTime}
-                  on:change={handleExpTimeChange}
-                />
-              </div>
-            </div>
-
-            <div class="setting-row">
-              <Label label={login.string.NoLimit} />
-              <Toggle on={noLimit} on:change={handleNoLimitChange} />
-            </div>
-
-            {#if !noLimit}
-              <div class="setting-row">
-                <Label label={login.string.InviteLimit} />
-                <div class="max-w-60">
+        <div class="hulyComponent-content w-full">
+          <SettingsCardsLayout columns={1}>
+            <SettingsCard label={settingRes.string.InviteSettings}>
+              <div class="flex-col flex-gap-4">
+                <div class="flex-between flex-gap-4">
+                  <Label label={login.string.LinkValidHours} />
                   <EditBox
                     format={'number'}
+                    kind={'default'}
                     minValue={1}
                     maxDigitsAfterPoint={0}
-                    bind:value={limit}
-                    on:change={handleLimitChange}
+                    bind:value={expTime}
+                    on:change={handleExpTimeChange}
                   />
                 </div>
-              </div>
-            {/if}
 
-            <div class="setting-row mt-4">
-              <Label label={settingRes.string.DefaultInviteRoleForJoin} />
-              <div class="max-w-60">
-                <UserRoleSelect selected={defaultInviteRole} on:selected={handleDefaultInviteRoleSelected} />
+                <div class="flex-between flex-gap-4">
+                  <Label label={login.string.NoLimit} />
+                  <Toggle on={noLimit} on:change={handleNoLimitChange} />
+                </div>
+
+                {#if !noLimit}
+                  <div class="flex-between flex-gap-4">
+                    <Label label={login.string.InviteLimit} />
+                    <EditBox
+                      format={'number'}
+                      minValue={1}
+                      maxDigitsAfterPoint={0}
+                      bind:value={limit}
+                      on:change={handleLimitChange}
+                    />
+                  </div>
+                {/if}
+
+                <div class="flex-between flex-gap-4">
+                  <Label label={settingRes.string.DefaultInviteRoleForJoin} />
+                  <UserRoleSelect selected={defaultInviteRole} on:selected={handleDefaultInviteRoleSelected} />
+                </div>
               </div>
-            </div>
+            </SettingsCard>
 
             {#if canManagePermissions}
-              <div class="setting-row mt-4">
-                <div class="title"><Label label={settingRes.string.Permissions} /></div>
-              </div>
-
-              <div class="setting-row">
-                <Label label={settingRes.string.InviteLinkGeneratorRoles} />
-                <div class="max-w-60 flex-grow">
+              <SettingsCard label={settingRes.string.Permissions}>
+                <div class="flex-between flex-gap-4">
+                  <Label label={settingRes.string.InviteLinkGeneratorRoles} />
                   <DropdownLabels
                     label={settingRes.string.InviteLinkGeneratorRoles}
                     items={inviteLinkGeneratorRolesItems}
@@ -248,34 +243,11 @@
                     on:selected={handleGeneratorRolesSelected}
                   />
                 </div>
-              </div>
+              </SettingsCard>
             {/if}
-          </div>
+          </SettingsCardsLayout>
         </div>
       </Scroller>
     {/if}
   </div>
 </div>
-
-<style lang="scss">
-  .title {
-    font-weight: 500;
-    font-size: 1rem;
-  }
-
-  .settings-list {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    row-gap: 1rem;
-    column-gap: 1rem;
-    align-items: center;
-  }
-
-  .settings-list .title {
-    grid-column: 1 / -1;
-  }
-
-  .setting-row {
-    display: contents;
-  }
-</style>
