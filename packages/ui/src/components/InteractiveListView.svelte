@@ -66,6 +66,7 @@
       const actions = await getActions(context)
       if (actions.length === 0) return
       selection = index
+      // Context-clicking outside the current selection starts a new desktop-style selection.
       if (!selectedKeys.has(key)) selectedKeys = new Set([key])
       showPopup(Menu, { actions, ctx: context }, getEventPositionElement(event))
     } catch (error) {

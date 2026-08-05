@@ -311,7 +311,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Maintainer,
       order: 1050
     },
-    'setting:ids:SpaceAccessSettings' as Ref<any>
+    setting.ids.SpaceAccessSettings
   )
   builder.createDoc(
     setting.class.WorkspaceSettingCategory,

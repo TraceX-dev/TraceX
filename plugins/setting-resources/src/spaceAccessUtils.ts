@@ -29,7 +29,3 @@ export function isSpaceOperationPending (
   if (operation !== undefined) return pendingOperations.has(getSpaceOperationKey(space, operation))
   return [...pendingOperations].some((key) => key.startsWith(`${space._id}:`))
 }
-
-export function getSpaceType (space: Space): string {
-  return space._class.split(':').pop() ?? space._class
-}

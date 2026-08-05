@@ -25,13 +25,14 @@
     StateTag,
     StateType
   } from '@hcengineering/ui'
+  import { getClient } from '@hcengineering/presentation'
   import type { SpaceApplicationResolver } from '@hcengineering/workbench'
 
   import setting from '../../plugin'
-  import { getSpaceType } from '../../spaceAccessUtils'
   import type { SpacesViewActionsProvider, SpacesViewColumn } from './spaces-view'
 
   const OTHER_APPLICATIONS = 'other'
+  const hierarchy = getClient().getHierarchy()
 
   export let spaces: Space[]
   export let spaceApplicationResolver: SpaceApplicationResolver
@@ -151,13 +152,13 @@
                   >
                     {space.name}
                   </span>
-                  <span class="spaceType">{getSpaceType(space)}</span>
+                  <span class="spaceType"><Label label={hierarchy.getClass(space._class).label} /></span>
                 </div>
               {:else if column.id === 'visibility'}
                 <div class="visibilityCell">
                   <StateTag
-                    type={space.private === true ? StateType.Ghost : StateType.Positive}
-                    label={space.private === true ? core.string.Private : setting.string.Public}
+                    type={space.private ? StateType.Ghost : StateType.Positive}
+                    label={space.private ? core.string.Private : setting.string.Public}
                   />
                 </div>
               {:else}

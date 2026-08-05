@@ -22,8 +22,6 @@ import { type AnyComponent } from '@hcengineering/ui/src/types'
 
 export default mergeIds(workbenchId, workbench, {
   string: {
-    Application: '' as IntlString,
-    HiddenApplication: '' as IntlString,
     More: '' as IntlString,
     Delete: '' as IntlString,
     ShowMenu: '' as IntlString,
