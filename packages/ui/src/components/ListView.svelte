@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -28,6 +29,7 @@
   export let lazy = false
   export let minHeight: string | null = null
   export let highlightIndex: number | undefined = undefined
+  export let isSelected: ((index: number) => boolean) | undefined = undefined
   export let items: any[] = []
   export let getKey: (index: number) => string = (index) => index.toString()
 
@@ -89,8 +91,11 @@
               {row}
               {kind}
               isHighlighted={row === highlightIndex}
-              selected={row === selection}
+              selected={isSelected?.(row) ?? row === selection}
               on:click={() => dispatch('click', row)}
+              on:contextmenu={(event) => {
+                dispatch('contextmenu', { event, row, value: _ })
+              }}
               on:mouseover={mouseAttractor(() => {
                 if (updateOnMouse) {
                   onRow(row)
@@ -118,9 +123,12 @@
           {addClass}
           {row}
           {kind}
-          selected={row === selection}
+          selected={isSelected?.(row) ?? row === selection}
           isHighlighted={row === highlightIndex}
           on:click={() => dispatch('click', row)}
+          on:contextmenu={(event) => {
+            dispatch('contextmenu', { event, row, value: _ })
+          }}
           on:mouseover={mouseAttractor(() => {
             if (updateOnMouse) {
               onRow(row)

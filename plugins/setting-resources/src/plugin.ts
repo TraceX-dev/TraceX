@@ -134,6 +134,7 @@ export default mergeIds(settingId, setting, {
     BetaWarning: '' as IntlString,
     DangerZone: '' as IntlString,
     AccessControl: '' as IntlString,
+    SpaceRoles: '' as IntlString,
     AccessControlSpacesHint: '' as IntlString,
     Active: '' as IntlString,
     SearchSpaces: '' as IntlString,

@@ -94,6 +94,14 @@ export interface Action {
   group?: string
 }
 
+export interface InteractiveListActionContext {
+  key: string
+  index: number
+  selectedKeys: string[]
+}
+
+export type InteractiveListActionsProvider = (context: InteractiveListActionContext) => Action[] | Promise<Action[]>
+
 export interface IPopupItem {
   _id?: number
   title?: IntlString | undefined

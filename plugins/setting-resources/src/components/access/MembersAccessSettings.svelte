@@ -25,13 +25,12 @@
   } from '@hcengineering/core'
   import presentation from '@hcengineering/presentation'
   import {
+    type Action,
     type ActiveFilter,
     Button,
-    ButtonIcon,
     FilterButton,
     type FilterCategory,
     type FilterOption,
-    Icon,
     IconClose,
     Label,
     ListView,
@@ -49,11 +48,12 @@
     getAvailableSpacesForMember,
     getAssignableWorkspaceRoles,
     getMemberSpaceAvailability,
-    getSpacesForMember,
     getWorkspaceMemberRole
   } from '../../accessPermissions'
   import setting from '../../plugin'
-  import { getSpaceType, isSpaceOperationPending } from '../../spaceAccessUtils'
+  import { isSpaceOperationPending } from '../../spaceAccessUtils'
+  import SpacesView from './SpacesView.svelte'
+  import type { SpacesViewColumn } from './spaces-view'
   import UserRoleSelect from '../UserRoleSelect.svelte'
 
   interface RevokedAccess {
@@ -82,6 +82,10 @@
       }))
     }
   ]
+  const MEMBER_SPACE_COLUMNS: SpacesViewColumn[] = [
+    { id: 'name', label: core.string.Name, width: 'minmax(10rem, 1fr)' },
+    { id: 'visibility', label: setting.string.Visibility, width: '6rem' }
+  ]
 
   export let spaces: Space[]
   export let spaceApplicationResolver: SpaceApplicationResolver
@@ -101,6 +105,7 @@
   let memberSpaceFilters: ActiveFilter[] = []
   let revokedAccess: RevokedAccess | undefined
   let selectedPerson: AccountUuid | undefined
+  let selectedMemberSpaces = new Set<string>()
 
   function getActiveFilter (filters: ActiveFilter[], categoryId: string): string | undefined {
     return filters.find((filter) => filter.categoryId === categoryId)?.optionId
@@ -118,6 +123,7 @@
     selectedPerson = selectedPerson === personUuid ? undefined : personUuid
     memberSpaceSearch = ''
     memberSpaceFilters = []
+    selectedMemberSpaces = new Set<string>()
   }
 
   function handleMemberKeydown (event: KeyboardEvent, personUuid: AccountUuid): void {
@@ -146,6 +152,23 @@
     if (updated) revokedAccess = undefined
   }
 
+  function getMemberSpaceActions (space: Space): Action[] {
+    if (selectedPerson === undefined) return []
+    const role = getWorkspaceMemberRole(workspaceMembers, selectedPerson)
+    if (getMemberSpaceAvailability(space, selectedPerson, role) !== 'member') return []
+    if (!canRevokeSpaceAccess(space.owners, selectedPerson, hasWorkspaceOwnerAccess)) return []
+    if (isSpaceOperationPending(pendingSpaceOperations, space, 'members')) return []
+
+    const person = selectedPerson
+    return [
+      {
+        label: setting.string.RemoveMemberFromSpace,
+        icon: IconClose,
+        action: () => revokeSpaceAccess(space, person).catch(handleError)
+      }
+    ]
+  }
+
   $: selectedEmployee = employees.find((employee) => employee.personUuid === selectedPerson)
   $: selectedRole = selectedPerson !== undefined ? getWorkspaceMemberRole(workspaceMembers, selectedPerson) : undefined
   $: availableSelectedSpaces = getAvailableSpacesForMember(spaces, selectedPerson, selectedRole)
@@ -170,7 +193,11 @@
     const applicationFilter = getActiveFilter(memberSpaceFilters, 'application')
     return matchesSearch && (applicationFilter === undefined || applicationFilter === applicationId)
   })
-  $: visibleSelectedSpaceGroups = spaceApplicationResolver.group(visibleSelectedSpaces)
+  $: selectedMemberSpaceKeys = new Set(
+    visibleSelectedSpaces
+      .filter((space) => getMemberSpaceAvailability(space, selectedPerson, selectedRole) === 'member')
+      .map((space) => space._id)
+  )
   $: visibleEmployees = employees.filter(
     (employee) =>
       employee.active &&
@@ -191,7 +218,6 @@
 
 <div class="usersLayout">
   <div class="usersList">
-    <h2><Label label={setting.string.Members} /></h2>
     <div class="memberToolbar">
       <SearchInput bind:value={search} placeholder={setting.string.SearchMembers} />
       <FilterButton
@@ -201,23 +227,16 @@
         kind={'regular'}
         on:change={updateMemberFilters}
       />
-      <span>
-        {#if search.trim() !== '' || memberFilters.length > 0}{visibleEmployees.length} /
-        {/if}
-        {activeEmployeesCount}
-      </span>
+      {#if search.trim() !== '' || memberFilters.length > 0}
+        <span>{visibleEmployees.length} / {activeEmployeesCount}</span>
+      {/if}
     </div>
-    <Scroller padding={'var(--spacing-3)'}>
+    <Scroller padding={'0'}>
       {#if membersLoading || employeesLoading}
         <Loading />
       {:else if visibleEmployees.length === 0}
         <div class="emptyState"><Label label={presentation.string.NoResults} /></div>
       {:else}
-        <div class="memberListHeader">
-          <span><Label label={setting.string.Members} /></span>
-          <span><Label label={setting.string.Role} /></span>
-          <span><Label label={setting.string.Spaces} /></span>
-        </div>
         <div class="memberList">
           <ListView
             items={visibleEmployees}
@@ -265,7 +284,6 @@
                       }}
                     />
                   </div>
-                  <span class="spacesCount">{getSpacesForMember(spaces, personUuid).length}</span>
                 </div>
               {/if}
             </svelte:fragment>
@@ -316,72 +334,16 @@
           <div class="emptyState"><Label label={presentation.string.NoResults} /></div>
         {:else}
           <Scroller padding={'var(--spacing-3)'}>
-            <div class="memberSpaceGroups">
-              {#each visibleSelectedSpaceGroups as group (group.application?._id ?? 'other')}
-                <section class="memberSpaceGroup">
-                  <h3>
-                    {#if group.application !== undefined}
-                      <Icon icon={group.application.icon} size={'small'} />
-                      <Label label={group.application.label} />
-                    {:else}
-                      <Label label={setting.string.OtherSpaces} />
-                    {/if}
-                    <span>{group.spaces.length}</span>
-                  </h3>
-                  <div class="memberSpacesList">
-                    <ListView
-                      items={group.spaces}
-                      count={group.spaces.length}
-                      selection={-1}
-                      getKey={(index) => group.spaces[index]._id}
-                      updateOnMouse={false}
-                      noScroll
-                      kind={'full-size'}
-                      addClass={'memberSpaceListItem'}
-                    >
-                      <svelte:fragment slot="item" let:item={index}>
-                        {@const space = group.spaces[index]}
-                        {@const availability = getMemberSpaceAvailability(space, selectedPerson, selectedRole)}
-                        <div class:member={availability === 'member'} class="memberSpaceRow">
-                          <div class="spaceName">
-                            <span class="spaceTitle">{space.name}</span>
-                            <span class="spaceDetails">
-                              <span>{getSpaceType(space)}</span>
-                              <span aria-hidden="true">·</span>
-                              <Label label={space.private === true ? core.string.Private : setting.string.Public} />
-                              <span aria-hidden="true">·</span>
-                              <span class:joinable={availability === 'joinable'}>
-                                <Label
-                                  label={availability === 'member' ? setting.string.Member : setting.string.CanJoin}
-                                />
-                              </span>
-                            </span>
-                          </div>
-                          {#if availability === 'member'}
-                            <div class="memberSpaceActions">
-                              <ButtonIcon
-                                icon={IconClose}
-                                size={'min'}
-                                kind={'tertiary'}
-                                disabled={selectedPerson === undefined ||
-                                  !canRevokeSpaceAccess(space.owners, selectedPerson, hasWorkspaceOwnerAccess) ||
-                                  isSpaceOperationPending(pendingSpaceOperations, space, 'members')}
-                                tooltip={{ label: setting.string.RemoveMemberFromSpace }}
-                                on:click={() => {
-                                  if (selectedPerson !== undefined) {
-                                    revokeSpaceAccess(space, selectedPerson).catch(handleError)
-                                  }
-                                }}
-                              />
-                            </div>
-                          {/if}
-                        </div>
-                      </svelte:fragment>
-                    </ListView>
-                  </div>
-                </section>
-              {/each}
-            </div>
+            <SpacesView
+              spaces={visibleSelectedSpaces}
+              {spaceApplicationResolver}
+              columns={MEMBER_SPACE_COLUMNS}
+              minWidth={'18rem'}
+              bind:selectedKeys={selectedMemberSpaces}
+              emphasizedKeys={selectedMemberSpaceKeys}
+              getActions={getMemberSpaceActions}
+              {handleError}
+            />
           </Scroller>
         {/if}
       </div>
@@ -412,9 +374,6 @@
     padding: var(--spacing-3);
     overflow: hidden;
   }
-  h2 {
-    margin: 0 0 var(--spacing-1);
-  }
   .memberToolbar {
     display: grid;
     grid-template-columns: minmax(10rem, 1fr) auto auto;
@@ -422,33 +381,21 @@
     gap: var(--spacing-2);
     color: var(--theme-caption-color);
   }
-  .memberListHeader,
   .memberListRow {
     display: grid;
-    grid-template-columns: minmax(13rem, 1fr) minmax(7rem, 9rem) 6rem;
+    grid-template-columns: minmax(12rem, 1fr) minmax(7rem, 9rem);
     gap: var(--spacing-3);
     align-items: center;
-    min-width: 30rem;
-  }
-  .memberListHeader {
-    padding: var(--spacing-2) var(--spacing-3);
-    color: var(--theme-caption-color);
-    font-size: 0.6875rem;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
+    min-width: 22rem;
   }
   .memberList {
-    min-width: 30rem;
+    min-width: 22rem;
     overflow: hidden;
-    border-top: 1px solid var(--theme-divider-color);
   }
   .memberListRow {
     min-height: 3rem;
     padding: var(--spacing-2) var(--spacing-3);
     cursor: pointer;
-  }
-  .memberList :global(.memberListItem + .memberListItem) {
-    border-top: 1px solid var(--theme-divider-color);
   }
   .memberList :global(.memberListItem:hover:not(.selection)) {
     background: var(--theme-button-hovered);
@@ -460,9 +407,6 @@
   }
   .roleEditor {
     flex: 0 0 auto;
-  }
-  .spacesCount {
-    color: var(--theme-caption-color);
   }
   .emptyState {
     display: flex;
@@ -540,77 +484,6 @@
     background: var(--theme-button-hovered);
     color: var(--theme-caption-color);
   }
-  .memberSpaceGroups {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-4);
-  }
-  .memberSpaceGroup h3 {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    margin: 0 0 var(--spacing-1);
-    font-size: 0.8125rem;
-  }
-  .memberSpaceGroup h3 > span:last-child {
-    color: var(--theme-caption-color);
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-  .memberSpacesList {
-    border-top: 1px solid var(--theme-divider-color);
-    border-bottom: 1px solid var(--theme-divider-color);
-  }
-  .memberSpacesList :global(.memberSpaceListItem + .memberSpaceListItem) {
-    border-top: 1px solid var(--theme-divider-color);
-  }
-  .memberSpaceRow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-2);
-    min-height: 3.25rem;
-    padding: var(--spacing-2) var(--spacing-3);
-  }
-  .memberSpaceRow:hover,
-  .memberSpaceRow:focus-within {
-    background: var(--theme-button-hovered);
-  }
-  .memberSpaceActions {
-    flex: 0 0 auto;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-  .memberSpaceRow:hover .memberSpaceActions,
-  .memberSpaceRow:focus-within .memberSpaceActions {
-    opacity: 1;
-  }
-  .spaceName {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    min-width: 0;
-  }
-  .spaceTitle {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .memberSpaceRow.member .spaceTitle {
-    font-weight: 600;
-  }
-  .spaceDetails {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--spacing-1);
-    color: var(--theme-caption-color);
-    font-size: 0.8125rem;
-  }
-  .spaceDetails .joinable {
-    color: var(--theme-link-color);
-  }
-
   @container (max-width: 54rem) {
     .usersLayout {
       flex-direction: column;

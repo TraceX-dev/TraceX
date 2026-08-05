@@ -41,9 +41,12 @@
   const deprecatedCategoryRedirects = new Map([
     ['guestPermissions', 'accessControl'],
     ['owners', 'accessControl'],
-    ['allSpaces', 'accessControl']
+    ['allSpaces', 'accessControl'],
+    ['spaces', 'accessControl']
   ])
   const deprecatedCategoryNames = new Set(deprecatedCategoryRedirects.keys())
+
+  $: selectedCategoryId = deprecatedCategoryRedirects.get(categoryId) ?? categoryId
 
   const settingsQuery = createQuery()
   settingsQuery.query(
@@ -63,10 +66,6 @@
 
   function findCategory (name: string): SettingsCategory | undefined {
     return categories.find((x) => x.name === (deprecatedCategoryRedirects.get(name) ?? name))
-  }
-
-  function isSelectedCategory (name: string): boolean {
-    return name === (deprecatedCategoryRedirects.get(categoryId) ?? categoryId)
   }
 
   onDestroy(
@@ -102,13 +101,16 @@
     <NavItem
       icon={category.icon}
       label={category.label}
-      selected={isSelectedCategory(category.name)}
+      selected={category.name === selectedCategoryId}
       on:click={() => {
         selectCategory(category.name)
       }}
     />
-    {#if category.name === categoryId && category.extraComponents?.navigation}
-      <Component is={category.extraComponents?.navigation} props={{ kind: 'navigation', categoryName: categoryId }} />
+    {#if category.name === selectedCategoryId && category.extraComponents?.navigation}
+      <Component
+        is={category.extraComponents?.navigation}
+        props={{ kind: 'navigation', categoryName: selectedCategoryId }}
+      />
     {/if}
   {/each}
 {:else if kind === 'content' && category === undefined}

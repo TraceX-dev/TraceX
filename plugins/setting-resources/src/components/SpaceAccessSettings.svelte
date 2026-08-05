@@ -50,8 +50,9 @@
   import MembersAccessSettings from './access/MembersAccessSettings.svelte'
   import SpacesAccessSettings from './access/SpacesAccessSettings.svelte'
   import GuestPermissionsSettings from './GuestPermissionsSettings.svelte'
+  import SpaceRolesSettings from './Spaces.svelte'
 
-  type Tab = 'spaces' | 'users' | 'guests' | 'anonymous'
+  type Tab = 'spaces' | 'spaceRoles' | 'users' | 'guests' | 'anonymous'
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -225,6 +226,14 @@
           }}
         />
         <NavItem
+          icon={setting.icon.Privacy}
+          label={setting.string.SpaceRoles}
+          selected={activeTab === 'spaceRoles'}
+          on:click={() => {
+            activeTab = 'spaceRoles'
+          }}
+        />
+        <NavItem
           icon={contact.icon.Person}
           label={setting.string.GuestPermissionsTabGuest}
           selected={activeTab === 'guests'}
@@ -287,6 +296,10 @@
           {setGuestAutoJoin}
           handleError={handleOperationError}
         />
+      {:else if activeTab === 'spaceRoles'}
+        <div class="spaceRolesPanel">
+          <SpaceRolesSettings embedded />
+        </div>
       {:else}
         <div class="guestPermissionsPanel">
           <GuestPermissionsSettings embedded initialTab={activeTab === 'guests' ? 'guest' : 'anonymous'} />
@@ -314,6 +327,12 @@
     flex: 1;
     min-width: 0;
   }
+  .spaceRolesPanel {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+  .spaceRolesPanel :global(.hulyComponent),
   .guestPermissionsPanel :global(.hulyComponent) {
     height: 100%;
   }
