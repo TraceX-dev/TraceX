@@ -16,16 +16,24 @@
   import { AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
   import { getMetadata } from '@hcengineering/platform'
   import presentation, { copyTextToClipboard, getFileUrl } from '@hcengineering/presentation'
-  import { Breadcrumb, Button, Expandable, Header, IconCopy, Label, Loading, Scroller } from '@hcengineering/ui'
+  import {
+    Breadcrumb,
+    Button,
+    Expandable,
+    Header,
+    IconCopy,
+    Label,
+    Loading,
+    Scroller,
+    SettingsCard,
+    SettingsCardsLayout,
+    SettingsFooterAction
+  } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { onMount } from 'svelte'
   import setting from '../plugin'
   import { BackupInfo, BackupSnapshot } from '../types'
   import { buildStoreZip, collectBackupFileNames, generateBackupScript, generateRestoreReadme } from '../utils/backup'
-
-  import SettingsCard from './settings-card/SettingsCard.svelte'
-  import SettingsCardsLayout from './settings-card/SettingsCardsLayout.svelte'
-  import SettingsFooterAction from './settings-card/SettingsFooterAction.svelte'
 
   let loading = true
 
@@ -284,7 +292,7 @@
 
             <div class="flex-between flex-gap-4">
               <Label label={setting.string.BackupTotalFiles} />
-              <div>{backupInfo?.info?.files?.length ?? 0}</div>
+              <div>{backupInfo?.files?.length ?? 0}</div>
             </div>
 
             <div class="flex-between flex-gap-4">

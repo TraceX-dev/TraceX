@@ -13,8 +13,8 @@
 
 <script lang="ts">
   import core, { Data } from '@hcengineering/core'
-  import { getClient, SettingsCard, SettingsCardsLayout } from '@hcengineering/presentation'
-  import { Breadcrumb, Header, Label, Scroller, Toggle } from '@hcengineering/ui'
+  import { getClient } from '@hcengineering/presentation'
+  import { Breadcrumb, Header, Label, Scroller, SettingsCard, SettingsCardsLayout, Toggle } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { getCurrentEmployee, Translation } from '@hcengineering/contact'
 

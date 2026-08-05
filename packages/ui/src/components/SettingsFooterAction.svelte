@@ -1,4 +1,5 @@
 <!--
+//
 // Copyright © 2026 TraceX SAS.
 //
 // Licensed under the PolyForm Shield License 1.0.0 (the "License");
@@ -14,12 +15,12 @@
 -->
 <script lang="ts">
   import type { Asset, IntlString } from '@hcengineering/platform'
-  import { Icon, Label } from '@hcengineering/ui'
-  import type { AnySvelteComponent } from '@hcengineering/ui/src/types'
   import type { ComponentType } from 'svelte'
+  import type { AnySvelteComponent } from '../types'
+  import Icon from './Icon.svelte'
+  import Label from './Label.svelte'
 
   type FooterActionColor = 'primary' | 'secondary' | 'dangerous'
-
   export let label: IntlString
   export let icon: Asset | AnySvelteComponent | ComponentType | undefined = undefined
   export let color: FooterActionColor = 'primary'
@@ -29,14 +30,8 @@
 </script>
 
 <button class="settings-footer-action {color}" class:accent disabled={disabled || loading} type="button" on:click>
-  {#if icon !== undefined}
-    <span class="icon">
-      <Icon {icon} size="small" />
-    </span>
-  {/if}
-  <span class="label">
-    <Label {label} />
-  </span>
+  {#if icon !== undefined}<span class="icon"><Icon {icon} size="small" /></span>{/if}
+  <span class="label"><Label {label} /></span>
 </button>
 
 <style lang="scss">
@@ -56,48 +51,39 @@
     cursor: pointer;
     outline: none;
     transition: color 0.15s ease;
-
     &.primary {
       --settings-footer-action-color: var(--primary-button-default);
       --settings-footer-action-hover-color: var(--primary-button-hovered);
     }
-
     &.secondary {
       --settings-footer-action-color: var(--theme-caption-color);
       --settings-footer-action-hover-color: var(--theme-content-color);
     }
-
     &.dangerous {
       --settings-footer-action-color: var(--negative-button-default);
       --settings-footer-action-hover-color: var(--negative-button-hovered);
     }
-
     &.accent {
       font-weight: 500;
     }
-
     &:not(:disabled):hover {
       color: var(--settings-footer-action-hover-color);
       background-color: var(--theme-button-hovered);
     }
-
     &:focus-visible {
       outline: 2px solid var(--global-focus-BorderColor);
       outline-offset: -2px;
     }
-
     &:disabled {
       color: var(--theme-trans-content-color);
       cursor: default;
     }
   }
-
   .icon {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
   }
-
   .label {
     min-width: 0;
     overflow: hidden;

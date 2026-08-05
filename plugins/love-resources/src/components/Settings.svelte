@@ -1,8 +1,8 @@
 <script lang="ts">
   import core, { getCurrentAccount } from '@hcengineering/core'
   import { DevicesPreference } from '@hcengineering/love'
-  import { getClient, SettingsCard, SettingsCardsLayout } from '@hcengineering/presentation'
-  import { Breadcrumb, Header, Label, Scroller, Toggle } from '@hcengineering/ui'
+  import { getClient } from '@hcengineering/presentation'
+  import { Breadcrumb, Header, Label, Scroller, SettingsCard, SettingsCardsLayout, Toggle } from '@hcengineering/ui'
   import love from '../plugin'
   import { myPreferences } from '../stores'
   import { liveKitClient } from '../utils'

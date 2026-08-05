@@ -30,15 +30,15 @@
     Label,
     navigate,
     Scroller,
+    SettingsCard,
+    SettingsCardsLayout,
+    SettingsFooterAction,
     showPopup
   } from '@hcengineering/ui'
   import { logIn, logOut } from '@hcengineering/workbench-resources'
 
   import rating, { type PersonRating } from '@hcengineering/rating'
   import setting from '../plugin'
-  import SettingsCard from './settings-card/SettingsCard.svelte'
-  import SettingsCardsLayout from './settings-card/SettingsCardsLayout.svelte'
-  import SettingsFooterAction from './settings-card/SettingsFooterAction.svelte'
   import SocialIdsEditor from './socialIds/SocialIdsEditor.svelte'
 
   const client = getClient()

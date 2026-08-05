@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import type { IntlString } from '@hcengineering/platform'
-  import { Label } from '@hcengineering/ui'
+  import Label from './Label.svelte'
 
   export let label: IntlString
   export let labelText: string | undefined = undefined
@@ -32,20 +32,12 @@
       {/if}
     </h2>
     {#if $$slots.actions}
-      <div class="settings-card__actions">
-        <slot name="actions" />
-      </div>
+      <div class="settings-card__actions"><slot name="actions" /></div>
     {/if}
   </div>
-
-  <div class="settings-card__content {contentClass}">
-    <slot />
-  </div>
-
+  <div class="settings-card__content {contentClass}"><slot /></div>
   {#if $$slots.footer}
-    <div class="settings-card__footer">
-      <slot name="footer" />
-    </div>
+    <div class="settings-card__footer"><slot name="footer" /></div>
   {/if}
 </section>
 
@@ -61,7 +53,6 @@
     box-shadow: 0 0.125rem 0.375rem rgb(0 0 0 / 6%);
     overflow: hidden;
   }
-
   .settings-card__header {
     display: flex;
     align-items: center;
@@ -69,7 +60,6 @@
     gap: 1rem;
     padding: 1.25rem 1.25rem 0;
   }
-
   h2 {
     margin: 0;
     font-size: 1rem;
@@ -77,18 +67,15 @@
     line-height: 1.5rem;
     letter-spacing: 0;
   }
-
   .settings-card__actions {
     display: flex;
     align-items: center;
     flex-shrink: 0;
   }
-
   .settings-card__content {
     min-width: 0;
     padding: 1.25rem;
   }
-
   .settings-card__footer {
     display: flex;
     align-items: stretch;

@@ -29,12 +29,12 @@
     Label,
     Loading,
     Scroller,
+    SettingsCard,
+    SettingsCardsLayout,
     themeStore,
     Toggle
   } from '@hcengineering/ui'
   import settingRes from '../plugin'
-  import SettingsCard from './settings-card/SettingsCard.svelte'
-  import SettingsCardsLayout from './settings-card/SettingsCardsLayout.svelte'
   import UserRoleSelect from './UserRoleSelect.svelte'
 
   const client = getClient()

@@ -16,14 +16,21 @@
 <script lang="ts">
   import { getCurrentAccount } from '@hcengineering/core'
   import setting from '@hcengineering/setting'
-  import { Breadcrumb, Header, Label, Loading, Scroller, showPopup } from '@hcengineering/ui'
+  import {
+    Breadcrumb,
+    Header,
+    Label,
+    Loading,
+    Scroller,
+    SettingsCard,
+    SettingsCardsLayout,
+    SettingsFooterAction,
+    showPopup
+  } from '@hcengineering/ui'
   import { onMount } from 'svelte'
 
   import ChangePasswordPopup from './security/ChangePasswordPopup.svelte'
   import TwoFactorSetupPopup from './security/TwoFactorSetupPopup.svelte'
-  import SettingsCard from './settings-card/SettingsCard.svelte'
-  import SettingsCardsLayout from './settings-card/SettingsCardsLayout.svelte'
-  import SettingsFooterAction from './settings-card/SettingsFooterAction.svelte'
   import { getAccountClient } from '../utils'
 
   let tfaEnabled: boolean | undefined = undefined

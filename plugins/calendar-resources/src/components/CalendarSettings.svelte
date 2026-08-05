@@ -1,7 +1,7 @@
 <script lang="ts">
   import core, { getCurrentAccount, groupByArray, Ref } from '@hcengineering/core'
-  import { createQuery, getClient, SettingsCard, SettingsCardsLayout } from '@hcengineering/presentation'
-  import { Breadcrumb, Header, Label, Scroller, Toggle } from '@hcengineering/ui'
+  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { Breadcrumb, Header, Label, Scroller, SettingsCard, SettingsCardsLayout, Toggle } from '@hcengineering/ui'
   import calendar from '../plugin'
   import { Calendar, ExternalCalendar, getPrimaryCalendar, PrimaryCalendar, Visibility } from '@hcengineering/calendar'
   import VisibilityEditor from './VisibilityEditor.svelte'

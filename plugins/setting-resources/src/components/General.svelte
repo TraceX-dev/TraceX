@@ -44,6 +44,9 @@
     Loading,
     navigate,
     Scroller,
+    SettingsCard,
+    SettingsCardsLayout,
+    SettingsFooterAction,
     showPopup,
     themeStore,
     Toggle
@@ -51,9 +54,6 @@
   import settingsRes from '../plugin'
   import ApiKeyPopup from './ApiTokenPopup.svelte'
   import CreateApiKey from './CreateApiKey.svelte'
-  import SettingsCard from './settings-card/SettingsCard.svelte'
-  import SettingsCardsLayout from './settings-card/SettingsCardsLayout.svelte'
-  import SettingsFooterAction from './settings-card/SettingsFooterAction.svelte'
   import WorkspacePermissionEditor from './WorkspacePermissionEditor.svelte'
 
   let loading = true

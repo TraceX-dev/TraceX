@@ -15,10 +15,8 @@
   import core from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import setting, { type OfficeSettings } from '@hcengineering/setting'
-  import { Breadcrumb, Header, Label, Scroller, Toggle } from '@hcengineering/ui'
+  import { Breadcrumb, Header, Label, Scroller, SettingsCard, SettingsCardsLayout, Toggle } from '@hcengineering/ui'
   import settingsRes from '../plugin'
-  import SettingsCard from './settings-card/SettingsCard.svelte'
-  import SettingsCardsLayout from './settings-card/SettingsCardsLayout.svelte'
 
   let loading = true
   let defaultStartWithTranscription = false
