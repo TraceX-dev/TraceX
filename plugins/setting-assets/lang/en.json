@@ -66,6 +66,7 @@
     "NewValue": "New value",
     "Leave": "Leave workspace",
     "LeaveDescr": "Are you sure you want to leave the workspace? This action cannot be undone.",
+    "LeaveWorkspaceDescription": "Leave the current workspace. You will lose access to this workspace on this account. Your profile and activity history will remain visible to other members.",
     "Members": "Members",
     "WorkspaceSettings": "Workspace settings",
     "Select": "Select",

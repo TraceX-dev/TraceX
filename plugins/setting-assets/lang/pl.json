@@ -66,6 +66,7 @@
     "NewValue": "Nowa wartość",
     "Leave": "Opuść przestrzeń roboczą",
     "LeaveDescr": "Czy na pewno chcesz opuścić przestrzeń roboczą? Tej akcji nie można cofnąć.",
+    "LeaveWorkspaceDescription": "Leave the current workspace. Utracisz dostęp do tej przestrzeni roboczej z tego konta. Twój profil i historia aktywności pozostaną widoczne dla innych członków.",
     "Members": "Członkowie",
     "WorkspaceSettings": "Ustawienia przestrzeni roboczej",
     "Select": "Wybierz",

@@ -66,6 +66,7 @@
         "NewValue": "새 값",
         "Leave": "워크스페이스 나가기",
         "LeaveDescr": "워크스페이스에서 나가시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+        "LeaveWorkspaceDescription": "Leave the current workspace. 이 계정에서 이 워크스페이스에 접근할 수 없게 됩니다. 프로필과 활동 기록은 다른 멤버에게 계속 표시됩니다.",
         "Members": "멤버",
         "WorkspaceSettings": "워크스페이스 설정",
         "Select": "선택",

@@ -60,6 +60,7 @@
     "NewValue": "Nová hodnota",
     "Leave": "Opustit pracovní prostor",
     "LeaveDescr": "Opravdu chcete opustit tento pracovní prostor? Tuto akci nelze vrátit zpět.",
+    "LeaveWorkspaceDescription": "Leave the current workspace. Ztratíte přístup k tomuto pracovnímu prostoru z tohoto účtu. Váš profil a historie aktivity zůstanou viditelné pro ostatní členy.",
     "Members": "Členové",
     "WorkspaceSettings": "Nastavení pracovního prostoru",
     "Select": "Vybrat",

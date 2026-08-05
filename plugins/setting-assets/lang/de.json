@@ -66,6 +66,7 @@
     "NewValue": "Neuer Wert",
     "Leave": "Arbeitsbereich verlassen",
     "LeaveDescr": "Sind Sie sicher, dass Sie den Arbeitsbereich verlassen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "LeaveWorkspaceDescription": "Leave the current workspace. Sie verlieren mit diesem Konto den Zugriff auf diesen Arbeitsbereich. Ihr Profil und Aktivitätsverlauf bleiben für andere Mitglieder sichtbar.",
     "Members": "Mitglieder",
     "WorkspaceSettings": "Arbeitsbereich-Einstellungen",
     "Select": "Auswählen",

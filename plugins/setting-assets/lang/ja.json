@@ -66,6 +66,7 @@
     "NewValue": "新しい値",
     "Leave": "ワークスペースを退出",
     "LeaveDescr": "本当にワークスペースを退出しますか？この操作は元に戻せません。",
+    "LeaveWorkspaceDescription": "Leave the current workspace. このアカウントではこのワークスペースにアクセスできなくなります。プロフィールとアクティビティ履歴は他のメンバーに引き続き表示されます。",
     "Members": "メンバー",
     "WorkspaceSettings": "ワークスペース設定",
     "Select": "選択",

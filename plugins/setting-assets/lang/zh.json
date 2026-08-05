@@ -66,6 +66,7 @@
     "NewValue": "新值",
     "Leave": "离开工作区",
     "LeaveDescr": "您确定要离开工作区吗？此操作无法撤销。",
+    "LeaveWorkspaceDescription": "Leave the current workspace. 您将无法再通过此帐户访问该工作区。您的个人资料和活动历史仍会对其他成员可见。",
     "Members": "成员",
     "WorkspaceSettings": "工作区设置",
     "Select": "选择",

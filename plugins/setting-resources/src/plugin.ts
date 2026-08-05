@@ -69,6 +69,7 @@ export default mergeIds(settingId, setting, {
     NewValue: '' as IntlString,
     Leave: '' as IntlString,
     LeaveDescr: '' as IntlString,
+    LeaveWorkspaceDescription: '' as IntlString,
     Select: '' as IntlString,
     AddOwner: '' as IntlString,
     ReadonlyGuest: '' as IntlString,

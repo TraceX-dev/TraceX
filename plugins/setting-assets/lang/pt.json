@@ -66,6 +66,7 @@
     "NewValue": "Novo valor",
     "Leave": "Sair do espaço de trabalho",
     "LeaveDescr": "Tem certeza de que deseja sair do espaço de trabalho? Esta ação não pode ser desfeita.",
+    "LeaveWorkspaceDescription": "Leave the current workspace. Perderá o acesso a este espaço de trabalho nesta conta. O seu perfil e histórico de atividade continuarão visíveis para outros membros.",
     "Members": "Membros",
     "WorkspaceSettings": "Configurações do espaço de trabalho",
     "Select": "Selecionar",

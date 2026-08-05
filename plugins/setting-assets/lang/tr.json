@@ -66,6 +66,7 @@
     "NewValue": "Yeni değer",
     "Leave": "Çalışma alanından ayrıl",
     "LeaveDescr": "Çalışma alanından ayrılmak istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "LeaveWorkspaceDescription": "Leave the current workspace. Bu hesapla bu çalışma alanına erişiminizi kaybedersiniz. Profiliniz ve etkinlik geçmişiniz diğer üyeler tarafından görünmeye devam eder.",
     "Members": "Üyeler",
     "WorkspaceSettings": "Çalışma alanı ayarları",
     "Select": "Seç",
