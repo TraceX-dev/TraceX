@@ -15,7 +15,6 @@
   import core, { Data } from '@hcengineering/core'
   import { getClient, SettingsCard, SettingsCardsLayout } from '@hcengineering/presentation'
   import { Breadcrumb, Header, Label, Scroller, Toggle } from '@hcengineering/ui'
-  import { getEmbeddedLabel } from '@hcengineering/platform'
   import view from '@hcengineering/view'
   import { getCurrentEmployee, Translation } from '@hcengineering/contact'
 
@@ -60,11 +59,8 @@
       <div class="hulyComponent-content w-full">
         <SettingsCardsLayout columns={1}>
           <SettingsCard label={contact.string.AutoTranslation}>
+            <Toggle slot="actions" on={enabled} on:change={changeEnable} />
             <div class="flex-col flex-gap-4">
-              <div class="flex-between flex-gap-4">
-                <Label label={getEmbeddedLabel('Enabled')} />
-                <Toggle on={enabled} on:change={changeEnable} />
-              </div>
               <div class="flex-between flex-gap-4">
                 <Label label={contact.string.TranslateTo} />
                 <LanguageEditor
@@ -78,6 +74,7 @@
                 <LanguagesArrayEditor
                   disabled={!enabled}
                   selected={settings?.dontTranslate ?? []}
+                  withLabelLimit={3}
                   on:change={(ev) => toggle({ dontTranslate: ev.detail ?? [] })}
                 />
               </div>
