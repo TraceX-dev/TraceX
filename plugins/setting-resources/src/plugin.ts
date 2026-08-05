@@ -140,7 +140,6 @@ export default mergeIds(settingId, setting, {
     SearchSpaces: '' as IntlString,
     SearchMembers: '' as IntlString,
     MembersAndTheirSpaces: '' as IntlString,
-    MemberSpacesTitle: '' as IntlString,
     OtherSpaces: '' as IntlString,
     Public: '' as IntlString,
     Member: '' as IntlString,

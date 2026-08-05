@@ -231,76 +231,72 @@
         <span>{visibleEmployees.length} / {activeEmployeesCount}</span>
       {/if}
     </div>
-    <Scroller padding={'0'}>
-      {#if membersLoading || employeesLoading}
-        <Loading />
-      {:else if visibleEmployees.length === 0}
-        <div class="emptyState"><Label label={presentation.string.NoResults} /></div>
-      {:else}
-        <div class="memberList">
-          <ListView
-            items={visibleEmployees}
-            count={visibleEmployees.length}
-            selection={selectedEmployeeIndex}
-            getKey={(index) => visibleEmployees[index]._id}
-            updateOnMouse={false}
-            noScroll
-            kind={'full-size'}
-            addClass={'memberListItem'}
-          >
-            <svelte:fragment slot="item" let:item={index}>
-              {@const employee = visibleEmployees[index]}
-              {@const personUuid = employee.personUuid}
-              {@const role =
-                personUuid !== undefined ? getWorkspaceMemberRole(workspaceMembers, personUuid) : undefined}
-              {#if personUuid !== undefined && role !== undefined}
-                <div
-                  class="memberListRow"
-                  role="button"
-                  tabindex="0"
-                  aria-pressed={selectedPerson === personUuid}
-                  on:click={() => {
-                    selectUser(personUuid)
-                  }}
-                  on:keydown={(event) => {
-                    handleMemberKeydown(event, personUuid)
-                  }}
-                >
-                  <div class="memberCell">
-                    <EmployeePresenter value={employee} avatarSize={'x-small'} disabled showPopup={false} />
+    <div class="membersScroller">
+      <Scroller padding={'0'} noStretch>
+        {#if membersLoading || employeesLoading}
+          <Loading />
+        {:else if visibleEmployees.length === 0}
+          <div class="emptyState"><Label label={presentation.string.NoResults} /></div>
+        {:else}
+          <div class="memberList">
+            <ListView
+              items={visibleEmployees}
+              count={visibleEmployees.length}
+              selection={selectedEmployeeIndex}
+              getKey={(index) => visibleEmployees[index]._id}
+              updateOnMouse={false}
+              noScroll
+              kind={'full-size'}
+              addClass={'memberListItem'}
+            >
+              <svelte:fragment slot="item" let:item={index}>
+                {@const employee = visibleEmployees[index]}
+                {@const personUuid = employee.personUuid}
+                {@const role =
+                  personUuid !== undefined ? getWorkspaceMemberRole(workspaceMembers, personUuid) : undefined}
+                {#if personUuid !== undefined && role !== undefined}
+                  <div
+                    class="memberListRow"
+                    role="button"
+                    tabindex="0"
+                    aria-pressed={selectedPerson === personUuid}
+                    on:click={() => {
+                      selectUser(personUuid)
+                    }}
+                    on:keydown={(event) => {
+                      handleMemberKeydown(event, personUuid)
+                    }}
+                  >
+                    <div class="memberCell">
+                      <EmployeePresenter value={employee} avatarSize={'x-small'} disabled showPopup={false} />
+                    </div>
+                    <div class="roleEditor" on:click|stopPropagation on:keydown|stopPropagation role="none">
+                      <UserRoleSelect
+                        disabled={!canChangeWorkspaceRole(currentAccount, personUuid, role, workspaceMembers) ||
+                          pendingRoleUpdates.has(personUuid)}
+                        kind={'no-border'}
+                        size={'small'}
+                        minWidth={'7rem'}
+                        roles={getAssignableWorkspaceRoles(currentAccount, role)}
+                        securityFilter={false}
+                        selected={role}
+                        on:selected={(event) => {
+                          changeRole(personUuid, event.detail).catch(handleError)
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div class="roleEditor" on:click|stopPropagation on:keydown|stopPropagation role="none">
-                    <UserRoleSelect
-                      disabled={!canChangeWorkspaceRole(currentAccount, personUuid, role, workspaceMembers) ||
-                        pendingRoleUpdates.has(personUuid)}
-                      kind={'no-border'}
-                      size={'small'}
-                      minWidth={'7rem'}
-                      roles={getAssignableWorkspaceRoles(currentAccount, role)}
-                      securityFilter={false}
-                      selected={role}
-                      on:selected={(event) => {
-                        changeRole(personUuid, event.detail).catch(handleError)
-                      }}
-                    />
-                  </div>
-                </div>
-              {/if}
-            </svelte:fragment>
-          </ListView>
-        </div>
-      {/if}
-    </Scroller>
+                {/if}
+              </svelte:fragment>
+            </ListView>
+          </div>
+        {/if}
+      </Scroller>
+    </div>
   </div>
   <aside class="userSpaces">
     {#if selectedEmployee !== undefined}
       <div class="userSpacesSummary">
-        <div class="userSpacesTitle">
-          <strong>
-            <Label label={setting.string.MemberSpacesTitle} params={{ name: formatName(selectedEmployee.name) }} />
-          </strong>
-          <span>{availableSelectedSpaces.length}</span>
-        </div>
         <div class="memberSpacesToolbar">
           <SearchInput bind:value={memberSpaceSearch} width={'100%'} placeholder={setting.string.SearchSpaces} />
           <FilterButton
@@ -381,6 +377,13 @@
     gap: var(--spacing-2);
     color: var(--theme-caption-color);
   }
+  .membersScroller {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
   .memberListRow {
     display: grid;
     grid-template-columns: minmax(12rem, 1fr) minmax(7rem, 9rem);
@@ -438,18 +441,8 @@
     flex: 0 0 auto;
     flex-direction: column;
     gap: var(--spacing-3);
-    padding: var(--spacing-4);
+    padding: var(--spacing-3);
     border-bottom: 1px solid var(--theme-divider-color);
-  }
-  .userSpacesTitle {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-  }
-  .userSpacesTitle > span {
-    color: var(--theme-caption-color);
-    font-size: 0.8125rem;
-    font-weight: 500;
   }
   .memberSpacesToolbar {
     display: grid;
