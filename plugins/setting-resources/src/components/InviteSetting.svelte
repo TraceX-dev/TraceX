@@ -193,14 +193,16 @@
               <div class="flex-col flex-gap-4">
                 <div class="flex-between flex-gap-4">
                   <Label label={login.string.LinkValidHours} />
-                  <EditBox
-                    format={'number'}
-                    kind={'default'}
-                    minValue={1}
-                    maxDigitsAfterPoint={0}
-                    bind:value={expTime}
-                    on:change={handleExpTimeChange}
-                  />
+                  <div class="flex-no-grow">
+                    <EditBox
+                      format={'number'}
+                      kind={'default'}
+                      minValue={1}
+                      maxDigitsAfterPoint={0}
+                      bind:value={expTime}
+                      on:change={handleExpTimeChange}
+                    />
+                  </div>
                 </div>
 
                 <div class="flex-between flex-gap-4">

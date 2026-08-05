@@ -13,8 +13,8 @@
 
 <script lang="ts">
   import core, { Data } from '@hcengineering/core'
-  import { getClient } from '@hcengineering/presentation'
-  import { Breadcrumb, Header, Label, Toggle } from '@hcengineering/ui'
+  import { getClient, SettingsCard, SettingsCardsLayout } from '@hcengineering/presentation'
+  import { Breadcrumb, Header, Label, Scroller, Toggle } from '@hcengineering/ui'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import view from '@hcengineering/view'
   import { getCurrentEmployee, Translation } from '@hcengineering/contact'
@@ -55,28 +55,36 @@
   <Header adaptive={'disabled'}>
     <Breadcrumb icon={view.icon.Translate} label={contact.string.AutoTranslation} size={'large'} isCurrent />
   </Header>
-  <div class="flex-row-stretch flex-grow p-10">
-    <div class="flex-grow flex-col flex-gap-4">
-      <div class="flex-row-center flex-gap-4">
-        <Label label={getEmbeddedLabel('Enabled')} />
-        <Toggle on={enabled} on:change={changeEnable} />
+  <div class="hulyComponent-content__column content">
+    <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
+      <div class="hulyComponent-content w-full">
+        <SettingsCardsLayout columns={1}>
+          <SettingsCard label={contact.string.AutoTranslation}>
+            <div class="flex-col flex-gap-4">
+              <div class="flex-between flex-gap-4">
+                <Label label={getEmbeddedLabel('Enabled')} />
+                <Toggle on={enabled} on:change={changeEnable} />
+              </div>
+              <div class="flex-between flex-gap-4">
+                <Label label={contact.string.TranslateTo} />
+                <LanguageEditor
+                  disabled={!enabled}
+                  value={settings?.translateTo}
+                  on:change={(ev) => toggle({ translateTo: ev.detail ?? '' })}
+                />
+              </div>
+              <div class="flex-between flex-gap-4">
+                <Label label={contact.string.DontTranslate} />
+                <LanguagesArrayEditor
+                  disabled={!enabled}
+                  selected={settings?.dontTranslate ?? []}
+                  on:change={(ev) => toggle({ dontTranslate: ev.detail ?? [] })}
+                />
+              </div>
+            </div>
+          </SettingsCard>
+        </SettingsCardsLayout>
       </div>
-      <div class="flex-row-center flex-gap-4">
-        <Label label={contact.string.TranslateTo} />
-        <LanguageEditor
-          disabled={!enabled}
-          value={settings?.translateTo}
-          on:change={(ev) => toggle({ translateTo: ev.detail ?? '' })}
-        />
-      </div>
-      <div class="flex-row-center flex-gap-4">
-        <Label label={contact.string.DontTranslate} />
-        <LanguagesArrayEditor
-          disabled={!enabled}
-          selected={settings?.dontTranslate ?? []}
-          on:change={(ev) => toggle({ dontTranslate: ev.detail ?? [] })}
-        />
-      </div>
-    </div>
+    </Scroller>
   </div>
 </div>

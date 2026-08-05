@@ -18,12 +18,19 @@
   import { Label } from '@hcengineering/ui'
 
   export let label: IntlString
+  export let labelText: string | undefined = undefined
   export let contentClass: string = ''
 </script>
 
 <section class="settings-card">
   <div class="settings-card__header">
-    <h2><Label {label} /></h2>
+    <h2>
+      {#if labelText !== undefined}
+        {labelText}
+      {:else}
+        <Label {label} />
+      {/if}
+    </h2>
     {#if $$slots.actions}
       <div class="settings-card__actions">
         <slot name="actions" />
