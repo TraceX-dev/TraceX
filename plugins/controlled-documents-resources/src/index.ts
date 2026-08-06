@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -40,6 +41,7 @@ import DeleteCategoryPopup from './components/category/popups/DeleteCategoryPopu
 import QmsDocumentWizard from './components/create-doc/QmsDocumentWizard.svelte'
 import QmsTemplateWizard from './components/create-doc/QmsTemplateWizard.svelte'
 import DocumentStatusTag from './components/document/common/DocumentStatusTag.svelte'
+import ControlledDocumentInlineEditor from './components/document/ControlledDocumentInlineEditor.svelte'
 import AddCommentPopup from './components/document/popups/AddCommentPopup.svelte'
 import ChangeOwnerPopup from './components/document/popups/ChangeOwnerPopup.svelte'
 import DocumentCommentsPopup from './components/document/popups/DocumentCommentsPopup.svelte'
@@ -390,6 +392,7 @@ export default async (): Promise<Resources> => ({
     DocumentTemplates,
     CategoryPresenter,
     Categories,
+    ControlledDocumentInlineEditor,
     EditDocumentCategory,
     EditDocContent,
     DocumentReviewRequest,
