@@ -38,6 +38,7 @@
     "ChangeTypeWarning": "Avviso: Cambiare il tipo di un'scheda rimuoverà tutti i dati per qualsiasi attributo che non esistono nel tipo di destinazione. I dati precedenti dell'attributo possono essere ripristinati modificando nuovamente il carta in un tipo precedente. Il contenuto della scheda non sarà influenzato.",
     "MasterDetailViews": "Viste Master-Detail",
     "SelectType": "Seleziona il tipo",
+    "SelectTypeAndSpace": "Seleziona un Tipo di scheda e uno Spazio per continuare.",
     "CreateSpace": "Crea spazio",
     "Labels": "Etichette",
     "Properties": "Proprietà",
