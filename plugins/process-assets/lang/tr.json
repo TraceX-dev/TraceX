@@ -44,6 +44,7 @@
     "FallbackValueError": "Boşsa hata göster",
     "Required": "Gerekli",
     "ParallelExecutionForbidden": "Paralel yürütme yasak",
+    "ShowInHeader": "Başlıkta göster",
     "StartAutomatically": "Otomatik başlat",
     "AutomationOnly": "Sadece otomasyon",
     "Error": "Hata",

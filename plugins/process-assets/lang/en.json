@@ -44,6 +44,7 @@
     "FallbackValueError": "Show error if empty",
     "Required": "Required",
     "ParallelExecutionForbidden": "Parallel execution forbidden",
+    "ShowInHeader": "Show in header",
     "StartAutomatically": "Start automatically",
     "AutomationOnly": "Automation only",
     "Error": "Error",

@@ -44,6 +44,7 @@
     "FallbackValueError": "Zobrazit chybu, pokud není k dispozici",
     "Required": "Povinné",
     "ParallelExecutionForbidden": "Nedovoluj paralelní spuštění",
+    "ShowInHeader": "Zobrazit v záhlaví",
     "StartAutomatically": "Spustit automaticky",
     "AutomationOnly": "Pouze automatizace",
     "Error": "Chyba",
