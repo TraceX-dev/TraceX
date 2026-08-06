@@ -155,24 +155,6 @@
   --theme-button-warning-active-bg: rgba(249, 115, 22, 0.24);
   --theme-button-warning-focus-ring: 0 0 0 2px rgba(249, 115, 22, 0.35);
 
-  // Inline banner accents — subdued tinted surfaces for status/notice messages
-  // inside forms and modals (see InlineBanner.svelte).
-  --theme-banner-positive-color: var(--theme-state-positive-color);
-  --theme-banner-positive-bg: rgba(5, 160, 92, 0.12);
-  --theme-banner-positive-border: rgba(5, 160, 92, 0.32);
-
-  --theme-banner-info-color: var(--theme-link-color);
-  --theme-banner-info-bg: rgba(55, 122, 230, 0.12);
-  --theme-banner-info-border: rgba(55, 122, 230, 0.32);
-
-  --theme-banner-warning-color: var(--theme-button-warning-color);
-  --theme-banner-warning-bg: var(--theme-button-warning-bg);
-  --theme-banner-warning-border: var(--theme-button-warning-border);
-
-  --theme-banner-error-color: var(--theme-error-color);
-  --theme-banner-error-bg: rgba(235, 87, 87, 0.12);
-  --theme-banner-error-border: rgba(235, 87, 87, 0.32);
-
   --theme-refinput-divider: rgba(255, 255, 255, .07);
   --theme-refinput-border: rgba(255, 255, 255, .1);
 
@@ -442,6 +424,10 @@
   --theme-label-orange-bg-color: rgba(249, 115, 22, .08);
   --theme-label-orange-border-color: rgba(249, 115, 22, .2);
 
+  --theme-label-red-color: rgba(239, 68, 68, .8);
+  --theme-label-red-bg-color: rgba(239, 68, 68, .08);
+  --theme-label-red-border-color: rgba(239, 68, 68, .2);
+
   --theme-label-gray-color: rgba(255, 255, 255, .6);
   --theme-label-gray-bg-color: rgba(255, 255, 255, .02);
   --theme-label-gray-border-color: rgba(255, 255, 255, .09);
@@ -503,24 +489,6 @@
   --theme-button-warning-hover-border: rgba(249, 115, 22, 0.45);
   --theme-button-warning-active-bg: rgba(249, 115, 22, 0.22);
   --theme-button-warning-focus-ring: 0 0 0 2px rgba(249, 115, 22, 0.3);
-
-  // Inline banner accents — subdued tinted surfaces for status/notice messages
-  // inside forms and modals (see InlineBanner.svelte).
-  --theme-banner-positive-color: var(--theme-state-positive-color);
-  --theme-banner-positive-bg: rgba(5, 160, 92, 0.10);
-  --theme-banner-positive-border: rgba(5, 160, 92, 0.30);
-
-  --theme-banner-info-color: var(--theme-link-color);
-  --theme-banner-info-bg: rgba(55, 122, 230, 0.10);
-  --theme-banner-info-border: rgba(55, 122, 230, 0.30);
-
-  --theme-banner-warning-color: var(--theme-button-warning-color);
-  --theme-banner-warning-bg: var(--theme-button-warning-bg);
-  --theme-banner-warning-border: var(--theme-button-warning-border);
-
-  --theme-banner-error-color: var(--theme-error-color);
-  --theme-banner-error-bg: rgba(235, 87, 87, 0.10);
-  --theme-banner-error-border: rgba(235, 87, 87, 0.30);
 
   --theme-refinput-divider: rgba(0, 0, 0, .07);
   --theme-refinput-border: rgba(0, 0, 0, .1);
@@ -798,6 +766,10 @@
   --theme-label-orange-color: rgba(194, 65, 12, 0.9);
   --theme-label-orange-bg-color: rgba(249, 115, 22, .08);
   --theme-label-orange-border-color: rgba(249, 115, 22, .15);
+
+  --theme-label-red-color: rgba(220, 38, 38, 0.9);
+  --theme-label-red-bg-color: rgba(239, 68, 68, .08);
+  --theme-label-red-border-color: rgba(239, 68, 68, .15);
 
   --theme-label-gray-color: rgba(0, 0, 0, .6);
   --theme-label-gray-bg-color: rgba(0, 0, 0, .02);

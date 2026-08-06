@@ -20,15 +20,23 @@
   import IconError from './icons/Error.svelte'
   import IconInfo from './icons/Info.svelte'
 
-  export type InlineBannerKind = 'positive' | 'info' | 'warning' | 'error'
+  type NoticeKind = 'positive' | 'info' | 'warning' | 'error'
 
   export let label: IntlString
   export let params: Record<string, any> = {}
-  export let kind: InlineBannerKind = 'info'
+  export let kind: NoticeKind = 'info'
   export let icon: AnySvelteComponent | undefined = undefined
   export let iconSize: 'small' | 'medium' | 'large' = 'small'
 
-  const defaultIcons: Record<InlineBannerKind, AnySvelteComponent> = {
+  // Reuses the same tinted label colors as tag/status pills elsewhere in the app
+  const colorByKind: Record<NoticeKind, 'green' | 'blue' | 'orange' | 'red'> = {
+    positive: 'green',
+    info: 'blue',
+    warning: 'orange',
+    error: 'red'
+  }
+
+  const defaultIcons: Record<NoticeKind, AnySvelteComponent> = {
     positive: IconCheckCircle,
     info: IconInfo,
     warning: IconInfo,
@@ -36,42 +44,28 @@
   }
 
   $: resolvedIcon = icon ?? defaultIcons[kind]
+  $: color = colorByKind[kind]
 </script>
 
-<div class="inlineBanner {kind}">
+<div
+  class="notice"
+  style:color="var(--theme-label-{color}-color)"
+  style:background-color="var(--theme-label-{color}-bg-color)"
+  style:border-color="var(--theme-label-{color}-border-color)"
+>
   <svelte:component this={resolvedIcon} size={iconSize} />
   <span class="overflow-label"><Label {label} {params} /></span>
 </div>
 
 <style lang="scss">
-  .inlineBanner {
+  .notice {
     display: flex;
     align-items: center;
     gap: var(--spacing-1);
     padding: 0.375rem 0.75rem;
     border-radius: 0.375rem;
+    border: 1px solid;
     font-size: 0.8125rem;
     font-weight: 500;
-
-    &.positive {
-      color: var(--theme-banner-positive-color);
-      background-color: var(--theme-banner-positive-bg);
-      border: 1px solid var(--theme-banner-positive-border);
-    }
-    &.info {
-      color: var(--theme-banner-info-color);
-      background-color: var(--theme-banner-info-bg);
-      border: 1px solid var(--theme-banner-info-border);
-    }
-    &.warning {
-      color: var(--theme-banner-warning-color);
-      background-color: var(--theme-banner-warning-bg);
-      border: 1px solid var(--theme-banner-warning-border);
-    }
-    &.error {
-      color: var(--theme-banner-error-color);
-      background-color: var(--theme-banner-error-bg);
-      border: 1px solid var(--theme-banner-error-border);
-    }
   }
 </style>

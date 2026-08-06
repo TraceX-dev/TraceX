@@ -22,7 +22,7 @@
   import { createEventDispatcher } from 'svelte'
   import core, { Data, generateId, Ref, Markup, notEmpty, getCurrentAccount } from '@hcengineering/core'
   import { getResource, translate, getEmbeddedLabel } from '@hcengineering/platform'
-  import { InlineBanner, Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
+  import { Notice, Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
   import { AttachmentStyledBox } from '@hcengineering/attachment-resources'
   import { EmptyMarkup } from '@hcengineering/text'
   import { Employee, getCurrentEmployee } from '@hcengineering/contact'
@@ -264,9 +264,9 @@
   <div slot="afterContent" class="p-4 flex-row-reverse">
     {#if !allowed}
       {#if missingSelection}
-        <InlineBanner kind="warning" label={card.string.SelectTypeAndSpace} />
+        <Notice kind="warning" label={card.string.SelectTypeAndSpace} />
       {:else}
-        <InlineBanner kind="error" label={view.string.NoCreatePermissionTitle} />
+        <Notice kind="error" label={view.string.NoCreatePermissionTitle} />
       {/if}
     {/if}
   </div>
