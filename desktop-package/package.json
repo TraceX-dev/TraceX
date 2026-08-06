@@ -60,7 +60,7 @@
       "notarize": false,
       "publish": {
         "provider": "generic",
-        "url": "https://dist.huly.io",
+        "url": "https://dist.tracex.co",
         "channel": "latest"
       }
     },
@@ -74,7 +74,7 @@
       "icon": "./src/AppIcon.ico",
       "publish": {
         "provider": "generic",
-        "url": "https://dist.huly.io",
+        "url": "https://dist.tracex.co",
         "channel": "latest"
       },
       "extraResources": [
@@ -103,7 +103,7 @@
       "category": "Utility",
       "publish": {
         "provider": "generic",
-        "url": "https://dist.huly.io",
+        "url": "https://dist.tracex.co",
         "channel": "latest"
       }
     }

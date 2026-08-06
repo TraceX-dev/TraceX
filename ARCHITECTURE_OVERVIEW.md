@@ -454,7 +454,7 @@ sequenceDiagram
 - `FILES_URL`: `http://tracex.local:4030/blob/:workspace/:blobId/:filename` - File download URL pattern
 - `FRONT_URL`: `http://tracex.local:8087` - Frontend base URL
 - `BRANDING_URL`: `http://tracex.local:8087/branding.json`
-- `DESKTOP_UPDATES_URL`: `https://dist.huly.io`
+- `DESKTOP_UPDATES_URL`: `https://dist.tracex.co`
 
 ### Authentication & Security
 - `HULY_TOKEN_SECRET`: `secret` - Token signing for Huly services

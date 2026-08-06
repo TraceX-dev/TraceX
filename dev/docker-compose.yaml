@@ -318,7 +318,7 @@ services:
       - PRINT_URL=http://tracex.local:4005
       - SIGN_URL=http://tracex.local:4006
       #      - ANALYTICS_COLLECTOR_URL=http://tracex.local:4017
-      - DESKTOP_UPDATES_URL=https://dist.huly.io
+      - DESKTOP_UPDATES_URL=https://dist.tracex.co
       - DESKTOP_UPDATES_CHANNEL=dev
       - DESKTOP_UPDATES_CHANNELS=dev;tracex:dev-tracex
       - BRANDING_URL=http://tracex.local:8087/branding.json

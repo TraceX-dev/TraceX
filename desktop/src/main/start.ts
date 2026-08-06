@@ -434,7 +434,7 @@ function runTheApp (): void {
 
     setupCookieHandler(config)
 
-    const updatesUrl = process.env.DESKTOP_UPDATES_URL ?? config.DESKTOP_UPDATES_URL ?? 'https://dist.huly.io'
+    const updatesUrl = process.env.DESKTOP_UPDATES_URL ?? config.DESKTOP_UPDATES_URL ?? 'https://dist.tracex.co'
     // NOTE: env format is: default_value;key1:value1;key2:value2...
     const updatesChannels = (process.env.DESKTOP_UPDATES_CHANNEL ?? config.DESKTOP_UPDATES_CHANNELS ?? config.DESKTOP_UPDATES_CHANNEL ?? 'huly').split(';').map(c => c.trim().split(':'))
     const updateChannelsMap: Record<string, string> = {}
