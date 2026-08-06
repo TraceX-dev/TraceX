@@ -13,29 +13,50 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { AccountRole, getCurrentAccount, hasAccountRole, Ref } from '@hcengineering/core'
+  import { AccountRole, getCurrentAccount, hasAccountRole, isId, Ref } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { ButtonIcon, getCurrentLocation, IconAdd, location, Menu, navigate, showPopup } from '@hcengineering/ui'
 
-  import { MasterTag } from '@hcengineering/card'
+  import { Card, CardSpace, MasterTag } from '@hcengineering/card'
   import card from '../../plugin'
   import CreateSpace from './CreateSpace.svelte'
   import CreateCardPopup from '../CreateCardPopup.svelte'
   import { isBaseTypeWithSubtypes } from '../../utils'
 
   const me = getCurrentAccount()
+  const client = getClient()
 
   let pressed: boolean = false
 
   let _class: Ref<MasterTag> | undefined
-  let space: string | undefined
+  let space: Ref<CardSpace> | undefined
 
-  $: updateContext($location.path[3], $location.path[4] as Ref<MasterTag> | undefined)
+  // Guards against an older lookup resolving after the location has already moved on
+  let contextRequest = 0
 
-  function updateContext (pathSpace: string | undefined, pathClass: Ref<MasterTag> | undefined): void {
+  $: void updateContext($location.path[3], $location.path[4] as Ref<MasterTag> | undefined)
+
+  async function updateContext (pathId: string | undefined, pathClass: Ref<MasterTag> | undefined): Promise<void> {
+    const requestId = ++contextRequest
+
     if (pathClass !== undefined) {
       _class = pathClass
-      space = pathSpace
+      if (pathId !== 'type') {
+        space = pathId as Ref<CardSpace>
+      }
+      return
+    }
+
+    if (pathId === undefined || !isId(pathId)) {
+      return
+    }
+
+    const doc = await client.findOne(card.class.Card, { _id: pathId as Ref<Card> })
+    if (requestId !== contextRequest) return // location changed again while awaiting
+
+    if (doc !== undefined) {
+      _class = doc._class
+      space = doc.space as Ref<CardSpace>
     }
   }
 
@@ -47,7 +68,7 @@
   }
 
   async function handleCreateCard (): Promise<void> {
-    const changeType = _class !== undefined && isBaseTypeWithSubtypes(getClient().getHierarchy(), _class)
+    const changeType = _class !== undefined && isBaseTypeWithSubtypes(client.getHierarchy(), _class)
     showPopup(CreateCardPopup, { type: _class, space, changeType }, 'center', async (result) => {
       if (result != null && result !== '') {
         await navigateToCard(result)
