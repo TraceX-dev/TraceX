@@ -96,7 +96,7 @@
 <div class="usersLayout">
   <div class="usersList">
     <div class="memberToolbar">
-      <SearchInput bind:value={search} placeholder={setting.string.SearchMembers} />
+      <SearchInput bind:value={search} width={'22rem'} placeholder={setting.string.SearchMembers} />
       <FilterButton
         categories={MEMBER_FILTER_CATEGORIES}
         activeFilters={memberFilters}
@@ -134,7 +134,7 @@
                 {#if personUuid !== undefined && role !== undefined}
                   <div class="memberListRow">
                     <div class="memberCell">
-                      <EmployeePresenter value={employee} avatarSize={'x-small'} disabled showPopup={false} />
+                      <EmployeePresenter value={employee} avatarSize={'x-small'} />
                     </div>
                     <div class="roleEditor">
                       <UserRoleSelect
@@ -182,8 +182,8 @@
     overflow: hidden;
   }
   .memberToolbar {
-    display: grid;
-    grid-template-columns: minmax(10rem, 1fr) auto auto;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-2);
     color: var(--theme-caption-color);
@@ -197,21 +197,16 @@
   }
   .memberListRow {
     display: grid;
-    grid-template-columns: minmax(12rem, 1fr) minmax(7rem, 9rem);
-    gap: var(--spacing-3);
+    grid-template-columns: minmax(12rem, 20rem) minmax(7rem, 9rem);
+    gap: var(--spacing-4);
     align-items: center;
     min-width: 22rem;
+    min-height: 3rem;
+    padding: var(--spacing-2) var(--spacing-3);
   }
   .memberList {
     min-width: 22rem;
     overflow: hidden;
-  }
-  .memberListRow {
-    min-height: 3rem;
-    padding: var(--spacing-2) var(--spacing-3);
-  }
-  .memberList :global(.memberListItem:hover:not(.selection)) {
-    background: var(--theme-button-hovered);
   }
   .memberCell {
     display: flex;
