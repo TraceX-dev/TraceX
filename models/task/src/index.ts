@@ -228,6 +228,7 @@ export class TTaskType extends TDoc implements TaskType {
 }
 
 @Model(task.class.ProjectTypeDescriptor, core.class.SpaceTypeDescriptor, DOMAIN_MODEL)
+@UX(task.string.Task)
 export class TProjectTypeDescriptor extends TSpaceTypeDescriptor implements ProjectTypeDescriptor {
   editor?: AnyComponent
   allowedClassic?: boolean

@@ -16,7 +16,19 @@
   import { AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
   import { getMetadata } from '@hcengineering/platform'
   import presentation, { copyTextToClipboard, getFileUrl } from '@hcengineering/presentation'
-  import { Breadcrumb, Button, Expandable, Header, Label, Loading, Scroller } from '@hcengineering/ui'
+  import {
+    Breadcrumb,
+    Button,
+    Expandable,
+    Header,
+    IconCopy,
+    Label,
+    Loading,
+    Scroller,
+    SettingsCard,
+    SettingsCardsLayout,
+    SettingsFooterAction
+  } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { onMount } from 'svelte'
   import setting from '../plugin'
@@ -258,7 +270,7 @@
     <Breadcrumb icon={setting.icon.Setting} label={setting.string.Backup} size={'large'} isCurrent />
   </Header>
 
-  <Scroller padding={'1.5rem'} noStretch>
+  <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
     {#if loading}
       <Loading />
     {:else if backupInfo == null}
@@ -266,273 +278,259 @@
         <Label label={setting.string.BackupNoBackup} />
       </div>
     {:else}
-      <div class="flex-row flex-gap-4 p-2">
-        <span class="flex-row-center">
-          <Label label={setting.string.BackupLast} /> : {snapshots.length > 0
-            ? formatAgoHours(snapshots[snapshots.length - 1].date)
-            : ''}
-        </span>
-        <span class="flex-row-center">
-          <Label label={setting.string.BackupTotalSnapshots} />: {backupInfo?.info?.snapshots?.length}
-          <Label label={setting.string.BackupTotalFiles} />: {backupInfo?.files?.length ?? 0}
-        </span>
-        <span class="flex-row-center">
-          <Label label={setting.string.BackupSize} />: {getBackupSize(backupInfo?.files ?? [])}
-        </span>
-      </div>
+      <SettingsCardsLayout columns={1}>
+        <SettingsCard label={setting.string.BackupLast}>
+          <div slot="actions">
+            {snapshots.length > 0 ? formatAgoHours(snapshots[snapshots.length - 1].date) : ''}
+          </div>
 
-      <div class="backup-actions">
-        <div class="backup-action">
-          <div class="backup-action__text">
-            <div class="backup-action__title">
-              <Label label={setting.string.BackupDownloadAll} />
+          <div class="flex-col flex-gap-4">
+            <div class="flex-between flex-gap-4">
+              <Label label={setting.string.BackupTotalSnapshots} />
+              <div>{backupInfo?.info?.snapshots?.length ?? 0}</div>
             </div>
-            <div class="backup-action__info">
-              <Label label={setting.string.BackupDownloadAllInfo} />
+
+            <div class="flex-between flex-gap-4">
+              <Label label={setting.string.BackupTotalFiles} />
+              <div>{backupInfo?.files?.length ?? 0}</div>
+            </div>
+
+            <div class="flex-between flex-gap-4">
+              <Label label={setting.string.BackupSize} />
+              <span>{getBackupSize(backupInfo?.files ?? [])}</span>
             </div>
           </div>
-          <Button
-            kind={'primary'}
+        </SettingsCard>
+
+        <SettingsCard label={setting.string.BackupDownloadAll}>
+          <div class="flex-col flex-gap-4">
+            <Label label={setting.string.BackupDownloadAllInfo} />
+          </div>
+
+          <SettingsFooterAction
+            slot="footer"
+            label={downloading ? setting.string.BackupPreparingDownload : setting.string.BackupDownloadAll}
+            color="primary"
             loading={downloading}
             disabled={downloading}
-            label={downloading ? setting.string.BackupPreparingDownload : setting.string.BackupDownloadAll}
             on:click={downloadFullBackup}
           />
-        </div>
-        <div class="backup-action">
-          <div class="backup-action__text">
-            <div class="backup-action__title">
-              <Label label={setting.string.BackupCopyScript} />
-            </div>
-            <div class="backup-action__info">
-              <Label label={setting.string.BackupScriptInfo} />
-            </div>
+        </SettingsCard>
+
+        <SettingsCard label={setting.string.BackupCopyScript}>
+          <div class="flex-col flex-gap-4">
+            <Label label={setting.string.BackupScriptInfo} />
           </div>
-          <div class="backup-action__buttons">
+
+          <div slot="footer" class="w-full flex-row-reverse flex-gap-2 px-2">
             <Button
               label={scriptCopied ? view.string.Copied : setting.string.BackupCopyScript}
               on:click={copyBackupScript}
             />
             <Button label={tokenCopied ? view.string.Copied : setting.string.BackupCopyToken} on:click={copyToken} />
           </div>
-        </div>
-      </div>
+        </SettingsCard>
 
-      <Expandable bordered>
-        <svelte:fragment slot="title">
-          <div class="flex-no-shrink flex-row-center p-1">
-            <Label label={setting.string.BackupSnapshots} />:
-            {snapshots.length}
-          </div>
-        </svelte:fragment>
-        <div class="p-1">
-          <div class="file-item">
-            <div class="file-name">{'index.json'}</div>
-            <div class="file-info">
-              <span class="file-size">
-                {getSize(JSON.stringify(backupInfo).length)}
-              </span>
-              <div class="file-actions">
-                <Button label={setting.string.BackupFileDownload} on:click={() => downloadFile('index.json')} />
-              </div>
-            </div>
-          </div>
-          <div class="file-item">
-            <div class="file-name">{'backup.json.gz'}</div>
-            <div class="file-info">
-              <span class="file-size">
-                {getSize(fileSizes.get('backup.json.gz') ?? 0)}
-              </span>
-              <div class="file-actions">
-                <Button label={setting.string.BackupFileDownload} on:click={() => downloadFile('backup.json.gz')} />
-              </div>
-            </div>
-          </div>
-          <div class="file-item">
-            <div class="file-name">{'blob-info.json.gz'}</div>
-            <div class="file-info">
-              <span class="file-size">
-                {getSize(fileSizes.get('blob-info.json.gz') ?? 0)}
-              </span>
-              <div class="file-actions">
-                <Button label={setting.string.BackupFileDownload} on:click={() => downloadFile('blob-info.json.gz')} />
-              </div>
-            </div>
-          </div>
-        </div>
+        <SettingsCard label={setting.string.Backup}>
+          <div class="flex-col flex-gap-4">
+            <Expandable expanded={false} showChevron={snapshots.length > 0} expandable={snapshots.length > 0} bordered>
+              <svelte:fragment slot="title">
+                <div class="flex-no-shrink flex-row-center p-1">
+                  <Label label={setting.string.BackupSnapshots} />:
+                  {snapshots.length}
+                </div>
+              </svelte:fragment>
 
-        {#if backupInfo?.info?.snapshots}
-          {@const snLen = snapshorsr.length}
-          {#each snapshorsr as snapshot, i}
-            {@const hasSnapshots = Object.keys(snapshot.domains).length > 0}
-            <div class="flex-no-shrink">
-              <Expandable expandable={hasSnapshots} bordered showChevron={hasSnapshots}>
-                <svelte:fragment slot="title">
-                  <div class="flex-row-center ml-1">
-                    #{snLen - i}
-                    {formatDate(snapshot.date)}
-                    {formatAgoHours(snapshot.date)} -
-                    {getSnapshotSummary(snapshot)}
+              <div class="p-1 flex-col flex-gap-2">
+                <div class="file-item">
+                  <div class="file-name">{'index.json'}</div>
+                  <div class="file-info">
+                    <span class="file-size">
+                      {getSize(JSON.stringify(backupInfo).length)}
+                    </span>
+                    <div class="file-actions">
+                      <Button label={setting.string.BackupFileDownload} on:click={() => downloadFile('index.json')} />
+                    </div>
                   </div>
-                </svelte:fragment>
-                {#if hasSnapshots}
-                  <div class="p-2">
-                    {#each Object.entries(snapshot.domains) as [domain, data]}
-                      {#if data.storage?.length}
-                        <div class="domain-files">
-                          <div class="domain-header">{domain}</div>
-                          <div class="files-list">
-                            {#each data.storage as filename}
-                              <div class="file-item">
-                                <div class="file-name">{filename}</div>
-                                <div class="file-info">
-                                  <span class="file-size">
-                                    {getSize(fileSizes.get(filename) ?? 0)}
-                                  </span>
-                                  <div class="file-actions">
-                                    <Button
-                                      label={setting.string.BackupFileDownload}
-                                      on:click={() => downloadFile(filename)}
-                                    />
+                </div>
+                <div class="file-item">
+                  <div class="file-name">{'backup.json.gz'}</div>
+                  <div class="file-info">
+                    <span class="file-size">
+                      {getSize(fileSizes.get('backup.json.gz') ?? 0)}
+                    </span>
+                    <div class="file-actions">
+                      <Button
+                        label={setting.string.BackupFileDownload}
+                        on:click={() => downloadFile('backup.json.gz')}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div class="file-item">
+                  <div class="file-name">{'blob-info.json.gz'}</div>
+                  <div class="file-info">
+                    <span class="file-size">
+                      {getSize(fileSizes.get('blob-info.json.gz') ?? 0)}
+                    </span>
+                    <div class="file-actions">
+                      <Button
+                        label={setting.string.BackupFileDownload}
+                        on:click={() => downloadFile('blob-info.json.gz')}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {#if backupInfo?.info?.snapshots}
+                {@const snLen = snapshorsr.length}
+                <div class="flex-col flex-gap-2">
+                  {#each snapshorsr as snapshot, i}
+                    {@const hasSnapshots = Object.keys(snapshot.domains).length > 0}
+                    <div class="flex-no-shrink">
+                      <Expandable expandable={hasSnapshots} showChevron={false} bordered>
+                        <svelte:fragment slot="title">
+                          <div class="flex-row-center ml-1">
+                            #{snLen - i}
+                            {formatDate(snapshot.date)}
+                            {formatAgoHours(snapshot.date)} -
+                            {getSnapshotSummary(snapshot)}
+                          </div>
+                        </svelte:fragment>
+                        {#if hasSnapshots}
+                          <div class="p-2 flex-col">
+                            {#each Object.entries(snapshot.domains) as [domain, data]}
+                              {#if data.storage?.length}
+                                <div class="domain-files">
+                                  <div class="domain-header">{domain}</div>
+                                  <div class="files-list">
+                                    {#each data.storage as filename}
+                                      <div class="file-item">
+                                        <div class="file-name">{filename}</div>
+                                        <div class="file-info">
+                                          <span class="file-size">
+                                            {getSize(fileSizes.get(filename) ?? 0)}
+                                          </span>
+                                          <div class="file-actions">
+                                            <Button
+                                              label={setting.string.BackupFileDownload}
+                                              on:click={() => downloadFile(filename)}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    {/each}
+                                    {#each data.snapshots ?? [] as filename}
+                                      <div class="file-item">
+                                        <div class="file-name">{filename}</div>
+                                        <div class="file-info">
+                                          <span class="file-size">
+                                            {getSize(fileSizes.get(filename) ?? 0)}
+                                          </span>
+                                          <div class="file-actions">
+                                            <Button
+                                              label={setting.string.BackupFileDownload}
+                                              on:click={() => downloadFile(filename)}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    {/each}
                                   </div>
                                 </div>
-                              </div>
-                            {/each}
-                            {#each data.snapshots ?? [] as filename}
-                              <div class="file-item">
-                                <div class="file-name">{filename}</div>
-                                <div class="file-info">
-                                  <span class="file-size">
-                                    {getSize(fileSizes.get(filename) ?? 0)}
-                                  </span>
-                                  <div class="file-actions">
-                                    <Button
-                                      label={setting.string.BackupFileDownload}
-                                      on:click={() => downloadFile(filename)}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
+                              {/if}
                             {/each}
                           </div>
-                        </div>
-                      {/if}
-                    {/each}
+                        {/if}
+                      </Expandable>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <div class="no-backups">
+                  <Label label={setting.string.BackupNoBackup} />
+                </div>
+              {/if}
+              {#if backupInfo?.error}
+                <div class="error">{backupInfo.error}</div>
+              {/if}
+            </Expandable>
+
+            <Expandable expanded={false} bordered>
+              <svelte:fragment slot="title">
+                <div class="p-1">
+                  <Label label={setting.string.BackupFiles} />
+                </div>
+              </svelte:fragment>
+
+              <div class="p-1 flex-col flex-gap-2">
+                <div class="file-item">
+                  <div class="file-name">{'index.json'}</div>
+                  <div class="file-info">
+                    <div class="file-actions">
+                      <Button label={setting.string.BackupFileDownload} on:click={() => downloadFile('index.json')} />
+                    </div>
                   </div>
-                {/if}
-              </Expandable>
-            </div>
-          {/each}
-        {:else}
-          <div class="no-backups">
-            <Label label={setting.string.BackupNoBackup} />
-          </div>
-        {/if}
-        {#if backupInfo?.error}
-          <div class="error">{backupInfo.error}</div>
-        {/if}
-      </Expandable>
-      <Expandable expanded={true} bordered>
-        <svelte:fragment slot="title">
-          <div class="p-1">
-            <Label label={setting.string.BackupFiles} />
-          </div>
-        </svelte:fragment>
-        <div class="p-1">
-          <div class="file-item">
-            <div class="file-name">{'index.json'}</div>
-            <div class="file-info">
-              <div class="file-actions">
-                <Button label={setting.string.BackupFileDownload} on:click={() => downloadFile('index.json')} />
+                </div>
+                <div class="file-item">
+                  <div class="file-name">{'index.html'}</div>
+                  <div class="file-info">
+                    <div class="file-actions">
+                      <Button label={setting.string.BackupFileDownload} on:click={() => downloadFile('index.html')} />
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div class="file-item">
-            <div class="file-name">{'index.html'}</div>
-            <div class="file-info">
-              <div class="file-actions">
-                <Button label={setting.string.BackupFileDownload} on:click={() => downloadFile('index.html')} />
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div class="mt-2">
-          <div class="flex-row-center mt-2 flex-between">
-            <div class="wrap">
-              <Label label={setting.string.BackupLinkInfo} />
-              <div class="select-text anti-component p-3 border-b-1 border-divider-color">
-                {getBackupFileUrl('index.html')}
-              </div>
-            </div>
-            <Button
-              label={copied ? view.string.Copied : view.string.CopyToClipboard}
-              on:click={() => {
-                void copyTextToClipboard(getBackupFileUrl('index.html')).then(() => {
-                  copied = true
-                  setTimeout(() => {
-                    copied = false
-                  }, 2500)
-                })
-              }}
-            />
-          </div>
-          <div class="flex-row-center mt-2 flex-between">
-            <div class="wrap">
-              <Label label={setting.string.BackupLinkInfo} />
-              <div class="select-text anti-component p-3 border-b-1 border-divider-color">
-                {getFileUrl('blob.uuid', 'filename.blob')}
-              </div>
-            </div>
-            <Button
-              label={copied ? view.string.Copied : view.string.CopyToClipboard}
-              on:click={() => {
-                void copyTextToClipboard(getFileUrl('blob.uuid', 'filename.blob')).then(() => {
-                  copied = true
-                  setTimeout(() => {
-                    copied = false
-                  }, 2500)
-                })
-              }}
-            />
-          </div>
-          <div class="mt-2 flex-row-center flex-between">
-            <Label label={setting.string.BackupBearerTokenInfo} />
+              <div class="mt-2">
+                <div class="flex-row-center mt-2 flex-between flex-gap-2">
+                  <div class="wrap">
+                    <Label label={setting.string.BackupLinkInfo} />
+                    <div class="select-text anti-component p-3 border-b-1 border-divider-color">
+                      {getBackupFileUrl('index.html')}
+                    </div>
+                  </div>
+                  <Button
+                    icon={IconCopy}
+                    showTooltip={{ label: view.string.CopyToClipboard }}
+                    on:click={() => {
+                      void copyTextToClipboard(getBackupFileUrl('index.html')).then(() => {
+                        copied = true
+                        setTimeout(() => {
+                          copied = false
+                        }, 2500)
+                      })
+                    }}
+                  />
+                </div>
+                <div class="flex-row-center mt-2 flex-between flex-gap-2">
+                  <div class="wrap">
+                    <Label label={setting.string.BackupLinkInfo} />
+                    <div class="select-text anti-component p-3 border-b-1 border-divider-color">
+                      {getFileUrl('blob.uuid', 'filename.blob')}
+                    </div>
+                  </div>
+                  <Button
+                    icon={IconCopy}
+                    showTooltip={{ label: view.string.CopyToClipboard }}
+                    on:click={() => {
+                      void copyTextToClipboard(getFileUrl('blob.uuid', 'filename.blob')).then(() => {
+                        copied = true
+                        setTimeout(() => {
+                          copied = false
+                        }, 2500)
+                      })
+                    }}
+                  />
+                </div>
+                <div class="mt-2 flex-row-center flex-between">
+                  <Label label={setting.string.BackupBearerTokenInfo} />
 
-            <Button
-              label={copied2 ? view.string.Copied : view.string.CopyToClipboard}
-              on:click={() => {
-                void copyTextToClipboard(token).then(() => {
-                  copied2 = true
-                  setTimeout(() => {
-                    copied2 = false
-                  }, 2500)
-                })
-              }}
-            />
-          </div>
-        </div>
-      </Expandable>
-      <Expandable expanded={false} bordered>
-        <svelte:fragment slot="title">
-          <div class="p-1">
-            <Label label={setting.string.NonBackupedBlobs} />
-            {blobs.length}/{backupInfo?.extraBlobsTotal ?? blobs.length}
-          </div>
-        </svelte:fragment>
-        <div class="p-1">
-          {#each blobs as file}
-            <div class="file-item">
-              <div class="file-name select-text">{file.name}</div>
-              <div class="file-info">
-                <span class="file-size">{getSize(file.size)}</span>
-                <span class="file-content-type">{file.contentType}</span>
-                <div class="file-actions">
-                  <Button label={setting.string.BackupFileDownload} on:click={() => downloadBlobFile(file.name)} />
                   <Button
                     label={copied2 ? view.string.Copied : view.string.CopyToClipboard}
                     on:click={() => {
-                      void copyTextToClipboard(file.name).then(() => {
+                      void copyTextToClipboard(token).then(() => {
                         copied2 = true
                         setTimeout(() => {
                           copied2 = false
@@ -542,10 +540,46 @@
                   />
                 </div>
               </div>
-            </div>
-          {/each}
-        </div>
-      </Expandable>
+            </Expandable>
+
+            <Expandable expanded={false} showChevron={blobs.length > 0} expandable={blobs.length > 0} bordered>
+              <svelte:fragment slot="title">
+                <div class="p-1">
+                  <Label label={setting.string.NonBackupedBlobs} />
+                </div>
+              </svelte:fragment>
+              <div class="p-1 flex-col flex-gap-2">
+                {#each blobs as file}
+                  <div class="file-item">
+                    <div class="file-name select-text">{file.name}</div>
+                    <div class="file-info">
+                      <span class="file-size">{getSize(file.size)}</span>
+                      <span class="file-content-type">{file.contentType}</span>
+                      <div class="file-actions">
+                        <Button
+                          label={setting.string.BackupFileDownload}
+                          on:click={() => downloadBlobFile(file.name)}
+                        />
+                        <Button
+                          label={copied2 ? view.string.Copied : view.string.CopyToClipboard}
+                          on:click={() => {
+                            void copyTextToClipboard(file.name).then(() => {
+                              copied2 = true
+                              setTimeout(() => {
+                                copied2 = false
+                              }, 2500)
+                            })
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </Expandable>
+          </div>
+        </SettingsCard>
+      </SettingsCardsLayout>
     {/if}
   </Scroller>
 </div>
@@ -556,36 +590,6 @@
     padding: 1rem;
     background-color: var(--theme-bg-accent);
     border-radius: 0.25rem;
-  }
-  .backup-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin: 0.5rem 0 1rem;
-  }
-  .backup-action {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    background-color: var(--theme-bg-accent);
-    border: 1px solid var(--theme-divider-color);
-    border-radius: 0.5rem;
-  }
-  .backup-action__buttons {
-    display: flex;
-    gap: 0.5rem;
-    flex-shrink: 0;
-  }
-  .backup-action__title {
-    font-weight: 500;
-    color: var(--theme-caption-color);
-  }
-  .backup-action__info {
-    margin-top: 0.125rem;
-    font-size: 0.875rem;
-    color: var(--theme-content-color);
   }
   .domain-files {
     padding: 0.5rem 0;
@@ -599,14 +603,13 @@
   .files-list {
     display: flex;
     flex-direction: column;
-    gap: 0.05rem;
+    gap: 0.25rem;
   }
 
   .file-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.05rem;
     background-color: var(--theme-bg-accent);
     border-radius: 0.25rem;
 
@@ -629,21 +632,5 @@
   .file-actions {
     display: flex;
     gap: 0.5rem;
-  }
-
-  .file-link,
-  .download-btn {
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.875rem;
-    text-decoration: none;
-    color: var(--theme-content-accent);
-    background: var(--theme-button-bg);
-    border: 1px solid var(--theme-divider-color);
-    cursor: pointer;
-
-    &:hover {
-      background: var(--theme-button-bg-hover);
-    }
   }
 </style>

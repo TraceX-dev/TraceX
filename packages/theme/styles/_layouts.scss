@@ -256,6 +256,13 @@ input.search {
   min-width: 0;
   min-height: 0;
 }
+.flex-row-bottom {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: nowrap;
+  min-width: 0;
+  min-height: 0;
+}
 .flex-row-reverse {
   display: flex;
   flex-direction: row-reverse;
