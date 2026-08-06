@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -57,6 +58,9 @@ export { isAppFocusedStore, printModeStore } from './stores'
 export { default as EditBox } from './components/EditBox.svelte'
 export { default as Label } from './components/Label.svelte'
 export { default as Button } from './components/Button.svelte'
+export { default as SettingsCard } from './components/SettingsCard.svelte'
+export { default as SettingsCardsLayout } from './components/SettingsCardsLayout.svelte'
+export { default as SettingsFooterAction } from './components/SettingsFooterAction.svelte'
 export { default as HeaderButton } from './components/HeaderButton.svelte'
 export { default as ButtonWithDropdown } from './components/ButtonWithDropdown.svelte'
 export { default as ButtonGroup } from './components/ButtonGroup.svelte'
@@ -264,6 +268,8 @@ export { default as Month } from './components/calendar/Month.svelte'
 
 export { default as FocusHandler } from './components/FocusHandler.svelte'
 export { default as ListView } from './components/ListView.svelte'
+export { default as InteractiveListView } from './components/InteractiveListView.svelte'
+export { default as ListViewItem } from './components/ListViewItem.svelte'
 export { default as ToggleButton } from './components/ToggleButton.svelte'
 export { default as ExpandCollapse } from './components/ExpandCollapse.svelte'
 export { default as BooleanIcon } from './components/BooleanIcon.svelte'

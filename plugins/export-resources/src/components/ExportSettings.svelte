@@ -16,7 +16,17 @@
   import { Class, Doc, Ref } from '@hcengineering/core'
   import { getMetadata } from '@hcengineering/platform'
   import presentation, { MessageBox } from '@hcengineering/presentation'
-  import { Breadcrumb, Button, DropdownLabelsIntl, Header, Label, Scroller, showPopup } from '@hcengineering/ui'
+  import {
+    Breadcrumb,
+    DropdownLabelsIntl,
+    Header,
+    Label,
+    Scroller,
+    SettingsCard,
+    SettingsCardsLayout,
+    SettingsFooterAction,
+    showPopup
+  } from '@hcengineering/ui'
   import plugin from '../plugin'
 
   const classItems = [
@@ -93,43 +103,33 @@
   <div class="hulyComponent-content__column content">
     <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
       <div class="hulyComponent-content">
-        <div class="flex-row-center p-2 flex-no-shrink">
-          <div class="p-1 min-w-80">
-            <div class="antiGrid-row">
-              <div class="antiGrid-row__header">
+        <SettingsCardsLayout columns={1}>
+          <SettingsCard label={plugin.string.Export}>
+            <div class="flex-col flex-gap-4">
+              <div class="flex-between flex-gap-4">
                 <Label label={plugin.string.DataToExport} />
-              </div>
-              <div class="antiGrid-row__content">
                 <DropdownLabelsIntl items={classItems} bind:selected={selectedClass} />
               </div>
-            </div>
-            <div class="antiGrid-row">
-              <div class="antiGrid-row__header">
+
+              <div class="flex-between flex-gap-4">
                 <Label label={plugin.string.ExportFormat} />
-              </div>
-              <div class="antiGrid-row__content">
                 <DropdownLabelsIntl items={formatItems} bind:selected={selectedFormat} />
               </div>
-            </div>
-            <div class="antiGrid-row">
-              <div class="antiGrid-row__header">
+
+              <div class="flex-between flex-gap-4">
                 <Label label={plugin.string.ExportIncludeContent} />
-              </div>
-              <div class="antiGrid-row__content">
                 <DropdownLabelsIntl items={detailLevelItems} bind:selected={selectedDetailLevel} />
               </div>
             </div>
-          </div>
-        </div>
-        <div class="flex-row-center p-2">
-          <Button
-            label={plugin.string.Export}
-            kind={'primary'}
-            size={'medium'}
-            disabled={isExporting}
-            on:click={exportData}
-          />
-        </div>
+
+            <SettingsFooterAction
+              slot="footer"
+              label={plugin.string.Export}
+              disabled={isExporting}
+              on:click={exportData}
+            />
+          </SettingsCard>
+        </SettingsCardsLayout>
       </div>
     </Scroller>
   </div>

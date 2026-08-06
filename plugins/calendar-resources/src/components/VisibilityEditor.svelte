@@ -28,7 +28,7 @@
 
   export let value: Visibility | undefined
   export let disabled: boolean = false
-  export let kind: 'primary' | 'secondary' | 'tertiary' | 'negative' | 'inline' = 'secondary'
+  export let kind: 'primary' | 'secondary' | 'tertiary' | 'negative' | 'inline' | 'regular' = 'secondary'
   export let size: 'small' | 'medium' | 'large' = 'medium'
   export let withoutIcon: boolean = false
   export let focusIndex = -1
@@ -85,6 +85,19 @@
     kind="ghost"
     justify="left"
     flex="1"
+    padding="0.5rem"
+    {size}
+    {disabled}
+    {focusIndex}
+    id={'visibleButton'}
+    on:click={openPopup}
+  />
+{:else if kind === 'regular'}
+  <Button
+    icon={withoutIcon ? undefined : (selected?.icon ?? calendar.icon.Hidden)}
+    label={selected?.label}
+    kind="regular"
+    justify="left"
     padding="0.5rem"
     {size}
     {disabled}

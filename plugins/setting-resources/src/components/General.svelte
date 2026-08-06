@@ -17,7 +17,7 @@
   import { AvatarType } from '@hcengineering/contact'
   import type { ApiKey } from '@hcengineering/account-client'
   import { EditableAvatar, getAccountClient } from '@hcengineering/contact-resources'
-  import core, { Configuration, WorkspaceAccountPermission } from '@hcengineering/core'
+  import core, { Configuration, DateRangeMode, WorkspaceAccountPermission } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
   import { translateCB } from '@hcengineering/platform'
   import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
@@ -26,6 +26,7 @@
   import {
     Breadcrumb,
     Button,
+    DatePresenter,
     deviceOptionsStore as deviceInfo,
     DropdownLabels,
     type DropdownTextItem,
@@ -36,12 +37,16 @@
     Header,
     IconCheckmark,
     IconClose,
+    IconCopy,
     IconDelete,
     IconEdit,
     Label,
     Loading,
     navigate,
     Scroller,
+    SettingsCard,
+    SettingsCardsLayout,
+    SettingsFooterAction,
     showPopup,
     themeStore,
     Toggle
@@ -149,6 +154,8 @@
   const permissionConfigurationQuery = createQuery()
   let disablePermissionsConfiguration: Configuration | undefined = undefined
   $: arePermissionsDisabled = disablePermissionsConfiguration?.enabled ?? false
+  let roleBasedAccessControlEnabled = false
+  $: roleBasedAccessControlEnabled = !arePermissionsDisabled
 
   $: permissionConfigurationQuery.query(
     core.class.Configuration,
@@ -197,27 +204,38 @@
     })
   }
 
-  function handleTogglePermissions (): void {
-    const newState = !arePermissionsDisabled
-    showPopup(MessageBox, {
-      label: newState ? settingsRes.string.DisablePermissions : settingsRes.string.EnablePermissions,
-      message: newState
-        ? settingsRes.string.DisablePermissionsConfirmation
-        : settingsRes.string.EnablePermissionsConfirmation,
-      dangerous: true,
-      action: async () => {
-        if (disablePermissionsConfiguration === undefined) {
-          await client.createDoc(
-            core.class.Configuration,
-            core.space.Workspace,
-            { enabled: newState },
-            settingsRes.ids.DisablePermissionsConfiguration
-          )
-        } else {
-          await client.update(disablePermissionsConfiguration, { enabled: newState })
+  function handleTogglePermissions (event: CustomEvent<boolean>): void {
+    const newState = !event.detail
+    roleBasedAccessControlEnabled = event.detail
+
+    showPopup(
+      MessageBox,
+      {
+        label: newState ? settingsRes.string.DisablePermissions : settingsRes.string.EnablePermissions,
+        message: newState
+          ? settingsRes.string.DisablePermissionsConfirmation
+          : settingsRes.string.EnablePermissionsConfirmation,
+        dangerous: true,
+        action: async () => {
+          if (disablePermissionsConfiguration === undefined) {
+            await client.createDoc(
+              core.class.Configuration,
+              core.space.Workspace,
+              { enabled: newState },
+              settingsRes.ids.DisablePermissionsConfiguration
+            )
+          } else {
+            await client.update(disablePermissionsConfiguration, { enabled: newState })
+          }
+        }
+      },
+      undefined,
+      (confirmed) => {
+        if (confirmed !== true) {
+          roleBasedAccessControlEnabled = !arePermissionsDisabled
         }
       }
-    })
+    )
   }
 
   const weekInfoFirstDay: number = getLocalWeekStart()
@@ -258,161 +276,190 @@
       </div>
     {:else}
       <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
-        <div class="hulyComponent-content flex-col flex-gap-4">
-          <div class="title"><Label label={settingsRes.string.Workspace} /></div>
-          <div class="ws">
-            <EditableAvatar
-              person={{
-                avatarType: workspaceSettings?.icon !== undefined ? AvatarType.IMAGE : AvatarType.COLOR,
-                avatar: workspaceSettings?.icon
-              }}
-              size="medium"
-              {name}
-              bind:this={avatarEditor}
-              on:done={handleAvatarDone}
-              imageOnly
-              lessCrop
-            />
-            <div class="editBox">
-              <EditBox
-                bind:value={name}
-                placeholder={settingsRes.string.WorkspaceName}
-                kind="ghost-large"
-                disabled={!isEditingName}
-              />
-            </div>
-            <Button
-              icon={isEditingName ? IconCheckmark : IconEdit}
-              kind="ghost"
-              size="small"
-              disabled={editNameDisabled}
-              on:click={handleEditName}
-            />
-            {#if isEditingName}
-              <Button icon={IconClose} kind="ghost" size="small" on:click={handleCancelEditName} />
-            {/if}
-          </div>
+        <div class="hulyComponent-content w-full">
+          <SettingsCardsLayout columns={2}>
+            <div class="flex-col flex-gap-4">
+              <SettingsCard label={settingsRes.string.Workspace}>
+                <div class="flex-row-bottom flex-gap-4">
+                  <EditableAvatar
+                    person={{
+                      avatarType: workspaceSettings?.icon !== undefined ? AvatarType.IMAGE : AvatarType.COLOR,
+                      avatar: workspaceSettings?.icon
+                    }}
+                    size="medium"
+                    {name}
+                    bind:this={avatarEditor}
+                    on:done={handleAvatarDone}
+                    imageOnly
+                    lessCrop
+                  />
+                  <div class="flex-col flex-gap-2 flex-grow">
+                    <div class="field-label"><Label label={settingsRes.string.WorkspaceName} /></div>
+                    <div class="flex-row-center flex-gap-2">
+                      <EditBox
+                        bind:value={name}
+                        placeholder={settingsRes.string.WorkspaceName}
+                        kind="default"
+                        disabled={!isEditingName}
+                      />
+                      <Button
+                        icon={isEditingName ? IconCheckmark : IconEdit}
+                        kind="ghost"
+                        size="small"
+                        disabled={editNameDisabled}
+                        on:click={handleEditName}
+                      />
+                      {#if isEditingName}
+                        <Button icon={IconClose} kind="ghost" size="small" on:click={handleCancelEditName} />
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              </SettingsCard>
 
-          <div class="flex-col flex-gap-4 mt-6">
-            <div class="title"><Label label={settingsRes.string.PasswordAgingRule} /></div>
-            <div class="flex-row-center flex-gap-4">
-              <Label label={settingsRes.string.PasswordAgingRuleDescription} />
-              <Toggle
-                on={!!passwordAgingRule}
-                on:change={(e) => {
-                  if (e.detail === false) {
-                    void changePasswordAgingRules(undefined)
-                  } else {
-                    void changePasswordAgingRules(30)
-                  }
-                }}
-              />
-              {#if passwordAgingRule}
-                <div class="w-32">
-                  <EditBox
-                    format={'number'}
-                    minValue={1}
-                    maxDigitsAfterPoint={0}
-                    bind:value={passwordAgingRule}
-                    disabled={!passwordAgingRule}
-                    on:change={() => changePasswordAgingRules(passwordAgingRule)}
+              <SettingsCard label={settingsRes.string.ApiAccess}>
+                <div class="flex-col flex-gap-4">
+                  {#if workspaceId !== ''}
+                    <div class="flex-row-col">
+                      <div class="field-label"><Label label={settingsRes.string.WorkspaceId} /></div>
+                      <div class="flex-row-center">
+                        <div class="flex-col flex-gap-4 flex-grow min-w-0">
+                          <span class="overflow-label">{workspaceId}</span>
+                        </div>
+                        <Button
+                          icon={IconCopy}
+                          showTooltip={{ label: workspaceIdCopied ? view.string.Copied : view.string.CopyToClipboard }}
+                          kind="ghost"
+                          size="small"
+                          on:click={copyWorkspaceId}
+                        />
+                      </div>
+                    </div>
+                  {/if}
+
+                  {#if apiKeys.length > 0}
+                    <div class="separator" />
+                    <div class="flex-col flex-gap-2">
+                      {#each apiKeys as apiKey (apiKey.id)}
+                        <div class="flex-row-center flex-gap-2">
+                          <DatePresenter
+                            value={apiKey.createdOn}
+                            kind={'ghost'}
+                            mode={DateRangeMode.DATETIME}
+                            showIcon={false}
+                          />
+                          <div class="flex-between flex-gap-2 flex-grow">
+                            <span class="overflow-label">{apiKey.name}</span>
+                            <span class="overflow-label flex-no-shrink"
+                              >{apiKey.keySuffix !== undefined ? `...${apiKey.keySuffix}` : ''}</span
+                            >
+                          </div>
+                          <Button
+                            icon={IconDelete}
+                            kind="ghost"
+                            size="small"
+                            on:click={() => {
+                              handleRevokeApiKey(apiKey)
+                            }}
+                          />
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+
+                <SettingsFooterAction
+                  slot="footer"
+                  label={settingsRes.string.GenerateApiToken}
+                  disabled={workspaceUrl === ''}
+                  on:click={handleCreateApiKey}
+                />
+              </SettingsCard>
+
+              <SettingsCard label={settingsRes.string.DeleteWorkspace}>
+                <Label label={settingsRes.string.DeleteWorkspaceDescription} />
+                <SettingsFooterAction
+                  slot="footer"
+                  label={settingsRes.string.DeleteWorkspace}
+                  color="dangerous"
+                  on:click={handleDelete}
+                />
+              </SettingsCard>
+            </div>
+
+            <div class="flex-col flex-gap-4">
+              <SettingsCard label={settingsRes.string.AccessControl}>
+                <div class="flex-col flex-gap-4">
+                  <div class="flex-between flex-gap-4">
+                    <div class="flex-grow min-w-0">
+                      <Label label={settingsRes.string.EnablePermissions} />
+                    </div>
+                    <Toggle on={roleBasedAccessControlEnabled} on:change={handleTogglePermissions} />
+                  </div>
+                  <WorkspacePermissionEditor
+                    permission={WorkspaceAccountPermission.ImportDocument}
+                    label={settingsRes.string.ImportDocumentPermission}
+                    description={settingsRes.string.ImportDocumentDescription}
+                    allowGuests={true}
+                    showTitle={false}
                   />
                 </div>
-              {/if}
-            </div>
-          </div>
+              </SettingsCard>
 
-          <div class="flex-col flex-gap-4 mt-6">
-            <div class="title"><Label label={settingsRes.string.Calendar} /></div>
-            <div class="flex-row-center flex-gap-4">
-              <Label label={settingsRes.string.StartOfTheWeek} />
-              <DropdownLabels
-                {items}
-                kind={'regular'}
-                size={'medium'}
-                {selected}
-                enableSearch={false}
-                on:selected={onSelected}
-              />
-            </div>
-          </div>
-
-          <div class="flex-col flex-gap-4 mt-6">
-            <div class="title"><Label label={settingsRes.string.AccessControl} /></div>
-            <div class="w-32">
-              <Button
-                kind="regular"
-                label={arePermissionsDisabled
-                  ? settingsRes.string.EnablePermissions
-                  : settingsRes.string.DisablePermissions}
-                on:click={handleTogglePermissions}
-              />
-            </div>
-          </div>
-
-          <WorkspacePermissionEditor
-            permission={WorkspaceAccountPermission.ImportDocument}
-            label={settingsRes.string.ImportDocumentPermission}
-            description={settingsRes.string.ImportDocumentDescription}
-            allowGuests={true}
-          />
-
-          <div class="flex-col flex-gap-4 mt-6">
-            <div class="title"><Label label={settingsRes.string.ApiAccess} /></div>
-            {#if workspaceId !== ''}
-              <div class="flex-row-center flex-gap-2">
-                <span><Label label={settingsRes.string.WorkspaceId} />: {workspaceId}</span>
-                <Button
-                  label={workspaceIdCopied ? view.string.Copied : view.string.CopyToClipboard}
-                  kind="ghost"
-                  size="small"
-                  on:click={copyWorkspaceId}
+              <SettingsCard label={settingsRes.string.PasswordAgingRule}>
+                <Toggle
+                  slot="actions"
+                  on={!!passwordAgingRule}
+                  on:change={(e) => {
+                    if (e.detail === false) {
+                      void changePasswordAgingRules(undefined)
+                    } else {
+                      void changePasswordAgingRules(30)
+                    }
+                  }}
                 />
-              </div>
-            {/if}
-            <div class="w-32">
-              <Button
-                label={settingsRes.string.GenerateApiToken}
-                kind="regular"
-                disabled={workspaceUrl === ''}
-                showTooltip={{ label: settingsRes.string.GenerateApiToken }}
-                on:click={handleCreateApiKey}
-              />
-            </div>
-            {#if apiKeys.length > 0}
-              <div class="flex-col flex-gap-2">
-                {#each apiKeys as apiKey (apiKey.id)}
-                  <div class="flex-row-center flex-gap-2">
-                    <span>
-                      {apiKey.name}{apiKey.keySuffix !== undefined ? ` · …${apiKey.keySuffix}` : ''} · {new Date(
-                        apiKey.createdOn
-                      ).toLocaleString()}
-                    </span>
-                    <Button
-                      icon={IconDelete}
-                      kind="ghost"
-                      size="small"
-                      on:click={() => {
-                        handleRevokeApiKey(apiKey)
-                      }}
-                    />
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
+                <div class="flex-col flex-gap-2">
+                  <Label
+                    label={passwordAgingRule
+                      ? settingsRes.string.PasswordAgingRuleDescription
+                      : settingsRes.string.PasswordAgingDisabled}
+                  />
+                  {#if passwordAgingRule}
+                    <div class="flex-between flex-gap-4">
+                      <div class="flex-grow min-w-0">
+                        <Label label={settingsRes.string.PasswordAgingPeriod} />
+                      </div>
+                      <div class="w-32">
+                        <EditBox
+                          format={'number'}
+                          kind={'default'}
+                          minValue={1}
+                          maxDigitsAfterPoint={0}
+                          bind:value={passwordAgingRule}
+                          disabled={!passwordAgingRule}
+                          on:change={() => changePasswordAgingRules(passwordAgingRule)}
+                        />
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+              </SettingsCard>
 
-          <div class="flex-col flex-gap-4 mt-6">
-            <div class="title"><Label label={settingsRes.string.DangerZone} /></div>
-            <div class="w-32">
-              <Button
-                label={settingsRes.string.DeleteWorkspace}
-                kind="dangerous"
-                on:click={handleDelete}
-                showTooltip={{ label: settingsRes.string.DeleteWorkspace }}
-              />
+              <SettingsCard label={settingsRes.string.Calendar}>
+                <div class="flex-between flex-gap-4">
+                  <div class="flex-grow min-w-0"><Label label={settingsRes.string.StartOfTheWeek} /></div>
+                  <DropdownLabels
+                    {items}
+                    kind={'regular'}
+                    size={'medium'}
+                    {selected}
+                    enableSearch={false}
+                    on:selected={onSelected}
+                  />
+                </div>
+              </SettingsCard>
             </div>
-          </div>
+          </SettingsCardsLayout>
         </div>
       </Scroller>
     {/if}
@@ -420,17 +467,15 @@
 </div>
 
 <style lang="scss">
-  .title {
+  .field-label {
+    color: var(--theme-caption-color);
+    font-size: 0.75rem;
     font-weight: 500;
-    font-size: 1rem;
-  }
-  .ws {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+    line-height: 1rem;
   }
 
-  .editBox {
-    width: 16rem;
+  .separator {
+    height: 1px;
+    background-color: var(--divider-color);
   }
 </style>

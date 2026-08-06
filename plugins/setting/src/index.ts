@@ -193,6 +193,7 @@ export default plugin(settingId, {
     InviteSettings: '' as Ref<Doc>,
     RoleCapabilitySettings: '' as Ref<Doc>,
     WorkspaceSetting: '' as Ref<Doc>,
+    SpaceAccessSettings: '' as Ref<Doc>,
     ManageSpaces: '' as Ref<Doc>,
     Spaces: '' as Ref<Doc>,
     Backup: '' as Ref<Doc>,
@@ -200,7 +201,7 @@ export default plugin(settingId, {
     OfficeSettings: '' as Ref<Doc>,
     DisablePermissionsConfiguration: '' as Ref<Configuration>,
     Mailboxes: '' as Ref<Doc>,
-    Security: '' as Ref<Doc>
+    Authentication: '' as Ref<Doc>
   },
   mixin: {
     Editable: '' as Ref<Mixin<Editable>>,
@@ -246,7 +247,7 @@ export default plugin(settingId, {
     AddEmailSocialId: '' as AnyComponent,
     OfficeSettings: '' as AnyComponent,
     UserRoleSelect: '' as AnyComponent,
-    TwoFactorSettings: '' as AnyComponent
+    AuthenticationSettings: '' as AnyComponent
   },
   string: {
     Settings: '' as IntlString,
@@ -267,6 +268,7 @@ export default plugin(settingId, {
     NewEmail: '' as IntlString,
     AccountSettings: '' as IntlString,
     ChangePassword: '' as IntlString,
+    ChangePasswordDescription: '' as IntlString,
     Saving: '' as IntlString,
     Saved: '' as IntlString,
     Signout: '' as IntlString,
@@ -330,7 +332,7 @@ export default plugin(settingId, {
     MailboxErrorMailboxCountLimit: '' as IntlString,
     DeleteMailbox: '' as IntlString,
     MailboxDeleteConfirmation: '' as IntlString,
-    Security: '' as IntlString,
+    Authentication: '' as IntlString,
     TwoFactorAuth: '' as IntlString,
     TwoFactorAuthDescription: '' as IntlString,
     EnableTwoFactorAuth: '' as IntlString,
@@ -364,7 +366,6 @@ export default plugin(settingId, {
   icon: {
     AccountSettings: '' as Asset,
     Members: '' as Asset,
-    GuestPermissions: '' as Asset,
     Password: '' as Asset,
     Setting: '' as Asset,
     Integrations: '' as Asset,
