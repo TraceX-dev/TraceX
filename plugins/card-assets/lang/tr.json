@@ -38,6 +38,7 @@
     "ChangeTypeWarning": "Uyarı: Bir Kartın Tipini değiştirmek, hedef Tipte bulunmayan öznitelikler için tüm verileri kaldıracaktır. Önceki öznitelik verileri, Kartı önceki Tipe geri değiştirerek geri yüklenebilir. Kart içeriği etkilenmeyecektir.",
     "MasterDetailViews": "Ana Detay Görünümleri",
     "SelectType": "Tip Seç",
+    "SelectTypeAndSpace": "Devam etmek için bir Kart Türü ve bir Alan seçin.",
     "CreateSpace": "Alan oluştur",
     "NumberTypes": "{count, plural, one {# tip} other {# tip}}",
     "Labels": "Etiketler",

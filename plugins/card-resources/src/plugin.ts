@@ -149,6 +149,7 @@ export default mergeIds(cardId, card, {
     ChangeTypeWarning: '' as IntlString,
     MasterDetailViews: '' as IntlString,
     SelectType: '' as IntlString,
+    SelectTypeAndSpace: '' as IntlString,
     CreateSpace: '' as IntlString,
     NumberTypes: '' as IntlString,
     Properties: '' as IntlString,

@@ -38,6 +38,7 @@
     "ChangeTypeWarning": "Ostrzeżenie: Zmiana typu karty usunie wszystkie dane dla atrybutów, które nie istnieją w typie docelowym. Poprzednie dane atrybutów można przywrócić, zmieniając kartę z powrotem na poprzedni typ. Zawartość karty zostanie bez zmian.",
     "MasterDetailViews": "Widoki list ze szczegółami",
     "SelectType": "Wybierz typ",
+    "SelectTypeAndSpace": "Aby kontynuować, wybierz Typ karty i Przestrzeń.",
     "CreateSpace": "Utwórz przestrzeń",
     "NumberTypes": "{count, plural, one {# typ} few {# typy} other {# typów}}",
     "Labels": "Etykiety",
