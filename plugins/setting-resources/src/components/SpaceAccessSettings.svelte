@@ -271,16 +271,12 @@
       {/if}
       {#if activeTab === 'users'}
         <MembersAccessSettings
-          {spaces}
-          {spaceApplicationResolver}
           {employees}
           {workspaceMembers}
           {employeesLoading}
           {membersLoading}
-          {pendingSpaceOperations}
           {pendingRoleUpdates}
           {changeRole}
-          {updateMembers}
           handleError={handleOperationError}
         />
       {:else if activeTab === 'spaces'}
