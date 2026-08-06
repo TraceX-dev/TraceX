@@ -1,0 +1,21 @@
+{
+  "ACCOUNTS_URL": "https://app.tracex.co/accounts",
+  "UPLOAD_URL": "/files",
+  "REKONI_URL": "https://app.tracex.co/rekoni",
+  "GMAIL_URL": "https://app.tracex.co/gmail",
+  "TELEGRAM_BOT_URL": "https://app.tracex.co/telegram",
+  "STATS_URL": "https://app.tracex.co/stats",
+  "PREVIEW_URL": "https://app.tracex.co/preview",
+  "DATALAKE_URL": "https://app.tracex.co/datalake",
+  "BRANDING_URL": "https://app.tracex.co/branding.json",
+  "COLLABORATOR_URL": "wss://app.tracex.co/collaborator",
+  "PULSE_URL": "wss://app.tracex.co/pulse/ws",
+  "PRINT_URL": "https://app.tracex.co/print",
+  "SIGN_URL": "https://app.tracex.co/sign",
+  "EXPORT_URL": "https://app.tracex.co/export",
+  "LINK_PREVIEW_URL": "https://app.tracex.co/link",
+  "BACKUP_URL": "https://app.tracex.co/backup/api/backup",
+  "SIGNUP_URL": "/login/signup",
+  "DESKTOP_UPDATES_CHANNEL": "tracex",
+  "DISABLED_FEATURES": "mail,auto-translate,github,integrations,inventory,survey,lead,recruit,gmail,mailboxes,testManagement,love,telegram,calendar,hr"
+}
