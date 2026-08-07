@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,6 +31,7 @@
   export let context: NotificationContext | undefined = undefined
   export let isContextLoaded: boolean = false
   export let readonly: boolean = false
+  export let compactMode: boolean = false
 
   let scrollDiv: HTMLDivElement | undefined | null = undefined
   let content: EditCardTableOfContents | undefined = undefined
@@ -55,10 +57,18 @@
 
 {#if _id === doc._id}
   {#key doc._id}
-    <EditCardTableOfContents bind:this={content} bind:scrollDiv {doc} {readonly} {context} {isContextLoaded} />
+    <EditCardTableOfContents
+      bind:this={content}
+      bind:scrollDiv
+      {doc}
+      {readonly}
+      {context}
+      {isContextLoaded}
+      {compactMode}
+    />
   {/key}
 {/if}
-{#if !readonly && getMetadata(communication.metadata.Enabled) === true && $permissions.canComment(doc)}
+{#if !compactMode && !readonly && getMetadata(communication.metadata.Enabled) === true && $permissions.canComment(doc)}
   <div class="message-input" use:resizeObserver={onInputResize}>
     <MessageInput
       card={doc}

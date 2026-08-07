@@ -197,6 +197,7 @@ export class TCardSection extends TDoc implements CardSection {
   order!: number
   navigation!: CardNavigation[]
   checkVisibility?: Resource<(doc: Card) => Promise<boolean>>
+  hideInCompactMode?: boolean
 }
 
 @Mixin(card.mixin.CardViewDefaults, card.class.MasterTag)
@@ -1239,6 +1240,7 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.RelationsSection,
       order: 500,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckRelationsSectionVisibility
     },
     card.section.Relations
@@ -1252,6 +1254,7 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.OldMessagesSection,
       order: 1000,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckOldMessagesSectionVisibility
     },
     card.section.OldMessages
@@ -1265,6 +1268,7 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.CommunicationMessagesSection,
       order: 1000,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckCommunicationMessagesSectionVisibility
     },
     communication.ids.CardMessagesSection

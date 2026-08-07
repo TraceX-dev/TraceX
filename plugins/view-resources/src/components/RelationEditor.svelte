@@ -15,14 +15,15 @@
 -->
 <script lang="ts">
   import card, { type MasterTag } from '@hcengineering/card'
-  import core, { Association, Doc, Ref, WithLookup } from '@hcengineering/core'
+  import core, { Association, Class, Doc, DocumentQuery, Ref, SortingOrder, WithLookup } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { getClient, ObjectCreate } from '@hcengineering/presentation'
-  import { Button, IconAdd, Label, Scroller, Section, showPopup } from '@hcengineering/ui'
-  import { Viewlet, ViewletPreference } from '@hcengineering/view'
+  import { Button, IconAdd, Label, Scroller, Section, Switcher, showPopup } from '@hcengineering/ui'
+  import { ViewOptions, Viewlet, ViewletPreference } from '@hcengineering/view'
   import { showMenu } from '../actions'
   import view from '../plugin'
   import DocTable from './DocTable.svelte'
+  import MasterDetailView from './masterDetail/MasterDetailView.svelte'
   import ObjectBoxPopup from './ObjectBoxPopup.svelte'
   import ViewletsSettingButton from './ViewletsSettingButton.svelte'
 
@@ -41,7 +42,7 @@
   $: uniqueDocs = deduplicate(docs)
 
   function deduplicate (list: Doc[] | undefined): Doc[] {
-    if (!list) return []
+    if (list === undefined) return []
     const seen = new Set<string>()
     return list.filter((item) => {
       if (item?._id == null) return false
@@ -53,7 +54,7 @@
 
   function getCreate (): ObjectCreate | undefined {
     const factory = client.getHierarchy().classHierarchyMixin(_class, view.mixin.ObjectFactory)
-    if (factory) {
+    if (factory !== undefined) {
       const usePopup = isBaseCardTypeWithSubtypes()
       return {
         component: usePopup ? factory.component : undefined,
@@ -125,6 +126,60 @@
   let viewlet: WithLookup<Viewlet> | undefined
   let preference: ViewletPreference | undefined = undefined
 
+  type RelationViewMode = 'table' | 'master-detail'
+
+  let relationViewMode: RelationViewMode = 'table'
+  let relationQuery: DocumentQuery<Doc> = {}
+
+  const relationViewOptions: ViewOptions = {
+    groupBy: [],
+    orderBy: ['', SortingOrder.Ascending]
+  }
+
+  $: relationViewStorageKey = `relation-viewlet:${association._id}:${direction}`
+  $: relationQuery = { _id: { $in: uniqueDocs.map((doc) => doc._id) } }
+  $: masterDetailViewlet = createMasterDetailViewlet(viewlet, _class)
+
+  $: loadRelationViewMode(relationViewStorageKey)
+
+  function loadRelationViewMode (key: string): void {
+    const savedMode = localStorage.getItem(key)
+    relationViewMode = savedMode === 'master-detail' ? savedMode : 'table'
+  }
+
+  function setRelationViewMode (mode: RelationViewMode): void {
+    relationViewMode = mode
+    localStorage.setItem(relationViewStorageKey, mode)
+  }
+
+  function selectRelationViewMode (id: string | number): void {
+    setRelationViewMode(id === 'master-detail' ? 'master-detail' : 'table')
+  }
+
+  function createMasterDetailViewlet (
+    sourceViewlet: WithLookup<Viewlet> | undefined,
+    _class: Ref<Class<Doc>>
+  ): WithLookup<Viewlet> | undefined {
+    if (sourceViewlet === undefined) return undefined
+
+    return {
+      ...sourceViewlet,
+      descriptor: view.viewlet.MasterDetail,
+      masterDetailOptions: {
+        views: [
+          {
+            class: _class,
+            view: view.viewlet.Tree
+          },
+          {
+            class: _class,
+            view: view.viewlet.Document
+          }
+        ]
+      }
+    }
+  }
+
   $: baseClass = client.getHierarchy().getBaseClass(_class)
 
   $: selectedConfig = preference?.config ?? viewlet?.config
@@ -143,10 +198,10 @@
     const overrides = new Map()
     const excludedActions: string[] = []
     if (relation !== undefined) {
-      if (association.automationOnly) {
+      if (association.automationOnly === true) {
         excludedActions.push(view.action.Delete)
       } else {
-        overrides.set(view.action.Delete, async (obj: Doc | Doc[], ev?: Event) => {
+        overrides.set(view.action.Delete, async () => {
           if (relation !== undefined) {
             await client.remove(relation)
           }
@@ -157,7 +212,7 @@
   }
 
   function isAllowedToCreate (association: Association, docs: Doc[], direction: 'A' | 'B'): boolean {
-    if (association.automationOnly) return false
+    if (association.automationOnly === true) return false
     if (docs.length === 0 || association.type === 'N:N') return true
     if (association.type === '1:1') return false
     return direction === 'B'
@@ -174,6 +229,19 @@
       {#if classLabel}
         <Label label={classLabel} />
       {/if}
+      <Switcher
+        name={`relation-viewlet-${association._id}-${direction}`}
+        items={[
+          { id: 'table', icon: view.icon.Table },
+          { id: 'master-detail', icon: view.icon.MasterDetail }
+        ]}
+        selected={relationViewMode}
+        kind={'subtle'}
+        onlyIcons
+        on:select={(event) => {
+          selectRelationViewMode(event.detail.id)
+        }}
+      />
       <ViewletsSettingButton viewletQuery={{ attachTo: baseClass }} kind={'tertiary'} bind:viewlet bind:preference />
       {#if !readonly && allowToCreate}
         <Button id={core.string.AddRelation} icon={IconAdd} kind={'ghost'} on:click={add} />
@@ -183,9 +251,20 @@
 
   <svelte:fragment slot="content">
     {#if uniqueDocs?.length > 0 && config != null}
-      <Scroller horizontal>
-        <DocTable objects={uniqueDocs} {_class} {config} {onContextMenu} />
-      </Scroller>
+      {#if relationViewMode === 'master-detail' && masterDetailViewlet !== undefined}
+        <div class="relation-master-detail">
+          <MasterDetailView
+            query={relationQuery}
+            viewlet={masterDetailViewlet}
+            viewOptions={relationViewOptions}
+            compactMode
+          />
+        </div>
+      {:else}
+        <Scroller horizontal>
+          <DocTable objects={uniqueDocs} {_class} {config} {onContextMenu} />
+        </Scroller>
+      {/if}
     {:else if !readonly}
       <div
         class="antiSection-empty clear-mins mt-3"
@@ -207,3 +286,12 @@
     {/if}
   </svelte:fragment>
 </Section>
+
+<style lang="scss">
+  .relation-master-detail {
+    height: 460px;
+    overflow: hidden;
+    border: 1px solid var(--theme-divider-color);
+    border-radius: var(--small-BorderRadius);
+  }
+</style>
