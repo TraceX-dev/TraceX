@@ -176,8 +176,6 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
         updateLoadingState(true)
       })
 
-      const pos = typeof getPos === 'function' ? (getPos() ?? 0) : 0
-      setLoadingState(view, pos, true)
       const setImageProps = (src: string | null, srcset: string | null): void => {
         if (src != null) imgElement.src = src
         if (srcset != null) imgElement.srcset = srcset
