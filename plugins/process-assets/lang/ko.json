@@ -44,6 +44,7 @@
         "FallbackValueError": "비어 있을 경우 오류 표시",
         "Required": "필수",
         "ParallelExecutionForbidden": "병렬 실행 금지",
+        "ShowInHeader": "헤더에 표시",
         "StartAutomatically": "자동 시작",
         "AutomationOnly": "자동화 전용",
         "Error": "오류",

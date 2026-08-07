@@ -108,6 +108,9 @@ export class TProcess extends TDoc implements Process {
   @Prop(TypeBoolean(), process.string.ParallelExecutionForbidden)
     parallelExecutionForbidden?: boolean
 
+  @Prop(TypeBoolean(), process.string.ShowInHeader)
+    showInHeader?: boolean
+
   @Prop(TypeBoolean(), process.string.StartAutomatically)
     autoStart: boolean | undefined
 

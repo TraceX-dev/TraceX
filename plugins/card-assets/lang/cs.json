@@ -38,6 +38,7 @@
     "ChangeTypeWarning": "Varování: Změna typu karty odstraní všechna data pro jakýkoliv atribut, který v cílovém typu neexistuje. Předchozí data atributu mohou být obnoveny změnou karty zpět na předchozí typ. Obsah karty nebude ovlivněn.",
     "MasterDetailViews": "Zobrazení master-detail",
     "SelectType": "Vybrat typ",
+    "SelectTypeAndSpace": "Pro pokračování vyberte typ karty a prostor.",
     "CreateSpace": "Vytvořit prostor",
     "NumberTypes": "{count, plural, one {# typ} few {# typy} other {# typů}}",
     "Labels": "Štítky",

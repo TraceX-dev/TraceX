@@ -1,6 +1,21 @@
+<!--
+// Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+-->
 <script lang="ts">
   import card, { type MasterTag } from '@hcengineering/card'
-  import core, { Association, Doc, WithLookup } from '@hcengineering/core'
+  import core, { Association, Doc, Ref, WithLookup } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { getClient, ObjectCreate } from '@hcengineering/presentation'
   import { Button, IconAdd, Label, Scroller, Section, showPopup } from '@hcengineering/ui'
@@ -63,10 +78,11 @@
     })
   }
 
-  function add (): void {
+  async function add (): Promise<void> {
     const create = getCreate()
+    const excludedIds = await getExcludedIds()
     const isVersionable = client.getHierarchy().classHierarchyMixin(_class, core.mixin.VersionableClass) !== undefined
-    const baseQuery = { _id: { $nin: uniqueDocs.map((p) => p._id) } }
+    const baseQuery = { _id: { $nin: excludedIds } }
     const docQuery = isVersionable ? { isLatest: true, ...baseQuery } : baseQuery
     showPopup(
       ObjectBoxPopup,
@@ -90,6 +106,20 @@
         }
       }
     )
+  }
+
+  async function getExcludedIds (): Promise<Array<Ref<Doc>>> {
+    const excludedIds = new Set<Ref<Doc>>(uniqueDocs.map((doc) => doc._id))
+    const hasSingleTarget = association.type === '1:1' || (association.type === '1:N' && direction === 'B')
+
+    if (!hasSingleTarget) return [...excludedIds]
+
+    const relations = await client.findAll(core.class.Relation, { association: association._id })
+    for (const relation of relations) {
+      excludedIds.add(direction === 'B' ? relation.docB : relation.docA)
+    }
+
+    return [...excludedIds]
   }
 
   let viewlet: WithLookup<Viewlet> | undefined

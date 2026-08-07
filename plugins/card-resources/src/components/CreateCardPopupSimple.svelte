@@ -12,12 +12,12 @@
 <!-- limitations under the License. -->
 
 <script lang="ts">
-  import card, { Card as TypeCard, CardSpace, type CreateCardExtension, MasterTag } from '@hcengineering/card'
+  import { Card as TypeCard, CardSpace, type CreateCardExtension, MasterTag } from '@hcengineering/card'
   import presentation, { Card, createQuery, getClient, SpaceSelector } from '@hcengineering/presentation'
   import { createEventDispatcher } from 'svelte'
   import core, { Data, generateId, Ref, Markup, getCurrentAccount } from '@hcengineering/core'
   import { getResource, translate, getEmbeddedLabel } from '@hcengineering/platform'
-  import { Label, Modal, ModernEditbox, languageStore } from '@hcengineering/ui'
+  import { Notice, ModernEditbox, languageStore } from '@hcengineering/ui'
   import { EmptyMarkup } from '@hcengineering/text'
   import { permissionsStore } from '@hcengineering/contact-resources'
   import view from '@hcengineering/view'
@@ -25,6 +25,7 @@
   import { createCard, getRootType, isBaseTypeWithSubtypes } from '../utils'
   import { TypeSelector } from '../index'
   import { canCreateObject } from '@hcengineering/view-resources'
+  import card from '../plugin'
 
   export let title: string = ''
   export let type: Ref<MasterTag> | null = card.types.Document
@@ -114,6 +115,7 @@
 
   $: typeAllowedBySpace =
     type != null && selectedSpace != null && selectedSpace.types.includes(getRootType(hierarchy, type))
+  $: missingSelection = _space == null || type == null
   $: allowed =
     _space != null &&
     type != null &&
@@ -145,22 +147,27 @@
       focus={false}
       clearInvalidValue={true}
       kind={'regular'}
-      size={'large'}
+      size={'medium'}
     />
-    <TypeSelector bind:value={type} allowedRootTypes={selectedSpace?.types} excludeBaseTypes />
+    <TypeSelector bind:value={type} allowedRootTypes={selectedSpace?.types} excludeBaseTypes size={'medium'} />
   </svelte:fragment>
-  <ModernEditbox bind:value={data.title} label={view.string.Title} size="medium" kind="ghost" autoFocus />
+  <ModernEditbox
+    bind:value={data.title}
+    label={view.string.Title}
+    size="large"
+    kind="ghost"
+    style="font-size: 1.125rem;"
+    autoFocus
+  />
   <svelte:fragment slot="pool">
-    <div slot="afterContent" class="error p-4 flex-row-reverse">
+    <div slot="afterContent" class="p-4 flex-row-reverse">
       {#if !allowed}
-        <Label label={view.string.NoCreatePermissionTitle} />
+        {#if missingSelection}
+          <Notice kind="warning" label={card.string.SelectTypeAndSpace} />
+        {:else}
+          <Notice kind="error" label={view.string.NoCreatePermissionTitle} />
+        {/if}
       {/if}
     </div>
   </svelte:fragment>
 </Card>
-
-<style lang="scss">
-  .error {
-    color: var(--theme-error-color);
-  }
-</style>

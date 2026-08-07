@@ -48,6 +48,7 @@
     "FallbackValueError": "显示错误，如果为空",
     "Required": "必需",
     "ParallelExecutionForbidden": "禁止并行执行",
+    "ShowInHeader": "在标题中显示",
     "StartAutomatically": "自动启动",
     "AutomationOnly": "仅限自动化",
     "Error": "错误",

@@ -87,6 +87,11 @@
     return space.owners?.includes(owner as AccountUuid) === true
   }
 
+  function matchesMemberFilter (space: Space, member: string | undefined): boolean {
+    if (member === undefined) return true
+    return space.members.includes(member as AccountUuid)
+  }
+
   function getActiveFilter (filters: ActiveFilter[], categoryId: string): string | undefined {
     return filters.find((filter) => filter.categoryId === categoryId)?.optionId
   }
@@ -182,6 +187,22 @@
       ]
     },
     {
+      id: 'member',
+      label: setting.string.Member,
+      options: employees
+        .filter(
+          (employee) =>
+            employee.personUuid != null &&
+            spaces.some((space) => space.members.includes(employee.personUuid as AccountUuid))
+        )
+        .map((employee) => ({
+          id: employee.personUuid ?? '',
+          label: setting.string.Member,
+          text: formatName(employee.name)
+        }))
+        .sort((left, right) => left.text.localeCompare(right.text))
+    },
+    {
       id: 'visibility',
       label: setting.string.Visibility,
       options: [
@@ -213,6 +234,7 @@
         query === '' || space.name.toLowerCase().includes(query) || getOwnerName(space).toLowerCase().includes(query)
       const applicationFilter = getActiveFilter(activeFilters, 'application')
       const ownerFilter = getActiveFilter(activeFilters, 'owner')
+      const memberFilter = getActiveFilter(activeFilters, 'member')
       const visibilityFilter = getActiveFilter(activeFilters, 'visibility')
       const autojoinFilter = getActiveFilter(activeFilters, 'autojoin')
       const guestAutojoinFilter = getActiveFilter(activeFilters, 'guest-autojoin')
@@ -229,6 +251,7 @@
         matchesSearch &&
         matchesApplication &&
         matchesOwnerFilter(space, ownerFilter) &&
+        matchesMemberFilter(space, memberFilter) &&
         matchesVisibility &&
         matchesAutojoin &&
         matchesGuestAutojoin

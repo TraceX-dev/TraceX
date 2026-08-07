@@ -48,6 +48,7 @@
     "FallbackValueError": "Показывать ошибку, если недоступно",
     "Required": "Обязательно",
     "ParallelExecutionForbidden": "Одновременное выполнение запрещено",
+    "ShowInHeader": "Показывать в заголовке",
     "StartAutomatically": "Запускать автоматически",
     "AutomationOnly": "Только автоматизация",
     "Error": "Ошибка",

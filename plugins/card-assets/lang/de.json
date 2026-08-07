@@ -38,6 +38,7 @@
     "ChangeTypeWarning": "Warnung: Das Ändern des Typs einer Karte wird alle Daten für alle Attribute entfernen, die nicht auf dem Zieltyp vorhanden sind. Vorherige Attributdaten können wiederhergestellt werden, indem Sie die Karte auf einen früheren Typ zurücksetzen. Karteninhalt wird nicht betroffen.",
     "MasterDetailViews": "Master-Detail-Ansichten",
     "SelectType": "Typ auswählen",
+    "SelectTypeAndSpace": "Bitte wählen Sie einen Kartentyp und einen Bereich aus, um fortzufahren.",
     "CreateSpace": "Raum erstellen",
     "NumberTypes": "{count, plural, one {# typ} other {# typen}}",
     "Labels": "Labels",

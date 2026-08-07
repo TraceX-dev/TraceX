@@ -44,6 +44,7 @@
     "FallbackValueError": "Pokaż błąd jeśli puste",
     "Required": "Wymagane",
     "ParallelExecutionForbidden": "Wykonanie równoległe zabronione",
+    "ShowInHeader": "Pokaż w nagłówku",
     "StartAutomatically": "Uruchom automatycznie",
     "AutomationOnly": "Tylko automatyzacja",
     "Error": "Błąd",

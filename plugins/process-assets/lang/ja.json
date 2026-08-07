@@ -48,6 +48,7 @@
     "FallbackValueError": "空の場合エラーを表示",
     "Required": "必須",
     "ParallelExecutionForbidden": "並列実行は禁止されています",
+    "ShowInHeader": "ヘッダーに表示",
     "StartAutomatically": "自動的に開始",
     "AutomationOnly": "自動化のみ",
     "Error": "エラー",

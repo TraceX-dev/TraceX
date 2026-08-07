@@ -28,6 +28,7 @@ import core, {
   type Ref,
   type RefTo,
   type Space,
+  toRank,
   type TxCUD,
   type TxFactory,
   TxProcessor,
@@ -536,6 +537,16 @@ export async function requestUserInput (
   return { context: userContext, state: target.to, changed }
 }
 
+function sortAttributes (attributes: AnyAttribute[]): AnyAttribute[] {
+  const arr = [...attributes]
+  arr.sort((a, b) => {
+    const rankA = a.rank ?? toRank(a._id) ?? ''
+    const rankB = b.rank ?? toRank(b._id) ?? ''
+    return rankA.localeCompare(rankB)
+  })
+  return arr
+}
+
 export async function getTransitionUserInput (
   processId: Ref<Process>,
   space: Ref<Space>,
@@ -572,7 +583,7 @@ export async function getTransitionUserInput (
           ? Array.from(hierarchy.getAllAttributes(classId, core.class.Doc).values())
           : Array.from(hierarchy.getOwnAttributes(classId).values())
 
-      for (const attr of allAttributes) {
+      for (const attr of sortAttributes(allAttributes)) {
         if (virtualKey === 'requiredFields' && attr.name === 'title') continue
         if (attr.hidden === true) continue
 
