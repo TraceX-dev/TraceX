@@ -48,6 +48,7 @@
     "FallbackValueError": "Mostrar erro se vazio",
     "Required": "Obrigatório",
     "ParallelExecutionForbidden": "Execução Paralela Proibida",
+    "ShowInHeader": "Mostrar no cabeçalho",
     "StartAutomatically": "Iniciar automaticamente",
     "AutomationOnly": "Apenas automação",
     "Error": "Erro",

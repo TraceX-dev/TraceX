@@ -45,6 +45,7 @@ export interface Process extends Doc {
   name: string
   description: string
   parallelExecutionForbidden?: boolean
+  showInHeader?: boolean
   autoStart?: boolean
   automationOnly?: boolean
   context: Record<ContextId, ProcessContext>

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -36,6 +37,12 @@
     }
   }
 
+  async function saveShowInHeader (e: CustomEvent<boolean>): Promise<void> {
+    if (value !== undefined) {
+      await client.update(value, { showInHeader: e.detail })
+    }
+  }
+
   async function saveAutomationOnly (e: CustomEvent<boolean>): Promise<void> {
     if (value !== undefined) {
       await client.update(value, { automationOnly: e.detail })
@@ -53,6 +60,13 @@
   }}
   on:close
 >
+  <div class="mb-2">
+    <ToggleWithLabel
+      on={value.showInHeader ?? false}
+      on:change={saveShowInHeader}
+      label={process.string.ShowInHeader}
+    />
+  </div>
   <div class="mb-2">
     <ToggleWithLabel
       on={value.parallelExecutionForbidden ?? false}

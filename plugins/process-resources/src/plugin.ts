@@ -191,6 +191,7 @@ export default mergeIds(processId, process, {
     FallbackValueError: '' as IntlString,
     Required: '' as IntlString,
     ParallelExecutionForbidden: '' as IntlString,
+    ShowInHeader: '' as IntlString,
     StartAutomatically: '' as IntlString,
     AutomationOnly: '' as IntlString,
     Continue: '' as IntlString,
