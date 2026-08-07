@@ -57,21 +57,23 @@
 
   type PossibleProcessClass = Ref<MasterTag | Tag>
 
-  function getCardPossibleClasses (): PossibleProcessClass[] {
+  function getCardPossibleClasses (value: Card): PossibleProcessClass[] {
     const hierarchy = client.getHierarchy()
-    const classes = new Set<Ref<Class<Doc>>>(hierarchy.getAncestors(card._class))
-    const mixins = hierarchy.getAllPossibleMixins(card._class).filter((mixin) => hierarchy.hasMixin(card, mixin))
+    const classes = new Set<Ref<Class<Doc>>>(hierarchy.getAncestors(value._class))
+    const mixins = hierarchy.getAllPossibleMixins(value._class).filter((mixin) => hierarchy.hasMixin(value, mixin))
     for (const mixin of mixins) {
       classes.add(mixin)
     }
     return [...classes] as PossibleProcessClass[]
   }
 
+  $: possibleProcessClasses = getCardPossibleClasses(card)
+
   const headerProcessesQuery = createQuery()
   $: headerProcessesQuery.query(
     process.class.Process,
     {
-      masterTag: { $in: getCardPossibleClasses() },
+      masterTag: { $in: possibleProcessClasses },
       showInHeader: true,
       automationOnly: { $ne: true }
     },
