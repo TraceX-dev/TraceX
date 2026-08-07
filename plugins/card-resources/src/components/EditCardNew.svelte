@@ -208,14 +208,7 @@
     on:close
   >
     <div class="main-content clear-mins">
-      <EditCardNewContent
-        {_id}
-        {doc}
-        readonly={_readonly}
-        {context}
-        {isContextLoaded}
-        {compactMode}
-      />
+      <EditCardNewContent {_id} {doc} readonly={_readonly} {context} {isContextLoaded} {compactMode} />
     </div>
 
     <svelte:fragment slot="beforeTitle">
