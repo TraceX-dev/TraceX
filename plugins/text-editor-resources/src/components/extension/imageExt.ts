@@ -164,8 +164,11 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
       let isLoading = false
       const updateLoadingState = (loading: boolean): void => {
         if (isLoading === loading) return
+
+        const pos = getPos()
+        if (pos === undefined || isLoading === loading) return
+
         isLoading = loading
-        const pos = typeof getPos === 'function' ? getPos() : 0
         setLoadingState(view, pos, loading)
       }
 
