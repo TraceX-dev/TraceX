@@ -59,9 +59,11 @@ export const DriveEmbedProvider: EmbedNodeProviderConstructor<DriveEmbedOptions>
 
     if (previewType === undefined) return
 
-    return (editor: Editor, root: HTMLDivElement, getPos: () => number) => {
+    return (editor: Editor, root: HTMLDivElement, getPos: () => number | undefined) => {
       const setLoading = (loading: boolean): void => {
-        const pos = typeof getPos === 'function' ? getPos() : 0
+        const pos = getPos()
+        if (pos === undefined) return
+
         setLoadingState(editor.view, pos, loading)
       }
       const renderer = new SvelteRenderer(FilePreview as any, {

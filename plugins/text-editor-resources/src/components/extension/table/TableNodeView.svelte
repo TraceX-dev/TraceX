@@ -21,7 +21,6 @@
   import { findTable, insertColumn, insertRow } from './utils'
   import { TableMap, updateColumnsOnResize } from '@tiptap/pm/tables'
   import { getToolbarCursor, setToolbarMeta } from '../toolbar/toolbar'
-  import { getTableCursor } from './table'
 
   export let node: NodeViewProps['node']
   export let getPos: NodeViewProps['getPos']
@@ -40,6 +39,8 @@
   let focused = false
   function handleSelectionUpdate (): void {
     const from = getPos()
+    if (from === undefined) return
+
     const to = from + node.nodeSize
 
     focused = editor.state.selection.from <= to && editor.state.selection.to >= from && editor.isActive('table')
