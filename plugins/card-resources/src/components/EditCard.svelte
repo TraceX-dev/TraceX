@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,6 +27,7 @@
   export let readonly: boolean = false
   export let embedded: boolean = false
   export let allowClose: boolean = true
+  export let compactMode: boolean = false
 
   export function canClose (): boolean {
     return false
@@ -36,4 +38,4 @@
   })
 </script>
 
-<EditCardNew {_id} {readonly} {embedded} {allowClose} on:close on:open />
+<EditCardNew {_id} {readonly} {embedded} {allowClose} {compactMode} on:close on:open />

@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -61,6 +62,7 @@
   export let readonly: boolean = false
   export let embedded: boolean = false
   export let allowClose: boolean = true
+  export let compactMode: boolean = false
 
   const DROPDOWN_POINT = 1024
   const NO_PARENTS_POINT = 800
@@ -206,7 +208,14 @@
     on:close
   >
     <div class="main-content clear-mins">
-      <EditCardNewContent {_id} {doc} readonly={_readonly} {context} {isContextLoaded} />
+      <EditCardNewContent
+        {_id}
+        {doc}
+        readonly={_readonly}
+        {context}
+        {isContextLoaded}
+        {compactMode}
+      />
     </div>
 
     <svelte:fragment slot="beforeTitle">
