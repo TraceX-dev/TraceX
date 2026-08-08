@@ -90,6 +90,7 @@
     "TwoColumns": "2列",
     "Grid": "グリッド",
     "RichtextProperties": "リッチテキストフィールド",
-    "ShowAllVersions": "すべてのバージョンを表示"
+    "ShowAllVersions": "すべてのバージョンを表示",
+    "ShowOnlyCardsWithoutRelations": "関連のないカードのみを表示"
   }
 }

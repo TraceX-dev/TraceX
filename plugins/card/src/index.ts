@@ -228,7 +228,8 @@ const cardPlugin = plugin(cardId, {
     UnLockSection: '' as IntlString,
     SectionLocked: '' as IntlString,
     SectionUnlocked: '' as IntlString,
-    ShowAllVersions: '' as IntlString
+    ShowAllVersions: '' as IntlString,
+    ShowOnlyCardsWithoutRelations: '' as IntlString
   },
   section: {
     Attachments: '' as Ref<CardSection>,

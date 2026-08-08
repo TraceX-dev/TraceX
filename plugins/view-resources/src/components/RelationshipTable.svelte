@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -346,7 +347,30 @@
     return res
   }
 
-  $: viewModel = getView(objects, model)
+  function hasMissingRelations (doc: Doc, model: AttributeModel[], associationId?: string): boolean {
+    const associations = getAssociations(model, associationId)
+    for (const relationKey of associations) {
+      const key = associationId ? relationKey.substring(associationId.length + 1) : relationKey
+      const relationDocs = getObjectValue(key, doc)
+      if (!Array.isArray(relationDocs) || relationDocs.length === 0) return true
+      if (relationDocs.some((relationDoc) => hasMissingRelations(relationDoc as Doc, model, relationKey))) {
+        return true
+      }
+    }
+    return false
+  }
+
+  function filterObjectsWithMissingRelations (objects: Doc[], model: AttributeModel[] | undefined): Doc[] {
+    if (model === undefined) return objects
+    return objects.filter((object) => hasMissingRelations(object, model))
+  }
+
+  $: onlyCardsWithoutRelations = viewOptions?.showOnlyCardsWithoutRelations === true
+  $: displayedObjects =
+    onlyCardsWithoutRelations ? filterObjectsWithMissingRelations(objects, model) : objects
+  $: shouldShowDisplayedCount =
+    displayedObjects.length > 0 && (total !== gtotal || objects.length < total || onlyCardsWithoutRelations)
+  $: viewModel = getView(displayedObjects, model)
 
   function getOwnAttributes (model: AttributeModel[], associationId?: string): AttributeModel[] {
     return model.filter((attr) => {
@@ -725,13 +749,13 @@
         <Label label={view.string.Total} params={{ total: gtotal }} />
       </span>
 
-      {#if objects.length > 0 && (total !== gtotal || objects.length < total)}
+      {#if shouldShowDisplayedCount}
         <span class="select-text ml-2">
           <Label
             label={view.string.Shown}
             params={{
-              total: objects.length === total || total === gtotal ? -1 : total,
-              len: objects.length
+              total: onlyCardsWithoutRelations || objects.length === total || total === gtotal ? -1 : total,
+              len: displayedObjects.length
             }}
           />
         </span>
