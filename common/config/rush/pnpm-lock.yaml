@@ -25575,6 +25575,9 @@ importers:
       '@hcengineering/workbench-resources':
         specifier: workspace:^0.7.0
         version: link:../workbench-resources
+      elkjs:
+        specifier: 0.11.1
+        version: 0.11.1
       fast-equals:
         specifier: ^5.2.2
         version: 5.3.2
@@ -48865,6 +48868,9 @@ packages:
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
+  elkjs@0.11.1:
+    resolution: {integrity: sha512-zxxR9k+rx5ktMwT/FwyLdPCrq7xN6e4VGGHH8hA01vVYKjTFik7nHOxBnAYtrgYUB1RpAiLvA1/U2YraWxyKKg==}
+
   email-addresses@5.0.0:
     resolution: {integrity: sha512-4OIPYlA6JXqtVn8zpHpGiI7vE6EQOAg16aGnDMIAlZVinnoZ8208tW1hAbjWydgN/4PLTT9q+O1K6AH/vALJGw==}
 
@@ -60499,6 +60505,8 @@ snapshots:
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
+
+  elkjs@0.11.1: {}
 
   email-addresses@5.0.0: {}
 
