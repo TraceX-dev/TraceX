@@ -90,6 +90,7 @@
     "TwoColumns": "Zwei spaltig",
     "Grid": "Gitter",
     "RichtextProperties": "Textfelder",
-    "ShowAllVersions": "Alle Versionen anzeigen"
+    "ShowAllVersions": "Alle Versionen anzeigen",
+    "ShowOnlyCardsWithoutRelations": "Nur Karten ohne Beziehungen anzeigen"
   }
 }

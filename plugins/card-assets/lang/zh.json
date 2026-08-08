@@ -90,6 +90,7 @@
     "TwoColumns": "两列",
     "Grid": "网格",
     "RichtextProperties": "富文本字段",
-    "ShowAllVersions": "显示所有版本"
+    "ShowAllVersions": "显示所有版本",
+    "ShowOnlyCardsWithoutRelations": "仅显示无关联的卡片"
   }
 }
