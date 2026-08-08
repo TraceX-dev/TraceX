@@ -293,7 +293,11 @@ export default mergeIds(processId, process, {
     AskSubclass: '' as IntlString,
     AskRequired: '' as IntlString,
     RequiredSlots: '' as IntlString,
-    Bindings: '' as IntlString
+    Bindings: '' as IntlString,
+    ProcessDiagram: '' as IntlString,
+    ProcessMap: '' as IntlString,
+    NoTransitions: '' as IntlString,
+    NoProcessRelations: '' as IntlString
   },
   permission: {
     RunProcess: '' as Ref<Permission>,
