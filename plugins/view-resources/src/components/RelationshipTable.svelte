@@ -366,8 +366,7 @@
   }
 
   $: onlyCardsWithoutRelations = viewOptions?.showOnlyCardsWithoutRelations === true
-  $: displayedObjects =
-    onlyCardsWithoutRelations ? filterObjectsWithMissingRelations(objects, model) : objects
+  $: displayedObjects = onlyCardsWithoutRelations ? filterObjectsWithMissingRelations(objects, model) : objects
   $: shouldShowDisplayedCount =
     displayedObjects.length > 0 && (total !== gtotal || objects.length < total || onlyCardsWithoutRelations)
   $: viewModel = getView(displayedObjects, model)
