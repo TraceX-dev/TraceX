@@ -90,6 +90,7 @@
     "TwoColumns": "Dva sloupce",
     "Grid": "Mřížka",
     "RichtextProperties": "Textová pole",
-    "ShowAllVersions": "Ukázat všechny verze"
+    "ShowAllVersions": "Ukázat všechny verze",
+    "ShowOnlyCardsWithoutRelations": "Zobrazit pouze karty bez vztahů"
   }
 }

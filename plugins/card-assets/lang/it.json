@@ -90,6 +90,7 @@
     "TwoColumns": "Due colonne",
     "Grid": "Griglia",
     "RichtextProperties": "Campo di testo",
-    "ShowAllVersions": "Tutte le versioni"
+    "ShowAllVersions": "Tutte le versioni",
+    "ShowOnlyCardsWithoutRelations": "Mostra solo le schede senza relazioni"
   }
 }

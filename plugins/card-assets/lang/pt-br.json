@@ -90,6 +90,7 @@
     "TwoColumns": "Duas colunas",
     "Grid": "Grade",
     "RichtextProperties": "Campos de texto",
-    "ShowAllVersions": "Todas as versões"
+    "ShowAllVersions": "Todas as versões",
+    "ShowOnlyCardsWithoutRelations": "Mostrar apenas cartões sem relações"
   }
 }

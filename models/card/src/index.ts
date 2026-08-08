@@ -256,6 +256,14 @@ const showAllVersionsOption: ViewOptionModel = {
   label: card.string.ShowAllVersions
 }
 
+const showOnlyCardsWithoutRelationsOption: ViewOptionModel = {
+  key: 'showOnlyCardsWithoutRelations',
+  type: 'toggle',
+  defaultValue: false,
+  actionTarget: 'display',
+  label: card.string.ShowOnlyCardsWithoutRelations
+}
+
 const listConfig: (BuildModelKey | string)[] = [
   { key: '' },
   { key: '_class' },
@@ -846,7 +854,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyCardsWithoutRelationsOption]
       },
       baseQuery: {
         isLatest: true
