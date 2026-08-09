@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -86,6 +87,7 @@ import tags from '@hcengineering/tags'
 import { jsonToMarkup, markupToJSON } from '@hcengineering/text'
 import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 import config from './config'
+import { convertSerializedMarkupToMarkdown, isSerializedMarkup } from './markup'
 import {
   createGithubDiscussion,
   createGithubIssue,
@@ -165,6 +167,7 @@ type GithubNextMarkupOperations = MarkupOperations & {
     markup: string,
     format: 'markup'
   ) => Promise<void>
+  convertSerializedMarkupToMarkdown: (content: string) => string
 }
 
 interface GithubNextCommunicationComment {
@@ -205,10 +208,12 @@ function createGithubNextMarkupOperations (
   const collaborator = getCollaboratorClient(workspace, token, config.CollaboratorURL)
   const refUrl = concatLink(url, `/browse?workspace=${workspace}`)
   const imageUrl = concatLink(url, `/files?workspace=${workspace}&file=`)
+  const markupOptions = { refUrl, imageUrl }
 
   return {
     fetchMarkup: markup.fetchMarkup.bind(markup),
     uploadMarkup: markup.uploadMarkup.bind(markup),
+    convertSerializedMarkupToMarkdown: (content) => convertSerializedMarkupToMarkdown(content, markupOptions),
     fetchCurrentMarkup: async (objectClass, objectId, objectAttr, format) => {
       const currentMarkup = await collaborator.getMarkup(makeCollabId(objectClass, objectId, objectAttr), null)
       switch (format) {
@@ -1359,21 +1364,8 @@ async function findOutboundTargetDocs (
   route: OutboundRoute,
   syncedTargetKeys: Set<string>
 ): Promise<Doc[]> {
-  const hierarchy = client.getHierarchy()
-  const targetClasses = new Set<Ref<Class<Doc>>>([
-    route.target.targetClass,
-    ...(hierarchy.getDescendants(route.target.targetClass) as Array<Ref<Class<Doc>>>)
-  ])
-  const docs: Doc[] = []
-
-  for (const targetClass of targetClasses) {
-    const targetDocs = await client.findAll<Doc>(targetClass, { space: route.target.space })
-    docs.push(
-      ...targetDocs.filter((doc) => !syncedTargetKeys.has(doc._id) && !syncedTargetKeys.has(`${doc._class}:${doc._id}`))
-    )
-  }
-
-  return docs
+  const docs = await client.findAll<Doc>(route.target.targetClass, { space: route.target.space })
+  return docs.filter((doc) => !syncedTargetKeys.has(doc._id) && !syncedTargetKeys.has(`${doc._class}:${doc._id}`))
 }
 
 async function getSyncedTargetKeys (
@@ -2396,7 +2388,7 @@ async function syncInboundPullRequests (
 
 async function buildIssuePatch (
   client: TxOperations,
-  markup: MarkupOperations,
+  markup: GithubNextMarkupOperations,
   doc: Doc,
   binding: IntegrationSlotBinding,
   token?: string,
@@ -2405,7 +2397,8 @@ async function buildIssuePatch (
     state: GithubNextObjectSyncState
     externalMappedValues: Record<string, unknown>
     localModifiedOn: number
-  }
+  },
+  forceDescriptionSync: boolean = false
 ): Promise<{
     title?: string
     body?: string
@@ -2441,7 +2434,10 @@ async function buildIssuePatch (
     labels?: string[]
   } = {
     title: typeof reversed.title === 'string' ? reversed.title : undefined,
-    body: typeof reversed.description === 'string' ? reversed.description : undefined,
+    body:
+      typeof reversed.description === 'string'
+        ? markup.convertSerializedMarkupToMarkdown(reversed.description)
+        : undefined,
     state: reversed.state === 'open' || reversed.state === 'closed' ? reversed.state : undefined,
     assignees,
     labels: labelTitles
@@ -2460,6 +2456,7 @@ async function buildIssuePatch (
 
   return {
     ...patch,
+    body: forceDescriptionSync ? fullPatch.body : patch.body,
     targetHash: await getTargetHash(client, markup, doc, binding)
   }
 }
@@ -2474,7 +2471,7 @@ function normalizeComparableValue (value: unknown): unknown {
 
 async function buildDiscussionPatch (
   client: TxOperations,
-  markup: MarkupOperations,
+  markup: GithubNextMarkupOperations,
   repository: GithubNextRepository,
   token: string,
   doc: Doc,
@@ -2483,7 +2480,8 @@ async function buildDiscussionPatch (
     state: GithubNextObjectSyncState
     externalMappedValues: Record<string, unknown>
     localModifiedOn: number
-  }
+  },
+  forceDescriptionSync: boolean = false
 ): Promise<{
     title?: string
     body?: string
@@ -2505,7 +2503,10 @@ async function buildDiscussionPatch (
 
   const fullPatch = {
     title: typeof reversed.title === 'string' ? reversed.title : undefined,
-    body: typeof reversed.description === 'string' ? reversed.description : undefined,
+    body:
+      typeof reversed.description === 'string'
+        ? markup.convertSerializedMarkupToMarkdown(reversed.description)
+        : undefined,
     categoryId
   }
   const currentTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markup')
@@ -2523,6 +2524,7 @@ async function buildDiscussionPatch (
 
   return {
     ...patch,
+    body: forceDescriptionSync ? fullPatch.body : patch.body,
     targetHash: stableHash(currentTargetValues)
   }
 }
@@ -3232,7 +3234,8 @@ async function syncOutboundForProvider (
               state,
               externalMappedValues,
               localModifiedOn: getObjectModifiedOn(outboundTargetDoc)
-            }
+            },
+            typeof externalIssue.body === 'string' && isSerializedMarkup(externalIssue.body)
           )
           const githubPatch = withoutUndefined({
             title: diffPatch.title,
@@ -3379,7 +3382,8 @@ async function syncOutboundForProvider (
             state,
             externalMappedValues,
             localModifiedOn: getObjectModifiedOn(outboundTargetDoc)
-          }
+          },
+          typeof externalDiscussion.body === 'string' && isSerializedMarkup(externalDiscussion.body)
         )
         const discussionPatch = withoutUndefined({
           title: patch.title,
