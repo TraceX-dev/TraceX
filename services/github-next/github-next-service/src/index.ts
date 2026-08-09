@@ -89,6 +89,7 @@ import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown
 import config from './config'
 import { convertSerializedMarkupToMarkdown, isSerializedMarkup } from './markup'
 import {
+  addGithubIssueToProject,
   createGithubDiscussion,
   createGithubIssue,
   createGithubIssueComment,
@@ -98,13 +99,17 @@ import {
   findGithubUserLoginByName,
   getGithubDiscussion,
   getGithubIssue,
+  getGithubProjectByUrl,
   getGithubUser,
   listGithubDiscussionCategories,
   listGithubDiscussions,
   listGithubIssueComments,
+  listGithubIssueProjects,
   listGithubIssues,
+  listGithubMilestones,
   listGithubPullRequests,
   patchGithubIssue,
+  removeGithubIssueFromProject,
   updateGithubDiscussion,
   updateGithubIssueComment,
   type GithubIssueComment,
@@ -465,6 +470,8 @@ function getOutboundWinningIssuePatch (
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
+    projects?: string[]
   },
   currentTargetValues: Record<string, unknown>,
   externalMappedValues: Record<string, unknown>,
@@ -476,6 +483,8 @@ function getOutboundWinningIssuePatch (
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
+    projects?: string[]
   } {
   const hasSnapshots = hasSnapshotValues(state)
   const localChangedFallback = state.targetHash !== stableHash(currentTargetValues)
@@ -518,7 +527,9 @@ function getOutboundWinningIssuePatch (
     body: isLocalWinner('description') ? fullPatch.body : undefined,
     state: isLocalWinner('state') ? fullPatch.state : undefined,
     assignees: isLocalWinner('assignee') ? fullPatch.assignees : undefined,
-    labels: isLocalWinner('labels') ? fullPatch.labels : undefined
+    labels: isLocalWinner('labels') ? fullPatch.labels : undefined,
+    milestone: isLocalWinner('milestone') ? fullPatch.milestone : undefined,
+    projects: isLocalWinner('projects') ? fullPatch.projects : undefined
   }
 }
 
@@ -1120,6 +1131,13 @@ async function resolvePersonToGithubLogin (
   return undefined
 }
 
+function getAssigneeRefs (value: unknown): Array<Ref<Person>> {
+  if (typeof value === 'string') return [value as Ref<Person>]
+  if (!Array.isArray(value)) return []
+
+  return value.filter((item): item is Ref<Person> => typeof item === 'string')
+}
+
 async function getDocLabelTitles (client: TxOperations, doc: Doc, collection: string): Promise<string[]> {
   const refs = await client.findAll(tags.class.TagReference, {
     attachedTo: doc._id,
@@ -1216,9 +1234,56 @@ function normalizePullRequestSlots (pullRequest: GithubNextPullRequest): Record<
   }
 }
 
-async function normalizeIssueSlots (client: TxOperations, issue: GithubNextIssue): Promise<Record<string, unknown>> {
-  const assignee =
-    issue.assignees?.[0] !== undefined ? await resolveGithubAssigneeToPerson(client, issue.assignees[0]) : undefined
+function isAssigneeArrayBinding (client: TxOperations, binding: IntegrationSlotBinding): boolean {
+  return getBindingAttributeType(client, binding, 'assignee')?._class === core.class.ArrOf
+}
+
+function getBindingAttributeType (
+  client: TxOperations,
+  binding: IntegrationSlotBinding,
+  slot: string
+): { _class: Ref<Class<Doc>> } | undefined {
+  const targetAttr = binding.bindings[slot]
+  if (targetAttr === undefined) return undefined
+
+  return client.getHierarchy().getAllAttributes(binding.targetClass, core.class.Doc).get(targetAttr)?.type
+}
+
+function getNormalizedMilestoneValue (
+  client: TxOperations,
+  binding: IntegrationSlotBinding,
+  issue: GithubNextIssue
+): string | number | null | undefined {
+  if (binding.bindings.milestone === undefined) return undefined
+  if (issue.milestone === undefined) return null
+
+  return getBindingAttributeType(client, binding, 'milestone')?._class === core.class.TypeNumber
+    ? issue.milestone.number
+    : issue.milestone.title
+}
+
+function getNormalizedProjectValue (
+  client: TxOperations,
+  binding: IntegrationSlotBinding,
+  issue: GithubNextIssue
+): string | string[] | null | undefined {
+  if (binding.bindings.projects === undefined) return undefined
+  const projectUrls = issue.projects?.map((project) => project.url) ?? []
+  return getBindingAttributeType(client, binding, 'projects')?._class === core.class.ArrOf
+    ? projectUrls
+    : (projectUrls[0] ?? null)
+}
+
+async function normalizeIssueSlots (
+  client: TxOperations,
+  issue: GithubNextIssue,
+  binding: IntegrationSlotBinding
+): Promise<Record<string, unknown>> {
+  const assignees = (
+    await Promise.all(
+      (issue.assignees ?? []).map(async (assignee) => await resolveGithubAssigneeToPerson(client, assignee))
+    )
+  ).filter((assignee): assignee is Ref<Person> => assignee !== undefined)
 
   return {
     title: issue.title,
@@ -1226,8 +1291,80 @@ async function normalizeIssueSlots (client: TxOperations, issue: GithubNextIssue
     state: issue.state,
     externalUrl: issue.htmlUrl,
     number: issue.number,
-    assignee,
-    labels: issue.labels ?? []
+    assignee: isAssigneeArrayBinding(client, binding) ? assignees : assignees[0],
+    labels: issue.labels ?? [],
+    milestone: getNormalizedMilestoneValue(client, binding, issue),
+    projects: getNormalizedProjectValue(client, binding, issue)
+  }
+}
+
+async function enrichGithubIssueProjects (
+  token: string,
+  issue: GithubNextIssue,
+  binding: IntegrationSlotBinding
+): Promise<GithubNextIssue> {
+  if (binding.bindings.projects === undefined) return issue
+
+  const projects = await listGithubIssueProjects(token, issue.nodeId)
+  return { ...issue, projects: projects.map((project) => project.project) }
+}
+
+function getProjectUrls (value: unknown): string[] | undefined {
+  if (value == null) return []
+  if (typeof value === 'string') return value.trim() === '' ? [] : [normalizeGithubProjectUrl(value)]
+  if (!Array.isArray(value)) return undefined
+
+  const urls = value
+    .filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+    .map((item) => normalizeGithubProjectUrl(item))
+  return [...new Set(urls)]
+}
+
+function normalizeGithubProjectUrl (url: string): string {
+  return url.trim().replace(/\/+$/, '')
+}
+
+async function resolveGithubMilestoneNumber (
+  token: string | undefined,
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
+  value: unknown,
+  context?: GithubRequestContext
+): Promise<number | null | undefined> {
+  if (value == null || value === '') return null
+  if (typeof value === 'number' && Number.isSafeInteger(value)) return value
+  if (typeof value !== 'string' || token === undefined) return undefined
+
+  const milestone = (await listGithubMilestones(token, repository, context)).find((item) => item.title === value)
+  if (milestone !== undefined) return milestone.number
+
+  console.warn('[github-next-service] milestone outbound not found', {
+    repository: `${repository.owner}/${repository.name}`,
+    milestone: value
+  })
+  return undefined
+}
+
+async function syncGithubIssueProjects (token: string, issue: GithubNextIssue, projectUrls: string[]): Promise<void> {
+  const currentItems = await listGithubIssueProjects(token, issue.nodeId)
+  const desiredUrls = new Set(projectUrls)
+  const currentItemsByUrl = new Map(currentItems.map((item) => [normalizeGithubProjectUrl(item.project.url), item]))
+
+  for (const item of currentItems) {
+    if (!desiredUrls.has(normalizeGithubProjectUrl(item.project.url))) {
+      await removeGithubIssueFromProject(token, item.id)
+    }
+  }
+
+  for (const projectUrl of desiredUrls) {
+    if (currentItemsByUrl.has(projectUrl)) continue
+
+    const project = await getGithubProjectByUrl(token, projectUrl)
+    if (project === undefined) {
+      console.warn('[github-next-service] project outbound not found', { projectUrl, issue: issue.htmlUrl })
+      continue
+    }
+
+    await addGithubIssueToProject(token, project.id, issue.nodeId)
   }
 }
 
@@ -2175,6 +2312,7 @@ async function syncInboundIssues (
         result.issuesSeen += issues.length
 
         for (const issue of issues) {
+          const externalIssue = await enrichGithubIssueProjects(secret.secret, issue, issueProvider.binding)
           const syncResult = await upsertInboundObject(
             ctx,
             {
@@ -2185,13 +2323,13 @@ async function syncInboundIssues (
               repositoryDoc,
               providerContext: issueProvider
             },
-            await normalizeIssueSlots(client, issue),
+            await normalizeIssueSlots(client, externalIssue, issueProvider.binding),
             {
-              externalId: String(issue.id),
-              externalNumber: issue.number,
-              externalUrl: issue.htmlUrl,
-              externalNodeId: issue.nodeId,
-              externalVersion: issue.updatedAt
+              externalId: String(externalIssue.id),
+              externalNumber: externalIssue.number,
+              externalUrl: externalIssue.htmlUrl,
+              externalNodeId: externalIssue.nodeId,
+              externalVersion: externalIssue.updatedAt
             }
           )
           result[syncResult]++
@@ -2207,7 +2345,7 @@ async function syncInboundIssues (
             },
             secret.secret,
             githubContext,
-            issue
+            externalIssue
           )
         }
       }
@@ -2391,6 +2529,7 @@ async function buildIssuePatch (
   markup: GithubNextMarkupOperations,
   doc: Doc,
   binding: IntegrationSlotBinding,
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
   token?: string,
   githubContext?: GithubRequestContext,
   outboundState?: {
@@ -2405,6 +2544,8 @@ async function buildIssuePatch (
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
+    projects?: string[]
     targetHash: string
   }> {
   const markdownTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markdown')
@@ -2412,19 +2553,30 @@ async function buildIssuePatch (
   const reversed = applyIntegrationSlotReverseBinding(markdownTargetValues, binding)
   const assigneeAttr = binding.bindings.assignee
   const labelsAttr = binding.bindings.labels
-  const assignee = assigneeAttr !== undefined ? (doc as Record<string, any>)[assigneeAttr] : undefined
-
-  const assigneeLogin =
-    assigneeAttr !== undefined
-      ? await resolvePersonToGithubLogin(client, token, assignee ?? null, githubContext)
-      : undefined
+  const milestoneAttr = binding.bindings.milestone
+  const projectsAttr = binding.bindings.projects
+  const assigneeValue =
+    assigneeAttr !== undefined ? (doc as unknown as Record<string, unknown>)[assigneeAttr] : undefined
+  const assigneeRefs = getAssigneeRefs(assigneeValue)
+  const assigneeLogins = (
+    await Promise.all(
+      assigneeRefs.map(async (assignee) => await resolvePersonToGithubLogin(client, token, assignee, githubContext))
+    )
+  ).filter((login): login is string => login !== undefined)
   const labelTitles = labelsAttr !== undefined ? ((await getDocLabelTitles(client, doc, labelsAttr)) ?? []) : undefined
   let assignees: string[] | undefined
-  if (assigneeAttr !== undefined && assignee == null) {
+  if (assigneeAttr !== undefined && assigneeValue == null) {
     assignees = []
-  } else if (assigneeLogin !== undefined) {
-    assignees = [assigneeLogin]
+  } else if (Array.isArray(assigneeValue) && assigneeValue.length === 0) {
+    assignees = []
+  } else if (assigneeLogins.length > 0) {
+    assignees = [...new Set(assigneeLogins)]
   }
+  const milestone =
+    milestoneAttr !== undefined
+      ? await resolveGithubMilestoneNumber(token, repository, reversed.milestone, githubContext)
+      : undefined
+  const projects = projectsAttr !== undefined ? getProjectUrls(reversed.projects) : undefined
 
   const fullPatch: {
     title?: string
@@ -2432,6 +2584,8 @@ async function buildIssuePatch (
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
+    projects?: string[]
   } = {
     title: typeof reversed.title === 'string' ? reversed.title : undefined,
     body:
@@ -2440,7 +2594,9 @@ async function buildIssuePatch (
         : undefined,
     state: reversed.state === 'open' || reversed.state === 'closed' ? reversed.state : undefined,
     assignees,
-    labels: labelTitles
+    labels: labelTitles,
+    milestone,
+    projects
   }
   const patch =
     outboundState === undefined
@@ -2539,24 +2695,37 @@ async function createOutboundIssue (
   route: OutboundRoute,
   doc: Doc
 ): Promise<void> {
-  const draft = await buildIssuePatch(client, markup, doc, providerContext.binding, token, githubContext)
+  const draft = await buildIssuePatch(
+    client,
+    markup,
+    doc,
+    providerContext.binding,
+    route.repository,
+    token,
+    githubContext
+  )
   if (draft.title === undefined || draft.title.trim() === '') {
     throw new Error(`Cannot create GitHub issue from ${doc._id}: title is required`)
   }
 
-  const created = await createGithubIssue(
+  let created = await createGithubIssue(
     token,
     route.repository,
     {
       title: draft.title,
       body: draft.body,
       assignees: draft.assignees,
-      labels: draft.labels
+      labels: draft.labels,
+      milestone: draft.milestone
     },
     githubContext
   )
+  if (draft.projects !== undefined) {
+    await syncGithubIssueProjects(token, created, draft.projects)
+    created = await enrichGithubIssueProjects(token, created, providerContext.binding)
+  }
   const externalValues = applyIntegrationSlotBinding(
-    await normalizeIssueSlots(client, created),
+    await normalizeIssueSlots(client, created, providerContext.binding),
     providerContext.binding
   )
   const targetValues = await fetchMappedTargetValues(client, markup, doc, providerContext.binding, 'markup')
@@ -3184,14 +3353,15 @@ async function syncOutboundForProvider (
             result.skipped++
             continue
           }
-          const externalIssue = await getGithubIssue(
+          let externalIssue = await getGithubIssue(
             secret.secret,
             { owner: repository.owner, name: repository.name },
             state.externalNumber,
             githubContext
           )
+          externalIssue = await enrichGithubIssueProjects(secret.secret, externalIssue, providerContext.binding)
           const externalMappedValues = applyIntegrationSlotBinding(
-            await normalizeIssueSlots(client, externalIssue),
+            await normalizeIssueSlots(client, externalIssue, providerContext.binding),
             providerContext.binding
           )
           const localModifiedOn = getObjectModifiedOn(outboundTargetDoc)
@@ -3228,6 +3398,7 @@ async function syncOutboundForProvider (
             markup,
             outboundTargetDoc,
             providerContext.binding,
+            repository,
             secret.secret,
             githubContext,
             {
@@ -3242,7 +3413,8 @@ async function syncOutboundForProvider (
             body: diffPatch.body,
             state: diffPatch.state,
             assignees: diffPatch.assignees,
-            labels: diffPatch.labels
+            labels: diffPatch.labels,
+            milestone: diffPatch.milestone
           })
           console.info('[github-next-service] issue outbound diff patch prepared', {
             state: state._id,
@@ -3254,7 +3426,7 @@ async function syncOutboundForProvider (
             labels: githubPatch.labels,
             targetHashChanged: diffPatch.targetHash !== state.targetHash
           })
-          if (!hasDefinedValue(githubPatch)) {
+          if (!hasDefinedValue(githubPatch) && diffPatch.projects === undefined) {
             if (Object.keys(externalWinningValues).length > 0) {
               const targetValues = await fetchMappedTargetValues(
                 client,
@@ -3280,15 +3452,22 @@ async function syncOutboundForProvider (
             continue
           }
 
-          const updated = await patchGithubIssue(
-            secret.secret,
-            { owner: repository.owner, name: repository.name },
-            state.externalNumber,
-            githubPatch,
-            githubContext
-          )
+          let updated = externalIssue
+          if (hasDefinedValue(githubPatch)) {
+            updated = await patchGithubIssue(
+              secret.secret,
+              { owner: repository.owner, name: repository.name },
+              state.externalNumber,
+              githubPatch,
+              githubContext
+            )
+          }
+          if (diffPatch.projects !== undefined) {
+            await syncGithubIssueProjects(secret.secret, updated, diffPatch.projects)
+          }
+          updated = await enrichGithubIssueProjects(secret.secret, updated, providerContext.binding)
           const updatedExternalValues = applyIntegrationSlotBinding(
-            await normalizeIssueSlots(client, updated),
+            await normalizeIssueSlots(client, updated, providerContext.binding),
             providerContext.binding
           )
           const targetValues = await fetchMappedTargetValues(
