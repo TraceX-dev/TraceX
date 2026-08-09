@@ -152,23 +152,37 @@ export function defineTriggers (builder: Builder): void {
     process.trigger.WhenRequiredFieldsFilled
   )
 
-  // builder.createDoc(
-  //   process.class.Trigger,
-  //   core.space.Model,
-  //   {
-  //     label: process.string.OnEvent,
-  //     icon: process.icon.OnEvent,
-  //     editor: process.component.OnEventEditor,
-  //     presenter: process.component.OnEventPresenter,
-  //     requiredParams: [
-  //       'eventType'
-  //     ],
-  //     checkFunction: process.triggerCheck.OnEventCheck,
-  //     init: false,
-  //     auto: false
-  //   },
-  //   process.trigger.OnEvent
-  // )
+  builder.createDoc(
+    process.class.Trigger,
+    core.space.Model,
+    {
+      label: process.string.OnEvent,
+      icon: process.icon.OnEvent,
+      editor: process.component.OnEventEditor,
+      presenter: process.component.OnEventPresenter,
+      requiredParams: ['eventType'],
+      checkFunction: process.triggerCheck.OnEventCheck,
+      init: false,
+      auto: false
+    },
+    process.trigger.OnEvent
+  )
+
+  builder.createDoc(
+    process.class.Trigger,
+    core.space.Model,
+    {
+      label: process.string.WhenRelationChanges,
+      icon: process.icon.WhenFieldChanges,
+      editor: process.component.RelationChangeEditor,
+      presenter: process.component.RelationChangePresenter,
+      requiredParams: ['mode'],
+      checkFunction: process.triggerCheck.RelationChangedCheck,
+      init: false,
+      auto: false
+    },
+    process.trigger.WhenRelationChanges
+  )
 
   builder.createDoc(
     process.class.Trigger,
