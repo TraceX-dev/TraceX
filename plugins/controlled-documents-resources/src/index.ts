@@ -41,6 +41,7 @@ import DeleteCategoryPopup from './components/category/popups/DeleteCategoryPopu
 import QmsDocumentWizard from './components/create-doc/QmsDocumentWizard.svelte'
 import QmsTemplateWizard from './components/create-doc/QmsTemplateWizard.svelte'
 import DocumentStatusTag from './components/document/common/DocumentStatusTag.svelte'
+import ControlledDocumentArrayEditor from './components/document/ControlledDocumentArrayEditor.svelte'
 import ControlledDocumentInlineEditor from './components/document/ControlledDocumentInlineEditor.svelte'
 import AddCommentPopup from './components/document/popups/AddCommentPopup.svelte'
 import ChangeOwnerPopup from './components/document/popups/ChangeOwnerPopup.svelte'
@@ -392,6 +393,7 @@ export default async (): Promise<Resources> => ({
     DocumentTemplates,
     CategoryPresenter,
     Categories,
+    ControlledDocumentArrayEditor,
     ControlledDocumentInlineEditor,
     EditDocumentCategory,
     EditDocContent,
