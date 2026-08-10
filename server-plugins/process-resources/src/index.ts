@@ -23,6 +23,7 @@ import core, {
   Mixin,
   Ref,
   RefTo,
+  Relation,
   Space,
   Tx,
   TxCreateDoc,
@@ -76,6 +77,7 @@ import {
   MatchCardCheck,
   RequiredFieldsFilledCheck,
   RequestApproval,
+  RelationChangedCheck,
   RunSubProcess,
   UnlockCard,
   UnlockField,
@@ -144,9 +146,9 @@ import {
   EnumFromString
 } from './transform'
 
-import { FindProcessToDos, GetProcessToDo, PatchProcessToDo } from './workspaceApi'
+import { EmitProcessEvent, FindProcessToDos, GetProcessToDo, PatchProcessToDo } from './workspaceApi'
 
-export { FindProcessToDos, GetProcessToDo, PatchProcessToDo }
+export { EmitProcessEvent, FindProcessToDos, GetProcessToDo, PatchProcessToDo }
 
 async function putEventToQueue (value: Omit<ProcessMessage, 'account'>, control: TriggerControl): Promise<void> {
   if (control.queue === undefined) return
@@ -235,6 +237,62 @@ export async function OnCustomEvent (txes: Tx[], control: TriggerControl): Promi
       },
       control
     )
+  }
+  return []
+}
+
+export async function OnRelationChange (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  for (const tx of txes) {
+    let relation: Relation | undefined
+    let relationChange: 'added' | 'removed' | 'changed' | undefined
+
+    if (tx._class === core.class.TxCreateDoc) {
+      const createTx = tx as TxCreateDoc<Relation>
+      if (!control.hierarchy.isDerived(createTx.objectClass, core.class.Relation)) continue
+      relation = TxProcessor.createDoc2Doc(createTx)
+      relationChange = 'added'
+    } else if (tx._class === core.class.TxRemoveDoc) {
+      const removeTx = tx as TxRemoveDoc<Relation>
+      if (!control.hierarchy.isDerived(removeTx.objectClass, core.class.Relation)) continue
+      relation = control.removedMap.get(removeTx.objectId) as Relation | undefined
+      relationChange = 'removed'
+    } else if (tx._class === core.class.TxUpdateDoc) {
+      const updateTx = tx as TxUpdateDoc<Relation>
+      if (!control.hierarchy.isDerived(updateTx.objectClass, core.class.Relation)) continue
+      relation = (await control.findAll(control.ctx, core.class.Relation, { _id: updateTx.objectId }, { limit: 1 }))[0]
+      relationChange = 'changed'
+    } else {
+      continue
+    }
+
+    if (relation === undefined || relationChange === undefined) continue
+
+    const assoc = control.modelDb.findObject(relation.association)
+    if (assoc === undefined) continue
+    if (control.hierarchy.isDerived(assoc.classA, core.class.Association)) {
+      await putEventToQueue(
+        {
+          event: [process.trigger.WhenRelationChanges],
+          card: relation.docA as Ref<Card>,
+          createdOn: tx.modifiedOn,
+          _id: `${tx._id}_${relation.docA}`,
+          context: { relation, relationChange }
+        },
+        control
+      )
+    }
+    if (control.hierarchy.isDerived(assoc.classB, core.class.Association)) {
+      await putEventToQueue(
+        {
+          event: [process.trigger.WhenRelationChanges],
+          card: relation.docB as Ref<Card>,
+          createdOn: tx.modifiedOn,
+          _id: `${tx._id}_${relation.docB}`,
+          context: { relation, relationChange }
+        },
+        control
+      )
+    }
   }
   return []
 }
@@ -795,6 +853,7 @@ export default async () => ({
     FieldChangedCheck,
     MatchCardCheck,
     RequiredFieldsFilledCheck,
+    RelationChangedCheck,
     CheckSubProcessesDone,
     CheckSubProcessMatch,
     CheckTime,
@@ -876,6 +935,7 @@ export default async () => ({
     FieldChangedRollback
   },
   workspaceApi: {
+    EmitProcessEvent,
     FindProcessToDos,
     GetProcessToDo,
     PatchProcessToDo
@@ -893,7 +953,8 @@ export default async () => ({
     OnCustomEvent,
     OnExecutionRemove,
     OnCardCreate,
-    OnCardRemove
+    OnCardRemove,
+    OnRelationChange
   }
 })
 

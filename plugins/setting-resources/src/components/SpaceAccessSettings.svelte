@@ -322,6 +322,7 @@
   .guestPermissionsPanel {
     flex: 1;
     min-width: 0;
+    min-height: 0;
   }
   .spaceRolesPanel {
     flex: 1;

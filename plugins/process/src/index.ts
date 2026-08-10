@@ -292,6 +292,7 @@ export default plugin(processId, {
     OnExecutionContinue: '' as Ref<Trigger>,
     OnTime: '' as Ref<Trigger>,
     OnEvent: '' as Ref<Trigger>,
+    WhenRelationChanges: '' as Ref<Trigger>,
     OnApproveRequestApproved: '' as Ref<Trigger>,
     OnApproveRequestRejected: '' as Ref<Trigger>
   },
@@ -304,6 +305,7 @@ export default plugin(processId, {
     SubProcessMatchCheck: '' as Resource<CheckFunc>,
     Time: '' as Resource<CheckFunc>,
     OnEventCheck: '' as Resource<CheckFunc>,
+    RelationChangedCheck: '' as Resource<CheckFunc>,
     ApproveRequestApproved: '' as Resource<CheckFunc>,
     ApproveRequestRejected: '' as Resource<CheckFunc>
   },

@@ -4,7 +4,7 @@
     "rootDir": "./src",
     "outDir": "./lib",
     "declarationDir": "./types",
-    "types": ["node"],
+    "types": ["node", "jest"],
     "tsBuildInfoFile": ".build/build.tsbuildinfo"
   },
   "include": ["src/**/*"],

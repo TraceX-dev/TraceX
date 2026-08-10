@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -55,6 +56,10 @@ function getTypeReference (type: Type<unknown>): Ref<Class<Doc>> | Ref<Doc> | Ty
   return typed.to ?? typed.of
 }
 
+function isTypeDescriptor (value: unknown): value is Type<unknown> {
+  return typeof value === 'object' && value !== null && '_class' in value
+}
+
 function isAttributeSlot (slot: IntegrationSlotModel): slot is IntegrationAttributeSlotModel {
   return slot.slotKind === 'attribute'
 }
@@ -81,6 +86,9 @@ export function isTypeEqual (
   const slotRef = getTypeReference(slotType)
   const attrRef = getTypeReference(attrType)
   if (slotRef !== undefined || attrRef !== undefined) {
+    if (slotType._class === core.class.ArrOf && isTypeDescriptor(slotRef) && isTypeDescriptor(attrRef)) {
+      return isTypeEqual(client, slotRef, attrRef)
+    }
     if (slotType._class === core.class.RefTo && typeof slotRef === 'string' && typeof attrRef === 'string') {
       return (
         attrRef === slotRef || client.getHierarchy().isDerived(attrRef as Ref<Class<Doc>>, slotRef as Ref<Class<Doc>>)

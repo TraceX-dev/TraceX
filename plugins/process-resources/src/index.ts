@@ -75,6 +75,10 @@ import CreateCardEditor from './components/settings/CreateCardEditor.svelte'
 import FieldChangesEditor from './components/settings/FieldChangesEditor.svelte'
 import LockSectionEditor from './components/settings/LockSectionEditor.svelte'
 import LockSectionPresenter from './components/settings/LockSectionPresenter.svelte'
+import OnEventEditor from './components/settings/OnEventEditor.svelte'
+import OnEventPresenter from './components/settings/OnEventPresenter.svelte'
+import RelationChangeEditor from './components/settings/RelationChangeEditor.svelte'
+import RelationChangePresenter from './components/settings/RelationChangePresenter.svelte'
 import SubProcessMatchEditor from './components/settings/SubProcessMatchEditor.svelte'
 import SubProcessMatchPresenter from './components/settings/SubProcessMatchPresenter.svelte'
 import TimeEditor from './components/settings/TimeEditor.svelte'
@@ -106,6 +110,7 @@ import {
   eventCheck,
   fieldChangesCheck,
   matchCardCheck,
+  relationChangedCheck,
   requiredFieldsFilledCheck,
   showDoneQuery,
   subProcessesDoneCheck,
@@ -169,6 +174,10 @@ export default async (): Promise<Resources> => ({
     AddTagPresenter,
     ExecutionMyToDos,
     FieldChangesEditor,
+    OnEventEditor,
+    OnEventPresenter,
+    RelationChangeEditor,
+    RelationChangePresenter,
     FunctionSubmenu,
     SubProcessMatchEditor,
     SubProcessMatchPresenter,
@@ -219,6 +228,7 @@ export default async (): Promise<Resources> => ({
     ToDo: todoTranstionCheck,
     Time: timeTransitionCheck,
     OnEventCheck: eventCheck,
+    RelationChangedCheck: relationChangedCheck,
     ApproveRequestApproved: approveRequestApproved,
     ApproveRequestRejected: approveRequestRejected
   },
