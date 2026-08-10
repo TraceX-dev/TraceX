@@ -19,13 +19,16 @@ import { FontFamily } from '../fontFamily'
 // functions directly instead of going through a real tiptap `Editor` (no DOM in this package's
 // test environment).
 //
-// setFontFamily/unsetFontFamily are plain setMark/unsetMark calls - the reason that is enough to
-// also cover a multi-cell CellSelection (and not just a single-cell TextSelection) is that
-// `@tiptap/core`'s setMark/unsetMark iterate `selection.ranges`, and `prosemirror-tables`'
-// CellSelection populates `ranges` with one range per selected cell (verified against the
-// installed prosemirror-tables@1.8.1 source: `CellSelection` passes a `cells.map(...)` ranges
-// array to the `Selection` constructor). A `TextSelection`'s `ranges` is just `[{ $from, $to }]`,
-// so the exact same command works for both without any special-casing.
+// setFontFamily is a plain setMark call - the reason that is enough to also cover a multi-cell
+// CellSelection (and not just a single-cell TextSelection) is that `@tiptap/core`'s setMark
+// iterates `selection.ranges`, and `prosemirror-tables`' CellSelection populates `ranges` with one
+// range per selected cell (verified against the installed prosemirror-tables@1.8.1 source:
+// `CellSelection` passes a `cells.map(...)` ranges array to the `Selection` constructor). A
+// `TextSelection`'s `ranges` is just `[{ $from, $to }]`, so the exact same command works for both
+// without any special-casing.
+//
+// unsetFontFamily deliberately avoids unsetMark('textStyle'): color (from TextColor) lives on the
+// same mark, so removing the whole mark would silently drop it too.
 
 function defined<T> (value: T | undefined): T {
   if (value === undefined) {
@@ -59,9 +62,11 @@ describe('FontFamily attributes', () => {
     expect(fontFamily.renderHTML({ fontFamily: null })).toEqual({})
   })
 
-  it('parses fontFamily from an inline style, stripping quotes', () => {
+  it('parses fontFamily from an inline style as-is, quotes included', () => {
+    // Quoted multi-word family names (e.g. "Times New Roman") are kept quoted on round-trip -
+    // stripping them would still render fine in a browser but produces technically invalid CSS.
     const { fontFamily } = getAttributes()
-    expect(fontFamily.parseHTML({ style: { fontFamily: '"Times New Roman", serif' } })).toBe('Times New Roman, serif')
+    expect(fontFamily.parseHTML({ style: { fontFamily: '"Times New Roman", serif' } })).toBe('"Times New Roman", serif')
     expect(fontFamily.parseHTML({ style: { fontFamily: '' } })).toBe(null)
   })
 })
@@ -82,16 +87,19 @@ describe('FontFamily commands', () => {
     expect(result).toBe(true)
   })
 
-  it('unsetFontFamily delegates to chain().unsetMark(textStyle)', () => {
+  it('unsetFontFamily nulls just the fontFamily attribute and cleans up the empty mark', () => {
+    // Must not use unsetMark('textStyle') - that would also wipe out a co-existing text color.
     const commands = getCommands()
     const run = jest.fn(() => true)
-    const chainable = { unsetMark: jest.fn(), run }
-    chainable.unsetMark.mockReturnValue(chainable)
+    const chainable = { setMark: jest.fn(), removeEmptyTextStyle: jest.fn(), run }
+    chainable.setMark.mockReturnValue(chainable)
+    chainable.removeEmptyTextStyle.mockReturnValue(chainable)
     const chain = jest.fn(() => chainable)
 
     const result = defined(commands.unsetFontFamily)()({ chain } as any)
 
-    expect(chainable.unsetMark).toHaveBeenCalledWith('textStyle')
+    expect(chainable.setMark).toHaveBeenCalledWith('textStyle', { fontFamily: null })
+    expect(chainable.removeEmptyTextStyle).toHaveBeenCalled()
     expect(run).toHaveBeenCalled()
     expect(result).toBe(true)
   })

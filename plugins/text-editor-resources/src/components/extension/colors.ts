@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { getEmbeddedLabel } from '@hcengineering/platform'
+import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
 import { getEventPositionElement, SelectPopup, showPopup } from '@hcengineering/ui'
 import { type Editor } from '@tiptap/core'
 import ColorPicker from './popups/ColorPicker.svelte'
@@ -120,7 +120,7 @@ export async function openTextColorOptions (editor: Editor, event: MouseEvent): 
 
 interface FontOption {
   id: string
-  label: any
+  label: IntlString
 }
 
 // Web-safe fonts that do not require loading a webfont. Font names are proper nouns and are

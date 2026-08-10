@@ -13,14 +13,15 @@
 // limitations under the License.
 //
 
+import { type Asset, type IntlString } from '@hcengineering/platform'
 import textEditor from '@hcengineering/text-editor'
 import { getEventPositionElement, SelectPopup, showPopup } from '@hcengineering/ui'
 import { type Editor } from '@tiptap/core'
 
 interface AlignOption {
   id: string
-  icon: any
-  label: any
+  icon: Asset
+  label: IntlString
   action: () => boolean | undefined
 }
 

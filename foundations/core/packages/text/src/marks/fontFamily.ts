@@ -14,7 +14,6 @@
 //
 
 import { Extension } from '@tiptap/core'
-import '@tiptap/extension-text-style'
 
 export interface FontFamilyOptions {
   types: string[]
@@ -32,12 +31,18 @@ declare module '@tiptap/core' {
 /**
  * Adds a `fontFamily` attribute to the `textStyle` mark, with commands to set/unset it.
  *
- * `setFontFamily`/`unsetFontFamily` are plain `setMark`/`unsetMark` calls, same as `TextColor`.
- * That is enough to also work across a multi-cell `CellSelection` (selecting several table cells
- * at once and picking a font applies it to all of them): `prosemirror-tables` builds a `CellSelection`
- * with one `SelectionRange` per selected cell, and tiptap's `setMark`/`unsetMark` iterate
- * `selection.ranges` rather than assuming a single contiguous text range, so no special-casing is
- * needed here - unlike a plain `TextSelection`, whose `ranges` is just `[{ $from, $to }]`.
+ * `setFontFamily` is a plain `setMark` call, same as `TextColor.setTextColor`. That is enough to
+ * also work across a multi-cell `CellSelection` (selecting several table cells at once and picking
+ * a font applies it to all of them): `prosemirror-tables` builds a `CellSelection` with one
+ * `SelectionRange` per selected cell, and tiptap's `setMark` iterates `selection.ranges` rather than
+ * assuming a single contiguous text range, so no special-casing is needed here - unlike a plain
+ * `TextSelection`, whose `ranges` is just `[{ $from, $to }]`.
+ *
+ * `unsetFontFamily` deliberately does *not* use `unsetMark('textStyle')`: `color` (from `TextColor`)
+ * lives on the same `textStyle` mark, so removing the whole mark would silently drop the text color
+ * too. Instead it nulls out just the `fontFamily` attribute via `setMark` (which merges with any
+ * existing attributes on that mark) and cleans up the mark with `removeEmptyTextStyle` if nothing is
+ * left set on it.
  */
 export const FontFamily = Extension.create<FontFamilyOptions>({
   name: 'fontFamily',
@@ -56,7 +61,7 @@ export const FontFamily = Extension.create<FontFamilyOptions>({
           fontFamily: {
             default: null,
             parseHTML: (element) => {
-              const fontFamily = element.style.fontFamily.replace(/['"]+/g, '')
+              const fontFamily = element.style.fontFamily
               return fontFamily !== '' ? fontFamily : null
             },
             renderHTML: (attributes) => {
@@ -86,7 +91,7 @@ export const FontFamily = Extension.create<FontFamilyOptions>({
       unsetFontFamily:
         () =>
           ({ chain }) => {
-            return chain().unsetMark('textStyle').run()
+            return chain().setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run()
           }
     }
   }
