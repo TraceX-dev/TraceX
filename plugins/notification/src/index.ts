@@ -344,6 +344,9 @@ export interface InboxNotificationsClient {
   inboxNotifications: Readable<InboxNotification[]>
   activityInboxNotifications: Writable<ActivityInboxNotification[]>
   inboxNotificationsByContext: Readable<Map<Ref<DocNotifyContext>, InboxNotification[]>>
+  // True once the initial contexts/notifications queries have delivered their first
+  // result, so consumers can tell "no unread yet" apart from "not loaded yet".
+  isLoaded: Readable<boolean>
 
   readDoc: (_id: Ref<Doc>) => Promise<void>
   forceReadDoc: (doc: Doc) => Promise<void>
