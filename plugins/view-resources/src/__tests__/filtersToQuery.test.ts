@@ -49,11 +49,15 @@ jest.mock('svelte/store', () => {
     return {
       set: (v: T) => {
         value = v
-        subscribers.forEach((fn) => { fn(value) })
+        subscribers.forEach((fn) => {
+          fn(value)
+        })
       },
       update: (fn: (v: T) => T) => {
         value = fn(value)
-        subscribers.forEach((fn) => { fn(value) })
+        subscribers.forEach((fn) => {
+          fn(value)
+        })
       },
       subscribe: (fn: (v: T) => void) => {
         fn(value)
@@ -64,7 +68,8 @@ jest.mock('svelte/store', () => {
   }
 
   const get = <T>(store: Store<T>): T => {
-    let value: T
+    // Assigned synchronously by `subscribe` below — the mock invokes the callback immediately.
+    let value: T = undefined as unknown as T
     const unsubscribe = store.subscribe((v) => {
       value = v
     })
