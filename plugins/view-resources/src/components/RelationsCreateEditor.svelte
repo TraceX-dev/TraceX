@@ -127,6 +127,7 @@
         <ObjectBox
           value={doc}
           _class={row.candidatesClass}
+          label={getEmbeddedLabel(row.label)}
           readonly
           kind={'regular'}
           size={'small'}
