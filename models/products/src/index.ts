@@ -194,6 +194,10 @@ function defineProduct (builder: Builder): void {
     inlineEditor: products.component.ProductInlineEditor
   })
 
+  builder.mixin(products.class.Product, core.class.Class, view.mixin.ArrayEditor, {
+    inlineEditor: view.component.ArrayEditor
+  })
+
   builder.mixin(products.class.Product, core.class.Class, view.mixin.SpacePresenter, {
     presenter: documents.component.DocumentSpacePresenter
   })

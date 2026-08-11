@@ -469,6 +469,10 @@ export function createModel (builder: Builder): void {
     inlineEditor: documents.component.ControlledDocumentInlineEditor
   })
 
+  builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.ArrayEditor, {
+    inlineEditor: documents.component.ControlledDocumentArrayEditor
+  })
+
   builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.IgnoreActions, {
     actions: [tracker.action.NewRelatedIssue]
   })

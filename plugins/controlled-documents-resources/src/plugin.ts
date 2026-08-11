@@ -26,6 +26,7 @@ import type { KeyFilter, ReferenceVersion, SortFunc, ViewActionAvailabilityFunct
 
 export default mergeIds(documentsId, documents, {
   component: {
+    ControlledDocumentArrayEditor: '' as AnyComponent,
     ControlledDocumentInlineEditor: '' as AnyComponent,
     MyDocuments: '' as AnyComponent,
     NewDocumentHeader: '' as AnyComponent,
