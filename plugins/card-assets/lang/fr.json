@@ -11,6 +11,8 @@
     "MasterTag": "Type",
     "MasterTags": "Types",
     "Parent": "Parent",
+    "ChangeTagParent": "Modifier le tag parent",
+    "ChangeTagParentBlocked": "Un tag attribué à des cartes, ou dont des descendants sont attribués à des cartes, ne peut pas être déplacé.",
     "Tags": "Étiquettes",
     "Tag": "Étiquette",
     "AddTag": "Ajouter une étiquette",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Avertissement : Changer le type d'une carte supprimera toutes les données pour tous les attributs qui ne sont pas dans le type cible. Les données précédentes de l'attribut peuvent être restaurées en changeant la carte en arrière. Le contenu de la carte ne sera pas affecté.",
     "MasterDetailViews": "Vues maître-détail",
     "SelectType": "Sélectionner le type",
+    "SelectTypeAndSpace": "Veuillez sélectionner un Type de carte et un Espace pour continuer.",
     "CreateSpace": "Créer un espace",
     "NumberTypes": "{count, plural, one {# type} other {# types}}",
     "Labels": "Étiquettes",
@@ -87,6 +90,7 @@
     "TwoColumns": "Deux colonnes",
     "Grid": "Grille",
     "RichtextProperties": "Champs de texte",
-    "ShowAllVersions": "Toutes les versions"
+    "ShowAllVersions": "Toutes les versions",
+    "ShowOnlyCardsWithoutRelations": "Afficher uniquement les cartes sans relations"
   }
 }

@@ -114,6 +114,10 @@ export class TMasterTag extends TClass implements MasterTag {
 export class TTag extends TMixin implements Tag {
   color?: number
   background?: number
+
+  @Prop(TypeRank(), core.string.Rank)
+  @Hidden()
+    rank?: Rank
 }
 
 @Model(card.class.Card, core.class.Doc, DOMAIN_CARD)
@@ -193,6 +197,7 @@ export class TCardSection extends TDoc implements CardSection {
   order!: number
   navigation!: CardNavigation[]
   checkVisibility?: Resource<(doc: Card) => Promise<boolean>>
+  hideInCompactMode?: boolean
 }
 
 @Mixin(card.mixin.CardViewDefaults, card.class.MasterTag)
@@ -249,6 +254,14 @@ const showAllVersionsOption: ViewOptionModel = {
   actionTarget: 'query',
   action: card.function.ShowAllVersions,
   label: card.string.ShowAllVersions
+}
+
+const showOnlyCardsWithoutRelationsOption: ViewOptionModel = {
+  key: 'showOnlyCardsWithoutRelations',
+  type: 'toggle',
+  defaultValue: false,
+  actionTarget: 'display',
+  label: card.string.ShowOnlyCardsWithoutRelations
 }
 
 const listConfig: (BuildModelKey | string)[] = [
@@ -841,7 +854,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyCardsWithoutRelationsOption]
       },
       baseQuery: {
         isLatest: true
@@ -1235,6 +1248,7 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.RelationsSection,
       order: 500,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckRelationsSectionVisibility
     },
     card.section.Relations
@@ -1248,6 +1262,7 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.OldMessagesSection,
       order: 1000,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckOldMessagesSectionVisibility
     },
     card.section.OldMessages
@@ -1261,6 +1276,7 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.CommunicationMessagesSection,
       order: 1000,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckCommunicationMessagesSectionVisibility
     },
     communication.ids.CardMessagesSection

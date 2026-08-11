@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,7 +24,8 @@ import { type KeyFilter } from '@hcengineering/view'
 export default mergeIds(productsId, products, {
   component: {
     EditProduct: '' as AnyComponent,
-    EditProductVersion: '' as AnyComponent
+    EditProductVersion: '' as AnyComponent,
+    ProductInlineEditor: '' as AnyComponent
   },
   completion: {
     ProductQuery: '' as Resource<ObjectSearchFactory>,

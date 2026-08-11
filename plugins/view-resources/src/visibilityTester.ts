@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,23 +19,13 @@ import core, {
   checkForbiddenPermission,
   getCurrentAccount,
   toIdMap,
-  AccountRole,
   type Doc,
-  type Space,
-  type TypedSpace
+  type Space
 } from '@hcengineering/core'
 import { getClient } from '@hcengineering/presentation'
 import { get } from 'svelte/store'
+import { getPermissions, isSpaceOwner, isTypedSpace } from './permissions'
 import { spaceSpace } from './utils'
-
-function isTypedSpace (space: Space): space is TypedSpace {
-  return getClient().getHierarchy().isDerived(space._class, core.class.TypedSpace)
-}
-
-function isSpaceOwner (space: Space): boolean {
-  const currentAccount = getCurrentAccount()
-  return currentAccount.role === AccountRole.Owner || (space.owners ?? []).includes(currentAccount.uuid)
-}
 
 export async function canDeleteObject (doc?: Doc | Doc[]): Promise<boolean> {
   if (doc === undefined) {
@@ -62,25 +53,7 @@ export async function canEditSpace (doc?: Doc | Doc[]): Promise<boolean> {
     return false
   }
 
-  const space = doc as Space
-
-  if (isSpaceOwner(space)) {
-    return true
-  }
-
-  const client = getClient()
-
-  const _spaceSpace = get(spaceSpace) ?? (await client.findOne(core.class.TypedSpace, { _id: core.space.Space }))
-
-  if (await checkPermission(client, core.permission.UpdateObject, core.space.Space, _spaceSpace)) {
-    return true
-  }
-
-  if (isTypedSpace(space) && (await checkPermission(client, core.permission.UpdateSpace, space._id, space))) {
-    return true
-  }
-
-  return false
+  return getPermissions().canEditSpace(doc as Space)
 }
 
 export async function canArchiveSpace (doc?: Doc | Doc[]): Promise<boolean> {
@@ -88,25 +61,7 @@ export async function canArchiveSpace (doc?: Doc | Doc[]): Promise<boolean> {
     return false
   }
 
-  const space = doc as Space
-
-  if (isSpaceOwner(space)) {
-    return true
-  }
-
-  const client = getClient()
-
-  const _spaceSpace = get(spaceSpace) ?? (await client.findOne(core.class.TypedSpace, { _id: core.space.Space }))
-
-  if (await checkPermission(client, core.permission.DeleteObject, core.space.Space, _spaceSpace)) {
-    return true
-  }
-
-  if (isTypedSpace(space) && (await checkPermission(client, core.permission.ArchiveSpace, space._id, space))) {
-    return true
-  }
-
-  return false
+  return getPermissions().canArchiveSpace(doc as Space)
 }
 
 export async function canDeleteSpace (doc?: Doc | Doc[]): Promise<boolean> {
@@ -116,7 +71,7 @@ export async function canDeleteSpace (doc?: Doc | Doc[]): Promise<boolean> {
 
   const space = doc as Space
 
-  if (isSpaceOwner(space)) {
+  if (isSpaceOwner(space, getCurrentAccount())) {
     return true
   }
 

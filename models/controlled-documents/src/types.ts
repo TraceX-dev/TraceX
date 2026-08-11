@@ -120,6 +120,7 @@ export class TDocumentSpaceType extends TSpaceType implements DocumentSpaceType 
 }
 
 @Model(documents.class.DocumentSpaceTypeDescriptor, core.class.SpaceTypeDescriptor)
+@UX(documents.string.ControlledDocument)
 export class TDocumentSpaceTypeDescriptor extends TSpaceTypeDescriptor implements DocumentSpaceTypeDescriptor {
   projectClass?: Ref<Class<Project>>
   withProjects?: boolean

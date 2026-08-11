@@ -11,6 +11,8 @@
     "MasterTag": "Tipo",
     "MasterTags": "Tipos",
     "Parent": "Principal",
+    "ChangeTagParent": "Alterar etiqueta principal",
+    "ChangeTagParentBlocked": "Não é possível mover uma etiqueta atribuída a cartões ou cujos descendentes estejam atribuídos a cartões.",
     "Tags": "Tags",
     "Tag": "Tag",
     "AddTag": "Adicionar Tag",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Aviso: Alterar o tipo de um cartão irá remover todos os dados para quaisquer atributos que não existem no tipo de destino. Dados anteriores do atributo podem ser restaurados alterando o cartão de volta para um tipo anterior. O conteúdo do cartão não será afetado.",
     "MasterDetailViews": "Visualizações Master-Detail",
     "SelectType": "Selecionar tipo",
+    "SelectTypeAndSpace": "Selecione um Tipo de cartão e um Espaço para continuar.",
     "CreateSpace": "Criar espaço",
     "NumberTypes": "{count, plural, one {# tipo} other {# tipos}}",
     "Labels": "Etiquetas",
@@ -87,6 +90,7 @@
     "TwoColumns": "Duas colunas",
     "Grid": "Grade",
     "RichtextProperties": "Campo de texto",
-    "ShowAllVersions": "Todas as versões"
+    "ShowAllVersions": "Todas as versões",
+    "ShowOnlyCardsWithoutRelations": "Mostrar apenas cartões sem relações"
   }
 }

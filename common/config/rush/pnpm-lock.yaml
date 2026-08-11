@@ -19336,9 +19336,6 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
-      '@hcengineering/export':
-        specifier: workspace:^0.7.0
-        version: link:../export
       '@hcengineering/login':
         specifier: workspace:^0.7.0
         version: link:../login
@@ -21215,6 +21212,12 @@ importers:
 
   ../../plugins/export-resources:
     dependencies:
+      '@hcengineering/attachment':
+        specifier: workspace:^0.7.0
+        version: link:../attachment
+      '@hcengineering/collaborator-client':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/core/packages/collaborator-client
       '@hcengineering/converter':
         specifier: workspace:^0.7.0
         version: link:../converter
@@ -21239,6 +21242,12 @@ importers:
       '@hcengineering/presentation':
         specifier: workspace:^0.7.0
         version: link:../../packages/presentation
+      '@hcengineering/text':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/text
+      '@hcengineering/text-editor-resources':
+        specifier: workspace:^0.7.0
+        version: link:../text-editor-resources
       '@hcengineering/theme':
         specifier: workspace:^0.7.0
         version: link:../../packages/theme
@@ -25566,6 +25575,9 @@ importers:
       '@hcengineering/workbench-resources':
         specifier: workspace:^0.7.0
         version: link:../workbench-resources
+      elkjs:
+        specifier: 0.11.1
+        version: 0.11.1
       fast-equals:
         specifier: ^5.2.2
         version: 5.3.2
@@ -37007,6 +37019,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/kafka':
+        specifier: workspace:^0.7.20
+        version: link:../../foundations/server/packages/kafka
       '@hcengineering/model':
         specifier: workspace:^0.7.17
         version: link:../../foundations/core/packages/model
@@ -37016,6 +37031,9 @@ importers:
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
+      '@hcengineering/server-core':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/server/packages/core
       '@hcengineering/server-token':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/token
@@ -48850,6 +48868,9 @@ packages:
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
+  elkjs@0.11.1:
+    resolution: {integrity: sha512-zxxR9k+rx5ktMwT/FwyLdPCrq7xN6e4VGGHH8hA01vVYKjTFik7nHOxBnAYtrgYUB1RpAiLvA1/U2YraWxyKKg==}
+
   email-addresses@5.0.0:
     resolution: {integrity: sha512-4OIPYlA6JXqtVn8zpHpGiI7vE6EQOAg16aGnDMIAlZVinnoZ8208tW1hAbjWydgN/4PLTT9q+O1K6AH/vALJGw==}
 
@@ -60485,6 +60506,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  elkjs@0.11.1: {}
+
   email-addresses@5.0.0: {}
 
   emittery@0.13.1: {}
@@ -63755,7 +63778,7 @@ snapshots:
   node-loader@2.0.0(webpack@5.102.1):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.102.1(esbuild@0.25.12)(webpack-cli@5.1.4)
+      webpack: 5.102.1
 
   node-localstorage@2.2.1:
     dependencies:

@@ -16,7 +16,7 @@
 -->
 <script lang="ts">
   import { Card, Tag } from '@hcengineering/card'
-  import { Class, Doc, Mixin, Permission, Ref, TypedSpace } from '@hcengineering/core'
+  import { Class, Doc, Mixin, Permission, Ref, TypedSpace, toRank } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { CircleButton, eventToHTMLElement, IconAdd, IconDownOutline, SelectPopup, showPopup } from '@hcengineering/ui'
 
@@ -40,7 +40,7 @@
     tags = result
   })
 
-  $: activeTags = tags.filter((tag) => hierarchy.hasMixin(doc, tag._id))
+  $: activeTags = sortTags(tags.filter((tag) => hierarchy.hasMixin(doc, tag._id)))
 
   async function removeTag (tagId: string): Promise<void> {
     await client.update(doc, { $unset: { [tagId]: true } })
@@ -62,7 +62,30 @@
         console.log('error', err, p._id)
       }
     }
-    return res
+    return sortTags(res)
+  }
+
+  function getTagRankPath (tag: Tag): string[] {
+    return [...hierarchy.getAncestors(tag._id)]
+      .reverse()
+      .filter((ancestor) => hierarchy.getClass(ancestor)._class === card.class.Tag)
+      .map((ancestor) => {
+        const ancestorTag = hierarchy.getClass(ancestor) as Tag
+        return ancestorTag.rank ?? toRank(ancestor) ?? ''
+      })
+  }
+
+  function compareRankPaths (a: string[], b: string[]): number {
+    const length = Math.min(a.length, b.length)
+    for (let index = 0; index < length; index++) {
+      const comparison = a[index].localeCompare(b[index])
+      if (comparison !== 0) return comparison
+    }
+    return a.length - b.length
+  }
+
+  function sortTags (items: Tag[]): Tag[] {
+    return [...items].sort((a, b) => compareRankPaths(getTagRankPath(a), getTagRankPath(b)))
   }
   $: dropdownItems = possibleMixins.map((mixin) => ({ id: mixin._id, label: mixin.label }))
   function add (e: MouseEvent): void {

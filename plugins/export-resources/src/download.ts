@@ -25,10 +25,14 @@ export function downloadBlob (blob: Blob, fileName: string): void {
   anchor.style.display = 'none'
   anchor.href = url
   anchor.download = fileName
+  // Attach the anchor to the DOM before click() (detached anchors are ignored by some
+  // browsers) and defer the revoke — revoking synchronously drops the blob mid-read.
   document.body.appendChild(anchor)
   anchor.click()
-  window.URL.revokeObjectURL(url)
-  document.body.removeChild(anchor)
+  setTimeout(() => {
+    document.body.removeChild(anchor)
+    window.URL.revokeObjectURL(url)
+  }, 10000)
 }
 
 /**

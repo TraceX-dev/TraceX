@@ -192,6 +192,27 @@ export function EventCheck (
   return context.eventType === params.eventType
 }
 
+export function RelationChangedCheck (
+  control: ProcessControl,
+  execution: Execution,
+  params: Record<string, any>,
+  context: Record<string, any>
+): boolean {
+  const relation = context.relation as Relation | undefined
+  if (relation === undefined) return false
+  if (params.mode !== undefined && params.mode !== context.relationChange) return false
+  if (params.association !== undefined && params.association !== relation.association) return false
+
+  switch (params.direction) {
+    case 'A':
+      return relation.docB === execution.card
+    case 'B':
+      return relation.docA === execution.card
+    default:
+      return relation.docA === execution.card || relation.docB === execution.card
+  }
+}
+
 export function FieldChangedCheck (
   control: ProcessControl,
   execution: Execution,

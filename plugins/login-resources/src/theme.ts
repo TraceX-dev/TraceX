@@ -14,7 +14,7 @@
 //
 import { type AnySvelteComponent } from '@hcengineering/ui'
 import { writable, derived, get, type Readable } from 'svelte/store'
-import LoginIcon from './components/icons/LoginIcon.svelte'
+import TraceXLogo from './components/icons/TraceXLogo.svelte'
 
 /**
  * Names of supported login themes.
@@ -43,8 +43,8 @@ export const themes: Record<LoginThemeName, LoginTheme> = {
     name: 'huly',
     alignment: 'center',
     backgroundComponent: undefined,
-    logoComponent: LoginIcon,
-    showTitle: true,
+    logoComponent: TraceXLogo,
+    showTitle: false,
     showLoginTitle: false,
     accentClass: 'accent-huly'
   }

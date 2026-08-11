@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,6 +26,7 @@
   const direction = parts[1]
 
   let relations: Relation[] = []
+  let occupiedObjects: Ref<Doc>[] = []
 
   const client = getClient()
 
@@ -47,6 +49,16 @@
       relations = res
     }
   )
+
+  const occupiedQuery = createQuery()
+  const hasSingleTarget = assoc.type === '1:1' || (assoc.type === '1:N' && direction === 'b')
+  if (hasSingleTarget) {
+    occupiedQuery.query(core.class.Relation, { association: associationId }, (res) => {
+      occupiedObjects = res.map((relation) => (direction === 'b' ? relation.docB : relation.docA))
+    })
+  }
+
+  $: ignoredObjects = occupiedObjects.filter((id) => !selectedObjects.includes(id))
 
   async function handler (e: CustomEvent<any>): Promise<void> {
     if (e.detail != null) {
@@ -73,7 +85,14 @@
   }
 </script>
 
-<ObjectPopup _class={targetClass} {multiSelect} {selectedObjects} on:close={handler} on:update={handler}>
+<ObjectPopup
+  _class={targetClass}
+  {multiSelect}
+  {selectedObjects}
+  ignoreObjects={ignoredObjects}
+  on:close={handler}
+  on:update={handler}
+>
   <svelte:fragment slot="item" let:item>
     <ObjectPresenter value={item} props={{ type: 'text' }} />
   </svelte:fragment>

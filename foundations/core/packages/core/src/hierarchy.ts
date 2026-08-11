@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -302,8 +303,37 @@ export class Hierarchy {
       const updateTx = tx as TxUpdateDoc<Mixin<Class<Doc>>>
       const doc = this.classifiers.get(updateTx.objectId)
       if (doc === undefined) return
+
+      const hierarchyChanged =
+        updateTx.operations.extends !== undefined ||
+        updateTx.operations.implements !== undefined ||
+        updateTx.operations.$unset?.extends === true ||
+        updateTx.operations.$unset?.implements === true
+      const affectedClassifiers = hierarchyChanged
+        ? Array.from(new Set([doc._id, ...this.getDescendants(doc._id)]))
+        : [doc._id]
+
+      if (hierarchyChanged) {
+        for (const classifier of affectedClassifiers) {
+          this.updateDescendant(classifier, false)
+        }
+      }
+
       TxProcessor.updateDoc2Doc(doc, updateTx)
-      this.classifierProperties.delete(doc._id)
+
+      if (hierarchyChanged) {
+        for (const classifier of affectedClassifiers) {
+          this.updateAncestors(classifier)
+        }
+        for (const classifier of affectedClassifiers) {
+          this.updateDescendant(classifier)
+        }
+      }
+
+      for (const classifier of affectedClassifiers) {
+        this.classifierProperties.delete(classifier)
+        this.proxies.delete(classifier as Ref<Mixin<Doc>>)
+      }
     }
   }
 

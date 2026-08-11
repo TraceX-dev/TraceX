@@ -95,6 +95,7 @@ export function isId (value: any): value is Ref<any> {
 }
 
 let currentAccount: Account
+const currentAccountListeners = new Set<(account: Account) => void>()
 
 /**
  * @public
@@ -110,6 +111,28 @@ export function getCurrentAccount (): Account {
  */
 export function setCurrentAccount (account: Account): void {
   currentAccount = account
+  for (const listener of currentAccountListeners) {
+    try {
+      listener(account)
+    } catch (err: any) {
+      console.error(err)
+    }
+  }
+}
+
+/**
+ * Subscribe to current account changes. The listener is called immediately with the current
+ * account if it is already set. Returns an unsubscribe function.
+ * @public
+ */
+export function onCurrentAccountChanged (listener: (account: Account) => void): () => void {
+  currentAccountListeners.add(listener)
+  if (currentAccount !== undefined) {
+    listener(currentAccount)
+  }
+  return () => {
+    currentAccountListeners.delete(listener)
+  }
 }
 /**
  * @public
@@ -800,6 +823,24 @@ export function isOwnerOrMaintainer (): boolean {
 
 export function hasAccountRole (acc: Account, targerRole: AccountRole): boolean {
   return roleOrder[acc.role] >= roleOrder[targerRole]
+}
+
+/**
+ * Any kind of guest account. Intended to be used by permission resolution code only,
+ * UI should ask a permission store what the user can do instead of checking roles.
+ * @public
+ */
+export function isGuestRole (role: AccountRole): boolean {
+  return role === AccountRole.Guest || role === AccountRole.DocGuest || role === AccountRole.ReadOnlyGuest
+}
+
+/**
+ * Accounts which are not allowed to modify anything at all. Note that DocGuest is not one of
+ * them, a public link guest is restricted by the link itself, not by the role.
+ * @public
+ */
+export function isReadOnlyRole (role: AccountRole): boolean {
+  return role === AccountRole.ReadOnlyGuest
 }
 
 export function getBranding (brandings: BrandingMap, key: string | undefined): Branding | null {

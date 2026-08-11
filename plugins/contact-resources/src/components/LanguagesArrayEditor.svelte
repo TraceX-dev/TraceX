@@ -26,6 +26,7 @@
   export let size: ButtonSize = 'small'
   export let justify: 'left' | 'center' = 'center'
   export let width: string | undefined = 'fit-content'
+  export let withLabelLimit = 5
 
   const dispatch = createEventDispatcher()
 
@@ -63,8 +64,9 @@
   <svelte:fragment slot="content">
     <div class="pointer-events-none flex-gap-2 flex-presenter">
       {#if selected.length > 0}
+        {@const withLabel = selected.length <= withLabelLimit}
         {#each selected as value}
-          <LanguagePresenter lang={value} withLabel />
+          <LanguagePresenter lang={value} {withLabel} />
         {/each}
       {:else}
         <Label label={contact.string.SelectLanguages} />

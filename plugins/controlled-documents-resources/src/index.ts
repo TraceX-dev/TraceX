@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -40,10 +41,9 @@ import DeleteCategoryPopup from './components/category/popups/DeleteCategoryPopu
 import QmsDocumentWizard from './components/create-doc/QmsDocumentWizard.svelte'
 import QmsTemplateWizard from './components/create-doc/QmsTemplateWizard.svelte'
 import DocumentStatusTag from './components/document/common/DocumentStatusTag.svelte'
+import ControlledDocumentInlineEditor from './components/document/ControlledDocumentInlineEditor.svelte'
 import AddCommentPopup from './components/document/popups/AddCommentPopup.svelte'
 import ChangeOwnerPopup from './components/document/popups/ChangeOwnerPopup.svelte'
-import ExportFormatPopup from './components/document/ExportFormatPopup.svelte'
-import ImportFormatPopup from './components/document/ImportFormatPopup.svelte'
 import DocumentCommentsPopup from './components/document/popups/DocumentCommentsPopup.svelte'
 import DocumentPresenter from './components/document/presenters/DocumentPresenter.svelte'
 import OwnerPresenter from './components/document/presenters/OwnerPresenter.svelte'
@@ -392,6 +392,7 @@ export default async (): Promise<Resources> => ({
     DocumentTemplates,
     CategoryPresenter,
     Categories,
+    ControlledDocumentInlineEditor,
     EditDocumentCategory,
     EditDocContent,
     DocumentReviewRequest,
@@ -403,8 +404,6 @@ export default async (): Promise<Resources> => ({
     AddCommentPopup,
     DocumentCommentsPopup,
     ChangeOwnerPopup,
-    ExportFormatPopup,
-    ImportFormatPopup,
     DeleteCategoryPopup,
     Projects,
     ProjectPresenter,

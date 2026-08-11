@@ -75,7 +75,7 @@ export class Settings {
       (this.store as any).get(Settings.SETTINGS_KEY_SERVER) as string ??
       this.packedConfig?.server ??
       process.env.FRONT_URL ??
-      'https://huly.app'
+      'https://app.tracex.co'
     )
   }
 

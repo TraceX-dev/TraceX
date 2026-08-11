@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -52,6 +53,8 @@ export class TApplication extends TDoc implements Application {
   hidden!: boolean
   accessLevel?: AccountRole
   order?: number
+  spaceClasses?: Array<Ref<Class<Space>>>
+  spaceIds?: Array<Ref<Space>>
 }
 
 @Model(workbench.class.ApplicationNavModel, core.class.Doc, DOMAIN_MODEL)

@@ -243,13 +243,10 @@ export type BrandingMap = Record<string, Branding>
 
 const clientType = process.env.CLIENT_TYPE
 const configs: Record<string, string> = {
-  'dev-production': '/config-dev.json',
-  'dev-huly': '/config-huly.json',
-  'dev-bold': '/config.json',
+  'dev-production': '/config-prod.json',
+  'dev-staging': '/config-staging.json',
   'dev-server': '/config.json',
-  'dev-server-test': '/config-test.json',
-  'dev-worker': '/config-worker.json',
-  'dev-worker-local': '/config-worker-local.json'
+  'dev-server-test': '/config-test.json'
 }
 
 const PASSWORD_REQUIREMENTS: Record<NonNullable<Config['PASSWORD_STRICTNESS']>, Record<string, number>> = {

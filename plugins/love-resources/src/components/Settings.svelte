@@ -2,11 +2,10 @@
   import core, { getCurrentAccount } from '@hcengineering/core'
   import { DevicesPreference } from '@hcengineering/love'
   import { getClient } from '@hcengineering/presentation'
-  import { Breadcrumb, Header, Label, Toggle } from '@hcengineering/ui'
-  import { isKrispNoiseFilterSupported } from '@livekit/krisp-noise-filter'
+  import { Breadcrumb, Header, Label, Scroller, SettingsCard, SettingsCardsLayout, Toggle } from '@hcengineering/ui'
   import love from '../plugin'
   import { myPreferences } from '../stores'
-  import { krispProcessor } from '../utils'
+  import { liveKitClient } from '../utils'
 
   const client = getClient()
 
@@ -56,7 +55,7 @@
         blurRadius: 0
       })
     }
-    await krispProcessor.setEnabled(value)
+    await liveKitClient.applyNoiseCancellation(value)
   }
 
   async function saveSpeakingWhileMutedPreference (
@@ -83,48 +82,52 @@
   <Header adaptive={'disabled'}>
     <Breadcrumb icon={love.icon.Love} label={love.string.Settings} size={'large'} isCurrent />
   </Header>
-  <div class="flex-row-stretch flex-grow p-10">
-    <div class="flex-grow flex-col flex-gap-4">
-      <div class="flex-row-center flex-gap-4">
-        <Label label={love.string.StartWithMutedMic} />
-        <Toggle
-          on={!($myPreferences?.micEnabled ?? true)}
-          on:change={(e) => {
-            saveMicPreference($myPreferences, e.detail)
-          }}
-        />
+  <div class="hulyComponent-content__column content">
+    <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
+      <div class="hulyComponent-content w-full">
+        <SettingsCardsLayout columns={1}>
+          <SettingsCard label={love.string.Settings}>
+            <div class="flex-col flex-gap-4">
+              <div class="flex-between flex-gap-4">
+                <Label label={love.string.StartWithMutedMic} />
+                <Toggle
+                  on={!($myPreferences?.micEnabled ?? true)}
+                  on:change={(e) => {
+                    void saveMicPreference($myPreferences, e.detail)
+                  }}
+                />
+              </div>
+              <div class="flex-between flex-gap-4">
+                <Label label={love.string.StartWithoutVideo} />
+                <Toggle
+                  on={!($myPreferences?.camEnabled ?? true)}
+                  on:change={(e) => {
+                    void saveCamPreference($myPreferences, e.detail)
+                  }}
+                />
+              </div>
+              <div class="flex-between flex-gap-4">
+                <Label label={love.string.NoiseCancellation} />
+                <Toggle
+                  on={$myPreferences?.noiseCancellation ?? true}
+                  on:change={(e) => {
+                    void saveNoiseCancellationPreference($myPreferences, e.detail)
+                  }}
+                />
+              </div>
+              <div class="flex-between flex-gap-4">
+                <Label label={love.string.SpeakingWhileMutedAlert} />
+                <Toggle
+                  on={$myPreferences?.speakingWhileMutedAlert ?? true}
+                  on:change={(e) => {
+                    void saveSpeakingWhileMutedPreference($myPreferences, e.detail)
+                  }}
+                />
+              </div>
+            </div>
+          </SettingsCard>
+        </SettingsCardsLayout>
       </div>
-      <div class="flex-row-center flex-gap-4">
-        <Label label={love.string.StartWithoutVideo} />
-        <Toggle
-          on={!($myPreferences?.camEnabled ?? true)}
-          on:change={(e) => {
-            saveCamPreference($myPreferences, e.detail)
-          }}
-        />
-      </div>
-      <div class="flex-row-center flex-gap-4">
-        <Label label={love.string.NoiseCancellation} />
-        <Toggle
-          disabled={!isKrispNoiseFilterSupported()}
-          on={isKrispNoiseFilterSupported() && ($myPreferences?.noiseCancellation ?? true)}
-          showTooltip={!isKrispNoiseFilterSupported()
-            ? { label: love.string.NoiseCancellationNotSupported }
-            : undefined}
-          on:change={(e) => {
-            saveNoiseCancellationPreference($myPreferences, e.detail)
-          }}
-        />
-      </div>
-      <div class="flex-row-center flex-gap-4">
-        <Label label={love.string.SpeakingWhileMutedAlert} />
-        <Toggle
-          on={$myPreferences?.speakingWhileMutedAlert ?? true}
-          on:change={(e) => {
-            saveSpeakingWhileMutedPreference($myPreferences, e.detail)
-          }}
-        />
-      </div>
-    </div>
+    </Scroller>
   </div>
 </div>

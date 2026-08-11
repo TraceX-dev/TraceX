@@ -11,6 +11,8 @@
     "MasterTag": "Tipo",
     "MasterTags": "Tipi",
     "Parent": "Genitore",
+    "ChangeTagParent": "Cambia tag padre",
+    "ChangeTagParentBlocked": "Non è possibile spostare un tag assegnato a delle schede o con discendenti assegnati a delle schede.",
     "Tags": "Tag",
     "Tag": "Tag",
     "AddTag": "Aggiungi Tag",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Avviso: Cambiare il tipo di un'scheda rimuoverà tutti i dati per qualsiasi attributo che non esistono nel tipo di destinazione. I dati precedenti dell'attributo possono essere ripristinati modificando nuovamente il carta in un tipo precedente. Il contenuto della scheda non sarà influenzato.",
     "MasterDetailViews": "Viste Master-Detail",
     "SelectType": "Seleziona il tipo",
+    "SelectTypeAndSpace": "Seleziona un Tipo di scheda e uno Spazio per continuare.",
     "CreateSpace": "Crea spazio",
     "Labels": "Etichette",
     "Properties": "Proprietà",
@@ -87,6 +90,7 @@
     "TwoColumns": "Due colonne",
     "Grid": "Griglia",
     "RichtextProperties": "Campo di testo",
-    "ShowAllVersions": "Tutte le versioni"
+    "ShowAllVersions": "Tutte le versioni",
+    "ShowOnlyCardsWithoutRelations": "Mostra solo le schede senza relazioni"
   }
 }

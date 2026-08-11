@@ -13,10 +13,9 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { MasterTag } from '@hcengineering/card'
-  import { Class, ClassifierKind, Doc, Ref } from '@hcengineering/core'
+  import { MasterTag, Tag } from '@hcengineering/card'
+  import { Class, ClassifierKind, Doc, Ref, toRank } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { ClassHierarchy } from '@hcengineering/setting-resources'
   import { ButtonIcon, getCurrentLocation, Icon, IconAdd, Label, navigate, showPopup } from '@hcengineering/ui'
   import card from '../../plugin'
   import CreateTag from '../CreateTag.svelte'
@@ -26,7 +25,7 @@
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
-  let descendants: Ref<Class<Doc>>[] = []
+  let descendants: Array<{ _id: Ref<Tag>, tag: Tag }> = []
   $: getDescendants(masterTag._id)
 
   const query = createQuery()
@@ -37,15 +36,17 @@
 
   function getDescendants (id: Ref<Class<Doc>>): void {
     const desc = hierarchy.getDescendants(id)
-    const filtered: Ref<Class<Doc>>[] = []
+    const filtered: Array<{ _id: Ref<Tag>, tag: Tag }> = []
     for (const _id of desc) {
       const _class = hierarchy.getClass(_id)
       if (_class.extends === id && _class._class === card.class.Tag) {
-        filtered.push(_id)
+        filtered.push({ _id: _id as Ref<Tag>, tag: _class as Tag })
         continue
       }
     }
-    descendants = filtered
+    descendants = filtered.sort((a, b) => {
+      return (a.tag.rank ?? toRank(a._id) ?? '').localeCompare(b.tag.rank ?? toRank(b._id) ?? '')
+    })
   }
 
   function open (_class: Ref<Class<Doc>>): void {

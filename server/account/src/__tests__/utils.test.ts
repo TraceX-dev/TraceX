@@ -67,7 +67,8 @@ import {
   addSocialIdBase,
   doReleaseSocialId,
   getLastPasswordChangeEvent,
-  isPasswordChangedSince
+  isPasswordChangedSince,
+  setWorkspaceMemberUnread
 } from '../utils'
 // eslint-disable-next-line import/no-named-default
 import platform, { getMetadata, PlatformError, Severity, Status } from '@hcengineering/platform'
@@ -744,6 +745,65 @@ describe('account utils', () => {
         { param1: 'value1' },
         { timezone: mockTimezone }
       )
+    })
+
+    describe('noAuth methods (public endpoints, e.g. login/loginOtp/signUp/validateOtp)', () => {
+      test('should not verify the token at all when noAuth is true', async () => {
+        const mockResult = { data: 'test' }
+        const mockMethod = jest.fn().mockResolvedValue(mockResult)
+        const wrappedMethod = wrap(mockMethod, false, true)
+        const request = { id: 'req1', params: { email: 'test@example.com' } }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'some-token')
+
+        expect(result).toEqual({ id: 'req1', result: mockResult })
+        expect(decodeTokenVerbose).not.toHaveBeenCalled()
+        // the (unverified) token must still be forwarded to the handler, since e.g. validateOtp's
+        // 'verify' action needs to decode it itself
+        expect(mockMethod).toHaveBeenCalledWith(
+          mockCtx,
+          mockDb,
+          mockBranding,
+          'some-token',
+          { email: 'test@example.com' },
+          undefined
+        )
+      })
+
+      test('should still succeed when a stale/invalid token is attached and noAuth is true', async () => {
+        // Regression test: a stale cookie token used to make wrap() throw Unauthorized for public
+        // methods like loginOtp/login/signUp/validateOtp even though those methods never read the
+        // token themselves. With noAuth: true, wrap() must skip verification entirely.
+        ;(decodeTokenVerbose as jest.Mock).mockImplementation(() => {
+          throw new TokenError('Signature verification failed')
+        })
+
+        const mockResult = { sent: true }
+        const mockMethod = jest.fn().mockResolvedValue(mockResult)
+        const wrappedMethod = wrap(mockMethod, false, true)
+        const request = { id: 'req1', params: { email: 'test@example.com' } }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'stale-invalid-token')
+
+        expect(result).toEqual({ id: 'req1', result: mockResult })
+      })
+
+      test('should still reject with Unauthorized on a bad token when noAuth is false (default)', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockImplementation(() => {
+          throw new TokenError('Signature verification failed')
+        })
+
+        const mockMethod = jest.fn().mockResolvedValue({ data: 'test' })
+        const wrappedMethod = wrap(mockMethod)
+        const request = { id: 'req1', params: {} }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'stale-invalid-token')
+
+        expect(result).toEqual({
+          error: new Status(Severity.ERROR, platform.status.Unauthorized, {})
+        })
+        expect(mockMethod).not.toHaveBeenCalled()
+      })
     })
   })
 
@@ -2435,6 +2495,107 @@ describe('account utils', () => {
 
         expect(mockDb.socialId.update).not.toHaveBeenCalled()
         expect(mockDb.accountEvent.insertOne).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('setWorkspaceMemberUnread', () => {
+      const mockCtx = {
+        error: jest.fn(),
+        info: jest.fn()
+      } as unknown as MeasureContext
+      const mockBranding = null
+      const workspace = 'ws-uuid' as WorkspaceUuid
+      const caller = 'caller-uuid' as AccountUuid
+      const other = 'other-uuid' as AccountUuid
+      const forbidden = new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+
+      const mockDb = {
+        setWorkspaceMemberUnread: jest.fn() as jest.MockedFunction<AccountDB['setWorkspaceMemberUnread']>
+      } as unknown as AccountDB
+
+      beforeEach(() => {
+        jest.clearAllMocks()
+      })
+
+      test('service token may raise another members flag to true', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: systemAccountUuid,
+          workspace,
+          extra: { service: 'notification' }
+        })
+
+        await setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'svc-token', {
+          targetAccount: other,
+          hasUnread: true
+        })
+
+        expect(mockDb.setWorkspaceMemberUnread).toHaveBeenCalledWith(other, workspace, true)
+      })
+
+      test('non-service token cannot raise another members flag to true', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller, workspace, extra: {} })
+
+        await expect(
+          setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'user-token', {
+            targetAccount: other,
+            hasUnread: true
+          })
+        ).rejects.toThrow(forbidden)
+
+        expect(mockDb.setWorkspaceMemberUnread).not.toHaveBeenCalled()
+      })
+
+      test('non-service token cannot raise even its own flag to true (only the trigger raises flags)', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller, workspace, extra: {} })
+
+        await expect(
+          setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'user-token', {
+            targetAccount: caller,
+            hasUnread: true
+          })
+        ).rejects.toThrow(forbidden)
+
+        expect(mockDb.setWorkspaceMemberUnread).not.toHaveBeenCalled()
+      })
+
+      test('member may self-clear their own flag without a service token', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller, workspace, extra: {} })
+
+        await setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'user-token', {
+          targetAccount: caller,
+          hasUnread: false
+        })
+
+        expect(mockDb.setWorkspaceMemberUnread).toHaveBeenCalledWith(caller, workspace, false)
+      })
+
+      test('non-service token cannot clear another members flag', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller, workspace, extra: {} })
+
+        await expect(
+          setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'user-token', {
+            targetAccount: other,
+            hasUnread: false
+          })
+        ).rejects.toThrow(forbidden)
+
+        expect(mockDb.setWorkspaceMemberUnread).not.toHaveBeenCalled()
+      })
+
+      test('writes to the token workspace (caller cannot target a different workspace)', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: systemAccountUuid,
+          workspace,
+          extra: { service: 'notification' }
+        })
+
+        await setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'svc-token', {
+          targetAccount: other,
+          hasUnread: true
+        })
+
+        // workspace comes from the decoded token, never from caller-supplied params
+        expect(mockDb.setWorkspaceMemberUnread).toHaveBeenCalledWith(other, workspace, true)
       })
     })
   })

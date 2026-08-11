@@ -175,7 +175,8 @@ export function isGuest (account: AccountUuid, extra: Record<string, any> | unde
 
 export function wrap (
   accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>,
-  allowApiKey: boolean = false
+  allowApiKey: boolean = false,
+  noAuth: boolean = false
 ): AccountMethodHandler {
   return async function (
     ctx: MeasureContext,
@@ -186,7 +187,10 @@ export function wrap (
     meta?: Meta
   ): Promise<any> {
     const invoke = async (): Promise<any> => {
-      if (token !== undefined && !allowApiKey) {
+      // Public/unauthenticated methods (login, signup, otp, etc.) must not fail because a stale
+      // or invalid token happened to be attached to the request (e.g. via a leftover cookie) -
+      // these methods don't require a token at all, so skip verification for them here.
+      if (token !== undefined && !allowApiKey && !noAuth) {
         const { extra } = decodeTokenVerbose(ctx, token)
         if (extra?.apiKey != null) {
           throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
@@ -1107,6 +1111,42 @@ export async function updateWorkspaceRole (
   }
 
   await db.updateWorkspaceRole(targetAccount, workspace, targetRole)
+}
+
+/**
+ * Sets or clears the "has unread notifications in this workspace" flag for a member,
+ * used to render a cross-workspace unread indicator in the workspace switcher.
+ *
+ * Raising the flag (hasUnread=true) for another account requires a service token —
+ * it is meant to be called by the workspace's own notification trigger, running with
+ * a token scoped to that workspace (`generateToken(systemAccountUuid, workspace, { service: 'notification' })`).
+ * Clearing your own flag (hasUnread=false, targetAccount === caller) is self-service and
+ * needs no special privileges; clearing someone else's flag still requires the service token.
+ *
+ * Note: the raise path (hasUnread=true) now goes through the WorkspaceMemberUnread
+ * queue consumed by account-service (bulk `setWorkspaceMembersUnread`), so in normal
+ * operation this RPC is only reached for the self-clear. The service-token branch is
+ * kept as a guarded fallback so the endpoint stays safe if called to raise a flag.
+ */
+export async function setWorkspaceMemberUnread (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: {
+    targetAccount: AccountUuid
+    hasUnread: boolean
+  }
+): Promise<void> {
+  const { targetAccount, hasUnread } = params
+  const { account, workspace, extra } = decodeTokenVerbose(ctx, token)
+
+  const isSelfClear = !hasUnread && account === targetAccount
+  if (!isSelfClear) {
+    verifyAllowedServices(['notification'], extra)
+  }
+
+  await db.setWorkspaceMemberUnread(targetAccount, workspace, hasUnread)
 }
 
 /**

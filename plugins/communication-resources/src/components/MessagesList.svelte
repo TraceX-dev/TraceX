@@ -31,6 +31,7 @@
   import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte'
   import { deviceOptionsStore as deviceInfo, isAppFocusedStore } from '@hcengineering/ui'
   import { translationStore } from '@hcengineering/contact-resources'
+  import { permissions } from '@hcengineering/view-resources'
 
   import { createMessagesObserver, getGroupDay, groupMessagesByDay, MessagesGroup } from '../messages'
   import MessagesGroupPresenter from './message/MessagesGroupPresenter.svelte'
@@ -475,8 +476,11 @@
       clearTimeout(readNotificationsTimer)
       readNotificationsTimer = undefined
     }
+    // Read only guests are not allowed to write anything, including the read status.
+    if (!$permissions.canTrackReadStatus) return
     readNotificationsTimer = setTimeout(() => {
       if (context == null || context.lastView >= date) return
+      if (!$permissions.canTrackReadStatus) return
       void communicationClient.updateNotificationContext(context.id, date)
     }, 500)
   }

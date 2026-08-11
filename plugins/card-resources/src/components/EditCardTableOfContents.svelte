@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -32,6 +33,7 @@
   export let context: NotificationContext | undefined = undefined
   export let isContextLoaded: boolean = false
   export let readonly: boolean = false
+  export let compactMode: boolean = false
   export let scrollDiv: HTMLDivElement | undefined | null = undefined
 
   const messagesId = communication.ids.CardMessagesSection
@@ -56,7 +58,7 @@
   let bottomOffset: number = 0
 
   let sections: CardSection[] = []
-  $: void getCardSections(doc).then((res) => {
+  $: void getCardSections(doc, compactMode).then((res) => {
     sections = res
   })
 
