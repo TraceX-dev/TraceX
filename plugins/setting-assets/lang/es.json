@@ -285,6 +285,8 @@
     "SignOutDialogMessage": "El dispositivo de esta sesión cerrará sesión y deberá iniciar sesión de nuevo. Esto se aplica de inmediato.",
     "SignOutDialogAction": "Cerrar sesión",
     "Required": "Requerido",
+    "RelationFilter": "Filtro",
+    "AddRelationFilter": "Agregar filtro",
     "RemoveMemberFromSpace": "Eliminar al usuario del espacio",
     "OtherSpaces": "Otros espacios",
     "Public": "Público",

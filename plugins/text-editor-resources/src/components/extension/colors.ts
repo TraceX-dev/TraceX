@@ -13,11 +13,10 @@
 // limitations under the License.
 //
 
-import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
-import { getEventPositionElement, SelectPopup, showPopup } from '@hcengineering/ui'
+import { getEventPositionElement, showPopup } from '@hcengineering/ui'
 import { type Editor } from '@tiptap/core'
 import ColorPicker from './popups/ColorPicker.svelte'
-import textEditor, { type ActionContext } from '@hcengineering/text-editor'
+import { type ActionContext } from '@hcengineering/text-editor'
 
 export interface BackgroundColorOptions {
   types: string[]
@@ -115,39 +114,6 @@ export async function openTextColorOptions (editor: Editor, event: MouseEvent): 
         overlay: true
       }
     )
-  })
-}
-
-interface FontOption {
-  id: string
-  label: IntlString
-}
-
-// Web-safe fonts that do not require loading a webfont. Font names are proper nouns and are
-// intentionally not translated (getEmbeddedLabel just wraps the raw string as an IntlString).
-const fontFamilies: FontOption[] = [
-  { id: 'unset', label: textEditor.string.Unset },
-  { id: 'Inter, sans-serif', label: getEmbeddedLabel('Inter') },
-  { id: 'Arial, Helvetica, sans-serif', label: getEmbeddedLabel('Arial') },
-  { id: 'Georgia, serif', label: getEmbeddedLabel('Georgia') },
-  { id: '"Times New Roman", Times, serif', label: getEmbeddedLabel('Times New Roman') },
-  { id: '"Courier New", Courier, monospace', label: getEmbeddedLabel('Courier New') }
-]
-
-// setFontFamily/unsetFontFamily (see @hcengineering/text FontFamily extension) are aware of a
-// multi-cell CellSelection, so picking a font here applies it to every selected table cell at once.
-export async function openFontFamilyOptions (editor: Editor, event: MouseEvent): Promise<void> {
-  await new Promise<void>((resolve) => {
-    showPopup(SelectPopup, { value: fontFamilies }, getEventPositionElement(event), (val) => {
-      if (val !== undefined) {
-        if (val === 'unset') {
-          editor.commands.unsetFontFamily()
-        } else {
-          editor.commands.setFontFamily(val)
-        }
-      }
-      resolve()
-    })
   })
 }
 

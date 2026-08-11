@@ -294,6 +294,8 @@
     "SignOutDialogMessage": "Bu oturumdaki cihazın oturumu kapatılır ve yeniden giriş yapması gerekir. Bu değişiklik hemen uygulanır.",
     "SignOutDialogAction": "Çıkış yap",
     "Required": "Zorunlu",
+    "RelationFilter": "Filtre",
+    "AddRelationFilter": "Filtre ekle",
     "RemoveMemberFromSpace": "Kullanıcıyı alandan çıkar",
     "OtherSpaces": "Diğer alanlar",
     "Public": "Herkese açık",

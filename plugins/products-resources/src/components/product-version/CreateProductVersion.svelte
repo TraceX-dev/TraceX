@@ -30,7 +30,12 @@
   import { Card, MessageBox, SpaceSelector, createQuery, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
   import { DropdownLabelsIntl, EditBox, FocusHandler, createFocusManager, showPopup } from '@hcengineering/ui'
-  import { ObjectBox } from '@hcengineering/view-resources'
+  import {
+    ObjectBox,
+    RelationsCreateEditor,
+    commitPendingRelations,
+    type PendingRelation
+  } from '@hcengineering/view-resources'
 
   import products from '../../plugin'
 
@@ -51,6 +56,8 @@
 
   let parent: ProductVersion | null | undefined
   let severity: Severity = 'minor'
+
+  let pendingRelations: PendingRelation[] = []
 
   $: query.query(
     products.class.ProductVersion,
@@ -114,9 +121,12 @@
     await deleteProjectDrafts(ops, version.parent)
     await copyProjectDocuments(ops, version.parent, id)
 
+    await commitPendingRelations(ops, id, pendingRelations)
+
     await ops.commit()
 
     object = createDefaultObject()
+    pendingRelations = []
     dispatch('close', id)
   }
 
@@ -153,6 +163,13 @@
     }
   }
 
+  function hasChangeControl (): boolean {
+    if (object.changeControl !== undefined) {
+      return true
+    }
+    return pendingRelations.length > 0 && pendingRelations.every((relation) => relation.doc != null)
+  }
+
   $: canSave =
     space !== undefined &&
     parent !== undefined &&
@@ -162,7 +179,7 @@
     object.minor >= 0 &&
     object.patch !== undefined &&
     object.patch >= 0 &&
-    (parent == null || object.changeControl !== undefined)
+    (parent == null || hasChangeControl())
 </script>
 
 <FocusHandler {manager} />
@@ -250,5 +267,6 @@
         showNavigate={false}
       />
     {/if}
+    <RelationsCreateEditor _class={products.class.ProductVersion} bind:selection={pendingRelations} />
   </svelte:fragment>
 </Card>

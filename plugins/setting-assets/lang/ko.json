@@ -294,6 +294,8 @@
         "SignOutDialogMessage": "이 세션의 기기가 로그아웃되며 다시 로그인해야 합니다. 이 작업은 즉시 적용됩니다.",
         "SignOutDialogAction": "로그아웃",
         "Required": "필수",
+        "RelationFilter": "필터",
+        "AddRelationFilter": "필터 추가",
         "RemoveMemberFromSpace": "스페이스에서 사용자 제거",
         "OtherSpaces": "기타 스페이스",
         "Public": "공개",

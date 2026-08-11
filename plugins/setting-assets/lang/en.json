@@ -297,6 +297,8 @@
     "SignOutDialogMessage": "The device on this session will be signed out and will need to log in again. This takes effect immediately.",
     "SignOutDialogAction": "Sign out",
     "Required": "Required",
+    "RelationFilter": "Filter",
+    "AddRelationFilter": "Add filter",
     "RemoveMemberFromSpace": "Remove user from space",
     "OtherSpaces": "Other spaces",
     "Public": "Public",

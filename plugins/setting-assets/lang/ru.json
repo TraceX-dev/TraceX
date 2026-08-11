@@ -297,6 +297,8 @@
     "SignOutDialogMessage": "Устройство этой сессии будет разлогинено и потребует повторного входа. Действие вступает в силу немедленно.",
     "SignOutDialogAction": "Завершить",
     "Required": "Обязательный",
+    "RelationFilter": "Фильтр",
+    "AddRelationFilter": "Добавить фильтр",
     "RemoveMemberFromSpace": "Исключить пользователя из пространства",
     "OtherSpaces": "Другие пространства",
     "Public": "Публичное",

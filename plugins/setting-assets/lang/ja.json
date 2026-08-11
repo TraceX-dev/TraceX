@@ -294,6 +294,8 @@
     "SignOutDialogMessage": "このセッションのデバイスはサインアウトされ、再度ログインする必要があります。この操作はすぐに反映されます。",
     "SignOutDialogAction": "サインアウト",
     "Required": "必須",
+    "RelationFilter": "フィルター",
+    "AddRelationFilter": "フィルターを追加",
     "RemoveMemberFromSpace": "スペースからユーザーを削除",
     "OtherSpaces": "その他のスペース",
     "Public": "公開",

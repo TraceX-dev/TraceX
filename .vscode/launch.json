@@ -146,7 +146,7 @@
         "QUEUE_CONFIG": "localhost:19093"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "22",
+      "runtimeVersion": "24",
       "showAsyncStacks": true,
       "outputCapture": "std",
       "sourceMaps": true,
@@ -436,7 +436,7 @@
       "cwd": "${workspaceRoot}/dev/tool",
       "protocol": "inspector",
       "outputCapture": "std",
-      "runtimeVersion": "22",
+      "runtimeVersion": "24",
       "showAsyncStacks": true
     },
     {

@@ -1,5 +1,5 @@
 
-FROM tracexapp/print-base:v20250916
+FROM tracexapp/print-base:v20260811
 
 WORKDIR /usr/src/app
 COPY bundle/bundle.js ./

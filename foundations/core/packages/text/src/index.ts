@@ -20,7 +20,6 @@ export * from './markup/utils'
 export * from './marks/code'
 export * from './marks/colors'
 export * from './marks/cellAlign'
-export * from './marks/fontFamily'
 export * from './marks/noteBase'
 export * from './marks/inlineComment'
 

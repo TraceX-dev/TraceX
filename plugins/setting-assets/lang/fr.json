@@ -294,6 +294,8 @@
     "SignOutDialogMessage": "L’appareil de cette session sera déconnecté et devra se reconnecter. Cette action prend effet immédiatement.",
     "SignOutDialogAction": "Déconnexion",
     "Required": "Requis",
+    "RelationFilter": "Filtre",
+    "AddRelationFilter": "Ajouter un filtre",
     "RemoveMemberFromSpace": "Retirer l’utilisateur de l’espace",
     "OtherSpaces": "Autres espaces",
     "Public": "Public",

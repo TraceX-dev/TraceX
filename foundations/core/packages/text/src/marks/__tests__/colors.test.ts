@@ -31,20 +31,17 @@ function getCommands (): Record<string, (...args: any[]) => any> {
 }
 
 describe('TextColor commands', () => {
-  it('unsetTextColor nulls just the color attribute and cleans up the empty mark', () => {
-    // Must not use unsetMark('textStyle') - that would also wipe out a co-existing font family
-    // (see FontFamily in fontFamily.ts, which lives on the same `textStyle` mark).
+  it('unsetTextColor delegates to chain().unsetMark(textStyle)', () => {
+    // color is the only attribute textStyle carries, so removing the whole mark is safe.
     const commands = getCommands()
     const run = jest.fn(() => true)
-    const chainable = { setMark: jest.fn(), removeEmptyTextStyle: jest.fn(), run }
-    chainable.setMark.mockReturnValue(chainable)
-    chainable.removeEmptyTextStyle.mockReturnValue(chainable)
+    const chainable = { unsetMark: jest.fn(), run }
+    chainable.unsetMark.mockReturnValue(chainable)
     const chain = jest.fn(() => chainable)
 
     const result = defined(commands.unsetTextColor)()({ chain } as any)
 
-    expect(chainable.setMark).toHaveBeenCalledWith('textStyle', { color: null })
-    expect(chainable.removeEmptyTextStyle).toHaveBeenCalled()
+    expect(chainable.unsetMark).toHaveBeenCalledWith('textStyle')
     expect(run).toHaveBeenCalled()
     expect(result).toBe(true)
   })

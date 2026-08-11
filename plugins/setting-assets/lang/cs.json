@@ -292,6 +292,8 @@
     "SignOutDialogMessage": "Zařízení v této relaci bude odhlášeno a bude se muset znovu přihlásit. Tato akce se projeví okamžitě.",
     "SignOutDialogAction": "Odhlásit",
     "Required": "Požadované",
+    "RelationFilter": "Filtr",
+    "AddRelationFilter": "Přidat filtr",
     "RemoveMemberFromSpace": "Odebrat uživatele z prostoru",
     "OtherSpaces": "Ostatní prostory",
     "Public": "Veřejné",

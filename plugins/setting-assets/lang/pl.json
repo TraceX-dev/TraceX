@@ -263,6 +263,8 @@
     "EnterVerificationCode": "Wpisz kod weryfikacyjny",
     "OverrideAttribute": "Nadpisz atrybut",
     "Required": "Obowiązkowe",
+    "RelationFilter": "Filtr",
+    "AddRelationFilter": "Dodaj filtr",
     "RemoveMemberFromSpace": "Usuń użytkownika z przestrzeni",
     "OtherSpaces": "Inne przestrzenie",
     "Public": "Publiczne",

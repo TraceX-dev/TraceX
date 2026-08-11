@@ -294,6 +294,8 @@
     "SignOutDialogMessage": "此会话中的设备将被退出登录，需要重新登录才能继续使用。此操作立即生效。",
     "SignOutDialogAction": "退出登录",
     "Required": "必须",
+    "RelationFilter": "筛选器",
+    "AddRelationFilter": "添加筛选器",
     "RemoveMemberFromSpace": "将用户移出空间",
     "OtherSpaces": "其他空间",
     "Public": "公开",

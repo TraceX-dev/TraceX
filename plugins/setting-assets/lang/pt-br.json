@@ -285,6 +285,8 @@
     "SignOutDialogMessage": "O dispositivo desta sessão será desconectado e precisará fazer login novamente. Isso tem efeito imediato.",
     "SignOutDialogAction": "Sair",
     "Required": "Obrigatório",
+    "RelationFilter": "Filtro",
+    "AddRelationFilter": "Adicionar filtro",
     "RemoveMemberFromSpace": "Remover usuário do espaço",
     "OtherSpaces": "Outros espaços",
     "Public": "Público",
