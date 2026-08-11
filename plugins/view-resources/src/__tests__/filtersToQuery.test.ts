@@ -32,6 +32,48 @@ jest.mock('@hcengineering/platform', () => {
   const actual = jest.requireActual('@hcengineering/platform')
   return { ...actual, getResource: jest.fn() }
 })
+// `filter.ts` also imports `svelte/store` and calls `writable(...)` at module scope (for
+// `filterStore`/`selectedFilterStore`). The real package ships ESM syntax that ts-jest does not
+// transform under `node_modules`, so it must be mocked with a minimal store implementation rather
+// than left to load for real.
+jest.mock('svelte/store', () => {
+  interface Store<T> {
+    set: (v: T) => void
+    update: (fn: (v: T) => T) => void
+    subscribe: (fn: (v: T) => void) => () => void
+  }
+
+  const writable = <T>(initial: T): Store<T> => {
+    let value = initial
+    const subscribers = new Set<(v: T) => void>()
+    return {
+      set: (v: T) => {
+        value = v
+        subscribers.forEach((fn) => { fn(value) })
+      },
+      update: (fn: (v: T) => T) => {
+        value = fn(value)
+        subscribers.forEach((fn) => { fn(value) })
+      },
+      subscribe: (fn: (v: T) => void) => {
+        fn(value)
+        subscribers.add(fn)
+        return () => subscribers.delete(fn)
+      }
+    }
+  }
+
+  const get = <T>(store: Store<T>): T => {
+    let value: T
+    const unsubscribe = store.subscribe((v) => {
+      value = v
+    })
+    unsubscribe()
+    return value
+  }
+
+  return { writable, get }
+})
 
 function makeHierarchy (isMixin = false): any {
   return {
