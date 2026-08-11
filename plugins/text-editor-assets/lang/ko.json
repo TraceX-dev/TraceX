@@ -80,7 +80,7 @@
         "AlignBottom": "아래쪽 맞춤",
         "CellTextAlign": "텍스트 정렬",
         "CellVerticalAlign": "세로 정렬",
-        "FontFamily": "글꼴",
+        "CellTextFormatting": "텍스트 서식",
         "RefreshTable": "표 새로 고침",
         "ShowDiff": "변경점 표시",
         "SeeOriginalData": "원본 데이터 보기",

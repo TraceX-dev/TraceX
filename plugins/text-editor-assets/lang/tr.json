@@ -75,7 +75,7 @@
     "AlignBottom": "Alta hizala",
     "CellTextAlign": "Metin hizalama",
     "CellVerticalAlign": "Dikey hizalama",
-    "FontFamily": "Yazı tipi",
+    "CellTextFormatting": "Metin biçimlendirme",
     "RefreshTable": "Tabloyu yenile",
     "ShowDiff": "Farkları göster",
     "SeeOriginalData": "Orijinal verileri görüntüle",

@@ -74,7 +74,7 @@
     "AlignBottom": "Unten ausrichten",
     "CellTextAlign": "Textausrichtung",
     "CellVerticalAlign": "Vertikale Ausrichtung",
-    "FontFamily": "Schriftart",
+    "CellTextFormatting": "Textformatierung",
     "RefreshTable": "Tabelle aktualisieren",
     "ShowDiff": "Unterschiede anzeigen",
     "SeeOriginalData": "Originaldaten anzeigen",

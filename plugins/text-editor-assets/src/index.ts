@@ -49,7 +49,6 @@ loadMetadata(textEditor.icon, {
   AlignTop: `${icons}#alignTop`,
   AlignMiddle: `${icons}#alignMiddle`,
   AlignBottom: `${icons}#alignBottom`,
-  FontFamily: `${icons}#fontFamily`,
   ClearFormat: `${icons}#clearFormat`,
   Highlight: `${icons}#highlight`,
   Subscript: `${icons}#subscript`,

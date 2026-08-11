@@ -65,7 +65,7 @@
     "AlignBottom": "Alinear abajo",
     "CellTextAlign": "Alineación del texto",
     "CellVerticalAlign": "Alineación vertical",
-    "FontFamily": "Fuente",
+    "CellTextFormatting": "Formato de texto",
     "RefreshTable": "Actualizar tabla",
     "ShowDiff": "Mostrar diferencias",
     "SeeOriginalData": "Ver datos originales",
