@@ -338,6 +338,9 @@ export class ChannelPage extends CommonPage {
   async searchChannel (channelName: string): Promise<void> {
     await this.inputSearchIcon().click()
     await this.inputSearchChannel().fill(channelName)
+    // Give the full-text indexer time to pick up a just-created channel before
+    // the search query is submitted, otherwise the table briefly returns no rows.
+    await this.page.waitForTimeout(1000)
   }
 
   async checkLinkedChannelIsExist (channelName: string, linkedChannelType: LinkedChannelTypes): Promise<void> {
