@@ -78,7 +78,7 @@ function sameSignature (a: SecurityLoginHistoryEvent, b: SecurityLoginHistoryEve
  * Returns true for events safe to collapse into a previous identical row.
  */
 function isCoalescable (event: SecurityLoginHistoryEvent): boolean {
-  return event.success === true && event.authMethod === 'session'
+  return event.success && event.authMethod === 'session'
 }
 
 /**

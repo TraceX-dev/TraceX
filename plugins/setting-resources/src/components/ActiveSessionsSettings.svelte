@@ -158,7 +158,7 @@
               </time>
             </div>
           </div>
-          {#if session.isCurrent !== true}
+          {#if !session.isCurrent}
             <div class="active-sessions__action">
               <Button
                 label={settingsRes.string.SignOutAction}
