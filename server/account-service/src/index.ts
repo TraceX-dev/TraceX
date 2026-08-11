@@ -13,7 +13,8 @@ import account, {
   getMethods,
   cleanExpiredOtp,
   purgeExpiredSecurityLoginEvents,
-  purgeRevokedActiveSessions
+  purgeRevokedActiveSessions,
+  revokeActiveSession
 } from '@hcengineering/account'
 import accountEn from '@hcengineering/account/lang/en.json'
 import accountRu from '@hcengineering/account/lang/ru.json'
@@ -408,6 +409,19 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   })
 
   router.delete('/cookie', async (ctx) => {
+    try {
+      const token = extractToken(ctx.request.headers) ?? extractRefreshCookie(ctx.request.headers)
+      if (token != null) {
+        const { account: accountUuid, sessionId } = decodeTokenVerbose(measureCtx, token)
+        if (sessionId != null) {
+          const [db] = await accountsDb
+          await revokeActiveSession(measureCtx, db, accountUuid, sessionId, 'user')
+        }
+      }
+    } catch (err: any) {
+      Analytics.handleError(err)
+    }
+
     const cookieOpts = getCookieOptions(ctx)
     for (const opt of cookieOpts) {
       ctx.cookies.set(AUTH_TOKEN_COOKIE, '', { ...opt, maxAge: 0 })
