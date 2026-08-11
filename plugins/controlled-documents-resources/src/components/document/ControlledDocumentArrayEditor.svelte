@@ -65,7 +65,14 @@
     <div class="flex-row-center flex-gap-1">
       <ControlledDocumentInlineEditor value={version} readonly />
       {#if !readonly}
-        <Button kind="ghost" icon={IconDelete} size="small" on:click={() => { removeVersion(version) }} />
+        <Button
+          kind="ghost"
+          icon={IconDelete}
+          size="small"
+          on:click={() => {
+            removeVersion(version)
+          }}
+        />
       {/if}
     </div>
   {/each}
