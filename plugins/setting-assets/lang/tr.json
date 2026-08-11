@@ -263,6 +263,8 @@
     "EnterVerificationCode": "Doğrulama kodunu gir",
     "OverrideAttribute": "Özniteliği geçersiz kıl",
     "Required": "Zorunlu",
+    "RelationFilter": "Filtre",
+    "AddRelationFilter": "Filtre ekle",
     "RemoveMemberFromSpace": "Kullanıcıyı alandan çıkar",
     "OtherSpaces": "Diğer alanlar",
     "Public": "Herkese açık",

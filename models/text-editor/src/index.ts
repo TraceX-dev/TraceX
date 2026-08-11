@@ -189,11 +189,7 @@ export function createModel (builder: Builder): void {
   createHeaderAction(builder, 2)
   createHeaderAction(builder, 3)
 
-  // Also available in the table toolbar: toggleBold/toggleItalic are plain toggleMark calls,
-  // which (like setMark/unsetMark, see FontFamily in @hcengineering/text) already work across a
-  // multi-cell CellSelection - the only thing missing was a toolbar to trigger them from.
   builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
-    tags: ['text', 'table', 'tableCell'],
     action: {
       command: 'toggleBold'
     },
@@ -209,7 +205,6 @@ export function createModel (builder: Builder): void {
 
   // Decoration category
   builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
-    tags: ['text', 'table', 'tableCell'],
     action: {
       command: 'toggleItalic'
     },
@@ -327,19 +322,6 @@ export function createModel (builder: Builder): void {
     label: textEditor.string.SetTextColor,
     category: 20,
     index: 25
-  })
-
-  // Available both for a regular text selection and for a multi-cell CellSelection in a table
-  // (see FontFamily.setFontFamily in @hcengineering/text) - tagged for both the text and the
-  // table toolbars.
-  builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
-    tags: ['text', 'table', 'tableCell'],
-    action: textEditor.function.SetFontFamily,
-    icon: textEditor.icon.FontFamily,
-    visibilityTester: textEditor.function.IsTextStylingEnabled,
-    label: textEditor.string.FontFamily,
-    category: 20,
-    index: 26
   })
 
   // Link category
@@ -478,6 +460,20 @@ export function createModel (builder: Builder): void {
     label: textEditor.string.CellVerticalAlign,
     category: 65,
     index: 15
+  })
+
+  // A single toolbar entry that opens a popup with every text-formatting action (headings,
+  // bold/italic/strike/underline/highlight, text color) - each of those commands is ranges-aware
+  // (see openCellTextFormattingOptions in text-editor-resources) so they apply to every cell of a
+  // multi-cell CellSelection, not just one.
+  builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['table', 'tableCell'],
+    action: textEditor.function.OpenCellTextFormattingOptions,
+    icon: textEditor.icon.TextStyle,
+    visibilityTester: textEditor.function.IsTableToolbarContext,
+    label: textEditor.string.CellTextFormatting,
+    category: 65,
+    index: 20
   })
 
   // Table category

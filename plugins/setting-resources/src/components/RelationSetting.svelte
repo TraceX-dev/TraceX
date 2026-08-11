@@ -14,11 +14,10 @@
   } from '@hcengineering/ui'
   import view from '@hcengineering/view-resources/src/plugin'
   import settings from '../plugin'
-  import card from '@hcengineering/card'
   import AssociationEditor from './AssociationEditor.svelte'
 
   export let _classes: Ref<Class<Doc>>[] = [core.class.Doc]
-  export let exclude: Ref<Class<Doc>>[] = [card.class.Card]
+  export let exclude: Ref<Class<Doc>>[] = []
 
   const query = createQuery()
   const client = getClient()
@@ -40,7 +39,7 @@
     exclude: Ref<Class<Doc>>[]
   ): Association[] {
     _classes = _classes ?? [core.class.Doc]
-    exclude = exclude ?? [card.class.Card]
+    exclude = exclude ?? []
     const res: Association[] = []
     const descendants = new Set(_classes.map((p) => hierarchy.getDescendants(p)).reduce((a, b) => a.concat(b)))
     const excluded = new Set()

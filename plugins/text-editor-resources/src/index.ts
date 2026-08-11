@@ -15,12 +15,7 @@
 //
 
 import { type Resources } from '@hcengineering/platform'
-import {
-  isTextStylingEnabled,
-  openBackgroundColorOptions,
-  openFontFamilyOptions,
-  openTextColorOptions
-} from './components/extension/colors'
+import { isTextStylingEnabled, openBackgroundColorOptions, openTextColorOptions } from './components/extension/colors'
 import { downloadImage, expandImage, moreImageActions, openImage } from './components/extension/imageExt'
 import { createInlineComment, shouldShowCreateInlineCommentAction } from './components/extension/inlineComment'
 import { configureNote, isEditableNote } from './components/extension/note'
@@ -34,7 +29,8 @@ import {
   showTableDiff,
   seeOriginalTableData,
   openCellTextAlignOptions,
-  openCellVerticalAlignOptions
+  openCellVerticalAlignOptions,
+  openCellTextFormattingOptions
 } from './components/extension/table/table'
 import {
   convertToEmbedPreviewAction,
@@ -152,7 +148,7 @@ export default async (): Promise<Resources> => ({
     SetTextColor: openTextColorOptions,
     OpenCellTextAlignOptions: openCellTextAlignOptions,
     OpenCellVerticalAlignOptions: openCellVerticalAlignOptions,
-    SetFontFamily: openFontFamilyOptions,
+    OpenCellTextFormattingOptions: openCellTextFormattingOptions,
 
     IsMathInlineActive: isMathInlineActive,
     IsMathBlockActive: isMathBlockActive

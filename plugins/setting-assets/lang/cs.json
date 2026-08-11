@@ -261,6 +261,8 @@
     "EnterVerificationCode": "Zadejte ověřovací kód",
     "OverrideAttribute": "Přepsat atribut",
     "Required": "Požadované",
+    "RelationFilter": "Filtr",
+    "AddRelationFilter": "Přidat filtr",
     "RemoveMemberFromSpace": "Odebrat uživatele z prostoru",
     "OtherSpaces": "Ostatní prostory",
     "Public": "Veřejné",

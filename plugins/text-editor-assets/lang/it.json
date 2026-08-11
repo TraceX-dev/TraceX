@@ -74,7 +74,7 @@
     "AlignBottom": "Allinea in basso",
     "CellTextAlign": "Allineamento del testo",
     "CellVerticalAlign": "Allineamento verticale",
-    "FontFamily": "Carattere",
+    "CellTextFormatting": "Formattazione testo",
     "RefreshTable": "Aggiorna tabella",
     "ShowDiff": "Mostra differenze",
     "SeeOriginalData": "Vedi dati originali",

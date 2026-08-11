@@ -266,6 +266,8 @@
     "EnterVerificationCode": "Введите код подтверждения",
     "OverrideAttribute": "Переопределить атрибут",
     "Required": "Обязательный",
+    "RelationFilter": "Фильтр",
+    "AddRelationFilter": "Добавить фильтр",
     "RemoveMemberFromSpace": "Исключить пользователя из пространства",
     "OtherSpaces": "Другие пространства",
     "Public": "Публичное",

@@ -63,7 +63,7 @@ export default mergeIds(textEditorId, textEditor, {
     SetTextColor: '' as Resource<TextActionFunction>,
     OpenCellTextAlignOptions: '' as Resource<TextActionFunction>,
     OpenCellVerticalAlignOptions: '' as Resource<TextActionFunction>,
-    SetFontFamily: '' as Resource<TextActionFunction>,
+    OpenCellTextFormattingOptions: '' as Resource<TextActionFunction>,
 
     IsMathInlineActive: '' as Resource<TextActionActiveFunction>,
     IsMathBlockActive: '' as Resource<TextActionActiveFunction>

@@ -263,6 +263,8 @@
     "EnterVerificationCode": "確認コードを入力",
     "OverrideAttribute": "属性を上書き",
     "Required": "必須",
+    "RelationFilter": "フィルター",
+    "AddRelationFilter": "フィルターを追加",
     "RemoveMemberFromSpace": "スペースからユーザーを削除",
     "OtherSpaces": "その他のスペース",
     "Public": "公開",

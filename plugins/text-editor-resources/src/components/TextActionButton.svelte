@@ -19,7 +19,6 @@
   import { getResource } from '@hcengineering/platform'
   import { Icon, IconSize, tooltip, type LabelAndProps } from '@hcengineering/ui'
   import { Transaction } from '@tiptap/pm/state'
-  import { selectCurrentCell } from './extension/table/utils'
 
   export let action: TextEditorAction
   export let size: IconSize
@@ -65,16 +64,6 @@
       event.preventDefault()
       event.stopPropagation()
       editor.view.focus()
-    }
-
-    // A plain cursor in a single cell (no CellSelection) is an empty selection as far as marks are
-    // concerned - toggleBold/setFontFamily would just arm "stored marks" for the next typed
-    // character instead of reformatting the cell's existing content. Expand to a CellSelection over
-    // that one cell first so table-toolbar actions consistently act on the whole cell, same as when
-    // several cells are explicitly selected. No-op outside the table toolbar or when cells are
-    // already selected.
-    if (actionCtx.tag === 'table' || actionCtx.tag === 'tableCell') {
-      selectCurrentCell(editor)
     }
 
     const handler = action.action

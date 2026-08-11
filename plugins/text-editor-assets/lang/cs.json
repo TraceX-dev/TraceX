@@ -75,7 +75,7 @@
     "AlignBottom": "Zarovnat dolů",
     "CellTextAlign": "Zarovnání textu",
     "CellVerticalAlign": "Svislé zarovnání",
-    "FontFamily": "Písmo",
+    "CellTextFormatting": "Formátování textu",
     "RefreshTable": "Obnovit tabulku",
     "ShowDiff": "Zobrazit rozdíly",
     "SeeOriginalData": "Zobrazit původní data",

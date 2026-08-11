@@ -21,6 +21,7 @@
   import { Button, IconAdd, Label, Scroller, Section, Switcher, showPopup } from '@hcengineering/ui'
   import { ViewOptions, Viewlet, ViewletPreference } from '@hcengineering/view'
   import { showMenu } from '../actions'
+  import { buildRelationCandidatesQuery } from '../relations'
   import view from '../plugin'
   import DocTable from './DocTable.svelte'
   import MasterDetailView from './masterDetail/MasterDetailView.svelte'
@@ -82,9 +83,8 @@
   async function add (): Promise<void> {
     const create = getCreate()
     const excludedIds = await getExcludedIds()
-    const isVersionable = client.getHierarchy().classHierarchyMixin(_class, core.mixin.VersionableClass) !== undefined
-    const baseQuery = { _id: { $nin: excludedIds } }
-    const docQuery = isVersionable ? { isLatest: true, ...baseQuery } : baseQuery
+    const docQuery = await buildRelationCandidatesQuery(association, direction, excludedIds)
+
     showPopup(
       ObjectBoxPopup,
       {

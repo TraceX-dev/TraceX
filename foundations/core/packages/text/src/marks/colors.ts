@@ -135,11 +135,8 @@ export const TextColor = Extension.create<TextColorOptions>({
       unsetTextColor:
         () =>
           ({ chain }) => {
-          // Not unsetMark('textStyle'): FontFamily also lives on this mark, so removing the
-          // whole mark would silently drop the font along with the color. Null out just the
-          // color attribute (setMark merges with any existing attributes on the mark) and clean
-          // up the mark with removeEmptyTextStyle if nothing is left set on it.
-            return chain().setMark('textStyle', { color: null }).removeEmptyTextStyle().run()
+          // color is the only attribute textStyle carries, so removing the whole mark is safe.
+            return chain().unsetMark('textStyle').run()
           }
     }
   }

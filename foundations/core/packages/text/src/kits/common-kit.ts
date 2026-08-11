@@ -43,7 +43,6 @@ import {
 import { ExtensionFactory, extensionKit } from '../kit'
 import { BackgroundColor, TextColor } from '../marks/colors'
 import { CellAlign } from '../marks/cellAlign'
-import { FontFamily } from '../marks/fontFamily'
 import { InlineCommentMark } from '../marks/inlineComment'
 import { CodeBlockExtension, codeBlockOptions, CommentNode, MarkdownNode, TodoItemNode, TodoListNode } from '../nodes'
 
@@ -94,7 +93,6 @@ export const TextColorStylingKit = extensionKit(
     ({
       textStyle: e(TextStyle),
       testColor: e(TextColor),
-      fontFamily: e(FontFamily),
       backgroundColor: e(BackgroundColor, { types: ['tableCell'] }),
       cellAlign: e(CellAlign, { types: ['tableCell'] })
     }) as const

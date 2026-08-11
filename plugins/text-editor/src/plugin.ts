@@ -118,7 +118,7 @@ export default plugin(textEditorId, {
     AlignBottom: '' as IntlString,
     CellTextAlign: '' as IntlString,
     CellVerticalAlign: '' as IntlString,
-    FontFamily: '' as IntlString,
+    CellTextFormatting: '' as IntlString,
 
     RefreshTable: '' as IntlString,
     ShowDiff: '' as IntlString,
@@ -165,7 +165,6 @@ export default plugin(textEditorId, {
     AlignTop: '' as Asset,
     AlignMiddle: '' as Asset,
     AlignBottom: '' as Asset,
-    FontFamily: '' as Asset,
     ClearFormat: '' as Asset,
     Highlight: '' as Asset,
     Subscript: '' as Asset,
