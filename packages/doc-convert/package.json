@@ -45,7 +45,7 @@
     "@hcengineering/text-markdown": "workspace:^0.7.21",
     "mammoth": "^1.9.0",
     "docx": "^9.0.0",
-    "image-size": "^1.1.1"
+    "image-size": "^1.2.1"
   },
   "repository": {
     "type": "git",
