@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,6 +26,7 @@
   import SocialIdRow from './SocialIdRow.svelte'
 
   export let rating: PersonRating | undefined
+  export let showTitle: boolean = true
 
   let account = getCurrentAccount()
   const manager = createFocusManager()
@@ -71,10 +73,12 @@
 <FocusHandler {manager} />
 
 <div class="flex-col flex-gap-2">
-  <div class="title flex-between">
-    <Label label={setting.string.ManageIdentities} />
-    <Button icon={view.icon.Add} kind="icon" size="small" on:click={handleAdd} />
-  </div>
+  {#if showTitle}
+    <div class="title flex-between">
+      <Label label={setting.string.ManageIdentities} />
+      <Button icon={view.icon.Add} kind="icon" size="small" on:click={handleAdd} />
+    </div>
+  {/if}
 
   <div class="items">
     <Scroller>
@@ -105,6 +109,12 @@
       {/each}
     </Scroller>
   </div>
+
+  {#if !showTitle}
+    <div class="add">
+      <Button label={setting.string.Add} kind="regular" size="small" on:click={handleAdd} />
+    </div>
+  {/if}
 </div>
 
 <style lang="scss">
@@ -119,6 +129,12 @@
     border-radius: 0.25rem;
     min-height: 10rem;
     max-height: 25rem;
+  }
+
+  .add {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.75rem;
   }
 
   .item {

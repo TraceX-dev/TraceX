@@ -55,6 +55,23 @@
     "ExportFilterAll": "Všechny dokumenty",
     "ExportChildDocuments": "Exportovat podřízené dokumenty",
     "ExportChildDocumentsDescription": "Také exportovat dokumenty připojené k vybraným",
-    "ExportResultRecordTitle": "Export dokumentů z pracovního prostoru {workspace} ({date})"
+    "ExportResultRecordTitle": "Export dokumentů z pracovního prostoru {workspace} ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "Vybrané ({count})",
+    "ExportScopeLoaded": "Načtené na této stránce ({count})",
+    "ExportFileName": "Název souboru",
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "Exportovat obsah",
+    "ImportDocumentContent": "Importovat obsah",
+    "ExportingDocumentContent": "Export dokumentu…",
+    "DocumentContentExported": "Dokument exportován",
+    "DocumentContentExportFailed": "Export selhal",
+    "ImportingDocumentContent": "Import dokumentu",
+    "ConvertingDocumentContent": "Převod dokumentu…",
+    "DocumentContentConverted": "Dokument převeden",
+    "DocumentContentImportFailed": "Import selhal",
+    "ReviewDocumentContentChanges": "Zkontrolovat importované změny",
+    "ApplyDocumentContentChanges": "Použít"
   }
 }

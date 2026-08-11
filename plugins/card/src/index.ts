@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -36,6 +37,7 @@ import { IconProps } from '@hcengineering/view'
 export * from './analytics'
 
 export interface MasterTag extends Class<Card> {
+  description?: string
   background?: number
   removed?: boolean
   roles?: CollectionSize<Role>
@@ -43,7 +45,9 @@ export interface MasterTag extends Class<Card> {
   baseType?: boolean
 }
 
-export interface Tag extends MasterTag, Mixin<Card> {}
+export interface Tag extends MasterTag, Mixin<Card> {
+  rank?: Rank
+}
 
 export interface Role extends BaseRole {
   types: Ref<MasterTag | Tag>[]
@@ -100,6 +104,7 @@ export interface CardSection extends Doc {
   order: number
   navigation: CardNavigation[]
   checkVisibility?: Resource<(doc: Card) => Promise<boolean>>
+  hideInCompactMode?: boolean
 }
 
 export interface CardViewDefaults extends MasterTag {
@@ -223,7 +228,8 @@ const cardPlugin = plugin(cardId, {
     UnLockSection: '' as IntlString,
     SectionLocked: '' as IntlString,
     SectionUnlocked: '' as IntlString,
-    ShowAllVersions: '' as IntlString
+    ShowAllVersions: '' as IntlString,
+    ShowOnlyCardsWithoutRelations: '' as IntlString
   },
   section: {
     Attachments: '' as Ref<CardSection>,

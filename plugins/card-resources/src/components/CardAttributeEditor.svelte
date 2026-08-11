@@ -13,8 +13,8 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Card, MasterTag } from '@hcengineering/card'
-  import { Doc, Mixin } from '@hcengineering/core'
+  import { Card, MasterTag, Tag } from '@hcengineering/card'
+  import { Doc, Mixin, toRank } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { Button, Grid, IconDownOutline, IconUpOutline, resizeObserver } from '@hcengineering/ui'
   import card from '../plugin'
@@ -47,7 +47,27 @@
   $: columns = layoutMode === 'auto' ? (width > 600 ? 2 : 1) : parseInt(layoutMode)
 
   const tagAttributes: TagAttributes[] = []
-  $: tagAttributes.length = mixins.length
+  function getMixinRankPath (mixin: Mixin<Doc>): string[] {
+    return [...h.getAncestors(mixin._id)]
+      .reverse()
+      .filter((ancestor) => h.getClass(ancestor)._class === card.class.Tag)
+      .map((ancestor) => {
+        const tag = h.getClass(ancestor) as Tag
+        return tag.rank ?? toRank(ancestor) ?? ''
+      })
+  }
+
+  function compareRankPaths (a: string[], b: string[]): number {
+    const length = Math.min(a.length, b.length)
+    for (let index = 0; index < length; index++) {
+      const comparison = a[index].localeCompare(b[index])
+      if (comparison !== 0) return comparison
+    }
+    return a.length - b.length
+  }
+
+  $: sortedMixins = [...mixins].sort((a, b) => compareRankPaths(getMixinRankPath(a), getMixinRankPath(b)))
+  $: tagAttributes.length = sortedMixins.length
 
   let masterTagAttributes: MasterTagAttributes
 
@@ -76,8 +96,11 @@
   {#if mixins.length > 0}
     <div class="divider" />
     <Grid column={columns} columnGap={0} rowGap={0} alignItems={'start'}>
-      {#each mixins as tag, i (tag._id)}
-        <div class="tag" class:withoutBorder={Math.ceil((i + 1) / columns) === Math.ceil(mixins.length / columns)}>
+      {#each sortedMixins as tag, i (tag._id)}
+        <div
+          class="tag"
+          class:withoutBorder={Math.ceil((i + 1) / columns) === Math.ceil(sortedMixins.length / columns)}
+        >
           <TagAttributes bind:this={tagAttributes[i]} {readonly} {tag} {value} {ignoreKeys} />
         </div>
       {/each}

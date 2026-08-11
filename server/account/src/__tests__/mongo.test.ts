@@ -681,6 +681,7 @@ describe('MongoAccountDB', () => {
   let mockWorkspaceStatus: any
   let mockMigration: any
   let mockSecurityLoginEvent: any
+  let mockApiKey: any
 
   beforeEach(() => {
     mockDb = {}
@@ -738,6 +739,10 @@ describe('MongoAccountDB', () => {
       ensureIndices: jest.fn()
     }
 
+    mockApiKey = {
+      ensureIndices: jest.fn()
+    }
+
     accountDb = new MongoAccountDB(mockDb)
 
     // Override the getters to return our mocks
@@ -748,7 +753,8 @@ describe('MongoAccountDB', () => {
       workspaceMembers: { get: () => mockWorkspaceMembers },
       workspaceStatus: { get: () => mockWorkspaceStatus },
       migration: { get: () => mockMigration },
-      securityLoginEvent: { get: () => mockSecurityLoginEvent }
+      securityLoginEvent: { get: () => mockSecurityLoginEvent },
+      apiKey: { get: () => mockApiKey }
     })
   })
 
@@ -816,6 +822,15 @@ describe('MongoAccountDB', () => {
           options: {
             name: 'hc_account_security_login_event_success_event_time_1'
           }
+        }
+      ])
+
+      // Verify api key indices
+      expect(accountDb.apiKey.ensureIndices).toHaveBeenCalledWith([
+        { key: { id: 1 }, options: { unique: true, name: 'hc_account_api_key_id_1' } },
+        {
+          key: { accountUuid: 1, workspaceUuid: 1, revokedOn: 1 },
+          options: { name: 'hc_account_api_key_owner_workspace_active_1' }
         }
       ])
     })
@@ -900,11 +915,17 @@ describe('MongoAccountDB', () => {
     })
 
     describe('getAccountWorkspaces', () => {
-      it('should return workspaces for account', async () => {
-        const members = [{ workspaceUuid: 'ws1' as WorkspaceUuid }, { workspaceUuid: 'ws2' as WorkspaceUuid }]
+      it('should return workspaces for account with per-workspace hasUnread', async () => {
+        // ws1 has an unread notification, ws2 explicitly does not, ws3 has no flag stored yet
+        const members = [
+          { workspaceUuid: 'ws1' as WorkspaceUuid, hasUnread: true },
+          { workspaceUuid: 'ws2' as WorkspaceUuid, hasUnread: false },
+          { workspaceUuid: 'ws3' as WorkspaceUuid }
+        ]
         const workspaces = [
           { uuid: 'ws1', name: 'Workspace 1' },
-          { uuid: 'ws2', name: 'Workspace 2' }
+          { uuid: 'ws2', name: 'Workspace 2' },
+          { uuid: 'ws3', name: 'Workspace 3' }
         ]
 
         ;(accountDb.workspaceMembers.find as jest.Mock).mockResolvedValue(members)
@@ -912,10 +933,47 @@ describe('MongoAccountDB', () => {
 
         const result = await accountDb.getAccountWorkspaces(accountId)
 
-        expect(result).toEqual(workspaces)
+        expect(result).toEqual([
+          { uuid: 'ws1', name: 'Workspace 1', hasUnread: true },
+          { uuid: 'ws2', name: 'Workspace 2', hasUnread: false },
+          // a member with no stored flag defaults to false, never undefined
+          { uuid: 'ws3', name: 'Workspace 3', hasUnread: false }
+        ])
         expect(accountDb.workspace.find).toHaveBeenCalledWith({
-          uuid: { $in: ['ws1', 'ws2'] }
+          uuid: { $in: ['ws1', 'ws2', 'ws3'] }
         })
+      })
+    })
+
+    describe('setWorkspaceMemberUnread', () => {
+      it('should update the has-unread flag for the given member', async () => {
+        await accountDb.setWorkspaceMemberUnread(accountId, workspaceId, true)
+
+        // Guarded by hasUnread $ne so a no-op write is skipped when already set.
+        expect(accountDb.workspaceMembers.update).toHaveBeenCalledWith(
+          { workspaceUuid: workspaceId, accountUuid: accountId, hasUnread: { $ne: true } },
+          { hasUnread: true }
+        )
+      })
+    })
+
+    describe('setWorkspaceMembersUnread', () => {
+      it('should update the flag for all given members in one call', async () => {
+        const a = 'acc-a' as AccountUuid
+        const b = 'acc-b' as AccountUuid
+
+        await accountDb.setWorkspaceMembersUnread([a, b], workspaceId, true)
+
+        expect(accountDb.workspaceMembers.update).toHaveBeenCalledWith(
+          { workspaceUuid: workspaceId, accountUuid: { $in: [a, b] } },
+          { hasUnread: true }
+        )
+      })
+
+      it('should be a no-op for an empty account list', async () => {
+        await accountDb.setWorkspaceMembersUnread([], workspaceId, true)
+
+        expect(accountDb.workspaceMembers.update).not.toHaveBeenCalled()
       })
     })
 

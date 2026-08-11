@@ -378,6 +378,23 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
       - HYLYLAKE_URL=http://tracex.local:8096
     restart: unless-stopped
+  api:
+    image: tracexapp/api
+    extra_hosts:
+      - 'tracex.local:host-gateway'
+    depends_on:
+      transactor_cockroach:
+        condition: service_started
+    ports:
+      - 4000:8080
+    environment:
+      - PORT=8080
+      - TRANSACTOR_URL=ws://transactor_cockroach:3332
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - SERVER_SECRET=secret
+      - COLLABORATOR_URL=ws://collaborator:3078
+      - LAST_NAME_FIRST=true
+    restart: unless-stopped
   rekoni:
     image: tracexapp/rekoni-service
     extra_hosts:
@@ -627,6 +644,7 @@ services:
       - 3510:3510
     environment:
       - SERVICE_ID=github-next-service
+      - SERVER_SECRET=secret
       - ACCOUNTS_URL=http://tracex.local:3000
       - FRONT_URL=http://tracex.local:8087
       - COLLABORATOR_URL=ws://tracex.local:3078

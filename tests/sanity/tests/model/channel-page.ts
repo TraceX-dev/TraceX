@@ -81,6 +81,7 @@ export class ChannelPage extends CommonPage {
 
   readonly userAdded = (user: string): Locator => this.page.locator('.members').getByText(user)
   private readonly addMemberPreview = (): Locator => this.page.getByRole('button', { name: 'Add members' })
+  private readonly removeMemberPreview = (): Locator => this.page.locator('.members .item__action button')
   private readonly addButtonPreview = (): Locator => this.page.getByRole('button', { name: 'Add', exact: true })
 
   readonly inputSearchIcon = (): Locator => this.page.locator('.searchInput-wrapper')
@@ -171,6 +172,26 @@ export class ChannelPage extends CommonPage {
     }
   }
 
+  /**
+   * Checks the member management controls of the channel aside. Archiving lives in the channel
+   * settings panel, not in the aside, so it is not covered here.
+   */
+  async checkChannelMembersPermissions (canAddMembers: boolean, canRemoveMembers: boolean): Promise<void> {
+    if (canAddMembers) {
+      await expect(this.addMemberPreview()).toBeVisible()
+    } else {
+      await expect(this.addMemberPreview()).toBeHidden()
+    }
+
+    // Permissions are resolved asynchronously and fail closed until then, so the assertion has
+    // to retry instead of reading the count once.
+    if (canRemoveMembers) {
+      await expect(this.removeMemberPreview()).not.toHaveCount(0)
+    } else {
+      await expect(this.removeMemberPreview()).toHaveCount(0)
+    }
+  }
+
   async clickOpenMoreButton (message: string): Promise<void> {
     await this.textMessage(message).hover()
     await this.openMoreButton().click()
@@ -190,14 +211,14 @@ export class ChannelPage extends CommonPage {
     await this.updateButton().click()
   }
 
-  async getClipboardCopyMessage (): Promise<void> {
-    await this.page.evaluate(async () => {
+  async getClipboardCopyMessage (): Promise<string> {
+    return await this.page.evaluate(async () => {
       return await navigator.clipboard.readText()
     })
   }
 
   async checkIfMessageIsCopied (message: string): Promise<void> {
-    expect(this.getClipboardCopyMessage()).toContain(message)
+    expect(await this.getClipboardCopyMessage()).toContain(message)
   }
 
   async clickChooseChannel (channel: string): Promise<void> {

@@ -13,28 +13,65 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { getCurrentAccount } from '@hcengineering/core'
   import setting from '@hcengineering/setting'
   import view from '@hcengineering/view'
   import {
     Breadcrumb,
+    Button,
     defineSeparators,
     getCurrentResolvedLocation,
     Header,
+    Label,
+    Loading,
     navigate,
     NavItem,
     resolvedLocationStore,
     Scroller,
     Separator,
+    showPopup,
     twoPanelsSeparators
   } from '@hcengineering/ui'
-  import { onDestroy } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
 
   import settingsRes from '../plugin'
+  import { getAccountClient } from '../utils'
   import ActiveSessionsSettings from './ActiveSessionsSettings.svelte'
   import SessionHistorySettings from './SessionHistorySettings.svelte'
-  import TwoFactorSettings from './TwoFactorSettings.svelte'
+  import TwoFactorSetupPopup from './security/TwoFactorSetupPopup.svelte'
 
   type SecurityTab = 'twoFactor' | 'loginHistory' | 'activeSessions'
+
+  // 2FA setup UI itself now lives in TwoFactorSetupPopup.svelte (shared with AuthenticationSettings.svelte);
+  // this tab only tracks/toggles the enabled state and opens that popup for the actual setup flow.
+  let tfaEnabled: boolean | undefined = undefined
+  let isTfaLoading = true
+
+  const acc = getCurrentAccount()
+
+  async function loadTwoFactorState (): Promise<void> {
+    isTfaLoading = true
+    try {
+      const account = await getAccountClient().getAccountInfo(acc.uuid)
+      tfaEnabled = account.tfaEnabled
+    } finally {
+      isTfaLoading = false
+    }
+  }
+
+  function openTwoFactorSetup (): void {
+    if (tfaEnabled === undefined) return
+
+    showPopup(TwoFactorSetupPopup, { enabled: tfaEnabled }, 'top', (enabled?: boolean) => {
+      if (enabled !== undefined) {
+        tfaEnabled = enabled
+      }
+    })
+  }
+
+  onMount(() => {
+    void loadTwoFactorState()
+  })
 
   function tabFromPath (segment: string | undefined): SecurityTab {
     if (segment === 'activeSessions') return 'activeSessions'
@@ -105,7 +142,24 @@
     <div class="hulyComponent-content__column content">
       <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
         {#if securityTab === 'twoFactor'}
-          <TwoFactorSettings />
+          <div class="flex-col p-6 gap-4 max-w-2xl">
+            <div class="flex flex-between">
+              <Label label={setting.string.TwoFactorAuthDescription} />
+              {#if isTfaLoading || tfaEnabled === undefined}
+                <Loading />
+              {:else}
+                <Button
+                  label={tfaEnabled ? setting.string.DisableTwoFactorAuth : setting.string.EnableTwoFactorAuth}
+                  kind={tfaEnabled ? 'negative' : 'primary'}
+                  disabled={isTfaLoading || tfaEnabled === undefined}
+                  on:click={openTwoFactorSetup}
+                />
+              {/if}
+            </div>
+            {#if !isTfaLoading && tfaEnabled !== undefined}
+              <Label label={tfaEnabled ? setting.string.TwoFactorAuthEnabled : setting.string.TwoFactorAuthDisabled} />
+            {/if}
+          </div>
         {:else if securityTab === 'loginHistory'}
           <SessionHistorySettings />
         {:else}

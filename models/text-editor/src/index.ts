@@ -189,7 +189,11 @@ export function createModel (builder: Builder): void {
   createHeaderAction(builder, 2)
   createHeaderAction(builder, 3)
 
+  // Also available in the table toolbar: toggleBold/toggleItalic are plain toggleMark calls,
+  // which (like setMark/unsetMark, see FontFamily in @hcengineering/text) already work across a
+  // multi-cell CellSelection - the only thing missing was a toolbar to trigger them from.
   builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['text', 'table', 'tableCell'],
     action: {
       command: 'toggleBold'
     },
@@ -205,6 +209,7 @@ export function createModel (builder: Builder): void {
 
   // Decoration category
   builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['text', 'table', 'tableCell'],
     action: {
       command: 'toggleItalic'
     },
@@ -324,6 +329,19 @@ export function createModel (builder: Builder): void {
     index: 25
   })
 
+  // Available both for a regular text selection and for a multi-cell CellSelection in a table
+  // (see FontFamily.setFontFamily in @hcengineering/text) - tagged for both the text and the
+  // table toolbars.
+  builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['text', 'table', 'tableCell'],
+    action: textEditor.function.SetFontFamily,
+    icon: textEditor.icon.FontFamily,
+    visibilityTester: textEditor.function.IsTextStylingEnabled,
+    label: textEditor.string.FontFamily,
+    category: 20,
+    index: 26
+  })
+
   // Link category
   builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
     action: textEditor.function.FormatLink,
@@ -438,6 +456,28 @@ export function createModel (builder: Builder): void {
     label: textEditor.string.SetCellHighlightColor,
     category: 65,
     index: 5
+  })
+
+  // Applies to every cell of the current selection - a single cell or a rectangular
+  // multi-cell CellSelection (see CellAlign.setCellTextAlign in @hcengineering/text).
+  builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['table', 'tableCell'],
+    action: textEditor.function.OpenCellTextAlignOptions,
+    icon: textEditor.icon.AlignCenter,
+    visibilityTester: textEditor.function.IsTableToolbarContext,
+    label: textEditor.string.CellTextAlign,
+    category: 65,
+    index: 10
+  })
+
+  builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['table', 'tableCell'],
+    action: textEditor.function.OpenCellVerticalAlignOptions,
+    icon: textEditor.icon.AlignMiddle,
+    visibilityTester: textEditor.function.IsTableToolbarContext,
+    label: textEditor.string.CellVerticalAlign,
+    category: 65,
+    index: 15
   })
 
   // Table category

@@ -18,7 +18,7 @@ import {
   getCommunicationClient
 } from '@hcengineering/presentation'
 import { type Card } from '@hcengineering/card'
-import { AccountRole, type Data, getCurrentAccount, type Ref, type Space, type Markup } from '@hcengineering/core'
+import { type Data, getCurrentAccount, type Ref, type Space, type Markup } from '@hcengineering/core'
 import { getMetadata, translate } from '@hcengineering/platform'
 import { addNotification, languageStore, NotificationSeverity, showPopup } from '@hcengineering/ui'
 import { type Emoji, type LinkPreviewParams, type Message } from '@hcengineering/communication-types'
@@ -26,13 +26,14 @@ import emoji from '@hcengineering/emoji'
 import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 import { jsonToMarkup, markupToJSON } from '@hcengineering/text'
 
-import { isCardSubscribed, guestCommunicationAllowedCards } from './stores'
+import { isCardSubscribed } from './stores'
 import IconAt from './components/icons/At.svelte'
 
 import communication from './plugin'
 import { type TextInputAction } from './types'
 import { get } from 'svelte/store'
 import view from '@hcengineering/view'
+import { getPermissions } from '@hcengineering/view-resources'
 import { type Direct } from '@hcengineering/communication'
 import { type Employee } from '@hcengineering/contact'
 
@@ -140,13 +141,7 @@ export async function loadLinkPreviewParams (url: string): Promise<LinkPreviewPa
 }
 
 export function isCardAllowedForCommunications (card: Card): boolean {
-  if (getCurrentAccount().role !== AccountRole.Guest) return true
-  const allowedCards = get(guestCommunicationAllowedCards)
-  if (allowedCards.includes(card._id)) return true
-  for (const parentInfoElement of card.parentInfo) {
-    if (allowedCards.includes(parentInfoElement._id)) return true
-  }
-  return false
+  return getPermissions().canComment(card)
 }
 
 export async function showForbidden (): Promise<void> {

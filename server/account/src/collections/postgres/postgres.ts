@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { type Sql, type TransactionSql } from 'postgres'
+import { type Sql } from 'postgres'
 import {
   type Data,
   type Version,
@@ -33,6 +34,7 @@ import type {
   WorkspaceOperation,
   AccountDB,
   Account,
+  ApiKey,
   OTP,
   WorkspaceInvite,
   AccountEvent,
@@ -540,6 +542,7 @@ export class PostgresAccountDB implements AccountDB {
   integration: PostgresDbCollection<Integration>
   integrationSecret: PostgresDbCollection<IntegrationSecret>
   userProfile: PostgresDbCollection<UserProfile, 'personUuid'>
+  apiKey: PostgresDbCollection<ApiKey, 'id'>
   subscription: PostgresDbCollection<Subscription, 'id'>
   securityLoginEvent: PostgresDbCollection<SecurityLoginEvent, 'id'>
   activeSession: PostgresDbCollection<ActiveSession, 'sessionId'>
@@ -600,6 +603,12 @@ export class PostgresAccountDB implements AccountDB {
     this.userProfile = new PostgresDbCollection<UserProfile, 'personUuid'>('user_profile', client, {
       ns,
       idKey: 'personUuid',
+      withRetryClient
+    })
+    this.apiKey = new PostgresDbCollection<ApiKey, 'id'>('api_key', client, {
+      ns,
+      idKey: 'id',
+      timestampFields: ['createdOn', 'revokedOn'],
       withRetryClient
     })
     this.subscription = new PostgresDbCollection<Subscription, 'id'>('subscription', client, {
@@ -786,13 +795,13 @@ export class PostgresAccountDB implements AccountDB {
     }
   }
 
-  withRetry = async <T>(callback: (client: TransactionSql) => Promise<T>): Promise<T> => {
+  withRetry = async <T>(operation: (client: Sql) => Promise<T>): Promise<T> => {
     let attempt = 0
     let delay = this.retryOptions.initialDelayMs
 
     while (true) {
       try {
-        return (await this.client.begin(callback)) as T
+        return (await this.client.begin(async (client) => await operation(client as unknown as Sql))) as T
       } catch (err: any) {
         attempt++
 
@@ -800,7 +809,11 @@ export class PostgresAccountDB implements AccountDB {
           throw err
         }
 
-        await new Promise((resolve) => setTimeout(resolve, delay))
+        await new Promise<void>((resolve) =>
+          setTimeout(() => {
+            resolve()
+          }, delay)
+        )
 
         delay = Math.min(delay * 2, this.retryOptions.maxDelayMs)
       }
@@ -877,6 +890,32 @@ export class PostgresAccountDB implements AccountDB {
     )
   }
 
+  async setWorkspaceMemberUnread (
+    accountUuid: AccountUuid,
+    workspaceUuid: WorkspaceUuid,
+    hasUnread: boolean
+  ): Promise<void> {
+    await this.withRetry(
+      async (rTx) =>
+        await rTx`UPDATE ${this.client(this.getWsMembersTableName())} SET has_unread = ${hasUnread} WHERE workspace_uuid = ${workspaceUuid} AND account_uuid = ${accountUuid} AND has_unread <> ${hasUnread}`
+    )
+  }
+
+  async setWorkspaceMembersUnread (
+    accountUuids: AccountUuid[],
+    workspaceUuid: WorkspaceUuid,
+    hasUnread: boolean
+  ): Promise<void> {
+    if (accountUuids.length === 0) return
+
+    // `has_unread <> ${hasUnread}` skips rows already in the target state, so a
+    // repeated broadcast into an already-flagged workspace writes nothing.
+    await this.withRetry(
+      async (rTx) =>
+        await rTx`UPDATE ${this.client(this.getWsMembersTableName())} SET has_unread = ${hasUnread} WHERE workspace_uuid = ${workspaceUuid} AND account_uuid = ANY(${accountUuids}) AND has_unread <> ${hasUnread}`
+    )
+  }
+
   async getWorkspaceRole (accountUuid: AccountUuid, workspaceUuid: WorkspaceUuid): Promise<AccountRole | null> {
     return await this.withRetry(async (rTx) => {
       const res =
@@ -919,6 +958,7 @@ export class PostgresAccountDB implements AccountDB {
           w.created_on,
           w.billing_account,
           w.password_aging_rule,
+          m.has_unread,
           json_build_object(
             'mode', s.mode,
             'processing_progress', s.processing_progress,

@@ -48,6 +48,7 @@ The service reads env variables from `src/config.ts`.
 Required:
 
 ```text
+SERVER_SECRET
 ACCOUNTS_URL
 FRONT_URL
 COLLABORATOR_URL

@@ -15,6 +15,7 @@ import { type Builder } from '@hcengineering/model'
 import presentation from '@hcengineering/model-presentation'
 import setting from '@hcengineering/model-setting'
 import view, { actionTemplates, createAction } from '@hcengineering/model-view'
+import exportPlugin from '@hcengineering/export'
 import workbench from '@hcengineering/model-workbench'
 import card from './plugin'
 
@@ -135,6 +136,76 @@ export function createActions (builder: Builder): void {
       group: 'tools'
     }
   })
+
+  createAction(
+    builder,
+    {
+      action: exportPlugin.actionImpl.ExportTable,
+      actionProps: {
+        cardClass: card.class.Card
+      },
+      label: exportPlugin.string.Export,
+      icon: exportPlugin.icon.Export,
+      input: 'selection',
+      category: card.category.Card,
+      target: card.class.Card,
+      query: {},
+      context: {
+        mode: ['context', 'browser'],
+        group: 'tools'
+      }
+    },
+    card.action.ExportTable
+  )
+
+  // Export/import of a single card's rich-text `content` (round-tripping through Word/Markdown),
+  // sharing the same popups/logic used for controlled documents. Distinct label from ExportTable
+  // above (that one exports card fields as CSV/JSON) to avoid two ambiguous "Export" menu items.
+  createAction(
+    builder,
+    {
+      action: view.actionImpl.ShowPopup,
+      actionPopup: exportPlugin.component.DocumentExportFormatPopup,
+      actionProps: {
+        component: exportPlugin.component.DocumentExportFormatPopup,
+        element: 'top',
+        fillProps: { _object: 'value' }
+      },
+      label: exportPlugin.string.ExportDocumentContent,
+      icon: exportPlugin.icon.Export,
+      input: 'focus',
+      category: card.category.Card,
+      target: card.class.Card,
+      context: {
+        mode: ['context', 'browser'],
+        group: 'tools'
+      }
+    },
+    card.action.ExportDocumentContent
+  )
+
+  createAction(
+    builder,
+    {
+      action: view.actionImpl.ShowPopup,
+      actionPopup: exportPlugin.component.DocumentImportFormatPopup,
+      actionProps: {
+        component: exportPlugin.component.DocumentImportFormatPopup,
+        element: 'top',
+        fillProps: { _object: 'value' }
+      },
+      label: exportPlugin.string.ImportDocumentContent,
+      icon: exportPlugin.icon.Export,
+      input: 'focus',
+      category: card.category.Card,
+      target: card.class.Card,
+      context: {
+        mode: ['context', 'browser'],
+        group: 'tools'
+      }
+    },
+    card.action.ImportDocumentContent
+  )
 
   createAction(builder, {
     action: view.actionImpl.ShowPopup,

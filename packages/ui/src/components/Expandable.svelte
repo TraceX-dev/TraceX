@@ -36,7 +36,7 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
-      class="flex-row-center mr-4"
+      class="flex-row-center flex-gap-2 ml-2 mr-4"
       class:cursor-pointer={expandable}
       on:click|stopPropagation={() => {
         if (expandable) expanded = !expanded

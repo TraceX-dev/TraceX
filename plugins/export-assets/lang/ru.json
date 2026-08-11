@@ -55,6 +55,24 @@
     "ExportFilterAll": "Все документы",
     "ExportChildDocuments": "Экспортировать дочерние документы",
     "ExportChildDocumentsDescription": "Также экспортировать документы, прикреплённые к выбранным",
-    "ExportResultRecordTitle": "Экспорт документов из пространства {workspace} ({date})"
+    "ExportResultRecordTitle": "Экспорт документов из пространства {workspace} ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "Выделенные ({count})",
+    "ExportScopeLoaded": "Загруженные на странице ({count})",
+    "ExportFileName": "Имя файла",
+
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "Экспорт содержимого",
+    "ImportDocumentContent": "Импорт содержимого",
+    "ExportingDocumentContent": "Экспорт документа…",
+    "DocumentContentExported": "Документ экспортирован",
+    "DocumentContentExportFailed": "Ошибка экспорта",
+    "ImportingDocumentContent": "Импорт документа",
+    "ConvertingDocumentContent": "Конвертация документа…",
+    "DocumentContentConverted": "Документ сконвертирован",
+    "DocumentContentImportFailed": "Ошибка импорта",
+    "ReviewDocumentContentChanges": "Просмотрите импортированные изменения",
+    "ApplyDocumentContentChanges": "Применить"
   }
 }

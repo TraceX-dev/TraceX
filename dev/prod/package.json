@@ -11,13 +11,10 @@
     "show": "webpack-bundle-analyzer stats.json dist",
     "dev-server": "cross-env USE_CACHE=false CLIENT_TYPE=dev-server webpack serve",
     "dev-server-test": "cross-env USE_CACHE=false CLIENT_TYPE=dev-server-test webpack serve",
-    "dev-worker": "cross-env USE_CACHE=false CLIENT_TYPE=dev-worker webpack serve",
-    "dev-worker-local": "cross-env USE_CACHE=false CLIENT_TYPE=dev-worker-local webpack serve",
     "dev-server-cache": "cross-env USE_CACHE=true CLIENT_TYPE=dev-server webpack serve",
     "tunnel-qms": "socat tcp-listen:8081,reuseaddr,fork,bind=localhost tcp:localhost:8080",
     "dev-production": "cross-env CLIENT_TYPE=dev-production webpack serve",
-    "dev-huly": "cross-env CLIENT_TYPE=dev-huly webpack serve",
-    "dev-bold": "cross-env CLIENT_TYPE=dev-bold webpack serve",
+    "dev-staging": "cross-env CLIENT_TYPE=dev-staging webpack serve",
     "start": "cross-env NODE_ENV=production webpack serve",
     "deploy": "cp -p public/* dist && aws s3 sync dist s3://anticrm-platform --delete --acl public-read",
     "format": "echo 'no format yet'"
@@ -52,7 +49,7 @@
     "webpack": "^5.97.1",
     "webpack-bundle-analyzer": "^4.10.2",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.11.1"
+    "webpack-dev-server": "^4.15.2"
   },
   "dependencies": {
     "@hcengineering/achievement": "workspace:^0.7.0",

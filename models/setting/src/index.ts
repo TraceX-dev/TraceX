@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -199,21 +200,24 @@ export function createModel (builder: Builder): void {
     setting.class.SettingsCategory,
     core.space.Model,
     {
-      name: 'password',
-      label: setting.string.ChangePassword,
+      // develop redesigned the old standalone "password" category into a combined
+      // "authentication" category (password change + 2FA), see AuthenticationSettings.svelte.
+      name: 'authentication',
+      label: setting.string.Authentication,
       icon: setting.icon.Password,
-      component: setting.component.Password,
+      component: setting.component.AuthenticationSettings,
       group: 'settings-account',
       role: AccountRole.Guest,
-      order: 1000
+      order: 1100
     },
-    setting.ids.Password
+    setting.ids.Authentication
   )
 
   builder.createDoc(
     setting.class.SettingsCategory,
     core.space.Model,
     {
+      // login-security's "security" category: session history / active sessions / login activity.
       name: 'security',
       label: setting.string.Security,
       icon: setting.icon.Password,
@@ -303,40 +307,14 @@ export function createModel (builder: Builder): void {
     setting.class.WorkspaceSettingCategory,
     core.space.Model,
     {
-      name: 'owners',
-      label: setting.string.Members,
+      name: 'accessControl',
+      label: setting.string.AccessControl,
       icon: setting.icon.Members,
-      component: setting.component.Members,
-      order: 1000,
-      role: AccountRole.Maintainer
-    },
-    setting.ids.Members
-  )
-  builder.createDoc(
-    setting.class.WorkspaceSettingCategory,
-    core.space.Model,
-    {
-      name: 'guestPermissions',
-      label: setting.string.GuestPermissionsSettings,
-      icon: setting.icon.GuestPermissions,
-      component: setting.component.GuestPermissionsSettings,
-      role: AccountRole.Owner,
+      component: setting.component.SpaceAccessSettings,
+      role: AccountRole.Maintainer,
       order: 1050
     },
-    'setting:ids:AccountPermissionsSettings' as Ref<any>
-  )
-  builder.createDoc(
-    setting.class.WorkspaceSettingCategory,
-    core.space.Model,
-    {
-      name: 'allSpaces',
-      label: setting.string.Spaces,
-      icon: setting.icon.Views,
-      component: setting.component.Spaces,
-      order: 1100,
-      role: AccountRole.Maintainer
-    },
-    setting.ids.Spaces
+    setting.ids.SpaceAccessSettings
   )
   builder.createDoc(
     setting.class.WorkspaceSettingCategory,

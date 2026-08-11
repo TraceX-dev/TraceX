@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -51,6 +52,10 @@ import task, { makeRank } from '@hcengineering/task'
 import { jsonToMarkup, nodeDoc, nodeParagraph, nodeText } from '@hcengineering/text-core'
 import time, { ProjectToDo, ToDo, ToDoPriority, TodoAutomationHelper, WorkSlot } from '@hcengineering/time'
 import tracker, { Issue, IssueStatus, Project, TimeSpendReport } from '@hcengineering/tracker'
+
+import { CreateToDo, FindToDos, GetToDo, PatchToDo } from './workspaceApi'
+
+export { CreateToDo, FindToDos, GetToDo, PatchToDo }
 
 /**
  * @public
@@ -785,6 +790,12 @@ export default async () => ({
   function: {
     IssueToDoFactory,
     IssueToDoDone
+  },
+  workspaceApi: {
+    FindToDos,
+    GetToDo,
+    CreateToDo,
+    PatchToDo
   },
   trigger: {
     OnTask,

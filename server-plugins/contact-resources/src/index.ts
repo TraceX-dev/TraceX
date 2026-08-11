@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022, 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -59,6 +60,32 @@ import { makeRank } from '@hcengineering/rank'
 import { getAccountBySocialId, getCurrentPerson } from '@hcengineering/server-contact'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import { workbenchId } from '@hcengineering/workbench'
+
+import {
+  CreateOrganization,
+  CreatePerson,
+  FindEmployees,
+  FindOrganizations,
+  FindPersons,
+  GetEmployee,
+  GetOrganization,
+  GetPerson,
+  PatchOrganization,
+  PatchPerson
+} from './workspaceApi'
+
+export {
+  CreateOrganization,
+  CreatePerson,
+  FindEmployees,
+  FindOrganizations,
+  FindPersons,
+  GetEmployee,
+  GetOrganization,
+  GetPerson,
+  PatchOrganization,
+  PatchPerson
+}
 
 export async function OnSpaceTypeMembers (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const result: Tx[] = []
@@ -523,5 +550,17 @@ export default async () => ({
     GetCurrentEmployeePosition: getCurrentEmployeePosition,
     GetContactFirstName: getContactFirstName,
     GetContactLastName: getContactLastName
+  },
+  workspaceApi: {
+    FindPersons,
+    GetPerson,
+    CreatePerson,
+    PatchPerson,
+    FindOrganizations,
+    GetOrganization,
+    CreateOrganization,
+    PatchOrganization,
+    FindEmployees,
+    GetEmployee
   }
 })

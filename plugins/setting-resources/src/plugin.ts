@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -31,7 +32,7 @@ export default mergeIds(settingId, setting, {
     ManageSpaceTypeContent: '' as AnyComponent,
     Spaces: '' as AnyComponent,
     AddSocialId: '' as AnyComponent,
-    GuestPermissionsSettings: '' as AnyComponent
+    SpaceAccessSettings: '' as AnyComponent
   },
   string: {
     IntegrationDisabled: '' as IntlString,
@@ -68,6 +69,7 @@ export default mergeIds(settingId, setting, {
     NewValue: '' as IntlString,
     Leave: '' as IntlString,
     LeaveDescr: '' as IntlString,
+    LeaveWorkspaceDescription: '' as IntlString,
     Select: '' as IntlString,
     AddOwner: '' as IntlString,
     ReadonlyGuest: '' as IntlString,
@@ -75,6 +77,7 @@ export default mergeIds(settingId, setting, {
     Maintainer: '' as IntlString,
     Guest: '' as IntlString,
     Owner: '' as IntlString,
+    Admin: '' as IntlString,
     MinValue: '' as IntlString,
     MaxValue: '' as IntlString,
     IntegerOnly: '' as IntlString,
@@ -116,6 +119,7 @@ export default mergeIds(settingId, setting, {
     DeleteRoleConfirmation: '' as IntlString,
     DeleteWorkspace: '' as IntlString,
     DeleteWorkspaceConfirm: '' as IntlString,
+    DeleteWorkspaceDescription: '' as IntlString,
     DeleteSpaceType: '' as IntlString,
     DeleteSpaceTypeConfirm: '' as IntlString,
     WorkspaceName: '' as IntlString,
@@ -132,6 +136,19 @@ export default mergeIds(settingId, setting, {
     BetaWarning: '' as IntlString,
     DangerZone: '' as IntlString,
     AccessControl: '' as IntlString,
+    SpaceRoles: '' as IntlString,
+    AccessControlSpacesHint: '' as IntlString,
+    Active: '' as IntlString,
+    SearchSpaces: '' as IntlString,
+    SearchMembers: '' as IntlString,
+    MembersAndTheirSpaces: '' as IntlString,
+    OtherSpaces: '' as IntlString,
+    Public: '' as IntlString,
+    Member: '' as IntlString,
+    CanJoin: '' as IntlString,
+    NoSpaces: '' as IntlString,
+    RemoveMemberFromSpace: '' as IntlString,
+    SelectMemberToViewSpaces: '' as IntlString,
     GuestAccess: '' as IntlString,
     GuestAccessDescription: '' as IntlString,
     GuestSignUpDescription: '' as IntlString,
@@ -144,7 +161,11 @@ export default mergeIds(settingId, setting, {
     GuestAnonymousVisibleSpacesHint: '' as IntlString,
     ApiAccess: '' as IntlString,
     ApiToken: '' as IntlString,
+    ApiKeyTitle: '' as IntlString,
+    ApiKeyShownOnce: '' as IntlString,
+    WorkspaceId: '' as IntlString,
     GenerateApiToken: '' as IntlString,
+    RevokeApiKeyConfirm: '' as IntlString,
     ImportDocumentPermission: '' as IntlString,
     ImportDocumentDescription: '' as IntlString,
     SelectUsers: '' as IntlString,
@@ -163,6 +184,8 @@ export default mergeIds(settingId, setting, {
     RestrictedAttributeWarning: '' as IntlString,
     PasswordAgingRule: '' as IntlString,
     PasswordAgingRuleDescription: '' as IntlString,
+    PasswordAgingDisabled: '' as IntlString,
+    PasswordAgingPeriod: '' as IntlString,
     ShowInTitle: '' as IntlString,
     SpaceMembersOnly: '' as IntlString,
     LastOwnerLeaveTitle: '' as IntlString,

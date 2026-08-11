@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,6 +27,7 @@ import integration, {
 } from '@hcengineering/integration'
 import {
   type Builder,
+  ArrOf,
   Collection,
   Index,
   Model,
@@ -194,7 +196,8 @@ export function createModel (builder: Builder): void {
     type: TypeString(),
     values: [
       { value: 'open', label: getEmbeddedLabel('Open') },
-      { value: 'closed', label: getEmbeddedLabel('Closed') }
+      { value: 'closed', label: getEmbeddedLabel('Closed') },
+      { value: 'merged', label: getEmbeddedLabel('Merged') }
     ]
   }
   const externalUrlSlot: IntegrationAttributeSlotModel = {
@@ -213,7 +216,8 @@ export function createModel (builder: Builder): void {
     slotKind: 'attribute',
     _class: core.class.Attribute,
     label: getEmbeddedLabel('Assignee'),
-    type: TypeRef(contact.class.Person)
+    type: TypeRef(contact.class.Person),
+    types: [TypeRef(contact.class.Person), ArrOf(TypeRef(contact.class.Person))]
   }
   const labelsSlot: IntegrationAttributeSlotModel = {
     slotKind: 'attribute',
@@ -221,10 +225,36 @@ export function createModel (builder: Builder): void {
     label: getEmbeddedLabel('Labels'),
     type: Collection(tags.class.TagReference)
   }
+  const milestoneSlot: IntegrationAttributeSlotModel = {
+    slotKind: 'attribute',
+    _class: core.class.Attribute,
+    label: getEmbeddedLabel('Milestone'),
+    type: TypeString(),
+    types: [TypeString(), TypeNumber()]
+  }
+  const projectsSlot: IntegrationAttributeSlotModel = {
+    slotKind: 'attribute',
+    _class: core.class.Attribute,
+    label: getEmbeddedLabel('Projects'),
+    type: ArrOf(TypeString()),
+    types: [TypeString(), ArrOf(TypeString())]
+  }
   const categorySlot: IntegrationAttributeSlotModel = {
     slotKind: 'attribute',
     _class: core.class.Attribute,
     label: getEmbeddedLabel('Category'),
+    type: TypeString()
+  }
+  const baseBranchSlot: IntegrationAttributeSlotModel = {
+    slotKind: 'attribute',
+    _class: core.class.Attribute,
+    label: getEmbeddedLabel('Base branch'),
+    type: TypeString()
+  }
+  const headBranchSlot: IntegrationAttributeSlotModel = {
+    slotKind: 'attribute',
+    _class: core.class.Attribute,
+    label: getEmbeddedLabel('Head branch'),
     type: TypeString()
   }
 
@@ -256,7 +286,9 @@ export function createModel (builder: Builder): void {
         externalUrl: externalUrlSlot,
         number: numberSlot,
         assignee: assigneeSlot,
-        labels: labelsSlot
+        labels: labelsSlot,
+        milestone: milestoneSlot,
+        projects: projectsSlot
       }
     },
     githubNext.ids.GithubNextIssueProvider
@@ -280,5 +312,26 @@ export function createModel (builder: Builder): void {
       }
     },
     githubNext.ids.GithubNextDiscussionProvider
+  )
+
+  builder.createDoc(
+    integration.class.IntegrationSlotProvider,
+    core.space.Model,
+    {
+      integrationType: githubNext.integrationType.GithubNext,
+      label: getEmbeddedLabel('GitHub pull request'),
+      requiredSlots: {
+        title: titleSlot
+      },
+      optionalSlots: {
+        description: descriptionSlot,
+        state: stateSlot,
+        externalUrl: externalUrlSlot,
+        number: numberSlot,
+        baseBranch: baseBranchSlot,
+        headBranch: headBranchSlot
+      }
+    },
+    githubNext.ids.GithubNextPullRequestProvider
   )
 }

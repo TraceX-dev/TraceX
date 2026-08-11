@@ -18,6 +18,7 @@ import { MarkdownParser } from './parser'
 import { MarkdownState, storeMarks, storeNodes } from './serializer'
 
 export * from './compare'
+export * from './inline'
 export * from './parser'
 export * from './serializer'
 

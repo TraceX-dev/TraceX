@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -180,7 +181,9 @@ export function isGuest (account: AccountUuid, extra: Record<string, any> | unde
 }
 
 export function wrap (
-  accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>
+  accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>,
+  allowApiKey: boolean = false,
+  noAuth: boolean = false
 ): AccountMethodHandler {
   return async function (
     ctx: MeasureContext,
@@ -190,7 +193,21 @@ export function wrap (
     token?: string,
     meta?: Meta
   ): Promise<any> {
-    return await accountMethod(ctx, db, branding, token, { ...request.params }, meta)
+    const invoke = async (): Promise<any> => {
+      // Public/unauthenticated methods (login, signup, otp, etc.) must not fail because a stale
+      // or invalid token happened to be attached to the request (e.g. via a leftover cookie) -
+      // these methods don't require a token at all, so skip verification for them here.
+      if (token !== undefined && !allowApiKey && !noAuth) {
+        const { extra } = decodeTokenVerbose(ctx, token)
+        if (extra?.apiKey != null) {
+          throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+        }
+      }
+
+      return await accountMethod(ctx, db, branding, token, { ...request.params }, meta)
+    }
+
+    return await invoke()
       .then((result) => ({ id: request.id, result }))
       .catch((err: Error) => {
         const status =
@@ -766,9 +783,11 @@ export async function selectWorkspace (
   // Carried from the incoming login token so every workspace-scoped token
   // issued for this login shares one session identity (see ActiveSession).
   let sessionId: string | undefined
+  let tokenWorkspace: WorkspaceUuid | undefined
   try {
     const decodedToken = decodeTokenVerbose(ctx, token ?? '')
     accountUuid = decodedToken.account
+    tokenWorkspace = decodedToken.workspace
     if (workspace == null) {
       workspace = await getWorkspaceById(db, decodedToken.workspace)
     }
@@ -795,6 +814,29 @@ export async function selectWorkspace (
   // mint a fresh workspace token for a revoked session.
   if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+  }
+
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (
+      typeof apiKeyId !== 'string' ||
+      tokenWorkspace == null ||
+      tokenWorkspace !== workspace.uuid ||
+      grant != null ||
+      sub != null
+    ) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid,
+      workspaceUuid: tokenWorkspace,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
   }
 
   const getKind = (region: string | undefined): EndpointKind => {
@@ -1125,6 +1167,42 @@ export async function updateWorkspaceRole (
   }
 
   await db.updateWorkspaceRole(targetAccount, workspace, targetRole)
+}
+
+/**
+ * Sets or clears the "has unread notifications in this workspace" flag for a member,
+ * used to render a cross-workspace unread indicator in the workspace switcher.
+ *
+ * Raising the flag (hasUnread=true) for another account requires a service token —
+ * it is meant to be called by the workspace's own notification trigger, running with
+ * a token scoped to that workspace (`generateToken(systemAccountUuid, workspace, { service: 'notification' })`).
+ * Clearing your own flag (hasUnread=false, targetAccount === caller) is self-service and
+ * needs no special privileges; clearing someone else's flag still requires the service token.
+ *
+ * Note: the raise path (hasUnread=true) now goes through the WorkspaceMemberUnread
+ * queue consumed by account-service (bulk `setWorkspaceMembersUnread`), so in normal
+ * operation this RPC is only reached for the self-clear. The service-token branch is
+ * kept as a guarded fallback so the endpoint stays safe if called to raise a flag.
+ */
+export async function setWorkspaceMemberUnread (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: {
+    targetAccount: AccountUuid
+    hasUnread: boolean
+  }
+): Promise<void> {
+  const { targetAccount, hasUnread } = params
+  const { account, workspace, extra } = decodeTokenVerbose(ctx, token)
+
+  const isSelfClear = !hasUnread && account === targetAccount
+  if (!isSelfClear) {
+    verifyAllowedServices(['notification'], extra)
+  }
+
+  await db.setWorkspaceMemberUnread(targetAccount, workspace, hasUnread)
 }
 
 /**

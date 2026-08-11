@@ -28,6 +28,7 @@
   import card from '../../plugin'
 
   export let value: Ref<MasterTag>[]
+  export let readonly: boolean = false
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -88,6 +89,7 @@
   }
 
   function openPopup (ev: MouseEvent): void {
+    if (readonly) return
     showPopup(
       NestedSelectPopup,
       {
@@ -105,7 +107,7 @@
   }
 </script>
 
-<Button kind={'regular'} size={'large'} justify={'left'} width={'min-content'} on:click={openPopup}>
+<Button kind={'regular'} size={'large'} justify={'left'} width={'min-content'} disabled={readonly} on:click={openPopup}>
   <svelte:fragment slot="content">
     {#if value?.length > 0}
       <div class="flex-row-center flex-nowrap pointer-events-none">

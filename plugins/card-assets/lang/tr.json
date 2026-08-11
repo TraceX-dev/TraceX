@@ -11,6 +11,8 @@
     "MasterTag": "Tip",
     "MasterTags": "Tipler",
     "Parent": "Üst",
+    "ChangeTagParent": "Üst etiketi değiştir",
+    "ChangeTagParentBlocked": "Kartlara atanmış veya alt etiketleri kartlara atanmış bir etiket taşınamaz.",
     "Tags": "Etiketler",
     "Tag": "Etiket",
     "AddTag": "Etiket Ekle",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Uyarı: Bir Kartın Tipini değiştirmek, hedef Tipte bulunmayan öznitelikler için tüm verileri kaldıracaktır. Önceki öznitelik verileri, Kartı önceki Tipe geri değiştirerek geri yüklenebilir. Kart içeriği etkilenmeyecektir.",
     "MasterDetailViews": "Ana Detay Görünümleri",
     "SelectType": "Tip Seç",
+    "SelectTypeAndSpace": "Devam etmek için bir Kart Türü ve bir Alan seçin.",
     "CreateSpace": "Alan oluştur",
     "NumberTypes": "{count, plural, one {# tip} other {# tip}}",
     "Labels": "Etiketler",
@@ -87,6 +90,7 @@
     "TwoColumns": "İki sütun",
     "Grid": "Izgara",
     "RichtextProperties": "Zengin metin alanları",
-    "ShowAllVersions": "Tüm sürümleri göster"
+    "ShowAllVersions": "Tüm sürümleri göster",
+    "ShowOnlyCardsWithoutRelations": "Yalnızca ilişkisi olmayan kartları göster"
   }
 }

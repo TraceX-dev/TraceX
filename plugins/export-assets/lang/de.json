@@ -55,6 +55,23 @@
     "ExportFilterAll": "Alle Dokumente",
     "ExportChildDocuments": "Untergeordnete Dokumente exportieren",
     "ExportChildDocumentsDescription": "Auch Dokumente exportieren, die an die ausgewählten angehängt sind",
-    "ExportResultRecordTitle": "Export von Dokumenten aus dem Arbeitsbereich {workspace} ({date})"
+    "ExportResultRecordTitle": "Export von Dokumenten aus dem Arbeitsbereich {workspace} ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "Ausgewählte ({count})",
+    "ExportScopeLoaded": "Auf dieser Seite geladen ({count})",
+    "ExportFileName": "Dateiname",
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "Inhalt exportieren",
+    "ImportDocumentContent": "Inhalt importieren",
+    "ExportingDocumentContent": "Dokument wird exportiert…",
+    "DocumentContentExported": "Dokument exportiert",
+    "DocumentContentExportFailed": "Export fehlgeschlagen",
+    "ImportingDocumentContent": "Dokument wird importiert",
+    "ConvertingDocumentContent": "Dokument wird konvertiert…",
+    "DocumentContentConverted": "Dokument konvertiert",
+    "DocumentContentImportFailed": "Import fehlgeschlagen",
+    "ReviewDocumentContentChanges": "Importierte Änderungen prüfen",
+    "ApplyDocumentContentChanges": "Übernehmen"
   }
 }

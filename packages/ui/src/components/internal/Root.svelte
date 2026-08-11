@@ -24,6 +24,7 @@
   import { isAppFocusedStore } from '../../stores'
 
   let application: AnyComponent | undefined
+  let currentRoute: string | undefined
 
   function updateAppFocused (isFocused: boolean): void {
     const isFocusedCurrent = $isAppFocusedStore
@@ -72,6 +73,7 @@
     location.subscribe((loc) => {
       const routes = getMetadata(uiPlugin.metadata.Routes) ?? new Map()
       const component = loc.path[0]
+      currentRoute = component
 
       application = routes.get(component)
       if (application === undefined && Array.from(routes.values()).includes(component as AnyComponent)) {
@@ -267,7 +269,7 @@
               {/if}
               <Label label={platform.status.MaintenanceWarningTime} params={{ time: maintenanceTime }} />
             </div>
-          {:else if status.severity !== Severity.OK}
+          {:else if status.severity !== Severity.OK && !(status.code === platform.status.ReadOnlyAccount && currentRoute === 'login')}
             <StatusComponent {status} />
           {/if}
           {#if systemAccount}

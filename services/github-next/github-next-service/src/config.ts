@@ -15,6 +15,7 @@
 
 interface Config {
   ServiceID: string
+  Secret: string
   AccountsURL: string
   FrontURL: string
   CollaboratorURL: string
@@ -28,10 +29,12 @@ interface Config {
   QueueRegion: string
   SyncInbound: boolean
   SyncOutbound: boolean
+  CommunicationApiEnabled: boolean
 }
 
 const envMap: { [key in keyof Config]: string } = {
   ServiceID: 'SERVICE_ID',
+  Secret: 'SERVER_SECRET',
   AccountsURL: 'ACCOUNTS_URL',
   FrontURL: 'FRONT_URL',
   CollaboratorURL: 'COLLABORATOR_URL',
@@ -44,10 +47,18 @@ const envMap: { [key in keyof Config]: string } = {
   OutboundDebounceMs: 'OUTBOUND_DEBOUNCE_MS',
   QueueRegion: 'QUEUE_REGION',
   SyncInbound: 'SYNC_INBOUND',
-  SyncOutbound: 'SYNC_OUTBOUND'
+  SyncOutbound: 'SYNC_OUTBOUND',
+  CommunicationApiEnabled: 'COMMUNICATION_API_ENABLED'
 }
 
-const required: Array<keyof Config> = ['AccountsURL', 'FrontURL', 'CollaboratorURL', 'ClientID', 'ClientSecret']
+const required: Array<keyof Config> = [
+  'Secret',
+  'AccountsURL',
+  'FrontURL',
+  'CollaboratorURL',
+  'ClientID',
+  'ClientSecret'
+]
 
 function parseNumber (value: string | undefined, fallback: number): number {
   return value !== undefined ? Number(value) : fallback
@@ -61,6 +72,7 @@ const config: Config = (() => {
   const port = parseNumber(process.env[envMap.Port], 3510)
   const params: Partial<Config> = {
     ServiceID: process.env[envMap.ServiceID] ?? 'github-next-service',
+    Secret: process.env[envMap.Secret],
     AccountsURL: process.env[envMap.AccountsURL],
     FrontURL: process.env[envMap.FrontURL],
     CollaboratorURL: process.env[envMap.CollaboratorURL],
@@ -73,7 +85,8 @@ const config: Config = (() => {
     OutboundDebounceMs: parseNumber(process.env[envMap.OutboundDebounceMs], 1000),
     QueueRegion: process.env[envMap.QueueRegion] ?? '',
     SyncInbound: parseBoolean(process.env[envMap.SyncInbound], true),
-    SyncOutbound: parseBoolean(process.env[envMap.SyncOutbound], true)
+    SyncOutbound: parseBoolean(process.env[envMap.SyncOutbound], true),
+    CommunicationApiEnabled: parseBoolean(process.env[envMap.CommunicationApiEnabled], false)
   }
 
   const missingEnv = required.filter((key) => params[key] === undefined || params[key] === '').map((key) => envMap[key])

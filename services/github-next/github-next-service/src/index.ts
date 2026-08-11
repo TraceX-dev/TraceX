@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -62,6 +63,7 @@ import githubNext, {
   type GithubNextIntegrationData,
   type GithubNextIssue,
   type GithubNextObjectSyncState,
+  type GithubNextPullRequest,
   type GithubNextRepository,
   type GithubNextRepositorySelection
 } from '@hcengineering/github-next'
@@ -85,7 +87,9 @@ import tags from '@hcengineering/tags'
 import { jsonToMarkup, markupToJSON } from '@hcengineering/text'
 import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 import config from './config'
+import { convertSerializedMarkupToMarkdown, isSerializedMarkup } from './markup'
 import {
+  addGithubIssueToProject,
   createGithubDiscussion,
   createGithubIssue,
   createGithubIssueComment,
@@ -95,12 +99,17 @@ import {
   findGithubUserLoginByName,
   getGithubDiscussion,
   getGithubIssue,
+  getGithubProjectByUrl,
   getGithubUser,
   listGithubDiscussionCategories,
   listGithubDiscussions,
   listGithubIssueComments,
+  listGithubIssueProjects,
   listGithubIssues,
+  listGithubMilestones,
+  listGithubPullRequests,
   patchGithubIssue,
+  removeGithubIssueFromProject,
   updateGithubDiscussion,
   updateGithubIssueComment,
   type GithubIssueComment,
@@ -109,13 +118,14 @@ import {
 
 export * from './github'
 
-type SyncKind = 'issue' | 'discussion'
+type SyncKind = 'issue' | 'discussion' | 'pullRequest'
 
 export interface SyncGithubNextWorkspaceResult {
   integrations: number
   repositories: number
   issuesSeen: number
   discussionsSeen: number
+  pullRequestsSeen: number
   created: number
   updated: number
   skipped: number
@@ -162,6 +172,7 @@ type GithubNextMarkupOperations = MarkupOperations & {
     markup: string,
     format: 'markup'
   ) => Promise<void>
+  convertSerializedMarkupToMarkdown: (content: string) => string
 }
 
 interface GithubNextCommunicationComment {
@@ -202,10 +213,12 @@ function createGithubNextMarkupOperations (
   const collaborator = getCollaboratorClient(workspace, token, config.CollaboratorURL)
   const refUrl = concatLink(url, `/browse?workspace=${workspace}`)
   const imageUrl = concatLink(url, `/files?workspace=${workspace}&file=`)
+  const markupOptions = { refUrl, imageUrl }
 
   return {
     fetchMarkup: markup.fetchMarkup.bind(markup),
     uploadMarkup: markup.uploadMarkup.bind(markup),
+    convertSerializedMarkupToMarkdown: (content) => convertSerializedMarkupToMarkdown(content, markupOptions),
     fetchCurrentMarkup: async (objectClass, objectId, objectAttr, format) => {
       const currentMarkup = await collaborator.getMarkup(makeCollabId(objectClass, objectId, objectAttr), null)
       switch (format) {
@@ -457,6 +470,8 @@ function getOutboundWinningIssuePatch (
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
+    projects?: string[]
   },
   currentTargetValues: Record<string, unknown>,
   externalMappedValues: Record<string, unknown>,
@@ -468,6 +483,8 @@ function getOutboundWinningIssuePatch (
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
+    projects?: string[]
   } {
   const hasSnapshots = hasSnapshotValues(state)
   const localChangedFallback = state.targetHash !== stableHash(currentTargetValues)
@@ -510,7 +527,9 @@ function getOutboundWinningIssuePatch (
     body: isLocalWinner('description') ? fullPatch.body : undefined,
     state: isLocalWinner('state') ? fullPatch.state : undefined,
     assignees: isLocalWinner('assignee') ? fullPatch.assignees : undefined,
-    labels: isLocalWinner('labels') ? fullPatch.labels : undefined
+    labels: isLocalWinner('labels') ? fullPatch.labels : undefined,
+    milestone: isLocalWinner('milestone') ? fullPatch.milestone : undefined,
+    projects: isLocalWinner('projects') ? fullPatch.projects : undefined
   }
 }
 
@@ -664,8 +683,21 @@ function getTxObjectSpace (tx: TxCUD<Doc>): Ref<Space> | undefined {
   )
 }
 
-function getTxCreateAttributes (tx: TxCreateDoc<Doc>): Record<string, unknown> {
-  return (tx as unknown as { attributes?: Record<string, unknown> }).attributes ?? {}
+function getTxCollectionContext (tx: TxCUD<Doc>): {
+  attachedTo?: Ref<Doc>
+  attachedToClass?: Ref<Class<Doc>>
+  collection?: string
+} {
+  const collectionTx = tx as unknown as {
+    attachedTo?: Ref<Doc>
+    attachedToClass?: Ref<Class<Doc>>
+    collection?: string
+  }
+  return {
+    attachedTo: collectionTx.attachedTo,
+    attachedToClass: collectionTx.attachedToClass,
+    collection: collectionTx.collection
+  }
 }
 
 async function hasExistingSyncStateForTx (
@@ -682,16 +714,20 @@ async function hasExistingSyncStateForTx (
 
   if (tx.objectClass !== chunter.class.ChatMessage || !isTxCreateDoc(tx)) return false
 
-  const attrs = getTxCreateAttributes(tx)
-  const attachedTo = attrs.attachedTo as Ref<Doc> | undefined
-  const attachedToClass = attrs.attachedToClass as Ref<Class<Doc>> | undefined
-  if (attachedTo === undefined || attachedToClass === undefined) return false
+  const collectionContext = getTxCollectionContext(tx)
+  if (
+    collectionContext.collection !== 'messages' ||
+    collectionContext.attachedTo === undefined ||
+    collectionContext.attachedToClass === undefined
+  ) {
+    return false
+  }
 
   return (
     (await client.findOne(githubNext.class.GithubNextObjectSyncState, {
       integration: workspaceIntegration._id,
-      targetClass: attachedToClass,
-      targetId: attachedTo
+      targetClass: collectionContext.attachedToClass,
+      targetId: collectionContext.attachedTo
     })) !== undefined
   )
 }
@@ -766,9 +802,21 @@ export async function isGithubNextOutboundRelevantTx (
       workspaceIntegration,
       githubNext.ids.GithubNextDiscussionProvider
     )
-    return (
+    if (
       discussionProvider !== undefined &&
       (await matchesOutboundCreateRoute(client, accountIntegrations, discussionProvider, tx))
+    ) {
+      return true
+    }
+
+    const pullRequestProvider = await getProviderContext(
+      client,
+      workspaceIntegration,
+      githubNext.ids.GithubNextPullRequestProvider
+    )
+    return (
+      pullRequestProvider !== undefined &&
+      (await matchesOutboundCreateRoute(client, accountIntegrations, pullRequestProvider, tx))
     )
   } finally {
     await client.close()
@@ -776,6 +824,8 @@ export async function isGithubNextOutboundRelevantTx (
 }
 
 async function isCommunicationPluginEnabled (client: TxOperations): Promise<boolean> {
+  if (!config.CommunicationApiEnabled) return false
+
   const hasCommunicationModel = client.getModel().findObject(communication.class.MessageAction) !== undefined
   if (!hasCommunicationModel) return false
 
@@ -1081,6 +1131,13 @@ async function resolvePersonToGithubLogin (
   return undefined
 }
 
+function getAssigneeRefs (value: unknown): Array<Ref<Person>> {
+  if (typeof value === 'string') return [value as Ref<Person>]
+  if (!Array.isArray(value)) return []
+
+  return value.filter((item): item is Ref<Person> => typeof item === 'string')
+}
+
 async function getDocLabelTitles (client: TxOperations, doc: Doc, collection: string): Promise<string[]> {
   const refs = await client.findAll(tags.class.TagReference, {
     attachedTo: doc._id,
@@ -1165,9 +1222,68 @@ function normalizeDiscussionSlots (discussion: GithubNextDiscussion): Record<str
   }
 }
 
-async function normalizeIssueSlots (client: TxOperations, issue: GithubNextIssue): Promise<Record<string, unknown>> {
-  const assignee =
-    issue.assignees?.[0] !== undefined ? await resolveGithubAssigneeToPerson(client, issue.assignees[0]) : undefined
+function normalizePullRequestSlots (pullRequest: GithubNextPullRequest): Record<string, unknown> {
+  return {
+    title: pullRequest.title,
+    description: pullRequest.body !== undefined ? jsonToMarkup(markdownToMarkup(pullRequest.body)) : undefined,
+    state: pullRequest.state,
+    externalUrl: pullRequest.htmlUrl,
+    number: pullRequest.number,
+    baseBranch: pullRequest.baseBranch,
+    headBranch: pullRequest.headBranch
+  }
+}
+
+function isAssigneeArrayBinding (client: TxOperations, binding: IntegrationSlotBinding): boolean {
+  return getBindingAttributeType(client, binding, 'assignee')?._class === core.class.ArrOf
+}
+
+function getBindingAttributeType (
+  client: TxOperations,
+  binding: IntegrationSlotBinding,
+  slot: string
+): { _class: Ref<Class<Doc>> } | undefined {
+  const targetAttr = binding.bindings[slot]
+  if (targetAttr === undefined) return undefined
+
+  return client.getHierarchy().getAllAttributes(binding.targetClass, core.class.Doc).get(targetAttr)?.type
+}
+
+function getNormalizedMilestoneValue (
+  client: TxOperations,
+  binding: IntegrationSlotBinding,
+  issue: GithubNextIssue
+): string | number | null | undefined {
+  if (binding.bindings.milestone === undefined) return undefined
+  if (issue.milestone === undefined) return null
+
+  return getBindingAttributeType(client, binding, 'milestone')?._class === core.class.TypeNumber
+    ? issue.milestone.number
+    : issue.milestone.title
+}
+
+function getNormalizedProjectValue (
+  client: TxOperations,
+  binding: IntegrationSlotBinding,
+  issue: GithubNextIssue
+): string | string[] | null | undefined {
+  if (binding.bindings.projects === undefined) return undefined
+  const projectUrls = issue.projects?.map((project) => project.url) ?? []
+  return getBindingAttributeType(client, binding, 'projects')?._class === core.class.ArrOf
+    ? projectUrls
+    : (projectUrls[0] ?? null)
+}
+
+async function normalizeIssueSlots (
+  client: TxOperations,
+  issue: GithubNextIssue,
+  binding: IntegrationSlotBinding
+): Promise<Record<string, unknown>> {
+  const assignees = (
+    await Promise.all(
+      (issue.assignees ?? []).map(async (assignee) => await resolveGithubAssigneeToPerson(client, assignee))
+    )
+  ).filter((assignee): assignee is Ref<Person> => assignee !== undefined)
 
   return {
     title: issue.title,
@@ -1175,8 +1291,80 @@ async function normalizeIssueSlots (client: TxOperations, issue: GithubNextIssue
     state: issue.state,
     externalUrl: issue.htmlUrl,
     number: issue.number,
-    assignee,
-    labels: issue.labels ?? []
+    assignee: isAssigneeArrayBinding(client, binding) ? assignees : assignees[0],
+    labels: issue.labels ?? [],
+    milestone: getNormalizedMilestoneValue(client, binding, issue),
+    projects: getNormalizedProjectValue(client, binding, issue)
+  }
+}
+
+async function enrichGithubIssueProjects (
+  token: string,
+  issue: GithubNextIssue,
+  binding: IntegrationSlotBinding
+): Promise<GithubNextIssue> {
+  if (binding.bindings.projects === undefined) return issue
+
+  const projects = await listGithubIssueProjects(token, issue.nodeId)
+  return { ...issue, projects: projects.map((project) => project.project) }
+}
+
+function getProjectUrls (value: unknown): string[] | undefined {
+  if (value == null) return []
+  if (typeof value === 'string') return value.trim() === '' ? [] : [normalizeGithubProjectUrl(value)]
+  if (!Array.isArray(value)) return undefined
+
+  const urls = value
+    .filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+    .map((item) => normalizeGithubProjectUrl(item))
+  return [...new Set(urls)]
+}
+
+function normalizeGithubProjectUrl (url: string): string {
+  return url.trim().replace(/\/+$/, '')
+}
+
+async function resolveGithubMilestoneNumber (
+  token: string | undefined,
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
+  value: unknown,
+  context?: GithubRequestContext
+): Promise<number | null | undefined> {
+  if (value == null || value === '') return null
+  if (typeof value === 'number' && Number.isSafeInteger(value)) return value
+  if (typeof value !== 'string' || token === undefined) return undefined
+
+  const milestone = (await listGithubMilestones(token, repository, context)).find((item) => item.title === value)
+  if (milestone !== undefined) return milestone.number
+
+  console.warn('[github-next-service] milestone outbound not found', {
+    repository: `${repository.owner}/${repository.name}`,
+    milestone: value
+  })
+  return undefined
+}
+
+async function syncGithubIssueProjects (token: string, issue: GithubNextIssue, projectUrls: string[]): Promise<void> {
+  const currentItems = await listGithubIssueProjects(token, issue.nodeId)
+  const desiredUrls = new Set(projectUrls)
+  const currentItemsByUrl = new Map(currentItems.map((item) => [normalizeGithubProjectUrl(item.project.url), item]))
+
+  for (const item of currentItems) {
+    if (!desiredUrls.has(normalizeGithubProjectUrl(item.project.url))) {
+      await removeGithubIssueFromProject(token, item.id)
+    }
+  }
+
+  for (const projectUrl of desiredUrls) {
+    if (currentItemsByUrl.has(projectUrl)) continue
+
+    const project = await getGithubProjectByUrl(token, projectUrl)
+    if (project === undefined) {
+      console.warn('[github-next-service] project outbound not found', { projectUrl, issue: issue.htmlUrl })
+      continue
+    }
+
+    await addGithubIssueToProject(token, project.id, issue.nodeId)
   }
 }
 
@@ -1313,21 +1501,8 @@ async function findOutboundTargetDocs (
   route: OutboundRoute,
   syncedTargetKeys: Set<string>
 ): Promise<Doc[]> {
-  const hierarchy = client.getHierarchy()
-  const targetClasses = new Set<Ref<Class<Doc>>>([
-    route.target.targetClass,
-    ...(hierarchy.getDescendants(route.target.targetClass) as Array<Ref<Class<Doc>>>)
-  ])
-  const docs: Doc[] = []
-
-  for (const targetClass of targetClasses) {
-    const targetDocs = await client.findAll<Doc>(targetClass, { space: route.target.space })
-    docs.push(
-      ...targetDocs.filter((doc) => !syncedTargetKeys.has(doc._id) && !syncedTargetKeys.has(`${doc._class}:${doc._id}`))
-    )
-  }
-
-  return docs
+  const docs = await client.findAll<Doc>(route.target.targetClass, { space: route.target.space })
+  return docs.filter((doc) => !syncedTargetKeys.has(doc._id) && !syncedTargetKeys.has(`${doc._class}:${doc._id}`))
 }
 
 async function getSyncedTargetKeys (
@@ -2000,7 +2175,7 @@ async function syncInboundIssueComments (
   workspace: WorkspaceContext,
   token: string,
   githubContext: GithubRequestContext,
-  issue: GithubNextIssue
+  issue: GithubNextIssue | GithubNextPullRequest
 ): Promise<void> {
   const issueState = await workspace.client.findOne(githubNext.class.GithubNextObjectSyncState, {
     integration: workspace.workspaceIntegration._id,
@@ -2102,6 +2277,7 @@ async function syncInboundIssues (
     repositories: 0,
     issuesSeen: 0,
     discussionsSeen: 0,
+    pullRequestsSeen: 0,
     created: 0,
     updated: 0,
     skipped: 0
@@ -2136,6 +2312,7 @@ async function syncInboundIssues (
         result.issuesSeen += issues.length
 
         for (const issue of issues) {
+          const externalIssue = await enrichGithubIssueProjects(secret.secret, issue, issueProvider.binding)
           const syncResult = await upsertInboundObject(
             ctx,
             {
@@ -2146,13 +2323,13 @@ async function syncInboundIssues (
               repositoryDoc,
               providerContext: issueProvider
             },
-            await normalizeIssueSlots(client, issue),
+            await normalizeIssueSlots(client, externalIssue, issueProvider.binding),
             {
-              externalId: String(issue.id),
-              externalNumber: issue.number,
-              externalUrl: issue.htmlUrl,
-              externalNodeId: issue.nodeId,
-              externalVersion: issue.updatedAt
+              externalId: String(externalIssue.id),
+              externalNumber: externalIssue.number,
+              externalUrl: externalIssue.htmlUrl,
+              externalNodeId: externalIssue.nodeId,
+              externalVersion: externalIssue.updatedAt
             }
           )
           result[syncResult]++
@@ -2168,7 +2345,7 @@ async function syncInboundIssues (
             },
             secret.secret,
             githubContext,
-            issue
+            externalIssue
           )
         }
       }
@@ -2197,6 +2374,7 @@ async function syncInboundDiscussions (
     repositories: 0,
     issuesSeen: 0,
     discussionsSeen: 0,
+    pullRequestsSeen: 0,
     created: 0,
     updated: 0,
     skipped: 0
@@ -2263,24 +2441,111 @@ async function syncInboundDiscussions (
   return result
 }
 
+async function syncInboundPullRequests (
+  ctx: MeasureContext,
+  accountsUrl: string,
+  workspaceUuid: WorkspaceUuid
+): Promise<SyncGithubNextWorkspaceResult> {
+  const serviceToken = generateToken(systemAccountUuid, workspaceUuid, { service: 'github-next' })
+  const accountClient = getAccountClient(accountsUrl, serviceToken)
+  const accountIntegrations = await accountClient.listIntegrations({
+    kind: githubNextIntegrationKind,
+    workspaceUuid
+  })
+
+  const result: SyncGithubNextWorkspaceResult = {
+    integrations: accountIntegrations.length,
+    repositories: 0,
+    issuesSeen: 0,
+    discussionsSeen: 0,
+    pullRequestsSeen: 0,
+    created: 0,
+    updated: 0,
+    skipped: 0
+  }
+  if (accountIntegrations.length === 0) return result
+
+  const { client, markup, communication } = await createWorkspaceClient(accountsUrl, workspaceUuid)
+  const githubContext = createGithubRequestContext()
+  try {
+    const workspaceIntegration = await getWorkspaceIntegration(client)
+    if (workspaceIntegration === undefined) return result
+
+    const providerContext = await getProviderContext(
+      client,
+      workspaceIntegration,
+      githubNext.ids.GithubNextPullRequestProvider
+    )
+    if (providerContext === undefined) return result
+
+    for (const accountIntegration of accountIntegrations) {
+      const integrationData = accountIntegration.data as GithubNextIntegrationData | undefined
+      const repositories = integrationData?.repositories ?? []
+      if (integrationData?.capabilities?.pullRequests !== true || repositories.length === 0) continue
+
+      const secret = await getTokenSecret(accountsUrl, accountIntegration)
+      if (secret == null || secret.secret.trim() === '') continue
+
+      const repositoryDocs = await ensureRepositoryDocs(ctx, client, workspaceIntegration, repositories)
+      result.repositories += repositories.length
+
+      for (const repository of repositories) {
+        const repositoryDoc = repositoryDocs.get(`${repository.owner}/${repository.name}`)
+        if (repositoryDoc === undefined || !repositoryDoc.enabled) continue
+
+        const pullRequests = await listGithubPullRequests(secret.secret, repository)
+        result.pullRequestsSeen += pullRequests.length
+
+        for (const pullRequest of pullRequests) {
+          const workspace: WorkspaceContext = {
+            client,
+            markup,
+            communication,
+            workspaceIntegration,
+            repositoryDoc,
+            providerContext
+          }
+          const syncResult = await upsertInboundObject(ctx, workspace, normalizePullRequestSlots(pullRequest), {
+            externalId: String(pullRequest.id),
+            externalNumber: pullRequest.number,
+            externalUrl: pullRequest.htmlUrl,
+            externalNodeId: pullRequest.nodeId,
+            externalVersion: pullRequest.updatedAt
+          })
+          result[syncResult]++
+          await syncInboundIssueComments(ctx, workspace, secret.secret, githubContext, pullRequest)
+        }
+      }
+    }
+  } finally {
+    await client.close()
+  }
+
+  return result
+}
+
 async function buildIssuePatch (
   client: TxOperations,
-  markup: MarkupOperations,
+  markup: GithubNextMarkupOperations,
   doc: Doc,
   binding: IntegrationSlotBinding,
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
   token?: string,
   githubContext?: GithubRequestContext,
   outboundState?: {
     state: GithubNextObjectSyncState
     externalMappedValues: Record<string, unknown>
     localModifiedOn: number
-  }
+  },
+  forceDescriptionSync: boolean = false
 ): Promise<{
     title?: string
     body?: string
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
+    projects?: string[]
     targetHash: string
   }> {
   const markdownTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markdown')
@@ -2288,19 +2553,30 @@ async function buildIssuePatch (
   const reversed = applyIntegrationSlotReverseBinding(markdownTargetValues, binding)
   const assigneeAttr = binding.bindings.assignee
   const labelsAttr = binding.bindings.labels
-  const assignee = assigneeAttr !== undefined ? (doc as Record<string, any>)[assigneeAttr] : undefined
-
-  const assigneeLogin =
-    assigneeAttr !== undefined
-      ? await resolvePersonToGithubLogin(client, token, assignee ?? null, githubContext)
-      : undefined
+  const milestoneAttr = binding.bindings.milestone
+  const projectsAttr = binding.bindings.projects
+  const assigneeValue =
+    assigneeAttr !== undefined ? (doc as unknown as Record<string, unknown>)[assigneeAttr] : undefined
+  const assigneeRefs = getAssigneeRefs(assigneeValue)
+  const assigneeLogins = (
+    await Promise.all(
+      assigneeRefs.map(async (assignee) => await resolvePersonToGithubLogin(client, token, assignee, githubContext))
+    )
+  ).filter((login): login is string => login !== undefined)
   const labelTitles = labelsAttr !== undefined ? ((await getDocLabelTitles(client, doc, labelsAttr)) ?? []) : undefined
   let assignees: string[] | undefined
-  if (assigneeAttr !== undefined && assignee == null) {
+  if (assigneeAttr !== undefined && assigneeValue == null) {
     assignees = []
-  } else if (assigneeLogin !== undefined) {
-    assignees = [assigneeLogin]
+  } else if (Array.isArray(assigneeValue) && assigneeValue.length === 0) {
+    assignees = []
+  } else if (assigneeLogins.length > 0) {
+    assignees = [...new Set(assigneeLogins)]
   }
+  const milestone =
+    milestoneAttr !== undefined
+      ? await resolveGithubMilestoneNumber(token, repository, reversed.milestone, githubContext)
+      : undefined
+  const projects = projectsAttr !== undefined ? getProjectUrls(reversed.projects) : undefined
 
   const fullPatch: {
     title?: string
@@ -2308,12 +2584,19 @@ async function buildIssuePatch (
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
+    projects?: string[]
   } = {
     title: typeof reversed.title === 'string' ? reversed.title : undefined,
-    body: typeof reversed.description === 'string' ? reversed.description : undefined,
+    body:
+      typeof reversed.description === 'string'
+        ? markup.convertSerializedMarkupToMarkdown(reversed.description)
+        : undefined,
     state: reversed.state === 'open' || reversed.state === 'closed' ? reversed.state : undefined,
     assignees,
-    labels: labelTitles
+    labels: labelTitles,
+    milestone,
+    projects
   }
   const patch =
     outboundState === undefined
@@ -2329,6 +2612,7 @@ async function buildIssuePatch (
 
   return {
     ...patch,
+    body: forceDescriptionSync ? fullPatch.body : patch.body,
     targetHash: await getTargetHash(client, markup, doc, binding)
   }
 }
@@ -2343,7 +2627,7 @@ function normalizeComparableValue (value: unknown): unknown {
 
 async function buildDiscussionPatch (
   client: TxOperations,
-  markup: MarkupOperations,
+  markup: GithubNextMarkupOperations,
   repository: GithubNextRepository,
   token: string,
   doc: Doc,
@@ -2352,7 +2636,8 @@ async function buildDiscussionPatch (
     state: GithubNextObjectSyncState
     externalMappedValues: Record<string, unknown>
     localModifiedOn: number
-  }
+  },
+  forceDescriptionSync: boolean = false
 ): Promise<{
     title?: string
     body?: string
@@ -2374,7 +2659,10 @@ async function buildDiscussionPatch (
 
   const fullPatch = {
     title: typeof reversed.title === 'string' ? reversed.title : undefined,
-    body: typeof reversed.description === 'string' ? reversed.description : undefined,
+    body:
+      typeof reversed.description === 'string'
+        ? markup.convertSerializedMarkupToMarkdown(reversed.description)
+        : undefined,
     categoryId
   }
   const currentTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markup')
@@ -2392,6 +2680,7 @@ async function buildDiscussionPatch (
 
   return {
     ...patch,
+    body: forceDescriptionSync ? fullPatch.body : patch.body,
     targetHash: stableHash(currentTargetValues)
   }
 }
@@ -2406,24 +2695,37 @@ async function createOutboundIssue (
   route: OutboundRoute,
   doc: Doc
 ): Promise<void> {
-  const draft = await buildIssuePatch(client, markup, doc, providerContext.binding, token, githubContext)
+  const draft = await buildIssuePatch(
+    client,
+    markup,
+    doc,
+    providerContext.binding,
+    route.repository,
+    token,
+    githubContext
+  )
   if (draft.title === undefined || draft.title.trim() === '') {
     throw new Error(`Cannot create GitHub issue from ${doc._id}: title is required`)
   }
 
-  const created = await createGithubIssue(
+  let created = await createGithubIssue(
     token,
     route.repository,
     {
       title: draft.title,
       body: draft.body,
       assignees: draft.assignees,
-      labels: draft.labels
+      labels: draft.labels,
+      milestone: draft.milestone
     },
     githubContext
   )
+  if (draft.projects !== undefined) {
+    await syncGithubIssueProjects(token, created, draft.projects)
+    created = await enrichGithubIssueProjects(token, created, providerContext.binding)
+  }
   const externalValues = applyIntegrationSlotBinding(
-    await normalizeIssueSlots(client, created),
+    await normalizeIssueSlots(client, created, providerContext.binding),
     providerContext.binding
   )
   const targetValues = await fetchMappedTargetValues(client, markup, doc, providerContext.binding, 'markup')
@@ -2937,6 +3239,7 @@ async function syncOutboundForProvider (
     repositories: 0,
     issuesSeen: 0,
     discussionsSeen: 0,
+    pullRequestsSeen: 0,
     created: 0,
     updated: 0,
     skipped: 0
@@ -2950,7 +3253,11 @@ async function syncOutboundForProvider (
     if (workspaceIntegration === undefined) return result
 
     const providerId =
-      kind === 'issue' ? githubNext.ids.GithubNextIssueProvider : githubNext.ids.GithubNextDiscussionProvider
+      kind === 'issue'
+        ? githubNext.ids.GithubNextIssueProvider
+        : kind === 'discussion'
+          ? githubNext.ids.GithubNextDiscussionProvider
+          : githubNext.ids.GithubNextPullRequestProvider
     const providerContext = await getProviderContext(client, workspaceIntegration, providerId)
     if (providerContext === undefined) return result
 
@@ -2958,7 +3265,11 @@ async function syncOutboundForProvider (
       const integrationData = accountIntegration.data as GithubNextIntegrationData | undefined
       const repositories = integrationData?.repositories ?? []
       const capabilityEnabled =
-        kind === 'issue' ? integrationData?.capabilities?.issues : integrationData?.capabilities?.discussions
+        kind === 'issue'
+          ? integrationData?.capabilities?.issues
+          : kind === 'discussion'
+            ? integrationData?.capabilities?.discussions
+            : integrationData?.capabilities?.pullRequests
       if (capabilityEnabled !== true || repositories.length === 0) continue
 
       const secret = await getTokenSecret(accountsUrl, accountIntegration)
@@ -2968,19 +3279,21 @@ async function syncOutboundForProvider (
       const routes = await getOutboundRoutes(ctx, providerContext, repositoryDocs.values())
       result.repositories += routes.length
 
-      const createResult = await syncOutboundCreatesForProvider(
-        ctx,
-        client,
-        markup,
-        workspaceIntegration,
-        providerContext,
-        secret.secret,
-        githubContext,
-        routes,
-        kind
-      )
-      result.created += createResult.created
-      result.skipped += createResult.skipped
+      if (kind !== 'pullRequest') {
+        const createResult = await syncOutboundCreatesForProvider(
+          ctx,
+          client,
+          markup,
+          workspaceIntegration,
+          providerContext,
+          secret.secret,
+          githubContext,
+          routes,
+          kind
+        )
+        result.created += createResult.created
+        result.skipped += createResult.skipped
+      }
 
       const states = await client.findAll(githubNext.class.GithubNextObjectSyncState, {
         integration: workspaceIntegration._id,
@@ -3040,14 +3353,15 @@ async function syncOutboundForProvider (
             result.skipped++
             continue
           }
-          const externalIssue = await getGithubIssue(
+          let externalIssue = await getGithubIssue(
             secret.secret,
             { owner: repository.owner, name: repository.name },
             state.externalNumber,
             githubContext
           )
+          externalIssue = await enrichGithubIssueProjects(secret.secret, externalIssue, providerContext.binding)
           const externalMappedValues = applyIntegrationSlotBinding(
-            await normalizeIssueSlots(client, externalIssue),
+            await normalizeIssueSlots(client, externalIssue, providerContext.binding),
             providerContext.binding
           )
           const localModifiedOn = getObjectModifiedOn(outboundTargetDoc)
@@ -3084,20 +3398,23 @@ async function syncOutboundForProvider (
             markup,
             outboundTargetDoc,
             providerContext.binding,
+            repository,
             secret.secret,
             githubContext,
             {
               state,
               externalMappedValues,
               localModifiedOn: getObjectModifiedOn(outboundTargetDoc)
-            }
+            },
+            typeof externalIssue.body === 'string' && isSerializedMarkup(externalIssue.body)
           )
           const githubPatch = withoutUndefined({
             title: diffPatch.title,
             body: diffPatch.body,
             state: diffPatch.state,
             assignees: diffPatch.assignees,
-            labels: diffPatch.labels
+            labels: diffPatch.labels,
+            milestone: diffPatch.milestone
           })
           console.info('[github-next-service] issue outbound diff patch prepared', {
             state: state._id,
@@ -3109,7 +3426,7 @@ async function syncOutboundForProvider (
             labels: githubPatch.labels,
             targetHashChanged: diffPatch.targetHash !== state.targetHash
           })
-          if (!hasDefinedValue(githubPatch)) {
+          if (!hasDefinedValue(githubPatch) && diffPatch.projects === undefined) {
             if (Object.keys(externalWinningValues).length > 0) {
               const targetValues = await fetchMappedTargetValues(
                 client,
@@ -3135,15 +3452,22 @@ async function syncOutboundForProvider (
             continue
           }
 
-          const updated = await patchGithubIssue(
-            secret.secret,
-            { owner: repository.owner, name: repository.name },
-            state.externalNumber,
-            githubPatch,
-            githubContext
-          )
+          let updated = externalIssue
+          if (hasDefinedValue(githubPatch)) {
+            updated = await patchGithubIssue(
+              secret.secret,
+              { owner: repository.owner, name: repository.name },
+              state.externalNumber,
+              githubPatch,
+              githubContext
+            )
+          }
+          if (diffPatch.projects !== undefined) {
+            await syncGithubIssueProjects(secret.secret, updated, diffPatch.projects)
+          }
+          updated = await enrichGithubIssueProjects(secret.secret, updated, providerContext.binding)
           const updatedExternalValues = applyIntegrationSlotBinding(
-            await normalizeIssueSlots(client, updated),
+            await normalizeIssueSlots(client, updated, providerContext.binding),
             providerContext.binding
           )
           const targetValues = await fetchMappedTargetValues(
@@ -3164,6 +3488,25 @@ async function syncOutboundForProvider (
             lastSyncedOn: Date.now()
           })
           result.updated++
+          continue
+        }
+
+        if (kind === 'pullRequest') {
+          result.pullRequestsSeen++
+          const commentsResult = await syncOutboundIssueComments(
+            ctx,
+            client,
+            communication,
+            repository,
+            workspaceIntegration,
+            providerContext,
+            secret.secret,
+            state,
+            targetDoc
+          )
+          result.created += commentsResult.created
+          result.updated += commentsResult.updated
+          result.skipped += commentsResult.skipped
           continue
         }
 
@@ -3218,7 +3561,8 @@ async function syncOutboundForProvider (
             state,
             externalMappedValues,
             localModifiedOn: getObjectModifiedOn(outboundTargetDoc)
-          }
+          },
+          typeof externalDiscussion.body === 'string' && isSerializedMarkup(externalDiscussion.body)
         )
         const discussionPatch = withoutUndefined({
           title: patch.title,
@@ -3299,6 +3643,14 @@ export async function syncGithubNextDiscussions (
   return await syncInboundDiscussions(ctx, accountsUrl, workspaceUuid)
 }
 
+export async function syncGithubNextPullRequests (
+  ctx: MeasureContext,
+  accountsUrl: string,
+  workspaceUuid: WorkspaceUuid
+): Promise<SyncGithubNextWorkspaceResult> {
+  return await syncInboundPullRequests(ctx, accountsUrl, workspaceUuid)
+}
+
 export async function syncGithubNextOutboundIssues (
   ctx: MeasureContext,
   accountsUrl: string,
@@ -3313,4 +3665,12 @@ export async function syncGithubNextOutboundDiscussions (
   workspaceUuid: WorkspaceUuid
 ): Promise<SyncGithubNextWorkspaceResult> {
   return await syncOutboundForProvider(ctx, accountsUrl, workspaceUuid, 'discussion')
+}
+
+export async function syncGithubNextOutboundPullRequests (
+  ctx: MeasureContext,
+  accountsUrl: string,
+  workspaceUuid: WorkspaceUuid
+): Promise<SyncGithubNextWorkspaceResult> {
+  return await syncOutboundForProvider(ctx, accountsUrl, workspaceUuid, 'pullRequest')
 }

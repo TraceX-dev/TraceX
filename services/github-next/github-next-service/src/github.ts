@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,9 @@ import type {
   GithubNextDiscussion,
   GithubNextDiscussionCategory,
   GithubNextIssue,
+  GithubNextMilestone,
+  GithubNextProject,
+  GithubNextPullRequest,
   GithubNextRepositorySelection
 } from '@hcengineering/github-next'
 
@@ -50,7 +54,22 @@ interface GithubIssueResponse {
   updated_at: string
   assignees?: Array<{ login: string }>
   labels?: Array<{ name?: string | null }>
+  milestone?: GithubNextMilestone | null
   pull_request?: Record<string, unknown>
+}
+
+interface GithubPullRequestResponse {
+  id: number
+  node_id: string
+  number: number
+  title: string
+  body?: string | null
+  state: 'open' | 'closed'
+  merged_at?: string | null
+  html_url: string
+  updated_at: string
+  base: { ref: string }
+  head: { ref: string }
 }
 
 interface GithubSearchUsersResponse {
@@ -99,6 +118,12 @@ interface GithubDiscussionResponse {
 export interface GithubRequestContext {
   userCache: Map<string, GithubNextAssignee>
   userSearchCache: Map<string, string | undefined>
+  milestoneCache: Map<string, Promise<GithubNextMilestone[]>>
+}
+
+export interface GithubNextProjectItem {
+  id: string
+  project: GithubNextProject
 }
 
 class GithubHttpError extends Error {
@@ -118,7 +143,8 @@ const githubMaxRetryDelayMs = 15_000
 export function createGithubRequestContext (): GithubRequestContext {
   return {
     userCache: new Map(),
-    userSearchCache: new Map()
+    userSearchCache: new Map(),
+    milestoneCache: new Map()
   }
 }
 
@@ -270,6 +296,26 @@ function toGithubIssue (issue: GithubIssueResponse, repository: GithubNextReposi
     assigneeLogins,
     assignees: assigneeLogins?.map((login) => ({ login })),
     labels: issue.labels?.map((label) => label.name ?? '').filter((label) => label !== ''),
+    milestone: issue.milestone ?? undefined,
+    repository
+  }
+}
+
+function toGithubPullRequest (
+  pullRequest: GithubPullRequestResponse,
+  repository: GithubNextRepositorySelection
+): GithubNextPullRequest {
+  return {
+    id: pullRequest.id,
+    nodeId: pullRequest.node_id,
+    number: pullRequest.number,
+    title: pullRequest.title,
+    body: pullRequest.body ?? undefined,
+    state: pullRequest.merged_at !== null && pullRequest.merged_at !== undefined ? 'merged' : pullRequest.state,
+    htmlUrl: pullRequest.html_url,
+    updatedAt: pullRequest.updated_at,
+    baseBranch: pullRequest.base.ref,
+    headBranch: pullRequest.head.ref,
     repository
   }
 }
@@ -409,6 +455,152 @@ export async function listGithubIssues (
   return issues
 }
 
+export async function listGithubMilestones (
+  token: string,
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
+  context?: GithubRequestContext
+): Promise<GithubNextMilestone[]> {
+  const cacheKey = `${repository.owner}/${repository.name}`
+  const cached = context?.milestoneCache.get(cacheKey)
+  if (cached !== undefined) return await cached
+
+  const request = (async (): Promise<GithubNextMilestone[]> => {
+    const milestones: GithubNextMilestone[] = []
+    for (let page = 1; page <= 10; page++) {
+      const batch = await requestGithub<GithubNextMilestone[]>(
+        `/repos/${repository.owner}/${repository.name}/milestones?state=all&per_page=100&page=${page}`,
+        token
+      )
+      milestones.push(...batch)
+      if (batch.length < 100) break
+    }
+    return milestones
+  })()
+
+  context?.milestoneCache.set(cacheKey, request)
+  return await request
+}
+
+interface GithubIssueProjectsResponse {
+  node?: {
+    projectItems?: {
+      nodes?: Array<{
+        id: string
+        project: GithubNextProject
+      }>
+    }
+  }
+}
+
+export async function listGithubIssueProjects (token: string, issueNodeId: string): Promise<GithubNextProjectItem[]> {
+  const response = await requestGithubGraphql<GithubIssueProjectsResponse>(
+    token,
+    `query GithubNextIssueProjects($issueId: ID!) {
+      node(id: $issueId) {
+        ... on Issue {
+          projectItems(first: 100) {
+            nodes {
+              id
+              project {
+                id
+                title
+                url
+              }
+            }
+          }
+        }
+      }
+    }`,
+    { issueId: issueNodeId }
+  )
+
+  return response.node?.projectItems?.nodes ?? []
+}
+
+interface GithubProjectByUrlResponse {
+  organization?: { projectV2?: GithubNextProject | null } | null
+  user?: { projectV2?: GithubNextProject | null } | null
+}
+
+function parseGithubProjectUrl (url: string): { owner: string, number: number } | undefined {
+  const match = /^https:\/\/github\.com\/(?:orgs|users)\/([^/]+)\/projects\/(\d+)\/?$/.exec(url.trim())
+  if (match === null) return undefined
+
+  const number = Number(match[2])
+  if (!Number.isSafeInteger(number)) return undefined
+  return { owner: match[1], number }
+}
+
+export async function getGithubProjectByUrl (token: string, url: string): Promise<GithubNextProject | undefined> {
+  const parsed = parseGithubProjectUrl(url)
+  if (parsed === undefined) return undefined
+
+  const response = await requestGithubGraphql<GithubProjectByUrlResponse>(
+    token,
+    `query GithubNextProjectByUrl($owner: String!, $number: Int!) {
+      organization(login: $owner) {
+        projectV2(number: $number) {
+          id
+          title
+          url
+        }
+      }
+      user(login: $owner) {
+        projectV2(number: $number) {
+          id
+          title
+          url
+        }
+      }
+    }`,
+    parsed
+  )
+
+  return response.organization?.projectV2 ?? response.user?.projectV2 ?? undefined
+}
+
+export async function addGithubIssueToProject (token: string, projectId: string, issueNodeId: string): Promise<void> {
+  await requestGithubGraphql<unknown>(
+    token,
+    `mutation GithubNextAddProjectItem($projectId: ID!, $issueId: ID!) {
+      addProjectV2ItemById(input: { projectId: $projectId, contentId: $issueId }) {
+        item { id }
+      }
+    }`,
+    { projectId, issueId: issueNodeId }
+  )
+}
+
+export async function removeGithubIssueFromProject (token: string, projectItemId: string): Promise<void> {
+  await requestGithubGraphql<unknown>(
+    token,
+    `mutation GithubNextDeleteProjectItem($itemId: ID!) {
+      deleteProjectV2Item(input: { itemId: $itemId }) {
+        deletedItemId
+      }
+    }`,
+    { itemId: projectItemId }
+  )
+}
+
+export async function listGithubPullRequests (
+  token: string,
+  repository: GithubNextRepositorySelection
+): Promise<GithubNextPullRequest[]> {
+  const pullRequests: GithubNextPullRequest[] = []
+
+  for (let page = 1; page <= 10; page++) {
+    const batch = await requestGithub<GithubPullRequestResponse[]>(
+      `/repos/${repository.owner}/${repository.name}/pulls?state=all&per_page=100&page=${page}`,
+      token
+    )
+    pullRequests.push(...batch.map((pullRequest) => toGithubPullRequest(pullRequest, repository)))
+    if (batch.length < 100) break
+  }
+
+  return pullRequests
+}
+
 export async function getGithubIssue (
   token: string,
   repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
@@ -439,6 +631,7 @@ export async function patchGithubIssue (
     state?: 'open' | 'closed'
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
   },
   context?: GithubRequestContext
 ): Promise<GithubNextIssue> {
@@ -468,6 +661,7 @@ export async function createGithubIssue (
     body?: string
     assignees?: string[]
     labels?: string[]
+    milestone?: number | null
   },
   context?: GithubRequestContext
 ): Promise<GithubNextIssue> {
@@ -480,7 +674,8 @@ export async function createGithubIssue (
         title: issue.title,
         body: issue.body,
         assignees: issue.assignees,
-        labels: issue.labels
+        labels: issue.labels,
+        milestone: issue.milestone
       }
     }
   )

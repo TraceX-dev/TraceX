@@ -55,6 +55,23 @@
     "ExportFilterAll": "すべてのドキュメント",
     "ExportChildDocuments": "子ドキュメントをエクスポート",
     "ExportChildDocumentsDescription": "選択したドキュメントに添付されたドキュメントもエクスポートします",
-    "ExportResultRecordTitle": "ワークスペース {workspace} からのドキュメントのエクスポート ({date})"
+    "ExportResultRecordTitle": "ワークスペース {workspace} からのドキュメントのエクスポート ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "選択項目 ({count})",
+    "ExportScopeLoaded": "このページに読み込み済み ({count})",
+    "ExportFileName": "ファイル名",
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "コンテンツをエクスポート",
+    "ImportDocumentContent": "コンテンツをインポート",
+    "ExportingDocumentContent": "ドキュメントをエクスポート中…",
+    "DocumentContentExported": "ドキュメントをエクスポートしました",
+    "DocumentContentExportFailed": "エクスポートに失敗しました",
+    "ImportingDocumentContent": "ドキュメントをインポート中",
+    "ConvertingDocumentContent": "ドキュメントを変換中…",
+    "DocumentContentConverted": "ドキュメントを変換しました",
+    "DocumentContentImportFailed": "インポートに失敗しました",
+    "ReviewDocumentContentChanges": "インポートした変更を確認",
+    "ApplyDocumentContentChanges": "適用"
   }
 }

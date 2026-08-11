@@ -127,8 +127,6 @@ export class TSessionManager implements SessionManager {
   usersProducer: PlatformQueueProducer<QueueUserMessage>
   workspaceConsumer: ConsumerHandle
 
-  now: number = Date.now()
-
   ticksContext: MeasureContext
 
   hungSessionsWarnPercent = parseInt(process.env.HUNG_SESSIONS_WARN_PERCENT ?? '25')
@@ -1145,7 +1143,7 @@ export class TSessionManager implements SessionManager {
         user: sessionRef.session.getSocialIds().find((it) => it.type !== SocialIdType.HULY)?.value,
         binary: sessionRef.session.binaryMode,
         compression: sessionRef.session.useCompression,
-        totalTime: this.now - sessionRef.session.createTime,
+        totalTime: Date.now() - sessionRef.session.createTime,
         workspaceUsers: workspace?.sessions?.size,
         totalUsers: this.sessions.size
       })
@@ -1352,7 +1350,6 @@ export class TSessionManager implements SessionManager {
           id: reqId,
           result: msg,
           time: platformNowDiff(st),
-          bfst: this.now,
           queue: service.requests.size,
           rateLimit
         }),
@@ -1367,7 +1364,6 @@ export class TSessionManager implements SessionManager {
           error,
           time: platformNowDiff(st),
           rateLimit,
-          bfst: this.now,
           queue: service.requests.size
         })
     }

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,13 +14,14 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { MasterTag } from '@hcengineering/card'
-  import core from '@hcengineering/core'
+  import { type Card, MasterTag } from '@hcengineering/card'
+  import core, { type Class, type Ref } from '@hcengineering/core'
   import { TypeNumber } from '@hcengineering/model'
   import { getEmbeddedLabel, translateCB } from '@hcengineering/platform'
   import { getClient, IconDownload, IconWithEmoji, MessageBox } from '@hcengineering/presentation'
   import setting from '@hcengineering/setting'
   import {
+    Button,
     ButtonIcon,
     type ColorDefinition,
     eventToHTMLElement,
@@ -31,27 +33,42 @@
     ModernEditbox,
     navigate,
     showPopup,
+    TextArea,
     themeStore,
-    Toggle,
-    ToggleWithLabel
+    Toggle
   } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { ColorsPopup, IconPicker } from '@hcengineering/view-resources'
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import { exportModule } from '../../exporter'
   import card from '../../plugin'
   import { deleteMasterTag } from '../../utils'
+  import ChangeTagParentPopup from './ChangeTagParentPopup.svelte'
   import VersioningSetting from './VersioningSetting.svelte'
   import DuplicateSetting from './DuplicateSetting.svelte'
 
   export let masterTag: MasterTag
 
   let name: string = ''
+  let description = masterTag.description ?? ''
+  let descriptionSourceKey = ''
 
   $: translateCB(masterTag.label, {}, $themeStore.language, (p) => {
     name = p
   })
+  $: {
+    const sourceKey = `${masterTag._id}:${masterTag.description ?? ''}`
+    if (descriptionSourceKey !== sourceKey) {
+      descriptionSourceKey = sourceKey
+      description = masterTag.description ?? ''
+    }
+  }
 
   const client = getClient()
+  const h = client.getHierarchy()
+  const dispatch = createEventDispatcher()
+  let canChangeTagParent = false
+  let parentChangeAvailabilitySource = ''
 
   async function attributeUpdated<T extends keyof MasterTag> (field: T, value: MasterTag[T]): Promise<void> {
     if (masterTag === undefined || masterTag[field] === value) {
@@ -59,6 +76,20 @@
     }
 
     await client.update(masterTag, { [field]: value })
+  }
+
+  async function saveDescription (): Promise<void> {
+    const trimmed = description.trim()
+    const value = trimmed.length === 0 ? undefined : trimmed
+    if (value !== masterTag.description) {
+      masterTag.description = value
+      descriptionSourceKey = `${masterTag._id}:${value ?? ''}`
+      if (value !== undefined) {
+        await client.update(masterTag, { description: value })
+      } else {
+        await client.update(masterTag, { $unset: { description: true } } as any)
+      }
+    }
   }
 
   async function handleDelete (): Promise<void> {
@@ -88,8 +119,37 @@
     )
   }
 
-  const h = client.getHierarchy()
   $: isEditable = h.hasMixin(masterTag, setting.mixin.Editable) && h.as(masterTag, setting.mixin.Editable).value
+
+  $: void updateParentChangeAvailability(masterTag)
+
+  async function canChangeParent (tag: MasterTag): Promise<boolean> {
+    if (tag._class !== card.class.Tag) return false
+    const cards = await client.findAll<Card>(tag._id as Ref<Class<Card>>, {}, { limit: 1 })
+    return cards.length === 0
+  }
+
+  async function updateParentChangeAvailability (tag: MasterTag): Promise<void> {
+    const source = `${tag._id}:${tag._class}`
+    parentChangeAvailabilitySource = source
+    canChangeTagParent = false
+    const canChange = await canChangeParent(tag)
+    if (parentChangeAvailabilitySource === source) {
+      canChangeTagParent = canChange
+    }
+  }
+
+  async function openChangeTagParentPopup (): Promise<void> {
+    if (!(await canChangeParent(masterTag))) {
+      canChangeTagParent = false
+      return
+    }
+    showPopup(ChangeTagParentPopup, { tag: masterTag }, undefined, (result) => {
+      if (result?.changed === true) {
+        dispatch('change')
+      }
+    })
+  }
 
   const showColorPopup = (evt: MouseEvent): void => {
     showPopup(
@@ -165,6 +225,21 @@
   $: hasSubtypes = h
     .getDescendants(masterTag._id)
     .some((it) => it !== masterTag._id && !h.isMixin(it) && h.getClass(it).extends === masterTag._id)
+
+  function handleVisibilityChange (): void {
+    if (document.visibilityState === 'hidden') {
+      void saveDescription()
+    }
+  }
+
+  onMount(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  })
+
+  onDestroy(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+    void saveDescription()
+  })
 </script>
 
 <div class="hulyComponent-content__column-group">
@@ -210,44 +285,66 @@
       <ButtonIcon icon={IconDelete} size={'large'} kind={'tertiary'} on:click={handleDelete} />
     {/if}
   </div>
-  {#if !h.isMixin(masterTag._id)}
-    <div class="mx-2 flex-between items-center">
-      <Label label={card.string.Versioning} />
-      <div class="flex items-center gap-1">
-        {#if versioningEnabled}
-          <ButtonIcon icon={setting.icon.Setting} size="extra-small" on:click={versioningSetting} />
-        {/if}
-        <Toggle on={versioningEnabled} disabled={versioningEnabled} on:change={enableVersioning} />
-      </div>
-    </div>
-    <div class="mx-2 pt-2">
-      <ToggleWithLabel
-        label={card.string.SingleColumn}
-        on={masterTag.singleColumn}
-        on:change={(e) => attributeUpdated('singleColumn', e.detail)}
-      />
-    </div>
-    {#if hasSubtypes}
-      <div class="mx-2 pt-2 flex-between items-center">
-        <div class="flex items-center gap-1 caption">
-          <Label label={card.string.BaseType} />
-          <ButtonIcon
-            icon={IconInfo}
-            size="extra-small"
-            kind="tertiary"
-            tooltip={{ label: card.string.BaseTypeDescription }}
-          />
-        </div>
-        <Toggle on={masterTag.baseType} on:change={(e) => attributeUpdated('baseType', e.detail)} />
+  <div class="settings-list">
+    {#if masterTag._class === card.class.Tag}
+      <div class="settings-row">
+        <Label label={card.string.Parent} />
+        <Button
+          label={card.string.ChangeTagParent}
+          disabled={!canChangeTagParent}
+          on:click={openChangeTagParentPopup}
+        />
       </div>
     {/if}
-    <div class="mx-2 flex-between items-center">
-      <Label label={card.string.Duplicate} />
-      <div class="flex items-center gap-1">
-        <ButtonIcon icon={setting.icon.Setting} size="extra-small" on:click={duplicateSetting} />
-      </div>
+    <div class="description-field">
+      <Label label={core.string.Description} />
+      <TextArea
+        bind:value={description}
+        placeholder={core.string.Description}
+        width="100%"
+        height="5.5rem"
+        noFocusBorder
+        on:blur={() => {
+          void saveDescription()
+        }}
+      />
     </div>
-  {/if}
+    {#if !h.isMixin(masterTag._id)}
+      <div class="settings-row">
+        <Label label={card.string.Versioning} />
+        <div class="flex items-center gap-1">
+          {#if versioningEnabled}
+            <ButtonIcon icon={setting.icon.Setting} size="extra-small" on:click={versioningSetting} />
+          {/if}
+          <Toggle on={versioningEnabled} disabled={versioningEnabled} on:change={enableVersioning} />
+        </div>
+      </div>
+      <div class="settings-row">
+        <Label label={card.string.SingleColumn} />
+        <Toggle on={masterTag.singleColumn} on:change={(e) => attributeUpdated('singleColumn', e.detail)} />
+      </div>
+      {#if hasSubtypes}
+        <div class="settings-row">
+          <div class="flex items-center gap-1">
+            <Label label={card.string.BaseType} />
+            <ButtonIcon
+              icon={IconInfo}
+              size="extra-small"
+              kind="tertiary"
+              tooltip={{ label: card.string.BaseTypeDescription }}
+            />
+          </div>
+          <Toggle on={masterTag.baseType} on:change={(e) => attributeUpdated('baseType', e.detail)} />
+        </div>
+      {/if}
+      <div class="settings-row">
+        <Label label={card.string.Duplicate} />
+        <div class="flex items-center gap-1">
+          <ButtonIcon icon={setting.icon.Setting} size="extra-small" on:click={duplicateSetting} />
+        </div>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style lang="scss">
@@ -258,5 +355,50 @@
     height: 1rem;
     border-radius: 0.25rem;
     cursor: pointer;
+  }
+
+  .settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    margin: 0 var(--spacing-2);
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .description-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .description-field :global(.textarea textarea) {
+    margin: 0;
+    min-height: 5.5rem;
+    resize: vertical;
+    padding: var(--spacing-1_5);
+    color: var(--theme-content-color);
+    background: var(--theme-bg-color);
+    border: 1px solid var(--theme-divider-color);
+    border-radius: var(--small-BorderRadius);
+    font-size: 0.875rem;
+    font-weight: inherit;
+    line-height: 1.35rem;
+  }
+
+  .description-field :global(.textarea.no-focus-border textarea:focus),
+  .description-field :global(.textarea.no-focus-border textarea:focus-visible) {
+    border-color: var(--theme-divider-color);
+    outline: none;
+    box-shadow: none;
   }
 </style>

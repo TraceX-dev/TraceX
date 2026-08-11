@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -46,6 +47,7 @@ export default mergeIds(cardId, card, {
     TagsSection: '' as AnyComponent,
     ChildsSection: '' as AnyComponent,
     RelationsSection: '' as AnyComponent,
+    ChangeTagParentPopup: '' as AnyComponent,
     SetParentActionPopup: '' as AnyComponent,
     RelationSetting: '' as AnyComponent,
     ViewsSection: '' as AnyComponent,
@@ -122,6 +124,8 @@ export default mergeIds(cardId, card, {
     CreateTag: '' as IntlString,
     Content: '' as IntlString,
     Parent: '' as IntlString,
+    ChangeTagParent: '' as IntlString,
+    ChangeTagParentBlocked: '' as IntlString,
     CardLibrary: '' as IntlString,
     ConfigDescription: '' as IntlString,
     SearchCard: '' as IntlString,
@@ -145,6 +149,7 @@ export default mergeIds(cardId, card, {
     ChangeTypeWarning: '' as IntlString,
     MasterDetailViews: '' as IntlString,
     SelectType: '' as IntlString,
+    SelectTypeAndSpace: '' as IntlString,
     CreateSpace: '' as IntlString,
     NumberTypes: '' as IntlString,
     Properties: '' as IntlString,
@@ -188,6 +193,7 @@ export default mergeIds(cardId, card, {
     CardCreated: '' as IntlString,
     MyCards: '' as IntlString,
     GotoMyCards: '' as IntlString,
+    Description: '' as IntlString,
     SingleColumn: '' as IntlString,
     BaseType: '' as IntlString,
     BaseTypeDescription: '' as IntlString,

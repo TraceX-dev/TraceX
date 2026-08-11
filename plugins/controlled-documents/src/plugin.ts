@@ -108,9 +108,7 @@ export const documentsPlugin = plugin(documentsId, {
     DocumentVersionPresenter: '' as AnyComponent,
     DeleteCategoryPopup: '' as AnyComponent,
     DocumentIcon: '' as AnyComponent,
-    CreateFolder: '' as AnyComponent,
-    ExportFormatPopup: '' as AnyComponent,
-    ImportFormatPopup: '' as AnyComponent
+    CreateFolder: '' as AnyComponent
   },
   action: {
     ChangeDocumentOwner: '' as Ref<Action<Doc, any>>,
@@ -137,6 +135,7 @@ export const documentsPlugin = plugin(documentsId, {
     OpenDocumentInNewTab: '' as Ref<Action<Doc, { signed: boolean }>>,
     CopyAsMarkdownTable: '' as Ref<Action<Doc, any>>,
     CopyDocumentMarkdown: '' as Ref<Action<Doc, any>>,
+    ExportTable: '' as Ref<Action<Doc, any>>,
     Export: '' as Ref<Action<Document, any>>,
     Import: '' as Ref<Action<Document, any>>
   },

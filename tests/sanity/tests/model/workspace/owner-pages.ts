@@ -7,16 +7,13 @@ export class OwnersPage {
     this.page = page
   }
 
-  owner = (ownerName: string): Locator => this.page.getByRole('link', { name: ownerName })
-  spacesAdminText = (): Locator => this.page.getByText('Admin Members')
-  // Sidebar "Members" nav item clashes with Spaces role pickers (label "Members"). Scope to settings content
-  // and the "Admin" role row — Spaces.svelte renders one AccountArrayEditor per role.
-  addMemberButton = (): Locator =>
+  owner = (ownerName: string): Locator => this.page.locator('.memberListRow', { hasText: ownerName })
+  adminRoleRow = (): Locator =>
     this.page
-      .locator('.antiPanel-component.filledNav')
-      .locator('.antiGrid-row')
+      .locator('.spaceRolesPanel .antiGrid-row')
       .filter({ has: this.page.locator('.antiGrid-row__header', { hasText: /^Admin$/ }) })
-      .getByRole('button', { name: 'Members' })
+
+  addMemberButton = (): Locator => this.adminRoleRow().getByRole('button', { name: 'Members' })
 
   selectMember = (memberName: string): Locator => this.page.getByRole('button', { name: memberName })
   workspaceLogo = (): Locator => this.page.locator('.hulyComponent .hulyAvatar-container')
@@ -38,7 +35,7 @@ export class OwnersPage {
   avatarLarge = (): Locator => this.page.locator('.hulyAvatarSize-medium.ava-image')
 
   async addMember (memberName: string): Promise<void> {
-    await expect(this.spacesAdminText()).toBeVisible()
+    await expect(this.adminRoleRow()).toBeVisible()
     await this.addMemberButton().click()
     await this.selectMember(memberName).click()
     await this.page.keyboard.press('Escape')

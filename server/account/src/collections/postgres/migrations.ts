@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -88,7 +89,14 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV28Migration(ns, flavor),
     getV29Migration(ns, flavor),
     getV30Migration(ns, flavor),
-    getV31Migration(ns, flavor)
+    // v31-v35: renumbered from login-security branch's original v27-v31 slots, which collided
+    // with develop's own v27-v30 migrations (office social id / api_key table / api_key suffix /
+    // workspace_members.has_unread) during the merge. Table/column names are unchanged.
+    getV31Migration(ns, flavor),
+    getV32Migration(ns, flavor),
+    getV33Migration(ns, flavor),
+    getV34Migration(ns, flavor),
+    getV35Migration(ns, flavor)
   ]
 }
 
@@ -816,9 +824,89 @@ function getV26Migration (ns: string, flavor: DBFlavor): [string, string] {
 }
 
 function getV27Migration (ns: string, flavor: DBFlavor): [string, string] {
+  // For PostgreSQL, we need to check if the value exists before adding it
+  const addValueSql =
+    flavor === 'postgres'
+      ? `
+    -- Add office value to social_id_type enum (PostgreSQL)
+    DO $$     BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_enum
+            WHERE enumlabel = 'office'
+            AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'social_id_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = '${ns}'))
+        ) THEN
+            ALTER TYPE ${ns}.social_id_type ADD VALUE 'office';
+        END IF;
+    END $$;
+    `
+      : `
+    -- Add office value to social_id_type enum (CockroachDB)
+    ALTER TYPE ${ns}.social_id_type ADD VALUE IF NOT EXISTS 'office';
+    `
+
+  return ['account_db_v27_add_office_social_id_type', addValueSql]
+}
+
+function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
+  const types = dbTypes[flavor]
+
+  return [
+    'account_db_v28_api_keys',
+    `
+    CREATE TABLE IF NOT EXISTS ${ns}.api_key (
+      id ${types.string} NOT NULL,
+      name ${types.string} NOT NULL,
+      account_uuid UUID NOT NULL,
+      workspace_uuid UUID NOT NULL,
+      created_on BIGINT NOT NULL,
+      revoked_on BIGINT,
+      CONSTRAINT api_key_pk PRIMARY KEY (id),
+      CONSTRAINT api_key_account_fk FOREIGN KEY (account_uuid) REFERENCES ${ns}.account(uuid) ON DELETE CASCADE,
+      CONSTRAINT api_key_workspace_fk FOREIGN KEY (workspace_uuid) REFERENCES ${ns}.workspace(uuid) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS api_key_owner_workspace_active_idx
+      ON ${ns}.api_key (account_uuid, workspace_uuid)
+      WHERE revoked_on IS NULL;
+    `
+  ]
+}
+
+function getV29Migration (ns: string, flavor: DBFlavor): [string, string] {
+  const types = dbTypes[flavor]
+
+  return [
+    'account_db_v29_add_api_key_suffix',
+    `
+    ALTER TABLE ${ns}.api_key
+    ADD COLUMN IF NOT EXISTS key_suffix ${types.string};
+    `
+  ]
+}
+
+function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v30_add_workspace_member_unread',
+    `
+    -- Per-(account, workspace) flag used to render an "unread notifications
+    -- in this workspace" marker in the workspace switcher. Set by the
+    -- workspace's own notification trigger when it creates a notification
+    -- for a member of this workspace, cleared by the client once that
+    -- member has no more unread notifications there.
+    ALTER TABLE ${ns}.workspace_members
+    ADD COLUMN IF NOT EXISTS has_unread BOOLEAN NOT NULL DEFAULT FALSE;
+    `
+  ]
+}
+
+// v31-v35 below are login-security's migrations, renumbered from their original v27-v31
+// slots (which collided with develop's v27-v30 migrations above). Table/column names and
+// SQL bodies are unchanged from the login-security branch; only the migration number/name
+// and function name were shifted to avoid the collision.
+function getV31Migration (ns: string, flavor: DBFlavor): [string, string] {
   const types = dbTypes[flavor]
   return [
-    'account_db_v26_add_security_login_event_table',
+    'account_db_v31_add_security_login_event_table',
     `
     /* ======= S E C U R I T Y   L O G I N   E V E N T ======= */
     CREATE TABLE IF NOT EXISTS ${ns}.security_login_event (
@@ -854,10 +942,10 @@ function getV27Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV32Migration (ns: string, flavor: DBFlavor): [string, string] {
   const types = dbTypes[flavor]
   return [
-    'account_db_v28_add_active_session_and_event_type',
+    'account_db_v32_add_active_session_and_event_type',
     `
     /* ======= A C T I V E   S E S S I O N ======= */
     CREATE TABLE IF NOT EXISTS ${ns}.active_session (
@@ -882,7 +970,7 @@ function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
     ON ${ns}.active_session (account_uuid, revoked_on);
 
     /* ======= S E C U R I T Y   L O G I N   E V E N T :  event_type ======= */
-    /* Add the column only. The backfill (v30) and index (v31) live in separate
+    /* Add the column only. The backfill (v34) and index (v35) live in separate
        migrations/transactions because CockroachDB cannot UPDATE or index a
        column added in the same transaction ("column is being backfilled"). */
     ALTER TABLE ${ns}.security_login_event
@@ -891,9 +979,9 @@ function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV29Migration (ns: string, _flavor: DBFlavor): [string, string] {
+function getV33Migration (ns: string, _flavor: DBFlavor): [string, string] {
   return [
-    'account_db_v29_add_active_session_refresh_generation',
+    'account_db_v33_add_active_session_refresh_generation',
     `
     /* ======= A C T I V E   S E S S I O N :  refresh_generation ======= */
     ALTER TABLE ${ns}.active_session
@@ -902,12 +990,12 @@ function getV29Migration (ns: string, _flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
+function getV34Migration (ns: string, _flavor: DBFlavor): [string, string] {
   return [
-    'account_db_v30_backfill_security_login_event_type',
+    'account_db_v34_backfill_security_login_event_type',
     `
     /* Backfill event_type for pre-existing rows (separate transaction from the
-       column add in v28 — see the note there). */
+       column add in v32 — see the note there). */
     UPDATE ${ns}.security_login_event
     SET event_type = CASE
         WHEN auth_method IN ('password', 'otp', 'token') THEN 'login'
@@ -919,9 +1007,9 @@ function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV31Migration (ns: string, _flavor: DBFlavor): [string, string] {
+function getV35Migration (ns: string, _flavor: DBFlavor): [string, string] {
   return [
-    'account_db_v31_add_security_login_event_type_index',
+    'account_db_v35_add_security_login_event_type_index',
     `
     CREATE INDEX IF NOT EXISTS security_login_event_account_type_time_idx
     ON ${ns}.security_login_event (account_uuid, event_type, event_time DESC);

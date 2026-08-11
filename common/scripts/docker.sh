@@ -15,6 +15,7 @@ if [ "$MINIFIED" = true ]; then
   rush docker:build -p 20 \
     --to @hcengineering/pod-server \
     --to @hcengineering/pod-front \
+    --to @tracex/pod-api \
     --to @hcengineering/prod \
     --to @hcengineering/pod-account \
     --to @hcengineering/pod-workspace \
@@ -30,6 +31,7 @@ else
   rush docker:build -p 20 \
     --to @hcengineering/pod-server \
     --to @hcengineering/pod-front \
+    --to @tracex/pod-api \
     --to @hcengineering/prod \
     --to @hcengineering/pod-account \
     --to @hcengineering/pod-workspace \

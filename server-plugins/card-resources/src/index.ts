@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -70,6 +71,9 @@ import {
   getAllowedSpaceClasses,
   updateIntegrationTarget
 } from './integrationTargetFactory'
+import { CreateCommunicationMessage, GetCommunicationMessages } from './workspaceApi'
+
+export { CreateCommunicationMessage, GetCommunicationMessages } from './workspaceApi'
 
 type ViewletConfigItem = BuildModelKey | string
 interface IndexedViewletConfigItem {
@@ -1056,6 +1060,10 @@ export default async () => ({
     CanCreateIntegrationTarget: canCreateIntegrationTarget,
     GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses,
     GetIntegrationTargetCommentBackend: getCommentBackend
+  },
+  workspaceApi: {
+    GetCommunicationMessages,
+    CreateCommunicationMessage
   },
   trigger: {
     OnAttribute,

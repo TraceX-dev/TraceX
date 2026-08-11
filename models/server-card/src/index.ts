@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
 import { type Builder } from '@hcengineering/model'
 
 import core from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import serverCore from '@hcengineering/server-core'
 import serverCard from '@hcengineering/server-card'
 import card from '@hcengineering/card'
@@ -26,6 +28,14 @@ import view from '@hcengineering/view'
 export { serverCardId } from '@hcengineering/server-card'
 
 export function createModel (builder: Builder): void {
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: card.class.Card,
+    commands: {
+      'communication-messages': serverCard.workspaceApi.GetCommunicationMessages,
+      'create-communication-message': serverCard.workspaceApi.CreateCommunicationMessage
+    }
+  })
+
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverCard.trigger.OnAttribute,
     isAsync: true,

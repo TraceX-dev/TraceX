@@ -844,7 +844,7 @@ A list of closed updated issues`
 
     expect(msg).toEqual('* test1 \\\n  *Italic*\n* test2 **BOLD**')
   })
-  it('check serialize throw unsupported', () => {
+  it('check serialize skips unsupported node types', () => {
     const node: MarkupNode = {
       content: [
         {
@@ -869,9 +869,10 @@ A list of closed updated issues`
       ],
       type: MarkupNodeType.doc
     }
-    expect(() => serializeMessage(node, 'ref://', 'http://')).toThrowError(
-      'Token type `textqwe` not supported by Markdown renderer'
-    )
+    // Unknown node types no longer abort the whole export (see "Fix MD export"),
+    // they are dropped and rendering continues with the rest of the document.
+    expect(() => serializeMessage(node, 'ref://', 'http://')).not.toThrow()
+    expect(serializeMessage(node, 'ref://', 'http://')).toEqual('* test1 ')
   })
 
   it('check markdown state', () => {

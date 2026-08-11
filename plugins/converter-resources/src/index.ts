@@ -18,7 +18,8 @@ import {
   copyAsMarkdownTableFromResource,
   copyRelationshipTableAsMarkdown,
   buildMarkdownTableFromMetadata as buildMarkdownTableFromMetadataImpl,
-  buildMarkdownTableFromDocs as buildMarkdownTableFromDocsImpl
+  buildMarkdownTableFromDocs as buildMarkdownTableFromDocsImpl,
+  buildTableData as buildTableDataImpl
 } from './markdown'
 import { copyAsMarkdownTableAction } from './actionImpl'
 import CopyAsMarkdownButton from './components/CopyAsMarkdownButton.svelte'
@@ -32,7 +33,8 @@ export {
   copyAsMarkdownTableFromResource,
   copyRelationshipTableAsMarkdown,
   buildMarkdownTableFromDocs,
-  buildMarkdownTableFromMetadata
+  buildMarkdownTableFromMetadata,
+  buildTableData
 } from './markdown'
 
 export { isRelationshipTable, buildRelationshipTableMetadata } from './data'
@@ -47,7 +49,8 @@ export default async (): Promise<Resources> => ({
     CopyAsMarkdownTable: copyAsMarkdownTableFromResource,
     CopyRelationshipAsMarkdown: copyRelationshipTableAsMarkdown,
     BuildMarkdownTableFromMetadata: buildMarkdownTableFromMetadataImpl,
-    BuildMarkdownTableFromDocs: buildMarkdownTableFromDocsImpl
+    BuildMarkdownTableFromDocs: buildMarkdownTableFromDocsImpl,
+    BuildTableData: buildTableDataImpl
   },
   actionImpl: {
     CopyAsMarkdownTable: copyAsMarkdownTableAction

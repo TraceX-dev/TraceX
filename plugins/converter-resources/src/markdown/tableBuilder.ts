@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,8 @@
 //
 
 import core, { type Class, type Client, type Doc, type Hierarchy, type Ref, type PersonId } from '@hcengineering/core'
+import { type MarkupNode, MarkupNodeType } from '@hcengineering/text'
+import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 import { getCurrentLanguage } from '@hcengineering/theme'
 import type {
   AttributeModel,
@@ -24,12 +27,46 @@ import type {
 } from '@hcengineering/view'
 import viewPlugin from '@hcengineering/view'
 import { buildConfigLookup, buildModel, getAttributeValue, buildConfigAssociation } from '@hcengineering/view-resources'
-import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from '../types'
-import { formatValue } from '../formatter'
+import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps, TableData } from '../types'
+import { formatValue, type ElementFormatter } from '../formatter'
 import { generateHeaders, loadViewletConfig, buildTableModel } from '../model'
 import { rebuildRelationshipTableViewModel, isRelationshipTable } from '../data'
 import { escapeMarkdownTableCellContent } from './escape'
 import { createMarkdownLink } from './link'
+
+function markdownToTableCellContent (markdown: string): MarkupNode[] {
+  const content = markdownToMarkup(markdown).content
+  if (content !== undefined && content.length > 0) {
+    return content
+  }
+
+  return [{ type: MarkupNodeType.paragraph, content: [] }]
+}
+
+function buildRelationshipTableMarkup (headers: string[], rows: MarkupNode[]): MarkupNode {
+  const headerRow: MarkupNode = {
+    type: MarkupNodeType.table_row,
+    content: headers.map((header) => ({
+      type: MarkupNodeType.table_header,
+      content: [
+        {
+          type: MarkupNodeType.paragraph,
+          content: header.length > 0 ? [{ type: MarkupNodeType.text, text: header }] : []
+        }
+      ]
+    }))
+  }
+
+  return {
+    type: MarkupNodeType.doc,
+    content: [
+      {
+        type: MarkupNodeType.table,
+        content: [headerRow, ...rows]
+      }
+    ]
+  }
+}
 
 async function preloadRefLookups (
   docs: Doc[],
@@ -235,14 +272,59 @@ export async function buildMarkdownTableFromDocs (
   props: CopyAsMarkdownTableProps,
   client: Client
 ): Promise<string> {
-  if (docs.length === 0) {
+  const data = await buildTableData(docs, props, client)
+  return await renderMarkdownTable(data, client.getHierarchy())
+}
+
+/**
+ * Render table data as a markdown table.
+ *
+ * Escaping and object links live here rather than in the cell loop: other renderers (csv, json)
+ * need the plain text, and duplicating the loop is how the two would drift apart.
+ */
+async function renderMarkdownTable (data: TableData, hierarchy: Hierarchy): Promise<string> {
+  if (data.headers.length === 0) {
     return ''
+  }
+
+  const rendered: string[][] = []
+  for (let r = 0; r < data.rows.length; r++) {
+    const row: string[] = []
+    for (let c = 0; c < data.rows[r].length; c++) {
+      const value = data.rows[r][c] ?? ''
+      if (data.linkColumns.includes(c)) {
+        row.push(await createMarkdownLink(hierarchy, data.docs[r], value))
+      } else {
+        row.push(escapeMarkdownTableCellContent(value))
+      }
+    }
+    rendered.push(row)
+  }
+
+  let markdown = '| ' + data.headers.join(' | ') + ' |\n'
+  markdown += '| ' + data.headers.map(() => '---').join(' | ') + ' |\n'
+  for (const row of rendered) {
+    markdown += '| ' + row.join(' | ') + ' |\n'
+  }
+
+  return markdown
+}
+
+export async function buildTableData (
+  docs: Doc[],
+  props: CopyAsMarkdownTableProps,
+  client: Client,
+  elementFormatter?: ElementFormatter
+): Promise<TableData> {
+  const empty: TableData = { headers: [], rows: [], docs: [], linkColumns: [] }
+  if (docs.length === 0) {
+    return empty
   }
 
   const hierarchy = client.getHierarchy()
   const cardClass = hierarchy.getClass(props.cardClass)
   if (cardClass == null) {
-    return ''
+    return empty
   }
 
   const { viewlet, config: actualConfig } = await loadViewletConfig(
@@ -277,7 +359,7 @@ export async function buildMarkdownTableFromDocs (
   }
 
   if (displayableModel.length === 0) {
-    return ''
+    return empty
   }
 
   // Preload referenced documents for RefTo / ArrOf<RefTo> attributes into $lookup
@@ -304,26 +386,19 @@ export async function buildMarkdownTableFromDocs (
         language,
         isFirstColumn,
         userCache,
-        props.valueFormatter
+        props.valueFormatter,
+        elementFormatter
       )
-
-      if (isFirstColumn && attr.key === '') {
-        const linkValue = await createMarkdownLink(hierarchy, card, value)
-        row.push(linkValue)
-      } else {
-        row.push(escapeMarkdownTableCellContent(value == null ? '' : String(value)))
-      }
+      row.push(value == null ? '' : String(value))
     }
     rows.push(row)
   }
 
-  let markdown = '| ' + headers.join(' | ') + ' |\n'
-  markdown += '| ' + headers.map(() => '---').join(' | ') + ' |\n'
-  for (const row of rows) {
-    markdown += '| ' + row.join(' | ') + ' |\n'
-  }
+  // The object column carries no attribute of its own; markdown turns it into a link to the row's
+  // document, other formats keep the plain title.
+  const linkColumns = displayableModel.length > 0 && displayableModel[0].key === '' ? [0] : []
 
-  return markdown
+  return { headers, rows, docs: [...docs], linkColumns }
 }
 
 /**
@@ -351,27 +426,19 @@ export async function buildRelationshipTableMarkdown (
     attributeKeyToIndex.set(attr.key, index)
   })
 
-  const activeRowSpans = new Map<string, { value: string, remaining: number }>()
-  const rows: string[][] = []
+  const rows: MarkupNode[] = []
 
-  for (let rowIdx = 0; rowIdx < props.viewModel.length; rowIdx++) {
-    const rowModel = props.viewModel[rowIdx]
-    const row: string[] = new Array(headers.length).fill('')
+  for (const rowModel of props.viewModel) {
+    const rowCells: MarkupNode[] = []
+    const cells = rowModel.cells
+      .filter((cell) => cell.rowSpan > 0)
+      .sort(
+        (a, b) =>
+          (attributeKeyToIndex.get(a.attribute.key) ?? Number.MAX_SAFE_INTEGER) -
+          (attributeKeyToIndex.get(b.attribute.key) ?? Number.MAX_SAFE_INTEGER)
+      )
 
-    for (const [attrKey, spanInfo] of activeRowSpans.entries()) {
-      if (spanInfo.remaining > 0) {
-        const attrIndex = attributeKeyToIndex.get(attrKey)
-        if (attrIndex !== undefined) {
-          row[attrIndex] = spanInfo.value
-          spanInfo.remaining--
-          if (spanInfo.remaining === 0) {
-            activeRowSpans.delete(attrKey)
-          }
-        }
-      }
-    }
-
-    for (const cell of rowModel.cells) {
+    for (const cell of cells) {
       const attrIndex = attributeKeyToIndex.get(cell.attribute.key)
       if (attrIndex === undefined) continue
 
@@ -385,8 +452,11 @@ export async function buildRelationshipTableMarkdown (
       }
 
       if (doc === undefined) {
-        if (cell.rowSpan === 0) continue
-        row[attrIndex] = ''
+        rowCells.push({
+          type: MarkupNodeType.table_cell,
+          attrs: { rowspan: cell.rowSpan },
+          content: markdownToTableCellContent('')
+        })
         continue
       }
 
@@ -422,8 +492,11 @@ export async function buildRelationshipTableMarkdown (
       }
 
       if (docToUse === undefined) {
-        if (cell.rowSpan === 0) continue
-        row[attrIndex] = ''
+        rowCells.push({
+          type: MarkupNodeType.table_cell,
+          attrs: { rowspan: cell.rowSpan },
+          content: markdownToTableCellContent('')
+        })
         continue
       }
 
@@ -446,24 +519,18 @@ export async function buildRelationshipTableMarkdown (
         value = escapeMarkdownTableCellContent(value == null ? '' : String(value))
       }
 
-      row[attrIndex] = value
-
-      if (cell.rowSpan > 1) {
-        activeRowSpans.set(cell.attribute.key, {
-          value,
-          remaining: cell.rowSpan - 1
-        })
-      }
+      rowCells.push({
+        type: MarkupNodeType.table_cell,
+        attrs: { rowspan: cell.rowSpan },
+        content: markdownToTableCellContent(value)
+      })
     }
 
-    rows.push(row)
+    rows.push({
+      type: MarkupNodeType.table_row,
+      content: rowCells
+    })
   }
 
-  let markdown = '| ' + headers.join(' | ') + ' |\n'
-  markdown += '| ' + headers.map(() => '---').join(' | ') + ' |\n'
-  for (const row of rows) {
-    markdown += '| ' + row.join(' | ') + ' |\n'
-  }
-
-  return markdown
+  return markupToMarkdown(buildRelationshipTableMarkup(headers, rows))
 }

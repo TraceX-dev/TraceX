@@ -27,7 +27,9 @@ import core, {
   matchQuery,
   type Ref,
   type RefTo,
+  type Relation,
   type Space,
+  toRank,
   type TxCUD,
   type TxFactory,
   TxProcessor,
@@ -536,6 +538,16 @@ export async function requestUserInput (
   return { context: userContext, state: target.to, changed }
 }
 
+function sortAttributes (attributes: AnyAttribute[]): AnyAttribute[] {
+  const arr = [...attributes]
+  arr.sort((a, b) => {
+    const rankA = a.rank ?? toRank(a._id) ?? ''
+    const rankB = b.rank ?? toRank(b._id) ?? ''
+    return rankA.localeCompare(rankB)
+  })
+  return arr
+}
+
 export async function getTransitionUserInput (
   processId: Ref<Process>,
   space: Ref<Space>,
@@ -572,7 +584,7 @@ export async function getTransitionUserInput (
           ? Array.from(hierarchy.getAllAttributes(classId, core.class.Doc).values())
           : Array.from(hierarchy.getOwnAttributes(classId).values())
 
-      for (const attr of allAttributes) {
+      for (const attr of sortAttributes(allAttributes)) {
         if (virtualKey === 'requiredFields' && attr.name === 'title') continue
         if (attr.hidden === true) continue
 
@@ -883,6 +895,27 @@ export function eventCheck (
 ): boolean {
   if (params.eventType === undefined) return false
   return context.eventType === params.eventType
+}
+
+export function relationChangedCheck (
+  client: Client,
+  execution: Execution,
+  params: Record<string, any>,
+  context: Record<string, any>
+): boolean {
+  const relation = context.relation as Relation | undefined
+  if (relation === undefined) return false
+  if (params.mode !== undefined && params.mode !== context.relationChange) return false
+  if (params.association !== undefined && params.association !== relation.association) return false
+
+  switch (params.direction) {
+    case 'A':
+      return relation.docB === execution.card
+    case 'B':
+      return relation.docA === execution.card
+    default:
+      return relation.docA === execution.card || relation.docB === execution.card
+  }
 }
 
 export async function approveRequestApproved (

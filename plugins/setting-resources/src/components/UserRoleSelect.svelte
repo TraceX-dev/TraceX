@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 -->
 <script lang="ts">
   import { AccountRole } from '@hcengineering/core'
-  import { DropdownLabelsIntl, type DropdownIntlItem } from '@hcengineering/ui'
+  import { DropdownLabelsIntl, type ButtonKind, type ButtonSize, type DropdownIntlItem } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
   import settingRes from '../plugin'
@@ -22,19 +23,28 @@
   export let selected: AccountRole
   export let disabled: boolean = false
   export let securityFilter: boolean = true
+  export let roles: AccountRole[] | undefined = undefined
+  export let kind: ButtonKind = 'regular'
+  export let size: ButtonSize = 'medium'
+  export let minWidth: string | undefined = undefined
 
   const dispatch = createEventDispatcher()
 
-  const allInviteRoleItems: DropdownIntlItem[] = [
+  const allRoleItems: DropdownIntlItem[] = [
+    { id: AccountRole.ReadOnlyGuest, label: settingRes.string.ReadonlyGuest },
     { id: AccountRole.Guest, label: settingRes.string.Guest },
     { id: AccountRole.User, label: settingRes.string.User },
     { id: AccountRole.Maintainer, label: settingRes.string.Maintainer },
     { id: AccountRole.Owner, label: settingRes.string.Owner }
   ]
 
-  $: inviteRoleItems = securityFilter
-    ? allInviteRoleItems.filter((item) => item.id !== AccountRole.Owner && item.id !== AccountRole.Maintainer)
-    : allInviteRoleItems
+  $: roleItems = allRoleItems.filter((item) => roles === undefined || roles.includes(item.id as AccountRole))
+  $: visibleRoleItems = securityFilter
+    ? roleItems.filter(
+      (item) =>
+        item.id !== AccountRole.ReadOnlyGuest && item.id !== AccountRole.Owner && item.id !== AccountRole.Maintainer
+    )
+    : roleItems
 
   function handleSelected (e: CustomEvent<AccountRole>): void {
     dispatch('selected', e.detail)
@@ -42,10 +52,12 @@
 </script>
 
 <DropdownLabelsIntl
-  kind={'regular'}
-  size={'medium'}
-  items={inviteRoleItems}
+  label={settingRes.string.Role}
+  items={visibleRoleItems}
   {selected}
   {disabled}
+  {kind}
+  {size}
+  {minWidth}
   on:selected={handleSelected}
 />

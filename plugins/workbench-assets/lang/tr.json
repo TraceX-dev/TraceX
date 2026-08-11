@@ -35,6 +35,8 @@
     "ConfigureWidgets": "Widget'ları yapılandır",
     "Tab": "Sekme",
     "WorkspaceIsArchived": "Çalışma alanı kullanılmadığı için arşivlendi. Geri yüklemek için lütfen bizimle iletişime geçin...",
-    "WorkspaceIsMigrating": "Çalışma alanı güncelleniyor. Lütfen bekleyin..."
+    "WorkspaceIsMigrating": "Çalışma alanı güncelleniyor. Lütfen bekleyin...",
+    "FailedToLoadWorkspaces": "Çalışma alanları yüklenemedi",
+    "NoWorkspacesFound": "Çalışma alanı bulunamadı"
   }
 }

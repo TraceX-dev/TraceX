@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -35,6 +36,8 @@ import {
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import type {
   AccountAggregatedInfo,
+  ApiKey,
+  CreatedApiKey,
   Integration,
   IntegrationKey,
   IntegrationSecret,
@@ -156,6 +159,7 @@ export interface AccountClient {
   getSocialIds: (includeDeleted?: boolean) => Promise<SocialId[]>
   getWorkspaceMembers: () => Promise<WorkspaceMemberInfo[]>
   updateWorkspaceRole: (account: string, role: AccountRole) => Promise<void>
+  setWorkspaceMemberUnread: (targetAccount: string, hasUnread: boolean) => Promise<void>
   updateAllowReadOnlyGuests: (
     readOnlyGuestsAllowed: boolean
   ) => Promise<{ guestPerson: Person, guestSocialIds: SocialId[] } | undefined>
@@ -169,6 +173,9 @@ export interface AccountClient {
   findFullSocialIds: (socialIds: PersonId[]) => Promise<SocialId[]>
   getMailboxOptions: () => Promise<MailboxOptions>
   getMailboxSecret: (mailbox: string) => Promise<MailboxSecret | undefined>
+  createApiKey: (name?: string) => Promise<CreatedApiKey>
+  getApiKeys: () => Promise<ApiKey[]>
+  revokeApiKey: (id: string) => Promise<void>
   createMailbox: (name: string, domain: string) => Promise<{ mailbox: string, socialId: PersonId }>
   getMailboxes: () => Promise<MailboxInfo[]>
   deleteMailbox: (mailbox: string) => Promise<void>
@@ -850,6 +857,15 @@ class AccountClientImpl implements AccountClient {
     await this.rpc(request)
   }
 
+  async setWorkspaceMemberUnread (targetAccount: string, hasUnread: boolean): Promise<void> {
+    const request = {
+      method: 'setWorkspaceMemberUnread' as const,
+      params: { targetAccount, hasUnread }
+    }
+
+    await this.rpc(request)
+  }
+
   async updateWorkspaceName (name: string): Promise<void> {
     const request = {
       method: 'updateWorkspaceName' as const,
@@ -1031,6 +1047,18 @@ class AccountClientImpl implements AccountClient {
     }
 
     return await this.rpc(request)
+  }
+
+  async createApiKey (name?: string): Promise<CreatedApiKey> {
+    return await this.rpc({ method: 'createApiKey' as const, params: { name } })
+  }
+
+  async getApiKeys (): Promise<ApiKey[]> {
+    return await this.rpc({ method: 'getApiKeys' as const, params: {} })
+  }
+
+  async revokeApiKey (id: string): Promise<void> {
+    await this.rpc({ method: 'revokeApiKey' as const, params: { id } })
   }
 
   async createMailbox (name: string, domain: string): Promise<{ mailbox: string, socialId: PersonId }> {

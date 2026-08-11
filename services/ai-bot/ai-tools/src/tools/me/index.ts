@@ -16,10 +16,12 @@
 import { meAccountTool } from './me.account'
 import { meInboxTool } from './me.inbox'
 import { meInboxReadAllTool } from './me.inbox_read_all'
+import { meWorkspaceTool } from './me.workspace'
 
 export { meAccountTool } from './me.account'
 export { meInboxTool } from './me.inbox'
 export { meInboxReadAllTool } from './me.inbox_read_all'
+export { meWorkspaceTool } from './me.workspace'
 export * from './tool-ids'
 
-export const meTools = [meAccountTool, meInboxTool, meInboxReadAllTool]
+export const meTools = [meAccountTool, meInboxTool, meInboxReadAllTool, meWorkspaceTool]

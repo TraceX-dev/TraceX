@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -37,6 +38,7 @@ import { UUID } from 'mongodb'
 
 import type {
   Account,
+  ApiKey,
   AccountDB,
   AccountEvent,
   AccountAggregatedInfo,
@@ -381,6 +383,7 @@ interface WorkspaceMember {
   workspaceUuid: WorkspaceUuid
   accountUuid: AccountUuid
   role: AccountRole
+  hasUnread?: boolean
 }
 
 interface Migration {
@@ -409,6 +412,7 @@ export class MongoAccountDB implements AccountDB {
   integration: MongoDbCollection<Integration>
   integrationSecret: MongoDbCollection<IntegrationSecret>
   userProfile: MongoDbCollection<UserProfile, 'personUuid'>
+  apiKey: MongoDbCollection<ApiKey, 'id'>
   subscription: MongoDbCollection<Subscription, 'id'>
   securityLoginEvent: MongoDbCollection<SecurityLoginEvent, 'id'>
   activeSession: MongoDbCollection<ActiveSession, 'sessionId'>
@@ -431,6 +435,7 @@ export class MongoAccountDB implements AccountDB {
     this.integration = new MongoDbCollection<Integration>('integration', db)
     this.integrationSecret = new MongoDbCollection<IntegrationSecret>('integrationSecret', db)
     this.userProfile = new MongoDbCollection<UserProfile, 'personUuid'>('user_profile', db, 'personUuid')
+    this.apiKey = new MongoDbCollection<ApiKey, 'id'>('api_keys', db, 'id')
     this.subscription = new MongoDbCollection<Subscription, 'id'>('subscription', db, 'id')
     this.securityLoginEvent = new MongoDbCollection<SecurityLoginEvent, 'id'>('securityLoginEvent', db, 'id')
     this.activeSession = new MongoDbCollection<ActiveSession, 'sessionId'>('activeSession', db, 'sessionId')
@@ -509,6 +514,14 @@ export class MongoAccountDB implements AccountDB {
         options: {
           name: 'hc_account_security_login_event_success_event_time_1'
         }
+      }
+    ])
+
+    await this.apiKey.ensureIndices([
+      { key: { id: 1 }, options: { unique: true, name: 'hc_account_api_key_id_1' } },
+      {
+        key: { accountUuid: 1, workspaceUuid: 1, revokedOn: 1 },
+        options: { name: 'hc_account_api_key_owner_workspace_active_1' }
       }
     ])
   }
@@ -835,6 +848,37 @@ export class MongoAccountDB implements AccountDB {
     )
   }
 
+  async setWorkspaceMemberUnread (
+    accountId: AccountUuid,
+    workspaceId: WorkspaceUuid,
+    hasUnread: boolean
+  ): Promise<void> {
+    await this.workspaceMembers.update(
+      {
+        workspaceUuid: workspaceId,
+        accountUuid: accountId,
+        hasUnread: { $ne: hasUnread }
+      },
+      { hasUnread }
+    )
+  }
+
+  async setWorkspaceMembersUnread (
+    accountIds: AccountUuid[],
+    workspaceId: WorkspaceUuid,
+    hasUnread: boolean
+  ): Promise<void> {
+    if (accountIds.length === 0) return
+
+    await this.workspaceMembers.update(
+      {
+        workspaceUuid: workspaceId,
+        accountUuid: { $in: accountIds }
+      },
+      { hasUnread }
+    )
+  }
+
   async getWorkspaceRole (accountId: AccountUuid, workspaceId: WorkspaceUuid): Promise<AccountRole | null> {
     const assignment = await this.workspaceMembers.findOne({
       workspaceUuid: workspaceId,
@@ -865,8 +909,10 @@ export class MongoAccountDB implements AccountDB {
   async getAccountWorkspaces (accountId: AccountUuid): Promise<WorkspaceInfoWithStatus[]> {
     const members = await this.workspaceMembers.find({ accountUuid: accountId })
     const wsIds = members.map((m) => m.workspaceUuid)
+    const unreadByWorkspace = new Map(members.map((m) => [m.workspaceUuid, m.hasUnread ?? false]))
 
-    return await this.workspace.find({ uuid: { $in: wsIds } })
+    const workspaces = await this.workspace.find({ uuid: { $in: wsIds } })
+    return workspaces.map((w) => ({ ...w, hasUnread: unreadByWorkspace.get(w.uuid) ?? false }))
   }
 
   async setPassword (accountId: AccountUuid, passwordHash: Buffer, salt: Buffer): Promise<void> {

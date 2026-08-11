@@ -372,12 +372,19 @@ test.describe('Channel tests', () => {
     using _page2 = await getSecondPageByInvite(browser, linkText, newUser2)
     const page2 = _page2.page
     const leftSideMenuPageSecond = new LeftSideMenuPage(page2)
+    const channelPageSecond = new ChannelPage(page2)
     await leftSideMenuPageSecond.clickChunter()
 
     await channelPage.clickChannel('general')
     await channelPage.clickChannel(data.channelName)
     await channelPage.clickOnOpenChannelDetails()
+    await channelPage.checkChannelMembersPermissions(true, true)
     await channelPage.addMemberToChannelPreview(newUser2.lastName + ' ' + newUser2.firstName)
+
+    await channelPageSecond.checkIfChannelDefaultExist(true, data.channelName)
+    await channelPageSecond.clickChooseChannel(data.channelName)
+    await channelPageSecond.clickOnOpenChannelDetails()
+    await channelPageSecond.checkChannelMembersPermissions(true, false)
   })
 
   test('Checking backlinks in the Chat', async ({ browser, page, request }) => {

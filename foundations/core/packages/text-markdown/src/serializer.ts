@@ -190,13 +190,14 @@ export const storeNodes: Record<string, NodeProcessor> = {
           ')'
       )
     } else if (attrs['file-id'] != null) {
-      // Convert image to fileid format
+      // Convert image to fileid format.
       state.write(
         '![' +
           state.esc(`${attrs.alt ?? ''}`) +
           '](' +
           (state.imageUrl +
             `${attrs['file-id']}` +
+            `?file=${attrs['file-id']}` +
             (attrs.width != null ? '&width=' + state.esc(`${attrs.width}`) : '') +
             (attrs.height != null ? '&height=' + state.esc(`${attrs.height}`) : '')) +
           (attrs.title != null ? ' ' + state.quote(`${attrs.title}`) : '') +
@@ -281,6 +282,25 @@ export const storeNodes: Record<string, NodeProcessor> = {
     // Slashes are escaped to prevent autolink creation
     state.write(state.htmlEsc(embedUrl).replace(/\//g, '&#x2F;'))
     state.write('</a>')
+  },
+  file: (state, node) => {
+    // Inline file attachment (FileNode, `file-id` style). Render as a download link,
+    // reusing the same file-id -> URL scheme as the `image` node.
+    const attrs = nodeAttrs(node)
+    const fileId = attrs['file-id']
+    const name = (attrs['data-file-name'] as string) ?? (attrs['data-file-href'] as string) ?? 'file'
+    if (fileId != null) {
+      state.write('[' + state.esc(`${name}`) + '](' + state.imageUrl + `${fileId}` + `?file=${fileId}` + ')')
+    } else if (attrs['data-file-href'] != null) {
+      state.write('[' + state.esc(`${name}`) + '](' + state.esc(`${attrs['data-file-href']}`) + ')')
+    } else {
+      state.write(state.esc(`${name}`))
+    }
+  },
+  drawingBoard: (state, node) => {
+    // Freehand drawing board has no meaningful text representation in Markdown.
+    state.write('*[drawing]*')
+    state.closeBlock(node)
   }
 }
 
@@ -435,6 +455,40 @@ export const storeMarks: Record<string, MarkProcessor> = {
     mixable: true,
     expelEnclosingWhitespace: false,
     escape: true
+  },
+  highlight: {
+    open: '<mark>',
+    close: '</mark>',
+    mixable: true,
+    expelEnclosingWhitespace: true,
+    escape: true
+  },
+  // QMS/review-only marks below carry no visual formatting of their own (they attach
+  // review metadata - a comment thread id, a note - to a run of text). Passing them
+  // through as no-ops keeps the underlying text intact instead of aborting the export.
+  note: {
+    open: '',
+    close: (state, mark) => {
+      const title = mark.attrs?.title
+      return title !== undefined && title !== null && title !== '' ? ` _(note: ${state.esc(`${title}`)})_` : ''
+    },
+    mixable: false,
+    expelEnclosingWhitespace: false,
+    escape: false
+  },
+  'node-uuid': {
+    open: '',
+    close: '',
+    mixable: true,
+    expelEnclosingWhitespace: false,
+    escape: false
+  },
+  'inline-comment': {
+    open: '',
+    close: '',
+    mixable: true,
+    expelEnclosingWhitespace: false,
+    escape: false
   }
 }
 
@@ -553,10 +607,18 @@ export class MarkdownState implements IState {
   // :: (Node)
   // Render the given node as a block.
   render (node: MarkupNode, parent: MarkupNode, index: number): void {
-    if (this.nodes[node.type] === undefined) {
-      throw new Error('Token type `' + node.type + '` not supported by Markdown renderer')
+    const processor = this.nodes[node.type]
+    if (processor === undefined) {
+      // Unknown node type (e.g. an editor-only node not recognized by this serializer).
+      // Rather than aborting the whole export, drop the wrapper and render its children,
+      // if any, so the surrounding document still converts.
+      console.warn(`[text-markdown] Unsupported node type "${node.type}", rendering its content only`)
+      if (nodeContent(node).length > 0) {
+        this.renderContent(node)
+      }
+      return
     }
-    this.nodes[node.type](this, node, parent, index)
+    processor(this, node, parent, index)
   }
 
   // :: (Node)
@@ -570,7 +632,7 @@ export class MarkdownState implements IState {
   reorderMixableMark (state: InlineState, mark: MarkupMark, i: number, len: number): void {
     for (let j = 0; j < state.active.length; j++) {
       const other = state.active[j]
-      if (!this.marks[other.type].mixable || this.checkSwitchMarks(i, j, state, mark, other, len)) {
+      if (!(this.marks[other.type]?.mixable ?? false) || this.checkSwitchMarks(i, j, state, mark, other, len)) {
         break
       }
     }
@@ -872,7 +934,10 @@ export class MarkdownState implements IState {
     if (value === undefined) {
       const info = this.marks[mark.type]
       if (info == null) {
-        throw new Error(`No info for mark ${mark.type}`)
+        // Unknown mark type - drop the formatting rather than aborting the export;
+        // the underlying text still comes through untouched.
+        console.warn(`[text-markdown] Unsupported mark type "${mark.type}", ignoring`)
+        return ''
       }
       value = open ? info.open : info.close
     }

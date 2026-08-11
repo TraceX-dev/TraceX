@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -139,6 +140,11 @@ export const cardOperation: MigrateOperation = {
         state: 'add-show-all-versions-view-option',
         mode: 'upgrade',
         func: addShowAllVersionsViewOption
+      },
+      {
+        state: 'add-relationship-table-no-relations-view-option',
+        mode: 'upgrade',
+        func: addRelationshipTableNoRelationsViewOption
       }
     ])
   }
@@ -707,5 +713,36 @@ async function addShowAllVersionsViewOption (client: MigrationUpgradeClient): Pr
         }
       })
     }
+  }
+}
+
+async function addRelationshipTableNoRelationsViewOption (client: MigrationUpgradeClient): Promise<void> {
+  const txOp = new TxOperations(client, core.account.System)
+  const masterTags = await client.findAll(card.class.MasterTag, {})
+  const cardDescendants = client.getHierarchy().getDescendants(card.class.Card)
+  const allViewletTargets = [...masterTags.map((p) => p._id), ...cardDescendants, card.class.Card]
+  const viewlets = await client.findAll(view.class.Viewlet, {
+    attachTo: { $in: allViewletTargets },
+    descriptor: view.viewlet.RelationshipTable
+  })
+
+  const noRelationsOption: ViewOptionModel = {
+    key: 'showOnlyCardsWithoutRelations',
+    type: 'toggle',
+    defaultValue: false,
+    actionTarget: 'display',
+    label: card.string.ShowOnlyCardsWithoutRelations
+  }
+
+  for (const viewlet of viewlets) {
+    const viewOptions = viewlet.viewOptions ?? { groupBy: [], orderBy: [], other: [] }
+    const other = viewOptions.other ?? []
+    if (other.find((option) => option.key === noRelationsOption.key) !== undefined) continue
+    await txOp.update(viewlet, {
+      viewOptions: {
+        ...viewOptions,
+        other: [...other, noRelationsOption]
+      }
+    })
   }
 }

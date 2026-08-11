@@ -139,6 +139,34 @@ export const findTable = (selection: Selection): TableNodeLocation | undefined =
   return findParentNode((node) => node.type.spec.tableRole === 'table')(selection)
 }
 
+export const findCell = (selection: Selection): TableNodeLocation | undefined => {
+  return findParentNode((node) => node.type.spec.tableRole === 'cell')(selection)
+}
+
+/**
+ * If the selection is just a cursor (or a text range) inside a single table cell, turns it into a
+ * `CellSelection` covering that whole cell and returns `true`. No-op (returns `false`) if the
+ * selection already is a `CellSelection`, or isn't inside a table cell at all.
+ *
+ * Mark commands like `toggleBold`/`setFontFamily` only affect the actual selected range - with a
+ * plain cursor (empty selection) they just arm "stored marks" for the next typed character rather
+ * than reformatting anything already there. `updateAttributes`-based commands (cell background,
+ * alignment) don't need this since they already special-case an empty selection by walking up to
+ * the enclosing node - but that only works for node attributes, not marks, so this expands the
+ * selection explicitly before a table-toolbar mark command runs.
+ */
+export function selectCurrentCell (editor: Editor): boolean {
+  const { selection } = editor.state
+  if (selection instanceof CellSelection) return false
+
+  const cell = findCell(selection)
+  if (cell === undefined) return false
+
+  const tr = editor.state.tr.setSelection(CellSelection.create(editor.state.doc, cell.pos))
+  editor.view.dispatch(tr)
+  return true
+}
+
 export function haveTableRelatedChanges (
   editor: Editor,
   table: TableNodeLocation | undefined,

@@ -1,4 +1,5 @@
 import { Doc, Mixin, Ref } from '@hcengineering/core'
+import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import type { Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import { Execution, Method, ProcessFunction, Trigger } from '@hcengineering/process'
@@ -72,9 +73,16 @@ export default plugin(serverProcessId, {
     CheckSubProcessMatch: '' as Resource<CheckFunc>,
     CheckTime: '' as Resource<CheckFunc>,
     EventCheck: '' as Resource<CheckFunc>,
+    RelationChangedCheck: '' as Resource<CheckFunc>,
     ApproveRequestApproved: '' as Resource<CheckFunc>,
     ApproveRequestRejected: '' as Resource<CheckFunc>,
     CancelToDo: '' as Resource<ExecuteFunc>
+  },
+  workspaceApi: {
+    FindProcessToDos: '' as Resource<WorkspaceApiOperation>,
+    GetProcessToDo: '' as Resource<WorkspaceApiOperation>,
+    PatchProcessToDo: '' as Resource<WorkspaceApiOperation>,
+    EmitProcessEvent: '' as Resource<WorkspaceApiOperation>
   },
   transform: {
     FirstValue: '' as Resource<TransformFunc>,
@@ -148,6 +156,7 @@ export default plugin(serverProcessId, {
     OnProcessToDoRemove: '' as Resource<TriggerFunc>,
     OnExecutionContinue: '' as Resource<TriggerFunc>,
     OnCustomEvent: '' as Resource<TriggerFunc>,
+    OnRelationChange: '' as Resource<TriggerFunc>,
     OnExecutionDone: '' as Resource<TriggerFunc>,
     OnExecutionRemove: '' as Resource<TriggerFunc>
   }

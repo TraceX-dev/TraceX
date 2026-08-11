@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -181,17 +182,17 @@ async function findTransitions (
   record: ProcessMessage,
   execution: Execution
 ): Promise<Transition | undefined> {
-  if (record.event.includes(process.trigger.OnExecutionStart)) {
-    const transitions = control.client.getModel().findAllSync(
-      process.class.Transition,
-      {
-        process: execution.process,
-        from: null,
-        trigger: process.trigger.OnExecutionStart
-      },
-      { sort: { rank: SortingOrder.Ascending } }
-    )
-    return await pickTransition(control, execution, transitions, record.context)
+  const initTransitions = control.client.getModel().findAllSync(
+    process.class.Transition,
+    {
+      process: execution.process,
+      from: null,
+      trigger: { $in: record.event }
+    },
+    { sort: { rank: SortingOrder.Ascending } }
+  )
+  if (initTransitions.length > 0) {
+    return await pickTransition(control, execution, initTransitions, record.context)
   }
   if (record.event.includes(process.trigger.OnExecutionContinue)) {
     const transition = execution.error?.[0].transition
@@ -456,6 +457,8 @@ async function executeTransition (
       const actionResult = await executeAction(action, transition._id, execution, control)
       if (isError(actionResult)) {
         errors.push(actionResult)
+        await client.update(execution, { error: errors })
+        return
       } else {
         if (actionResult.rollback !== undefined && actionResult.rollback.length > 0) {
           rollback.push(...actionResult.rollback)
@@ -511,45 +514,40 @@ async function executeTransition (
         action: transition.from === null ? ExecutionLogAction.Started : ExecutionLogAction.Transition
       })
     )
-    if (errors.length === 0) {
-      try {
-        const apply = client.txFactory.createTxApplyIf(
-          core.space.Tx,
-          `${execution._id}_${transition._id}`,
-          [{ _class: process.class.Execution, query: { _id: execution._id, currentState: execution.currentState } }],
-          [],
-          res as TxCUD<Doc>[],
-          'process',
-          true
-        )
-        const result = (await client.tx(apply)) as any
-        if (result.success === false) {
-          control.ctx.info('Transition apply failed (likely already processed)', {
-            execution: execution._id,
-            transition: transition._id
-          })
-          break
-        }
-        await sendEvent(control, execution, transition, card, isDone)
-        TxProcessor.applyUpdate(execution, executionUpdate)
-        if (execution.parentId !== undefined) {
-          await checkParent(execution, control, isDone)
-        }
-        currTransition = transition
-        transition = await checkNext(control, execution, context)
-        nested = true
-        if (transition === undefined) {
-          await setNextTimers(control, execution)
-        }
-      } catch (err) {
-        const errorId = generateId()
-        control.ctx.error(err instanceof Error ? err.message : String(err), { errorId })
-        const e = parseError(processError(process.error.InternalServerError, { errorId }), currTransition._id)
-        await client.update(execution, { error: [e] })
+    try {
+      const apply = client.txFactory.createTxApplyIf(
+        core.space.Tx,
+        `${execution._id}_${transition._id}`,
+        [{ _class: process.class.Execution, query: { _id: execution._id, currentState: execution.currentState } }],
+        [],
+        res as TxCUD<Doc>[],
+        'process',
+        true
+      )
+      const result = (await client.tx(apply)) as any
+      if (result.success === false) {
+        control.ctx.info('Transition apply failed (likely already processed)', {
+          execution: execution._id,
+          transition: transition._id
+        })
         break
       }
-    } else {
-      await client.update(execution, { error: errors })
+      await sendEvent(control, execution, transition, card, isDone)
+      TxProcessor.applyUpdate(execution, executionUpdate)
+      if (execution.parentId !== undefined) {
+        await checkParent(execution, control, isDone)
+      }
+      currTransition = transition
+      transition = await checkNext(control, execution, context)
+      nested = true
+      if (transition === undefined) {
+        await setNextTimers(control, execution)
+      }
+    } catch (err) {
+      const errorId = generateId()
+      control.ctx.error(err instanceof Error ? err.message : String(err), { errorId })
+      const e = parseError(processError(process.error.InternalServerError, { errorId }), currTransition._id)
+      await client.update(execution, { error: [e] })
       break
     }
   }

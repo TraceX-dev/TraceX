@@ -2,14 +2,6 @@
   "string": {
     "Export": "Eksportuj",
     "Import": "Importuj",
-    "ImportingDocument": "Importowanie dokumentu",
-    "ConvertingDocument": "Konwertowanie dokumentu…",
-    "ImportingFromWord": "Importowanie z Word",
-    "ConvertingWordDocument": "Konwertowanie dokumentu…",
-    "DocumentConverted": "Dokument przekonwertowany",
-    "ImportFailed": "Import nie powiódł się",
-    "ReviewImportedChanges": "Przejrzyj zaimportowane zmiany",
-    "Apply": "Zastosuj",
     "ExportToWord": "Eksportuj do Word",
     "ImportFromWord": "Importuj z Word",
     "ID": "Identyfikator",
@@ -46,7 +38,6 @@
     "Document": "Dokument",
     "NewDocumentDialogClose": "Czy chcesz zamknąć to okno?",
     "NewDocumentCloseNote": "Wszystkie zmiany zostaną utracone",
-    "Cancel": "Anuluj",
     "EditorPlaceholder": "rozpocznij edycję...",
     "Version": "Wersja",
     "TemplateVersion": "Wersja szablonu",
@@ -67,32 +58,24 @@
     "Approval": "Zatwierdzenie",
     "Reviewer": "Recenzent",
     "Approver": "Zatwierdzający",
-
     "DeleteCategory": "Usunąć kategorię?",
     "DeleteCategoryHint": "Tej akcji nie można cofnąć",
     "DeleteCategoryWarning": "Tej kategorii nie można usunąć, ponieważ jest używana",
-
     "Latest": "Aktualny",
     "Draft": "Szkic",
-
     "Reviewers": "Recenzenci",
-
     "ViewMode": "Przegląd w trakcie",
     "EditMode": "Edycja",
     "ComparisonMode": "Porównywanie",
-
     "Compare": "Porównaj:",
     "Against": "Z:",
     "RemovedAttachments": "Usunięte załączniki",
     "Restore": "Przywróć",
-
     "ComparisonModeNotSupported": "Tryb porównania nie jest obsługiwany.",
-
     "CreateDraft": "Utwórz szkic",
     "SendForApproval": "Wyślij do zatwierdzenia",
     "SendForReview": "Wyślij do recenzji",
     "CompleteReview": "Zakończ recenzję",
-
     "Approve": "Zatwierdź",
     "Reject": "Odrzuć",
     "ConfirmApproval": "Utrzymaj zatwierdzenie",
@@ -109,7 +92,6 @@
     "AddApprovalDescription4": "jeśli planowane jest szkolenie, szkolenie ma status 'Opublikowane'",
     "NoApprovalsDescription": "Nikt nie zatwierdził tej wersji dokumentu",
     "CurrentVersion": "Aktualna wersja",
-
     "DocumentTemplate": "Szablon",
     "DocumentTemplates": "Szablony",
     "DocumentCode": "Kod dokumentu",
@@ -130,24 +112,20 @@
     "ShowResolved": "Pokaż rozwiązane komentarze",
     "Ordering": "Porządkowanie",
     "Title": "Tytuł",
-
     "Effective": "Aktualny",
     "Archived": "Zarchiwizowany",
     "Deleted": "Usunięty",
     "MetaAbstract": "Streszczenie",
-
     "Obsolete": "Przestarzały",
     "MakeDocumentObsolete": "Oznacz jako przestarzały",
     "MakeDocumentObsoleteDialog": "Oznacz {count, plural, =0 {dokument} other {dokumenty}} jako przestarzałe",
     "MakeDocumentObsoleteConfirm": "Czy naprawdę chcesz oznaczyć następujące dokumenty jako przestarzałe: {titles}?",
-
     "ContentTab": "Zawartość",
     "TeamTab": "Zespół",
     "MetaTab": "Metadane",
     "ChangeControlTab": "Kontrola zmian",
     "ReleaseTab": "Wydanie",
     "HistoryTab": "Historia",
-
     "ModificationDate": "Zmodyfikowano o",
     "Modified": "Zmodyfikowany",
     "Owner": "Właściciel",
@@ -155,7 +133,6 @@
     "Unassigned": "Nieprzypisany",
     "Untitled": "Bez nazwy",
     "Copy": "kopiuj",
-
     "AccessWorkarea": "Dostęp do obszaru roboczego",
     "EffectiveLibrary": "Biblioteka aktualnych dokumentów",
     "WorkingLibrary": "Biblioteka robocza",
@@ -165,10 +142,8 @@
     "ReassignOwnershipToAnotherUser": "Przepisz własność na innego użytkownika",
     "MakeDocumentEffective": "Uczyń dokument aktualnym",
     "CreateDraftQmsTemplates": "Utwórz szkice szablonów dla systemu zarządzania jakością",
-
     "ChangeControl": "Kontrola zmian",
     "ReviewInterval": "Interwał recenzji",
-
     "SelectReviewers": "Wybierz recenzentów",
     "SelectApprovers": "Wybierz zatwierdzających",
     "RequestsToReviewTheDoc": "prosi cię o recenzję dokumentu",
@@ -177,19 +152,15 @@
     "Template": "Szablon",
     "GeneralInfo": "Informacje ogólne",
     "InProgress": "W trakcie",
-
     "EditDescription": "Edytuj opis",
     "EditGuidance": "Edytuj wskazówki",
-
     "NewDocument": "Nowy dokument",
     "NewDocumentCategory": "Nowa kategoria",
     "NewDocumentTemplate": "Nowy szablon",
-
     "LocationStepTitle": "Lokalizacja",
     "TemplateStepTitle": "Szablon",
     "InfoStepTitle": "Informacje",
     "TeamStepTitle": "Zespół",
-
     "TitleAndDescr": "Tytuł i opis",
     "Reason": "Powód",
     "AbstractPlaceholder": "O czym jest ten dokument? Kto będzie go potrzebować i kiedy? ...",
@@ -198,17 +169,13 @@
     "NewTemplatePlaceholder": "O czym jest ten szablon? Opisz, jak prawidłowo go używać...",
     "CustomReason": "Niestandardowy",
     "ReasonPlaceholder": "Określ powód...",
-
     "EditDocument": "Edytuj dokument",
-
     "Key": "Klucz",
     "CommentsSequence": "Sekwencja komentarzy",
-
     "Email": "E-mail",
     "Password": "Hasło",
     "FieldIsEmpty": "Pole {field} jest puste",
     "ValidatingCredentials": "Sprawdzanie poświadczeń...",
-
     "GeneralDocumentation": "Dokumentacja ogólna",
     "TechnicalDocumentation": "Dokumentacja techniczna",
     "UnsortedTemplates": "Nieposortowane szablony",
@@ -216,53 +183,39 @@
     "Projects": "Projekty",
     "ExternalSpace": "Przestrzeń projektu",
     "DocumentSpaceType": "Typ przestrzeni dokumentów",
-
     "EffectiveImmediately": "Natychmiast po zatwierdzeniu",
     "EffectiveOn": "Uczyń aktualnym dnia",
-
     "PeriodicReviewToBeCompleted": "Okresowa recenzja do zakończenia w ciągu",
     "MonthsAfterEffectiveDate": "miesięcy po dacie wejścia w życie",
     "ToBePassedWithin": "Należy zaliczyć w",
     "AttemptsAnd": "próbach oraz w ciągu",
     "DaysAfterEffectiveDate": "dni od daty wejścia w życie",
-
     "Index": "Spis treści",
     "Path": "Ścieżka",
-
     "CreateChildDocument": "Utwórz poddokument",
     "CreateChildTemplate": "Utwórz szablon podrzędny",
-
     "All": "Wszystkie",
-
     "Space": "Przestrzeń",
     "SelectParent": "Wybierz obiekt nadrzędny dla swojego dokumentu",
-
     "PrefixInUse": "Ten przedrostek jest już używany przez",
     "CodeInUse": "Ten kod jest już używany przez",
     "ChangeCode": "Zmień kod",
     "ChangePrefix": "Zmień przedrostek",
-
     "MarkDocAsDeleted": "Oznaczanie dokumentu jako usuniętego",
     "MarkDocsAsDeleted": "Oznaczanie wielu dokumentów jako usuniętych",
     "MarkDocAsDeletedConfirm": "Czy naprawdę chcesz oznaczyć następujące dokumenty jako usunięte: {titles}?",
-
     "ArchiveDocs": "Zarchiwizuj {count, plural, =1 {dokument} other {dokumenty}}",
     "ArchiveDocsConfirm": "Czy naprawdę chcesz zarchiwizować następujące dokumenty: {titles}?",
-
     "DocumentInHierarchy": "Dokument w hierarchii",
     "FirstDraftVersion": "To jest pierwsza wersja szkicu dokumentu. Nie ma jeszcze historii.",
     "FirstOrNotAvailable": "To jest pierwsza dostępna wersja dokumentu. Nie ma jeszcze historii lub nie jest dostępna.",
-
     "EffectiveDocumentLifecycle": "Cykl życia aktualnego dokumentu",
-
     "ReasonAndImpact": "Powód i wpływ",
     "ImpactAnalysis": "Analiza wpływu",
     "ImpactedDocuments": "Dokumenty dotknięte",
-
     "CreateDocumentFailed": "Nie udało się utworzyć dokumentu",
     "CreateDocumentTemplateFailed": "Nie udało się utworzyć szablonu",
     "TryAgain": "Spróbuj ponownie",
-
     "DescribeChanges": "Opisz, co zostało zmienione...",
     "DescribeReason": "Opisz, dlaczego to zostało zmienione...",
     "DescribeImpact": "Wpływa na...",
@@ -286,17 +239,13 @@
     "Page": "Strona ",
     "Of": " z ",
     "CreatedFromTemplate": "Utworzony z szablonu: ",
-
     "ViewAll": "Zobacz wszystkie",
     "Readonly": "Tylko do odczytu",
-
     "NewDocumentSpace": "Nowa przestrzeń dokumentów",
     "EditDocumentSpace": "Edytuj przestrzeń dokumentów",
-
     "DocSpaceDescriptionPlaceholder": "Opisz swoją przestrzeń...",
     "Members": "Członkowie",
     "CreateOrgSpace": "Utwórz przestrzeń organizacji",
-
     "ReviewDocumentPermission": "Recenzuj dokumenty",
     "ReviewDocumentDescription": "Umożliwia użytkownikom recenzowanie dokumentów",
     "ApproveDocumentPermission": "Zatwierdzaj dokumenty",
@@ -309,7 +258,6 @@
     "CreateDocumentDescription": "Umożliwia użytkownikom tworzenie dokumentów",
     "UpdateDocumentOwnerPermission": "Aktualizuj właściciela dokumentu",
     "UpdateDocumentOwnerDescription": "Umożliwia użytkownikom aktualizację właściciela dokumentu",
-
     "CreateDocumentCategoryPermission": "Utwórz kategorię dokumentu",
     "CreateDocumentCategoryDescription": "Umożliwia użytkownikom tworzenie kategorii dokumentów",
     "UpdateDocumentCategoryPermission": "Aktualizuj kategorię dokumentu",
@@ -318,21 +266,16 @@
     "DeleteDocumentCategoryDescription": "Umożliwia użytkownikom usuwanie kategorii dokumentów",
     "ConfigLabel": "Dokumenty autoryzowane",
     "ConfigDescription": "Rozszerzenie do zarządzania autoryzacją dokumentów",
-
     "Transfer": "Przenieś",
     "TransferWarning": "Niektórzy członkowie zespołu mogą utracić możliwość przeglądania lub edycji tego dokumentu po tej akcji.",
     "TransferDocuments": "Przenieś dokumenty autoryzowane",
     "TransferDocumentsHint": "Dokumenty do przeniesienia do wybranej przestrzeni:",
-
     "CreateFolder": "Utwórz nowy folder",
     "RenameFolder": "Zmień nazwę folderu",
     "CreateChildFolder": "Utwórz podfolder",
-
     "LatestVersionHint": "najnowsza",
-
     "CannotDeleteFolder": "Folder nie może zostać usunięty",
     "CannotDeleteFolderHint": "Przenieś wszystkie dokumenty podrzędne do innej lokalizacji przed usunięciem folderu.",
-
     "AllDocumentSpaces": "Wszystkie przestrzenie dokumentów"
   },
   "controlledDocStates": {

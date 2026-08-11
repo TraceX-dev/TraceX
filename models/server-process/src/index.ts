@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,7 @@ import { TMethod, TProcessFunction, TTrigger } from '@hcengineering/model-proces
 import type { Resource } from '@hcengineering/platform'
 import process, { ExecutionStatus } from '@hcengineering/process'
 import serverCore from '@hcengineering/server-core'
+import integration from '@hcengineering/integration'
 import serverProcess, {
   type RollbackFunc,
   type ExecuteFunc,
@@ -49,6 +51,29 @@ export class TTriggerImpl extends TTrigger implements TriggerImpl {
 
 export function createModel (builder: Builder): void {
   builder.createModel(TMethodImpl, TFuncImpl, TTriggerImpl)
+
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: process.class.ProcessToDo,
+    find: serverProcess.workspaceApi.FindProcessToDos,
+    get: serverProcess.workspaceApi.GetProcessToDo,
+    patch: serverProcess.workspaceApi.PatchProcessToDo
+  })
+
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: process.class.Execution,
+    commands: {
+      'emit-event': serverProcess.workspaceApi.EmitProcessEvent
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverProcess.trigger.OnRelationChange,
+    isAsync: true,
+    txMatch: {
+      _class: { $in: [core.class.TxCreateDoc, core.class.TxUpdateDoc, core.class.TxRemoveDoc] },
+      objectClass: core.class.Relation
+    }
+  })
 
   builder.mixin(process.trigger.OnToDoClose, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
     serverCheckFunc: serverProcess.func.CheckToDoDone,
@@ -89,9 +114,18 @@ export function createModel (builder: Builder): void {
     preventRollback: true
   })
 
-  // builder.mixin(process.trigger.OnEvent, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
-  //   serverCheckFunc: serverProcess.func.EventCheck
-  // })
+  builder.mixin(process.trigger.OnNewVersion, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true
+  })
+
+  builder.mixin(process.trigger.OnEvent, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    serverCheckFunc: serverProcess.func.EventCheck
+  })
+
+  builder.mixin(process.trigger.WhenRelationChanges, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true,
+    serverCheckFunc: serverProcess.func.RelationChangedCheck
+  })
 
   builder.mixin(process.trigger.OnTime, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
     preventRollback: true,

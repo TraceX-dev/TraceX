@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -139,6 +140,7 @@ export interface Association extends Doc {
   nameA: string
   nameB: string
   type: '1:1' | '1:N' | 'N:N'
+  description?: IntlString
   automationOnly?: boolean
 }
 
@@ -270,6 +272,11 @@ export type OperationDomain = string & { __domain: true }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface Interface<T extends Doc> extends Classifier {
   extends?: Ref<Interface<Doc>>[]
+}
+
+// Mixin to control TTL for transient objects.
+export interface TransientTTL extends Class<Doc> {
+  ttl: number // TTL in seconds
 }
 
 /**
@@ -965,6 +972,9 @@ export interface WorkspaceInfoWithStatus extends WorkspaceInfo {
   backupInfo?: BackupStatus
   usageInfo?: UsageStatus
   processingAttemps: number
+  // Whether the current account has unread notifications in this workspace.
+  // Only populated by getAccountWorkspaces(); absent/undefined elsewhere.
+  hasUnread?: boolean
 }
 
 export interface WorkspaceMemberInfo {
@@ -980,7 +990,8 @@ export enum SocialIdType {
   OIDC = 'oidc',
   HULY = 'huly',
   TELEGRAM = 'telegram',
-  HULY_ASSISTANT = 'huly-assistant'
+  HULY_ASSISTANT = 'huly-assistant',
+  LOVE = 'office'
 }
 
 export interface SocialId {

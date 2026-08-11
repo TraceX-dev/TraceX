@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -31,7 +32,7 @@ import * as fs from 'fs'
 import * as yaml from 'js-yaml'
 import { contentType } from 'mime-types'
 import * as path from 'path'
-import { type IntlString } from '@hcengineering/platform'
+import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
 import { type Logger } from '../importer/logger'
 import { type Props, type UnifiedDoc, type UnifiedFile, type UnifiedMixin, type UnifiedUpdate } from '../types'
 import { type UnifiedFormatParser } from './parser'
@@ -51,6 +52,14 @@ import {
   TagSchema
 } from './schema'
 import { validateSchema } from './validation'
+
+function toEmbeddedLabel (value: unknown): IntlString | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? getEmbeddedLabel(value.trim()) : undefined
+}
+
+function toDescription (value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
+}
 
 export interface UnifiedDocProcessResult {
   docs: Map<string, Array<UnifiedDoc<Doc>>>
@@ -330,7 +339,7 @@ export class CardsProcessor {
     parentMasterTagId?: Ref<MasterTag>
   ): Promise<UnifiedDoc<MasterTag>> {
     this.validateFormat(data, MasterTagSchema, filePath)
-    const { class: _class, title } = data
+    const { class: _class, title, description } = data
     if (_class !== card.class.MasterTag) {
       throw new Error('Invalid master tag data')
     }
@@ -341,7 +350,8 @@ export class CardsProcessor {
         _id: this.metadataRegistry.getRef(filePath) as Ref<MasterTag>,
         space: core.space.Model,
         extends: parentMasterTagId ?? card.class.Card,
-        label: ('embedded:embedded:' + title) as IntlString,
+        label: toEmbeddedLabel(title) ?? (title as IntlString),
+        description: toDescription(description),
         kind: 0,
         icon: card.icon.MasterTag
       }
@@ -399,7 +409,7 @@ export class CardsProcessor {
   ): Promise<UnifiedDoc<Tag>> {
     this.validateFormat(data, TagSchema, filePath)
 
-    const { class: _class, title } = data
+    const { class: _class, title, description } = data
     if (_class !== card.class.Tag) {
       throw new Error('Invalid tag data')
     }
@@ -410,7 +420,8 @@ export class CardsProcessor {
         _id: this.metadataRegistry.getRef(filePath) as Ref<Tag>,
         space: core.space.Model,
         extends: parentTagId ?? masterTagId,
-        label: ('embedded:embedded:' + title) as IntlString,
+        label: toEmbeddedLabel(title) ?? (title as IntlString),
+        description: toDescription(description),
         kind: 2,
         icon: card.icon.Tag
       }
@@ -436,7 +447,8 @@ export class CardsProcessor {
           space: core.space.Model,
           attributeOf: masterTagId,
           name: generateId<Attribute<MasterTag>>(),
-          label: ('embedded:embedded:' + property.label) as IntlString,
+          label: toEmbeddedLabel(property.label) ?? property.label,
+          description: toEmbeddedLabel(property.description),
           isCustom: true,
           type,
           defaultValue: property.defaultValue ?? null
@@ -742,7 +754,7 @@ export class CardsProcessor {
   private async createAssociation (filePath: string, data: Record<string, any>): Promise<UnifiedDoc<Association>> {
     this.validateFormat(data, AssociationSchema, filePath)
 
-    const { class: _class, typeA, typeB, type, nameA, nameB } = data
+    const { class: _class, typeA, typeB, type, nameA, nameB, description } = data
 
     const currentPath = path.dirname(filePath)
     const associationId = this.metadataRegistry.getRef(filePath) as Ref<Association>
@@ -773,7 +785,8 @@ export class CardsProcessor {
         classB: typeBId,
         nameA,
         nameB,
-        type
+        type,
+        description: toEmbeddedLabel(description)
       } as unknown as Props<Association>
     }
   }

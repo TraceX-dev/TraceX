@@ -53,6 +53,23 @@
     "ExportFilterEffectiveOnly": "Eksportuj tylko aktualne dokumenty",
     "ExportFilterSkipArchivedObsolete": "Wszystkie dokumenty poza zarchiwizowanymi i nieaktualnymi",
     "ExportFilterAll": "Wszystkie dokumenty",
-    "ExportResultRecordTitle": "Eksport dokumentów z przestrzeni roboczej {workspace} ({date})"
+    "ExportResultRecordTitle": "Eksport dokumentów z przestrzeni roboczej {workspace} ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "Wybrane ({count})",
+    "ExportScopeLoaded": "Załadowane na tej stronie ({count})",
+    "ExportFileName": "Nazwa pliku",
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "Eksportuj zawartość",
+    "ImportDocumentContent": "Importuj zawartość",
+    "ExportingDocumentContent": "Eksportowanie dokumentu…",
+    "DocumentContentExported": "Dokument wyeksportowany",
+    "DocumentContentExportFailed": "Eksport nie powiódł się",
+    "ImportingDocumentContent": "Importowanie dokumentu",
+    "ConvertingDocumentContent": "Konwertowanie dokumentu…",
+    "DocumentContentConverted": "Dokument przekonwertowany",
+    "DocumentContentImportFailed": "Import nie powiódł się",
+    "ReviewDocumentContentChanges": "Przejrzyj zaimportowane zmiany",
+    "ApplyDocumentContentChanges": "Zastosuj"
   }
 }

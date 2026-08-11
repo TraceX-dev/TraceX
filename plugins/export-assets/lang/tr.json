@@ -55,6 +55,23 @@
     "ExportFilterAll": "Tüm belgeler",
     "ExportChildDocuments": "Alt belgeleri dışa aktar",
     "ExportChildDocumentsDescription": "Seçili belgelere ekli belgeleri de dışa aktar",
-    "ExportResultRecordTitle": "{workspace} çalışma alanından belge dışa aktarma ({date})"
+    "ExportResultRecordTitle": "{workspace} çalışma alanından belge dışa aktarma ({date})",
+    "ExportMarkdown": "Markdown",
+    "ExportScopeSelected": "Seçili ({count})",
+    "ExportScopeLoaded": "Bu sayfada yüklü ({count})",
+    "ExportFileName": "Dosya adı",
+    "ExportFormatWord": "Word (.docx)",
+    "ExportFormatMarkdown": "Markdown (.md)",
+    "ExportDocumentContent": "İçeriği dışa aktar",
+    "ImportDocumentContent": "İçeriği içe aktar",
+    "ExportingDocumentContent": "Belge dışa aktarılıyor…",
+    "DocumentContentExported": "Belge dışa aktarıldı",
+    "DocumentContentExportFailed": "Dışa aktarma başarısız",
+    "ImportingDocumentContent": "Belge içe aktarılıyor",
+    "ConvertingDocumentContent": "Belge dönüştürülüyor…",
+    "DocumentContentConverted": "Belge dönüştürüldü",
+    "DocumentContentImportFailed": "İçe aktarma başarısız",
+    "ReviewDocumentContentChanges": "İçe aktarılan değişiklikleri gözden geçir",
+    "ApplyDocumentContentChanges": "Uygula"
   }
 }

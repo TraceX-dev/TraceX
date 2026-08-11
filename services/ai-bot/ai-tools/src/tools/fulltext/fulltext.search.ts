@@ -122,7 +122,7 @@ export const fulltextSearchTool = createTool({
             id: searchResult.id,
             title: searchResult.title ?? searchResult.shortTitle ?? getTitle(doc) ?? searchResult.id,
             class: await buildClassSummary(toolCtx.hierarchy, searchResult.doc._class),
-            ...(space !== undefined ? { space: { id: space._id, name: space.name } } : {}),
+            ...(space !== undefined ? { space: { id: space._id, name: space.name, description: undefined } } : {}),
             ...(searchResult.score !== undefined ? { score: searchResult.score } : {})
           }
         })
