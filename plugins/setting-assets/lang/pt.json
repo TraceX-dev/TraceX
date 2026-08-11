@@ -254,6 +254,8 @@
     "EnterVerificationCode": "Inserir código de verificação",
     "OverrideAttribute": "Sobrescrever atributo",
     "Required": "Obrigatório",
+    "RelationFilter": "Filtro",
+    "AddRelationFilter": "Adicionar filtro",
     "RemoveMemberFromSpace": "Remover utilizador do espaço",
     "OtherSpaces": "Outros espaços",
     "Public": "Público",

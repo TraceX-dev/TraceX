@@ -266,6 +266,8 @@
     "EnterVerificationCode": "Enter verification code",
     "OverrideAttribute": "Override attribute",
     "Required": "Required",
+    "RelationFilter": "Filter",
+    "AddRelationFilter": "Add filter",
     "RemoveMemberFromSpace": "Remove user from space",
     "OtherSpaces": "Other spaces",
     "Public": "Public",

@@ -263,6 +263,8 @@
     "EnterVerificationCode": "Verifizierungscode eingeben",
     "OverrideAttribute": "Überschreibattribut",
     "Required": "Pflichtfeld",
+    "RelationFilter": "Filter",
+    "AddRelationFilter": "Filter hinzufügen",
     "RemoveMemberFromSpace": "Benutzer aus dem Bereich entfernen",
     "OtherSpaces": "Andere Bereiche",
     "Public": "Öffentlich",

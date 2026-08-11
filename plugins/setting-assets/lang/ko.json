@@ -263,6 +263,8 @@
         "EnterVerificationCode": "인증 코드 입력",
         "OverrideAttribute": "속성 재정의",
         "Required": "필수",
+        "RelationFilter": "필터",
+        "AddRelationFilter": "필터 추가",
         "RemoveMemberFromSpace": "스페이스에서 사용자 제거",
         "OtherSpaces": "기타 스페이스",
         "Public": "공개",

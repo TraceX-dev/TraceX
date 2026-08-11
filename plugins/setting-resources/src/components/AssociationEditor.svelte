@@ -24,21 +24,25 @@
     DropdownIntlItem,
     DropdownLabelsIntl,
     EditBox,
+    IconAdd,
+    IconClose,
     Label,
     NestedDropdown,
     themeStore,
-    Toggle
+    Toggle,
+    eventToHTMLElement,
+    showPopup
   } from '@hcengineering/ui'
-  import view from '@hcengineering/view'
-  import card from '@hcengineering/card'
+  import view, { type Filter } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
+  import { FilterTypePopup } from '@hcengineering/view-resources'
   import setting from '../plugin'
 
   export let association: Association | Data<Association>
   export let kind: ButtonKind = 'regular'
   export let size: ButtonSize = 'medium'
   export let _classes: Ref<Class<Doc>>[] = [core.class.Doc]
-  export let exclude: Ref<Class<Doc>>[] = [card.class.Card]
+  export let exclude: Ref<Class<Doc>>[] = []
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -69,7 +73,7 @@
       if (added.has(_id) || ignore.has(_id)) continue
       const _class = hierarchy.getClass(_id)
       if (_class.label === undefined) continue
-      if (viewlets.has(hierarchy.getBaseClass(_id))) {
+      if (hierarchy.getAncestors(_id).some((a) => viewlets.has(a))) {
         added.add(_id)
         const descendants = hierarchy.getDescendants(_id)
         const toAdd: Class<Doc>[] = []
@@ -101,6 +105,8 @@
   let nameB = association.nameB
   let description = ''
   let automationOnly = association.automationOnly ?? false
+  let filterA = association.filterA
+  let filterB = association.filterB
 
   $: classA = isEmptyClass(classARef) ? undefined : hierarchy.getClass(classARef as Ref<Class<Doc>>)
   $: classB = isEmptyClass(classBRef) ? undefined : hierarchy.getClass(classBRef as Ref<Class<Doc>>)
@@ -123,6 +129,56 @@
       description = p
     })
     automationOnly = association.automationOnly ?? false
+    filterA = association.filterA
+    filterB = association.filterB
+  }
+
+  function parseFilters (filter: string | undefined): Filter[] {
+    if (filter == null || filter === '') return []
+    try {
+      return JSON.parse(filter) as Filter[]
+    } catch {
+      return []
+    }
+  }
+
+  function serializeFilters (filters: Filter[]): string | undefined {
+    if (filters.length === 0) return undefined
+    return JSON.stringify(filters, (k, v) => (k === 'onRemove' ? undefined : v))
+  }
+
+  function setFilters (side: 'A' | 'B', filters: Filter[]): void {
+    if (side === 'A') {
+      filterA = serializeFilters(filters)
+    } else {
+      filterB = serializeFilters(filters)
+    }
+  }
+
+  function addFilter (side: 'A' | 'B', e: MouseEvent): void {
+    const _class = side === 'A' ? classARef : classBRef
+    if (_class === undefined) return
+    const existing = parseFilters(side === 'A' ? filterA : filterB)
+    const target = eventToHTMLElement(e)
+    showPopup(
+      FilterTypePopup,
+      {
+        _class,
+        target,
+        index: existing.length + 1,
+        onChange: (f: Filter) => {
+          setFilters(side, [...existing, f])
+        }
+      },
+      target
+    )
+  }
+
+  function removeFilter (side: 'A' | 'B', i: number): void {
+    setFilters(
+      side,
+      parseFilters(side === 'A' ? filterA : filterB).filter((_, idx) => idx !== i)
+    )
   }
 
   function isAssociation (data: Data<Association> | Association): data is Association {
@@ -140,7 +196,9 @@
         nameA,
         nameB,
         description: description.trim().length > 0 ? getEmbeddedLabel(description.trim()) : undefined,
-        automationOnly
+        automationOnly,
+        filterA,
+        filterB
       })
     } else {
       await client.createDoc(core.class.Association, core.space.Model, {
@@ -150,7 +208,9 @@
         nameA,
         nameB,
         description: description.trim().length > 0 ? getEmbeddedLabel(description.trim()) : undefined,
-        automationOnly
+        automationOnly,
+        filterA,
+        filterB
       })
       dispatch('create')
       dispatch('close')
@@ -200,6 +260,36 @@
             <Label label={classA.label} />
           {/if}
         </div>
+        <div class="flex-col flex-gap-1">
+          <span class="label">
+            <Label label={setting.string.RelationFilter} />
+          </span>
+          <div class="flex-row-center flex-gap-1 flex-wrap">
+            {#each parseFilters(filterA) as f, i (i)}
+              <div class="flex-row-center filter-chip">
+                <Label label={f.key?.label ?? setting.string.RelationFilter} />
+                <Button
+                  icon={IconClose}
+                  kind={'ghost'}
+                  size={'small'}
+                  on:click={() => {
+                    removeFilter('A', i)
+                  }}
+                />
+              </div>
+            {/each}
+            <Button
+              icon={IconAdd}
+              label={setting.string.AddRelationFilter}
+              kind={'ghost'}
+              size={'small'}
+              disabled={classARef === undefined}
+              on:click={(e) => {
+                addFilter('A', e)
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <div class="flex-col flex-no-shrink flex-gap-2">
@@ -243,6 +333,36 @@
           {/if}
         </div>
       </div>
+      <div class="flex-col flex-gap-1">
+        <span class="label">
+          <Label label={setting.string.RelationFilter} />
+        </span>
+        <div class="flex-row-center flex-gap-1 flex-wrap">
+          {#each parseFilters(filterB) as f, i (i)}
+            <div class="flex-row-center filter-chip">
+              <Label label={f.key?.label ?? setting.string.RelationFilter} />
+              <Button
+                icon={IconClose}
+                kind={'ghost'}
+                size={'small'}
+                on:click={() => {
+                  removeFilter('B', i)
+                }}
+              />
+            </div>
+          {/each}
+          <Button
+            icon={IconAdd}
+            label={setting.string.AddRelationFilter}
+            kind={'ghost'}
+            size={'small'}
+            disabled={classBRef === undefined}
+            on:click={(e) => {
+              addFilter('B', e)
+            }}
+          />
+        </div>
+      </div>
     </div>
 
     <div class="flex-col px-4 pb-2 flex-gap-2">
@@ -268,3 +388,11 @@
     <Button label={presentation.string.Save} kind={'primary'} size={'medium'} on:click={save} />
   </div>
 </div>
+
+<style lang="scss">
+  .filter-chip {
+    padding: 0 0.25rem;
+    border: 1px solid var(--theme-divider-color);
+    border-radius: 0.25rem;
+  }
+</style>
