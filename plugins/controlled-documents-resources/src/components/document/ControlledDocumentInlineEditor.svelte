@@ -15,12 +15,15 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type ControlledDocument } from '@hcengineering/controlled-documents'
-  import { type Ref } from '@hcengineering/core'
-  import { ButtonKind, ButtonSize } from '@hcengineering/ui'
-  import { ObjectBox } from '@hcengineering/view-resources'
+  import { type ControlledDocument, type DocumentMeta } from '@hcengineering/controlled-documents'
+  import { type Doc, type Ref } from '@hcengineering/core'
+  import { createQuery } from '@hcengineering/presentation'
+  import { Button, ButtonKind, ButtonSize, Label, showPopup } from '@hcengineering/ui'
+  import { ObjectBoxPopup } from '@hcengineering/view-resources'
 
   import documents from '../../plugin'
+  import { getDocumentVersionString } from '../../utils'
+  import ControlledDocumentVersionsSelectorPopup from './ControlledDocumentVersionsSelectorPopup.svelte'
 
   export let value: Ref<ControlledDocument> | undefined
   export let readonly: boolean = false
@@ -28,16 +31,48 @@
   export let size: ButtonSize = 'small'
   export let justify: 'left' | 'center' = 'center'
   export let width: string | undefined = undefined
+
+  const query = createQuery()
+  let document: ControlledDocument | undefined
+  let container: HTMLElement
+
+  $: query.query(documents.class.ControlledDocument, { _id: value }, (result) => {
+    ;[document] = result
+  })
+
+  function selectVersion (): void {
+    if (readonly) return
+
+    showPopup(
+      ObjectBoxPopup,
+      { _class: documents.class.DocumentMeta, placeholder: documents.string.ControlledDocument },
+      container,
+      (meta) => {
+        if (meta === undefined) return
+
+        showPopup(
+          ControlledDocumentVersionsSelectorPopup,
+          { meta: (meta as Doc)._id as Ref<DocumentMeta>, selected: value },
+          container,
+          (version) => {
+            if (version !== undefined) {
+              value = version
+            }
+          }
+        )
+      }
+    )
+  }
 </script>
 
-<ObjectBox
-  bind:value
-  _class={documents.class.ControlledDocument}
-  label={documents.string.ControlledDocument}
-  showNavigate={false}
-  {readonly}
-  {kind}
-  {size}
-  {justify}
-  {width}
-/>
+<div bind:this={container} class="min-w-0" class:w-full={width === '100%'}>
+  <Button width={width ?? 'min-content'} {kind} {size} {justify} disabled={readonly} on:click={selectVersion}>
+    <span slot="content" class="overflow-label">
+      {#if document}
+        {document.title} ({getDocumentVersionString(document)})
+      {:else}
+        <Label label={documents.string.ControlledDocument} />
+      {/if}
+    </span>
+  </Button>
+</div>

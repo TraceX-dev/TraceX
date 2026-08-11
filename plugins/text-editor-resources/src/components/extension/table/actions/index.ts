@@ -15,3 +15,4 @@
 export { refreshTable } from './refreshTable'
 export { showTableDiff } from './showTableDiff'
 export { seeOriginalTableData } from './seeOriginalTableData'
+export { openCellTextAlignOptions, openCellVerticalAlignOptions } from './cellFormatting'
