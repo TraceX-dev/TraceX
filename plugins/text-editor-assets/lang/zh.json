@@ -65,7 +65,7 @@
     "AlignBottom": "底端对齐",
     "CellTextAlign": "文本对齐",
     "CellVerticalAlign": "垂直对齐",
-    "FontFamily": "字体",
+    "CellTextFormatting": "文本格式",
     "RefreshTable": "刷新表格",
     "ShowDiff": "显示差异",
     "SeeOriginalData": "查看原始数据",

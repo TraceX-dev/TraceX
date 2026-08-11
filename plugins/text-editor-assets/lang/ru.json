@@ -75,7 +75,7 @@
     "AlignBottom": "По нижнему краю",
     "CellTextAlign": "Выравнивание текста",
     "CellVerticalAlign": "Вертикальное выравнивание",
-    "FontFamily": "Шрифт",
+    "CellTextFormatting": "Форматирование текста",
     "RefreshTable": "Обновить таблицу",
     "ShowDiff": "Показать различия",
     "SeeOriginalData": "Показать исходные данные",

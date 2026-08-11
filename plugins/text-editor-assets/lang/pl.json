@@ -80,7 +80,7 @@
     "AlignBottom": "Wyrównaj do dołu",
     "CellTextAlign": "Wyrównanie tekstu",
     "CellVerticalAlign": "Wyrównanie pionowe",
-    "FontFamily": "Czcionka",
+    "CellTextFormatting": "Formatowanie tekstu",
     "RefreshTable": "Odśwież tabelę",
     "ShowDiff": "Pokaż różnice",
     "SeeOriginalData": "Zobacz oryginalne dane",

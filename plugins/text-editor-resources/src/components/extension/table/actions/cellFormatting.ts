@@ -13,16 +13,25 @@
 // limitations under the License.
 //
 
-import { type Asset, type IntlString } from '@hcengineering/platform'
+import { getEmbeddedLabel, type Asset, type IntlString } from '@hcengineering/platform'
 import textEditor from '@hcengineering/text-editor'
 import { getEventPositionElement, SelectPopup, showPopup } from '@hcengineering/ui'
 import { type Editor } from '@tiptap/core'
+import { openTextColorOptions } from '../../colors'
+import { selectCurrentCell } from '../utils'
 
 interface AlignOption {
   id: string
   icon: Asset
   label: IntlString
   action: () => boolean | undefined
+}
+
+interface FormattingOption {
+  id: string
+  icon: Asset
+  label: IntlString
+  action: () => void
 }
 
 async function showAlignPopup (event: MouseEvent, ops: AlignOption[]): Promise<void> {
@@ -103,4 +112,113 @@ export async function openCellVerticalAlignOptions (editor: Editor, event: Mouse
       action: () => editor.commands.unsetCellVerticalAlign()
     }
   ])
+}
+
+// A single table-toolbar entry that fans out into every text-formatting action, instead of one
+// icon per action - the table toolbar has limited room and most of these are used far less often
+// than the cell background/align actions that already have dedicated icons.
+//
+// Every command used here (toggleHeading/toggleBold/toggleItalic/toggleStrike/toggleUnderline/
+// toggleHighlight/setTextColor) iterates `selection.ranges` under the hood (see the comment on
+// TextColor.unsetTextColor in @hcengineering/text and openCellTextAlignOptions above), so picking
+// an option applies it to every cell of a multi-cell CellSelection, not just one - but they still
+// need a real CellSelection to begin with when the user only left a cursor in a single cell (see
+// selectCurrentCell). That expansion happens here, once an option is actually picked, rather than
+// eagerly when the menu is opened - doing it eagerly would move the table toolbar (its anchor
+// depends on the selection kind) the instant the menu button is clicked, before the user has
+// chosen anything.
+function withCellSelection (editor: Editor, run: () => void): () => void {
+  return () => {
+    selectCurrentCell(editor)
+    run()
+  }
+}
+
+export async function openCellTextFormattingOptions (editor: Editor, event: MouseEvent): Promise<void> {
+  const ops: FormattingOption[] = [
+    {
+      id: 'h1',
+      icon: textEditor.icon.Header1,
+      label: getEmbeddedLabel('H1'),
+      action: withCellSelection(editor, () => {
+        editor.commands.toggleHeading({ level: 1 })
+      })
+    },
+    {
+      id: 'h2',
+      icon: textEditor.icon.Header2,
+      label: getEmbeddedLabel('H2'),
+      action: withCellSelection(editor, () => {
+        editor.commands.toggleHeading({ level: 2 })
+      })
+    },
+    {
+      id: 'h3',
+      icon: textEditor.icon.Header3,
+      label: getEmbeddedLabel('H3'),
+      action: withCellSelection(editor, () => {
+        editor.commands.toggleHeading({ level: 3 })
+      })
+    },
+    {
+      id: 'bold',
+      icon: textEditor.icon.Bold,
+      label: textEditor.string.Bold,
+      action: withCellSelection(editor, () => {
+        editor.commands.toggleBold()
+      })
+    },
+    {
+      id: 'italic',
+      icon: textEditor.icon.Italic,
+      label: textEditor.string.Italic,
+      action: withCellSelection(editor, () => {
+        editor.commands.toggleItalic()
+      })
+    },
+    {
+      id: 'strike',
+      icon: textEditor.icon.Strikethrough,
+      label: textEditor.string.Strikethrough,
+      action: withCellSelection(editor, () => {
+        editor.commands.toggleStrike()
+      })
+    },
+    {
+      id: 'underline',
+      icon: textEditor.icon.Underline,
+      label: textEditor.string.Underlined,
+      action: withCellSelection(editor, () => {
+        editor.commands.toggleUnderline()
+      })
+    },
+    {
+      id: 'highlight',
+      icon: textEditor.icon.Highlight,
+      label: textEditor.string.Highlight,
+      action: withCellSelection(editor, () => {
+        editor.commands.toggleHighlight()
+      })
+    },
+    {
+      id: 'textColor',
+      icon: textEditor.icon.TextStyle,
+      label: textEditor.string.SetTextColor,
+      action: withCellSelection(editor, () => {
+        // Reuses the same popup as the regular text toolbar's text color button, anchored to the
+        // same click event that opened this menu.
+        openTextColorOptions(editor, event).catch(() => {})
+      })
+    }
+  ]
+
+  await new Promise<void>((resolve) => {
+    showPopup(SelectPopup, { value: ops }, getEventPositionElement(event), (val) => {
+      if (val !== undefined) {
+        const op = ops.find((it) => it.id === val)
+        op?.action()
+      }
+      resolve()
+    })
+  })
 }

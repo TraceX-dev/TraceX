@@ -423,5 +423,6 @@ export {
   showTableDiff,
   seeOriginalTableData,
   openCellTextAlignOptions,
-  openCellVerticalAlignOptions
+  openCellVerticalAlignOptions,
+  openCellTextFormattingOptions
 } from './actions'

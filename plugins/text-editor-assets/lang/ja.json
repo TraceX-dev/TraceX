@@ -75,7 +75,7 @@
     "AlignBottom": "下揃え",
     "CellTextAlign": "テキストの配置",
     "CellVerticalAlign": "垂直方向の配置",
-    "FontFamily": "フォント",
+    "CellTextFormatting": "テキストの書式設定",
     "RefreshTable": "表を更新",
     "ShowDiff": "差分を表示",
     "SeeOriginalData": "元のデータを表示",
