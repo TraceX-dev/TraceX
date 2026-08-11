@@ -2448,9 +2448,17 @@ export async function createActiveSession (
 }
 
 /** Updates a session's `lastSeen` (best-effort; ignores unknown/revoked ids). */
-export async function touchActiveSession (db: AccountDB, sessionId: string, workspaceUuid?: WorkspaceUuid, at?: number): Promise<void> {
+export async function touchActiveSession (
+  db: AccountDB,
+  sessionId: string,
+  workspaceUuid?: WorkspaceUuid,
+  at?: number
+): Promise<void> {
   try {
-    await db.activeSession.update({ sessionId, revokedOn: null }, { lastSeen: at ?? Date.now(), ...(workspaceUuid !== undefined ? { workspaceUuid } : {}) })
+    await db.activeSession.update(
+      { sessionId, revokedOn: null },
+      { lastSeen: at ?? Date.now(), ...(workspaceUuid !== undefined ? { workspaceUuid } : {}) }
+    )
   } catch {
     // best-effort
   }

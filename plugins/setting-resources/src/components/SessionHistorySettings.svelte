@@ -132,7 +132,7 @@
 
   {#if loginHistoryLoading && !loginHistoryLoaded}
     <ul class="session-history__list">
-      {#each Array(3) as _}
+      {#each [0, 1, 2] as placeholderIndex (placeholderIndex)}
         <li class="session-history__row session-history__row--placeholder" />
       {/each}
     </ul>
@@ -155,16 +155,16 @@
   {:else}
     <ul class="session-history__list">
       {#each groups as group (group.id)}
-        <li class="session-history__row" class:session-history__row--failed={!group.event.success}>
+        <li class="session-history__row" class:session-history__row--failed={group.event.success !== true}>
           <span
             class="session-history__status"
-            class:session-history__status--success={group.event.success}
-            class:session-history__status--failed={!group.event.success}
+            class:session-history__status--success={group.event.success === true}
+            class:session-history__status--failed={group.event.success !== true}
             role="img"
           >
             <span class="session-history__sr-only">
               <Label
-                label={group.event.success
+                label={group.event.success === true
                   ? settingsRes.string.RecentLoginActivitySuccess
                   : settingsRes.string.RecentLoginActivityFailure}
               />
@@ -184,7 +184,7 @@
               {#if group.count > 1}
                 <span class="session-history__count" title={formatGroupRange(group)}>×{group.count}</span>
               {/if}
-              {#if !group.event.success}
+              {#if group.event.success !== true}
                 <span class="session-history__failed-label">
                   <Label label={settingsRes.string.RecentLoginActivityFailure} />
                 </span>

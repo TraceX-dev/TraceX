@@ -534,7 +534,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
 
           // Persist a rotating refresh token as an httpOnly cookie so it is not
           // exposed to JS at rest; it stays in the JSON for non-cookie clients.
-          const refreshTok = (result)?.refreshToken
+          const refreshTok = result?.refreshToken
           if (typeof refreshTok === 'string' && refreshTok !== '') {
             const refreshTtlSec = getMetadata(account.metadata.RefreshTokenTtlSec) ?? 0
             const maxAge = refreshTtlSec > 0 ? refreshTtlSec * 1000 : undefined

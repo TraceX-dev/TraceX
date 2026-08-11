@@ -149,8 +149,8 @@
                 <Loading />
               {:else}
                 <Button
-                  label={tfaEnabled ? setting.string.DisableTwoFactorAuth : setting.string.EnableTwoFactorAuth}
-                  kind={tfaEnabled ? 'negative' : 'primary'}
+                  label={tfaEnabled === true ? setting.string.DisableTwoFactorAuth : setting.string.EnableTwoFactorAuth}
+                  kind={tfaEnabled === true ? 'negative' : 'primary'}
                   disabled={isTfaLoading || tfaEnabled === undefined}
                   on:click={openTwoFactorSetup}
                 />

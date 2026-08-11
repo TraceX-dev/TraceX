@@ -104,7 +104,7 @@
 
   {#if loading && !loaded}
     <ul class="active-sessions__list">
-      {#each Array(3) as _}
+      {#each [0, 1, 2] as placeholderIndex (placeholderIndex)}
         <li class="active-sessions__row active-sessions__row--placeholder" />
       {/each}
     </ul>
@@ -158,7 +158,7 @@
               </time>
             </div>
           </div>
-          {#if !session.isCurrent}
+          {#if session.isCurrent !== true}
             <div class="active-sessions__action">
               <Button
                 label={settingsRes.string.SignOutAction}
