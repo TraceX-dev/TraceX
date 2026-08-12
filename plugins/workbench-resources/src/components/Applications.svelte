@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,15 +17,12 @@
   import { createEventDispatcher } from 'svelte'
   import core, { AccountRole, getCurrentAccount, type ModulePermissionGroup, type Ref } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
-  import { Scroller, deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
-  import { NavLink } from '@hcengineering/view-resources'
+  import { Scroller } from '@hcengineering/ui'
   import type { Application } from '@hcengineering/workbench'
   import workbench from '@hcengineering/workbench'
-  import { getMetadata, getResource } from '@hcengineering/platform'
-  import { InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
-  import notification, { DocNotifyContext, InboxNotification, notificationId } from '@hcengineering/notification'
+  import { getMetadata } from '@hcengineering/platform'
 
-  import AppItem from './AppItem.svelte'
+  import ApplicationNavItem from './ApplicationNavItem.svelte'
 
   export let active: Ref<Application> | undefined
   export let apps: Application[] = []
@@ -120,28 +118,6 @@
       .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
     bottomApps = apps.filter((it) => it.position === 'bottom' && isApplicationVisibleInSidebar(it))
   }
-
-  const inboxClient = InboxNotificationsClientImpl.getClient()
-  const inboxNotificationsByContextStore = inboxClient.inboxNotificationsByContext
-
-  let hasNotificationsFn: ((data: Map<Ref<DocNotifyContext>, InboxNotification[]>) => Promise<boolean>) | undefined =
-    undefined
-  let hasInboxNotifications = false
-
-  void getResource(notification.function.HasInboxNotifications).then((f) => {
-    hasNotificationsFn = f
-  })
-
-  $: void hasNotificationsFn?.($inboxNotificationsByContextStore).then((res) => {
-    hasInboxNotifications = res
-  })
-
-  function showNotify (alias: string, hasInboxNotifications: boolean): boolean {
-    if (alias === notificationId) {
-      return hasInboxNotifications
-    }
-    return false
-  }
 </script>
 
 <div class="flex-{direction === 'horizontal' ? 'row-center' : 'col-center'} clear-mins apps-{direction} relative">
@@ -157,51 +133,20 @@
     >
       {#each topApps as app}
         {@const customProps = customAppProps.get(app.alias) ?? {}}
-        <NavLink app={app.alias} shrink={0} disabled={app._id === active}>
-          <AppItem
-            selected={app._id === active}
-            icon={app.icon}
-            label={app.label}
-            navigator={app._id === active && $deviceInfo.navigator.visible}
-            notify={showNotify(app.alias, hasInboxNotifications)}
-            {...customProps}
-            dataId={`app-sidebar-${app.alias}`}
-            on:click={getClickHandler(app, customProps)}
-          />
-        </NavLink>
+        <ApplicationNavItem {active} {app} {customProps} on:click={getClickHandler(app, customProps)} />
       {/each}
       {#if topApps.length > 0}
         <div class="divider" />
       {/if}
       {#each midApps as app}
         {@const customProps = customAppProps.get(app.alias) ?? {}}
-        <NavLink app={app.alias} shrink={0} disabled={app._id === active}>
-          <AppItem
-            selected={app._id === active}
-            icon={app.icon}
-            label={app.label}
-            navigator={app._id === active && $deviceInfo.navigator.visible}
-            {...customProps}
-            dataId={`app-sidebar-${app.alias}`}
-            on:click={getClickHandler(app, customProps)}
-          />
-        </NavLink>
+        <ApplicationNavItem {active} {app} {customProps} on:click={getClickHandler(app, customProps)} />
       {/each}
       {#if bottomApps.length > 0}
         <div class="divider" />
         {#each bottomApps as app}
           {@const customProps = customAppProps.get(app.alias) ?? {}}
-          <NavLink app={app.alias} shrink={0} disabled={app._id === active}>
-            <AppItem
-              selected={app._id === active}
-              icon={app.icon}
-              label={app.label}
-              navigator={app._id === active && $deviceInfo.navigator.visible}
-              {...customProps}
-              dataId={`app-sidebar-${app.alias}`}
-              on:click={getClickHandler(app, customProps)}
-            />
-          </NavLink>
+          <ApplicationNavItem {active} {app} {customProps} on:click={getClickHandler(app, customProps)} />
         {/each}
       {/if}
       <div class="apps-space-{direction}" />

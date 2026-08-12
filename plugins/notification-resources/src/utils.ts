@@ -2,6 +2,7 @@
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
 // Copyright © 2026 Intabia Fusion.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -42,6 +43,7 @@ import notification, {
   type DisplayInboxNotification,
   type DocNotifyContext,
   type InboxNotification,
+  type InboxNotificationState,
   type MentionInboxNotification,
   notificationId,
   type NotificationProvider,
@@ -65,7 +67,7 @@ import {
 import view, { decodeObjectURI, encodeObjectURI, type LinkIdProvider } from '@hcengineering/view'
 import { getObjectLinkId, parseLinkId } from '@hcengineering/view-resources'
 import type { LocationData } from '@hcengineering/workbench'
-import { get, writable } from 'svelte/store'
+import { derived, get, type Readable, writable } from 'svelte/store'
 
 import { isDesktopClient } from './desktop'
 import { InboxNotificationsClientImpl } from './inboxNotificationsClient'
@@ -448,12 +450,12 @@ export function getDisplayInboxData (
   return result
 }
 
-export async function hasInboxNotifications (
-  notificationsByContext: Map<Ref<DocNotifyContext>, InboxNotification[]>
-): Promise<boolean> {
-  const unreadInboxData = getDisplayInboxData(notificationsByContext, 'unread')
+export function getInboxNotificationStore (): Readable<InboxNotificationState> {
+  const inboxClient = InboxNotificationsClientImpl.getClient()
 
-  return unreadInboxData.size > 0
+  return derived(inboxClient.inboxNotificationsByContext, (notificationsByContext) => ({
+    notify: getDisplayInboxData(notificationsByContext, 'unread').size > 0
+  }))
 }
 
 export async function getNotificationsCount (
