@@ -14,6 +14,7 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Currently the latest version available for both amd64 and arm64 on Debian 12
+# Corresponds to puppeteer v25.3.0
 # see https://pptr.dev/supported-browsers
 # Debian only keeps the current security build in its pool, so this pin will
 # go stale again once bookworm ships a newer chromium point release.
