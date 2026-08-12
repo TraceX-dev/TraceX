@@ -144,6 +144,9 @@
     "Document": "Dokument",
     "Loading": "Laden...",
     "NoRelations": "Keine Beziehungen",
+
+    "SelectedCount": "{count} ausgewählt",
+    "ClearSelection": "Auswahl aufheben",
     "ReadOnlyWarningTitle": "✨ Anonymer Gast",
     "ReadOnlyWarningMessage": "Sie sind im Ansichtsmodus. Wählen Sie Ihren Weg: Treten Sie diesem Arbeitsbereich bei, um zusammenzuarbeiten (als Gast) oder erstellen Sie Ihren eigenen Bereich, um Projekte vollständig zu verwalten — Aufgaben, Fristen, Team!",
     "ReadOnlyJoinWorkspace": "Arbeitsbereich beitreten",

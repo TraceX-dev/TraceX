@@ -55,6 +55,7 @@
   import { Readable } from 'svelte/store'
   import { getResource } from '@hcengineering/platform'
   import { canChangeAttribute } from '../permissions'
+  import TableSelectionBar from './TableSelectionBar.svelte'
 
   export let _class: Ref<Class<Doc>>
   export let query: DocumentQuery<Doc>
@@ -581,6 +582,16 @@
     {/if}
   </table>
   {#if loading > 0}<Loading />{/if}
+  {#if enableChecking}
+    <TableSelectionBar
+      docs={checked}
+      {baseMenuClass}
+      liftForFooter={showFooter}
+      on:clear={() => {
+        check(checked, false)
+      }}
+    />
+  {/if}
 {/if}
 {#if showFooter}
   <div class="space" />
@@ -625,7 +636,8 @@
 
   .footer {
     width: 100%;
-    background-color: var(--theme-comp-header-color);
+    background-color: var(--theme-table-header-color);
+    border-top: 1px solid var(--theme-table-border-color);
     display: flex;
     align-items: flex-end;
     height: 2.5rem;
@@ -640,6 +652,10 @@
       position: sticky;
       left: 0;
       height: 2.5rem;
+      padding: 0 1.5rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--theme-dark-color);
       &.padding {
         padding-left: 2.5rem;
       }

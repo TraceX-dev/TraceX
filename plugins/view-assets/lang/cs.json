@@ -144,6 +144,9 @@
     "Document": "Dokument",
     "Loading": "Načítání...",
     "NoRelations": "Žádné vztahy",
+
+    "SelectedCount": "Vybráno: {count}",
+    "ClearSelection": "Zrušit výběr",
     "ReadOnlyWarningTitle": "✨ Anonymní host",
     "ReadOnlyWarningMessage": "Jste v režimu prohlížení. Vyberte si cestu: Připojte se k tomuto prostoru pro spolupráci (jako host) nebo si vytvořte vlastní prostor pro plnou správu projektů — úkoly, termíny, tým!",
     "ReadOnlyJoinWorkspace": "Připojit se k prostoru",

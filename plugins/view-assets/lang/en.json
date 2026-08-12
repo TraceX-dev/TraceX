@@ -144,6 +144,10 @@
     "Document": "Document",
     "Loading": "Loading...",
     "NoRelations": "No relations",
+
+    "SelectedCount": "{count} selected",
+    "ClearSelection": "Clear selection",
+
     "ReadOnlyWarningTitle": "✨ Anonymous Guest",
     "ReadOnlyWarningMessage": "You're in view-only mode. Choose your path: Join this workspace to collaborate (as guest) or create your own space to fully manage projects — tasks, deadlines, team!",
     "ReadOnlyJoinWorkspace": "Join workspace",
