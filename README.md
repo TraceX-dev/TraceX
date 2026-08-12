@@ -82,10 +82,13 @@ Each source file's header states which license applies to it; that header is aut
 
 ## Table of Contents
 
-- [TraceX Platform](#tracex-platform)
+- [TraceX](#tracex)
   - [About](#about)
+  - [What is TraceX?](#what-is-tracex)
+  - [Core Pillars](#core-pillars)
+    - [Electronic Quality Management System (eQMS)](#electronic-quality-management-system-eqms)
+    - [Product Lifecycle Management (PLM)](#product-lifecycle-management-plm)
   - [Activity](#activity)
-  - [API Client](#api-client)
   - [Changelog](#changelog)
   - [Versions](#versions)
   - [Architecture](#architecture)
@@ -95,6 +98,7 @@ Each source file's header states which license applies to it; that header is aut
   - [Verification](#verification)
   - [Branches \& Contributing](#branches--contributing)
   - [Setup dev environment](#setup-dev-environment)
+    - [Authentication](#authentication)
   - [Fast start](#fast-start)
   - [Installation](#installation)
   - [Build and run](#build-and-run)
@@ -108,6 +112,15 @@ Each source file's header states which license applies to it; that header is aut
   - [Package publishing](#package-publishing)
   - [Additional testing](#additional-testing)
   - [WSL build guide](#wsl-build-guide)
+    - [Prerequisites](#prerequisites)
+      - [Disk Space Requirements](#disk-space-requirements)
+      - [Docker WSL Integration](#docker-wsl-integration)
+    - [Common Issues and Solutions](#common-issues-and-solutions)
+      - [Git Line Endings on Windows](#git-line-endings-on-windows)
+      - [Elevated Privileges in WSL](#elevated-privileges-in-wsl)
+      - [WSL Configuration](#wsl-configuration)
+    - [Running the Application](#running-the-application)
+      - [Port Conflicts](#port-conflicts)
 
 ## Pre-requisites
 
@@ -147,18 +160,6 @@ We periodically merge `develop` into `staging` to perform testing builds. Once w
 
 ## Setup dev environment
 
-### To initialise the communication submodule
-
-```bash
-git submodule init
-git submodule update
-```
-
-### To update the communication submodule
-
-```bash
-git submodule update
-```
 
 ### Authentication
 

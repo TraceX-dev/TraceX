@@ -1,6 +1,5 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,81 +15,18 @@
 
 <script lang="ts">
   import { Card } from '@hcengineering/card'
-  import communication from '@hcengineering/communication'
-  import { NotificationContext } from '@hcengineering/communication-types'
   import { Ref } from '@hcengineering/core'
-  import { resizeObserver } from '@hcengineering/ui'
 
-  import { MessageInput } from '@hcengineering/communication-resources'
-  import { getMetadata } from '@hcengineering/platform'
-  import { permissions } from '@hcengineering/view-resources'
   import EditCardTableOfContents from './EditCardTableOfContents.svelte'
 
   export let _id: Ref<Card>
   export let doc: Card
-  export let context: NotificationContext | undefined = undefined
-  export let isContextLoaded: boolean = false
   export let readonly: boolean = false
   export let compactMode: boolean = false
-
-  let scrollDiv: HTMLDivElement | undefined | null = undefined
-  let content: EditCardTableOfContents | undefined = undefined
-
-  let inputHeight = 0
-
-  function onInputResize (e: Element): void {
-    const delta = e.clientHeight - inputHeight
-    inputHeight = e.clientHeight
-    if (delta === 0) return
-    content?.hideScrollBar()
-    if (scrollDiv !== undefined && scrollDiv !== null && delta > 0) {
-      const bottomOffset = Math.max(
-        0,
-        Math.floor(scrollDiv.scrollHeight - scrollDiv.scrollTop - scrollDiv.clientHeight - delta)
-      )
-      if (bottomOffset < 1) {
-        scrollDiv.scroll({ top: scrollDiv.scrollHeight, behavior: 'instant' })
-      }
-    }
-  }
 </script>
 
 {#if _id === doc._id}
   {#key doc._id}
-    <EditCardTableOfContents
-      bind:this={content}
-      bind:scrollDiv
-      {doc}
-      {readonly}
-      {context}
-      {isContextLoaded}
-      {compactMode}
-    />
+    <EditCardTableOfContents {doc} {readonly} />
   {/key}
 {/if}
-{#if !compactMode && !readonly && getMetadata(communication.metadata.Enabled) === true && $permissions.canComment(doc)}
-  <div class="message-input" use:resizeObserver={onInputResize}>
-    <MessageInput
-      card={doc}
-      on:arrowUp={() => {
-        content?.editLastMessage()
-      }}
-      on:sent={() => {
-        content?.hideScrollBar()
-        content?.scrollDown()
-      }}
-    />
-  </div>
-{/if}
-
-<style lang="scss">
-  .message-input {
-    display: flex;
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 0 0.75rem;
-    max-height: 50%;
-    margin-top: auto;
-  }
-</style>

@@ -71,14 +71,11 @@ import recorder, { recorderId } from '@hcengineering/recorder'
 import { viewId } from '@hcengineering/view'
 import workbench, { workbenchId } from '@hcengineering/workbench'
 import { mailId } from '@hcengineering/mail'
-import { chatId } from '@hcengineering/chat'
 import github, { githubId } from '@hcengineering/github'
 import githubNext, { githubNextId } from '@hcengineering/github-next'
 import { bitrixId } from '@hcengineering/bitrix'
 import { integrationId } from '@hcengineering/integration'
-import { inboxId } from '@hcengineering/inbox'
 import { achievementId } from '@hcengineering/achievement'
-import communication, { communicationId } from '@hcengineering/communication'
 import { emojiId } from '@hcengineering/emoji'
 import billingPlugin, { billingId } from '@hcengineering/billing'
 import { hulyMailId } from '@hcengineering/huly-mail'
@@ -135,12 +132,9 @@ import '@hcengineering/recorder-assets'
 import '@hcengineering/media-assets'
 import '@hcengineering/view-assets'
 import '@hcengineering/workbench-assets'
-import '@hcengineering/chat-assets'
-import '@hcengineering/inbox-assets'
 import '@hcengineering/mail-assets'
 import '@hcengineering/github-assets'
 import '@hcengineering/achievement-assets'
-import '@hcengineering/communication-assets'
 import '@hcengineering/emoji-assets'
 import '@hcengineering/billing-assets'
 import '@hcengineering/huly-mail-assets'
@@ -204,7 +198,6 @@ export interface Config {
   CALDAV_SERVER_URL?: string
   EXPORT_URL?: string
   MAIL_URL?: string
-  COMMUNICATION_API_ENABLED?: string
   BILLING_URL?: string
   PAYMENT_URL?: string
   EXCLUDED_APPLICATIONS_FOR_ANONYMOUS?: string
@@ -398,17 +391,11 @@ function configureI18n(): void {
   addStringsLoader(surveyId, async (lang: string) => await import(`@hcengineering/survey-assets/lang/${lang}.json`))
   addStringsLoader(cardId, async (lang: string) => await import(`@hcengineering/card-assets/lang/${lang}.json`))
   addStringsLoader(mailId, async (lang: string) => await import(`@hcengineering/mail-assets/lang/${lang}.json`))
-  addStringsLoader(chatId, async (lang: string) => await import(`@hcengineering/chat-assets/lang/${lang}.json`))
   addStringsLoader(processId, async (lang: string) => await import(`@hcengineering/process-assets/lang/${lang}.json`))
   addStringsLoader(
     achievementId,
     async (lang: string) => await import(`@hcengineering/achievement-assets/lang/${lang}.json`)
   )
-  addStringsLoader(
-    communicationId,
-    async (lang: string) => await import(`@hcengineering/communication-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(inboxId, async (lang: string) => await import(`@hcengineering/inbox-assets/lang/${lang}.json`))
   addStringsLoader(emojiId, async (lang: string) => await import(`@hcengineering/emoji-assets/lang/${lang}.json`))
   addStringsLoader(billingId, async (lang: string) => await import(`@hcengineering/billing-assets/lang/${lang}.json`))
   addStringsLoader(
@@ -505,7 +492,6 @@ export async function configurePlatform() {
 
   setMetadata(recorder.metadata.StreamUrl, config.STREAM_URL)
   setMetadata(textEditor.metadata.Collaborator, config.COLLABORATOR)
-  setMetadata(communication.metadata.Enabled, config.COMMUNICATION_API_ENABLED === 'true')
 
   if (config.MODEL_VERSION != null) {
     console.log('Minimal Model version requirement', config.MODEL_VERSION)
@@ -703,7 +689,6 @@ export async function configurePlatform() {
     async () => await import(/* webpackChunkName: "presence" */ '@hcengineering/presence-resources')
   )
   addLocation(cardId, async () => await import(/* webpackChunkName: "card" */ '@hcengineering/card-resources'))
-  addLocation(chatId, async () => await import(/* webpackChunkName: "chat" */ '@hcengineering/chat-resources'))
   addLocation(processId, async () => await import(/* webpackChunkName: "process" */ '@hcengineering/process-resources'))
   addLocation(
     integrationId,
@@ -712,10 +697,6 @@ export async function configurePlatform() {
   addLocation(
     achievementId,
     async () => await import(/* webpackChunkName: "achievement" */ '@hcengineering/achievement-resources')
-  )
-  addLocation(
-    communicationId,
-    async () => await import(/* webpackChunkName: "communication" */ '@hcengineering/communication-resources')
   )
   addLocation(emojiId, async () => await import(/* webpackChunkName: "emoji" */ '@hcengineering/emoji-resources'))
   if ((config.BILLING_URL ?? '') !== '') {
@@ -732,7 +713,6 @@ export async function configurePlatform() {
     aiAssistantId,
     async () => await import(/* webpackChunkName: "ai-assistant" */ '@hcengineering/ai-assistant-resources')
   )
-  addLocation(inboxId, async () => await import(/* webpackChunkName: "inbox" */ '@hcengineering/inbox-resources'))
   addLocation(ratingId, async () => await import(/* webpackChunkName: "rating" */ '@hcengineering/rating-resources'))
 
   setMetadata(client.metadata.FilterModel, 'ui')

@@ -239,36 +239,24 @@ app.get(
   '/api/v2/:workspaceId/comments',
   withWorkspace('Unable to list comments', async (client, primary, workspaceId, req) => {
     const current = session(client, primary, workspaceId)
-    return await invokeV2Capability(
-      current.ctx,
-      current.session,
-      getBearerToken(req),
-      ['communication-messages', 'legacy-comments'],
-      {
-        class: query(req, 'class'),
-        defaultClass: card.class.Card,
-        id: query(req, 'id'),
-        input: { limit: limit(req) }
-      }
-    )
+    return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), ['legacy-comments'], {
+      class: query(req, 'class'),
+      defaultClass: card.class.Card,
+      id: query(req, 'id'),
+      input: { limit: limit(req) }
+    })
   })
 )
 app.post(
   '/api/v2/:workspaceId/comments',
   withWorkspace('Unable to create comment', async (client, primary, workspaceId, req) => {
     const current = session(client, primary, workspaceId)
-    return await invokeV2Capability(
-      current.ctx,
-      current.session,
-      getBearerToken(req),
-      ['create-communication-message', 'create-legacy-comment'],
-      {
-        class: req.body.target?.class,
-        defaultClass: card.class.Card,
-        id: req.body.target?.id,
-        input: { content: req.body.content }
-      }
-    )
+    return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), ['create-legacy-comment'], {
+      class: req.body.target?.class,
+      defaultClass: card.class.Card,
+      id: req.body.target?.id,
+      input: { content: req.body.content }
+    })
   })
 )
 app.get(
@@ -280,7 +268,7 @@ app.get(
       current.ctx,
       current.session,
       getBearerToken(req),
-      channel === '' ? ['communication-messages', 'messages'] : ['messages-by-name', 'messages'],
+      channel === '' ? ['messages'] : ['messages-by-name', 'messages'],
       {
         class: query(req, 'class'),
         defaultClass: channel === '' ? card.class.Card : chunter.class.Channel,
@@ -298,9 +286,7 @@ app.post(
       current.ctx,
       current.session,
       getBearerToken(req),
-      req.body.channel === undefined
-        ? ['create-communication-message', 'send-message']
-        : ['send-message-by-name', 'send-message'],
+      req.body.channel === undefined ? ['send-message'] : ['send-message-by-name', 'send-message'],
       {
         class: req.body.target?.class ?? req.body.class,
         defaultClass: req.body.channel === undefined ? card.class.Card : chunter.class.Channel,

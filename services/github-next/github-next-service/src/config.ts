@@ -29,7 +29,6 @@ interface Config {
   QueueRegion: string
   SyncInbound: boolean
   SyncOutbound: boolean
-  CommunicationApiEnabled: boolean
 }
 
 const envMap: { [key in keyof Config]: string } = {
@@ -47,8 +46,7 @@ const envMap: { [key in keyof Config]: string } = {
   OutboundDebounceMs: 'OUTBOUND_DEBOUNCE_MS',
   QueueRegion: 'QUEUE_REGION',
   SyncInbound: 'SYNC_INBOUND',
-  SyncOutbound: 'SYNC_OUTBOUND',
-  CommunicationApiEnabled: 'COMMUNICATION_API_ENABLED'
+  SyncOutbound: 'SYNC_OUTBOUND'
 }
 
 const required: Array<keyof Config> = [
@@ -85,8 +83,7 @@ const config: Config = (() => {
     OutboundDebounceMs: parseNumber(process.env[envMap.OutboundDebounceMs], 1000),
     QueueRegion: process.env[envMap.QueueRegion] ?? '',
     SyncInbound: parseBoolean(process.env[envMap.SyncInbound], true),
-    SyncOutbound: parseBoolean(process.env[envMap.SyncOutbound], true),
-    CommunicationApiEnabled: parseBoolean(process.env[envMap.CommunicationApiEnabled], false)
+    SyncOutbound: parseBoolean(process.env[envMap.SyncOutbound], true)
   }
 
   const missingEnv = required.filter((key) => params[key] === undefined || params[key] === '').map((key) => envMap[key])

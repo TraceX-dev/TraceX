@@ -71,7 +71,6 @@ import {
 } from '@hcengineering/server-core'
 import { generateToken } from '@hcengineering/server-token'
 import { createStorageDataAdapter } from './blobStorage'
-import { CommunicationMiddleware, type CommunicationApiFactory } from './communication'
 
 import { RatingMiddleware } from '@hcengineering/server-rating'
 
@@ -131,7 +130,6 @@ export function createServerPipeline (
 
     extraLogging?: boolean // If passed, will log every request/etc.
     pipelineContextVars?: Record<string, any>
-    communicationApiFactory?: CommunicationApiFactory
   },
   extensions?: Partial<DbConfiguration>
 ): PipelineFactory {
@@ -156,9 +154,6 @@ export function createServerPipeline (
       ConfigurationMiddleware.create,
       ContextNameMiddleware.create,
       MarkDerivedEntryMiddleware.create,
-      ...(opt.communicationApiFactory !== undefined
-        ? [CommunicationMiddleware.create(opt.communicationApiFactory)]
-        : []),
       UserStatusMiddleware.create,
       ApplyTxMiddleware.create, // Extract apply
       VersioningMiddleware.create,
@@ -268,7 +263,6 @@ export async function getServerPipeline (
   opt?: {
     queue?: PlatformQueue
     disableTriggers?: boolean
-    communicationApiFactory?: CommunicationApiFactory
   }
 ): Promise<Pipeline> {
   const pipelineFactory = createServerPipeline(ctx, dbUrl, model, {
@@ -276,8 +270,7 @@ export async function getServerPipeline (
     usePassedCtx: true,
     disableTriggers: opt?.disableTriggers ?? false,
     adapterSecurity: isAdapterSecurity(dbUrl),
-    queue: opt?.queue,
-    communicationApiFactory: opt?.communicationApiFactory
+    queue: opt?.queue
   })
 
   return await pipelineFactory(ctx, wsUrl, createEmptyBroadcastOps(), null)

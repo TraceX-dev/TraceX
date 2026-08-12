@@ -432,7 +432,7 @@ function getOutboundTxSkipReason (tx: Tx | undefined, workspace: WorkspaceUuid |
   if (workspace === undefined) return 'missing-workspace'
   if (isTxWorkspaceEvent(tx)) return 'workspace-event'
   if (isSystemTx(tx)) return 'system-tx'
-  if (isTxDomainEvent(tx)) return tx.domain === 'communication' ? undefined : `domain-${tx.domain}`
+  if (isTxDomainEvent(tx)) return `domain-${tx.domain}`
   if (!isTxCUD(tx)) return `not-cud-${tx._class}`
   if (isIgnoredGithubNextInternalClass(tx.objectClass)) return `internal-${tx.objectClass}`
   return undefined

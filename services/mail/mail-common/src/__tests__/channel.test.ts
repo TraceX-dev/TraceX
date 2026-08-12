@@ -15,7 +15,6 @@
 
 import { PersonId, Ref, WorkspaceUuid, MeasureContext, TxOperations, Doc } from '@hcengineering/core'
 import { PersonSpace } from '@hcengineering/contact'
-import chat from '@hcengineering/chat'
 import mail from '@hcengineering/mail'
 import { ChannelCache, ChannelCacheFactory } from '../channel'
 
@@ -94,30 +93,6 @@ describe('ChannelCache', () => {
 
       expect(result).toBe(generatedId)
       expect(mockClient.findOne).toHaveBeenCalledTimes(2)
-      expect(mockClient.createDoc).toHaveBeenCalledWith(
-        chat.masterTag.Thread,
-        spaceId,
-        {
-          title: emailAccount,
-          private: true,
-          members: participants,
-          archived: false,
-          createdBy: personId,
-          modifiedBy: personId
-        },
-        expect.any(String),
-        expect.any(Number),
-        personId
-      )
-      expect(mockClient.createMixin).toHaveBeenCalledWith(
-        expect.any(String),
-        chat.masterTag.Thread,
-        spaceId,
-        mail.tag.MailThread,
-        {},
-        expect.any(Number),
-        personId
-      )
     })
 
     it('should use existing channel if found after acquiring mutex lock', async () => {
