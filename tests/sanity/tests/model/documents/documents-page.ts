@@ -33,7 +33,7 @@ export class DocumentsPage extends CommonPage {
 
   readonly buttonDocumentsApp = (): Locator => this.page.locator('button[id$="document:string:DocumentApplication"]')
   readonly divTeamspacesParent = (): Locator =>
-    this.page.locator('button.hulyNavGroup-header', { hasText: 'Teamspaces' })
+    this.page.locator('.hulyNavGroup-header__toggle', { hasText: 'Teamspaces' })
 
   readonly buttonTeamspaces = (): Locator =>
     this.page.locator('button.hulyNavItem-container', { hasText: 'Teamspaces' })
@@ -88,10 +88,7 @@ export class DocumentsPage extends CommonPage {
   }
 
   async openTeamspace (name: string): Promise<void> {
-    const classes = await this.page
-      .locator('button.hulyNavGroup-header span[class*="label"]', { hasText: name })
-      .locator('xpath=../..')
-      .getAttribute('class')
+    const classes = await this.page.locator('.hulyNavGroup-header', { hasText: name }).getAttribute('class')
     if (classes != null && !classes.includes('isOpen')) {
       await this.page.getByRole('button', { name }).click()
     }
@@ -104,16 +101,16 @@ export class DocumentsPage extends CommonPage {
   }
 
   async checkTeamspaceNotExist (name: string): Promise<void> {
-    await expect(
-      this.page.locator('button[class*="hulyNavGroup-header"] span[class*="label"]', { hasText: name })
-    ).toHaveCount(0)
+    await expect(this.page.locator('.hulyNavGroup-header span[class*="label"]', { hasText: name })).toHaveCount(0)
   }
 
   async moreActionTeamspace (name: string, action: string): Promise<void> {
-    await this.page.locator('button.hulyNavGroup-header span[class*="label"]', { hasText: name }).hover()
+    const header = this.page.locator('.hulyNavGroup-header', { hasText: name })
+    await header.hover()
     await this.page
-      // eslint-disable-next-line secure-coding/no-xpath-injection
-      .locator(`xpath=//span[text()="${name}"]/../../div[@class="hulyNavGroup-header__tools"]/button[last()]`)
+      .locator('.hulyNavGroup-header', { hasText: name })
+      .locator('.hulyNavGroup-header__tools button')
+      .last()
       .click()
     await this.selectFromDropdown(this.page, action)
   }
@@ -139,8 +136,8 @@ export class DocumentsPage extends CommonPage {
 
   async openDocumentForTeamspace (spaceName: string, documentName: string): Promise<void> {
     await this.page
-      .locator('button.hulyNavGroup-header span[class*="label"]', { hasText: spaceName })
-      .locator('xpath=../../following-sibling::div[1]')
+      .locator('.hulyNavGroup-header', { hasText: spaceName })
+      .locator('xpath=following-sibling::div[1]')
       .locator('button.hulyNavItem-container span[class*="label"]', { hasText: documentName })
       .click()
   }
