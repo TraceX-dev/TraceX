@@ -148,13 +148,6 @@ jest.mock('@hcengineering/setting', () => ({
   }
 }))
 
-// Mock chat module
-jest.mock('@hcengineering/chat', () => ({
-  masterTag: {
-    Thread: 'chat.class.Thread'
-  }
-}))
-
 // Mock config
 jest.mock('../config', () => ({
   WATCH_TOPIC_NAME: 'test-topic',
