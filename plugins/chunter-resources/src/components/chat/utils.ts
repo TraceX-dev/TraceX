@@ -20,7 +20,7 @@ import { AccountRole, getCurrentAccount, hasAccountRole, type UserStatus, type A
 import notification, { type DocNotifyContext } from '@hcengineering/notification'
 import { InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
 import { getClient, MessageBox } from '@hcengineering/presentation'
-import { type Action, showPopup } from '@hcengineering/ui'
+import { IconAdd, type Action, showPopup } from '@hcengineering/ui'
 import view from '@hcengineering/view'
 import workbench, { type SpecialNavModel } from '@hcengineering/workbench'
 import { get, writable } from 'svelte/store'
@@ -134,6 +134,8 @@ export const chatNavGroupModels: ChatNavGroupModel[] = [
     id: 'channels',
     sortFn: sortAlphabetically,
     wrap: true,
+    showWhenEmpty: true,
+    showInlineActions: true,
     getActionsFn: getChannelsActions,
     isPinned: false,
     _class: chunter.class.Channel
@@ -142,6 +144,8 @@ export const chatNavGroupModels: ChatNavGroupModel[] = [
     id: 'direct',
     sortFn: sortDirects,
     wrap: true,
+    showWhenEmpty: true,
+    showInlineActions: true,
     getActionsFn: getDirectActions,
     isPinned: false,
     _class: chunter.class.DirectMessage
@@ -297,7 +301,7 @@ function getChannelsActions (): Action[] {
   return hasAccountRole(getCurrentAccount(), AccountRole.User)
     ? [
         {
-          icon: chunter.icon.Hashtag,
+          icon: IconAdd,
           label: chunter.string.CreateChannel,
           action: async (): Promise<void> => {
             showPopup(chunter.component.CreateChannel, {}, 'top')
@@ -312,7 +316,7 @@ function getDirectActions (): Action[] {
     ? [
         {
           label: chunter.string.NewDirectChat,
-          icon: chunter.icon.Thread,
+          icon: IconAdd,
           action: async (): Promise<void> => {
             showPopup(chunter.component.CreateDirectChat, {}, 'top')
           }

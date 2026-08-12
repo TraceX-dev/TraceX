@@ -12,8 +12,10 @@ export class TrackerNavigationMenuPage extends CommonPage {
   yoursProjectsMenuSelector = '#navGroup-tree-projects'
   starredProjectsMenuSelector = '#navGroup-tree-stared'
 
-  buttonCreateProject = (): Locator => this.page.locator(this.yoursProjectsMenuSelector).locator('xpath=../button[1]')
-  buttonProjectsParent = (): Locator => this.page.locator('button.hulyNavGroup-header span')
+  buttonCreateProject = (): Locator =>
+    this.page.locator(this.yoursProjectsMenuSelector).locator('xpath=../div[contains(@class, "hulyNavGroup-header")]')
+
+  buttonProjectsParent = (): Locator => this.page.locator('.hulyNavGroup-header__toggle span')
   templateLinkForProject = (projectName: string): Locator =>
     this.page.locator(`a[href$="templates"][href*="${projectName}"]`)
 
@@ -90,8 +92,9 @@ export class TrackerNavigationMenuPage extends CommonPage {
     await this.buttonProjectsParent().filter({ hasText: projectName }).hover()
     await this.buttonProjectsParent()
       .filter({ hasText: projectName })
-      .locator('xpath=../..')
-      .locator('div[class*="tools"] button')
+      .locator('xpath=..')
+      .locator('.hulyNavGroup-header__actions button')
+      .last()
       .click()
     await this.selectFromDropdown(this.page, action)
   }
