@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -40,6 +41,7 @@ import core, {
 import notification, { type DocNotifyContext, type InboxNotification } from '@hcengineering/notification'
 import {
   InboxNotificationsClientImpl,
+  getDisplayInboxNotifications,
   isActivityNotification,
   isMentionNotification,
   isReactionNotification
@@ -48,7 +50,8 @@ import { type Asset, getMetadata, translate } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
 import { type AnySvelteComponent, languageStore } from '@hcengineering/ui'
 import { classIcon, getDocLinkTitle, getDocTitle } from '@hcengineering/view-resources'
-import { get, type Unsubscriber, writable } from 'svelte/store'
+import type { ApplicationNotificationState } from '@hcengineering/workbench'
+import { derived, get, type Readable, type Unsubscriber, writable } from 'svelte/store'
 
 import ChannelIcon from './components/ChannelIcon.svelte'
 import DirectIcon from './components/DirectIcon.svelte'
@@ -256,6 +259,39 @@ export function getUnreadThreadsCount (): number {
     .filter((_id) => _id !== undefined)
 
   return new Set(threadIds).size
+}
+
+export function getChunterNotificationStore (): Readable<ApplicationNotificationState> {
+  const notificationClient = InboxNotificationsClientImpl.getClient()
+  const hierarchy = getClient().getHierarchy()
+
+  return derived(
+    [notificationClient.contexts, notificationClient.inboxNotificationsByContext],
+    ([contexts, notificationsByContext]) => {
+      let count = 0
+
+      for (const context of contexts) {
+        if ((context.lastUpdateTimestamp ?? 0) <= (context.lastViewedTimestamp ?? 0)) continue
+        if (!hierarchy.isDerived(context.objectClass, chunter.class.ChunterSpace)) continue
+
+        const notifications = notificationsByContext.get(context._id) ?? []
+        const relevantNotifications = notifications.filter((notification) => {
+          if (isActivityNotification(notification)) {
+            return hierarchy.isDerived(notification.attachedToClass, chunter.class.ChatMessage)
+          }
+
+          return (
+            isMentionNotification(notification) &&
+            hierarchy.isDerived(notification.mentionedInClass, chunter.class.ChatMessage)
+          )
+        })
+
+        count += getDisplayInboxNotifications(relevantNotifications, 'unread').length
+      }
+
+      return { notify: count > 0, count }
+    }
+  )
 }
 
 export function getClosestDate (selectedDate: Timestamp, dates: Timestamp[]): Timestamp | undefined {

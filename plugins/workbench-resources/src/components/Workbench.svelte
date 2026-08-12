@@ -27,12 +27,8 @@
     Space
   } from '@hcengineering/core'
   import login, { loginId } from '@hcengineering/login'
-  import notification, { DocNotifyContext, InboxNotification, notificationId } from '@hcengineering/notification'
-  import {
-    BrowserNotificatator,
-    InboxNotificationsClientImpl,
-    NotifyMarker
-  } from '@hcengineering/notification-resources'
+  import notification, { notificationId } from '@hcengineering/notification'
+  import { BrowserNotificatator, NotifyMarker } from '@hcengineering/notification-resources'
   import { broadcastEvent, getMetadata, getResource, IntlString, translate } from '@hcengineering/platform'
   import {
     ActionContext,
@@ -300,19 +296,25 @@
 
   const workspaceId = $location.path[1]
 
-  const inboxClient = InboxNotificationsClientImpl.createClient()
-  const inboxNotificationsByContextStore = inboxClient.inboxNotificationsByContext
-
-  let hasNotificationsFn: ((data: Map<Ref<DocNotifyContext>, InboxNotification[]>) => Promise<boolean>) | undefined =
-    undefined
   let hasInboxNotifications = false
+  let unsubscribeInboxNotifications: (() => void) | undefined
+  let isDestroyed = false
 
-  void getResource(notification.function.HasInboxNotifications).then((f) => {
-    hasNotificationsFn = f
-  })
+  void getResource(notification.function.GetInboxNotificationStore)
+    .then((createInboxNotificationStore) => {
+      if (isDestroyed) return
 
-  $: void hasNotificationsFn?.($inboxNotificationsByContextStore).then((res) => {
-    hasInboxNotifications = res
+      unsubscribeInboxNotifications = createInboxNotificationStore().subscribe((state) => {
+        hasInboxNotifications = state.notify
+      })
+    })
+    .catch((error) => {
+      console.error('Error subscribing to Inbox notifications:', error)
+    })
+
+  onDestroy(() => {
+    isDestroyed = true
+    unsubscribeInboxNotifications?.()
   })
 
   const doSyncLoc = reduceCalls(async (loc: Location): Promise<void> => {

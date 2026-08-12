@@ -66,7 +66,8 @@ export function createModel (builder: Builder): void {
       alias: chunterId,
       hidden: false,
       spaceClasses: [chunter.class.Channel],
-      component: chunter.component.Chat
+      component: chunter.component.Chat,
+      notificationProvider: chunter.function.GetChunterNotificationStore
     },
     chunter.app.Chunter
   )
