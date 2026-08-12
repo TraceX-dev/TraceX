@@ -211,6 +211,12 @@ const styleRules: HtmlStyleRule[] = [
     getAttrs: (value: string) => {
       return { textAlign: value ?? null }
     }
+  },
+  {
+    style: 'background-color',
+    getAttrs: (value: string) => {
+      return { backgroundColor: value ?? null }
+    }
   }
 ]
 
@@ -345,7 +351,11 @@ const nodeRules: Record<string, HtmlNodeRule> = {
       return {
         colspan: attributes.colspan !== undefined ? parseInt(attributes.colspan) : undefined,
         rowspan: attributes.rowspan !== undefined ? parseInt(attributes.rowspan) : undefined,
-        colwidth: attributes.colwidth !== undefined ? parseInt(attributes.colwidth) : undefined
+        colwidth: attributes.colwidth !== undefined ? parseInt(attributes.colwidth) : undefined,
+        // `data-background-color` is what our own editor/serializer emits (see BackgroundColor
+        // tiptap extension); plain `background-color` covers inline styles from external sources
+        // such as pasted HTML or a Word/mammoth conversion that carries a style attribute.
+        backgroundColor: attributes['data-background-color'] ?? attributes.backgroundColor ?? undefined
       }
     },
     wrapContent: true
@@ -356,7 +366,8 @@ const nodeRules: Record<string, HtmlNodeRule> = {
       return {
         colspan: attributes.colspan !== undefined ? parseInt(attributes.colspan) : undefined,
         rowspan: attributes.rowspan !== undefined ? parseInt(attributes.rowspan) : undefined,
-        colwidth: attributes.colwidth !== undefined ? parseInt(attributes.colwidth) : undefined
+        colwidth: attributes.colwidth !== undefined ? parseInt(attributes.colwidth) : undefined,
+        backgroundColor: attributes['data-background-color'] ?? attributes.backgroundColor ?? undefined
       }
     },
     wrapContent: true

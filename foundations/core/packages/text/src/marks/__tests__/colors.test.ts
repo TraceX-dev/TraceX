@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { TextColor } from '../colors'
+import { BackgroundColor, TextColor } from '../colors'
 
 // See the comment at the top of cellAlign.test.ts for why this calls the extension's config
 // functions directly instead of going through a real tiptap `Editor` (no DOM in this package's
@@ -44,5 +44,81 @@ describe('TextColor commands', () => {
     expect(chainable.unsetMark).toHaveBeenCalledWith('textStyle')
     expect(run).toHaveBeenCalled()
     expect(result).toBe(true)
+  })
+})
+
+function getBackgroundColorAttributes (types: string[] = ['tableCell']): Record<string, any> {
+  const [{ attributes }] = defined(BackgroundColor.config.addGlobalAttributes).call({ options: { types } } as any)
+  return attributes
+}
+
+function getBackgroundColorCommands (types: string[] = ['tableCell']): Record<string, (...args: any[]) => any> {
+  return defined(BackgroundColor.config.addCommands).call({ options: { types } } as any) as any
+}
+
+function commandsStub (): { updateAttributes: jest.Mock, resetAttributes: jest.Mock } {
+  return {
+    updateAttributes: jest.fn(() => true),
+    resetAttributes: jest.fn(() => true)
+  }
+}
+
+describe('BackgroundColor attributes', () => {
+  it('renders backgroundColor as an inline style + data attribute', () => {
+    const { backgroundColor } = getBackgroundColorAttributes()
+    expect(backgroundColor.renderHTML({ backgroundColor: '#ff0000' })).toEqual({
+      'data-background-color': '#ff0000',
+      style: 'background-color: #ff0000'
+    })
+  })
+
+  it('renders nothing when backgroundColor is not a string', () => {
+    const { backgroundColor } = getBackgroundColorAttributes()
+    expect(backgroundColor.renderHTML({})).toEqual({})
+    expect(backgroundColor.renderHTML({ backgroundColor: null })).toEqual({})
+  })
+
+  it('parses backgroundColor from the data attribute', () => {
+    const { backgroundColor } = getBackgroundColorAttributes()
+    expect(backgroundColor.parseHTML({ getAttribute: () => '#00ff00' })).toBe('#00ff00')
+    expect(backgroundColor.parseHTML({ getAttribute: () => null })).toBe(undefined)
+  })
+})
+
+describe('BackgroundColor commands', () => {
+  // Regression coverage for the bug where table header cells were stuck grey and uneditable:
+  // `common-kit.ts` used to configure this extension for `tableCell` only, so `setBackgroundColor`
+  // silently no-op'd on `tableHeader` nodes (see kits/__tests__/common-kit.test.ts for the check
+  // that the real production kit now configures both types).
+  it('setBackgroundColor updates every configured node type, including tableHeader', () => {
+    const commands = getBackgroundColorCommands(['tableCell', 'tableHeader'])
+    const stub = commandsStub()
+
+    const result = defined(commands.setBackgroundColor)('#ff0000')({ commands: stub } as any)
+
+    expect(result).toBe(true)
+    expect(stub.updateAttributes).toHaveBeenCalledWith('tableCell', { backgroundColor: '#ff0000' })
+    expect(stub.updateAttributes).toHaveBeenCalledWith('tableHeader', { backgroundColor: '#ff0000' })
+  })
+
+  it('unsetBackgroundColor resets the attribute on every configured node type', () => {
+    const commands = getBackgroundColorCommands(['tableCell', 'tableHeader'])
+    const stub = commandsStub()
+
+    const result = defined(commands.unsetBackgroundColor)()({ commands: stub } as any)
+
+    expect(result).toBe(true)
+    expect(stub.resetAttributes).toHaveBeenCalledWith('tableCell', 'backgroundColor')
+    expect(stub.resetAttributes).toHaveBeenCalledWith('tableHeader', 'backgroundColor')
+  })
+
+  it('fails if updating any configured type fails', () => {
+    const commands = getBackgroundColorCommands(['tableCell', 'tableHeader'])
+    const stub = commandsStub()
+    stub.updateAttributes.mockReturnValueOnce(true).mockReturnValueOnce(false)
+
+    const result = defined(commands.setBackgroundColor)('#ff0000')({ commands: stub } as any)
+
+    expect(result).toBe(false)
   })
 })

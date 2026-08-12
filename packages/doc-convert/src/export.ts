@@ -32,8 +32,10 @@ import {
   Packer,
   Paragraph,
   type ParagraphChild,
+  ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   WidthType
@@ -238,16 +240,187 @@ function appendList (out: Block[], list: MarkupNode, ordered: boolean, level: nu
   }
 }
 
+// The table cell color picker's swatches store the *CSS variable reference* as the attribute
+// value (see plugins/text-editor-resources/src/components/extension/colors.ts), e.g.
+// "var(--theme-text-editor-palette-bg-yellow)" — never a resolved hex. That's fine for the web
+// editor (the browser resolves the variable), but the `docx` library's shading fill requires a
+// strict 6-digit hex and throws (crashing the whole export) on anything else. This table mirrors
+// the *light*-theme palette in packages/theme/styles/_colors.scss (`.theme-light`) so named
+// colors still render in the exported document instead of silently disappearing; light is used
+// because exported/printed documents are conventionally viewed on a white page regardless of the
+// editor's active theme. doc-convert has no CSS tooling, so this is a hand-kept copy — if the
+// palette in _colors.scss changes, update this too.
+const PALETTE_BG_RGBA: Record<string, [number, number, number, number]> = {
+  gray: [241, 241, 239, 1],
+  brown: [244, 238, 238, 1],
+  orange: [251, 236, 221, 1],
+  yellow: [251, 243, 219, 1],
+  green: [237, 243, 236, 1],
+  blue: [231, 243, 248, 1],
+  purple: [244, 240, 247, 0.8],
+  pink: [249, 238, 243, 0.8],
+  red: [253, 235, 236, 1]
+}
+
+const VAR_PALETTE_RE = /^var\(--theme-text-editor-palette-bg-([a-z]+)\)$/
+const HEX_RE = /^#?([0-9a-fA-F]{6})$/
+const SHORT_HEX_RE = /^#?([0-9a-fA-F]{3})$/
+const RGB_RE = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/
+
+// Alpha-composite an rgba() color over a white backdrop (the assumption a printed/exported page
+// is white regardless of the editor's active theme) and return a 6-digit hex string.
+function flattenToHex (r: number, g: number, b: number, a: number): string {
+  const blend = (fg: number): number => Math.round(a * fg + (1 - a) * 255)
+  return [blend(r), blend(g), blend(b)]
+    .map((c) => c.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase()
+}
+
+/**
+ * Resolve a `MarkupNode` `backgroundColor` attribute value into a hex color the `docx` library's
+ * `shading.fill` will accept, or `undefined` if it can't be resolved (in which case the caller
+ * should omit shading rather than pass the raw value through — an invalid fill throws and takes
+ * down the entire export).
+ *
+ * @public
+ */
+export function resolveDocxFill (value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  const trimmed = value.trim()
+  if (trimmed.length === 0 || trimmed === 'transparent' || trimmed === 'inherit' || trimmed === 'none') {
+    return undefined
+  }
+
+  const hexMatch = HEX_RE.exec(trimmed)
+  if (hexMatch !== null) {
+    return hexMatch[1].toUpperCase()
+  }
+
+  const shortHexMatch = SHORT_HEX_RE.exec(trimmed)
+  if (shortHexMatch !== null) {
+    return shortHexMatch[1]
+      .split('')
+      .map((c) => c + c)
+      .join('')
+      .toUpperCase()
+  }
+
+  const varMatch = VAR_PALETTE_RE.exec(trimmed)
+  if (varMatch !== null) {
+    const rgba = PALETTE_BG_RGBA[varMatch[1]]
+    return rgba !== undefined ? flattenToHex(rgba[0], rgba[1], rgba[2], rgba[3]) : undefined
+  }
+
+  const rgbMatch = RGB_RE.exec(trimmed)
+  if (rgbMatch !== null) {
+    const [, r, g, b, a] = rgbMatch
+    return flattenToHex(Number(r), Number(g), Number(b), a !== undefined ? Number(a) : 1)
+  }
+
+  // Unrecognized format (e.g. a future/unknown CSS variable or color keyword) — skip shading
+  // rather than risk another unhandled-format crash in the docx library.
+  return undefined
+}
+
+// Fallback total table width used when cell `colwidth` (captured in px from the editor's
+// column-resize state) isn't available for a column. ~6.25in of content at 1440 twips/inch,
+// a reasonable default for an A4/Letter page with standard margins.
+const DEFAULT_TABLE_WIDTH_DXA = 9000
+// prosemirror-tables stores `colwidth` in CSS pixels (96 dpi); OOXML column widths are in
+// twentieths of a point (dxa), and 1in = 96px = 1440dxa, so 1px = 15dxa.
+const PX_TO_DXA = 15
+
 function renderTable (node: MarkupNode, ctx: DocxCtx): Table {
-  const rows = (node.content ?? []).map(
+  const rows = node.content ?? []
+  const columnWidths = computeColumnWidths(rows)
+
+  const tableRows = rows.map(
     (row) =>
       new TableRow({
-        children: (row.content ?? []).map(
-          (cell) => new TableCell({ children: withFallback(blocksFromContent(cell.content ?? [], ctx)) })
-        )
+        children: (row.content ?? []).map((cell) => {
+          const colspan = toSpan(cell.attrs?.colspan)
+          const rowspan = toSpan(cell.attrs?.rowspan)
+          const fill = resolveDocxFill(
+            typeof cell.attrs?.backgroundColor === 'string' ? cell.attrs.backgroundColor : undefined
+          )
+          return new TableCell({
+            children: withFallback(blocksFromContent(cell.content ?? [], ctx)),
+            ...(colspan > 1 ? { columnSpan: colspan } : {}),
+            ...(rowspan > 1 ? { rowSpan: rowspan } : {}),
+            ...(fill !== undefined ? { shading: { fill, type: ShadingType.CLEAR } } : {})
+          })
+        })
       })
   )
-  return new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } })
+
+  return new Table({
+    rows: tableRows,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths,
+    // FIXED (as opposed to the docx default AUTOFIT) tells readers to respect the explicit
+    // column widths below instead of recomputing them from content, which is what several
+    // readers (notably Google Docs) get wrong when no widths are supplied at all.
+    layout: TableLayoutType.FIXED
+  })
+}
+
+/**
+ * Walk the table grid (accounting for colspan/rowspan) to work out a width per column, in dxa.
+ * Columns whose width we know (from a cell's `colwidth` attr) keep that width; the rest split
+ * the remaining budget evenly. Without this, cells default to a near-zero grid width and
+ * readers wrap the text one character per line per cell.
+ *
+ * Exported for unit testing — the `docx` Table it feeds into is otherwise opaque (a binary
+ * zip), so this is the layer where the width-assignment logic can actually be verified.
+ *
+ * @public
+ */
+export function computeColumnWidths (rows: MarkupNode[]): number[] {
+  const colWidths: Array<number | undefined> = []
+  // Number of upcoming rows (including the one being processed) a column is still covered by
+  // a vertical merge (rowspan) started in an earlier row.
+  const carry: number[] = []
+
+  for (const row of rows) {
+    let col = 0
+    for (const cell of row.content ?? []) {
+      while ((carry[col] ?? 0) > 0) col++
+
+      const span = toSpan(cell.attrs?.colspan)
+      const rowspan = toSpan(cell.attrs?.rowspan)
+      const width = toPositiveNumber(cell.attrs?.colwidth)
+      if (width !== undefined && colWidths[col] === undefined) {
+        colWidths[col] = Math.round(width * PX_TO_DXA)
+      }
+      for (let i = 0; i < span; i++) {
+        carry[col + i] = rowspan
+      }
+      col += span
+    }
+    for (let i = 0; i < carry.length; i++) {
+      if (carry[i] > 0) carry[i] -= 1
+    }
+  }
+
+  // `carry` grows to the highest column index ever touched (it's set for every column a cell
+  // occupies, whether or not that cell's width is known), so it's the reliable column count —
+  // unlike `colWidths`, which only grows where a width was actually recorded.
+  const columnCount = Math.max(1, carry.length)
+  const fallback = Math.round(DEFAULT_TABLE_WIDTH_DXA / columnCount)
+  return Array.from({ length: columnCount }, (_, i) => colWidths[i] ?? fallback)
+}
+
+function toSpan (value: unknown): number {
+  const n = typeof value === 'number' ? value : typeof value === 'string' ? parseInt(value, 10) : NaN
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+
+function toPositiveNumber (value: unknown): number | undefined {
+  const n = typeof value === 'number' ? value : typeof value === 'string' ? parseFloat(value) : NaN
+  return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
 function withFallback (blocks: Block[]): Block[] {

@@ -14,7 +14,17 @@
 //
 
 import { MarkupMarkType, type MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
-import { collectImageRefs, conformToSchema, docxToMarkup, markupToDocx, normalizeMarkup } from '..'
+import {
+  collectImageRefs,
+  computeColumnWidths,
+  conformToSchema,
+  docxToMarkup,
+  markupToDocx,
+  markupToMd,
+  mdToMarkup,
+  normalizeMarkup,
+  resolveDocxFill
+} from '..'
 
 const sample: MarkupNode = {
   type: MarkupNodeType.doc,
@@ -193,5 +203,202 @@ describe('conformToSchema (schema validity)', () => {
     const fixed = conformToSchema(doc)
     expect(fixed.content).toHaveLength(1)
     expect(JSON.stringify(fixed)).toContain('ok')
+  })
+})
+
+function cell (
+  type: MarkupNodeType.table_cell | MarkupNodeType.table_header,
+  text: string,
+  attrs?: MarkupNode['attrs']
+): MarkupNode {
+  return {
+    type,
+    attrs,
+    content: [{ type: MarkupNodeType.paragraph, content: [{ type: MarkupNodeType.text, text }] }]
+  }
+}
+
+describe('computeColumnWidths', () => {
+  it('splits an unweighted table evenly across columns', () => {
+    const rows: MarkupNode[] = [
+      {
+        type: MarkupNodeType.table_row,
+        content: [cell(MarkupNodeType.table_cell, 'a'), cell(MarkupNodeType.table_cell, 'b')]
+      }
+    ]
+    const widths = computeColumnWidths(rows)
+    expect(widths).toHaveLength(2)
+    expect(widths[0]).toBe(widths[1])
+    expect(widths[0]).toBeGreaterThan(0)
+  })
+
+  it('honors an explicit colwidth (px) over the even split, converted to dxa', () => {
+    const rows: MarkupNode[] = [
+      {
+        type: MarkupNodeType.table_row,
+        content: [cell(MarkupNodeType.table_cell, 'a', { colwidth: 200 }), cell(MarkupNodeType.table_cell, 'b')]
+      }
+    ]
+    const widths = computeColumnWidths(rows)
+    // 200px * 15 dxa/px, per the px->dxa conversion used for OOXML column widths.
+    expect(widths[0]).toBe(3000)
+  })
+
+  it('accounts for colspan so a merged cell does not shrink the real column count', () => {
+    const rows: MarkupNode[] = [
+      { type: MarkupNodeType.table_row, content: [cell(MarkupNodeType.table_cell, 'wide', { colspan: 2 })] },
+      {
+        type: MarkupNodeType.table_row,
+        content: [cell(MarkupNodeType.table_cell, 'a'), cell(MarkupNodeType.table_cell, 'b')]
+      }
+    ]
+    const widths = computeColumnWidths(rows)
+    expect(widths).toHaveLength(2)
+  })
+
+  it('accounts for rowspan so the next row does not double-count the covered column', () => {
+    const rows: MarkupNode[] = [
+      {
+        type: MarkupNodeType.table_row,
+        content: [cell(MarkupNodeType.table_cell, 'tall', { rowspan: 2 }), cell(MarkupNodeType.table_cell, 'a')]
+      },
+      // second row only has one explicit cell: the first column is still covered by the rowspan above
+      { type: MarkupNodeType.table_row, content: [cell(MarkupNodeType.table_cell, 'b')] }
+    ]
+    const widths = computeColumnWidths(rows)
+    expect(widths).toHaveLength(2)
+  })
+
+  it('falls back to a sane default column count for an empty table', () => {
+    expect(computeColumnWidths([])).toEqual([expect.any(Number)])
+  })
+})
+
+describe('markupToDocx (tables)', () => {
+  it('produces a valid docx buffer for a table with merged cells and cell background color', async () => {
+    const table: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.table,
+          content: [
+            {
+              type: MarkupNodeType.table_row,
+              content: [cell(MarkupNodeType.table_header, 'Risk', { backgroundColor: '#ffffff', colspan: 2 })]
+            },
+            {
+              type: MarkupNodeType.table_row,
+              content: [
+                cell(MarkupNodeType.table_cell, 'High', { backgroundColor: '#ff0000', rowspan: 2 }),
+                cell(MarkupNodeType.table_cell, 'Amber', { backgroundColor: '#ffbf00' })
+              ]
+            },
+            {
+              type: MarkupNodeType.table_row,
+              content: [cell(MarkupNodeType.table_cell, 'Green', { backgroundColor: '#00ff00' })]
+            }
+          ]
+        }
+      ]
+    }
+
+    const buf = await markupToDocx(table)
+    expect(buf.length).toBeGreaterThan(0)
+    expect(buf.subarray(0, 2).toString('latin1')).toBe('PK')
+  })
+})
+
+describe('resolveDocxFill', () => {
+  it('passes through a plain 6-digit hex, normalized to uppercase without #', () => {
+    expect(resolveDocxFill('#ff0000')).toBe('FF0000')
+    expect(resolveDocxFill('00ff00')).toBe('00FF00')
+  })
+
+  it('expands a 3-digit hex', () => {
+    expect(resolveDocxFill('#f00')).toBe('FF0000')
+  })
+
+  it('treats transparent/empty/undefined as no fill', () => {
+    expect(resolveDocxFill(undefined)).toBeUndefined()
+    expect(resolveDocxFill('')).toBeUndefined()
+    expect(resolveDocxFill('transparent')).toBeUndefined()
+  })
+
+  it('resolves a table color picker swatch (CSS var reference) to a real hex', () => {
+    // This is the exact string the color picker stores (plugins/text-editor-resources
+    // colors.ts) and the thing that used to crash the whole export: docx's shading.fill
+    // requires a strict 6-digit hex and throws on "var(--theme-text-editor-palette-bg-yellow)".
+    const fill = resolveDocxFill('var(--theme-text-editor-palette-bg-yellow)')
+    expect(fill).toMatch(/^[0-9A-F]{6}$/)
+  })
+
+  it('flattens a semi-transparent rgba() swatch (e.g. purple/pink) against white', () => {
+    // packages/theme/styles/_colors.scss's light-theme purple swatch: rgba(244, 240, 247, 0.8)
+    const fill = resolveDocxFill('var(--theme-text-editor-palette-bg-purple)')
+    expect(fill).toBe('F6F3F9')
+  })
+
+  it('parses a raw rgb()/rgba() value', () => {
+    expect(resolveDocxFill('rgb(255, 0, 0)')).toBe('FF0000')
+    expect(resolveDocxFill('rgba(255, 0, 0, 1)')).toBe('FF0000')
+  })
+
+  it('gives up gracefully (undefined, not a throw) on an unrecognized format', () => {
+    expect(resolveDocxFill('var(--some-unrelated-token)')).toBeUndefined()
+    expect(resolveDocxFill('lightblue')).toBeUndefined()
+  })
+})
+
+describe('markupToDocx (var() background color)', () => {
+  it('does not throw when a cell backgroundColor is a CSS var() reference', async () => {
+    // Regression test for the reported crash: "Invalid hex value
+    // 'var(--theme-text-editor-palette-bg-yellow)'. Expected 6 digit hex value", thrown deep
+    // inside the `docx` library and previously taking down the entire export.
+    const table: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.table,
+          content: [
+            {
+              type: MarkupNodeType.table_row,
+              content: [
+                cell(MarkupNodeType.table_cell, 'Yellow', {
+                  backgroundColor: 'var(--theme-text-editor-palette-bg-yellow)'
+                })
+              ]
+            }
+          ]
+        }
+      ]
+    }
+
+    const buf = await markupToDocx(table)
+    expect(buf.subarray(0, 2).toString('latin1')).toBe('PK')
+  })
+})
+
+describe('markdown table round trip', () => {
+  it('preserves table cell background color through markupToMd -> mdToMarkup', () => {
+    const doc: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.table,
+          content: [
+            {
+              type: MarkupNodeType.table_row,
+              content: [cell(MarkupNodeType.table_cell, 'Green', { backgroundColor: '#00ff00' })]
+            }
+          ]
+        }
+      ]
+    }
+
+    const md = markupToMd(doc)
+    const roundTripped = mdToMarkup(md)
+    const serialized = JSON.stringify(roundTripped)
+    expect(serialized).toContain('Green')
+    expect(serialized).toContain('#00ff00')
   })
 })
