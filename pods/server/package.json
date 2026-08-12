@@ -61,8 +61,6 @@
   "dependencies": {
     "@hcengineering/analytics": "workspace:^0.7.19",
     "@hcengineering/analytics-service": "workspace:^0.7.19",
-    "@hcengineering/communication-server": "workspace:^0.7.12",
-    "@hcengineering/communication-sdk-types": "workspace:^0.7.12",
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/kafka": "workspace:^0.7.20",
@@ -72,7 +70,6 @@
     "@hcengineering/notification": "workspace:^0.7.0",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/pod-telegram-bot": "workspace:^0.7.0",
-    "@hcengineering/pod-translate": "workspace:^0.7.0",
     "@hcengineering/postgres": "workspace:^0.7.22",
     "@hcengineering/rpc": "workspace:^0.7.18",
     "@hcengineering/server": "workspace:^0.7.19",

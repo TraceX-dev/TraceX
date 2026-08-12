@@ -55,12 +55,11 @@ import {
   getReceiversInfo,
   getTextPresenter
 } from '@hcengineering/server-notification-resources'
-import card, { type Card } from '@hcengineering/card'
+import card from '@hcengineering/card'
 import serverCard from '@hcengineering/server-card'
 
 import { ReferenceTrigger } from './references'
 import { getAttrName, getCollectionAttribute, getDocUpdateAction, getTxAttributesUpdates } from './utils'
-import { generateActivity } from './newActivity'
 
 export async function OnReactionChanged (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   for (const tx of txes) {
@@ -532,15 +531,6 @@ export async function DocUpdateMessageTextPresenter (doc: DocUpdateMessage, cont
   return await translate(activity.string.UpdatedObject, { object: name })
 }
 
-async function HandleCardActivity (txes: TxCUD<Card>[], control: TriggerControl): Promise<Tx[]> {
-  const cache = new Map<Ref<Card>, Card>()
-  for (const tx of txes) {
-    await generateActivity(tx, control, cache)
-  }
-
-  return []
-}
-
 export * from './references'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -549,8 +539,7 @@ export default async () => ({
     ReferenceTrigger,
     ActivityMessagesHandler,
     OnDocRemoved,
-    OnReactionChanged,
-    HandleCardActivity
+    OnReactionChanged
   },
   function: {
     DocUpdateMessageTextPresenter

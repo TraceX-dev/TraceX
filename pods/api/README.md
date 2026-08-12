@@ -210,7 +210,7 @@ The resource-backed API is exposed only through dedicated routes:
 - `Event` from Calendar.
 - `ToDo` and `ProcessToDo` from Time and Process.
 - `ControlledDocument` versions and their review/approval requests.
-- Legacy `ChatMessage` comments/messages and communication messages.
+- `ChatMessage` comments/messages.
 
 These classes are not necessarily returned by `/schema`: their creation and
 lifecycle rules are expressed by their dedicated endpoint. `Employee` and

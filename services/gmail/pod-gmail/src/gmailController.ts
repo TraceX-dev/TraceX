@@ -26,7 +26,7 @@ import {
   WorkspaceUuid,
   type PersonId
 } from '@hcengineering/core'
-import { toMessageEvent, normalizeEmail } from '@hcengineering/mail-common'
+import { normalizeEmail } from '@hcengineering/mail-common'
 import { ConsumerHandle, PlatformQueue, QueueTopic, type StorageAdapter } from '@hcengineering/server-core'
 import { getPlatformQueue } from '@hcengineering/kafka'
 import { getAccountClient } from '@hcengineering/server-client'
@@ -49,7 +49,6 @@ import { getIntegrationClient } from './integrations'
 
 import { AuthProvider } from './gmail/auth'
 import { AccountClient } from '@hcengineering/account-client'
-import { CreateMessageEvent } from '@hcengineering/communication-sdk-types'
 
 export class GmailController {
   private readonly workspaces: Map<string, WorkspaceClient> = new Map<string, WorkspaceClient>()
@@ -141,12 +140,11 @@ export class GmailController {
         QueueTopic.Tx,
         this.queue.getClientId(),
         async (ctx, msg) => {
-          const workspaceUuid = msg.workspace
-
-          const messageEvent = toMessageEvent(msg.value)
-          if (messageEvent !== undefined) {
-            await this.handleNewMessage(workspaceUuid, messageEvent)
-          }
+          // const workspaceUuid = msg.workspace
+          // const messageEvent = toMessageEvent(msg.value)
+          // if (messageEvent !== undefined) {
+          //   await this.handleNewMessage(workspaceUuid, messageEvent)
+          // }
         },
         {
           fromBegining: false // Set to true to process all historical messages
@@ -158,13 +156,13 @@ export class GmailController {
     }
   }
 
-  async handleNewMessage (workspaceUuid: WorkspaceUuid, message: CreateMessageEvent): Promise<void> {
-    const client = this.workspaces.get(workspaceUuid)
-    if (client === undefined) {
-      return
-    }
-    await client.handleNewMessage(message)
-  }
+  // async handleNewMessage (workspaceUuid: WorkspaceUuid, message: CreateMessageEvent): Promise<void> {
+  //   const client = this.workspaces.get(workspaceUuid)
+  //   if (client === undefined) {
+  //     return
+  //   }
+  //   await client.handleNewMessage(message)
+  // }
 
   async checkPendingWorkspaces (workspaceIds: Set<WorkspaceUuid>, sysClient: AccountClient): Promise<void> {
     try {
