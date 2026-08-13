@@ -144,6 +144,11 @@ const proxy = {
   'dev-staging': devStagingProxy
 }
 
+const devServerProxy = Object.entries(proxy[clientType] ?? {}).map(([context, options]) => ({
+  context,
+  ...options
+}))
+
 /**
  * @type {Configuration}
  */
@@ -463,7 +468,7 @@ module.exports = [
         },
         progress: false
       },
-      proxy: proxy[clientType]
+      proxy: devServerProxy
     }
   }
 ]
