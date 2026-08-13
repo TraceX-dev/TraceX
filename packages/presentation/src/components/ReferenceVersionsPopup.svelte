@@ -44,7 +44,12 @@
 <div class="selectPopup dropdown" use:resizeObserver={() => dispatch('changeContent')}>
   <div class="menu-space" />
   <Scroller>
-    <button class="px-1 py-2 menu-item" on:click={() => { select(latest) }}>
+    <button
+      class="px-1 py-2 menu-item"
+      on:click={() => {
+        select(latest)
+      }}
+    >
       <div class="w-full flex-between">
         <div class="mr-2 ml-4 flex-row-center"><span class="title mr-1-5">{latestLabel}</span></div>
         {#if isSelected(latest)}
@@ -56,7 +61,12 @@
       {#if versionItems.length > 0}
         <div class="menu-separator" />
         {#each versionItems as version}
-          <button class="px-1 py-2 menu-item" on:click={() => { select(version) }}>
+          <button
+            class="px-1 py-2 menu-item"
+            on:click={() => {
+              select(version)
+            }}
+          >
             <div class="w-full flex-between">
               <div class="mr-2 ml-4 flex-row-center"><span class="title mr-1-5">{version.label}</span></div>
               {#if isSelected(version)}
