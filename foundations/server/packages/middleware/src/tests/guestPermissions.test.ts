@@ -106,7 +106,7 @@ function makeCreateTx (objectClass: Ref<Class<Doc>>, objectSpace: Ref<Space>): T
   return factory.createTxCreateDoc(objectClass, objectSpace, {})
 }
 
-// Helper: buildGuestSettings - simulate the document that loadPermissionsCache would find
+// Helper: buildGuestSettings - simulate the document ClassAccessResolver would find
 function makeGuestSettingsDoc (allowedPermissions: Ref<Doc>[], disabledPermissions?: Ref<Doc>[]): Doc {
   return {
     _id: generateId(),
@@ -485,7 +485,7 @@ describe('GuestPermissionsMiddleware', () => {
       // Owner updates settings – should invalidate cache
       await mw.tx(userCtx, [settingsTx])
       // Cache should be cleared after settings update
-      expect((mw as any).permissionsCache).toBeUndefined()
+      expect((mw as any).classAccess.cache).toBeUndefined()
     })
   })
 })

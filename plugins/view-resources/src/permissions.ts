@@ -152,6 +152,10 @@ export interface Permissions {
   // Workspace level
   canManageWorkspace: boolean
 
+  // Class level (row visibility, Layer 2 - mirrors core.mixin.RowVisibility on the server)
+  canRead: (_class: Ref<Class<Doc>>) => boolean
+  isOwnRecordsOnly: (_class: Ref<Class<Doc>>) => boolean
+
   // Space level
   canEditSpace: (space: Space | undefined) => boolean
   canArchiveSpace: (space: Space | undefined) => boolean
@@ -179,6 +183,8 @@ export interface Permissions {
  */
 const forbidAll: Permissions = {
   canManageWorkspace: false,
+  canRead: () => false,
+  isOwnRecordsOnly: () => true,
   canEditSpace: () => false,
   canArchiveSpace: () => false,
   canAddMembers: () => false,
@@ -224,6 +230,31 @@ export function ownsDoc (doc: Doc | undefined, account: Account): boolean {
   if (doc === undefined) return false
   if (account.role !== AccountRole.Guest) return false
   return isDocCreatedByAccount(doc, account)
+}
+
+/**
+ * Whether the server would narrow reads of `_class` to the account's own records (`core.mixin.
+ * RowVisibility`, Layer 2 - same mixin, same lookup as the server's `RowVisibilityResolver`, no
+ * separate copy of the policy). `false` for `User`+ and for classes without the mixin, since those
+ * are ordinarily space-filtered or unrestricted.
+ * @public
+ */
+export function isOwnRecordsOnly (_class: Ref<Class<Doc>>, account: Account): boolean {
+  if (!isRowLevelRestricted(account.role)) return false
+  const mixin = getClient().getHierarchy().classHierarchyMixin(_class, core.mixin.RowVisibility)
+  return mixin?.policy.kind === 'ownerField' || mixin?.policy.kind === 'linkedViaRecord'
+}
+
+/**
+ * Whether `_class` could return anything at all for the account, per `core.mixin.RowVisibility`.
+ * Best-effort: `true` doesn't guarantee any given document is visible, only that the class isn't
+ * an outright `denyAll` for a restricted role.
+ * @public
+ */
+export function canReadClass (_class: Ref<Class<Doc>>, account: Account): boolean {
+  if (!isRowLevelRestricted(account.role)) return true
+  const mixin = getClient().getHierarchy().classHierarchyMixin(_class, core.mixin.RowVisibility)
+  return mixin?.policy.kind !== 'denyAll'
 }
 
 function hasSpacePermission (permission: Ref<Permission>, space: Ref<Space>, store: PermissionsStore): boolean {
@@ -294,6 +325,9 @@ function buildPermissions (
 
   return {
     canManageWorkspace: hasAccountRole(account, AccountRole.Maintainer),
+
+    canRead: (_class) => canReadClass(_class, account),
+    isOwnRecordsOnly: (_class) => isOwnRecordsOnly(_class, account),
 
     canEditSpace,
     canArchiveSpace,

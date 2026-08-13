@@ -93,7 +93,7 @@ function mergeEquals<T extends Doc> (query: DocumentQuery<T>, field: string, val
     return { ...query, [field]: value }
   }
   if (typeof current === 'object' && current !== null && Array.isArray(current.$in)) {
-    return current.$in.includes(value) ? { ...query, [field]: value } : undefined
+    return (current.$in as any[]).includes(value) ? { ...query, [field]: value } : undefined
   }
   if (typeof current !== 'object') {
     return current === value ? query : undefined
@@ -102,7 +102,11 @@ function mergeEquals<T extends Doc> (query: DocumentQuery<T>, field: string, val
 }
 
 /** Same as `mergeEquals`, but narrows to a set of allowed values (`$in`). */
-function mergeIn<T extends Doc> (query: DocumentQuery<T>, field: string, values: Set<any>): DocumentQuery<T> | undefined {
+function mergeIn<T extends Doc> (
+  query: DocumentQuery<T>,
+  field: string,
+  values: Set<any>
+): DocumentQuery<T> | undefined {
   const current = (query as Record<string, any>)[field]
   if (current === undefined) {
     return { ...query, [field]: { $in: Array.from(values) } }
@@ -121,14 +125,17 @@ function mergeIn<T extends Doc> (query: DocumentQuery<T>, field: string, values:
 export class RowVisibilityResolver {
   constructor (private readonly next: Middleware | undefined) {}
 
-  async resolve<T extends Doc> (
+  async resolve<T extends Doc>(
     ctx: MeasureContext<SessionData>,
     hierarchy: Hierarchy,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     identity: AccountIdentityResolver
   ): Promise<RowVisibilityDecision<T>> {
-    const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
+    // Cast to a concrete `Ref<Class<Doc>>`: with the caller's own `_class: Ref<Class<T>>` passed
+    // through as-is, `classHierarchyMixin`'s `M extends D` constraint unifies `M` with `T` instead
+    // of `RowVisibility`, and `mixin` below loses its fields to `T`.
+    const mixin = hierarchy.classHierarchyMixin(_class as Ref<Class<Doc>>, core.mixin.RowVisibility)
     if (mixin === undefined) {
       return { kind: 'unrestricted' }
     }
@@ -143,7 +150,7 @@ export class RowVisibilityResolver {
     return await this.applyPolicy(ctx, mixin.policy, query, identity)
   }
 
-  private async applyPolicy<T extends Doc> (
+  private async applyPolicy<T extends Doc>(
     ctx: MeasureContext<SessionData>,
     policy: RowVisibilityPolicy,
     query: DocumentQuery<T>,
@@ -168,10 +175,12 @@ export class RowVisibilityResolver {
       case 'linkedViaRecord': {
         const value = await identity.resolve(policy.identity)
         if (value === undefined) return { kind: 'deny' }
-        const linkQuery: DocumentQuery<Doc> = { [policy.linkIdentityField]: value } as DocumentQuery<Doc>
-        const links = ((await this.next?.findAll(ctx, policy.linkClass, linkQuery, {
-          projection: { [policy.linkTargetField]: 1 } as Record<string, 1>
-        })) ?? []) as Array<Record<string, Ref<Doc>>>
+        // `DocumentQuery<Doc>`'s catch-all `[key: string]: any` accepts the computed key directly.
+        const linkQuery: DocumentQuery<Doc> = { [policy.linkIdentityField]: value }
+        const projection: Record<string, 1> = { [policy.linkTargetField]: 1 }
+        const links = ((await this.next?.findAll(ctx, policy.linkClass, linkQuery, { projection })) ?? []) as Array<
+        Record<string, Ref<Doc>>
+        >
         const allowed = new Set<Ref<Doc>>(links.map((l) => l[policy.linkTargetField]))
         if (allowed.size === 0) return { kind: 'deny' }
         const merged = mergeIn(query, '_id', allowed)

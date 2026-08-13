@@ -282,11 +282,11 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
   })
 
   describe('guest.class.PublicLink', () => {
-    it('open browse is denied even for a caller holding a valid link', async () => {
+    it('open browse only ever narrows to the caller own link, never lists others', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE), { linkId: s.linkAlice })
       const res = await s.mw.findAll(ctx, PUBLIC_LINK, {})
-      expect(res.length).toBe(0)
+      expect(res.map((r: any) => r._id)).toEqual([s.linkAlice])
     })
 
     it('a known _id query for the caller own link resolves', async () => {

@@ -15,7 +15,7 @@
 <script lang="ts">
   import contact, { Employee, formatName } from '@hcengineering/contact'
   import { EmployeePresenter } from '@hcengineering/contact-resources'
-  import { Account, AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
+  import { Account, AccountRole, getCurrentAccount, hasAccountRole, isRowLevelRestricted } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Breadcrumb, DropdownIntlItem, DropdownLabelsIntl, Header, Scroller, SearchInput } from '@hcengineering/ui'
   import { onMount } from 'svelte'
@@ -35,8 +35,6 @@
     { id: AccountRole.Maintainer, label: setting.string.Maintainer },
     { id: AccountRole.Owner, label: setting.string.Owner }
   ]
-
-  const guestRoles = [AccountRole.ReadOnlyGuest, AccountRole.DocGuest, AccountRole.Guest]
 
   const accountClient = getAccountClient()
   let workspaceMembers: Record<string, AccountRole> = {}
@@ -68,7 +66,7 @@
 
       const employee = employees.find((e) => e.personUuid === personUuid)
       if (employee !== undefined) {
-        const employeeRole = guestRoles.includes(value) ? 'GUEST' : 'USER'
+        const employeeRole = isRowLevelRestricted(value) ? 'GUEST' : 'USER'
         await client.update(employee, { role: employeeRole })
       }
     } catch (e: any) {
