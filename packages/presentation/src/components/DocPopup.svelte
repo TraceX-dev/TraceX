@@ -98,11 +98,6 @@
 
     selectedObjects = Array.from(selectedElements)
 
-    console.log('[DocPopup.checkSelected] Updated multi-selection', {
-      selectedId: _id,
-      selectedObjects
-    })
-
     dispatch('update', selectedObjects)
   }
 
@@ -116,46 +111,19 @@
     const provider = getReferenceVersionsProvider(doc)
     if (provider === undefined) return []
 
-    console.log('[DocPopup.getReferenceVersions] Loading reference versions', {
-      documentId: doc._id,
-      documentClass: doc._class,
-      provider: provider.provider
-    })
-
     const providerFn = await getResource(provider.provider)
     const versions = await providerFn(client, doc._id)
-
-    console.log('[DocPopup.getReferenceVersions] Loaded reference versions', {
-      documentId: doc._id,
-      versions: versions.map((version) => ({
-        id: version.id,
-        objectclass: version.objectclass,
-        fixed: version.fixed
-      }))
-    })
 
     return versions
   }
 
   async function selectReferenceVersion (value: Doc | ReferenceVersion): Promise<void> {
-    console.log('[DocPopup.selectReferenceVersion] Selecting reference value', {
-      selectionType: '_id' in value ? 'latest' : 'fixed',
-      selectedId: '_id' in value ? value._id : value.id,
-      selectedClass: '_class' in value ? value._class : value.objectclass
-    })
-
     if ('_id' in value) {
       select(value)
       return
     }
 
     const doc = await client.findOne(value.objectclass, { _id: value.id })
-    console.log('[DocPopup.selectReferenceVersion] Resolved fixed reference', {
-      requestedId: value.id,
-      requestedClass: value.objectclass,
-      resolvedId: doc?._id,
-      resolvedClass: doc?._class
-    })
     if (doc !== undefined) select(doc)
   }
 
@@ -172,14 +140,6 @@
   }
 
   function select (item: Doc): void {
-    console.log('[DocPopup.select] Applying selection', {
-      itemId: item._id,
-      itemClass: item._class,
-      multiSelect,
-      currentSelected: selected,
-      currentSelectedObjects: selectedObjects
-    })
-
     onSelect?.(item)
     if (!multiSelect) {
       if (allowDeselect) {

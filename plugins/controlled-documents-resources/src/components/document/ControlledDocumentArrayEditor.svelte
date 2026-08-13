@@ -52,20 +52,12 @@
     if (onChange === undefined || readonly) return
     event.stopPropagation()
 
-    console.log('[ControlledDocumentArrayEditor.openPopup] Opening selector', {
-      selectedRefs: toArray(value)
-    })
-
     showPopup(
       ControlledDocumentsPopup,
       { selectedObjects: toArray(value), multiSelect: true },
       eventToHTMLElement(event),
       undefined,
       (result: Array<Ref<ControlledDocument | DocumentMeta>>) => {
-        console.log('[ControlledDocumentArrayEditor.openPopup] Selector returned values', {
-          previousRefs: toArray(value),
-          resultRefs: result
-        })
         onChange?.(result)
         dispatch('change', result)
       }
@@ -84,11 +76,6 @@
       { _id: { $in: toArray(value) as Ref<ControlledDocument>[] } },
       (result) => {
         docs = result
-        console.log('[ControlledDocumentArrayEditor.query] Loaded fixed documents for display', {
-          selectedRefs: toArray(value),
-          loadedIds: docs.map((doc) => doc._id),
-          loadedTitles: docs.map((doc) => doc.title)
-        })
       }
     )
   }
@@ -97,11 +84,6 @@
   } else {
     metaQuery.query(documents.class.DocumentMeta, { _id: { $in: toArray(value) as Ref<DocumentMeta>[] } }, (result) => {
       metas = result
-      console.log('[ControlledDocumentArrayEditor.query] Loaded latest document references for display', {
-        selectedRefs: toArray(value),
-        loadedIds: metas.map((meta) => meta._id),
-        loadedTitles: metas.map((meta) => meta.title)
-      })
     })
   }
 

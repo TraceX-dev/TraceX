@@ -51,11 +51,6 @@
   } else {
     documentQuery.query(documents.class.ControlledDocument, { _id: value as Ref<ControlledDocument> }, (result) => {
       ;[document] = result
-      console.log('[ControlledDocumentInlineEditor.query] Loaded fixed document', {
-        selectedRef: value,
-        documentId: document?._id,
-        documentTitle: document?.title
-      })
     })
   }
 
@@ -64,11 +59,6 @@
   } else {
     metaQuery.query(documents.class.DocumentMeta, { _id: value as Ref<DocumentMeta> }, (result) => {
       ;[meta] = result
-      console.log('[ControlledDocumentInlineEditor.query] Loaded latest document reference', {
-        selectedRef: value,
-        metaId: meta?._id,
-        metaTitle: meta?.title
-      })
     })
   }
 
@@ -76,29 +66,14 @@
     event.stopPropagation()
     if (readonly) return
 
-    console.log('[ControlledDocumentInlineEditor.openPopup] Opening selector', {
-      selectedRef: value
-    })
-
     showPopup(
       ControlledDocumentsPopup,
       { selected: value },
       eventToHTMLElement(event),
       (result: ControlledDocument | DocumentMeta | undefined) => {
-        console.log('[ControlledDocumentInlineEditor.openPopup] Selector returned value', {
-          previousRef: value,
-          resultId: result?._id,
-          resultClass: result?._class,
-          resultTitle: result?.title
-        })
-
         if (result === undefined || value === result._id) return
 
         value = result._id
-        console.log('[ControlledDocumentInlineEditor.openPopup] Emitting changed value', {
-          selectedRef: value,
-          resultClass: result._class
-        })
         dispatch('change', value)
         dispatch('value', result)
         onChange(value)
