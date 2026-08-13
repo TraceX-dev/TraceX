@@ -33,8 +33,6 @@ import {
 } from '@hcengineering/server-core'
 import { type QueueSourced, type FulltextDBConfiguration } from '@hcengineering/server-indexer'
 import { generateToken } from '@hcengineering/server-token'
-import { type Event } from '@hcengineering/communication-sdk-types'
-import { getWorkspaceClient as getHulylakeClient } from '@hcengineering/hulylake-client'
 
 import { WorkspaceIndexer } from './workspace'
 
@@ -350,7 +348,6 @@ export class WorkspaceManager {
         this.opt.externalStorage,
         this.fulltextAdapter,
         this.contentAdapter,
-        getHulylakeClient(this.opt.hulylakeUrl, workspace, token ?? ''),
         (token) => this.getTransactorAPIEndpoint(token),
         this.opt.listener
       )

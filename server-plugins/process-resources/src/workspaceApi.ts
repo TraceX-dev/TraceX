@@ -16,7 +16,7 @@
 import { getEmployeeBySocialId } from '@hcengineering/contact'
 import { SortingOrder, type Ref } from '@hcengineering/core'
 import type { WorkspaceApiContext } from '@hcengineering/integration'
-import process, { type ProcessToDo } from '@hcengineering/process'
+import process, { type Execution, type ProcessCustomEvent, type ProcessToDo } from '@hcengineering/process'
 
 type Input = Record<string, unknown>
 
@@ -25,6 +25,20 @@ function idFrom (input: Input): Ref<ProcessToDo> {
     throw new Error('Process ToDo id is required')
   }
   return input.id as Ref<ProcessToDo>
+}
+
+function executionIdFrom (input: Input): Ref<Execution> {
+  if (typeof input.executionId !== 'string' || input.executionId.trim() === '') {
+    throw new Error('executionId is required')
+  }
+  return input.executionId as Ref<Execution>
+}
+
+function eventTypeFrom (input: Input): string {
+  if (typeof input.eventType !== 'string' || input.eventType.trim() === '') {
+    throw new Error('eventType is required')
+  }
+  return input.eventType.trim()
 }
 
 function limitFrom (input: Input): number {
@@ -75,4 +89,19 @@ export async function PatchProcessToDo (context: WorkspaceApiContext, input: Inp
 
   await context.client.update(todo, updates)
   return await GetProcessToDo(context, { id: todo._id })
+}
+
+export async function EmitProcessEvent (
+  context: WorkspaceApiContext,
+  input: Input
+): Promise<{ id: Ref<ProcessCustomEvent> }> {
+  const execution = await context.client.findOne(process.class.Execution, { _id: executionIdFrom(input) })
+  if (execution === undefined) throw new Error(`Execution with id "${String(input.executionId)}" was not found`)
+
+  const id = await context.client.createDoc(process.class.ProcessCustomEvent, execution.space, {
+    execution: execution._id,
+    eventType: eventTypeFrom(input),
+    card: execution.card
+  })
+  return { id }
 }

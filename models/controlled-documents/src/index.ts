@@ -1,5 +1,7 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -182,6 +184,8 @@ export function createModel (builder: Builder): void {
       locationResolver: documents.resolver.Location,
       alias: documentsId,
       hidden: false,
+      spaceClasses: [documents.class.DocumentSpace],
+      spaceIds: [documents.space.Documents],
       navigatorModel: {
         specials: [
           {
@@ -461,6 +465,14 @@ export function createModel (builder: Builder): void {
     component: documents.component.EditProjectDoc
   })
 
+  builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.AttributeEditor, {
+    inlineEditor: documents.component.ControlledDocumentInlineEditor
+  })
+
+  builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.ArrayEditor, {
+    inlineEditor: documents.component.ControlledDocumentArrayEditor
+  })
+
   builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.IgnoreActions, {
     actions: [tracker.action.NewRelatedIssue]
   })
@@ -518,9 +530,9 @@ export function createModel (builder: Builder): void {
     builder,
     {
       action: view.actionImpl.ShowPopup,
-      actionPopup: documents.component.ExportFormatPopup,
+      actionPopup: exportPlugin.component.DocumentExportFormatPopup,
       actionProps: {
-        component: documents.component.ExportFormatPopup,
+        component: exportPlugin.component.DocumentExportFormatPopup,
         element: 'top',
         fillProps: { _object: 'value' }
       },
@@ -538,9 +550,9 @@ export function createModel (builder: Builder): void {
     builder,
     {
       action: view.actionImpl.ShowPopup,
-      actionPopup: documents.component.ImportFormatPopup,
+      actionPopup: exportPlugin.component.DocumentImportFormatPopup,
       actionProps: {
-        component: documents.component.ImportFormatPopup,
+        component: exportPlugin.component.DocumentImportFormatPopup,
         element: 'top',
         fillProps: { _object: 'value' }
       },

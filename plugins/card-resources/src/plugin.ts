@@ -47,6 +47,7 @@ export default mergeIds(cardId, card, {
     TagsSection: '' as AnyComponent,
     ChildsSection: '' as AnyComponent,
     RelationsSection: '' as AnyComponent,
+    ChangeTagParentPopup: '' as AnyComponent,
     SetParentActionPopup: '' as AnyComponent,
     RelationSetting: '' as AnyComponent,
     ViewsSection: '' as AnyComponent,
@@ -101,7 +102,6 @@ export default mergeIds(cardId, card, {
     ContentSection: '' as AnyComponent,
     PropertiesSection: '' as AnyComponent,
     RelationsSection: '' as AnyComponent,
-    CommunicationMessagesSection: '' as AnyComponent,
     OldMessagesSection: '' as AnyComponent
   },
   completion: {
@@ -123,6 +123,8 @@ export default mergeIds(cardId, card, {
     CreateTag: '' as IntlString,
     Content: '' as IntlString,
     Parent: '' as IntlString,
+    ChangeTagParent: '' as IntlString,
+    ChangeTagParentBlocked: '' as IntlString,
     CardLibrary: '' as IntlString,
     ConfigDescription: '' as IntlString,
     SearchCard: '' as IntlString,
@@ -146,6 +148,7 @@ export default mergeIds(cardId, card, {
     ChangeTypeWarning: '' as IntlString,
     MasterDetailViews: '' as IntlString,
     SelectType: '' as IntlString,
+    SelectTypeAndSpace: '' as IntlString,
     CreateSpace: '' as IntlString,
     NumberTypes: '' as IntlString,
     Properties: '' as IntlString,

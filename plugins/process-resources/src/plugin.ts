@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -79,6 +80,8 @@ export default mergeIds(processId, process, {
     FieldChangesEditor: '' as AnyComponent,
     OnEventEditor: '' as AnyComponent,
     OnEventPresenter: '' as AnyComponent,
+    RelationChangeEditor: '' as AnyComponent,
+    RelationChangePresenter: '' as AnyComponent,
     ToDoSettingPresenter: '' as AnyComponent,
     TimeEditor: '' as AnyComponent,
     TimePresenter: '' as AnyComponent,
@@ -190,6 +193,7 @@ export default mergeIds(processId, process, {
     FallbackValueError: '' as IntlString,
     Required: '' as IntlString,
     ParallelExecutionForbidden: '' as IntlString,
+    ShowInHeader: '' as IntlString,
     StartAutomatically: '' as IntlString,
     AutomationOnly: '' as IntlString,
     Continue: '' as IntlString,
@@ -203,6 +207,10 @@ export default mergeIds(processId, process, {
     WhenFieldChanges: '' as IntlString,
     WhenRequiredFieldsFilled: '' as IntlString,
     OnEvent: '' as IntlString,
+    WhenRelationChanges: '' as IntlString,
+    RelationAdded: '' as IntlString,
+    RelationRemoved: '' as IntlString,
+    RelationChanged: '' as IntlString,
     Result: '' as IntlString,
     RequestResult: '' as IntlString,
     NoResultRequired: '' as IntlString,
@@ -216,6 +224,7 @@ export default mergeIds(processId, process, {
     Data: '' as IntlString,
     Transitions: '' as IntlString,
     OnExecutionStart: '' as IntlString,
+    OnNewVersion: '' as IntlString,
     Replacement: '' as IntlString,
     Search: '' as IntlString,
     Separator: '' as IntlString,
@@ -290,7 +299,11 @@ export default mergeIds(processId, process, {
     AskSubclass: '' as IntlString,
     AskRequired: '' as IntlString,
     RequiredSlots: '' as IntlString,
-    Bindings: '' as IntlString
+    Bindings: '' as IntlString,
+    ProcessDiagram: '' as IntlString,
+    ProcessMap: '' as IntlString,
+    NoTransitions: '' as IntlString,
+    NoProcessRelations: '' as IntlString
   },
   permission: {
     RunProcess: '' as Ref<Permission>,

@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,7 +22,7 @@ import activity from '@hcengineering/activity'
 import { type Attachment } from '@hcengineering/attachment'
 import contact from '@hcengineering/contact'
 import chunter from '@hcengineering/chunter'
-import { getRoleAttributeProps } from '@hcengineering/setting'
+import setting, { getRoleAttributeProps } from '@hcengineering/setting'
 import type {
   Type,
   Ref,
@@ -187,6 +188,14 @@ function defineProduct (builder: Builder): void {
 
   builder.mixin(products.class.Product, core.class.Class, view.mixin.ObjectPresenter, {
     presenter: products.component.ProductPresenter
+  })
+
+  builder.mixin(products.class.Product, core.class.Class, view.mixin.AttributeEditor, {
+    inlineEditor: products.component.ProductInlineEditor
+  })
+
+  builder.mixin(products.class.Product, core.class.Class, view.mixin.ArrayEditor, {
+    inlineEditor: products.component.ProductArrayEditor
   })
 
   builder.mixin(products.class.Product, core.class.Class, view.mixin.SpacePresenter, {
@@ -408,6 +417,14 @@ function defineProductVersion (builder: Builder): void {
 
   builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.IgnoreActions, {
     actions: [tracker.action.NewRelatedIssue, documents.action.CreateDocument as Ref<Action>]
+  })
+
+  builder.mixin(products.class.ProductVersion, core.class.Class, setting.mixin.Editable, {
+    value: true
+  })
+
+  builder.mixin(products.class.Product, core.class.Class, setting.mixin.Editable, {
+    value: true
   })
 
   createAction(

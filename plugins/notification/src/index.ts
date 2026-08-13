@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -50,6 +51,12 @@ export const DOMAIN_NOTIFICATION = 'notification' as Domain
 export const DOMAIN_DOC_NOTIFY = 'notification-dnc' as Domain
 export const DOMAIN_USER_NOTIFY = 'notification-user' as Domain
 
+/** @public */
+export interface InboxNotificationState {
+  notify: boolean
+  count?: number
+}
+
 /**
  * @public
  */
@@ -85,6 +92,12 @@ export interface PushSubscription extends Doc {
   user: AccountUuid
   endpoint: string
   keys: PushSubscriptionKeys
+  name?: string
+}
+
+export interface PushSubscriptionSetting extends Preference {
+  attachedTo: Ref<PushSubscription>
+  enabled: boolean
 }
 
 /**
@@ -338,6 +351,9 @@ export interface InboxNotificationsClient {
   inboxNotifications: Readable<InboxNotification[]>
   activityInboxNotifications: Writable<ActivityInboxNotification[]>
   inboxNotificationsByContext: Readable<Map<Ref<DocNotifyContext>, InboxNotification[]>>
+  // True once the initial contexts/notifications queries have delivered their first
+  // result, so consumers can tell "no unread yet" apart from "not loaded yet".
+  isLoaded: Readable<boolean>
 
   readDoc: (_id: Ref<Doc>) => Promise<void>
   forceReadDoc: (doc: Doc) => Promise<void>
@@ -381,6 +397,7 @@ const notification = plugin(notificationId, {
   class: {
     BrowserNotification: '' as Ref<Class<BrowserNotification>>,
     PushSubscription: '' as Ref<Class<PushSubscription>>,
+    PushSubscriptionSetting: '' as Ref<Class<PushSubscriptionSetting>>,
     NotificationType: '' as Ref<Class<NotificationType>>,
     NotificationGroup: '' as Ref<Class<NotificationGroup>>,
     NotificationPreferencesGroup: '' as Ref<Class<NotificationPreferencesGroup>>,
@@ -421,7 +438,8 @@ const notification = plugin(notificationId, {
     DocNotifyContextPresenter: '' as AnyComponent,
     NotificationCollaboratorsChanged: '' as AnyComponent,
     GeneralPreferencesGroup: '' as AnyComponent,
-    CollaboratorEditor: '' as AnyComponent
+    CollaboratorEditor: '' as AnyComponent,
+    WebpushesPreferencesPresenter: '' as AnyComponent
   },
   action: {
     PinDocNotifyContext: '' as Ref<Action>,
@@ -471,15 +489,28 @@ const notification = plugin(notificationId, {
     Sound: '' as IntlString,
     NoAccessToObject: '' as IntlString,
     ViewIn: '' as IntlString,
-    Collaborators: '' as IntlString
+    Collaborators: '' as IntlString,
+    Value: '' as IntlString,
+    Subscribe: '' as IntlString,
+    UnknownDevice: '' as IntlString,
+    Current: '' as IntlString,
+    RemoveWebpush: '' as IntlString,
+    WebpushRemoveConfirm: '' as IntlString,
+    PushSubscribeError: '' as IntlString,
+    PushSubscribeErrorPermissionDenied: '' as IntlString,
+    PushSubscribeErrorNetwork: '' as IntlString,
+    PushSubscribeErrorNotSupported: '' as IntlString,
+    PushOnDesktop: '' as IntlString,
+    AlreadySubscribed: '' as IntlString,
+    PushNotConfigured: '' as IntlString,
+    PushNotSupported: '' as IntlString,
+    PushDenied: '' as IntlString
   },
   function: {
     Notify: '' as Resource<NotifyFunc>,
     CheckPushPermission: '' as Resource<(value: boolean) => Promise<boolean>>,
     GetInboxNotificationsClient: '' as Resource<InboxNotificationsClientFactory>,
-    HasInboxNotifications: '' as Resource<
-    (notificationsByContext: Map<Ref<DocNotifyContext>, InboxNotification[]>) => Promise<boolean>
-    >,
+    GetInboxNotificationStore: '' as Resource<() => Readable<InboxNotificationState>>,
     IsNotificationAllowed: '' as Resource<(type: NotificationType, providerId: Ref<NotificationProvider>) => boolean>
   },
   resolver: {

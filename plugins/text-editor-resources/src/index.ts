@@ -27,7 +27,10 @@ import {
   selectTable,
   refreshTable,
   showTableDiff,
-  seeOriginalTableData
+  seeOriginalTableData,
+  openCellTextAlignOptions,
+  openCellVerticalAlignOptions,
+  openCellTextFormattingOptions
 } from './components/extension/table/table'
 import {
   convertToEmbedPreviewAction,
@@ -143,6 +146,9 @@ export default async (): Promise<Resources> => ({
 
     SetBackgroundColor: openBackgroundColorOptions,
     SetTextColor: openTextColorOptions,
+    OpenCellTextAlignOptions: openCellTextAlignOptions,
+    OpenCellVerticalAlignOptions: openCellVerticalAlignOptions,
+    OpenCellTextFormattingOptions: openCellTextFormattingOptions,
 
     IsMathInlineActive: isMathInlineActive,
     IsMathBlockActive: isMathBlockActive

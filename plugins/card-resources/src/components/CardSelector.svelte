@@ -13,10 +13,10 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Card, MasterTag } from '@hcengineering/card'
+  import { Card } from '@hcengineering/card'
   import { Class, Ref } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
-  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { createQuery } from '@hcengineering/presentation'
   import { Button, ButtonKind, ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import card from '../plugin'
@@ -36,8 +36,6 @@
   export let width: string | undefined = 'min-content'
 
   const dispatch = createEventDispatcher()
-  const client = getClient()
-  const hierarchy = client.getHierarchy()
 
   const handleOpen = (event: MouseEvent): void => {
     event.stopPropagation()
@@ -67,9 +65,6 @@
       doc = res[0]
     })
   }
-
-  $: _classRef = doc?._class ?? _class
-  $: clazz = _classRef !== undefined ? (hierarchy.findClass(_classRef) as MasterTag) : undefined
 </script>
 
 <Button

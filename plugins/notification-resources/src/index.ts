@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -27,6 +28,7 @@ import MentionInboxNotificationPresenter from './components/inbox/MentionInboxNo
 import NotificationCollaboratorsChanged from './components/NotificationCollaboratorsChanged.svelte'
 import CollaboratorEditor from './components/CollaboratorEditor.svelte'
 import GeneralPreferencesGroup from './components/settings/GeneralPreferencesGroup.svelte'
+import WebpushesPreferencesPresenter from './components/settings/WebpushesPreferencesPresenter.svelte'
 import {
   unsubscribe,
   resolveLocation,
@@ -39,7 +41,7 @@ import {
   readNotifyContext,
   unReadNotifyContext,
   archiveContextNotifications,
-  hasInboxNotifications,
+  getInboxNotificationStore,
   archiveAll,
   readAll,
   unreadAll,
@@ -69,16 +71,17 @@ export default async (): Promise<Resources> => ({
     MentionInboxNotificationPresenter,
     NotificationCollaboratorsChanged,
     GeneralPreferencesGroup,
-    CollaboratorEditor
+    CollaboratorEditor,
+    WebpushesPreferencesPresenter
   },
   function: {
     // eslint-disable-next-line @typescript-eslint/unbound-method
     GetInboxNotificationsClient: InboxNotificationsClientImpl.getClient,
+    GetInboxNotificationStore: getInboxNotificationStore,
     HasDocNotifyContextPinAction: hasDocNotifyContextPinAction,
     HasDocNotifyContextUnpinAction: hasDocNotifyContextUnpinAction,
     CanReadNotifyContext: canReadNotifyContext,
     CanUnReadNotifyContext: canUnReadNotifyContext,
-    HasInboxNotifications: hasInboxNotifications,
     CheckPushPermission: checkPermission,
     IsNotificationAllowed: isNotificationAllowed,
     LocationDataResolver: locationDataResolver

@@ -53,7 +53,7 @@ export class CustomAttributesPage {
   lead = (): Locator => this.page.getByRole('button', { name: 'Lead' })
   issue = (): Locator => this.page.getByRole('button', { name: 'Issue' })
   card = (): Locator => this.page.getByRole('button', { name: 'Card' })
-  product = (): Locator => this.page.getByRole('button', { name: 'Product' })
+  product = (index: number = 0): Locator => this.page.getByRole('button', { name: 'Product', exact: true }).nth(index)
 
   addAttribute = (): Locator => this.page.locator('.hulyTableAttr-header > .font-medium-14')
 
@@ -157,6 +157,7 @@ export class CustomAttributesPage {
     await expect(this.lead().nth(1)).toBeVisible()
     await expect(this.issue().nth(0)).toBeVisible()
     await expect(this.issue().nth(1)).toBeVisible()
-    await expect(this.product()).toBeVisible()
+    await expect(this.product(0)).toBeVisible()
+    await expect(this.product(1)).toBeVisible()
   }
 }

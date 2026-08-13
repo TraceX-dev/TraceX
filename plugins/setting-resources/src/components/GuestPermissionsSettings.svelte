@@ -12,9 +12,6 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import card, { Card } from '@hcengineering/card'
-  import chat from '@hcengineering/chat'
-  import communication, { GuestCommunicationSettings } from '@hcengineering/communication'
   import contact, { ensureEmployeeForPerson } from '@hcengineering/contact'
   import { getAccountClient } from '@hcengineering/contact-resources'
   import core, {
@@ -23,6 +20,7 @@
     AccountUuid,
     ModulePermissionGroup,
     getCurrentAccount,
+    hasAccountRole,
     pickPrimarySocialId,
     readOnlyGuestAccountUuid,
     type Doc,
@@ -34,7 +32,6 @@
   import workbench, { type Application } from '@hcengineering/workbench'
   import {
     Breadcrumb,
-    Component,
     defineSeparators,
     Header,
     Icon,
@@ -52,6 +49,9 @@
   import AvailableSpacesInput from './AvailableSpacesInput.svelte'
   import settingsRes from '../plugin'
 
+  export let embedded = false
+  export let initialTab: 'guest' | 'anonymous' = 'guest'
+
   let loadingSettings = true
   let loadingPermissions = true
   let workspaceAppsReady = false
@@ -59,7 +59,6 @@
 
   let allowReadOnlyGuests = false
   let allowGuestSignUp = false
-  let existingGuestChatSettings: GuestCommunicationSettings | undefined = undefined
 
   const accountClient = getAccountClient()
 
@@ -68,15 +67,14 @@
   let hiddenApplicationIds: Array<Ref<Application>> = []
 
   const excludedApplicationIds = getMetadata(workbench.metadata.ExcludedApplications) ?? []
-  const communicationApiEnabled = getMetadata(communication.metadata.Enabled) === true
 
   let guestPermissionsTab: 'guest' | 'anonymous' = 'guest'
+  const canManageAnonymousAccess = hasAccountRole(getCurrentAccount(), AccountRole.Owner)
 
   const client = getClient()
   const moduleGroupsQuery = createQuery()
   const permissionsQuery = createQuery()
   const hiddenAppsQuery = createQuery()
-  const guestCommunicationQuery = createQuery()
 
   onMount(() => {
     void (async (): Promise<void> => {
@@ -89,14 +87,6 @@
       }
     })()
   })
-
-  $: {
-    if (communicationApiEnabled) {
-      guestCommunicationQuery.query(communication.class.GuestCommunicationSettings, {}, (settings) => {
-        existingGuestChatSettings = settings[0]
-      })
-    }
-  }
 
   $: moduleGroupsQuery.query(core.class.ModulePermissionGroup, {}, (res) => {
     moduleGroups = res as unknown as ModulePermissionGroup[]
@@ -138,7 +128,12 @@
   $: sortedVisibleModuleGroups = [...visibleModuleGroups].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
 
   /** Anonymous (read-only guest) module rows are view-only until workspace allows anonymous guests. */
-  $: anonymousModulePermissionsReadOnly = guestPermissionsTab === 'anonymous' && !allowReadOnlyGuests
+  $: anonymousModulePermissionsReadOnly =
+    guestPermissionsTab === 'anonymous' && (!allowReadOnlyGuests || !canManageAnonymousAccess)
+
+  $: if (embedded && guestPermissionsTab !== initialTab) {
+    guestPermissionsTab = initialTab
+  }
 
   function getApplicationLabel (applicationId: Ref<Doc>): IntlString {
     return applicationsMap.get(applicationId)?.label ?? getEmbeddedLabel(applicationId)
@@ -254,57 +249,45 @@
     void handleToggleGuestSignUp(e)
   }
 
-  async function onAllowedCardsChange (value: Ref<Card>[]): Promise<void> {
-    if (existingGuestChatSettings === undefined) {
-      await client.createDoc(communication.class.GuestCommunicationSettings, core.space.Workspace, {
-        allowedCards: value,
-        enabled: true
-      })
-    } else {
-      await client.updateDoc(
-        communication.class.GuestCommunicationSettings,
-        core.space.Workspace,
-        existingGuestChatSettings._id,
-        { allowedCards: value, enabled: true }
-      )
-    }
-  }
-
   defineSeparators('guestPermissionsSettings', twoPanelsSeparators)
 </script>
 
 <div class="hulyComponent">
-  <Header adaptive={'disabled'}>
-    <Breadcrumb
-      icon={setting.icon.GuestPermissions}
-      label={setting.string.GuestPermissionsSettings}
-      size={'large'}
-      isCurrent
-    />
-  </Header>
+  {#if !embedded}
+    <Header adaptive={'disabled'}>
+      <Breadcrumb
+        icon={setting.icon.Members}
+        label={setting.string.GuestPermissionsSettings}
+        size={'large'}
+        isCurrent
+      />
+    </Header>
+  {/if}
   <div class="hulyComponent-content__container columns">
-    <div class="hulyComponent-content__column navigation py-2">
-      <Scroller shrink>
-        <NavItem
-          icon={contact.icon.Person}
-          label={setting.string.GuestPermissionsTabGuest}
-          selected={guestPermissionsTab === 'guest'}
-          on:click={() => {
-            guestPermissionsTab = 'guest'
-          }}
-        />
-        <NavItem
-          icon={contact.icon.Persona}
-          label={setting.string.GuestPermissionsTabAnonymousGuest}
-          selected={guestPermissionsTab === 'anonymous'}
-          on:click={() => {
-            guestPermissionsTab = 'anonymous'
-          }}
-        />
-      </Scroller>
-    </div>
+    {#if !embedded}
+      <div class="hulyComponent-content__column navigation py-2">
+        <Scroller shrink>
+          <NavItem
+            icon={contact.icon.Person}
+            label={setting.string.GuestPermissionsTabGuest}
+            selected={guestPermissionsTab === 'guest'}
+            on:click={() => {
+              guestPermissionsTab = 'guest'
+            }}
+          />
+          <NavItem
+            icon={contact.icon.Persona}
+            label={setting.string.GuestPermissionsTabAnonymousGuest}
+            selected={guestPermissionsTab === 'anonymous'}
+            on:click={() => {
+              guestPermissionsTab = 'anonymous'
+            }}
+          />
+        </Scroller>
+      </div>
 
-    <Separator name={'guestPermissionsSettings'} index={0} color={'var(--theme-divider-color)'} />
+      <Separator name={'guestPermissionsSettings'} index={0} color={'var(--theme-divider-color)'} />
+    {/if}
 
     <div class="hulyComponent-content__column content">
       {#if loading}
@@ -327,7 +310,11 @@
                       <Label label={settingsRes.string.GuestAccessDescription} />
                     </div>
                     <div class="guestAccessRow-toggleCell">
-                      <Toggle on={allowReadOnlyGuests} on:change={onReadonlyGuestsToggle} />
+                      <Toggle
+                        disabled={!canManageAnonymousAccess}
+                        on={allowReadOnlyGuests}
+                        on:change={onReadonlyGuestsToggle}
+                      />
                     </div>
                   </div>
                   <div class="guestAccessRow">
@@ -335,30 +322,13 @@
                       <Label label={settingsRes.string.GuestSignUpDescription} />
                     </div>
                     <div class="guestAccessRow-toggleCell">
-                      <Toggle disabled={!allowReadOnlyGuests} on={allowGuestSignUp} on:change={onGuestSignUpToggle} />
+                      <Toggle
+                        disabled={!allowReadOnlyGuests || !canManageAnonymousAccess}
+                        on={allowGuestSignUp}
+                        on:change={onGuestSignUpToggle}
+                      />
                     </div>
                   </div>
-                  {#if communicationApiEnabled}
-                    <div class="guestAccessRow guestAccessRow--editor">
-                      <div class="guestAccessRow-label">
-                        <Label label={settingsRes.string.GuestChannelsDescription} />
-                      </div>
-                      <div class="guestAccessRow-editorCell">
-                        <div class="guestAccessRow-editorInner">
-                          <Component
-                            is={card.component.CardArrayEditor}
-                            props={{
-                              _class: chat.masterTag.Thread,
-                              value:
-                                existingGuestChatSettings !== undefined ? existingGuestChatSettings.allowedCards : [],
-                              label: settingsRes.string.GuestChannelsArrayLabel,
-                              onChange: onAllowedCardsChange
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  {/if}
                 </div>
               </section>
             {/if}

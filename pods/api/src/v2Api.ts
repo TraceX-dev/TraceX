@@ -385,9 +385,7 @@ export async function invokeV2Capability (
     delete input.fields
   }
   const isMessageCreate = operations.some((candidate) =>
-    ['create-communication-message', 'create-legacy-comment', 'send-message', 'send-message-by-name'].includes(
-      candidate
-    )
+    ['create-legacy-comment', 'send-message', 'send-message-by-name'].includes(candidate)
   )
   if (
     isMessageCreate &&
@@ -686,43 +684,6 @@ export async function getV2LegacyComments (
     { limit: resolveLimit(limit), sort: { createdOn: SortingOrder.Descending } }
   )
   return messages.map(serializeLegacyMessage)
-}
-
-/**
- * Uses the communication domain rather than writing its storage directly, so
- * its identity, permission, mention and notification middleware still runs.
- */
-export async function createV2CommunicationComment (
-  ctx: ClientSessionCtx,
-  session: Session,
-  request: CreateV2CommentRequest
-): Promise<unknown> {
-  const target = await resolveV2Target(ctx, session, request.target)
-  const content = requireContent(request.content)
-  const { result } = await session.domainRequestRaw(ctx, 'communication' as OperationDomain, {
-    event: {
-      type: 'createMessage',
-      cardId: target.doc._id,
-      cardType: target.doc._class,
-      messageType: 'text',
-      content,
-      socialId: session.getRawAccount().primarySocialId
-    }
-  })
-  return result.value
-}
-
-export async function getV2CommunicationComments (
-  ctx: ClientSessionCtx,
-  session: Session,
-  targetRequest: V2Target,
-  limit?: number
-): Promise<unknown> {
-  const target = await resolveV2Target(ctx, session, targetRequest)
-  const { result } = await session.domainRequestRaw(ctx, 'communication' as OperationDomain, {
-    findMessagesMeta: { params: { cardId: target.doc._id, limit: resolveLimit(limit), order: SortingOrder.Descending } }
-  })
-  return result.value
 }
 
 export async function createV2LegacyChatMessage (

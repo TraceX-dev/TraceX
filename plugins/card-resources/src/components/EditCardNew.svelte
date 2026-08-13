@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,15 +17,9 @@
 -->
 <script lang="ts">
   import { Card } from '@hcengineering/card'
-  import { NotificationContext } from '@hcengineering/communication-types'
   import { Ref, WithLookup } from '@hcengineering/core'
   import presence from '@hcengineering/presence'
-  import {
-    ComponentExtensions,
-    createNotificationContextsQuery,
-    createQuery,
-    getClient
-  } from '@hcengineering/presentation'
+  import { ComponentExtensions, createQuery, getClient } from '@hcengineering/presentation'
   import {
     Button,
     Component,
@@ -61,17 +56,15 @@
   export let readonly: boolean = false
   export let embedded: boolean = false
   export let allowClose: boolean = true
+  export let compactMode: boolean = false
 
   const DROPDOWN_POINT = 1024
   const NO_PARENTS_POINT = 800
 
   const manager = createFocusManager()
   const query = createQuery()
-  const contextsQuery = createNotificationContextsQuery()
 
   let doc: WithLookup<Card> | undefined
-  let context: NotificationContext | undefined = undefined
-  let isContextLoaded = false
 
   let title: string = ''
   let isTitleEditing = false
@@ -79,8 +72,6 @@
 
   $: if (prevId !== _id) {
     prevId = _id
-    context = undefined
-    isContextLoaded = false
     isTitleEditing = false
   }
 
@@ -95,11 +86,6 @@
       loc.path.length = 3
       navigate(loc)
     }
-  })
-
-  $: contextsQuery.query({ cardId: _id, limit: 1 }, (res) => {
-    context = res.getResult()[0]
-    isContextLoaded = true
   })
 
   async function saveTitle (ev: Event): Promise<void> {
@@ -206,7 +192,7 @@
     on:close
   >
     <div class="main-content clear-mins">
-      <EditCardNewContent {_id} {doc} readonly={_readonly} {context} {isContextLoaded} />
+      <EditCardNewContent {_id} {doc} readonly={_readonly} {compactMode} />
     </div>
 
     <svelte:fragment slot="beforeTitle">

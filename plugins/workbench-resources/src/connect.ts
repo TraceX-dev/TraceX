@@ -40,11 +40,8 @@ import platform, {
 import presentation, {
   loadServerConfig,
   purgeClient,
-  purgeCommunicationClient,
   refreshClient,
-  refreshCommunicationClient,
   setClient,
-  setCommunicationClient,
   setPresentationCookie,
   uiContext,
   upgradeDownloadProgress
@@ -225,7 +222,6 @@ export async function connect (title: string): Promise<Client | undefined> {
     // We need to flush all data from memory
     await ctx.with('purge-client', {}, async () => {
       await purgeClient()
-      await purgeCommunicationClient()
     })
     await ctx.with('close previous client', {}, async () => {
       await _client?.close()
@@ -377,12 +373,10 @@ export async function connect (title: string): Promise<Client | undefined> {
               console.log('[workbench] refreshClient triggered', { event, tokenChanged, gapMs })
               void ctx.with('refresh client', {}, async () => {
                 await refreshClient(tokenChanged, gapMs)
-                await refreshCommunicationClient()
               })
               tokenChanged = false
             } else if (event === ClientConnectEvent.Reconnected) {
               console.log('[workbench] reconnected no-refresh (lastTx unchanged)', { gapMs })
-              await refreshCommunicationClient()
             }
 
             if (event === ClientConnectEvent.Upgraded) {
@@ -583,7 +577,6 @@ export async function connect (title: string): Promise<Client | undefined> {
   _clientSet = true
   await ctx.with('set-client', {}, async () => {
     await setClient(newClient)
-    await setCommunicationClient(newClient)
   })
   await ctx.with('broadcast-connected', {}, async () => {
     await broadcastEvent(plugin.event.NotifyConnection, me)

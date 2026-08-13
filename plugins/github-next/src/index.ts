@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -46,6 +47,8 @@ export interface GithubNextIssue {
   assigneeLogins?: string[]
   assignees?: GithubNextAssignee[]
   labels?: string[]
+  milestone?: GithubNextMilestone
+  projects?: GithubNextProject[]
   repository: GithubNextRepositorySelection
 }
 
@@ -67,6 +70,17 @@ export interface GithubNextAssignee {
   login: string
   email?: string
   name?: string
+}
+
+export interface GithubNextMilestone {
+  number: number
+  title: string
+}
+
+export interface GithubNextProject {
+  id: string
+  title: string
+  url: string
 }
 
 export interface GithubNextDiscussionCategory {

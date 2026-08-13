@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -40,9 +41,11 @@ export interface AttributeSlotModel extends SlotModel {
 // Process model dscription
 export interface Process extends Doc {
   masterTag: Ref<MasterTag | Tag>
+  rank: Rank
   name: string
   description: string
   parallelExecutionForbidden?: boolean
+  showInHeader?: boolean
   autoStart?: boolean
   automationOnly?: boolean
   context: Record<ContextId, ProcessContext>
@@ -285,9 +288,11 @@ export default plugin(processId, {
     OnToDoClose: '' as Ref<Trigger>,
     OnToDoRemove: '' as Ref<Trigger>,
     OnExecutionStart: '' as Ref<Trigger>,
+    OnNewVersion: '' as Ref<Trigger>,
     OnExecutionContinue: '' as Ref<Trigger>,
     OnTime: '' as Ref<Trigger>,
     OnEvent: '' as Ref<Trigger>,
+    WhenRelationChanges: '' as Ref<Trigger>,
     OnApproveRequestApproved: '' as Ref<Trigger>,
     OnApproveRequestRejected: '' as Ref<Trigger>
   },
@@ -300,6 +305,7 @@ export default plugin(processId, {
     SubProcessMatchCheck: '' as Resource<CheckFunc>,
     Time: '' as Resource<CheckFunc>,
     OnEventCheck: '' as Resource<CheckFunc>,
+    RelationChangedCheck: '' as Resource<CheckFunc>,
     ApproveRequestApproved: '' as Resource<CheckFunc>,
     ApproveRequestRejected: '' as Resource<CheckFunc>
   },

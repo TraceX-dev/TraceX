@@ -20,7 +20,6 @@ import serverActivity from '@hcengineering/server-activity'
 import serverNotification from '@hcengineering/server-notification'
 import activity from '@hcengineering/activity'
 import notification from '@hcengineering/notification'
-import card from '@hcengineering/card'
 
 export { activityServerOperation } from './migration'
 export { serverActivityId } from '@hcengineering/server-activity'
@@ -44,14 +43,6 @@ export function createModel (builder: Builder): void {
       objectClass: { $nin: [activity.class.ActivityMessage, notification.class.DocNotifyContext] }
     },
     isAsync: true
-  })
-
-  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
-    trigger: serverActivity.trigger.HandleCardActivity,
-    isAsync: true,
-    txMatch: {
-      objectClass: card.class.Card
-    }
   })
 
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {

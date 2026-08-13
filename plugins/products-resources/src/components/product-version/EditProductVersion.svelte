@@ -24,7 +24,7 @@
   import { getResource } from '@hcengineering/platform'
   import { ActionContext, MessageViewer, createQuery, getClient } from '@hcengineering/presentation'
   import { Button, IconMixin, IconMoreH } from '@hcengineering/ui'
-  import { DocAttributeBar, getDocMixins, showMenu } from '@hcengineering/view-resources'
+  import { DocAttributeBar, RelationsEditor, getDocMixins, showMenu } from '@hcengineering/view-resources'
   import type { ProductVersion } from '@hcengineering/products'
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
 
@@ -131,6 +131,10 @@
       {:else}
         <MessageViewer message={object.description ?? ''} />
       {/if}
+    </div>
+
+    <div class="w-full mt-6">
+      <RelationsEditor {object} readonly={!canEdit} />
     </div>
 
     <svelte:fragment slot="utils">

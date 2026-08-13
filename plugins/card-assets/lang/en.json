@@ -11,6 +11,8 @@
     "MasterTag": "Type",
     "MasterTags": "Types",
     "Parent": "Parent",
+    "ChangeTagParent": "Change tag parent",
+    "ChangeTagParentBlocked": "A tag that is assigned to cards, or has descendants assigned to cards, cannot be moved.",
     "Tags": "Tags",
     "Tag": "Tag",
     "AddTag": "Add Tag",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Warning: Changing the Type of a Card will remove all data for any attributes that do not exist on the target Type. Previous attribute data can be restored by changing the Card back to a previous Type. Card content will not be affected.",
     "MasterDetailViews": "Master Detail Views",
     "SelectType": "Select Type",
+    "SelectTypeAndSpace": "Please select a Card Type and a Space to continue.",
     "CreateSpace": "Create space",
     "NumberTypes": "{count, plural, one {# type} other {# types}}",
     "Labels": "Labels",
@@ -87,6 +90,7 @@
     "TwoColumns": "Two columns",
     "Grid": "Grid",
     "RichtextProperties": "Richtext Properties",
-    "ShowAllVersions": "Show all versions"
+    "ShowAllVersions": "Show all versions",
+    "ShowOnlyCardsWithoutRelations": "Show only cards without relations"
   }
 }

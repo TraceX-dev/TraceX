@@ -68,7 +68,7 @@
   </svelte:fragment>
 
   <svelte:fragment slot="aside">
-    {#if _class === chunter.class.Channel}
+    {#if _class === chunter.class.Channel && channel !== undefined}
       <div class="flex-col-center">
         <span class="fs-title text-xl overflow-label mt-4 mb-2"><Label label={chunter.string.Settings} /></span>
         {#key channel._id}

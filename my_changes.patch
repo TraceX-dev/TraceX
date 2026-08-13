@@ -8480,7 +8480,7 @@ index 000000000..d5146b39a
 --- /dev/null
 +++ b/services/github-next/github-next-service/Dockerfile
 @@ -0,0 +1,6 @@
-+FROM hardcoreeng/base-slim:v20250916
++FROM hardcoreeng/base-slim:v20260811
 +WORKDIR /usr/src/app
 +
 +COPY bundle/bundle.js ./

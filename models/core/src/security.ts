@@ -103,6 +103,7 @@ export class TTypedSpace extends TSpace implements TypedSpace {
 }
 
 @Model(core.class.SpaceTypeDescriptor, core.class.Doc, DOMAIN_MODEL)
+@UX(core.string.TypedSpace)
 export class TSpaceTypeDescriptor extends TDoc implements SpaceTypeDescriptor {
   name!: IntlString
   description!: IntlString

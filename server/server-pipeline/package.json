@@ -20,7 +20,7 @@
   "devDependencies": {
     "cross-env": "~7.0.3",
     "@hcengineering/platform-rig": "workspace:^0.7.21",
-    "@types/node": "^22.18.1",
+    "@types/node": "^24.13.3",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-promise": "^6.1.1",
@@ -102,7 +102,6 @@
     "@hcengineering/view-assets": "workspace:^0.7.0",
     "@hcengineering/task-assets": "workspace:^0.7.0",
     "@hcengineering/chunter-assets": "workspace:^0.7.0",
-    "@hcengineering/chat-assets": "workspace:^0.7.0",
     "@hcengineering/card-assets": "workspace:^0.7.0",
     "@hcengineering/mail-assets": "workspace:^0.7.0",
     "@hcengineering/recruit-assets": "workspace:^0.7.0",
@@ -178,14 +177,9 @@
     "@hcengineering/survey-assets": "workspace:^0.7.0",
     "@hcengineering/server-process": "workspace:^0.7.0",
     "@hcengineering/server-process-resources": "workspace:^0.7.0",
-    "@hcengineering/chat": "workspace:^0.7.0",
     "@hcengineering/card": "workspace:^0.7.0",
     "@hcengineering/mail": "workspace:^0.7.0",
     "@hcengineering/kafka": "workspace:^0.7.20",
-    "@hcengineering/communication-types": "workspace:^0.7.12",
-    "@hcengineering/communication-sdk-types": "workspace:^0.7.12",
-    "@hcengineering/communication": "workspace:^0.7.0",
-    "@hcengineering/communication-assets": "workspace:^0.7.0",
     "@tracex/qalico": "workspace:^0.7.0",
     "@tracex/qalico-assets": "workspace:^0.7.0"
   }

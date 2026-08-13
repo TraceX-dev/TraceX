@@ -16,7 +16,6 @@
 
 import type { Metadata, Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
-import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import type { TriggerFunc } from '@hcengineering/server-core'
 import { type Presenter } from '@hcengineering/server-notification'
 
@@ -44,14 +43,8 @@ export default plugin(serverCardId, {
     OnTagRemove: '' as Resource<TriggerFunc>,
     OnMasterTagRemove: '' as Resource<TriggerFunc>,
     OnCardCreate: '' as Resource<TriggerFunc>,
-    OnDirectCreate: '' as Resource<TriggerFunc>,
-    OnThreadCreate: '' as Resource<TriggerFunc>,
     OnCardUpdate: '' as Resource<TriggerFunc>,
     OnCardTag: '' as Resource<TriggerFunc>,
     OnCardRemove: '' as Resource<TriggerFunc>
-  },
-  workspaceApi: {
-    GetCommunicationMessages: '' as Resource<WorkspaceApiOperation>,
-    CreateCommunicationMessage: '' as Resource<WorkspaceApiOperation>
   }
 })

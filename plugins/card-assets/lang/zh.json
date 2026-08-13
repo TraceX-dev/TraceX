@@ -11,6 +11,8 @@
     "MasterTag": "类型",
     "MasterTags": "类型",
     "Parent": "父级",
+    "ChangeTagParent": "更改父标签",
+    "ChangeTagParentBlocked": "无法移动已分配给卡片的标签，或其后代已分配给卡片的标签。",
     "Tags": "标签",
     "Tag": "标签",
     "AddTag": "添加标签",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "警告：更改卡片类型将删除任何不存在于目标类型中的任何属性的所有数据。之前的属性数据可以通过将卡片回到以前的类型来恢复。卡片内容将不会受到影响。",
     "MasterDetailViews": "主细节视图",
     "SelectType": "选择类型",
+    "SelectTypeAndSpace": "请选择卡片类型和空间以继续。",
     "CreateSpace": "创建空间",
     "NumberTypes": "{count, plural, one {# 类型} other {# 类型}}",
     "Labels": "标签",
@@ -87,6 +90,7 @@
     "TwoColumns": "两列",
     "Grid": "网格",
     "RichtextProperties": "富文本字段",
-    "ShowAllVersions": "显示所有版本"
+    "ShowAllVersions": "显示所有版本",
+    "ShowOnlyCardsWithoutRelations": "仅显示无关联的卡片"
   }
 }

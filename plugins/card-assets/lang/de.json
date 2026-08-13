@@ -11,6 +11,8 @@
     "MasterTag": "Typ",
     "MasterTags": "Typen",
     "Parent": "Eltern",
+    "ChangeTagParent": "Übergeordneten Tag ändern",
+    "ChangeTagParentBlocked": "Ein Tag, der Karten zugewiesen ist oder dessen Untertags Karten zugewiesen sind, kann nicht verschoben werden.",
     "Tags": "Tags",
     "Tag": "Tag",
     "AddTag": "Tag hinzufügen",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Warnung: Das Ändern des Typs einer Karte wird alle Daten für alle Attribute entfernen, die nicht auf dem Zieltyp vorhanden sind. Vorherige Attributdaten können wiederhergestellt werden, indem Sie die Karte auf einen früheren Typ zurücksetzen. Karteninhalt wird nicht betroffen.",
     "MasterDetailViews": "Master-Detail-Ansichten",
     "SelectType": "Typ auswählen",
+    "SelectTypeAndSpace": "Bitte wählen Sie einen Kartentyp und einen Bereich aus, um fortzufahren.",
     "CreateSpace": "Raum erstellen",
     "NumberTypes": "{count, plural, one {# typ} other {# typen}}",
     "Labels": "Labels",
@@ -87,6 +90,7 @@
     "TwoColumns": "Zwei spaltig",
     "Grid": "Gitter",
     "RichtextProperties": "Textfelder",
-    "ShowAllVersions": "Alle Versionen anzeigen"
+    "ShowAllVersions": "Alle Versionen anzeigen",
+    "ShowOnlyCardsWithoutRelations": "Nur Karten ohne Beziehungen anzeigen"
   }
 }

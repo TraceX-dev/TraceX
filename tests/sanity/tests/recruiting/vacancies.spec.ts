@@ -28,8 +28,8 @@ test.describe('Vacancy tests', () => {
     await settingsPage.profileButton().click()
     await settingsPage.selectPopupAp('Settings')
     const wsPage: WorkspaceSettingsPage = new WorkspaceSettingsPage(page)
-    await wsPage.members().click()
-    await settingsPage.checkOpened('Members')
+    await wsPage.selectAccessManagementTab('Members')
+    await settingsPage.checkOpened('Access management')
     const count = await page.locator('div[id="workbench:component:WorkbenchTabs"] div.container.main').count()
     for (let i = 1; i < count; i++) {
       await page.locator('div[id="workbench:component:WorkbenchTabs"] div.container.main:first-child button').click()

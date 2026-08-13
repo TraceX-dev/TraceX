@@ -99,7 +99,6 @@
         "SERVER_PROVIDER": "ws",
         "MODEL_VERSION": "0.7.186",
         // "VERSION": "0.6.289",
-        "COMMUNICATION_API_ENABLED": "true",
         "ELASTIC_INDEX_NAME": "local_storage_index",
         "UPLOAD_URL": "/files",
         "AI_BOT_URL": "http://localhost:4010",
@@ -143,7 +142,7 @@
         "QUEUE_CONFIG": "localhost:19093"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "22",
+      "runtimeVersion": "24",
       "showAsyncStacks": true,
       "outputCapture": "std",
       "sourceMaps": true,
@@ -435,7 +434,7 @@
       "cwd": "${workspaceRoot}/dev/tool",
       "protocol": "inspector",
       "outputCapture": "std",
-      "runtimeVersion": "22",
+      "runtimeVersion": "24",
       "showAsyncStacks": true
     },
     {

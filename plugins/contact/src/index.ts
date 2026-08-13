@@ -370,6 +370,7 @@ export const contactPlugin = plugin(contactId, {
     PersonFirstNamePlaceholder: '' as IntlString,
     PersonLastNamePlaceholder: '' as IntlString,
     NumberMembers: '' as IntlString,
+    Location: '' as IntlString,
     Position: '' as IntlString,
     For: '' as IntlString,
     SelectUsers: '' as IntlString,

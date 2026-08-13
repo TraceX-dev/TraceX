@@ -35,6 +35,8 @@
     "ConfigureWidgets": "ウィジェットを設定",
     "Tab": "タブ",
     "WorkspaceIsArchived": "ワークスペースは未使用のためアーカイブされています。復元するにはお問い合わせください...",
-    "WorkspaceIsMigrating": "ワークスペースを更新中です。しばらくお待ちください..."
+    "WorkspaceIsMigrating": "ワークスペースを更新中です。しばらくお待ちください...",
+    "FailedToLoadWorkspaces": "ワークスペースの読み込みに失敗しました",
+    "NoWorkspacesFound": "ワークスペースが見つかりません"
   }
 }

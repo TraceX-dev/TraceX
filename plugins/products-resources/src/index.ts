@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,6 +22,8 @@ import { type ObjectSearchResult } from '@hcengineering/presentation'
 import CreateProduct from './components/product/CreateProduct.svelte'
 import EditProduct from './components/product/EditProduct.svelte'
 import NewProductHeader from './components/product/NewProductHeader.svelte'
+import ProductArrayEditor from './components/product/ProductArrayEditor.svelte'
+import ProductInlineEditor from './components/product/ProductInlineEditor.svelte'
 import ProductPresenter from './components/product/ProductPresenter.svelte'
 import ProductSearchIcon from './components/product/ProductSearchIcon.svelte'
 import ProductSearchItem from './components/product/ProductSearchItem.svelte'
@@ -75,6 +78,8 @@ export default async (): Promise<Resources> => ({
     EditProduct,
     EditProductVersion,
     NewProductHeader,
+    ProductArrayEditor,
+    ProductInlineEditor,
     ProductPresenter,
     ProductSearchIcon,
     ProductVersionPresenter,

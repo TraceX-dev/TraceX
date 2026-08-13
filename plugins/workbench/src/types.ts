@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,6 +20,20 @@ import { DocNotifyContext, InboxNotification } from '@hcengineering/notification
 import type { Asset, IntlString, Resource } from '@hcengineering/platform'
 import type { Preference } from '@hcengineering/preference'
 import { AnyComponent, type AnySvelteComponent, Location, ResolvedLocation } from '@hcengineering/ui'
+
+/** @public */
+export interface ReadableStore<T> {
+  subscribe: (run: (value: T) => void) => () => void
+}
+
+/** @public */
+export interface ApplicationNotificationState {
+  notify: boolean
+  count?: number
+}
+
+/** @public */
+export type ApplicationNotificationProvider = () => ReadableStore<ApplicationNotificationState>
 
 /** @public */
 export interface LocationData {
@@ -56,6 +71,15 @@ export interface Application extends Doc {
   navHeaderActions?: AnyComponent
   accessLevel?: AccountRole
   navFooterComponent?: AnyComponent
+
+  /** Reactive notification state displayed on the application icon. */
+  notificationProvider?: Resource<ApplicationNotificationProvider>
+
+  /** Canonical space classes owned by this application. */
+  spaceClasses?: Array<Ref<Class<Space>>>
+
+  /** Canonical individual spaces owned by this application when their class is shared. */
+  spaceIds?: Array<Ref<Space>>
 }
 
 /** @public */

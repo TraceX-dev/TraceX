@@ -28,7 +28,6 @@
   "PUBLIC_SCHEDULE_URL": "http://tracex.local:8060",
   "CALDAV_SERVER_URL": "http://tracex.local:9070",
   "EXPORT_URL": "http://tracex.local:4009",
-  "COMMUNICATION_API_ENABLED": "true",
   "BACKUP_URL": "http://tracex.local:4039/api/backup",
   "PULSE_URL": "ws://tracex.local:8099/ws",
   "HULYLAKE_URL": "http://tracex.local:8096",

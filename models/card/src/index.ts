@@ -35,7 +35,6 @@ import {
   type Tag
 } from '@hcengineering/card'
 import chunter from '@hcengineering/chunter'
-import communication from '@hcengineering/communication'
 import converter from '@hcengineering/converter'
 import core, {
   AccountRole,
@@ -114,6 +113,10 @@ export class TMasterTag extends TClass implements MasterTag {
 export class TTag extends TMixin implements Tag {
   color?: number
   background?: number
+
+  @Prop(TypeRank(), core.string.Rank)
+  @Hidden()
+    rank?: Rank
 }
 
 @Model(card.class.Card, core.class.Doc, DOMAIN_CARD)
@@ -193,6 +196,7 @@ export class TCardSection extends TDoc implements CardSection {
   order!: number
   navigation!: CardNavigation[]
   checkVisibility?: Resource<(doc: Card) => Promise<boolean>>
+  hideInCompactMode?: boolean
 }
 
 @Mixin(card.mixin.CardViewDefaults, card.class.MasterTag)
@@ -251,6 +255,14 @@ const showAllVersionsOption: ViewOptionModel = {
   label: card.string.ShowAllVersions
 }
 
+const showOnlyCardsWithoutRelationsOption: ViewOptionModel = {
+  key: 'showOnlyCardsWithoutRelations',
+  type: 'toggle',
+  defaultValue: false,
+  actionTarget: 'display',
+  label: card.string.ShowOnlyCardsWithoutRelations
+}
+
 const listConfig: (BuildModelKey | string)[] = [
   { key: '' },
   { key: '_class' },
@@ -263,12 +275,6 @@ const listConfig: (BuildModelKey | string)[] = [
       showType: false
     },
     displayProps: { optional: true }
-  },
-  {
-    key: '',
-    presenter: card.component.LabelsPresenter,
-    label: card.string.Labels,
-    props: { fullSize: true }
   },
   {
     key: 'modifiedOn',
@@ -317,12 +323,6 @@ const favoritesViewletConfig: (BuildModelKey | string)[] = [
       showType: false
     },
     presenter: card.component.CardTagsColored
-  },
-  {
-    key: '$lookup.attachedTo',
-    presenter: card.component.LabelsPresenter,
-    label: card.string.Labels,
-    props: { fullSize: true, key: 'labels' }
   },
   {
     key: '$lookup.attachedTo.parent'
@@ -394,12 +394,6 @@ export function createSystemType (
         props: {
           showType: false
         }
-      },
-      {
-        key: '',
-        presenter: card.component.LabelsPresenter,
-        label: card.string.Labels,
-        props: { fullSize: true }
       },
       'modifiedOn'
     ]
@@ -841,7 +835,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyCardsWithoutRelationsOption]
       },
       baseQuery: {
         isLatest: true
@@ -1235,6 +1229,7 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.RelationsSection,
       order: 500,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckRelationsSectionVisibility
     },
     card.section.Relations
@@ -1248,22 +1243,10 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.OldMessagesSection,
       order: 1000,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckOldMessagesSectionVisibility
     },
     card.section.OldMessages
-  )
-
-  builder.createDoc(
-    card.class.CardSection,
-    core.space.Model,
-    {
-      label: activity.string.Messages,
-      component: card.sectionComponent.CommunicationMessagesSection,
-      order: 1000,
-      navigation: [],
-      checkVisibility: card.function.CheckCommunicationMessagesSectionVisibility
-    },
-    communication.ids.CardMessagesSection
   )
 
   builder.createDoc<Viewlet>(view.class.Viewlet, core.space.Model, {

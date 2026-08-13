@@ -59,6 +59,22 @@ export function createModel (builder: Builder): void {
     patch: serverProcess.workspaceApi.PatchProcessToDo
   })
 
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: process.class.Execution,
+    commands: {
+      'emit-event': serverProcess.workspaceApi.EmitProcessEvent
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverProcess.trigger.OnRelationChange,
+    isAsync: true,
+    txMatch: {
+      _class: { $in: [core.class.TxCreateDoc, core.class.TxUpdateDoc, core.class.TxRemoveDoc] },
+      objectClass: core.class.Relation
+    }
+  })
+
   builder.mixin(process.trigger.OnToDoClose, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
     serverCheckFunc: serverProcess.func.CheckToDoDone,
     rollbackFunc: serverProcess.rollbacks.ToDoCloseRollback
@@ -98,9 +114,18 @@ export function createModel (builder: Builder): void {
     preventRollback: true
   })
 
-  // builder.mixin(process.trigger.OnEvent, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
-  //   serverCheckFunc: serverProcess.func.EventCheck
-  // })
+  builder.mixin(process.trigger.OnNewVersion, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true
+  })
+
+  builder.mixin(process.trigger.OnEvent, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    serverCheckFunc: serverProcess.func.EventCheck
+  })
+
+  builder.mixin(process.trigger.WhenRelationChanges, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true,
+    serverCheckFunc: serverProcess.func.RelationChangedCheck
+  })
 
   builder.mixin(process.trigger.OnTime, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
     preventRollback: true,

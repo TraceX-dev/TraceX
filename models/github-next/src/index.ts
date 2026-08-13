@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,6 +27,7 @@ import integration, {
 } from '@hcengineering/integration'
 import {
   type Builder,
+  ArrOf,
   Collection,
   Index,
   Model,
@@ -214,13 +216,28 @@ export function createModel (builder: Builder): void {
     slotKind: 'attribute',
     _class: core.class.Attribute,
     label: getEmbeddedLabel('Assignee'),
-    type: TypeRef(contact.class.Person)
+    type: TypeRef(contact.class.Person),
+    types: [TypeRef(contact.class.Person), ArrOf(TypeRef(contact.class.Person))]
   }
   const labelsSlot: IntegrationAttributeSlotModel = {
     slotKind: 'attribute',
     _class: core.class.Attribute,
     label: getEmbeddedLabel('Labels'),
     type: Collection(tags.class.TagReference)
+  }
+  const milestoneSlot: IntegrationAttributeSlotModel = {
+    slotKind: 'attribute',
+    _class: core.class.Attribute,
+    label: getEmbeddedLabel('Milestone'),
+    type: TypeString(),
+    types: [TypeString(), TypeNumber()]
+  }
+  const projectsSlot: IntegrationAttributeSlotModel = {
+    slotKind: 'attribute',
+    _class: core.class.Attribute,
+    label: getEmbeddedLabel('Projects'),
+    type: ArrOf(TypeString()),
+    types: [TypeString(), ArrOf(TypeString())]
   }
   const categorySlot: IntegrationAttributeSlotModel = {
     slotKind: 'attribute',
@@ -269,7 +286,9 @@ export function createModel (builder: Builder): void {
         externalUrl: externalUrlSlot,
         number: numberSlot,
         assignee: assigneeSlot,
-        labels: labelsSlot
+        labels: labelsSlot,
+        milestone: milestoneSlot,
+        projects: projectsSlot
       }
     },
     githubNext.ids.GithubNextIssueProvider

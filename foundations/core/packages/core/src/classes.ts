@@ -142,6 +142,15 @@ export interface Association extends Doc {
   type: '1:1' | '1:N' | 'N:N'
   description?: IntlString
   automationOnly?: boolean
+
+  /**
+   * Optional eligibility filters narrowing which documents may be linked, beyond `classA`/`classB`.
+   *
+   * Serialized `@hcengineering/view` filters (same format as `FilteredView.filters`). `filterA`
+   * applies when picking documents of `classA`, `filterB` when picking documents of `classB`.
+   */
+  filterA?: string
+  filterB?: string
 }
 
 /**
@@ -1022,6 +1031,9 @@ export interface WorkspaceInfoWithStatus extends WorkspaceInfo {
   backupInfo?: BackupStatus
   usageInfo?: UsageStatus
   processingAttemps: number
+  // Whether the current account has unread notifications in this workspace.
+  // Only populated by getAccountWorkspaces(); absent/undefined elsewhere.
+  hasUnread?: boolean
 }
 
 export interface WorkspaceMemberInfo {

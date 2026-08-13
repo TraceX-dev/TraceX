@@ -418,4 +418,11 @@ export async function isRefreshableTableActive (editor: Editor, context: ActionC
   return metadata !== null && metadata !== undefined
 }
 
-export { refreshTable, showTableDiff, seeOriginalTableData } from './actions'
+export {
+  refreshTable,
+  showTableDiff,
+  seeOriginalTableData,
+  openCellTextAlignOptions,
+  openCellVerticalAlignOptions,
+  openCellTextFormattingOptions
+} from './actions'

@@ -27,15 +27,13 @@
     Space
   } from '@hcengineering/core'
   import login, { loginId } from '@hcengineering/login'
-  import notification, { DocNotifyContext, InboxNotification, notificationId } from '@hcengineering/notification'
-  import { BrowserNotificatator, InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
-  import inbox, { inboxId } from '@hcengineering/inbox'
+  import notification, { notificationId } from '@hcengineering/notification'
+  import { BrowserNotificatator, NotifyMarker } from '@hcengineering/notification-resources'
   import { broadcastEvent, getMetadata, getResource, IntlString, translate } from '@hcengineering/platform'
   import {
     ActionContext,
     ComponentExtensions,
     createQuery,
-    createNotificationsQuery,
     getClient,
     isAdminUser,
     reduceCalls
@@ -101,11 +99,17 @@
     ViewConfiguration,
     WorkbenchTab
   } from '@hcengineering/workbench'
-  import communication from '@hcengineering/communication'
   import { getContext, onDestroy, onMount, tick } from 'svelte'
   import { subscribeMobile } from '../mobile'
   import workbench from '../plugin'
-  import { buildNavModel, isAllowedToRole, logOut, workspacesStore } from '../utils'
+  import {
+    buildNavModel,
+    hasCrossWorkspaceUnread,
+    isAllowedToRole,
+    logOut,
+    refreshWorkspaces,
+    workspacesStore
+  } from '../utils'
   import AccountPopup from './AccountPopup.svelte'
   import AppItem from './AppItem.svelte'
   import AppSwitcher from './AppSwitcher.svelte'
@@ -154,7 +158,6 @@
   migrateViewOpttions()
 
   const excludedApps = getMetadata(workbench.metadata.ExcludedApplications) ?? []
-  const isCommunicationEnabled = getMetadata(communication.metadata.Enabled) ?? false
 
   const client = getClient()
 
@@ -266,35 +269,53 @@
     })
     syncSidebarState()
     syncWorkbenchTab()
+
+    // Keep cross-workspace unread flags fresh while the app is open: the flag is
+    // raised server-side in workspaces the client isn't connected to, so poll and
+    // refresh on focus rather than trusting the initial snapshot.
+    const refreshInterval = setInterval(() => {
+      // Skip while hidden — the visibilitychange/focus handler below refreshes on
+      // return, so a backgrounded tab doesn't keep hitting GetWorkspaces.
+      if (document.hidden) return
+      void refreshWorkspaces()
+    }, 45000)
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') {
+        void refreshWorkspaces()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+
+    return () => {
+      clearInterval(refreshInterval)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   })
 
   const workspaceId = $location.path[1]
 
-  const inboxClient = InboxNotificationsClientImpl.createClient()
-  const inboxNotificationsByContextStore = inboxClient.inboxNotificationsByContext
-
-  let hasNotificationsFn: ((data: Map<Ref<DocNotifyContext>, InboxNotification[]>) => Promise<boolean>) | undefined =
-    undefined
   let hasInboxNotifications = false
+  let unsubscribeInboxNotifications: (() => void) | undefined
+  let isDestroyed = false
 
-  void getResource(notification.function.HasInboxNotifications).then((f) => {
-    hasNotificationsFn = f
-  })
+  void getResource(notification.function.GetInboxNotificationStore)
+    .then((createInboxNotificationStore) => {
+      if (isDestroyed) return
 
-  $: void hasNotificationsFn?.($inboxNotificationsByContextStore).then((res) => {
-    hasInboxNotifications = res
-  })
-
-  let hasNewInboxNotifications = false
-
-  $: if (isCommunicationEnabled) {
-    const notificationCountQuery = createNotificationsQuery()
-    notificationCountQuery.query({ read: false, limit: 1 }, (res) => {
-      hasNewInboxNotifications = res.getResult().length > 0
+      unsubscribeInboxNotifications = createInboxNotificationStore().subscribe((state) => {
+        hasInboxNotifications = state.notify
+      })
     })
-  } else {
-    hasNewInboxNotifications = false
-  }
+    .catch((error) => {
+      console.error('Error subscribing to Inbox notifications:', error)
+    })
+
+  onDestroy(() => {
+    isDestroyed = true
+    unsubscribeInboxNotifications?.()
+  })
 
   const doSyncLoc = reduceCalls(async (loc: Location): Promise<void> => {
     if (workspaceId !== $location.path[1]) {
@@ -775,12 +796,12 @@
   let inboxPopup: PopupResult | undefined = undefined
   let lastLoc: Location | undefined = undefined
 
-  $: activeInboxId = isCommunicationEnabled ? inboxId : notificationId
+  $: activeInboxId = notificationId
 
   $: inboxProps = {
     selected: currentAppAlias === activeInboxId || inboxPopup !== undefined,
     navigator: (currentAppAlias === activeInboxId || inboxPopup !== undefined) && $deviceInfo.navigator.visible,
-    notify: isCommunicationEnabled ? hasInboxNotifications || hasNewInboxNotifications : hasInboxNotifications,
+    notify: hasInboxNotifications,
     onClick: (e: MouseEvent) => {
       if (e.metaKey || e.ctrlKey) return
       if (!$deviceInfo.navigator.visible && $deviceInfo.navigator.float && currentAppAlias === activeInboxId) {
@@ -796,10 +817,7 @@
     }
   }
 
-  $: customAppProps = new Map([
-    [notificationId, inboxProps],
-    [inboxId, inboxProps]
-  ])
+  $: customAppProps = new Map([[notificationId, inboxProps]])
 
   defineSeparators('workbench', workbenchSeparators)
   defineSeparators('main', mainSeparators)
@@ -869,7 +887,14 @@
             showPopup(SelectWorkspaceMenu, {}, popupSpacePosition)
           }}
         >
-          <Logo mini={appsMini} workspace={windowWorkspaceName ?? $resolvedLocationStore.path[1]} />
+          <div class="logo-badge-wrap">
+            <Logo mini={appsMini} workspace={windowWorkspaceName ?? $resolvedLocationStore.path[1]} />
+            {#if $hasCrossWorkspaceUnread}
+              <div class="cross-ws-unread-marker">
+                <NotifyMarker kind={'simple'} size={'xx-small'} />
+              </div>
+            {/if}
+          </div>
         </div>
         <div class="topmenu-container clear-mins flex-no-shrink" class:mini={appsMini}>
           <AppItem
@@ -881,35 +906,20 @@
           />
         </div>
         {#if !isExcludedApp(activeInboxId)}
-          {#if !isCommunicationEnabled}
-            <NavLink
-              app={notificationId}
-              shrink={0}
-              disabled={!$deviceInfo.navigator.visible &&
-                $deviceInfo.navigator.float &&
-                currentAppAlias === notificationId}
-            >
-              <AppItem
-                icon={notification.icon.Notifications}
-                label={notification.string.Inbox}
-                {...inboxProps}
-                on:click={inboxProps.onClick}
-              />
-            </NavLink>
-          {:else}
-            <NavLink
-              app={inboxId}
-              shrink={0}
-              disabled={!$deviceInfo.navigator.visible && $deviceInfo.navigator.float && currentAppAlias === inboxId}
-            >
-              <AppItem
-                icon={inbox.icon.Inbox}
-                label={inbox.string.Inbox}
-                {...inboxProps}
-                on:click={inboxProps.onClick}
-              />
-            </NavLink>
-          {/if}
+          <NavLink
+            app={notificationId}
+            shrink={0}
+            disabled={!$deviceInfo.navigator.visible &&
+              $deviceInfo.navigator.float &&
+              currentAppAlias === notificationId}
+          >
+            <AppItem
+              icon={notification.icon.Notifications}
+              label={notification.string.Inbox}
+              {...inboxProps}
+              on:click={inboxProps.onClick}
+            />
+          </NavLink>
         {/if}
         <Applications
           {apps}
@@ -1137,6 +1147,21 @@
 {/if}
 
 <style lang="scss">
+  .logo-badge-wrap {
+    position: relative;
+    display: flex;
+  }
+  .cross-ws-unread-marker {
+    position: absolute;
+    top: -0.125rem;
+    right: -0.125rem;
+    display: flex;
+    border-radius: 50%;
+    // Ring in the rail background so the dot stays visible on any workspace
+    // logo colour (e.g. a red dot on a red logo would otherwise blend in).
+    box-shadow: 0 0 0 0.125rem var(--theme-navpanel-color);
+    pointer-events: none;
+  }
   .workbench-container {
     position: relative;
     display: flex;

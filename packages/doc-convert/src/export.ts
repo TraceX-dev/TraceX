@@ -32,8 +32,10 @@ import {
   Packer,
   Paragraph,
   type ParagraphChild,
+  ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   WidthType
@@ -238,16 +240,165 @@ function appendList (out: Block[], list: MarkupNode, ordered: boolean, level: nu
   }
 }
 
+// Color picker swatches store a CSS var() reference (e.g. "var(--theme-text-editor-palette-bg-yellow)"),
+// not a hex value — docx's shading.fill requires strict 6-digit hex and throws on anything else.
+// Mirrors the light-theme palette from packages/theme/styles/_colors.scss; keep in sync if it changes.
+const PALETTE_BG_RGBA: Record<string, [number, number, number, number]> = {
+  gray: [241, 241, 239, 1],
+  brown: [244, 238, 238, 1],
+  orange: [251, 236, 221, 1],
+  yellow: [251, 243, 219, 1],
+  green: [237, 243, 236, 1],
+  blue: [231, 243, 248, 1],
+  purple: [244, 240, 247, 0.8],
+  pink: [249, 238, 243, 0.8],
+  red: [253, 235, 236, 1]
+}
+
+const VAR_PALETTE_RE = /^var\(--theme-text-editor-palette-bg-([a-z]+)\)$/
+const HEX_RE = /^#?([0-9a-fA-F]{6})$/
+const SHORT_HEX_RE = /^#?([0-9a-fA-F]{3})$/
+const RGB_RE = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/
+
+// Composite an rgba() color over white and return a 6-digit hex string.
+function flattenToHex (r: number, g: number, b: number, a: number): string {
+  const blend = (fg: number): number => Math.round(a * fg + (1 - a) * 255)
+  return [blend(r), blend(g), blend(b)]
+    .map((c) => c.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase()
+}
+
+/**
+ * Resolve a `backgroundColor` attribute value into a hex color `docx`'s `shading.fill` accepts.
+ * Returns `undefined` if it can't be resolved — callers should omit shading rather than pass an
+ * invalid value through, which throws and takes down the whole export.
+ *
+ * @public
+ */
+export function resolveDocxFill (value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  const trimmed = value.trim()
+  if (trimmed.length === 0 || trimmed === 'transparent' || trimmed === 'inherit' || trimmed === 'none') {
+    return undefined
+  }
+
+  const hexMatch = HEX_RE.exec(trimmed)
+  if (hexMatch !== null) {
+    return hexMatch[1].toUpperCase()
+  }
+
+  const shortHexMatch = SHORT_HEX_RE.exec(trimmed)
+  if (shortHexMatch !== null) {
+    return shortHexMatch[1]
+      .split('')
+      .map((c) => c + c)
+      .join('')
+      .toUpperCase()
+  }
+
+  const varMatch = VAR_PALETTE_RE.exec(trimmed)
+  if (varMatch !== null) {
+    const rgba = PALETTE_BG_RGBA[varMatch[1]]
+    return rgba !== undefined ? flattenToHex(rgba[0], rgba[1], rgba[2], rgba[3]) : undefined
+  }
+
+  const rgbMatch = RGB_RE.exec(trimmed)
+  if (rgbMatch !== null) {
+    const [, r, g, b, a] = rgbMatch
+    return flattenToHex(Number(r), Number(g), Number(b), a !== undefined ? Number(a) : 1)
+  }
+
+  return undefined
+}
+
+// Fallback content width (dxa) for columns with no known `colwidth` — ~6.25in, a typical A4/Letter body.
+const DEFAULT_TABLE_WIDTH_DXA = 9000
+// `colwidth` is stored in CSS px; OOXML widths are in dxa (1px = 15dxa at 96dpi / 1440dxa-per-inch).
+const PX_TO_DXA = 15
+
 function renderTable (node: MarkupNode, ctx: DocxCtx): Table {
-  const rows = (node.content ?? []).map(
+  const rows = node.content ?? []
+  const columnWidths = computeColumnWidths(rows)
+
+  const tableRows = rows.map(
     (row) =>
       new TableRow({
-        children: (row.content ?? []).map(
-          (cell) => new TableCell({ children: withFallback(blocksFromContent(cell.content ?? [], ctx)) })
-        )
+        children: (row.content ?? []).map((cell) => {
+          const colspan = toSpan(cell.attrs?.colspan)
+          const rowspan = toSpan(cell.attrs?.rowspan)
+          const fill = resolveDocxFill(
+            typeof cell.attrs?.backgroundColor === 'string' ? cell.attrs.backgroundColor : undefined
+          )
+          return new TableCell({
+            children: withFallback(blocksFromContent(cell.content ?? [], ctx)),
+            ...(colspan > 1 ? { columnSpan: colspan } : {}),
+            ...(rowspan > 1 ? { rowSpan: rowspan } : {}),
+            ...(fill !== undefined ? { shading: { fill, type: ShadingType.CLEAR } } : {})
+          })
+        })
       })
   )
-  return new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } })
+
+  return new Table({
+    rows: tableRows,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths,
+    // FIXED (vs. docx's default AUTOFIT) makes readers respect these widths instead of
+    // recomputing them from content — Google Docs in particular gets this wrong otherwise.
+    layout: TableLayoutType.FIXED
+  })
+}
+
+/**
+ * Per-column width (dxa), walking the table grid to account for colspan/rowspan. Known
+ * `colwidth`s are kept; the rest split the remaining budget evenly. Without this, cells default
+ * to a near-zero grid width and readers wrap text one character per line per cell.
+ *
+ * @public
+ */
+export function computeColumnWidths (rows: MarkupNode[]): number[] {
+  const colWidths: Array<number | undefined> = []
+  // Rows remaining (including current) that a column is still covered by an earlier rowspan.
+  const carry: number[] = []
+
+  for (const row of rows) {
+    let col = 0
+    for (const cell of row.content ?? []) {
+      while ((carry[col] ?? 0) > 0) col++
+
+      const span = toSpan(cell.attrs?.colspan)
+      const rowspan = toSpan(cell.attrs?.rowspan)
+      const width = toPositiveNumber(cell.attrs?.colwidth)
+      if (width !== undefined && colWidths[col] === undefined) {
+        colWidths[col] = Math.round(width * PX_TO_DXA)
+      }
+      for (let i = 0; i < span; i++) {
+        carry[col + i] = rowspan
+      }
+      col += span
+    }
+    for (let i = 0; i < carry.length; i++) {
+      if (carry[i] > 0) carry[i] -= 1
+    }
+  }
+
+  // `carry` covers every column ever touched, unlike `colWidths` which only has known widths.
+  const columnCount = Math.max(1, carry.length)
+  const fallback = Math.round(DEFAULT_TABLE_WIDTH_DXA / columnCount)
+  return Array.from({ length: columnCount }, (_, i) => colWidths[i] ?? fallback)
+}
+
+function toSpan (value: unknown): number {
+  const n = typeof value === 'number' ? value : typeof value === 'string' ? parseInt(value, 10) : NaN
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+
+function toPositiveNumber (value: unknown): number | undefined {
+  const n = typeof value === 'number' ? value : typeof value === 'string' ? parseFloat(value) : NaN
+  return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
 function withFallback (blocks: Block[]): Block[] {

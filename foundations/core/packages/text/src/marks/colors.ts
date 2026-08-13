@@ -135,6 +135,7 @@ export const TextColor = Extension.create<TextColorOptions>({
       unsetTextColor:
         () =>
           ({ chain }) => {
+          // color is the only attribute textStyle carries, so removing the whole mark is safe.
             return chain().unsetMark('textStyle').run()
           }
     }

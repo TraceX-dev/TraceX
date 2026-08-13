@@ -119,6 +119,7 @@ import {
   setTimezone,
   signUpByEmail,
   updateWorkspaceRole,
+  setWorkspaceMemberUnread,
   verifyAllowedRole,
   verifyAllowedServices,
   verifyPassword,
@@ -3611,6 +3612,7 @@ export type AccountMethods =
   | 'getPerson'
   | 'getWorkspaceMembers'
   | 'updateWorkspaceRole'
+  | 'setWorkspaceMemberUnread'
   | 'updateAllowReadOnlyGuests'
   | 'updateAllowGuestSignUp'
   | 'findPersonBySocialId'
@@ -3652,12 +3654,15 @@ export type AccountMethods =
 export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMethods, AccountMethodHandler>> {
   return {
     /* OPERATIONS */
-    login: wrap(login),
-    loginOtp: wrap(loginOtp),
-    loginAsGuest: wrap(loginAsGuest),
-    ...(hasSignUp ? { signUp: wrap(signUp) } : {}),
-    ...(hasSignUp ? { signUpOtp: wrap(signUpOtp) } : {}),
-    validateOtp: wrap(validateOtp),
+    // These are public/unauthenticated entry points - they must succeed even if the caller's
+    // browser attaches a stale/invalid token (e.g. via a leftover cookie), since none of them
+    // require a valid token to run. See wrap()'s `noAuth` param.
+    login: wrap(login, false, true),
+    loginOtp: wrap(loginOtp, false, true),
+    loginAsGuest: wrap(loginAsGuest, false, true),
+    ...(hasSignUp ? { signUp: wrap(signUp, false, true) } : {}),
+    ...(hasSignUp ? { signUpOtp: wrap(signUpOtp, false, true) } : {}),
+    validateOtp: wrap(validateOtp, false, true),
     createWorkspace: wrap(createWorkspace),
     createInvite: wrap(createInvite),
     createInviteLink: wrap(createInviteLink),
@@ -3686,6 +3691,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     disable2fa: wrap(disable2fa),
     verify2fa: wrap(verify2fa),
     updateWorkspaceRole: wrap(updateWorkspaceRole),
+    setWorkspaceMemberUnread: wrap(setWorkspaceMemberUnread),
     updateAllowReadOnlyGuests: wrap(updateAllowReadOnlyGuests),
     updateAllowGuestSignUp: wrap(updateAllowGuestSignUp),
     updatePasswordAgingRule: wrap(updatePasswordAgingRule),

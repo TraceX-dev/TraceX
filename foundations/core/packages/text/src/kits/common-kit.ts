@@ -42,6 +42,7 @@ import {
 
 import { ExtensionFactory, extensionKit } from '../kit'
 import { BackgroundColor, TextColor } from '../marks/colors'
+import { CellAlign } from '../marks/cellAlign'
 import { InlineCommentMark } from '../marks/inlineComment'
 import { CodeBlockExtension, codeBlockOptions, CommentNode, MarkdownNode, TodoItemNode, TodoListNode } from '../nodes'
 
@@ -92,7 +93,10 @@ export const TextColorStylingKit = extensionKit(
     ({
       textStyle: e(TextStyle),
       testColor: e(TextColor),
-      backgroundColor: e(BackgroundColor, { types: ['tableCell'] })
+      // tableHeader was missing here, so header cells always fell back to prose.scss's
+      // hardcoded grey and couldn't be recolored.
+      backgroundColor: e(BackgroundColor, { types: ['tableCell', 'tableHeader'] }),
+      cellAlign: e(CellAlign, { types: ['tableCell'] })
     }) as const
 )
 

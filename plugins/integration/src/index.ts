@@ -202,7 +202,7 @@ export type GetIntegrationTargetAllowedSpaceClasses = (
 /**
  * @public
  */
-export type IntegrationTargetCommentBackend = 'chunter' | 'communication'
+export type IntegrationTargetCommentBackend = 'chunter'
 
 /**
  * @public

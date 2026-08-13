@@ -12,27 +12,23 @@
 <!-- limitations under the License. -->
 
 <script lang="ts">
-  import card, { Card, CardSpace, type CreateCardExtension, MasterTag } from '@hcengineering/card'
-  import presentation, {
-    createQuery,
-    getClient,
-    getCommunicationClient,
-    SpaceSelector
-  } from '@hcengineering/presentation'
+  import { Card, CardSpace, type CreateCardExtension, MasterTag } from '@hcengineering/card'
+  import presentation, { createQuery, getClient, SpaceSelector } from '@hcengineering/presentation'
   import { createEventDispatcher } from 'svelte'
-  import core, { Data, generateId, Ref, Markup, notEmpty, getCurrentAccount } from '@hcengineering/core'
+  import core, { Data, generateId, Ref, Markup, getCurrentAccount } from '@hcengineering/core'
   import { getResource, translate, getEmbeddedLabel } from '@hcengineering/platform'
-  import { Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
+  import { Notice, Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
   import { AttachmentStyledBox } from '@hcengineering/attachment-resources'
   import { EmptyMarkup } from '@hcengineering/text'
   import { Employee, getCurrentEmployee } from '@hcengineering/contact'
-  import { SelectUsersPopup, employeeByIdStore, permissionsStore } from '@hcengineering/contact-resources'
+  import { SelectUsersPopup, permissionsStore } from '@hcengineering/contact-resources'
   import view from '@hcengineering/view'
 
   import { createCard, getRootType, isBaseTypeWithSubtypes } from '../utils'
   import CardCollaborators from './CardCollaborators.svelte'
   import { TypeSelector } from '../index'
   import { canCreateObject } from '@hcengineering/view-resources'
+  import card from '../plugin'
 
   export let title: string = ''
   export let type: Ref<MasterTag> | null = card.types.Document
@@ -44,7 +40,6 @@
   const dispatch = createEventDispatcher()
   const client = getClient()
   const hierarchy = client.getHierarchy()
-  const communicationClient = getCommunicationClient()
   const me = getCurrentEmployee()
   const _id = generateId<Card>()
 
@@ -79,18 +74,6 @@
 
   let creating = false
 
-  async function addCollaborators (): Promise<void> {
-    if (type == null) return
-    const accounts = collaborators
-      .filter((it) => it !== me)
-      .map((it) => $employeeByIdStore.get(it)?.personUuid)
-      .filter(notEmpty)
-
-    if (accounts.length > 0) {
-      await communicationClient.addCollaborators(_id, type, accounts)
-    }
-  }
-
   async function okAction (): Promise<void> {
     if (_space === undefined || type == null) return
 
@@ -110,7 +93,6 @@
       }
 
       await createCard(type, _space, data, description, _id)
-      await addCollaborators()
 
       dispatch('close', _id)
     } finally {
@@ -171,6 +153,7 @@
 
   $: typeAllowedBySpace =
     type != null && selectedSpace != null && selectedSpace.types.includes(getRootType(hierarchy, type))
+  $: missingSelection = _space == null || type == null
   $: allowed =
     _space != null &&
     type != null &&
@@ -195,8 +178,9 @@
     <ModernEditbox
       bind:value={data.title}
       label={view.string.Title}
-      size="medium"
+      size="large"
       kind="ghost"
+      style="font-size: 1.125rem;"
       disabled={extension?.disableTitle ?? false}
       autoFocus={!(extension?.disableTitle ?? false)}
     />
@@ -222,7 +206,7 @@
     {#if changeType}
       <div class="hulyModal-content__settingsSet-line">
         <span class="label"><Label label={card.string.MasterTag} /></span>
-        <TypeSelector bind:value={type} allowedRootTypes={selectedSpace?.types} excludeBaseTypes />
+        <TypeSelector bind:value={type} allowedRootTypes={selectedSpace?.types} excludeBaseTypes size={'medium'} />
       </div>
     {/if}
     {#if (space == null || allowChangeSpace) && !(extension?.hideSpace ?? false)}
@@ -239,7 +223,7 @@
           focus={false}
           clearInvalidValue={true}
           kind={'regular'}
-          size={'large'}
+          size={'medium'}
         />
       </div>
     {/if}
@@ -258,15 +242,13 @@
     {/if}
   </div>
 
-  <div slot="afterContent" class="error p-4 flex-row-reverse">
+  <div slot="afterContent" class="p-4 flex-row-reverse">
     {#if !allowed}
-      <Label label={view.string.NoCreatePermissionTitle} />
+      {#if missingSelection}
+        <Notice kind="warning" label={card.string.SelectTypeAndSpace} />
+      {:else}
+        <Notice kind="error" label={view.string.NoCreatePermissionTitle} />
+      {/if}
     {/if}
   </div>
 </Modal>
-
-<style lang="scss">
-  .error {
-    color: var(--theme-error-color);
-  }
-</style>
