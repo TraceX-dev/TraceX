@@ -93,6 +93,30 @@ export function defineTriggers (builder: Builder): void {
     process.class.Trigger,
     core.space.Model,
     {
+      label: process.string.OnVersionEffective,
+      icon: process.icon.Process,
+      init: true,
+      requiredParams: []
+    },
+    process.trigger.OnVersionEffective
+  )
+
+  builder.createDoc(
+    process.class.Trigger,
+    core.space.Model,
+    {
+      label: process.string.OnVersionIneffective,
+      icon: process.icon.Process,
+      init: true,
+      requiredParams: []
+    },
+    process.trigger.OnVersionIneffective
+  )
+
+  builder.createDoc(
+    process.class.Trigger,
+    core.space.Model,
+    {
       label: process.string.OnToDoCancelled,
       icon: process.icon.ToDoRemove,
       editor: process.component.ToDoRemoveEditor,

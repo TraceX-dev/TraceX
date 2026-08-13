@@ -16,7 +16,7 @@
 <script lang="ts">
   import { type Card, MasterTag } from '@hcengineering/card'
   import core, { type Class, type Ref } from '@hcengineering/core'
-  import { TypeNumber } from '@hcengineering/model'
+  import { TypeBoolean, TypeNumber } from '@hcengineering/model'
   import { getEmbeddedLabel, translateCB } from '@hcengineering/platform'
   import { getClient, IconDownload, IconWithEmoji, MessageBox } from '@hcengineering/presentation'
   import setting from '@hcengineering/setting'
@@ -203,6 +203,26 @@
           readonly: true,
           type: TypeNumber()
         })
+        await client.createDoc(core.class.Attribute, core.space.Model, {
+          attributeOf: masterTag._id,
+          _class: core.class.Attribute,
+          isCustrom: false,
+          label: card.string.Effective,
+          name: 'isEffective',
+          readonly: true,
+          type: TypeBoolean()
+        })
+        const firstVersions = await client.findAll(card.class.Card, {
+          _class: masterTag._id,
+          version: 1,
+          isLatest: { $in: [true, false] },
+          isEffective: { $exists: false }
+        })
+        const ops = client.apply(`Enable_versioning_${masterTag._id}`)
+        for (const version of firstVersions) {
+          await ops.update(version, { isEffective: true })
+        }
+        await ops.commit()
         versioningEnabled = true
       }
     })

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,8 +27,10 @@ import core, {
   type Tx,
   type TxApplyIf,
   type TxCreateDoc,
+  type TxCUD,
   TxFactory,
   TxProcessor,
+  type TxUpdateDoc,
   type VersionableDoc
 } from '@hcengineering/core'
 import {
@@ -78,25 +81,42 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
   }
 
   async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
-    let nestedTxes: Tx[] = []
-    for (const tx of txes) {
+    const nestedTxes: Tx[] = []
+    const effectiveTxes: Array<TxCUD<Doc>> = []
+    const effectiveVersions = new Map<Ref<Doc>, Ref<Doc>>()
+    const versionCreationDisabledUpdates = this.getVersionCreationDisabledUpdates(txes)
+    for (const tx of [...txes]) {
       if (tx._class === core.class.TxCreateDoc) {
-        const childTxes = await this.setVersionData(ctx, tx as TxCreateDoc<VersionableDoc>)
-        if (childTxes !== undefined && childTxes.length > 0) {
-          nestedTxes = nestedTxes.concat(childTxes)
-        }
+        const childTxes = await this.setVersionData(
+          ctx,
+          tx as TxCreateDoc<VersionableDoc>,
+          versionCreationDisabledUpdates
+        )
+        nestedTxes.push(...childTxes)
+      } else if (tx._class === core.class.TxUpdateDoc) {
+        const childTxes = await this.setEffectiveVersion(ctx, tx as TxUpdateDoc<VersionableDoc>, effectiveVersions)
+        effectiveTxes.push(...childTxes)
       }
       if (tx._class === core.class.TxApplyIf) {
-        for (const _tx of (tx as TxApplyIf).txes) {
+        const applyIf = tx as TxApplyIf
+        const applyTxes: Array<TxCUD<Doc>> = []
+        for (const _tx of [...applyIf.txes]) {
           if (_tx._class === core.class.TxCreateDoc) {
-            const childTxes = await this.setVersionData(ctx, _tx as TxCreateDoc<VersionableDoc>)
-            if (childTxes !== undefined && childTxes.length > 0) {
-              nestedTxes = nestedTxes.concat(childTxes)
-            }
+            const childTxes = await this.setVersionData(
+              ctx,
+              _tx as TxCreateDoc<VersionableDoc>,
+              versionCreationDisabledUpdates
+            )
+            applyTxes.push(...childTxes)
+          } else if (_tx._class === core.class.TxUpdateDoc) {
+            const childTxes = await this.setEffectiveVersion(ctx, _tx as TxUpdateDoc<VersionableDoc>, effectiveVersions)
+            applyTxes.push(...childTxes)
           }
         }
+        applyIf.txes.push(...applyTxes)
       }
     }
+    txes.push(...effectiveTxes)
     const res = await this.provideTx(ctx, txes)
     if (nestedTxes.length > 0) {
       await this.provideTx(ctx, nestedTxes)
@@ -106,18 +126,32 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
 
   private async setVersionData (
     ctx: MeasureContext<SessionData>,
-    tx: TxCreateDoc<VersionableDoc>
-  ): Promise<Tx[] | undefined> {
+    tx: TxCreateDoc<VersionableDoc>,
+    versionCreationDisabledUpdates: Map<Ref<Doc>, boolean>
+  ): Promise<Array<TxCUD<Doc>>> {
     const isVersionedClass = this.isVerionableClass(tx.objectClass)
     if (!isVersionedClass) return []
+    const versioningEnabled = this.isVersioningEnabled(tx.objectClass)
     const doc = TxProcessor.createDoc2Doc(tx)
     const isNew = doc.baseId === doc._id || doc.baseId === undefined
     tx.attributes.isLatest = true
     if (isNew) {
       tx.attributes.version = 1
       tx.attributes.baseId = tx.objectId
+      if (versioningEnabled) {
+        tx.attributes.isEffective = true
+      } else {
+        delete tx.attributes.isEffective
+        delete tx.attributes.versionCreationDisabled
+      }
       tx.attributes.docCreatedBy = tx.createdBy ?? tx.modifiedBy
     } else {
+      if (versioningEnabled) {
+        tx.attributes.isEffective = false
+      } else {
+        delete tx.attributes.isEffective
+        delete tx.attributes.versionCreationDisabled
+      }
       const base = await this.provideFindAll(
         ctx,
         tx.objectClass,
@@ -126,9 +160,14 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
       )
       const latest = base.find((p) => p.isLatest === true) ?? base[0]
       if (latest === undefined) throw new Error('No base object found for the new version')
+      const versionCreationDisabled = versionCreationDisabledUpdates.get(latest._id)
+      if (latest.versionCreationDisabled === true && versionCreationDisabled !== false) {
+        throw new Error('New version creation is currently disabled')
+      }
+      tx.attributes.versionCreationDisabled = versionCreationDisabled ?? tx.attributes.versionCreationDisabled === true
       tx.attributes.version = (latest.version ?? 1) + 1
       tx.attributes.docCreatedBy = latest.docCreatedBy
-      const txes: Tx[] = []
+      const txes: Array<TxCUD<Doc>> = []
       const factory = new TxFactory(core.account.System, true)
       for (const prev of base) {
         if (prev.isLatest === true) {
@@ -142,11 +181,81 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
       }
       return txes
     }
+    return []
+  }
+
+  private getVersionCreationDisabledUpdates (txes: Tx[]): Map<Ref<Doc>, boolean> {
+    const result = new Map<Ref<Doc>, boolean>()
+    const collect = (tx: Tx): void => {
+      if (tx._class === core.class.TxUpdateDoc) {
+        const update = tx as TxUpdateDoc<VersionableDoc>
+        if (typeof update.operations.versionCreationDisabled === 'boolean') {
+          result.set(update.objectId, update.operations.versionCreationDisabled)
+        } else if (update.operations.$unset?.versionCreationDisabled !== undefined) {
+          result.set(update.objectId, false)
+        }
+      } else if (tx._class === core.class.TxApplyIf) {
+        for (const nested of (tx as TxApplyIf).txes) collect(nested)
+      }
+    }
+    for (const tx of txes) collect(tx)
+    return result
+  }
+
+  private async setEffectiveVersion (
+    ctx: MeasureContext<SessionData>,
+    tx: TxUpdateDoc<VersionableDoc>,
+    effectiveVersions: Map<Ref<Doc>, Ref<Doc>>
+  ): Promise<Array<TxCUD<Doc>>> {
+    const hasEffectiveUpdate =
+      Object.prototype.hasOwnProperty.call(tx.operations, 'isEffective') ||
+      TxProcessor.hasUpdate(tx.operations, 'isEffective')
+    if (!hasEffectiveUpdate) return []
+    if (!this.isVersioningEnabled(tx.objectClass)) {
+      throw new Error('Versioning is not enabled for this class')
+    }
+    if (tx.operations.isEffective !== true) {
+      throw new Error('An effective version can only be changed by making a newer version effective')
+    }
+
+    const target = (await this.provideFindAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0] as
+      | VersionableDoc
+      | undefined
+    if (target === undefined) throw new Error('Version not found')
+
+    const baseId = target.baseId ?? target._id
+    const requestedVersion = effectiveVersions.get(baseId)
+    if (requestedVersion !== undefined && requestedVersion !== target._id) {
+      throw new Error('Only one version can be made effective in a transaction')
+    }
+    effectiveVersions.set(baseId, target._id)
+
+    const versions = await this.provideFindAll(ctx, tx.objectClass, { baseId })
+    const currentEffective = versions.filter((version) => version.isEffective === true)
+    const latestEffectiveVersion = currentEffective.reduce((latest, version) => {
+      return Math.max(latest, version.version ?? 1)
+    }, 0)
+    if ((target.version ?? 1) <= latestEffectiveVersion) {
+      throw new Error('A version can only become effective if it is newer than the current effective version')
+    }
+
+    const factory = new TxFactory(core.account.System, true)
+    return currentEffective.map((version) =>
+      factory.createTxUpdateDoc(version._class, version.space, version._id, { isEffective: false })
+    )
   }
 
   private isVerionableClass (_class: Ref<Class<Doc>>): boolean {
     try {
       return this.context.hierarchy.classHierarchyMixin(_class, core.mixin.VersionableClass) !== undefined
+    } catch {
+      return false
+    }
+  }
+
+  private isVersioningEnabled (_class: Ref<Class<Doc>>): boolean {
+    try {
+      return this.context.hierarchy.classHierarchyMixin(_class, core.mixin.VersionableClass)?.enabled === true
     } catch {
       return false
     }

@@ -118,6 +118,14 @@ export function createModel (builder: Builder): void {
     preventRollback: true
   })
 
+  builder.mixin(process.trigger.OnVersionEffective, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true
+  })
+
+  builder.mixin(process.trigger.OnVersionIneffective, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true
+  })
+
   builder.mixin(process.trigger.OnEvent, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
     serverCheckFunc: serverProcess.func.EventCheck
   })
@@ -156,6 +164,22 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(process.method.UpdateCard, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.UpdateCard
+  })
+
+  builder.mixin(process.method.MakeVersionEffective, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.MakeVersionEffective
+  })
+
+  builder.mixin(process.method.CreateNewVersion, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.CreateNewVersion
+  })
+
+  builder.mixin(process.method.DisableVersionCreation, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.DisableVersionCreation
+  })
+
+  builder.mixin(process.method.EnableVersionCreation, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.EnableVersionCreation
   })
 
   builder.mixin(process.method.CreateCard, process.class.Method, serverProcess.mixin.MethodImpl, {
