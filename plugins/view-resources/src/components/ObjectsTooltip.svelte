@@ -48,15 +48,15 @@
   $: displayedObjects = objects.length > 0 ? orderObjects(objects, objectIds) : queriedObjects
 </script>
 
+<div class="objects-tooltip m-2 flex-col flex-gap-2">
+  {#each displayedObjects as object (object._id)}
+    <ObjectPresenter value={object} disabled />
+  {/each}
+</div>
+
 <style lang="scss">
   .objects-tooltip {
     min-height: 0;
     overflow-y: auto;
   }
 </style>
-
-<div class="objects-tooltip m-2 flex-col flex-gap-2">
-  {#each displayedObjects as object (object._id)}
-    <ObjectPresenter value={object} disabled />
-  {/each}
-</div>

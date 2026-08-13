@@ -29,10 +29,16 @@
   export let readonly: boolean = false
   export let width: string | undefined = undefined
 
-  $: tooltipOptions = (selectedCount > 0
-    ? { component: ObjectsTooltip, props: { objects, objectIds, _class }, direction }
-    : { label, direction }) satisfies LabelAndProps
+  $: tooltipOptions = (
+    selectedCount > 0
+      ? { component: ObjectsTooltip, props: { objects, objectIds, _class }, direction }
+      : { label, direction }
+  ) satisfies LabelAndProps
 </script>
+
+<div class="objects-tooltip-wrapper" class:readonly style:width use:tooltip={tooltipOptions}>
+  <slot />
+</div>
 
 <style lang="scss">
   .objects-tooltip-wrapper {
@@ -45,7 +51,3 @@
     }
   }
 </style>
-
-<div class="objects-tooltip-wrapper" class:readonly style:width use:tooltip={tooltipOptions}>
-  <slot />
-</div>

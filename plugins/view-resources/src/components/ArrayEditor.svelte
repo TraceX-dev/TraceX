@@ -35,13 +35,7 @@
   $: icon = hierarchy.getClass(_clazz).icon
 </script>
 
-<ObjectsTooltipWrapper
-  selectedCount={value.length}
-  objectIds={value}
-  _class={_clazz}
-  {label}
-  width={'100%'}
->
+<ObjectsTooltipWrapper selectedCount={value.length} objectIds={value} _class={_clazz} {label} width={'100%'}>
   <Button kind={'link'} size={'medium'} justify={'left'} width={'100%'} on:click={openPopup}>
     <svelte:fragment slot="content">
       {#if icon !== undefined}

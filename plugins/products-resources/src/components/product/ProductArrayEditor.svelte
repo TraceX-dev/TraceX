@@ -78,16 +78,7 @@
   {readonly}
   {width}
 >
-  <Button
-    {justify}
-    {focusIndex}
-    width={'100%'}
-    {size}
-    {icon}
-    {kind}
-    disabled={readonly}
-    on:click={openPopup}
-  >
+  <Button {justify} {focusIndex} width={'100%'} {size} {icon} {kind} disabled={readonly} on:click={openPopup}>
     <div slot="content" class="overflow-label">
       {#if productsList.length === 1}
         {productsList[0].name}
