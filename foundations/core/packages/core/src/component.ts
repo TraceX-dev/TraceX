@@ -55,6 +55,7 @@ import type {
   Relation,
   RelationMetadata,
   Role,
+  RowVisibility,
   Sequence,
   Space,
   SpaceType,
@@ -203,6 +204,7 @@ export default plugin(coreId, {
   mixin: {
     ConfigurationElement: '' as Ref<Mixin<ConfigurationElement>>,
     IndexConfiguration: '' as Ref<Mixin<IndexingConfiguration<Doc>>>,
+    RowVisibility: '' as Ref<Mixin<RowVisibility>>,
     SpacesTypeData: '' as Ref<Mixin<Space>>,
     TransientConfiguration: '' as Ref<Mixin<TransientConfiguration>>,
     TxAccessLevel: '' as Ref<Mixin<TxAccessLevel>>,

@@ -188,6 +188,12 @@ export class TPublicHoliday extends TDoc implements PublicHoliday {
 export function createModel (builder: Builder): void {
   builder.createModel(TDepartment, TRequest, TRequestType, TPublicHoliday, TStaff, TTzDate)
 
+  builder.mixin(hr.class.Request, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
+    allowKnownIdBypass: true,
+    knownIdBypassFields: ['attachedTo']
+  })
+
   builder.createDoc(
     workbench.class.Application,
     core.space.Model,

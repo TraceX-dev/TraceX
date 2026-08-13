@@ -353,6 +353,22 @@ export function createModel (builder: Builder): void {
     TUserMeetingInvite
   )
 
+  builder.mixin(love.class.MeetingMinutes, core.class.Class, core.mixin.RowVisibility, {
+    policy: {
+      kind: 'linkedViaRecord',
+      linkClass: core.class.Collaborator,
+      linkTargetField: 'attachedTo',
+      linkIdentityField: 'collaborator',
+      identity: 'accountUuid'
+    },
+    allowKnownIdBypass: true,
+    knownIdBypassFields: ['attachedTo']
+  })
+  builder.mixin(love.class.RoomInfo, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'denyAll' },
+    allowKnownIdBypass: true
+  })
+
   builder.createDoc(
     workbench.class.Application,
     core.space.Model,

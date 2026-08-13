@@ -73,6 +73,8 @@ export interface SessionData {
   }
   >
   grant?: PermissionsGrant
+  /** Raw `extra` claims from the session's token (e.g. `linkId` for public-link guests). */
+  extra?: Record<string, any>
 
   asyncRequests?: ((ctx: MeasureContext, id?: string) => Promise<void>)[]
 }

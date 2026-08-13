@@ -16,7 +16,6 @@
 import { Analytics } from '@hcengineering/analytics'
 import { type Person } from '@hcengineering/contact'
 import core, {
-  AccountRole,
   SortingOrder,
   toIdMap,
   type ApplyOperations,
@@ -36,6 +35,7 @@ import core, {
   type TxResult,
   type TxUpdateDoc,
   getCurrentAccount,
+  isRowLevelRestricted,
   type WithLookup
 } from '@hcengineering/core'
 import { type IntlString } from '@hcengineering/platform'
@@ -282,10 +282,7 @@ export async function canEditIssue (issue?: Issue | WithLookup<Issue>): Promise<
   if (issue === undefined) return false
 
   const account = getCurrentAccount()
-  const isGuest =
-    account.role === AccountRole.Guest ||
-    account.role === AccountRole.DocGuest ||
-    account.role === AccountRole.ReadOnlyGuest
+  const isGuest = isRowLevelRestricted(account.role)
 
   if (!isGuest) return true
 

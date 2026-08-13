@@ -826,12 +826,12 @@ export function hasAccountRole (acc: Account, targerRole: AccountRole): boolean 
 }
 
 /**
- * Any kind of guest account. Intended to be used by permission resolution code only,
- * UI should ask a permission store what the user can do instead of checking roles.
+ * True for any role below `AccountRole.User` (`Guest`, `DocGuest`, `ReadOnlyGuest`). The single
+ * source of truth for "restricted account" - use instead of comparing `role` directly.
  * @public
  */
-export function isGuestRole (role: AccountRole): boolean {
-  return role === AccountRole.Guest || role === AccountRole.DocGuest || role === AccountRole.ReadOnlyGuest
+export function isRowLevelRestricted (role: AccountRole): boolean {
+  return roleOrder[role] < roleOrder[AccountRole.User]
 }
 
 /**

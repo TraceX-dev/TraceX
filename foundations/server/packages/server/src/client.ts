@@ -180,7 +180,8 @@ export class ClientSession implements Session {
       ctx.pipeline.context.modelDb,
       ctx.socialStringsToUsers,
       this.token.extra?.service ?? '🤦‍♂️user',
-      this.getPermissionsGrant()
+      this.getPermissionsGrant(),
+      this.token.extra
     )
     ctx.ctx.contextData = contextData
   }

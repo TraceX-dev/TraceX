@@ -9,6 +9,7 @@ import core, {
   ClientConnectEvent,
   concatLink,
   type Person as GlobalPerson,
+  isRowLevelRestricted,
   isWorkspaceCreating,
   type MeasureMetricsContext,
   metricsToString,
@@ -520,10 +521,7 @@ export async function connect (title: string): Promise<Client | undefined> {
     branding: workspace.branding ?? 'unknown'
   }
 
-  const guestRole =
-    workspaceLoginInfo.role === AccountRole.ReadOnlyGuest ||
-    workspaceLoginInfo.role === AccountRole.DocGuest ||
-    workspaceLoginInfo.role === AccountRole.Guest
+  const guestRole = isRowLevelRestricted(workspaceLoginInfo.role)
   if (guestRole) {
     data.visited_workspace = workspace.url
     data.visited_workspace_uuid = workspace.uuid

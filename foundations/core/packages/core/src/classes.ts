@@ -640,6 +640,56 @@ export interface TxAccessLevel extends Class<Doc> {
 }
 
 /**
+ * Identity an account resolves to for `RowVisibilityPolicy` comparisons. `linkId` comes from a
+ * session's own token claims (see `guest.class.PublicLink`), not from account/person data.
+ * @public
+ */
+export type IdentityKind = 'accountUuid' | 'personId' | 'linkId'
+
+/**
+ * Structural fact about how a class stores row-level ownership, for classes not scoped by
+ * ordinary space membership. Decided once by the plugin author, never admin-configurable.
+ * @public
+ */
+export type RowVisibilityPolicy =
+  // instance[field] must equal the resolved identity value
+  | { kind: 'ownerField', field: string, identity: IdentityKind }
+  // ownership via a separate link record: linkClass docs where linkTargetField === instance._id
+  // and linkIdentityField === the resolved identity value
+  | {
+    kind: 'linkedViaRecord'
+    linkClass: Ref<Class<Doc>>
+    linkTargetField: string
+    linkIdentityField: string
+    identity: IdentityKind
+  }
+  // visibility follows ordinary membership in a real (non-system) space
+  | { kind: 'spaceMember' }
+  // no way to verify ownership - always denied (subject to allowKnownIdBypass)
+  | { kind: 'denyAll' }
+  // deliberately public for any role Layer 1 allows in; reason required for review
+  | { kind: 'publicReadable', reason: string }
+
+/**
+ * Row-level ownership policy for classes not covered by ordinary space-based filtering. Declared
+ * next to the class (`builder.mixin(SomeClass, core.class.Class, core.mixin.RowVisibility, {...})`),
+ * read via `hierarchy.classHierarchyMixin` identically on client and server.
+ * @public
+ */
+export interface RowVisibility extends Class<Doc> {
+  policy: RowVisibilityPolicy
+  /**
+   * Whether a query already narrowing one of `knownIdBypassFields` may skip the policy check,
+   * trusting the caller obtained that reference from a document it can already see. Must be
+   * `false` when the referenced value doubles as a secret (e.g. `guest.class.PublicLink._id`).
+   */
+  allowKnownIdBypass: boolean
+  /** Fields (besides `_id`) that count as a known reference for `allowKnownIdBypass`, when the
+   * trust anchor differs from `policy`'s own field. Defaults to `[]` (only `_id`). */
+  knownIdBypassFields?: string[]
+}
+
+/**
  * @public
  */
 export interface Person {

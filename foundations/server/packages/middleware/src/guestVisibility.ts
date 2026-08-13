@@ -14,21 +14,15 @@
 //
 
 /**
- * Guest / ReadOnlyGuest / DocGuest visibility restrictions used by `SpaceSecurityMiddleware`.
- *
- * Kept in a separate module (rather than folded into the already-large `spaceSecurity.ts`) since
- * this is a self-contained concern: none of it touches the space-membership tracking state
- * machine (tx handling, broadcast targeting, etc.) that makes up the rest of that file - it only
- * *reads* a couple of pieces of that state (`allowedSpaces`, `spacesMap`) and otherwise talks to
- * the rest of the pipeline purely through `Middleware.findAll`.
+ * Restricted-role-specific visibility helpers used by `SpaceSecurityMiddleware`: hiding the People
+ * directory down to accounts sharing a real space, and honoring per-role module disablement
+ * (Settings → Guest permissions). Genuinely role-specific business rules, unlike row-level
+ * ownership - see `./rowVisibility` for that.
  */
 import core, {
   type Account,
-  AccountRole,
   type AccountUuid,
   type Class,
-  type Collaborator,
-  type Doc,
   type DocumentQuery,
   type Hierarchy,
   type MeasureContext,
@@ -41,31 +35,6 @@ import type { Middleware } from '@hcengineering/server-core'
 import contact, { type Person } from '@hcengineering/contact'
 
 export type SpaceWithMembers = Pick<Space, '_id' | 'members' | 'private' | '_class' | 'archived'>
-
-/**
- * A handful of classes end up living in `core.space.Workspace` (one of `mainSpaces`, which is
- * never filtered by role) purely as a storage convenience, even though their content is
- * per-account or per-meeting sensitive (who attended a call, someone else's push-notification
- * credentials, HR leave requests, sharable links, ...). These are referenced by literal class ref
- * rather than importing their owning plugin packages, to avoid pulling heavier feature-plugin
- * dependency graphs into this foundational security middleware.
- */
-export const loveMeetingMinutesClass = 'love:class:MeetingMinutes' as Ref<Class<Doc>>
-export const loveRoomInfoClass = 'love:class:RoomInfo' as Ref<Class<Doc>>
-export const hrRequestClass = 'hr:class:Request' as Ref<Class<Doc>>
-export const notificationPushSubscriptionClass = 'notification:class:PushSubscription' as Ref<Class<Doc>>
-export const guestPublicLinkClass = 'guest:class:PublicLink' as Ref<Class<Doc>>
-
-/**
- * Guest / ReadOnlyGuest / DocGuest must never be able to browse or search the full People
- * directory: only Person/Employee records belonging to accounts that share a real space with
- * them (or their own record) may be discovered. This does not apply to lookups that already
- * name specific, known `_id`s (see `hasNarrowIdQuery`) — those resolve identities referenced by
- * a document the caller can already see (e.g. an issue's assignee), and must keep working.
- */
-export function isGuestVisibilityRestrictedRole (role: AccountRole): boolean {
-  return role === AccountRole.Guest || role === AccountRole.ReadOnlyGuest || role === AccountRole.DocGuest
-}
 
 /**
  * True when `query[field]` already narrows the result to a specific, known set of refs
@@ -205,102 +174,4 @@ export function excludeSpacesFromQuery (
   return { query: { ...current, $nin: Array.from(existingNin) } }
 }
 
-/**
- * `Ref<Doc>`s of every object the account has an existing `Collaborator` record for - used both
- * to scope Collaborator-record browsing to the caller's own grants, and to resolve which
- * `love.class.MeetingMinutes` (attached-to id) a restricted-role account may discover.
- */
-export async function getGuestCollaboratorAttachedIds (
-  next: Middleware | undefined,
-  ctx: MeasureContext<SessionData>,
-  account: Account
-): Promise<Set<Ref<Doc>>> {
-  const collabQuery: DocumentQuery<Collaborator> = { collaborator: account.uuid }
-  const collabs = ((await next?.findAll(ctx, core.class.Collaborator, collabQuery, {
-    projection: { attachedTo: 1 }
-  })) ?? []) as Array<Pick<Collaborator, 'attachedTo'>>
-  return new Set(collabs.map((c) => c.attachedTo))
-}
-
-/** The caller's own `contact.class.Person` ref, resolved via `personUuid`, if any. */
-export async function getOwnPersonId (
-  next: Middleware | undefined,
-  ctx: MeasureContext<SessionData>,
-  account: Account
-): Promise<Ref<Person> | undefined> {
-  const personQuery: DocumentQuery<Person> = { personUuid: account.uuid }
-  const persons = ((await next?.findAll(ctx, contact.class.Person, personQuery, {
-    projection: { _id: 1 },
-    limit: 1
-  })) ?? []) as Array<Pick<Person, '_id'>>
-  return persons[0]?._id
-}
-
-/**
- * Per-class guest visibility restriction for the handful of `core.space.Workspace`-resident
- * classes above. Returns `undefined` when the class is out of scope for this restriction (or
- * the query already narrows by a known-good field, e.g. resolving a specific attached doc from
- * something the caller can already see) - i.e. "leave the query alone". Returns `{ deny: true }`
- * when there is no legitimate identifying field to narrow by and the query is a wide-open
- * browse. Otherwise returns the narrowed `query` to use instead.
- *
- * `love.class.Room` is deliberately NOT covered here: it has no owner/participant field at all
- * and the entire virtual-office UI depends on an unfiltered `findAll(love.class.Room, {})` to
- * render the office/floor map - restricting it needs a real membership concept on Room first,
- * which is a separate, larger change.
- */
-export async function applyGuestSensitiveClassRestriction<T extends Doc> (
-  hierarchy: Hierarchy,
-  next: Middleware | undefined,
-  ctx: MeasureContext<SessionData>,
-  account: Account,
-  _class: Ref<Class<T>>,
-  query: DocumentQuery<T>
-): Promise<{ deny: true } | { query: DocumentQuery<T> } | undefined> {
-  if (hierarchy.isDerived(_class, core.class.Collaborator)) {
-    if (hasNarrowFieldQuery(query, '_id') || hasNarrowFieldQuery(query, 'attachedTo')) {
-      return undefined
-    }
-    const restricted: DocumentQuery<T> = { ...query, collaborator: account.uuid }
-    return { query: restricted }
-  }
-
-  if (hierarchy.isDerived(_class, loveMeetingMinutesClass)) {
-    if (hasNarrowFieldQuery(query, '_id') || hasNarrowFieldQuery(query, 'attachedTo')) {
-      return undefined
-    }
-    const allowed = await getGuestCollaboratorAttachedIds(next, ctx, account)
-    if (allowed.size === 0) return { deny: true }
-    const restricted: DocumentQuery<T> = { ...query, _id: { $in: Array.from(allowed) } }
-    return { query: restricted }
-  }
-
-  if (hierarchy.isDerived(_class, loveRoomInfoClass)) {
-    if (hasNarrowFieldQuery(query, '_id')) return undefined
-    return { deny: true }
-  }
-
-  if (hierarchy.isDerived(_class, guestPublicLinkClass)) {
-    if (hasNarrowFieldQuery(query, '_id') || hasNarrowFieldQuery(query, 'attachedTo')) {
-      return undefined
-    }
-    return { deny: true }
-  }
-
-  if (hierarchy.isDerived(_class, hrRequestClass)) {
-    if (hasNarrowFieldQuery(query, '_id') || hasNarrowFieldQuery(query, 'attachedTo')) {
-      return undefined
-    }
-    const ownPersonId = await getOwnPersonId(next, ctx, account)
-    if (ownPersonId === undefined) return { deny: true }
-    const restricted: DocumentQuery<T> = { ...query, attachedTo: ownPersonId }
-    return { query: restricted }
-  }
-
-  if (hierarchy.isDerived(_class, notificationPushSubscriptionClass)) {
-    const restricted: DocumentQuery<T> = { ...query, user: account.uuid }
-    return { query: restricted }
-  }
-
-  return undefined
-}
+// Row-level ownership restriction (Layer 2) now lives in `./rowVisibility`.

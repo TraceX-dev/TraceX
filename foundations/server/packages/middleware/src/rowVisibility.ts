@@ -1,0 +1,182 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the PolyForm Shield License 1.0.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://polyformproject.org/licenses/shield/1.0.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+/**
+ * Row-level ownership resolution (Layer 2, see `core.mixin.RowVisibility` / `RowVisibilityPolicy`)
+ * for classes not scoped by ordinary space-based filtering.
+ *
+ * Deliberately role-agnostic: nothing here compares `account.role`. Which accounts this runs for
+ * is entirely up to the call site (`isRowLevelRestricted(account.role)` in `spaceSecurity.ts`).
+ */
+import core, {
+  type Account,
+  type Class,
+  type Doc,
+  type DocumentQuery,
+  type Hierarchy,
+  type IdentityKind,
+  type MeasureContext,
+  type Ref,
+  type RowVisibilityPolicy,
+  type SessionData
+} from '@hcengineering/core'
+import type { Middleware } from '@hcengineering/server-core'
+import contact, { type Person } from '@hcengineering/contact'
+import { hasNarrowFieldQuery } from './guestVisibility'
+
+/** Resolves an account to the identity values `RowVisibilityPolicy` comparisons need. Lazy -
+ * most policies only need one of the three, and `personId` costs a DB round trip. */
+export class AccountIdentityResolver {
+  private personIdPromise: Promise<Ref<Person> | undefined> | undefined
+
+  constructor (
+    private readonly next: Middleware | undefined,
+    private readonly ctx: MeasureContext<SessionData>,
+    private readonly account: Account
+  ) {}
+
+  /** The caller's own `contact.class.Person` ref, if any. */
+  async personId (): Promise<Ref<Person> | undefined> {
+    if (this.personIdPromise === undefined) {
+      this.personIdPromise = (async () => {
+        const personQuery: DocumentQuery<Person> = { personUuid: this.account.uuid }
+        const persons = ((await this.next?.findAll(this.ctx, contact.class.Person, personQuery, {
+          projection: { _id: 1 },
+          limit: 1
+        })) ?? []) as Array<Pick<Person, '_id'>>
+        return persons[0]?._id
+      })()
+    }
+    return await this.personIdPromise
+  }
+
+  /** `linkId` claim from the session token (`SessionData.extra`). Every public-link guest shares
+   * the same fixed account, so this - not the account - identifies whose session it is. */
+  linkId (): Ref<Doc> | undefined {
+    return this.ctx.contextData.extra?.linkId as Ref<Doc> | undefined
+  }
+
+  async resolve (kind: IdentityKind): Promise<string | undefined> {
+    switch (kind) {
+      case 'accountUuid':
+        return this.account.uuid
+      case 'personId':
+        return await this.personId()
+      case 'linkId':
+        return this.linkId()
+    }
+  }
+}
+
+export type RowVisibilityDecision<T extends Doc> =
+  | { kind: 'unrestricted' }
+  | { kind: 'narrow', query: DocumentQuery<T> }
+  | { kind: 'deny' }
+
+/** Intersects an existing query field constraint with a required value; denies (`undefined`) on
+ * conflict. Mirrors what `hasNarrowFieldQuery` considers "narrow" - anything else is overwritten. */
+function mergeEquals<T extends Doc> (query: DocumentQuery<T>, field: string, value: any): DocumentQuery<T> | undefined {
+  const current = (query as Record<string, any>)[field]
+  if (current === undefined) {
+    return { ...query, [field]: value }
+  }
+  if (typeof current === 'object' && current !== null && Array.isArray(current.$in)) {
+    return current.$in.includes(value) ? { ...query, [field]: value } : undefined
+  }
+  if (typeof current !== 'object') {
+    return current === value ? query : undefined
+  }
+  return { ...query, [field]: value }
+}
+
+/** Same as `mergeEquals`, but narrows to a set of allowed values (`$in`). */
+function mergeIn<T extends Doc> (query: DocumentQuery<T>, field: string, values: Set<any>): DocumentQuery<T> | undefined {
+  const current = (query as Record<string, any>)[field]
+  if (current === undefined) {
+    return { ...query, [field]: { $in: Array.from(values) } }
+  }
+  if (typeof current === 'object' && current !== null && Array.isArray(current.$in)) {
+    const filtered = (current.$in as any[]).filter((v) => values.has(v))
+    return filtered.length === 0 ? undefined : { ...query, [field]: { $in: filtered } }
+  }
+  if (typeof current !== 'object') {
+    return values.has(current) ? query : undefined
+  }
+  return { ...query, [field]: { $in: Array.from(values) } }
+}
+
+/** Applies `core.mixin.RowVisibility` (if declared) to a `findAll` query. */
+export class RowVisibilityResolver {
+  constructor (private readonly next: Middleware | undefined) {}
+
+  async resolve<T extends Doc> (
+    ctx: MeasureContext<SessionData>,
+    hierarchy: Hierarchy,
+    _class: Ref<Class<T>>,
+    query: DocumentQuery<T>,
+    identity: AccountIdentityResolver
+  ): Promise<RowVisibilityDecision<T>> {
+    const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
+    if (mixin === undefined) {
+      return { kind: 'unrestricted' }
+    }
+
+    if (mixin.allowKnownIdBypass) {
+      const bypassFields = ['_id', ...(mixin.knownIdBypassFields ?? [])]
+      if (bypassFields.some((field) => hasNarrowFieldQuery(query, field))) {
+        return { kind: 'unrestricted' }
+      }
+    }
+
+    return await this.applyPolicy(ctx, mixin.policy, query, identity)
+  }
+
+  private async applyPolicy<T extends Doc> (
+    ctx: MeasureContext<SessionData>,
+    policy: RowVisibilityPolicy,
+    query: DocumentQuery<T>,
+    identity: AccountIdentityResolver
+  ): Promise<RowVisibilityDecision<T>> {
+    switch (policy.kind) {
+      // no-ops: spaceMember is handled elsewhere in the pipeline, publicReadable means "don't restrict"
+      case 'spaceMember':
+      case 'publicReadable':
+        return { kind: 'unrestricted' }
+
+      case 'denyAll':
+        return { kind: 'deny' }
+
+      case 'ownerField': {
+        const value = await identity.resolve(policy.identity)
+        if (value === undefined) return { kind: 'deny' }
+        const merged = mergeEquals(query, policy.field, value)
+        return merged === undefined ? { kind: 'deny' } : { kind: 'narrow', query: merged }
+      }
+
+      case 'linkedViaRecord': {
+        const value = await identity.resolve(policy.identity)
+        if (value === undefined) return { kind: 'deny' }
+        const linkQuery: DocumentQuery<Doc> = { [policy.linkIdentityField]: value } as DocumentQuery<Doc>
+        const links = ((await this.next?.findAll(ctx, policy.linkClass, linkQuery, {
+          projection: { [policy.linkTargetField]: 1 } as Record<string, 1>
+        })) ?? []) as Array<Record<string, Ref<Doc>>>
+        const allowed = new Set<Ref<Doc>>(links.map((l) => l[policy.linkTargetField]))
+        if (allowed.size === 0) return { kind: 'deny' }
+        const merged = mergeIn(query, '_id', allowed)
+        return merged === undefined ? { kind: 'deny' } : { kind: 'narrow', query: merged }
+      }
+    }
+  }
+}

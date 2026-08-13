@@ -390,6 +390,11 @@ export function createModel (builder: Builder): void {
     TOnDemandNotification
   )
 
+  builder.mixin(notification.class.PushSubscription, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' },
+    allowKnownIdBypass: false
+  })
+
   builder.mixin(notification.class.BrowserNotification, core.class.Class, core.mixin.TransientConfiguration, {
     broadcastOnly: true
   })

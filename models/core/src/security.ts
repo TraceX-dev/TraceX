@@ -30,6 +30,8 @@ import {
   type Ref,
   type Role,
   type RolesAssignment,
+  type RowVisibility,
+  type RowVisibilityPolicy,
   type Space,
   type SpaceType,
   type SpaceTypeDescriptor,
@@ -197,6 +199,14 @@ export class TTxAccessLevel extends TClass implements TxAccessLevel {
   removeAccessLevel?: AccountRole
   updateAccessLevel?: AccountRole
   isIdentity?: boolean
+}
+
+/** See `RowVisibility` in `@hcengineering/core`. */
+@Mixin(core.mixin.RowVisibility, core.class.Class)
+export class TRowVisibility extends TClass implements RowVisibility {
+  policy!: RowVisibilityPolicy
+  allowKnownIdBypass!: boolean
+  knownIdBypassFields?: string[]
 }
 
 @Model(core.class.ModulePermissionGroup, core.class.Doc, DOMAIN_MODEL)

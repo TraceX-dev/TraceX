@@ -2,8 +2,8 @@ import contact, { type PermissionsStore } from '@hcengineering/contact'
 import core, {
   AccountRole,
   hasAccountRole,
-  isGuestRole,
   isReadOnlyRole,
+  isRowLevelRestricted,
   onCurrentAccountChanged,
   type Account,
   type AnyAttribute,
@@ -237,7 +237,7 @@ function buildPermissions (
   store: PermissionsStore | undefined,
   restrictions: Restrictions
 ): Permissions {
-  const isGuest = isGuestRole(account.role)
+  const isGuest = isRowLevelRestricted(account.role)
   const isReadOnly = isReadOnlyRole(account.role) || restrictions.readonly
   const isUser = hasAccountRole(account, AccountRole.User)
 

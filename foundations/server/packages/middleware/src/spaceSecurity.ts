@@ -39,6 +39,7 @@ import core, {
   type SessionData,
   shouldShowArchived,
   type Space,
+  isRowLevelRestricted,
   systemAccountUuid,
   toFindResult,
   type Tx,
@@ -59,15 +60,14 @@ import {
 } from '@hcengineering/server-core'
 import contact, { type Person } from '@hcengineering/contact'
 import {
-  applyGuestSensitiveClassRestriction,
   excludeSpacesFromQuery,
   getDisabledModuleSpaceClasses,
   getGuestVisiblePersonIds,
   hasNarrowIdQuery,
-  isGuestVisibilityRestrictedRole,
   resolveDisabledModuleSpaceIds,
   type SpaceWithMembers
 } from './guestVisibility'
+import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
 import { isOwner, isSystem } from './utils'
 
 /**
@@ -80,6 +80,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
   private readonly _domainSpaces = new Map<string, Set<Ref<Space>> | Promise<Set<Ref<Space>>>>()
   private readonly publicSpaces = new Set<Ref<Space>>()
   private readonly systemSpaces = new Set<Ref<Space>>()
+  private readonly rowVisibility = new RowVisibilityResolver(this.next)
 
   wasInit: Promise<void> | boolean = false
 
@@ -696,7 +697,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     let baseQuery: DocumentQuery<T> = !this.skipFindCheck ? newQuery : query
     if (
       !isSystem(account, ctx) &&
-      isGuestVisibilityRestrictedRole(account.role) &&
+      isRowLevelRestricted(account.role) &&
       this.context.hierarchy.isDerived(_class, contact.class.Person) &&
       !hasNarrowIdQuery(baseQuery)
     ) {
@@ -714,23 +715,15 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       baseQuery = restrictedQuery
     }
 
-    // A handful of other classes (love meeting minutes/room presence, HR requests, push
-    // subscriptions, public share links, raw Collaborator records) live in spaces that are never
-    // filtered by role (see `mainSpaces`) despite holding per-account/per-meeting sensitive data.
-    if (!isSystem(account, ctx) && isGuestVisibilityRestrictedRole(account.role)) {
-      const restriction = await applyGuestSensitiveClassRestriction(
-        this.context.hierarchy,
-        this.next,
-        ctx,
-        account,
-        _class,
-        baseQuery
-      )
-      if (restriction !== undefined) {
-        if ('deny' in restriction) {
-          return toFindResult([], 0)
-        }
-        baseQuery = restriction.query
+    // Row-level ownership (Layer 2) for classes living in mainSpaces - see `./rowVisibility`.
+    if (!isSystem(account, ctx) && isRowLevelRestricted(account.role)) {
+      const identity = new AccountIdentityResolver(this.next, ctx, account)
+      const decision = await this.rowVisibility.resolve(ctx, this.context.hierarchy, _class, baseQuery, identity)
+      if (decision.kind === 'deny') {
+        return toFindResult([], 0)
+      }
+      if (decision.kind === 'narrow') {
+        baseQuery = decision.query
       }
     }
 
@@ -743,7 +736,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     // `core.class.Space`-derived classes (field `_id`) and ordinary content classes (field
     // `space`/`objectSpace`) — unlike the Person/sensitive-class restrictions above, this is a
     // blanket exclusion with no known-ref bypass: a disabled module means no read access to it.
-    if (!isSystem(account, ctx) && isGuestVisibilityRestrictedRole(account.role) && domain !== DOMAIN_MODEL) {
+    if (!isSystem(account, ctx) && isRowLevelRestricted(account.role) && domain !== DOMAIN_MODEL) {
       const disabledSpaceClasses = await getDisabledModuleSpaceClasses(this.next, ctx, account)
       const disabledSpaceIds = resolveDisabledModuleSpaceIds(
         this.context.hierarchy,
@@ -796,7 +789,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     await this.init(ctx)
     const newQuery = { ...query }
     const account = ctx.contextData.account
-    const personRestricted = isGuestVisibilityRestrictedRole(account.role)
+    const personRestricted = isRowLevelRestricted(account.role)
     let personClassesSearched = false
     if (!isSystem(account, ctx)) {
       const allSpaces = this.getAllAllowedSpaces(account, true, false, true)

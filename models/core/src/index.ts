@@ -192,6 +192,12 @@ export function createModel (builder: Builder): void {
     TTTransientTTL
   )
 
+  builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' },
+    allowKnownIdBypass: true,
+    knownIdBypassFields: ['attachedTo']
+  })
+
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {
     domain: DOMAIN_TX,
     disabled: [

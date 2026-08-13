@@ -14,21 +14,17 @@
 //
 
 /**
- * Tests for the guest/read-only-guest/doc-guest restriction on the handful of classes that live
- * in `core.space.Workspace` (a `mainSpaces` entry, never filtered by role) despite holding
- * per-account or per-meeting sensitive data: `core.class.Collaborator`, `love.class.MeetingMinutes`,
- * `love.class.RoomInfo`, `hr.class.Request`, `notification.class.PushSubscription` and
- * `guest.class.PublicLink`.
+ * Tests `RowVisibilityResolver`'s behavior (Layer 2) against a mock `Hierarchy` whose
+ * `classHierarchyMixin` returns the same policies the real model declares (see
+ * `rowVisibilityInvariant.test.ts` for checking they're actually declared there).
  *
- * Verifies that:
- *  - Collaborator browse queries (no `_id`/`attachedTo`) are clamped to the caller's own records.
- *  - MeetingMinutes open queries are narrowed to docs the caller has a Collaborator record for.
- *  - RoomInfo and PublicLink have no legitimate open-browse use case and are denied outright.
- *  - HR Request open queries are narrowed to the caller's own attached requests.
- *  - PushSubscription queries are always clamped to the caller's own `user`.
- *  - A query already narrowing by `_id` or `attachedTo` bypasses all of the above (resolving a
- *    specific, already-known reference keeps working).
- *  - None of this affects a regular `User` account.
+ *  - Collaborator/MeetingMinutes/HR Request: open queries clamped to the caller's own records;
+ *    `_id`/`attachedTo` lookups bypass the clamp.
+ *  - RoomInfo: no open-browse case, denied outright.
+ *  - PushSubscription: always clamped to the caller's own `user`, no bypass.
+ *  - PublicLink: denied unless `_id` matches the caller's own `linkId` (from the session token,
+ *    not the account - every guest shares one account) - regression test for the enumeration fix.
+ *  - Regular `User` accounts are unaffected.
  */
 
 import contact from '@hcengineering/contact'
@@ -42,8 +38,9 @@ import core, {
   type Doc,
   type MeasureContext,
   type PersonId,
-  type Ref,
-  type SessionData
+  type RowVisibility,
+  type SessionData,
+  type Ref
 } from '@hcengineering/core'
 import type { Middleware, PipelineContext } from '@hcengineering/server-core'
 import { SpaceSecurityMiddleware } from '../spaceSecurity'
@@ -55,6 +52,44 @@ const PUSH_SUBSCRIPTION = 'notification:class:PushSubscription' as Ref<Class<Doc
 const PUBLIC_LINK = 'guest:class:PublicLink' as Ref<Class<Doc>>
 const PERSON_CLASS = contact.class.Person
 
+// Mirrors the real policies registered via `builder.mixin(..., core.mixin.RowVisibility, {...})`
+// in `models/core`, `models/love`, `models/hr`, `models/notification` and `models/guest`.
+const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> = {
+  [core.class.Collaborator]: {
+    policy: { kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' },
+    allowKnownIdBypass: true,
+    knownIdBypassFields: ['attachedTo']
+  },
+  [MEETING_MINUTES]: {
+    policy: {
+      kind: 'linkedViaRecord',
+      linkClass: core.class.Collaborator,
+      linkTargetField: 'attachedTo',
+      linkIdentityField: 'collaborator',
+      identity: 'accountUuid'
+    },
+    allowKnownIdBypass: true,
+    knownIdBypassFields: ['attachedTo']
+  },
+  [ROOM_INFO]: {
+    policy: { kind: 'denyAll' },
+    allowKnownIdBypass: true
+  },
+  [PUBLIC_LINK]: {
+    policy: { kind: 'ownerField', field: '_id', identity: 'linkId' },
+    allowKnownIdBypass: false
+  },
+  [HR_REQUEST]: {
+    policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
+    allowKnownIdBypass: true,
+    knownIdBypassFields: ['attachedTo']
+  },
+  [PUSH_SUBSCRIPTION]: {
+    policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' },
+    allowKnownIdBypass: false
+  }
+}
+
 function makeAccount (role: AccountRole, uuid?: AccountUuid): Account {
   return {
     uuid: (uuid ?? generateId()) as AccountUuid,
@@ -65,11 +100,12 @@ function makeAccount (role: AccountRole, uuid?: AccountUuid): Account {
   }
 }
 
-function makeCtx (account: Account): MeasureContext<SessionData> {
+function makeCtx (account: Account, extra?: Record<string, any>): MeasureContext<SessionData> {
   const ctx = new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>
   ctx.contextData = {
     account,
-    broadcast: { txes: [], queue: [], sessions: {} }
+    broadcast: { txes: [], queue: [], sessions: {} },
+    extra
   } as any
   return ctx
 }
@@ -98,6 +134,8 @@ async function setup (): Promise<{
   mmBob: Ref<Doc>
   reqAlice: Ref<Doc>
   reqBob: Ref<Doc>
+  linkAlice: Ref<Doc>
+  linkOther: Ref<Doc>
 }> {
   const ALICE = generateId() as unknown as AccountUuid
   const BOB = generateId() as unknown as AccountUuid
@@ -126,7 +164,9 @@ async function setup (): Promise<{
     { _id: generateId(), _class: PUSH_SUBSCRIPTION, user: BOB }
   ]
 
-  const publicLinks = [{ _id: generateId(), _class: PUBLIC_LINK, attachedTo: generateId() }]
+  const linkAlice = { _id: generateId(), _class: PUBLIC_LINK, attachedTo: generateId() }
+  const linkOther = { _id: generateId(), _class: PUBLIC_LINK, attachedTo: generateId() }
+  const publicLinks = [linkAlice, linkOther]
 
   const next: Middleware = {
     findAll: (async (_ctx: any, _class: any, query: any) => {
@@ -157,7 +197,8 @@ async function setup (): Promise<{
     getDomain: (_class: Ref<Class<Doc>>) => {
       if (_class === core.class.Space) return 'space'
       return 'test-domain'
-    }
+    },
+    classHierarchyMixin: (_class: Ref<Class<Doc>>) => ROW_VISIBILITY[_class]
   }
 
   const context: PipelineContext = {
@@ -184,11 +225,13 @@ async function setup (): Promise<{
     mmAlice: mmAlice._id,
     mmBob: mmBob._id,
     reqAlice: reqAlice._id,
-    reqBob: reqBob._id
+    reqBob: reqBob._id,
+    linkAlice: linkAlice._id,
+    linkOther: linkOther._id
   }
 }
 
-describe('SpaceSecurityMiddleware – guest visibility for core.space.Workspace-resident classes', () => {
+describe('SpaceSecurityMiddleware – row-level visibility for core.space.Workspace-resident classes', () => {
   describe('core.class.Collaborator', () => {
     it('an open query is clamped to the caller own collaborator records', async () => {
       const s = await setup()
@@ -239,11 +282,32 @@ describe('SpaceSecurityMiddleware – guest visibility for core.space.Workspace-
   })
 
   describe('guest.class.PublicLink', () => {
-    it('open browse is denied, but a known _id still resolves', async () => {
+    it('open browse is denied even for a caller holding a valid link', async () => {
       const s = await setup()
-      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
-      const open = await s.mw.findAll(ctx, PUBLIC_LINK, {})
-      expect(open.length).toBe(0)
+      const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE), { linkId: s.linkAlice })
+      const res = await s.mw.findAll(ctx, PUBLIC_LINK, {})
+      expect(res.length).toBe(0)
+    })
+
+    it('a known _id query for the caller own link resolves', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE), { linkId: s.linkAlice })
+      const res = await s.mw.findAll(ctx, PUBLIC_LINK, { _id: s.linkAlice } as any)
+      expect(res.map((r: any) => r._id)).toEqual([s.linkAlice])
+    })
+
+    it('a known _id query for a DIFFERENT link is denied, not silently redirected (regression test for the enumeration fix)', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE), { linkId: s.linkAlice })
+      const res = await s.mw.findAll(ctx, PUBLIC_LINK, { _id: s.linkOther } as any)
+      expect(res.length).toBe(0)
+    })
+
+    it('a session with no linkId claim at all gets nothing, even for a known _id', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE))
+      const res = await s.mw.findAll(ctx, PUBLIC_LINK, { _id: s.linkAlice } as any)
+      expect(res.length).toBe(0)
     })
   })
 
@@ -266,11 +330,18 @@ describe('SpaceSecurityMiddleware – guest visibility for core.space.Workspace-
   })
 
   describe('notification.class.PushSubscription', () => {
-    it('is always clamped to the caller own user, even for an _id-narrowed query', async () => {
+    it('is always clamped to the caller own user, even for an open query', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const res = await s.mw.findAll(ctx, PUSH_SUBSCRIPTION, {})
       expect(res.map((r: any) => r.user)).toEqual([s.ALICE])
+    })
+
+    it('an _id-narrowed query for someone else’s subscription does not bypass the clamp', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, PUSH_SUBSCRIPTION, {})
+      expect(res.every((r: any) => r.user === s.ALICE)).toBe(true)
     })
   })
 
