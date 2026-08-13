@@ -7,4 +7,3 @@ git subtree pull --prefix=foundations/net git@github.com:hcengineering/huly.net.
 
 git subtree pull --prefix=foundations/hulylake git@github.com:hcengineering/hulylake.git master
 git subtree pull --prefix=foundations/hulypulse git@github.com:hcengineering/hulypulse.git main
-git subtree pull --prefix=foundations/communication git@github.com:hcengineering/communication.git main

@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,7 +22,7 @@ import { IntlString, plugin } from '@hcengineering/platform'
 import { AnyComponent } from '@hcengineering/ui'
 import { Action } from '@hcengineering/view'
 import { Person, ChannelProvider as SocialChannelProvider } from '@hcengineering/contact'
-import { Widget, WidgetTab } from '@hcengineering/workbench'
+import { type ApplicationNotificationProvider, Widget, WidgetTab } from '@hcengineering/workbench'
 
 /**
  * @public
@@ -233,6 +234,7 @@ export default plugin(chunterId, {
     CloseConversation: '' as Ref<Action>
   },
   function: {
+    GetChunterNotificationStore: '' as Resource<ApplicationNotificationProvider>,
     CanTranslateMessage: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     CanSummarizeMessages: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     OpenThreadInSidebar: '' as Resource<

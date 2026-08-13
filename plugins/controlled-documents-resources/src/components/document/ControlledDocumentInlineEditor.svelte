@@ -16,63 +16,109 @@
 -->
 <script lang="ts">
   import { type ControlledDocument, type DocumentMeta } from '@hcengineering/controlled-documents'
-  import { type Doc, type Ref } from '@hcengineering/core'
+  import { AnyAttribute, type Ref } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
-  import { Button, ButtonKind, ButtonSize, Label, showPopup } from '@hcengineering/ui'
-  import { ObjectBoxPopup } from '@hcengineering/view-resources'
+  import { Button, ButtonKind, ButtonSize, Label, eventToHTMLElement, showPopup } from '@hcengineering/ui'
+  import { createEventDispatcher } from 'svelte'
 
   import documents from '../../plugin'
-  import { getDocumentVersionString } from '../../utils'
-  import ControlledDocumentVersionsSelectorPopup from './ControlledDocumentVersionsSelectorPopup.svelte'
+  import DocumentMetaPresenter from '../DocumentMetaPresenter.svelte'
+  import ControlledDocumentsPopup from './ControlledDocumentsPopup.svelte'
+  import { IntlString } from '@hcengineering/platform'
+  import DocumentPresenter from './presenters/DocumentPresenter.svelte'
+  import DocumentVersionPresenter from './presenters/DocumentVersionPresenter.svelte'
 
-  export let value: Ref<ControlledDocument> | undefined
+  export let value: Ref<ControlledDocument | DocumentMeta> | undefined
   export let readonly: boolean = false
+  export let label: IntlString = documents.string.ControlledDocument
+  export let onChange: (value: Ref<ControlledDocument | DocumentMeta> | undefined) => void
+  export let attribute: AnyAttribute | undefined = undefined
+
+  export let focusIndex: number | undefined = undefined
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
-  export let justify: 'left' | 'center' = 'center'
-  export let width: string | undefined = undefined
+  export let justify: 'left' | 'center' = 'left'
+  export let width: string | undefined = 'min-content'
 
-  const query = createQuery()
+  const documentQuery = createQuery()
+  const metaQuery = createQuery()
+  const dispatch = createEventDispatcher()
   let document: ControlledDocument | undefined
-  let container: HTMLElement
+  let meta: DocumentMeta | undefined
 
-  $: query.query(documents.class.ControlledDocument, { _id: value }, (result) => {
-    ;[document] = result
-  })
+  $: if (value === undefined) {
+    document = undefined
+  } else {
+    documentQuery.query(documents.class.ControlledDocument, { _id: value as Ref<ControlledDocument> }, (result) => {
+      ;[document] = result
+    })
+  }
 
-  function selectVersion (): void {
+  $: if (value === undefined) {
+    meta = undefined
+  } else {
+    metaQuery.query(documents.class.DocumentMeta, { _id: value as Ref<DocumentMeta> }, (result) => {
+      ;[meta] = result
+    })
+  }
+
+  function openPopup (event: MouseEvent): void {
+    event.stopPropagation()
     if (readonly) return
 
     showPopup(
-      ObjectBoxPopup,
-      { _class: documents.class.DocumentMeta, placeholder: documents.string.ControlledDocument },
-      container,
-      (meta) => {
-        if (meta === undefined) return
+      ControlledDocumentsPopup,
+      { selected: value },
+      eventToHTMLElement(event),
+      (result: ControlledDocument | DocumentMeta | undefined) => {
+        if (result === undefined || value === result._id) return
 
-        showPopup(
-          ControlledDocumentVersionsSelectorPopup,
-          { meta: (meta as Doc)._id as Ref<DocumentMeta>, selected: value },
-          container,
-          (version) => {
-            if (version !== undefined) {
-              value = version
-            }
-          }
-        )
+        value = result._id
+        dispatch('change', value)
+        dispatch('value', result)
+        onChange(value)
       }
     )
   }
 </script>
 
-<div bind:this={container} class="min-w-0" class:w-full={width === '100%'}>
-  <Button width={width ?? 'min-content'} {kind} {size} {justify} disabled={readonly} on:click={selectVersion}>
+{#if readonly || attribute?.readonly}
+  {#if document}
+    <div class="flex-row-center">
+      <DocumentPresenter value={document} withTitle withIcon />
+      <span class="ml-1"><DocumentVersionPresenter value={document} /></span>
+    </div>
+  {:else if meta}
+    <div class="flex-row-center">
+      <DocumentMetaPresenter value={meta} />
+      <span class="ml-2"><Label label={documents.string.LatestVersionHint} /></span>
+    </div>
+  {/if}
+{:else}
+  <Button
+    showTooltip={{ label }}
+    {justify}
+    width={width ?? 'min-content'}
+    {focusIndex}
+    {size}
+    {kind}
+    disabled={readonly}
+    on:click={openPopup}
+  >
     <span slot="content" class="overflow-label">
       {#if document}
-        {document.title} ({getDocumentVersionString(document)})
+        <span class="flex-row-center">
+          <DocumentPresenter value={document} withTitle withIcon disableLink />
+          <span class="ml-1"><DocumentVersionPresenter value={document} /></span>
+        </span>
+      {:else if meta}
+        <span class="flex-row-center">
+          <DocumentMetaPresenter value={meta} />
+          <span class="ml-2"><Label label={documents.string.LatestVersionHint} /></span>
+        </span>
       {:else}
-        <Label label={documents.string.ControlledDocument} />
+        <Label {label} />
       {/if}
     </span>
   </Button>
-</div>
+{/if}

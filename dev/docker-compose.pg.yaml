@@ -36,12 +36,10 @@ services:
   transactor_cockroach:
     environment:
       - DB_URL=${DB_URL_PG}
-      - COMMUNICATION_API_ENABLED=false
 
   fulltext_cockroach:
     environment:
       - DB_URL=${DB_URL_PG}
-      - COMMUNICATION_API_ENABLED=false
 
   export:
     environment:
@@ -50,8 +48,3 @@ services:
   datalake:
     environment:
       - DB_URL=${DB_URL_PG}
-
-  front:
-    environment:
-      - COMMUNICATION_API_ENABLED=false
-

@@ -14,18 +14,12 @@
 // limitations under the License.
 //
 
-import { type BrandingMap, type MeasureContext, type Tx, type WorkspaceIds } from '@hcengineering/core'
+import { type BrandingMap, type MeasureContext, type Tx } from '@hcengineering/core'
 import { buildStorageFromConfig } from '@hcengineering/server-storage'
 
 import { startSessionManager } from '@hcengineering/server'
-import {
-  type CommunicationCallbacks,
-  type PlatformQueue,
-  type SessionManager,
-  type StorageConfiguration
-} from '@hcengineering/server-core'
+import { type PlatformQueue, type SessionManager, type StorageConfiguration } from '@hcengineering/server-core'
 
-import { Api as CommunicationApi } from '@hcengineering/communication-server'
 import {
   createServerPipeline,
   isAdapterSecurity,
@@ -52,7 +46,6 @@ import {
 } from '@hcengineering/postgres'
 import { readFileSync } from 'node:fs'
 import { startHttpServer } from './server_http'
-import type { ServerApi } from '@hcengineering/communication-sdk-types'
 
 const model = JSON.parse(readFileSync(process.env.MODEL_JSON ?? 'model.json').toString()) as Tx[]
 
@@ -79,7 +72,6 @@ export function start (
     storageConfig: StorageConfiguration
     port: number
     brandingMap: BrandingMap
-    communicationApiEnabled: boolean
 
     enableCompression?: boolean
 
@@ -112,42 +104,11 @@ export function start (
 
   const externalStorage = buildStorageFromConfig(opt.storageConfig)
 
-  const communicationApiFactory = async (
-    ctx: MeasureContext,
-    workspace: WorkspaceIds,
-    broadcastSessions: CommunicationCallbacks
-  ): Promise<ServerApi> => {
-    if (dbUrl.startsWith('mongodb') || !opt.communicationApiEnabled) {
-      return {
-        findMessagesMeta: async () => [],
-        findMessagesGroups: async () => [],
-        findNotificationContexts: async () => [],
-        findCollaborators: async () => [],
-        findNotifications: async () => [],
-        findLabels: async () => [],
-        findPeers: async () => [],
-        subscribeCard: () => {},
-        unsubscribeCard: () => {},
-        event: async () => {
-          return {}
-        },
-        closeSession: async () => {},
-        close: async () => {}
-      }
-    }
-
-    return await CommunicationApi.create(
-      ctx.newChild('💬 communication api', {}, { span: false }),
-      workspace.uuid,
-      dbUrl,
-      broadcastSessions
-    )
-  }
   const pipelineFactory = createServerPipeline(
     metrics,
     dbUrl,
     model,
-    { ...opt, externalStorage, adapterSecurity: isAdapterSecurity(dbUrl), queue: opt.queue, communicationApiFactory },
+    { ...opt, externalStorage, adapterSecurity: isAdapterSecurity(dbUrl), queue: opt.queue },
     {}
   )
 

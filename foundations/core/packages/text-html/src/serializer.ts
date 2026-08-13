@@ -303,10 +303,13 @@ function addNodeContent (builder: NodeBuilder, node?: MarkupNode): void {
     const colspan = toNumber(attrs.colspan) ?? 1
     const rowspan = toNumber(attrs.rowspan) ?? 1
     const colwidth = toNumber(attrs.colwidth)
+    const backgroundColor = toString(attrs.backgroundColor)
     builder.openTag('td', {
       colspan: colspan !== 1 ? colspan : undefined,
       rowspan: rowspan !== 1 ? rowspan : undefined,
-      colwidth: colwidth !== undefined && colwidth > 0 ? colwidth : undefined
+      colwidth: colwidth !== undefined && colwidth > 0 ? colwidth : undefined,
+      style: backgroundColor !== undefined ? `background-color: ${backgroundColor}` : undefined,
+      'data-background-color': backgroundColor
     })
     addNodes(builder, nodes)
     builder.closeTag('td')
@@ -314,10 +317,13 @@ function addNodeContent (builder: NodeBuilder, node?: MarkupNode): void {
     const colspan = toNumber(attrs.colspan) ?? 1
     const rowspan = toNumber(attrs.rowspan) ?? 1
     const colwidth = toNumber(attrs.colwidth)
+    const backgroundColor = toString(attrs.backgroundColor)
     builder.openTag('th', {
       colspan: colspan !== 1 ? colspan : undefined,
       rowspan: rowspan !== 1 ? rowspan : undefined,
-      colwidth: colwidth !== undefined && colwidth > 0 ? colwidth : undefined
+      colwidth: colwidth !== undefined && colwidth > 0 ? colwidth : undefined,
+      style: backgroundColor !== undefined ? `background-color: ${backgroundColor}` : undefined,
+      'data-background-color': backgroundColor
     })
     addNodes(builder, nodes)
     builder.closeTag('th')

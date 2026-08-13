@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -49,6 +50,12 @@ export * from './types'
 export const DOMAIN_NOTIFICATION = 'notification' as Domain
 export const DOMAIN_DOC_NOTIFY = 'notification-dnc' as Domain
 export const DOMAIN_USER_NOTIFY = 'notification-user' as Domain
+
+/** @public */
+export interface InboxNotificationState {
+  notify: boolean
+  count?: number
+}
 
 /**
  * @public
@@ -503,9 +510,7 @@ const notification = plugin(notificationId, {
     Notify: '' as Resource<NotifyFunc>,
     CheckPushPermission: '' as Resource<(value: boolean) => Promise<boolean>>,
     GetInboxNotificationsClient: '' as Resource<InboxNotificationsClientFactory>,
-    HasInboxNotifications: '' as Resource<
-    (notificationsByContext: Map<Ref<DocNotifyContext>, InboxNotification[]>) => Promise<boolean>
-    >,
+    GetInboxNotificationStore: '' as Resource<() => Readable<InboxNotificationState>>,
     IsNotificationAllowed: '' as Resource<(type: NotificationType, providerId: Ref<NotificationProvider>) => boolean>
   },
   resolver: {
