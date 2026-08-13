@@ -15,29 +15,71 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Ref } from '@hcengineering/core'
   import { type Product } from '@hcengineering/products'
-  import { ButtonKind, ButtonSize } from '@hcengineering/ui'
-  import { ObjectBox } from '@hcengineering/view-resources'
+  import { AnyAttribute, type Ref } from '@hcengineering/core'
+  import { createQuery } from '@hcengineering/presentation'
+  import { Button, ButtonKind, ButtonSize, Label, eventToHTMLElement, showPopup } from '@hcengineering/ui'
+  import { createEventDispatcher } from 'svelte'
 
   import products from '../../plugin'
+  import ProductPresenter from './ProductPresenter.svelte'
+  import ProductsPopup from './ProductsPopup.svelte'
+  import { IntlString } from '@hcengineering/platform'
 
   export let value: Ref<Product> | undefined
   export let readonly: boolean = false
+  export let label: IntlString = products.string.Product
+  export let onChange: (value: any) => void
+  export let attribute: AnyAttribute | undefined = undefined
+
+  export let focusIndex: number | undefined = undefined
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
-  export let justify: 'left' | 'center' = 'center'
-  export let width: string | undefined = undefined
+  export let justify: 'left' | 'center' = 'left'
+  export let width: string | undefined = 'min-content'
+
+  const dispatch = createEventDispatcher()
+  const query = createQuery()
+  let product: Product | undefined
+
+  $: query.query(products.class.Product, { _id: value }, (result) => {
+    ;[product] = result
+  })
+
+  function openPopup (event: MouseEvent): void {
+    event.stopPropagation()
+    if (readonly) return
+
+    showPopup(ProductsPopup, { selected: value }, eventToHTMLElement(event), (result: Product | undefined) => {
+      if (result === undefined || value === result?._id) return
+
+      value = result?._id ?? null
+      dispatch('change', value)
+      dispatch('value', result)
+      onChange(value)
+    })
+  }
 </script>
 
-<ObjectBox
-  bind:value
-  _class={products.class.Product}
-  label={products.string.Product}
-  showNavigate={false}
-  {readonly}
-  {kind}
-  {size}
-  {justify}
-  {width}
-/>
+{#if readonly || attribute?.readonly}
+  <ProductPresenter value={product} />
+{:else}
+  <Button
+    {justify}
+    {focusIndex}
+    showTooltip={{ label }}
+    width={width ?? 'min-content'}
+    {size}
+    {kind}
+    disabled={readonly}
+    on:click={openPopup}
+  >
+    <div slot="content" class="overflow-label">
+      {#if product}
+        <ProductPresenter value={product} disabled />
+      {:else}
+        <Label label={products.string.Product} />
+      {/if}
+    </div>
+  </Button>
+{/if}

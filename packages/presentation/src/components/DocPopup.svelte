@@ -33,13 +33,14 @@
     showPopup,
     tooltip
   } from '@hcengineering/ui'
-  import view from '@hcengineering/view'
+  import view, { type ReferenceVersion, type ReferenceVersionsProvider } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import presentation, { DocPopup } from '..'
   import { ObjectCreate } from '../types'
   import { getClient } from '../utils'
   import { Analytics } from '@hcengineering/analytics'
   import ObjectPopup from './ObjectPopup.svelte'
+  import ReferenceVersionsPopup from './ReferenceVersionsPopup.svelte'
 
   export let _class: Ref<Class<Doc>>
   export let objects: Doc[] = []
@@ -97,10 +98,66 @@
 
     selectedObjects = Array.from(selectedElements)
 
+    console.log('[DocPopup.checkSelected] Updated multi-selection', {
+      selectedId: _id,
+      selectedObjects
+    })
+
     dispatch('update', selectedObjects)
   }
 
   $: isVersionable = (h.classHierarchyMixin(_class, core.mixin.VersionableClass)?.enabled ?? false) && showVersions
+
+  function getReferenceVersionsProvider (doc: Doc): ReferenceVersionsProvider | undefined {
+    return h.classHierarchyMixin(doc._class, view.mixin.ReferenceVersionsProvider)
+  }
+
+  async function getReferenceVersions (doc: Doc): Promise<ReferenceVersion[]> {
+    const provider = getReferenceVersionsProvider(doc)
+    if (provider === undefined) return []
+
+    console.log('[DocPopup.getReferenceVersions] Loading reference versions', {
+      documentId: doc._id,
+      documentClass: doc._class,
+      provider: provider.provider
+    })
+
+    const providerFn = await getResource(provider.provider)
+    const versions = await providerFn(client, doc._id)
+
+    console.log('[DocPopup.getReferenceVersions] Loaded reference versions', {
+      documentId: doc._id,
+      versions: versions.map((version) => ({
+        id: version.id,
+        objectclass: version.objectclass,
+        fixed: version.fixed
+      }))
+    })
+
+    return versions
+  }
+
+  async function selectReferenceVersion (value: Doc | ReferenceVersion): Promise<void> {
+    console.log('[DocPopup.selectReferenceVersion] Selecting reference value', {
+      selectionType: '_id' in value ? 'latest' : 'fixed',
+      selectedId: '_id' in value ? value._id : value.id,
+      selectedClass: '_class' in value ? value._class : value.objectclass
+    })
+
+    if ('_id' in value) {
+      select(value)
+      return
+    }
+
+    const doc = await client.findOne(value.objectclass, { _id: value.id })
+    console.log('[DocPopup.selectReferenceVersion] Resolved fixed reference', {
+      requestedId: value.id,
+      requestedClass: value.objectclass,
+      resolvedId: doc?._id,
+      resolvedClass: doc?._class
+    })
+    if (doc !== undefined) select(doc)
+  }
 
   let selection = 0
   let list: ListView
@@ -115,6 +172,14 @@
   }
 
   function select (item: Doc): void {
+    console.log('[DocPopup.select] Applying selection', {
+      itemId: item._id,
+      itemClass: item._class,
+      multiSelect,
+      currentSelected: selected,
+      currentSelectedObjects: selectedObjects
+    })
+
     onSelect?.(item)
     if (!multiSelect) {
       if (allowDeselect) {
@@ -278,7 +343,49 @@
           {@const obj = objects[item]}
           {@const isDeselectDisabled = selectedElements.has(obj._id) && forbiddenDeselectItemIds.has(obj._id)}
           {@const versionedDoc = isHasVersions(isVersionable, obj)}
-          {#if versionedDoc}
+          {@const referenceVersionsProvider = getReferenceVersionsProvider(obj)}
+          {#if referenceVersionsProvider !== undefined}
+            <Submenu
+              withoutMargin
+              props={{
+                latest: obj,
+                latestLabel: String(getObjectValue('name', obj) ?? getObjectValue('title', obj) ?? ''),
+                versions: getReferenceVersions(obj),
+                selected,
+                selectedObjects,
+                multiSelect,
+                onSelect: selectReferenceVersion
+              }}
+              options={{ component: ReferenceVersionsPopup }}
+            >
+              <svelte:fragment slot="item">
+                {#if type === 'text'}
+                  <span class="label" class:disabled={readonly || isDeselectDisabled || loading}>
+                    <slot name="item" item={obj} />
+                  </span>
+                {:else if type === 'presenter'}
+                  {#if presenter !== undefined}
+                    <svelte:component this={presenter} value={obj} />
+                  {/if}
+                {:else}
+                  <slot name="item" item={obj} />
+                {/if}
+                {#if (allowDeselect && selected) || multiSelect || selected}
+                  <div class="check mr-2" class:disabled={readonly}>
+                    {#if obj._id === selected || selectedElements.has(obj._id)}
+                      {#if loading}
+                        <Spinner size={'small'} />
+                      {:else}
+                        <div use:tooltip={{ label: titleDeselect ?? presentation.string.Deselect }}>
+                          <Icon icon={IconCheck} size={'small'} />
+                        </div>
+                      {/if}
+                    {/if}
+                  </div>
+                {/if}
+              </svelte:fragment>
+            </Submenu>
+          {:else if versionedDoc}
             <Submenu
               withoutMargin
               props={{
