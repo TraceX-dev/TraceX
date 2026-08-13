@@ -195,7 +195,7 @@ function defineProduct (builder: Builder): void {
   })
 
   builder.mixin(products.class.Product, core.class.Class, view.mixin.ArrayEditor, {
-    inlineEditor: view.component.ArrayEditor
+    inlineEditor: products.component.ProductArrayEditor
   })
 
   builder.mixin(products.class.Product, core.class.Class, view.mixin.SpacePresenter, {

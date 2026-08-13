@@ -25,6 +25,7 @@ export default mergeIds(productsId, products, {
   component: {
     EditProduct: '' as AnyComponent,
     EditProductVersion: '' as AnyComponent,
+    ProductArrayEditor: '' as AnyComponent,
     ProductInlineEditor: '' as AnyComponent
   },
   completion: {
