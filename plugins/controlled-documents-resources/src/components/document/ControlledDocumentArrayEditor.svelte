@@ -20,6 +20,7 @@
   import { type IntlString } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Button, type ButtonKind, type ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
+  import { ObjectsTooltipWrapper } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import documents from '../../plugin'
@@ -90,31 +91,40 @@
   $: emptyLabel = label ?? documents.string.ControlledDocument
 </script>
 
-<Button
-  {justify}
-  {focusIndex}
+<ObjectsTooltipWrapper
+  selectedCount={toArray(value).length}
+  objects={[...docs, ...metas]}
+  objectIds={toArray(value)}
+  label={emptyLabel}
+  {readonly}
   {width}
-  {size}
-  icon={toArray(value).length === 1 ? undefined : icon}
-  {kind}
-  disabled={readonly}
-  on:click={openPopup}
 >
-  <div slot="content" class="overflow-label">
-    {#if toArray(value).length === 1 && docs.length === 1}
-      <span class="flex-row-center">
-        <DocumentPresenter value={docs[0]} withTitle withIcon disableLink />
-        <span class="ml-1"><DocumentVersionPresenter value={docs[0]} /></span>
-      </span>
-    {:else if toArray(value).length === 1 && metas.length === 1}
-      <span class="flex-row-center">
-        <DocumentMetaPresenter value={metas[0]} />
-        <span class="ml-2"><Label label={documents.string.LatestVersionHint} /></span>
-      </span>
-    {:else if toArray(value).length > 1}
-      <div class="lower">{toArray(value).length} <Label label={documents.string.ControlledDocument} /></div>
-    {:else}
-      <Label label={emptyLabel} />
-    {/if}
-  </div>
-</Button>
+  <Button
+    {justify}
+    {focusIndex}
+    width={'100%'}
+    {size}
+    icon={toArray(value).length === 1 ? undefined : icon}
+    {kind}
+    disabled={readonly}
+    on:click={openPopup}
+  >
+    <div slot="content" class="overflow-label">
+      {#if toArray(value).length === 1 && docs.length === 1}
+        <span class="flex-row-center">
+          <DocumentPresenter value={docs[0]} withTitle withIcon disableLink />
+          <span class="ml-1"><DocumentVersionPresenter value={docs[0]} /></span>
+        </span>
+      {:else if toArray(value).length === 1 && metas.length === 1}
+        <span class="flex-row-center">
+          <DocumentMetaPresenter value={metas[0]} />
+          <span class="ml-2"><Label label={documents.string.LatestVersionHint} /></span>
+        </span>
+      {:else if toArray(value).length > 1}
+        <div class="lower">{toArray(value).length} <Label label={documents.string.ControlledDocument} /></div>
+      {:else}
+        <Label label={emptyLabel} />
+      {/if}
+    </div>
+  </Button>
+</ObjectsTooltipWrapper>

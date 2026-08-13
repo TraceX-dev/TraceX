@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,6 +18,7 @@
   import type { Class, Doc, DocumentQuery, Ref } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
   import { ObjectCreate, getClient } from '@hcengineering/presentation'
+  import { ObjectsTooltipWrapper } from '@hcengineering/view-resources'
   import type { ButtonKind, ButtonSize, TooltipAlignment } from '@hcengineering/ui'
   import { Button, Label, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
@@ -87,30 +89,39 @@
   }
 </script>
 
-<Button
-  icon={persons.length === 0 ? Members : undefined}
-  label={persons.length === 0 ? emptyLabel : undefined}
-  notSelected={persons.length === 0}
+<ObjectsTooltipWrapper
+  selectedCount={items.length}
+  objects={persons}
+  objectIds={items}
+  {label}
+  direction={labelDirection}
+  {readonly}
   width={width ?? 'min-content'}
-  {kind}
-  {size}
-  {justify}
-  disabled={readonly}
-  showTooltip={label ? { label, direction: labelDirection } : undefined}
-  on:click={addPerson}
 >
-  <svelte:fragment slot="content">
-    {#if persons.length > 0}
-      <div class="flex-row-center flex-nowrap pointer-events-none">
-        {#if persons.length === 1}
-          <UserInfo value={persons[0]} size={'card'} />
-        {:else}
-          <CombineAvatars {_class} bind:items size={'card'} hideLimit />
-          <span class="overflow-label ml-1-5">
-            <Label label={plugin.string.NumberMembers} params={{ count: persons.length }} />
-          </span>
-        {/if}
-      </div>
-    {/if}
-  </svelte:fragment>
-</Button>
+  <Button
+    icon={persons.length === 0 ? Members : undefined}
+    label={persons.length === 0 ? emptyLabel : undefined}
+    notSelected={persons.length === 0}
+    width={'100%'}
+    {kind}
+    {size}
+    {justify}
+    disabled={readonly}
+    on:click={addPerson}
+  >
+    <svelte:fragment slot="content">
+      {#if persons.length > 0}
+        <div class="flex-row-center flex-nowrap pointer-events-none">
+          {#if persons.length === 1}
+            <UserInfo value={persons[0]} size={'card'} />
+          {:else}
+            <CombineAvatars {_class} bind:items size={'card'} hideLimit />
+            <span class="overflow-label ml-1-5">
+              <Label label={plugin.string.NumberMembers} params={{ count: persons.length }} />
+            </span>
+          {/if}
+        </div>
+      {/if}
+    </svelte:fragment>
+  </Button>
+</ObjectsTooltipWrapper>
