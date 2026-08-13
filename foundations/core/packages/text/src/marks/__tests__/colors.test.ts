@@ -86,10 +86,7 @@ describe('BackgroundColor attributes', () => {
 })
 
 describe('BackgroundColor commands', () => {
-  // Regression coverage for the bug where table header cells were stuck grey and uneditable:
-  // `common-kit.ts` used to configure this extension for `tableCell` only, so `setBackgroundColor`
-  // silently no-op'd on `tableHeader` nodes (see kits/__tests__/common-kit.test.ts for the check
-  // that the real production kit now configures both types).
+  // Regression: setBackgroundColor used to silently no-op on tableHeader (see common-kit.test.ts).
   it('setBackgroundColor updates every configured node type, including tableHeader', () => {
     const commands = getBackgroundColorCommands(['tableCell', 'tableHeader'])
     const stub = commandsStub()

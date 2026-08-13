@@ -93,9 +93,8 @@ export const TextColorStylingKit = extensionKit(
     ({
       textStyle: e(TextStyle),
       testColor: e(TextColor),
-      // Registered for both tableCell and tableHeader: header cells previously fell back
-      // to the hardcoded --text-editor-table-header-color CSS rule (see prose.scss) with
-      // no way to override it, since the attribute wasn't recognized on tableHeader nodes.
+      // tableHeader was missing here, so header cells always fell back to prose.scss's
+      // hardcoded grey and couldn't be recolored.
       backgroundColor: e(BackgroundColor, { types: ['tableCell', 'tableHeader'] }),
       cellAlign: e(CellAlign, { types: ['tableCell'] })
     }) as const

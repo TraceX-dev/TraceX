@@ -240,16 +240,9 @@ function appendList (out: Block[], list: MarkupNode, ordered: boolean, level: nu
   }
 }
 
-// The table cell color picker's swatches store the *CSS variable reference* as the attribute
-// value (see plugins/text-editor-resources/src/components/extension/colors.ts), e.g.
-// "var(--theme-text-editor-palette-bg-yellow)" — never a resolved hex. That's fine for the web
-// editor (the browser resolves the variable), but the `docx` library's shading fill requires a
-// strict 6-digit hex and throws (crashing the whole export) on anything else. This table mirrors
-// the *light*-theme palette in packages/theme/styles/_colors.scss (`.theme-light`) so named
-// colors still render in the exported document instead of silently disappearing; light is used
-// because exported/printed documents are conventionally viewed on a white page regardless of the
-// editor's active theme. doc-convert has no CSS tooling, so this is a hand-kept copy — if the
-// palette in _colors.scss changes, update this too.
+// Color picker swatches store a CSS var() reference (e.g. "var(--theme-text-editor-palette-bg-yellow)"),
+// not a hex value — docx's shading.fill requires strict 6-digit hex and throws on anything else.
+// Mirrors the light-theme palette from packages/theme/styles/_colors.scss; keep in sync if it changes.
 const PALETTE_BG_RGBA: Record<string, [number, number, number, number]> = {
   gray: [241, 241, 239, 1],
   brown: [244, 238, 238, 1],
@@ -267,8 +260,7 @@ const HEX_RE = /^#?([0-9a-fA-F]{6})$/
 const SHORT_HEX_RE = /^#?([0-9a-fA-F]{3})$/
 const RGB_RE = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/
 
-// Alpha-composite an rgba() color over a white backdrop (the assumption a printed/exported page
-// is white regardless of the editor's active theme) and return a 6-digit hex string.
+// Composite an rgba() color over white and return a 6-digit hex string.
 function flattenToHex (r: number, g: number, b: number, a: number): string {
   const blend = (fg: number): number => Math.round(a * fg + (1 - a) * 255)
   return [blend(r), blend(g), blend(b)]
@@ -278,10 +270,9 @@ function flattenToHex (r: number, g: number, b: number, a: number): string {
 }
 
 /**
- * Resolve a `MarkupNode` `backgroundColor` attribute value into a hex color the `docx` library's
- * `shading.fill` will accept, or `undefined` if it can't be resolved (in which case the caller
- * should omit shading rather than pass the raw value through — an invalid fill throws and takes
- * down the entire export).
+ * Resolve a `backgroundColor` attribute value into a hex color `docx`'s `shading.fill` accepts.
+ * Returns `undefined` if it can't be resolved — callers should omit shading rather than pass an
+ * invalid value through, which throws and takes down the whole export.
  *
  * @public
  */
@@ -320,17 +311,12 @@ export function resolveDocxFill (value: string | undefined): string | undefined 
     return flattenToHex(Number(r), Number(g), Number(b), a !== undefined ? Number(a) : 1)
   }
 
-  // Unrecognized format (e.g. a future/unknown CSS variable or color keyword) — skip shading
-  // rather than risk another unhandled-format crash in the docx library.
   return undefined
 }
 
-// Fallback total table width used when cell `colwidth` (captured in px from the editor's
-// column-resize state) isn't available for a column. ~6.25in of content at 1440 twips/inch,
-// a reasonable default for an A4/Letter page with standard margins.
+// Fallback content width (dxa) for columns with no known `colwidth` — ~6.25in, a typical A4/Letter body.
 const DEFAULT_TABLE_WIDTH_DXA = 9000
-// prosemirror-tables stores `colwidth` in CSS pixels (96 dpi); OOXML column widths are in
-// twentieths of a point (dxa), and 1in = 96px = 1440dxa, so 1px = 15dxa.
+// `colwidth` is stored in CSS px; OOXML widths are in dxa (1px = 15dxa at 96dpi / 1440dxa-per-inch).
 const PX_TO_DXA = 15
 
 function renderTable (node: MarkupNode, ctx: DocxCtx): Table {
@@ -360,28 +346,22 @@ function renderTable (node: MarkupNode, ctx: DocxCtx): Table {
     rows: tableRows,
     width: { size: 100, type: WidthType.PERCENTAGE },
     columnWidths,
-    // FIXED (as opposed to the docx default AUTOFIT) tells readers to respect the explicit
-    // column widths below instead of recomputing them from content, which is what several
-    // readers (notably Google Docs) get wrong when no widths are supplied at all.
+    // FIXED (vs. docx's default AUTOFIT) makes readers respect these widths instead of
+    // recomputing them from content — Google Docs in particular gets this wrong otherwise.
     layout: TableLayoutType.FIXED
   })
 }
 
 /**
- * Walk the table grid (accounting for colspan/rowspan) to work out a width per column, in dxa.
- * Columns whose width we know (from a cell's `colwidth` attr) keep that width; the rest split
- * the remaining budget evenly. Without this, cells default to a near-zero grid width and
- * readers wrap the text one character per line per cell.
- *
- * Exported for unit testing — the `docx` Table it feeds into is otherwise opaque (a binary
- * zip), so this is the layer where the width-assignment logic can actually be verified.
+ * Per-column width (dxa), walking the table grid to account for colspan/rowspan. Known
+ * `colwidth`s are kept; the rest split the remaining budget evenly. Without this, cells default
+ * to a near-zero grid width and readers wrap text one character per line per cell.
  *
  * @public
  */
 export function computeColumnWidths (rows: MarkupNode[]): number[] {
   const colWidths: Array<number | undefined> = []
-  // Number of upcoming rows (including the one being processed) a column is still covered by
-  // a vertical merge (rowspan) started in an earlier row.
+  // Rows remaining (including current) that a column is still covered by an earlier rowspan.
   const carry: number[] = []
 
   for (const row of rows) {
@@ -405,9 +385,7 @@ export function computeColumnWidths (rows: MarkupNode[]): number[] {
     }
   }
 
-  // `carry` grows to the highest column index ever touched (it's set for every column a cell
-  // occupies, whether or not that cell's width is known), so it's the reliable column count —
-  // unlike `colWidths`, which only grows where a width was actually recorded.
+  // `carry` covers every column ever touched, unlike `colWidths` which only has known widths.
   const columnCount = Math.max(1, carry.length)
   const fallback = Math.round(DEFAULT_TABLE_WIDTH_DXA / columnCount)
   return Array.from({ length: columnCount }, (_, i) => colWidths[i] ?? fallback)

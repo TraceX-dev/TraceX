@@ -16,11 +16,8 @@
 import { type AnyExtension, getExtensionField } from '@tiptap/core'
 import { TextColorStylingKit } from '../common-kit'
 
-// Resolve the sub-extensions an `extensionKit` declares via `addExtensions`, the same way
-// tiptap's own ExtensionManager would when the kit is loaded into an editor. This lets us assert
-// on the *actual production wiring* without mounting a real (DOM-backed) editor — see
-// marks/__tests__/colors.test.ts and cellAlign.test.ts for the generic behavior of the
-// extensions themselves.
+// Resolve the sub-extensions a kit declares via `addExtensions`, the way tiptap's own
+// ExtensionManager would — lets us assert on the actual production wiring without a DOM.
 function resolveKitExtensions (kit: AnyExtension): AnyExtension[] {
   const addExtensions = getExtensionField<() => AnyExtension[]>(kit, 'addExtensions', {
     name: kit.name,
@@ -33,10 +30,7 @@ function resolveKitExtensions (kit: AnyExtension): AnyExtension[] {
 
 describe('TextColorStylingKit', () => {
   it('registers the backgroundColor attribute on both tableCell and tableHeader', () => {
-    // Regression test: this used to be configured for `tableCell` only, so header-row cells
-    // (tableHeader nodes) always fell back to the hardcoded grey CSS variable (prose.scss
-    // `th { background-color: var(--text-editor-table-header-color) }`) with no way to override
-    // it — the color picker's setBackgroundColor command silently no-op'd on that node type.
+    // Regression: was tableCell-only, so header cells fell back to prose.scss's hardcoded grey.
     const extensions = resolveKitExtensions(TextColorStylingKit)
     const backgroundColor = extensions.find((ext) => ext.name === 'backgroundColor')
 

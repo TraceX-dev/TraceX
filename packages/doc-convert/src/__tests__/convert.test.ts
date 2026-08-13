@@ -240,8 +240,7 @@ describe('computeColumnWidths', () => {
       }
     ]
     const widths = computeColumnWidths(rows)
-    // 200px * 15 dxa/px, per the px->dxa conversion used for OOXML column widths.
-    expect(widths[0]).toBe(3000)
+    expect(widths[0]).toBe(3000) // 200px * 15 dxa/px
   })
 
   it('accounts for colspan so a merged cell does not shrink the real column count', () => {
@@ -262,7 +261,7 @@ describe('computeColumnWidths', () => {
         type: MarkupNodeType.table_row,
         content: [cell(MarkupNodeType.table_cell, 'tall', { rowspan: 2 }), cell(MarkupNodeType.table_cell, 'a')]
       },
-      // second row only has one explicit cell: the first column is still covered by the rowspan above
+      // first column still covered by the rowspan above, so this row only lists one cell
       { type: MarkupNodeType.table_row, content: [cell(MarkupNodeType.table_cell, 'b')] }
     ]
     const widths = computeColumnWidths(rows)
@@ -325,15 +324,11 @@ describe('resolveDocxFill', () => {
   })
 
   it('resolves a table color picker swatch (CSS var reference) to a real hex', () => {
-    // This is the exact string the color picker stores (plugins/text-editor-resources
-    // colors.ts) and the thing that used to crash the whole export: docx's shading.fill
-    // requires a strict 6-digit hex and throws on "var(--theme-text-editor-palette-bg-yellow)".
     const fill = resolveDocxFill('var(--theme-text-editor-palette-bg-yellow)')
     expect(fill).toMatch(/^[0-9A-F]{6}$/)
   })
 
   it('flattens a semi-transparent rgba() swatch (e.g. purple/pink) against white', () => {
-    // packages/theme/styles/_colors.scss's light-theme purple swatch: rgba(244, 240, 247, 0.8)
     const fill = resolveDocxFill('var(--theme-text-editor-palette-bg-purple)')
     expect(fill).toBe('F6F3F9')
   })
@@ -351,9 +346,8 @@ describe('resolveDocxFill', () => {
 
 describe('markupToDocx (var() background color)', () => {
   it('does not throw when a cell backgroundColor is a CSS var() reference', async () => {
-    // Regression test for the reported crash: "Invalid hex value
-    // 'var(--theme-text-editor-palette-bg-yellow)'. Expected 6 digit hex value", thrown deep
-    // inside the `docx` library and previously taking down the entire export.
+    // Regression: this used to throw "Invalid hex value '...'. Expected 6 digit hex value"
+    // deep inside the docx library and crash the whole export.
     const table: MarkupNode = {
       type: MarkupNodeType.doc,
       content: [
