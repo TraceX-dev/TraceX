@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -226,5 +227,53 @@ export function defineMethods (builder: Builder): void {
       createdContext: null
     },
     process.method.UnlockField
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.MakeVersionEffective,
+      objectClass: card.class.Card,
+      requiredParams: [],
+      createdContext: null
+    },
+    process.method.MakeVersionEffective
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.CreateNewVersion,
+      objectClass: card.class.Card,
+      requiredParams: [],
+      createdContext: { _class: card.class.Card }
+    },
+    process.method.CreateNewVersion
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.DisableVersionCreation,
+      objectClass: card.class.Card,
+      requiredParams: [],
+      createdContext: null
+    },
+    process.method.DisableVersionCreation
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.EnableVersionCreation,
+      objectClass: card.class.Card,
+      requiredParams: [],
+      createdContext: null
+    },
+    process.method.EnableVersionCreation
   )
 }

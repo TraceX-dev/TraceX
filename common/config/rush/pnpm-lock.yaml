@@ -33678,6 +33678,9 @@ importers:
 
   ../../server-plugins/process-resources:
     dependencies:
+      '@hcengineering/attachment':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/attachment
       '@hcengineering/card':
         specifier: workspace:^0.7.0
         version: link:../../plugins/card
@@ -33696,6 +33699,9 @@ importers:
       '@hcengineering/process':
         specifier: workspace:^0.7.0
         version: link:../../plugins/process
+      '@hcengineering/rank':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/core/packages/rank
       '@hcengineering/server-core':
         specifier: workspace:^0.7.19
         version: link:../../foundations/server/packages/core

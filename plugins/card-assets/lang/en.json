@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "Forbid Remove Tag",
     "Duplicate": "Duplicate",
     "Version": "Version",
+    "Effective": "Effective",
+    "MakeEffective": "Make effective",
     "Versions": "Versions",
     "NewVersion": "New version",
+    "VersionCreationUnavailable": "Creating a new version is currently unavailable",
     "Versioning": "Versioning",
     "EnableVersioning": "Enable versioning",
     "EnableVersioningConfirm": "Do you want to enable versioning?",
@@ -91,6 +94,7 @@
     "Grid": "Grid",
     "RichtextProperties": "Richtext Properties",
     "ShowAllVersions": "Show all versions",
+    "ShowOnlyEffectiveVersions": "Show only effective versions",
     "ShowOnlyCardsWithoutRelations": "Show only cards without relations"
   }
 }
