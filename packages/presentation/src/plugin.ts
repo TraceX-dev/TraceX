@@ -186,7 +186,6 @@ export default plugin(presentationId, {
     MailUrl: '' as Metadata<string>,
     DisabledFeatures: '' as Metadata<Set<string>>,
     PreviewUrl: '' as Metadata<string>,
-    PulseUrl: '' as Metadata<string>,
     HulylakeUrl: '' as Metadata<string>,
     PaymentUrl: '' as Metadata<string>,
     SignupUrl: '' as Metadata<string>
