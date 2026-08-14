@@ -2326,9 +2326,21 @@ export async function getLoginInfoByToken (
   let account: AccountUuid | undefined
   let nbf: number | undefined
   let exp: number | undefined
+  let sessionId: string | undefined
+  let kind: Token['kind']
 
   try {
-    ;({ account, workspace: workspaceUuid, extra, grant, nbf, exp, sub } = decodeTokenVerbose(ctx, token))
+    ;({
+      account,
+      workspace: workspaceUuid,
+      extra,
+      grant,
+      nbf,
+      exp,
+      sub,
+      sessionId,
+      kind
+    } = decodeTokenVerbose(ctx, token))
     if (grant != null && sub == null) {
       sub = (await db.generatePersonUuid()) as AccountUuid
     }
@@ -2353,6 +2365,12 @@ export async function getLoginInfoByToken (
 
   if (accountUuid == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
+  }
+
+  // This endpoint restores the login from the access-token cookie on a cold
+  // browser load. Do not turn a revoked session into a legacy token here.
+  if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
 
   const apiKeyId = extra?.apiKey
@@ -2480,7 +2498,7 @@ export async function getLoginInfoByToken (
     account: accountUuid,
     name: getPersonName(person),
     socialId: socialId?._id,
-    token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub })
+    token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub, sessionId, kind })
   }
 
   await recordSecurityLoginEvent(ctx, db, {

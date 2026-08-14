@@ -58,6 +58,22 @@ const KEEP_ALIVE_HEADERS = {
 }
 
 /**
+ * Converts a workspace access token into the account-scoped token persisted in
+ * the access cookie. Session identity and expiry must survive this conversion.
+ */
+export function createAccountCookieToken (ctx: MeasureContext, token: string): string {
+  const { account, extra, sessionId, kind, exp } = decodeTokenVerbose(ctx, token)
+  return generateToken(account, undefined, extra, undefined, { sessionId, kind, exp })
+}
+
+/** Removes a refresh token before an RPC result is serialized for the browser. */
+export function stripRefreshTokenFromResponse<T> (result: T): T {
+  if (result === null || typeof result !== 'object' || !('refreshToken' in result)) return result
+  const { refreshToken: _refreshToken, ...response } = result as T & { refreshToken?: unknown }
+  return response as T
+}
+
+/**
  * @public
  */
 export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap, onClose?: () => void): void {
@@ -395,17 +411,11 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       return
     }
 
-    // Ensure we don't set the token with workspace to the cookie, but do carry
-    // the login session identity (sessionId/kind) through. Without this, any
-    // token later minted from this cookie (see getLoginInfoByToken's cookie
-    // fallback, used on a cold reload with no in-memory token) silently
-    // becomes a "legacy" token with no sessionId — permanently unrevocable and
-    // never matched as the "current" session again, even though the original
-    // ActiveSession row is still sitting there. That's what makes revoking a
-    // session look like a no-op and a closed/reopened tab look like it spun up
-    // an orphaned, already-inactive session.
-    const { account, extra, sessionId, kind } = decodeTokenVerbose(measureCtx, token)
-    const tokenWithoutWorkspace = generateToken(account, undefined, extra, undefined, { sessionId, kind })
+    // Keep the login-session identity and expiry while dropping workspace
+    // scope. The cold-load path reissues this token, so omitting either value
+    // would bypass session revocation or turn a short-lived access token into
+    // a non-expiring one.
+    const tokenWithoutWorkspace = createAccountCookieToken(measureCtx, token)
 
     const cookieOpts = getCookieOptions(ctx)
     for (const opt of cookieOpts) {
@@ -554,8 +564,9 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
             request.method === 'refreshToken' ? (extractRefreshCookie(ctx.request.headers) ?? token) : token
           const result = await method(_ctx, db, branding, request, effectiveToken, meta)
 
-          // Persist a rotating refresh token as an httpOnly cookie so it is not
-          // exposed to JS at rest; it stays in the JSON for non-cookie clients.
+          // Persist the rotating refresh token only as an httpOnly cookie.
+          // Returning it in JSON would let any injected browser script steal a
+          // long-lived credential and defeat the cookie's XSS protection.
           const refreshTok = result?.refreshToken
           if (typeof refreshTok === 'string' && refreshTok !== '') {
             const refreshTtlSec = getMetadata(account.metadata.RefreshTokenTtlSec) ?? 0
@@ -569,7 +580,8 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
             }
           }
 
-          const body = JSON.stringify(result)
+          const responseResult = stripRefreshTokenFromResponse(result)
+          const body = JSON.stringify(responseResult)
           ctx.res.writeHead(200, KEEP_ALIVE_HEADERS)
           ctx.res.end(body)
         } catch (err: any) {

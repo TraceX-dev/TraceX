@@ -14,8 +14,10 @@
 //
 
 import { generateUuid, type AccountUuid, type MeasureContext, type WorkspaceUuid } from '@hcengineering/core'
-import { decodeToken } from '@hcengineering/server-token'
+import { PlatformError } from '@hcengineering/platform'
+import { decodeToken, generateToken } from '@hcengineering/server-token'
 import type { AccountDB, ActiveSession, SecurityLoginEvent } from '../types'
+import { getLoginInfoByToken } from '../operations'
 import {
   accessTokenOptions,
   classifySecurityEventType,
@@ -155,6 +157,57 @@ describe('createActiveSession', () => {
     expect(row.revokedOn).toBeUndefined()
     expect(row.createdOn).toBe(row.lastSeen)
     expect(row.refreshGeneration).toBe(0)
+  })
+})
+
+describe('getLoginInfoByToken session restoration', () => {
+  const accountUuid = '00000000-0000-4000-8000-000000000001' as AccountUuid
+  const sessionId = 'session-1'
+
+  function addAccountIdentity (db: AccountDB): void {
+    ;(db as any).socialId = {
+      find: jest.fn().mockResolvedValue([{ _id: 'email:test@example.com', personUuid: accountUuid, verifiedOn: 1 }])
+    }
+    ;(db as any).person = {
+      findOne: jest.fn().mockResolvedValue({ uuid: accountUuid, firstName: 'Test', lastName: 'User' })
+    }
+  }
+
+  it('preserves session identity and expiry when restoring an active cookie token', async () => {
+    const { db, activeSession } = makeDb()
+    const exp = Math.floor(Date.now() / 1000) + 3600
+    activeSession.rows = [
+      { sessionId, accountUuid, createdOn: 1, lastSeen: 1, authMethod: 'password', refreshGeneration: 0 }
+    ] as ActiveSession[]
+    addAccountIdentity(db)
+
+    const token = generateToken(accountUuid, undefined, undefined, undefined, {
+      sessionId,
+      kind: 'access',
+      exp
+    })
+    const result = await getLoginInfoByToken(ctx, db, null, token)
+    if (result === null || !('token' in result) || result.token === undefined) {
+      throw new Error('Expected an access token')
+    }
+    const restored = decodeToken(result.token)
+
+    expect(restored.sessionId).toBe(sessionId)
+    expect(restored.kind).toBe('access')
+    expect(restored.exp).toBe(exp)
+  })
+
+  it('rejects a revoked cookie session before issuing a replacement token', async () => {
+    const { db, activeSession } = makeDb()
+    activeSession.rows = [
+      { sessionId, accountUuid, createdOn: 1, lastSeen: 1, authMethod: 'password', refreshGeneration: 0, revokedOn: 2 }
+    ] as ActiveSession[]
+    const token = generateToken(accountUuid, undefined, undefined, undefined, {
+      sessionId,
+      kind: 'access'
+    })
+
+    await expect(getLoginInfoByToken(ctx, db, null, token)).rejects.toBeInstanceOf(PlatformError)
   })
 })
 
