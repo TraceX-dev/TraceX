@@ -395,9 +395,17 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       return
     }
 
-    // Ensure we don't set the token with workspace to the cookie
-    const { account, extra } = decodeTokenVerbose(measureCtx, token)
-    const tokenWithoutWorkspace = generateToken(account, undefined, extra)
+    // Ensure we don't set the token with workspace to the cookie, but do carry
+    // the login session identity (sessionId/kind) through. Without this, any
+    // token later minted from this cookie (see getLoginInfoByToken's cookie
+    // fallback, used on a cold reload with no in-memory token) silently
+    // becomes a "legacy" token with no sessionId — permanently unrevocable and
+    // never matched as the "current" session again, even though the original
+    // ActiveSession row is still sitting there. That's what makes revoking a
+    // session look like a no-op and a closed/reopened tab look like it spun up
+    // an orphaned, already-inactive session.
+    const { account, extra, sessionId, kind } = decodeTokenVerbose(measureCtx, token)
+    const tokenWithoutWorkspace = generateToken(account, undefined, extra, undefined, { sessionId, kind })
 
     const cookieOpts = getCookieOptions(ctx)
     for (const opt of cookieOpts) {

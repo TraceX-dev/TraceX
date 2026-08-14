@@ -15,7 +15,6 @@
 <script lang="ts">
   import { getCurrentAccount } from '@hcengineering/core'
   import setting from '@hcengineering/setting'
-  import view from '@hcengineering/view'
   import {
     Breadcrumb,
     Button,
@@ -37,6 +36,7 @@
   import settingsRes from '../plugin'
   import { getAccountClient } from '../utils'
   import ActiveSessionsSettings from './ActiveSessionsSettings.svelte'
+  import LoginHistoryIcon from './LoginHistoryIcon.svelte'
   import SessionHistorySettings from './SessionHistorySettings.svelte'
   import TwoFactorSetupPopup from './security/TwoFactorSetupPopup.svelte'
 
@@ -119,7 +119,7 @@
           }}
         />
         <NavItem
-          icon={view.icon.Timeline}
+          icon={LoginHistoryIcon}
           label={settingsRes.string.SecurityTabLoginHistory}
           selected={securityTab === 'loginHistory'}
           on:click={() => {

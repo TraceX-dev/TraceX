@@ -15,20 +15,28 @@
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
   import type { SecurityAuthMethod, SecurityLoginHistoryEvent } from '@hcengineering/account-client'
-  import { MessageBox } from '@hcengineering/presentation'
+  import { getMetadata, type IntlString } from '@hcengineering/platform'
+  import presentation, { MessageBox } from '@hcengineering/presentation'
   import { Button, Label, showPopup } from '@hcengineering/ui'
   import { onMount } from 'svelte'
 
   import settingsRes from '../plugin'
   import {
+    classifyLoginHistoryRow,
     coalesceLoginHistory,
+    decodeSessionIdFromToken,
+    filterHistoryByStatus,
+    filterKnownAnomalyCodes,
     formatLocation,
-    getShortUserAgent,
+    isRoutineEvent,
     maskIpAddress,
-    shouldShowNotMeAction,
+    parseUserAgent,
+    type LoginHistoryRowBadge,
+    type LoginHistoryStatusFilter,
     type SecurityLoginHistoryGroup
   } from '../securityLoginActivity'
   import { getAccountClient } from '../utils'
+  import DeviceIcon from './DeviceIcon.svelte'
 
   /** Narrow account client for security APIs (params match server contract). */
   const accountClient = getAccountClient() as unknown as {
@@ -40,8 +48,44 @@
   let loginHistoryLoading = false
   let loginHistoryLoaded = false
   let loginHistoryError = false
+  let statusFilter: LoginHistoryStatusFilter = 'all'
 
-  $: groups = coalesceLoginHistory(loginHistory)
+  const filterDefs: Array<{ key: LoginHistoryStatusFilter, label: IntlString }> = [
+    { key: 'all', label: settingsRes.string.RecentLoginActivityFilterAll },
+    { key: 'success', label: settingsRes.string.RecentLoginActivityFilterSuccessful },
+    { key: 'failed', label: settingsRes.string.RecentLoginActivityFilterFailed }
+  ]
+
+  $: groups = coalesceLoginHistory(filterHistoryByStatus(loginHistory, statusFilter))
+
+  // Maps a server-side anomaly code to the string shown as a badge. Codes the
+  // UI doesn't recognize are dropped by filterKnownAnomalyCodes rather than
+  // ever shown raw.
+  const anomalyLabels: Record<string, IntlString> = {
+    new_country_for_account: settingsRes.string.AnomalyNewCountry,
+    impossible_travel_suspected: settingsRes.string.AnomalyImpossibleTravel,
+    repeated_failed_attempts_from_ip: settingsRes.string.AnomalyRepeatedFailures
+  }
+
+  const rowBadgeLabels: Record<LoginHistoryRowBadge, IntlString> = {
+    currentSession: settingsRes.string.RecentLoginActivityBadgeCurrentSession,
+    sameIp: settingsRes.string.RecentLoginActivityBadgeSameIp,
+    otherDevice: settingsRes.string.RecentLoginActivityBadgeOtherDevice
+  }
+
+  // Read from the access token we're actually using right now — never trust a
+  // row's own data for "is this me", only what this browser session itself
+  // presents. The current session's own most recent entry (almost always
+  // present within the loaded window) supplies its IP/device for comparison.
+  $: currentSessionId = decodeSessionIdFromToken(getMetadata(presentation.metadata.Token))
+  $: currentEvent = loginHistory.find((event) => event.sessionId === currentSessionId)
+  $: currentDeviceInfo = parseUserAgent(currentEvent?.userAgent)
+  $: currentRowContext = {
+    sessionId: currentSessionId,
+    ip: currentEvent?.ip,
+    deviceKnown: currentDeviceInfo.deviceKind !== 'unknown',
+    deviceLabel: currentDeviceInfo.label
+  }
 
   async function loadRecentLoginActivity (): Promise<void> {
     loginHistoryLoading = true
@@ -57,29 +101,16 @@
     }
   }
 
-  function handleNotMeAction (group?: SecurityLoginHistoryGroup): void {
+  function handleNotMeAction (): void {
     showPopup(MessageBox, {
       label: settingsRes.string.NotMeDialogTitle,
       message: settingsRes.string.NotMeDialogMessage,
       okLabel: settingsRes.string.NotMeDialogAction,
       action: async () => {
-        if (group === undefined) {
-          await accountClient.reportSecurityLoginConcern({})
-          Analytics.handleEvent('Settings:RecentLoginActivityNotMe', {
-            eventId: 'header-action',
-            authMethod: 'unknown'
-          })
-          return
-        }
-        // When the user reports a coalesced row, every underlying
-        // event is part of the concern.
-        await Promise.allSettled(
-          group.ids.map((loginEventId) => accountClient.reportSecurityLoginConcern({ loginEventId }))
-        )
+        await accountClient.reportSecurityLoginConcern({})
         Analytics.handleEvent('Settings:RecentLoginActivityNotMe', {
-          eventId: group.event.id,
-          authMethod: group.event.authMethod,
-          groupSize: group.count
+          eventId: 'header-action',
+          authMethod: 'unknown'
         })
       }
     })
@@ -117,11 +148,16 @@
 
 <section class="session-history w-full">
   <header class="session-history__header">
-    <h3 class="session-history__title">
-      <Label label={settingsRes.string.RecentLoginActivityTitle} />
-    </h3>
+    <div>
+      <h3 class="session-history__title">
+        <Label label={settingsRes.string.RecentLoginActivityTitle} />
+      </h3>
+      <p class="session-history__description">
+        <Label label={settingsRes.string.RecentLoginActivityDescription} />
+      </p>
+    </div>
     <Button
-      label={settingsRes.string.NotMeAction}
+      label={settingsRes.string.ReportSuspiciousActivityAction}
       kind={'ghost'}
       size={'small'}
       on:click={() => {
@@ -129,6 +165,21 @@
       }}
     />
   </header>
+
+  {#if loginHistoryLoaded && loginHistory.length > 0}
+    <div class="session-history__filters" role="tablist">
+      {#each filterDefs as f (f.key)}
+        <Button
+          label={f.label}
+          kind={statusFilter === f.key ? 'primary' : 'ghost'}
+          size={'small'}
+          on:click={() => {
+            statusFilter = f.key
+          }}
+        />
+      {/each}
+    </div>
+  {/if}
 
   {#if loginHistoryLoading && !loginHistoryLoaded}
     <ul class="session-history__list">
@@ -150,36 +201,35 @@
     </div>
   {:else if loginHistoryLoaded && groups.length === 0}
     <div class="session-history__state">
-      <Label label={settingsRes.string.RecentLoginActivityEmpty} />
+      <Label
+        label={statusFilter === 'all'
+          ? settingsRes.string.RecentLoginActivityEmpty
+          : settingsRes.string.RecentLoginActivityEmptyFiltered}
+      />
     </div>
   {:else}
     <ul class="session-history__list">
       {#each groups as group (group.id)}
-        <li class="session-history__row" class:session-history__row--failed={!group.event.success}>
-          <span
-            class="session-history__status"
-            class:session-history__status--success={group.event.success}
-            class:session-history__status--failed={!group.event.success}
-            role="img"
-          >
-            <span class="session-history__sr-only">
-              <Label
-                label={group.event.success
-                  ? settingsRes.string.RecentLoginActivitySuccess
-                  : settingsRes.string.RecentLoginActivityFailure}
-              />
-            </span>
+        {@const parsedUa = parseUserAgent(group.event.userAgent)}
+        {@const anomalyCodes = filterKnownAnomalyCodes(group.event.anomalyCodes)}
+        {@const routine = isRoutineEvent(group.event)}
+        {@const rowBadge = classifyLoginHistoryRow(
+          group.event,
+          parsedUa.deviceKind !== 'unknown',
+          parsedUa.label,
+          currentRowContext
+        )}
+        <li
+          class="session-history__row"
+          class:session-history__row--failed={!group.event.success}
+          class:session-history__row--routine={routine}
+        >
+          <span class="session-history__device-icon">
+            <DeviceIcon kind={parsedUa.deviceKind} size={routine ? 14 : 16} />
           </span>
           <div class="session-history__body">
             <div class="session-history__line session-history__line--head">
-              <time
-                class="session-history__time"
-                datetime={new Date(group.lastEventTime).toISOString()}
-                title={formatFullDate(group.lastEventTime)}
-              >
-                {formatCompactDate(group.lastEventTime)}
-              </time>
-              <span class="session-history__sep" aria-hidden="true">·</span>
+              <span class="session-history__device" title={group.event.userAgent ?? ''}>{parsedUa.label}</span>
               <span class="session-history__method">{formatAuthMethod(group.event.authMethod)}</span>
               {#if group.count > 1}
                 <span class="session-history__count" title={formatGroupRange(group)}>×{group.count}</span>
@@ -189,27 +239,24 @@
                   <Label label={settingsRes.string.RecentLoginActivityFailure} />
                 </span>
               {/if}
+              {#each anomalyCodes as code (code)}
+                <span class="session-history__anomaly"><Label label={anomalyLabels[code]} /></span>
+              {/each}
             </div>
             <div class="session-history__line session-history__line--network">
+              <time datetime={new Date(group.lastEventTime).toISOString()} title={formatFullDate(group.lastEventTime)}>
+                {formatCompactDate(group.lastEventTime)}
+              </time>
+              <span class="session-history__sep" aria-hidden="true">·</span>
               <span>{maskIpAddress(group.event.ip)}</span>
               <span class="session-history__sep" aria-hidden="true">·</span>
               <span>{formatLocation({ city: group.event.city, country: group.event.country })}</span>
             </div>
-            <div class="session-history__line session-history__line--device" title={group.event.userAgent ?? ''}>
-              {getShortUserAgent(group.event.userAgent)}
-            </div>
           </div>
-          {#if shouldShowNotMeAction(group.event)}
-            <div class="session-history__action">
-              <Button
-                label={settingsRes.string.NotMeAction}
-                kind={'secondary'}
-                size={'small'}
-                on:click={() => {
-                  handleNotMeAction(group)
-                }}
-              />
-            </div>
+          {#if rowBadge !== undefined}
+            <span class="session-history__tag session-history__tag--{rowBadge}">
+              <Label label={rowBadgeLabels[rowBadge]} />
+            </span>
           {/if}
         </li>
       {/each}
@@ -227,7 +274,7 @@
 
   .session-history__header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
     padding-bottom: 0.75rem;
@@ -241,6 +288,19 @@
     margin: 0;
   }
 
+  .session-history__description {
+    font-size: 0.8125rem;
+    color: var(--theme-content-color, var(--content-color));
+    margin: 0.25rem 0 0;
+    max-width: 34rem;
+  }
+
+  .session-history__filters {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
   .session-history__list {
     list-style: none;
     margin: 0;
@@ -252,12 +312,17 @@
   .session-history__row {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: 0.625rem;
     padding: 0.75rem 0.25rem;
     border-bottom: 1px solid var(--theme-divider-color, var(--divider-color));
   }
   .session-history__row:last-child {
     border-bottom: none;
+  }
+
+  .session-history__row--routine {
+    opacity: 0.6;
+    padding: 0.5rem 0.25rem;
   }
 
   .session-history__row--placeholder {
@@ -269,19 +334,11 @@
     margin-bottom: 0.25rem;
   }
 
-  .session-history__status {
+  .session-history__device-icon {
     flex: 0 0 auto;
-    width: 0.5rem;
-    height: 0.5rem;
-    margin-top: 0.5rem;
-    border-radius: 50%;
-    background: var(--theme-text-secondary, var(--content-color));
-  }
-  .session-history__status--success {
-    background: var(--theme-positive-color, #2e7d32);
-  }
-  .session-history__status--failed {
-    background: var(--theme-danger-color, #d32f2f);
+    margin-top: 0.1875rem;
+    color: var(--theme-darker-color, var(--dark-color));
+    display: flex;
   }
 
   .session-history__body {
@@ -304,23 +361,22 @@
     color: var(--theme-caption-color, var(--caption-color));
   }
 
+  .session-history__row--routine .session-history__line--head {
+    font-size: 0.8125rem;
+    color: var(--theme-content-color, var(--content-color));
+  }
+
   .session-history__line--network {
     font-size: 0.8125rem;
     color: var(--theme-content-color, var(--content-color));
   }
 
-  .session-history__line--device {
-    font-size: 0.8125rem;
-    color: var(--theme-darker-color, var(--dark-color));
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
+  .session-history__device {
+    font-weight: 600;
   }
 
-  .session-history__time {
+  .session-history__row--routine .session-history__device {
     font-weight: 500;
-    font-variant-numeric: tabular-nums;
   }
 
   .session-history__method {
@@ -352,15 +408,47 @@
     margin-left: 0.125rem;
   }
 
-  .session-history__row--failed .session-history__time,
+  .session-history__anomaly {
+    color: var(--theme-danger-color, #d32f2f);
+    background: rgba(211, 47, 47, 0.1);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    border-radius: 0.5rem;
+    padding: 0 0.375rem;
+    line-height: 1.25rem;
+  }
+
+  .session-history__row--failed .session-history__device,
   .session-history__row--failed .session-history__method {
     color: var(--theme-danger-color, #d32f2f);
   }
 
-  .session-history__action {
+  .session-history__tag {
     flex: 0 0 auto;
     align-self: center;
-    margin-left: 0.5rem;
+    margin-left: auto;
+    white-space: nowrap;
+    font-weight: 500;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 0.5rem;
+    padding: 0 0.5rem;
+    line-height: 1.25rem;
+    background: var(--theme-button-default, var(--button-default));
+    color: var(--theme-content-color, var(--content-color));
+  }
+
+  .session-history__tag--currentSession {
+    color: var(--theme-positive-color, #2e7d32);
+  }
+
+  .session-history__tag--sameIp {
+    color: var(--theme-content-color, var(--content-color));
+  }
+
+  .session-history__tag--otherDevice {
+    color: var(--theme-darker-color, var(--dark-color));
   }
 
   .session-history__state {
@@ -371,17 +459,5 @@
     color: var(--theme-caption-color, var(--caption-color));
     font-size: 0.875rem;
     padding: 0.75rem 0;
-  }
-
-  .session-history__sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
   }
 </style>

@@ -282,7 +282,7 @@ export function filterEnabledSubscriptions (
   subscriptions: PushSubscription[],
   settings: PushSubscriptionSetting[]
 ): PushSubscription[] {
-  const disabled = new Set(settings.filter((s) => !s.enabled).map((s) => s.attachedTo))
+  const disabled = new Set(settings.filter((s) => s.enabled === false).map((s) => s.attachedTo))
   return subscriptions.filter((it) => !disabled.has(it._id))
 }
 

@@ -517,6 +517,19 @@ export function setLoginInfo (loginInfo: WorkspaceLoginInfo): void {
   setMetadataLocalStorage(login.metadata.LoginEndpoint, loginInfo.endpoint)
   setMetadataLocalStorage(login.metadata.LoginAccount, loginInfo.account)
   setMetadataLocalStorage(login.metadata.LastAccount, loginInfo.account)
+  // Keep the httpOnly access-token cookie (see logIn() in workbench-resources)
+  // in sync with the token we're actually using from here on. Without this the
+  // cookie stays pinned to whatever token was current at the very first login,
+  // pre-workspace-selection: a cold reload (new tab, or this tab after being
+  // closed) falls back to that stale cookie instead of resuming this session,
+  // which can look like the current session silently "expiring" while a new
+  // one gets created behind the scenes. Best-effort: a failure here just means
+  // the next cold reload falls back to interactive login, same as before.
+  void getAccountClient(loginInfo.token)
+    .setCookie()
+    .catch((err) => {
+      console.error('Failed to refresh account token cookie', err)
+    })
   // (Re)arm token rotation for this workspace's short-lived access token.
   startTokenRefresh(loginInfo.workspaceUrl)
 }

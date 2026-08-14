@@ -139,6 +139,8 @@ export interface ActiveSessionInfo {
   userAgent?: string
   authMethod: SecurityAuthMethod
   isCurrent: boolean
+  /** See account-client `ActiveSessionInfo.anomalyCodes`. */
+  anomalyCodes?: string[]
 }
 
 export enum AccountEventType {

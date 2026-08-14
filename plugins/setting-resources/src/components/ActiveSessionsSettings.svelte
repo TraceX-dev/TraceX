@@ -15,13 +15,21 @@
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
   import type { ActiveSessionInfo, SecurityAuthMethod } from '@hcengineering/account-client'
+  import type { IntlString } from '@hcengineering/platform'
   import { MessageBox } from '@hcengineering/presentation'
   import { Button, Label, showPopup } from '@hcengineering/ui'
   import { onMount } from 'svelte'
 
   import settingsRes from '../plugin'
-  import { formatLocation, getShortUserAgent, maskIpAddress } from '../securityLoginActivity'
+  import {
+    filterKnownAnomalyCodes,
+    formatLocation,
+    hasAnomalies,
+    maskIpAddress,
+    parseUserAgent
+  } from '../securityLoginActivity'
   import { getAccountClient } from '../utils'
+  import DeviceIcon from './DeviceIcon.svelte'
 
   const accountClient = getAccountClient()
 
@@ -30,6 +38,15 @@
   let loaded = false
   let error = false
   let revoking: string | undefined
+  let revokingAll = false
+
+  $: otherSessions = sessions.filter((s) => !s.isCurrent)
+
+  const anomalyLabels: Record<string, IntlString> = {
+    new_country_for_account: settingsRes.string.AnomalyNewCountry,
+    impossible_travel_suspected: settingsRes.string.AnomalyImpossibleTravel,
+    repeated_failed_attempts_from_ip: settingsRes.string.AnomalyRepeatedFailures
+  }
 
   async function loadSessions (): Promise<void> {
     loading = true
@@ -70,6 +87,37 @@
     })
   }
 
+  function handleSignOutAllOthers (): void {
+    const targets = otherSessions
+    if (targets.length === 0) return
+    showPopup(MessageBox, {
+      label: settingsRes.string.SignOutAllOtherSessionsDialogTitle,
+      message: settingsRes.string.SignOutAllOtherSessionsDialogMessage,
+      okLabel: settingsRes.string.SignOutAllOtherSessionsDialogAction,
+      action: async () => {
+        revokingAll = true
+        try {
+          const results = await Promise.allSettled(
+            targets.map(async (s) => {
+              await accountClient.revokeSession({ sessionId: s.sessionId })
+            })
+          )
+          const revokedIds = new Set(
+            targets.filter((_, i) => results[i].status === 'fulfilled').map((s) => s.sessionId)
+          )
+          sessions = sessions.filter((s) => s.isCurrent || !revokedIds.has(s.sessionId))
+          Analytics.handleEvent('Settings:ActiveSessionsSignOutAllOthers', { count: revokedIds.size })
+          void loadSessions()
+        } catch (err: any) {
+          Analytics.handleError(err)
+          await loadSessions()
+        } finally {
+          revokingAll = false
+        }
+      }
+    })
+  }
+
   const compactFormatter = new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
@@ -97,9 +145,26 @@
 
 <section class="active-sessions w-full">
   <header class="active-sessions__header">
-    <h3 class="active-sessions__title">
-      <Label label={settingsRes.string.ActiveSessionsTitle} />
-    </h3>
+    <div>
+      <h3 class="active-sessions__title">
+        <Label label={settingsRes.string.ActiveSessionsTitle} />
+      </h3>
+      {#if loaded && sessions.length > 0}
+        <p class="active-sessions__description">
+          <Label label={settingsRes.string.ActiveSessionsLegend} />
+        </p>
+      {/if}
+    </div>
+    <Button
+      label={settingsRes.string.SignOutAllOtherSessions}
+      kind={otherSessions.length === 0 ? 'regular' : 'dangerous'}
+      size={'small'}
+      loading={revokingAll}
+      disabled={otherSessions.length === 0 || revoking !== undefined || revokingAll}
+      on:click={() => {
+        handleSignOutAllOthers()
+      }}
+    />
   </header>
 
   {#if loading && !loaded}
@@ -127,19 +192,31 @@
   {:else}
     <ul class="active-sessions__list">
       {#each sessions as session (session.sessionId)}
-        <li class="active-sessions__row" class:active-sessions__row--current={session.isCurrent}>
-          <span class="active-sessions__status" class:active-sessions__status--current={session.isCurrent} role="img" />
+        {@const parsedUa = parseUserAgent(session.userAgent)}
+        {@const anomalyCodes = filterKnownAnomalyCodes(session.anomalyCodes)}
+        {@const flagged = hasAnomalies(session.anomalyCodes)}
+        <li
+          class="active-sessions__row"
+          class:active-sessions__row--current={session.isCurrent}
+          class:active-sessions__row--flagged={flagged}
+        >
+          <span class="active-sessions__device-icon">
+            <DeviceIcon kind={parsedUa.deviceKind} />
+          </span>
           <div class="active-sessions__body">
             <div class="active-sessions__line active-sessions__line--head">
-              <span class="active-sessions__device" title={session.userAgent ?? ''}>
-                {getShortUserAgent(session.userAgent)}
-              </span>
+              <span class="active-sessions__device" title={session.userAgent ?? ''}>{parsedUa.label}</span>
               <span class="active-sessions__method">{formatAuthMethod(session.authMethod)}</span>
               {#if session.isCurrent}
-                <span class="active-sessions__badge">
+                <span class="active-sessions__badge active-sessions__badge--current">
                   <Label label={settingsRes.string.ActiveSessionsCurrent} />
                 </span>
               {/if}
+              {#each anomalyCodes as code (code)}
+                <span class="active-sessions__badge active-sessions__badge--flagged">
+                  <Label label={anomalyLabels[code]} />
+                </span>
+              {/each}
             </div>
             <div class="active-sessions__line active-sessions__line--network">
               <span>{maskIpAddress(session.ip)}</span>
@@ -165,7 +242,7 @@
                 kind={'dangerous'}
                 size={'small'}
                 loading={revoking === session.sessionId}
-                disabled={revoking !== undefined}
+                disabled={revoking !== undefined || revokingAll}
                 on:click={() => {
                   handleSignOut(session)
                 }}
@@ -188,7 +265,7 @@
 
   .active-sessions__header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
     padding-bottom: 0.75rem;
@@ -202,6 +279,13 @@
     margin: 0;
   }
 
+  .active-sessions__description {
+    font-size: 0.8125rem;
+    color: var(--theme-content-color, var(--content-color));
+    margin: 0.25rem 0 0;
+    max-width: 30rem;
+  }
+
   .active-sessions__list {
     list-style: none;
     margin: 0;
@@ -213,12 +297,18 @@
   .active-sessions__row {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: 0.625rem;
     padding: 0.75rem 0.25rem;
     border-bottom: 1px solid var(--theme-divider-color, var(--divider-color));
   }
   .active-sessions__row:last-child {
     border-bottom: none;
+  }
+
+  .active-sessions__row--flagged {
+    background: rgba(211, 47, 47, 0.06);
+    border-left: 2px solid var(--theme-danger-color, #d32f2f);
+    padding-left: calc(0.25rem - 2px);
   }
 
   .active-sessions__row--placeholder {
@@ -230,16 +320,11 @@
     margin-bottom: 0.25rem;
   }
 
-  .active-sessions__status {
+  .active-sessions__device-icon {
     flex: 0 0 auto;
-    width: 0.5rem;
-    height: 0.5rem;
-    margin-top: 0.5rem;
-    border-radius: 50%;
-    background: var(--theme-text-secondary, var(--content-color));
-  }
-  .active-sessions__status--current {
-    background: var(--theme-positive-color, #2e7d32);
+    margin-top: 0.125rem;
+    color: var(--theme-darker-color, var(--dark-color));
+    display: flex;
   }
 
   .active-sessions__body {
@@ -274,11 +359,7 @@
   }
 
   .active-sessions__device {
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
+    font-weight: 600;
   }
 
   .active-sessions__method {
@@ -291,16 +372,26 @@
   }
 
   .active-sessions__badge {
-    color: var(--theme-positive-color, #2e7d32);
     font-weight: 500;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    background: var(--theme-button-default, var(--button-default));
     border-radius: 0.5rem;
     padding: 0 0.375rem;
     line-height: 1.25rem;
     margin-left: 0.125rem;
+  }
+
+  .active-sessions__badge--current {
+    color: var(--theme-positive-color, #2e7d32);
+    background: var(--theme-button-default, var(--button-default));
+  }
+
+  .active-sessions__badge--flagged {
+    color: var(--theme-danger-color, #d32f2f);
+    background: rgba(211, 47, 47, 0.1);
+    text-transform: none;
+    letter-spacing: normal;
   }
 
   .active-sessions__action {

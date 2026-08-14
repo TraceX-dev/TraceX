@@ -164,6 +164,12 @@ export interface ActiveSessionInfo {
   authMethod: SecurityAuthMethod
   /** True for the session the calling token itself belongs to. */
   isCurrent: boolean
+  /**
+   * Security-policy anomaly codes carried over from the login event that
+   * created this session (e.g. `new_country_for_account`). Empty/absent
+   * when nothing was flagged. See `SecurityLoginHistoryEvent.anomalyCodes`.
+   */
+  anomalyCodes?: string[]
 }
 
 export interface RegionInfo {

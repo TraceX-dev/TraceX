@@ -4084,7 +4084,8 @@ export async function reportSecurityLoginConcern (
 function activeSessionToInfo (
   row: ActiveSession,
   currentSessionId: string | undefined,
-  redact: boolean
+  redact: boolean,
+  anomalyCodes: string[] | undefined
 ): ActiveSessionInfo {
   const ua = row.userAgent?.trim() ?? ''
   const userAgent =
@@ -4105,8 +4106,38 @@ function activeSessionToInfo (
     city: row.city,
     userAgent,
     authMethod: row.authMethod,
-    isCurrent: currentSessionId !== undefined && row.sessionId === currentSessionId
+    isCurrent: currentSessionId !== undefined && row.sessionId === currentSessionId,
+    anomalyCodes: anomalyCodes !== undefined && anomalyCodes.length > 0 ? anomalyCodes : undefined
   }
+}
+
+const MAX_SESSION_ANOMALY_LOOKUP = 200
+
+/**
+ * Looks up the security-policy anomaly codes recorded against each session's
+ * originating login event, so the Active sessions view can flag a session
+ * the same way the Login history view flags its sign-in (e.g. a new
+ * country). Best-effort: a lookup failure just means no sessions get
+ * flagged, it never blocks the main session list from loading.
+ */
+async function findAnomalyCodesBySessionId (
+  db: AccountDB,
+  account: AccountUuid,
+  sessionIds: string[]
+): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>()
+  if (sessionIds.length === 0) return result
+  const rows = await db.securityLoginEvent.find(
+    { accountUuid: account, sessionId: { $in: sessionIds } },
+    { eventTime: 'descending' },
+    Math.min(sessionIds.length * 4, MAX_SESSION_ANOMALY_LOOKUP)
+  )
+  for (const row of rows) {
+    if (row.sessionId === undefined || row.anomalyCodes === undefined || row.anomalyCodes.length === 0) continue
+    const existing = result.get(row.sessionId) ?? []
+    result.set(row.sessionId, Array.from(new Set([...existing, ...row.anomalyCodes])))
+  }
+  return result
 }
 
 export async function getMyActiveSessions (
@@ -4120,7 +4151,17 @@ export async function getMyActiveSessions (
   assertSecurityLoginTelemetryRateLimit(account, 'getMyActiveSessions', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
   const redact = params?.redact === true
   const rows = await listActiveSessions(db, account)
-  return rows.map((row) => activeSessionToInfo(row, sessionId, redact))
+  let anomaliesBySession = new Map<string, string[]>()
+  try {
+    anomaliesBySession = await findAnomalyCodesBySessionId(
+      db,
+      account,
+      rows.map((row) => row.sessionId)
+    )
+  } catch (err) {
+    ctx.warn('Failed to look up active session anomalies', { err, account })
+  }
+  return rows.map((row) => activeSessionToInfo(row, sessionId, redact, anomaliesBySession.get(row.sessionId)))
 }
 
 const MAX_SESSION_ID_LEN = 128
