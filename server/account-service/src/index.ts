@@ -74,6 +74,19 @@ export function stripRefreshTokenFromResponse<T> (result: T): T {
 }
 
 /**
+ * Non-browser clients send refresh tokens through Authorization and have no
+ * cookie jar to retain a rotated token. Only that explicit fallback may read
+ * the token from the response; browser cookie flows must not receive it.
+ */
+export function shouldExposeRefreshToken (
+  method: string,
+  refreshCookie: string | undefined,
+  authorizationToken: string | undefined
+): boolean {
+  return method === 'refreshToken' && refreshCookie === undefined && authorizationToken !== undefined
+}
+
+/**
  * @public
  */
 export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap, onClose?: () => void): void {
@@ -560,13 +573,14 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
         try {
           // The refresh endpoint authenticates with the refresh cookie (web) and
           // falls back to the Authorization token (non-cookie clients).
-          const effectiveToken =
-            request.method === 'refreshToken' ? (extractRefreshCookie(ctx.request.headers) ?? token) : token
+          const refreshCookie =
+            request.method === 'refreshToken' ? extractRefreshCookie(ctx.request.headers) : undefined
+          const effectiveToken = refreshCookie ?? token
           const result = await method(_ctx, db, branding, request, effectiveToken, meta)
 
-          // Persist the rotating refresh token only as an httpOnly cookie.
-          // Returning it in JSON would let any injected browser script steal a
-          // long-lived credential and defeat the cookie's XSS protection.
+          // Persist the rotating refresh token as an httpOnly cookie. Browser
+          // responses never expose it in JSON; only the explicit Authorization
+          // fallback returns it because that client has no cookie jar.
           const refreshTok = result?.refreshToken
           if (typeof refreshTok === 'string' && refreshTok !== '') {
             const refreshTtlSec = getMetadata(account.metadata.RefreshTokenTtlSec) ?? 0
@@ -580,7 +594,9 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
             }
           }
 
-          const responseResult = stripRefreshTokenFromResponse(result)
+          const responseResult = shouldExposeRefreshToken(request.method, refreshCookie, token)
+            ? result
+            : stripRefreshTokenFromResponse(result)
           const body = JSON.stringify(responseResult)
           ctx.res.writeHead(200, KEEP_ALIVE_HEADERS)
           ctx.res.end(body)

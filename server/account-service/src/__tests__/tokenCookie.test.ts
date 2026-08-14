@@ -16,7 +16,7 @@
 import { NoMetricsContext, type AccountUuid } from '@hcengineering/core'
 import { decodeToken, generateToken } from '@hcengineering/server-token'
 
-import { createAccountCookieToken, stripRefreshTokenFromResponse } from '../index'
+import { createAccountCookieToken, shouldExposeRefreshToken, stripRefreshTokenFromResponse } from '../index'
 
 describe('account token cookie helpers', () => {
   const account: AccountUuid = '00000000-0000-4000-8000-000000000001'
@@ -47,5 +47,11 @@ describe('account token cookie helpers', () => {
 
     expect(response).toEqual({ account, token: 'access-token' })
     expect(JSON.stringify(response)).not.toContain('secret-refresh-token')
+  })
+
+  it('returns the rotated refresh token only to the Authorization fallback', () => {
+    expect(shouldExposeRefreshToken('refreshToken', undefined, 'refresh-token')).toBe(true)
+    expect(shouldExposeRefreshToken('refreshToken', 'refresh-cookie', undefined)).toBe(false)
+    expect(shouldExposeRefreshToken('login', undefined, undefined)).toBe(false)
   })
 })
