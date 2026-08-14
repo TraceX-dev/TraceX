@@ -42,6 +42,7 @@
   export let emptyLabel: IntlString = label ?? plugin.string.Members
   export let readonly: boolean = false
   export let create: ObjectCreate | undefined = undefined
+  export let dataId: string | undefined = undefined
 
   export let sort: ((a: Person, b: Person) => number) | undefined = undefined
 
@@ -106,6 +107,7 @@
     {kind}
     {size}
     {justify}
+    {dataId}
     disabled={readonly}
     on:click={addPerson}
   >
