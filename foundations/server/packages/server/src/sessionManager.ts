@@ -172,8 +172,6 @@ export class TSessionManager implements SessionManager {
           // Handle workspace messages
           this.workspaceInfoCache.delete(msg.workspace)
         } else if (m.type === QueueWorkspaceEvent.SessionRevoked) {
-          // The consumer group is unique per transactor instance, so every pod
-          // receives this and drops any live connection it holds for the session.
           await this.closeSessionByLoginId(ctx, (m as QueueWorkspaceSessionRevokedMessage).sessionId)
         }
       }
@@ -711,8 +709,7 @@ export class TSessionManager implements SessionManager {
             if (token.account === undefined) {
               return { error: UNAUTHORIZED, terminate: true }
             }
-            // Refresh tokens are only valid at the account refresh endpoint —
-            // they must never authenticate a transactor connection.
+            // Reject refresh tokens on transactor connections.
             if (token.kind === 'refresh') {
               return { error: UNAUTHORIZED, terminate: true }
             }
@@ -1107,12 +1104,7 @@ export class TSessionManager implements SessionManager {
     }
   }
 
-  /**
-   * Drops every live connection belonging to a revoked login session, matched
-   * by the token's `sessionId` claim. Invoked from the Workspace-topic consumer
-   * when the account service publishes a `SessionRevoked` event, giving revoke
-   * immediate effect instead of waiting for the client to reconnect.
-   */
+  /** Drops live connections for a revoked login session. */
   async closeSessionByLoginId (ctx: MeasureContext, loginSessionId: string): Promise<number> {
     if (loginSessionId === '') return 0
     const targets = Array.from(this.sessions.values()).filter((ref) => ref.session.token.sessionId === loginSessionId)

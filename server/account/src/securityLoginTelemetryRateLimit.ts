@@ -16,10 +16,7 @@ function parsePositiveInt (raw: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? Math.min(n, 10_000) : fallback
 }
 
-/**
- * In-process sliding-window rate limiter (per account + RPC name).
- * Multi-instance deployments only get per-process limits unless replaced with shared storage.
- */
+/** In-process sliding-window limiter per account and RPC. */
 export function assertSecurityLoginTelemetryRateLimit (
   accountKey: string,
   rpcName: string,

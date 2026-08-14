@@ -74,17 +74,14 @@ let cachedPolicyEngine: SecurityPolicyEngine | undefined
 
 const POLICY_SCOPED_PREFIX = /^@[a-z0-9-~][a-z0-9-._~]*$/i
 const POLICY_UNSCOPED_ROOT = /^[a-z0-9][a-z0-9-._]*$/i
-/** Scoped/unscoped package path segment (name or single optional subpath). */
+/** Valid package-name path segment. */
 const POLICY_SEGMENT = /^[a-z0-9-._~]+$/i
 
 function isValidPolicyPathSegment (s: string): boolean {
   return s.length > 0 && s.length <= 200 && POLICY_SEGMENT.test(s)
 }
 
-/**
- * Restrict dynamic policy loading to npm-style package specifiers (no arbitrary paths, URLs, or traversal).
- * Allows at most one extra path segment after the package name (`@org/pkg/sub` or `pkg/sub`).
- */
+/** Allows npm-style policy specifiers, not paths, URLs, or traversal. */
 export function isSafeSecurityPolicyModuleSpecifier (moduleName: string): boolean {
   if (moduleName.length === 0 || moduleName.length > 256) return false
   if (moduleName.includes('..') || moduleName.includes('\\')) return false

@@ -13,16 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * Regression tests for the connect-retry behaviour of PlatformQueueProducerImpl
- * and PlatformQueueConsumerImpl. Both used to permanently wedge themselves if
- * the *first* connect() attempt failed (e.g. the broker isn't reachable yet
- * because it starts alongside this service in docker-compose): every future
- * send()/consume attempt would just re-await (and re-throw) the same stale
- * rejected promise forever, silently breaking messaging (including the
- * session-revoke live-kick pipeline) for the rest of the process's lifetime.
- */
-
 let connectCallCount = 0
 let consumerConnectCallCount = 0
 
@@ -103,22 +93,16 @@ describe('PlatformQueueProducerImpl reconnect', () => {
     const ctx = fakeCtx()
     const producer = queue.getProducer(ctx, 'test-topic')
 
-    // The first send() may race the constructor's own best-effort connect
-    // attempt and fail; keep calling (as a real caller retrying later would)
-    // until one succeeds.
     for (let i = 0; i < 5 && producerSendMock.mock.calls.length === 0; i++) {
       try {
         await producer.send(ctx, 'ws-1' as any, [{ hello: 'world' }])
       } catch {
-        // expected while the broker is still "unreachable"
       }
     }
 
     expect(producerSendMock).toHaveBeenCalledTimes(1)
-    // At least one failed attempt followed by a successful retry.
     expect(connectCallCount).toBeGreaterThanOrEqual(2)
 
-    // Once connected, further sends must not reconnect again.
     const countAfterFirstSuccess = connectCallCount
     await producer.send(ctx, 'ws-1' as any, [{ hello: 'again' }])
     expect(connectCallCount).toBe(countAfterFirstSuccess)

@@ -517,20 +517,12 @@ export function setLoginInfo (loginInfo: WorkspaceLoginInfo): void {
   setMetadataLocalStorage(login.metadata.LoginEndpoint, loginInfo.endpoint)
   setMetadataLocalStorage(login.metadata.LoginAccount, loginInfo.account)
   setMetadataLocalStorage(login.metadata.LastAccount, loginInfo.account)
-  // Keep the httpOnly access-token cookie (see logIn() in workbench-resources)
-  // in sync with the token we're actually using from here on. Without this the
-  // cookie stays pinned to whatever token was current at the very first login,
-  // pre-workspace-selection: a cold reload (new tab, or this tab after being
-  // closed) falls back to that stale cookie instead of resuming this session,
-  // which can look like the current session silently "expiring" while a new
-  // one gets created behind the scenes. Best-effort: a failure here just means
-  // the next cold reload falls back to interactive login, same as before.
+  // Keep the account cookie aligned with the current workspace token.
   void getAccountClient(loginInfo.token)
     .setCookie()
     .catch((err) => {
       console.error('Failed to refresh account token cookie', err)
     })
-  // (Re)arm token rotation for this workspace's short-lived access token.
   startTokenRefresh(loginInfo.workspaceUrl)
 }
 
@@ -544,15 +536,9 @@ export function stopTokenRefresh (): void {
   }
 }
 
-/**
- * Arms a one-shot timer to refresh the access token before it expires (token
- * rotation, docs/token-rotation-plan.md phase 4). Dormant when the current
- * access token has no `exp` (rotation disabled server-side) or no refresh token
- * is stored, so it is a no-op until short-lived access tokens are enabled.
- */
+/** Arms a refresh timer when the access token has an expiry. */
 export function startTokenRefresh (workspaceUrl: string): void {
   stopTokenRefresh()
-  // Dormant unless the access token carries an `exp` (rotation enabled server-side).
   const delay = nextRefreshDelayMs(getMetadata(presentation.metadata.Token))
   if (delay === undefined) return
   tokenRefreshTimer = setTimeout(() => {
@@ -563,15 +549,12 @@ export function startTokenRefresh (workspaceUrl: string): void {
 async function runTokenRefresh (workspaceUrl: string): Promise<void> {
   const accessToken = await refreshAccessToken()
   if (accessToken === undefined) {
-    // Refresh cookie missing/expired or the session was revoked — drop to login.
     stopTokenRefresh()
     setMetadata(presentation.metadata.Token, null)
     navigate({ path: [loginId] })
     return
   }
   try {
-    // Exchange the fresh account token for a fresh workspace connect token;
-    // setLoginInfo re-arms the timer for the new token.
     const [, wsInfo] = await selectWorkspace(workspaceUrl, accessToken)
     if (wsInfo?.token != null) {
       setLoginInfo(wsInfo)

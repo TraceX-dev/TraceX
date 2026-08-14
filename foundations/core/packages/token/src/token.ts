@@ -17,16 +17,10 @@ export interface Token {
   exp?: number // Expiration, seconds since epoch
   nbf?: number // Not valid before, seconds since epoch
 
-  // Identifier of the login session this token belongs to. Present on
-  // interactive login tokens (password/otp) so the session can be listed
-  // and revoked (see account `ActiveSession`). Absent on service/guest/
-  // legacy tokens, which are not individually revocable.
+  // Identifies a revocable interactive-login session.
   sessionId?: string
 
-  // Token role for rotation (see docs/token-rotation-plan.md):
-  // - 'access'  — short-lived, authenticates API/WebSocket connections
-  // - 'refresh' — longer-lived, accepted ONLY by the account refresh endpoint
-  // Absent = legacy/access (back-compat): treated as an access token.
+  // Missing means a legacy access token.
   kind?: 'access' | 'refresh'
 }
 

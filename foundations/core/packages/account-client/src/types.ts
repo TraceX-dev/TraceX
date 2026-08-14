@@ -21,11 +21,7 @@ export interface LoginInfo {
   name?: string
   socialId?: PersonId
   token?: string
-  /**
-   * Rotating refresh token (see docs/token-rotation-plan.md). Long-lived,
-   * accepted only by the account refresh endpoint; the client exchanges it for
-   * short-lived access tokens. Absent for service/guest/legacy logins.
-   */
+  /** Long-lived token accepted only by the refresh endpoint. */
   refreshToken?: string
   tfaRequired?: boolean
   extra?: Record<string, string>
@@ -102,14 +98,7 @@ export interface OtpInfo {
 
 export type SecurityAuthMethod = 'password' | 'otp' | 'token' | 'session' | 'unknown'
 
-/**
- * Classifies a security login event so the Login history view can show only
- * real sign-ins/outs and keep out the churn a user generates just by working:
- * - `login`    — an interactive authentication (password/otp)
- * - `logout`   — an explicit sign-out / session revocation
- * - `refresh`  — token re-validation / workspace switch (`authMethod: 'session'`)
- * - `session`  — any other session-scoped event
- */
+/** Event category for login history filtering. */
 export type SecurityEventType = 'login' | 'logout' | 'refresh' | 'session'
 
 export interface SecurityLoginHistoryEvent {
@@ -139,19 +128,13 @@ export interface SecurityLoginHistoryParams {
   eventType?: SecurityEventType
   ip?: string
   limit?: number
-  /**
-   * When true, the response is restricted to real sign-in/out events
-   * (`login`/`logout`); session churn (`refresh`/`session`) is omitted.
-   */
+  /** Restrict results to login and logout events. */
   loginsAndLogoutsOnly?: boolean
   /** When true, masks IP, truncates user agent, and omits session id in the response. */
   redact?: boolean
 }
 
-/**
- * A currently-active login session of the caller, as shown in the
- * Active sessions view. Backed by the account `ActiveSession` record.
- */
+/** An active session of the caller. */
 export interface ActiveSessionInfo {
   sessionId: string
   workspaceUuid?: WorkspaceUuid
@@ -164,11 +147,7 @@ export interface ActiveSessionInfo {
   authMethod: SecurityAuthMethod
   /** True for the session the calling token itself belongs to. */
   isCurrent: boolean
-  /**
-   * Security-policy anomaly codes carried over from the login event that
-   * created this session (e.g. `new_country_for_account`). Empty/absent
-   * when nothing was flagged. See `SecurityLoginHistoryEvent.anomalyCodes`.
-   */
+  /** Anomaly codes from the session's login event. */
   anomalyCodes?: string[]
 }
 

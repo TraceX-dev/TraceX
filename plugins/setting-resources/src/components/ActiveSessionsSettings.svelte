@@ -74,7 +74,7 @@
           Analytics.handleEvent('Settings:ActiveSessionRevoked', {
             authMethod: session.authMethod
           })
-          // Drop it locally for instant feedback, then refresh from the server.
+          // Update locally before reloading.
           sessions = sessions.filter((s) => s.sessionId !== session.sessionId)
           void loadSessions()
         } catch (err: any) {

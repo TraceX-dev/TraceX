@@ -32,7 +32,7 @@ import {
   touchActiveSession
 } from '../utils'
 
-// ---- Minimal in-memory AccountDB collection ----------------------------------
+// Minimal in-memory AccountDB collection.
 
 function matches (row: Record<string, any>, query: Record<string, any>): boolean {
   for (const [key, cond] of Object.entries(query)) {
@@ -398,7 +398,7 @@ describe('revokeActiveSession', () => {
     expect(logout?.sessionId).toBe('s1')
     expect(logout?.reason).toBe('session_revoked')
 
-    // Second revoke is a no-op.
+    // Revocation is idempotent.
     expect(await revokeActiveSession(ctx, db, ACC, 's1')).toBe(false)
     expect(securityLoginEvent.rows.filter((e) => e.eventType === 'logout')).toHaveLength(1)
   })

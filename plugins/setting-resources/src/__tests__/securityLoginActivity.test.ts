@@ -175,7 +175,7 @@ describe('coalesceLoginHistory', () => {
     expect(groups[0].ids).toEqual(['3', '2', '1'])
     expect(groups[0].firstEventTime).toBe(100)
     expect(groups[0].lastEventTime).toBe(300)
-    // representative event is the first one encountered (newest-first ordering).
+    // Keep the newest event as the representative.
     expect(groups[0].event.id).toBe('3')
   })
 
@@ -218,8 +218,7 @@ describe('coalesceLoginHistory', () => {
       makeEvent({ id: '1', eventTime: 100, authMethod: 'password', ip: '1.1.1.1', userAgent: 'Chrome' })
     ]
     const groups = coalesceLoginHistory(events)
-    // Every real authentication keeps its own row so redacted-IP
-    // collisions across distinct sources don't get hidden.
+    // Do not collapse separate interactive logins.
     expect(groups).toHaveLength(3)
     expect(groups.every((g) => g.count === 1)).toBe(true)
   })

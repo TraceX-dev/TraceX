@@ -200,8 +200,6 @@ export function createModel (builder: Builder): void {
     setting.class.SettingsCategory,
     core.space.Model,
     {
-      // develop redesigned the old standalone "password" category into a combined
-      // "authentication" category (password change + 2FA), see AuthenticationSettings.svelte.
       name: 'authentication',
       label: setting.string.Authentication,
       icon: setting.icon.Password,
@@ -217,7 +215,6 @@ export function createModel (builder: Builder): void {
     setting.class.SettingsCategory,
     core.space.Model,
     {
-      // login-security's "security" category: session history / active sessions / login activity.
       name: 'security',
       label: setting.string.Security,
       icon: setting.icon.Password,

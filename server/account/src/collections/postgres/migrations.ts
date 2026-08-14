@@ -89,9 +89,7 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV28Migration(ns, flavor),
     getV29Migration(ns, flavor),
     getV30Migration(ns, flavor),
-    // v31-v35: renumbered from login-security branch's original v27-v31 slots, which collided
-    // with develop's own v27-v30 migrations (office social id / api_key table / api_key suffix /
-    // workspace_members.has_unread) during the merge. Table/column names are unchanged.
+    // Security migrations were renumbered to avoid collisions with develop.
     getV31Migration(ns, flavor),
     getV32Migration(ns, flavor),
     getV33Migration(ns, flavor),
@@ -899,16 +897,12 @@ function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
   ]
 }
 
-// v31-v35 below are login-security's migrations, renumbered from their original v27-v31
-// slots (which collided with develop's v27-v30 migrations above). Table/column names and
-// SQL bodies are unchanged from the login-security branch; only the migration number/name
-// and function name were shifted to avoid the collision.
+// Security migrations renumbered to avoid collisions with develop.
 function getV31Migration (ns: string, flavor: DBFlavor): [string, string] {
   const types = dbTypes[flavor]
   return [
     'account_db_v31_add_security_login_event_table',
     `
-    /* ======= S E C U R I T Y   L O G I N   E V E N T ======= */
     CREATE TABLE IF NOT EXISTS ${ns}.security_login_event (
         id ${types.string} NOT NULL DEFAULT gen_random_uuid()::TEXT,
         account_uuid UUID NOT NULL,
@@ -947,7 +941,6 @@ function getV32Migration (ns: string, flavor: DBFlavor): [string, string] {
   return [
     'account_db_v32_add_active_session_and_event_type',
     `
-    /* ======= A C T I V E   S E S S I O N ======= */
     CREATE TABLE IF NOT EXISTS ${ns}.active_session (
         session_id ${types.string} NOT NULL,
         account_uuid UUID NOT NULL,
@@ -969,10 +962,7 @@ function getV32Migration (ns: string, flavor: DBFlavor): [string, string] {
     CREATE INDEX IF NOT EXISTS active_session_account_idx
     ON ${ns}.active_session (account_uuid, revoked_on);
 
-    /* ======= S E C U R I T Y   L O G I N   E V E N T :  event_type ======= */
-    /* Add the column only. The backfill (v34) and index (v35) live in separate
-       migrations/transactions because CockroachDB cannot UPDATE or index a
-       column added in the same transaction ("column is being backfilled"). */
+    /* Backfill and index are separate because CockroachDB needs separate transactions. */
     ALTER TABLE ${ns}.security_login_event
     ADD COLUMN IF NOT EXISTS event_type ${types.string};
     `
@@ -983,7 +973,6 @@ function getV33Migration (ns: string, _flavor: DBFlavor): [string, string] {
   return [
     'account_db_v33_add_active_session_refresh_generation',
     `
-    /* ======= A C T I V E   S E S S I O N :  refresh_generation ======= */
     ALTER TABLE ${ns}.active_session
     ADD COLUMN IF NOT EXISTS refresh_generation BIGINT NOT NULL DEFAULT 0;
     `
@@ -994,8 +983,7 @@ function getV34Migration (ns: string, _flavor: DBFlavor): [string, string] {
   return [
     'account_db_v34_backfill_security_login_event_type',
     `
-    /* Backfill event_type for pre-existing rows (separate transaction from the
-       column add in v32 — see the note there). */
+    /* Separate from the column-add transaction. */
     UPDATE ${ns}.security_login_event
     SET event_type = CASE
         WHEN auth_method IN ('password', 'otp', 'token') THEN 'login'

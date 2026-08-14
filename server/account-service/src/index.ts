@@ -46,9 +46,7 @@ export * from './migration/utils'
 export * from './migration/types'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
-// httpOnly cookie holding the rotating refresh token (token rotation, see
-// docs/token-rotation-plan.md). Kept separate from the access-token cookie so
-// it is only ever read for the refresh endpoint.
+// HttpOnly rotating refresh-token cookie.
 const AUTH_REFRESH_COOKIE = 'account-metadata-RefreshToken'
 
 const KEEP_ALIVE_HEADERS = {
@@ -57,27 +55,20 @@ const KEEP_ALIVE_HEADERS = {
   'Keep-Alive': 'timeout=5, max=1000'
 }
 
-/**
- * Converts a workspace access token into the account-scoped token persisted in
- * the access cookie. Session identity and expiry must survive this conversion.
- */
+/** Creates an account-scoped cookie token without losing session or expiry. */
 export function createAccountCookieToken (ctx: MeasureContext, token: string): string {
   const { account, extra, sessionId, kind, exp } = decodeTokenVerbose(ctx, token)
   return generateToken(account, undefined, extra, undefined, { sessionId, kind, exp })
 }
 
-/** Removes a refresh token before an RPC result is serialized for the browser. */
+/** Removes refreshToken from browser RPC responses. */
 export function stripRefreshTokenFromResponse<T> (result: T): T {
   if (result === null || typeof result !== 'object' || !('refreshToken' in result)) return result
   const { refreshToken: _refreshToken, ...response } = result as T & { refreshToken?: unknown }
   return response as T
 }
 
-/**
- * Non-browser clients send refresh tokens through Authorization and have no
- * cookie jar to retain a rotated token. Only that explicit fallback may read
- * the token from the response; browser cookie flows must not receive it.
- */
+/** Allows refreshToken in responses only for Authorization-based clients. */
 export function shouldExposeRefreshToken (
   method: string,
   refreshCookie: string | undefined,
@@ -176,11 +167,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   setMetadata(account.metadata.FrontURL, frontURL)
   setMetadata(account.metadata.WsLivenessDays, wsLivenessDays)
 
-  // Token rotation TTLs (seconds). See docs/token-rotation-plan.md.
-  // Access TTL defaults to 0 (no expiry) so nothing changes for users until the
-  // front refresh loop is deployed; set ACCESS_TOKEN_TTL_SEC (e.g. 1800) to
-  // enable short-lived access tokens. Refresh tokens are minted regardless but
-  // are only consumed once the refresh endpoint (phase 3) ships.
+  // Zero access TTL preserves legacy non-expiring access tokens.
   setMetadata(account.metadata.AccessTokenTtlSec, parseInt(process.env.ACCESS_TOKEN_TTL_SEC ?? '0', 10))
   setMetadata(account.metadata.RefreshTokenTtlSec, parseInt(process.env.REFRESH_TOKEN_TTL_SEC ?? '2592000', 10))
   setMetadata(account.metadata.DefaultBrandingKey, process.env.DEFAULT_BRANDING_KEY ?? 'huly')
@@ -424,10 +411,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       return
     }
 
-    // Keep the login-session identity and expiry while dropping workspace
-    // scope. The cold-load path reissues this token, so omitting either value
-    // would bypass session revocation or turn a short-lived access token into
-    // a non-expiring one.
+    // Preserve session and expiry when removing workspace scope.
     const tokenWithoutWorkspace = createAccountCookieToken(measureCtx, token)
 
     const cookieOpts = getCookieOptions(ctx)
@@ -541,8 +525,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       // Ignore
     }
 
-    // Refresh tokens authenticate only the refresh endpoint; reject them
-    // everywhere else so a refresh token cannot act as an access token.
+    // Refresh tokens are valid only for refreshToken.
     if (tokenKind === 'refresh' && request.method !== 'refreshToken') {
       const response = {
         id: request.id,
@@ -571,16 +554,13 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
         }
 
         try {
-          // The refresh endpoint authenticates with the refresh cookie (web) and
-          // falls back to the Authorization token (non-cookie clients).
+          // Cookie first; Authorization is the non-browser fallback.
           const refreshCookie =
             request.method === 'refreshToken' ? extractRefreshCookie(ctx.request.headers) : undefined
           const effectiveToken = refreshCookie ?? token
           const result = await method(_ctx, db, branding, request, effectiveToken, meta)
 
-          // Persist the rotating refresh token as an httpOnly cookie. Browser
-          // responses never expose it in JSON; only the explicit Authorization
-          // fallback returns it because that client has no cookie jar.
+          // Browser clients retain rotated refresh tokens only in an HttpOnly cookie.
           const refreshTok = result?.refreshToken
           if (typeof refreshTok === 'string' && refreshTok !== '') {
             const refreshTtlSec = getMetadata(account.metadata.RefreshTokenTtlSec) ?? 0

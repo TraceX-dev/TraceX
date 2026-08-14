@@ -14,7 +14,7 @@ export enum QueueWorkspaceEvent {
   FullReindex = 'full-fulltext-reindex',
   Reindex = 'fulltext-reindex',
   ClearIndex = 'clear-fulltext-index',
-  /** A login session was revoked — live connections for it must be dropped. */
+  /** Revoked login session notification. */
   SessionRevoked = 'session-revoked'
 }
 

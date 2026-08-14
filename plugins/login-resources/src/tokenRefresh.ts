@@ -15,19 +15,7 @@
 
 import { getAccountClient } from './utils'
 
-/**
- * Client-side token rotation (see docs/token-rotation-plan.md, phase 4).
- *
- * The refresh token is long-lived and rotated on every use; the access token is
- * short-lived. The refresh token is held in an httpOnly cookie set by the
- * account service, so it is never exposed to JS — the client just calls the
- * refresh endpoint (credentials are included automatically) to get a fresh
- * access token. Dormant when the access token has no `exp` (i.e.
- * ACCESS_TOKEN_TTL_SEC=0 on the server), so nothing changes until short-lived
- * access tokens are enabled.
- */
-
-/** Reads the `exp` (ms since epoch) from a JWT without verifying it. */
+/** Reads JWT expiry without verification. */
 export function decodeJwtExpMs (token: string | null | undefined): number | undefined {
   if (token == null || token === '') return undefined
   const parts = token.split('.')
@@ -43,13 +31,7 @@ export function decodeJwtExpMs (token: string | null | undefined): number | unde
 
 let refreshInFlight: Promise<string | undefined> | undefined
 
-/**
- * Exchanges the httpOnly refresh cookie for a fresh access token (the account
- * service rotates the cookie server-side). Single-flight (and cross-tab via
- * `navigator.locks` when available) so two concurrent refreshes can't rotate the
- * same token twice and trip the server's reuse detection. Returns the new access
- * token, or `undefined` when the refresh failed (no/expired/revoked session).
- */
+/** Refreshes the access token with a cross-tab lock when available. */
 export async function refreshAccessToken (): Promise<string | undefined> {
   if (refreshInFlight !== undefined) {
     return await refreshInFlight
@@ -70,9 +52,7 @@ async function runExclusive<T> (fn: () => Promise<T>): Promise<T> {
 
 async function doRefresh (): Promise<string | undefined> {
   try {
-    // Pass null (not undefined, which would fall back to the current token): the
-    // refresh token travels in the httpOnly cookie sent with the request
-    // (account-client includes credentials in the browser).
+    // Null omits Authorization; the refresh cookie authenticates the request.
     const info = await getAccountClient(null).refreshToken()
     return info?.token ?? undefined
   } catch {
@@ -80,10 +60,7 @@ async function doRefresh (): Promise<string | undefined> {
   }
 }
 
-/**
- * Returns true when the token is absent, has no `exp`, or expires within
- * `skewMs` — i.e. it should be refreshed before use.
- */
+/** Returns whether the token expires within `skewMs`. */
 export function shouldRefresh (token: string | null | undefined, skewMs: number = 60_000): boolean {
   const expMs = decodeJwtExpMs(token)
   if (expMs === undefined) return false // no expiry → rotation disabled

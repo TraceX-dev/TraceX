@@ -263,8 +263,7 @@ export interface AccountClient {
   reportSecurityLoginConcern: (params?: { loginEventId?: string }) => Promise<void>
   getMyActiveSessions: (params?: { redact?: boolean }) => Promise<ActiveSessionInfo[]>
   revokeSession: (params: { sessionId: string }) => Promise<void>
-  // Exchange a rotating refresh token (the client must be configured with the
-  // refresh token) for a fresh access token + new refresh token.
+  // Exchanges a rotating refresh token for fresh tokens.
   refreshToken: () => Promise<LoginInfo>
 
   getSubscriptions: (workspaceUuid?: WorkspaceUuid | undefined, activeOnly?: boolean) => Promise<Subscription[]>

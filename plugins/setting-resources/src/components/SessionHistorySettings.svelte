@@ -38,7 +38,7 @@
   import { getAccountClient } from '../utils'
   import DeviceIcon from './DeviceIcon.svelte'
 
-  /** Narrow account client for security APIs (params match server contract). */
+  /** Account client subset used by this view. */
   const accountClient = getAccountClient() as unknown as {
     getMySecurityLoginHistory: (params?: { limit?: number, redact?: boolean }) => Promise<SecurityLoginHistoryEvent[]>
     reportSecurityLoginConcern: (params?: { loginEventId?: string }) => Promise<void>
@@ -58,9 +58,7 @@
 
   $: groups = coalesceLoginHistory(filterHistoryByStatus(loginHistory, statusFilter))
 
-  // Maps a server-side anomaly code to the string shown as a badge. Codes the
-  // UI doesn't recognize are dropped by filterKnownAnomalyCodes rather than
-  // ever shown raw.
+  // Maps supported anomaly codes to badge labels.
   const anomalyLabels: Record<string, IntlString> = {
     new_country_for_account: settingsRes.string.AnomalyNewCountry,
     impossible_travel_suspected: settingsRes.string.AnomalyImpossibleTravel,
@@ -73,10 +71,7 @@
     otherDevice: settingsRes.string.RecentLoginActivityBadgeOtherDevice
   }
 
-  // Read from the access token we're actually using right now — never trust a
-  // row's own data for "is this me", only what this browser session itself
-  // presents. The current session's own most recent entry (almost always
-  // present within the loaded window) supplies its IP/device for comparison.
+  // Derive the current session only from this browser's access token.
   $: currentSessionId = decodeSessionIdFromToken(getMetadata(presentation.metadata.Token))
   $: currentEvent = loginHistory.find((event) => event.sessionId === currentSessionId)
   $: currentDeviceInfo = parseUserAgent(currentEvent?.userAgent)

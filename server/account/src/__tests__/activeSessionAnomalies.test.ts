@@ -24,7 +24,7 @@ jest.mock('@hcengineering/server-token', () => ({
   decodeToken: jest.fn()
 }))
 
-// ---- Minimal in-memory AccountDB collection (mirrors securitySession.test.ts) ----
+// Minimal in-memory AccountDB collection.
 
 function matches (row: Record<string, any>, query: Record<string, any>): boolean {
   for (const [key, cond] of Object.entries(query)) {

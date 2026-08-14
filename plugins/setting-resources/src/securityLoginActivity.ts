@@ -44,17 +44,16 @@ export function getShortUserAgent (userAgent?: string): string {
   return `${userAgent.slice(0, MAX_USER_AGENT_LENGTH - 1)}…`
 }
 
-/** Coarse device family a parsed user agent belongs to — used to pick a display icon. */
+/** Device family used for the display icon. */
 export type DeviceKind = 'desktop' | 'mobile' | 'tablet' | 'unknown'
 
 export interface ParsedUserAgent {
-  /** Human label, e.g. "Chrome on macOS". Falls back to a short raw UA when parsing fails entirely. */
+  /** Display label, with a shortened raw-UA fallback. */
   label: string
   deviceKind: DeviceKind
 }
 
-// Order matters: more specific engines/browsers are matched before the generic ones
-// whose token they also contain (e.g. Edge and Opera both contain "Chrome/").
+// Keep specific browsers before their shared Chrome token.
 const BROWSER_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/edg(a|ios|)\//i, 'Edge'],
   [/opr\/|opios\/|opera/i, 'Opera'],
@@ -91,12 +90,7 @@ function detectDeviceKind (ua: string, os: string | undefined): DeviceKind {
   return 'unknown'
 }
 
-/**
- * Parses a raw `User-Agent` string into a short human label ("Chrome on
- * macOS") plus a coarse device family. The Login history / Active sessions
- * views use this instead of ever showing the raw UA string as primary text —
- * the full string is still available as a title/tooltip for anyone who wants it.
- */
+/** Builds a short device label and family from a User-Agent. */
 export function parseUserAgent (userAgent?: string): ParsedUserAgent {
   const ua = userAgent?.trim() ?? ''
   if (ua === '') return { label: 'Unknown device', deviceKind: 'unknown' }
@@ -111,10 +105,7 @@ export function parseUserAgent (userAgent?: string): ParsedUserAgent {
   return { label: getShortUserAgent(ua), deviceKind: 'unknown' }
 }
 
-/**
- * Security-policy anomaly codes (see server `securityPolicy.ts`) that the UI
- * knows how to explain. Unrecognized codes are dropped rather than shown raw.
- */
+/** Anomaly codes supported by the UI. */
 const KNOWN_ANOMALY_CODES = new Set<string>([
   'new_country_for_account',
   'impossible_travel_suspected',
@@ -130,20 +121,13 @@ export function hasAnomalies (codes?: string[]): boolean {
   return filterKnownAnomalyCodes(codes).length > 0
 }
 
-/**
- * True for events that are session upkeep rather than an interactive
- * sign-in/out — token refreshes and per-workspace session records. These are
- * collapsed and visually de-emphasized in the Login history view so the
- * events that actually matter (password/otp sign-ins) aren't lost in the churn.
- * `eventType` is the authoritative signal; `authMethod === 'session'` is kept
- * as a fallback for older records recorded before `eventType` existed.
- */
+/** Identifies session upkeep; authMethod is a fallback for legacy events. */
 export function isRoutineEvent (event: Partial<Pick<SecurityLoginHistoryEvent, 'authMethod' | 'eventType'>>): boolean {
   if (event.eventType != null) return event.eventType === 'refresh' || event.eventType === 'session'
   return event.authMethod === 'session'
 }
 
-/** Status filter for the Login history list — drives the All/Successful/Failed tabs. */
+/** Login history status filter. */
 export type LoginHistoryStatusFilter = 'all' | 'success' | 'failed'
 
 export function filterHistoryByStatus (
@@ -161,12 +145,7 @@ export function shouldShowNotMeAction (
   return event.success && !isRoutineEvent(event)
 }
 
-/**
- * A group of consecutive login events that share the same observable
- * attributes (auth method, success, IP, location, user agent). Used to
- * collapse noisy runs — most commonly `authMethod: 'session'` events
- * recorded on every workspace switch — into a single row in the UI.
- */
+/** Consecutive equivalent events collapsed into one row. */
 export interface SecurityLoginHistoryGroup {
   id: string
   event: SecurityLoginHistoryEvent
@@ -187,18 +166,12 @@ function sameSignature (a: SecurityLoginHistoryEvent, b: SecurityLoginHistoryEve
   )
 }
 
-/**
- * Returns true for events safe to collapse into a previous identical row.
- */
+/** Only successful routine events can be collapsed. */
 function isCoalescable (event: SecurityLoginHistoryEvent): boolean {
   return event.success && isRoutineEvent(event)
 }
 
-/**
- * Collapses consecutive same-signature events into a single group.
- * Input is expected to be ordered newest-first (matching the server
- * response).
- */
+/** Collapses consecutive equivalent events from a newest-first list. */
 export function coalesceLoginHistory (events: SecurityLoginHistoryEvent[]): SecurityLoginHistoryGroup[] {
   const groups: SecurityLoginHistoryGroup[] = []
   for (const event of events) {
@@ -222,12 +195,7 @@ export function coalesceLoginHistory (events: SecurityLoginHistoryEvent[]): Secu
   return groups
 }
 
-/**
- * Reads the `sessionId` claim from a JWT access token without verifying it —
- * purely for client-side display (flagging "this session" in the Login
- * history / Active sessions views). Never used for anything security-relevant;
- * the server is always the source of truth for revocation and ownership.
- */
+/** Reads sessionId for display only; the server enforces revocation. */
 export function decodeSessionIdFromToken (token: string | null | undefined): string | undefined {
   if (token == null || token === '') return undefined
   const parts = token.split('.')
@@ -241,18 +209,10 @@ export function decodeSessionIdFromToken (token: string | null | undefined): str
   }
 }
 
-/** What a Login history row's right-side badge should say, if anything. */
+/** Login history row badge. */
 export type LoginHistoryRowBadge = 'currentSession' | 'sameIp' | 'otherDevice'
 
-/**
- * Classifies a Login history row against the viewer's own current session, so
- * the UI can flag "this is you right now" vs "this looks like a different
- * device" instead of leaving every row looking equally anonymous. Priority:
- * an exact session match beats a same-IP match (both mean "almost certainly
- * you"); a device mismatch is only called out when both device labels are
- * actually known — an unparsed/unknown UA on either side isn't evidence of
- * anything, so it's left unbadged rather than guessed at.
- */
+/** Classifies a row against the current session. */
 export function classifyLoginHistoryRow (
   event: Pick<SecurityLoginHistoryEvent, 'sessionId' | 'ip'>,
   eventDeviceKnown: boolean,

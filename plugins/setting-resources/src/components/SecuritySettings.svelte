@@ -42,8 +42,7 @@
 
   type SecurityTab = 'twoFactor' | 'loginHistory' | 'activeSessions'
 
-  // 2FA setup UI itself now lives in TwoFactorSetupPopup.svelte (shared with AuthenticationSettings.svelte);
-  // this tab only tracks/toggles the enabled state and opens that popup for the actual setup flow.
+  // TwoFactorSetupPopup owns the setup flow.
   let tfaEnabled: boolean | undefined = undefined
   let isTfaLoading = true
 
@@ -75,7 +74,7 @@
 
   function tabFromPath (segment: string | undefined): SecurityTab {
     if (segment === 'activeSessions') return 'activeSessions'
-    // 'sessions' kept for backward-compatible deep links to the old tab.
+    // Supports legacy sessions links.
     if (segment === 'loginHistory' || segment === 'sessions') return 'loginHistory'
     return 'twoFactor'
   }

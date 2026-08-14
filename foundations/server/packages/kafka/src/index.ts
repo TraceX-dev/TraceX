@@ -205,10 +205,7 @@ class PlatformQueueImpl implements PlatformQueue {
 class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
   txProducer: Producer
   private isConnected = false
-  // In-flight connect() attempt, if any. Always cleared once it settles
-  // (success *or* failure, via .finally below) so a failed attempt never
-  // lingers as a stale rejection that every future call would just re-await
-  // and re-throw — see ensureConnected().
+  // Shared connection attempt; cleared after success or failure.
   private connecting: Promise<void> | undefined
   private closed = false
 
@@ -222,20 +219,10 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
       allowAutoTopicCreation: true,
       createPartitioner: Partitioners.DefaultPartitioner
     })
-    // Best-effort at construction time; send() calls ensureConnected() again
-    // and retries if this attempt failed (e.g. the broker isn't reachable yet
-    // because it starts alongside this service in docker-compose).
     this.ensureConnected().catch(() => {})
   }
 
-  /**
-   * Connects the underlying producer if it isn't already connected, sharing
-   * one in-flight attempt across concurrent callers. Unlike awaiting a single
-   * promise captured once at construction time, this never gets permanently
-   * stuck on a stale rejection: a failed attempt clears `connecting`, so the
-   * next call (whether a concurrent caller queued behind it, or the next
-   * send()) starts a fresh attempt instead of re-throwing the old one forever.
-   */
+  /** Connects the producer, retrying after failed attempts. */
   private async ensureConnected (): Promise<void> {
     if (this.isConnected) return
     if (this.connecting === undefined) {
@@ -317,14 +304,7 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
     void this.startWithRetry()
   }
 
-  /**
-   * Retries the initial connect/subscribe/run with backoff instead of giving
-   * up for good on the first failure. Without this, a broker that isn't
-   * reachable yet when this consumer is constructed (e.g. it starts alongside
-   * the broker in docker-compose and loses the race) permanently kills this
-   * consumer for the rest of the process's lifetime — it would never pick back
-   * up once the broker becomes reachable a few seconds later.
-   */
+  /** Starts the consumer with retry backoff. */
   private async startWithRetry (): Promise<void> {
     const retryDelay = this.options?.retryDelay ?? 1000
     const maxRetryDelay = this.options?.maxRetryDelay ?? 10

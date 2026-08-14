@@ -780,8 +780,7 @@ export async function selectWorkspace (
   let sub: AccountUuid | undefined
   let exp: number | undefined
   let nbf: number | undefined
-  // Carried from the incoming login token so every workspace-scoped token
-  // issued for this login shares one session identity (see ActiveSession).
+  // Preserve one session identity across workspace tokens.
   let sessionId: string | undefined
   let tokenWorkspace: WorkspaceUuid | undefined
   try {
@@ -810,8 +809,7 @@ export async function selectWorkspace (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
   }
 
-  // selectWorkspace is the per-connect "connect token" source, so refuse to
-  // mint a fresh workspace token for a revoked session.
+  // Do not mint a workspace token for a revoked session.
   if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
@@ -970,9 +968,7 @@ export async function selectWorkspace (
 
   return {
     account: accountUuid,
-    // For a real login session this is the short-lived "connect token": fresh
-    // access `exp` + `kind:'access'`. Grant/guest/system tokens (no sessionId)
-    // keep their carried `exp`/`nbf` and no kind.
+    // Interactive sessions get a fresh short-lived access token.
     token: generateToken(accountUuid, workspace.uuid, extra, undefined, {
       grant,
       sub,
@@ -1831,10 +1827,7 @@ export async function cleanExpiredOtp (db: AccountDB): Promise<void> {
 
 const DEFAULT_SECURITY_LOGIN_RETENTION_DAYS = 365
 
-/**
- * Deletes security_login_event rows older than SECURITY_LOGIN_EVENT_RETENTION_DAYS (default 365).
- * Set SECURITY_LOGIN_EVENT_RETENTION_DAYS=0 (or "off"/"false") to disable purging.
- */
+/** Purges login events older than the configured retention period. */
 export async function purgeExpiredSecurityLoginEvents (
   db: AccountDB,
   log?: { warn: (msg: string, data?: Record<string, unknown>) => void }
@@ -1858,12 +1851,7 @@ export async function purgeExpiredSecurityLoginEvents (
 
 const DEFAULT_ACTIVE_SESSION_RETENTION_DAYS = 30
 
-/**
- * Reaps revoked {@link ActiveSession} rows older than the retention window so
- * the table doesn't grow without bound (see docs/token-rotation-plan.md). Only
- * revoked rows are removed — live sessions (revokedOn null) are untouched.
- * Configurable via `ACTIVE_SESSION_RETENTION_DAYS` (0/off disables).
- */
+/** Purges revoked sessions older than the configured retention period. */
 export async function purgeRevokedActiveSessions (
   db: AccountDB,
   log?: { warn: (msg: string, data?: Record<string, unknown>) => void }
@@ -2212,12 +2200,7 @@ function trimOptional (value: string | undefined, maxLen: number): string | unde
   return normalized.length > maxLen ? normalized.slice(0, maxLen) : normalized
 }
 
-/**
- * Default classification of a login event when the caller doesn't specify one.
- * Interactive auth (password/otp/token) is a real sign-in (`login`); session
- * re-validation / workspace switch (`authMethod: 'session'`) is `refresh` churn
- * that is kept out of the Login history ins/outs view.
- */
+/** Defaults interactive auth to login and session auth to refresh. */
 export function classifySecurityEventType (authMethod: SecurityAuthMethod): SecurityEventType {
   switch (authMethod) {
     case 'password':

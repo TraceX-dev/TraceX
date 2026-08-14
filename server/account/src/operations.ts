@@ -287,9 +287,7 @@ export async function login (
       ? { admin: 'true', authMethod: 'password' }
       : { authMethod: 'password' }
     ctx.info('Login succeeded', { email, normalizedEmail, isConfirmed, emailSocialId, ...extraToken })
-    // A session is established only when the login yields a usable token, i.e.
-    // the account is confirmed and no second factor is still pending (the 2FA
-    // pre-auth token is not a real session — that is minted in verify2fa).
+    // Create a session only after confirmation and 2FA.
     const noTfa = existingAccount.tfaSecret == null
     let sessionId: string | undefined
     if (isConfirmed && noTfa) {
@@ -452,9 +450,7 @@ export async function signUp (
 
   void setTimezone(ctx, db, account, null, meta)
 
-  // When no email confirmation is required the sign-up immediately signs the
-  // user in, so establish a session; otherwise the session is created later in
-  // `confirm` once the email is verified.
+  // Email confirmation creates the session later in confirm.
   let sessionId: string | undefined
   if (!forceConfirmation) {
     sessionId = await createActiveSession(ctx, db, {
@@ -1581,7 +1577,7 @@ export async function confirm (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.PersonNotFound, { person: account }))
   }
 
-  // Email is verified — the user is now signed in, so establish a session.
+  // Email verification starts the session.
   const sessionId = await createActiveSession(ctx, db, {
     accountUuid: account,
     authMethod: 'password',
@@ -2129,8 +2125,7 @@ export async function verify2fa (
 
   const { tfaAccount, ...filteredExtra } = extra ?? {}
 
-  // The second factor completed — this is where the real session begins (the
-  // pre-2FA token was not a session). Carry the original auth method through.
+  // The verified second factor starts the session.
   const authMethod: SecurityAuthMethod = extra?.authMethod === 'otp' ? 'otp' : 'password'
   const sessionId = await createActiveSession(ctx, db, {
     accountUuid,
@@ -2367,8 +2362,7 @@ export async function getLoginInfoByToken (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
   }
 
-  // This endpoint restores the login from the access-token cookie on a cold
-  // browser load. Do not turn a revoked session into a legacy token here.
+  // Do not restore a revoked session from an access-token cookie.
   if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
@@ -2585,10 +2579,7 @@ export async function getLoginWithWorkspaceInfo (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
   }
 
-  // Per-session revocation: this call is made by the transactor on connect, so
-  // rejecting a revoked session here drops it at (re)connection time without a
-  // per-request check. Tokens without a sessionId (service/guest/legacy) are
-  // unaffected.
+  // Reject revoked interactive sessions during connection.
   if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
     ctx.warn('Rejecting revoked session', { accountUuid })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
@@ -3948,8 +3939,7 @@ export async function getMySecurityLoginHistory (
   const { account } = decodeTokenVerbose(ctx, token)
   assertSecurityLoginTelemetryRateLimit(account, 'getMySecurityLoginHistory', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
   const redact = params.redact === true
-  // The Login history view shows real sign-ins/outs by default; session churn
-  // (`refresh`/`session`) is included only when explicitly requested.
+  // Hide routine session events unless requested.
   const loginsAndLogoutsOnly = params.loginsAndLogoutsOnly ?? params.eventType === undefined
   const rows = await findMySecurityLoginEventRows(db, account, { ...params, loginsAndLogoutsOnly })
   return redact ? rows.map(redactSecurityLoginEventRow) : rows
@@ -3989,8 +3979,7 @@ export async function getWorkspaceSecurityLoginHistory (
 
   const { since, until, success, ip } = params
   let accountUuid = params.accountUuid
-  // Non-system callers must scope to their own account unless they pass an explicit accountUuid
-  // (avoids returning all workspace members' login telemetry by default).
+  // Default non-system callers to their own account.
   if (account !== systemAccountUuid && accountUuid === undefined) {
     accountUuid = account
   }
@@ -4131,13 +4120,7 @@ function activeSessionToInfo (
 
 const MAX_SESSION_ANOMALY_LOOKUP = 200
 
-/**
- * Looks up the security-policy anomaly codes recorded against each session's
- * originating login event, so the Active sessions view can flag a session
- * the same way the Login history view flags its sign-in (e.g. a new
- * country). Best-effort: a lookup failure just means no sessions get
- * flagged, it never blocks the main session list from loading.
- */
+/** Returns anomaly codes from each session's login event. */
 async function findAnomalyCodesBySessionId (
   db: AccountDB,
   account: AccountUuid,
@@ -4202,12 +4185,7 @@ export async function revokeSession (
   await revokeActiveSession(ctx, db, account, sessionId, 'user')
 }
 
-/**
- * Exchanges a rotating refresh token for a fresh access token + a new refresh
- * token (see docs/token-rotation-plan.md §3). The refresh token is presented as
- * the request's auth token; the account RPC dispatch only lets `kind:'refresh'`
- * tokens reach this method. Rejects revoked/expired/replayed refresh tokens.
- */
+/** Rotates a valid refresh token and returns fresh tokens. */
 export async function refreshToken (
   ctx: MeasureContext,
   db: AccountDB,
@@ -4215,7 +4193,7 @@ export async function refreshToken (
   token: string,
   _params?: Record<string, never>
 ): Promise<LoginInfo> {
-  // Throws on invalid signature or expired refresh token.
+  // Validates the signature and expiry.
   const decoded = decodeTokenVerbose(ctx, token)
   if (decoded.kind !== 'refresh' || decoded.sessionId === undefined) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
@@ -4240,8 +4218,7 @@ export async function refreshToken (
 
   return {
     account,
-    // Account-level access token; the client scopes it to a workspace (and gets
-    // the connect token) via selectWorkspace, which re-checks revocation.
+    // The client scopes this account token to a workspace separately.
     token: generateToken(account, undefined, undefined, undefined, accessTokenOptions(decoded.sessionId)),
     refreshToken: mintRefreshToken(account, decoded.sessionId, result.newGen)
   }

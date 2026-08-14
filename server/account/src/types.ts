@@ -80,7 +80,7 @@ export interface AccountEvent {
 
 export type SecurityAuthMethod = 'password' | 'otp' | 'token' | 'session' | 'unknown'
 
-/** See account-client `SecurityEventType`. */
+/** Security login event category. */
 export type SecurityEventType = 'login' | 'logout' | 'refresh' | 'session'
 
 export interface SecurityLoginEvent {
@@ -102,12 +102,7 @@ export interface SecurityLoginEvent {
   createdOn: Timestamp
 }
 
-/**
- * A durable record of a login session. Created on interactive login
- * (password/otp), one per issued login token, and referenced by that token's
- * `sessionId` claim. Powers the Active sessions view and per-session
- * revocation: `revokedOn` set = the session's tokens are rejected at connect.
- */
+/** Durable interactive-login session used for revocation. */
 export interface ActiveSession {
   sessionId: string
   accountUuid: AccountUuid
@@ -121,13 +116,11 @@ export interface ActiveSession {
   authMethod: SecurityAuthMethod
   revokedOn?: Timestamp
   revokedReason?: 'user' | 'user-not-me' | 'admin' | 'expired' | 'reuse'
-  // Monotonic counter for rotating refresh tokens. A refresh token embeds the
-  // generation it was minted with; presenting an older generation means the
-  // token was already rotated (replay) and triggers session revocation.
+  // Rejects replayed refresh-token generations.
   refreshGeneration?: number
 }
 
-/** Wire shape returned by `getMyActiveSessions` (mirrors account-client). */
+/** Response returned by getMyActiveSessions. */
 export interface ActiveSessionInfo {
   sessionId: string
   workspaceUuid?: WorkspaceUuid
@@ -139,7 +132,7 @@ export interface ActiveSessionInfo {
   userAgent?: string
   authMethod: SecurityAuthMethod
   isCurrent: boolean
-  /** See account-client `ActiveSessionInfo.anomalyCodes`. */
+  /** Session anomaly codes. */
   anomalyCodes?: string[]
 }
 
@@ -148,7 +141,7 @@ export enum AccountEventType {
   SOCIAL_ID_RELEASED = 'social_id_released',
   ACCOUNT_DELETED = 'account_deleted',
   PASSWORD_CHANGED = 'password_changed',
-  /** User reported a login row as suspicious (audit / support follow-up). */
+  /** User reported suspicious login activity. */
   SECURITY_LOGIN_CONCERN_REPORTED = 'security_login_concern_reported'
 }
 
@@ -530,7 +523,7 @@ export interface LoginInfo {
   name?: string
   socialId?: PersonId
   token?: string
-  /** Rotating refresh token (see docs/token-rotation-plan.md). */
+  /** Rotating refresh token. */
   refreshToken?: string
   tfaRequired?: boolean
 }
