@@ -355,7 +355,7 @@ describe('Workspace API routes with local plugin resources', () => {
     expect(await api('get', '/api/v2/:workspaceId/chats/messages', { query: { channel: 'General' } })).toMatchObject({
       status: 200
     })
-    expect(domainRequests).toHaveLength(2)
+    expect(domainRequests).toHaveLength(0)
   })
 
   async function api (

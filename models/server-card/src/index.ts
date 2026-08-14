@@ -17,25 +17,15 @@
 import { type Builder } from '@hcengineering/model'
 
 import core from '@hcengineering/core'
-import integration from '@hcengineering/integration'
 import serverCore from '@hcengineering/server-core'
 import serverCard from '@hcengineering/server-card'
 import card from '@hcengineering/card'
-import communication from '@hcengineering/communication'
 import serverNotification from '@hcengineering/server-notification'
 import view from '@hcengineering/view'
 
 export { serverCardId } from '@hcengineering/server-card'
 
 export function createModel (builder: Builder): void {
-  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
-    targetClass: card.class.Card,
-    commands: {
-      'communication-messages': serverCard.workspaceApi.GetCommunicationMessages,
-      'create-communication-message': serverCard.workspaceApi.CreateCommunicationMessage
-    }
-  })
-
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverCard.trigger.OnAttribute,
     isAsync: true,
@@ -102,24 +92,6 @@ export function createModel (builder: Builder): void {
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverCard.trigger.OnCardCreate,
     isAsync: true,
-    txMatch: {
-      _class: core.class.TxCreateDoc,
-      objectClass: card.class.Card
-    }
-  })
-
-  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
-    trigger: serverCard.trigger.OnDirectCreate,
-    isAsync: false,
-    txMatch: {
-      _class: core.class.TxCreateDoc,
-      objectClass: communication.type.Direct
-    }
-  })
-
-  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
-    trigger: serverCard.trigger.OnThreadCreate,
-    isAsync: false,
     txMatch: {
       _class: core.class.TxCreateDoc,
       objectClass: card.class.Card

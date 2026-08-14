@@ -33,8 +33,7 @@ export default plugin(serverActivityId, {
     ActivityMessagesHandler: '' as Resource<TriggerFunc>,
     OnDocRemoved: '' as Resource<TriggerFunc>,
     OnReactionChanged: '' as Resource<TriggerFunc>,
-    ReferenceTrigger: '' as Resource<TriggerFunc>,
-    HandleCardActivity: '' as Resource<TriggerFunc>
+    ReferenceTrigger: '' as Resource<TriggerFunc>
   },
   function: {
     DocUpdateMessageTextPresenter: '' as Resource<Presenter>

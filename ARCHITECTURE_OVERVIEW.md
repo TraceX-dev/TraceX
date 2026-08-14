@@ -463,8 +463,6 @@ sequenceDiagram
 - `LAST_NAME_FIRST`: `true` - Name formatting preference
 
 ### Feature Flags
-- `COMMUNICATION_API_ENABLED`: `true`
-- `COMMUNICATION_TIME_LOGGING_ENABLED`: `true`
 - `ENABLE_COMPRESSION`: `true` - Transactor compression
 
 ### Rate Limiting (Transactor)

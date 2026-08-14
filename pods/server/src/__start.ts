@@ -13,7 +13,6 @@ import { setDBExtraOptions } from '@hcengineering/postgres'
 import { serverConfigFromEnv } from '@hcengineering/server'
 import serverAiBot from '@hcengineering/server-ai-bot'
 import serverCalendar from '@hcengineering/server-calendar'
-import serverCard from '@hcengineering/server-card'
 import serverCore, {
   initStatisticsContext,
   loadBrandingMap,
@@ -86,7 +85,6 @@ setMetadata(serverNotification.metadata.MailAuthToken, config.mailAuthToken)
 setMetadata(serverNotification.metadata.WebPushUrl, config.webPushUrl)
 setMetadata(serverAiBot.metadata.EndpointURL, process.env.AI_BOT_URL)
 setMetadata(serverCalendar.metadata.EndpointURL, process.env.CALENDAR_URL)
-setMetadata(serverCard.metadata.CommunicationEnabled, process.env.COMMUNICATION_API_ENABLED === 'true')
 
 const { shutdown, sessionManager } = start(metricsContext, config.dbUrl, {
   fulltextUrl: config.fulltextUrl,
@@ -95,7 +93,6 @@ const { shutdown, sessionManager } = start(metricsContext, config.dbUrl, {
   brandingMap: loadBrandingMap(config.brandingPath),
   accountsUrl: config.accountsUrl,
   enableCompression: config.enableCompression,
-  communicationApiEnabled: process.env.COMMUNICATION_API_ENABLED === 'true',
   profiling: {
     start: profileStart,
     stop: profileStop
