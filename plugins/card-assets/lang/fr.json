@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "Interdire la suppression d'étiquette",
     "Duplicate": "Dupliquer",
     "Version": "Version",
+    "Effective": "Effective",
+    "MakeEffective": "Rendre effective",
     "Versions": "Versions",
     "NewVersion": "Nouvelle version",
+    "VersionCreationUnavailable": "La création d’une nouvelle version est actuellement indisponible",
     "Versioning": "Gestion des versions",
     "EnableVersioning": "Activer la gestion des versions",
     "EnableVersioningConfirm": "Voulez-vous activer la gestion des versions ?",
@@ -91,6 +94,7 @@
     "Grid": "Grille",
     "RichtextProperties": "Champs de texte",
     "ShowAllVersions": "Toutes les versions",
+    "ShowOnlyEffectiveVersions": "Afficher uniquement les versions effectives",
     "ShowOnlyCardsWithoutRelations": "Afficher uniquement les cartes sans relations"
   }
 }

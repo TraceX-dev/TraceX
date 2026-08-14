@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -563,7 +564,9 @@ export async function createNewVersion (card: Card): Promise<Ref<Card>> {
     card,
     {
       baseId: card.baseId,
-      docCreatedBy: card.docCreatedBy ?? card.createdBy ?? card.modifiedBy
+      docCreatedBy: card.docCreatedBy ?? card.createdBy ?? card.modifiedBy,
+      isEffective: false,
+      versionCreationDisabled: false
     },
     mixin,
     true
@@ -840,9 +843,16 @@ export function canUnlockSection (space: Ref<Space>, store: PermissionsStore): b
   return !store.restrictedSpaces.has(space)
 }
 
-export function showAllVersions (value: any, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
-  if (value === true) {
+export function showAllVersions (value: boolean, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
+  if (value) {
     return { ...query, isLatest: { $in: [true, false] } }
+  }
+  return query
+}
+
+export function showOnlyEffectiveVersions (value: boolean, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
+  if (value) {
+    return { ...query, isLatest: { $in: [true, false] }, isEffective: true }
   }
   return query
 }

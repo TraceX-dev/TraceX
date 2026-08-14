@@ -255,6 +255,15 @@ const showAllVersionsOption: ViewOptionModel = {
   label: card.string.ShowAllVersions
 }
 
+const showOnlyEffectiveVersionsOption: ViewOptionModel = {
+  key: 'showOnlyEffectiveVersions',
+  type: 'toggle',
+  defaultValue: false,
+  actionTarget: 'query',
+  action: card.function.ShowOnlyEffectiveVersions,
+  label: card.string.ShowOnlyEffectiveVersions
+}
+
 const showOnlyCardsWithoutRelationsOption: ViewOptionModel = {
   key: 'showOnlyCardsWithoutRelations',
   type: 'toggle',
@@ -379,7 +388,7 @@ export function createSystemType (
     viewOptions: {
       groupBy: [],
       orderBy: [],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -408,7 +417,7 @@ export function createSystemType (
         ['modifiedOn', SortingOrder.Descending],
         ['rank', SortingOrder.Ascending]
       ],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -425,7 +434,7 @@ export function createSystemType (
     viewOptions: {
       groupBy: [],
       orderBy: [],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -729,7 +738,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       baseQuery: {
         isLatest: true
@@ -763,7 +772,7 @@ export function createModel (builder: Builder): void {
           ['modifiedOn', SortingOrder.Descending],
           ['rank', SortingOrder.Ascending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       configOptions: {
         hiddenKeys: ['content', 'title']
@@ -789,7 +798,7 @@ export function createModel (builder: Builder): void {
           ['modifiedOn', SortingOrder.Descending],
           ['rank', SortingOrder.Ascending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       configOptions: {
         strict: true,
@@ -835,7 +844,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption, showOnlyCardsWithoutRelationsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption, showOnlyCardsWithoutRelationsOption]
       },
       baseQuery: {
         isLatest: true
@@ -876,7 +885,7 @@ export function createModel (builder: Builder): void {
           ['rank', SortingOrder.Ascending],
           ['title', SortingOrder.Descending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       }
     },
     card.viewlet.CardGrid

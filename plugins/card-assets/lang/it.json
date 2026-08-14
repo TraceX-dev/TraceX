@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "Vieta rimozione tag",
     "Duplicate": "Duplicato",
     "Version": "Versione",
+    "Effective": "Efficace",
+    "MakeEffective": "Rendi efficace",
     "Versions": "Versioni",
     "NewVersion": "Nuova versione",
+    "VersionCreationUnavailable": "La creazione di una nuova versione non è al momento disponibile",
     "Versioning": "Versionamento",
     "EnableVersioning": "Abilita versionamento",
     "EnableVersioningConfirm": "Vuoi abilitare il versionamento?",
@@ -91,6 +94,7 @@
     "Grid": "Griglia",
     "RichtextProperties": "Campo di testo",
     "ShowAllVersions": "Tutte le versioni",
+    "ShowOnlyEffectiveVersions": "Mostra solo le versioni efficaci",
     "ShowOnlyCardsWithoutRelations": "Mostra solo le schede senza relazioni"
   }
 }

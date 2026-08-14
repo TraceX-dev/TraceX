@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "タグ削除を禁止",
     "Duplicate": "複製",
     "Version": "バージョン",
+    "Effective": "有効",
+    "MakeEffective": "有効にする",
     "Versions": "バージョン",
     "NewVersion": "新しいバージョン",
+    "VersionCreationUnavailable": "現在、新しいバージョンは作成できません",
     "Versioning": "バージョン管理",
     "EnableVersioning": "バージョン管理を有効にする",
     "EnableVersioningConfirm": "バージョン管理を有効にしますか？",
@@ -91,6 +94,7 @@
     "Grid": "グリッド",
     "RichtextProperties": "リッチテキストフィールド",
     "ShowAllVersions": "すべてのバージョンを表示",
+    "ShowOnlyEffectiveVersions": "有効なバージョンのみ表示",
     "ShowOnlyCardsWithoutRelations": "関連のないカードのみを表示"
   }
 }

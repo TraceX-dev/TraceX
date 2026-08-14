@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "Zakázat odebírání štítků",
     "Duplicate": "Duplikovat",
     "Version": "Verze",
+    "Effective": "Účinná",
+    "MakeEffective": "Nastavit jako účinnou",
     "Versions": "Verze",
     "NewVersion": "Nová verze",
+    "VersionCreationUnavailable": "Vytváření nové verze je nyní zakázáno",
     "Versioning": "Verzování",
     "EnableVersioning": "Povolit verzování",
     "EnableVersioningConfirm": "Chcete povolit verzování?",
@@ -91,6 +94,7 @@
     "Grid": "Mřížka",
     "RichtextProperties": "Textová pole",
     "ShowAllVersions": "Ukázat všechny verze",
+    "ShowOnlyEffectiveVersions": "Zobrazit pouze účinné verze",
     "ShowOnlyCardsWithoutRelations": "Zobrazit pouze karty bez vztahů"
   }
 }
