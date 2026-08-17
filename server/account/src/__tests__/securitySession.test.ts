@@ -84,15 +84,18 @@ class InMemoryCollection<T extends Record<string, any>> {
     return limit != null ? res.slice(0, limit) : res
   }
 
-  async update (query: any, ops: any): Promise<void> {
+  async update (query: any, ops: any): Promise<number> {
+    let matched = 0
     for (const row of this.rows) {
       if (!matches(row, query)) continue
+      matched++
       const set = ops.$set ?? ops
       for (const [k, v] of Object.entries(set)) {
         if (k === '$set' || k === '$inc') continue
         ;(row as any)[k] = v
       }
     }
+    return matched
   }
 
   async deleteMany (query: any): Promise<void> {
@@ -236,6 +239,27 @@ describe('rotateSessionRefresh', () => {
     const logout = securityLoginEvent.rows.find((e) => e.eventType === 'logout')
     expect(logout).toBeDefined()
     expect(logout?.reason).toBe('session_revoked_reuse')
+  })
+
+  it('treats a lost generation compare-and-swap as refresh-token reuse', async () => {
+    const { db, activeSession } = makeDb()
+    activeSession.rows = [
+      { sessionId: 's1', accountUuid: ACC, createdOn: 1, lastSeen: 1, authMethod: 'password', refreshGeneration: 0 }
+    ] as ActiveSession[]
+
+    const update = activeSession.update.bind(activeSession)
+    let simulateConcurrentRefresh = true
+    activeSession.update = async (query: any, ops: any): Promise<number> => {
+      if (simulateConcurrentRefresh) {
+        simulateConcurrentRefresh = false
+        await update(query, { refreshGeneration: 1 })
+        return 0
+      }
+      return await update(query, ops)
+    }
+
+    await expect(rotateSessionRefresh(ctx, db, ACC, 's1', 0)).resolves.toEqual({ error: 'reuse' })
+    expect(activeSession.rows[0].revokedReason).toBe('reuse')
   })
 
   it('rejects a revoked or unknown session', async () => {

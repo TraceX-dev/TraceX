@@ -135,14 +135,14 @@ export function filterHistoryByStatus (
   filter: LoginHistoryStatusFilter
 ): SecurityLoginHistoryEvent[] {
   if (filter === 'all') return events
-  return events.filter((event) => (filter === 'success' ? event.success : !event.success))
+  return events.filter((event) => (filter === 'success' ? event.success === true : event.success !== true))
 }
 
 export function shouldShowNotMeAction (
   event: Pick<SecurityLoginHistoryEvent, 'success'> &
   Partial<Pick<SecurityLoginHistoryEvent, 'authMethod' | 'eventType'>>
 ): boolean {
-  return event.success && !isRoutineEvent(event)
+  return event.success === true && !isRoutineEvent(event)
 }
 
 /** Consecutive equivalent events collapsed into one row. */
@@ -168,7 +168,7 @@ function sameSignature (a: SecurityLoginHistoryEvent, b: SecurityLoginHistoryEve
 
 /** Only successful routine events can be collapsed. */
 function isCoalescable (event: SecurityLoginHistoryEvent): boolean {
-  return event.success && isRoutineEvent(event)
+  return event.success === true && isRoutineEvent(event)
 }
 
 /** Collapses consecutive equivalent events from a newest-first list. */

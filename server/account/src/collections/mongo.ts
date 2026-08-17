@@ -201,7 +201,7 @@ implements DbCollection<T> {
     throw new Error('Not implemented')
   }
 
-  async update (query: Query<T>, ops: Operations<T>): Promise<void> {
+  async update (query: Query<T>, ops: Operations<T>): Promise<number> {
     const resOps: any = { $set: {} }
 
     for (const key of Object.keys(ops)) {
@@ -215,7 +215,8 @@ implements DbCollection<T> {
         }
       }
     }
-    await this.collection.updateMany(getFilteredQuery(query) as Filter<T>, resOps)
+    const result = await this.collection.updateMany(getFilteredQuery(query) as Filter<T>, resOps)
+    return result.matchedCount
   }
 
   async deleteMany (query: Query<T>): Promise<void> {
@@ -370,8 +371,8 @@ export class WorkspaceStatusMongoDbCollection implements DbCollection<WorkspaceS
     throw new Error('Not implemented')
   }
 
-  async update (query: Query<WorkspaceStatus>, ops: Operations<WorkspaceStatus>): Promise<void> {
-    await this.wsCollection.update(this.toWsQuery(query), this.toWsOperations(ops))
+  async update (query: Query<WorkspaceStatus>, ops: Operations<WorkspaceStatus>): Promise<number> {
+    return await this.wsCollection.update(this.toWsQuery(query), this.toWsOperations(ops))
   }
 
   async deleteMany (query: Query<WorkspaceStatus>): Promise<void> {

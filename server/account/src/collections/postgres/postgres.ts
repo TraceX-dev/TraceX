@@ -399,7 +399,7 @@ implements DbCollection<T> {
     return [`SET ${updateChunks.join(', ')}`, values]
   }
 
-  async update (query: Query<T>, ops: Operations<T>, client?: Sql): Promise<void> {
+  async update (query: Query<T>, ops: Operations<T>, client?: Sql): Promise<number> {
     const sqlChunks: string[] = [`UPDATE ${this.getTableName()}`]
     const [updateClause, updateValues] = this.buildUpdateClause(ops)
     const [whereClause, whereValues] = this.buildWhereClause(query, updateValues.length)
@@ -410,7 +410,8 @@ implements DbCollection<T> {
     }
 
     const finalSql = sqlChunks.join(' ')
-    await this.unsafe(finalSql, [...updateValues, ...whereValues], client)
+    const result = await this.unsafe(finalSql, [...updateValues, ...whereValues], client)
+    return result.count
   }
 
   async deleteMany (query: Query<T>, client?: Sql): Promise<void> {
@@ -492,12 +493,12 @@ export class AccountPostgresDbCollection
     return await super.insertOne(data, client)
   }
 
-  async update (query: Query<Account>, ops: Operations<Account>, client?: Sql): Promise<void> {
+  async update (query: Query<Account>, ops: Operations<Account>, client?: Sql): Promise<number> {
     if (Object.keys({ ...ops, ...query }).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in update query')
     }
 
-    await super.update(query, ops, client)
+    return await super.update(query, ops, client)
   }
 
   async deleteMany (query: Query<Account>, client?: Sql): Promise<void> {

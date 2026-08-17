@@ -2368,10 +2368,23 @@ export async function rotateSessionRefresh (
     return { error: 'invalid' }
   }
   const newGen = current + 1
-  await db.activeSession.update(
+  const updated = await db.activeSession.update(
     { sessionId, accountUuid, refreshGeneration: current },
     { refreshGeneration: newGen, lastSeen: Date.now() }
   )
+  if (updated !== 1) {
+    // Another refresh may have changed the generation after the read. Do not
+    // issue a second token when the compare-and-swap did not match.
+    const latest = await db.activeSession.findOne({ sessionId, accountUuid })
+    if (latest == null || latest.revokedOn != null) {
+      return { error: 'revoked' }
+    }
+    if (presentedGen < (latest.refreshGeneration ?? 0)) {
+      await revokeActiveSession(ctx, db, accountUuid, sessionId, 'reuse')
+      return { error: 'reuse' }
+    }
+    return { error: 'invalid' }
+  }
   return { newGen }
 }
 
