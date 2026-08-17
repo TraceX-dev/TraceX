@@ -353,7 +353,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   setMetadata(recorder.metadata.StreamUrl, config.STREAM_URL ?? '')
   setMetadata(presentation.metadata.StatsUrl, config.STATS_URL)
   setMetadata(presentation.metadata.HulylakeUrl, config.HULYLAKE_URL ?? '')
-  setMetadata(presentation.metadata.PulseUrl, config.PULSE_URL ?? '')
   setMetadata(githubNext.metadata.GithubClientID, config.GITHUB_NEXT_CLIENTID ?? '')
   setMetadata(githubNext.metadata.GithubNextURL, config.GITHUB_NEXT_URL ?? 'http://tracex.local:3510')
 
