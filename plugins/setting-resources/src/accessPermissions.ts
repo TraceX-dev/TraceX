@@ -91,7 +91,7 @@ export function getMemberSpaceAvailability (
 ): MemberSpaceAvailability | undefined {
   if (person === undefined || role === undefined) return undefined
   if (space.members.includes(person)) return 'member'
-  if (space.private !== true && isRowLevelRestricted(role) !== true) return 'joinable'
+  if (space.private !== true && !isRowLevelRestricted(role)) return 'joinable'
   return undefined
 }
 

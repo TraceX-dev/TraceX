@@ -145,7 +145,7 @@ export class RowVisibilityResolver {
       return { kind: 'unrestricted' }
     }
 
-    if (allowKnownIdBypass && mixin.allowKnownIdBypass === true) {
+    if (allowKnownIdBypass && mixin.allowKnownIdBypass) {
       const bypassFields = ['_id', ...(mixin.knownIdBypassFields ?? [])]
       if (bypassFields.some((field) => hasNarrowFieldQuery(query, field))) {
         return { kind: 'unrestricted' }

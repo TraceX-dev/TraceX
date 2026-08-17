@@ -635,7 +635,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     const domain = this.context.hierarchy.getDomain(_class)
     const newQuery = clone(query)
     const account = ctx.contextData.account
-    const isRestricted = isRowLevelRestricted(account.role) === true
+    const isRestricted = isRowLevelRestricted(account.role)
     const isSpace = this.context.hierarchy.isDerived(_class, core.class.Space)
     const field = this.getKey(domain)
     const showArchived: boolean = shouldShowArchived(newQuery, options)
@@ -816,7 +816,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     await this.init(ctx)
     const newQuery = { ...query }
     const account = ctx.contextData.account
-    const personRestricted = isRowLevelRestricted(account.role) === true
+    const personRestricted = isRowLevelRestricted(account.role)
     let personClassesSearched = false
     if (!isSystem(account, ctx)) {
       const allSpaces = this.getAllAllowedSpaces(account, true, false, true)
