@@ -254,7 +254,7 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
     it('does not treat a search result id as a known-id bypass', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
-      const result = await s.mw.searchFulltext(ctx, { classes: [MEETING_MINUTES] }, {})
+      const result = await s.mw.searchFulltext(ctx, { query: 'minutes', classes: [MEETING_MINUTES] }, {})
       expect(result.docs.map((doc) => doc.doc._id)).toEqual([s.mmAlice])
       expect(result.total).toBe(1)
     })
