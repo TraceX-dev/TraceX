@@ -259,7 +259,8 @@
   <svelte:fragment slot="actions">
     {#if !disabled}
       <ButtonIcon
-        icon={attribute.hidden === true ? view.icon.Eye : view.icon.EyeCrossed}
+        icon={attribute.hidden === true ? view.icon.EyeCrossed : view.icon.Eye}
+        tooltip={{ label: attribute.hidden === true ? view.string.Show : view.string.Hide }}
         size={'small'}
         kind={'tertiary'}
         {disabled}

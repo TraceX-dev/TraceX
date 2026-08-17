@@ -20,6 +20,7 @@
   import { type IntlString } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Button, type ButtonKind, type ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
+  import { ObjectsTooltipWrapper } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import products from '../../plugin'
@@ -69,14 +70,23 @@
   $: emptyLabel = label ?? attribute?.label ?? products.string.Product
 </script>
 
-<Button {justify} {focusIndex} {width} {size} {icon} {kind} disabled={readonly} on:click={openPopup}>
-  <div slot="content" class="overflow-label">
-    {#if productsList.length === 1}
-      {productsList[0].name}
-    {:else if productsList.length > 1}
-      <div class="lower">{productsList.length} <Label label={products.string.Products} /></div>
-    {:else}
-      <Label label={emptyLabel} />
-    {/if}
-  </div>
-</Button>
+<ObjectsTooltipWrapper
+  selectedCount={toArray(value).length}
+  objects={productsList}
+  objectIds={toArray(value)}
+  label={emptyLabel}
+  {readonly}
+  {width}
+>
+  <Button {justify} {focusIndex} width={'100%'} {size} {icon} {kind} disabled={readonly} on:click={openPopup}>
+    <div slot="content" class="overflow-label">
+      {#if productsList.length === 1}
+        {productsList[0].name}
+      {:else if productsList.length > 1}
+        <div class="lower">{productsList.length} <Label label={products.string.Products} /></div>
+      {:else}
+        <Label label={emptyLabel} />
+      {/if}
+    </div>
+  </Button>
+</ObjectsTooltipWrapper>

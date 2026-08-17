@@ -38,7 +38,8 @@ import {
   cardFactory,
   checkChildrenSectionVisibility,
   createChildAction,
-  showAllVersions
+  showAllVersions,
+  showOnlyEffectiveVersions
 } from './utils'
 import { formatCardValue } from './cardTableFormatter'
 import {
@@ -188,6 +189,7 @@ export default async (): Promise<Resources> => ({
     CardFactory: cardFactory,
     FormatCardMarkdownValue: formatCardValue,
     ShowAllVersions: showAllVersions,
+    ShowOnlyEffectiveVersions: showOnlyEffectiveVersions,
     CreateIntegrationTarget: createIntegrationTarget,
     UpdateIntegrationTarget: updateIntegrationTarget,
     CanCreateIntegrationTarget: canCreateIntegrationTarget,

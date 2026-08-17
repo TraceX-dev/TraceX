@@ -224,11 +224,14 @@ const cardPlugin = plugin(cardId, {
     AllowCreatingCards: '' as IntlString,
     Version: '' as IntlString,
     Versions: '' as IntlString,
+    Effective: '' as IntlString,
+    MakeEffective: '' as IntlString,
     LockSection: '' as IntlString,
     UnLockSection: '' as IntlString,
     SectionLocked: '' as IntlString,
     SectionUnlocked: '' as IntlString,
     ShowAllVersions: '' as IntlString,
+    ShowOnlyEffectiveVersions: '' as IntlString,
     ShowOnlyCardsWithoutRelations: '' as IntlString
   },
   section: {

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,6 +14,7 @@
 // limitations under the License.
 //
 
+import attachment, { type Attachment } from '@hcengineering/attachment'
 import cardPlugin, { Card, MasterTag, Tag } from '@hcengineering/card'
 import core, {
   Association,
@@ -49,6 +51,7 @@ import process, {
   UserResult,
   ContextId
 } from '@hcengineering/process'
+import { makeRank } from '@hcengineering/rank'
 import { ExecuteResult, ProcessControl, SuccessExecutionContext } from '@hcengineering/server-process'
 import { isEmptyMarkup } from '@hcengineering/text-core'
 import time, { ToDoPriority } from '@hcengineering/time'
@@ -399,6 +402,213 @@ export async function UpdateCard (
     rollback.push(control.client.txFactory.createTxUpdateDoc(target._class, target.space, target._id, prevValue))
   }
   return { txes: res, rollback, context: null }
+}
+
+export async function MakeVersionEffective (
+  params: MethodParams<Card>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  const target: Card | undefined =
+    (control.cache.get(execution.card) as Card | undefined) ??
+    (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
+  if (target === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
+  const tx = control.client.txFactory.createTxUpdateDoc<Card>(target._class, target.space, target._id, {
+    isEffective: true
+  })
+  return { txes: [tx], rollback: undefined, context: [] }
+}
+
+async function getLatestCardVersion (execution: Execution, control: ProcessControl): Promise<Card> {
+  const current: Card | undefined =
+    (control.cache.get(execution.card) as Card | undefined) ??
+    (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
+  if (current === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
+  if (current.isLatest === true) return current
+
+  const latest = await control.client.findOne<Card>(current._class, {
+    baseId: current.baseId ?? current._id,
+    isLatest: true
+  })
+  if (latest === undefined) throw processError(process.error.ObjectNotFound, { _id: current.baseId ?? current._id })
+  return latest
+}
+
+export async function CreateNewVersion (
+  params: MethodParams<Card>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  const origin = await getLatestCardVersion(execution, control)
+  const hierarchy = control.client.getHierarchy()
+  const config = hierarchy.classHierarchyMixin(origin._class, core.mixin.VersionableClass)
+  if (config?.enabled !== true) throw new Error('Versioning is not enabled for this class')
+  if (origin.versionCreationDisabled === true) throw new Error('New version creation is currently disabled')
+
+  const base = hierarchy.getBaseClass(origin._class)
+  const targetId = generateId<Card>()
+  const props: Partial<Data<Card>> = {}
+  const propsRecord = props as Record<string, unknown>
+  const attributes = hierarchy.getAllAttributes(base, core.class.Doc)
+  const systemFields = new Set([
+    '_class',
+    '_id',
+    'createdOn',
+    'modifiedOn',
+    'modifiedBy',
+    'createdBy',
+    'rank',
+    'baseId',
+    'version',
+    'isLatest',
+    'isEffective',
+    'versionCreationDisabled',
+    'readonly',
+    'docCreatedBy'
+  ])
+
+  for (const [key, attribute] of attributes) {
+    if (config.excludedProperties?.includes(key) === true || systemFields.has(key)) continue
+    if (attribute.type._class === core.class.Collection) {
+      propsRecord[key] = 0
+    } else if (attribute.type._class !== core.class.TypeCollaborativeDoc) {
+      propsRecord[key] = getObjectValue(key, origin)
+    }
+  }
+
+  props.baseId = origin.baseId ?? origin._id
+  props.docCreatedBy = origin.docCreatedBy ?? origin.createdBy ?? origin.modifiedBy
+  props.isEffective = false
+  props.versionCreationDisabled = false
+  props.readonly = false
+  props.rank = makeRank(origin.rank, undefined)
+
+  if (config.excludedProperties?.includes('content') !== true) {
+    const collabClient = control.collaboratorFactory()
+    const markup = await collabClient.getMarkup(makeDocCollabId(origin, 'content'), origin.content)
+    if (!isEmptyMarkup(markup)) {
+      props.content = await collabClient.createMarkup(
+        {
+          objectClass: base,
+          objectId: targetId,
+          objectAttr: 'content'
+        },
+        markup
+      )
+    }
+  }
+
+  const [relationsA, relationsB, attachments] = await Promise.all([
+    control.client.findAll(core.class.Relation, { docA: origin._id }),
+    control.client.findAll(core.class.Relation, { docB: origin._id }),
+    config.excludedProperties?.includes('attachments') === true
+      ? Promise.resolve([] as Attachment[])
+      : control.client.findAll(attachment.class.Attachment, { attachedTo: origin._id })
+  ])
+
+  const createTx = control.client.txFactory.createTxCreateDoc(base, origin.space, props as Data<Card>, targetId)
+  const txes: Tx[] = [createTx]
+
+  for (const mixin of hierarchy.findAllMixins(origin)) {
+    if (config.excludeMixins?.includes(mixin) === true) continue
+    const mixinData: Partial<Data<Doc>> = {}
+    const mixinRecord = mixinData as Record<string, unknown>
+    const mixedOrigin = hierarchy.as(origin, mixin)
+    for (const [key] of hierarchy.getOwnAttributes(mixin)) {
+      mixinRecord[key] = getObjectValue(key, mixedOrigin)
+    }
+    txes.push(control.client.txFactory.createTxMixin(targetId, base, origin.space, mixin, mixinData))
+  }
+
+  for (const relation of relationsA) {
+    if (config.excludedRelations?.includes(`${relation.association}_b`) === true) continue
+    txes.push(
+      control.client.txFactory.createTxCreateDoc(core.class.Relation, core.space.Workspace, {
+        docA: targetId,
+        docB: relation.docB,
+        association: relation.association
+      })
+    )
+  }
+  for (const relation of relationsB) {
+    if (config.excludedRelations?.includes(`${relation.association}_a`) === true) continue
+    txes.push(
+      control.client.txFactory.createTxCreateDoc(core.class.Relation, core.space.Workspace, {
+        docA: relation.docA,
+        docB: targetId,
+        association: relation.association
+      })
+    )
+  }
+
+  for (const item of attachments) {
+    const {
+      _id,
+      _class,
+      space,
+      modifiedBy,
+      modifiedOn,
+      createdBy,
+      createdOn,
+      attachedTo,
+      attachedToClass,
+      collection,
+      ...attachmentData
+    } = item
+    const attachmentTx = control.client.txFactory.createTxCreateDoc(
+      attachment.class.Attachment,
+      origin.space,
+      attachmentData as Data<Attachment>,
+      generateId<Attachment>()
+    )
+    txes.push(control.client.txFactory.createTxCollectionCUD(base, targetId, origin.space, 'attachments', attachmentTx))
+  }
+
+  return {
+    txes,
+    rollback: [
+      control.client.txFactory.createTxRemoveDoc(base, origin.space, targetId),
+      control.client.txFactory.createTxUpdateDoc(origin._class, origin.space, origin._id, {
+        isLatest: true,
+        readonly: false
+      })
+    ],
+    context: [{ _id: targetId, value: TxProcessor.createDoc2Doc(createTx, true) }]
+  }
+}
+
+async function setVersionCreationDisabled (
+  execution: Execution,
+  control: ProcessControl,
+  disabled: boolean
+): Promise<ExecuteResult> {
+  const target = await getLatestCardVersion(execution, control)
+  const versioning = control.client.getHierarchy().classHierarchyMixin(target._class, core.mixin.VersionableClass)
+  if (versioning?.enabled !== true) throw new Error('Versioning is not enabled for this class')
+
+  const tx = control.client.txFactory.createTxUpdateDoc(target._class, target.space, target._id, {
+    versionCreationDisabled: disabled
+  })
+  const rollback = control.client.txFactory.createTxUpdateDoc(target._class, target.space, target._id, {
+    versionCreationDisabled: target.versionCreationDisabled === true
+  })
+  return { txes: [tx], rollback: [rollback], context: null }
+}
+
+export async function DisableVersionCreation (
+  params: MethodParams<Card>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  return await setVersionCreationDisabled(execution, control, true)
+}
+
+export async function EnableVersionCreation (
+  params: MethodParams<Card>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  return await setVersionCreationDisabled(execution, control, false)
 }
 
 export async function AddTag (
