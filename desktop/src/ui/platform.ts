@@ -51,6 +51,7 @@ import login, { loginId } from '@hcengineering/login'
 import notification, { notificationId } from '@hcengineering/notification'
 import onboard, { onboardId } from '@hcengineering/onboard'
 import presence, { presenceId } from '@hcengineering/presence'
+import { pulseId } from '@hcengineering/pulse'
 import { processId } from '@hcengineering/process'
 import { productsId } from '@hcengineering/products'
 import { questionsId } from '@hcengineering/questions'
@@ -352,7 +353,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   setMetadata(recorder.metadata.StreamUrl, config.STREAM_URL ?? '')
   setMetadata(presentation.metadata.StatsUrl, config.STATS_URL)
   setMetadata(presentation.metadata.HulylakeUrl, config.HULYLAKE_URL ?? '')
-  setMetadata(presentation.metadata.PulseUrl, config.PULSE_URL ?? '')
   setMetadata(githubNext.metadata.GithubClientID, config.GITHUB_NEXT_CLIENTID ?? '')
   setMetadata(githubNext.metadata.GithubNextURL, config.GITHUB_NEXT_URL ?? 'http://tracex.local:3510')
 
@@ -511,7 +511,7 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
 
   setMetadata(client.metadata.FilterModel, 'ui')
   setMetadata(client.metadata.ExtraFilter, disabledFeatures)
-  setMetadata(client.metadata.ExtraPlugins, [preferenceId, qalicoId])
+  setMetadata(client.metadata.ExtraPlugins, [preferenceId, qalicoId, pulseId])
 
   // Use binary response transfer for faster performance and small transfer sizes.
   setMetadata(client.metadata.UseBinaryProtocol, true)

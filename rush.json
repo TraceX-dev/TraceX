@@ -2172,6 +2172,16 @@
       "shouldPublish": false
     },
     {
+      "packageName": "@hcengineering/pulse",
+      "projectFolder": "plugins/pulse",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/model-pulse",
+      "projectFolder": "models/pulse",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@hcengineering/desktop-downloads-assets",
       "projectFolder": "plugins/desktop-downloads-assets",
       "shouldPublish": false
@@ -2525,11 +2535,6 @@
       "packageName": "@hcengineering/kvs-client",
       "projectFolder": "packages/kvs-client",
       "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/hulypulse-client",
-      "projectFolder": "packages/hulypulse-client",
-      "shouldPublish": true
     },
     {
       "packageName": "@hcengineering/mail-common",
