@@ -125,12 +125,17 @@ function mergeIn<T extends Doc> (
 export class RowVisibilityResolver {
   constructor (private readonly next: Middleware | undefined) {}
 
+  hasPolicy (hierarchy: Hierarchy, _class: Ref<Class<Doc>>): boolean {
+    return hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility) !== undefined
+  }
+
   async resolve<T extends Doc>(
     ctx: MeasureContext<SessionData>,
     hierarchy: Hierarchy,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
-    identity: AccountIdentityResolver
+    identity: AccountIdentityResolver,
+    allowKnownIdBypass = true
   ): Promise<RowVisibilityDecision<T>> {
     // Cast to a concrete `Ref<Class<Doc>>`: with the caller's own `_class: Ref<Class<T>>` passed
     // through as-is, `classHierarchyMixin`'s `M extends D` constraint unifies `M` with `T` instead
@@ -140,7 +145,7 @@ export class RowVisibilityResolver {
       return { kind: 'unrestricted' }
     }
 
-    if (mixin.allowKnownIdBypass) {
+    if (allowKnownIdBypass && mixin.allowKnownIdBypass === true) {
       const bypassFields = ['_id', ...(mixin.knownIdBypassFields ?? [])]
       if (bypassFields.some((field) => hasNarrowFieldQuery(query, field))) {
         return { kind: 'unrestricted' }

@@ -8,6 +8,7 @@ import core, {
   type Account,
   AccountRole,
   type Doc,
+  type DocumentQuery,
   hasAccountRole,
   type MeasureContext,
   type SessionData,
@@ -20,11 +21,13 @@ import core, {
 } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
+import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
   // `this`, not `this.next`: routes through `this.findAll` so a subclass/test override of it is
-  // honored, same as the rest of this middleware's lookups (isGuestMutationOnOwnDoc, etc.)
+  // honored, the same as the row-policy ownership checks below.
   private readonly classAccess = new ClassAccessResolver(this)
+  private readonly rowVisibility = new RowVisibilityResolver(this.next)
 
   static async create (
     ctx: MeasureContext,
@@ -34,16 +37,23 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return new GuestPermissionsMiddleware(context, next)
   }
 
-  private invalidateCacheIfNeeded (txes: Tx[]): void {
+  private invalidateCacheIfNeeded (txes: Tx[]): boolean {
     for (const tx of txes) {
+      if (tx._class === core.class.TxApplyIf && this.invalidateCacheIfNeeded((tx as TxApplyIf).txes)) {
+        return true
+      }
       if (TxProcessor.isExtendsCUD(tx._class)) {
         const cudTx = tx as TxCUD<Doc>
-        if (cudTx.objectClass === core.class.ModulePermissionGroup) {
+        if (
+          cudTx.objectClass === core.class.ModulePermissionGroup ||
+          cudTx.objectClass === core.class.ClassPermission
+        ) {
           this.classAccess.invalidate()
-          return
+          return true
         }
       }
     }
+    return false
   }
 
   async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
@@ -87,35 +97,32 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
   }
 
-  private isCreatedByAccount (doc: Doc, account: Account): boolean {
-    const creator = doc.createdBy
-    if (creator === undefined) return false
-    if (creator === account.primarySocialId) return true
-    return account.socialIds.includes(creator)
-  }
-
-  private async isGuestMutationOnOwnDoc (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
-    if (tx._class !== core.class.TxUpdateDoc && tx._class !== core.class.TxRemoveDoc) return false
-    const docs = await this.findAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 })
-    const doc = docs[0] as Doc | undefined
-    if (doc === undefined) return false
-    return this.isCreatedByAccount(doc, account)
+  /** Enforce a declared row policy for mutations without treating a caller-supplied id as trusted. */
+  private async canMutateVisibleRow (
+    ctx: MeasureContext<SessionData>,
+    tx: TxCUD<Doc>,
+    account: Account
+  ): Promise<boolean> {
+    if (tx._class === core.class.TxCreateDoc) return true
+    const identity = new AccountIdentityResolver(this.next, ctx, account)
+    const query: DocumentQuery<Doc> = { _id: tx.objectId }
+    const decision = await this.rowVisibility.resolve(
+      ctx,
+      this.context.hierarchy,
+      tx.objectClass,
+      query,
+      identity,
+      false
+    )
+    if (decision.kind === 'deny') return false
+    if (decision.kind === 'unrestricted') return true
+    const docs = await this.findAll(ctx, tx.objectClass, decision.query, { limit: 1 })
+    return docs.length > 0
   }
 
   private async isForbiddenTx (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
-    if (tx._class === core.class.TxMixin) return false
-
-    if (await isClassAccessAllowed(this.context.hierarchy, this, this.classAccess, ctx, tx, account)) {
-      return false
-    }
-
-    if (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxRemoveDoc) {
-      if (await this.isGuestMutationOnOwnDoc(ctx, tx, account)) {
-        return false
-      }
-    }
-
-    return true
+    if (!(await isClassAccessAllowed(this.context.hierarchy, this, this.classAccess, ctx, tx, account))) return true
+    return !(await this.canMutateVisibleRow(ctx, tx, account))
   }
 
   private async isForbiddenSpaceTx (ctx: MeasureContext, tx: TxCUD<Space>, account: Account): Promise<boolean> {

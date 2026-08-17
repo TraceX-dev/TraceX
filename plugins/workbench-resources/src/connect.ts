@@ -515,7 +515,7 @@ export async function connect (title: string): Promise<Client | undefined> {
     branding: workspace.branding ?? 'unknown'
   }
 
-  const guestRole = isRowLevelRestricted(workspaceLoginInfo.role)
+  const guestRole = isRowLevelRestricted(workspaceLoginInfo.role) === true
   if (guestRole) {
     data.visited_workspace = workspace.url
     data.visited_workspace_uuid = workspace.uuid

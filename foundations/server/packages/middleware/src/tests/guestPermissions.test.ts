@@ -344,8 +344,8 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── Own-document mutations for guests ───────────────────────────────────────
-  describe('guest update/remove own documents', () => {
+  // ─── Layer 1 cannot be bypassed by document creator ──────────────────────────
+  describe('guest update/remove documents', () => {
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
 
     function makeGuestAccountWithSocial (): Account {
@@ -366,7 +366,7 @@ describe('GuestPermissionsMiddleware', () => {
       }
     }
 
-    it('allows guest to update document created by same account', async () => {
+    it('forbids guest to update its own document when the class does not allow updates', async () => {
       const objectId = generateId()
       const findAll: FindAllFn = async (_ctx, _class, query: any) => {
         if (_class === UNCOVERED_CLASS && query?._id === objectId) {
@@ -391,11 +391,11 @@ describe('GuestPermissionsMiddleware', () => {
       patchHierarchyNoTxAccessLevel(mw)
       const factory = new TxFactory(GUEST_SOCIAL)
       const tx = factory.createTxUpdateDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
-      await mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])
-      expect(nextCalled).toBe(true)
+      await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
+      expect(nextCalled).toBe(false)
     })
 
-    it('allows guest to remove document created by same account', async () => {
+    it('forbids guest to remove its own document when the class does not allow removal', async () => {
       const objectId = generateId()
       const findAll: FindAllFn = async (_ctx, _class, query: any) => {
         if (_class === UNCOVERED_CLASS && query?._id === objectId) {
@@ -420,8 +420,8 @@ describe('GuestPermissionsMiddleware', () => {
       patchHierarchyNoTxAccessLevel(mw)
       const factory = new TxFactory(GUEST_SOCIAL)
       const tx = factory.createTxRemoveDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId)
-      await mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])
-      expect(nextCalled).toBe(true)
+      await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
+      expect(nextCalled).toBe(false)
     })
 
     it('forbids guest to update document created by another account', async () => {

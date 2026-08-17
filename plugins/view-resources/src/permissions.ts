@@ -240,7 +240,7 @@ export function ownsDoc (doc: Doc | undefined, account: Account): boolean {
  * @public
  */
 export function isOwnRecordsOnly (_class: Ref<Class<Doc>>, account: Account): boolean {
-  if (!isRowLevelRestricted(account.role)) return false
+  if (isRowLevelRestricted(account.role) !== true) return false
   const mixin = getClient().getHierarchy().classHierarchyMixin(_class, core.mixin.RowVisibility)
   return mixin?.policy.kind === 'ownerField' || mixin?.policy.kind === 'linkedViaRecord'
 }
@@ -252,7 +252,7 @@ export function isOwnRecordsOnly (_class: Ref<Class<Doc>>, account: Account): bo
  * @public
  */
 export function canReadClass (_class: Ref<Class<Doc>>, account: Account): boolean {
-  if (!isRowLevelRestricted(account.role)) return true
+  if (isRowLevelRestricted(account.role) !== true) return true
   const mixin = getClient().getHierarchy().classHierarchyMixin(_class, core.mixin.RowVisibility)
   return mixin?.policy.kind !== 'denyAll'
 }
@@ -268,7 +268,7 @@ function buildPermissions (
   store: PermissionsStore | undefined,
   restrictions: Restrictions
 ): Permissions {
-  const isGuest = isRowLevelRestricted(account.role)
+  const isGuest = isRowLevelRestricted(account.role) === true
   const isReadOnly = isReadOnlyRole(account.role) || restrictions.readonly
   const isUser = hasAccountRole(account, AccountRole.User)
 

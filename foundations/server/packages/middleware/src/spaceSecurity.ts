@@ -35,6 +35,7 @@ import core, {
   type Ref,
   type SearchOptions,
   type SearchQuery,
+  type SearchResultDoc,
   type SearchResult,
   type SessionData,
   shouldShowArchived,
@@ -634,6 +635,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     const domain = this.context.hierarchy.getDomain(_class)
     const newQuery = clone(query)
     const account = ctx.contextData.account
+    const isRestricted = isRowLevelRestricted(account.role) === true
     const isSpace = this.context.hierarchy.isDerived(_class, core.class.Space)
     const field = this.getKey(domain)
     const showArchived: boolean = shouldShowArchived(newQuery, options)
@@ -697,7 +699,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     let baseQuery: DocumentQuery<T> = !this.skipFindCheck ? newQuery : query
     if (
       !isSystem(account, ctx) &&
-      isRowLevelRestricted(account.role) &&
+      isRestricted &&
       this.context.hierarchy.isDerived(_class, contact.class.Person) &&
       !hasNarrowIdQuery(baseQuery)
     ) {
@@ -715,8 +717,33 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       baseQuery = restrictedQuery
     }
 
+    // A class without an explicit policy is allowed to use ordinary real-space membership only.
+    // Shared and system spaces are visible to many accounts by construction, so treating them as
+    // ordinary membership would turn a forgotten policy into a data leak. Keep Person on its
+    // dedicated visibility path above until its relationship-based policy is modelled explicitly.
+    if (
+      !isSystem(account, ctx) &&
+      isRestricted &&
+      domain !== DOMAIN_MODEL &&
+      !this.context.hierarchy.isDerived(_class, contact.class.Person) &&
+      !this.rowVisibility.hasPolicy(this.context.hierarchy, _class as Ref<Class<Doc>>)
+    ) {
+      const nonOrdinarySpaces = new Set<Ref<Space>>([...this.mainSpaces, ...this.systemSpaces])
+      const excluded = excludeSpacesFromQuery((baseQuery as Record<string, any>)[field], nonOrdinarySpaces)
+      if ('deny' in excluded) {
+        return toFindResult([], 0)
+      }
+      baseQuery = { ...baseQuery }
+      if (excluded.query === undefined) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete (baseQuery as Record<string, any>)[field]
+      } else {
+        ;(baseQuery as Record<string, any>)[field] = excluded.query
+      }
+    }
+
     // Row-level ownership (Layer 2) for classes living in mainSpaces - see `./rowVisibility`.
-    if (!isSystem(account, ctx) && isRowLevelRestricted(account.role)) {
+    if (!isSystem(account, ctx) && isRestricted) {
       const identity = new AccountIdentityResolver(this.next, ctx, account)
       const decision = await this.rowVisibility.resolve(ctx, this.context.hierarchy, _class, baseQuery, identity)
       if (decision.kind === 'deny') {
@@ -736,7 +763,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     // `core.class.Space`-derived classes (field `_id`) and ordinary content classes (field
     // `space`/`objectSpace`) — unlike the Person/sensitive-class restrictions above, this is a
     // blanket exclusion with no known-ref bypass: a disabled module means no read access to it.
-    if (!isSystem(account, ctx) && isRowLevelRestricted(account.role) && domain !== DOMAIN_MODEL) {
+    if (!isSystem(account, ctx) && isRestricted && domain !== DOMAIN_MODEL) {
       const disabledSpaceClasses = await getDisabledModuleSpaceClasses(this.next, ctx, account)
       const disabledSpaceIds = resolveDisabledModuleSpaceIds(
         this.context.hierarchy,
@@ -789,7 +816,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     await this.init(ctx)
     const newQuery = { ...query }
     const account = ctx.contextData.account
-    const personRestricted = isRowLevelRestricted(account.role)
+    const personRestricted = isRowLevelRestricted(account.role) === true
     let personClassesSearched = false
     if (!isSystem(account, ctx)) {
       const allSpaces = this.getAllAllowedSpaces(account, true, false, true)
@@ -853,7 +880,44 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
           allowedPersonIds.has(d.doc._id as Ref<Person>)
       )
     }
+    if (personRestricted && !isSystem(account, ctx)) {
+      const identity = new AccountIdentityResolver(this.next, ctx, account)
+      result.docs = await this.filterSearchResultsByRowVisibility(ctx, result.docs, identity)
+      result.total = result.docs.length
+    }
     return result
+  }
+
+  /**
+   * Full-text results contain only a small document projection, so an owner/link policy cannot
+   * be evaluated from the result itself. Re-query each candidate through the resolved policy.
+   * Known-id bypasses are intentionally disabled: a search result is not proof that the caller
+   * obtained its id from an already-authorized document.
+   */
+  private async filterSearchResultsByRowVisibility (
+    ctx: MeasureContext<SessionData>,
+    docs: SearchResultDoc[],
+    identity: AccountIdentityResolver
+  ): Promise<SearchResultDoc[]> {
+    const visible = await Promise.all(
+      docs.map(async (result) => {
+        const _class = result.doc._class
+        if (!this.rowVisibility.hasPolicy(this.context.hierarchy, _class)) {
+          const query: DocumentQuery<Doc> = { _id: result.doc._id }
+          const matching = await this.findAll(ctx, _class, query, {
+            limit: 1
+          })
+          return matching.length > 0
+        }
+        const query: DocumentQuery<Doc> = { _id: result.doc._id }
+        const decision = await this.rowVisibility.resolve(ctx, this.context.hierarchy, _class, query, identity, false)
+        if (decision.kind === 'deny') return false
+        if (decision.kind === 'unrestricted') return true
+        const matching = await this.provideFindAll(ctx, _class, decision.query, { limit: 1 })
+        return matching.length > 0
+      })
+    )
+    return docs.filter((_doc, index) => visible[index])
   }
 
   filterLookup<T extends Doc>(ctx: MeasureContext, lookup: LookupData<T>, showArchived: boolean): void {

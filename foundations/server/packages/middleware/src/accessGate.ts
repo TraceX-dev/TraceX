@@ -146,7 +146,7 @@ export async function hasClassAccessLevel (
   if (tx._class === core.class.TxRemoveDoc) {
     return mixin.removeAccessLevel === account.role
   }
-  if (tx._class === core.class.TxUpdateDoc) {
+  if (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) {
     if (mixin.isIdentity === true && account.socialIds.includes(tx.objectId as unknown as PersonId)) {
       return true
     }
@@ -164,8 +164,7 @@ export async function hasClassAccessLevel (
 /**
  * Whether `account`'s role may apply `tx` to a non-`Space` class at all (Layer 1), combining the
  * admin-configured allow-list with the code-declared `TxAccessLevel` fallback. Does not consider
- * ownership of the target document - callers layer that on separately (see
- * `GuestPermissionsMiddleware.isGuestMutationOnOwnDoc`).
+ * ownership of the target document - callers layer declared `RowVisibility` policies on top.
  */
 export async function isClassAccessAllowed (
   hierarchy: Hierarchy,

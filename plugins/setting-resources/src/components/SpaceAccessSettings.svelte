@@ -167,7 +167,7 @@
 
       const employee = employees.find((candidate) => candidate.personUuid === personUuid)
       if (employee !== undefined) {
-        await client.update(employee, { role: isRowLevelRestricted(value) ? 'GUEST' : 'USER' })
+        await client.update(employee, { role: isRowLevelRestricted(value) === true ? 'GUEST' : 'USER' })
       }
     } catch (error) {
       handleOperationError(error)

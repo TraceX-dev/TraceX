@@ -282,7 +282,7 @@ export async function canEditIssue (issue?: Issue | WithLookup<Issue>): Promise<
   if (issue === undefined) return false
 
   const account = getCurrentAccount()
-  const isGuest = isRowLevelRestricted(account.role)
+  const isGuest = isRowLevelRestricted(account.role) === true
 
   if (!isGuest) return true
 

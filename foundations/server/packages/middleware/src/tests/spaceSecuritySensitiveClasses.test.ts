@@ -50,6 +50,7 @@ const ROOM_INFO = 'love:class:RoomInfo' as Ref<Class<Doc>>
 const HR_REQUEST = 'hr:class:Request' as Ref<Class<Doc>>
 const PUSH_SUBSCRIPTION = 'notification:class:PushSubscription' as Ref<Class<Doc>>
 const PUBLIC_LINK = 'guest:class:PublicLink' as Ref<Class<Doc>>
+const UNDECLARED_SHARED_CLASS = 'test:class:UndeclaredShared' as Ref<Class<Doc>>
 const PERSON_CLASS = contact.class.Person
 
 // Mirrors the real policies registered via `builder.mixin(..., core.mixin.RowVisibility, {...})`
@@ -117,6 +118,8 @@ function matchesQuery (doc: Record<string, any>, query: Record<string, any> | un
     if (cond !== null && typeof cond === 'object' && !Array.isArray(cond) && cond.$in !== undefined) {
       const included: boolean = cond.$in.includes(val)
       if (!included) return false
+    } else if (cond !== null && typeof cond === 'object' && !Array.isArray(cond) && cond.$nin !== undefined) {
+      if (cond.$nin.includes(val) === true) return false
     } else if (val !== cond) {
       return false
     }
@@ -167,6 +170,7 @@ async function setup (): Promise<{
   const linkAlice = { _id: generateId(), _class: PUBLIC_LINK, attachedTo: generateId() }
   const linkOther = { _id: generateId(), _class: PUBLIC_LINK, attachedTo: generateId() }
   const publicLinks = [linkAlice, linkOther]
+  const undeclaredShared = [{ _id: generateId(), _class: UNDECLARED_SHARED_CLASS, space: core.space.Workspace }]
 
   const next: Middleware = {
     findAll: (async (_ctx: any, _class: any, query: any) => {
@@ -178,10 +182,17 @@ async function setup (): Promise<{
       if (_class === HR_REQUEST) return hrRequests.filter((d) => matchesQuery(d, query)) as any
       if (_class === PUSH_SUBSCRIPTION) return pushSubs.filter((d) => matchesQuery(d, query)) as any
       if (_class === PUBLIC_LINK) return publicLinks.filter((d) => matchesQuery(d, query)) as any
+      if (_class === UNDECLARED_SHARED_CLASS) return undeclaredShared.filter((d) => matchesQuery(d, query)) as any
       return []
     }) as any,
     groupBy: (async () => new Map()) as any,
-    searchFulltext: (async () => ({ docs: [], total: 0 })) as any,
+    searchFulltext: (async () => ({
+      docs: meetingMinutes.map((doc) => ({
+        id: doc._id,
+        doc: { _id: doc._id, _class: doc._class, createdOn: 0 }
+      })),
+      total: meetingMinutes.length
+    })) as any,
     tx: (async () => ({})) as any,
     handleBroadcast: (async () => {}) as any,
     loadModel: (async () => []) as any,
@@ -232,6 +243,23 @@ async function setup (): Promise<{
 }
 
 describe('SpaceSecurityMiddleware – row-level visibility for core.space.Workspace-resident classes', () => {
+  it('default-denies an undeclared policy in a shared space', async () => {
+    const s = await setup()
+    const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+    const result = await s.mw.findAll(ctx, UNDECLARED_SHARED_CLASS, {})
+    expect(result).toEqual([])
+  })
+
+  describe('full-text search', () => {
+    it('does not treat a search result id as a known-id bypass', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const result = await s.mw.searchFulltext(ctx, { classes: [MEETING_MINUTES] }, {})
+      expect(result.docs.map((doc) => doc.doc._id)).toEqual([s.mmAlice])
+      expect(result.total).toBe(1)
+    })
+  })
+
   describe('core.class.Collaborator', () => {
     it('an open query is clamped to the caller own collaborator records', async () => {
       const s = await setup()
