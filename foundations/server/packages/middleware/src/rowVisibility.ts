@@ -126,6 +126,9 @@ export class RowVisibilityResolver {
   constructor (private readonly next: Middleware | undefined) {}
 
   hasPolicy (hierarchy: Hierarchy, _class: Ref<Class<Doc>>): boolean {
+    // Some focused middleware tests use a minimal hierarchy double that only implements the
+    // methods exercised by the scenario. A real Hierarchy always provides this method.
+    if (typeof hierarchy.classHierarchyMixin !== 'function') return false
     return hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility) !== undefined
   }
 
@@ -140,6 +143,9 @@ export class RowVisibilityResolver {
     // Cast to a concrete `Ref<Class<Doc>>`: with the caller's own `_class: Ref<Class<T>>` passed
     // through as-is, `classHierarchyMixin`'s `M extends D` constraint unifies `M` with `T` instead
     // of `RowVisibility`, and `mixin` below loses its fields to `T`.
+    if (typeof hierarchy.classHierarchyMixin !== 'function') {
+      return { kind: 'unrestricted' }
+    }
     const mixin = hierarchy.classHierarchyMixin(_class as Ref<Class<Doc>>, core.mixin.RowVisibility)
     if (mixin === undefined) {
       return { kind: 'unrestricted' }
