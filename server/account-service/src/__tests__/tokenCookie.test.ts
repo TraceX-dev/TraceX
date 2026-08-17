@@ -13,18 +13,19 @@
 // limitations under the License.
 //
 
-import { NoMetricsContext, type AccountUuid } from '@hcengineering/core'
+import { NoMetricsContext, type AccountUuid, type WorkspaceUuid } from '@hcengineering/core'
 import { decodeToken, generateToken } from '@hcengineering/server-token'
 
 import { createAccountCookieToken, shouldExposeRefreshToken, stripRefreshTokenFromResponse } from '../index'
 
 describe('account token cookie helpers', () => {
-  const account: AccountUuid = '00000000-0000-4000-8000-000000000001'
+  const account = '00000000-0000-4000-8000-000000000001' as AccountUuid
+  const workspace = '00000000-0000-4000-8000-000000000002' as WorkspaceUuid
   const ctx = new NoMetricsContext()
 
   it('preserves session identity and expiry when dropping workspace scope', () => {
     const exp = Math.floor(Date.now() / 1000) + 3600
-    const source = generateToken(account, '00000000-0000-4000-8000-000000000002', undefined, undefined, {
+    const source = generateToken(account, workspace, undefined, undefined, {
       sessionId: 'session-1',
       kind: 'access',
       exp

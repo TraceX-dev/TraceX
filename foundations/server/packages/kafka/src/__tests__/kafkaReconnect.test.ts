@@ -96,8 +96,7 @@ describe('PlatformQueueProducerImpl reconnect', () => {
     for (let i = 0; i < 5 && producerSendMock.mock.calls.length === 0; i++) {
       try {
         await producer.send(ctx, 'ws-1' as any, [{ hello: 'world' }])
-      } catch {
-      }
+      } catch {}
     }
 
     expect(producerSendMock).toHaveBeenCalledTimes(1)
