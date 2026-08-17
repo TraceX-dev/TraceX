@@ -57,6 +57,9 @@ import type {
   DBFlavor
 } from '../../types'
 
+/** postgres returns an array-like row list with command metadata such as the affected row count. */
+type SqlQueryResult = any[] & { count: number }
+
 function toSnakeCase (str: string): string {
   // Preserve leading underscore
   const hasLeadingUnderscore = str.startsWith('_')
@@ -271,7 +274,7 @@ implements DbCollection<T> {
     return res as T
   }
 
-  async unsafe (sql: string, values: any[], client?: Sql): Promise<any[]> {
+  async unsafe (sql: string, values: any[], client?: Sql): Promise<SqlQueryResult> {
     if (client !== undefined) {
       return await client.unsafe(sql, values)
     } else if (this.options.withRetryClient !== undefined) {
