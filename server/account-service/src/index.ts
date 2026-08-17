@@ -77,6 +77,18 @@ export function shouldExposeRefreshToken (
   return method === 'refreshToken' && refreshCookie === undefined && authorizationToken !== undefined
 }
 
+/** Extracts an exact cookie-name match without truncating values containing `=`. */
+export function extractCookieValue (cookieHeader: string | undefined, name: string): string | undefined {
+  if (cookieHeader == null) return undefined
+  const prefix = `${name}=`
+  const cookie = cookieHeader
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix))
+  const value = cookie?.slice(prefix.length)
+  return value != null && value !== '' ? value : undefined
+}
+
 /**
  * @public
  */
@@ -252,13 +264,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   }
 
   const extractCookieToken = (headers: IncomingHttpHeaders): string | undefined => {
-    if (headers.cookie != null) {
-      const cookies = headers.cookie.split(';')
-      const tokenCookie = cookies.find((cookie) => cookie.includes(AUTH_TOKEN_COOKIE))
-      return tokenCookie?.split('=')[1]
-    }
-
-    return undefined
+    return extractCookieValue(headers.cookie, AUTH_TOKEN_COOKIE)
   }
 
   const extractAuthorizationToken = (headers: IncomingHttpHeaders): string | undefined => {
@@ -274,13 +280,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   }
 
   const extractRefreshCookie = (headers: IncomingHttpHeaders): string | undefined => {
-    if (headers.cookie != null) {
-      const cookies = headers.cookie.split(';')
-      const refreshCookie = cookies.find((cookie) => cookie.includes(AUTH_REFRESH_COOKIE))
-      const value = refreshCookie?.split('=')[1]
-      return value != null && value !== '' ? value : undefined
-    }
-    return undefined
+    return extractCookieValue(headers.cookie, AUTH_REFRESH_COOKIE)
   }
 
   const getClientIp = (headers: IncomingHttpHeaders): string | undefined => {

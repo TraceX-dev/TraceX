@@ -16,7 +16,12 @@
 import { NoMetricsContext, type AccountUuid, type WorkspaceUuid } from '@hcengineering/core'
 import { decodeToken, generateToken } from '@hcengineering/server-token'
 
-import { createAccountCookieToken, shouldExposeRefreshToken, stripRefreshTokenFromResponse } from '../index'
+import {
+  createAccountCookieToken,
+  extractCookieValue,
+  shouldExposeRefreshToken,
+  stripRefreshTokenFromResponse
+} from '../index'
 
 describe('account token cookie helpers', () => {
   const account = '00000000-0000-4000-8000-000000000001' as AccountUuid
@@ -54,5 +59,14 @@ describe('account token cookie helpers', () => {
     expect(shouldExposeRefreshToken('refreshToken', undefined, 'refresh-token')).toBe(true)
     expect(shouldExposeRefreshToken('refreshToken', 'refresh-cookie', undefined)).toBe(false)
     expect(shouldExposeRefreshToken('login', undefined, undefined)).toBe(false)
+  })
+
+  it('matches cookie names exactly and preserves equals signs in values', () => {
+    const header = 'other-account-metadata-RefreshToken=invalid; account-metadata-RefreshToken=token=with=padding'
+
+    expect(extractCookieValue(header, 'account-metadata-RefreshToken')).toBe('token=with=padding')
+    expect(
+      extractCookieValue('account-metadata-RefreshTokenSuffix=invalid', 'account-metadata-RefreshToken')
+    ).toBeUndefined()
   })
 })
