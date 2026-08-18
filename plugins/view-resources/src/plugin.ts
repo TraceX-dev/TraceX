@@ -104,10 +104,7 @@ export default mergeIds(viewId, view, {
     EmojiCategory: '' as IntlString,
     NumberItems: '' as IntlString,
     ToViewCommands: '' as IntlString,
-    NoRelations: '' as IntlString,
-
-    SelectedCount: '' as IntlString<{ count: number }>,
-    ClearSelection: '' as IntlString
+    NoRelations: '' as IntlString
   },
   function: {
     CreateDocMiddleware: '' as Resource<PresentationMiddlewareCreator>,

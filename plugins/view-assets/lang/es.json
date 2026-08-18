@@ -139,9 +139,6 @@
     "Document": "Documento",
     "Loading": "Cargando...",
     "NoRelations": "No hay relaciones",
-
-    "SelectedCount": "{count} seleccionados",
-    "ClearSelection": "Borrar selección",
     "ReadOnlyWarningTitle": "✨ Invitado anónimo",
     "ReadOnlyWarningMessage": "Estás en modo de solo lectura. ¡Elige tu camino: Únete a este espacio para colaborar (como invitado) o crea tu propio espacio para gestionar proyectos completamente — tareas, plazos, equipo!",
     "ReadOnlyJoinWorkspace": "Unirse al espacio",

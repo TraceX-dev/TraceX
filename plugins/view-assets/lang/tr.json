@@ -139,9 +139,6 @@
     "Document": "Doküman",
     "Loading": "Yükleniyor...",
     "NoRelations": "İlişki yok",
-
-    "SelectedCount": "{count} seçildi",
-    "ClearSelection": "Seçimi temizle",
     "ReadOnlyWarningTitle": "✨ Anonim Misafir",
     "ReadOnlyWarningMessage": "Sadece görüntüleme modundasınız. Yolunuzu seçin: İşbirliği yapmak için bu çalışma alanına katılın (misafir olarak) veya projeleri tam olarak yönetmek için kendi alanınızı oluşturun — görevler, son tarihler, takım!",
     "ReadOnlyJoinWorkspace": "Çalışma alanına katıl",
