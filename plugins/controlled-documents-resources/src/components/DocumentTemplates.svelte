@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
   import { Mixin, DocumentQuery, Ref } from '@hcengineering/core'
-  import { type DocumentTemplate } from '@hcengineering/controlled-documents'
+  import { type DocumentSpace, type DocumentTemplate } from '@hcengineering/controlled-documents'
   import { ActionContext } from '@hcengineering/presentation'
   import { Button, IconAdd, Loading, showPopup } from '@hcengineering/ui'
   import view, { ViewOptions, Viewlet, ViewletPreference } from '@hcengineering/view'
@@ -35,10 +35,8 @@
   const _class: Ref<Mixin<DocumentTemplate>> = documents.mixin.DocumentTemplate
 
   $: srcQuery = { ...query }
-  $: canAddTemplate = checkMyPermission(
-    documents.permission.CreateDocument,
-    documents.space.QualityDocuments,
-    $permissionsStore
+  $: canAddTemplate = Object.keys($permissionsStore.ps).some((space) =>
+    checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
   )
 
   function showCreateDialog (): void {
