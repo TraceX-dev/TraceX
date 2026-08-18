@@ -27,19 +27,13 @@
     Space
   } from '@hcengineering/core'
   import login, { loginId } from '@hcengineering/login'
-  import notification, { DocNotifyContext, InboxNotification, notificationId } from '@hcengineering/notification'
-  import {
-    BrowserNotificatator,
-    InboxNotificationsClientImpl,
-    NotifyMarker
-  } from '@hcengineering/notification-resources'
-  import inbox, { inboxId } from '@hcengineering/inbox'
+  import notification, { notificationId } from '@hcengineering/notification'
+  import { BrowserNotificatator, NotifyMarker } from '@hcengineering/notification-resources'
   import { broadcastEvent, getMetadata, getResource, IntlString, translate } from '@hcengineering/platform'
   import {
     ActionContext,
     ComponentExtensions,
     createQuery,
-    createNotificationsQuery,
     getClient,
     isAdminUser,
     reduceCalls
@@ -105,7 +99,6 @@
     ViewConfiguration,
     WorkbenchTab
   } from '@hcengineering/workbench'
-  import communication from '@hcengineering/communication'
   import { getContext, onDestroy, onMount, tick } from 'svelte'
   import { subscribeMobile } from '../mobile'
   import workbench from '../plugin'
@@ -115,7 +108,6 @@
     isAllowedToRole,
     logOut,
     refreshWorkspaces,
-    reportWorkspaceRead,
     workspacesStore
   } from '../utils'
   import AccountPopup from './AccountPopup.svelte'
@@ -166,7 +158,6 @@
   migrateViewOpttions()
 
   const excludedApps = getMetadata(workbench.metadata.ExcludedApplications) ?? []
-  const isCommunicationEnabled = getMetadata(communication.metadata.Enabled) ?? false
 
   const client = getClient()
 
@@ -305,50 +296,26 @@
 
   const workspaceId = $location.path[1]
 
-  const inboxClient = InboxNotificationsClientImpl.createClient()
-  const inboxNotificationsByContextStore = inboxClient.inboxNotificationsByContext
-  const inboxLoadedStore = inboxClient.isLoaded
-
-  let hasNotificationsFn: ((data: Map<Ref<DocNotifyContext>, InboxNotification[]>) => Promise<boolean>) | undefined =
-    undefined
   let hasInboxNotifications = false
-  let clearedWorkspaceUnread = false
+  let unsubscribeInboxNotifications: (() => void) | undefined
+  let isDestroyed = false
 
-  void getResource(notification.function.HasInboxNotifications).then((f) => {
-    hasNotificationsFn = f
+  void getResource(notification.function.GetInboxNotificationStore)
+    .then((createInboxNotificationStore) => {
+      if (isDestroyed) return
+
+      unsubscribeInboxNotifications = createInboxNotificationStore().subscribe((state) => {
+        hasInboxNotifications = state.notify
+      })
+    })
+    .catch((error) => {
+      console.error('Error subscribing to Inbox notifications:', error)
+    })
+
+  onDestroy(() => {
+    isDestroyed = true
+    unsubscribeInboxNotifications?.()
   })
-
-  // Wait for the initial inbox sync ($inboxLoadedStore) before acting on the result:
-  // right after opening a workspace inboxNotificationsByContextStore starts out empty,
-  // which is indistinguishable from "confirmed no unread" and would otherwise clear the
-  // cross-workspace unread flag before the real data has even loaded.
-  $: if ($inboxLoadedStore) {
-    void hasNotificationsFn?.($inboxNotificationsByContextStore).then((res) => {
-      if (!res && !clearedWorkspaceUnread) {
-        // Local inbox is fully read: clear this workspace's cross-workspace unread
-        // flag. Fires both on the has-unread -> all-read transition and once on
-        // load when the inbox is already read (e.g. the items were read on another
-        // device and the server flag is stale-true). Raising it back to true is
-        // handled server-side when a new notification arrives.
-        clearedWorkspaceUnread = true
-        void reportWorkspaceRead()
-      } else if (res) {
-        clearedWorkspaceUnread = false
-      }
-      hasInboxNotifications = res
-    })
-  }
-
-  let hasNewInboxNotifications = false
-
-  $: if (isCommunicationEnabled) {
-    const notificationCountQuery = createNotificationsQuery()
-    notificationCountQuery.query({ read: false, limit: 1 }, (res) => {
-      hasNewInboxNotifications = res.getResult().length > 0
-    })
-  } else {
-    hasNewInboxNotifications = false
-  }
 
   const doSyncLoc = reduceCalls(async (loc: Location): Promise<void> => {
     if (workspaceId !== $location.path[1]) {
@@ -829,12 +796,12 @@
   let inboxPopup: PopupResult | undefined = undefined
   let lastLoc: Location | undefined = undefined
 
-  $: activeInboxId = isCommunicationEnabled ? inboxId : notificationId
+  $: activeInboxId = notificationId
 
   $: inboxProps = {
     selected: currentAppAlias === activeInboxId || inboxPopup !== undefined,
     navigator: (currentAppAlias === activeInboxId || inboxPopup !== undefined) && $deviceInfo.navigator.visible,
-    notify: isCommunicationEnabled ? hasInboxNotifications || hasNewInboxNotifications : hasInboxNotifications,
+    notify: hasInboxNotifications,
     onClick: (e: MouseEvent) => {
       if (e.metaKey || e.ctrlKey) return
       if (!$deviceInfo.navigator.visible && $deviceInfo.navigator.float && currentAppAlias === activeInboxId) {
@@ -850,10 +817,7 @@
     }
   }
 
-  $: customAppProps = new Map([
-    [notificationId, inboxProps],
-    [inboxId, inboxProps]
-  ])
+  $: customAppProps = new Map([[notificationId, inboxProps]])
 
   defineSeparators('workbench', workbenchSeparators)
   defineSeparators('main', mainSeparators)
@@ -942,35 +906,20 @@
           />
         </div>
         {#if !isExcludedApp(activeInboxId)}
-          {#if !isCommunicationEnabled}
-            <NavLink
-              app={notificationId}
-              shrink={0}
-              disabled={!$deviceInfo.navigator.visible &&
-                $deviceInfo.navigator.float &&
-                currentAppAlias === notificationId}
-            >
-              <AppItem
-                icon={notification.icon.Notifications}
-                label={notification.string.Inbox}
-                {...inboxProps}
-                on:click={inboxProps.onClick}
-              />
-            </NavLink>
-          {:else}
-            <NavLink
-              app={inboxId}
-              shrink={0}
-              disabled={!$deviceInfo.navigator.visible && $deviceInfo.navigator.float && currentAppAlias === inboxId}
-            >
-              <AppItem
-                icon={inbox.icon.Inbox}
-                label={inbox.string.Inbox}
-                {...inboxProps}
-                on:click={inboxProps.onClick}
-              />
-            </NavLink>
-          {/if}
+          <NavLink
+            app={notificationId}
+            shrink={0}
+            disabled={!$deviceInfo.navigator.visible &&
+              $deviceInfo.navigator.float &&
+              currentAppAlias === notificationId}
+          >
+            <AppItem
+              icon={notification.icon.Notifications}
+              label={notification.string.Inbox}
+              {...inboxProps}
+              on:click={inboxProps.onClick}
+            />
+          </NavLink>
         {/if}
         <Applications
           {apps}

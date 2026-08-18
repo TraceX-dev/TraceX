@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -665,11 +666,21 @@ async function getRelationPresenter (client: Client, key: BuildModelKey): Promis
   const subFieldParts = parts.slice(lastAssocIndex + 2)
   if (subFieldParts.length > 0) {
     // Sub-field key: resolve attribute presenter for the specific field
-    const attrName = subFieldParts.join('.')
+    let attributeClass = _class
+    let attrName = subFieldParts.join('.')
+    const mixinClass = subFieldParts[0] as Ref<Class<Doc>>
+    if (
+      subFieldParts.length === 2 &&
+      hierarchy.isMixin(mixinClass) &&
+      hierarchy.isDerived(_class, hierarchy.getBaseClass(mixinClass))
+    ) {
+      attributeClass = mixinClass
+      attrName = subFieldParts[1]
+    }
     try {
-      const attribute = hierarchy.getAttribute(_class, attrName)
+      const attribute = hierarchy.getAttribute(attributeClass, attrName)
       const { attrClass, category } = getAttributePresenterClass(hierarchy, attribute.type)
-      const presenterRef = findAttributePresenter(client, _class, attrName)
+      const presenterRef = findAttributePresenter(client, attributeClass, attrName)
       if (presenterRef !== undefined) {
         const presenter = await getResource(presenterRef)
         return {

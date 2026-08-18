@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "Etiket kaldırmayı yasakla",
     "Duplicate": "Çoğalt",
     "Version": "Sürüm",
+    "Effective": "Geçerli",
+    "MakeEffective": "Geçerli yap",
     "Versions": "Sürümler",
     "NewVersion": "Yeni sürüm",
+    "VersionCreationUnavailable": "Yeni sürüm oluşturma şu anda kullanılamıyor",
     "Versioning": "Sürümleme",
     "EnableVersioning": "Sürümlemeyi etkinleştir",
     "EnableVersioningConfirm": "Sürümlemeyi etkinleştirmek istiyor musunuz?",
@@ -91,6 +94,7 @@
     "Grid": "Izgara",
     "RichtextProperties": "Zengin metin alanları",
     "ShowAllVersions": "Tüm sürümleri göster",
+    "ShowOnlyEffectiveVersions": "Yalnızca geçerli sürümleri göster",
     "ShowOnlyCardsWithoutRelations": "Yalnızca ilişkisi olmayan kartları göster"
   }
 }

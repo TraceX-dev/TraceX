@@ -14,7 +14,6 @@
 //
 
 import {
-  Plugin,
   addEventListener,
   addLocation,
   addStringsLoader,
@@ -52,6 +51,7 @@ import login, { loginId } from '@hcengineering/login'
 import notification, { notificationId } from '@hcengineering/notification'
 import onboard, { onboardId } from '@hcengineering/onboard'
 import presence, { presenceId } from '@hcengineering/presence'
+import { pulseId } from '@hcengineering/pulse'
 import { processId } from '@hcengineering/process'
 import { productsId } from '@hcengineering/products'
 import { questionsId } from '@hcengineering/questions'
@@ -76,10 +76,7 @@ import recorder, { recorderId } from '@hcengineering/recorder'
 import { viewId } from '@hcengineering/view'
 import workbench, { workbenchId } from '@hcengineering/workbench'
 import { mailId } from '@hcengineering/mail'
-import { chatId } from '@hcengineering/chat'
-import { inboxId } from '@hcengineering/inbox'
 import { achievementId } from '@hcengineering/achievement'
-import communication, { communicationId } from '@hcengineering/communication'
 import { emojiId } from '@hcengineering/emoji'
 import { hulyMailId } from '@hcengineering/huly-mail'
 import { aiAssistantId } from '@hcengineering/ai-assistant'
@@ -138,12 +135,9 @@ import '@hcengineering/recorder-assets'
 import '@hcengineering/view-assets'
 import '@hcengineering/workbench-assets'
 import '@hcengineering/mail-assets'
-import '@hcengineering/chat-assets'
-import '@hcengineering/inbox-assets'
 import '@hcengineering/achievement-assets'
 import '@hcengineering/emoji-assets'
 import '@hcengineering/media-assets'
-import '@hcengineering/communication-assets'
 import '@hcengineering/billing-assets'
 import '@hcengineering/huly-mail-assets'
 import '@hcengineering/ai-assistant-assets'
@@ -291,16 +285,10 @@ function configureI18n (): void {
   addStringsLoader(surveyId, async (lang: string) => await import(`@hcengineering/survey-assets/lang/${lang}.json`))
   addStringsLoader(cardId, async (lang: string) => await import(`@hcengineering/card-assets/lang/${lang}.json`))
   addStringsLoader(mailId, async (lang: string) => await import(`@hcengineering/mail-assets/lang/${lang}.json`))
-  addStringsLoader(chatId, async (lang: string) => await import(`@hcengineering/chat-assets/lang/${lang}.json`))
-  addStringsLoader(inboxId, async (lang: string) => await import(`@hcengineering/inbox-assets/lang/${lang}.json`))
   addStringsLoader(processId, async (lang: string) => await import(`@hcengineering/process-assets/lang/${lang}.json`))
   addStringsLoader(
     achievementId,
     async (lang: string) => await import(`@hcengineering/achievement-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(
-    communicationId,
-    async (lang: string) => await import(`@hcengineering/communication-assets/lang/${lang}.json`)
   )
   addStringsLoader(emojiId, async (lang: string) => await import(`@hcengineering/emoji-assets/lang/${lang}.json`))
   addStringsLoader(billingId, async (lang: string) => await import(`@hcengineering/billing-assets/lang/${lang}.json`))
@@ -365,7 +353,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   setMetadata(recorder.metadata.StreamUrl, config.STREAM_URL ?? '')
   setMetadata(presentation.metadata.StatsUrl, config.STATS_URL)
   setMetadata(presentation.metadata.HulylakeUrl, config.HULYLAKE_URL ?? '')
-  setMetadata(presentation.metadata.PulseUrl, config.PULSE_URL ?? '')
   setMetadata(githubNext.metadata.GithubClientID, config.GITHUB_NEXT_CLIENTID ?? '')
   setMetadata(githubNext.metadata.GithubNextURL, config.GITHUB_NEXT_URL ?? 'http://tracex.local:3510')
 
@@ -377,8 +364,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   setMetadata(github.metadata.GithubApplication, config.GITHUB_APP ?? '')
   setMetadata(github.metadata.GithubClientID, config.GITHUB_CLIENTID ?? '')
   setMetadata(github.metadata.GithubURL, config.GITHUB_URL ?? '')
-
-  setMetadata(communication.metadata.Enabled, config.COMMUNICATION_API_ENABLED === 'true')
 
   if (config.MODEL_VERSION != null) {
     console.log('Minimal Model version requirement', config.MODEL_VERSION)
@@ -511,14 +496,8 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   )
   addLocation(surveyId, () => import(/* webpackChunkName: "survey" */ '@hcengineering/survey-resources'))
   addLocation(cardId, () => import(/* webpackChunkName: "card" */ '@hcengineering/card-resources'))
-  addLocation(chatId, () => import(/* webpackChunkName: "chat" */ '@hcengineering/chat-resources'))
-  addLocation(inboxId, () => import(/* webpackChunkName: "inbox" */ '@hcengineering/inbox-resources'))
   addLocation(processId, () => import(/* webpackChunkName: "process" */ '@hcengineering/process-resources'))
   addLocation(achievementId, () => import(/* webpackChunkName: "achievement" */ '@hcengineering/achievement-resources'))
-  addLocation(
-    communicationId,
-    () => import(/* webpackChunkName: "communication" */ '@hcengineering/communication-resources')
-  )
   addLocation(emojiId, () => import(/* webpackChunkName: "achievement" */ '@hcengineering/emoji-resources'))
   if ((config.BILLING_URL ?? '') !== '') {
     addLocation(billingId, () => import(/* webpackChunkName: "billing" */ '@hcengineering/billing-resources'))
@@ -532,7 +511,7 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
 
   setMetadata(client.metadata.FilterModel, 'ui')
   setMetadata(client.metadata.ExtraFilter, disabledFeatures)
-  setMetadata(client.metadata.ExtraPlugins, [preferenceId, qalicoId])
+  setMetadata(client.metadata.ExtraPlugins, [preferenceId, qalicoId, pulseId])
 
   // Use binary response transfer for faster performance and small transfer sizes.
   setMetadata(client.metadata.UseBinaryProtocol, true)

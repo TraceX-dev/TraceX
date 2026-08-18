@@ -43,8 +43,7 @@ export class IssuesDetailsPage extends CommonTrackerPage {
   readonly textRelated = (): Locator =>
     this.page.locator('//span[text()="Related"]/following-sibling::div[1]/div//span')
 
-  readonly buttonCollaborators = (): Locator =>
-    this.page.locator('//span[text()="Collaborators"]/following-sibling::div[1]/button')
+  readonly buttonCollaborators = (): Locator => this.page.getByTestId('btnCollaborators')
 
   readonly buttonIssueOnSearchForIssueModal = (): Locator =>
     this.page.locator('div.popup div.tabs > div.tab:last-child')

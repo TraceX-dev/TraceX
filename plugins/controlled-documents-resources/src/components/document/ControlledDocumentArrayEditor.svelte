@@ -1,10 +1,11 @@
 <!--
 //
+// Copyright © 2024 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX SAS.
 //
-// Licensed under the PolyForm Shield License 1.0.0 (the "License");
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
-// obtain a copy of the License at https://polyformproject.org/licenses/shield/1.0.0
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,68 +16,115 @@
 -->
 <script lang="ts">
   import { type ControlledDocument, type DocumentMeta } from '@hcengineering/controlled-documents'
-  import { type Doc, type Ref } from '@hcengineering/core'
-  import { Button, IconAdd, IconDelete, showPopup } from '@hcengineering/ui'
-  import { ObjectBoxPopup } from '@hcengineering/view-resources'
+  import { type Ref } from '@hcengineering/core'
+  import { type IntlString } from '@hcengineering/platform'
+  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { Button, type ButtonKind, type ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
+  import { ObjectsTooltipWrapper } from '@hcengineering/view-resources'
+  import { createEventDispatcher } from 'svelte'
 
   import documents from '../../plugin'
-  import ControlledDocumentInlineEditor from './ControlledDocumentInlineEditor.svelte'
-  import ControlledDocumentVersionsSelectorPopup from './ControlledDocumentVersionsSelectorPopup.svelte'
+  import DocumentMetaPresenter from '../DocumentMetaPresenter.svelte'
+  import ControlledDocumentsPopup from './ControlledDocumentsPopup.svelte'
+  import DocumentPresenter from './presenters/DocumentPresenter.svelte'
+  import DocumentVersionPresenter from './presenters/DocumentVersionPresenter.svelte'
 
-  export let value: Array<Ref<ControlledDocument>> = []
+  export let value: Array<Ref<ControlledDocument | DocumentMeta>> | Ref<ControlledDocument | DocumentMeta> | undefined
   export let readonly: boolean = false
-  export let onChange: (value: Array<Ref<ControlledDocument>>) => void
+  export let label: IntlString | undefined = undefined
+  export let onChange: ((value: Array<Ref<ControlledDocument | DocumentMeta>>) => void) | undefined = undefined
+  export let focusIndex: number | undefined = undefined
+  export let kind: ButtonKind = 'ghost'
+  export let size: ButtonSize = 'small'
+  export let justify: 'left' | 'center' = 'left'
+  export let width: string | undefined = 'min-content'
 
-  let container: HTMLElement
+  const client = getClient()
+  const dispatch = createEventDispatcher()
+  const icon = client.getHierarchy().getClass(documents.class.ControlledDocument).icon
 
-  function addVersion (): void {
-    if (readonly) return
+  function toArray (
+    value: Array<Ref<ControlledDocument | DocumentMeta>> | Ref<ControlledDocument | DocumentMeta> | undefined
+  ): Array<Ref<ControlledDocument | DocumentMeta>> {
+    return value === undefined ? [] : Array.isArray(value) ? value : [value]
+  }
+
+  function openPopup (event: MouseEvent): void {
+    if (onChange === undefined || readonly) return
+    event.stopPropagation()
 
     showPopup(
-      ObjectBoxPopup,
-      { _class: documents.class.DocumentMeta, placeholder: documents.string.ControlledDocument },
-      container,
-      (meta) => {
-        if (meta === undefined) return
-
-        showPopup(
-          ControlledDocumentVersionsSelectorPopup,
-          { meta: (meta as Doc)._id as Ref<DocumentMeta> },
-          container,
-          (version) => {
-            if (version !== undefined && !value.includes(version)) {
-              value = [...value, version]
-              onChange(value)
-            }
-          }
-        )
+      ControlledDocumentsPopup,
+      { selectedObjects: toArray(value), multiSelect: true },
+      eventToHTMLElement(event),
+      undefined,
+      (result: Array<Ref<ControlledDocument | DocumentMeta>>) => {
+        onChange?.(result)
+        dispatch('change', result)
       }
     )
   }
 
-  function removeVersion (version: Ref<ControlledDocument>): void {
-    value = value.filter((item) => item !== version)
-    onChange(value)
+  let docs: ControlledDocument[] = []
+  let metas: DocumentMeta[] = []
+  const documentQuery = createQuery()
+  const metaQuery = createQuery()
+  $: if (toArray(value).length === 0) {
+    docs = []
+  } else {
+    documentQuery.query(
+      documents.class.ControlledDocument,
+      { _id: { $in: toArray(value) as Ref<ControlledDocument>[] } },
+      (result) => {
+        docs = result
+      }
+    )
   }
+  $: if (toArray(value).length === 0) {
+    metas = []
+  } else {
+    metaQuery.query(documents.class.DocumentMeta, { _id: { $in: toArray(value) as Ref<DocumentMeta>[] } }, (result) => {
+      metas = result
+    })
+  }
+
+  $: emptyLabel = label ?? documents.string.ControlledDocument
 </script>
 
-<div bind:this={container} class="flex-col flex-gap-1">
-  {#each value as version}
-    <div class="flex-row-center flex-gap-1">
-      <ControlledDocumentInlineEditor value={version} readonly />
-      {#if !readonly}
-        <Button
-          kind="ghost"
-          icon={IconDelete}
-          size="small"
-          on:click={() => {
-            removeVersion(version)
-          }}
-        />
+<ObjectsTooltipWrapper
+  selectedCount={toArray(value).length}
+  objects={[...docs, ...metas]}
+  objectIds={toArray(value)}
+  label={emptyLabel}
+  {readonly}
+  {width}
+>
+  <Button
+    {justify}
+    {focusIndex}
+    width={'100%'}
+    {size}
+    icon={toArray(value).length === 1 ? undefined : icon}
+    {kind}
+    disabled={readonly}
+    on:click={openPopup}
+  >
+    <div slot="content" class="overflow-label">
+      {#if toArray(value).length === 1 && docs.length === 1}
+        <span class="flex-row-center">
+          <DocumentPresenter value={docs[0]} withTitle withIcon disableLink />
+          <span class="ml-1"><DocumentVersionPresenter value={docs[0]} /></span>
+        </span>
+      {:else if toArray(value).length === 1 && metas.length === 1}
+        <span class="flex-row-center">
+          <DocumentMetaPresenter value={metas[0]} />
+          <span class="ml-2"><Label label={documents.string.LatestVersionHint} /></span>
+        </span>
+      {:else if toArray(value).length > 1}
+        <div class="lower">{toArray(value).length} <Label label={documents.string.ControlledDocument} /></div>
+      {:else}
+        <Label label={emptyLabel} />
       {/if}
     </div>
-  {/each}
-  {#if !readonly}
-    <Button kind="ghost" icon={IconAdd} size="small" on:click={addVersion} />
-  {/if}
-</div>
+  </Button>
+</ObjectsTooltipWrapper>

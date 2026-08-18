@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -79,6 +80,7 @@ export default mergeIds(cardId, card, {
     CheckRelationsSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
     CheckOldMessagesSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
     CheckCommunicationMessagesSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
-    ShowAllVersions: '' as Resource<(value: any, query: DocumentQuery<Doc>) => DocumentQuery<Doc>>
+    ShowAllVersions: '' as Resource<(value: boolean, query: DocumentQuery<Doc>) => DocumentQuery<Doc>>,
+    ShowOnlyEffectiveVersions: '' as Resource<(value: boolean, query: DocumentQuery<Doc>) => DocumentQuery<Doc>>
   }
 })

@@ -22,6 +22,7 @@ import { type ObjectSearchResult } from '@hcengineering/presentation'
 import CreateProduct from './components/product/CreateProduct.svelte'
 import EditProduct from './components/product/EditProduct.svelte'
 import NewProductHeader from './components/product/NewProductHeader.svelte'
+import ProductArrayEditor from './components/product/ProductArrayEditor.svelte'
 import ProductInlineEditor from './components/product/ProductInlineEditor.svelte'
 import ProductPresenter from './components/product/ProductPresenter.svelte'
 import ProductSearchIcon from './components/product/ProductSearchIcon.svelte'
@@ -77,6 +78,7 @@ export default async (): Promise<Resources> => ({
     EditProduct,
     EditProductVersion,
     NewProductHeader,
+    ProductArrayEditor,
     ProductInlineEditor,
     ProductPresenter,
     ProductSearchIcon,

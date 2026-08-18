@@ -35,7 +35,6 @@ import {
   type Tag
 } from '@hcengineering/card'
 import chunter from '@hcengineering/chunter'
-import communication from '@hcengineering/communication'
 import converter from '@hcengineering/converter'
 import core, {
   AccountRole,
@@ -256,6 +255,15 @@ const showAllVersionsOption: ViewOptionModel = {
   label: card.string.ShowAllVersions
 }
 
+const showOnlyEffectiveVersionsOption: ViewOptionModel = {
+  key: 'showOnlyEffectiveVersions',
+  type: 'toggle',
+  defaultValue: false,
+  actionTarget: 'query',
+  action: card.function.ShowOnlyEffectiveVersions,
+  label: card.string.ShowOnlyEffectiveVersions
+}
+
 const showOnlyCardsWithoutRelationsOption: ViewOptionModel = {
   key: 'showOnlyCardsWithoutRelations',
   type: 'toggle',
@@ -276,12 +284,6 @@ const listConfig: (BuildModelKey | string)[] = [
       showType: false
     },
     displayProps: { optional: true }
-  },
-  {
-    key: '',
-    presenter: card.component.LabelsPresenter,
-    label: card.string.Labels,
-    props: { fullSize: true }
   },
   {
     key: 'modifiedOn',
@@ -330,12 +332,6 @@ const favoritesViewletConfig: (BuildModelKey | string)[] = [
       showType: false
     },
     presenter: card.component.CardTagsColored
-  },
-  {
-    key: '$lookup.attachedTo',
-    presenter: card.component.LabelsPresenter,
-    label: card.string.Labels,
-    props: { fullSize: true, key: 'labels' }
   },
   {
     key: '$lookup.attachedTo.parent'
@@ -392,7 +388,7 @@ export function createSystemType (
     viewOptions: {
       groupBy: [],
       orderBy: [],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -408,12 +404,6 @@ export function createSystemType (
           showType: false
         }
       },
-      {
-        key: '',
-        presenter: card.component.LabelsPresenter,
-        label: card.string.Labels,
-        props: { fullSize: true }
-      },
       'modifiedOn'
     ]
   })
@@ -427,7 +417,7 @@ export function createSystemType (
         ['modifiedOn', SortingOrder.Descending],
         ['rank', SortingOrder.Ascending]
       ],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -444,7 +434,7 @@ export function createSystemType (
     viewOptions: {
       groupBy: [],
       orderBy: [],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -748,7 +738,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       baseQuery: {
         isLatest: true
@@ -782,7 +772,7 @@ export function createModel (builder: Builder): void {
           ['modifiedOn', SortingOrder.Descending],
           ['rank', SortingOrder.Ascending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       configOptions: {
         hiddenKeys: ['content', 'title']
@@ -808,7 +798,7 @@ export function createModel (builder: Builder): void {
           ['modifiedOn', SortingOrder.Descending],
           ['rank', SortingOrder.Ascending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       configOptions: {
         strict: true,
@@ -854,7 +844,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption, showOnlyCardsWithoutRelationsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption, showOnlyCardsWithoutRelationsOption]
       },
       baseQuery: {
         isLatest: true
@@ -895,7 +885,7 @@ export function createModel (builder: Builder): void {
           ['rank', SortingOrder.Ascending],
           ['title', SortingOrder.Descending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       }
     },
     card.viewlet.CardGrid
@@ -1266,20 +1256,6 @@ function defineTabs (builder: Builder): void {
       checkVisibility: card.function.CheckOldMessagesSectionVisibility
     },
     card.section.OldMessages
-  )
-
-  builder.createDoc(
-    card.class.CardSection,
-    core.space.Model,
-    {
-      label: activity.string.Messages,
-      component: card.sectionComponent.CommunicationMessagesSection,
-      order: 1000,
-      navigation: [],
-      hideInCompactMode: true,
-      checkVisibility: card.function.CheckCommunicationMessagesSectionVisibility
-    },
-    communication.ids.CardMessagesSection
   )
 
   builder.createDoc<Viewlet>(view.class.Viewlet, core.space.Model, {

@@ -22,6 +22,20 @@ import type { Preference } from '@hcengineering/preference'
 import { AnyComponent, type AnySvelteComponent, Location, ResolvedLocation } from '@hcengineering/ui'
 
 /** @public */
+export interface ReadableStore<T> {
+  subscribe: (run: (value: T) => void) => () => void
+}
+
+/** @public */
+export interface ApplicationNotificationState {
+  notify: boolean
+  count?: number
+}
+
+/** @public */
+export type ApplicationNotificationProvider = () => ReadableStore<ApplicationNotificationState>
+
+/** @public */
 export interface LocationData {
   objectId?: Ref<Doc>
   objectClass?: Ref<Class<Doc>>
@@ -57,6 +71,9 @@ export interface Application extends Doc {
   navHeaderActions?: AnyComponent
   accessLevel?: AccountRole
   navFooterComponent?: AnyComponent
+
+  /** Reactive notification state displayed on the application icon. */
+  notificationProvider?: Resource<ApplicationNotificationProvider>
 
   /** Canonical space classes owned by this application. */
   spaceClasses?: Array<Ref<Class<Space>>>

@@ -68,12 +68,16 @@ import {
   CheckToDoCancelled,
   CheckToDoDone,
   CreateCard,
+  CreateNewVersion,
   CreateToDo,
+  DisableVersionCreation,
+  EnableVersionCreation,
   EventCheck,
   FieldChangedCheck,
   LockCard,
   LockField,
   LockSection,
+  MakeVersionEffective,
   MatchCardCheck,
   RequiredFieldsFilledCheck,
   RequestApproval,
@@ -510,6 +514,40 @@ async function getVersionExecutionTxes (card: Card, control: TriggerControl): Pr
   return res
 }
 
+async function getVersionStatusExecutionTxes (
+  card: Card,
+  trigger: Ref<Trigger>,
+  control: TriggerControl
+): Promise<Tx[]> {
+  const res: Tx[] = []
+  const cards = await control.findAll(control.ctx, cardPlugin.class.Card, { baseId: card.baseId ?? card._id })
+  const executions = await control.findAll(control.ctx, process.class.Execution, {
+    card: { $in: cards.map((version) => version._id) },
+    status: ExecutionStatus.Active
+  })
+  const alreadyStarted = new Set(executions.map((execution) => execution.process))
+  const ancestors = control.hierarchy
+    .getAncestors(card._class)
+    .filter((ancestor) => control.hierarchy.isDerived(ancestor, cardPlugin.class.Card))
+  const processes = control.modelDb.findAllSync(process.class.Process, {
+    masterTag: { $in: ancestors },
+    autoStart: true
+  })
+
+  for (const proc of processes) {
+    if (alreadyStarted.has(proc._id)) continue
+    const initTransition = control.modelDb.findAllSync(process.class.Transition, {
+      process: proc._id,
+      from: null,
+      trigger
+    })[0]
+    if (initTransition === undefined) continue
+    const tx = createExecution(control, proc._id, card._id, card.space)
+    if (tx !== undefined) res.push(tx)
+  }
+  return res
+}
+
 async function reassignToDos (card: Card, ops: DocumentUpdate<Card>, control: TriggerControl): Promise<Tx[]> {
   const res: Tx[] = []
   const todos = await control.findAll(control.ctx, process.class.ProcessToDo, {
@@ -613,6 +651,14 @@ export async function OnCardCreate (txes: Tx[], control: TriggerControl): Promis
     } else {
       const newCardTxes = await getNewCardExecutionTxes(obj, control)
       res.push(...newCardTxes)
+      if (obj.isEffective === true) {
+        const effectiveVersionTxes = await getVersionStatusExecutionTxes(
+          obj,
+          process.trigger.OnVersionEffective,
+          control
+        )
+        res.push(...effectiveVersionTxes)
+      }
     }
   }
   return res
@@ -720,6 +766,26 @@ export async function OnCardUpdate (txes: Tx[], control: TriggerControl): Promis
       },
       control
     )
+
+    const isEffective = isUpdateTx(cudTx) ? cudTx.operations.isEffective : undefined
+    if (typeof isEffective === 'boolean') {
+      const versionTrigger = isEffective ? process.trigger.OnVersionEffective : process.trigger.OnVersionIneffective
+      await putEventToQueue(
+        {
+          event: [versionTrigger],
+          card: card[0]._id,
+          createdOn: tx.modifiedOn,
+          _id: `${tx._id}_${versionTrigger}`,
+          context: {
+            card: card[0],
+            version: card[0],
+            operations: ops
+          }
+        },
+        control
+      )
+      res.push(...(await getVersionStatusExecutionTxes(card[0], versionTrigger, control)))
+    }
     const reassignTxes = await reassignToDos(card[0], ops ?? {}, control)
     res.push(...reassignTxes)
 
@@ -845,6 +911,10 @@ export default async () => ({
     CancelSubProcess,
     CreateToDo,
     UpdateCard,
+    MakeVersionEffective,
+    CreateNewVersion,
+    DisableVersionCreation,
+    EnableVersionCreation,
     CreateCard,
     AddRelation,
     AddTag,

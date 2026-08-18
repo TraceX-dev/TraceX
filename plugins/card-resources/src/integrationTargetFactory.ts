@@ -67,7 +67,7 @@ export const getAllowedSpaceClasses: GetIntegrationTargetAllowedSpaceClasses = a
 }
 
 export const getCommentBackend: GetIntegrationTargetCommentBackend = async () => {
-  return 'communication'
+  return 'chunter'
 }
 
 export const createIntegrationTarget: CreateIntegrationTarget = async (ctx, target, values) => {

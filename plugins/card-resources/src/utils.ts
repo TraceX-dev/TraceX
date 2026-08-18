@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,8 +15,6 @@
 import { type AccountClient, getClient as getAccountClientRaw } from '@hcengineering/account-client'
 import { Analytics } from '@hcengineering/analytics'
 import { type Card, CardEvents, cardId, type CardSpace, type MasterTag, type Tag } from '@hcengineering/card'
-import { chatId } from '@hcengineering/chat'
-import communication from '@hcengineering/communication'
 import { type PermissionsStore } from '@hcengineering/contact'
 import core, {
   AccountRole,
@@ -565,7 +564,9 @@ export async function createNewVersion (card: Card): Promise<Ref<Card>> {
     card,
     {
       baseId: card.baseId,
-      docCreatedBy: card.docCreatedBy ?? card.createdBy ?? card.modifiedBy
+      docCreatedBy: card.docCreatedBy ?? card.createdBy ?? card.modifiedBy,
+      isEffective: false,
+      versionCreationDisabled: false
     },
     mixin,
     true
@@ -666,12 +667,8 @@ export async function createChildCard (object: Card): Promise<void> {
   Analytics.handleEvent(CardEvents.CardCreated)
 
   const loc = getCurrentLocation()
-  if (loc.path[2] === chatId) {
-    loc.path[3] = encodeObjectURI(_id, card.class.Card)
-  } else {
-    loc.path[2] = cardId
-    loc.path[3] = _id
-  }
+  loc.path[2] = cardId
+  loc.path[3] = _id
   loc.path.length = 4
   navigate(loc)
 }
@@ -737,19 +734,7 @@ export function cardCustomLinkEncode (doc: Card): Location {
 }
 
 export async function checkOldMessagesSectionVisibility (doc: Card): Promise<boolean> {
-  if (!getPermissions().canViewActivity(doc)) {
-    return false
-  }
-
-  return getMetadata(communication.metadata.Enabled) !== true
-}
-
-export async function checkCommunicationMessagesSectionVisibility (doc: Card): Promise<boolean> {
-  if (!getPermissions().canViewActivity(doc)) {
-    return false
-  }
-
-  return getMetadata(communication.metadata.Enabled) === true
+  return getPermissions().canViewActivity(doc)
 }
 
 export async function checkChildrenSectionVisibility (doc: Card): Promise<boolean> {
@@ -858,9 +843,16 @@ export function canUnlockSection (space: Ref<Space>, store: PermissionsStore): b
   return !store.restrictedSpaces.has(space)
 }
 
-export function showAllVersions (value: any, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
-  if (value === true) {
+export function showAllVersions (value: boolean, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
+  if (value) {
     return { ...query, isLatest: { $in: [true, false] } }
+  }
+  return query
+}
+
+export function showOnlyEffectiveVersions (value: boolean, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
+  if (value) {
+    return { ...query, isLatest: { $in: [true, false] }, isEffective: true }
   }
   return query
 }

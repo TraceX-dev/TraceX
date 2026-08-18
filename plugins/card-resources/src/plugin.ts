@@ -102,7 +102,6 @@ export default mergeIds(cardId, card, {
     ContentSection: '' as AnyComponent,
     PropertiesSection: '' as AnyComponent,
     RelationsSection: '' as AnyComponent,
-    CommunicationMessagesSection: '' as AnyComponent,
     OldMessagesSection: '' as AnyComponent
   },
   completion: {
@@ -164,6 +163,7 @@ export default mergeIds(cardId, card, {
     Export: '' as IntlString,
     Import: '' as IntlString,
     NewVersion: '' as IntlString,
+    VersionCreationUnavailable: '' as IntlString,
     Versioning: '' as IntlString,
     EnableVersioning: '' as IntlString,
     EnableVersioningConfirm: '' as IntlString,

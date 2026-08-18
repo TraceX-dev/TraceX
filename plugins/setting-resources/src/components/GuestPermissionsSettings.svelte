@@ -12,9 +12,6 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import card, { Card } from '@hcengineering/card'
-  import chat from '@hcengineering/chat'
-  import communication, { GuestCommunicationSettings } from '@hcengineering/communication'
   import contact, { ensureEmployeeForPerson } from '@hcengineering/contact'
   import { getAccountClient } from '@hcengineering/contact-resources'
   import core, {
@@ -35,7 +32,6 @@
   import workbench, { type Application } from '@hcengineering/workbench'
   import {
     Breadcrumb,
-    Component,
     defineSeparators,
     Header,
     Icon,
@@ -63,7 +59,6 @@
 
   let allowReadOnlyGuests = false
   let allowGuestSignUp = false
-  let existingGuestChatSettings: GuestCommunicationSettings | undefined = undefined
 
   const accountClient = getAccountClient()
 
@@ -72,7 +67,6 @@
   let hiddenApplicationIds: Array<Ref<Application>> = []
 
   const excludedApplicationIds = getMetadata(workbench.metadata.ExcludedApplications) ?? []
-  const communicationApiEnabled = getMetadata(communication.metadata.Enabled) === true
 
   let guestPermissionsTab: 'guest' | 'anonymous' = 'guest'
   const canManageAnonymousAccess = hasAccountRole(getCurrentAccount(), AccountRole.Owner)
@@ -81,7 +75,6 @@
   const moduleGroupsQuery = createQuery()
   const permissionsQuery = createQuery()
   const hiddenAppsQuery = createQuery()
-  const guestCommunicationQuery = createQuery()
 
   onMount(() => {
     void (async (): Promise<void> => {
@@ -94,14 +87,6 @@
       }
     })()
   })
-
-  $: {
-    if (communicationApiEnabled) {
-      guestCommunicationQuery.query(communication.class.GuestCommunicationSettings, {}, (settings) => {
-        existingGuestChatSettings = settings[0]
-      })
-    }
-  }
 
   $: moduleGroupsQuery.query(core.class.ModulePermissionGroup, {}, (res) => {
     moduleGroups = res as unknown as ModulePermissionGroup[]
@@ -264,22 +249,6 @@
     void handleToggleGuestSignUp(e)
   }
 
-  async function onAllowedCardsChange (value: Ref<Card>[]): Promise<void> {
-    if (existingGuestChatSettings === undefined) {
-      await client.createDoc(communication.class.GuestCommunicationSettings, core.space.Workspace, {
-        allowedCards: value,
-        enabled: true
-      })
-    } else {
-      await client.updateDoc(
-        communication.class.GuestCommunicationSettings,
-        core.space.Workspace,
-        existingGuestChatSettings._id,
-        { allowedCards: value, enabled: true }
-      )
-    }
-  }
-
   defineSeparators('guestPermissionsSettings', twoPanelsSeparators)
 </script>
 
@@ -360,27 +329,6 @@
                       />
                     </div>
                   </div>
-                  {#if communicationApiEnabled}
-                    <div class="guestAccessRow guestAccessRow--editor">
-                      <div class="guestAccessRow-label">
-                        <Label label={settingsRes.string.GuestChannelsDescription} />
-                      </div>
-                      <div class="guestAccessRow-editorCell">
-                        <div class="guestAccessRow-editorInner">
-                          <Component
-                            is={card.component.CardArrayEditor}
-                            props={{
-                              _class: chat.masterTag.Thread,
-                              value:
-                                existingGuestChatSettings !== undefined ? existingGuestChatSettings.allowedCards : [],
-                              label: settingsRes.string.GuestChannelsArrayLabel,
-                              onChange: onAllowedCardsChange
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  {/if}
                 </div>
               </section>
             {/if}

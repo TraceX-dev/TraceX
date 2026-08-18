@@ -277,7 +277,11 @@ export default plugin(processId, {
     UnlockCard: '' as Ref<Method<Card>>,
     UnlockSection: '' as Ref<Method<Card>>,
     LockField: '' as Ref<Method<Card>>,
-    UnlockField: '' as Ref<Method<Card>>
+    UnlockField: '' as Ref<Method<Card>>,
+    MakeVersionEffective: '' as Ref<Method<Card>>,
+    CreateNewVersion: '' as Ref<Method<Card>>,
+    DisableVersionCreation: '' as Ref<Method<Card>>,
+    EnableVersionCreation: '' as Ref<Method<Card>>
   },
   trigger: {
     OnCardUpdate: '' as Ref<Trigger>, // in fact WhenCardMatches, should migrate in future
@@ -289,6 +293,8 @@ export default plugin(processId, {
     OnToDoRemove: '' as Ref<Trigger>,
     OnExecutionStart: '' as Ref<Trigger>,
     OnNewVersion: '' as Ref<Trigger>,
+    OnVersionEffective: '' as Ref<Trigger>,
+    OnVersionIneffective: '' as Ref<Trigger>,
     OnExecutionContinue: '' as Ref<Trigger>,
     OnTime: '' as Ref<Trigger>,
     OnEvent: '' as Ref<Trigger>,

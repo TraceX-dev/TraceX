@@ -35,12 +35,10 @@
   },
   "dependencies": {
     "@hcengineering/core": "workspace:^0.7.26",
-    "@hcengineering/integration": "workspace:^0.7.0",
     "@hcengineering/model": "workspace:^0.7.17",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/view": "workspace:^0.7.0",
     "@hcengineering/card": "workspace:^0.7.0",
-    "@hcengineering/communication": "workspace:^0.7.0",
     "@hcengineering/server-notification": "workspace:^0.7.0",
     "@hcengineering/server-card": "workspace:^0.7.0",
     "@hcengineering/server-core": "workspace:^0.7.19"

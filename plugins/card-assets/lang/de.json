@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "Entfernen von Tags verbieten",
     "Duplicate": "Duplizieren",
     "Version": "Version",
+    "Effective": "Wirksam",
+    "MakeEffective": "Wirksam machen",
     "Versions": "Versionen",
     "NewVersion": "Neue Version",
+    "VersionCreationUnavailable": "Das Erstellen einer neuen Version ist derzeit nicht verfügbar",
     "Versioning": "Versionsverwaltung",
     "EnableVersioning": "Versionsverwaltung aktivieren",
     "EnableVersioningConfirm": "Möchten Sie die Versionsverwaltung aktivieren?",
@@ -91,6 +94,7 @@
     "Grid": "Gitter",
     "RichtextProperties": "Textfelder",
     "ShowAllVersions": "Alle Versionen anzeigen",
+    "ShowOnlyEffectiveVersions": "Nur wirksame Versionen anzeigen",
     "ShowOnlyCardsWithoutRelations": "Nur Karten ohne Beziehungen anzeigen"
   }
 }

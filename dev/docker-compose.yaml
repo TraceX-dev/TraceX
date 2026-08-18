@@ -324,7 +324,6 @@ services:
       - BRANDING_URL=http://tracex.local:8087/branding.json
       - STREAM_URL=http://tracex.local:1080/recording
       - PAYMENT_URL=http://tracex.local:3040
-      - COMMUNICATION_API_ENABLED=true
       - BACKUP_URL=http://tracex.local:4039/api/backup,
       - EXCLUDED_APPLICATIONS_FOR_ANONYMOUS=[]
       - DISABLED_FEATURES=auto-translate,mailboxes
@@ -370,11 +369,9 @@ services:
       - LAST_NAME_FIRST=true
       - BRANDING_PATH=/var/cfg/branding.json
       - AI_BOT_URL=http://tracex.local:4010
-      - COMMUNICATION_TIME_LOGGING_ENABLED=true
       - RATE_LIMIT_MAX=250 # 250 requests per 30 seconds
       - RATE_LIMIT_WINDOW=30000
       - FILES_URL=http://tracex.local:4030/blob/:workspace/:blobId/:filename
-      - COMMUNICATION_API_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
       - HYLYLAKE_URL=http://tracex.local:8096
     restart: unless-stopped
@@ -433,7 +430,6 @@ services:
       - ACCOUNTS_URL=http://tracex.local:3000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
       - HULYLAKE_URL=http://tracex.local:8096
-      - COMMUNICATION_API_ENABLED=true
   print:
     image: tracexapp/print
     extra_hosts:
@@ -694,23 +690,6 @@ services:
       - QUEUE_REGION=cockroach
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
-  #  translate:
-  #    image: tracexapp/translate
-  #    extra_hosts:
-  #      - 'tracex.local:host-gateway'
-  #    depends_on:
-  #      redpanda:
-  #        condition: service_started
-  #      account:
-  #        condition: service_started
-  #    environment:
-  #      - SECRET=secret
-  #      - ACCOUNTS_URL=http://tracex.local:3000
-  #      - HULYLAKE_URL=http://tracex.local:8096
-  #      - QUEUE_CONFIG=${QUEUE_CONFIG}
-  #      - QUEUE_REGION=cockroach
-  #      - OPENAI_API_KEY=
-  #    restart: unless-stopped
   backup-cockroach:
     image: tracexapp/backup
     extra_hosts:
@@ -782,8 +761,6 @@ services:
       - DB_URL=${DB_CR_URL}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://tracex.local:3000
-      - COMMUNICATION_TIME_LOGGING_ENABLED=true
-      - COMMUNICATION_API_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
       - HYLYLAKE_URL=http://tracex.local:8096
     restart: unless-stopped

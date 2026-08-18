@@ -66,8 +66,11 @@
         "ForbidRemoveTag": "태그 제거 금지",
         "Duplicate": "복제",
         "Version": "버전",
+        "Effective": "유효",
+        "MakeEffective": "유효하게 설정",
         "Versions": "버전",
         "NewVersion": "새 버전",
+        "VersionCreationUnavailable": "현재 새 버전을 만들 수 없습니다",
         "Versioning": "버전 관리",
         "EnableVersioning": "버전 관리 사용",
         "EnableVersioningConfirm": "버전 관리를 사용하시겠습니까?",
@@ -91,6 +94,7 @@
         "Grid": "그리드",
         "RichtextProperties": "리치 텍스트 속성",
         "ShowAllVersions": "모든 버전 보기",
+        "ShowOnlyEffectiveVersions": "유효한 버전만 보기",
         "ShowOnlyCardsWithoutRelations": "관계가 없는 카드만 표시"
     }
 }

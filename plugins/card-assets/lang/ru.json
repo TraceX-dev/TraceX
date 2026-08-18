@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "Запретить удаление тега",
     "Duplicate": "Дублировать",
     "Version": "Версия",
+    "Effective": "Эффективная",
+    "MakeEffective": "Сделать эффективной",
     "Versions": "Версии",
     "NewVersion": "Новая версия",
+    "VersionCreationUnavailable": "Создание новой версии сейчас недоступно",
     "Versioning": "Управление версиями",
     "EnableVersioning": "Включить управление версиями",
     "EnableVersioningConfirm": "Вы хотите включить управление версиями?",
@@ -91,6 +94,7 @@
     "Grid": "Сетка",
     "RichtextProperties": "Текстовые поля",
     "ShowAllVersions": "Показывать все версии",
+    "ShowOnlyEffectiveVersions": "Показывать только эффективные версии",
     "ShowOnlyCardsWithoutRelations": "Показывать только карточки без связей"
   }
 }
