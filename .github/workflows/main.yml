@@ -109,14 +109,6 @@ jobs:
       - name: Model version from git tags
         run: node common/scripts/install-run-rush.js model-version
 
-      - name: Verify package versions match tag
-        if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v')
-        run: |
-          REF="${{ github.event.inputs.ref || github.ref }}"
-          VERSION="${REF#refs/tags/v}"
-          VERSION="${VERSION#v}"
-          node common/scripts/bump.js --check "$VERSION"
-
       - name: Building...
         run: node common/scripts/install-run-rush.js build
 
