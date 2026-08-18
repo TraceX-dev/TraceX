@@ -21,7 +21,6 @@
     DocumentState,
     DocumentTemplate,
     TEMPLATE_PREFIX,
-    createChangeControl,
     createDocumentTemplate
   } from '@hcengineering/controlled-documents'
   import { getCurrentEmployee } from '@hcengineering/contact'
@@ -37,7 +36,7 @@
     type IWizardStep
   } from '@hcengineering/ui'
   import { getCurrentLanguage } from '@hcengineering/theme'
-  import { translate } from '@hcengineering/platform'
+  import { setPlatformStatus, translate, unknownError } from '@hcengineering/platform'
 
   import documents from '../../plugin'
   import { getProjectDocumentLink } from '../../navigation'
@@ -160,8 +159,9 @@
 
     delete (spec as any).docPrefix
 
+    let success: boolean
     try {
-      const { success } = await createDocumentTemplate(
+      const result = await createDocumentTemplate(
         client,
         _class,
         space,
@@ -172,36 +172,24 @@
         docObject.docPrefix,
         spec,
         category,
-        currentUser
+        currentUser,
+        { id: ccRecordId, data: ccRecord }
       )
-
-      if (!success) {
-        submitted = false
-        addNotification(
-          await translate(documents.string.CreateDocumentTemplateFailed, {}, getCurrentLanguage()),
-          '',
-          FailedToCreateDocument,
-          undefined,
-          NotificationSeverity.Error
-        )
-        return
-      }
-
-      await createChangeControl(client, ccRecordId, ccRecord, space)
-
-      if (docObject.externalApprovers.length > 0) {
-        const controlledDoc = await client.findOne(documents.class.ControlledDocument, { _id: newDocId })
-
-        if (controlledDoc !== undefined) {
-          await updateExternalApproversAccess(client, controlledDoc, docObject.externalApprovers, [])
-        }
-      }
-
-      const loc = getProjectDocumentLink(newDocId, $locationStep.project)
-      navigate(loc)
-
-      dispatch('close')
+      success = result.success
     } catch (error) {
+      submitted = false
+      await setPlatformStatus(unknownError(error))
+      addNotification(
+        await translate(documents.string.CreateDocumentTemplateFailed, {}, getCurrentLanguage()),
+        '',
+        FailedToCreateDocument,
+        undefined,
+        NotificationSeverity.Error
+      )
+      return
+    }
+
+    if (!success) {
       submitted = false
       addNotification(
         await translate(documents.string.CreateDocumentTemplateFailed, {}, getCurrentLanguage()),
@@ -210,7 +198,24 @@
         undefined,
         NotificationSeverity.Error
       )
+      return
     }
+
+    if (docObject.externalApprovers.length > 0) {
+      try {
+        const controlledDoc = await client.findOne(documents.class.ControlledDocument, { _id: newDocId })
+        if (controlledDoc !== undefined) {
+          await updateExternalApproversAccess(client, controlledDoc, docObject.externalApprovers, [])
+        }
+      } catch (error) {
+        await setPlatformStatus(unknownError(error))
+      }
+    }
+
+    const loc = getProjectDocumentLink(newDocId, $locationStep.project)
+    navigate(loc)
+
+    dispatch('close')
   }
 
   $: space = $locationStep.space
