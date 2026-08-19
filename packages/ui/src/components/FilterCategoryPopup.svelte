@@ -33,17 +33,17 @@
   let selectedCategory: FilterCategory | null = null
   let view: 'categories' | 'options' = 'categories'
 
-  function selectCategory (category: FilterCategory): void {
+  function selectCategory(category: FilterCategory): void {
     selectedCategory = category
     view = 'options'
   }
 
-  function goBackToCategories (): void {
+  function goBackToCategories(): void {
     selectedCategory = null
     view = 'categories'
   }
 
-  function selectOption (option: FilterOption): void {
+  function selectOption(option: FilterOption): void {
     if (selectedCategory === null) return
 
     const filter: ActiveFilter = {
@@ -58,29 +58,29 @@
     goBackToCategories()
   }
 
-  function clearCategoryFilter (): void {
+  function clearCategoryFilter(): void {
     if (selectedCategory === null) return
     activeFilters = activeFilters.filter((filter) => filter.categoryId !== selectedCategory?.id)
     onFilterRemove(selectedCategory.id)
     goBackToCategories()
   }
 
-  function clearFilters (): void {
+  function clearFilters(): void {
     activeFilters = []
     onFiltersClear()
     dispatch('close')
   }
 
-  function isActive (categoryId: string): boolean {
+  function isActive(categoryId: string): boolean {
     return activeFilters.some((f) => f.categoryId === categoryId)
   }
 
-  function isOptionSelected (optionId: string): boolean {
+  function isOptionSelected(optionId: string): boolean {
     if (selectedCategory === null) return false
     return activeFilters.some((f) => f.categoryId === selectedCategory?.id && f.optionId === optionId)
   }
 
-  function getActiveOption (categoryId: string): ActiveFilter | undefined {
+  function getActiveOption(categoryId: string): ActiveFilter | undefined {
     return activeFilters.find((filter) => filter.categoryId === categoryId)
   }
 

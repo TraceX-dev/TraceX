@@ -53,7 +53,7 @@ export interface RestClient extends Storage, FulltextStorage {
     options?: FindOptions<T>
   ) => Promise<WithLookup<T> | undefined>
 
-  getModel: () => Promise<{ hierarchy: Hierarchy, model: ModelDb }>
+  getModel: () => Promise<{ hierarchy: Hierarchy; model: ModelDb }>
 
   domainRequest: <T>(
     domain: OperationDomain,
@@ -67,7 +67,7 @@ export interface RestClient extends Storage, FulltextStorage {
     firstName: string,
     lastName: string,
     options?: EnsurePersonOptions
-  ) => Promise<{ uuid: PersonUuid, socialId: PersonId, localPerson: string }>
+  ) => Promise<{ uuid: PersonUuid; socialId: PersonId; localPerson: string }>
 
   createDoc: <T extends Doc>(
     _class: Ref<Class<T>>,

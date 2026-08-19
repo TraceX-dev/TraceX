@@ -206,7 +206,7 @@ describe('conformToSchema (schema validity)', () => {
   })
 })
 
-function cell (
+function cell(
   type: MarkupNodeType.table_cell | MarkupNodeType.table_header,
   text: string,
   attrs?: MarkupNode['attrs']

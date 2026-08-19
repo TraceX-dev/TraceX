@@ -19,14 +19,14 @@ import { BackgroundColor, TextColor } from '../colors'
 // functions directly instead of going through a real tiptap `Editor` (no DOM in this package's
 // test environment).
 
-function defined<T> (value: T | undefined): T {
+function defined<T>(value: T | undefined): T {
   if (value === undefined) {
     throw new Error('Expected value to be defined')
   }
   return value
 }
 
-function getCommands (): Record<string, (...args: any[]) => any> {
+function getCommands(): Record<string, (...args: any[]) => any> {
   return defined(TextColor.config.addCommands).call({} as any) as any
 }
 
@@ -47,16 +47,16 @@ describe('TextColor commands', () => {
   })
 })
 
-function getBackgroundColorAttributes (types: string[] = ['tableCell']): Record<string, any> {
+function getBackgroundColorAttributes(types: string[] = ['tableCell']): Record<string, any> {
   const [{ attributes }] = defined(BackgroundColor.config.addGlobalAttributes).call({ options: { types } } as any)
   return attributes
 }
 
-function getBackgroundColorCommands (types: string[] = ['tableCell']): Record<string, (...args: any[]) => any> {
+function getBackgroundColorCommands(types: string[] = ['tableCell']): Record<string, (...args: any[]) => any> {
   return defined(BackgroundColor.config.addCommands).call({ options: { types } } as any) as any
 }
 
-function commandsStub (): { updateAttributes: jest.Mock, resetAttributes: jest.Mock } {
+function commandsStub(): { updateAttributes: jest.Mock; resetAttributes: jest.Mock } {
   return {
     updateAttributes: jest.fn(() => true),
     resetAttributes: jest.fn(() => true)

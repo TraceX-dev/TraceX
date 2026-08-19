@@ -37,7 +37,7 @@ export interface DocxToMarkupResult {
  *
  * @public
  */
-export async function docxToMarkup (buffer: Buffer): Promise<DocxToMarkupResult> {
+export async function docxToMarkup(buffer: Buffer): Promise<DocxToMarkupResult> {
   const result = await mammoth.convertToHtml({ buffer })
   const html = result.value
   const markup = conformToSchema(htmlToMarkup(html))

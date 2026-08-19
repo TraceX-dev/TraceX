@@ -27,26 +27,26 @@ import { CellAlign } from '../cellAlign'
 // cell) - the same mechanism already used in production by the pre-existing `BackgroundColor`
 // extension this one is modeled after.
 
-function defined<T> (value: T | undefined): T {
+function defined<T>(value: T | undefined): T {
   if (value === undefined) {
     throw new Error('Expected value to be defined')
   }
   return value
 }
 
-function getAttributes (types: string[] = ['tableCell']): Record<string, any> {
+function getAttributes(types: string[] = ['tableCell']): Record<string, any> {
   const [{ attributes }] = defined(CellAlign.config.addGlobalAttributes).call({ options: { types } } as any)
   return attributes
 }
 
-function getCommands (
+function getCommands(
   types: string[] = ['tableCell'],
   blockTypes: string[] = ['paragraph', 'heading']
 ): Record<string, (...args: any[]) => any> {
   return defined(CellAlign.config.addCommands).call({ options: { types, blockTypes } } as any) as any
 }
 
-function commandsStub (): { updateAttributes: jest.Mock, resetAttributes: jest.Mock } {
+function commandsStub(): { updateAttributes: jest.Mock; resetAttributes: jest.Mock } {
   return {
     updateAttributes: jest.fn(() => true),
     resetAttributes: jest.fn(() => true)

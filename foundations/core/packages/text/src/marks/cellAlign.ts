@@ -18,7 +18,7 @@ import { Extension } from '@tiptap/core'
 // Picks the first non-empty value, treating '' the same as unset (CSSStyleDeclaration properties
 // are always strings, never null/undefined, so a plain `||`/`??` chain would not skip an unset
 // inline style the way it needs to here).
-function firstNonEmpty (...values: Array<string | null | undefined>): string | null {
+function firstNonEmpty(...values: Array<string | null | undefined>): string | null {
   for (const value of values) {
     if (value !== null && value !== undefined && value !== '') {
       return value
@@ -65,14 +65,14 @@ declare module '@tiptap/core' {
 export const CellAlign = Extension.create<CellAlignOptions>({
   name: 'cellAlign',
 
-  addOptions () {
+  addOptions() {
     return {
       types: [],
       blockTypes: ['paragraph', 'heading']
     }
   },
 
-  addGlobalAttributes () {
+  addGlobalAttributes() {
     return [
       {
         types: this.options.types,
@@ -111,46 +111,46 @@ export const CellAlign = Extension.create<CellAlignOptions>({
     ]
   },
 
-  addCommands () {
+  addCommands() {
     return {
       setCellTextAlign:
         (align: CellTextAlign) =>
-          ({ commands }) => {
-            const updated = this.options.types
-              .map((type) => commands.updateAttributes(type, { textAlign: align }))
-              .every((response) => response)
+        ({ commands }) => {
+          const updated = this.options.types
+            .map((type) => commands.updateAttributes(type, { textAlign: align }))
+            .every((response) => response)
 
-            // Best-effort cleanup: a paragraph/heading with its own text-align would otherwise
-            // hide the cell-level one. Not included in the returned result - the command should
-            // still be considered successful even if the schema has no such block types.
-            this.options.blockTypes.forEach((type) => commands.resetAttributes(type, 'textAlign'))
+          // Best-effort cleanup: a paragraph/heading with its own text-align would otherwise
+          // hide the cell-level one. Not included in the returned result - the command should
+          // still be considered successful even if the schema has no such block types.
+          this.options.blockTypes.forEach((type) => commands.resetAttributes(type, 'textAlign'))
 
-            return updated
-          },
+          return updated
+        },
 
       unsetCellTextAlign:
         () =>
-          ({ commands }) => {
-            return this.options.types
-              .map((type) => commands.resetAttributes(type, 'textAlign'))
-              .every((response) => response)
-          },
+        ({ commands }) => {
+          return this.options.types
+            .map((type) => commands.resetAttributes(type, 'textAlign'))
+            .every((response) => response)
+        },
 
       setCellVerticalAlign:
         (align: CellVerticalAlign) =>
-          ({ commands }) => {
-            return this.options.types
-              .map((type) => commands.updateAttributes(type, { verticalAlign: align }))
-              .every((response) => response)
-          },
+        ({ commands }) => {
+          return this.options.types
+            .map((type) => commands.updateAttributes(type, { verticalAlign: align }))
+            .every((response) => response)
+        },
 
       unsetCellVerticalAlign:
         () =>
-          ({ commands }) => {
-            return this.options.types
-              .map((type) => commands.resetAttributes(type, 'verticalAlign'))
-              .every((response) => response)
-          }
+        ({ commands }) => {
+          return this.options.types
+            .map((type) => commands.resetAttributes(type, 'verticalAlign'))
+            .every((response) => response)
+        }
     }
   }
 })

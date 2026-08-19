@@ -19,7 +19,7 @@
  * without introducing a dependency between the plugins that own them.
  * @public
  */
-export function getWorkspaceInitial (name: string | undefined): string {
+export function getWorkspaceInitial(name: string | undefined): string {
   const initial = (name ?? '').trim().charAt(0).toUpperCase()
   return initial === '' ? '?' : initial
 }
@@ -27,7 +27,7 @@ export function getWorkspaceInitial (name: string | undefined): string {
 /**
  * @public
  */
-export function getWorkspaceLastVisitDays (lastVisit: number | undefined): number | undefined {
+export function getWorkspaceLastVisitDays(lastVisit: number | undefined): number | undefined {
   if (lastVisit === undefined || lastVisit === 0) {
     return undefined
   }

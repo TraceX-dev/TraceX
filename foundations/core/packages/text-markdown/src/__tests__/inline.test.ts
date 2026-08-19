@@ -103,7 +103,7 @@ describe('markup with rich text survives an outer table cell', () => {
     ]
   } as any
 
-  function cellOf (table: string): any {
+  function cellOf(table: string): any {
     const doc = markdownToMarkup(table)
     return doc.content?.[0].content?.[1].content?.[1]
   }

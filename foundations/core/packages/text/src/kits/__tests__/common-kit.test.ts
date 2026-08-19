@@ -18,7 +18,7 @@ import { TextColorStylingKit } from '../common-kit'
 
 // Resolve the sub-extensions a kit declares via `addExtensions`, the way tiptap's own
 // ExtensionManager would — lets us assert on the actual production wiring without a DOM.
-function resolveKitExtensions (kit: AnyExtension): AnyExtension[] {
+function resolveKitExtensions(kit: AnyExtension): AnyExtension[] {
   const addExtensions = getExtensionField<() => AnyExtension[]>(kit, 'addExtensions', {
     name: kit.name,
     options: kit.options,

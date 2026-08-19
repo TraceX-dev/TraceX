@@ -25,12 +25,12 @@ import { markupToJSON, MarkupMarkType, type MarkupNode, MarkupNodeType } from '@
  *
  * @public
  */
-export function normalizeMarkup (markup: Markup | MarkupNode): MarkupNode {
+export function normalizeMarkup(markup: Markup | MarkupNode): MarkupNode {
   const root = typeof markup === 'string' ? markupToJSON(markup) : markup
   return normalizeNode(root) ?? { type: MarkupNodeType.doc, content: [] }
 }
 
-function normalizeNode (node: MarkupNode): MarkupNode | undefined {
+function normalizeNode(node: MarkupNode): MarkupNode | undefined {
   if (node.type === MarkupNodeType.text) {
     if (node.text === undefined || node.text === '') {
       return undefined
@@ -83,12 +83,12 @@ const INLINE_TYPES = new Set<string>([
  *
  * @public
  */
-export function conformToSchema (markup: Markup | MarkupNode): MarkupNode {
+export function conformToSchema(markup: Markup | MarkupNode): MarkupNode {
   const root = typeof markup === 'string' ? markupToJSON(markup) : markup
   return conformNode(root) ?? { type: MarkupNodeType.doc, content: [] }
 }
 
-function conformNode (node: MarkupNode): MarkupNode | undefined {
+function conformNode(node: MarkupNode): MarkupNode | undefined {
   // Drop malformed nodes (e.g. `{}` with no type) — they crash the PM schema and the diff.
   if (node === null || node === undefined || typeof node.type !== 'string') {
     return undefined
@@ -122,7 +122,7 @@ function conformNode (node: MarkupNode): MarkupNode | undefined {
   return { ...node, content }
 }
 
-function wrapInlineChildren (children: MarkupNode[]): MarkupNode[] {
+function wrapInlineChildren(children: MarkupNode[]): MarkupNode[] {
   const out: MarkupNode[] = []
   let buffer: MarkupNode[] = []
   const flush = (): void => {
@@ -149,7 +149,7 @@ function wrapInlineChildren (children: MarkupNode[]): MarkupNode[] {
  * `**\`x\`**` yields such a combination and would be rejected ("Invalid collection of
  * marks for node text"), corrupting the editor/Y.Doc.
  */
-function sanitizeMarks (node: MarkupNode): MarkupNode {
+function sanitizeMarks(node: MarkupNode): MarkupNode {
   const marks = node.marks
   if (marks === undefined || marks.length <= 1) {
     return node

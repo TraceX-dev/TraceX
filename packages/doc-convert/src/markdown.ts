@@ -24,7 +24,7 @@ import { conformToSchema } from './normalize'
  *
  * @public
  */
-export function markupToMd (markup: Markup | MarkupNode): string {
+export function markupToMd(markup: Markup | MarkupNode): string {
   const root = typeof markup === 'string' ? markupToJSON(markup) : markup
   return markupToMarkdown(root)
 }
@@ -34,6 +34,6 @@ export function markupToMd (markup: Markup | MarkupNode): string {
  *
  * @public
  */
-export function mdToMarkup (md: string): MarkupNode {
+export function mdToMarkup(md: string): MarkupNode {
   return conformToSchema(markdownToMarkup(md))
 }

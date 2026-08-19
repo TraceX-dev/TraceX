@@ -47,7 +47,7 @@
     error: unknown
   }>()
 
-  export async function openActions (event: MouseEvent, index: number): Promise<void> {
+  export async function openActions(event: MouseEvent, index: number): Promise<void> {
     if (getActions === undefined) return
 
     event.preventDefault()
@@ -74,13 +74,13 @@
     }
   }
 
-  function handleContextMenu (event: CustomEvent<ContextMenuDetail>): void {
+  function handleContextMenu(event: CustomEvent<ContextMenuDetail>): void {
     openActions(event.detail.event, event.detail.row).catch((error) => {
       dispatch('error', error)
     })
   }
 
-  function toggleCollapsed (): void {
+  function toggleCollapsed(): void {
     if (!collapsible) return
     collapsed = !collapsed
   }

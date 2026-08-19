@@ -31,7 +31,7 @@ export interface Reference {
 /**
  * @public
  */
-export function extractReferences (content: MarkupNode | Markup | string): Array<Reference> {
+export function extractReferences(content: MarkupNode | Markup | string): Array<Reference> {
   const result: Array<Reference> = []
 
   if (typeof content === 'string') {

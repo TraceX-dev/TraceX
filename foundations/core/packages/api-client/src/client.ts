@@ -56,7 +56,7 @@ import { getWorkspaceToken } from './utils'
 /**
  * Create platform client
  * @public */
-export async function connect (url: string, options: ConnectOptions): Promise<PlatformClient> {
+export async function connect(url: string, options: ConnectOptions): Promise<PlatformClient> {
   const config = await loadServerConfig(url)
 
   const { endpoint, token } = await getWorkspaceToken(url, options, config)
@@ -79,7 +79,7 @@ export async function connect (url: string, options: ConnectOptions): Promise<Pl
   return await createClient(url, endpoint, token, wsLoginInfo.workspace, account, config, options)
 }
 
-async function createClient (
+async function createClient(
   url: string,
   endpoint: string,
   token: string,
@@ -114,7 +114,7 @@ class PlatformClientImpl implements PlatformClient {
   private readonly client: TxOperations
   private readonly markup: MarkupOperations
 
-  constructor (
+  constructor(
     private readonly url: string,
     private readonly workspace: WorkspaceUuid,
     private readonly token: string,
@@ -128,15 +128,15 @@ class PlatformClientImpl implements PlatformClient {
 
   // Client
 
-  getHierarchy (): Hierarchy {
+  getHierarchy(): Hierarchy {
     return this.client.getHierarchy()
   }
 
-  getModel (): ModelDb {
+  getModel(): ModelDb {
     return this.client.getModel()
   }
 
-  async getAccount (): Promise<Account> {
+  async getAccount(): Promise<Account> {
     return this.account
   }
 
@@ -156,7 +156,7 @@ class PlatformClientImpl implements PlatformClient {
     return await this.client.findAll(_class, query, options)
   }
 
-  async close (): Promise<void> {
+  async close(): Promise<void> {
     await this.connection.close()
   }
 
@@ -278,7 +278,7 @@ class PlatformClientImpl implements PlatformClient {
 
   // Markup
 
-  async fetchMarkup (
+  async fetchMarkup(
     objectClass: Ref<Class<Doc>>,
     objectId: Ref<Doc>,
     objectAttr: string,
@@ -288,7 +288,7 @@ class PlatformClientImpl implements PlatformClient {
     return await this.markup.fetchMarkup(objectClass, objectId, objectAttr, markup, format)
   }
 
-  async uploadMarkup (
+  async uploadMarkup(
     objectClass: Ref<Class<Doc>>,
     objectId: Ref<Doc>,
     objectAttr: string,
@@ -300,7 +300,7 @@ class PlatformClientImpl implements PlatformClient {
 
   // AsyncDisposable
 
-  async [Symbol.asyncDispose] (): Promise<void> {
+  async [Symbol.asyncDispose](): Promise<void> {
     await this.close()
   }
 }

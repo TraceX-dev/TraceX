@@ -34,7 +34,7 @@ export interface ResolvedLocation {
 /**
  * Returns true if locations are equal.
  */
-export function areLocationsEqual (loc1: Location, loc2: Location): boolean {
+export function areLocationsEqual(loc1: Location, loc2: Location): boolean {
   if (loc1 === loc2) {
     return true
   }
@@ -248,7 +248,7 @@ export const posAlignment = [
 
 export type PopupPosAlignment = (typeof posAlignment)[number]
 
-export function isPopupPosAlignment (x: any): x is PopupPosAlignment {
+export function isPopupPosAlignment(x: any): x is PopupPosAlignment {
   return typeof x === 'string' && (posAlignment as typeof posAlignment).includes(x as PopupPosAlignment)
 }
 
@@ -279,7 +279,7 @@ export interface IconProps {
   filled?: boolean
 }
 
-export function getIconSize2x (size: IconSize): IconSize {
+export function getIconSize2x(size: IconSize): IconSize {
   switch (size) {
     case 'inline':
     case 'tiny':
@@ -398,7 +398,7 @@ export interface DeviceOptions {
   docHeight: number
   isPortrait: boolean
   isMobile: boolean
-  navigator: { visible: boolean, float: boolean, direction: 'vertical' | 'horizontal' }
+  navigator: { visible: boolean; float: boolean; direction: 'vertical' | 'horizontal' }
   fontSize: number
   size: WidthType | null
   sizes: Record<WidthType, boolean>

@@ -27,7 +27,7 @@ import { deviceSizes, type AnyComponent, type AnySvelteComponent, type WidthType
 /**
  * @public
  */
-export function setMetadataLocalStorage<T> (id: Metadata<T>, value: T | null): void {
+export function setMetadataLocalStorage<T>(id: Metadata<T>, value: T | null): void {
   if (value != null) {
     localStorage.setItem(id, typeof value === 'string' ? value : JSON.stringify(value))
   } else {
@@ -39,7 +39,7 @@ export function setMetadataLocalStorage<T> (id: Metadata<T>, value: T | null): v
 /**
  * @public
  */
-export function fetchMetadataLocalStorage<T> (id: Metadata<T>): T | null {
+export function fetchMetadataLocalStorage<T>(id: Metadata<T>): T | null {
   const data = localStorage.getItem(id)
   if (data === null) {
     return null
@@ -57,34 +57,34 @@ export function fetchMetadataLocalStorage<T> (id: Metadata<T>): T | null {
 /**
  * @public
  */
-export function checkMobile (): boolean {
+export function checkMobile(): boolean {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|Mobile|Opera Mini/i.test(navigator.userAgent)
 }
 
 /**
  * @public
  */
-export function isSafari (): boolean {
+export function isSafari(): boolean {
   return /^((?!chrome|android).)*safari/i.test(navigator.userAgent.toLowerCase())
 }
 
 /**
  * @public
  */
-export function checkAdaptiveMatching (size: WidthType | null, limit: WidthType): boolean {
+export function checkAdaptiveMatching(size: WidthType | null, limit: WidthType): boolean {
   const range = new Set(deviceSizes.slice(0, deviceSizes.findIndex((ds) => ds === limit) + 1))
   return size !== null ? range.has(size) : false
 }
 
 // TODO: Fix naming, since it doesn't floor (floorFractionDigits(2.5) === 3.0)
-export function floorFractionDigits (n: number | string, amount: number): number {
+export function floorFractionDigits(n: number | string, amount: number): number {
   return Number(Number(n).toFixed(amount))
 }
 
 /**
  * @public
  */
-export function humanReadableFileSize (size: number, base: 2 | 10 = 10, fractionDigits: number = 2): string {
+export function humanReadableFileSize(size: number, base: 2 | 10 = 10, fractionDigits: number = 2): string {
   const units =
     base === 10
       ? ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
@@ -99,7 +99,7 @@ export function humanReadableFileSize (size: number, base: 2 | 10 = 10, fraction
 /**
  * @public
  */
-export function addNotification (
+export function addNotification(
   title: string,
   subTitle: string,
   component: AnyComponent | AnySvelteComponent,
@@ -138,9 +138,9 @@ export interface ProgressState {
  * @public
  */
 export interface ProgressHandle {
-  update: (patch: { title?: string, message?: string }) => void
-  done: (final?: { title?: string, message?: string }) => void
-  fail: (final?: { title?: string, message?: string }) => void
+  update: (patch: { title?: string; message?: string }) => void
+  done: (final?: { title?: string; message?: string }) => void
+  fail: (final?: { title?: string; message?: string }) => void
 }
 
 /**
@@ -149,7 +149,7 @@ export interface ProgressHandle {
  *
  * @public
  */
-export function showProgress (initial: { title: string, message?: string }): ProgressHandle {
+export function showProgress(initial: { title: string; message?: string }): ProgressHandle {
   const state = writable<ProgressState>({ status: 'running', title: initial.title, message: initial.message })
   const notification: Notification = {
     id: generateId(),
@@ -181,8 +181,8 @@ export function showProgress (initial: { title: string, message?: string }): Pro
  *
  * @public
  */
-export async function withProgress<T> (
-  labels: { title: string, message?: string, done?: string, failed?: string },
+export async function withProgress<T>(
+  labels: { title: string; message?: string; done?: string; failed?: string },
   task: (report: (message: string) => void) => Promise<T>
 ): Promise<T> {
   const handle = showProgress({ title: labels.title, message: labels.message })
@@ -204,7 +204,7 @@ export async function withProgress<T> (
 /**
  * @public
  */
-export function handler<T, EVT = MouseEvent> (target: T, op: (value: T, evt: EVT) => void): (evt: EVT) => void {
+export function handler<T, EVT = MouseEvent>(target: T, op: (value: T, evt: EVT) => void): (evt: EVT) => void {
   return (evt: EVT) => {
     op(target, evt)
   }
@@ -213,7 +213,7 @@ export function handler<T, EVT = MouseEvent> (target: T, op: (value: T, evt: EVT
 /**
  * @public
  */
-export function tableToCSV (tableId: string, separator = ','): string {
+export function tableToCSV(tableId: string, separator = ','): string {
   const rows = document.querySelectorAll('table#' + tableId + ' tr')
   // Construct csv
   const csv: string[] = []
@@ -236,7 +236,7 @@ let attractorMy: number | undefined
 /**
  * perform mouse movement checks and call method if they was
  */
-export function mouseAttractor (op: () => void, diff = 2): (evt: MouseEvent) => void {
+export function mouseAttractor(op: () => void, diff = 2): (evt: MouseEvent) => void {
   return (evt: MouseEvent) => {
     if (attractorMy !== undefined && attractorMx !== undefined) {
       const dx = evt.screenX - attractorMx
@@ -264,7 +264,7 @@ export function mouseAttractor (op: () => void, diff = 2): (evt: MouseEvent) => 
  * @param {string} text
  * @returns {string} string with replaced URLs
  */
-export function replaceURLs (text: string): string {
+export function replaceURLs(text: string): string {
   try {
     return autolinker.link(text, {
       urls: true,
@@ -290,7 +290,7 @@ export function replaceURLs (text: string): string {
  * @param {string} text
  * @returns {string} string with parsed URL
  */
-export function parseURL (text: string): string {
+export function parseURL(text: string): string {
   try {
     const matches = autolinker.parse(text ?? '', { urls: true })
     return matches.length > 0 ? matches[0].getAnchorHref() : ''
@@ -311,7 +311,7 @@ export interface IModeSelector<Mode extends string = string> {
 /**
  * @public
  */
-export function capitalizeFirstLetter (str: string): string {
+export function capitalizeFirstLetter(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
@@ -320,7 +320,7 @@ const isMac = /Macintosh/i.test(navigator.userAgent)
 /**
  * @public
  */
-export function formatKey (key: string): string[][] {
+export function formatKey(key: string): string[][] {
   const thens = key.split('->')
   const result: string[][] = []
   for (const r of thens) {
@@ -341,7 +341,7 @@ export function formatKey (key: string): string[][] {
   return result
 }
 
-export function fromCodePoint (...vals: number[]): string {
+export function fromCodePoint(...vals: number[]): string {
   return String.fromCodePoint(...vals.map((p) => Math.abs(p) % 0x10ffff))
 }
 
@@ -350,8 +350,8 @@ export function fromCodePoint (...vals: number[]): string {
  */
 export class DelayedCaller {
   op?: () => void
-  constructor (readonly delay: number = 10) {}
-  call (op: () => void): void {
+  constructor(readonly delay: number = 10) {}
+  call(op: () => void): void {
     const needTimer = this.op === undefined
     this.op = op
     if (needTimer) {
@@ -368,8 +368,8 @@ export class DelayedCaller {
  */
 export class ThrottledCaller {
   timeout?: any
-  constructor (readonly delay: number = 10) {}
-  call (op: () => void): void {
+  constructor(readonly delay: number = 10) {}
+  call(op: () => void): void {
     if (this.timeout === undefined) {
       op()
       this.timeout = setTimeout(() => {
@@ -384,8 +384,8 @@ export class ThrottledCaller {
  */
 export class DebouncedCaller {
   timeout?: any
-  constructor (readonly delay: number = 50) {}
-  call (op: () => void): void {
+  constructor(readonly delay: number = 50) {}
+  call(op: () => void): void {
     if (this.timeout !== undefined) {
       clearTimeout(this.timeout)
     }
@@ -399,20 +399,20 @@ export class DebouncedCaller {
 export const testing = (localStorage.getItem('#platform.testing.enabled') ?? 'false') === 'true'
 
 export const rootBarExtensions = writable<
-Array<
-[
-  'left' | 'right',
-  {
-    id: string
-    component: AnyComponent | AnySvelteComponent
-    props?: Record<string, any>
-    order: number
-  }
-]
->
+  Array<
+    [
+      'left' | 'right',
+      {
+        id: string
+        component: AnyComponent | AnySvelteComponent
+        props?: Record<string, any>
+        order: number
+      }
+    ]
+  >
 >([])
 
-export async function formatDuration (duration: number, language: string): Promise<string> {
+export async function formatDuration(duration: number, language: string): Promise<string> {
   let text = ''
   const days = Math.floor(duration / DAY)
   if (days > 0) {
@@ -432,7 +432,7 @@ export async function formatDuration (duration: number, language: string): Promi
   return text
 }
 
-export function formatNumberCompact (num: number, maximumFractionDigits = 2): string {
+export function formatNumberCompact(num: number, maximumFractionDigits = 2): string {
   const locale = new Intl.NumberFormat().resolvedOptions().locale
   return new Intl.NumberFormat(locale, {
     notation: 'compact',
@@ -440,7 +440,7 @@ export function formatNumberCompact (num: number, maximumFractionDigits = 2): st
   }).format(num)
 }
 
-export function pushRootBarComponent (pos: 'left' | 'right', component: AnyComponent, order?: number): void {
+export function pushRootBarComponent(pos: 'left' | 'right', component: AnyComponent, order?: number): void {
   rootBarExtensions.update((cur) => {
     if (cur.find((p) => p[1].component === component) === undefined) {
       cur.push([
@@ -455,22 +455,22 @@ export function pushRootBarComponent (pos: 'left' | 'right', component: AnyCompo
     return cur
   })
 }
-export function removeRootBarComponent (id: string): void {
+export function removeRootBarComponent(id: string): void {
   rootBarExtensions.update((cur) => {
     return cur.filter((p) => p[1].id !== id)
   })
 }
 
 export const navFooterExtensions = writable<
-Array<{
-  id: string
-  component: AnyComponent | AnySvelteComponent
-  props?: Record<string, any>
-  order: number
-}>
+  Array<{
+    id: string
+    component: AnyComponent | AnySvelteComponent
+    props?: Record<string, any>
+    order: number
+  }>
 >([])
 
-export function pushNavFooterComponent (component: AnyComponent, order?: number): void {
+export function pushNavFooterComponent(component: AnyComponent, order?: number): void {
   navFooterExtensions.update((cur) => {
     if (cur.find((p) => p.component === component) === undefined) {
       cur.push({
@@ -483,11 +483,11 @@ export function pushNavFooterComponent (component: AnyComponent, order?: number)
   })
 }
 
-export function removeNavFooterComponent (id: string): void {
+export function removeNavFooterComponent(id: string): void {
   navFooterExtensions.update((cur) => cur.filter((p) => p.id !== id))
 }
 
-export function pushRootBarProgressComponent (
+export function pushRootBarProgressComponent(
   id: string,
   label: IntlString,
   // In case onProgress return value >=100, it will be closed
