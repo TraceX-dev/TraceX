@@ -127,6 +127,8 @@
     "@hcengineering/inventory": "workspace:^0.7.0",
     "@hcengineering/inventory-assets": "workspace:^0.7.0",
     "@hcengineering/inventory-resources": "workspace:^0.7.0",
+    "@hcengineering/integration": "workspace:^0.7.0",
+    "@hcengineering/integration-resources": "workspace:^0.7.0",
     "@hcengineering/templates": "workspace:^0.7.0",
     "@hcengineering/templates-assets": "workspace:^0.7.0",
     "@hcengineering/templates-resources": "workspace:^0.7.0",

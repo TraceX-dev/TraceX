@@ -285,6 +285,12 @@ importers:
       '@hcengineering/image-cropper-resources':
         specifier: workspace:^0.7.0
         version: link:../plugins/image-cropper-resources
+      '@hcengineering/integration':
+        specifier: workspace:^0.7.0
+        version: link:../plugins/integration
+      '@hcengineering/integration-resources':
+        specifier: workspace:^0.7.0
+        version: link:../plugins/integration-resources
       '@hcengineering/inventory':
         specifier: workspace:^0.7.0
         version: link:../plugins/inventory
