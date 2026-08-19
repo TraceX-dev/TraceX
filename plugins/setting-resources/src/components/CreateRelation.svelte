@@ -40,7 +40,7 @@
       .map((p) => p.attachTo)
   )
 
-  function filterClasses(
+  function filterClasses (
     descendants: Set<Ref<Class<Doc>>>,
     viewlets: Set<Ref<Class<Doc>>>,
     exclude: Ref<Class<Doc>>[]
@@ -100,7 +100,7 @@
   let description: string = ''
   let automationOnly = false
 
-  async function save(): Promise<void> {
+  async function save (): Promise<void> {
     if (classBRef === undefined || classARef === undefined) {
       return
     }
@@ -135,7 +135,7 @@
 
   $: classA = getAClass(aClass)
 
-  function getAClass(aClass: Ref<Class<Doc>> | undefined): DropdownIntlItem | undefined {
+  function getAClass (aClass: Ref<Class<Doc>> | undefined): DropdownIntlItem | undefined {
     if (aClass === undefined) {
       return undefined
     }

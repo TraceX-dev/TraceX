@@ -64,7 +64,7 @@
   let spaceType: WithLookup<DocumentSpaceType> | undefined
 
   $: void loadSpaceType(typeId)
-  async function loadSpaceType(id: typeof typeId): Promise<void> {
+  async function loadSpaceType (id: typeof typeId): Promise<void> {
     spaceType =
       id !== undefined
         ? await client
@@ -81,7 +81,7 @@
   $: descriptors =
     spaceType?.descriptor !== undefined ? [spaceType.descriptor] : [documents.descriptor.DocumentSpaceType]
 
-  function getRolesAssignment(): RolesAssignment {
+  function getRolesAssignment (): RolesAssignment {
     if (docSpace === undefined || spaceType?.targetClass === undefined || spaceType?.$lookup?.roles === undefined) {
       return {}
     }
@@ -95,7 +95,7 @@
     }, {})
   }
 
-  async function handleSave(): Promise<void> {
+  async function handleSave (): Promise<void> {
     if (isNew) {
       await createDocumentSpace()
     } else {
@@ -103,7 +103,7 @@
     }
   }
 
-  function getDocSpaceData(): Omit<Data<DocumentSpace>, 'type'> {
+  function getDocSpaceData (): Omit<Data<DocumentSpace>, 'type'> {
     return {
       name,
       description,
@@ -114,7 +114,7 @@
     }
   }
 
-  async function updateDocumentSpace(): Promise<void> {
+  async function updateDocumentSpace (): Promise<void> {
     if (docSpace === undefined || spaceType?.targetClass === undefined) {
       return
     }
@@ -162,7 +162,7 @@
     close()
   }
 
-  async function createDocumentSpace(): Promise<void> {
+  async function createDocumentSpace (): Promise<void> {
     if (typeId === undefined || spaceType?.targetClass === undefined) {
       return
     }
@@ -178,24 +178,24 @@
     close(docSpaceId)
   }
 
-  function close(id?: Ref<DocumentSpace>): void {
+  function close (id?: Ref<DocumentSpace>): void {
     dispatch('close', id)
   }
 
-  function handleTypeChange(evt: CustomEvent<Ref<DocumentSpaceType>>): void {
+  function handleTypeChange (evt: CustomEvent<Ref<DocumentSpaceType>>): void {
     typeId = evt.detail
   }
 
   $: roles = (spaceType?.$lookup?.roles ?? []) as Role[]
 
-  function handleOwnersChanged(newOwners: AccountUuid[]): void {
+  function handleOwnersChanged (newOwners: AccountUuid[]): void {
     owners = newOwners
 
     const newMembersSet = new Set([...members, ...newOwners])
     members = Array.from(newMembersSet)
   }
 
-  function handleMembersChanged(newMembers: AccountUuid[]): void {
+  function handleMembersChanged (newMembers: AccountUuid[]): void {
     // If a member was removed we need to remove it from any roles assignments as well
     const newMembersSet = new Set(newMembers)
     const removedMembersSet = new Set(members.filter((m) => !newMembersSet.has(m)))
@@ -209,7 +209,7 @@
     members = newMembers
   }
 
-  function handleRoleAssignmentChanged(roleId: Ref<Role>, newMembers: AccountUuid[]): void {
+  function handleRoleAssignmentChanged (roleId: Ref<Role>, newMembers: AccountUuid[]): void {
     if (rolesAssignment === undefined) {
       rolesAssignment = {}
     }

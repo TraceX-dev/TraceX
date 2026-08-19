@@ -53,7 +53,7 @@
   let selectedDetailLevel: string = 'everything'
   let isExporting = false
 
-  async function exportData(): Promise<void> {
+  async function exportData (): Promise<void> {
     if (isExporting) return
 
     try {

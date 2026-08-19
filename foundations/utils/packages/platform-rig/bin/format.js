@@ -50,6 +50,44 @@ const LEGACY_FORMATTING_PLUGIN = {
           FunctionExpression: checkFunction
         }
       }
+    },
+    'indent-decorated-class-property': {
+      meta: {
+        type: 'layout',
+        fixable: 'whitespace',
+        schema: [],
+        messages: {
+          incorrectIndent: 'Decorated class properties must be indented one level deeper than their decorators.'
+        }
+      },
+      create (context) {
+        const sourceCode = context.sourceCode
+        const checkProperty = (node) => {
+          const decorators = node.decorators
+          if (decorators == null || decorators.length === 0) return
+
+          const lastDecorator = decorators.at(-1)
+          const firstPropertyToken = sourceCode.getTokenAfter(lastDecorator)
+          if (firstPropertyToken == null) return
+          if (firstPropertyToken.value === 'declare') return
+
+          const expectedIndent = lastDecorator.loc.start.column + 2
+          if (firstPropertyToken.loc.start.column === expectedIndent) return
+
+          const lineStart = sourceCode.text.lastIndexOf('\n', firstPropertyToken.range[0]) + 1
+          context.report({
+            node,
+            loc: firstPropertyToken.loc,
+            messageId: 'incorrectIndent',
+            fix: (fixer) => fixer.replaceTextRange([lineStart, firstPropertyToken.range[0]], ' '.repeat(expectedIndent))
+          })
+        }
+
+        return {
+          PropertyDefinition: checkProperty,
+          TSAbstractPropertyDefinition: checkProperty
+        }
+      }
     }
   }
 }
@@ -98,6 +136,7 @@ async function loadEslintConfig() {
         '@typescript-eslint/consistent-type-imports': 'off',
         'space-before-function-paren': ['error', 'always'],
         'legacy-formatting/space-before-generic-function-paren': 'error',
+        'legacy-formatting/indent-decorated-class-property': 'error',
         '@stylistic/member-delimiter-style': [
           'error',
           {
@@ -133,7 +172,9 @@ async function loadEslintConfig() {
         '@typescript-eslint/array-type': 'off',
         '@typescript-eslint/promise-function-async': 'off',
         '@typescript-eslint/consistent-type-imports': 'off',
+        'space-before-function-paren': ['error', 'always'],
         'legacy-formatting/space-before-generic-function-paren': 'error',
+        'legacy-formatting/indent-decorated-class-property': 'error',
         '@stylistic/member-delimiter-style': [
           'error',
           {
@@ -204,9 +245,14 @@ function calcHash(source, msg, addCheck) {
 }
 
 for (const v of process.argv.slice(2)) {
-  if (existsSync(v)) {
-    console.info('checking:', join(process.cwd(), v))
-    calcHash(join(process.cwd(), v), 'changed', true)
+  const source = join(process.cwd(), v)
+  if (existsSync(source)) {
+    console.info('checking:', source)
+    if (lstatSync(source).isDirectory()) {
+      calcHash(source, 'changed', true)
+    } else if (!source.endsWith('.d.ts')) {
+      calcFileHash(source, 'changed', true)
+    }
   }
 }
 
@@ -328,8 +374,13 @@ if (filesToCheck.length > 0) {
 
       hash = newHash
       for (const v of process.argv.slice(2)) {
-        if (existsSync(v)) {
-          calcHash(join(process.cwd(), v), 'updated')
+        const source = join(process.cwd(), v)
+        if (existsSync(source)) {
+          if (lstatSync(source).isDirectory()) {
+            calcHash(source, 'updated')
+          } else if (!source.endsWith('.d.ts')) {
+            calcFileHash(source, 'updated')
+          }
         }
       }
       writeFileSync('.format/format.json', JSON.stringify(newHash, undefined, 2))

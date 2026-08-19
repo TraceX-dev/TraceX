@@ -32,7 +32,7 @@
 
   $: void subscribeToNotifications(app.notificationProvider)
 
-  async function subscribeToNotifications(provider: Application['notificationProvider']): Promise<void> {
+  async function subscribeToNotifications (provider: Application['notificationProvider']): Promise<void> {
     const currentRequestId = ++requestId
     unsubscribe?.()
     unsubscribe = undefined

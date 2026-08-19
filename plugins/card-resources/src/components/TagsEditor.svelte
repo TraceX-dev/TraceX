@@ -42,14 +42,14 @@
 
   $: activeTags = sortTags(tags.filter((tag) => hierarchy.hasMixin(doc, tag._id)))
 
-  async function removeTag(tagId: string): Promise<void> {
+  async function removeTag (tagId: string): Promise<void> {
     await client.update(doc, { $unset: { [tagId]: true } })
   }
 
   $: ancestors = hierarchy.getAncestors(doc._class)
   $: possibleMixins = getPossibleMixins(doc._class, tags)
 
-  function getPossibleMixins(_class: Ref<Class<Doc>>, tags: Tag[]): Tag[] {
+  function getPossibleMixins (_class: Ref<Class<Doc>>, tags: Tag[]): Tag[] {
     const res: Tag[] = []
     for (const p of tags) {
       try {
@@ -65,7 +65,7 @@
     return sortTags(res)
   }
 
-  function getTagRankPath(tag: Tag): string[] {
+  function getTagRankPath (tag: Tag): string[] {
     return [...hierarchy.getAncestors(tag._id)]
       .reverse()
       .filter((ancestor) => hierarchy.getClass(ancestor)._class === card.class.Tag)
@@ -75,7 +75,7 @@
       })
   }
 
-  function compareRankPaths(a: string[], b: string[]): number {
+  function compareRankPaths (a: string[], b: string[]): number {
     const length = Math.min(a.length, b.length)
     for (let index = 0; index < length; index++) {
       const comparison = a[index].localeCompare(b[index])
@@ -84,11 +84,11 @@
     return a.length - b.length
   }
 
-  function sortTags(items: Tag[]): Tag[] {
+  function sortTags (items: Tag[]): Tag[] {
     return [...items].sort((a, b) => compareRankPaths(getTagRankPath(a), getTagRankPath(b)))
   }
   $: dropdownItems = possibleMixins.map((mixin) => ({ id: mixin._id, label: mixin.label }))
-  function add(e: MouseEvent): void {
+  function add (e: MouseEvent): void {
     showPopup(
       SelectPopup,
       {
@@ -103,20 +103,20 @@
     )
   }
 
-  function isRemoveable(mixinId: Ref<Mixin<Doc>>, activeTags: Tag[]): boolean {
+  function isRemoveable (mixinId: Ref<Mixin<Doc>>, activeTags: Tag[]): boolean {
     const desc = hierarchy.getDescendants(mixinId)
     return !desc.some((p) => hierarchy.hasMixin(doc, p) && p !== mixinId)
   }
 
-  function checkForbiddenPermission(permission: Ref<Permission>, permissionsStore: PermissionsStore): boolean {
+  function checkForbiddenPermission (permission: Ref<Permission>, permissionsStore: PermissionsStore): boolean {
     return checkMyPermission(permission, doc.space as Ref<TypedSpace>, permissionsStore)
   }
 
-  function checkRemovePermission(permissionsStore: PermissionsStore): boolean {
+  function checkRemovePermission (permissionsStore: PermissionsStore): boolean {
     return checkForbiddenPermission(card.permission.ForbidRemoveTag, permissionsStore)
   }
 
-  function checkAddPermission(permissionsStore: PermissionsStore): boolean {
+  function checkAddPermission (permissionsStore: PermissionsStore): boolean {
     return checkForbiddenPermission(card.permission.ForbidAddTag, permissionsStore)
   }
 

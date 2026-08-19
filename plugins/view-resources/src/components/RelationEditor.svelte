@@ -42,7 +42,7 @@
 
   $: uniqueDocs = deduplicate(docs)
 
-  function deduplicate(list: Doc[] | undefined): Doc[] {
+  function deduplicate (list: Doc[] | undefined): Doc[] {
     if (list === undefined) return []
     const seen = new Set<string>()
     return list.filter((item) => {
@@ -53,7 +53,7 @@
     })
   }
 
-  function getCreate(): ObjectCreate | undefined {
+  function getCreate (): ObjectCreate | undefined {
     const factory = client.getHierarchy().classHierarchyMixin(_class, view.mixin.ObjectFactory)
     if (factory !== undefined) {
       const usePopup = isBaseCardTypeWithSubtypes()
@@ -66,7 +66,7 @@
     }
   }
 
-  function isBaseCardTypeWithSubtypes(): boolean {
+  function isBaseCardTypeWithSubtypes (): boolean {
     const hierarchy = client.getHierarchy()
     if (!hierarchy.isDerived(_class, card.class.Card)) return false
 
@@ -80,7 +80,7 @@
     })
   }
 
-  async function add(): Promise<void> {
+  async function add (): Promise<void> {
     const create = getCreate()
     const excludedIds = await getExcludedIds()
     const docQuery = await buildRelationCandidatesQuery(association, direction, excludedIds)
@@ -109,7 +109,7 @@
     )
   }
 
-  async function getExcludedIds(): Promise<Array<Ref<Doc>>> {
+  async function getExcludedIds (): Promise<Array<Ref<Doc>>> {
     const excludedIds = new Set<Ref<Doc>>(uniqueDocs.map((doc) => doc._id))
     const hasSingleTarget = association.type === '1:1' || (association.type === '1:N' && direction === 'B')
 
@@ -142,21 +142,21 @@
 
   $: loadRelationViewMode(relationViewStorageKey)
 
-  function loadRelationViewMode(key: string): void {
+  function loadRelationViewMode (key: string): void {
     const savedMode = localStorage.getItem(key)
     relationViewMode = savedMode === 'master-detail' ? savedMode : 'table'
   }
 
-  function setRelationViewMode(mode: RelationViewMode): void {
+  function setRelationViewMode (mode: RelationViewMode): void {
     relationViewMode = mode
     localStorage.setItem(relationViewStorageKey, mode)
   }
 
-  function selectRelationViewMode(id: string | number): void {
+  function selectRelationViewMode (id: string | number): void {
     setRelationViewMode(id === 'master-detail' ? 'master-detail' : 'table')
   }
 
-  function createMasterDetailViewlet(
+  function createMasterDetailViewlet (
     sourceViewlet: WithLookup<Viewlet> | undefined,
     _class: Ref<Class<Doc>>
   ): WithLookup<Viewlet> | undefined {
@@ -189,7 +189,7 @@
       : !p.key.includes('$lookup') && !p.key.startsWith('@')
   )
 
-  async function onContextMenu(ev: MouseEvent, doc: Doc): Promise<void> {
+  async function onContextMenu (ev: MouseEvent, doc: Doc): Promise<void> {
     const q =
       direction === 'B'
         ? { docA: object._id, docB: doc._id, association: association._id }
@@ -211,7 +211,7 @@
     showMenu(ev, { object: doc, overrides, excludedActions })
   }
 
-  function isAllowedToCreate(association: Association, docs: Doc[], direction: 'A' | 'B'): boolean {
+  function isAllowedToCreate (association: Association, docs: Doc[], direction: 'A' | 'B'): boolean {
     if (association.automationOnly === true) return false
     if (docs.length === 0 || association.type === 'N:N') return true
     if (association.type === '1:1') return false

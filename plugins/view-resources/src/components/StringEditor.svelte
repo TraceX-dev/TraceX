@@ -34,7 +34,7 @@
 
   let shown: boolean = false
 
-  function _onchange(ev: Event): void {
+  function _onchange (ev: Event): void {
     onChange((ev.target as HTMLInputElement).value)
   }
 </script>

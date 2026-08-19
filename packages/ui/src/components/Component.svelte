@@ -65,7 +65,7 @@
   let error: any
   let counter = 0
 
-  function updateComponent(_is: AnyComponent | AnySvelteComponent): void {
+  function updateComponent (_is: AnyComponent | AnySvelteComponent): void {
     const current = ++counter
     if (_is == null) {
       Ctor = undefined

@@ -293,7 +293,7 @@ function hasDefinedValue (value: Record<string, unknown>): boolean {
 }
 
 function getObjectModifiedOn (doc: Doc | undefined): number {
-  const modifiedOn = (doc)?.modifiedOn
+  const modifiedOn = doc?.modifiedOn
   return typeof modifiedOn === 'number' ? modifiedOn : 0
 }
 

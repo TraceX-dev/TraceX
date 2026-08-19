@@ -37,7 +37,7 @@
   const hierarchy = client.getHierarchy()
   const _id = generateId<TypeCard>()
 
-  function getCreateCardExtension(_type: Ref<MasterTag> | null): CreateCardExtension | undefined {
+  function getCreateCardExtension (_type: Ref<MasterTag> | null): CreateCardExtension | undefined {
     if (_type == null) return undefined
 
     return client
@@ -67,7 +67,7 @@
 
   let creating = false
 
-  async function okAction(): Promise<void> {
+  async function okAction (): Promise<void> {
     if (_space === undefined || type == null) return
 
     try {
@@ -93,7 +93,7 @@
     }
   }
 
-  function handleCancel(): void {
+  function handleCancel (): void {
     dispatch('close')
   }
 
@@ -101,7 +101,7 @@
 
   $: void updateLabel($languageStore, type)
 
-  async function updateLabel(lang: string, _type: Ref<MasterTag> | null): Promise<void> {
+  async function updateLabel (lang: string, _type: Ref<MasterTag> | null): Promise<void> {
     const createString = await translate(presentation.string.Create, {}, lang)
     if (_type == null) {
       label = createString

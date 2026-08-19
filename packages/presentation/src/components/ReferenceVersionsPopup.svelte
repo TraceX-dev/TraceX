@@ -29,12 +29,12 @@
 
   const dispatch = createEventDispatcher()
 
-  function select(value: Doc | ReferenceVersion): void {
+  function select (value: Doc | ReferenceVersion): void {
     onSelect(value)
     dispatch('close')
   }
 
-  function isSelected(value: Doc | ReferenceVersion): boolean {
+  function isSelected (value: Doc | ReferenceVersion): boolean {
     const id = '_id' in value ? value._id : value.id
     return selected === id || (multiSelect && selectedObjects.includes(id))
   }

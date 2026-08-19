@@ -79,7 +79,7 @@
   let scrollEl: HTMLElement | undefined
   let canScrollMore = false
 
-  function updateScrollFade(): void {
+  function updateScrollFade (): void {
     if (scrollEl == null) return
     canScrollMore = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight > 1
   }
@@ -88,14 +88,14 @@
     updateScrollFade()
   })
 
-  function getWorkspaceLink(ws: WorkspaceInfoWithStatus): string {
+  function getWorkspaceLink (ws: WorkspaceInfoWithStatus): string {
     const loc: Location = {
       path: [workbenchId, ws.url]
     }
     return locationToUrl(loc)
   }
 
-  async function clickHandler(e: MouseEvent, wsUrl: string): Promise<void> {
+  async function clickHandler (e: MouseEvent, wsUrl: string): Promise<void> {
     if (!e.metaKey && !e.ctrlKey) {
       e.preventDefault()
       closePopup()
@@ -120,7 +120,7 @@
   let activeElement: HTMLElement
   const btns: HTMLElement[] = []
 
-  function focusTarget(target: HTMLElement): void {
+  function focusTarget (target: HTMLElement): void {
     activeElement = target
   }
 

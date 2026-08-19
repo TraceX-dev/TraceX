@@ -62,7 +62,7 @@
   export let clickable: boolean = false
   export let clipPath: string | undefined = undefined
 
-  export function pulse(): void {
+  export function pulse (): void {
     avatarInst.pulse()
   }
 

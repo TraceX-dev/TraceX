@@ -131,7 +131,7 @@
 
   $: docs = [...fastDocs, ...slowDocs.filter((it) => !fastQueryIds.has(it._id))]
 
-  function getProjection(fields: string[], query: DocumentQuery<Doc>, _class: Ref<Class<Doc>>): Record<string, number> {
+  function getProjection (fields: string[], query: DocumentQuery<Doc>, _class: Ref<Class<Doc>>): Record<string, number> {
     const res: Record<string, number> = {}
     for (const f of fields) {
       /*
@@ -156,7 +156,7 @@
     return res
   }
 
-  function noLookup(query: DocumentQuery<Doc>): DocumentQuery<Doc> {
+  function noLookup (query: DocumentQuery<Doc>): DocumentQuery<Doc> {
     const newQuery: DocumentQuery<Doc> = {}
     for (const [k, v] of Object.entries(query)) {
       if (!k.startsWith('$lookup.')) {
@@ -166,7 +166,7 @@
     return newQuery
   }
 
-  function noLookupSortingOptions(options: FindOptions<Doc>): FindOptions<Doc> {
+  function noLookupSortingOptions (options: FindOptions<Doc>): FindOptions<Doc> {
     const { lookup, sort, ...resultOptions } = options
     return resultOptions
   }
@@ -175,12 +175,12 @@
 
   $: dispatch('content', docs)
 
-  function uncheckAll(): void {
+  function uncheckAll (): void {
     dispatch('check', { docs, value: false })
     selectedObjectIds = []
   }
 
-  export function select(offset: 2 | -2 | 1 | -1 | 0, of?: Doc, noScroll?: boolean): void {
+  export function select (offset: 2 | -2 | 1 | -1 | 0, of?: Doc, noScroll?: boolean): void {
     if (of !== undefined || offset !== 0) {
       listCategories?.select(offset, of, undefined, noScroll)
     }

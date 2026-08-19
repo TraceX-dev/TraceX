@@ -45,7 +45,7 @@
     password === password2 &&
     !saved
 
-  async function checkPassword(): Promise<void> {
+  async function checkPassword (): Promise<void> {
     try {
       const check = await getResource(login.function.CheckHasPassword)
       hasPassword = await check()
@@ -56,7 +56,7 @@
     }
   }
 
-  async function save(): Promise<void> {
+  async function save (): Promise<void> {
     saved = true
     try {
       const changePassword = await getResource(login.function.ChangePassword)
@@ -69,7 +69,7 @@
     }
   }
 
-  async function sendSetupLink(): Promise<void> {
+  async function sendSetupLink (): Promise<void> {
     sendingLink = true
     noEmailLinked = false
     try {
@@ -89,7 +89,7 @@
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function updateSaved(p1: string, p2: string, p3: string): void {
+  function updateSaved (p1: string, p2: string, p3: string): void {
     saved = false
     error = false
   }

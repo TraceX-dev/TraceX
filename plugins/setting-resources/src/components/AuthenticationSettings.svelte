@@ -38,7 +38,7 @@
 
   const acc = getCurrentAccount()
 
-  async function loadTwoFactorState(): Promise<void> {
+  async function loadTwoFactorState (): Promise<void> {
     isLoading = true
     try {
       const account = await getAccountClient().getAccountInfo(acc.uuid)
@@ -48,7 +48,7 @@
     }
   }
 
-  function openTwoFactorSetup(): void {
+  function openTwoFactorSetup (): void {
     if (tfaEnabled === undefined) return
 
     showPopup(TwoFactorSetupPopup, { enabled: tfaEnabled }, 'top', (enabled?: boolean) => {
@@ -58,7 +58,7 @@
     })
   }
 
-  function openChangePassword(): void {
+  function openChangePassword (): void {
     showPopup(ChangePasswordPopup, {}, 'top')
   }
 

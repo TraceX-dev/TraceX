@@ -45,7 +45,7 @@
     _reactions = reactions
   }
 
-  async function addStarReaction(): Promise<void> {
+  async function addStarReaction (): Promise<void> {
     operating = true
     try {
       const r = !loading
@@ -75,7 +75,7 @@
     }
   }
 
-  async function addEmojiReaction(event: MouseEvent): Promise<void> {
+  async function addEmojiReaction (event: MouseEvent): Promise<void> {
     showPopup(emojiPlugin.component.EmojiPopup, {}, event.target as HTMLElement, async (emoji) => {
       if (emoji?.text === undefined) return
 
@@ -111,7 +111,7 @@
     })
   }
 
-  async function existingReactionClick(reactions: DocReaction[]): Promise<void> {
+  async function existingReactionClick (reactions: DocReaction[]): Promise<void> {
     let removed = false
     for (const reaction of reactions) {
       if (account.fullSocialIds.some((it) => it._id === reaction.modifiedBy)) {

@@ -35,7 +35,7 @@
 
   $: canSave = code.length === 6 && !isLoading && (enabled || secret !== '')
 
-  async function generateSecret(): Promise<void> {
+  async function generateSecret (): Promise<void> {
     isLoading = true
     try {
       const result = await getAccountClient().generate2faSecret()
@@ -49,7 +49,7 @@
     }
   }
 
-  async function verifyAndEnable(): Promise<void> {
+  async function verifyAndEnable (): Promise<void> {
     isLoading = true
     try {
       await getAccountClient().enable2fa(secret, code)
@@ -61,7 +61,7 @@
     }
   }
 
-  async function verifyAndDisable(): Promise<void> {
+  async function verifyAndDisable (): Promise<void> {
     isLoading = true
     try {
       await getAccountClient().disable2fa(code)
@@ -73,7 +73,7 @@
     }
   }
 
-  async function submit(): Promise<void> {
+  async function submit (): Promise<void> {
     if (enabled) {
       await verifyAndDisable()
     } else {

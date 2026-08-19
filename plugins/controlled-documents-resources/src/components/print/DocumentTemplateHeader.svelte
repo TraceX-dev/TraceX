@@ -34,7 +34,7 @@
     }
   })
 
-  async function fetchIconAsDataUrl(iconRef: Ref<Blob>): Promise<void> {
+  async function fetchIconAsDataUrl (iconRef: Ref<Blob>): Promise<void> {
     try {
       const url = getPreviewThumbnail(iconRef, logoSize, logoSize, 1)
       const response = await fetch(url)

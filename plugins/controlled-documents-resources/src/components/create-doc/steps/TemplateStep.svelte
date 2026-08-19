@@ -105,7 +105,7 @@
           .concat(templatesByCategory?.unassigned !== undefined ? ['unassigned'] : [])
       : []
 
-  function handleExpanderToggled(id: string): void {
+  function handleExpanderToggled (id: string): void {
     const categories = { ...$templateStep.collapsedCategories }
 
     if (categories[id] === undefined) {
@@ -118,13 +118,13 @@
     templateStepUpdated({ ...$templateStep, collapsedCategories: categories })
   }
 
-  function getCategoryTitle(id: string): string | undefined {
+  function getCategoryTitle (id: string): string | undefined {
     return id === 'unassigned'
       ? documentsResources.string.Unassigned
       : categoriesById[id as Ref<DocumentCategory>]?.title
   }
 
-  function handleTemplateSelected(tmp: Ref<DocumentTemplate>, prefix: string, seqNumber: number): void {
+  function handleTemplateSelected (tmp: Ref<DocumentTemplate>, prefix: string, seqNumber: number): void {
     if (docObject === undefined) {
       return
     }

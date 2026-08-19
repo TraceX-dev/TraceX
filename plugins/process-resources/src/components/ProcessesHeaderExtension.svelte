@@ -57,7 +57,7 @@
 
   type PossibleProcessClass = Ref<MasterTag | Tag>
 
-  function getCardPossibleClasses(value: Card): PossibleProcessClass[] {
+  function getCardPossibleClasses (value: Card): PossibleProcessClass[] {
     const hierarchy = client.getHierarchy()
     const classes = new Set<Ref<Class<Doc>>>(hierarchy.getAncestors(value._class))
     const mixins = hierarchy.getAllPossibleMixins(value._class).filter((mixin) => hierarchy.hasMixin(value, mixin))
@@ -99,13 +99,13 @@
 
   const client = getClient()
 
-  async function checkTodo(todo: ProcessToDo): Promise<void> {
+  async function checkTodo (todo: ProcessToDo): Promise<void> {
     await client.update(todo, {
       doneOn: new Date().getTime()
     })
   }
 
-  async function performAction(action: EventButton): Promise<void> {
+  async function performAction (action: EventButton): Promise<void> {
     await client.createDoc(process.class.ProcessCustomEvent, action.space, {
       execution: action.execution,
       eventType: action.eventType,
@@ -113,7 +113,7 @@
     })
   }
 
-  async function performRollback(execution: Execution): Promise<void> {
+  async function performRollback (execution: Execution): Promise<void> {
     await client.createDoc(process.class.ProcessCustomEvent, execution.space, {
       execution: execution._id,
       eventType: 'rollback',
@@ -121,14 +121,14 @@
     })
   }
 
-  async function runProcess(value: Process): Promise<void> {
+  async function runProcess (value: Process): Promise<void> {
     const tx = await createExecution(card._id, value._id, card.space, client.txFactory)
     if (tx !== undefined) {
       await client.tx(tx)
     }
   }
 
-  function getExecutionLabel(execution: Execution): string {
+  function getExecutionLabel (execution: Execution): string {
     const pr = client.getModel().findObject(execution.process)
     if (pr !== undefined) {
       return `${pr.name}: `
@@ -142,7 +142,7 @@
     (value) => !value.parallelExecutionForbidden || !activeProcesses.has(value._id)
   )
 
-  function isRequest(todo: ProcessToDo): todo is ApproveRequest {
+  function isRequest (todo: ProcessToDo): todo is ApproveRequest {
     return todo._class === process.class.ApproveRequest
   }
 </script>

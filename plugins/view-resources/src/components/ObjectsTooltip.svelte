@@ -26,7 +26,7 @@
   let queriedObjects: Doc[] = []
   const query = createQuery()
 
-  function orderObjects(objects: Doc[], objectIds: Ref<Doc>[]): Doc[] {
+  function orderObjects (objects: Doc[], objectIds: Ref<Doc>[]): Doc[] {
     if (objectIds.length === 0) return objects
 
     const objectsById = new Map(objects.map((object) => [object._id, object]))

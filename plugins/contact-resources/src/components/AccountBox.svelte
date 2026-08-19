@@ -57,7 +57,7 @@
 
   const dispatch = createEventDispatcher()
 
-  function change(e: CustomEvent<Ref<Employee> | null>): void {
+  function change (e: CustomEvent<Ref<Employee> | null>): void {
     if (e.detail === null) {
       dispatch('change', null)
     } else {

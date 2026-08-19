@@ -39,7 +39,7 @@
 
   const client = getClient()
 
-  async function onDelete(): Promise<void> {
+  async function onDelete (): Promise<void> {
     await client.removeCollection(
       attachment._class,
       attachment.space,

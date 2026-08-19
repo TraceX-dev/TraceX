@@ -46,7 +46,7 @@
       )
     : roleItems
 
-  function handleSelected(e: CustomEvent<AccountRole>): void {
+  function handleSelected (e: CustomEvent<AccountRole>): void {
     dispatch('selected', e.detail)
   }
 </script>

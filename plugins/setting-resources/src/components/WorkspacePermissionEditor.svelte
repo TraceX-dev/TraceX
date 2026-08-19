@@ -36,7 +36,7 @@
     void loadPermissions()
   })
 
-  async function loadPermissions(): Promise<void> {
+  async function loadPermissions (): Promise<void> {
     try {
       const result = await accountClient.getWorkspaceUsersWithPermission({
         permission
@@ -49,7 +49,7 @@
     }
   }
 
-  async function handleUsersChange(newUsers: AccountUuid[]): Promise<void> {
+  async function handleUsersChange (newUsers: AccountUuid[]): Promise<void> {
     const currentUsers = new Set(users)
     const updatedUsers = new Set(newUsers)
 

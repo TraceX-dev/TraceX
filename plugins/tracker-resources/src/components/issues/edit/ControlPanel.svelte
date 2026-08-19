@@ -71,7 +71,7 @@
 
   let keys: KeyedAttribute[] = []
 
-  function updateKeys(_class: Ref<Class<Issue>>, ignoreKeys: string[]): void {
+  function updateKeys (_class: Ref<Class<Issue>>, ignoreKeys: string[]): void {
     const filtredKeys = getFiltredKeys(hierarchy, _class, ignoreKeys)
     keys = filtredKeys.filter((key) => !isCollectionAttr(hierarchy, key))
   }
@@ -86,7 +86,7 @@
 
   const allowedCollections = ['collaborators']
 
-  function getMixinKeys(mixin: Ref<Mixin<Doc>>): KeyedAttribute[] {
+  function getMixinKeys (mixin: Ref<Mixin<Doc>>): KeyedAttribute[] {
     const mixinClass = hierarchy.getClass(mixin)
     const filtredKeys = getFiltredKeys(
       hierarchy,

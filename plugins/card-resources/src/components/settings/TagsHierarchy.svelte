@@ -37,7 +37,7 @@
   let descendants = new Map<Ref<Tag>, TagItem[]>()
   let normalizedClasses: TagItem[] = []
 
-  function normalizeTagItems(items: Array<TagItem | Ref<Tag>>): TagItem[] {
+  function normalizeTagItems (items: Array<TagItem | Ref<Tag>>): TagItem[] {
     const hierarchy = client.getHierarchy()
     return items.map((item) => {
       if (typeof item === 'string') {
@@ -47,7 +47,7 @@
     })
   }
 
-  function getDescendants(_class: Ref<Tag>): TagItem[] {
+  function getDescendants (_class: Ref<Tag>): TagItem[] {
     const hierarchy = client.getHierarchy()
     const result: TagItem[] = []
     const desc = hierarchy.getDescendants(_class)
@@ -68,7 +68,7 @@
     })
   }
 
-  function fillDescendants(classes: TagItem[]): void {
+  function fillDescendants (classes: TagItem[]): void {
     for (const cl of classes) {
       descendants.set(cl._id, getDescendants(cl._id))
     }
@@ -83,7 +83,7 @@
   $: normalizedClasses = normalizeTagItems(classes)
   $: fillDescendants(normalizedClasses)
 
-  async function moveHandler(event: CustomEvent<{ item: TagItem, prev?: TagItem, next?: TagItem }>): Promise<void> {
+  async function moveHandler (event: CustomEvent<{ item: TagItem, prev?: TagItem, next?: TagItem }>): Promise<void> {
     const { item, prev, next } = event.detail
     await client.update(item.tag, {
       rank: makeRank(prev?.tag.rank ?? toRank(prev?._id), next?.tag.rank ?? toRank(next?._id))

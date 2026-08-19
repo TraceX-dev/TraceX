@@ -59,7 +59,7 @@
     void suggestFileName()
   })
 
-  async function suggestFileName(): Promise<void> {
+  async function suggestFileName (): Promise<void> {
     if (fileName !== '') return
     let title = String(_class)
     try {
@@ -72,7 +72,7 @@
     fileName = `${title}-${new Date().toISOString().slice(0, 10)}`.replace(/[\\/:*?"<>|]/g, '_')
   }
 
-  async function run(): Promise<void> {
+  async function run (): Promise<void> {
     if (exporting || docs.length === 0) return
     exporting = true
     try {

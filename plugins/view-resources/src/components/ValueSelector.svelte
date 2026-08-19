@@ -80,7 +80,7 @@
 
   let docMatch = true
 
-  function updateQuery(
+  function updateQuery (
     query: DocumentQuery<Doc> | undefined,
     value: Doc | Doc[],
     fillQuery: Record<string, string> | undefined

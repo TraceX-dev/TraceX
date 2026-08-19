@@ -87,7 +87,7 @@
   let requiredSlotRows: SlotViewModel[] = []
   let optionalSlotRows: SlotViewModel[] = []
 
-  function selectTargetClass(e: MouseEvent): void {
+  function selectTargetClass (e: MouseEvent): void {
     showPopup(
       SelectPopup,
       {
@@ -103,7 +103,7 @@
     )
   }
 
-  async function loadAllowedSpaceClasses(targetClass: Ref<Class<Doc>> | undefined): Promise<void> {
+  async function loadAllowedSpaceClasses (targetClass: Ref<Class<Doc>> | undefined): Promise<void> {
     const request = ++allowedSpaceClassesRequest
     allowedSpaceClassesLoading = targetClass !== undefined
     refreshViewModel()
@@ -115,7 +115,7 @@
     }
   }
 
-  function setSelectedTargetClass(nextTargetClass: Ref<Class<Doc>>): void {
+  function setSelectedTargetClass (nextTargetClass: Ref<Class<Doc>>): void {
     if (selectedTargetClass === nextTargetClass) return
 
     selectedTargetClass = nextTargetClass
@@ -128,7 +128,7 @@
     void loadAllowedSpaceClasses(nextTargetClass)
   }
 
-  function refreshViewModel(): void {
+  function refreshViewModel (): void {
     allBound =
       selectedTargetClass !== undefined &&
       !allowedSpaceClassesLoading &&
@@ -157,7 +157,7 @@
     )
   }
 
-  function refreshSpaceSelector(): void {
+  function refreshSpaceSelector (): void {
     const nextAllowedSpaceClassesKey = allowedSpaceClasses.join('\u0000')
     if (nextAllowedSpaceClassesKey === allowedSpaceClassesKey) return
 
@@ -167,28 +167,28 @@
       allowedSpaceClasses.length > 1 ? { archived: false, _class: { $in: allowedSpaceClasses } } : { archived: false }
   }
 
-  function setBindingValue(slotId: string, value: string): void {
+  function setBindingValue (slotId: string, value: string): void {
     bindings = { ...bindings, [slotId]: value }
     const { [slotId]: _removedMapping, ...rest } = valueMappings
     valueMappings = rest
     refreshViewModel()
   }
 
-  function setValueMappings(nextValueMappings: Record<string, IntegrationValueMapping>): void {
+  function setValueMappings (nextValueMappings: Record<string, IntegrationValueMapping>): void {
     valueMappings = nextValueMappings
     refreshViewModel()
   }
 
-  function setExpandedMappings(nextExpandedMappings: Record<string, boolean>): void {
+  function setExpandedMappings (nextExpandedMappings: Record<string, boolean>): void {
     expandedMappings = nextExpandedMappings
     refreshViewModel()
   }
 
-  function onFallbackSpaceSelected(): void {
+  function onFallbackSpaceSelected (): void {
     refreshViewModel()
   }
 
-  function setBinding(slotId: string, e: MouseEvent): void {
+  function setBinding (slotId: string, e: MouseEvent): void {
     if (selectedTargetClass === undefined) return
 
     const slot = provider.requiredSlots[slotId] ?? provider.optionalSlots?.[slotId]
@@ -212,7 +212,7 @@
     )
   }
 
-  function buildSlotRows(
+  function buildSlotRows (
     entries: Array<[string, IntegrationSlotModel]>,
     currentBindings: Record<string, string>,
     currentValueMappings: Record<string, IntegrationValueMapping>,
@@ -249,7 +249,7 @@
     })
   }
 
-  function getTargetValueOptions(
+  function getTargetValueOptions (
     slotId: string,
     currentBindings: Record<string, string> = bindings,
     currentAttrs: typeof allAttrs = allAttrs,
@@ -258,7 +258,7 @@
     return getTargetAttributeValueOptions(client, currentAttrs, currentBindings[slotId], currentFallbackSpace)
   }
 
-  function selectMappingMode(slotId: string, e: MouseEvent): void {
+  function selectMappingMode (slotId: string, e: MouseEvent): void {
     showPopup(
       SelectPopup,
       {
@@ -284,7 +284,7 @@
     )
   }
 
-  function selectMappedValue(slotId: string, externalValue: string, e: MouseEvent): void {
+  function selectMappedValue (slotId: string, externalValue: string, e: MouseEvent): void {
     const targetOptions = getTargetValueOptions(slotId)
     showPopup(
       SelectPopup,
@@ -317,7 +317,7 @@
     )
   }
 
-  function getMappedValueLabel(
+  function getMappedValueLabel (
     slotId: string,
     externalValue: string,
     currentBindings: Record<string, string> = bindings,
@@ -335,14 +335,14 @@
     )
   }
 
-  function toggleValueMapping(slotId: string): void {
+  function toggleValueMapping (slotId: string): void {
     setExpandedMappings({
       ...expandedMappings,
       [slotId]: !(expandedMappings[slotId] ?? false)
     })
   }
 
-  function onSave(): void {
+  function onSave (): void {
     if (selectedTargetClass === undefined) return
 
     const fallback: IntegrationRoutingTarget = {

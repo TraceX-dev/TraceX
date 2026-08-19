@@ -39,7 +39,7 @@
   const me = getCurrentEmployee()
   $: owner = me === object._id
 
-  function isEditable(owner: boolean, object: Person): boolean {
+  function isEditable (owner: boolean, object: Person): boolean {
     if (owner) return true
     if (!h.hasMixin(object, contact.mixin.Employee)) return true
     return hasAccountRole(account, AccountRole.Maintainer)
@@ -53,20 +53,20 @@
 
   $: setName(object)
 
-  function setName(object: Person): void {
+  function setName (object: Person): void {
     firstName = getFirstName(object.name)
     lastName = getLastName(object.name)
   }
 
   const dispatch = createEventDispatcher()
 
-  async function firstNameChange(): Promise<void> {
+  async function firstNameChange (): Promise<void> {
     await client.update(object, {
       name: combineName(firstName, getLastName(object.name))
     })
   }
 
-  async function lastNameChange(): Promise<void> {
+  async function lastNameChange (): Promise<void> {
     await client.update(object, {
       name: combineName(getFirstName(object.name), lastName)
     })
@@ -85,7 +85,7 @@
   const sendOpen = () => dispatch('open', { ignoreKeys: ['comments', 'name', 'channels', 'city'] })
   onMount(sendOpen)
 
-  async function onAvatarDone(): Promise<void> {
+  async function onAvatarDone (): Promise<void> {
     if (object.avatar != null) {
       await avatarEditor.removeAvatar(object.avatar)
     }

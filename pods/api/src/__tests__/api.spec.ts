@@ -128,12 +128,7 @@ describe('Workspace API routes with local plugin resources', () => {
     ]) {
       await operations.createDoc(core.class.Space, core.space.Model, { name }, id as Ref<Doc>)
     }
-    await operations.createDoc(
-      card.class.CardSpace,
-      core.space.Space,
-      { name: 'Product' },
-      'product-space' as Ref<Doc>
-    )
+    await operations.createDoc(card.class.CardSpace, core.space.Space, { name: 'Product' }, 'product-space' as Ref<Doc>)
     await operations.createDoc(
       document.class.Teamspace,
       core.space.Space,

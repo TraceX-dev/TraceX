@@ -62,30 +62,30 @@ const githubNextModel = githubNextResources
 export class TGithubNextRepository extends TDoc implements GithubNextRepository {
   @Prop(TypeRef(setting.class.Integration), setting.string.Integrations)
   @Index(IndexKind.Indexed)
-  integration!: Ref<Doc>
+    integration!: Ref<Doc>
 
   @Prop(TypeString(), getEmbeddedLabel('Owner'))
   @Index(IndexKind.Indexed)
-  owner!: string
+    owner!: string
 
   @Prop(TypeString(), getEmbeddedLabel('Repository'))
   @Index(IndexKind.Indexed)
-  name!: string
+    name!: string
 
   @Prop(TypeNumber(), getEmbeddedLabel('Repository ID'))
-  repositoryId?: number
+    repositoryId?: number
 
   @Prop(TypeString(), getEmbeddedLabel('Node ID'))
-  nodeId?: string
+    nodeId?: string
 
   @Prop(TypeString(), getEmbeddedLabel('HTML URL'))
-  htmlUrl?: string
+    htmlUrl?: string
 
   @Prop(TypeString(), getEmbeddedLabel('Default branch'))
-  defaultBranch?: string
+    defaultBranch?: string
 
   @Prop(TypeBoolean(), getEmbeddedLabel('Enabled'))
-  enabled!: boolean
+    enabled!: boolean
 }
 
 @Model(githubNext.class.GithubNextObjectSyncState, core.class.Doc, DOMAIN_GITHUB_NEXT_SYNC)
@@ -93,68 +93,68 @@ export class TGithubNextRepository extends TDoc implements GithubNextRepository 
 export class TGithubNextObjectSyncState extends TDoc implements GithubNextObjectSyncState {
   @Prop(TypeRef(setting.class.Integration), setting.string.Integrations)
   @Index(IndexKind.Indexed)
-  integration!: Ref<Doc>
+    integration!: Ref<Doc>
 
   @Prop(TypeRef(integration.class.IntegrationSlotProvider), getEmbeddedLabel('Provider'))
   @Index(IndexKind.Indexed)
-  provider!: Ref<IntegrationSlotProvider>
+    provider!: Ref<IntegrationSlotProvider>
 
   @Prop(TypeRef(githubNext.class.GithubNextRepository), getEmbeddedLabel('Repository'))
   @Index(IndexKind.Indexed)
-  repository!: Ref<GithubNextRepository>
+    repository!: Ref<GithubNextRepository>
 
   @Prop(TypeString(), getEmbeddedLabel('External ID'))
   @Index(IndexKind.Indexed)
-  externalId!: string
+    externalId!: string
 
   @Prop(TypeNumber(), getEmbeddedLabel('External number'))
-  externalNumber?: number
+    externalNumber?: number
 
   @Prop(TypeString(), getEmbeddedLabel('External URL'))
-  externalUrl?: string
+    externalUrl?: string
 
   @Prop(TypeString(), getEmbeddedLabel('External node ID'))
-  externalNodeId?: string
+    externalNodeId?: string
 
   @Prop(TypeRef(core.class.Class), getEmbeddedLabel('Target class'))
   @Index(IndexKind.Indexed)
-  targetClass!: Ref<Class<Doc>>
+    targetClass!: Ref<Class<Doc>>
 
   @Prop(TypeRef(core.class.Doc), getEmbeddedLabel('Target'))
   @Index(IndexKind.Indexed)
-  targetId!: Ref<Doc>
+    targetId!: Ref<Doc>
 
   @Prop(TypeString(), getEmbeddedLabel('External version'))
-  externalVersion?: string
+    externalVersion?: string
 
   @Prop(TypeTimestamp(), getEmbeddedLabel('External updated at'))
-  externalUpdatedAt?: number
+    externalUpdatedAt?: number
 
   @Prop(TypeString(), getEmbeddedLabel('External hash'))
-  externalHash!: string
+    externalHash!: string
 
   @Prop(TypeString(), getEmbeddedLabel('Target hash'))
-  targetHash!: string
+    targetHash!: string
 
   @Prop(TypeRecord(), getEmbeddedLabel('External values'))
-  externalValues?: Record<string, unknown>
+    externalValues?: Record<string, unknown>
 
   @Prop(TypeRecord(), getEmbeddedLabel('Target values'))
-  targetValues?: Record<string, unknown>
+    targetValues?: Record<string, unknown>
 
   @Prop(TypeString(), getEmbeddedLabel('Last direction'))
-  lastDirection!: 'inbound' | 'outbound'
+    lastDirection!: 'inbound' | 'outbound'
 
   @Prop(TypeTimestamp(), getEmbeddedLabel('Last synced on'))
-  lastSyncedOn!: number
+    lastSyncedOn!: number
 
   @Prop(TypePersonId(), getEmbeddedLabel('Last actor'))
-  lastActor?: GithubNextObjectSyncState['lastActor']
+    lastActor?: GithubNextObjectSyncState['lastActor']
 
   error?: Record<string, any>
 
   @Prop(TypeTimestamp(), getEmbeddedLabel('Retry after'))
-  retryAfter?: number
+    retryAfter?: number
 }
 
 export function createModel (builder: Builder): void {

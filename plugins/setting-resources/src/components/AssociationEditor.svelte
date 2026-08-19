@@ -55,7 +55,7 @@
       .map((p) => p.attachTo)
   )
 
-  function filterClasses(
+  function filterClasses (
     descendants: Set<Ref<Class<Doc>>>,
     viewlets: Set<Ref<Class<Doc>>>,
     exclude: Ref<Class<Doc>>[]
@@ -111,7 +111,7 @@
   $: classA = isEmptyClass(classARef) ? undefined : hierarchy.getClass(classARef as Ref<Class<Doc>>)
   $: classB = isEmptyClass(classBRef) ? undefined : hierarchy.getClass(classBRef as Ref<Class<Doc>>)
 
-  function isEmptyClass(ref: Ref<Class<Doc>> | undefined): boolean {
+  function isEmptyClass (ref: Ref<Class<Doc>> | undefined): boolean {
     return ref === undefined || ref !== ''
   }
 
@@ -119,7 +119,7 @@
 
   $: fill(association)
 
-  function fill(association: Association | Data<Association>): void {
+  function fill (association: Association | Data<Association>): void {
     classBRef = !isEmptyClass(association.classB) ? association.classB : undefined
     classARef = !isEmptyClass(association.classA) ? association.classA : undefined
     nameA = association.nameA
@@ -133,7 +133,7 @@
     filterB = association.filterB
   }
 
-  function parseFilters(filter: string | undefined): Filter[] {
+  function parseFilters (filter: string | undefined): Filter[] {
     if (filter == null || filter === '') return []
     try {
       return JSON.parse(filter) as Filter[]
@@ -142,12 +142,12 @@
     }
   }
 
-  function serializeFilters(filters: Filter[]): string | undefined {
+  function serializeFilters (filters: Filter[]): string | undefined {
     if (filters.length === 0) return undefined
     return JSON.stringify(filters, (k, v) => (k === 'onRemove' ? undefined : v))
   }
 
-  function setFilters(side: 'A' | 'B', filters: Filter[]): void {
+  function setFilters (side: 'A' | 'B', filters: Filter[]): void {
     if (side === 'A') {
       filterA = serializeFilters(filters)
     } else {
@@ -155,7 +155,7 @@
     }
   }
 
-  function addFilter(side: 'A' | 'B', e: MouseEvent): void {
+  function addFilter (side: 'A' | 'B', e: MouseEvent): void {
     const _class = side === 'A' ? classARef : classBRef
     if (_class === undefined) return
     const existing = parseFilters(side === 'A' ? filterA : filterB)
@@ -174,20 +174,20 @@
     )
   }
 
-  function removeFilter(side: 'A' | 'B', i: number): void {
+  function removeFilter (side: 'A' | 'B', i: number): void {
     setFilters(
       side,
       parseFilters(side === 'A' ? filterA : filterB).filter((_, idx) => idx !== i)
     )
   }
 
-  function isAssociation(data: Data<Association> | Association): data is Association {
+  function isAssociation (data: Data<Association> | Association): data is Association {
     return (data as Association)._id !== undefined
   }
 
   const dispatch = createEventDispatcher()
 
-  async function save(): Promise<void> {
+  async function save (): Promise<void> {
     if (classBRef === undefined || classARef === undefined) {
       return
     }

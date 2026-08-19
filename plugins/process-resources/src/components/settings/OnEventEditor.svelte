@@ -27,7 +27,7 @@
   const dispatch = createEventDispatcher()
   let eventType = typeof params.eventType === 'string' ? params.eventType : ''
 
-  function change(): void {
+  function change (): void {
     if (readonly) return
     params = { ...params, eventType }
     dispatch('change', { params })

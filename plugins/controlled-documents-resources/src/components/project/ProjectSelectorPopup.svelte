@@ -48,7 +48,7 @@
     }
   )
 
-  function selectProject(project: Ref<Project>): void {
+  function selectProject (project: Ref<Project>): void {
     dispatch('close', project)
   }
 </script>

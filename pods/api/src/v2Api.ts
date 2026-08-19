@@ -311,9 +311,7 @@ export async function getV2Schema (ctx: ClientSessionCtx, session: Session): Pro
         ? undefined
         : findIntegrationTargetFactory(ctx, factories, namedClass.id)
       const allowedSpaceClasses =
-        factory === undefined
-          ? undefined
-          : await getAllowedSpaceClasses(client, factory, namedClass.id)
+        factory === undefined ? undefined : await getAllowedSpaceClasses(client, factory, namedClass.id)
       return {
         name: namedClass.name,
         fields: getNamedAttributes(ctx, namedClass.id).map(({ name, attribute }) => ({

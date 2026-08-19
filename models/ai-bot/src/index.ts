@@ -35,23 +35,23 @@ export class TAIBotThread extends TChatMessage implements AIBotThread {}
 export class TAIBotMessage extends TChatMessage implements AIBotMessage {
   @Prop(ArrOf(TypeString()), core.string.String)
   @Hidden()
-  tools!: string[]
+    tools!: string[]
 
   @Prop(TypeString(), core.string.String)
   @Hidden()
-  modelName!: string
+    modelName!: string
 
   @Prop(TypeString(), core.string.String)
   @Hidden()
-  providerKind!: string
+    providerKind!: string
 
   @Prop(TypeNumber(), core.string.String)
   @Hidden()
-  inputTokens!: number
+    inputTokens!: number
 
   @Prop(TypeNumber(), core.string.String)
   @Hidden()
-  outputTokens!: number
+    outputTokens!: number
 }
 
 export function createModel (builder: Builder): void {

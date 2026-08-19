@@ -34,7 +34,7 @@
 
   $: isMasterTag = _class === card.class.MasterTag
 
-  function getLastSiblingRank(): string | undefined {
+  function getLastSiblingRank (): string | undefined {
     if (parent === undefined) return
 
     const hierarchy = client.getHierarchy()
@@ -48,7 +48,7 @@
     return lastSibling?.rank ?? toRank(lastSibling?._id)
   }
 
-  async function save(): Promise<void> {
+  async function save (): Promise<void> {
     const data: Data<MasterTag> & Partial<Pick<Tag, 'rank'>> = {
       extends: parent?._id ?? card.class.Card,
       label: getEmbeddedLabel(name),

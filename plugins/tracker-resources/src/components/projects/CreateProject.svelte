@@ -95,15 +95,15 @@
 
   const dispatch = createEventDispatcher()
 
-  function normalizeAutoJoinForRoles(roles: AccountRole[]): AccountRole[] | undefined {
+  function normalizeAutoJoinForRoles (roles: AccountRole[]): AccountRole[] | undefined {
     return roles.length > 0 ? [...roles] : undefined
   }
 
-  function autoJoinRolesEqual(a: AccountRole[] | undefined, b: AccountRole[] | undefined): boolean {
+  function autoJoinRolesEqual (a: AccountRole[] | undefined, b: AccountRole[] | undefined): boolean {
     return deepEqual([...(a ?? [])].sort(), [...(b ?? [])].sort())
   }
 
-  function setGuestAutoJoin(enabled: boolean): void {
+  function setGuestAutoJoin (enabled: boolean): void {
     autoJoinForRoles = setWorkspaceGuestAutoJoinRoles(autoJoinForRoles, enabled)
   }
 
@@ -112,7 +112,7 @@
   // in that case the dialog is shown in a read only mode.
   $: readonly = !isNew && !$permissions.canEditSpace(project)
 
-  async function handleSave(): Promise<void> {
+  async function handleSave (): Promise<void> {
     if (isNew) {
       await createProject()
     } else {
@@ -122,7 +122,7 @@
 
   let identifier: string = project?.identifier ?? 'TSK'
 
-  function getProjectData(): Omit<Data<Project>, 'type'> {
+  function getProjectData (): Omit<Data<Project>, 'type'> {
     return {
       name,
       description,
@@ -142,7 +142,7 @@
     }
   }
 
-  function getRolesAssignment(): RolesAssignment {
+  function getRolesAssignment (): RolesAssignment {
     if (project === undefined || typeType?.targetClass === undefined || roles === undefined) {
       return {}
     }
@@ -156,7 +156,7 @@
     }, {})
   }
 
-  async function updateProject(): Promise<void> {
+  async function updateProject (): Promise<void> {
     if (!project || typeType?.targetClass === undefined) {
       return
     }
@@ -235,7 +235,7 @@
 
   $: setDefaultMembers(typeType)
 
-  function setDefaultMembers(typeType: ProjectType | undefined): void {
+  function setDefaultMembers (typeType: ProjectType | undefined): void {
     if (typeType === undefined) return
     if (membersChanged) return
     if (project !== undefined) return
@@ -244,7 +244,7 @@
     members = typeType.members
   }
 
-  function findTaskTypes(typeId: Ref<SpaceType>): TaskType[] {
+  function findTaskTypes (typeId: Ref<SpaceType>): TaskType[] {
     return Array.from($taskTypeStore.values()).filter(
       (it) => it.parent === typeId && it.ofClass === tracker.class.Issue
     )
@@ -255,7 +255,7 @@
     defaultStatus = sts?.[0]
   }
 
-  async function createProject(): Promise<void> {
+  async function createProject (): Promise<void> {
     const projectId = generateId<Project>()
     const projectData = getProjectData()
     if (typeId !== undefined && typeType !== undefined) {
@@ -287,7 +287,7 @@
     }
   }
 
-  function chooseIcon(ev: MouseEvent): void {
+  function chooseIcon (ev: MouseEvent): void {
     const update = (result: any) => {
       if (result !== undefined && result !== null) {
         icon = result.icon
@@ -298,7 +298,7 @@
     showPopup(IconPicker, { icon, color }, 'top', update, update)
   }
 
-  function close(id?: Ref<Project>): void {
+  function close (id?: Ref<Project>): void {
     dispatch('close', id)
   }
 
@@ -308,7 +308,7 @@
     projectsIdentifiers = new Set(res.map(({ identifier }) => identifier))
   })
 
-  function handleTypeChange(evt: CustomEvent<Ref<ProjectType>>): void {
+  function handleTypeChange (evt: CustomEvent<Ref<ProjectType>>): void {
     typeId = evt.detail
     defaultStatus = undefined
   }
@@ -338,14 +338,14 @@
     rolesQuery.unsubscribe()
   }
 
-  function handleOwnersChanged(newOwners: AccountUuid[]): void {
+  function handleOwnersChanged (newOwners: AccountUuid[]): void {
     owners = newOwners
 
     const newMembersSet = new Set([...members, ...newOwners])
     members = Array.from(newMembersSet)
   }
 
-  function handleMembersChanged(newMembers: AccountUuid[]): void {
+  function handleMembersChanged (newMembers: AccountUuid[]): void {
     membersChanged = true
     // If a member was removed we need to remove it from any roles assignments as well
     const newMembersSet = new Set(newMembers)
@@ -360,7 +360,7 @@
     members = newMembers
   }
 
-  function handleRoleAssignmentChanged(roleId: Ref<Role>, newMembers: AccountUuid[]): void {
+  function handleRoleAssignmentChanged (roleId: Ref<Role>, newMembers: AccountUuid[]): void {
     if (rolesAssignment === undefined) {
       rolesAssignment = {}
     }

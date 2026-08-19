@@ -32,19 +32,19 @@
   $: parentCandidates = getParentCandidates(tag)
   $: parentItems = parentCandidates.map((candidate) => ({ id: candidate._id, label: candidate.label }))
 
-  function isTagParent(val: Ref<Class<Doc>> | undefined): val is Ref<MasterTag | Tag> {
+  function isTagParent (val: Ref<Class<Doc>> | undefined): val is Ref<MasterTag | Tag> {
     if (val === undefined) return false
     const value = hierarchy.findClass(val)
     return value?._class === card.class.MasterTag || value?._class === card.class.Tag
   }
 
-  function getRootMasterTag(value: MasterTag): MasterTag | undefined {
+  function getRootMasterTag (value: MasterTag): MasterTag | undefined {
     return [...hierarchy.getAncestors(value._id)]
       .map((id) => hierarchy.getClass(id))
       .find((candidate) => candidate._class === card.class.MasterTag) as MasterTag | undefined
   }
 
-  function getParentCandidates(value: MasterTag): Array<MasterTag | Tag> {
+  function getParentCandidates (value: MasterTag): Array<MasterTag | Tag> {
     if (value._class !== card.class.Tag) return []
 
     const root = getRootMasterTag(value)
@@ -59,7 +59,7 @@
     return [root, ...tags]
   }
 
-  async function save(): Promise<void> {
+  async function save (): Promise<void> {
     const root = getRootMasterTag(tag)
     const isAllowedParent =
       selectedParent === undefined || parentCandidates.some((candidate) => candidate._id === selectedParent)
@@ -77,7 +77,7 @@
     dispatch('close', { changed: true })
   }
 
-  function handleParentChange(event: CustomEvent<DropdownIntlItem['id']>): void {
+  function handleParentChange (event: CustomEvent<DropdownIntlItem['id']>): void {
     selectedParent = event.detail as Ref<MasterTag | Tag>
   }
 </script>

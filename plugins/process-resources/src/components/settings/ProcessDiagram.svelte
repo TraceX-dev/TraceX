@@ -65,7 +65,7 @@
   $: diagramWidth = Math.max(640, (layout?.width ?? 0) + 80)
   $: diagramHeight = Math.max(280, (layout?.height ?? 0) + 80)
 
-  function getRelations(processes: Process[]): ProcessRelation[] {
+  function getRelations (processes: Process[]): ProcessRelation[] {
     const ids = new Set(processes.map((candidate) => candidate._id))
     const result = new Map<string, ProcessRelation>()
 
@@ -85,7 +85,7 @@
     return [...result.values()]
   }
 
-  async function updateLayout(
+  async function updateLayout (
     view: 'states' | 'processes',
     currentStates: State[],
     currentTransitions: Transition[],
@@ -110,7 +110,7 @@
     }
   }
 
-  function createStateGraph(currentStates: State[], currentTransitions: Transition[]): ElkNode {
+  function createStateGraph (currentStates: State[], currentTransitions: Transition[]): ElkNode {
     const startId = 'start'
     const children: DiagramNode[] = [
       { id: startId, label: '▶', virtual: true, width: 42, height: 42 },
@@ -129,7 +129,7 @@
     }
   }
 
-  function createProcessGraph(processes: Process[], currentRelations: ProcessRelation[]): ElkNode {
+  function createProcessGraph (processes: Process[], currentRelations: ProcessRelation[]): ElkNode {
     return {
       id: 'processes',
       layoutOptions: layoutOptions(),
@@ -142,7 +142,7 @@
     }
   }
 
-  function layoutOptions(): Record<string, string> {
+  function layoutOptions (): Record<string, string> {
     return {
       'elk.algorithm': 'layered',
       'elk.direction': 'RIGHT',
@@ -157,7 +157,7 @@
     }
   }
 
-  function edgePath(edge: ElkExtendedEdge): string {
+  function edgePath (edge: ElkExtendedEdge): string {
     return (edge.sections ?? [])
       .map((section) => {
         const points = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint]
@@ -166,7 +166,7 @@
       .join(' ')
   }
 
-  function edgeLabelPosition(edge: ElkExtendedEdge): ElkPoint {
+  function edgeLabelPosition (edge: ElkExtendedEdge): ElkPoint {
     const points = (edge.sections ?? []).flatMap((section) => [
       section.startPoint,
       ...(section.bendPoints ?? []),
@@ -190,15 +190,15 @@
     return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 - 16 }
   }
 
-  function transitionForEdge(edge: ElkExtendedEdge): Transition | undefined {
+  function transitionForEdge (edge: ElkExtendedEdge): Transition | undefined {
     return transitions.find((candidate) => candidate._id === edge.id)
   }
 
-  function visibleLabel(label: string): string {
+  function visibleLabel (label: string): string {
     return label.length > 24 ? `${label.slice(0, 23)}…` : label
   }
 
-  function openTransition(edge: ElkExtendedEdge): void {
+  function openTransition (edge: ElkExtendedEdge): void {
     const transition = transitions.find((candidate) => candidate._id === edge.id)
     if (transition === undefined) return
     const loc = getCurrentLocation()
@@ -208,7 +208,7 @@
     dispatch('close')
   }
 
-  function selectProcess(id: string): void {
+  function selectProcess (id: string): void {
     const selectedProcess = relatedProcesses.find((candidate) => candidate._id === id)
     if (selectedProcess !== undefined) {
       diagramProcess = selectedProcess

@@ -43,7 +43,7 @@
   const me = getCurrentEmployee()
   const _id = generateId<Card>()
 
-  function getCreateCardExtension(_type: Ref<MasterTag> | null): CreateCardExtension | undefined {
+  function getCreateCardExtension (_type: Ref<MasterTag> | null): CreateCardExtension | undefined {
     if (_type == null) return undefined
 
     return client
@@ -74,7 +74,7 @@
 
   let creating = false
 
-  async function okAction(): Promise<void> {
+  async function okAction (): Promise<void> {
     if (_space === undefined || type == null) return
 
     try {
@@ -100,7 +100,7 @@
     }
   }
 
-  function handleCancel(): void {
+  function handleCancel (): void {
     dispatch('close')
   }
 
@@ -108,7 +108,7 @@
 
   $: void updateLabel($languageStore, type)
 
-  async function updateLabel(lang: string, _type: Ref<MasterTag> | null): Promise<void> {
+  async function updateLabel (lang: string, _type: Ref<MasterTag> | null): Promise<void> {
     const createString = await translate(presentation.string.Create, {}, lang)
     if (_type == null) {
       label = createString
@@ -120,7 +120,7 @@
     label = `${createString} ${typeString}`
   }
 
-  function openSelectUsersPopup(): void {
+  function openSelectUsersPopup (): void {
     showPopup(
       SelectUsersPopup,
       {
@@ -140,7 +140,7 @@
     )
   }
 
-  function handleChange(event: CustomEvent<{ data: Partial<Data<Card>>, space?: Ref<CardSpace> }>): void {
+  function handleChange (event: CustomEvent<{ data: Partial<Data<Card>>, space?: Ref<CardSpace> }>): void {
     data = {
       ...data,
       ...event.detail.data

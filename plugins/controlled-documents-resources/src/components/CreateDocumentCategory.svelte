@@ -38,7 +38,7 @@
   const client = getClient()
   let descriptionBox: AttachmentStyledBox
 
-  async function handleOkAction(): Promise<void> {
+  async function handleOkAction (): Promise<void> {
     if (isCodeWrong || isTitleWrong) {
       return
     }

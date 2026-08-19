@@ -119,7 +119,7 @@
   $: sortingFunction = (config.find((it) => typeof it !== 'string' && it.sortingKey === _sortKey) as BuildModelKey)
     ?.sortingFunction
 
-  function getSort(sortKey: string | string[]) {
+  function getSort (sortKey: string | string[]) {
     return Array.isArray(sortKey)
       ? sortKey.reduce((acc: Record<string, SortingOrder>, val) => {
           acc[val] = sortOrder
@@ -214,7 +214,7 @@
     gtotal = total
   }
 
-  function changeSorting(key: string | string[]): void {
+  function changeSorting (key: string | string[]): void {
     if (key === '') {
       return
     }
@@ -249,20 +249,20 @@
     return { ...attribute.props, space: object.space, ...readonlyParams }
   }
 
-  function getValue(attribute: AttributeModel, object: Doc): any {
+  function getValue (attribute: AttributeModel, object: Doc): any {
     return getAttributeValue(attribute, object, client.getHierarchy())
   }
 
-  function showContextMenu(ev: MouseEvent, object: Doc | undefined): void {
+  function showContextMenu (ev: MouseEvent, object: Doc | undefined): void {
     if (object === undefined) return
     showMenu(ev, { object })
   }
 
-  function onChange(value: any, doc: Doc, key: string, attribute: AnyAttribute): void {
+  function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute): void {
     updateAttribute(client, doc, _class, { key, attr: attribute }, value)
   }
 
-  function getOnChange(doc: Doc, attribute: AttributeModel) {
+  function getOnChange (doc: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
     if (attr === undefined) return
     if (attribute.collectionAttr) return
@@ -280,7 +280,7 @@
   let model: AttributeModel[] | undefined
   let modelOptions: BuildModelOptions | undefined
 
-  const updateModelOptions = reduceCalls(async function updateModelOptions(
+  const updateModelOptions = reduceCalls(async function updateModelOptions (
     client: TxOperations,
     _class: Ref<Class<Doc>>,
     config: Array<string | BuildModelKey>,
@@ -294,7 +294,7 @@
   })
   $: void updateModelOptions(client, _class, config, lookup)
 
-  async function build(modelOptions: BuildModelOptions): Promise<void> {
+  async function build (modelOptions: BuildModelOptions): Promise<void> {
     isBuildingModel = true
     const res = await buildModel(modelOptions)
     res.sort((a, b) => {
@@ -312,7 +312,7 @@
     permissionsStore = await getResource(contact.store.Permissions)
   })
 
-  function canChangeAttr(
+  function canChangeAttr (
     object: Doc,
     attr: AnyAttribute | undefined,
     permissionsStore: PermissionsStore | undefined
@@ -338,7 +338,7 @@
     rowCount: number
   }
 
-  function getView(objects: Doc[], model: AttributeModel[] | undefined): RowModel[] {
+  function getView (objects: Doc[], model: AttributeModel[] | undefined): RowModel[] {
     if (model === undefined) return []
     const res: RowModel[] = []
     for (const obj of objects) {
@@ -347,7 +347,7 @@
     return res
   }
 
-  function hasMissingRelations(doc: Doc, model: AttributeModel[], associationId?: string): boolean {
+  function hasMissingRelations (doc: Doc, model: AttributeModel[], associationId?: string): boolean {
     const associations = getAssociations(model, associationId)
     for (const relationKey of associations) {
       const key = associationId ? relationKey.substring(associationId.length + 1) : relationKey
@@ -360,7 +360,7 @@
     return false
   }
 
-  function filterObjectsWithMissingRelations(objects: Doc[], model: AttributeModel[] | undefined): Doc[] {
+  function filterObjectsWithMissingRelations (objects: Doc[], model: AttributeModel[] | undefined): Doc[] {
     if (model === undefined) return objects
     return objects.filter((object) => hasMissingRelations(object, model))
   }
@@ -371,14 +371,14 @@
     displayedObjects.length > 0 && (total !== gtotal || objects.length < total || onlyCardsWithoutRelations)
   $: viewModel = getView(displayedObjects, model)
 
-  function getOwnAttributes(model: AttributeModel[], associationId?: string): AttributeModel[] {
+  function getOwnAttributes (model: AttributeModel[], associationId?: string): AttributeModel[] {
     return model.filter((attr) => {
       if (associationId) return attr.key.startsWith(associationId) && !attr.key.startsWith(`${associationId}.${assoc}`)
       return !attr.key.startsWith(assoc)
     })
   }
 
-  function createLeafResult(doc: Doc | undefined, attrs: AttributeModel[], parent: Doc | undefined): WalkResult {
+  function createLeafResult (doc: Doc | undefined, attrs: AttributeModel[], parent: Doc | undefined): WalkResult {
     return {
       rowCount: 1,
       rows: [
@@ -394,7 +394,7 @@
     }
   }
 
-  function processBranches(
+  function processBranches (
     doc: Doc | undefined,
     model: AttributeModel[],
     associations: string[],
@@ -425,7 +425,7 @@
     return branchesByRelation
   }
 
-  function distributeExtraRows(totalRows: number, existingRows: number): number[] {
+  function distributeExtraRows (totalRows: number, existingRows: number): number[] {
     const diff = totalRows - existingRows
     const extraPerRow = new Array(existingRows).fill(0)
 
@@ -442,7 +442,7 @@
     return extraPerRow
   }
 
-  function mergeRows(
+  function mergeRows (
     doc: Doc | undefined,
     ownAttrs: AttributeModel[],
     branchesByRelation: Map<string, WalkResult[]>,
@@ -528,7 +528,7 @@
     }
   }
 
-  function isAssociationKey(key: string): boolean {
+  function isAssociationKey (key: string): boolean {
     // A valid association key ends with `$associations.{assocId}_{direction}`
     // Sub-field keys like `$associations.assocId_b.fieldName` should NOT be treated as associations
     const parts = key.split('.')
@@ -545,7 +545,7 @@
     return lastAssocIdx + 1 === parts.length - 1
   }
 
-  function getAssociations(model: AttributeModel[], associationId?: string): string[] {
+  function getAssociations (model: AttributeModel[], associationId?: string): string[] {
     return model
       .filter((p) => {
         if (!isAssociationKey(p.key)) return false
@@ -562,7 +562,7 @@
       .map((p) => p.key)
   }
 
-  function walk(
+  function walk (
     doc: WithLookup<Doc> | undefined,
     model: AttributeModel[],
     associationId?: string,
@@ -586,7 +586,7 @@
     return res
   }
 
-  function clickHandler(e: MouseEvent, cell: CellModel): void {
+  function clickHandler (e: MouseEvent, cell: CellModel): void {
     if (cell.parentObject === undefined) return
     const parts = cell.attribute.key.split('$associations.')
     let association = parts.pop()

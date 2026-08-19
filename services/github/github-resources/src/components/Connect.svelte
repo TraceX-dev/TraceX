@@ -57,10 +57,10 @@
     projects = res
   })
 
-  function save(): void {
+  function save (): void {
     void updateGithubAccountIntegrationLogin(auth?.login ?? '', integration)
   }
-  function onConnect(): void {
+  function onConnect (): void {
     const state = btoa(
       JSON.stringify({
         accountId: getCurrentAccount().primarySocialId,

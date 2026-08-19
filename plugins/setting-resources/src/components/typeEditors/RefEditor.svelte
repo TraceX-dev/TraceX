@@ -39,7 +39,7 @@
 
   const classes = fillClasses(_classes)
 
-  function fillClasses(classes: Ref<Class<Doc>>[]): DropdownIntlItem[] {
+  function fillClasses (classes: Ref<Class<Doc>>[]): DropdownIntlItem[] {
     const res: DropdownIntlItem[] = []
     const descendants = new Set(classes.map((p) => hierarchy.getDescendants(p)).reduce((a, b) => a.concat(b)))
     // exclude removed card types

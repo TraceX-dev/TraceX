@@ -52,14 +52,14 @@
 
   const client = getClient()
 
-  async function remove(value: Channel | AttachedData<Channel>): Promise<void> {
+  async function remove (value: Channel | AttachedData<Channel>): Promise<void> {
     if (!editable) return
     if ('_id' in value) {
       await client.remove(value)
     }
   }
 
-  async function saveHandler(value: Channel | AttachedData<Channel>): Promise<void> {
+  async function saveHandler (value: Channel | AttachedData<Channel>): Promise<void> {
     if (!editable) return
     if ('_id' in value) {
       await client.update(value, {
@@ -73,7 +73,7 @@
     }
   }
 
-  function _open(ev: any) {
+  function _open (ev: any) {
     if (ev.detail.presenter !== undefined) {
       if (allowOpen) {
         closeTooltip()
