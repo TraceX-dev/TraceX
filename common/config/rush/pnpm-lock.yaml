@@ -13533,8 +13533,8 @@ importers:
         specifier: ^9.0.0
         version: 9.7.1
       image-size:
-        specifier: ^1.2.1
-        version: 1.2.1
+        specifier: ^2.0.2
+        version: 2.0.2
       mammoth:
         specifier: ^1.9.0
         version: 1.11.0
@@ -13803,8 +13803,8 @@ importers:
         specifier: ^2.0.10
         version: 2.0.14
       image-size:
-        specifier: ^1.2.1
-        version: 1.2.1
+        specifier: ^2.0.2
+        version: 2.0.2
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
@@ -30305,8 +30305,8 @@ importers:
         specifier: ^4.21.2
         version: 4.21.2
       image-size:
-        specifier: ^1.2.1
-        version: 1.2.1
+        specifier: ^2.0.2
+        version: 2.0.2
       morgan:
         specifier: ^1.10.0
         version: 1.10.1
@@ -39635,8 +39635,8 @@ importers:
         specifier: workspace:^0.7.16
         version: link:../../../foundations/server/packages/server-storage
       image-size:
-        specifier: ^1.2.1
-        version: 1.2.1
+        specifier: ^2.0.2
+        version: 2.0.2
       kafkajs:
         specifier: ^2.2.4
         version: 2.2.4
@@ -47969,8 +47969,8 @@ packages:
   image-q@4.0.0:
     resolution: {integrity: sha512-PfJGVgIfKQJuq3s0tTDOKtztksibuUEbJQIYT3by6wctQo+Rdlh7ef4evJ5NCdxY4CfMbvFkocEwbl4BF8RlJw==}
 
-  image-size@1.2.1:
-    resolution: {integrity: sha512-rH+46sQJ2dlwfjfhCyNx5thzrv+dtmBIhPHk0zgRUukHzZ/kRueTJXoYYsclBaKcSMBWuGbOFXtioLpzTb5euw==}
+  image-size@2.0.2:
+    resolution: {integrity: sha512-IRqXKlaXwgSMAMtpNzZa1ZAe8m+Sa1770Dhk8VkSsP9LS+iHD62Zd8FQKs8fbPiagBE7BzoFX23cxFnwshpV6w==}
     engines: {node: '>=16.x'}
     hasBin: true
 
@@ -50173,9 +50173,6 @@ packages:
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
-
-  queue@6.0.2:
-    resolution: {integrity: sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==}
 
   quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
@@ -59554,9 +59551,7 @@ snapshots:
     dependencies:
       '@types/node': 16.9.1
 
-  image-size@1.2.1:
-    dependencies:
-      queue: 6.0.2
+  image-size@2.0.2: {}
 
   immediate@3.0.6: {}
 
@@ -61385,7 +61380,7 @@ snapshots:
   node-loader@2.0.0(webpack@5.102.1):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.102.1
+      webpack: 5.102.1(esbuild@0.25.12)(webpack-cli@5.1.4)
 
   node-localstorage@2.2.1:
     dependencies:
@@ -62265,10 +62260,6 @@ snapshots:
   querystringify@2.2.0: {}
 
   queue-microtask@1.2.3: {}
-
-  queue@6.0.2:
-    dependencies:
-      inherits: 2.0.4
 
   quick-lru@5.1.1: {}
 
