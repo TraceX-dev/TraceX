@@ -14,6 +14,7 @@
   "scripts": {
     "build": "node esbuild.config.js",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/love-agent",
+    "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/love-agent",
     "docker:push": "../../../common/scripts/docker_tag.sh tracexapp/love-agent",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint --fix src/**/*.ts",

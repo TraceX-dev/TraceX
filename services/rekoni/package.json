@@ -17,6 +17,7 @@
     "_phase:docker-build": "rushx docker:build",
     "_phase:docker-staging": "rushx docker:staging",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/rekoni-service",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/rekoni-service",
     "docker:tbuild": "docker build -t tracexapp/rekoni-service . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/rekoni-service",
     "docker:abuild": "docker build -t tracexapp/rekoni-service . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/rekoni-service",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/rekoni-service staging",
