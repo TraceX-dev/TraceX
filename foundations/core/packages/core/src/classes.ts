@@ -664,14 +664,23 @@ export type IdentityKind = 'accountUuid' | 'personId' | 'socialId' | 'linkId'
 export type RowVisibilityPolicy =
   // instance[field] must equal the resolved identity value
   | { kind: 'ownerField', field: string, identity: IdentityKind }
-  // ownership via a separate link record: linkClass docs where linkTargetField === instance._id
-  // and linkIdentityField === the resolved identity value
+  // ownership via a separate link record: linkClass docs where linkIdentityField equals the
+  // resolved identity and linkTargetField equals the protected document's targetField (default _id)
   | {
     kind: 'linkedViaRecord'
     linkClass: Ref<Class<Doc>>
     linkTargetField: string
     linkIdentityField: string
     identity: IdentityKind
+    /** Field on the protected document containing the linked target. Defaults to `_id`. */
+    targetField?: string
+    /** Optionally maps linked ids through another class before narrowing the protected document. */
+    through?: {
+      documentClass: Ref<Class<Doc>>
+      sourceField: string
+      targetField: string
+      includeDirect?: boolean
+    }
   }
   // visibility follows ordinary membership in a real (non-system) space
   | { kind: 'spaceMember' }

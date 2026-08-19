@@ -20,7 +20,7 @@
  *
  *  - Collaborator/MeetingMinutes/HR Request: open queries clamped to the caller's own records;
  *    `_id`/`attachedTo` lookups bypass the clamp.
- *  - RoomInfo: no open-browse case, denied outright.
+ *  - Room/RoomInfo: open queries are clamped to rooms where the caller is a collaborator.
  *  - PushSubscription: always clamped to the caller's own `user`, no bypass.
  *  - PublicLink: denied unless `_id` matches the caller's own `linkId` (from the session token,
  *    not the account - every guest shares one account) - regression test for the enumeration fix.
@@ -47,6 +47,7 @@ import { SpaceSecurityMiddleware } from '../spaceSecurity'
 
 const MEETING_MINUTES = 'love:class:MeetingMinutes' as Ref<Class<Doc>>
 const ROOM_INFO = 'love:class:RoomInfo' as Ref<Class<Doc>>
+const ROOM = 'love:class:Room' as Ref<Class<Doc>>
 const HR_REQUEST = 'hr:class:Request' as Ref<Class<Doc>>
 const PUSH_SUBSCRIPTION = 'notification:class:PushSubscription' as Ref<Class<Doc>>
 const PUBLIC_LINK = 'guest:class:PublicLink' as Ref<Class<Doc>>
@@ -72,9 +73,38 @@ const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> =
     allowKnownIdBypass: true,
     knownIdBypassFields: ['attachedTo']
   },
+  [ROOM]: {
+    policy: {
+      kind: 'linkedViaRecord',
+      linkClass: core.class.Collaborator,
+      linkTargetField: 'attachedTo',
+      linkIdentityField: 'collaborator',
+      identity: 'accountUuid',
+      through: {
+        documentClass: MEETING_MINUTES,
+        sourceField: '_id',
+        targetField: 'attachedTo',
+        includeDirect: true
+      }
+    },
+    allowKnownIdBypass: false
+  },
   [ROOM_INFO]: {
-    policy: { kind: 'denyAll' },
-    allowKnownIdBypass: true
+    policy: {
+      kind: 'linkedViaRecord',
+      linkClass: core.class.Collaborator,
+      linkTargetField: 'attachedTo',
+      linkIdentityField: 'collaborator',
+      identity: 'accountUuid',
+      targetField: 'room',
+      through: {
+        documentClass: MEETING_MINUTES,
+        sourceField: '_id',
+        targetField: 'attachedTo',
+        includeDirect: true
+      }
+    },
+    allowKnownIdBypass: false
   },
   [PUBLIC_LINK]: {
     policy: { kind: 'ownerField', field: '_id', identity: 'linkId' },
@@ -135,6 +165,9 @@ async function setup (): Promise<{
   personBob: Ref<Doc>
   mmAlice: Ref<Doc>
   mmBob: Ref<Doc>
+  roomAlice: Ref<Doc>
+  roomDirect: Ref<Doc>
+  roomBob: Ref<Doc>
   reqAlice: Ref<Doc>
   reqBob: Ref<Doc>
   linkAlice: Ref<Doc>
@@ -147,16 +180,37 @@ async function setup (): Promise<{
   const personBob = { _id: generateId(), _class: PERSON_CLASS, personUuid: BOB, space: contact.space.Contacts }
   const persons = [personAlice, personBob]
 
-  const mmAlice = { _id: generateId(), _class: MEETING_MINUTES, space: core.space.Workspace }
-  const mmBob = { _id: generateId(), _class: MEETING_MINUTES, space: core.space.Workspace }
+  const roomAlice = { _id: generateId(), _class: ROOM, space: core.space.Workspace }
+  const roomDirect = { _id: generateId(), _class: ROOM, space: core.space.Workspace }
+  const roomBob = { _id: generateId(), _class: ROOM, space: core.space.Workspace }
+  const rooms = [roomAlice, roomDirect, roomBob]
+
+  const mmAlice = {
+    _id: generateId(),
+    _class: MEETING_MINUTES,
+    space: core.space.Workspace,
+    attachedTo: roomAlice._id
+  }
+  const mmBob = {
+    _id: generateId(),
+    _class: MEETING_MINUTES,
+    space: core.space.Workspace,
+    attachedTo: roomBob._id
+  }
   const meetingMinutes = [mmAlice, mmBob]
 
   const collaborators = [
     { _id: generateId(), _class: core.class.Collaborator, collaborator: ALICE, attachedTo: mmAlice._id },
-    { _id: generateId(), _class: core.class.Collaborator, collaborator: BOB, attachedTo: mmBob._id }
+    { _id: generateId(), _class: core.class.Collaborator, collaborator: BOB, attachedTo: mmBob._id },
+    { _id: generateId(), _class: core.class.Collaborator, collaborator: ALICE, attachedTo: roomDirect._id },
+    { _id: generateId(), _class: core.class.Collaborator, collaborator: BOB, attachedTo: roomBob._id }
   ]
 
-  const roomInfos = [{ _id: generateId(), _class: ROOM_INFO, room: generateId(), persons: [] }]
+  const roomInfos = [
+    { _id: generateId(), _class: ROOM_INFO, room: roomAlice._id, persons: [] },
+    { _id: generateId(), _class: ROOM_INFO, room: roomDirect._id, persons: [] },
+    { _id: generateId(), _class: ROOM_INFO, room: roomBob._id, persons: [] }
+  ]
 
   const reqAlice = { _id: generateId(), _class: HR_REQUEST, attachedTo: personAlice._id }
   const reqBob = { _id: generateId(), _class: HR_REQUEST, attachedTo: personBob._id }
@@ -177,6 +231,7 @@ async function setup (): Promise<{
       if (_class === core.class.Space) return []
       if (_class === PERSON_CLASS) return persons.filter((p) => matchesQuery(p, query)) as any
       if (_class === MEETING_MINUTES) return meetingMinutes.filter((d) => matchesQuery(d, query)) as any
+      if (_class === ROOM) return rooms.filter((d) => matchesQuery(d, query)) as any
       if (_class === core.class.Collaborator) return collaborators.filter((d) => matchesQuery(d, query)) as any
       if (_class === ROOM_INFO) return roomInfos.filter((d) => matchesQuery(d, query)) as any
       if (_class === HR_REQUEST) return hrRequests.filter((d) => matchesQuery(d, query)) as any
@@ -235,6 +290,9 @@ async function setup (): Promise<{
     personBob: personBob._id,
     mmAlice: mmAlice._id,
     mmBob: mmBob._id,
+    roomAlice: roomAlice._id,
+    roomDirect: roomDirect._id,
+    roomBob: roomBob._id,
     reqAlice: reqAlice._id,
     reqBob: reqBob._id,
     linkAlice: linkAlice._id,
@@ -265,7 +323,8 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const res = await s.mw.findAll(ctx, core.class.Collaborator, {})
-      expect(res.map((r: any) => r.collaborator)).toEqual([s.ALICE])
+      expect(res).toHaveLength(2)
+      expect(new Set(res.map((r: any) => r.collaborator))).toEqual(new Set([s.ALICE]))
     })
 
     it('a query narrowed by attachedTo bypasses the restriction', async () => {
@@ -301,11 +360,27 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
   })
 
   describe('love.class.RoomInfo', () => {
-    it('has no legitimate open-browse path and is denied for guests', async () => {
+    it('only returns activity for rooms where the caller is a collaborator', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const res = await s.mw.findAll(ctx, ROOM_INFO, {})
-      expect(res.length).toBe(0)
+      expect(res.map((r: any) => r.room)).toEqual([s.roomAlice, s.roomDirect])
+    })
+  })
+
+  describe('love.class.Room', () => {
+    it('only returns rooms where the caller is a collaborator', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, ROOM, {})
+      expect(res.map((r: any) => r._id)).toEqual([s.roomAlice, s.roomDirect])
+    })
+
+    it('does not expose a foreign room through a known id', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, ROOM, { _id: s.roomBob } as any)
+      expect(res).toHaveLength(0)
     })
   })
 
@@ -378,7 +453,7 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.User, s.BOB))
       const collabRes = await s.mw.findAll(ctx, core.class.Collaborator, {})
-      expect(collabRes.length).toBe(2)
+      expect(collabRes.length).toBe(4)
       const mmRes = await s.mw.findAll(ctx, MEETING_MINUTES, {})
       expect(mmRes.length).toBe(2)
     })

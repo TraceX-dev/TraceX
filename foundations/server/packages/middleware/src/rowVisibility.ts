@@ -265,9 +265,24 @@ export class RowVisibilityResolver {
         const links = ((await this.next?.findAll(ctx, policy.linkClass, linkQuery, { projection })) ?? []) as Array<
         Record<string, Ref<Doc>>
         >
-        const allowed = new Set<Ref<Doc>>(links.map((l) => l[policy.linkTargetField]))
-        if (allowed.size === 0) return { kind: 'deny' }
-        const merged = mergeIn(query, '_id', allowed)
+        const linkedTargets = new Set<Ref<Doc>>(links.map((l) => l[policy.linkTargetField]))
+        if (linkedTargets.size === 0) return { kind: 'deny' }
+        let allowed = linkedTargets
+        const through = policy.through
+        if (through !== undefined) {
+          const throughQuery: DocumentQuery<Doc> = {
+            [through.sourceField]: { $in: Array.from(linkedTargets) }
+          }
+          const throughProjection: Record<string, 1> = { [through.targetField]: 1 }
+          const throughDocs = ((await this.next?.findAll(ctx, through.documentClass, throughQuery, {
+            projection: throughProjection
+          })) ?? []) as Array<Record<string, Ref<Doc>>>
+          allowed = new Set<Ref<Doc>>(throughDocs.map((doc) => doc[through.targetField]))
+          if (through.includeDirect === true) {
+            for (const target of linkedTargets) allowed.add(target)
+          }
+        }
+        const merged = mergeIn(query, policy.targetField ?? '_id', allowed)
         return merged === undefined ? { kind: 'deny' } : { kind: 'narrow', query: merged }
       }
     }

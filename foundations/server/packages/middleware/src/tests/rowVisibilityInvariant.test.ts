@@ -47,6 +47,11 @@ const CHAT_MESSAGE = 'chunter:class:ChatMessage' as Ref<Class<Doc>>
 const THREAD_MESSAGE = 'chunter:class:ThreadMessage' as Ref<Class<Doc>>
 const ATTACHMENT = 'attachment:class:Attachment' as Ref<Class<Doc>>
 const SAVED_MESSAGE = 'activity:class:SavedMessage' as Ref<Class<Doc>>
+const LOVE_ROOM = 'love:class:Room' as Ref<Class<Doc>>
+const LOVE_FLOOR = 'love:class:Floor' as Ref<Class<Doc>>
+const PARTICIPANT_INFO = 'love:class:ParticipantInfo' as Ref<Class<Doc>>
+const PENDING_RECORDING = 'love:class:PendingRecording' as Ref<Class<Doc>>
+const DEVICES_PREFERENCE = 'love:class:DevicesPreference' as Ref<Class<Doc>>
 
 const SENSITIVE_CLASSES: Array<{ name: string, _class: Ref<Class<Doc>> }> = [
   { name: 'core.class.Collaborator', _class: core.class.Collaborator },
@@ -61,7 +66,12 @@ const SENSITIVE_CLASSES: Array<{ name: string, _class: Ref<Class<Doc>> }> = [
   { name: 'chunter.class.ChatMessage', _class: CHAT_MESSAGE },
   { name: 'chunter.class.ThreadMessage', _class: THREAD_MESSAGE },
   { name: 'attachment.class.Attachment', _class: ATTACHMENT },
-  { name: 'activity.class.SavedMessage', _class: SAVED_MESSAGE }
+  { name: 'activity.class.SavedMessage', _class: SAVED_MESSAGE },
+  { name: 'love.class.Room', _class: LOVE_ROOM },
+  { name: 'love.class.Floor', _class: LOVE_FLOOR },
+  { name: 'love.class.ParticipantInfo', _class: PARTICIPANT_INFO },
+  { name: 'love.class.PendingRecording', _class: PENDING_RECORDING },
+  { name: 'love.class.DevicesPreference', _class: DEVICES_PREFERENCE }
 ]
 
 describe('RowVisibility invariant', () => {
@@ -158,6 +168,36 @@ describe('RowVisibility invariant', () => {
     expect(access?.createAccessLevel).toBe(AccountRole.Guest)
     expect(access?.updateAccessLevel).toBe(AccountRole.Guest)
     expect(access?.removeAccessLevel).toBe(AccountRole.Guest)
+  })
+
+  it('Office room activity is scoped through room collaborators', () => {
+    const expectedPolicy = {
+      kind: 'linkedViaRecord',
+      linkClass: core.class.Collaborator,
+      linkTargetField: 'attachedTo',
+      linkIdentityField: 'collaborator',
+      identity: 'accountUuid',
+      targetField: 'room',
+      through: {
+        documentClass: 'love:class:MeetingMinutes',
+        sourceField: '_id',
+        targetField: 'attachedTo',
+        includeDirect: true
+      }
+    }
+    expect(hierarchy.classHierarchyMixin(PARTICIPANT_INFO, core.mixin.RowVisibility)?.policy).toEqual(expectedPolicy)
+    expect(
+      hierarchy.classHierarchyMixin('love:class:RoomInfo' as Ref<Class<Doc>>, core.mixin.RowVisibility)?.policy
+    ).toEqual(expectedPolicy)
+  })
+
+  it('Office floors are public metadata and device preferences remain private', () => {
+    expect(hierarchy.classHierarchyMixin(LOVE_FLOOR, core.mixin.RowVisibility)?.policy.kind).toBe('publicReadable')
+    expect(hierarchy.classHierarchyMixin(DEVICES_PREFERENCE, core.mixin.RowVisibility)?.policy).toEqual({
+      kind: 'ownerField',
+      field: 'createdBy',
+      identity: 'socialId'
+    })
   })
 })
 

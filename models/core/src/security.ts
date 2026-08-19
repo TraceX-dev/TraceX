@@ -206,6 +206,7 @@ export class TTxAccessLevel extends TClass implements TxAccessLevel {
 @Mixin(core.mixin.RowVisibility, core.class.Class)
 export class TRowVisibility extends TClass implements RowVisibility {
   policy!: RowVisibilityPolicy
+  writePolicy?: RowVisibilityPolicy
   allowKnownIdBypass!: boolean
   knownIdBypassFields?: string[]
 }
