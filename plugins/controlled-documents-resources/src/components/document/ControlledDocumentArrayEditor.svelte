@@ -43,13 +43,13 @@
   const dispatch = createEventDispatcher()
   const icon = client.getHierarchy().getClass(documents.class.ControlledDocument).icon
 
-  function toArray (
+  function toArray(
     value: Array<Ref<ControlledDocument | DocumentMeta>> | Ref<ControlledDocument | DocumentMeta> | undefined
   ): Array<Ref<ControlledDocument | DocumentMeta>> {
     return value === undefined ? [] : Array.isArray(value) ? value : [value]
   }
 
-  function openPopup (event: MouseEvent): void {
+  function openPopup(event: MouseEvent): void {
     if (onChange === undefined || readonly) return
     event.stopPropagation()
 
@@ -102,7 +102,7 @@
   <Button
     {justify}
     {focusIndex}
-    width={'100%'}
+    width="100%"
     {size}
     icon={toArray(value).length === 1 ? undefined : icon}
     {kind}

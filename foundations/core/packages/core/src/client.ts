@@ -14,7 +14,7 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
-import { type BackupClient, type DocChunk } from './backup'
+import type { BackupClient, DocChunk } from './backup'
 import {
   type Class,
   DOMAIN_MODEL,
@@ -120,22 +120,22 @@ class ClientImpl implements Client, BackupClient {
   hierarchy!: Hierarchy
   model!: ModelDb
   private readonly appliedModelTransactions = new Set<Ref<Tx>>()
-  constructor (private readonly conn: ClientConnection) {}
+  constructor(private readonly conn: ClientConnection) {}
 
-  getConnection (): ClientConnection {
+  getConnection(): ClientConnection {
     return this.conn
   }
 
-  setModel (hierarchy: Hierarchy, model: ModelDb): void {
+  setModel(hierarchy: Hierarchy, model: ModelDb): void {
     this.hierarchy = hierarchy
     this.model = model
   }
 
-  getHierarchy (): Hierarchy {
+  getHierarchy(): Hierarchy {
     return this.hierarchy
   }
 
-  getModel (): ModelDb {
+  getModel(): ModelDb {
     return this.model
   }
 
@@ -153,17 +153,15 @@ class ClientImpl implements Client, BackupClient {
     // In case of mixin we need to create mixin proxies.
 
     // Update mixins & lookups
-    const result = data.map((v) => {
-      return this.hierarchy.updateLookupMixin(_class, v, options)
-    })
+    const result = data.map((v) => this.hierarchy.updateLookupMixin(_class, v, options))
     return toFindResult(result, data.total)
   }
 
-  async searchFulltext (query: SearchQuery, options: SearchOptions): Promise<SearchResult> {
+  async searchFulltext(query: SearchQuery, options: SearchOptions): Promise<SearchResult> {
     return await this.conn.searchFulltext(query, options)
   }
 
-  async domainRequest (
+  async domainRequest(
     ctx: OperationDomain,
     params: DomainParams,
     options?: DomainRequestOptions
@@ -179,7 +177,7 @@ class ClientImpl implements Client, BackupClient {
     return (await this.findAll(_class, query, { ...options, limit: 1 }))[0]
   }
 
-  async tx (tx: Tx): Promise<TxResult> {
+  async tx(tx: Tx): Promise<TxResult> {
     if (tx.objectSpace === core.space.Model) {
       this.hierarchy.tx(tx)
       await this.model.tx(tx)
@@ -189,7 +187,7 @@ class ClientImpl implements Client, BackupClient {
     return await this.conn.tx(tx)
   }
 
-  async updateFromRemote (...tx: Tx[]): Promise<void> {
+  async updateFromRemote(...tx: Tx[]): Promise<void> {
     for (const t of tx) {
       try {
         if (t.objectSpace === core.space.Model) {
@@ -209,35 +207,35 @@ class ClientImpl implements Client, BackupClient {
     this.notify?.(...tx)
   }
 
-  async close (): Promise<void> {
+  async close(): Promise<void> {
     await this.conn.close()
   }
 
-  async loadChunk (domain: Domain, idx?: number): Promise<DocChunk> {
+  async loadChunk(domain: Domain, idx?: number): Promise<DocChunk> {
     return await this.conn.loadChunk(domain, idx)
   }
 
-  async getDomainHash (domain: Domain): Promise<string> {
+  async getDomainHash(domain: Domain): Promise<string> {
     return await this.conn.getDomainHash(domain)
   }
 
-  async closeChunk (idx: number): Promise<void> {
+  async closeChunk(idx: number): Promise<void> {
     await this.conn.closeChunk(idx)
   }
 
-  async loadDocs (domain: Domain, docs: Ref<Doc>[]): Promise<Doc[]> {
+  async loadDocs(domain: Domain, docs: Ref<Doc>[]): Promise<Doc[]> {
     return await this.conn.loadDocs(domain, docs)
   }
 
-  async upload (domain: Domain, docs: Doc[]): Promise<void> {
+  async upload(domain: Domain, docs: Doc[]): Promise<void> {
     await this.conn.upload(domain, docs)
   }
 
-  async clean (domain: Domain, docs: Ref<Doc>[]): Promise<void> {
+  async clean(domain: Domain, docs: Ref<Doc>[]): Promise<void> {
     await this.conn.clean(domain, docs)
   }
 
-  async sendForceClose (): Promise<void> {
+  async sendForceClose(): Promise<void> {
     await this.conn.sendForceClose()
   }
 }
@@ -255,7 +253,7 @@ export type ModelFilter = (tx: Tx[]) => Tx[]
 /**
  * @public
  */
-export async function createClient (
+export async function createClient(
   connect: (txHandler: TxHandler) => Promise<ClientConnection>,
   // If set will build model with only allowed plugins.
   modelFilter?: ModelFilter,
@@ -273,7 +271,7 @@ export async function createClient (
 
   let lastTx: string | undefined
 
-  function txHandler (...tx: Tx[]): void {
+  function txHandler(...tx: Tx[]): void {
     if (tx == null || tx.length === 0) {
       return
     }
@@ -316,8 +314,8 @@ export async function createClient (
   txBuffer = undefined
 
   const oldOnConnect:
-  | ((event: ClientConnectEvent, lastTx: string | undefined, data: any) => Promise<void>)
-  | undefined = conn.onConnect
+    | ((event: ClientConnectEvent, lastTx: string | undefined, data: any) => Promise<void>)
+    | undefined = conn.onConnect
   conn.onConnect = async (event, _lastTx, data) => {
     console.log('Client: onConnect', event)
     if (event === ClientConnectEvent.Maintenance) {
@@ -371,11 +369,11 @@ export async function createClient (
   return client
 }
 
-async function loadModel (
+async function loadModel(
   ctx: MeasureContext,
   conn: ClientConnection,
   persistence?: TxPersistenceStore
-): Promise<{ mode: 'same' | 'addition' | 'upgrade', current: Tx[], addition: Tx[] }> {
+): Promise<{ mode: 'same' | 'addition' | 'upgrade'; current: Tx[]; addition: Tx[] }> {
   const t = platformNow()
 
   const current = (await ctx.with('persistence-load', {}, () => persistence?.load())) ?? {
@@ -416,7 +414,7 @@ async function loadModel (
     })
 
   if (typeof window !== 'undefined') {
-    console.log('find' + (result.full ? 'full model' : 'model diff'), result.transactions.length, platformNowDiff(t))
+    console.log(`find${result.full ? 'full model' : 'model diff'}`, result.transactions.length, platformNowDiff(t))
   }
   if (result.full) {
     return { mode: 'upgrade', current: result.transactions, addition: [] }
@@ -424,7 +422,7 @@ async function loadModel (
   return { mode: 'addition', current: current.transactions, addition: result.transactions }
 }
 
-export function buildModel (
+export function buildModel(
   ctx: MeasureContext,
   transactions: Tx[],
   modelFilter: ModelFilter | undefined,
@@ -454,7 +452,7 @@ export function buildModel (
   })
 }
 
-function getLastTxTime (txes: Tx[]): number {
+function getLastTxTime(txes: Tx[]): number {
   let lastTxTime = 0
   for (const tx of txes) {
     if (tx.modifiedOn > lastTxTime) {

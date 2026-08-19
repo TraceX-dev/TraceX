@@ -62,7 +62,7 @@
     })
   }
 
-  function openPopup (event: MouseEvent): void {
+  function openPopup(event: MouseEvent): void {
     event.stopPropagation()
     if (readonly) return
 

@@ -21,7 +21,7 @@ import { derived, writable, type Readable } from 'svelte/store'
 
 import { restrictionStore } from './utils'
 
-export function canChangeAttribute (
+export function canChangeAttribute(
   attr: AnyAttribute,
   space: Ref<TypedSpace>,
   store: PermissionsStore,
@@ -56,7 +56,7 @@ export function canChangeAttribute (
   return canChangeDoc(_class, space, store)
 }
 
-export function canChangeDoc (_class: Ref<Class<Doc>>, space: Ref<Space>, store: PermissionsStore): boolean {
+export function canChangeDoc(_class: Ref<Class<Doc>>, space: Ref<Space>, store: PermissionsStore): boolean {
   const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
   if (arePermissionsDisabled) return true
   if (store.whitelist.has(space)) return true
@@ -95,7 +95,7 @@ export function canChangeDoc (_class: Ref<Class<Doc>>, space: Ref<Space>, store:
   return !store.restrictedSpaces.has(space)
 }
 
-export function canRemoveDoc (_class: Ref<Class<Doc>>, space: Ref<Space>, store: PermissionsStore): boolean {
+export function canRemoveDoc(_class: Ref<Class<Doc>>, space: Ref<Space>, store: PermissionsStore): boolean {
   const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
   if (arePermissionsDisabled) return true
   if (store.whitelist.has(space)) return true
@@ -117,7 +117,7 @@ export function canRemoveDoc (_class: Ref<Class<Doc>>, space: Ref<Space>, store:
   return !store.restrictedSpaces.has(space)
 }
 
-export function canCreateObject (_class: Ref<Class<Doc>>, space: Ref<Space>, store: PermissionsStore): boolean {
+export function canCreateObject(_class: Ref<Class<Doc>>, space: Ref<Space>, store: PermissionsStore): boolean {
   const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
   if (arePermissionsDisabled) return true
   if (store.whitelist.has(space)) return true
@@ -195,11 +195,11 @@ const forbidAll: Permissions = {
   canTrackReadStatus: false
 }
 
-export function isTypedSpace (space: Space): space is TypedSpace {
+export function isTypedSpace(space: Space): space is TypedSpace {
   return getClient().getHierarchy().isDerived(space._class, core.class.TypedSpace)
 }
 
-export function isSpaceOwner (space: Space, account: Account): boolean {
+export function isSpaceOwner(space: Space, account: Account): boolean {
   return account.role === AccountRole.Owner || (space.owners ?? []).includes(account.uuid)
 }
 
@@ -208,7 +208,7 @@ export function isSpaceOwner (space: Space, account: Account): boolean {
  * GuestPermissionsMiddleware.isCreatedByAccount on the server.
  * @public
  */
-export function isDocCreatedByAccount (doc: Doc, account: Account): boolean {
+export function isDocCreatedByAccount(doc: Doc, account: Account): boolean {
   const creator = doc.createdBy
   if (creator === undefined) return false
   if (creator === account.primarySocialId) return true
@@ -220,19 +220,19 @@ export function isDocCreatedByAccount (doc: Doc, account: Account): boolean {
  * excluded: the server rejects every transaction coming from those roles.
  * @public
  */
-export function ownsDoc (doc: Doc | undefined, account: Account): boolean {
+export function ownsDoc(doc: Doc | undefined, account: Account): boolean {
   if (doc === undefined) return false
   if (account.role !== AccountRole.Guest) return false
   return isDocCreatedByAccount(doc, account)
 }
 
-function hasSpacePermission (permission: Ref<Permission>, space: Ref<Space>, store: PermissionsStore): boolean {
+function hasSpacePermission(permission: Ref<Permission>, space: Ref<Space>, store: PermissionsStore): boolean {
   const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
   if (arePermissionsDisabled) return true
   return (store.whitelist.has(space) || store.ps[space]?.has(permission)) ?? false
 }
 
-function buildPermissions (
+function buildPermissions(
   account: Account,
   store: PermissionsStore | undefined,
   restrictions: Restrictions
@@ -374,7 +374,7 @@ const extensionOrder: Array<Readable<Partial<Permissions>>> = []
 const extensionValues = new Map<Readable<Partial<Permissions>>, Partial<Permissions>>()
 const extensionOverrides = writable<Partial<Permissions>>({})
 
-function recalcOverrides (): void {
+function recalcOverrides(): void {
   let result: Partial<Permissions> = {}
   for (const extension of extensionOrder) {
     result = { ...result, ...(extensionValues.get(extension) ?? {}) }
@@ -388,7 +388,7 @@ function recalcOverrides (): void {
  *
  * @public
  */
-export function registerPermissions (extension: Readable<Partial<Permissions>>): void {
+export function registerPermissions(extension: Readable<Partial<Permissions>>): void {
   if (extensionValues.has(extension)) return
   extensionValues.set(extension, {})
   extensionOrder.push(extension)
@@ -419,6 +419,6 @@ permissions.subscribe((value) => {
  * Non reactive access to permissions, for action visibility testers and utils.
  * @public
  */
-export function getPermissions (): Permissions {
+export function getPermissions(): Permissions {
   return snapshot
 }

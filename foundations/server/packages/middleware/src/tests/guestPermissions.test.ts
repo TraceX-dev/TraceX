@@ -51,7 +51,7 @@ const MODULE_PERMISSION_GROUP_CLASS = core.class.ModulePermissionGroup
 const ALLOWED_SPACE = 'test:space:Allowed' as Ref<Space>
 const FORBIDDEN_SPACE = 'test:space:Forbidden' as Ref<Space>
 
-function makeAccount (role: AccountRole): Account {
+function makeAccount(role: AccountRole): Account {
   return {
     uuid: generateId() as any,
     role,
@@ -61,7 +61,7 @@ function makeAccount (role: AccountRole): Account {
   }
 }
 
-function makeCtx (account: Account): MeasureContext<SessionData> {
+function makeCtx(account: Account): MeasureContext<SessionData> {
   const ctx = new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>
   ctx.contextData = {
     account,
@@ -72,24 +72,24 @@ function makeCtx (account: Account): MeasureContext<SessionData> {
 
 type FindAllFn = (ctx: MeasureContext, _class: Ref<Class<Doc>>, query: object, options?: object) => Promise<Doc[]>
 
-function makePipelineContext (findAll?: FindAllFn): PipelineContext {
+function makePipelineContext(findAll?: FindAllFn): PipelineContext {
   const hierarchy = new Hierarchy()
   const model = { findAllSync: (_class: any, _query: any) => [] } as any
   return {
     workspace: { uuid: 'test-workspace' as any, url: 'test', dataId: 'test' as any },
     hierarchy,
     modelDb: model,
-    branding: null as any,
+    branding: null,
     adapterManager: {} as any,
     storageAdapter: {} as any,
     contextVars: {},
     lastTx: '',
     lastHash: '',
     broadcastEvent: async () => {}
-  } as any
+  }
 }
 
-function makeMiddleware (
+function makeMiddleware(
   findAll: FindAllFn,
   nextFn?: (ctx: MeasureContext, txes: Tx[]) => Promise<TxMiddlewareResult>
 ): GuestPermissionsMiddleware {
@@ -101,13 +101,13 @@ function makeMiddleware (
   return mw
 }
 
-function makeCreateTx (objectClass: Ref<Class<Doc>>, objectSpace: Ref<Space>): Tx {
+function makeCreateTx(objectClass: Ref<Class<Doc>>, objectSpace: Ref<Space>): Tx {
   const factory = new TxFactory('test:account:System' as PersonId)
   return factory.createTxCreateDoc(objectClass, objectSpace, {})
 }
 
 // Helper: buildGuestSettings - simulate the document that loadPermissionsCache would find
-function makeGuestSettingsDoc (allowedPermissions: Ref<Doc>[], disabledPermissions?: Ref<Doc>[]): Doc {
+function makeGuestSettingsDoc(allowedPermissions: Ref<Doc>[], disabledPermissions?: Ref<Doc>[]): Doc {
   return {
     _id: generateId(),
     _class: MODULE_PERMISSION_GROUP_CLASS,
@@ -186,7 +186,7 @@ describe('GuestPermissionsMiddleware', () => {
       return []
     }
 
-    function patchHierarchy (mw: GuestPermissionsMiddleware): void {
+    function patchHierarchy(mw: GuestPermissionsMiddleware): void {
       ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
         if (b === core.class.Space) return false
         return a === b
@@ -348,7 +348,7 @@ describe('GuestPermissionsMiddleware', () => {
   describe('guest update/remove own documents', () => {
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
 
-    function makeGuestAccountWithSocial (): Account {
+    function makeGuestAccountWithSocial(): Account {
       return {
         uuid: generateId() as any,
         role: AccountRole.Guest,
@@ -358,7 +358,7 @@ describe('GuestPermissionsMiddleware', () => {
       }
     }
 
-    function patchHierarchyNoTxAccessLevel (mw: GuestPermissionsMiddleware): void {
+    function patchHierarchyNoTxAccessLevel(mw: GuestPermissionsMiddleware): void {
       ;(mw as any).context.hierarchy.classHierarchyMixin = () => undefined
       ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
         if (b === core.class.Space) return false
@@ -378,7 +378,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: GUEST_SOCIAL,
               createdBy: GUEST_SOCIAL
-            } as any
+            }
           ]
         }
         return []
@@ -407,7 +407,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: GUEST_SOCIAL,
               createdBy: GUEST_SOCIAL
-            } as any
+            }
           ]
         }
         return []
@@ -437,7 +437,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: otherSocial,
               createdBy: otherSocial
-            } as any
+            }
           ]
         }
         return []

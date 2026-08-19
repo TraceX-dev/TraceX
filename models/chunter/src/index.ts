@@ -44,7 +44,7 @@ export { chunterId } from '@hcengineering/chunter'
 export { chunterOperation } from './migration'
 export * from './types'
 
-export function createModel (builder: Builder): void {
+export function createModel(builder: Builder): void {
   builder.createModel(
     TChunterSpace,
     TChannel,

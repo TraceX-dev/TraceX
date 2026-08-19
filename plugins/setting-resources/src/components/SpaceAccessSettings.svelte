@@ -89,9 +89,9 @@
   $: workspaceApplications = client
     .getModel()
     .findAllSync<Application>(workbench.class.Application, {
-    hidden: false,
-    _id: { $nin: excludedApplicationIds }
-  })
+      hidden: false,
+      _id: { $nin: excludedApplicationIds }
+    })
     .filter((application) => !hiddenApplicationIds.includes(application._id))
   $: spaceApplicationResolver = createSpaceApplicationResolver(hierarchy, workspaceApplications, applicationNavModels)
 
@@ -119,7 +119,7 @@
 
   loadWorkspaceMembers().catch(handleOperationError)
 
-  async function loadWorkspaceMembers (): Promise<void> {
+  async function loadWorkspaceMembers(): Promise<void> {
     try {
       workspaceMembers = await accountClient.getWorkspaceMembers()
     } finally {
@@ -127,12 +127,12 @@
     }
   }
 
-  function handleOperationError (error: unknown): void {
+  function handleOperationError(error: unknown): void {
     operationError = true
     Analytics.handleError(error as Error)
   }
 
-  async function runSpaceOperation (
+  async function runSpaceOperation(
     space: Space,
     operation: SpaceOperation,
     update: () => Promise<void>
@@ -154,7 +154,7 @@
     }
   }
 
-  async function changeRole (personUuid: AccountUuid, value: AccountRole): Promise<void> {
+  async function changeRole(personUuid: AccountUuid, value: AccountRole): Promise<void> {
     if (pendingRoleUpdates.has(personUuid)) return
 
     operationError = false
@@ -176,7 +176,7 @@
     }
   }
 
-  async function updateMembers (space: Space, members: AccountUuid[], owners?: AccountUuid[]): Promise<boolean> {
+  async function updateMembers(space: Space, members: AccountUuid[], owners?: AccountUuid[]): Promise<boolean> {
     return await runSpaceOperation(space, 'members', async () => {
       await client.updateDoc(space._class, space.space, space._id, {
         members,
@@ -185,13 +185,13 @@
     })
   }
 
-  async function setAutoJoin (space: Space, value: boolean): Promise<void> {
+  async function setAutoJoin(space: Space, value: boolean): Promise<void> {
     await runSpaceOperation(space, 'autojoin', async () => {
       await client.updateDoc(space._class, space.space, space._id, { autoJoin: value })
     })
   }
 
-  async function setGuestAutoJoin (space: Space, value: boolean): Promise<void> {
+  async function setGuestAutoJoin(space: Space, value: boolean): Promise<void> {
     await runSpaceOperation(space, 'guest-autojoin', async () => {
       await client.updateDoc(space._class, space.space, space._id, {
         autoJoinForRoles: setWorkspaceGuestAutoJoinRoles(space.autoJoinForRoles, value)
@@ -203,8 +203,8 @@
 </script>
 
 <div class="hulyComponent">
-  <Header adaptive={'disabled'}>
-    <Breadcrumb icon={setting.icon.Members} label={setting.string.AccessControl} size={'large'} isCurrent />
+  <Header adaptive="disabled">
+    <Breadcrumb icon={setting.icon.Members} label={setting.string.AccessControl} size="large" isCurrent />
   </Header>
   <div class="hulyComponent-content__container columns">
     <div class="hulyComponent-content__column navigation py-2">
@@ -252,7 +252,7 @@
       </Scroller>
     </div>
 
-    <Separator name={'spaceAccessSettings'} index={0} color={'var(--theme-divider-color)'} />
+    <Separator name="spaceAccessSettings" index={0} color="var(--theme-divider-color)" />
 
     <div class="hulyComponent-content__column content">
       {#if operationError}
@@ -260,8 +260,8 @@
           <span><Label label={setting.string.IntegrationError} /></span>
           <ButtonIcon
             icon={IconClose}
-            size={'min'}
-            kind={'tertiary'}
+            size="min"
+            kind="tertiary"
             tooltip={{ label: presentation.string.Close }}
             on:click={() => {
               operationError = false
