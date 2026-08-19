@@ -671,7 +671,7 @@ export function createModel (builder: Builder): void {
       icon: documents.icon.NewDocument,
       category: view.category.General,
       input: 'none',
-      target: documents.class.OrgSpace,
+      target: documents.class.DocumentSpace,
       visibilityTester: documents.function.CanCreateTemplate,
       context: { mode: ['context'], group: 'create' }
     },

@@ -592,8 +592,6 @@ async function _transferDocuments (
 ): Promise<boolean> {
   if (cx.bundles.length < 1) return false
 
-  const hierarchy = client.getHierarchy()
-
   const canArchiveInSourceSpace = await checkPermission(
     client,
     documents.permission.ArchiveDocument,
@@ -611,10 +609,6 @@ async function _transferDocuments (
     if (bundle.DocumentMeta.length !== 1) return false
     if (bundle.ProjectMeta.length !== 1) return false
     if (bundle.DocumentMeta[0].space !== cx.request.sourceSpaceId) return false
-
-    const anydoc = bundle.ControlledDocument[0]
-    const isTemplate = anydoc !== undefined && hierarchy.hasMixin(anydoc, documents.mixin.DocumentTemplate)
-    if (isTemplate && hierarchy.isDerived(cx.targetSpace._class, documents.class.ExternalSpace)) return false
   }
 
   const roots = new Set(cx.request.sourceDocumentIds)
