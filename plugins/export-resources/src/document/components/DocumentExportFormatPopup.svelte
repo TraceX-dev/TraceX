@@ -23,7 +23,7 @@
   const dispatch = createEventDispatcher()
   const doc = Array.isArray(value) ? value[0] : value
 
-  async function getFormats (): Promise<Array<{ id: string, text: string }>> {
+  async function getFormats(): Promise<Array<{ id: string, text: string }>> {
     const lang = $themeStore.language
     return [
       { id: 'docx', text: await translate(exportPlugin.string.ExportFormatWord, {}, lang) },

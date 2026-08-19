@@ -15,7 +15,7 @@
   $: _clazz = (type.of as RefTo<Doc>).to
   const client = getClient()
   const hierarchy = client.getHierarchy()
-  function openPopup (event: MouseEvent): void {
+  function openPopup(event: MouseEvent): void {
     showPopup(
       ArrayEditorPopup,
       {

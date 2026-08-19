@@ -281,14 +281,7 @@
         {disabled}
         on:click={setIcon}
       />
-      <ModernEditbox
-        bind:value={name}
-        label={core.string.Name}
-        size="large"
-        kind="ghost"
-        width="100%"
-        {disabled}
-      />
+      <ModernEditbox bind:value={name} label={core.string.Name} size="large" kind="ghost" width="100%" {disabled} />
     </div>
     <EditBox bind:value={description} placeholder={core.string.Description} kind="ghost" {disabled} />
   </div>

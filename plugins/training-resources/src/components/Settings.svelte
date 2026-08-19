@@ -88,7 +88,7 @@
     )
   }
 
-  async function onChange (roleId: Ref<Role>, members: AccountUuid[]): Promise<void> {
+  async function onChange(roleId: Ref<Role>, members: AccountUuid[]): Promise<void> {
     if (space === null || spaceType === null) {
       return
     }
@@ -100,7 +100,7 @@
 
   // Each slot is already constrained to a positive integer (or null) by NullablePositiveNumberEditor;
   // here we just drop empty slots, de-duplicate and store the series sorted descending.
-  async function onOffsetChange (index: number, value: number | null): Promise<void> {
+  async function onOffsetChange(index: number, value: number | null): Promise<void> {
     if (space === null) return
 
     reminderOffsets[index] = value
@@ -116,7 +116,7 @@
   }
 
   // Disabling keeps the deadline visible on trainees' calendars — it only stops the reminders.
-  async function onRemindersEnabledChange (enabled: boolean): Promise<void> {
+  async function onRemindersEnabledChange(enabled: boolean): Promise<void> {
     if (space === null) return
     remindersEnabled = enabled
     await client.updateMixin(space._id, space._class, space.space, training.mixin.TrainingReminderSettings, {

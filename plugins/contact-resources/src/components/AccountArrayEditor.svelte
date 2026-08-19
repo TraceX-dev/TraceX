@@ -66,7 +66,7 @@
       .filter(notEmpty)
   )
 
-  function onUpdate (evt: CustomEvent<Ref<Employee>[]>): void {
+  function onUpdate(evt: CustomEvent<Ref<Employee>[]>): void {
     if (timer !== null) {
       clearTimeout(timer)
     }
@@ -123,7 +123,7 @@
   const hierarchy = client.getHierarchy()
   const me = getCurrentEmployee()
 
-  function sort (a: Contact, b: Contact): number {
+  function sort(a: Contact, b: Contact): number {
     if (me === a._id) {
       return -1
     }

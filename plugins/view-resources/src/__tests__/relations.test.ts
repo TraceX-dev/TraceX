@@ -86,7 +86,7 @@ describe('buildRelationCandidatesQuery', () => {
     mockClient(false)
     ;(filtersToQuery as jest.Mock).mockResolvedValue({ status: { $in: ['final'] } })
 
-    const q = await buildRelationCandidatesQuery({ ...association, filterB: JSON.stringify(stored) } as any, 'B')
+    const q = await buildRelationCandidatesQuery({ ...association, filterB: JSON.stringify(stored) }, 'B')
 
     expect(filtersToQuery as jest.Mock).toHaveBeenCalledWith(stored, {})
     expect(q).toEqual({ status: { $in: ['final'] } })
@@ -98,7 +98,7 @@ describe('buildRelationCandidatesQuery', () => {
     ;(filtersToQuery as jest.Mock).mockResolvedValue({ state: { $in: ['active'] } })
 
     await buildRelationCandidatesQuery(
-      { ...association, filterA: JSON.stringify(storedA), filterB: JSON.stringify([{ key: { key: 'other' } }]) } as any,
+      { ...association, filterA: JSON.stringify(storedA), filterB: JSON.stringify([{ key: { key: 'other' } }]) },
       'A'
     )
 
@@ -107,7 +107,7 @@ describe('buildRelationCandidatesQuery', () => {
 
   it('ignores a malformed filter without throwing', async () => {
     mockClient(true)
-    const q = await buildRelationCandidatesQuery({ ...association, filterB: '{not json' } as any, 'B')
+    const q = await buildRelationCandidatesQuery({ ...association, filterB: '{not json' }, 'B')
     expect(q).toEqual({ isLatest: true })
     expect(filtersToQuery as jest.Mock).not.toHaveBeenCalled()
   })

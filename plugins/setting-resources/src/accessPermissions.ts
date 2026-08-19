@@ -41,18 +41,18 @@ interface AccessibleSpaceMembership extends SpaceMembership {
 
 export type MemberSpaceAvailability = 'member' | 'joinable'
 
-export function getWorkspaceMemberRole(
+export function getWorkspaceMemberRole (
   members: WorkspaceMemberInfo[],
   personUuid: AccountUuid
 ): AccountRole | undefined {
   return members.find((member) => member.person === personUuid)?.role
 }
 
-export function getAssignableWorkspaceRoles(account: Account, currentRole: AccountRole): AccountRole[] {
+export function getAssignableWorkspaceRoles (account: Account, currentRole: AccountRole): AccountRole[] {
   return WORKSPACE_ROLES.filter((role) => role === currentRole || hasAccountRole(account, role))
 }
 
-export function canChangeWorkspaceRole(
+export function canChangeWorkspaceRole (
   account: Account,
   target: AccountUuid,
   currentRole: AccountRole,
@@ -67,7 +67,7 @@ export function canChangeWorkspaceRole(
   return !isLastOwner
 }
 
-export function canRevokeSpaceAccess(
+export function canRevokeSpaceAccess (
   owners: AccountUuid[] | undefined,
   person: AccountUuid,
   hasWorkspaceOwnerAccess: boolean
@@ -79,12 +79,12 @@ export function canRevokeSpaceAccess(
   return true
 }
 
-export function getSpacesForMember<T extends SpaceMembership>(spaces: T[], person: AccountUuid | undefined): T[] {
+export function getSpacesForMember<T extends SpaceMembership> (spaces: T[], person: AccountUuid | undefined): T[] {
   if (person === undefined) return []
   return spaces.filter((space) => space.members.includes(person))
 }
 
-export function getMemberSpaceAvailability(
+export function getMemberSpaceAvailability (
   space: AccessibleSpaceMembership,
   person: AccountUuid | undefined,
   role: AccountRole | undefined
@@ -95,7 +95,7 @@ export function getMemberSpaceAvailability(
   return undefined
 }
 
-export function getAvailableSpacesForMember<T extends AccessibleSpaceMembership>(
+export function getAvailableSpacesForMember<T extends AccessibleSpaceMembership> (
   spaces: T[],
   person: AccountUuid | undefined,
   role: AccountRole | undefined

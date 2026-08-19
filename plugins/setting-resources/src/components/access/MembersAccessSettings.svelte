@@ -68,11 +68,11 @@
   let search = ''
   let memberFilters: ActiveFilter[] = []
 
-  function getActiveFilter (filters: ActiveFilter[], categoryId: string): string | undefined {
+  function getActiveFilter(filters: ActiveFilter[], categoryId: string): string | undefined {
     return filters.find((filter) => filter.categoryId === categoryId)?.optionId
   }
 
-  function updateMemberFilters (event: CustomEvent<ActiveFilter[]>): void {
+  function updateMemberFilters(event: CustomEvent<ActiveFilter[]>): void {
     memberFilters = event.detail
   }
 

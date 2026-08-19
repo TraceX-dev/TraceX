@@ -55,7 +55,7 @@
       : []
   $: updateMembers(object)
 
-  function updateMembers (object: Channel | undefined): void {
+  function updateMembers(object: Channel | undefined): void {
     if (object === undefined) {
       members = new Set()
       return
@@ -64,11 +64,11 @@
     members = new Set(object.members.map((account) => $employeeRefByAccountUuidStore.get(account)).filter(notEmpty))
   }
 
-  function getAccountsByPersons (persons: Ref<Person>[]): AccountUuid[] {
+  function getAccountsByPersons(persons: Ref<Person>[]): AccountUuid[] {
     return persons.map((person) => $employeeByIdStore.get(person as Ref<Employee>)?.personUuid).filter(notEmpty)
   }
 
-  async function changeMembers (personRefs: Ref<Person>[], object?: Channel): Promise<void> {
+  async function changeMembers(personRefs: Ref<Person>[], object?: Channel): Promise<void> {
     if (object === undefined) {
       return
     }
@@ -81,7 +81,7 @@
     await Promise.all([leaveChannel(object, accountsToLeave), joinChannel(object, accountsToJoin)])
   }
 
-  async function removeMember (ev: CustomEvent): Promise<void> {
+  async function removeMember(ev: CustomEvent): Promise<void> {
     if (object === undefined || !canRemoveMembers) {
       return
     }
@@ -97,7 +97,7 @@
     await leaveChannel(object, accountsToLeave)
   }
 
-  function openSelectUsersPopup (): void {
+  function openSelectUsersPopup(): void {
     if (!canAddMembers && !canRemoveMembers) return
 
     showPopup(

@@ -79,7 +79,7 @@
   void loadWorkspaceName()
   void loadApiKeys()
 
-  async function loadWorkspaceName (): Promise<void> {
+  async function loadWorkspaceName(): Promise<void> {
     const res = await accountClient.getWorkspaceInfo()
 
     workspaceUrl = res.url
@@ -90,7 +90,7 @@
     loading = false
   }
 
-  async function handleEditName (): Promise<void> {
+  async function handleEditName(): Promise<void> {
     if (editNameDisabled) {
       return
     }
@@ -102,12 +102,12 @@
     isEditingName = !isEditingName
   }
 
-  function handleCancelEditName (): void {
+  function handleCancelEditName(): void {
     name = oldName
     isEditingName = false
   }
 
-  async function handleDelete (): Promise<void> {
+  async function handleDelete(): Promise<void> {
     showPopup(MessageBox, {
       label: settingsRes.string.DeleteWorkspace,
       message: settingsRes.string.DeleteWorkspaceConfirm,
@@ -128,7 +128,7 @@
     workspaceSettings = r
   })
 
-  async function handleAvatarDone (): Promise<void> {
+  async function handleAvatarDone(): Promise<void> {
     const existing = await client.findOne(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting })
     if (existing !== undefined) {
       const avatar = await avatarEditor.createAvatar()
@@ -165,16 +165,16 @@
     }
   )
 
-  async function changePasswordAgingRules (val: number | undefined): Promise<void> {
+  async function changePasswordAgingRules(val: number | undefined): Promise<void> {
     passwordAgingRule = val !== undefined ? Math.max(val, 1) : undefined
     await accountClient.updatePasswordAgingRule(passwordAgingRule)
   }
 
-  async function loadApiKeys (): Promise<void> {
+  async function loadApiKeys(): Promise<void> {
     apiKeys = await accountClient.getApiKeys()
   }
 
-  async function copyWorkspaceId (): Promise<void> {
+  async function copyWorkspaceId(): Promise<void> {
     await copyTextToClipboard(workspaceId)
     workspaceIdCopied = true
     setTimeout(() => {
@@ -182,7 +182,7 @@
     }, 1000)
   }
 
-  function handleCreateApiKey (): void {
+  function handleCreateApiKey(): void {
     showPopup(CreateApiKey, {}, 'top', async (title?: string) => {
       if (title === undefined) return
       const { key } = await accountClient.createApiKey(title)
@@ -191,7 +191,7 @@
     })
   }
 
-  function handleRevokeApiKey (apiKey: ApiKey): void {
+  function handleRevokeApiKey(apiKey: ApiKey): void {
     showPopup(MessageBox, {
       label: settingsRes.string.ApiToken,
       message: settingsRes.string.RevokeApiKeyConfirm,
@@ -204,7 +204,7 @@
     })
   }
 
-  function handleTogglePermissions (event: CustomEvent<boolean>): void {
+  function handleTogglePermissions(event: CustomEvent<boolean>): void {
     const newState = !event.detail
     roleBasedAccessControlEnabled = event.detail
 

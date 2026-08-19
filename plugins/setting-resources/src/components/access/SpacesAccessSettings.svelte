@@ -65,46 +65,46 @@
   let activeFilters: ActiveFilter[] = []
   let selectedSpaces = new Set<string>()
 
-  function getOwnerEmployees (space: Space): Employee[] {
+  function getOwnerEmployees(space: Space): Employee[] {
     return employees.filter(
       (employee) => employee.personUuid !== undefined && space.owners?.includes(employee.personUuid) === true
     )
   }
 
-  function getOwnerName (space: Space): string {
+  function getOwnerName(space: Space): string {
     return getOwnerEmployees(space)
       .map((owner) => formatName(owner.name))
       .join(' ')
   }
 
-  function getApplicationId (space: Space): string {
+  function getApplicationId(space: Space): string {
     return spaceApplicationResolver.resolve(space)?._id ?? OTHER_APPLICATIONS
   }
 
-  function matchesOwnerFilter (space: Space, owner: string | undefined): boolean {
+  function matchesOwnerFilter(space: Space, owner: string | undefined): boolean {
     if (owner === undefined) return true
     if (owner === 'unassigned') return getOwnerEmployees(space).length === 0
     return space.owners?.includes(owner as AccountUuid) === true
   }
 
-  function matchesMemberFilter (space: Space, member: string | undefined): boolean {
+  function matchesMemberFilter(space: Space, member: string | undefined): boolean {
     if (member === undefined) return true
     return space.members.includes(member as AccountUuid)
   }
 
-  function getActiveFilter (filters: ActiveFilter[], categoryId: string): string | undefined {
+  function getActiveFilter(filters: ActiveFilter[], categoryId: string): string | undefined {
     return filters.find((filter) => filter.categoryId === categoryId)?.optionId
   }
 
-  function matchesBooleanFilter (filter: string | undefined, value: boolean): boolean {
+  function matchesBooleanFilter(filter: string | undefined, value: boolean): boolean {
     return filter === undefined || (filter === 'enabled' ? value : !value)
   }
 
-  function handleFilterChange (event: CustomEvent<ActiveFilter[]>): void {
+  function handleFilterChange(event: CustomEvent<ActiveFilter[]>): void {
     activeFilters = event.detail
   }
 
-  async function updateSelectedSpaces (
+  async function updateSelectedSpaces(
     selectedKeys: string[],
     target: 'users' | 'guests',
     value: boolean
@@ -119,7 +119,7 @@
     )
   }
 
-  function createAutojoinActions (selectedKeys: string[], target: 'users' | 'guests'): Action[] {
+  function createAutojoinActions(selectedKeys: string[], target: 'users' | 'guests'): Action[] {
     return [
       {
         label: setting.string.ConfigurationEnabled,
@@ -134,7 +134,7 @@
     ]
   }
 
-  function getSpaceActions (_space: Space, context: InteractiveListActionContext): Action[] {
+  function getSpaceActions(_space: Space, context: InteractiveListActionContext): Action[] {
     return [
       {
         label: core.string.AutoJoin,

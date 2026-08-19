@@ -41,11 +41,11 @@
   const dispatch = createEventDispatcher()
   const icon = client.getHierarchy().getClass(products.class.Product).icon
 
-  function toArray (value: Array<Ref<Product>> | Ref<Product> | undefined): Array<Ref<Product>> {
+  function toArray(value: Array<Ref<Product>> | Ref<Product> | undefined): Array<Ref<Product>> {
     return value === undefined ? [] : Array.isArray(value) ? value : [value]
   }
 
-  function openPopup (event: MouseEvent): void {
+  function openPopup(event: MouseEvent): void {
     if (onChange === undefined || readonly) return
     event.stopPropagation()
 

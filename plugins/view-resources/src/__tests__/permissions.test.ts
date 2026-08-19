@@ -36,7 +36,7 @@ interface MockWritable<T> extends MockReadable<T> {
   set: (value: T) => void
 }
 
-function mockWritable<T>(initialValue: T): MockWritable<T> {
+function mockWritable<T> (initialValue: T): MockWritable<T> {
   let value = initialValue
   const listeners = new Set<(value: T) => void>()
 
@@ -57,7 +57,7 @@ function mockWritable<T>(initialValue: T): MockWritable<T> {
   }
 }
 
-function mockDerived<T>(stores: Array<MockReadable<unknown>>, derive: (values: unknown[]) => T): MockReadable<T> {
+function mockDerived<T> (stores: Array<MockReadable<unknown>>, derive: (values: unknown[]) => T): MockReadable<T> {
   const values: unknown[] = new Array(stores.length)
   const initialized = new Set<number>()
   const result = mockWritable<T | undefined>(undefined)
@@ -75,7 +75,7 @@ function mockDerived<T>(stores: Array<MockReadable<unknown>>, derive: (values: u
   return result as MockReadable<T>
 }
 
-function mockGet<T>(store: MockReadable<T>): T {
+function mockGet<T> (store: MockReadable<T>): T {
   let current: T | undefined
   const unsubscribe = store.subscribe((value) => {
     current = value
@@ -87,7 +87,7 @@ function mockGet<T>(store: MockReadable<T>): T {
 jest.doMock('svelte/store', () => ({
   derived: mockDerived,
   get: mockGet,
-  readable: <T>(value: T) => mockWritable(value),
+  readable: <T> (value: T) => mockWritable(value),
   writable: mockWritable
 }))
 
@@ -100,7 +100,7 @@ jest.doMock('@hcengineering/contact', () => ({
   }
 }))
 
-function emptyPermissionsStore(): PermissionsStore {
+function emptyPermissionsStore (): PermissionsStore {
   return {
     ps: {},
     ap: {},
@@ -114,7 +114,7 @@ const mockPermissionsData = mockWritable<PermissionsStore>(emptyPermissionsStore
 
 // The real store is derived and emits a new object on every change, so tests must do the same
 // instead of mutating the current value in place.
-function setPermissionsStore(patch: Partial<PermissionsStore>): void {
+function setPermissionsStore (patch: Partial<PermissionsStore>): void {
   mockPermissionsData.set({ ...emptyPermissionsStore(), ...patch })
 }
 
@@ -149,7 +149,7 @@ jest.doMock('../utils', () => ({
 
 let getPermissions: () => Permissions
 
-function createAccount(role: AccountRole, uuid: string = 'account'): Account {
+function createAccount (role: AccountRole, uuid: string = 'account'): Account {
   return {
     uuid: uuid as AccountUuid,
     role,
@@ -159,7 +159,7 @@ function createAccount(role: AccountRole, uuid: string = 'account'): Account {
   }
 }
 
-function createSpace(
+function createSpace (
   id: string,
   objectClass: Ref<Class<Space>>,
   members: AccountUuid[] = [],

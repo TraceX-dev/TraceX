@@ -8,7 +8,7 @@
 
 import { type PlatformContext, ToolError, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
 import card, { type Card, type MasterTag, type Tag } from '@hcengineering/card'
-import core, { Hierarchy, type Class, type Data, type Doc, type Mixin, type Ref } from '@hcengineering/core'
+import core, { Hierarchy, type Class, type Data, type Doc, type Ref } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
 import { cardCreateToolId, cardMasterTagDetailsToolId, cardSearchToolId, cardUpdateToolId } from './tool-ids'
 import { isCollaborativeAttribute } from './utils'

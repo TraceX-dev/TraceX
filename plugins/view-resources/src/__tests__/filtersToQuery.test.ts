@@ -43,7 +43,7 @@ jest.mock('svelte/store', () => {
     subscribe: (fn: (v: T) => void) => () => void
   }
 
-  const writable = <T>(initial: T): Store<T> => {
+  const writable = <T> (initial: T): Store<T> => {
     let value = initial
     const subscribers = new Set<(v: T) => void>()
     return {
@@ -67,7 +67,7 @@ jest.mock('svelte/store', () => {
     }
   }
 
-  const get = <T>(store: Store<T>): T => {
+  const get = <T> (store: Store<T>): T => {
     // Assigned synchronously by `subscribe` below — the mock invokes the callback immediately.
     let value: T = undefined as unknown as T
     const unsubscribe = store.subscribe((v) => {

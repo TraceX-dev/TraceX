@@ -69,13 +69,7 @@ async function uploadMarkup<T extends Doc> (
     return null
   }
 
-  return await getMarkupUploader(ctx).uploadMarkup(
-    targetClass,
-    objectId,
-    attr,
-    value,
-    'markup'
-  )
+  return await getMarkupUploader(ctx).uploadMarkup(targetClass, objectId, attr, value, 'markup')
 }
 
 async function updateMarkup<T extends Doc> (

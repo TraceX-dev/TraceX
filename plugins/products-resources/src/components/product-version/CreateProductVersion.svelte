@@ -77,7 +77,7 @@
 
   $: updateSeverity(parent, severity)
 
-  function updateSeverity (parent: ProductVersion | null | undefined, severity: Severity): void {
+  function updateSeverity(parent: ProductVersion | null | undefined, severity: Severity): void {
     if (parent != null) {
       object.major = severity === 'major' ? parent.major + 1 : parent.major
       object.minor = severity === 'minor' ? parent.minor + 1 : 0
@@ -89,15 +89,15 @@
     }
   }
 
-  function formatProductVersion (object: ProductVersionDraft): string {
+  function formatProductVersion(object: ProductVersionDraft): string {
     return `${object.major}.${object.minor}.${object.patch}`
   }
 
-  function formatProductVersionName (object: ProductVersionDraft): string {
+  function formatProductVersionName(object: ProductVersionDraft): string {
     return `${formatProductVersion(object)}` + (object.codename != null ? ` ${object.codename}` : '')
   }
 
-  async function handleOkAction (): Promise<void> {
+  async function handleOkAction(): Promise<void> {
     if (space === undefined) {
       return
     }
@@ -130,7 +130,7 @@
     dispatch('close', id)
   }
 
-  async function handleClose (): Promise<void> {
+  async function handleClose(): Promise<void> {
     const noChanges = deepEqual(object, createDefaultObject())
     if (noChanges) {
       dispatch('close')
@@ -151,7 +151,7 @@
     }
   }
 
-  function createDefaultObject (): ProductVersionDraft {
+  function createDefaultObject(): ProductVersionDraft {
     return {
       readonly: false,
       major: 1,
@@ -163,7 +163,7 @@
     }
   }
 
-  function hasChangeControl (): boolean {
+  function hasChangeControl(): boolean {
     if (object.changeControl !== undefined) {
       return true
     }

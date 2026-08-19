@@ -33,7 +33,7 @@
 
   const account = getCurrentAccount()
 
-  function getClickHandler (app: Application, customProps: any) {
+  function getClickHandler(app: Application, customProps: any) {
     return (
       customProps.onClick ??
       (() => {
@@ -63,7 +63,7 @@
     }
   })
 
-  function checkPermissionGroup (group: ModulePermissionGroup): boolean {
+  function checkPermissionGroup(group: ModulePermissionGroup): boolean {
     if (group.enabled ?? true) {
       return false
     }
@@ -85,7 +85,7 @@
     }
   )
 
-  function updateExcludedApps (): void {
+  function updateExcludedApps(): void {
     const me = getCurrentAccount()
 
     if (me.role === AccountRole.ReadOnlyGuest || me.role === AccountRole.Guest) {

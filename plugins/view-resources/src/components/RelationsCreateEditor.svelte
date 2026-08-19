@@ -46,7 +46,7 @@
 
   $: rows = getRows(_class)
 
-  function getRows (_class: Ref<Class<Doc>>): Row[] {
+  function getRows(_class: Ref<Class<Doc>>): Row[] {
     const parents = hierarchy.getAncestors(_class)
     const model = client.getModel()
 
@@ -62,7 +62,7 @@
     return [...asB, ...asA]
   }
 
-  function toRow (association: Association, direction: 'A' | 'B'): Row {
+  function toRow(association: Association, direction: 'A' | 'B'): Row {
     return {
       association,
       direction,
@@ -71,7 +71,7 @@
     }
   }
 
-  function keyOf (row: Row): string {
+  function keyOf(row: Row): string {
     return `${row.association._id}_${row.direction}`
   }
 
@@ -84,7 +84,7 @@
     ])
   )
 
-  async function add (row: Row): Promise<void> {
+  async function add(row: Row): Promise<void> {
     const current = picked.get(keyOf(row)) ?? []
     const docQuery = await buildRelationCandidatesQuery(row.association, row.direction, current)
 
@@ -109,7 +109,7 @@
     )
   }
 
-  function remove (row: Row, doc: Ref<Doc>): void {
+  function remove(row: Row, doc: Ref<Doc>): void {
     selection = selection.filter(
       (s) => !(s.association === row.association._id && s.direction === row.direction && s.doc === doc)
     )

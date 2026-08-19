@@ -44,14 +44,14 @@
   export let emphasizedKeys: Set<string> | undefined = undefined
   export let handleError: (error: unknown) => void
 
-  function toggleSpaceSelection (space: Space, selected: boolean): void {
+  function toggleSpaceSelection(space: Space, selected: boolean): void {
     const next = new Set(selectedKeys)
     if (selected) next.add(space._id)
     else next.delete(space._id)
     selectedKeys = next
   }
 
-  function toggleSpacesSelection (spacesToToggle: Space[], selected: boolean): void {
+  function toggleSpacesSelection(spacesToToggle: Space[], selected: boolean): void {
     const next = new Set(selectedKeys)
     for (const space of spacesToToggle) {
       if (selected) next.add(space._id)
@@ -60,15 +60,15 @@
     selectedKeys = next
   }
 
-  function areAllSpacesSelected (groupSpaces: Space[]): boolean {
+  function areAllSpacesSelected(groupSpaces: Space[]): boolean {
     return groupSpaces.length > 0 && groupSpaces.every((space) => selectedKeys.has(space._id))
   }
 
-  function areSomeSpacesSelected (groupSpaces: Space[]): boolean {
+  function areSomeSpacesSelected(groupSpaces: Space[]): boolean {
     return groupSpaces.some((space) => selectedKeys.has(space._id))
   }
 
-  function createActionsProvider (groupSpaces: Space[]): InteractiveListActionsProvider | undefined {
+  function createActionsProvider(groupSpaces: Space[]): InteractiveListActionsProvider | undefined {
     if (getActions === undefined) return undefined
     return (context: InteractiveListActionContext) => getActions?.(groupSpaces[context.index], context) ?? []
   }

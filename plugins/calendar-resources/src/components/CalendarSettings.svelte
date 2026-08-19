@@ -31,14 +31,14 @@
     return (c as ExternalCalendar).externalUser ?? 'HULY'
   })
 
-  async function changeHidden (calendar: Calendar, value: boolean): Promise<void> {
+  async function changeHidden(calendar: Calendar, value: boolean): Promise<void> {
     if (value === undefined) return
     await client.update(calendar, {
       hidden: value
     })
   }
 
-  async function changeVisibility (calendar: Calendar, value: Visibility): Promise<void> {
+  async function changeVisibility(calendar: Calendar, value: Visibility): Promise<void> {
     if (value === undefined) return
     await client.update(calendar, {
       visibility: value
@@ -58,12 +58,12 @@
     setPrimaryCalendar(calendars, pref)
   })
 
-  function setPrimaryCalendar (calendars: Calendar[], pref: PrimaryCalendar | undefined): void {
+  function setPrimaryCalendar(calendars: Calendar[], pref: PrimaryCalendar | undefined): void {
     if (!prefsLoaded || !calendarsLoaded) return
     primaryCalendar = getPrimaryCalendar(calendars, pref, getCurrentAccount().uuid)
   }
 
-  async function changePrimary (e: CustomEvent): Promise<void> {
+  async function changePrimary(e: CustomEvent): Promise<void> {
     if (e.detail === undefined) return
     if (pref !== undefined) {
       if (pref.attachedTo === e.detail._id) return

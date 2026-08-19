@@ -7,7 +7,7 @@
 //
 
 import { type PlatformContext } from '@hcengineering/ai-core'
-import { type AnyAttribute, type Doc, type Hierarchy, type Mixin, type Ref } from '@hcengineering/core'
+import { type AnyAttribute, type Doc, type Hierarchy } from '@hcengineering/core'
 import { translate } from '@hcengineering/platform'
 import { Type, type Static } from 'typebox'
 

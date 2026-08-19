@@ -34,7 +34,7 @@
     copied = false
   }
 
-  async function copy (): Promise<void> {
+  async function copy(): Promise<void> {
     if (apiKey === undefined) return
 
     await copyTextToClipboard(apiKey)

@@ -56,7 +56,7 @@ export async function CreateToDo (context: WorkspaceApiContext, input: Input): P
   if (typeof input.title !== 'string' || input.title.trim() === '') throw new Error('title is required')
   const description = typeof input.description === 'string' ? input.description : ''
   const dueDate = typeof input.dueDate === 'number' || input.dueDate === null ? input.dueDate : undefined
-  const priority = typeof input.priority === 'number' ? (input.priority) : ToDoPriority.NoPriority
+  const priority = typeof input.priority === 'number' ? input.priority : ToDoPriority.NoPriority
   const visibility =
     input.visibility === 'public' || input.visibility === 'freeBusy' || input.visibility === 'private'
       ? input.visibility

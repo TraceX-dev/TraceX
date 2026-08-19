@@ -14,7 +14,7 @@
 //
 
 import calendar, { AccessLevel, generateEventId, getPrimaryCalendar } from '@hcengineering/calendar'
-import { type Employee, type Person } from '@hcengineering/contact'
+import { type Employee } from '@hcengineering/contact'
 import core, {
   type Data,
   type DocumentUpdate,

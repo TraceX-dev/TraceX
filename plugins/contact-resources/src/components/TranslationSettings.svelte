@@ -31,7 +31,7 @@
   $: settings = $translationStore
   $: enabled = settings?.enabled ?? false
 
-  async function toggle (data: Partial<Data<Translation>>): Promise<void> {
+  async function toggle(data: Partial<Data<Translation>>): Promise<void> {
     if (settings != null) {
       await client.update(settings, data)
     } else {
@@ -44,7 +44,7 @@
     }
   }
 
-  async function changeEnable (): Promise<void> {
+  async function changeEnable(): Promise<void> {
     enabled = !enabled
     await toggle({ enabled })
   }

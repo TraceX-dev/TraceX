@@ -37,11 +37,11 @@
   let autoJoinForRoles: AccountRole[] =
     channel.autoJoinForRoles != null ? hierarchy.clone(channel.autoJoinForRoles) : []
 
-  function normalizeAutoJoinForRoles (roles: AccountRole[]): AccountRole[] | undefined {
+  function normalizeAutoJoinForRoles(roles: AccountRole[]): AccountRole[] | undefined {
     return roles.length > 0 ? [...roles] : undefined
   }
 
-  async function persistAutoJoin (): Promise<void> {
+  async function persistAutoJoin(): Promise<void> {
     if (readonly) return
     await client.diffUpdate(channel, {
       autoJoin,
@@ -49,7 +49,7 @@
     })
   }
 
-  function setGuestAutoJoin (enabled: boolean): void {
+  function setGuestAutoJoin(enabled: boolean): void {
     autoJoinForRoles = setWorkspaceGuestAutoJoinRoles(autoJoinForRoles, enabled)
     void persistAutoJoin()
   }

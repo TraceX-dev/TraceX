@@ -41,12 +41,12 @@
   $: roleItems = allRoleItems.filter((item) => roles === undefined || roles.includes(item.id as AccountRole))
   $: visibleRoleItems = securityFilter
     ? roleItems.filter(
-      (item) =>
-        item.id !== AccountRole.ReadOnlyGuest && item.id !== AccountRole.Owner && item.id !== AccountRole.Maintainer
-    )
+        (item) =>
+          item.id !== AccountRole.ReadOnlyGuest && item.id !== AccountRole.Owner && item.id !== AccountRole.Maintainer
+      )
     : roleItems
 
-  function handleSelected (e: CustomEvent<AccountRole>): void {
+  function handleSelected(e: CustomEvent<AccountRole>): void {
     dispatch('selected', e.detail)
   }
 </script>

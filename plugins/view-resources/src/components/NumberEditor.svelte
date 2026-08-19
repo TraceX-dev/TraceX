@@ -33,7 +33,7 @@
 
   let shown: boolean = false
 
-  function _onchange (ev: Event): void {
+  function _onchange(ev: Event): void {
     const value = (ev.target as HTMLInputElement).valueAsNumber
     if (Number.isFinite(value)) {
       onChange(value)

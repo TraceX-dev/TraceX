@@ -40,12 +40,12 @@
   const account = getCurrentAccount()
   const canSaveFilteredView = account.role !== AccountRole.ReadOnlyGuest && account.role !== AccountRole.DocGuest
 
-  function onChange (e: Filter | undefined) {
+  function onChange(e: Filter | undefined) {
     if (e === undefined) return
     updateFilter(e)
   }
 
-  function add (e: MouseEvent) {
+  function add(e: MouseEvent) {
     const target = eventToHTMLElement(e)
     showPopup(
       FilterTypePopup,
@@ -60,11 +60,11 @@
     )
   }
 
-  async function saveFilteredView () {
+  async function saveFilteredView() {
     showPopup(FilterSave, { viewOptions, _class })
   }
 
-  async function saveCurrentFilteredView (filter: FilteredView | undefined) {
+  async function saveCurrentFilteredView(filter: FilteredView | undefined) {
     if (filter !== undefined) {
       const filters = JSON.stringify($filterStore)
       await client.update(filter, {
@@ -151,7 +151,7 @@
     visible = hierarchy.classHierarchyMixin(_class, view.mixin.ClassFilters) !== undefined
   }
 
-  function selectedFilterChanged (
+  function selectedFilterChanged(
     selectedFilter: FilteredView | undefined,
     filters: Filter[],
     activeViewlet: Record<string, Ref<Viewlet> | null>,

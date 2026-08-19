@@ -29,7 +29,7 @@
   export let length: 'tiny' | 'short' | 'full' = 'short'
   export let shape: 'circle' | undefined = 'circle'
 
-  async function _open (ev: CustomEvent): Promise<void> {
+  async function _open(ev: CustomEvent): Promise<void> {
     if (ev.detail.presenter !== undefined && Array.isArray(value)) {
       showPopup(ev.detail.presenter, { channel: ev.detail.channel }, 'float')
     }

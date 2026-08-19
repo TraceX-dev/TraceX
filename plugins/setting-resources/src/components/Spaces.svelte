@@ -73,13 +73,13 @@
     }
   }
 
-  async function handleRoleAssignmentChanged (roleId: Ref<Role>, newMembers: AccountUuid[]): Promise<void> {
+  async function handleRoleAssignmentChanged(roleId: Ref<Role>, newMembers: AccountUuid[]): Promise<void> {
     await client.updateMixin(space._id, space._class, core.space.Space, spaceType.targetClass, {
       [roleId]: newMembers
     })
   }
 
-  function handleRoleAssignmentError (error: unknown): void {
+  function handleRoleAssignmentError(error: unknown): void {
     Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
   }
 </script>

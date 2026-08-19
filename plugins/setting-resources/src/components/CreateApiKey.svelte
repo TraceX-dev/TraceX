@@ -23,7 +23,7 @@
   const dispatch = createEventDispatcher()
   let title = ''
 
-  function create (): void {
+  function create(): void {
     dispatch('close', title.trim())
   }
 </script>
