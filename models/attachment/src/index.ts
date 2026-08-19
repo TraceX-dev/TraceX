@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -125,8 +126,18 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(attachment.class.Attachment, core.class.Class, core.mixin.TxAccessLevel, {
-    createAccessLevel: AccountRole.Guest
+    createAccessLevel: AccountRole.Guest,
+    updateAccessLevel: AccountRole.Guest,
+    removeAccessLevel: AccountRole.Guest
   })
+
+  const attachmentVisibility = {
+    policy: { kind: 'publicReadable', reason: 'Attachment visibility is governed by parent space access' },
+    writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+    allowKnownIdBypass: false
+  } as const
+
+  builder.mixin(attachment.class.Attachment, core.class.Class, core.mixin.RowVisibility, attachmentVisibility)
 
   builder.mixin(attachment.class.Photo, core.class.Class, view.mixin.CollectionEditor, {
     editor: attachment.component.Photos

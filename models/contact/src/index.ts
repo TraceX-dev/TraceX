@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -364,6 +365,11 @@ export function createModel (builder: Builder): void {
   builder.mixin(contact.class.SocialIdentity, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.Guest,
     isIdentity: true
+  })
+
+  builder.mixin(contact.class.SocialIdentity, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
+    allowKnownIdBypass: true
   })
 
   builder.mixin(contact.class.Contact, core.class.Class, activity.mixin.ActivityDoc, {})

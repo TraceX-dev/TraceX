@@ -30,7 +30,9 @@ import core, {
   type MeasureContext,
   type Ref,
   type RowVisibilityPolicy,
-  type SessionData
+  type SessionData,
+  type TxUpdateDoc,
+  TxProcessor
 } from '@hcengineering/core'
 import type { Middleware } from '@hcengineering/server-core'
 import contact, { type Person } from '@hcengineering/contact'
@@ -74,6 +76,8 @@ export class AccountIdentityResolver {
         return this.account.uuid
       case 'personId':
         return await this.personId()
+      case 'socialId':
+        return this.account.primarySocialId
       case 'linkId':
         return this.linkId()
     }
@@ -84,6 +88,15 @@ export type RowVisibilityDecision<T extends Doc> =
   | { kind: 'unrestricted' }
   | { kind: 'narrow', query: DocumentQuery<T> }
   | { kind: 'deny' }
+
+interface MutationAwareVisibility {
+  policy: RowVisibilityPolicy
+  writePolicy?: RowVisibilityPolicy
+}
+
+function getWritePolicy (mixin: MutationAwareVisibility): RowVisibilityPolicy {
+  return mixin.writePolicy ?? mixin.policy
+}
 
 /** Intersects an existing query field constraint with a required value; denies (`undefined`) on
  * conflict. Mirrors what `hasNarrowFieldQuery` considers "narrow" - anything else is overwritten. */
@@ -159,6 +172,66 @@ export class RowVisibilityResolver {
     }
 
     return await this.applyPolicy(ctx, mixin.policy, query, identity)
+  }
+
+  /** Resolves the policy used for update/remove without allowing known-reference bypasses. */
+  async resolveMutation<T extends Doc>(
+    ctx: MeasureContext<SessionData>,
+    hierarchy: Hierarchy,
+    _class: Ref<Class<T>>,
+    query: DocumentQuery<T>,
+    identity: AccountIdentityResolver
+  ): Promise<RowVisibilityDecision<T>> {
+    if (typeof hierarchy.classHierarchyMixin !== 'function') return { kind: 'unrestricted' }
+    const mixin = hierarchy.classHierarchyMixin(_class as Ref<Class<Doc>>, core.mixin.RowVisibility)
+    if (mixin === undefined) return { kind: 'unrestricted' }
+    return await this.applyPolicy(ctx, getWritePolicy(mixin), query, identity)
+  }
+
+  /** Validates ownership fields on a document before it exists in storage. */
+  async canCreate (
+    ctx: MeasureContext<SessionData>,
+    hierarchy: Hierarchy,
+    _class: Ref<Class<Doc>>,
+    doc: Doc,
+    identity: AccountIdentityResolver
+  ): Promise<boolean> {
+    if (typeof hierarchy.classHierarchyMixin !== 'function') return true
+    const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
+    if (mixin?.policy === undefined) return true
+    const policy = getWritePolicy(mixin)
+
+    switch (policy.kind) {
+      case 'ownerField': {
+        const value = await identity.resolve(policy.identity)
+        return value !== undefined && (doc as unknown as Record<string, unknown>)[policy.field] === value
+      }
+      case 'spaceMember':
+      case 'publicReadable':
+        return true
+      case 'linkedViaRecord':
+      case 'denyAll':
+        return false
+    }
+  }
+
+  /** Ensures an update cannot transfer a row to another owner. */
+  async canUpdate (
+    hierarchy: Hierarchy,
+    _class: Ref<Class<Doc>>,
+    doc: Doc,
+    tx: TxUpdateDoc<Doc>,
+    identity: AccountIdentityResolver
+  ): Promise<boolean> {
+    if (typeof hierarchy.classHierarchyMixin !== 'function') return true
+    const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
+    if (mixin === undefined) return true
+    const policy = getWritePolicy(mixin)
+    if (policy.kind !== 'ownerField') return true
+
+    const updated = TxProcessor.updateDoc2Doc({ ...doc }, tx)
+    const value = await identity.resolve(policy.identity)
+    return value !== undefined && (updated as unknown as Record<string, unknown>)[policy.field] === value
   }
 
   private async applyPolicy<T extends Doc>(

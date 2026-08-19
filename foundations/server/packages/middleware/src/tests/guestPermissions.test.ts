@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,7 +19,7 @@
  *
  * Verifies that:
  *  - Non-guest users pass through without restriction.
- *  - DocGuest / ReadOnlyGuest users are always forbidden.
+ *  - Restricted users are forbidden unless a class explicitly declares a sufficient access level.
  *  - For covered classes (resolved from module allowedPermissions):
  *      new permission model is authoritative; TxAccessLevel is ignored.
  *      Create in any space → permitted.
@@ -41,6 +42,7 @@ import core, {
   type Tx,
   TxFactory
 } from '@hcengineering/core'
+import contact from '@hcengineering/contact'
 import type { PipelineContext, TxMiddlewareResult } from '@hcengineering/server-core'
 import { GuestPermissionsMiddleware } from '../guestPermissions'
 
@@ -50,6 +52,25 @@ const COVERED_CLASS_PERMISSION = 'test:permission:CoveredClassPermission' as Ref
 const MODULE_PERMISSION_GROUP_CLASS = core.class.ModulePermissionGroup
 const ALLOWED_SPACE = 'test:space:Allowed' as Ref<Space>
 const FORBIDDEN_SPACE = 'test:space:Forbidden' as Ref<Space>
+const DOCUMENT_PRESENCE = 'pulse:class:DocumentPresence' as Ref<Class<Doc>>
+const TYPING_INDICATOR = 'pulse:class:TypingIndicator' as Ref<Class<Doc>>
+const CHAT_MESSAGE = 'chunter:class:ChatMessage' as Ref<Class<Doc>>
+const ATTACHMENT = 'attachment:class:Attachment' as Ref<Class<Doc>>
+const SAVED_MESSAGE = 'activity:class:SavedMessage' as Ref<Class<Doc>>
+
+interface TestDocumentPresence extends Doc {
+  person: Ref<Doc>
+  lastActive: number
+}
+
+interface TestTypingIndicator extends Doc {
+  socialId: PersonId
+  status?: string
+}
+
+interface TestChatMessage extends Doc {
+  message: string
+}
 
 function makeAccount (role: AccountRole): Account {
   return {
@@ -94,7 +115,10 @@ function makeMiddleware (
   nextFn?: (ctx: MeasureContext, txes: Tx[]) => Promise<TxMiddlewareResult>
 ): GuestPermissionsMiddleware {
   const context = makePipelineContext(findAll)
-  const next = nextFn !== undefined ? { tx: nextFn } : { tx: async (_ctx: MeasureContext, _txes: Tx[]) => ({}) }
+  const next = {
+    findAll,
+    tx: nextFn ?? (async (_ctx: MeasureContext, _txes: Tx[]) => ({}))
+  }
   const mw = new (GuestPermissionsMiddleware as any)(context, next)
   // Override findAll to inject our test data
   mw.findAll = findAll
@@ -157,16 +181,16 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── DocGuest / ReadOnlyGuest are always forbidden ──────────────────────────
+  // ─── Restricted roles require an explicit access declaration ────────────────
   describe('DocGuest and ReadOnlyGuest', () => {
-    it('DocGuest: throws Forbidden for any tx', async () => {
+    it('DocGuest: throws Forbidden when the class has no access declaration', async () => {
       const mw = makeMiddleware(async () => [])
       const tx = makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)
       const ctx = makeCtx(makeAccount(AccountRole.DocGuest))
       await expect(mw.tx(ctx, [tx])).rejects.toThrow()
     })
 
-    it('ReadOnlyGuest: throws Forbidden for any tx', async () => {
+    it('ReadOnlyGuest: throws Forbidden when the class has no access declaration', async () => {
       const mw = makeMiddleware(async () => [])
       const tx = makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)
       const ctx = makeCtx(makeAccount(AccountRole.ReadOnlyGuest))
@@ -280,6 +304,727 @@ describe('GuestPermissionsMiddleware', () => {
       const tx = makeCreateTx(UNCOVERED_CLASS, ALLOWED_SPACE)
       const ctx = makeCtx(makeAccount(AccountRole.Guest))
       await mw.tx(ctx, [tx])
+      expect(nextCalled).toBe(true)
+    })
+  })
+
+  describe('ChatMessage ownership', () => {
+    const OWN_MESSAGE = 'test:message:own' as Ref<TestChatMessage>
+    const FOREIGN_MESSAGE = 'test:message:foreign' as Ref<TestChatMessage>
+    const GUEST_SOCIAL_ID = 'test' as PersonId
+    const OTHER_SOCIAL_ID = 'test:other' as PersonId
+
+    function makeChatMiddleware (nextCalled: () => void): GuestPermissionsMiddleware {
+      const messages: TestChatMessage[] = [
+        {
+          _id: OWN_MESSAGE,
+          _class: CHAT_MESSAGE as Ref<Class<TestChatMessage>>,
+          space: ALLOWED_SPACE,
+          modifiedOn: Date.now(),
+          modifiedBy: GUEST_SOCIAL_ID,
+          createdBy: GUEST_SOCIAL_ID,
+          message: 'own'
+        },
+        {
+          _id: FOREIGN_MESSAGE,
+          _class: CHAT_MESSAGE as Ref<Class<TestChatMessage>>,
+          space: ALLOWED_SPACE,
+          modifiedOn: Date.now(),
+          modifiedBy: OTHER_SOCIAL_ID,
+          createdBy: OTHER_SOCIAL_ID,
+          message: 'foreign'
+        }
+      ]
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class !== CHAT_MESSAGE) return []
+          return messages.filter(
+            (message) =>
+              (query._id === undefined || query._id === message._id) &&
+              (query.createdBy === undefined || query.createdBy === message.createdBy)
+          )
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== CHAT_MESSAGE) return undefined
+        if (mixin === core.mixin.TxAccessLevel) {
+          return {
+            createAccessLevel: AccountRole.Guest,
+            updateAccessLevel: AccountRole.Guest,
+            removeAccessLevel: AccountRole.Guest
+          }
+        }
+        if (mixin === core.mixin.RowVisibility) {
+          return {
+            policy: { kind: 'publicReadable', reason: 'Message visibility follows channel access' },
+            writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+            allowKnownIdBypass: false
+          }
+        }
+        return undefined
+      }
+      return mw
+    }
+
+    it('allows Guest to create a message authored by its social identity', async () => {
+      let nextCalled = false
+      const mw = makeChatMiddleware(() => {
+        nextCalled = true
+      })
+      const factory = new TxFactory(GUEST_SOCIAL_ID)
+      const create = factory.createTxCreateDoc(CHAT_MESSAGE, ALLOWED_SPACE, { message: 'new' } as any)
+
+      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [create])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('forbids Guest to create a message attributed to another social identity', async () => {
+      const mw = makeChatMiddleware(() => {})
+      const factory = new TxFactory(OTHER_SOCIAL_ID)
+      const create = factory.createTxCreateDoc(CHAT_MESSAGE, ALLOWED_SPACE, { message: 'spoofed' } as any)
+
+      await expect(mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [create])).rejects.toThrow()
+    })
+
+    it('allows Guest to update and remove its own message', async () => {
+      let nextCalls = 0
+      const mw = makeChatMiddleware(() => {
+        nextCalls++
+      })
+      const factory = new TxFactory(GUEST_SOCIAL_ID)
+      const update = factory.createTxUpdateDoc(
+        CHAT_MESSAGE as Ref<Class<TestChatMessage>>,
+        ALLOWED_SPACE,
+        OWN_MESSAGE,
+        { message: 'updated' }
+      )
+      const remove = factory.createTxRemoveDoc(CHAT_MESSAGE as Ref<Class<TestChatMessage>>, ALLOWED_SPACE, OWN_MESSAGE)
+      const ctx = makeCtx(makeAccount(AccountRole.Guest))
+
+      await mw.tx(ctx, [update])
+      await mw.tx(ctx, [remove])
+      expect(nextCalls).toBe(2)
+    })
+
+    it('forbids Guest to update or remove another author message', async () => {
+      const mw = makeChatMiddleware(() => {})
+      const factory = new TxFactory(GUEST_SOCIAL_ID)
+      const update = factory.createTxUpdateDoc(
+        CHAT_MESSAGE as Ref<Class<TestChatMessage>>,
+        ALLOWED_SPACE,
+        FOREIGN_MESSAGE,
+        { message: 'updated' }
+      )
+      const remove = factory.createTxRemoveDoc(
+        CHAT_MESSAGE as Ref<Class<TestChatMessage>>,
+        ALLOWED_SPACE,
+        FOREIGN_MESSAGE
+      )
+      const ctx = makeCtx(makeAccount(AccountRole.Guest))
+
+      await expect(mw.tx(ctx, [update])).rejects.toThrow()
+      await expect(mw.tx(ctx, [remove])).rejects.toThrow()
+    })
+  })
+
+  describe('Attachment ownership', () => {
+    const OWN_ATTACHMENT = 'test:attachment:own' as Ref<Doc>
+    const FOREIGN_ATTACHMENT = 'test:attachment:foreign' as Ref<Doc>
+    const GUEST_SOCIAL_ID = 'test' as PersonId
+    const OTHER_SOCIAL_ID = 'test:other' as PersonId
+
+    function makeAttachmentMiddleware (nextCalled: () => void): GuestPermissionsMiddleware {
+      const attachments: Doc[] = [
+        {
+          _id: OWN_ATTACHMENT,
+          _class: ATTACHMENT,
+          space: ALLOWED_SPACE,
+          modifiedOn: Date.now(),
+          modifiedBy: GUEST_SOCIAL_ID,
+          createdBy: GUEST_SOCIAL_ID
+        },
+        {
+          _id: FOREIGN_ATTACHMENT,
+          _class: ATTACHMENT,
+          space: ALLOWED_SPACE,
+          modifiedOn: Date.now(),
+          modifiedBy: OTHER_SOCIAL_ID,
+          createdBy: OTHER_SOCIAL_ID
+        }
+      ]
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class !== ATTACHMENT) return []
+          return attachments.filter(
+            (attachment) =>
+              (query._id === undefined || query._id === attachment._id) &&
+              (query.createdBy === undefined || query.createdBy === attachment.createdBy)
+          )
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== ATTACHMENT) return undefined
+        if (mixin === core.mixin.TxAccessLevel) {
+          return {
+            createAccessLevel: AccountRole.Guest,
+            updateAccessLevel: AccountRole.Guest,
+            removeAccessLevel: AccountRole.Guest
+          }
+        }
+        if (mixin === core.mixin.RowVisibility) {
+          return {
+            policy: { kind: 'publicReadable', reason: 'Attachment visibility follows parent access' },
+            writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+            allowKnownIdBypass: false
+          }
+        }
+        return undefined
+      }
+      return mw
+    }
+
+    it('allows Guest to remove its own attachment', async () => {
+      let nextCalled = false
+      const mw = makeAttachmentMiddleware(() => {
+        nextCalled = true
+      })
+      const factory = new TxFactory(GUEST_SOCIAL_ID)
+      const remove = factory.createTxRemoveDoc(ATTACHMENT, ALLOWED_SPACE, OWN_ATTACHMENT)
+
+      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [remove])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('forbids Guest to remove another author attachment', async () => {
+      const mw = makeAttachmentMiddleware(() => {})
+      const factory = new TxFactory(GUEST_SOCIAL_ID)
+      const remove = factory.createTxRemoveDoc(ATTACHMENT, ALLOWED_SPACE, FOREIGN_ATTACHMENT)
+
+      await expect(mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [remove])).rejects.toThrow()
+    })
+  })
+
+  describe('SavedMessage ownership', () => {
+    const OWN_SAVED_MESSAGE = 'test:saved-message:own' as Ref<Doc>
+    const FOREIGN_SAVED_MESSAGE = 'test:saved-message:foreign' as Ref<Doc>
+    const GUEST_SOCIAL_ID = 'test' as PersonId
+    const OTHER_SOCIAL_ID = 'test:other' as PersonId
+
+    function makeSavedMessageMiddleware (nextCalled: () => void): GuestPermissionsMiddleware {
+      const savedMessages: Doc[] = [
+        {
+          _id: OWN_SAVED_MESSAGE,
+          _class: SAVED_MESSAGE,
+          space: core.space.Workspace,
+          modifiedOn: Date.now(),
+          modifiedBy: GUEST_SOCIAL_ID,
+          createdBy: GUEST_SOCIAL_ID
+        },
+        {
+          _id: FOREIGN_SAVED_MESSAGE,
+          _class: SAVED_MESSAGE,
+          space: core.space.Workspace,
+          modifiedOn: Date.now(),
+          modifiedBy: OTHER_SOCIAL_ID,
+          createdBy: OTHER_SOCIAL_ID
+        }
+      ]
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class !== SAVED_MESSAGE) return []
+          return savedMessages.filter(
+            (savedMessage) =>
+              (query._id === undefined || query._id === savedMessage._id) &&
+              (query.createdBy === undefined || query.createdBy === savedMessage.createdBy)
+          )
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== SAVED_MESSAGE) return undefined
+        if (mixin === core.mixin.TxAccessLevel) {
+          return {
+            createAccessLevel: AccountRole.Guest,
+            updateAccessLevel: AccountRole.Guest,
+            removeAccessLevel: AccountRole.Guest
+          }
+        }
+        if (mixin === core.mixin.RowVisibility) {
+          return {
+            policy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+            allowKnownIdBypass: false
+          }
+        }
+        return undefined
+      }
+      return mw
+    }
+
+    it('allows Guest to create and remove its own saved message', async () => {
+      let nextCalls = 0
+      const mw = makeSavedMessageMiddleware(() => {
+        nextCalls++
+      })
+      const factory = new TxFactory(GUEST_SOCIAL_ID)
+      const create = factory.createTxCreateDoc(SAVED_MESSAGE, core.space.Workspace, {
+        attachedTo: 'test:message'
+      } as any)
+      const remove = factory.createTxRemoveDoc(SAVED_MESSAGE, core.space.Workspace, OWN_SAVED_MESSAGE)
+      const ctx = makeCtx(makeAccount(AccountRole.Guest))
+
+      await mw.tx(ctx, [create])
+      await mw.tx(ctx, [remove])
+      expect(nextCalls).toBe(2)
+    })
+
+    it('forbids Guest to create or remove another account saved message', async () => {
+      const mw = makeSavedMessageMiddleware(() => {})
+      const foreignFactory = new TxFactory(OTHER_SOCIAL_ID)
+      const create = foreignFactory.createTxCreateDoc(SAVED_MESSAGE, core.space.Workspace, {
+        attachedTo: 'test:message'
+      } as any)
+      const ownFactory = new TxFactory(GUEST_SOCIAL_ID)
+      const remove = ownFactory.createTxRemoveDoc(SAVED_MESSAGE, core.space.Workspace, FOREIGN_SAVED_MESSAGE)
+      const ctx = makeCtx(makeAccount(AccountRole.Guest))
+
+      await expect(mw.tx(ctx, [create])).rejects.toThrow()
+      await expect(mw.tx(ctx, [remove])).rejects.toThrow()
+    })
+  })
+
+  describe('SocialIdentity ownership on create', () => {
+    const GUEST_SOCIAL = 'test:guest-social' as PersonId
+    const OTHER_SOCIAL = 'test:other-social' as PersonId
+    const OWN_PERSON = 'test:person:guest' as Ref<Doc>
+    const OTHER_PERSON = 'test:person:other' as Ref<Doc>
+
+    function makeSocialIdentityCreateTx (socialId: PersonId, attachedTo: Ref<Doc>): Tx {
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const create = factory.createTxCreateDoc(
+        contact.class.SocialIdentity,
+        contact.space.Contacts,
+        {
+          key: `EMAIL:${socialId}`,
+          type: 'EMAIL',
+          value: `${socialId}@example.com`,
+          isDeleted: false
+        } as any,
+        socialId as any
+      )
+      return factory.createTxCollectionCUD(
+        contact.class.Person,
+        attachedTo as any,
+        contact.space.Contacts,
+        'socialIds',
+        create
+      )
+    }
+
+    function makeSocialIdentityMiddleware (nextCalled: () => void): GuestPermissionsMiddleware {
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class === contact.class.Person && query?.personUuid !== undefined) {
+            return [
+              {
+                _id: OWN_PERSON,
+                _class: contact.class.Person,
+                space: contact.space.Contacts,
+                personUuid: query.personUuid
+              } as any
+            ]
+          }
+          if (_class === contact.class.SocialIdentity) {
+            if (query?._id !== undefined && query._id !== GUEST_SOCIAL) return []
+            if (query?.attachedTo !== undefined && query.attachedTo !== OWN_PERSON) return []
+            return [
+              {
+                _id: GUEST_SOCIAL,
+                _class: contact.class.SocialIdentity,
+                space: contact.space.Contacts,
+                attachedTo: OWN_PERSON
+              } as any
+            ]
+          }
+          return []
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== contact.class.SocialIdentity) return undefined
+        if (mixin === core.mixin.TxAccessLevel) {
+          return { createAccessLevel: AccountRole.Guest, isIdentity: true }
+        }
+        if (mixin === core.mixin.RowVisibility) {
+          return {
+            policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
+            allowKnownIdBypass: false
+          }
+        }
+        return undefined
+      }
+      return mw
+    }
+
+    function makeGuestAccount (): Account {
+      return {
+        uuid: 'test:guest-account' as any,
+        role: AccountRole.Guest,
+        primarySocialId: GUEST_SOCIAL,
+        socialIds: [GUEST_SOCIAL],
+        fullSocialIds: []
+      }
+    }
+
+    it('allows creating the current account social identity for its own Person', async () => {
+      let nextCalled = false
+      const mw = makeSocialIdentityMiddleware(() => {
+        nextCalled = true
+      })
+      await mw.tx(makeCtx(makeGuestAccount()), [makeSocialIdentityCreateTx(GUEST_SOCIAL, OWN_PERSON)])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('forbids creating a social identity not present in the current account', async () => {
+      const mw = makeSocialIdentityMiddleware(() => {})
+      await expect(
+        mw.tx(makeCtx(makeGuestAccount()), [makeSocialIdentityCreateTx(OTHER_SOCIAL, OWN_PERSON)])
+      ).rejects.toThrow()
+    })
+
+    it('forbids attaching the current account social identity to another Person', async () => {
+      const mw = makeSocialIdentityMiddleware(() => {})
+      await expect(
+        mw.tx(makeCtx(makeGuestAccount()), [makeSocialIdentityCreateTx(GUEST_SOCIAL, OTHER_PERSON)])
+      ).rejects.toThrow()
+    })
+
+    it('forbids transferring an existing social identity to another Person', async () => {
+      const mw = makeSocialIdentityMiddleware(() => {})
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const update = factory.createTxUpdateDoc(
+        contact.class.SocialIdentity,
+        contact.space.Contacts,
+        GUEST_SOCIAL as any,
+        { attachedTo: OTHER_PERSON } as any
+      )
+
+      await expect(mw.tx(makeCtx(makeGuestAccount()), [update])).rejects.toThrow()
+    })
+  })
+
+  describe('DocumentPresence for restricted roles', () => {
+    const SOCIAL_ID = 'test:presence-social' as PersonId
+    const PERSON = 'test:person:presence' as Ref<Doc>
+    const OTHER_PERSON = 'test:person:other-presence' as Ref<Doc>
+    const PRESENCE_ID = `presence:test:document:${PERSON}` as Ref<Doc>
+
+    function makePresenceAccount (role: AccountRole): Account {
+      return {
+        uuid: 'test:presence-account' as any,
+        role,
+        primarySocialId: SOCIAL_ID,
+        socialIds: [SOCIAL_ID],
+        fullSocialIds: []
+      }
+    }
+
+    function makePresenceMiddleware (nextCalled: () => void): GuestPermissionsMiddleware {
+      const presence = {
+        _id: PRESENCE_ID,
+        _class: DOCUMENT_PRESENCE,
+        space: core.space.Space,
+        objectId: 'test:document',
+        objectClass: 'test:class:Document',
+        person: PERSON,
+        lastActive: Date.now()
+      } as any
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class === contact.class.Person && query?.personUuid !== undefined) {
+            return [
+              {
+                _id: PERSON,
+                _class: contact.class.Person,
+                space: contact.space.Contacts,
+                personUuid: query.personUuid
+              } as any
+            ]
+          }
+          if (_class === DOCUMENT_PRESENCE) {
+            if (query?._id !== undefined && query._id !== PRESENCE_ID) return []
+            if (query?.person !== undefined && query.person !== PERSON) return []
+            return [presence]
+          }
+          return []
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== DOCUMENT_PRESENCE) return undefined
+        if (mixin === core.mixin.TxAccessLevel) {
+          return {
+            createAccessLevel: AccountRole.ReadOnlyGuest,
+            updateAccessLevel: AccountRole.ReadOnlyGuest,
+            removeAccessLevel: AccountRole.ReadOnlyGuest
+          }
+        }
+        if (mixin === core.mixin.RowVisibility) {
+          return {
+            policy: { kind: 'publicReadable', reason: 'Ephemeral test data' },
+            allowKnownIdBypass: false
+          }
+        }
+        return undefined
+      }
+      return mw
+    }
+
+    function makePresenceCreateTx (person: Ref<Doc>): Tx {
+      const factory = new TxFactory(SOCIAL_ID)
+      return factory.createTxCreateDoc(
+        DOCUMENT_PRESENCE,
+        core.space.Space,
+        {
+          objectId: 'test:document',
+          objectClass: 'test:class:Document',
+          person,
+          lastActive: Date.now()
+        } as any,
+        PRESENCE_ID as any
+      )
+    }
+
+    it.each([AccountRole.Guest, AccountRole.DocGuest, AccountRole.ReadOnlyGuest])(
+      'allows %s to create DocumentPresence',
+      async (role) => {
+        let nextCalled = false
+        const mw = makePresenceMiddleware(() => {
+          nextCalled = true
+        })
+        await mw.tx(makeCtx(makePresenceAccount(role)), [makePresenceCreateTx(PERSON)])
+        expect(nextCalled).toBe(true)
+      }
+    )
+
+    it('allows ReadOnlyGuest to update and remove DocumentPresence', async () => {
+      let nextCalls = 0
+      const mw = makePresenceMiddleware(() => {
+        nextCalls++
+      })
+      const factory = new TxFactory(SOCIAL_ID)
+      const update = factory.createTxUpdateDoc<TestDocumentPresence>(
+        DOCUMENT_PRESENCE as Ref<Class<TestDocumentPresence>>,
+        core.space.Space,
+        PRESENCE_ID as Ref<TestDocumentPresence>,
+        { lastActive: Date.now() }
+      )
+      const remove = factory.createTxRemoveDoc<TestDocumentPresence>(
+        DOCUMENT_PRESENCE as Ref<Class<TestDocumentPresence>>,
+        core.space.Space,
+        PRESENCE_ID as Ref<TestDocumentPresence>
+      )
+      const ctx = makeCtx(makePresenceAccount(AccountRole.ReadOnlyGuest))
+
+      await mw.tx(ctx, [update])
+      await mw.tx(ctx, [remove])
+      expect(nextCalls).toBe(2)
+    })
+
+    it('allows ReadOnlyGuest to create DocumentPresence for another Person', async () => {
+      let nextCalled = false
+      const mw = makePresenceMiddleware(() => {
+        nextCalled = true
+      })
+      await mw.tx(makeCtx(makePresenceAccount(AccountRole.ReadOnlyGuest)), [makePresenceCreateTx(OTHER_PERSON)])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('allows ReadOnlyGuest to update the person in an existing DocumentPresence', async () => {
+      let nextCalled = false
+      const mw = makePresenceMiddleware(() => {
+        nextCalled = true
+      })
+      const factory = new TxFactory(SOCIAL_ID)
+      const update = factory.createTxUpdateDoc<TestDocumentPresence>(
+        DOCUMENT_PRESENCE as Ref<Class<TestDocumentPresence>>,
+        core.space.Space,
+        PRESENCE_ID as Ref<TestDocumentPresence>,
+        { person: OTHER_PERSON }
+      )
+
+      await mw.tx(makeCtx(makePresenceAccount(AccountRole.ReadOnlyGuest)), [update])
+      expect(nextCalled).toBe(true)
+    })
+  })
+
+  describe('TypingIndicator for restricted roles', () => {
+    const SOCIAL_ID = 'test:typing-social' as PersonId
+    const OTHER_SOCIAL_ID = 'test:typing-other-social' as PersonId
+    const TYPING_ID = `typing:test:document:${SOCIAL_ID}` as Ref<Doc>
+
+    function makeTypingAccount (role: AccountRole): Account {
+      return {
+        uuid: 'test:typing-account' as any,
+        role,
+        primarySocialId: SOCIAL_ID,
+        socialIds: [SOCIAL_ID],
+        fullSocialIds: []
+      }
+    }
+
+    function makeTypingMiddleware (nextCalled: () => void): GuestPermissionsMiddleware {
+      const indicator = {
+        _id: TYPING_ID,
+        _class: TYPING_INDICATOR,
+        space: core.space.Space,
+        objectId: 'test:document',
+        socialId: SOCIAL_ID
+      } as any
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class !== TYPING_INDICATOR) return []
+          if (query?._id !== undefined && query._id !== TYPING_ID) return []
+          if (query?.socialId !== undefined && query.socialId !== SOCIAL_ID) return []
+          return [indicator]
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== TYPING_INDICATOR) return undefined
+        if (mixin === core.mixin.TxAccessLevel) {
+          return {
+            createAccessLevel: AccountRole.ReadOnlyGuest,
+            updateAccessLevel: AccountRole.ReadOnlyGuest,
+            removeAccessLevel: AccountRole.ReadOnlyGuest
+          }
+        }
+        if (mixin === core.mixin.RowVisibility) {
+          return {
+            policy: { kind: 'publicReadable', reason: 'Ephemeral test data' },
+            allowKnownIdBypass: false
+          }
+        }
+        return undefined
+      }
+      return mw
+    }
+
+    function makeTypingCreateTx (socialId: PersonId): Tx {
+      const factory = new TxFactory(SOCIAL_ID)
+      return factory.createTxCreateDoc(
+        TYPING_INDICATOR,
+        core.space.Space,
+        { objectId: 'test:document', socialId } as any,
+        TYPING_ID as any
+      )
+    }
+
+    it.each([AccountRole.Guest, AccountRole.DocGuest, AccountRole.ReadOnlyGuest])(
+      'allows %s to create TypingIndicator',
+      async (role) => {
+        let nextCalled = false
+        const mw = makeTypingMiddleware(() => {
+          nextCalled = true
+        })
+
+        await mw.tx(makeCtx(makeTypingAccount(role)), [makeTypingCreateTx(SOCIAL_ID)])
+        expect(nextCalled).toBe(true)
+      }
+    )
+
+    it('allows ReadOnlyGuest to update and remove TypingIndicator', async () => {
+      let nextCalls = 0
+      const mw = makeTypingMiddleware(() => {
+        nextCalls++
+      })
+      const factory = new TxFactory(SOCIAL_ID)
+      const update = factory.createTxUpdateDoc<TestTypingIndicator>(
+        TYPING_INDICATOR as Ref<Class<TestTypingIndicator>>,
+        core.space.Space,
+        TYPING_ID as Ref<TestTypingIndicator>,
+        { status: 'test:status' }
+      )
+      const remove = factory.createTxRemoveDoc<TestTypingIndicator>(
+        TYPING_INDICATOR as Ref<Class<TestTypingIndicator>>,
+        core.space.Space,
+        TYPING_ID as Ref<TestTypingIndicator>
+      )
+      const ctx = makeCtx(makeTypingAccount(AccountRole.ReadOnlyGuest))
+
+      await mw.tx(ctx, [update])
+      await mw.tx(ctx, [remove])
+      expect(nextCalls).toBe(2)
+    })
+
+    it.each([AccountRole.Guest, AccountRole.DocGuest, AccountRole.ReadOnlyGuest])(
+      'allows %s to remove an already expired TypingIndicator',
+      async (role) => {
+        let nextCalled = false
+        const mw = makeTypingMiddleware(() => {
+          nextCalled = true
+        })
+        const factory = new TxFactory(SOCIAL_ID)
+        const expiredId = `typing:test:expired:${OTHER_SOCIAL_ID}` as Ref<TestTypingIndicator>
+        const remove = factory.createTxRemoveDoc<TestTypingIndicator>(
+          TYPING_INDICATOR as Ref<Class<TestTypingIndicator>>,
+          core.space.Space,
+          expiredId
+        )
+
+        await mw.tx(makeCtx(makeTypingAccount(role)), [remove])
+        expect(nextCalled).toBe(true)
+      }
+    )
+
+    it('allows ReadOnlyGuest to create a TypingIndicator for another social identity', async () => {
+      let nextCalled = false
+      const mw = makeTypingMiddleware(() => {
+        nextCalled = true
+      })
+      await mw.tx(makeCtx(makeTypingAccount(AccountRole.ReadOnlyGuest)), [makeTypingCreateTx(OTHER_SOCIAL_ID)])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('allows ReadOnlyGuest to update the social identity in an existing TypingIndicator', async () => {
+      let nextCalled = false
+      const mw = makeTypingMiddleware(() => {
+        nextCalled = true
+      })
+      const factory = new TxFactory(SOCIAL_ID)
+      const update = factory.createTxUpdateDoc<TestTypingIndicator>(
+        TYPING_INDICATOR as Ref<Class<TestTypingIndicator>>,
+        core.space.Space,
+        TYPING_ID as Ref<TestTypingIndicator>,
+        { socialId: OTHER_SOCIAL_ID }
+      )
+
+      await mw.tx(makeCtx(makeTypingAccount(AccountRole.ReadOnlyGuest)), [update])
       expect(nextCalled).toBe(true)
     })
   })

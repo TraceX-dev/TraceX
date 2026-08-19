@@ -649,11 +649,12 @@ export interface TxAccessLevel extends Class<Doc> {
 }
 
 /**
- * Identity an account resolves to for `RowVisibilityPolicy` comparisons. `linkId` comes from a
- * session's own token claims (see `guest.class.PublicLink`), not from account/person data.
+ * Identity an account resolves to for `RowVisibilityPolicy` comparisons. `socialId` is the primary
+ * social identity used to author documents. `linkId` comes from a session's own token claims (see
+ * `guest.class.PublicLink`), not from account/person data.
  * @public
  */
-export type IdentityKind = 'accountUuid' | 'personId' | 'linkId'
+export type IdentityKind = 'accountUuid' | 'personId' | 'socialId' | 'linkId'
 
 /**
  * Structural fact about how a class stores row-level ownership, for classes not scoped by
@@ -687,6 +688,8 @@ export type RowVisibilityPolicy =
  */
 export interface RowVisibility extends Class<Doc> {
   policy: RowVisibilityPolicy
+  /** Optional stricter policy for create/update/remove. Defaults to `policy`. */
+  writePolicy?: RowVisibilityPolicy
   /**
    * Whether a query already narrowing one of `knownIdBypassFields` may skip the policy check,
    * trusting the caller obtained that reference from a document it can already see. Must be

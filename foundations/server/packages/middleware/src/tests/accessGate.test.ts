@@ -15,10 +15,8 @@
 
 /**
  * Unit tests for `accessGate.ts` in isolation from `GuestPermissionsMiddleware` - in particular,
- * that `hasClassAccessLevel`/`isClassAccessAllowed` compare against the calling account's own
- * role rather than a hardcoded `AccountRole.Guest`. Today only `Guest` ever reaches this code
- * (see `guestPermissions.test.ts` for that black-box behavior), but the resolver itself is
- * generic - this proves it, so a future caller for another role doesn't need to touch this file.
+ * that `hasClassAccessLevel`/`isClassAccessAllowed` compare the calling account against the
+ * minimum role declared by the class rather than a hardcoded `AccountRole.Guest`.
  */
 
 import core, {
@@ -60,7 +58,7 @@ function makeCreateTx (): TxCUD<Doc> {
 }
 
 describe('hasClassAccessLevel', () => {
-  it('grants a role matching TxAccessLevel.createAccessLevel, whatever that role is', async () => {
+  it('grants the declared minimum role and roles above it', async () => {
     const hierarchy = new Hierarchy()
     hierarchy.classHierarchyMixin = ((_class: any) =>
       _class === SOME_CLASS ? { createAccessLevel: AccountRole.Maintainer } : undefined) as any
@@ -74,6 +72,15 @@ describe('hasClassAccessLevel', () => {
     )
     expect(allowed).toBe(true)
 
+    const ownerAllowed = await hasClassAccessLevel(
+      hierarchy,
+      undefined,
+      makeCtx(),
+      makeCreateTx(),
+      makeAccount(AccountRole.Owner)
+    )
+    expect(ownerAllowed).toBe(true)
+
     const denied = await hasClassAccessLevel(
       hierarchy,
       undefined,
@@ -83,6 +90,18 @@ describe('hasClassAccessLevel', () => {
     )
     expect(denied).toBe(false)
   })
+
+  it.each([AccountRole.ReadOnlyGuest, AccountRole.DocGuest, AccountRole.Guest])(
+    'allows restricted role %s when ReadOnlyGuest is the declared minimum',
+    async (role) => {
+      const hierarchy = new Hierarchy()
+      hierarchy.classHierarchyMixin = ((_class: any) =>
+        _class === SOME_CLASS ? { createAccessLevel: AccountRole.ReadOnlyGuest } : undefined) as any
+
+      const allowed = await hasClassAccessLevel(hierarchy, undefined, makeCtx(), makeCreateTx(), makeAccount(role))
+      expect(allowed).toBe(true)
+    }
+  )
 
   it('denies when no TxAccessLevel mixin is declared for the class', async () => {
     const hierarchy = new Hierarchy()

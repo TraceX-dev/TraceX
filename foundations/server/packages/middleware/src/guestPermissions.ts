@@ -11,14 +11,17 @@ import core, {
   type DocumentQuery,
   hasAccountRole,
   type MeasureContext,
+  type PersonId,
   type SessionData,
   type Space,
   type Tx,
   type TxApplyIf,
   type TxCUD,
+  type TxCreateDoc,
   TxProcessor,
   type TxUpdateDoc
 } from '@hcengineering/core'
+import contact from '@hcengineering/contact'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
@@ -63,10 +66,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       return await this.provideTx(ctx, txes)
     }
 
-    if (account.role === AccountRole.DocGuest || account.role === AccountRole.ReadOnlyGuest) {
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
-    }
-
     for (const tx of txes) {
       await this.processTx(ctx, tx)
     }
@@ -103,21 +102,40 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     tx: TxCUD<Doc>,
     account: Account
   ): Promise<boolean> {
-    if (tx._class === core.class.TxCreateDoc) return true
     const identity = new AccountIdentityResolver(this.next, ctx, account)
+    if (tx._class === core.class.TxCreateDoc) {
+      if (
+        this.context.hierarchy.isDerived(tx.objectClass, contact.class.SocialIdentity) &&
+        !account.socialIds.includes(tx.objectId as unknown as PersonId)
+      ) {
+        return false
+      }
+      const doc = TxProcessor.createDoc2Doc(tx as TxCreateDoc<Doc>)
+      return await this.rowVisibility.canCreate(ctx, this.context.hierarchy, tx.objectClass, doc, identity)
+    }
     const query: DocumentQuery<Doc> = { _id: tx.objectId }
-    const decision = await this.rowVisibility.resolve(
+    const decision = await this.rowVisibility.resolveMutation(
       ctx,
       this.context.hierarchy,
       tx.objectClass,
       query,
-      identity,
-      false
+      identity
     )
     if (decision.kind === 'deny') return false
     if (decision.kind === 'unrestricted') return true
     const docs = await this.findAll(ctx, tx.objectClass, decision.query, { limit: 1 })
-    return docs.length > 0
+    const doc = docs[0]
+    if (doc === undefined) return false
+    if (tx._class === core.class.TxUpdateDoc) {
+      return await this.rowVisibility.canUpdate(
+        this.context.hierarchy,
+        tx.objectClass,
+        doc,
+        tx as TxUpdateDoc<Doc>,
+        identity
+      )
+    }
+    return true
   }
 
   private async isForbiddenTx (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {

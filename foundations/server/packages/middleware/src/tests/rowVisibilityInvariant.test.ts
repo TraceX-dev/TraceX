@@ -17,12 +17,12 @@
  * CI invariant: every class `SpaceSecurityMiddleware` row-level-restricts must declare
  * `core.mixin.RowVisibility` - a missing policy should fail the build, not a later review.
  *
- * Scope: only the 6 classes restricted today. Widening to every class outside ordinary space
+ * Scope: only the sensitive classes restricted today. Widening to every class outside ordinary space
  * filtering platform-wide needs a full audit first (dozens of classes are in `core.space.Workspace`
  * for unrelated reasons - shared tags, reactions, global settings, ...) - see the design doc.
  */
 
-import contact from '@hcengineering/contact'
+import contact, { type SocialIdentityRef } from '@hcengineering/contact'
 import core, {
   AccountRole,
   generateId,
@@ -41,13 +41,27 @@ import buildModel from '@hcengineering/model-all'
 import type { Middleware, PipelineContext } from '@hcengineering/server-core'
 import { SpaceSecurityMiddleware } from '../spaceSecurity'
 
+const DOCUMENT_PRESENCE = 'pulse:class:DocumentPresence' as Ref<Class<Doc>>
+const TYPING_INDICATOR = 'pulse:class:TypingIndicator' as Ref<Class<Doc>>
+const CHAT_MESSAGE = 'chunter:class:ChatMessage' as Ref<Class<Doc>>
+const THREAD_MESSAGE = 'chunter:class:ThreadMessage' as Ref<Class<Doc>>
+const ATTACHMENT = 'attachment:class:Attachment' as Ref<Class<Doc>>
+const SAVED_MESSAGE = 'activity:class:SavedMessage' as Ref<Class<Doc>>
+
 const SENSITIVE_CLASSES: Array<{ name: string, _class: Ref<Class<Doc>> }> = [
   { name: 'core.class.Collaborator', _class: core.class.Collaborator },
   { name: 'love.class.MeetingMinutes', _class: 'love:class:MeetingMinutes' as Ref<Class<Doc>> },
   { name: 'love.class.RoomInfo', _class: 'love:class:RoomInfo' as Ref<Class<Doc>> },
   { name: 'hr.class.Request', _class: 'hr:class:Request' as Ref<Class<Doc>> },
   { name: 'notification.class.PushSubscription', _class: 'notification:class:PushSubscription' as Ref<Class<Doc>> },
-  { name: 'guest.class.PublicLink', _class: 'guest:class:PublicLink' as Ref<Class<Doc>> }
+  { name: 'guest.class.PublicLink', _class: 'guest:class:PublicLink' as Ref<Class<Doc>> },
+  { name: 'contact.class.SocialIdentity', _class: contact.class.SocialIdentity },
+  { name: 'pulse.class.DocumentPresence', _class: DOCUMENT_PRESENCE },
+  { name: 'pulse.class.TypingIndicator', _class: TYPING_INDICATOR },
+  { name: 'chunter.class.ChatMessage', _class: CHAT_MESSAGE },
+  { name: 'chunter.class.ThreadMessage', _class: THREAD_MESSAGE },
+  { name: 'attachment.class.Attachment', _class: ATTACHMENT },
+  { name: 'activity.class.SavedMessage', _class: SAVED_MESSAGE }
 ]
 
 describe('RowVisibility invariant', () => {
@@ -68,6 +82,82 @@ describe('RowVisibility invariant', () => {
     const mixin = hierarchy.classHierarchyMixin('guest:class:PublicLink' as Ref<Class<Doc>>, core.mixin.RowVisibility)
     expect(mixin?.policy).toEqual({ kind: 'ownerField', field: '_id', identity: 'linkId' })
     expect(mixin?.allowKnownIdBypass).toBe(false)
+  })
+
+  it('contact.class.SocialIdentity is scoped to the current person but supports known-id resolution', () => {
+    const mixin = hierarchy.classHierarchyMixin(
+      contact.class.SocialIdentity as Ref<Class<Doc>>,
+      core.mixin.RowVisibility
+    )
+    expect(mixin?.policy).toEqual({ kind: 'ownerField', field: 'attachedTo', identity: 'personId' })
+    expect(mixin?.allowKnownIdBypass).toBe(true)
+  })
+
+  it('pulse.class.DocumentPresence is public ephemeral activity state', () => {
+    const mixin = hierarchy.classHierarchyMixin(DOCUMENT_PRESENCE, core.mixin.RowVisibility)
+    expect(mixin?.policy.kind).toBe('publicReadable')
+    expect(mixin?.allowKnownIdBypass).toBe(false)
+  })
+
+  it('pulse.class.DocumentPresence permits writes starting from ReadOnlyGuest', () => {
+    const mixin = hierarchy.classHierarchyMixin(DOCUMENT_PRESENCE, core.mixin.TxAccessLevel)
+    expect(mixin?.createAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    expect(mixin?.updateAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    expect(mixin?.removeAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+  })
+
+  it('pulse.class.TypingIndicator is public ephemeral activity state', () => {
+    const visibility = hierarchy.classHierarchyMixin(TYPING_INDICATOR, core.mixin.RowVisibility)
+    expect(visibility?.policy.kind).toBe('publicReadable')
+    expect(visibility?.allowKnownIdBypass).toBe(false)
+
+    const access = hierarchy.classHierarchyMixin(TYPING_INDICATOR, core.mixin.TxAccessLevel)
+    expect(access?.createAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    expect(access?.updateAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    expect(access?.removeAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+  })
+
+  it.each([CHAT_MESSAGE, THREAD_MESSAGE])('%s restricts writes to the original author', (_class) => {
+    const visibility = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
+    expect(visibility?.policy.kind).toBe('publicReadable')
+    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
+      kind: 'ownerField',
+      field: 'createdBy',
+      identity: 'socialId'
+    })
+    expect(visibility?.allowKnownIdBypass).toBe(false)
+
+    const access = hierarchy.classHierarchyMixin(_class, core.mixin.TxAccessLevel)
+    expect(access?.createAccessLevel).toBe(AccountRole.Guest)
+    expect(access?.updateAccessLevel).toBe(AccountRole.Guest)
+    expect(access?.removeAccessLevel).toBe(AccountRole.Guest)
+  })
+
+  it('attachment.class.Attachment restricts writes to the uploader', () => {
+    const visibility = hierarchy.classHierarchyMixin(ATTACHMENT, core.mixin.RowVisibility)
+    expect(visibility?.policy.kind).toBe('publicReadable')
+    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
+      kind: 'ownerField',
+      field: 'createdBy',
+      identity: 'socialId'
+    })
+    expect(visibility?.allowKnownIdBypass).toBe(false)
+
+    const access = hierarchy.classHierarchyMixin(ATTACHMENT, core.mixin.TxAccessLevel)
+    expect(access?.createAccessLevel).toBe(AccountRole.Guest)
+    expect(access?.updateAccessLevel).toBe(AccountRole.Guest)
+    expect(access?.removeAccessLevel).toBe(AccountRole.Guest)
+  })
+
+  it('activity.class.SavedMessage is private to the account social identity', () => {
+    const visibility = hierarchy.classHierarchyMixin(SAVED_MESSAGE, core.mixin.RowVisibility)
+    expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'createdBy', identity: 'socialId' })
+    expect(visibility?.allowKnownIdBypass).toBe(false)
+
+    const access = hierarchy.classHierarchyMixin(SAVED_MESSAGE, core.mixin.TxAccessLevel)
+    expect(access?.createAccessLevel).toBe(AccountRole.Guest)
+    expect(access?.updateAccessLevel).toBe(AccountRole.Guest)
+    expect(access?.removeAccessLevel).toBe(AccountRole.Guest)
   })
 })
 
@@ -165,6 +255,68 @@ describe('RowVisibility integration - real model + real resolver', () => {
     const ctx = makeCtx(makeAccount(AccountRole.Guest, ALICE))
     const res = await mw.findAll(ctx, HR_REQUEST, {})
     expect(res.map((r: any) => r._id)).toEqual([reqAlice._id])
+  })
+
+  it('contact.class.SocialIdentity: a Guest sees only identities attached to its own Person', async () => {
+    const ALICE = generateId() as unknown as AccountUuid
+    const personAlice = {
+      _id: generateId(),
+      _class: contact.class.Person,
+      personUuid: ALICE,
+      space: contact.space.Contacts
+    }
+    const ownIdentity = {
+      _id: 'test:alice-social' as SocialIdentityRef,
+      _class: contact.class.SocialIdentity,
+      attachedTo: personAlice._id,
+      space: contact.space.Contacts
+    }
+    const otherIdentity = {
+      _id: 'test:other-social' as SocialIdentityRef,
+      _class: contact.class.SocialIdentity,
+      attachedTo: generateId(),
+      space: contact.space.Contacts
+    }
+
+    const next: Middleware = {
+      findAll: (async (_ctx: any, _class: any, query: any) => {
+        if (_class === core.class.Space) return []
+        if (_class === contact.class.Person) return [personAlice].filter((d) => matches(d, query)) as any
+        if (_class === contact.class.SocialIdentity) {
+          return [ownIdentity, otherIdentity].filter((d) => matches(d, query)) as any
+        }
+        return []
+      }) as any,
+      groupBy: (async () => new Map()) as any,
+      searchFulltext: (async () => ({ docs: [], total: 0 })) as any,
+      tx: (async () => ({})) as any,
+      handleBroadcast: (async () => {}) as any,
+      loadModel: (async () => []) as any,
+      domainRequest: (async () => ({ domain: 'test', value: null })) as any,
+      closeSession: (async () => {}) as any
+    } as any
+
+    const context: PipelineContext = {
+      workspace: { uuid: 'test-workspace' as any, url: 'test', dataId: 'test' as any },
+      hierarchy,
+      modelDb: { findAllSync: () => [] } as any,
+      branding: null as any,
+      adapterManager: {} as any,
+      storageAdapter: {} as any,
+      contextVars: {},
+      lastTx: '',
+      lastHash: '',
+      broadcastEvent: async () => {}
+    } as any
+
+    const mw = new (SpaceSecurityMiddleware as any)(false, context, next) as SpaceSecurityMiddleware
+    const ctx = makeCtx(makeAccount(AccountRole.Guest, ALICE))
+
+    const visible = await mw.findAll(ctx, contact.class.SocialIdentity, {})
+    expect(visible.map((identity: any) => identity._id)).toEqual([ownIdentity._id])
+
+    const foreignByKnownId = await mw.findAll(ctx, contact.class.SocialIdentity, { _id: otherIdentity._id })
+    expect(foreignByKnownId.map((identity: any) => identity._id)).toEqual([otherIdentity._id])
   })
 
   it("guest.class.PublicLink: real model registration + real resolver deny a known _id for someone else's link (enumeration-fix regression, end-to-end)", async () => {

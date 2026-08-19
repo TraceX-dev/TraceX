@@ -125,12 +125,26 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(chunter.class.ChatMessage, core.class.Class, core.mixin.TxAccessLevel, {
-    createAccessLevel: AccountRole.Guest
+    createAccessLevel: AccountRole.Guest,
+    updateAccessLevel: AccountRole.Guest,
+    removeAccessLevel: AccountRole.Guest
   })
 
+  const messageVisibility = {
+    policy: { kind: 'publicReadable', reason: 'Message visibility is governed by channel space access' },
+    writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+    allowKnownIdBypass: false
+  } as const
+
+  builder.mixin(chunter.class.ChatMessage, core.class.Class, core.mixin.RowVisibility, messageVisibility)
+
   builder.mixin(chunter.class.ThreadMessage, core.class.Class, core.mixin.TxAccessLevel, {
-    createAccessLevel: AccountRole.Guest
+    createAccessLevel: AccountRole.Guest,
+    updateAccessLevel: AccountRole.Guest,
+    removeAccessLevel: AccountRole.Guest
   })
+
+  builder.mixin(chunter.class.ThreadMessage, core.class.Class, core.mixin.RowVisibility, messageVisibility)
 
   const spaceClasses = [chunter.class.Channel, chunter.class.DirectMessage]
 

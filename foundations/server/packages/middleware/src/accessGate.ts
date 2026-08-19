@@ -19,10 +19,9 @@
  * code-declared per-class minimum role (`core.mixin.TxAccessLevel`) - behind one resolver, used
  * by `GuestPermissionsMiddleware`.
  *
- * Role-parameterized throughout (not hardcoded to `AccountRole.Guest`): today only `Guest` ever
- * reaches it, since `GuestPermissionsMiddleware.tx` bypasses `User`+ and hard-blocks
- * `DocGuest`/`ReadOnlyGuest` before calling in - so this is a behavior-preserving refactor, not
- * an extension.
+ * Role-parameterized throughout (not hardcoded to `AccountRole.Guest`): restricted roles are
+ * checked against the minimum role declared by each class, while `User` and higher roles bypass
+ * this gate.
  */
 import core, {
   type Account,
@@ -130,7 +129,7 @@ function coveredClass (
   return undefined
 }
 
-/** Whether `tx`'s class explicitly grants `account`'s role via `core.mixin.TxAccessLevel`. */
+/** Whether `tx`'s class grants `account` at least the role required by `core.mixin.TxAccessLevel`. */
 export async function hasClassAccessLevel (
   hierarchy: Hierarchy,
   next: Middleware | undefined,
@@ -141,10 +140,10 @@ export async function hasClassAccessLevel (
   const mixin = hierarchy.classHierarchyMixin(tx.objectClass, core.mixin.TxAccessLevel)
   if (mixin === undefined) return false
   if (tx._class === core.class.TxCreateDoc) {
-    return mixin.createAccessLevel === account.role
+    return mixin.createAccessLevel !== undefined && hasAccountRole(account, mixin.createAccessLevel)
   }
   if (tx._class === core.class.TxRemoveDoc) {
-    return mixin.removeAccessLevel === account.role
+    return mixin.removeAccessLevel !== undefined && hasAccountRole(account, mixin.removeAccessLevel)
   }
   if (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) {
     if (mixin.isIdentity === true && account.socialIds.includes(tx.objectId as unknown as PersonId)) {
@@ -156,7 +155,7 @@ export async function hasClassAccessLevel (
         | undefined
       return person?.personUuid === account.uuid
     }
-    return mixin.updateAccessLevel === account.role
+    return mixin.updateAccessLevel !== undefined && hasAccountRole(account, mixin.updateAccessLevel)
   }
   return false
 }
