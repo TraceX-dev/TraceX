@@ -15,6 +15,7 @@
 //
 
 import { type DirectMessage } from '@hcengineering/chunter'
+import attachment from '@hcengineering/attachment'
 import contact from '@hcengineering/contact'
 import { AccountRole, getCurrentAccount, hasAccountRole, type UserStatus, type AccountUuid } from '@hcengineering/core'
 import notification, { type DocNotifyContext } from '@hcengineering/notification'
@@ -77,10 +78,10 @@ export const chatSpecials: SpecialNavModel[] = [
     component: chunter.component.SavedMessages
   },
   {
-    id: 'chunterBrowser',
-    label: chunter.string.ChunterBrowser,
-    icon: chunter.icon.ChunterBrowser,
-    component: chunter.component.ChunterBrowser,
+    id: 'files',
+    label: attachment.string.Files,
+    icon: attachment.icon.FileBrowser,
+    component: chunter.component.FilesBrowser,
     position: 'top'
   },
   {

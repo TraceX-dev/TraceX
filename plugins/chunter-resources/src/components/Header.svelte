@@ -61,6 +61,7 @@
   export let canOpenInSidebar: boolean = false
   export let closeOnEscape: boolean = true
   export let realWidth: number | undefined = undefined
+  export let searchSpecialId = 'search'
 
   const client = getClient()
   const dispatch = createEventDispatcher()
@@ -135,7 +136,7 @@
           userSearch.set(ev.detail)
 
           if (ev.detail !== '') {
-            navigateToSpecial('chunterBrowser')
+            navigateToSpecial(searchSpecialId)
           }
         }}
       />
