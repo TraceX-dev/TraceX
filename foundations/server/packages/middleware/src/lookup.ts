@@ -29,11 +29,11 @@ import { BaseMiddleware, type Middleware, type PipelineContext } from '@hcengine
  * @public
  */
 export class LookupMiddleware extends BaseMiddleware implements Middleware {
-  private constructor(context: PipelineContext, next?: Middleware) {
+  private constructor (context: PipelineContext, next?: Middleware) {
     super(context, next)
   }
 
-  static async create(
+  static async create (
     ctx: MeasureContext,
     context: PipelineContext,
     next: Middleware | undefined
@@ -41,7 +41,7 @@ export class LookupMiddleware extends BaseMiddleware implements Middleware {
     return new LookupMiddleware(context, next)
   }
 
-  override async findAll<T extends Doc>(
+  override async findAll<T extends Doc> (
     ctx: MeasureContext,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
@@ -53,9 +53,9 @@ export class LookupMiddleware extends BaseMiddleware implements Middleware {
     if (options?.lookup !== undefined) {
       const newResult: T[] = []
       let counter = 0
-      const idClassMap: Record<string, { id: number; doc: Doc; count: number }> = {}
+      const idClassMap: Record<string, { id: number, doc: Doc, count: number }> = {}
 
-      function mapDoc(doc: Doc): number {
+      function mapDoc (doc: Doc): number {
         const key = doc._class + '@' + doc._id
         let docRef = idClassMap[key]
         if (docRef === undefined) {
@@ -90,7 +90,7 @@ export class LookupMiddleware extends BaseMiddleware implements Middleware {
     return this.cleanQuery<T>(result, query)
   }
 
-  private cleanQuery<T extends Doc>(
+  private cleanQuery<T extends Doc> (
     result: FindResult<T>,
     query: DocumentQuery<T>,
     lookupMap?: Record<string, Doc>

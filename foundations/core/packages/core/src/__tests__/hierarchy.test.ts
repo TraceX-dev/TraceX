@@ -26,7 +26,7 @@ import { getEmbeddedLabel } from '@hcengineering/platform'
 
 const txes = genMinModel()
 
-function prepare(): Hierarchy {
+function prepare (): Hierarchy {
   const hierarchy = new Hierarchy()
   for (const tx of txes) hierarchy.tx(tx)
   return hierarchy
@@ -684,7 +684,7 @@ describe('hierarchy', () => {
   it('should handle getAllAttributes with traverse callback', async () => {
     const hierarchy = prepare()
 
-    const traversed: Array<{ name: string; attrId: string }> = []
+    const traversed: Array<{ name: string, attrId: string }> = []
     const attributes = hierarchy.getAllAttributes(core.class.TxCreateDoc, undefined, (name, attr) => {
       traversed.push({ name, attrId: attr._id })
     })

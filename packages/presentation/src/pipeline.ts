@@ -112,7 +112,7 @@ export class PresentationPipelineImpl implements PresentationPipeline {
     return current
   }
 
-  async domainRequest<T>(
+  async domainRequest<T> (
     domain: OperationDomain,
     params: DomainParams,
     options?: DomainRequestOptions
@@ -133,7 +133,7 @@ export class PresentationPipelineImpl implements PresentationPipeline {
     }
   }
 
-  async findAll<T extends Doc>(
+  async findAll<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -158,7 +158,7 @@ export class PresentationPipelineImpl implements PresentationPipeline {
     return await this.client.searchFulltext(query, options)
   }
 
-  async findOne<T extends Doc>(
+  async findOne<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -178,16 +178,16 @@ export class PresentationPipelineImpl implements PresentationPipeline {
     }
   }
 
-  async subscribe<T extends Doc>(
+  async subscribe<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options: FindOptions<T> | undefined,
     refresh: () => void
   ): Promise<{
-      unsubscribe: () => void
-      query?: DocumentQuery<T>
-      options?: FindOptions<T>
-    }> {
+    unsubscribe: () => void
+    query?: DocumentQuery<T>
+    options?: FindOptions<T>
+  }> {
     return this.head !== undefined
       ? await this.head.subscribe(_class, query, options, refresh)
       : { unsubscribe: () => {} }
@@ -242,7 +242,7 @@ export abstract class BasePresentationMiddleware {
     await this.client.close()
   }
 
-  async findAll<T extends Doc>(
+  async findAll<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -250,7 +250,7 @@ export abstract class BasePresentationMiddleware {
     return await this.provideFindAll(_class, query, options)
   }
 
-  async findOne<T extends Doc>(
+  async findOne<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -258,16 +258,16 @@ export abstract class BasePresentationMiddleware {
     return await this.provideFindOne(_class, query, options)
   }
 
-  async subscribe<T extends Doc>(
+  async subscribe<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options: FindOptions<T> | undefined,
     refresh: () => void
   ): Promise<{
-      unsubscribe: () => void
-      query?: DocumentQuery<T>
-      options?: FindOptions<T>
-    }> {
+    unsubscribe: () => void
+    query?: DocumentQuery<T>
+    options?: FindOptions<T>
+  }> {
     return await this.provideSubscribe(_class, query, options, refresh)
   }
 
@@ -278,7 +278,7 @@ export abstract class BasePresentationMiddleware {
     return await this.client.tx(tx)
   }
 
-  protected async provideFindAll<T extends Doc>(
+  protected async provideFindAll<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -289,7 +289,7 @@ export abstract class BasePresentationMiddleware {
     return await this.client.findAll(_class, query, options)
   }
 
-  protected async provideFindOne<T extends Doc>(
+  protected async provideFindOne<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -300,7 +300,7 @@ export abstract class BasePresentationMiddleware {
     return await this.client.findOne(_class, query, options)
   }
 
-  async domainRequest<T>(
+  async domainRequest<T> (
     domain: OperationDomain,
     params: DomainParams,
     options?: DomainRequestOptions
@@ -308,7 +308,7 @@ export abstract class BasePresentationMiddleware {
     return await this.provideDomainRequest(domain, params, options)
   }
 
-  protected async provideDomainRequest<T>(
+  protected async provideDomainRequest<T> (
     domain: OperationDomain,
     params: DomainParams,
     options?: DomainRequestOptions
@@ -319,16 +319,16 @@ export abstract class BasePresentationMiddleware {
     return await this.client.domainRequest(domain, params, options)
   }
 
-  protected async provideSubscribe<T extends Doc>(
+  protected async provideSubscribe<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options: FindOptions<T> | undefined,
     refresh: () => void
   ): Promise<{
-      unsubscribe: () => void
-      query?: DocumentQuery<T>
-      options?: FindOptions<T>
-    }> {
+    unsubscribe: () => void
+    query?: DocumentQuery<T>
+    options?: FindOptions<T>
+  }> {
     if (this.next !== undefined) {
       return await this.next.subscribe(_class, query, options, refresh)
     }
@@ -367,7 +367,7 @@ export class OptimizeQueryMiddleware extends BasePresentationMiddleware implemen
     return await this.provideTx(tx)
   }
 
-  async domainRequest<T>(
+  async domainRequest<T> (
     domain: OperationDomain,
     params: DomainParams,
     options?: DomainRequestOptions
@@ -375,20 +375,20 @@ export class OptimizeQueryMiddleware extends BasePresentationMiddleware implemen
     return await this.provideDomainRequest(domain, params, options)
   }
 
-  async subscribe<T extends Doc>(
+  async subscribe<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options: FindOptions<T> | undefined,
     refresh: () => void
   ): Promise<{
-      unsubscribe: () => void
-      query?: DocumentQuery<T>
-      options?: FindOptions<T>
-    }> {
+    unsubscribe: () => void
+    query?: DocumentQuery<T>
+    options?: FindOptions<T>
+  }> {
     return await this.provideSubscribe(_class, query, options, refresh)
   }
 
-  async findAll<T extends Doc>(
+  async findAll<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T> | undefined
@@ -419,7 +419,7 @@ export class OptimizeQueryMiddleware extends BasePresentationMiddleware implemen
     return await this.provideFindAll(_class, fQuery, fOptions)
   }
 
-  private optimizeQuery<T extends Doc>(fQuery: DocumentQuery<T>, fOptions: FindOptions<T>): void {
+  private optimizeQuery<T extends Doc> (fQuery: DocumentQuery<T>, fOptions: FindOptions<T>): void {
     if (typeof fQuery._id === 'string' && fOptions.sort !== undefined) {
       delete fOptions.sort
     }
@@ -428,7 +428,7 @@ export class OptimizeQueryMiddleware extends BasePresentationMiddleware implemen
     }
   }
 
-  async findOne<T extends Doc>(
+  async findOne<T extends Doc> (
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T> | undefined

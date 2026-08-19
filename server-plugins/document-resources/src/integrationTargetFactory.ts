@@ -70,8 +70,8 @@ async function uploadMarkup<T extends Doc> (
   }
 
   return await getMarkupUploader(ctx).uploadMarkup(
-    targetClass as unknown as Ref<Class<Doc>>,
-    objectId as Ref<Doc>,
+    targetClass,
+    objectId,
     attr,
     value,
     'markup'
@@ -92,7 +92,7 @@ async function updateMarkup<T extends Doc> (
 
   const uploader = getMarkupUploader(ctx)
   if (current !== undefined && current !== null && current !== '' && uploader.updateMarkup !== undefined) {
-    await uploader.updateMarkup(targetClass as unknown as Ref<Class<Doc>>, objectId as Ref<Doc>, attr, value, 'markup')
+    await uploader.updateMarkup(targetClass, objectId, attr, value, 'markup')
     return undefined
   }
 
@@ -100,7 +100,7 @@ async function updateMarkup<T extends Doc> (
 }
 
 function toDocumentData (values: Record<string, unknown>): Partial<Data<Document>> {
-  return values as Partial<Data<Document>>
+  return values
 }
 
 export const canCreateIntegrationTarget: CanCreateIntegrationTarget = async (ctx, target) => {

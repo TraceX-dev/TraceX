@@ -18,7 +18,7 @@ import { ResponseInputItem } from 'openai/resources/responses/responses'
 import { Tiktoken } from 'js-tiktoken'
 
 // Based on https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
-export function countChatCompletionTokens(messages: OpenAI.ChatCompletionMessageParam[], encoding: Tiktoken): number {
+export function countChatCompletionTokens (messages: OpenAI.ChatCompletionMessageParam[], encoding: Tiktoken): number {
   const tokensPerMessage = 3 // every message follows <|start|>{role/name}\n{content}<|end|>\n
   const tokensPerName = 1 // every name follows <|name|>{name}<|end|>\n
 
@@ -42,7 +42,7 @@ export function countChatCompletionTokens(messages: OpenAI.ChatCompletionMessage
   return result
 }
 
-export function countResponseItemTokens(messages: ResponseInputItem[], encoding: Tiktoken): number {
+export function countResponseItemTokens (messages: ResponseInputItem[], encoding: Tiktoken): number {
   const tokensPerMessage = 3 // every message follows <|start|>{role/name}\n{content}<|end|>\n
   const tokensPerName = 1 // every name follows <|name|>{name}<|end|>\n
 

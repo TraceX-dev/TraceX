@@ -42,7 +42,7 @@ import { type DbAdapter, type DbAdapterHandler, type DomainHelperOperations, typ
 export class DummyDbAdapter implements DbAdapter {
   on?: ((handler: DbAdapterHandler) => void) | undefined
 
-  async traverse<T extends Doc>(
+  async traverse<T extends Doc> (
     domain: Domain,
     query: DocumentQuery<T>,
     options?: Pick<FindOptions<T>, 'sort' | 'limit' | 'projection'>
@@ -53,7 +53,7 @@ export class DummyDbAdapter implements DbAdapter {
     }
   }
 
-  async findAll<T extends Doc>(
+  async findAll<T extends Doc> (
     ctx: MeasureContext,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
@@ -62,16 +62,16 @@ export class DummyDbAdapter implements DbAdapter {
     return toFindResult([])
   }
 
-  rawFind(ctx: MeasureContext, domain: Domain): RawFindIterator {
+  rawFind (ctx: MeasureContext, domain: Domain): RawFindIterator {
     return {
       find: async () => [],
       close: async () => {}
     }
   }
 
-  async init(): Promise<void> {}
+  async init (): Promise<void> {}
 
-  helper(): DomainHelperOperations {
+  helper (): DomainHelperOperations {
     return {
       create: async () => {},
       exists: async () => true,
@@ -83,36 +83,36 @@ export class DummyDbAdapter implements DbAdapter {
     }
   }
 
-  async createIndexes(domain: Domain, config: Pick<IndexingConfiguration<Doc>, 'indexes'>): Promise<void> {}
-  async removeOldIndex(domain: Domain, deletePattern: RegExp[], keepPattern: RegExp[]): Promise<void> {}
+  async createIndexes (domain: Domain, config: Pick<IndexingConfiguration<Doc>, 'indexes'>): Promise<void> {}
+  async removeOldIndex (domain: Domain, deletePattern: RegExp[], keepPattern: RegExp[]): Promise<void> {}
 
-  async tx(ctx: MeasureContext, ...tx: Tx[]): Promise<TxResult[]> {
+  async tx (ctx: MeasureContext, ...tx: Tx[]): Promise<TxResult[]> {
     return []
   }
 
-  async close(): Promise<void> {}
+  async close (): Promise<void> {}
 
-  find(ctx: MeasureContext, domain: Domain): StorageIterator {
+  find (ctx: MeasureContext, domain: Domain): StorageIterator {
     return {
       next: async () => [],
       close: async () => {}
     }
   }
 
-  async load(ctx: MeasureContext, domain: Domain, docs: Ref<Doc>[]): Promise<Doc[]> {
+  async load (ctx: MeasureContext, domain: Domain, docs: Ref<Doc>[]): Promise<Doc[]> {
     return []
   }
 
-  async upload(ctx: MeasureContext, domain: Domain, docs: Doc[]): Promise<void> {}
+  async upload (ctx: MeasureContext, domain: Domain, docs: Doc[]): Promise<void> {}
 
-  async clean(ctx: MeasureContext, domain: Domain, docs: Ref<Doc>[]): Promise<void> {}
+  async clean (ctx: MeasureContext, domain: Domain, docs: Ref<Doc>[]): Promise<void> {}
 
-  getDomainHash(ctx: MeasureContext, domain: Domain): Promise<string> {
+  getDomainHash (ctx: MeasureContext, domain: Domain): Promise<string> {
     // Return '' for empty documents content.
     return Promise.resolve('')
   }
 
-  async groupBy<T, P extends Doc>(
+  async groupBy<T, P extends Doc> (
     ctx: MeasureContext,
     domain: Domain,
     field: string,
@@ -121,28 +121,28 @@ export class DummyDbAdapter implements DbAdapter {
     return new Map()
   }
 
-  async rawFindAll<T extends Doc>(domain: Domain, query: DocumentQuery<T>, options?: FindOptions<T>): Promise<T[]> {
+  async rawFindAll<T extends Doc> (domain: Domain, query: DocumentQuery<T>, options?: FindOptions<T>): Promise<T[]> {
     return []
   }
 
-  async rawUpdate<T extends Doc>(
+  async rawUpdate<T extends Doc> (
     domain: Domain,
     query: DocumentQuery<T>,
     operations: DocumentUpdate<T>
   ): Promise<void> {}
 
-  async rawDeleteMany<T extends Doc>(domain: Domain, query: DocumentQuery<T>): Promise<void> {}
+  async rawDeleteMany<T extends Doc> (domain: Domain, query: DocumentQuery<T>): Promise<void> {}
 }
 
 class InMemoryAdapter extends DummyDbAdapter implements DbAdapter {
   private readonly modeldb: ModelDb
 
-  constructor(readonly hierarchy: Hierarchy) {
+  constructor (readonly hierarchy: Hierarchy) {
     super()
     this.modeldb = new ModelDb(hierarchy)
   }
 
-  findAll<T extends Doc>(
+  findAll<T extends Doc> (
     ctx: MeasureContext,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
@@ -151,11 +151,11 @@ class InMemoryAdapter extends DummyDbAdapter implements DbAdapter {
     return ctx.withSync('inmem-find', {}, () => this.modeldb.findAll(_class, query, options))
   }
 
-  load(ctx: MeasureContext, domain: Domain, docs: Ref<Doc>[]): Promise<Doc[]> {
+  load (ctx: MeasureContext, domain: Domain, docs: Ref<Doc>[]): Promise<Doc[]> {
     return this.modeldb.findAll(core.class.Doc, { _id: { $in: docs } })
   }
 
-  tx(ctx: MeasureContext, ...tx: Tx[]): Promise<TxResult[]> {
+  tx (ctx: MeasureContext, ...tx: Tx[]): Promise<TxResult[]> {
     // Filter transactions with broadcast only flags
     const ftx = tx.filter((it) => {
       if (TxProcessor.isExtendsCUD(it._class)) {
@@ -179,7 +179,7 @@ class InMemoryAdapter extends DummyDbAdapter implements DbAdapter {
 /**
  * @public
  */
-export async function createInMemoryAdapter(
+export async function createInMemoryAdapter (
   ctx: MeasureContext,
   hierarchy: Hierarchy,
   url: string,

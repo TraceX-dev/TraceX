@@ -60,16 +60,16 @@ export { default } from './plugin'
 @UX(integration.string.IntegrationSlotProvider)
 export class TIntegrationSlotProvider extends TDoc implements IntegrationSlotProvider {
   @Prop(TypeRef(setting.class.IntegrationType), setting.string.Integrations)
-    integrationType!: Ref<IntegrationType>
+  integrationType!: Ref<IntegrationType>
 
   @Prop(TypeIntlString(), core.string.Name)
-    label!: IntlString
+  label!: IntlString
 
   @Prop(TypeRecord(), integration.string.RequiredSlots)
-    requiredSlots!: Record<string, IntegrationSlotModel>
+  requiredSlots!: Record<string, IntegrationSlotModel>
 
   @Prop(TypeRecord(), integration.string.OptionalSlots)
-    optionalSlots?: Record<string, IntegrationSlotModel>
+  optionalSlots?: Record<string, IntegrationSlotModel>
 
   configureComponent?: AnyComponent
 
@@ -80,39 +80,39 @@ export class TIntegrationSlotProvider extends TDoc implements IntegrationSlotPro
 @UX(integration.string.IntegrationSlotBinding)
 export class TIntegrationSlotBinding extends TDoc implements IntegrationSlotBinding {
   @Prop(TypeRef(integration.class.IntegrationSlotProvider), integration.string.IntegrationSlotProvider)
-    provider!: Ref<IntegrationSlotProvider>
+  provider!: Ref<IntegrationSlotProvider>
 
   @Prop(TypeRef(core.class.Class), core.string.Class)
-    targetClass!: Ref<Class<Doc>>
+  targetClass!: Ref<Class<Doc>>
 
   @Prop(TypeRecord(), integration.string.Bindings)
-    bindings!: Record<string, string>
+  bindings!: Record<string, string>
 
   @Prop(TypeRecord(), integration.string.ValueMappings)
-    valueMappings?: Record<string, IntegrationValueMapping>
+  valueMappings?: Record<string, IntegrationValueMapping>
 }
 
 @Model(integration.class.IntegrationRoutingPolicy, core.class.Doc, DOMAIN_INTEGRATION)
 @UX(integration.string.IntegrationRoutingPolicy)
 export class TIntegrationRoutingPolicy extends TDoc implements IntegrationRoutingPolicy {
   @Prop(TypeRef(setting.class.Integration), setting.string.Integrations)
-    integration!: Ref<Integration>
+  integration!: Ref<Integration>
 
   @Prop(TypeRef(integration.class.IntegrationSlotProvider), integration.string.IntegrationSlotProvider)
-    provider!: Ref<IntegrationSlotProvider>
+  provider!: Ref<IntegrationSlotProvider>
 
   @Prop(ArrOf(TypeRecord()), integration.string.Rules)
-    rules!: IntegrationRoutingRule[]
+  rules!: IntegrationRoutingRule[]
 
   @Prop(TypeRecord(), integration.string.Fallback)
-    fallback?: IntegrationRoutingTarget
+  fallback?: IntegrationRoutingTarget
 }
 
 @Model(integration.class.IntegrationTargetFactory, core.class.Doc, DOMAIN_MODEL)
 @UX(integration.string.IntegrationTargetFactory)
 export class TIntegrationTargetFactory extends TDoc implements IntegrationTargetFactory {
   @Prop(TypeRef(core.class.Class), core.string.Class)
-    targetClass!: Ref<Class<Doc>>
+  targetClass!: Ref<Class<Doc>>
 
   create!: Resource<CreateIntegrationTarget>
 
@@ -129,7 +129,7 @@ export class TIntegrationTargetFactory extends TDoc implements IntegrationTarget
 @UX(integration.string.WorkspaceApiCapability)
 export class TWorkspaceApiCapability extends TDoc implements WorkspaceApiCapability {
   @Prop(TypeRef(core.class.Class), core.string.TargetClass)
-    targetClass!: Ref<Class<Doc>>
+  targetClass!: Ref<Class<Doc>>
 
   find?: Resource<WorkspaceApiOperation>
   get?: Resource<WorkspaceApiOperation>
@@ -142,10 +142,10 @@ export class TWorkspaceApiCapability extends TDoc implements WorkspaceApiCapabil
 @UX(integration.string.IntegrationValueResolver)
 export class TIntegrationValueResolver extends TDoc implements IntegrationValueResolver {
   @Prop(TypeRef(integration.class.IntegrationSlotProvider), integration.string.IntegrationSlotProvider)
-    provider!: Ref<IntegrationSlotProvider>
+  provider!: Ref<IntegrationSlotProvider>
 
   @Prop(TypeString(), core.string.Name)
-    slot!: string
+  slot!: string
 
   resolver!: Resource<ResolveIntegrationValue>
 }

@@ -18,13 +18,13 @@ import { type HtmlParserOptions, HtmlParser } from './parser'
 import { type HtmlSerializerOptions, HtmlSerializer } from './serializer'
 import { Markup } from '../../core/types/classes'
 
-export function markupToHtml(markup: MarkupNode | Markup, options: HtmlSerializerOptions = {}): string {
+export function markupToHtml (markup: MarkupNode | Markup, options: HtmlSerializerOptions = {}): string {
   markup = typeof markup === 'string' ? markupToJSON(markup) : markup
   const serializer = new HtmlSerializer(options)
   return serializer.serialize(markup)
 }
 
-export function htmlToMarkup(html: string, options: HtmlParserOptions = {}): MarkupNode {
+export function htmlToMarkup (html: string, options: HtmlParserOptions = {}): MarkupNode {
   const parser = new HtmlParser(options)
   return parser.parse(html)
 }

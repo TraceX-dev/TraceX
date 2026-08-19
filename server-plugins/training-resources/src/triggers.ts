@@ -99,7 +99,7 @@ async function buildDeadlineEventTx (
 ): Promise<Tx | undefined> {
   if (request.dueDate == null) return undefined
 
-  const socialIds = await getSocialIds(control, trainee as unknown as Ref<Person>)
+  const socialIds = await getSocialIds(control, trainee)
   if (socialIds.length === 0) return undefined
   const primary = pickPrimarySocialId(socialIds)._id
   const acc = await getAccountBySocialId(control, primary)
@@ -120,7 +120,7 @@ async function buildDeadlineEventTx (
     allDay: true,
     date,
     dueDate,
-    participants: [trainee as unknown as Ref<Person>],
+    participants: [trainee],
     reminders: offsetsMs,
     access: AccessLevel.Reader,
     user: primary,

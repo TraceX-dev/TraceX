@@ -43,7 +43,7 @@ export async function buildAttribute (toolCtx: PlatformContext, doc: Doc, attr: 
 
 function readAttributeValue (hierarchy: Hierarchy, doc: Doc, attr: AnyAttribute): unknown {
   if (hierarchy.isMixin(attr.attributeOf)) {
-    const tagValue = hierarchy.as(doc, attr.attributeOf as Ref<Mixin<Doc>>) as any
+    const tagValue = hierarchy.as(doc, attr.attributeOf) as any
     return tagValue?.[attr.name] ?? null
   }
 

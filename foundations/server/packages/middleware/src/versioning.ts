@@ -45,11 +45,11 @@ import {
  * @public
  */
 export class VersioningMiddleware extends BaseMiddleware implements Middleware {
-  private constructor(context: PipelineContext, next?: Middleware) {
+  private constructor (context: PipelineContext, next?: Middleware) {
     super(context, next)
   }
 
-  static async create(
+  static async create (
     ctx: MeasureContext,
     context: PipelineContext,
     next: Middleware | undefined
@@ -57,7 +57,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
     return new VersioningMiddleware(context, next)
   }
 
-  override async findAll<T extends Doc>(
+  override async findAll<T extends Doc> (
     ctx: MeasureContext<SessionData>,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
@@ -80,7 +80,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
     }
   }
 
-  async tx(ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
+  async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
     const nestedTxes: Tx[] = []
     const effectiveTxes: Array<TxCUD<Doc>> = []
     const effectiveVersions = new Map<Ref<Doc>, Ref<Doc>>()
@@ -124,7 +124,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
     return res
   }
 
-  private async setVersionData(
+  private async setVersionData (
     ctx: MeasureContext<SessionData>,
     tx: TxCreateDoc<VersionableDoc>,
     versionCreationDisabledUpdates: Map<Ref<Doc>, boolean>
@@ -184,7 +184,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
     return []
   }
 
-  private getVersionCreationDisabledUpdates(txes: Tx[]): Map<Ref<Doc>, boolean> {
+  private getVersionCreationDisabledUpdates (txes: Tx[]): Map<Ref<Doc>, boolean> {
     const result = new Map<Ref<Doc>, boolean>()
     const collect = (tx: Tx): void => {
       if (tx._class === core.class.TxUpdateDoc) {
@@ -202,7 +202,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
     return result
   }
 
-  private async setEffectiveVersion(
+  private async setEffectiveVersion (
     ctx: MeasureContext<SessionData>,
     tx: TxUpdateDoc<VersionableDoc>,
     effectiveVersions: Map<Ref<Doc>, Ref<Doc>>
@@ -245,7 +245,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
     )
   }
 
-  private isVerionableClass(_class: Ref<Class<Doc>>): boolean {
+  private isVerionableClass (_class: Ref<Class<Doc>>): boolean {
     try {
       return this.context.hierarchy.classHierarchyMixin(_class, core.mixin.VersionableClass) !== undefined
     } catch {
@@ -253,7 +253,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
     }
   }
 
-  private isVersioningEnabled(_class: Ref<Class<Doc>>): boolean {
+  private isVersioningEnabled (_class: Ref<Class<Doc>>): boolean {
     try {
       return this.context.hierarchy.classHierarchyMixin(_class, core.mixin.VersionableClass)?.enabled === true
     } catch {

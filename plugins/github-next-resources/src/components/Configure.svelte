@@ -62,7 +62,7 @@
   let pullRequestBinding: IntegrationSlotBinding | undefined
   let pullRequestRoutingPolicy: IntegrationRoutingPolicy | undefined
 
-  function applyIntegrationData (): void {
+  function applyIntegrationData(): void {
     const data = integration?.data
     accountLogin = typeof data?.accountLogin === 'string' ? data.accountLogin : ''
     accountType = data?.accountType === 'User' || data?.accountType === 'Organization' ? data.accountType : undefined
@@ -74,13 +74,13 @@
     pullRequests = data?.capabilities?.pullRequests ?? false
   }
 
-  function isSetupResult (value: unknown): value is IntegrationSetupResult {
+  function isSetupResult(value: unknown): value is IntegrationSetupResult {
     if (typeof value !== 'object' || value === null) return false
     const result = value as Partial<IntegrationSetupResult>
     return result.provider !== undefined && result.targetClass !== undefined && result.bindings !== undefined
   }
 
-  async function loadWorkspaceSetup (): Promise<void> {
+  async function loadWorkspaceSetup(): Promise<void> {
     workspaceIntegration = await ensureWorkspaceGithubNextIntegration()
     const [issueSetup, discussionSetup, pullRequestSetup] = await Promise.all([
       getGithubNextProviderSetupById(workspaceIntegration, githubNext.ids.GithubNextIssueProvider),
@@ -119,7 +119,7 @@
 
   $: visibleRepositories = repositories.filter((repository) => selectedOwnerKeys.includes(repository.owner))
 
-  async function authorize (): Promise<void> {
+  async function authorize(): Promise<void> {
     error = ''
     info = ''
     authorizing = true
@@ -133,7 +133,7 @@
     }
   }
 
-  async function loadRepositories (): Promise<void> {
+  async function loadRepositories(): Promise<void> {
     error = ''
     info = ''
     loading = true
@@ -168,7 +168,7 @@
     }
   }
 
-  function toggleOwner (owner: string): void {
+  function toggleOwner(owner: string): void {
     const enabled = selectedOwnerKeys.includes(owner)
     if (enabled) {
       selectedOwnerKeys = selectedOwnerKeys.filter((item) => item !== owner)
@@ -183,14 +183,14 @@
     }
   }
 
-  function toggleRepository (repository: GithubNextRepositorySelection): void {
+  function toggleRepository(repository: GithubNextRepositorySelection): void {
     const key = getRepositoryKey(repository)
     selectedRepositoryKeys = selectedRepositoryKeys.includes(key)
       ? selectedRepositoryKeys.filter((item) => item !== key)
       : [...selectedRepositoryKeys, key]
   }
 
-  async function save (): Promise<void> {
+  async function save(): Promise<void> {
     const selectedRepositories = visibleRepositories.filter((repository) =>
       selectedRepositoryKeys.includes(getRepositoryKey(repository))
     )
@@ -231,7 +231,7 @@
     }
   }
 
-  function openMappingSetup (
+  function openMappingSetup(
     provider: IntegrationSlotProvider | undefined,
     binding: IntegrationSlotBinding | undefined,
     routingPolicy: IntegrationRoutingPolicy | undefined,

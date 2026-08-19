@@ -57,7 +57,7 @@ export interface MarkupToDocxOptions {
 }
 
 interface DocxCtx {
-  configs: Array<{ reference: string; levels: ILevelsOptions[] }>
+  configs: Array<{ reference: string, levels: ILevelsOptions[] }>
   images?: Map<string, Uint8Array>
 }
 
@@ -83,7 +83,7 @@ interface MarkState {
 
 // Each ordered list gets its own numbering instance, so two separate lists restart
 // at 1 instead of sharing one continuous counter. `level` still drives nesting indent.
-function allocateOrderedNumbering(ctx: DocxCtx): string {
+function allocateOrderedNumbering (ctx: DocxCtx): string {
   const reference = `ordered-${ctx.configs.length}`
   ctx.configs.push({
     reference,
@@ -103,7 +103,7 @@ function allocateOrderedNumbering(ctx: DocxCtx): string {
  *
  * @public
  */
-export function imageRef(node: MarkupNode): string | undefined {
+export function imageRef (node: MarkupNode): string | undefined {
   const id = node.attrs?.['file-id']
   return typeof id === 'string' && id !== '' ? id : undefined
 }
@@ -114,7 +114,7 @@ export function imageRef(node: MarkupNode): string | undefined {
  *
  * @public
  */
-export function collectImageRefs(markup: Markup | MarkupNode): string[] {
+export function collectImageRefs (markup: Markup | MarkupNode): string[] {
   const root = typeof markup === 'string' ? markupToJSON(markup) : markup
   const refs = new Set<string>()
   const visit = (node: MarkupNode): void => {
@@ -141,7 +141,7 @@ export function collectImageRefs(markup: Markup | MarkupNode): string[] {
  *
  * @public
  */
-export async function markupToDocx(markup: Markup | MarkupNode, options: MarkupToDocxOptions = {}): Promise<Buffer> {
+export async function markupToDocx (markup: Markup | MarkupNode, options: MarkupToDocxOptions = {}): Promise<Buffer> {
   const root = typeof markup === 'string' ? markupToJSON(markup) : markup
   const ctx: DocxCtx = { configs: [], images: options.images }
   const children = blocksFromContent(root.content ?? [], ctx)
@@ -154,7 +154,7 @@ export async function markupToDocx(markup: Markup | MarkupNode, options: MarkupT
   return await Packer.toBuffer(doc)
 }
 
-function blocksFromContent(content: MarkupNode[], ctx: DocxCtx): Block[] {
+function blocksFromContent (content: MarkupNode[], ctx: DocxCtx): Block[] {
   const out: Block[] = []
   for (const node of content) {
     appendBlock(out, node, ctx)
@@ -162,7 +162,7 @@ function blocksFromContent(content: MarkupNode[], ctx: DocxCtx): Block[] {
   return out
 }
 
-function appendBlock(out: Block[], node: MarkupNode, ctx: DocxCtx): void {
+function appendBlock (out: Block[], node: MarkupNode, ctx: DocxCtx): void {
   switch (node.type) {
     case MarkupNodeType.paragraph:
       out.push(new Paragraph({ children: inlines(node.content ?? [], ctx) }))
@@ -218,7 +218,7 @@ function appendBlock(out: Block[], node: MarkupNode, ctx: DocxCtx): void {
   }
 }
 
-function appendList(out: Block[], list: MarkupNode, ordered: boolean, level: number, ctx: DocxCtx): void {
+function appendList (out: Block[], list: MarkupNode, ordered: boolean, level: number, ctx: DocxCtx): void {
   const reference = ordered ? allocateOrderedNumbering(ctx) : undefined
   for (const item of list.content ?? []) {
     for (const child of item.content ?? []) {
@@ -261,7 +261,7 @@ const SHORT_HEX_RE = /^#?([0-9a-fA-F]{3})$/
 const RGB_RE = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/
 
 // Composite an rgba() color over white and return a 6-digit hex string.
-function flattenToHex(r: number, g: number, b: number, a: number): string {
+function flattenToHex (r: number, g: number, b: number, a: number): string {
   const blend = (fg: number): number => Math.round(a * fg + (1 - a) * 255)
   return [blend(r), blend(g), blend(b)]
     .map((c) => c.toString(16).padStart(2, '0'))
@@ -276,7 +276,7 @@ function flattenToHex(r: number, g: number, b: number, a: number): string {
  *
  * @public
  */
-export function resolveDocxFill(value: string | undefined): string | undefined {
+export function resolveDocxFill (value: string | undefined): string | undefined {
   if (value === undefined) {
     return undefined
   }
@@ -319,7 +319,7 @@ const DEFAULT_TABLE_WIDTH_DXA = 9000
 // `colwidth` is stored in CSS px; OOXML widths are in dxa (1px = 15dxa at 96dpi / 1440dxa-per-inch).
 const PX_TO_DXA = 15
 
-function renderTable(node: MarkupNode, ctx: DocxCtx): Table {
+function renderTable (node: MarkupNode, ctx: DocxCtx): Table {
   const rows = node.content ?? []
   const columnWidths = computeColumnWidths(rows)
 
@@ -359,7 +359,7 @@ function renderTable(node: MarkupNode, ctx: DocxCtx): Table {
  *
  * @public
  */
-export function computeColumnWidths(rows: MarkupNode[]): number[] {
+export function computeColumnWidths (rows: MarkupNode[]): number[] {
   const colWidths: Array<number | undefined> = []
   // Rows remaining (including current) that a column is still covered by an earlier rowspan.
   const carry: number[] = []
@@ -391,21 +391,21 @@ export function computeColumnWidths(rows: MarkupNode[]): number[] {
   return Array.from({ length: columnCount }, (_, i) => colWidths[i] ?? fallback)
 }
 
-function toSpan(value: unknown): number {
+function toSpan (value: unknown): number {
   const n = typeof value === 'number' ? value : typeof value === 'string' ? parseInt(value, 10) : NaN
   return Number.isFinite(n) && n > 0 ? n : 1
 }
 
-function toPositiveNumber(value: unknown): number | undefined {
+function toPositiveNumber (value: unknown): number | undefined {
   const n = typeof value === 'number' ? value : typeof value === 'string' ? parseFloat(value) : NaN
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
-function withFallback(blocks: Block[]): Block[] {
+function withFallback (blocks: Block[]): Block[] {
   return blocks.length > 0 ? blocks : [new Paragraph({})]
 }
 
-function inlines(content: MarkupNode[], ctx: DocxCtx, inherited: MarkState = {}): ParagraphChild[] {
+function inlines (content: MarkupNode[], ctx: DocxCtx, inherited: MarkState = {}): ParagraphChild[] {
   const runs: ParagraphChild[] = []
   for (const node of content) {
     if (node.type === MarkupNodeType.text) {
@@ -438,7 +438,7 @@ function inlines(content: MarkupNode[], ctx: DocxCtx, inherited: MarkState = {})
   return runs
 }
 
-function makeImageRun(node: MarkupNode, ctx: DocxCtx): ImageRun | undefined {
+function makeImageRun (node: MarkupNode, ctx: DocxCtx): ImageRun | undefined {
   const ref = imageRef(node)
   if (ref === undefined || ctx.images === undefined) {
     return undefined
@@ -448,7 +448,7 @@ function makeImageRun(node: MarkupNode, ctx: DocxCtx): ImageRun | undefined {
     return undefined
   }
 
-  let dimensions: { width?: number; height?: number; type?: string }
+  let dimensions: { width?: number, height?: number, type?: string }
   try {
     dimensions = imageSize(Buffer.from(data))
   } catch {
@@ -464,7 +464,7 @@ function makeImageRun(node: MarkupNode, ctx: DocxCtx): ImageRun | undefined {
   return new ImageRun({ type, data, transformation: { width, height } })
 }
 
-function docxImageType(type?: string): DocxImageType | undefined {
+function docxImageType (type?: string): DocxImageType | undefined {
   switch (type) {
     case 'png':
       return 'png'
@@ -480,7 +480,7 @@ function docxImageType(type?: string): DocxImageType | undefined {
   }
 }
 
-function scaleToFit(width: number, height: number, maxWidth: number): { width: number; height: number } {
+function scaleToFit (width: number, height: number, maxWidth: number): { width: number, height: number } {
   if (width <= maxWidth) {
     return { width, height }
   }
@@ -488,7 +488,7 @@ function scaleToFit(width: number, height: number, maxWidth: number): { width: n
   return { width: maxWidth, height: Math.round(height * ratio) }
 }
 
-function applyMarks(base: MarkState, marks: MarkupMark[]): MarkState {
+function applyMarks (base: MarkState, marks: MarkupMark[]): MarkState {
   const state: MarkState = { ...base }
   for (const mark of marks) {
     switch (mark.type) {
@@ -515,7 +515,7 @@ function applyMarks(base: MarkState, marks: MarkupMark[]): MarkState {
   return state
 }
 
-function plainText(node: MarkupNode): string {
+function plainText (node: MarkupNode): string {
   if (node.type === MarkupNodeType.text) {
     return node.text ?? ''
   }

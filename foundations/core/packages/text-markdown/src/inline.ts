@@ -42,7 +42,7 @@ export const CELL_LINE_BREAK = '<br>'
  */
 export const CELL_BULLET = '• '
 
-function stripTags(value: string): string {
+function stripTags (value: string): string {
   return value.replace(HTML_COMMENT_RE, ' ').replace(HTML_TAG_RE, ' ').replace(/\s+/g, ' ').trim()
 }
 
@@ -59,7 +59,7 @@ function stripTags(value: string): string {
  *
  * @public
  */
-export function markdownToInlineCell(markdown: string): string {
+export function markdownToInlineCell (markdown: string): string {
   if (markdown == null || markdown === '') {
     return ''
   }

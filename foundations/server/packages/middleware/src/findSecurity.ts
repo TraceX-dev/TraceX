@@ -28,11 +28,11 @@ import { BaseMiddleware, type Middleware, type PipelineContext } from '@hcengine
  * @public
  */
 export class FindSecurityMiddleware extends BaseMiddleware implements Middleware {
-  private constructor(context: PipelineContext, next?: Middleware) {
+  private constructor (context: PipelineContext, next?: Middleware) {
     super(context, next)
   }
 
-  static async create(
+  static async create (
     ctx: MeasureContext,
     context: PipelineContext,
     next: Middleware | undefined
@@ -40,7 +40,7 @@ export class FindSecurityMiddleware extends BaseMiddleware implements Middleware
     return new FindSecurityMiddleware(context, next)
   }
 
-  findAll<T extends Doc>(
+  findAll<T extends Doc> (
     ctx: MeasureContext<SessionData>,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,

@@ -201,7 +201,7 @@ async function applyTagUpdate (
   const data = prepareTagAttributes(toolCtx, tagId, tagUpdate.attributes ?? [])
   if (Object.keys(data).length > 0) {
     toolCtx.hierarchy.hasMixin(doc, tagId)
-      ? await toolCtx.client.updateMixin(doc._id, doc._class, doc.space, tagId as Ref<Mixin<Card>>, data)
+      ? await toolCtx.client.updateMixin(doc._id, doc._class, doc.space, tagId, data)
       : await toolCtx.client.createMixin(doc._id, doc._class, doc.space, tagId, data)
   }
 }

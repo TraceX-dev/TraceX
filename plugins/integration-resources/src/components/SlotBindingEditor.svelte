@@ -37,18 +37,18 @@
   let bindings: Record<string, string> = filterBindingsForTargetClass({ ...(binding?.bindings ?? {}) })
   let allBound = isAllBound()
 
-  function setTargetClass (nextTargetClass: Ref<Class<Doc>>): void {
+  function setTargetClass(nextTargetClass: Ref<Class<Doc>>): void {
     targetClass = nextTargetClass
     allAttrs = hierarchy.getAllAttributes(targetClass, core.class.Doc)
     bindings = filterBindingsForTargetClass(bindings)
     refresh()
   }
 
-  function refresh (): void {
+  function refresh(): void {
     allBound = isAllBound()
   }
 
-  function setBinding (slotId: string, e: MouseEvent): void {
+  function setBinding(slotId: string, e: MouseEvent): void {
     const slot = provider.requiredSlots[slotId] ?? provider.optionalSlots?.[slotId]
     if (slot === undefined) return
 
@@ -71,11 +71,11 @@
     )
   }
 
-  function onSave (): void {
+  function onSave(): void {
     dispatch('close', bindings)
   }
 
-  function filterBindingsForTargetClass (currentBindings: Record<string, string>): Record<string, string> {
+  function filterBindingsForTargetClass(currentBindings: Record<string, string>): Record<string, string> {
     const nextBindings: Record<string, string> = {}
     for (const [slotId, value] of Object.entries(currentBindings)) {
       const slot = provider.requiredSlots[slotId] ?? provider.optionalSlots?.[slotId]
@@ -86,11 +86,11 @@
     return nextBindings
   }
 
-  function isAllBound (): boolean {
+  function isAllBound(): boolean {
     return requiredSlotIds.every((id) => bindings[id] !== undefined)
   }
 
-  export function updateTargetClass (nextTargetClass: Ref<Class<Doc>>): void {
+  export function updateTargetClass(nextTargetClass: Ref<Class<Doc>>): void {
     setTargetClass(nextTargetClass)
   }
 </script>

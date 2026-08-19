@@ -43,7 +43,7 @@ import { type Middleware, type MiddlewareCreator, type Pipeline, type PipelineCo
 /**
  * @public
  */
-export async function createPipeline(
+export async function createPipeline (
   ctx: MeasureContext,
   constructors: MiddlewareCreator[],
   context: PipelineContext
@@ -56,9 +56,9 @@ class PipelineImpl implements Pipeline {
 
   private readonly middlewares: Middleware[] = []
 
-  private constructor(readonly context: PipelineContext) {}
+  private constructor (readonly context: PipelineContext) {}
 
-  static async create(
+  static async create (
     ctx: MeasureContext,
     constructors: MiddlewareCreator[],
     context: PipelineContext
@@ -71,7 +71,7 @@ class PipelineImpl implements Pipeline {
   }
 
   @withContext('build-chain')
-  private async buildChain(
+  private async buildChain (
     ctx: MeasureContext,
     constructors: MiddlewareCreator[],
     context: PipelineContext
@@ -97,7 +97,7 @@ class PipelineImpl implements Pipeline {
     return current
   }
 
-  findAll<T extends Doc>(
+  findAll<T extends Doc> (
     ctx: MeasureContext,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
@@ -106,11 +106,11 @@ class PipelineImpl implements Pipeline {
     return this.head?.findAll(ctx, _class, query, options) ?? Promise.resolve(toFindResult([]))
   }
 
-  loadModel(ctx: MeasureContext, lastModelTx: Timestamp, hash?: string): Promise<Tx[] | LoadModelResponse> {
+  loadModel (ctx: MeasureContext, lastModelTx: Timestamp, hash?: string): Promise<Tx[] | LoadModelResponse> {
     return this.head?.loadModel(ctx, lastModelTx, hash) ?? Promise.resolve([])
   }
 
-  groupBy<T, P extends Doc>(
+  groupBy<T, P extends Doc> (
     ctx: MeasureContext,
     domain: Domain,
     field: string,
@@ -119,19 +119,19 @@ class PipelineImpl implements Pipeline {
     return this.head?.groupBy(ctx, domain, field, query) ?? Promise.resolve(new Map())
   }
 
-  searchFulltext(ctx: MeasureContext, query: SearchQuery, options: SearchOptions): Promise<SearchResult> {
+  searchFulltext (ctx: MeasureContext, query: SearchQuery, options: SearchOptions): Promise<SearchResult> {
     return this.head?.searchFulltext(ctx, query, options) ?? Promise.resolve({ docs: [] })
   }
 
-  tx(ctx: MeasureContext, tx: Tx[]): Promise<TxResult> {
+  tx (ctx: MeasureContext, tx: Tx[]): Promise<TxResult> {
     return this.head?.tx(ctx, tx) ?? Promise.resolve({})
   }
 
-  handleBroadcast(ctx: MeasureContext<SessionData>): Promise<void> {
+  handleBroadcast (ctx: MeasureContext<SessionData>): Promise<void> {
     return this.head?.handleBroadcast(ctx) ?? emptyBroadcastResult
   }
 
-  domainRequest<T>(
+  domainRequest<T> (
     ctx: MeasureContext<SessionData>,
     domain: OperationDomain,
     params: DomainParams
@@ -139,11 +139,11 @@ class PipelineImpl implements Pipeline {
     return this.head?.domainRequest(ctx, domain, params) ?? Promise.resolve({ domain, value: undefined })
   }
 
-  closeSession(ctx: MeasureContext<SessionData>, sessionId: string): Promise<void> {
+  closeSession (ctx: MeasureContext<SessionData>, sessionId: string): Promise<void> {
     return this.head?.closeSession(ctx, sessionId) ?? Promise.resolve()
   }
 
-  async close(): Promise<void> {
+  async close (): Promise<void> {
     for (const mw of this.middlewares) {
       try {
         await mw.close()
