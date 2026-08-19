@@ -16,6 +16,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/__start.ts --keep-names=true --define=MODEL_VERSION --define=GIT_REVISION --sourcemap=external",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/import-tool",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/import-tool",
     "docker:tbuild": "docker build -t tracexapp/import-tool . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/import-tool",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/import-tool staging",
     "docker:push": "../../common/scripts/docker_tag.sh tracexapp/import-tool",

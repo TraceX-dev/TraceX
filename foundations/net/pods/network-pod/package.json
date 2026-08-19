@@ -25,6 +25,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/index.ts --keep-names=true --bundle=true --sourcemap=external --external=*.node --external=zeromq",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/network-pod",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/network-pod",
     "docker:tbuild": "docker build -t tracexapp/network-pod . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/network-pod",
     "docker:abuild": "docker build -t tracexapp/network-pod . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/network-pod",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/network-pod staging",

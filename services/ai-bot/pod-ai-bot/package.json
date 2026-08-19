@@ -19,6 +19,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../../common/scripts/esbuild.js",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/ai-bot",
+    "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/ai-bot",
     "docker:staging": "../../../common/scripts/docker_tag.sh tracexapp/ai-bot staging",
     "docker:push": "../../../common/scripts/docker_tag.sh tracexapp/ai-bot",
     "docker:tbuild": "rush bundle --to @hcengineering/pod-ai-bot && docker build -t tracexapp/ai-bot . --platform=linux/amd64 && ../../../common/scripts/docker_tag_push.sh tracexapp/ai-bot",

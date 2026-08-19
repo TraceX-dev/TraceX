@@ -16,6 +16,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/__start.ts --keep-names=true --external=snappy --sourcemap=external --define:MODEL_VERSION --define:GIT_REVISION",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/tool",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/tool",
     "docker:tbuild": "docker build -t tracexapp/tool . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/tool",
     "docker:abuild": "docker build -t tracexapp/tool . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/tool",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/tool staging",
