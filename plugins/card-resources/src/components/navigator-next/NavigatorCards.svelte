@@ -60,7 +60,7 @@
     }
   )
 
-  function getCard (favorite: WithLookup<FavoriteCard>): Card | undefined {
+  function getCard(favorite: WithLookup<FavoriteCard>): Card | undefined {
     return favorite.$lookup?.attachedTo
   }
 </script>

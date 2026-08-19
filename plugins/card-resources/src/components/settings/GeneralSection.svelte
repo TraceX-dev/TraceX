@@ -78,7 +78,7 @@
     await client.update(masterTag, { [field]: value })
   }
 
-  async function saveDescription (): Promise<void> {
+  async function saveDescription(): Promise<void> {
     const trimmed = description.trim()
     const value = trimmed.length === 0 ? undefined : trimmed
     if (value !== masterTag.description) {
@@ -92,7 +92,7 @@
     }
   }
 
-  async function handleDelete (): Promise<void> {
+  async function handleDelete(): Promise<void> {
     await deleteMasterTag(masterTag, () => {
       const loc = getCurrentLocation()
       if (masterTag.extends !== card.class.Card && masterTag.extends !== undefined) {
@@ -104,7 +104,7 @@
     })
   }
 
-  function setIcon (): void {
+  function setIcon(): void {
     showPopup(
       IconPicker,
       { icon: masterTag.icon, color: masterTag.color, showEmoji: true, showColor: false },
@@ -123,13 +123,13 @@
 
   $: void updateParentChangeAvailability(masterTag)
 
-  async function canChangeParent (tag: MasterTag): Promise<boolean> {
+  async function canChangeParent(tag: MasterTag): Promise<boolean> {
     if (tag._class !== card.class.Tag) return false
     const cards = await client.findAll<Card>(tag._id as Ref<Class<Card>>, {}, { limit: 1 })
     return cards.length === 0
   }
 
-  async function updateParentChangeAvailability (tag: MasterTag): Promise<void> {
+  async function updateParentChangeAvailability(tag: MasterTag): Promise<void> {
     const source = `${tag._id}:${tag._class}`
     parentChangeAvailabilitySource = source
     canChangeTagParent = false
@@ -139,7 +139,7 @@
     }
   }
 
-  async function openChangeTagParentPopup (): Promise<void> {
+  async function openChangeTagParentPopup(): Promise<void> {
     if (!(await canChangeParent(masterTag))) {
       canChangeTagParent = false
       return
@@ -165,7 +165,7 @@
     )
   }
 
-  async function handleExport (): Promise<void> {
+  async function handleExport(): Promise<void> {
     const str = await exportModule(masterTag._id)
     const blob = new Blob([str], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -177,7 +177,7 @@
     document.body.removeChild(link)
   }
 
-  function getTagStyle (color: ColorDefinition): string {
+  function getTagStyle(color: ColorDefinition): string {
     return `
     background: ${color.color + '33'};
     border: 1px solid ${color.color + '66'};
@@ -185,7 +185,7 @@
   `
   }
 
-  async function enableVersioning (): Promise<void> {
+  async function enableVersioning(): Promise<void> {
     if (h.isMixin(masterTag._id)) return
     showPopup(MessageBox, {
       label: card.string.EnableVersioning,
@@ -228,13 +228,13 @@
     })
   }
 
-  function versioningSetting (): void {
+  function versioningSetting(): void {
     showPopup(VersioningSetting, {
       masterTag: masterTag._id
     })
   }
 
-  function duplicateSetting (): void {
+  function duplicateSetting(): void {
     showPopup(DuplicateSetting, {
       masterTag: masterTag._id
     })
@@ -246,7 +246,7 @@
     .getDescendants(masterTag._id)
     .some((it) => it !== masterTag._id && !h.isMixin(it) && h.getClass(it).extends === masterTag._id)
 
-  function handleVisibilityChange (): void {
+  function handleVisibilityChange(): void {
     if (document.visibilityState === 'hidden') {
       void saveDescription()
     }

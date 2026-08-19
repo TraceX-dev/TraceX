@@ -39,19 +39,19 @@
   let direction = params.direction as 'A' | 'B' | undefined
   let mode = params.mode as RelationChangeMode | undefined
 
-  function save (): void {
+  function save(): void {
     if (readonly) return
     params = { ...params, association, direction, mode }
     dispatch('change', { params })
   }
 
-  function changeAssociation (event: CustomEvent<{ association?: Ref<Association>, direction?: 'A' | 'B' }>): void {
+  function changeAssociation(event: CustomEvent<{ association?: Ref<Association>, direction?: 'A' | 'B' }>): void {
     association = event.detail.association
     direction = event.detail.direction
     save()
   }
 
-  function changeMode (event: CustomEvent<RelationChangeMode>): void {
+  function changeMode(event: CustomEvent<RelationChangeMode>): void {
     mode = event.detail
     save()
   }

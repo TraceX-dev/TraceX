@@ -47,7 +47,7 @@
   $: columns = layoutMode === 'auto' ? (width > 600 ? 2 : 1) : parseInt(layoutMode)
 
   const tagAttributes: TagAttributes[] = []
-  function getMixinRankPath (mixin: Mixin<Doc>): string[] {
+  function getMixinRankPath(mixin: Mixin<Doc>): string[] {
     return [...h.getAncestors(mixin._id)]
       .reverse()
       .filter((ancestor) => h.getClass(ancestor)._class === card.class.Tag)
@@ -57,7 +57,7 @@
       })
   }
 
-  function compareRankPaths (a: string[], b: string[]): number {
+  function compareRankPaths(a: string[], b: string[]): number {
     const length = Math.min(a.length, b.length)
     for (let index = 0; index < length; index++) {
       const comparison = a[index].localeCompare(b[index])
@@ -71,12 +71,12 @@
 
   let masterTagAttributes: MasterTagAttributes
 
-  function collapseAll (): void {
+  function collapseAll(): void {
     masterTagAttributes.collapse()
     tagAttributes.forEach((tag) => tag.collapse())
   }
 
-  function expandAll (): void {
+  function expandAll(): void {
     masterTagAttributes.expand()
     tagAttributes.forEach((tag) => tag.expand())
   }

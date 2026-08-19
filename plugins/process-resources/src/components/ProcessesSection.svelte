@@ -39,7 +39,7 @@
 
   const client = getClient()
 
-  async function add (): Promise<void> {
+  async function add(): Promise<void> {
     const initState = generateId<State>()
     const rank = makeRank(processes[processes.length - 1]?.rank, undefined)
     const id = await client.createDoc(process.class.Process, core.space.Model, {
@@ -86,18 +86,18 @@
     { sort: { rank: SortingOrder.Ascending } }
   )
 
-  function handleSelect (id: Ref<Process>): void {
+  function handleSelect(id: Ref<Process>): void {
     const loc = getCurrentLocation()
     loc.path[5] = process.component.ProcessEditor
     loc.path[6] = id
     navigate(loc, true)
   }
 
-  function toProcess (doc: Doc): Process {
+  function toProcess(doc: Doc): Process {
     return doc as Process
   }
 
-  function handleImport (): void {
+  function handleImport(): void {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = '.json'

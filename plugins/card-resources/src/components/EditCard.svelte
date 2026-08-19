@@ -29,7 +29,7 @@
   export let allowClose: boolean = true
   export let compactMode: boolean = false
 
-  export function canClose (): boolean {
+  export function canClose(): boolean {
     return false
   }
 

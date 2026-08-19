@@ -34,7 +34,7 @@
     getDescendants(masterTag._id)
   })
 
-  function getDescendants (id: Ref<Class<Doc>>): void {
+  function getDescendants(id: Ref<Class<Doc>>): void {
     const desc = hierarchy.getDescendants(id)
     const filtered: Array<{ _id: Ref<Tag>, tag: Tag }> = []
     for (const _id of desc) {
@@ -49,7 +49,7 @@
     })
   }
 
-  function open (_class: Ref<Class<Doc>>): void {
+  function open(_class: Ref<Class<Doc>>): void {
     const loc = getCurrentLocation()
     loc.path[4] = _class
     navigate(loc)

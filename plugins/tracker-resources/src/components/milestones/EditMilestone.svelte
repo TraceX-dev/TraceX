@@ -34,10 +34,10 @@
     await client.update(object, { [field]: value })
   }
 
-  async function changeStartDate (value: number | null | undefined): Promise<void> {
+  async function changeStartDate(value: number | null | undefined): Promise<void> {
     await client.update(object, { startDate: value ?? null })
   }
-  async function changeTargetDate (value: number | null | undefined): Promise<void> {
+  async function changeTargetDate(value: number | null | undefined): Promise<void> {
     if (value === null || value === undefined) return
     await client.update(object, { targetDate: value })
   }

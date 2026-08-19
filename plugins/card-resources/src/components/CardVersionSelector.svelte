@@ -64,21 +64,21 @@
     }
   })
 
-  function navigateTo (_id: Ref<Card>): void {
+  function navigateTo(_id: Ref<Card>): void {
     const loc = getCurrentLocation()
     loc.path[2] = cardId
     loc.path[3] = _id
     navigate(loc)
   }
 
-  function selectHandler (e: CustomEvent): void {
+  function selectHandler(e: CustomEvent): void {
     const val = e.detail
     if (val != null) {
       navigateTo(val)
     }
   }
 
-  async function newVersion (): Promise<void> {
+  async function newVersion(): Promise<void> {
     if (value.versionCreationDisabled === true) return
     try {
       const _id = await createNewVersion(value)
@@ -91,7 +91,7 @@
     }
   }
 
-  async function makeEffective (): Promise<void> {
+  async function makeEffective(): Promise<void> {
     if (!canMakeEffective || makingEffective) return
     makingEffective = true
     try {

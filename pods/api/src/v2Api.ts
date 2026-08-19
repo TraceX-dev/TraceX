@@ -86,16 +86,16 @@ export function createV2ClientSession (
   workspaceId: string,
   primarySocialId: PersonId
 ): {
-    ctx: ClientSessionCtx
-    session: Session
-  } {
+  ctx: ClientSessionCtx
+  session: Session
+} {
   const ctx = {
     pipeline: { context: { hierarchy: client.getHierarchy(), modelDb: client.getModel() } }
   } as unknown as ClientSessionCtx
   const session = {
     workspace: { uuid: workspaceId },
     getRawAccount: () => ({ primarySocialId }),
-    findAllRaw: async <T extends Doc>(
+    findAllRaw: async <T extends Doc> (
       _ctx: ClientSessionCtx,
       _class: Ref<Class<T>>,
       query: Record<string, unknown>,
@@ -105,7 +105,7 @@ export function createV2ClientSession (
     },
     txRaw: async (_ctx: ClientSessionCtx, tx: Tx) => ({ result: await client.tx(tx) }),
     domainRequestRaw: async (_ctx: ClientSessionCtx, domain: OperationDomain, params: Record<string, unknown>) => {
-      return await client.domainRequest(domain, params as never)
+      return await client.domainRequest(domain, params)
     }
   } as unknown as Session
   return { ctx, session }
@@ -306,14 +306,14 @@ export async function getV2Schema (ctx: ClientSessionCtx, session: Session): Pro
   )
   const result = await Promise.all(
     classes.map(async (namedClass) => {
-      const matchingCapabilities = await findWorkspaceApiCapabilities(client as unknown as Client, namedClass.id)
+      const matchingCapabilities = await findWorkspaceApiCapabilities(client, namedClass.id)
       const factory = isControlledDocumentClass(ctx, namedClass.id)
         ? undefined
         : findIntegrationTargetFactory(ctx, factories, namedClass.id)
       const allowedSpaceClasses =
         factory === undefined
           ? undefined
-          : await getAllowedSpaceClasses(client as unknown as Client, factory, namedClass.id)
+          : await getAllowedSpaceClasses(client, factory, namedClass.id)
       return {
         name: namedClass.name,
         fields: getNamedAttributes(ctx, namedClass.id).map(({ name, attribute }) => ({
@@ -367,7 +367,7 @@ export async function invokeV2Capability (
 ): Promise<unknown> {
   const targetClass = resolveRequestedClass(ctx, request.class, request.defaultClass)
   const client = createSessionOperations(ctx, session)
-  const capabilities = await findWorkspaceApiCapabilities(client as unknown as Client, targetClass.id)
+  const capabilities = await findWorkspaceApiCapabilities(client, targetClass.id)
   const operations: readonly string[] = typeof operation === 'string' ? [operation] : operation
   let handler: WorkspaceApiOperation | undefined
   for (const candidate of operations) {
@@ -401,7 +401,7 @@ export async function invokeV2Capability (
     input.content = markdownToStoredMarkupValue(content)
   }
   const value = await handler(
-    { client: client as unknown as TxOperations & Client, currentUser: session.getRawAccount().primarySocialId },
+    { client, currentUser: session.getRawAccount().primarySocialId },
     { ...input, targetClass: targetClass.id, ...(request.id === undefined ? {} : { id: request.id }) }
   )
   return await serializeV2CapabilityValue(ctx, session, token, value)
@@ -484,7 +484,7 @@ export async function createV2Document (
   const space = await resolveSpace(ctx, session, spaceName)
   const values = await resolveFieldValues(ctx, session, targetClass.id, request.fields ?? {})
   const client = createSessionOperations(ctx, session)
-  await assertAllowedCreationSpace(ctx, client as unknown as Client, targetClass, space)
+  await assertAllowedCreationSpace(ctx, client, targetClass, space)
   const integrationContext = createIntegrationContext(client, session, token)
 
   const doc = await createIntegrationTarget(
@@ -568,11 +568,11 @@ export async function getV2Documents (
     documents.length === 0
       ? []
       : await session.findAllRaw<Space>(
-        ctx,
-        core.class.Space,
-        { _id: { $in: [...new Set(documents.map((document) => document.space))] } },
-        { limit: documents.length }
-      )
+          ctx,
+          core.class.Space,
+          { _id: { $in: [...new Set(documents.map((document) => document.space))] } },
+          { limit: documents.length }
+        )
   const spaceNames = new Map(spaces.map((item) => [item._id, item.name]))
   return {
     documents: await Promise.all(
@@ -1198,7 +1198,7 @@ function createIntegrationContext (
   token: string
 ): IntegrationTargetContext & { markup: MarkupOperations } {
   return {
-    client: client as unknown as IntegrationTargetContext['client'],
+    client,
     // Target factories currently only use client and markup operations. Keep
     // the shared public context shape so their implementation remains reused.
     integration: '' as IntegrationTargetContext['integration'],
@@ -1238,12 +1238,12 @@ function createSessionOperations (ctx: ClientSessionCtx, session: Session): TxOp
   const sessionClient = {
     getHierarchy: () => ctx.pipeline.context.hierarchy,
     getModel: () => ctx.pipeline.context.modelDb,
-    findAll: async <T extends Doc>(
+    findAll: async <T extends Doc> (
       _class: Ref<Class<T>>,
       query: Record<string, unknown>,
       options?: FindOptions<T>
     ): Promise<FindResult<T>> => await session.findAllRaw(ctx, _class, query as never, options),
-    findOne: async <T extends Doc>(
+    findOne: async <T extends Doc> (
       _class: Ref<Class<T>>,
       query: Record<string, unknown>,
       options?: FindOptions<T>
@@ -1337,7 +1337,7 @@ async function resolveContacts (
   names: string[],
   defaultContact?: Ref<Employee>
 ): Promise<Ref<Contact>[]> {
-  if (names.length === 0) return defaultContact === undefined ? [] : [defaultContact as Ref<Contact>]
+  if (names.length === 0) return defaultContact === undefined ? [] : [defaultContact]
   const result: Ref<Contact>[] = []
   for (const name of names) {
     if (typeof name !== 'string' || name.trim() === '') throw new Error('Each participant must be a contact name')
@@ -1368,7 +1368,7 @@ async function resolveLegacyChannel (ctx: ClientSessionCtx, session: Session, na
 
 async function getCurrentEmployee (ctx: ClientSessionCtx, session: Session): Promise<Employee> {
   const employee = await getEmployeeBySocialId(
-    createSessionOperations(ctx, session) as unknown as Client,
+    createSessionOperations(ctx, session),
     session.getRawAccount().primarySocialId
   )
   if (employee === undefined || !employee.active) {
@@ -1538,8 +1538,8 @@ async function createControlledDocumentRequest (
     rejectedState === undefined
       ? undefined
       : client.txFactory.createTxUpdateDoc(document._class, document.space, document._id, {
-        controlledState: rejectedState
-      })
+          controlledState: rejectedState
+        })
   await operations.addCollection(requestClass, document.space, document._id, document._class, 'requests', {
     requested: users,
     approved: [],
@@ -1634,7 +1634,7 @@ async function getCreatableSpaceClasses (
   if (factory === undefined) {
     throw new Error(`Class "${targetClass.name}" does not support space-based creation`)
   }
-  return await getAllowedSpaceClasses(client as unknown as Client, factory, targetClass.id)
+  return await getAllowedSpaceClasses(client, factory, targetClass.id)
 }
 
 async function resolveSpaceFilterClass (ctx: ClientSessionCtx, session: Session, name: string): Promise<NamedClass> {
@@ -1978,7 +1978,7 @@ function getNamedClasses (ctx: ClientSessionCtx): NamedClass[] {
   for (const id of hierarchy.getDescendants(core.class.Doc)) {
     const clazz = hierarchy.getClass(id)
     if (clazz.kind !== ClassifierKind.CLASS || clazz.hidden === true) continue
-    result.push({ id: id as Ref<Class<Doc>>, name: getDisplayName(clazz, id) })
+    result.push({ id, name: getDisplayName(clazz, id) })
   }
   return result
 }
