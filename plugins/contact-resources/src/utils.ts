@@ -328,9 +328,7 @@ async function generateLocation (loc: Location, id: Ref<Contact>): Promise<Resol
       ? 'employees'
       : 'persons'
 
-  const objectPanel = client
-    .getHierarchy()
-    .classHierarchyMixin<Doc, ObjectPanel>(doc._class, view.mixin.ObjectPanel)
+  const objectPanel = client.getHierarchy().classHierarchyMixin<Doc, ObjectPanel>(doc._class, view.mixin.ObjectPanel)
   const component = objectPanel?.component ?? view.component.EditDoc
 
   return {

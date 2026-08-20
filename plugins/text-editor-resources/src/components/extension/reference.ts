@@ -418,10 +418,7 @@ async function getReferenceTooltip<T extends Doc> (
   const client = getClient()
   const hierarchy = client.getHierarchy()
 
-  const mixin = hierarchy.classHierarchyMixin<Doc, ObjectTooltip>(
-    objectclass,
-    view.mixin.ObjectTooltip
-  )
+  const mixin = hierarchy.classHierarchyMixin<Doc, ObjectTooltip>(objectclass, view.mixin.ObjectTooltip)
 
   if (mixin?.provider !== undefined) {
     const providerFn = await getResource(mixin.provider)
