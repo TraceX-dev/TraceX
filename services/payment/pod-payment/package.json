@@ -19,6 +19,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../../common/scripts/esbuild.js --keep-names=true --sourcemap=external",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/payment",
+    "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/payment",
     "docker:tbuild": "docker build -t tracexapp/payment . --platform=linux/amd64 && ../../../common/scripts/docker_tag_push.sh tracexapp/payment",
     "docker:abuild": "docker build -t tracexapp/payment . --platform=linux/arm64 && ../../../common/scripts/docker_tag_push.sh tracexapp/payment",
     "docker:staging": "../../../common/scripts/docker_tag.sh tracexapp/payment staging",

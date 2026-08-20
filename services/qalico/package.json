@@ -19,6 +19,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/qalico .",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/qalico",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/qalico staging",
     "docker:push": "../../common/scripts/docker_tag.sh tracexapp/qalico",
     "run-local": "cross-env ts-node src/index.ts",

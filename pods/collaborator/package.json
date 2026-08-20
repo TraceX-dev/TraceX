@@ -15,6 +15,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/__start.ts --keep-names=true --sourcemap=external --external=*.node --external=snappy --external=bufferutil",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/collaborator",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/collaborator",
     "docker:tbuild": "docker build -t tracexapp/collaborator . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/collaborator",
     "docker:abuild": "docker build -t tracexapp/collaborator . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/collaborator",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/collaborator staging",

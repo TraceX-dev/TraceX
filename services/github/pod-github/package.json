@@ -19,6 +19,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../../common/scripts/esbuild.js --sourcemap=external",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/github",
+    "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/github",
     "docker:staging": "../../../common/scripts/docker_tag.sh tracexapp/github staging",
     "docker:push": "../../../common/scripts/docker_tag.sh tracexapp/github",
     "docker:tbuild": "rush bundle --to @hcengineering/pod-github && docker build -t tracexapp/github . --platform=linux/amd64 && ../../../common/scripts/docker_tag_push.sh tracexapp/github",

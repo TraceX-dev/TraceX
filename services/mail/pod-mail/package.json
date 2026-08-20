@@ -19,6 +19,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../../common/scripts/esbuild.js",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/mail",
+    "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/mail",
     "docker:staging": "../../../common/scripts/docker_tag.sh tracexapp/mail staging",
     "docker:abuild": "docker build -t tracexapp/mail . --platform=linux/arm64 && ../../../common/scripts/docker_tag_push.sh tracexapp/mail",
     "docker:push": "../../../common/scripts/docker_tag.sh tracexapp/mail",

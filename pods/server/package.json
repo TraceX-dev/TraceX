@@ -19,6 +19,7 @@
     "get-model": "node ../../common/scripts/esbuild.js --entry=src/get-model.ts -keep-names=true --define=MODEL_VERSION --define=VERSION --define=GIT_REVISION --bundle=true && node ./bundle/bundle.js > ./bundle/model.json",
     "bundle": "rushx get-model && node ../../common/scripts/esbuild.js --entry=src/__start.ts --keep-names=true --bundle=true --sourcemap=external --external=*.node --external=bufferutil --external=snappy --define=MODEL_VERSION --define=VERSION --define=GIT_REVISION --external=utf-8-validate --external=msgpackr-extract",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/transactor",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/transactor",
     "docker:tbuild": "docker build -t tracexapp/transactor . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/transactor",
     "docker:abuild": "docker build -t tracexapp/transactor . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/transactor",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/transactor staging",

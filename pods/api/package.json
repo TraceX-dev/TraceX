@@ -14,6 +14,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/index.ts --keep-names=true --sourcemap=external",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/api",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/api",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/api staging",
     "docker:push": "../../common/scripts/docker_tag.sh tracexapp/api",
     "format": "format src",

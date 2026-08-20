@@ -24,6 +24,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/index.ts --keep-names=true --bundle=true --sourcemap=external --external=zeromq",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/network-tool",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/network-tool",
     "docker:tbuild": "docker build -t tracexapp/network-tool . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/network-tool",
     "docker:abuild": "docker build -t tracexapp/network-tool . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/network-tool",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/network-tool staging",
