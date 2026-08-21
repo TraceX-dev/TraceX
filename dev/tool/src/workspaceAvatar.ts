@@ -14,7 +14,13 @@
 //
 
 import { type AccountDB, getWorkspaces } from '@hcengineering/account'
-import { type BackupClient, type Client as CoreClient, isArchivingMode, isDeletingMode, MeasureMetricsContext } from '@hcengineering/core'
+import {
+  type BackupClient,
+  type Client as CoreClient,
+  isArchivingMode,
+  isDeletingMode,
+  type MeasureMetricsContext
+} from '@hcengineering/core'
 import setting, { type WorkspaceSetting } from '@hcengineering/setting'
 import { createFileStorage } from '@hcengineering/storage-client'
 import { connect } from '@hcengineering/server-tool'
@@ -93,8 +99,9 @@ export async function backfillWorkspaceAvatars (
 
     try {
       const endpoint = await getWorkspaceTransactorEndpoint(workspace.uuid)
-      const connection = (await connect(endpoint, workspace.uuid, undefined, { mode: 'backup' })) as unknown as CoreClient &
-      BackupClient
+      const connection = (await connect(endpoint, workspace.uuid, undefined, {
+        mode: 'backup'
+      })) as unknown as CoreClient & BackupClient
       try {
         const wsSetting = await connection.findOne<WorkspaceSetting>(setting.class.WorkspaceSetting, {
           _id: setting.ids.WorkspaceSetting
