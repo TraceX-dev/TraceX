@@ -32,6 +32,7 @@
     type DropdownTextItem,
     EditBox,
     getLocalWeekStart,
+    getPlatformColorForText,
     getWeekDayNames,
     hasLocalWeekStart,
     Header,
@@ -75,6 +76,10 @@
       name.trim() === oldName ||
       name.trim() === '' ||
       disabledSet.some((it) => name.includes(it)))
+
+  // Same seed (workspace uuid) and palette as the select-workspace/switcher WorkspaceAvatar
+  // and the sidebar Logo, so the color fallback for this workspace's icon matches everywhere.
+  $: workspaceAvatarColor = getPlatformColorForText(workspaceId, $themeStore.dark)
 
   void loadWorkspaceName()
   void loadApiKeys()
@@ -291,7 +296,8 @@
                   <EditableAvatar
                     person={{
                       avatarType: workspaceSettings?.icon !== undefined ? AvatarType.IMAGE : AvatarType.COLOR,
-                      avatar: workspaceSettings?.icon
+                      avatar: workspaceSettings?.icon,
+                      avatarProps: { color: workspaceAvatarColor }
                     }}
                     size="medium"
                     {name}
