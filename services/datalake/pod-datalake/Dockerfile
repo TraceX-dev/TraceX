@@ -1,4 +1,4 @@
-FROM tracexapp/base-slim:v20260819
+FROM tracexapp/base-slim:v20260821
 WORKDIR /app
 
 COPY bundle/bundle.js ./
