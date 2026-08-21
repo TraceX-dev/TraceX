@@ -295,7 +295,7 @@
                 <div class="flex-row-bottom flex-gap-4">
                   <EditableAvatar
                     person={{
-                      avatarType: workspaceSettings?.icon !== undefined ? AvatarType.IMAGE : AvatarType.COLOR,
+                      avatarType: workspaceSettings?.icon != null ? AvatarType.IMAGE : AvatarType.COLOR,
                       avatar: workspaceSettings?.icon,
                       avatarProps: { color: workspaceAvatarColor }
                     }}

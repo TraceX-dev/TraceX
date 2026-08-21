@@ -115,6 +115,9 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   const mailAuthToken = process.env.MAIL_AUTH_TOKEN
 
   const frontURL = process.env.FRONT_URL
+  const uploadURL = process.env.UPLOAD_URL
+  const datalakeURL = process.env.DATALAKE_URL
+  const hulylakeURL = process.env.HULYLAKE_URL
   const productName = process.env.PRODUCT_NAME
   const lang = process.env.LANGUAGE ?? 'en'
 
@@ -138,6 +141,9 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   setMetadata(account.metadata.MAIL_AUTH_TOKEN, mailAuthToken)
 
   setMetadata(account.metadata.FrontURL, frontURL)
+  setMetadata(account.metadata.UploadURL, uploadURL)
+  setMetadata(account.metadata.DatalakeURL, datalakeURL)
+  setMetadata(account.metadata.HulylakeURL, hulylakeURL)
   setMetadata(account.metadata.WsLivenessDays, wsLivenessDays)
 
   setMetadata(account.metadata.DefaultBrandingKey, process.env.DEFAULT_BRANDING_KEY ?? 'huly')

@@ -28,11 +28,20 @@
   export let ringColor: string = 'var(--theme-popup-color)'
 
   $: color = getPlatformColorForText(colorSeed, $themeStore.dark)
+
+  let failedUrl: string | null | undefined
 </script>
 
 <div class="workspaceAvatar-wrap {size}">
-  {#if avatarUrl != null && avatarUrl !== ''}
-    <img class="workspaceAvatar-circle" src={avatarUrl} alt={displayName} />
+  {#if avatarUrl != null && avatarUrl !== '' && avatarUrl !== failedUrl}
+    <img
+      class="workspaceAvatar-circle"
+      src={avatarUrl}
+      alt={displayName}
+      on:error={() => {
+        failedUrl = avatarUrl
+      }}
+    />
   {:else}
     <div class="workspaceAvatar-circle" style:background-color={color}>
       {getWorkspaceInitial(displayName)}

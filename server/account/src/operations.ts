@@ -1810,6 +1810,28 @@ export async function updateWorkspaceName (
   )
 }
 
+function getTrustedAvatarOrigins (ctx: MeasureContext, branding: Branding | null): Set<string> {
+  const origins = new Set<string>()
+  const candidates = [
+    branding?.front,
+    getMetadata(accountPlugin.metadata.FrontURL),
+    getMetadata(accountPlugin.metadata.UploadURL),
+    getMetadata(accountPlugin.metadata.DatalakeURL),
+    getMetadata(accountPlugin.metadata.HulylakeURL)
+  ]
+  for (const candidate of candidates) {
+    if (candidate == null || candidate === '') {
+      continue
+    }
+    try {
+      origins.add(new URL(candidate).origin)
+    } catch (err: any) {
+      ctx.warn('Invalid trusted origin configuration', { candidate })
+    }
+  }
+  return origins
+}
+
 export async function updateWorkspaceAvatar (
   ctx: MeasureContext,
   db: AccountDB,
@@ -1825,6 +1847,26 @@ export async function updateWorkspaceAvatar (
   if (role == null || getRolePower(role) < getRolePower(AccountRole.Maintainer)) {
     ctx.error('Need to be at least maintainer to update workspace avatar', { workspace, account, role })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  if (avatar != null) {
+    let avatarOrigin: string
+    try {
+      avatarOrigin = new URL(avatar).origin
+    } catch (err: any) {
+      ctx.error('Rejecting workspace avatar with a malformed URL', { workspace, account, avatar })
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+    }
+
+    const trustedOrigins = getTrustedAvatarOrigins(ctx, branding)
+    if (trustedOrigins.size > 0 && !trustedOrigins.has(avatarOrigin)) {
+      ctx.error('Rejecting workspace avatar pointing outside the workspace file storage', {
+        workspace,
+        account,
+        avatarOrigin
+      })
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+    }
   }
 
   await db.workspace.update(

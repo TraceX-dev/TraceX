@@ -11,6 +11,9 @@ export const accountId = 'account' as Plugin
 export const accountPlugin = plugin(accountId, {
   metadata: {
     FrontURL: '' as Metadata<string>,
+    UploadURL: '' as Metadata<string>,
+    DatalakeURL: '' as Metadata<string>,
+    HulylakeURL: '' as Metadata<string>,
     MAIL_URL: '' as Metadata<string>,
     MAIL_AUTH_TOKEN: '' as Metadata<string>,
     ProductName: '' as Metadata<string>,

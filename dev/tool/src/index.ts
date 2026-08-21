@@ -1243,11 +1243,16 @@ export function devTool (
     )
     .option('--force', 'Recompute avatar even for workspaces that already have one set', false)
     .option('--dry-run', 'Only log what would change, without writing to the account database', false)
-    .action(async (cmd: { force: boolean, dryRun: boolean }) => {
+    .option('--concurrency <concurrency>', 'Number of workspaces to process in parallel', '10')
+    .action(async (cmd: { force: boolean, dryRun: boolean, concurrency: string }) => {
       const { dbUrl } = prepareTools()
 
       await withAccountDatabase(async (accDb) => {
-        await backfillWorkspaceAvatars(toolCtx, accDb, { force: cmd.force, dryRun: cmd.dryRun })
+        await backfillWorkspaceAvatars(toolCtx, accDb, {
+          force: cmd.force,
+          dryRun: cmd.dryRun,
+          concurrency: parseInt(cmd.concurrency)
+        })
       }, dbUrl)
     })
 
