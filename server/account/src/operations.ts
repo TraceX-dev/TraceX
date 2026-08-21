@@ -1810,6 +1810,33 @@ export async function updateWorkspaceName (
   )
 }
 
+// STORAGE_CONFIG is a ';'-separated list of `kind(,name)?|uri(?params)` entries (see
+// storageConfigFromEnv in @hcengineering/server-storage) describing the *backend's* own
+// storage adapters. It isn't pulled in as a dependency here (it drags in the datalake/s3/
+// minio SDKs) — just enough of its format is parsed to recover the origin(s), which in a
+// typical deployment are the same hosts front hands to browsers as UPLOAD_URL/DATALAKE_URL/
+// HULYLAKE_URL. Entries with no explicit scheme (bare "minio|host:9000") are skipped rather
+// than guessed at — such deployments should set the *URL metadata below explicitly instead.
+function getStorageConfigOrigins (): string[] {
+  const raw = process.env.STORAGE_CONFIG
+  if (raw == null || raw === '') {
+    return []
+  }
+  const origins: string[] = []
+  for (const entry of raw.split(';')) {
+    const uri = entry.trim().split('|')[1]
+    if (uri == null || uri === '' || !uri.includes('://')) {
+      continue
+    }
+    try {
+      origins.push(new URL(uri).origin)
+    } catch (err: any) {
+      // ignore malformed entries
+    }
+  }
+  return origins
+}
+
 function getTrustedAvatarOrigins (ctx: MeasureContext, branding: Branding | null): Set<string> {
   const origins = new Set<string>()
   const candidates = [
@@ -1828,6 +1855,9 @@ function getTrustedAvatarOrigins (ctx: MeasureContext, branding: Branding | null
     } catch (err: any) {
       ctx.warn('Invalid trusted origin configuration', { candidate })
     }
+  }
+  for (const origin of getStorageConfigOrigins()) {
+    origins.add(origin)
   }
   return origins
 }
