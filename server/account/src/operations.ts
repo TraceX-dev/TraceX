@@ -1810,6 +1810,31 @@ export async function updateWorkspaceName (
   )
 }
 
+export async function updateWorkspaceAvatar (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { avatar: string | null }
+): Promise<void> {
+  const { avatar } = params
+
+  const { account, workspace } = decodeTokenVerbose(ctx, token)
+  const role = await db.getWorkspaceRole(account, workspace)
+
+  if (role == null || getRolePower(role) < getRolePower(AccountRole.Maintainer)) {
+    ctx.error('Need to be at least maintainer to update workspace avatar', { workspace, account, role })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  await db.workspace.update(
+    { uuid: workspace },
+    {
+      avatar
+    }
+  )
+}
+
 export async function deleteWorkspace (
   ctx: MeasureContext,
   db: AccountDB,
@@ -3596,6 +3621,7 @@ export type AccountMethods =
   | 'leaveWorkspace'
   | 'changeUsername'
   | 'updateWorkspaceName'
+  | 'updateWorkspaceAvatar'
   | 'deleteWorkspace'
   | 'generate2faSecret'
   | 'enable2fa'
@@ -3685,6 +3711,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     leaveWorkspace: wrap(leaveWorkspace),
     changeUsername: wrap(changeUsername),
     updateWorkspaceName: wrap(updateWorkspaceName),
+    updateWorkspaceAvatar: wrap(updateWorkspaceAvatar),
     deleteWorkspace: wrap(deleteWorkspace),
     generate2faSecret: wrap(generate2faSecret),
     enable2fa: wrap(enable2fa),

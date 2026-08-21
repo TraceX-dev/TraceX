@@ -88,7 +88,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV27Migration(ns, flavor),
     getV28Migration(ns, flavor),
     getV29Migration(ns, flavor),
-    getV30Migration(ns, flavor)
+    getV30Migration(ns, flavor),
+    getV31Migration(ns, flavor)
   ]
 }
 
@@ -887,6 +888,21 @@ function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
     -- member has no more unread notifications there.
     ALTER TABLE ${ns}.workspace_members
     ADD COLUMN IF NOT EXISTS has_unread BOOLEAN NOT NULL DEFAULT FALSE;
+    `
+  ]
+}
+
+function getV31Migration (ns: string, flavor: DBFlavor): [string, string] {
+  const types = dbTypes[flavor]
+
+  return [
+    'account_db_v31_add_workspace_avatar',
+    `
+    -- Absolute URL of the workspace logo blob, synced from the workspace's
+    -- own WorkspaceSetting.icon so the select-workspace and workspace-switcher
+    -- screens can render it without connecting to that workspace.
+    ALTER TABLE ${ns}.workspace
+    ADD COLUMN IF NOT EXISTS avatar ${types.string};
     `
   ]
 }

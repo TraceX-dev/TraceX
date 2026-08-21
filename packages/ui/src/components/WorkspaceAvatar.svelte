@@ -20,6 +20,7 @@
 
   export let colorSeed: string
   export let displayName: string
+  export let avatarUrl: string | null | undefined = undefined
   export let size: 'small' | 'medium' = 'small'
   export let hasUnread: boolean = false
   // Color of the surface the avatar sits on, so the unread ring stays
@@ -30,9 +31,13 @@
 </script>
 
 <div class="workspaceAvatar-wrap {size}">
-  <div class="workspaceAvatar-circle" style:background-color={color}>
-    {getWorkspaceInitial(displayName)}
-  </div>
+  {#if avatarUrl != null && avatarUrl !== ''}
+    <img class="workspaceAvatar-circle" src={avatarUrl} alt={displayName} />
+  {:else}
+    <div class="workspaceAvatar-circle" style:background-color={color}>
+      {getWorkspaceInitial(displayName)}
+    </div>
+  {/if}
   {#if hasUnread}
     <div class="workspaceAvatar-unread" style:box-shadow={`0 0 0 0.125rem ${ringColor}`} />
   {/if}
@@ -65,6 +70,7 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: #fff;
+    object-fit: cover;
   }
   .workspaceAvatar-unread {
     position: absolute;

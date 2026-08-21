@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { createQuery, getFileSrcSet, getFileUrl } from '@hcengineering/presentation'
+  import { createQuery, getCurrentWorkspaceUuid, getFileSrcSet, getFileUrl } from '@hcengineering/presentation'
   import setting, { WorkspaceSetting } from '@hcengineering/setting'
   import { getPlatformColorForText, themeStore } from '@hcengineering/ui'
 
@@ -27,12 +27,15 @@
   })
   $: url = workspaceSetting?.icon != null ? getFileUrl(workspaceSetting.icon) : undefined
   $: srcset = workspaceSetting?.icon != null ? getFileSrcSet(workspaceSetting.icon, 128) : undefined
+  // Same seed (workspace uuid) as the select-workspace/switcher WorkspaceAvatar,
+  // so the fallback color for a given workspace matches everywhere.
+  $: colorSeed = getCurrentWorkspaceUuid() || (workspace ?? '')
 </script>
 
 {#if workspaceSetting?.icon != null && url != null}
   <img class="logo-medium" src={url} {srcset} alt={''} />
 {:else}
-  <div class="antiLogo" class:mini style:background-color={getPlatformColorForText(workspace ?? '', $themeStore.dark)}>
+  <div class="antiLogo" class:mini style:background-color={getPlatformColorForText(colorSeed, $themeStore.dark)}>
     {workspace?.toUpperCase()?.[0] ?? ''}
   </div>
 {/if}

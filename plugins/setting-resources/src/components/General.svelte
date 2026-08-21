@@ -20,7 +20,7 @@
   import core, { Configuration, DateRangeMode, WorkspaceAccountPermission } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
   import { translateCB } from '@hcengineering/platform'
-  import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
+  import { copyTextToClipboard, createQuery, getClient, getFileUrl, MessageBox } from '@hcengineering/presentation'
   import { WorkspaceSetting } from '@hcengineering/setting'
   import view from '@hcengineering/view'
   import {
@@ -130,6 +130,7 @@
 
   async function handleAvatarDone (): Promise<void> {
     const existing = await client.findOne(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting })
+    let icon: WorkspaceSetting['icon']
     if (existing !== undefined) {
       const avatar = await avatarEditor.createAvatar()
       // Remove old avatar if changed
@@ -137,10 +138,11 @@
         await avatarEditor.removeAvatar(existing.icon)
       }
 
-      const icon = avatar.avatarType === AvatarType.IMAGE ? avatar.avatar : null
+      icon = avatar.avatarType === AvatarType.IMAGE ? avatar.avatar : null
       await client.diffUpdate(existing, { icon })
     } else {
       const avatar = await avatarEditor.createAvatar()
+      icon = avatar.avatar
 
       await client.createDoc(
         settingsRes.class.WorkspaceSetting,
@@ -149,6 +151,11 @@
         settingsRes.ids.WorkspaceSetting
       )
     }
+
+    // Keep the account-service copy of the workspace avatar (used by the
+    // select-workspace and workspace-switcher screens, which don't have a
+    // workspace-scoped client to read WorkspaceSetting from) in sync.
+    await accountClient.updateWorkspaceAvatar(icon != null ? getFileUrl(icon) : null)
   }
 
   const permissionConfigurationQuery = createQuery()
