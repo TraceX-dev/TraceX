@@ -361,8 +361,7 @@ export function createModel (builder: Builder): void {
       linkIdentityField: 'collaborator',
       identity: 'accountUuid'
     },
-    allowKnownIdBypass: true,
-    knownIdBypassFields: ['attachedTo']
+    allowKnownIdBypass: true
   })
 
   builder.mixin(love.class.Room, core.class.Class, core.mixin.RowVisibility, {

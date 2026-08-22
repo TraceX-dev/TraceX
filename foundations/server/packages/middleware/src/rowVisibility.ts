@@ -31,6 +31,7 @@ import core, {
   type Ref,
   type RowVisibilityPolicy,
   type SessionData,
+  type TxMixin,
   type TxUpdateDoc,
   TxProcessor
 } from '@hcengineering/core'
@@ -215,12 +216,13 @@ export class RowVisibilityResolver {
     }
   }
 
-  /** Ensures an update cannot transfer a row to another owner. */
+  /** Ensures an update or mixin extension cannot transfer a row to another owner. Covers both tx
+   * kinds `hasClassAccessLevel` (Layer 1, `./accessGate`) already treats as equivalent mutations. */
   async canUpdate (
     hierarchy: Hierarchy,
     _class: Ref<Class<Doc>>,
     doc: Doc,
-    tx: TxUpdateDoc<Doc>,
+    tx: TxUpdateDoc<Doc> | TxMixin<Doc, Doc>,
     identity: AccountIdentityResolver
   ): Promise<boolean> {
     if (typeof hierarchy.classHierarchyMixin !== 'function') return true
@@ -229,7 +231,10 @@ export class RowVisibilityResolver {
     const policy = getWritePolicy(mixin)
     if (policy.kind !== 'ownerField') return true
 
-    const updated = TxProcessor.updateDoc2Doc({ ...doc }, tx)
+    const updated =
+      tx._class === core.class.TxMixin
+        ? TxProcessor.updateMixin4Doc({ ...doc }, tx as TxMixin<Doc, Doc>)
+        : TxProcessor.updateDoc2Doc({ ...doc }, tx as TxUpdateDoc<Doc>)
     const value = await identity.resolve(policy.identity)
     return value !== undefined && (updated as unknown as Record<string, unknown>)[policy.field] === value
   }

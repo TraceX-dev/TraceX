@@ -190,8 +190,7 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(hr.class.Request, core.class.Class, core.mixin.RowVisibility, {
     policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
-    allowKnownIdBypass: true,
-    knownIdBypassFields: ['attachedTo']
+    allowKnownIdBypass: true
   })
 
   builder.createDoc(

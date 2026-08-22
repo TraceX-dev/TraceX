@@ -18,8 +18,11 @@
  * `classHierarchyMixin` returns the same policies the real model declares (see
  * `rowVisibilityInvariant.test.ts` for checking they're actually declared there).
  *
- *  - Collaborator/MeetingMinutes/HR Request: open queries clamped to the caller's own records;
- *    `_id`/`attachedTo` lookups bypass the clamp.
+ *  - Collaborator: open queries clamped to the caller's own records; `_id`/`attachedTo` lookups
+ *    bypass the clamp (`attachedTo` here is the *linked* record, not the policy's own field).
+ *  - MeetingMinutes/HR Request: open queries clamped to the caller's own records; only `_id`
+ *    bypasses the clamp - `attachedTo` is the field the policy itself protects, so it must not
+ *    also appear as a bypass field (regression test for the ownership bypass fix).
  *  - Room/RoomInfo: open queries are clamped to rooms where the caller is a collaborator.
  *  - PushSubscription: always clamped to the caller's own `user`, no bypass.
  *  - PublicLink: denied unless `_id` matches the caller's own `linkId` (from the session token,
@@ -70,8 +73,7 @@ const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> =
       linkIdentityField: 'collaborator',
       identity: 'accountUuid'
     },
-    allowKnownIdBypass: true,
-    knownIdBypassFields: ['attachedTo']
+    allowKnownIdBypass: true
   },
   [ROOM]: {
     policy: {
@@ -112,8 +114,7 @@ const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> =
   },
   [HR_REQUEST]: {
     policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
-    allowKnownIdBypass: true,
-    knownIdBypassFields: ['attachedTo']
+    allowKnownIdBypass: true
   },
   [PUSH_SUBSCRIPTION]: {
     policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' },
@@ -351,11 +352,20 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
       expect(res.length).toBe(0)
     })
 
-    it('_id and attachedTo lookups bypass the restriction', async () => {
+    it('an _id lookup bypasses the restriction', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const byId = await s.mw.findAll(ctx, MEETING_MINUTES, { _id: s.mmBob } as any)
       expect(byId.map((r: any) => r._id)).toEqual([s.mmBob])
+    })
+
+    it('an attachedTo lookup does NOT bypass the restriction (regression test for the ownership bypass fix)', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      // Alice asks for Bob's minutes by their attachedTo (Bob's Room id). Since attachedTo is the
+      // field the linkedViaRecord policy itself protects, this must not resolve Bob's minutes.
+      const res = await s.mw.findAll(ctx, MEETING_MINUTES, { attachedTo: s.roomBob } as any)
+      expect(res).toHaveLength(0)
     })
   })
 
@@ -422,13 +432,13 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
       expect(res.map((r: any) => r._id)).toEqual([s.reqAlice])
     })
 
-    it('attachedTo lookup bypasses the own-record clamp (resolving a known, already-visible request)', async () => {
+    it('an attachedTo lookup does NOT bypass the own-record clamp (regression test for the ownership bypass fix)', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
-      // Alice explicitly asks for Bob's request by its attachedTo (Bob's Person id). If the
-      // own-record clamp were still applied on top, this would incorrectly come back empty.
+      // Alice explicitly asks for Bob's request by its attachedTo (Bob's Person id). attachedTo is
+      // the field the ownerField policy itself protects, so this must still come back empty.
       const res = await s.mw.findAll(ctx, HR_REQUEST, { attachedTo: s.personBob } as any)
-      expect(res.map((r: any) => r._id)).toEqual([s.reqBob])
+      expect(res).toHaveLength(0)
     })
   })
 

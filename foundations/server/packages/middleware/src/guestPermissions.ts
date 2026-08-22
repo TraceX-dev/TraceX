@@ -19,6 +19,7 @@ import core, {
   type TxCUD,
   type TxCreateDoc,
   TxProcessor,
+  type TxMixin,
   type TxUpdateDoc
 } from '@hcengineering/core'
 import contact from '@hcengineering/contact'
@@ -126,12 +127,12 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     const docs = await this.findAll(ctx, tx.objectClass, decision.query, { limit: 1 })
     const doc = docs[0]
     if (doc === undefined) return false
-    if (tx._class === core.class.TxUpdateDoc) {
+    if (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) {
       return await this.rowVisibility.canUpdate(
         this.context.hierarchy,
         tx.objectClass,
         doc,
-        tx as TxUpdateDoc<Doc>,
+        tx as TxUpdateDoc<Doc> | TxMixin<Doc, Doc>,
         identity
       )
     }

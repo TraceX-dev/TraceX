@@ -88,6 +88,17 @@ describe('RowVisibility invariant', () => {
     expect(typeof mixin?.allowKnownIdBypass).toBe('boolean')
   })
 
+  it('hr.class.Request and love.class.MeetingMinutes do not list their own ownerField/linkTargetField as a known-id bypass (regression test for the ownership bypass fix)', () => {
+    const hrMixin = hierarchy.classHierarchyMixin('hr:class:Request' as Ref<Class<Doc>>, core.mixin.RowVisibility)
+    expect(hrMixin?.knownIdBypassFields ?? []).not.toContain('attachedTo')
+
+    const mmMixin = hierarchy.classHierarchyMixin(
+      'love:class:MeetingMinutes' as Ref<Class<Doc>>,
+      core.mixin.RowVisibility
+    )
+    expect(mmMixin?.knownIdBypassFields ?? []).not.toContain('attachedTo')
+  })
+
   it('guest.class.PublicLink is scoped to _id, not a bypassable field (regression guard for the linkId-enumeration fix)', () => {
     const mixin = hierarchy.classHierarchyMixin('guest:class:PublicLink' as Ref<Class<Doc>>, core.mixin.RowVisibility)
     expect(mixin?.policy).toEqual({ kind: 'ownerField', field: '_id', identity: 'linkId' })
@@ -295,6 +306,11 @@ describe('RowVisibility integration - real model + real resolver', () => {
     const ctx = makeCtx(makeAccount(AccountRole.Guest, ALICE))
     const res = await mw.findAll(ctx, HR_REQUEST, {})
     expect(res.map((r: any) => r._id)).toEqual([reqAlice._id])
+
+    // Regression test for the ownership bypass fix: attachedTo is the field the policy itself
+    // protects, so querying by Bob's attachedTo (his Person id) must not resolve his request.
+    const byAttachedTo = await mw.findAll(ctx, HR_REQUEST, { attachedTo: reqBob.attachedTo })
+    expect(byAttachedTo).toHaveLength(0)
   })
 
   it('contact.class.SocialIdentity: a Guest sees only identities attached to its own Person', async () => {
