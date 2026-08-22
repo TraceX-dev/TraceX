@@ -18,6 +18,7 @@ import {
   type AccountInfo,
   AccountRole,
   type AccountUuid,
+  type Blob,
   type Branding,
   buildSocialIdString,
   generateId,
@@ -30,6 +31,7 @@ import {
   type Person,
   type PersonId,
   type PersonUuid,
+  type Ref,
   SocialIdType,
   systemAccount,
   systemAccountEmail,
@@ -1810,8 +1812,8 @@ export async function updateWorkspaceName (
   )
 }
 
-// `params.avatar` is a blob id, not a URL (see account_db_v32_rename_workspace_avatar_to_icon)
-// — the client resolves it into a URL itself via getFileUrl in @hcengineering/presentation.
+// `params.avatar` is a blob id, not a URL (see account_db_v31_add_workspace_icon) — the
+// client resolves it into a URL itself via getFileUrl in @hcengineering/presentation.
 // An opaque id can't redirect anywhere, so there's no origin to validate. The one check kept
 // is a cheap sanity guard: a real blob id never contains "://".
 export async function updateWorkspaceAvatar (
@@ -1819,7 +1821,7 @@ export async function updateWorkspaceAvatar (
   db: AccountDB,
   branding: Branding | null,
   token: string,
-  params: { avatar: string | null }
+  params: { avatar: Ref<Blob> | null }
 ): Promise<void> {
   const { avatar: icon } = params
 

@@ -135,7 +135,7 @@
 
   async function handleAvatarDone (): Promise<void> {
     const existing = await client.findOne(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting })
-    let icon: WorkspaceSetting['icon']
+    let icon: NonNullable<WorkspaceSetting['icon']> | null
     if (existing !== undefined) {
       const avatar = await avatarEditor.createAvatar()
       // Remove old avatar if changed
@@ -143,11 +143,11 @@
         await avatarEditor.removeAvatar(existing.icon)
       }
 
-      icon = avatar.avatarType === AvatarType.IMAGE ? avatar.avatar : null
+      icon = avatar.avatarType === AvatarType.IMAGE ? (avatar.avatar ?? null) : null
       await client.diffUpdate(existing, { icon })
     } else {
       const avatar = await avatarEditor.createAvatar()
-      icon = avatar.avatar
+      icon = avatar.avatar ?? null
 
       await client.createDoc(
         settingsRes.class.WorkspaceSetting,

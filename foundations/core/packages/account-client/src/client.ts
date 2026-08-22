@@ -18,12 +18,14 @@ import {
   type AccountRole,
   type AccountUuid,
   type BackupStatus,
+  type Blob,
   concatLink,
   Data,
   type Person,
   type PersonId,
   type PersonInfo,
   type PersonUuid,
+  type Ref,
   type SocialIdType,
   Version,
   type UsageStatus,
@@ -162,7 +164,7 @@ export interface AccountClient {
   ) => Promise<{ guestPerson: Person, guestSocialIds: SocialId[] } | undefined>
   updateAllowGuestSignUp: (guestSignUpAllowed: boolean) => Promise<void>
   updateWorkspaceName: (name: string) => Promise<void>
-  updateWorkspaceAvatar: (icon: string | null) => Promise<void>
+  updateWorkspaceAvatar: (icon: Ref<Blob> | null) => Promise<void>
   deleteWorkspace: () => Promise<void>
   findPersonBySocialKey: (socialKey: string, requireAccount?: boolean) => Promise<PersonUuid | undefined>
   findPersonBySocialId: (socialId: PersonId, requireAccount?: boolean) => Promise<PersonUuid | undefined>
@@ -864,7 +866,7 @@ class AccountClientImpl implements AccountClient {
     await this.rpc(request)
   }
 
-  async updateWorkspaceAvatar (icon: string | null): Promise<void> {
+  async updateWorkspaceAvatar (icon: Ref<Blob> | null): Promise<void> {
     const request = {
       method: 'updateWorkspaceAvatar' as const,
       params: { avatar: icon }

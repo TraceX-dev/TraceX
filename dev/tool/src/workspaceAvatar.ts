@@ -26,10 +26,10 @@ import { connect } from '@hcengineering/server-tool'
 import { getWorkspaceTransactorEndpoint } from './utils'
 
 /**
- * Backfills the account-service `Workspace.icon` field (renamed from `avatar` by v32) from
- * each workspace's own WorkspaceSetting.icon, for workspaces that had a logo before the
- * avatar-sync change (commit 23b5d24) or whose account-service copy still holds a v31-era
- * absolute URL. Stores the blob id as-is; the client resolves it into a URL itself.
+ * Backfills the account-service `Workspace.icon` field (account_db_v31_add_workspace_icon)
+ * from each workspace's own WorkspaceSetting.icon, for workspaces that had a logo before the
+ * avatar-sync change (commit 23b5d24). Stores the blob id as-is; the client resolves it into
+ * a URL itself.
  */
 export async function backfillWorkspaceAvatars (
   ctx: MeasureMetricsContext,
