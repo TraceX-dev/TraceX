@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { getDocument, OPS, type PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf'
+import { getDocument, OPS, type PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { type TextItem, type TypedArray } from 'pdfjs-dist/types/src/display/api'
 import sharp from 'sharp'
 import { type RekoniModel } from './types'
@@ -46,7 +46,6 @@ export async function extractData (data: string | TypedArray): Promise<RekoniMod
   }
 
   const imageOps = [
-    OPS.paintJpegXObject,
     OPS.paintImageMaskXObject,
     OPS.paintImageMaskXObjectGroup,
     OPS.paintImageXObject,
@@ -70,8 +69,6 @@ export async function extractData (data: string | TypedArray): Promise<RekoniMod
 
 async function processPage (text: RekoniModel, page: PDFPageProxy): Promise<void> {
   const textContent = await page.getTextContent({
-    normalizeWhitespace: true,
-    disableCombineTextItems: false,
     includeMarkedContent: false
   })
 
