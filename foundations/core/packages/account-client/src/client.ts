@@ -162,7 +162,7 @@ export interface AccountClient {
   ) => Promise<{ guestPerson: Person, guestSocialIds: SocialId[] } | undefined>
   updateAllowGuestSignUp: (guestSignUpAllowed: boolean) => Promise<void>
   updateWorkspaceName: (name: string) => Promise<void>
-  updateWorkspaceAvatar: (avatar: string | null) => Promise<void>
+  updateWorkspaceAvatar: (icon: string | null) => Promise<void>
   deleteWorkspace: () => Promise<void>
   findPersonBySocialKey: (socialKey: string, requireAccount?: boolean) => Promise<PersonUuid | undefined>
   findPersonBySocialId: (socialId: PersonId, requireAccount?: boolean) => Promise<PersonUuid | undefined>
@@ -864,10 +864,10 @@ class AccountClientImpl implements AccountClient {
     await this.rpc(request)
   }
 
-  async updateWorkspaceAvatar (avatar: string | null): Promise<void> {
+  async updateWorkspaceAvatar (icon: string | null): Promise<void> {
     const request = {
       method: 'updateWorkspaceAvatar' as const,
-      params: { avatar }
+      params: { avatar: icon }
     }
 
     await this.rpc(request)

@@ -20,7 +20,7 @@
   import core, { Configuration, DateRangeMode, WorkspaceAccountPermission } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
   import { translateCB } from '@hcengineering/platform'
-  import { copyTextToClipboard, createQuery, getClient, getFileUrl, MessageBox } from '@hcengineering/presentation'
+  import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
   import { WorkspaceSetting } from '@hcengineering/setting'
   import view from '@hcengineering/view'
   import {
@@ -157,10 +157,9 @@
       )
     }
 
-    // Keep the account-service copy of the workspace avatar (used by the
-    // select-workspace and workspace-switcher screens, which don't have a
-    // workspace-scoped client to read WorkspaceSetting from) in sync.
-    await accountClient.updateWorkspaceAvatar(icon != null ? getFileUrl(icon) : null)
+    // Keep the account-service copy of the workspace avatar (used by select-workspace and
+    // workspace-switcher, which have no workspace-scoped client) in sync.
+    await accountClient.updateWorkspaceAvatar(icon)
   }
 
   const permissionConfigurationQuery = createQuery()

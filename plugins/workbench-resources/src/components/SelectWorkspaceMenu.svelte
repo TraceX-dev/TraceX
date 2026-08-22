@@ -17,7 +17,13 @@
   import { isArchivingMode, systemAccountUuid, WorkspaceInfoWithStatus } from '@hcengineering/core'
   import login from '@hcengineering/login'
   import { getMetadata, getResource } from '@hcengineering/platform'
-  import presentation, { createQuery, decodeTokenPayload, hasResource, isAdminUser } from '@hcengineering/presentation'
+  import presentation, {
+    createQuery,
+    decodeTokenPayload,
+    getFileUrl,
+    hasResource,
+    isAdminUser
+  } from '@hcengineering/presentation'
   import {
     closePopup,
     Component,
@@ -282,7 +288,7 @@
                   <WorkspaceAvatar
                     colorSeed={ws.uuid}
                     displayName={wsName}
-                    avatarUrl={ws.avatar}
+                    avatarUrl={ws.icon != null ? getFileUrl(ws.icon, undefined, ws.uuid) : undefined}
                     size={'small'}
                     hasUnread={ws.hasUnread === true && !isCurrentWs}
                     ringColor={'var(--theme-popup-color)'}

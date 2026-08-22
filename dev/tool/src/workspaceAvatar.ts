@@ -22,38 +22,20 @@ import {
   type MeasureMetricsContext
 } from '@hcengineering/core'
 import setting, { type WorkspaceSetting } from '@hcengineering/setting'
-import { createFileStorage } from '@hcengineering/storage-client'
 import { connect } from '@hcengineering/server-tool'
 import { getWorkspaceTransactorEndpoint } from './utils'
 
 /**
- * Backfills the account-service `Workspace.avatar` field (added by the
- * account_db_v31_add_workspace_avatar migration) from each workspace's own
- * WorkspaceSetting.icon. The migration only adds the column — it cannot
- * populate it itself, because the source data lives in each workspace's own
- * database, not in the account database. Without this, workspaces that had
- * a logo configured before the avatar-sync change (commit 23b5d24) never
- * get an avatar on the select-workspace / workspace-switcher screens until
- * someone re-saves the icon on the settings page.
+ * Backfills the account-service `Workspace.icon` field (renamed from `avatar` by v32) from
+ * each workspace's own WorkspaceSetting.icon, for workspaces that had a logo before the
+ * avatar-sync change (commit 23b5d24) or whose account-service copy still holds a v31-era
+ * absolute URL. Stores the blob id as-is; the client resolves it into a URL itself.
  */
 export async function backfillWorkspaceAvatars (
   ctx: MeasureMetricsContext,
   accountDb: AccountDB,
   opts: { force?: boolean, dryRun?: boolean, concurrency?: number } = {}
 ): Promise<void> {
-  const uploadUrl = process.env.UPLOAD_URL
-  const datalakeUrl = process.env.DATALAKE_URL
-  const hulylakeUrl = process.env.HULYLAKE_URL
-
-  if ((uploadUrl ?? '') === '' && (datalakeUrl ?? '') === '' && (hulylakeUrl ?? '') === '') {
-    throw new Error(
-      'At least one of UPLOAD_URL, DATALAKE_URL, HULYLAKE_URL must be set to build absolute avatar URLs ' +
-        '(same values the front service uses to serve config.json to the browser)'
-    )
-  }
-
-  const fileStorage = createFileStorage({ uploadUrl: uploadUrl ?? '', datalakeUrl, hulylakeUrl })
-
   // isDisabled is left null here (rather than passing false) so getWorkspaces doesn't
   // dereference status.isDisabled itself — a workspace missing its status row would
   // throw there before we ever get a chance to skip it below.
@@ -92,7 +74,7 @@ export async function backfillWorkspaceAvatars (
   let nextIndex = 0
 
   async function processOne (workspace: (typeof workspaces)[number]): Promise<void> {
-    if (opts.force !== true && workspace.avatar != null && workspace.avatar !== '') {
+    if (opts.force !== true && workspace.icon != null && workspace.icon !== '') {
       skipped++
       return
     }
@@ -113,12 +95,10 @@ export async function backfillWorkspaceAvatars (
           return
         }
 
-        const avatarUrl = fileStorage.getFileUrl(workspace.uuid, icon)
-
-        ctx.info('  setting avatar', { workspace: workspace.uuid, name: workspace.name, avatarUrl })
+        ctx.info('  setting avatar', { workspace: workspace.uuid, name: workspace.name, icon })
 
         if (opts.dryRun !== true) {
-          await accountDb.workspace.update({ uuid: workspace.uuid }, { avatar: avatarUrl })
+          await accountDb.workspace.update({ uuid: workspace.uuid }, { icon })
         }
         updated++
       } finally {

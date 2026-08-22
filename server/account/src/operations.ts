@@ -1810,58 +1810,10 @@ export async function updateWorkspaceName (
   )
 }
 
-// STORAGE_CONFIG is a ';'-separated list of `kind(,name)?|uri(?params)` entries (see
-// storageConfigFromEnv in @hcengineering/server-storage) describing the *backend's* own
-// storage adapters. It isn't pulled in as a dependency here (it drags in the datalake/s3/
-// minio SDKs) — just enough of its format is parsed to recover the origin(s), which in a
-// typical deployment are the same hosts front hands to browsers as UPLOAD_URL/DATALAKE_URL/
-// HULYLAKE_URL. Entries with no explicit scheme (bare "minio|host:9000") are skipped rather
-// than guessed at — such deployments should set the *URL metadata below explicitly instead.
-function getStorageConfigOrigins (): string[] {
-  const raw = process.env.STORAGE_CONFIG
-  if (raw == null || raw === '') {
-    return []
-  }
-  const origins: string[] = []
-  for (const entry of raw.split(';')) {
-    const uri = entry.trim().split('|')[1]
-    if (uri == null || uri === '' || !uri.includes('://')) {
-      continue
-    }
-    try {
-      origins.push(new URL(uri).origin)
-    } catch (err: any) {
-      // ignore malformed entries
-    }
-  }
-  return origins
-}
-
-function getTrustedAvatarOrigins (ctx: MeasureContext, branding: Branding | null): Set<string> {
-  const origins = new Set<string>()
-  const candidates = [
-    branding?.front,
-    getMetadata(accountPlugin.metadata.FrontURL),
-    getMetadata(accountPlugin.metadata.UploadURL),
-    getMetadata(accountPlugin.metadata.DatalakeURL),
-    getMetadata(accountPlugin.metadata.HulylakeURL)
-  ]
-  for (const candidate of candidates) {
-    if (candidate == null || candidate === '') {
-      continue
-    }
-    try {
-      origins.add(new URL(candidate).origin)
-    } catch (err: any) {
-      ctx.warn('Invalid trusted origin configuration', { candidate })
-    }
-  }
-  for (const origin of getStorageConfigOrigins()) {
-    origins.add(origin)
-  }
-  return origins
-}
-
+// `params.avatar` is a blob id, not a URL (see account_db_v32_rename_workspace_avatar_to_icon)
+// — the client resolves it into a URL itself via getFileUrl in @hcengineering/presentation.
+// An opaque id can't redirect anywhere, so there's no origin to validate. The one check kept
+// is a cheap sanity guard: a real blob id never contains "://".
 export async function updateWorkspaceAvatar (
   ctx: MeasureContext,
   db: AccountDB,
@@ -1869,7 +1821,7 @@ export async function updateWorkspaceAvatar (
   token: string,
   params: { avatar: string | null }
 ): Promise<void> {
-  const { avatar } = params
+  const { avatar: icon } = params
 
   const { account, workspace } = decodeTokenVerbose(ctx, token)
   const role = await db.getWorkspaceRole(account, workspace)
@@ -1879,30 +1831,19 @@ export async function updateWorkspaceAvatar (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
-  if (avatar != null) {
-    let avatarOrigin: string
-    try {
-      avatarOrigin = new URL(avatar).origin
-    } catch (err: any) {
-      ctx.error('Rejecting workspace avatar with a malformed URL', { workspace, account, avatar })
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
-    }
-
-    const trustedOrigins = getTrustedAvatarOrigins(ctx, branding)
-    if (trustedOrigins.size > 0 && !trustedOrigins.has(avatarOrigin)) {
-      ctx.error('Rejecting workspace avatar pointing outside the workspace file storage', {
-        workspace,
-        account,
-        avatarOrigin
-      })
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
-    }
+  if (icon != null && icon.includes('://')) {
+    ctx.error('Rejecting workspace avatar that looks like a URL instead of a blob id', {
+      workspace,
+      account,
+      icon
+    })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
   }
 
   await db.workspace.update(
     { uuid: workspace },
     {
-      avatar
+      icon
     }
   )
 }

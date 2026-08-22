@@ -1236,10 +1236,9 @@ export function devTool (
   program
     .command('backfill-workspace-avatars')
     .description(
-      'Backfill account-service Workspace.avatar for workspaces that already had a WorkspaceSetting.icon ' +
-        'before the avatar-sync change, so select-workspace/workspace-switcher can render it without ' +
-        'waiting for someone to re-save the icon. Requires UPLOAD_URL and/or DATALAKE_URL/HULYLAKE_URL ' +
-        '(same values the front service uses) to build absolute blob URLs.'
+      'Backfill account-service Workspace.icon for workspaces that already had a WorkspaceSetting.icon ' +
+        'before the avatar-sync change (or whose account-service copy still holds a pre-v32 absolute URL), ' +
+        'so select-workspace/workspace-switcher can render it without waiting for someone to re-save the icon.'
     )
     .option('--force', 'Recompute avatar even for workspaces that already have one set', false)
     .option('--dry-run', 'Only log what would change, without writing to the account database', false)

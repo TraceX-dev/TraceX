@@ -89,7 +89,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV28Migration(ns, flavor),
     getV29Migration(ns, flavor),
     getV30Migration(ns, flavor),
-    getV31Migration(ns, flavor)
+    getV31Migration(ns, flavor),
+    getV32Migration(ns, flavor)
   ]
 }
 
@@ -903,6 +904,22 @@ function getV31Migration (ns: string, flavor: DBFlavor): [string, string] {
     -- screens can render it without connecting to that workspace.
     ALTER TABLE ${ns}.workspace
     ADD COLUMN IF NOT EXISTS avatar ${types.string};
+    `
+  ]
+}
+
+function getV32Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v32_rename_workspace_avatar_to_icon',
+    `
+    -- v31's "avatar" column stored a resolved absolute URL, requiring account-service to
+    -- validate it against trusted storage hosts. Renamed to "icon" and repurposed to hold
+    -- just the blob id (same value as the workspace's own WorkspaceSetting.icon) — an opaque
+    -- id can't redirect a client anywhere, so that validation is gone. Existing absolute-URL
+    -- rows keep rendering (getFileUrl passes through values that already look like a URL)
+    -- until re-saved or backfilled with 'backfill-workspace-avatars --force'.
+    ALTER TABLE ${ns}.workspace
+    RENAME COLUMN avatar TO icon;
     `
   ]
 }

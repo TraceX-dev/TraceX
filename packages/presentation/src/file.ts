@@ -50,16 +50,18 @@ export function getFileStorage (): FileStorage {
   return storage
 }
 
-/** @public */
-export function getFileUrl (file: string, filename?: string): string {
+/**
+ * @param workspace Defaults to the current workspace; pass explicitly to resolve a blob
+ * from another workspace (e.g. another workspace's logo on select-workspace/switcher screens).
+ * @public
+ */
+export function getFileUrl (file: string, filename?: string, workspace?: WorkspaceUuid): string {
   if (file.includes('://')) {
     return file
   }
 
-  const workspace = getCurrentWorkspaceUuid()
-
   const storage = getFileStorage()
-  return storage.getFileUrl(workspace, file, filename)
+  return storage.getFileUrl(workspace ?? getCurrentWorkspaceUuid(), file, filename)
 }
 
 /**

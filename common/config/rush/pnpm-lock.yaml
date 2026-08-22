@@ -2198,9 +2198,6 @@ importers:
       '@hcengineering/setting':
         specifier: workspace:^0.7.0
         version: link:../../plugins/setting
-      '@hcengineering/storage-client':
-        specifier: workspace:^0.7.18
-        version: link:../../foundations/core/packages/storage-client
       '@hcengineering/tags':
         specifier: workspace:^0.7.0
         version: link:../../plugins/tags
