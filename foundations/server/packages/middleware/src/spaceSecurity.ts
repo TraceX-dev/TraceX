@@ -27,6 +27,7 @@ import core, {
   type FindResult,
   generateId,
   getClassCollaborators,
+  GuestActivityScope,
   type LookupData,
   type MeasureContext,
   type ObjQueryType,
@@ -66,6 +67,7 @@ import {
   getGuestVisiblePersonIds,
   hasNarrowIdQuery,
   resolveDisabledModuleSpaceIds,
+  resolveGuestExtraPermissions,
   type SpaceWithMembers
 } from './guestVisibility'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
@@ -796,6 +798,13 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         findResult.lookupMap
       )
     }
+    if (!isSystem(account, ctx) && isRestricted && this.context.hierarchy.isDerived(_class, core.class.AttachedDoc)) {
+      const { activityScope } = await resolveGuestExtraPermissions(this.next, ctx, account)
+      if (activityScope !== GuestActivityScope.Any) {
+        const filtered = await this.filterActivityByScope(ctx, findResult, account, activityScope)
+        findResult = toFindResult(filtered, filtered.length, findResult.lookupMap)
+      }
+    }
     if (account.role !== AccountRole.DocGuest) {
       if (options?.lookup !== undefined) {
         for (const object of findResult) {
@@ -918,6 +927,49 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       })
     )
     return docs.filter((_doc, index) => visible[index])
+  }
+
+  /**
+   * Narrows a restricted role's view of `AttachedDoc` results (chat/activity messages) per
+   * `GuestExtraPermissions.activityScope`, but only for results attached to a class that opted in
+   * via `RowVisibility.scopeActivityToOwner` (e.g. card.class.Card) - activity on a shared space
+   * like a channel is untouched regardless of this setting.
+   */
+  private async filterActivityByScope<T extends Doc>(
+    ctx: MeasureContext<SessionData>,
+    docs: T[],
+    account: Account,
+    scope: GuestActivityScope
+  ): Promise<T[]> {
+    if (docs.length === 0) return docs
+    const passthrough: T[] = []
+    const scoped: T[] = []
+    for (const doc of docs) {
+      const attachedToClass = (doc as unknown as AttachedDoc).attachedToClass
+      const opted =
+        attachedToClass !== undefined &&
+        this.context.hierarchy.classHierarchyMixin(attachedToClass, core.mixin.RowVisibility)?.scopeActivityToOwner ===
+          true
+      ;(opted ? scoped : passthrough).push(doc)
+    }
+    if (scoped.length === 0) return passthrough
+
+    if (scope === GuestActivityScope.Own) {
+      const own = scoped.filter((doc) => (doc as unknown as { createdBy?: unknown }).createdBy === account.primarySocialId)
+      return [...passthrough, ...own]
+    }
+
+    const attachedToIds = Array.from(new Set(scoped.map((doc) => (doc as unknown as AttachedDoc).attachedTo)))
+    const collabQuery: DocumentQuery<Collaborator> = {
+      attachedTo: { $in: attachedToIds },
+      collaborator: account.uuid
+    }
+    const collaborators = ((await this.next?.findAll(ctx, core.class.Collaborator, collabQuery, {
+      projection: { attachedTo: 1 }
+    })) ?? []) as Array<Pick<Collaborator, 'attachedTo'>>
+    const allowedAttachedTo = new Set(collaborators.map((c) => c.attachedTo))
+    const collaboratorDocs = scoped.filter((doc) => allowedAttachedTo.has((doc as unknown as AttachedDoc).attachedTo))
+    return [...passthrough, ...collaboratorDocs]
   }
 
   filterLookup<T extends Doc>(ctx: MeasureContext, lookup: LookupData<T>, showArchived: boolean): void {

@@ -740,6 +740,15 @@ export interface RowVisibility extends Class<Doc> {
   /** Fields (besides `_id`) that count as a known reference for `allowKnownIdBypass`, when the
    * trust anchor differs from `policy`'s own field. Defaults to `[]` (only `_id`). */
   knownIdBypassFields?: string[]
+  /**
+   * Opts this class into `GuestExtraPermissions.activityScope`: restricted-role reads of an
+   * `AttachedDoc` (chat message, etc.) whose `attachedToClass` is this class get narrowed to the
+   * caller's own activity or activity on documents it collaborates on, per that setting - instead
+   * of the attached class's own (often `publicReadable`) policy. Set only on classes meant to be
+   * "personal" documents (e.g. card.class.Card); leave unset for shared spaces like channels,
+   * where every member should keep seeing all activity regardless of this setting.
+   */
+  scopeActivityToOwner?: boolean
 }
 
 /**

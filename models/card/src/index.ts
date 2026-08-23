@@ -1087,7 +1087,10 @@ export function createModel (builder: Builder): void {
   builder.mixin(card.class.Card, core.class.Class, core.mixin.RowVisibility, {
     policy: { kind: 'publicReadable', reason: 'Card read visibility is governed by ordinary space membership' },
     writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
-    allowKnownIdBypass: false
+    allowKnownIdBypass: false,
+    // Lets GuestExtraPermissions.activityScope narrow a restricted role's view of chat/activity
+    // attached to a card (own/collaborator/any) instead of always showing everyone's.
+    scopeActivityToOwner: true
   })
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ClassFilters, {

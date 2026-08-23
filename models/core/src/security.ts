@@ -211,6 +211,7 @@ export class TRowVisibility extends TClass implements RowVisibility {
   writePolicy?: RowVisibilityPolicy
   allowKnownIdBypass!: boolean
   knownIdBypassFields?: string[]
+  scopeActivityToOwner?: boolean
 }
 
 @Model(core.class.ModulePermissionGroup, core.class.Doc, DOMAIN_MODEL)
