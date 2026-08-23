@@ -3961,8 +3961,8 @@ importers:
         specifier: ^0.5.6
         version: 0.5.6
       uuid:
-        specifier: ^14.0.2
-        version: 14.0.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -3973,9 +3973,6 @@ importers:
       '@types/node':
         specifier: ^24.13.3
         version: 24.13.3
-      '@types/uuid':
-        specifier: ^8.3.1
-        version: 8.3.4
       '@typescript-eslint/eslint-plugin':
         specifier: ^6.21.0
         version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
@@ -30036,8 +30033,8 @@ importers:
         specifier: ^1.20.3
         version: 1.20.3
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       express:
         specifier: ^4.21.2
         version: 4.21.2
@@ -30061,7 +30058,7 @@ importers:
         specifier: ~1.7.2
         version: 1.7.5
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -30284,8 +30281,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -30306,7 +30303,7 @@ importers:
         specifier: workspace:^0.7.21
         version: link:../../foundations/utils/packages/platform-rig
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -30502,8 +30499,8 @@ importers:
         specifier: ^1.0.9
         version: 1.0.9
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -30530,7 +30527,7 @@ importers:
         specifier: workspace:^0.7.21
         version: link:../../foundations/utils/packages/platform-rig
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -30674,8 +30671,8 @@ importers:
         specifier: ^4.0.8
         version: 4.0.9
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       express:
         specifier: ^4.21.2
         version: 4.21.2
@@ -30708,7 +30705,7 @@ importers:
         specifier: ~1.19.2
         version: 1.19.6
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -35732,8 +35729,8 @@ importers:
         specifier: ^1.20.3
         version: 1.20.3
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       express:
         specifier: ^4.21.2
         version: 4.21.2
@@ -35757,7 +35754,7 @@ importers:
         specifier: ~1.7.2
         version: 1.7.5
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -35853,8 +35850,8 @@ importers:
         specifier: ^1.20.3
         version: 1.20.3
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       express:
         specifier: ^4.21.2
         version: 4.21.2
@@ -35881,7 +35878,7 @@ importers:
         specifier: ~1.19.2
         version: 1.19.6
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37021,8 +37018,8 @@ importers:
         specifier: ^6.2.5
         version: 6.2.5
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -37070,7 +37067,7 @@ importers:
         specifier: ^6.1.6
         version: 6.1.6
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37160,8 +37157,8 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -37179,7 +37176,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37263,8 +37260,8 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -37288,7 +37285,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37387,8 +37384,8 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -37415,7 +37412,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37532,8 +37529,8 @@ importers:
         specifier: workspace:^0.7.19
         version: link:../../../foundations/core/packages/text
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -37566,7 +37563,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37768,8 +37765,8 @@ importers:
         specifier: ^4.0.2
         version: 4.4.4
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -37802,7 +37799,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37952,8 +37949,8 @@ importers:
         specifier: ^7.0.1
         version: 7.0.1
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       csv-stringify:
         specifier: ^6.5.2
         version: 6.6.0
@@ -37986,7 +37983,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -38918,8 +38915,8 @@ importers:
         specifier: ^1.20.3
         version: 1.20.3
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -38958,7 +38955,7 @@ importers:
         specifier: ~1.7.2
         version: 1.7.5
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -39303,8 +39300,8 @@ importers:
         specifier: workspace:^0.7.0
         version: link:../../../plugins/setting
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -39346,7 +39343,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -39475,8 +39472,8 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -39503,7 +39500,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -39702,8 +39699,8 @@ importers:
         specifier: ^6.4.17
         version: 6.4.21
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -39724,7 +39721,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -39826,8 +39823,8 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -39857,7 +39854,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -39974,8 +39971,8 @@ importers:
         specifier: ^6.2.5
         version: 6.2.5
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -39993,7 +39990,7 @@ importers:
         specifier: ^6.1.6
         version: 6.1.6
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -40186,8 +40183,8 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -40205,7 +40202,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -40295,8 +40292,8 @@ importers:
         specifier: ^0.37.0
         version: 0.37.0
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -40329,7 +40326,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -40428,8 +40425,8 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -40453,7 +40450,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -40664,8 +40661,8 @@ importers:
         specifier: workspace:^0.7.0
         version: link:../../plugins/qalico
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -40677,7 +40674,7 @@ importers:
         specifier: workspace:^0.7.21
         version: link:../../foundations/utils/packages/platform-rig
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -40894,8 +40891,8 @@ importers:
         specifier: ^1.20.3
         version: 1.20.3
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -40943,7 +40940,7 @@ importers:
         specifier: ~1.19.2
         version: 1.19.6
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -41063,8 +41060,8 @@ importers:
         specifier: ^3.3.0
         version: 3.3.0
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -41088,7 +41085,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -41220,8 +41217,8 @@ importers:
         specifier: ^0.5.0
         version: 0.5.0
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -41251,7 +41248,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -41359,8 +41356,8 @@ importers:
         specifier: ^1.6.51
         version: 1.6.52
       cors:
-        specifier: ^2.8.5
-        version: 2.8.5
+        specifier: ^2.8.6
+        version: 2.8.6
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -41396,7 +41393,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -41672,7 +41669,7 @@ importers:
         specifier: ~1.7.2
         version: 1.7.5
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -45071,9 +45068,6 @@ packages:
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
 
-  '@types/uuid@8.3.4':
-    resolution: {integrity: sha512-c/I8ZRb51j+pYGAu5CrFMRxqZ2ke4y2grEBO5AUjgSkSk+qT2Ea+OdWElz/OiMf5MNpn2b17kuVBwZLQJXzihw==}
-
   '@types/web-push@3.6.4':
     resolution: {integrity: sha512-GnJmSr40H3RAnj0s34FNTcJi1hmWFV5KXugE0mYWnYhgTAHLJ/dJKAwDmvPJYMke0RplY2XE9LnM4hqSqKIjhQ==}
 
@@ -46164,8 +46158,8 @@ packages:
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
 
-  cors@2.8.5:
-    resolution: {integrity: sha512-KIHbLJqu73RGr/hnbrO9uBeixNGuvSQjul/jdFvS/KFSIH1hWVd1ng7zOHx+YrEfInLG7q4n6GHQ9cDtxv/P6g==}
+  cors@2.8.6:
+    resolution: {integrity: sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw==}
     engines: {node: '>= 0.10'}
 
   cose-base@1.0.3:
@@ -51580,10 +51574,6 @@ packages:
     resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
     hasBin: true
 
-  uuid@14.0.2:
-    resolution: {integrity: sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ==}
-    hasBin: true
-
   uuid@3.4.0:
     resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
     deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
@@ -53728,7 +53718,7 @@ snapshots:
   '@modelcontextprotocol/express@2.0.0(@modelcontextprotocol/server@2.0.0)(express@4.21.2)':
     dependencies:
       '@modelcontextprotocol/server': 2.0.0
-      cors: 2.8.5
+      cors: 2.8.6
       express: 4.21.2
 
   '@modelcontextprotocol/node@2.0.0(@modelcontextprotocol/server@2.0.0)':
@@ -56004,8 +55994,6 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
-  '@types/uuid@8.3.4': {}
-
   '@types/web-push@3.6.4':
     dependencies:
       '@types/node': 24.13.3
@@ -57288,7 +57276,7 @@ snapshots:
 
   core-util-is@1.0.3: {}
 
-  cors@2.8.5:
+  cors@2.8.6:
     dependencies:
       object-assign: 4.1.1
       vary: 1.1.2
@@ -63903,8 +63891,6 @@ snapshots:
   utils-merge@1.0.1: {}
 
   uuid@11.1.1: {}
-
-  uuid@14.0.2: {}
 
   uuid@3.4.0: {}
 
