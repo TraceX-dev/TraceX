@@ -52,6 +52,7 @@ const LOVE_FLOOR = 'love:class:Floor' as Ref<Class<Doc>>
 const PARTICIPANT_INFO = 'love:class:ParticipantInfo' as Ref<Class<Doc>>
 const PENDING_RECORDING = 'love:class:PendingRecording' as Ref<Class<Doc>>
 const DEVICES_PREFERENCE = 'love:class:DevicesPreference' as Ref<Class<Doc>>
+const CARD = 'card:class:Card' as Ref<Class<Doc>>
 
 const SENSITIVE_CLASSES: Array<{ name: string, _class: Ref<Class<Doc>> }> = [
   { name: 'core.class.Collaborator', _class: core.class.Collaborator },
@@ -71,7 +72,8 @@ const SENSITIVE_CLASSES: Array<{ name: string, _class: Ref<Class<Doc>> }> = [
   { name: 'love.class.Floor', _class: LOVE_FLOOR },
   { name: 'love.class.ParticipantInfo', _class: PARTICIPANT_INFO },
   { name: 'love.class.PendingRecording', _class: PENDING_RECORDING },
-  { name: 'love.class.DevicesPreference', _class: DEVICES_PREFERENCE }
+  { name: 'love.class.DevicesPreference', _class: DEVICES_PREFERENCE },
+  { name: 'card.class.Card', _class: CARD }
 ]
 
 describe('RowVisibility invariant', () => {
@@ -179,6 +181,20 @@ describe('RowVisibility invariant', () => {
     expect(access?.createAccessLevel).toBe(AccountRole.Guest)
     expect(access?.updateAccessLevel).toBe(AccountRole.Guest)
     expect(access?.removeAccessLevel).toBe(AccountRole.Guest)
+  })
+
+  it('card.class.Card restricts updates to the creator, reads stay ordinary space-scoped (regression test for the File-card guest-upload fix)', () => {
+    const visibility = hierarchy.classHierarchyMixin(CARD, core.mixin.RowVisibility)
+    expect(visibility?.policy.kind).toBe('publicReadable')
+    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
+      kind: 'ownerField',
+      field: 'createdBy',
+      identity: 'socialId'
+    })
+    expect(visibility?.allowKnownIdBypass).toBe(false)
+
+    const access = hierarchy.classHierarchyMixin(CARD, core.mixin.TxAccessLevel)
+    expect(access?.updateAccessLevel).toBe(AccountRole.Guest)
   })
 
   it('Office room activity is scoped through room collaborators', () => {

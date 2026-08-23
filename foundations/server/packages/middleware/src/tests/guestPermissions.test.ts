@@ -1195,6 +1195,80 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
+  // ─── card.class.Card ownership on update (regression test for the File-card guest-upload fix) ──
+  describe('card.class.Card ownership on update', () => {
+    const CARD_CLASS = 'card:class:Card' as Ref<Class<Doc>>
+    const GUEST_SOCIAL = 'test:guest-social' as PersonId
+    const OTHER_SOCIAL = 'test:other-social' as PersonId
+    const OWN_CARD = 'test:card:own' as Ref<Doc>
+    const OTHER_CARD = 'test:card:other' as Ref<Doc>
+    const CARD_SPACE = 'test:space:cards' as Ref<Space>
+
+    function makeCardMiddleware (nextCalled: () => void): GuestPermissionsMiddleware {
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class === CARD_CLASS) {
+            const cards = [
+              { _id: OWN_CARD, _class: CARD_CLASS, space: CARD_SPACE, createdBy: GUEST_SOCIAL },
+              { _id: OTHER_CARD, _class: CARD_CLASS, space: CARD_SPACE, createdBy: OTHER_SOCIAL }
+            ]
+            return cards.filter((c) => (query?._id === undefined || query._id === c._id) &&
+              (query?.createdBy === undefined || query.createdBy === c.createdBy)) as any
+          }
+          return []
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== CARD_CLASS) return undefined
+        if (mixin === core.mixin.TxAccessLevel) {
+          return { updateAccessLevel: AccountRole.Guest }
+        }
+        if (mixin === core.mixin.RowVisibility) {
+          return {
+            policy: { kind: 'publicReadable' },
+            writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+            allowKnownIdBypass: false
+          }
+        }
+        return undefined
+      }
+      return mw
+    }
+
+    function makeGuestAccount (): Account {
+      return {
+        uuid: 'test:guest-account' as any,
+        role: AccountRole.Guest,
+        primarySocialId: GUEST_SOCIAL,
+        socialIds: [GUEST_SOCIAL],
+        fullSocialIds: []
+      }
+    }
+
+    it('allows Guest to update a card it created', async () => {
+      let nextCalled = false
+      const mw = makeCardMiddleware(() => {
+        nextCalled = true
+      })
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const update = factory.createTxUpdateDoc(CARD_CLASS, CARD_SPACE, OWN_CARD, { blobs: {} } as any)
+      await mw.tx(makeCtx(makeGuestAccount()), [update])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('forbids Guest to update a card created by another account', async () => {
+      const mw = makeCardMiddleware(() => {})
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const update = factory.createTxUpdateDoc(CARD_CLASS, CARD_SPACE, OTHER_CARD, { blobs: {} } as any)
+      await expect(mw.tx(makeCtx(makeGuestAccount()), [update])).rejects.toThrow()
+    })
+  })
+
   // ─── Cache invalidation ──────────────────────────────────────────────────────
   describe('cache invalidation', () => {
     it('invalidates cache when GuestPermissionsSettings is updated', async () => {

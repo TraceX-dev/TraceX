@@ -1075,6 +1075,21 @@ export function createModel (builder: Builder): void {
     card.ids.ModulePermissionGroupReadOnlyGuest
   )
 
+  // Guests may update a card (e.g. uploading a file onto a File card via `FilePlaceholder`'s
+  // `client.update(doc, { blobs })`) only when they created it - `writePolicy` narrows
+  // `canMutateVisibleRow`'s pre-fetch to the guest's own cards and (via `canUpdate`) still blocks
+  // an update that would reassign `createdBy` away from the caller. Read visibility is already
+  // handled by ordinary space membership, so `policy` here is a no-op passthrough.
+  builder.mixin(card.class.Card, core.class.Class, core.mixin.TxAccessLevel, {
+    updateAccessLevel: AccountRole.Guest
+  })
+
+  builder.mixin(card.class.Card, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'publicReadable', reason: 'Card read visibility is governed by ordinary space membership' },
+    writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+    allowKnownIdBypass: false
+  })
+
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ClassFilters, {
     filters: ['space'],
     ignoreKeys: ['parent']
