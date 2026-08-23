@@ -14,6 +14,7 @@
 //
 
 import {
+  AccountRole,
   DOMAIN_BENCHMARK,
   DOMAIN_BLOB,
   DOMAIN_CONFIGURATION,
@@ -21,7 +22,8 @@ import {
   DOMAIN_SPACE,
   DOMAIN_STATUS,
   DOMAIN_TRANSIENT,
-  DOMAIN_TX
+  DOMAIN_TX,
+  GuestActivityScope
 } from '@hcengineering/core'
 import { type Builder } from '@hcengineering/model'
 import { TBenchmarkDoc } from './benchmark'
@@ -81,6 +83,7 @@ import {
 import { definePermissions } from './permissions'
 import {
   TAttributePermission,
+  TGuestExtraPermissions,
   TModulePermissionGroup,
   TClassPermission,
   TPermission,
@@ -141,6 +144,7 @@ export function createModel (builder: Builder): void {
     TModulePermissionGroup,
     TAttributePermission,
     TClassPermission,
+    TGuestExtraPermissions,
     TAttribute,
     TType,
     TEnumOf,
@@ -197,6 +201,20 @@ export function createModel (builder: Builder): void {
     allowKnownIdBypass: true,
     knownIdBypassFields: ['attachedTo']
   })
+
+  // Off/most-restrictive by default - an admin opts a role in by editing this doc's fields
+  // (there is no dedicated Settings UI for it yet, matching every other guest-permission doc).
+  builder.createDoc(
+    core.class.GuestExtraPermissions,
+    core.space.Model,
+    {
+      role: AccountRole.Guest,
+      editOwnDocCollaborators: false,
+      activityScope: GuestActivityScope.Any,
+      runProcessActions: false
+    },
+    core.ids.GuestExtraPermissionsGuest
+  )
 
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {
     domain: DOMAIN_TX,

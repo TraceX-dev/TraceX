@@ -616,6 +616,38 @@ export interface ModulePermissionGroup extends Doc {
 }
 
 /**
+ * Which activity a restricted-role account may read on a document it doesn't own outright: only
+ * activity it authored itself, activity on documents where it's a listed `core.class.Collaborator`,
+ * or (today's behavior) any it can already read via ordinary visibility.
+ * @public
+ */
+export enum GuestActivityScope {
+  Own = 'own',
+  Collaborator = 'collaborator',
+  Any = 'any'
+}
+
+/**
+ * Per-role opt-in for restricted-role capabilities that don't fit `ModulePermissionGroup` (a whole
+ * module toggle) or `TxAccessLevel` (a static per-class minimum role): each one reaches into data
+ * the account's own row-visibility policy wouldn't otherwise let it touch - naming another account
+ * as a collaborator, reading activity authored by someone else, or acting through a workspace
+ * process - so it's admin opt-in and, where it makes sense, scoped to documents the account itself
+ * created. Off/most-restrictive by default. One doc per role.
+ * @public
+ */
+export interface GuestExtraPermissions extends Doc {
+  role: AccountRole
+  /** May create/remove `core.class.Collaborator` records on a document it created. */
+  editOwnDocCollaborators: boolean
+  /** Activity/message visibility on documents using the ownerField write-policy pattern
+   *  (see `RowVisibility.writePolicy`) - e.g. card.class.Card. Defaults to `Any`. */
+  activityScope: GuestActivityScope
+  /** May trigger workspace process actions (approve/reject, etc). */
+  runProcessActions: boolean
+}
+
+/**
  * @public
  */
 export enum AccountRole {
