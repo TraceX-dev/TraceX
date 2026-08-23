@@ -929,12 +929,8 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     return docs.filter((_doc, index) => visible[index])
   }
 
-  /**
-   * Narrows a restricted role's view of `AttachedDoc` results (chat/activity messages) per
-   * `GuestActivitySettings.activityScope`, but only for results attached to a class that opted in
-   * via `RowVisibility.scopeActivityToOwner` (e.g. card.class.Card) - activity on a shared space
-   * like a channel is untouched regardless of this setting.
-   */
+  /** Narrows activity results per `GuestActivitySettings.activityScope`, only for classes that
+   * opted in via `RowVisibility.scopeActivityToOwner` (e.g. card.class.Card). */
   private async filterActivityByScope<T extends Doc>(
     ctx: MeasureContext<SessionData>,
     docs: T[],

@@ -14,10 +14,10 @@
 //
 
 /**
- * Item 5: `GuestActivitySettings.activityScope` narrows a restricted role's view of chat/activity
- * messages attached to a class that opts in via `RowVisibility.scopeActivityToOwner` (modeling
- * card.class.Card) - own/collaborator/any - while leaving activity on a non-opted-in class (e.g. a
- * chunter channel) untouched regardless of the setting.
+ * `GuestActivitySettings.activityScope` narrows a restricted role's view of chat/activity messages
+ * attached to a class that opts in via `RowVisibility.scopeActivityToOwner` (modeling
+ * card.class.Card) - own/collaborator/any - while activity on a non-opted-in class (e.g. a chunter
+ * channel) stays untouched.
  */
 
 import core, {

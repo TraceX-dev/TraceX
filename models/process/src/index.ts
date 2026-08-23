@@ -548,11 +548,7 @@ export function createModel (builder: Builder): void {
     actions: [view.action.Delete]
   })
 
-  // TxAccessLevel here is Layer 1 only, open to any restricted role - Layer 2's ownerField policy
-  // below already scopes it to the assigned approver, and GuestPermissionsMiddleware additionally
-  // gates it on the admin-toggleable GuestApproveRequestClassPermission (Settings -> Guest
-  // permissions -> Process, off by default), the same ModulePermissionGroup/ClassPermission
-  // mechanism as Cards' "Allow creating cards".
+  // Layer 1 only; GuestApproveRequestClassPermission below is the actual gate.
   builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.TxAccessLevel, {
     updateAccessLevel: AccountRole.ReadOnlyGuest
   })

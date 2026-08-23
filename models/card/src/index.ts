@@ -1047,10 +1047,8 @@ export function createModel (builder: Builder): void {
     card.ids.GuestCardClassPermission
   )
 
-  // Lets a guest create/remove core.class.Collaborator records on a card it created (the
-  // CollaboratorEditor UI) - see the bespoke ownership check in GuestPermissionsMiddleware
-  // (canEditDocCollaborator), which core.class.Collaborator's own ownerField policy can't express
-  // since it would require the collaborator being named to be the caller's own account.
+  // core.class.Collaborator's own ownerField policy would require the named collaborator to be the
+  // caller itself, so this is enforced separately - see canEditDocCollaborator.
   builder.createDoc(
     core.class.ClassPermission,
     core.space.Model,
@@ -1092,11 +1090,7 @@ export function createModel (builder: Builder): void {
     card.ids.ModulePermissionGroupReadOnlyGuest
   )
 
-  // Guests may update a card (e.g. uploading a file onto a File card via `FilePlaceholder`'s
-  // `client.update(doc, { blobs })`) only when they created it - `writePolicy` narrows
-  // `canMutateVisibleRow`'s pre-fetch to the guest's own cards and (via `canUpdate`) still blocks
-  // an update that would reassign `createdBy` away from the caller. Read visibility is already
-  // handled by ordinary space membership, so `policy` here is a no-op passthrough.
+  // Guests may only update cards they created; read visibility stays ordinary space membership.
   builder.mixin(card.class.Card, core.class.Class, core.mixin.TxAccessLevel, {
     updateAccessLevel: AccountRole.Guest
   })
@@ -1105,8 +1099,6 @@ export function createModel (builder: Builder): void {
     policy: { kind: 'publicReadable', reason: 'Card read visibility is governed by ordinary space membership' },
     writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
     allowKnownIdBypass: false,
-    // Lets GuestActivitySettings.activityScope narrow a restricted role's view of chat/activity
-    // attached to a card (own/collaborator/any) instead of always showing everyone's.
     scopeActivityToOwner: true
   })
 

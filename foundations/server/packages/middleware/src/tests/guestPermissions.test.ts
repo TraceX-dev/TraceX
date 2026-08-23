@@ -1269,7 +1269,7 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── core.class.Collaborator editing on own cards (item 4: card.ids.GuestCollaboratorClassPermission) ──
+  // ─── core.class.Collaborator editing on own cards (card.ids.GuestCollaboratorClassPermission) ──
   describe('editing collaborators on a card the guest created', () => {
     const CARD_CLASS = 'card:class:Card' as Ref<Class<Doc>>
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
@@ -1371,7 +1371,7 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── process.class.ApproveRequest actions (item 6: process.ids.GuestApproveRequestClassPermission) ──
+  // ─── process.class.ApproveRequest actions (process.ids.GuestApproveRequestClassPermission) ──
   describe('process.class.ApproveRequest approve/reject', () => {
     const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as Ref<Class<Doc>>
     const GUEST_SOCIAL = 'test:guest-social' as PersonId

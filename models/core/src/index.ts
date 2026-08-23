@@ -202,18 +202,12 @@ export function createModel (builder: Builder): void {
     knownIdBypassFields: ['attachedTo']
   })
 
-  // Layer 1 only - open to any restricted role. The actual gate is Layer 2's bespoke check in
-  // GuestPermissionsMiddleware (card.ids.GuestCollaboratorClassPermission, an ordinary admin-
-  // toggleable Guest-permissions entry), since the ownerField policy above would otherwise require
-  // `collaborator` to be the caller's own account.
+  // Layer 1 only; card.ids.GuestCollaboratorClassPermission is the actual gate (see canEditDocCollaborator).
   builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.ReadOnlyGuest,
     removeAccessLevel: AccountRole.ReadOnlyGuest
   })
 
-  // Activity-visibility scope (own/collaborator/any) is a three-way choice, not an on/off toggle,
-  // so it doesn't fit the generic Guest-permissions UI (ModulePermissionGroup/ClassPermission) -
-  // defaults to Any (today's behavior); an admin narrows it by editing this doc's `activityScope`.
   builder.createDoc(
     core.class.GuestActivitySettings,
     core.space.Model,

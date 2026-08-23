@@ -14,24 +14,10 @@
 //
 
 /**
- * Investigating a reported bug: a Guest-role account sharing a real chunter.class.Channel with
- * another account gets a completely empty @-mention popup (client calls `searchFor('mention', ...)`
- * -> `client.searchFulltext({ classes: [contact.mixin.Employee] })`, which routes through
- * `SpaceSecurityMiddleware.searchFulltext`).
- *
- * Runs the real `SpaceSecurityMiddleware.searchFulltext` against a mocked `next` that behaves like
- * a real fulltext adapter (honors `query.spaces`, and resolves a Mixin ref like `contact.mixin.
- * Employee` back to its underlying `Person` doc - as a real backend would), to see the actual
- * output rather than reasoning about the source by inspection.
- *
- * This baseline scenario (default settings, no disabled Guest-permission modules) passes: the
- * chain getGuestVisibleAccounts -> getGuestVisiblePersonIds -> filterSearchResultsByRowVisibility
- * correctly surfaces a shared-channel member. So this specific mechanism is not, by itself, the
- * cause of the reported empty popup - the remaining suspects are workspace-specific configuration
- * (e.g. a Settings -> Guest permissions module disabled for Guest that happens to cover
- * contact.space.Contacts) or something below the `next` boundary (the real fulltext engine/index,
- * or client-side rendering) that this mock cannot exercise. Kept as a regression test for the
- * mechanism this file does cover.
+ * A Guest sharing a real chunter.class.Channel with another account must be able to find that
+ * account through `SpaceSecurityMiddleware.searchFulltext` (the @-mention path: `searchFor('mention')`
+ * -> `searchFulltext({ classes: [contact.mixin.Employee] })`). The mock mirrors real backend
+ * behavior (`query.spaces` filtering, Mixin ids resolving to their base doc).
  */
 
 import contact from '@hcengineering/contact'

@@ -29,12 +29,7 @@ import platform, { PlatformError, Severity, Status } from '@hcengineering/platfo
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
 
-/**
- * `process.class.ApproveRequest` - referenced by id rather than importing `@hcengineering/process`,
- * which pulls in client-only packages (`@hcengineering/ui`) unsuitable for this server package.
- * Approve/reject already flows through TxUpdateDoc's generic ownerField (assigned-approver) check
- * below; this only adds the extra `runProcessActions` admin gate on top.
- */
+// By id, not an `@hcengineering/process` import - that package pulls in client-only `@hcengineering/ui`.
 const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as unknown as Ref<Class<Doc>>
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
@@ -108,12 +103,9 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   }
 
   /**
-   * `core.class.Collaborator`'s own row policy requires `collaborator` to be the caller's own
-   * account (self-service opt-in), which is the wrong shape for a card owner naming *someone else*
-   * a collaborator. Bypasses that policy entirely, gated instead on the admin-toggleable
-   * `card.ids.GuestCollaboratorClassPermission` (Settings -> Guest permissions -> Cards - the same
-   * ModulePermissionGroup/ClassPermission mechanism as "Allow creating cards", off by default)
-   * plus the caller having created the document the collaborator record attaches to.
+   * Bypasses `core.class.Collaborator`'s own ownerField policy (which would require the named
+   * collaborator to be the caller) - gated on `card.ids.GuestCollaboratorClassPermission` plus the
+   * caller having created the document the collaborator record attaches to.
    */
   private async canEditDocCollaborator (
     ctx: MeasureContext<SessionData>,
