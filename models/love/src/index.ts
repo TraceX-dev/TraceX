@@ -366,17 +366,8 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(love.class.Room, core.class.Class, core.mixin.RowVisibility, {
     policy: {
-      kind: 'linkedViaRecord',
-      linkClass: core.class.Collaborator,
-      linkTargetField: 'attachedTo',
-      linkIdentityField: 'collaborator',
-      identity: 'accountUuid',
-      through: {
-        documentClass: love.class.MeetingMinutes,
-        sourceField: '_id',
-        targetField: 'attachedTo',
-        includeDirect: true
-      }
+      kind: 'publicReadable',
+      reason: 'Office rooms are visible to every guest so the office layout renders correctly; the meeting minutes documents attached to a room stay collaborator-restricted'
     },
     allowKnownIdBypass: false
   })

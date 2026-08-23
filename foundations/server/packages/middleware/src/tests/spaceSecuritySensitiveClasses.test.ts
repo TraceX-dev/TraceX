@@ -23,7 +23,10 @@
  *  - MeetingMinutes/HR Request: open queries clamped to the caller's own records; only `_id`
  *    bypasses the clamp - `attachedTo` is the field the policy itself protects, so it must not
  *    also appear as a bypass field (regression test for the ownership bypass fix).
- *  - Room/RoomInfo: open queries are clamped to rooms where the caller is a collaborator.
+ *  - Room: publicReadable - visible to every guest regardless of collaborator status (the office
+ *    layout needs to render all rooms; only the MeetingMinutes documents attached to a room stay
+ *    collaborator-restricted).
+ *  - RoomInfo: open queries are still clamped to rooms where the caller is a collaborator.
  *  - PushSubscription: always clamped to the caller's own `user`, no bypass.
  *  - PublicLink: denied unless `_id` matches the caller's own `linkId` (from the session token,
  *    not the account - every guest shares one account) - regression test for the enumeration fix.
@@ -76,19 +79,7 @@ const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> =
     allowKnownIdBypass: true
   },
   [ROOM]: {
-    policy: {
-      kind: 'linkedViaRecord',
-      linkClass: core.class.Collaborator,
-      linkTargetField: 'attachedTo',
-      linkIdentityField: 'collaborator',
-      identity: 'accountUuid',
-      through: {
-        documentClass: MEETING_MINUTES,
-        sourceField: '_id',
-        targetField: 'attachedTo',
-        includeDirect: true
-      }
-    },
+    policy: { kind: 'publicReadable', reason: 'Office rooms are visible to every guest' },
     allowKnownIdBypass: false
   },
   [ROOM_INFO]: {
@@ -379,18 +370,18 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
   })
 
   describe('love.class.Room', () => {
-    it('only returns rooms where the caller is a collaborator', async () => {
+    it('returns every room regardless of collaborator status (publicReadable, per the office-layout change)', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const res = await s.mw.findAll(ctx, ROOM, {})
-      expect(res.map((r: any) => r._id)).toEqual([s.roomAlice, s.roomDirect])
+      expect(new Set(res.map((r: any) => r._id))).toEqual(new Set([s.roomAlice, s.roomDirect, s.roomBob]))
     })
 
-    it('does not expose a foreign room through a known id', async () => {
+    it('resolves a room the caller is not a collaborator on through a known id', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const res = await s.mw.findAll(ctx, ROOM, { _id: s.roomBob } as any)
-      expect(res).toHaveLength(0)
+      expect(res.map((r: any) => r._id)).toEqual([s.roomBob])
     })
   })
 
