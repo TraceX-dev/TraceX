@@ -27,7 +27,7 @@ import {
   type ClassPermission,
   type CollectionSize,
   type Doc,
-  type GuestExtraPermissions,
+  type GuestActivitySettings,
   type Permission,
   type Ref,
   type Role,
@@ -238,18 +238,12 @@ export class TModulePermissionGroup extends TDoc implements ModulePermissionGrou
     order?: number
 }
 
-/** See `GuestExtraPermissions` in `@hcengineering/core`. */
-@Model(core.class.GuestExtraPermissions, core.class.Doc, DOMAIN_MODEL)
-export class TGuestExtraPermissions extends TDoc implements GuestExtraPermissions {
+/** See `GuestActivitySettings` in `@hcengineering/core`. */
+@Model(core.class.GuestActivitySettings, core.class.Doc, DOMAIN_MODEL)
+export class TGuestActivitySettings extends TDoc implements GuestActivitySettings {
   @Prop(TypeString(), core.string.Roles)
     role!: AccountRole
 
-  @Prop(TypeBoolean(), core.string.Name)
-    editOwnDocCollaborators!: boolean
-
   @Prop(TypeString(), core.string.Name)
     activityScope!: GuestActivityScope
-
-  @Prop(TypeBoolean(), core.string.Name)
-    runProcessActions!: boolean
 }

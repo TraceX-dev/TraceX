@@ -628,23 +628,17 @@ export enum GuestActivityScope {
 }
 
 /**
- * Per-role opt-in for restricted-role capabilities that don't fit `ModulePermissionGroup` (a whole
- * module toggle) or `TxAccessLevel` (a static per-class minimum role): each one reaches into data
- * the account's own row-visibility policy wouldn't otherwise let it touch - naming another account
- * as a collaborator, reading activity authored by someone else, or acting through a workspace
- * process - so it's admin opt-in and, where it makes sense, scoped to documents the account itself
- * created. Off/most-restrictive by default. One doc per role.
+ * Per-role setting for restricted-role activity visibility - the one guest-permission concern in
+ * this codebase that doesn't fit a `ModulePermissionGroup`/`ClassPermission` toggle (see
+ * `GuestActivityScope`; it's a three-way choice, not on/off) or a static `TxAccessLevel`. Defaults
+ * to `GuestActivityScope.Any` (today's behavior) when no doc exists for a role. One doc per role.
  * @public
  */
-export interface GuestExtraPermissions extends Doc {
+export interface GuestActivitySettings extends Doc {
   role: AccountRole
-  /** May create/remove `core.class.Collaborator` records on a document it created. */
-  editOwnDocCollaborators: boolean
   /** Activity/message visibility on documents using the ownerField write-policy pattern
    *  (see `RowVisibility.writePolicy`) - e.g. card.class.Card. Defaults to `Any`. */
   activityScope: GuestActivityScope
-  /** May trigger workspace process actions (approve/reject, etc). */
-  runProcessActions: boolean
 }
 
 /**
@@ -741,7 +735,7 @@ export interface RowVisibility extends Class<Doc> {
    * trust anchor differs from `policy`'s own field. Defaults to `[]` (only `_id`). */
   knownIdBypassFields?: string[]
   /**
-   * Opts this class into `GuestExtraPermissions.activityScope`: restricted-role reads of an
+   * Opts this class into `GuestActivitySettings.activityScope`: restricted-role reads of an
    * `AttachedDoc` (chat message, etc.) whose `attachedToClass` is this class get narrowed to the
    * caller's own activity or activity on documents it collaborates on, per that setting - instead
    * of the attached class's own (often `publicReadable`) policy. Set only on classes meant to be

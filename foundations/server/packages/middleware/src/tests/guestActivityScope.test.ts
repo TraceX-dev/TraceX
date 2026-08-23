@@ -14,7 +14,7 @@
 //
 
 /**
- * Item 5: `GuestExtraPermissions.activityScope` narrows a restricted role's view of chat/activity
+ * Item 5: `GuestActivitySettings.activityScope` narrows a restricted role's view of chat/activity
  * messages attached to a class that opts in via `RowVisibility.scopeActivityToOwner` (modeling
  * card.class.Card) - own/collaborator/any - while leaving activity on a non-opted-in class (e.g. a
  * chunter channel) untouched regardless of the setting.
@@ -137,7 +137,7 @@ async function setup (activityScope: GuestActivityScope): Promise<{
   const next: Middleware = {
     findAll: (async (_ctx: any, _class: any, query: any) => {
       if (_class === core.class.Space) return [sharedSpaceDoc] as any
-      if (_class === core.class.GuestExtraPermissions) return permissions.filter((p) => matchesQuery(p, query)) as any
+      if (_class === core.class.GuestActivitySettings) return permissions.filter((p) => matchesQuery(p, query)) as any
       if (_class === MESSAGE_CLASS) return messages.filter((d) => matchesQuery(d, query)) as any
       if (_class === CHANNEL_MESSAGE_CLASS) return [channelMsg].filter((d) => matchesQuery(d, query)) as any
       if (_class === core.class.Collaborator) return collaborators.filter((d) => matchesQuery(d, query)) as any
@@ -195,7 +195,7 @@ async function setup (activityScope: GuestActivityScope): Promise<{
   }
 }
 
-describe('GuestExtraPermissions.activityScope', () => {
+describe('GuestActivitySettings.activityScope', () => {
   it('Any (default): sees activity on every card, unaffected', async () => {
     const s = await setup(GuestActivityScope.Any)
     const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE, s.ALICE_SOCIAL))

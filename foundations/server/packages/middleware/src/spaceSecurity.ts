@@ -67,7 +67,7 @@ import {
   getGuestVisiblePersonIds,
   hasNarrowIdQuery,
   resolveDisabledModuleSpaceIds,
-  resolveGuestExtraPermissions,
+  resolveGuestActivityScope,
   type SpaceWithMembers
 } from './guestVisibility'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
@@ -799,7 +799,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       )
     }
     if (!isSystem(account, ctx) && isRestricted && this.context.hierarchy.isDerived(_class, core.class.AttachedDoc)) {
-      const { activityScope } = await resolveGuestExtraPermissions(this.next, ctx, account)
+      const activityScope = await resolveGuestActivityScope(this.next, ctx, account)
       if (activityScope !== GuestActivityScope.Any) {
         const filtered = await this.filterActivityByScope(ctx, findResult, account, activityScope)
         findResult = toFindResult(filtered, filtered.length, findResult.lookupMap)
@@ -931,7 +931,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
 
   /**
    * Narrows a restricted role's view of `AttachedDoc` results (chat/activity messages) per
-   * `GuestExtraPermissions.activityScope`, but only for results attached to a class that opted in
+   * `GuestActivitySettings.activityScope`, but only for results attached to a class that opted in
    * via `RowVisibility.scopeActivityToOwner` (e.g. card.class.Card) - activity on a shared space
    * like a channel is untouched regardless of this setting.
    */

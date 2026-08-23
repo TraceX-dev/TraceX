@@ -548,9 +548,11 @@ export function createModel (builder: Builder): void {
     actions: [view.action.Delete]
   })
 
-  // Layer 1 only - open to any restricted role. Layer 2's ownerField policy below already scopes
-  // it to the assigned approver; GuestPermissionsMiddleware additionally gates it on
-  // core.class.GuestExtraPermissions.runProcessActions (off by default - an admin opts a role in).
+  // TxAccessLevel here is Layer 1 only, open to any restricted role - Layer 2's ownerField policy
+  // below already scopes it to the assigned approver, and GuestPermissionsMiddleware additionally
+  // gates it on the admin-toggleable GuestApproveRequestClassPermission (Settings -> Guest
+  // permissions -> Process, off by default), the same ModulePermissionGroup/ClassPermission
+  // mechanism as Cards' "Allow creating cards".
   builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.TxAccessLevel, {
     updateAccessLevel: AccountRole.ReadOnlyGuest
   })
@@ -559,6 +561,32 @@ export function createModel (builder: Builder): void {
     policy: { kind: 'ownerField', field: 'user', identity: 'personId' },
     allowKnownIdBypass: false
   })
+
+  builder.createDoc(
+    core.class.ClassPermission,
+    core.space.Model,
+    {
+      label: process.string.AllowApproveRequestActions,
+      scope: 'space',
+      targetClass: process.class.ApproveRequest
+    },
+    process.ids.GuestApproveRequestClassPermission
+  )
+
+  builder.createDoc(
+    core.class.ModulePermissionGroup,
+    core.space.Model,
+    {
+      application: process.app.Process,
+      role: AccountRole.Guest,
+      permissions: [process.ids.GuestApproveRequestClassPermission],
+      // Off by default - an admin opts in from Settings -> Guest permissions -> Process.
+      disabledPermissions: [process.ids.GuestApproveRequestClassPermission],
+      enabled: true,
+      order: 30
+    },
+    process.ids.ModulePermissionGroupGuest
+  )
 
   builder.createDoc(
     view.class.Viewlet,

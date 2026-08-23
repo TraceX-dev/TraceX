@@ -132,6 +132,7 @@
     "ProcessStateChanged": "Process \"{process}\" changed state to \"{state}\"",
     "ProcessFinished": "Process \"{process}\" finished in \"{state}\"",
     "NewProcessToDo": "New process Action item",
+    "AllowApproveRequestActions": "Allow approve/reject actions",
     "EmptyArray": "Empty array",
     "ExecutionInitiator": "Execution initiator",
     "ExecutionStarted": "Execution started",

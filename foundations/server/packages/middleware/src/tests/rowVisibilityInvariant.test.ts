@@ -90,7 +90,7 @@ describe('RowVisibility invariant', () => {
     expect(typeof mixin?.allowKnownIdBypass).toBe('boolean')
   })
 
-  it('core.class.Collaborator opens Layer 1 to any restricted role, still self-service-only at Layer 2 unless GuestExtraPermissions.editOwnDocCollaborators opts a role in (regression test for the collaborator-edit permission)', () => {
+  it('core.class.Collaborator opens Layer 1 to any restricted role, still self-service-only at Layer 2 unless card.ids.GuestCollaboratorClassPermission opts a role in (regression test for the collaborator-edit permission)', () => {
     const access = hierarchy.classHierarchyMixin(core.class.Collaborator, core.mixin.TxAccessLevel)
     expect(access?.createAccessLevel).toBe(AccountRole.ReadOnlyGuest)
     expect(access?.removeAccessLevel).toBe(AccountRole.ReadOnlyGuest)

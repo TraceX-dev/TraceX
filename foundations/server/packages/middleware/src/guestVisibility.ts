@@ -25,7 +25,7 @@ import core, {
   type Class,
   type DocumentQuery,
   GuestActivityScope,
-  type GuestExtraPermissions,
+  type GuestActivitySettings,
   type Hierarchy,
   type MeasureContext,
   type ModulePermissionGroup,
@@ -177,25 +177,19 @@ export function excludeSpacesFromQuery (
 }
 
 /**
- * Resolves the caller's `core.class.GuestExtraPermissions` doc (one per role - see that type for
- * what each field gates). Missing fields, and a missing doc entirely, default to the most
- * restrictive value (`false` / `GuestActivityScope.Any` is the one exception, matching today's
- * unrestricted-activity behavior for roles nobody has configured yet).
+ * Resolves the caller's `core.class.GuestActivitySettings` doc (one per role). Defaults to
+ * `GuestActivityScope.Any` - today's unrestricted-activity behavior - when no doc exists yet for
+ * the role.
  */
-export async function resolveGuestExtraPermissions (
+export async function resolveGuestActivityScope (
   next: Middleware | undefined,
   ctx: MeasureContext<SessionData>,
   account: Account
-): Promise<Pick<GuestExtraPermissions, 'editOwnDocCollaborators' | 'activityScope' | 'runProcessActions'>> {
-  const query: DocumentQuery<GuestExtraPermissions> = { role: account.role }
-  const docs = ((await next?.findAll(ctx, core.class.GuestExtraPermissions, query, { limit: 1 })) ??
-    []) as GuestExtraPermissions[]
-  const doc = docs[0]
-  return {
-    editOwnDocCollaborators: doc?.editOwnDocCollaborators ?? false,
-    activityScope: doc?.activityScope ?? GuestActivityScope.Any,
-    runProcessActions: doc?.runProcessActions ?? false
-  }
+): Promise<GuestActivityScope> {
+  const query: DocumentQuery<GuestActivitySettings> = { role: account.role }
+  const docs = ((await next?.findAll(ctx, core.class.GuestActivitySettings, query, { limit: 1 })) ??
+    []) as GuestActivitySettings[]
+  return docs[0]?.activityScope ?? GuestActivityScope.Any
 }
 
 // Row-level ownership restriction (Layer 2) now lives in `./rowVisibility`.

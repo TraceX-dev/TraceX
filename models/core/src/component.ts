@@ -30,6 +30,6 @@ export default mergeIds(coreId, core, {
     BlobSize: '' as IntlString
   },
   ids: {
-    GuestExtraPermissionsGuest: '' as Ref<Doc>
+    GuestActivitySettingsGuest: '' as Ref<Doc>
   }
 })

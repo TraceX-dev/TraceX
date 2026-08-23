@@ -27,7 +27,6 @@ import core, {
 import contact from '@hcengineering/contact'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
-import { resolveGuestExtraPermissions } from './guestVisibility'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
 
 /**
@@ -111,17 +110,18 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   /**
    * `core.class.Collaborator`'s own row policy requires `collaborator` to be the caller's own
    * account (self-service opt-in), which is the wrong shape for a card owner naming *someone else*
-   * a collaborator. Bypasses that policy entirely, gated instead on the admin opt-in
-   * (`GuestExtraPermissions.editOwnDocCollaborators`) plus the caller having created the document
-   * the collaborator record attaches to.
+   * a collaborator. Bypasses that policy entirely, gated instead on the admin-toggleable
+   * `card.ids.GuestCollaboratorClassPermission` (Settings -> Guest permissions -> Cards - the same
+   * ModulePermissionGroup/ClassPermission mechanism as "Allow creating cards", off by default)
+   * plus the caller having created the document the collaborator record attaches to.
    */
   private async canEditDocCollaborator (
     ctx: MeasureContext<SessionData>,
     tx: TxCUD<Doc>,
     account: Account
   ): Promise<boolean> {
-    const { editOwnDocCollaborators } = await resolveGuestExtraPermissions(this.next, ctx, account)
-    if (!editOwnDocCollaborators) return false
+    const allowed = await this.classAccess.allowedClasses(ctx, account.role, core.class.TxCreateDoc)
+    if (!allowed.has(core.class.Collaborator)) return false
     if (tx.attachedTo === undefined || tx.attachedToClass === undefined) return false
     const parents = await this.findAll(ctx, tx.attachedToClass, { _id: tx.attachedTo }, { limit: 1 })
     const parent = parents[0] as (Doc & { createdBy?: PersonId }) | undefined
@@ -155,8 +155,8 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) &&
       this.context.hierarchy.isDerived(tx.objectClass, APPROVE_REQUEST_CLASS)
     ) {
-      const { runProcessActions } = await resolveGuestExtraPermissions(this.next, ctx, account)
-      if (!runProcessActions) return false
+      const allowed = await this.classAccess.allowedClasses(ctx, account.role, core.class.TxCreateDoc)
+      if (!allowed.has(APPROVE_REQUEST_CLASS)) return false
     }
     const query: DocumentQuery<Doc> = { _id: tx.objectId }
     const decision = await this.rowVisibility.resolveMutation(

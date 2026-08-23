@@ -83,7 +83,7 @@ import {
 import { definePermissions } from './permissions'
 import {
   TAttributePermission,
-  TGuestExtraPermissions,
+  TGuestActivitySettings,
   TModulePermissionGroup,
   TClassPermission,
   TPermission,
@@ -144,7 +144,7 @@ export function createModel (builder: Builder): void {
     TModulePermissionGroup,
     TAttributePermission,
     TClassPermission,
-    TGuestExtraPermissions,
+    TGuestActivitySettings,
     TAttribute,
     TType,
     TEnumOf,
@@ -203,26 +203,25 @@ export function createModel (builder: Builder): void {
   })
 
   // Layer 1 only - open to any restricted role. The actual gate is Layer 2's bespoke check in
-  // GuestPermissionsMiddleware (core.class.GuestExtraPermissions.editOwnDocCollaborators, scoped to
-  // documents the caller created), since the ownerField policy above would otherwise require
+  // GuestPermissionsMiddleware (card.ids.GuestCollaboratorClassPermission, an ordinary admin-
+  // toggleable Guest-permissions entry), since the ownerField policy above would otherwise require
   // `collaborator` to be the caller's own account.
   builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.ReadOnlyGuest,
     removeAccessLevel: AccountRole.ReadOnlyGuest
   })
 
-  // Off/most-restrictive by default - an admin opts a role in by editing this doc's fields
-  // (there is no dedicated Settings UI for it yet, matching every other guest-permission doc).
+  // Activity-visibility scope (own/collaborator/any) is a three-way choice, not an on/off toggle,
+  // so it doesn't fit the generic Guest-permissions UI (ModulePermissionGroup/ClassPermission) -
+  // defaults to Any (today's behavior); an admin narrows it by editing this doc's `activityScope`.
   builder.createDoc(
-    core.class.GuestExtraPermissions,
+    core.class.GuestActivitySettings,
     core.space.Model,
     {
       role: AccountRole.Guest,
-      editOwnDocCollaborators: false,
-      activityScope: GuestActivityScope.Any,
-      runProcessActions: false
+      activityScope: GuestActivityScope.Any
     },
-    core.ids.GuestExtraPermissionsGuest
+    core.ids.GuestActivitySettingsGuest
   )
 
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {

@@ -132,6 +132,7 @@
     "ProcessStateChanged": "Состояние процесса \"{process}\" изменено на \"{state}\"",
     "ProcessFinished": "Процесс \"{process}\" завершен в состояние \"{state}\"",
     "NewProcessToDo": "Новый Action Item процесса",
+    "AllowApproveRequestActions": "Разрешить действия approve/reject",
     "EmptyArray": "Пустой массив",
     "ExecutionInitiator": "Инициатор выполнения",
     "ExecutionStarted": "Выполнение начато",

@@ -1047,13 +1047,30 @@ export function createModel (builder: Builder): void {
     card.ids.GuestCardClassPermission
   )
 
+  // Lets a guest create/remove core.class.Collaborator records on a card it created (the
+  // CollaboratorEditor UI) - see the bespoke ownership check in GuestPermissionsMiddleware
+  // (canEditDocCollaborator), which core.class.Collaborator's own ownerField policy can't express
+  // since it would require the collaborator being named to be the caller's own account.
+  builder.createDoc(
+    core.class.ClassPermission,
+    core.space.Model,
+    {
+      label: card.string.AllowEditingCollaborators,
+      scope: 'space',
+      targetClass: core.class.Collaborator
+    },
+    card.ids.GuestCollaboratorClassPermission
+  )
+
   builder.createDoc(
     core.class.ModulePermissionGroup,
     core.space.Model,
     {
       application: card.app.Card,
       role: AccountRole.Guest,
-      permissions: [card.ids.GuestCardClassPermission],
+      permissions: [card.ids.GuestCardClassPermission, card.ids.GuestCollaboratorClassPermission],
+      // Off by default - an admin opts in from Settings -> Guest permissions -> Cards.
+      disabledPermissions: [card.ids.GuestCollaboratorClassPermission],
       spaceClass: card.class.CardSpace,
       enabled: true,
       order: 20
@@ -1088,7 +1105,7 @@ export function createModel (builder: Builder): void {
     policy: { kind: 'publicReadable', reason: 'Card read visibility is governed by ordinary space membership' },
     writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
     allowKnownIdBypass: false,
-    // Lets GuestExtraPermissions.activityScope narrow a restricted role's view of chat/activity
+    // Lets GuestActivitySettings.activityScope narrow a restricted role's view of chat/activity
     // attached to a card (own/collaborator/any) instead of always showing everyone's.
     scopeActivityToOwner: true
   })

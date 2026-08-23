@@ -6,6 +6,7 @@
     "Content": "Содержание",
     "CreateCard": "Создать карту",
     "AllowCreatingCards": "Разрешить создание карт",
+    "AllowEditingCollaborators": "Разрешить редактирование участников своих карт",
     "CreateMasterTag": "Создать тип",
     "CreateTag": "Создать тег",
     "MasterTag": "Тип",

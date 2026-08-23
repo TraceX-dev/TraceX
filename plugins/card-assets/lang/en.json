@@ -6,6 +6,7 @@
     "Content": "Content",
     "CreateCard": "Create Card",
     "AllowCreatingCards": "Allow creating cards",
+    "AllowEditingCollaborators": "Allow editing collaborators on own cards",
     "CreateMasterTag": "Create Type",
     "CreateTag": "Create Tag",
     "MasterTag": "Type",

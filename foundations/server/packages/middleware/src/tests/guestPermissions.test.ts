@@ -1269,7 +1269,7 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── core.class.Collaborator editing on own cards (item 4: GuestExtraPermissions.editOwnDocCollaborators) ──
+  // ─── core.class.Collaborator editing on own cards (item 4: card.ids.GuestCollaboratorClassPermission) ──
   describe('editing collaborators on a card the guest created', () => {
     const CARD_CLASS = 'card:class:Card' as Ref<Class<Doc>>
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
@@ -1278,12 +1278,23 @@ describe('GuestPermissionsMiddleware', () => {
     const OTHER_CARD = 'test:card:other' as Ref<Doc>
     const CARD_SPACE = 'test:space:cards' as Ref<Space>
     const NEW_COLLABORATOR_ACCOUNT = 'test:other-account' as any
+    const COLLABORATOR_PERMISSION = 'test:permission:collaborator' as Ref<Doc>
 
     function makeCollaboratorMiddleware (editOwnDocCollaborators: boolean, nextCalled: () => void): GuestPermissionsMiddleware {
       const mw = makeMiddleware(
         async (_ctx, _class, query: any) => {
-          if (_class === core.class.GuestExtraPermissions) {
-            return [{ role: AccountRole.Guest, editOwnDocCollaborators }] as any
+          if (_class === core.class.ModulePermissionGroup) {
+            return [
+              {
+                role: AccountRole.Guest,
+                permissions: [COLLABORATOR_PERMISSION],
+                disabledPermissions: editOwnDocCollaborators ? [] : [COLLABORATOR_PERMISSION],
+                enabled: true
+              }
+            ] as any
+          }
+          if (_class === core.class.ClassPermission) {
+            return [{ _id: COLLABORATOR_PERMISSION, targetClass: core.class.Collaborator }] as any
           }
           if (_class === CARD_CLASS) {
             const cards = [
@@ -1360,7 +1371,7 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── process.class.ApproveRequest actions (item 6: GuestExtraPermissions.runProcessActions) ──
+  // ─── process.class.ApproveRequest actions (item 6: process.ids.GuestApproveRequestClassPermission) ──
   describe('process.class.ApproveRequest approve/reject', () => {
     const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as Ref<Class<Doc>>
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
@@ -1369,6 +1380,7 @@ describe('GuestPermissionsMiddleware', () => {
     const OWN_REQUEST = 'test:request:own' as Ref<Doc>
     const OTHER_REQUEST = 'test:request:other' as Ref<Doc>
     const REQUEST_SPACE = 'test:space:requests' as Ref<Space>
+    const APPROVE_PERMISSION = 'test:permission:approve' as Ref<Doc>
 
     function makeAccount (): Account {
       return {
@@ -1383,8 +1395,18 @@ describe('GuestPermissionsMiddleware', () => {
     function makeApproveMiddleware (runProcessActions: boolean, nextCalled: () => void): GuestPermissionsMiddleware {
       const mw = makeMiddleware(
         async (_ctx, _class, query: any) => {
-          if (_class === core.class.GuestExtraPermissions) {
-            return [{ role: AccountRole.Guest, runProcessActions }] as any
+          if (_class === core.class.ModulePermissionGroup) {
+            return [
+              {
+                role: AccountRole.Guest,
+                permissions: [APPROVE_PERMISSION],
+                disabledPermissions: runProcessActions ? [] : [APPROVE_PERMISSION],
+                enabled: true
+              }
+            ] as any
+          }
+          if (_class === core.class.ClassPermission) {
+            return [{ _id: APPROVE_PERMISSION, targetClass: APPROVE_REQUEST_CLASS }] as any
           }
           if (_class === contact.class.Person) {
             return [{ _id: GUEST_PERSON, personUuid: 'test:guest-account' }] as any

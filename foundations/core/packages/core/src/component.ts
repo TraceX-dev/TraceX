@@ -37,7 +37,7 @@ import type {
   Enum,
   EnumOf,
   FullTextSearchContext,
-  GuestExtraPermissions,
+  GuestActivitySettings,
   Hyperlink,
   IndexingConfiguration,
   Interface,
@@ -186,7 +186,7 @@ export default plugin(coreId, {
     ClassCollaborators: '' as Ref<Class<ClassCollaborators<Doc>>>,
     Collaborator: '' as Ref<Class<Collaborator>>,
     ModulePermissionGroup: '' as Ref<Class<ModulePermissionGroup>>,
-    GuestExtraPermissions: '' as Ref<Class<GuestExtraPermissions>>
+    GuestActivitySettings: '' as Ref<Class<GuestActivitySettings>>
   },
   icon: {
     TypeString: '' as Asset,
