@@ -19,7 +19,7 @@
  *
  * Scope: only the sensitive classes restricted today. Widening to every class outside ordinary space
  * filtering platform-wide needs a full audit first (dozens of classes are in `core.space.Workspace`
- * for unrelated reasons - shared tags, reactions, global settings, ...) - see the design doc.
+ * for unrelated reasons - shared tags, reactions, global settings, ...) - see `docs/security-model.md`.
  */
 
 import contact, { type SocialIdentityRef } from '@hcengineering/contact'

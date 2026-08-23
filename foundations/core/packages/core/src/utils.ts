@@ -39,7 +39,6 @@ import {
   type Rank,
   type Ref,
   type Role,
-  roleOrder,
   type SocialId,
   SocialIdType,
   type SocialKey,
@@ -51,6 +50,7 @@ import core from './component'
 import { type Hierarchy } from './hierarchy'
 import { type TxOperations } from './operations'
 import { isPredicate } from './predicate'
+import { roleOrder } from './security'
 import { type Branding, type BrandingMap } from './server'
 import { type DocumentQuery, type FindResult } from './storage'
 import { DOMAIN_TX, type Tx, type TxCreateDoc, type TxCUD, TxProcessor, type TxUpdateDoc } from './tx'
@@ -823,15 +823,6 @@ export function isOwnerOrMaintainer (): boolean {
 
 export function hasAccountRole (acc: Account, targerRole: AccountRole): boolean {
   return roleOrder[acc.role] >= roleOrder[targerRole]
-}
-
-/**
- * True for any role below `AccountRole.User` (`Guest`, `DocGuest`, `ReadOnlyGuest`). The single
- * source of truth for "restricted account" - use instead of comparing `role` directly.
- * @public
- */
-export function isRowLevelRestricted (role: AccountRole): boolean {
-  return roleOrder[role] < roleOrder[AccountRole.User]
 }
 
 /**

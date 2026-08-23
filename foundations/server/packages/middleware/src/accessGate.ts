@@ -14,10 +14,10 @@
 //
 
 /**
- * Layer 1 write-side gate: which classes/tx kinds a role may reach at all. Consolidates the two
- * existing sources - admin-configured `ModulePermissionGroup`/`ClassPermission` docs, and the
- * code-declared per-class minimum role (`core.mixin.TxAccessLevel`) - behind one resolver, used
- * by `GuestPermissionsMiddleware`.
+ * Layer 1 write-side gate (see `docs/security-model.md`): which classes/tx kinds a role may reach
+ * at all. Consolidates the two existing sources - admin-configured
+ * `ModulePermissionGroup`/`ClassPermission` docs, and the code-declared per-class minimum role
+ * (`core.mixin.TxAccessLevel`) - behind one resolver, used by `GuestPermissionsMiddleware`.
  *
  * Role-parameterized throughout (not hardcoded to `AccountRole.Guest`): restricted roles are
  * checked against the minimum role declared by each class, while `User` and higher roles bypass

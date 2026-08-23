@@ -14,8 +14,9 @@
 //
 
 /**
- * Row-level ownership resolution (Layer 2, see `core.mixin.RowVisibility` / `RowVisibilityPolicy`)
- * for classes not scoped by ordinary space-based filtering.
+ * Row-level ownership resolution (Layer 2, see `docs/security-model.md` and
+ * `core.mixin.RowVisibility` / `RowVisibilityPolicy`) for classes not scoped by ordinary
+ * space-based filtering.
  *
  * Deliberately role-agnostic: nothing here compares `account.role`. Which accounts this runs for
  * is entirely up to the call site (`isRowLevelRestricted(account.role)` in `spaceSecurity.ts`).

@@ -37,7 +37,6 @@ import type {
   Enum,
   EnumOf,
   FullTextSearchContext,
-  GuestActivitySettings,
   Hyperlink,
   IndexingConfiguration,
   Interface,
@@ -56,7 +55,6 @@ import type {
   Relation,
   RelationMetadata,
   Role,
-  RowVisibility,
   Sequence,
   Space,
   SpaceType,
@@ -71,7 +69,8 @@ import type {
   UserStatus,
   Version
 } from './classes'
-import { AccountRole, TxAccessLevel } from './classes'
+import { AccountRole } from './classes'
+import { type GuestActivitySettings, type RowVisibility, type TxAccessLevel } from './security'
 import { type Status, type StatusCategory } from './status'
 import type {
   Tx,
