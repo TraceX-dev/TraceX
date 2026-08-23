@@ -35,14 +35,19 @@ import core, {
   type Permission,
   type PersonId,
   type Ref,
+  type Tx,
   type TxCUD
 } from '@hcengineering/core'
 import type { Middleware } from '@hcengineering/server-core'
 import contact, { type Person } from '@hcengineering/contact'
 
-/** Admin-configured (`ModulePermissionGroup`/`ClassPermission`) per-role allowed-class cache. */
+/**
+ * Admin-configured (`ModulePermissionGroup`/`ClassPermission`) per-role allowed-class cache, keyed
+ * by the `Tx` kind the permission covers (`ClassPermission.txClass`, defaulting to `TxCreateDoc`
+ * for the common "may create this class" case - preserving every existing untyped registration).
+ */
 export class ClassAccessResolver {
-  private cache: Map<AccountRole, Set<Ref<Class<Doc>>>> | undefined
+  private cache: Map<AccountRole, Map<Ref<Class<Tx>>, Set<Ref<Class<Doc>>>>> | undefined
   private loading: Promise<void> | undefined
 
   constructor (private readonly next: Middleware | undefined) {}
@@ -51,12 +56,20 @@ export class ClassAccessResolver {
     this.cache = undefined
   }
 
-  async allowedCreateClasses (ctx: MeasureContext, role: AccountRole): Promise<Set<Ref<Class<Doc>>>> {
+  async allowedClasses (
+    ctx: MeasureContext,
+    role: AccountRole,
+    txClass: Ref<Class<Tx>>
+  ): Promise<Set<Ref<Class<Doc>>>> {
     const cache = await this.ensureLoaded(ctx)
-    return cache.get(role) ?? new Set()
+    return cache.get(role)?.get(txClass) ?? new Set()
   }
 
-  private async ensureLoaded (ctx: MeasureContext): Promise<Map<AccountRole, Set<Ref<Class<Doc>>>>> {
+  async allowedCreateClasses (ctx: MeasureContext, role: AccountRole): Promise<Set<Ref<Class<Doc>>>> {
+    return await this.allowedClasses(ctx, role, core.class.TxCreateDoc)
+  }
+
+  private async ensureLoaded (ctx: MeasureContext): Promise<Map<AccountRole, Map<Ref<Class<Tx>>, Set<Ref<Class<Doc>>>>>> {
     if (this.cache !== undefined) return this.cache
     if (this.loading === undefined) {
       this.loading = this.load(ctx)
@@ -97,19 +110,27 @@ export class ClassAccessResolver {
             } as any
           )
           : []
-      const permissionToClass = new Map<Ref<Permission>, Ref<Class<Doc>>>(
+      const permissionInfo = new Map<Ref<Permission>, { targetClass: Ref<Class<Doc>>, txClass: Ref<Class<Tx>> }>(
         ((classPermissions ?? []) as ClassPermission[])
-          .map((permission) => [permission._id, permission.targetClass] as const)
-          .filter((entry): entry is readonly [Ref<ClassPermission>, Ref<Class<Doc>>] => entry[1] !== undefined)
+          .filter((permission): permission is ClassPermission & { targetClass: Ref<Class<Doc>> } =>
+            permission.targetClass !== undefined
+          )
+          .map((permission) => [
+            permission._id,
+            { targetClass: permission.targetClass, txClass: permission.txClass ?? core.class.TxCreateDoc }
+          ])
       )
-      const roleAllowedClasses = new Map<AccountRole, Set<Ref<Class<Doc>>>>()
+      const roleAllowedClasses = new Map<AccountRole, Map<Ref<Class<Tx>>, Set<Ref<Class<Doc>>>>>()
       for (const [role, permissions] of rolePermissions.entries()) {
-        const allowedClasses = new Set<Ref<Class<Doc>>>()
+        const byTxClass = new Map<Ref<Class<Tx>>, Set<Ref<Class<Doc>>>>()
         for (const permissionId of permissions) {
-          const targetClass = permissionToClass.get(permissionId)
-          if (targetClass !== undefined) allowedClasses.add(targetClass)
+          const info = permissionInfo.get(permissionId)
+          if (info === undefined) continue
+          const targetClasses = byTxClass.get(info.txClass) ?? new Set<Ref<Class<Doc>>>()
+          targetClasses.add(info.targetClass)
+          byTxClass.set(info.txClass, targetClasses)
         }
-        roleAllowedClasses.set(role, allowedClasses)
+        roleAllowedClasses.set(role, byTxClass)
       }
       this.cache = roleAllowedClasses
     } catch {
@@ -175,10 +196,8 @@ export async function isClassAccessAllowed (
 ): Promise<boolean> {
   if (hasAccountRole(account, AccountRole.User)) return true
 
-  if (tx._class === core.class.TxCreateDoc) {
-    const allowed = await classAccess.allowedCreateClasses(ctx, account.role)
-    if (coveredClass(hierarchy, tx.objectClass, allowed) !== undefined) return true
-  }
+  const allowed = await classAccess.allowedClasses(ctx, account.role, tx._class)
+  if (coveredClass(hierarchy, tx.objectClass, allowed) !== undefined) return true
 
   return await hasClassAccessLevel(hierarchy, next, ctx, tx, account)
 }

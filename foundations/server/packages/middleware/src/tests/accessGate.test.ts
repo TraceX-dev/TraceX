@@ -57,6 +57,11 @@ function makeCreateTx (): TxCUD<Doc> {
   return factory.createTxCreateDoc(SOME_CLASS, 'test:space:Some' as any, {}) as TxCUD<Doc>
 }
 
+function makeUpdateTx (): TxCUD<Doc> {
+  const factory = new TxFactory('test:account:System' as PersonId)
+  return factory.createTxUpdateDoc(SOME_CLASS, 'test:space:Some' as any, generateId(), {} as any) as TxCUD<Doc>
+}
+
 describe('hasClassAccessLevel', () => {
   it('grants the declared minimum role and roles above it', async () => {
     const hierarchy = new Hierarchy()
@@ -160,5 +165,45 @@ describe('isClassAccessAllowed', () => {
       makeAccount(AccountRole.Guest)
     )
     expect(allowed).toBe(true)
+  })
+
+  it('a ClassPermission with an explicit txClass only covers that tx kind (regression test for the txClass generalization)', async () => {
+    const hierarchy = new Hierarchy()
+    hierarchy.isDerived = ((a: any, b: any) => a === b) as any
+    hierarchy.classHierarchyMixin = (() => undefined) as any
+
+    const next: Middleware = {
+      findAll: (async (_ctx: any, _class: any) => {
+        if (_class === core.class.ModulePermissionGroup) {
+          return [{ role: AccountRole.Guest, permissions: ['p1'], enabled: true }] as any
+        }
+        if (_class === core.class.ClassPermission) {
+          return [{ _id: 'p1', targetClass: SOME_CLASS, txClass: core.class.TxUpdateDoc }] as any
+        }
+        return []
+      }) as any
+    } as any
+
+    const classAccess = new ClassAccessResolver(next)
+
+    const updateAllowed = await isClassAccessAllowed(
+      hierarchy,
+      next,
+      classAccess,
+      makeCtx(),
+      makeUpdateTx(),
+      makeAccount(AccountRole.Guest)
+    )
+    expect(updateAllowed).toBe(true)
+
+    const createAllowed = await isClassAccessAllowed(
+      hierarchy,
+      next,
+      classAccess,
+      makeCtx(),
+      makeCreateTx(),
+      makeAccount(AccountRole.Guest)
+    )
+    expect(createAllowed).toBe(false)
   })
 })
