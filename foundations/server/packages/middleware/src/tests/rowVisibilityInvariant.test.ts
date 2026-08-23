@@ -91,11 +91,12 @@ describe('RowVisibility invariant', () => {
   })
 
   it('core.class.Collaborator opens Layer 1 to any restricted role, still self-service-only at Layer 2 unless card.ids.GuestCollaboratorClassPermission opts a role in (regression test for the collaborator-edit permission)', () => {
-    const access = hierarchy.classHierarchyMixin(core.class.Collaborator, core.mixin.TxAccessLevel)
+    const COLLABORATOR = core.class.Collaborator as Ref<Class<Doc>>
+    const access = hierarchy.classHierarchyMixin(COLLABORATOR, core.mixin.TxAccessLevel)
     expect(access?.createAccessLevel).toBe(AccountRole.ReadOnlyGuest)
     expect(access?.removeAccessLevel).toBe(AccountRole.ReadOnlyGuest)
 
-    const visibility = hierarchy.classHierarchyMixin(core.class.Collaborator, core.mixin.RowVisibility)
+    const visibility = hierarchy.classHierarchyMixin(COLLABORATOR, core.mixin.RowVisibility)
     expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' })
   })
 
