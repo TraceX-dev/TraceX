@@ -1,5 +1,5 @@
 
-FROM tracexapp/base-slim:v20260811
+FROM tracexapp/base-slim:v20260821
 WORKDIR /usr/src/app
 
 COPY bundle/bundle.js ./

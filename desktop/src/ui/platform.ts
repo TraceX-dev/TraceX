@@ -84,6 +84,7 @@ import { ratingId } from '@hcengineering/rating'
 import billingPlugin, { billingId } from '@hcengineering/billing'
 import { qalicoId } from '@tracex/qalico'
 import githubNext, { githubNextId } from '@hcengineering/github-next'
+import { integrationId } from '@hcengineering/integration'
 
 import '@hcengineering/activity-assets'
 import '@hcengineering/analytics-collector-assets'
@@ -497,6 +498,8 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   addLocation(surveyId, () => import(/* webpackChunkName: "survey" */ '@hcengineering/survey-resources'))
   addLocation(cardId, () => import(/* webpackChunkName: "card" */ '@hcengineering/card-resources'))
   addLocation(processId, () => import(/* webpackChunkName: "process" */ '@hcengineering/process-resources'))
+  addLocation(integrationId,() => import(/* webpackChunkName: "integration" */ '@hcengineering/integration-resources'))
+
   addLocation(achievementId, () => import(/* webpackChunkName: "achievement" */ '@hcengineering/achievement-resources'))
   addLocation(emojiId, () => import(/* webpackChunkName: "achievement" */ '@hcengineering/emoji-resources'))
   if ((config.BILLING_URL ?? '') !== '') {
