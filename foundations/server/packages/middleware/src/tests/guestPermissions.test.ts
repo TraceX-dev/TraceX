@@ -1360,6 +1360,93 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
+  // ─── process.class.ApproveRequest actions (item 6: GuestExtraPermissions.runProcessActions) ──
+  describe('process.class.ApproveRequest approve/reject', () => {
+    const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as Ref<Class<Doc>>
+    const GUEST_SOCIAL = 'test:guest-social' as PersonId
+    const GUEST_PERSON = 'test:guest-person' as Ref<Doc>
+    const OTHER_PERSON = 'test:other-person' as Ref<Doc>
+    const OWN_REQUEST = 'test:request:own' as Ref<Doc>
+    const OTHER_REQUEST = 'test:request:other' as Ref<Doc>
+    const REQUEST_SPACE = 'test:space:requests' as Ref<Space>
+
+    function makeAccount (): Account {
+      return {
+        uuid: 'test:guest-account' as any,
+        role: AccountRole.Guest,
+        primarySocialId: GUEST_SOCIAL,
+        socialIds: [GUEST_SOCIAL],
+        fullSocialIds: []
+      }
+    }
+
+    function makeApproveMiddleware (runProcessActions: boolean, nextCalled: () => void): GuestPermissionsMiddleware {
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class === core.class.GuestExtraPermissions) {
+            return [{ role: AccountRole.Guest, runProcessActions }] as any
+          }
+          if (_class === contact.class.Person) {
+            return [{ _id: GUEST_PERSON, personUuid: 'test:guest-account' }] as any
+          }
+          if (_class === APPROVE_REQUEST_CLASS) {
+            const requests = [
+              { _id: OWN_REQUEST, _class: APPROVE_REQUEST_CLASS, space: REQUEST_SPACE, user: GUEST_PERSON },
+              { _id: OTHER_REQUEST, _class: APPROVE_REQUEST_CLASS, space: REQUEST_SPACE, user: OTHER_PERSON }
+            ]
+            return requests.filter((r) => (query?._id === undefined || query._id === r._id) &&
+              (query?.user === undefined || query.user === r.user)) as any
+          }
+          return []
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== APPROVE_REQUEST_CLASS) return undefined
+        if (mixin === core.mixin.TxAccessLevel) return { updateAccessLevel: AccountRole.ReadOnlyGuest }
+        if (mixin === core.mixin.RowVisibility) {
+          return {
+            policy: { kind: 'ownerField', field: 'user', identity: 'personId' },
+            allowKnownIdBypass: false
+          }
+        }
+        return undefined
+      }
+      return mw
+    }
+
+    function makeApproveTx (request: Ref<Doc>): Tx {
+      const factory = new TxFactory(GUEST_SOCIAL)
+      return factory.createTxUpdateDoc(APPROVE_REQUEST_CLASS, REQUEST_SPACE, request, {
+        doneOn: Date.now(),
+        approved: true
+      } as any)
+    }
+
+    it('forbids by default (runProcessActions off), even for the assigned approver', async () => {
+      const mw = makeApproveMiddleware(false, () => {})
+      await expect(mw.tx(makeCtx(makeAccount()), [makeApproveTx(OWN_REQUEST)])).rejects.toThrow()
+    })
+
+    it('allows the assigned approver once opted in', async () => {
+      let nextCalled = false
+      const mw = makeApproveMiddleware(true, () => {
+        nextCalled = true
+      })
+      await mw.tx(makeCtx(makeAccount()), [makeApproveTx(OWN_REQUEST)])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('forbids a request assigned to someone else, even when opted in', async () => {
+      const mw = makeApproveMiddleware(true, () => {})
+      await expect(mw.tx(makeCtx(makeAccount()), [makeApproveTx(OTHER_REQUEST)])).rejects.toThrow()
+    })
+  })
+
   // ─── Cache invalidation ──────────────────────────────────────────────────────
   describe('cache invalidation', () => {
     it('invalidates cache when GuestPermissionsSettings is updated', async () => {

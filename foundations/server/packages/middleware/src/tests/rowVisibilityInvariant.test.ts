@@ -99,6 +99,15 @@ describe('RowVisibility invariant', () => {
     expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' })
   })
 
+  it('process.class.ApproveRequest opens Layer 1 to any restricted role, scoped to the assigned approver at Layer 2 (regression test for the process-actions permission)', () => {
+    const APPROVE_REQUEST = 'process:class:ApproveRequest' as Ref<Class<Doc>>
+    const access = hierarchy.classHierarchyMixin(APPROVE_REQUEST, core.mixin.TxAccessLevel)
+    expect(access?.updateAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+
+    const visibility = hierarchy.classHierarchyMixin(APPROVE_REQUEST, core.mixin.RowVisibility)
+    expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'user', identity: 'personId' })
+  })
+
   it('hr.class.Request and love.class.MeetingMinutes do not list their own ownerField/linkTargetField as a known-id bypass (regression test for the ownership bypass fix)', () => {
     const hrMixin = hierarchy.classHierarchyMixin('hr:class:Request' as Ref<Class<Doc>>, core.mixin.RowVisibility)
     expect(hrMixin?.knownIdBypassFields ?? []).not.toContain('attachedTo')

@@ -548,6 +548,18 @@ export function createModel (builder: Builder): void {
     actions: [view.action.Delete]
   })
 
+  // Layer 1 only - open to any restricted role. Layer 2's ownerField policy below already scopes
+  // it to the assigned approver; GuestPermissionsMiddleware additionally gates it on
+  // core.class.GuestExtraPermissions.runProcessActions (off by default - an admin opts a role in).
+  builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.TxAccessLevel, {
+    updateAccessLevel: AccountRole.ReadOnlyGuest
+  })
+
+  builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'ownerField', field: 'user', identity: 'personId' },
+    allowKnownIdBypass: false
+  })
+
   builder.createDoc(
     view.class.Viewlet,
     core.space.Model,

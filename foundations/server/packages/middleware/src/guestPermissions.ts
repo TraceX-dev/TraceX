@@ -7,11 +7,13 @@ import {
 import core, {
   type Account,
   AccountRole,
+  type Class,
   type Doc,
   type DocumentQuery,
   hasAccountRole,
   type MeasureContext,
   type PersonId,
+  type Ref,
   type SessionData,
   type Space,
   type Tx,
@@ -27,6 +29,14 @@ import platform, { PlatformError, Severity, Status } from '@hcengineering/platfo
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
 import { resolveGuestExtraPermissions } from './guestVisibility'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
+
+/**
+ * `process.class.ApproveRequest` - referenced by id rather than importing `@hcengineering/process`,
+ * which pulls in client-only packages (`@hcengineering/ui`) unsuitable for this server package.
+ * Approve/reject already flows through TxUpdateDoc's generic ownerField (assigned-approver) check
+ * below; this only adds the extra `runProcessActions` admin gate on top.
+ */
+const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as unknown as Ref<Class<Doc>>
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
   // `this`, not `this.next`: routes through `this.findAll` so a subclass/test override of it is
@@ -140,6 +150,13 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       }
       const doc = TxProcessor.createDoc2Doc(tx as TxCreateDoc<Doc>)
       return await this.rowVisibility.canCreate(ctx, this.context.hierarchy, tx.objectClass, doc, identity)
+    }
+    if (
+      (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) &&
+      this.context.hierarchy.isDerived(tx.objectClass, APPROVE_REQUEST_CLASS)
+    ) {
+      const { runProcessActions } = await resolveGuestExtraPermissions(this.next, ctx, account)
+      if (!runProcessActions) return false
     }
     const query: DocumentQuery<Doc> = { _id: tx.objectId }
     const decision = await this.rowVisibility.resolveMutation(
