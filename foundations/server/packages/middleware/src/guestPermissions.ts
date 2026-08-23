@@ -25,6 +25,7 @@ import core, {
 import contact from '@hcengineering/contact'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
+import { resolveGuestExtraPermissions } from './guestVisibility'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
@@ -97,6 +98,26 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
   }
 
+  /**
+   * `core.class.Collaborator`'s own row policy requires `collaborator` to be the caller's own
+   * account (self-service opt-in), which is the wrong shape for a card owner naming *someone else*
+   * a collaborator. Bypasses that policy entirely, gated instead on the admin opt-in
+   * (`GuestExtraPermissions.editOwnDocCollaborators`) plus the caller having created the document
+   * the collaborator record attaches to.
+   */
+  private async canEditDocCollaborator (
+    ctx: MeasureContext<SessionData>,
+    tx: TxCUD<Doc>,
+    account: Account
+  ): Promise<boolean> {
+    const { editOwnDocCollaborators } = await resolveGuestExtraPermissions(this.next, ctx, account)
+    if (!editOwnDocCollaborators) return false
+    if (tx.attachedTo === undefined || tx.attachedToClass === undefined) return false
+    const parents = await this.findAll(ctx, tx.attachedToClass, { _id: tx.attachedTo }, { limit: 1 })
+    const parent = parents[0] as (Doc & { createdBy?: PersonId }) | undefined
+    return parent?.createdBy !== undefined && parent.createdBy === account.primarySocialId
+  }
+
   /** Enforce a declared row policy for mutations without treating a caller-supplied id as trusted. */
   private async canMutateVisibleRow (
     ctx: MeasureContext<SessionData>,
@@ -104,6 +125,12 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     account: Account
   ): Promise<boolean> {
     const identity = new AccountIdentityResolver(this.next, ctx, account)
+    if (
+      this.context.hierarchy.isDerived(tx.objectClass, core.class.Collaborator) &&
+      (tx._class === core.class.TxCreateDoc || tx._class === core.class.TxRemoveDoc)
+    ) {
+      return await this.canEditDocCollaborator(ctx, tx, account)
+    }
     if (tx._class === core.class.TxCreateDoc) {
       if (
         this.context.hierarchy.isDerived(tx.objectClass, contact.class.SocialIdentity) &&

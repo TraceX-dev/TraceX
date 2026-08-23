@@ -1269,6 +1269,97 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
+  // ─── core.class.Collaborator editing on own cards (item 4: GuestExtraPermissions.editOwnDocCollaborators) ──
+  describe('editing collaborators on a card the guest created', () => {
+    const CARD_CLASS = 'card:class:Card' as Ref<Class<Doc>>
+    const GUEST_SOCIAL = 'test:guest-social' as PersonId
+    const OTHER_SOCIAL = 'test:other-social' as PersonId
+    const OWN_CARD = 'test:card:own' as Ref<Doc>
+    const OTHER_CARD = 'test:card:other' as Ref<Doc>
+    const CARD_SPACE = 'test:space:cards' as Ref<Space>
+    const NEW_COLLABORATOR_ACCOUNT = 'test:other-account' as any
+
+    function makeCollaboratorMiddleware (editOwnDocCollaborators: boolean, nextCalled: () => void): GuestPermissionsMiddleware {
+      const mw = makeMiddleware(
+        async (_ctx, _class, query: any) => {
+          if (_class === core.class.GuestExtraPermissions) {
+            return [{ role: AccountRole.Guest, editOwnDocCollaborators }] as any
+          }
+          if (_class === CARD_CLASS) {
+            const cards = [
+              { _id: OWN_CARD, _class: CARD_CLASS, space: CARD_SPACE, createdBy: GUEST_SOCIAL },
+              { _id: OTHER_CARD, _class: CARD_CLASS, space: CARD_SPACE, createdBy: OTHER_SOCIAL }
+            ]
+            return cards.filter((c) => query?._id === undefined || query._id === c._id) as any
+          }
+          return []
+        },
+        async () => {
+          nextCalled()
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
+        if (_class !== core.class.Collaborator || mixin !== core.mixin.TxAccessLevel) return undefined
+        return { createAccessLevel: AccountRole.ReadOnlyGuest, removeAccessLevel: AccountRole.ReadOnlyGuest }
+      }
+      return mw
+    }
+
+    function makeGuestAccount (): Account {
+      return {
+        uuid: 'test:guest-account' as any,
+        role: AccountRole.Guest,
+        primarySocialId: GUEST_SOCIAL,
+        socialIds: [GUEST_SOCIAL],
+        fullSocialIds: []
+      }
+    }
+
+    function makeAddCollaboratorTx (card: Ref<Doc>): Tx {
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const create = factory.createTxCreateDoc(core.class.Collaborator, CARD_SPACE, {
+        collaborator: NEW_COLLABORATOR_ACCOUNT
+      } as any)
+      return factory.createTxCollectionCUD(CARD_CLASS, card, CARD_SPACE, 'collaborators', create)
+    }
+
+    function makeRemoveCollaboratorTx (card: Ref<Doc>): Tx {
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const remove = factory.createTxRemoveDoc(core.class.Collaborator, CARD_SPACE, generateId())
+      return factory.createTxCollectionCUD(CARD_CLASS, card, CARD_SPACE, 'collaborators', remove)
+    }
+
+    it('forbids by default (editOwnDocCollaborators off)', async () => {
+      const mw = makeCollaboratorMiddleware(false, () => {})
+      await expect(mw.tx(makeCtx(makeGuestAccount()), [makeAddCollaboratorTx(OWN_CARD)])).rejects.toThrow()
+    })
+
+    it('allows adding a collaborator to a card the guest created, once opted in', async () => {
+      let nextCalled = false
+      const mw = makeCollaboratorMiddleware(true, () => {
+        nextCalled = true
+      })
+      await mw.tx(makeCtx(makeGuestAccount()), [makeAddCollaboratorTx(OWN_CARD)])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('allows removing a collaborator from a card the guest created, once opted in', async () => {
+      let nextCalled = false
+      const mw = makeCollaboratorMiddleware(true, () => {
+        nextCalled = true
+      })
+      await mw.tx(makeCtx(makeGuestAccount()), [makeRemoveCollaboratorTx(OWN_CARD)])
+      expect(nextCalled).toBe(true)
+    })
+
+    it('forbids editing collaborators on a card created by another account, even when opted in', async () => {
+      const mw = makeCollaboratorMiddleware(true, () => {})
+      await expect(mw.tx(makeCtx(makeGuestAccount()), [makeAddCollaboratorTx(OTHER_CARD)])).rejects.toThrow()
+    })
+  })
+
   // ─── Cache invalidation ──────────────────────────────────────────────────────
   describe('cache invalidation', () => {
     it('invalidates cache when GuestPermissionsSettings is updated', async () => {

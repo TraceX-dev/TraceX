@@ -90,6 +90,15 @@ describe('RowVisibility invariant', () => {
     expect(typeof mixin?.allowKnownIdBypass).toBe('boolean')
   })
 
+  it('core.class.Collaborator opens Layer 1 to any restricted role, still self-service-only at Layer 2 unless GuestExtraPermissions.editOwnDocCollaborators opts a role in (regression test for the collaborator-edit permission)', () => {
+    const access = hierarchy.classHierarchyMixin(core.class.Collaborator, core.mixin.TxAccessLevel)
+    expect(access?.createAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    expect(access?.removeAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+
+    const visibility = hierarchy.classHierarchyMixin(core.class.Collaborator, core.mixin.RowVisibility)
+    expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' })
+  })
+
   it('hr.class.Request and love.class.MeetingMinutes do not list their own ownerField/linkTargetField as a known-id bypass (regression test for the ownership bypass fix)', () => {
     const hrMixin = hierarchy.classHierarchyMixin('hr:class:Request' as Ref<Class<Doc>>, core.mixin.RowVisibility)
     expect(hrMixin?.knownIdBypassFields ?? []).not.toContain('attachedTo')

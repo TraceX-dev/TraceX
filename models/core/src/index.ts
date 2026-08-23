@@ -202,6 +202,15 @@ export function createModel (builder: Builder): void {
     knownIdBypassFields: ['attachedTo']
   })
 
+  // Layer 1 only - open to any restricted role. The actual gate is Layer 2's bespoke check in
+  // GuestPermissionsMiddleware (core.class.GuestExtraPermissions.editOwnDocCollaborators, scoped to
+  // documents the caller created), since the ownerField policy above would otherwise require
+  // `collaborator` to be the caller's own account.
+  builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.ReadOnlyGuest,
+    removeAccessLevel: AccountRole.ReadOnlyGuest
+  })
+
   // Off/most-restrictive by default - an admin opts a role in by editing this doc's fields
   // (there is no dedicated Settings UI for it yet, matching every other guest-permission doc).
   builder.createDoc(
