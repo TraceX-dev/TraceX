@@ -71,18 +71,29 @@ export class AccountIdentityResolver {
     return this.ctx.contextData.extra?.linkId as Ref<Doc> | undefined
   }
 
-  async resolve (kind: IdentityKind): Promise<string | undefined> {
+  /** `socialId` resolves to every social id linked to the account (a guest's own docs may be
+   * authored under any of them, not just the current primary) - callers must match against all. */
+  async resolve (kind: IdentityKind): Promise<string | string[] | undefined> {
     switch (kind) {
       case 'accountUuid':
         return this.account.uuid
       case 'personId':
         return await this.personId()
       case 'socialId':
-        return this.account.primarySocialId
+        // Collapse to a scalar in the (overwhelmingly common) single-social-id case, so query
+        // shapes and comparisons are unchanged unless the account actually has more than one.
+        return this.account.socialIds.length === 1 ? this.account.socialIds[0] : this.account.socialIds
       case 'linkId':
         return this.linkId()
     }
   }
+}
+
+/** Whether `resolved` (from `AccountIdentityResolver.resolve`) matches `fieldValue`, handling the
+ * `socialId` case's multi-value result uniformly with the single-value identity kinds. */
+function identityMatches (fieldValue: unknown, resolved: string | string[] | undefined): boolean {
+  if (Array.isArray(resolved)) return resolved.length > 0 && resolved.includes(fieldValue as string)
+  return resolved !== undefined && fieldValue === resolved
 }
 
 export type RowVisibilityDecision<T extends Doc> =
@@ -205,7 +216,7 @@ export class RowVisibilityResolver {
     switch (policy.kind) {
       case 'ownerField': {
         const value = await identity.resolve(policy.identity)
-        return value !== undefined && (doc as unknown as Record<string, unknown>)[policy.field] === value
+        return identityMatches((doc as unknown as Record<string, unknown>)[policy.field], value)
       }
       case 'spaceMember':
       case 'publicReadable':
@@ -217,8 +228,12 @@ export class RowVisibilityResolver {
   }
 
   /** Ensures an update or mixin extension cannot transfer a row to another owner. Covers both tx
-   * kinds `hasClassAccessLevel` (Layer 1, `./accessGate`) already treats as equivalent mutations. */
+   * kinds `hasClassAccessLevel` (Layer 1, `./accessGate`) already treats as equivalent mutations,
+   * and both policy kinds capable of expressing ownership (`ownerField` directly, `linkedViaRecord`
+   * via its `targetField`) - a class combining write access with any other policy kind has no
+   * mutable ownership field for this guard to check, so it's left to Layer 1 access level alone. */
   async canUpdate (
+    ctx: MeasureContext<SessionData>,
     hierarchy: Hierarchy,
     _class: Ref<Class<Doc>>,
     doc: Doc,
@@ -229,14 +244,59 @@ export class RowVisibilityResolver {
     const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
     if (mixin === undefined) return true
     const policy = getWritePolicy(mixin)
-    if (policy.kind !== 'ownerField') return true
+    if (policy.kind !== 'ownerField' && policy.kind !== 'linkedViaRecord') return true
 
     const updated =
       tx._class === core.class.TxMixin
         ? TxProcessor.updateMixin4Doc({ ...doc }, tx as TxMixin<Doc, Doc>)
         : TxProcessor.updateDoc2Doc({ ...doc }, tx as TxUpdateDoc<Doc>)
+    const updatedFields = updated as unknown as Record<string, unknown>
+
+    if (policy.kind === 'ownerField') {
+      const value = await identity.resolve(policy.identity)
+      return identityMatches(updatedFields[policy.field], value)
+    }
+
+    const allowed = await this.resolveLinkedTargets(ctx, policy, identity)
+    if (allowed === undefined) return false
+    return allowed.has(updatedFields[policy.targetField ?? '_id'] as Ref<Doc>)
+  }
+
+  /** Resolves a `linkedViaRecord` policy to its set of allowed target ids (`undefined` means deny),
+   * shared between `applyPolicy`'s read-side narrowing and `canUpdate`'s ownership-transfer guard. */
+  private async resolveLinkedTargets (
+    ctx: MeasureContext<SessionData>,
+    policy: Extract<RowVisibilityPolicy, { kind: 'linkedViaRecord' }>,
+    identity: AccountIdentityResolver
+  ): Promise<Set<Ref<Doc>> | undefined> {
     const value = await identity.resolve(policy.identity)
-    return value !== undefined && (updated as unknown as Record<string, unknown>)[policy.field] === value
+    if (value === undefined || (Array.isArray(value) && value.length === 0)) return undefined
+    // `DocumentQuery<Doc>`'s catch-all `[key: string]: any` accepts the computed key directly.
+    const linkQuery: DocumentQuery<Doc> = {
+      [policy.linkIdentityField]: Array.isArray(value) ? { $in: value } : value
+    }
+    const projection: Record<string, 1> = { [policy.linkTargetField]: 1 }
+    const links = ((await this.next?.findAll(ctx, policy.linkClass, linkQuery, { projection })) ?? []) as Array<
+    Record<string, Ref<Doc>>
+    >
+    const linkedTargets = new Set<Ref<Doc>>(links.map((l) => l[policy.linkTargetField]))
+    if (linkedTargets.size === 0) return undefined
+    let allowed = linkedTargets
+    const through = policy.through
+    if (through !== undefined) {
+      const throughQuery: DocumentQuery<Doc> = {
+        [through.sourceField]: { $in: Array.from(linkedTargets) }
+      }
+      const throughProjection: Record<string, 1> = { [through.targetField]: 1 }
+      const throughDocs = ((await this.next?.findAll(ctx, through.documentClass, throughQuery, {
+        projection: throughProjection
+      })) ?? []) as Array<Record<string, Ref<Doc>>>
+      allowed = new Set<Ref<Doc>>(throughDocs.map((doc) => doc[through.targetField]))
+      if (through.includeDirect === true) {
+        for (const target of linkedTargets) allowed.add(target)
+      }
+    }
+    return allowed
   }
 
   private async applyPolicy<T extends Doc>(
@@ -256,37 +316,16 @@ export class RowVisibilityResolver {
 
       case 'ownerField': {
         const value = await identity.resolve(policy.identity)
-        if (value === undefined) return { kind: 'deny' }
-        const merged = mergeEquals(query, policy.field, value)
+        if (value === undefined || (Array.isArray(value) && value.length === 0)) return { kind: 'deny' }
+        const merged = Array.isArray(value)
+          ? mergeIn(query, policy.field, new Set(value))
+          : mergeEquals(query, policy.field, value)
         return merged === undefined ? { kind: 'deny' } : { kind: 'narrow', query: merged }
       }
 
       case 'linkedViaRecord': {
-        const value = await identity.resolve(policy.identity)
-        if (value === undefined) return { kind: 'deny' }
-        // `DocumentQuery<Doc>`'s catch-all `[key: string]: any` accepts the computed key directly.
-        const linkQuery: DocumentQuery<Doc> = { [policy.linkIdentityField]: value }
-        const projection: Record<string, 1> = { [policy.linkTargetField]: 1 }
-        const links = ((await this.next?.findAll(ctx, policy.linkClass, linkQuery, { projection })) ?? []) as Array<
-        Record<string, Ref<Doc>>
-        >
-        const linkedTargets = new Set<Ref<Doc>>(links.map((l) => l[policy.linkTargetField]))
-        if (linkedTargets.size === 0) return { kind: 'deny' }
-        let allowed = linkedTargets
-        const through = policy.through
-        if (through !== undefined) {
-          const throughQuery: DocumentQuery<Doc> = {
-            [through.sourceField]: { $in: Array.from(linkedTargets) }
-          }
-          const throughProjection: Record<string, 1> = { [through.targetField]: 1 }
-          const throughDocs = ((await this.next?.findAll(ctx, through.documentClass, throughQuery, {
-            projection: throughProjection
-          })) ?? []) as Array<Record<string, Ref<Doc>>>
-          allowed = new Set<Ref<Doc>>(throughDocs.map((doc) => doc[through.targetField]))
-          if (through.includeDirect === true) {
-            for (const target of linkedTargets) allowed.add(target)
-          }
-        }
+        const allowed = await this.resolveLinkedTargets(ctx, policy, identity)
+        if (allowed === undefined) return { kind: 'deny' }
         const merged = mergeIn(query, policy.targetField ?? '_id', allowed)
         return merged === undefined ? { kind: 'deny' } : { kind: 'narrow', query: merged }
       }

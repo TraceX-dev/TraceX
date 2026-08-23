@@ -117,7 +117,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     if (tx.attachedTo === undefined || tx.attachedToClass === undefined) return false
     const parents = await this.findAll(ctx, tx.attachedToClass, { _id: tx.attachedTo }, { limit: 1 })
     const parent = parents[0] as (Doc & { createdBy?: PersonId }) | undefined
-    return parent?.createdBy !== undefined && parent.createdBy === account.primarySocialId
+    return parent?.createdBy !== undefined && account.socialIds.includes(parent.createdBy)
   }
 
   /** Enforce a declared row policy for mutations without treating a caller-supplied id as trusted. */
@@ -165,6 +165,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     if (doc === undefined) return false
     if (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) {
       return await this.rowVisibility.canUpdate(
+        ctx,
         this.context.hierarchy,
         tx.objectClass,
         doc,

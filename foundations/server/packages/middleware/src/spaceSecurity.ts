@@ -31,6 +31,7 @@ import core, {
   type LookupData,
   type MeasureContext,
   type ObjQueryType,
+  type PersonId,
   type Position,
   type PullArray,
   type Ref,
@@ -546,7 +547,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
   ): Ref<Space>[] {
     const userSpaces = this.allowedSpaces[account.uuid] ?? []
     let res = [...Array.from(userSpaces), account.uuid as unknown as Ref<Space>, ...this.mainSpaces]
-    if (!forSearch || ![AccountRole.Guest, AccountRole.ReadOnlyGuest].includes(account.role)) {
+    if (!forSearch || ![AccountRole.Guest, AccountRole.ReadOnlyGuest, AccountRole.DocGuest].includes(account.role)) {
       res = [...res, ...this.systemSpaces]
     }
     const ignorePublicSpaces = isData || account.role === AccountRole.ReadOnlyGuest
@@ -858,6 +859,12 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         }
         newQuery.spaces = [...res]
       } else {
+        // Unscoped search: we don't know ahead of time whether the index will return Person/
+        // Employee docs, so treat it as if it did - the result-level filter below is the actual
+        // backstop and must not depend on the space-exclusion happening to already cover it.
+        if (personRestricted) {
+          personClassesSearched = true
+        }
         newQuery.spaces = allSpaces
       }
 
@@ -951,7 +958,9 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     if (scoped.length === 0) return passthrough
 
     if (scope === GuestActivityScope.Own) {
-      const own = scoped.filter((doc) => (doc as unknown as { createdBy?: unknown }).createdBy === account.primarySocialId)
+      const own = scoped.filter((doc) =>
+        account.socialIds.includes((doc as unknown as { createdBy?: PersonId }).createdBy as PersonId)
+      )
       return [...passthrough, ...own]
     }
 
