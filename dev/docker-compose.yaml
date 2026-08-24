@@ -390,7 +390,7 @@ services:
     ports:
       - 4004:4004
     environment:
-      - STATS_URL=http://tracex.local:4901
+      - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
   fulltext_pg:
     image: tracexapp/fulltext
