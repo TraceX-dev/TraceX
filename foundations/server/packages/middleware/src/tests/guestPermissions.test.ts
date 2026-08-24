@@ -1212,8 +1212,11 @@ describe('GuestPermissionsMiddleware', () => {
               { _id: OWN_CARD, _class: CARD_CLASS, space: CARD_SPACE, createdBy: GUEST_SOCIAL },
               { _id: OTHER_CARD, _class: CARD_CLASS, space: CARD_SPACE, createdBy: OTHER_SOCIAL }
             ]
-            return cards.filter((c) => (query?._id === undefined || query._id === c._id) &&
-              (query?.createdBy === undefined || query.createdBy === c.createdBy)) as any
+            return cards.filter(
+              (c) =>
+                (query?._id === undefined || query._id === c._id) &&
+                (query?.createdBy === undefined || query.createdBy === c.createdBy)
+            ) as any
           }
           return []
         },
@@ -1280,7 +1283,10 @@ describe('GuestPermissionsMiddleware', () => {
     const NEW_COLLABORATOR_ACCOUNT = 'test:other-account' as any
     const COLLABORATOR_PERMISSION = 'test:permission:collaborator' as Ref<Doc>
 
-    function makeCollaboratorMiddleware (editOwnDocCollaborators: boolean, nextCalled: () => void): GuestPermissionsMiddleware {
+    function makeCollaboratorMiddleware (
+      editOwnDocCollaborators: boolean,
+      nextCalled: () => void
+    ): GuestPermissionsMiddleware {
       const mw = makeMiddleware(
         async (_ctx, _class, query: any) => {
           if (_class === core.class.ModulePermissionGroup) {
@@ -1416,8 +1422,11 @@ describe('GuestPermissionsMiddleware', () => {
               { _id: OWN_REQUEST, _class: APPROVE_REQUEST_CLASS, space: REQUEST_SPACE, user: GUEST_PERSON },
               { _id: OTHER_REQUEST, _class: APPROVE_REQUEST_CLASS, space: REQUEST_SPACE, user: OTHER_PERSON }
             ]
-            return requests.filter((r) => (query?._id === undefined || query._id === r._id) &&
-              (query?.user === undefined || query.user === r.user)) as any
+            return requests.filter(
+              (r) =>
+                (query?._id === undefined || query._id === r._id) &&
+                (query?.user === undefined || query.user === r.user)
+            ) as any
           }
           return []
         },

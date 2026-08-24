@@ -164,7 +164,7 @@ export function excludeSpacesFromQuery (
     return { query: { $nin: Array.from(excluded) } }
   }
   if (typeof current !== 'object' || current === null) {
-    return excluded.has(current as Ref<Space>) ? { deny: true } : { query: current }
+    return excluded.has(current) ? { deny: true } : { query: current }
   }
   if (Array.isArray(current.$in)) {
     const filtered = (current.$in as Ref<Space>[]).filter((id) => !excluded.has(id))

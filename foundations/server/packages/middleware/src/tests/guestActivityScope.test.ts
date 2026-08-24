@@ -42,13 +42,22 @@ const CARD_CLASS = 'test:class:Card' as Ref<Class<Doc>>
 const MESSAGE_CLASS = 'test:class:Message' as Ref<Class<Doc>>
 const CHANNEL_MESSAGE_CLASS = 'test:class:ChannelMessage' as Ref<Class<Doc>>
 
-function matchesQuery (doc: Record<string, any>, query: Record<string, any> | undefined): boolean {
+interface QueryOperator {
+  $in?: unknown[]
+  $nin?: unknown[]
+}
+
+function isQueryOperator (value: unknown): value is QueryOperator {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function matchesQuery (doc: Record<string, unknown>, query: Record<string, unknown> | undefined): boolean {
   for (const key of Object.keys(query ?? {})) {
     const cond = query?.[key]
     const val = doc[key]
-    if (cond !== null && typeof cond === 'object' && !Array.isArray(cond) && cond.$in !== undefined) {
+    if (isQueryOperator(cond) && cond.$in !== undefined) {
       if (!cond.$in.includes(val)) return false
-    } else if (cond !== null && typeof cond === 'object' && !Array.isArray(cond) && cond.$nin !== undefined) {
+    } else if (isQueryOperator(cond) && cond.$nin !== undefined) {
       if (cond.$nin.includes(val)) return false
     } else if (val !== cond) {
       return false
@@ -113,7 +122,9 @@ async function setup (activityScope: GuestActivityScope): Promise<{
   const messages = [msgOnCardAlice, msgOnCardBobByBob]
 
   // Alice is a listed collaborator on Bob's card, but not (explicitly) on her own.
-  const collaborators = [{ _id: generateId(), _class: core.class.Collaborator, collaborator: ALICE, attachedTo: cardBob._id }]
+  const collaborators = [
+    { _id: generateId(), _class: core.class.Collaborator, collaborator: ALICE, attachedTo: cardBob._id }
+  ]
 
   const channelMsg = {
     _id: generateId(),

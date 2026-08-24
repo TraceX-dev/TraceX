@@ -107,7 +107,7 @@ describe('SpaceSecurityMiddleware.searchFulltext - guest @-mention reproduction'
       searchFulltext: (async (_ctx: any, query: SearchQuery, _options: SearchOptions) => {
         const candidates = [personGuest, personAlice]
         const docs = candidates
-          .filter((p) => query.spaces === undefined || query.spaces.includes(p.space as Ref<Space>))
+          .filter((p) => query.spaces === undefined || query.spaces.includes(p.space))
           .map((p) => ({ id: p._id, title: p.personUuid, doc: { _id: p._id, _class: p._class, createdOn: 0 } }))
         return { docs, total: docs.length }
       }) as any,
@@ -184,7 +184,7 @@ describe('SpaceSecurityMiddleware.searchFulltext - guest @-mention reproduction'
       searchFulltext: (async (_ctx: any, query: SearchQuery, _options: SearchOptions) => {
         const candidates = [personDocGuest, personBob]
         const docs = candidates
-          .filter((p) => query.spaces === undefined || query.spaces.includes(p.space as Ref<Space>))
+          .filter((p) => query.spaces === undefined || query.spaces.includes(p.space))
           .map((p) => ({ id: p._id, title: p.personUuid, doc: { _id: p._id, _class: p._class, createdOn: 0 } }))
         return { docs, total: docs.length }
       }) as any,

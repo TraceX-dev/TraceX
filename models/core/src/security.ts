@@ -16,7 +16,7 @@
 import {
   DOMAIN_MODEL,
   DOMAIN_SPACE,
-  GuestActivityScope,
+  type GuestActivityScope,
   IndexKind,
   type ModulePermissionGroup,
   type AccountRole,

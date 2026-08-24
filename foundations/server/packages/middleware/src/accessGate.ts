@@ -56,11 +56,7 @@ export class ClassAccessResolver {
     this.cache = undefined
   }
 
-  async allowedClasses (
-    ctx: MeasureContext,
-    role: AccountRole,
-    txClass: Ref<Class<Tx>>
-  ): Promise<Set<Ref<Class<Doc>>>> {
+  async allowedClasses (ctx: MeasureContext, role: AccountRole, txClass: Ref<Class<Tx>>): Promise<Set<Ref<Class<Doc>>>> {
     const cache = await this.ensureLoaded(ctx)
     return cache.get(role)?.get(txClass) ?? new Set()
   }
@@ -69,7 +65,9 @@ export class ClassAccessResolver {
     return await this.allowedClasses(ctx, role, core.class.TxCreateDoc)
   }
 
-  private async ensureLoaded (ctx: MeasureContext): Promise<Map<AccountRole, Map<Ref<Class<Tx>>, Set<Ref<Class<Doc>>>>>> {
+  private async ensureLoaded (
+    ctx: MeasureContext
+  ): Promise<Map<AccountRole, Map<Ref<Class<Tx>>, Set<Ref<Class<Doc>>>>>> {
     if (this.cache !== undefined) return this.cache
     if (this.loading === undefined) {
       this.loading = this.load(ctx)
@@ -112,8 +110,9 @@ export class ClassAccessResolver {
           : []
       const permissionInfo = new Map<Ref<Permission>, { targetClass: Ref<Class<Doc>>, txClass: Ref<Class<Tx>> }>(
         ((classPermissions ?? []) as ClassPermission[])
-          .filter((permission): permission is ClassPermission & { targetClass: Ref<Class<Doc>> } =>
-            permission.targetClass !== undefined
+          .filter(
+            (permission): permission is ClassPermission & { targetClass: Ref<Class<Doc>> } =>
+              permission.targetClass !== undefined
           )
           .map((permission) => [
             permission._id,

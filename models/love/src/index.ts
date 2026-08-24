@@ -367,7 +367,8 @@ export function createModel (builder: Builder): void {
   builder.mixin(love.class.Room, core.class.Class, core.mixin.RowVisibility, {
     policy: {
       kind: 'publicReadable',
-      reason: 'Office rooms are visible to every guest so the office layout renders correctly; the meeting minutes documents attached to a room stay collaborator-restricted'
+      reason:
+        'Office rooms are visible to every guest so the office layout renders correctly; the meeting minutes documents attached to a room stay collaborator-restricted'
     },
     allowKnownIdBypass: false
   })
