@@ -138,6 +138,8 @@
     "Filter": "过滤",
     "AllMatchValue": "所有匹配值",
     "FirstMatchValue": "第一个匹配值",
+    "Ascending": "升序",
+    "Descending": "降序",
     "ConfigLabel": "流程配置",
     "ConfigDescription": "定义流程以自动化工作流和业务流程。",
     "RunProcessPermission": "运行过程",

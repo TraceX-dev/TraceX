@@ -131,6 +131,8 @@
     "Filter": "Filtr",
     "AllMatchValue": "Všechny odpovídající hodnoty",
     "FirstMatchValue": "První odpovídající hodnota",
+    "Ascending": "Vzestupně",
+    "Descending": "Sestupně",
     "ConfigLabel": "Konfigurace procesů",
     "ConfigDescription": "Definujte procesy pro automatizaci pracovních postupů a obchodních procesů.",
     "RunProcessPermission": "Spustit proces",

@@ -138,6 +138,8 @@
         "Filter": "필터",
         "AllMatchValue": "모든 일치 값",
         "FirstMatchValue": "첫 일치 값",
+        "Ascending": "오름차순",
+        "Descending": "내림차순",
         "ConfigLabel": "프로세스 구성",
         "ConfigDescription": "워크플로와 비즈니스 프로세스를 자동화할 프로세스를 정의합니다.",
         "RunProcessPermission": "프로세스 실행",

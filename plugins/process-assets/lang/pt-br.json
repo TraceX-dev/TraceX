@@ -138,6 +138,8 @@
     "Filter": "Filtrar",
     "AllMatchValue": "Todos os valores correspondentes",
     "FirstMatchValue": "Primeiro Valor Correspondente",
+    "Ascending": "Crescente",
+    "Descending": "Decrescente",
     "ConfigLabel": "Configuração de processos",
     "ConfigDescription": "Defina processos para automatizar fluxos de trabalho e processos de negócios.",
     "RunProcessPermission": "Executar processo",

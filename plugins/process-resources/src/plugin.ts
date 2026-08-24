@@ -116,6 +116,7 @@ export default mergeIds(processId, process, {
     SplitEditor: '' as AnyComponent,
     CutEditor: '' as AnyComponent,
     FilterEditor: '' as AnyComponent,
+    SortEditor: '' as AnyComponent,
     DateDifferenceEditor: '' as AnyComponent
   },
   transformPresenter: {
@@ -167,6 +168,8 @@ export default mergeIds(processId, process, {
     AllMatchValue: '' as IntlString,
     FirstMatchValue: '' as IntlString,
     FirstValue: '' as IntlString,
+    Ascending: '' as IntlString,
+    Descending: '' as IntlString,
     LastValue: '' as IntlString,
     Random: '' as IntlString,
     MyProcesses: '' as IntlString,

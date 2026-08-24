@@ -137,6 +137,8 @@
     "Filter": "フィルター",
     "AllMatchValue": "一致するすべての値",
     "FirstMatchValue": "最初の一致する値",
+    "Ascending": "昇順",
+    "Descending": "降順",
     "ConfigLabel": "プロセス構成",
     "ConfigDescription": "ワークフローやビジネスプロセスを自動化するためのプロセスを定義します。",
     "RunProcessPermission": "プロセスを実行",

@@ -135,6 +135,8 @@
     "Filter": "Filtre",
     "AllMatchValue": "Tüm eşleşen değerler",
     "FirstMatchValue": "İlk eşleşen değer",
+    "Ascending": "Artan",
+    "Descending": "Azalan",
     "ConfigLabel": "Süreç yapılandırması",
     "ConfigDescription": "İş akışlarını ve iş süreçlerini otomatikleştirmek için süreçler tanımlayın.",
     "RunProcessPermission": "Süreci çalıştır",

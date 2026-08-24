@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -52,6 +53,7 @@ import UpdateCardEditor from './components/settings/UpdateCardEditor.svelte'
 import ArrayElementEditor from './components/transformEditors/ArrayElementEditor.svelte'
 import DateOffsetEditor from './components/transformEditors/DateOffsetEditor.svelte'
 import FilterEditor from './components/transformEditors/FilterEditor.svelte'
+import SortEditor from './components/transformEditors/SortEditor.svelte'
 import MultiArrayElementEditor from './components/transformEditors/MultiArrayElementEditor.svelte'
 import NumberEditor from './components/transformEditors/NumberEditor.svelte'
 
@@ -217,7 +219,8 @@ export default async (): Promise<Resources> => ({
     ReplaceEditor,
     SplitEditor,
     CutEditor,
-    FilterEditor
+    FilterEditor,
+    SortEditor
   },
   triggerCheck: {
     MatchCheck: matchCardCheck,

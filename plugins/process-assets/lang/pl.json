@@ -138,6 +138,8 @@
     "Filter": "Filtr",
     "AllMatchValue": "Wszystkie pasujące wartości",
     "FirstMatchValue": "Pierwsza pasująca wartość",
+    "Ascending": "Rosnąco",
+    "Descending": "Malejąco",
     "ConfigLabel": "Konfiguracja procesu",
     "ConfigDescription": "Definiuj procesy do automatyzacji organizacji zadań i procesów biznesowych.",
     "RunProcessPermission": "Uruchom proces",

@@ -131,6 +131,8 @@
     "Filter": "Filter",
     "AllMatchValue": "Alle passenden Werte",
     "FirstMatchValue": "Erster passender Wert",
+    "Ascending": "Aufsteigend",
+    "Descending": "Absteigend",
     "ConfigLabel": "Prozesskonfiguration",
     "ConfigDescription": "Definieren Sie Prozesse, um Workflows und Geschäftsprozesse zu automatisieren.",
     "RunProcessPermission": "Prozess ausführen",

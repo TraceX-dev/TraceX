@@ -138,6 +138,8 @@
     "Filter": "Filter",
     "AllMatchValue": "All matching values",
     "FirstMatchValue": "First match value",
+    "Ascending": "Ascending",
+    "Descending": "Descending",
     "ConfigLabel": "Process configuration",
     "ConfigDescription": "Define processes to automate workflows and business processes.",
     "RunProcessPermission": "Run process",

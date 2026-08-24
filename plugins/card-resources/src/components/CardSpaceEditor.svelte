@@ -52,8 +52,7 @@
   {size}
   {justify}
   {width}
-  readonly={readonly || attribute?.readonly === true}
-  allowDeselect
+  {readonly}
   autoSelect={false}
   on:change={(event) => {
     change(event.detail)
