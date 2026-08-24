@@ -811,7 +811,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeString,
     props: {
-      modes: ['Equal', 'StringContains', 'Exists']
+      modes: ['Equal', 'StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -820,7 +820,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeMarkup,
     props: {
-      modes: ['StringContains', 'Exists']
+      modes: ['StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -829,7 +829,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeMarkup,
     props: {
-      modes: ['StringContains', 'Exists']
+      modes: ['StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -838,7 +838,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeHyperlink,
     props: {
-      modes: ['Equal', 'StringContains', 'Exists']
+      modes: ['Equal', 'StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -847,7 +847,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeNumber,
     props: {
-      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists']
+      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -856,7 +856,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeDate,
     props: {
-      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists']
+      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -865,7 +865,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeBoolean,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -892,7 +892,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.EnumOf,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -901,7 +901,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.RefTo,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 

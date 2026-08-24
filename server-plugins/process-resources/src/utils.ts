@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -154,7 +155,7 @@ async function getNestedValue (control: ProcessControl, execution: Execution, co
     }
     const funcImpl = control.client.getHierarchy().as(transform, serverProcess.mixin.FuncImpl)
     const f = await getResource(funcImpl.func)
-    const reduced = await f(target, {}, control, execution)
+    const reduced = await f(target, context.sourceFunction.props, control, execution)
     const val = Array.isArray(reduced)
       ? reduced.map((v) => getValue(control, execution, context.key, v))
       : getValue(control, execution, context.key, reduced)
@@ -216,7 +217,7 @@ async function getRelationValue (
     }
     const funcImpl = control.client.getHierarchy().as(transform, serverProcess.mixin.FuncImpl)
     const f = await getResource(funcImpl.func)
-    const reduced = await f(target, {}, control, execution)
+    const reduced = await f(target, context.sourceFunction.props, control, execution)
     const val = Array.isArray(reduced)
       ? reduced.map((v) => getValue(control, execution, context.key, v))
       : getValue(control, execution, context.key, reduced)
@@ -263,7 +264,7 @@ async function getFunctionValue (
     }
     const funcImpl = control.client.getHierarchy().as(transform, serverProcess.mixin.FuncImpl)
     const f = await getResource(funcImpl.func)
-    const val = await f(res, {}, control, execution)
+    const val = await f(res, context.sourceFunction.props, control, execution)
     if (val == null && context.func !== process.function.EmptyValue) {
       throw processError(process.error.EmptyFunctionResult, {}, { func: func.label })
     }

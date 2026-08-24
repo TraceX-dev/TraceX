@@ -150,6 +150,7 @@
         "AutomationOnly": "자동화 전용",
         "CopyLink": "링크 복사",
         "ValueIsSet": "값이 설정됨",
+        "ValueIsNotSet": "값이 설정되지 않음",
         "RoleLabel": "역할: {role}",
         "ForbidAttributeChanges": "변경 금지: ",
         "AllowAttributeChanges": "변경 허용: ",
