@@ -903,7 +903,7 @@ importers:
         specifier: ^14.0.0
         version: 14.0.2
       docx4js:
-        specifier: ^3.2.20
+        specifier: ^3.3.0
         version: 3.3.0
       domhandler:
         specifier: ^5.0.3
