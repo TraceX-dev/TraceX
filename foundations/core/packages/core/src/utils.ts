@@ -328,7 +328,7 @@ export class RateLimiter {
 
   notify: (() => void)[] = []
 
-  async exec<T, B extends Record<string, any> = any> (op: (args?: B) => Promise<T>, args?: B): Promise<T> {
+  async exec<T, B extends Record<string, any> = any>(op: (args?: B) => Promise<T>, args?: B): Promise<T> {
     const processingId = this.idCounter++
 
     while (this.processingQueue.size >= this.rate) {
@@ -349,7 +349,7 @@ export class RateLimiter {
     }
   }
 
-  async add<T, B extends Record<string, any> = any> (
+  async add<T, B extends Record<string, any> = any>(
     op: (args?: B) => Promise<T>,
     args?: B,
     errHandler?: (err: any) => void
@@ -579,7 +579,7 @@ export function includesAny (arr1: string[] | null | undefined, arr2: string[] |
 }
 
 export const isEnum =
-  <T> (e: T) =>
+  <T>(e: T) =>
   (token: any): token is T[keyof T] =>
     typeof token === 'string' && Object.values(e as Record<string, any>).includes(token)
 
@@ -933,7 +933,7 @@ export class TimeRateLimiter {
     this.executions = this.executions.filter((time) => time.running || now - time.time < this.period)
   }
 
-  async exec<T, B extends Record<string, any> = any> (op: (args?: B) => Promise<T>, args?: B): Promise<T> {
+  async exec<T, B extends Record<string, any> = any>(op: (args?: B) => Promise<T>, args?: B): Promise<T> {
     while (this.active >= this.rate || this.executions.length >= this.rate) {
       this.cleanupExecutions()
       if (this.executions.length < this.rate) {

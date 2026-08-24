@@ -70,7 +70,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     await this.client.close()
   }
 
-  findAll<T extends Doc> (
+  findAll<T extends Doc>(
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -78,7 +78,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return this.client.findAll(_class, query, options)
   }
 
-  findOne<T extends Doc> (
+  findOne<T extends Doc>(
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -86,7 +86,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return this.client.findOne(_class, query, options)
   }
 
-  domainRequest<T> (domain: OperationDomain, params: DomainParams): Promise<DomainResult<T>> {
+  domainRequest<T>(domain: OperationDomain, params: DomainParams): Promise<DomainResult<T>> {
     return this.client.domainRequest(domain, params)
   }
 
@@ -98,7 +98,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return this.client.tx(tx)
   }
 
-  async createDoc<T extends Doc> (
+  async createDoc<T extends Doc>(
     _class: Ref<Class<T>>,
     space: Ref<Space>,
     attributes: Data<T>,
@@ -118,7 +118,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return tx.objectId
   }
 
-  async addCollection<T extends Doc, P extends AttachedDoc> (
+  async addCollection<T extends Doc, P extends AttachedDoc>(
     _class: Ref<Class<P>>,
     space: Ref<Space>,
     attachedTo: Ref<T>,
@@ -142,7 +142,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return tx.objectId
   }
 
-  async updateCollection<T extends Doc, P extends AttachedDoc> (
+  async updateCollection<T extends Doc, P extends AttachedDoc>(
     _class: Ref<Class<P>>,
     space: Ref<Space>,
     objectId: Ref<P>,
@@ -167,7 +167,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return attachedTo
   }
 
-  async removeCollection<T extends Doc, P extends AttachedDoc> (
+  async removeCollection<T extends Doc, P extends AttachedDoc>(
     _class: Ref<Class<P>>,
     space: Ref<Space>,
     objectId: Ref<P>,
@@ -190,7 +190,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return attachedTo
   }
 
-  updateDoc<T extends Doc> (
+  updateDoc<T extends Doc>(
     _class: Ref<Class<T>>,
     space: Ref<Space>,
     objectId: Ref<T>,
@@ -203,7 +203,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return this.tx(tx)
   }
 
-  removeDoc<T extends Doc> (
+  removeDoc<T extends Doc>(
     _class: Ref<Class<T>>,
     space: Ref<Space>,
     objectId: Ref<T>,
@@ -214,7 +214,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return this.tx(tx)
   }
 
-  createMixin<D extends Doc, M extends D> (
+  createMixin<D extends Doc, M extends D>(
     objectId: Ref<D>,
     objectClass: Ref<Class<D>>,
     objectSpace: Ref<Space>,
@@ -235,7 +235,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return this.tx(tx)
   }
 
-  updateMixin<D extends Doc, M extends D> (
+  updateMixin<D extends Doc, M extends D>(
     objectId: Ref<D>,
     objectClass: Ref<Class<D>>,
     objectSpace: Ref<Space>,
@@ -256,7 +256,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return this.tx(tx)
   }
 
-  async update<T extends Doc> (
+  async update<T extends Doc>(
     doc: T,
     update: DocumentUpdate<T>,
     retrieve?: boolean,
@@ -312,7 +312,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return await this.updateDoc(doc._class, doc.space, doc._id, update, retrieve, modifiedOn, modifiedBy)
   }
 
-  remove<T extends Doc> (doc: T, modifiedOn?: Timestamp, modifiedBy?: PersonId): Promise<TxResult> {
+  remove<T extends Doc>(doc: T, modifiedOn?: Timestamp, modifiedBy?: PersonId): Promise<TxResult> {
     if (this.client.getHierarchy().isDerived(doc._class, core.class.AttachedDoc)) {
       const adoc = doc as unknown as AttachedDoc
       return this.removeCollection(
@@ -333,7 +333,7 @@ export class TxOperations implements Omit<Client, 'notify'> {
     return new ApplyOperations(this, scope, measure, derived ?? this.isDerived)
   }
 
-  async diffUpdate<T extends Doc = Doc> (
+  async diffUpdate<T extends Doc = Doc>(
     doc: T,
     update: T | Data<T> | DocumentUpdate<T>,
     date?: Timestamp,
@@ -486,12 +486,12 @@ export class ApplyOperations extends TxOperations {
     super(txClient, ops.user, isDerived ?? false)
   }
 
-  match<T extends Doc> (_class: Ref<Class<T>>, query: DocumentQuery<T>): this {
+  match<T extends Doc>(_class: Ref<Class<T>>, query: DocumentQuery<T>): this {
     this.matches.push({ _class, query })
     return this
   }
 
-  notMatch<T extends Doc> (_class: Ref<Class<T>>, query: DocumentQuery<T>): this {
+  notMatch<T extends Doc>(_class: Ref<Class<T>>, query: DocumentQuery<T>): this {
     this.notMatches.push({ _class, query })
     return this
   }

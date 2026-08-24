@@ -18,39 +18,6 @@ const LEGACY_COMPATIBILITY_RULES = Object.fromEntries(
 )
 const LEGACY_FORMATTING_PLUGIN = {
   rules: {
-    'space-before-generic-function-paren': {
-      meta: {
-        type: 'layout',
-        fixable: 'whitespace',
-        schema: [],
-        messages: {
-          missingSpace: 'Missing space before generic function parentheses.'
-        }
-      },
-      create (context) {
-        const sourceCode = context.sourceCode
-        const checkFunction = (node) => {
-          if (node.typeParameters == null) return
-
-          const leftToken = sourceCode.getLastToken(node.typeParameters)
-          const rightToken = sourceCode.getTokenAfter(leftToken)
-          if (rightToken == null || rightToken.value !== '(' || sourceCode.isSpaceBetween(leftToken, rightToken)) return
-
-          context.report({
-            node,
-            loc: rightToken.loc,
-            messageId: 'missingSpace',
-            fix: (fixer) => fixer.insertTextAfter(leftToken, ' ')
-          })
-        }
-
-        return {
-          ArrowFunctionExpression: checkFunction,
-          FunctionDeclaration: checkFunction,
-          FunctionExpression: checkFunction
-        }
-      }
-    },
     'indent-decorated-class-property': {
       meta: {
         type: 'layout',
@@ -134,8 +101,7 @@ async function loadEslintConfig() {
         '@typescript-eslint/array-type': 'off',
         '@typescript-eslint/promise-function-async': 'off',
         '@typescript-eslint/consistent-type-imports': 'off',
-        'space-before-function-paren': ['error', 'always'],
-        'legacy-formatting/space-before-generic-function-paren': 'error',
+        '@stylistic/space-before-function-paren': ['error', 'always'],
         'legacy-formatting/indent-decorated-class-property': 'error',
         '@stylistic/member-delimiter-style': [
           'error',
@@ -172,8 +138,7 @@ async function loadEslintConfig() {
         '@typescript-eslint/array-type': 'off',
         '@typescript-eslint/promise-function-async': 'off',
         '@typescript-eslint/consistent-type-imports': 'off',
-        'space-before-function-paren': ['error', 'always'],
-        'legacy-formatting/space-before-generic-function-paren': 'error',
+        '@stylistic/space-before-function-paren': ['error', 'always'],
         'legacy-formatting/indent-decorated-class-property': 'error',
         '@stylistic/member-delimiter-style': [
           'error',

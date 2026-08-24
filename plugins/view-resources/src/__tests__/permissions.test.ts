@@ -87,7 +87,7 @@ function mockGet<T> (store: MockReadable<T>): T {
 jest.doMock('svelte/store', () => ({
   derived: mockDerived,
   get: mockGet,
-  readable: <T> (value: T) => mockWritable(value),
+  readable: <T>(value: T) => mockWritable(value),
   writable: mockWritable
 }))
 

@@ -107,7 +107,7 @@ export function createSpaceApplicationResolver (
     return undefined
   }
 
-  const group = <T extends Space> (spaces: T[]): Array<SpaceApplicationGroup<T>> => {
+  const group = <T extends Space>(spaces: T[]): Array<SpaceApplicationGroup<T>> => {
     const spacesByApplication = new Map<Application | undefined, T[]>()
     for (const space of spaces) {
       const application = resolve(space)

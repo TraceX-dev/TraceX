@@ -781,7 +781,7 @@ export class PostgresAccountDB implements AccountDB {
     }
   }
 
-  withRetry = async <T> (operation: (client: Sql) => Promise<T>): Promise<T> => {
+  withRetry = async <T>(operation: (client: Sql) => Promise<T>): Promise<T> => {
     let attempt = 0
     let delay = this.retryOptions.initialDelayMs
 

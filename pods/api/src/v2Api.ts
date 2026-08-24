@@ -95,7 +95,7 @@ export function createV2ClientSession (
   const session = {
     workspace: { uuid: workspaceId },
     getRawAccount: () => ({ primarySocialId }),
-    findAllRaw: async <T extends Doc> (
+    findAllRaw: async <T extends Doc>(
       _ctx: ClientSessionCtx,
       _class: Ref<Class<T>>,
       query: Record<string, unknown>,
@@ -1236,12 +1236,12 @@ function createSessionOperations (ctx: ClientSessionCtx, session: Session): TxOp
   const sessionClient = {
     getHierarchy: () => ctx.pipeline.context.hierarchy,
     getModel: () => ctx.pipeline.context.modelDb,
-    findAll: async <T extends Doc> (
+    findAll: async <T extends Doc>(
       _class: Ref<Class<T>>,
       query: Record<string, unknown>,
       options?: FindOptions<T>
     ): Promise<FindResult<T>> => await session.findAllRaw(ctx, _class, query as never, options),
-    findOne: async <T extends Doc> (
+    findOne: async <T extends Doc>(
       _class: Ref<Class<T>>,
       query: Record<string, unknown>,
       options?: FindOptions<T>

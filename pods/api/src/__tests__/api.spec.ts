@@ -400,7 +400,7 @@ function createInMemoryClient (
 ): Client {
   const isModelResource = (value: Ref<Class<Doc>>): boolean =>
     value === integration.class.IntegrationTargetFactory || value === integration.class.WorkspaceApiCapability
-  const findAll = async <T extends Doc> (
+  const findAll = async <T extends Doc>(
     value: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -414,7 +414,7 @@ function createInMemoryClient (
       return { domain: 'test' as never, value: [] }
     },
     findAll,
-    findOne: async <T extends Doc> (value: Ref<Class<T>>, query: DocumentQuery<T>, options?: FindOptions<T>) => {
+    findOne: async <T extends Doc>(value: Ref<Class<T>>, query: DocumentQuery<T>, options?: FindOptions<T>) => {
       return (await findAll(value, query, { ...options, limit: 1 }))[0]
     },
     getHierarchy: () => hierarchy,

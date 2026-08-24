@@ -103,7 +103,7 @@ export class RestClientImpl implements RestClient {
     }
   }
 
-  async findAll<T extends Doc> (
+  async findAll<T extends Doc>(
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -254,7 +254,7 @@ export class RestClientImpl implements RestClient {
     return result
   }
 
-  async findOne<T extends Doc> (
+  async findOne<T extends Doc>(
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
@@ -317,7 +317,7 @@ export class RestClientImpl implements RestClient {
     return result
   }
 
-  async domainRequest<T> (
+  async domainRequest<T>(
     domain: OperationDomain,
     params: DomainParams,
     options?: DomainRequestOptions
@@ -377,7 +377,7 @@ export class RestClientImpl implements RestClient {
     return result
   }
 
-  private async v1op<T extends Doc, P> (op: string, data: any): Promise<P> {
+  private async v1op<T extends Doc, P>(op: string, data: any): Promise<P> {
     const requestUrl = concatLink(this.endpoint, `/api/v1/${op}/${this.workspace}`)
     await this.checkRate()
     const result = await withRetry<{ result?: Ref<T>, error?: Status }>(async () => {
@@ -400,7 +400,7 @@ export class RestClientImpl implements RestClient {
     return result as P
   }
 
-  createDoc<T extends Doc> (
+  createDoc<T extends Doc>(
     _class: Ref<Class<T>>,
     space: Ref<Space>,
     attributes: Data<T>,
@@ -418,7 +418,7 @@ export class RestClientImpl implements RestClient {
     })
   }
 
-  addCollection<T extends Doc, P extends AttachedDoc> (
+  addCollection<T extends Doc, P extends AttachedDoc>(
     _class: Ref<Class<P>>,
     space: Ref<Space>,
     attachedTo: Ref<T>,
@@ -442,7 +442,7 @@ export class RestClientImpl implements RestClient {
     })
   }
 
-  update<T extends Doc> (
+  update<T extends Doc>(
     doc: T,
     update: DocumentUpdate<T>,
     retrieve?: boolean,
@@ -467,7 +467,7 @@ export class RestClientImpl implements RestClient {
     return this.v1op('update', req)
   }
 
-  remove<T extends Doc> (doc: T, modifiedOn?: Timestamp, modifiedBy?: PersonId): Promise<TxResult> {
+  remove<T extends Doc>(doc: T, modifiedOn?: Timestamp, modifiedBy?: PersonId): Promise<TxResult> {
     const req = {
       _class: doc._class,
       _id: doc._id,
@@ -484,7 +484,7 @@ export class RestClientImpl implements RestClient {
     return this.v1op('remove', req)
   }
 
-  createMixin<D extends Doc, M extends D> (
+  createMixin<D extends Doc, M extends D>(
     objectId: Ref<D>,
     objectClass: Ref<Class<D>>,
     objectSpace: Ref<Space>,
@@ -504,7 +504,7 @@ export class RestClientImpl implements RestClient {
     })
   }
 
-  updateMixin<D extends Doc, M extends D> (
+  updateMixin<D extends Doc, M extends D>(
     objectId: Ref<D>,
     objectClass: Ref<Class<D>>,
     objectSpace: Ref<Space>,

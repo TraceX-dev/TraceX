@@ -85,7 +85,7 @@ export async function connect (handler: (tx: Tx) => void): Promise<
 
     pushHandler (): void {}
 
-    async findAll<T extends Doc> (
+    async findAll<T extends Doc>(
       _class: Ref<Class<T>>,
       query: DocumentQuery<T>,
       options?: FindOptions<T>
@@ -95,7 +95,7 @@ export async function connect (handler: (tx: Tx) => void): Promise<
       return await this.model.findAll(_class, query, options)
     }
 
-    async findOne<T extends Doc> (
+    async findOne<T extends Doc>(
       _class: Ref<Class<T>>,
       query: DocumentQuery<T>,
       options?: FindOptions<T>
