@@ -30278,8 +30278,8 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/token
       cheerio:
-        specifier: ^1.1.2
-        version: 1.1.2
+        specifier: ^1.2.0
+        version: 1.2.0
       cors:
         specifier: ^2.8.6
         version: 2.8.6
@@ -30293,11 +30293,11 @@ importers:
         specifier: ^1.2.1
         version: 1.2.1
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       oembed-providers:
-        specifier: ~1.0.20260106
-        version: 1.0.20260106
+        specifier: ~1.0.20260604
+        version: 1.0.20260604
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -30514,8 +30514,8 @@ importers:
         specifier: ^11.1.0
         version: 11.2.2
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       node-poppler:
         specifier: ^8.0.4
         version: 8.0.4
@@ -30677,8 +30677,8 @@ importers:
         specifier: ^4.21.2
         version: 4.21.2
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       msgpackr:
         specifier: ^1.11.2
         version: 1.11.5
@@ -35862,8 +35862,8 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       sharp:
         specifier: ~0.35.3
         version: 0.35.3(@types/node@24.13.3)
@@ -37269,8 +37269,8 @@ importers:
         specifier: ^4.21.2
         version: 4.21.2
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       postgres:
         specifier: ^3.4.7
         version: 3.4.7
@@ -37393,8 +37393,8 @@ importers:
         specifier: ^4.21.2
         version: 4.21.2
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       on-headers:
         specifier: ^1.0.2
         version: 1.1.0
@@ -37780,8 +37780,8 @@ importers:
         specifier: ^11.1.0
         version: 11.2.2
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       on-headers:
         specifier: ^1.0.2
         version: 1.1.0
@@ -40304,8 +40304,8 @@ importers:
         specifier: ^7.4.0
         version: 7.5.1(express@4.21.2)
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       on-headers:
         specifier: ^1.0.2
         version: 1.1.0
@@ -40927,8 +40927,8 @@ importers:
         specifier: ~2.1.34
         version: 2.1.35
       morgan:
-        specifier: ^1.10.0
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       pdfjs-dist:
         specifier: 6.2.108
         version: 6.2.108
@@ -45872,8 +45872,8 @@ packages:
     resolution: {integrity: sha512-8/MzidM6G/TgRelkzDG13y3Y9LxBjCb+8yOEZ9+wwq5gVF2w2pV0wmHvjfT0RvuxGyR7UEuK36r+yYMbT4uKgA==}
     engines: {node: '>= 0.6'}
 
-  cheerio@1.1.2:
-    resolution: {integrity: sha512-IkxPpb5rS/d1IiLbHMgfPuS0FgiWTtFIm/Nj+2woXDLTZ7fOT2eqzgYbdMlLweqlHbsZjxEChoVK+7iph7jyQg==}
+  cheerio@1.2.0:
+    resolution: {integrity: sha512-WDrybc/gKFpTYQutKIK6UvfcuxijIZfMfXaYm8NMsPQxSYvf+13fXUJ4rztGGbJcBQ/GF55gvrZ0Bc0bj/mqvg==}
     engines: {node: '>=20.18.1'}
 
   chevrotain-allstar@0.3.1:
@@ -46937,6 +46937,10 @@ packages:
     resolution: {integrity: sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g==}
     engines: {node: '>=0.12'}
 
+  entities@7.0.1:
+    resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
+    engines: {node: '>=0.12'}
+
   env-paths@2.2.1:
     resolution: {integrity: sha512-+h1lkLKhZMTYjog1VEpJNG7NZJWcuc2DDk/qsqSTRRCOXiLjeQ1d1/udrUGhqMxUgAlwKNZ0cf2uqan5GLuS2A==}
     engines: {node: '>=6'}
@@ -47873,8 +47877,8 @@ packages:
       webpack:
         optional: true
 
-  htmlparser2@10.0.0:
-    resolution: {integrity: sha512-TwAZM+zE5Tq3lrEHvOlvwgj1XLWQCtaaibSN11Q+gGBAS7Y1uZSWwXXRe4iF6OXnaq1riyQAPFOBtYc77Mxq0g==}
+  htmlparser2@10.1.0:
+    resolution: {integrity: sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ==}
 
   htmlparser2@3.10.1:
     resolution: {integrity: sha512-IgieNijUMbkDovyoKObU1DUhm1iwNYE/fuifEoEHfd1oZKZDaONBSkal7Y01shxsM49R4XaMdGez3WnF9UfiCQ==}
@@ -49229,8 +49233,8 @@ packages:
       socks:
         optional: true
 
-  morgan@1.10.1:
-    resolution: {integrity: sha512-223dMRJtI/l25dJKWpgij2cMtywuG/WiUKXdvwfbhGKBhy1puASqXwFzmWZ7+K73vUPoR7SS2Qz2cI/g9MKw0A==}
+  morgan@1.11.0:
+    resolution: {integrity: sha512-zSkVu3t18r39pw4ixfBKvfZi3y2UOqr7d4WYwcj3m8nXpEQK4rPO6GLzs/CExoRgmX3y9EjmmcXqv6jq0SK46g==}
     engines: {node: '>= 0.8.0'}
 
   mri@1.2.0:
@@ -49469,8 +49473,8 @@ packages:
     resolution: {integrity: sha512-7Abo3nADdja8l/aglU6Y3lpnHSfv0tw7gFPiqzry/yCU+2gTAX7R1roJ8hJrxIK+S1j+7iqRJXtmuHJ/UDsBhQ==}
     engines: {node: '>= 18'}
 
-  oembed-providers@1.0.20260106:
-    resolution: {integrity: sha512-u1mNQgfTuuY3ydQDN7G7MnlCVlqM5fhgVxNc6VQTnEIq/OkLPtBaFK0ADvkRciVNLEa/j925jUR30kFVHN2WtQ==}
+  oembed-providers@1.0.20260604:
+    resolution: {integrity: sha512-/eSnxfKGDs35gyiPSepvxPNCRo4lV5WzTXmi527lfupMDmxi51k1HcRub/RJyqwUSc2ojsCyrh91M+NwESb+DQ==}
 
   oidc-token-hash@5.2.0:
     resolution: {integrity: sha512-6gj2m8cJZ+iSW8bm0FXdGF0YhIQbKrfP4yWTNzxc31U6MOjfEmB1rHvlYvxI1B7t7BCi1F2vYTT6YhtQRG4hxw==}
@@ -51490,10 +51494,6 @@ packages:
   undici@6.28.0:
     resolution: {integrity: sha512-LIY910g9TI13YS95lrMFrs8Rm/u/irgHeTWoKCoteeJ04CUJ92eEfj0rVn+7VKMPBpUPiUoBKfhNyLI23EE/KA==}
     engines: {node: '>=18.17'}
-
-  undici@7.18.2:
-    resolution: {integrity: sha512-y+8YjDFzWdQlSE9N5nzKMT3g4a5UBX1HKowfdXh0uvAnTaqqwqB92Jt4UXBAeKekDs5IaDKyJFR4X1gYVCgXcw==}
-    engines: {node: '>=20.18.1'}
 
   undici@7.29.0:
     resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
@@ -56981,18 +56981,18 @@ snapshots:
       lodash.reject: 4.6.0
       lodash.some: 4.6.0
 
-  cheerio@1.1.2:
+  cheerio@1.2.0:
     dependencies:
       cheerio-select: 2.1.0
       dom-serializer: 2.0.0
       domhandler: 5.0.3
       domutils: 3.2.2
       encoding-sniffer: 0.2.1
-      htmlparser2: 10.0.0
+      htmlparser2: 10.1.0
       parse5: 7.3.0
       parse5-htmlparser2-tree-adapter: 7.1.0
       parse5-parser-stream: 7.1.2
-      undici: 7.18.2
+      undici: 7.29.0
       whatwg-mimetype: 4.0.0
 
   chevrotain-allstar@0.3.1(chevrotain@11.0.3):
@@ -58137,6 +58137,8 @@ snapshots:
   entities@5.0.0: {}
 
   entities@6.0.1: {}
+
+  entities@7.0.1: {}
 
   env-paths@2.2.1: {}
 
@@ -59405,12 +59407,12 @@ snapshots:
     optionalDependencies:
       webpack: 5.102.1(esbuild@0.25.12)(webpack-cli@5.1.4)
 
-  htmlparser2@10.0.0:
+  htmlparser2@10.1.0:
     dependencies:
       domelementtype: 2.3.0
       domhandler: 5.0.3
       domutils: 3.2.2
-      entities: 6.0.1
+      entities: 7.0.1
 
   htmlparser2@3.10.1:
     dependencies:
@@ -61209,12 +61211,12 @@ snapshots:
       snappy: 7.3.3
       socks: 2.8.7
 
-  morgan@1.10.1:
+  morgan@1.11.0:
     dependencies:
       basic-auth: 2.0.1
       debug: 2.6.9
       depd: 2.0.0
-      on-finished: 2.3.0
+      on-finished: 2.4.1
       on-headers: 1.1.0
 
   mri@1.2.0: {}
@@ -61450,7 +61452,7 @@ snapshots:
       '@octokit/types': 13.10.0
       '@octokit/webhooks': 12.3.2
 
-  oembed-providers@1.0.20260106: {}
+  oembed-providers@1.0.20260604: {}
 
   oidc-token-hash@5.2.0: {}
 
@@ -62824,7 +62826,7 @@ snapshots:
     dependencies:
       commander: 9.5.0
       eventsource: 2.0.2
-      morgan: 1.10.1
+      morgan: 1.11.0
       superagent: 8.1.2
       validator: 13.15.22
     transitivePeerDependencies:
@@ -63826,10 +63828,7 @@ snapshots:
 
   undici@6.28.0: {}
 
-  undici@7.18.2: {}
-
-  undici@7.29.0:
-    optional: true
+  undici@7.29.0: {}
 
   universal-github-app-jwt@1.2.0:
     dependencies:
