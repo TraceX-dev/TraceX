@@ -721,6 +721,10 @@ export function createModel (builder: Builder): void {
     inlineEditor: card.component.CardEditor
   })
 
+  builder.mixin(card.class.CardSpace, core.class.Class, view.mixin.AttributeEditor, {
+    inlineEditor: card.component.CardSpaceEditor
+  })
+
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ArrayEditor, {
     inlineEditor: card.component.CardArrayEditor
   })
