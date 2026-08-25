@@ -1848,7 +1848,7 @@ importers:
         specifier: ^2.2.0
         version: 2.9.4(webpack@5.102.1)
       postcss:
-        specifier: ^8.4.20
+        specifier: 8.5.16
         version: 8.5.16
       postcss-load-config:
         specifier: ^4.0.1
@@ -3910,8 +3910,8 @@ importers:
         specifier: ^0.5.6
         version: 0.5.6
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -4123,8 +4123,8 @@ importers:
         specifier: ^5.2.2
         version: 5.3.2
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -13704,14 +13704,14 @@ importers:
         specifier: ^1.2.1
         version: 1.2.1
       js-yaml:
-        specifier: ^4.1.0
+        specifier: ^4.3.1
         version: 4.3.1
       mime-types:
         specifier: ~2.1.34
         version: 2.1.35
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -13780,8 +13780,8 @@ importers:
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -14196,8 +14196,8 @@ importers:
         specifier: ^4.2.20
         version: 4.2.20
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
       yjs:
         specifier: ^13.6.27
         version: 13.6.27
@@ -30011,7 +30011,7 @@ importers:
         specifier: ^1.1.2
         version: 1.2.0
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
         specifier: ^16.4.5
@@ -30023,7 +30023,7 @@ importers:
         specifier: ^1.2.1
         version: 1.2.1
       morgan:
-        specifier: ^1.10.0
+        specifier: ^1.11.0
         version: 1.11.0
       oembed-providers:
         specifier: ~1.0.20260106
@@ -30392,13 +30392,13 @@ importers:
         specifier: ^4.0.8
         version: 4.0.9
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       express:
         specifier: ^4.21.2
         version: 4.21.2
       morgan:
-        specifier: ^1.10.0
+        specifier: ^1.11.0
         version: 1.11.0
       msgpackr:
         specifier: ^1.11.2
@@ -36739,7 +36739,7 @@ importers:
         specifier: ^6.2.5
         version: 6.2.5
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
         specifier: ^16.4.5
@@ -36757,7 +36757,7 @@ importers:
         specifier: ^1.0.14
         version: 1.0.21
       js-yaml:
-        specifier: ^4.1.0
+        specifier: ^4.3.1
         version: 4.3.1
       lru-cache:
         specifier: ^11.1.0
@@ -36772,8 +36772,8 @@ importers:
         specifier: ^1.3.6
         version: 1.3.6
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
       ws:
         specifier: ^8.21.0
         version: 8.21.3(bufferutil@4.0.9)(utf-8-validate@6.0.5)
@@ -37099,7 +37099,7 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
         specifier: ^16.4.5
@@ -37108,7 +37108,7 @@ importers:
         specifier: ^4.21.2
         version: 4.21.2
       morgan:
-        specifier: ^1.10.0
+        specifier: ^1.11.0
         version: 1.11.0
       on-headers:
         specifier: ^1.0.2
@@ -37117,8 +37117,8 @@ importers:
         specifier: ^3.4.7
         version: 3.4.7
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -37127,7 +37127,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37474,7 +37474,7 @@ importers:
         specifier: ^4.0.2
         version: 4.4.4
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
         specifier: ^16.4.5
@@ -37489,7 +37489,7 @@ importers:
         specifier: ^11.1.0
         version: 11.2.2
       morgan:
-        specifier: ^1.10.0
+        specifier: ^1.11.0
         version: 1.11.0
       on-headers:
         specifier: ^1.0.2
@@ -37498,8 +37498,8 @@ importers:
         specifier: ^3.4.7
         version: 3.4.7
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -37508,7 +37508,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -37658,7 +37658,7 @@ importers:
         specifier: ^7.0.1
         version: 7.0.1
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       csv-stringify:
         specifier: ^6.5.2
@@ -37670,14 +37670,14 @@ importers:
         specifier: ^4.21.2
         version: 4.21.2
       js-yaml:
-        specifier: ^4.1.0
+        specifier: ^4.3.1
         version: 4.3.1
       tar:
         specifier: ^7.5.21
         version: 7.5.22
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
       ws:
         specifier: ^8.21.0
         version: 8.21.3(bufferutil@4.0.9)(utf-8-validate@6.0.5)
@@ -37692,7 +37692,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -39175,7 +39175,7 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
         specifier: ^16.4.5
@@ -39190,8 +39190,8 @@ importers:
         specifier: ^2.13.3
         version: 2.14.0
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
       ws:
         specifier: ^8.21.0
         version: 8.21.3(bufferutil@4.0.9)(utf-8-validate@6.0.5)
@@ -39203,7 +39203,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -39311,8 +39311,8 @@ importers:
         specifier: ^7.2.0
         version: 7.2.2
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -39523,7 +39523,7 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../../foundations/core/packages/token
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
         specifier: ^16.4.5
@@ -39544,8 +39544,8 @@ importers:
         specifier: ^7.2.0
         version: 7.2.2
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -39983,7 +39983,7 @@ importers:
         specifier: ^0.37.0
         version: 0.37.0
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
         specifier: ^16.4.5
@@ -39995,7 +39995,7 @@ importers:
         specifier: ^7.4.0
         version: 7.5.1(express@4.21.2)
       morgan:
-        specifier: ^1.10.0
+        specifier: ^1.11.0
         version: 1.11.0
       on-headers:
         specifier: ^1.0.2
@@ -40007,8 +40007,8 @@ importers:
         specifier: ^17.3.1
         version: 17.7.0
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -40017,7 +40017,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
@@ -41038,7 +41038,7 @@ importers:
         specifier: ^1.6.51
         version: 1.6.52
       cors:
-        specifier: ^2.8.5
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
         specifier: ^16.4.5
@@ -41062,8 +41062,8 @@ importers:
         specifier: 2.22.2
         version: 2.22.2
       uuid:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^11.1.1
+        version: 11.1.1
       ws:
         specifier: ^8.21.0
         version: 8.21.3(bufferutil@4.0.9)(utf-8-validate@6.0.5)
@@ -41075,7 +41075,7 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       '@types/cors':
-        specifier: ^2.8.12
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.13
