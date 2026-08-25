@@ -21,7 +21,7 @@ services:
     profiles: ["full"]
   billing:
     profiles: ["full"]
-  fulltext_cockroach:
+  fulltext_pg:
     profiles: ["full"]
   print:
     profiles: ["full"]
@@ -39,11 +39,11 @@ services:
     profiles: ["full"]
   backup-api:
     profiles: ["full"]
-  rating_cockroach:
+  rating_pg:
     profiles: ["full"]
   account:
     links: !override []
-  workspace_cockroach:
+  workspace_pg:
     links: !override
       - cockroach
       - minio
@@ -53,7 +53,7 @@ services:
       - transactor_cockroach
   front:
     links: !override []
-  transactor_cockroach:
+  transactor_pg:
     links: !override
       - cockroach
       - minio

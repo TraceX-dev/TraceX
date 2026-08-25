@@ -63,7 +63,7 @@
         "QUEUE_CONFIG": "localhost:19092"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "showAsyncStacks": true,
       "outputCapture": "std",
       "sourceMaps": true,
@@ -111,7 +111,7 @@
         "BRANDING_PATH": "${workspaceRoot}/dev/branding.json"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "showAsyncStacks": true,
       "outputCapture": "std",
       "sourceMaps": true,
@@ -175,7 +175,7 @@
         "QUEUE_CONFIG": "localhost:19093;-staging"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "showAsyncStacks": true,
       "outputCapture": "std",
       "sourceMaps": true,
@@ -210,7 +210,7 @@
         // "DISABLE_SIGNUP": "true",
         "OTLP_ENDPOINT": "http://tracex.local:4318/v1/traces"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -242,7 +242,7 @@
         "MINIO_ENDPOINT": "localhost"
         // "DISABLE_SIGNUP": "true",
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -258,7 +258,7 @@
         "PORT": "4901",
         "SERVER_SECRET": "secret"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -293,7 +293,7 @@
         "QUEUE_CONFIG": "tracex.local:19092",
         "QUEUE_REGION": ""
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -326,7 +326,7 @@
         // "INIT_REPO_DIR": "${workspaceRoot}/pods/workspace/init",
         // "INIT_WORKSPACE": "staging-dev"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -355,7 +355,7 @@
         "MODEL_VERSION": "",
         "VERSION": ""
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "showAsyncStacks": true,
       "sourceMaps": true,
@@ -375,7 +375,7 @@
         "MONGO_URL": "mongodb://localhost:27017",
         "STORAGE_CONFIG": "datalake|http://localhost:4030"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/pods/collaborator",
@@ -457,7 +457,7 @@
         "REKONI_URL": "http://localhost:4004",
         "MODEL_VERSION": "0.7.1"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -506,7 +506,7 @@
         "TELEGRAM_DATABASE": "telegram-service",
         "REKONI_URL": "http://localhost:4004"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -679,7 +679,7 @@
         "MONGO_URL": "mongodb://localhost:27017"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "showAsyncStacks": true,
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/dev/doc-import-tool",
@@ -699,7 +699,7 @@
         "COLLABORATOR_URL": "ws://localhost:3078"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/services/process"
     },
@@ -715,7 +715,7 @@
         "STORAGE_CONFIG": "minio|localhost?accessKey=minioadmin&secretKey=minioadmin"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/services/print/pod-print"
     },
@@ -737,7 +737,7 @@
         "BRANDING_PATH": "${workspaceRoot}/services/sign/pod-sign/debug/branding.json"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/services/sign/pod-sign"
     },
@@ -758,7 +758,7 @@
         // "POLAR_SUBSCRIPTION_PLANS": "common@tier:prod_1a,prod_1b;rare@tier:prod_2;epic@tier:prod_3;legendary@tier:prod_4"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/services/payment/pod-payment"
     },
@@ -794,7 +794,7 @@
         "ACCOUNTS_URL": "http://localhost:3000"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "showAsyncStacks": true,
       "outputCapture": "std",
@@ -813,7 +813,7 @@
         "WATCH_URL": "https://calendar.hc.engineering/push"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "showAsyncStacks": true,
       "outputCapture": "std",
@@ -839,7 +839,7 @@
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "cwd": "${workspaceRoot}/services/ai-bot/pod-ai-bot",
       "protocol": "inspector",
       "outputCapture": "std"
@@ -865,7 +865,7 @@
         "DB_URL": "postgresql://root@tracex.local:26257/defaultdb?sslmode=disable"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/services/telegram-bot/pod-telegram-bot"
     },
@@ -884,7 +884,7 @@
         "QUEUE_CONFIG": "localhost:19092"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/services/datalake/pod-datalake"
     },
@@ -900,7 +900,7 @@
         "QUEUE_CONFIG": "localhost:19092"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/pods/media"
     },
@@ -916,7 +916,7 @@
         "CACHE_PATH": "/tmp/preview"
       },
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "sourceMaps": true,
       "cwd": "${workspaceRoot}/pods/preview"
     },
@@ -951,7 +951,7 @@
       "env": {
         "FRONT_URL": "http://localhost:8087"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -975,7 +975,7 @@
       "env": {
         "FRONT_URL": "http://localhost:8087"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
@@ -999,7 +999,7 @@
       "env": {
         "FRONT_URL": "http://localhost:8087"
       },
-      "runtimeVersion": "20",
+      "runtimeVersion": "24",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
       "sourceMaps": true,
       "outputCapture": "std",
