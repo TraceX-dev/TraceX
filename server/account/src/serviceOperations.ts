@@ -448,33 +448,37 @@ export async function updateWorkspaceInfo (
   }
 }
 
-// Called by the front server (service: 'front') to render another workspace's
-// logo on the select-workspace/switcher screens, where the browser has no token
-// for that workspace. Deliberately returns only what's needed to resolve one
-// blob (uuid/url/dataId/icon) — never full workspace info — since front then
-// serves that blob back to the browser with no auth check of its own.
-export async function getWorkspaceAvatarInfo (
+// Called by the front server (service: 'front') to render other workspaces' logos on the
+// select-workspace/switcher screens, where the browser has no token for those workspaces.
+// Batched via front's bulk /avatars route so listing N workspaces costs one DB query
+// instead of N account-service round trips. Deliberately returns only what's needed to
+// resolve each blob (uuid/url/dataId/icon) — never full workspace info — since front then
+// serves those blobs back to the browser with no auth check of its own.
+const maxAvatarInfoBulkSize = 200
+
+export async function getWorkspaceAvatarInfoBulk (
   ctx: MeasureContext,
   db: AccountDB,
   branding: Branding | null,
   token: string,
-  params: { workspaceUuid: WorkspaceUuid }
-): Promise<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null } | null> {
+  params: { workspaceUuids: WorkspaceUuid[] }
+): Promise<Array<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null }>> {
   const { extra } = decodeTokenVerbose(ctx, token)
   verifyAllowedServices(['front'], extra)
 
-  const { workspaceUuid } = params
-  const workspace = await getWorkspaceById(db, workspaceUuid)
-  if (workspace == null) {
-    return null
+  const { workspaceUuids } = params
+  if (workspaceUuids.length === 0 || workspaceUuids.length > maxAvatarInfoBulkSize) {
+    return []
   }
 
-  return {
+  const workspaces = await getWorkspacesInfoWithStatusByIds(db, workspaceUuids)
+
+  return workspaces.map((workspace) => ({
     uuid: workspace.uuid,
     url: workspace.url,
     dataId: workspace.dataId,
     icon: workspace.icon ?? null
-  }
+  }))
 }
 
 export async function workerHandshake (
@@ -1154,7 +1158,7 @@ export async function getSubscriptionByProviderId (
 export type AccountServiceMethods =
   | 'getPendingWorkspace'
   | 'updateWorkspaceInfo'
-  | 'getWorkspaceAvatarInfo'
+  | 'getWorkspaceAvatarInfoBulk'
   | 'workerHandshake'
   | 'updateBackupInfo'
   | 'updateUsageInfo'
@@ -1190,7 +1194,7 @@ export function getServiceMethods (): Partial<Record<AccountServiceMethods, Acco
   return {
     getPendingWorkspace: wrap(getPendingWorkspace),
     updateWorkspaceInfo: wrap(updateWorkspaceInfo),
-    getWorkspaceAvatarInfo: wrap(getWorkspaceAvatarInfo),
+    getWorkspaceAvatarInfoBulk: wrap(getWorkspaceAvatarInfoBulk),
     workerHandshake: wrap(workerHandshake),
     updateBackupInfo: wrap(updateBackupInfo),
     updateUsageInfo: wrap(updateUsageInfo),

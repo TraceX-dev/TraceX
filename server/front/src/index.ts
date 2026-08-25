@@ -596,44 +596,57 @@ export function start (
     void handleUpload(req, res)
   })
 
-  // Publicly readable by design: unlike /files, this does not check the caller's
-  // token against the target workspace (there isn't one — it's rendered on the
-  // select-workspace/switcher screens, before the browser holds a token for that
-  // workspace). It only ever serves the one blob that workspace's own admin chose
-  // as its logo (looked up server-side by uuid), never an arbitrary blob id, so it
-  // can't be used to read anything else out of that workspace's storage.
-  const avatarHandler = async (req: Request<any>, res: Response<any>): Promise<void> => {
+  // Publicly readable by design: unlike /files, this does not check the caller's token
+  // against the target workspaces (there isn't one — it's rendered on the select-
+  // workspace/switcher screens, before the browser holds a token for those workspaces).
+  // It only ever returns each workspace's own designated logo, resolved server-side,
+  // never an arbitrary blob, so it can't be used to read anything else out of a
+  // workspace's storage. Small enough (workspace logos) to inline as data URIs in one
+  // JSON response rather than a per-image round trip.
+  const avatarsBulkHandler = async (req: Request<any>, res: Response<any>): Promise<void> => {
     await ctx.with(
-      'handle-avatar',
+      'handle-avatars-bulk',
       {},
       async (ctx) => {
         try {
-          const workspaceUuid = req.params.workspaceUuid as WorkspaceUuid
+          const workspaceUuids = Array.isArray(req.body?.workspaceUuids)
+            ? (req.body.workspaceUuids as WorkspaceUuid[])
+            : []
+          if (workspaceUuids.length === 0 || workspaceUuids.length > 200) {
+            res.status(400).send()
+            return
+          }
 
           const serviceToken = generateToken(systemAccountUuid, undefined, { service: 'front' })
           const accountClient = getAccountClient(config.accountsUrlInternal ?? config.accountsUrl, serviceToken)
-          const avatarInfo = await accountClient.getWorkspaceAvatarInfo(workspaceUuid)
+          const avatarInfos = await accountClient.getWorkspaceAvatarInfoBulk(workspaceUuids)
 
-          if (avatarInfo?.icon == null) {
-            res.status(404).send()
-            return
+          const result: Record<string, string> = {}
+          let nextIndex = 0
+          async function worker (): Promise<void> {
+            while (nextIndex < avatarInfos.length) {
+              const info = avatarInfos[nextIndex++]
+              if (info.icon == null) {
+                continue
+              }
+              const wsIds: WorkspaceIds = { uuid: info.uuid, url: info.url, dataId: info.dataId }
+              try {
+                const blobInfo = await config.storageAdapter.stat(ctx, wsIds, info.icon)
+                if (blobInfo === undefined) {
+                  continue
+                }
+                const chunks = await config.storageAdapter.read(ctx, wsIds, info.icon)
+                result[info.uuid] = `data:${blobInfo.contentType};base64,${Buffer.concat(chunks).toString('base64')}`
+              } catch (error: any) {
+                ctx.error('error-handle-avatars-bulk-item', { error, workspace: info.uuid })
+              }
+            }
           }
+          await Promise.all(Array.from({ length: Math.min(10, avatarInfos.length) }, async () => { await worker() }))
 
-          const wsIds: WorkspaceIds = { uuid: avatarInfo.uuid, url: avatarInfo.url, dataId: avatarInfo.dataId }
-          const icon = avatarInfo.icon
-
-          const blobInfo = await ctx.with('stat', {}, (ctx) => config.storageAdapter.stat(ctx, wsIds, icon), {
-            workspace: wsIds.uuid
-          })
-
-          if (blobInfo === undefined) {
-            res.status(404).send()
-            return
-          }
-
-          await getFile(ctx, blobInfo, config.storageAdapter, wsIds, req, res)
+          res.status(200).json(result)
         } catch (error: any) {
-          ctx.error('error-handle-avatar', { error })
+          ctx.error('error-handle-avatars-bulk', { error })
           res.status(500).send()
         }
       },
@@ -641,8 +654,8 @@ export function start (
     )
   }
 
-  app.get('/avatar/:workspaceUuid', (req, res) => {
-    void avatarHandler(req, res)
+  app.post('/avatars', (req, res) => {
+    void avatarsBulkHandler(req, res)
   })
 
   const handleUpload = async (req: Request, res: Response): Promise<void> => {

@@ -1813,8 +1813,8 @@ export async function updateWorkspaceName (
 }
 
 // `params.avatar` is a blob id, not a URL (see account_db_v31_add_workspace_icon).
-// Readers resolve it into a URL themselves: same-workspace via getFileUrl, another
-// workspace's (select-workspace/switcher) via getWorkspaceAvatarUrl, both in
+// Readers resolve it into a URL themselves: same-workspace via getFileUrl, other
+// workspaces' (select-workspace/switcher) via getWorkspaceAvatarUrls, both in
 // @hcengineering/presentation.
 export async function updateWorkspaceAvatar (
   ctx: MeasureContext,

@@ -23,7 +23,7 @@
   } from '@hcengineering/core'
   import { LoginInfo } from '@hcengineering/login'
   import { OK, Severity, Status } from '@hcengineering/platform'
-  import presentation, { MessageBox, NavLink, getWorkspaceAvatarUrl, reduceCalls } from '@hcengineering/presentation'
+  import presentation, { MessageBox, NavLink, getWorkspaceAvatarUrls, reduceCalls } from '@hcengineering/presentation'
   import {
     Button,
     Label,
@@ -62,6 +62,31 @@
   let isReadOnlyGuest: boolean = true
 
   let flagToUpdateWorkspaces = false
+
+  // Other workspaces' logos, resolved in bulk (one request for the whole list rather than
+  // one per row) and keyed by uuid. requestedAvatarUuids tracks which uuids we've already
+  // asked for, so a workspace whose logo fails to resolve isn't retried on every update.
+  let avatarUrls: Record<string, string> = {}
+  const requestedAvatarUuids = new Set<string>()
+
+  const loadAvatarUrls = reduceCalls(async function loadAvatarUrls (uuids: string[]): Promise<void> {
+    if (uuids.length === 0) return
+    try {
+      avatarUrls = { ...avatarUrls, ...(await getWorkspaceAvatarUrls(uuids)) }
+    } catch (e) {
+      // best-effort — those workspaces just render without a logo
+    }
+  })
+
+  $: {
+    const missing = workspaces
+      .filter((it) => it.icon != null && !requestedAvatarUuids.has(it.uuid))
+      .map((it) => it.uuid)
+    if (missing.length > 0) {
+      missing.forEach((uuid) => requestedAvatarUuids.add(uuid))
+      void loadAvatarUrls(missing)
+    }
+  }
 
   async function loadAccount (): Promise<void> {
     accountPromise = getAccount()
@@ -179,7 +204,7 @@
             <WorkspaceAvatar
               colorSeed={workspace.uuid}
               displayName={wsName}
-              avatarUrl={workspace.icon != null ? getWorkspaceAvatarUrl(workspace.uuid) : undefined}
+              avatarUrl={avatarUrls[workspace.uuid]}
               size={'small'}
               hasUnread={workspace.hasUnread === true}
               ringColor={'var(--theme-bg-color)'}

@@ -20,9 +20,10 @@
   import presentation, {
     createQuery,
     decodeTokenPayload,
-    getWorkspaceAvatarUrl,
+    getWorkspaceAvatarUrls,
     hasResource,
-    isAdminUser
+    isAdminUser,
+    reduceCalls
   } from '@hcengineering/presentation'
   import {
     closePopup,
@@ -194,6 +195,33 @@
 
   $: currentWsUrl = $resolvedLocationStore.path[1]
 
+  // Other workspaces' logos, resolved in bulk (one request for the whole list rather than
+  // one per row) and keyed by uuid. Reacts off the full $workspacesStore rather than the
+  // filtered/sorted list below, so typing in the search box doesn't retrigger it. Tracks
+  // which uuids were already requested so a logo that fails to resolve isn't retried on
+  // every store update.
+  let avatarUrls: Record<string, string> = {}
+  const requestedAvatarUuids = new Set<string>()
+
+  const loadAvatarUrls = reduceCalls(async function loadAvatarUrls (uuids: string[]): Promise<void> {
+    if (uuids.length === 0) return
+    try {
+      avatarUrls = { ...avatarUrls, ...(await getWorkspaceAvatarUrls(uuids)) }
+    } catch (e) {
+      // best-effort — those workspaces just render without a logo
+    }
+  })
+
+  $: {
+    const missing = $workspacesStore
+      .filter((it) => it.icon != null && !requestedAvatarUuids.has(it.uuid))
+      .map((it) => it.uuid)
+    if (missing.length > 0) {
+      missing.forEach((uuid) => requestedAvatarUuids.add(uuid))
+      void loadAvatarUrls(missing)
+    }
+  }
+
   // The currently open workspace is always shown first, regardless of its
   // position in the last-visit sort order.
   $: sortedWorkspaces = (() => {
@@ -288,7 +316,7 @@
                   <WorkspaceAvatar
                     colorSeed={ws.uuid}
                     displayName={wsName}
-                    avatarUrl={ws.icon != null ? getWorkspaceAvatarUrl(ws.uuid) : undefined}
+                    avatarUrl={avatarUrls[ws.uuid]}
                     size={'small'}
                     hasUnread={ws.hasUnread === true && !isCurrentWs}
                     ringColor={'var(--theme-popup-color)'}

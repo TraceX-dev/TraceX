@@ -62,20 +62,44 @@ export function getFileUrl (file: string, filename?: string): string {
   return storage.getFileUrl(workspace, file, filename)
 }
 
+// Must match maxAvatarInfoBulkSize in server/account/src/serviceOperations.ts.
+const maxWorkspaceAvatarBulkSize = 200
+
 /**
- * URL of another workspace's logo (e.g. for the select-workspace/switcher screens,
- * rendered before the browser holds a token for that workspace). Deliberately does
+ * URLs of other workspaces' logos (e.g. for the select-workspace/switcher screens,
+ * rendered before the browser holds a token for those workspaces). Deliberately does
  * NOT go through {@link getFileUrl}/the blob storage directly — that would need a
- * token scoped to the target workspace, which isn't available there, or would
+ * token scoped to each target workspace, which isn't available there, or would
  * require making blob storage readable without one, which is a security issue.
  * Instead this hits a small public endpoint on the front server that resolves and
- * serves only that one workspace's chosen logo blob, looked up server-side by uuid.
+ * serves back only each workspace's own chosen logo blob, looked up server-side by
+ * uuid, one request per (up to 200-uuid) chunk rather than one per workspace.
+ * Returns ready-to-use <img src> values (data: URIs) keyed by workspace uuid;
+ * workspaces with no logo, or that fail to resolve, are simply absent from the result.
  * @public
  */
-export function getWorkspaceAvatarUrl (workspaceUuid: WorkspaceUuid): string {
+export async function getWorkspaceAvatarUrls (workspaceUuids: WorkspaceUuid[]): Promise<Record<string, string>> {
   const frontUrl =
     getMetadata(plugin.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
-  return concatLink(frontUrl, `/avatar/${encodeURIComponent(workspaceUuid)}`)
+  const url = concatLink(frontUrl, '/avatars')
+
+  const result: Record<string, string> = {}
+  for (let i = 0; i < workspaceUuids.length; i += maxWorkspaceAvatarBulkSize) {
+    const chunk = workspaceUuids.slice(i, i + maxWorkspaceAvatarBulkSize)
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceUuids: chunk })
+      })
+      if (res.ok) {
+        Object.assign(result, await res.json())
+      }
+    } catch (err: any) {
+      // Best-effort — those workspaces just render without a logo.
+    }
+  }
+  return result
 }
 
 /**
