@@ -23,7 +23,8 @@ fi
 
 : "${SBOM_OUTPUT_DIR:?SBOM_OUTPUT_DIR must define the SBOM output directory}"
 
-image="$1:latest"
+version=${DOCKER_VERSION:-$(git describe --tags --abbrev=0)}
+image="$1:$version"
 image_name="${1#*/}"
 output_file="${SBOM_OUTPUT_DIR}/${image_name}.spdx.json"
 
