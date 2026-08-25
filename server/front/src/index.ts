@@ -614,7 +614,7 @@ export function start (
           const accountClient = getAccountClient(config.accountsUrlInternal ?? config.accountsUrl, serviceToken)
           const avatarInfo = await accountClient.getWorkspaceAvatarInfo(workspaceUuid)
 
-          if (avatarInfo == null || avatarInfo.icon == null) {
+          if (avatarInfo?.icon == null) {
             res.status(404).send()
             return
           }

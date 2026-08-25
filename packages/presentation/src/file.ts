@@ -73,7 +73,8 @@ export function getFileUrl (file: string, filename?: string): string {
  * @public
  */
 export function getWorkspaceAvatarUrl (workspaceUuid: WorkspaceUuid): string {
-  const frontUrl = getMetadata(plugin.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
+  const frontUrl =
+    getMetadata(plugin.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
   return concatLink(frontUrl, `/avatar/${encodeURIComponent(workspaceUuid)}`)
 }
 
