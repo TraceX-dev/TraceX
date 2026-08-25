@@ -1812,10 +1812,10 @@ export async function updateWorkspaceName (
   )
 }
 
-// `params.avatar` is a blob id, not a URL (see account_db_v31_add_workspace_icon) — the
-// client resolves it into a URL itself via getFileUrl in @hcengineering/presentation.
-// An opaque id can't redirect anywhere, so there's no origin to validate. The one check kept
-// is a cheap sanity guard: a real blob id never contains "://".
+// `params.avatar` is a blob id, not a URL (see account_db_v31_add_workspace_icon).
+// Readers resolve it into a URL themselves: same-workspace via getFileUrl, another
+// workspace's (select-workspace/switcher) via getWorkspaceAvatarUrl, both in
+// @hcengineering/presentation.
 export async function updateWorkspaceAvatar (
   ctx: MeasureContext,
   db: AccountDB,
@@ -1831,15 +1831,6 @@ export async function updateWorkspaceAvatar (
   if (role == null || getRolePower(role) < getRolePower(AccountRole.Maintainer)) {
     ctx.error('Need to be at least maintainer to update workspace avatar', { workspace, account, role })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
-  }
-
-  if (icon != null && icon.includes('://')) {
-    ctx.error('Rejecting workspace avatar that looks like a URL instead of a blob id', {
-      workspace,
-      account,
-      icon
-    })
-    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
   }
 
   await db.workspace.update(

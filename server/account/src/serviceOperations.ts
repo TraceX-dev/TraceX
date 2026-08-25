@@ -14,11 +14,14 @@
 //
 import {
   type AccountRole,
+  type Blob,
   type Data,
   isActiveMode,
   type MeasureContext,
+  type Ref,
   SocialIdType,
   type Version,
+  type WorkspaceDataId,
   type WorkspaceMode,
   type PersonInfo,
   type BackupStatus,
@@ -442,6 +445,35 @@ export async function updateWorkspaceInfo (
 
   if (Object.keys(wsUpdate).length !== 0) {
     await db.workspace.update({ uuid: workspaceUuid }, wsUpdate)
+  }
+}
+
+// Called by the front server (service: 'front') to render another workspace's
+// logo on the select-workspace/switcher screens, where the browser has no token
+// for that workspace. Deliberately returns only what's needed to resolve one
+// blob (uuid/url/dataId/icon) — never full workspace info — since front then
+// serves that blob back to the browser with no auth check of its own.
+export async function getWorkspaceAvatarInfo (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { workspaceUuid: WorkspaceUuid }
+): Promise<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null } | null> {
+  const { extra } = decodeTokenVerbose(ctx, token)
+  verifyAllowedServices(['front'], extra)
+
+  const { workspaceUuid } = params
+  const workspace = await getWorkspaceById(db, workspaceUuid)
+  if (workspace == null) {
+    return null
+  }
+
+  return {
+    uuid: workspace.uuid,
+    url: workspace.url,
+    dataId: workspace.dataId,
+    icon: workspace.icon ?? null
   }
 }
 
@@ -1122,6 +1154,7 @@ export async function getSubscriptionByProviderId (
 export type AccountServiceMethods =
   | 'getPendingWorkspace'
   | 'updateWorkspaceInfo'
+  | 'getWorkspaceAvatarInfo'
   | 'workerHandshake'
   | 'updateBackupInfo'
   | 'updateUsageInfo'
@@ -1157,6 +1190,7 @@ export function getServiceMethods (): Partial<Record<AccountServiceMethods, Acco
   return {
     getPendingWorkspace: wrap(getPendingWorkspace),
     updateWorkspaceInfo: wrap(updateWorkspaceInfo),
+    getWorkspaceAvatarInfo: wrap(getWorkspaceAvatarInfo),
     workerHandshake: wrap(workerHandshake),
     updateBackupInfo: wrap(updateBackupInfo),
     updateUsageInfo: wrap(updateUsageInfo),

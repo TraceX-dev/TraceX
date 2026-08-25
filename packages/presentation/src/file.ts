@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { type Blob as PlatformBlob, type Ref, type WorkspaceUuid } from '@hcengineering/core'
+import { concatLink, type Blob as PlatformBlob, type Ref, type WorkspaceUuid } from '@hcengineering/core'
 import { getMetadata } from '@hcengineering/platform'
 import { type FileStorage, createFileStorage as createStorageClient } from '@hcengineering/storage-client'
 import { v4 as uuid } from 'uuid'
@@ -50,18 +50,31 @@ export function getFileStorage (): FileStorage {
   return storage
 }
 
-/**
- * @param workspace Defaults to the current workspace; pass explicitly to resolve a blob
- * from another workspace (e.g. another workspace's logo on select-workspace/switcher screens).
- * @public
- */
-export function getFileUrl (file: string, filename?: string, workspace?: WorkspaceUuid): string {
+/** @public */
+export function getFileUrl (file: string, filename?: string): string {
   if (file.includes('://')) {
     return file
   }
 
+  const workspace = getCurrentWorkspaceUuid()
+
   const storage = getFileStorage()
-  return storage.getFileUrl(workspace ?? getCurrentWorkspaceUuid(), file, filename)
+  return storage.getFileUrl(workspace, file, filename)
+}
+
+/**
+ * URL of another workspace's logo (e.g. for the select-workspace/switcher screens,
+ * rendered before the browser holds a token for that workspace). Deliberately does
+ * NOT go through {@link getFileUrl}/the blob storage directly — that would need a
+ * token scoped to the target workspace, which isn't available there, or would
+ * require making blob storage readable without one, which is a security issue.
+ * Instead this hits a small public endpoint on the front server that resolves and
+ * serves only that one workspace's chosen logo blob, looked up server-side by uuid.
+ * @public
+ */
+export function getWorkspaceAvatarUrl (workspaceUuid: WorkspaceUuid): string {
+  const frontUrl = getMetadata(plugin.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
+  return concatLink(frontUrl, `/avatar/${encodeURIComponent(workspaceUuid)}`)
 }
 
 /**

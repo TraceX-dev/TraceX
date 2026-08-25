@@ -23,7 +23,7 @@
   } from '@hcengineering/core'
   import { LoginInfo } from '@hcengineering/login'
   import { OK, Severity, Status } from '@hcengineering/platform'
-  import presentation, { MessageBox, NavLink, getFileUrl, reduceCalls } from '@hcengineering/presentation'
+  import presentation, { MessageBox, NavLink, getWorkspaceAvatarUrl, reduceCalls } from '@hcengineering/presentation'
   import {
     Button,
     Label,
@@ -179,7 +179,7 @@
             <WorkspaceAvatar
               colorSeed={workspace.uuid}
               displayName={wsName}
-              avatarUrl={workspace.icon != null ? getFileUrl(workspace.icon, undefined, workspace.uuid) : undefined}
+              avatarUrl={workspace.icon != null ? getWorkspaceAvatarUrl(workspace.uuid) : undefined}
               size={'small'}
               hasUnread={workspace.hasUnread === true}
               ringColor={'var(--theme-bg-color)'}

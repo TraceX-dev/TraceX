@@ -15,9 +15,17 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
-import { MeasureContext, Blob as PlatformBlob, WorkspaceIds, metricsAggregate, type Ref } from '@hcengineering/core'
+import {
+  MeasureContext,
+  Blob as PlatformBlob,
+  WorkspaceIds,
+  WorkspaceUuid,
+  metricsAggregate,
+  systemAccountUuid,
+  type Ref
+} from '@hcengineering/core'
 import platform, { PlatformError } from '@hcengineering/platform'
-import { TokenError, decodeToken } from '@hcengineering/server-token'
+import { TokenError, decodeToken, generateToken } from '@hcengineering/server-token'
 import { StorageAdapter } from '@hcengineering/storage'
 import bp from 'body-parser'
 import cors from 'cors'
@@ -586,6 +594,55 @@ export function start (
 
   app.post('/files/*', (req, res) => {
     void handleUpload(req, res)
+  })
+
+  // Publicly readable by design: unlike /files, this does not check the caller's
+  // token against the target workspace (there isn't one — it's rendered on the
+  // select-workspace/switcher screens, before the browser holds a token for that
+  // workspace). It only ever serves the one blob that workspace's own admin chose
+  // as its logo (looked up server-side by uuid), never an arbitrary blob id, so it
+  // can't be used to read anything else out of that workspace's storage.
+  const avatarHandler = async (req: Request<any>, res: Response<any>): Promise<void> => {
+    await ctx.with(
+      'handle-avatar',
+      {},
+      async (ctx) => {
+        try {
+          const workspaceUuid = req.params.workspaceUuid as WorkspaceUuid
+
+          const serviceToken = generateToken(systemAccountUuid, undefined, { service: 'front' })
+          const accountClient = getAccountClient(config.accountsUrlInternal ?? config.accountsUrl, serviceToken)
+          const avatarInfo = await accountClient.getWorkspaceAvatarInfo(workspaceUuid)
+
+          if (avatarInfo == null || avatarInfo.icon == null) {
+            res.status(404).send()
+            return
+          }
+
+          const wsIds: WorkspaceIds = { uuid: avatarInfo.uuid, url: avatarInfo.url, dataId: avatarInfo.dataId }
+          const icon = avatarInfo.icon
+
+          const blobInfo = await ctx.with('stat', {}, (ctx) => config.storageAdapter.stat(ctx, wsIds, icon), {
+            workspace: wsIds.uuid
+          })
+
+          if (blobInfo === undefined) {
+            res.status(404).send()
+            return
+          }
+
+          await getFile(ctx, blobInfo, config.storageAdapter, wsIds, req, res)
+        } catch (error: any) {
+          ctx.error('error-handle-avatar', { error })
+          res.status(500).send()
+        }
+      },
+      { url: req.path }
+    )
+  }
+
+  app.get('/avatar/:workspaceUuid', (req, res) => {
+    void avatarHandler(req, res)
   })
 
   const handleUpload = async (req: Request, res: Response): Promise<void> => {

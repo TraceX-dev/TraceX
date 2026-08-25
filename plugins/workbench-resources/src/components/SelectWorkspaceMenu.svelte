@@ -20,7 +20,7 @@
   import presentation, {
     createQuery,
     decodeTokenPayload,
-    getFileUrl,
+    getWorkspaceAvatarUrl,
     hasResource,
     isAdminUser
   } from '@hcengineering/presentation'
@@ -288,7 +288,7 @@
                   <WorkspaceAvatar
                     colorSeed={ws.uuid}
                     displayName={wsName}
-                    avatarUrl={ws.icon != null ? getFileUrl(ws.icon, undefined, ws.uuid) : undefined}
+                    avatarUrl={ws.icon != null ? getWorkspaceAvatarUrl(ws.uuid) : undefined}
                     size={'small'}
                     hasUnread={ws.hasUnread === true && !isCurrentWs}
                     ringColor={'var(--theme-popup-color)'}
