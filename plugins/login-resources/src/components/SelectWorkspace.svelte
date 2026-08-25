@@ -63,9 +63,8 @@
 
   let flagToUpdateWorkspaces = false
 
-  // Other workspaces' logos, resolved in bulk (one request for the whole list rather than
-  // one per row) and keyed by uuid. requestedAvatarUuids tracks which uuids we've already
-  // asked for, so a workspace whose logo fails to resolve isn't retried on every update.
+  // Other workspaces' logos, fetched in bulk and keyed by uuid. requestedAvatarUuids
+  // avoids re-requesting a logo that already failed to resolve.
   let avatarUrls: Record<string, string> = {}
   const requestedAvatarUuids = new Set<string>()
 

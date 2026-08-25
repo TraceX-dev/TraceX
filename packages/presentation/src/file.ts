@@ -66,16 +66,11 @@ export function getFileUrl (file: string, filename?: string): string {
 const maxWorkspaceAvatarBulkSize = 200
 
 /**
- * URLs of other workspaces' logos (e.g. for the select-workspace/switcher screens,
- * rendered before the browser holds a token for those workspaces). Deliberately does
- * NOT go through {@link getFileUrl}/the blob storage directly — that would need a
- * token scoped to each target workspace, which isn't available there, or would
- * require making blob storage readable without one, which is a security issue.
- * Instead this hits a small public endpoint on the front server that resolves and
- * serves back only each workspace's own chosen logo blob, looked up server-side by
- * uuid, one request per (up to 200-uuid) chunk rather than one per workspace.
- * Returns ready-to-use <img src> values (data: URIs) keyed by workspace uuid;
- * workspaces with no logo, or that fail to resolve, are simply absent from the result.
+ * URLs of other workspaces' logos (select-workspace, the workspace switcher), fetched
+ * before the browser holds a token for them. Not {@link getFileUrl} — that needs a
+ * token scoped to each workspace. Instead hits a public front-server endpoint that
+ * resolves each workspace's own logo blob server-side, one request per 200-uuid chunk.
+ * Returns data: URIs keyed by uuid; missing/failed logos are simply absent.
  * @public
  */
 export async function getWorkspaceAvatarUrls (workspaceUuids: WorkspaceUuid[]): Promise<Record<string, string>> {

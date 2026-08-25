@@ -195,11 +195,9 @@
 
   $: currentWsUrl = $resolvedLocationStore.path[1]
 
-  // Other workspaces' logos, resolved in bulk (one request for the whole list rather than
-  // one per row) and keyed by uuid. Reacts off the full $workspacesStore rather than the
-  // filtered/sorted list below, so typing in the search box doesn't retrigger it. Tracks
-  // which uuids were already requested so a logo that fails to resolve isn't retried on
-  // every store update.
+  // Other workspaces' logos, fetched in bulk and keyed by uuid. Reacts off the full
+  // $workspacesStore, not the filtered list below, so search keystrokes don't retrigger it.
+  // requestedAvatarUuids avoids re-requesting a logo that already failed to resolve.
   let avatarUrls: Record<string, string> = {}
   const requestedAvatarUuids = new Set<string>()
 

@@ -596,13 +596,9 @@ export function start (
     void handleUpload(req, res)
   })
 
-  // Publicly readable by design: unlike /files, this does not check the caller's token
-  // against the target workspaces (there isn't one — it's rendered on the select-
-  // workspace/switcher screens, before the browser holds a token for those workspaces).
-  // It only ever returns each workspace's own designated logo, resolved server-side,
-  // never an arbitrary blob, so it can't be used to read anything else out of a
-  // workspace's storage. Small enough (workspace logos) to inline as data URIs in one
-  // JSON response rather than a per-image round trip.
+  // Publicly readable by design (no token check, unlike /files) — used before the
+  // browser has a token for these workspaces. Only ever returns each workspace's own
+  // designated logo, so it can't leak anything else from a workspace's storage.
   const avatarsBulkHandler = async (req: Request<any>, res: Response<any>): Promise<void> => {
     await ctx.with(
       'handle-avatars-bulk',

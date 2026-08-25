@@ -166,9 +166,8 @@ export interface AccountClient {
   updateAllowGuestSignUp: (guestSignUpAllowed: boolean) => Promise<void>
   updateWorkspaceName: (name: string) => Promise<void>
   updateWorkspaceAvatar: (icon: Ref<Blob> | null) => Promise<void>
-  // Service-only (see AccountServiceMethods): looked up by the front server to resolve
-  // other workspaces' logo blobs for the select-workspace/switcher screens, without the
-  // caller needing a token for those workspaces.
+  // Service-only (see AccountServiceMethods): front resolves other workspaces' logo
+  // blobs through this, without needing a token for those workspaces.
   getWorkspaceAvatarInfoBulk: (
     workspaceUuids: WorkspaceUuid[]
   ) => Promise<Array<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null }>>

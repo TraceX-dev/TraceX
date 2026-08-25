@@ -448,12 +448,9 @@ export async function updateWorkspaceInfo (
   }
 }
 
-// Called by the front server (service: 'front') to render other workspaces' logos on the
-// select-workspace/switcher screens, where the browser has no token for those workspaces.
-// Batched via front's bulk /avatars route so listing N workspaces costs one DB query
-// instead of N account-service round trips. Deliberately returns only what's needed to
-// resolve each blob (uuid/url/dataId/icon) — never full workspace info — since front then
-// serves those blobs back to the browser with no auth check of its own.
+// Backs front's bulk /avatars route: one DB query for N workspaces' logo blobs
+// instead of N. Returns only uuid/url/dataId/icon — front serves those blobs
+// back with no auth check of its own, so nothing else should be exposed here.
 const maxAvatarInfoBulkSize = 200
 
 export async function getWorkspaceAvatarInfoBulk (
