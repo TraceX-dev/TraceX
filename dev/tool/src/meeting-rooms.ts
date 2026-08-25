@@ -35,7 +35,7 @@ export async function disableMeetingRoomDefaults (
   let updated = 0
 
   for (const room of [...rooms, ...offices]) {
-    if (processed.has(room._id) || (room.startWithRecording === false && room.startWithTranscription === false)) {
+    if (processed.has(room._id) || (!room.startWithRecording && !room.startWithTranscription)) {
       continue
     }
     processed.add(room._id)
