@@ -15,6 +15,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../../common/scripts/esbuild.js --entry=src/main.ts --keep-names=true",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/github-next-service",
+    "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/github-next-service",
     "docker:tbuild": "docker build -t tracexapp/github-next-service . --platform=linux/amd64 && ../../../common/scripts/docker_tag_push.sh tracexapp/github-next-service",
     "docker:abuild": "docker build -t tracexapp/github-next-service . --platform=linux/arm64 && ../../../common/scripts/docker_tag_push.sh tracexapp/github-next-service",
     "docker:staging": "../../../common/scripts/docker_tag.sh tracexapp/github-next-service staging",

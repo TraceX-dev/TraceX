@@ -15,15 +15,15 @@
 <script lang="ts">
   import { Button, ButtonWithDropdown, IconAdd, IconDropdown, SelectPopupValueType, showPopup } from '@hcengineering/ui'
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
+  import { type Ref } from '@hcengineering/core'
+  import { type DocumentSpace } from '@hcengineering/controlled-documents'
 
   import documents from '../plugin'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   let dropdownItems: SelectPopupValueType[] = []
-  $: canCreateTemplate = checkMyPermission(
-    documents.permission.CreateDocument,
-    documents.space.QualityDocuments,
-    $permissionsStore
+  $: canCreateTemplate = Object.keys($permissionsStore.ps).some((space) =>
+    checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
   )
   $: canCreateCategory = checkMyPermission(
     documents.permission.CreateDocumentCategory,

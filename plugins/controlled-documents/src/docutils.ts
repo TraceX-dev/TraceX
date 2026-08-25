@@ -14,8 +14,17 @@
 //
 
 import { type Employee } from '@hcengineering/contact'
-import core, { type AttachedData, type Class, type Ref, type TxOperations, Blob, Mixin } from '@hcengineering/core'
+import core, {
+  type AttachedData,
+  type Blob,
+  type Class,
+  type Data,
+  type Mixin,
+  type Ref,
+  type TxOperations
+} from '@hcengineering/core'
 import {
+  type ChangeControl,
   type ControlledDocument,
   type Document,
   type DocumentCategory,
@@ -296,7 +305,8 @@ export async function createDocumentTemplate (
   prefix: string,
   spec: Omit<AttachedData<ControlledDocument>, 'prefix'>,
   category: Ref<DocumentCategory>,
-  author?: Ref<Employee>
+  author?: Ref<Employee>,
+  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
 ): Promise<{ seqNumber: number, success: boolean }> {
   const { success, seqNumber, code, documentMetaId } = await createDocumentTemplateMetadata(
     client,
@@ -338,6 +348,9 @@ export async function createDocumentTemplate (
     sequence: 0,
     docPrefix: prefix
   })
+  if (changeControl !== undefined) {
+    await ops.createDoc(documents.class.ChangeControl, space, changeControl.data, changeControl.id)
+  }
   const commit = await ops.commit()
 
   if (!commit.result) {

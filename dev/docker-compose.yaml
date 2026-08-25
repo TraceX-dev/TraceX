@@ -11,7 +11,7 @@ services:
       - STREAM_LOG_LEVEL=debug
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
-      - STREAM_REGION=cockroach
+      - STREAM_REGION=pg
       - STREAM_QUEUE_CONFIG=${QUEUE_CONFIG}
     ports:
       - 1080:1080
@@ -23,7 +23,7 @@ services:
     environment:
       - ACCOUNTS_URL=http://tracex.local:3000
       - SECRET=secret
-      - REGION=cockroach
+      - REGION=pg
       - QUEUE_CONFIG=${QUEUE_CONFIG}
     restart: unless-stopped
   preview:
@@ -47,16 +47,24 @@ services:
     ports:
       - 4041:4041
     restart: unless-stopped
-  cockroach:
-    image: cockroachdb/cockroach:latest-v24.3
+  postgres:
+    image: postgres:16
     extra_hosts:
-      - 'tracex.local:host-gateway'
-    ports:
-      - '26257:26257'
-      - '8089:8080'
-    command: start-single-node --insecure
+      - "tracex.local:host-gateway"
+    command: ["postgres", "-p", "5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -p 5432"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
-      - cockroach_db:/cockroach/cockroach-data
+      - postgres_db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
     restart: unless-stopped
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
@@ -177,11 +185,11 @@ services:
       - ADMIN_EMAILS=admin,${PLATFORM_ADMIN_EMAILS}
       - STATS_URL=http://tracex.local:4900
       - WORKSPACE_LIMIT_PER_USER=10000
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       # - DB_NS=account-2
       # Pass only one region to disallow selection for new workspaces.
-      - REGION_INFO=cockroach|CockroachDB
-      - TRANSACTOR_URL=ws://tracex.local:3332;;cockroach,
+      - REGION_INFO=pg|PostgresDB
+      - TRANSACTOR_URL=ws://tracex.local:3332;;pg,
       - MAIL_URL=
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - FRONT_URL=http://tracex.local:8087
@@ -205,29 +213,13 @@ services:
       - SERVER_SECRET=secret
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
-  payment:
-    image: tracexapp/payment
-    extra_hosts:
-      - 'tracex.local:host-gateway'
-    ports:
-      - 3040:3040
-    environment:
-      - SECRET=secret
-      - PORT=3040
-      - ACCOUNTS_URL=http://tracex.local:3000
-      - FRONT_URL=http://tracex.local:8087
-      - USE_SANDBOX=true
-      - POLAR_ACCESS_TOKEN=${POLAR_ACCESS_TOKEN}
-      - POLAR_WEBHOOK_SECRET=${POLAR_WEBHOOK_SECRET}
-      - POLAR_SUBSCRIPTION_PLANS=${POLAR_SUBSCRIPTION_PLANS}
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-    restart: unless-stopped
-  workspace_cockroach:
+
+  workspace_pg:
     image: tracexapp/workspace
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - cockroach
+      - postgres
       - minio
       - stats
     depends_on:
@@ -237,14 +229,14 @@ services:
       - ./branding.json:/var/cfg/branding.json
     environment:
       - WS_OPERATION=all+backup
-      - REGION=cockroach
+      - REGION=pg
       - SERVER_SECRET=secret
       - QUEUE_CONFIG=${QUEUE_CONFIG}
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - STATS_URL=http://tracex.local:4900
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://tracex.local:3000
-      - ACCOUNTS_DB_URL=${DB_CR_URL}
+      - ACCOUNTS_DB_URL=${DB_URL_PG}
       - BRANDING_PATH=/var/cfg/branding.json
       - BACKUP_STORAGE=${BACKUP_STORAGE_CONFIG}
       - BACKUP_BUCKET=${BACKUP_BUCKET_NAME}
@@ -258,7 +250,7 @@ services:
       - 'tracex.local:host-gateway'
     links:
       - minio
-      - transactor_cockroach
+      - transactor_pg
       - stats
     ports:
       - 3078:3078
@@ -277,7 +269,7 @@ services:
     depends_on:
       - account
       - collaborator
-      - transactor_cockroach
+      - transactor_pg
     ports:
       - 4020:4020
     environment:
@@ -323,7 +315,6 @@ services:
       - DESKTOP_UPDATES_CHANNELS=dev;tracex:dev-tracex
       - BRANDING_URL=http://tracex.local:8087/branding.json
       - STREAM_URL=http://tracex.local:1080/recording
-      - PAYMENT_URL=http://tracex.local:3040
       - BACKUP_URL=http://tracex.local:4039/api/backup,
       - EXCLUDED_APPLICATIONS_FOR_ANONYMOUS=[]
       - DISABLED_FEATURES=auto-translate,mailboxes
@@ -331,16 +322,15 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
       - PULSE_URL=ws://tracex.local:8099/ws
       - DATALAKE_URL=http://tracex.local:4030
-      - HULYLAKE_URL=http://tracex.local:8096
       - EXPORT_URL=http://tracex.local:4009
       - LINK_PREVIEW_URL=http://tracex.local:4041
     restart: unless-stopped
-  transactor_cockroach:
+  transactor_pg:
     image: tracexapp/transactor
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - cockroach
+      - postgres
       - minio
       - account
       - stats
@@ -354,12 +344,12 @@ services:
     environment:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - SERVER_PORT=3332
-      - REGION=cockroach
+      - REGION=pg
       - SERVER_SECRET=secret
       - ENABLE_COMPRESSION=true
       - FULLTEXT_URL=http://tracex.local:4702
       - STATS_URL=http://tracex.local:4900
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - METRICS_CONSOLE=false
       - METRICS_FILE=metrics.txt
       - STORAGE_CONFIG=${STORAGE_CONFIG}
@@ -380,13 +370,13 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
-      transactor_cockroach:
+      transactor_pg:
         condition: service_started
     ports:
       - 4000:8080
     environment:
       - PORT=8080
-      - TRANSACTOR_URL=ws://transactor_cockroach:3332
+      - TRANSACTOR_URL=ws://transactor_pg:3332
       - ACCOUNTS_URL=http://tracex.local:3000
       - SERVER_SECRET=secret
       - COLLABORATOR_URL=ws://collaborator:3078
@@ -400,9 +390,9 @@ services:
     ports:
       - 4004:4004
     environment:
-      - STATS_URL=http://tracex.local:4901
+      - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-  fulltext_cockroach:
+  fulltext_pg:
     image: tracexapp/fulltext
     extra_hosts:
       - 'tracex.local:host-gateway'
@@ -412,16 +402,16 @@ services:
     restart: unless-stopped
     links:
       - elastic
-      - cockroach
+      - postgres
       - rekoni
     ports:
       - 4702:4702
     environment:
       - PORT=4702
-      - REGION=cockroach
+      - REGION=pg
       - SERVER_SECRET=secret
       - QUEUE_CONFIG=${QUEUE_CONFIG}
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - FULLTEXT_DB_URL=http://tracex.local:9200
       - ELASTIC_INDEX_NAME=local_storage_index # Same index for simplicity
       - STORAGE_CONFIG=${STORAGE_CONFIG}
@@ -429,7 +419,6 @@ services:
       - REKONI_URL=http://tracex.local:4004
       - ACCOUNTS_URL=http://tracex.local:3000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-      - HULYLAKE_URL=http://tracex.local:8096
   print:
     image: tracexapp/print
     extra_hosts:
@@ -439,7 +428,7 @@ services:
       - 4005:4005
     environment:
       - SECRET=secret
-      - REGION=cockroach
+      - REGION=pg
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - STATS_URL=http://tracex.local:4900
@@ -459,7 +448,7 @@ services:
     environment:
       - SECRET=secret
       - MINIO_ENDPOINT=minio
-      - REGION=cockroach
+      - REGION=pg
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://tracex.local:3000
@@ -477,7 +466,7 @@ services:
   #   restart: unless-stopped
   #   environment:
   #     - SERVER_SECRET=secret
-  #     - DB_URL=${DB_CR_URL}
+  #     - DB_URL=${DB_URL_PG}
   #     - QUEUE_CONFIG=${QUEUE_CONFIG}
   #     - ACCOUNTS_URL=http://tracex.local:3000
   #     - STORAGE_CONFIG=${STORAGE_CONFIG}
@@ -519,7 +508,7 @@ services:
       - PORT=4009
       - SECRET=secret
       - SERVICE_ID=export-service
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - STATS_URL=http://tracex.local:4900
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://tracex.local:3000
@@ -532,7 +521,7 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-      cockroach:
+      postgres:
         condition: service_started
       stats:
         condition: service_started
@@ -545,42 +534,23 @@ services:
       - SECRET=secret
       - ACCOUNTS_URL=http://tracex.local:3000
       - STATS_URL=http://tracex.local:4900
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - BUCKETS=blobs,eu|http://minio:9000?accessKey=minioadmin&secretKey=minioadmin
-      - REGION=cockroach
+      - REGION=pg
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-    restart: unless-stopped
-  hulylake:
-    image: tracexapp/hulylake
-    extra_hosts:
-      - 'tracex.local:host-gateway'
-    depends_on:
-      minio:
-        condition: service_healthy
-      cockroach:
-        condition: service_started
-    ports:
-      - 8096:8096
-    environment:
-      - HULY_TOKEN_SECRET=secret
-      - HULY_DB_CONNECTION=${DB_CR_URL}
-      - AWS_ENDPOINT_URL=http://minio:9000
-      - AWS_REGION=local
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
     restart: unless-stopped
   hulykvs:
     image: tracexapp/hulykvs
     depends_on:
-      cockroach:
+      postgres:
         condition: service_started
     extra_hosts:
       - 'tracex.local:host-gateway'
     ports:
       - 8094:8094
     environment:
-      - HULY_DB_CONNECTION=${DB_CR_URL}
+      - HULY_DB_CONNECTION=${DB_URL_PG}
       - HULY_TOKEN_SECRET=secret
     restart: unless-stopped
   hulygun:
@@ -623,7 +593,7 @@ services:
       - SECRET=secret
       - ACCOUNTS_URL=http://tracex.local:3000
       - QUEUE_CONFIG=${QUEUE_CONFIG}
-      - QUEUE_REGION=cockroach
+      - QUEUE_REGION=pg
     restart: unless-stopped
   github-next:
     image: tracexapp/github-next-service
@@ -634,7 +604,7 @@ services:
         condition: service_started
       redpanda:
         condition: service_started
-      transactor_cockroach:
+      transactor_pg:
         condition: service_started
     ports:
       - 3510:3510
@@ -644,7 +614,6 @@ services:
       - ACCOUNTS_URL=http://tracex.local:3000
       - FRONT_URL=http://tracex.local:8087
       - COLLABORATOR_URL=ws://tracex.local:3078
-      - HULYLAKE_URL=http://tracex.local:8096
       - PORT=3510
       - PUBLIC_URL=http://tracex.local:3510
       - CLIENT_ID=Ov23liv6hK0ifBRInXFz
@@ -652,7 +621,7 @@ services:
       - POLL_INTERVAL_MS=30000
       - OUTBOUND_DEBOUNCE_MS=1000
       - QUEUE_CONFIG=${QUEUE_CONFIG}
-      - QUEUE_REGION=cockroach
+      - QUEUE_REGION=pg
       - SYNC_INBOUND=true
       - SYNC_OUTBOUND=true
     restart: unless-stopped
@@ -665,12 +634,12 @@ services:
         condition: service_started
       account:
         condition: service_started
-      cockroach:
+      postgres:
         condition: service_started
     environment:
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - QUEUE_CONFIG=${QUEUE_CONFIG}
-      - QUEUE_REGION=cockroach
+      - QUEUE_REGION=pg
     restart: unless-stopped
   events-processor:
     image: tracexapp/events-processor
@@ -687,17 +656,17 @@ services:
       - SECRET=secret
       - ACCOUNTS_URL=http://huly.local:3000
       - QUEUE_CONFIG=${QUEUE_CONFIG}
-      - QUEUE_REGION=cockroach
+      - QUEUE_REGION=pg
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
-  backup-cockroach:
+  backup-pg:
     image: tracexapp/backup
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
       minio:
         condition: service_healthy
-      cockroach:
+      postgres:
         condition: service_started
       stats:
         condition: service_started
@@ -706,10 +675,10 @@ services:
     environment:
       - SECRET=secret
       - ACCOUNTS_URL=http://tracex.local:3000
-      - ACCOUNTS_DB_URL=${DB_CR_URL}
+      - ACCOUNTS_DB_URL=${DB_URL_PG}
       - STATS_URL=http://tracex.local:4900
-      - DB_URL=${DB_CR_URL}
-      - REGION=cockroach
+      - DB_URL=${DB_URL_PG}
+      - REGION=pg
       - BUCKET_NAME=backups
       - INTERVAL=60
       - STORAGE=minio|minio?accessKey=minioadmin&secretKey=minioadmin
@@ -741,12 +710,12 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
 
-  rating_cockroach:
+  rating_pg:
     image: tracexapp/rating
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - cockroach
+      - postgres
       - minio
       - account
       - stats
@@ -755,10 +724,10 @@ services:
         condition: service_started
     environment:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
-      - REGION=cockroach
+      - REGION=pg
       - SERVER_SECRET=secret
       - STATS_URL=http://tracex.local:4900
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://tracex.local:3000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
@@ -785,6 +754,6 @@ volumes:
   dbpg:
   files:
   elastic:
-  cockroach_db:
+  postgres_db:
   redpanda:
   telemetry:

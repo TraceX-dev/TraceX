@@ -118,6 +118,7 @@ import { achievementId, createModel as achievementModel } from '@hcengineering/m
 import { billingId, createModel as billingModel } from '@hcengineering/model-billing'
 import { emojiId, createModel as emojiModel } from '@hcengineering/model-emoji'
 import { presenceId, createModel as presenceModel } from '@hcengineering/model-presence'
+import { pulseId, createModel as pulseModel } from '@hcengineering/model-pulse'
 import processes, { processId, createModel as processModel } from '@hcengineering/model-process'
 import {
   serverDocumentsId,
@@ -489,6 +490,7 @@ export default function buildModel (): Builder {
       }
     ],
     [presenceModel, presenceId],
+    [pulseModel, pulseId],
     [achievementModel, achievementId],
     [emojiModel, emojiId],
     [mailModel, mailId],

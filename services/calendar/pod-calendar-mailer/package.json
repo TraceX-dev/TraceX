@@ -19,6 +19,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../../common/scripts/esbuild.js --external=ws",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/calendar-mailer",
+    "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/calendar-mailer",
     "docker:tbuild": "docker build -t tracexapp/calendar-mailer . --platform=linux/amd64 && ../../../common/scripts/docker_tag_push.sh tracexapp/calendar-mailer",
     "docker:staging": "../../../common/scripts/docker_tag.sh tracexapp/calendar-mailer staging",
     "docker:push": "../../../common/scripts/docker_tag.sh tracexapp/calendar-mailer",

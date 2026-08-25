@@ -19,6 +19,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --external=ws",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/media",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/media",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/media staging",
     "docker:abuild": "docker build -t tracexapp/media . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/media",
     "docker:push": "../../common/scripts/docker_tag.sh tracexapp/media",

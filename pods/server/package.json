@@ -19,6 +19,7 @@
     "get-model": "node ../../common/scripts/esbuild.js --entry=src/get-model.ts -keep-names=true --define=MODEL_VERSION --define=VERSION --define=GIT_REVISION --bundle=true && node ./bundle/bundle.js > ./bundle/model.json",
     "bundle": "rushx get-model && node ../../common/scripts/esbuild.js --entry=src/__start.ts --keep-names=true --bundle=true --sourcemap=external --external=*.node --external=bufferutil --external=snappy --define=MODEL_VERSION --define=VERSION --define=GIT_REVISION --external=utf-8-validate --external=msgpackr-extract",
     "docker:build": "../../common/scripts/docker_build.sh tracexapp/transactor",
+    "docker:sbom": "../../common/scripts/docker_sbom.sh tracexapp/transactor",
     "docker:tbuild": "docker build -t tracexapp/transactor . --platform=linux/amd64 && ../../common/scripts/docker_tag_push.sh tracexapp/transactor",
     "docker:abuild": "docker build -t tracexapp/transactor . --platform=linux/arm64 && ../../common/scripts/docker_tag_push.sh tracexapp/transactor",
     "docker:staging": "../../common/scripts/docker_tag.sh tracexapp/transactor staging",
@@ -55,7 +56,7 @@
     "snappyjs": "^0.7.0",
     "@types/body-parser": "~1.19.2",
     "@types/morgan": "~1.9.9",
-    "@types/cors": "^2.8.12",
+    "@types/cors": "^2.8.19",
     "@types/express": "^4.17.13"
   },
   "dependencies": {
@@ -89,9 +90,9 @@
     "snappy": "^7.2.2",
     "ws": "^8.21.0",
     "@hcengineering/account-client": "workspace:^0.7.25",
-    "morgan": "^1.10.0",
+    "morgan": "^1.11.0",
     "body-parser": "^1.20.3",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "express": "^4.21.2"
   }
 }

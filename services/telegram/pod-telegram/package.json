@@ -19,6 +19,7 @@
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../../common/scripts/esbuild.js",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/telegram",
+    "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/telegram",
     "docker:tbuild": "docker build -t tracexapp/telegram . --platform=linux/amd64 && ../../../common/scripts/docker_tag_push.sh tracexapp/telegram",
     "docker:staging": "../../../common/scripts/docker_tag.sh tracexapp/telegram staging",
     "docker:push": "../../../common/scripts/docker_tag.sh tracexapp/telegram",
@@ -32,7 +33,7 @@
   "devDependencies": {
     "@hcengineering/platform-rig": "workspace:^0.7.21",
     "@tsconfig/node16": "^1.0.4",
-    "@types/cors": "^2.8.12",
+    "@types/cors": "^2.8.19",
     "@types/express": "^4.17.13",
     "@types/mime": "^3.0.1",
     "@types/node": "^24.13.3",
@@ -51,8 +52,7 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-n": "^15.4.0",
     "eslint-plugin-promise": "^6.1.1",
-    "eslint": "^8.54.0",
-    "@types/uuid": "^8.3.1"
+    "eslint": "^8.54.0"
   },
   "dependencies": {
     "@hcengineering/attachment": "workspace:^0.7.0",
@@ -70,14 +70,14 @@
     "@hcengineering/mongo": "workspace:^0.7.16",
     "big-integer": "^1.6.51",
     "dotenv": "^16.4.5",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "express": "^4.21.2",
     "htmlparser2": "^9.0.0",
     "jwt-simple": "^0.5.6",
     "mime": "^3.0.0",
     "mongodb": "^6.16.0",
     "telegram": "2.22.2",
-    "uuid": "^8.3.2",
+    "uuid": "^11.1.1",
     "ws": "^8.21.0",
     "@hcengineering/analytics-service": "workspace:^0.7.19"
   }

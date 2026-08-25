@@ -318,6 +318,18 @@
       "allowWarningsInSuccessfulBuild": true
     },
     {
+      "commandKind": "bulk",
+      "name": "docker:sbom",
+      "summary": "docker:sbom",
+      "description": "Generate SBOMs for Docker images",
+      "enableParallelism": true,
+      "incremental": false,
+      "ignoreDependencyOrder": false,
+      "ignoreMissingScript": true,
+      "disableBuildCache": true,
+      "allowWarningsInSuccessfulBuild": true
+    },
+    {
       "commandKind": "global",
       "name": "docker",
       "summary": "Build docker with platform",

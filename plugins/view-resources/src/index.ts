@@ -1,6 +1,7 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -169,6 +170,8 @@ export { default as MarkupPreviewPopup } from './components/MarkupPreviewPopup.s
 export { default as ContextMenu } from './components/Menu.svelte'
 export { default as ObjectBox } from './components/ObjectBox.svelte'
 export { default as ObjectBoxPopup } from './components/ObjectBoxPopup.svelte'
+export { default as ObjectsTooltip } from './components/ObjectsTooltip.svelte'
+export { default as ObjectsTooltipWrapper } from './components/ObjectsTooltipWrapper.svelte'
 export { default as ArrayEditorPopup } from './components/ArrayEditorPopup.svelte'
 export { default as ObjectPresenter } from './components/ObjectPresenter.svelte'
 export { default as ObjectSearchBox } from './components/ObjectSearchBox.svelte'

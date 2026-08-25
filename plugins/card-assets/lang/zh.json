@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "禁止移除标签",
     "Duplicate": "复制",
     "Version": "版本",
+    "Effective": "生效",
+    "MakeEffective": "设为生效",
     "Versions": "版本",
     "NewVersion": "新版本",
+    "VersionCreationUnavailable": "当前无法创建新版本",
     "Versioning": "版本控制",
     "EnableVersioning": "启用版本控制",
     "EnableVersioningConfirm": "您要启用版本控制吗？",
@@ -91,6 +94,7 @@
     "Grid": "网格",
     "RichtextProperties": "富文本字段",
     "ShowAllVersions": "显示所有版本",
+    "ShowOnlyEffectiveVersions": "仅显示生效版本",
     "ShowOnlyCardsWithoutRelations": "仅显示无关联的卡片"
   }
 }

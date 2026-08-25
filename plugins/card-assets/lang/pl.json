@@ -66,8 +66,11 @@
     "ForbidRemoveTag": "Zabroń usuwania etykiet",
     "Duplicate": "Duplikuj",
     "Version": "Wersja",
+    "Effective": "Obowiązująca",
+    "MakeEffective": "Ustaw jako obowiązującą",
     "Versions": "Wersje",
     "NewVersion": "Nowa wersja",
+    "VersionCreationUnavailable": "Tworzenie nowej wersji jest obecnie niedostępne",
     "Versioning": "Wersjonowanie",
     "EnableVersioning": "Włącz wersjonowanie",
     "EnableVersioningConfirm": "Czy chcesz włączyć wersjonowanie?",
@@ -91,6 +94,7 @@
     "Grid": "Siatka",
     "RichtextProperties": "Właściwości tekstu formatowanego",
     "ShowAllVersions": "Pokaż wszystkie wersje",
+    "ShowOnlyEffectiveVersions": "Pokaż tylko obowiązujące wersje",
     "ShowOnlyCardsWithoutRelations": "Pokaż tylko karty bez relacji"
   }
 }

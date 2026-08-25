@@ -24,7 +24,6 @@ import documents, {
   type DocumentRequest,
   type DocumentSpace,
   type DocumentTemplate,
-  type OrgSpace,
   type Project,
   type ProjectDocument,
   type ProjectMeta,
@@ -613,10 +612,11 @@ export async function canCreateChildTemplate (
   }
 
   const client = getClient()
-  const spaceId: Ref<DocumentSpace> = isSpace(client.getHierarchy(), doc) ? doc._id : doc.space
-  const orgSpace = await client.findOne(documents.class.OrgSpace, { _id: spaceId })
+  const hierarchy = client.getHierarchy()
+  const spaceId: Ref<DocumentSpace> = isSpace(hierarchy, doc) ? doc._id : doc.space
+  const space = isSpace(hierarchy, doc) ? doc : await client.findOne(documents.class.DocumentSpace, { _id: spaceId })
 
-  return orgSpace !== undefined && (await checkPermission(client, documents.permission.CreateDocument, spaceId))
+  return space !== undefined && (await checkPermission(client, documents.permission.CreateDocument, spaceId))
 }
 
 export async function canCreateChildDocument (
@@ -1048,7 +1048,7 @@ export async function createDocument (space: DocumentSpace): Promise<void> {
   showPopup(documents.component.QmsDocumentWizard, {})
 }
 
-export async function createTemplate (space: OrgSpace): Promise<void> {
+export async function createTemplate (space: DocumentSpace): Promise<void> {
   const project = await getLatestProjectId(space._id)
   wizardOpened({ $$currentStep: 'info', location: { space: space._id, project: project ?? documents.ids.NoProject } })
   showPopup(documents.component.QmsTemplateWizard, {})

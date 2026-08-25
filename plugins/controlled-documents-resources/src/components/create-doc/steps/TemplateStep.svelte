@@ -26,6 +26,7 @@
     DocumentState
   } from '@hcengineering/controlled-documents'
 
+  import documentsResources from '../../../plugin'
   import { $templateStep as templateStep, templateStepUpdated } from '../../../stores/wizards/create-document'
 
   export let docObject: Data<ControlledDocument> | undefined = undefined
@@ -95,12 +96,16 @@
   $: canProceed = docObject?.template !== undefined && docObject.template !== ''
   $: categoriesIds =
     categoriesById !== undefined
-      ? (Object.keys(categoriesById) as Ref<DocumentCategory>[]).sort((a, b) =>
-          categoriesById[a].title.localeCompare(categoriesById[b].title)
+      ? Object.keys(categoriesById)
+        .sort((a, b) =>
+          categoriesById[a as Ref<DocumentCategory>].title.localeCompare(
+            categoriesById[b as Ref<DocumentCategory>].title
+          )
         )
+        .concat(templatesByCategory?.unassigned !== undefined ? ['unassigned'] : [])
       : []
 
-  function handleExpanderToggled (id: Ref<DocumentCategory>): void {
+  function handleExpanderToggled (id: string): void {
     const categories = { ...$templateStep.collapsedCategories }
 
     if (categories[id] === undefined) {
@@ -111,6 +116,12 @@
     }
 
     templateStepUpdated({ ...$templateStep, collapsedCategories: categories })
+  }
+
+  function getCategoryTitle (id: string): string | undefined {
+    return id === 'unassigned'
+      ? documentsResources.string.Unassigned
+      : categoriesById[id as Ref<DocumentCategory>]?.title
   }
 
   function handleTemplateSelected (tmp: Ref<DocumentTemplate>, prefix: string, seqNumber: number): void {
@@ -141,7 +152,7 @@
           <div class="expander" class:expanded>
             <IconCollapseArrow size="small" />
           </div>
-          <span>{categoriesById[catId]?.title}</span>
+          <span>{getCategoryTitle(catId)}</span>
         </div>
 
         {#if expanded}
