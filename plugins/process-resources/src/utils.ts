@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,6 +26,7 @@ import core, {
   generateId,
   getObjectValue,
   matchQuery,
+  type Markup,
   type Ref,
   type RefTo,
   type Relation,
@@ -489,7 +491,7 @@ export async function requestUserInput (
 ): Promise<{ context: ExecutionContext, state: Ref<State>, changed: boolean }> {
   const client = getClient()
   let changed = false
-  const tr = await getTransitionUserInput(processId, space, target, userContext, skipExisting)
+  const tr = await getTransitionUserInput(processId, space, target, userContext, inputContext, skipExisting)
   if (tr !== undefined) {
     userContext = { ...userContext, ...tr }
     changed = true
@@ -548,11 +550,21 @@ function sortAttributes (attributes: AnyAttribute[]): AnyAttribute[] {
   return arr
 }
 
+function getUserInputMeta (inputContext: Record<string, unknown>): { title?: string, description?: Markup } {
+  const source = inputContext.userInput ?? inputContext.todo
+  if (typeof source !== 'object' || source === null) return {}
+
+  const title = 'title' in source && typeof source.title === 'string' ? source.title : undefined
+  const description = 'description' in source && typeof source.description === 'string' ? source.description : undefined
+  return { title, description }
+}
+
 export async function getTransitionUserInput (
   processId: Ref<Process>,
   space: Ref<Space>,
   transition: Transition,
   userContext: ExecutionContext,
+  inputContext: Record<string, unknown> = {},
   skipExisting: boolean = false
 ): Promise<ExecutionContext | undefined> {
   let changed = false
@@ -628,6 +640,7 @@ export async function getTransitionUserInput (
     }
 
     if (inputs.length > 0) {
+      const { title, description } = getUserInputMeta(inputContext)
       const promise = new Promise<void>((resolve, reject) => {
         showPopup(
           process.component.RequestUserInput,
@@ -636,7 +649,9 @@ export async function getTransitionUserInput (
             transition: transition._id,
             space,
             inputs,
-            values: {}
+            values: {},
+            title,
+            description
           },
           undefined,
           (res) => {
@@ -694,7 +709,7 @@ export async function getSubProcessesUserInput (
     for (const [k, v] of Object.entries(context)) {
       const c = parseContext(v)
       if (c !== undefined && c.type === 'userRequest') {
-        if (userContext[c.id] !== undefined) continue
+        if (userContext[c.id] === undefined) continue
         ;(context as any)[k] = userContext[c.id]
       }
     }
@@ -829,7 +844,8 @@ export function getToDoEndAction (prevState: State): Step<Doc> {
 export async function requestResult (
   execution: Execution,
   results: UserResult[] | undefined,
-  context: ExecutionContext
+  context: ExecutionContext,
+  description?: Markup
 ): Promise<ExecutionContext | undefined> {
   if (results == null || results.length === 0) return
   const client = getClient()
@@ -842,7 +858,7 @@ export async function requestResult (
   const targetDoc = isMixin ? h.as(doc, _process.masterTag) : doc
 
   const promise = new Promise<void>((resolve, reject) => {
-    showPopup(process.component.ResultInput, { results, context, doc: targetDoc }, undefined, (res) => {
+    showPopup(process.component.ResultInput, { results, context, doc: targetDoc, description }, undefined, (res) => {
       if (res !== undefined) {
         for (const contextId in res) {
           const val = res[contextId]

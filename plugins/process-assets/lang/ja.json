@@ -126,6 +126,7 @@
     "AddResult": "結果を追加",
     "For": "〜のために",
     "Context": "コンテキスト",
+    "SetContext": "コンテキストを設定",
     "Attribute": "属性",
     "ProcessRunned": "プロセス \"{process}\" が開始されました",
     "ProcessStateChanged": "プロセス \"{process}\" の状態が \"{state}\" に変更されました",

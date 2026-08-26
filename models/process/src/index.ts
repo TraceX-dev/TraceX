@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import card, { type Card, type MasterTag, type Tag } from '@hcengineering/card'
+import contact from '@hcengineering/contact'
 import core, {
   AccountRole,
   type Class,
@@ -35,6 +36,7 @@ import {
   TypeAny,
   TypeBoolean,
   TypeIntlString,
+  TypeMarkup,
   TypeRank,
   TypeRecord,
   TypeRef,
@@ -292,9 +294,17 @@ export class TProcessCustomEvent extends TDoc implements ProcessCustomEvent {
 
 @Model(process.class.EventButton, core.class.Doc, DOMAIN_PROCESS)
 export class TEventButton extends TDoc implements EventButton {
-  title!: string
+  @Prop(TypeString(), core.string.Name)
+    title!: string
 
-  eventType!: string
+  @Prop(TypeMarkup(), core.string.Description)
+    description?: string
+
+  @Prop(TypeString(), process.string.OnEvent)
+    eventType!: string
+
+  @Prop(TypeRef(contact.mixin.Employee), contact.string.Employee)
+    user?: EventButton['user']
 
   @Prop(TypeRef(process.class.Execution), process.string.Execution)
     execution!: Ref<Execution>

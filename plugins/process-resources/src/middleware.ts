@@ -31,7 +31,13 @@ import core, {
 } from '@hcengineering/core'
 import { translate } from '@hcengineering/platform'
 import { BasePresentationMiddleware, type PresentationMiddleware } from '@hcengineering/presentation'
-import { ExecutionStatus, isUpdateTx, type ApproveRequest, type ProcessToDo } from '@hcengineering/process'
+import {
+  ExecutionStatus,
+  isUpdateTx,
+  type ApproveRequest,
+  type ProcessCustomEvent,
+  type ProcessToDo
+} from '@hcengineering/process'
 import process from './plugin'
 import { createExecution, getNextStateUserInput, pickTransition, requestResult } from './utils'
 
@@ -90,8 +96,55 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
       await this.handleCardCreate(postTx, etx)
       await this.handleCardUpdate(preTx, etx)
       await this.handleTagAdd(postTx, etx)
+      await this.handleCustomEvent(preTx, etx)
       await this.handleToDoDone(preTx, etx)
       await this.handleApproveRequest(preTx, etx)
+    }
+  }
+
+  private async handleCustomEvent (preTx: Array<TxCUD<Doc>>, etx: Tx): Promise<void> {
+    if (etx._class !== core.class.TxCreateDoc) return
+    const createTx = etx as TxCreateDoc<ProcessCustomEvent>
+    if (createTx.objectClass !== process.class.ProcessCustomEvent) return
+
+    const event = TxProcessor.createDoc2Doc(createTx)
+    const execution = await this.client.findOne(process.class.Execution, {
+      _id: event.execution,
+      status: ExecutionStatus.Active
+    })
+    if (execution === undefined) return
+
+    const transitions = this.client.getModel().findAllSync(
+      process.class.Transition,
+      {
+        process: execution.process,
+        from: execution.currentState,
+        trigger: process.trigger.OnEvent
+      },
+      { sort: { rank: SortingOrder.Ascending } }
+    )
+    if (transitions.length === 0) return
+
+    const userInput = await this.client.findOne(process.class.EventButton, {
+      execution: execution._id,
+      card: event.card,
+      eventType: event.eventType
+    })
+    const inputContext: Record<string, unknown> = {
+      ...execution.context,
+      eventType: event.eventType,
+      userInput
+    }
+    const transition = await pickTransition(this.client, execution, transitions, inputContext)
+    if (transition === undefined) return
+
+    const result = await getNextStateUserInput(execution, transition, execution.context, inputContext)
+    if (result?.changed === true) {
+      preTx.push(
+        this.txFactory.createTxUpdateDoc(execution._class, execution.space, execution._id, {
+          context: result.context
+        })
+      )
     }
   }
 
@@ -270,7 +323,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
         )
       }
 
-      const context = await requestResult(execution, results, execution.context)
+      const context = await requestResult(execution, results, execution.context, todo.description)
 
       const transitions = this.client.getModel().findAllSync(process.class.Transition, {
         process: execution.process,

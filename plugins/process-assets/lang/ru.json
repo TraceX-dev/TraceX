@@ -127,6 +127,7 @@
     "AddResult": "Добавить результат",
     "For": "Для",
     "Context": "Контекст",
+    "SetContext": "Сохранить контекст",
     "Attribute": "Аттрибут",
     "ProcessRunned": "Процесс \"{process}\" запущен",
     "ProcessStateChanged": "Состояние процесса \"{process}\" изменено на \"{state}\"",

@@ -127,6 +127,7 @@
         "AddResult": "결과 추가",
         "For": "대상",
         "Context": "컨텍스트",
+        "SetContext": "컨텍스트 설정",
         "Attribute": "속성",
         "ProcessRunned": "\"{process}\" 프로세스가 시작되었습니다",
         "ProcessStateChanged": "\"{process}\" 프로세스의 상태가 \"{state}\"(으)로 변경되었습니다",

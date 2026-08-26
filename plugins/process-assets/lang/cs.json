@@ -120,6 +120,7 @@
     "AddResult": "Přidat výsledek",
     "For": "Pro",
     "Context": "Kontext",
+    "SetContext": "Nastavit kontext",
     "Attribute": "Atribut",
     "ProcessRunned": "Proces \"{process}\" spuštěn",
     "ProcessStateChanged": "Stav procesu \"{process}\" změněn na \"{state}\"",

@@ -86,6 +86,34 @@ export function defineFunctions (builder: Builder): void {
     process.class.ProcessFunction,
     core.space.Model,
     {
+      of: core.class.TypeMarkup,
+      category: 'attribute',
+      label: process.string.Prepend,
+      allowMany: true,
+      type: 'transform',
+      editor: process.transformEditor.MarkupAppendEditor
+    },
+    process.function.PrependMarkup
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.TypeMarkup,
+      category: 'attribute',
+      label: process.string.Append,
+      allowMany: true,
+      type: 'transform',
+      editor: process.transformEditor.MarkupAppendEditor
+    },
+    process.function.AppendMarkup
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
       of: core.class.TypeString,
       category: 'attribute',
       label: process.string.Replace,

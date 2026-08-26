@@ -127,6 +127,7 @@
     "AddResult": "Sonuç ekle",
     "For": "İçin",
     "Context": "Bağlam",
+    "SetContext": "Bağlamı ayarla",
     "Attribute": "Öznitelik",
     "ProcessRunned": "\"{process}\" süreci başlatıldı",
     "ProcessStateChanged": "\"{process}\" süreci \"{state}\" durumuna geçti",

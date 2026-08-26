@@ -127,6 +127,7 @@
     "AddResult": "添加结果",
     "For": "对于",
     "Context": "上下文",
+    "SetContext": "设置上下文",
     "Attribute": "属性",
     "ProcessRunned": "过程 \"{process}\" 已启动",
     "ProcessStateChanged": "过程 \"{process}\" 状态已更改为 \"{state}\"",

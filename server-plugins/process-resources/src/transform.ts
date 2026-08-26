@@ -27,7 +27,7 @@ import core, {
 } from '@hcengineering/core'
 import { Execution, parseContext } from '@hcengineering/process'
 import { ProcessControl } from '@hcengineering/server-process'
-import { markupToText } from '@hcengineering/text-core'
+import { isEmptyMarkup, jsonToMarkup, markupToJSON, markupToText, nodeDoc } from '@hcengineering/text-core'
 import { getContextValue } from './utils'
 
 // #region ArrayReduce
@@ -248,6 +248,45 @@ export async function Append (
     return value + props.value
   }
   return value
+}
+
+async function resolveMarkupValue (
+  value: unknown,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string | undefined> {
+  if (typeof value !== 'string') return
+  const context = parseContext(value)
+  if (context === undefined) return value
+  const resolved = await getContextValue(value, control, execution)
+  return typeof resolved === 'string' ? resolved : undefined
+}
+
+function joinMarkup (...values: Array<string | undefined>): string {
+  const content = values
+    .filter((value): value is string => value !== undefined && !isEmptyMarkup(value))
+    .flatMap((value) => markupToJSON(value).content ?? [])
+  return jsonToMarkup(nodeDoc(...content))
+}
+
+export async function PrependMarkup (
+  value: string,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string> {
+  const prefix = await resolveMarkupValue(props.value, control, execution)
+  return joinMarkup(prefix, value)
+}
+
+export async function AppendMarkup (
+  value: string,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string> {
+  const suffix = await resolveMarkupValue(props.value, control, execution)
+  return joinMarkup(value, suffix)
 }
 
 export function Replace (value: string, props: Record<string, string>): string {

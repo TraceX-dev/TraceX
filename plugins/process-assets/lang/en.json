@@ -127,6 +127,7 @@
     "AddResult": "Add result",
     "For": "For",
     "Context": "Context",
+    "SetContext": "Set context",
     "Attribute": "Attribute",
     "ProcessRunned": "Process \"{process}\" started",
     "ProcessStateChanged": "Process \"{process}\" changed state to \"{state}\"",
