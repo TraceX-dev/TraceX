@@ -155,6 +155,7 @@
     "AutomationOnly": "Nur Automatisierung",
     "CopyLink": "Link kopieren",
     "ValueIsSet": "Wert ist gesetzt",
+    "ValueIsNotSet": "Wert ist nicht gesetzt",
     "RoleLabel": "Rolle: {role}",
     "ForbidAttributeChanges": "Änderungen verbieten: ",
     "AllowAttributeChanges": "Änderungen erlauben: ",

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import card, { type Card, type MasterTag, type Tag } from '@hcengineering/card'
+import contact from '@hcengineering/contact'
 import core, {
   AccountRole,
   type Class,
@@ -35,6 +36,7 @@ import {
   TypeAny,
   TypeBoolean,
   TypeIntlString,
+  TypeMarkup,
   TypeRank,
   TypeRecord,
   TypeRef,
@@ -292,9 +294,17 @@ export class TProcessCustomEvent extends TDoc implements ProcessCustomEvent {
 
 @Model(process.class.EventButton, core.class.Doc, DOMAIN_PROCESS)
 export class TEventButton extends TDoc implements EventButton {
-  title!: string
+  @Prop(TypeString(), core.string.Name)
+    title!: string
 
-  eventType!: string
+  @Prop(TypeMarkup(), core.string.Description)
+    description?: string
+
+  @Prop(TypeString(), process.string.OnEvent)
+    eventType!: string
+
+  @Prop(TypeRef(contact.mixin.Employee), contact.string.Employee)
+    user?: EventButton['user']
 
   @Prop(TypeRef(process.class.Execution), process.string.Execution)
     execution!: Ref<Execution>
@@ -811,7 +821,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeString,
     props: {
-      modes: ['Equal', 'StringContains', 'Exists']
+      modes: ['Equal', 'StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -820,7 +830,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeMarkup,
     props: {
-      modes: ['StringContains', 'Exists']
+      modes: ['StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -829,7 +839,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeMarkup,
     props: {
-      modes: ['StringContains', 'Exists']
+      modes: ['StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -838,7 +848,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeHyperlink,
     props: {
-      modes: ['Equal', 'StringContains', 'Exists']
+      modes: ['Equal', 'StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -847,7 +857,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeNumber,
     props: {
-      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists']
+      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -856,7 +866,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeDate,
     props: {
-      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists']
+      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -865,7 +875,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeBoolean,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -892,7 +902,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.EnumOf,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -901,7 +911,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.RefTo,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 

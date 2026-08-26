@@ -1955,6 +1955,9 @@ importers:
       '@hcengineering/lead':
         specifier: workspace:^0.7.0
         version: link:../../plugins/lead
+      '@hcengineering/love':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/love
       '@hcengineering/minio':
         specifier: workspace:^0.7.18
         version: link:../../foundations/server/packages/minio

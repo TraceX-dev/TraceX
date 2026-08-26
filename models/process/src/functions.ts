@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -85,6 +86,34 @@ export function defineFunctions (builder: Builder): void {
     process.class.ProcessFunction,
     core.space.Model,
     {
+      of: core.class.TypeMarkup,
+      category: 'attribute',
+      label: process.string.Prepend,
+      allowMany: true,
+      type: 'transform',
+      editor: process.transformEditor.MarkupAppendEditor
+    },
+    process.function.PrependMarkup
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.TypeMarkup,
+      category: 'attribute',
+      label: process.string.Append,
+      allowMany: true,
+      type: 'transform',
+      editor: process.transformEditor.MarkupAppendEditor
+    },
+    process.function.AppendMarkup
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
       of: core.class.TypeString,
       category: 'attribute',
       label: process.string.Replace,
@@ -144,7 +173,8 @@ export function defineFunctions (builder: Builder): void {
       of: core.class.ArrOf,
       category: undefined,
       label: process.string.FirstValue,
-      type: 'reduce'
+      type: 'reduce',
+      editor: process.transformEditor.SortEditor
     },
     process.function.FirstValue
   )

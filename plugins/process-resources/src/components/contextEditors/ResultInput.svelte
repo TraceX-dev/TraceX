@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,8 +14,8 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Doc, getObjectValue } from '@hcengineering/core'
-  import presentation, { Card, getAttrEditor, getClient } from '@hcengineering/presentation'
+  import { type Doc, getObjectValue, type Markup } from '@hcengineering/core'
+  import presentation, { Card, getAttrEditor, getClient, MessageViewer } from '@hcengineering/presentation'
   import { ContextId, ExecutionContext, UserResult } from '@hcengineering/process'
   import { Component, tooltip } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
@@ -23,6 +24,7 @@
   export let results: UserResult[]
   export let context: ExecutionContext
   export let doc: Doc
+  export let description: Markup | undefined = undefined
 
   const dispatch = createEventDispatcher()
   const client = getClient()
@@ -71,6 +73,11 @@
   hideClose
   okLabel={presentation.string.Save}
 >
+  {#if description !== undefined && description.trim() !== ''}
+    <div class="description">
+      <MessageViewer message={description} />
+    </div>
+  {/if}
   <div class="grid">
     {#each results as result, i}
       {@const editor = getAttrEditor(result.type, h)}
@@ -117,5 +124,9 @@
     margin: 0.25rem 2rem 0;
     width: calc(100% - 4rem);
     height: min-content;
+  }
+
+  .description {
+    margin: 0 0 1rem;
   }
 </style>

@@ -33,6 +33,7 @@ import core, {
 import { getPlatformQueue } from '@hcengineering/kafka'
 import { getResource } from '@hcengineering/platform'
 import process, {
+  ContextId,
   Execution,
   ExecutionError,
   ExecutionLogAction,
@@ -484,6 +485,16 @@ async function executeTransition (
         }
       }
     }
+    if (transition.trigger === process.trigger.OnEvent && typeof control.messageContext.eventType === 'string') {
+      const buttons = await control.client.findAll(process.class.EventButton, {
+        execution: execution._id,
+        card: execution.card,
+        eventType: control.messageContext.eventType
+      })
+      for (const button of buttons) {
+        res.push(client.txFactory.createTxRemoveDoc(button._class, button.space, button._id))
+      }
+    }
     if (!disableRollback) {
       if (nested) {
         const last = execution.rollback.pop() ?? []
@@ -677,6 +688,11 @@ async function executeAction<T extends Doc> (
     const params = await fillParams(action.params, execution, control)
     const f = await getResource(impl.func)
     const res = await f(params, execution, control, action.results)
+    if (!isError(res) && res.results !== undefined) {
+      for (const result of res.results) {
+        execution.context[result._id as ContextId] = result.value
+      }
+    }
     if (!isError(res) && action.context?._id != null && res.context != null) {
       execution.context[action.context._id] =
         res.context.length === 1 ? res.context[0]._id : res.context.map((it) => it._id)

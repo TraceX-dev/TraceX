@@ -150,6 +150,7 @@
     "AutomationOnly": "Sadece otomasyon",
     "CopyLink": "Bağlantıyı kopyala",
     "ValueIsSet": "Değer ayarlandı",
+    "ValueIsNotSet": "Değer ayarlanmadı",
     "RoleLabel": "Rol: {role}",
     "ForbidAttributeChanges": "Özellik yasakla: ",
     "AllowAttributeChanges": "Özellik izin ver: ",
