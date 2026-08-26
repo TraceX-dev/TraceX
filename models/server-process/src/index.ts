@@ -162,6 +162,14 @@ export function createModel (builder: Builder): void {
     func: serverProcess.func.CreateToDo
   })
 
+  builder.mixin(process.method.CreateAction, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.CreateAction
+  })
+
+  builder.mixin(process.method.SetContext, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.SetContext
+  })
+
   builder.mixin(process.method.UpdateCard, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.UpdateCard
   })
@@ -324,6 +332,14 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(process.function.Append, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.Append
+  })
+
+  builder.mixin(process.function.PrependMarkup, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.PrependMarkup
+  })
+
+  builder.mixin(process.function.AppendMarkup, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.AppendMarkup
   })
 
   builder.mixin(process.function.Replace, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {

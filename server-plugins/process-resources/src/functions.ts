@@ -41,6 +41,7 @@ import core, {
 } from '@hcengineering/core'
 import process, {
   ApproveRequest,
+  EventButton,
   Execution,
   ExecutionContext,
   ExecutionStatus,
@@ -64,6 +65,64 @@ function checkResult (execution: Execution, results: Record<string, any> | undef
     if (res.length === 0) return false
   }
   return true
+}
+
+export async function CreateAction (
+  params: MethodParams<EventButton>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  if (isEmpty(params.title) || isEmpty(params.eventType)) {
+    throw processError(process.error.RequiredParamsNotProvided, {
+      params: isEmpty(params.title) ? 'title' : 'eventType'
+    })
+  }
+  if (params.title === undefined || params.eventType === undefined) {
+    return { txes: [], rollback: [], context: null }
+  }
+
+  const id = generateId<EventButton>()
+  const tx = control.client.txFactory.createTxCreateDoc(
+    process.class.EventButton,
+    execution.space,
+    {
+      title: params.title,
+      description: params.description ?? '',
+      eventType: params.eventType,
+      user: params.user,
+      execution: execution._id,
+      card: execution.card
+    },
+    id
+  )
+
+  return {
+    txes: [tx],
+    rollback: [control.client.txFactory.createTxRemoveDoc(process.class.EventButton, execution.space, id)],
+    context: [{ _id: id, value: TxProcessor.createDoc2Doc(tx, true) }]
+  }
+}
+
+export async function SetContext (
+  params: MethodParams<Doc>,
+  _execution: Execution,
+  _control: ProcessControl,
+  results: UserResult[] | undefined
+): Promise<ExecuteResult> {
+  if (results?.length !== 1 || results[0] === undefined) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'result' })
+  }
+  const result = results[0]
+  if (params.value === undefined) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'value' })
+  }
+
+  return {
+    txes: [],
+    rollback: [],
+    context: null,
+    results: [{ _id: result._id, value: params.value }]
+  }
 }
 
 export async function CheckToDoDone (

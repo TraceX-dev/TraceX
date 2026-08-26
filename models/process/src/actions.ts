@@ -69,6 +69,33 @@ export function defineMethods (builder: Builder): void {
     process.class.Method,
     core.space.Model,
     {
+      label: process.string.RequestFromUser,
+      editor: process.component.CreateActionEditor,
+      presenter: process.component.ToDoPresenter,
+      objectClass: process.class.EventButton,
+      createdContext: { _class: process.class.EventButton, nameField: 'title' },
+      requiredParams: ['title', 'eventType']
+    },
+    process.method.CreateAction
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.SetContext,
+      editor: process.component.SetContextEditor,
+      objectClass: core.class.Doc,
+      createdContext: null,
+      requiredParams: ['value']
+    },
+    process.method.SetContext
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
       label: process.string.UpdateCard,
       editor: process.component.UpdateCardEditor,
       objectClass: card.class.Card,

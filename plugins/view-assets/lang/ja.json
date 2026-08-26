@@ -150,6 +150,7 @@
     "AutomationOnly": "自動化のみ",
     "CopyLink": "リンクをコピー",
     "ValueIsSet": "値が設定されています",
+    "ValueIsNotSet": "値が設定されていません",
     "RoleLabel": "役割: {role}",
     "ForbidAttributeChanges": "属性の変更を禁止: ",
     "AllowAttributeChanges": "属性の変更を許可: ",

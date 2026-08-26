@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,8 +14,8 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Ref, Space } from '@hcengineering/core'
-  import presentation, { Card, getClient } from '@hcengineering/presentation'
+  import { type Markup, type Ref, type Space } from '@hcengineering/core'
+  import presentation, { Card, getClient, MessageViewer } from '@hcengineering/presentation'
   import { ExecutionContext, Process, SelectedUserRequest, Transition } from '@hcengineering/process'
   import { Label } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
@@ -28,6 +29,8 @@
   export let transition: Ref<Transition>
   export let inputs: SelectedUserRequest[]
   export let values: ExecutionContext
+  export let title: string | undefined = undefined
+  export let description: Markup | undefined = undefined
 
   const dispatch = createEventDispatcher()
   const client = getClient()
@@ -56,6 +59,9 @@
   hideClose
   okLabel={presentation.string.Save}
 >
+  {#if title !== undefined && title.trim() !== ''}
+    <div class="input-title">{title}</div>
+  {/if}
   {#if processVal !== undefined}
     <div>
       <Label label={plugin.string.Process} />:
@@ -64,6 +70,11 @@
   {/if}
   {#if transitionVal}
     <TransitionPresenter transition={transitionVal} />
+  {/if}
+  {#if description !== undefined && description.trim() !== ''}
+    <div class="description">
+      <MessageViewer message={description} />
+    </div>
   {/if}
   <div class="grid">
     {#each inputs as input}
@@ -103,5 +114,14 @@
     column-gap: 1rem;
     width: calc(100% - 4rem);
     height: min-content;
+  }
+
+  .description {
+    margin: 1rem 0;
+  }
+
+  .input-title {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
   }
 </style>

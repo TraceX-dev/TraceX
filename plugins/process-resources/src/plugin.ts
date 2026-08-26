@@ -97,6 +97,8 @@ export default mergeIds(processId, process, {
     LockFieldPresenter: '' as AnyComponent,
     UnLockFieldPresenter: '' as AnyComponent,
     CancelToDoEditor: '' as AnyComponent,
+    CreateActionEditor: '' as AnyComponent,
+    SetContextEditor: '' as AnyComponent,
     ToDoValuePresenter: '' as AnyComponent,
     ActionTypePresenter: '' as AnyComponent,
     ExecutionRefPresenter: '' as AnyComponent
@@ -112,10 +114,12 @@ export default mergeIds(processId, process, {
     DateOffsetEditor: '' as AnyComponent,
     NumberEditor: '' as AnyComponent,
     AppendEditor: '' as AnyComponent,
+    MarkupAppendEditor: '' as AnyComponent,
     ReplaceEditor: '' as AnyComponent,
     SplitEditor: '' as AnyComponent,
     CutEditor: '' as AnyComponent,
     FilterEditor: '' as AnyComponent,
+    SortEditor: '' as AnyComponent,
     DateDifferenceEditor: '' as AnyComponent
   },
   transformPresenter: {
@@ -167,6 +171,8 @@ export default mergeIds(processId, process, {
     AllMatchValue: '' as IntlString,
     FirstMatchValue: '' as IntlString,
     FirstValue: '' as IntlString,
+    Ascending: '' as IntlString,
+    Descending: '' as IntlString,
     LastValue: '' as IntlString,
     Random: '' as IntlString,
     MyProcesses: '' as IntlString,
@@ -252,6 +258,7 @@ export default mergeIds(processId, process, {
     For: '' as IntlString,
     Attribute: '' as IntlString,
     Context: '' as IntlString,
+    SetContext: '' as IntlString,
     EmptyValue: '' as IntlString,
     EmptyArray: '' as IntlString,
     ExecutionInitiator: '' as IntlString,
