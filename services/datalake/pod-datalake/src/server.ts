@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -119,8 +120,8 @@ export async function createServer (
   await ensureAccountReady(ctx, config)
 
   const buckets: Array<{ location: Location, bucket: S3Bucket }> = []
-  for (const bucket of config.Buckets) {
-    const location = bucket.location as Location
+  for (const cbucket of config.Buckets) {
+    const location = cbucket.location as Location
     if (
       location === 'eu' ||
       location === 'weur' ||
@@ -129,9 +130,11 @@ export async function createServer (
       location === 'enam' ||
       location === 'apac'
     ) {
-      buckets.push({ location, bucket: await createBucket(ctx, createClient(bucket), bucket.bucket) })
+      const client = createClient(cbucket)
+      const bucket = await createBucket(ctx, client, cbucket.bucket, config.S3AvailabilityCheckInterval)
+      buckets.push({ location, bucket })
     } else {
-      ctx.warn('invalid bucket location', { location, bucket })
+      ctx.warn('invalid bucket location', { location, cbucket })
     }
   }
 
@@ -368,6 +371,9 @@ export async function createServer (
   return {
     app,
     close: () => {
+      for (const { bucket } of buckets) {
+        bucket.close()
+      }
       void tempDir.close()
     }
   }
