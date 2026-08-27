@@ -256,7 +256,7 @@ export class TSessionManager implements SessionManager {
   }
 
   private handleWorkspaceTick (): void {
-    this.ctx.measure('sessions', this.sessions.size, true)
+    this.ctx.gauge('sessions', this.sessions.size)
 
     if (this.ticks % ticksPerSecond === 0) {
       // Let's update workspace statistics every 10 seconds
@@ -264,7 +264,7 @@ export class TSessionManager implements SessionManager {
 
       // Send extra counters and clear them to collect again
       for (const [c, v] of [...this.counters.entries()]) {
-        this.ctx.measure('_' + c, v, true)
+        this.ctx.gauge('_' + c, v)
       }
       this.counters.check()
     }
@@ -348,13 +348,13 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.measure('sessions-user', user, true)
-    this.ctx.measure('sessions-system', sys, true)
-    this.ctx.measure('sessions-anonymous', anonymous, true)
+    this.ctx.gauge('sessions-user', user)
+    this.ctx.gauge('sessions-system', sys)
+    this.ctx.gauge('sessions-anonymous', anonymous)
 
-    this.ctx.measure('workspaces', this.workspaces.size, true)
-    this.ctx.measure('workspaces-user', userWorkspaces, true)
-    this.ctx.measure('workspaces-systemonly', sysOnlyWorkspaces, true)
+    this.ctx.gauge('workspaces', this.workspaces.size)
+    this.ctx.gauge('workspaces-user', userWorkspaces)
+    this.ctx.gauge('workspaces-systemonly', sysOnlyWorkspaces)
   }
 
   private handleSessionTick (now: number): void {
@@ -533,7 +533,7 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.measure('sessions-hung', hungSessions, true)
+    this.ctx.gauge('sessions-hung', hungSessions)
 
     const hungSessionsPercent = totalSessions > 0 ? (100 * hungSessions) / totalSessions : 0
 
@@ -1407,7 +1407,7 @@ export class TSessionManager implements SessionManager {
     try {
       if (request.time != null) {
         const delta = Date.now() - request.time
-        requestCtx.measure('msg-receive-delta', delta)
+        requestCtx.counter('msg-receive-delta', delta)
       }
       const workspace = this.workspaces.get(workspaceId)
       if (workspace === undefined || workspace.closing !== undefined) {

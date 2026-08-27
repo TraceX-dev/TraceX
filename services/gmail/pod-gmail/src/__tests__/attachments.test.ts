@@ -37,7 +37,8 @@ describe('AttachmentHandler', () => {
       childLogger: jest.fn(),
       close: jest.fn()
     },
-    measure: jest.fn(),
+    gauge: jest.fn(),
+    counter: jest.fn(),
     error: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),

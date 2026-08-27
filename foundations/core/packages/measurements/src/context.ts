@@ -106,7 +106,7 @@ export class MeasureMetricsContext implements MeasureContext {
     this.logger = logger ?? (this.logParams != null ? consoleLogger(this.logParams ?? {}) : noParamsLogger)
   }
 
-  measure (name: string, value: number, override?: boolean): void {
+  gauge (name: string, value: number): void {
     const c = new MeasureMetricsContext(
       '#' + name,
       {},
@@ -118,7 +118,22 @@ export class MeasureMetricsContext implements MeasureContext {
       this.logLevel
     )
     c.contextData = this.contextData
-    c.done(value, override)
+    c.done(value, true)
+  }
+
+  counter (name: string, value: number): void {
+    const c = new MeasureMetricsContext(
+      '#' + name,
+      {},
+      {},
+      childMetrics(this.metrics, ['#' + name]),
+      this.logger,
+      this,
+      undefined,
+      this.logLevel
+    )
+    c.contextData = this.contextData
+    c.done(value)
   }
 
   newChild (
@@ -239,7 +254,9 @@ export class NoMetricsContext implements MeasureContext {
     this.logLevel = logLevel
   }
 
-  measure (name: string, value: number, override?: boolean): void {}
+  gauge (name: string, value: number): void {}
+
+  counter (name: string, value: number): void {}
 
   newChild (
     name: string,
