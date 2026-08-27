@@ -88,7 +88,13 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV27Migration(ns, flavor),
     getV28Migration(ns, flavor),
     getV29Migration(ns, flavor),
-    getV30Migration(ns, flavor)
+    getV30Migration(ns, flavor),
+    // Security migrations were renumbered to avoid collisions with develop.
+    getV31Migration(ns, flavor),
+    getV32Migration(ns, flavor),
+    getV33Migration(ns, flavor),
+    getV34Migration(ns, flavor),
+    getV35Migration(ns, flavor)
   ]
 }
 
@@ -887,6 +893,114 @@ function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
     -- member has no more unread notifications there.
     ALTER TABLE ${ns}.workspace_members
     ADD COLUMN IF NOT EXISTS has_unread BOOLEAN NOT NULL DEFAULT FALSE;
+    `
+  ]
+}
+
+// Security migrations renumbered to avoid collisions with develop.
+function getV31Migration (ns: string, flavor: DBFlavor): [string, string] {
+  const types = dbTypes[flavor]
+  return [
+    'account_db_v31_add_security_login_event_table',
+    `
+    CREATE TABLE IF NOT EXISTS ${ns}.security_login_event (
+        id ${types.string} NOT NULL DEFAULT gen_random_uuid()::TEXT,
+        account_uuid UUID NOT NULL,
+        workspace_uuid UUID,
+        event_time BIGINT NOT NULL DEFAULT current_epoch_ms(),
+        ip ${types.string},
+        country ${types.string},
+        city ${types.string},
+        user_agent ${types.string},
+        success ${types.bool} NOT NULL,
+        auth_method ${types.string} NOT NULL,
+        reason ${types.string},
+        session_id ${types.string},
+        anomaly_codes JSONB,
+        policy_version ${types.string},
+        created_on BIGINT NOT NULL DEFAULT current_epoch_ms(),
+        CONSTRAINT security_login_event_pk PRIMARY KEY (id),
+        CONSTRAINT security_login_event_account_fk FOREIGN KEY (account_uuid) REFERENCES ${ns}.account(uuid),
+        CONSTRAINT security_login_event_workspace_fk FOREIGN KEY (workspace_uuid) REFERENCES ${ns}.workspace(uuid)
+    );
+
+    CREATE INDEX IF NOT EXISTS security_login_event_account_time_idx
+    ON ${ns}.security_login_event (account_uuid, event_time DESC);
+
+    CREATE INDEX IF NOT EXISTS security_login_event_ip_time_idx
+    ON ${ns}.security_login_event (ip, event_time DESC);
+
+    CREATE INDEX IF NOT EXISTS security_login_event_success_time_idx
+    ON ${ns}.security_login_event (success, event_time DESC);
+    `
+  ]
+}
+
+function getV32Migration (ns: string, flavor: DBFlavor): [string, string] {
+  const types = dbTypes[flavor]
+  return [
+    'account_db_v32_add_active_session_and_event_type',
+    `
+    CREATE TABLE IF NOT EXISTS ${ns}.active_session (
+        session_id ${types.string} NOT NULL,
+        account_uuid UUID NOT NULL,
+        workspace_uuid UUID,
+        created_on BIGINT NOT NULL DEFAULT current_epoch_ms(),
+        last_seen BIGINT NOT NULL DEFAULT current_epoch_ms(),
+        ip ${types.string},
+        country ${types.string},
+        city ${types.string},
+        user_agent ${types.string},
+        auth_method ${types.string} NOT NULL,
+        revoked_on BIGINT,
+        revoked_reason ${types.string},
+        CONSTRAINT active_session_pk PRIMARY KEY (session_id),
+        CONSTRAINT active_session_account_fk FOREIGN KEY (account_uuid) REFERENCES ${ns}.account(uuid),
+        CONSTRAINT active_session_workspace_fk FOREIGN KEY (workspace_uuid) REFERENCES ${ns}.workspace(uuid)
+    );
+
+    CREATE INDEX IF NOT EXISTS active_session_account_idx
+    ON ${ns}.active_session (account_uuid, revoked_on);
+
+    /* Backfill and index are separate because CockroachDB needs separate transactions. */
+    ALTER TABLE ${ns}.security_login_event
+    ADD COLUMN IF NOT EXISTS event_type ${types.string};
+    `
+  ]
+}
+
+function getV33Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v33_add_active_session_refresh_generation',
+    `
+    ALTER TABLE ${ns}.active_session
+    ADD COLUMN IF NOT EXISTS refresh_generation BIGINT NOT NULL DEFAULT 0;
+    `
+  ]
+}
+
+function getV34Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v34_backfill_security_login_event_type',
+    `
+    /* Separate from the column-add transaction. */
+    UPDATE ${ns}.security_login_event
+    SET event_type = CASE
+        WHEN auth_method IN ('password', 'otp', 'token') THEN 'login'
+        WHEN auth_method = 'session' THEN 'refresh'
+        ELSE 'session'
+    END
+    WHERE event_type IS NULL;
+    `
+  ]
+}
+
+function getV35Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v35_add_security_login_event_type_index',
+    `
+    CREATE INDEX IF NOT EXISTS security_login_event_account_type_time_idx
+    ON ${ns}.security_login_event (account_uuid, event_type, event_time DESC);
     `
   ]
 }

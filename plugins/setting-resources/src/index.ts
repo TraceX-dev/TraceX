@@ -30,6 +30,7 @@ import Password from './components/Password.svelte'
 import Privacy from './components/Privacy.svelte'
 import Profile from './components/Profile.svelte'
 import Settings from './components/Settings.svelte'
+import SecuritySettings from './components/SecuritySettings.svelte'
 import AuthenticationSettings from './components/AuthenticationSettings.svelte'
 
 import { Analytics } from '@hcengineering/analytics'
@@ -173,6 +174,7 @@ export default async (): Promise<Resources> => ({
     AddEmailSocialId,
     EmployeeRefEditor,
     UserRoleSelect,
+    SecuritySettings,
     AuthenticationSettings
   },
   actionImpl: {

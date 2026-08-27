@@ -54,6 +54,9 @@ import type {
   PersonWithProfile,
   ProviderInfo,
   RegionInfo,
+  SecurityLoginHistoryEvent,
+  SecurityLoginHistoryParams,
+  ActiveSessionInfo,
   SocialId,
   Subscription,
   SubscriptionData,
@@ -254,6 +257,14 @@ export interface AccountClient {
 
   setMyProfile: (profile: Partial<Omit<UserProfile, 'personUuid'>>) => Promise<void>
   getUserProfile: (personUuid?: PersonUuid) => Promise<PersonWithProfile | null>
+  getMySecurityLoginHistory: (params?: SecurityLoginHistoryParams) => Promise<SecurityLoginHistoryEvent[]>
+  exportMySecurityLoginHistory: (params?: SecurityLoginHistoryParams) => Promise<SecurityLoginHistoryEvent[]>
+  eraseMySecurityLoginHistory: () => Promise<void>
+  reportSecurityLoginConcern: (params?: { loginEventId?: string }) => Promise<void>
+  getMyActiveSessions: (params?: { redact?: boolean }) => Promise<ActiveSessionInfo[]>
+  revokeSession: (params: { sessionId: string }) => Promise<void>
+  // Exchanges a rotating refresh token for fresh tokens.
+  refreshToken: () => Promise<LoginInfo>
 
   getSubscriptions: (workspaceUuid?: WorkspaceUuid | undefined, activeOnly?: boolean) => Promise<Subscription[]>
   getSubscriptionByProviderId: (provider: string, providerSubscriptionId: string) => Promise<Subscription | null>
@@ -1302,6 +1313,55 @@ class AccountClientImpl implements AccountClient {
       params: {
         personUuid
       }
+    })
+  }
+
+  async getMySecurityLoginHistory (params: SecurityLoginHistoryParams = {}): Promise<SecurityLoginHistoryEvent[]> {
+    return await this._rpc({
+      method: 'getMySecurityLoginHistory',
+      params
+    })
+  }
+
+  async exportMySecurityLoginHistory (params: SecurityLoginHistoryParams = {}): Promise<SecurityLoginHistoryEvent[]> {
+    return await this._rpc({
+      method: 'exportMySecurityLoginHistory',
+      params
+    })
+  }
+
+  async eraseMySecurityLoginHistory (): Promise<void> {
+    await this._rpc({
+      method: 'eraseMySecurityLoginHistory',
+      params: {}
+    })
+  }
+
+  async reportSecurityLoginConcern (params?: { loginEventId?: string }): Promise<void> {
+    await this._rpc({
+      method: 'reportSecurityLoginConcern',
+      params: params ?? {}
+    })
+  }
+
+  async getMyActiveSessions (params: { redact?: boolean } = {}): Promise<ActiveSessionInfo[]> {
+    return await this._rpc({
+      method: 'getMyActiveSessions',
+      params
+    })
+  }
+
+  async revokeSession (params: { sessionId: string }): Promise<void> {
+    await this._rpc({
+      method: 'revokeSession',
+      params
+    })
+  }
+
+  async refreshToken (): Promise<LoginInfo> {
+    return await this._rpc({
+      method: 'refreshToken',
+      params: {}
     })
   }
 

@@ -237,8 +237,8 @@ function buildPermissions (
   store: PermissionsStore | undefined,
   restrictions: Restrictions
 ): Permissions {
-  const isGuest = isGuestRole(account.role)
-  const isReadOnly = isReadOnlyRole(account.role) || restrictions.readonly
+  const isGuest: boolean = isGuestRole(account.role)
+  const isReadOnly: boolean = isReadOnlyRole(account.role) || restrictions.readonly
   const isUser = hasAccountRole(account, AccountRole.User)
 
   // A guest is allowed to work with the documents it created itself. This mirrors

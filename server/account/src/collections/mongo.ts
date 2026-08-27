@@ -53,6 +53,8 @@ import type {
   SocialId,
   Sort,
   UserProfile,
+  SecurityLoginEvent,
+  ActiveSession,
   Subscription,
   WorkspaceData,
   WorkspaceInfoWithStatus,
@@ -199,7 +201,7 @@ implements DbCollection<T> {
     throw new Error('Not implemented')
   }
 
-  async update (query: Query<T>, ops: Operations<T>): Promise<void> {
+  async update (query: Query<T>, ops: Operations<T>): Promise<number> {
     const resOps: any = { $set: {} }
 
     for (const key of Object.keys(ops)) {
@@ -213,7 +215,8 @@ implements DbCollection<T> {
         }
       }
     }
-    await this.collection.updateMany(getFilteredQuery(query) as Filter<T>, resOps)
+    const result = await this.collection.updateMany(getFilteredQuery(query) as Filter<T>, resOps)
+    return result.matchedCount
   }
 
   async deleteMany (query: Query<T>): Promise<void> {
@@ -368,8 +371,8 @@ export class WorkspaceStatusMongoDbCollection implements DbCollection<WorkspaceS
     throw new Error('Not implemented')
   }
 
-  async update (query: Query<WorkspaceStatus>, ops: Operations<WorkspaceStatus>): Promise<void> {
-    await this.wsCollection.update(this.toWsQuery(query), this.toWsOperations(ops))
+  async update (query: Query<WorkspaceStatus>, ops: Operations<WorkspaceStatus>): Promise<number> {
+    return await this.wsCollection.update(this.toWsQuery(query), this.toWsOperations(ops))
   }
 
   async deleteMany (query: Query<WorkspaceStatus>): Promise<void> {
@@ -412,6 +415,8 @@ export class MongoAccountDB implements AccountDB {
   userProfile: MongoDbCollection<UserProfile, 'personUuid'>
   apiKey: MongoDbCollection<ApiKey, 'id'>
   subscription: MongoDbCollection<Subscription, 'id'>
+  securityLoginEvent: MongoDbCollection<SecurityLoginEvent, 'id'>
+  activeSession: MongoDbCollection<ActiveSession, 'sessionId'>
 
   workspaceMembers: MongoDbCollection<WorkspaceMember>
   workspacePermission: MongoDbCollection<WorkspacePermission>
@@ -433,6 +438,8 @@ export class MongoAccountDB implements AccountDB {
     this.userProfile = new MongoDbCollection<UserProfile, 'personUuid'>('user_profile', db, 'personUuid')
     this.apiKey = new MongoDbCollection<ApiKey, 'id'>('api_keys', db, 'id')
     this.subscription = new MongoDbCollection<Subscription, 'id'>('subscription', db, 'id')
+    this.securityLoginEvent = new MongoDbCollection<SecurityLoginEvent, 'id'>('securityLoginEvent', db, 'id')
+    this.activeSession = new MongoDbCollection<ActiveSession, 'sessionId'>('activeSession', db, 'sessionId')
 
     this.workspaceMembers = new MongoDbCollection<WorkspaceMember>('workspaceMembers', db)
     this.workspacePermission = new MongoDbCollection<WorkspacePermission>('workspacePermissions', db)
@@ -486,6 +493,27 @@ export class MongoAccountDB implements AccountDB {
         key: { accountUuid: 1 },
         options: {
           name: 'hc_account_workspace_members_account_uuid_1'
+        }
+      }
+    ])
+
+    await this.securityLoginEvent.ensureIndices([
+      {
+        key: { accountUuid: 1, eventTime: -1 },
+        options: {
+          name: 'hc_account_security_login_event_account_uuid_event_time_1'
+        }
+      },
+      {
+        key: { ip: 1, eventTime: -1 },
+        options: {
+          name: 'hc_account_security_login_event_ip_event_time_1'
+        }
+      },
+      {
+        key: { success: 1, eventTime: -1 },
+        options: {
+          name: 'hc_account_security_login_event_success_event_time_1'
         }
       }
     ])
@@ -911,6 +939,10 @@ export class MongoAccountDB implements AccountDB {
     }
 
     await this.mailbox.deleteMany({ accountUuid })
+
+    await this.securityLoginEvent.deleteMany({ accountUuid })
+
+    await this.activeSession.deleteMany({ accountUuid })
 
     await this.socialId.update({ personUuid: accountUuid }, { verifiedOn: undefined })
     await this.workspaceMembers.deleteMany({ accountUuid })

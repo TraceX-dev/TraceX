@@ -77,6 +77,7 @@ import {
   type QueueUserMessage,
   QueueWorkspaceEvent,
   type QueueWorkspaceMessage,
+  type QueueWorkspaceSessionRevokedMessage,
   type Session,
   type SessionHealth,
   type SessionManager,
@@ -170,6 +171,8 @@ export class TSessionManager implements SessionManager {
         ) {
           // Handle workspace messages
           this.workspaceInfoCache.delete(msg.workspace)
+        } else if (m.type === QueueWorkspaceEvent.SessionRevoked) {
+          await this.closeSessionByLoginId(ctx, (m as QueueWorkspaceSessionRevokedMessage).sessionId)
         }
       }
     )
@@ -706,6 +709,10 @@ export class TSessionManager implements SessionManager {
             if (token.account === undefined) {
               return { error: UNAUTHORIZED, terminate: true }
             }
+            // Reject refresh tokens on transactor connections.
+            if (token.kind === 'refresh') {
+              return { error: UNAUTHORIZED, terminate: true }
+            }
             account =
               token.account === systemAccountUuid
                 ? this.sysAccount
@@ -1095,6 +1102,25 @@ export class TSessionManager implements SessionManager {
       ctx.error('failed to set status', { err })
       Analytics.handleError(err)
     }
+  }
+
+  /** Drops live connections for a revoked login session. */
+  async closeSessionByLoginId (ctx: MeasureContext, loginSessionId: string): Promise<number> {
+    if (loginSessionId === '') return 0
+    const targets = Array.from(this.sessions.values()).filter((ref) => ref.session.token.sessionId === loginSessionId)
+    for (const ref of targets) {
+      ctx.warn('closing revoked session', {
+        user: ref.session.getUser(),
+        workspace: ref.session.workspace.uuid,
+        loginSessionId
+      })
+      try {
+        await this.close(ctx, ref.socket, ref.session.workspace.uuid)
+      } catch (err) {
+        ctx.error('failed to close revoked session', { err, loginSessionId })
+      }
+    }
+    return targets.length
   }
 
   async close (ctx: MeasureContext, ws: ConnectionSocket, workspaceUuid: WorkspaceUuid): Promise<void> {

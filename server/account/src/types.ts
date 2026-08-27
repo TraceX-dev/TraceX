@@ -78,11 +78,71 @@ export interface AccountEvent {
   time: Timestamp
 }
 
+export type SecurityAuthMethod = 'password' | 'otp' | 'token' | 'session' | 'unknown'
+
+/** Security login event category. */
+export type SecurityEventType = 'login' | 'logout' | 'refresh' | 'session'
+
+export interface SecurityLoginEvent {
+  id: string
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  eventTime: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  success: boolean
+  authMethod: SecurityAuthMethod
+  eventType?: SecurityEventType
+  reason?: string
+  sessionId?: string
+  anomalyCodes?: string[]
+  policyVersion?: string
+  createdOn: Timestamp
+}
+
+/** Durable interactive-login session used for revocation. */
+export interface ActiveSession {
+  sessionId: string
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  createdOn: Timestamp
+  lastSeen: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  authMethod: SecurityAuthMethod
+  revokedOn?: Timestamp
+  revokedReason?: 'user' | 'user-not-me' | 'admin' | 'expired' | 'reuse'
+  // Rejects replayed refresh-token generations.
+  refreshGeneration?: number
+}
+
+/** Response returned by getMyActiveSessions. */
+export interface ActiveSessionInfo {
+  sessionId: string
+  workspaceUuid?: WorkspaceUuid
+  createdOn: Timestamp
+  lastSeen: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  authMethod: SecurityAuthMethod
+  isCurrent: boolean
+  /** Session anomaly codes. */
+  anomalyCodes?: string[]
+}
+
 export enum AccountEventType {
   ACCOUNT_CREATED = 'account_created',
   SOCIAL_ID_RELEASED = 'social_id_released',
   ACCOUNT_DELETED = 'account_deleted',
-  PASSWORD_CHANGED = 'password_changed'
+  PASSWORD_CHANGED = 'password_changed',
+  /** User reported suspicious login activity. */
+  SECURITY_LOGIN_CONCERN_REPORTED = 'security_login_concern_reported'
 }
 
 export interface Member {
@@ -339,6 +399,8 @@ export interface AccountDB {
   userProfile: DbCollection<UserProfile>
   apiKey: DbCollection<ApiKey>
   subscription: DbCollection<Subscription>
+  securityLoginEvent: DbCollection<SecurityLoginEvent>
+  activeSession: DbCollection<ActiveSession>
   workspacePermission: DbCollection<WorkspacePermission>
 
   init: () => Promise<void>
@@ -399,7 +461,7 @@ export interface DbCollection<T> {
   findOne: (query: Query<T>) => Promise<T | null>
   insertOne: (data: Partial<T>) => Promise<any>
   insertMany: (data: Partial<T>[]) => Promise<any>
-  update: (query: Query<T>, ops: Operations<T>) => Promise<void>
+  update: (query: Query<T>, ops: Operations<T>) => Promise<number>
   deleteMany: (query: Query<T>) => Promise<void>
 }
 
@@ -461,6 +523,8 @@ export interface LoginInfo {
   name?: string
   socialId?: PersonId
   token?: string
+  /** Rotating refresh token. */
+  refreshToken?: string
   tfaRequired?: boolean
 }
 
@@ -533,6 +597,8 @@ export type ClientNetworkPosition = 'internal' | 'external'
 export interface Meta {
   timezone?: string
   clientNetworkPosition?: ClientNetworkPosition
+  ip?: string
+  userAgent?: string
 }
 
 export interface AccountAggregatedInfo extends Omit<Account, 'hash' | 'salt'>, Person {

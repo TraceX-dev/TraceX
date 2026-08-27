@@ -13,7 +13,9 @@ export enum QueueWorkspaceEvent {
   Restoring = 'restoring',
   FullReindex = 'full-fulltext-reindex',
   Reindex = 'fulltext-reindex',
-  ClearIndex = 'clear-fulltext-index'
+  ClearIndex = 'clear-fulltext-index',
+  /** Revoked login session notification. */
+  SessionRevoked = 'session-revoked'
 }
 
 export interface QueueWorkspaceMessage {
@@ -25,6 +27,13 @@ export interface QueueWorkspaceReindexMessage extends QueueWorkspaceMessage {
 
   domain: Domain
   classes: Ref<Class<Doc>>[]
+}
+
+export interface QueueWorkspaceSessionRevokedMessage extends QueueWorkspaceMessage {
+  type: QueueWorkspaceEvent.SessionRevoked
+
+  /** The revoked login session id (matches a token's `sessionId` claim). */
+  sessionId: string
 }
 
 export const workspaceEvents = {
@@ -44,5 +53,9 @@ export const workspaceEvents = {
     type: QueueWorkspaceEvent.Reindex,
     domain,
     classes
+  }),
+  sessionRevoked: (sessionId: string): QueueWorkspaceSessionRevokedMessage => ({
+    type: QueueWorkspaceEvent.SessionRevoked,
+    sessionId
   })
 }

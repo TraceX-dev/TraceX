@@ -269,6 +269,23 @@
     "OtherSpaces": "Inne przestrzenie",
     "Public": "Publiczne",
     "Member": "Członek",
-    "CanJoin": "Może dołączyć"
+    "CanJoin": "Może dołączyć",
+    "SignOutAllOtherSessions": "Wyloguj ze wszystkich innych sesji",
+    "SignOutAllOtherSessionsDialogTitle": "Wylogować ze wszystkich innych sesji?",
+    "SignOutAllOtherSessionsDialogMessage": "Wszystkie inne urządzenia, na których jesteś obecnie zalogowany, zostaną natychmiast wylogowane i będą musiały zalogować się ponownie. To urządzenie pozostanie zalogowane.",
+    "SignOutAllOtherSessionsDialogAction": "Wyloguj wszystkie",
+    "ActiveSessionsLegend": "Odznaki wskazują sesje, które nie pasują do Twojego zwykłego wzorca logowania.",
+    "RecentLoginActivityDescription": "Zdarzenia logowania są wyświetlane w całości. Rutynowe odświeżenia sesji są grupowane i wyświetlane na szaro poniżej.",
+    "RecentLoginActivityFilterAll": "Wszystkie żądania",
+    "RecentLoginActivityFilterSuccessful": "Udane",
+    "RecentLoginActivityFilterFailed": "Nieudane",
+    "RecentLoginActivityEmptyFiltered": "Żadne zdarzenia nie pasują do tego filtra.",
+    "ReportSuspiciousActivityAction": "Zgłoś podejrzaną aktywność",
+    "AnomalyNewCountry": "Nowa lokalizacja",
+    "AnomalyImpossibleTravel": "Nietypowy wzorzec podróży",
+    "AnomalyRepeatedFailures": "Powtarzające się nieudane próby",
+    "RecentLoginActivityBadgeCurrentSession": "Ta sesja",
+    "RecentLoginActivityBadgeSameIp": "Ten sam IP",
+    "RecentLoginActivityBadgeOtherDevice": "Inne urządzenie"
   }
 }

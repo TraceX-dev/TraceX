@@ -16,6 +16,12 @@ export interface Token {
   sub?: AccountUuid // Subject
   exp?: number // Expiration, seconds since epoch
   nbf?: number // Not valid before, seconds since epoch
+
+  // Identifies a revocable interactive-login session.
+  sessionId?: string
+
+  // Missing means a legacy access token.
+  kind?: 'access' | 'refresh'
 }
 
 // Permissions grant provides the token presenter access to a specific workspace
@@ -62,6 +68,8 @@ export function generateToken (
     nbf?: number
     exp?: number
     sub?: PersonUuid
+    sessionId?: string
+    kind?: 'access' | 'refresh'
   }
 ): string {
   if (!validate(accountUuid)) {
@@ -70,7 +78,7 @@ export function generateToken (
   if (workspaceUuid !== undefined && !validate(workspaceUuid)) {
     throw new TokenError(`Invalid workspace uuid: "${workspaceUuid}"`)
   }
-  const { grant, nbf, exp, sub } = options ?? {}
+  const { grant, nbf, exp, sub, sessionId, kind } = options ?? {}
   if (grant?.workspace !== undefined && !validate(grant?.workspace)) {
     throw new TokenError(`Invalid grant workspace uuid: "${grant?.workspace}"`)
   }
@@ -105,7 +113,9 @@ export function generateToken (
       grant: sanitizedGrant,
       sub,
       exp,
-      nbf
+      nbf,
+      ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(kind !== undefined ? { kind } : {})
     },
     secret ?? getSecret()
   )

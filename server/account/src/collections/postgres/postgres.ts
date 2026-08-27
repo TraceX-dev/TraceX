@@ -51,9 +51,14 @@ import type {
   AccountAggregatedInfo,
   UserProfile,
   Subscription,
+  SecurityLoginEvent,
+  ActiveSession,
   WorkspacePermission,
   DBFlavor
 } from '../../types'
+
+/** postgres returns an array-like row list with command metadata such as the affected row count. */
+type SqlQueryResult = any[] & { count: number }
 
 function toSnakeCase (str: string): string {
   // Preserve leading underscore
@@ -269,7 +274,7 @@ implements DbCollection<T> {
     return res as T
   }
 
-  async unsafe (sql: string, values: any[], client?: Sql): Promise<any[]> {
+  async unsafe (sql: string, values: any[], client?: Sql): Promise<SqlQueryResult> {
     if (client !== undefined) {
       return await client.unsafe(sql, values)
     } else if (this.options.withRetryClient !== undefined) {
@@ -397,7 +402,7 @@ implements DbCollection<T> {
     return [`SET ${updateChunks.join(', ')}`, values]
   }
 
-  async update (query: Query<T>, ops: Operations<T>, client?: Sql): Promise<void> {
+  async update (query: Query<T>, ops: Operations<T>, client?: Sql): Promise<number> {
     const sqlChunks: string[] = [`UPDATE ${this.getTableName()}`]
     const [updateClause, updateValues] = this.buildUpdateClause(ops)
     const [whereClause, whereValues] = this.buildWhereClause(query, updateValues.length)
@@ -408,7 +413,8 @@ implements DbCollection<T> {
     }
 
     const finalSql = sqlChunks.join(' ')
-    await this.unsafe(finalSql, [...updateValues, ...whereValues], client)
+    const result = await this.unsafe(finalSql, [...updateValues, ...whereValues], client)
+    return result.count
   }
 
   async deleteMany (query: Query<T>, client?: Sql): Promise<void> {
@@ -490,12 +496,12 @@ export class AccountPostgresDbCollection
     return await super.insertOne(data, client)
   }
 
-  async update (query: Query<Account>, ops: Operations<Account>, client?: Sql): Promise<void> {
+  async update (query: Query<Account>, ops: Operations<Account>, client?: Sql): Promise<number> {
     if (Object.keys({ ...ops, ...query }).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in update query')
     }
 
-    await super.update(query, ops, client)
+    return await super.update(query, ops, client)
   }
 
   async deleteMany (query: Query<Account>, client?: Sql): Promise<void> {
@@ -542,6 +548,8 @@ export class PostgresAccountDB implements AccountDB {
   userProfile: PostgresDbCollection<UserProfile, 'personUuid'>
   apiKey: PostgresDbCollection<ApiKey, 'id'>
   subscription: PostgresDbCollection<Subscription, 'id'>
+  securityLoginEvent: PostgresDbCollection<SecurityLoginEvent, 'id'>
+  activeSession: PostgresDbCollection<ActiveSession, 'sessionId'>
   workspacePermission: PostgresDbCollection<WorkspacePermission>
 
   constructor (
@@ -611,6 +619,18 @@ export class PostgresAccountDB implements AccountDB {
       ns,
       idKey: 'id',
       timestampFields: ['periodStart', 'periodEnd', 'trialEnd', 'canceledAt', 'willCancelAt', 'createdOn', 'updatedOn'],
+      withRetryClient
+    })
+    this.securityLoginEvent = new PostgresDbCollection<SecurityLoginEvent, 'id'>('security_login_event', client, {
+      ns,
+      idKey: 'id',
+      timestampFields: ['eventTime', 'createdOn'],
+      withRetryClient
+    })
+    this.activeSession = new PostgresDbCollection<ActiveSession, 'sessionId'>('active_session', client, {
+      ns,
+      idKey: 'sessionId',
+      timestampFields: ['createdOn', 'lastSeen', 'revokedOn'],
       withRetryClient
     })
     this.workspacePermission = new PostgresDbCollection<WorkspacePermission>('workspace_permissions', client, {
@@ -1120,6 +1140,10 @@ export class PostgresAccountDB implements AccountDB {
       }
 
       await this.mailbox.deleteMany({ accountUuid }, rTx)
+
+      await this.securityLoginEvent.deleteMany({ accountUuid }, rTx)
+
+      await this.activeSession.deleteMany({ accountUuid }, rTx)
 
       await this.socialId.update({ personUuid: accountUuid }, { verifiedOn: undefined }, rTx)
 

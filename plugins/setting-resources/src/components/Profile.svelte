@@ -20,12 +20,14 @@
   import login, { loginId } from '@hcengineering/login'
   import platform, { getResource, PlatformError } from '@hcengineering/platform'
   import { AttributeEditor, createQuery, getClient, hasResource, MessageBox } from '@hcengineering/presentation'
+  import { settingId } from '@hcengineering/setting'
   import {
     Breadcrumb,
     Component,
     createFocusManager,
     EditBox,
     FocusHandler,
+    getCurrentResolvedLocation,
     Header,
     Label,
     navigate,
@@ -35,6 +37,7 @@
     SettingsFooterAction,
     showPopup
   } from '@hcengineering/ui'
+  import view from '@hcengineering/view'
   import { logIn, logOut } from '@hcengineering/workbench-resources'
 
   import rating, { type PersonRating } from '@hcengineering/rating'
@@ -119,6 +122,17 @@
         name: combineName(firstName, lastName)
       })
     }
+  }
+
+  function openSessionHistory (): void {
+    const loc = getCurrentResolvedLocation()
+    loc.path[2] = settingId
+    loc.path[3] = 'security'
+    loc.path[4] = 'sessions'
+    loc.path.length = 5
+    loc.fragment = undefined
+    loc.query = undefined
+    navigate(loc)
   }
 </script>
 
@@ -220,6 +234,17 @@
                     <Component is={rating.component.RatingActivities} props={{ rating: personRating }} />
                   </div>
                 {/if}
+              </SettingsCard>
+
+              <SettingsCard label={setting.string.SessionHistory}>
+                <Label label={setting.string.RecentLoginActivityTitle} />
+                <SettingsFooterAction
+                  slot="footer"
+                  icon={view.icon.Timeline}
+                  label={setting.string.SessionHistory}
+                  color="secondary"
+                  on:click={openSessionHistory}
+                />
               </SettingsCard>
 
               <SettingsCard label={setting.string.Leave}>

@@ -21,6 +21,8 @@ export interface LoginInfo {
   name?: string
   socialId?: PersonId
   token?: string
+  /** Long-lived token accepted only by the refresh endpoint. */
+  refreshToken?: string
   tfaRequired?: boolean
   extra?: Record<string, string>
 }
@@ -92,6 +94,61 @@ export interface InviteInfo {
 export interface OtpInfo {
   sent: boolean
   retryOn: Timestamp
+}
+
+export type SecurityAuthMethod = 'password' | 'otp' | 'token' | 'session' | 'unknown'
+
+/** Event category for login history filtering. */
+export type SecurityEventType = 'login' | 'logout' | 'refresh' | 'session'
+
+export interface SecurityLoginHistoryEvent {
+  id: string
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  eventTime: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  success: boolean
+  authMethod: SecurityAuthMethod
+  eventType?: SecurityEventType
+  reason?: string
+  sessionId?: string
+  anomalyCodes?: string[]
+  policyVersion?: string
+  createdOn: Timestamp
+}
+
+export interface SecurityLoginHistoryParams {
+  since?: number
+  until?: number
+  success?: boolean
+  authMethod?: SecurityAuthMethod
+  eventType?: SecurityEventType
+  ip?: string
+  limit?: number
+  /** Restrict results to login and logout events. */
+  loginsAndLogoutsOnly?: boolean
+  /** When true, masks IP, truncates user agent, and omits session id in the response. */
+  redact?: boolean
+}
+
+/** An active session of the caller. */
+export interface ActiveSessionInfo {
+  sessionId: string
+  workspaceUuid?: WorkspaceUuid
+  createdOn: Timestamp
+  lastSeen: Timestamp
+  ip?: string
+  country?: string
+  city?: string
+  userAgent?: string
+  authMethod: SecurityAuthMethod
+  /** True for the session the calling token itself belongs to. */
+  isCurrent: boolean
+  /** Anomaly codes from the session's login event. */
+  anomalyCodes?: string[]
 }
 
 export interface RegionInfo {

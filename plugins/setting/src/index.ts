@@ -201,7 +201,9 @@ export default plugin(settingId, {
     OfficeSettings: '' as Ref<Doc>,
     DisablePermissionsConfiguration: '' as Ref<Configuration>,
     Mailboxes: '' as Ref<Doc>,
-    Authentication: '' as Ref<Doc>
+    Authentication: '' as Ref<Doc>,
+    // Restored after merge with develop: still referenced by the login-security "Security" settings category.
+    Security: '' as Ref<Doc>
   },
   mixin: {
     Editable: '' as Ref<Mixin<Editable>>,
@@ -247,6 +249,7 @@ export default plugin(settingId, {
     AddEmailSocialId: '' as AnyComponent,
     OfficeSettings: '' as AnyComponent,
     UserRoleSelect: '' as AnyComponent,
+    SecuritySettings: '' as AnyComponent,
     AuthenticationSettings: '' as AnyComponent
   },
   string: {
@@ -332,6 +335,8 @@ export default plugin(settingId, {
     MailboxErrorMailboxCountLimit: '' as IntlString,
     DeleteMailbox: '' as IntlString,
     MailboxDeleteConfirmation: '' as IntlString,
+    Security: '' as IntlString,
+    SessionHistory: '' as IntlString,
     Authentication: '' as IntlString,
     TwoFactorAuth: '' as IntlString,
     TwoFactorAuthDescription: '' as IntlString,

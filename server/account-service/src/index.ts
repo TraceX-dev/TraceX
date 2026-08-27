@@ -11,7 +11,10 @@ import account, {
   getAccountDB,
   getAllTransactors,
   getMethods,
-  cleanExpiredOtp
+  cleanExpiredOtp,
+  purgeExpiredSecurityLoginEvents,
+  purgeRevokedActiveSessions,
+  revokeActiveSession
 } from '@hcengineering/account'
 import accountEn from '@hcengineering/account/lang/en.json'
 import accountRu from '@hcengineering/account/lang/ru.json'
@@ -21,10 +24,10 @@ import { metricsAggregate, type Branding, type BrandingMap, type MeasureContext 
 import { getPlatformQueue } from '@hcengineering/kafka'
 import { type ConsumerHandle, type PlatformQueue } from '@hcengineering/server-core'
 import platform, {
+  getMetadata,
   Severity,
   Status,
   addStringsLoader,
-  getMetadata,
   setMetadata,
   unknownStatus
 } from '@hcengineering/platform'
@@ -43,11 +46,47 @@ export * from './migration/utils'
 export * from './migration/types'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
+// HttpOnly rotating refresh-token cookie.
+const AUTH_REFRESH_COOKIE = 'account-metadata-RefreshToken'
 
 const KEEP_ALIVE_HEADERS = {
   'Content-Type': 'application/json',
   Connection: 'keep-alive',
   'Keep-Alive': 'timeout=5, max=1000'
+}
+
+/** Creates an account-scoped cookie token without losing session or expiry. */
+export function createAccountCookieToken (ctx: MeasureContext, token: string): string {
+  const { account, extra, sessionId, kind, exp } = decodeTokenVerbose(ctx, token)
+  return generateToken(account, undefined, extra, undefined, { sessionId, kind, exp })
+}
+
+/** Removes refreshToken from browser RPC responses. */
+export function stripRefreshTokenFromResponse<T> (result: T): T {
+  if (result === null || typeof result !== 'object' || !('refreshToken' in result)) return result
+  const { refreshToken: _refreshToken, ...response } = result as T & { refreshToken?: unknown }
+  return response as T
+}
+
+/** Allows refreshToken in responses only for Authorization-based clients. */
+export function shouldExposeRefreshToken (
+  method: string,
+  refreshCookie: string | undefined,
+  authorizationToken: string | undefined
+): boolean {
+  return method === 'refreshToken' && refreshCookie === undefined && authorizationToken !== undefined
+}
+
+/** Extracts an exact cookie-name match without truncating values containing `=`. */
+export function extractCookieValue (cookieHeader: string | undefined, name: string): string | undefined {
+  if (cookieHeader == null) return undefined
+  const prefix = `${name}=`
+  const cookie = cookieHeader
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix))
+  const value = cookie?.slice(prefix.length)
+  return value != null && value !== '' ? value : undefined
 }
 
 /**
@@ -140,6 +179,9 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   setMetadata(account.metadata.FrontURL, frontURL)
   setMetadata(account.metadata.WsLivenessDays, wsLivenessDays)
 
+  // Zero access TTL preserves legacy non-expiring access tokens.
+  setMetadata(account.metadata.AccessTokenTtlSec, parseInt(process.env.ACCESS_TOKEN_TTL_SEC ?? '0', 10))
+  setMetadata(account.metadata.RefreshTokenTtlSec, parseInt(process.env.REFRESH_TOKEN_TTL_SEC ?? '2592000', 10))
   setMetadata(account.metadata.DefaultBrandingKey, process.env.DEFAULT_BRANDING_KEY ?? 'huly')
 
   setMetadata(serverToken.metadata.Secret, serverSecret)
@@ -192,6 +234,18 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       },
       3 * 60 * 1000
     )
+    setInterval(
+      () => {
+        void purgeExpiredSecurityLoginEvents(db, measureCtx)
+      },
+      3 * 60 * 1000
+    )
+    setInterval(
+      () => {
+        void purgeRevokedActiveSessions(db, measureCtx)
+      },
+      3 * 60 * 1000
+    )
   })
 
   // Cross-workspace unread indicator: consume the queue the notification trigger
@@ -210,13 +264,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   }
 
   const extractCookieToken = (headers: IncomingHttpHeaders): string | undefined => {
-    if (headers.cookie != null) {
-      const cookies = headers.cookie.split(';')
-      const tokenCookie = cookies.find((cookie) => cookie.includes(AUTH_TOKEN_COOKIE))
-      return tokenCookie?.split('=')[1]
-    }
-
-    return undefined
+    return extractCookieValue(headers.cookie, AUTH_TOKEN_COOKIE)
   }
 
   const extractAuthorizationToken = (headers: IncomingHttpHeaders): string | undefined => {
@@ -231,6 +279,27 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     return extractAuthorizationToken(headers) ?? extractCookieToken(headers)
   }
 
+  const extractRefreshCookie = (headers: IncomingHttpHeaders): string | undefined => {
+    return extractCookieValue(headers.cookie, AUTH_REFRESH_COOKIE)
+  }
+
+  const getClientIp = (headers: IncomingHttpHeaders): string | undefined => {
+    const forwardedFor = headers['x-forwarded-for']
+    if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
+      return forwardedFor.split(',')[0].trim()
+    }
+
+    const candidates = ['cf-connecting-ip', 'x-real-ip', 'x-client-ip', 'true-client-ip'] as const
+    for (const header of candidates) {
+      const value = headers[header]
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value.trim()
+      }
+    }
+
+    return undefined
+  }
+
   const getRequestMeta = (headers: IncomingHttpHeaders, isServiceRequest: boolean): Meta => {
     const meta: Meta = {}
 
@@ -242,6 +311,13 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       const val = headers['x-client-network-position'] as string
       if (['internal', 'external'].includes(val)) {
         meta.clientNetworkPosition = val as ClientNetworkPosition
+      }
+    }
+
+    if (!isServiceRequest) {
+      meta.ip = getClientIp(headers)
+      if (typeof headers['user-agent'] === 'string') {
+        meta.userAgent = headers['user-agent']
       }
     }
 
@@ -335,9 +411,8 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       return
     }
 
-    // Ensure we don't set the token with workspace to the cookie
-    const { account, extra } = decodeTokenVerbose(measureCtx, token)
-    const tokenWithoutWorkspace = generateToken(account, undefined, extra)
+    // Preserve session and expiry when removing workspace scope.
+    const tokenWithoutWorkspace = createAccountCookieToken(measureCtx, token)
 
     const cookieOpts = getCookieOptions(ctx)
     for (const opt of cookieOpts) {
@@ -349,9 +424,23 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   })
 
   router.delete('/cookie', async (ctx) => {
+    try {
+      const token = extractToken(ctx.request.headers) ?? extractRefreshCookie(ctx.request.headers)
+      if (token != null) {
+        const { account: accountUuid, sessionId } = decodeTokenVerbose(measureCtx, token)
+        if (sessionId != null) {
+          const [db] = await accountsDb
+          await revokeActiveSession(measureCtx, db, accountUuid, sessionId, 'user')
+        }
+      }
+    } catch (err: any) {
+      Analytics.handleError(err)
+    }
+
     const cookieOpts = getCookieOptions(ctx)
     for (const opt of cookieOpts) {
       ctx.cookies.set(AUTH_TOKEN_COOKIE, '', { ...opt, maxAge: 0 })
+      ctx.cookies.set(AUTH_REFRESH_COOKIE, '', { ...opt, maxAge: 0 })
     }
 
     ctx.res.writeHead(204)
@@ -425,14 +514,28 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
 
     let source = ''
     let isServiceRequest = false
+    let tokenKind: string | undefined
     try {
       const decodedToken = token != null ? decodeToken(token) : null
       const serviceName = decodedToken?.extra?.service
       source = serviceName ?? '🤦‍♂️user'
       isServiceRequest = serviceName !== undefined
+      tokenKind = decodedToken?.kind
     } catch (err) {
       // Ignore
     }
+
+    // Refresh tokens are valid only for refreshToken.
+    if (tokenKind === 'refresh' && request.method !== 'refreshToken') {
+      const response = {
+        id: request.id,
+        error: new Status(Severity.ERROR, platform.status.Unauthorized, {})
+      }
+      ctx.res.writeHead(401, KEEP_ALIVE_HEADERS)
+      ctx.res.end(JSON.stringify(response))
+      return
+    }
+
     const meta = getRequestMeta(ctx.request.headers, isServiceRequest)
 
     await measureCtx.with(
@@ -451,9 +554,30 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
         }
 
         try {
-          const result = await method(_ctx, db, branding, request, token, meta)
+          // Cookie first; Authorization is the non-browser fallback.
+          const refreshCookie =
+            request.method === 'refreshToken' ? extractRefreshCookie(ctx.request.headers) : undefined
+          const effectiveToken = refreshCookie ?? token
+          const result = await method(_ctx, db, branding, request, effectiveToken, meta)
 
-          const body = JSON.stringify(result)
+          // Browser clients retain rotated refresh tokens only in an HttpOnly cookie.
+          const refreshTok = result?.refreshToken
+          if (typeof refreshTok === 'string' && refreshTok !== '') {
+            const refreshTtlSec = getMetadata(account.metadata.RefreshTokenTtlSec) ?? 0
+            const maxAge = refreshTtlSec > 0 ? refreshTtlSec * 1000 : undefined
+            for (const opt of getCookieOptions(ctx)) {
+              ctx.cookies.set(AUTH_REFRESH_COOKIE, refreshTok, {
+                ...opt,
+                sameSite: 'lax',
+                ...(maxAge !== undefined ? { maxAge } : {})
+              })
+            }
+          }
+
+          const responseResult = shouldExposeRefreshToken(request.method, refreshCookie, token)
+            ? result
+            : stripRefreshTokenFromResponse(result)
+          const body = JSON.stringify(responseResult)
           ctx.res.writeHead(200, KEEP_ALIVE_HEADERS)
           ctx.res.end(body)
         } catch (err: any) {

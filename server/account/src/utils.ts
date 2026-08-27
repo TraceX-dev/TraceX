@@ -19,6 +19,7 @@ import {
   type Branding,
   concatLink,
   generateId,
+  generateUuid,
   groupByArray,
   isActiveMode,
   type MeasureContext,
@@ -47,6 +48,7 @@ import { Analytics } from '@hcengineering/analytics'
 import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } from '@hcengineering/server-token'
 import { MongoAccountDB } from './collections/mongo'
 import { PostgresAccountDB } from './collections/postgres/postgres'
+import { resolveSecurityPolicyEngine } from './securityPolicy'
 import { accountPlugin } from './plugin'
 import {
   type Account,
@@ -58,6 +60,11 @@ import {
   type LoginInfo,
   type LoginInfoRequestData,
   type Meta,
+  type SecurityAuthMethod,
+  type SecurityEventType,
+  type SecurityLoginEvent,
+  type ActiveSession,
+  type Query,
   type Operations,
   type OtpInfo,
   type RegionInfo,
@@ -773,6 +780,8 @@ export async function selectWorkspace (
   let sub: AccountUuid | undefined
   let exp: number | undefined
   let nbf: number | undefined
+  // Preserve one session identity across workspace tokens.
+  let sessionId: string | undefined
   let tokenWorkspace: WorkspaceUuid | undefined
   try {
     const decodedToken = decodeTokenVerbose(ctx, token ?? '')
@@ -786,6 +795,7 @@ export async function selectWorkspace (
     sub = decodedToken.sub
     exp = decodedToken.exp
     nbf = decodedToken.nbf
+    sessionId = decodedToken.sessionId
   } catch (e) {
     if (workspace?.allowReadOnlyGuest === true) {
       accountUuid = readOnlyGuestAccountUuid
@@ -797,6 +807,11 @@ export async function selectWorkspace (
   if (workspace == null) {
     ctx.error('Workspace not found in selectWorkspace', { workspaceUrl, kind, accountUuid, extra })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
+  }
+
+  // Do not mint a workspace token for a revoked session.
+  if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
 
   const apiKeyId = extra?.apiKey
@@ -843,6 +858,15 @@ export async function selectWorkspace (
     }
 
     // Guest mode select workspace
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid,
+      workspaceUuid: workspace.uuid,
+      success: true,
+      authMethod: 'session',
+      reason: 'workspace_select_guest',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
     return {
       account: accountUuid,
       endpoint: getEndpoint(workspace.uuid, workspace.region, getKind(workspace.region)),
@@ -855,13 +879,23 @@ export async function selectWorkspace (
   }
 
   if (accountUuid === systemAccountUuid) {
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid,
+      workspaceUuid: workspace.uuid,
+      success: true,
+      authMethod: 'session',
+      reason: 'workspace_select_system',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
     return {
       account: accountUuid,
       token: generateToken(accountUuid, workspace.uuid, extra, undefined, {
         grant,
         sub,
         exp,
-        nbf
+        nbf,
+        sessionId
       }),
       endpoint: getEndpoint(workspace.uuid, workspace.region, getKind(workspace.region)),
       workspace: workspace.uuid,
@@ -917,13 +951,31 @@ export async function selectWorkspace (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
 
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid,
+    workspaceUuid: workspace.uuid,
+    success: true,
+    authMethod: 'session',
+    reason: 'workspace_select',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+    sessionId
+  })
+
+  if (sessionId !== undefined) {
+    void touchActiveSession(db, sessionId, workspace.uuid)
+  }
+
   return {
     account: accountUuid,
+    // Interactive sessions get a fresh short-lived access token.
     token: generateToken(accountUuid, workspace.uuid, extra, undefined, {
       grant,
       sub,
-      exp,
-      nbf
+      exp: sessionId !== undefined ? expiresInSec(getAccessTokenTtlSec()) : exp,
+      nbf,
+      sessionId,
+      kind: sessionId !== undefined ? 'access' : undefined
     }),
     endpoint: getEndpoint(workspace.uuid, workspace.region, getKind(workspace.region)),
     workspace: workspace.uuid,
@@ -1773,6 +1825,54 @@ export async function cleanExpiredOtp (db: AccountDB): Promise<void> {
   await db.otp.deleteMany({ expiresOn: { $lte: Date.now() } })
 }
 
+const DEFAULT_SECURITY_LOGIN_RETENTION_DAYS = 365
+
+/** Purges login events older than the configured retention period. */
+export async function purgeExpiredSecurityLoginEvents (
+  db: AccountDB,
+  log?: { warn: (msg: string, data?: Record<string, unknown>) => void }
+): Promise<void> {
+  const rawTrim = process.env.SECURITY_LOGIN_EVENT_RETENTION_DAYS?.trim()
+  const rawLower = rawTrim?.toLowerCase()
+  if (rawLower === '0' || rawLower === 'off' || rawLower === 'false') {
+    return
+  }
+  const days = rawTrim !== undefined && rawTrim !== '' ? parseInt(rawTrim, 10) : DEFAULT_SECURITY_LOGIN_RETENTION_DAYS
+  if (!Number.isFinite(days) || days <= 0) {
+    return
+  }
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+  try {
+    await db.securityLoginEvent.deleteMany({ eventTime: { $lt: cutoff } })
+  } catch (err) {
+    log?.warn('purgeExpiredSecurityLoginEvents failed', { err, days, cutoff })
+  }
+}
+
+const DEFAULT_ACTIVE_SESSION_RETENTION_DAYS = 30
+
+/** Purges revoked sessions older than the configured retention period. */
+export async function purgeRevokedActiveSessions (
+  db: AccountDB,
+  log?: { warn: (msg: string, data?: Record<string, unknown>) => void }
+): Promise<void> {
+  const rawTrim = process.env.ACTIVE_SESSION_RETENTION_DAYS?.trim()
+  const rawLower = rawTrim?.toLowerCase()
+  if (rawLower === '0' || rawLower === 'off' || rawLower === 'false') {
+    return
+  }
+  const days = rawTrim !== undefined && rawTrim !== '' ? parseInt(rawTrim, 10) : DEFAULT_ACTIVE_SESSION_RETENTION_DAYS
+  if (!Number.isFinite(days) || days <= 0) {
+    return
+  }
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+  try {
+    await db.activeSession.deleteMany({ revokedOn: { $lt: cutoff } })
+  } catch (err) {
+    log?.warn('purgeRevokedActiveSessions failed', { err, days, cutoff })
+  }
+}
+
 export async function getWorkspaces (
   db: AccountDB,
   isDisabled?: boolean | null,
@@ -2070,6 +2170,365 @@ export async function setTimezone (
   } catch (err: any) {
     ctx.error('Failed to set account timezone', err)
   }
+}
+
+export interface SecurityEventInput {
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  success: boolean
+  authMethod: SecurityAuthMethod
+  eventType?: SecurityEventType
+  reason?: string
+  eventTime?: number
+  ip?: string
+  userAgent?: string
+  country?: string
+  city?: string
+  sessionId?: string
+}
+
+function trimOptional (value: string | undefined, maxLen: number): string | undefined {
+  if (value == null) {
+    return undefined
+  }
+
+  const normalized = value.trim()
+  if (normalized === '') {
+    return undefined
+  }
+
+  return normalized.length > maxLen ? normalized.slice(0, maxLen) : normalized
+}
+
+/** Defaults interactive auth to login and session auth to refresh. */
+export function classifySecurityEventType (authMethod: SecurityAuthMethod): SecurityEventType {
+  switch (authMethod) {
+    case 'password':
+    case 'otp':
+    case 'token':
+      return 'login'
+    case 'session':
+      return 'refresh'
+    default:
+      return 'session'
+  }
+}
+
+export async function recordSecurityLoginEvent (
+  ctx: MeasureContext,
+  db: AccountDB,
+  input: SecurityEventInput
+): Promise<void> {
+  const logWarn =
+    typeof (ctx as any).warn === 'function'
+      ? (ctx as any).warn.bind(ctx)
+      : typeof (ctx as any).error === 'function'
+        ? (ctx as any).error.bind(ctx)
+        : console.warn
+
+  try {
+    const eventTime = input.eventTime ?? Date.now()
+    const eventData: Omit<SecurityLoginEvent, 'id' | 'createdOn'> = {
+      accountUuid: input.accountUuid,
+      workspaceUuid: input.workspaceUuid,
+      eventTime,
+      ip: trimOptional(input.ip, 128),
+      country: trimOptional(input.country, 8),
+      city: trimOptional(input.city, 128),
+      userAgent: trimOptional(input.userAgent, 1024),
+      success: input.success,
+      authMethod: input.authMethod,
+      eventType: input.eventType ?? classifySecurityEventType(input.authMethod),
+      reason: trimOptional(input.reason, 256),
+      sessionId: trimOptional(input.sessionId, 128)
+    }
+
+    const recentHistory = await db.securityLoginEvent.find(
+      { accountUuid: input.accountUuid },
+      { eventTime: 'descending' },
+      50
+    )
+    const policyEngine = await resolveSecurityPolicyEngine(ctx)
+    const policyResult = await policyEngine.evaluateEvent({ event: eventData, recentHistory })
+
+    await db.securityLoginEvent.insertOne({
+      ...eventData,
+      anomalyCodes: policyResult.anomalyCodes,
+      policyVersion: policyResult.policyVersion,
+      createdOn: eventTime
+    })
+  } catch (err) {
+    const payload = { err, accountUuid: input.accountUuid, authMethod: input.authMethod }
+    if (typeof (ctx as any).error === 'function') {
+      ;(ctx as any).error('Failed to persist security login event', payload)
+    } else {
+      logWarn('Failed to persist security login event', payload)
+    }
+  }
+}
+
+export interface CreateActiveSessionInput {
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  authMethod: SecurityAuthMethod
+  ip?: string
+  userAgent?: string
+  country?: string
+  city?: string
+  eventTime?: number
+}
+
+/** Configured access-token TTL in seconds, or undefined for no expiry (legacy). */
+export function getAccessTokenTtlSec (): number | undefined {
+  const v = getMetadata(accountPlugin.metadata.AccessTokenTtlSec)
+  return typeof v === 'number' && v > 0 ? v : undefined
+}
+
+/** Configured refresh-token TTL in seconds, or undefined for no expiry. */
+export function getRefreshTokenTtlSec (): number | undefined {
+  const v = getMetadata(accountPlugin.metadata.RefreshTokenTtlSec)
+  return typeof v === 'number' && v > 0 ? v : undefined
+}
+
+/**
+ * Absolute expiry (`exp`, seconds since epoch) for a TTL, matching the unit
+ * `jwt-simple` compares against. Returns undefined when there is no TTL, so the
+ * token is minted without `exp` (legacy, non-expiring).
+ */
+export function expiresInSec (ttlSec: number | undefined): number | undefined {
+  if (ttlSec === undefined || ttlSec <= 0) return undefined
+  return Math.floor(Date.now() / 1000) + ttlSec
+}
+
+/**
+ * `generateToken` options for an interactive-login **access** token: carries the
+ * `sessionId`, marks `kind:'access'`, and stamps a fresh `exp` from the
+ * configured access TTL (undefined TTL → no `exp`, legacy non-expiring).
+ */
+export function accessTokenOptions (sessionId?: string): {
+  sessionId?: string
+  kind: 'access'
+  exp?: number
+} {
+  return { sessionId, kind: 'access', exp: expiresInSec(getAccessTokenTtlSec()) }
+}
+
+/**
+ * Mints a rotating **refresh** token for a session. Embeds the session's
+ * current `generation` (as `extra.gen`) so the refresh endpoint can detect
+ * replay of an already-rotated token (see docs/token-rotation-plan.md §3).
+ */
+export function mintRefreshToken (accountUuid: AccountUuid, sessionId: string, generation: number): string {
+  return generateToken(accountUuid, undefined, { gen: String(generation) }, undefined, {
+    sessionId,
+    kind: 'refresh',
+    exp: expiresInSec(getRefreshTokenTtlSec())
+  })
+}
+
+export type RefreshRotationResult = { newGen: number } | { error: 'revoked' | 'reuse' | 'invalid' }
+
+/**
+ * Validates and rotates a session's refresh generation for a presented refresh
+ * token (see docs/token-rotation-plan.md §3):
+ * - session missing/revoked → `revoked`
+ * - presented generation older than stored → replay of an already-rotated token:
+ *   revoke the whole session (`reuse`) as theft detection
+ * - generation mismatch (newer than stored) → `invalid`
+ * - generation matches → bump and return the new generation (compare-and-swap on
+ *   `refreshGeneration` in the update query guards against races)
+ */
+export async function rotateSessionRefresh (
+  ctx: MeasureContext,
+  db: AccountDB,
+  accountUuid: AccountUuid,
+  sessionId: string,
+  presentedGen: number
+): Promise<RefreshRotationResult> {
+  const row = await db.activeSession.findOne({ sessionId, accountUuid })
+  if (row == null || row.revokedOn != null) {
+    return { error: 'revoked' }
+  }
+  const current = row.refreshGeneration ?? 0
+  if (!Number.isFinite(presentedGen) || presentedGen < current) {
+    // An already-rotated (or malformed) refresh token was replayed — treat as
+    // theft and kill the session. Logged as a security signal to monitor.
+    if (typeof (ctx as any).warn === 'function') {
+      ;(ctx as any).warn('Refresh token reuse detected — revoking session', {
+        accountUuid,
+        sessionId,
+        presentedGen,
+        current
+      })
+    }
+    await revokeActiveSession(ctx, db, accountUuid, sessionId, 'reuse')
+    return { error: 'reuse' }
+  }
+  if (presentedGen !== current) {
+    return { error: 'invalid' }
+  }
+  const newGen = current + 1
+  const updated = await db.activeSession.update(
+    { sessionId, accountUuid, refreshGeneration: current },
+    { refreshGeneration: newGen, lastSeen: Date.now() }
+  )
+  if (updated !== 1) {
+    // Another refresh may have changed the generation after the read. Do not
+    // issue a second token when the compare-and-swap did not match.
+    const latest = await db.activeSession.findOne({ sessionId, accountUuid })
+    if (latest == null || latest.revokedOn != null) {
+      return { error: 'revoked' }
+    }
+    if (presentedGen < (latest.refreshGeneration ?? 0)) {
+      await revokeActiveSession(ctx, db, accountUuid, sessionId, 'reuse')
+      return { error: 'reuse' }
+    }
+    return { error: 'invalid' }
+  }
+  return { newGen }
+}
+
+/**
+ * Optional hook invoked after a session is revoked so live connections can be
+ * torn down immediately (e.g. by publishing to the transactor's queue). Wired
+ * by the account service at startup; when unset (or on error) revocation still
+ * takes effect at the next connect via the `revokedOn` check.
+ */
+export type SessionRevokeNotifier = (params: {
+  accountUuid: AccountUuid
+  workspaceUuid?: WorkspaceUuid
+  sessionId: string
+}) => void | Promise<void>
+
+let sessionRevokeNotifier: SessionRevokeNotifier | undefined
+
+export function setSessionRevokeNotifier (notifier: SessionRevokeNotifier | undefined): void {
+  sessionRevokeNotifier = notifier
+}
+
+/**
+ * Creates a durable {@link ActiveSession} record for an interactive login and
+ * returns its `sessionId`, which the caller embeds in the issued token's
+ * `sessionId` claim. Best-effort: a persistence failure must not block login,
+ * so on error we log and return `undefined` (the token is then simply not
+ * individually revocable, matching legacy behaviour).
+ */
+export async function createActiveSession (
+  ctx: MeasureContext,
+  db: AccountDB,
+  input: CreateActiveSessionInput
+): Promise<string | undefined> {
+  try {
+    const now = input.eventTime ?? Date.now()
+    const sessionId = generateUuid()
+    await db.activeSession.insertOne({
+      sessionId,
+      accountUuid: input.accountUuid,
+      workspaceUuid: input.workspaceUuid,
+      createdOn: now,
+      lastSeen: now,
+      ip: trimOptional(input.ip, 128),
+      country: trimOptional(input.country, 8),
+      city: trimOptional(input.city, 128),
+      userAgent: trimOptional(input.userAgent, 1024),
+      authMethod: input.authMethod,
+      refreshGeneration: 0
+    })
+    return sessionId
+  } catch (err) {
+    if (typeof (ctx as any).error === 'function') {
+      ;(ctx as any).error('Failed to create active session', { err, accountUuid: input.accountUuid })
+    }
+    return undefined
+  }
+}
+
+/** Updates a session's `lastSeen` (best-effort; ignores unknown/revoked ids). */
+export async function touchActiveSession (
+  db: AccountDB,
+  sessionId: string,
+  workspaceUuid?: WorkspaceUuid,
+  at?: number
+): Promise<void> {
+  try {
+    await db.activeSession.update(
+      { sessionId, revokedOn: null },
+      { lastSeen: at ?? Date.now(), ...(workspaceUuid !== undefined ? { workspaceUuid } : {}) }
+    )
+  } catch {
+    // best-effort
+  }
+}
+
+/** Returns the caller's non-revoked sessions, newest first. */
+export async function listActiveSessions (
+  db: AccountDB,
+  accountUuid: AccountUuid,
+  workspaceUuid?: WorkspaceUuid
+): Promise<ActiveSession[]> {
+  const query: Query<ActiveSession> = { accountUuid, revokedOn: null }
+  if (workspaceUuid !== undefined) {
+    query.workspaceUuid = workspaceUuid
+  }
+  return await db.activeSession.find(query, { lastSeen: 'descending' }, 200)
+}
+
+/** True when the session is unknown or already revoked — used at connect. */
+export async function isActiveSessionRevoked (db: AccountDB, sessionId: string): Promise<boolean> {
+  const row = await db.activeSession.findOne({ sessionId })
+  return row == null || row.revokedOn != null
+}
+
+/**
+ * Marks a session revoked (idempotent) and records a `logout` security event.
+ * Returns false when the session doesn't belong to the account or is already
+ * revoked. Does not tear down a live socket — see the design doc for the
+ * deferred `forceClose` follow-up.
+ */
+export async function revokeActiveSession (
+  ctx: MeasureContext,
+  db: AccountDB,
+  accountUuid: AccountUuid,
+  sessionId: string,
+  reason: ActiveSession['revokedReason'] = 'user'
+): Promise<boolean> {
+  const row = await db.activeSession.findOne({ sessionId, accountUuid })
+  if (row == null || row.revokedOn != null) {
+    return false
+  }
+  const now = Date.now()
+  await db.activeSession.update({ sessionId, accountUuid }, { revokedOn: now, revokedReason: reason })
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid,
+    workspaceUuid: row.workspaceUuid,
+    success: true,
+    authMethod: 'session',
+    eventType: 'logout',
+    reason:
+      reason === 'user-not-me'
+        ? 'session_revoked_not_me'
+        : reason === 'reuse'
+          ? 'session_revoked_reuse'
+          : 'session_revoked',
+    eventTime: now,
+    ip: row.ip,
+    userAgent: row.userAgent,
+    country: row.country,
+    city: row.city,
+    sessionId
+  })
+  // Best-effort immediate teardown of live connections; falls back to the
+  // connect-time revocation check if the notifier is unset or fails.
+  if (sessionRevokeNotifier !== undefined) {
+    try {
+      await sessionRevokeNotifier({ accountUuid, workspaceUuid: row.workspaceUuid, sessionId })
+    } catch (err) {
+      if (typeof (ctx as any).error === 'function') {
+        ;(ctx as any).error('Session revoke notifier failed', { err, sessionId })
+      }
+    }
+  }
+  return true
 }
 
 // Move to config?

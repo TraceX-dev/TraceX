@@ -74,11 +74,17 @@ import {
   type Account,
   type ApiKey,
   type PersonWithProfile,
+  type SecurityAuthMethod,
+  type SecurityEventType,
+  type SecurityLoginEvent,
+  type ActiveSession,
+  type ActiveSessionInfo,
   type Subscription,
   SubscriptionStatus,
   type Query,
   type InviteInfo
 } from './types'
+import { assertSecurityLoginTelemetryRateLimit } from './securityLoginTelemetryRateLimit'
 import {
   addSocialIdBase,
   checkInvite,
@@ -139,7 +145,15 @@ import {
   checkPasswordAging,
   generateTotpSecret,
   verifyTotpCode,
-  getTotpUrl
+  getTotpUrl,
+  recordSecurityLoginEvent,
+  createActiveSession,
+  listActiveSessions,
+  revokeActiveSession,
+  isActiveSessionRevoked,
+  accessTokenOptions,
+  mintRefreshToken,
+  rotateSessionRefresh
 } from './utils'
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000' as AccountUuid
@@ -198,7 +212,8 @@ export async function login (
   params: {
     email: string
     password: string
-  }
+  },
+  meta?: Meta
 ): Promise<LoginInfo> {
   const { email, password } = params
 
@@ -207,6 +222,7 @@ export async function login (
   }
 
   const normalizedEmail = cleanEmail(email)
+  let existingAccount: Account | null = null
 
   try {
     const emailSocialId = await getEmailSocialId(db, normalizedEmail)
@@ -215,7 +231,7 @@ export async function login (
       throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
     }
 
-    const existingAccount = await db.account.findOne({ uuid: emailSocialId.personUuid as AccountUuid })
+    existingAccount = await db.account.findOne({ uuid: emailSocialId.personUuid as AccountUuid })
 
     if (existingAccount == null) {
       throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
@@ -226,6 +242,14 @@ export async function login (
       ctx.warn('Login attempt on locked account - password login locked', {
         email: normalizedEmail,
         failedAttempts: existingAccount.failedLoginAttempts
+      })
+      await recordSecurityLoginEvent(ctx, db, {
+        accountUuid: existingAccount.uuid,
+        success: false,
+        authMethod: 'password',
+        reason: 'password_login_locked',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
       })
       throw new PlatformError(
         new Status(Severity.ERROR, platform.status.PasswordLoginLocked, { account: normalizedEmail })
@@ -243,6 +267,14 @@ export async function login (
       } catch (err) {
         ctx.warn('Failed to record failed login attempt', { error: err, account: existingAccount.uuid })
       }
+      await recordSecurityLoginEvent(ctx, db, {
+        accountUuid: existingAccount.uuid,
+        success: false,
+        authMethod: 'password',
+        reason: 'invalid_password',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
       throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
     }
 
@@ -255,16 +287,42 @@ export async function login (
       ? { admin: 'true', authMethod: 'password' }
       : { authMethod: 'password' }
     ctx.info('Login succeeded', { email, normalizedEmail, isConfirmed, emailSocialId, ...extraToken })
+    // Create a session only after confirmation and 2FA.
+    const noTfa = existingAccount.tfaSecret == null
+    let sessionId: string | undefined
+    if (isConfirmed && noTfa) {
+      sessionId = await createActiveSession(ctx, db, {
+        accountUuid: existingAccount.uuid,
+        authMethod: 'password',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
+    }
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid: existingAccount.uuid,
+      success: true,
+      authMethod: 'password',
+      reason: isConfirmed ? 'login_success' : 'email_not_confirmed',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      sessionId
+    })
 
     return {
       account: existingAccount.uuid,
       token: isConfirmed
         ? generateToken(
-          existingAccount.tfaSecret != null ? NIL_UUID : existingAccount.uuid,
+          noTfa ? existingAccount.uuid : NIL_UUID,
           undefined,
-          existingAccount.tfaSecret != null ? { ...extraToken, tfaAccount: existingAccount.uuid } : extraToken
+          noTfa ? extraToken : { ...extraToken, tfaAccount: existingAccount.uuid },
+          undefined,
+          noTfa && sessionId !== undefined ? accessTokenOptions(sessionId) : undefined
         )
         : undefined,
+      refreshToken:
+        isConfirmed && noTfa && sessionId !== undefined
+          ? mintRefreshToken(existingAccount.uuid, sessionId, 0)
+          : undefined,
       name: getPersonName(person),
       socialId: emailSocialId._id,
       tfaRequired: isConfirmed && existingAccount.tfaSecret != null
@@ -272,6 +330,16 @@ export async function login (
   } catch (err: any) {
     Analytics.handleError(err)
     ctx.error('Login failed', { email, normalizedEmail, err })
+    if (existingAccount != null) {
+      await recordSecurityLoginEvent(ctx, db, {
+        accountUuid: existingAccount.uuid,
+        success: false,
+        authMethod: 'password',
+        reason: 'login_failed',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
+    }
     throw err
   }
 }
@@ -284,7 +352,8 @@ export async function loginOtp (
   db: AccountDB,
   branding: Branding | null,
   token: string,
-  params: { email: string }
+  params: { email: string },
+  meta?: Meta
 ): Promise<OtpInfo> {
   const { email } = params
 
@@ -294,19 +363,46 @@ export async function loginOtp (
 
   // Note: can support OTP based on any other social logins later
   const normalizedEmail = cleanEmail(email)
-  const emailSocialId = await getEmailSocialId(db, normalizedEmail)
+  let accountUuid: AccountUuid | undefined
 
-  if (emailSocialId == null) {
-    throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
+  try {
+    const emailSocialId = await getEmailSocialId(db, normalizedEmail)
+
+    if (emailSocialId == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
+    }
+
+    accountUuid = emailSocialId.personUuid as AccountUuid
+    const account = await getAccount(db, accountUuid)
+
+    if (account == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
+    }
+
+    const otpInfo = await sendOtp(ctx, db, branding, emailSocialId)
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid: account.uuid,
+      success: true,
+      authMethod: 'otp',
+      reason: 'otp_requested',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
+
+    return otpInfo
+  } catch (err) {
+    if (accountUuid != null) {
+      await recordSecurityLoginEvent(ctx, db, {
+        accountUuid,
+        success: false,
+        authMethod: 'otp',
+        reason: 'otp_request_failed',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
+    }
+    throw err
   }
-
-  const account = await getAccount(db, emailSocialId.personUuid as AccountUuid)
-
-  if (account == null) {
-    throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
-  }
-
-  return await sendOtp(ctx, db, branding, emailSocialId)
 }
 
 /**
@@ -353,11 +449,39 @@ export async function signUp (
   }
 
   void setTimezone(ctx, db, account, null, meta)
+
+  // Email confirmation creates the session later in confirm.
+  let sessionId: string | undefined
+  if (!forceConfirmation) {
+    sessionId = await createActiveSession(ctx, db, {
+      accountUuid: account,
+      authMethod: 'password',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    })
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid: account,
+      success: true,
+      authMethod: 'password',
+      eventType: 'login',
+      reason: 'signup_login',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      sessionId
+    })
+  }
+
   return {
     account,
     name: getPersonName(person),
     socialId,
-    token: !forceConfirmation ? generateToken(account) : undefined
+    token:
+      !forceConfirmation && sessionId !== undefined
+        ? generateToken(account, undefined, undefined, undefined, accessTokenOptions(sessionId))
+        : !forceConfirmation
+            ? generateToken(account)
+            : undefined,
+    refreshToken: !forceConfirmation && sessionId !== undefined ? mintRefreshToken(account, sessionId, 0) : undefined
   }
 }
 
@@ -418,7 +542,8 @@ export async function validateOtp (
     code: string
     password?: string
     action?: 'verify'
-  }
+  },
+  meta?: Meta
 ): Promise<LoginInfo> {
   const { email, code, password, action } = params
 
@@ -550,24 +675,68 @@ export async function validateOtp (
       ? { admin: 'true', authMethod: 'otp' }
       : { authMethod: 'otp' }
 
+    const noTfa = targetAccount?.tfaSecret == null
+    let sessionId: string | undefined
+    if (isConfirmed && noTfa) {
+      sessionId = await createActiveSession(ctx, db, {
+        accountUuid: emailSocialId.personUuid as AccountUuid,
+        authMethod: 'otp',
+        ip: meta?.ip,
+        userAgent: meta?.userAgent
+      })
+    }
+
     const _token = isConfirmed
       ? generateToken(
-        targetAccount?.tfaSecret != null ? NIL_UUID : emailSocialId.personUuid,
+        noTfa ? emailSocialId.personUuid : NIL_UUID,
         undefined,
-        targetAccount?.tfaSecret != null ? { ...extraToken, tfaAccount: emailSocialId.personUuid } : extraToken
+        noTfa ? extraToken : { ...extraToken, tfaAccount: emailSocialId.personUuid },
+        undefined,
+        noTfa && sessionId !== undefined ? accessTokenOptions(sessionId) : undefined
       )
       : undefined
+    const _refreshToken =
+      isConfirmed && noTfa && sessionId !== undefined
+        ? mintRefreshToken(emailSocialId.personUuid as AccountUuid, sessionId, 0)
+        : undefined
+
+    await recordSecurityLoginEvent(ctx, db, {
+      accountUuid: emailSocialId.personUuid as AccountUuid,
+      success: true,
+      authMethod: 'otp',
+      reason: action === 'verify' ? 'otp_verified_social_id' : 'otp_login_success',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      sessionId
+    })
 
     return {
       account: emailSocialId.personUuid as AccountUuid,
       name: getPersonName(person),
       socialId: emailSocialId._id,
       token: _token,
+      refreshToken: _refreshToken,
       tfaRequired: targetAccount?.tfaSecret != null
     }
   } catch (err: any) {
     Analytics.handleError(err)
     ctx.error(action === 'verify' ? 'OTP verification error' : 'OTP login/sign up error', { email, err })
+    try {
+      const normalizedEmail = cleanEmail(email)
+      const emailSocialId = await getEmailSocialId(db, normalizedEmail)
+      if (emailSocialId != null) {
+        await recordSecurityLoginEvent(ctx, db, {
+          accountUuid: emailSocialId.personUuid as AccountUuid,
+          success: false,
+          authMethod: 'otp',
+          reason: action === 'verify' ? 'otp_verify_failed' : 'otp_login_failed',
+          ip: meta?.ip,
+          userAgent: meta?.userAgent
+        })
+      }
+    } catch (recordErr) {
+      ctx.warn('Failed to write OTP failure security event', { recordErr })
+    }
     throw err
   }
 }
@@ -1387,7 +1556,9 @@ export async function confirm (
   ctx: MeasureContext,
   db: AccountDB,
   branding: Branding | null,
-  token: string
+  token: string,
+  params?: Record<string, never>,
+  meta?: Meta
 ): Promise<LoginInfo | WorkspaceLoginInfo> {
   const { account, extra } = decodeTokenVerbose(ctx, token)
 
@@ -1406,11 +1577,33 @@ export async function confirm (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.PersonNotFound, { person: account }))
   }
 
+  // Email verification starts the session.
+  const sessionId = await createActiveSession(ctx, db, {
+    accountUuid: account,
+    authMethod: 'password',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent
+  })
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid: account,
+    success: true,
+    authMethod: 'password',
+    eventType: 'login',
+    reason: 'email_confirmed_login',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+    sessionId
+  })
+
   const result: LoginInfo = {
     account,
     name: getPersonName(person),
     socialId,
-    token: generateToken(account)
+    token:
+      sessionId !== undefined
+        ? generateToken(account, undefined, undefined, undefined, accessTokenOptions(sessionId))
+        : generateToken(account),
+    refreshToken: sessionId !== undefined ? mintRefreshToken(account, sessionId, 0) : undefined
   }
 
   // If invite info was carried through the confirmation token (signUpJoin flow),
@@ -1424,7 +1617,7 @@ export async function confirm (
         ctx,
         db,
         branding,
-        generateToken(account, joinInfo.workspace?.uuid),
+        generateToken(account, joinInfo.workspace?.uuid, undefined, undefined, { sessionId }),
         account,
         joinInfo.workspace,
         joinInfo.invite
@@ -1903,7 +2096,8 @@ export async function verify2fa (
   db: AccountDB,
   branding: Branding | null,
   token: string,
-  params: { code: string }
+  params: { code: string },
+  meta?: Meta
 ): Promise<LoginInfo> {
   const { code } = params
   const decoded = decodeTokenVerbose(ctx, token)
@@ -1931,9 +2125,35 @@ export async function verify2fa (
 
   const { tfaAccount, ...filteredExtra } = extra ?? {}
 
+  // The verified second factor starts the session.
+  const authMethod: SecurityAuthMethod = extra?.authMethod === 'otp' ? 'otp' : 'password'
+  const sessionId = await createActiveSession(ctx, db, {
+    accountUuid,
+    authMethod,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent
+  })
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid,
+    success: true,
+    authMethod,
+    eventType: 'login',
+    reason: '2fa_verified',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+    sessionId
+  })
+
   return {
     account: accountUuid,
-    token: generateToken(accountUuid, undefined, filteredExtra),
+    token: generateToken(
+      accountUuid,
+      undefined,
+      filteredExtra,
+      undefined,
+      sessionId !== undefined ? accessTokenOptions(sessionId) : undefined
+    ),
+    refreshToken: sessionId !== undefined ? mintRefreshToken(accountUuid, sessionId, 0) : undefined,
     name: getPersonName(person),
     socialId: socialId?._id
   }
@@ -2101,9 +2321,21 @@ export async function getLoginInfoByToken (
   let account: AccountUuid | undefined
   let nbf: number | undefined
   let exp: number | undefined
+  let sessionId: string | undefined
+  let kind: Token['kind']
 
   try {
-    ;({ account, workspace: workspaceUuid, extra, grant, nbf, exp, sub } = decodeTokenVerbose(ctx, token))
+    ;({
+      account,
+      workspace: workspaceUuid,
+      extra,
+      grant,
+      nbf,
+      exp,
+      sub,
+      sessionId,
+      kind
+    } = decodeTokenVerbose(ctx, token))
     if (grant != null && sub == null) {
       sub = (await db.generatePersonUuid()) as AccountUuid
     }
@@ -2128,6 +2360,11 @@ export async function getLoginInfoByToken (
 
   if (accountUuid == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
+  }
+
+  // Do not restore a revoked session from an access-token cookie.
+  if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
 
   const apiKeyId = extra?.apiKey
@@ -2255,8 +2492,18 @@ export async function getLoginInfoByToken (
     account: accountUuid,
     name: getPersonName(person),
     socialId: socialId?._id,
-    token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub })
+    token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub, sessionId, kind })
   }
+
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid,
+    workspaceUuid: workspaceUuid === '' ? undefined : workspaceUuid,
+    success: true,
+    authMethod: 'token',
+    reason: 'token_refresh',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent
+  })
 
   if (!isSystem) {
     void setTimezone(ctx, db, accountUuid, null, meta)
@@ -2319,8 +2566,9 @@ export async function getLoginWithWorkspaceInfo (
   let accountUuid: AccountUuid
   let extra: any
   let workspace: WorkspaceUuid | undefined
+  let sessionId: string | undefined
   try {
-    ;({ account: accountUuid, extra, workspace } = decodeTokenVerbose(ctx, token))
+    ;({ account: accountUuid, extra, workspace, sessionId } = decodeTokenVerbose(ctx, token))
   } catch (err: any) {
     Analytics.handleError(err)
     ctx.error('Invalid token', { token })
@@ -2329,6 +2577,12 @@ export async function getLoginWithWorkspaceInfo (
 
   if (accountUuid == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
+  }
+
+  // Reject revoked interactive sessions during connection.
+  if (sessionId !== undefined && (await isActiveSessionRevoked(db, sessionId))) {
+    ctx.warn('Rejecting revoked session', { accountUuid })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
 
   const apiKeyId = extra?.apiKey
@@ -3566,6 +3820,410 @@ export async function getWorkspaceUsersWithPermission (
   return await db.getWorkspaceUsersWithPermission(workspace, permission)
 }
 
+const SECURITY_AUTH_METHODS: readonly SecurityAuthMethod[] = ['password', 'otp', 'token', 'session', 'unknown']
+
+const UA_REDACT_LEN = 80
+
+function maskIpForApiResponse (ip?: string): string | undefined {
+  if (ip == null || ip.trim() === '') return undefined
+  const t = ip.trim()
+  if (t.includes(':')) {
+    const parts = t.split(':').filter((p) => p.length > 0)
+    if (parts.length === 0) return '***'
+    if (parts.length === 1) return `${parts[0].slice(0, 8)}:***`
+    return `${parts.slice(0, 2).join(':')}:***`
+  }
+  const octets = t.split('.')
+  if (octets.length !== 4) return '***'
+  return `${octets[0]}.${octets[1]}.***.***`
+}
+
+function redactSecurityLoginEventRow (row: SecurityLoginEvent): SecurityLoginEvent {
+  const ua = row.userAgent?.trim() ?? ''
+  const shortUa = ua === '' ? undefined : ua.length <= UA_REDACT_LEN ? ua : `${ua.slice(0, UA_REDACT_LEN - 1)}…`
+  return {
+    ...row,
+    ip: maskIpForApiResponse(row.ip),
+    userAgent: shortUa,
+    sessionId: undefined
+  }
+}
+
+function assertAuthMethodFilter (authMethod: string | undefined): SecurityAuthMethod | undefined {
+  if (authMethod === undefined) return undefined
+  if (!SECURITY_AUTH_METHODS.includes(authMethod as SecurityAuthMethod)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+  return authMethod as SecurityAuthMethod
+}
+
+interface MySecurityLoginHistoryFilterParams {
+  since?: number
+  until?: number
+  success?: boolean
+  authMethod?: string
+  eventType?: string
+  /** When true, restrict to real sign-in/out events (`login`/`logout`). */
+  loginsAndLogoutsOnly?: boolean
+  ip?: string
+  limit?: number
+}
+
+const SECURITY_EVENT_TYPES = ['login', 'logout', 'refresh', 'session'] as const
+
+function assertEventTypeFilter (value?: string): SecurityEventType | undefined {
+  if (value === undefined) return undefined
+  if ((SECURITY_EVENT_TYPES as readonly string[]).includes(value)) return value as SecurityEventType
+  throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+}
+
+async function findMySecurityLoginEventRows (
+  db: AccountDB,
+  account: AccountUuid,
+  params: MySecurityLoginHistoryFilterParams
+): Promise<SecurityLoginEvent[]> {
+  const { since, until, success, ip } = params
+  const authMethod = assertAuthMethodFilter(params.authMethod)
+  const eventType = assertEventTypeFilter(params.eventType)
+  const limit = Math.min(Math.max(params.limit ?? 100, 1), 500)
+
+  const query: Query<SecurityLoginEvent> = {
+    accountUuid: account
+  }
+
+  if (success !== undefined) {
+    query.success = success
+  }
+  if (authMethod !== undefined) {
+    query.authMethod = authMethod
+  }
+  if (eventType !== undefined) {
+    query.eventType = eventType
+  } else if (params.loginsAndLogoutsOnly === true) {
+    query.eventType = { $in: ['login', 'logout'] }
+  }
+  if (ip !== undefined) {
+    query.ip = ip
+  }
+
+  if (since !== undefined || until !== undefined) {
+    query.eventTime = {}
+    if (since !== undefined) {
+      query.eventTime.$gte = since
+    }
+    if (until !== undefined) {
+      query.eventTime.$lte = until
+    }
+  }
+
+  return await db.securityLoginEvent.find(query, { eventTime: 'descending' }, limit)
+}
+
+export async function getMySecurityLoginHistory (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: {
+    since?: number
+    until?: number
+    success?: boolean
+    authMethod?: string
+    eventType?: string
+    loginsAndLogoutsOnly?: boolean
+    ip?: string
+    limit?: number
+    redact?: boolean
+  }
+): Promise<SecurityLoginEvent[]> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'getMySecurityLoginHistory', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
+  const redact = params.redact === true
+  // Hide routine session events unless requested.
+  const loginsAndLogoutsOnly = params.loginsAndLogoutsOnly ?? params.eventType === undefined
+  const rows = await findMySecurityLoginEventRows(db, account, { ...params, loginsAndLogoutsOnly })
+  return redact ? rows.map(redactSecurityLoginEventRow) : rows
+}
+
+export async function getWorkspaceSecurityLoginHistory (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: {
+    accountUuid?: AccountUuid
+    since?: number
+    until?: number
+    success?: boolean
+    authMethod?: string
+    ip?: string
+    limit?: number
+  }
+): Promise<SecurityLoginEvent[]> {
+  const { account, workspace } = decodeTokenVerbose(ctx, token)
+  if (workspace == null || workspace === '') {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid: workspace }))
+  }
+
+  const role = account === systemAccountUuid ? AccountRole.Owner : await db.getWorkspaceRole(account, workspace)
+  if (role == null || getRolePower(role) < getRolePower(AccountRole.Maintainer)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  assertSecurityLoginTelemetryRateLimit(
+    account,
+    'getWorkspaceSecurityLoginHistory',
+    'SECURITY_LOGIN_HISTORY_READ_RPM',
+    120
+  )
+
+  const { since, until, success, ip } = params
+  let accountUuid = params.accountUuid
+  // Default non-system callers to their own account.
+  if (account !== systemAccountUuid && accountUuid === undefined) {
+    accountUuid = account
+  }
+  const authMethod = assertAuthMethodFilter(params.authMethod)
+  const limit = Math.min(Math.max(params.limit ?? 100, 1), 500)
+
+  const query: Query<SecurityLoginEvent> = {
+    workspaceUuid: workspace
+  }
+
+  if (accountUuid !== undefined) {
+    query.accountUuid = accountUuid
+  }
+  if (success !== undefined) {
+    query.success = success
+  }
+  if (authMethod !== undefined) {
+    query.authMethod = authMethod
+  }
+  if (ip !== undefined) {
+    query.ip = ip
+  }
+
+  if (since !== undefined || until !== undefined) {
+    query.eventTime = {}
+    if (since !== undefined) {
+      query.eventTime.$gte = since
+    }
+    if (until !== undefined) {
+      query.eventTime.$lte = until
+    }
+  }
+
+  return await db.securityLoginEvent.find(query, { eventTime: 'descending' }, limit)
+}
+
+const MAX_SECURITY_LOGIN_EVENT_ID_LEN = 128
+
+export async function exportMySecurityLoginHistory (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params?: MySecurityLoginHistoryFilterParams
+): Promise<SecurityLoginEvent[]> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'exportMySecurityLoginHistory', 'SECURITY_LOGIN_EXPORT_RPM', 5)
+  return await findMySecurityLoginEventRows(db, account, {
+    since: params?.since,
+    until: params?.until,
+    success: params?.success,
+    authMethod: params?.authMethod,
+    ip: params?.ip,
+    limit: 500
+  })
+}
+
+export async function eraseMySecurityLoginHistory (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  _params?: Record<string, never>
+): Promise<void> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'eraseMySecurityLoginHistory', 'SECURITY_LOGIN_ERASE_RPM', 10)
+  await db.securityLoginEvent.deleteMany({ accountUuid: account })
+}
+
+export async function reportSecurityLoginConcern (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params?: { loginEventId?: string }
+): Promise<void> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'reportSecurityLoginConcern', 'SECURITY_LOGIN_REPORT_RPM', 20)
+
+  let loginEventId = params?.loginEventId?.trim()
+  if (loginEventId === '') loginEventId = undefined
+  if (loginEventId !== undefined && loginEventId.length > MAX_SECURITY_LOGIN_EVENT_ID_LEN) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  let data: Record<string, unknown> | undefined
+  if (loginEventId !== undefined) {
+    const row = await db.securityLoginEvent.findOne({ id: loginEventId, accountUuid: account })
+    if (row == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+    }
+    data = {
+      loginEventId: row.id,
+      eventTime: row.eventTime,
+      workspaceUuid: row.workspaceUuid
+    }
+  } else {
+    data = { source: 'profile_recent_activity' }
+  }
+
+  await db.accountEvent.insertOne({
+    accountUuid: account,
+    eventType: AccountEventType.SECURITY_LOGIN_CONCERN_REPORTED,
+    time: Date.now(),
+    data
+  })
+}
+
+function activeSessionToInfo (
+  row: ActiveSession,
+  currentSessionId: string | undefined,
+  redact: boolean,
+  anomalyCodes: string[] | undefined
+): ActiveSessionInfo {
+  const ua = row.userAgent?.trim() ?? ''
+  const userAgent =
+    !redact || ua === ''
+      ? ua === ''
+        ? undefined
+        : ua
+      : ua.length <= UA_REDACT_LEN
+        ? ua
+        : `${ua.slice(0, UA_REDACT_LEN - 1)}…`
+  return {
+    sessionId: row.sessionId,
+    workspaceUuid: row.workspaceUuid,
+    createdOn: row.createdOn,
+    lastSeen: row.lastSeen,
+    ip: redact ? maskIpForApiResponse(row.ip) : row.ip,
+    country: row.country,
+    city: row.city,
+    userAgent,
+    authMethod: row.authMethod,
+    isCurrent: currentSessionId !== undefined && row.sessionId === currentSessionId,
+    anomalyCodes: anomalyCodes !== undefined && anomalyCodes.length > 0 ? anomalyCodes : undefined
+  }
+}
+
+const MAX_SESSION_ANOMALY_LOOKUP = 200
+
+/** Returns anomaly codes from each session's login event. */
+async function findAnomalyCodesBySessionId (
+  db: AccountDB,
+  account: AccountUuid,
+  sessionIds: string[]
+): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>()
+  if (sessionIds.length === 0) return result
+  const rows = await db.securityLoginEvent.find(
+    { accountUuid: account, sessionId: { $in: sessionIds } },
+    { eventTime: 'descending' },
+    Math.min(sessionIds.length * 4, MAX_SESSION_ANOMALY_LOOKUP)
+  )
+  for (const row of rows) {
+    if (row.sessionId === undefined || row.anomalyCodes === undefined || row.anomalyCodes.length === 0) continue
+    const existing = result.get(row.sessionId) ?? []
+    result.set(row.sessionId, Array.from(new Set([...existing, ...row.anomalyCodes])))
+  }
+  return result
+}
+
+export async function getMyActiveSessions (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { redact?: boolean }
+): Promise<ActiveSessionInfo[]> {
+  const { account, sessionId } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'getMyActiveSessions', 'SECURITY_LOGIN_HISTORY_READ_RPM', 120)
+  const redact = params?.redact === true
+  const rows = await listActiveSessions(db, account)
+  let anomaliesBySession = new Map<string, string[]>()
+  try {
+    anomaliesBySession = await findAnomalyCodesBySessionId(
+      db,
+      account,
+      rows.map((row) => row.sessionId)
+    )
+  } catch (err) {
+    ctx.warn('Failed to look up active session anomalies', { err, account })
+  }
+  return rows.map((row) => activeSessionToInfo(row, sessionId, redact, anomaliesBySession.get(row.sessionId)))
+}
+
+const MAX_SESSION_ID_LEN = 128
+
+export async function revokeSession (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { sessionId?: string }
+): Promise<void> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  assertSecurityLoginTelemetryRateLimit(account, 'revokeSession', 'SECURITY_LOGIN_REPORT_RPM', 20)
+
+  const sessionId = params?.sessionId?.trim()
+  if (sessionId === undefined || sessionId === '' || sessionId.length > MAX_SESSION_ID_LEN) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  await revokeActiveSession(ctx, db, account, sessionId, 'user')
+}
+
+/** Rotates a valid refresh token and returns fresh tokens. */
+export async function refreshToken (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  _params?: Record<string, never>
+): Promise<LoginInfo> {
+  // Validates the signature and expiry.
+  const decoded = decodeTokenVerbose(ctx, token)
+  if (decoded.kind !== 'refresh' || decoded.sessionId === undefined) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+  }
+  const account = decoded.account
+  assertSecurityLoginTelemetryRateLimit(account, 'refreshToken', 'SECURITY_LOGIN_REFRESH_RPM', 240)
+
+  const presentedGen = Number.parseInt(decoded.extra?.gen ?? '', 10)
+  const result = await rotateSessionRefresh(ctx, db, account, decoded.sessionId, presentedGen)
+  if ('error' in result) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+  }
+
+  await recordSecurityLoginEvent(ctx, db, {
+    accountUuid: account,
+    success: true,
+    authMethod: 'session',
+    eventType: 'refresh',
+    reason: 'token_refresh',
+    sessionId: decoded.sessionId
+  })
+
+  return {
+    account,
+    // The client scopes this account token to a workspace separately.
+    token: generateToken(account, undefined, undefined, undefined, accessTokenOptions(decoded.sessionId)),
+    refreshToken: mintRefreshToken(account, decoded.sessionId, result.newGen)
+  }
+}
+
 export type AccountMethods =
   | AccountServiceMethods
   | 'login'
@@ -3647,6 +4305,14 @@ export type AccountMethods =
   | 'hasWorkspacePermission'
   | 'getWorkspacePermissions'
   | 'getWorkspaceUsersWithPermission'
+  | 'getMySecurityLoginHistory'
+  | 'getWorkspaceSecurityLoginHistory'
+  | 'exportMySecurityLoginHistory'
+  | 'eraseMySecurityLoginHistory'
+  | 'reportSecurityLoginConcern'
+  | 'getMyActiveSessions'
+  | 'revokeSession'
+  | 'refreshToken'
 
 /**
  * @public
@@ -3720,6 +4386,14 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     hasWorkspacePermission: wrap(hasWorkspacePermission),
     getWorkspacePermissions: wrap(getWorkspacePermissions),
     getWorkspaceUsersWithPermission: wrap(getWorkspaceUsersWithPermission),
+    getMySecurityLoginHistory: wrap(getMySecurityLoginHistory),
+    getWorkspaceSecurityLoginHistory: wrap(getWorkspaceSecurityLoginHistory),
+    exportMySecurityLoginHistory: wrap(exportMySecurityLoginHistory),
+    eraseMySecurityLoginHistory: wrap(eraseMySecurityLoginHistory),
+    reportSecurityLoginConcern: wrap(reportSecurityLoginConcern),
+    getMyActiveSessions: wrap(getMyActiveSessions),
+    revokeSession: wrap(revokeSession),
+    refreshToken: wrap(refreshToken),
 
     /* READ OPERATIONS */
     getRegionInfo: wrap(getRegionInfo),

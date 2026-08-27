@@ -18,6 +18,8 @@ export const accountPlugin = plugin(accountId, {
     OtpTimeToLiveSec: '' as Metadata<number>,
     OtpRetryDelaySec: '' as Metadata<number>,
     WsLivenessDays: '' as Metadata<number>,
+    AccessTokenTtlSec: '' as Metadata<number>,
+    RefreshTokenTtlSec: '' as Metadata<number>,
     DefaultBrandingKey: '' as Metadata<string>
   },
   string: {

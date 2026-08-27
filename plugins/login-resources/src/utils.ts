@@ -64,6 +64,7 @@ import { logIn, workbenchId } from '@hcengineering/workbench'
 
 import { LoginEvents } from './analytics'
 import { type Pages } from './index'
+import { nextRefreshDelayMs, refreshAccessToken } from './tokenRefresh'
 import login from './plugin'
 
 /**
@@ -516,6 +517,53 @@ export function setLoginInfo (loginInfo: WorkspaceLoginInfo): void {
   setMetadataLocalStorage(login.metadata.LoginEndpoint, loginInfo.endpoint)
   setMetadataLocalStorage(login.metadata.LoginAccount, loginInfo.account)
   setMetadataLocalStorage(login.metadata.LastAccount, loginInfo.account)
+  // Keep the account cookie aligned with the current workspace token.
+  void getAccountClient(loginInfo.token)
+    .setCookie()
+    .catch((err) => {
+      console.error('Failed to refresh account token cookie', err)
+    })
+  startTokenRefresh(loginInfo.workspaceUrl)
+}
+
+let tokenRefreshTimer: ReturnType<typeof setTimeout> | undefined
+
+/** Stops the proactive access-token refresh loop. */
+export function stopTokenRefresh (): void {
+  if (tokenRefreshTimer !== undefined) {
+    clearTimeout(tokenRefreshTimer)
+    tokenRefreshTimer = undefined
+  }
+}
+
+/** Arms a refresh timer when the access token has an expiry. */
+export function startTokenRefresh (workspaceUrl: string): void {
+  stopTokenRefresh()
+  const delay = nextRefreshDelayMs(getMetadata(presentation.metadata.Token))
+  if (delay === undefined) return
+  tokenRefreshTimer = setTimeout(() => {
+    void runTokenRefresh(workspaceUrl)
+  }, delay)
+}
+
+async function runTokenRefresh (workspaceUrl: string): Promise<void> {
+  const accessToken = await refreshAccessToken()
+  if (accessToken === undefined) {
+    stopTokenRefresh()
+    setMetadata(presentation.metadata.Token, null)
+    navigate({ path: [loginId] })
+    return
+  }
+  try {
+    const [, wsInfo] = await selectWorkspace(workspaceUrl, accessToken)
+    if (wsInfo?.token != null) {
+      setLoginInfo(wsInfo)
+    } else {
+      startTokenRefresh(workspaceUrl)
+    }
+  } catch {
+    startTokenRefresh(workspaceUrl)
+  }
 }
 
 export function navigateToWorkspace (

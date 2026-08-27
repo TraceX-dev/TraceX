@@ -204,7 +204,9 @@ class PlatformQueueImpl implements PlatformQueue {
 
 class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
   txProducer: Producer
-  connected: Promise<void> | undefined
+  private isConnected = false
+  // Shared connection attempt; cleared after success or failure.
+  private connecting: Promise<void> | undefined
   private closed = false
 
   constructor (
@@ -217,7 +219,23 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
       allowAutoTopicCreation: true,
       createPartitioner: Partitioners.DefaultPartitioner
     })
-    this.connected = this.ctx.with('connect-broker', {}, () => this.txProducer.connect())
+    this.ensureConnected().catch(() => {})
+  }
+
+  /** Connects the producer, retrying after failed attempts. */
+  private async ensureConnected (): Promise<void> {
+    if (this.isConnected) return
+    if (this.connecting === undefined) {
+      this.connecting = this.ctx
+        .with('connect-broker', {}, () => this.txProducer.connect())
+        .then(() => {
+          this.isConnected = true
+        })
+        .finally(() => {
+          this.connecting = undefined
+        })
+    }
+    await this.connecting
   }
 
   getQueue (): PlatformQueue {
@@ -225,10 +243,7 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
   }
 
   async send (ctx: MeasureContext, workspace: WorkspaceUuid, msgs: any[], partitionKey?: string): Promise<void> {
-    if (this.connected !== undefined) {
-      await this.connected
-      this.connected = undefined
-    }
+    await this.ensureConnected()
     await this.ctx.with('send', { topic: this.topic }, () =>
       this.txProducer.send({
         topic: this.topic,
@@ -257,6 +272,7 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
 
 class PlatformQueueConsumerImpl implements ConsumerHandle {
   connected = false
+  private closed = false
   cc: Consumer
   constructor (
     readonly ctx: MeasureContext,
@@ -285,9 +301,24 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
       heartbeatInterval: 3000
     })
 
-    void this.start().catch((err) => {
-      ctx.error('failed to consume', { err })
-    })
+    void this.startWithRetry()
+  }
+
+  /** Starts the consumer with retry backoff. */
+  private async startWithRetry (): Promise<void> {
+    const retryDelay = this.options?.retryDelay ?? 1000
+    const maxRetryDelay = this.options?.maxRetryDelay ?? 10
+    let attempt = 1
+    while (!this.closed) {
+      try {
+        await this.start()
+        return
+      } catch (err: any) {
+        this.ctx.error('failed to start consumer, retrying', { err, attempt, topic: this.topic })
+        await new Promise((resolve) => setTimeout(resolve, Math.min(attempt, maxRetryDelay) * retryDelay))
+        attempt++
+      }
+    }
   }
 
   async start (): Promise<void> {
@@ -353,6 +384,7 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
   }
 
   close (): Promise<void> {
+    this.closed = true
     return this.cc.disconnect()
   }
 }
