@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,8 +18,8 @@
   import { OK, Severity, Status } from '@hcengineering/platform'
   import { logIn } from '@hcengineering/workbench'
   import { signupStore } from '@hcengineering/analytics-providers'
+  import { Label } from '@hcengineering/ui'
 
-  import { loginFooterActions } from '../footerActions'
   import login from '../plugin'
   import { getPasswordValidationRules } from '../validations'
   import { goTo } from '../utils'
@@ -26,7 +27,7 @@
   import { OtpLoginSteps, signUp, signUpOtp, type BottomAction } from '../index'
   import type { Field } from '../types'
   import OtpForm from './OtpForm.svelte'
-  import { onDestroy, onMount } from 'svelte'
+  import { onMount } from 'svelte'
 
   export let signUpDisabled = false
   export let localLoginHidden = false
@@ -128,15 +129,25 @@
     step = event.detail
   }
 
-  $: loginFooterActions.set(useOTP ? [withPasswordAction] : [])
-
-  onDestroy(() => {
-    loginFooterActions.set([])
-  })
 </script>
 
 {#if step === OtpLoginSteps.Email}
-  <Form bind:this={form} caption={login.string.SignUp} {status} {fields} {object} {action} withProviders />
+  <Form
+    bind:this={form}
+    caption={login.string.SignUp}
+    {status}
+    {fields}
+    {object}
+    {action}
+    withProviders
+  />
+  {#if useOTP}
+    <div class="signup-extra-actions">
+      <a class="method-toggle" href="." on:click|preventDefault={withPasswordAction.func}>
+        <Label label={withPasswordAction.i18n} />
+      </a>
+    </div>
+  {/if}
 {/if}
 
 {#if step === OtpLoginSteps.Otp && object.username !== ''}
@@ -150,3 +161,23 @@
     on:step={handleStep}
   />
 {/if}
+
+<style lang="scss">
+  .signup-extra-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .method-toggle {
+    font-weight: 500;
+    color: var(--theme-link-color);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+</style>
