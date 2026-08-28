@@ -16,6 +16,7 @@
 <script lang="ts">
   import {
     WorkspaceInfoWithStatus,
+    WorkspaceUuid,
     isActiveMode,
     isArchivingMode,
     isRestoringMode,
@@ -68,7 +69,7 @@
   let avatarUrls: Record<string, string> = {}
   const requestedAvatarUuids = new Set<string>()
 
-  const loadAvatarUrls = reduceCalls(async function loadAvatarUrls (uuids: string[]): Promise<void> {
+  const loadAvatarUrls = reduceCalls(async function loadAvatarUrls (uuids: WorkspaceUuid[]): Promise<void> {
     if (uuids.length === 0) return
     try {
       avatarUrls = { ...avatarUrls, ...(await getWorkspaceAvatarUrls(uuids)) }

@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
   import contact from '@hcengineering/contact'
-  import { isArchivingMode, systemAccountUuid, WorkspaceInfoWithStatus } from '@hcengineering/core'
+  import { isArchivingMode, systemAccountUuid, WorkspaceInfoWithStatus, WorkspaceUuid } from '@hcengineering/core'
   import login from '@hcengineering/login'
   import { getMetadata, getResource } from '@hcengineering/platform'
   import presentation, {
@@ -201,7 +201,7 @@
   let avatarUrls: Record<string, string> = {}
   const requestedAvatarUuids = new Set<string>()
 
-  const loadAvatarUrls = reduceCalls(async function loadAvatarUrls (uuids: string[]): Promise<void> {
+  const loadAvatarUrls = reduceCalls(async function loadAvatarUrls (uuids: WorkspaceUuid[]): Promise<void> {
     if (uuids.length === 0) return
     try {
       avatarUrls = { ...avatarUrls, ...(await getWorkspaceAvatarUrls(uuids)) }

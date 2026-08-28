@@ -638,7 +638,11 @@ export function start (
               }
             }
           }
-          await Promise.all(Array.from({ length: Math.min(10, avatarInfos.length) }, async () => { await worker() }))
+          await Promise.all(
+            Array.from({ length: Math.min(10, avatarInfos.length) }, async () => {
+              await worker()
+            })
+          )
 
           res.status(200).json(result)
         } catch (error: any) {
