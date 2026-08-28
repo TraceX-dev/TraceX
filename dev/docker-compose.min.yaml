@@ -2,7 +2,7 @@
 # Use with: docker compose -f docker-compose.yaml -f docker-compose.min.yaml up
 # (rush docker:up:min)
 # Excluded: preview, link-preview, elastic, redis, stats, payment, billing, fulltext_cockroach,
-#           print, sign, hulykvs, hulygun, hulypulse, process-service, backup-cockroach,
+#           print, sign, hulykvs, hulygun, hulypulse, process-service, backup-pg, backup-cockroach,
 #           backup-api, rating_cockroach
 # Overrides below remove dependencies on excluded services so the min project validates.
 
@@ -35,6 +35,8 @@ services:
     profiles: ["full"]
   process-service:
     profiles: ["full"]
+  backup-pg:
+    profiles: ["full"]
   backup-cockroach:
     profiles: ["full"]
   backup-api:
@@ -45,17 +47,17 @@ services:
     links: !override []
   workspace_pg:
     links: !override
-      - cockroach
+      - postgres
       - minio
   collaborator:
     links: !override
       - minio
-      - transactor_cockroach
+      - transactor_pg
   front:
     links: !override []
   transactor_pg:
     links: !override
-      - cockroach
+      - postgres
       - minio
       - account
   export:
@@ -65,7 +67,7 @@ services:
     depends_on: !override
       minio:
         condition: service_healthy
-      cockroach:
+      postgres:
         condition: service_started
       account:
         condition: service_started
