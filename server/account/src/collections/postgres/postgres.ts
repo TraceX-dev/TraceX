@@ -288,6 +288,13 @@ implements DbCollection<T> {
     return result[0]?.exists === true
   }
 
+  async count (query: Query<T>, client?: Sql): Promise<number> {
+    const [whereClause, whereValues] = this.buildWhereClause(query)
+    const result = await this.unsafe(`SELECT COUNT(*) FROM ${this.getTableName()} ${whereClause}`, whereValues, client)
+
+    return Number(result[0]?.count ?? 0)
+  }
+
   async find (query: Query<T>, sort?: Sort<T>, limit?: number, client?: Sql): Promise<T[]> {
     const sqlChunks: string[] = [this.buildSelectClause()]
     const [whereClause, whereValues] = this.buildWhereClause(query)
