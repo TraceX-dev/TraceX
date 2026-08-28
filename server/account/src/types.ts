@@ -395,6 +395,7 @@ export interface AccountDB {
 
 export interface DbCollection<T> {
   exists: (query: Query<T>) => Promise<boolean>
+  count: (query: Query<T>) => Promise<number>
   find: (query: Query<T>, sort?: Sort<T>, limit?: number) => Promise<T[]>
   findOne: (query: Query<T>) => Promise<T | null>
   insertOne: (data: Partial<T>) => Promise<any>
