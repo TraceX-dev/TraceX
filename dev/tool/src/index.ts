@@ -130,6 +130,7 @@ import { ensureMissingSocialIdentities } from './contact'
 import { performGithubAccountMigrations } from './github'
 import { performGmailAccountMigrations } from './gmail'
 import { getToolToken, getWorkspace, getWorkspaceTransactorEndpoint } from './utils'
+import { backfillWorkspaceAvatars } from './workspaceAvatar'
 
 import { createRestClient } from '@hcengineering/api-client'
 import { connect, sendTransactorEvent } from '@hcengineering/server-tool'
@@ -1233,6 +1234,28 @@ export function devTool (
       await ensureGlobalPersonsForLocalAccounts(toolCtx, dbUrl, accDb)
     }, dbUrl)
   })
+
+  program
+    .command('backfill-workspace-avatars')
+    .description(
+      'Backfill account-service Workspace.icon for workspaces that already had a WorkspaceSetting.icon ' +
+        'before the avatar-sync change, so select-workspace/workspace-switcher can render it without ' +
+        'waiting for someone to re-save the icon.'
+    )
+    .option('--force', 'Recompute avatar even for workspaces that already have one set', false)
+    .option('--dry-run', 'Only log what would change, without writing to the account database', false)
+    .option('--concurrency <concurrency>', 'Number of workspaces to process in parallel', '10')
+    .action(async (cmd: { force: boolean, dryRun: boolean, concurrency: string }) => {
+      const { dbUrl } = prepareTools()
+
+      await withAccountDatabase(async (accDb) => {
+        await backfillWorkspaceAvatars(toolCtx, accDb, {
+          force: cmd.force,
+          dryRun: cmd.dryRun,
+          concurrency: parseInt(cmd.concurrency)
+        })
+      }, dbUrl)
+    })
 
   program.command('migrate-merged-accounts').action(async () => {
     const { dbUrl } = prepareTools()

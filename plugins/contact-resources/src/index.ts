@@ -38,6 +38,7 @@ import login from '@hcengineering/login'
 import { getResource, type IntlString, type Resources } from '@hcengineering/platform'
 import { MessageBox, getBlobRef, getClient, type ObjectSearchResult } from '@hcengineering/presentation'
 import {
+  darkPalette,
   getPlatformAvatarColorByName,
   getPlatformAvatarColorForTextDef,
   getPlatformColorDef,
@@ -45,6 +46,7 @@ import {
   parseURL,
   showPopup,
   themeStore,
+  whitePalette,
   type AnyComponent,
   type AnySvelteComponent,
   type ColorDefinition,
@@ -338,6 +340,14 @@ function getPersonColor (person: Data<WithLookup<AvatarInfo>>, name: string): Co
 
   if (person.avatarProps?.color !== undefined) {
     if (person.avatarProps?.color?.startsWith('#')) {
+      // Prefer an exact match in the platform palette (e.g. a color pre-computed via
+      // getPlatformColorForText, such as a workspace's identity color also used by
+      // Logo/WorkspaceAvatar) so it renders as that exact swatch instead of being
+      // re-hashed into an unrelated one via hexColorToNumber.
+      const exact = (dark ? darkPalette : whitePalette).find((it) => it.color === person.avatarProps?.color)
+      if (exact !== undefined) {
+        return exact
+      }
       return getPlatformColorDef(hexColorToNumber(person.avatarProps?.color), dark)
     }
     return getPlatformAvatarColorByName(person.avatarProps?.color, dark)

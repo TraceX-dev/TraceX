@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { type Blob as PlatformBlob, type Ref, type WorkspaceUuid } from '@hcengineering/core'
+import { concatLink, type Blob as PlatformBlob, type Ref, type WorkspaceUuid } from '@hcengineering/core'
 import { getMetadata } from '@hcengineering/platform'
 import { type FileStorage, createFileStorage as createStorageClient } from '@hcengineering/storage-client'
 import { v4 as uuid } from 'uuid'
@@ -60,6 +60,41 @@ export function getFileUrl (file: string, filename?: string): string {
 
   const storage = getFileStorage()
   return storage.getFileUrl(workspace, file, filename)
+}
+
+// Must match maxAvatarInfoBulkSize in server/account/src/serviceOperations.ts.
+const maxWorkspaceAvatarBulkSize = 200
+
+/**
+ * URLs of other workspaces' logos (select-workspace, the workspace switcher), fetched
+ * before the browser holds a token for them. Not {@link getFileUrl} — that needs a
+ * token scoped to each workspace. Instead hits a public front-server endpoint that
+ * resolves each workspace's own logo blob server-side, one request per 200-uuid chunk.
+ * Returns data: URIs keyed by uuid; missing/failed logos are simply absent.
+ * @public
+ */
+export async function getWorkspaceAvatarUrls (workspaceUuids: WorkspaceUuid[]): Promise<Record<string, string>> {
+  const frontUrl =
+    getMetadata(plugin.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
+  const url = concatLink(frontUrl, '/avatars')
+
+  const result: Record<string, string> = {}
+  for (let i = 0; i < workspaceUuids.length; i += maxWorkspaceAvatarBulkSize) {
+    const chunk = workspaceUuids.slice(i, i + maxWorkspaceAvatarBulkSize)
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceUuids: chunk })
+      })
+      if (res.ok) {
+        Object.assign(result, await res.json())
+      }
+    } catch (err: any) {
+      // Best-effort — those workspaces just render without a logo.
+    }
+  }
+  return result
 }
 
 /**

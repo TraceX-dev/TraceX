@@ -14,11 +14,14 @@
 //
 import {
   type AccountRole,
+  type Blob,
   type Data,
   isActiveMode,
   type MeasureContext,
+  type Ref,
   SocialIdType,
   type Version,
+  type WorkspaceDataId,
   type WorkspaceMode,
   type PersonInfo,
   type BackupStatus,
@@ -443,6 +446,36 @@ export async function updateWorkspaceInfo (
   if (Object.keys(wsUpdate).length !== 0) {
     await db.workspace.update({ uuid: workspaceUuid }, wsUpdate)
   }
+}
+
+// Backs front's bulk /avatars route: one DB query for N workspaces' logo blobs
+// instead of N. Returns only uuid/url/dataId/icon — front serves those blobs
+// back with no auth check of its own, so nothing else should be exposed here.
+const maxAvatarInfoBulkSize = 200
+
+export async function getWorkspaceAvatarInfoBulk (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { workspaceUuids: WorkspaceUuid[] }
+): Promise<Array<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null }>> {
+  const { extra } = decodeTokenVerbose(ctx, token)
+  verifyAllowedServices(['front'], extra)
+
+  const { workspaceUuids } = params
+  if (workspaceUuids.length === 0 || workspaceUuids.length > maxAvatarInfoBulkSize) {
+    return []
+  }
+
+  const workspaces = await getWorkspacesInfoWithStatusByIds(db, workspaceUuids)
+
+  return workspaces.map((workspace) => ({
+    uuid: workspace.uuid,
+    url: workspace.url,
+    dataId: workspace.dataId,
+    icon: workspace.icon ?? null
+  }))
 }
 
 export async function workerHandshake (
@@ -1122,6 +1155,7 @@ export async function getSubscriptionByProviderId (
 export type AccountServiceMethods =
   | 'getPendingWorkspace'
   | 'updateWorkspaceInfo'
+  | 'getWorkspaceAvatarInfoBulk'
   | 'workerHandshake'
   | 'updateBackupInfo'
   | 'updateUsageInfo'
@@ -1157,6 +1191,7 @@ export function getServiceMethods (): Partial<Record<AccountServiceMethods, Acco
   return {
     getPendingWorkspace: wrap(getPendingWorkspace),
     updateWorkspaceInfo: wrap(updateWorkspaceInfo),
+    getWorkspaceAvatarInfoBulk: wrap(getWorkspaceAvatarInfoBulk),
     workerHandshake: wrap(workerHandshake),
     updateBackupInfo: wrap(updateBackupInfo),
     updateUsageInfo: wrap(updateUsageInfo),

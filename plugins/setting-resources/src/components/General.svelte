@@ -32,6 +32,7 @@
     type DropdownTextItem,
     EditBox,
     getLocalWeekStart,
+    getPlatformColorForText,
     getWeekDayNames,
     hasLocalWeekStart,
     Header,
@@ -75,6 +76,10 @@
       name.trim() === oldName ||
       name.trim() === '' ||
       disabledSet.some((it) => name.includes(it)))
+
+  // Same seed (workspace uuid) and palette as the select-workspace/switcher WorkspaceAvatar
+  // and the sidebar Logo, so the color fallback for this workspace's icon matches everywhere.
+  $: workspaceAvatarColor = getPlatformColorForText(workspaceId, $themeStore.dark)
 
   void loadWorkspaceName()
   void loadApiKeys()
@@ -130,6 +135,7 @@
 
   async function handleAvatarDone (): Promise<void> {
     const existing = await client.findOne(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting })
+    let icon: NonNullable<WorkspaceSetting['icon']> | null
     if (existing !== undefined) {
       const avatar = await avatarEditor.createAvatar()
       // Remove old avatar if changed
@@ -137,10 +143,11 @@
         await avatarEditor.removeAvatar(existing.icon)
       }
 
-      const icon = avatar.avatarType === AvatarType.IMAGE ? avatar.avatar : null
+      icon = avatar.avatarType === AvatarType.IMAGE ? (avatar.avatar ?? null) : null
       await client.diffUpdate(existing, { icon })
     } else {
       const avatar = await avatarEditor.createAvatar()
+      icon = avatar.avatar ?? null
 
       await client.createDoc(
         settingsRes.class.WorkspaceSetting,
@@ -149,6 +156,10 @@
         settingsRes.ids.WorkspaceSetting
       )
     }
+
+    // Keep the account-service copy of the workspace avatar (used by select-workspace and
+    // workspace-switcher, which have no workspace-scoped client) in sync.
+    await accountClient.updateWorkspaceAvatar(icon)
   }
 
   const permissionConfigurationQuery = createQuery()
@@ -283,8 +294,9 @@
                 <div class="flex-row-bottom flex-gap-4">
                   <EditableAvatar
                     person={{
-                      avatarType: workspaceSettings?.icon !== undefined ? AvatarType.IMAGE : AvatarType.COLOR,
-                      avatar: workspaceSettings?.icon
+                      avatarType: workspaceSettings?.icon != null ? AvatarType.IMAGE : AvatarType.COLOR,
+                      avatar: workspaceSettings?.icon,
+                      avatarProps: { color: workspaceAvatarColor }
                     }}
                     size="medium"
                     {name}

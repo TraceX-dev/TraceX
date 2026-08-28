@@ -16,6 +16,7 @@
 import {
   type AccountRole,
   type BackupStatus,
+  type Blob,
   type Branding,
   type Data,
   type MeasureContext,
@@ -33,7 +34,8 @@ import {
   type WorkspaceDataId,
   type WorkspaceUuid,
   type WorkspaceInfo,
-  type IntegrationKind
+  type IntegrationKind,
+  type Ref
 } from '@hcengineering/core'
 import type { EndpointInfo } from './utils'
 
@@ -117,6 +119,7 @@ export interface Workspace {
   url: string
   allowReadOnlyGuest: boolean
   allowGuestSignUp: boolean
+  icon?: Ref<Blob> | null // Blob id of the workspace logo (within the workspace's own storage), or null if not set
   passwordAgingRule?: number | null // Number of days after which password must be changed
   dataId?: WorkspaceDataId // Old workspace identifier. E.g. Database name in Mongo, bucket in R2, etc.
   branding?: string

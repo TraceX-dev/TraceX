@@ -18,6 +18,7 @@ import {
   type AccountInfo,
   AccountRole,
   type AccountUuid,
+  type Blob,
   type Branding,
   buildSocialIdString,
   generateId,
@@ -30,6 +31,7 @@ import {
   type Person,
   type PersonId,
   type PersonUuid,
+  type Ref,
   SocialIdType,
   systemAccount,
   systemAccountEmail,
@@ -1806,6 +1808,33 @@ export async function updateWorkspaceName (
     { uuid: workspace },
     {
       name
+    }
+  )
+}
+
+// `params.avatar` is a blob id, not a URL — readers resolve it via getFileUrl (own
+// workspace) or getWorkspaceAvatarUrls (others), both in @hcengineering/presentation.
+export async function updateWorkspaceAvatar (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { avatar: Ref<Blob> | null }
+): Promise<void> {
+  const { avatar: icon } = params
+
+  const { account, workspace } = decodeTokenVerbose(ctx, token)
+  const role = await db.getWorkspaceRole(account, workspace)
+
+  if (role == null || getRolePower(role) < getRolePower(AccountRole.Maintainer)) {
+    ctx.error('Need to be at least maintainer to update workspace avatar', { workspace, account, role })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  await db.workspace.update(
+    { uuid: workspace },
+    {
+      icon
     }
   )
 }
@@ -3596,6 +3625,7 @@ export type AccountMethods =
   | 'leaveWorkspace'
   | 'changeUsername'
   | 'updateWorkspaceName'
+  | 'updateWorkspaceAvatar'
   | 'deleteWorkspace'
   | 'generate2faSecret'
   | 'enable2fa'
@@ -3685,6 +3715,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     leaveWorkspace: wrap(leaveWorkspace),
     changeUsername: wrap(changeUsername),
     updateWorkspaceName: wrap(updateWorkspaceName),
+    updateWorkspaceAvatar: wrap(updateWorkspaceAvatar),
     deleteWorkspace: wrap(deleteWorkspace),
     generate2faSecret: wrap(generate2faSecret),
     enable2fa: wrap(enable2fa),

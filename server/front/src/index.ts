@@ -15,9 +15,17 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
-import { MeasureContext, Blob as PlatformBlob, WorkspaceIds, metricsAggregate, type Ref } from '@hcengineering/core'
+import {
+  MeasureContext,
+  Blob as PlatformBlob,
+  WorkspaceIds,
+  WorkspaceUuid,
+  metricsAggregate,
+  systemAccountUuid,
+  type Ref
+} from '@hcengineering/core'
 import platform, { PlatformError } from '@hcengineering/platform'
-import { TokenError, decodeToken } from '@hcengineering/server-token'
+import { TokenError, decodeToken, generateToken } from '@hcengineering/server-token'
 import { StorageAdapter } from '@hcengineering/storage'
 import bp from 'body-parser'
 import cors from 'cors'
@@ -586,6 +594,68 @@ export function start (
 
   app.post('/files/*', (req, res) => {
     void handleUpload(req, res)
+  })
+
+  // Publicly readable by design (no token check, unlike /files) — used before the
+  // browser has a token for these workspaces. Only ever returns each workspace's own
+  // designated logo, so it can't leak anything else from a workspace's storage.
+  const avatarsBulkHandler = async (req: Request<any>, res: Response<any>): Promise<void> => {
+    await ctx.with(
+      'handle-avatars-bulk',
+      {},
+      async (ctx) => {
+        try {
+          const workspaceUuids = Array.isArray(req.body?.workspaceUuids)
+            ? (req.body.workspaceUuids as WorkspaceUuid[])
+            : []
+          if (workspaceUuids.length === 0 || workspaceUuids.length > 200) {
+            res.status(400).send()
+            return
+          }
+
+          const serviceToken = generateToken(systemAccountUuid, undefined, { service: 'front' })
+          const accountClient = getAccountClient(config.accountsUrlInternal ?? config.accountsUrl, serviceToken)
+          const avatarInfos = await accountClient.getWorkspaceAvatarInfoBulk(workspaceUuids)
+
+          const result: Record<string, string> = {}
+          let nextIndex = 0
+          async function worker (): Promise<void> {
+            while (nextIndex < avatarInfos.length) {
+              const info = avatarInfos[nextIndex++]
+              if (info.icon == null) {
+                continue
+              }
+              const wsIds: WorkspaceIds = { uuid: info.uuid, url: info.url, dataId: info.dataId }
+              try {
+                const blobInfo = await config.storageAdapter.stat(ctx, wsIds, info.icon)
+                if (blobInfo === undefined) {
+                  continue
+                }
+                const chunks = await config.storageAdapter.read(ctx, wsIds, info.icon)
+                result[info.uuid] = `data:${blobInfo.contentType};base64,${Buffer.concat(chunks).toString('base64')}`
+              } catch (error: any) {
+                ctx.error('error-handle-avatars-bulk-item', { error, workspace: info.uuid })
+              }
+            }
+          }
+          await Promise.all(
+            Array.from({ length: Math.min(10, avatarInfos.length) }, async () => {
+              await worker()
+            })
+          )
+
+          res.status(200).json(result)
+        } catch (error: any) {
+          ctx.error('error-handle-avatars-bulk', { error })
+          res.status(500).send()
+        }
+      },
+      { url: req.path }
+    )
+  }
+
+  app.post('/avatars', (req, res) => {
+    void avatarsBulkHandler(req, res)
   })
 
   const handleUpload = async (req: Request, res: Response): Promise<void> => {

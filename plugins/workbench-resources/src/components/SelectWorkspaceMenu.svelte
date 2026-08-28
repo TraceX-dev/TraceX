@@ -14,10 +14,17 @@
 -->
 <script lang="ts">
   import contact from '@hcengineering/contact'
-  import { isArchivingMode, systemAccountUuid, WorkspaceInfoWithStatus } from '@hcengineering/core'
+  import { isArchivingMode, systemAccountUuid, WorkspaceInfoWithStatus, WorkspaceUuid } from '@hcengineering/core'
   import login from '@hcengineering/login'
   import { getMetadata, getResource } from '@hcengineering/platform'
-  import presentation, { createQuery, decodeTokenPayload, hasResource, isAdminUser } from '@hcengineering/presentation'
+  import presentation, {
+    createQuery,
+    decodeTokenPayload,
+    getWorkspaceAvatarUrls,
+    hasResource,
+    isAdminUser,
+    reduceCalls
+  } from '@hcengineering/presentation'
   import {
     closePopup,
     Component,
@@ -188,6 +195,31 @@
 
   $: currentWsUrl = $resolvedLocationStore.path[1]
 
+  // Other workspaces' logos, fetched in bulk and keyed by uuid. Reacts off the full
+  // $workspacesStore, not the filtered list below, so search keystrokes don't retrigger it.
+  // requestedAvatarUuids avoids re-requesting a logo that already failed to resolve.
+  let avatarUrls: Record<string, string> = {}
+  const requestedAvatarUuids = new Set<string>()
+
+  const loadAvatarUrls = reduceCalls(async function loadAvatarUrls (uuids: WorkspaceUuid[]): Promise<void> {
+    if (uuids.length === 0) return
+    try {
+      avatarUrls = { ...avatarUrls, ...(await getWorkspaceAvatarUrls(uuids)) }
+    } catch (e) {
+      // best-effort — those workspaces just render without a logo
+    }
+  })
+
+  $: {
+    const missing = $workspacesStore
+      .filter((it) => it.icon != null && !requestedAvatarUuids.has(it.uuid))
+      .map((it) => it.uuid)
+    if (missing.length > 0) {
+      missing.forEach((uuid) => requestedAvatarUuids.add(uuid))
+      void loadAvatarUrls(missing)
+    }
+  }
+
   // The currently open workspace is always shown first, regardless of its
   // position in the last-visit sort order.
   $: sortedWorkspaces = (() => {
@@ -282,6 +314,7 @@
                   <WorkspaceAvatar
                     colorSeed={ws.uuid}
                     displayName={wsName}
+                    avatarUrl={avatarUrls[ws.uuid]}
                     size={'small'}
                     hasUnread={ws.hasUnread === true && !isCurrentWs}
                     ringColor={'var(--theme-popup-color)'}
