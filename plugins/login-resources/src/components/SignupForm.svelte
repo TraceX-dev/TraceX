@@ -128,7 +128,6 @@
   function handleStep (event: CustomEvent<OtpLoginSteps>): void {
     step = event.detail
   }
-
 </script>
 
 {#if step === OtpLoginSteps.Email}
@@ -139,6 +138,7 @@
     {fields}
     {object}
     {action}
+    minHeight={withPassword ? '0' : undefined}
     withProviders
   />
   {#if useOTP}
@@ -167,7 +167,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     font-size: 0.8125rem;
   }
 
