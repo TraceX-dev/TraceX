@@ -51,6 +51,7 @@ describe('MongoDbCollection', () => {
     mockCollection = {
       find: jest.fn(),
       findOne: jest.fn(),
+      countDocuments: jest.fn(),
       insertOne: jest.fn(),
       updateMany: jest.fn(),
       deleteMany: jest.fn(),
@@ -64,6 +65,16 @@ describe('MongoDbCollection', () => {
     }
 
     collection = new MongoDbCollection<TestWorkspace, 'uuid'>('workspace', mockDb as Db, 'uuid')
+  })
+
+  describe('count', () => {
+    it('should count matching documents without loading them', async () => {
+      ;(mockCollection.countDocuments as jest.Mock).mockResolvedValue(2)
+
+      await expect(collection.count({ mode: 'active' as const })).resolves.toBe(2)
+
+      expect(mockCollection.countDocuments).toHaveBeenCalledWith({ mode: 'active' })
+    })
   })
 
   describe('find', () => {

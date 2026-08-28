@@ -68,6 +68,19 @@ describe('PostgresDbCollection', () => {
     })
   })
 
+  describe('count', () => {
+    it('should count matching rows without selecting them', async () => {
+      mockClient.unsafe.mockResolvedValue([{ count: '2' }])
+
+      await expect(collection.count({ mode: 'active' as const })).resolves.toBe(2)
+
+      expect(mockClient.unsafe).toHaveBeenCalledWith(
+        'SELECT COUNT(*) FROM global_account.workspace WHERE "mode" = $1',
+        ['active']
+      )
+    })
+  })
+
   describe('find', () => {
     it('should generate simple query', async () => {
       await collection.find({ mode: 'active' as const })
