@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022, 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -51,6 +52,7 @@
   export let isLoading: boolean = false
   export let actionButtonDataId: string | undefined = undefined
   export let secondaryButtonDataId: string | undefined = undefined
+  export let minHeight: string | undefined = undefined
 
   const validate = makeSequential(async function validateAsync (language: string): Promise<boolean> {
     if (ignoreInitialValidation || isLoading) return true
@@ -128,7 +130,7 @@
 <form
   class="container"
   style:padding={loginFormPadding($deviceInfo.docWidth, $deviceInfo.docHeight)}
-  style:min-height={loginFormMinHeight($deviceInfo.docHeight)}
+  style:min-height={minHeight ?? loginFormMinHeight($deviceInfo.docHeight)}
   on:keydown={(evt) => {
     if (evt.key === 'Enter') {
       evt.preventDefault()

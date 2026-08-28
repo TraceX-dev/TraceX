@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -40,8 +41,6 @@
   import SignupForm from './SignupForm.svelte'
   import LoginTfaForm from './LoginTfaForm.svelte'
   import TraceXLogo from './icons/TraceXLogo.svelte'
-  import BottomActionComponent from './BottomAction.svelte'
-  import { loginFooterActions } from '../footerActions'
   import { Pages, getAccount, pages } from '..'
   import login from '../plugin'
 
@@ -161,14 +160,6 @@
           </div>
         </Scroller>
       </div>
-
-      {#if $loginFooterActions.length > 0}
-        <div class="tracex-login-footer">
-          {#each $loginFooterActions as footerAction (footerAction.i18n)}
-            <BottomActionComponent action={footerAction} />
-          {/each}
-        </div>
-      {/if}
     </div>
 
     <Popup />
@@ -220,15 +211,6 @@
     flex-direction: column;
     max-height: min(38rem, calc(100vh - 8rem));
     overflow: hidden;
-  }
-
-  .tracex-login-footer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.625rem;
-    text-align: center;
-    font-size: 0.8125rem;
   }
 
   .form-content {
