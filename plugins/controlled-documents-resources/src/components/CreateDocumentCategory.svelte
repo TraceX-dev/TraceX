@@ -18,17 +18,17 @@
   import { createEventDispatcher } from 'svelte'
   import { Attachment } from '@hcengineering/attachment'
   import { AttachmentPresenter, AttachmentStyledBox } from '@hcengineering/attachment-resources'
-  import { generateId, Ref, Space } from '@hcengineering/core'
-  import { Card, getClient } from '@hcengineering/presentation'
+  import { generateId, type Ref, type TypedSpace } from '@hcengineering/core'
+  import { Card, getClient, SpaceSelector } from '@hcengineering/presentation'
   import { Button, EditBox, IconAttachment, tooltip } from '@hcengineering/ui'
-  import { DocumentCategory } from '@hcengineering/controlled-documents'
+  import { type DocumentCategory, type DocumentSpace } from '@hcengineering/controlled-documents'
+  import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
   import IconWarning from './icons/IconWarning.svelte'
   import documents from '../plugin'
 
-  export let space: Ref<Space> = documents.space.QualityDocuments
-
   const _id = generateId<DocumentCategory>()
+  export let space: Ref<DocumentSpace> | undefined = undefined
   let code: string = ''
   let _title: string = ''
   $: title = _title.trim()
@@ -38,8 +38,15 @@
   const client = getClient()
   let descriptionBox: AttachmentStyledBox
 
+  $: restrictedSpaces = Object.keys($permissionsStore.ps).filter(
+    (id) => !checkMyPermission(documents.permission.CreateDocumentCategory, id as Ref<TypedSpace>, $permissionsStore)
+  ) as Ref<TypedSpace>[]
+  $: spaceQuery = { _id: { $nin: restrictedSpaces }, archived: false }
+  $: canCreate =
+    space !== undefined && checkMyPermission(documents.permission.CreateDocumentCategory, space, $permissionsStore)
+
   async function handleOkAction (): Promise<void> {
-    if (isCodeWrong || isTitleWrong) {
+    if (isCodeWrong || isTitleWrong || !canCreate || space === undefined) {
       return
     }
     const op = client.apply()
@@ -61,7 +68,7 @@
 
   let existingCategories: string[] = []
   let existingCodes: string[] = []
-  $: void client.findAll(documents.class.DocumentCategory, {}).then((cats) => {
+  $: void client.findAll(documents.class.DocumentCategory, space === undefined ? {} : { space }).then((cats) => {
     existingCategories = cats.map((cat) => cat.title)
     existingCodes = cats.map((cat) => cat.code)
   })
@@ -82,12 +89,23 @@
 <Card
   label={documents.string.CreateDocumentCategory}
   okAction={handleOkAction}
-  canSave={!isCodeWrong && !isTitleWrong}
+  canSave={!isCodeWrong && !isTitleWrong && canCreate}
   hideAttachments={attachments.size === 0}
   on:close={() => {
     dispatch('close')
   }}
 >
+  <svelte:fragment slot="header">
+    <SpaceSelector
+      _class={documents.class.DocumentSpace}
+      query={spaceQuery}
+      bind:space
+      label={documents.string.Space}
+      kind="regular"
+      size="small"
+      autoSelect={true}
+    />
+  </svelte:fragment>
   <div>
     <div class="flex-row-center flex-between title-editbox">
       <EditBox
@@ -209,6 +227,14 @@
 
   .description-box {
     padding: 0.5rem 0.5rem 0rem 0.75rem;
+
+    :global(.tiptap-left-menu) {
+      display: none;
+    }
+
+    :global(.select-text) {
+      padding-left: 0;
+    }
   }
 
   .icon-placeholder {
