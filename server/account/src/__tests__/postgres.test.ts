@@ -320,6 +320,7 @@ describe('AccountPostgresDbCollection', () => {
           uuid: 'acc1' as AccountUuid,
           timezone: 'UTC',
           locale: 'en',
+          lastVisit: null,
           hash: null,
           salt: null
         }
@@ -338,6 +339,7 @@ describe('AccountPostgresDbCollection', () => {
         a.max_workspaces,
         a.failed_login_attempts,
         a.tfa_secret,
+        a.last_visit,
         p.hash,
         p.salt
       FROM global_account.account as a

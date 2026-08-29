@@ -88,7 +88,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV27Migration(ns, flavor),
     getV28Migration(ns, flavor),
     getV29Migration(ns, flavor),
-    getV30Migration(ns, flavor)
+    getV30Migration(ns, flavor),
+    getV31Migration(ns, flavor)
   ]
 }
 
@@ -887,6 +888,16 @@ function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
     -- member has no more unread notifications there.
     ALTER TABLE ${ns}.workspace_members
     ADD COLUMN IF NOT EXISTS has_unread BOOLEAN NOT NULL DEFAULT FALSE;
+    `
+  ]
+}
+
+function getV31Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v31_add_last_visit_to_account',
+    `
+    ALTER TABLE ${ns}.account
+    ADD COLUMN IF NOT EXISTS last_visit BIGINT;
     `
   ]
 }

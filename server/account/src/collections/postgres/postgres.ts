@@ -434,7 +434,7 @@ export class AccountPostgresDbCollection
     ns?: string,
     withRetryClient?: PostgresDbCollectionOptions<Account, 'uuid'>['withRetryClient']
   ) {
-    super('account', client, { idKey: 'uuid', ns, withRetryClient })
+    super('account', client, { idKey: 'uuid', ns, timestampFields: ['lastVisit'], withRetryClient })
   }
 
   getPasswordsTableName (): string {
@@ -456,6 +456,7 @@ export class AccountPostgresDbCollection
         a.max_workspaces,
         a.failed_login_attempts,
         a.tfa_secret,
+        a.last_visit,
         p.hash,
         p.salt
       FROM ${this.getTableName()} as a
@@ -1141,6 +1142,7 @@ export class PostgresAccountDB implements AccountDB {
           a.locale,
           a.automatic,
           a.max_workspaces,
+          a.last_visit,
           p.first_name,
           p.last_name,
           up.country,
@@ -1234,6 +1236,7 @@ export class PostgresAccountDB implements AccountDB {
         const converted = convertKeysToCamelCase(row)
 
         // Convert timestamp fields
+        converted.lastVisit = convertTimestamp(converted.lastVisit)
         if (converted.workspaces != null) {
           for (const ws of converted.workspaces) {
             ws.createdOn = convertTimestamp(ws.createdOn)

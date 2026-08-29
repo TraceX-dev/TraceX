@@ -21,6 +21,10 @@
   export let account: AccountAggregatedInfo
 
   const dispatch = createEventDispatcher()
+
+  function formatLastVisit (lastVisit: number | undefined): string {
+    return lastVisit == null ? '—' : new Date(lastVisit).toLocaleString()
+  }
 </script>
 
 <Modal
@@ -41,6 +45,10 @@
       <div>
         <div class="account-details-label">Account ID</div>
         <div class="select-text-i">{account.uuid}</div>
+      </div>
+      <div>
+        <div class="account-details-label">Last visit</div>
+        <div>{formatLastVisit(account.lastVisit)}</div>
       </div>
       <div>
         <div class="account-details-label">Social IDs</div>

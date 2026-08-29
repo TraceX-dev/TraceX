@@ -64,6 +64,11 @@
       label: getEmbeddedLabel('Workspaces'),
       getValue: (row) => asAccount(row).workspaces.length
     },
+    {
+      id: 'lastVisit',
+      label: getEmbeddedLabel('Last visit'),
+      getValue: (row) => asAccount(row).lastVisit ?? 0
+    },
     { id: 'actions', label: getEmbeddedLabel('Actions'), getValue: () => '' }
   ]
 
@@ -86,6 +91,10 @@
 
   function asAccount (row: unknown): AccountAggregatedInfo {
     return row as AccountAggregatedInfo
+  }
+
+  function formatLastVisit (lastVisit: number | undefined): string {
+    return lastVisit == null ? '—' : new Date(lastVisit).toLocaleString()
   }
 </script>
 
@@ -129,6 +138,8 @@
                 openAccount(account)
               }}>{value}</button
             >
+          {:else if column.id === 'lastVisit'}
+            {formatLastVisit(account.lastVisit)}
           {:else if column.id === 'actions' && accountSuperAdminMode}
             <Button
               icon={IconDelete}

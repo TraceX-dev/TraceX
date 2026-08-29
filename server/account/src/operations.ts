@@ -2020,6 +2020,33 @@ export async function updateLastVisit (
   await db.workspaceStatus.update({ workspaceUuid: { $in: ids } }, { lastVisit: Date.now() })
 }
 
+/**
+ * Updates the last activity timestamp for accounts with active UI sessions.
+ * This endpoint is reserved for the system account and is called by transactors.
+ */
+export async function updateAccountsLastVisit (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { ids: AccountUuid[] }
+): Promise<void> {
+  const { ids } = params
+
+  if (ids == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const { account } = decodeTokenVerbose(ctx, token)
+
+  if (account !== systemAccountUuid) {
+    ctx.error('updateAccountsLastVisit with wrong user', { account, token })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  await db.account.update({ uuid: { $in: ids } }, { lastVisit: Date.now() })
+}
+
 export async function getWorkspaceInfo (
   ctx: MeasureContext,
   db: AccountDB,
@@ -2076,7 +2103,11 @@ export async function getWorkspaceInfo (
   }
 
   if (!isGuest && updateLastVisit && !isAdmin) {
-    await db.workspaceStatus.update({ workspaceUuid }, { lastVisit: Date.now() })
+    const lastVisit = Date.now()
+    await Promise.all([
+      db.workspaceStatus.update({ workspaceUuid }, { lastVisit }),
+      db.account.update({ uuid: account }, { lastVisit })
+    ])
   }
 
   return workspace
@@ -3606,6 +3637,7 @@ export type AccountMethods =
   | 'getWorkspaceInfo'
   | 'getWorkspacesInfo'
   | 'updateLastVisit'
+  | 'updateAccountsLastVisit'
   | 'getLoginInfoByToken'
   | 'getLoginWithWorkspaceInfo'
   | 'getSocialIds'
@@ -3727,6 +3759,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     getWorkspaceInfo: wrap(getWorkspaceInfo, true),
     getWorkspacesInfo: wrap(getWorkspacesInfo),
     updateLastVisit: wrap(updateLastVisit),
+    updateAccountsLastVisit: wrap(updateAccountsLastVisit),
     getLoginInfoByToken: wrap(getLoginInfoByToken, true),
     getLoginWithWorkspaceInfo: wrap(getLoginWithWorkspaceInfo, true),
     getSocialIds: wrap(getSocialIds),

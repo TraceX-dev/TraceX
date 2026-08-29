@@ -28,7 +28,7 @@ test.describe('Workspace Archive tests', () => {
   test('New workspace with date, archive, unarchive', async ({ page, browser, request }) => {
     const api: ApiEndpoint = new ApiEndpoint(request)
     const wsId = generateId(5)
-    const workspaceInfo = await api.createWorkspaceWithLogin(wsId, 'user1', '1234')
+    await api.createWorkspaceWithLogin(wsId, 'user1', '1234')
 
     const newIssue: NewIssue = {
       title: `Issue with all parameters and attachments-${wsId}`,
@@ -76,8 +76,8 @@ test.describe('Workspace Archive tests', () => {
       const adminPage = new AdminPage(page2)
       await adminPage.gotoAdmin()
 
-      await page2.locator('[data-testid="workspace-search-container"] input').fill(workspaceInfo.workspace)
-      const workspaceRow = page2.getByRole('row').filter({ hasText: workspaceInfo.workspace })
+      await page2.locator('[data-testid="workspace-search-container"] input').fill(wsId)
+      const workspaceRow = page2.getByRole('row').filter({ hasText: wsId })
       await workspaceRow.getByTitle('Archive').click()
 
       await page2.getByRole('button', { name: 'Ok' }).click()
@@ -89,7 +89,7 @@ test.describe('Workspace Archive tests', () => {
       await page.getByText('archived').waitFor()
     })
     await test.step('Restore workspace', async () => {
-      const workspaceRow = page2.getByRole('row').filter({ hasText: workspaceInfo.workspace })
+      const workspaceRow = page2.getByRole('row').filter({ hasText: wsId })
       await workspaceRow.getByTitle('Unarchive').click()
 
       await page2.getByRole('button', { name: 'Ok' }).click()

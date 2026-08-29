@@ -33,6 +33,7 @@ jest.mock('@hcengineering/account-client', () => ({
   getClient: jest.fn(() => ({
     getWorkspaceInfo: jest.fn(),
     updateLastVisit: jest.fn(),
+    updateAccountsLastVisit: jest.fn(),
     getLoginWithWorkspaceInfo: jest.fn()
   }))
 }))
@@ -1601,6 +1602,18 @@ describe('TSessionManager', () => {
 
       const workspaces = ['ws-1' as WorkspaceUuid, 'ws-2' as WorkspaceUuid]
       await sessionManager.updateLastVisit(mockContext, workspaces)
+
+      // Should complete without errors
+    })
+
+    it('should handle updateAccountsLastVisit', async () => {
+      const { getClient } = await import('@hcengineering/account-client')
+      ;(getClient as jest.Mock).mockReturnValue({
+        updateAccountsLastVisit: jest.fn().mockResolvedValue(undefined)
+      })
+
+      const accounts = ['account-1' as AccountUuid, 'account-2' as AccountUuid]
+      await sessionManager.updateAccountsLastVisit(mockContext, accounts)
 
       // Should complete without errors
     })
