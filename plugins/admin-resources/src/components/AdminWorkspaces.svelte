@@ -281,7 +281,7 @@
             />
           </div>
         </div>
-        <div class="p-3 flex-no-shrink">
+        <div class="p-3 flex-no-shrink" data-testid="workspace-search-container">
           <SearchEdit bind:value={search} width={'100%'} />
         </div>
 
@@ -424,6 +424,7 @@
                                 icon={IconArchive}
                                 size={'small'}
                                 kind={'ghost'}
+                                title={'Archive'}
                                 showTooltip={{ label: getEmbeddedLabel('Archive') }}
                                 on:click={() => {
                                   showPopup(MessageBox, {
@@ -441,6 +442,7 @@
                                 icon={IconStart}
                                 size={'small'}
                                 kind={'ghost'}
+                                title={'Unarchive'}
                                 showTooltip={{ label: getEmbeddedLabel('Unarchive') }}
                                 on:click={() => {
                                   showPopup(MessageBox, {
