@@ -488,6 +488,14 @@
     },
     {
       "commandKind": "global",
+      "name": "fast-svelte-check",
+      "summary": "Run svelte-check in changed projects",
+      "description": "Run svelte-check only in changed projects that define it",
+      "safeForSimultaneousRushProcesses": true,
+      "shellCommand": "./common/scripts/fast-svelte-check.sh"
+    },
+    {
+      "commandKind": "global",
       "name": "desktop",
       "summary": "Build desktop build",
       "description": "use to build all docker containers required for platform",
@@ -543,9 +551,10 @@
       "associatedPhases": [],
       "shortName": "-b",
       "longName": "--branch",
-      "description": "Force formatting of branch",
+      "description": "Use a branch as the base for changed-project commands",
       "associatedCommands": [
-        "fast-format"
+        "fast-format",
+        "fast-svelte-check"
       ]
     },
     {
