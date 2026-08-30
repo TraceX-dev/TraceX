@@ -109,14 +109,6 @@ jobs:
       - name: Model version from git tags
         run: node common/scripts/install-run-rush.js model-version
 
-      - name: Verify package versions match tag
-        if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v')
-        run: |
-          REF="${{ github.event.inputs.ref || github.ref }}"
-          VERSION="${REF#refs/tags/v}"
-          VERSION="${VERSION#v}"
-          node common/scripts/bump.js --check "$VERSION"
-
       - name: Building...
         run: node common/scripts/install-run-rush.js build
 
@@ -912,6 +904,17 @@ jobs:
           restore-keys: ${{ runner.os }}-build-cache-node-platform-
       - name: Installing...
         run: node common/scripts/install-run-rush.js install
+      - name: Prepare npm package versions
+        run: |
+          set -euo pipefail
+          REF="${{ github.event.inputs.ref || github.ref }}"
+          if [[ ! "$REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::npm packages can only be published from a vMAJOR.MINOR.PATCH production tag."
+            exit 1
+          fi
+          VERSION="${REF#refs/tags/v}"
+          node common/scripts/bump.js "$VERSION"
+          node common/scripts/bump.js --check "$VERSION"
       - name: Building...
         run: node common/scripts/install-run-rush.js build
       - name: Emit TypeScript declarations
@@ -925,8 +928,4 @@ jobs:
             echo "::error::NPM_TOKEN secret is not set. Add it in repository Settings > Secrets and variables > Actions."
             exit 1
           fi
-          REF="${{ github.event.inputs.ref || github.ref }}"
-          VERSION="${REF#refs/tags/v}"
-          VERSION="${VERSION#v}"
-          node common/scripts/bump.js --check "$VERSION"
           node common/scripts/safe-publish.js
