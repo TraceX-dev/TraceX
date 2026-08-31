@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,43 +27,46 @@
   export let expandable = true
   export let contentColor = false
   export let showChevron = true
+  export let showHeader = true
 
   let wasExpanded = expanded
   $: if (expanded) wasExpanded = true
 </script>
 
 <div class="flex-col">
-  <div class="expandable-header flex-between" class:expanded class:bordered>
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div
-      class="flex-row-center flex-gap-2 ml-2 mr-4"
-      class:cursor-pointer={expandable}
-      on:click|stopPropagation={() => {
-        if (expandable) expanded = !expanded
-      }}
-    >
-      <Chevron {expanded} marginRight={'.5rem'} fill={!showChevron ? 'transparent' : undefined} />
-      {#if icon}
-        <div class="min-w-4 mr-2">
-          <Icon {icon} size={'small'} />
-        </div>
-      {/if}
-      <span class="fs-title overflow-label" class:content-color={contentColor}>
-        {#if label}<Label {label} />{/if}<slot name="title" />
-      </span>
-      {#if $$slots['title-tools']}
+  {#if showHeader}
+    <div class="expandable-header flex-between" class:expanded class:bordered>
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div
+        class="flex-row-center flex-gap-2 ml-2 mr-4"
+        class:cursor-pointer={expandable}
+        on:click|stopPropagation={() => {
+          if (expandable) expanded = !expanded
+        }}
+      >
+        <Chevron {expanded} marginRight={'.5rem'} fill={!showChevron ? 'transparent' : undefined} />
+        {#if icon}
+          <div class="min-w-4 mr-2">
+            <Icon {icon} size={'small'} />
+          </div>
+        {/if}
+        <span class="fs-title overflow-label" class:content-color={contentColor}>
+          {#if label}<Label {label} />{/if}<slot name="title" />
+        </span>
+        {#if $$slots['title-tools']}
+          <div class="buttons-group small-gap">
+            <slot name="title-tools" />
+          </div>
+        {/if}
+      </div>
+      {#if $$slots.tools}
         <div class="buttons-group small-gap">
-          <slot name="title-tools" />
+          <slot name="tools" />
         </div>
       {/if}
     </div>
-    {#if $$slots.tools}
-      <div class="buttons-group small-gap">
-        <slot name="tools" />
-      </div>
-    {/if}
-  </div>
+  {/if}
   <ExpandCollapse isExpanded={expanded}>
     {#if wasExpanded}
       <slot />

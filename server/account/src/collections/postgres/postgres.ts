@@ -288,6 +288,13 @@ implements DbCollection<T> {
     return result[0]?.exists === true
   }
 
+  async count (query: Query<T>, client?: Sql): Promise<number> {
+    const [whereClause, whereValues] = this.buildWhereClause(query)
+    const result = await this.unsafe(`SELECT COUNT(*) FROM ${this.getTableName()} ${whereClause}`, whereValues, client)
+
+    return Number(result[0]?.count ?? 0)
+  }
+
   async find (query: Query<T>, sort?: Sort<T>, limit?: number, client?: Sql): Promise<T[]> {
     const sqlChunks: string[] = [this.buildSelectClause()]
     const [whereClause, whereValues] = this.buildWhereClause(query)
@@ -434,7 +441,7 @@ export class AccountPostgresDbCollection
     ns?: string,
     withRetryClient?: PostgresDbCollectionOptions<Account, 'uuid'>['withRetryClient']
   ) {
-    super('account', client, { idKey: 'uuid', ns, withRetryClient })
+    super('account', client, { idKey: 'uuid', ns, timestampFields: ['lastVisit'], withRetryClient })
   }
 
   getPasswordsTableName (): string {
@@ -456,6 +463,7 @@ export class AccountPostgresDbCollection
         a.max_workspaces,
         a.failed_login_attempts,
         a.tfa_secret,
+        a.last_visit,
         p.hash,
         p.salt
       FROM ${this.getTableName()} as a
@@ -1141,6 +1149,7 @@ export class PostgresAccountDB implements AccountDB {
           a.locale,
           a.automatic,
           a.max_workspaces,
+          a.last_visit,
           p.first_name,
           p.last_name,
           up.country,
@@ -1234,6 +1243,7 @@ export class PostgresAccountDB implements AccountDB {
         const converted = convertKeysToCamelCase(row)
 
         // Convert timestamp fields
+        converted.lastVisit = convertTimestamp(converted.lastVisit)
         if (converted.workspaces != null) {
           for (const ws of converted.workspaces) {
             ws.createdOn = convertTimestamp(ws.createdOn)

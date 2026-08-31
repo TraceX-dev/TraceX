@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -34,6 +35,7 @@ export interface Config {
   AccountsUrl: string
   DbUrl: string
   Buckets: BucketConfig[]
+  S3AvailabilityCheckInterval: number
   CleanupInterval: number
   Secure: boolean
   Readonly: boolean
@@ -93,6 +95,7 @@ const config: Config = (() => {
     AccountsUrl: process.env.ACCOUNTS_URL,
     DbUrl: process.env.DB_URL,
     Buckets: parseBucketsConfig(process.env.BUCKETS),
+    S3AvailabilityCheckInterval: parseNumber(process.env.S3_AVAILABILITY_CHECK_INTERVAL) ?? 30_000,
     Secure: process.env.SECURE === 'true',
     Readonly: process.env.READONLY === 'true',
     Cache: {

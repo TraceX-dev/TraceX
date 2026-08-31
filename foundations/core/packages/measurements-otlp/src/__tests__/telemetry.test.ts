@@ -144,13 +144,15 @@ describe('telemetry', () => {
       expect(metrics.measurements.operation).toBeDefined()
     })
 
-    it('should measure custom value with meter', () => {
+    it('should record custom value as gauge when override is true', () => {
       const metrics = newMetrics()
+      const record = jest.fn()
       const mockMeter = {
-        getCounter: jest.fn(() => ({
-          counter: { record: jest.fn() },
+        getGauge: jest.fn(() => ({
+          gauge: { record },
           value: 0
-        }))
+        })),
+        getCounter: jest.fn()
       }
 
       const ctx = new OpenTelemetryMetricsContext(
@@ -168,9 +170,41 @@ describe('telemetry', () => {
         mockMeter as any
       )
 
-      ctx.measure('custom', 100)
+      ctx.gauge('custom', 100)
+
+      expect(mockMeter.getGauge).toHaveBeenCalledWith('custom')
+      expect(record).toHaveBeenCalledWith(100, { op: 'test' })
+      expect(mockMeter.getCounter).not.toHaveBeenCalled()
+    })
+
+    it('should add custom value to counter by default', () => {
+      const metrics = newMetrics()
+      const add = jest.fn()
+      const mockMeter = {
+        getGauge: jest.fn(),
+        getCounter: jest.fn(() => ({ add }))
+      }
+
+      const ctx = new OpenTelemetryMetricsContext(
+        'test',
+        tracer,
+        undefined,
+        undefined,
+        { op: 'test' },
+        {},
+        metrics,
+        mockLogger,
+        undefined,
+        undefined,
+        undefined,
+        mockMeter as any
+      )
+
+      ctx.counter('custom', 3)
 
       expect(mockMeter.getCounter).toHaveBeenCalledWith('custom')
+      expect(add).toHaveBeenCalledWith(3, { op: 'test' })
+      expect(mockMeter.getGauge).not.toHaveBeenCalled()
     })
 
     it('should log info with OTLP logger', () => {

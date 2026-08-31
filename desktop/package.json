@@ -114,6 +114,8 @@
     "@hcengineering/telegram-resources": "workspace:^0.7.0",
     "@hcengineering/workbench-assets": "workspace:^0.7.0",
     "@hcengineering/attachment": "workspace:^0.7.0",
+    "@hcengineering/admin": "workspace:^0.7.0",
+    "@hcengineering/admin-resources": "workspace:^0.7.0",
     "@hcengineering/attachment-assets": "workspace:^0.7.0",
     "@hcengineering/attachment-resources": "workspace:^0.7.0",
     "@hcengineering/lead": "workspace:^0.7.0",

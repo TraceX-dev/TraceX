@@ -256,7 +256,7 @@ export class TSessionManager implements SessionManager {
   }
 
   private handleWorkspaceTick (): void {
-    this.ctx.measure('sessions', this.sessions.size, true)
+    this.ctx.gauge('sessions', this.sessions.size)
 
     if (this.ticks % ticksPerSecond === 0) {
       // Let's update workspace statistics every 10 seconds
@@ -264,25 +264,38 @@ export class TSessionManager implements SessionManager {
 
       // Send extra counters and clear them to collect again
       for (const [c, v] of [...this.counters.entries()]) {
-        this.ctx.measure('_' + c, v, true)
+        this.ctx.gauge('_' + c, v)
       }
       this.counters.check()
     }
 
     if (this.ticks % (60 * ticksPerSecond) === 0) {
       const workspacesToUpdate: WorkspaceUuid[] = []
+      const accountsToUpdate = new Set<AccountUuid>()
 
       for (const [wsId, workspace] of this.workspaces.entries()) {
-        // update account lastVisit every minute per every workspace.
+        // Update workspace and account last visit every minute for active UI sessions.
+        let hasUserSession = false
         for (const val of workspace.sessions.values()) {
-          if (val.session.getUser() !== systemAccountUuid) {
-            workspacesToUpdate.push(wsId)
-            break
+          const account = val.session.getUser()
+          if (account !== systemAccountUuid) {
+            hasUserSession = true
+            if (account !== guestAccount && account !== readOnlyGuestAccountUuid) {
+              accountsToUpdate.add(account)
+            }
           }
+        }
+        if (hasUserSession) {
+          workspacesToUpdate.push(wsId)
         }
       }
       if (workspacesToUpdate.length > 0) {
         void this.updateLastVisit(this.ctx, workspacesToUpdate).catch(() => {
+          // Ignore
+        })
+      }
+      if (accountsToUpdate.size > 0) {
+        void this.updateAccountsLastVisit(this.ctx, [...accountsToUpdate]).catch(() => {
           // Ignore
         })
       }
@@ -348,13 +361,13 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.measure('sessions-user', user, true)
-    this.ctx.measure('sessions-system', sys, true)
-    this.ctx.measure('sessions-anonymous', anonymous, true)
+    this.ctx.gauge('sessions-user', user)
+    this.ctx.gauge('sessions-system', sys)
+    this.ctx.gauge('sessions-anonymous', anonymous)
 
-    this.ctx.measure('workspaces', this.workspaces.size, true)
-    this.ctx.measure('workspaces-user', userWorkspaces, true)
-    this.ctx.measure('workspaces-systemonly', sysOnlyWorkspaces, true)
+    this.ctx.gauge('workspaces', this.workspaces.size)
+    this.ctx.gauge('workspaces-user', userWorkspaces)
+    this.ctx.gauge('workspaces-systemonly', sysOnlyWorkspaces)
   }
 
   private handleSessionTick (now: number): void {
@@ -469,6 +482,19 @@ export class TSessionManager implements SessionManager {
     }
   }
 
+  @withContext('🧭 update-accounts-last-visit')
+  async updateAccountsLastVisit (ctx: MeasureContext, accounts: AccountUuid[]): Promise<void> {
+    try {
+      const sysToken = generateToken(systemAccountUuid, undefined, { service: 'transactor' })
+      await getAccountClient(this.accountsUrl, sysToken).updateAccountsLastVisit(accounts)
+    } catch (err: any) {
+      if (err?.cause?.code === 'ECONNRESET' || err?.cause?.code === 'ECONNREFUSED') {
+        return undefined
+      }
+      throw err
+    }
+  }
+
   @withContext('🧭 get-login-with-workspace-info')
   async getLoginWithWorkspaceInfo (ctx: MeasureContext, token: string): Promise<LoginInfoWithWorkspaces | undefined> {
     try {
@@ -533,7 +559,7 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.measure('sessions-hung', hungSessions, true)
+    this.ctx.gauge('sessions-hung', hungSessions)
 
     const hungSessionsPercent = totalSessions > 0 ? (100 * hungSessions) / totalSessions : 0
 
@@ -1407,7 +1433,7 @@ export class TSessionManager implements SessionManager {
     try {
       if (request.time != null) {
         const delta = Date.now() - request.time
-        requestCtx.measure('msg-receive-delta', delta)
+        requestCtx.counter('msg-receive-delta', delta)
       }
       const workspace = this.workspaces.get(workspaceId)
       if (workspace === undefined || workspace.closing !== undefined) {

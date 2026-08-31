@@ -141,11 +141,21 @@ describe('context', () => {
       expect(metrics.measurements.operation).toBeDefined()
     })
 
-    it('should measure custom value', () => {
+    it('should record a gauge value', () => {
       const metrics = newMetrics()
       const ctx = new MeasureMetricsContext('test', {}, {}, metrics, logger)
 
-      ctx.measure('custom', 100)
+      ctx.gauge('custom', 100)
+
+      expect(metrics.measurements['#custom']).toBeDefined()
+      expect(metrics.measurements['#custom'].operations).toBe(100)
+    })
+
+    it('should add a counter value', () => {
+      const metrics = newMetrics()
+      const ctx = new MeasureMetricsContext('test', {}, {}, metrics, logger)
+
+      ctx.counter('custom', 100)
 
       expect(metrics.measurements['#custom']).toBeDefined()
       expect(metrics.measurements['#custom'].value).toBe(100)
@@ -316,11 +326,12 @@ describe('context', () => {
       expect(child).toBeInstanceOf(NoMetricsContext)
     })
 
-    it('should handle measure calls without error', () => {
+    it('should handle gauge and counter calls without error', () => {
       const ctx = new NoMetricsContext()
 
       expect(() => {
-        ctx.measure('test', 100)
+        ctx.gauge('test', 100)
+        ctx.counter('test', 100)
       }).not.toThrow()
     })
 
