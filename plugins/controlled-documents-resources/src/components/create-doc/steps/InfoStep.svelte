@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -77,28 +78,6 @@
     }
   )
 
-  const docCodesQuery = createQuery()
-  let docCodes: Record<string, string> = {}
-  let loadingCodes = true
-  docCodesQuery.query(
-    documents.class.Document,
-    {},
-    (res) => {
-      docCodes = {}
-      for (const doc of res) {
-        if (doc.code === '' || doc.code === undefined) {
-          continue
-        }
-
-        docCodes[doc.code] = doc.title
-      }
-      loadingCodes = false
-    },
-    {
-      projection: { code: 1, title: 1 }
-    }
-  )
-
   let customReason = $infoStep.customReason
   let abstract: string = docObject?.abstract ?? ''
 
@@ -114,17 +93,16 @@
   $: isCategoryFilled = isTemplate ? docObject.category !== undefined : true
   $: isCodeFilled = isTemplate ? docObject.prefix !== '' && docObject.prefix !== undefined : true
   $: prefixNotUnique = docObject.docPrefix != null && templateDocPrefixes[docObject.docPrefix] !== undefined
-  $: codeNotUnique = docObject.code != null && docObject.code !== '' && !isCodeUnique(docObject.code)
   $: canProceed =
-    !!docObject.code &&
-    !!docObject.title &&
-    !!ccRecord?.reason &&
+    docObject.code !== '' &&
+    docObject.title !== '' &&
+    ccRecord?.reason !== undefined &&
+    ccRecord.reason !== '' &&
     isCodeFilled &&
     isCategoryFilled &&
     !prefixNotUnique &&
-    !codeNotUnique &&
-    (!isTemplate || !!docObject.docPrefix)
-  $: if (docObject !== undefined && docObject.code === '' && !loadingCodes) {
+    (!isTemplate || (docObject.docPrefix !== undefined && docObject.docPrefix !== ''))
+  $: if (docObject !== undefined && docObject.code === '') {
     void setInitialCode()
   }
 
@@ -144,21 +122,10 @@
     }
 
     if (newCodeObj != null) {
-      let newCode: string
-
-      newCode = getDocumentId(newCodeObj)
-
-      while (!isCodeUnique(newCode)) {
-        newCodeObj.seqNumber++
-        newCode = getDocumentId(newCodeObj)
-      }
+      const newCode = getDocumentId(newCodeObj)
 
       docObject.code = newCode
     }
-  }
-
-  function isCodeUnique (code: string): boolean {
-    return code !== '' && docCodes[code] === undefined
   }
 
   const radioItems = [
@@ -204,18 +171,10 @@
     <div class="sectionContent">
       <EditBox
         placeholder={documents.string.DocumentCodePlaceholder}
-        disabled={loadingCodes}
         bind:value={docObject.code}
         id="doc-code"
         kind="large-style"
       />
-      {#if codeNotUnique}
-        <div class="error">
-          <IconWarning size="small" />
-          <Label label={documents.string.CodeInUse} />
-          <span class="name">{docCodes[docObject.code]}</span>
-        </div>
-      {/if}
     </div>
     <div class="sectionTitle"><Label label={documents.string.TitleAndDescr} /></div>
     <div class="sectionContent">

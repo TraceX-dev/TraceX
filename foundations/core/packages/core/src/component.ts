@@ -32,6 +32,7 @@ import type {
   Configuration,
   ConfigurationElement,
   CustomSequence,
+  Identifier,
   Doc,
   DomainIndexConfiguration,
   Enum,
@@ -181,6 +182,7 @@ export default plugin(coreId, {
     RelationMetadata: '' as Ref<Class<RelationMetadata>>,
     Sequence: '' as Ref<Class<Sequence>>,
     CustomSequence: '' as Ref<Class<CustomSequence>>,
+    Identifier: '' as Ref<Class<Identifier>>,
     ClassCollaborators: '' as Ref<Class<ClassCollaborators<Doc>>>,
     Collaborator: '' as Ref<Class<Collaborator>>,
     ModulePermissionGroup: '' as Ref<Class<ModulePermissionGroup>>

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,17 @@
 // limitations under the License.
 //
 
-import { type Class, type Doc, type MeasureContext, type Ref, type Space, type TxOperations } from '@hcengineering/core'
+import {
+  allocateIdentifier,
+  parseIdentifier,
+  type Class,
+  type Doc,
+  type IdentifierAllocation,
+  type MeasureContext,
+  type Ref,
+  type Space,
+  type TxOperations
+} from '@hcengineering/core'
 import { type ExportState } from './types'
 
 /**
@@ -103,7 +114,7 @@ export class DataMapper {
    * Special values:
    * - '$currentUser' is replaced with current account's employee ID
    * - '$generateSeqNumber' generates seqNumber based on minimum available value
-   * - '$generateCode' generates code from prefix and seqNumber
+   * - '$preserveUniqueCode' preserves code and increments its numeric suffix on conflict
    */
   private async applyFieldMappers (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
     const hierarchy = this.targetClient.getHierarchy()
@@ -155,9 +166,8 @@ export class DataMapper {
       } else if (fieldValue === '$generateSeqNumber') {
         // Generate seqNumber based on minimum available value
         await this.generateSeqNumber(docClass, data)
-      } else if (fieldValue === '$generateCode') {
-        // Generate code from prefix and seqNumber
-        await this.generateCode(docClass, data)
+      } else if (fieldValue === '$preserveUniqueCode') {
+        await this.preserveUniqueCode(docClass, data)
       } else if (fieldValue === '') {
         // Empty string means clear the field
         data[fieldName] = undefined
@@ -244,43 +254,36 @@ export class DataMapper {
     )
   }
 
-  /**
-   * Generate code from prefix and seqNumber using the pattern prefix-seqNumber.
-   * Requires both prefix and seqNumber to be set in data.
-   */
-  private async generateCode (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
-    const prefix = data.prefix
-    const seqNumber = data.seqNumber
-
-    if (prefix === undefined || typeof prefix !== 'string' || prefix === '') {
-      this.context.warn('generateCode: prefix is required but not found, skipping code generation')
+  private async preserveUniqueCode (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
+    if (typeof data.code !== 'string' || data.code === '') {
+      this.context.warn('preserveUniqueCode: code is required but not found, skipping code preservation')
       return
     }
 
-    if (seqNumber === undefined || seqNumber === null || typeof seqNumber !== 'number') {
-      this.context.warn('generateCode: seqNumber is required but not found, skipping code generation')
+    const parsedCode = parseIdentifier(data.code)
+    if (parsedCode === null) {
+      this.context.warn(`preserveUniqueCode: code ${data.code} has no numeric suffix, skipping conflict resolution`)
       return
     }
 
-    // Generate code using pattern: prefix-seqNumber
-    const generatedCode = `${prefix}-${seqNumber}`
+    const occupied = (await this.targetClient.findOne(docClass, { code: data.code })) !== undefined
+    let requested = occupied ? undefined : parsedCode.sequence
+    let minimum = occupied ? parsedCode.sequence + 1 : parsedCode.sequence
+    let allocation: IdentifierAllocation
+    do {
+      allocation = await allocateIdentifier(this.targetClient, {
+        namespace: 'documents',
+        prefix: parsedCode.prefix,
+        minimum,
+        requested
+      })
+      requested = undefined
+      minimum = allocation.sequence + 1
+    } while ((await this.targetClient.findOne(docClass, { code: allocation.code })) !== undefined)
 
-    // Check if this code already exists (shouldn't happen if seqNumber was generated correctly, but check anyway)
-    const query: any = { code: generatedCode }
-    const projection = { code: 1 } as any
-    const existing = await this.targetClient.findOne(docClass, query, { projection })
-
-    if (existing !== undefined) {
-      this.context.warn(
-        `generateCode: Generated code ${generatedCode} already exists, this should not happen if seqNumber was generated correctly`
-      )
-    }
-
-    // Update data with generated code
-    data.code = generatedCode
-
+    data.code = allocation.code
     this.context.info(
-      `generateCode: Generated code ${generatedCode} from prefix "${prefix}" and seqNumber ${seqNumber} (class: ${docClass})`
+      `preserveUniqueCode: ${occupied ? 'Allocated' : 'Preserved'} code ${allocation.code} for class ${docClass}`
     )
   }
 

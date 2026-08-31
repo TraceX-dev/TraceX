@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 
 import { type Employee } from '@hcengineering/contact'
 import core, {
+  allocateIdentifier,
   type AttachedData,
   type Blob,
   type Class,
@@ -38,8 +40,8 @@ import {
 } from './types'
 import { makeRank } from '@hcengineering/rank'
 
-import documents from './plugin'
-import { getDocumentId, getFirstRank, TEMPLATE_PREFIX } from './utils'
+import documents, { documentsId } from './plugin'
+import { getFirstRank, matchDocumentId, TEMPLATE_PREFIX } from './utils'
 
 async function getParentPath (client: TxOperations, parent: Ref<ProjectDocument>): Promise<Array<Ref<DocumentMeta>>> {
   const parentDocObj = await client.findOne(documents.class.ProjectDocument, {
@@ -79,7 +81,7 @@ export async function createControlledDocFromTemplate (
 
   // Try fast path first (assumes template sequence is in sync)
   let { seqNumber, prefix, content, category } = await useDocumentTemplate(client, templateId, false)
-  let actualCode = getDocumentId({ prefix, seqNumber })
+  let actualCode = await allocateDocumentCode(client, spec.code, prefix, seqNumber)
   let { success, documentMetaId } = await createControlledDocMetadata(
     client,
     templateId,
@@ -101,7 +103,7 @@ export async function createControlledDocFromTemplate (
     prefix = retryResult.prefix
     content = retryResult.content
     category = retryResult.category
-    actualCode = getDocumentId({ prefix, seqNumber })
+    actualCode = await allocateDocumentCode(client, spec.code, prefix, seqNumber)
     const retryMetadata = await createControlledDocMetadata(
       client,
       templateId,
@@ -130,6 +132,7 @@ export async function createControlledDocFromTemplate (
     'documents',
     {
       ...spec,
+      code: actualCode,
       category,
       template: templateId,
       seqNumber,
@@ -141,6 +144,27 @@ export async function createControlledDocFromTemplate (
   )
 
   return { seqNumber, success: true }
+}
+
+async function allocateDocumentCode (
+  client: TxOperations,
+  requestedCode: string,
+  defaultPrefix: string,
+  minimum: number
+): Promise<string> {
+  const parsedCode = requestedCode === '' ? undefined : matchDocumentId(requestedCode)
+  if (requestedCode !== '' && parsedCode === null) {
+    throw new Error(`Invalid document code: ${requestedCode}`)
+  }
+
+  const allocation = await allocateIdentifier(client, {
+    namespace: documentsId,
+    prefix: parsedCode?.prefix ?? defaultPrefix,
+    minimum: parsedCode?.seqNumber ?? minimum,
+    requested: parsedCode?.seqNumber
+  })
+
+  return allocation.code
 }
 
 /**
@@ -308,7 +332,7 @@ export async function createDocumentTemplate (
   author?: Ref<Employee>,
   changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
 ): Promise<{ seqNumber: number, success: boolean }> {
-  const { success, seqNumber, code, documentMetaId } = await createDocumentTemplateMetadata(
+  let metadata = await createDocumentTemplateMetadata(
     client,
     _class,
     space,
@@ -320,6 +344,23 @@ export async function createDocumentTemplate (
     spec.code ?? '',
     spec.title
   )
+
+  if (!metadata.success) {
+    metadata = await createDocumentTemplateMetadata(
+      client,
+      _class,
+      space,
+      _mixin,
+      project,
+      parent,
+      templateId,
+      prefix,
+      spec.code ?? '',
+      spec.title
+    )
+  }
+
+  const { success, seqNumber, code, documentMetaId } = metadata
 
   if (!success) {
     return { seqNumber: -1, success: false }
@@ -401,7 +442,7 @@ export async function createDocumentTemplateMetadata (
     true
   )
   const seqNumber = (incResult as any).object.sequence as number
-  const code = specCode === '' ? `${TEMPLATE_PREFIX}-${seqNumber}` : specCode
+  const code = await allocateDocumentCode(client, specCode, TEMPLATE_PREFIX, seqNumber)
 
   let path: Array<Ref<DocumentMeta>> = []
 

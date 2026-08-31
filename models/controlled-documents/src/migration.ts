@@ -1,5 +1,6 @@
 //
 // Copyright @ 2022-2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 
 import attachment, { type Attachment } from '@hcengineering/attachment'
@@ -22,12 +23,15 @@ import {
   type DocumentReviewRequest,
   documentsId,
   DocumentState,
+  matchDocumentId,
   type ProjectMeta
 } from '@hcengineering/controlled-documents'
 import {
   type Class,
+  type CustomSequence,
   type Data,
   type Doc,
+  type Identifier,
   DOMAIN_SEQUENCE,
   DOMAIN_TX,
   generateId,
@@ -181,6 +185,53 @@ async function createTemplateSequence (tx: TxOperations): Promise<void> {
       },
       documents.sequence.Templates
     )
+  }
+}
+
+async function createDocumentIdentifierSequences (tx: TxOperations): Promise<void> {
+  const documentsWithCodes = await tx.findAll(documents.class.Document, {}, { projection: { code: 1 } })
+  const sequenceByPrefix = new Map<string, number>()
+  const codes = new Set<string>()
+
+  for (const document of documentsWithCodes) {
+    const parsedCode = matchDocumentId(document.code)
+    if (parsedCode === null) {
+      continue
+    }
+
+    const current = sequenceByPrefix.get(parsedCode.prefix) ?? 0
+    sequenceByPrefix.set(parsedCode.prefix, Math.max(current, parsedCode.seqNumber))
+    codes.add(document.code)
+  }
+
+  for (const [prefix, sequence] of sequenceByPrefix) {
+    const existing = await tx.findOne(core.class.CustomSequence, {
+      namespace: documentsId,
+      scope: '',
+      prefix
+    })
+    if (existing !== undefined) {
+      continue
+    }
+
+    await tx.createDoc<CustomSequence>(core.class.CustomSequence, core.space.Workspace, {
+      attachedTo: core.class.CustomSequence,
+      namespace: documentsId,
+      scope: '',
+      prefix,
+      sequence
+    })
+  }
+
+  for (const code of codes) {
+    const existing = await tx.findOne(core.class.Identifier, { namespace: documentsId, scope: '', code })
+    if (existing === undefined) {
+      await tx.createDoc<Identifier>(core.class.Identifier, core.space.Workspace, {
+        namespace: documentsId,
+        scope: '',
+        code
+      })
+    }
   }
 }
 
@@ -584,6 +635,13 @@ export const documentsOperation: MigrateOperation = {
           await createTagCategories(tx)
           await createDocumentCategories(tx)
           await createProductChangeControlTemplate(tx)
+        }
+      },
+      {
+        state: 'init-document-identifier-sequences',
+        func: async (client) => {
+          const tx = new TxOperations(client, core.account.System)
+          await createDocumentIdentifierSequences(tx)
         }
       }
     ])
