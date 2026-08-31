@@ -58,9 +58,11 @@ class IdentifierTestClient {
         if (pending.notMatches.some(({ _class, query }) => this.matchesAny(_class, query))) return { result: false }
         for (const create of pending.creates) {
           if ('sequence' in create.data) {
-            this.sequences.set(create.id, { ...create.data, _id: create.id } as CustomSequence)
+            const sequence: CustomSequence = { ...create.data, _id: create.id as Ref<CustomSequence> }
+            this.sequences.set(create.id, sequence)
           } else {
-            this.identifiers.set(create.id, { ...create.data, _id: create.id } as Identifier)
+            const identifier: Identifier = { ...create.data, _id: create.id as Ref<Identifier> }
+            this.identifiers.set(create.id, identifier)
           }
         }
         if (pending.update !== undefined) {
@@ -157,7 +159,8 @@ describe('allocateIdentifier', () => {
     )
 
     expect(new Set(allocations.map(({ code }) => code)).size).toBe(8)
-    expect(allocations.map(({ sequence }) => sequence).sort((left, right) => left - right)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    expect(allocations.map(({ sequence }) => sequence).sort((left, right) => left - right)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8
+    ])
   })
-
 })
