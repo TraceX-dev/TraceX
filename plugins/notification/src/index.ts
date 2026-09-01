@@ -55,6 +55,7 @@ export const DOMAIN_USER_NOTIFY = 'notification-user' as Domain
 export interface InboxNotificationState {
   notify: boolean
   count?: number
+  isLoaded?: boolean
 }
 
 /**
