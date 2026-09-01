@@ -119,4 +119,11 @@ describe('identifier allocation', () => {
     expect(parseIdentifier('TEST-TMP-1')).toEqual({ prefix: 'TEST-TMP', sequence: 1 })
     expect(parseIdentifier('TEST-TMP')).toBeNull()
   })
+
+  it('rejects prefixes that are not identifiers', () => {
+    expect(parseIdentifier('My doc-1')).toBeNull()
+    expect(parseIdentifier('a/b-1')).toBeNull()
+    expect(parseIdentifier('-1')).toBeNull()
+    expect(parseIdentifier('TEST-0')).toBeNull()
+  })
 })

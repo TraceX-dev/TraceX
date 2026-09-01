@@ -82,6 +82,9 @@
 
   let customReason = $infoStep.customReason
   let abstract: string = docObject?.abstract ?? ''
+  /** Title of the document already using the entered code, if any. */
+  let codeOwner: string | undefined = undefined
+  let codeCheck = 0
 
   $: if (docObject !== undefined) {
     docObject.abstract = abstract
@@ -95,6 +98,7 @@
   $: isCategoryFilled = isTemplate ? docObject.category !== undefined : true
   $: isCodeFilled = isTemplate ? docObject.prefix !== '' && docObject.prefix !== undefined : true
   $: prefixNotUnique = docObject.docPrefix != null && templateDocPrefixes[docObject.docPrefix] !== undefined
+  $: codeNotUnique = codeOwner !== undefined
   $: canProceed =
     docObject.code !== '' &&
     docObject.title !== '' &&
@@ -103,9 +107,22 @@
     isCodeFilled &&
     isCategoryFilled &&
     !prefixNotUnique &&
+    !codeNotUnique &&
     (!isTemplate || (docObject.docPrefix !== undefined && docObject.docPrefix !== ''))
   $: if (docObject !== undefined && docObject.code === '') {
     void setInitialCode()
+  }
+  $: void checkCodeOwner(docObject?.code ?? '')
+
+  async function checkCodeOwner (code: string): Promise<void> {
+    const check = ++codeCheck
+    const existing =
+      code === '' ? undefined : await client.findOne(documents.class.Document, { code }, { projection: { title: 1 } })
+
+    // Ignore an answer to a code the user has already moved on from.
+    if (check === codeCheck) {
+      codeOwner = existing?.title
+    }
   }
 
   async function setInitialCode (): Promise<void> {
@@ -176,6 +193,13 @@
         id="doc-code"
         kind="large-style"
       />
+      {#if codeNotUnique}
+        <div class="error">
+          <IconWarning size="small" />
+          <Label label={documents.string.CodeInUse} />
+          <span class="name">{codeOwner}</span>
+        </div>
+      {/if}
     </div>
     <div class="sectionTitle"><Label label={documents.string.TitleAndDescr} /></div>
     <div class="sectionContent">

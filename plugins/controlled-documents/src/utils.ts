@@ -100,7 +100,6 @@ export function getDocumentId (document: Pick<Document, 'prefix' | 'seqNumber'>)
 }
 
 /** @public */
-/** @public */
 export function matchDocumentId (str: string): Pick<Document, 'prefix' | 'seqNumber'> | null {
   const match = parseIdentifier(str)
   if (match === null) return null

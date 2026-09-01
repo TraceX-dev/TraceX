@@ -37,12 +37,15 @@ export interface ParsedIdentifier {
   sequence: number
 }
 
-/** Parses identifiers with a non-empty prefix and a positive numeric suffix. */
+/**
+ * Parses identifiers with a positive numeric suffix and a prefix of word characters,
+ * which may itself contain hyphens: `TEST-TMP-1` is `TEST-TMP` and `1`.
+ */
 export function parseIdentifier (code: string): ParsedIdentifier | null {
-  const match = code.match(/^(?<prefix>.+)-(?<sequence>\d+)$/)
+  const match = code.match(/^(?<prefix>[\w-]+)-(?<sequence>\d+)$/)
   const prefix = match?.groups?.prefix
   const sequence = match?.groups?.sequence
-  if (prefix === undefined || prefix.trim() === '' || sequence === undefined) return null
+  if (prefix === undefined || sequence === undefined) return null
 
   const parsedSequence = Number(sequence)
   if (!Number.isSafeInteger(parsedSequence) || parsedSequence < 1) return null

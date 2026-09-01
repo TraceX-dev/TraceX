@@ -112,7 +112,8 @@ export class DataMapper {
    * Special values:
    * - '$currentUser' is replaced with current account's employee ID
    * - '$generateSeqNumber' generates seqNumber based on minimum available value
-   * - '$preserveUniqueCode' preserves code and increments its numeric suffix on conflict
+   * - '$preserveUniqueCode' marks the code as allocated on document creation, which
+   *   preserves it when free and renumbers it on conflict
    */
   private async applyFieldMappers (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
     const fieldMapper = this.findFieldMapper(docClass)
@@ -222,6 +223,10 @@ export class DataMapper {
     )
   }
 
+  /**
+   * Validates the code and leaves it as is: the value is allocated by the document exporter,
+   * which can retry the creation when the code turns out to be taken.
+   */
   private async preserveUniqueCode (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
     if (typeof data.code !== 'string' || data.code === '') {
       this.context.warn('preserveUniqueCode: code is required but not found, skipping code preservation')

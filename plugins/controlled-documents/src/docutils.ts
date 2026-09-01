@@ -88,13 +88,7 @@ export async function createControlledDocFromTemplate (
     return { seqNumber: -1, success: false }
   }
 
-  const {
-    seqNumber: minimum,
-    prefix,
-    content,
-    category,
-    templateSpace
-  } = await useDocumentTemplate(client, templateId, true)
+  const { seqNumber: minimum, prefix, content, category, templateSpace } = await useDocumentTemplate(client, templateId)
   if (minimum < 1) {
     console.warn('createControlledDocFromTemplate: template not found', { templateId })
     return { seqNumber: -1, success: false }
@@ -211,8 +205,9 @@ async function requestNextIdentifier (client: TxOperations, occupiedCode: string
 
 /**
  * Calculate the next available seqNumber by checking existing documents with the template.
+ * The template sequence is only a hint, so the highest number actually taken wins.
  */
-async function calculateNextSeqNumberWithCheck (
+async function calculateNextSeqNumber (
   client: TxOperations,
   templateId: Ref<DocumentTemplate>,
   currentTemplateSequence: number
@@ -228,8 +223,7 @@ async function calculateNextSeqNumberWithCheck (
 
 export async function useDocumentTemplate (
   client: TxOperations,
-  templateId: Ref<DocumentTemplate>,
-  checkExisting: boolean = false
+  templateId: Ref<DocumentTemplate>
 ): Promise<{
     seqNumber: number
     prefix: string
@@ -251,14 +245,7 @@ export async function useDocumentTemplate (
     }
   }
 
-  let nextSeqNumber: number
-
-  if (checkExisting) {
-    nextSeqNumber = await calculateNextSeqNumberWithCheck(client, templateId, template.sequence)
-  } else {
-    nextSeqNumber = template.sequence + 1
-  }
-
+  const nextSeqNumber = await calculateNextSeqNumber(client, templateId, template.sequence)
   const prefix = template.docPrefix
 
   return {
@@ -370,9 +357,11 @@ async function createControlledDocAttempt (
 }
 
 /**
- * Creates hierarchy metadata without reserving a document code.
+ * Creates hierarchy metadata with a provisional code, without allocating a number for it.
+ * The caller is expected to allocate the real code and overwrite the meta title when it
+ * creates the document itself, as the importer does in its second phase.
  *
- * @deprecated Prefer APIs that create the metadata and controlled document in one operation.
+ * @deprecated Prefer {@link createControlledDocFromTemplate}, which does both at once.
  */
 export async function createControlledDocMetadata (
   client: TxOperations,
@@ -560,7 +549,9 @@ async function createDocumentTemplateAttempt (client: TxOperations, data: Docume
 }
 
 /**
- * Creates template hierarchy metadata without reserving a document code.
+ * Creates template hierarchy metadata with a provisional code, without allocating a number
+ * for it. The caller is expected to allocate the real code and overwrite the meta title when
+ * it creates the template itself, as the importer does in its second phase.
  *
  * @deprecated Prefer {@link createDocumentTemplate}, which creates the template atomically.
  */

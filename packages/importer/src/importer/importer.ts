@@ -1138,7 +1138,7 @@ export class WorkspaceImporter {
       prefix,
       category: templateCategory,
       templateSpace
-    } = await useDocumentTemplate(this.client, templateId as unknown as Ref<DocumentTemplate>, true)
+    } = await useDocumentTemplate(this.client, templateId as unknown as Ref<DocumentTemplate>)
     if (minimum < 1) {
       throw new Error(`Document template not found: ${templateId}`)
     }
