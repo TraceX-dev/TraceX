@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,8 +26,16 @@ import documents, {
   type DocumentSpace,
   type DocumentState,
   type DocumentTemplate,
+  type Document as ControlledDocumentBase,
+  allocateDocumentIdentifier,
+  DOCUMENT_SEQUENCE_KEY,
+  DOCUMENT_SEQUENCE_NAMESPACE,
+  documentsId,
   type OrgSpace,
   type ProjectDocument,
+  type SequenceAllocation,
+  TEMPLATE_PREFIX,
+  TEMPLATE_SEQUENCE_SCOPE,
   useDocumentTemplate
 } from '@hcengineering/controlled-documents'
 import core, {
@@ -39,6 +48,9 @@ import core, {
   type DocumentQuery,
   generateId,
   makeCollabId,
+  parseIdentifier,
+  requestIdentifierAllocation,
+  requestNumberAllocation,
   type Mixin,
   type Blob as PlatformBlob,
   type Ref,
@@ -74,6 +86,9 @@ import { type Props, type UnifiedUpdate, type UnifiedDoc, type UnifiedFile, type
 import { type Logger } from './logger'
 import { type MarkdownPreprocessor, NoopMarkdownPreprocessor } from './preprocessor'
 import { type FileUploader } from './uploader'
+
+const MAX_ALLOCATION_ATTEMPTS = 10
+
 export interface ImportWorkspace {
   projectTypes?: ImportProjectType[]
   spaces?: ImportSpace<ImportDoc>[]
@@ -984,48 +999,76 @@ export class WorkspaceImporter {
       template.ccImpact
     )
 
-    const ops = this.client.apply()
-    const result = await ops.addCollection(
-      documents.class.ControlledDocument,
-      spaceId,
-      template.metaId,
-      documents.class.DocumentMeta,
-      'documents',
+    const parsedCode = parseIdentifier(code)
+    if (parsedCode === null) {
+      throw new Error(`Invalid controlled document code: ${code}`)
+    }
+    const usesSequenceCode = parsedCode.prefix === TEMPLATE_PREFIX
+    const allocatedSeqNumber = await requestNumberAllocation(this.client, {
+      namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+      scope: TEMPLATE_SEQUENCE_SCOPE,
+      sequence: DOCUMENT_SEQUENCE_KEY,
+      minimum: Math.max(seqNumber, 1)
+    })
+    const allocatedCode = usesSequenceCode
+      ? `${TEMPLATE_PREFIX}-${allocatedSeqNumber}`
+      : await this.requestImportedDocumentCode(code)
+
+    await this.createWithAllocation(
+      template.title,
       {
-        title: template.title,
-        major: template.major,
-        minor: template.minor,
-        state: template.state,
-        author: template.author,
-        owner: template.owner,
-        abstract: template.abstract,
-        category: template.category,
-        reviewers: template.reviewers ?? [],
-        approvers: template.approvers ?? [],
-        externalApprovers: template.externalApprovers ?? [],
-        coAuthors: template.coAuthors ?? [],
-        code,
-        seqNumber,
-        prefix: template.docPrefix,
-        content: contentId,
-        changeControl: changeControlId,
-        commentSequence: 0,
-        requests: 0,
-        labels: 0
+        scope: TEMPLATE_SEQUENCE_SCOPE,
+        conflictQuery: { template: { $exists: false } },
+        codePrefix: usesSequenceCode ? TEMPLATE_PREFIX : undefined
       },
-      template.id as unknown as Ref<ControlledDocument>
+      { seqNumber: allocatedSeqNumber, code: allocatedCode },
+      async (seqNumber, code) => {
+        const ops = this.client.apply('create-imported-qms-document')
+        ops.notMatch(documents.class.Document, { template: { $exists: false }, seqNumber })
+        ops.notMatch(documents.class.Document, { code })
+        await ops.addCollection(
+          documents.class.ControlledDocument,
+          spaceId,
+          template.metaId,
+          documents.class.DocumentMeta,
+          'documents',
+          {
+            title: template.title,
+            major: template.major,
+            minor: template.minor,
+            state: template.state,
+            author: template.author,
+            owner: template.owner,
+            abstract: template.abstract,
+            category: template.category,
+            reviewers: template.reviewers ?? [],
+            approvers: template.approvers ?? [],
+            externalApprovers: template.externalApprovers ?? [],
+            coAuthors: template.coAuthors ?? [],
+            code,
+            seqNumber,
+            prefix: template.docPrefix,
+            content: contentId,
+            changeControl: changeControlId,
+            commentSequence: 0,
+            requests: 0,
+            labels: 0
+          },
+          template.id as unknown as Ref<ControlledDocument>
+        )
+
+        await ops.createMixin(template.id, documents.class.Document, spaceId, documents.mixin.DocumentTemplate, {
+          sequence: 0,
+          docPrefix: template.docPrefix
+        })
+        await ops.updateDoc(documents.class.DocumentMeta, spaceId, template.metaId, {
+          title: `${code} ${template.title}`
+        })
+        return (await ops.commit()).result
+      }
     )
 
-    await ops.createMixin(template.id, documents.class.Document, spaceId, documents.mixin.DocumentTemplate, {
-      sequence: 0,
-      docPrefix: template.docPrefix
-    })
-
-    const commit = await ops.commit()
-    if (!commit.result) {
-      throw new Error('Failed to create document template attached doc: ' + template.title)
-    }
-
+    const result = template.id as unknown as Ref<ControlledDocument>
     this.logger.log('Document template attached doc created: ' + result)
     return result
   }
@@ -1091,12 +1134,21 @@ export class WorkspaceImporter {
 
     const templateId = document.template
     const {
-      seqNumber,
+      seqNumber: minimum,
       prefix,
-      category: templateCategory
-    } = await useDocumentTemplate(this.client, templateId as unknown as Ref<DocumentTemplate>)
+      category: templateCategory,
+      templateSpace
+    } = await useDocumentTemplate(this.client, templateId as unknown as Ref<DocumentTemplate>, true)
+    if (minimum < 1) {
+      throw new Error(`Document template not found: ${templateId}`)
+    }
 
-    const ops = this.client.apply()
+    const seqNumber = await requestNumberAllocation(this.client, {
+      namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+      scope: templateId,
+      sequence: DOCUMENT_SEQUENCE_KEY,
+      minimum
+    })
 
     const changeControlId = await this.createChangeControl(
       spaceId,
@@ -1105,48 +1157,111 @@ export class WorkspaceImporter {
       document.ccImpact
     )
 
-    const code = document.code ?? `${prefix}-${seqNumber}`
-    const result = await ops.addCollection(
-      documents.class.ControlledDocument,
-      spaceId,
-      document.metaId,
-      documents.class.DocumentMeta,
-      'documents',
+    const requestedCode = document.code ?? `${prefix}-${seqNumber}`
+    const parsedCode = parseIdentifier(requestedCode)
+    if (parsedCode === null) {
+      throw new Error(`Invalid controlled document code: ${requestedCode}`)
+    }
+    const usesSequenceCode = parsedCode.prefix === prefix
+    const initialCode = usesSequenceCode
+      ? `${prefix}-${seqNumber}`
+      : await this.requestImportedDocumentCode(requestedCode)
+
+    await this.createWithAllocation(
+      document.title,
       {
-        title: document.title,
-        major: document.major,
-        minor: document.minor,
-        state: document.state,
-        author: document.author,
-        owner: document.owner,
-        abstract: document.abstract,
-        reviewers: document.reviewers ?? [],
-        approvers: document.approvers ?? [],
-        externalApprovers: document.externalApprovers ?? [],
-        coAuthors: document.coAuthors ?? [],
-        changeControl: changeControlId,
-        code,
-        prefix,
-        category: document.category ?? templateCategory,
-        seqNumber,
-        content: contentId,
-        template: templateId as unknown as Ref<DocumentTemplate>,
-        commentSequence: 0,
-        requests: 0
+        scope: templateId,
+        conflictQuery: { template: templateId as unknown as Ref<DocumentTemplate> },
+        codePrefix: usesSequenceCode ? prefix : undefined
       },
-      document.id
+      { seqNumber, code: initialCode },
+      async (seqNumber, code) => {
+        const ops = this.client.apply('create-imported-qms-document')
+        ops.notMatch(documents.class.Document, {
+          template: templateId as unknown as Ref<DocumentTemplate>,
+          seqNumber
+        })
+        ops.notMatch(documents.class.Document, { code })
+        await ops.addCollection(
+          documents.class.ControlledDocument,
+          spaceId,
+          document.metaId,
+          documents.class.DocumentMeta,
+          'documents',
+          {
+            title: document.title,
+            major: document.major,
+            minor: document.minor,
+            state: document.state,
+            author: document.author,
+            owner: document.owner,
+            abstract: document.abstract,
+            reviewers: document.reviewers ?? [],
+            approvers: document.approvers ?? [],
+            externalApprovers: document.externalApprovers ?? [],
+            coAuthors: document.coAuthors ?? [],
+            changeControl: changeControlId,
+            code,
+            prefix,
+            category: document.category ?? templateCategory,
+            seqNumber,
+            content: contentId,
+            template: templateId as unknown as Ref<DocumentTemplate>,
+            commentSequence: 0,
+            requests: 0
+          },
+          document.id
+        )
+
+        await ops.updateDoc(documents.class.DocumentMeta, spaceId, document.metaId, {
+          documents: 0,
+          title: `${code} ${document.title}`
+        })
+        // Best effort hint for the UI: the custom sequence stays the source of truth.
+        await ops.updateMixin(
+          templateId as unknown as Ref<ControlledDocumentBase>,
+          documents.class.Document,
+          templateSpace,
+          documents.mixin.DocumentTemplate,
+          { sequence: seqNumber }
+        )
+        return (await ops.commit()).result
+      }
     )
 
-    await ops.updateDoc(documents.class.DocumentMeta, spaceId, document.metaId, {
-      documents: 0,
-      title: `${code} ${document.title}`
-    })
+    this.logger.log('Controlled document attached doc created: ' + document.id)
 
-    await ops.commit()
+    return document.id
+  }
 
-    this.logger.log('Controlled document attached doc created: ' + result)
+  /** Creates a controlled document, retrying while its sequence or code is taken. */
+  private async createWithAllocation (
+    title: string,
+    allocation: SequenceAllocation,
+    initial: { seqNumber: number, code: string },
+    attempt: (seqNumber: number, code: string) => Promise<boolean>
+  ): Promise<void> {
+    const { success, reason } = await allocateDocumentIdentifier(this.client, allocation, initial, attempt)
+    if (!success) {
+      throw new Error(`Failed to create controlled document "${title}": ${reason ?? 'unknown reason'}`)
+    }
+  }
 
-    return result
+  private async requestImportedDocumentCode (requestedCode: string): Promise<string> {
+    let code = requestedCode
+    for (let attempt = 0; attempt < MAX_ALLOCATION_ATTEMPTS; attempt++) {
+      const parsedCode = parseIdentifier(code)
+      if (parsedCode === null) throw new Error(`Invalid controlled document code: ${code}`)
+      if ((await this.client.findOne(documents.class.Document, { code })) === undefined) return code
+      code = await requestIdentifierAllocation(this.client, {
+        namespace: documentsId,
+        prefix: parsedCode.prefix,
+        minimum: parsedCode.sequence + 1
+      })
+    }
+    throw new Error(
+      `Unable to allocate controlled document code after ${MAX_ALLOCATION_ATTEMPTS} attempts: ${requestedCode}`
+    )
   }
 
   private async createChangeControl (

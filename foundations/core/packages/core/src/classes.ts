@@ -709,13 +709,6 @@ export interface CustomSequence extends Sequence {
   scope?: string
 }
 
-/** A code reserved by the generic identifier allocator. */
-export interface Identifier extends Doc {
-  namespace: string
-  scope: string
-  code: string
-}
-
 /**
  * @public
  */

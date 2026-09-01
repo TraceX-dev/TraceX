@@ -15,11 +15,9 @@
 //
 
 import {
-  allocateIdentifier,
   parseIdentifier,
   type Class,
   type Doc,
-  type IdentifierAllocation,
   type MeasureContext,
   type Ref,
   type Space,
@@ -117,37 +115,7 @@ export class DataMapper {
    * - '$preserveUniqueCode' preserves code and increments its numeric suffix on conflict
    */
   private async applyFieldMappers (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
-    const hierarchy = this.targetClient.getHierarchy()
-
-    // Find field mapper for this class or any of its base classes
-    let fieldMapper: Record<string, any> | undefined
-
-    // First check exact class match
-    if (this.fieldMappers[docClass] !== undefined) {
-      fieldMapper = this.fieldMappers[docClass]
-      this.context.info(`Found exact field mapper match for class ${docClass}`)
-    } else {
-      // Check all base classes - find the most specific (closest) mapper
-      let bestMapper: Record<string, any> | undefined
-      let bestMapperClass: string | undefined
-
-      for (const [className, mapper] of Object.entries(this.fieldMappers)) {
-        const mapperClass = className as Ref<Class<Doc>>
-        if (hierarchy.isDerived(docClass, mapperClass)) {
-          if (bestMapper === undefined) {
-            bestMapper = mapper
-            bestMapperClass = className
-          } else if (hierarchy.isDerived(mapperClass, bestMapperClass as Ref<Class<Doc>>)) {
-            bestMapper = mapper
-            bestMapperClass = className
-          }
-        }
-      }
-
-      if (bestMapper !== undefined) {
-        fieldMapper = bestMapper
-      }
-    }
+    const fieldMapper = this.findFieldMapper(docClass)
 
     if (fieldMapper === undefined) {
       return
@@ -266,25 +234,33 @@ export class DataMapper {
       return
     }
 
-    const occupied = (await this.targetClient.findOne(docClass, { code: data.code })) !== undefined
-    let requested = occupied ? undefined : parsedCode.sequence
-    let minimum = occupied ? parsedCode.sequence + 1 : parsedCode.sequence
-    let allocation: IdentifierAllocation
-    do {
-      allocation = await allocateIdentifier(this.targetClient, {
-        namespace: 'documents',
-        prefix: parsedCode.prefix,
-        minimum,
-        requested
-      })
-      requested = undefined
-      minimum = allocation.sequence + 1
-    } while ((await this.targetClient.findOne(docClass, { code: allocation.code })) !== undefined)
-
-    data.code = allocation.code
     this.context.info(
-      `preserveUniqueCode: ${occupied ? 'Allocated' : 'Preserved'} code ${allocation.code} for class ${docClass}`
+      `preserveUniqueCode: Deferred allocation of code ${data.code} for class ${docClass} to document creation`
     )
+  }
+
+  shouldAllocateIdentifier (docClass: Ref<Class<Doc>>): boolean {
+    return this.findFieldMapper(docClass)?.code === '$preserveUniqueCode'
+  }
+
+  private findFieldMapper (docClass: Ref<Class<Doc>>): Record<string, any> | undefined {
+    const exact = this.fieldMappers[docClass]
+    if (exact !== undefined) return exact
+
+    const hierarchy = this.targetClient.getHierarchy()
+    let bestMapper: Record<string, any> | undefined
+    let bestMapperClass: Ref<Class<Doc>> | undefined
+    for (const [className, mapper] of Object.entries(this.fieldMappers)) {
+      const mapperClass = className as Ref<Class<Doc>>
+      if (
+        hierarchy.isDerived(docClass, mapperClass) &&
+        (bestMapperClass === undefined || hierarchy.isDerived(mapperClass, bestMapperClass))
+      ) {
+        bestMapper = mapper
+        bestMapperClass = mapperClass
+      }
+    }
+    return bestMapper
   }
 
   /**

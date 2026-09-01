@@ -20,13 +20,15 @@
   import { translate } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import {
-    type Document,
     type ChangeControl,
     type ControlledDocument,
     type DocumentCategory,
     type DocumentTemplate,
+    DOCUMENT_SEQUENCE_KEY,
+    DOCUMENT_SEQUENCE_NAMESPACE,
     getDocumentId,
-    TEMPLATE_PREFIX
+    TEMPLATE_PREFIX,
+    TEMPLATE_SEQUENCE_SCOPE
   } from '@hcengineering/controlled-documents'
 
   import IconWarning from '../../icons/IconWarning.svelte'
@@ -107,25 +109,24 @@
   }
 
   async function setInitialCode (): Promise<void> {
-    let newCodeObj: Pick<Document, 'prefix' | 'seqNumber'> | undefined = undefined
+    // Preview of the number the server is going to allocate, from the very sequence it allocates from.
+    const scope = isTemplate ? TEMPLATE_SEQUENCE_SCOPE : docObject.template
+    const numberSequence =
+      scope === undefined
+        ? undefined
+        : await client.findOne(core.class.CustomSequence, {
+          namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+          scope,
+          prefix: DOCUMENT_SEQUENCE_KEY
+        })
+    const seqNumber = Math.max(docObject.seqNumber, (numberSequence?.sequence ?? 0) + 1)
 
-    if (isTemplate) {
-      const seqObj = await client.findOne(core.class.Sequence, { _id: documents.sequence.Templates })
+    if (docObject.code !== '') return
 
-      if (seqObj == null) {
-        return
-      }
-
-      newCodeObj = { prefix: docObject.prefix, seqNumber: seqObj.sequence + 1 }
-    } else {
-      newCodeObj = docObject
+    if (!isTemplate) {
+      docObject.seqNumber = seqNumber
     }
-
-    if (newCodeObj != null) {
-      const newCode = getDocumentId(newCodeObj)
-
-      docObject.code = newCode
-    }
+    docObject.code = getDocumentId({ prefix: docObject.prefix, seqNumber })
   }
 
   const radioItems = [

@@ -14,22 +14,22 @@
 //
 
 import core from './component'
-import { type CustomSequence, type Identifier } from './classes'
+import { type CustomSequence } from './classes'
 import { type TxOperations } from './operations'
 import { generateId } from './utils'
+
+export interface NumberAllocationRequest {
+  namespace: string
+  scope?: string
+  sequence: string
+  minimum?: number
+}
 
 export interface IdentifierAllocationRequest {
   namespace: string
   scope?: string
   prefix: string
   minimum?: number
-  /** Prefer this exact number before allocating the next available number. */
-  requested?: number
-}
-
-export interface IdentifierAllocation {
-  code: string
-  sequence: number
 }
 
 export interface ParsedIdentifier {
@@ -49,41 +49,42 @@ export function parseIdentifier (code: string): ParsedIdentifier | null {
   return { prefix, sequence: parsedSequence }
 }
 
-export async function allocateIdentifier (
-  client: TxOperations,
-  request: IdentifierAllocationRequest
-): Promise<IdentifierAllocation> {
-  if (request.namespace === '' || request.prefix === '') {
-    throw new Error('Identifier namespace and prefix are required')
+const MAX_ALLOCATION_ATTEMPTS = 10
+
+/**
+ * Atomically increments a named sequence and returns its actual stored value.
+ *
+ * Every caller gets the result of its own increment, so returned values are always distinct.
+ * Reaching `minimum` may take a second increment, which leaves a gap in the sequence
+ * but never hands the same value to two callers.
+ */
+export async function requestNumberAllocation (client: TxOperations, request: NumberAllocationRequest): Promise<number> {
+  if (request.namespace.trim() === '' || request.sequence.trim() === '') {
+    throw new Error('Allocation namespace and sequence are required')
+  }
+
+  const minimum = request.minimum ?? 1
+  if (!Number.isSafeInteger(minimum) || minimum < 1) {
+    throw new Error('Allocation minimum must be a positive integer')
   }
 
   const scope = request.scope ?? ''
-  const minimum = request.minimum ?? 1
-  const requested = request.requested
-  if (
-    !Number.isSafeInteger(minimum) ||
-    minimum < 1 ||
-    (requested !== undefined && (!Number.isSafeInteger(requested) || requested < 1))
-  ) {
-    throw new Error('Identifier minimum must be a positive integer')
-  }
+  const query = { namespace: request.namespace, scope, prefix: request.sequence }
 
-  const query = { namespace: request.namespace, scope, prefix: request.prefix }
-  let preferred = requested
-  for (;;) {
+  for (let attempt = 0; attempt < MAX_ALLOCATION_ATTEMPTS; attempt++) {
     let sequence = await client.findOne(core.class.CustomSequence, query)
     if (sequence === undefined) {
       const sequenceId = generateId<CustomSequence>()
-      const operations = client.apply('create-identifier-sequence')
+      const operations = client.apply('create-custom-sequence')
       operations.notMatch(core.class.CustomSequence, query)
-      await operations.createDoc(
+      await operations.createDoc<CustomSequence>(
         core.class.CustomSequence,
         core.space.Workspace,
         {
           attachedTo: core.class.CustomSequence,
           namespace: request.namespace,
           scope,
-          prefix: request.prefix,
+          prefix: request.sequence,
           sequence: 0
         },
         sequenceId
@@ -93,20 +94,32 @@ export async function allocateIdentifier (
       if (sequence === undefined) continue
     }
 
-    const next = preferred ?? Math.max(sequence.sequence + 1, minimum)
-    const code = `${request.prefix}-${next}`
-    const operations = client.apply('allocate-identifier')
-    operations.notMatch(core.class.Identifier, { namespace: request.namespace, scope, code })
-    if (next > sequence.sequence) {
-      operations.notMatch(core.class.CustomSequence, { _id: sequence._id, sequence: { $gte: next } })
-      await operations.updateDoc(sequence._class, sequence.space, sequence._id, { sequence: next })
+    const increment = await client.update(sequence, { $inc: { sequence: 1 } }, true)
+    let value = (increment as { object: CustomSequence }).object.sequence
+    if (value < minimum) {
+      const advance = await client.update(sequence, { $inc: { sequence: minimum - value } }, true)
+      value = (advance as { object: CustomSequence }).object.sequence
     }
-    await operations.createDoc<Identifier>(core.class.Identifier, core.space.Workspace, {
-      namespace: request.namespace,
-      scope,
-      code
-    })
-    if ((await operations.commit()).result) return { code, sequence: next }
-    preferred = undefined
+    return value
   }
+
+  throw new Error(`Unable to initialize sequence after ${MAX_ALLOCATION_ATTEMPTS} attempts`)
+}
+
+/** Allocates the next identifier from an atomically incremented prefix sequence. */
+export async function requestIdentifierAllocation (
+  client: TxOperations,
+  request: IdentifierAllocationRequest
+): Promise<string> {
+  if (request.prefix.trim() === '') {
+    throw new Error('Identifier prefix is required')
+  }
+
+  const sequence = await requestNumberAllocation(client, {
+    namespace: request.namespace,
+    scope: request.scope,
+    sequence: request.prefix,
+    minimum: request.minimum
+  })
+  return `${request.prefix}-${sequence}`
 }

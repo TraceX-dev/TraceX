@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,9 @@
 
 import {
   generateId,
+  parseIdentifier,
+  requestIdentifierAllocation,
+  requestNumberAllocation,
   type AttachedDoc,
   type Class,
   type Collection,
@@ -33,6 +37,13 @@ import { type DataMapper } from './data-mapper'
 import { type RelationExporter } from './relation-exporter'
 import { type SpaceExporter } from './space-exporter'
 import { type CustomExportHandler, type ExportState, type RelationDefinition } from './types'
+
+// Keep in sync with the controlled documents plugin, which owns these sequences.
+const DOCUMENT_NAMESPACE = 'documents'
+const DOCUMENT_SEQUENCE_NAMESPACE = `${DOCUMENT_NAMESPACE}.sequence`
+const DOCUMENT_SEQUENCE_KEY = 'seqNumber'
+const TEMPLATE_SEQUENCE_SCOPE = 'templates'
+const MAX_ALLOCATION_ATTEMPTS = 10
 
 /**
  * Handles document export logic
@@ -283,31 +294,124 @@ export class DocumentExporter {
     targetSpace: Ref<Space>,
     isAttached: boolean
   ): Promise<void> {
+    const shouldAllocate = this.dataMapper.shouldAllocateIdentifier(sourceDoc._class)
+    const parsedCode = shouldAllocate && typeof data.code === 'string' ? parseIdentifier(data.code) : null
+    const hasSequence =
+      shouldAllocate && typeof data.seqNumber === 'number' && Number.isSafeInteger(data.seqNumber) && data.seqNumber > 0
+    const documentPrefix = typeof data.prefix === 'string' && data.prefix !== '' ? data.prefix : parsedCode?.prefix
+    const usesSequenceCode = parsedCode !== null && parsedCode.prefix === documentPrefix
+    const shouldAllocateSequence = parsedCode !== null && hasSequence && documentPrefix !== undefined
+
+    let attachedData: Data<AttachedDoc> | undefined
+    let attachedTo: AttachedDoc['attachedTo'] | undefined
+    let attachedToClass: AttachedDoc['attachedToClass'] | undefined
+    let collection: AttachedDoc['collection'] | undefined
+
     if (isAttached) {
-      const attachedDoc = sourceDoc as AttachedDoc
-      const attachedData = data as Data<AttachedDoc>
+      attachedData = data as Data<AttachedDoc>
 
       // attachedTo is already remapped in prepareDocumentData
-      const attachedTo = attachedData.attachedTo
-      const attachedToClass = attachedData.attachedToClass
-      const collection = attachedData.collection
+      attachedTo = attachedData.attachedTo
+      attachedToClass = attachedData.attachedToClass
+      collection = attachedData.collection
 
       // Remove attached doc fields from data - they're passed as separate params to addCollection
       delete (attachedData as any).attachedTo
       delete (attachedData as any).attachedToClass
       delete (attachedData as any).collection
+    }
 
-      await this.targetClient.addCollection(
-        attachedDoc._class,
-        targetSpace,
-        attachedTo as any,
-        attachedToClass,
-        collection,
-        attachedData,
-        targetId as any
-      )
+    if (!shouldAllocateSequence || parsedCode === null || documentPrefix === undefined) {
+      if (isAttached && attachedData !== undefined) {
+        await this.targetClient.addCollection(
+          sourceDoc._class,
+          targetSpace,
+          attachedTo as any,
+          attachedToClass as any,
+          collection as any,
+          attachedData,
+          targetId as any
+        )
+      } else {
+        await this.targetClient.createDoc(sourceDoc._class, targetSpace, data, targetId)
+      }
     } else {
-      await this.targetClient.createDoc(sourceDoc._class, targetSpace, data, targetId)
+      const sequenceScope = typeof data.template === 'string' ? data.template : TEMPLATE_SEQUENCE_SCOPE
+      let sequence = await requestNumberAllocation(this.targetClient, {
+        namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+        scope: sequenceScope,
+        sequence: DOCUMENT_SEQUENCE_KEY,
+        minimum: data.seqNumber
+      })
+      let code = usesSequenceCode ? `${documentPrefix}-${sequence}` : data.code
+      let created = false
+      let failure: string | undefined
+
+      for (let attempt = 0; attempt < MAX_ALLOCATION_ATTEMPTS; attempt++) {
+        if (!usesSequenceCode && (await this.targetClient.findOne(sourceDoc._class, { code })) !== undefined) {
+          const occupied = parseIdentifier(code)
+          if (occupied === null) throw new Error(`Invalid identifier ${code}`)
+          code = await requestIdentifierAllocation(this.targetClient, {
+            namespace: DOCUMENT_NAMESPACE,
+            prefix: occupied.prefix,
+            minimum: occupied.sequence + 1
+          })
+          continue
+        }
+
+        data.seqNumber = sequence
+        data.code = code
+        const operations = this.targetClient.apply('export-allocation')
+        const sequenceQuery =
+          typeof data.template === 'string'
+            ? { template: data.template, seqNumber: sequence }
+            : { template: { $exists: false }, seqNumber: sequence }
+        operations.notMatch(sourceDoc._class, sequenceQuery)
+        operations.notMatch(sourceDoc._class, { code })
+        if (isAttached && attachedData !== undefined) {
+          await operations.addCollection(
+            sourceDoc._class,
+            targetSpace,
+            attachedTo as any,
+            attachedToClass as any,
+            collection as any,
+            attachedData,
+            targetId as any
+          )
+        } else {
+          await operations.createDoc(sourceDoc._class, targetSpace, data, targetId)
+        }
+        if ((await operations.commit()).result) {
+          created = true
+          break
+        }
+
+        const [sequenceConflict, codeConflict] = await Promise.all([
+          this.targetClient.findOne(sourceDoc._class, sequenceQuery),
+          this.targetClient.findOne(sourceDoc._class, { code })
+        ])
+        if (sequenceConflict === undefined && codeConflict === undefined) {
+          // Nothing occupies the sequence or the code, so a new allocation cannot help.
+          failure = 'creation failed without an identifier conflict'
+          break
+        }
+        if (sequenceConflict !== undefined || (usesSequenceCode && codeConflict !== undefined)) {
+          sequence = await requestNumberAllocation(this.targetClient, {
+            namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+            scope: sequenceScope,
+            sequence: DOCUMENT_SEQUENCE_KEY
+          })
+        }
+        if (usesSequenceCode) code = `${documentPrefix}-${sequence}`
+      }
+
+      if (!created) {
+        throw new Error(
+          `Unable to create document ${sourceDoc._id}: ${
+            failure ?? `no free identifier after ${MAX_ALLOCATION_ATTEMPTS} attempts`
+          }`
+        )
+      }
     }
 
     this.context.info(

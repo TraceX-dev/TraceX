@@ -446,7 +446,7 @@ describe('DataMapper - generateSeqNumber', () => {
     )
   })
 
-  it('should increment a custom code while generating seqNumber when it is already used', async () => {
+  it('should defer an occupied custom code to server-side allocation', async () => {
     mockClient = createMockTxOperations([
       {
         _id: generateId(),
@@ -478,7 +478,10 @@ describe('DataMapper - generateSeqNumber', () => {
 
     const result = await dataMapper.prepareDocumentData(doc, mockSpaceId, false)
 
-    expect(result).toMatchObject({ code: 'TESTTMP-2', seqNumber: 2 })
+    expect(result).toMatchObject({ code: 'TESTTMP-1', seqNumber: 2 })
+    expect(mockContext.info).toHaveBeenCalledWith(
+      `preserveUniqueCode: Deferred allocation of code TESTTMP-1 for class ${mockDocClass} to document creation`
+    )
   })
 
   it('should preserve a free custom code while generating seqNumber', async () => {
