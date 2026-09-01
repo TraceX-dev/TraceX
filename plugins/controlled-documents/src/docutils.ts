@@ -16,8 +16,8 @@
 
 import { type Employee } from '@hcengineering/contact'
 import {
-  requestIdentifierAllocation,
-  requestNumberAllocation,
+  allocateWithRetries,
+  type AllocationOutcome,
   type AttachedData,
   type Blob,
   type Class,
@@ -50,7 +50,6 @@ import { getFirstRank, matchDocumentId, TEMPLATE_PREFIX } from './utils'
 export const DOCUMENT_SEQUENCE_NAMESPACE = `${documentsId}.sequence`
 export const TEMPLATE_SEQUENCE_SCOPE = 'templates'
 export const DOCUMENT_SEQUENCE_KEY = 'seqNumber'
-const MAX_ALLOCATION_ATTEMPTS = 10
 
 async function getParentPath (client: TxOperations, parent: Ref<ProjectDocument>): Promise<Array<Ref<DocumentMeta>>> {
   const parentDocObj = await client.findOne(documents.class.ProjectDocument, {
@@ -94,25 +93,19 @@ export async function createControlledDocFromTemplate (
     return { seqNumber: -1, success: false }
   }
 
+  // A code that is not an identifier is kept as the user typed it.
   const parsedCode = spec.code === '' ? undefined : matchDocumentId(spec.code)
-  if (parsedCode === null) throw new Error(`Invalid document code: ${spec.code}`)
-
-  const usesSequenceCode = parsedCode === undefined || parsedCode.prefix === prefix
-  const seqNumber = await requestNumberAllocation(client, {
-    namespace: DOCUMENT_SEQUENCE_NAMESPACE,
-    scope: templateId,
-    sequence: DOCUMENT_SEQUENCE_KEY,
-    minimum
-  })
+  const usesSequenceCode = parsedCode === undefined || parsedCode?.prefix === prefix
 
   return await allocateDocumentIdentifier(
     client,
     {
       scope: templateId,
+      minimum,
       conflictQuery: { template: templateId },
-      codePrefix: usesSequenceCode ? prefix : undefined
+      codePrefix: usesSequenceCode ? prefix : undefined,
+      code: usesSequenceCode ? undefined : spec.code
     },
-    { seqNumber, code: usesSequenceCode ? `${prefix}-${seqNumber}` : spec.code },
     async (seqNumber, code) =>
       await createControlledDocAttempt(
         client,
@@ -133,74 +126,51 @@ export async function createControlledDocFromTemplate (
   )
 }
 
-export interface SequenceAllocation {
-  /** Scope of the numeric sequence the value is allocated from. */
+export interface DocumentAllocation {
+  /** Scope of the document number sequence: a template id, or {@link TEMPLATE_SEQUENCE_SCOPE}. */
   scope: string
-  /** Query selecting documents that share the allocated sequence. */
+  /** Lowest acceptable number. */
+  minimum?: number
+  /** Query selecting documents that share the allocated number. */
   conflictQuery: DocumentQuery<Document>
-  /** Prefix the code is derived from, when the code follows the sequence. */
+  /** Prefix the code follows, when it is derived from the allocated number. */
   codePrefix?: string
-}
-
-export interface AllocationResult {
-  seqNumber: number
-  success: boolean
-  /** Why the creation was given up on, when it did not succeed. */
-  reason?: string
+  /** Code to start from, when it does not follow the allocated number. */
+  code?: string
 }
 
 /**
- * Retries a document creation attempt while its sequence or code is taken by a concurrent creation.
- * A failure with no conflicting document is not an allocation problem, so it is not retried.
+ * Allocates a document number and code and retries the creation while either of them is taken,
+ * see {@link allocateWithRetries}. Document numbers come from the per-template sequence and
+ * codes that do not follow it from the per-prefix one.
  */
 export async function allocateDocumentIdentifier (
   client: TxOperations,
-  allocation: SequenceAllocation,
-  initial: { seqNumber: number, code: string },
+  allocation: DocumentAllocation,
   attempt: (seqNumber: number, code: string) => Promise<boolean>,
   isAborted?: () => Promise<boolean>
-): Promise<AllocationResult> {
-  let { seqNumber, code } = initial
-
-  for (let attemptIndex = 0; attemptIndex < MAX_ALLOCATION_ATTEMPTS; attemptIndex++) {
-    if (await attempt(seqNumber, code)) return { seqNumber, success: true }
-    if (isAborted !== undefined && (await isAborted())) {
-      return { seqNumber: -1, success: false, reason: 'the allocation was aborted' }
-    }
-
-    const [sequenceConflict, codeConflict] = await Promise.all([
-      client.findOne(documents.class.Document, { ...allocation.conflictQuery, seqNumber }),
-      client.findOne(documents.class.Document, { code })
-    ])
-    if (sequenceConflict === undefined && codeConflict === undefined) {
-      return { seqNumber: -1, success: false, reason: 'creation failed without an identifier conflict' }
-    }
-
-    if (sequenceConflict !== undefined || (allocation.codePrefix !== undefined && codeConflict !== undefined)) {
-      seqNumber = await requestNumberAllocation(client, {
-        namespace: DOCUMENT_SEQUENCE_NAMESPACE,
-        scope: allocation.scope,
-        sequence: DOCUMENT_SEQUENCE_KEY
-      })
-    }
-    if (allocation.codePrefix !== undefined) {
-      code = `${allocation.codePrefix}-${seqNumber}`
-    } else if (codeConflict !== undefined) {
-      code = await requestNextIdentifier(client, code)
-    }
-  }
-
-  return { seqNumber: -1, success: false, reason: `no free identifier after ${MAX_ALLOCATION_ATTEMPTS} attempts` }
-}
-
-async function requestNextIdentifier (client: TxOperations, occupiedCode: string): Promise<string> {
-  const parsedCode = matchDocumentId(occupiedCode)
-  if (parsedCode === null) throw new Error(`Invalid document code: ${occupiedCode}`)
-  return await requestIdentifierAllocation(client, {
-    namespace: documentsId,
-    prefix: parsedCode.prefix,
-    minimum: parsedCode.seqNumber + 1
-  })
+): Promise<AllocationOutcome> {
+  return await allocateWithRetries(
+    client,
+    {
+      namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+      scope: allocation.scope,
+      sequence: DOCUMENT_SEQUENCE_KEY,
+      minimum: allocation.minimum,
+      codePrefix: allocation.codePrefix,
+      code: allocation.code,
+      codeNamespace: documentsId
+    },
+    attempt,
+    async (seqNumber, code) => {
+      const [sequenceConflict, codeConflict] = await Promise.all([
+        client.findOne(documents.class.Document, { ...allocation.conflictQuery, seqNumber }),
+        client.findOne(documents.class.Document, { code })
+      ])
+      return { sequence: sequenceConflict !== undefined, code: codeConflict !== undefined }
+    },
+    isAborted
+  )
 }
 
 /**
@@ -427,32 +397,26 @@ export async function createDocumentTemplate (
   author?: Ref<Employee>,
   changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
 ): Promise<{ seqNumber: number, success: boolean }> {
+  // A code that is not an identifier is kept as the user typed it.
   const requestedCode = spec.code ?? ''
   const parsedCode = requestedCode === '' ? undefined : matchDocumentId(requestedCode)
-  if (parsedCode === null) throw new Error(`Invalid document code: ${requestedCode}`)
-
-  const usesSequenceCode = parsedCode === undefined || parsedCode.prefix === TEMPLATE_PREFIX
+  const usesSequenceCode = parsedCode === undefined || parsedCode?.prefix === TEMPLATE_PREFIX
   const lastTemplate = await client.findOne(
     documents.class.Document,
     { template: { $exists: false } },
     { sort: { seqNumber: SortingOrder.Descending }, projection: { seqNumber: 1 } }
   )
   const minimum = Math.max(spec.seqNumber, (lastTemplate?.seqNumber ?? 0) + 1, 1)
-  const seqNumber = await requestNumberAllocation(client, {
-    namespace: DOCUMENT_SEQUENCE_NAMESPACE,
-    scope: TEMPLATE_SEQUENCE_SCOPE,
-    sequence: DOCUMENT_SEQUENCE_KEY,
-    minimum
-  })
 
   return await allocateDocumentIdentifier(
     client,
     {
       scope: TEMPLATE_SEQUENCE_SCOPE,
+      minimum,
       conflictQuery: { template: { $exists: false } },
-      codePrefix: usesSequenceCode ? TEMPLATE_PREFIX : undefined
+      codePrefix: usesSequenceCode ? TEMPLATE_PREFIX : undefined,
+      code: usesSequenceCode ? undefined : requestedCode
     },
-    { seqNumber, code: usesSequenceCode ? `${TEMPLATE_PREFIX}-${seqNumber}` : requestedCode },
     async (seqNumber, code) =>
       await createDocumentTemplateAttempt(client, {
         _class,

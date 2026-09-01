@@ -79,9 +79,11 @@ class TargetClientStub {
   } {
     let sequence: CustomSequence | undefined
     let document: Record<string, any> | undefined
+    const guards: Array<Record<string, any>> = []
     return {
       notMatch: (_class, query) => {
         this.notMatches.push({ _class, query })
+        guards.push(query)
       },
       createDoc: async (_class, _space, data) => {
         if (_class === core.class.CustomSequence) {
@@ -100,7 +102,9 @@ class TargetClientStub {
           this.sequences.set(sequence._id, sequence)
           return { result: true }
         }
-        const result = this.commitResults.shift() ?? true
+        // A guarded transaction does not apply when any of its notMatch queries matches.
+        const guarded = await Promise.all(guards.map(async (query) => await this.findOne(docClass, query)))
+        const result = guarded.every((match) => match === undefined) && (this.commitResults.shift() ?? true)
         if (result && document !== undefined) {
           this.created.push(document)
         }
@@ -198,7 +202,7 @@ describe('DocumentExporter identifier allocation', () => {
   })
 
   it('renumbers the document when its number was taken between the check and the commit', async () => {
-    const target = new TargetClientStub([{ seqNumber: 5, code: 'QMS-5', template: templateId }], [false])
+    const target = new TargetClientStub([{ seqNumber: 5, code: 'QMS-5', template: templateId }])
     const { exporter } = makeExporter(target, { code: 'QMS-5', seqNumber: 5, prefix: 'QMS', template: templateId })
 
     await expect(exportOne(exporter)).resolves.toBe(true)

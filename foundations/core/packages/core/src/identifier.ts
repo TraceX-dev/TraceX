@@ -18,18 +18,23 @@ import { type CustomSequence } from './classes'
 import { type TxOperations } from './operations'
 import { generateId } from './utils'
 
-export interface NumberAllocationRequest {
+export interface AllocationRequest {
+  /** Feature the sequence belongs to, e.g. `documents` or `documents.sequence`. */
   namespace: string
+  /** What the numbering is counted per within the namespace, e.g. a template id. */
   scope?: string
-  sequence: string
+  /** Lowest acceptable value, defaults to 1. */
   minimum?: number
 }
 
-export interface IdentifierAllocationRequest {
-  namespace: string
-  scope?: string
+export interface NumberAllocationRequest extends AllocationRequest {
+  /** Name of the sequence within the namespace and scope. */
+  sequence: string
+}
+
+export interface IdentifierAllocationRequest extends AllocationRequest {
+  /** Identifier prefix, which also names the sequence the number comes from. */
   prefix: string
-  minimum?: number
 }
 
 export interface ParsedIdentifier {
@@ -125,4 +130,111 @@ export async function requestIdentifierAllocation (
     minimum: request.minimum
   })
   return `${request.prefix}-${sequence}`
+}
+
+export interface AllocationConflicts {
+  /** The allocated number is already taken. */
+  sequence: boolean
+  /** The code is already taken. */
+  code: boolean
+}
+
+export interface RetriedAllocationRequest extends NumberAllocationRequest {
+  /** Prefix the code is derived from, when the code follows the allocated number. */
+  codePrefix?: string
+  /**
+   * Code to start from, when it does not follow the allocated number. A code that is not an
+   * identifier is used as is, since there is no sequence to renumber it from on a conflict.
+   */
+  code?: string
+  /** Namespace of the per-prefix sequence a custom code is renumbered from. */
+  codeNamespace?: string
+  /** Scope of the per-prefix sequence a custom code is renumbered from. */
+  codeScope?: string
+}
+
+export interface AllocationOutcome {
+  seqNumber: number
+  code: string
+  success: boolean
+  /** Why the allocation was given up on, when it did not succeed. */
+  reason?: string
+}
+
+/**
+ * Allocates a number and a code, and retries the creation while either of them is taken
+ * by a concurrent one. A failure with no conflicting document is not an allocation problem,
+ * so it is reported instead of retried.
+ *
+ * `attempt` is expected to create the document in a single guarded transaction and to
+ * return whether it applied, `findConflicts` to report which of the two values it lost to.
+ */
+export async function allocateWithRetries (
+  client: TxOperations,
+  request: RetriedAllocationRequest,
+  attempt: (seqNumber: number, code: string) => Promise<boolean>,
+  findConflicts: (seqNumber: number, code: string) => Promise<AllocationConflicts>,
+  isAborted?: () => Promise<boolean>
+): Promise<AllocationOutcome> {
+  const { codePrefix, code: requestedCode, codeNamespace, codeScope, ...sequence } = request
+  if ((codePrefix === undefined) === (requestedCode === undefined)) {
+    throw new Error('Allocation requires either a code prefix or a code to start from')
+  }
+  if (codePrefix === undefined && codeNamespace === undefined) {
+    throw new Error('Allocation requires a namespace to renumber a custom code from')
+  }
+
+  let seqNumber = await requestNumberAllocation(client, sequence)
+  let code = codePrefix !== undefined ? `${codePrefix}-${seqNumber}` : (requestedCode as string)
+
+  for (let attemptIndex = 0; attemptIndex < MAX_ALLOCATION_ATTEMPTS; attemptIndex++) {
+    if (await attempt(seqNumber, code)) return { seqNumber, code, success: true }
+    if (isAborted !== undefined && (await isAborted())) {
+      return { seqNumber: -1, code, success: false, reason: 'the allocation was aborted' }
+    }
+
+    const conflicts = await findConflicts(seqNumber, code)
+    if (!conflicts.sequence && !conflicts.code) {
+      return { seqNumber: -1, code, success: false, reason: 'creation failed without an identifier conflict' }
+    }
+
+    if (conflicts.sequence || codePrefix !== undefined) {
+      seqNumber = await requestNumberAllocation(client, { ...sequence, minimum: undefined })
+    }
+    if (codePrefix !== undefined) {
+      code = `${codePrefix}-${seqNumber}`
+    } else if (conflicts.code) {
+      if (parseIdentifier(code) === null) {
+        return { seqNumber: -1, code, success: false, reason: `the code ${code} is already taken` }
+      }
+      code = await requestNextIdentifier(client, code, codeNamespace as string, codeScope)
+    }
+  }
+
+  return {
+    seqNumber: -1,
+    code,
+    success: false,
+    reason: `no free identifier after ${MAX_ALLOCATION_ATTEMPTS} attempts`
+  }
+}
+
+/** Allocates the first identifier of the same prefix that comes after an occupied one. */
+export async function requestNextIdentifier (
+  client: TxOperations,
+  occupiedCode: string,
+  namespace: string,
+  scope?: string
+): Promise<string> {
+  const parsedCode = parseIdentifier(occupiedCode)
+  if (parsedCode === null) {
+    throw new Error(`Invalid identifier: ${occupiedCode}`)
+  }
+
+  return await requestIdentifierAllocation(client, {
+    namespace,
+    scope,
+    prefix: parsedCode.prefix,
+    minimum: parsedCode.sequence + 1
+  })
 }

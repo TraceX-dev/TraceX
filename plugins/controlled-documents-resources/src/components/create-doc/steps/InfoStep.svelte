@@ -136,14 +136,23 @@
           scope,
           prefix: DOCUMENT_SEQUENCE_KEY
         })
-    const seqNumber = Math.max(docObject.seqNumber, (numberSequence?.sequence ?? 0) + 1)
+    let seqNumber = Math.max(docObject.seqNumber, (numberSequence?.sequence ?? 0) + 1)
+
+    // The sequence can lag behind documents imported or migrated into the workspace,
+    // so the previewed code skips the ones that are already taken.
+    let code = getDocumentId({ prefix: docObject.prefix, seqNumber })
+    for (let attempt = 0; attempt < 10; attempt++) {
+      if ((await client.findOne(documents.class.Document, { code })) === undefined) break
+      seqNumber++
+      code = getDocumentId({ prefix: docObject.prefix, seqNumber })
+    }
 
     if (docObject.code !== '') return
 
     if (!isTemplate) {
       docObject.seqNumber = seqNumber
     }
-    docObject.code = getDocumentId({ prefix: docObject.prefix, seqNumber })
+    docObject.code = code
   }
 
   const radioItems = [

@@ -28,12 +28,9 @@ import documents, {
   type DocumentTemplate,
   type Document as ControlledDocumentBase,
   allocateDocumentIdentifier,
-  DOCUMENT_SEQUENCE_KEY,
-  DOCUMENT_SEQUENCE_NAMESPACE,
-  documentsId,
+  type DocumentAllocation,
   type OrgSpace,
   type ProjectDocument,
-  type SequenceAllocation,
   TEMPLATE_PREFIX,
   TEMPLATE_SEQUENCE_SCOPE,
   useDocumentTemplate
@@ -49,8 +46,6 @@ import core, {
   generateId,
   makeCollabId,
   parseIdentifier,
-  requestIdentifierAllocation,
-  requestNumberAllocation,
   type Mixin,
   type Blob as PlatformBlob,
   type Ref,
@@ -86,8 +81,6 @@ import { type Props, type UnifiedUpdate, type UnifiedDoc, type UnifiedFile, type
 import { type Logger } from './logger'
 import { type MarkdownPreprocessor, NoopMarkdownPreprocessor } from './preprocessor'
 import { type FileUploader } from './uploader'
-
-const MAX_ALLOCATION_ATTEMPTS = 10
 
 export interface ImportWorkspace {
   projectTypes?: ImportProjectType[]
@@ -999,29 +992,19 @@ export class WorkspaceImporter {
       template.ccImpact
     )
 
+    // A code that is not an identifier is imported as is.
     const parsedCode = parseIdentifier(code)
-    if (parsedCode === null) {
-      throw new Error(`Invalid controlled document code: ${code}`)
-    }
-    const usesSequenceCode = parsedCode.prefix === TEMPLATE_PREFIX
-    const allocatedSeqNumber = await requestNumberAllocation(this.client, {
-      namespace: DOCUMENT_SEQUENCE_NAMESPACE,
-      scope: TEMPLATE_SEQUENCE_SCOPE,
-      sequence: DOCUMENT_SEQUENCE_KEY,
-      minimum: Math.max(seqNumber, 1)
-    })
-    const allocatedCode = usesSequenceCode
-      ? `${TEMPLATE_PREFIX}-${allocatedSeqNumber}`
-      : await this.requestImportedDocumentCode(code)
+    const usesSequenceCode = parsedCode?.prefix === TEMPLATE_PREFIX
 
     await this.createWithAllocation(
       template.title,
       {
         scope: TEMPLATE_SEQUENCE_SCOPE,
+        minimum: Math.max(seqNumber, 1),
         conflictQuery: { template: { $exists: false } },
-        codePrefix: usesSequenceCode ? TEMPLATE_PREFIX : undefined
+        codePrefix: usesSequenceCode ? TEMPLATE_PREFIX : undefined,
+        code: usesSequenceCode ? undefined : code
       },
-      { seqNumber: allocatedSeqNumber, code: allocatedCode },
       async (seqNumber, code) => {
         const ops = this.client.apply('create-imported-qms-document')
         ops.notMatch(documents.class.Document, { template: { $exists: false }, seqNumber })
@@ -1143,13 +1126,6 @@ export class WorkspaceImporter {
       throw new Error(`Document template not found: ${templateId}`)
     }
 
-    const seqNumber = await requestNumberAllocation(this.client, {
-      namespace: DOCUMENT_SEQUENCE_NAMESPACE,
-      scope: templateId,
-      sequence: DOCUMENT_SEQUENCE_KEY,
-      minimum
-    })
-
     const changeControlId = await this.createChangeControl(
       spaceId,
       document.ccDescription,
@@ -1157,24 +1133,20 @@ export class WorkspaceImporter {
       document.ccImpact
     )
 
-    const requestedCode = document.code ?? `${prefix}-${seqNumber}`
-    const parsedCode = parseIdentifier(requestedCode)
-    if (parsedCode === null) {
-      throw new Error(`Invalid controlled document code: ${requestedCode}`)
-    }
-    const usesSequenceCode = parsedCode.prefix === prefix
-    const initialCode = usesSequenceCode
-      ? `${prefix}-${seqNumber}`
-      : await this.requestImportedDocumentCode(requestedCode)
+    // A code that is not an identifier is imported as is.
+    const requestedCode = document.code
+    const parsedCode = requestedCode === undefined ? undefined : parseIdentifier(requestedCode)
+    const usesSequenceCode = parsedCode === undefined || parsedCode?.prefix === prefix
 
     await this.createWithAllocation(
       document.title,
       {
         scope: templateId,
+        minimum,
         conflictQuery: { template: templateId as unknown as Ref<DocumentTemplate> },
-        codePrefix: usesSequenceCode ? prefix : undefined
+        codePrefix: usesSequenceCode ? prefix : undefined,
+        code: usesSequenceCode ? undefined : requestedCode
       },
-      { seqNumber, code: initialCode },
       async (seqNumber, code) => {
         const ops = this.client.apply('create-imported-qms-document')
         ops.notMatch(documents.class.Document, {
@@ -1234,34 +1206,16 @@ export class WorkspaceImporter {
     return document.id
   }
 
-  /** Creates a controlled document, retrying while its sequence or code is taken. */
+  /** Creates a controlled document, retrying while its number or code is taken. */
   private async createWithAllocation (
     title: string,
-    allocation: SequenceAllocation,
-    initial: { seqNumber: number, code: string },
+    allocation: DocumentAllocation,
     attempt: (seqNumber: number, code: string) => Promise<boolean>
   ): Promise<void> {
-    const { success, reason } = await allocateDocumentIdentifier(this.client, allocation, initial, attempt)
+    const { success, reason } = await allocateDocumentIdentifier(this.client, allocation, attempt)
     if (!success) {
       throw new Error(`Failed to create controlled document "${title}": ${reason ?? 'unknown reason'}`)
     }
-  }
-
-  private async requestImportedDocumentCode (requestedCode: string): Promise<string> {
-    let code = requestedCode
-    for (let attempt = 0; attempt < MAX_ALLOCATION_ATTEMPTS; attempt++) {
-      const parsedCode = parseIdentifier(code)
-      if (parsedCode === null) throw new Error(`Invalid controlled document code: ${code}`)
-      if ((await this.client.findOne(documents.class.Document, { code })) === undefined) return code
-      code = await requestIdentifierAllocation(this.client, {
-        namespace: documentsId,
-        prefix: parsedCode.prefix,
-        minimum: parsedCode.sequence + 1
-      })
-    }
-    throw new Error(
-      `Unable to allocate controlled document code after ${MAX_ALLOCATION_ATTEMPTS} attempts: ${requestedCode}`
-    )
   }
 
   private async createChangeControl (
