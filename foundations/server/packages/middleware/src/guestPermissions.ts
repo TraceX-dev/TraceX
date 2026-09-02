@@ -29,12 +29,11 @@ import platform, { PlatformError, Severity, Status } from '@hcengineering/platfo
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
 
-// By id, not an `@hcengineering/process` import - that package pulls in client-only `@hcengineering/ui`.
+// Importing `@hcengineering/process` would pull client-only dependencies into this package.
 const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as unknown as Ref<Class<Doc>>
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
-  // `this`, not `this.next`: routes through `this.findAll` so a subclass/test override of it is
-  // honored, the same as the row-policy ownership checks below.
+  // Use this middleware so overridden `findAll` methods are honored.
   private readonly classAccess = new ClassAccessResolver(this)
   private readonly rowVisibility = new RowVisibilityResolver(this.next)
 
@@ -120,7 +119,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return parent?.createdBy !== undefined && account.socialIds.includes(parent.createdBy)
   }
 
-  /** Enforce a declared row policy for mutations without treating a caller-supplied id as trusted. */
+  /** Checks whether a mutation targets a row visible to the caller. */
   private async canMutateVisibleRow (
     ctx: MeasureContext<SessionData>,
     tx: TxCUD<Doc>,

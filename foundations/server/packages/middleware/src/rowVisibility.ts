@@ -40,8 +40,7 @@ import type { Middleware } from '@hcengineering/server-core'
 import contact, { type Person } from '@hcengineering/contact'
 import { hasNarrowFieldQuery } from './guestVisibility'
 
-/** Resolves an account to the identity values `RowVisibilityPolicy` comparisons need. Lazy -
- * most policies only need one of the three, and `personId` costs a DB round trip. */
+/** Lazily resolves the identities used by row-visibility policies. */
 export class AccountIdentityResolver {
   private personIdPromise: Promise<Ref<Person> | undefined> | undefined
 
@@ -66,14 +65,12 @@ export class AccountIdentityResolver {
     return await this.personIdPromise
   }
 
-  /** `linkId` claim from the session token (`SessionData.extra`). Every public-link guest shares
-   * the same fixed account, so this - not the account - identifies whose session it is. */
+  /** Public-link identity from the session token. */
   linkId (): Ref<Doc> | undefined {
     return this.ctx.contextData.extra?.linkId as Ref<Doc> | undefined
   }
 
-  /** `socialId` resolves to every social id linked to the account (a guest's own docs may be
-   * authored under any of them, not just the current primary) - callers must match against all. */
+  /** All social identities linked to the account. */
   async resolve (kind: IdentityKind): Promise<string | string[] | undefined> {
     switch (kind) {
       case 'accountUuid':
@@ -81,8 +78,6 @@ export class AccountIdentityResolver {
       case 'personId':
         return await this.personId()
       case 'socialId':
-        // Collapse to a scalar in the (overwhelmingly common) single-social-id case, so query
-        // shapes and comparisons are unchanged unless the account actually has more than one.
         return this.account.socialIds.length === 1 ? this.account.socialIds[0] : this.account.socialIds
       case 'linkId':
         return this.linkId()
@@ -90,8 +85,7 @@ export class AccountIdentityResolver {
   }
 }
 
-/** Whether `resolved` (from `AccountIdentityResolver.resolve`) matches `fieldValue`, handling the
- * `socialId` case's multi-value result uniformly with the single-value identity kinds. */
+/** Matches a field against either a single identity or a set of social identities. */
 function identityMatches (fieldValue: unknown, resolved: string | string[] | undefined): boolean {
   if (Array.isArray(resolved)) return resolved.length > 0 && resolved.includes(fieldValue as string)
   return resolved !== undefined && fieldValue === resolved
@@ -111,8 +105,7 @@ function getWritePolicy (mixin: MutationAwareVisibility): RowVisibilityPolicy {
   return mixin.writePolicy ?? mixin.policy
 }
 
-/** Intersects an existing query field constraint with a required value; denies (`undefined`) on
- * conflict. Mirrors what `hasNarrowFieldQuery` considers "narrow" - anything else is overwritten. */
+/** Intersects a query field constraint with a required value. */
 function mergeEquals<T extends Doc> (query: DocumentQuery<T>, field: string, value: any): DocumentQuery<T> | undefined {
   const current = (query as Record<string, any>)[field]
   if (current === undefined) {
@@ -127,7 +120,7 @@ function mergeEquals<T extends Doc> (query: DocumentQuery<T>, field: string, val
   return { ...query, [field]: value }
 }
 
-/** Same as `mergeEquals`, but narrows to a set of allowed values (`$in`). */
+/** Narrows a query field to a set of allowed values. */
 function mergeIn<T extends Doc> (
   query: DocumentQuery<T>,
   field: string,
@@ -166,9 +159,6 @@ export class RowVisibilityResolver {
     identity: AccountIdentityResolver,
     allowKnownIdBypass = true
   ): Promise<RowVisibilityDecision<T>> {
-    // Cast to a concrete `Ref<Class<Doc>>`: with the caller's own `_class: Ref<Class<T>>` passed
-    // through as-is, `classHierarchyMixin`'s `M extends D` constraint unifies `M` with `T` instead
-    // of `RowVisibility`, and `mixin` below loses its fields to `T`.
     if (typeof hierarchy.classHierarchyMixin !== 'function') {
       return { kind: 'unrestricted' }
     }
@@ -228,11 +218,7 @@ export class RowVisibilityResolver {
     }
   }
 
-  /** Ensures an update or mixin extension cannot transfer a row to another owner. Covers both tx
-   * kinds `hasClassAccessLevel` (Layer 1, `./accessGate`) already treats as equivalent mutations,
-   * and both policy kinds capable of expressing ownership (`ownerField` directly, `linkedViaRecord`
-   * via its `targetField`) - a class combining write access with any other policy kind has no
-   * mutable ownership field for this guard to check, so it's left to Layer 1 access level alone. */
+  /** Ensures an update or mixin extension cannot transfer a row to another owner. */
   async canUpdate (
     ctx: MeasureContext<SessionData>,
     hierarchy: Hierarchy,
@@ -263,8 +249,7 @@ export class RowVisibilityResolver {
     return allowed.has(updatedFields[policy.targetField ?? '_id'] as Ref<Doc>)
   }
 
-  /** Resolves a `linkedViaRecord` policy to its set of allowed target ids (`undefined` means deny),
-   * shared between `applyPolicy`'s read-side narrowing and `canUpdate`'s ownership-transfer guard. */
+  /** Resolves the targets accessible through a `linkedViaRecord` policy. */
   private async resolveLinkedTargets (
     ctx: MeasureContext<SessionData>,
     policy: Extract<RowVisibilityPolicy, { kind: 'linkedViaRecord' }>,
@@ -272,7 +257,6 @@ export class RowVisibilityResolver {
   ): Promise<Set<Ref<Doc>> | undefined> {
     const value = await identity.resolve(policy.identity)
     if (value === undefined || (Array.isArray(value) && value.length === 0)) return undefined
-    // `DocumentQuery<Doc>`'s catch-all `[key: string]: any` accepts the computed key directly.
     const linkQuery: DocumentQuery<Doc> = {
       [policy.linkIdentityField]: Array.isArray(value) ? { $in: value } : value
     }
@@ -307,7 +291,6 @@ export class RowVisibilityResolver {
     identity: AccountIdentityResolver
   ): Promise<RowVisibilityDecision<T>> {
     switch (policy.kind) {
-      // no-ops: spaceMember is handled elsewhere in the pipeline, publicReadable means "don't restrict"
       case 'spaceMember':
       case 'publicReadable':
         return { kind: 'unrestricted' }

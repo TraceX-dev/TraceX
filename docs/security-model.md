@@ -1,18 +1,14 @@
 # Restricted-role security model
 
-Referenced from `foundations/server/packages/middleware/src/tests/rowVisibilityInvariant.test.ts`
-as "the design doc" - this is that doc. It covers accounts on a role ordered below
-`AccountRole.User` (today: `ReadOnlyGuest`, `DocGuest`, `Guest`; any future role added below
-`User` is covered automatically, see [Restricted-role threshold](#restricted-role-threshold)).
-`User` and above bypass everything described here.
-
-The type declarations referenced throughout live in
-`foundations/core/packages/core/src/security.ts`. The enforcement code lives in
-`foundations/server/packages/middleware/src/{accessGate,rowVisibility,spaceSecurity,guestPermissions,guestVisibility}.ts`.
+This model protects data accessed by accounts with a role below `AccountRole.User`:
+`ReadOnlyGuest`, `DocGuest`, `Guest`, and any future role ordered below `User`.
+It combines a permission to perform an action with a rule that limits the records available to
+that account. Accounts with the `User` role or higher are outside this model.
 
 ## Restricted-role threshold
 
-`roleOrder` (`@hcengineering/core`) is the single source of truth for how privileged a role is:
+`roleOrder` in `@hcengineering/core` defines role privilege. A restricted role is any role below
+`AccountRole.User`:
 
 ```ts
 export const roleOrder: Record<AccountRole, number> = {
@@ -30,21 +26,15 @@ export function isRowLevelRestricted (role: AccountRole): boolean {
 }
 ```
 
-Both layers below are gated on `isRowLevelRestricted(account.role)`. Neither layer hardcodes a
-list of guest roles, so a new role added below `User` is covered without touching either layer -
-only its own `roleOrder` entry decides whether it's restricted.
+A new role automatically uses this model when its `roleOrder` value is below `User`.
 
 ## Layer 1 — class/action access
 
-*"May this role reach this class/tx kind at all?"* Enforced in `accessGate.ts`, called from
-`GuestPermissionsMiddleware`. Two independent sources are combined:
+Layer 1 answers: *may this role perform this action on this class?* It combines two sources:
 
 1. **Admin-configurable**: `ModulePermissionGroup` docs, each listing `Ref<Permission>`s enabled
    for a role; `ClassPermission` resolves a permission to the target class and `Tx` kind it
-   covers. Edited from Settings → Guest permissions
-   (`plugins/setting-resources/src/components/SpaceAccessSettings.svelte`). Cached in
-   `ClassAccessResolver`, invalidated when a `ModulePermissionGroup`/`ClassPermission` document
-   changes (including nested inside a `TxApplyIf`).
+   covers. These are edited in Settings → Guest permissions.
 2. **Code-declared, not admin-configurable**: `core.mixin.TxAccessLevel`, giving a class a static
    minimum role for create/update/remove:
 
@@ -60,17 +50,16 @@ only its own `roleOrder` entry decides whether it's restricted.
    `isIdentity: true` additionally lets an account update/mixin a document that *is* its own
    identity (a `Person`/`SocialIdentity` matching the caller), independent of `updateAccessLevel`.
 
-`isClassAccessAllowed` (`accessGate.ts`) returns true if either source allows the tx. Ownership of
-the target document (`createdBy`) is **not** considered at this layer - that's Layer 2.
+An action is allowed when either source permits it. This layer never decides whether the caller may
+access a particular document; that is Layer 2's responsibility.
 
 ## Layer 2 — row visibility
 
-*"Given a class Layer 1 already allows, which specific rows may this role see or touch?"*
-Enforced in `rowVisibility.ts`, called from both `SpaceSecurityMiddleware` (`findAll`,
-`searchFulltext`) and `GuestPermissionsMiddleware` (create/update/remove).
+Layer 2 answers: *which records may this account see or change?* It applies to reads, full-text
+search, and mutations after Layer 1 has allowed the class and action.
 
-Declared once per class via `core.mixin.RowVisibility`, next to the class definition, by the
-plugin author - never admin-configurable:
+The plugin author declares `core.mixin.RowVisibility` next to each protected class. It is a
+structural rule, not an administrator setting:
 
 ```ts
 export interface RowVisibility extends Class<Doc> {
@@ -88,38 +77,30 @@ export interface RowVisibility extends Class<Doc> {
 | --- | --- |
 | `ownerField` | `doc[field]` must equal the caller's resolved identity (`IdentityKind`: `accountUuid` \| `personId` \| `socialId` \| `linkId`). |
 | `linkedViaRecord` | Ownership via a separate link record (e.g. `core.class.Collaborator`); optionally chained `through` another class before narrowing the protected document. |
-| `spaceMember` | No extra narrowing - ordinary real-space membership already covers it. |
-| `denyAll` | No way to verify ownership; always denied (subject to `allowKnownIdBypass`). |
-| `publicReadable` | Deliberately open to any role Layer 1 already let in. Requires a `reason` string, so the intent survives code review and isn't confused with "policy not written yet". |
+| `spaceMember` | Ordinary membership in a real space provides the restriction. |
+| `denyAll` | Access is denied because ownership cannot be verified. |
+| `publicReadable` | No additional row restriction applies after Layer 1 and ordinary space checks. A `reason` records why this is safe. |
 
 ### `allowKnownIdBypass`
 
-If `true`, a `findAll`/`searchFulltext` query that already narrows one of `knownIdBypassFields`
-(defaulting to `_id`) to a specific value or `$in` set skips the policy check - the caller is
-trusted to only know that identifier because it already saw the referencing document. Set this to
-`false` whenever the identifier doubles as a secret (`guest.class.PublicLink._id`, a session
-`linkId`) or whenever knowing the id says nothing about being allowed to see it.
+When enabled, a `findAll` query narrowed to `_id` or a field from `knownIdBypassFields` may skip the
+row policy. Enable it only when that reference can originate from a document the caller is already
+allowed to read. It must be disabled when the value is a secret, such as a public-link ID, or when
+knowing the identifier does not demonstrate authorization.
 
-`allowKnownIdBypass` is **not honored** for full-text search results or for mutation checks
-(`resolveMutation`/`canUpdate`/`canCreate` in `rowVisibility.ts`) - a caller-supplied identifier is
-never sufficient proof of authorization there, independent of the per-class setting.
+Full-text search and mutations never use this bypass: a caller-provided identifier is not proof of
+authorization.
 
 ### `scopeActivityToOwner`
 
-Opts a class into `GuestActivitySettings.activityScope` (`own` / `collaborator` / `any`, default
-`any`): restricted-role reads of an `AttachedDoc` (chat message, etc.) attached to this class get
-narrowed to the caller's own activity, or activity on documents it collaborates on, instead of the
-attached class's own (often `publicReadable`) policy. Only set on "personal" document classes
-(e.g. `card.class.Card`) - leave unset for shared spaces like channels, where every member should
-keep seeing all activity.
+This opt-in lets `GuestActivitySettings.activityScope` limit activity attached to a personal
+document: to the caller's own activity, to activity on documents where they collaborate, or to any
+activity they can otherwise read. Do not enable it for shared documents such as channels.
 
 ## Declared policies
 
-Source of truth: `grep -rn "core.mixin.RowVisibility" models/ server-plugins/`. The list below is
-also enforced by `rowVisibilityInvariant.test.ts`'s `SENSITIVE_CLASSES` - a class landing in a
-shared or system space (`core.space.Workspace`, `contact.space.Contacts`, ...) is expected to
-either appear there with a real policy or be covered by an explicit, reviewed exemption; that test
-fails the build otherwise.
+Classes in shared or system spaces need an explicit policy or exemption. Without either,
+`SpaceSecurityMiddleware` denies restricted roles by default.
 
 | Class | Policy | Notes |
 | --- | --- | --- |
@@ -140,18 +121,9 @@ fails the build otherwise.
 | `activity.class.SavedMessage` | `ownerField(createdBy, socialId)` | |
 | `card.class.Card` | read `publicReadable` (ordinary space membership), write `ownerField(createdBy, socialId)` | `scopeActivityToOwner: true`. |
 
-A class in a shared/system space with **no** `RowVisibility` mixin and no explicit exemption is
-denied outright for restricted roles by `SpaceSecurityMiddleware` - the default is closed, not
-open.
-
 ## Extending the model
 
-- **New restricted role**: add it to `roleOrder` below `AccountRole.User`. Both layers pick it up
-  automatically.
-- **New class living in a shared/system space that a restricted role must reach**: declare
-  `core.mixin.RowVisibility` next to the class, picking the narrowest `RowVisibilityPolicy` kind
-  that fits; add it to `SENSITIVE_CLASSES` in `rowVisibilityInvariant.test.ts` and to the table
-  above. Add a `core.mixin.TxAccessLevel` (or a `ModulePermissionGroup`/`ClassPermission`) if the
-  role also needs to write it.
-- **New identity kind** (beyond `accountUuid`/`personId`/`socialId`/`linkId`): extend `IdentityKind`
-  and `AccountIdentityResolver.resolve` (`rowVisibility.ts`) together.
+- **Restricted role:** add it to `roleOrder` below `AccountRole.User`.
+- **Class in a shared or system space:** declare the narrowest suitable `RowVisibilityPolicy` and
+  add a class/action permission when the role must write it.
+- **Identity kind:** extend `IdentityKind` and `AccountIdentityResolver` together.
