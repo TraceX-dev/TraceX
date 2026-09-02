@@ -453,9 +453,13 @@ export function getDisplayInboxData (
 export function getInboxNotificationStore (): Readable<InboxNotificationState> {
   const inboxClient = InboxNotificationsClientImpl.getClient()
 
-  return derived(inboxClient.inboxNotificationsByContext, (notificationsByContext) => ({
-    notify: getDisplayInboxData(notificationsByContext, 'unread').size > 0
-  }))
+  return derived(
+    [inboxClient.inboxNotificationsByContext, inboxClient.isLoaded],
+    ([notificationsByContext, isLoaded]) => ({
+      notify: getDisplayInboxData(notificationsByContext, 'unread').size > 0,
+      isLoaded
+    })
+  )
 }
 
 export async function getNotificationsCount (
