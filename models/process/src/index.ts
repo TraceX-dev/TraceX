@@ -24,7 +24,8 @@ import core, {
   type Ref,
   SortingOrder,
   type Space,
-  type Tx
+  type Tx,
+  ownBy
 } from '@hcengineering/core'
 import {
   type Builder,
@@ -548,13 +549,8 @@ export function createModel (builder: Builder): void {
     actions: [view.action.Delete]
   })
 
-  // Layer 1 only; GuestApproveRequestClassPermission below is the actual gate.
-  builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.TxAccessLevel, {
-    updateAccessLevel: AccountRole.ReadOnlyGuest
-  })
-
   builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.ownBy('user', 'personId')
+    policy: ownBy('user', 'personId')
   })
 
   builder.createDoc(
@@ -563,7 +559,12 @@ export function createModel (builder: Builder): void {
     {
       label: process.string.AllowApproveRequestActions,
       scope: 'space',
-      targetClass: process.class.ApproveRequest
+      targetClass: process.class.ApproveRequest,
+      // Approving or rejecting is an update (or a mixin), never a create. Declaring both here
+      // makes this permission the single gate: with it disabled - the default - a guest cannot
+      // touch the request at all, and no middleware special case is needed to re-close what a
+      // `TxAccessLevel` would otherwise have opened.
+      txClasses: [core.class.TxUpdateDoc, core.class.TxMixin]
     },
     process.ids.GuestApproveRequestClassPermission
   )

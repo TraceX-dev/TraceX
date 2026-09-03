@@ -55,7 +55,9 @@ import {
   type PersonUuid,
   type Ref,
   type Space,
-  type Timestamp
+  type Timestamp,
+  ownBy,
+  relatedVia
 } from '@hcengineering/core'
 import { createSystemType } from '@hcengineering/model-card'
 import {
@@ -362,13 +364,29 @@ export function createModel (builder: Builder): void {
     isIdentity: true
   })
 
+  // Person discovery for restricted roles: the accounts sharing a real space with the caller,
+  // plus the caller itself. Replaces the bespoke `getGuestVisiblePersonIds` path that used to
+  // live in `SpaceSecurityMiddleware`. No known-id bypass: knowing a person id is not proof of
+  // authorization, so even an `_id`-scoped query is intersected with this set.
+  builder.mixin(contact.class.Person, core.class.Class, core.mixin.RowVisibility, {
+    policy: relatedVia(
+      {
+        from: 'accountUuid',
+        steps: [{ via: core.class.Space, match: 'members', emit: 'members' }],
+        to: 'personUuid',
+        includeSelf: true
+      },
+      'People are discoverable through shared real-space membership'
+    )
+  })
+
   builder.mixin(contact.class.SocialIdentity, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.Guest,
     isIdentity: true
   })
 
   builder.mixin(contact.class.SocialIdentity, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.ownBy('attachedTo', 'personId'),
+    policy: ownBy('attachedTo', 'personId'),
     allowKnownIdBypass: true,
     knownIdBypassReason: 'Social identities are resolved from an already visible person reference'
   })

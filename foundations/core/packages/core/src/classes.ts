@@ -586,6 +586,13 @@ export type RolesAssignment = Record<Ref<Role>, AccountUuid[] | undefined>
 export interface Permission extends Doc {
   label: IntlString
   txClass?: Ref<Class<Tx>>
+  /**
+   * Tx kinds this permission covers. Defaults to `[txClass ?? TxCreateDoc]`, so an existing
+   * permission keeps covering exactly what it covered before. Use it when one admin-facing
+   * toggle must gate more than one kind of change to the same class - approving a request is
+   * an update and a mixin, not a create, yet it is one checkbox to the administrator.
+   */
+  txClasses?: Ref<Class<Tx>>[]
   forbid?: boolean
   objectClass?: Ref<Class<Doc>>
   scope?: 'space' | 'workspace'

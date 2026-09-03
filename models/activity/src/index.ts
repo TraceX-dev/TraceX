@@ -50,7 +50,8 @@ import core, {
   type Timestamp,
   type Tx,
   type TxCUD,
-  AccountRole
+  AccountRole,
+  ownBy
 } from '@hcengineering/core'
 import {
   ArrOf,
@@ -286,7 +287,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(activity.class.SavedMessage, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.ownBy('createdBy', 'socialId')
+    policy: ownBy('createdBy', 'socialId')
   })
 
   builder.mixin(activity.class.Reaction, core.class.Class, core.mixin.TxAccessLevel, {

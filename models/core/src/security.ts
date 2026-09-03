@@ -172,6 +172,7 @@ export class TRole extends TAttachedDoc implements Role {
 export class TPermission extends TDoc implements Permission {
   label!: IntlString
   txClass?: Ref<Class<Tx>>
+  txClasses?: Ref<Class<Tx>>[]
   forbid?: boolean
   objectClass?: Ref<Class<Doc<Space>>>
   scope?: 'space' | 'workspace'

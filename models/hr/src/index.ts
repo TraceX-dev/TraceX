@@ -23,7 +23,8 @@ import {
   type Domain,
   type Markup,
   type Ref,
-  type Type
+  type Type,
+  ownBy
 } from '@hcengineering/core'
 import {
   hrId,
@@ -189,7 +190,7 @@ export function createModel (builder: Builder): void {
   builder.createModel(TDepartment, TRequest, TRequestType, TPublicHoliday, TStaff, TTzDate)
 
   builder.mixin(hr.class.Request, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.ownBy('attachedTo', 'personId'),
+    policy: ownBy('attachedTo', 'personId'),
     allowKnownIdBypass: true,
     knownIdBypassReason: 'Requests are resolved by identifier from an already visible workflow reference'
   })

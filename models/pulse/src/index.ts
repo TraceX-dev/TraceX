@@ -22,7 +22,8 @@ import {
   type Doc,
   type PersonId,
   type Ref,
-  type Timestamp
+  type Timestamp,
+  spaceScoped
 } from '@hcengineering/core'
 import { Model, type Builder } from '@hcengineering/model'
 import core, { TDoc } from '@hcengineering/model-core'
@@ -62,7 +63,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(pulse.class.DocumentPresence, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.spaceScoped('Ephemeral presence state contains no business data and expires by TTL')
+    policy: spaceScoped('Ephemeral presence state contains no business data and expires by TTL')
   })
 
   builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.TransientTTL, {
@@ -77,6 +78,6 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.spaceScoped('Ephemeral typing state contains no business data and expires by TTL')
+    policy: spaceScoped('Ephemeral typing state contains no business data and expires by TTL')
   })
 }

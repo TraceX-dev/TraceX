@@ -38,7 +38,7 @@ import {
   TObjectChatPanel,
   TThreadMessage
 } from './types'
-import { AccountRole } from '@hcengineering/core'
+import {AccountRole, ownBy, spaceScoped} from '@hcengineering/core'
 
 export { chunterId } from '@hcengineering/chunter'
 export { chunterOperation } from './migration'
@@ -131,8 +131,8 @@ export function createModel (builder: Builder): void {
   })
 
   const messageVisibility = {
-    policy: core.spaceScoped('Message visibility is governed by channel space access'),
-    writePolicy: core.ownBy('createdBy', 'socialId')
+    policy: spaceScoped('Message visibility is governed by channel space access'),
+    writePolicy: ownBy('createdBy', 'socialId')
   } as const
 
   builder.mixin(chunter.class.ChatMessage, core.class.Class, core.mixin.RowVisibility, messageVisibility)

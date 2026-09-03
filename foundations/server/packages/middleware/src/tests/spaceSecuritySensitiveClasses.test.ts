@@ -26,7 +26,10 @@ import core, {
   type PersonId,
   type RowVisibility,
   type SessionData,
-  type Ref
+  type Ref,
+  ownBy,
+  linkedViaCollaborator,
+  spaceScoped
 } from '@hcengineering/core'
 import type { Middleware, PipelineContext } from '@hcengineering/server-core'
 import { SpaceSecurityMiddleware } from '../spaceSecurity'
@@ -42,33 +45,22 @@ const PERSON_CLASS = contact.class.Person
 
 const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> = {
   [core.class.Collaborator]: {
-    policy: { kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' },
+    policy: ownBy('collaborator', 'accountUuid'),
     allowKnownIdBypass: true,
     knownIdBypassReason: 'Test relationship lookup',
     knownIdBypassFields: ['attachedTo']
   },
   [MEETING_MINUTES]: {
-    policy: {
-      kind: 'linkedViaRecord',
-      linkClass: core.class.Collaborator,
-      linkTargetField: 'attachedTo',
-      linkIdentityField: 'collaborator',
-      identity: 'accountUuid'
-    },
+    policy: linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid'),
     allowKnownIdBypass: true,
     knownIdBypassReason: 'Test room lookup'
   },
   [ROOM]: {
-    policy: { kind: 'spaceScoped', reason: 'Office rooms are visible to every guest' },
+    policy: spaceScoped('Office rooms are visible to every guest'),
     allowKnownIdBypass: false
   },
   [ROOM_INFO]: {
-    policy: {
-      kind: 'linkedViaRecord',
-      linkClass: core.class.Collaborator,
-      linkTargetField: 'attachedTo',
-      linkIdentityField: 'collaborator',
-      identity: 'accountUuid',
+    policy: linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid', {
       targetField: 'room',
       through: {
         documentClass: MEETING_MINUTES,
@@ -76,20 +68,20 @@ const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> =
         targetField: 'attachedTo',
         includeDirect: true
       }
-    },
+    }),
     allowKnownIdBypass: false
   },
   [PUBLIC_LINK]: {
-    policy: { kind: 'ownerField', field: '_id', identity: 'linkId' },
+    policy: ownBy('_id', 'linkId'),
     allowKnownIdBypass: false
   },
   [HR_REQUEST]: {
-    policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
+    policy: ownBy('attachedTo', 'personId'),
     allowKnownIdBypass: true,
     knownIdBypassReason: 'Test request lookup'
   },
   [PUSH_SUBSCRIPTION]: {
-    policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' }
+    policy: ownBy('user', 'accountUuid')
   }
 }
 

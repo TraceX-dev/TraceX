@@ -23,7 +23,7 @@ import type {
   Photo,
   SavedAttachments
 } from '@hcengineering/attachment'
-import { AccountRole, IndexKind, type Blob, type Class, type Doc, type Domain, type Ref } from '@hcengineering/core'
+import {AccountRole, IndexKind, type Blob, type Class, type Doc, type Domain, type Ref, ownBy, spaceScoped} from '@hcengineering/core'
 import {
   Hidden,
   Index,
@@ -132,8 +132,8 @@ export function createModel (builder: Builder): void {
   })
 
   const attachmentVisibility = {
-    policy: core.spaceScoped('Attachment visibility is governed by parent space access'),
-    writePolicy: core.ownBy('createdBy', 'socialId')
+    policy: spaceScoped('Attachment visibility is governed by parent space access'),
+    writePolicy: ownBy('createdBy', 'socialId')
   } as const
 
   builder.mixin(attachment.class.Attachment, core.class.Class, core.mixin.RowVisibility, attachmentVisibility)

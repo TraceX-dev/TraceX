@@ -61,11 +61,9 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
-import contact, { type Person } from '@hcengineering/contact'
 import {
   excludeSpacesFromQuery,
   getDisabledModuleSpaceClasses,
-  getGuestVisiblePersonIds,
   resolveDisabledModuleSpaceIds,
   resolveGuestActivityScope,
   type SpaceWithMembers
@@ -693,83 +691,48 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       }
     }
 
-    // Restrict Person/Employee queries to accounts sharing a real space with the caller. Applied to
-    // specific-id lookups as well as open browse/search queries, on top of whichever query
-    // object the backend actually executes (`skipFindCheck` deployments rely on the DB adapter for
-    // space-level security and pass the original `query` through untouched, so the restriction is
-    // layered on there too, not only on `newQuery`).
-    let baseQuery: DocumentQuery<T> = !this.skipFindCheck ? newQuery : query
-    if (
-      !isSystem(account, ctx) &&
-      isRestricted &&
-      this.context.hierarchy.isDerived(_class, contact.class.Person)
-    ) {
-      const allowedPersonIds = await getGuestVisiblePersonIds(
-        this.next,
-        ctx,
-        account,
-        this.allowedSpaces,
-        this.spacesMap
-      )
-      if (allowedPersonIds.size === 0) {
-        return toFindResult([], 0)
-      }
-      const currentId = (baseQuery as Record<string, unknown>)._id
-      const currentIdQuery =
-        currentId !== null && typeof currentId === 'object' ? (currentId as Record<string, unknown>) : undefined
-      let visiblePersonIds = Array.from(allowedPersonIds)
-      if (typeof currentId === 'string') {
-        visiblePersonIds = allowedPersonIds.has(currentId as Ref<Person>) ? [currentId as Ref<Person>] : []
-      } else if (Array.isArray(currentIdQuery?.$in)) {
-        visiblePersonIds = currentIdQuery.$in.filter(
-          (id): id is Ref<Person> => typeof id === 'string' && allowedPersonIds.has(id as Ref<Person>)
-        )
-      }
-      if (visiblePersonIds.length === 0) {
-        return toFindResult([], 0)
-      }
-      const restrictedId =
-        currentIdQuery !== undefined
-          ? { ...currentIdQuery, $in: visiblePersonIds }
-          : { $in: visiblePersonIds }
-      const restrictedQuery = { ...baseQuery, _id: restrictedId } as DocumentQuery<T>
-      baseQuery = restrictedQuery
-    }
+    // From here on there is exactly one query object, and it is the one that reaches storage:
+    // every restriction below narrows it, and `provideFindAll` executes it. Which query it starts
+    // from is the only thing `skipFindCheck` decides - those deployments delegate space-level
+    // security to the DB adapter (through `options.allowedSpaces`, set above) and send the caller's
+    // original query, while everyone else sends the space-narrowed one. Row policies attach to
+    // whichever it is, so they behave identically in both modes and need no second test matrix.
+    let executedQuery: DocumentQuery<T> = !this.skipFindCheck ? newQuery : query
 
     // A class without an explicit policy is allowed to use ordinary real-space membership only.
     // Shared and system spaces are visible to many accounts by construction, so treating them as
-    // ordinary membership would turn a forgotten policy into a data leak. Keep Person on its
-    // dedicated visibility path above until its relationship-based policy is modelled explicitly.
+    // ordinary membership would turn a forgotten policy into a data leak.
     if (
       !isSystem(account, ctx) &&
       isRestricted &&
       domain !== DOMAIN_MODEL &&
-      !this.context.hierarchy.isDerived(_class, contact.class.Person) &&
       !this.rowVisibility.hasPolicy(this.context.hierarchy, _class as Ref<Class<Doc>>)
     ) {
       const nonOrdinarySpaces = new Set<Ref<Space>>([...this.mainSpaces, ...this.systemSpaces])
-      const excluded = excludeSpacesFromQuery((baseQuery as Record<string, any>)[field], nonOrdinarySpaces)
+      const excluded = excludeSpacesFromQuery((executedQuery as Record<string, any>)[field], nonOrdinarySpaces)
       if ('deny' in excluded) {
         return toFindResult([], 0)
       }
-      baseQuery = { ...baseQuery }
+      executedQuery = { ...executedQuery }
       if (excluded.query === undefined) {
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete (baseQuery as Record<string, any>)[field]
+        delete (executedQuery as Record<string, any>)[field]
       } else {
-        ;(baseQuery as Record<string, any>)[field] = excluded.query
+        ;(executedQuery as Record<string, any>)[field] = excluded.query
       }
     }
 
     // Row-level ownership (Layer 2) for classes living in mainSpaces - see `./rowVisibility`.
     if (!isSystem(account, ctx) && isRestricted) {
       const identity = new AccountIdentityResolver(this.next, ctx, account)
-      const decision = await this.rowVisibility.resolve(ctx, this.context.hierarchy, _class, baseQuery, identity)
-      if (decision.kind === 'deny') {
+      const decision = await this.rowVisibility.resolve(ctx, this.context.hierarchy, _class, executedQuery, identity)
+      // `perDocument` means the read policy depends on the row itself, which no query can carry.
+      // Fail closed rather than letting the read through unnarrowed.
+      if (decision.kind === 'deny' || decision.kind === 'perDocument') {
         return toFindResult([], 0)
       }
       if (decision.kind === 'narrow') {
-        baseQuery = decision.query
+        executedQuery = decision.query
       }
     }
 
@@ -790,23 +753,23 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         this.spacesMap
       )
       if (disabledSpaceIds.size > 0) {
-        const current = (baseQuery as Record<string, any>)[field]
+        const current = (executedQuery as Record<string, any>)[field]
         const excluded = excludeSpacesFromQuery(current, disabledSpaceIds)
         if ('deny' in excluded) {
           return toFindResult([], 0)
         }
-        const updatedQuery: DocumentQuery<T> = { ...baseQuery }
+        const updatedQuery: DocumentQuery<T> = { ...executedQuery }
         if (excluded.query === undefined) {
           // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
           delete (updatedQuery as Record<string, any>)[field]
         } else {
           ;(updatedQuery as Record<string, any>)[field] = excluded.query
         }
-        baseQuery = updatedQuery
+        executedQuery = updatedQuery
       }
     }
 
-    let findResult = await this.provideFindAll(ctx, _class, baseQuery, options)
+    let findResult = await this.provideFindAll(ctx, _class, executedQuery, options)
     if (clientFilterSpaces !== undefined) {
       const cfs = clientFilterSpaces
       findResult = toFindResult(
@@ -843,7 +806,6 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     const newQuery = { ...query }
     const account = ctx.contextData.account
     const personRestricted = isRowLevelRestricted(account.role)
-    let personClassesSearched = false
     if (!isSystem(account, ctx)) {
       const allSpaces = this.getAllAllowedSpaces(account, true, false, true)
       if (query.classes !== undefined) {
@@ -851,24 +813,22 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         const passedDomains = new Set<string>()
         for (const _class of query.classes) {
           const domain = this.context.hierarchy.getDomain(_class)
-          const isPersonClass = this.context.hierarchy.isDerived(_class, contact.class.Person)
-          if (isPersonClass) {
-            personClassesSearched = true
-          }
-          if (personRestricted && isPersonClass) {
-            // contact.space.Contacts is a SystemSpace, normally excluded from `allSpaces` here
-            // (see getAllAllowedSpaces's forSearch branch) specifically for these roles — which is
-            // what makes the @-mention/People search come back empty for guests today. Let it
-            // through for Person/Employee classes only; the actual visibility restriction is
-            // enforced below, on the results, via getGuestVisiblePersonIds.
-            res.add(contact.space.Contacts)
+          // Search drops SystemSpaces for restricted roles (see getAllAllowedSpaces's forSearch
+          // branch), which is what made the @-mention/People search come back empty for guests:
+          // contact.space.Contacts is such a space. A class whose row policy narrows rows does
+          // not need that blanket exclusion - the policy itself is the restriction, applied to
+          // the results below. Classes declaring `spaceScoped` or `spaceMember` declare the
+          // absence of a row rule and keep the exclusion.
+          const rowRestricted =
+            personRestricted && this.rowVisibility.restrictsRows(this.context.hierarchy, _class)
+          if (!rowRestricted && passedDomains.has(domain)) {
             continue
           }
-          if (passedDomains.has(domain)) {
-            continue
+          if (!rowRestricted) {
+            passedDomains.add(domain)
           }
-          passedDomains.add(domain)
-          const spaces = await this.filterByDomain(ctx, domain, allSpaces)
+          const searchSpaces = rowRestricted ? this.getAllAllowedSpaces(account, true, false) : allSpaces
+          const spaces = await this.filterByDomain(ctx, domain, searchSpaces)
           for (const space of spaces.result) {
             res.add(space)
           }
@@ -878,9 +838,6 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         // Unscoped search: we don't know ahead of time whether the index will return Person/
         // Employee docs, so treat it as if it did - the result-level filter below is the actual
         // backstop and must not depend on the space-exclusion happening to already cover it.
-        if (personRestricted) {
-          personClassesSearched = true
-        }
         newQuery.spaces = allSpaces
       }
 
@@ -898,20 +855,6 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       }
     }
     const result = await this.provideSearchFulltext(ctx, newQuery, options)
-    if (personRestricted && personClassesSearched && !isSystem(account, ctx)) {
-      const allowedPersonIds = await getGuestVisiblePersonIds(
-        this.next,
-        ctx,
-        account,
-        this.allowedSpaces,
-        this.spacesMap
-      )
-      result.docs = result.docs.filter(
-        (d) =>
-          !this.context.hierarchy.isDerived(d.doc._class, contact.class.Person) ||
-          allowedPersonIds.has(d.doc._id as Ref<Person>)
-      )
-    }
     if (personRestricted && !isSystem(account, ctx)) {
       const identity = new AccountIdentityResolver(this.next, ctx, account)
       result.docs = await this.filterSearchResultsByRowVisibility(ctx, result.docs, identity)
@@ -944,6 +887,9 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         const query: DocumentQuery<Doc> = { _id: result.doc._id }
         const decision = await this.rowVisibility.resolve(ctx, this.context.hierarchy, _class, query, identity, false)
         if (decision.kind === 'deny') return false
+        // A document-relative policy describes a write rule; on a read path there is no query
+        // that expresses it, so the safe answer is to hide the hit.
+        if (decision.kind === 'perDocument') return false
         if (decision.kind === 'unrestricted') return true
         const matching = await this.provideFindAll(ctx, _class, decision.query, { limit: 1 })
         return matching.length > 0

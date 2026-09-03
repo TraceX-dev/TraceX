@@ -27,7 +27,8 @@ import core, {
   type Ref,
   type SearchResult,
   type SessionData,
-  type Space
+  type Space,
+  relatedVia
 } from '@hcengineering/core'
 import type { Middleware, PipelineContext } from '@hcengineering/server-core'
 import { SpaceSecurityMiddleware } from '../spaceSecurity'
@@ -57,10 +58,11 @@ function matchesQuery (doc: Record<string, any>, query: Record<string, any> | un
   for (const key of Object.keys(query ?? {})) {
     const cond = query?.[key]
     const val = doc[key]
+    // Array-valued fields (Space.members) match by containment, as the storage layer does.
+    const contains = (v: any): boolean => (Array.isArray(val) ? val.includes(v) : val === v)
     if (cond !== null && typeof cond === 'object' && !Array.isArray(cond) && cond.$in !== undefined) {
-      const included: boolean = cond.$in.includes(val)
-      if (!included) return false
-    } else if (val !== cond) {
+      if (!(cond.$in as any[]).some((v) => contains(v))) return false
+    } else if (!contains(cond)) {
       return false
     }
   }
@@ -111,6 +113,17 @@ async function setup (): Promise<TestSetup> {
     }
   ]
 
+  // People live in a SystemSpace. Search drops those for restricted roles, which is exactly the
+  // exclusion a row-restricting policy lifts - so the double has to contain it.
+  const contactsSpace = {
+    _id: contact.space.Contacts,
+    members: [] as AccountUuid[],
+    private: false,
+    _class: core.class.SystemSpace as Ref<Class<Doc>>,
+    archived: false
+  }
+  spaces.push(contactsSpace as any)
+
   const personAlice = { _id: generateId(), _class: PERSON_CLASS, personUuid: ALICE, space: contact.space.Contacts }
   const personBob = { _id: generateId(), _class: PERSON_CLASS, personUuid: BOB, space: contact.space.Contacts }
   const personCarol = { _id: generateId(), _class: PERSON_CLASS, personUuid: CAROL, space: contact.space.Contacts }
@@ -122,14 +135,17 @@ async function setup (): Promise<TestSetup> {
   const next: Middleware = {
     findAll: (async (_ctx: any, _class: any, query: any) => {
       if (_class === core.class.Space) {
-        return spaces as any
+        // Behaves like storage: a traversal step queries spaces by membership, so the double has
+        // to honour the query instead of returning everything.
+        return spaces.filter((sp) => matchesQuery(sp, query)) as any
       }
       if (_class === PERSON_CLASS) {
         return persons.filter((p) => matchesQuery(p, query)) as any
       }
       return []
     }) as any,
-    groupBy: (async () => new Map()) as any,
+    groupBy: (async (_ctx: any, domain: string) =>
+      domain === 'contact' ? new Map([[contact.space.Contacts, 1]]) : new Map()) as any,
     searchFulltext: (async (_ctx: any, query: any) => {
       capturedSearchQuery = query
       return searchDocs
@@ -143,6 +159,23 @@ async function setup (): Promise<TestSetup> {
   } as any
 
   const hierarchy: any = {
+    // Person visibility is a declared policy now, not a branch in the middleware: the double has
+    // to carry the same mixin the contact model declares.
+    classHierarchyMixin: (_class: any, mixin: any) => {
+      if (mixin !== core.mixin.RowVisibility) return undefined
+      if (_class !== PERSON_CLASS) return undefined
+      return {
+        policy: relatedVia(
+          {
+            from: 'accountUuid',
+            steps: [{ via: core.class.Space, match: 'members', emit: 'members' }],
+            to: 'personUuid',
+            includeSelf: true
+          },
+          'People are discoverable through shared real-space membership'
+        )
+      }
+    },
     isDerived: (a: Ref<Class<Doc>>, b: Ref<Class<Doc>>) => {
       if (b === core.class.Space) return a === core.class.Space
       if (b === PERSON_CLASS) return a === PERSON_CLASS

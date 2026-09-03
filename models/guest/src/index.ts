@@ -1,4 +1,4 @@
-import { type Class, type IndexingConfiguration, type Doc, type Domain, type Ref } from '@hcengineering/core'
+import {type Class, type IndexingConfiguration, type Doc, type Domain, type Ref, ownBy} from '@hcengineering/core'
 import { type PublicLink, type Restrictions } from '@hcengineering/guest'
 import { type Builder, Model } from '@hcengineering/model'
 import core, { TDoc } from '@hcengineering/model-core'
@@ -22,7 +22,7 @@ export function createModel (builder: Builder): void {
   // `_id` doubles as the link's bearer secret (see exchangeGuestToken), so unlike other
   // RowVisibility classes it must NOT allow a known-id bypass - only the caller's own linkId.
   builder.mixin(guest.class.PublicLink, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.ownBy('_id', 'linkId')
+    policy: ownBy('_id', 'linkId')
   })
 
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {

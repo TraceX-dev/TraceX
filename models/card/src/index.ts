@@ -52,7 +52,9 @@ import core, {
   type MixinData,
   type Rank,
   type Ref,
-  SortingOrder
+  SortingOrder,
+  ownBy,
+  spaceScoped
 } from '@hcengineering/core'
 import integration from '@hcengineering/integration'
 import {
@@ -1047,15 +1049,18 @@ export function createModel (builder: Builder): void {
     card.ids.GuestCardClassPermission
   )
 
-  // core.class.Collaborator's own ownerField policy would require the named collaborator to be the
-  // caller itself, so this is enforced separately - see canEditDocCollaborator.
+  // Layer 1 gate only: whether the role may touch collaborator rows at all. Which rows it may
+  // touch is core.class.Collaborator's own write policy.
   builder.createDoc(
     core.class.ClassPermission,
     core.space.Model,
     {
       label: card.string.AllowEditingCollaborators,
       scope: 'space',
-      targetClass: core.class.Collaborator
+      targetClass: core.class.Collaborator,
+      // Adding and removing collaborators is one toggle to the administrator, and this permission
+      // is the only thing that opens it - there is no static access level to re-close.
+      txClasses: [core.class.TxCreateDoc, core.class.TxRemoveDoc]
     },
     card.ids.GuestCollaboratorClassPermission
   )
@@ -1096,8 +1101,8 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(card.class.Card, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.spaceScoped('Card read visibility is governed by ordinary space membership'),
-    writePolicy: core.ownBy('createdBy', 'socialId'),
+    policy: spaceScoped('Card read visibility is governed by ordinary space membership'),
+    writePolicy: ownBy('createdBy', 'socialId'),
     scopeActivityToOwner: true
   })
 

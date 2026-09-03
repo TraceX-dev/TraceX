@@ -27,7 +27,9 @@ import {
   type Ref,
   type RowVisibility,
   type SessionData,
-  type Space
+  type Space,
+  ownBy,
+  linkedViaCollaborator
 } from '@hcengineering/core'
 import type { Middleware } from '@hcengineering/server-core'
 import { AccountIdentityResolver, RowVisibilityResolver } from '../rowVisibility'
@@ -51,7 +53,7 @@ function makeHierarchy (): Hierarchy {
     classHierarchyMixin: (_class: Ref<Class<Doc>>): Partial<RowVisibility> | undefined => {
       if (_class !== TEST_CLASS) return undefined
       return {
-        policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' },
+        policy: ownBy('user', 'accountUuid'),
         allowKnownIdBypass: false
       }
     }
@@ -129,7 +131,7 @@ describe('AccountIdentityResolver - socialId matches any linked social id, not o
       classHierarchyMixin: (_class: Ref<Class<Doc>>): Partial<RowVisibility> | undefined => {
         if (_class !== SOCIAL_CLASS) return undefined
         return {
-          policy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+          policy: ownBy('createdBy', 'socialId'),
           allowKnownIdBypass: false
         }
       }
@@ -198,14 +200,9 @@ describe('RowVisibilityResolver.canUpdate - linkedViaRecord ownership-transfer g
       classHierarchyMixin: (_class: Ref<Class<Doc>>): Partial<RowVisibility> | undefined => {
         if (_class !== LINKED_CLASS) return undefined
         return {
-          policy: {
-            kind: 'linkedViaRecord',
-            linkClass: LINK_CLASS,
-            linkTargetField: 'attachedTo',
-            linkIdentityField: 'collaborator',
-            identity: 'accountUuid',
+          policy: linkedViaCollaborator(LINK_CLASS, 'attachedTo', 'collaborator', 'accountUuid', {
             targetField: 'room'
-          },
+          }),
           allowKnownIdBypass: false
         }
       }

@@ -26,15 +26,17 @@ import core, {
   type MeasureContext,
   type PersonId,
   type Ref,
-  type SessionData
+  type SessionData,
+  ownBy,
+  linkedViaCollaborator
 } from '@hcengineering/core'
 import buildModel from '@hcengineering/model-all'
 import type { Middleware, PipelineContext } from '@hcengineering/server-core'
 import { SpaceSecurityMiddleware } from '../spaceSecurity'
 import {
   renderRowVisibilityPolicyTable,
-  restrictedRolePolicyClasses,
-  resolveRegisteredRowVisibilityPolicies
+  resolveRegisteredRowVisibilityPolicies,
+  validateRowVisibilityRegistrations
 } from '../securityPolicyRegistry'
 
 const DOCUMENT_PRESENCE = 'pulse:class:DocumentPresence' as Ref<Class<Doc>>
@@ -57,53 +59,65 @@ describe('RowVisibility invariant', () => {
     hierarchy = buildModel().hierarchy
   })
 
-  it.each(restrictedRolePolicyClasses)('$name declares core.mixin.RowVisibility', ({ _class }) => {
-    const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
-    expect(mixin).toBeDefined()
-    expect(mixin?.policy).toBeDefined()
-    expect(mixin?.allowKnownIdBypass === undefined || typeof mixin.allowKnownIdBypass === 'boolean').toBe(true)
-    if (mixin?.policy.kind === 'spaceScoped') {
-      expect(mixin.policy.reason.trim()).not.toBe('')
+  // The inventory is read out of the model rather than maintained by hand, so this asserts the
+  // declarations are well formed instead of asserting a list matches itself.
+  it('every declared row policy is well formed', () => {
+    expect(validateRowVisibilityRegistrations(hierarchy)).toEqual([])
+  })
+
+  it('declares a policy for the classes that need one', () => {
+    const declared = new Set(resolveRegisteredRowVisibilityPolicies(hierarchy).map((p) => p.name))
+    for (const _class of [
+      core.class.Collaborator,
+      contact.class.Person,
+      contact.class.SocialIdentity,
+      CHAT_MESSAGE,
+      THREAD_MESSAGE,
+      ATTACHMENT,
+      SAVED_MESSAGE,
+      CARD,
+      DOCUMENT_PRESENCE,
+      TYPING_INDICATOR,
+      LOVE_ROOM,
+      LOVE_FLOOR,
+      PARTICIPANT_INFO,
+      PENDING_RECORDING,
+      DEVICES_PREFERENCE
+    ]) {
+      expect(declared).toContain(_class as string)
     }
   })
 
-  it('requires a reason for every enabled known-id bypass', () => {
-    for (const { _class } of restrictedRolePolicyClasses) {
-      const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
-      if (mixin?.allowKnownIdBypass === true) {
-        expect(mixin.knownIdBypassReason?.trim()).not.toBe('')
-      }
-    }
-  })
-
-  it('resolves every registered policy from the model', () => {
-    expect(resolveRegisteredRowVisibilityPolicies(hierarchy)).toHaveLength(restrictedRolePolicyClasses.length)
-  })
-
-  it('generates the policy table from the same registry', () => {
+  it('generates the policy table from the model', () => {
     const table = renderRowVisibilityPolicyTable(hierarchy)
-    for (const { name } of restrictedRolePolicyClasses) {
+    for (const { name } of resolveRegisteredRowVisibilityPolicies(hierarchy)) {
       expect(table).toContain(`\`${name}\``)
     }
   })
 
-  it('core.class.Collaborator opens Layer 1 to any restricted role, still self-service-only at Layer 2 unless card.ids.GuestCollaboratorClassPermission opts a role in (regression test for the collaborator-edit permission)', () => {
+  it('core.class.Collaborator is gated by a permission at Layer 1 and by parent ownership at Layer 2 (regression test for the collaborator-edit permission)', () => {
     const COLLABORATOR = core.class.Collaborator as Ref<Class<Doc>>
-    const access = hierarchy.classHierarchyMixin(COLLABORATOR, core.mixin.TxAccessLevel)
-    expect(access?.createAccessLevel).toBe(AccountRole.ReadOnlyGuest)
-    expect(access?.removeAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    // No static access level: card.ids.GuestCollaboratorClassPermission is the only Layer 1 gate,
+    // so an administrator turning it off actually turns the capability off.
+    expect(hierarchy.classHierarchyMixin(COLLABORATOR, core.mixin.TxAccessLevel)).toBeUndefined()
 
     const visibility = hierarchy.classHierarchyMixin(COLLABORATOR, core.mixin.RowVisibility)
-    expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' })
+    expect(visibility?.policy).toEqual(ownBy('collaborator', 'accountUuid'))
+    // Writing is a different question from reading: the caller must have created the parent.
+    const writePolicy = (visibility as typeof visibility & { writePolicy?: any })?.writePolicy
+    expect(writePolicy?.kind).toBe('relation')
+    expect(writePolicy?.path?.steps?.[0]?.via).toEqual({ classFromField: 'attachedToClass' })
+    expect(writePolicy?.path?.to).toBe('attachedTo')
   })
 
-  it('process.class.ApproveRequest opens Layer 1 to any restricted role, scoped to the assigned approver at Layer 2 (regression test for the process-actions permission)', () => {
+  it('process.class.ApproveRequest is gated by a permission at Layer 1 and scoped to the assigned approver at Layer 2 (regression test for the process-actions permission)', () => {
     const APPROVE_REQUEST = 'process:class:ApproveRequest' as Ref<Class<Doc>>
-    const access = hierarchy.classHierarchyMixin(APPROVE_REQUEST, core.mixin.TxAccessLevel)
-    expect(access?.updateAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    // No static access level: process.ids.GuestApproveRequestClassPermission is the only Layer 1
+    // gate, and it covers update and mixin - which is what approving or rejecting actually is.
+    expect(hierarchy.classHierarchyMixin(APPROVE_REQUEST, core.mixin.TxAccessLevel)).toBeUndefined()
 
     const visibility = hierarchy.classHierarchyMixin(APPROVE_REQUEST, core.mixin.RowVisibility)
-    expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'user', identity: 'personId' })
+    expect(visibility?.policy).toEqual(ownBy('user', 'personId'))
   })
 
   it('hr.class.Request and love.class.MeetingMinutes do not list their own ownerField/linkTargetField as a known-id bypass (regression test for the ownership bypass fix)', () => {
@@ -119,7 +133,7 @@ describe('RowVisibility invariant', () => {
 
   it('guest.class.PublicLink is scoped to _id, not a bypassable field (regression guard for the linkId-enumeration fix)', () => {
     const mixin = hierarchy.classHierarchyMixin('guest:class:PublicLink' as Ref<Class<Doc>>, core.mixin.RowVisibility)
-    expect(mixin?.policy).toEqual({ kind: 'ownerField', field: '_id', identity: 'linkId' })
+    expect(mixin?.policy).toEqual(ownBy('_id', 'linkId'))
     expect(mixin?.allowKnownIdBypass).not.toBe(true)
   })
 
@@ -128,7 +142,7 @@ describe('RowVisibility invariant', () => {
       contact.class.SocialIdentity as Ref<Class<Doc>>,
       core.mixin.RowVisibility
     )
-    expect(mixin?.policy).toEqual({ kind: 'ownerField', field: 'attachedTo', identity: 'personId' })
+    expect(mixin?.policy).toEqual(ownBy('attachedTo', 'personId'))
     expect(mixin?.allowKnownIdBypass).toBe(true)
   })
 
@@ -161,11 +175,7 @@ describe('RowVisibility invariant', () => {
   it.each([CHAT_MESSAGE, THREAD_MESSAGE])('%s restricts writes to the original author', (_class) => {
     const visibility = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
     expect(visibility?.policy.kind).toBe('spaceScoped')
-    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
-      kind: 'ownerField',
-      field: 'createdBy',
-      identity: 'socialId'
-    })
+    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual(ownBy('createdBy', 'socialId'))
     expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(_class, core.mixin.TxAccessLevel)
@@ -177,11 +187,7 @@ describe('RowVisibility invariant', () => {
   it('attachment.class.Attachment restricts writes to the uploader', () => {
     const visibility = hierarchy.classHierarchyMixin(ATTACHMENT, core.mixin.RowVisibility)
     expect(visibility?.policy.kind).toBe('spaceScoped')
-    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
-      kind: 'ownerField',
-      field: 'createdBy',
-      identity: 'socialId'
-    })
+    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual(ownBy('createdBy', 'socialId'))
     expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(ATTACHMENT, core.mixin.TxAccessLevel)
@@ -192,7 +198,7 @@ describe('RowVisibility invariant', () => {
 
   it('activity.class.SavedMessage is private to the account social identity', () => {
     const visibility = hierarchy.classHierarchyMixin(SAVED_MESSAGE, core.mixin.RowVisibility)
-    expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'createdBy', identity: 'socialId' })
+    expect(visibility?.policy).toEqual(ownBy('createdBy', 'socialId'))
     expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(SAVED_MESSAGE, core.mixin.TxAccessLevel)
@@ -204,11 +210,7 @@ describe('RowVisibility invariant', () => {
   it('card.class.Card restricts updates to the creator, reads stay ordinary space-scoped (regression test for the File-card guest-upload fix)', () => {
     const visibility = hierarchy.classHierarchyMixin(CARD, core.mixin.RowVisibility)
     expect(visibility?.policy.kind).toBe('spaceScoped')
-    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
-      kind: 'ownerField',
-      field: 'createdBy',
-      identity: 'socialId'
-    })
+    expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual(ownBy('createdBy', 'socialId'))
     expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(CARD, core.mixin.TxAccessLevel)
@@ -216,20 +218,21 @@ describe('RowVisibility invariant', () => {
   })
 
   it('Office room activity is scoped through room collaborators', () => {
-    const expectedPolicy = {
-      kind: 'linkedViaRecord',
-      linkClass: core.class.Collaborator,
-      linkTargetField: 'attachedTo',
-      linkIdentityField: 'collaborator',
-      identity: 'accountUuid',
-      targetField: 'room',
-      through: {
-        documentClass: 'love:class:MeetingMinutes',
-        sourceField: '_id',
-        targetField: 'attachedTo',
-        includeDirect: true
+    const expectedPolicy = linkedViaCollaborator(
+      core.class.Collaborator,
+      'attachedTo',
+      'collaborator',
+      'accountUuid',
+      {
+        targetField: 'room',
+        through: {
+          documentClass: 'love:class:MeetingMinutes' as Ref<Class<Doc>>,
+          sourceField: '_id',
+          targetField: 'attachedTo',
+          includeDirect: true
+        }
       }
-    }
+    )
     expect(hierarchy.classHierarchyMixin(PARTICIPANT_INFO, core.mixin.RowVisibility)?.policy).toEqual(expectedPolicy)
     expect(
       hierarchy.classHierarchyMixin('love:class:RoomInfo' as Ref<Class<Doc>>, core.mixin.RowVisibility)?.policy
@@ -238,11 +241,7 @@ describe('RowVisibility invariant', () => {
 
   it('Office floors are public metadata and device preferences remain private', () => {
     expect(hierarchy.classHierarchyMixin(LOVE_FLOOR, core.mixin.RowVisibility)?.policy.kind).toBe('spaceScoped')
-    expect(hierarchy.classHierarchyMixin(DEVICES_PREFERENCE, core.mixin.RowVisibility)?.policy).toEqual({
-      kind: 'ownerField',
-      field: 'createdBy',
-      identity: 'socialId'
-    })
+    expect(hierarchy.classHierarchyMixin(DEVICES_PREFERENCE, core.mixin.RowVisibility)?.policy).toEqual(ownBy('createdBy', 'socialId'))
   })
 })
 

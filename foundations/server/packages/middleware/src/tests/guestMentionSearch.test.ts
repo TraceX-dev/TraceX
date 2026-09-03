@@ -28,7 +28,8 @@ import core, {
   type SearchQuery,
   type SearchOptions,
   type SessionData,
-  type Space
+  type Space,
+  relatedVia
 } from '@hcengineering/core'
 import type { Middleware, PipelineContext } from '@hcengineering/server-core'
 import { SpaceSecurityMiddleware } from '../spaceSecurity'
@@ -52,6 +53,21 @@ function makeCtx (account: Account): MeasureContext<SessionData> {
     broadcast: { txes: [], queue: [], sessions: {} }
   } as any
   return ctx
+}
+
+function matchesQuery (doc: Record<string, any>, query: Record<string, any> | undefined): boolean {
+  for (const key of Object.keys(query ?? {})) {
+    const cond = query?.[key]
+    const val = doc[key]
+    // Array-valued fields (Space.members) match by containment, as the storage layer does.
+    const contains = (v: any): boolean => (Array.isArray(val) ? val.includes(v) : val === v)
+    if (cond !== null && typeof cond === 'object' && !Array.isArray(cond) && cond.$in !== undefined) {
+      if (!(cond.$in as any[]).some((v) => contains(v))) return false
+    } else if (!contains(cond)) {
+      return false
+    }
+  }
+  return true
 }
 
 describe('SpaceSecurityMiddleware.searchFulltext - guest @-mention reproduction', () => {
@@ -82,9 +98,22 @@ describe('SpaceSecurityMiddleware.searchFulltext - guest @-mention reproduction'
       members: [GUEST, ALICE]
     }
 
+    // People live in a SystemSpace, which search hides from restricted roles. A row-restricting
+    // policy lifts that exclusion, so the double has to contain the space.
+    const contactsSpace = {
+      _id: contact.space.Contacts,
+      _class: core.class.SystemSpace,
+      space: core.space.Space,
+      private: false,
+      archived: false,
+      members: [] as AccountUuid[]
+    }
+
     const next: Middleware = {
       findAll: (async (_ctx: any, _class: any, query: any) => {
-        if (_class === core.class.Space) return [channel] as any
+        if (_class === core.class.Space) {
+          return [channel, contactsSpace].filter((sp) => matchesQuery(sp, query)) as any
+        }
         if (_class === contact.class.Person || _class === contact.mixin.Employee) {
           const all = [personGuest, personAlice]
           if (query?._id !== undefined) {
@@ -95,7 +124,7 @@ describe('SpaceSecurityMiddleware.searchFulltext - guest @-mention reproduction'
         }
         return []
       }) as any,
-      groupBy: (async () => new Map()) as any,
+      groupBy: (async () => new Map([[CHANNEL, 1], [contact.space.Contacts, 1]])) as any,
       // Behaves like a real fulltext adapter: only returns docs whose `space` is in `query.spaces`.
       searchFulltext: (async (_ctx: any, query: SearchQuery, _options: SearchOptions) => {
         const candidates = [personGuest, personAlice]
@@ -120,7 +149,21 @@ describe('SpaceSecurityMiddleware.searchFulltext - guest @-mention reproduction'
           return a === b
         },
         getDomain: () => 'contact',
-        classHierarchyMixin: () => undefined
+        classHierarchyMixin: (_class: Ref<Class<Doc>>, mixin: Ref<Doc>) => {
+          if (mixin !== core.mixin.RowVisibility) return undefined
+          if (_class !== contact.class.Person && _class !== contact.mixin.Employee) return undefined
+          return {
+            policy: relatedVia(
+              {
+                from: 'accountUuid',
+                steps: [{ via: core.class.Space, match: 'members', emit: 'members' }],
+                to: 'personUuid',
+                includeSelf: true
+              },
+              'People are discoverable through shared real-space membership'
+            )
+          }
+        }
       } as any,
       modelDb: { findAllSync: () => [] } as any,
       branding: null as any,
@@ -162,7 +205,9 @@ describe('SpaceSecurityMiddleware.searchFulltext - guest @-mention reproduction'
     // No shared space between DOC_GUEST and BOB.
     const next: Middleware = {
       findAll: (async (_ctx: any, _class: any, query: any) => {
-        if (_class === core.class.Space) return [contactsSpace] as any
+        if (_class === core.class.Space) {
+          return [contactsSpace].filter((sp) => matchesQuery(sp, query)) as any
+        }
         if (_class === contact.class.Person || _class === contact.mixin.Employee) {
           const all = [personDocGuest, personBob]
           if (query?._id !== undefined) {

@@ -82,7 +82,7 @@ describe('resolveGuestSecurityProfile', () => {
         fullSocialIds: []
       } as unknown as Account,
       broadcast: { txes: [], queue: [], sessions: {} }
-    } as SessionData
+    } as unknown as SessionData
     return ctx
   }
 

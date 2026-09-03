@@ -108,7 +108,7 @@ export class ClassAccessResolver {
             } as any
           )
           : []
-      const permissionInfo = new Map<Ref<Permission>, { targetClass: Ref<Class<Doc>>, txClass: Ref<Class<Tx>> }>(
+      const permissionInfo = new Map<Ref<Permission>, { targetClass: Ref<Class<Doc>>, txClasses: Ref<Class<Tx>>[] }>(
         ((classPermissions ?? []) as ClassPermission[])
           .filter(
             (permission): permission is ClassPermission & { targetClass: Ref<Class<Doc>> } =>
@@ -116,7 +116,10 @@ export class ClassAccessResolver {
           )
           .map((permission) => [
             permission._id,
-            { targetClass: permission.targetClass, txClass: permission.txClass ?? core.class.TxCreateDoc }
+            {
+              targetClass: permission.targetClass,
+              txClasses: permission.txClasses ?? [permission.txClass ?? core.class.TxCreateDoc]
+            }
           ])
       )
       const roleAllowedClasses = new Map<AccountRole, Map<Ref<Class<Tx>>, Set<Ref<Class<Doc>>>>>()
@@ -125,9 +128,11 @@ export class ClassAccessResolver {
         for (const permissionId of permissions) {
           const info = permissionInfo.get(permissionId)
           if (info === undefined) continue
-          const targetClasses = byTxClass.get(info.txClass) ?? new Set<Ref<Class<Doc>>>()
-          targetClasses.add(info.targetClass)
-          byTxClass.set(info.txClass, targetClasses)
+          for (const txClass of info.txClasses) {
+            const targetClasses = byTxClass.get(txClass) ?? new Set<Ref<Class<Doc>>>()
+            targetClasses.add(info.targetClass)
+            byTxClass.set(txClass, targetClasses)
+          }
         }
         roleAllowedClasses.set(role, byTxClass)
       }

@@ -26,7 +26,8 @@ import core, {
   type PersonId,
   type Ref,
   type SessionData,
-  type Space
+  type Space,
+  spaceScoped
 } from '@hcengineering/core'
 import type { Middleware, PipelineContext } from '@hcengineering/server-core'
 import { SpaceSecurityMiddleware } from '../spaceSecurity'
@@ -154,7 +155,7 @@ async function setup (activityScope?: GuestActivityScope): Promise<{
 
   const rowVisibilityByClass: Record<string, any> = {
     [CARD_CLASS]: {
-      policy: { kind: 'spaceScoped', reason: 'Test card visibility follows space access' },
+      policy: spaceScoped('Test card visibility follows space access'),
       allowKnownIdBypass: false,
       scopeActivityToOwner: true
     }

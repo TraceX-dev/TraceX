@@ -38,7 +38,8 @@ import {
   type Space,
   type Timestamp,
   type Tx,
-  type TxCUD
+  type TxCUD,
+  ownBy
 } from '@hcengineering/core'
 import {
   Collection as CollectionType,
@@ -401,7 +402,7 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(notification.class.PushSubscription, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.ownBy('user', 'accountUuid')
+    policy: ownBy('user', 'accountUuid')
   })
 
   builder.mixin(notification.class.BrowserNotification, core.class.Class, core.mixin.TransientConfiguration, {

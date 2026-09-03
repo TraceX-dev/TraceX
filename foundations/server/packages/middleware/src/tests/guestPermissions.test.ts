@@ -29,7 +29,11 @@ import core, {
   type SessionData,
   type Space,
   type Tx,
-  TxFactory
+  TxFactory,
+  ownBy,
+  spaceScoped,
+  relatedVia,
+  viaClassField
 } from '@hcengineering/core'
 import contact from '@hcengineering/contact'
 import type { PipelineContext, TxMiddlewareResult } from '@hcengineering/server-core'
@@ -202,7 +206,7 @@ describe('GuestPermissionsMiddleware', () => {
       if (_class !== COVERED_CLASS) return undefined
       if (mixin === core.mixin.TxAccessLevel) return { createAccessLevel: AccountRole.Guest }
       if (mixin === core.mixin.RowVisibility) {
-        return { policy: core.spaceScoped('Test data follows space access') }
+        return { policy: spaceScoped('Test data follows space access') }
       }
       return undefined
     }) as any
@@ -372,8 +376,8 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'spaceScoped', reason: 'Message visibility follows channel access' },
-            writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+            policy: spaceScoped('Message visibility follows channel access'),
+            writePolicy: ownBy('createdBy', 'socialId'),
             allowKnownIdBypass: false
           }
         }
@@ -494,8 +498,8 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'spaceScoped', reason: 'Attachment visibility follows parent access' },
-            writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+            policy: spaceScoped('Attachment visibility follows parent access'),
+            writePolicy: ownBy('createdBy', 'socialId'),
             allowKnownIdBypass: false
           }
         }
@@ -576,7 +580,7 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+            policy: ownBy('createdBy', 'socialId'),
             allowKnownIdBypass: false
           }
         }
@@ -685,7 +689,7 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
+            policy: ownBy('attachedTo', 'personId'),
             allowKnownIdBypass: false
           }
         }
@@ -804,7 +808,7 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'spaceScoped', reason: 'Ephemeral test data' },
+            policy: spaceScoped('Ephemeral test data'),
             allowKnownIdBypass: false
           }
         }
@@ -939,7 +943,7 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'spaceScoped', reason: 'Ephemeral test data' },
+            policy: spaceScoped('Ephemeral test data'),
             allowKnownIdBypass: false
           }
         }
@@ -1241,8 +1245,8 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'spaceScoped', reason: 'Test data follows space access' },
-            writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+            policy: spaceScoped('Test data follows space access'),
+            writePolicy: ownBy('createdBy', 'socialId'),
             allowKnownIdBypass: false
           }
         }
@@ -1289,6 +1293,8 @@ describe('GuestPermissionsMiddleware', () => {
     const CARD_SPACE = 'test:space:cards' as Ref<Space>
     const NEW_COLLABORATOR_ACCOUNT = 'test:other-account' as any
     const COLLABORATOR_PERMISSION = 'test:permission:collaborator' as Ref<Doc>
+    const OWN_COLLABORATOR = 'test:collaborator:own' as Ref<Doc>
+    const OTHER_COLLABORATOR = 'test:collaborator:other' as Ref<Doc>
 
     function makeCollaboratorMiddleware (
       editOwnDocCollaborators: boolean,
@@ -1307,14 +1313,46 @@ describe('GuestPermissionsMiddleware', () => {
             ] as any
           }
           if (_class === core.class.ClassPermission) {
-            return [{ _id: COLLABORATOR_PERMISSION, targetClass: core.class.Collaborator }] as any
+            // Mirrors the card model: one toggle covering both create and remove.
+            return [
+              {
+                _id: COLLABORATOR_PERMISSION,
+                targetClass: core.class.Collaborator,
+                txClasses: [core.class.TxCreateDoc, core.class.TxRemoveDoc]
+              }
+            ] as any
           }
           if (_class === CARD_CLASS) {
             const cards = [
               { _id: OWN_CARD, _class: CARD_CLASS, space: CARD_SPACE, createdBy: GUEST_SOCIAL },
               { _id: OTHER_CARD, _class: CARD_CLASS, space: CARD_SPACE, createdBy: OTHER_SOCIAL }
             ]
-            return cards.filter((c) => query?._id === undefined || query._id === c._id) as any
+            // The write policy asks for cards created by the caller, so the double has to honour
+            // `createdBy` as storage would.
+            return cards.filter(
+              (c) =>
+                (query?._id === undefined || query._id === c._id) &&
+                (query?.createdBy === undefined || query.createdBy === c.createdBy)
+            ) as any
+          }
+          if (_class === core.class.Collaborator) {
+            const rows = [
+              {
+                _id: OWN_COLLABORATOR,
+                _class: core.class.Collaborator,
+                space: CARD_SPACE,
+                attachedTo: OWN_CARD,
+                attachedToClass: CARD_CLASS
+              },
+              {
+                _id: OTHER_COLLABORATOR,
+                _class: core.class.Collaborator,
+                space: CARD_SPACE,
+                attachedTo: OTHER_CARD,
+                attachedToClass: CARD_CLASS
+              }
+            ]
+            return rows.filter((r) => query?._id === undefined || query._id === r._id) as any
           }
           return []
         },
@@ -1325,8 +1363,20 @@ describe('GuestPermissionsMiddleware', () => {
       )
       ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
       ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
-        if (_class !== core.class.Collaborator || mixin !== core.mixin.TxAccessLevel) return undefined
-        return { createAccessLevel: AccountRole.ReadOnlyGuest, removeAccessLevel: AccountRole.ReadOnlyGuest }
+        // No TxAccessLevel: the permission above is the single Layer 1 gate. Which rows may be
+        // touched is the write policy - the parent's class comes from the row itself.
+        if (_class !== core.class.Collaborator || mixin !== core.mixin.RowVisibility) return undefined
+        return {
+          policy: ownBy('collaborator', 'accountUuid'),
+          writePolicy: relatedVia(
+            {
+              from: 'socialId',
+              steps: [{ via: viaClassField('attachedToClass'), match: 'createdBy', emit: '_id' }],
+              to: 'attachedTo'
+            },
+            'Collaborators are managed by the creator of the document they attach to'
+          )
+        }
       }
       return mw
     }
@@ -1351,7 +1401,8 @@ describe('GuestPermissionsMiddleware', () => {
 
     function makeRemoveCollaboratorTx (card: Ref<Doc>): Tx {
       const factory = new TxFactory(GUEST_SOCIAL)
-      const remove = factory.createTxRemoveDoc(core.class.Collaborator, CARD_SPACE, generateId())
+      const row = card === OWN_CARD ? OWN_COLLABORATOR : OTHER_COLLABORATOR
+      const remove = factory.createTxRemoveDoc(core.class.Collaborator, CARD_SPACE, row as any)
       return factory.createTxCollectionCUD(CARD_CLASS, card, CARD_SPACE, 'collaborators', remove)
     }
 
@@ -1418,7 +1469,15 @@ describe('GuestPermissionsMiddleware', () => {
             ] as any
           }
           if (_class === core.class.ClassPermission) {
-            return [{ _id: APPROVE_PERMISSION, targetClass: APPROVE_REQUEST_CLASS }] as any
+            // Mirrors the process model: one admin toggle covering update and mixin, which is
+            // what approving or rejecting actually is.
+            return [
+              {
+                _id: APPROVE_PERMISSION,
+                targetClass: APPROVE_REQUEST_CLASS,
+                txClasses: [core.class.TxUpdateDoc, core.class.TxMixin]
+              }
+            ] as any
           }
           if (_class === contact.class.Person) {
             return [{ _id: GUEST_PERSON, personUuid: 'test:guest-account' }] as any
@@ -1444,10 +1503,11 @@ describe('GuestPermissionsMiddleware', () => {
       ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
       ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, mixin: any) => {
         if (_class !== APPROVE_REQUEST_CLASS) return undefined
-        if (mixin === core.mixin.TxAccessLevel) return { updateAccessLevel: AccountRole.ReadOnlyGuest }
+        // No TxAccessLevel any more: the permission above is the single gate, so nothing needs
+        // to re-close what a static access level would otherwise have opened.
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'ownerField', field: 'user', identity: 'personId' },
+            policy: ownBy('user', 'personId'),
             allowKnownIdBypass: false
           }
         }

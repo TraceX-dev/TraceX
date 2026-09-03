@@ -16,7 +16,6 @@
 import core, {
   type Account,
   AccountRole,
-  type AccountUuid,
   type Class,
   type DocumentQuery,
   GuestActivityScope,
@@ -30,7 +29,6 @@ import core, {
   type Space
 } from '@hcengineering/core'
 import type { Middleware } from '@hcengineering/server-core'
-import contact, { type Person } from '@hcengineering/contact'
 
 export type SpaceWithMembers = Pick<Space, '_id' | 'members' | 'private' | '_class' | 'archived'>
 
@@ -50,50 +48,6 @@ export function hasNarrowFieldQuery (query: Record<string, any> | null | undefin
     return keys.length === 1 && keys[0] === '$in' && Array.isArray(val.$in)
   }
   return false
-}
-
-/**
- * Accounts the given (restricted-role) account is allowed to know people from: itself, plus
- * every member of every real space it belongs to. Deliberately excludes `mainSpaces` and
- * `systemSpaces` (e.g. the shared `contact.space.Contacts`) since those would defeat the
- * restriction for every role that reaches this helper - callers pass in only the real-space
- * membership state (`SpaceSecurityMiddleware`'s `allowedSpaces`/`spacesMap`).
- */
-export function getGuestVisibleAccounts (
-  account: Account,
-  allowedSpaces: Record<AccountUuid, Ref<Space>[]>,
-  spacesMap: Map<Ref<Space>, SpaceWithMembers>
-): Set<AccountUuid> {
-  const accounts = new Set<AccountUuid>([account.uuid])
-  const userSpaces = allowedSpaces[account.uuid] ?? []
-  for (const spaceId of userSpaces) {
-    const space = spacesMap.get(spaceId)
-    if (space === undefined) continue
-    for (const member of space.members) {
-      accounts.add(member)
-    }
-  }
-  return accounts
-}
-
-/**
- * Resolves `getGuestVisibleAccounts` into the set of `Person` refs a restricted-role account
- * may discover via open browse/search queries.
- */
-export async function getGuestVisiblePersonIds (
-  next: Middleware | undefined,
-  ctx: MeasureContext<SessionData>,
-  account: Account,
-  allowedSpaces: Record<AccountUuid, Ref<Space>[]>,
-  spacesMap: Map<Ref<Space>, SpaceWithMembers>
-): Promise<Set<Ref<Person>>> {
-  const accounts = getGuestVisibleAccounts(account, allowedSpaces, spacesMap)
-  if (accounts.size === 0) return new Set()
-  const personQuery: DocumentQuery<Person> = { personUuid: { $in: Array.from(accounts) } }
-  const persons = ((await next?.findAll(ctx, contact.class.Person, personQuery, {
-    projection: { _id: 1 }
-  })) ?? []) as Array<Pick<Person, '_id'>>
-  return new Set(persons.map((p) => p._id))
 }
 
 /**

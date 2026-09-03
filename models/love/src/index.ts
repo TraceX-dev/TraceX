@@ -27,7 +27,10 @@ import {
   IndexKind,
   type ClassCollaborators,
   type AccountUuid,
-  SocialIdType
+  SocialIdType,
+  ownBy,
+  spaceScoped,
+  linkedViaCollaborator
 } from '@hcengineering/core'
 import {
   type DevicesPreference,
@@ -354,23 +357,23 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(love.class.MeetingMinutes, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid'),
+    policy: linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid'),
     allowKnownIdBypass: true,
     knownIdBypassReason: 'Meeting minutes are resolved from an already visible room reference'
   })
 
   builder.mixin(love.class.Room, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.spaceScoped(
+    policy: spaceScoped(
       'Office rooms are visible to every guest so the office layout renders correctly; the meeting minutes documents attached to a room stay collaborator-restricted'
     )
   })
 
   builder.mixin(love.class.Floor, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.spaceScoped('Floor metadata is required to render accessible Office rooms')
+    policy: spaceScoped('Floor metadata is required to render accessible Office rooms')
   })
 
   const roomActivityVisibility = {
-    policy: core.linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid', {
+    policy: linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid', {
       targetField: 'room',
       through: {
         documentClass: love.class.MeetingMinutes,
@@ -385,7 +388,7 @@ export function createModel (builder: Builder): void {
   builder.mixin(love.class.RoomInfo, core.class.Class, core.mixin.RowVisibility, roomActivityVisibility)
 
   builder.mixin(love.class.PendingRecording, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid', {
+    policy: linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid', {
       targetField: 'attachedTo'
     })
   })
@@ -397,7 +400,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(love.class.DevicesPreference, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.ownBy('createdBy', 'socialId')
+    policy: ownBy('createdBy', 'socialId')
   })
 
   builder.createDoc(

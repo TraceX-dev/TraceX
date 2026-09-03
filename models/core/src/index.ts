@@ -24,7 +24,10 @@ import {
   DOMAIN_TRANSIENT,
   DOMAIN_TX,
   GuestActivityScope,
-  GuestSecurityProfile
+  GuestSecurityProfile,
+  ownBy,
+  relatedVia,
+  viaClassField
 } from '@hcengineering/core'
 import { type Builder } from '@hcengineering/model'
 import { TBenchmarkDoc } from './benchmark'
@@ -198,16 +201,23 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.RowVisibility, {
-    policy: core.ownBy('collaborator', 'accountUuid'),
+    policy: ownBy('collaborator', 'accountUuid'),
+    // Reading a collaborator row means "am I the collaborator". Changing one means "did I create
+    // the document it hangs off" - a different question, so a separate write policy. The parent
+    // can be of any class, so the step takes its class from the row's own `attachedToClass`.
+    // Whether a role may touch collaborators at all stays a Layer 1 permission
+    // (card.ids.GuestCollaboratorClassPermission).
+    writePolicy: relatedVia(
+      {
+        from: 'socialId',
+        steps: [{ via: viaClassField('attachedToClass'), match: 'createdBy', emit: '_id' }],
+        to: 'attachedTo'
+      },
+      'Collaborators are managed by the creator of the document they attach to'
+    ),
     allowKnownIdBypass: true,
     knownIdBypassReason: 'Collaborator records are resolved from an already visible parent document',
     knownIdBypassFields: ['attachedTo']
-  })
-
-  // Layer 1 only; card.ids.GuestCollaboratorClassPermission is the actual gate (see canEditDocCollaborator).
-  builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.TxAccessLevel, {
-    createAccessLevel: AccountRole.ReadOnlyGuest,
-    removeAccessLevel: AccountRole.ReadOnlyGuest
   })
 
   builder.createDoc(

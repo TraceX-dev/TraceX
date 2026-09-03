@@ -8,13 +8,11 @@ import core, {
   type Account,
   AccountRole,
   GuestSecurityProfile,
-  type Class,
   type Doc,
   type DocumentQuery,
   hasAccountRole,
   type MeasureContext,
   type PersonId,
-  type Ref,
   type SessionData,
   type Space,
   type Tx,
@@ -30,9 +28,6 @@ import platform, { PlatformError, Severity, Status } from '@hcengineering/platfo
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
 import { resolveGuestSecurityProfile } from './guestVisibility'
-
-// Importing `@hcengineering/process` would pull client-only dependencies into this package.
-const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as unknown as Ref<Class<Doc>>
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
   // Use this middleware so overridden `findAll` methods are honored.
@@ -122,24 +117,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
   }
 
-  /**
-   * Bypasses `core.class.Collaborator`'s own ownerField policy (which would require the named
-   * collaborator to be the caller) - gated on `card.ids.GuestCollaboratorClassPermission` plus the
-   * caller having created the document the collaborator record attaches to.
-   */
-  private async canEditDocCollaborator (
-    ctx: MeasureContext<SessionData>,
-    tx: TxCUD<Doc>,
-    account: Account
-  ): Promise<boolean> {
-    const allowed = await this.classAccess.allowedClasses(ctx, account.role, core.class.TxCreateDoc)
-    if (!allowed.has(core.class.Collaborator)) return false
-    if (tx.attachedTo === undefined || tx.attachedToClass === undefined) return false
-    const parents = await this.findAll(ctx, tx.attachedToClass, { _id: tx.attachedTo }, { limit: 1 })
-    const parent = parents[0] as (Doc & { createdBy?: PersonId }) | undefined
-    return parent?.createdBy !== undefined && account.socialIds.includes(parent.createdBy)
-  }
-
   /** Checks whether a mutation targets a row visible to the caller. */
   private async canMutateVisibleRow (
     ctx: MeasureContext<SessionData>,
@@ -147,12 +124,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     account: Account
   ): Promise<boolean> {
     const identity = new AccountIdentityResolver(this.next, ctx, account)
-    if (
-      this.context.hierarchy.isDerived(tx.objectClass, core.class.Collaborator) &&
-      (tx._class === core.class.TxCreateDoc || tx._class === core.class.TxRemoveDoc)
-    ) {
-      return await this.canEditDocCollaborator(ctx, tx, account)
-    }
     if (tx._class === core.class.TxCreateDoc) {
       if (
         this.context.hierarchy.isDerived(tx.objectClass, contact.class.SocialIdentity) &&
@@ -162,13 +133,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       }
       const doc = TxProcessor.createDoc2Doc(tx as TxCreateDoc<Doc>)
       return await this.rowVisibility.canCreate(ctx, this.context.hierarchy, tx.objectClass, doc, identity)
-    }
-    if (
-      (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) &&
-      this.context.hierarchy.isDerived(tx.objectClass, APPROVE_REQUEST_CLASS)
-    ) {
-      const allowed = await this.classAccess.allowedClasses(ctx, account.role, core.class.TxCreateDoc)
-      if (!allowed.has(APPROVE_REQUEST_CLASS)) return false
     }
     const query: DocumentQuery<Doc> = { _id: tx.objectId }
     const decision = await this.rowVisibility.resolveMutation(
@@ -180,9 +144,25 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     )
     if (decision.kind === 'deny') return false
     if (decision.kind === 'unrestricted') return true
-    const docs = await this.findAll(ctx, tx.objectClass, decision.query, { limit: 1 })
+    // A document-relative policy cannot narrow the lookup, so fetch the row and judge it whole.
+    const docs = await this.findAll(
+      ctx,
+      tx.objectClass,
+      decision.kind === 'perDocument' ? query : decision.query,
+      { limit: 1 }
+    )
     const doc = docs[0]
     if (doc === undefined) return false
+    if (decision.kind === 'perDocument') {
+      const allowed = await this.rowVisibility.canMutateDocument(
+        this.context.hierarchy,
+        ctx,
+        tx.objectClass,
+        doc,
+        identity
+      )
+      if (!allowed) return false
+    }
     if (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) {
       return await this.rowVisibility.canUpdate(
         ctx,
