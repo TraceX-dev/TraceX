@@ -57,12 +57,12 @@ export function createModel (builder: Builder): void {
   builder.mixin(pulse.class.DocumentPresence, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.ReadOnlyGuest,
     updateAccessLevel: AccountRole.ReadOnlyGuest,
-    removeAccessLevel: AccountRole.ReadOnlyGuest
+    removeAccessLevel: AccountRole.ReadOnlyGuest,
+    allowViewerWrite: true
   })
 
   builder.mixin(pulse.class.DocumentPresence, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'publicReadable', reason: 'Ephemeral presence state contains no business data and expires by TTL' },
-    allowKnownIdBypass: false
+    policy: core.spaceScoped('Ephemeral presence state contains no business data and expires by TTL')
   })
 
   builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.TransientTTL, {
@@ -72,11 +72,11 @@ export function createModel (builder: Builder): void {
   builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.ReadOnlyGuest,
     updateAccessLevel: AccountRole.ReadOnlyGuest,
-    removeAccessLevel: AccountRole.ReadOnlyGuest
+    removeAccessLevel: AccountRole.ReadOnlyGuest,
+    allowViewerWrite: true
   })
 
   builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'publicReadable', reason: 'Ephemeral typing state contains no business data and expires by TTL' },
-    allowKnownIdBypass: false
+    policy: core.spaceScoped('Ephemeral typing state contains no business data and expires by TTL')
   })
 }

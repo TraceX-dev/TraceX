@@ -368,8 +368,9 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(contact.class.SocialIdentity, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
-    allowKnownIdBypass: true
+    policy: core.ownBy('attachedTo', 'personId'),
+    allowKnownIdBypass: true,
+    knownIdBypassReason: 'Social identities are resolved from an already visible person reference'
   })
 
   builder.mixin(contact.class.Contact, core.class.Class, activity.mixin.ActivityDoc, {})

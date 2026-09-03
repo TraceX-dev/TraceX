@@ -13,19 +13,15 @@
 // limitations under the License.
 //
 
-/**
- * Restricted-role-specific visibility helpers used by `SpaceSecurityMiddleware`: hiding the People
- * directory down to accounts sharing a real space, and honoring per-role module disablement
- * (Settings → Guest permissions). Genuinely role-specific business rules, unlike row-level
- * ownership - see `./rowVisibility` for that.
- */
 import core, {
   type Account,
+  AccountRole,
   type AccountUuid,
   type Class,
   type DocumentQuery,
   GuestActivityScope,
   type GuestActivitySettings,
+  GuestSecurityProfile,
   type Hierarchy,
   type MeasureContext,
   type ModulePermissionGroup,
@@ -54,10 +50,6 @@ export function hasNarrowFieldQuery (query: Record<string, any> | null | undefin
     return keys.length === 1 && keys[0] === '$in' && Array.isArray(val.$in)
   }
   return false
-}
-
-export function hasNarrowIdQuery (query: Record<string, any>): boolean {
-  return hasNarrowFieldQuery(query, '_id')
 }
 
 /**
@@ -176,11 +168,7 @@ export function excludeSpacesFromQuery (
   return { query: { ...current, $nin: Array.from(existingNin) } }
 }
 
-/**
- * Resolves the caller's `core.class.GuestActivitySettings` doc (one per role). Defaults to
- * `GuestActivityScope.Any` - today's unrestricted-activity behavior - when no doc exists yet for
- * the role.
- */
+/** Resolves the configured activity scope, defaulting to `Own`. */
 export async function resolveGuestActivityScope (
   next: Middleware | undefined,
   ctx: MeasureContext<SessionData>,
@@ -189,7 +177,17 @@ export async function resolveGuestActivityScope (
   const query: DocumentQuery<GuestActivitySettings> = { role: account.role }
   const docs = ((await next?.findAll(ctx, core.class.GuestActivitySettings, query, { limit: 1 })) ??
     []) as GuestActivitySettings[]
-  return docs[0]?.activityScope ?? GuestActivityScope.Any
+  return docs[0]?.activityScope ?? GuestActivityScope.Own
 }
 
-// Row-level ownership restriction (Layer 2) now lives in `./rowVisibility`.
+export async function resolveGuestSecurityProfile (
+  next: Middleware | undefined,
+  ctx: MeasureContext<SessionData>,
+  account: Account
+): Promise<GuestSecurityProfile> {
+  if (account.role !== AccountRole.Guest) return GuestSecurityProfile.Viewer
+  const query: DocumentQuery<GuestActivitySettings> = { role: account.role }
+  const docs = ((await next?.findAll(ctx, core.class.GuestActivitySettings, query, { limit: 1 })) ??
+    []) as GuestActivitySettings[]
+  return docs[0]?.securityProfile ?? GuestSecurityProfile.Participant
+}

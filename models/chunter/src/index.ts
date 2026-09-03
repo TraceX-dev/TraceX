@@ -131,9 +131,8 @@ export function createModel (builder: Builder): void {
   })
 
   const messageVisibility = {
-    policy: { kind: 'publicReadable', reason: 'Message visibility is governed by channel space access' },
-    writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
-    allowKnownIdBypass: false
+    policy: core.spaceScoped('Message visibility is governed by channel space access'),
+    writePolicy: core.ownBy('createdBy', 'socialId')
   } as const
 
   builder.mixin(chunter.class.ChatMessage, core.class.Class, core.mixin.RowVisibility, messageVisibility)

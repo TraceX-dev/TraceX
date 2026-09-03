@@ -18,6 +18,10 @@
     type Account,
     AccountRole,
     AccountUuid,
+    type ClassPermission,
+    GuestActivityScope,
+    type GuestActivitySettings,
+    GuestSecurityProfile,
     ModulePermissionGroup,
     getCurrentAccount,
     hasAccountRole,
@@ -48,9 +52,23 @@
   import AnonymousGuestSpaceInput from './AnonymousGuestSpaceInput.svelte'
   import AvailableSpacesInput from './AvailableSpacesInput.svelte'
   import settingsRes from '../plugin'
+  import {
+    getDisabledPermissionsForProfile,
+    resolveSecurityProfile,
+    type SecurityProfile
+  } from '../guestSecurityProfiles'
 
   export let embedded = false
-  export let initialTab: 'guest' | 'anonymous' = 'guest'
+  export let initialTab: 'guest' | 'document' | 'anonymous' = 'guest'
+
+  type GuestPermissionsTab = 'guest' | 'document' | 'anonymous'
+
+  const SECURITY_PROFILES: Array<Exclude<SecurityProfile, GuestSecurityProfile.Custom>> = [
+    GuestSecurityProfile.Viewer,
+    GuestSecurityProfile.Participant,
+    GuestSecurityProfile.Advanced
+  ]
+  const ACTIVITY_SCOPES = [GuestActivityScope.Own, GuestActivityScope.Collaborator, GuestActivityScope.Any]
 
   let loadingSettings = true
   let loadingPermissions = true
@@ -64,17 +82,22 @@
 
   let moduleGroups: ModulePermissionGroup[] = []
   let permissionsMap: Map<Ref<Permission>, Permission> = new Map<Ref<Permission>, Permission>()
+  let activitySettings: GuestActivitySettings[] = []
   let hiddenApplicationIds: Array<Ref<Application>> = []
+  let savingProfile = false
+  let savingActivityScope = false
+  let operationError = false
 
   const excludedApplicationIds = getMetadata(workbench.metadata.ExcludedApplications) ?? []
 
-  let guestPermissionsTab: 'guest' | 'anonymous' = 'guest'
+  let guestPermissionsTab: GuestPermissionsTab = 'guest'
   const canManageAnonymousAccess = hasAccountRole(getCurrentAccount(), AccountRole.Owner)
 
   const client = getClient()
   const moduleGroupsQuery = createQuery()
   const permissionsQuery = createQuery()
   const hiddenAppsQuery = createQuery()
+  const activitySettingsQuery = createQuery()
 
   onMount(() => {
     void (async (): Promise<void> => {
@@ -103,7 +126,10 @@
     workspaceAppsReady = true
   })
 
-  /** Same notion of “available in this workspace” as the app switcher: model apps minus hidden/excluded. */
+  $: activitySettingsQuery.query(core.class.GuestActivitySettings, {}, (res) => {
+    activitySettings = res as GuestActivitySettings[]
+  })
+
   $: workspaceApplications = client
     .getModel()
     .findAllSync<Application>(workbench.class.Application, {
@@ -118,18 +144,32 @@
 
   $: loading = loadingSettings || loadingPermissions || !workspaceAppsReady || loadingWorkspaceGuest
 
-  $: modulePermissionsRole = guestPermissionsTab === 'guest' ? AccountRole.Guest : AccountRole.ReadOnlyGuest
+  $: selectedRole =
+    guestPermissionsTab === 'guest'
+      ? AccountRole.Guest
+      : guestPermissionsTab === 'document'
+        ? AccountRole.DocGuest
+        : AccountRole.ReadOnlyGuest
 
-  /** Module permission groups for the selected tab (Guest vs anonymous read-only). */
+  // Document guests intentionally inherit the regular guest application policy.
+  $: modulePermissionsRole = selectedRole === AccountRole.DocGuest ? AccountRole.Guest : selectedRole
+
   $: visibleModuleGroups = moduleGroups.filter(
     (group) => applicationsMap.has(group.application) && group.role === modulePermissionsRole
   )
 
   $: sortedVisibleModuleGroups = [...visibleModuleGroups].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
 
-  /** Anonymous (read-only guest) module rows are view-only until workspace allows anonymous guests. */
   $: anonymousModulePermissionsReadOnly =
     guestPermissionsTab === 'anonymous' && (!allowReadOnlyGuests || !canManageAnonymousAccess)
+
+  $: roleSettingsReadOnly = guestPermissionsTab === 'document' || anonymousModulePermissionsReadOnly
+  $: currentProfile =
+    guestPermissionsTab === 'guest'
+      ? resolveSecurityProfile(sortedVisibleModuleGroups, permissionsMap)
+      : GuestSecurityProfile.Viewer
+  $: currentActivityScope =
+    activitySettings.find((setting) => setting.role === selectedRole)?.activityScope ?? GuestActivityScope.Own
 
   $: if (embedded && guestPermissionsTab !== initialTab) {
     guestPermissionsTab = initialTab
@@ -156,7 +196,7 @@
     permissionId: Ref<Permission>,
     enabled: boolean
   ): Promise<void> {
-    if (anonymousModulePermissionsReadOnly) return
+    if (roleSettingsReadOnly) return
     if (!isModuleEnabled(group)) return
     const disabled = getDisabledPermissions(group)
     if (enabled) {
@@ -164,16 +204,28 @@
     } else {
       disabled.add(permissionId)
     }
-    await client.updateDoc(core.class.ModulePermissionGroup, core.space.Model, group._id, {
-      disabledPermissions: Array.from(disabled)
-    } as any)
+    operationError = false
+    try {
+      await client.updateDoc(core.class.ModulePermissionGroup, core.space.Model, group._id, {
+        disabledPermissions: Array.from(disabled)
+      } as any)
+      await updateSecurityProfileSetting(GuestSecurityProfile.Custom)
+    } catch {
+      operationError = true
+    }
   }
 
   async function toggleModule (group: ModulePermissionGroup, enabled: boolean): Promise<void> {
-    if (anonymousModulePermissionsReadOnly) return
-    await client.updateDoc(core.class.ModulePermissionGroup, core.space.Model, group._id, {
-      enabled
-    } as any)
+    if (roleSettingsReadOnly) return
+    operationError = false
+    try {
+      await client.updateDoc(core.class.ModulePermissionGroup, core.space.Model, group._id, {
+        enabled
+      } as any)
+      await updateSecurityProfileSetting(GuestSecurityProfile.Custom)
+    } catch {
+      operationError = true
+    }
   }
 
   function isModuleEnabled (group: ModulePermissionGroup): boolean {
@@ -182,6 +234,131 @@
 
   function getPermissionLabel (permissionId: Ref<Permission>): IntlString {
     return permissionsMap.get(permissionId)?.label ?? getEmbeddedLabel(permissionId)
+  }
+
+  async function applySecurityProfile (
+    profile: Exclude<SecurityProfile, GuestSecurityProfile.Custom>
+  ): Promise<void> {
+    if (guestPermissionsTab !== 'guest' || savingProfile) return
+    savingProfile = true
+    operationError = false
+    try {
+      await Promise.all(
+        sortedVisibleModuleGroups.map(async (group) => {
+          const disabledPermissions = getDisabledPermissionsForProfile(group, profile, permissionsMap)
+          await client.updateDoc(core.class.ModulePermissionGroup, core.space.Model, group._id, {
+            enabled: true,
+            disabledPermissions
+          })
+        })
+      )
+      await updateSecurityProfileSetting(profile)
+    } catch {
+      operationError = true
+    } finally {
+      savingProfile = false
+    }
+  }
+
+  async function updateActivityScope (scope: GuestActivityScope): Promise<void> {
+    if (roleSettingsReadOnly || savingActivityScope) return
+    const settingDoc = activitySettings.find((setting) => setting.role === selectedRole)
+    savingActivityScope = true
+    operationError = false
+    try {
+      if (settingDoc === undefined) {
+        await client.createDoc(core.class.GuestActivitySettings, core.space.Model, {
+          role: selectedRole,
+          activityScope: scope
+        })
+      } else {
+        await client.updateDoc(core.class.GuestActivitySettings, core.space.Model, settingDoc._id, {
+          activityScope: scope
+        })
+      }
+    } catch {
+      operationError = true
+    } finally {
+      savingActivityScope = false
+    }
+  }
+
+  async function updateSecurityProfileSetting (profile: GuestSecurityProfile): Promise<void> {
+    if (selectedRole !== AccountRole.Guest) return
+    const settingDoc = activitySettings.find((setting) => setting.role === selectedRole)
+    if (settingDoc === undefined) {
+      await client.createDoc(core.class.GuestActivitySettings, core.space.Model, {
+        role: selectedRole,
+        securityProfile: profile,
+        activityScope: GuestActivityScope.Own
+      })
+    } else {
+      await client.updateDoc(core.class.GuestActivitySettings, core.space.Model, settingDoc._id, {
+        securityProfile: profile
+      })
+    }
+  }
+
+  function getActivePermissions (group: ModulePermissionGroup): Array<Ref<Permission>> {
+    if (!isModuleEnabled(group) || guestPermissionsTab === 'document') return []
+    return (group.permissions ?? []).filter((permissionId) => isPermissionActive(group, permissionId))
+  }
+
+  function getScopeKind (permissionId: Ref<Permission>): string {
+    const permission = permissionsMap.get(permissionId) as ClassPermission | undefined
+    if (permission?.targetClass === undefined) return 'spaceMember'
+    const visibility = client.getHierarchy().classHierarchyMixin(permission.targetClass, core.mixin.RowVisibility)
+    return visibility?.writePolicy?.kind ?? visibility?.policy.kind ?? 'spaceMember'
+  }
+
+  function getProfileLabel (profile: SecurityProfile): IntlString {
+    switch (profile) {
+      case GuestSecurityProfile.Viewer:
+        return settingsRes.string.GuestSecurityProfileViewer
+      case GuestSecurityProfile.Participant:
+        return settingsRes.string.GuestSecurityProfileParticipant
+      case GuestSecurityProfile.Advanced:
+        return settingsRes.string.GuestSecurityProfileAdvanced
+      case GuestSecurityProfile.Custom:
+        return settingsRes.string.GuestSecurityProfileCustom
+    }
+  }
+
+  function getProfileDescription (profile: Exclude<SecurityProfile, GuestSecurityProfile.Custom>): IntlString {
+    switch (profile) {
+      case GuestSecurityProfile.Viewer:
+        return settingsRes.string.GuestSecurityProfileViewerDescription
+      case GuestSecurityProfile.Participant:
+        return settingsRes.string.GuestSecurityProfileParticipantDescription
+      case GuestSecurityProfile.Advanced:
+        return settingsRes.string.GuestSecurityProfileAdvancedDescription
+    }
+  }
+
+  function getActivityScopeLabel (scope: GuestActivityScope): IntlString {
+    switch (scope) {
+      case GuestActivityScope.Own:
+        return settingsRes.string.GuestActivityOwn
+      case GuestActivityScope.Collaborator:
+        return settingsRes.string.GuestActivityCollaborator
+      case GuestActivityScope.Any:
+        return settingsRes.string.GuestActivityAny
+      default:
+        return settingsRes.string.GuestActivityOwn
+    }
+  }
+
+  function getScopeLabel (kind: string): IntlString {
+    switch (kind) {
+      case 'ownerField':
+        return settingsRes.string.GuestOwnRecords
+      case 'linkedViaRecord':
+        return settingsRes.string.GuestLinkedRecords
+      case 'denyAll':
+        return settingsRes.string.GuestDenied
+      default:
+        return settingsRes.string.GuestSpaceMembership
+    }
   }
 
   function onAccessToggle (group: ModulePermissionGroup, ev: Event): void {
@@ -277,6 +454,14 @@
           />
           <NavItem
             icon={contact.icon.Persona}
+            label={settingsRes.string.GuestPermissionsTabDocumentGuest}
+            selected={guestPermissionsTab === 'document'}
+            on:click={() => {
+              guestPermissionsTab = 'document'
+            }}
+          />
+          <NavItem
+            icon={contact.icon.Persona}
             label={setting.string.GuestPermissionsTabAnonymousGuest}
             selected={guestPermissionsTab === 'anonymous'}
             on:click={() => {
@@ -297,6 +482,11 @@
       {:else}
         <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
           <div class="hulyComponent-content guestPermissionsRoot flex-col">
+            {#if operationError}
+              <div class="operationError" role="alert">
+                <Label label={settingsRes.string.GuestSecuritySaveFailed} />
+              </div>
+            {/if}
             {#if guestPermissionsTab === 'anonymous'}
               <section class="section">
                 <div class="sectionHeader">
@@ -333,7 +523,124 @@
               </section>
             {/if}
 
+            {#if guestPermissionsTab === 'document'}
+              <section class="section">
+                <div class="sectionHint">
+                  <Label label={settingsRes.string.GuestDocumentRoleHint} />
+                </div>
+              </section>
+            {/if}
+
             <section class="section">
+              <div class="sectionHeader">
+                <div class="sectionTitle">
+                  <Label label={settingsRes.string.GuestSecurityProfile} />
+                </div>
+              </div>
+              <div class="profileGrid">
+                {#each SECURITY_PROFILES as profile}
+                  <button
+                    type="button"
+                    class="profileOption"
+                    class:profileOption-selected={currentProfile === profile}
+                    disabled={guestPermissionsTab !== 'guest' || savingProfile}
+                    on:click={() => applySecurityProfile(profile)}
+                  >
+                    <span class="profileOptionTitle"><Label label={getProfileLabel(profile)} /></span>
+                    <span class="profileOptionDescription"><Label label={getProfileDescription(profile)} /></span>
+                  </button>
+                {/each}
+                {#if currentProfile === GuestSecurityProfile.Custom}
+                  <div class="profileOption profileOption-selected">
+                    <Label label={getProfileLabel(GuestSecurityProfile.Custom)} />
+                  </div>
+                {/if}
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionHeader">
+                <div class="sectionTitle">
+                  <Label label={settingsRes.string.GuestEffectiveAccess} />
+                </div>
+              </div>
+              <div class="effectiveAccessTable">
+                {#each sortedVisibleModuleGroups as group}
+                  {@const activePermissions = getActivePermissions(group)}
+                  <div class="effectiveAccessRow">
+                    <div class="effectiveAccessApp">
+                      <Label label={getApplicationLabel(group.application)} />
+                    </div>
+                    <div class="effectiveAccessDetails">
+                      <div>
+                        <span class="effectiveAccessLabel"><Label label={settingsRes.string.GuestEffectiveActions} /></span>
+                        {#if isModuleEnabled(group)}
+                          <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestActionView} /></span>
+                          {#each activePermissions as permissionId}
+                            <span class="effectiveAccessValue"><Label label={getPermissionLabel(permissionId)} /></span>
+                          {/each}
+                        {:else}
+                          <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestModuleDisabled} /></span>
+                        {/if}
+                      </div>
+                      <div>
+                        <span class="effectiveAccessLabel"><Label label={settingsRes.string.GuestEffectiveScope} /></span>
+                        {#if !isModuleEnabled(group)}
+                          <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestDenied} /></span>
+                        {:else if activePermissions.length === 0}
+                          <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestSpaceMembership} /></span>
+                        {:else}
+                          {#each Array.from(new Set(activePermissions.map(getScopeKind))) as scopeKind}
+                            <span class="effectiveAccessValue"><Label label={getScopeLabel(scopeKind)} /></span>
+                          {/each}
+                        {/if}
+                      </div>
+                      <div>
+                        <span class="effectiveAccessLabel"><Label label={settingsRes.string.GuestEffectiveSource} /></span>
+                        {#if isModuleEnabled(group)}
+                          <span class="effectiveAccessValue">
+                            <Label label={settingsRes.string.GuestSecurityProfileSource} />:
+                            <Label label={getProfileLabel(currentProfile)} />
+                          </span>
+                          <span class="effectiveAccessValue">
+                            <Label
+                              label={activePermissions.length > 0
+                                ? settingsRes.string.GuestClassPermissionSource
+                                : settingsRes.string.GuestSpaceMembership}
+                            />
+                          </span>
+                        {:else}
+                          <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestModuleDisabled} /></span>
+                        {/if}
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </section>
+
+            <details class="advancedSettings">
+              <summary><Label label={settingsRes.string.GuestAdvancedSettings} /></summary>
+              <section class="section advancedSettingsSection">
+                <div class="sectionTitle">
+                  <Label label={settingsRes.string.GuestActivityVisibility} />
+                </div>
+                <div class="profileGrid">
+                  {#each ACTIVITY_SCOPES as scope}
+                    <button
+                      type="button"
+                      class="profileOption"
+                      class:profileOption-selected={currentActivityScope === scope}
+                      disabled={roleSettingsReadOnly || savingActivityScope}
+                      on:click={() => updateActivityScope(scope)}
+                    >
+                      <Label label={getActivityScopeLabel(scope)} />
+                    </button>
+                  {/each}
+                </div>
+              </section>
+
+              <section class="section advancedSettingsSection">
               <div class="sectionHeader">
                 <div class="sectionTitle">
                   <Label label={setting.string.GuestPermissionsApplicationPermissions} />
@@ -359,7 +666,7 @@
                 {/if}
               </div>
 
-              <div class="cardStack" class:cardStack-readonly={anonymousModulePermissionsReadOnly}>
+              <div class="cardStack" class:cardStack-readonly={roleSettingsReadOnly}>
                 {#each sortedVisibleModuleGroups as group}
                   {@const app = getApplication(group.application)}
                   {@const moduleOn = isModuleEnabled(group)}
@@ -395,7 +702,7 @@
                       </div>
                       <div class="permissionModuleCard-toggleCell">
                         <Toggle
-                          disabled={anonymousModulePermissionsReadOnly}
+                          disabled={roleSettingsReadOnly}
                           on={moduleOn}
                           on:change={handleAccessToggle(group)}
                         />
@@ -412,7 +719,7 @@
                               </div>
                               <div class="permissionRow-toggleCell">
                                 <Toggle
-                                  disabled={!moduleOn || anonymousModulePermissionsReadOnly}
+                                  disabled={!moduleOn || roleSettingsReadOnly}
                                   on={isPermissionActive(group, permissionId)}
                                   on:change={handlePermissionToggle(group, permissionId)}
                                 />
@@ -428,7 +735,7 @@
                             <div class="permissionRow-editorCell">
                               <AvailableSpacesInput
                                 {group}
-                                disabled={!moduleOn || anonymousModulePermissionsReadOnly}
+                                disabled={!moduleOn || roleSettingsReadOnly}
                               />
                             </div>
                           </div>
@@ -440,7 +747,7 @@
                             <div class="permissionRow-editorCell">
                               <AnonymousGuestSpaceInput
                                 {group}
-                                disabled={!moduleOn || anonymousModulePermissionsReadOnly}
+                                disabled={!moduleOn || roleSettingsReadOnly}
                               />
                             </div>
                           </div>
@@ -453,7 +760,8 @@
                   <div class="emptyState emptyState-block">—</div>
                 {/if}
               </div>
-            </section>
+              </section>
+            </details>
           </div>
         </Scroller>
       {/if}
@@ -462,8 +770,15 @@
 </div>
 
 <style lang="scss">
-  /* Matches packages/ui Toggle width; shared with permission rows and guest access */
   $toggleTrackWidth: 2.25rem;
+
+  .operationError {
+    padding: var(--spacing-2) var(--spacing-3);
+    border: 1px solid var(--theme-state-negative-color);
+    border-radius: var(--border-radius-medium);
+    background: var(--theme-state-negative-background-color);
+    color: var(--theme-state-negative-color);
+  }
 
   .guestPermissionsRoot {
     max-width: 40rem;
@@ -501,7 +816,6 @@
     overflow: visible;
   }
 
-  /* Same two columns as toggle rows; editor sits in col 2 and grows left so its right edge matches toggles */
   .guestAccessRow--editor .guestAccessRow-editorCell {
     grid-column: 2;
     grid-row: 1;
@@ -552,6 +866,102 @@
   .sectionHint {
     font-size: 0.8rem;
     color: var(--theme-halfcontent-color);
+  }
+
+  .profileGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.5rem;
+  }
+
+  .profileOption {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-height: 2.5rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--theme-navpanel-divider);
+    border-radius: var(--small-focus-BorderRadius);
+    background: var(--theme-panel-color);
+    color: var(--theme-content-color);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .profileOptionTitle {
+    font-weight: 500;
+  }
+
+  .profileOptionDescription {
+    font-size: 0.75rem;
+    color: var(--theme-halfcontent-color);
+  }
+
+  .profileOption:hover:not(:disabled),
+  .profileOption-selected {
+    border-color: var(--theme-primary-color);
+    background: var(--theme-button-hovered);
+  }
+
+  .profileOption:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+
+  .effectiveAccessTable {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--theme-navpanel-divider);
+    border-radius: var(--small-focus-BorderRadius);
+    overflow: hidden;
+  }
+
+  .effectiveAccessRow {
+    display: grid;
+    grid-template-columns: minmax(8rem, 0.35fr) minmax(0, 1fr);
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--theme-panel-color);
+  }
+
+  .effectiveAccessRow:not(:first-child) {
+    border-top: 1px solid var(--theme-navpanel-divider);
+  }
+
+  .effectiveAccessApp {
+    font-weight: 500;
+  }
+
+  .effectiveAccessDetails {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .effectiveAccessLabel {
+    display: inline-block;
+    min-width: 7.5rem;
+    color: var(--theme-halfcontent-color);
+  }
+
+  .effectiveAccessValue:not(:last-child)::after {
+    content: ', ';
+  }
+
+  .advancedSettings {
+    border-top: 1px solid var(--theme-divider-color);
+    padding-top: 0.75rem;
+  }
+
+  .advancedSettings summary {
+    color: var(--theme-content-color);
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  .advancedSettingsSection {
+    margin-top: 1rem;
   }
 
   .cardStack {

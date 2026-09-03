@@ -14,21 +14,10 @@
 // limitations under the License.
 //
 
-/**
- * Tests for GuestPermissionsMiddleware
- *
- * Verifies that:
- *  - Non-guest users pass through without restriction.
- *  - Restricted users are forbidden unless a class explicitly declares a sufficient access level.
- *  - For covered classes (resolved from module allowedPermissions):
- *      new permission model is authoritative; TxAccessLevel is ignored.
- *      Create in any space → permitted.
- *  - For uncovered classes: TxAccessLevel fallback is used.
- */
-
 import core, {
   AccountRole,
   generateId,
+  GuestSecurityProfile,
   Hierarchy,
   MeasureMetricsContext,
   type Account,
@@ -120,7 +109,6 @@ function makeMiddleware (
     tx: nextFn ?? (async (_ctx: MeasureContext, _txes: Tx[]) => ({}))
   }
   const mw = new (GuestPermissionsMiddleware as any)(context, next)
-  // Override findAll to inject our test data
   mw.findAll = findAll
   return mw
 }
@@ -130,7 +118,6 @@ function makeCreateTx (objectClass: Ref<Class<Doc>>, objectSpace: Ref<Space>): T
   return factory.createTxCreateDoc(objectClass, objectSpace, {})
 }
 
-// Helper: buildGuestSettings - simulate the document ClassAccessResolver would find
 function makeGuestSettingsDoc (allowedPermissions: Ref<Doc>[], disabledPermissions?: Ref<Doc>[]): Doc {
   return {
     _id: generateId(),
@@ -148,7 +135,6 @@ function makeGuestSettingsDoc (allowedPermissions: Ref<Doc>[], disabledPermissio
 }
 
 describe('GuestPermissionsMiddleware', () => {
-  // ─── Non-guest users pass through ───────────────────────────────────────────
   describe('non-guest users', () => {
     it('User role: passes through without restriction', async () => {
       let nextCalled = false
@@ -181,7 +167,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── Restricted roles require an explicit access declaration ────────────────
   describe('DocGuest and ReadOnlyGuest', () => {
     it('DocGuest: throws Forbidden when the class has no access declaration', async () => {
       const mw = makeMiddleware(async () => [])
@@ -198,7 +183,36 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── New permission model (covered class) ───────────────────────────────────
+  it('viewer profile blocks business-data mutations even when TxAccessLevel allows them', async () => {
+    let nextCalled = false
+    const mw = makeMiddleware(
+      async (_ctx, _class) => {
+        if (_class === core.class.GuestActivitySettings) {
+          return [{ securityProfile: GuestSecurityProfile.Viewer }] as unknown as Doc[]
+        }
+        return []
+      },
+      async () => {
+        nextCalled = true
+        return {}
+      }
+    )
+    ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => a === b
+    ;(mw as any).context.hierarchy.classHierarchyMixin = ((_class: any, mixin: any) => {
+      if (_class !== COVERED_CLASS) return undefined
+      if (mixin === core.mixin.TxAccessLevel) return { createAccessLevel: AccountRole.Guest }
+      if (mixin === core.mixin.RowVisibility) {
+        return { policy: core.spaceScoped('Test data follows space access') }
+      }
+      return undefined
+    }) as any
+
+    await expect(
+      mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])
+    ).rejects.toThrow()
+    expect(nextCalled).toBe(false)
+  })
+
   describe('covered class – new permission model', () => {
     const settingsDoc = makeGuestSettingsDoc([COVERED_CLASS_PERMISSION])
 
@@ -261,7 +275,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── Uncovered class falls back to TxAccessLevel ────────────────────────────
   describe('uncovered class – TxAccessLevel fallback', () => {
     it('forbids create when class has no TxAccessLevel mixin and no GuestPermissionsSettings', async () => {
       const mw = makeMiddleware(async () => [])
@@ -271,7 +284,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
 
     it('allows create when TxAccessLevel.createAccessLevel === Guest (uncovered type)', async () => {
-      // Settings exist but UNCOVERED_CLASS is NOT in allowedPermissions-derived classes
       const settingsDoc = makeGuestSettingsDoc([COVERED_CLASS_PERMISSION])
       let nextCalled = false
 
@@ -289,7 +301,6 @@ describe('GuestPermissionsMiddleware', () => {
         }
       )
 
-      // Simulate TxAccessLevel mixin via hierarchy mock on the middleware context
       ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => {
         if (_class === UNCOVERED_CLASS) {
           return { createAccessLevel: AccountRole.Guest }
@@ -361,7 +372,7 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'publicReadable', reason: 'Message visibility follows channel access' },
+            policy: { kind: 'spaceScoped', reason: 'Message visibility follows channel access' },
             writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
             allowKnownIdBypass: false
           }
@@ -483,7 +494,7 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'publicReadable', reason: 'Attachment visibility follows parent access' },
+            policy: { kind: 'spaceScoped', reason: 'Attachment visibility follows parent access' },
             writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
             allowKnownIdBypass: false
           }
@@ -787,12 +798,13 @@ describe('GuestPermissionsMiddleware', () => {
           return {
             createAccessLevel: AccountRole.ReadOnlyGuest,
             updateAccessLevel: AccountRole.ReadOnlyGuest,
-            removeAccessLevel: AccountRole.ReadOnlyGuest
+            removeAccessLevel: AccountRole.ReadOnlyGuest,
+            allowViewerWrite: true
           }
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'publicReadable', reason: 'Ephemeral test data' },
+            policy: { kind: 'spaceScoped', reason: 'Ephemeral test data' },
             allowKnownIdBypass: false
           }
         }
@@ -921,12 +933,13 @@ describe('GuestPermissionsMiddleware', () => {
           return {
             createAccessLevel: AccountRole.ReadOnlyGuest,
             updateAccessLevel: AccountRole.ReadOnlyGuest,
-            removeAccessLevel: AccountRole.ReadOnlyGuest
+            removeAccessLevel: AccountRole.ReadOnlyGuest,
+            allowViewerWrite: true
           }
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'publicReadable', reason: 'Ephemeral test data' },
+            policy: { kind: 'spaceScoped', reason: 'Ephemeral test data' },
             allowKnownIdBypass: false
           }
         }
@@ -1029,7 +1042,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── Precedence: covered class ignores TxAccessLevel even if it would deny ──
   describe('precedence – new model overrides TxAccessLevel for covered types', () => {
     it('allows covered class create in allowed space regardless of missing TxAccessLevel', async () => {
       const settingsDoc = makeGuestSettingsDoc([COVERED_CLASS_PERMISSION])
@@ -1049,7 +1061,6 @@ describe('GuestPermissionsMiddleware', () => {
         }
       )
 
-      // Ensure hierarchy says TxAccessLevel is absent for the covered class
       ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => undefined
       ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
         if (b === core.class.Space) return false
@@ -1073,7 +1084,6 @@ describe('GuestPermissionsMiddleware', () => {
         return []
       })
 
-      // TxAccessLevel would allow (createAccessLevel === Guest) – should be ignored
       ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => {
         if (_class === COVERED_CLASS) return { createAccessLevel: AccountRole.Guest }
         return undefined
@@ -1089,7 +1099,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── Layer 1 cannot be bypassed by document creator ──────────────────────────
   describe('guest update/remove documents', () => {
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
 
@@ -1195,7 +1204,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── card.class.Card ownership on update (regression test for the File-card guest-upload fix) ──
   describe('card.class.Card ownership on update', () => {
     const CARD_CLASS = 'card:class:Card' as Ref<Class<Doc>>
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
@@ -1233,7 +1241,7 @@ describe('GuestPermissionsMiddleware', () => {
         }
         if (mixin === core.mixin.RowVisibility) {
           return {
-            policy: { kind: 'publicReadable' },
+            policy: { kind: 'spaceScoped', reason: 'Test data follows space access' },
             writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
             allowKnownIdBypass: false
           }
@@ -1272,7 +1280,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── core.class.Collaborator editing on own cards (card.ids.GuestCollaboratorClassPermission) ──
   describe('editing collaborators on a card the guest created', () => {
     const CARD_CLASS = 'card:class:Card' as Ref<Class<Doc>>
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
@@ -1377,7 +1384,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── process.class.ApproveRequest actions (process.ids.GuestApproveRequestClassPermission) ──
   describe('process.class.ApproveRequest approve/reject', () => {
     const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as Ref<Class<Doc>>
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
@@ -1478,7 +1484,6 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── Cache invalidation ──────────────────────────────────────────────────────
   describe('cache invalidation', () => {
     it('invalidates cache when GuestPermissionsSettings is updated', async () => {
       const findAll: FindAllFn = async (_ctx, _class) => {
@@ -1497,7 +1502,6 @@ describe('GuestPermissionsMiddleware', () => {
       }
       ;(mw as any).context.hierarchy.classHierarchyMixin = () => undefined
 
-      // First tx as guest should load cache
       const userCtx = makeCtx(makeAccount(AccountRole.User))
       const settingsTx: Tx = {
         _id: generateId(),
@@ -1510,9 +1514,7 @@ describe('GuestPermissionsMiddleware', () => {
         objectSpace: 'core:space:Workspace' as Ref<Space>
       } as any
 
-      // Owner updates settings – should invalidate cache
       await mw.tx(userCtx, [settingsTx])
-      // Cache should be cleared after settings update
       expect((mw as any).classAccess.cache).toBeUndefined()
     })
   })

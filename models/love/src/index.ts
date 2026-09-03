@@ -354,37 +354,23 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(love.class.MeetingMinutes, core.class.Class, core.mixin.RowVisibility, {
-    policy: {
-      kind: 'linkedViaRecord',
-      linkClass: core.class.Collaborator,
-      linkTargetField: 'attachedTo',
-      linkIdentityField: 'collaborator',
-      identity: 'accountUuid'
-    },
-    allowKnownIdBypass: true
+    policy: core.linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid'),
+    allowKnownIdBypass: true,
+    knownIdBypassReason: 'Meeting minutes are resolved from an already visible room reference'
   })
 
   builder.mixin(love.class.Room, core.class.Class, core.mixin.RowVisibility, {
-    policy: {
-      kind: 'publicReadable',
-      reason:
-        'Office rooms are visible to every guest so the office layout renders correctly; the meeting minutes documents attached to a room stay collaborator-restricted'
-    },
-    allowKnownIdBypass: false
+    policy: core.spaceScoped(
+      'Office rooms are visible to every guest so the office layout renders correctly; the meeting minutes documents attached to a room stay collaborator-restricted'
+    )
   })
 
   builder.mixin(love.class.Floor, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'publicReadable', reason: 'Floor metadata is required to render accessible Office rooms' },
-    allowKnownIdBypass: false
+    policy: core.spaceScoped('Floor metadata is required to render accessible Office rooms')
   })
 
   const roomActivityVisibility = {
-    policy: {
-      kind: 'linkedViaRecord',
-      linkClass: core.class.Collaborator,
-      linkTargetField: 'attachedTo',
-      linkIdentityField: 'collaborator',
-      identity: 'accountUuid',
+    policy: core.linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid', {
       targetField: 'room',
       through: {
         documentClass: love.class.MeetingMinutes,
@@ -392,23 +378,16 @@ export function createModel (builder: Builder): void {
         targetField: 'attachedTo',
         includeDirect: true
       }
-    },
-    allowKnownIdBypass: false
+    })
   } as const
 
   builder.mixin(love.class.ParticipantInfo, core.class.Class, core.mixin.RowVisibility, roomActivityVisibility)
   builder.mixin(love.class.RoomInfo, core.class.Class, core.mixin.RowVisibility, roomActivityVisibility)
 
   builder.mixin(love.class.PendingRecording, core.class.Class, core.mixin.RowVisibility, {
-    policy: {
-      kind: 'linkedViaRecord',
-      linkClass: core.class.Collaborator,
-      linkTargetField: 'attachedTo',
-      linkIdentityField: 'collaborator',
-      identity: 'accountUuid',
+    policy: core.linkedViaCollaborator(core.class.Collaborator, 'attachedTo', 'collaborator', 'accountUuid', {
       targetField: 'attachedTo'
-    },
-    allowKnownIdBypass: false
+    })
   })
 
   builder.mixin(love.class.DevicesPreference, core.class.Class, core.mixin.TxAccessLevel, {
@@ -418,8 +397,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(love.class.DevicesPreference, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
-    allowKnownIdBypass: false
+    policy: core.ownBy('createdBy', 'socialId')
   })
 
   builder.createDoc(

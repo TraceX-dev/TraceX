@@ -132,9 +132,8 @@ export function createModel (builder: Builder): void {
   })
 
   const attachmentVisibility = {
-    policy: { kind: 'publicReadable', reason: 'Attachment visibility is governed by parent space access' },
-    writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
-    allowKnownIdBypass: false
+    policy: core.spaceScoped('Attachment visibility is governed by parent space access'),
+    writePolicy: core.ownBy('createdBy', 'socialId')
   } as const
 
   builder.mixin(attachment.class.Attachment, core.class.Class, core.mixin.RowVisibility, attachmentVisibility)

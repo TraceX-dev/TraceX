@@ -13,24 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * Tests for the guest/read-only-guest/doc-guest People-visibility restriction in
- * SpaceSecurityMiddleware.
- *
- * Verifies that:
- *  - Open (no `_id`) Person/Employee queries from Guest/ReadOnlyGuest/DocGuest are narrowed to
- *    accounts that share a real space with the caller (plus the caller themself).
- *  - A query that already names specific `_id`s (a bare ref or `{ $in: [...] }`) is never
- *    narrowed — this is how an already-visible document's author/assignee keeps resolving.
- *  - Guests belonging to several spaces see the union of all those spaces' members.
- *  - A guest with no space membership at all (and DocGuest, which is never a real space member)
- *    gets an empty result for open queries, but can still resolve a known `_id`.
- *  - Regular `User` accounts are completely unaffected.
- *  - `searchFulltext` (the path the @-mention picker uses) is unblocked for Person/Employee
- *    classes for these roles (fixing the "empty picker" bug) while still only returning
- *    space-mates in the result set (fixing the "guest sees everyone" leak).
- */
-
 import contact from '@hcengineering/contact'
 import core, {
   AccountRole,
@@ -242,18 +224,18 @@ describe('SpaceSecurityMiddleware – guest People visibility', () => {
       expect(ids).toEqual([s.personAlice, s.personBob, s.personCarol].sort(byId))
     })
 
-    it('_id-scoped lookup bypasses the restriction (resolving an already-visible doc reference)', async () => {
+    it('_id-scoped lookup does not bypass the shared-space relationship check', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const res = await s.mw.findAll(ctx, PERSON_CLASS, { _id: s.personCarol } as any)
-      expect(res.map((r: any) => r._id)).toEqual([s.personCarol])
+      expect(res).toEqual([])
     })
 
-    it('_id: { $in: [...] } lookup also bypasses the restriction', async () => {
+    it('_id: { $in: [...] } lookup is intersected with visible people', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const res = await s.mw.findAll(ctx, PERSON_CLASS, { _id: { $in: [s.personCarol, s.personBob] } } as any)
-      expect(res.map((r: any) => r._id).sort(byId)).toEqual([s.personCarol, s.personBob].sort(byId))
+      expect(res.map((r: any) => r._id)).toEqual([s.personBob])
     })
 
     it('a guest with no space membership gets an empty result for an open query', async () => {
@@ -264,14 +246,14 @@ describe('SpaceSecurityMiddleware – guest People visibility', () => {
       expect(res.length).toBe(0)
     })
 
-    it('DocGuest (never a real space member) gets an empty result for an open query, but can still resolve a known _id', async () => {
+    it('DocGuest gets an empty result even when a person id is known', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.DocGuest, generateId() as unknown as AccountUuid))
       const openRes = await s.mw.findAll(ctx, PERSON_CLASS, {})
       expect(openRes.length).toBe(0)
 
       const idRes = await s.mw.findAll(ctx, PERSON_CLASS, { _id: s.personAlice } as any)
-      expect(idRes.map((r: any) => r._id)).toEqual([s.personAlice])
+      expect(idRes).toEqual([])
     })
 
     it('regular User accounts are not restricted', async () => {

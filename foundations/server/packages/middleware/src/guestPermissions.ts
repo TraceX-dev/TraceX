@@ -7,6 +7,7 @@ import {
 import core, {
   type Account,
   AccountRole,
+  GuestSecurityProfile,
   type Class,
   type Doc,
   type DocumentQuery,
@@ -28,6 +29,7 @@ import contact from '@hcengineering/contact'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
 import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
+import { resolveGuestSecurityProfile } from './guestVisibility'
 
 // Importing `@hcengineering/process` would pull client-only dependencies into this package.
 const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as unknown as Ref<Class<Doc>>
@@ -71,11 +73,30 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       return await this.provideTx(ctx, txes)
     }
 
+    if (
+      (await resolveGuestSecurityProfile(this.next, ctx, account)) === GuestSecurityProfile.Viewer &&
+      !txes.every((tx) => this.isViewerTxAllowed(tx))
+    ) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+    }
+
     for (const tx of txes) {
       await this.processTx(ctx, tx)
     }
 
     return await this.provideTx(ctx, txes)
+  }
+
+  private isViewerTxAllowed (tx: Tx): boolean {
+    if (tx._class === core.class.TxApplyIf) {
+      return (tx as TxApplyIf).txes.every((nestedTx) => this.isViewerTxAllowed(nestedTx))
+    }
+    if (!TxProcessor.isExtendsCUD(tx._class)) return false
+    const access = this.context.hierarchy.classHierarchyMixin(
+      (tx as TxCUD<Doc>).objectClass,
+      core.mixin.TxAccessLevel
+    )
+    return access?.allowViewerWrite === true
   }
 
   private async processTx (ctx: MeasureContext<SessionData>, tx: Tx): Promise<void> {

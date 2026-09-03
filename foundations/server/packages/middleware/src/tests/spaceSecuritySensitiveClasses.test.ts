@@ -13,26 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * Tests `RowVisibilityResolver`'s behavior (Layer 2) against a mock `Hierarchy` whose
- * `classHierarchyMixin` returns the same policies the real model declares (see
- * `rowVisibilityInvariant.test.ts` for checking they're actually declared there).
- *
- *  - Collaborator: open queries clamped to the caller's own records; `_id`/`attachedTo` lookups
- *    bypass the clamp (`attachedTo` here is the *linked* record, not the policy's own field).
- *  - MeetingMinutes/HR Request: open queries clamped to the caller's own records; only `_id`
- *    bypasses the clamp - `attachedTo` is the field the policy itself protects, so it must not
- *    also appear as a bypass field (regression test for the ownership bypass fix).
- *  - Room: publicReadable - visible to every guest regardless of collaborator status (the office
- *    layout needs to render all rooms; only the MeetingMinutes documents attached to a room stay
- *    collaborator-restricted).
- *  - RoomInfo: open queries are still clamped to rooms where the caller is a collaborator.
- *  - PushSubscription: always clamped to the caller's own `user`, no bypass.
- *  - PublicLink: denied unless `_id` matches the caller's own `linkId` (from the session token,
- *    not the account - every guest shares one account) - regression test for the enumeration fix.
- *  - Regular `User` accounts are unaffected.
- */
-
 import contact from '@hcengineering/contact'
 import core, {
   AccountRole,
@@ -60,12 +40,11 @@ const PUBLIC_LINK = 'guest:class:PublicLink' as Ref<Class<Doc>>
 const UNDECLARED_SHARED_CLASS = 'test:class:UndeclaredShared' as Ref<Class<Doc>>
 const PERSON_CLASS = contact.class.Person
 
-// Mirrors the real policies registered via `builder.mixin(..., core.mixin.RowVisibility, {...})`
-// in `models/core`, `models/love`, `models/hr`, `models/notification` and `models/guest`.
 const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> = {
   [core.class.Collaborator]: {
     policy: { kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' },
     allowKnownIdBypass: true,
+    knownIdBypassReason: 'Test relationship lookup',
     knownIdBypassFields: ['attachedTo']
   },
   [MEETING_MINUTES]: {
@@ -76,10 +55,11 @@ const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> =
       linkIdentityField: 'collaborator',
       identity: 'accountUuid'
     },
-    allowKnownIdBypass: true
+    allowKnownIdBypass: true,
+    knownIdBypassReason: 'Test room lookup'
   },
   [ROOM]: {
-    policy: { kind: 'publicReadable', reason: 'Office rooms are visible to every guest' },
+    policy: { kind: 'spaceScoped', reason: 'Office rooms are visible to every guest' },
     allowKnownIdBypass: false
   },
   [ROOM_INFO]: {
@@ -105,11 +85,11 @@ const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> =
   },
   [HR_REQUEST]: {
     policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
-    allowKnownIdBypass: true
+    allowKnownIdBypass: true,
+    knownIdBypassReason: 'Test request lookup'
   },
   [PUSH_SUBSCRIPTION]: {
-    policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' },
-    allowKnownIdBypass: false
+    policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' }
   }
 }
 
@@ -164,6 +144,8 @@ async function setup (): Promise<{
   reqBob: Ref<Doc>
   linkAlice: Ref<Doc>
   linkOther: Ref<Doc>
+  pushAlice: Ref<Doc>
+  pushBob: Ref<Doc>
 }> {
   const ALICE = generateId() as unknown as AccountUuid
   const BOB = generateId() as unknown as AccountUuid
@@ -288,7 +270,9 @@ async function setup (): Promise<{
     reqAlice: reqAlice._id,
     reqBob: reqBob._id,
     linkAlice: linkAlice._id,
-    linkOther: linkOther._id
+    linkOther: linkOther._id,
+    pushAlice: pushSubs[0]._id,
+    pushBob: pushSubs[1]._id
   }
 }
 
@@ -353,8 +337,6 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
     it('an attachedTo lookup does NOT bypass the restriction (regression test for the ownership bypass fix)', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
-      // Alice asks for Bob's minutes by their attachedTo (Bob's Room id). Since attachedTo is the
-      // field the linkedViaRecord policy itself protects, this must not resolve Bob's minutes.
       const res = await s.mw.findAll(ctx, MEETING_MINUTES, { attachedTo: s.roomBob } as any)
       expect(res).toHaveLength(0)
     })
@@ -370,7 +352,7 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
   })
 
   describe('love.class.Room', () => {
-    it('returns every room regardless of collaborator status (publicReadable, per the office-layout change)', async () => {
+    it('returns every room regardless of collaborator status (spaceScoped, per the office-layout change)', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
       const res = await s.mw.findAll(ctx, ROOM, {})
@@ -426,8 +408,6 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
     it('an attachedTo lookup does NOT bypass the own-record clamp (regression test for the ownership bypass fix)', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
-      // Alice explicitly asks for Bob's request by its attachedTo (Bob's Person id). attachedTo is
-      // the field the ownerField policy itself protects, so this must still come back empty.
       const res = await s.mw.findAll(ctx, HR_REQUEST, { attachedTo: s.personBob } as any)
       expect(res).toHaveLength(0)
     })
@@ -444,8 +424,8 @@ describe('SpaceSecurityMiddleware – row-level visibility for core.space.Worksp
     it('an _id-narrowed query for someone else’s subscription does not bypass the clamp', async () => {
       const s = await setup()
       const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
-      const res = await s.mw.findAll(ctx, PUSH_SUBSCRIPTION, {})
-      expect(res.every((r: any) => r.user === s.ALICE)).toBe(true)
+      const res = await s.mw.findAll(ctx, PUSH_SUBSCRIPTION, { _id: s.pushBob })
+      expect(res).toEqual([])
     })
   })
 

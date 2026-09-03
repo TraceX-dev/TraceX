@@ -52,7 +52,7 @@
   import GuestPermissionsSettings from './GuestPermissionsSettings.svelte'
   import SpaceRolesSettings from './Spaces.svelte'
 
-  type Tab = 'spaces' | 'spaceRoles' | 'users' | 'guests' | 'anonymous'
+  type Tab = 'spaces' | 'spaceRoles' | 'users' | 'guests' | 'document' | 'anonymous'
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -243,6 +243,14 @@
         />
         <NavItem
           icon={contact.icon.Persona}
+          label={setting.string.GuestPermissionsTabDocumentGuest}
+          selected={activeTab === 'document'}
+          on:click={() => {
+            activeTab = 'document'
+          }}
+        />
+        <NavItem
+          icon={contact.icon.Persona}
           label={setting.string.GuestPermissionsTabAnonymousGuest}
           selected={activeTab === 'anonymous'}
           on:click={() => {
@@ -298,7 +306,10 @@
         </div>
       {:else}
         <div class="guestPermissionsPanel">
-          <GuestPermissionsSettings embedded initialTab={activeTab === 'guests' ? 'guest' : 'anonymous'} />
+          <GuestPermissionsSettings
+            embedded
+            initialTab={activeTab === 'guests' ? 'guest' : activeTab === 'document' ? 'document' : 'anonymous'}
+          />
         </div>
       {/if}
     </div>

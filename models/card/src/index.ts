@@ -1096,9 +1096,8 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(card.class.Card, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'publicReadable', reason: 'Card read visibility is governed by ordinary space membership' },
-    writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
-    allowKnownIdBypass: false,
+    policy: core.spaceScoped('Card read visibility is governed by ordinary space membership'),
+    writePolicy: core.ownBy('createdBy', 'socialId'),
     scopeActivityToOwner: true
   })
 

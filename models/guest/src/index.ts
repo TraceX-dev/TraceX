@@ -22,8 +22,7 @@ export function createModel (builder: Builder): void {
   // `_id` doubles as the link's bearer secret (see exchangeGuestToken), so unlike other
   // RowVisibility classes it must NOT allow a known-id bypass - only the caller's own linkId.
   builder.mixin(guest.class.PublicLink, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'ownerField', field: '_id', identity: 'linkId' },
-    allowKnownIdBypass: false
+    policy: core.ownBy('_id', 'linkId')
   })
 
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {

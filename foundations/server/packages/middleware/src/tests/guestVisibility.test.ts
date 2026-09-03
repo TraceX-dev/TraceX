@@ -13,15 +13,18 @@
 // limitations under the License.
 //
 
-/**
- * `excludeSpacesFromQuery` used to dereference `current.$in` without the null-guard its siblings
- * `mergeEquals`/`mergeIn` (`../rowVisibility`) have, so a query narrowing a space field to `null`
- * (e.g. `{ space: null }`) crashed instead of being treated as a plain scalar value. Regression
- * tests for that fix.
- */
-
-import type { Ref, Space } from '@hcengineering/core'
-import { excludeSpacesFromQuery } from '../guestVisibility'
+import {
+  AccountRole,
+  GuestSecurityProfile,
+  MeasureMetricsContext,
+  type Account,
+  type MeasureContext,
+  type Ref,
+  type SessionData,
+  type Space
+} from '@hcengineering/core'
+import type { Middleware } from '@hcengineering/server-core'
+import { excludeSpacesFromQuery, resolveGuestSecurityProfile } from '../guestVisibility'
 
 const SPACE_A = 'test:space:A' as Ref<Space>
 const SPACE_B = 'test:space:B' as Ref<Space>
@@ -64,5 +67,54 @@ describe('excludeSpacesFromQuery', () => {
   it('merges into an existing $nin', () => {
     const result = excludeSpacesFromQuery({ $nin: [SPACE_C] }, new Set([SPACE_A]))
     expect(result).toEqual({ query: { $nin: [SPACE_C, SPACE_A] } })
+  })
+})
+
+describe('resolveGuestSecurityProfile', () => {
+  function context (role: AccountRole): MeasureContext<SessionData> {
+    const ctx = new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>
+    ctx.contextData = {
+      account: {
+        uuid: 'test-account',
+        role,
+        primarySocialId: 'test-social',
+        socialIds: ['test-social'],
+        fullSocialIds: []
+      } as unknown as Account,
+      broadcast: { txes: [], queue: [], sessions: {} }
+    } as SessionData
+    return ctx
+  }
+
+  it('uses safe defaults when a settings document does not exist', async () => {
+    const next = { findAll: async () => [] } as unknown as Middleware
+    const guestCtx = context(AccountRole.Guest)
+    await expect(resolveGuestSecurityProfile(next, guestCtx, guestCtx.contextData.account)).resolves.toBe(
+      GuestSecurityProfile.Participant
+    )
+    const docGuestCtx = context(AccountRole.DocGuest)
+    await expect(
+      resolveGuestSecurityProfile(next, docGuestCtx, docGuestCtx.contextData.account)
+    ).resolves.toBe(GuestSecurityProfile.Viewer)
+  })
+
+  it('returns the configured profile', async () => {
+    const next = {
+      findAll: async () => [{ securityProfile: GuestSecurityProfile.Advanced }]
+    } as unknown as Middleware
+    const ctx = context(AccountRole.Guest)
+    await expect(resolveGuestSecurityProfile(next, ctx, ctx.contextData.account)).resolves.toBe(
+      GuestSecurityProfile.Advanced
+    )
+  })
+
+  it('keeps non-guest restricted roles on the viewer profile', async () => {
+    const next = {
+      findAll: async () => [{ securityProfile: GuestSecurityProfile.Advanced }]
+    } as unknown as Middleware
+    const ctx = context(AccountRole.DocGuest)
+    await expect(resolveGuestSecurityProfile(next, ctx, ctx.contextData.account)).resolves.toBe(
+      GuestSecurityProfile.Viewer
+    )
   })
 })

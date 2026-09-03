@@ -13,15 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * CI invariant: every class `SpaceSecurityMiddleware` row-level-restricts must declare
- * `core.mixin.RowVisibility` - a missing policy should fail the build, not a later review.
- *
- * Scope: only the sensitive classes restricted today. Widening to every class outside ordinary space
- * filtering platform-wide needs a full audit first (dozens of classes are in `core.space.Workspace`
- * for unrelated reasons - shared tags, reactions, global settings, ...) - see `docs/security-model.md`.
- */
-
 import contact, { type SocialIdentityRef } from '@hcengineering/contact'
 import core, {
   AccountRole,
@@ -40,6 +31,11 @@ import core, {
 import buildModel from '@hcengineering/model-all'
 import type { Middleware, PipelineContext } from '@hcengineering/server-core'
 import { SpaceSecurityMiddleware } from '../spaceSecurity'
+import {
+  renderRowVisibilityPolicyTable,
+  restrictedRolePolicyClasses,
+  resolveRegisteredRowVisibilityPolicies
+} from '../securityPolicyRegistry'
 
 const DOCUMENT_PRESENCE = 'pulse:class:DocumentPresence' as Ref<Class<Doc>>
 const TYPING_INDICATOR = 'pulse:class:TypingIndicator' as Ref<Class<Doc>>
@@ -54,28 +50,6 @@ const PENDING_RECORDING = 'love:class:PendingRecording' as Ref<Class<Doc>>
 const DEVICES_PREFERENCE = 'love:class:DevicesPreference' as Ref<Class<Doc>>
 const CARD = 'card:class:Card' as Ref<Class<Doc>>
 
-const SENSITIVE_CLASSES: Array<{ name: string, _class: Ref<Class<Doc>> }> = [
-  { name: 'core.class.Collaborator', _class: core.class.Collaborator },
-  { name: 'love.class.MeetingMinutes', _class: 'love:class:MeetingMinutes' as Ref<Class<Doc>> },
-  { name: 'love.class.RoomInfo', _class: 'love:class:RoomInfo' as Ref<Class<Doc>> },
-  { name: 'hr.class.Request', _class: 'hr:class:Request' as Ref<Class<Doc>> },
-  { name: 'notification.class.PushSubscription', _class: 'notification:class:PushSubscription' as Ref<Class<Doc>> },
-  { name: 'guest.class.PublicLink', _class: 'guest:class:PublicLink' as Ref<Class<Doc>> },
-  { name: 'contact.class.SocialIdentity', _class: contact.class.SocialIdentity },
-  { name: 'pulse.class.DocumentPresence', _class: DOCUMENT_PRESENCE },
-  { name: 'pulse.class.TypingIndicator', _class: TYPING_INDICATOR },
-  { name: 'chunter.class.ChatMessage', _class: CHAT_MESSAGE },
-  { name: 'chunter.class.ThreadMessage', _class: THREAD_MESSAGE },
-  { name: 'attachment.class.Attachment', _class: ATTACHMENT },
-  { name: 'activity.class.SavedMessage', _class: SAVED_MESSAGE },
-  { name: 'love.class.Room', _class: LOVE_ROOM },
-  { name: 'love.class.Floor', _class: LOVE_FLOOR },
-  { name: 'love.class.ParticipantInfo', _class: PARTICIPANT_INFO },
-  { name: 'love.class.PendingRecording', _class: PENDING_RECORDING },
-  { name: 'love.class.DevicesPreference', _class: DEVICES_PREFERENCE },
-  { name: 'card.class.Card', _class: CARD }
-]
-
 describe('RowVisibility invariant', () => {
   let hierarchy: Hierarchy
 
@@ -83,11 +57,34 @@ describe('RowVisibility invariant', () => {
     hierarchy = buildModel().hierarchy
   })
 
-  it.each(SENSITIVE_CLASSES)('$name declares core.mixin.RowVisibility', ({ _class }) => {
+  it.each(restrictedRolePolicyClasses)('$name declares core.mixin.RowVisibility', ({ _class }) => {
     const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
     expect(mixin).toBeDefined()
     expect(mixin?.policy).toBeDefined()
-    expect(typeof mixin?.allowKnownIdBypass).toBe('boolean')
+    expect(mixin?.allowKnownIdBypass === undefined || typeof mixin.allowKnownIdBypass === 'boolean').toBe(true)
+    if (mixin?.policy.kind === 'spaceScoped') {
+      expect(mixin.policy.reason.trim()).not.toBe('')
+    }
+  })
+
+  it('requires a reason for every enabled known-id bypass', () => {
+    for (const { _class } of restrictedRolePolicyClasses) {
+      const mixin = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
+      if (mixin?.allowKnownIdBypass === true) {
+        expect(mixin.knownIdBypassReason?.trim()).not.toBe('')
+      }
+    }
+  })
+
+  it('resolves every registered policy from the model', () => {
+    expect(resolveRegisteredRowVisibilityPolicies(hierarchy)).toHaveLength(restrictedRolePolicyClasses.length)
+  })
+
+  it('generates the policy table from the same registry', () => {
+    const table = renderRowVisibilityPolicyTable(hierarchy)
+    for (const { name } of restrictedRolePolicyClasses) {
+      expect(table).toContain(`\`${name}\``)
+    }
   })
 
   it('core.class.Collaborator opens Layer 1 to any restricted role, still self-service-only at Layer 2 unless card.ids.GuestCollaboratorClassPermission opts a role in (regression test for the collaborator-edit permission)', () => {
@@ -123,7 +120,7 @@ describe('RowVisibility invariant', () => {
   it('guest.class.PublicLink is scoped to _id, not a bypassable field (regression guard for the linkId-enumeration fix)', () => {
     const mixin = hierarchy.classHierarchyMixin('guest:class:PublicLink' as Ref<Class<Doc>>, core.mixin.RowVisibility)
     expect(mixin?.policy).toEqual({ kind: 'ownerField', field: '_id', identity: 'linkId' })
-    expect(mixin?.allowKnownIdBypass).toBe(false)
+    expect(mixin?.allowKnownIdBypass).not.toBe(true)
   })
 
   it('contact.class.SocialIdentity is scoped to the current person but supports known-id resolution', () => {
@@ -135,10 +132,10 @@ describe('RowVisibility invariant', () => {
     expect(mixin?.allowKnownIdBypass).toBe(true)
   })
 
-  it('pulse.class.DocumentPresence is public ephemeral activity state', () => {
+  it('pulse.class.DocumentPresence is space-scoped ephemeral activity state', () => {
     const mixin = hierarchy.classHierarchyMixin(DOCUMENT_PRESENCE, core.mixin.RowVisibility)
-    expect(mixin?.policy.kind).toBe('publicReadable')
-    expect(mixin?.allowKnownIdBypass).toBe(false)
+    expect(mixin?.policy.kind).toBe('spaceScoped')
+    expect(mixin?.allowKnownIdBypass).not.toBe(true)
   })
 
   it('pulse.class.DocumentPresence permits writes starting from ReadOnlyGuest', () => {
@@ -146,28 +143,30 @@ describe('RowVisibility invariant', () => {
     expect(mixin?.createAccessLevel).toBe(AccountRole.ReadOnlyGuest)
     expect(mixin?.updateAccessLevel).toBe(AccountRole.ReadOnlyGuest)
     expect(mixin?.removeAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    expect(mixin?.allowViewerWrite).toBe(true)
   })
 
-  it('pulse.class.TypingIndicator is public ephemeral activity state', () => {
+  it('pulse.class.TypingIndicator is space-scoped ephemeral activity state', () => {
     const visibility = hierarchy.classHierarchyMixin(TYPING_INDICATOR, core.mixin.RowVisibility)
-    expect(visibility?.policy.kind).toBe('publicReadable')
-    expect(visibility?.allowKnownIdBypass).toBe(false)
+    expect(visibility?.policy.kind).toBe('spaceScoped')
+    expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(TYPING_INDICATOR, core.mixin.TxAccessLevel)
     expect(access?.createAccessLevel).toBe(AccountRole.ReadOnlyGuest)
     expect(access?.updateAccessLevel).toBe(AccountRole.ReadOnlyGuest)
     expect(access?.removeAccessLevel).toBe(AccountRole.ReadOnlyGuest)
+    expect(access?.allowViewerWrite).toBe(true)
   })
 
   it.each([CHAT_MESSAGE, THREAD_MESSAGE])('%s restricts writes to the original author', (_class) => {
     const visibility = hierarchy.classHierarchyMixin(_class, core.mixin.RowVisibility)
-    expect(visibility?.policy.kind).toBe('publicReadable')
+    expect(visibility?.policy.kind).toBe('spaceScoped')
     expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
       kind: 'ownerField',
       field: 'createdBy',
       identity: 'socialId'
     })
-    expect(visibility?.allowKnownIdBypass).toBe(false)
+    expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(_class, core.mixin.TxAccessLevel)
     expect(access?.createAccessLevel).toBe(AccountRole.Guest)
@@ -177,13 +176,13 @@ describe('RowVisibility invariant', () => {
 
   it('attachment.class.Attachment restricts writes to the uploader', () => {
     const visibility = hierarchy.classHierarchyMixin(ATTACHMENT, core.mixin.RowVisibility)
-    expect(visibility?.policy.kind).toBe('publicReadable')
+    expect(visibility?.policy.kind).toBe('spaceScoped')
     expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
       kind: 'ownerField',
       field: 'createdBy',
       identity: 'socialId'
     })
-    expect(visibility?.allowKnownIdBypass).toBe(false)
+    expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(ATTACHMENT, core.mixin.TxAccessLevel)
     expect(access?.createAccessLevel).toBe(AccountRole.Guest)
@@ -194,7 +193,7 @@ describe('RowVisibility invariant', () => {
   it('activity.class.SavedMessage is private to the account social identity', () => {
     const visibility = hierarchy.classHierarchyMixin(SAVED_MESSAGE, core.mixin.RowVisibility)
     expect(visibility?.policy).toEqual({ kind: 'ownerField', field: 'createdBy', identity: 'socialId' })
-    expect(visibility?.allowKnownIdBypass).toBe(false)
+    expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(SAVED_MESSAGE, core.mixin.TxAccessLevel)
     expect(access?.createAccessLevel).toBe(AccountRole.Guest)
@@ -204,13 +203,13 @@ describe('RowVisibility invariant', () => {
 
   it('card.class.Card restricts updates to the creator, reads stay ordinary space-scoped (regression test for the File-card guest-upload fix)', () => {
     const visibility = hierarchy.classHierarchyMixin(CARD, core.mixin.RowVisibility)
-    expect(visibility?.policy.kind).toBe('publicReadable')
+    expect(visibility?.policy.kind).toBe('spaceScoped')
     expect((visibility as typeof visibility & { writePolicy?: object })?.writePolicy).toEqual({
       kind: 'ownerField',
       field: 'createdBy',
       identity: 'socialId'
     })
-    expect(visibility?.allowKnownIdBypass).toBe(false)
+    expect(visibility?.allowKnownIdBypass).not.toBe(true)
 
     const access = hierarchy.classHierarchyMixin(CARD, core.mixin.TxAccessLevel)
     expect(access?.updateAccessLevel).toBe(AccountRole.Guest)
@@ -238,7 +237,7 @@ describe('RowVisibility invariant', () => {
   })
 
   it('Office floors are public metadata and device preferences remain private', () => {
-    expect(hierarchy.classHierarchyMixin(LOVE_FLOOR, core.mixin.RowVisibility)?.policy.kind).toBe('publicReadable')
+    expect(hierarchy.classHierarchyMixin(LOVE_FLOOR, core.mixin.RowVisibility)?.policy.kind).toBe('spaceScoped')
     expect(hierarchy.classHierarchyMixin(DEVICES_PREFERENCE, core.mixin.RowVisibility)?.policy).toEqual({
       kind: 'ownerField',
       field: 'createdBy',
@@ -247,15 +246,6 @@ describe('RowVisibility invariant', () => {
   })
 })
 
-/**
- * Closes the gap the two tests above don't cover: `spaceSecuritySensitiveClasses.test.ts` proves
- * `RowVisibilityResolver` behaves correctly against a hand-copied mock of the policies, and the
- * `it.each` above proves the real model declares *some* policy - but nothing proves the two agree.
- * A typo in a model registration (wrong field name, wrong `identity`) would pass both suites.
- *
- * Here `SpaceSecurityMiddleware.findAll` runs against the real `buildModel()` hierarchy, so
- * `classHierarchyMixin` returns what's actually registered in `models/hr` and `models/guest`.
- */
 describe('RowVisibility integration - real model + real resolver', () => {
   let hierarchy: Hierarchy
 

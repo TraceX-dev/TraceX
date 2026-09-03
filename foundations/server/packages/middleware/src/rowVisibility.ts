@@ -13,14 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * Row-level ownership resolution (Layer 2, see `docs/security-model.md` and
- * `core.mixin.RowVisibility` / `RowVisibilityPolicy`) for classes not scoped by ordinary
- * space-based filtering.
- *
- * Deliberately role-agnostic: nothing here compares `account.role`. Which accounts this runs for
- * is entirely up to the call site (`isRowLevelRestricted(account.role)` in `spaceSecurity.ts`).
- */
 import core, {
   type Account,
   type Class,
@@ -167,7 +159,12 @@ export class RowVisibilityResolver {
       return { kind: 'unrestricted' }
     }
 
-    if (allowKnownIdBypass && mixin.allowKnownIdBypass) {
+    if (
+      allowKnownIdBypass &&
+      mixin.allowKnownIdBypass === true &&
+      mixin.knownIdBypassReason !== undefined &&
+      mixin.knownIdBypassReason.trim() !== ''
+    ) {
       const bypassFields = ['_id', ...(mixin.knownIdBypassFields ?? [])]
       if (bypassFields.some((field) => hasNarrowFieldQuery(query, field))) {
         return { kind: 'unrestricted' }
@@ -210,7 +207,7 @@ export class RowVisibilityResolver {
         return identityMatches((doc as unknown as Record<string, unknown>)[policy.field], value)
       }
       case 'spaceMember':
-      case 'publicReadable':
+      case 'spaceScoped':
         return true
       case 'linkedViaRecord':
       case 'denyAll':
@@ -292,7 +289,7 @@ export class RowVisibilityResolver {
   ): Promise<RowVisibilityDecision<T>> {
     switch (policy.kind) {
       case 'spaceMember':
-      case 'publicReadable':
+      case 'spaceScoped':
         return { kind: 'unrestricted' }
 
       case 'denyAll':

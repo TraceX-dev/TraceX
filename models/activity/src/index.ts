@@ -286,8 +286,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(activity.class.SavedMessage, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
-    allowKnownIdBypass: false
+    policy: core.ownBy('createdBy', 'socialId')
   })
 
   builder.mixin(activity.class.Reaction, core.class.Class, core.mixin.TxAccessLevel, {

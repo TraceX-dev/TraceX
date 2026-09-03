@@ -66,7 +66,6 @@ import {
   excludeSpacesFromQuery,
   getDisabledModuleSpaceClasses,
   getGuestVisiblePersonIds,
-  hasNarrowIdQuery,
   resolveDisabledModuleSpaceIds,
   resolveGuestActivityScope,
   type SpaceWithMembers
@@ -694,8 +693,8 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       }
     }
 
-    // Person/Employee visibility for Guest / ReadOnlyGuest / DocGuest: restrict open browse/search
-    // queries to accounts sharing a real space with the caller. Applied on top of whichever query
+    // Restrict Person/Employee queries to accounts sharing a real space with the caller. Applied to
+    // specific-id lookups as well as open browse/search queries, on top of whichever query
     // object the backend actually executes (`skipFindCheck` deployments rely on the DB adapter for
     // space-level security and pass the original `query` through untouched, so the restriction is
     // layered on there too, not only on `newQuery`).
@@ -703,8 +702,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     if (
       !isSystem(account, ctx) &&
       isRestricted &&
-      this.context.hierarchy.isDerived(_class, contact.class.Person) &&
-      !hasNarrowIdQuery(baseQuery)
+      this.context.hierarchy.isDerived(_class, contact.class.Person)
     ) {
       const allowedPersonIds = await getGuestVisiblePersonIds(
         this.next,
@@ -716,7 +714,25 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       if (allowedPersonIds.size === 0) {
         return toFindResult([], 0)
       }
-      const restrictedQuery: DocumentQuery<T> = { ...baseQuery, _id: { $in: Array.from(allowedPersonIds) } }
+      const currentId = (baseQuery as Record<string, unknown>)._id
+      const currentIdQuery =
+        currentId !== null && typeof currentId === 'object' ? (currentId as Record<string, unknown>) : undefined
+      let visiblePersonIds = Array.from(allowedPersonIds)
+      if (typeof currentId === 'string') {
+        visiblePersonIds = allowedPersonIds.has(currentId as Ref<Person>) ? [currentId as Ref<Person>] : []
+      } else if (Array.isArray(currentIdQuery?.$in)) {
+        visiblePersonIds = currentIdQuery.$in.filter(
+          (id): id is Ref<Person> => typeof id === 'string' && allowedPersonIds.has(id as Ref<Person>)
+        )
+      }
+      if (visiblePersonIds.length === 0) {
+        return toFindResult([], 0)
+      }
+      const restrictedId =
+        currentIdQuery !== undefined
+          ? { ...currentIdQuery, $in: visiblePersonIds }
+          : { $in: visiblePersonIds }
+      const restrictedQuery = { ...baseQuery, _id: restrictedId } as DocumentQuery<T>
       baseQuery = restrictedQuery
     }
 

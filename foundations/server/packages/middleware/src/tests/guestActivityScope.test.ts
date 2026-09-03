@@ -13,13 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * `GuestActivitySettings.activityScope` narrows a restricted role's view of chat/activity messages
- * attached to a class that opts in via `RowVisibility.scopeActivityToOwner` (modeling
- * card.class.Card) - own/collaborator/any - while activity on a non-opted-in class (e.g. a chunter
- * channel) stays untouched.
- */
-
 import core, {
   AccountRole,
   generateId,
@@ -82,7 +75,7 @@ function makeCtx (account: Account): MeasureContext<SessionData> {
   return ctx
 }
 
-async function setup (activityScope: GuestActivityScope): Promise<{
+async function setup (activityScope?: GuestActivityScope): Promise<{
   mw: SpaceSecurityMiddleware
   ALICE: AccountUuid
   ALICE_SOCIAL: PersonId
@@ -95,9 +88,6 @@ async function setup (activityScope: GuestActivityScope): Promise<{
   const ALICE_SOCIAL = 'social:alice' as PersonId
   const BOB_SOCIAL = 'social:bob' as PersonId
 
-  // A plain shared space (not one of SpaceSecurityMiddleware's mainSpaces/systemSpaces) both
-  // accounts are members of - ordinary membership grants read access, isolating this test to the
-  // new activity-scope narrowing rather than space-membership filtering.
   const SHARED_SPACE = 'test:space:shared' as Ref<Space>
 
   const cardAlice = { _id: generateId(), _class: CARD_CLASS, space: SHARED_SPACE, createdBy: ALICE_SOCIAL }
@@ -121,7 +111,6 @@ async function setup (activityScope: GuestActivityScope): Promise<{
   }
   const messages = [msgOnCardAlice, msgOnCardBobByBob]
 
-  // Alice is a listed collaborator on Bob's card, but not (explicitly) on her own.
   const collaborators = [
     { _id: generateId(), _class: core.class.Collaborator, collaborator: ALICE, attachedTo: cardBob._id }
   ]
@@ -143,7 +132,7 @@ async function setup (activityScope: GuestActivityScope): Promise<{
     members: [ALICE, BOB]
   }
 
-  const permissions = [{ role: AccountRole.Guest, activityScope }]
+  const permissions = activityScope === undefined ? [] : [{ role: AccountRole.Guest, activityScope }]
 
   const next: Middleware = {
     findAll: (async (_ctx: any, _class: any, query: any) => {
@@ -165,7 +154,7 @@ async function setup (activityScope: GuestActivityScope): Promise<{
 
   const rowVisibilityByClass: Record<string, any> = {
     [CARD_CLASS]: {
-      policy: { kind: 'publicReadable' },
+      policy: { kind: 'spaceScoped', reason: 'Test card visibility follows space access' },
       allowKnownIdBypass: false,
       scopeActivityToOwner: true
     }
@@ -207,7 +196,14 @@ async function setup (activityScope: GuestActivityScope): Promise<{
 }
 
 describe('GuestActivitySettings.activityScope', () => {
-  it('Any (default): sees activity on every card, unaffected', async () => {
+  it('defaults to Own when no settings document exists', async () => {
+    const s = await setup()
+    const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE, s.ALICE_SOCIAL))
+    const res = await s.mw.findAll(ctx, MESSAGE_CLASS, {})
+    expect(res.map((r: any) => r._id)).toEqual([s.msgOnCardAlice])
+  })
+
+  it('Any: sees activity on every card, unaffected', async () => {
     const s = await setup(GuestActivityScope.Any)
     const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE, s.ALICE_SOCIAL))
     const res = await s.mw.findAll(ctx, MESSAGE_CLASS, {})

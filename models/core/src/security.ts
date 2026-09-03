@@ -17,6 +17,7 @@ import {
   DOMAIN_MODEL,
   DOMAIN_SPACE,
   type GuestActivityScope,
+  type GuestSecurityProfile,
   IndexKind,
   type ModulePermissionGroup,
   type AccountRole,
@@ -202,6 +203,7 @@ export class TTxAccessLevel extends TClass implements TxAccessLevel {
   removeAccessLevel?: AccountRole
   updateAccessLevel?: AccountRole
   isIdentity?: boolean
+  allowViewerWrite?: boolean
 }
 
 /** See `RowVisibility` in `@hcengineering/core`. */
@@ -209,7 +211,8 @@ export class TTxAccessLevel extends TClass implements TxAccessLevel {
 export class TRowVisibility extends TClass implements RowVisibility {
   policy!: RowVisibilityPolicy
   writePolicy?: RowVisibilityPolicy
-  allowKnownIdBypass!: boolean
+  allowKnownIdBypass?: boolean
+  knownIdBypassReason?: string
   knownIdBypassFields?: string[]
   scopeActivityToOwner?: boolean
 }
@@ -243,6 +246,9 @@ export class TModulePermissionGroup extends TDoc implements ModulePermissionGrou
 export class TGuestActivitySettings extends TDoc implements GuestActivitySettings {
   @Prop(TypeString(), core.string.Roles)
     role!: AccountRole
+
+  @Prop(TypeString(), core.string.Name)
+    securityProfile?: GuestSecurityProfile
 
   @Prop(TypeString(), core.string.Name)
     activityScope!: GuestActivityScope

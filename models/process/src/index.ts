@@ -554,8 +554,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'ownerField', field: 'user', identity: 'personId' },
-    allowKnownIdBypass: false
+    policy: core.ownBy('user', 'personId')
   })
 
   builder.createDoc(

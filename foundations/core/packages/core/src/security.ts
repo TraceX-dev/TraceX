@@ -46,6 +46,8 @@ export interface TxAccessLevel extends Class<Doc> {
   removeAccessLevel?: AccountRole
   updateAccessLevel?: AccountRole
   isIdentity?: boolean
+  /** Allows non-business-data mutations required for viewer presence and UI state. */
+  allowViewerWrite?: boolean
 }
 
 /**
@@ -78,7 +80,7 @@ export type RowVisibilityPolicy =
   }
   | { kind: 'spaceMember' }
   | { kind: 'denyAll' }
-  | { kind: 'publicReadable', reason: string }
+  | { kind: 'spaceScoped', reason: string }
 
 /**
  * Row-level access policy declared on a class.
@@ -93,14 +95,17 @@ export interface RowVisibility extends Class<Doc> {
    * trusting the caller obtained that reference from a document it can already see. Must be
    * `false` when the referenced value doubles as a secret (e.g. `guest.class.PublicLink._id`).
    */
-  allowKnownIdBypass: boolean
+  /** Enables known-reference lookup. Omitted values are treated as `false`. */
+  allowKnownIdBypass?: boolean
+  /** Required justification when `allowKnownIdBypass` is enabled. */
+  knownIdBypassReason?: string
   /** Additional fields that count as known references. */
   knownIdBypassFields?: string[]
   /**
    * Opts this class into `GuestActivitySettings.activityScope`: restricted-role reads of an
    * `AttachedDoc` (chat message, etc.) whose `attachedToClass` is this class get narrowed to the
    * caller's own activity or activity on documents it collaborates on, per that setting - instead
-   * of the attached class's own (often `publicReadable`) policy. Set only on classes meant to be
+   * of the attached class's own (often `spaceScoped`) policy. Set only on classes meant to be
    * "personal" documents (e.g. card.class.Card); leave unset for shared spaces like channels,
    * where every member should keep seeing all activity regardless of this setting.
    */
@@ -117,12 +122,45 @@ export enum GuestActivityScope {
   Any = 'any'
 }
 
+export enum GuestSecurityProfile {
+  Viewer = 'viewer',
+  Participant = 'participant',
+  Advanced = 'advanced',
+  Custom = 'custom'
+}
+
 /**
- * Per-role setting for activity visibility. Defaults to `GuestActivityScope.Any`.
+ * Per-role security profile and advanced activity visibility settings.
  * @public
  */
 export interface GuestActivitySettings extends Doc {
   role: AccountRole
+  securityProfile?: GuestSecurityProfile
   /** Activity visibility on classes that opt into this setting. */
   activityScope: GuestActivityScope
+}
+
+export function ownBy (field: string, identity: IdentityKind): RowVisibilityPolicy {
+  return { kind: 'ownerField', field, identity }
+}
+
+export function linkedViaCollaborator (
+  linkClass: Ref<Class<Doc>>,
+  linkTargetField: string,
+  linkIdentityField: string,
+  identity: IdentityKind,
+  options?: Pick<Extract<RowVisibilityPolicy, { kind: 'linkedViaRecord' }>, 'targetField' | 'through'>
+): RowVisibilityPolicy {
+  return {
+    kind: 'linkedViaRecord',
+    linkClass,
+    linkTargetField,
+    linkIdentityField,
+    identity,
+    ...options
+  }
+}
+
+export function spaceScoped (reason: string): RowVisibilityPolicy {
+  return { kind: 'spaceScoped', reason }
 }

@@ -13,12 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * Unit tests for `accessGate.ts` in isolation from `GuestPermissionsMiddleware` - in particular,
- * that `hasClassAccessLevel`/`isClassAccessAllowed` compare the calling account against the
- * minimum role declared by the class rather than a hardcoded `AccountRole.Guest`.
- */
-
 import core, {
   AccountRole,
   generateId,

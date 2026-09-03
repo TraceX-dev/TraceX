@@ -13,16 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * Tests for excluding a role-disabled module's spaces from both `searchFulltext` (@-mention/search
- * picker) and `findAll` (plain reads, e.g. opening an object by direct navigation). Settings →
- * Guest permissions lets an admin flip `ModulePermissionGroup.enabled` off for a role; previously
- * this only hid the sidebar app icon and gated writes, while the module's objects still turned up
- * in search/mention results *and* remained readable via `findAll` for that role. `spaceSecurity.ts`
- * now drops any space whose class matches a disabled group's `spaceClass` from both the
- * search-space set and the space field `findAll` narrows content queries to.
- */
-
 import contact from '@hcengineering/contact'
 import core, {
   AccountRole,

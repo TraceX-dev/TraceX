@@ -189,8 +189,9 @@ export function createModel (builder: Builder): void {
   builder.createModel(TDepartment, TRequest, TRequestType, TPublicHoliday, TStaff, TTzDate)
 
   builder.mixin(hr.class.Request, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
-    allowKnownIdBypass: true
+    policy: core.ownBy('attachedTo', 'personId'),
+    allowKnownIdBypass: true,
+    knownIdBypassReason: 'Requests are resolved by identifier from an already visible workflow reference'
   })
 
   builder.createDoc(

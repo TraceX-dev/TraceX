@@ -13,19 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * `RowVisibilityResolver.canUpdate` ("Ensures an update or mixin extension cannot transfer a row
- * to another owner") used to only run for `TxUpdateDoc`, silently allowing any `TxMixin` through -
- * even though Layer 1 (`hasClassAccessLevel` in `../accessGate`) already grants `TxMixin` the same
- * access as `TxUpdateDoc`. These are regression tests for closing that gap.
- *
- * `TxProcessor.updateMixin4Doc` only ever writes to `doc[tx.mixin]`, never to a base-class field
- * like the `user`/`attachedTo` fields real `ownerField` policies protect, so an end-to-end
- * `SpaceSecurityMiddleware` scenario can't actually demonstrate a blocked transfer via `TxMixin`.
- * These tests instead exercise `canUpdate` directly, proving the guard judges the fetched document
- * itself rather than defaulting to "allowed" whenever the tx happens to be a `TxMixin`.
- */
-
 import {
   AccountRole,
   generateId,

@@ -23,7 +23,8 @@ import {
   DOMAIN_STATUS,
   DOMAIN_TRANSIENT,
   DOMAIN_TX,
-  GuestActivityScope
+  GuestActivityScope,
+  GuestSecurityProfile
 } from '@hcengineering/core'
 import { type Builder } from '@hcengineering/model'
 import { TBenchmarkDoc } from './benchmark'
@@ -197,8 +198,9 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' },
+    policy: core.ownBy('collaborator', 'accountUuid'),
     allowKnownIdBypass: true,
+    knownIdBypassReason: 'Collaborator records are resolved from an already visible parent document',
     knownIdBypassFields: ['attachedTo']
   })
 
@@ -213,9 +215,32 @@ export function createModel (builder: Builder): void {
     core.space.Model,
     {
       role: AccountRole.Guest,
-      activityScope: GuestActivityScope.Any
+      securityProfile: GuestSecurityProfile.Participant,
+      activityScope: GuestActivityScope.Own
     },
     core.ids.GuestActivitySettingsGuest
+  )
+
+  builder.createDoc(
+    core.class.GuestActivitySettings,
+    core.space.Model,
+    {
+      role: AccountRole.DocGuest,
+      securityProfile: GuestSecurityProfile.Viewer,
+      activityScope: GuestActivityScope.Own
+    },
+    core.ids.GuestActivitySettingsDocGuest
+  )
+
+  builder.createDoc(
+    core.class.GuestActivitySettings,
+    core.space.Model,
+    {
+      role: AccountRole.ReadOnlyGuest,
+      securityProfile: GuestSecurityProfile.Viewer,
+      activityScope: GuestActivityScope.Own
+    },
+    core.ids.GuestActivitySettingsReadOnlyGuest
   )
 
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {

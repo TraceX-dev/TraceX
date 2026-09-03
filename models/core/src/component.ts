@@ -30,6 +30,8 @@ export default mergeIds(coreId, core, {
     BlobSize: '' as IntlString
   },
   ids: {
-    GuestActivitySettingsGuest: '' as Ref<Doc>
+    GuestActivitySettingsGuest: '' as Ref<Doc>,
+    GuestActivitySettingsDocGuest: '' as Ref<Doc>,
+    GuestActivitySettingsReadOnlyGuest: '' as Ref<Doc>
   }
 })

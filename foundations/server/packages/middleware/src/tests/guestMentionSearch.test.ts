@@ -13,13 +13,6 @@
 // limitations under the License.
 //
 
-/**
- * A Guest sharing a real chunter.class.Channel with another account must be able to find that
- * account through `SpaceSecurityMiddleware.searchFulltext` (the @-mention path: `searchFor('mention')`
- * -> `searchFulltext({ classes: [contact.mixin.Employee] })`). The mock mirrors real backend
- * behavior (`query.spaces` filtering, Mixin ids resolving to their base doc).
- */
-
 import contact from '@hcengineering/contact'
 import core, {
   AccountRole,

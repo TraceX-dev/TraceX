@@ -401,8 +401,7 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(notification.class.PushSubscription, core.class.Class, core.mixin.RowVisibility, {
-    policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' },
-    allowKnownIdBypass: false
+    policy: core.ownBy('user', 'accountUuid')
   })
 
   builder.mixin(notification.class.BrowserNotification, core.class.Class, core.mixin.TransientConfiguration, {
