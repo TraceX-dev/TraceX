@@ -51,10 +51,10 @@
       const r = !loading
         ? _reactions
         : await client.findAll<DocReaction>(ratingPlugin.class.DocReaction, {
-          attachedTo: _id,
-          attachedToClass: _class,
-          reactionType: ReactionKind.Star
-        })
+            attachedTo: _id,
+            attachedToClass: _class,
+            reactionType: ReactionKind.Star
+          })
       const existing = r.filter((it) => it.reactionType === ReactionKind.Star && socialIds.has(it.modifiedBy))
       if (existing.length > 0) {
         for (const e of existing) {
@@ -84,11 +84,11 @@
         const r = !loading
           ? _reactions
           : await client.findAll<DocReaction>(ratingPlugin.class.DocReaction, {
-            attachedTo: _id,
-            attachedToClass: _class,
-            reactionType: ReactionKind.Emoji,
-            text: emoji.text
-          })
+              attachedTo: _id,
+              attachedToClass: _class,
+              reactionType: ReactionKind.Emoji,
+              text: emoji.text
+            })
 
         const existing = r.filter(
           (it) => it.reactionType === ReactionKind.Emoji && it.emoji === emoji.text && socialIds.has(it.modifiedBy)

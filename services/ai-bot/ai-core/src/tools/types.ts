@@ -35,13 +35,13 @@ export type ToolExecutorOutput<TOutputSchema> = TOutputSchema extends ToolOutput
 
 export type ToolExecutorResult<TOutputSchema = unknown> =
   | {
-    ok: true
-    output: ToolExecutorOutput<TOutputSchema>
-  }
+      ok: true
+      output: ToolExecutorOutput<TOutputSchema>
+    }
   | {
-    ok: false
-    error: ToolExecutorError
-  }
+      ok: false
+      error: ToolExecutorError
+    }
 
 export type ToolExecutor<
   TInputSchema extends ToolInputSchema,

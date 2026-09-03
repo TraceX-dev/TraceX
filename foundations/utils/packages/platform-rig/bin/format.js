@@ -13,12 +13,145 @@ const {
 const crypto = require('crypto')
 const prettier = require('prettier')
 const { ESLint } = require('eslint')
+const LEGACY_COMPATIBILITY_RULES = Object.fromEntries(
+  require('../profiles/legacy-compatibility-rules.json').map((rule) => [rule, 'off'])
+)
+const LEGACY_FORMATTING_PLUGIN = {
+  rules: {
+    'indent-decorated-class-property': {
+      meta: {
+        type: 'layout',
+        fixable: 'whitespace',
+        schema: [],
+        messages: {
+          incorrectIndent: 'Decorated class properties must be indented one level deeper than their decorators.'
+        }
+      },
+      create (context) {
+        const sourceCode = context.sourceCode
+        const checkProperty = (node) => {
+          const decorators = node.decorators
+          if (decorators == null || decorators.length === 0) return
+
+          const lastDecorator = decorators.at(-1)
+          const firstPropertyToken = sourceCode.getTokenAfter(lastDecorator)
+          if (firstPropertyToken == null) return
+          if (firstPropertyToken.value === 'declare') return
+
+          const expectedIndent = lastDecorator.loc.start.column + 2
+          if (firstPropertyToken.loc.start.column === expectedIndent) return
+
+          const lineStart = sourceCode.text.lastIndexOf('\n', firstPropertyToken.range[0]) + 1
+          context.report({
+            node,
+            loc: firstPropertyToken.loc,
+            messageId: 'incorrectIndent',
+            fix: (fixer) => fixer.replaceTextRange([lineStart, firstPropertyToken.range[0]], ' '.repeat(expectedIndent))
+          })
+        }
+
+        return {
+          PropertyDefinition: checkProperty,
+          TSAbstractPropertyDefinition: checkProperty
+        }
+      }
+    }
+  }
+}
 
 let pluginSvelte
 try {
   pluginSvelte = require('prettier-plugin-svelte')
 } catch (e) {
   console.warn('prettier-plugin-svelte not available')
+}
+
+async function loadEslintConfig() {
+  const [{ default: love }, { default: stylistic }, svelte, { default: tsParser }, svelteParser] = await Promise.all([
+    import('eslint-config-love'),
+    import('@stylistic/eslint-plugin'),
+    import('eslint-plugin-svelte'),
+    import('@typescript-eslint/parser'),
+    import('svelte-eslint-parser')
+  ])
+
+  return [
+    {
+      ignores: [
+        '**/*.json',
+        '**/node_modules/**',
+        '**/.eslintrc.js',
+        '**/dist/**',
+        '**/lib/**',
+        '**/types/**',
+        '**/.build/**'
+      ]
+    },
+    {
+      ...love,
+      files: ['**/*.{js,cjs,mjs,ts,cts,mts}'],
+      plugins: {
+        ...love.plugins,
+        '@stylistic': stylistic,
+        'legacy-formatting': LEGACY_FORMATTING_PLUGIN
+      },
+      rules: {
+        ...love.rules,
+        ...LEGACY_COMPATIBILITY_RULES,
+        '@typescript-eslint/array-type': 'off',
+        '@typescript-eslint/promise-function-async': 'off',
+        '@typescript-eslint/consistent-type-imports': 'off',
+        '@stylistic/space-before-function-paren': ['error', 'always'],
+        'legacy-formatting/indent-decorated-class-property': 'error',
+        '@stylistic/member-delimiter-style': [
+          'error',
+          {
+            multiline: { delimiter: 'none' },
+            singleline: { delimiter: 'comma', requireLast: false }
+          }
+        ],
+        '@stylistic/type-annotation-spacing': 'error'
+      }
+    },
+    {
+      linterOptions: {
+        reportUnusedDisableDirectives: 'off'
+      }
+    },
+    ...svelte.configs.base,
+    {
+      files: ['**/*.svelte'],
+      plugins: {
+        ...love.plugins,
+        '@stylistic': stylistic,
+        'legacy-formatting': LEGACY_FORMATTING_PLUGIN
+      },
+      languageOptions: {
+        parser: svelteParser,
+        parserOptions: {
+          extraFileExtensions: ['.svelte'],
+          parser: tsParser,
+          projectService: true
+        }
+      },
+      rules: {
+        '@typescript-eslint/array-type': 'off',
+        '@typescript-eslint/promise-function-async': 'off',
+        '@typescript-eslint/consistent-type-imports': 'off',
+        '@stylistic/space-before-function-paren': ['error', 'always'],
+        'legacy-formatting/indent-decorated-class-property': 'error',
+        '@stylistic/member-delimiter-style': [
+          'error',
+          {
+            multiline: { delimiter: 'none' },
+            singleline: { delimiter: 'comma', requireLast: false }
+          }
+        ],
+        '@stylistic/type-annotation-spacing': 'error',
+        'svelte/no-at-html-tags': 'error'
+      }
+    }
+  ]
 }
 
 if (!existsSync('.format')) {
@@ -33,6 +166,7 @@ if (existsSync('.format/format.json')) {
 
 let filesToCheck = []
 let allFiles = []
+let formattingConfigurationChanged = false
 
 let newHash = {}
 
@@ -43,6 +177,8 @@ function calcFileHash(sourceFile, msg, addCheck) {
   if (hash[sourceFile] !== digest) {
     if (addCheck) {
       filesToCheck.push(sourceFile)
+    } else {
+      formattingConfigurationChanged = true
     }
     console.log(msg, relative(process.cwd(), sourceFile))
   }
@@ -74,9 +210,14 @@ function calcHash(source, msg, addCheck) {
 }
 
 for (const v of process.argv.slice(2)) {
-  if (existsSync(v)) {
-    console.info('checking:', join(process.cwd(), v))
-    calcHash(join(process.cwd(), v), 'changed', true)
+  const source = join(process.cwd(), v)
+  if (existsSync(source)) {
+    console.info('checking:', source)
+    if (lstatSync(source).isDirectory()) {
+      calcHash(source, 'changed', true)
+    } else if (!source.endsWith('.d.ts')) {
+      calcFileHash(source, 'changed', true)
+    }
   }
 }
 
@@ -91,6 +232,11 @@ for (const f of ['package.json', '.eslintrc.js']) {
 const rigPackage = 'node_modules/@hcengineering/platform-rig/'
 if (existsSync(rigPackage)) {
   calcHash(join(process.cwd(), rigPackage), 'changed', false)
+}
+
+if (formattingConfigurationChanged) {
+  console.log('format configuration changed')
+  filesToCheck = allFiles
 }
 
 if (process.argv.includes('-f') || process.argv.includes('--force')) {
@@ -156,10 +302,12 @@ if (filesToCheck.length > 0) {
       console.log(`running eslint ${filesToCheck.length}`)
 
       // Run ESLint
-      const eslint = new ESLint({ fix: true })
+      const eslint = new ESLint({
+        fix: true,
+        overrideConfigFile: true,
+        overrideConfig: await loadEslintConfig()
+      })
       const results = await eslint.lintFiles(filesToCheck)
-
-      // Apply fixes
       await ESLint.outputFixes(results)
 
       const formatter = await eslint.loadFormatter('stylish')
@@ -191,8 +339,13 @@ if (filesToCheck.length > 0) {
 
       hash = newHash
       for (const v of process.argv.slice(2)) {
-        if (existsSync(v)) {
-          calcHash(join(process.cwd(), v), 'updated')
+        const source = join(process.cwd(), v)
+        if (existsSync(source)) {
+          if (lstatSync(source).isDirectory()) {
+            calcHash(source, 'updated')
+          } else if (!source.endsWith('.d.ts')) {
+            calcFileHash(source, 'updated')
+          }
         }
       }
       writeFileSync('.format/format.json', JSON.stringify(newHash, undefined, 2))

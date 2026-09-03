@@ -23,14 +23,14 @@ interface CompactModeCardSection extends CardSection {
 
 export async function getCardSections (card: Card, compactMode = false): Promise<CardSection[]> {
   const client = getClient()
-  const sections: CardSection[] = client
+  const sections: CompactModeCardSection[] = client
     .getModel()
     .findAllSync(cardPlugin.class.CardSection, {})
     .sort((a, b) => a.order - b.order)
 
   const res: CardSection[] = []
   for (const section of sections) {
-    if (compactMode && (section as CompactModeCardSection).hideInCompactMode === true) {
+    if (compactMode && section.hideInCompactMode === true) {
       continue
     }
     if (section.checkVisibility !== undefined) {

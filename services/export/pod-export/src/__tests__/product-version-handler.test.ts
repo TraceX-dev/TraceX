@@ -144,9 +144,9 @@ function makeHandlerCtx (
   targetClient: TxOperations,
   spaceMap: Record<string, Ref<Product>>
 ): {
-    ctx: CustomExportHandlerContext
-    spaceExporter: { getOrCreateTargetSpace: jest.Mock }
-  } {
+  ctx: CustomExportHandlerContext
+  spaceExporter: { getOrCreateTargetSpace: jest.Mock }
+} {
   const spaceExporter = {
     getOrCreateTargetSpace: jest.fn(async (sourceSpaceId: Ref<Space>) => {
       const target = spaceMap[sourceSpaceId as unknown as string]

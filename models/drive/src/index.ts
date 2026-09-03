@@ -166,7 +166,7 @@ export class TFileVersion extends TAttachedDoc implements FileVersion {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'versions' = 'versions'
+    override collection: 'versions' = 'versions'
 
   @Prop(TypeString(), drive.string.Name)
   @Index(IndexKind.FullText)

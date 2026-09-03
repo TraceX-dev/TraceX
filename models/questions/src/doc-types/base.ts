@@ -72,7 +72,8 @@ export class TQuestion<QuestionData extends NonNullable<any>> extends TAttachedD
 @Model(questions.class.Assessment, questions.class.Question)
 export class TAssessment<QuestionData extends NonNullable<any>, AssessmentData extends NonNullable<any>>
   extends TQuestion<QuestionData>
-  implements Assessment<QuestionData, AssessmentData> {
+  implements Assessment<QuestionData, AssessmentData>
+{
   // Should be overridden and decorated in child classes
   assessmentData!: AssessmentData
 }
@@ -81,7 +82,8 @@ export class TAssessment<QuestionData extends NonNullable<any>, AssessmentData e
 @Model(questions.class.Answer, core.class.AttachedDoc, DOMAIN_QUESTIONS)
 export class TAnswer<Q extends Question<any>, AnswerData extends NonNullable<any>>
   extends TAttachedDoc
-  implements Answer<Q, AnswerData> {
+  implements Answer<Q, AnswerData>
+{
   // Should be overridden and decorated in child classes
   question!: Ref<Q>
 

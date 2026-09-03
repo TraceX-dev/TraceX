@@ -91,7 +91,7 @@
   <div style={rowStyle}>
     <span style={logoContainerStyle}>
       {#if iconDataUrl}
-        <img src={iconDataUrl} alt={''} style={logoStyle} />
+        <img src={iconDataUrl} alt="" style={logoStyle} />
       {/if}
       {workspace}
     </span>

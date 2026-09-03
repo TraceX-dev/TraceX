@@ -89,10 +89,10 @@ export async function getGithubNextProviderSetupById (
   workspaceIntegration: WorkspaceIntegration,
   providerId: Ref<IntegrationSlotProvider>
 ): Promise<{
-    provider: IntegrationSlotProvider | undefined
-    binding: IntegrationSlotBinding | undefined
-    routingPolicy: IntegrationRoutingPolicy | undefined
-  }> {
+  provider: IntegrationSlotProvider | undefined
+  binding: IntegrationSlotBinding | undefined
+  routingPolicy: IntegrationRoutingPolicy | undefined
+}> {
   const client = getClient()
   const provider = await client.findOne(integration.class.IntegrationSlotProvider, {
     _id: providerId
@@ -120,9 +120,9 @@ export async function saveGithubNextProviderSetup (
     valueMappings?: Record<string, IntegrationValueMapping>
   }
 ): Promise<{
-    binding: IntegrationSlotBinding
-    policy: IntegrationRoutingPolicy
-  }> {
+  binding: IntegrationSlotBinding
+  policy: IntegrationRoutingPolicy
+}> {
   return await saveGithubNextProviderSetupById(workspaceIntegration, params)
 }
 
@@ -136,9 +136,9 @@ export async function saveGithubNextProviderSetupById (
     valueMappings?: Record<string, IntegrationValueMapping>
   }
 ): Promise<{
-    binding: IntegrationSlotBinding
-    policy: IntegrationRoutingPolicy
-  }> {
+  binding: IntegrationSlotBinding
+  policy: IntegrationRoutingPolicy
+}> {
   const client = getClient()
   return await saveIntegrationSetup(client, {
     integration: workspaceIntegration._id,

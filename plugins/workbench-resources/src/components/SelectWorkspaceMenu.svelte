@@ -179,11 +179,11 @@
 
   $: activeSessions =
     (data?.statistics?.activeSessions as Record<
-    string,
-    Array<{
-      userId: string
-      data?: Record<string, any>
-    }>
+      string,
+      Array<{
+        userId: string
+        data?: Record<string, any>
+      }>
     >) ?? {}
 
   $: currentWsUrl = $resolvedLocationStore.path[1]

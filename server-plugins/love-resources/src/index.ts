@@ -69,7 +69,7 @@ export async function OnEmployee (txes: Tx[], control: TriggerControl): Promise<
       const createTx = tx as TxCreateDoc<Employee>
       if (createTx.objectClass === contact.mixin.Employee) {
         const created = TxProcessor.createDoc2Doc(createTx)
-        employeeId = createTx.objectId as Ref<Person>
+        employeeId = createTx.objectId
         active = created.active
       }
     } else if (tx._class === core.class.TxMixin) {

@@ -204,9 +204,9 @@ async function createWorkspaceClient (
   accountsUrl: string,
   workspaceUuid: WorkspaceUuid
 ): Promise<{
-    client: TxOperations
-    markup: GithubNextMarkupOperations
-  }> {
+  client: TxOperations
+  markup: GithubNextMarkupOperations
+}> {
   const serviceToken = generateToken(systemAccountUuid, workspaceUuid, { service: 'github-next' })
   const accountClient = getAccountClient(accountsUrl, serviceToken)
   const loginInfo = await accountClient.getLoginInfoByToken()
@@ -268,7 +268,7 @@ function sortValue (value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortValue)
   if (value !== null && typeof value === 'object') {
     const result: Record<string, unknown> = {}
-    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+    for (const key of Object.keys(value).sort()) {
       result[key] = sortValue((value as Record<string, unknown>)[key])
     }
     return result
@@ -293,7 +293,7 @@ function hasDefinedValue (value: Record<string, unknown>): boolean {
 }
 
 function getObjectModifiedOn (doc: Doc | undefined): number {
-  const modifiedOn = (doc as (Doc & { modifiedOn?: number }) | undefined)?.modifiedOn
+  const modifiedOn = doc?.modifiedOn
   return typeof modifiedOn === 'number' ? modifiedOn : 0
 }
 
@@ -369,14 +369,14 @@ function getOutboundWinningIssuePatch (
   state: GithubNextObjectSyncState,
   localModifiedOn: number
 ): {
-    title?: string
-    body?: string
-    state?: 'open' | 'closed'
-    assignees?: string[]
-    labels?: string[]
-    milestone?: number | null
-    projects?: string[]
-  } {
+  title?: string
+  body?: string
+  state?: 'open' | 'closed'
+  assignees?: string[]
+  labels?: string[]
+  milestone?: number | null
+  projects?: string[]
+} {
   const hasSnapshots = hasSnapshotValues(state)
   const localChangedFallback = state.targetHash !== stableHash(currentTargetValues)
   const externalChangedFallback = state.externalHash !== stableHash(externalMappedValues)
@@ -475,10 +475,10 @@ function getOutboundWinningDiscussionPatch (
   state: GithubNextObjectSyncState,
   localModifiedOn: number
 ): {
-    title?: string
-    body?: string
-    categoryId?: string
-  } {
+  title?: string
+  body?: string
+  categoryId?: string
+} {
   const hasSnapshots = hasSnapshotValues(state)
   const localChangedFallback = state.targetHash !== stableHash(currentTargetValues)
   const externalChangedFallback = state.externalHash !== stableHash(externalMappedValues)
@@ -895,7 +895,7 @@ async function resolvePersonToAnySocialId (
     socialIds.find((socialId) => socialId.type === SocialIdType.GITHUB)?._id ??
     socialIds.find((socialId) => socialId.type === SocialIdType.EMAIL)?._id ??
     socialIds[0]?._id
-  return socialId as PersonId | undefined
+  return socialId
 }
 
 async function resolveGithubCommentAuthorToSocialId (
@@ -2164,15 +2164,15 @@ async function buildIssuePatch (
   },
   forceDescriptionSync: boolean = false
 ): Promise<{
-    title?: string
-    body?: string
-    state?: 'open' | 'closed'
-    assignees?: string[]
-    labels?: string[]
-    milestone?: number | null
-    projects?: string[]
-    targetHash: string
-  }> {
+  title?: string
+  body?: string
+  state?: 'open' | 'closed'
+  assignees?: string[]
+  labels?: string[]
+  milestone?: number | null
+  projects?: string[]
+  targetHash: string
+}> {
   const markdownTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markdown')
   const currentTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markup')
   const reversed = applyIntegrationSlotReverseBinding(markdownTargetValues, binding)
@@ -2227,13 +2227,13 @@ async function buildIssuePatch (
     outboundState === undefined
       ? fullPatch
       : getOutboundWinningIssuePatch(
-        binding,
-        fullPatch,
-        currentTargetValues,
-        outboundState.externalMappedValues,
-        outboundState.state,
-        outboundState.localModifiedOn
-      )
+          binding,
+          fullPatch,
+          currentTargetValues,
+          outboundState.externalMappedValues,
+          outboundState.state,
+          outboundState.localModifiedOn
+        )
 
   return {
     ...patch,
@@ -2264,11 +2264,11 @@ async function buildDiscussionPatch (
   },
   forceDescriptionSync: boolean = false
 ): Promise<{
-    title?: string
-    body?: string
-    categoryId?: string
-    targetHash: string
-  }> {
+  title?: string
+  body?: string
+  categoryId?: string
+  targetHash: string
+}> {
   const markdownTargetValues = await fetchMappedTargetValues(client, markup, doc, binding, 'markdown')
   const reversed = applyIntegrationSlotReverseBinding(markdownTargetValues, binding)
   const categoryName = typeof reversed.category === 'string' ? reversed.category : undefined
@@ -2295,13 +2295,13 @@ async function buildDiscussionPatch (
     outboundState === undefined
       ? fullPatch
       : getOutboundWinningDiscussionPatch(
-        binding,
-        fullPatch,
-        currentTargetValues,
-        outboundState.externalMappedValues,
-        outboundState.state,
-        outboundState.localModifiedOn
-      )
+          binding,
+          fullPatch,
+          currentTargetValues,
+          outboundState.externalMappedValues,
+          outboundState.state,
+          outboundState.localModifiedOn
+        )
 
   return {
     ...patch,

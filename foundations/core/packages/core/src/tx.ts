@@ -149,15 +149,15 @@ export interface TxApplyResult {
  * @public
  */
 export type MixinData<D extends Doc, M extends D> = Omit<M, keyof D> &
-PushOptions<Omit<M, keyof D>> &
-IncOptions<Omit<M, keyof D>>
+  PushOptions<Omit<M, keyof D>> &
+  IncOptions<Omit<M, keyof D>>
 
 /**
  * @public
  */
 export type MixinUpdate<D extends Doc, M extends D> = Partial<Omit<M, keyof D>> &
-PushOptions<Omit<M, keyof D>> &
-IncOptions<Omit<M, keyof D>>
+  PushOptions<Omit<M, keyof D>> &
+  IncOptions<Omit<M, keyof D>>
 
 /**
  * Define Create/Update for mixin attributes.
@@ -284,11 +284,11 @@ export interface SpaceUpdate {
  * @public
  */
 export type DocumentUpdate<T extends Doc> = Partial<Data<T>> &
-PushOptions<T> &
-SetEmbeddedOptions<T> &
-IncOptions<T> &
-UnsetOptions &
-SpaceUpdate
+  PushOptions<T> &
+  SetEmbeddedOptions<T> &
+  IncOptions<T> &
+  UnsetOptions &
+  SpaceUpdate
 
 /**
  * @public
@@ -445,7 +445,7 @@ export abstract class TxProcessor implements WithTx {
       if (op.startsWith('$')) {
         const opValue = (ops as any)[op]
         for (const key in opValue) {
-          if (key === attribute || key.startsWith(attribute + '.')) {
+          if (key === attribute || key.startsWith(`${attribute}.`)) {
             return true
           }
         }
@@ -467,7 +467,7 @@ export class TxFactory {
   private readonly txSpace: Ref<Space>
   constructor (
     readonly account: PersonId,
-    readonly isDerived: boolean = false
+    readonly isDerived = false
   ) {
     this.txSpace = isDerived ? core.space.DerivedTx : core.space.Tx
   }
@@ -585,7 +585,7 @@ export class TxFactory {
     notMatch: DocumentClassQuery<Doc>[],
     txes: TxCUD<Doc>[],
     measureName: string | undefined,
-    notify: boolean = true,
+    notify = true,
     extraNotify: Ref<Class<Doc>>[] = [],
     modifiedOn?: Timestamp,
     modifiedBy?: PersonId

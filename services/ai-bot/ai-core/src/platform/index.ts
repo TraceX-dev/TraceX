@@ -6,4 +6,4 @@
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
 
-export * from './types'
+export type * from './types'

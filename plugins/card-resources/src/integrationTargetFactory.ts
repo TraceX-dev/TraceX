@@ -32,7 +32,7 @@ import { createMarkup } from '@hcengineering/presentation'
 import { isEmptyMarkup } from '@hcengineering/text'
 
 function toCardData (values: Record<string, unknown>): Partial<Data<Card>> {
-  return values as Partial<Data<Card>>
+  return values
 }
 
 async function createContent (
@@ -108,7 +108,7 @@ export const updateIntegrationTarget: UpdateIntegrationTarget = async (ctx, doc,
   const update = toCardData(values)
 
   if (update.content !== undefined) {
-    update.content = await createContent(cardDoc._class as Ref<Class<Card>>, cardDoc._id, update.content)
+    update.content = await createContent(cardDoc._class, cardDoc._id, update.content)
   }
 
   await ctx.client.update(cardDoc, update)

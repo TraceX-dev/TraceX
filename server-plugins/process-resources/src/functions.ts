@@ -565,7 +565,7 @@ export async function CreateNewVersion (
       : control.client.findAll(attachment.class.Attachment, { attachedTo: origin._id })
   ])
 
-  const createTx = control.client.txFactory.createTxCreateDoc(base, origin.space, props as Data<Card>, targetId)
+  const createTx = control.client.txFactory.createTxCreateDoc(base, origin.space, props, targetId)
   const txes: Tx[] = [createTx]
 
   for (const mixin of hierarchy.findAllMixins(origin)) {

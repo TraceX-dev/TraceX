@@ -70,13 +70,7 @@ async function uploadMarkup<T extends Doc> (
     return null
   }
 
-  return await getMarkupUploader(ctx).uploadMarkup(
-    targetClass as unknown as Ref<Class<Doc>>,
-    objectId as Ref<Doc>,
-    attr,
-    value,
-    'markup'
-  )
+  return await getMarkupUploader(ctx).uploadMarkup(targetClass, objectId, attr, value, 'markup')
 }
 
 async function updateMarkup<T extends Doc> (
@@ -93,7 +87,7 @@ async function updateMarkup<T extends Doc> (
 
   const uploader = getMarkupUploader(ctx)
   if (current !== undefined && current !== null && current !== '' && uploader.updateMarkup !== undefined) {
-    await uploader.updateMarkup(targetClass as unknown as Ref<Class<Doc>>, objectId as Ref<Doc>, attr, value, 'markup')
+    await uploader.updateMarkup(targetClass, objectId, attr, value, 'markup')
     return undefined
   }
 
@@ -101,7 +95,7 @@ async function updateMarkup<T extends Doc> (
 }
 
 function toIssueData (values: Record<string, unknown>): Partial<AttachedData<Issue>> {
-  return values as Partial<AttachedData<Issue>>
+  return values
 }
 
 function getLabelTitles (value: unknown): string[] {
@@ -185,7 +179,7 @@ async function getDefaultIssueStatus (ctx: IntegrationTargetContext, project: Pr
   }
 
   const taskType = await ctx.client.findOne(task.class.TaskType, { _id: tracker.taskTypes.Issue })
-  const status = taskType?.statuses[0] as Ref<IssueStatus> | undefined
+  const status = taskType?.statuses[0]
   if (status === undefined) {
     throw new Error(`Cannot create tracker issue without default status in project ${project._id}`)
   }
@@ -272,7 +266,7 @@ export const createIntegrationTarget: CreateIntegrationTarget = async (ctx, targ
     tracker.ids.NoParent,
     tracker.class.Issue,
     'subIssues',
-    filledData as AttachedData<Issue>,
+    filledData,
     id
   )
   const doc = await ctx.client.findOne<Issue>(targetClass, { _id: id })
@@ -282,7 +276,7 @@ export const createIntegrationTarget: CreateIntegrationTarget = async (ctx, targ
   }
 
   if (labelTitles.length > 0) {
-    await syncIssueLabels(ctx, doc._id, doc._class as Ref<Class<Issue>>, labelTitles)
+    await syncIssueLabels(ctx, doc._id, doc._class, labelTitles)
   }
 
   return doc

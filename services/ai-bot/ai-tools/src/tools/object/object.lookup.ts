@@ -142,7 +142,7 @@ export const objectLookupTool = createTool({
         docs.map(async (doc) => {
           const docClass = doc._class as Ref<Class<Doc>>
           const classSummary = await buildClassSummary(hierarchy, docClass)
-          const space = doc.$lookup?.space as Space | undefined
+          const space = doc.$lookup?.space
 
           return {
             id: doc._id,
@@ -159,7 +159,7 @@ export const objectLookupTool = createTool({
 })
 
 function toQueryRecord (query: ObjectQueryEntry[] | undefined): DocumentQuery<Doc> {
-  return Object.fromEntries((query ?? []).map(({ key, value }) => [key, value])) as DocumentQuery<Doc>
+  return Object.fromEntries((query ?? []).map(({ key, value }) => [key, value]))
 }
 
 function toSortRecord (sort: ObjectSortEntry[] | undefined): SortingQuery<Doc> {

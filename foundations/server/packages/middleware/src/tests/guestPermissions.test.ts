@@ -79,14 +79,14 @@ function makePipelineContext (findAll?: FindAllFn): PipelineContext {
     workspace: { uuid: 'test-workspace' as any, url: 'test', dataId: 'test' as any },
     hierarchy,
     modelDb: model,
-    branding: null as any,
+    branding: null,
     adapterManager: {} as any,
     storageAdapter: {} as any,
     contextVars: {},
     lastTx: '',
     lastHash: '',
     broadcastEvent: async () => {}
-  } as any
+  }
 }
 
 function makeMiddleware (
@@ -378,7 +378,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: GUEST_SOCIAL,
               createdBy: GUEST_SOCIAL
-            } as any
+            }
           ]
         }
         return []
@@ -407,7 +407,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: GUEST_SOCIAL,
               createdBy: GUEST_SOCIAL
-            } as any
+            }
           ]
         }
         return []
@@ -437,7 +437,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: otherSocial,
               createdBy: otherSocial
-            } as any
+            }
           ]
         }
         return []

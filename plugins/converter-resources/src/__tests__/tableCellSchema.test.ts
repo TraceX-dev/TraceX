@@ -50,7 +50,7 @@ function markupCell (markup: any): string {
 }
 
 function pmDocFor (markdown: string): PmNode {
-  return jsonToPmNode(markdownToMarkup(markdown) as any)
+  return jsonToPmNode(markdownToMarkup(markdown))
 }
 
 function expectValid (markdown: string): PmNode {

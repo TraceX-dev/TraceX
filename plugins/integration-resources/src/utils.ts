@@ -115,7 +115,7 @@ export function getTargetClassOptions (
     targetClassSet.add(targetClass)
     try {
       for (const descendant of hierarchy.getDescendants(targetClass)) {
-        targetClassSet.add(descendant as Ref<Class<Doc>>)
+        targetClassSet.add(descendant)
       }
     } catch (e) {}
   }
@@ -175,7 +175,7 @@ export async function getAllowedSpaceClasses (
     result.add(spaceClass)
     try {
       for (const descendant of hierarchy.getDescendants(spaceClass)) {
-        result.add(descendant as Ref<Class<Space>>)
+        result.add(descendant)
       }
     } catch (e) {}
   }
@@ -257,7 +257,7 @@ export function getPossibleClasses (client: Client, slot: IntegrationSlotModel):
   const hierarchy = client.getHierarchy()
   let descendants: Array<Ref<Class<Doc>>> = []
   try {
-    descendants = hierarchy.getDescendants(core.class.Obj) as Array<Ref<Class<Doc>>>
+    descendants = hierarchy.getDescendants(core.class.Obj)
   } catch (e) {}
 
   return descendants

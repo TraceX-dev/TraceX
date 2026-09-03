@@ -19,8 +19,8 @@ import type { IntlString, Metadata, Plugin } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import { AIBotThread, AIBotMessage } from './types'
 
-export * from './rest'
-export * from './types'
+export type * from './rest'
+export type * from './types'
 
 export const aiBotId = 'ai-bot' as Plugin
 

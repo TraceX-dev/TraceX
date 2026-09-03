@@ -249,7 +249,7 @@
 
 <Modal
   label={setting.string.EditAttribute}
-  type={'type-aside'}
+  type="type-aside"
   okLabel={presentation.string.Save}
   okAction={save}
   canSave={!(name === undefined || name.trim().length === 0) && !disabled}
@@ -261,13 +261,13 @@
       <ButtonIcon
         icon={attribute.hidden ? view.icon.EyeCrossed : view.icon.Eye}
         tooltip={{ label: attribute.hidden ? view.string.Show : view.string.Hide }}
-        size={'small'}
-        kind={'tertiary'}
+        size="small"
+        kind="tertiary"
         {disabled}
         on:click={hide}
       />
       {#if attribute.isCustom}
-        <ButtonIcon icon={IconDelete} size={'small'} kind={'tertiary'} {disabled} on:click={remove} />
+        <ButtonIcon icon={IconDelete} size="small" kind="tertiary" {disabled} on:click={remove} />
       {/if}
     {/if}
   </svelte:fragment>
@@ -275,22 +275,15 @@
     <div class="flex items-center">
       <ButtonIcon
         icon={icon ?? setting.icon.Enums}
-        size={'medium'}
-        iconSize={'large'}
-        kind={'tertiary'}
+        size="medium"
+        iconSize="large"
+        kind="tertiary"
         {disabled}
         on:click={setIcon}
       />
-      <ModernEditbox
-        bind:value={name}
-        label={core.string.Name}
-        size={'large'}
-        kind={'ghost'}
-        width={'100%'}
-        {disabled}
-      />
+      <ModernEditbox bind:value={name} label={core.string.Name} size="large" kind="ghost" width="100%" {disabled} />
     </div>
-    <EditBox bind:value={description} placeholder={core.string.Description} kind={'ghost'} {disabled} />
+    <EditBox bind:value={description} placeholder={core.string.Description} kind="ghost" {disabled} />
   </div>
   <div class="grid">
     <span class="label">
@@ -302,8 +295,8 @@
       <DropdownLabelsIntl
         label={setting.string.Type}
         {items}
-        size={'large'}
-        width={'100%'}
+        size="large"
+        width="100%"
         bind:selected={selectedType}
         on:selected={handleSelect}
         {disabled}

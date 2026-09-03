@@ -69,13 +69,7 @@ async function uploadMarkup<T extends Doc> (
     return null
   }
 
-  return await getMarkupUploader(ctx).uploadMarkup(
-    targetClass as unknown as Ref<Class<Doc>>,
-    objectId as Ref<Doc>,
-    attr,
-    value,
-    'markup'
-  )
+  return await getMarkupUploader(ctx).uploadMarkup(targetClass, objectId, attr, value, 'markup')
 }
 
 async function updateMarkup<T extends Doc> (
@@ -92,7 +86,7 @@ async function updateMarkup<T extends Doc> (
 
   const uploader = getMarkupUploader(ctx)
   if (current !== undefined && current !== null && current !== '' && uploader.updateMarkup !== undefined) {
-    await uploader.updateMarkup(targetClass as unknown as Ref<Class<Doc>>, objectId as Ref<Doc>, attr, value, 'markup')
+    await uploader.updateMarkup(targetClass, objectId, attr, value, 'markup')
     return undefined
   }
 
@@ -100,7 +94,7 @@ async function updateMarkup<T extends Doc> (
 }
 
 function toCardData (values: Record<string, unknown>): Partial<Data<Card>> {
-  return values as Partial<Data<Card>>
+  return values
 }
 
 export const canCreateIntegrationTarget: CanCreateIntegrationTarget = async (ctx, target) => {

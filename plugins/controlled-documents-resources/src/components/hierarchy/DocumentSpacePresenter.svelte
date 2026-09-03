@@ -325,7 +325,7 @@
     showMenu={pressed}
     {forciblyСollapsed}
     actions={() => getSpaceActions(space)}
-    type={'nested'}
+    type="nested"
     draggable
     on:drop={(evt) => {
       onDrop(evt, documents.ids.NoParent)
@@ -342,9 +342,9 @@
         <ProjectSelector
           value={project}
           space={space?._id}
-          maxWidth={'6rem'}
-          kind={'ghost'}
-          size={'x-small'}
+          maxWidth="6rem"
+          kind="ghost"
+          size="x-small"
           showDropdownIcon
           bind:pressed
           on:change={(evt) => {

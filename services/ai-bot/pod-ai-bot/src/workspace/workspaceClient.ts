@@ -389,7 +389,7 @@ export class WorkspaceClient {
       rawHistory.userMemory,
       rawHistory.sharedContext,
       toolCtx,
-      { user: personUuid as AccountUuid }
+      { user: personUuid }
     )
 
     if (chatCompletion !== undefined) {
@@ -465,14 +465,14 @@ export class WorkspaceClient {
         }
       }
 
-      replyId = (await client.addCollection<Doc, ThreadMessage>(
+      replyId = await client.addCollection<Doc, ThreadMessage>(
         chunter.class.ThreadMessage,
         messageSpace,
         parentId,
         parentClass,
         'replies',
         { message, objectId, objectClass }
-      )) as unknown as Ref<ChatMessage>
+      )
     }
 
     if (replyId !== undefined && chatCompletion !== undefined) {
