@@ -38,7 +38,7 @@ import {
   TObjectChatPanel,
   TThreadMessage
 } from './types'
-import {AccountRole, ownBy, spaceScoped} from '@hcengineering/core'
+import { AccountRole, ownBy, spaceScoped } from '@hcengineering/core'
 
 export { chunterId } from '@hcengineering/chunter'
 export { chunterOperation } from './migration'

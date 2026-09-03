@@ -93,9 +93,9 @@ describe('resolveGuestSecurityProfile', () => {
       GuestSecurityProfile.Participant
     )
     const docGuestCtx = context(AccountRole.DocGuest)
-    await expect(
-      resolveGuestSecurityProfile(next, docGuestCtx, docGuestCtx.contextData.account)
-    ).resolves.toBe(GuestSecurityProfile.Viewer)
+    await expect(resolveGuestSecurityProfile(next, docGuestCtx, docGuestCtx.contextData.account)).resolves.toBe(
+      GuestSecurityProfile.Viewer
+    )
   })
 
   it('returns the configured profile', async () => {

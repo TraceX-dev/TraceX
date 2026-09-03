@@ -502,9 +502,7 @@ export class RowVisibilityResolver {
         if (allowed === undefined) return { kind: 'deny' }
         const field = policy.path.to ?? '_id'
         const merged =
-          allowed.size === 1
-            ? mergeEquals(query, field, Array.from(allowed)[0])
-            : mergeIn(query, field, allowed)
+          allowed.size === 1 ? mergeEquals(query, field, Array.from(allowed)[0]) : mergeIn(query, field, allowed)
         return merged === undefined ? { kind: 'deny' } : { kind: 'narrow', query: merged }
       }
     }

@@ -124,7 +124,11 @@ describe('SpaceSecurityMiddleware.searchFulltext - guest @-mention reproduction'
         }
         return []
       }) as any,
-      groupBy: (async () => new Map([[CHANNEL, 1], [contact.space.Contacts, 1]])) as any,
+      groupBy: (async () =>
+        new Map([
+          [CHANNEL, 1],
+          [contact.space.Contacts, 1]
+        ])) as any,
       // Behaves like a real fulltext adapter: only returns docs whose `space` is in `query.spaces`.
       searchFulltext: (async (_ctx: any, query: SearchQuery, _options: SearchOptions) => {
         const candidates = [personGuest, personAlice]

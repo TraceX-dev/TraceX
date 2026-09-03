@@ -819,8 +819,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
           // not need that blanket exclusion - the policy itself is the restriction, applied to
           // the results below. Classes declaring `spaceScoped` or `spaceMember` declare the
           // absence of a row rule and keep the exclusion.
-          const rowRestricted =
-            personRestricted && this.rowVisibility.restrictsRows(this.context.hierarchy, _class)
+          const rowRestricted = personRestricted && this.rowVisibility.restrictsRows(this.context.hierarchy, _class)
           if (!rowRestricted && passedDomains.has(domain)) {
             continue
           }

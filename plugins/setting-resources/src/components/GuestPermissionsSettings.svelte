@@ -236,9 +236,7 @@
     return permissionsMap.get(permissionId)?.label ?? getEmbeddedLabel(permissionId)
   }
 
-  async function applySecurityProfile (
-    profile: Exclude<SecurityProfile, GuestSecurityProfile.Custom>
-  ): Promise<void> {
+  async function applySecurityProfile (profile: Exclude<SecurityProfile, GuestSecurityProfile.Custom>): Promise<void> {
     if (guestPermissionsTab !== 'guest' || savingProfile) return
     savingProfile = true
     operationError = false
@@ -573,22 +571,30 @@
                     </div>
                     <div class="effectiveAccessDetails">
                       <div>
-                        <span class="effectiveAccessLabel"><Label label={settingsRes.string.GuestEffectiveActions} /></span>
+                        <span class="effectiveAccessLabel"
+                          ><Label label={settingsRes.string.GuestEffectiveActions} /></span
+                        >
                         {#if isModuleEnabled(group)}
                           <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestActionView} /></span>
                           {#each activePermissions as permissionId}
                             <span class="effectiveAccessValue"><Label label={getPermissionLabel(permissionId)} /></span>
                           {/each}
                         {:else}
-                          <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestModuleDisabled} /></span>
+                          <span class="effectiveAccessValue"
+                            ><Label label={settingsRes.string.GuestModuleDisabled} /></span
+                          >
                         {/if}
                       </div>
                       <div>
-                        <span class="effectiveAccessLabel"><Label label={settingsRes.string.GuestEffectiveScope} /></span>
+                        <span class="effectiveAccessLabel"
+                          ><Label label={settingsRes.string.GuestEffectiveScope} /></span
+                        >
                         {#if !isModuleEnabled(group)}
                           <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestDenied} /></span>
                         {:else if activePermissions.length === 0}
-                          <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestSpaceMembership} /></span>
+                          <span class="effectiveAccessValue"
+                            ><Label label={settingsRes.string.GuestSpaceMembership} /></span
+                          >
                         {:else}
                           {#each Array.from(new Set(activePermissions.map(getScopeKind))) as scopeKind}
                             <span class="effectiveAccessValue"><Label label={getScopeLabel(scopeKind)} /></span>
@@ -596,7 +602,9 @@
                         {/if}
                       </div>
                       <div>
-                        <span class="effectiveAccessLabel"><Label label={settingsRes.string.GuestEffectiveSource} /></span>
+                        <span class="effectiveAccessLabel"
+                          ><Label label={settingsRes.string.GuestEffectiveSource} /></span
+                        >
                         {#if isModuleEnabled(group)}
                           <span class="effectiveAccessValue">
                             <Label label={settingsRes.string.GuestSecurityProfileSource} />:
@@ -610,7 +618,9 @@
                             />
                           </span>
                         {:else}
-                          <span class="effectiveAccessValue"><Label label={settingsRes.string.GuestModuleDisabled} /></span>
+                          <span class="effectiveAccessValue"
+                            ><Label label={settingsRes.string.GuestModuleDisabled} /></span
+                          >
                         {/if}
                       </div>
                     </div>
@@ -641,125 +651,115 @@
               </section>
 
               <section class="section advancedSettingsSection">
-              <div class="sectionHeader">
-                <div class="sectionTitle">
-                  <Label label={setting.string.GuestPermissionsApplicationPermissions} />
-                </div>
-                <div class="sectionHint">
-                  {#if guestPermissionsTab === 'anonymous'}
-                    <Label label={setting.string.GuestPermissionsAnonymousApplicationHint} />
-                  {:else}
-                    <Label label={setting.string.GuestPermissionsApplicationPermissionsHint} />
-                  {/if}
-                </div>
-                {#if guestPermissionsTab === 'guest'}
-                  <div class="sectionHint">
-                    <Label label={core.string.AutoJoinGuestsDescr} />
+                <div class="sectionHeader">
+                  <div class="sectionTitle">
+                    <Label label={setting.string.GuestPermissionsApplicationPermissions} />
                   </div>
                   <div class="sectionHint">
-                    <Label label={settingsRes.string.GuestAutoJoinAvailableSpacesHint} />
-                  </div>
-                {:else if guestPermissionsTab === 'anonymous'}
-                  <div class="sectionHint">
-                    <Label label={settingsRes.string.GuestAnonymousVisibleSpacesHint} />
-                  </div>
-                {/if}
-              </div>
-
-              <div class="cardStack" class:cardStack-readonly={roleSettingsReadOnly}>
-                {#each sortedVisibleModuleGroups as group}
-                  {@const app = getApplication(group.application)}
-                  {@const moduleOn = isModuleEnabled(group)}
-                  {@const permissionCount = (group.permissions ?? []).length}
-                  {@const hasGuestAutoJoinRow =
-                    guestPermissionsTab === 'guest' &&
-                    group.role === AccountRole.Guest &&
-                    group.spaceClass !== undefined}
-                  {@const hasAnonymousGuestSpacesRow =
-                    guestPermissionsTab === 'anonymous' &&
-                    group.role === AccountRole.ReadOnlyGuest &&
-                    group.spaceClass !== undefined}
-                  {@const hasPermissionRowsBlock =
-                    permissionCount > 0 || hasGuestAutoJoinRow || hasAnonymousGuestSpacesRow}
-                  <div class="permissionModuleCard" class:permissionModuleCard-off={!moduleOn}>
-                    <div
-                      class="permissionModuleCard-header"
-                      class:permissionModuleCard-headerOnly={!hasPermissionRowsBlock}
-                    >
-                      <div class="permissionModuleCard-headerMain">
-                        {#if app}
-                          <div class="appIcon appIcon-sm">
-                            <Icon icon={app.icon} size={'small'} />
-                          </div>
-                        {:else}
-                          <div class="appIcon appIcon-sm appIcon-placeholder" />
-                        {/if}
-                        <div class="permissionModuleCard-titles">
-                          <div class="permissionModuleCard-name">
-                            <Label label={getApplicationLabel(group.application)} />
-                          </div>
-                        </div>
-                      </div>
-                      <div class="permissionModuleCard-toggleCell">
-                        <Toggle
-                          disabled={roleSettingsReadOnly}
-                          on={moduleOn}
-                          on:change={handleAccessToggle(group)}
-                        />
-                      </div>
-                    </div>
-
-                    {#if hasPermissionRowsBlock}
-                      <div class="permissionRows">
-                        {#if permissionCount > 0}
-                          {#each group.permissions ?? [] as permissionId}
-                            <div class="permissionRow">
-                              <div class="permissionRow-label">
-                                <Label label={getPermissionLabel(permissionId)} />
-                              </div>
-                              <div class="permissionRow-toggleCell">
-                                <Toggle
-                                  disabled={!moduleOn || roleSettingsReadOnly}
-                                  on={isPermissionActive(group, permissionId)}
-                                  on:change={handlePermissionToggle(group, permissionId)}
-                                />
-                              </div>
-                            </div>
-                          {/each}
-                        {/if}
-                        {#if hasGuestAutoJoinRow}
-                          <div class="permissionRow permissionRow--guestSpaces">
-                            <div class="permissionRow-label">
-                              <Label label={settingsRes.string.GuestAutoJoinAvailableSpaces} />
-                            </div>
-                            <div class="permissionRow-editorCell">
-                              <AvailableSpacesInput
-                                {group}
-                                disabled={!moduleOn || roleSettingsReadOnly}
-                              />
-                            </div>
-                          </div>
-                        {:else if hasAnonymousGuestSpacesRow}
-                          <div class="permissionRow permissionRow--guestSpaces">
-                            <div class="permissionRow-label">
-                              <Label label={settingsRes.string.GuestAnonymousVisibleSpaces} />
-                            </div>
-                            <div class="permissionRow-editorCell">
-                              <AnonymousGuestSpaceInput
-                                {group}
-                                disabled={!moduleOn || roleSettingsReadOnly}
-                              />
-                            </div>
-                          </div>
-                        {/if}
-                      </div>
+                    {#if guestPermissionsTab === 'anonymous'}
+                      <Label label={setting.string.GuestPermissionsAnonymousApplicationHint} />
+                    {:else}
+                      <Label label={setting.string.GuestPermissionsApplicationPermissionsHint} />
                     {/if}
                   </div>
-                {/each}
-                {#if visibleModuleGroups.length === 0}
-                  <div class="emptyState emptyState-block">—</div>
-                {/if}
-              </div>
+                  {#if guestPermissionsTab === 'guest'}
+                    <div class="sectionHint">
+                      <Label label={core.string.AutoJoinGuestsDescr} />
+                    </div>
+                    <div class="sectionHint">
+                      <Label label={settingsRes.string.GuestAutoJoinAvailableSpacesHint} />
+                    </div>
+                  {:else if guestPermissionsTab === 'anonymous'}
+                    <div class="sectionHint">
+                      <Label label={settingsRes.string.GuestAnonymousVisibleSpacesHint} />
+                    </div>
+                  {/if}
+                </div>
+
+                <div class="cardStack" class:cardStack-readonly={roleSettingsReadOnly}>
+                  {#each sortedVisibleModuleGroups as group}
+                    {@const app = getApplication(group.application)}
+                    {@const moduleOn = isModuleEnabled(group)}
+                    {@const permissionCount = (group.permissions ?? []).length}
+                    {@const hasGuestAutoJoinRow =
+                      guestPermissionsTab === 'guest' &&
+                      group.role === AccountRole.Guest &&
+                      group.spaceClass !== undefined}
+                    {@const hasAnonymousGuestSpacesRow =
+                      guestPermissionsTab === 'anonymous' &&
+                      group.role === AccountRole.ReadOnlyGuest &&
+                      group.spaceClass !== undefined}
+                    {@const hasPermissionRowsBlock =
+                      permissionCount > 0 || hasGuestAutoJoinRow || hasAnonymousGuestSpacesRow}
+                    <div class="permissionModuleCard" class:permissionModuleCard-off={!moduleOn}>
+                      <div
+                        class="permissionModuleCard-header"
+                        class:permissionModuleCard-headerOnly={!hasPermissionRowsBlock}
+                      >
+                        <div class="permissionModuleCard-headerMain">
+                          {#if app}
+                            <div class="appIcon appIcon-sm">
+                              <Icon icon={app.icon} size={'small'} />
+                            </div>
+                          {:else}
+                            <div class="appIcon appIcon-sm appIcon-placeholder" />
+                          {/if}
+                          <div class="permissionModuleCard-titles">
+                            <div class="permissionModuleCard-name">
+                              <Label label={getApplicationLabel(group.application)} />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="permissionModuleCard-toggleCell">
+                          <Toggle disabled={roleSettingsReadOnly} on={moduleOn} on:change={handleAccessToggle(group)} />
+                        </div>
+                      </div>
+
+                      {#if hasPermissionRowsBlock}
+                        <div class="permissionRows">
+                          {#if permissionCount > 0}
+                            {#each group.permissions ?? [] as permissionId}
+                              <div class="permissionRow">
+                                <div class="permissionRow-label">
+                                  <Label label={getPermissionLabel(permissionId)} />
+                                </div>
+                                <div class="permissionRow-toggleCell">
+                                  <Toggle
+                                    disabled={!moduleOn || roleSettingsReadOnly}
+                                    on={isPermissionActive(group, permissionId)}
+                                    on:change={handlePermissionToggle(group, permissionId)}
+                                  />
+                                </div>
+                              </div>
+                            {/each}
+                          {/if}
+                          {#if hasGuestAutoJoinRow}
+                            <div class="permissionRow permissionRow--guestSpaces">
+                              <div class="permissionRow-label">
+                                <Label label={settingsRes.string.GuestAutoJoinAvailableSpaces} />
+                              </div>
+                              <div class="permissionRow-editorCell">
+                                <AvailableSpacesInput {group} disabled={!moduleOn || roleSettingsReadOnly} />
+                              </div>
+                            </div>
+                          {:else if hasAnonymousGuestSpacesRow}
+                            <div class="permissionRow permissionRow--guestSpaces">
+                              <div class="permissionRow-label">
+                                <Label label={settingsRes.string.GuestAnonymousVisibleSpaces} />
+                              </div>
+                              <div class="permissionRow-editorCell">
+                                <AnonymousGuestSpaceInput {group} disabled={!moduleOn || roleSettingsReadOnly} />
+                              </div>
+                            </div>
+                          {/if}
+                        </div>
+                      {/if}
+                    </div>
+                  {/each}
+                  {#if visibleModuleGroups.length === 0}
+                    <div class="emptyState emptyState-block">—</div>
+                  {/if}
+                </div>
               </section>
             </details>
           </div>

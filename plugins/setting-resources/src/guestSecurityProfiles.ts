@@ -39,7 +39,7 @@ export function resolveSecurityProfile (
   groups: ModulePermissionGroup[],
   permissions: Map<Ref<Permission>, Permission>
 ): SecurityProfile {
-  if (groups.some((group) => group.enabled === false)) return GuestSecurityProfile.Custom
+  if (groups.some((group) => !group.enabled)) return GuestSecurityProfile.Custom
 
   const states = groups.flatMap((group) => {
     const disabled = new Set(group.disabledPermissions ?? [])

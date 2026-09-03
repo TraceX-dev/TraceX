@@ -23,7 +23,17 @@ import type {
   Photo,
   SavedAttachments
 } from '@hcengineering/attachment'
-import {AccountRole, IndexKind, type Blob, type Class, type Doc, type Domain, type Ref, ownBy, spaceScoped} from '@hcengineering/core'
+import {
+  AccountRole,
+  IndexKind,
+  type Blob,
+  type Class,
+  type Doc,
+  type Domain,
+  type Ref,
+  ownBy,
+  spaceScoped
+} from '@hcengineering/core'
 import {
   Hidden,
   Index,

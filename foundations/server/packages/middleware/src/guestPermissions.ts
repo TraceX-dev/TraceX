@@ -87,10 +87,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       return (tx as TxApplyIf).txes.every((nestedTx) => this.isViewerTxAllowed(nestedTx))
     }
     if (!TxProcessor.isExtendsCUD(tx._class)) return false
-    const access = this.context.hierarchy.classHierarchyMixin(
-      (tx as TxCUD<Doc>).objectClass,
-      core.mixin.TxAccessLevel
-    )
+    const access = this.context.hierarchy.classHierarchyMixin((tx as TxCUD<Doc>).objectClass, core.mixin.TxAccessLevel)
     return access?.allowViewerWrite === true
   }
 
@@ -145,12 +142,9 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     if (decision.kind === 'deny') return false
     if (decision.kind === 'unrestricted') return true
     // A document-relative policy cannot narrow the lookup, so fetch the row and judge it whole.
-    const docs = await this.findAll(
-      ctx,
-      tx.objectClass,
-      decision.kind === 'perDocument' ? query : decision.query,
-      { limit: 1 }
-    )
+    const docs = await this.findAll(ctx, tx.objectClass, decision.kind === 'perDocument' ? query : decision.query, {
+      limit: 1
+    })
     const doc = docs[0]
     if (doc === undefined) return false
     if (decision.kind === 'perDocument') {

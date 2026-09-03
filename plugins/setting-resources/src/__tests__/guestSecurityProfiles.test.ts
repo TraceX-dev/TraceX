@@ -30,10 +30,7 @@ const PROCESS = 'test:permission:Process' as Ref<Permission>
 
 const permissions = new Map<Ref<Permission>, Permission>([
   [CREATE, { _id: CREATE, targetClass: 'card:class:Card' as Ref<Class<Doc>> } as unknown as ClassPermission],
-  [
-    COLLABORATORS,
-    { _id: COLLABORATORS, targetClass: core.class.Collaborator } as unknown as ClassPermission
-  ],
+  [COLLABORATORS, { _id: COLLABORATORS, targetClass: core.class.Collaborator } as unknown as ClassPermission],
   [
     PROCESS,
     { _id: PROCESS, targetClass: 'process:class:ApproveRequest' as Ref<Class<Doc>> } as unknown as ClassPermission
