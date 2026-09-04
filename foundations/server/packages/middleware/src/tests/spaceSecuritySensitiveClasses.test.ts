@@ -1,0 +1,462 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+/**
+ * Tests `RowVisibilityResolver`'s behavior (Layer 2) against a mock `Hierarchy` whose
+ * `classHierarchyMixin` returns the same policies the real model declares (see
+ * `rowVisibilityInvariant.test.ts` for checking they're actually declared there).
+ *
+ *  - Collaborator: open queries clamped to the caller's own records; `_id`/`attachedTo` lookups
+ *    bypass the clamp (`attachedTo` here is the *linked* record, not the policy's own field).
+ *  - MeetingMinutes/HR Request: open queries clamped to the caller's own records; only `_id`
+ *    bypasses the clamp - `attachedTo` is the field the policy itself protects, so it must not
+ *    also appear as a bypass field (regression test for the ownership bypass fix).
+ *  - Room: publicReadable - visible to every guest regardless of collaborator status (the office
+ *    layout needs to render all rooms; only the MeetingMinutes documents attached to a room stay
+ *    collaborator-restricted).
+ *  - RoomInfo: open queries are still clamped to rooms where the caller is a collaborator.
+ *  - PushSubscription: always clamped to the caller's own `user`, no bypass.
+ *  - PublicLink: denied unless `_id` matches the caller's own `linkId` (from the session token,
+ *    not the account - every guest shares one account) - regression test for the enumeration fix.
+ *  - Regular `User` accounts are unaffected.
+ */
+
+import contact from '@hcengineering/contact'
+import core, {
+  AccountRole,
+  generateId,
+  MeasureMetricsContext,
+  type Account,
+  type AccountUuid,
+  type Class,
+  type Doc,
+  type MeasureContext,
+  type PersonId,
+  type RowVisibility,
+  type SessionData,
+  type Ref
+} from '@hcengineering/core'
+import type { Middleware, PipelineContext } from '@hcengineering/server-core'
+import { SpaceSecurityMiddleware } from '../spaceSecurity'
+
+const MEETING_MINUTES = 'love:class:MeetingMinutes' as Ref<Class<Doc>>
+const ROOM_INFO = 'love:class:RoomInfo' as Ref<Class<Doc>>
+const ROOM = 'love:class:Room' as Ref<Class<Doc>>
+const HR_REQUEST = 'hr:class:Request' as Ref<Class<Doc>>
+const PUSH_SUBSCRIPTION = 'notification:class:PushSubscription' as Ref<Class<Doc>>
+const PUBLIC_LINK = 'guest:class:PublicLink' as Ref<Class<Doc>>
+const UNDECLARED_SHARED_CLASS = 'test:class:UndeclaredShared' as Ref<Class<Doc>>
+const PERSON_CLASS = contact.class.Person
+
+// Mirrors the real policies registered via `builder.mixin(..., core.mixin.RowVisibility, {...})`
+// in `models/core`, `models/love`, `models/hr`, `models/notification` and `models/guest`.
+const ROW_VISIBILITY: Partial<Record<Ref<Class<Doc>>, Partial<RowVisibility>>> = {
+  [core.class.Collaborator]: {
+    policy: { kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' },
+    allowKnownIdBypass: true,
+    knownIdBypassFields: ['attachedTo']
+  },
+  [MEETING_MINUTES]: {
+    policy: {
+      kind: 'linkedViaRecord',
+      linkClass: core.class.Collaborator,
+      linkTargetField: 'attachedTo',
+      linkIdentityField: 'collaborator',
+      identity: 'accountUuid'
+    },
+    allowKnownIdBypass: true
+  },
+  [ROOM]: {
+    policy: { kind: 'publicReadable', reason: 'Office rooms are visible to every guest' },
+    allowKnownIdBypass: false
+  },
+  [ROOM_INFO]: {
+    policy: {
+      kind: 'linkedViaRecord',
+      linkClass: core.class.Collaborator,
+      linkTargetField: 'attachedTo',
+      linkIdentityField: 'collaborator',
+      identity: 'accountUuid',
+      targetField: 'room',
+      through: {
+        documentClass: MEETING_MINUTES,
+        sourceField: '_id',
+        targetField: 'attachedTo',
+        includeDirect: true
+      }
+    },
+    allowKnownIdBypass: false
+  },
+  [PUBLIC_LINK]: {
+    policy: { kind: 'ownerField', field: '_id', identity: 'linkId' },
+    allowKnownIdBypass: false
+  },
+  [HR_REQUEST]: {
+    policy: { kind: 'ownerField', field: 'attachedTo', identity: 'personId' },
+    allowKnownIdBypass: true
+  },
+  [PUSH_SUBSCRIPTION]: {
+    policy: { kind: 'ownerField', field: 'user', identity: 'accountUuid' },
+    allowKnownIdBypass: false
+  }
+}
+
+function makeAccount (role: AccountRole, uuid?: AccountUuid): Account {
+  return {
+    uuid: (uuid ?? generateId()) as AccountUuid,
+    role,
+    primarySocialId: 'test' as PersonId,
+    socialIds: ['test' as PersonId],
+    fullSocialIds: []
+  }
+}
+
+function makeCtx (account: Account, extra?: Record<string, any>): MeasureContext<SessionData> {
+  const ctx = new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>
+  ctx.contextData = {
+    account,
+    broadcast: { txes: [], queue: [], sessions: {} },
+    extra
+  } as any
+  return ctx
+}
+
+function matchesQuery (doc: Record<string, any>, query: Record<string, any> | undefined): boolean {
+  for (const key of Object.keys(query ?? {})) {
+    const cond = query?.[key]
+    const val = doc[key]
+    if (cond !== null && typeof cond === 'object' && !Array.isArray(cond) && cond.$in !== undefined) {
+      const included: boolean = cond.$in.includes(val)
+      if (!included) return false
+    } else if (cond !== null && typeof cond === 'object' && !Array.isArray(cond) && cond.$nin !== undefined) {
+      if (cond.$nin.includes(val) === true) return false
+    } else if (val !== cond) {
+      return false
+    }
+  }
+  return true
+}
+
+async function setup (): Promise<{
+  mw: SpaceSecurityMiddleware
+  ALICE: AccountUuid
+  BOB: AccountUuid
+  personAlice: Ref<Doc>
+  personBob: Ref<Doc>
+  mmAlice: Ref<Doc>
+  mmBob: Ref<Doc>
+  roomAlice: Ref<Doc>
+  roomDirect: Ref<Doc>
+  roomBob: Ref<Doc>
+  reqAlice: Ref<Doc>
+  reqBob: Ref<Doc>
+  linkAlice: Ref<Doc>
+  linkOther: Ref<Doc>
+}> {
+  const ALICE = generateId() as unknown as AccountUuid
+  const BOB = generateId() as unknown as AccountUuid
+
+  const personAlice = { _id: generateId(), _class: PERSON_CLASS, personUuid: ALICE, space: contact.space.Contacts }
+  const personBob = { _id: generateId(), _class: PERSON_CLASS, personUuid: BOB, space: contact.space.Contacts }
+  const persons = [personAlice, personBob]
+
+  const roomAlice = { _id: generateId(), _class: ROOM, space: core.space.Workspace }
+  const roomDirect = { _id: generateId(), _class: ROOM, space: core.space.Workspace }
+  const roomBob = { _id: generateId(), _class: ROOM, space: core.space.Workspace }
+  const rooms = [roomAlice, roomDirect, roomBob]
+
+  const mmAlice = {
+    _id: generateId(),
+    _class: MEETING_MINUTES,
+    space: core.space.Workspace,
+    attachedTo: roomAlice._id
+  }
+  const mmBob = {
+    _id: generateId(),
+    _class: MEETING_MINUTES,
+    space: core.space.Workspace,
+    attachedTo: roomBob._id
+  }
+  const meetingMinutes = [mmAlice, mmBob]
+
+  const collaborators = [
+    { _id: generateId(), _class: core.class.Collaborator, collaborator: ALICE, attachedTo: mmAlice._id },
+    { _id: generateId(), _class: core.class.Collaborator, collaborator: BOB, attachedTo: mmBob._id },
+    { _id: generateId(), _class: core.class.Collaborator, collaborator: ALICE, attachedTo: roomDirect._id },
+    { _id: generateId(), _class: core.class.Collaborator, collaborator: BOB, attachedTo: roomBob._id }
+  ]
+
+  const roomInfos = [
+    { _id: generateId(), _class: ROOM_INFO, room: roomAlice._id, persons: [] },
+    { _id: generateId(), _class: ROOM_INFO, room: roomDirect._id, persons: [] },
+    { _id: generateId(), _class: ROOM_INFO, room: roomBob._id, persons: [] }
+  ]
+
+  const reqAlice = { _id: generateId(), _class: HR_REQUEST, attachedTo: personAlice._id }
+  const reqBob = { _id: generateId(), _class: HR_REQUEST, attachedTo: personBob._id }
+  const hrRequests = [reqAlice, reqBob]
+
+  const pushSubs = [
+    { _id: generateId(), _class: PUSH_SUBSCRIPTION, user: ALICE },
+    { _id: generateId(), _class: PUSH_SUBSCRIPTION, user: BOB }
+  ]
+
+  const linkAlice = { _id: generateId(), _class: PUBLIC_LINK, attachedTo: generateId() }
+  const linkOther = { _id: generateId(), _class: PUBLIC_LINK, attachedTo: generateId() }
+  const publicLinks = [linkAlice, linkOther]
+  const undeclaredShared = [{ _id: generateId(), _class: UNDECLARED_SHARED_CLASS, space: core.space.Workspace }]
+
+  const next: Middleware = {
+    findAll: (async (_ctx: any, _class: any, query: any) => {
+      if (_class === core.class.Space) return []
+      if (_class === PERSON_CLASS) return persons.filter((p) => matchesQuery(p, query)) as any
+      if (_class === MEETING_MINUTES) return meetingMinutes.filter((d) => matchesQuery(d, query)) as any
+      if (_class === ROOM) return rooms.filter((d) => matchesQuery(d, query)) as any
+      if (_class === core.class.Collaborator) return collaborators.filter((d) => matchesQuery(d, query)) as any
+      if (_class === ROOM_INFO) return roomInfos.filter((d) => matchesQuery(d, query)) as any
+      if (_class === HR_REQUEST) return hrRequests.filter((d) => matchesQuery(d, query)) as any
+      if (_class === PUSH_SUBSCRIPTION) return pushSubs.filter((d) => matchesQuery(d, query)) as any
+      if (_class === PUBLIC_LINK) return publicLinks.filter((d) => matchesQuery(d, query)) as any
+      if (_class === UNDECLARED_SHARED_CLASS) return undeclaredShared.filter((d) => matchesQuery(d, query)) as any
+      return []
+    }) as any,
+    groupBy: (async () => new Map()) as any,
+    searchFulltext: (async () => ({
+      docs: meetingMinutes.map((doc) => ({
+        id: doc._id,
+        doc: { _id: doc._id, _class: doc._class, createdOn: 0 }
+      })),
+      total: meetingMinutes.length
+    })) as any,
+    tx: (async () => ({})) as any,
+    handleBroadcast: (async () => {}) as any,
+    loadModel: (async () => []) as any,
+    domainRequest: (async () => ({ domain: 'test', value: null })) as any,
+    closeSession: (async () => {}) as any
+  } as any
+
+  const hierarchy: any = {
+    isDerived: (a: Ref<Class<Doc>>, b: Ref<Class<Doc>>) => {
+      if (b === core.class.Space) return a === core.class.Space
+      return a === b
+    },
+    getDomain: (_class: Ref<Class<Doc>>) => {
+      if (_class === core.class.Space) return 'space'
+      return 'test-domain'
+    },
+    classHierarchyMixin: (_class: Ref<Class<Doc>>) => ROW_VISIBILITY[_class]
+  }
+
+  const context: PipelineContext = {
+    workspace: { uuid: 'test-workspace' as any, url: 'test', dataId: 'test' as any },
+    hierarchy,
+    modelDb: { findAllSync: () => [] } as any,
+    branding: null as any,
+    adapterManager: {} as any,
+    storageAdapter: {} as any,
+    contextVars: {},
+    lastTx: '',
+    lastHash: '',
+    broadcastEvent: async () => {}
+  } as any
+
+  const mw = new (SpaceSecurityMiddleware as any)(false, context, next) as SpaceSecurityMiddleware
+
+  return {
+    mw,
+    ALICE,
+    BOB,
+    personAlice: personAlice._id,
+    personBob: personBob._id,
+    mmAlice: mmAlice._id,
+    mmBob: mmBob._id,
+    roomAlice: roomAlice._id,
+    roomDirect: roomDirect._id,
+    roomBob: roomBob._id,
+    reqAlice: reqAlice._id,
+    reqBob: reqBob._id,
+    linkAlice: linkAlice._id,
+    linkOther: linkOther._id
+  }
+}
+
+describe('SpaceSecurityMiddleware – row-level visibility for core.space.Workspace-resident classes', () => {
+  it('default-denies an undeclared policy in a shared space', async () => {
+    const s = await setup()
+    const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+    const result = await s.mw.findAll(ctx, UNDECLARED_SHARED_CLASS, {})
+    expect(result).toEqual([])
+  })
+
+  describe('full-text search', () => {
+    it('does not treat a search result id as a known-id bypass', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const result = await s.mw.searchFulltext(ctx, { query: 'minutes', classes: [MEETING_MINUTES] }, {})
+      expect(result.docs.map((doc) => doc.doc._id)).toEqual([s.mmAlice])
+      expect(result.total).toBe(1)
+    })
+  })
+
+  describe('core.class.Collaborator', () => {
+    it('an open query is clamped to the caller own collaborator records', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, core.class.Collaborator, {})
+      expect(res).toHaveLength(2)
+      expect(new Set(res.map((r: any) => r.collaborator))).toEqual(new Set([s.ALICE]))
+    })
+
+    it('a query narrowed by attachedTo bypasses the restriction', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, core.class.Collaborator, { attachedTo: s.mmBob } as any)
+      expect(res.map((r: any) => r.attachedTo)).toEqual([s.mmBob])
+    })
+  })
+
+  describe('love.class.MeetingMinutes', () => {
+    it('an open query only returns minutes the caller is a collaborator on', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, MEETING_MINUTES, {})
+      expect(res.map((r: any) => r._id)).toEqual([s.mmAlice])
+    })
+
+    it('a caller with no collaborator record gets nothing back for an open query', async () => {
+      const s = await setup()
+      const stranger = generateId() as unknown as AccountUuid
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, stranger))
+      const res = await s.mw.findAll(ctx, MEETING_MINUTES, {})
+      expect(res.length).toBe(0)
+    })
+
+    it('an _id lookup bypasses the restriction', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const byId = await s.mw.findAll(ctx, MEETING_MINUTES, { _id: s.mmBob } as any)
+      expect(byId.map((r: any) => r._id)).toEqual([s.mmBob])
+    })
+
+    it('an attachedTo lookup does NOT bypass the restriction (regression test for the ownership bypass fix)', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      // Alice asks for Bob's minutes by their attachedTo (Bob's Room id). Since attachedTo is the
+      // field the linkedViaRecord policy itself protects, this must not resolve Bob's minutes.
+      const res = await s.mw.findAll(ctx, MEETING_MINUTES, { attachedTo: s.roomBob } as any)
+      expect(res).toHaveLength(0)
+    })
+  })
+
+  describe('love.class.RoomInfo', () => {
+    it('only returns activity for rooms where the caller is a collaborator', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, ROOM_INFO, {})
+      expect(res.map((r: any) => r.room)).toEqual([s.roomAlice, s.roomDirect])
+    })
+  })
+
+  describe('love.class.Room', () => {
+    it('returns every room regardless of collaborator status (publicReadable, per the office-layout change)', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, ROOM, {})
+      expect(new Set(res.map((r: any) => r._id))).toEqual(new Set([s.roomAlice, s.roomDirect, s.roomBob]))
+    })
+
+    it('resolves a room the caller is not a collaborator on through a known id', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, ROOM, { _id: s.roomBob } as any)
+      expect(res.map((r: any) => r._id)).toEqual([s.roomBob])
+    })
+  })
+
+  describe('guest.class.PublicLink', () => {
+    it('open browse only ever narrows to the caller own link, never lists others', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE), { linkId: s.linkAlice })
+      const res = await s.mw.findAll(ctx, PUBLIC_LINK, {})
+      expect(res.map((r: any) => r._id)).toEqual([s.linkAlice])
+    })
+
+    it('a known _id query for the caller own link resolves', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE), { linkId: s.linkAlice })
+      const res = await s.mw.findAll(ctx, PUBLIC_LINK, { _id: s.linkAlice } as any)
+      expect(res.map((r: any) => r._id)).toEqual([s.linkAlice])
+    })
+
+    it('a known _id query for a DIFFERENT link is denied, not silently redirected (regression test for the enumeration fix)', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE), { linkId: s.linkAlice })
+      const res = await s.mw.findAll(ctx, PUBLIC_LINK, { _id: s.linkOther } as any)
+      expect(res.length).toBe(0)
+    })
+
+    it('a session with no linkId claim at all gets nothing, even for a known _id', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.DocGuest, s.ALICE))
+      const res = await s.mw.findAll(ctx, PUBLIC_LINK, { _id: s.linkAlice } as any)
+      expect(res.length).toBe(0)
+    })
+  })
+
+  describe('hr.class.Request', () => {
+    it('an open query is clamped to the caller own attached request', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, HR_REQUEST, {})
+      expect(res.map((r: any) => r._id)).toEqual([s.reqAlice])
+    })
+
+    it('an attachedTo lookup does NOT bypass the own-record clamp (regression test for the ownership bypass fix)', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      // Alice explicitly asks for Bob's request by its attachedTo (Bob's Person id). attachedTo is
+      // the field the ownerField policy itself protects, so this must still come back empty.
+      const res = await s.mw.findAll(ctx, HR_REQUEST, { attachedTo: s.personBob } as any)
+      expect(res).toHaveLength(0)
+    })
+  })
+
+  describe('notification.class.PushSubscription', () => {
+    it('is always clamped to the caller own user, even for an open query', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, PUSH_SUBSCRIPTION, {})
+      expect(res.map((r: any) => r.user)).toEqual([s.ALICE])
+    })
+
+    it('an _id-narrowed query for someone else’s subscription does not bypass the clamp', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.Guest, s.ALICE))
+      const res = await s.mw.findAll(ctx, PUSH_SUBSCRIPTION, {})
+      expect(res.every((r: any) => r.user === s.ALICE)).toBe(true)
+    })
+  })
+
+  describe('regular User accounts', () => {
+    it('are not restricted for any of the sensitive classes', async () => {
+      const s = await setup()
+      const ctx = makeCtx(makeAccount(AccountRole.User, s.BOB))
+      const collabRes = await s.mw.findAll(ctx, core.class.Collaborator, {})
+      expect(collabRes.length).toBe(4)
+      const mmRes = await s.mw.findAll(ctx, MEETING_MINUTES, {})
+      expect(mmRes.length).toBe(2)
+    })
+  })
+})

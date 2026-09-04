@@ -39,7 +39,6 @@ import {
   type Rank,
   type Ref,
   type Role,
-  roleOrder,
   type SocialId,
   SocialIdType,
   type SocialKey,
@@ -51,6 +50,7 @@ import core from './component'
 import { type Hierarchy } from './hierarchy'
 import { type TxOperations } from './operations'
 import { isPredicate } from './predicate'
+import { roleOrder } from './security'
 import { type Branding, type BrandingMap } from './server'
 import { type DocumentQuery, type FindResult } from './storage'
 import { DOMAIN_TX, type Tx, type TxCreateDoc, type TxCUD, TxProcessor, type TxUpdateDoc } from './tx'
@@ -823,15 +823,6 @@ export function isOwnerOrMaintainer (): boolean {
 
 export function hasAccountRole (acc: Account, targerRole: AccountRole): boolean {
   return roleOrder[acc.role] >= roleOrder[targerRole]
-}
-
-/**
- * Any kind of guest account. Intended to be used by permission resolution code only,
- * UI should ask a permission store what the user can do instead of checking roles.
- * @public
- */
-export function isGuestRole (role: AccountRole): boolean {
-  return role === AccountRole.Guest || role === AccountRole.DocGuest || role === AccountRole.ReadOnlyGuest
 }
 
 /**

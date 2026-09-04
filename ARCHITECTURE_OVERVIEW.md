@@ -457,6 +457,7 @@ sequenceDiagram
 - `DESKTOP_UPDATES_URL`: `https://dist.huly.io`
 
 ### Authentication & Security
+- Restricted-role (guest) row-level and class-level access model: see [`docs/security-model.md`](docs/security-model.md).
 - `HULY_TOKEN_SECRET`: `secret` - Token signing for Huly services
 - `SERVER_SECRET`: `secret` - Service-to-service auth
 - `ADMIN_EMAILS`: Admin user emails

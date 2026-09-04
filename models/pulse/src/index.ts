@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Intabia Fusion.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,15 @@
 //
 
 import type { Person } from '@hcengineering/contact'
-import { DOMAIN_TRANSIENT, type Class, type Doc, type PersonId, type Ref, type Timestamp } from '@hcengineering/core'
+import {
+  AccountRole,
+  DOMAIN_TRANSIENT,
+  type Class,
+  type Doc,
+  type PersonId,
+  type Ref,
+  type Timestamp
+} from '@hcengineering/core'
 import { Model, type Builder } from '@hcengineering/model'
 import core, { TDoc } from '@hcengineering/model-core'
 import type { IntlString } from '@hcengineering/platform'
@@ -45,7 +54,29 @@ export function createModel (builder: Builder): void {
     ttl: 10
   })
 
+  builder.mixin(pulse.class.DocumentPresence, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.ReadOnlyGuest,
+    updateAccessLevel: AccountRole.ReadOnlyGuest,
+    removeAccessLevel: AccountRole.ReadOnlyGuest
+  })
+
+  builder.mixin(pulse.class.DocumentPresence, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'publicReadable', reason: 'Ephemeral presence state contains no business data and expires by TTL' },
+    allowKnownIdBypass: false
+  })
+
   builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.TransientTTL, {
     ttl: 3
+  })
+
+  builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.ReadOnlyGuest,
+    updateAccessLevel: AccountRole.ReadOnlyGuest,
+    removeAccessLevel: AccountRole.ReadOnlyGuest
+  })
+
+  builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'publicReadable', reason: 'Ephemeral typing state contains no business data and expires by TTL' },
+    allowKnownIdBypass: false
   })
 }

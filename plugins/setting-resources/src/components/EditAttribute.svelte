@@ -134,7 +134,7 @@
   const items = getTypes()
   let selectedType: Ref<Class<Type<PropertyType>>> = attribute.type._class
 
-  $: selectedType && selectType(selectedType)
+  $: selectType(selectedType)
 
   function selectType (type: Ref<Class<Type<PropertyType>>>): void {
     const _class = hierarchy.getClass(type)
@@ -143,10 +143,10 @@
       is = editor.editor
     }
   }
-  const handleSelect = (e: any) => {
+  const handleSelect = (e: any): void => {
     selectType(e.detail)
   }
-  const handleChange = (e: any) => {
+  const handleChange = (e: any): void => {
     if (e.detail.type !== undefined && e.detail.type !== type && !disabled) {
       type = e.detail?.type
       index = e.detail?.index
@@ -169,7 +169,7 @@
   }
 
   async function hide (): Promise<void> {
-    const value = !attribute.hidden
+    const value = attribute.hidden !== true
     attribute.hidden = value
     await client.update(attribute, { hidden: value })
   }
@@ -259,8 +259,8 @@
   <svelte:fragment slot="actions">
     {#if !disabled}
       <ButtonIcon
-        icon={attribute.hidden ? view.icon.EyeCrossed : view.icon.Eye}
-        tooltip={{ label: attribute.hidden ? view.string.Show : view.string.Hide }}
+        icon={attribute.hidden === true ? view.icon.EyeCrossed : view.icon.Eye}
+        tooltip={{ label: attribute.hidden === true ? view.string.Show : view.string.Hide }}
         size={'small'}
         kind={'tertiary'}
         {disabled}

@@ -9,8 +9,7 @@ import core, {
   AccountRole,
   type Class,
   type Doc,
-  type ClassPermission,
-  type Permission,
+  type DocumentQuery,
   hasAccountRole,
   type MeasureContext,
   type PersonId,
@@ -20,20 +19,23 @@ import core, {
   type Tx,
   type TxApplyIf,
   type TxCUD,
+  type TxCreateDoc,
   TxProcessor,
+  type TxMixin,
   type TxUpdateDoc
 } from '@hcengineering/core'
+import contact from '@hcengineering/contact'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
-import contact, { type Person } from '@hcengineering/contact'
+import { ClassAccessResolver, hasClassAccessLevel, isClassAccessAllowed } from './accessGate'
+import { AccountIdentityResolver, RowVisibilityResolver } from './rowVisibility'
 
-/** Cached state loaded from GuestPermissionsSettings configuration document. */
-interface GuestPermissionsCache {
-  roleAllowedClasses: Map<AccountRole, Set<Ref<Class<Doc>>>>
-}
+// Importing `@hcengineering/process` would pull client-only dependencies into this package.
+const APPROVE_REQUEST_CLASS = 'process:class:ApproveRequest' as unknown as Ref<Class<Doc>>
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
-  private permissionsCache: GuestPermissionsCache | undefined = undefined
-  private initPromise: Promise<void> | undefined = undefined
+  // Use this middleware so overridden `findAll` methods are honored.
+  private readonly classAccess = new ClassAccessResolver(this)
+  private readonly rowVisibility = new RowVisibilityResolver(this.next)
 
   static async create (
     ctx: MeasureContext,
@@ -43,80 +45,23 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return new GuestPermissionsMiddleware(context, next)
   }
 
-  private async getPermissionsCache (ctx: MeasureContext): Promise<GuestPermissionsCache> {
-    if (this.permissionsCache !== undefined) return this.permissionsCache
-    if (this.initPromise === undefined) {
-      this.initPromise = this.loadPermissionsCache(ctx)
-    }
-    await this.initPromise
-    this.initPromise = undefined
-    return this.permissionsCache ?? { roleAllowedClasses: new Map() }
-  }
-
-  private async loadPermissionsCache (ctx: MeasureContext): Promise<void> {
-    try {
-      const docs = await this.findAll(ctx, core.class.ModulePermissionGroup, {}, {})
-      if (docs.length > 0) {
-        const rolePermissions = new Map<AccountRole, Set<Ref<Permission>>>()
-        const allPermissionIds = new Set<Ref<Permission>>()
-        for (const group of docs as any[]) {
-          if (group.enabled === false) continue
-          const role = ((group.role as AccountRole | undefined) ??
-            (Array.isArray(group.roles) && group.roles.length > 0 ? (group.roles[0] as AccountRole) : undefined) ??
-            AccountRole.Guest) as AccountRole
-          const permissions = (group.permissions ?? []) as Ref<Permission>[]
-          const disabled = new Set<Ref<Permission>>((group.disabledPermissions ?? []) as Ref<Permission>[])
-          const current = rolePermissions.get(role) ?? new Set<Ref<Permission>>()
-          for (const permissionId of permissions) {
-            if (disabled.has(permissionId)) continue
-            current.add(permissionId)
-            allPermissionIds.add(permissionId)
-          }
-          rolePermissions.set(role, current)
-        }
-        const classPermissions =
-          allPermissionIds.size > 0
-            ? await this.findAll(
-              ctx,
-              core.class.ClassPermission as Ref<Class<Doc>>,
-              { _id: { $in: Array.from(allPermissionIds) } } as any
-            )
-            : []
-        const permissionToClass = new Map<Ref<Permission>, Ref<Class<Doc>>>(
-          classPermissions
-            .map(
-              (permission) => [permission._id as Ref<Permission>, (permission as ClassPermission).targetClass] as const
-            )
-            .filter((entry): entry is readonly [Ref<Permission>, Ref<Class<Doc>>] => entry[1] !== undefined)
-        )
-        const roleAllowedClasses = new Map<AccountRole, Set<Ref<Class<Doc>>>>()
-        for (const [role, permissions] of rolePermissions.entries()) {
-          const allowedClasses = new Set<Ref<Class<Doc>>>()
-          for (const permissionId of permissions) {
-            const targetClass = permissionToClass.get(permissionId)
-            if (targetClass !== undefined) allowedClasses.add(targetClass)
-          }
-          roleAllowedClasses.set(role, allowedClasses)
-        }
-        this.permissionsCache = { roleAllowedClasses }
-      } else {
-        this.permissionsCache = { roleAllowedClasses: new Map() }
-      }
-    } catch {
-      this.permissionsCache = { roleAllowedClasses: new Map() }
-    }
-  }
-
-  private invalidateCacheIfNeeded (txes: Tx[]): void {
+  private invalidateCacheIfNeeded (txes: Tx[]): boolean {
     for (const tx of txes) {
+      if (tx._class === core.class.TxApplyIf && this.invalidateCacheIfNeeded((tx as TxApplyIf).txes)) {
+        return true
+      }
       if (TxProcessor.isExtendsCUD(tx._class)) {
         const cudTx = tx as TxCUD<Doc>
-        if (cudTx.objectClass === core.class.ModulePermissionGroup) {
-          this.permissionsCache = undefined
-          return
+        if (
+          cudTx.objectClass === core.class.ModulePermissionGroup ||
+          cudTx.objectClass === core.class.ClassPermission
+        ) {
+          this.classAccess.invalidate()
+          return true
         }
       }
     }
+    return false
   }
 
   async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
@@ -124,10 +69,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     if (hasAccountRole(account, AccountRole.User)) {
       this.invalidateCacheIfNeeded(txes)
       return await this.provideTx(ctx, txes)
-    }
-
-    if (account.role === AccountRole.DocGuest || account.role === AccountRole.ReadOnlyGuest) {
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
     }
 
     for (const tx of txes) {
@@ -161,69 +102,88 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   }
 
   /**
-   * Returns the covered-class ancestor of the objectClass if one exists in the new permissions model,
-   * or undefined if the class is not covered.
+   * Bypasses `core.class.Collaborator`'s own ownerField policy (which would require the named
+   * collaborator to be the caller) - gated on `card.ids.GuestCollaboratorClassPermission` plus the
+   * caller having created the document the collaborator record attaches to.
    */
-  private getCoveredClass (
-    objectClass: Ref<Class<Doc>>,
-    allowedClasses: Set<Ref<Class<Doc>>>
-  ): Ref<Class<Doc>> | undefined {
-    if (allowedClasses.size === 0) return undefined
-    const h = this.context.hierarchy
-    for (const coveredClass of allowedClasses) {
-      if (h.isDerived(objectClass, coveredClass)) {
-        return coveredClass
-      }
+  private async canEditDocCollaborator (
+    ctx: MeasureContext<SessionData>,
+    tx: TxCUD<Doc>,
+    account: Account
+  ): Promise<boolean> {
+    const allowed = await this.classAccess.allowedClasses(ctx, account.role, core.class.TxCreateDoc)
+    if (!allowed.has(core.class.Collaborator)) return false
+    if (tx.attachedTo === undefined || tx.attachedToClass === undefined) return false
+    const parents = await this.findAll(ctx, tx.attachedToClass, { _id: tx.attachedTo }, { limit: 1 })
+    const parent = parents[0] as (Doc & { createdBy?: PersonId }) | undefined
+    return parent?.createdBy !== undefined && account.socialIds.includes(parent.createdBy)
+  }
+
+  /** Checks whether a mutation targets a row visible to the caller. */
+  private async canMutateVisibleRow (
+    ctx: MeasureContext<SessionData>,
+    tx: TxCUD<Doc>,
+    account: Account
+  ): Promise<boolean> {
+    const identity = new AccountIdentityResolver(this.next, ctx, account)
+    if (
+      this.context.hierarchy.isDerived(tx.objectClass, core.class.Collaborator) &&
+      (tx._class === core.class.TxCreateDoc || tx._class === core.class.TxRemoveDoc)
+    ) {
+      return await this.canEditDocCollaborator(ctx, tx, account)
     }
-    return undefined
-  }
-
-  private isCreatedByAccount (doc: Doc, account: Account): boolean {
-    const creator = doc.createdBy
-    if (creator === undefined) return false
-    if (creator === account.primarySocialId) return true
-    return account.socialIds.includes(creator)
-  }
-
-  private async isGuestMutationOnOwnDoc (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
-    if (tx._class !== core.class.TxUpdateDoc && tx._class !== core.class.TxRemoveDoc) return false
-    const docs = await this.findAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 })
-    const doc = docs[0] as Doc | undefined
+    if (tx._class === core.class.TxCreateDoc) {
+      if (
+        this.context.hierarchy.isDerived(tx.objectClass, contact.class.SocialIdentity) &&
+        !account.socialIds.includes(tx.objectId as unknown as PersonId)
+      ) {
+        return false
+      }
+      const doc = TxProcessor.createDoc2Doc(tx as TxCreateDoc<Doc>)
+      return await this.rowVisibility.canCreate(ctx, this.context.hierarchy, tx.objectClass, doc, identity)
+    }
+    if (
+      (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) &&
+      this.context.hierarchy.isDerived(tx.objectClass, APPROVE_REQUEST_CLASS)
+    ) {
+      const allowed = await this.classAccess.allowedClasses(ctx, account.role, core.class.TxCreateDoc)
+      if (!allowed.has(APPROVE_REQUEST_CLASS)) return false
+    }
+    const query: DocumentQuery<Doc> = { _id: tx.objectId }
+    const decision = await this.rowVisibility.resolveMutation(
+      ctx,
+      this.context.hierarchy,
+      tx.objectClass,
+      query,
+      identity
+    )
+    if (decision.kind === 'deny') return false
+    if (decision.kind === 'unrestricted') return true
+    const docs = await this.findAll(ctx, tx.objectClass, decision.query, { limit: 1 })
+    const doc = docs[0]
     if (doc === undefined) return false
-    return this.isCreatedByAccount(doc, account)
+    if (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxMixin) {
+      return await this.rowVisibility.canUpdate(
+        ctx,
+        this.context.hierarchy,
+        tx.objectClass,
+        doc,
+        tx as TxUpdateDoc<Doc> | TxMixin<Doc, Doc>,
+        identity
+      )
+    }
+    return true
   }
 
   private async isForbiddenTx (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
-    if (tx._class === core.class.TxMixin) return false
-
-    // For TxCreateDoc, check the new permission model first for covered types.
-    if (tx._class === core.class.TxCreateDoc) {
-      const cache = await this.getPermissionsCache(ctx)
-      const roleAllowedClasses = cache.roleAllowedClasses.get(account.role) ?? new Set<Ref<Class<Doc>>>()
-      const coveredClass = this.getCoveredClass(tx.objectClass, roleAllowedClasses)
-      if (coveredClass !== undefined) {
-        return false
-      }
-      // Uncovered class: fall through to TxAccessLevel check.
-    }
-
-    if (await this.hasMixinAccessLevel(ctx, tx, account)) {
-      return false
-    }
-
-    if (tx._class === core.class.TxUpdateDoc || tx._class === core.class.TxRemoveDoc) {
-      if (await this.isGuestMutationOnOwnDoc(ctx, tx, account)) {
-        return false
-      }
-    }
-
-    return true
+    if (!(await isClassAccessAllowed(this.context.hierarchy, this, this.classAccess, ctx, tx, account))) return true
+    return !(await this.canMutateVisibleRow(ctx, tx, account))
   }
 
   private async isForbiddenSpaceTx (ctx: MeasureContext, tx: TxCUD<Space>, account: Account): Promise<boolean> {
     if (tx._class === core.class.TxRemoveDoc) return true
     if (tx._class === core.class.TxCreateDoc) {
-      return !(await this.hasMixinAccessLevel(ctx, tx, account))
+      return !(await hasClassAccessLevel(this.context.hierarchy, this, ctx, tx, account))
     }
     if (tx._class === core.class.TxUpdateDoc) {
       const updateTx = tx as TxUpdateDoc<Space>
@@ -235,31 +195,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       if (ops.$push !== undefined || ops.$pull !== undefined) {
         return true
       }
-    }
-    return false
-  }
-
-  private async hasMixinAccessLevel (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
-    const h = this.context.hierarchy
-    const accessLevelMixin = h.classHierarchyMixin(tx.objectClass, core.mixin.TxAccessLevel)
-    if (accessLevelMixin === undefined) return false
-    if (tx._class === core.class.TxCreateDoc) {
-      return accessLevelMixin.createAccessLevel === AccountRole.Guest
-    }
-    if (tx._class === core.class.TxRemoveDoc) {
-      return accessLevelMixin.removeAccessLevel === AccountRole.Guest
-    }
-    if (tx._class === core.class.TxUpdateDoc) {
-      if (accessLevelMixin.isIdentity === true && account.socialIds.includes(tx.objectId as unknown as PersonId)) {
-        return true
-      }
-      if (accessLevelMixin.isIdentity === true && h.isDerived(tx.objectClass, contact.class.Person)) {
-        const person = (await this.findAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0] as
-          | Person
-          | undefined
-        return person?.personUuid === account.uuid
-      }
-      return accessLevelMixin.updateAccessLevel === AccountRole.Guest
     }
     return false
   }

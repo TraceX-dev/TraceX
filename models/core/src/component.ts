@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import core, { coreId } from '@hcengineering/core'
+import core, { coreId, type Doc, type Ref } from '@hcengineering/core'
 import type { IntlString } from '@hcengineering/platform'
 import { mergeIds } from '@hcengineering/platform'
 
@@ -28,5 +28,8 @@ export default mergeIds(coreId, core, {
     BlobVersion: '' as IntlString,
     BlobStorageId: '' as IntlString,
     BlobSize: '' as IntlString
+  },
+  ids: {
+    GuestActivitySettingsGuest: '' as Ref<Doc>
   }
 })

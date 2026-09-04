@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -180,7 +181,8 @@ export class ClientSession implements Session {
       ctx.pipeline.context.modelDb,
       ctx.socialStringsToUsers,
       this.token.extra?.service ?? '🤦‍♂️user',
-      this.getPermissionsGrant()
+      this.getPermissionsGrant(),
+      this.token.extra
     )
     ctx.ctx.contextData = contextData
   }
@@ -318,7 +320,19 @@ export class ClientSession implements Session {
         }
       } catch (err) {
         await ctx.sendError(ctx.requestId, 'Failed to tx', unknownError(err))
-        ctx.ctx.error('failed to tx', { err })
+        const sessionData = ctx.ctx.contextData as SessionData
+        const cud = TxProcessor.isExtendsCUD(tx._class) ? (tx as TxCUD<Doc>) : undefined
+        ctx.ctx.error('failed to tx', {
+          err,
+          accountUuid: sessionData.account.uuid,
+          accountRole: sessionData.account.role,
+          service: sessionData.service,
+          txClass: tx._class,
+          modifiedBy: tx.modifiedBy,
+          objectClass: cud?.objectClass,
+          objectId: cud?.objectId,
+          objectSpace: cud?.objectSpace
+        })
       }
     })
   }

@@ -123,12 +123,15 @@ jest.doMock('@hcengineering/platform', () => ({
   getResource: jest.fn(async () => mockPermissionsData)
 }))
 
+const mockClassHierarchyMixin = jest.fn(() => undefined as { policy: { kind: string } } | undefined)
+
 jest.doMock('@hcengineering/presentation', () => ({
   getClient: jest.fn(() => ({
     getHierarchy: jest.fn(() => ({
       getAncestors: jest.fn(() => []),
       isDerived: jest.fn((objectClass: Ref<Class<Doc>>, baseClass: Ref<Class<Doc>>) => objectClass === baseClass),
-      isMixin: jest.fn(() => false)
+      isMixin: jest.fn(() => false),
+      classHierarchyMixin: mockClassHierarchyMixin
     })),
     getModel: jest.fn(() => ({
       findAllSync: jest.fn(() => [])
@@ -196,6 +199,7 @@ describe('permissions', () => {
       disableNavigation: false,
       disableActions: false
     })
+    mockClassHierarchyMixin.mockReturnValue(undefined)
     await Promise.resolve()
   })
 
@@ -383,6 +387,44 @@ describe('permissions', () => {
 
     expect(current.canEdit(own)).toBe(false)
     expect(current.canComment(own)).toBe(false)
+  })
+
+  test('canRead/isOwnRecordsOnly are permissive for User regardless of RowVisibility', () => {
+    mockClassHierarchyMixin.mockReturnValue({ policy: { kind: 'denyAll' } })
+    setCurrentAccount(createAccount(AccountRole.User))
+
+    const current = getPermissions()
+
+    expect(current.canRead('test:class:Doc' as Ref<Class<Doc>>)).toBe(true)
+    expect(current.isOwnRecordsOnly('test:class:Doc' as Ref<Class<Doc>>)).toBe(false)
+  })
+
+  test('canRead/isOwnRecordsOnly default to permissive/shared for a restricted role without a declared policy', () => {
+    setCurrentAccount(createAccount(AccountRole.Guest))
+
+    const current = getPermissions()
+
+    expect(current.canRead('test:class:Doc' as Ref<Class<Doc>>)).toBe(true)
+    expect(current.isOwnRecordsOnly('test:class:Doc' as Ref<Class<Doc>>)).toBe(false)
+  })
+
+  test('canRead is false for a restricted role on a denyAll class', () => {
+    mockClassHierarchyMixin.mockReturnValue({ policy: { kind: 'denyAll' } })
+    setCurrentAccount(createAccount(AccountRole.Guest))
+
+    const current = getPermissions()
+
+    expect(current.canRead('test:class:Sensitive' as Ref<Class<Doc>>)).toBe(false)
+  })
+
+  test('isOwnRecordsOnly is true for a restricted role on an ownerField/linkedViaRecord class', () => {
+    setCurrentAccount(createAccount(AccountRole.Guest))
+
+    mockClassHierarchyMixin.mockReturnValue({ policy: { kind: 'ownerField' } })
+    expect(getPermissions().isOwnRecordsOnly('test:class:Request' as Ref<Class<Doc>>)).toBe(true)
+
+    mockClassHierarchyMixin.mockReturnValue({ policy: { kind: 'linkedViaRecord' } })
+    expect(getPermissions().isOwnRecordsOnly('test:class:MeetingMinutes' as Ref<Class<Doc>>)).toBe(true)
   })
 
   test('denies commenting when the guest link disables comments', () => {

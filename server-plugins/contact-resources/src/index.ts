@@ -44,7 +44,6 @@ import core, {
   type Space,
   SpaceType,
   systemAccountUuid,
-  readOnlyGuestAccountUuid,
   Tx,
   TxCreateDoc,
   TxCUD,
@@ -174,22 +173,18 @@ export async function OnEmployeeCreate (_txes: Tx[], control: TriggerControl): P
 
     const emp = control.hierarchy.as(person, contact.mixin.Employee)
     if (emp.role === 'GUEST') {
-      let readOnlyGuestSpaces: Space[] = []
-      const readonlyEmployees = await control.findAll(control.ctx, contact.mixin.Employee, {
-        personUuid: readOnlyGuestAccountUuid
-      })
-      if (readonlyEmployees.length !== 0) {
-        const readonlyEmployee = readonlyEmployees[0]
-        if (readonlyEmployee.active) {
-          readOnlyGuestSpaces = await control.findAll(control.ctx, core.class.Space, {
-            members: readOnlyGuestAccountUuid
-          })
-        }
-      }
-
+      // Note: this deliberately does NOT copy `readOnlyGuestAccountUuid`'s space membership or
+      // Collaborator grants onto the new named Guest account. "Spaces visible to anonymous"
+      // (Settings → Guest permissions → Anonymous tab, `AnonymousGuestSpaceInput.svelte`) is
+      // documented and presented to admins as governing the shared read-only/anonymous session
+      // only ("visitors without an account") - a separate, independent audience from named Guest
+      // invites, which are governed by the "Auto-join spaces" control on the Guest tab
+      // (`AvailableSpacesInput.svelte`, `Space.autoJoinForRoles`) below. Blanket-copying the
+      // anonymous list here previously let a named guest inherit access to any space ever marked
+      // anonymous-visible, regardless of `autoJoin`/`autoJoinForRoles` being off for it.
       const grantSpaces = await getGrantSpaces(control, control.ctx.contextData.grant)
 
-      for (const space of [...readOnlyGuestSpaces, ...grantSpaces]) {
+      for (const space of grantSpaces) {
         if (space._class === contact.class.PersonSpace || space.members.includes(account)) continue
 
         systemTxes.push(
@@ -215,20 +210,6 @@ export async function OnEmployeeCreate (_txes: Tx[], control: TriggerControl): P
             }
           })
         )
-      }
-
-      const collabs = await control.findAll(control.ctx, core.class.Collaborator, {
-        collaborator: readOnlyGuestAccountUuid
-      })
-
-      for (const collab of collabs) {
-        const pushTx = systemTxFactory.createTxCreateDoc(core.class.Collaborator, collab.space, {
-          attachedTo: collab.attachedTo,
-          collaborator: account,
-          attachedToClass: collab.attachedToClass,
-          collection: 'collaborators'
-        })
-        systemTxes.push(pushTx)
       }
 
       continue

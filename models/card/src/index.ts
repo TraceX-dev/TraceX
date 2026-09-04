@@ -1051,13 +1051,28 @@ export function createModel (builder: Builder): void {
     card.ids.GuestCardClassPermission
   )
 
+  // core.class.Collaborator's own ownerField policy would require the named collaborator to be the
+  // caller itself, so this is enforced separately - see canEditDocCollaborator.
+  builder.createDoc(
+    core.class.ClassPermission,
+    core.space.Model,
+    {
+      label: card.string.AllowEditingCollaborators,
+      scope: 'space',
+      targetClass: core.class.Collaborator
+    },
+    card.ids.GuestCollaboratorClassPermission
+  )
+
   builder.createDoc(
     core.class.ModulePermissionGroup,
     core.space.Model,
     {
       application: card.app.Card,
       role: AccountRole.Guest,
-      permissions: [card.ids.GuestCardClassPermission],
+      permissions: [card.ids.GuestCardClassPermission, card.ids.GuestCollaboratorClassPermission],
+      // Off by default - an admin opts in from Settings -> Guest permissions -> Cards.
+      disabledPermissions: [card.ids.GuestCollaboratorClassPermission],
       spaceClass: card.class.CardSpace,
       enabled: true,
       order: 20
@@ -1078,6 +1093,18 @@ export function createModel (builder: Builder): void {
     },
     card.ids.ModulePermissionGroupReadOnlyGuest
   )
+
+  // Guests may only update cards they created; read visibility stays ordinary space membership.
+  builder.mixin(card.class.Card, core.class.Class, core.mixin.TxAccessLevel, {
+    updateAccessLevel: AccountRole.Guest
+  })
+
+  builder.mixin(card.class.Card, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'publicReadable', reason: 'Card read visibility is governed by ordinary space membership' },
+    writePolicy: { kind: 'ownerField', field: 'createdBy', identity: 'socialId' },
+    allowKnownIdBypass: false,
+    scopeActivityToOwner: true
+  })
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ClassFilters, {
     filters: ['space'],

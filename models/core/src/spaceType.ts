@@ -17,7 +17,7 @@ import { ArrOf, Prop, TypeString, type Builder } from '@hcengineering/model'
 import { type Asset } from '@hcengineering/platform'
 import { getRoleAttributeLabel } from '@hcengineering/core'
 
-import { TSpacesTypeData, TTxAccessLevel } from './security'
+import { TRowVisibility, TSpacesTypeData, TTxAccessLevel } from './security'
 import core from './component'
 
 const roles = [
@@ -38,6 +38,7 @@ export function defineSpaceType (builder: Builder): void {
 
   builder.createModel(TSpacesTypeData)
   builder.createModel(TTxAccessLevel)
+  builder.createModel(TRowVisibility)
 
   builder.createDoc(
     core.class.SpaceTypeDescriptor,

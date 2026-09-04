@@ -19,6 +19,13 @@ export class TPublicLink extends TDoc implements PublicLink {
 export function createModel (builder: Builder): void {
   builder.createModel(TPublicLink)
 
+  // `_id` doubles as the link's bearer secret (see exchangeGuestToken), so unlike other
+  // RowVisibility classes it must NOT allow a known-id bypass - only the caller's own linkId.
+  builder.mixin(guest.class.PublicLink, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'ownerField', field: '_id', identity: 'linkId' },
+    allowKnownIdBypass: false
+  })
+
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {
     domain: GUEST_DOMAIN,
     disabled: [

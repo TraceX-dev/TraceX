@@ -69,7 +69,8 @@ import type {
   UserStatus,
   Version
 } from './classes'
-import { AccountRole, TxAccessLevel } from './classes'
+import { AccountRole } from './classes'
+import { type GuestActivitySettings, type RowVisibility, type TxAccessLevel } from './security'
 import { type Status, type StatusCategory } from './status'
 import type {
   Tx,
@@ -183,7 +184,8 @@ export default plugin(coreId, {
     CustomSequence: '' as Ref<Class<CustomSequence>>,
     ClassCollaborators: '' as Ref<Class<ClassCollaborators<Doc>>>,
     Collaborator: '' as Ref<Class<Collaborator>>,
-    ModulePermissionGroup: '' as Ref<Class<ModulePermissionGroup>>
+    ModulePermissionGroup: '' as Ref<Class<ModulePermissionGroup>>,
+    GuestActivitySettings: '' as Ref<Class<GuestActivitySettings>>
   },
   icon: {
     TypeString: '' as Asset,
@@ -203,6 +205,7 @@ export default plugin(coreId, {
   mixin: {
     ConfigurationElement: '' as Ref<Mixin<ConfigurationElement>>,
     IndexConfiguration: '' as Ref<Mixin<IndexingConfiguration<Doc>>>,
+    RowVisibility: '' as Ref<Mixin<RowVisibility>>,
     SpacesTypeData: '' as Ref<Mixin<Space>>,
     TransientConfiguration: '' as Ref<Mixin<TransientConfiguration>>,
     TxAccessLevel: '' as Ref<Mixin<TxAccessLevel>>,

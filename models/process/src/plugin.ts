@@ -33,7 +33,9 @@ export default mergeIds(processId, process, {
   ids: {
     ProcessSettings: '' as Ref<Doc>,
     ProcessToDoCreated: '' as Ref<Doc>,
-    ApproveRequestCreated: '' as Ref<Doc>
+    ApproveRequestCreated: '' as Ref<Doc>,
+    GuestApproveRequestClassPermission: '' as Ref<Doc>,
+    ModulePermissionGroupGuest: '' as Ref<Doc>
   },
   actionImpl: {
     ContinueExecution: '' as ViewAction
@@ -46,6 +48,7 @@ export default mergeIds(processId, process, {
     NewProcessToDo: '' as IntlString,
     ConfigLabel: '' as IntlString,
     ConfigDescription: '' as IntlString,
-    LogAction: '' as IntlString
+    LogAction: '' as IntlString,
+    AllowApproveRequestActions: '' as IntlString
   }
 })

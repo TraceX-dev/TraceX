@@ -201,7 +201,8 @@ export class SessionDataImpl implements SessionData {
     }
     >,
     readonly service: string,
-    readonly grant?: PermissionsGrant
+    readonly grant?: PermissionsGrant,
+    readonly extra?: Record<string, any>
   ) {
     this._removedMap = _removedMap
     this._contextCache = _contextCache

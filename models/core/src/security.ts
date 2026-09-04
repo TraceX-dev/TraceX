@@ -16,6 +16,7 @@
 import {
   DOMAIN_MODEL,
   DOMAIN_SPACE,
+  type GuestActivityScope,
   IndexKind,
   type ModulePermissionGroup,
   type AccountRole,
@@ -26,10 +27,13 @@ import {
   type ClassPermission,
   type CollectionSize,
   type Doc,
+  type GuestActivitySettings,
   type Permission,
   type Ref,
   type Role,
   type RolesAssignment,
+  type RowVisibility,
+  type RowVisibilityPolicy,
   type Space,
   type SpaceType,
   type SpaceTypeDescriptor,
@@ -200,6 +204,16 @@ export class TTxAccessLevel extends TClass implements TxAccessLevel {
   isIdentity?: boolean
 }
 
+/** See `RowVisibility` in `@hcengineering/core`. */
+@Mixin(core.mixin.RowVisibility, core.class.Class)
+export class TRowVisibility extends TClass implements RowVisibility {
+  policy!: RowVisibilityPolicy
+  writePolicy?: RowVisibilityPolicy
+  allowKnownIdBypass!: boolean
+  knownIdBypassFields?: string[]
+  scopeActivityToOwner?: boolean
+}
+
 @Model(core.class.ModulePermissionGroup, core.class.Doc, DOMAIN_MODEL)
 export class TModulePermissionGroup extends TDoc implements ModulePermissionGroup {
   @Prop(TypeRef(core.class.Doc), core.string.AttachedTo)
@@ -222,4 +236,14 @@ export class TModulePermissionGroup extends TDoc implements ModulePermissionGrou
 
   @Prop(TypeNumber(), core.string.Order)
     order?: number
+}
+
+/** See `GuestActivitySettings` in `@hcengineering/core`. */
+@Model(core.class.GuestActivitySettings, core.class.Doc, DOMAIN_MODEL)
+export class TGuestActivitySettings extends TDoc implements GuestActivitySettings {
+  @Prop(TypeString(), core.string.Roles)
+    role!: AccountRole
+
+  @Prop(TypeString(), core.string.Name)
+    activityScope!: GuestActivityScope
 }

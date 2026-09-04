@@ -558,6 +558,42 @@ export function createModel (builder: Builder): void {
     actions: [view.action.Delete]
   })
 
+  // Layer 1 only; GuestApproveRequestClassPermission below is the actual gate.
+  builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.TxAccessLevel, {
+    updateAccessLevel: AccountRole.ReadOnlyGuest
+  })
+
+  builder.mixin(process.class.ApproveRequest, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'ownerField', field: 'user', identity: 'personId' },
+    allowKnownIdBypass: false
+  })
+
+  builder.createDoc(
+    core.class.ClassPermission,
+    core.space.Model,
+    {
+      label: process.string.AllowApproveRequestActions,
+      scope: 'space',
+      targetClass: process.class.ApproveRequest
+    },
+    process.ids.GuestApproveRequestClassPermission
+  )
+
+  builder.createDoc(
+    core.class.ModulePermissionGroup,
+    core.space.Model,
+    {
+      application: process.app.Process,
+      role: AccountRole.Guest,
+      permissions: [process.ids.GuestApproveRequestClassPermission],
+      // Off by default - an admin opts in from Settings -> Guest permissions -> Process.
+      disabledPermissions: [process.ids.GuestApproveRequestClassPermission],
+      enabled: true,
+      order: 30
+    },
+    process.ids.ModulePermissionGroupGuest
+  )
+
   builder.createDoc(
     view.class.Viewlet,
     core.space.Model,

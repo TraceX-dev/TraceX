@@ -1,5 +1,6 @@
 import { Analytics } from '@hcengineering/analytics'
 import core, {
+  type Account,
   AccountRole,
   type AnyAttribute,
   type Attribute,
@@ -11,6 +12,7 @@ import core, {
   type FindResult,
   generateId,
   getCurrentAccount,
+  hasAccountRole,
   type Hierarchy,
   type Ref,
   type RefTo,
@@ -352,7 +354,8 @@ export class ReadOnlyAccessMiddleware extends BasePresentationMiddleware impleme
   }
 
   async tx (tx: Tx): Promise<TxResult> {
-    if (getCurrentAccount()?.role === AccountRole.ReadOnlyGuest) {
+    const account = getCurrentAccount()
+    if (account?.role === AccountRole.ReadOnlyGuest && !this.isTxAllowedByAccessLevel(tx, account)) {
       addNotification(
         await translate(view.string.ReadOnlyWarningTitle, {}, getCurrentLanguage()),
         await translate(view.string.ReadOnlyWarningMessage, {}, getCurrentLanguage()),
@@ -381,5 +384,26 @@ export class ReadOnlyAccessMiddleware extends BasePresentationMiddleware impleme
         throw err
       }
     }
+  }
+
+  private isTxAllowedByAccessLevel (tx: Tx, account: Account): boolean {
+    if (tx._class === core.class.TxApplyIf) {
+      const nested = (tx as TxApplyIf).txes
+      return nested.length > 0 && nested.every((item) => this.isTxAllowedByAccessLevel(item, account))
+    }
+    if (!TxProcessor.isExtendsCUD(tx._class)) return false
+
+    const mixin = this.client
+      .getHierarchy()
+      .classHierarchyMixin((tx as TxCUD<Doc>).objectClass, core.mixin.TxAccessLevel)
+    if (mixin === undefined) return false
+
+    const requiredRole =
+      tx._class === core.class.TxCreateDoc
+        ? mixin.createAccessLevel
+        : tx._class === core.class.TxRemoveDoc
+          ? mixin.removeAccessLevel
+          : mixin.updateAccessLevel
+    return requiredRole !== undefined && hasAccountRole(account, requiredRole)
   }
 }

@@ -14,6 +14,7 @@
 //
 
 import {
+  AccountRole,
   DOMAIN_BENCHMARK,
   DOMAIN_BLOB,
   DOMAIN_CONFIGURATION,
@@ -21,7 +22,8 @@ import {
   DOMAIN_SPACE,
   DOMAIN_STATUS,
   DOMAIN_TRANSIENT,
-  DOMAIN_TX
+  DOMAIN_TX,
+  GuestActivityScope
 } from '@hcengineering/core'
 import { type Builder } from '@hcengineering/model'
 import { TBenchmarkDoc } from './benchmark'
@@ -81,6 +83,7 @@ import {
 import { definePermissions } from './permissions'
 import {
   TAttributePermission,
+  TGuestActivitySettings,
   TModulePermissionGroup,
   TClassPermission,
   TPermission,
@@ -141,6 +144,7 @@ export function createModel (builder: Builder): void {
     TModulePermissionGroup,
     TAttributePermission,
     TClassPermission,
+    TGuestActivitySettings,
     TAttribute,
     TType,
     TEnumOf,
@@ -190,6 +194,28 @@ export function createModel (builder: Builder): void {
     TCollaborator,
     TVersionableClass,
     TTTransientTTL
+  )
+
+  builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.RowVisibility, {
+    policy: { kind: 'ownerField', field: 'collaborator', identity: 'accountUuid' },
+    allowKnownIdBypass: true,
+    knownIdBypassFields: ['attachedTo']
+  })
+
+  // Layer 1 only; card.ids.GuestCollaboratorClassPermission is the actual gate (see canEditDocCollaborator).
+  builder.mixin(core.class.Collaborator, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.ReadOnlyGuest,
+    removeAccessLevel: AccountRole.ReadOnlyGuest
+  })
+
+  builder.createDoc(
+    core.class.GuestActivitySettings,
+    core.space.Model,
+    {
+      role: AccountRole.Guest,
+      activityScope: GuestActivityScope.Any
+    },
+    core.ids.GuestActivitySettingsGuest
   )
 
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {

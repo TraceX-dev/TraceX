@@ -631,26 +631,6 @@ export enum AccountRole {
 /**
  * @public
  */
-export const roleOrder: Record<AccountRole, number> = {
-  [AccountRole.ReadOnlyGuest]: 5,
-  [AccountRole.DocGuest]: 10,
-  [AccountRole.Guest]: 20,
-  [AccountRole.User]: 30,
-  [AccountRole.Maintainer]: 40,
-  [AccountRole.Owner]: 50,
-  [AccountRole.Admin]: 100
-}
-
-export interface TxAccessLevel extends Class<Doc> {
-  createAccessLevel?: AccountRole
-  removeAccessLevel?: AccountRole
-  updateAccessLevel?: AccountRole
-  isIdentity?: boolean
-}
-
-/**
- * @public
- */
 export interface Person {
   uuid: PersonUuid
   firstName: string
