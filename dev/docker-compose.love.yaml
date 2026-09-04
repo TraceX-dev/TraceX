@@ -9,6 +9,11 @@
 #   - Webhook -> love:  http://127.0.0.1:8097/webhook
 #
 services:
+  redis:
+    image: redis:8.0.2-alpine3.21
+    ports:
+      - 6379:6379
+    restart: unless-stopped
   love:
     image: tracexapp/love
     container_name: love

@@ -33,7 +33,6 @@ The Huly platform consists of **30+ microservices** working together in a distri
 | Service | Port | Description |
 |---------|------|-------------|
 | **collaborator** | 3078 | Real-time document collaboration using Y.js CRDT. Enables simultaneous editing with conflict resolution. |
-| **hulypulse** | 8099 | WebSocket notification server. Handles real-time push notifications to connected clients. |
 | **hulygun** | - | Event processor. Consumes and processes events from Redpanda for real-time updates. |
 
 ### Media Services
@@ -77,7 +76,6 @@ The Huly platform consists of **30+ microservices** working together in a distri
 | **elastic** | 9200 | Elasticsearch search engine. Stores full-text search indexes managed by fulltext service. |
 | **minio** | 9000, 9001 | S3-compatible object storage. Stores binary files, attachments, images, and blobs in buckets (blobs, eu, backups). |
 | **redpanda** | 9092, 19092 | Kafka-compatible event streaming. Provides reliable async messaging between services. |
-| **redis** | 6379 | In-memory cache and pub/sub. Used by HulyPulse for real-time notifications. |
 
 ### Monitoring & Observability
 
@@ -93,7 +91,6 @@ The Huly platform consists of **30+ microservices** working together in a distri
 - **Primary Database**: All services → CockroachDB (main application data)
 - **Search Index**: Fulltext → Elasticsearch
 - **Object Storage**: Services → MinIO (S3 API)
-- **Cache/Pub-Sub**: HulyPulse → Redis
 - **Real-time Updates**: Client ↔ Transactor (WebSocket), Client ↔ Collaborator (WebSocket)
 
 ---
@@ -131,7 +128,6 @@ graph TB
     
     subgraph "Real-time"
         Collaborator[Collaborator<br/>:3078<br/>Doc Sync]
-        Pulse[HulyPulse<br/>:8099<br/>WebSocket]
         Gun[HulyGun<br/>Events]
     end
     
@@ -164,7 +160,6 @@ graph TB
         Elasticsearch[(Elasticsearch<br/>:9200)]
         Minio[(MinIO<br/>:9000)]
         Redpanda[Redpanda<br/>:9092<br/>Kafka]
-        Redis[(Redis<br/>:6379)]
     end
     
     Browser --> Front
@@ -174,7 +169,6 @@ graph TB
     Front --> Transactor
     Front --> Collaborator
     Front --> Datalake
-    Front --> Pulse
     
     Account --> CockroachDB
     Workspace --> CockroachDB
@@ -193,7 +187,6 @@ graph TB
     Fulltext --> Rekoni
     Fulltext --> Redpanda
     
-    Pulse --> Redis
     Gun --> Redpanda
     
     Stream --> Datalake
@@ -376,7 +369,6 @@ sequenceDiagram
 | rekoni | tracexapp/rekoni-service | 4004 | Document intelligence | stats |
 | **Real-time** | | | | |
 | collaborator | tracexapp/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
-| hulypulse | tracexapp/hulypulse | 8099 | WebSocket notifications | redis |
 | hulygun | tracexapp/hulygun | - | Event processor | redpanda, account |
 | **Media** | | | | |
 | stream | tracexapp/stream | 1080 | Video streaming | datalake, redpanda |
@@ -399,7 +391,6 @@ sequenceDiagram
 | elastic | elasticsearch:7.14.2 | 9200 | Search engine for full-text indexes | - |
 | minio | minio/minio | 9000, 9001 | Object storage (S3) for files and blobs | - |
 | redpanda | redpandadata/redpanda:v24.3.6 | 9092, 19092 | Event streaming (Kafka) for async processing | - |
-| redis | redis:8.0.2-alpine3.21 | 6379 | Cache & pub/sub for real-time features | - |
 | **Monitoring** | | | | |
 | jaeger | jaegertracing/all-in-one | 16686, 4318 | Distributed tracing and performance monitoring | - |
 | redpanda_console | redpandadata/console:v2.8.3 | 8000 | Kafka management UI | redpanda |
@@ -441,7 +432,6 @@ sequenceDiagram
 - `COLLABORATOR_URL`: `ws://tracex.local:3078`
 - `DATALAKE_URL`: `http://tracex.local:4030`
 - `HULYLAKE_URL`: `http://tracex.local:8096`
-- `PULSE_URL`: `ws://tracex.local:8099/ws`
 - `PREVIEW_URL`: `http://tracex.local:4040`
 - `STREAM_URL`: `http://tracex.local:1080/recording`
 - `PAYMENT_URL`: `http://tracex.local:3040`
@@ -477,12 +467,7 @@ sequenceDiagram
 ### Backup Configuration
 - `BUCKET_NAME`: `backups`
 - `BACKUP_STORAGE`: `${BACKUP_STORAGE_CONFIG}`
-- `INTERVAL`: `60` - Backup interval in seconds
-
-### Redis Configuration (HulyPulse)
-- `HULY_REDIS_URLS`: `redis://redis:6379`
-- `HULY_BIND_PORT`: `8099`
-
+- `INTERVAL`: `60` - Backup interval in second
 ### Stream Service
 - `STREAM_ENDPOINT_URL`: `datalake://tracex.local:4030`
 - `STREAM_INSECURE`: `true`

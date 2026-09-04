@@ -373,7 +373,7 @@
       "commandKind": "global",
       "name": "docker:min",
       "summary": "Build minified docker images for resource-constrained dev",
-      "description": "Build docker images excluding optional services (hulypulse, redis, process, backup, rating, preview, link-preview, elastic, fulltext, payment, stats, print, sign, hulygun, hulykvs). Use with rush docker:up:min",
+      "description": "Build docker images excluding optional services (process, backup, rating, preview, link-preview, elastic, fulltext, payment, stats, print, sign, hulygun, hulykvs). Use with rush docker:up:min",
       "safeForSimultaneousRushProcesses": true,
       "shellCommand": "./common/scripts/docker.sh --minified"
     },
