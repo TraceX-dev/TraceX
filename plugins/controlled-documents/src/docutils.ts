@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,13 +15,18 @@
 //
 
 import { type Employee } from '@hcengineering/contact'
-import core, {
+import {
+  allocateWithRetries,
+  type AllocationOutcome,
   type AttachedData,
   type Blob,
   type Class,
   type Data,
+  type DocumentQuery,
   type Mixin,
   type Ref,
+  SortingOrder,
+  type Space,
   type TxOperations
 } from '@hcengineering/core'
 import {
@@ -38,8 +44,12 @@ import {
 } from './types'
 import { makeRank } from '@hcengineering/rank'
 
-import documents from './plugin'
-import { getDocumentId, getFirstRank, TEMPLATE_PREFIX } from './utils'
+import documents, { documentsId } from './plugin'
+import { getFirstRank, matchDocumentId, TEMPLATE_PREFIX } from './utils'
+
+export const DOCUMENT_SEQUENCE_NAMESPACE = `${documentsId}.sequence`
+export const TEMPLATE_SEQUENCE_SCOPE = 'templates'
+export const DOCUMENT_SEQUENCE_KEY = 'seqNumber'
 
 async function getParentPath (client: TxOperations, parent: Ref<ProjectDocument>): Promise<Array<Ref<DocumentMeta>>> {
   const parentDocObj = await client.findOne(documents.class.ProjectDocument, {
@@ -77,52 +87,204 @@ export async function createControlledDocFromTemplate (
     return { seqNumber: -1, success: false }
   }
 
-  // Try fast path first (assumes template sequence is in sync)
-  let { seqNumber, prefix, content, category } = await useDocumentTemplate(client, templateId, false)
-  let actualCode = getDocumentId({ prefix, seqNumber })
-  let { success, documentMetaId } = await createControlledDocMetadata(
-    client,
-    templateId,
-    documentId,
-    space,
-    project,
-    parent,
-    prefix,
-    seqNumber,
-    actualCode,
-    spec.title
-  )
-
-  // If creation failed due to seqNumber conflict, retry with full uniqueness check
-  if (!success) {
-    // Retry with expensive check to find actual max seqNumber
-    const retryResult = await useDocumentTemplate(client, templateId, true)
-    seqNumber = retryResult.seqNumber
-    prefix = retryResult.prefix
-    content = retryResult.content
-    category = retryResult.category
-    actualCode = getDocumentId({ prefix, seqNumber })
-    const retryMetadata = await createControlledDocMetadata(
-      client,
-      templateId,
-      documentId,
-      space,
-      project,
-      parent,
-      prefix,
-      seqNumber,
-      actualCode,
-      spec.title
-    )
-    success = retryMetadata.success
-    documentMetaId = retryMetadata.documentMetaId
-  }
-
-  if (!success) {
+  const { seqNumber: minimum, prefix, content, category, templateSpace } = await useDocumentTemplate(client, templateId)
+  if (minimum < 1) {
+    console.warn('createControlledDocFromTemplate: template not found', { templateId })
     return { seqNumber: -1, success: false }
   }
 
-  await client.addCollection(
+  // A code that is not an identifier is kept as the user typed it.
+  const parsedCode = spec.code === '' ? undefined : matchDocumentId(spec.code)
+  const usesSequenceCode = parsedCode === undefined || parsedCode?.prefix === prefix
+
+  return await allocateDocumentIdentifier(
+    client,
+    {
+      scope: templateId,
+      minimum,
+      conflictQuery: { template: templateId },
+      codePrefix: usesSequenceCode ? prefix : undefined,
+      code: usesSequenceCode ? undefined : spec.code
+    },
+    async (seqNumber, code) =>
+      await createControlledDocAttempt(
+        client,
+        templateId,
+        documentId,
+        spec,
+        space,
+        project,
+        parent,
+        prefix,
+        seqNumber,
+        code,
+        content,
+        category,
+        templateSpace,
+        docClass
+      )
+  )
+}
+
+export interface DocumentAllocation {
+  /** Scope of the document number sequence: a template id, or {@link TEMPLATE_SEQUENCE_SCOPE}. */
+  scope: string
+  /** Lowest acceptable number. */
+  minimum?: number
+  /** Query selecting documents that share the allocated number. */
+  conflictQuery: DocumentQuery<Document>
+  /** Prefix the code follows, when it is derived from the allocated number. */
+  codePrefix?: string
+  /** Code to start from, when it does not follow the allocated number. */
+  code?: string
+}
+
+/**
+ * Allocates a document number and code and retries the creation while either of them is taken,
+ * see {@link allocateWithRetries}. Document numbers come from the per-template sequence and
+ * codes that do not follow it from the per-prefix one.
+ */
+export async function allocateDocumentIdentifier (
+  client: TxOperations,
+  allocation: DocumentAllocation,
+  attempt: (seqNumber: number, code: string) => Promise<boolean>,
+  isAborted?: () => Promise<boolean>
+): Promise<AllocationOutcome> {
+  return await allocateWithRetries(
+    client,
+    {
+      namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+      scope: allocation.scope,
+      sequence: DOCUMENT_SEQUENCE_KEY,
+      minimum: allocation.minimum,
+      codePrefix: allocation.codePrefix,
+      code: allocation.code,
+      codeNamespace: documentsId
+    },
+    attempt,
+    async (seqNumber, code) => {
+      const [sequenceConflict, codeConflict] = await Promise.all([
+        client.findOne(documents.class.Document, { ...allocation.conflictQuery, seqNumber }),
+        client.findOne(documents.class.Document, { code })
+      ])
+      return { sequence: sequenceConflict !== undefined, code: codeConflict !== undefined }
+    },
+    isAborted
+  )
+}
+
+/**
+ * Calculate the next available seqNumber by checking existing documents with the template.
+ * The template sequence is only a hint, so the highest number actually taken wins.
+ */
+async function calculateNextSeqNumber (
+  client: TxOperations,
+  templateId: Ref<DocumentTemplate>,
+  currentTemplateSequence: number
+): Promise<number> {
+  const lastDocument = await client.findOne(
+    documents.class.Document,
+    { template: templateId },
+    { sort: { seqNumber: SortingOrder.Descending }, projection: { seqNumber: 1 } }
+  )
+
+  return Math.max(currentTemplateSequence, lastDocument?.seqNumber ?? -1) + 1
+}
+
+export async function useDocumentTemplate (
+  client: TxOperations,
+  templateId: Ref<DocumentTemplate>
+): Promise<{
+    seqNumber: number
+    prefix: string
+    content: Ref<Blob> | null
+    category: Ref<DocumentCategory>
+    templateSpace: Ref<Space>
+  }> {
+  const template = await client.findOne(documents.mixin.DocumentTemplate, {
+    _id: templateId
+  })
+
+  if (template === undefined) {
+    return {
+      seqNumber: -1,
+      prefix: '',
+      content: null,
+      category: '' as Ref<DocumentCategory>,
+      templateSpace: '' as Ref<Space>
+    }
+  }
+
+  const nextSeqNumber = await calculateNextSeqNumber(client, templateId, template.sequence)
+  const prefix = template.docPrefix
+
+  return {
+    seqNumber: nextSeqNumber,
+    prefix,
+    content: template.content,
+    category: template.category as Ref<DocumentCategory>,
+    templateSpace: template.space
+  }
+}
+
+async function createControlledDocAttempt (
+  client: TxOperations,
+  templateId: Ref<DocumentTemplate>,
+  documentId: Ref<ControlledDocument>,
+  spec: AttachedData<ControlledDocument>,
+  space: Ref<DocumentSpace>,
+  project: Ref<Project> | undefined,
+  parent: Ref<ProjectDocument> | undefined,
+  prefix: string,
+  seqNumber: number,
+  code: string,
+  content: Ref<Blob> | null,
+  category: Ref<DocumentCategory>,
+  templateSpace: Ref<Space>,
+  docClass: Ref<Class<ControlledDocument>>
+): Promise<boolean> {
+  const projectId = project ?? documents.ids.NoProject
+
+  const ops = client.apply('create-qms-document')
+  ops.notMatch(documents.class.Document, { template: templateId, seqNumber })
+  ops.notMatch(documents.class.Document, { code })
+
+  const documentMetaId = await ops.createDoc(documents.class.DocumentMeta, space, {
+    documents: 0,
+    title: `${code} ${spec.title}`
+  })
+
+  let path: Array<Ref<DocumentMeta>> = []
+  if (parent !== undefined) {
+    path = await getParentPath(client, parent)
+  }
+
+  const parentMeta = path[0] ?? documents.ids.NoParent
+  const lastRank = await getFirstRank(client, space, projectId, parentMeta)
+
+  const projectMetaId = await ops.createDoc(documents.class.ProjectMeta, space, {
+    project: projectId,
+    meta: documentMetaId,
+    path,
+    parent: parentMeta,
+    documents: 0,
+    rank: makeRank(lastRank, undefined)
+  })
+
+  await ops.addCollection(
+    documents.class.ProjectDocument,
+    space,
+    projectMetaId,
+    documents.class.ProjectMeta,
+    'documents',
+    {
+      project: projectId,
+      initial: projectId,
+      document: documentId
+    }
+  )
+
+  await ops.addCollection(
     docClass,
     space,
     documentMetaId,
@@ -130,6 +292,7 @@ export async function createControlledDocFromTemplate (
     'documents',
     {
       ...spec,
+      code,
       category,
       template: templateId,
       seqNumber,
@@ -140,68 +303,36 @@ export async function createControlledDocFromTemplate (
     documentId
   )
 
-  return { seqNumber, success: true }
+  // Best effort hint for the UI: concurrent creations may leave it behind,
+  // the custom sequence stays the source of truth.
+  await ops.updateMixin(templateId, documents.class.Document, templateSpace, documents.mixin.DocumentTemplate, {
+    sequence: seqNumber
+  })
+
+  const success = await ops.commit()
+
+  if (!success.result) {
+    console.warn('createControlledDocAttempt: ops.commit() failed', {
+      templateId,
+      documentId,
+      space,
+      project,
+      parent,
+      prefix,
+      seqNumber
+    })
+  }
+
+  return success.result
 }
 
 /**
- * Calculate the next available seqNumber by checking existing documents with the template.
+ * Creates hierarchy metadata with a provisional code, without allocating a number for it.
+ * The caller is expected to allocate the real code and overwrite the meta title when it
+ * creates the document itself, as the importer does in its second phase.
+ *
+ * @deprecated Prefer {@link createControlledDocFromTemplate}, which does both at once.
  */
-async function calculateNextSeqNumberWithCheck (
-  client: TxOperations,
-  templateId: Ref<DocumentTemplate>,
-  currentTemplateSequence: number
-): Promise<number> {
-  const existingDocs = await client.findAll(
-    documents.class.Document,
-    {
-      template: templateId
-    },
-    {
-      projection: { seqNumber: 1 }
-    }
-  )
-
-  const maxExistingSeqNumber = existingDocs.length > 0 ? Math.max(...existingDocs.map((doc) => doc.seqNumber ?? 0)) : -1
-
-  return Math.max(currentTemplateSequence, maxExistingSeqNumber) + 1
-}
-
-export async function useDocumentTemplate (
-  client: TxOperations,
-  templateId: Ref<DocumentTemplate>,
-  checkExisting: boolean = false
-): Promise<{ seqNumber: number, prefix: string, content: Ref<Blob> | null, category: Ref<DocumentCategory> }> {
-  const template = await client.findOne(documents.mixin.DocumentTemplate, {
-    _id: templateId
-  })
-
-  if (template === undefined) {
-    return { seqNumber: -1, prefix: '', content: null, category: '' as Ref<DocumentCategory> }
-  }
-
-  let nextSeqNumber: number
-
-  if (checkExisting) {
-    nextSeqNumber = await calculateNextSeqNumberWithCheck(client, templateId, template.sequence)
-  } else {
-    nextSeqNumber = template.sequence + 1
-  }
-
-  // Update template sequence to nextSeqNumber in a single atomic operation
-  await client.updateMixin(templateId, documents.class.Document, template.space, documents.mixin.DocumentTemplate, {
-    sequence: nextSeqNumber
-  })
-
-  const prefix = template.docPrefix
-
-  return {
-    seqNumber: nextSeqNumber,
-    prefix,
-    content: template.content,
-    category: template.category as Ref<DocumentCategory>
-  }
-}
-
 export async function createControlledDocMetadata (
   client: TxOperations,
   templateId: Ref<DocumentTemplate>,
@@ -221,36 +352,16 @@ export async function createControlledDocMetadata (
     projectDocumentId: Ref<ProjectDocument>
   }> {
   const projectId = project ?? documents.ids.NoProject
-
-  const ops = client.apply('create-qms-document')
-
-  ops.notMatch(documents.class.Document, {
-    template: templateId,
-    seqNumber
-  })
-
-  ops.notMatch(documents.class.Document, {
-    code: specCode
-  })
-
+  const ops = client.apply('create-qms-document-metadata')
   const documentMetaId = await ops.createDoc(
     documents.class.DocumentMeta,
     space,
-    {
-      documents: 0,
-      title: `${specCode} ${specTitle}`
-    },
+    { documents: 0, title: `${specCode} ${specTitle}` },
     metaId
   )
-
-  let path: Array<Ref<DocumentMeta>> = []
-  if (parent !== undefined) {
-    path = await getParentPath(client, parent)
-  }
-
+  const path = parent === undefined ? [] : await getParentPath(client, parent)
   const parentMeta = path[0] ?? documents.ids.NoParent
   const lastRank = await getFirstRank(client, space, projectId, parentMeta)
-
   const projectMetaId = await ops.createDoc(documents.class.ProjectMeta, space, {
     project: projectId,
     meta: documentMetaId,
@@ -259,37 +370,15 @@ export async function createControlledDocMetadata (
     documents: 0,
     rank: makeRank(lastRank, undefined)
   })
-
-  const projectDocumentId = await client.addCollection(
+  const projectDocumentId = await ops.addCollection(
     documents.class.ProjectDocument,
     space,
     projectMetaId,
     documents.class.ProjectMeta,
     'documents',
-    {
-      project: projectId,
-      initial: projectId,
-      document: documentId
-    }
+    { project: projectId, initial: projectId, document: documentId }
   )
-
   const success = await ops.commit()
-
-  if (!success.result) {
-    console.warn('createControlledDocMetadata: ops.commit() failed', {
-      templateId,
-      documentId,
-      space,
-      project,
-      parent,
-      prefix,
-      seqNumber,
-      specCode,
-      specTitle,
-      documentMetaId,
-      projectDocumentId
-    })
-  }
 
   return { success: success.result, seqNumber, documentMetaId, projectDocumentId }
 }
@@ -308,68 +397,128 @@ export async function createDocumentTemplate (
   author?: Ref<Employee>,
   changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
 ): Promise<{ seqNumber: number, success: boolean }> {
-  const { success, seqNumber, code, documentMetaId } = await createDocumentTemplateMetadata(
-    client,
-    _class,
-    space,
-    _mixin,
-    project,
-    parent,
-    templateId,
-    prefix,
-    spec.code ?? '',
-    spec.title
+  // A code that is not an identifier is kept as the user typed it.
+  const requestedCode = spec.code ?? ''
+  const parsedCode = requestedCode === '' ? undefined : matchDocumentId(requestedCode)
+  const usesSequenceCode = parsedCode === undefined || parsedCode?.prefix === TEMPLATE_PREFIX
+  const lastTemplate = await client.findOne(
+    documents.class.Document,
+    { template: { $exists: false } },
+    { sort: { seqNumber: SortingOrder.Descending }, projection: { seqNumber: 1 } }
   )
+  const minimum = Math.max(spec.seqNumber, (lastTemplate?.seqNumber ?? 0) + 1, 1)
 
-  if (!success) {
-    return { seqNumber: -1, success: false }
-  }
+  return await allocateDocumentIdentifier(
+    client,
+    {
+      scope: TEMPLATE_SEQUENCE_SCOPE,
+      minimum,
+      conflictQuery: { template: { $exists: false } },
+      codePrefix: usesSequenceCode ? TEMPLATE_PREFIX : undefined,
+      code: usesSequenceCode ? undefined : requestedCode
+    },
+    async (seqNumber, code) =>
+      await createDocumentTemplateAttempt(client, {
+        _class,
+        space,
+        _mixin,
+        project,
+        parent,
+        templateId,
+        prefix,
+        spec,
+        category,
+        author,
+        changeControl,
+        seqNumber,
+        code
+      }),
+    // A template prefix is unique, so a taken prefix can never be resolved by a new sequence.
+    async () => (await client.findOne(documents.mixin.DocumentTemplate, { docPrefix: prefix })) !== undefined
+  )
+}
 
-  const ops = client.apply()
+interface DocumentTemplateAttempt {
+  _class: Ref<Class<Document>>
+  space: Ref<DocumentSpace>
+  _mixin: Ref<Mixin<DocumentTemplate>>
+  project: Ref<Project> | undefined
+  parent: Ref<ProjectDocument> | undefined
+  templateId: Ref<ControlledDocument>
+  prefix: string
+  spec: Omit<AttachedData<ControlledDocument>, 'prefix'>
+  category: Ref<DocumentCategory>
+  author: Ref<Employee> | undefined
+  changeControl: { id: Ref<ChangeControl>, data: Data<ChangeControl> } | undefined
+  seqNumber: number
+  code: string
+}
+
+async function createDocumentTemplateAttempt (client: TxOperations, data: DocumentTemplateAttempt): Promise<boolean> {
+  const projectId = data.project ?? documents.ids.NoProject
+  const ops = client.apply('create-qms-document')
+  ops.notMatch(documents.mixin.DocumentTemplate, { docPrefix: data.prefix })
+  ops.notMatch(documents.class.Document, { template: { $exists: false }, seqNumber: data.seqNumber })
+  ops.notMatch(documents.class.Document, { code: data.code })
+
+  const path = data.parent === undefined ? [] : await getParentPath(client, data.parent)
+  const parentMeta = path[0] ?? documents.ids.NoParent
+  const documentMetaId = await ops.createDoc(documents.class.DocumentMeta, data.space, {
+    documents: 0,
+    title: `${data.code} ${data.spec.title}`
+  })
+  const lastRank = await getFirstRank(client, data.space, projectId, parentMeta)
+  const projectMetaId = await ops.createDoc(documents.class.ProjectMeta, data.space, {
+    project: projectId,
+    meta: documentMetaId,
+    path,
+    parent: parentMeta,
+    documents: 0,
+    rank: makeRank(lastRank, undefined)
+  })
+  await ops.addCollection(
+    documents.class.ProjectDocument,
+    data.space,
+    projectMetaId,
+    documents.class.ProjectMeta,
+    'documents',
+    { project: projectId, initial: projectId, document: data.templateId }
+  )
   await ops.addCollection<DocumentMeta, HierarchyDocument>(
-    _class,
-    space,
+    data._class,
+    data.space,
     documentMetaId,
     documents.class.DocumentMeta,
     'documents',
     {
-      ...spec,
-      code,
-      seqNumber,
-      category,
+      ...data.spec,
+      code: data.code,
+      seqNumber: data.seqNumber,
+      category: data.category,
       prefix: TEMPLATE_PREFIX,
-      author,
-      owner: author,
-      content: spec.content ?? null
+      author: data.author,
+      owner: data.author,
+      content: data.spec.content ?? null
     },
-    templateId
+    data.templateId
   )
-  await ops.createMixin(templateId, documents.class.Document, space, _mixin, {
+  await ops.createMixin(data.templateId, documents.class.Document, data.space, data._mixin, {
     sequence: 0,
-    docPrefix: prefix
+    docPrefix: data.prefix
   })
-  if (changeControl !== undefined) {
-    await ops.createDoc(documents.class.ChangeControl, space, changeControl.data, changeControl.id)
+  if (data.changeControl !== undefined) {
+    await ops.createDoc(documents.class.ChangeControl, data.space, data.changeControl.data, data.changeControl.id)
   }
-  const commit = await ops.commit()
-
-  if (!commit.result) {
-    console.warn('createDocumentTemplate: ops.commit() failed', {
-      _class,
-      space,
-      _mixin,
-      project,
-      parent,
-      templateId,
-      prefix,
-      category,
-      author
-    })
-  }
-
-  return { seqNumber, success: commit.result }
+  return (await ops.commit()).result
 }
 
+/**
+ * Creates template hierarchy metadata with a provisional code, without allocating a number
+ * for it. The caller is expected to allocate the real code and overwrite the meta title when
+ * it creates the template itself, as the importer does in its second phase.
+ *
+ * @deprecated Prefer {@link createDocumentTemplate}, which creates the template atomically.
+ */
 export async function createDocumentTemplateMetadata (
   client: TxOperations,
   _class: Ref<Class<Document>>,
@@ -389,95 +538,39 @@ export async function createDocumentTemplateMetadata (
     documentMetaId: Ref<DocumentMeta>
     projectDocumentId: Ref<ProjectDocument>
   }> {
-  const projectId = project ?? documents.ids.NoProject
-
-  const incResult = await client.updateDoc(
-    core.class.Sequence,
-    documents.space.Documents,
-    documents.sequence.Templates,
-    {
-      $inc: { sequence: 1 }
-    },
-    true
-  )
-  const seqNumber = (incResult as any).object.sequence as number
+  const parsedCode = specCode === '' ? undefined : matchDocumentId(specCode)
+  const seqNumber = parsedCode?.seqNumber ?? 1
   const code = specCode === '' ? `${TEMPLATE_PREFIX}-${seqNumber}` : specCode
-
-  let path: Array<Ref<DocumentMeta>> = []
-
-  if (parent !== undefined) {
-    path = await getParentPath(client, parent)
-  }
-
-  const ops = client.apply('create-qms-document')
-
-  ops.notMatch(documents.class.Document, {
-    template: { $exists: false },
-    seqNumber
-  })
-
-  ops.notMatch(documents.class.Document, {
-    code
-  })
-
-  ops.notMatch(documents.mixin.DocumentTemplate, {
-    docPrefix: prefix
-  })
+  const projectId = project ?? documents.ids.NoProject
+  const ops = client.apply('create-qms-document-metadata')
+  ops.notMatch(documents.mixin.DocumentTemplate, { docPrefix: prefix })
 
   const documentMetaId = await ops.createDoc(
     documents.class.DocumentMeta,
     space,
-    {
-      documents: 0,
-      title: `${code} ${specTitle}`
-    },
+    { documents: 0, title: `${code} ${specTitle}` },
     metaId
   )
-
+  const path = parent === undefined ? [] : await getParentPath(client, parent)
   const parentMeta = path[0] ?? documents.ids.NoParent
   const lastRank = await getFirstRank(client, space, projectId, parentMeta)
-
   const projectMetaId = await ops.createDoc(documents.class.ProjectMeta, space, {
     project: projectId,
     meta: documentMetaId,
     path,
-    parent: path[0] ?? documents.ids.NoParent,
+    parent: parentMeta,
     documents: 0,
     rank: makeRank(lastRank, undefined)
   })
-
-  const projectDocumentId = await client.addCollection(
+  const projectDocumentId = await ops.addCollection(
     documents.class.ProjectDocument,
     space,
     projectMetaId,
     documents.class.ProjectMeta,
     'documents',
-    {
-      project: projectId,
-      initial: projectId,
-      document: templateId
-    }
+    { project: projectId, initial: projectId, document: templateId }
   )
-
   const success = await ops.commit()
-
-  if (!success.result) {
-    console.warn('createDocumentTemplateMetadata: ops.commit() failed', {
-      _class,
-      space,
-      _mixin,
-      project,
-      parent,
-      templateId,
-      prefix,
-      specCode,
-      specTitle,
-      seqNumber,
-      code,
-      documentMetaId,
-      projectDocumentId
-    })
-  }
 
   return { success: success.result, seqNumber, code, documentMetaId, projectDocumentId }
 }

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,15 @@
 // limitations under the License.
 //
 
-import { type Class, type Doc, type MeasureContext, type Ref, type Space, type TxOperations } from '@hcengineering/core'
+import {
+  parseIdentifier,
+  type Class,
+  type Doc,
+  type MeasureContext,
+  type Ref,
+  type Space,
+  type TxOperations
+} from '@hcengineering/core'
 import { type ExportState } from './types'
 
 /**
@@ -103,40 +112,11 @@ export class DataMapper {
    * Special values:
    * - '$currentUser' is replaced with current account's employee ID
    * - '$generateSeqNumber' generates seqNumber based on minimum available value
-   * - '$generateCode' generates code from prefix and seqNumber
+   * - '$preserveUniqueCode' marks the code as allocated on document creation, which
+   *   preserves it when free and renumbers it on conflict
    */
   private async applyFieldMappers (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
-    const hierarchy = this.targetClient.getHierarchy()
-
-    // Find field mapper for this class or any of its base classes
-    let fieldMapper: Record<string, any> | undefined
-
-    // First check exact class match
-    if (this.fieldMappers[docClass] !== undefined) {
-      fieldMapper = this.fieldMappers[docClass]
-      this.context.info(`Found exact field mapper match for class ${docClass}`)
-    } else {
-      // Check all base classes - find the most specific (closest) mapper
-      let bestMapper: Record<string, any> | undefined
-      let bestMapperClass: string | undefined
-
-      for (const [className, mapper] of Object.entries(this.fieldMappers)) {
-        const mapperClass = className as Ref<Class<Doc>>
-        if (hierarchy.isDerived(docClass, mapperClass)) {
-          if (bestMapper === undefined) {
-            bestMapper = mapper
-            bestMapperClass = className
-          } else if (hierarchy.isDerived(mapperClass, bestMapperClass as Ref<Class<Doc>>)) {
-            bestMapper = mapper
-            bestMapperClass = className
-          }
-        }
-      }
-
-      if (bestMapper !== undefined) {
-        fieldMapper = bestMapper
-      }
-    }
+    const fieldMapper = this.findFieldMapper(docClass)
 
     if (fieldMapper === undefined) {
       return
@@ -155,9 +135,8 @@ export class DataMapper {
       } else if (fieldValue === '$generateSeqNumber') {
         // Generate seqNumber based on minimum available value
         await this.generateSeqNumber(docClass, data)
-      } else if (fieldValue === '$generateCode') {
-        // Generate code from prefix and seqNumber
-        await this.generateCode(docClass, data)
+      } else if (fieldValue === '$preserveUniqueCode') {
+        await this.preserveUniqueCode(docClass, data)
       } else if (fieldValue === '') {
         // Empty string means clear the field
         data[fieldName] = undefined
@@ -245,43 +224,48 @@ export class DataMapper {
   }
 
   /**
-   * Generate code from prefix and seqNumber using the pattern prefix-seqNumber.
-   * Requires both prefix and seqNumber to be set in data.
+   * Validates the code and leaves it as is: the value is allocated by the document exporter,
+   * which can retry the creation when the code turns out to be taken.
    */
-  private async generateCode (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
-    const prefix = data.prefix
-    const seqNumber = data.seqNumber
-
-    if (prefix === undefined || typeof prefix !== 'string' || prefix === '') {
-      this.context.warn('generateCode: prefix is required but not found, skipping code generation')
+  private async preserveUniqueCode (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
+    if (typeof data.code !== 'string' || data.code === '') {
+      this.context.warn('preserveUniqueCode: code is required but not found, skipping code preservation')
       return
     }
 
-    if (seqNumber === undefined || seqNumber === null || typeof seqNumber !== 'number') {
-      this.context.warn('generateCode: seqNumber is required but not found, skipping code generation')
+    const parsedCode = parseIdentifier(data.code)
+    if (parsedCode === null) {
+      this.context.warn(`preserveUniqueCode: code ${data.code} has no numeric suffix, skipping conflict resolution`)
       return
     }
-
-    // Generate code using pattern: prefix-seqNumber
-    const generatedCode = `${prefix}-${seqNumber}`
-
-    // Check if this code already exists (shouldn't happen if seqNumber was generated correctly, but check anyway)
-    const query: any = { code: generatedCode }
-    const projection = { code: 1 } as any
-    const existing = await this.targetClient.findOne(docClass, query, { projection })
-
-    if (existing !== undefined) {
-      this.context.warn(
-        `generateCode: Generated code ${generatedCode} already exists, this should not happen if seqNumber was generated correctly`
-      )
-    }
-
-    // Update data with generated code
-    data.code = generatedCode
 
     this.context.info(
-      `generateCode: Generated code ${generatedCode} from prefix "${prefix}" and seqNumber ${seqNumber} (class: ${docClass})`
+      `preserveUniqueCode: Deferred allocation of code ${data.code} for class ${docClass} to document creation`
     )
+  }
+
+  shouldAllocateIdentifier (docClass: Ref<Class<Doc>>): boolean {
+    return this.findFieldMapper(docClass)?.code === '$preserveUniqueCode'
+  }
+
+  private findFieldMapper (docClass: Ref<Class<Doc>>): Record<string, any> | undefined {
+    const exact = this.fieldMappers[docClass]
+    if (exact !== undefined) return exact
+
+    const hierarchy = this.targetClient.getHierarchy()
+    let bestMapper: Record<string, any> | undefined
+    let bestMapperClass: Ref<Class<Doc>> | undefined
+    for (const [className, mapper] of Object.entries(this.fieldMappers)) {
+      const mapperClass = className as Ref<Class<Doc>>
+      if (
+        hierarchy.isDerived(docClass, mapperClass) &&
+        (bestMapperClass === undefined || hierarchy.isDerived(mapperClass, bestMapperClass))
+      ) {
+        bestMapper = mapper
+        bestMapperClass = mapperClass
+      }
+    }
+    return bestMapper
   }
 
   /**

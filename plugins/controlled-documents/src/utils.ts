@@ -20,6 +20,7 @@ import {
   Doc,
   DocumentQuery,
   DocumentUpdate,
+  parseIdentifier,
   Rank,
   Ref,
   SortingOrder,
@@ -99,17 +100,12 @@ export function getDocumentId (document: Pick<Document, 'prefix' | 'seqNumber'>)
 }
 
 /** @public */
-const documentIdRegExp = /^(?<prefix>\w+)-(?<seqNumber>\d+)$/
-
-/** @public */
 export function matchDocumentId (str: string): Pick<Document, 'prefix' | 'seqNumber'> | null {
-  const match = str.match(documentIdRegExp)
-  if (match?.groups?.prefix === undefined || match.groups.seqNumber === undefined) {
-    return null
-  }
+  const match = parseIdentifier(str)
+  if (match === null) return null
   return {
-    prefix: match.groups.prefix,
-    seqNumber: parseFloat(match.groups.seqNumber)
+    prefix: match.prefix,
+    seqNumber: match.sequence
   }
 }
 

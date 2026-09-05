@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,13 +20,15 @@
   import { translate } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import {
-    type Document,
     type ChangeControl,
     type ControlledDocument,
     type DocumentCategory,
     type DocumentTemplate,
+    DOCUMENT_SEQUENCE_KEY,
+    DOCUMENT_SEQUENCE_NAMESPACE,
     getDocumentId,
-    TEMPLATE_PREFIX
+    TEMPLATE_PREFIX,
+    TEMPLATE_SEQUENCE_SCOPE
   } from '@hcengineering/controlled-documents'
 
   import IconWarning from '../../icons/IconWarning.svelte'
@@ -77,30 +80,11 @@
     }
   )
 
-  const docCodesQuery = createQuery()
-  let docCodes: Record<string, string> = {}
-  let loadingCodes = true
-  docCodesQuery.query(
-    documents.class.Document,
-    {},
-    (res) => {
-      docCodes = {}
-      for (const doc of res) {
-        if (doc.code === '' || doc.code === undefined) {
-          continue
-        }
-
-        docCodes[doc.code] = doc.title
-      }
-      loadingCodes = false
-    },
-    {
-      projection: { code: 1, title: 1 }
-    }
-  )
-
   let customReason = $infoStep.customReason
   let abstract: string = docObject?.abstract ?? ''
+  /** Title of the document already using the entered code, if any. */
+  let codeOwner: string | undefined = undefined
+  let codeCheck = 0
 
   $: if (docObject !== undefined) {
     docObject.abstract = abstract
@@ -114,51 +98,61 @@
   $: isCategoryFilled = isTemplate ? docObject.category !== undefined : true
   $: isCodeFilled = isTemplate ? docObject.prefix !== '' && docObject.prefix !== undefined : true
   $: prefixNotUnique = docObject.docPrefix != null && templateDocPrefixes[docObject.docPrefix] !== undefined
-  $: codeNotUnique = docObject.code != null && docObject.code !== '' && !isCodeUnique(docObject.code)
+  $: codeNotUnique = codeOwner !== undefined
   $: canProceed =
-    !!docObject.code &&
-    !!docObject.title &&
-    !!ccRecord?.reason &&
+    docObject.code !== '' &&
+    docObject.title !== '' &&
+    ccRecord?.reason !== undefined &&
+    ccRecord.reason !== '' &&
     isCodeFilled &&
     isCategoryFilled &&
     !prefixNotUnique &&
     !codeNotUnique &&
-    (!isTemplate || !!docObject.docPrefix)
-  $: if (docObject !== undefined && docObject.code === '' && !loadingCodes) {
+    (!isTemplate || (docObject.docPrefix !== undefined && docObject.docPrefix !== ''))
+  $: if (docObject !== undefined && docObject.code === '') {
     void setInitialCode()
+  }
+  $: void checkCodeOwner(docObject?.code ?? '')
+
+  async function checkCodeOwner (code: string): Promise<void> {
+    const check = ++codeCheck
+    const existing =
+      code === '' ? undefined : await client.findOne(documents.class.Document, { code }, { projection: { title: 1 } })
+
+    // Ignore an answer to a code the user has already moved on from.
+    if (check === codeCheck) {
+      codeOwner = existing?.title
+    }
   }
 
   async function setInitialCode (): Promise<void> {
-    let newCodeObj: Pick<Document, 'prefix' | 'seqNumber'> | undefined = undefined
+    // Preview of the number the server is going to allocate, from the very sequence it allocates from.
+    const scope = isTemplate ? TEMPLATE_SEQUENCE_SCOPE : docObject.template
+    const numberSequence =
+      scope === undefined
+        ? undefined
+        : await client.findOne(core.class.CustomSequence, {
+          namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+          scope,
+          prefix: DOCUMENT_SEQUENCE_KEY
+        })
+    let seqNumber = Math.max(docObject.seqNumber, (numberSequence?.sequence ?? 0) + 1)
 
-    if (isTemplate) {
-      const seqObj = await client.findOne(core.class.Sequence, { _id: documents.sequence.Templates })
-
-      if (seqObj == null) {
-        return
-      }
-
-      newCodeObj = { prefix: docObject.prefix, seqNumber: seqObj.sequence + 1 }
-    } else {
-      newCodeObj = docObject
+    // The sequence can lag behind documents imported or migrated into the workspace,
+    // so the previewed code skips the ones that are already taken.
+    let code = getDocumentId({ prefix: docObject.prefix, seqNumber })
+    for (let attempt = 0; attempt < 10; attempt++) {
+      if ((await client.findOne(documents.class.Document, { code })) === undefined) break
+      seqNumber++
+      code = getDocumentId({ prefix: docObject.prefix, seqNumber })
     }
 
-    if (newCodeObj != null) {
-      let newCode: string
+    if (docObject.code !== '') return
 
-      newCode = getDocumentId(newCodeObj)
-
-      while (!isCodeUnique(newCode)) {
-        newCodeObj.seqNumber++
-        newCode = getDocumentId(newCodeObj)
-      }
-
-      docObject.code = newCode
+    if (!isTemplate) {
+      docObject.seqNumber = seqNumber
     }
-  }
-
-  function isCodeUnique (code: string): boolean {
-    return code !== '' && docCodes[code] === undefined
+    docObject.code = code
   }
 
   const radioItems = [
@@ -204,7 +198,6 @@
     <div class="sectionContent">
       <EditBox
         placeholder={documents.string.DocumentCodePlaceholder}
-        disabled={loadingCodes}
         bind:value={docObject.code}
         id="doc-code"
         kind="large-style"
@@ -213,7 +206,7 @@
         <div class="error">
           <IconWarning size="small" />
           <Label label={documents.string.CodeInUse} />
-          <span class="name">{docCodes[docObject.code]}</span>
+          <span class="name">{codeOwner}</span>
         </div>
       {/if}
     </div>

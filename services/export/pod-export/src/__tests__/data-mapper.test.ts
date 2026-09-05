@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -127,6 +128,30 @@ function createMockTxOperations (existingDocs: Array<Record<string, any>> = []):
     ): Promise<T | undefined> {
       const results = await this.findAll(classRef, query, options)
       return results.length > 0 ? results[0] : undefined
+    }),
+    apply: jest.fn(() => {
+      const created: Record<string, any>[] = []
+      let updated: { id: string, sequence: number } | undefined
+      return {
+        notMatch: jest.fn(),
+        createDoc: jest.fn(async (classRef: string, _space: string, data: Record<string, any>, id: string) => {
+          created.push({ ...data, _id: id, _class: classRef })
+        }),
+        updateDoc: jest.fn(async (_classRef: string, _space: string, id: string, data: { sequence: number }) => {
+          updated = { id, sequence: data.sequence }
+        }),
+        commit: jest.fn(async () => {
+          for (const document of created) {
+            docsMap.set(document._id, document as Doc)
+          }
+          if (updated !== undefined) {
+            const sequence = docsMap.get(updated.id) as Record<string, any> | undefined
+            if (sequence === undefined) return { result: false }
+            sequence.sequence = updated.sequence
+          }
+          return { result: created.length > 0 || updated !== undefined }
+        })
+      }
     }),
     getHierarchy: jest.fn(() => createMockHierarchy()),
     createDoc: jest.fn(),
@@ -420,88 +445,32 @@ describe('DataMapper - generateSeqNumber', () => {
       'generateSeqNumber: prefix is required but not found, skipping seqNumber generation'
     )
   })
-})
 
-describe('DataMapper - generateCode', () => {
-  let mockContext: MeasureContext
-  let mockClient: TxOperations
-  let state: ExportState
-
-  beforeEach(() => {
-    mockContext = createMockMeasureContext()
-    state = {
-      idMapping: new Map(),
-      spaceMapping: new Map(),
-      processingDocs: new Set(),
-      uniqueFieldValues: new Map()
-    }
-    jest.clearAllMocks()
-  })
-
-  it('should generate code from prefix and seqNumber', async () => {
-    const testPrefix = 'DOC'
-    mockClient = createMockTxOperations([])
-
-    const dataMapper = new DataMapper(
-      mockContext,
-      mockClient,
-      state,
-      {
-        [mockDocClass]: {
-          seqNumber: '$generateSeqNumber',
-          code: '$generateCode'
-        }
-      },
-      undefined
-    )
-
-    const doc = {
-      _id: generateId(),
-      _class: mockDocClass,
-      prefix: testPrefix,
-      space: mockSpaceId,
-      modifiedOn: platformNow(),
-      modifiedBy: generateId() as any
-    }
-
-    const result = await dataMapper.prepareDocumentData(doc, mockSpaceId, false)
-
-    expect(result.seqNumber).toBe(1)
-    expect(result.code).toBe('DOC-1')
-  })
-
-  it('should generate code with different seqNumbers', async () => {
-    const testPrefix = 'DOC'
-    const existingDocs = [
+  it('should defer an occupied custom code to server-side allocation', async () => {
+    mockClient = createMockTxOperations([
       {
         _id: generateId(),
         _class: mockDocClass,
-        seqNumber: 5,
-        prefix: testPrefix,
+        code: 'TESTTMP-1',
+        prefix: 'TT',
+        seqNumber: 1,
         space: mockSpaceId,
         modifiedOn: platformNow(),
         modifiedBy: generateId()
       }
-    ]
-    mockClient = createMockTxOperations(existingDocs)
-
+    ])
     const dataMapper = new DataMapper(
       mockContext,
       mockClient,
       state,
-      {
-        [mockDocClass]: {
-          seqNumber: '$generateSeqNumber',
-          code: '$generateCode'
-        }
-      },
+      { [mockDocClass]: { seqNumber: '$generateSeqNumber', code: '$preserveUniqueCode' } },
       undefined
     )
-
     const doc = {
       _id: generateId(),
       _class: mockDocClass,
-      prefix: testPrefix,
+      code: 'TESTTMP-1',
+      prefix: 'TT',
       space: mockSpaceId,
       modifiedOn: platformNow(),
       modifiedBy: generateId() as any
@@ -509,29 +478,26 @@ describe('DataMapper - generateCode', () => {
 
     const result = await dataMapper.prepareDocumentData(doc, mockSpaceId, false)
 
-    expect(result.seqNumber).toBe(6)
-    expect(result.code).toBe('DOC-6')
+    expect(result).toMatchObject({ code: 'TESTTMP-1', seqNumber: 2 })
+    expect(mockContext.info).toHaveBeenCalledWith(
+      `preserveUniqueCode: Deferred allocation of code TESTTMP-1 for class ${mockDocClass} to document creation`
+    )
   })
 
-  it('should skip generation if prefix is missing', async () => {
+  it('should preserve a free custom code while generating seqNumber', async () => {
     mockClient = createMockTxOperations([])
-
     const dataMapper = new DataMapper(
       mockContext,
       mockClient,
       state,
-      {
-        [mockDocClass]: {
-          code: '$generateCode'
-        }
-      },
+      { [mockDocClass]: { seqNumber: '$generateSeqNumber', code: '$preserveUniqueCode' } },
       undefined
     )
-
     const doc = {
       _id: generateId(),
       _class: mockDocClass,
-      seqNumber: 1,
+      code: 'TESTTMP-1',
+      prefix: 'TT',
       space: mockSpaceId,
       modifiedOn: platformNow(),
       modifiedBy: generateId() as any
@@ -539,122 +505,6 @@ describe('DataMapper - generateCode', () => {
 
     const result = await dataMapper.prepareDocumentData(doc, mockSpaceId, false)
 
-    expect(result.code).toBeUndefined()
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(mockContext.warn).toHaveBeenCalledWith(
-      'generateCode: prefix is required but not found, skipping code generation'
-    )
-  })
-
-  it('should skip generation if seqNumber is missing', async () => {
-    const testPrefix = 'DOC'
-    mockClient = createMockTxOperations([])
-
-    const dataMapper = new DataMapper(
-      mockContext,
-      mockClient,
-      state,
-      {
-        [mockDocClass]: {
-          code: '$generateCode'
-        }
-      },
-      undefined
-    )
-
-    const doc = {
-      _id: generateId(),
-      _class: mockDocClass,
-      prefix: testPrefix,
-      space: mockSpaceId,
-      modifiedOn: platformNow(),
-      modifiedBy: generateId() as any
-    }
-
-    const result = await dataMapper.prepareDocumentData(doc, mockSpaceId, false)
-
-    expect(result.code).toBeUndefined()
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(mockContext.warn).toHaveBeenCalledWith(
-      'generateCode: seqNumber is required but not found, skipping code generation'
-    )
-  })
-
-  it('should warn if generated code already exists', async () => {
-    const testPrefix = 'DOC'
-    const existingDocs = [
-      {
-        _id: generateId(),
-        _class: mockDocClass,
-        code: 'DOC-1',
-        prefix: testPrefix,
-        space: mockSpaceId,
-        modifiedOn: platformNow(),
-        modifiedBy: generateId()
-      }
-    ]
-    mockClient = createMockTxOperations(existingDocs)
-
-    const dataMapper = new DataMapper(
-      mockContext,
-      mockClient,
-      state,
-      {
-        [mockDocClass]: {
-          seqNumber: '$generateSeqNumber',
-          code: '$generateCode'
-        }
-      },
-      undefined
-    )
-
-    const doc = {
-      _id: generateId(),
-      _class: mockDocClass,
-      prefix: testPrefix,
-      space: mockSpaceId,
-      modifiedOn: platformNow(),
-      modifiedBy: generateId() as any
-    }
-
-    const result = await dataMapper.prepareDocumentData(doc, mockSpaceId, false)
-
-    // Should still generate the code (seqNumber will be 1, code will be DOC-1)
-    expect(result.seqNumber).toBe(1)
-    expect(result.code).toBe('DOC-1')
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(mockContext.warn).toHaveBeenCalledWith(expect.stringContaining('Generated code DOC-1 already exists'))
-  })
-
-  it('should handle prefix with special characters', async () => {
-    const testPrefix = 'DOC-TEST'
-    mockClient = createMockTxOperations([])
-
-    const dataMapper = new DataMapper(
-      mockContext,
-      mockClient,
-      state,
-      {
-        [mockDocClass]: {
-          seqNumber: '$generateSeqNumber',
-          code: '$generateCode'
-        }
-      },
-      undefined
-    )
-
-    const doc = {
-      _id: generateId(),
-      _class: mockDocClass,
-      prefix: testPrefix,
-      space: mockSpaceId,
-      modifiedOn: platformNow(),
-      modifiedBy: generateId() as any
-    }
-
-    const result = await dataMapper.prepareDocumentData(doc, mockSpaceId, false)
-
-    expect(result.seqNumber).toBe(1)
-    expect(result.code).toBe('DOC-TEST-1')
+    expect(result).toMatchObject({ code: 'TESTTMP-1', seqNumber: 1 })
   })
 })

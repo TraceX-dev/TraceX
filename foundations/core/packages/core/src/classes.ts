@@ -705,6 +705,10 @@ export interface Sequence extends Doc {
 
 export interface CustomSequence extends Sequence {
   prefix: string
+  /** Feature the sequence belongs to, e.g. `documents` or `documents.sequence`. */
+  namespace?: string
+  /** What the numbering is counted per within the namespace, e.g. a template id. */
+  scope?: string
 }
 
 /**
