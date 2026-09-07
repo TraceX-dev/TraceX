@@ -80,7 +80,58 @@ describe('docxToMarkup', () => {
     expect(serialized).toContain('world')
     expect(serialized).toContain('first')
   })
+
+  it('preserves direct DOCX table cell shading', async () => {
+    const source: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.table,
+          content: [
+            {
+              type: MarkupNodeType.table_row,
+              content: [
+                cell(MarkupNodeType.table_cell, 'Red', { backgroundColor: '#ff0000' }),
+                cell(MarkupNodeType.table_cell, 'Plain')
+              ]
+            },
+            {
+              type: MarkupNodeType.table_row,
+              content: [
+                cell(MarkupNodeType.table_cell, 'Blue', { backgroundColor: '#0000ff' }),
+                cell(MarkupNodeType.table_cell, 'Green', { backgroundColor: '#00ff00' })
+              ]
+            }
+          ]
+        }
+      ]
+    }
+
+    const { markup } = await docxToMarkup(await markupToDocx(source))
+    const importedCells = tableCells(markup)
+
+    expect(importedCells.map((item) => item.attrs?.backgroundColor)).toEqual([
+      '#FF0000',
+      undefined,
+      '#0000FF',
+      '#00FF00'
+    ])
+  })
 })
+
+function tableCells (node: MarkupNode): MarkupNode[] {
+  const cells: MarkupNode[] = []
+  const visit = (current: MarkupNode): void => {
+    if (current.type === MarkupNodeType.table_cell || current.type === MarkupNodeType.table_header) {
+      cells.push(current)
+    }
+    for (const child of current.content ?? []) {
+      visit(child)
+    }
+  }
+  visit(node)
+  return cells
+}
 
 describe('normalizeMarkup', () => {
   it('drops empty text nodes and trailing empty paragraphs', () => {
