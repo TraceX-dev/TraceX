@@ -20,11 +20,6 @@ import JSZip from 'jszip'
 const WORD_DOCUMENT_PATH = 'word/document.xml'
 const WORD_FILL_RE = /^[0-9a-fA-F]{6}$/
 
-// fast-xml-parser `preserveOrder` shape: every element is `{ <tag>: [children] }`, with
-// attributes on a sibling `:@` key and text on `#text`. Document order is preserved across
-// tag names, which a keyed object would lose (a table inside `w:sdt` or `w:ins` would be
-// collected after its later siblings) — cell fills are matched positionally, so order is
-// the whole game here.
 const XML_ATTRIBUTES = ':@'
 const XML_TEXT = '#text'
 const XML_ATTRIBUTE_PREFIX = '@_'
@@ -67,11 +62,6 @@ export async function extractDocxCellFills (buffer: Buffer): Promise<Array<strin
 
 /**
  * Apply DOCX table-cell fills to the corresponding cells in imported markup.
- *
- * Fills are paired with cells by position, so a count mismatch means the two walks disagree
- * about what a cell is (an unusual merge layout, a mammoth version that drops cells we keep).
- * Shifted colors are worse than no colors — an "overdue" red cell silently turning green —
- * so a mismatch drops the fills instead of applying them.
  */
 export function applyDocxCellFills (markup: MarkupNode, fills: Array<string | undefined>): MarkupNode {
   if (fills.length === 0) {
