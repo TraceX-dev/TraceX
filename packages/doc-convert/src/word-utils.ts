@@ -13,16 +13,28 @@
 // limitations under the License.
 //
 
-import { type MarkupNode } from '@hcengineering/text-core'
+import { type MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
 import { XMLParser } from 'fast-xml-parser'
-import * as JSZip from 'jszip'
+import JSZip from 'jszip'
 
 const WORD_DOCUMENT_PATH = 'word/document.xml'
 const WORD_FILL_RE = /^[0-9a-fA-F]{6}$/
 
+// fast-xml-parser `preserveOrder` shape: every element is `{ <tag>: [children] }`, with
+// attributes on a sibling `:@` key and text on `#text`. Document order is preserved across
+// tag names, which a keyed object would lose (a table inside `w:sdt` or `w:ins` would be
+// collected after its later siblings) — cell fills are matched positionally, so order is
+// the whole game here.
+const XML_ATTRIBUTES = ':@'
+const XML_TEXT = '#text'
+const XML_ATTRIBUTE_PREFIX = '@_'
+
+type XmlNode = Record<string, unknown>
+
 /**
- * Extract direct RGB table-cell shading from a DOCX file. Mammoth intentionally omits table
- * formatting from its HTML output, so the result can be applied to Mammoth's markup separately.
+ * Extract direct RGB table-cell shading from a DOCX file, in the order mammoth emits the
+ * corresponding cells. Mammoth intentionally omits table formatting from its HTML output, so
+ * the result can be applied to Mammoth's markup separately.
  * A failed best-effort extraction must not make an otherwise supported DOCX impossible to import.
  */
 export async function extractDocxCellFills (buffer: Buffer): Promise<Array<string | undefined>> {
@@ -35,10 +47,11 @@ export async function extractDocxCellFills (buffer: Buffer): Promise<Array<strin
 
     const documentXml = await documentFile.async('string')
     const document = new XMLParser({
-      attributeNamePrefix: '',
+      attributeNamePrefix: XML_ATTRIBUTE_PREFIX,
       ignoreAttributes: false,
       parseAttributeValue: false,
       parseTagValue: false,
+      preserveOrder: true,
       removeNSPrefix: true,
       trimValues: false
     }).parse(documentXml) as unknown
@@ -52,62 +65,109 @@ export async function extractDocxCellFills (buffer: Buffer): Promise<Array<strin
   }
 }
 
-/** Apply DOCX table-cell fills to the corresponding cells in imported markup. */
+/**
+ * Apply DOCX table-cell fills to the corresponding cells in imported markup.
+ *
+ * Fills are paired with cells by position, so a count mismatch means the two walks disagree
+ * about what a cell is (an unusual merge layout, a mammoth version that drops cells we keep).
+ * Shifted colors are worse than no colors — an "overdue" red cell silently turning green —
+ * so a mismatch drops the fills instead of applying them.
+ */
 export function applyDocxCellFills (markup: MarkupNode, fills: Array<string | undefined>): MarkupNode {
+  if (fills.length === 0) {
+    return markup
+  }
+
+  const cells = countTableCells(markup)
+  if (cells !== fills.length) {
+    console.warn(`Ignoring DOCX cell colors: ${fills.length} cells in the document, ${cells} in the imported markup`)
+    return markup
+  }
+
   return applyCellFills(markup, fills)
 }
 
-function collectCellFills (node: unknown, fills: Array<string | undefined>): void {
-  if (Array.isArray(node)) {
-    for (const child of node) {
-      collectCellFills(child, fills)
-    }
-    return
-  }
-  if (!isRecord(node)) {
+function collectCellFills (nodes: unknown, fills: Array<string | undefined>): void {
+  if (!Array.isArray(nodes)) {
     return
   }
 
-  for (const [name, value] of Object.entries(node)) {
-    if (name === 'tc') {
-      for (const cell of toArray(value)) {
-        fills.push(cellFill(cell))
-        // Nested tables are part of a cell and must retain document order.
-        collectCellFills(cell, fills)
+  for (const node of nodes) {
+    if (!isRecord(node)) {
+      continue
+    }
+    for (const [name, children] of Object.entries(node)) {
+      if (name === XML_ATTRIBUTES || name === XML_TEXT) {
+        continue
       }
-    } else {
-      collectCellFills(value, fills)
+      if (name !== 'tc') {
+        collectCellFills(children, fills)
+        continue
+      }
+      // A vertical-merge continuation is folded into the cell above it and dropped from
+      // mammoth's output (see `calculateRowSpans` in mammoth's body-reader), together with
+      // everything nested inside it — so it must not consume a position here either.
+      if (isVMergeContinuation(children)) {
+        continue
+      }
+      fills.push(cellFill(children))
+      // Nested tables belong to the cell and must retain document order.
+      collectCellFills(children, fills)
     }
   }
 }
 
 function cellFill (cell: unknown): string | undefined {
-  const properties = xmlChild(cell, 'tcPr')
-  const shading = xmlChild(properties, 'shd')
+  const shading = xmlChild(xmlChildren(cell, 'tcPr'), 'shd')
   const fill = xmlAttribute(shading, 'fill')
-  return typeof fill === 'string' && WORD_FILL_RE.test(fill) ? `#${fill.toUpperCase()}` : undefined
+  return fill !== undefined && WORD_FILL_RE.test(fill) ? `#${fill.toUpperCase()}` : undefined
 }
 
-function xmlChild (node: unknown, name: string): unknown {
-  if (!isRecord(node)) {
+function isVMergeContinuation (cell: unknown): boolean {
+  const vMerge = xmlChild(xmlChildren(cell, 'tcPr'), 'vMerge')
+  if (vMerge === undefined) {
+    return false
+  }
+  const value = xmlAttribute(vMerge, 'val')
+  return value === undefined || value === 'continue'
+}
+
+/** The named element among `nodes`, as the wrapper object carrying its attributes. */
+function xmlChild (nodes: unknown, name: string): XmlNode | undefined {
+  if (!Array.isArray(nodes)) {
     return undefined
   }
-  return node[name] ?? node[`w:${name}`]
+  for (const node of nodes) {
+    if (isRecord(node) && Array.isArray(node[name])) {
+      return node
+    }
+  }
+  return undefined
 }
 
-function xmlAttribute (node: unknown, name: string): unknown {
-  if (!isRecord(node)) {
+function xmlChildren (nodes: unknown, name: string): unknown {
+  return xmlChild(nodes, name)?.[name]
+}
+
+function xmlAttribute (node: XmlNode | undefined, name: string): string | undefined {
+  const attributes = node?.[XML_ATTRIBUTES]
+  if (!isRecord(attributes)) {
     return undefined
   }
-  return node[name] ?? node[`w:${name}`] ?? node[`@_${name}`] ?? node[`@_w:${name}`]
+  const value = attributes[`${XML_ATTRIBUTE_PREFIX}${name}`]
+  return typeof value === 'string' ? value : undefined
 }
 
-function toArray (value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [value]
-}
-
-function isRecord (value: unknown): value is Record<string, unknown> {
+function isRecord (value: unknown): value is XmlNode {
   return value !== null && typeof value === 'object'
+}
+
+function countTableCells (node: MarkupNode): number {
+  let count = isTableCell(node) ? 1 : 0
+  for (const child of node.content ?? []) {
+    count += countTableCells(child)
+  }
+  return count
 }
 
 function applyCellFills (
@@ -128,5 +188,5 @@ function applyCellFills (
 }
 
 function isTableCell (node: MarkupNode): boolean {
-  return node.type === 'tableCell' || node.type === 'tableHeader'
+  return node.type === MarkupNodeType.table_cell || node.type === MarkupNodeType.table_header
 }
