@@ -46,7 +46,8 @@ export async function extractDocxCellFills (buffer: Buffer): Promise<Array<strin
     const fills: Array<string | undefined> = []
     collectCellFills(document, fills)
     return fills
-  } catch {
+  } catch (e) {
+    console.warn('Failed to extract cell colors', e)
     return []
   }
 }
