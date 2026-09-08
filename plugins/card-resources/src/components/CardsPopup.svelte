@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
   import { getClient, ObjectPopup } from '@hcengineering/presentation'
   import { Card } from '@hcengineering/card'
   import { Class, Ref } from '@hcengineering/core'
+  import type { DocumentQuery } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { Label } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
@@ -29,13 +31,15 @@
   export let allowDeselect: boolean = true
   export let titleDeselect: IntlString | undefined = undefined
   export let readonly = false
+  export let docQuery: DocumentQuery<Card> = {}
 
   const dispatch = createEventDispatcher()
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
 
-  const docQuery = {
+  $: query = {
+    ...docQuery,
     isLatest: true
   }
 </script>
@@ -48,7 +52,7 @@
   {allowDeselect}
   {titleDeselect}
   {ignoreObjects}
-  {docQuery}
+  docQuery={query}
   searchField={'title'}
   type={'object'}
   groupBy={'_class'}

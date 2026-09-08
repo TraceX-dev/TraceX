@@ -13,8 +13,56 @@
 // limitations under the License.
 
 import { createDSLContext, parseDSLContext } from '../dslContext'
+import type { Class, Doc, Ref, Space } from '@hcengineering/core'
+import type { ContextId } from '../index'
+import type { SelectedUserRequest } from '../types'
 
 describe('dslContext roundtrip', () => {
+  test.each([
+    { type: 'attribute', key: 'space' },
+    { type: 'context', id: 'selected-card' as ContextId, key: 'space' },
+    { type: 'context', id: 'selected-space' as ContextId, key: '' }
+  ] as const)('user request preserves a space expression from $type', (source) => {
+    const original: SelectedUserRequest = {
+      type: 'userRequest',
+      id: 'input' as ContextId,
+      key: '',
+      _class: 'test:class:Card' as Ref<Class<Doc>>,
+      selectionSpace: createDSLContext(source)
+    }
+
+    const parsed = parseDSLContext(createDSLContext(original))
+    expect(parsed).toEqual(expect.objectContaining(original))
+    if (parsed?.type !== 'userRequest') throw new Error('Expected a user request')
+    if (parsed.selectionSpace === undefined) throw new Error('Expected a selection space')
+    expect(parseDSLContext(parsed.selectionSpace)).toEqual(expect.objectContaining(source))
+  })
+
+  test.each(['', 'owner'])('user request preserves selection space for key "%s"', (key) => {
+    const original: SelectedUserRequest = {
+      type: 'userRequest',
+      id: 'input' as ContextId,
+      key,
+      _class: 'test:class:Card' as Ref<Class<Doc>>,
+      selectionSpace: 'target-space' as Ref<Space>
+    }
+
+    expect(parseDSLContext(createDSLContext(original))).toEqual(expect.objectContaining(original))
+  })
+
+  test('user request without selection space keeps the existing DSL format', () => {
+    // eslint-disable-next-line no-template-curly-in-string
+    const dsl = '${$userRequest(input,,test:class:Card)}'
+    const parsed = parseDSLContext(dsl)
+
+    expect(parsed).toEqual(
+      expect.objectContaining({ type: 'userRequest', id: 'input', key: '', _class: 'test:class:Card' })
+    )
+    expect(parsed).not.toHaveProperty('selectionSpace')
+    if (parsed === undefined) throw new Error('Expected a parsed context')
+    expect(createDSLContext(parsed)).toBe(dsl)
+  })
+
   test('attribute', () => {
     const original = { type: 'attribute', key: 'name' } as any
     const dsl = createDSLContext(original)

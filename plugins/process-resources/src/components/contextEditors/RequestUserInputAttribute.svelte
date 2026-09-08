@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,6 +24,7 @@
   export let _class: Ref<Class<Doc>>
   export let value: any | undefined = undefined
   export let space: Ref<Space>
+  export let selectionSpace: Ref<Space> | undefined = undefined
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -90,6 +92,7 @@
         value,
         attribute,
         space,
+        docQuery: selectionSpace !== undefined ? { space: selectionSpace } : undefined,
         onChange,
         focus
       }}
