@@ -1189,13 +1189,9 @@ export class WorkspaceImporter {
           title: `${code} ${document.title}`
         })
         // Best effort hint for the UI: the custom sequence stays the source of truth.
-        await ops.updateMixin(
-          templateId,
-          documents.class.Document,
-          templateSpace,
-          documents.mixin.DocumentTemplate,
-          { sequence: seqNumber }
-        )
+        await ops.updateMixin(templateId, documents.class.Document, templateSpace, documents.mixin.DocumentTemplate, {
+          sequence: seqNumber
+        })
         return (await ops.commit()).result
       }
     )
@@ -1294,13 +1290,7 @@ export class WorkspaceImporter {
     for (const mixin of mixins) {
       const { _class, mixin: mixinClass, props } = mixin
       const { _id, space, ...data } = props
-      await this.client.createMixin(
-        _id ?? generateId<Doc<Space>>(),
-        _class,
-        space,
-        mixinClass,
-        data
-      )
+      await this.client.createMixin(_id ?? generateId<Doc<Space>>(), _class, space, mixinClass, data)
     }
   }
 
