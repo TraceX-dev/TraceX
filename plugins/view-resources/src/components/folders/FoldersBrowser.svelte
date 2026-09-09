@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -35,6 +36,8 @@
   export let allObjectsIcon: Asset
   export let allObjectsLabel: IntlString
   export let plainList: boolean = false
+  export let readonly: boolean = false
+  export let reorderable: boolean = false
 
   const dispatch = createEventDispatcher()
 
@@ -63,23 +66,19 @@
   })
 
   const q = createQuery()
-  q.query(
-    _class,
-    query ?? {},
-    async (result) => {
-      foldersManager.setFolders(result)
-      if (plainList && foldersState.folders?.length > 0) {
-        if (selected === undefined) {
-          await handleFolderSelected(foldersState.folders[0])
-        }
-      }
-    },
-    {
-      sort: {
-        name: SortingOrder.Ascending
-      }
+  $: sortByRank = reorderable && plainList && client.getHierarchy().getAllAttributes(_class).has('rank')
+  $: q.query(_class, query ?? {}, updateFolders, {
+    sort: {
+      [sortByRank ? 'rank' : 'name']: SortingOrder.Ascending
     }
-  )
+  })
+
+  async function updateFolders (result: Doc[]): Promise<void> {
+    foldersManager.setFolders(result)
+    if (plainList && foldersState.folders.length > 0 && selected === undefined) {
+      await handleFolderSelected(foldersState.folders[0])
+    }
+  }
 
   async function handleFolderSelected (_id: Ref<Doc>): Promise<void> {
     if (getFolderLink !== undefined) {
@@ -133,6 +132,8 @@
         folders={foldersState.folders}
         descendants={foldersState.descendants}
         folderById={foldersState.folderById}
+        reorderable={sortByRank}
+        {readonly}
         {selected}
         on:selected={async (ev) => {
           await handleFolderSelected(ev.detail)
@@ -161,6 +162,8 @@
       folders={foldersState.folders}
       descendants={foldersState.descendants}
       folderById={foldersState.folderById}
+      reorderable={sortByRank}
+      {readonly}
       {selected}
       on:selected={async (ev) => {
         await handleFolderSelected(ev.detail)
