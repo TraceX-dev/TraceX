@@ -175,6 +175,7 @@ export { default as ModernCheckbox } from './components/ModernCheckbox.svelte'
 export { default as ModernRadioButton } from './components/ModernRadioButton.svelte'
 
 export { default as IconAdd } from './components/icons/Add.svelte'
+export { default as IconArchive } from './components/icons/Archive.svelte'
 export { default as IconCircleAdd } from './components/icons/CircleAdd.svelte'
 export { default as IconCopy } from './components/icons/Copy.svelte'
 export { default as IconStart } from './components/icons/Start.svelte'

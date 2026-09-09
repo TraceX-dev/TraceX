@@ -16,6 +16,7 @@
 import { type MarkupNode } from '@hcengineering/text-core'
 import { htmlToMarkup } from '@hcengineering/text-html'
 import { conformToSchema } from './normalize'
+import { applyDocxCellFills, extractDocxCellFills } from './word-utils'
 import mammoth from 'mammoth'
 
 /** @public */
@@ -38,9 +39,9 @@ export interface DocxToMarkupResult {
  * @public
  */
 export async function docxToMarkup (buffer: Buffer): Promise<DocxToMarkupResult> {
-  const result = await mammoth.convertToHtml({ buffer })
+  const [result, cellFills] = await Promise.all([mammoth.convertToHtml({ buffer }), extractDocxCellFills(buffer)])
   const html = result.value
-  const markup = conformToSchema(htmlToMarkup(html))
+  const markup = applyDocxCellFills(conformToSchema(htmlToMarkup(html)), cellFills)
   return {
     markup,
     html,

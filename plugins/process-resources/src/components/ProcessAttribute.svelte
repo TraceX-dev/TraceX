@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -44,6 +45,8 @@
   export let allowRemove: boolean = false
   export let forbidValue: boolean = false
   export let allowArray: boolean = false
+  export let allowUserRequest: boolean = true
+  export let allowConfigure: boolean = true
 
   const dispatch = createEventDispatcher()
 
@@ -62,6 +65,7 @@
         context,
         attribute,
         forbidValue,
+        allowUserRequest,
         onSelect
       },
       eventToHTMLElement(e)
@@ -97,6 +101,7 @@
       category={presenterClass.category}
       attrClass={presenterClass.attrClass}
       {forbidValue}
+      {allowConfigure}
       on:update={(e) => {
         onSelect(e.detail)
       }}

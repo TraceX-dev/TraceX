@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,16 +31,28 @@ import {
   type S3PutOptions
 } from './types'
 
-export async function createBucket (ctx: MeasureContext, client: S3, bucket: string): Promise<S3Bucket> {
-  const impl = new S3BucketImpl(client, bucket)
+const AVAILABILITY_GAUGE_NAME = 'datalake.s3.available'
+const AVAILABILITY_CANARY_OBJECT = 'datalake-canary'
+
+export async function createBucket (
+  ctx: MeasureContext,
+  client: S3,
+  bucket: string,
+  availabilityCheckInterval: number
+): Promise<S3Bucket> {
+  const impl = new S3BucketImpl(client, bucket, availabilityCheckInterval)
   await impl.init(ctx)
   return impl
 }
 
 class S3BucketImpl implements S3Bucket {
+  private availabilityInterval?: ReturnType<typeof setInterval>
+  private isCheckingAvailability = false
+
   constructor (
     private readonly client: S3,
-    readonly bucket: string
+    readonly bucket: string,
+    private readonly availabilityCheckInterval: number
   ) {}
 
   async init (ctx: MeasureContext): Promise<void> {
@@ -58,6 +71,55 @@ class S3BucketImpl implements S3Bucket {
       } else {
         throw err
       }
+    }
+
+    this.startAvailabilityMonitoring(ctx)
+  }
+
+  close (): void {
+    if (this.availabilityCheckInterval <= 0 || this.availabilityInterval !== undefined) {
+      clearInterval(this.availabilityInterval)
+      this.availabilityInterval = undefined
+    }
+  }
+
+  private startAvailabilityMonitoring (ctx: MeasureContext): void {
+    if (this.availabilityInterval !== undefined) {
+      return
+    }
+
+    const monitoringCtx = ctx.newChild('datalake.s3', { bucket: this.bucket }, { span: 'disable' })
+    void this.initializeAvailabilityMonitoring(monitoringCtx)
+    this.availabilityInterval = setInterval(() => {
+      void this.recordAvailability(monitoringCtx)
+    }, this.availabilityCheckInterval)
+  }
+
+  private async initializeAvailabilityMonitoring (ctx: MeasureContext): Promise<void> {
+    try {
+      await this.client.putObject({ Bucket: this.bucket, Key: AVAILABILITY_CANARY_OBJECT, Body: '' })
+    } catch {
+      ctx.gauge(AVAILABILITY_GAUGE_NAME, 0)
+      return
+    }
+
+    await this.recordAvailability(ctx)
+  }
+
+  private async recordAvailability (ctx: MeasureContext): Promise<void> {
+    if (this.isCheckingAvailability) {
+      return
+    }
+
+    this.isCheckingAvailability = true
+    try {
+      await this.client.headObject({ Bucket: this.bucket, Key: AVAILABILITY_CANARY_OBJECT })
+      ctx.gauge(AVAILABILITY_GAUGE_NAME, 1)
+    } catch {
+      ctx.gauge(AVAILABILITY_GAUGE_NAME, 0)
+      ctx.warn('s3 bucket not available')
+    } finally {
+      this.isCheckingAvailability = false
     }
   }
 

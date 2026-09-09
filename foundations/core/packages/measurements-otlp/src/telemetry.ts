@@ -24,6 +24,7 @@ import {
   SpanStatusCode,
   trace,
   type Context,
+  type Counter,
   type Gauge,
   type Meter,
   type Tracer
@@ -43,19 +44,33 @@ import { NodeSDK } from '@opentelemetry/sdk-node'
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node'
 
 class MetricsContext {
-  counters = new Map<string, { counter: Gauge, value: 0 }>()
+  private readonly counters = new Map<string, Counter>()
+  private readonly gauges = new Map<string, { gauge: Gauge, value: number }>()
+
   constructor (readonly meter?: Meter) {}
 
-  getCounter (name: string): { counter: Gauge, value: number } | undefined {
+  getCounter (name: string): Counter | undefined {
     if (this.meter === undefined) {
       return undefined
     }
     let counter = this.counters.get(name)
     if (counter === undefined) {
-      counter = { counter: this.meter.createGauge(name), value: 0 }
+      counter = this.meter.createCounter(name)
       this.counters.set(name, counter)
     }
     return counter
+  }
+
+  getGauge (name: string): { gauge: Gauge, value: number } | undefined {
+    if (this.meter === undefined) {
+      return undefined
+    }
+    let gauge = this.gauges.get(name)
+    if (gauge === undefined) {
+      gauge = { gauge: this.meter.createGauge(name), value: Number.NaN }
+      this.gauges.set(name, gauge)
+    }
+    return gauge
   }
 }
 
@@ -117,14 +132,16 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
     this.logger = logger ?? (this.logParams != null ? consoleLogger(this.logParams ?? {}) : noParamsLogger)
   }
 
-  measure (name: string, value: number, override?: boolean): void {
-    const cnt = this.meter?.getCounter(name)
-    if (cnt !== undefined) {
-      if (cnt.value !== value) {
-        cnt.counter.record(value, this.params)
-        cnt.value = value
-      }
+  gauge (name: string, value: number): void {
+    const gauge = this.meter?.getGauge(name)
+    if (gauge !== undefined && gauge.value !== value) {
+      gauge.gauge.record(value, this.params)
+      gauge.value = value
     }
+  }
+
+  counter (name: string, value: number): void {
+    this.meter?.getCounter(name)?.add(value, this.params)
   }
 
   newChild (

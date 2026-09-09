@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -69,6 +70,7 @@
 
   function changeTarget (e: CustomEvent<any>): void {
     step.params.card = e.detail.value
+    dispatch('change', step)
   }
 
   function changeContext (e: CustomEvent<ExecutionContext>): void {

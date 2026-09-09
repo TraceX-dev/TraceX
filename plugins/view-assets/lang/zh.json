@@ -155,6 +155,7 @@
     "AutomationOnly": "仅限自动化",
     "CopyLink": "复制链接",
     "ValueIsSet": "值已设置",
+    "ValueIsNotSet": "值未设置",
     "RoleLabel": "角色：{role}",
     "ForbidAttributeChanges": "禁止更改属性: ",
     "AllowAttributeChanges": "允许更改属性: ",

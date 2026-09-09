@@ -1,0 +1,26 @@
+# Dev-overlay to run payment service.
+#
+# Usage from dev/ directory:
+#   docker compose -f docker-compose.yaml -f docker-compose.payment.yaml up -d
+#
+services:
+  payment:
+    image: tracexapp/payment
+    extra_hosts:
+      - 'tracex.local:host-gateway'
+    ports:
+      - 3040:3040
+    environment:
+      - SECRET=secret
+      - PORT=3040
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - FRONT_URL=http://tracex.local:8087
+      - USE_SANDBOX=true
+      - POLAR_ACCESS_TOKEN=${POLAR_ACCESS_TOKEN}
+      - POLAR_WEBHOOK_SECRET=${POLAR_WEBHOOK_SECRET}
+      - POLAR_SUBSCRIPTION_PLANS=${POLAR_SUBSCRIPTION_PLANS}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    restart: unless-stopped
+  front:
+    environment:
+      - PAYMENT_URL=http://tracex.local:3040

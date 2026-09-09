@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,16 +16,43 @@
 
 import cardPlugin from '@hcengineering/card'
 import contact, { Employee, Person } from '@hcengineering/contact'
-import core, { Doc, matchQuery, Ref, Timestamp } from '@hcengineering/core'
+import core, {
+  type Class,
+  type Doc,
+  type Ref,
+  type SortingQuery,
+  type Timestamp,
+  matchQuery,
+  resultSort
+} from '@hcengineering/core'
 import { Execution, parseContext } from '@hcengineering/process'
 import { ProcessControl } from '@hcengineering/server-process'
-import { markupToText } from '@hcengineering/text-core'
+import { isEmptyMarkup, jsonToMarkup, markupToJSON, markupToText, nodeDoc } from '@hcengineering/text-core'
 import { getContextValue } from './utils'
 
 // #region ArrayReduce
 
-export function FirstValue (value: Doc[]): Doc | undefined {
+export async function FirstValue (
+  value: any[],
+  props: Record<string, any>,
+  control: ProcessControl
+): Promise<any | undefined> {
   if (!Array.isArray(value)) return value
+  const { _class, $sort } = props
+  if ($sort == null || value.length === 0) return value[0]
+
+  if (typeof value[0] === 'string') {
+    if (_class == null) return value[0]
+    const docs = await control.client.findAll(_class, { _id: { $in: value } }, { sort: $sort, limit: 1 })
+    return docs[0]?._id
+  }
+
+  if (typeof value[0] === 'object' && value[0] !== null) {
+    const docs = [...value]
+    sortDocs(docs, $sort, _class ?? docs[0]._class ?? core.class.Doc, control)
+    return docs[0]
+  }
+
   return value[0]
 }
 
@@ -52,15 +80,23 @@ export async function FirstMatchValue (
     return
   }
   if (!Array.isArray(value)) return value
-  const { _class, ...otherProps } = props
-  if (_class == null) return
+  const { _class, $sort, ...otherProps } = props
   if (value.length === 0) return
   if (typeof value[0] === 'string') {
+    if (_class == null) return
     const docs = await control.client.findAll(_class, { _id: { $in: value } })
-    return matchQuery(docs, otherProps, core.class.Doc, control.client.getHierarchy(), true)[0]?._id
+    const matched = matchQuery(docs, otherProps, core.class.Doc, control.client.getHierarchy(), true)
+    if ($sort != null) sortDocs(matched, $sort, _class, control)
+    return matched[0]?._id
   } else if (typeof value[0] === 'object') {
-    return matchQuery(value, otherProps, core.class.Doc, control.client.getHierarchy(), true)[0]
+    const matched = matchQuery(value, otherProps, core.class.Doc, control.client.getHierarchy(), true)
+    if ($sort != null) sortDocs(matched, $sort, _class ?? matched[0]?._class ?? core.class.Doc, control)
+    return matched[0]
   }
+}
+
+function sortDocs (docs: Doc[], sort: SortingQuery<Doc>, _class: Ref<Class<Doc>>, control: ProcessControl): void {
+  resultSort(docs, sort, _class, control.client.getHierarchy(), control.client.getModel())
 }
 
 export async function AllMatchValue (
@@ -212,6 +248,45 @@ export async function Append (
     return value + props.value
   }
   return value
+}
+
+async function resolveMarkupValue (
+  value: unknown,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string | undefined> {
+  if (typeof value !== 'string') return
+  const context = parseContext(value)
+  if (context === undefined) return value
+  const resolved = await getContextValue(value, control, execution)
+  return typeof resolved === 'string' ? resolved : undefined
+}
+
+function joinMarkup (...values: Array<string | undefined>): string {
+  const content = values
+    .filter((value): value is string => value !== undefined && !isEmptyMarkup(value))
+    .flatMap((value) => markupToJSON(value).content ?? [])
+  return jsonToMarkup(nodeDoc(...content))
+}
+
+export async function PrependMarkup (
+  value: string,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string> {
+  const prefix = await resolveMarkupValue(props.value, control, execution)
+  return joinMarkup(prefix, value)
+}
+
+export async function AppendMarkup (
+  value: string,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string> {
+  const suffix = await resolveMarkupValue(props.value, control, execution)
+  return joinMarkup(value, suffix)
 }
 
 export function Replace (value: string, props: Record<string, string>): string {

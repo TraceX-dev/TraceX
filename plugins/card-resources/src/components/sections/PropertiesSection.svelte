@@ -36,7 +36,7 @@
 
 {#if !hidden}
   <div class="properties">
-    <CardAttributeEditor value={doc} {mixins} {readonly} ignoreKeys={['title', 'content', 'parent']} />
+    <CardAttributeEditor value={doc} {mixins} {readonly} ignoreKeys={['title', 'space', 'content', 'parent']} />
   </div>
 {/if}
 

@@ -64,6 +64,8 @@ export default plugin(serverProcessId, {
     FieldChangedRollback: '' as Resource<RollbackFunc>
   },
   func: {
+    CreateAction: '' as Resource<ExecuteFunc>,
+    SetContext: '' as Resource<ExecuteFunc>,
     RunSubProcess: '' as Resource<ExecuteFunc>,
     CancelSubProcess: '' as Resource<ExecuteFunc>,
     CreateToDo: '' as Resource<ExecuteFunc>,
@@ -113,6 +115,8 @@ export default plugin(serverProcessId, {
     Trim: '' as Resource<TransformFunc>,
     Prepend: '' as Resource<TransformFunc>,
     Append: '' as Resource<TransformFunc>,
+    PrependMarkup: '' as Resource<TransformFunc>,
+    AppendMarkup: '' as Resource<TransformFunc>,
     Replace: '' as Resource<TransformFunc>,
     ReplaceAll: '' as Resource<TransformFunc>,
     Split: '' as Resource<TransformFunc>,

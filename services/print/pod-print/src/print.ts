@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 import { MeasureContext } from '@hcengineering/core'
 import puppeteer, { Page, Viewport } from 'puppeteer'
@@ -57,20 +58,22 @@ export async function print (ctx: MeasureContext, url: string, options?: PrintOp
 
   await page.setViewport(viewport)
 
-  // NOTE: Issues opened with a guest link worked fine only with networkidle0 here and
-  // waitForNetworkIdle 1000 afterwards. Also tried 700 but sometimes it was not enough.
   await page.goto(url, {
-    waitUntil: ['domcontentloaded', 'networkidle0']
+    waitUntil: 'domcontentloaded'
   })
-  await page.waitForNetworkIdle({ idleTime: 1000 })
+  await waitForInitialNetworkIdle(ctx, page)
 
   let res: Uint8Array | undefined
 
   if (kind === 'pdf') {
     await page.emulateMediaType('print')
-    // Scroll throught the page to render all the content (e.g. as images are only rendered
-    // when they are visible in the viewport)
+    // Wait for two animation frames: the first applies the print media query and the second
+    // lets reactive UI state update the layout. Resource readiness is handled separately below.
+    await waitForPrintLayout(page)
+    // Scroll through the entire page to render lazy content, such as images.
     await scrollThrough(page)
+    await waitForImages(page)
+    await waitForMermaidDiagrams(ctx, page)
 
     // Read page header and footer if defined
     const pageHeader = await page.evaluate(() => {
@@ -90,6 +93,7 @@ export async function print (ctx: MeasureContext, url: string, options?: PrintOp
         format: 'A4',
         landscape: orientation === 'landscape',
         timeout: 0,
+        waitForFonts: true,
         headerTemplate: pageHeader,
         footerTemplate: pageFooter,
         displayHeaderFooter,
@@ -112,27 +116,106 @@ export async function print (ctx: MeasureContext, url: string, options?: PrintOp
   return res !== undefined ? Buffer.from(res) : undefined
 }
 
+async function waitForInitialNetworkIdle (ctx: MeasureContext, page: Page): Promise<void> {
+  try {
+    await page.waitForNetworkIdle({
+      idleTime: 1000,
+      concurrency: 2,
+      timeout: 10000
+    })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    ctx.warn('page network did not become idle before PDF generation', { message })
+  }
+}
+
+async function waitForPrintLayout (page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          resolve()
+        })
+      })
+    })
+  })
+}
+
 async function scrollThrough (page: Page): Promise<void> {
-  const MAX_SCROLLS = 10
   const TIMEOUT_BETWEEN_SCROLLS_MS = 400
 
-  await page.evaluate(
-    async (maxScrolls, timeoutBetweenScrollsMs) => {
-      let oldScrollY: number = 0
-      let newScrollY: number = 0
-      let count = 0
+  await page.evaluate(async (timeoutBetweenScrollsMs) => {
+    const scrollingElement = document.scrollingElement ?? document.documentElement
+    let previousScrollY = -1
 
-      do {
-        oldScrollY = window.scrollY
-        window.scrollBy(0, window.innerHeight)
-        newScrollY = window.scrollY
-        // Wait for the page to render previously loaded images
-        // as they are only displayed when visible also content dependent on
-        // intersection observers etc...
-        await new Promise((resolve) => setTimeout(resolve, timeoutBetweenScrollsMs))
-      } while (oldScrollY < newScrollY && count++ < maxScrolls)
-    },
-    MAX_SCROLLS,
-    TIMEOUT_BETWEEN_SCROLLS_MS
-  )
+    window.scrollTo(0, 0)
+
+    while (window.scrollY + window.innerHeight < scrollingElement.scrollHeight) {
+      if (window.scrollY === previousScrollY) break
+
+      previousScrollY = window.scrollY
+      window.scrollBy(0, window.innerHeight)
+
+      // Wait for lazy content and intersection observers to react to the new viewport.
+      await new Promise((resolve) => setTimeout(resolve, timeoutBetweenScrollsMs))
+
+      // The document can grow while lazy content is added, so read scrollHeight every iteration.
+    }
+
+    window.scrollTo(0, 0)
+  }, TIMEOUT_BETWEEN_SCROLLS_MS)
+}
+
+async function waitForImages (page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const IMAGE_LOAD_TIMEOUT_MS = 10000
+
+    await Promise.all(
+      Array.from(document.images).map(async (image) => {
+        if (!image.complete) {
+          await new Promise<void>((resolve) => {
+            image.addEventListener(
+              'load',
+              () => {
+                resolve()
+              },
+              { once: true }
+            )
+            image.addEventListener(
+              'error',
+              () => {
+                resolve()
+              },
+              { once: true }
+            )
+            window.setTimeout(resolve, IMAGE_LOAD_TIMEOUT_MS)
+          })
+        }
+
+        try {
+          await Promise.race([
+            image.decode(),
+            new Promise<void>((resolve) => window.setTimeout(resolve, IMAGE_LOAD_TIMEOUT_MS))
+          ])
+        } catch {
+          // A failed image request should not prevent the rest of the document from being exported.
+        }
+      })
+    )
+  })
+}
+
+async function waitForMermaidDiagrams (ctx: MeasureContext, page: Page): Promise<void> {
+  try {
+    await page.waitForFunction(
+      () =>
+        Array.from(document.querySelectorAll<HTMLElement>('.proseMermaidDiagram')).every(
+          (diagram) => diagram.dataset.mermaidRenderState !== 'pending'
+        ),
+      { timeout: 10000 }
+    )
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    ctx.warn('mermaid diagrams were not ready before PDF generation', { message })
+  }
 }

@@ -1,0 +1,44 @@
+# CockroachDB override: adds a local Cockroach instance for dev.
+# Use with: docker compose -f docker-compose.yaml -f docker-compose.cr.yaml
+#
+# This does NOT change any DB_URLs automatically; services will still use whatever
+# connection string you configure via env (e.g. DB_CR_URL in dev/.env).
+
+services:
+  cockroach:
+    image: cockroachdb/cockroach:latest-v24.3
+    extra_hosts:
+      - 'tracex.local:host-gateway'
+    ports:
+      - '26257:26257'
+      - '8089:8080'
+    command: start-single-node --insecure
+    volumes:
+      - cockroach_db:/cockroach/cockroach-data
+    restart: unless-stopped
+
+
+  account:
+    environment:
+      - DB_URL=${DB_CR_URL}
+
+  workspace_pg:
+    environment:
+      - DB_URL=${DB_CR_URL}
+      - ACCOUNTS_DB_URL=${DB_CR_URL}
+
+  transactor_pg:
+    environment:
+      - DB_URL=${DB_CR_URL}
+
+  fulltext_pg:
+    environment:
+      - DB_URL=${DB_CR_URL}
+
+  export:
+    environment:
+      - DB_URL=${DB_CR_URL}
+
+  datalake:
+    environment:
+      - DB_URL=${DB_CR_URL}

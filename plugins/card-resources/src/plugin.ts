@@ -53,6 +53,7 @@ export default mergeIds(cardId, card, {
     ViewsSection: '' as AnyComponent,
     EditView: '' as AnyComponent,
     CardEditor: '' as AnyComponent,
+    CardSpaceEditor: '' as AnyComponent,
     CardRefPresenter: '' as AnyComponent,
     ChangeType: '' as AnyComponent,
     CreateCardButton: '' as AnyComponent,

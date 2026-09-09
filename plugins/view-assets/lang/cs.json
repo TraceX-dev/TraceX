@@ -155,6 +155,7 @@
     "AutomationOnly": "Pouze automatizace",
     "CopyLink": "Kopírovat odkaz",
     "ValueIsSet": "Hodnota je nastavena",
+    "ValueIsNotSet": "Hodnota není nastavena",
     "RoleLabel": "Role: {role}",
     "ForbidAttributeChanges": "Zakázat změny: ",
     "AllowAttributeChanges": "Povolit změny: ",

@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 
 import account, {
@@ -43,6 +44,7 @@ export * from './migration/utils'
 export * from './migration/types'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
+const DEFAULT_ACCOUNT_METRICS_INTERVAL_MS = 5 * 60 * 1000
 
 const KEEP_ALIVE_HEADERS = {
   'Content-Type': 'application/json',
@@ -156,6 +158,43 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       await migrateFromOldAccounts(oldAccsUrl, db, oldAccsNs)
       console.log('Migrations verified/done')
     }
+  })
+
+  let accountMetricsTimer: NodeJS.Timeout | undefined
+  let isClosing = false
+  const parsedAccountMetricsInterval = Number(process.env.ACCOUNT_METRICS_INTERVAL_MS)
+  const accountMetricsInterval =
+    Number.isSafeInteger(parsedAccountMetricsInterval) && parsedAccountMetricsInterval > 0
+      ? parsedAccountMetricsInterval
+      : DEFAULT_ACCOUNT_METRICS_INTERVAL_MS
+
+  const startAccountMetrics = async (): Promise<void> => {
+    const [db] = await accountsDb
+    const collectAccountMetrics = async (): Promise<void> => {
+      try {
+        const [accounts, workspaces] = await Promise.all([db.account.count({}), db.workspace.count({})])
+        measureCtx.gauge('accounts', accounts)
+        measureCtx.gauge('workspaces', workspaces)
+        measureCtx.info('account metrics', { accounts, workspaces })
+      } catch (error) {
+        measureCtx.error('Failed to collect account metrics', { error })
+      }
+
+      if (!isClosing) {
+        accountMetricsTimer = setTimeout(() => {
+          void collectAccountMetrics()
+        }, accountMetricsInterval)
+      }
+    }
+
+    await migrations
+    if (!isClosing) {
+      await collectAccountMetrics()
+    }
+  }
+
+  void startAccountMetrics().catch((error) => {
+    measureCtx.error('Failed to start account metrics collection', { error })
   })
 
   const app = new Koa()
@@ -476,6 +515,9 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   })
 
   const close = (): void => {
+    isClosing = true
+    clearTimeout(accountMetricsTimer)
+    accountMetricsTimer = undefined
     onClose?.()
     void unreadConsumer?.close()
     void unreadQueue?.shutdown()

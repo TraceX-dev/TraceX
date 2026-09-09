@@ -753,20 +753,6 @@ jobs:
           DOCKER_BUILDKIT: 1
           DOCKER_BUILD_CLEANUP: true
 
-      - name: Generate Docker image SBOMs
-        if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v') || startsWith(github.event.inputs.ref || github.ref, 'refs/tags/s')
-        run: |
-          node common/scripts/install-run-rush.js docker:sbom -v
-        env:
-          SBOM_OUTPUT_DIR: ${{ github.workspace }}/sbom/docker
-
-      - name: Upload Docker image SBOMs
-        if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v') || startsWith(github.event.inputs.ref || github.ref, 'refs/tags/s')
-        uses: actions/upload-artifact@v6
-        with:
-          name: sbom-docker-images
-          path: sbom/docker/*.spdx.json
-
       - name: Clean Docker build cache
         run: docker builder prune -a -f
 
@@ -784,6 +770,21 @@ jobs:
         run: |
           echo Pushing release of tag ${{ github.ref }}
           node common/scripts/install-run-rush.js docker:push -v
+
+      - name: Generate Docker image SBOMs
+        if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
+        continue-on-error: true
+        run: |
+          node common/scripts/install-run-rush.js docker:sbom -v
+        env:
+          SBOM_OUTPUT_DIR: ${{ github.workspace }}/sbom/docker
+
+      - name: Upload Docker image SBOMs
+        if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: sbom-docker-images
+          path: sbom/docker/*.spdx.json
 
   qms-dist-build:
     # if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}

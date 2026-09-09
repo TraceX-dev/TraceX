@@ -131,7 +131,8 @@ export interface MeasureContext<Q = any> {
   parent?: MeasureContext
   getParams: () => ParamsType
 
-  measure: (name: string, value: number, override?: boolean) => void
+  gauge: (name: string, value: number) => void
+  counter: (name: string, value: number) => void
 
   // Capture error
   error: (message: string, obj?: Record<string, any>) => void

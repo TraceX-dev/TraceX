@@ -28,16 +28,16 @@ services:
     environment:
       - DB_URL=${DB_URL_PG}
 
-  workspace_cockroach:
+  workspace_pg:
     environment:
       - DB_URL=${DB_URL_PG}
       - ACCOUNTS_DB_URL=${DB_URL_PG}
 
-  transactor_cockroach:
+  transactor_pg:
     environment:
       - DB_URL=${DB_URL_PG}
 
-  fulltext_cockroach:
+  fulltext_pg:
     environment:
       - DB_URL=${DB_URL_PG}
 

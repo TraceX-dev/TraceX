@@ -152,6 +152,7 @@
     "AutomationOnly": "Только автоматизация",
     "CopyLink": "Скопировать ссылку",
     "ValueIsSet": "Значение установлено",
+    "ValueIsNotSet": "Значение не установлено",
     "RoleLabel": "Роль: {role}",
     "ForbidAttributeChanges": "Запретить изменение: ",
     "AllowAttributeChanges": "Разрешить изменение: ",

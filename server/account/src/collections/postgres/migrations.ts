@@ -89,7 +89,8 @@ export function getMigrations (ns: string, flavor: DBFlavor): [string, string][]
     getV28Migration(ns, flavor),
     getV29Migration(ns, flavor),
     getV30Migration(ns, flavor),
-    getV31Migration(ns, flavor)
+    getV31Migration(ns, flavor),
+    getV32Migration(ns, flavor)
   ]
 }
 
@@ -891,12 +892,21 @@ function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
     `
   ]
 }
+function getV31Migration (ns: string, _flavor: DBFlavor): [string, string] {
+  return [
+    'account_db_v31_add_last_visit_to_account',
+    `
+    ALTER TABLE ${ns}.account
+    ADD COLUMN IF NOT EXISTS last_visit BIGINT;
+    `
+  ]
+}
 
-function getV31Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV32Migration (ns: string, flavor: DBFlavor): [string, string] {
   const types = dbTypes[flavor]
 
   return [
-    'account_db_v31_add_workspace_icon',
+    'account_db_v32_add_workspace_icon',
     `
     -- Blob id of the workspace logo (same value as the workspace's own WorkspaceSetting.icon),
     -- synced here so select-workspace and workspace-switcher can render it without connecting

@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,6 +22,7 @@ export interface Mode {
   id: string
   label: IntlString
   query: QuerySelector<any> | string
+  match?: (value: any) => boolean
   parse?: (value: any) => any
   withoutEditor?: boolean
   editor?: AnyComponent
@@ -64,6 +66,20 @@ const Exists: Mode = {
   id: 'exists',
   label: view.string.ValueIsSet,
   query: { $exists: true },
+  withoutEditor: true
+}
+
+const ValueIsNotSet: Mode = {
+  id: 'valueIsNotSet',
+  label: view.string.ValueIsNotSet,
+  query: { $in: [null] },
+  match: (value: any): boolean => {
+    if (typeof value !== 'object' || value === null || Object.keys(value).length !== 1 || !Array.isArray(value.$in)) {
+      return false
+    }
+
+    return value.$in.length > 0 && value.$in.every((item: any) => item === null || item === undefined)
+  },
   withoutEditor: true
 }
 
@@ -132,6 +148,7 @@ const ArraySizeLte: Mode = {
 
 export const Modes = {
   Exists,
+  ValueIsNotSet,
   Equal,
   NotEqual,
   StringContains,
@@ -174,6 +191,7 @@ function isNotObject (value: any): boolean {
 }
 
 function isModeMatch (mode: Mode, value: any): boolean {
+  if (mode.match !== undefined) return mode.match(value)
   if (typeof mode.query !== 'object') return isNotObject(value)
   if (typeof mode.query === 'object' && isNotObject(value)) return false
   return hasSameKeys(mode.query, value)

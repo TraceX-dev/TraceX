@@ -140,6 +140,7 @@ export interface AccountClient {
   getWorkspaceInfo: (updateLastVisit?: boolean) => Promise<WorkspaceInfoWithStatus>
   getWorkspacesInfo: (workspaces: WorkspaceUuid[]) => Promise<WorkspaceInfoWithStatus[]>
   updateLastVisit: (workspaces: WorkspaceUuid[]) => Promise<void>
+  updateAccountsLastVisit: (accounts: AccountUuid[]) => Promise<void>
   getRegionInfo: () => Promise<RegionInfo[]>
   createWorkspace: (
     name: string,
@@ -666,6 +667,14 @@ class AccountClientImpl implements AccountClient {
   async updateLastVisit (ids: WorkspaceUuid[]): Promise<void> {
     const request = {
       method: 'updateLastVisit' as const,
+      params: { ids }
+    }
+    await this.rpc(request)
+  }
+
+  async updateAccountsLastVisit (ids: AccountUuid[]): Promise<void> {
+    const request = {
+      method: 'updateAccountsLastVisit' as const,
       params: { ids }
     }
     await this.rpc(request)

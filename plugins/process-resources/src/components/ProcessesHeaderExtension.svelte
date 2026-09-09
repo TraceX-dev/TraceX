@@ -138,6 +138,7 @@
 
   $: rollbacks = docs.filter((d) => d.rollback.length > 0)
   $: activeProcesses = new Set(docs.map((d) => d.process))
+  $: activeExecutionIds = new Set(docs.map((d) => d._id))
   $: visibleHeaderProcesses = headerProcesses.filter(
     (value) => !value.parallelExecutionForbidden || !activeProcesses.has(value._id)
   )
@@ -155,7 +156,9 @@
   {/if}
 {/each}
 {#each actions as action (action._id)}
-  <Button kind={'primary'} label={getEmbeddedLabel(action.title)} on:click={() => performAction(action)} />
+  {#if activeExecutionIds.has(action.execution) && (action.user === undefined || action.user === emp)}
+    <Button kind={'primary'} label={getEmbeddedLabel(action.title)} on:click={() => performAction(action)} />
+  {/if}
 {/each}
 {#each visibleHeaderProcesses as headerProcess (headerProcess._id)}
   <Button kind={'primary'} label={getEmbeddedLabel(headerProcess.name)} on:click={() => runProcess(headerProcess)} />

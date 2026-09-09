@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,12 +15,15 @@
 //
 
 import {
+  allocateWithRetries,
   generateId,
+  parseIdentifier,
   type AttachedDoc,
   type Class,
   type Collection,
   type Data,
   type Doc,
+  type DocumentQuery,
   type Hierarchy,
   type LowLevelStorage,
   type MeasureContext,
@@ -33,6 +37,12 @@ import { type DataMapper } from './data-mapper'
 import { type RelationExporter } from './relation-exporter'
 import { type SpaceExporter } from './space-exporter'
 import { type CustomExportHandler, type ExportState, type RelationDefinition } from './types'
+
+// Keep in sync with the controlled documents plugin, which owns these sequences.
+const DOCUMENT_NAMESPACE = 'documents'
+const DOCUMENT_SEQUENCE_NAMESPACE = `${DOCUMENT_NAMESPACE}.sequence`
+const DOCUMENT_SEQUENCE_KEY = 'seqNumber'
+const TEMPLATE_SEQUENCE_SCOPE = 'templates'
 
 /**
  * Handles document export logic
@@ -283,31 +293,98 @@ export class DocumentExporter {
     targetSpace: Ref<Space>,
     isAttached: boolean
   ): Promise<void> {
+    const shouldAllocate = this.dataMapper.shouldAllocateIdentifier(sourceDoc._class)
+    const parsedCode = shouldAllocate && typeof data.code === 'string' ? parseIdentifier(data.code) : null
+    const hasSequence =
+      shouldAllocate && typeof data.seqNumber === 'number' && Number.isSafeInteger(data.seqNumber) && data.seqNumber > 0
+    const documentPrefix = typeof data.prefix === 'string' && data.prefix !== '' ? data.prefix : parsedCode?.prefix
+    const usesSequenceCode = parsedCode !== null && parsedCode.prefix === documentPrefix
+    const shouldAllocateSequence = parsedCode !== null && hasSequence && documentPrefix !== undefined
+
+    let attachedData: Data<AttachedDoc> | undefined
+    let attachedTo: AttachedDoc['attachedTo'] | undefined
+    let attachedToClass: AttachedDoc['attachedToClass'] | undefined
+    let collection: AttachedDoc['collection'] | undefined
+
     if (isAttached) {
-      const attachedDoc = sourceDoc as AttachedDoc
-      const attachedData = data as Data<AttachedDoc>
+      attachedData = data as Data<AttachedDoc>
 
       // attachedTo is already remapped in prepareDocumentData
-      const attachedTo = attachedData.attachedTo
-      const attachedToClass = attachedData.attachedToClass
-      const collection = attachedData.collection
+      attachedTo = attachedData.attachedTo
+      attachedToClass = attachedData.attachedToClass
+      collection = attachedData.collection
 
       // Remove attached doc fields from data - they're passed as separate params to addCollection
       delete (attachedData as any).attachedTo
       delete (attachedData as any).attachedToClass
       delete (attachedData as any).collection
+    }
 
-      await this.targetClient.addCollection(
-        attachedDoc._class,
-        targetSpace,
-        attachedTo as any,
-        attachedToClass,
-        collection,
-        attachedData,
-        targetId as any
-      )
+    if (!shouldAllocateSequence || parsedCode === null || documentPrefix === undefined) {
+      if (isAttached && attachedData !== undefined) {
+        await this.targetClient.addCollection(
+          sourceDoc._class,
+          targetSpace,
+          attachedTo as any,
+          attachedToClass as any,
+          collection as any,
+          attachedData,
+          targetId as any
+        )
+      } else {
+        await this.targetClient.createDoc(sourceDoc._class, targetSpace, data, targetId)
+      }
     } else {
-      await this.targetClient.createDoc(sourceDoc._class, targetSpace, data, targetId)
+      const sequenceQuery = (seqNumber: number): DocumentQuery<Doc> =>
+        (typeof data.template === 'string'
+          ? { template: data.template, seqNumber }
+          : { template: { $exists: false }, seqNumber }) as unknown as DocumentQuery<Doc>
+
+      const outcome = await allocateWithRetries(
+        this.targetClient,
+        {
+          namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+          scope: typeof data.template === 'string' ? data.template : TEMPLATE_SEQUENCE_SCOPE,
+          sequence: DOCUMENT_SEQUENCE_KEY,
+          minimum: data.seqNumber,
+          codePrefix: usesSequenceCode ? documentPrefix : undefined,
+          code: usesSequenceCode ? undefined : data.code,
+          codeNamespace: DOCUMENT_NAMESPACE
+        },
+        async (seqNumber, code) => {
+          data.seqNumber = seqNumber
+          data.code = code
+
+          const operations = this.targetClient.apply('export-allocation')
+          operations.notMatch(sourceDoc._class, sequenceQuery(seqNumber))
+          operations.notMatch(sourceDoc._class, { code } as unknown as DocumentQuery<Doc>)
+          if (isAttached && attachedData !== undefined) {
+            await operations.addCollection(
+              sourceDoc._class,
+              targetSpace,
+              attachedTo as any,
+              attachedToClass as any,
+              collection as any,
+              attachedData,
+              targetId as any
+            )
+          } else {
+            await operations.createDoc(sourceDoc._class, targetSpace, data, targetId)
+          }
+          return (await operations.commit()).result
+        },
+        async (seqNumber, code) => {
+          const [sequenceConflict, codeConflict] = await Promise.all([
+            this.targetClient.findOne(sourceDoc._class, sequenceQuery(seqNumber)),
+            this.targetClient.findOne(sourceDoc._class, { code } as unknown as DocumentQuery<Doc>)
+          ])
+          return { sequence: sequenceConflict !== undefined, code: codeConflict !== undefined }
+        }
+      )
+
+      if (!outcome.success) {
+        throw new Error(`Unable to create document ${sourceDoc._id}: ${outcome.reason ?? 'unknown reason'}`)
+      }
     }
 
     this.context.info(
