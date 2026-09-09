@@ -322,8 +322,12 @@
             class:drop-before={dropTarget === object._id && !dropAfter}
             class:drop-after={dropTarget === object._id && dropAfter}
             draggable={canReorder(object, $permissionsStore)}
-            on:dragstart={(event) => { startDrag(event, object) }}
-            on:dragover={(event) => { dragOver(event, object) }}
+            on:dragstart={(event) => {
+              startDrag(event, object)
+            }}
+            on:dragover={(event) => {
+              dragOver(event, object)
+            }}
             on:dragleave={dragLeave}
             on:drop={(event) => {
               void drop(event, object)
