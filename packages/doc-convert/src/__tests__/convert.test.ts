@@ -25,6 +25,8 @@ import {
   normalizeMarkup,
   resolveDocxFill
 } from '..'
+import { extractDocxCellFills } from '../word-utils'
+import JSZip from 'jszip'
 
 const sample: MarkupNode = {
   type: MarkupNodeType.doc,
@@ -80,7 +82,158 @@ describe('docxToMarkup', () => {
     expect(serialized).toContain('world')
     expect(serialized).toContain('first')
   })
+
+  it('preserves direct DOCX table cell shading', async () => {
+    const source: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.table,
+          content: [
+            {
+              type: MarkupNodeType.table_row,
+              content: [
+                cell(MarkupNodeType.table_cell, 'Red', { backgroundColor: '#ff0000' }),
+                cell(MarkupNodeType.table_cell, 'Plain')
+              ]
+            },
+            {
+              type: MarkupNodeType.table_row,
+              content: [
+                cell(MarkupNodeType.table_cell, 'Blue', { backgroundColor: '#0000ff' }),
+                cell(MarkupNodeType.table_cell, 'Green', { backgroundColor: '#00ff00' })
+              ]
+            }
+          ]
+        }
+      ]
+    }
+
+    const { markup } = await docxToMarkup(await markupToDocx(source))
+    const importedCells = tableCells(markup)
+
+    expect(importedCells.map((item) => item.attrs?.backgroundColor)).toEqual([
+      '#FF0000',
+      undefined,
+      '#0000FF',
+      '#00FF00'
+    ])
+  })
+
+  it('keeps cell shading aligned across a vertical merge', async () => {
+    // Mammoth folds a `w:vMerge` continuation into the cell above and drops it, while the
+    // DOCX still carries a `<w:tc>` for it — a naive positional match shifts every later color.
+    const source: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.table,
+          content: [
+            {
+              type: MarkupNodeType.table_row,
+              content: [
+                cell(MarkupNodeType.table_cell, 'Merged', { backgroundColor: '#ff0000', rowspan: 2 }),
+                cell(MarkupNodeType.table_cell, 'Plain')
+              ]
+            },
+            {
+              type: MarkupNodeType.table_row,
+              content: [cell(MarkupNodeType.table_cell, 'Green', { backgroundColor: '#00ff00' })]
+            }
+          ]
+        }
+      ]
+    }
+
+    const { markup } = await docxToMarkup(await markupToDocx(source))
+    const importedCells = tableCells(markup)
+
+    expect(importedCells.map((item) => item.attrs?.backgroundColor)).toEqual(['#FF0000', undefined, '#00FF00'])
+  })
 })
+
+describe('extractDocxCellFills', () => {
+  let warn: jest.SpyInstance
+
+  beforeEach(() => {
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    warn.mockRestore()
+  })
+
+  it('reads cell fills in document order, including tables nested in a content control', async () => {
+    // fast-xml-parser groups same-named siblings, so without `preserveOrder` the table inside
+    // `w:sdt` would be collected after the plain table that follows it.
+    const fills = await extractDocxCellFills(
+      await documentXml(`
+        ${table(shadedCell('FF0000'))}
+        <w:sdt><w:sdtContent>${table(shadedCell('00FF00'))}</w:sdtContent></w:sdt>
+        ${table(shadedCell('0000FF'))}
+      `)
+    )
+
+    expect(fills).toEqual(['#FF0000', '#00FF00', '#0000FF'])
+  })
+
+  it('reads a nested table right after the cell that holds it', async () => {
+    const fills = await extractDocxCellFills(
+      await documentXml(table(shadedCell('FF0000', table(shadedCell('00FF00'))) + shadedCell('0000FF')))
+    )
+
+    expect(fills).toEqual(['#FF0000', '#00FF00', '#0000FF'])
+  })
+
+  it('ignores automatic shading and non-hex fills', async () => {
+    const fills = await extractDocxCellFills(
+      await documentXml(table(shadedCell('auto') + shadedCell('') + '<w:tc><w:p/></w:tc>'))
+    )
+
+    expect(fills).toEqual([undefined, undefined, undefined])
+  })
+
+  it('returns no fills for a buffer that is not a docx', async () => {
+    await expect(extractDocxCellFills(Buffer.from('definitely not a zip'))).resolves.toEqual([])
+    expect(warn).toHaveBeenCalled()
+  })
+})
+
+function shadedCell (fill: string, nested: string = ''): string {
+  const shading = fill === '' ? '' : `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>`
+  return `<w:tc><w:tcPr>${shading}</w:tcPr>${nested}<w:p/></w:tc>`
+}
+
+function table (cells: string): string {
+  return `<w:tbl><w:tr>${cells}</w:tr></w:tbl>`
+}
+
+async function documentXml (body: string): Promise<Buffer> {
+  // jszip's typings describe the singleton, not its constructor.
+  const zip = new (JSZip as unknown as new () => typeof JSZip)()
+  zip.file(
+    'word/document.xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+     <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+       <w:body>${body}</w:body>
+     </w:document>`
+  )
+  return await zip.generateAsync({ type: 'nodebuffer' })
+}
+
+function tableCells (node: MarkupNode): MarkupNode[] {
+  const cells: MarkupNode[] = []
+  const visit = (current: MarkupNode): void => {
+    if (current.type === MarkupNodeType.table_cell || current.type === MarkupNodeType.table_header) {
+      cells.push(current)
+    }
+    for (const child of current.content ?? []) {
+      visit(child)
+    }
+  }
+  visit(node)
+  return cells
+}
 
 describe('normalizeMarkup', () => {
   it('drops empty text nodes and trailing empty paragraphs', () => {

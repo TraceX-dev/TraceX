@@ -34,6 +34,7 @@
   export let width: string | undefined = 'fit-content'
   export let kitOptions: Partial<EditorKitOptions> = { reference: true, emoji: true }
   export let attachFile: ImageUploadOptions['attachFile'] | undefined = undefined
+  export let isScrollable: boolean = true
 
   let shown: boolean = false
 </script>
@@ -72,9 +73,11 @@
     content={value}
     {placeholder}
     alwaysEdit
+    previewUnlimit
     {kitOptions}
     mode={2}
     {readonly}
+    {isScrollable}
     {attachFile}
     on:value={(e) => {
       onChange(e.detail)

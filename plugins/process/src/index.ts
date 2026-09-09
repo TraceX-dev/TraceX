@@ -201,6 +201,7 @@ export interface UserResult {
   name: string
   key?: string
   type: Type<any>
+  selectionSpace?: string // Space reference or serialized process context
 }
 
 export interface ProcessCustomEvent extends Doc {

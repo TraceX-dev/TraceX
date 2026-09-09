@@ -58,6 +58,7 @@ export default mergeIds(processId, process, {
     ErrorPresenter: '' as AnyComponent,
     RequestUserInput: '' as AnyComponent,
     ResultInput: '' as AnyComponent,
+    SelectionSpaceEditor: '' as AnyComponent,
     RoleEditor: '' as AnyComponent,
     ActionsPresenter: '' as AnyComponent,
     TriggerPresenter: '' as AnyComponent,
