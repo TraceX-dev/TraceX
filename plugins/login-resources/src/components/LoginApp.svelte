@@ -41,6 +41,8 @@
   import SignupForm from './SignupForm.svelte'
   import LoginTfaForm from './LoginTfaForm.svelte'
   import TraceXLogo from './icons/TraceXLogo.svelte'
+  import BottomActionComponent from './BottomAction.svelte'
+  import { loginFooterActions } from '../footerActions'
   import { Pages, getAccount, pages } from '..'
   import login from '../plugin'
 
@@ -155,15 +157,14 @@
           {/if}
         </div>
       </Scroller>
+      {#if $loginFooterActions.length > 0}
+        <div class="tracex-login-footer">
+          {#each $loginFooterActions as footerAction (footerAction.i18n)}
+            <BottomActionComponent action={footerAction} />
+          {/each}
+        </div>
+      {/if}
     </div>
-
-    {#if $loginFooterActions.length > 0}
-      <div class="tracex-login-footer">
-        {#each $loginFooterActions as footerAction (footerAction.i18n)}
-          <BottomActionComponent action={footerAction} />
-        {/each}
-      </div>
-    {/if}
   </div>
 
   <Popup />
@@ -224,6 +225,17 @@
     min-height: 0;
     min-width: 0;
     height: max-content;
+  }
+
+  .tracex-login-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 2rem 1.25rem;
+    border-top: 1px solid var(--theme-button-border);
+    text-align: center;
+    font-size: 0.8125rem;
   }
 
   @media (max-width: 480px) {
