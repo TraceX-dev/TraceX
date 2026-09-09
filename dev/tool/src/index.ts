@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -136,6 +137,7 @@ import { existsSync } from 'fs'
 import { mkdir, writeFile } from 'fs/promises'
 import { dirname } from 'path'
 import { restoreMarkupRefs } from './markup'
+import { disableMeetingRoomDefaults } from './meeting-rooms'
 import { restoreGithubIntegrations } from './restoreGithub'
 
 const colorConstants = {
@@ -1516,6 +1518,51 @@ export function devTool (
             cmd.dryRun
               ? `ensure-missing-social-identities dry-run: persons without personUuid skipped=${skippedPersons}, social identities that would be created=${wouldCreate}`
               : `ensure-missing-social-identities: persons without personUuid skipped=${skippedPersons}, SocialIdentity docs created=${created}`
+          )
+        } finally {
+          await connection.close()
+        }
+      })
+    })
+
+  program
+    .command('disable-meeting-room-defaults <workspace>')
+    .description('Disable automatic recording and transcription in existing meeting rooms')
+    .option('--dry-run', 'Only report rooms that would be updated', false)
+    .option('--apply', 'Apply changes; without this option the command runs in dry-run mode', false)
+    .action(async (workspace: string, cmd: { dryRun: boolean, apply: boolean }) => {
+      if (cmd.dryRun && cmd.apply) {
+        throw new Error('--dry-run cannot be used with --apply')
+      }
+
+      const dryRun = cmd.dryRun || !cmd.apply
+      await withAccountDatabase(async (db) => {
+        const info = await getWorkspace(db, workspace)
+        if (info === null) {
+          throw new Error(`Workspace ${workspace} not found`)
+        }
+
+        const workspaceStatus = await getWorkspaceInfoWithStatusById(db, info.uuid)
+        if (workspaceStatus === null) {
+          throw new Error(`Workspace status for ${workspace} not found`)
+        }
+        if (workspaceStatus.status.isDisabled || isDeletingMode(workspaceStatus.status.mode)) {
+          console.log(
+            `disable-meeting-room-defaults: skipped workspace ${info.uuid} ` +
+              `(disabled=${workspaceStatus.status.isDisabled}, mode=${workspaceStatus.status.mode})`
+          )
+          return
+        }
+
+        const endpoint = await getWorkspaceTransactorEndpoint(info.uuid)
+        const connection = await connect(endpoint, info.uuid, undefined, { model: 'upgrade' })
+        const ops = new TxOperations(connection, core.account.System)
+        try {
+          const result = await disableMeetingRoomDefaults(ops, dryRun)
+          console.log(
+            dryRun
+              ? `disable-meeting-room-defaults dry-run: rooms that would be updated=${result.wouldUpdate}`
+              : `disable-meeting-room-defaults: rooms updated=${result.updated}`
           )
         } finally {
           await connection.close()

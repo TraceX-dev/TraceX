@@ -541,7 +541,7 @@ export function startHttpServer (
             ctx,
             webSocketData,
             (s, buff) => {
-              s.context.measure('receive-data', buff?.length ?? 0)
+              s.context.counter('receive-data', buff?.length ?? 0)
               processRequest(s.session, cs, s.context, s.workspaceId, buff, sessions)
             },
             buff
@@ -713,7 +713,7 @@ function createWebsocketClientSocket (
       const st = platformNow()
       await new Promise<void>((resolve) => {
         const handleErr = (err?: Error): void => {
-          ctx.measure('msg-send-delta', platformNow() - st)
+          ctx.counter('msg-send-delta', platformNow() - st)
           if (err != null) {
             if (!`${err.message}`.includes('WebSocket is not open')) {
               ctx.error('send error', { err })

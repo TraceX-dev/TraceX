@@ -68,6 +68,7 @@ export interface Account {
   maxWorkspaces?: number
   failedLoginAttempts?: number // Number of consecutive failed login attempts
   tfaSecret?: string
+  lastVisit?: Timestamp
 }
 
 // TODO: type data with generic type
@@ -395,6 +396,7 @@ export interface AccountDB {
 
 export interface DbCollection<T> {
   exists: (query: Query<T>) => Promise<boolean>
+  count: (query: Query<T>) => Promise<number>
   find: (query: Query<T>, sort?: Sort<T>, limit?: number) => Promise<T[]>
   findOne: (query: Query<T>) => Promise<T | null>
   insertOne: (data: Partial<T>) => Promise<any>

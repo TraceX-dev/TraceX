@@ -13,7 +13,19 @@
 // limitations under the License.
 
 import { Card, ExportFunc, MasterTag, Tag } from '@hcengineering/card'
-import { Association, Class, Client, Doc, DocumentUpdate, ObjQueryType, Rank, Ref, Tx, Type } from '@hcengineering/core'
+import {
+  Association,
+  Class,
+  Client,
+  Doc,
+  DocumentUpdate,
+  Markup,
+  ObjQueryType,
+  Rank,
+  Ref,
+  Tx,
+  Type
+} from '@hcengineering/core'
 import { Asset, IntlString, Plugin, plugin, Resource } from '@hcengineering/platform'
 import { ToDo } from '@hcengineering/time'
 import { AnyComponent } from '@hcengineering/ui'
@@ -189,6 +201,7 @@ export interface UserResult {
   name: string
   key?: string
   type: Type<any>
+  selectionSpace?: string // Space reference or serialized process context
 }
 
 export interface ProcessCustomEvent extends Doc {
@@ -199,7 +212,9 @@ export interface ProcessCustomEvent extends Doc {
 
 export interface EventButton extends Doc {
   title: string
+  description?: Markup
   eventType: string
+  user?: ToDo['user']
   execution: Ref<Execution>
   card: Ref<Card>
 }
@@ -263,6 +278,7 @@ export default plugin(processId, {
     RunSubProcess: '' as Ref<Method<Process>>,
     CancelSubProcess: '' as Ref<Method<Process>>,
     CreateAction: '' as Ref<Method<EventButton>>,
+    SetContext: '' as Ref<Method<Doc>>,
     CancellAction: '' as Ref<Method<EventButton>>,
     CreateToDo: '' as Ref<Method<ProcessToDo>>,
     CloseToDo: '' as Ref<Method<ProcessToDo>>,
@@ -376,6 +392,8 @@ export default plugin(processId, {
     Trim: '' as Ref<ProcessFunction>,
     Prepend: '' as Ref<ProcessFunction>,
     Append: '' as Ref<ProcessFunction>,
+    PrependMarkup: '' as Ref<ProcessFunction>,
+    AppendMarkup: '' as Ref<ProcessFunction>,
     Replace: '' as Ref<ProcessFunction>,
     ReplaceAll: '' as Ref<ProcessFunction>,
     Split: '' as Ref<ProcessFunction>,

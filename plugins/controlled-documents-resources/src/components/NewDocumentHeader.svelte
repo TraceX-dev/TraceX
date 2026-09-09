@@ -25,10 +25,8 @@
   $: canCreateTemplate = Object.keys($permissionsStore.ps).some((space) =>
     checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
   )
-  $: canCreateCategory = checkMyPermission(
-    documents.permission.CreateDocumentCategory,
-    documents.space.QualityDocuments,
-    $permissionsStore
+  $: canCreateCategory = Object.keys($permissionsStore.ps).some((space) =>
+    checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
   )
   $: {
     dropdownItems = []

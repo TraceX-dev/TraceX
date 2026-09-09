@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -64,6 +65,7 @@ export interface S3UploadPartOptions {
 export interface S3Bucket {
   bucket: string
 
+  close: () => void
   head: (ctx: MeasureContext, key: string) => Promise<S3Object | null>
   get: (ctx: MeasureContext, key: string, options?: S3GetOptions) => Promise<S3ObjectBody | null>
   put: (ctx: MeasureContext, key: string, body: Readable | Buffer | string, options: S3PutOptions) => Promise<void>

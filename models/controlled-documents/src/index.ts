@@ -240,10 +240,7 @@ export function createModel (builder: Builder): void {
             position: 'top',
             label: documents.string.Categories,
             icon: documents.icon.Library,
-            component: documents.component.Categories,
-            componentProps: {
-              space: documents.space.QualityDocuments
-            }
+            component: documents.component.Categories
           },
           {
             id: 'space-browser',

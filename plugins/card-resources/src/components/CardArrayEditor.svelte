@@ -16,6 +16,7 @@
 <script lang="ts">
   import { Card, MasterTag } from '@hcengineering/card'
   import { AnyAttribute, ArrOf, Class, Ref, RefTo, Type } from '@hcengineering/core'
+  import type { DocumentQuery } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { IconWithEmoji, createQuery, getClient } from '@hcengineering/presentation'
   import { Button, ButtonKind, ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
@@ -32,6 +33,7 @@
   export let onChange: ((value: any) => void) | undefined
   export let attribute: AnyAttribute | undefined = undefined
   export let type: Type<any> | undefined = undefined
+  export let docQuery: DocumentQuery<Card> = {}
 
   export let focusIndex: number | undefined = undefined
   export let kind: ButtonKind = 'ghost'
@@ -62,7 +64,7 @@
 
     showPopup(
       CardsPopup,
-      { selectedObjects: toArray(value), _class, multiSelect: true },
+      { selectedObjects: toArray(value), _class, multiSelect: true, docQuery },
       eventToHTMLElement(event),
       undefined,
       change

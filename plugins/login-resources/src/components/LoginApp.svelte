@@ -45,7 +45,6 @@
   import { Pages, getAccount, pages } from '..'
   import login from '../plugin'
 
-  import AdminWorkspaces from './AdminWorkspaces.svelte'
   import ChangePassword from './ChangePassword.svelte'
 
   export let page: Pages = 'signup'
@@ -115,65 +114,61 @@
   onMount(chooseToken)
 </script>
 
-{#if page === 'admin'}
-  <AdminWorkspaces />
-{:else}
-  <div class="tracex-login w-full h-full">
-    <div class="tracex-login-column">
-      <div class="tracex-login-logo">
-        <TraceXLogo />
-      </div>
-
-      <div class="tracex-login-card">
-        <Scroller padding={'1rem 0'}>
-          <div class="form-content">
-            {#if page === 'login'}
-              {#if localLoginHidden}
-                <ProvidersOnlyForm />
-              {:else}
-                <LoginForm {navigateUrl} {signUpDisabled} {useOTP} />
-              {/if}
-            {:else if page === 'signup'}
-              <SignupForm {navigateUrl} {signUpDisabled} {localLoginHidden} {useOTP} />
-            {:else if page === 'createWorkspace'}
-              <CreateWorkspaceForm />
-            {:else if page === 'password'}
-              <PasswordRequest {signUpDisabled} />
-            {:else if page === 'recovery'}
-              <PasswordRestore />
-            {:else if page === 'selectWorkspace'}
-              <SelectWorkspace {navigateUrl} />
-            {:else if page === 'join'}
-              <Join />
-            {:else if page === 'autoJoin'}
-              <AutoJoin />
-            {:else if page === 'confirm'}
-              <Confirmation />
-            {:else if page === 'confirmationSend'}
-              <ConfirmationSend />
-            {:else if page === 'auth'}
-              <Auth />
-            {:else if page === 'changePassword'}
-              <ChangePassword />
-            {:else if page === 'tfa'}
-              <LoginTfaForm {navigateUrl} token={tfaToken} on:back={() => (page = 'login')} />
-            {/if}
-          </div>
-        </Scroller>
-      </div>
-
-      {#if $loginFooterActions.length > 0}
-        <div class="tracex-login-footer">
-          {#each $loginFooterActions as footerAction (footerAction.i18n)}
-            <BottomActionComponent action={footerAction} />
-          {/each}
-        </div>
-      {/if}
+<div class="tracex-login w-full h-full">
+  <div class="tracex-login-column">
+    <div class="tracex-login-logo">
+      <TraceXLogo />
     </div>
 
-    <Popup />
+    <div class="tracex-login-card">
+      <Scroller padding={'1rem 0'}>
+        <div class="form-content">
+          {#if page === 'login'}
+            {#if localLoginHidden}
+              <ProvidersOnlyForm />
+            {:else}
+              <LoginForm {navigateUrl} {signUpDisabled} {useOTP} />
+            {/if}
+          {:else if page === 'signup'}
+            <SignupForm {navigateUrl} {signUpDisabled} {localLoginHidden} {useOTP} />
+          {:else if page === 'createWorkspace'}
+            <CreateWorkspaceForm />
+          {:else if page === 'password'}
+            <PasswordRequest {signUpDisabled} />
+          {:else if page === 'recovery'}
+            <PasswordRestore />
+          {:else if page === 'selectWorkspace'}
+            <SelectWorkspace {navigateUrl} />
+          {:else if page === 'join'}
+            <Join />
+          {:else if page === 'autoJoin'}
+            <AutoJoin />
+          {:else if page === 'confirm'}
+            <Confirmation />
+          {:else if page === 'confirmationSend'}
+            <ConfirmationSend />
+          {:else if page === 'auth'}
+            <Auth />
+          {:else if page === 'changePassword'}
+            <ChangePassword />
+          {:else if page === 'tfa'}
+            <LoginTfaForm {navigateUrl} token={tfaToken} on:back={() => (page = 'login')} />
+          {/if}
+        </div>
+      </Scroller>
+    </div>
+
+    {#if $loginFooterActions.length > 0}
+      <div class="tracex-login-footer">
+        {#each $loginFooterActions as footerAction (footerAction.i18n)}
+          <BottomActionComponent action={footerAction} />
+        {/each}
+      </div>
+    {/if}
   </div>
-{/if}
+
+  <Popup />
+</div>
 
 <style lang="scss">
   .tracex-login {

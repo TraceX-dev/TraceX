@@ -1,6 +1,68 @@
+// Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import { createDSLContext, parseDSLContext } from '../dslContext'
+import type { Class, Doc, Ref } from '@hcengineering/core'
+import type { ContextId } from '../index'
+import type { SelectedUserRequest } from '../types'
 
 describe('dslContext roundtrip', () => {
+  test.each([
+    { type: 'attribute', key: 'space' },
+    { type: 'context', id: 'selected-card' as ContextId, key: 'space' },
+    { type: 'context', id: 'selected-space' as ContextId, key: '' }
+  ] as const)('user request preserves a space expression from $type', (source) => {
+    const original: SelectedUserRequest = {
+      type: 'userRequest',
+      id: 'input' as ContextId,
+      key: '',
+      _class: 'test:class:Card' as Ref<Class<Doc>>,
+      selectionSpace: createDSLContext(source)
+    }
+
+    const parsed = parseDSLContext(createDSLContext(original))
+    expect(parsed).toEqual(expect.objectContaining(original))
+    if (parsed?.type !== 'userRequest') throw new Error('Expected a user request')
+    if (parsed.selectionSpace === undefined) throw new Error('Expected a selection space')
+    expect(parseDSLContext(parsed.selectionSpace)).toEqual(expect.objectContaining(source))
+  })
+
+  test.each(['', 'owner'])('user request preserves selection space for key "%s"', (key) => {
+    const original: SelectedUserRequest = {
+      type: 'userRequest',
+      id: 'input' as ContextId,
+      key,
+      _class: 'test:class:Card' as Ref<Class<Doc>>,
+      selectionSpace: 'target-space'
+    }
+
+    expect(parseDSLContext(createDSLContext(original))).toEqual(expect.objectContaining(original))
+  })
+
+  test('user request without selection space keeps the existing DSL format', () => {
+    // eslint-disable-next-line no-template-curly-in-string
+    const dsl = '${$userRequest(input,,test:class:Card)}'
+    const parsed = parseDSLContext(dsl)
+
+    expect(parsed).toEqual(
+      expect.objectContaining({ type: 'userRequest', id: 'input', key: '', _class: 'test:class:Card' })
+    )
+    expect(parsed).not.toHaveProperty('selectionSpace')
+    if (parsed === undefined) throw new Error('Expected a parsed context')
+    expect(createDSLContext(parsed)).toBe(dsl)
+  })
+
   test('attribute', () => {
     const original = { type: 'attribute', key: 'name' } as any
     const dsl = createDSLContext(original)
@@ -56,6 +118,25 @@ describe('dslContext roundtrip', () => {
     expect((parsed as any).sourceFunction).toBeDefined()
     expect((parsed as any).fallbackValue).toBe(10)
     expect((parsed as any).functions?.length).toBeGreaterThanOrEqual(1)
+  })
+
+  test('SOURCE preserves multiple properties', () => {
+    const original = {
+      type: 'attribute',
+      key: 'items',
+      sourceFunction: {
+        func: 'FirstMatchValue' as any,
+        props: {
+          status: { $in: [null] },
+          _class: 'test:class:Item',
+          $sort: { rank: 1 }
+        }
+      }
+    } as any
+
+    const parsed = parseDSLContext(createDSLContext(original))
+
+    expect((parsed as any).sourceFunction?.props).toEqual(original.sourceFunction.props)
   })
 
   test('nested template with arrow inside should not split modifiers', () => {

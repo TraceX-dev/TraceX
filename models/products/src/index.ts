@@ -74,6 +74,9 @@ const productPermissions: Ref<Permission>[] = [
   documents.permission.CoAuthorDocument,
   documents.permission.ArchiveDocument,
   documents.permission.UpdateDocumentOwner,
+  documents.permission.CreateDocumentCategory,
+  documents.permission.UpdateDocumentCategory,
+  documents.permission.DeleteDocumentCategory,
   core.permission.UpdateSpace,
   core.permission.ArchiveSpace
 ]

@@ -9,7 +9,6 @@
   "DATALAKE_URL": "https://stg.tracex.co/datalake",
   "BRANDING_URL": "https://stg.tracex.co/branding.json",
   "COLLABORATOR_URL": "wss://stg.tracex.co/collaborator",
-  "PULSE_URL": "wss://stg.tracex.co/pulse/ws",
   "PRINT_URL": "https://stg.tracex.co/print",
   "SIGN_URL": "https://stg.tracex.co/sign",
   "EXPORT_URL": "https://stg.tracex.co/export",
