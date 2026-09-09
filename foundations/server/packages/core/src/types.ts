@@ -559,11 +559,11 @@ export interface ClientSessionCtx {
 
   pipeline: Pipeline
   socialStringsToUsers: Map<
-  PersonId,
-  {
-    accontUuid: AccountUuid
-    role: AccountRole
-  }
+    PersonId,
+    {
+      accontUuid: AccountUuid
+      role: AccountRole
+    }
   >
   requestId: ReqId | undefined
   sendResponse: (id: ReqId | undefined, msg: any) => Promise<void>

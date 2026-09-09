@@ -74,9 +74,9 @@ export async function createTables (
   loadedTables =
     loadedTables.size === 0
       ? new Set(
-        (
-          await ctx.with('load-table', {}, () =>
-            client.unsafe(`
+          (
+            await ctx.with('load-table', {}, () =>
+              client.unsafe(`
     SELECT table_name 
     FROM information_schema.tables
     WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
@@ -84,9 +84,9 @@ export async function createTables (
     AND table_name NOT LIKE 'cluster_%'
     AND table_name NOT LIKE 'kv_%'
     AND table_name NOT LIKE 'node_%'`)
-          )
-        ).map((it) => it.table_name)
-      )
+            )
+          ).map((it) => it.table_name)
+        )
       : loadedTables
   console.log('load-table', platformNowDiff(t))
 
@@ -274,9 +274,9 @@ export function parseUpdate<T extends Doc> (
   ops: DocumentUpdate<T> | MixinUpdate<Doc, T>,
   schemaFields: SchemaAndFields
 ): {
-    extractedFields: Partial<T>
-    remainingData: Partial<T>
-  } {
+  extractedFields: Partial<T>
+  remainingData: Partial<T>
+} {
   const extractedFields: Partial<T> = {}
   const remainingData: Partial<T> = {}
 
@@ -398,7 +398,7 @@ export function filterProjection<T extends Doc> (data: any, projection: Projecti
   // Determine if this is an inclusion or exclusion projection
   // Exclusion: has any field with value 0
   // Inclusion: has any field with value 1
-  const projectionValues = Object.values(projection as any)
+  const projectionValues = Object.values(projection)
   const hasExclusion = projectionValues.some((v) => v === 0)
   const hasInclusion = projectionValues.some((v) => v === 1 || typeof v === 'object')
 

@@ -132,10 +132,10 @@
       scope === undefined
         ? undefined
         : await client.findOne(core.class.CustomSequence, {
-          namespace: DOCUMENT_SEQUENCE_NAMESPACE,
-          scope,
-          prefix: DOCUMENT_SEQUENCE_KEY
-        })
+            namespace: DOCUMENT_SEQUENCE_NAMESPACE,
+            scope,
+            prefix: DOCUMENT_SEQUENCE_KEY
+          })
     let seqNumber = Math.max(docObject.seqNumber, (numberSequence?.sequence ?? 0) + 1)
 
     // The sequence can lag behind documents imported or migrated into the workspace,

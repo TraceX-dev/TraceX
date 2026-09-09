@@ -195,12 +195,12 @@ export async function useDocumentTemplate (
   client: TxOperations,
   templateId: Ref<DocumentTemplate>
 ): Promise<{
-    seqNumber: number
-    prefix: string
-    content: Ref<Blob> | null
-    category: Ref<DocumentCategory>
-    templateSpace: Ref<Space>
-  }> {
+  seqNumber: number
+  prefix: string
+  content: Ref<Blob> | null
+  category: Ref<DocumentCategory>
+  templateSpace: Ref<Space>
+}> {
   const template = await client.findOne(documents.mixin.DocumentTemplate, {
     _id: templateId
   })
@@ -346,11 +346,11 @@ export async function createControlledDocMetadata (
   specTitle: string,
   metaId?: Ref<DocumentMeta>
 ): Promise<{
-    success: boolean
-    seqNumber: number
-    documentMetaId: Ref<DocumentMeta>
-    projectDocumentId: Ref<ProjectDocument>
-  }> {
+  success: boolean
+  seqNumber: number
+  documentMetaId: Ref<DocumentMeta>
+  projectDocumentId: Ref<ProjectDocument>
+}> {
   const projectId = project ?? documents.ids.NoProject
   const ops = client.apply('create-qms-document-metadata')
   const documentMetaId = await ops.createDoc(
@@ -532,12 +532,12 @@ export async function createDocumentTemplateMetadata (
   specTitle: string,
   metaId?: Ref<DocumentMeta>
 ): Promise<{
-    success: boolean
-    seqNumber: number
-    code: string
-    documentMetaId: Ref<DocumentMeta>
-    projectDocumentId: Ref<ProjectDocument>
-  }> {
+  success: boolean
+  seqNumber: number
+  code: string
+  documentMetaId: Ref<DocumentMeta>
+  projectDocumentId: Ref<ProjectDocument>
+}> {
   const parsedCode = specCode === '' ? undefined : matchDocumentId(specCode)
   const seqNumber = parsedCode?.seqNumber ?? 1
   const code = specCode === '' ? `${TEMPLATE_PREFIX}-${seqNumber}` : specCode
@@ -582,10 +582,10 @@ export async function createNewFolder (
   parent: Ref<ProjectDocument> | undefined,
   title: string
 ): Promise<{
-    success: boolean
-    documentMetaId: Ref<DocumentMeta>
-    projectDocumentId: Ref<ProjectDocument>
-  }> {
+  success: boolean
+  documentMetaId: Ref<DocumentMeta>
+  projectDocumentId: Ref<ProjectDocument>
+}> {
   const projectId = project ?? documents.ids.NoProject
 
   const ops = client.apply()

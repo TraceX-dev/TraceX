@@ -7,7 +7,7 @@
 //
 
 import { type PlatformContext } from '@hcengineering/ai-core'
-import { type AnyAttribute, type Doc, type Hierarchy, type Mixin, type Ref } from '@hcengineering/core'
+import { type AnyAttribute, type Doc, type Hierarchy } from '@hcengineering/core'
 import { translate } from '@hcengineering/platform'
 import { Type, type Static } from 'typebox'
 
@@ -43,7 +43,7 @@ export async function buildAttribute (toolCtx: PlatformContext, doc: Doc, attr: 
 
 function readAttributeValue (hierarchy: Hierarchy, doc: Doc, attr: AnyAttribute): unknown {
   if (hierarchy.isMixin(attr.attributeOf)) {
-    const tagValue = hierarchy.as(doc, attr.attributeOf as Ref<Mixin<Doc>>) as any
+    const tagValue = hierarchy.as(doc, attr.attributeOf) as any
     return tagValue?.[attr.name] ?? null
   }
 

@@ -152,7 +152,7 @@ export class TRole extends TAttachedDoc implements Role {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'roles' = 'roles'
+    override collection: 'roles' = 'roles'
 
   @Prop(TypeString(), core.string.Name)
   @Index(IndexKind.FullText)

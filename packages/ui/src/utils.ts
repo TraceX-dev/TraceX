@@ -399,17 +399,17 @@ export class DebouncedCaller {
 export const testing = (localStorage.getItem('#platform.testing.enabled') ?? 'false') === 'true'
 
 export const rootBarExtensions = writable<
-Array<
-[
-  'left' | 'right',
-  {
-    id: string
-    component: AnyComponent | AnySvelteComponent
-    props?: Record<string, any>
-    order: number
-  }
-]
->
+  Array<
+    [
+      'left' | 'right',
+      {
+        id: string
+        component: AnyComponent | AnySvelteComponent
+        props?: Record<string, any>
+        order: number
+      }
+    ]
+  >
 >([])
 
 export async function formatDuration (duration: number, language: string): Promise<string> {
@@ -462,12 +462,12 @@ export function removeRootBarComponent (id: string): void {
 }
 
 export const navFooterExtensions = writable<
-Array<{
-  id: string
-  component: AnyComponent | AnySvelteComponent
-  props?: Record<string, any>
-  order: number
-}>
+  Array<{
+    id: string
+    component: AnyComponent | AnySvelteComponent
+    props?: Record<string, any>
+    order: number
+  }>
 >([])
 
 export function pushNavFooterComponent (component: AnyComponent, order?: number): void {

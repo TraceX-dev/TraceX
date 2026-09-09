@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { createDSLContext, parseDSLContext } from '../dslContext'
-import type { Class, Doc, Ref, Space } from '@hcengineering/core'
+import type { Class, Doc, Ref } from '@hcengineering/core'
 import type { ContextId } from '../index'
 import type { SelectedUserRequest } from '../types'
 
@@ -44,7 +44,7 @@ describe('dslContext roundtrip', () => {
       id: 'input' as ContextId,
       key,
       _class: 'test:class:Card' as Ref<Class<Doc>>,
-      selectionSpace: 'target-space' as Ref<Space>
+      selectionSpace: 'target-space'
     }
 
     expect(parseDSLContext(createDSLContext(original))).toEqual(expect.objectContaining(original))

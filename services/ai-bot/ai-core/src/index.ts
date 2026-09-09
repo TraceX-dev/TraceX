@@ -14,4 +14,4 @@
 //
 
 export * from './tools'
-export * from './platform'
+export type * from './platform'

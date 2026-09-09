@@ -124,8 +124,8 @@
       on:click={isDone
         ? handleDone
         : async () => {
-          await handleStepSelect(currentStepIndex + 1)
-        }}
+            await handleStepSelect(currentStepIndex + 1)
+          }}
     />
   </svelte:fragment>
 
@@ -162,8 +162,8 @@
               on:click={disabled || selected
                 ? undefined
                 : async () => {
-                  await handleStepSelect(index)
-                }}
+                    await handleStepSelect(index)
+                  }}
             >
               <Label label={step.name} />
             </li>

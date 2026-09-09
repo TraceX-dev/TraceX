@@ -26,7 +26,6 @@ import documents, {
   type DocumentSpace,
   type DocumentState,
   type DocumentTemplate,
-  type Document as ControlledDocumentBase,
   allocateDocumentIdentifier,
   type DocumentAllocation,
   type OrgSpace,
@@ -938,7 +937,7 @@ export class WorkspaceImporter {
       documents.mixin.DocumentTemplate,
       undefined,
       parentProjectDocumentId,
-      templateId as unknown as Ref<ControlledDocument>,
+      templateId,
       template.docPrefix,
       template.code ?? '',
       template.title,
@@ -1037,7 +1036,7 @@ export class WorkspaceImporter {
             requests: 0,
             labels: 0
           },
-          template.id as unknown as Ref<ControlledDocument>
+          template.id
         )
 
         await ops.createMixin(template.id, documents.class.Document, spaceId, documents.mixin.DocumentTemplate, {
@@ -1051,7 +1050,7 @@ export class WorkspaceImporter {
       }
     )
 
-    const result = template.id as unknown as Ref<ControlledDocument>
+    const result = template.id
     this.logger.log('Document template attached doc created: ' + result)
     return result
   }
@@ -1190,13 +1189,9 @@ export class WorkspaceImporter {
           title: `${code} ${document.title}`
         })
         // Best effort hint for the UI: the custom sequence stays the source of truth.
-        await ops.updateMixin(
-          templateId as unknown as Ref<ControlledDocumentBase>,
-          documents.class.Document,
-          templateSpace,
-          documents.mixin.DocumentTemplate,
-          { sequence: seqNumber }
-        )
+        await ops.updateMixin(templateId, documents.class.Document, templateSpace, documents.mixin.DocumentTemplate, {
+          sequence: seqNumber
+        })
         return (await ops.commit()).result
       }
     )
@@ -1274,7 +1269,7 @@ export class WorkspaceImporter {
         _id as Ref<AttachedDoc> | undefined
       )
     } else {
-      await this.client.createDoc(_class, props.space, props as Data<Doc<Space>>, _id)
+      await this.client.createDoc(_class, props.space, props, _id)
     }
   }
 
@@ -1295,13 +1290,7 @@ export class WorkspaceImporter {
     for (const mixin of mixins) {
       const { _class, mixin: mixinClass, props } = mixin
       const { _id, space, ...data } = props
-      await this.client.createMixin(
-        _id ?? generateId<Doc<Space>>(),
-        _class,
-        space,
-        mixinClass,
-        data as Data<Doc<Space>>
-      )
+      await this.client.createMixin(_id ?? generateId<Doc<Space>>(), _class, space, mixinClass, data)
     }
   }
 
