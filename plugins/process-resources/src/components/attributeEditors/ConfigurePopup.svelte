@@ -35,6 +35,7 @@
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
   import FallbackEditor from '../contextEditors/FallbackEditor.svelte'
+  import RelationTableConfigPopup from '../contextEditors/RelationTableConfigPopup.svelte'
 
   export let process: Process
   export let contextValue: SelectedContext
@@ -304,6 +305,32 @@
   function getFunction (_id: Ref<ProcessFunction>): ProcessFunction {
     return client.getModel().findAllSync(plugin.class.ProcessFunction, { _id })[0]
   }
+
+  function onConfigureMainFunc (e: MouseEvent): void {
+    if (contextValue.type !== 'function' || !contextValue.props?.targetClass) return
+    showPopup(
+      RelationTableConfigPopup,
+      {
+        _class: contextValue.props.targetClass,
+        label: contextValue.props.name ?? '',
+        sort: contextValue.props.$sort
+      },
+      eventToHTMLElement(e),
+      (res) => {
+        if (res != null) {
+          if (res.sort != null) {
+            contextValue.props = {
+              ...contextValue.props,
+              $sort: res.sort
+            }
+          } else if (contextValue.props?.$sort != null) {
+            delete contextValue.props.$sort
+          }
+          onChange(contextValue)
+        }
+      }
+    )
+  }
 </script>
 
 {#if contextValue.type === 'userRequest'}
@@ -334,6 +361,22 @@
   <div class="selectPopup" use:resizeObserver={() => dispatch('changeContent')}>
     <div class="menu-space" />
     <Scroller>
+      {#if contextValue.type === 'function' && contextValue.props?.targetClass}
+        {@const mainFunc = getFunction(contextValue.func)}
+        {#if mainFunc !== undefined}
+          <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <div class="menu-item" on:click={onConfigureMainFunc}>
+            <div>
+              <Label label={mainFunc.label} />: {contextValue.props?.name ?? ''}
+            </div>
+            <div>
+              <ButtonIcon icon={IconSettings} size="small" kind="tertiary" on:click={onConfigureMainFunc} />
+            </div>
+          </div>
+          <div class="menu-separator" />
+        {/if}
+      {/if}
       {#if sourceFunc !== undefined}
         <Submenu
           bind:element={elements[0]}

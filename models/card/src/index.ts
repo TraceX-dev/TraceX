@@ -146,7 +146,6 @@ export class TCard extends TDoc implements Card {
     attachments?: number
 
   @Prop(TypeRank(), core.string.Rank)
-  @Hidden()
     rank!: Rank
 
   @Prop(Collection(time.class.ToDo), getEmbeddedLabel('Action Items'))

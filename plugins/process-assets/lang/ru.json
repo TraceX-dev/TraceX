@@ -204,7 +204,8 @@
     "SelectFromText": "Выбор из текста",
     "AskSubclass": "Спросить подкласс",
     "AskRequired": "Запросить все обязательные поля",
-    "TextFromIdentifier": "Текст из идентификатора"
+    "TextFromIdentifier": "Текст из идентификатора",
+    "TableFromRelation": "Таблица из связи"
   },
   "error": {
     "MethodNotFound": "Метод не найден: {methodId}",

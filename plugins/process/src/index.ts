@@ -443,6 +443,7 @@ export default plugin(processId, {
     StringFromEnum: '' as Ref<ProcessFunction>,
     EnumFromString: '' as Ref<ProcessFunction>,
     DateDifference: '' as Ref<ProcessFunction>,
+    TableFromRelation: '' as Ref<ProcessFunction>,
     ExportProcess: '' as Resource<ExportFunc>,
     CheckProcessSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>
   }
