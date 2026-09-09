@@ -67,6 +67,7 @@ import { isEmptyMarkup } from '@hcengineering/text-core'
 import { showPopup } from '@hcengineering/ui'
 import { type AttributeCategory } from '@hcengineering/view'
 import process from './plugin'
+import { resolveSelectionSpace } from './selection-space'
 
 export function isTypeEqual (toCheck: any | undefined, attr: Type<any>, bindings?: Record<string, string>): boolean {
   if (toCheck === undefined) return true
@@ -491,7 +492,15 @@ export async function requestUserInput (
 ): Promise<{ context: ExecutionContext, state: Ref<State>, changed: boolean }> {
   const client = getClient()
   let changed = false
-  const tr = await getTransitionUserInput(processId, space, target, userContext, inputContext, skipExisting)
+  const tr = await getTransitionUserInput(
+    processId,
+    space,
+    target,
+    userContext,
+    inputContext,
+    skipExisting,
+    execution.card
+  )
   if (tr !== undefined) {
     userContext = { ...userContext, ...tr }
     changed = true
@@ -565,7 +574,8 @@ export async function getTransitionUserInput (
   transition: Transition,
   userContext: ExecutionContext,
   inputContext: Record<string, unknown> = {},
-  skipExisting: boolean = false
+  skipExisting: boolean = false,
+  cardId?: Ref<Card>
 ): Promise<ExecutionContext | undefined> {
   let changed = false
   const client = getClient()
@@ -640,6 +650,15 @@ export async function getTransitionUserInput (
     }
 
     if (inputs.length > 0) {
+      const definition = client.getModel().getObject(processId)
+      const needsCard = inputs.some((input) => parseContext(input.selectionSpace)?.type === 'attribute')
+      const doc = needsCard && cardId !== undefined ? await client.findOne(card.class.Card, { _id: cardId }) : undefined
+      const resolvedInputs = await Promise.all(
+        inputs.map(async (input) => ({
+          ...input,
+          selectionSpace: await resolveSelectionSpace(client, definition, doc, userContext, input.selectionSpace)
+        }))
+      )
       const { title, description } = getUserInputMeta(inputContext)
       const promise = new Promise<void>((resolve, reject) => {
         showPopup(
@@ -648,7 +667,7 @@ export async function getTransitionUserInput (
             processId,
             transition: transition._id,
             space,
-            inputs,
+            inputs: resolvedInputs,
             values: {},
             title,
             description
@@ -856,19 +875,30 @@ export async function requestResult (
   const h = client.getHierarchy()
   const isMixin = h.isMixin(_process.masterTag)
   const targetDoc = isMixin ? h.as(doc, _process.masterTag) : doc
+  const resolvedResults = await Promise.all(
+    results.map(async (result) => ({
+      ...result,
+      selectionSpace: await resolveSelectionSpace(client, _process, targetDoc, context, result.selectionSpace)
+    }))
+  )
 
   const promise = new Promise<void>((resolve, reject) => {
-    showPopup(process.component.ResultInput, { results, context, doc: targetDoc, description }, undefined, (res) => {
-      if (res !== undefined) {
-        for (const contextId in res) {
-          const val = res[contextId]
-          context[contextId as ContextId] = val
+    showPopup(
+      process.component.ResultInput,
+      { results: resolvedResults, context, doc: targetDoc, description },
+      undefined,
+      (res) => {
+        if (res !== undefined) {
+          for (const contextId in res) {
+            const val = res[contextId]
+            context[contextId as ContextId] = val
+          }
+          resolve()
+        } else {
+          reject(new PlatformError(new Status(Severity.ERROR, process.error.ResultNotProvided, {})))
         }
-        resolve()
-      } else {
-        reject(new PlatformError(new Status(Severity.ERROR, process.error.ResultNotProvided, {})))
       }
-    })
+    )
   })
   await promise
   return context

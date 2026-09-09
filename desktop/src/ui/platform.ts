@@ -25,6 +25,7 @@ import {
 import { activityId } from '@hcengineering/activity'
 import aiBot, { aiBotId } from '@hcengineering/ai-bot'
 import { attachmentId } from '@hcengineering/attachment'
+import admin, { adminId } from '@hcengineering/admin'
 import { bitrixId } from '@hcengineering/bitrix'
 import { boardId } from '@hcengineering/board'
 import calendar, { calendarId } from '@hcengineering/calendar'
@@ -414,6 +415,7 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
     uiPlugin.metadata.Routes,
     new Map([
       [workbenchId, workbench.component.WorkbenchApp],
+      [adminId, admin.component.AdminApp],
       [loginId, login.component.LoginApp],
       [onboardId, onboard.component.OnboardApp],
       [calendarId, calendar.component.ConnectApp],
@@ -427,6 +429,7 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
 
   addLocation(clientId, async () => await import('@hcengineering/client-resources'))
   addLocation(loginId, async () => await import('@hcengineering/login-resources'))
+  addLocation(adminId, () => import(/* webpackChunkName: "admin" */ '@hcengineering/admin-resources'))
   addLocation(onboardId, async () => await import('@hcengineering/onboard-resources'))
   addLocation(workbenchId, async () => await import('@hcengineering/workbench-resources'))
   addLocation(viewId, async () => await import('@hcengineering/view-resources'))

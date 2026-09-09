@@ -15,11 +15,12 @@
 -->
 <script lang="ts">
   import core, { AnyAttribute, Class, Doc, DocumentQuery, Ref, RefTo } from '@hcengineering/core'
-  import { getClient } from '@hcengineering/presentation'
+  import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { Context, Func, Process, ProcessFunction, SelectedContext } from '@hcengineering/process'
   import {
     ButtonIcon,
     CheckBox,
+    Component,
     closeTooltip,
     eventToHTMLElement,
     IconClose,
@@ -305,173 +306,199 @@
   }
 </script>
 
-<div class="selectPopup" use:resizeObserver={() => dispatch('changeContent')}>
-  <div class="menu-space" />
-  <Scroller>
-    {#if sourceFunc !== undefined}
-      <Submenu
-        bind:element={elements[0]}
-        on:keydown={(event) => {
-          keyDown(event, 0)
+{#if contextValue.type === 'userRequest'}
+  <Card
+    label={plugin.string.RequestFromUser}
+    width={'medium'}
+    canSave
+    okLabel={presentation.string.Save}
+    okAction={() => {
+      dispatch('close')
+    }}
+    on:close
+  >
+    <div class="editor-grid">
+      <Component
+        is={plugin.component.SelectionSpaceEditor}
+        props={{ process, value: contextValue.selectionSpace }}
+        on:change={(event) => {
+          if (contextValue.type === 'userRequest') {
+            contextValue.selectionSpace = event.detail
+            onChange(contextValue)
+          }
         }}
-        on:mouseover={() => {
-          elements[0]?.focus()
-        }}
-        label={sourceFunc.label}
-        props={{
-          attribute: sourceReduceAttribute,
-          process,
-          context,
-          func: contextValue.sourceFunction,
-          availableFunctions: reduceFuncs,
-          onSelect: onSourceFunctionSelect,
-          onChange: onSourceFunctionChange
-        }}
-        component={plugin.component.FunctionSubmenu}
-        options={{ component: plugin.component.FunctionSelector }}
-        withHover
       />
-    {/if}
-    {#if availableFunctions.length > 0 || functionsLength > 0}
+    </div>
+  </Card>
+{:else}
+  <div class="selectPopup" use:resizeObserver={() => dispatch('changeContent')}>
+    <div class="menu-space" />
+    <Scroller>
       {#if sourceFunc !== undefined}
-        <div class="menu-separator" />
-      {/if}
-      {#each contextValue.functions ?? [] as f, i}
-        {#if reduceFuncs.includes(f.func)}
-          <Submenu
-            bind:element={elements[i + (sourceFunc !== undefined ? 1 : 0)]}
-            on:keydown={(event) => {
-              keyDown(event, i + (sourceFunc !== undefined ? 1 : 0))
-            }}
-            on:mouseover={() => {
-              elements[i + (sourceFunc !== undefined ? 1 : 0)]?.focus()
-            }}
-            label={getFunction(f.func)?.label}
-            props={{
-              func: f,
-              attribute: reduceAttribute,
-              process,
-              context,
-              availableFunctions: reduceFuncs,
-              onSelect: getFunctionSelect(i),
-              onChange: getFunctionChange(i)
-            }}
-            component={plugin.component.FunctionSubmenu}
-            options={{ component: plugin.component.FunctionSelector }}
-            withHover
-          />
-        {:else}
-          <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-          <!-- svelte-ignore a11y-no-static-element-interactions -->
-          <div
-            class="menu-item"
-            bind:this={elements[i + (sourceFunc !== undefined ? 1 : 0)]}
-            on:keydown={(event) => {
-              keyDown(event, i + (sourceFunc !== undefined ? 1 : 0))
-            }}
-            on:mouseover={() => {
-              elements[i + (sourceFunc !== undefined ? 1 : 0)]?.focus()
-            }}
-          >
-            <div>
-              <Label label={getFunction(f.func).label} />
-            </div>
-            <div>
-              {#if getFunction(f.func).editor}
-                <ButtonIcon
-                  icon={IconSettings}
-                  size="small"
-                  kind="tertiary"
-                  on:click={(e) => {
-                    onConfigure(e, f, i)
-                  }}
-                />
-              {/if}
-              <ButtonIcon
-                icon={IconClose}
-                size="small"
-                kind="tertiary"
-                on:click={() => {
-                  onFunctionRemove(i)
-                }}
-              />
-            </div>
-          </div>
-        {/if}
-      {/each}
-      {#if availableFunctions.length > 0}
         <Submenu
-          bind:element={elements[functionButtonIndex]}
+          bind:element={elements[0]}
           on:keydown={(event) => {
-            keyDown(event, functionButtonIndex)
+            keyDown(event, 0)
           }}
           on:mouseover={() => {
-            elements[functionButtonIndex]?.focus()
+            elements[0]?.focus()
           }}
-          label={plugin.string.Functions}
+          label={sourceFunc.label}
           props={{
-            availableFunctions,
-            onSelect: onFunctionSelect
+            attribute: sourceReduceAttribute,
+            process,
+            context,
+            func: contextValue.sourceFunction,
+            availableFunctions: reduceFuncs,
+            onSelect: onSourceFunctionSelect,
+            onChange: onSourceFunctionChange
           }}
+          component={plugin.component.FunctionSubmenu}
           options={{ component: plugin.component.FunctionSelector }}
           withHover
         />
-        <!-- <div class="menu-separator" /> -->
       {/if}
-    {/if}
-    {#if !forbidValue}
-      {#if sourceFunc !== undefined || availableFunctions.length > 0 || functionsLength > 0}
-        <div class="menu-separator" />
+      {#if availableFunctions.length > 0 || functionsLength > 0}
+        {#if sourceFunc !== undefined}
+          <div class="menu-separator" />
+        {/if}
+        {#each contextValue.functions ?? [] as f, i}
+          {#if reduceFuncs.includes(f.func)}
+            <Submenu
+              bind:element={elements[i + (sourceFunc !== undefined ? 1 : 0)]}
+              on:keydown={(event) => {
+                keyDown(event, i + (sourceFunc !== undefined ? 1 : 0))
+              }}
+              on:mouseover={() => {
+                elements[i + (sourceFunc !== undefined ? 1 : 0)]?.focus()
+              }}
+              label={getFunction(f.func)?.label}
+              props={{
+                func: f,
+                attribute: reduceAttribute,
+                process,
+                context,
+                availableFunctions: reduceFuncs,
+                onSelect: getFunctionSelect(i),
+                onChange: getFunctionChange(i)
+              }}
+              component={plugin.component.FunctionSubmenu}
+              options={{ component: plugin.component.FunctionSelector }}
+              withHover
+            />
+          {:else}
+            <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div
+              class="menu-item"
+              bind:this={elements[i + (sourceFunc !== undefined ? 1 : 0)]}
+              on:keydown={(event) => {
+                keyDown(event, i + (sourceFunc !== undefined ? 1 : 0))
+              }}
+              on:mouseover={() => {
+                elements[i + (sourceFunc !== undefined ? 1 : 0)]?.focus()
+              }}
+            >
+              <div>
+                <Label label={getFunction(f.func).label} />
+              </div>
+              <div>
+                {#if getFunction(f.func).editor}
+                  <ButtonIcon
+                    icon={IconSettings}
+                    size="small"
+                    kind="tertiary"
+                    on:click={(e) => {
+                      onConfigure(e, f, i)
+                    }}
+                  />
+                {/if}
+                <ButtonIcon
+                  icon={IconClose}
+                  size="small"
+                  kind="tertiary"
+                  on:click={() => {
+                    onFunctionRemove(i)
+                  }}
+                />
+              </div>
+            </div>
+          {/if}
+        {/each}
+        {#if availableFunctions.length > 0}
+          <Submenu
+            bind:element={elements[functionButtonIndex]}
+            on:keydown={(event) => {
+              keyDown(event, functionButtonIndex)
+            }}
+            on:mouseover={() => {
+              elements[functionButtonIndex]?.focus()
+            }}
+            label={plugin.string.Functions}
+            props={{
+              availableFunctions,
+              onSelect: onFunctionSelect
+            }}
+            options={{ component: plugin.component.FunctionSelector }}
+            withHover
+          />
+          <!-- <div class="menu-separator" /> -->
+        {/if}
       {/if}
-      <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-      <button
-        bind:this={elements[functionButtonIndex + 1]}
-        on:keydown={(event) => {
-          keyDown(event, functionButtonIndex + 1)
-        }}
-        on:mouseover={() => {
-          elements[functionButtonIndex + 1]?.focus()
-        }}
-        on:click={onFallbackChange}
-        class="menu-item flex-gap-2 fallback"
-      >
-        <div>
-          <div class="label">
-            <Label label={plugin.string.Required} />
-          </div>
-          <div class="text-sm">
-            <Label label={plugin.string.FallbackValueError} />
-          </div>
-        </div>
-        <CheckBox
-          on:click={onFallbackChange}
-          checked={contextValue.fallbackValue === undefined}
-          size={'medium'}
-          kind={'primary'}
-        />
-      </button>
-      {#if contextValue.fallbackValue !== undefined}
+      {#if !forbidValue}
+        {#if sourceFunc !== undefined || availableFunctions.length > 0 || functionsLength > 0}
+          <div class="menu-separator" />
+        {/if}
         <!-- svelte-ignore a11y-mouse-events-have-key-events -->
         <button
-          bind:this={elements[functionButtonIndex + 2]}
+          bind:this={elements[functionButtonIndex + 1]}
           on:keydown={(event) => {
-            keyDown(event, functionButtonIndex + 2)
+            keyDown(event, functionButtonIndex + 1)
           }}
           on:mouseover={() => {
-            elements[functionButtonIndex + 2]?.focus()
+            elements[functionButtonIndex + 1]?.focus()
           }}
-          on:click={onFallback}
-          class="menu-item"
+          on:click={onFallbackChange}
+          class="menu-item flex-gap-2 fallback"
         >
-          <span class="overflow-label pr-1">
-            <Label label={plugin.string.FallbackValue} />
-          </span>
+          <div>
+            <div class="label">
+              <Label label={plugin.string.Required} />
+            </div>
+            <div class="text-sm">
+              <Label label={plugin.string.FallbackValueError} />
+            </div>
+          </div>
+          <CheckBox
+            on:click={onFallbackChange}
+            checked={contextValue.fallbackValue === undefined}
+            size={'medium'}
+            kind={'primary'}
+          />
         </button>
+        {#if contextValue.fallbackValue !== undefined}
+          <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+          <button
+            bind:this={elements[functionButtonIndex + 2]}
+            on:keydown={(event) => {
+              keyDown(event, functionButtonIndex + 2)
+            }}
+            on:mouseover={() => {
+              elements[functionButtonIndex + 2]?.focus()
+            }}
+            on:click={onFallback}
+            class="menu-item"
+          >
+            <span class="overflow-label pr-1">
+              <Label label={plugin.string.FallbackValue} />
+            </span>
+          </button>
+        {/if}
       {/if}
-    {/if}
-  </Scroller>
-  <div class="menu-space" />
-</div>
+    </Scroller>
+    <div class="menu-space" />
+  </div>
+{/if}
 
 <style lang="scss">
   .menu-item {

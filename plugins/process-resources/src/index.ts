@@ -20,6 +20,7 @@ import NestedContextSelector from './components/attributeEditors/NestedContextSe
 import RelatedContextSelector from './components/attributeEditors/RelatedContextSelector.svelte'
 import RequestUserInput from './components/contextEditors/RequestUserInput.svelte'
 import ResultInput from './components/contextEditors/ResultInput.svelte'
+import SelectionSpaceEditor from './components/settings/SelectionSpaceEditor.svelte'
 import RoleEditor from './components/contextEditors/RoleEditor.svelte'
 import ErrorPresenter from './components/ErrorPresenter.svelte'
 import ExecutionMyToDos from './components/ExecutionMyToDos.svelte'
@@ -155,6 +156,7 @@ export default async (): Promise<Resources> => ({
     ErrorPresenter,
     RequestUserInput,
     ResultInput,
+    SelectionSpaceEditor,
     RoleEditor,
     ActionsPresenter,
     StatePresenter,

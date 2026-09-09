@@ -168,6 +168,7 @@ export interface ProviderInfo {
 
 export interface AccountAggregatedInfo extends AccountInfo, Person {
   uuid: AccountUuid
+  lastVisit?: Timestamp
   integrations: Omit<Integration, 'data'>[]
   socialIds: SocialId[]
   workspaces: Omit<WorkspaceInfo, 'allowReadOnlyGuest' | 'allowGuestSignUp'>[]

@@ -1,5 +1,6 @@
 //
 // Copyright @ 2022-2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 
 import attachment, { type Attachment } from '@hcengineering/attachment'
@@ -18,14 +19,17 @@ import {
   createDocumentTemplate,
   type DocumentApprovalRequest,
   type DocumentCategory,
+  type Document,
   type DocumentMeta,
   type DocumentReviewRequest,
   documentsId,
   DocumentState,
+  matchDocumentId,
   type ProjectMeta
 } from '@hcengineering/controlled-documents'
 import {
   type Class,
+  type CustomSequence,
   type Data,
   type Doc,
   DOMAIN_SEQUENCE,
@@ -182,6 +186,96 @@ async function createTemplateSequence (tx: TxOperations): Promise<void> {
       documents.sequence.Templates
     )
   }
+}
+
+interface DuplicateDocumentSequence {
+  scope: string
+  value: number
+  documents: Array<Ref<Document>>
+}
+
+interface DocumentSequenceOwner {
+  document: Ref<Document>
+  code: string
+}
+
+async function synchronizeDocumentSequences (tx: TxOperations): Promise<DuplicateDocumentSequence[]> {
+  const documentsWithCodes = await tx.findAll(
+    documents.class.Document,
+    {},
+    { projection: { code: 1, seqNumber: 1, template: 1 } }
+  )
+  const sequenceByPrefix = new Map<string, number>()
+  const numberSequenceByScope = new Map<string, number>()
+  const sequenceOwners = new Map<string, DocumentSequenceOwner[]>()
+
+  for (const document of documentsWithCodes) {
+    const parsedCode = matchDocumentId(document.code)
+    if (parsedCode !== null) {
+      const current = sequenceByPrefix.get(parsedCode.prefix) ?? 0
+      sequenceByPrefix.set(parsedCode.prefix, Math.max(current, parsedCode.seqNumber))
+    }
+
+    if (Number.isSafeInteger(document.seqNumber) && document.seqNumber > 0) {
+      const scope = document.template ?? 'templates'
+      numberSequenceByScope.set(scope, Math.max(numberSequenceByScope.get(scope) ?? 0, document.seqNumber))
+      const ownerKey = `${scope}\u0000${document.seqNumber}`
+      const owners = sequenceOwners.get(ownerKey) ?? []
+      owners.push({ document: document._id, code: document.code })
+      sequenceOwners.set(ownerKey, owners)
+    }
+  }
+
+  for (const [prefix, sequence] of sequenceByPrefix) {
+    const existing = await tx.findOne(core.class.CustomSequence, {
+      namespace: documentsId,
+      scope: '',
+      prefix
+    })
+    if (existing === undefined) {
+      await tx.createDoc<CustomSequence>(core.class.CustomSequence, core.space.Workspace, {
+        attachedTo: core.class.CustomSequence,
+        namespace: documentsId,
+        scope: '',
+        prefix,
+        sequence
+      })
+    } else if (existing.sequence < sequence) {
+      await tx.updateDoc(existing._class, existing.space, existing._id, { sequence })
+    }
+  }
+
+  for (const [scope, sequence] of numberSequenceByScope) {
+    const existing = await tx.findOne(core.class.CustomSequence, {
+      namespace: `${documentsId}.sequence`,
+      scope,
+      prefix: 'seqNumber'
+    })
+    if (existing === undefined) {
+      await tx.createDoc<CustomSequence>(core.class.CustomSequence, core.space.Workspace, {
+        attachedTo: core.class.CustomSequence,
+        namespace: `${documentsId}.sequence`,
+        scope,
+        prefix: 'seqNumber',
+        sequence
+      })
+    } else if (existing.sequence < sequence) {
+      await tx.updateDoc(existing._class, existing.space, existing._id, { sequence })
+    }
+  }
+
+  // Versions of one document legitimately share a sequence and a code,
+  // so only distinct codes on the same sequence mean an actual collision.
+  return Array.from(sequenceOwners.entries())
+    .filter(([, owners]) => new Set(owners.map(({ code }) => code)).size > 1)
+    .map(([ownerKey, owners]) => {
+      const separator = ownerKey.indexOf('\u0000')
+      return {
+        scope: ownerKey.slice(0, separator),
+        value: Number(ownerKey.slice(separator + 1)),
+        documents: owners.map(({ document }) => document)
+      }
+    })
 }
 
 async function createDocumentCategories (tx: TxOperations): Promise<void> {
@@ -584,6 +678,16 @@ export const documentsOperation: MigrateOperation = {
           await createTagCategories(tx)
           await createDocumentCategories(tx)
           await createProductChangeControlTemplate(tx)
+        }
+      },
+      {
+        state: 'sync-document-number-sequences',
+        func: async (client) => {
+          const tx = new TxOperations(client, core.account.System)
+          const duplicates = await synchronizeDocumentSequences(tx)
+          for (const duplicate of duplicates) {
+            console.warn('Duplicate controlled document sequence detected', duplicate)
+          }
         }
       }
     ])

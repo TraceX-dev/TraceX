@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022, 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -108,6 +109,7 @@
     isAllowedToRole,
     logOut,
     refreshWorkspaces,
+    reportWorkspaceRead,
     workspacesStore
   } from '../utils'
   import AccountPopup from './AccountPopup.svelte'
@@ -297,6 +299,7 @@
   const workspaceId = $location.path[1]
 
   let hasInboxNotifications = false
+  let clearedWorkspaceUnread = false
   let unsubscribeInboxNotifications: (() => void) | undefined
   let isDestroyed = false
 
@@ -305,6 +308,15 @@
       if (isDestroyed) return
 
       unsubscribeInboxNotifications = createInboxNotificationStore().subscribe((state) => {
+        if (!state.isLoaded) return
+
+        if (!state.notify && !clearedWorkspaceUnread) {
+          clearedWorkspaceUnread = true
+          void reportWorkspaceRead()
+        } else if (state.notify) {
+          clearedWorkspaceUnread = false
+        }
+
         hasInboxNotifications = state.notify
       })
     })

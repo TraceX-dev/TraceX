@@ -1727,6 +1727,16 @@
       "shouldPublish": true
     },
     {
+      "packageName": "@hcengineering/admin",
+      "projectFolder": "plugins/admin",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/admin-resources",
+      "projectFolder": "plugins/admin-resources",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@hcengineering/guest-assets",
       "projectFolder": "plugins/guest-assets",
       "shouldPublish": false

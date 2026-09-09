@@ -65,7 +65,8 @@ function createDSLExpression (context: SelectedContext): string {
     }
     case 'userRequest': {
       const req = context
-      return `$userRequest(${req.id},${req.key},${req._class})`
+      const selectionSpace = req.selectionSpace !== undefined ? `,${encodeValue(req.selectionSpace)}` : ''
+      return `$userRequest(${req.id},${req.key},${req._class}${selectionSpace})`
     }
     default: {
       throw new Error(`Unsupported SelectedContext type: ${(context as any)?.type}`)
@@ -235,6 +236,9 @@ function parseExpression (expr: string): Base<SelectedContext> {
     const _class = parts[2] as Ref<Class<Doc>>
 
     const res: Base<SelectedUserRequest> = { type: 'userRequest', id, key, _class }
+    if (parts[3] !== undefined) {
+      res.selectionSpace = decodeValue(parts[3]) as string
+    }
     return res
   }
 

@@ -311,7 +311,10 @@ describe('DocumentExporter custom handler dispatch', () => {
     } as unknown as SpaceExporter
 
     // These should never be invoked when the handler short-circuits.
-    const dataMapper = { prepareDocumentData: jest.fn() } as unknown as DataMapper
+    const dataMapper = {
+      prepareDocumentData: jest.fn(),
+      shouldAllocateIdentifier: jest.fn(() => false)
+    } as unknown as DataMapper
     const attachmentExporter = {
       exportAttachments: jest.fn(),
       exportCollaborativeContent: jest.fn()
@@ -367,7 +370,10 @@ describe('DocumentExporter custom handler dispatch', () => {
       getOrCreateTargetSpace: jest.fn(async () => 'test:target:space' as Ref<Space>)
     } as unknown as SpaceExporter
 
-    const dataMapper = { prepareDocumentData: jest.fn(async () => ({})) } as unknown as DataMapper
+    const dataMapper = {
+      prepareDocumentData: jest.fn(async () => ({})),
+      shouldAllocateIdentifier: jest.fn(() => false)
+    } as unknown as DataMapper
     const attachmentExporter = {
       exportAttachments: jest.fn(),
       exportCollaborativeContent: jest.fn()

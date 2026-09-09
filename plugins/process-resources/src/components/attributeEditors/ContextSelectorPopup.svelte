@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -37,6 +38,7 @@
   export let attribute: AnyAttribute
   export let onSelect: (val: SelectedContext | null) => void
   export let forbidValue: boolean = false
+  export let allowUserRequest: boolean = true
 
   const dispatch = createEventDispatcher()
 
@@ -150,7 +152,7 @@
     }
   }
 
-  $: functionsOffset = 1
+  $: functionsOffset = allowUserRequest ? 1 : 0
   $: processContextOffset = functionsOffset + context.functions.length
   $: attributesOffset = processContextOffset + processContext.length
   $: nestedOffset = attributesOffset + context.attributes.length
@@ -162,25 +164,27 @@
 <div class="selectPopup" use:resizeObserver={() => dispatch('changeContent')}>
   <div class="menu-space" />
   <Scroller>
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button
-      bind:this={elements[0]}
-      on:keydown={(event) => {
-        keyDown(event, 0)
-      }}
-      on:mouseover={() => {
-        elements[0]?.focus()
-      }}
-      on:click={() => {
-        onUserRequest()
-      }}
-      class="menu-item"
-    >
-      <span class="overflow-label pr-1">
-        <Label label={plugin.string.RequestFromUser} />
-      </span>
-    </button>
-    <div class="menu-separator" />
+    {#if allowUserRequest}
+      <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+      <button
+        bind:this={elements[0]}
+        on:keydown={(event) => {
+          keyDown(event, 0)
+        }}
+        on:mouseover={() => {
+          elements[0]?.focus()
+        }}
+        on:click={() => {
+          onUserRequest()
+        }}
+        class="menu-item"
+      >
+        <span class="overflow-label pr-1">
+          <Label label={plugin.string.RequestFromUser} />
+        </span>
+      </button>
+      <div class="menu-separator" />
+    {/if}
     {#if context.functions.length > 0}
       {#each context.functions as f, i}
         {@const func = getFunc(f)}
