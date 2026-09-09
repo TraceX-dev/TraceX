@@ -55,10 +55,10 @@
   $: sortByRank = reorderable && hierarchy.getAllAttributes(_class).has('rank')
   $: uniqueObjects = sortByRank
     ? deduplicate(objects).sort((a, b) => {
-      const left = (a as DocWithRank).rank ?? ''
-      const right = (b as DocWithRank).rank ?? ''
-      return left < right ? -1 : left > right ? 1 : 0
-    })
+        const left = (a as DocWithRank).rank ?? ''
+        const right = (b as DocWithRank).rank ?? ''
+        return left < right ? -1 : left > right ? 1 : 0
+      })
     : deduplicate(objects)
 
   let draggedObject: Doc | undefined
