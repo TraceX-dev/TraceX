@@ -430,7 +430,7 @@ export async function buildMarkdownTableForRelation (
   }
 
   if (columns.length === 0) {
-    columns.push({ key: '', label: 'Title', isTitle: true })
+    columns.push({ key: '', label: 'Title', isTitle: true, isTags: false, isAssoc: false })
   }
 
   // Determine sorting:
