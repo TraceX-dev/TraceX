@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,7 +16,7 @@
 <script lang="ts">
   import { createQuery, getCurrentWorkspaceUuid, getFileSrcSet, getFileUrl } from '@hcengineering/presentation'
   import setting, { WorkspaceSetting } from '@hcengineering/setting'
-  import { getPlatformColorForText, themeStore } from '@hcengineering/ui'
+  import { getPlatformColorForText, getWorkspaceInitial, themeStore } from '@hcengineering/ui'
 
   export let mini: boolean = false
   export let workspace: string
@@ -36,7 +37,7 @@
   <img class="logo-medium" src={url} {srcset} alt={''} />
 {:else}
   <div class="antiLogo" class:mini style:background-color={getPlatformColorForText(colorSeed, $themeStore.dark)}>
-    {workspace?.toUpperCase()?.[0] ?? ''}
+    {getWorkspaceInitial(workspace)}
   </div>
 {/if}
 

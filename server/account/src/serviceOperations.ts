@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -448,34 +449,34 @@ export async function updateWorkspaceInfo (
   }
 }
 
-// Backs front's bulk /avatars route: one DB query for N workspaces' logo blobs
-// instead of N. Returns only uuid/url/dataId/icon — front serves those blobs
-// back with no auth check of its own, so nothing else should be exposed here.
-const maxAvatarInfoBulkSize = 200
-
-export async function getWorkspaceAvatarInfoBulk (
+// Front uses this service-only method to resolve the blob designated as a workspace
+// logo. Nothing else from the workspace is exposed by the public avatar route.
+export async function getWorkspaceAvatarInfo (
   ctx: MeasureContext,
   db: AccountDB,
   branding: Branding | null,
   token: string,
-  params: { workspaceUuids: WorkspaceUuid[] }
-): Promise<Array<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null }>> {
+  params: { workspaceUuid: WorkspaceUuid }
+): Promise<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null } | null> {
   const { extra } = decodeTokenVerbose(ctx, token)
   verifyAllowedServices(['front'], extra)
 
-  const { workspaceUuids } = params
-  if (workspaceUuids.length === 0 || workspaceUuids.length > maxAvatarInfoBulkSize) {
-    return []
+  const { workspaceUuid } = params
+  if (workspaceUuid === '') {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
   }
 
-  const workspaces = await getWorkspacesInfoWithStatusByIds(db, workspaceUuids)
+  const [workspace] = await getWorkspacesInfoWithStatusByIds(db, [workspaceUuid])
+  if (workspace === undefined) {
+    return null
+  }
 
-  return workspaces.map((workspace) => ({
+  return {
     uuid: workspace.uuid,
     url: workspace.url,
     dataId: workspace.dataId,
     icon: workspace.icon ?? null
-  }))
+  }
 }
 
 export async function workerHandshake (
@@ -1155,7 +1156,7 @@ export async function getSubscriptionByProviderId (
 export type AccountServiceMethods =
   | 'getPendingWorkspace'
   | 'updateWorkspaceInfo'
-  | 'getWorkspaceAvatarInfoBulk'
+  | 'getWorkspaceAvatarInfo'
   | 'workerHandshake'
   | 'updateBackupInfo'
   | 'updateUsageInfo'
@@ -1191,7 +1192,7 @@ export function getServiceMethods (): Partial<Record<AccountServiceMethods, Acco
   return {
     getPendingWorkspace: wrap(getPendingWorkspace),
     updateWorkspaceInfo: wrap(updateWorkspaceInfo),
-    getWorkspaceAvatarInfoBulk: wrap(getWorkspaceAvatarInfoBulk),
+    getWorkspaceAvatarInfo: wrap(getWorkspaceAvatarInfo),
     workerHandshake: wrap(workerHandshake),
     updateBackupInfo: wrap(updateBackupInfo),
     updateUsageInfo: wrap(updateUsageInfo),

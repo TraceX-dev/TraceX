@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,7 +17,6 @@
 <script lang="ts">
   import {
     WorkspaceInfoWithStatus,
-    WorkspaceUuid,
     isActiveMode,
     isArchivingMode,
     isRestoringMode,
@@ -24,7 +24,7 @@
   } from '@hcengineering/core'
   import { LoginInfo } from '@hcengineering/login'
   import { OK, Severity, Status } from '@hcengineering/platform'
-  import presentation, { MessageBox, NavLink, getWorkspaceAvatarUrls, reduceCalls } from '@hcengineering/presentation'
+  import presentation, { MessageBox, NavLink, getWorkspaceAvatarUrl, reduceCalls } from '@hcengineering/presentation'
   import {
     Button,
     Label,
@@ -63,30 +63,6 @@
   let isReadOnlyGuest: boolean = true
 
   let flagToUpdateWorkspaces = false
-
-  // Other workspaces' logos, fetched in bulk and keyed by uuid. requestedAvatarUuids
-  // avoids re-requesting a logo that already failed to resolve.
-  let avatarUrls: Record<string, string> = {}
-  const requestedAvatarUuids = new Set<string>()
-
-  const loadAvatarUrls = reduceCalls(async function loadAvatarUrls (uuids: WorkspaceUuid[]): Promise<void> {
-    if (uuids.length === 0) return
-    try {
-      avatarUrls = { ...avatarUrls, ...(await getWorkspaceAvatarUrls(uuids)) }
-    } catch (e) {
-      // best-effort — those workspaces just render without a logo
-    }
-  })
-
-  $: {
-    const missing = workspaces
-      .filter((it) => it.icon != null && !requestedAvatarUuids.has(it.uuid))
-      .map((it) => it.uuid)
-    if (missing.length > 0) {
-      missing.forEach((uuid) => requestedAvatarUuids.add(uuid))
-      void loadAvatarUrls(missing)
-    }
-  }
 
   async function loadAccount (): Promise<void> {
     accountPromise = getAccount()
@@ -204,7 +180,7 @@
             <WorkspaceAvatar
               colorSeed={workspace.uuid}
               displayName={wsName}
-              avatarUrl={avatarUrls[workspace.uuid]}
+              avatarUrl={workspace.icon == null ? undefined : getWorkspaceAvatarUrl(workspace.uuid, workspace.icon)}
               size={'small'}
               hasUnread={workspace.hasUnread === true}
               ringColor={'var(--theme-bg-color)'}

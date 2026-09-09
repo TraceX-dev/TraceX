@@ -1247,12 +1247,14 @@ export function devTool (
     .option('--concurrency <concurrency>', 'Number of workspaces to process in parallel', '10')
     .action(async (cmd: { force: boolean, dryRun: boolean, concurrency: string }) => {
       const { dbUrl } = prepareTools()
+      const parsedConcurrency = Number(cmd.concurrency)
+      const concurrency = Number.isInteger(parsedConcurrency) ? parsedConcurrency : 10
 
       await withAccountDatabase(async (accDb) => {
         await backfillWorkspaceAvatars(toolCtx, accDb, {
           force: cmd.force,
           dryRun: cmd.dryRun,
-          concurrency: parseInt(cmd.concurrency)
+          concurrency
         })
       }, dbUrl)
     })

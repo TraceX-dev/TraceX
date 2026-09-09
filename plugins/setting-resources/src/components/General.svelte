@@ -19,7 +19,7 @@
   import { EditableAvatar, getAccountClient } from '@hcengineering/contact-resources'
   import core, { Configuration, DateRangeMode, WorkspaceAccountPermission } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
-  import { translateCB } from '@hcengineering/platform'
+  import { setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
   import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
   import { WorkspaceSetting } from '@hcengineering/setting'
   import view from '@hcengineering/view'
@@ -134,32 +134,40 @@
   })
 
   async function handleAvatarDone (): Promise<void> {
-    const existing = await client.findOne(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting })
-    let icon: NonNullable<WorkspaceSetting['icon']> | null
-    if (existing !== undefined) {
+    try {
+      const existing = await client.findOne(settingsRes.class.WorkspaceSetting, {
+        _id: settingsRes.ids.WorkspaceSetting
+      })
       const avatar = await avatarEditor.createAvatar()
-      // Remove old avatar if changed
-      if (existing.icon != null && existing.icon !== avatar.avatar) {
-        await avatarEditor.removeAvatar(existing.icon)
+      const icon: NonNullable<WorkspaceSetting['icon']> | null =
+        avatar.avatarType === AvatarType.IMAGE ? (avatar.avatar ?? null) : null
+      const previousIcon = existing?.icon ?? null
+
+      // Update the account-service first. If the workspace document write fails,
+      // restore the public copy so the two sources do not silently diverge.
+      await accountClient.updateWorkspaceAvatar(icon)
+      try {
+        if (existing !== undefined) {
+          await client.diffUpdate(existing, { icon })
+        } else {
+          await client.createDoc(
+            settingsRes.class.WorkspaceSetting,
+            core.space.Workspace,
+            { icon },
+            settingsRes.ids.WorkspaceSetting
+          )
+        }
+      } catch (err: unknown) {
+        await accountClient.updateWorkspaceAvatar(previousIcon)
+        throw err
       }
 
-      icon = avatar.avatarType === AvatarType.IMAGE ? (avatar.avatar ?? null) : null
-      await client.diffUpdate(existing, { icon })
-    } else {
-      const avatar = await avatarEditor.createAvatar()
-      icon = avatar.avatar ?? null
-
-      await client.createDoc(
-        settingsRes.class.WorkspaceSetting,
-        core.space.Workspace,
-        { icon: avatar.avatar },
-        settingsRes.ids.WorkspaceSetting
-      )
+      if (previousIcon != null && previousIcon !== icon) {
+        await avatarEditor.removeAvatar(previousIcon)
+      }
+    } catch (err: unknown) {
+      await setPlatformStatus(unknownError(err))
     }
-
-    // Keep the account-service copy of the workspace avatar (used by select-workspace and
-    // workspace-switcher, which have no workspace-scoped client) in sync.
-    await accountClient.updateWorkspaceAvatar(icon)
   }
 
   const permissionConfigurationQuery = createQuery()
@@ -296,7 +304,7 @@
                     person={{
                       avatarType: workspaceSettings?.icon != null ? AvatarType.IMAGE : AvatarType.COLOR,
                       avatar: workspaceSettings?.icon,
-                      avatarProps: { color: workspaceAvatarColor }
+                      avatarProps: { color: workspaceAvatarColor, colorPalette: 'platform' }
                     }}
                     size="medium"
                     {name}

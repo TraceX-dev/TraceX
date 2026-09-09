@@ -892,6 +892,7 @@ function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
     `
   ]
 }
+
 function getV31Migration (ns: string, _flavor: DBFlavor): [string, string] {
   return [
     'account_db_v31_add_last_visit_to_account',
@@ -910,8 +911,8 @@ function getV32Migration (ns: string, flavor: DBFlavor): [string, string] {
     `
     -- Blob id of the workspace logo (same value as the workspace's own WorkspaceSetting.icon),
     -- synced here so select-workspace and workspace-switcher can render it without connecting
-    -- to that workspace. An opaque id rather than a resolved URL: the client builds the URL
-    -- itself from its own trusted storage config, so account-service never validates one.
+    -- to that workspace. An opaque id rather than a resolved URL: front resolves the designated
+    -- blob and validates its content type and size before serving it.
     ALTER TABLE ${ns}.workspace
     ADD COLUMN IF NOT EXISTS icon ${types.string};
     `

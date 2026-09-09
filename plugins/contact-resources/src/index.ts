@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -38,15 +39,14 @@ import login from '@hcengineering/login'
 import { getResource, type IntlString, type Resources } from '@hcengineering/platform'
 import { MessageBox, getBlobRef, getClient, type ObjectSearchResult } from '@hcengineering/presentation'
 import {
-  darkPalette,
   getPlatformAvatarColorByName,
   getPlatformAvatarColorForTextDef,
   getPlatformColorDef,
+  getPlatformColors,
   hexColorToNumber,
   parseURL,
   showPopup,
   themeStore,
-  whitePalette,
   type AnyComponent,
   type AnySvelteComponent,
   type ColorDefinition,
@@ -340,13 +340,11 @@ function getPersonColor (person: Data<WithLookup<AvatarInfo>>, name: string): Co
 
   if (person.avatarProps?.color !== undefined) {
     if (person.avatarProps?.color?.startsWith('#')) {
-      // Prefer an exact match in the platform palette (e.g. a color pre-computed via
-      // getPlatformColorForText, such as a workspace's identity color also used by
-      // Logo/WorkspaceAvatar) so it renders as that exact swatch instead of being
-      // re-hashed into an unrelated one via hexColorToNumber.
-      const exact = (dark ? darkPalette : whitePalette).find((it) => it.color === person.avatarProps?.color)
-      if (exact !== undefined) {
-        return exact
+      if (person.avatarProps.colorPalette === 'platform') {
+        const exact = getPlatformColors(dark).find((it) => it.color === person.avatarProps?.color)
+        if (exact !== undefined) {
+          return exact
+        }
       }
       return getPlatformColorDef(hexColorToNumber(person.avatarProps?.color), dark)
     }

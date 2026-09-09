@@ -1812,8 +1812,10 @@ export async function updateWorkspaceName (
   )
 }
 
-// `params.avatar` is a blob id, not a URL — readers resolve it via getFileUrl (own
-// workspace) or getWorkspaceAvatarUrls (others), both in @hcengineering/presentation.
+const workspaceAvatarRefPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+// `params.avatar` is a generated blob id, not a URL — readers resolve it via
+// getFileUrl (own workspace) or getWorkspaceAvatarUrl (others).
 export async function updateWorkspaceAvatar (
   ctx: MeasureContext,
   db: AccountDB,
@@ -1829,6 +1831,10 @@ export async function updateWorkspaceAvatar (
   if (role == null || getRolePower(role) < getRolePower(AccountRole.Maintainer)) {
     ctx.error('Need to be at least maintainer to update workspace avatar', { workspace, account, role })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  if (icon !== null && (typeof icon !== 'string' || !workspaceAvatarRefPattern.test(icon))) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
   }
 
   await db.workspace.update(
