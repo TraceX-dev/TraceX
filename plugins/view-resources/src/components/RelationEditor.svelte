@@ -258,6 +258,8 @@
             viewlet={masterDetailViewlet}
             viewOptions={relationViewOptions}
             compactMode
+            {readonly}
+            reorderable
           />
         </div>
       {:else}

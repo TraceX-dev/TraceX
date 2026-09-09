@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -27,6 +28,8 @@
   export let options: FindOptions<Doc> | undefined = undefined
   export let viewlet: WithLookup<Viewlet>
   export let compactMode: boolean = false
+  export let readonly: boolean = false
+  export let reorderable: boolean = false
 
   // Per _class configuration, if supported.
   export let viewOptions: ViewOptions
@@ -125,7 +128,9 @@
     masterComponent={parentView.component}
     masterComponentProps={{
       _class: viewlet?.masterDetailOptions?.views[0].class,
-      plainList: true
+      plainList: true,
+      readonly,
+      reorderable
     }}
     createMasterComponent={viewlet?.masterDetailOptions?.views[1]?.createComponent}
     createMasterComponentProps={{ _class: viewlet?.masterDetailOptions?.views[0].class }}
