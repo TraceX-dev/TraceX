@@ -60,6 +60,7 @@ export default mergeIds(processId, process, {
     ResultInput: '' as AnyComponent,
     SelectionSpaceEditor: '' as AnyComponent,
     RoleEditor: '' as AnyComponent,
+    RelationTableEditor: '' as AnyComponent,
     ActionsPresenter: '' as AnyComponent,
     TriggerPresenter: '' as AnyComponent,
     StatePresenter: '' as AnyComponent,
@@ -125,7 +126,8 @@ export default mergeIds(processId, process, {
   },
   transformPresenter: {
     NumberPresenter: '' as AnyComponent,
-    RolePresenter: '' as AnyComponent
+    RolePresenter: '' as AnyComponent,
+    RelationTablePresenter: '' as AnyComponent
   },
   function: {
     ShowDoneQuery: '' as ViewQueryAction,
@@ -317,7 +319,8 @@ export default mergeIds(processId, process, {
     ProcessDiagram: '' as IntlString,
     ProcessMap: '' as IntlString,
     NoTransitions: '' as IntlString,
-    NoProcessRelations: '' as IntlString
+    NoProcessRelations: '' as IntlString,
+    TableFromRelation: '' as IntlString
   },
   permission: {
     RunProcess: '' as Ref<Permission>,

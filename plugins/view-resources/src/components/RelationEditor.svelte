@@ -262,7 +262,7 @@
         </div>
       {:else}
         <Scroller horizontal>
-          <DocTable objects={uniqueDocs} {_class} {config} {onContextMenu} />
+          <DocTable objects={uniqueDocs} {_class} {config} {onContextMenu} {readonly} reorderable />
         </Scroller>
       {/if}
     {:else if !readonly}

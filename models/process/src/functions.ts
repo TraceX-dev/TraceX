@@ -538,6 +538,20 @@ export function defineFunctions (builder: Builder): void {
     process.class.ProcessFunction,
     core.space.Model,
     {
+      of: core.class.TypeMarkup,
+      editor: process.component.RelationTableEditor,
+      presenter: process.transformPresenter.RelationTablePresenter,
+      category: 'attribute',
+      label: process.string.TableFromRelation,
+      type: 'context'
+    },
+    process.function.TableFromRelation
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
       of: core.class.TypeAny,
       category: 'attribute',
       label: process.string.EmptyValue,
