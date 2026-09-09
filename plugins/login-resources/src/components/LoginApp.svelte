@@ -233,7 +233,6 @@
     align-items: center;
     gap: 0.625rem;
     padding: 1rem 2rem 1.25rem;
-    border-top: 1px solid var(--theme-button-border);
     text-align: center;
     font-size: 0.8125rem;
   }
