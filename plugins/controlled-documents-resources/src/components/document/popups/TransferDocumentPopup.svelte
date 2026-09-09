@@ -175,8 +175,8 @@
           <ProjectSelector
             value={targetProjectId}
             space={targetSpace._id}
-            kind={'no-border'}
-            size={'small'}
+            kind="no-border"
+            size="small"
             justify="left"
             showReadonly={false}
             on:change={(e) => {

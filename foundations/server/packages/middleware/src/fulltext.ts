@@ -218,11 +218,11 @@ export class FullTextMiddleware extends BaseMiddleware implements Middleware {
     let result =
       resultIds.length > 0
         ? await this.provideFindAll(
-          ctx,
-          _class,
-          { _id: { $in: Array.from(new Set(resultIds)) }, ...mainQuery },
-          options
-        )
+            ctx,
+            _class,
+            { _id: { $in: Array.from(new Set(resultIds)) }, ...mainQuery },
+            options
+          )
         : toFindResult([])
 
     // Just assign scores based on idex

@@ -124,7 +124,7 @@ describe('allocateDocumentIdentifier', () => {
   })
 
   it('keeps the number and takes the next code from the prefix sequence', async () => {
-    const { client, test } = createClient([{ seqNumber: 3, code: 'CUSTOM-3', template: 'other' as Ref<any> }])
+    const { client, test } = createClient([{ seqNumber: 3, code: 'CUSTOM-3', template: 'other' }])
     test.seed(sequenceNamespace, template, 'seqNumber', 6)
     const attempt = jest.fn(async (_seqNumber: number, code: string) => code !== 'CUSTOM-3')
 

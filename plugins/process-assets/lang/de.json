@@ -199,7 +199,8 @@
     "ExportWithoutSlots": "Slot-freier Export",
     "RequiredSlots": "Erforderliche Slots",
     "Bindings": "Bindungen",
-    "AskRequiredFields": "Erforderliche Felder erfragen"
+    "AskRequiredFields": "Erforderliche Felder erfragen",
+    "TableFromRelation": "Tabelle aus Beziehung"
   },
   "error": {
     "MethodNotFound": "Methode nicht gefunden: {methodId}",

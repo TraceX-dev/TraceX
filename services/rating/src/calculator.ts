@@ -227,7 +227,7 @@ export class RatingCalculator {
       const newState: MigrationState = {
         _id: generateId(),
         _class: core.class.MigrationState,
-        plugin: ratingId as string,
+        plugin: ratingId,
         state: 'v1',
         modifiedOn: Date.now(),
         modifiedBy: systemAccount.primarySocialId,
@@ -585,7 +585,7 @@ export class RatingCalculator {
           }
         )
         for (const p of parents) {
-          parentCache.set(p._id as Ref<Doc>, p)
+          parentCache.set(p._id, p)
           if (p.createdBy != null) {
             personIds.add(p.createdBy)
           }
@@ -613,7 +613,7 @@ export class RatingCalculator {
         }
         case core.class.TxRemoveDoc: {
           this.updatePersonStats(sysRating, tx.createdOn ?? tx.modifiedOn, 'delete', tx.objectClass)
-          await this.handleRatingDelete(ctx, tx as TxRemoveDoc<Doc>, txAuthors)
+          await this.handleRatingDelete(ctx, tx, txAuthors)
           break
         }
       }
@@ -665,12 +665,12 @@ export class RatingCalculator {
   }
 
   notifications = new Map<
-  AccountUuid,
-  {
-    oldRating: number
-    newRating: number
-    person: PersonRating
-  }
+    AccountUuid,
+    {
+      oldRating: number
+      newRating: number
+      person: PersonRating
+    }
   >()
 
   private async flushUpdates (

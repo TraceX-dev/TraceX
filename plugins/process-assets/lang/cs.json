@@ -199,7 +199,8 @@
     "ExportWithoutSlots": "Exportovat bez slotů",
     "RequiredSlots": "Požadované sloty",
     "Bindings": "Vazby",
-    "AskRequired": "zeptat se na prázdná povinná pole"
+    "AskRequired": "zeptat se na prázdná povinná pole",
+    "TableFromRelation": "Tabulka z vazby"
   },
   "error": {
     "MethodNotFound": "Metoda nenalezena: {methodId}",

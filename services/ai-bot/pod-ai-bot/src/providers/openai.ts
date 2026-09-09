@@ -177,7 +177,7 @@ function toResponseInputItems (message: ChatMessage): ResponseInputItem[] {
   return [
     {
       type: 'message',
-      role: role as 'user' | 'assistant' | 'system',
+      role,
       content: [{ type: 'input_text', text: content }, ...inputFiles]
     } satisfies EasyInputMessage
   ]

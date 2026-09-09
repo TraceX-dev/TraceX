@@ -165,7 +165,7 @@ export class TTrainingRequest extends TAttachedDoc implements TrainingRequest {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'requests' = 'requests'
+    override collection: 'requests' = 'requests'
 
   @Prop(TypeRef(contact.mixin.Employee), training.string.Owner, {
     editor: training.component.EmployeeEditor
@@ -224,7 +224,7 @@ export class TTrainingAttempt extends TAttachedDoc implements TrainingAttempt {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'attempts' = 'attempts'
+    override collection: 'attempts' = 'attempts'
 
   @Prop(TypeRef(contact.mixin.Employee), training.string.Owner, {
     editor: training.component.EmployeeEditor

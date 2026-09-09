@@ -102,7 +102,7 @@
   <Button
     {justify}
     {focusIndex}
-    width={'100%'}
+    width="100%"
     {size}
     icon={toArray(value).length === 1 ? undefined : icon}
     {kind}

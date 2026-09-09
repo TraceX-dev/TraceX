@@ -14,7 +14,7 @@
 //
 
 import calendar from '@hcengineering/calendar'
-import contact, { type Person, type PersonSpace } from '@hcengineering/contact'
+import contact, { type PersonSpace } from '@hcengineering/contact'
 import core, {
   type AccountUuid,
   type Class,
@@ -78,7 +78,7 @@ export async function handleScheduledNotification (
   const { client } = bundle
   await control.heartbeat()
 
-  const event = (await client.findOne(msg.eventClass, { _id: msg.eventId })) as MinimalEvent | undefined
+  const event = await client.findOne(msg.eventClass, { _id: msg.eventId })
   if (event === undefined) return
   await control.heartbeat()
 
@@ -211,11 +211,7 @@ async function resolveEventUserReceiver (
   const person = await client.findOne(contact.class.Person, { personUuid }, { projection: { _id: 1 } })
   if (person === undefined) return undefined
 
-  const space = await client.findOne(
-    contact.class.PersonSpace,
-    { person: person._id as Ref<Person> },
-    { projection: { _id: 1 } }
-  )
+  const space = await client.findOne(contact.class.PersonSpace, { person: person._id }, { projection: { _id: 1 } })
   if (space === undefined) return undefined
 
   return { receiverAccount: personUuid as AccountUuid, receiverSpace: space._id }
@@ -236,9 +232,9 @@ async function resolveReminderTarget (
 
   const isToDoBacked = event.attachedToClass != null && hierarchy.isDerived(event.attachedToClass, time.class.ToDo)
   if (isToDoBacked && event.attachedTo != null && event.attachedToClass != null) {
-    const todo = (await client.findOne(event.attachedToClass as Ref<Class<ToDo>>, {
+    const todo = await client.findOne<ToDo>(event.attachedToClass, {
       _id: event.attachedTo as Ref<ToDo>
-    })) as ToDo | undefined
+    })
     if (todo === undefined) return undefined
     if (todo.doneOn != null) return undefined
 

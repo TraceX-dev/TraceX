@@ -41,6 +41,8 @@ export * from './document/canSendForReview'
 export * from './document/documentComments'
 export * from './document/comparison'
 export * from './document/editor'
+// query.ts registers subscriptions when evaluated, so this must remain a value export.
+// eslint-disable-next-line @typescript-eslint/consistent-type-exports
 export * from './document/query'
 
 export const addDocumentCommentFx = attach({

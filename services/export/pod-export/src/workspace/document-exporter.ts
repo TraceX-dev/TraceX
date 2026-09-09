@@ -336,9 +336,9 @@ export class DocumentExporter {
       }
     } else {
       const sequenceQuery = (seqNumber: number): DocumentQuery<Doc> =>
-        (typeof data.template === 'string'
+        typeof data.template === 'string'
           ? { template: data.template, seqNumber }
-          : { template: { $exists: false }, seqNumber }) as unknown as DocumentQuery<Doc>
+          : { template: { $exists: false }, seqNumber }
 
       const outcome = await allocateWithRetries(
         this.targetClient,
@@ -357,7 +357,7 @@ export class DocumentExporter {
 
           const operations = this.targetClient.apply('export-allocation')
           operations.notMatch(sourceDoc._class, sequenceQuery(seqNumber))
-          operations.notMatch(sourceDoc._class, { code } as unknown as DocumentQuery<Doc>)
+          operations.notMatch(sourceDoc._class, { code })
           if (isAttached && attachedData !== undefined) {
             await operations.addCollection(
               sourceDoc._class,
@@ -376,7 +376,7 @@ export class DocumentExporter {
         async (seqNumber, code) => {
           const [sequenceConflict, codeConflict] = await Promise.all([
             this.targetClient.findOne(sourceDoc._class, sequenceQuery(seqNumber)),
-            this.targetClient.findOne(sourceDoc._class, { code } as unknown as DocumentQuery<Doc>)
+            this.targetClient.findOne(sourceDoc._class, { code })
           ])
           return { sequence: sequenceConflict !== undefined, code: codeConflict !== undefined }
         }

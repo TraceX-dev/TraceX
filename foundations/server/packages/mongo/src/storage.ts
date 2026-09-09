@@ -1024,10 +1024,10 @@ abstract class MongoAdapterBase implements DbAdapter {
 
   private collectSort<T extends Doc>(
     options:
-    | (FindOptions<T> & {
-      domain?: Domain | undefined // Allow to find for Doc's in specified domain only.
-    })
-    | undefined,
+      | (FindOptions<T> & {
+          domain?: Domain | undefined // Allow to find for Doc's in specified domain only.
+        })
+      | undefined,
     _class: Ref<Class<T>>
   ): Sort | undefined {
     if (options?.sort === undefined) {
@@ -1049,10 +1049,10 @@ abstract class MongoAdapterBase implements DbAdapter {
 
   private calcProjection<T extends Doc>(
     options:
-    | (FindOptions<T> & {
-      domain?: Domain | undefined // Allow to find for Doc's in specified domain only.
-    })
-    | undefined,
+      | (FindOptions<T> & {
+          domain?: Domain | undefined // Allow to find for Doc's in specified domain only.
+        })
+      | undefined,
     _class: Ref<Class<T>>
   ): Projection<T> | undefined {
     if (options?.projection === undefined) {
@@ -1513,7 +1513,7 @@ class MongoAdapter extends MongoAdapterBase {
                   modifiedOn: tx.modifiedOn,
                   '%hash%': this.curHash()
                 }
-              } as unknown as UpdateFilter<Document>,
+              },
               { returnDocument: 'after', includeResultMetadata: true }
             )
             this.handleEvent(domain, 'read', 1)

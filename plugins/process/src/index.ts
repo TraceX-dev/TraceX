@@ -173,7 +173,7 @@ export interface ApproveRequest extends ProcessToDo {
 export type MethodParams<T extends Doc> = {
   [P in keyof T]?: ObjQueryType<T[P]> | string
 } & DocumentUpdate<T> &
-Record<string, any>
+  Record<string, any>
 
 export interface State extends Doc {
   process: Ref<Process>
@@ -255,7 +255,7 @@ export interface UpdateCriteriaComponent extends Doc {
 
 export * from './dslContext'
 export * from './errors'
-export * from './types'
+export type * from './types'
 export * from './utils'
 
 export default plugin(processId, {
@@ -443,6 +443,7 @@ export default plugin(processId, {
     StringFromEnum: '' as Ref<ProcessFunction>,
     EnumFromString: '' as Ref<ProcessFunction>,
     DateDifference: '' as Ref<ProcessFunction>,
+    TableFromRelation: '' as Ref<ProcessFunction>,
     ExportProcess: '' as Resource<ExportFunc>,
     CheckProcessSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>
   }

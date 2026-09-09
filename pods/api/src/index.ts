@@ -80,40 +80,40 @@ interface ApiError {
 
 const withWorkspace =
   (message: string, handler: Handler) =>
-    (req: Request, res: Response): void => {
-      const workspaceId = req.params.workspaceId
-      let stage = 'validate_api_key'
-      const startedAt = Date.now()
+  (req: Request, res: Response): void => {
+    const workspaceId = req.params.workspaceId
+    let stage = 'validate_api_key'
+    const startedAt = Date.now()
+    logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
+    void (async () => {
+      const token = getBearerToken(req)
+      if (decodeToken(token).workspace !== workspaceId) throw new Error('Invalid workspace')
+      const accountClient = getAccountClient(accountsUrl, token)
+      const login = await accountClient.getLoginInfoByToken()
+      if (login === null || !('socialId' in login) || login.socialId === undefined) {
+        throw new Error('The API key user has no confirmed social identity')
+      }
+      stage = 'connect_workspace'
       logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
-      void (async () => {
-        const token = getBearerToken(req)
-        if (decodeToken(token).workspace !== workspaceId) throw new Error('Invalid workspace')
-        const accountClient = getAccountClient(accountsUrl, token)
-        const login = await accountClient.getLoginInfoByToken()
-        if (login === null || !('socialId' in login) || login.socialId === undefined) {
-          throw new Error('The API key user has no confirmed social identity')
-        }
-        stage = 'connect_workspace'
+      const client = await createClient(transactorUrl, token, undefined, workspaceClientConnectTimeoutMs)
+      try {
+        stage = 'workspace_connected'
         logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
-        const client = await createClient(transactorUrl, token, undefined, workspaceClientConnectTimeoutMs)
-        try {
-          stage = 'workspace_connected'
-          logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
-          stage = 'execute_operation'
-          logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
-          const result = await handler(client, login.socialId, workspaceId, req)
-          logWorkspaceProgress(req, workspaceId, message, 'send_response', startedAt)
-          await sendJson(res, result)
-        } finally {
-          logWorkspaceProgress(req, workspaceId, message, 'close_workspace_client', startedAt)
-          await client.close()
-          logWorkspaceProgress(req, workspaceId, message, 'completed', startedAt)
-        }
-      })().catch((error) => {
-        logWorkspaceError(req, workspaceId, message, stage, error)
-        sendError(res, error)
-      })
-    }
+        stage = 'execute_operation'
+        logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
+        const result = await handler(client, login.socialId, workspaceId, req)
+        logWorkspaceProgress(req, workspaceId, message, 'send_response', startedAt)
+        await sendJson(res, result)
+      } finally {
+        logWorkspaceProgress(req, workspaceId, message, 'close_workspace_client', startedAt)
+        await client.close()
+        logWorkspaceProgress(req, workspaceId, message, 'completed', startedAt)
+      }
+    })().catch((error) => {
+      logWorkspaceError(req, workspaceId, message, stage, error)
+      sendError(res, error)
+    })
+  }
 
 const session = (
   client: Client,
