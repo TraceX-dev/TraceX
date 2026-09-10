@@ -14,7 +14,7 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
-import { type BackupClient, type DocChunk } from './backup'
+import type { BackupClient, DocChunk } from './backup'
 import {
   type Class,
   DOMAIN_MODEL,
@@ -153,9 +153,7 @@ class ClientImpl implements Client, BackupClient {
     // In case of mixin we need to create mixin proxies.
 
     // Update mixins & lookups
-    const result = data.map((v) => {
-      return this.hierarchy.updateLookupMixin(_class, v, options)
-    })
+    const result = data.map((v) => this.hierarchy.updateLookupMixin(_class, v, options))
     return toFindResult(result, data.total)
   }
 
@@ -316,8 +314,8 @@ export async function createClient (
   txBuffer = undefined
 
   const oldOnConnect:
-  | ((event: ClientConnectEvent, lastTx: string | undefined, data: any) => Promise<void>)
-  | undefined = conn.onConnect
+    | ((event: ClientConnectEvent, lastTx: string | undefined, data: any) => Promise<void>)
+    | undefined = conn.onConnect
   conn.onConnect = async (event, _lastTx, data) => {
     console.log('Client: onConnect', event)
     if (event === ClientConnectEvent.Maintenance) {
@@ -416,7 +414,7 @@ async function loadModel (
     })
 
   if (typeof window !== 'undefined') {
-    console.log('find' + (result.full ? 'full model' : 'model diff'), result.transactions.length, platformNowDiff(t))
+    console.log(`find${result.full ? 'full model' : 'model diff'}`, result.transactions.length, platformNowDiff(t))
   }
   if (result.full) {
     return { mode: 'upgrade', current: result.transactions, addition: [] }

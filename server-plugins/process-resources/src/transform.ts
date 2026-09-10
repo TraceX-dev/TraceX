@@ -28,6 +28,7 @@ import core, {
 import { Execution, parseContext } from '@hcengineering/process'
 import { ProcessControl } from '@hcengineering/server-process'
 import { isEmptyMarkup, jsonToMarkup, markupToJSON, markupToText, nodeDoc } from '@hcengineering/text-core'
+import { buildMarkdownTableForRelation } from './table'
 import { getContextValue } from './utils'
 
 // #region ArrayReduce
@@ -578,6 +579,15 @@ export async function RoleContext (
   if (accs === undefined || accs.length === 0) return []
   const users = await control.client.findAll(contact.mixin.Employee, { personUuid: { $in: accs } })
   return users.map((it) => it._id)
+}
+
+export async function TableFromRelation (
+  value: null,
+  props: Record<string, any>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string> {
+  return await buildMarkdownTableForRelation(control, execution, props)
 }
 
 export async function CurrentUser (

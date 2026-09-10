@@ -157,7 +157,7 @@ export class TTestCase extends TAttachedDoc implements TestCase {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'testCases' = 'testCases'
+    override collection: 'testCases' = 'testCases'
 
   @Prop(TypeString(), testManagement.string.TestName)
   @Index(IndexKind.FullText)
@@ -238,7 +238,7 @@ export class TTestResult extends TAttachedDoc implements TestResult {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'results' = 'results'
+    override collection: 'results' = 'results'
 
   @Prop(TypeString(), testManagement.string.TestRunName)
   @Index(IndexKind.FullText)
@@ -306,7 +306,7 @@ export class TTestPlanItem extends TAttachedDoc implements TestPlanItem {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'items' = 'items'
+    override collection: 'items' = 'items'
 
   @Prop(TypeRef(testManagement.class.TestCase), testManagement.string.TestCase)
     testCase!: Ref<TestCase>

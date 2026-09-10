@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,10 +14,13 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { Analytics } from '@hcengineering/analytics'
   import contact, { PermissionsStore } from '@hcengineering/contact'
   import core, { AnyAttribute, Class, Doc, Ref, TxOperations, TypedSpace, getObjectValue } from '@hcengineering/core'
   import { getClient, reduceCalls, updateAttribute } from '@hcengineering/presentation'
   import { Label, Loading, mouseAttractor } from '@hcengineering/ui'
+  import { makeRank } from '@hcengineering/task'
+  import type { DocWithRank } from '@hcengineering/task'
   import { AttributeModel, BuildModelKey, BuildModelOptions, Viewlet } from '@hcengineering/view'
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher, onMount } from 'svelte'
@@ -37,6 +41,7 @@
   export let baseMenuClass: Ref<Class<Doc>> | undefined = undefined
   export let tableId: string | undefined = undefined
   export let readonly = false
+  export let reorderable = false
 
   export let selection: number | undefined = undefined
 
@@ -47,7 +52,90 @@
 
   const refs: HTMLElement[] = []
 
-  $: uniqueObjects = deduplicate(objects)
+  $: sortByRank = reorderable && hierarchy.getAllAttributes(_class).has('rank')
+  $: uniqueObjects = sortByRank
+    ? deduplicate(objects).sort((a, b) => {
+        const left = (a as DocWithRank).rank ?? ''
+        const right = (b as DocWithRank).rank ?? ''
+        return left < right ? -1 : left > right ? 1 : 0
+      })
+    : deduplicate(objects)
+
+  let draggedObject: Doc | undefined
+  let dropTarget: Ref<Doc> | undefined
+  let dropAfter = false
+  let savingRank = false
+
+  function canReorder (object: Doc, permissions: PermissionsStore | undefined): boolean {
+    if (!sortByRank || readonly || $restrictionStore.readonly || savingRank || permissions === undefined) return false
+    const attribute = hierarchy.getAllAttributes(object._class).get('rank')
+    return attribute !== undefined && attribute.readonly !== true && canChangeAttr(object, attribute, permissions)
+  }
+
+  function resetDrag (): void {
+    draggedObject = undefined
+    dropTarget = undefined
+    dropAfter = false
+  }
+
+  function startDrag (event: DragEvent, object: Doc): void {
+    if (!canReorder(object, $permissionsStore)) {
+      event.preventDefault()
+      return
+    }
+    event.stopPropagation()
+    draggedObject = object
+    if (event.dataTransfer !== null) {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', object._id)
+    }
+  }
+
+  function dragOver (event: DragEvent, object: Doc): void {
+    if (draggedObject === undefined || !canReorder(draggedObject, $permissionsStore)) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (event.dataTransfer !== null) event.dataTransfer.dropEffect = 'move'
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+    dropTarget = object._id
+    dropAfter = event.clientY > rect.top + rect.height / 2
+  }
+
+  function dragLeave (event: DragEvent): void {
+    if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) {
+      dropTarget = undefined
+    }
+  }
+
+  async function drop (event: DragEvent, target: Doc): Promise<void> {
+    const object = draggedObject
+    if (object === undefined) return
+    event.preventDefault()
+    event.stopPropagation()
+    const after = dropAfter
+    resetDrag()
+    if (object._id === target._id || !canReorder(object, $permissionsStore)) return
+    const originalIndex = uniqueObjects.findIndex((item) => item._id === object._id)
+    const remaining = uniqueObjects.filter((item) => item._id !== object._id)
+    const targetIndex = remaining.findIndex((item) => item._id === target._id)
+    if (originalIndex === -1 || targetIndex === -1) return
+    const index = targetIndex + (after ? 1 : 0)
+    if (index === originalIndex) return
+
+    try {
+      savingRank = true
+      if (!(await canEdit(object))) return
+      const prev = remaining[index - 1] as DocWithRank | undefined
+      const next = remaining[index] as DocWithRank | undefined
+      const rank = makeRank(prev?.rank, next?.rank)
+      await client.update(object as DocWithRank, { rank })
+      objects = objects.map((item) => (item._id === object._id ? { ...item, rank } : item))
+    } catch (error) {
+      Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+    } finally {
+      savingRank = false
+    }
+  }
 
   function deduplicate (list: Doc[] | undefined): Doc[] {
     if (!list) return []
@@ -230,6 +318,21 @@
             class="antiTable-body__row"
             class:fixed={row === selection}
             class:selected={row === selection}
+            class:dragging={draggedObject?._id === object._id}
+            class:drop-before={dropTarget === object._id && !dropAfter}
+            class:drop-after={dropTarget === object._id && dropAfter}
+            draggable={canReorder(object, $permissionsStore)}
+            on:dragstart={(event) => {
+              startDrag(event, object)
+            }}
+            on:dragover={(event) => {
+              dragOver(event, object)
+            }}
+            on:dragleave={dragLeave}
+            on:drop={(event) => {
+              void drop(event, object)
+            }}
+            on:dragend={resetDrag}
             on:mouseover={mouseAttractor(() => {
               onRow(object)
             })}
@@ -273,3 +376,17 @@
     {/if}
   </table>
 {/if}
+
+<style lang="scss">
+  .dragging {
+    opacity: 0.5;
+  }
+
+  .drop-before > td {
+    box-shadow: inset 0 2px 0 var(--primary-button-default);
+  }
+
+  .drop-after > td {
+    box-shadow: inset 0 -2px 0 var(--primary-button-default);
+  }
+</style>

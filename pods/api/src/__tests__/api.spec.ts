@@ -126,18 +126,13 @@ describe('Workspace API routes with local plugin resources', () => {
       [calendar.space.Calendar, 'Calendar'],
       [time.space.ToDos, 'ToDos']
     ]) {
-      await operations.createDoc(core.class.Space, core.space.Model, { name } as never, id as Ref<Doc>)
+      await operations.createDoc(core.class.Space, core.space.Model, { name }, id as Ref<Doc>)
     }
-    await operations.createDoc(
-      card.class.CardSpace,
-      core.space.Space,
-      { name: 'Product' } as never,
-      'product-space' as Ref<Doc>
-    )
+    await operations.createDoc(card.class.CardSpace, core.space.Space, { name: 'Product' }, 'product-space' as Ref<Doc>)
     await operations.createDoc(
       document.class.Teamspace,
       core.space.Space,
-      { name: 'Knowledge base' } as never,
+      { name: 'Knowledge base' },
       'knowledge-base' as Ref<Doc>
     )
     await createEmployeeFixture(client)
@@ -150,7 +145,7 @@ describe('Workspace API routes with local plugin resources', () => {
         name: 'Personal',
         user: 'person-1',
         visibility: 'private'
-      } as never,
+      },
       'personal-calendar' as Ref<Doc>
     )
   })
@@ -333,7 +328,7 @@ describe('Workspace API routes with local plugin resources', () => {
     await new TxOperations(client, 'person-1' as PersonId).createDoc(
       chunter.class.Channel,
       core.space.Space,
-      { archived: false, name: 'General' } as never,
+      { archived: false, name: 'General' },
       'general-channel' as Ref<Doc>
     )
     const created = await api('post', '/api/v2/:workspaceId/cards', {
@@ -415,7 +410,7 @@ function createInMemoryClient (
   return {
     close: async () => {},
     domainRequest: async (_domain, params) => {
-      domainRequests.push(params as Record<string, unknown>)
+      domainRequests.push(params)
       return { domain: 'test' as never, value: [] }
     },
     findAll,

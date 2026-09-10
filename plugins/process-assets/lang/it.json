@@ -204,7 +204,8 @@
     "ExportWithoutSlots": "Esporta senza slot",
     "RequiredSlots": "Slot richiesti",
     "Bindings": "Binding",
-    "AskRequired": "Richiedi campi"
+    "AskRequired": "Richiedi campi",
+    "TableFromRelation": "Tabella dalla relazione"
   },
   "error": {
     "MethodNotFound": "Metodo non trovato: {methodId}",

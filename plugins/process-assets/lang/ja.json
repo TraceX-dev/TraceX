@@ -203,7 +203,8 @@
     "ExportWithoutSlots": "スロットなしでエクスポート",
     "RequiredSlots": "必須スロット",
     "Bindings": "バインディング",
-    "AskRequired": "必須フィールドを尋ねる"
+    "AskRequired": "必須フィールドを尋ねる",
+    "TableFromRelation": "リレーションからのテーブル"
   },
   "error": {
     "MethodNotFound": "メソッドが見つかりません: {methodId}",

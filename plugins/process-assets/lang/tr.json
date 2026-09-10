@@ -199,7 +199,8 @@
     "ExportWithoutSlots": "Slotsuz dışa aktar",
     "RequiredSlots": "Gerekli slotlar",
     "Bindings": "Bağlamalar",
-    "AskRequired": "Gerekli alanları sor"
+    "AskRequired": "Gerekli alanları sor",
+    "TableFromRelation": "İlişkiden tablo"
   },
   "error": {
     "MethodNotFound": "Metod bulunamadı: {methodId}",

@@ -68,8 +68,8 @@
     spaceType =
       id !== undefined
         ? await client
-          .getModel()
-          .findOne(documents.class.DocumentSpaceType, { _id: id }, { lookup: { _id: { roles: core.class.Role } } })
+            .getModel()
+            .findOne(documents.class.DocumentSpaceType, { _id: id }, { lookup: { _id: { roles: core.class.Role } } })
         : undefined
 
     if (docSpace === undefined || spaceType?.targetClass === undefined || spaceType?.$lookup?.roles === undefined) {
@@ -232,8 +232,8 @@
   okAction={handleSave}
   {canSave}
   accentHeader
-  width={'medium'}
-  gap={'gapV-6'}
+  width="medium"
+  gap="gapV-6"
   onCancel={close}
   on:changeContent
 >
@@ -259,7 +259,7 @@
         <Label label={documentsRes.string.Title} />
       </div>
       <div class="padding">
-        <EditBox bind:value={name} placeholder={documentsRes.string.NewDocumentSpace} kind={'large-style'} autoFocus />
+        <EditBox bind:value={name} placeholder={documentsRes.string.NewDocumentSpace} kind="large-style" autoFocus />
       </div>
     </div>
 
@@ -287,8 +287,8 @@
       excludeItems={readOnlyGuestOwnerExcludeItems}
       label={core.string.Owners}
       onChange={handleOwnersChanged}
-      kind={'regular'}
-      size={'large'}
+      kind="regular"
+      size="large"
     />
   </div>
 
@@ -309,8 +309,8 @@
         value={members}
         label={documentsRes.string.Members}
         onChange={handleMembersChanged}
-        kind={'regular'}
-        size={'large'}
+        kind="regular"
+        size="large"
         allowGuests
       />
     </div>
@@ -328,8 +328,8 @@
           onChange={(refs) => {
             handleRoleAssignmentChanged(role._id, refs)
           }}
-          kind={'regular'}
-          size={'large'}
+          kind="regular"
+          size="large"
         />
       </div>
     {/each}

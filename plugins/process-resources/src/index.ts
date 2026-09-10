@@ -22,6 +22,7 @@ import RequestUserInput from './components/contextEditors/RequestUserInput.svelt
 import ResultInput from './components/contextEditors/ResultInput.svelte'
 import SelectionSpaceEditor from './components/settings/SelectionSpaceEditor.svelte'
 import RoleEditor from './components/contextEditors/RoleEditor.svelte'
+import RelationTableEditor from './components/contextEditors/RelationTableEditor.svelte'
 import ErrorPresenter from './components/ErrorPresenter.svelte'
 import ExecutionMyToDos from './components/ExecutionMyToDos.svelte'
 import ExecutonPresenter from './components/ExecutonPresenter.svelte'
@@ -99,6 +100,7 @@ import ReplaceEditor from './components/transformEditors/ReplaceEditor.svelte'
 import SplitEditor from './components/transformEditors/SplitEditor.svelte'
 import NumberPresenter from './components/transformPresenters/NumberPresenter.svelte'
 import RolePresenter from './components/transformPresenters/RolePresenter.svelte'
+import RelationTablePresenter from './components/transformPresenters/RelationTablePresenter.svelte'
 import ExecutionRefPresenter from './components/ExecutionRefPresenter.svelte'
 import ActionTypePresenter from './components/ActionTypePresenter.svelte'
 import LockFieldEditor from './components/settings/LockFieldEditor.svelte'
@@ -158,6 +160,7 @@ export default async (): Promise<Resources> => ({
     ResultInput,
     SelectionSpaceEditor,
     RoleEditor,
+    RelationTableEditor,
     ActionsPresenter,
     StatePresenter,
     TriggerPresenter,
@@ -215,7 +218,8 @@ export default async (): Promise<Resources> => ({
   },
   transformPresenter: {
     NumberPresenter,
-    RolePresenter
+    RolePresenter,
+    RelationTablePresenter
   },
   transformEditor: {
     ArrayElementEditor,

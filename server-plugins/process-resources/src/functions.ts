@@ -32,6 +32,7 @@ import core, {
   matchQuery,
   Ref,
   Relation,
+  Space,
   splitMixinUpdate,
   Tx,
   TxCreateDoc,
@@ -565,7 +566,7 @@ export async function CreateNewVersion (
       : control.client.findAll(attachment.class.Attachment, { attachedTo: origin._id })
   ])
 
-  const createTx = control.client.txFactory.createTxCreateDoc(base, origin.space, props as Data<Card>, targetId)
+  const createTx = control.client.txFactory.createTxCreateDoc(base, origin.space, props, targetId)
   const txes: Tx[] = [createTx]
 
   for (const mixin of hierarchy.findAllMixins(origin)) {
@@ -719,7 +720,7 @@ export async function AddTag (
 
   const processes = control.client.getModel().findAllSync(process.class.Process, { masterTag: tagId, autoStart: true })
   for (const proc of processes) {
-    const [txes, rbTxes] = await createExecution(proc._id, execution.card, execution, control)
+    const [txes, rbTxes] = await createExecution(proc._id, execution.card, execution.space, control)
     res.push(...txes)
     rollback.push(...rbTxes)
   }
@@ -1213,26 +1214,28 @@ export async function CreateCard (
   if (requiredFields !== undefined && typeof requiredFields === 'object' && requiredFields !== null) {
     Object.assign(attrs, requiredFields)
   }
-  const resolvedAttrs: Record<string, any> = {}
+  const resolvedAttrs: Record<string, unknown> = {}
   for (const key in attrs) {
     resolvedAttrs[resolveAttributeId(_process, key)] = (attrs as any)[key]
   }
+  const { space, ...cardAttrs } = resolvedAttrs
+  const targetSpace = typeof space === 'string' && !isEmpty(space) ? (space as Ref<Space>) : execution.space
   const masterTag = _class as Ref<MasterTag>
   const _id = generateId<Card>()
   const newContent =
     content !== undefined && !isEmpty(content) ? await getContent(control, content, _id, masterTag) : content
   const data = {
     title,
-    ...resolvedAttrs
+    ...cardAttrs
   } as any
   if (newContent !== undefined) {
     data.content = newContent
   }
   const filledData = fillDefaults(control.client.getHierarchy(), data, masterTag)
 
-  const tx = control.client.txFactory.createTxCreateDoc(masterTag, execution.space, filledData, _id)
+  const tx = control.client.txFactory.createTxCreateDoc(masterTag, targetSpace, filledData, _id)
   const res: Tx[] = [tx]
-  const rollback: Tx[] = [control.client.txFactory.createTxRemoveDoc(masterTag, execution.space, _id)]
+  const rollback: Tx[] = [control.client.txFactory.createTxRemoveDoc(masterTag, targetSpace, _id)]
 
   const ancestors = control.client
     .getHierarchy()
@@ -1244,7 +1247,7 @@ export async function CreateCard (
     autoStart: true
   })
   for (const proc of processes) {
-    const [txes, rbTxes] = await createExecution(proc._id, _id, execution, control)
+    const [txes, rbTxes] = await createExecution(proc._id, _id, targetSpace, control)
     res.push(...txes)
     rollback.push(...rbTxes)
   }
@@ -1267,7 +1270,7 @@ function isEmpty (value: any): boolean {
 async function createExecution (
   proc: Ref<Process>,
   _id: Ref<Card>,
-  execution: Execution,
+  space: Ref<Space>,
   control: ProcessControl
 ): Promise<[Tx[], Tx[]]> {
   const res: Tx[] = []
@@ -1280,7 +1283,7 @@ async function createExecution (
   const execId = generateId()
   const tx = control.client.txFactory.createTxCreateDoc(
     process.class.Execution,
-    execution.space,
+    space,
     {
       process: proc,
       currentState: null as any,
@@ -1293,6 +1296,6 @@ async function createExecution (
   )
 
   res.push(tx)
-  rollback.push(control.client.txFactory.createTxRemoveDoc(process.class.Execution, execution.space, execId))
+  rollback.push(control.client.txFactory.createTxRemoveDoc(process.class.Execution, space, execId))
   return [res, rollback]
 }

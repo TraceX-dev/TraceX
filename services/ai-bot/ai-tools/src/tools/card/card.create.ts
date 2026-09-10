@@ -202,7 +202,7 @@ export const cardCreateTool = createTool({
     await client.createDoc(masterTagId, spaceId, dataWithDefaults, cardId)
 
     for (const [tagId, tagData] of tagMixins) {
-      await client.createMixin(cardId, masterTagId, spaceId, tagId, tagData as any)
+      await client.createMixin(cardId, masterTagId, spaceId, tagId, tagData)
     }
 
     const result = { id: cardId }

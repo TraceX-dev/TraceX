@@ -23,7 +23,8 @@ class ToolImpl<
   TOutputSchema extends ToolOutputSchema,
   TContext extends ToolExecutorContext,
   TMetadata extends ToolMetadata
-> implements Tool<TInputSchema, TOutputSchema, TContext, TMetadata> {
+> implements Tool<TInputSchema, TOutputSchema, TContext, TMetadata>
+{
   readonly name: string
   readonly description: string
   readonly inputSchema: TInputSchema

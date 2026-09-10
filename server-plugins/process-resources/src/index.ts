@@ -139,6 +139,7 @@ import {
   Replace,
   ReplaceAll,
   RoleContext,
+  TableFromRelation,
   Round,
   Split,
   Sqrt,
@@ -403,7 +404,7 @@ export async function OnExecutionDone (txes: Tx[], control: TriggerControl): Pro
     const todosWithWorkslots = new Set(workslots.map((workslot) => workslot.attachedTo as string))
 
     for (const todo of todos) {
-      if (todosWithWorkslots.has(todo._id as string)) continue
+      if (todosWithWorkslots.has(todo._id)) continue
       res.push(control.txFactory.createTxRemoveDoc(todo._class, todo.space, todo._id))
     }
   }
@@ -977,6 +978,7 @@ export default async () => ({
     Offset,
     FirstWorkingDayAfter,
     RoleContext,
+    TableFromRelation,
     Insert,
     Remove,
     RemoveFirst,
