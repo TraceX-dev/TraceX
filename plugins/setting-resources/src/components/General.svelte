@@ -17,7 +17,7 @@
   import { AvatarType } from '@hcengineering/contact'
   import type { ApiKey } from '@hcengineering/account-client'
   import { EditableAvatar, getAccountClient } from '@hcengineering/contact-resources'
-  import core, { Configuration, DateRangeMode, WorkspaceAccountPermission } from '@hcengineering/core'
+  import core, { Configuration, DateRangeMode, type Ref, type Blob as PlatformBlob, WorkspaceAccountPermission } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
   import { setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
   import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
@@ -126,6 +126,7 @@
 
   // Avatar
   let avatarEditor: EditableAvatar
+  const workspaceLogoId = 'logo' as Ref<PlatformBlob>
   let workspaceSettings: WorkspaceSetting | undefined = undefined
 
   const client = getClient()
@@ -138,28 +139,15 @@
       const existing = await client.findOne(settingsRes.class.WorkspaceSetting, {
         _id: settingsRes.ids.WorkspaceSetting
       })
-      const avatar = await avatarEditor.createAvatar()
+      const avatar = await avatarEditor.createAvatar(workspaceLogoId)
       const icon: NonNullable<WorkspaceSetting['icon']> | null =
         avatar.avatarType === AvatarType.IMAGE ? (avatar.avatar ?? null) : null
       const previousIcon = existing?.icon ?? null
 
-      // Update the account-service first. If the workspace document write fails,
-      // restore the public copy so the two sources do not silently diverge.
-      await accountClient.updateWorkspaceAvatar(icon)
-      try {
-        if (existing !== undefined) {
-          await client.diffUpdate(existing, { icon })
-        } else {
-          await client.createDoc(
-            settingsRes.class.WorkspaceSetting,
-            core.space.Workspace,
-            { icon },
-            settingsRes.ids.WorkspaceSetting
-          )
-        }
-      } catch (err: unknown) {
-        await accountClient.updateWorkspaceAvatar(previousIcon)
-        throw err
+      if (existing !== undefined) {
+        await client.diffUpdate(existing, { icon })
+      } else {
+        await client.createDoc(settingsRes.class.WorkspaceSetting, core.space.Workspace, { icon }, settingsRes.ids.WorkspaceSetting)
       }
 
       if (previousIcon != null && previousIcon !== icon) {

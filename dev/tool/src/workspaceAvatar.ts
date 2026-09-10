@@ -16,13 +16,17 @@
 import { type AccountDB, getWorkspaces } from '@hcengineering/account'
 import {
   type BackupClient,
+  type Blob,
   type Client as CoreClient,
   isArchivingMode,
   isDeletingMode,
-  type MeasureMetricsContext
+  type MeasureMetricsContext,
+  type Ref,
+  type WorkspaceIds
 } from '@hcengineering/core'
 import setting, { type WorkspaceSetting } from '@hcengineering/setting'
 import { connect } from '@hcengineering/server-tool'
+import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
 import { getWorkspaceTransactorEndpoint } from './utils'
 
 /**
@@ -36,6 +40,8 @@ export async function backfillWorkspaceAvatars (
   accountDb: AccountDB,
   opts: { force?: boolean, dryRun?: boolean, concurrency?: number } = {}
 ): Promise<void> {
+  const storageAdapter = buildStorageFromConfig(storageConfigFromEnv())
+  const workspaceLogoId = 'logo' as Ref<Blob>
   // isDisabled is left null here (rather than passing false) so getWorkspaces doesn't
   // dereference status.isDisabled itself — a workspace missing its status row would
   // throw there before we ever get a chance to skip it below.
@@ -74,11 +80,6 @@ export async function backfillWorkspaceAvatars (
   let nextIndex = 0
 
   async function processOne (workspace: (typeof workspaces)[number]): Promise<void> {
-    if (opts.force !== true && workspace.icon != null && workspace.icon !== '') {
-      skipped++
-      return
-    }
-
     try {
       const endpoint = await getWorkspaceTransactorEndpoint(workspace.uuid)
       const connection = (await connect(endpoint, workspace.uuid, undefined, {
@@ -95,10 +96,27 @@ export async function backfillWorkspaceAvatars (
           return
         }
 
+        if (opts.force !== true && icon === workspaceLogoId) {
+          skipped++
+          return
+        }
+
         ctx.info('  setting avatar', { workspace: workspace.uuid, name: workspace.name, icon })
 
         if (opts.dryRun !== true) {
-          await accountDb.workspace.update({ uuid: workspace.uuid }, { icon })
+          const workspaceIds: WorkspaceIds = {
+            uuid: workspace.uuid,
+            url: workspace.url,
+            dataId: workspace.dataId
+          }
+          const blobInfo = await storageAdapter.stat(ctx, workspaceIds, icon)
+          if (blobInfo === undefined) {
+            missing++
+            return
+          }
+          const data = await storageAdapter.get(ctx, workspaceIds, icon)
+          await storageAdapter.put(ctx, workspaceIds, workspaceLogoId, data, blobInfo.contentType, blobInfo.size)
+          await connection.update(wsSetting, { icon: workspaceLogoId })
         }
         updated++
       } finally {

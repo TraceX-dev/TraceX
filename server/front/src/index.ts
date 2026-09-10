@@ -1,7 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2025 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,17 +15,9 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
-import {
-  MeasureContext,
-  Blob as PlatformBlob,
-  WorkspaceIds,
-  WorkspaceUuid,
-  metricsAggregate,
-  systemAccountUuid,
-  type Ref
-} from '@hcengineering/core'
+import { MeasureContext, Blob as PlatformBlob, WorkspaceIds, metricsAggregate, type Ref } from '@hcengineering/core'
 import platform, { PlatformError } from '@hcengineering/platform'
-import { TokenError, decodeToken, generateToken } from '@hcengineering/server-token'
+import { TokenError, decodeToken } from '@hcengineering/server-token'
 import { StorageAdapter } from '@hcengineering/storage'
 import bp from 'body-parser'
 import cors from 'cors'
@@ -37,7 +28,6 @@ import morgan from 'morgan'
 import { join, normalize, resolve } from 'path'
 import { cwd } from 'process'
 import sharp, { type Sharp } from 'sharp'
-import { validate as validateUuid } from 'uuid'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { preConditions } from './utils'
 
@@ -47,13 +37,9 @@ import { tmpdir } from 'os'
 
 const cacheControlValue = 'public, no-cache, must-revalidate, max-age=365d'
 const cacheControlNoCache = 'public, no-store, no-cache, must-revalidate, max-age=0'
-const immutableCacheControlValue = 'public, max-age=31536000, immutable'
 
 const KEEP_ALIVE_TIMEOUT = 5 // seconds
 const KEEP_ALIVE_MAX = 1000
-const MAX_WORKSPACE_AVATAR_SIZE = 5 * 1024 * 1024
-const WORKSPACE_AVATAR_RATE_LIMIT = 600
-const WORKSPACE_AVATAR_RATE_WINDOW_MS = 60 * 1000
 const KEEP_ALIVE_HEADERS = {
   Connection: 'keep-alive',
   'Keep-Alive': `timeout=${KEEP_ALIVE_TIMEOUT}, max=${KEEP_ALIVE_MAX}`
@@ -183,8 +169,7 @@ async function getFile (
   client: StorageAdapter,
   wsIds: WorkspaceIds,
   req: Request,
-  res: Response,
-  cacheControl: string = cacheControlValue
+  res: Response
 ): Promise<void> {
   const etag = stat.etag
 
@@ -199,7 +184,7 @@ async function getFile (
       'content-type': stat.contentType,
       etag: stat.etag,
       'last-modified': new Date(stat.modifiedOn).toISOString(),
-      'cache-control': cacheControl
+      'cache-control': cacheControlValue
     })
     res.end()
     return
@@ -211,7 +196,7 @@ async function getFile (
       'content-type': stat.contentType,
       etag: stat.etag,
       'last-modified': new Date(stat.modifiedOn).toISOString(),
-      'cache-control': cacheControl
+      'cache-control': cacheControlValue
     })
     res.end()
     return
@@ -229,7 +214,7 @@ async function getFile (
           'Content-Length': stat.size,
           Etag: stat.etag,
           'Last-Modified': new Date(stat.modifiedOn).toISOString(),
-          'Cache-Control': cacheControl,
+          'Cache-Control': cacheControlValue,
           connection: 'keep-alive',
           'keep-alive': 'timeout=5, max=1000'
         })
@@ -299,12 +284,6 @@ export function start (
   extraConfig?: Record<string, string | undefined>
 ): () => void {
   const app = express()
-  const avatarServiceToken = generateToken(systemAccountUuid, undefined, { service: 'front' })
-  const avatarAccountClient = getAccountClient(
-    config.accountsUrlInternal ?? config.accountsUrl,
-    avatarServiceToken
-  )
-  const avatarRateLimits = new Map<string, { startedOn: number, count: number }>()
 
   const tempFileDir = mkdtempSync(join(tmpdir(), 'front-'))
   let temoFileIndex = 0
@@ -607,83 +586,6 @@ export function start (
 
   app.post('/files/*', (req, res) => {
     void handleUpload(req, res)
-  })
-
-  // Publicly readable by design (no token check, unlike /files) because this route is
-  // used before the browser has a workspace-scoped token. The accepted tradeoff is that
-  // anyone who knows a workspace UUID can fetch its designated logo. MIME and size checks
-  // prevent this route from publishing non-image files or buffering large blobs.
-  const avatarHandler = async (req: Request<{ workspaceUuid: string }>, res: Response): Promise<void> => {
-    await ctx.with(
-      'handle-avatar',
-      {},
-      async (ctx) => {
-        try {
-          const now = Date.now()
-          const forwardedFor = req.headers['x-forwarded-for']
-          let rateLimitKey =
-            (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor?.split(',')[0])?.trim() || req.ip
-
-          if (avatarRateLimits.size >= 10000 && !avatarRateLimits.has(rateLimitKey)) {
-            for (const [key, value] of avatarRateLimits) {
-              if (now - value.startedOn >= WORKSPACE_AVATAR_RATE_WINDOW_MS) {
-                avatarRateLimits.delete(key)
-              }
-            }
-            if (avatarRateLimits.size >= 10000) {
-              rateLimitKey = '#overflow'
-            }
-          }
-
-          const currentRateLimit = avatarRateLimits.get(rateLimitKey)
-          const rateLimit =
-            currentRateLimit === undefined || now - currentRateLimit.startedOn >= WORKSPACE_AVATAR_RATE_WINDOW_MS
-              ? { startedOn: now, count: 1 }
-              : { ...currentRateLimit, count: currentRateLimit.count + 1 }
-          avatarRateLimits.set(rateLimitKey, rateLimit)
-
-          if (rateLimit.count > WORKSPACE_AVATAR_RATE_LIMIT) {
-            res.setHeader('Retry-After', Math.ceil((rateLimit.startedOn + WORKSPACE_AVATAR_RATE_WINDOW_MS - now) / 1000))
-            res.status(429).send()
-            return
-          }
-
-          const workspaceUuid = req.params.workspaceUuid
-          if (!validateUuid(workspaceUuid)) {
-            res.status(400).send()
-            return
-          }
-
-          const info = await avatarAccountClient.getWorkspaceAvatarInfo(workspaceUuid as WorkspaceUuid)
-          if (info?.icon == null) {
-            res.status(404).send()
-            return
-          }
-
-          const wsIds: WorkspaceIds = { uuid: info.uuid, url: info.url, dataId: info.dataId }
-          const blobInfo = await config.storageAdapter.stat(ctx, wsIds, info.icon)
-          if (
-            blobInfo === undefined ||
-            !blobInfo.contentType.toLowerCase().startsWith('image/') ||
-            blobInfo.size > MAX_WORKSPACE_AVATAR_SIZE
-          ) {
-            res.status(404).send()
-            return
-          }
-
-          const cacheControl = req.query.v === info.icon ? immutableCacheControlValue : cacheControlValue
-          await getFile(ctx, blobInfo, config.storageAdapter, wsIds, req, res, cacheControl)
-        } catch (error: unknown) {
-          ctx.error('error-handle-avatar', { error, workspace: req.params.workspaceUuid })
-          res.status(500).send()
-        }
-      },
-      { url: req.path }
-    )
-  }
-
-  app.get('/avatars/:workspaceUuid', (req, res) => {
-    void avatarHandler(req, res)
   })
 
   const handleUpload = async (req: Request, res: Response): Promise<void> => {

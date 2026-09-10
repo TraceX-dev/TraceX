@@ -1238,12 +1238,10 @@ export function devTool (
   program
     .command('backfill-workspace-avatars')
     .description(
-      'Backfill account-service Workspace.icon for workspaces that already had a WorkspaceSetting.icon ' +
-        'before the avatar-sync change, so select-workspace/workspace-switcher can render it without ' +
-        'waiting for someone to re-save the icon.'
+      'Copy existing WorkspaceSetting icons to the fixed workspace blob key "logo".'
     )
-    .option('--force', 'Recompute avatar even for workspaces that already have one set', false)
-    .option('--dry-run', 'Only log what would change, without writing to the account database', false)
+    .option('--force', 'Copy the icon even when it already uses the "logo" key', false)
+    .option('--dry-run', 'Only log what would change, without writing blobs or workspace settings', false)
     .option('--concurrency <concurrency>', 'Number of workspaces to process in parallel', '10')
     .action(async (cmd: { force: boolean, dryRun: boolean, concurrency: string }) => {
       const { dbUrl } = prepareTools()

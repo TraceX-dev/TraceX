@@ -1,6 +1,5 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,14 +14,11 @@
 //
 import {
   type AccountRole,
-  type Blob,
   type Data,
   isActiveMode,
   type MeasureContext,
-  type Ref,
   SocialIdType,
   type Version,
-  type WorkspaceDataId,
   type WorkspaceMode,
   type PersonInfo,
   type BackupStatus,
@@ -446,36 +442,6 @@ export async function updateWorkspaceInfo (
 
   if (Object.keys(wsUpdate).length !== 0) {
     await db.workspace.update({ uuid: workspaceUuid }, wsUpdate)
-  }
-}
-
-// Front uses this service-only method to resolve the blob designated as a workspace
-// logo. Nothing else from the workspace is exposed by the public avatar route.
-export async function getWorkspaceAvatarInfo (
-  ctx: MeasureContext,
-  db: AccountDB,
-  branding: Branding | null,
-  token: string,
-  params: { workspaceUuid: WorkspaceUuid }
-): Promise<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null } | null> {
-  const { extra } = decodeTokenVerbose(ctx, token)
-  verifyAllowedServices(['front'], extra)
-
-  const { workspaceUuid } = params
-  if (workspaceUuid === '') {
-    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
-  }
-
-  const [workspace] = await getWorkspacesInfoWithStatusByIds(db, [workspaceUuid])
-  if (workspace === undefined) {
-    return null
-  }
-
-  return {
-    uuid: workspace.uuid,
-    url: workspace.url,
-    dataId: workspace.dataId,
-    icon: workspace.icon ?? null
   }
 }
 
@@ -1156,7 +1122,6 @@ export async function getSubscriptionByProviderId (
 export type AccountServiceMethods =
   | 'getPendingWorkspace'
   | 'updateWorkspaceInfo'
-  | 'getWorkspaceAvatarInfo'
   | 'workerHandshake'
   | 'updateBackupInfo'
   | 'updateUsageInfo'
@@ -1192,7 +1157,6 @@ export function getServiceMethods (): Partial<Record<AccountServiceMethods, Acco
   return {
     getPendingWorkspace: wrap(getPendingWorkspace),
     updateWorkspaceInfo: wrap(updateWorkspaceInfo),
-    getWorkspaceAvatarInfo: wrap(getWorkspaceAvatarInfo),
     workerHandshake: wrap(workerHandshake),
     updateBackupInfo: wrap(updateBackupInfo),
     updateUsageInfo: wrap(updateUsageInfo),

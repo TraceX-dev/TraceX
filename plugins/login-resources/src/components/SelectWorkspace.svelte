@@ -180,7 +180,7 @@
             <WorkspaceAvatar
               colorSeed={workspace.uuid}
               displayName={wsName}
-              avatarUrl={workspace.icon == null ? undefined : getWorkspaceAvatarUrl(workspace.uuid, workspace.icon)}
+              avatarUrl={getWorkspaceAvatarUrl(workspace.uuid)}
               size={'small'}
               hasUnread={workspace.hasUnread === true}
               ringColor={'var(--theme-bg-color)'}

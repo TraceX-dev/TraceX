@@ -18,18 +18,15 @@ import {
   type AccountRole,
   type AccountUuid,
   type BackupStatus,
-  type Blob,
   concatLink,
   Data,
   type Person,
   type PersonId,
   type PersonInfo,
   type PersonUuid,
-  type Ref,
   type SocialIdType,
   Version,
   type UsageStatus,
-  type WorkspaceDataId,
   type WorkspaceInfoWithStatus,
   type WorkspaceMemberInfo,
   WorkspaceMode,
@@ -166,12 +163,6 @@ export interface AccountClient {
   ) => Promise<{ guestPerson: Person, guestSocialIds: SocialId[] } | undefined>
   updateAllowGuestSignUp: (guestSignUpAllowed: boolean) => Promise<void>
   updateWorkspaceName: (name: string) => Promise<void>
-  updateWorkspaceAvatar: (icon: Ref<Blob> | null) => Promise<void>
-  // Service-only (see AccountServiceMethods): front resolves a workspace logo blob
-  // through this, without needing a user token for that workspace.
-  getWorkspaceAvatarInfo: (
-    workspaceUuid: WorkspaceUuid
-  ) => Promise<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null } | null>
   deleteWorkspace: () => Promise<void>
   findPersonBySocialKey: (socialKey: string, requireAccount?: boolean) => Promise<PersonUuid | undefined>
   findPersonBySocialId: (socialId: PersonId, requireAccount?: boolean) => Promise<PersonUuid | undefined>
@@ -879,26 +870,6 @@ class AccountClientImpl implements AccountClient {
     }
 
     await this.rpc(request)
-  }
-
-  async updateWorkspaceAvatar (icon: Ref<Blob> | null): Promise<void> {
-    const request = {
-      method: 'updateWorkspaceAvatar' as const,
-      params: { avatar: icon }
-    }
-
-    await this.rpc(request)
-  }
-
-  async getWorkspaceAvatarInfo (
-    workspaceUuid: WorkspaceUuid
-  ): Promise<{ uuid: WorkspaceUuid, url: string, dataId?: WorkspaceDataId, icon: Ref<Blob> | null } | null> {
-    const request = {
-      method: 'getWorkspaceAvatarInfo' as const,
-      params: { workspaceUuid }
-    }
-
-    return await this.rpc(request)
   }
 
   async deleteWorkspace (): Promise<void> {

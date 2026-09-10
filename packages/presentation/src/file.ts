@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-import { concatLink, type Blob as PlatformBlob, type Ref, type WorkspaceUuid } from '@hcengineering/core'
+import { concatLink, type WorkspaceUuid } from '@hcengineering/core'
 import { getMetadata } from '@hcengineering/platform'
 import { type FileStorage, createFileStorage as createStorageClient } from '@hcengineering/storage-client'
 import { v4 as uuid } from 'uuid'
@@ -69,11 +69,12 @@ export function getFileUrl (file: string, filename?: string): string {
  * key so a changed logo gets reloaded immediately.
  * @public
  */
-export function getWorkspaceAvatarUrl (workspaceUuid: WorkspaceUuid, avatar?: Ref<PlatformBlob> | null): string {
-  const frontUrl =
-    getMetadata(plugin.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
-  const url = concatLink(frontUrl, `/avatars/${encodeURIComponent(workspaceUuid)}`)
-  return avatar == null ? url : `${url}?v=${encodeURIComponent(avatar)}`
+export function getWorkspaceAvatarUrl (workspaceUuid: WorkspaceUuid): string {
+  const previewUrl = getMetadata(plugin.metadata.PreviewUrl) ?? ''
+  return concatLink(
+    previewUrl,
+    `/image/fit=cover,width=64,height=64,dpr=2/${encodeURIComponent(workspaceUuid)}/logo`
+  )
 }
 
 /**
