@@ -28,8 +28,6 @@
   })
   $: url = workspaceSetting?.icon != null ? getFileUrl(workspaceSetting.icon) : undefined
   $: srcset = workspaceSetting?.icon != null ? getFileSrcSet(workspaceSetting.icon, 128) : undefined
-  // Same seed (workspace uuid) as the select-workspace/switcher WorkspaceAvatar,
-  // so the fallback color for a given workspace matches everywhere.
   $: colorSeed = getCurrentWorkspaceUuid() || (workspace ?? '')
 </script>
 

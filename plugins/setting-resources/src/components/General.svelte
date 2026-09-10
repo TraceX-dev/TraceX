@@ -77,8 +77,6 @@
       name.trim() === '' ||
       disabledSet.some((it) => name.includes(it)))
 
-  // Same seed (workspace uuid) and palette as the select-workspace/switcher WorkspaceAvatar
-  // and the sidebar Logo, so the color fallback for this workspace's icon matches everywhere.
   $: workspaceAvatarColor = getPlatformColorForText(workspaceId, $themeStore.dark)
 
   void loadWorkspaceName()
