@@ -97,7 +97,9 @@ export default plugin(attachmentId, {
     SavedAttachments: '' as Ref<Class<SavedAttachments>>
   },
   helper: {
-    UploadFile: '' as Resource<(file: File, uuid?: Ref<Blob>) => Promise<{ uuid: Ref<Blob>, metadata: Record<string, any> }>>,
+    UploadFile: '' as Resource<
+      (file: File, uuid?: Ref<Blob>) => Promise<{ uuid: Ref<Blob>, metadata: Record<string, any> }>
+    >,
     DeleteFile: '' as Resource<(id: string) => Promise<void>>
   },
   ids: {

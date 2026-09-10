@@ -17,7 +17,13 @@
   import { AvatarType } from '@hcengineering/contact'
   import type { ApiKey } from '@hcengineering/account-client'
   import { EditableAvatar, getAccountClient } from '@hcengineering/contact-resources'
-  import core, { Configuration, DateRangeMode, type Ref, type Blob as PlatformBlob, WorkspaceAccountPermission } from '@hcengineering/core'
+  import core, {
+    Configuration,
+    DateRangeMode,
+    type Ref,
+    type Blob as PlatformBlob,
+    WorkspaceAccountPermission
+  } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
   import { setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
   import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
@@ -145,7 +151,12 @@
       if (existing !== undefined) {
         await client.diffUpdate(existing, { icon })
       } else {
-        await client.createDoc(settingsRes.class.WorkspaceSetting, core.space.Workspace, { icon }, settingsRes.ids.WorkspaceSetting)
+        await client.createDoc(
+          settingsRes.class.WorkspaceSetting,
+          core.space.Workspace,
+          { icon },
+          settingsRes.ids.WorkspaceSetting
+        )
       }
 
       if (previousIcon != null && previousIcon !== icon) {
