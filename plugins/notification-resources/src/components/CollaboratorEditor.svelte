@@ -20,6 +20,7 @@
   import notification from '../plugin'
 
   export let object: Doc
+  export let readonly = false
 
   let collaborators: Collaborator[] = []
 
@@ -57,4 +58,5 @@
   value={accounts}
   onChange={change}
   dataId={'btnCollaborators'}
+  {readonly}
 />
