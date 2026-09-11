@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,7 +24,7 @@
   } from '@hcengineering/core'
   import { LoginInfo } from '@hcengineering/login'
   import { OK, Severity, Status } from '@hcengineering/platform'
-  import presentation, { MessageBox, NavLink, reduceCalls } from '@hcengineering/presentation'
+  import presentation, { MessageBox, NavLink, getWorkspaceAvatarUrl, reduceCalls } from '@hcengineering/presentation'
   import {
     Button,
     Label,
@@ -179,6 +180,7 @@
             <WorkspaceAvatar
               colorSeed={workspace.uuid}
               displayName={wsName}
+              avatarUrl={getWorkspaceAvatarUrl(workspace.uuid)}
               size={'small'}
               hasUnread={workspace.hasUnread === true}
               ringColor={'var(--theme-bg-color)'}

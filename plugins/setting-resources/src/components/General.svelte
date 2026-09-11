@@ -17,9 +17,15 @@
   import { AvatarType } from '@hcengineering/contact'
   import type { ApiKey } from '@hcengineering/account-client'
   import { EditableAvatar, getAccountClient } from '@hcengineering/contact-resources'
-  import core, { Configuration, DateRangeMode, WorkspaceAccountPermission } from '@hcengineering/core'
+  import core, {
+    Configuration,
+    DateRangeMode,
+    type Ref,
+    type Blob as PlatformBlob,
+    WorkspaceAccountPermission
+  } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
-  import { translateCB } from '@hcengineering/platform'
+  import { setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
   import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
   import { WorkspaceSetting } from '@hcengineering/setting'
   import view from '@hcengineering/view'
@@ -32,6 +38,7 @@
     type DropdownTextItem,
     EditBox,
     getLocalWeekStart,
+    getPlatformColorForText,
     getWeekDayNames,
     hasLocalWeekStart,
     Header,
@@ -75,6 +82,8 @@
       name.trim() === oldName ||
       name.trim() === '' ||
       disabledSet.some((it) => name.includes(it)))
+
+  $: workspaceAvatarColor = getPlatformColorForText(workspaceId, $themeStore.dark)
 
   void loadWorkspaceName()
   void loadApiKeys()
@@ -121,6 +130,7 @@
 
   // Avatar
   let avatarEditor: EditableAvatar
+  const workspaceLogoId = 'logo' as Ref<PlatformBlob>
   let workspaceSettings: WorkspaceSetting | undefined = undefined
 
   const client = getClient()
@@ -129,25 +139,31 @@
   })
 
   async function handleAvatarDone (): Promise<void> {
-    const existing = await client.findOne(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting })
-    if (existing !== undefined) {
-      const avatar = await avatarEditor.createAvatar()
-      // Remove old avatar if changed
-      if (existing.icon != null && existing.icon !== avatar.avatar) {
-        await avatarEditor.removeAvatar(existing.icon)
+    try {
+      const existing = await client.findOne(settingsRes.class.WorkspaceSetting, {
+        _id: settingsRes.ids.WorkspaceSetting
+      })
+      const avatar = await avatarEditor.createAvatar(workspaceLogoId)
+      const icon: NonNullable<WorkspaceSetting['icon']> | null =
+        avatar.avatarType === AvatarType.IMAGE ? (avatar.avatar ?? null) : null
+      const previousIcon = existing?.icon ?? null
+
+      if (existing !== undefined) {
+        await client.diffUpdate(existing, { icon })
+      } else {
+        await client.createDoc(
+          settingsRes.class.WorkspaceSetting,
+          core.space.Workspace,
+          { icon },
+          settingsRes.ids.WorkspaceSetting
+        )
       }
 
-      const icon = avatar.avatarType === AvatarType.IMAGE ? avatar.avatar : null
-      await client.diffUpdate(existing, { icon })
-    } else {
-      const avatar = await avatarEditor.createAvatar()
-
-      await client.createDoc(
-        settingsRes.class.WorkspaceSetting,
-        core.space.Workspace,
-        { icon: avatar.avatar },
-        settingsRes.ids.WorkspaceSetting
-      )
+      if (previousIcon != null && previousIcon !== icon) {
+        await avatarEditor.removeAvatar(previousIcon)
+      }
+    } catch (err: unknown) {
+      await setPlatformStatus(unknownError(err))
     }
   }
 
@@ -283,8 +299,9 @@
                 <div class="flex-row-bottom flex-gap-4">
                   <EditableAvatar
                     person={{
-                      avatarType: workspaceSettings?.icon !== undefined ? AvatarType.IMAGE : AvatarType.COLOR,
-                      avatar: workspaceSettings?.icon
+                      avatarType: workspaceSettings?.icon != null ? AvatarType.IMAGE : AvatarType.COLOR,
+                      avatar: workspaceSettings?.icon,
+                      avatarProps: { color: workspaceAvatarColor, colorPalette: 'platform' }
                     }}
                     size="medium"
                     {name}

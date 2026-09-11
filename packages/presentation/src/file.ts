@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 
-import { type Blob as PlatformBlob, type Ref, type WorkspaceUuid } from '@hcengineering/core'
+import { concatLink, type WorkspaceUuid } from '@hcengineering/core'
 import { getMetadata } from '@hcengineering/platform'
 import { type FileStorage, createFileStorage as createStorageClient } from '@hcengineering/storage-client'
 import { v4 as uuid } from 'uuid'
@@ -60,6 +61,17 @@ export function getFileUrl (file: string, filename?: string): string {
 
   const storage = getFileStorage()
   return storage.getFileUrl(workspace, file, filename)
+}
+
+/**
+ * URL of another workspace's logo (select-workspace, the workspace switcher), available
+ * before the browser holds a token for it. The optional avatar ref is used only as a cache
+ * key so a changed logo gets reloaded immediately.
+ * @public
+ */
+export function getWorkspaceAvatarUrl (workspaceUuid: WorkspaceUuid): string {
+  const previewUrl = getMetadata(plugin.metadata.PreviewUrl) ?? ''
+  return concatLink(previewUrl, `/image/fit=cover,width=64,height=64,dpr=2/${encodeURIComponent(workspaceUuid)}/logo`)
 }
 
 /**

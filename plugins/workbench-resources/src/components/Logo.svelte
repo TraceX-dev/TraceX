@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,9 +14,9 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { createQuery, getFileSrcSet, getFileUrl } from '@hcengineering/presentation'
+  import { createQuery, getCurrentWorkspaceUuid, getFileSrcSet, getFileUrl } from '@hcengineering/presentation'
   import setting, { WorkspaceSetting } from '@hcengineering/setting'
-  import { getPlatformColorForText, themeStore } from '@hcengineering/ui'
+  import { getPlatformColorForText, getWorkspaceInitial, themeStore } from '@hcengineering/ui'
 
   export let mini: boolean = false
   export let workspace: string
@@ -27,13 +28,14 @@
   })
   $: url = workspaceSetting?.icon != null ? getFileUrl(workspaceSetting.icon) : undefined
   $: srcset = workspaceSetting?.icon != null ? getFileSrcSet(workspaceSetting.icon, 128) : undefined
+  $: colorSeed = getCurrentWorkspaceUuid() || (workspace ?? '')
 </script>
 
 {#if workspaceSetting?.icon != null && url != null}
   <img class="logo-medium" src={url} {srcset} alt={''} />
 {:else}
-  <div class="antiLogo" class:mini style:background-color={getPlatformColorForText(workspace ?? '', $themeStore.dark)}>
-    {workspace?.toUpperCase()?.[0] ?? ''}
+  <div class="antiLogo" class:mini style:background-color={getPlatformColorForText(colorSeed, $themeStore.dark)}>
+    {getWorkspaceInitial(workspace)}
   </div>
 {/if}
 

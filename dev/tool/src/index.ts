@@ -130,6 +130,7 @@ import { ensureMissingSocialIdentities } from './contact'
 import { performGithubAccountMigrations } from './github'
 import { performGmailAccountMigrations } from './gmail'
 import { getToolToken, getWorkspace, getWorkspaceTransactorEndpoint } from './utils'
+import { backfillWorkspaceAvatars } from './workspaceAvatar'
 
 import { createRestClient } from '@hcengineering/api-client'
 import { connect, sendTransactorEvent } from '@hcengineering/server-tool'
@@ -1233,6 +1234,26 @@ export function devTool (
       await ensureGlobalPersonsForLocalAccounts(toolCtx, dbUrl, accDb)
     }, dbUrl)
   })
+
+  program
+    .command('backfill-workspace-avatars')
+    .description('Copy existing WorkspaceSetting icons to the fixed workspace blob key "logo".')
+    .option('--force', 'Copy the icon even when it already uses the "logo" key', false)
+    .option('--dry-run', 'Only log what would change, without writing blobs or workspace settings', false)
+    .option('--concurrency <concurrency>', 'Number of workspaces to process in parallel', '10')
+    .action(async (cmd: { force: boolean, dryRun: boolean, concurrency: string }) => {
+      const { dbUrl } = prepareTools()
+      const parsedConcurrency = Number(cmd.concurrency)
+      const concurrency = Number.isInteger(parsedConcurrency) ? parsedConcurrency : 10
+
+      await withAccountDatabase(async (accDb) => {
+        await backfillWorkspaceAvatars(toolCtx, accDb, {
+          force: cmd.force,
+          dryRun: cmd.dryRun,
+          concurrency
+        })
+      }, dbUrl)
+    })
 
   program.command('migrate-merged-accounts').action(async () => {
     const { dbUrl } = prepareTools()

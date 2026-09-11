@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,7 +18,14 @@
   import { isArchivingMode, systemAccountUuid, WorkspaceInfoWithStatus } from '@hcengineering/core'
   import login from '@hcengineering/login'
   import { getMetadata, getResource } from '@hcengineering/platform'
-  import presentation, { createQuery, decodeTokenPayload, hasResource, isAdminUser } from '@hcengineering/presentation'
+  import presentation, {
+    createQuery,
+    decodeTokenPayload,
+    getWorkspaceAvatarUrl,
+    hasResource,
+    isAdminUser,
+    reduceCalls
+  } from '@hcengineering/presentation'
   import {
     closePopup,
     Component,
@@ -282,6 +290,7 @@
                   <WorkspaceAvatar
                     colorSeed={ws.uuid}
                     displayName={wsName}
+                    avatarUrl={getWorkspaceAvatarUrl(ws.uuid)}
                     size={'small'}
                     hasUnread={ws.hasUnread === true && !isCurrentWs}
                     ringColor={'var(--theme-popup-color)'}
