@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Mettre à jour le contexte",
+    "RemoveRelation": "Supprimer la relation",
     "Method": "Méthode",
     "Execution": "Exécution",
     "Process": "Processus",

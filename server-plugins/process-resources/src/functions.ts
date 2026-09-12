@@ -126,6 +126,31 @@ export async function SetContext (
   }
 }
 
+/** Updates an initialized process result without creating another context definition. */
+export async function UpdateContext (
+  params: MethodParams<Doc>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  if (typeof params.contextId !== 'string' || params.contextId === '' || params.value === undefined) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'contextId, value' })
+  }
+  const contextId = params.contextId as ContextId
+  const definition = control.client.getModel().findObject(execution.process)?.context[contextId]
+  if (definition?.isResult !== true || definition.type === undefined) {
+    throw processError(process.error.ContextValueNotProvided, { name: definition?.name ?? contextId })
+  }
+  if (!Object.prototype.hasOwnProperty.call(execution.context, contextId)) {
+    throw processError(process.error.ContextValueNotProvided, { name: definition.name })
+  }
+  return {
+    txes: [],
+    rollback: [],
+    context: null,
+    results: [{ _id: contextId, value: params.value }]
+  }
+}
+
 export async function CheckToDoDone (
   control: ProcessControl,
   execution: Execution,
@@ -384,6 +409,40 @@ export async function AddRelation (
     rollback,
     context
   }
+}
+
+/** Removes selected relations of the current execution card and prepares their restoration. */
+export async function RemoveRelation (
+  params: MethodParams<Relation>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  if (typeof params.association !== 'string' || params.association === '') {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'association' })
+  }
+  if (params.direction !== 'A' && params.direction !== 'B') {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'direction' })
+  }
+  const targets: unknown[] = Array.isArray(params._id) ? params._id : [params._id]
+  if (targets.some((id) => typeof id !== 'string' || id === '')) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: '_id' })
+  }
+  const targetIds = [...new Set(targets as Array<Ref<Doc>>)]
+  if (targetIds.length === 0) return { txes: [], rollback: [], context: null }
+  const relations = await control.client.findAll(core.class.Relation, {
+    association: params.association,
+    ...(params.direction === 'A'
+      ? { docA: { $in: targetIds }, docB: execution.card }
+      : { docA: execution.card, docB: { $in: targetIds } })
+  })
+  const txes: Tx[] = []
+  const rollback: Tx[] = []
+  for (const relation of relations) {
+    const { _id, _class, space, modifiedBy, modifiedOn, createdBy, createdOn, ...data } = relation
+    txes.push(control.client.txFactory.createTxRemoveDoc(_class, space, _id))
+    rollback.push(control.client.txFactory.createTxCreateDoc(_class, space, data, _id))
+  }
+  return { txes, rollback, context: null }
 }
 
 function respectAttributeType (attrType: Type<any>, value: any): any {

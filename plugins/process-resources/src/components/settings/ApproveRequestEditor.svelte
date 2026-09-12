@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -58,7 +59,7 @@
   const attribute = getMockAttribute(plugin.class.ApproveRequest, plugin.string.Approvers, type)
 
   const presenterClass = getAttributePresenterClass(hierarchy, attribute.type)
-  $: context = getContext(client, process, presenterClass.attrClass, presenterClass.category, undefined, true)
+  $: context = getContext(client, process, presenterClass.attrClass, 'object', undefined, true)
 
   function onChange (e: CustomEvent<any>): void {
     params.user = e.detail

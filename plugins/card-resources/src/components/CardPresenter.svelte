@@ -70,7 +70,6 @@
         <DocNavLink
           object={cardObj}
           {onClick}
-          {disabled}
           {noUnderline}
           {colorInherit}
           {noSelect}
@@ -98,7 +97,6 @@
       <DocNavLink
         object={cardObj}
         {onClick}
-        {disabled}
         {noUnderline}
         {colorInherit}
         {noSelect}

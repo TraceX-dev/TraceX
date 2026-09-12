@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "更新上下文",
+    "RemoveRelation": "删除关联",
     "Method": "方法",
     "Execution": "执行",
     "Process": "过程",
