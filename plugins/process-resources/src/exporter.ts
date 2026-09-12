@@ -503,7 +503,13 @@ export function denormalizeIds (docs: Doc[], masterTag: Ref<MasterTag>, bindings
 function getMethodSystemParams (methodId: string): string[] {
   const normalized = normalizeId(methodId)
   if (normalized === normalizeId(processPlugin.method.RunSubProcess)) return ['_id', 'card', 'context']
-  if (normalized === normalizeId(processPlugin.method.AddRelation)) return ['_id', 'card', 'direction']
+  if (
+    normalized === normalizeId(processPlugin.method.AddRelation) ||
+    normalized === normalizeId(processPlugin.method.RemoveRelation)
+  ) {
+    return ['_id', 'card', 'direction']
+  }
+  if (normalized === normalizeId(processPlugin.method.UpdateContext)) return ['contextId', 'value']
   if (normalized === normalizeId(processPlugin.method.AddTag)) return ['_id', 'card']
   if (normalized === normalizeId(processPlugin.method.CreateToDo)) return ['state', 'title', 'user', 'withRollback']
   if (normalized === normalizeId(processPlugin.method.CreateAction)) return ['title', 'eventType', 'user']

@@ -235,7 +235,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
     const latestEffectiveVersion = currentEffective.reduce((latest, version) => {
       return Math.max(latest, version.version ?? 1)
     }, 0)
-    if ((target.version ?? 1) <= latestEffectiveVersion) {
+    if ((target.version ?? 1) < latestEffectiveVersion) {
       throw new Error('A version can only become effective if it is newer than the current effective version')
     }
 
