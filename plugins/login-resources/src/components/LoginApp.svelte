@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -156,15 +157,14 @@
           {/if}
         </div>
       </Scroller>
+      {#if $loginFooterActions.length > 0}
+        <div class="tracex-login-footer">
+          {#each $loginFooterActions as footerAction (footerAction.i18n)}
+            <BottomActionComponent action={footerAction} />
+          {/each}
+        </div>
+      {/if}
     </div>
-
-    {#if $loginFooterActions.length > 0}
-      <div class="tracex-login-footer">
-        {#each $loginFooterActions as footerAction (footerAction.i18n)}
-          <BottomActionComponent action={footerAction} />
-        {/each}
-      </div>
-    {/if}
   </div>
 
   <Popup />
@@ -217,15 +217,6 @@
     overflow: hidden;
   }
 
-  .tracex-login-footer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.625rem;
-    text-align: center;
-    font-size: 0.8125rem;
-  }
-
   .form-content {
     display: flex;
     flex-direction: column;
@@ -234,6 +225,16 @@
     min-height: 0;
     min-width: 0;
     height: max-content;
+  }
+
+  .tracex-login-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 2rem 1.25rem;
+    text-align: center;
+    font-size: 0.8125rem;
   }
 
   @media (max-width: 480px) {

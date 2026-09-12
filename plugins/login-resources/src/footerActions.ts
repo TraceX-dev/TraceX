@@ -16,9 +16,7 @@ import { writable } from 'svelte/store'
 import type { BottomAction } from './index'
 
 /**
- * Bottom links that render below the login/signup card (outside it), e.g.
- * "Login with a code instead" or "Continue as a guest". Pages that want to
- * show such links set this store on mount and clear it (set to []) on
- * destroy; `LoginApp.svelte` renders whatever is currently in it.
+ * Footer links rendered in the login dialog. Pages that need them set this
+ * store on mount and clear it (set to []) on destroy.
  */
 export const loginFooterActions = writable<BottomAction[]>([])

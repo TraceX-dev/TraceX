@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -48,8 +49,9 @@
     color: var(--theme-darker-color);
   }
   a {
-    font-weight: 400;
+    font-weight: 500;
     color: var(--theme-link-color);
+    text-decoration: none;
 
     &:hover {
       text-decoration: underline;
@@ -59,8 +61,7 @@
       color: var(--theme-dark-color);
 
       &:hover {
-        text-decoration: none;
-        color: var(--theme-content-color);
+        text-decoration: underline;
       }
     }
   }
