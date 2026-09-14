@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "コンテキストを更新",
+    "RemoveRelation": "関連付けを削除",
     "Method": "メソッド",
     "Execution": "実行",
     "Process": "プロセス",

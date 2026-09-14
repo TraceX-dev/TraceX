@@ -14,6 +14,7 @@
 //
 
 import platform, { type Plugin, addLocation, addStringsLoader, platformId } from '@hcengineering/platform'
+import * as PlatformLang from '@hcengineering/platform/lang'
 
 import { activityId } from '@hcengineering/activity'
 import aiBot, { aiBotId } from '@hcengineering/ai-bot'
@@ -86,65 +87,126 @@ import { ratingId } from '@hcengineering/rating'
 import { qalicoId } from '@tracex/qalico'
 
 import '@hcengineering/activity-assets'
+import * as ActivityLang from '@hcengineering/activity-assets/lang'
 import '@hcengineering/analytics-collector-assets'
+import * as AnalyticsCollectorLang from '@hcengineering/analytics-collector-assets/lang'
 import '@hcengineering/ai-bot-assets'
+import * as AiBotLang from '@hcengineering/ai-bot-assets/lang'
 import '@hcengineering/attachment-assets'
+import * as AttachmentLang from '@hcengineering/attachment-assets/lang'
 import '@hcengineering/bitrix-assets'
+import * as BitrixLang from '@hcengineering/bitrix-assets/lang'
 import '@hcengineering/board-assets'
+import * as BoardLang from '@hcengineering/board-assets/lang'
 import '@hcengineering/calendar-assets'
+import * as CalendarLang from '@hcengineering/calendar-assets/lang'
 import '@hcengineering/card-assets'
+import * as CardLang from '@hcengineering/card-assets/lang'
 import '@hcengineering/chunter-assets'
+import * as ChunterLang from '@hcengineering/chunter-assets/lang'
 import '@hcengineering/contact-assets'
+import * as ContactLang from '@hcengineering/contact-assets/lang'
 import '@hcengineering/controlled-documents-assets'
+import * as ControlledDocumentsLang from '@hcengineering/controlled-documents-assets/lang'
 import '@hcengineering/desktop-preferences-assets'
+import * as DesktopPreferencesLang from '@hcengineering/desktop-preferences-assets/lang'
 import '@hcengineering/diffview-assets'
+import * as DiffviewLang from '@hcengineering/diffview-assets/lang'
 import '@hcengineering/document-assets'
+import * as DocumentLang from '@hcengineering/document-assets/lang'
 import '@hcengineering/drive-assets'
+import * as DriveLang from '@hcengineering/drive-assets/lang'
 import '@hcengineering/export-assets'
+import * as ExportLang from '@hcengineering/export-assets/lang'
 import '@hcengineering/gmail-assets'
+import * as GmailLang from '@hcengineering/gmail-assets/lang'
 import '@hcengineering/guest-assets'
+import * as GuestLang from '@hcengineering/guest-assets/lang'
 import '@hcengineering/global-profile-assets'
+import * as GlobalProfileLang from '@hcengineering/global-profile-assets/lang'
 import '@hcengineering/hr-assets'
+import * as HrLang from '@hcengineering/hr-assets/lang'
 import '@hcengineering/inventory-assets'
+import * as InventoryLang from '@hcengineering/inventory-assets/lang'
 import '@hcengineering/lead-assets'
+import * as LeadLang from '@hcengineering/lead-assets/lang'
 import '@hcengineering/login-assets'
+import * as LoginLang from '@hcengineering/login-assets/lang'
 import '@hcengineering/love-assets'
+import * as LoveLang from '@hcengineering/love-assets/lang'
 import '@hcengineering/notification-assets'
-import '@hcengineering/preference-assets'
+import * as OnboardLang from '@hcengineering/onboard-assets/lang'
+import '@hcengineering/notification-assets'
+import * as NotificationLang from '@hcengineering/notification-assets/lang'
+import '@hcengineering/onboard-assets'
+import * as PreferenceLang from '@hcengineering/preference-assets/lang'
 import '@hcengineering/print-assets'
+import * as PrintLang from '@hcengineering/print-assets/lang'
 import '@hcengineering/process-assets'
+import * as ProcessLang from '@hcengineering/process-assets/lang'
 import '@hcengineering/products-assets'
+import * as ProductsLang from '@hcengineering/products-assets/lang'
 import '@hcengineering/questions-assets'
+import * as QuestionsLang from '@hcengineering/questions-assets/lang'
 import '@hcengineering/recruit-assets'
+import * as RecruitLang from '@hcengineering/recruit-assets/lang'
 import '@hcengineering/request-assets'
+import * as RequestLang from '@hcengineering/request-assets/lang'
 import '@hcengineering/setting-assets'
+import * as SettingLang from '@hcengineering/setting-assets/lang'
 import '@hcengineering/support-assets'
+import * as SupportLang from '@hcengineering/support-assets/lang'
 import '@hcengineering/survey-assets'
+import * as SurveyLang from '@hcengineering/survey-assets/lang'
 import '@hcengineering/tags-assets'
+import * as TagsLang from '@hcengineering/tags-assets/lang'
 import '@hcengineering/task-assets'
+import * as TaskLang from '@hcengineering/task-assets/lang'
 import '@hcengineering/telegram-assets'
+import * as TelegramLang from '@hcengineering/telegram-assets/lang'
 import '@hcengineering/templates-assets'
+import * as TemplatesLang from '@hcengineering/templates-assets/lang'
 import '@hcengineering/test-management-assets'
+import * as TestManagementLang from '@hcengineering/test-management-assets/lang'
 import '@hcengineering/text-editor-assets'
+import * as TextEditorLang from '@hcengineering/text-editor-assets/lang'
 import '@hcengineering/time-assets'
+import * as TimeLang from '@hcengineering/time-assets/lang'
 import '@hcengineering/tracker-assets'
+import * as TrackerLang from '@hcengineering/tracker-assets/lang'
 import '@hcengineering/training-assets'
+import * as TrainingLang from '@hcengineering/training-assets/lang'
 import '@hcengineering/uploader-assets'
+import * as UploaderLang from '@hcengineering/uploader-assets/lang'
 import '@hcengineering/recorder-assets'
+import * as RecorderLang from '@hcengineering/recorder-assets/lang'
 import '@hcengineering/media-assets'
+import * as MediaLang from '@hcengineering/media-assets/lang'
 import '@hcengineering/view-assets'
+import * as ViewLang from '@hcengineering/view-assets/lang'
 import '@hcengineering/workbench-assets'
+import * as WorkbenchLang from '@hcengineering/workbench-assets/lang'
 import '@hcengineering/mail-assets'
+import * as MailLang from '@hcengineering/mail-assets/lang'
 import '@hcengineering/github-assets'
+import * as GithubLang from '@hcengineering/github-assets/lang'
 import '@hcengineering/achievement-assets'
+import * as AchievementLang from '@hcengineering/achievement-assets/lang'
 import '@hcengineering/emoji-assets'
+import * as EmojiLang from '@hcengineering/emoji-assets/lang'
 import '@hcengineering/billing-assets'
+import * as BillingLang from '@hcengineering/billing-assets/lang'
 import '@hcengineering/huly-mail-assets'
+import * as HulyMailLang from '@hcengineering/huly-mail-assets/lang'
 import '@hcengineering/ai-assistant-assets'
+import * as AiAssistantLang from '@hcengineering/ai-assistant-assets/lang'
 import '@hcengineering/rating-assets'
+import * as RatingLang from '@hcengineering/rating-assets/lang'
 import '@tracex/qalico-assets'
+import * as QalicoLang from '@tracex/qalico-assets/lang'
 
 import { coreId } from '@hcengineering/core'
+import * as CoreLang from '@hcengineering/core/lang'
 import presentation, { loadServerConfig, createFileStorage, presentationId } from '@hcengineering/presentation'
 
 import { setMetadata } from '@hcengineering/platform'
@@ -276,139 +338,73 @@ const PASSWORD_REQUIREMENTS: Record<NonNullable<Config['PASSWORD_STRICTNESS']>, 
 
 function configureI18n(): void {
   // Add localization
-  addStringsLoader(
-    platformId,
-    async (lang: string) =>
-      await import(
-        /* webpackInclude: /\.json$/ */
-        /* webpackMode: "lazy" */
-        /* webpackChunkName: "lang-[request]" */
-        `@hcengineering/platform/lang/${lang}.json`
-      )
-  )
-  addStringsLoader(
-    coreId,
-    async (lang: string) =>
-      await import(
-        /* webpackInclude: /\.json$/ */
-        /* webpackMode: "lazy" */
-        /* webpackChunkName: "lang-[request]" */
-        `@hcengineering/core/lang/${lang}.json`
-      )
-  )
+  addStringsLoader(platformId, PlatformLang.loadLang)
+  addStringsLoader(coreId, CoreLang.loadLang)
   addStringsLoader(
     presentationId,
     async (lang: string) => await import(`@hcengineering/presentation/lang/${lang}.json`)
   )
-  addStringsLoader(
-    textEditorId,
-    async (lang: string) => await import(`@hcengineering/text-editor-assets/lang/${lang}.json`)
-  )
+  addStringsLoader(textEditorId, TextEditorLang.loadLang)
   addStringsLoader(uiId, async (lang: string) => await import(`@hcengineering/ui/lang/${lang}.json`))
-  addStringsLoader(uploaderId, async (lang: string) => await import(`@hcengineering/uploader-assets/lang/${lang}.json`))
-  addStringsLoader(recorderId, async (lang: string) => await import(`@hcengineering/recorder-assets/lang/${lang}.json`))
-  addStringsLoader(mediaId, async (lang: string) => await import(`@hcengineering/media-assets/lang/${lang}.json`))
-  addStringsLoader(activityId, async (lang: string) => await import(`@hcengineering/activity-assets/lang/${lang}.json`))
-  addStringsLoader(
-    attachmentId,
-    async (lang: string) => await import(`@hcengineering/attachment-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(aiBotId, async (lang: string) => await import(`@hcengineering/ai-bot-assets/lang/${lang}.json`))
-  addStringsLoader(bitrixId, async (lang: string) => await import(`@hcengineering/bitrix-assets/lang/${lang}.json`))
-  addStringsLoader(boardId, async (lang: string) => await import(`@hcengineering/board-assets/lang/${lang}.json`))
-  addStringsLoader(calendarId, async (lang: string) => await import(`@hcengineering/calendar-assets/lang/${lang}.json`))
-  addStringsLoader(chunterId, async (lang: string) => await import(`@hcengineering/chunter-assets/lang/${lang}.json`))
-  addStringsLoader(contactId, async (lang: string) => await import(`@hcengineering/contact-assets/lang/${lang}.json`))
-  addStringsLoader(driveId, async (lang: string) => await import(`@hcengineering/drive-assets/lang/${lang}.json`))
-  addStringsLoader(gmailId, async (lang: string) => await import(`@hcengineering/gmail-assets/lang/${lang}.json`))
-  addStringsLoader(hrId, async (lang: string) => await import(`@hcengineering/hr-assets/lang/${lang}.json`))
-  addStringsLoader(
-    inventoryId,
-    async (lang: string) => await import(`@hcengineering/inventory-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(leadId, async (lang: string) => await import(`@hcengineering/lead-assets/lang/${lang}.json`))
-  addStringsLoader(loginId, async (lang: string) => await import(`@hcengineering/login-assets/lang/${lang}.json`))
-  addStringsLoader(
-    notificationId,
-    async (lang: string) => await import(`@hcengineering/notification-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(onboardId, async (lang: string) => await import(`@hcengineering/onboard-assets/lang/${lang}.json`))
-  addStringsLoader(
-    preferenceId,
-    async (lang: string) => await import(`@hcengineering/preference-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(recruitId, async (lang: string) => await import(`@hcengineering/recruit-assets/lang/${lang}.json`))
-  addStringsLoader(requestId, async (lang: string) => await import(`@hcengineering/request-assets/lang/${lang}.json`))
-  addStringsLoader(settingId, async (lang: string) => await import(`@hcengineering/setting-assets/lang/${lang}.json`))
-  addStringsLoader(supportId, async (lang: string) => await import(`@hcengineering/support-assets/lang/${lang}.json`))
-  addStringsLoader(tagsId, async (lang: string) => await import(`@hcengineering/tags-assets/lang/${lang}.json`))
-  addStringsLoader(taskId, async (lang: string) => await import(`@hcengineering/task-assets/lang/${lang}.json`))
-  addStringsLoader(telegramId, async (lang: string) => await import(`@hcengineering/telegram-assets/lang/${lang}.json`))
-  addStringsLoader(
-    templatesId,
-    async (lang: string) => await import(`@hcengineering/templates-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(trackerId, async (lang: string) => await import(`@hcengineering/tracker-assets/lang/${lang}.json`))
-  addStringsLoader(viewId, async (lang: string) => await import(`@hcengineering/view-assets/lang/${lang}.json`))
-  addStringsLoader(
-    workbenchId,
-    async (lang: string) => await import(`@hcengineering/workbench-assets/lang/${lang}.json`)
-  )
+  addStringsLoader(uploaderId, UploaderLang.loadLang)
+  addStringsLoader(recorderId, RecorderLang.loadLang)
+  addStringsLoader(mediaId, MediaLang.loadLang)
+  addStringsLoader(activityId, ActivityLang.loadLang)
+  addStringsLoader(attachmentId, AttachmentLang.loadLang)
+  addStringsLoader(aiBotId, AiBotLang.loadLang)
+  addStringsLoader(bitrixId, BitrixLang.loadLang)
+  addStringsLoader(boardId, BoardLang.loadLang)
+  addStringsLoader(calendarId, CalendarLang.loadLang)
+  addStringsLoader(chunterId, ChunterLang.loadLang)
+  addStringsLoader(contactId, ContactLang.loadLang)
+  addStringsLoader(driveId, DriveLang.loadLang)
+  addStringsLoader(gmailId, GmailLang.loadLang)
+  addStringsLoader(hrId, HrLang.loadLang)
+  addStringsLoader(inventoryId, InventoryLang.loadLang)
+  addStringsLoader(leadId, LeadLang.loadLang)
+  addStringsLoader(loginId, LoginLang.loadLang)
+  addStringsLoader(notificationId, NotificationLang.loadLang)
+  addStringsLoader(onboardId, OnboardLang.loadLang)
+  addStringsLoader(preferenceId, PreferenceLang.loadLang)
+  addStringsLoader(recruitId, RecruitLang.loadLang)
+  addStringsLoader(requestId, RequestLang.loadLang)
+  addStringsLoader(settingId, SettingLang.loadLang)
+  addStringsLoader(supportId, SupportLang.loadLang)
+  addStringsLoader(tagsId, TagsLang.loadLang)
+  addStringsLoader(taskId, TaskLang.loadLang)
+  addStringsLoader(telegramId, TelegramLang.loadLang)
+  addStringsLoader(templatesId, TemplatesLang.loadLang)
+  addStringsLoader(trackerId, TrackerLang.loadLang)
+  addStringsLoader(viewId, ViewLang.loadLang)
+  addStringsLoader(workbenchId, WorkbenchLang.loadLang)
 
-  addStringsLoader(
-    desktopPreferencesId,
-    async (lang: string) => await import(`@hcengineering/desktop-preferences-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(diffviewId, async (lang: string) => await import(`@hcengineering/diffview-assets/lang/${lang}.json`))
-  addStringsLoader(documentId, async (lang: string) => await import(`@hcengineering/document-assets/lang/${lang}.json`))
-  addStringsLoader(timeId, async (lang: string) => await import(`@hcengineering/time-assets/lang/${lang}.json`))
-  addStringsLoader(githubId, async (lang: string) => await import(`@hcengineering/github-assets/lang/${lang}.json`))
-  addStringsLoader(
-    documentsId,
-    async (lang: string) => await import(`@hcengineering/controlled-documents-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(productsId, async (lang: string) => await import(`@hcengineering/products-assets/lang/${lang}.json`))
-  addStringsLoader(
-    questionsId,
-    async (lang: string) => await import(`@hcengineering/questions-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(trainingId, async (lang: string) => await import(`@hcengineering/training-assets/lang/${lang}.json`))
-  addStringsLoader(guestId, async (lang: string) => await import(`@hcengineering/guest-assets/lang/${lang}.json`))
-  addStringsLoader(
-    globalProfileId,
-    async (lang: string) => await import(`@hcengineering/global-profile-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(loveId, async (lang: string) => await import(`@hcengineering/love-assets/lang/${lang}.json`))
-  addStringsLoader(printId, async (lang: string) => await import(`@hcengineering/print-assets/lang/${lang}.json`))
-  addStringsLoader(exportId, async (lang: string) => await import(`@hcengineering/export-assets/lang/${lang}.json`))
-  addStringsLoader(
-    analyticsCollectorId,
-    async (lang: string) => await import(`@hcengineering/analytics-collector-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(
-    testManagementId,
-    async (lang: string) => await import(`@hcengineering/test-management-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(surveyId, async (lang: string) => await import(`@hcengineering/survey-assets/lang/${lang}.json`))
-  addStringsLoader(cardId, async (lang: string) => await import(`@hcengineering/card-assets/lang/${lang}.json`))
-  addStringsLoader(mailId, async (lang: string) => await import(`@hcengineering/mail-assets/lang/${lang}.json`))
-  addStringsLoader(processId, async (lang: string) => await import(`@hcengineering/process-assets/lang/${lang}.json`))
-  addStringsLoader(
-    achievementId,
-    async (lang: string) => await import(`@hcengineering/achievement-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(emojiId, async (lang: string) => await import(`@hcengineering/emoji-assets/lang/${lang}.json`))
-  addStringsLoader(billingId, async (lang: string) => await import(`@hcengineering/billing-assets/lang/${lang}.json`))
-  addStringsLoader(
-    hulyMailId,
-    async (lang: string) => await import(`@hcengineering/huly-mail-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(
-    aiAssistantId,
-    async (lang: string) => await import(`@hcengineering/ai-assistant-assets/lang/${lang}.json`)
-  )
-  addStringsLoader(ratingId, async (lang: string) => await import(`@hcengineering/rating-assets/lang/${lang}.json`))
-  addStringsLoader(qalicoId, async (lang: string) => await import(`@tracex/qalico-assets/lang/${lang}.json`))
+  addStringsLoader(desktopPreferencesId, DesktopPreferencesLang.loadLang)
+  addStringsLoader(diffviewId, DiffviewLang.loadLang)
+  addStringsLoader(documentId, DocumentLang.loadLang)
+  addStringsLoader(timeId, TimeLang.loadLang)
+  addStringsLoader(githubId, GithubLang.loadLang)
+  addStringsLoader(documentsId, ControlledDocumentsLang.loadLang)
+  addStringsLoader(productsId, ProductsLang.loadLang)
+  addStringsLoader(questionsId, QuestionsLang.loadLang)
+  addStringsLoader(trainingId, TrainingLang.loadLang)
+  addStringsLoader(guestId, GuestLang.loadLang)
+  addStringsLoader(globalProfileId, GlobalProfileLang.loadLang)
+  addStringsLoader(loveId, LoveLang.loadLang)
+  addStringsLoader(printId, PrintLang.loadLang)
+  addStringsLoader(exportId, ExportLang.loadLang)
+  addStringsLoader(analyticsCollectorId, AnalyticsCollectorLang.loadLang)
+  addStringsLoader(testManagementId, TestManagementLang.loadLang)
+  addStringsLoader(surveyId, SurveyLang.loadLang)
+  addStringsLoader(cardId, CardLang.loadLang)
+  addStringsLoader(mailId, MailLang.loadLang)
+  addStringsLoader(processId, ProcessLang.loadLang)
+  addStringsLoader(achievementId, AchievementLang.loadLang)
+  addStringsLoader(emojiId, EmojiLang.loadLang)
+  addStringsLoader(billingId, BillingLang.loadLang)
+  addStringsLoader(hulyMailId, HulyMailLang.loadLang)
+  addStringsLoader(aiAssistantId, AiAssistantLang.loadLang)
+  addStringsLoader(ratingId, RatingLang.loadLang)
+  addStringsLoader(qalicoId, QalicoLang.loadLang)
 }
 
 export async function configurePlatform() {

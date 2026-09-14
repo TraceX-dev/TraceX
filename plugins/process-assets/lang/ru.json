@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Обновить контекст",
+    "RemoveRelation": "Удалить связь",
     "Method": "Метод",
     "Execution": "Выполнение",
     "Process": "Процесс",

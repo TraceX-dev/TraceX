@@ -66,6 +66,7 @@ export default plugin(serverProcessId, {
   func: {
     CreateAction: '' as Resource<ExecuteFunc>,
     SetContext: '' as Resource<ExecuteFunc>,
+    UpdateContext: '' as Resource<ExecuteFunc>,
     RunSubProcess: '' as Resource<ExecuteFunc>,
     CancelSubProcess: '' as Resource<ExecuteFunc>,
     CreateToDo: '' as Resource<ExecuteFunc>,
@@ -76,6 +77,7 @@ export default plugin(serverProcessId, {
     EnableVersionCreation: '' as Resource<ExecuteFunc>,
     CreateCard: '' as Resource<ExecuteFunc>,
     AddRelation: '' as Resource<ExecuteFunc>,
+    RemoveRelation: '' as Resource<ExecuteFunc>,
     WaitSubProcess: '' as Resource<ExecuteFunc>,
     AddTag: '' as Resource<ExecuteFunc>,
     RequestApproval: '' as Resource<ExecuteFunc>,

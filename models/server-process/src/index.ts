@@ -166,6 +166,14 @@ export function createModel (builder: Builder): void {
     func: serverProcess.func.CreateAction
   })
 
+  builder.mixin(process.method.UpdateContext, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.UpdateContext
+  })
+
+  builder.mixin(process.method.RemoveRelation, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.RemoveRelation
+  })
+
   builder.mixin(process.method.SetContext, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.SetContext
   })

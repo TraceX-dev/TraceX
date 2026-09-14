@@ -44,6 +44,7 @@ import CancelSubProcessEditor from './components/settings/CancelSubProcessEditor
 import CancelToDoEditor from './components/settings/CancelToDoEditor.svelte'
 import CreateActionEditor from './components/settings/CreateActionEditor.svelte'
 import SetContextEditor from './components/settings/SetContextEditor.svelte'
+import UpdateContextEditor from './components/settings/UpdateContextEditor.svelte'
 import FunctionSubmenu from './components/settings/FunctionSubmenu.svelte'
 import ProcessEditor from './components/settings/ProcessEditor.svelte'
 import StatePresenter from './components/settings/StatePresenter.svelte'
@@ -202,6 +203,7 @@ export default async (): Promise<Resources> => ({
     CancelToDoEditor,
     CreateActionEditor,
     SetContextEditor,
+    UpdateContextEditor,
     CancelSubProcessEditor,
     ToDoValuePresenter,
     ExecutionRefPresenter,

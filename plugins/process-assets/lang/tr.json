@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Bağlamı güncelle",
+    "RemoveRelation": "İlişkiyi kaldır",
     "Method": "Metod",
     "Execution": "Yürütme",
     "Process": "Süreç",

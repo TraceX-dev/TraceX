@@ -101,6 +101,7 @@ export default mergeIds(processId, process, {
     CancelToDoEditor: '' as AnyComponent,
     CreateActionEditor: '' as AnyComponent,
     SetContextEditor: '' as AnyComponent,
+    UpdateContextEditor: '' as AnyComponent,
     ToDoValuePresenter: '' as AnyComponent,
     ActionTypePresenter: '' as AnyComponent,
     ExecutionRefPresenter: '' as AnyComponent
@@ -262,6 +263,8 @@ export default mergeIds(processId, process, {
     Attribute: '' as IntlString,
     Context: '' as IntlString,
     SetContext: '' as IntlString,
+    UpdateContext: '' as IntlString,
+    RemoveRelation: '' as IntlString,
     EmptyValue: '' as IntlString,
     EmptyArray: '' as IntlString,
     ExecutionInitiator: '' as IntlString,

@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Aktualizovat kontext",
+    "RemoveRelation": "Odstranit vztah",
     "Method": "Metoda",
     "Execution": "Provedení",
     "Process": "Proces",
