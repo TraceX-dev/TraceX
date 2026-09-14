@@ -284,6 +284,7 @@ export function start (
   extraConfig?: Record<string, string | undefined>
 ): () => void {
   const app = express()
+  app.disable('x-powered-by')
 
   const tempFileDir = mkdtempSync(join(tmpdir(), 'front-'))
   let temoFileIndex = 0
@@ -330,6 +331,17 @@ export function start (
   const myStream = new MyStream()
 
   app.use(morgan('short', { stream: myStream }))
+
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN')
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+    res.setHeader(
+      'Permissions-Policy',
+      'accelerometer=(), geolocation=(), gyroscope=(), payment=(), usb=()'
+    )
+    next()
+  })
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.get('/config.json', async (req, res) => {
