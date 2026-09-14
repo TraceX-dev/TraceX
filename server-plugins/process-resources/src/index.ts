@@ -115,6 +115,8 @@ import {
   ExecutionStarted,
   Filter,
   FirstMatchValue,
+  ArrayLength,
+  RelationCount,
   FirstValue,
   FirstWorkingDayAfter,
   Floor,
@@ -957,6 +959,8 @@ export default async () => ({
   transform: {
     CurrentDate,
     CurrentUser,
+    ArrayLength,
+    RelationCount,
     FirstValue,
     LastValue,
     Random,

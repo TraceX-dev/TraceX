@@ -41,6 +41,8 @@
     "UpperCase": "Velká písmena",
     "LowerCase": "Malá písmena",
     "Trim": "Oříznout",
+    "ArrayLength": "Počet prvků pole",
+    "RelationCount": "Počet vazeb",
     "FirstValue": "První hodnota",
     "LastValue": "Poslední hodnota",
     "Random": "Náhodné",

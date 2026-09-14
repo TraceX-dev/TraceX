@@ -174,6 +174,8 @@ export default mergeIds(processId, process, {
     Filter: '' as IntlString,
     AllMatchValue: '' as IntlString,
     FirstMatchValue: '' as IntlString,
+    ArrayLength: '' as IntlString,
+    RelationCount: '' as IntlString,
     FirstValue: '' as IntlString,
     Ascending: '' as IntlString,
     Descending: '' as IntlString,

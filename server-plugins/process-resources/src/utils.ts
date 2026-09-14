@@ -94,7 +94,12 @@ function getAttributeValue (control: ProcessControl, execution: Execution, conte
   if (card !== undefined) {
     const val = getValue(control, execution, context.key, card)
     if (val == null) {
-      const attr = control.client.getHierarchy().findAttribute(card._class, context.key)
+      const definition = control.client.getModel().findObject(execution.process)
+      const key = definition !== undefined ? resolveAttributeId(definition, context.key) : context.key
+      const attr = control.client.getHierarchy().findAttribute(card._class, key)
+      if (attr !== undefined && (context.functions?.length ?? 0) > 0) {
+        return val
+      }
       throw processError(
         process.error.EmptyAttributeContextValue,
         {},

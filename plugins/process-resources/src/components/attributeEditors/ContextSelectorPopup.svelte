@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import { MasterTag, Tag } from '@hcengineering/card'
-  import { AnyAttribute, Ref } from '@hcengineering/core'
+  import core, { AnyAttribute, Ref } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import {
     Context,
@@ -125,7 +125,9 @@
     if (val !== null) {
       onClick({
         ...val,
-        functions: [{ func, props: {} }, ...(val.functions ?? [])]
+        functions: isArrayConversion(func)
+          ? [...(val.functions ?? []), { func, props: {} }]
+          : [{ func, props: {} }, ...(val.functions ?? [])]
       })
     }
   }
@@ -144,6 +146,15 @@
     if (event.key === 'ArrowLeft') {
       dispatch('close')
     }
+  }
+
+  function isArrayConversion (func: Ref<ProcessFunction>): boolean {
+    return getFunc(func).of === core.class.ArrOf
+  }
+
+  function getConvertAttribute (func: Ref<ProcessFunction>): AnyAttribute {
+    if (!isArrayConversion(func)) return attribute
+    return { ...attribute, type: { _class: core.class.ArrOf, label: attribute.label } }
   }
 
   function getOnConvertSelect (func: Ref<ProcessFunction>): (val: SelectedContext | null) => void {
@@ -199,6 +210,7 @@
             }}
             label={func.label}
             props={{
+              ...func.editorProps,
               masterTag,
               context: func,
               target: attribute,
@@ -375,7 +387,9 @@
             process,
             masterTag,
             context: conv.context,
-            attribute,
+            attribute: getConvertAttribute(conv.func),
+            forbidValue: isArrayConversion(conv.func) || forbidValue,
+            allowUserRequest: !isArrayConversion(conv.func) && allowUserRequest,
             onSelect: getOnConvertSelect(conv.func)
           }}
           options={{ component: plugin.component.ContextSelectorPopup }}
