@@ -60,10 +60,7 @@
         object={hierarchy.as(object, mixin._id)}
         {ignoreKeys}
         {to}
-        readonly={
-          readonly ||
-          (mixin._id === notification.mixin.Collaborators && !$permissions.canEditMembers(object))
-        }
+        readonly={readonly || (mixin._id === notification.mixin.Collaborators && !$permissions.canEditMembers(object))}
         allowedCollections={_allowedCollections}
         {showHeader}
         on:update
