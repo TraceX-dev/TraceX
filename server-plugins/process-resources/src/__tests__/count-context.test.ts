@@ -65,7 +65,9 @@ function makeControl (): { control: ProcessControl, findAll: jest.Mock } {
 describe('array length in process context', () => {
   it('counts every saved element without reducing the list or removing duplicates', async () => {
     const source = createContext({
-      type: 'context', id: contextId, key: '',
+      type: 'context',
+      id: contextId,
+      key: '',
       functions: [{ func: process.function.ArrayLength, props: {} }]
     })
     await expect(getContextValue(source, makeControl().control, execution)).resolves.toBe(4)
@@ -74,7 +76,8 @@ describe('array length in process context', () => {
 
   it('returns zero for an unset array attribute, including imported bindings', async () => {
     const source = createContext({
-      type: 'attribute', key: 'arraySlot',
+      type: 'attribute',
+      key: 'arraySlot',
       functions: [{ func: process.function.ArrayLength, props: {} }]
     })
     await expect(getContextValue(source, makeControl().control, execution)).resolves.toBe(0)
@@ -82,7 +85,8 @@ describe('array length in process context', () => {
 
   it('lets another function handle an unset attribute without checking its identifier', async () => {
     const source = createContext({
-      type: 'attribute', key: 'arraySlot',
+      type: 'attribute',
+      key: 'arraySlot',
       functions: [{ func: 'process:function:CustomArrayFunction' as Ref<ProcessFunction>, props: {} }]
     })
     await expect(getContextValue(source, makeControl().control, execution)).resolves.toBe(0)
@@ -111,8 +115,9 @@ describe('relation count in process context', () => {
   })
 
   it.each(['A', 'B'] as const)('returns zero for an empty relation on side %s', async (direction) => {
-    await expect(RelationCount(null, { association: 'association', direction }, makeControl().control, execution))
-      .resolves.toBe(0)
+    await expect(
+      RelationCount(null, { association: 'association', direction }, makeControl().control, execution)
+    ).resolves.toBe(0)
   })
 
   it.each([{}, { association: 'association', direction: 'invalid' }])('rejects invalid parameters', async (props) => {
