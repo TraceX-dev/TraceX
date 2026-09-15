@@ -13601,9 +13601,6 @@ importers:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
         version: link:../../foundations/utils/packages/platform-rig
-      '@types/dompurify':
-        specifier: ^3.0.5
-        version: 3.2.0
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
@@ -14439,8 +14436,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.1(date-fns@2.30.0)
       dompurify:
-        specifier: ^3.1.6
-        version: 3.3.0
+        specifier: ^3.4.15
+        version: 3.4.15
       fast-equals:
         specifier: ^5.2.2
         version: 5.3.2
@@ -14454,9 +14451,6 @@ importers:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
         version: link:../../foundations/utils/packages/platform-rig
-      '@types/dompurify':
-        specifier: ^3.0.5
-        version: 3.2.0
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
@@ -44819,10 +44813,6 @@ packages:
   '@types/domhandler@2.4.5':
     resolution: {integrity: sha512-lANhC2grmFG1gBac/8sDAKdIXx+TzAdkJIAjEOSMA+qW3297ybACEbacJnG15aNYfrzDO6fdcoouokqAKsy6aQ==}
 
-  '@types/dompurify@3.2.0':
-    resolution: {integrity: sha512-Fgg31wv9QbLDA0SpTOXO3MaxySc4DKGLi8sna4/Utjo4r3ZRPdCt4UQee8BWr+Q5z21yifghREPJGYaEOEIACg==}
-    deprecated: This is a stub types definition. dompurify provides its own type definitions, so you do not need this installed.
-
   '@types/domutils@2.1.0':
     resolution: {integrity: sha512-5oQOJFsEXmVRW2gcpNrBrv1bj+FVge2Zwd5iDqxan5tu9/EKxaufqpR8lIY5sGIZJRhD5jgTM0iBmzjdpeQutQ==}
     deprecated: This is a stub types definition. domutils provides its own type definitions, so you do not need this installed.
@@ -46895,11 +46885,8 @@ packages:
     resolution: {integrity: sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==}
     engines: {node: '>= 4'}
 
-  dompurify@3.3.0:
-    resolution: {integrity: sha512-r+f6MYR1gGN1eJv0TVQbhA7if/U7P87cdPl3HN5rikqaBSBxLiCb/b9O+2eG0cxz0ghyU+mU1QkbsOwERMYlWQ==}
-
-  dompurify@3.4.14:
-    resolution: {integrity: sha512-dVoH9z+MY+C9IilgGCk3YfFqjLi3fChm2OiKJMzh6axrJ5qwxqWaZamgmHrpv22CN/KdbZJuGEGgfQoL00LTdg==}
+  dompurify@3.4.15:
+    resolution: {integrity: sha512-EUBjM+B+lkDE41iE82DDSCfkoPGfXx8IxFxPMjNzm/Uk4xDet77rTN9wqlxlVg71kK7XGuUMv6wUxJUwwv+Xyw==}
 
   domutils@1.5.1:
     resolution: {integrity: sha512-gSu5Oi/I+3wDENBsOWBiRK1eoGxcywYSqg3rR960/+EfY0CF4EX1VPkgHOZ3WiS/Jg2DtliF6BhWcHlfpYUcGw==}
@@ -56056,10 +56043,6 @@ snapshots:
 
   '@types/domhandler@2.4.5': {}
 
-  '@types/dompurify@3.2.0':
-    dependencies:
-      dompurify: 3.3.0
-
   '@types/domutils@2.1.0':
     dependencies:
       domutils: 3.2.2
@@ -58382,11 +58365,7 @@ snapshots:
     dependencies:
       domelementtype: 2.3.0
 
-  dompurify@3.3.0:
-    optionalDependencies:
-      '@types/trusted-types': 2.0.7
-
-  dompurify@3.4.14:
+  dompurify@3.4.15:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
@@ -61541,7 +61520,7 @@ snapshots:
       d3-sankey: 0.12.3
       dagre-d3-es: 7.0.14
       dayjs: 1.11.23
-      dompurify: 3.4.14
+      dompurify: 3.4.15
       es-toolkit: 1.52.0
       fastdom: 1.0.12
       katex: 0.16.47
