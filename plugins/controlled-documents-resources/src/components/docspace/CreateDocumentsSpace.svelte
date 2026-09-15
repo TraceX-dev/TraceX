@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -32,7 +33,7 @@
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
   import { EditBox, Label, Toggle } from '@hcengineering/ui'
-  import { SpaceTypeSelector } from '@hcengineering/view-resources'
+  import { permissions, SpaceTypeSelector } from '@hcengineering/view-resources'
   import documents, { DocumentSpace, DocumentSpaceType } from '@hcengineering/controlled-documents'
 
   import documentsRes from '../../plugin'
@@ -57,6 +58,7 @@
   let rolesAssignment: RolesAssignment = {}
 
   $: isNew = docSpace === undefined
+  $: readonly = !isNew && !$permissions.canEditSpace(docSpace)
   $: membersPersons = members.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
   $: readOnlyGuestOwnerExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
 
@@ -96,6 +98,8 @@
   }
 
   async function handleSave (): Promise<void> {
+    if (!isNew && readonly) return
+
     if (isNew) {
       await createDocumentSpace()
     } else {
@@ -218,6 +222,7 @@
   }
 
   $: canSave =
+    !readonly &&
     name.length > 0 &&
     members.length > 0 &&
     typeId !== undefined &&
@@ -244,7 +249,7 @@
       </div>
 
       <SpaceTypeSelector
-        disabled={!isNew}
+        disabled={!isNew || readonly}
         {descriptors}
         type={typeId}
         focusIndex={4}
@@ -259,7 +264,13 @@
         <Label label={documentsRes.string.Title} />
       </div>
       <div class="padding">
-        <EditBox bind:value={name} placeholder={documentsRes.string.NewDocumentSpace} kind="large-style" autoFocus />
+        <EditBox
+          bind:value={name}
+          placeholder={documentsRes.string.NewDocumentSpace}
+          kind="large-style"
+          disabled={readonly}
+          autoFocus
+        />
       </div>
     </div>
 
@@ -270,6 +281,7 @@
       <div class="padding clear-mins">
         <StyledTextBox
           alwaysEdit
+          {readonly}
           showButtons={false}
           bind:content={description}
           placeholder={documentsRes.string.DocSpaceDescriptionPlaceholder}
@@ -287,6 +299,7 @@
       excludeItems={readOnlyGuestOwnerExcludeItems}
       label={core.string.Owners}
       onChange={handleOwnersChanged}
+      {readonly}
       kind="regular"
       size="large"
     />
@@ -298,7 +311,7 @@
         <Label label={presentation.string.MakePrivate} />
         <span><Label label={presentation.string.MakePrivateDescription} /></span>
       </div>
-      <Toggle bind:on={isPrivate} disabled={isNew || docSpace?.private} />
+      <Toggle bind:on={isPrivate} disabled={readonly || isNew || docSpace?.private} />
     </div>
 
     <div class="antiGrid-row">
@@ -309,6 +322,7 @@
         value={members}
         label={documentsRes.string.Members}
         onChange={handleMembersChanged}
+        readonly={readonly || (!isNew && !$permissions.canEditMembers(docSpace))}
         kind="regular"
         size="large"
         allowGuests
@@ -324,7 +338,7 @@
           value={rolesAssignment?.[role._id] ?? []}
           label={documentsRes.string.Members}
           includeItems={membersPersons}
-          readonly={membersPersons.length === 0}
+          readonly={readonly || membersPersons.length === 0}
           onChange={(refs) => {
             handleRoleAssignmentChanged(role._id, refs)
           }}
