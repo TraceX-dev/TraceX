@@ -41,6 +41,8 @@
         "UpperCase": "대문자",
         "LowerCase": "소문자",
         "Trim": "공백 제거",
+        "ArrayLength": "배열 요소 수",
+        "RelationCount": "관계 수",
         "FirstValue": "첫 번째 값",
         "LastValue": "마지막 값",
         "Random": "무작위",

@@ -41,6 +41,8 @@
     "UpperCase": "大文字",
     "LowerCase": "小文字",
     "Trim": "トリム",
+    "ArrayLength": "配列の要素数",
+    "RelationCount": "関連数",
     "FirstValue": "最初の値",
     "LastValue": "最後の値",
     "Random": "ランダム",
