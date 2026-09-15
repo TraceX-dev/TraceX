@@ -41,6 +41,8 @@
     "UpperCase": "Büyük harf",
     "LowerCase": "Küçük harf",
     "Trim": "Kırp",
+    "ArrayLength": "Dizi elemanı sayısı",
+    "RelationCount": "İlişki sayısı",
     "FirstValue": "İlk değer",
     "LastValue": "Son değer",
     "Random": "Rastgele",

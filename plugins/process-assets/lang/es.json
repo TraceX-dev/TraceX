@@ -45,6 +45,8 @@
     "UpperCase": "Mayúsculas",
     "LowerCase": "Minúsculas",
     "Trim": "Cortar",
+    "ArrayLength": "Cantidad de elementos del array",
+    "RelationCount": "Cantidad de relaciones",
     "FirstValue": "Primer valor",
     "LastValue": "Último valor",
     "Random": "Aleatorio",

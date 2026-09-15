@@ -240,6 +240,7 @@ export interface ProcessFunction extends Doc {
   of: Ref<Class<Doc>>
   to?: Ref<Class<Doc>>
   editor?: AnyComponent
+  editorProps?: Record<string, unknown>
   presenter?: AnyComponent
   category: AttributeCategory | undefined
   allowMany?: boolean
@@ -386,6 +387,8 @@ export default plugin(processId, {
     AllMatchValue: '' as Ref<ProcessFunction>,
     FirstMatchValue: '' as Ref<ProcessFunction>,
     Filter: '' as Ref<ProcessFunction>,
+    ArrayLength: '' as Ref<ProcessFunction>,
+    RelationCount: '' as Ref<ProcessFunction>,
     FirstValue: '' as Ref<ProcessFunction>,
     LastValue: '' as Ref<ProcessFunction>,
     Random: '' as Ref<ProcessFunction>,

@@ -17,6 +17,7 @@
 import cardPlugin from '@hcengineering/card'
 import contact, { Employee, Person } from '@hcengineering/contact'
 import core, {
+  type Association,
   type Class,
   type Doc,
   type Ref,
@@ -25,11 +26,37 @@ import core, {
   matchQuery,
   resultSort
 } from '@hcengineering/core'
-import { Execution, parseContext } from '@hcengineering/process'
+import process, { Execution, parseContext, processError } from '@hcengineering/process'
 import { ProcessControl } from '@hcengineering/server-process'
 import { isEmptyMarkup, jsonToMarkup, markupToJSON, markupToText, nodeDoc } from '@hcengineering/text-core'
 import { buildMarkdownTableForRelation } from './table'
-import { getContextValue } from './utils'
+import { getContextValue, resolveAttributeId } from './utils'
+
+/** Returns the number of elements, including empty values and duplicates. */
+export function ArrayLength (value: unknown): number {
+  return Array.isArray(value) ? value.length : 0
+}
+
+/** Counts links on the selected side of the current card's association. */
+export async function RelationCount (
+  value: unknown,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<number> {
+  if (typeof props.association !== 'string' || !['A', 'B'].includes(String(props.direction))) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'association, direction' })
+  }
+  const definition = control.client.getModel().findObject(execution.process)
+  if (definition === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.process })
+  const association = resolveAttributeId(definition, props.association as Ref<Association>)
+  if (control.client.getModel().findObject(association) === undefined) {
+    throw processError(process.error.RelationNotExists, {})
+  }
+  const query = props.direction === 'A' ? { docB: execution.card } : { docA: execution.card }
+  const relations = await control.client.findAll(core.class.Relation, { association, ...query })
+  return relations.length
+}
 
 // #region ArrayReduce
 

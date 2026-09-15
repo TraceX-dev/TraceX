@@ -23,6 +23,7 @@
   import { getContextFunctionReduce } from '../../utils'
   import RelationTableConfigPopup from './RelationTableConfigPopup.svelte'
 
+  export let withConfiguration: boolean = true
   export let context: ProcessFunction
   export let masterTag: Ref<MasterTag | Tag>
   export let target: AnyAttribute
@@ -86,6 +87,20 @@
   }
 
   function onValue (e: MouseEvent, item: RelationItem): void {
+    if (!withConfiguration) {
+      onSelect({
+        type: 'function',
+        func: context._id,
+        key: target.name,
+        props: {
+          association: item.association,
+          direction: item.direction,
+          name: item.label
+        }
+      })
+      dispatch('close')
+      return
+    }
     showPopup(
       RelationTableConfigPopup,
       {

@@ -41,6 +41,8 @@
     "UpperCase": "Upper case",
     "LowerCase": "Lower case",
     "Trim": "Trim",
+    "ArrayLength": "Array length",
+    "RelationCount": "Relation count",
     "FirstValue": "First value",
     "LastValue": "Last value",
     "Random": "Random",

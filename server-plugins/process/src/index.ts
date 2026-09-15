@@ -108,6 +108,8 @@ export default plugin(serverProcessId, {
     EmitProcessEvent: '' as Resource<WorkspaceApiOperation>
   },
   transform: {
+    ArrayLength: '' as Resource<TransformFunc>,
+    RelationCount: '' as Resource<TransformFunc>,
     FirstValue: '' as Resource<TransformFunc>,
     LastValue: '' as Resource<TransformFunc>,
     Random: '' as Resource<TransformFunc>,
