@@ -51,7 +51,7 @@
     "typescript": "^5.9.3",
     "@types/ws": "^8.18.1",
     "@types/mime-types": "~2.1.1",
-    "@types/request": "~2.48.8",
+    "@types/request": "~2.48.13",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.12",
     "@types/jest": "^30.0.0",
