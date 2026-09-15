@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,6 +20,7 @@
 
   import ClassAttributeBar from './ClassAttributeBar.svelte'
   import notification from '@hcengineering/notification'
+  import { permissions } from '../permissions'
 
   export let object: Doc
   export let mixins: Array<Mixin<Doc>> = []
@@ -30,7 +32,9 @@
   const client = getClient()
   const hierarchy = client.getHierarchy()
 
-  $: _allowedCollections = [...allowedCollections, 'collaborators']
+  $: _allowedCollections = allowedCollections.includes('collaborators')
+    ? allowedCollections
+    : [...allowedCollections, 'collaborators']
   $: _mixins = mixins.find((p) => p._id === notification.mixin.Collaborators)
     ? mixins
     : [...mixins, hierarchy.getClass(notification.mixin.Collaborators)]
@@ -56,7 +60,7 @@
         object={hierarchy.as(object, mixin._id)}
         {ignoreKeys}
         {to}
-        {readonly}
+        readonly={readonly || (mixin._id === notification.mixin.Collaborators && !$permissions.canEditMembers(object))}
         allowedCollections={_allowedCollections}
         {showHeader}
         on:update
