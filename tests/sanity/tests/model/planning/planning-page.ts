@@ -131,7 +131,9 @@ export class PlanningPage extends CalendarPage {
       expect(boundingBox).toBeTruthy()
       if (boundingBox != null) {
         await this.page.mouse.move(boundingBox.x + boundingBox.width / 2, boundingBox.y + 10)
-        await this.page.mouse.move(boundingBox.x + boundingBox.width / 2, boundingBox.y + (addHalf ? 40 : 20), { steps: 5 })
+        await this.page.mouse.move(boundingBox.x + boundingBox.width / 2, boundingBox.y + (addHalf ? 40 : 20), {
+          steps: 5
+        })
         await this.page.mouse.up()
         await expect(this.eventInSchedule(title)).toBeVisible({ timeout: 5000 })
       }
