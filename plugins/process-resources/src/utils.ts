@@ -110,6 +110,7 @@ export function getContextMasterTag (
   const h = client.getHierarchy()
   const model = client.getModel()
   if (context.type === 'attribute') {
+    if (context.key === '_id') return process.masterTag
     const attr = h.findAttribute(process.masterTag, context.key)
     if (attr === undefined) return
     const parentType = attr.type._class === core.class.ArrOf ? (attr.type as ArrOf<Doc>).of : attr.type
@@ -206,6 +207,25 @@ export function getContext (
   let attributes = getClassAttributes(client, _process.masterTag, target, category)
   if (attr !== undefined && category === 'object') {
     attributes = attributes.filter((it) => it._id !== attr)
+  }
+
+  const hierarchy = client.getHierarchy()
+  if (
+    (category === 'object' && hierarchy.isDerived(_process.masterTag, target)) ||
+    (category === 'attribute' && (target === core.class.RefTo || hierarchy.isDerived(_process.masterTag, target)))
+  ) {
+    const idAttribute = hierarchy.findAttribute(_process.masterTag, '_id')
+    if (idAttribute !== undefined) {
+      const type: RefTo<Doc> = {
+        _class: core.class.RefTo,
+        label: core.string.Ref,
+        to: _process.masterTag
+      }
+      attributes = [
+        { ...idAttribute, attributeOf: _process.masterTag, label: process.string.CurrentCard, type, hidden: false },
+        ...attributes.filter((it) => it.name !== '_id')
+      ]
+    }
   }
 
   const functions = getContextFunctions(client, _process.masterTag, target, category)
