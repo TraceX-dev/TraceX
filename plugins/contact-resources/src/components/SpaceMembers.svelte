@@ -44,10 +44,8 @@
 
   async function getUsers (accounts: AccountUuid[], search: string): Promise<Employee[]> {
     const employeeRefs = accounts.map((acc) => $employeeRefByAccountUuidStore.get(acc)).filter(notEmpty)
-    const query: DocumentQuery<Employee> = {
-      ...(isSearch > 0 ? { name: { $like: '%' + search + '%' } } : {}),
-      ...(isSearch === 0 || !canAddMembers ? { _id: { $in: employeeRefs } } : {})
-    }
+    const query: DocumentQuery<Employee> =
+      isSearch > 0 ? { name: { $like: '%' + search + '%' } } : { _id: { $in: employeeRefs } }
     query.active = true
 
     const employees = await client.findAll(contact.mixin.Employee, query, { sort: { name: SortingOrder.Descending } })

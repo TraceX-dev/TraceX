@@ -1,7 +1,6 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -20,7 +19,6 @@
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { EditBox, Label, Scroller, Panel, Component } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
-  import { permissions } from '@hcengineering/view-resources'
   import workbench from '../../plugin'
   import contact from '@hcengineering/contact'
 
@@ -48,8 +46,6 @@
   )
 
   function onNameChange (ev: Event) {
-    if (!$permissions.canEditSpace(space)) return
-
     const value = (ev.target as HTMLInputElement).value
     if (value.trim().length > 0) {
       client.updateDoc(_class, space.space, space._id, { name: value })
@@ -87,7 +83,6 @@
           label={clazz.label}
           bind:value={space.name}
           placeholder={clazz.label}
-          disabled={!$permissions.canEditSpace(space)}
           autoFocus
           on:change={onNameChange}
         />

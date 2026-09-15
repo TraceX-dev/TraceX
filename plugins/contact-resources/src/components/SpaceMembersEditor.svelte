@@ -1,6 +1,5 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,15 +13,13 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { AccountUuid, getCurrentAccount, Space } from '@hcengineering/core'
+  import { AccountUuid, AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { Button, ButtonKind, ButtonSize } from '@hcengineering/ui'
-  import { permissions } from '@hcengineering/view-resources'
   import view from '@hcengineering/view'
   import AccountArrayEditor from './AccountArrayEditor.svelte'
 
   export let label: IntlString
-  export let object: Space
   export let value: AccountUuid[]
   export let onChange: ((refs: AccountUuid[]) => void) | undefined
   export let readonly = false
@@ -34,11 +31,8 @@
   const myAccUuid = myAcc.uuid
 
   $: joined = value.includes(myAccUuid)
-  $: canEditMembers = $permissions.canEditMembers(object)
-  $: canJoin = $permissions.canJoinSpace(object)
 
   function join (): void {
-    if (!canJoin) return
     if (value.includes(myAccUuid)) return
     if (onChange === undefined) return
 
@@ -46,14 +40,14 @@
   }
 </script>
 
-{#if !joined && onChange !== undefined && canJoin}
+{#if !joined && onChange !== undefined}
   <Button label={view.string.Join} {size} {width} kind={'primary'} on:click={join} />
 {:else}
   <AccountArrayEditor
     {label}
     {value}
     {onChange}
-    readonly={readonly || !canEditMembers}
+    readonly={readonly || !hasAccountRole(myAcc, AccountRole.User)}
     {kind}
     {size}
     {width}
