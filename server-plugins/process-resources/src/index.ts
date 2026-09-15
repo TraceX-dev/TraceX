@@ -584,9 +584,7 @@ async function reassignToDos (card: Card, ops: DocumentUpdate<Card>, control: Tr
       const target = h.isMixin(_process.masterTag) ? h.asIf(card, _process.masterTag) : card
       if (target === undefined) continue
       const fieldValue = target[todo.field as keyof Card] as
-        | ApproveRequest['user']
-        | ApproveRequest['user'][]
-        | undefined
+        ApproveRequest['user'] | ApproveRequest['user'][] | undefined
       const newUsers = fieldValue == null ? [] : Array.isArray(fieldValue) ? fieldValue : [fieldValue]
       if (newUsers.length === 0) {
         continue

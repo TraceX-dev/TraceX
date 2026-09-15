@@ -918,8 +918,8 @@ importers:
         specifier: ^3.1.0
         version: 3.2.2
       htmlparser2:
-        specifier: ^9.0.0
-        version: 9.1.0
+        specifier: ~10.1.0
+        version: 10.1.0
       mammoth:
         specifier: ^1.9.0
         version: 1.12.3
@@ -3745,8 +3745,8 @@ importers:
         specifier: workspace:^0.7.19
         version: link:../text-core
       htmlparser2:
-        specifier: ^9.0.0
-        version: 9.1.0
+        specifier: ~10.1.0
+        version: 10.1.0
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -41081,8 +41081,8 @@ importers:
         specifier: ^4.21.2
         version: 4.22.3
       htmlparser2:
-        specifier: ^9.0.0
-        version: 9.1.0
+        specifier: ~10.1.0
+        version: 10.1.0
       mongodb:
         specifier: ^6.16.0
         version: 6.21.0(gcp-metadata@5.3.0)(snappy@7.4.3)(socks@2.8.10)
@@ -41217,8 +41217,8 @@ importers:
         specifier: ^4.21.2
         version: 4.22.3
       htmlparser2:
-        specifier: ^9.0.0
-        version: 9.1.0
+        specifier: ~10.1.0
+        version: 10.1.0
       jwt-simple:
         specifier: ^0.5.6
         version: 0.5.6
@@ -48063,9 +48063,6 @@ packages:
 
   htmlparser2@8.0.2:
     resolution: {integrity: sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==}
-
-  htmlparser2@9.1.0:
-    resolution: {integrity: sha512-5zfg6mHUoaer/97TxnGpxmbR7zJtPwIYFMZ/H5ucTlPZhKvtum05yiPK3Mgai3a0DyVxv7qYqoweaEd2nrYQzQ==}
 
   http-assert@1.5.0:
     resolution: {integrity: sha512-uPpH7OKX4H25hBmU6G1jWNaqJGpTXxey+YOUizJUAgu0AjLUeC8D73hTrhvDS5D+GJN1DN1+hhc/eF/wpxtp0w==}
@@ -59722,13 +59719,6 @@ snapshots:
       entities: 2.2.0
 
   htmlparser2@8.0.2:
-    dependencies:
-      domelementtype: 2.3.0
-      domhandler: 5.0.3
-      domutils: 3.2.2
-      entities: 4.5.0
-
-  htmlparser2@9.1.0:
     dependencies:
       domelementtype: 2.3.0
       domhandler: 5.0.3

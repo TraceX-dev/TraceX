@@ -462,10 +462,10 @@ async function drainOutboundQueue (reason: string): Promise<void> {
       delayedOutboundWorkspaces.delete(workspaceUuid)
 
       try {
-        console.info("[%s] outbound queue sync %s: reason=%s", config.ServiceID, workspaceUuid, reason)
+        console.info('[%s] outbound queue sync %s: reason=%s', config.ServiceID, workspaceUuid, reason)
         await syncOutboundWorkspace(ctx, workspaceUuid)
       } catch (err) {
-        console.error("[%s] workspace outbound sync failed for %s", config.ServiceID, workspaceUuid, err)
+        console.error('[%s] workspace outbound sync failed for %s', config.ServiceID, workspaceUuid, err)
       }
     }
   } finally {
