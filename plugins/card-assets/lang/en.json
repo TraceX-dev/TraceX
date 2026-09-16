@@ -95,7 +95,6 @@
     "RichtextProperties": "Richtext Properties",
     "ShowAllVersions": "Show all versions",
     "ShowOnlyEffectiveVersions": "Show only effective versions",
-    "ShowOnlyCardsWithoutRelations": "Show only cards without relations",
-    "SpaceSettings": "Space settings"
+    "ShowOnlyCardsWithoutRelations": "Show only cards without relations"
   }
 }

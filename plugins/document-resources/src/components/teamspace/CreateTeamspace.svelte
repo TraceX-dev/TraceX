@@ -34,8 +34,8 @@
   import {
     Button,
     EditBox,
-    SettingsInputField,
-    SettingsRow,
+    FormInputField,
+    FormRow,
     getColorNumberByText,
     getPlatformColorDef,
     getPlatformColorForTextDef,
@@ -283,7 +283,7 @@
       membersChanged = true
     }}
   >
-    <SettingsRow label={core.string.SpaceType}>
+    <FormRow label={core.string.SpaceType}>
       <SpaceTypeSelector
         disabled={!isNew}
         descriptors={[document.descriptor.TeamspaceType]}
@@ -293,9 +293,9 @@
         size="large"
         on:change={handleTypeChange}
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={documentRes.string.TeamspaceTitle}>
+    <FormRow label={documentRes.string.TeamspaceTitle}>
       <EditBox
         id="teamspace-title"
         bind:value={name}
@@ -309,19 +309,19 @@
           }
         }}
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={documentRes.string.Description}>
-      <SettingsInputField multiline>
+    <FormRow label={documentRes.string.Description}>
+      <FormInputField multiline>
         <EditBox
           id="teamspace-description"
           bind:value={description}
           placeholder={documentRes.string.TeamspaceDescriptionPlaceholder}
         />
-      </SettingsInputField>
-    </SettingsRow>
+      </FormInputField>
+    </FormRow>
 
-    <SettingsRow label={documentRes.string.ChooseIcon}>
+    <FormRow label={documentRes.string.ChooseIcon}>
       <Button
         icon={icon === view.ids.IconWithEmoji ? IconWithEmoji : (icon ?? document.icon.Teamspace)}
         iconProps={icon === view.ids.IconWithEmoji
@@ -335,6 +335,6 @@
         size={'large'}
         on:click={chooseIcon}
       />
-    </SettingsRow>
+    </FormRow>
   </SpaceSettingsForm>
 </Card>

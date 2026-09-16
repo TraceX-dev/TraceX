@@ -95,7 +95,6 @@
     "RichtextProperties": "Текстовые поля",
     "ShowAllVersions": "Показывать все версии",
     "ShowOnlyEffectiveVersions": "Показывать только эффективные версии",
-    "ShowOnlyCardsWithoutRelations": "Показывать только карточки без связей",
-    "SpaceSettings": "Настройки пространства"
+    "ShowOnlyCardsWithoutRelations": "Показывать только карточки без связей"
   }
 }

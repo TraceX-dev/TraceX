@@ -23,32 +23,32 @@
   export let dataId: string | undefined = undefined
 </script>
 
-<section class="settingsGroup" data-id={dataId}>
+<section class="formGroup" data-id={dataId}>
   {#if label !== undefined}
-    <div class="settingsGroup__header">
-      <span class="settingsGroup__title"><Label {label} params={labelParams} /></span>
-      <span class="settingsGroup__rule" />
+    <div class="formGroup__header">
+      <span class="formGroup__title"><Label {label} params={labelParams} /></span>
+      <span class="formGroup__rule" />
     </div>
   {/if}
-  <div class="settingsGroup__rows">
+  <div class="formGroup__rows">
     <slot />
   </div>
 </section>
 
 <style lang="scss">
-  .settingsGroup {
+  .formGroup {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     min-width: 0;
   }
-  .settingsGroup__header {
+  .formGroup__header {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     margin-bottom: 0.75rem;
   }
-  .settingsGroup__title {
+  .formGroup__title {
     flex-shrink: 0;
     font-size: 0.6875rem;
     font-weight: 500;
@@ -56,12 +56,12 @@
     text-transform: uppercase;
     color: var(--theme-halfcontent-color);
   }
-  .settingsGroup__rule {
+  .formGroup__rule {
     flex-grow: 1;
     height: 1px;
     background-color: var(--theme-divider-color);
   }
-  .settingsGroup__rows {
+  .formGroup__rows {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;

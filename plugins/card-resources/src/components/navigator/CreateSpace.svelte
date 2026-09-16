@@ -17,7 +17,7 @@
   import { SpaceSettingsForm } from '@hcengineering/contact-resources'
   import core, { AccountRole, AccountUuid, Data, Ref, RolesAssignment, getCurrentAccount } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
-  import { EditBox, SettingsRow } from '@hcengineering/ui'
+  import { EditBox, FormRow } from '@hcengineering/ui'
   import { permissions } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
@@ -166,7 +166,7 @@
 </script>
 
 <Card
-  label={isNew ? card.string.CreateSpace : card.string.SpaceSettings}
+  label={core.string.Space}
   okLabel={isNew ? presentation.string.Create : presentation.string.Save}
   okAction={handleSave}
   {canSave}
@@ -190,7 +190,7 @@
     autoJoinToggleId={'space-autoJoin'}
     restrictedToggleId={'space-restricted'}
   >
-    <SettingsRow label={core.string.Name}>
+    <FormRow label={core.string.Name}>
       <EditBox
         id="teamspace-title"
         bind:value={name}
@@ -200,10 +200,10 @@
         fullSize
         autoFocus
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={card.string.MasterTags}>
+    <FormRow label={card.string.MasterTags}>
       <TypesSelector bind:value={types} {readonly} />
-    </SettingsRow>
+    </FormRow>
   </SpaceSettingsForm>
 </Card>

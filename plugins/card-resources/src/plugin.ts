@@ -121,7 +121,6 @@ export default mergeIds(cardId, card, {
   },
   string: {
     CreateMasterTag: '' as IntlString,
-    SpaceSettings: '' as IntlString,
     CreateTag: '' as IntlString,
     Content: '' as IntlString,
     Parent: '' as IntlString,

@@ -156,7 +156,7 @@
     "AnonymousGuestAccess": "匿名ゲストアクセス",
     "AnonymousGuestAccessDescr": "誰でもログインせずにこのスペースを閲覧できます",
     "AnonymousGuestAccessWorkspaceOffNote": "このワークスペースでは匿名ゲストアクセスがオフです",
-    "AnonymousGuestAccessOwnerOnlyNote": "この設定を変更できるのはワークスペースのオーナーのみです",
+    "AnonymousGuestAccessOwnerOnlyNote": "この設定を変更できるのはオーナーのみです",
     "PublicBadge": "公開",
     "SpaceMembershipGroup": "メンバーシップ"
   }

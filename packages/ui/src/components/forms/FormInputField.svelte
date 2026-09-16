@@ -14,17 +14,17 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  /** Inline input frame for settings rows: border and background appear only on hover and focus. */
+  /** Inline input frame for form rows: border and background appear only on hover and focus. */
   export let disabled: boolean = false
   export let multiline: boolean = false
 </script>
 
-<div class="settingsInputField" class:disabled class:multiline>
+<div class="formInputField" class:disabled class:multiline>
   <slot />
 </div>
 
 <style lang="scss">
-  .settingsInputField {
+  .formInputField {
     display: flex;
     align-items: center;
     box-sizing: border-box;

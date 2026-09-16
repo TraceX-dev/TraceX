@@ -95,7 +95,6 @@
     "RichtextProperties": "Champs de texte",
     "ShowAllVersions": "Toutes les versions",
     "ShowOnlyEffectiveVersions": "Afficher uniquement les versions effectives",
-    "ShowOnlyCardsWithoutRelations": "Afficher uniquement les cartes sans relations",
-    "SpaceSettings": "Paramètres de l'espace"
+    "ShowOnlyCardsWithoutRelations": "Afficher uniquement les cartes sans relations"
   }
 }

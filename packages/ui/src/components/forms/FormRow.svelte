@@ -46,17 +46,17 @@
   $: descriptionId = controlId !== undefined ? `${controlId}-description` : undefined
 </script>
 
-<div class="settingsRow" class:top={align === 'top'} aria-disabled={disabled ? 'true' : undefined} data-id={dataId}>
-  <div class="settingsRow__header" class:disabled>
-    <div class="settingsRow__title">
+<div class="formRow" class:top={align === 'top'} aria-disabled={disabled ? 'true' : undefined} data-id={dataId}>
+  <div class="formRow__header" class:disabled>
+    <div class="formRow__title">
       {#if clickableLabel && controlId !== undefined}
-        <label id={labelId} class="settingsRow__label clickable" class:disabled for={controlId}>
+        <label id={labelId} class="formRow__label clickable" class:disabled for={controlId}>
           <Label {label} params={labelParams} />
         </label>
       {:else if clickableLabel}
         <button
           id={labelId}
-          class="settingsRow__label clickable labelButton"
+          class="formRow__label clickable labelButton"
           type="button"
           {disabled}
           on:click={handleLabelClick}
@@ -64,28 +64,28 @@
           <Label {label} params={labelParams} />
         </button>
       {:else}
-        <span id={labelId} class="settingsRow__label"><Label {label} params={labelParams} /></span>
+        <span id={labelId} class="formRow__label"><Label {label} params={labelParams} /></span>
       {/if}
       <slot name="badge" />
     </div>
     {#if description !== undefined || note !== undefined}
-      <span id={descriptionId} class="settingsRow__description">
+      <span id={descriptionId} class="formRow__description">
         {#if description !== undefined}
           <Label label={description} params={descriptionParams} />
         {/if}
         {#if note !== undefined}
-          <span class="settingsRow__note"><Label label={note} params={noteParams} /></span>
+          <span class="formRow__note"><Label label={note} params={noteParams} /></span>
         {/if}
       </span>
     {/if}
   </div>
-  <div class="settingsRow__value">
+  <div class="formRow__value">
     <slot />
   </div>
 </div>
 
 <style lang="scss">
-  .settingsRow {
+  .formRow {
     display: flex;
     align-items: center;
     min-width: 0;
@@ -94,13 +94,13 @@
     &.top {
       align-items: flex-start;
 
-      .settingsRow__header {
+      .formRow__header {
         justify-content: center;
         min-height: 2.25rem;
       }
     }
   }
-  .settingsRow__header {
+  .formRow__header {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -113,13 +113,13 @@
       color: var(--theme-darker-color);
     }
   }
-  .settingsRow__title {
+  .formRow__title {
     display: flex;
     align-items: center;
     gap: 0.375rem;
     min-width: 0;
   }
-  .settingsRow__label {
+  .formRow__label {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -142,14 +142,14 @@
     font: inherit;
     text-align: left;
   }
-  .settingsRow__description {
+  .formRow__description {
     font-size: 0.75rem;
     color: var(--theme-halfcontent-color);
   }
-  .settingsRow__description .settingsRow__note:not(:first-child)::before {
+  .formRow__description .formRow__note:not(:first-child)::before {
     content: ' ';
   }
-  .settingsRow__value {
+  .formRow__value {
     display: flex;
     flex-grow: 1;
     align-items: center;

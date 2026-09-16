@@ -30,7 +30,7 @@
   } from '@hcengineering/core'
   import { Drive, DriveEvents } from '@hcengineering/drive'
   import presentation, { Card, getClient, reduceCalls } from '@hcengineering/presentation'
-  import { EditBox, SettingsInputField, SettingsRow } from '@hcengineering/ui'
+  import { EditBox, FormInputField, FormRow } from '@hcengineering/ui'
   import { SpaceTypeSelector } from '@hcengineering/view-resources'
 
   import driveRes from '../plugin'
@@ -185,7 +185,7 @@
     autoJoinToggleId={'space-autoJoin'}
     restrictedToggleId={'space-restricted'}
   >
-    <SettingsRow label={core.string.SpaceType}>
+    <FormRow label={core.string.SpaceType}>
       <SpaceTypeSelector
         disabled={drive !== undefined}
         descriptors={[driveRes.descriptor.DriveType]}
@@ -195,9 +195,9 @@
         size="large"
         on:change={handleTypeChange}
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={core.string.Name}>
+    <FormRow label={core.string.Name}>
       <EditBox
         id="teamspace-title"
         bind:value={name}
@@ -206,12 +206,12 @@
         fullSize
         autoFocus
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={core.string.Description}>
-      <SettingsInputField multiline>
+    <FormRow label={core.string.Description}>
+      <FormInputField multiline>
         <EditBox id="teamspace-description" bind:value={description} placeholder={core.string.Description} />
-      </SettingsInputField>
-    </SettingsRow>
+      </FormInputField>
+    </FormRow>
   </SpaceSettingsForm>
 </Card>

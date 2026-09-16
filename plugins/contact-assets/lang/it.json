@@ -156,7 +156,7 @@
     "AnonymousGuestAccess": "Accesso ospite anonimo",
     "AnonymousGuestAccessDescr": "Chiunque può leggere questo spazio senza accedere",
     "AnonymousGuestAccessWorkspaceOffNote": "L'accesso ospite anonimo è disattivato per questo workspace",
-    "AnonymousGuestAccessOwnerOnlyNote": "Solo i proprietari del workspace possono modificare questa impostazione",
+    "AnonymousGuestAccessOwnerOnlyNote": "Solo i proprietari possono modificare questa impostazione",
     "PublicBadge": "Pubblico",
     "SpaceMembershipGroup": "Appartenenza"
   }

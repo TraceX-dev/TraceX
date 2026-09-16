@@ -41,8 +41,8 @@
     Component,
     EditBox,
     Label,
-    SettingsInputField,
-    SettingsRow,
+    FormInputField,
+    FormRow,
     getColorNumberByText,
     getPlatformColorDef,
     getPlatformColorForTextDef,
@@ -364,7 +364,7 @@
       membersChanged = true
     }}
   >
-    <SettingsRow label={task.string.ProjectType}>
+    <FormRow label={task.string.ProjectType}>
       <Component
         is={task.component.ProjectTypeSelector}
         disabled={!isNew}
@@ -377,9 +377,9 @@
         }}
         on:change={handleTypeChange}
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={tracker.string.ProjectTitle}>
+    <FormRow label={tracker.string.ProjectTitle}>
       <EditBox
         id="project-title"
         bind:value={name}
@@ -395,11 +395,11 @@
           }
         }}
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={tracker.string.Identifier} description={tracker.string.UsedInIssueIDs}>
+    <FormRow label={tracker.string.Identifier} description={tracker.string.UsedInIssueIDs}>
       <div class="flex-col">
-        <SettingsInputField disabled={!isNew || readonly}>
+        <FormInputField disabled={!isNew || readonly}>
           <EditBox
             id="project-identifier"
             bind:value={identifier}
@@ -407,27 +407,27 @@
             placeholder={tracker.string.ProjectIdentifierPlaceholder}
             uppercase
           />
-        </SettingsInputField>
+        </FormInputField>
         {#if !isSaving && projectsIdentifiers.has(identifier.toUpperCase())}
           <div class="overflow-label duplicated-identifier">
             <Label label={tracker.string.IdentifierExists} />
           </div>
         {/if}
       </div>
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={tracker.string.Description}>
-      <SettingsInputField multiline disabled={readonly}>
+    <FormRow label={tracker.string.Description}>
+      <FormInputField multiline disabled={readonly}>
         <EditBox
           id="project-description"
           bind:value={description}
           placeholder={tracker.string.IssueDescriptionPlaceholder}
           disabled={readonly}
         />
-      </SettingsInputField>
-    </SettingsRow>
+      </FormInputField>
+    </FormRow>
 
-    <SettingsRow label={tracker.string.ChooseIcon}>
+    <FormRow label={tracker.string.ChooseIcon}>
       <Button
         icon={icon === view.ids.IconWithEmoji ? IconWithEmoji : (icon ?? tracker.icon.Home)}
         iconProps={icon === view.ids.IconWithEmoji
@@ -441,9 +441,9 @@
         size={'large'}
         on:click={chooseIcon}
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={tracker.string.DefaultAssignee}>
+    <FormRow label={tracker.string.DefaultAssignee}>
       <AssigneeBox
         label={tracker.string.Assignee}
         placeholder={tracker.string.Assignee}
@@ -455,9 +455,9 @@
         showNavigate={false}
         showTooltip={{ label: tracker.string.DefaultAssignee }}
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={tracker.string.DefaultIssueStatus}>
+    <FormRow label={tracker.string.DefaultIssueStatus}>
       {#if typeId !== undefined}
         <StatusSelector
           taskType={findTaskTypes(typeId)[0]?._id}
@@ -467,7 +467,7 @@
           size={'large'}
         />
       {/if}
-    </SettingsRow>
+    </FormRow>
   </SpaceSettingsForm>
 </Card>
 

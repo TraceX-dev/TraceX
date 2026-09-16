@@ -156,7 +156,7 @@
     "AnonymousGuestAccess": "Acesso de convidado anônimo",
     "AnonymousGuestAccessDescr": "Qualquer pessoa pode ler este espaço sem fazer login",
     "AnonymousGuestAccessWorkspaceOffNote": "O acesso de convidado anônimo está desativado neste workspace",
-    "AnonymousGuestAccessOwnerOnlyNote": "Somente proprietários do workspace podem alterar esta configuração",
+    "AnonymousGuestAccessOwnerOnlyNote": "Somente proprietários podem alterar esta configuração",
     "PublicBadge": "Público",
     "SpaceMembershipGroup": "Associação"
   }

@@ -31,7 +31,7 @@
   } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
-  import { EditBox, SettingsInputField, SettingsRow } from '@hcengineering/ui'
+  import { EditBox, FormInputField, FormRow } from '@hcengineering/ui'
   import { SpaceTypeSelector } from '@hcengineering/view-resources'
   import documents, { DocumentSpace, DocumentSpaceType } from '@hcengineering/controlled-documents'
 
@@ -214,7 +214,7 @@
     privateDisabled={isNew || docSpace?.private === true}
     membersLabel={documentsRes.string.Members}
   >
-    <SettingsRow label={core.string.SpaceType}>
+    <FormRow label={core.string.SpaceType}>
       <SpaceTypeSelector
         disabled={!isNew}
         {descriptors}
@@ -224,9 +224,9 @@
         size="large"
         on:change={handleTypeChange}
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={documentsRes.string.Title}>
+    <FormRow label={documentsRes.string.Title}>
       <EditBox
         bind:value={name}
         placeholder={documentsRes.string.NewDocumentSpace}
@@ -234,17 +234,17 @@
         fullSize
         autoFocus
       />
-    </SettingsRow>
+    </FormRow>
 
-    <SettingsRow label={documentsRes.string.Description} align="top">
-      <SettingsInputField multiline>
+    <FormRow label={documentsRes.string.Description} align="top">
+      <FormInputField multiline>
         <StyledTextBox
           alwaysEdit
           showButtons={false}
           bind:content={description}
           placeholder={documentsRes.string.DocSpaceDescriptionPlaceholder}
         />
-      </SettingsInputField>
-    </SettingsRow>
+      </FormInputField>
+    </FormRow>
   </SpaceSettingsForm>
 </Card>

@@ -30,7 +30,7 @@
   } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
   import presentation from '@hcengineering/presentation'
-  import { SettingsGroup, SettingsRow, StateTag, StateType, Toggle } from '@hcengineering/ui'
+  import { FormGroup, FormRow, StateTag, StateType, Toggle } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
 
@@ -74,7 +74,7 @@
 
   const dispatch = createEventDispatcher<{ membersChange: AccountUuid[] }>()
 
-  const canManageAnonymousAccess = hasAccountRole(getCurrentAccount(), AccountRole.Owner)
+  const currentAccount = getCurrentAccount()
   let workspaceAllowsAnonymous = false
   let workspaceInfoLoaded = false
 
@@ -101,6 +101,8 @@
   $: isPrivateDisabled = readonly || (privateDisabled ?? (!isPrivate && members.length === 0))
 
   $: anonymousAccess = members.includes(readOnlyGuestAccountUuid)
+  $: canManageAnonymousAccess =
+    hasAccountRole(currentAccount, AccountRole.Owner) || owners.includes(currentAccount.uuid)
   // A leftover anonymous member can still be removed when the workspace switch is off.
   $: anonymousDisabled =
     readonly || !canManageAnonymousAccess || !workspaceInfoLoaded || (!workspaceAllowsAnonymous && !anonymousAccess)
@@ -152,10 +154,10 @@
   }
 </script>
 
-<SettingsGroup dataId={'space-settings-general'}>
+<FormGroup dataId={'space-settings-general'}>
   <slot />
 
-  <SettingsRow label={core.string.Owners}>
+  <FormRow label={core.string.Owners}>
     <AccountArrayEditor
       value={owners}
       excludeItems={ownersExcludeItems}
@@ -166,9 +168,9 @@
       kind={'regular'}
       size={'large'}
     />
-  </SettingsRow>
+  </FormRow>
 
-  <SettingsRow label={membersLabel}>
+  <FormRow label={membersLabel}>
     <AccountArrayEditor
       value={visibleMembers}
       excludeItems={anonymousRefs}
@@ -179,11 +181,11 @@
       kind={'regular'}
       size={'large'}
     />
-  </SettingsRow>
-</SettingsGroup>
+  </FormRow>
+</FormGroup>
 
-<SettingsGroup label={contact.string.SpaceAccessGroup} dataId={'space-settings-access'}>
-  <SettingsRow
+<FormGroup label={contact.string.SpaceAccessGroup} dataId={'space-settings-access'}>
+  <FormRow
     label={presentation.string.MakePrivate}
     description={presentation.string.MakePrivateDescription}
     disabled={isPrivateDisabled}
@@ -198,10 +200,10 @@
       bind:on={isPrivate}
       disabled={isPrivateDisabled}
     />
-  </SettingsRow>
+  </FormRow>
 
   {#if showAnonymousAccess}
-    <SettingsRow
+    <FormRow
       label={contact.string.AnonymousGuestAccess}
       description={anonymousDescription}
       note={anonymousNote}
@@ -225,11 +227,11 @@
           setAnonymousAccess(ev.detail)
         }}
       />
-    </SettingsRow>
+    </FormRow>
   {/if}
 
   {#if restricted !== undefined}
-    <SettingsRow
+    <FormRow
       label={core.string.RBAC}
       description={core.string.RBACDescr}
       disabled={readonly}
@@ -244,14 +246,14 @@
         bind:on={restricted}
         disabled={readonly}
       />
-    </SettingsRow>
+    </FormRow>
   {/if}
-</SettingsGroup>
+</FormGroup>
 
 {#if showMembership}
-  <SettingsGroup label={contact.string.SpaceMembershipGroup} dataId={'space-settings-membership'}>
+  <FormGroup label={contact.string.SpaceMembershipGroup} dataId={'space-settings-membership'}>
     {#if autoJoin !== undefined}
-      <SettingsRow
+      <FormRow
         label={core.string.AutoJoin}
         description={core.string.AutoJoinDescr}
         disabled={readonly}
@@ -266,11 +268,11 @@
           bind:on={autoJoin}
           disabled={readonly}
         />
-      </SettingsRow>
+      </FormRow>
     {/if}
 
     {#if autoJoinForRoles !== undefined}
-      <SettingsRow
+      <FormRow
         label={core.string.AutoJoinGuests}
         description={core.string.AutoJoinGuestsDescr}
         disabled={readonly}
@@ -287,15 +289,15 @@
             setGuestAutoJoin(ev.detail)
           }}
         />
-      </SettingsRow>
+      </FormRow>
     {/if}
-  </SettingsGroup>
+  </FormGroup>
 {/if}
 
 {#if roles.length > 0}
-  <SettingsGroup label={core.string.Roles} dataId={'space-settings-roles'}>
+  <FormGroup label={core.string.Roles} dataId={'space-settings-roles'}>
     {#each roles as role (role._id)}
-      <SettingsRow label={view.string.RoleLabel} labelParams={{ role: role.name }}>
+      <FormRow label={view.string.RoleLabel} labelParams={{ role: role.name }}>
         <AccountArrayEditor
           value={rolesAssignment?.[role._id] ?? []}
           label={membersLabel}
@@ -307,9 +309,9 @@
           kind={'regular'}
           size={'large'}
         />
-      </SettingsRow>
+      </FormRow>
     {/each}
-  </SettingsGroup>
+  </FormGroup>
 {/if}
 
 <slot name="groups" />

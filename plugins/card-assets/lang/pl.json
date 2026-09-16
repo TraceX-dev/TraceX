@@ -95,7 +95,6 @@
     "RichtextProperties": "Właściwości tekstu formatowanego",
     "ShowAllVersions": "Pokaż wszystkie wersje",
     "ShowOnlyEffectiveVersions": "Pokaż tylko obowiązujące wersje",
-    "ShowOnlyCardsWithoutRelations": "Pokaż tylko karty bez relacji",
-    "SpaceSettings": "Ustawienia przestrzeni"
+    "ShowOnlyCardsWithoutRelations": "Pokaż tylko karty bez relacji"
   }
 }
