@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -246,7 +247,7 @@ describe('GuestPermissionsMiddleware', () => {
       await expect(mw.tx(ctx, [tx])).rejects.toThrow()
     })
 
-    it('allows create when TxAccessLevel.createAccessLevel === Guest (uncovered type)', async () => {
+    it('allows Guest create when TxAccessLevel.createAccessLevel is ReadOnlyGuest (uncovered type)', async () => {
       // Settings exist but UNCOVERED_CLASS is NOT in allowedPermissions-derived classes
       const settingsDoc = makeGuestSettingsDoc([COVERED_CLASS_PERMISSION])
       let nextCalled = false
@@ -268,7 +269,7 @@ describe('GuestPermissionsMiddleware', () => {
       // Simulate TxAccessLevel mixin via hierarchy mock on the middleware context
       ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => {
         if (_class === UNCOVERED_CLASS) {
-          return { createAccessLevel: AccountRole.Guest }
+          return { createAccessLevel: AccountRole.ReadOnlyGuest }
         }
         return undefined
       }
@@ -281,6 +282,60 @@ describe('GuestPermissionsMiddleware', () => {
       const ctx = makeCtx(makeAccount(AccountRole.Guest))
       await mw.tx(ctx, [tx])
       expect(nextCalled).toBe(true)
+    })
+
+    it('allows Guest update and remove when the required access level is ReadOnlyGuest', async () => {
+      let nextCallCount = 0
+      const mw = makeMiddleware(
+        async () => [],
+        async () => {
+          nextCallCount++
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => {
+        if (_class === UNCOVERED_CLASS) {
+          return {
+            updateAccessLevel: AccountRole.ReadOnlyGuest,
+            removeAccessLevel: AccountRole.ReadOnlyGuest
+          }
+        }
+        return undefined
+      }
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
+        if (b === core.class.Space) return false
+        return a === b
+      }
+
+      const factory = new TxFactory('test:account:System' as PersonId)
+      const objectId = generateId()
+      const updateTx = factory.createTxUpdateDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId, {})
+      const removeTx = factory.createTxRemoveDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId)
+      const ctx = makeCtx(makeAccount(AccountRole.Guest))
+
+      await mw.tx(ctx, [updateTx])
+      await mw.tx(ctx, [removeTx])
+
+      expect(nextCallCount).toBe(2)
+    })
+
+    it('forbids Guest create when TxAccessLevel requires User', async () => {
+      const mw = makeMiddleware(async () => [])
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => {
+        if (_class === UNCOVERED_CLASS) {
+          return { createAccessLevel: AccountRole.User }
+        }
+        return undefined
+      }
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
+        if (b === core.class.Space) return false
+        return a === b
+      }
+
+      const tx = makeCreateTx(UNCOVERED_CLASS, ALLOWED_SPACE)
+      const ctx = makeCtx(makeAccount(AccountRole.Guest))
+
+      await expect(mw.tx(ctx, [tx])).rejects.toThrow()
     })
   })
 
