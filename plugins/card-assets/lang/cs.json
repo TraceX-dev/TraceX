@@ -95,6 +95,7 @@
     "RichtextProperties": "Textová pole",
     "ShowAllVersions": "Ukázat všechny verze",
     "ShowOnlyEffectiveVersions": "Zobrazit pouze účinné verze",
-    "ShowOnlyCardsWithoutRelations": "Zobrazit pouze karty bez vztahů"
+    "ShowOnlyCardsWithoutRelations": "Zobrazit pouze karty bez vztahů",
+    "SpaceSettings": "Nastavení prostoru"
   }
 }

@@ -95,6 +95,7 @@
     "RichtextProperties": "Textfelder",
     "ShowAllVersions": "Alle Versionen anzeigen",
     "ShowOnlyEffectiveVersions": "Nur wirksame Versionen anzeigen",
-    "ShowOnlyCardsWithoutRelations": "Nur Karten ohne Beziehungen anzeigen"
+    "ShowOnlyCardsWithoutRelations": "Nur Karten ohne Beziehungen anzeigen",
+    "SpaceSettings": "Bereichseinstellungen"
   }
 }

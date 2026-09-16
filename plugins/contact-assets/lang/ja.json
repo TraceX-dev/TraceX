@@ -151,6 +151,13 @@
     "WorkspaceStatusIn4Hours": "4時間後",
     "WorkspaceStatusEndOfDay": "今日の終わりまで",
     "WorkspaceStatusPickDate": "日付を選択",
-    "HideInactive": "非アクティブを非表示"
+    "HideInactive": "非アクティブを非表示",
+    "SpaceAccessGroup": "アクセス",
+    "AnonymousGuestAccess": "匿名ゲストアクセス",
+    "AnonymousGuestAccessDescr": "誰でもログインせずにこのスペースを閲覧できます",
+    "AnonymousGuestAccessWorkspaceOffNote": "このワークスペースでは匿名ゲストアクセスがオフです",
+    "AnonymousGuestAccessOwnerOnlyNote": "この設定を変更できるのはワークスペースのオーナーのみです",
+    "PublicBadge": "公開",
+    "SpaceMembershipGroup": "メンバーシップ"
   }
 }

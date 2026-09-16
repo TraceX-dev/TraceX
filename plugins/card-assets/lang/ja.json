@@ -95,6 +95,7 @@
     "RichtextProperties": "リッチテキストフィールド",
     "ShowAllVersions": "すべてのバージョンを表示",
     "ShowOnlyEffectiveVersions": "有効なバージョンのみ表示",
-    "ShowOnlyCardsWithoutRelations": "関連のないカードのみを表示"
+    "ShowOnlyCardsWithoutRelations": "関連のないカードのみを表示",
+    "SpaceSettings": "スペース設定"
   }
 }

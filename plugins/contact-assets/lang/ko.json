@@ -150,6 +150,13 @@
         "WorkspaceStatusIn1Hour": "1시간 후",
         "WorkspaceStatusIn4Hours": "4시간 후",
         "WorkspaceStatusEndOfDay": "오늘 종료",
-        "WorkspaceStatusPickDate": "날짜 선택"
+        "WorkspaceStatusPickDate": "날짜 선택",
+        "SpaceAccessGroup": "액세스",
+        "AnonymousGuestAccess": "익명 게스트 액세스",
+        "AnonymousGuestAccessDescr": "누구나 로그인하지 않고 이 공간을 읽을 수 있습니다",
+        "AnonymousGuestAccessWorkspaceOffNote": "이 워크스페이스에서는 익명 게스트 액세스가 꺼져 있습니다",
+        "AnonymousGuestAccessOwnerOnlyNote": "워크스페이스 소유자만 이 설정을 변경할 수 있습니다",
+        "PublicBadge": "공개",
+        "SpaceMembershipGroup": "멤버십"
     }
 }

@@ -29,6 +29,13 @@ import {
 export default mergeIds(contactId, contact, {
   string: {
     HideInactive: '' as IntlString,
+    SpaceAccessGroup: '' as IntlString,
+    SpaceMembershipGroup: '' as IntlString,
+    AnonymousGuestAccess: '' as IntlString,
+    AnonymousGuestAccessDescr: '' as IntlString,
+    AnonymousGuestAccessWorkspaceOffNote: '' as IntlString,
+    AnonymousGuestAccessOwnerOnlyNote: '' as IntlString,
+    PublicBadge: '' as IntlString,
     Apply: '' as IntlString,
     CreatePerson: '' as IntlString,
     OrganizationNamePlaceholder: '' as IntlString,

@@ -95,6 +95,7 @@
     "RichtextProperties": "富文本字段",
     "ShowAllVersions": "显示所有版本",
     "ShowOnlyEffectiveVersions": "仅显示生效版本",
-    "ShowOnlyCardsWithoutRelations": "仅显示无关联的卡片"
+    "ShowOnlyCardsWithoutRelations": "仅显示无关联的卡片",
+    "SpaceSettings": "空间设置"
   }
 }

@@ -195,6 +195,7 @@ export type ButtonShape =
 export type EditStyle =
   | 'editbox'
   | 'large-style'
+  | 'medium-style'
   | 'small-style'
   | 'search-style'
   | 'underline'

@@ -95,6 +95,7 @@
         "RichtextProperties": "리치 텍스트 속성",
         "ShowAllVersions": "모든 버전 보기",
         "ShowOnlyEffectiveVersions": "유효한 버전만 보기",
-        "ShowOnlyCardsWithoutRelations": "관계가 없는 카드만 표시"
+        "ShowOnlyCardsWithoutRelations": "관계가 없는 카드만 표시",
+        "SpaceSettings": "공간 설정"
     }
 }

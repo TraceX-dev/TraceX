@@ -151,6 +151,13 @@
     "WorkspaceStatusIn4Hours": "4 saat içinde",
     "WorkspaceStatusEndOfDay": "Gün sonu",
     "WorkspaceStatusPickDate": "Tarih seç",
-    "HideInactive": "Etkin olmayanları gizle"
+    "HideInactive": "Etkin olmayanları gizle",
+    "SpaceAccessGroup": "Erişim",
+    "AnonymousGuestAccess": "Anonim misafir erişimi",
+    "AnonymousGuestAccessDescr": "Herkes oturum açmadan bu alanı okuyabilir",
+    "AnonymousGuestAccessWorkspaceOffNote": "Bu çalışma alanında anonim misafir erişimi kapalı",
+    "AnonymousGuestAccessOwnerOnlyNote": "Bu ayarı yalnızca çalışma alanı sahipleri değiştirebilir",
+    "PublicBadge": "Herkese açık",
+    "SpaceMembershipGroup": "Üyelik"
   }
 }

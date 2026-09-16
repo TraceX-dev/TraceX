@@ -151,6 +151,13 @@
     "WorkspaceStatusIn4Hours": "In 4 hours",
     "WorkspaceStatusEndOfDay": "End of day",
     "WorkspaceStatusPickDate": "Choose date",
-    "HideInactive": "Hide inactive"
+    "HideInactive": "Hide inactive",
+    "SpaceAccessGroup": "Access",
+    "AnonymousGuestAccess": "Anonymous guest access",
+    "AnonymousGuestAccessDescr": "Anyone can read this space without logging in",
+    "AnonymousGuestAccessWorkspaceOffNote": "Anonymous guest access is turned off for this workspace",
+    "AnonymousGuestAccessOwnerOnlyNote": "Only workspace owners can change this setting",
+    "PublicBadge": "Public",
+    "SpaceMembershipGroup": "Membership"
   }
 }

@@ -151,6 +151,13 @@
     "WorkspaceStatusIn4Hours": "Za 4 hodiny",
     "WorkspaceStatusEndOfDay": "Do konce dne",
     "WorkspaceStatusPickDate": "Vyberte datum",
-    "HideInactive": "Skrýt neaktivní"
+    "HideInactive": "Skrýt neaktivní",
+    "SpaceAccessGroup": "Přístup",
+    "AnonymousGuestAccess": "Anonymní přístup hostů",
+    "AnonymousGuestAccessDescr": "Kdokoli může tento prostor číst bez přihlášení",
+    "AnonymousGuestAccessWorkspaceOffNote": "Anonymní přístup hostů je pro tento pracovní prostor vypnutý",
+    "AnonymousGuestAccessOwnerOnlyNote": "Toto nastavení mohou měnit pouze vlastníci pracovního prostoru",
+    "PublicBadge": "Veřejné",
+    "SpaceMembershipGroup": "Členství"
   }
 }

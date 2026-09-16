@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,7 +16,7 @@
 <script lang="ts">
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
-  import { AccountArrayEditor, employeeRefByAccountUuidStore, getAnonymousRefs } from '@hcengineering/contact-resources'
+  import { SpaceSettingsForm } from '@hcengineering/contact-resources'
   import core, {
     Data,
     DocumentUpdate,
@@ -26,17 +27,15 @@
     getCurrentAccount,
     WithLookup,
     Class,
-    notEmpty,
     AccountUuid
   } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
-  import { EditBox, Label, Toggle } from '@hcengineering/ui'
+  import { EditBox, SettingsInputField, SettingsRow } from '@hcengineering/ui'
   import { SpaceTypeSelector } from '@hcengineering/view-resources'
   import documents, { DocumentSpace, DocumentSpaceType } from '@hcengineering/controlled-documents'
 
   import documentsRes from '../../plugin'
-  import view from '@hcengineering/view'
 
   export let docSpace: DocumentSpace | undefined = undefined
   export let clazz: Ref<Class<DocumentSpace>> = documents.class.OrgSpace
@@ -57,8 +56,6 @@
   let rolesAssignment: RolesAssignment = {}
 
   $: isNew = docSpace === undefined
-  $: membersPersons = members.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
-  $: readOnlyGuestOwnerExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
 
   let typeId: Ref<DocumentSpaceType> | undefined = docSpace?.type ?? documents.spaceType.DocumentSpaceType
   let spaceType: WithLookup<DocumentSpaceType> | undefined
@@ -188,35 +185,6 @@
 
   $: roles = (spaceType?.$lookup?.roles ?? []) as Role[]
 
-  function handleOwnersChanged (newOwners: AccountUuid[]): void {
-    owners = newOwners
-
-    const newMembersSet = new Set([...members, ...newOwners])
-    members = Array.from(newMembersSet)
-  }
-
-  function handleMembersChanged (newMembers: AccountUuid[]): void {
-    // If a member was removed we need to remove it from any roles assignments as well
-    const newMembersSet = new Set(newMembers)
-    const removedMembersSet = new Set(members.filter((m) => !newMembersSet.has(m)))
-
-    if (removedMembersSet.size > 0 && rolesAssignment !== undefined) {
-      for (const [key, value] of Object.entries(rolesAssignment)) {
-        rolesAssignment[key as Ref<Role>] = value != null ? value.filter((m) => !removedMembersSet.has(m)) : undefined
-      }
-    }
-
-    members = newMembers
-  }
-
-  function handleRoleAssignmentChanged (roleId: Ref<Role>, newMembers: AccountUuid[]): void {
-    if (rolesAssignment === undefined) {
-      rolesAssignment = {}
-    }
-
-    rolesAssignment[roleId] = newMembers
-  }
-
   $: canSave =
     name.length > 0 &&
     members.length > 0 &&
@@ -237,12 +205,16 @@
   onCancel={close}
   on:changeContent
 >
-  <div class="antiGrid">
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={core.string.SpaceType} />
-      </div>
-
+  <SpaceSettingsForm
+    bind:owners
+    bind:members
+    bind:isPrivate
+    bind:rolesAssignment
+    {roles}
+    privateDisabled={isNew || docSpace?.private === true}
+    membersLabel={documentsRes.string.Members}
+  >
+    <SettingsRow label={core.string.SpaceType}>
       <SpaceTypeSelector
         disabled={!isNew}
         {descriptors}
@@ -252,86 +224,27 @@
         size="large"
         on:change={handleTypeChange}
       />
-    </div>
+    </SettingsRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={documentsRes.string.Title} />
-      </div>
-      <div class="padding">
-        <EditBox bind:value={name} placeholder={documentsRes.string.NewDocumentSpace} kind="large-style" autoFocus />
-      </div>
-    </div>
+    <SettingsRow label={documentsRes.string.Title}>
+      <EditBox
+        bind:value={name}
+        placeholder={documentsRes.string.NewDocumentSpace}
+        kind="medium-style"
+        fullSize
+        autoFocus
+      />
+    </SettingsRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header topAlign">
-        <Label label={documentsRes.string.Description} />
-      </div>
-      <div class="padding clear-mins">
+    <SettingsRow label={documentsRes.string.Description} align="top">
+      <SettingsInputField multiline>
         <StyledTextBox
           alwaysEdit
           showButtons={false}
           bind:content={description}
           placeholder={documentsRes.string.DocSpaceDescriptionPlaceholder}
         />
-      </div>
-    </div>
-  </div>
-
-  <div class="antiGrid-row">
-    <div class="antiGrid-row__header">
-      <Label label={core.string.Owners} />
-    </div>
-    <AccountArrayEditor
-      value={owners}
-      excludeItems={readOnlyGuestOwnerExcludeItems}
-      label={core.string.Owners}
-      onChange={handleOwnersChanged}
-      kind="regular"
-      size="large"
-    />
-  </div>
-
-  <div class="antiGrid">
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={presentation.string.MakePrivate} />
-        <span><Label label={presentation.string.MakePrivateDescription} /></span>
-      </div>
-      <Toggle bind:on={isPrivate} disabled={isNew || docSpace?.private} />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={documentsRes.string.Members} />
-      </div>
-      <AccountArrayEditor
-        value={members}
-        label={documentsRes.string.Members}
-        onChange={handleMembersChanged}
-        kind="regular"
-        size="large"
-        allowGuests
-      />
-    </div>
-
-    {#each roles as role}
-      <div class="antiGrid-row">
-        <div class="antiGrid-row__header">
-          <Label label={view.string.RoleLabel} params={{ role: role.name }} />
-        </div>
-        <AccountArrayEditor
-          value={rolesAssignment?.[role._id] ?? []}
-          label={documentsRes.string.Members}
-          includeItems={membersPersons}
-          readonly={membersPersons.length === 0}
-          onChange={(refs) => {
-            handleRoleAssignmentChanged(role._id, refs)
-          }}
-          kind="regular"
-          size="large"
-        />
-      </div>
-    {/each}
-  </div>
+      </SettingsInputField>
+    </SettingsRow>
+  </SpaceSettingsForm>
 </Card>

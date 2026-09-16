@@ -151,6 +151,13 @@
     "WorkspaceStatusIn4Hours": "Через 4 часа",
     "WorkspaceStatusEndOfDay": "До конца дня",
     "WorkspaceStatusPickDate": "Выбрать дату",
-    "HideInactive": "Скрыть неактивных"
+    "HideInactive": "Скрыть неактивных",
+    "SpaceAccessGroup": "Доступ",
+    "AnonymousGuestAccess": "Анонимный гостевой доступ",
+    "AnonymousGuestAccessDescr": "Любой может читать это пространство без входа в систему",
+    "AnonymousGuestAccessWorkspaceOffNote": "Анонимный гостевой доступ выключен для этого рабочего пространства",
+    "AnonymousGuestAccessOwnerOnlyNote": "Изменить эту настройку может только владелец рабочего пространства",
+    "PublicBadge": "Публичное",
+    "SpaceMembershipGroup": "Участие"
   }
 }

@@ -95,6 +95,7 @@
     "RichtextProperties": "Campos de texto",
     "ShowAllVersions": "Mostrar todas las versiones",
     "ShowOnlyEffectiveVersions": "Mostrar solo versiones efectivas",
-    "ShowOnlyCardsWithoutRelations": "Mostrar solo tarjetas sin relaciones"
+    "ShowOnlyCardsWithoutRelations": "Mostrar solo tarjetas sin relaciones",
+    "SpaceSettings": "Ajustes del espacio"
   }
 }

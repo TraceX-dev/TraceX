@@ -95,6 +95,7 @@
     "RichtextProperties": "Zengin metin alanları",
     "ShowAllVersions": "Tüm sürümleri göster",
     "ShowOnlyEffectiveVersions": "Yalnızca geçerli sürümleri göster",
-    "ShowOnlyCardsWithoutRelations": "Yalnızca ilişkisi olmayan kartları göster"
+    "ShowOnlyCardsWithoutRelations": "Yalnızca ilişkisi olmayan kartları göster",
+    "SpaceSettings": "Alan ayarları"
   }
 }

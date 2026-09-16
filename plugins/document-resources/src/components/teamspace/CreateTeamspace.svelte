@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 -->
 <script lang="ts">
   import { deepEqual } from 'fast-equals'
-  import { AccountArrayEditor, employeeRefByAccountUuidStore, getAnonymousRefs } from '@hcengineering/contact-resources'
+  import { SpaceSettingsForm } from '@hcengineering/contact-resources'
   import core, {
     Data,
     DocumentUpdate,
@@ -25,7 +26,6 @@
     generateId,
     getCurrentAccount,
     WithLookup,
-    notEmpty,
     AccountUuid
   } from '@hcengineering/core'
   import document, { Teamspace, DocumentEvents } from '@hcengineering/document'
@@ -34,8 +34,8 @@
   import {
     Button,
     EditBox,
-    Label,
-    Toggle,
+    SettingsInputField,
+    SettingsRow,
     getColorNumberByText,
     getPlatformColorDef,
     getPlatformColorForTextDef,
@@ -70,8 +70,6 @@
   let rolesAssignment: RolesAssignment = {}
 
   $: isNew = teamspace === undefined
-  $: membersPersons = members.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
-  $: readOnlyGuestOwnerExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
 
   let typeId: Ref<SpaceType> | undefined = teamspace?.type ?? document.spaceType.DefaultTeamspaceType
   let spaceType: WithLookup<SpaceType> | undefined
@@ -236,36 +234,6 @@
 
   $: roles = (spaceType?.$lookup?.roles ?? []) as Role[]
 
-  function handleOwnersChanged (newOwners: AccountUuid[]): void {
-    owners = newOwners
-
-    const newMembersSet = new Set([...members, ...newOwners])
-    members = Array.from(newMembersSet)
-  }
-
-  function handleMembersChanged (newMembers: AccountUuid[]): void {
-    membersChanged = true
-    // If a member was removed we need to remove it from any roles assignments as well
-    const newMembersSet = new Set(newMembers)
-    const removedMembersSet = new Set(members.filter((m) => !newMembersSet.has(m)))
-
-    if (removedMembersSet.size > 0 && rolesAssignment !== undefined) {
-      for (const [key, value] of Object.entries(rolesAssignment)) {
-        rolesAssignment[key as Ref<Role>] = value != null ? value.filter((m) => !removedMembersSet.has(m)) : undefined
-      }
-    }
-
-    members = newMembers
-  }
-
-  function handleRoleAssignmentChanged (roleId: Ref<Role>, newMembers: AccountUuid[]): void {
-    if (rolesAssignment === undefined) {
-      rolesAssignment = {}
-    }
-
-    rolesAssignment[roleId] = newMembers
-  }
-
   let autoJoin = teamspace?.autoJoin ?? spaceType?.autoJoin ?? false
 
   $: setDefaultMembers(spaceType)
@@ -301,12 +269,21 @@
   onCancel={close}
   on:changeContent
 >
-  <div class="antiGrid">
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={core.string.SpaceType} />
-      </div>
-
+  <SpaceSettingsForm
+    bind:owners
+    bind:members
+    bind:isPrivate
+    bind:autoJoin
+    bind:rolesAssignment
+    {roles}
+    membersLabel={documentRes.string.TeamspaceMembers}
+    privateToggleId={'teamspace-private'}
+    autoJoinToggleId={'teamspace-autoJoin'}
+    on:membersChange={() => {
+      membersChanged = true
+    }}
+  >
+    <SettingsRow label={core.string.SpaceType}>
       <SpaceTypeSelector
         disabled={!isNew}
         descriptors={[document.descriptor.TeamspaceType]}
@@ -316,47 +293,35 @@
         size="large"
         on:change={handleTypeChange}
       />
-    </div>
+    </SettingsRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={documentRes.string.TeamspaceTitle} />
-      </div>
-      <div class="padding">
-        <EditBox
-          id="teamspace-title"
-          bind:value={name}
-          placeholder={documentRes.string.TeamspaceTitlePlaceholder}
-          kind={'large-style'}
-          autoFocus
-          on:input={() => {
-            if (isNew) {
-              color = isColorSelected ? color : getColorNumberByText(name)
-            }
-          }}
-        />
-      </div>
-    </div>
+    <SettingsRow label={documentRes.string.TeamspaceTitle}>
+      <EditBox
+        id="teamspace-title"
+        bind:value={name}
+        placeholder={documentRes.string.TeamspaceTitlePlaceholder}
+        kind={'medium-style'}
+        fullSize
+        autoFocus
+        on:input={() => {
+          if (isNew) {
+            color = isColorSelected ? color : getColorNumberByText(name)
+          }
+        }}
+      />
+    </SettingsRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header topAlign">
-        <Label label={documentRes.string.Description} />
-      </div>
-      <div class="padding">
+    <SettingsRow label={documentRes.string.Description}>
+      <SettingsInputField multiline>
         <EditBox
           id="teamspace-description"
           bind:value={description}
           placeholder={documentRes.string.TeamspaceDescriptionPlaceholder}
         />
-      </div>
-    </div>
-  </div>
+      </SettingsInputField>
+    </SettingsRow>
 
-  <div class="antiGrid">
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={documentRes.string.ChooseIcon} />
-      </div>
+    <SettingsRow label={documentRes.string.ChooseIcon}>
       <Button
         icon={icon === view.ids.IconWithEmoji ? IconWithEmoji : (icon ?? document.icon.Teamspace)}
         iconProps={icon === view.ids.IconWithEmoji
@@ -370,69 +335,6 @@
         size={'large'}
         on:click={chooseIcon}
       />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={core.string.Owners} />
-      </div>
-      <AccountArrayEditor
-        value={owners}
-        excludeItems={readOnlyGuestOwnerExcludeItems}
-        label={core.string.Owners}
-        onChange={handleOwnersChanged}
-        kind={'regular'}
-        size={'large'}
-      />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={presentation.string.MakePrivate} />
-        <span><Label label={presentation.string.MakePrivateDescription} /></span>
-      </div>
-      <Toggle id={'teamspace-private'} bind:on={isPrivate} disabled={!isPrivate && members.length === 0} />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={documentRes.string.TeamspaceMembers} />
-      </div>
-      <AccountArrayEditor
-        value={members}
-        allowGuests
-        label={documentRes.string.TeamspaceMembers}
-        onChange={handleMembersChanged}
-        kind={'regular'}
-        size={'large'}
-      />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={core.string.AutoJoin} />
-        <span><Label label={core.string.AutoJoinDescr} /></span>
-      </div>
-      <Toggle id={'teamspace-autoJoin'} bind:on={autoJoin} />
-    </div>
-
-    {#each roles as role}
-      <div class="antiGrid-row">
-        <div class="antiGrid-row__header">
-          <Label label={view.string.RoleLabel} params={{ role: role.name }} />
-        </div>
-        <AccountArrayEditor
-          value={rolesAssignment?.[role._id] ?? []}
-          label={documentRes.string.TeamspaceMembers}
-          includeItems={membersPersons}
-          readonly={membersPersons.length === 0}
-          onChange={(refs) => {
-            handleRoleAssignmentChanged(role._id, refs)
-          }}
-          kind={'regular'}
-          size={'large'}
-        />
-      </div>
-    {/each}
-  </div>
+    </SettingsRow>
+  </SpaceSettingsForm>
 </Card>

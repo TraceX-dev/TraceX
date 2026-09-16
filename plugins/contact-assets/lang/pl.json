@@ -151,6 +151,13 @@
     "WorkspaceStatusEndOfDay": "Koniec dnia",
     "WorkspaceStatusPickDate": "Wybierz datę",
     "HideInactive": "Ukryj nieaktywnych",
-    "Timezone": "Strefa czasowa"
+    "Timezone": "Strefa czasowa",
+    "SpaceAccessGroup": "Dostęp",
+    "AnonymousGuestAccess": "Anonimowy dostęp gości",
+    "AnonymousGuestAccessDescr": "Każdy może czytać tę przestrzeń bez logowania",
+    "AnonymousGuestAccessWorkspaceOffNote": "Anonimowy dostęp gości jest wyłączony w tym obszarze roboczym",
+    "AnonymousGuestAccessOwnerOnlyNote": "Tylko właściciele obszaru roboczego mogą zmienić to ustawienie",
+    "PublicBadge": "Publiczne",
+    "SpaceMembershipGroup": "Członkostwo"
   }
 }

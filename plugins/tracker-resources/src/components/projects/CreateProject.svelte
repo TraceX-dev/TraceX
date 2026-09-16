@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022-2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,12 +16,7 @@
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
   import { Employee } from '@hcengineering/contact'
-  import {
-    AccountArrayEditor,
-    AssigneeBox,
-    employeeRefByAccountUuidStore,
-    getAnonymousRefs
-  } from '@hcengineering/contact-resources'
+  import { AssigneeBox, SpaceSettingsForm } from '@hcengineering/contact-resources'
   import core, {
     AccountRole,
     AccountUuid,
@@ -32,9 +28,7 @@
     SortingOrder,
     SpaceType,
     generateId,
-    getCurrentAccount,
-    notEmpty,
-    setWorkspaceGuestAutoJoinRoles
+    getCurrentAccount
   } from '@hcengineering/core'
   import { Asset } from '@hcengineering/platform'
   import presentation, { IconWithEmoji, Card, createQuery, getClient } from '@hcengineering/presentation'
@@ -47,7 +41,8 @@
     Component,
     EditBox,
     Label,
-    Toggle,
+    SettingsInputField,
+    SettingsRow,
     getColorNumberByText,
     getPlatformColorDef,
     getPlatformColorForTextDef,
@@ -87,8 +82,6 @@
 
   let typeId: Ref<ProjectType> | undefined = project?.type
   $: typeType = typeId !== undefined ? $typeStore.get(typeId) : undefined
-  $: membersPersons = members.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
-  $: readOnlyGuestOwnerExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
   let autoJoin = project?.autoJoin ?? typeType?.autoJoin ?? false
   let autoJoinForRoles: AccountRole[] =
     project?.autoJoinForRoles != null ? hierarchy.clone(project.autoJoinForRoles) : []
@@ -101,10 +94,6 @@
 
   function autoJoinRolesEqual (a: AccountRole[] | undefined, b: AccountRole[] | undefined): boolean {
     return deepEqual([...(a ?? [])].sort(), [...(b ?? [])].sort())
-  }
-
-  function setGuestAutoJoin (enabled: boolean): void {
-    autoJoinForRoles = setWorkspaceGuestAutoJoinRoles(autoJoinForRoles, enabled)
   }
 
   $: isNew = project == null
@@ -338,36 +327,6 @@
     rolesQuery.unsubscribe()
   }
 
-  function handleOwnersChanged (newOwners: AccountUuid[]): void {
-    owners = newOwners
-
-    const newMembersSet = new Set([...members, ...newOwners])
-    members = Array.from(newMembersSet)
-  }
-
-  function handleMembersChanged (newMembers: AccountUuid[]): void {
-    membersChanged = true
-    // If a member was removed we need to remove it from any roles assignments as well
-    const newMembersSet = new Set(newMembers)
-    const removedMembersSet = new Set(members.filter((m) => !newMembersSet.has(m)))
-
-    if (removedMembersSet.size > 0 && rolesAssignment !== undefined) {
-      for (const [key, value] of Object.entries(rolesAssignment)) {
-        rolesAssignment[key as Ref<Role>] = value != null ? value.filter((m) => !removedMembersSet.has(m)) : undefined
-      }
-    }
-
-    members = newMembers
-  }
-
-  function handleRoleAssignmentChanged (roleId: Ref<Role>, newMembers: AccountUuid[]): void {
-    if (rolesAssignment === undefined) {
-      rolesAssignment = {}
-    }
-
-    rolesAssignment[roleId] = newMembers
-  }
-
   $: canSave =
     !readonly &&
     name.trim().length > 0 &&
@@ -389,12 +348,23 @@
   onCancel={close}
   on:changeContent
 >
-  <div class="antiGrid">
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={task.string.ProjectType} />
-      </div>
-
+  <SpaceSettingsForm
+    bind:owners
+    bind:members
+    bind:isPrivate
+    bind:autoJoin
+    bind:autoJoinForRoles
+    bind:rolesAssignment
+    {roles}
+    {readonly}
+    ownersAllowGuests
+    membersLabel={tracker.string.Members}
+    privateToggleId={'project-private'}
+    on:membersChange={() => {
+      membersChanged = true
+    }}
+  >
+    <SettingsRow label={task.string.ProjectType}>
       <Component
         is={task.component.ProjectTypeSelector}
         disabled={!isNew}
@@ -407,71 +377,57 @@
         }}
         on:change={handleTypeChange}
       />
-    </div>
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={tracker.string.ProjectTitle} />
-      </div>
-      <div class="padding">
-        <EditBox
-          id="project-title"
-          bind:value={name}
-          placeholder={tracker.string.ProjectTitlePlaceholder}
-          kind={'large-style'}
-          disabled={readonly}
-          autoFocus
-          on:input={() => {
-            if (isNew) {
-              identifier = name.toLocaleUpperCase().replaceAll('-', '_').replaceAll(' ', '_').substring(0, 5)
-              color = isColorSelected ? color : getColorNumberByText(name)
-            }
-          }}
-        />
-      </div>
-    </div>
+    </SettingsRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={tracker.string.Identifier} />
-        <span><Label label={tracker.string.UsedInIssueIDs} /></span>
-      </div>
-      <div class="padding flex-row-center relative">
-        <EditBox
-          id="project-identifier"
-          bind:value={identifier}
-          disabled={!isNew || readonly}
-          placeholder={tracker.string.ProjectIdentifierPlaceholder}
-          kind={'large-style'}
-          uppercase
-        />
+    <SettingsRow label={tracker.string.ProjectTitle}>
+      <EditBox
+        id="project-title"
+        bind:value={name}
+        placeholder={tracker.string.ProjectTitlePlaceholder}
+        disabled={readonly}
+        kind={'medium-style'}
+        fullSize
+        autoFocus
+        on:input={() => {
+          if (isNew) {
+            identifier = name.toLocaleUpperCase().replaceAll('-', '_').replaceAll(' ', '_').substring(0, 5)
+            color = isColorSelected ? color : getColorNumberByText(name)
+          }
+        }}
+      />
+    </SettingsRow>
+
+    <SettingsRow label={tracker.string.Identifier} description={tracker.string.UsedInIssueIDs}>
+      <div class="flex-col">
+        <SettingsInputField disabled={!isNew || readonly}>
+          <EditBox
+            id="project-identifier"
+            bind:value={identifier}
+            disabled={!isNew || readonly}
+            placeholder={tracker.string.ProjectIdentifierPlaceholder}
+            uppercase
+          />
+        </SettingsInputField>
         {#if !isSaving && projectsIdentifiers.has(identifier.toUpperCase())}
-          <div class="absolute overflow-label duplicated-identifier">
+          <div class="overflow-label duplicated-identifier">
             <Label label={tracker.string.IdentifierExists} />
           </div>
         {/if}
       </div>
-    </div>
+    </SettingsRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header topAlign">
-        <Label label={tracker.string.Description} />
-      </div>
-      <div class="padding clear-mins">
+    <SettingsRow label={tracker.string.Description}>
+      <SettingsInputField multiline disabled={readonly}>
         <EditBox
           id="project-description"
           bind:value={description}
           placeholder={tracker.string.IssueDescriptionPlaceholder}
           disabled={readonly}
         />
-      </div>
-    </div>
-  </div>
+      </SettingsInputField>
+    </SettingsRow>
 
-  <div class="antiGrid">
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={tracker.string.ChooseIcon} />
-      </div>
+    <SettingsRow label={tracker.string.ChooseIcon}>
       <Button
         icon={icon === view.ids.IconWithEmoji ? IconWithEmoji : (icon ?? tracker.icon.Home)}
         iconProps={icon === view.ids.IconWithEmoji
@@ -485,12 +441,9 @@
         size={'large'}
         on:click={chooseIcon}
       />
-    </div>
+    </SettingsRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={tracker.string.DefaultAssignee} />
-      </div>
+    <SettingsRow label={tracker.string.DefaultAssignee}>
       <AssigneeBox
         label={tracker.string.Assignee}
         placeholder={tracker.string.Assignee}
@@ -502,11 +455,9 @@
         showNavigate={false}
         showTooltip={{ label: tracker.string.DefaultAssignee }}
       />
-    </div>
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={tracker.string.DefaultIssueStatus} />
-      </div>
+    </SettingsRow>
+
+    <SettingsRow label={tracker.string.DefaultIssueStatus}>
       {#if typeId !== undefined}
         <StatusSelector
           taskType={findTaskTypes(typeId)[0]?._id}
@@ -516,94 +467,14 @@
           size={'large'}
         />
       {/if}
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={core.string.Owners} />
-      </div>
-      <AccountArrayEditor
-        value={owners}
-        excludeItems={readOnlyGuestOwnerExcludeItems}
-        label={core.string.Owners}
-        allowGuests
-        onChange={handleOwnersChanged}
-        {readonly}
-        kind={'regular'}
-        size={'large'}
-      />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={presentation.string.MakePrivate} />
-        <span><Label label={presentation.string.MakePrivateDescription} /></span>
-      </div>
-      <Toggle id={'project-private'} bind:on={isPrivate} disabled={readonly || (!isPrivate && members.length === 0)} />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={tracker.string.Members} />
-      </div>
-      <AccountArrayEditor
-        value={members}
-        label={tracker.string.Members}
-        onChange={handleMembersChanged}
-        {readonly}
-        kind={'regular'}
-        size={'large'}
-        allowGuests
-      />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={core.string.AutoJoin} />
-        <span><Label label={core.string.AutoJoinDescr} /></span>
-      </div>
-      <Toggle bind:on={autoJoin} disabled={readonly} />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={core.string.AutoJoinGuests} />
-        <span><Label label={core.string.AutoJoinGuestsDescr} /></span>
-      </div>
-      <Toggle
-        on={autoJoinForRoles.includes(AccountRole.Guest)}
-        disabled={readonly}
-        on:change={(ev) => {
-          setGuestAutoJoin(ev.detail)
-        }}
-      />
-    </div>
-
-    {#each roles as role}
-      <div class="antiGrid-row">
-        <div class="antiGrid-row__header">
-          <Label label={view.string.RoleLabel} params={{ role: role.name }} />
-        </div>
-        <AccountArrayEditor
-          value={rolesAssignment?.[role._id] ?? []}
-          label={tracker.string.Members}
-          includeItems={membersPersons}
-          readonly={readonly || membersPersons.length === 0}
-          onChange={(refs) => {
-            handleRoleAssignmentChanged(role._id, refs)
-          }}
-          kind={'regular'}
-          size={'large'}
-        />
-      </div>
-    {/each}
-  </div>
+    </SettingsRow>
+  </SpaceSettingsForm>
 </Card>
 
 <style lang="scss">
   .duplicated-identifier {
-    left: 0;
-    bottom: -0.25rem;
+    padding-left: 0.625rem;
+    font-size: 0.75rem;
     color: var(--theme-warning-color);
   }
 </style>
