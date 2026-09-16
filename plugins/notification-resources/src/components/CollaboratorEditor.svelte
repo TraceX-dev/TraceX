@@ -17,6 +17,7 @@
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import core, { AccountUuid, Collaborator, Doc } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
+  import { permissions } from '@hcengineering/view-resources'
   import notification from '../plugin'
 
   export let object: Doc
@@ -27,19 +28,26 @@
   const query = createQuery()
   const client = getClient()
 
-  $: query.query(
-    core.class.Collaborator,
-    {
-      attachedTo: object._id
-    },
-    (res) => {
-      collaborators = res
-    }
-  )
+  $: canEditCollaborators = $permissions.canEditMembers(object)
+  $: updateCollaboratorsQuery(object)
+
+  function updateCollaboratorsQuery (object: Doc): void {
+    query.query(
+      core.class.Collaborator,
+      {
+        attachedTo: object._id
+      },
+      (res) => {
+        collaborators = res
+      }
+    )
+  }
 
   $: accounts = collaborators.map((c) => c.collaborator)
 
   async function change (res: AccountUuid[]): Promise<void> {
+    if (!canEditCollaborators) return
+
     const toAdd: AccountUuid[] = res.filter((a) => !accounts.includes(a))
     const toRemove: Collaborator[] = collaborators.filter((a) => !res.includes(a.collaborator))
     for (const account of toAdd) {
@@ -58,5 +66,5 @@
   value={accounts}
   onChange={change}
   dataId={'btnCollaborators'}
-  {readonly}
+  readonly={readonly || !canEditCollaborators}
 />

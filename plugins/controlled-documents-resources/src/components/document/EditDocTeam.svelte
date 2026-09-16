@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,6 +25,7 @@
   import core, { AccountUuid, DocumentUpdate, notEmpty, PersonUuid, Ref } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { Scroller } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
 
   import DocTeam from './DocTeam.svelte'
   import { updateExternalApproversAccess } from '../../utils'
@@ -42,9 +44,10 @@
   $: inApproval = controlledState === ControlledDocumentState.InApproval && approvalRequest !== undefined
   $: isReviewed = controlledState === ControlledDocumentState.Reviewed
 
-  $: canChangeCoAuthors = isEditableDraft && inCleanState
-  $: canChangeReviewers = isEditableDraft && (inCleanState || inReview)
-  $: canChangeApprovers = isEditableDraft && (inCleanState || inApproval || inReview || isReviewed)
+  $: canEditMembers = $permissions.canEditMembers(controlledDoc)
+  $: canChangeCoAuthors = canEditMembers && isEditableDraft && inCleanState
+  $: canChangeReviewers = canEditMembers && isEditableDraft && (inCleanState || inReview)
+  $: canChangeApprovers = canEditMembers && isEditableDraft && (inCleanState || inApproval || inReview || isReviewed)
 
   $: reviewers = (reviewRequest?.requested as Ref<Employee>[]) ?? controlledDoc.reviewers
   $: approvers = controlledDoc.approvers
@@ -58,6 +61,8 @@
   }: {
     detail: { type: 'reviewers' | 'approvers' | 'externalApprovers', users: Ref<Person>[] }
   }): Promise<void> {
+    if (!canEditMembers) return
+
     const { type, users } = detail
 
     const request = detail.type === 'reviewers' ? reviewRequest : approvalRequest
