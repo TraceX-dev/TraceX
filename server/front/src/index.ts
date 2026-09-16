@@ -336,10 +336,7 @@ export function start (
     res.setHeader('X-Content-Type-Options', 'nosniff')
     res.setHeader('X-Frame-Options', 'SAMEORIGIN')
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
-    res.setHeader(
-      'Permissions-Policy',
-      'accelerometer=(), geolocation=(), gyroscope=(), payment=(), usb=()'
-    )
+    res.setHeader('Permissions-Policy', 'accelerometer=(), geolocation=(), gyroscope=(), payment=(), usb=()')
     next()
   })
 
