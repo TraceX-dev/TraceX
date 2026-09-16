@@ -421,12 +421,10 @@ async function serializeV2CapabilityValue (
   }
   if (!isRecord(value)) return value
   const entries = await Promise.all(
-    Object.entries(value).map(
-      async ([key, item]): Promise<[string, unknown]> => [
-        key,
-        await serializeV2CapabilityValue(ctx, session, token, item)
-      ]
-    )
+    Object.entries(value).map(async ([key, item]): Promise<[string, unknown]> => [
+      key,
+      await serializeV2CapabilityValue(ctx, session, token, item)
+    ])
   )
   return Object.fromEntries(entries)
 }
@@ -1467,12 +1465,10 @@ async function assertCanSendControlledDocumentForApproval (
     attachedTo: document._id
   })
   const hasBeenReviewed = reviews.length > 0
-  if (
-    !(
-      (document.state === DocumentState.Draft && !hasBeenReviewed) ||
-      document.controlledState === ControlledDocumentState.Reviewed
-    )
-  ) {
+  if (!(
+    (document.state === DocumentState.Draft && !hasBeenReviewed) ||
+    document.controlledState === ControlledDocumentState.Reviewed
+  )) {
     throw new Error('Controlled document must be a new draft or successfully reviewed before approval')
   }
   const unresolvedComments = await session.findAllRaw(
