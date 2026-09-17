@@ -19,6 +19,9 @@
   import { tooltip } from '../tooltips'
 
   export let id: string | undefined = undefined
+  export let inputId: string | undefined = undefined
+  export let ariaLabelledBy: string | undefined = undefined
+  export let ariaDescribedBy: string | undefined = undefined
   export let on: boolean = false
   export let disabled: boolean = false
   export let size: 'small' | 'medium' = 'medium'
@@ -29,9 +32,12 @@
 
 <label {id} class="toggle" use:tooltip={showTooltip} class:disabled class:small={size === 'small'} {...$$restProps}>
   <input
+    id={inputId}
     class="chBox"
     type="checkbox"
     {disabled}
+    aria-labelledby={ariaLabelledBy}
+    aria-describedby={ariaDescribedBy}
     bind:checked={on}
     on:change={() => {
       dispatch('change', on)

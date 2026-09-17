@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,7 +16,7 @@
 <script lang="ts">
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
-  import { AccountArrayEditor, employeeRefByAccountUuidStore, getAnonymousRefs } from '@hcengineering/contact-resources'
+  import { SpaceSettingsForm } from '@hcengineering/contact-resources'
   import core, {
     Data,
     RolesAssignment,
@@ -25,17 +26,15 @@
     generateId,
     getCurrentAccount,
     WithLookup,
-    notEmpty,
     AccountUuid
   } from '@hcengineering/core'
   import { Drive, DriveEvents } from '@hcengineering/drive'
   import presentation, { Card, getClient, reduceCalls } from '@hcengineering/presentation'
-  import { EditBox, Label, Toggle } from '@hcengineering/ui'
+  import { EditBox, FormInputField, FormRow } from '@hcengineering/ui'
   import { SpaceTypeSelector } from '@hcengineering/view-resources'
 
   import driveRes from '../plugin'
   import { Analytics } from '@hcengineering/analytics'
-  import view from '@hcengineering/view'
 
   export let drive: Drive | undefined = undefined
 
@@ -57,8 +56,6 @@
   let typeId: Ref<SpaceType> | undefined = drive?.type ?? driveRes.spaceType.DefaultDrive
   let spaceType: WithLookup<SpaceType> | undefined
 
-  $: membersPersons = members.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
-  $: readOnlyGuestOwnerExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
   $: void loadSpaceType(typeId)
   const loadSpaceType = reduceCalls(async (id: typeof typeId): Promise<void> => {
     spaceType =
@@ -157,35 +154,6 @@
 
   $: roles = (spaceType?.$lookup?.roles ?? []) as Role[]
 
-  function handleOwnersChanged (newOwners: AccountUuid[]): void {
-    owners = newOwners
-
-    const newMembersSet = new Set([...members, ...newOwners])
-    members = Array.from(newMembersSet)
-  }
-
-  function handleMembersChanged (newMembers: AccountUuid[]): void {
-    // If a member was removed we need to remove it from any roles assignments as well
-    const newMembersSet = new Set(newMembers)
-    const removedMembersSet = new Set(members.filter((m) => !newMembersSet.has(m)))
-
-    if (removedMembersSet.size > 0 && rolesAssignment !== undefined) {
-      for (const [key, value] of Object.entries(rolesAssignment)) {
-        rolesAssignment[key as Ref<Role>] = value != null ? value.filter((m) => !removedMembersSet.has(m)) : undefined
-      }
-    }
-
-    members = newMembers
-  }
-
-  function handleRoleAssignmentChanged (roleId: Ref<Role>, newMembers: AccountUuid[]): void {
-    if (rolesAssignment === undefined) {
-      rolesAssignment = {}
-    }
-
-    rolesAssignment[roleId] = newMembers
-  }
-
   $: canSave =
     name.trim().length > 0 &&
     !(members.length === 0 && isPrivate) &&
@@ -206,12 +174,18 @@
   onCancel={close}
   on:changeContent
 >
-  <div class="antiGrid">
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={core.string.SpaceType} />
-      </div>
-
+  <SpaceSettingsForm
+    bind:owners
+    bind:members
+    bind:isPrivate
+    bind:autoJoin
+    bind:restricted
+    bind:rolesAssignment
+    {roles}
+    autoJoinToggleId={'space-autoJoin'}
+    restrictedToggleId={'space-restricted'}
+  >
+    <FormRow label={core.string.SpaceType}>
       <SpaceTypeSelector
         disabled={drive !== undefined}
         descriptors={[driveRes.descriptor.DriveType]}
@@ -221,97 +195,23 @@
         size="large"
         on:change={handleTypeChange}
       />
-    </div>
+    </FormRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={core.string.Name} />
-      </div>
-      <div class="padding">
-        <EditBox id="teamspace-title" bind:value={name} placeholder={core.string.Name} kind={'large-style'} autoFocus />
-      </div>
-    </div>
+    <FormRow label={core.string.Name}>
+      <EditBox
+        id="teamspace-title"
+        bind:value={name}
+        placeholder={core.string.Name}
+        kind={'medium-style'}
+        fullSize
+        autoFocus
+      />
+    </FormRow>
 
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header topAlign">
-        <Label label={core.string.Description} />
-      </div>
-      <div class="padding">
+    <FormRow label={core.string.Description}>
+      <FormInputField multiline>
         <EditBox id="teamspace-description" bind:value={description} placeholder={core.string.Description} />
-      </div>
-    </div>
-  </div>
-
-  <div class="antiGrid">
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={core.string.Owners} />
-      </div>
-      <AccountArrayEditor
-        value={owners}
-        excludeItems={readOnlyGuestOwnerExcludeItems}
-        label={core.string.Owners}
-        onChange={handleOwnersChanged}
-        kind={'regular'}
-        size={'large'}
-      />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={presentation.string.MakePrivate} />
-        <span><Label label={presentation.string.MakePrivateDescription} /></span>
-      </div>
-      <Toggle bind:on={isPrivate} disabled={!isPrivate && members.length === 0} />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header">
-        <Label label={core.string.Members} />
-      </div>
-      <AccountArrayEditor
-        value={members}
-        label={core.string.Members}
-        onChange={handleMembersChanged}
-        kind={'regular'}
-        size={'large'}
-        allowGuests
-      />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={core.string.AutoJoin} />
-        <span><Label label={core.string.AutoJoinDescr} /></span>
-      </div>
-      <Toggle id={'space-autoJoin'} bind:on={autoJoin} />
-    </div>
-
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption">
-        <Label label={core.string.RBAC} />
-        <span><Label label={core.string.RBACDescr} /></span>
-      </div>
-      <Toggle id={'space-restricted'} bind:on={restricted} />
-    </div>
-
-    {#each roles as role}
-      <div class="antiGrid-row">
-        <div class="antiGrid-row__header">
-          <Label label={view.string.RoleLabel} params={{ role: role.name }} />
-        </div>
-        <AccountArrayEditor
-          value={rolesAssignment?.[role._id] ?? []}
-          label={core.string.Members}
-          includeItems={membersPersons}
-          readonly={membersPersons.length === 0}
-          onChange={(refs) => {
-            handleRoleAssignmentChanged(role._id, refs)
-          }}
-          kind={'regular'}
-          size={'large'}
-        />
-      </div>
-    {/each}
-  </div>
+      </FormInputField>
+    </FormRow>
+  </SpaceSettingsForm>
 </Card>
