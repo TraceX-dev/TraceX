@@ -111,13 +111,12 @@
       object.space,
       object._id,
       object._class,
-      'threads',
+      'discussions',
       {
         name: name.trim(),
         status: ObjectDiscussionStatus.Active,
         visibility,
         members: members.includes(me) ? members : [me, ...members],
-        archived: false,
         linkedTo: linkedTo?._id,
         linkedToClass: linkedTo?._class
       }
@@ -134,8 +133,8 @@
       )
     }
 
-    await operations.commit()
-    dispatch('close', discussionId)
+    const { result } = await operations.commit()
+    if (result) dispatch('close', discussionId)
   }
 </script>
 
@@ -167,7 +166,7 @@
       />
       {#if missingCollaborators.length > 0}
         <button class="link" type="button" on:click={addAllCollaborators}>
-          + <Label label={chunter.string.AddAllCollaborators} params={{ count: collaborators.length }} />
+          + <Label label={chunter.string.AddAllCollaborators} params={{ count: missingCollaborators.length }} />
         </button>
       {/if}
     </div>

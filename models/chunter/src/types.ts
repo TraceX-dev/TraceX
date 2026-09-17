@@ -22,7 +22,6 @@ import {
   Model,
   Prop,
   TypeAccountUuid,
-  TypeBoolean,
   TypeMarkup,
   TypeRef,
   TypeString,
@@ -103,9 +102,6 @@ export class TObjectDiscussion extends TAttachedDoc implements ObjectDiscussion 
 
   @Prop(ArrOf(TypeAccountUuid()), core.string.Members)
     members!: AccountUuid[]
-
-  @Prop(TypeBoolean(), core.string.Archived)
-    archived!: boolean
 
   @Prop(TypeRef(core.class.Doc), core.string.Object)
   @Index(IndexKind.Indexed)

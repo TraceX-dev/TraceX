@@ -141,11 +141,7 @@ export async function canDeleteMessage (doc?: ChatMessage): Promise<boolean> {
 }
 
 export function isObjectDiscussionParticipant (discussion: ObjectDiscussion): boolean {
-  const me = getCurrentAccount()
-  if (discussion.members.includes(me.uuid)) {
-    return true
-  }
-  return discussion.createdBy !== undefined && me.socialIds.includes(discussion.createdBy)
+  return discussion.members.includes(getCurrentAccount().uuid)
 }
 
 // Visibility is only a client-side filter for now; the server applies the owner object's security only.

@@ -43,7 +43,7 @@
 
   $: discussionsQuery.query(
     chunter.class.ObjectDiscussion,
-    { attachedTo: doc._id, attachedToClass: doc._class, archived: false },
+    { attachedTo: doc._id },
     (result) => {
       discussions = result.filter(canSeeObjectDiscussion).sort(compareDiscussions)
       dispatch('loaded')

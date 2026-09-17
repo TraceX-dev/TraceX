@@ -15,14 +15,7 @@
 //
 
 import activity, { ActivityMessage, ActivityReference } from '@hcengineering/activity'
-import chunter, {
-  Channel,
-  ChatMessage,
-  chunterId,
-  ChunterSpace,
-  type ObjectDiscussion,
-  ThreadMessage
-} from '@hcengineering/chunter'
+import chunter, { Channel, ChatMessage, chunterId, ChunterSpace, ThreadMessage } from '@hcengineering/chunter'
 import contact, { Employee, Person } from '@hcengineering/contact'
 import core, {
   AccountUuid,
@@ -31,14 +24,12 @@ import core, {
   concatLink,
   Doc,
   DocumentQuery,
-  type Domain,
   FindOptions,
   FindResult,
   Hierarchy,
   notEmpty,
   PersonId,
   Ref,
-  Space,
   Timestamp,
   Tx,
   TxCreateDoc,
@@ -73,8 +64,6 @@ import { workbenchId } from '@hcengineering/workbench'
 
 import { NOTIFICATION_BODY_SIZE } from '@hcengineering/server-notification'
 import { encodeObjectURI } from '@hcengineering/view'
-
-const DOMAIN_CHUNTER = 'chunter' as Domain
 
 export {
   CreateChannelMessage,
@@ -144,62 +133,6 @@ export async function CommentRemove (
     srcDocClass: chatMessage.attachedToClass,
     attachedDocId: chatMessage._id
   })
-}
-
-export async function OnObjectRemoved (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
-  const removedObjects = txes.filter((tx) => tx._class === core.class.TxRemoveDoc) as Array<TxCUD<Doc>>
-  if (removedObjects.length === 0) return []
-
-  const removedByClass = new Map<Ref<Class<Doc>>, Set<Ref<Doc>>>()
-  const removedIds = new Set<Ref<Doc>>()
-  for (const { objectId, objectClass } of removedObjects) {
-    const ids = removedByClass.get(objectClass) ?? new Set<Ref<Doc>>()
-    ids.add(objectId)
-    removedByClass.set(objectClass, ids)
-    removedIds.add(objectId)
-  }
-  const discussions = await control.lowLevel.rawFindAll<ObjectDiscussion>(DOMAIN_CHUNTER, {
-    _class: chunter.class.ObjectDiscussion,
-    attachedTo: { $in: removedObjects.map(({ objectId }) => objectId) }
-  })
-
-  return discussions
-    .filter(
-      ({ _id, attachedTo, attachedToClass }) =>
-        !removedIds.has(_id) && removedByClass.get(attachedToClass)?.has(attachedTo) === true
-    )
-    .map((discussion) => control.txFactory.createTxRemoveDoc(discussion._class, discussion.space, discussion._id))
-}
-
-// Discussions are not a declared collection of their owner, so the generic move logic does not pick them up.
-export async function OnObjectMoved (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
-  const moves = (txes as Array<TxUpdateDoc<Doc>>).filter(
-    (tx) =>
-      tx._class === core.class.TxUpdateDoc &&
-      tx.operations.space !== undefined &&
-      tx.operations.space !== tx.objectSpace &&
-      !control.hierarchy.isDerived(tx.objectClass, chunter.class.ObjectDiscussion)
-  )
-  if (moves.length === 0) return []
-
-  const targetSpaces = new Map<Ref<Doc>, Ref<Space>>()
-  for (const { objectId, operations } of moves) {
-    if (operations.space !== undefined) {
-      targetSpaces.set(objectId, operations.space)
-    }
-  }
-  const discussions = await control.lowLevel.rawFindAll<ObjectDiscussion>(DOMAIN_CHUNTER, {
-    _class: chunter.class.ObjectDiscussion,
-    attachedTo: { $in: Array.from(targetSpaces.keys()) }
-  })
-
-  const result: Tx[] = []
-  for (const discussion of discussions) {
-    const space = targetSpaces.get(discussion.attachedTo)
-    if (space === undefined || space === discussion.space) continue
-    result.push(control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, { space }))
-  }
-  return result
 }
 
 async function OnThreadMessageCreated (
@@ -618,8 +551,6 @@ function JoinChannelTypeMatch (originTx: Tx, _: Doc, person: Ref<Person>, user: 
 export default async () => ({
   trigger: {
     ChunterTrigger,
-    OnObjectRemoved,
-    OnObjectMoved,
     OnChatMessageRemoved,
     ChatNotificationsHandler,
     OnUserStatus

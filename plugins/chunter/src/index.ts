@@ -66,13 +66,8 @@ export enum ObjectDiscussionVisibility {
 }
 
 /**
- * A lightweight discussion thread attached to an arbitrary platform object
- * (e.g. a Card). Unlike a Channel, this is not a Space: it stores no
- * membership-based security of its own and lives in the same `space` as the
- * object it is attached to.
- *
- * `visibility` is applied on the client only for now: the server does not
- * restrict access beyond the security of the owning object.
+ * A discussion thread attached to an arbitrary platform object
+ * (e.g. a Card). Unlike a Channel, this is not a Space.
  *
  * @public
  */
@@ -81,7 +76,6 @@ export interface ObjectDiscussion extends AttachedDoc {
   status: ObjectDiscussionStatus
   visibility: ObjectDiscussionVisibility
   members: AccountUuid[]
-  archived: boolean
   // An optional document of the owner (e.g. an attachment) the discussion is about.
   linkedTo?: Ref<Doc>
   linkedToClass?: Ref<Class<Doc>>

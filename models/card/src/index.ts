@@ -153,6 +153,11 @@ export class TCard extends TDoc implements Card {
   @Prop(Collection(time.class.ToDo), getEmbeddedLabel('Action Items'))
     todos?: CollectionSize<ToDo>
 
+  // Declared so the generic collection logic moves and removes discussions together with the card.
+  @Hidden()
+  @Prop(Collection(chunter.class.ObjectDiscussion), chunter.string.Discussions)
+    discussions?: number
+
   @Prop(TypeString(), view.string.Icon)
   @Hidden()
     icon?: Asset
@@ -1246,7 +1251,7 @@ function defineTabs (builder: Builder): void {
       navigation: [],
       hideInCompactMode: true
     },
-    card.section.Threads
+    card.section.Discussions
   )
 
   builder.createDoc(
