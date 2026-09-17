@@ -14,8 +14,8 @@ export const escape = (str: string): string => {
 
 export const unescape = (str: string): string =>
   str
-    .replace(/&amp;/gv, '&')
     .replace(/&lt;/gv, '<')
     .replace(/&gt;/gv, '>')
     .replace(/&quot;/gv, '"')
     .replace(/&#x27;/gv, "'")
+    .replace(/&amp;/gv, '&')
