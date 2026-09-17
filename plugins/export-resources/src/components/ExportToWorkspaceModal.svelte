@@ -113,12 +113,10 @@
 
   $: workspaceItems = workspaces
     .filter((ws) => ws.uuid !== getCurrentWorkspaceUuid())
-    .map(
-      (ws): WorkspaceItem => ({
-        id: ws.uuid,
-        label: ws.name
-      })
-    )
+    .map((ws): WorkspaceItem => ({
+      id: ws.uuid,
+      label: ws.name
+    }))
 
   $: canSave =
     targetWorkspace !== undefined && _class != null && (spaceExport === true || filteredSelectedDocs.length > 0)

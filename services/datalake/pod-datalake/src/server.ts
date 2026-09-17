@@ -145,6 +145,7 @@ export async function createServer (
   const tempDir = new TemporaryDir(ctx, 'datalake-', config.CleanupInterval)
 
   const app = express()
+  app.disable('x-powered-by')
   app.use(cors())
   app.use(express.json({ limit: '50mb' }))
   app.use(

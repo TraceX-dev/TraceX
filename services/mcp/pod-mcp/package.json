@@ -49,7 +49,7 @@
     "typescript": "^5.9.3",
     "@types/convict": "^6.1.6",
     "eslint-plugin-svelte": "^3.23.0",
-    "eslint-config-love": "^155.0.0"
+    "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
     "@hcengineering/analytics-service": "workspace:^0.7.19",

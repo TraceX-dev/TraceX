@@ -955,6 +955,7 @@ export interface BuildMarkdownTableMetadata {
  * constant. When they drifted apart, a copied table pasted back as plain text with no error shown.
  * @public
  */
+// eslint-disable-next-line secure-coding/no-hardcoded-credentials
 export const TABLE_METADATA_TOKEN = 'huly-table-metadata:'
 
 /**
