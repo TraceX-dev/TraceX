@@ -21,10 +21,10 @@
   import { Heading } from '@hcengineering/text-editor'
   import { TableOfContents } from '@hcengineering/text-editor-resources'
   import { Component, Loading, Scroller } from '@hcengineering/ui'
-  import { SvelteComponent, tick } from 'svelte'
+  import { createEventDispatcher, SvelteComponent, tick } from 'svelte'
 
   import { getCardSections, getCardToc } from '../card'
-  import { CardSectionAction } from '../types'
+  import { CardAsideAction, CardSectionAction } from '../types'
 
   export let doc: Card
   export let readonly: boolean = false
@@ -145,6 +145,8 @@
     selectedToc = toc.find((it) => it.group === section && it.id === id)
   }
 
+  const dispatch = createEventDispatcher<{ aside: CardAsideAction }>()
+
   function handleAction (section: Ref<CardSection>, action: CardSectionAction): void {
     if (action.id === 'toc') {
       subTocBySection[section] = action.toc
@@ -158,6 +160,10 @@
 
     if (action.id === 'hideScrollBar') {
       hideScrollBar()
+    }
+
+    if (action.id === 'aside') {
+      dispatch('aside', action)
     }
   }
 

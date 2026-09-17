@@ -58,6 +58,7 @@ import DirectMessageButton from './components/DirectMessageButton.svelte'
 import EmployeePresenter from './components/ChunterEmployeePresenter.svelte'
 import InlineCommentThread from './components/inline-comment/InlineCommentThread.svelte'
 import ObjectDiscussionsSection from './components/discussions/ObjectDiscussionsSection.svelte'
+import ObjectDiscussionAside from './components/discussions/ObjectDiscussionAside.svelte'
 
 import {
   chunterSpaceLinkFragmentProvider,
@@ -194,7 +195,8 @@ export default async (): Promise<Resources> => ({
     DirectMessageButton,
     EmployeePresenter,
     InlineCommentThread,
-    ObjectDiscussionsSection
+    ObjectDiscussionsSection,
+    ObjectDiscussionAside
   },
   activity: {
     ChannelCreatedMessage,

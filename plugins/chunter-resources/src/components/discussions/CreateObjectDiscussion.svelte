@@ -36,7 +36,6 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { openChannelInSidebar } from '../../navigation'
   import Lock from '../icons/Lock.svelte'
 
   export let object: Doc
@@ -136,8 +135,7 @@
     }
 
     await operations.commit()
-    dispatch('close')
-    await openChannelInSidebar(discussionId, chunter.class.ObjectDiscussion, undefined, undefined, true)
+    dispatch('close', discussionId)
   }
 </script>
 

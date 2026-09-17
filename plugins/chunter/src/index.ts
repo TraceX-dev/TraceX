@@ -178,7 +178,8 @@ export default plugin(chunterId, {
     ThreadMessagePreview: '' as AnyComponent,
     DirectIcon: '' as AnyComponent,
     InlineCommentThread: '' as AnyComponent,
-    ObjectDiscussionsSection: '' as AnyComponent
+    ObjectDiscussionsSection: '' as AnyComponent,
+    ObjectDiscussionAside: '' as AnyComponent
   },
   activity: {
     MembersChangedMessage: '' as AnyComponent

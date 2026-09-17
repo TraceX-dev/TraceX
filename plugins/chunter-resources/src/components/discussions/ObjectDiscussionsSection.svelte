@@ -23,7 +23,6 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { openChannelInSidebar } from '../../navigation'
   import { canCreateObjectDiscussion, canSeeObjectDiscussion } from '../../utils'
   import CreateObjectDiscussion from './CreateObjectDiscussion.svelte'
   import ObjectDiscussionRow from './ObjectDiscussionRow.svelte'
@@ -76,12 +75,18 @@
   }
 
   function createDiscussion (): void {
-    showPopup(CreateObjectDiscussion, { object: doc }, 'top')
+    showPopup(CreateObjectDiscussion, { object: doc }, 'top', (result?: Ref<ObjectDiscussion>) => {
+      if (result != null) openDiscussion(result)
+    })
   }
 
-  async function openDiscussion (event: CustomEvent<ObjectDiscussion>): Promise<void> {
-    const discussion = event.detail
-    await openChannelInSidebar(discussion._id, discussion._class, discussion, undefined, true)
+  // The owner panel shows the discussion in its aside, so it closes together with the object.
+  function openDiscussion (discussionId: Ref<ObjectDiscussion>): void {
+    dispatch('action', {
+      id: 'aside',
+      component: chunter.component.ObjectDiscussionAside,
+      props: { discussionId }
+    })
   }
 </script>
 
@@ -120,7 +125,9 @@
               <ObjectDiscussionRow
                 {discussion}
                 linked={discussion.linkedTo !== undefined ? linkedById.get(discussion.linkedTo) : undefined}
-                on:open={openDiscussion}
+                on:open={(event) => {
+                  openDiscussion(event.detail._id)
+                }}
               />
             {/each}
 

@@ -43,13 +43,14 @@
   import { canChangeDoc, showMenu } from '@hcengineering/view-resources'
 
   import { permissionsStore } from '@hcengineering/contact-resources'
-  import { afterUpdate } from 'svelte'
+  import { afterUpdate, tick } from 'svelte'
   import card from '../plugin'
   import { openCardInSidebar, setViewMode, viewStore } from '../utils'
   import CardIcon from './CardIcon.svelte'
   import CardVersionSelector from './CardVersionSelector.svelte'
   import EditCardNewContent from './EditCardNewContent.svelte'
   import ParentNamesPresenter from './ParentNamesPresenter.svelte'
+  import { type CardAsideAction } from '../types'
   import TagsEditor from './TagsEditor.svelte'
 
   export let _id: Ref<Card>
@@ -70,9 +71,24 @@
   let isTitleEditing = false
   let prevId: Ref<Card> = _id
 
+  let panel: Panel | undefined
+  let aside: CardAsideAction | undefined
+
   $: if (prevId !== _id) {
     prevId = _id
     isTitleEditing = false
+    aside = undefined
+  }
+
+  async function handleAside (action: CardAsideAction): Promise<void> {
+    if (action.component === undefined) {
+      aside = undefined
+      return
+    }
+    aside = action
+    await tick()
+    // The panel can hide its aside on its own (toggle button, narrow width), so reopen it explicitly.
+    panel?.setAside(true)
   }
 
   $: query.query(card.class.Card, { _id }, async (result) => {
@@ -180,8 +196,9 @@
 <FocusHandler {manager} />
 {#if doc !== undefined}
   <Panel
+    bind:this={panel}
     bind:element
-    isAside={false}
+    isAside={aside?.component !== undefined}
     isHeader={false}
     {embedded}
     {allowClose}
@@ -192,8 +209,26 @@
     on:close
   >
     <div class="main-content clear-mins">
-      <EditCardNewContent {_id} {doc} readonly={_readonly} {compactMode} />
+      <EditCardNewContent
+        {_id}
+        {doc}
+        readonly={_readonly}
+        {compactMode}
+        on:aside={(event) => handleAside(event.detail)}
+      />
     </div>
+
+    <svelte:fragment slot="aside">
+      {#if aside?.component !== undefined}
+        <Component
+          is={aside.component}
+          props={aside.props}
+          on:close={() => {
+            aside = undefined
+          }}
+        />
+      {/if}
+    </svelte:fragment>
 
     <svelte:fragment slot="beforeTitle">
       <CardIcon value={doc} />
