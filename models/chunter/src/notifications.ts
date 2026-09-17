@@ -33,7 +33,6 @@ export function defineNotifications (builder: Builder): void {
     fields: ['members']
   })
 
-  // No provideSecurity: members only drive notifications, access still follows the owner object.
   builder.createDoc<ClassCollaborators<ObjectDiscussion>>(core.class.ClassCollaborators, core.space.Model, {
     attachedTo: chunter.class.ObjectDiscussion,
     fields: ['members']

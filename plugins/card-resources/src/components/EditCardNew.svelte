@@ -87,7 +87,6 @@
     }
     aside = action
     await tick()
-    // The panel can hide its aside on its own (toggle button, narrow width), so reopen it explicitly.
     panel?.setAside(true)
   }
 

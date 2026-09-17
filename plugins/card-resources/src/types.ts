@@ -61,7 +61,6 @@ export interface CardHideScrollBarAction {
   id: 'hideScrollBar'
 }
 
-// Shows a component in the card panel aside; an undefined component closes it.
 export interface CardAsideAction {
   id: 'aside'
   component?: AnyComponent
