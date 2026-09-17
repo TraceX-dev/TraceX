@@ -24,7 +24,7 @@
 
   import chunter from '../../plugin'
   import { openChannelInSidebar } from '../../navigation'
-  import { canSeeObjectDiscussion } from '../../utils'
+  import { canCreateObjectDiscussion, canSeeObjectDiscussion } from '../../utils'
   import CreateObjectDiscussion from './CreateObjectDiscussion.svelte'
   import ObjectDiscussionRow from './ObjectDiscussionRow.svelte'
 
@@ -62,7 +62,7 @@
     linkedById = new Map()
   }
 
-  $: canCreate = $permissions.canComment(doc)
+  $: canCreate = canCreateObjectDiscussion() && $permissions.canComment(doc)
 
   $: visibleDiscussions = expanded ? discussions : discussions.slice(0, COLLAPSED_LIMIT)
 
@@ -105,7 +105,11 @@
           <div class="antiSection-empty flex-col mt-3">
             <span class="text-sm content-dark-color"><Label label={chunter.string.NoDiscussionsYet} /></span>
             {#if !readonly && canCreate}
-              <button class="create-link over-underline text-sm caption-color" type="button" on:click={createDiscussion}>
+              <button
+                class="create-link over-underline text-sm caption-color"
+                type="button"
+                on:click={createDiscussion}
+              >
                 <Label label={chunter.string.NewDiscussion} />
               </button>
             {/if}

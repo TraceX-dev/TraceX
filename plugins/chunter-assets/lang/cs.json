@@ -151,6 +151,7 @@
     "AttachTo": "Připojit k (volitelné)",
     "AttachToDescription": "Připojte diskuzi ke konkrétní příloze, aby ji lidé snadno našli.",
     "AttachedTo": "Připojeno k: {name}",
+    "JoinDiscussionRequest": "Požádejte účastníka diskuse, aby vás přidal, abyste mohli číst a odesílat zprávy.",
     "NotAttached": "Nepřipojeno",
     "PrivateDiscussionNote": "Soukromé pro členy — ostatní spolupracovníci karty diskuzi nevidí.",
     "UsersDiscussionNote": "Viditelné pro uživatele — hosté karty diskuzi nevidí.",

@@ -152,6 +152,7 @@
     "AttachTo": "Powiąż z (opcjonalnie)",
     "AttachToDescription": "Powiąż dyskusję z konkretnym załącznikiem, aby łatwiej ją znaleźć.",
     "AttachedTo": "Powiązano z: {name}",
+    "JoinDiscussionRequest": "Poproś uczestnika dyskusji o dodanie Cię, aby czytać i wysyłać wiadomości.",
     "NotAttached": "Brak powiązania",
     "PrivateDiscussionNote": "Prywatna dla członków — pozostali współpracownicy karty nie widzą tej dyskusji.",
     "UsersDiscussionNote": "Widoczna dla użytkowników — goście karty nie widzą tej dyskusji.",

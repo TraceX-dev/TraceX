@@ -223,6 +223,7 @@ export default plugin(chunterId, {
     AttachTo: '' as IntlString,
     AttachToDescription: '' as IntlString,
     AttachedTo: '' as IntlString,
+    JoinDiscussionRequest: '' as IntlString,
     NotAttached: '' as IntlString,
     PrivateDiscussionNote: '' as IntlString,
     UsersDiscussionNote: '' as IntlString,

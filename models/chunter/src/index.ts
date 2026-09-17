@@ -134,6 +134,12 @@ export function createModel (builder: Builder): void {
     createAccessLevel: AccountRole.Guest
   })
 
+  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.User,
+    updateAccessLevel: AccountRole.User,
+    removeAccessLevel: AccountRole.User
+  })
+
   const spaceClasses = [chunter.class.Channel, chunter.class.DirectMessage]
 
   spaceClasses.forEach((spaceClass) => {

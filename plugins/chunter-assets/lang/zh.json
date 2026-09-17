@@ -151,6 +151,7 @@
     "AttachTo": "关联到（可选）",
     "AttachToDescription": "将讨论关联到特定附件，便于查找。",
     "AttachedTo": "已关联到：{name}",
+    "JoinDiscussionRequest": "请讨论参与者将您添加进来，以便阅读和发送消息。",
     "NotAttached": "未关联",
     "PrivateDiscussionNote": "仅成员可见 — 卡片的其他协作者看不到此讨论。",
     "UsersDiscussionNote": "用户可见 — 卡片的访客看不到此讨论。",

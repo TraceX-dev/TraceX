@@ -238,8 +238,8 @@
       use:tooltip={{ label: visibilityBadge.note }}
       on:click={openVisibilityMenu}
     >
-      <Icon icon={visibilityBadge.icon} size="x-small" />
-      <Label label={visibilityBadge.label} />
+      <span class="badge-icon"><Icon icon={visibilityBadge.icon} size="x-small" /></span>
+      <span class="overflow-label"><Label label={visibilityBadge.label} /></span>
     </button>
     <AccountArrayEditor
       value={discussion.members}
@@ -326,13 +326,19 @@
     align-items: center;
     gap: 0.3125rem;
     padding: 0.3125rem 0.6875rem;
+    flex-shrink: 0;
     border-radius: 1rem;
-    background: var(--global-ui-highlight-BackgroundColor);
-    color: var(--global-accent-TextColor);
+    background: var(--theme-button-default);
+    color: var(--global-secondary-TextColor);
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: 500;
+    white-space: nowrap;
 
-    &.resolved {
+    .status-dot {
+      background: var(--global-accent-BackgroundColor);
+    }
+
+    &.resolved :global(svg) {
       color: var(--global-online-color);
     }
 
@@ -345,7 +351,6 @@
     width: 0.375rem;
     height: 0.375rem;
     border-radius: 50%;
-    background: currentColor;
   }
 
   .discussion-scope {
@@ -384,6 +389,9 @@
     display: flex;
     align-items: center;
     gap: 0.3125rem;
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: nowrap;
     padding: 0.3125rem 0.625rem;
     border: 1px solid var(--theme-divider-color);
     border-radius: 1rem;
@@ -398,5 +406,10 @@
     &.readonly {
       cursor: default;
     }
+  }
+
+  .badge-icon {
+    display: flex;
+    flex-shrink: 0;
   }
 </style>

@@ -32,6 +32,7 @@ export default plugin(serverChunterId, {
   trigger: {
     ChunterTrigger: '' as Resource<TriggerFunc>,
     OnObjectRemoved: '' as Resource<TriggerFunc>,
+    OnObjectMoved: '' as Resource<TriggerFunc>,
     OnChatMessageRemoved: '' as Resource<TriggerFunc>,
     ChatNotificationsHandler: '' as Resource<TriggerFunc>,
     OnUserStatus: '' as Resource<TriggerFunc>

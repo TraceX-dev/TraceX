@@ -64,6 +64,7 @@
     "AttachTo": "Attach to (optional)",
     "AttachToDescription": "Link this discussion to a specific attachment so people find it from there too.",
     "AttachedTo": "Attached to: {name}",
+    "JoinDiscussionRequest": "Ask a discussion participant to add you to read and send messages.",
     "NotAttached": "Not attached",
     "PrivateDiscussionNote": "Private to members — other card collaborators don’t see this discussion.",
     "UsersDiscussionNote": "Visible to users — guests of this card don’t see the discussion.",

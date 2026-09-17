@@ -38,6 +38,7 @@ import core, {
   notEmpty,
   PersonId,
   Ref,
+  Space,
   Timestamp,
   Tx,
   TxCreateDoc,
@@ -168,6 +169,37 @@ export async function OnObjectRemoved (txes: Tx[], control: TriggerControl): Pro
         !removedIds.has(_id) && removedByClass.get(attachedToClass)?.has(attachedTo) === true
     )
     .map((discussion) => control.txFactory.createTxRemoveDoc(discussion._class, discussion.space, discussion._id))
+}
+
+// Discussions are not a declared collection of their owner, so the generic move logic does not pick them up.
+export async function OnObjectMoved (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const moves = (txes as Array<TxUpdateDoc<Doc>>).filter(
+    (tx) =>
+      tx._class === core.class.TxUpdateDoc &&
+      tx.operations.space !== undefined &&
+      tx.operations.space !== tx.objectSpace &&
+      !control.hierarchy.isDerived(tx.objectClass, chunter.class.ObjectDiscussion)
+  )
+  if (moves.length === 0) return []
+
+  const targetSpaces = new Map<Ref<Doc>, Ref<Space>>()
+  for (const { objectId, operations } of moves) {
+    if (operations.space !== undefined) {
+      targetSpaces.set(objectId, operations.space)
+    }
+  }
+  const discussions = await control.lowLevel.rawFindAll<ObjectDiscussion>(DOMAIN_CHUNTER, {
+    _class: chunter.class.ObjectDiscussion,
+    attachedTo: { $in: Array.from(targetSpaces.keys()) }
+  })
+
+  const result: Tx[] = []
+  for (const discussion of discussions) {
+    const space = targetSpaces.get(discussion.attachedTo)
+    if (space === undefined || space === discussion.space) continue
+    result.push(control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, { space }))
+  }
+  return result
 }
 
 async function OnThreadMessageCreated (
@@ -587,6 +619,7 @@ export default async () => ({
   trigger: {
     ChunterTrigger,
     OnObjectRemoved,
+    OnObjectMoved,
     OnChatMessageRemoved,
     ChatNotificationsHandler,
     OnUserStatus

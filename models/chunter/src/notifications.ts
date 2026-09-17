@@ -20,7 +20,7 @@ import activity from '@hcengineering/activity'
 
 import chunter from './plugin'
 import { type ClassCollaborators } from '@hcengineering/core'
-import { type Channel, type DirectMessage } from '@hcengineering/chunter'
+import { type Channel, type DirectMessage, type ObjectDiscussion } from '@hcengineering/chunter'
 
 export function defineNotifications (builder: Builder): void {
   builder.createDoc<ClassCollaborators<DirectMessage>>(core.class.ClassCollaborators, core.space.Model, {
@@ -30,6 +30,12 @@ export function defineNotifications (builder: Builder): void {
 
   builder.createDoc<ClassCollaborators<Channel>>(core.class.ClassCollaborators, core.space.Model, {
     attachedTo: chunter.class.Channel,
+    fields: ['members']
+  })
+
+  // No provideSecurity: members only drive notifications, access still follows the owner object.
+  builder.createDoc<ClassCollaborators<ObjectDiscussion>>(core.class.ClassCollaborators, core.space.Model, {
+    attachedTo: chunter.class.ObjectDiscussion,
     fields: ['members']
   })
 

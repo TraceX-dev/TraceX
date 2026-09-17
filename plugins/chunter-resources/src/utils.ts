@@ -162,8 +162,21 @@ export function canSeeObjectDiscussion (discussion: ObjectDiscussion): boolean {
   }
 }
 
+// Mirrors the TxAccessLevel of ObjectDiscussion: guests can only post messages, not create or change discussions.
+export function canCreateObjectDiscussion (): boolean {
+  return hasAccountRole(getCurrentAccount(), AccountRole.User)
+}
+
 export function canManageObjectDiscussion (discussion: ObjectDiscussion): boolean {
-  return hasAccountRole(getCurrentAccount(), AccountRole.Maintainer) || isObjectDiscussionParticipant(discussion)
+  const me = getCurrentAccount()
+  if (!hasAccountRole(me, AccountRole.User)) return false
+  return hasAccountRole(me, AccountRole.Maintainer) || isObjectDiscussionParticipant(discussion)
+}
+
+export async function joinObjectDiscussion (discussion: ObjectDiscussion): Promise<void> {
+  const me = getCurrentAccount().uuid
+  if (discussion.members.includes(me)) return
+  await getClient().update(discussion, { $push: { members: me } })
 }
 
 export async function setObjectDiscussionVisibility (

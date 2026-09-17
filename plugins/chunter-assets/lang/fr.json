@@ -151,6 +151,7 @@
     "AttachTo": "Lier à (facultatif)",
     "AttachToDescription": "Liez cette discussion à une pièce jointe précise pour la retrouver plus facilement.",
     "AttachedTo": "Lié à : {name}",
+    "JoinDiscussionRequest": "Demandez à un participant de la discussion de vous ajouter pour lire et envoyer des messages.",
     "NotAttached": "Non lié",
     "PrivateDiscussionNote": "Privée pour les membres — les autres collaborateurs de la carte ne voient pas cette discussion.",
     "UsersDiscussionNote": "Visible par les utilisateurs — les invités de la carte ne voient pas cette discussion.",

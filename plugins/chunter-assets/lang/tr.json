@@ -152,6 +152,7 @@
     "AttachTo": "Şuna bağla (isteğe bağlı)",
     "AttachToDescription": "Tartışmayı daha kolay bulunması için belirli bir eke bağlayın.",
     "AttachedTo": "Bağlı: {name}",
+    "JoinDiscussionRequest": "Mesajları okumak ve göndermek için bir tartışma katılımcısından sizi eklemesini isteyin.",
     "NotAttached": "Bağlı değil",
     "PrivateDiscussionNote": "Üyelere özel — kartın diğer ortak çalışanları bu tartışmayı görmez.",
     "UsersDiscussionNote": "Kullanıcılara görünür — kartın konukları bu tartışmayı görmez.",

@@ -152,6 +152,7 @@
     "AttachTo": "Verknüpfen mit (optional)",
     "AttachToDescription": "Verknüpfen Sie die Diskussion mit einem bestimmten Anhang, damit sie leichter zu finden ist.",
     "AttachedTo": "Verknüpft mit: {name}",
+    "JoinDiscussionRequest": "Bitten Sie einen Teilnehmer der Diskussion, Sie hinzuzufügen, um Nachrichten zu lesen und zu senden.",
     "NotAttached": "Nicht verknüpft",
     "PrivateDiscussionNote": "Privat für Mitglieder — andere Mitwirkende der Karte sehen diese Diskussion nicht.",
     "UsersDiscussionNote": "Für Benutzer sichtbar — Gäste der Karte sehen diese Diskussion nicht.",

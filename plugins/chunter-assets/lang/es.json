@@ -151,6 +151,7 @@
     "AttachTo": "Vincular a (opcional)",
     "AttachToDescription": "Vincule la discusión a un archivo adjunto concreto para que sea más fácil de encontrar.",
     "AttachedTo": "Vinculado a: {name}",
+    "JoinDiscussionRequest": "Pide a un participante de la discusión que te añada para leer y enviar mensajes.",
     "NotAttached": "Sin vincular",
     "PrivateDiscussionNote": "Privada para los miembros: los demás colaboradores de la tarjeta no ven esta discusión.",
     "UsersDiscussionNote": "Visible para usuarios: los invitados de la tarjeta no ven esta discusión.",

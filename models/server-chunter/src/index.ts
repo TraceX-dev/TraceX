@@ -85,6 +85,14 @@ export function createModel (builder: Builder): void {
   })
 
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverChunter.trigger.OnObjectMoved,
+    txMatch: {
+      _class: core.class.TxUpdateDoc,
+      'operations.space': { $exists: true }
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverChunter.trigger.OnUserStatus,
     txMatch: {
       objectClass: core.class.UserStatus

@@ -32,6 +32,7 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
+  import { isObjectDiscussionParticipant } from '../../utils'
 
   export let discussion: ObjectDiscussion
   export let linked: Attachment | undefined = undefined
@@ -52,21 +53,28 @@
     .map((account) => $employeeRefByAccountUuidStore.get(account) as Ref<Employee> | undefined)
     .filter(notEmpty)
 
-  $: lastMessageQuery.query(
-    chunter.class.ChatMessage,
-    { attachedTo: discussion._id, attachedToClass: discussion._class },
-    (result) => {
-      lastMessage = result[0]
-    },
-    { sort: { createdOn: SortingOrder.Descending }, limit: 1 }
-  )
+  // Messages are readable only after joining, so non-participants get no preview.
+  $: joined = isObjectDiscussionParticipant(discussion)
+  $: if (joined) {
+    lastMessageQuery.query(
+      chunter.class.ChatMessage,
+      { attachedTo: discussion._id, attachedToClass: discussion._class },
+      (result) => {
+        lastMessage = result[0]
+      },
+      { sort: { createdOn: SortingOrder.Descending }, limit: 1 }
+    )
+  } else {
+    lastMessageQuery.unsubscribe()
+    lastMessage = undefined
+  }
 
   $: void formatLastMessage(lastMessage).then((text) => {
     lastMessageText = text
   })
 
   $: context = $contextByDocStore.get(discussion._id)
-  $: notifications = context !== undefined ? $notificationsByContextStore.get(context._id) ?? [] : []
+  $: notifications = context !== undefined ? ($notificationsByContextStore.get(context._id) ?? []) : []
   $: void updateUnreadCount(notifications)
   $: hasUnread = context !== undefined && (context.lastViewedTimestamp ?? 0) < (context.lastUpdateTimestamp ?? 0)
 
@@ -126,6 +134,8 @@
     <div class="subtitle overflow-label">
       {#if resolved}
         <Label label={chunter.string.Resolved} /> ·
+        <Label label={chunter.string.ParticipantsCount} params={{ count: discussion.members.length }} />
+      {:else if !joined}
         <Label label={chunter.string.ParticipantsCount} params={{ count: discussion.members.length }} />
       {:else if lastMessageText !== ''}
         {lastMessageText}

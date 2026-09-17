@@ -151,6 +151,7 @@
     "AttachTo": "Associar a (opcional)",
     "AttachToDescription": "Associe a discussão a um anexo específico para a encontrar mais facilmente.",
     "AttachedTo": "Associado a: {name}",
+    "JoinDiscussionRequest": "Peça a um participante da discussão para o adicionar para ler e enviar mensagens.",
     "NotAttached": "Sem associação",
     "PrivateDiscussionNote": "Privada para os membros — os restantes colaboradores do cartão não veem esta discussão.",
     "UsersDiscussionNote": "Visível para utilizadores — os convidados do cartão não veem esta discussão.",

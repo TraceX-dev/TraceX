@@ -152,6 +152,7 @@
     "AttachTo": "関連付け（任意）",
     "AttachToDescription": "特定の添付ファイルにディスカッションを関連付けると、見つけやすくなります。",
     "AttachedTo": "関連付け先: {name}",
+    "JoinDiscussionRequest": "メッセージを閲覧・送信するには、ディスカッションの参加者に追加を依頼してください。",
     "NotAttached": "関連付けなし",
     "PrivateDiscussionNote": "メンバー限定 — カードの他の共同作業者にはこのディスカッションは表示されません。",
     "UsersDiscussionNote": "ユーザーに表示 — カードのゲストにはこのディスカッションは表示されません。",

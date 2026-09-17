@@ -151,6 +151,7 @@
     "AttachTo": "Collega a (facoltativo)",
     "AttachToDescription": "Collega la discussione a un allegato specifico per trovarla più facilmente.",
     "AttachedTo": "Collegato a: {name}",
+    "JoinDiscussionRequest": "Chiedi a un partecipante della discussione di aggiungerti per leggere e inviare messaggi.",
     "NotAttached": "Non collegato",
     "PrivateDiscussionNote": "Privata per i membri — gli altri collaboratori della scheda non vedono questa discussione.",
     "UsersDiscussionNote": "Visibile agli utenti — gli ospiti della scheda non vedono questa discussione.",
