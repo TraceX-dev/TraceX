@@ -113,12 +113,10 @@ async function assertCanSendForApproval (context: WorkspaceApiContext, document:
   const reviews = await context.client.findAll<DocumentRequest>(documents.class.DocumentReviewRequest, {
     attachedTo: document._id
   })
-  if (
-    !(
-      (document.state === DocumentState.Draft && reviews.length === 0) ||
-      document.controlledState === ControlledDocumentState.Reviewed
-    )
-  ) {
+  if (!(
+    (document.state === DocumentState.Draft && reviews.length === 0) ||
+    document.controlledState === ControlledDocumentState.Reviewed
+  )) {
     throw new Error('Controlled document must be a new draft or successfully reviewed before approval')
   }
   const unresolved = await context.client.findAll(

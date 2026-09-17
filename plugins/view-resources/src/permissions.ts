@@ -166,6 +166,10 @@ export interface Permissions {
   canEditAttribute: (doc: Doc | undefined, attr: AnyAttribute) => boolean
   canRemove: (doc: Doc | undefined) => boolean
 
+  // Members and participants
+  canEditMembers: (doc: Doc | undefined, attr?: AnyAttribute) => boolean
+  canOpenEmployeePreview: boolean
+
   // Activity and communications
   canViewActivity: (doc: Doc | undefined) => boolean
   canComment: (doc: Doc | undefined) => boolean
@@ -189,6 +193,8 @@ const forbidAll: Permissions = {
   canEdit: () => false,
   canEditAttribute: () => false,
   canRemove: () => false,
+  canEditMembers: () => false,
+  canOpenEmployeePreview: false,
   canViewActivity: () => false,
   canComment: () => false,
   canReact: () => false,
@@ -197,6 +203,10 @@ const forbidAll: Permissions = {
 
 export function isTypedSpace (space: Space): space is TypedSpace {
   return getClient().getHierarchy().isDerived(space._class, core.class.TypedSpace)
+}
+
+export function isSpace (doc: Doc): doc is Space {
+  return getClient().getHierarchy().isDerived(doc._class, core.class.Space)
 }
 
 export function isSpaceOwner (space: Space, account: Account): boolean {
@@ -292,6 +302,28 @@ function buildPermissions (
     return isOwn(doc)
   }
 
+  const canEdit = (doc: Doc | undefined): boolean => {
+    if (doc === undefined || isReadOnly) return false
+    if (isSpace(doc)) return canEditSpace(doc)
+    if (isGuest && !isOwn(doc)) return false
+    return store !== undefined && canChangeDoc(doc._class, doc.space, store)
+  }
+
+  const canEditAttribute = (doc: Doc | undefined, attr: AnyAttribute): boolean => {
+    if (doc === undefined || isReadOnly) return false
+    if (isSpace(doc)) {
+      return attr.name === 'members' ? canAddMembers(doc) || canRemoveMembers(doc) : canEditSpace(doc)
+    }
+    if (isGuest && !isOwn(doc)) return false
+    return store !== undefined && canChangeAttribute(attr, doc.space as Ref<TypedSpace>, store, doc._class)
+  }
+
+  const canEditMembers = (doc: Doc | undefined, attr?: AnyAttribute): boolean => {
+    if (doc === undefined || isGuest) return false
+    if (isSpace(doc)) return canAddMembers(doc) || canRemoveMembers(doc)
+    return attr !== undefined ? canEditAttribute(doc, attr) : canEdit(doc)
+  }
+
   return {
     canManageWorkspace: hasAccountRole(account, AccountRole.Maintainer),
 
@@ -306,24 +338,16 @@ function buildPermissions (
 
     canCreate: (_class, space) =>
       !isReadOnly && !isGuest && store !== undefined && canCreateObject(_class, space, store),
-    canEdit: (doc) =>
-      doc !== undefined &&
-      !isReadOnly &&
-      (!isGuest || isOwn(doc)) &&
-      store !== undefined &&
-      canChangeDoc(doc._class, doc.space, store),
-    canEditAttribute: (doc, attr) =>
-      doc !== undefined &&
-      !isReadOnly &&
-      (!isGuest || isOwn(doc)) &&
-      store !== undefined &&
-      canChangeAttribute(attr, doc.space as Ref<TypedSpace>, store, doc._class),
+    canEdit,
+    canEditAttribute,
     canRemove: (doc) =>
       doc !== undefined &&
       !isReadOnly &&
       (!isGuest || isOwn(doc)) &&
       store !== undefined &&
       canRemoveDoc(doc._class, doc.space, store),
+    canEditMembers,
+    canOpenEmployeePreview: !isGuest,
 
     // Access to the document itself is enforced by space security, so anyone who is able
     // to read the document is able to read its activity.

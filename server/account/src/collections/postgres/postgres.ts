@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { type Sql } from 'postgres'
+import { ISql, type Sql } from 'postgres'
 import {
   type Data,
   type Version,
@@ -112,15 +112,16 @@ export interface PostgresDbCollectionOptions<T extends Record<string, any>, K ex
   ns?: string
   fieldTypes?: Record<string, string>
   timestampFields?: Array<keyof T>
-  withRetryClient?: <R>(callback: (client: Sql) => Promise<R>) => Promise<R>
+  withRetryClient?: <R>(callback: (client: ISql) => Promise<R>) => Promise<R>
 }
 
-export class PostgresDbCollection<T extends Record<string, any>, K extends keyof T | undefined = undefined>
-  implements DbCollection<T>
-{
+export class PostgresDbCollection<
+  T extends Record<string, any>,
+  K extends keyof T | undefined = undefined
+> implements DbCollection<T> {
   constructor (
     readonly name: string,
-    readonly client: Sql,
+    readonly client: ISql,
     readonly options: PostgresDbCollectionOptions<T, K> = {},
     readonly filterFields: string[] = []
   ) {}
@@ -270,7 +271,7 @@ export class PostgresDbCollection<T extends Record<string, any>, K extends keyof
     return res as T
   }
 
-  async unsafe (sql: string, values: any[], client?: Sql): Promise<any[]> {
+  async unsafe (sql: string, values: any[], client?: ISql): Promise<any[]> {
     if (client !== undefined) {
       return await client.unsafe(sql, values)
     } else if (this.options.withRetryClient !== undefined) {
@@ -280,7 +281,7 @@ export class PostgresDbCollection<T extends Record<string, any>, K extends keyof
     }
   }
 
-  async exists (query: Query<T>, client?: Sql): Promise<boolean> {
+  async exists (query: Query<T>, client?: ISql): Promise<boolean> {
     const [whereClause, whereValues] = this.buildWhereClause(query)
     const sql = `SELECT EXISTS (SELECT 1 FROM ${this.getTableName()} ${whereClause})`
 
@@ -289,14 +290,14 @@ export class PostgresDbCollection<T extends Record<string, any>, K extends keyof
     return result[0]?.exists === true
   }
 
-  async count (query: Query<T>, client?: Sql): Promise<number> {
+  async count (query: Query<T>, client?: ISql): Promise<number> {
     const [whereClause, whereValues] = this.buildWhereClause(query)
     const result = await this.unsafe(`SELECT COUNT(*) FROM ${this.getTableName()} ${whereClause}`, whereValues, client)
 
     return Number(result[0]?.count ?? 0)
   }
 
-  async find (query: Query<T>, sort?: Sort<T>, limit?: number, client?: Sql): Promise<T[]> {
+  async find (query: Query<T>, sort?: Sort<T>, limit?: number, client?: ISql): Promise<T[]> {
     const sqlChunks: string[] = [this.buildSelectClause()]
     const [whereClause, whereValues] = this.buildWhereClause(query)
 
@@ -318,11 +319,11 @@ export class PostgresDbCollection<T extends Record<string, any>, K extends keyof
     return result.map((row) => this.convertToObj(row))
   }
 
-  async findOne (query: Query<T>, client?: Sql): Promise<T | null> {
+  async findOne (query: Query<T>, client?: ISql): Promise<T | null> {
     return (await this.find(query, undefined, 1, client))[0] ?? null
   }
 
-  async insertOne (data: Partial<T>, client?: Sql): Promise<K extends keyof T ? T[K] : undefined> {
+  async insertOne (data: Partial<T>, client?: ISql): Promise<K extends keyof T ? T[K] : undefined> {
     const snakeData = convertKeysToSnakeCase(data)
     const keys: string[] = Object.keys(snakeData)
     const values = Object.values(snakeData) as any
@@ -339,7 +340,7 @@ export class PostgresDbCollection<T extends Record<string, any>, K extends keyof
     return res[0][idKey]
   }
 
-  async insertMany (data: Array<Partial<T>>, client?: Sql): Promise<K extends keyof T ? Array<T[K]> : undefined> {
+  async insertMany (data: Array<Partial<T>>, client?: ISql): Promise<K extends keyof T ? Array<T[K]> : undefined> {
     const snakeData = convertKeysToSnakeCase(data)
     const columns = new Set<string>()
     for (const record of snakeData) {
@@ -405,7 +406,7 @@ export class PostgresDbCollection<T extends Record<string, any>, K extends keyof
     return [`SET ${updateChunks.join(', ')}`, values]
   }
 
-  async update (query: Query<T>, ops: Operations<T>, client?: Sql): Promise<void> {
+  async update (query: Query<T>, ops: Operations<T>, client?: ISql): Promise<void> {
     const sqlChunks: string[] = [`UPDATE ${this.getTableName()}`]
     const [updateClause, updateValues] = this.buildUpdateClause(ops)
     const [whereClause, whereValues] = this.buildWhereClause(query, updateValues.length)
@@ -419,7 +420,7 @@ export class PostgresDbCollection<T extends Record<string, any>, K extends keyof
     await this.unsafe(finalSql, [...updateValues, ...whereValues], client)
   }
 
-  async deleteMany (query: Query<T>, client?: Sql): Promise<void> {
+  async deleteMany (query: Query<T>, client?: ISql): Promise<void> {
     const sqlChunks: string[] = [`DELETE FROM ${this.getTableName()}`]
     const [whereClause, whereValues] = this.buildWhereClause(query)
 
@@ -439,7 +440,7 @@ export class AccountPostgresDbCollection
   private readonly passwordKeys = ['hash', 'salt']
 
   constructor (
-    client: Sql,
+    client: ISql,
     ns?: string,
     withRetryClient?: PostgresDbCollectionOptions<Account, 'uuid'>['withRetryClient']
   ) {
@@ -473,7 +474,7 @@ export class AccountPostgresDbCollection
     )`
   }
 
-  async find (query: Query<Account>, sort?: Sort<Account>, limit?: number, client?: Sql): Promise<Account[]> {
+  async find (query: Query<Account>, sort?: Sort<Account>, limit?: number, client?: ISql): Promise<Account[]> {
     if (Object.keys(query).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in find query conditions')
     }
@@ -492,7 +493,7 @@ export class AccountPostgresDbCollection
     return result
   }
 
-  async insertOne (data: Partial<Account>, client?: Sql): Promise<Account['uuid']> {
+  async insertOne (data: Partial<Account>, client?: ISql): Promise<Account['uuid']> {
     if (Object.keys(data).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in insert query')
     }
@@ -500,7 +501,7 @@ export class AccountPostgresDbCollection
     return await super.insertOne(data, client)
   }
 
-  async update (query: Query<Account>, ops: Operations<Account>, client?: Sql): Promise<void> {
+  async update (query: Query<Account>, ops: Operations<Account>, client?: ISql): Promise<void> {
     if (Object.keys({ ...ops, ...query }).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in update query')
     }
@@ -508,7 +509,7 @@ export class AccountPostgresDbCollection
     await super.update(query, ops, client)
   }
 
-  async deleteMany (query: Query<Account>, client?: Sql): Promise<void> {
+  async deleteMany (query: Query<Account>, client?: ISql): Promise<void> {
     if (Object.keys(query).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in delete query')
     }
@@ -654,7 +655,7 @@ export class PostgresAccountDB implements AccountDB {
     let updateInterval: NodeJS.Timeout | null = null
     let executed = false
 
-    const executeMigration = async (client: Sql): Promise<void> => {
+    const executeMigration = async (client: ISql): Promise<void> => {
       updateInterval = setInterval(() => {
         this.client`
           UPDATE ${this.client(this.ns)}._account_applied_migrations
@@ -789,13 +790,13 @@ export class PostgresAccountDB implements AccountDB {
     }
   }
 
-  withRetry = async <T>(operation: (client: Sql) => Promise<T>): Promise<T> => {
+  withRetry = async <T>(operation: (client: ISql) => Promise<T>): Promise<T> => {
     let attempt = 0
     let delay = this.retryOptions.initialDelayMs
 
     while (true) {
       try {
-        return (await this.client.begin(async (client) => await operation(client as unknown as Sql))) as T
+        return (await this.client.begin(async (client) => await operation(client as unknown as ISql))) as T
       } catch (err: any) {
         attempt++
 
