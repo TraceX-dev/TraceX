@@ -1,6 +1,5 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,9 +24,6 @@
   import chunter from '../plugin'
   import { ChannelDataProvider } from '../channelDataProvider'
   import ReverseChannelScrollView from './ReverseChannelScrollView.svelte'
-  import ObjectDiscussionJoin from './discussions/ObjectDiscussionJoin.svelte'
-  import { isObjectDiscussionParticipant } from '../utils'
-  import { type ObjectDiscussion } from '@hcengineering/chunter'
 
   export let object: Doc
   export let context: DocNotifyContext | undefined = undefined
@@ -72,13 +68,7 @@
 
   $: isDocChannel = !hierarchy.isDerived(object._class, chunter.class.ChunterSpace)
 
-  // Object discussions behave like channels: messages are hidden until the user joins.
-  $: discussion = hierarchy.isDerived(object._class, chunter.class.ObjectDiscussion)
-    ? (object as ObjectDiscussion)
-    : undefined
-  $: joined = discussion === undefined || isObjectDiscussionParticipant(discussion)
-
-  $: if (joined) void updateDataProvider(object._id, selectedMessageId)
+  $: void updateDataProvider(object._id, selectedMessageId)
 
   async function updateDataProvider (attachedTo: Ref<Doc>, selectedMessageId?: Ref<ActivityMessage>): Promise<void> {
     if (dataProvider === undefined) {
@@ -110,9 +100,7 @@
   }
 </script>
 
-{#if discussion !== undefined && !joined}
-  <ObjectDiscussionJoin {discussion} />
-{:else if dataProvider}
+{#if dataProvider}
   <ReverseChannelScrollView
     channel={object}
     bind:selectedMessageId

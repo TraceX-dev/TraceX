@@ -1,6 +1,5 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,7 +16,7 @@
   import { Class, Doc, Ref } from '@hcengineering/core'
   import { getDocTitle } from '@hcengineering/view-resources'
   import { getClient } from '@hcengineering/presentation'
-  import { Channel, type ObjectDiscussion } from '@hcengineering/chunter'
+  import { Channel } from '@hcengineering/chunter'
   import { ActivityMessagesFilter, WithReferences } from '@hcengineering/activity'
   import contact from '@hcengineering/contact'
   import view from '@hcengineering/view'
@@ -25,7 +24,6 @@
   import chunter from '../plugin'
   import { getObjectIcon, getChannelName } from '../utils'
   import PinnedMessages from './PinnedMessages.svelte'
-  import ObjectDiscussionHeader from './discussions/ObjectDiscussionHeader.svelte'
 
   export let _id: Ref<Doc>
   export let _class: Ref<Class<Doc>>
@@ -66,47 +64,38 @@
 
   $: isPerson =
     hierarchy.isDerived(_class, chunter.class.DirectMessage) || hierarchy.isDerived(_class, contact.class.Person)
-
-  $: objectDiscussion =
-    object !== undefined && hierarchy.isDerived(object._class, chunter.class.ObjectDiscussion)
-      ? (object as ObjectDiscussion)
-      : undefined
 </script>
 
-{#if objectDiscussion !== undefined}
-  <ObjectDiscussionHeader discussion={objectDiscussion} {allowClose} on:close />
-{:else}
-  <Header
-    bind:filters
-    {object}
-    icon={getObjectIcon(_class)}
-    iconProps={{ value: object, showStatus: true }}
-    label={title}
-    intlLabel={chunter.string.Channel}
-    {description}
-    titleKind={isPerson ? 'default' : 'breadcrumbs'}
-    withFilters={false}
-    {allowClose}
-    {canOpen}
-    {withAside}
-    {isAsideShown}
-    {withSearch}
-    {withPresence}
-    {canOpenInSidebar}
-    {closeOnEscape}
-    bind:realWidth
-    on:aside-toggled
-    on:close
-  >
-    {#if object}
-      <PinnedMessages
-        {_id}
-        {_class}
-        space={object.space}
-        withRefs={(object.references ?? 0) > 0}
-        iconOnly={realWidth < 380}
-        on:select
-      />
-    {/if}
-  </Header>
-{/if}
+<Header
+  bind:filters
+  {object}
+  icon={getObjectIcon(_class)}
+  iconProps={{ value: object, showStatus: true }}
+  label={title}
+  intlLabel={chunter.string.Channel}
+  {description}
+  titleKind={isPerson ? 'default' : 'breadcrumbs'}
+  withFilters={false}
+  {allowClose}
+  {canOpen}
+  {withAside}
+  {isAsideShown}
+  {withSearch}
+  {withPresence}
+  {canOpenInSidebar}
+  {closeOnEscape}
+  bind:realWidth
+  on:aside-toggled
+  on:close
+>
+  {#if object}
+    <PinnedMessages
+      {_id}
+      {_class}
+      space={object.space}
+      withRefs={(object.references ?? 0) > 0}
+      iconOnly={realWidth < 380}
+      on:select
+    />
+  {/if}
+</Header>
