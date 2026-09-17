@@ -295,6 +295,7 @@ export function createServer (
   const storageAdapter = buildStorageFromConfig(storageConfig)
 
   const app = express()
+  app.disable('x-powered-by')
   app.use(cors({ exposedHeaders: 'Content-Disposition' }))
   app.use(express.json())
 

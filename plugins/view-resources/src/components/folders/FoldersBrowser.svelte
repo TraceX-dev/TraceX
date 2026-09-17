@@ -45,7 +45,7 @@
     return (getLocation()?.query?.attachedTo as Ref<Doc>) ?? noParentId
   }
 
-  export let forciblyСollapsed: boolean = false
+  export let forciblyCollapsed: boolean = false
 
   const client = getClient()
 
@@ -125,7 +125,7 @@
       type={'nested-selectable'}
       empty={foldersState?.folders?.length === 0}
       actions={() => getRootActions()}
-      {forciblyСollapsed}
+      {forciblyCollapsed}
       on:click={handleAllItemsSelected}
     >
       <FolderTreeLevel
@@ -140,7 +140,7 @@
         }}
       />
       <svelte:fragment slot="visible">
-        {#if (selected || forciblyСollapsed) && visibleItem !== undefined}
+        {#if (selected || forciblyCollapsed) && visibleItem !== undefined}
           {@const folder = visibleItem}
           <TreeItem
             _id={folder._id}
@@ -152,7 +152,7 @@
             empty
             actions={async () => await getFolderActions(folder)}
             shouldTooltip
-            forciblyСollapsed
+            forciblyCollapsed
           />
         {/if}
       </svelte:fragment>
