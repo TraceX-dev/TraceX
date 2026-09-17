@@ -15,7 +15,7 @@
 //
 
 import { ActivityMessage, ActivityMessageViewlet } from '@hcengineering/activity'
-import type { Class, Doc, Markup, Mixin, Ref, Space, Timestamp } from '@hcengineering/core'
+import type { AccountUuid, AttachedDoc, Class, Doc, Markup, Mixin, Ref, Space, Timestamp } from '@hcengineering/core'
 import { NotificationType } from '@hcengineering/notification'
 import type { Asset, Plugin, Resource } from '@hcengineering/platform'
 import { IntlString, plugin } from '@hcengineering/platform'
@@ -42,6 +42,50 @@ export interface ChunterSpace extends Space {
  */
 export interface Channel extends ChunterSpace {
   topic?: string
+}
+
+/**
+ * Lifecycle state of an object discussion.
+ *
+ * @public
+ */
+export enum ObjectDiscussionStatus {
+  Active = 'active',
+  Resolved = 'resolved'
+}
+
+/**
+ * Who can see an object discussion.
+ *
+ * @public
+ */
+export enum ObjectDiscussionVisibility {
+  Guests = 'guests',
+  Users = 'users',
+  Private = 'private'
+}
+
+/**
+ * A lightweight discussion thread attached to an arbitrary platform object
+ * (e.g. a Card). Unlike a Channel, this is not a Space: it stores no
+ * membership-based security of its own and lives in the same `space` as the
+ * object it is attached to.
+ *
+ * `visibility` is applied on the client only for now: the server does not
+ * restrict access beyond the security of the owning object.
+ *
+ * @public
+ */
+export interface ObjectDiscussion extends AttachedDoc {
+  name: string
+  status: ObjectDiscussionStatus
+  visibility: ObjectDiscussionVisibility
+  members: AccountUuid[]
+  archived: boolean
+  // An optional document of the owner (e.g. an attachment) the discussion is about.
+  linkedTo?: Ref<Doc>
+  linkedToClass?: Ref<Class<Doc>>
+  comments?: number
 }
 
 /**
@@ -133,7 +177,8 @@ export default plugin(chunterId, {
     ChatMessagePreview: '' as AnyComponent,
     ThreadMessagePreview: '' as AnyComponent,
     DirectIcon: '' as AnyComponent,
-    InlineCommentThread: '' as AnyComponent
+    InlineCommentThread: '' as AnyComponent,
+    ObjectDiscussionsSection: '' as AnyComponent
   },
   activity: {
     MembersChangedMessage: '' as AnyComponent
@@ -142,6 +187,7 @@ export default plugin(chunterId, {
     ThreadMessage: '' as Ref<Class<ThreadMessage>>,
     ChunterSpace: '' as Ref<Class<ChunterSpace>>,
     Channel: '' as Ref<Class<Channel>>,
+    ObjectDiscussion: '' as Ref<Class<ObjectDiscussion>>,
     DirectMessage: '' as Ref<Class<DirectMessage>>,
     ChatMessage: '' as Ref<Class<ChatMessage>>,
     ChatMessageViewlet: '' as Ref<Class<ChatMessageViewlet>>,
@@ -162,6 +208,28 @@ export default plugin(chunterId, {
     Message: '' as IntlString,
     MessageOn: '' as IntlString,
     UnarchiveConfirm: '' as IntlString,
+    DeleteDiscussion: '' as IntlString,
+    DeleteDiscussionConfirm: '' as IntlString,
+    NewDiscussion: '' as IntlString,
+    CreateDiscussion: '' as IntlString,
+    FirstMessage: '' as IntlString,
+    FirstMessagePlaceholder: '' as IntlString,
+    PrivateDiscussionDescription: '' as IntlString,
+    VisibleToUsersDescription: '' as IntlString,
+    VisibleToGuestsDescription: '' as IntlString,
+    UseWithCaution: '' as IntlString,
+    UsersOnly: '' as IntlString,
+    UsersAndGuests: '' as IntlString,
+    AttachTo: '' as IntlString,
+    AttachToDescription: '' as IntlString,
+    AttachedTo: '' as IntlString,
+    NotAttached: '' as IntlString,
+    PrivateDiscussionNote: '' as IntlString,
+    UsersDiscussionNote: '' as IntlString,
+    GuestsDiscussionNote: '' as IntlString,
+    MarkAsResolved: '' as IntlString,
+    ReopenDiscussion: '' as IntlString,
+    ParticipantsCount: '' as IntlString,
     ConvertToPrivate: '' as IntlString,
     DirectNotificationTitle: '' as IntlString,
     DirectNotificationBody: '' as IntlString,
@@ -171,6 +239,12 @@ export default plugin(chunterId, {
     Docs: '' as IntlString,
     Chat: '' as IntlString,
     Thread: '' as IntlString,
+    Discussion: '' as IntlString,
+    Discussions: '' as IntlString,
+    NoDiscussionsYet: '' as IntlString,
+    Active: '' as IntlString,
+    Resolved: '' as IntlString,
+    ViewAllDiscussions: '' as IntlString,
     ThreadMessage: '' as IntlString,
     ReplyToThread: '' as IntlString,
     Channels: '' as IntlString,
@@ -183,6 +257,10 @@ export default plugin(chunterId, {
     Visibility: '' as IntlString,
     Public: '' as IntlString,
     Private: '' as IntlString,
+    VisibleToUsers: '' as IntlString,
+    VisibleToGuests: '' as IntlString,
+    ChangeVisibility: '' as IntlString,
+    AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,
     CloseConversation: '' as IntlString,

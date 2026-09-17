@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,18 +15,21 @@
 //
 
 import {
+  ArrOf,
   Collection as PropCollection,
   Index,
   Mixin,
   Model,
   Prop,
+  TypeAccountUuid,
+  TypeBoolean,
   TypeMarkup,
   TypeRef,
   TypeString,
   UX,
   Hidden
 } from '@hcengineering/model'
-import core, { TClass, TDoc, TSpace } from '@hcengineering/model-core'
+import core, { TAttachedDoc, TClass, TDoc, TSpace } from '@hcengineering/model-core'
 import type {
   Channel,
   ChatMessage,
@@ -34,9 +38,13 @@ import type {
   ChunterSpace,
   DirectMessage,
   ObjectChatPanel,
+  ObjectDiscussion,
+  ObjectDiscussionStatus,
+  ObjectDiscussionVisibility,
   ThreadMessage
 } from '@hcengineering/chunter'
 import {
+  type AccountUuid,
   type Class,
   type Doc,
   type Domain,
@@ -78,6 +86,36 @@ export class TChannel extends TChunterSpace implements Channel {
   @Prop(TypeString(), chunter.string.Topic)
   @Index(IndexKind.FullText)
     topic?: string
+}
+
+@Model(chunter.class.ObjectDiscussion, core.class.AttachedDoc, DOMAIN_CHUNTER)
+@UX(chunter.string.Discussion, chunter.icon.Thread, undefined, undefined, undefined, chunter.string.Discussions)
+export class TObjectDiscussion extends TAttachedDoc implements ObjectDiscussion {
+  @Prop(TypeString(), chunter.string.Topic)
+  @Index(IndexKind.FullText)
+    name!: string
+
+  @Prop(TypeString(), core.string.Status)
+    status!: ObjectDiscussionStatus
+
+  @Prop(TypeString(), chunter.string.Visibility)
+    visibility!: ObjectDiscussionVisibility
+
+  @Prop(ArrOf(TypeAccountUuid()), core.string.Members)
+    members!: AccountUuid[]
+
+  @Prop(TypeBoolean(), core.string.Archived)
+    archived!: boolean
+
+  @Prop(TypeRef(core.class.Doc), core.string.Object)
+  @Index(IndexKind.Indexed)
+    linkedTo?: Ref<Doc>
+
+  @Prop(TypeRef(core.class.Class), core.string.Class)
+    linkedToClass?: Ref<Class<Doc>>
+
+  @Prop(PropCollection(chunter.class.ChatMessage), chunter.string.Comments)
+    comments?: number
 }
 
 @Model(chunter.class.DirectMessage, chunter.class.ChunterSpace)

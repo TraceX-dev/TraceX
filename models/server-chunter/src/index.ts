@@ -78,6 +78,13 @@ export function createModel (builder: Builder): void {
   })
 
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverChunter.trigger.OnObjectRemoved,
+    txMatch: {
+      _class: core.class.TxRemoveDoc
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverChunter.trigger.OnUserStatus,
     txMatch: {
       objectClass: core.class.UserStatus

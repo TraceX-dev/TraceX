@@ -22,7 +22,15 @@ import activity, {
 } from '@hcengineering/activity'
 import aiBot from '@hcengineering/ai-bot'
 import { summarizeMessages as aiSummarizeMessages, translate as aiTranslate } from '@hcengineering/ai-bot-resources'
-import { type Channel, type ChatMessage, type DirectMessage, type ThreadMessage } from '@hcengineering/chunter'
+import {
+  type Channel,
+  type ChatMessage,
+  type DirectMessage,
+  type ObjectDiscussion,
+  type ObjectDiscussionStatus,
+  ObjectDiscussionVisibility,
+  type ThreadMessage
+} from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
 import { employeeByAccountStore, employeeByIdStore, PersonIcon } from '@hcengineering/contact-resources'
 import core, {
@@ -47,8 +55,8 @@ import {
   isReactionNotification
 } from '@hcengineering/notification-resources'
 import { type Asset, getMetadata, translate } from '@hcengineering/platform'
-import { getClient } from '@hcengineering/presentation'
-import { type AnySvelteComponent, languageStore } from '@hcengineering/ui'
+import { MessageBox, getClient } from '@hcengineering/presentation'
+import { type AnySvelteComponent, languageStore, showPopup } from '@hcengineering/ui'
 import { classIcon, getDocLinkTitle, getDocTitle } from '@hcengineering/view-resources'
 import type { ApplicationNotificationState } from '@hcengineering/workbench'
 import { derived, get, type Readable, type Unsubscriber, writable } from 'svelte/store'
@@ -130,6 +138,59 @@ export async function canDeleteMessage (doc?: ChatMessage): Promise<boolean> {
   }
 
   return doc.createdBy !== undefined && me.socialIds.includes(doc.createdBy)
+}
+
+export function isObjectDiscussionParticipant (discussion: ObjectDiscussion): boolean {
+  const me = getCurrentAccount()
+  if (discussion.members.includes(me.uuid)) {
+    return true
+  }
+  return discussion.createdBy !== undefined && me.socialIds.includes(discussion.createdBy)
+}
+
+// Visibility is only a client-side filter for now; the server applies the owner object's security only.
+export function canSeeObjectDiscussion (discussion: ObjectDiscussion): boolean {
+  const me = getCurrentAccount()
+  if (hasAccountRole(me, AccountRole.Maintainer)) return true
+  switch (discussion.visibility) {
+    case ObjectDiscussionVisibility.Private:
+      return isObjectDiscussionParticipant(discussion)
+    case ObjectDiscussionVisibility.Users:
+      return hasAccountRole(me, AccountRole.User)
+    default:
+      return true
+  }
+}
+
+export function canManageObjectDiscussion (discussion: ObjectDiscussion): boolean {
+  return hasAccountRole(getCurrentAccount(), AccountRole.Maintainer) || isObjectDiscussionParticipant(discussion)
+}
+
+export async function setObjectDiscussionVisibility (
+  discussion: ObjectDiscussion,
+  visibility: ObjectDiscussionVisibility
+): Promise<void> {
+  if (discussion.visibility === visibility) return
+  await getClient().update(discussion, { visibility })
+}
+
+export async function setObjectDiscussionStatus (
+  discussion: ObjectDiscussion,
+  status: ObjectDiscussionStatus
+): Promise<void> {
+  if (discussion.status === status) return
+  await getClient().update(discussion, { status })
+}
+
+export async function deleteObjectDiscussion (discussion: ObjectDiscussion): Promise<void> {
+  showPopup(MessageBox, {
+    label: chunter.string.DeleteDiscussion,
+    message: chunter.string.DeleteDiscussionConfirm,
+    action: async () => {
+      const client = getClient()
+      await client.remove(discussion)
+    }
+  })
 }
 
 export function canReplyToThread (doc?: ActivityMessage): boolean {

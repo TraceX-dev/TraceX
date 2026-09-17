@@ -1240,6 +1240,19 @@ function defineTabs (builder: Builder): void {
     card.class.CardSection,
     core.space.Model,
     {
+      label: chunter.string.Discussions,
+      component: chunter.component.ObjectDiscussionsSection,
+      order: 350,
+      navigation: [],
+      hideInCompactMode: true
+    },
+    card.section.Threads
+  )
+
+  builder.createDoc(
+    card.class.CardSection,
+    core.space.Model,
+    {
       label: core.string.Relations,
       component: card.sectionComponent.RelationsSection,
       order: 500,
