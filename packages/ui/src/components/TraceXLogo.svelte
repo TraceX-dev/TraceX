@@ -15,8 +15,8 @@
 <script lang="ts">
   import { themeStore } from '@hcengineering/theme'
 
-  import logoWhite from '../../img/tracex-logo-white.png'
-  import logoBlack from '../../img/tracex-logo-black.png'
+  const logoWhite = new URL('../../img/tracex-logo-white.png', import.meta.url).href
+  const logoBlack = new URL('../../img/tracex-logo-black.png', import.meta.url).href
 
   export let height: string = '2rem'
 
