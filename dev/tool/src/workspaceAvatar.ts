@@ -95,26 +95,28 @@ export async function backfillWorkspaceAvatars (
             return
           }
 
+          const workspaceIds: WorkspaceIds = {
+            uuid: workspace.uuid,
+            url: workspace.url,
+            dataId: workspace.dataId
+          }
+          // Read-only checks run in --dry-run too, so its report matches a real run.
+          if (opts.force !== true && (await storageAdapter.stat(ctx, workspaceIds, workspaceLogoId)) !== undefined) {
+            // The key is taken by another blob; overwrite only with --force.
+            ctx.warn('  logo key already taken, skipping', { workspace: workspace.uuid, name: workspace.name })
+            skipped++
+            return
+          }
+          const blobInfo = await storageAdapter.stat(ctx, workspaceIds, icon)
+          if (blobInfo === undefined) {
+            ctx.warn('  icon blob is missing in storage', { workspace: workspace.uuid, icon })
+            blobMissing++
+            return
+          }
+
           ctx.info('  setting avatar', { workspace: workspace.uuid, name: workspace.name, icon })
 
           if (opts.dryRun !== true) {
-            const workspaceIds: WorkspaceIds = {
-              uuid: workspace.uuid,
-              url: workspace.url,
-              dataId: workspace.dataId
-            }
-            if (opts.force !== true && (await storageAdapter.stat(ctx, workspaceIds, workspaceLogoId)) !== undefined) {
-              // The key is taken by another blob; overwrite only with --force.
-              ctx.warn('  logo key already taken, skipping', { workspace: workspace.uuid, name: workspace.name })
-              skipped++
-              return
-            }
-            const blobInfo = await storageAdapter.stat(ctx, workspaceIds, icon)
-            if (blobInfo === undefined) {
-              ctx.warn('  icon blob is missing in storage', { workspace: workspace.uuid, icon })
-              blobMissing++
-              return
-            }
             const data = await storageAdapter.get(ctx, workspaceIds, icon)
             await storageAdapter.put(ctx, workspaceIds, workspaceLogoId, data, blobInfo.contentType, blobInfo.size)
 

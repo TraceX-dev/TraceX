@@ -13,8 +13,21 @@
 // limitations under the License.
 -->
 <script lang="ts" context="module">
-  // Logos that answered 404, so reopening the switcher doesn't refetch them until reload.
-  const failedUrls = new Set<string>()
+  // Logos confirmed missing (404), so reopening the switcher doesn't refetch them until reload.
+  const missingUrls = new Set<string>()
+
+  // <img> errors carry no status, so ask the server whether the logo is really missing
+  // rather than remembering transient failures for the whole session.
+  async function rememberIfMissing (url: string): Promise<void> {
+    try {
+      const res = await fetch(url, { method: 'HEAD' })
+      if (res.status === 404) {
+        missingUrls.add(url)
+      }
+    } catch {
+      // Network error: transient, don't remember.
+    }
+  }
 </script>
 
 <script lang="ts">
@@ -37,7 +50,7 @@
   let failedUrl: string | null | undefined
 
   $: imageUrl =
-    avatarUrl != null && avatarUrl !== '' && avatarUrl !== failedUrl && !failedUrls.has(avatarUrl)
+    avatarUrl != null && avatarUrl !== '' && avatarUrl !== failedUrl && !missingUrls.has(avatarUrl)
       ? avatarUrl
       : undefined
 </script>
@@ -49,8 +62,8 @@
       src={imageUrl}
       alt={displayName}
       on:error={() => {
-        failedUrls.add(imageUrl)
         failedUrl = imageUrl
+        if (imageUrl !== undefined) void rememberIfMissing(imageUrl)
       }}
     />
   {:else}

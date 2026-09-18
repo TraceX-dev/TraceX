@@ -21,10 +21,12 @@
   import presentation, {
     createQuery,
     decodeTokenPayload,
+    getFileUrl,
     getWorkspaceAvatarUrl,
     hasResource,
     isAdminUser,
-    withBlobVersion
+    withBlobVersion,
+    workspaceLogoBlobId
   } from '@hcengineering/presentation'
   import setting, { type WorkspaceSetting } from '@hcengineering/setting'
   import {
@@ -97,8 +99,11 @@
     _setting: WorkspaceSetting | undefined
   ): string | undefined {
     if (!isCurrentWs) return getWorkspaceAvatarUrl(ws.uuid)
-    if (currentWsSetting?.icon == null) return undefined
-    return withBlobVersion(getWorkspaceAvatarUrl(ws.uuid), currentWsSetting.modifiedOn)
+    const icon = currentWsSetting?.icon
+    if (icon == null) return undefined
+    // A legacy icon (not yet backfilled to `logo`) is only reachable by its own blob id.
+    const url = icon === workspaceLogoBlobId ? getWorkspaceAvatarUrl(ws.uuid) : getFileUrl(icon)
+    return withBlobVersion(url, currentWsSetting?.modifiedOn)
   }
 
   // Only show the "there's more below" fade when the list is actually
