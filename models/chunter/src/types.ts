@@ -22,6 +22,7 @@ import {
   Model,
   Prop,
   TypeAccountUuid,
+  TypeBoolean,
   TypeMarkup,
   TypeRef,
   TypeString,
@@ -38,7 +39,6 @@ import type {
   DirectMessage,
   ObjectChatPanel,
   ObjectDiscussion,
-  ObjectDiscussionStatus,
   ThreadMessage
 } from '@hcengineering/chunter'
 import {
@@ -93,8 +93,10 @@ export class TObjectDiscussion extends TAttachedDoc implements ObjectDiscussion 
   @Index(IndexKind.FullText)
     name!: string
 
-  @Prop(TypeString(), core.string.Status)
-    status!: ObjectDiscussionStatus
+  // Changed only through the resolve/reopen actions.
+  @Prop(TypeBoolean(), chunter.string.Resolved)
+  @Hidden()
+    resolved!: boolean
 
   @Prop(ArrOf(TypeAccountUuid()), core.string.Members)
     members!: AccountUuid[]

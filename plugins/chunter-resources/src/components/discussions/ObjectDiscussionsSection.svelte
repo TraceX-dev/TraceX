@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import attachment, { type Attachment } from '@hcengineering/attachment'
-  import { type ObjectDiscussion, ObjectDiscussionStatus } from '@hcengineering/chunter'
+  import { type ObjectDiscussion } from '@hcengineering/chunter'
   import { type Doc, type Ref, SortingOrder } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
   import ui, { ButtonIcon, IconAdd, Label, Section, showPopup } from '@hcengineering/ui'
@@ -66,10 +66,8 @@
   $: visibleDiscussions = expanded ? discussions : discussions.slice(0, COLLAPSED_LIMIT)
 
   function compareDiscussions (left: ObjectDiscussion, right: ObjectDiscussion): number {
-    const leftResolved = left.status === ObjectDiscussionStatus.Resolved
-    const rightResolved = right.status === ObjectDiscussionStatus.Resolved
-    if (leftResolved !== rightResolved) {
-      return leftResolved ? 1 : -1
+    if (left.resolved !== right.resolved) {
+      return left.resolved ? 1 : -1
     }
     return (right.modifiedOn ?? 0) - (left.modifiedOn ?? 0)
   }

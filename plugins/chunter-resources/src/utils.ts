@@ -27,7 +27,6 @@ import {
   type ChatMessage,
   type DirectMessage,
   type ObjectDiscussion,
-  type ObjectDiscussionStatus,
   type ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
@@ -160,12 +159,9 @@ export async function joinObjectDiscussion (discussion: ObjectDiscussion): Promi
   await getClient().update(discussion, { $push: { members: me } })
 }
 
-export async function setObjectDiscussionStatus (
-  discussion: ObjectDiscussion,
-  status: ObjectDiscussionStatus
-): Promise<void> {
-  if (discussion.status === status) return
-  await getClient().update(discussion, { status })
+export async function setObjectDiscussionResolved (discussion: ObjectDiscussion, resolved: boolean): Promise<void> {
+  if (discussion.resolved === resolved) return
+  await getClient().update(discussion, { resolved })
 }
 
 export async function deleteObjectDiscussion (discussion: ObjectDiscussion): Promise<void> {
@@ -234,6 +230,26 @@ export async function DirectTitleProvider (
   }
 
   return await getDmName(client, direct)
+}
+
+export async function objectDiscussionTitleProvider (
+  client: Client,
+  id: Ref<ObjectDiscussion>,
+  doc?: ObjectDiscussion
+): Promise<string> {
+  const discussion = doc ?? (await client.findOne(chunter.class.ObjectDiscussion, { _id: id }))
+  return discussion?.name ?? ''
+}
+
+// The owner object title, so a discussion can be told apart outside its owner (e.g. in the inbox).
+export async function objectDiscussionIdentifierProvider (
+  client: Client,
+  id: Ref<ObjectDiscussion>,
+  doc?: ObjectDiscussion
+): Promise<string> {
+  const discussion = doc ?? (await client.findOne(chunter.class.ObjectDiscussion, { _id: id }))
+  if (discussion === undefined || !client.getHierarchy().hasClass(discussion.attachedToClass)) return ''
+  return (await getDocTitle(client, discussion.attachedTo, discussion.attachedToClass)) ?? ''
 }
 
 export async function ChannelTitleProvider (client: Client, id: Ref<Channel>, doc?: Channel): Promise<string> {

@@ -45,16 +45,6 @@ export interface Channel extends ChunterSpace {
 }
 
 /**
- * Lifecycle state of an object discussion.
- *
- * @public
- */
-export enum ObjectDiscussionStatus {
-  Active = 'active',
-  Resolved = 'resolved'
-}
-
-/**
  * A discussion thread attached to an arbitrary platform object
  * (e.g. a Card). Unlike a Channel, this is not a Space.
  *
@@ -62,7 +52,8 @@ export enum ObjectDiscussionStatus {
  */
 export interface ObjectDiscussion extends AttachedDoc {
   name: string
-  status: ObjectDiscussionStatus
+  // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
+  resolved: boolean
   members: AccountUuid[]
   // An optional document of the owner (e.g. an attachment) the discussion is about.
   linkedTo?: Ref<Doc>
@@ -161,7 +152,8 @@ export default plugin(chunterId, {
     DirectIcon: '' as AnyComponent,
     InlineCommentThread: '' as AnyComponent,
     ObjectDiscussionsSection: '' as AnyComponent,
-    ObjectDiscussionAside: '' as AnyComponent
+    ObjectDiscussionAside: '' as AnyComponent,
+    ObjectDiscussionPanel: '' as AnyComponent
   },
   activity: {
     MembersChangedMessage: '' as AnyComponent
@@ -217,7 +209,6 @@ export default plugin(chunterId, {
     Discussion: '' as IntlString,
     Discussions: '' as IntlString,
     NoDiscussionsYet: '' as IntlString,
-    Active: '' as IntlString,
     Resolved: '' as IntlString,
     ViewAllDiscussions: '' as IntlString,
     ThreadMessage: '' as IntlString,

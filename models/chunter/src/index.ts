@@ -195,6 +195,15 @@ export function createModel (builder: Builder): void {
     provider: chunter.function.DmIdentifierProvider
   })
 
+  // Inbox shows the owner object as the context label and the discussion name as its title.
+  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, view.mixin.ObjectTitle, {
+    titleProvider: chunter.function.ObjectDiscussionTitleProvider
+  })
+
+  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, view.mixin.ObjectIdentifier, {
+    provider: chunter.function.ObjectDiscussionIdentifierProvider
+  })
+
   builder.mixin(chunter.class.ChatMessage, core.class.Class, view.mixin.CollectionPresenter, {
     presenter: chunter.component.ChatMessagesPresenter
   })
@@ -346,6 +355,11 @@ export function createModel (builder: Builder): void {
   builder.createDoc(activity.class.ActivityExtension, core.space.Model, {
     ofClass: chunter.class.DirectMessage,
     components: { input: { component: chunter.component.ChatMessageInput } }
+  })
+
+  // Discussions open inside their owner panel (inbox, links) instead of the generic EditDoc.
+  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, view.mixin.ObjectPanel, {
+    component: chunter.component.ObjectDiscussionPanel
   })
 
   builder.createDoc(activity.class.ActivityExtension, core.space.Model, {

@@ -134,7 +134,6 @@
     "ResolveThread": "Пометить завершенным",
     "NoThreadsYet": "Пока нет обсуждений.",
     "SummarizeMessages": "Подвести итоги обсуждения",
-    "Active": "Активно",
     "Resolved": "Завершено",
     "ViewAllDiscussions": "Все обсуждения ({count})",
     "AddAllCollaborators": "Добавить всех участников карточки ({count})",

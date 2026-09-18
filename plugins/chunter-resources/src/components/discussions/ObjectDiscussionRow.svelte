@@ -15,12 +15,16 @@
 -->
 <script lang="ts">
   import attachment, { type Attachment } from '@hcengineering/attachment'
-  import { type ChatMessage, type ObjectDiscussion, ObjectDiscussionStatus } from '@hcengineering/chunter'
+  import { type ChatMessage, type ObjectDiscussion } from '@hcengineering/chunter'
   import contact, { type Employee, getName } from '@hcengineering/contact'
   import { CombineAvatars, employeeRefByAccountUuidStore, getPersonByPersonId } from '@hcengineering/contact-resources'
   import { notEmpty, type Ref, SortingOrder } from '@hcengineering/core'
   import { type InboxNotification } from '@hcengineering/notification'
-  import { getNotificationsCount, InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
+  import {
+    getNotificationsCount,
+    InboxNotificationsClientImpl,
+    NotifyMarker
+  } from '@hcengineering/notification-resources'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { markupToText } from '@hcengineering/text'
   import { Icon, IconCheckCircle, Label, TimeSince } from '@hcengineering/ui'
@@ -43,7 +47,7 @@
   let lastMessageText = ''
   let unreadCount = 0
 
-  $: resolved = discussion.status === ObjectDiscussionStatus.Resolved
+  $: resolved = discussion.resolved
   $: memberRefs = discussion.members
     .map((account) => $employeeRefByAccountUuidStore.get(account) as Ref<Employee> | undefined)
     .filter(notEmpty)
@@ -108,8 +112,10 @@
   <div class="state">
     {#if resolved}
       <span class="resolved-icon"><Icon icon={IconCheckCircle} size="small" /></span>
+    {:else if hasUnread}
+      <NotifyMarker kind="simple" size="xx-small" />
     {:else}
-      <span class="dot" class:active={hasUnread} />
+      <span class="dot" />
     {/if}
   </div>
 
@@ -144,7 +150,7 @@
   <div class="meta">
     <span class="time"><TimeSince value={lastMessage?.createdOn ?? discussion.modifiedOn} /></span>
     {#if unreadCount > 0 && !resolved}
-      <span class="counter">{unreadCount}</span>
+      <NotifyMarker count={unreadCount} size="medium" />
     {/if}
   </div>
 </div>
@@ -152,7 +158,8 @@
 <style lang="scss">
   .discussion-row {
     display: flex;
-    align-items: flex-start;
+    // Avatars and time are centered against the two-line content; the state marker stays on the title line.
+    align-items: center;
     gap: 0.625rem;
     padding: 0.5rem 0.875rem;
     border-bottom: 1px solid var(--theme-divider-color);
@@ -185,6 +192,7 @@
 
   .state {
     display: flex;
+    align-self: flex-start;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
@@ -197,10 +205,6 @@
     height: 0.5rem;
     border-radius: 50%;
     background: var(--global-ui-BorderColor);
-
-    &.active {
-      background: var(--global-accent-BackgroundColor);
-    }
   }
 
   .resolved-icon {
@@ -251,7 +255,6 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    height: 1.25rem;
   }
 
   .meta {
@@ -268,18 +271,5 @@
     font-size: 0.75rem;
     line-height: 1.25rem;
     white-space: nowrap;
-  }
-
-  .counter {
-    min-width: 1.125rem;
-    height: 1.125rem;
-    padding: 0 0.3125rem;
-    border-radius: 0.5625rem;
-    background: var(--global-accent-BackgroundColor);
-    color: var(--global-on-accent-TextColor);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    line-height: 1.125rem;
-    text-align: center;
   }
 </style>

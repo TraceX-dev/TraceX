@@ -15,7 +15,6 @@
 -->
 <script lang="ts">
   import attachment, { type Attachment } from '@hcengineering/attachment'
-  import { ObjectDiscussionStatus } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import core, { type AccountUuid, type Doc, getCurrentAccount, type Markup } from '@hcengineering/core'
   import { getEmbeddedLabel } from '@hcengineering/platform'
@@ -87,7 +86,7 @@
       'discussions',
       {
         name: name.trim(),
-        status: ObjectDiscussionStatus.Active,
+        resolved: false,
         members: members.includes(me) ? members : [me, ...members],
         linkedTo: linkedTo?._id,
         linkedToClass: linkedTo?._class

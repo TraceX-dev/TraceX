@@ -58,6 +58,7 @@
   export let embedded: boolean = false
   export let allowClose: boolean = true
   export let compactMode: boolean = false
+  export let initialAside: CardAsideAction | undefined = undefined
 
   const DROPDOWN_POINT = 1024
   const NO_PARENTS_POINT = 800
@@ -73,6 +74,7 @@
 
   let panel: Panel | undefined
   let aside: CardAsideAction | undefined
+  let asidePending = false
 
   $: if (prevId !== _id) {
     prevId = _id
@@ -80,14 +82,30 @@
     aside = undefined
   }
 
+  $: if (initialAside !== undefined) void handleAside(initialAside)
+
   async function handleAside (action: CardAsideAction): Promise<void> {
     if (action.component === undefined) {
       aside = undefined
       return
     }
     aside = action
+    if (panel === undefined) {
+      // The panel is not rendered yet (the card is still loading): open the aside once it is mounted.
+      asidePending = true
+      return
+    }
     await tick()
-    panel?.setAside(true)
+    panel.setAside(true)
+  }
+
+  // A narrow panel hides its aside on the first layout pass, so reopen it right after that.
+  function handlePanelOpen (): void {
+    if (!asidePending) return
+    asidePending = false
+    setTimeout(() => {
+      if (aside !== undefined) panel?.setAside(true)
+    })
   }
 
   $: query.query(card.class.Card, { _id }, async (result) => {
@@ -205,6 +223,7 @@
     overflowExtra
     on:resize={updateTitleGroup}
     on:open
+    on:open={handlePanelOpen}
     on:close
   >
     <div class="main-content clear-mins">

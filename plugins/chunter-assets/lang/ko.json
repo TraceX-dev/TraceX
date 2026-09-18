@@ -134,7 +134,6 @@
         "ResolveThread": "해결",
         "NoThreadsYet": "아직 스레드가 없습니다.",
         "SummarizeMessages": "내용 요약",
-        "Active": "활성",
         "Resolved": "해결됨",
         "ViewAllDiscussions": "모든 토론 보기 ({count})",
     "DeleteDiscussion": "토론 삭제",
