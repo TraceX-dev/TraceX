@@ -15,8 +15,10 @@
 <script lang="ts">
   import { themeStore } from '@hcengineering/theme'
 
-  const logoWhite = new URL('../../img/tracex-logo-white.png', import.meta.url).href
-  const logoBlack = new URL('../../img/tracex-logo-black.png', import.meta.url).href
+  // @ts-ignore -- Webpack's file-loader provides the image module at runtime.
+  import logoWhite from '../../img/tracex-logo-white.png'
+  // @ts-ignore -- Webpack's file-loader provides the image module at runtime.
+  import logoBlack from '../../img/tracex-logo-black.png'
 
   export let height: string = '2rem'
 
