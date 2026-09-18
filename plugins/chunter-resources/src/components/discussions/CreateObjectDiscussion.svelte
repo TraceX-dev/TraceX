@@ -29,6 +29,8 @@
     Modal,
     ModernEditbox,
     ModernPopup,
+    RadioCardGroup,
+    type RadioCardItem,
     eventToHTMLElement,
     showPopup
   } from '@hcengineering/ui'
@@ -62,32 +64,35 @@
     attachments = result
   })
 
-  const visibilityOptions = [
+  const visibilityOptions: RadioCardItem[] = [
     {
       id: ObjectDiscussionVisibility.Guests,
       icon: view.icon.Eye,
       label: chunter.string.VisibleToGuests,
       description: chunter.string.VisibleToGuestsDescription,
-      caution: true
+      badge: chunter.string.UseWithCaution,
+      badgeKind: 'warning'
     },
     {
       id: ObjectDiscussionVisibility.Users,
       icon: view.icon.Eye,
       label: chunter.string.VisibleToUsers,
-      description: chunter.string.VisibleToUsersDescription,
-      caution: false
+      description: chunter.string.VisibleToUsersDescription
     },
     {
       id: ObjectDiscussionVisibility.Private,
       icon: Lock,
       label: chunter.string.Private,
-      description: chunter.string.PrivateDiscussionDescription,
-      caution: false
+      description: chunter.string.PrivateDiscussionDescription
     }
   ]
 
   $: missingCollaborators = collaborators.filter((account) => !members.includes(account))
   $: canSave = name.trim().length > 0
+
+  function setVisibility (value: string): void {
+    visibility = value as ObjectDiscussionVisibility
+  }
 
   function addAllCollaborators (): void {
     members = [...members, ...missingCollaborators]
@@ -173,30 +178,13 @@
 
     <div class="field">
       <span class="field-label"><Label label={chunter.string.Visibility} /></span>
-      <div class="options" role="radiogroup">
-        {#each visibilityOptions as option (option.id)}
-          <button
-            class="option"
-            class:selected={visibility === option.id}
-            type="button"
-            role="radio"
-            aria-checked={visibility === option.id}
-            on:click={() => (visibility = option.id)}
-          >
-            <span class="radio" />
-            <Icon icon={option.icon} size="small" />
-            <span class="option-text">
-              <span class="option-title">
-                <Label label={option.label} />
-                {#if option.caution}
-                  <span class="badge caution"><Label label={chunter.string.UseWithCaution} /></span>
-                {/if}
-              </span>
-              <span class="option-description"><Label label={option.description} /></span>
-            </span>
-          </button>
-        {/each}
-      </div>
+      <RadioCardGroup
+        items={visibilityOptions}
+        selected={visibility}
+        on:change={(event) => {
+          setVisibility(event.detail)
+        }}
+      />
     </div>
 
     {#if attachments.length > 0}
@@ -254,20 +242,19 @@
     text-transform: uppercase;
   }
 
-  .select,
-  .message-box {
-    border: 1px solid var(--global-ui-BorderColor);
-    border-radius: var(--medium-BorderRadius);
-  }
-
   .link,
-  .option,
   .select {
     border: 0;
     background: transparent;
     font: inherit;
     color: inherit;
     cursor: pointer;
+  }
+
+  .select,
+  .message-box {
+    border: 1px solid var(--global-ui-BorderColor);
+    border-radius: var(--medium-BorderRadius);
   }
 
   .link {
@@ -280,80 +267,9 @@
     font-weight: 600;
   }
 
-  .options {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .option {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.625rem;
-    width: 100%;
-    padding: 0.625rem 0.75rem;
-    border: 1px solid var(--global-ui-BorderColor);
-    border-radius: var(--medium-BorderRadius);
-    text-align: left;
-    color: var(--global-secondary-TextColor);
-
-    &.selected {
-      border-color: var(--global-accent-BackgroundColor);
-      background: var(--global-ui-highlight-BackgroundColor);
-      color: var(--global-accent-TextColor);
-
-      .radio {
-        border: 0.3125rem solid var(--global-accent-BackgroundColor);
-      }
-    }
-  }
-
-  .radio {
-    flex-shrink: 0;
-    width: 1rem;
-    height: 1rem;
-    border: 1px solid var(--global-ui-BorderColor);
-    border-radius: 50%;
-  }
-
-  .option-text {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    flex: 1;
-    gap: 0.125rem;
-    min-width: 0;
-    text-align: left;
-  }
-
-  .option-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--global-primary-TextColor);
-    font-size: 0.8125rem;
-    font-weight: 600;
-  }
-
-  .option-description,
   .hint {
     color: var(--global-tertiary-TextColor);
     font-size: 0.75rem;
-  }
-
-  .badge {
-    padding: 0.125rem 0.375rem;
-    border-radius: 1rem;
-    background: var(--global-ui-highlight-BackgroundColor);
-    color: var(--global-accent-TextColor);
-    font-size: 0.625rem;
-    font-weight: 700;
-    text-transform: uppercase;
-
-    &.caution {
-      color: var(--theme-warning-color);
-    }
   }
 
   .select {

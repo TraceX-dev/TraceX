@@ -157,6 +157,17 @@ export interface RadioItem {
   action?: (() => void) | (() => Promise<void>)
 }
 
+export interface RadioCardItem<T = string> {
+  id: T
+  label: IntlString
+  description?: IntlString
+  icon?: Asset | AnySvelteComponent
+  // Short marker next to the label, e.g. to highlight a risky option.
+  badge?: IntlString
+  badgeKind?: 'accent' | 'warning'
+  disabled?: boolean
+}
+
 export type ButtonBaseType = 'type-button' | 'type-button-icon'
 
 export type ButtonBaseKind = 'primary' | 'secondary' | 'tertiary' | 'negative' | 'ghost'
