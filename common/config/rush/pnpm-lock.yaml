@@ -686,11 +686,11 @@ importers:
         specifier: ^4.28.2
         version: 4.28.9
       compression-webpack-plugin:
-        specifier: ^10.0.0
-        version: 10.0.0(webpack@5.111.0)
+        specifier: ^12.0.0
+        version: 12.0.0(webpack@5.111.0)
       copy-webpack-plugin:
-        specifier: ^11.0.0
-        version: 11.0.0(webpack@5.111.0)
+        specifier: ^14.0.0
+        version: 14.0.0(webpack@5.111.0)
       cross-env:
         specifier: ~7.0.3
         version: 7.0.3
@@ -1827,8 +1827,8 @@ importers:
         specifier: ^4.28.2
         version: 4.28.9
       compression-webpack-plugin:
-        specifier: ^10.0.0
-        version: 10.0.0(webpack@5.111.0)
+        specifier: ^12.0.0
+        version: 12.0.0(webpack@5.111.0)
       cross-env:
         specifier: ~7.0.3
         version: 7.0.3
@@ -30228,7 +30228,7 @@ importers:
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/token
       cheerio:
-        specifier: ^1.1.2
+        specifier: ^1.2.0
         version: 1.2.0
       cors:
         specifier: ^2.8.6
@@ -46277,9 +46277,9 @@ packages:
     resolution: {integrity: sha512-AF3r7P5dWxL8MxyITRMlORQNaOA2IkAFaTr4k7BUumjPtRpGDTZpl0Pb1XCO6JeDCBdp126Cgs9sMxqSjgYyRg==}
     engines: {node: '>= 0.6'}
 
-  compression-webpack-plugin@10.0.0:
-    resolution: {integrity: sha512-wLXLIBwpul/ALcm7Aj+69X0pYT3BYt6DdPn3qrgBIh9YejV9Bju9ShhlAsjujLyWMo6SAweFIWaUoFmXZNuNrg==}
-    engines: {node: '>= 14.15.0'}
+  compression-webpack-plugin@12.0.0:
+    resolution: {integrity: sha512-LR4mS19Jqq41XfA3xVMLrtzVNzqJbUHdzPeLRfQoLiAS9s87f0021fDuU89xxVQFcB6d20ufBkv4j1rQ4OowHw==}
+    engines: {node: '>= 20.9.0'}
     peerDependencies:
       webpack: ^5.1.0
 
@@ -46346,9 +46346,9 @@ packages:
   copy-to@2.0.1:
     resolution: {integrity: sha512-3DdaFaU/Zf1AnpLiFDeNCD4TOWe3Zl2RZaTzUvWiIk5ERzcCodOE20Vqq4fzCbNoHURFHT4/us/Lfq+S2zyY4w==}
 
-  copy-webpack-plugin@11.0.0:
-    resolution: {integrity: sha512-fX2MWpamkW0hZxMEg0+mYnA40LTosOSa5TqZ9GYIBzyJa9C3QUaMPSE2xAi/buNr8u89SfD9wHSQVBzrRa/SOQ==}
-    engines: {node: '>= 14.15.0'}
+  copy-webpack-plugin@14.0.0:
+    resolution: {integrity: sha512-3JLW90aBGeaTLpM7mYQKpnVdgsUZRExY55giiZgLuX/xTQRUs1dOCwbBnWnvY6Q6rfZoXMNwzOQJCSZPppfqXA==}
+    engines: {node: '>= 20.9.0'}
     peerDependencies:
       webpack: ^5.1.0
 
@@ -47884,10 +47884,6 @@ packages:
   globby@11.1.0:
     resolution: {integrity: sha512-jhIXaOzy1sb8IyocaruWSn1TjmnBVs8Ayhcy83rmxNJ8q2uWKCAj3CnJY+KpGSXCueAPc0i05kVvVKtP1t9S3g==}
     engines: {node: '>=10'}
-
-  globby@13.2.2:
-    resolution: {integrity: sha512-Y1zNGV+pzQdh7H39l9zgB4PJqjRNqydvdYCDG4HFXM4XuvSaQQlEc91IU1yALL8gUTDomgBAfz3XJdmUS+oo0w==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   globrex@0.1.2:
     resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
@@ -50362,9 +50358,6 @@ packages:
     resolution: {integrity: sha512-iv7LhNVO047HzYR3InF6pUcUsPQiHTM1Qal51DcGSuZFBil1aBBWG5eHPNek7bvILMaYJ/8RU1e8w1AMdHmLQQ==}
     engines: {node: '>= 0.8'}
 
-  randombytes@2.1.0:
-    resolution: {integrity: sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==}
-
   range-parser@1.2.1:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
@@ -50738,8 +50731,9 @@ packages:
     resolution: {integrity: sha512-8I8TjW5KMOKsZQTvoxjuSIa7foAwPWGOts+6o7sgjz41/qMD9VQHEDxi6PBvK2l0MXUmqZyNpUK+T2tQaaElvw==}
     engines: {node: '>=10'}
 
-  serialize-javascript@6.0.2:
-    resolution: {integrity: sha512-Saa1xPByTTq2gdeFZYLLo+RFE35NHZkAbqZeWNd3BpzppeVisAqpDjcp8dyf6uIvEqJRd46jemmyA4iFIeVk8g==}
+  serialize-javascript@7.1.1:
+    resolution: {integrity: sha512-k3CMsaIvvdSwm8oLB4MXSl0wH2/cwlH7xGcnRd2DaeRmBkbzYmyT8j0tsX60DwD1eRwHTpNpH8ljKu9oUT1MeQ==}
+    engines: {node: '>=20.0.0'}
 
   serve-index@1.9.2:
     resolution: {integrity: sha512-KDj11HScOaLmrPxl70KYNW1PksP4Nb/CLL2yvC+Qd2kHMPEEpfc4Re2e4FOay+bC/+XQl/7zAcWON3JVo5v3KQ==}
@@ -50844,10 +50838,6 @@ packages:
   slash@3.0.0:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
-
-  slash@4.0.0:
-    resolution: {integrity: sha512-3dOsAHXXUkQTpOYcoAxLIorMTp4gIQr5IW3iVb7A7lFIp0VHhnynm9izx6TssdrIcVIESAlVjtnO2K8bg+Coew==}
-    engines: {node: '>=12'}
 
   slice-ansi@5.0.0:
     resolution: {integrity: sha512-FC+lgizVPfie0kkhqUScwRu1O/lF6NOgJmlCgK+/LYxDCTk8sGelYaHDhFcDN+Sn3Cv+3VSa4Byeo+IMCzpMgQ==}
@@ -57438,10 +57428,10 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
-  compression-webpack-plugin@10.0.0(webpack@5.111.0):
+  compression-webpack-plugin@12.0.0(webpack@5.111.0):
     dependencies:
       schema-utils: 4.5.0
-      serialize-javascript: 6.0.2
+      serialize-javascript: 7.1.1
       webpack: 5.111.0(esbuild@0.25.12)(postcss@8.5.28)(webpack-cli@5.1.4)
 
   compression@1.8.2:
@@ -57506,14 +57496,13 @@ snapshots:
 
   copy-to@2.0.1: {}
 
-  copy-webpack-plugin@11.0.0(webpack@5.111.0):
+  copy-webpack-plugin@14.0.0(webpack@5.111.0):
     dependencies:
-      fast-glob: 3.3.3
       glob-parent: 6.0.2
-      globby: 13.2.2
       normalize-path: 3.0.0
       schema-utils: 4.5.0
-      serialize-javascript: 6.0.2
+      serialize-javascript: 7.1.1
+      tinyglobby: 0.2.17
       webpack: 5.111.0(esbuild@0.25.12)(postcss@8.5.28)(webpack-cli@5.1.4)
 
   core-js@3.50.0: {}
@@ -58115,7 +58104,7 @@ snapshots:
 
   domutils@1.5.1:
     dependencies:
-      dom-serializer: 0.1.1
+      dom-serializer: 0.2.2
       domelementtype: 1.3.1
 
   domutils@1.7.0:
@@ -59427,14 +59416,6 @@ snapshots:
       ignore: 5.3.2
       merge2: 1.4.1
       slash: 3.0.0
-
-  globby@13.2.2:
-    dependencies:
-      dir-glob: 3.0.1
-      fast-glob: 3.3.3
-      ignore: 5.3.2
-      merge2: 1.4.1
-      slash: 4.0.0
 
   globrex@0.1.2: {}
 
@@ -62403,10 +62384,6 @@ snapshots:
 
   random-bytes@1.0.0: {}
 
-  randombytes@2.1.0:
-    dependencies:
-      safe-buffer: 5.2.1
-
   range-parser@1.2.1: {}
 
   range-parser@1.3.0: {}
@@ -62823,9 +62800,7 @@ snapshots:
       type-fest: 0.13.1
     optional: true
 
-  serialize-javascript@6.0.2:
-    dependencies:
-      randombytes: 2.1.0
+  serialize-javascript@7.1.1: {}
 
   serve-index@1.9.2:
     dependencies:
@@ -63012,8 +62987,6 @@ snapshots:
       totalist: 3.0.1
 
   slash@3.0.0: {}
-
-  slash@4.0.0: {}
 
   slice-ansi@5.0.0:
     dependencies:
