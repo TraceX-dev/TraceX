@@ -55,17 +55,6 @@ export enum ObjectDiscussionStatus {
 }
 
 /**
- * Who can see an object discussion.
- *
- * @public
- */
-export enum ObjectDiscussionVisibility {
-  Guests = 'guests',
-  Users = 'users',
-  Private = 'private'
-}
-
-/**
  * A discussion thread attached to an arbitrary platform object
  * (e.g. a Card). Unlike a Channel, this is not a Space.
  *
@@ -74,7 +63,6 @@ export enum ObjectDiscussionVisibility {
 export interface ObjectDiscussion extends AttachedDoc {
   name: string
   status: ObjectDiscussionStatus
-  visibility: ObjectDiscussionVisibility
   members: AccountUuid[]
   // An optional document of the owner (e.g. an attachment) the discussion is about.
   linkedTo?: Ref<Doc>
@@ -209,20 +197,11 @@ export default plugin(chunterId, {
     CreateDiscussion: '' as IntlString,
     FirstMessage: '' as IntlString,
     FirstMessagePlaceholder: '' as IntlString,
-    PrivateDiscussionDescription: '' as IntlString,
-    VisibleToUsersDescription: '' as IntlString,
-    VisibleToGuestsDescription: '' as IntlString,
-    UseWithCaution: '' as IntlString,
-    UsersOnly: '' as IntlString,
-    UsersAndGuests: '' as IntlString,
     AttachTo: '' as IntlString,
     AttachToDescription: '' as IntlString,
     AttachedTo: '' as IntlString,
     JoinDiscussionRequest: '' as IntlString,
     NotAttached: '' as IntlString,
-    PrivateDiscussionNote: '' as IntlString,
-    UsersDiscussionNote: '' as IntlString,
-    GuestsDiscussionNote: '' as IntlString,
     MarkAsResolved: '' as IntlString,
     ReopenDiscussion: '' as IntlString,
     ParticipantsCount: '' as IntlString,
@@ -253,9 +232,6 @@ export default plugin(chunterId, {
     Visibility: '' as IntlString,
     Public: '' as IntlString,
     Private: '' as IntlString,
-    VisibleToUsers: '' as IntlString,
-    VisibleToGuests: '' as IntlString,
-    ChangeVisibility: '' as IntlString,
     AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,

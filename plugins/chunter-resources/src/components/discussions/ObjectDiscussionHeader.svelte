@@ -15,13 +15,11 @@
 -->
 <script lang="ts">
   import attachment, { type Attachment } from '@hcengineering/attachment'
-  import { type ObjectDiscussion, ObjectDiscussionStatus, ObjectDiscussionVisibility } from '@hcengineering/chunter'
+  import { type ObjectDiscussion, ObjectDiscussionStatus } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import { type AccountUuid, type Ref } from '@hcengineering/core'
-  import { type Asset, type IntlString } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import {
-    type AnySvelteComponent,
     ButtonIcon,
     Icon,
     IconCheckCircle,
@@ -33,20 +31,12 @@
     Label,
     ModernPopup,
     eventToHTMLElement,
-    showPopup,
-    tooltip
+    showPopup
   } from '@hcengineering/ui'
-  import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import {
-    canManageObjectDiscussion,
-    deleteObjectDiscussion,
-    setObjectDiscussionStatus,
-    setObjectDiscussionVisibility
-  } from '../../utils'
-  import Lock from '../icons/Lock.svelte'
+  import { canManageObjectDiscussion, deleteObjectDiscussion, setObjectDiscussionStatus } from '../../utils'
 
   export let discussion: ObjectDiscussion
   export let allowClose: boolean = false
@@ -90,54 +80,11 @@
     })
   }
 
-  const visibilityItems = [
-    { id: ObjectDiscussionVisibility.Guests, label: chunter.string.VisibleToGuests, icon: view.icon.Eye },
-    { id: ObjectDiscussionVisibility.Users, label: chunter.string.VisibleToUsers, icon: view.icon.Eye },
-    { id: ObjectDiscussionVisibility.Private, label: chunter.string.Private, icon: Lock }
-  ]
-
-  const visibilityBadges: Record<
-    ObjectDiscussionVisibility,
-    { label: IntlString, note: IntlString, icon: Asset | AnySvelteComponent }
-  > = {
-    [ObjectDiscussionVisibility.Guests]: {
-      label: chunter.string.UsersAndGuests,
-      note: chunter.string.GuestsDiscussionNote,
-      icon: view.icon.Eye
-    },
-    [ObjectDiscussionVisibility.Users]: {
-      label: chunter.string.UsersOnly,
-      note: chunter.string.UsersDiscussionNote,
-      icon: view.icon.Eye
-    },
-    [ObjectDiscussionVisibility.Private]: {
-      label: chunter.string.Private,
-      note: chunter.string.PrivateDiscussionNote,
-      icon: Lock
-    }
-  }
-
-  $: visibilityBadge = visibilityBadges[discussion.visibility] ?? visibilityBadges[ObjectDiscussionVisibility.Users]
-
-  function openVisibilityMenu (ev: MouseEvent): void {
-    if (!canManage) return
-    showPopup(
-      ModernPopup,
-      { items: visibilityItems, selected: discussion.visibility },
-      eventToHTMLElement(ev),
-      (result) => {
-        if (result == null) return
-        void setObjectDiscussionVisibility(discussion, result as ObjectDiscussionVisibility)
-      }
-    )
-  }
-
   function openMenu (ev: MouseEvent): void {
     const items = [
       resolved
         ? { id: 'reopen', label: chunter.string.ReopenDiscussion, icon: IconCheckCircle }
         : { id: 'resolve', label: chunter.string.MarkAsResolved, icon: IconCheckCircle },
-      { id: 'visibility', label: chunter.string.ChangeVisibility, icon: view.icon.Eye },
       { id: 'delete', label: chunter.string.DeleteDiscussion, icon: IconDelete }
     ]
     showPopup(ModernPopup, { items }, eventToHTMLElement(ev), (result) => {
@@ -147,9 +94,6 @@
           break
         case 'reopen':
           void setObjectDiscussionStatus(discussion, ObjectDiscussionStatus.Active)
-          break
-        case 'visibility':
-          openVisibilityMenu(ev)
           break
         case 'delete':
           void deleteObjectDiscussion(discussion)
@@ -229,17 +173,6 @@
       {#if canManage}
         <Icon icon={IconDropdown} size="x-small" />
       {/if}
-    </button>
-    <button
-      class="visibility-badge"
-      class:caution={discussion.visibility === ObjectDiscussionVisibility.Guests}
-      class:readonly={!canManage}
-      type="button"
-      use:tooltip={{ label: visibilityBadge.note }}
-      on:click={openVisibilityMenu}
-    >
-      <span class="badge-icon"><Icon icon={visibilityBadge.icon} size="x-small" /></span>
-      <span class="overflow-label"><Label label={visibilityBadge.label} /></span>
     </button>
     <AccountArrayEditor
       value={discussion.members}
@@ -383,33 +316,5 @@
     &:hover {
       color: var(--global-primary-TextColor);
     }
-  }
-
-  .visibility-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.3125rem;
-    flex-shrink: 1;
-    min-width: 0;
-    white-space: nowrap;
-    padding: 0.3125rem 0.625rem;
-    border: 1px solid var(--theme-divider-color);
-    border-radius: 1rem;
-    color: var(--global-secondary-TextColor);
-    font-size: 0.75rem;
-    font-weight: 500;
-
-    &.caution {
-      color: var(--theme-warning-color);
-    }
-
-    &.readonly {
-      cursor: default;
-    }
-  }
-
-  .badge-icon {
-    display: flex;
-    flex-shrink: 0;
   }
 </style>

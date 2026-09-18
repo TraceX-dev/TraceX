@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import attachment, { type Attachment } from '@hcengineering/attachment'
-  import { ObjectDiscussionStatus, ObjectDiscussionVisibility } from '@hcengineering/chunter'
+  import { ObjectDiscussionStatus } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import core, { type AccountUuid, type Doc, getCurrentAccount, type Markup } from '@hcengineering/core'
   import { getEmbeddedLabel } from '@hcengineering/platform'
@@ -29,16 +29,12 @@
     Modal,
     ModernEditbox,
     ModernPopup,
-    RadioCardGroup,
-    type RadioCardItem,
     eventToHTMLElement,
     showPopup
   } from '@hcengineering/ui'
-  import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import Lock from '../icons/Lock.svelte'
 
   export let object: Doc
 
@@ -50,7 +46,6 @@
 
   let name = ''
   let members: AccountUuid[] = [me]
-  let visibility = ObjectDiscussionVisibility.Users
   let linkedTo: Attachment | undefined = undefined
   let firstMessage: Markup = EmptyMarkup
   let collaborators: AccountUuid[] = []
@@ -64,35 +59,8 @@
     attachments = result
   })
 
-  const visibilityOptions: RadioCardItem[] = [
-    {
-      id: ObjectDiscussionVisibility.Guests,
-      icon: view.icon.Eye,
-      label: chunter.string.VisibleToGuests,
-      description: chunter.string.VisibleToGuestsDescription,
-      badge: chunter.string.UseWithCaution,
-      badgeKind: 'warning'
-    },
-    {
-      id: ObjectDiscussionVisibility.Users,
-      icon: view.icon.Eye,
-      label: chunter.string.VisibleToUsers,
-      description: chunter.string.VisibleToUsersDescription
-    },
-    {
-      id: ObjectDiscussionVisibility.Private,
-      icon: Lock,
-      label: chunter.string.Private,
-      description: chunter.string.PrivateDiscussionDescription
-    }
-  ]
-
   $: missingCollaborators = collaborators.filter((account) => !members.includes(account))
   $: canSave = name.trim().length > 0
-
-  function setVisibility (value: string): void {
-    visibility = value as ObjectDiscussionVisibility
-  }
 
   function addAllCollaborators (): void {
     members = [...members, ...missingCollaborators]
@@ -120,7 +88,6 @@
       {
         name: name.trim(),
         status: ObjectDiscussionStatus.Active,
-        visibility,
         members: members.includes(me) ? members : [me, ...members],
         linkedTo: linkedTo?._id,
         linkedToClass: linkedTo?._class
@@ -174,17 +141,6 @@
           + <Label label={chunter.string.AddAllCollaborators} params={{ count: missingCollaborators.length }} />
         </button>
       {/if}
-    </div>
-
-    <div class="field">
-      <span class="field-label"><Label label={chunter.string.Visibility} /></span>
-      <RadioCardGroup
-        items={visibilityOptions}
-        selected={visibility}
-        on:change={(event) => {
-          setVisibility(event.detail)
-        }}
-      />
     </div>
 
     {#if attachments.length > 0}

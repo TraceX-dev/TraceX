@@ -28,7 +28,6 @@ import {
   type DirectMessage,
   type ObjectDiscussion,
   type ObjectDiscussionStatus,
-  ObjectDiscussionVisibility,
   type ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
@@ -144,20 +143,6 @@ export function isObjectDiscussionParticipant (discussion: ObjectDiscussion): bo
   return discussion.members.includes(getCurrentAccount().uuid)
 }
 
-// Visibility is only a client-side filter for now; the server applies the owner object's security only.
-export function canSeeObjectDiscussion (discussion: ObjectDiscussion): boolean {
-  const me = getCurrentAccount()
-  if (hasAccountRole(me, AccountRole.Maintainer)) return true
-  switch (discussion.visibility) {
-    case ObjectDiscussionVisibility.Private:
-      return isObjectDiscussionParticipant(discussion)
-    case ObjectDiscussionVisibility.Users:
-      return hasAccountRole(me, AccountRole.User)
-    default:
-      return true
-  }
-}
-
 // Mirrors the TxAccessLevel of ObjectDiscussion: guests can only post messages, not create or change discussions.
 export function canCreateObjectDiscussion (): boolean {
   return hasAccountRole(getCurrentAccount(), AccountRole.User)
@@ -173,14 +158,6 @@ export async function joinObjectDiscussion (discussion: ObjectDiscussion): Promi
   const me = getCurrentAccount().uuid
   if (discussion.members.includes(me)) return
   await getClient().update(discussion, { $push: { members: me } })
-}
-
-export async function setObjectDiscussionVisibility (
-  discussion: ObjectDiscussion,
-  visibility: ObjectDiscussionVisibility
-): Promise<void> {
-  if (discussion.visibility === visibility) return
-  await getClient().update(discussion, { visibility })
 }
 
 export async function setObjectDiscussionStatus (

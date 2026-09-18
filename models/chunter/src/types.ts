@@ -39,7 +39,6 @@ import type {
   ObjectChatPanel,
   ObjectDiscussion,
   ObjectDiscussionStatus,
-  ObjectDiscussionVisibility,
   ThreadMessage
 } from '@hcengineering/chunter'
 import {
@@ -96,9 +95,6 @@ export class TObjectDiscussion extends TAttachedDoc implements ObjectDiscussion 
 
   @Prop(TypeString(), core.string.Status)
     status!: ObjectDiscussionStatus
-
-  @Prop(TypeString(), chunter.string.Visibility)
-    visibility!: ObjectDiscussionVisibility
 
   @Prop(ArrOf(TypeAccountUuid()), core.string.Members)
     members!: AccountUuid[]

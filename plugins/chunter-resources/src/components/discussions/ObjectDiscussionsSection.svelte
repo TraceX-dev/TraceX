@@ -23,7 +23,7 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { canCreateObjectDiscussion, canSeeObjectDiscussion } from '../../utils'
+  import { canCreateObjectDiscussion } from '../../utils'
   import CreateObjectDiscussion from './CreateObjectDiscussion.svelte'
   import ObjectDiscussionRow from './ObjectDiscussionRow.svelte'
 
@@ -45,7 +45,7 @@
     chunter.class.ObjectDiscussion,
     { attachedTo: doc._id },
     (result) => {
-      discussions = result.filter(canSeeObjectDiscussion).sort(compareDiscussions)
+      discussions = result.sort(compareDiscussions)
       dispatch('loaded')
     },
     { sort: { modifiedOn: SortingOrder.Descending } }

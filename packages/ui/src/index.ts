@@ -176,7 +176,6 @@ export { default as ModernWizardBar } from './components/wizard/ModernWizardBar.
 export { default as ModernTab } from './components/ModernTab.svelte'
 export { default as ModernCheckbox } from './components/ModernCheckbox.svelte'
 export { default as ModernRadioButton } from './components/ModernRadioButton.svelte'
-export { default as RadioCardGroup } from './components/RadioCardGroup.svelte'
 
 export { default as IconAdd } from './components/icons/Add.svelte'
 export { default as IconArchive } from './components/icons/Archive.svelte'

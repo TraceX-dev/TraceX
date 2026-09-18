@@ -15,12 +15,7 @@
 -->
 <script lang="ts">
   import attachment, { type Attachment } from '@hcengineering/attachment'
-  import {
-    type ChatMessage,
-    type ObjectDiscussion,
-    ObjectDiscussionStatus,
-    ObjectDiscussionVisibility
-  } from '@hcengineering/chunter'
+  import { type ChatMessage, type ObjectDiscussion, ObjectDiscussionStatus } from '@hcengineering/chunter'
   import contact, { type Employee, getName } from '@hcengineering/contact'
   import { CombineAvatars, employeeRefByAccountUuidStore, getPersonByPersonId } from '@hcengineering/contact-resources'
   import { notEmpty, type Ref, SortingOrder } from '@hcengineering/core'
@@ -121,9 +116,6 @@
   <div class="content">
     <div class="title-row">
       <span class="title overflow-label">{discussion.name}</span>
-      {#if discussion.visibility === ObjectDiscussionVisibility.Private}
-        <span class="lock"><Icon icon={chunter.icon.Lock} size="x-small" /></span>
-      {/if}
       {#if linked !== undefined}
         <span class="linked">
           <Icon icon={attachment.icon.Attachment} size="x-small" />
@@ -234,12 +226,6 @@
     font-size: 0.875rem;
     font-weight: 500;
     line-height: 1.25rem;
-  }
-
-  .lock {
-    display: flex;
-    flex-shrink: 0;
-    color: var(--global-tertiary-TextColor);
   }
 
   .linked {
