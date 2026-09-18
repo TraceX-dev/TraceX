@@ -1,6 +1,8 @@
 {
   "string": {
     "EditBoxPlaceholder": "テキストを入力…",
+    "ConnectingToWorkspace": "ワークスペースに接続しています…",
+    "LoadingWorkspace": "ワークスペースを読み込んでいます…",
     "Ok": "OK",
     "Cancel": "キャンセル",
     "Save": "保存",

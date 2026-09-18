@@ -301,7 +301,7 @@
     </div>
     <div class="app">
       {#if application}
-        <Component is={application} appLoading={true} props={{}} />
+        <Component is={application} props={{}} />
       {:else}
         <div class="error">
           Application not found: {application}

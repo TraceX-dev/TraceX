@@ -1,6 +1,5 @@
 <!--
-// Copyright © 2025 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
+// Copyright © 2026 TraceX SAS
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,28 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 -->
-
 <script lang="ts">
-  import { Card } from '@hcengineering/card'
-  import { RelationsEditor } from '@hcengineering/view-resources'
+  import { themeStore } from '@hcengineering/theme'
 
-  export let readonly: boolean = false
-  export let doc: Card
-  export let hidden: boolean = false
-  export let compactMode: boolean = false
+  // @ts-ignore -- Webpack's file-loader provides the image module at runtime.
+  import logoWhite from '../../img/tracex-logo-white.png'
+  // @ts-ignore -- Webpack's file-loader provides the image module at runtime.
+  import logoBlack from '../../img/tracex-logo-black.png'
+
+  export let height: string = '2rem'
+
+  $: src = $themeStore.dark ? logoWhite : logoBlack
 </script>
 
-{#if !hidden}
-  <div class="section-relations">
-    <RelationsEditor object={doc} {readonly} {compactMode} on:loaded emptyKind="placeholder" />
-  </div>
-{/if}
+<img class="tracex-logo" {src} alt="TraceX" style:height />
 
 <style lang="scss">
-  .section-relations {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    padding: 0 1rem;
+  .tracex-logo {
+    display: block;
+    width: auto;
   }
 </style>

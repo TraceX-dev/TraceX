@@ -1262,7 +1262,6 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.RelationsSection,
       order: 500,
       navigation: [],
-      hideInCompactMode: true,
       checkVisibility: card.function.CheckRelationsSectionVisibility
     },
     card.section.Relations

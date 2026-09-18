@@ -264,6 +264,7 @@
               props={{
                 doc,
                 readonly,
+                compactMode,
                 scrollDiv,
                 contentDiv: sectionElement[section._id],
                 navigation: selectedToc?.id,

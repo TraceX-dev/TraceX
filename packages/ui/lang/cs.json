@@ -1,6 +1,8 @@
 {
     "string": {
         "EditBoxPlaceholder": "Napište text...",
+        "ConnectingToWorkspace": "Připojování k vašemu pracovnímu prostoru…",
+        "LoadingWorkspace": "Načítáme váš pracovní prostor…",
         "Ok": "OK",
         "Cancel": "Zrušit",
         "Save": "Uložit",

@@ -1,6 +1,8 @@
 {
     "string": {
         "EditBoxPlaceholder": "Digite o texto...",
+        "ConnectingToWorkspace": "Conectando ao seu espaço de trabalho…",
+        "LoadingWorkspace": "Carregando seu espaço de trabalho…",
         "Ok": "Ok",
         "Cancel": "Cancelar",
         "Save": "Salvar",

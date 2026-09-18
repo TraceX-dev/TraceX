@@ -1,6 +1,8 @@
 {
     "string": {
         "EditBoxPlaceholder": "Введите текст здесь",
+        "ConnectingToWorkspace": "Подключение к рабочему пространству…",
+        "LoadingWorkspace": "Загружаем ваше рабочее пространство…",
         "Ok": "Ок",
         "Cancel": "Отменить",
         "Save": "Сохранить",
