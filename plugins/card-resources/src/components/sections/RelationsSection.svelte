@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -20,11 +21,12 @@
   export let readonly: boolean = false
   export let doc: Card
   export let hidden: boolean = false
+  export let compactMode: boolean = false
 </script>
 
 {#if !hidden}
   <div class="section-relations">
-    <RelationsEditor object={doc} {readonly} on:loaded emptyKind="placeholder" />
+    <RelationsEditor object={doc} {readonly} {compactMode} on:loaded emptyKind="placeholder" />
   </div>
 {/if}
 
