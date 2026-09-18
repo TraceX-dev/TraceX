@@ -1,0 +1,155 @@
+name: Security check
+
+on:
+  workflow_dispatch: {}
+  pull_request: {}
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - .github/workflows/security-check.yml
+  schedule:
+    # Random HH:MM to avoid a load spike on GitHub Actions at 00:00.
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v6
+      - run: semgrep ci
+
+  grype:
+    name: Grype
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+      - id: scan
+        name: Scan repository dependencies
+        uses: anchore/scan-action@v7
+        with:
+          path: .
+          fail-build: false
+          output-format: sarif
+          output-file: grype-report.sarif
+          cache-db: true
+      - name: Upload Grype findings to Code Scanning
+        if: always() && steps.scan.outcome == 'success'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: grype-report.sarif
+      - name: Upload Grype report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: grype-report
+          path: grype-report.sarif
+          if-no-files-found: warn
+
+  pnpm-audit:
+    name: pnpm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - id: audit
+        name: Run pnpm audit
+        run: |
+          set +e
+          node common/scripts/install-run-rush-pnpm.js audit --json --quiet > pnpm-audit.json
+          audit_exit_code=$?
+          set -e
+          echo "exit_code=${audit_exit_code}" >> "$GITHUB_OUTPUT"
+      - name: Generate pnpm audit summary
+        if: always()
+        env:
+          AUDIT_EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
+        run: |
+          node -e '
+          const fs = require("node:fs")
+
+          const reportPath = "pnpm-audit.json"
+          const exitCode = process.env.AUDIT_EXIT_CODE || "unknown"
+          let markdown = "## pnpm audit\\n\\n"
+
+          try {
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"))
+            const vulnerabilities = report.metadata?.vulnerabilities ?? {}
+            const severities = ["critical", "high", "moderate", "low", "info"]
+
+            markdown += `Exit code: ${exitCode}\\n\\n`
+            markdown += "| Severity | Findings |\\n| --- | ---: |\\n"
+            markdown += severities.map((severity) => `| ${severity} | ${vulnerabilities[severity] ?? 0} |`).join("\\n")
+            markdown += "\\n"
+          } catch (error) {
+            markdown += `Audit report could not be parsed (exit code: ${exitCode}). See the workflow log.\\n`
+          }
+
+          fs.writeFileSync("pnpm-audit-summary.md", markdown)
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
+          '
+      - name: Upload pnpm audit report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pnpm-audit-report
+          path: |
+            pnpm-audit.json
+            pnpm-audit-summary.md
+          if-no-files-found: warn
+
+  zap-staging-baseline:
+    name: ZAP staging baseline
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: https://stg.tracex.co
+          cmd_options: '-m 2'
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-staging-baseline-report
+      - name: Generate ZAP summary
+        if: always()
+        run: |
+          node -e '
+          const fs = require("node:fs")
+
+          const reportPath = "report_json.json"
+          let markdown = "## ZAP staging baseline\\n\\n"
+
+          if (!fs.existsSync(reportPath)) {
+            markdown += "The full ZAP report is attached as the `zap-staging-baseline-report` artifact.\\n"
+          } else {
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"))
+            const alerts = (report.site ?? []).flatMap((site) => site.alerts ?? [])
+            const riskNames = { 0: "Informational", 1: "Low", 2: "Medium", 3: "High" }
+            const counts = Object.fromEntries(Object.keys(riskNames).map((risk) => [risk, 0]))
+
+            for (const alert of alerts) counts[alert.riskcode] = (counts[alert.riskcode] ?? 0) + 1
+
+            markdown += "| Risk | Alerts |\\n| --- | ---: |\\n"
+            markdown += Object.entries(riskNames).reverse().map(([risk, name]) => `| ${name} | ${counts[risk]} |`).join("\\n")
+            markdown += "\\n"
+          }
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
+          '
