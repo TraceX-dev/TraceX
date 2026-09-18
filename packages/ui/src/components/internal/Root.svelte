@@ -19,6 +19,7 @@
   import Label from '../Label.svelte'
   import StatusComponent from '../Status.svelte'
   import Clock from './Clock.svelte'
+  import ConnectionStatus from './ConnectionStatus.svelte'
   import RootBarExtension from './RootBarExtension.svelte'
   import Settings from './Settings.svelte'
   import { isAppFocusedStore } from '../../stores'
@@ -269,6 +270,8 @@
               {/if}
               <Label label={platform.status.MaintenanceWarningTime} params={{ time: maintenanceTime }} />
             </div>
+          {:else if status.code === platform.status.LoadingPlugin}
+            <ConnectionStatus />
           {:else if status.severity !== Severity.OK && !(status.code === platform.status.ReadOnlyAccount && currentRoute === 'login')}
             <StatusComponent {status} />
           {/if}
@@ -301,7 +304,7 @@
     </div>
     <div class="app">
       {#if application}
-        <Component is={application} appLoading={true} props={{}} />
+        <Component is={application} props={{}} />
       {:else}
         <div class="error">
           Application not found: {application}

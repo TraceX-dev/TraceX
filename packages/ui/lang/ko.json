@@ -1,6 +1,8 @@
 {
     "string": {
         "EditBoxPlaceholder": "텍스트 입력...",
+        "ConnectingToWorkspace": "워크스페이스에 연결하는 중…",
+        "LoadingWorkspace": "워크스페이스를 불러오는 중…",
         "Ok": "확인",
         "Cancel": "취소",
         "Save": "저장",

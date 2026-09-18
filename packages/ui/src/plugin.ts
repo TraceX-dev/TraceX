@@ -26,6 +26,8 @@ export const uiId = 'ui' as Plugin
 export const uis = plugin(uiId, {
   string: {
     EditBoxPlaceholder: '' as IntlString,
+    ConnectingToWorkspace: '' as IntlString,
+    LoadingWorkspace: '' as IntlString,
     Ok: '' as IntlString,
     Cancel: '' as IntlString,
     Save: '' as IntlString,
