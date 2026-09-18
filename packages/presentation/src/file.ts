@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-import { concatLink, type WorkspaceUuid } from '@hcengineering/core'
+import { type Blob as PlatformBlob, concatLink, type Ref, type WorkspaceUuid } from '@hcengineering/core'
 import { getMetadata } from '@hcengineering/platform'
 import { type FileStorage, createFileStorage as createStorageClient } from '@hcengineering/storage-client'
 import { v4 as uuid } from 'uuid'
@@ -64,14 +64,21 @@ export function getFileUrl (file: string, filename?: string): string {
 }
 
 /**
- * URL of another workspace's logo (select-workspace, the workspace switcher), available
- * before the browser holds a token for it. The optional avatar ref is used only as a cache
- * key so a changed logo gets reloaded immediately.
+ * Fixed blob key of the workspace logo, addressable by workspace uuid alone.
+ * @public
+ */
+export const workspaceLogoBlobId = 'logo' as Ref<PlatformBlob>
+
+/**
+ * Workspace logo URL that works without a token for that workspace; 404 if there is no logo.
  * @public
  */
 export function getWorkspaceAvatarUrl (workspaceUuid: WorkspaceUuid): string {
   const previewUrl = getMetadata(plugin.metadata.PreviewUrl) ?? ''
-  return concatLink(previewUrl, `/image/fit=cover,width=64,height=64,dpr=2/${encodeURIComponent(workspaceUuid)}/logo`)
+  return concatLink(
+    previewUrl,
+    `/image/fit=cover,width=64,height=64,dpr=2/${encodeURIComponent(workspaceUuid)}/${workspaceLogoBlobId}`
+  )
 }
 
 /**

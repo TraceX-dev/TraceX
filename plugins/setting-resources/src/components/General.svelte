@@ -18,15 +18,24 @@
   import type { ApiKey } from '@hcengineering/account-client'
   import { EditableAvatar, getAccountClient } from '@hcengineering/contact-resources'
   import core, {
+    type Blob as PlatformBlob,
     Configuration,
     DateRangeMode,
     type Ref,
-    type Blob as PlatformBlob,
     WorkspaceAccountPermission
   } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
   import { setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
-  import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
+  import {
+    copyTextToClipboard,
+    createQuery,
+    getClient,
+    getCurrentWorkspaceUuid,
+    getFileUrl,
+    MessageBox,
+    withBlobVersion,
+    workspaceLogoBlobId
+  } from '@hcengineering/presentation'
   import { WorkspaceSetting } from '@hcengineering/setting'
   import view from '@hcengineering/view'
   import {
@@ -83,7 +92,8 @@
       name.trim() === '' ||
       disabledSet.some((it) => name.includes(it)))
 
-  $: workspaceAvatarColor = getPlatformColorForText(workspaceId, $themeStore.dark)
+  // Same seed as the workspace switcher, so the fallback color matches.
+  $: workspaceAvatarColor = getPlatformColorForText(getCurrentWorkspaceUuid(), $themeStore.dark)
 
   void loadWorkspaceName()
   void loadApiKeys()
@@ -130,12 +140,18 @@
 
   // Avatar
   let avatarEditor: EditableAvatar
-  const workspaceLogoId = 'logo' as Ref<PlatformBlob>
   let workspaceSettings: WorkspaceSetting | undefined = undefined
 
+  // The logo blob key never changes, so version the URL by modifiedOn to bypass the cache.
+  $: workspaceLogoUrl =
+    workspaceSettings?.icon != null
+      ? (withBlobVersion(getFileUrl(workspaceSettings.icon), workspaceSettings.modifiedOn) as Ref<PlatformBlob>)
+      : undefined
+
   const client = getClient()
-  void client.findOne(settingsRes.class.WorkspaceSetting, {}).then((r) => {
-    workspaceSettings = r
+  const workspaceSettingsQuery = createQuery()
+  workspaceSettingsQuery.query(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting }, (res) => {
+    workspaceSettings = res[0]
   })
 
   async function handleAvatarDone (): Promise<void> {
@@ -143,13 +159,19 @@
       const existing = await client.findOne(settingsRes.class.WorkspaceSetting, {
         _id: settingsRes.ids.WorkspaceSetting
       })
-      const avatar = await avatarEditor.createAvatar(workspaceLogoId)
-      const icon: NonNullable<WorkspaceSetting['icon']> | null =
-        avatar.avatarType === AvatarType.IMAGE ? (avatar.avatar ?? null) : null
+      const avatar = await avatarEditor.createAvatar(workspaceLogoBlobId)
       const previousIcon = existing?.icon ?? null
+      // Without a new file createAvatar returns the displayed URL, not a blob id.
+      const icon: NonNullable<WorkspaceSetting['icon']> | null =
+        avatar.avatarType !== AvatarType.IMAGE
+          ? null
+          : avatar.avatar != null && avatar.avatar.includes('://')
+            ? previousIcon
+            : (avatar.avatar ?? null)
 
       if (existing !== undefined) {
-        await client.diffUpdate(existing, { icon })
+        // Not diffUpdate: icon stays `logo`, but modifiedOn must change to bust the cache.
+        await client.update(existing, { icon })
       } else {
         await client.createDoc(
           settingsRes.class.WorkspaceSetting,
@@ -300,7 +322,7 @@
                   <EditableAvatar
                     person={{
                       avatarType: workspaceSettings?.icon != null ? AvatarType.IMAGE : AvatarType.COLOR,
-                      avatar: workspaceSettings?.icon,
+                      avatar: workspaceLogoUrl,
                       avatarProps: { color: workspaceAvatarColor, colorPalette: 'platform' }
                     }}
                     size="medium"

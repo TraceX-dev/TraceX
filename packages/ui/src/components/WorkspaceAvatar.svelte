@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 -->
+<script lang="ts" context="module">
+  // Logos that answered 404, so reopening the switcher doesn't refetch them until reload.
+  const failedUrls = new Set<string>()
+</script>
+
 <script lang="ts">
   import { themeStore } from '@hcengineering/theme'
 
@@ -30,16 +35,22 @@
   $: color = getPlatformColorForText(colorSeed, $themeStore.dark)
 
   let failedUrl: string | null | undefined
+
+  $: imageUrl =
+    avatarUrl != null && avatarUrl !== '' && avatarUrl !== failedUrl && !failedUrls.has(avatarUrl)
+      ? avatarUrl
+      : undefined
 </script>
 
 <div class="workspaceAvatar-wrap {size}">
-  {#if avatarUrl != null && avatarUrl !== '' && avatarUrl !== failedUrl}
+  {#if imageUrl !== undefined}
     <img
       class="workspaceAvatar-circle"
-      src={avatarUrl}
+      src={imageUrl}
       alt={displayName}
       on:error={() => {
-        failedUrl = avatarUrl
+        failedUrls.add(imageUrl)
+        failedUrl = imageUrl
       }}
     />
   {:else}

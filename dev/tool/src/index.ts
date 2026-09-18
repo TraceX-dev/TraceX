@@ -1238,7 +1238,7 @@ export function devTool (
   program
     .command('backfill-workspace-avatars')
     .description('Copy existing WorkspaceSetting icons to the fixed workspace blob key "logo".')
-    .option('--force', 'Copy the icon even when it already uses the "logo" key', false)
+    .option('--force', 'Overwrite the "logo" blob when that key is already taken', false)
     .option('--dry-run', 'Only log what would change, without writing blobs or workspace settings', false)
     .option('--concurrency <concurrency>', 'Number of workspaces to process in parallel', '10')
     .action(async (cmd: { force: boolean, dryRun: boolean, concurrency: string }) => {

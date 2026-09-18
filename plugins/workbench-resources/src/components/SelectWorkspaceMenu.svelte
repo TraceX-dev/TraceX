@@ -24,8 +24,9 @@
     getWorkspaceAvatarUrl,
     hasResource,
     isAdminUser,
-    reduceCalls
+    withBlobVersion
   } from '@hcengineering/presentation'
+  import setting, { type WorkspaceSetting } from '@hcengineering/setting'
   import {
     closePopup,
     Component,
@@ -80,6 +81,25 @@
   })
 
   const hasRating = hasResource(ratingPlugin.component.RatingRing)
+
+  // The current workspace's logo URL is versioned by modifiedOn, so a change shows up at once
+  // instead of after the preview cache window; other workspaces rely on revalidation.
+  const wsSettingQuery = createQuery()
+  let currentWsSetting: WorkspaceSetting | undefined
+  wsSettingQuery.query(setting.class.WorkspaceSetting, { _id: setting.ids.WorkspaceSetting }, (res) => {
+    currentWsSetting = res[0]
+  })
+
+  // `_setting` is passed only so the markup re-evaluates when the setting changes.
+  function getAvatarUrl (
+    ws: WorkspaceInfoWithStatus,
+    isCurrentWs: boolean,
+    _setting: WorkspaceSetting | undefined
+  ): string | undefined {
+    if (!isCurrentWs) return getWorkspaceAvatarUrl(ws.uuid)
+    if (currentWsSetting?.icon == null) return undefined
+    return withBlobVersion(getWorkspaceAvatarUrl(ws.uuid), currentWsSetting.modifiedOn)
+  }
 
   // Only show the "there's more below" fade when the list is actually
   // scrolled somewhere above the bottom — not when everything fits, and not
@@ -290,7 +310,7 @@
                   <WorkspaceAvatar
                     colorSeed={ws.uuid}
                     displayName={wsName}
-                    avatarUrl={getWorkspaceAvatarUrl(ws.uuid)}
+                    avatarUrl={getAvatarUrl(ws, isCurrentWs, currentWsSetting)}
                     size={'small'}
                     hasUnread={ws.hasUnread === true && !isCurrentWs}
                     ringColor={'var(--theme-popup-color)'}

@@ -14,7 +14,13 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { createQuery, getCurrentWorkspaceUuid, getFileSrcSet, getFileUrl } from '@hcengineering/presentation'
+  import {
+    createQuery,
+    getCurrentWorkspaceUuid,
+    getFileSrcSet,
+    getFileUrl,
+    withBlobVersion
+  } from '@hcengineering/presentation'
   import setting, { WorkspaceSetting } from '@hcengineering/setting'
   import { getPlatformColorForText, getWorkspaceInitial, themeStore } from '@hcengineering/ui'
 
@@ -26,8 +32,10 @@
   wsSettingQuery.query(setting.class.WorkspaceSetting, {}, (res) => {
     workspaceSetting = res[0]
   })
-  $: url = workspaceSetting?.icon != null ? getFileUrl(workspaceSetting.icon) : undefined
-  $: srcset = workspaceSetting?.icon != null ? getFileSrcSet(workspaceSetting.icon, 128) : undefined
+  // The logo blob key never changes, so version the URL by modifiedOn to bypass the cache.
+  $: version = workspaceSetting?.modifiedOn
+  $: url = workspaceSetting?.icon != null ? withBlobVersion(getFileUrl(workspaceSetting.icon), version) : undefined
+  $: srcset = workspaceSetting?.icon != null ? getFileSrcSet(workspaceSetting.icon, 128, undefined, version) : undefined
   $: colorSeed = getCurrentWorkspaceUuid() || (workspace ?? '')
 </script>
 

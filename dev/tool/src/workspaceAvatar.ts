@@ -14,7 +14,7 @@
 //
 
 import { type AccountDB, getWorkspaces } from '@hcengineering/account'
-import {
+import core, {
   type BackupClient,
   type Blob,
   type Client as CoreClient,
@@ -22,6 +22,7 @@ import {
   isDeletingMode,
   type MeasureMetricsContext,
   type Ref,
+  TxOperations,
   type WorkspaceIds
 } from '@hcengineering/core'
 import setting, { type WorkspaceSetting } from '@hcengineering/setting'
@@ -30,10 +31,8 @@ import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/ser
 import { getWorkspaceTransactorEndpoint } from './utils'
 
 /**
- * Backfills the account-service `Workspace.icon` field (account_db_v32_add_workspace_icon)
- * from each workspace's own WorkspaceSetting.icon, for workspaces that had a logo before the
- * avatar-sync change (commit 23b5d24). Stores the blob id as-is; front resolves it through
- * the public workspace-avatar endpoint.
+ * Copies legacy workspace logos (random blob id) to the fixed `logo` key and repoints
+ * `WorkspaceSetting.icon` at it. The source blob is kept, so the run is repeatable.
  */
 export async function backfillWorkspaceAvatars (
   ctx: MeasureMetricsContext,
@@ -41,108 +40,115 @@ export async function backfillWorkspaceAvatars (
   opts: { force?: boolean, dryRun?: boolean, concurrency?: number } = {}
 ): Promise<void> {
   const storageAdapter = buildStorageFromConfig(storageConfigFromEnv())
-  const workspaceLogoId = 'logo' as Ref<Blob>
-  // isDisabled is left null here (rather than passing false) so getWorkspaces doesn't
-  // dereference status.isDisabled itself — a workspace missing its status row would
-  // throw there before we ever get a chance to skip it below.
-  const rawWorkspaces = await getWorkspaces(accountDb, null, null, null)
-  // A workspace can be missing its workspace_status row (e.g. mid-creation, or a data
-  // inconsistency); skip those like any other per-workspace failure instead of letting
-  // `it.status.mode` crash the whole run.
-  const noStatus = rawWorkspaces.filter((it) => it.status == null).length
-  // Disabled workspaces are skipped too: their transactor may not be reachable, and
-  // there is no point spending a connect/close round trip backfilling a workspace that
-  // isn't serving members anyway.
-  const disabled = rawWorkspaces.filter((it) => it.status != null && it.status.isDisabled).length
-  const workspaces = rawWorkspaces.filter(
-    (it) =>
-      it.status != null && !it.status.isDisabled && !isArchivingMode(it.status.mode) && !isDeletingMode(it.status.mode)
-  )
+  try {
+    const workspaceLogoId = 'logo' as Ref<Blob>
+    // isDisabled is null so getWorkspaces doesn't fail on workspaces without a status row.
+    const rawWorkspaces = await getWorkspaces(accountDb, null, null, null)
+    const noStatus = rawWorkspaces.filter((it) => it.status == null).length
+    const disabled = rawWorkspaces.filter((it) => it.status != null && it.status.isDisabled).length
+    const workspaces = rawWorkspaces.filter(
+      (it) =>
+        it.status != null &&
+        !it.status.isDisabled &&
+        !isArchivingMode(it.status.mode) &&
+        !isDeletingMode(it.status.mode)
+    )
 
-  // One connect/close round trip per workspace is slow done strictly sequentially — on a
-  // deployment with thousands of workspaces (the scale this tool is meant for) that can
-  // take hours. Process a bounded number of workspaces concurrently instead.
-  const concurrency = Math.min(Math.max(1, opts.concurrency ?? 10), Math.max(1, workspaces.length))
+    const concurrency = Math.min(Math.max(1, opts.concurrency ?? 10), Math.max(1, workspaces.length))
 
-  ctx.info('Backfilling workspace avatars', {
-    count: workspaces.length,
-    noStatus,
-    disabled,
-    concurrency,
-    force: opts.force === true,
-    dryRun: opts.dryRun === true
-  })
+    ctx.info('Backfilling workspace avatars', {
+      count: workspaces.length,
+      noStatus,
+      disabled,
+      concurrency,
+      force: opts.force === true,
+      dryRun: opts.dryRun === true
+    })
 
-  let updated = 0
-  let skipped = 0
-  let missing = 0
-  let failed = 0
-  let nextIndex = 0
+    let updated = 0
+    let skipped = 0
+    let noIcon = 0
+    let blobMissing = 0
+    let failed = 0
+    let nextIndex = 0
 
-  async function processOne (workspace: (typeof workspaces)[number]): Promise<void> {
-    try {
-      const endpoint = await getWorkspaceTransactorEndpoint(workspace.uuid)
-      const connection = (await connect(endpoint, workspace.uuid, undefined, {
-        mode: 'backup'
-      })) as unknown as CoreClient & BackupClient
+    async function processOne (workspace: (typeof workspaces)[number]): Promise<void> {
       try {
-        const wsSetting = await connection.findOne<WorkspaceSetting>(setting.class.WorkspaceSetting, {
-          _id: setting.ids.WorkspaceSetting
-        })
-        const icon = wsSetting?.icon
+        const endpoint = await getWorkspaceTransactorEndpoint(workspace.uuid)
+        const connection = (await connect(endpoint, workspace.uuid, undefined, {
+          mode: 'backup'
+        })) as unknown as CoreClient & BackupClient
+        try {
+          const wsSetting = await connection.findOne<WorkspaceSetting>(setting.class.WorkspaceSetting, {
+            _id: setting.ids.WorkspaceSetting
+          })
+          const icon = wsSetting?.icon
 
-        if (icon == null || icon === '') {
-          missing++
-          return
-        }
-
-        if (opts.force !== true && icon === workspaceLogoId) {
-          skipped++
-          return
-        }
-
-        ctx.info('  setting avatar', { workspace: workspace.uuid, name: workspace.name, icon })
-
-        if (opts.dryRun !== true) {
-          const workspaceIds: WorkspaceIds = {
-            uuid: workspace.uuid,
-            url: workspace.url,
-            dataId: workspace.dataId
-          }
-          const blobInfo = await storageAdapter.stat(ctx, workspaceIds, icon)
-          if (blobInfo === undefined) {
-            missing++
+          if (wsSetting === undefined || icon == null || icon === '') {
+            noIcon++
             return
           }
-          const data = await storageAdapter.get(ctx, workspaceIds, icon)
-          await storageAdapter.put(ctx, workspaceIds, workspaceLogoId, data, blobInfo.contentType, blobInfo.size)
-          await connection.update(wsSetting, { icon: workspaceLogoId })
+
+          // Already on the fixed key: nothing to copy, even with --force.
+          if (icon === workspaceLogoId) {
+            skipped++
+            return
+          }
+
+          ctx.info('  setting avatar', { workspace: workspace.uuid, name: workspace.name, icon })
+
+          if (opts.dryRun !== true) {
+            const workspaceIds: WorkspaceIds = {
+              uuid: workspace.uuid,
+              url: workspace.url,
+              dataId: workspace.dataId
+            }
+            if (opts.force !== true && (await storageAdapter.stat(ctx, workspaceIds, workspaceLogoId)) !== undefined) {
+              // The key is taken by another blob; overwrite only with --force.
+              ctx.warn('  logo key already taken, skipping', { workspace: workspace.uuid, name: workspace.name })
+              skipped++
+              return
+            }
+            const blobInfo = await storageAdapter.stat(ctx, workspaceIds, icon)
+            if (blobInfo === undefined) {
+              ctx.warn('  icon blob is missing in storage', { workspace: workspace.uuid, icon })
+              blobMissing++
+              return
+            }
+            const data = await storageAdapter.get(ctx, workspaceIds, icon)
+            await storageAdapter.put(ctx, workspaceIds, workspaceLogoId, data, blobInfo.contentType, blobInfo.size)
+
+            const ops = new TxOperations(connection, core.account.System)
+            await ops.update(wsSetting, { icon: workspaceLogoId })
+          }
+          updated++
+        } finally {
+          await connection.close()
         }
-        updated++
-      } finally {
-        await connection.close()
+      } catch (err: any) {
+        ctx.error('Failed to backfill workspace avatar', { workspace: workspace.uuid, name: workspace.name, err })
+        failed++
       }
-    } catch (err: any) {
-      ctx.error('Failed to backfill workspace avatar', { workspace: workspace.uuid, name: workspace.name, err })
-      failed++
     }
-  }
 
-  async function worker (): Promise<void> {
-    while (true) {
-      const index = nextIndex++
-      if (index >= workspaces.length) {
-        return
+    async function worker (): Promise<void> {
+      while (true) {
+        const index = nextIndex++
+        if (index >= workspaces.length) {
+          return
+        }
+        await processOne(workspaces[index])
       }
-      await processOne(workspaces[index])
     }
+
+    await Promise.all(
+      Array.from({ length: concurrency }, async () => {
+        await worker()
+      })
+    )
+
+    ctx.info('Workspace avatar backfill finished', { updated, skipped, noIcon, blobMissing, failed })
+  } finally {
+    await storageAdapter.close()
   }
-
-  await Promise.all(
-    Array.from({ length: concurrency }, async () => {
-      await worker()
-    })
-  )
-
-  ctx.info('Workspace avatar backfill finished', { updated, skipped, missing, failed })
 }
