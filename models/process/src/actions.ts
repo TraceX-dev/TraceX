@@ -96,6 +96,33 @@ export function defineMethods (builder: Builder): void {
     process.class.Method,
     core.space.Model,
     {
+      label: process.string.UpdateContext,
+      editor: process.component.UpdateContextEditor,
+      objectClass: core.class.Doc,
+      createdContext: null,
+      requiredParams: ['contextId', 'value']
+    },
+    process.method.UpdateContext
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.RemoveRelation,
+      objectClass: core.class.Relation,
+      editor: process.component.AddRelationEditor,
+      presenter: process.component.AddRelationPresenter,
+      createdContext: null,
+      requiredParams: ['association', 'direction', '_id']
+    },
+    process.method.RemoveRelation
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
       label: process.string.UpdateCard,
       editor: process.component.UpdateCardEditor,
       objectClass: card.class.Card,

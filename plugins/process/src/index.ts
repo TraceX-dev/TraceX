@@ -240,6 +240,7 @@ export interface ProcessFunction extends Doc {
   of: Ref<Class<Doc>>
   to?: Ref<Class<Doc>>
   editor?: AnyComponent
+  editorProps?: Record<string, unknown>
   presenter?: AnyComponent
   category: AttributeCategory | undefined
   allowMany?: boolean
@@ -279,12 +280,14 @@ export default plugin(processId, {
     CancelSubProcess: '' as Ref<Method<Process>>,
     CreateAction: '' as Ref<Method<EventButton>>,
     SetContext: '' as Ref<Method<Doc>>,
+    UpdateContext: '' as Ref<Method<Doc>>,
     CancellAction: '' as Ref<Method<EventButton>>,
     CreateToDo: '' as Ref<Method<ProcessToDo>>,
     CloseToDo: '' as Ref<Method<ProcessToDo>>,
     UpdateCard: '' as Ref<Method<Card>>,
     CreateCard: '' as Ref<Method<Card>>,
     AddRelation: '' as Ref<Method<Association>>,
+    RemoveRelation: '' as Ref<Method<Association>>,
     AddTag: '' as Ref<Method<Tag>>,
     RequestApproval: '' as Ref<Method<ApproveRequest>>,
     CancelToDo: '' as Ref<Method<ProcessToDo>>,
@@ -384,6 +387,8 @@ export default plugin(processId, {
     AllMatchValue: '' as Ref<ProcessFunction>,
     FirstMatchValue: '' as Ref<ProcessFunction>,
     Filter: '' as Ref<ProcessFunction>,
+    ArrayLength: '' as Ref<ProcessFunction>,
+    RelationCount: '' as Ref<ProcessFunction>,
     FirstValue: '' as Ref<ProcessFunction>,
     LastValue: '' as Ref<ProcessFunction>,
     Random: '' as Ref<ProcessFunction>,

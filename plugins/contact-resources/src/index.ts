@@ -163,6 +163,7 @@ export * from './workspaceMemberStatus'
 export { employeeByIdStore } from './utils'
 export type * from './assignee'
 export * from './translation'
+export { default as SpaceSettingsForm } from './components/space/SpaceSettingsForm.svelte'
 export {
   PersonIdArrayEditor,
   AccountArrayEditor,

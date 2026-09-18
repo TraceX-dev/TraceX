@@ -240,6 +240,7 @@ async function preparePostHogEvent (event: AnalyticEvent, req: Request): Promise
 
 export function createServer (ctx: MeasureContext): Express {
   const app = express()
+  app.disable('x-powered-by')
   app.use(cors())
   app.use(express.json({ limit: config.MaxPayloadSize }))
 

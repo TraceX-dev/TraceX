@@ -15,7 +15,7 @@
 
 import type { TableData } from '@hcengineering/converter'
 
-const UTF8_BOM = '﻿'
+const UTF8_BOM = '\uFEFF'
 const FORMULA_PREFIXES = ['=', '+', '-', '@', '\t', '\r']
 
 /**

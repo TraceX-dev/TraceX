@@ -32,13 +32,13 @@
     "svelte-check": "^3.6.9",
     "svelte-preprocess": "^5.1.4",
     "svelte-loader": "^3.2.0",
-    "postcss": "8.5.16",
+    "postcss": "8.5.28",
     "autoprefixer": "^10.4.14",
     "tailwindcss": "^3.3.5",
     "sass": "^1.80.0",
     "eslint-plugin-svelte": "^3.23.0",
     "svelte-eslint-parser": "^1.8.1",
-    "eslint-config-love": "^155.0.0"
+    "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
     "@hcengineering/core": "workspace:^0.7.26",

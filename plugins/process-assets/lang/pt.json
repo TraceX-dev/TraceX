@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Atualizar contexto",
+    "RemoveRelation": "Remover relação",
     "Method": "Método",
     "Execu  tion": "Execução",
     "Process": "Processo",
@@ -39,6 +41,8 @@
     "UpperCase": "Maiúsculas",
     "LowerCase": "Minúsculas",
     "Trim": "Apagar",
+    "ArrayLength": "Quantidade de elementos do array",
+    "RelationCount": "Quantidade de relações",
     "FirstValue": "Primeiro Valor",
     "LastValue": "Último Valor",
     "Random": "Aleatório",

@@ -52,7 +52,7 @@
     "eslint-plugin-node": "^11.1.0",
     "typescript": "^5.9.3",
     "eslint-plugin-svelte": "^3.23.0",
-    "eslint-config-love": "^155.0.0"
+    "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1121.0",

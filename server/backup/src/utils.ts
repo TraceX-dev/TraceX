@@ -291,7 +291,9 @@ export async function backupFind (
 
               const chunks: Buffer[] = []
               stream.on('data', (chunk) => {
-                chunks.push(chunk)
+                if (Buffer.isBuffer(chunk)) {
+                  chunks.push(chunk)
+                }
               })
               stream.on('end', () => {
                 const bf = Buffer.concat(chunks)
@@ -655,7 +657,9 @@ export async function compactBackup (
                   if (requiredDocs.has(name)) {
                     const chunks: Buffer[] = []
                     stream.on('data', (chunk) => {
-                      chunks.push(chunk)
+                      if (Buffer.isBuffer(chunk)) {
+                        chunks.push(chunk)
+                      }
                     })
                     stream.on('end', () => {
                       const bf = Buffer.concat(chunks)
@@ -686,7 +690,9 @@ export async function compactBackup (
                     const chunks: Buffer[] = []
                     const bname = name.substring(0, name.length - 5)
                     stream.on('data', (chunk) => {
-                      chunks.push(chunk)
+                      if (Buffer.isBuffer(chunk)) {
+                        chunks.push(chunk)
+                      }
                     })
                     stream.on('end', () => {
                       const bf = Buffer.concat(chunks)
@@ -1041,7 +1047,9 @@ export async function verifyDigest (
             const chunks: Buffer[] = []
             const bname = name.substring(0, name.length - 5)
             stream.on('data', (chunk) => {
-              chunks.push(chunk)
+              if (Buffer.isBuffer(chunk)) {
+                chunks.push(chunk)
+              }
             })
             stream.on('end', () => {
               try {
@@ -1282,7 +1290,9 @@ export async function verifyDocsFromSnapshot (
               const chunks: Buffer[] = []
               const bname = name.substring(0, name.length - 5)
               stream.on('data', (chunk) => {
-                chunks.push(chunk)
+                if (Buffer.isBuffer(chunk)) {
+                  chunks.push(chunk)
+                }
               })
               stream.on('end', () => {
                 const bf = Buffer.concat(chunks)

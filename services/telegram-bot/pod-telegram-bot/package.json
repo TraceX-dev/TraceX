@@ -50,7 +50,7 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "eslint-plugin-svelte": "^3.23.0",
-    "eslint-config-love": "^155.0.0"
+    "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
     "@hcengineering/activity": "workspace:^0.7.0",
@@ -81,10 +81,10 @@
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
-    "htmlparser2": "^9.0.0",
+    "htmlparser2": "~10.1.0",
     "mongodb": "^6.16.0",
     "otp-generator": "^4.0.1",
-    "postgres": "^3.4.7",
+    "postgres": "^3.4.9",
     "telegraf": "^4.16.3"
   }
 }

@@ -230,6 +230,27 @@ describe('permissions', () => {
 
     expect(current.canAddMembers(space)).toBe(true)
     expect(current.canRemoveMembers(space)).toBe(false)
+    expect(current.canEditMembers(space)).toBe(true)
+    expect(current.canOpenEmployeePreview).toBe(true)
+  })
+
+  test('uses document permissions for regular document members', () => {
+    const account = createAccount(AccountRole.User)
+    const space = createSpace('project', core.class.Space, [account.uuid])
+    const doc = {
+      _id: 'card' as Ref<Doc>,
+      _class: 'test:class:Card' as Ref<Class<Doc>>,
+      space: space._id,
+      modifiedBy: account.primarySocialId,
+      modifiedOn: 0
+    }
+    setPermissionsStore({ whitelist: new Set([space._id]) })
+    setCurrentAccount(account)
+
+    const current = getPermissions()
+
+    expect(current.canEdit(doc)).toBe(true)
+    expect(current.canEditMembers(doc)).toBe(true)
   })
 
   test('allows the space creator to add and remove members', () => {
@@ -330,10 +351,27 @@ describe('permissions', () => {
     expect(current.canRemove(own)).toBe(true)
     expect(current.canComment(own)).toBe(true)
     expect(current.canReact(own)).toBe(true)
+    expect(current.canEditMembers(own)).toBe(false)
+    expect(current.canOpenEmployeePreview).toBe(false)
 
     expect(current.canEdit(foreign)).toBe(false)
     expect(current.canRemove(foreign)).toBe(false)
     expect(current.canComment(foreign)).toBe(false)
+    expect(current.canEditMembers(foreign)).toBe(false)
+  })
+
+  test('keeps a space created by a guest read only while allowing its members to be viewed', () => {
+    const account = createAccount(AccountRole.Guest)
+    const ownSpace = createSpace('channel', core.class.Space, [account.uuid], account.primarySocialId)
+    setPermissionsStore({ whitelist: new Set([ownSpace._id]) })
+    setCurrentAccount(account)
+
+    const current = getPermissions()
+
+    expect(current.canEditSpace(ownSpace)).toBe(false)
+    expect(current.canEdit(ownSpace)).toBe(false)
+    expect(current.canEditMembers(ownSpace)).toBe(false)
+    expect(current.canOpenEmployeePreview).toBe(false)
   })
 
   test.each([AccountRole.DocGuest, AccountRole.ReadOnlyGuest])(
@@ -356,6 +394,8 @@ describe('permissions', () => {
 
       expect(current.canEdit(own)).toBe(false)
       expect(current.canRemove(own)).toBe(false)
+      expect(current.canEditMembers(own)).toBe(false)
+      expect(current.canOpenEmployeePreview).toBe(false)
     }
   )
 

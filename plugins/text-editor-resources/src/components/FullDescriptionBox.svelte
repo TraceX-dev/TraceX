@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2022, 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -31,10 +32,12 @@
   export let content: Markup = EmptyMarkup
   export let maxHeight: string = '40vh'
   export let kitOptions: Partial<EditorKitOptions> = {}
+  export let readonly: boolean = false
 
   const dispatch = createEventDispatcher()
 
   const checkValue = (evt: CustomEvent): void => {
+    if (readonly) return
     const res: string | undefined = evt.detail === null ? undefined : evt.detail
     if (content !== res) dispatch('save', res)
   }
@@ -51,7 +54,8 @@
   </div>
   <StyledTextBox
     {content}
-    alwaysEdit
+    alwaysEdit={!readonly}
+    {readonly}
     focusable
     mode={2}
     hideExtraButtons

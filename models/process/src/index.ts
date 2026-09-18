@@ -328,6 +328,7 @@ export class TProcessFunction extends TDoc implements ProcessFunction {
     label!: IntlString
 
   editor?: AnyComponent
+  editorProps?: Record<string, unknown>
   presenter?: AnyComponent
 
   @Prop(TypeBoolean(), getEmbeddedLabel('AllowMany'))

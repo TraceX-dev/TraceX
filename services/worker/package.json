@@ -51,14 +51,14 @@
     "typescript": "^5.9.3",
     "@hcengineering/server-process": "workspace:^0.7.0",
     "eslint-plugin-svelte": "^3.23.0",
-    "eslint-config-love": "^155.0.0"
+    "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
     "@hcengineering/kafka": "workspace:^0.7.20",
     "@hcengineering/process": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/server-core": "workspace:^0.7.19",
-    "postgres": "^3.4.7",
+    "postgres": "^3.4.9",
     "dotenv": "^16.4.5"
   }
 }

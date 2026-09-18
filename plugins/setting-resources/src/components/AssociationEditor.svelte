@@ -233,9 +233,7 @@
   ]
 
   let mode: '1:1' | '1:N' | 'N:N' = (items.find((item) => item.id === association?.type)?.id ?? '1:1') as
-    | '1:1'
-    | '1:N'
-    | 'N:N'
+    '1:1' | '1:N' | 'N:N'
   const label = items.find((item) => item.id === association?.type)?.label ?? ('' as IntlString)
 </script>
 

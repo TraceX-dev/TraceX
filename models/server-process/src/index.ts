@@ -166,6 +166,14 @@ export function createModel (builder: Builder): void {
     func: serverProcess.func.CreateAction
   })
 
+  builder.mixin(process.method.UpdateContext, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.UpdateContext
+  })
+
+  builder.mixin(process.method.RemoveRelation, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.RemoveRelation
+  })
+
   builder.mixin(process.method.SetContext, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.SetContext
   })
@@ -232,6 +240,14 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(process.method.UnlockField, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.UnlockField
+  })
+
+  builder.mixin(process.function.ArrayLength, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.ArrayLength
+  })
+
+  builder.mixin(process.function.RelationCount, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.RelationCount
   })
 
   builder.mixin(process.function.FirstValue, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {

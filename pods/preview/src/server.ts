@@ -159,6 +159,7 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
   const service = createPreviewService(storageAdapter, cache, tempDir)
 
   const app = express()
+  app.disable('x-powered-by')
 
   app.use(cors())
   app.use(express.json({ limit: '50mb' }))

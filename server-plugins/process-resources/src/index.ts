@@ -57,6 +57,7 @@ import { ProcessMessage } from '@hcengineering/server-process'
 import time from '@hcengineering/time'
 import {
   AddRelation,
+  RemoveRelation,
   AddTag,
   ApproveRequestApproved,
   ApproveRequestRejected,
@@ -85,6 +86,7 @@ import {
   RelationChangedCheck,
   RunSubProcess,
   SetContext,
+  UpdateContext,
   UnlockCard,
   UnlockField,
   UnlockSection,
@@ -113,6 +115,8 @@ import {
   ExecutionStarted,
   Filter,
   FirstMatchValue,
+  ArrayLength,
+  RelationCount,
   FirstValue,
   FirstWorkingDayAfter,
   Floor,
@@ -581,7 +585,9 @@ async function reassignToDos (card: Card, ops: DocumentUpdate<Card>, control: Tr
 
       const target = h.isMixin(_process.masterTag) ? h.asIf(card, _process.masterTag) : card
       if (target === undefined) continue
-      const newUsers = (target[todo.field as keyof Card] as any[]) ?? []
+      const fieldValue = target[todo.field as keyof Card] as
+        ApproveRequest['user'] | ApproveRequest['user'][] | undefined
+      const newUsers = fieldValue == null ? [] : Array.isArray(fieldValue) ? fieldValue : [fieldValue]
       if (newUsers.length === 0) {
         continue
       }
@@ -915,6 +921,7 @@ export default async () => ({
     CreateAction,
     RunSubProcess,
     SetContext,
+    UpdateContext,
     CancelSubProcess,
     CreateToDo,
     UpdateCard,
@@ -924,6 +931,7 @@ export default async () => ({
     EnableVersionCreation,
     CreateCard,
     AddRelation,
+    RemoveRelation,
     AddTag,
     CheckToDoDone,
     CheckToDoCancelled,
@@ -949,6 +957,8 @@ export default async () => ({
   transform: {
     CurrentDate,
     CurrentUser,
+    ArrayLength,
+    RelationCount,
     FirstValue,
     LastValue,
     Random,

@@ -33,13 +33,13 @@
     "@types/pg": "^8.11.6",
     "@types/node": "^24.13.3",
     "eslint-plugin-svelte": "^3.23.0",
-    "eslint-config-love": "^155.0.0"
+    "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
     "@hcengineering/mongo": "workspace:^0.7.16",
     "@hcengineering/postgres": "workspace:^0.7.22",
     "mongodb": "^6.16.0",
-    "postgres": "^3.4.7",
+    "postgres": "^3.4.9",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/core": "workspace:^0.7.26",
     "otp-generator": "^4.0.1",

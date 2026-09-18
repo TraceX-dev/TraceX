@@ -53,7 +53,7 @@
     "typescript": "^5.9.3",
     "@types/morgan": "~1.9.9",
     "eslint-plugin-svelte": "^3.23.0",
-    "eslint-config-love": "^155.0.0"
+    "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
     "@hcengineering/analytics": "workspace:^0.7.19",
@@ -68,7 +68,7 @@
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
-    "postgres": "^3.4.7",
+    "postgres": "^3.4.9",
     "sharp": "~0.35.3",
     "morgan": "^1.11.0"
   }

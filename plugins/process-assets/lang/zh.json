@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "更新上下文",
+    "RemoveRelation": "删除关联",
     "Method": "方法",
     "Execution": "执行",
     "Process": "过程",
@@ -39,6 +41,8 @@
     "UpperCase": "大写",
     "LowerCase": "小写",
     "Trim": "截断",
+    "ArrayLength": "数组元素数量",
+    "RelationCount": "关联数量",
     "FirstValue": "第一个值",
     "LastValue": "最后一个值",
     "Random": "随机",

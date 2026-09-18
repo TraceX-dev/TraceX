@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Mettre à jour le contexte",
+    "RemoveRelation": "Supprimer la relation",
     "Method": "Méthode",
     "Execution": "Exécution",
     "Process": "Processus",
@@ -39,6 +41,8 @@
     "UpperCase": "Majuscules",
     "LowerCase": "Minuscules",
     "Trim": "Couper",
+    "ArrayLength": "Nombre d’éléments du tableau",
+    "RelationCount": "Nombre de relations",
     "FirstValue": "Premier valeur",
     "LastValue": "Dernière valeur",
     "Random": "Aléatoire",
