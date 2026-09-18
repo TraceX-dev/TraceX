@@ -18,7 +18,7 @@
   import { type ObjectDiscussion } from '@hcengineering/chunter'
   import { type Doc, type Ref, SortingOrder } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
-  import ui, { ButtonIcon, IconAdd, Label, Section, showPopup } from '@hcengineering/ui'
+  import ui, { Button, ButtonIcon, IconAdd, Label, Section, showPopup } from '@hcengineering/ui'
   import { permissions } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
@@ -108,13 +108,7 @@
           <div class="antiSection-empty flex-col mt-3">
             <span class="text-sm content-dark-color"><Label label={chunter.string.NoDiscussionsYet} /></span>
             {#if !readonly && canCreate}
-              <button
-                class="create-link over-underline text-sm caption-color"
-                type="button"
-                on:click={createDiscussion}
-              >
-                <Label label={chunter.string.NewDiscussion} />
-              </button>
+              <Button kind="link" size="small" label={chunter.string.NewDiscussion} on:click={createDiscussion} />
             {/if}
           </div>
         {:else}
@@ -130,13 +124,15 @@
             {/each}
 
             {#if discussions.length > COLLAPSED_LIMIT}
-              <button class="footer" type="button" on:click={() => (expanded = !expanded)}>
-                {#if expanded}
-                  <Label label={ui.string.ShowLess} />
-                {:else}
-                  <Label label={chunter.string.ViewAllDiscussions} params={{ count: discussions.length }} />
-                {/if}
-              </button>
+              <div class="footer">
+                <Button
+                  kind="ghost"
+                  width="100%"
+                  label={expanded ? ui.string.ShowLess : chunter.string.ViewAllDiscussions}
+                  labelParams={{ count: discussions.length }}
+                  on:click={() => (expanded = !expanded)}
+                />
+              </div>
             {/if}
           </div>
         {/if}
@@ -161,31 +157,8 @@
     border-radius: 0.75rem;
   }
 
-  .create-link {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    font-family: inherit;
-    cursor: pointer;
-  }
-
   .footer {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 2.5rem;
-    margin-top: -1px;
-    border: 0;
+    padding: 0.25rem;
     border-top: 1px solid var(--theme-divider-color);
-    background: transparent;
-    color: var(--theme-dark-color);
-    font-family: inherit;
-    font-size: 0.8125rem;
-    cursor: pointer;
-
-    &:hover {
-      background: var(--global-ui-hover-highlight-BackgroundColor);
-      color: var(--theme-caption-color);
-    }
   }
 </style>

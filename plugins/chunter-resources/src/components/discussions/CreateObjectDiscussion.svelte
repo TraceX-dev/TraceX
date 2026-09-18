@@ -22,7 +22,8 @@
   import { EmptyMarkup, isEmptyMarkup } from '@hcengineering/text'
   import { StyledTextArea } from '@hcengineering/text-editor-resources'
   import {
-    Icon,
+    Button,
+    IconAdd,
     IconDropdown,
     Label,
     Modal,
@@ -136,40 +137,45 @@
         size="large"
       />
       {#if missingCollaborators.length > 0}
-        <button class="link" type="button" on:click={addAllCollaborators}>
-          + <Label label={chunter.string.AddAllCollaborators} params={{ count: missingCollaborators.length }} />
-        </button>
+        <div class="add-all">
+          <Button
+            kind="link"
+            size="small"
+            icon={IconAdd}
+            label={chunter.string.AddAllCollaborators}
+            labelParams={{ count: missingCollaborators.length }}
+            on:click={addAllCollaborators}
+          />
+        </div>
       {/if}
     </div>
 
     {#if attachments.length > 0}
       <div class="field">
         <span class="field-label"><Label label={chunter.string.AttachTo} /></span>
-        <button class="select" type="button" on:click={selectAttachment}>
-          <Icon icon={attachment.icon.Attachment} size="small" />
-          <span class="select-value overflow-label">
-            {#if linkedTo !== undefined}
-              {linkedTo.name}
-            {:else}
-              <Label label={chunter.string.NotAttached} />
-            {/if}
-          </span>
-          <Icon icon={IconDropdown} size="small" />
-        </button>
+        <Button
+          kind="regular"
+          size="large"
+          width="100%"
+          justify="left"
+          icon={attachment.icon.Attachment}
+          iconRight={IconDropdown}
+          label={linkedTo !== undefined ? getEmbeddedLabel(linkedTo.name) : chunter.string.NotAttached}
+          on:click={selectAttachment}
+        />
         <span class="hint"><Label label={chunter.string.AttachToDescription} /></span>
       </div>
     {/if}
 
     <div class="field">
       <span class="field-label"><Label label={chunter.string.FirstMessage} /></span>
-      <div class="message-box">
-        <StyledTextArea
-          bind:content={firstMessage}
-          placeholder={chunter.string.FirstMessagePlaceholder}
-          showButtons={false}
-          maxHeight="8rem"
-        />
-      </div>
+      <StyledTextArea
+        bind:content={firstMessage}
+        placeholder={chunter.string.FirstMessagePlaceholder}
+        kind="emphasized"
+        showButtons={false}
+        maxHeight="8rem"
+      />
     </div>
   </div>
 </Modal>
@@ -197,52 +203,13 @@
     text-transform: uppercase;
   }
 
-  .link,
-  .select {
-    border: 0;
-    background: transparent;
-    font: inherit;
-    color: inherit;
-    cursor: pointer;
-  }
-
-  .select,
-  .message-box {
-    border: 1px solid var(--global-ui-BorderColor);
-    border-radius: var(--medium-BorderRadius);
-  }
-
-  .link {
+  .add-all {
     display: flex;
     align-self: flex-start;
-    gap: 0.25rem;
-    padding: 0;
-    color: var(--global-accent-TextColor);
-    font-size: 0.75rem;
-    font-weight: 600;
   }
 
   .hint {
     color: var(--global-tertiary-TextColor);
     font-size: 0.75rem;
-  }
-
-  .select {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-  }
-
-  .select-value {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.8125rem;
-  }
-
-  .message-box {
-    padding: 0.5rem 0.75rem;
-    min-height: 4rem;
   }
 </style>

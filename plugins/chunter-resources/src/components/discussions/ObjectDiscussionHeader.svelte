@@ -26,6 +26,7 @@
     IconClose,
     IconDelete,
     IconMoreH,
+    EditBox,
     Label,
     ModernPopup,
     eventToHTMLElement,
@@ -45,8 +46,7 @@
   const linkedQuery = createQuery()
 
   let linked: Attachment | undefined = undefined
-  let editing = false
-  let draftName = ''
+  let title = ''
 
   $: canManage = canManageObjectDiscussion(discussion)
 
@@ -88,28 +88,24 @@
     })
   }
 
-  function startEditing (): void {
-    if (!canManage) return
-    draftName = discussion.name
-    editing = true
-  }
+  // Keeps the draft while the user is typing; synced from the discussion otherwise.
+  let isTitleEditing = false
+  $: if (!isTitleEditing) title = discussion.name
 
-  async function finishEditing (): Promise<void> {
-    if (!editing) return
-    editing = false
-    const name = draftName.trim()
+  async function saveTitle (): Promise<void> {
+    isTitleEditing = false
+    const name = title.trim()
     if (name !== '' && name !== discussion.name) {
       await client.update(discussion, { name })
+    } else {
+      title = discussion.name
     }
   }
 
   function handleTitleKeydown (event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       event.preventDefault()
-      void finishEditing()
-    } else if (event.key === 'Escape') {
-      event.stopPropagation()
-      editing = false
+      ;(event.target as HTMLInputElement).blur()
     }
   }
 
@@ -120,34 +116,26 @@
   async function unlink (): Promise<void> {
     await client.update(discussion, { $unset: { linkedTo: true, linkedToClass: true } })
   }
-
-  function focus (node: HTMLInputElement): void {
-    node.focus()
-    node.select()
-  }
 </script>
 
 <div class="discussion-header">
   <Icon icon={chunter.icon.Thread} size="small" />
-  {#if editing}
-    <input
-      class="title-input"
-      bind:value={draftName}
-      use:focus
-      on:keydown={handleTitleKeydown}
-      on:blur={() => void finishEditing()}
-    />
-  {:else}
-    <button
-      class="title overflow-label"
-      class:editable={canManage}
-      type="button"
-      disabled={!canManage}
-      on:click={startEditing}
-    >
-      {discussion.name}
-    </button>
-  {/if}
+  <div class="title">
+    {#if canManage}
+      <EditBox
+        bind:value={title}
+        placeholder={chunter.string.Topic}
+        fullSize
+        on:value={() => {
+          isTitleEditing = true
+        }}
+        on:keydown={handleTitleKeydown}
+        on:blur={() => void saveTitle()}
+      />
+    {:else}
+      <span class="overflow-label">{discussion.name}</span>
+    {/if}
+  </div>
   {#if resolved}
     <span class="resolved" use:tooltip={{ label: chunter.string.Resolved }}>
       <Icon icon={IconCheckCircle} size="small" />
@@ -177,9 +165,7 @@
       <Icon icon={attachment.icon.Attachment} size="x-small" />
       <span class="overflow-label"><Label label={chunter.string.AttachedTo} params={{ name: linked.name }} /></span>
       {#if canManage}
-        <button class="chip-remove" type="button" on:click={() => void unlink()}>
-          <Icon icon={IconClose} size="tiny" />
-        </button>
+        <ButtonIcon icon={IconClose} size="min" kind="tertiary" on:click={() => void unlink()} />
       {/if}
     </div>
   </div>
@@ -196,42 +182,12 @@
     color: var(--global-primary-TextColor);
   }
 
-  button {
-    border: 0;
-    background: transparent;
-    font-family: inherit;
-    color: inherit;
-    cursor: pointer;
-  }
-
-  .title,
-  .title-input {
+  .title {
+    display: flex;
     flex: 1;
     min-width: 0;
-    padding: 0.125rem 0.375rem;
-    border-radius: var(--small-BorderRadius);
     font-size: 1rem;
     font-weight: 700;
-  }
-
-  .title {
-    text-align: left;
-
-    &.editable:hover {
-      background: var(--global-ui-hover-highlight-BackgroundColor);
-    }
-
-    &:disabled {
-      cursor: default;
-    }
-  }
-
-  .title-input {
-    border: 1px solid var(--global-accent-BackgroundColor);
-    background: transparent;
-    color: inherit;
-    font-family: inherit;
-    outline: none;
   }
 
   .resolved {
@@ -267,15 +223,5 @@
     color: var(--global-secondary-TextColor);
     font-size: 0.75rem;
     font-weight: 600;
-  }
-
-  .chip-remove {
-    display: flex;
-    padding: 0;
-    color: var(--global-tertiary-TextColor);
-
-    &:hover {
-      color: var(--global-primary-TextColor);
-    }
   }
 </style>

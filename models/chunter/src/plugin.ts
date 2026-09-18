@@ -106,9 +106,11 @@ export default mergeIds(chunterId, chunter, {
     GetLink: '' as Resource<(doc: Doc, props: Record<string, any>) => Promise<string>>,
     GetFragment: '' as Resource<(doc: Doc, props: Record<string, any>) => Promise<Location>>,
     DmIdentifierProvider: '' as Resource<<T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<string>>,
-    ObjectDiscussionTitleProvider: '' as Resource<<T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<string>>,
+    ObjectDiscussionTitleProvider: '' as Resource<
+      <T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<string>
+    >,
     ObjectDiscussionIdentifierProvider: '' as Resource<
-    <T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<string>
+      <T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<string>
     >,
     CanDeleteMessage: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     CanCopyMessageLink: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
