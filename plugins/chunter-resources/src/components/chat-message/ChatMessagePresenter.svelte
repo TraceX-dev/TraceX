@@ -75,9 +75,9 @@
   ;[viewlet] =
     value !== undefined
       ? client.getModel().findAllSync(chunter.class.ChatMessageViewlet, {
-        objectClass: value.attachedToClass,
-        messageClass: value._class
-      })
+          objectClass: value.attachedToClass,
+          messageClass: value._class
+        })
       : []
 
   $: personId = value?.createdBy

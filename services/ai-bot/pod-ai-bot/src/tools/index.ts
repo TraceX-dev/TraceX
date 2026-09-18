@@ -30,7 +30,7 @@ import { type AIBotTool } from './types'
 
 import { ContextMode } from '../providers'
 
-export * from './types'
+export type * from './types'
 
 const dynamicTools: AIBotTool[] = []
 

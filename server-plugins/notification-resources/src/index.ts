@@ -95,6 +95,23 @@ import {
   updateNotifyContextsSpace
 } from './utils'
 
+export interface TranslatedNotificationContent {
+  title: string
+  body: string
+  params: Record<string, string>
+}
+
+interface EmailTemplateParams extends Record<string, string> {
+  title: string
+  body: string
+  message: string
+  link: string
+}
+
+function toTemplateParams (params?: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, String(value)]))
+}
+
 export async function getCommonNotificationTxes (
   ctx: MeasureContext,
   control: TriggerControl,
@@ -157,7 +174,7 @@ function fillTemplate (
   sender: string,
   doc: string,
   data: string,
-  params: Record<string, string> = {}
+  params: EmailTemplateParams
 ): string {
   let res = replaceAll(template, '{sender}', sender)
   res = replaceAll(res, '{doc}', doc)
@@ -185,10 +202,10 @@ export async function getContentByTemplate (
   const notificationType = control.modelDb.getObject(type)
   if (notificationType.templates === undefined) return
 
-  const params: Record<string, string> =
+  const notificationContent: TranslatedNotificationContent =
     notificationData !== undefined
       ? await getTranslatedNotificationContent(notificationData, notificationData._class, control)
-      : {}
+      : { title: '', body: '', params: {} }
 
   let textPart = await getTextPart(doc, control)
   if (textPart === undefined) {
@@ -196,10 +213,12 @@ export async function getContentByTemplate (
       notificationData !== undefined &&
       control.hierarchy.isDerived(notificationData._class, notification.class.CommonInboxNotification)
     ) {
-      textPart = params.title ?? params.body ?? ''
+      textPart = notificationContent.title || notificationContent.body
     }
     if (textPart === undefined || textPart === '') return
   }
+
+  let messageText = notificationContent.params.message ?? notificationContent.body
 
   if (
     notificationData !== undefined &&
@@ -207,22 +226,25 @@ export async function getContentByTemplate (
   ) {
     const messageContent = (notificationData as MentionInboxNotification).messageHtml
     const text = messageContent !== undefined ? markupToText(messageContent) : undefined
-    params.body = text ?? params.body
-    params.message = text ?? params.message
+    messageText = text ?? messageText
   }
 
   if (message !== undefined) {
     const markup = await messageToMarkup(control, message)
-    params.message = markup !== undefined ? markupToText(markup) : (params.message ?? '')
-  } else if (params.message === undefined) {
-    params.message = params.body ?? ''
+    messageText = markup !== undefined ? markupToText(markup) : messageText
   }
 
   const link = await getNotificationLink(control, doc, message?._id)
   const app = control.branding?.title ?? 'Huly'
   const linkText = await translate(notification.string.ViewIn, { app })
 
-  params.link = `<a href='${link}'>${linkText}</a>`
+  const params: EmailTemplateParams = {
+    ...notificationContent.params,
+    title: textPart,
+    body: notificationContent.body,
+    message: messageText,
+    link: `<a href='${link}'>${linkText}</a>`
+  }
 
   const text = fillTemplate(notificationType.templates.textTemplate, sender, textPart, data, params)
   const htmlPart = await getHtmlPart(doc, control)
@@ -406,11 +428,11 @@ export async function pushInboxNotifications (
 
 async function activityInboxNotificationToText (
   doc: Data<ActivityInboxNotification>
-): Promise<{ title: string, body: string, [key: string]: string }> {
+): Promise<TranslatedNotificationContent> {
   let title: string = ''
   let body: string = ''
 
-  const params = doc.intlParams ?? {}
+  const params = toTemplateParams(doc.intlParams)
   if (doc.intlParamsNotLocalized != null && Object.keys(doc.intlParamsNotLocalized).length > 0) {
     for (const key in doc.intlParamsNotLocalized) {
       const val = doc.intlParamsNotLocalized[key]
@@ -424,18 +446,18 @@ async function activityInboxNotificationToText (
     body = await translate(doc.body, params)
   }
 
-  return { ...params, title, body }
+  return { title, body, params }
 }
 
 async function commonInboxNotificationToText (
   doc: Data<CommonInboxNotification>
-): Promise<{ title: string, body: string, [key: string]: string }> {
+): Promise<TranslatedNotificationContent> {
   let title: string = ''
   let body: string = ''
 
-  let params = doc.intlParams ?? {}
+  let params = toTemplateParams(doc.intlParams)
   if (doc.props != null) {
-    params = { ...params, ...doc.props }
+    params = { ...params, ...toTemplateParams(doc.props) }
   }
   if (doc.intlParamsNotLocalized != null && Object.keys(doc.intlParamsNotLocalized).length > 0) {
     for (const key in doc.intlParamsNotLocalized) {
@@ -452,13 +474,13 @@ async function commonInboxNotificationToText (
   if (doc.message != null) {
     body = await translate(doc.message, params)
   }
-  return { ...params, title, body }
+  return { title, body, params }
 }
 
 async function mentionInboxNotificationToText (
   doc: Data<MentionInboxNotification>,
   control: TriggerControl
-): Promise<{ title: string, body: string, [key: string]: string }> {
+): Promise<TranslatedNotificationContent> {
   let obj = (await control.findAll(control.ctx, doc.mentionedInClass, { _id: doc.mentionedIn }, { limit: 1 }))[0]
   if (obj !== undefined) {
     if (control.hierarchy.isDerived(obj._class, chunter.class.ChatMessage)) {
@@ -490,16 +512,16 @@ export async function getTranslatedNotificationContent (
   data: Data<InboxNotification>,
   _class: Ref<Class<InboxNotification>>,
   control: TriggerControl
-): Promise<{ title: string, body: string, [key: string]: string }> {
+): Promise<TranslatedNotificationContent> {
   if (control.hierarchy.isDerived(_class, notification.class.ActivityInboxNotification)) {
     return await activityInboxNotificationToText(data as Data<ActivityInboxNotification>)
   } else if (control.hierarchy.isDerived(_class, notification.class.MentionInboxNotification)) {
     return await mentionInboxNotificationToText(data as Data<MentionInboxNotification>, control)
   } else if (control.hierarchy.isDerived(_class, notification.class.CommonInboxNotification)) {
-    return await commonInboxNotificationToText(data as Data<CommonInboxNotification>)
+    return await commonInboxNotificationToText(data)
   }
 
-  return { title: '', body: '' }
+  return { title: '', body: '', params: {} }
 }
 
 /**
@@ -781,8 +803,8 @@ export async function createCollabDocInfo (
   const filteredCollaborators = !space.private
     ? collaborators
     : collaborators.filter(
-      (it) =>
-        space.members.includes(it) ||
+        (it) =>
+          space.members.includes(it) ||
           currentRes.some((tx) => {
             if (tx._class === core.class.TxUpdateDoc) {
               const updateTx = tx as TxUpdateDoc<Space>
@@ -793,7 +815,7 @@ export async function createCollabDocInfo (
             }
             return false
           })
-    )
+      )
   const targets = new Set(filteredCollaborators)
 
   // user is not collaborator of himself, but we should notify user of changes related to users account (mentions, comments etc)
@@ -862,10 +884,10 @@ async function getTxCollabs (
   cache: Map<Ref<Doc>, Collaborator[]>,
   doc: Doc
 ): Promise<{
-    added: AccountUuid[]
-    removed: AccountUuid[]
-    result: AccountUuid[]
-  }> {
+  added: AccountUuid[]
+  removed: AccountUuid[]
+  result: AccountUuid[]
+}> {
   const { hierarchy } = control
   const mixin = getClassCollaborators(control.modelDb, hierarchy, doc._class)
   if (mixin === undefined) return { added: [], removed: [], result: [] }

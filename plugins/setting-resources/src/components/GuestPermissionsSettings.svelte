@@ -107,9 +107,9 @@
   $: workspaceApplications = client
     .getModel()
     .findAllSync<Application>(workbench.class.Application, {
-    hidden: false,
-    _id: { $nin: excludedApplicationIds }
-  })
+      hidden: false,
+      _id: { $nin: excludedApplicationIds }
+    })
     .filter((app) => !hiddenApplicationIds.includes(app._id))
 
   $: applicationsMap = new Map<Ref<Doc>, Application>(

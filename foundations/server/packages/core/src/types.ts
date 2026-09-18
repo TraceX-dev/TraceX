@@ -559,11 +559,11 @@ export interface ClientSessionCtx {
 
   pipeline: Pipeline
   socialStringsToUsers: Map<
-  PersonId,
-  {
-    accontUuid: AccountUuid
-    role: AccountRole
-  }
+    PersonId,
+    {
+      accontUuid: AccountUuid
+      role: AccountRole
+    }
   >
   requestId: ReqId | undefined
   sendResponse: (id: ReqId | undefined, msg: any) => Promise<void>
@@ -707,8 +707,7 @@ export interface AddSessionActive {
 }
 
 export type GetWorkspaceResponse =
-  | { upgrade: true, progress?: number }
-  | { error: any, terminate?: boolean, specialError?: 'archived' | 'migration' }
+  { upgrade: true, progress?: number } | { error: any, terminate?: boolean, specialError?: 'archived' | 'migration' }
 
 export type AddSessionResponse = AddSessionActive | GetWorkspaceResponse
 

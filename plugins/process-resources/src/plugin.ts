@@ -58,7 +58,9 @@ export default mergeIds(processId, process, {
     ErrorPresenter: '' as AnyComponent,
     RequestUserInput: '' as AnyComponent,
     ResultInput: '' as AnyComponent,
+    SelectionSpaceEditor: '' as AnyComponent,
     RoleEditor: '' as AnyComponent,
+    RelationTableEditor: '' as AnyComponent,
     ActionsPresenter: '' as AnyComponent,
     TriggerPresenter: '' as AnyComponent,
     StatePresenter: '' as AnyComponent,
@@ -99,6 +101,7 @@ export default mergeIds(processId, process, {
     CancelToDoEditor: '' as AnyComponent,
     CreateActionEditor: '' as AnyComponent,
     SetContextEditor: '' as AnyComponent,
+    UpdateContextEditor: '' as AnyComponent,
     ToDoValuePresenter: '' as AnyComponent,
     ActionTypePresenter: '' as AnyComponent,
     ExecutionRefPresenter: '' as AnyComponent
@@ -124,7 +127,8 @@ export default mergeIds(processId, process, {
   },
   transformPresenter: {
     NumberPresenter: '' as AnyComponent,
-    RolePresenter: '' as AnyComponent
+    RolePresenter: '' as AnyComponent,
+    RelationTablePresenter: '' as AnyComponent
   },
   function: {
     ShowDoneQuery: '' as ViewQueryAction,
@@ -170,6 +174,8 @@ export default mergeIds(processId, process, {
     Filter: '' as IntlString,
     AllMatchValue: '' as IntlString,
     FirstMatchValue: '' as IntlString,
+    ArrayLength: '' as IntlString,
+    RelationCount: '' as IntlString,
     FirstValue: '' as IntlString,
     Ascending: '' as IntlString,
     Descending: '' as IntlString,
@@ -259,6 +265,8 @@ export default mergeIds(processId, process, {
     Attribute: '' as IntlString,
     Context: '' as IntlString,
     SetContext: '' as IntlString,
+    UpdateContext: '' as IntlString,
+    RemoveRelation: '' as IntlString,
     EmptyValue: '' as IntlString,
     EmptyArray: '' as IntlString,
     ExecutionInitiator: '' as IntlString,
@@ -316,7 +324,8 @@ export default mergeIds(processId, process, {
     ProcessDiagram: '' as IntlString,
     ProcessMap: '' as IntlString,
     NoTransitions: '' as IntlString,
-    NoProcessRelations: '' as IntlString
+    NoProcessRelations: '' as IntlString,
+    TableFromRelation: '' as IntlString
   },
   permission: {
     RunProcess: '' as Ref<Permission>,

@@ -195,6 +195,7 @@ export type ButtonShape =
 export type EditStyle =
   | 'editbox'
   | 'large-style'
+  | 'medium-style'
   | 'small-style'
   | 'search-style'
   | 'underline'
@@ -249,7 +250,7 @@ export const posAlignment = [
 export type PopupPosAlignment = (typeof posAlignment)[number]
 
 export function isPopupPosAlignment (x: any): x is PopupPosAlignment {
-  return typeof x === 'string' && (posAlignment as typeof posAlignment).includes(x as PopupPosAlignment)
+  return typeof x === 'string' && posAlignment.includes(x as PopupPosAlignment)
 }
 
 export type PopupAlignment = PopupPosAlignment | PopupPositionElement | null

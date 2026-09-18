@@ -144,11 +144,11 @@ function parsePrintOptions (query: Request['query']): PrintOptions {
   const kind = query.kind as PrintOptions['kind']
   const orientation = query.orientation as PrintOptions['orientation']
 
-  if (kind !== undefined && !validKinds.includes(kind as any)) {
+  if (kind !== undefined && !validKinds.includes(kind)) {
     throw new ApiError(400, `Invalid print kind: ${kind}`)
   }
 
-  if (orientation !== undefined && !validPageOrientations.includes(orientation as any)) {
+  if (orientation !== undefined && !validPageOrientations.includes(orientation)) {
     throw new ApiError(400, `Invalid page orientation: ${orientation}`)
   }
 
@@ -193,6 +193,7 @@ export function createServer (
   const whitelistedHostnames = allowedHostnames.length > 0 ? new Set(allowedHostnames) : null
 
   const app = express()
+  app.disable('x-powered-by')
   app.use(cors())
   app.use(express.json())
   app.use(withMeasureContext({ ctx: measureCtx }))

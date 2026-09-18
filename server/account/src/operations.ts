@@ -157,7 +157,7 @@ function getSystemSocialId (): SocialId {
     type: SocialIdType.HULY,
     value: systemAccountEmail,
     key: buildSocialIdString({ type: SocialIdType.HULY, value: systemAccountEmail }),
-    personUuid: systemAccountUuid as unknown as PersonUuid,
+    personUuid: systemAccountUuid,
     verifiedOn: 1
   }
 }
@@ -175,7 +175,7 @@ export async function loginAsGuest (
   branding: Branding | null,
   token: string
 ): Promise<LoginInfo> {
-  const guestPerson = await db.person.findOne({ uuid: readOnlyGuestAccountUuid as PersonUuid })
+  const guestPerson = await db.person.findOne({ uuid: readOnlyGuestAccountUuid })
   if (guestPerson == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
   }
@@ -260,10 +260,10 @@ export async function login (
       account: existingAccount.uuid,
       token: isConfirmed
         ? generateToken(
-          existingAccount.tfaSecret != null ? NIL_UUID : existingAccount.uuid,
-          undefined,
-          existingAccount.tfaSecret != null ? { ...extraToken, tfaAccount: existingAccount.uuid } : extraToken
-        )
+            existingAccount.tfaSecret != null ? NIL_UUID : existingAccount.uuid,
+            undefined,
+            existingAccount.tfaSecret != null ? { ...extraToken, tfaAccount: existingAccount.uuid } : extraToken
+          )
         : undefined,
       name: getPersonName(person),
       socialId: emailSocialId._id,
@@ -552,10 +552,10 @@ export async function validateOtp (
 
     const _token = isConfirmed
       ? generateToken(
-        targetAccount?.tfaSecret != null ? NIL_UUID : emailSocialId.personUuid,
-        undefined,
-        targetAccount?.tfaSecret != null ? { ...extraToken, tfaAccount: emailSocialId.personUuid } : extraToken
-      )
+          targetAccount?.tfaSecret != null ? NIL_UUID : emailSocialId.personUuid,
+          undefined,
+          targetAccount?.tfaSecret != null ? { ...extraToken, tfaAccount: emailSocialId.personUuid } : extraToken
+        )
       : undefined
 
     return {
@@ -709,11 +709,11 @@ export async function createInvite (
 
 // TODO: Temporary solution to prevent spam using sendInvite
 const invitesSend = new Map<
-string,
-{
-  lastSend: number
-  totalSend: number
-}
+  string,
+  {
+    lastSend: number
+    totalSend: number
+  }
 >()
 
 export async function sendInvite (
@@ -2020,6 +2020,33 @@ export async function updateLastVisit (
   await db.workspaceStatus.update({ workspaceUuid: { $in: ids } }, { lastVisit: Date.now() })
 }
 
+/**
+ * Updates the last activity timestamp for accounts with active UI sessions.
+ * This endpoint is reserved for the system account and is called by transactors.
+ */
+export async function updateAccountsLastVisit (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { ids: AccountUuid[] }
+): Promise<void> {
+  const { ids } = params
+
+  if (ids == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const { account } = decodeTokenVerbose(ctx, token)
+
+  if (account !== systemAccountUuid) {
+    ctx.error('updateAccountsLastVisit with wrong user', { account, token })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  await db.account.update({ uuid: { $in: ids } }, { lastVisit: Date.now() })
+}
+
 export async function getWorkspaceInfo (
   ctx: MeasureContext,
   db: AccountDB,
@@ -2076,7 +2103,11 @@ export async function getWorkspaceInfo (
   }
 
   if (!isGuest && updateLastVisit && !isAdmin) {
-    await db.workspaceStatus.update({ workspaceUuid }, { lastVisit: Date.now() })
+    const lastVisit = Date.now()
+    await Promise.all([
+      db.workspaceStatus.update({ workspaceUuid }, { lastVisit }),
+      db.account.update({ uuid: account }, { lastVisit })
+    ])
   }
 
   return workspace
@@ -2402,23 +2433,23 @@ export async function getLoginWithWorkspaceInfo (
       isSystem || isDocGuest
         ? []
         : userWorkspaces.map((it, idx) => [
-          it.uuid,
-          {
-            url: it.url,
-            dataId: it.dataId,
-            mode: it.status.mode,
-            endpoint: getWorkspaceEndpoint(info, it.uuid, it.region),
-            role: roles.get(it.uuid) ?? null,
-            version: {
-              versionMajor: it.status.versionMajor,
-              versionMinor: it.status.versionMinor,
-              versionPatch: it.status.versionPatch
-            },
-            progress: it.status.processingProgress,
-            branding: it.branding,
-            passwordAgingRule: it.passwordAgingRule
-          }
-        ])
+            it.uuid,
+            {
+              url: it.url,
+              dataId: it.dataId,
+              mode: it.status.mode,
+              endpoint: getWorkspaceEndpoint(info, it.uuid, it.region),
+              role: roles.get(it.uuid) ?? null,
+              version: {
+                versionMajor: it.status.versionMajor,
+                versionMinor: it.status.versionMinor,
+                versionPatch: it.status.versionPatch
+              },
+              progress: it.status.processingProgress,
+              branding: it.branding,
+              passwordAgingRule: it.passwordAgingRule
+            }
+          ])
     ),
     socialIds
   }
@@ -3606,6 +3637,7 @@ export type AccountMethods =
   | 'getWorkspaceInfo'
   | 'getWorkspacesInfo'
   | 'updateLastVisit'
+  | 'updateAccountsLastVisit'
   | 'getLoginInfoByToken'
   | 'getLoginWithWorkspaceInfo'
   | 'getSocialIds'
@@ -3727,6 +3759,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     getWorkspaceInfo: wrap(getWorkspaceInfo, true),
     getWorkspacesInfo: wrap(getWorkspacesInfo),
     updateLastVisit: wrap(updateLastVisit),
+    updateAccountsLastVisit: wrap(updateAccountsLastVisit),
     getLoginInfoByToken: wrap(getLoginInfoByToken, true),
     getLoginWithWorkspaceInfo: wrap(getLoginWithWorkspaceInfo, true),
     getSocialIds: wrap(getSocialIds),

@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Bağlamı güncelle",
+    "RemoveRelation": "İlişkiyi kaldır",
     "Method": "Metod",
     "Execution": "Yürütme",
     "Process": "Süreç",
@@ -39,6 +41,8 @@
     "UpperCase": "Büyük harf",
     "LowerCase": "Küçük harf",
     "Trim": "Kırp",
+    "ArrayLength": "Dizi elemanı sayısı",
+    "RelationCount": "İlişki sayısı",
     "FirstValue": "İlk değer",
     "LastValue": "Son değer",
     "Random": "Rastgele",
@@ -199,7 +203,8 @@
     "ExportWithoutSlots": "Slotsuz dışa aktar",
     "RequiredSlots": "Gerekli slotlar",
     "Bindings": "Bağlamalar",
-    "AskRequired": "Gerekli alanları sor"
+    "AskRequired": "Gerekli alanları sor",
+    "TableFromRelation": "İlişkiden tablo"
   },
   "error": {
     "MethodNotFound": "Metod bulunamadı: {methodId}",

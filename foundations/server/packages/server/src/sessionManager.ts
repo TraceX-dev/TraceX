@@ -138,11 +138,11 @@ export class TSessionManager implements SessionManager {
     readonly timeouts: Timeouts,
     readonly brandingMap: BrandingMap,
     readonly profiling:
-    | {
-      start: () => void
-      stop: () => Promise<string | undefined>
-    }
-    | undefined,
+      | {
+          start: () => void
+          stop: () => Promise<string | undefined>
+        }
+      | undefined,
     readonly accountsUrl: string,
     readonly enableCompression: boolean,
     readonly doHandleTick: boolean = true,
@@ -271,18 +271,31 @@ export class TSessionManager implements SessionManager {
 
     if (this.ticks % (60 * ticksPerSecond) === 0) {
       const workspacesToUpdate: WorkspaceUuid[] = []
+      const accountsToUpdate = new Set<AccountUuid>()
 
       for (const [wsId, workspace] of this.workspaces.entries()) {
-        // update account lastVisit every minute per every workspace.
+        // Update workspace and account last visit every minute for active UI sessions.
+        let hasUserSession = false
         for (const val of workspace.sessions.values()) {
-          if (val.session.getUser() !== systemAccountUuid) {
-            workspacesToUpdate.push(wsId)
-            break
+          const account = val.session.getUser()
+          if (account !== systemAccountUuid) {
+            hasUserSession = true
+            if (account !== guestAccount && account !== readOnlyGuestAccountUuid) {
+              accountsToUpdate.add(account)
+            }
           }
+        }
+        if (hasUserSession) {
+          workspacesToUpdate.push(wsId)
         }
       }
       if (workspacesToUpdate.length > 0) {
         void this.updateLastVisit(this.ctx, workspacesToUpdate).catch(() => {
+          // Ignore
+        })
+      }
+      if (accountsToUpdate.size > 0) {
+        void this.updateAccountsLastVisit(this.ctx, [...accountsToUpdate]).catch(() => {
           // Ignore
         })
       }
@@ -461,6 +474,19 @@ export class TSessionManager implements SessionManager {
     try {
       const sysToken = generateToken(systemAccountUuid, undefined, { service: 'transactor' })
       await getAccountClient(this.accountsUrl, sysToken).updateLastVisit(workspaces)
+    } catch (err: any) {
+      if (err?.cause?.code === 'ECONNRESET' || err?.cause?.code === 'ECONNREFUSED') {
+        return undefined
+      }
+      throw err
+    }
+  }
+
+  @withContext('🧭 update-accounts-last-visit')
+  async updateAccountsLastVisit (ctx: MeasureContext, accounts: AccountUuid[]): Promise<void> {
+    try {
+      const sysToken = generateToken(systemAccountUuid, undefined, { service: 'transactor' })
+      await getAccountClient(this.accountsUrl, sysToken).updateAccountsLastVisit(accounts)
     } catch (err: any) {
       if (err?.cause?.code === 'ECONNRESET' || err?.cause?.code === 'ECONNREFUSED') {
         return undefined
@@ -1345,17 +1371,17 @@ export class TSessionManager implements SessionManager {
       accontUuid: AccountUuid
       role: AccountRole
     }
-    > {
+  > {
     const ws = this.workspaces.get(workspace)
     if (ws === undefined) {
       return new Map()
     }
     const res = new Map<
-    PersonId,
-    {
-      accontUuid: AccountUuid
-      role: AccountRole
-    }
+      PersonId,
+      {
+        accontUuid: AccountUuid
+        role: AccountRole
+      }
     >()
     for (const s of [...Array.from(ws.sessions.values()).map((it) => it.session), ...extra]) {
       const sessionAccount = s.getUser()
@@ -1691,11 +1717,11 @@ export function createSessionManager (
   brandingMap: BrandingMap,
   timeouts: Timeouts,
   profiling:
-  | {
-    start: () => void
-    stop: () => Promise<string | undefined>
-  }
-  | undefined,
+    | {
+        start: () => void
+        stop: () => Promise<string | undefined>
+      }
+    | undefined,
   accountsUrl: string,
   enableCompression: boolean,
   doHandleTick: boolean = true,

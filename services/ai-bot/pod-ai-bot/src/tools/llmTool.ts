@@ -33,8 +33,8 @@ const LlmToolInputSchema = Type.Object({
   })
 })
 
-const LlmToolOutputSchema = Type.String({})
-interface LlmToolOptions<TOutputSchema extends ToolOutputSchema = typeof LlmToolOutputSchema> {
+type LlmToolOutputSchema = ReturnType<typeof Type.String>
+interface LlmToolOptions<TOutputSchema extends ToolOutputSchema = LlmToolOutputSchema> {
   name: string
   description: string
   systemPrompt?: string
@@ -42,7 +42,7 @@ interface LlmToolOptions<TOutputSchema extends ToolOutputSchema = typeof LlmTool
   provider: LLMProvider
 }
 
-export function createLlmTool<TOutputSchema extends ToolOutputSchema = typeof LlmToolOutputSchema> (
+export function createLlmTool<TOutputSchema extends ToolOutputSchema = LlmToolOutputSchema> (
   options: LlmToolOptions<TOutputSchema>
 ): Tool<typeof LlmToolInputSchema, TOutputSchema, ToolContext, ToolMetadata> {
   const { name, description, systemPrompt, outputSchema, provider } = options

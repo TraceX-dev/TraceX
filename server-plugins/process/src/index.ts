@@ -21,7 +21,7 @@ import { Execution, Method, ProcessFunction, Trigger } from '@hcengineering/proc
 import { TriggerFunc } from '@hcengineering/server-core'
 import { ExecuteFunc, ProcessControl, RollbackFunc, TransformFunc } from './types'
 
-export * from './types'
+export type * from './types'
 
 /**
  * @public
@@ -66,6 +66,7 @@ export default plugin(serverProcessId, {
   func: {
     CreateAction: '' as Resource<ExecuteFunc>,
     SetContext: '' as Resource<ExecuteFunc>,
+    UpdateContext: '' as Resource<ExecuteFunc>,
     RunSubProcess: '' as Resource<ExecuteFunc>,
     CancelSubProcess: '' as Resource<ExecuteFunc>,
     CreateToDo: '' as Resource<ExecuteFunc>,
@@ -76,6 +77,7 @@ export default plugin(serverProcessId, {
     EnableVersionCreation: '' as Resource<ExecuteFunc>,
     CreateCard: '' as Resource<ExecuteFunc>,
     AddRelation: '' as Resource<ExecuteFunc>,
+    RemoveRelation: '' as Resource<ExecuteFunc>,
     WaitSubProcess: '' as Resource<ExecuteFunc>,
     AddTag: '' as Resource<ExecuteFunc>,
     RequestApproval: '' as Resource<ExecuteFunc>,
@@ -106,6 +108,8 @@ export default plugin(serverProcessId, {
     EmitProcessEvent: '' as Resource<WorkspaceApiOperation>
   },
   transform: {
+    ArrayLength: '' as Resource<TransformFunc>,
+    RelationCount: '' as Resource<TransformFunc>,
     FirstValue: '' as Resource<TransformFunc>,
     LastValue: '' as Resource<TransformFunc>,
     Random: '' as Resource<TransformFunc>,
@@ -165,7 +169,8 @@ export default plugin(serverProcessId, {
     DayFromDate: '' as Resource<TransformFunc>,
     DateDifference: '' as Resource<TransformFunc>,
     StringFromEnum: '' as Resource<TransformFunc>,
-    EnumFromString: '' as Resource<TransformFunc>
+    EnumFromString: '' as Resource<TransformFunc>,
+    TableFromRelation: '' as Resource<TransformFunc>
   },
   trigger: {
     OnTransition: '' as Resource<TriggerFunc>,

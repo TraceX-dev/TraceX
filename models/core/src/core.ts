@@ -438,6 +438,8 @@ export class TSequence extends TDoc implements Sequence {
 @Model(core.class.CustomSequence, core.class.Sequence)
 export class TCustomSequence extends TSequence implements CustomSequence {
   prefix!: string
+  namespace?: string
+  scope?: string
 }
 
 @Model(core.class.ClassCollaborators, core.class.Doc, DOMAIN_MODEL)

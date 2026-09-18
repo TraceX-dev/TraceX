@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Обновить контекст",
+    "RemoveRelation": "Удалить связь",
     "Method": "Метод",
     "Execution": "Выполнение",
     "Process": "Процесс",
@@ -39,6 +41,8 @@
     "UpperCase": "Верхний регистр",
     "LowerCase": "Нижний регистр",
     "Trim": "Обрезать",
+    "ArrayLength": "Количество элементов массива",
+    "RelationCount": "Количество связей",
     "FirstValue": "Первое значение",
     "LastValue": "Последнее значение",
     "Random": "Случайное",
@@ -204,7 +208,8 @@
     "SelectFromText": "Выбор из текста",
     "AskSubclass": "Спросить подкласс",
     "AskRequired": "Запросить все обязательные поля",
-    "TextFromIdentifier": "Текст из идентификатора"
+    "TextFromIdentifier": "Текст из идентификатора",
+    "TableFromRelation": "Таблица из связи"
   },
   "error": {
     "MethodNotFound": "Метод не найден: {methodId}",

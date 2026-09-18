@@ -47,13 +47,13 @@
   $: employeeToPersonIdMap = mapToPrimarySocialId
     ? employeeToPersonIdMap
     : new Map(
-      include
-        .map((personId) => {
-          const employee = $employeeByPersonIdStore.get(personId)
-          return employee !== undefined ? ([employee._id, personId] as const) : null
-        })
-        .filter(notEmpty)
-    )
+        include
+          .map((personId) => {
+            const employee = $employeeByPersonIdStore.get(personId)
+            return employee !== undefined ? ([employee._id, personId] as const) : null
+          })
+          .filter(notEmpty)
+      )
 
   const dispatch = createEventDispatcher()
 

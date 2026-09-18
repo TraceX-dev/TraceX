@@ -14,14 +14,17 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { Analytics } from '@hcengineering/analytics'
+  import card from '@hcengineering/card'
   import { type Doc, getObjectValue, type Markup } from '@hcengineering/core'
   import presentation, { Card, getAttrEditor, getClient, MessageViewer } from '@hcengineering/presentation'
   import { ContextId, ExecutionContext, UserResult } from '@hcengineering/process'
   import { Component, tooltip } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
+  import type { ResolvedUserResult } from '../../selection-space'
 
-  export let results: UserResult[]
+  export let results: ResolvedUserResult[]
   export let context: ExecutionContext
   export let doc: Doc
   export let description: Markup | undefined = undefined
@@ -31,12 +34,28 @@
   const h = client.getHierarchy()
 
   let values: Record<ContextId, any> = {}
+  let loading = true
 
-  function fillValues (): void {
-    results.forEach((r) => {
-      values[r._id] = getVal(r)
-    })
+  async function fillValues (): Promise<void> {
+    await Promise.all(
+      results.map(async (result) => {
+        try {
+          const value = getVal(result)
+          if (result.selectionSpace !== undefined && value != null) {
+            const ids = Array.isArray(value) ? value : [value]
+            const objects = await client.findAll(card.class.Card, { _id: { $in: ids }, space: result.selectionSpace })
+            values[result._id] = ids.every((id) => objects.some((object) => object._id === id)) ? value : undefined
+          } else {
+            values[result._id] = value
+          }
+        } catch (error) {
+          values[result._id] = undefined
+          Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+        }
+      })
+    )
     values = values
+    loading = false
   }
 
   function getVal (res: UserResult): any {
@@ -46,7 +65,7 @@
     return context[res._id]
   }
 
-  fillValues()
+  void fillValues()
 
   export function canClose (): boolean {
     return false
@@ -68,7 +87,7 @@
   width={'small'}
   on:close
   label={plugin.string.Result}
-  canSave={Object.values(values).filter((v) => v != null).length === results.length}
+  canSave={!loading && Object.values(values).filter((v) => v != null).length === results.length}
   okAction={save}
   hideClose
   okLabel={presentation.string.Save}
@@ -89,7 +108,7 @@
       >
         {result.name}
       </span>
-      {#if editor}
+      {#if editor && !loading}
         <div class="w-full">
           <Component
             is={editor}
@@ -101,6 +120,7 @@
               width: '100%',
               justify: 'left',
               type: result.type,
+              docQuery: result.selectionSpace !== undefined ? { space: result.selectionSpace } : undefined,
               value: values[result._id],
               onChange: getOnChange(result._id),
               focus

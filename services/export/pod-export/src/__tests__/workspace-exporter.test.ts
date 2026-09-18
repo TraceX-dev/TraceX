@@ -202,7 +202,7 @@ function createMockTxOperations (
     createDoc: jest.fn(
       async <T extends Doc>(classRef: Ref<Class<T>>, space: Ref<Space>, data: any, id?: Ref<T>): Promise<Ref<T>> => {
         const docId = id ?? generateId<T>()
-        createdDocs.push({ _id: docId, _class: classRef, space, ...data } as unknown as Doc)
+        createdDocs.push({ _id: docId, _class: classRef, space, ...data })
         return docId
       }
     ),
@@ -225,7 +225,7 @@ function createMockTxOperations (
           attachedToClass,
           collection,
           ...data
-        } as unknown as Doc)
+        })
         return docId
       }
     ),
@@ -602,7 +602,7 @@ describe('CrossWorkspaceExporter', () => {
       const result = await exporter.export({
         sourceWorkspace: createWorkspaceIds('source-ws'),
         targetWorkspace: createWorkspaceIds('target-ws'),
-        sourceQuery: { _id: SOURCE_DOC_1 } as any,
+        sourceQuery: { _id: SOURCE_DOC_1 },
         _class: mockDocClass,
         includeChildren: false
       })
@@ -674,7 +674,7 @@ describe('CrossWorkspaceExporter', () => {
       const result = await exporter.export({
         sourceWorkspace: createWorkspaceIds('source-ws'),
         targetWorkspace: createWorkspaceIds('target-ws'),
-        sourceQuery: { _id: SOURCE_DOC_1 } as any,
+        sourceQuery: { _id: SOURCE_DOC_1 },
         _class: mockDocClass,
         includeChildren: true
       })
@@ -738,7 +738,7 @@ describe('CrossWorkspaceExporter', () => {
       const result = await exporter.export({
         sourceWorkspace: createWorkspaceIds('source-ws'),
         targetWorkspace: createWorkspaceIds('target-ws'),
-        sourceQuery: { _id: SOURCE_DOC_2 as any },
+        sourceQuery: { _id: SOURCE_DOC_2 },
         _class: mockDocClass,
         relations
       })

@@ -41,7 +41,7 @@ import { migrateFromOldAccounts } from './migration/migration'
 import { startWorkspaceMemberUnreadConsumer } from './unread'
 
 export * from './migration/utils'
-export * from './migration/types'
+export type * from './migration/types'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
 const DEFAULT_ACCOUNT_METRICS_INTERVAL_MS = 5 * 60 * 1000

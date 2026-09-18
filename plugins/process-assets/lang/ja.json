@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "コンテキストを更新",
+    "RemoveRelation": "関連付けを削除",
     "Method": "メソッド",
     "Execution": "実行",
     "Process": "プロセス",
@@ -39,6 +41,8 @@
     "UpperCase": "大文字",
     "LowerCase": "小文字",
     "Trim": "トリム",
+    "ArrayLength": "配列の要素数",
+    "RelationCount": "関連数",
     "FirstValue": "最初の値",
     "LastValue": "最後の値",
     "Random": "ランダム",
@@ -203,7 +207,8 @@
     "ExportWithoutSlots": "スロットなしでエクスポート",
     "RequiredSlots": "必須スロット",
     "Bindings": "バインディング",
-    "AskRequired": "必須フィールドを尋ねる"
+    "AskRequired": "必須フィールドを尋ねる",
+    "TableFromRelation": "リレーションからのテーブル"
   },
   "error": {
     "MethodNotFound": "メソッドが見つかりません: {methodId}",

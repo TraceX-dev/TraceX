@@ -20,7 +20,9 @@ import NestedContextSelector from './components/attributeEditors/NestedContextSe
 import RelatedContextSelector from './components/attributeEditors/RelatedContextSelector.svelte'
 import RequestUserInput from './components/contextEditors/RequestUserInput.svelte'
 import ResultInput from './components/contextEditors/ResultInput.svelte'
+import SelectionSpaceEditor from './components/settings/SelectionSpaceEditor.svelte'
 import RoleEditor from './components/contextEditors/RoleEditor.svelte'
+import RelationTableEditor from './components/contextEditors/RelationTableEditor.svelte'
 import ErrorPresenter from './components/ErrorPresenter.svelte'
 import ExecutionMyToDos from './components/ExecutionMyToDos.svelte'
 import ExecutonPresenter from './components/ExecutonPresenter.svelte'
@@ -42,6 +44,7 @@ import CancelSubProcessEditor from './components/settings/CancelSubProcessEditor
 import CancelToDoEditor from './components/settings/CancelToDoEditor.svelte'
 import CreateActionEditor from './components/settings/CreateActionEditor.svelte'
 import SetContextEditor from './components/settings/SetContextEditor.svelte'
+import UpdateContextEditor from './components/settings/UpdateContextEditor.svelte'
 import FunctionSubmenu from './components/settings/FunctionSubmenu.svelte'
 import ProcessEditor from './components/settings/ProcessEditor.svelte'
 import StatePresenter from './components/settings/StatePresenter.svelte'
@@ -98,6 +101,7 @@ import ReplaceEditor from './components/transformEditors/ReplaceEditor.svelte'
 import SplitEditor from './components/transformEditors/SplitEditor.svelte'
 import NumberPresenter from './components/transformPresenters/NumberPresenter.svelte'
 import RolePresenter from './components/transformPresenters/RolePresenter.svelte'
+import RelationTablePresenter from './components/transformPresenters/RelationTablePresenter.svelte'
 import ExecutionRefPresenter from './components/ExecutionRefPresenter.svelte'
 import ActionTypePresenter from './components/ActionTypePresenter.svelte'
 import LockFieldEditor from './components/settings/LockFieldEditor.svelte'
@@ -155,7 +159,9 @@ export default async (): Promise<Resources> => ({
     ErrorPresenter,
     RequestUserInput,
     ResultInput,
+    SelectionSpaceEditor,
     RoleEditor,
+    RelationTableEditor,
     ActionsPresenter,
     StatePresenter,
     TriggerPresenter,
@@ -197,6 +203,7 @@ export default async (): Promise<Resources> => ({
     CancelToDoEditor,
     CreateActionEditor,
     SetContextEditor,
+    UpdateContextEditor,
     CancelSubProcessEditor,
     ToDoValuePresenter,
     ExecutionRefPresenter,
@@ -213,7 +220,8 @@ export default async (): Promise<Resources> => ({
   },
   transformPresenter: {
     NumberPresenter,
-    RolePresenter
+    RolePresenter,
+    RelationTablePresenter
   },
   transformEditor: {
     ArrayElementEditor,

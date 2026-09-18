@@ -68,6 +68,7 @@ export interface Account {
   maxWorkspaces?: number
   failedLoginAttempts?: number // Number of consecutive failed login attempts
   tfaSecret?: string
+  lastVisit?: Timestamp
 }
 
 // TODO: type data with generic type

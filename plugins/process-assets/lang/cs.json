@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Aktualizovat kontext",
+    "RemoveRelation": "Odstranit vztah",
     "Method": "Metoda",
     "Execution": "Provedení",
     "Process": "Proces",
@@ -39,6 +41,8 @@
     "UpperCase": "Velká písmena",
     "LowerCase": "Malá písmena",
     "Trim": "Oříznout",
+    "ArrayLength": "Počet prvků pole",
+    "RelationCount": "Počet vazeb",
     "FirstValue": "První hodnota",
     "LastValue": "Poslední hodnota",
     "Random": "Náhodné",
@@ -199,7 +203,8 @@
     "ExportWithoutSlots": "Exportovat bez slotů",
     "RequiredSlots": "Požadované sloty",
     "Bindings": "Vazby",
-    "AskRequired": "zeptat se na prázdná povinná pole"
+    "AskRequired": "zeptat se na prázdná povinná pole",
+    "TableFromRelation": "Tabulka z vazby"
   },
   "error": {
     "MethodNotFound": "Metoda nenalezena: {methodId}",

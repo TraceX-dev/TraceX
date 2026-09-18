@@ -29,7 +29,6 @@
   "CALDAV_SERVER_URL": "http://tracex.local:9070",
   "EXPORT_URL": "http://tracex.local:4009",
   "BACKUP_URL": "http://tracex.local:4039/api/backup",
-  "PULSE_URL": "ws://tracex.local:8099/ws",
   "HULYLAKE_URL": "http://tracex.local:8096",
   "EXCLUDED_APPLICATIONS_FOR_ANONYMOUS": "[]",
   "ANALYTICS_COLLECTOR_URL": "http://tracex.local:4017",

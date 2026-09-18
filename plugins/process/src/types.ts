@@ -76,6 +76,7 @@ export interface SelectedUserRequest extends BaseSelectedContext {
   type: 'userRequest'
   _class: Ref<Class<Doc>>
   id: ContextId
+  selectionSpace?: string // Space reference or serialized process context
 }
 
 export interface SelectedExecutionContext extends BaseSelectedContext {

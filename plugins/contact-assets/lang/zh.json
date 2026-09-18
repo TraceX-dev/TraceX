@@ -151,6 +151,13 @@
     "WorkspaceStatusIn4Hours": "4 小时后",
     "WorkspaceStatusEndOfDay": "今天结束",
     "WorkspaceStatusPickDate": "选择日期",
-    "HideInactive": "隐藏非活跃"
+    "HideInactive": "隐藏非活跃",
+    "SpaceAccessGroup": "访问",
+    "AnonymousGuestAccess": "匿名访客访问",
+    "AnonymousGuestAccessDescr": "任何人无需登录即可阅读此空间",
+    "AnonymousGuestAccessWorkspaceOffNote": "此工作区已关闭匿名访客访问",
+    "AnonymousGuestAccessOwnerOnlyNote": "只有所有者可以更改此设置",
+    "PublicBadge": "公开",
+    "SpaceMembershipGroup": "成员资格"
   }
 }

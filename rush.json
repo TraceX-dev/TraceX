@@ -336,11 +336,6 @@
       "reviewCategory": "tools",
       "shouldPublish": true
     },
-    {
-      "packageName": "@hcengineering/ui-test",
-      "projectFolder": "foundations/utils/packages/ui-test",
-      "shouldPublish": false
-    },
 
     /// CORE Modules
 
@@ -1725,6 +1720,16 @@
       "packageName": "@hcengineering/guest",
       "projectFolder": "plugins/guest",
       "shouldPublish": true
+    },
+    {
+      "packageName": "@hcengineering/admin",
+      "projectFolder": "plugins/admin",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/admin-resources",
+      "projectFolder": "plugins/admin-resources",
+      "shouldPublish": false
     },
     {
       "packageName": "@hcengineering/guest-assets",

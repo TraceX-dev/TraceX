@@ -109,10 +109,10 @@
   $: refActions = readonly
     ? []
     : defaultRefActions
-      .concat(extraActions)
-      .concat(modelRefActions)
-      .concat(uploadActions)
-      .sort((a, b) => a.order - b.order)
+        .concat(extraActions)
+        .concat(modelRefActions)
+        .concat(uploadActions)
+        .sort((a, b) => a.order - b.order)
 
   let progress = false
   let attachments: Attachment[] = []

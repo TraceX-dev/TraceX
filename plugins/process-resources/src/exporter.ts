@@ -108,7 +108,7 @@ function processToSlot (proc: Process, memberOf?: string): SlotModel {
 function unknownToSlot (id: string, memberOf?: string): SlotModel {
   return {
     slotKind: 'unknown',
-    _class: core.class.Obj as any,
+    _class: core.class.Obj,
     label: id as any,
     name: id,
     memberOf
@@ -161,7 +161,7 @@ function processParams (
       }
       continue
     }
-    const attr = h.findAttribute(masterTag as any, key)
+    const attr = h.findAttribute(masterTag, key)
     if (attr !== undefined) {
       processType(attr.type, docs, required, m, h)
     }
@@ -184,12 +184,12 @@ function scanDSL (
 ): void {
   // Detect @attr references
   for (const m of dsl.matchAll(/\$\{@([a-zA-Z0-9_]+)/g)) {
-    const attr = h.findAttribute(masterTag as any, m[1])
+    const attr = h.findAttribute(masterTag, m[1])
     if (attr !== undefined) processType(attr.type, docs, required, model, h)
   }
   // Detect inline 24-char hex IDs
   for (const match of dsl.matchAll(/[0-9a-fA-F]{24}/g)) {
-    const obj = h.findAttribute(masterTag as any, match[0]) ?? model.findObject(match[0] as any)
+    const obj = h.findAttribute(masterTag, match[0]) ?? model.findObject(match[0] as any)
     if ((obj as any)?.type !== undefined) {
       processType((obj as any).type, docs, required, model, h)
     }
@@ -450,7 +450,7 @@ function replaceIdInJson (json: string, id: string, replacement: string): string
 export function denormalizeIds (docs: Doc[], masterTag: Ref<MasterTag>, bindings?: Record<string, string>): Doc[] {
   const idMap: Record<string, string> = {
     __PROCESS__: generateId(),
-    __MASTER_TAG__: masterTag as string
+    __MASTER_TAG__: masterTag
   }
 
   // Map slot placeholders to bound IDs
@@ -503,7 +503,13 @@ export function denormalizeIds (docs: Doc[], masterTag: Ref<MasterTag>, bindings
 function getMethodSystemParams (methodId: string): string[] {
   const normalized = normalizeId(methodId)
   if (normalized === normalizeId(processPlugin.method.RunSubProcess)) return ['_id', 'card', 'context']
-  if (normalized === normalizeId(processPlugin.method.AddRelation)) return ['_id', 'card', 'direction']
+  if (
+    normalized === normalizeId(processPlugin.method.AddRelation) ||
+    normalized === normalizeId(processPlugin.method.RemoveRelation)
+  ) {
+    return ['_id', 'card', 'direction']
+  }
+  if (normalized === normalizeId(processPlugin.method.UpdateContext)) return ['contextId', 'value']
   if (normalized === normalizeId(processPlugin.method.AddTag)) return ['_id', 'card']
   if (normalized === normalizeId(processPlugin.method.CreateToDo)) return ['state', 'title', 'user', 'withRollback']
   if (normalized === normalizeId(processPlugin.method.CreateAction)) return ['title', 'eventType', 'user']
@@ -752,7 +758,7 @@ function mergeAttributeSlotMeta (meta: SlotModel, model: AttributeSlotModel): vo
     ;(meta as any).type = model.type
     meta._class = model.type._class
   } else if (typeof model.type === 'string') {
-    meta._class = model.type as any
+    meta._class = model.type
   }
   if (model.label !== undefined) meta.label = model.label
 }

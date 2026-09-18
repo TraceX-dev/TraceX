@@ -18,7 +18,7 @@
 import type { Asset, IntlString, Plugin } from '@hcengineering/platform'
 import { Tx } from '.'
 import type { DocumentQuery } from './storage'
-import { type WorkspaceDataId, type WorkspaceUuid } from './utils'
+import type { WorkspaceDataId, WorkspaceUuid } from './utils'
 
 /**
  * @public
@@ -705,6 +705,10 @@ export interface Sequence extends Doc {
 
 export interface CustomSequence extends Sequence {
   prefix: string
+  /** Feature the sequence belongs to, e.g. `documents` or `documents.sequence`. */
+  namespace?: string
+  /** What the numbering is counted per within the namespace, e.g. a template id. */
+  scope?: string
 }
 
 /**

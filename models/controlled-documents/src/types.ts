@@ -207,7 +207,7 @@ export class TProjectDocument extends TAttachedDoc implements ProjectDocument {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'documents' = 'documents'
+    override collection: 'documents' = 'documents'
 
   @Prop(TypeRef(documents.class.Project), documents.string.Project)
   @Index(IndexKind.Indexed)

@@ -97,12 +97,12 @@
   $: categoriesIds =
     categoriesById !== undefined
       ? Object.keys(categoriesById)
-        .sort((a, b) =>
-          categoriesById[a as Ref<DocumentCategory>].title.localeCompare(
-            categoriesById[b as Ref<DocumentCategory>].title
+          .sort((a, b) =>
+            categoriesById[a as Ref<DocumentCategory>].title.localeCompare(
+              categoriesById[b as Ref<DocumentCategory>].title
+            )
           )
-        )
-        .concat(templatesByCategory?.unassigned !== undefined ? ['unassigned'] : [])
+          .concat(templatesByCategory?.unassigned !== undefined ? ['unassigned'] : [])
       : []
 
   function handleExpanderToggled (id: string): void {

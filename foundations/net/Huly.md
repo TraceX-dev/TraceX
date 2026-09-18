@@ -29,10 +29,7 @@ flowchart
 
   parsonal-ws:user1 -..->|tx| transactor:ws1
 
-  transactor:ws1 -..->|event's| HulyPulse
   transactor:ws1 -..->|event's| parsonal-ws:user1
-
-  HulyPulse <--> Client
 
   Client <--> Endpoint
 
@@ -45,8 +42,6 @@ flowchart
   Fulltext Index]
 
   Indexer -..-> QueryDB
-
-  Indexer -..->|indexed tx| HulyPulse
 
   Indexer -..->|indexed tx| parsonal-ws:user1
 

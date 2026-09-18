@@ -34,7 +34,7 @@ import { makeRank } from '@hcengineering/rank'
 import { isEmptyMarkup } from '@hcengineering/text'
 
 function toDocumentData (values: Record<string, unknown>): Partial<Data<Document>> {
-  return values as Partial<Data<Document>>
+  return values
 }
 
 async function createContent (

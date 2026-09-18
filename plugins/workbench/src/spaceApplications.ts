@@ -97,7 +97,7 @@ export function createSpaceApplicationResolver (
 
     const classes = [space._class, ...[...hierarchy.getAncestors(space._class)].reverse()]
     for (const spaceClass of classes) {
-      const application = candidatesByClass.get(spaceClass as Ref<Class<Space>>)?.[0]?.application
+      const application = candidatesByClass.get(spaceClass)?.[0]?.application
       if (application !== undefined) {
         applicationBySpaceClass.set(space._class, application)
         return application

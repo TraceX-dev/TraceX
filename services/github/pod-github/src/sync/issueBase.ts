@@ -51,33 +51,33 @@ export type WithMarkup<T extends Issue> = Omit<T, 'description'> & {
  * @public
  */
 export type GithubIssueData = Omit<
-WithMarkup<Issue>,
-| 'commits'
-| 'attachments'
-| 'commits'
-| 'number'
-| 'files'
-| 'space'
-| 'identifier'
-| 'rank'
-| 'status'
-| 'priority'
-| 'subIssues'
-| 'parents'
-| 'estimation'
-| 'reportedTime'
-| 'reports'
-| 'childInfo'
-| 'dueDate'
-| 'startDate'
-| 'kind'
-| 'reviews'
-| 'reviewThreads'
-| 'reviewComments'
-| 'component'
-| keyof AttachedDoc
+  WithMarkup<Issue>,
+  | 'commits'
+  | 'attachments'
+  | 'commits'
+  | 'number'
+  | 'files'
+  | 'space'
+  | 'identifier'
+  | 'rank'
+  | 'status'
+  | 'priority'
+  | 'subIssues'
+  | 'parents'
+  | 'estimation'
+  | 'reportedTime'
+  | 'reports'
+  | 'childInfo'
+  | 'dueDate'
+  | 'startDate'
+  | 'kind'
+  | 'reviews'
+  | 'reviewThreads'
+  | 'reviewComments'
+  | 'component'
+  | keyof AttachedDoc
 > &
-Record<string, any>
+  Record<string, any>
 
 /**
  * @public
@@ -297,7 +297,7 @@ export abstract class IssueSyncManagerBase {
         {},
         async (ctx) => {
           await this.client.createMixin<Issue, GithubIssue>(
-            existing._id as Ref<GithubIssue>,
+            existing._id,
             existing._class,
             existing.space,
             github.mixin.GithubIssue,

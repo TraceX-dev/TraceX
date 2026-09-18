@@ -89,9 +89,9 @@
   $: workspaceApplications = client
     .getModel()
     .findAllSync<Application>(workbench.class.Application, {
-    hidden: false,
-    _id: { $nin: excludedApplicationIds }
-  })
+      hidden: false,
+      _id: { $nin: excludedApplicationIds }
+    })
     .filter((application) => !hiddenApplicationIds.includes(application._id))
   $: spaceApplicationResolver = createSpaceApplicationResolver(hierarchy, workspaceApplications, applicationNavModels)
 
@@ -203,8 +203,8 @@
 </script>
 
 <div class="hulyComponent">
-  <Header adaptive={'disabled'}>
-    <Breadcrumb icon={setting.icon.Members} label={setting.string.AccessControl} size={'large'} isCurrent />
+  <Header adaptive="disabled">
+    <Breadcrumb icon={setting.icon.Members} label={setting.string.AccessControl} size="large" isCurrent />
   </Header>
   <div class="hulyComponent-content__container columns">
     <div class="hulyComponent-content__column navigation py-2">
@@ -252,7 +252,7 @@
       </Scroller>
     </div>
 
-    <Separator name={'spaceAccessSettings'} index={0} color={'var(--theme-divider-color)'} />
+    <Separator name="spaceAccessSettings" index={0} color="var(--theme-divider-color)" />
 
     <div class="hulyComponent-content__column content">
       {#if operationError}
@@ -260,8 +260,8 @@
           <span><Label label={setting.string.IntegrationError} /></span>
           <ButtonIcon
             icon={IconClose}
-            size={'min'}
-            kind={'tertiary'}
+            size="min"
+            kind="tertiary"
             tooltip={{ label: presentation.string.Close }}
             on:click={() => {
               operationError = false

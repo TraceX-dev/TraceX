@@ -10,6 +10,6 @@ export class AdminPage {
 
   // ACTIONS
   async gotoAdmin (): Promise<void> {
-    await (await this.page.goto(`${PlatformURI}/login/admin`))?.finished()
+    await (await this.page.goto(`${PlatformURI}/admin`))?.finished()
   }
 }

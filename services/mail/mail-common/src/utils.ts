@@ -27,6 +27,7 @@ import {
   MailHeader
 } from './types'
 
+// eslint-disable-next-line secure-coding/no-redos-vulnerable-regex
 const NAME_EMAIL_PATTERN = /^(?:"?([^"<]+)"?\s*)?<([^>]+)>$/
 const NAME_SEGMENT_REGEX = /[\s,;]+/
 

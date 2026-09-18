@@ -95,9 +95,7 @@ Register in `rush.json` and `models/all/src/index.ts`.
 - `packages/presentation/src/pulse.ts` + `PulseUrl` metadata
 - Dependency drops: `presentation`, `presence-resources`, `love-resources`
 - `rush.json` entries
-- `docker-compose` pulse service
-- `PULSE_URL` env in server/front configs
-- `config-dev.json` entry
+- `docker-compose` pulse service- `config-dev.json` entry
 - CI `.github/workflows/main.yml` pulse job
 - `pods/external` hulypulse.service
 

@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -45,7 +46,6 @@
   import { Pages, getAccount, pages } from '..'
   import login from '../plugin'
 
-  import AdminWorkspaces from './AdminWorkspaces.svelte'
   import ChangePassword from './ChangePassword.svelte'
 
   export let page: Pages = 'signup'
@@ -115,53 +115,48 @@
   onMount(chooseToken)
 </script>
 
-{#if page === 'admin'}
-  <AdminWorkspaces />
-{:else}
-  <div class="tracex-login w-full h-full">
-    <div class="tracex-login-column">
-      <div class="tracex-login-logo">
-        <TraceXLogo />
-      </div>
+<div class="tracex-login w-full h-full">
+  <div class="tracex-login-column">
+    <div class="tracex-login-logo">
+      <TraceXLogo />
+    </div>
 
-      <div class="tracex-login-card">
-        <Scroller padding={'1rem 0'}>
-          <div class="form-content">
-            {#if page === 'login'}
-              {#if localLoginHidden}
-                <ProvidersOnlyForm />
-              {:else}
-                <LoginForm {navigateUrl} {signUpDisabled} {useOTP} />
-              {/if}
-            {:else if page === 'signup'}
-              <SignupForm {navigateUrl} {signUpDisabled} {localLoginHidden} {useOTP} />
-            {:else if page === 'createWorkspace'}
-              <CreateWorkspaceForm />
-            {:else if page === 'password'}
-              <PasswordRequest {signUpDisabled} />
-            {:else if page === 'recovery'}
-              <PasswordRestore />
-            {:else if page === 'selectWorkspace'}
-              <SelectWorkspace {navigateUrl} />
-            {:else if page === 'join'}
-              <Join />
-            {:else if page === 'autoJoin'}
-              <AutoJoin />
-            {:else if page === 'confirm'}
-              <Confirmation />
-            {:else if page === 'confirmationSend'}
-              <ConfirmationSend />
-            {:else if page === 'auth'}
-              <Auth />
-            {:else if page === 'changePassword'}
-              <ChangePassword />
-            {:else if page === 'tfa'}
-              <LoginTfaForm {navigateUrl} token={tfaToken} on:back={() => (page = 'login')} />
+    <div class="tracex-login-card">
+      <Scroller padding={'1rem 0'}>
+        <div class="form-content">
+          {#if page === 'login'}
+            {#if localLoginHidden}
+              <ProvidersOnlyForm />
+            {:else}
+              <LoginForm {navigateUrl} {signUpDisabled} {useOTP} />
             {/if}
-          </div>
-        </Scroller>
-      </div>
-
+          {:else if page === 'signup'}
+            <SignupForm {navigateUrl} {signUpDisabled} {localLoginHidden} {useOTP} />
+          {:else if page === 'createWorkspace'}
+            <CreateWorkspaceForm />
+          {:else if page === 'password'}
+            <PasswordRequest {signUpDisabled} />
+          {:else if page === 'recovery'}
+            <PasswordRestore />
+          {:else if page === 'selectWorkspace'}
+            <SelectWorkspace {navigateUrl} />
+          {:else if page === 'join'}
+            <Join />
+          {:else if page === 'autoJoin'}
+            <AutoJoin />
+          {:else if page === 'confirm'}
+            <Confirmation />
+          {:else if page === 'confirmationSend'}
+            <ConfirmationSend />
+          {:else if page === 'auth'}
+            <Auth />
+          {:else if page === 'changePassword'}
+            <ChangePassword />
+          {:else if page === 'tfa'}
+            <LoginTfaForm {navigateUrl} token={tfaToken} on:back={() => (page = 'login')} />
+          {/if}
+        </div>
+      </Scroller>
       {#if $loginFooterActions.length > 0}
         <div class="tracex-login-footer">
           {#each $loginFooterActions as footerAction (footerAction.i18n)}
@@ -170,10 +165,10 @@
         </div>
       {/if}
     </div>
-
-    <Popup />
   </div>
-{/if}
+
+  <Popup />
+</div>
 
 <style lang="scss">
   .tracex-login {
@@ -222,15 +217,6 @@
     overflow: hidden;
   }
 
-  .tracex-login-footer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.625rem;
-    text-align: center;
-    font-size: 0.8125rem;
-  }
-
   .form-content {
     display: flex;
     flex-direction: column;
@@ -239,6 +225,16 @@
     min-height: 0;
     min-width: 0;
     height: max-content;
+  }
+
+  .tracex-login-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 2rem 1.25rem;
+    text-align: center;
+    font-size: 0.8125rem;
   }
 
   @media (max-width: 480px) {

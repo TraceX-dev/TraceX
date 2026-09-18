@@ -895,14 +895,14 @@ export async function listGithubDiscussions (
     )
 
     const connection:
-    | {
-      nodes: GithubDiscussionResponse[]
-      pageInfo: {
-        hasNextPage: boolean
-        endCursor: string | null
-      }
-    }
-    | undefined = data.repository?.discussions
+      | {
+          nodes: GithubDiscussionResponse[]
+          pageInfo: {
+            hasNextPage: boolean
+            endCursor: string | null
+          }
+        }
+      | undefined = data.repository?.discussions
     if (connection == null) {
       break
     }
@@ -924,17 +924,17 @@ export async function listGithubDiscussions (
 export async function getGithubDiscussion (token: string, discussionId: string): Promise<GithubNextDiscussion> {
   const data = await requestGithubGraphql<{
     node:
-    | (GithubDiscussionResponse & {
-      repository: {
-        owner: {
-          login: string
-        }
-        name: string
-      }
-    })
-    | null
+      | (GithubDiscussionResponse & {
+          repository: {
+            owner: {
+              login: string
+            }
+            name: string
+          }
+        })
+      | null
   }>(
-      token,
+    token,
     `
       query GetDiscussion($id: ID!) {
         node(id: $id) {
@@ -961,7 +961,7 @@ export async function getGithubDiscussion (token: string, discussionId: string):
       }
     `,
     { id: discussionId }
-      )
+  )
 
   if (data.node == null) {
     throw new Error(`GitHub discussion not found: ${discussionId}`)

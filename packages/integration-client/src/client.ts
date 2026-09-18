@@ -243,10 +243,10 @@ export class IntegrationClientImpl implements IntegrationClient {
     workspaceUuid: WorkspaceUuid | null | undefined
   ): Promise<
     | {
-      connectionRemoved: boolean
-    }
+        connectionRemoved: boolean
+      }
     | undefined
-    > {
+  > {
     if (socialId == null) return
 
     try {

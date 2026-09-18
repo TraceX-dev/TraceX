@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Actualizar contexto",
+    "RemoveRelation": "Eliminar relación",
     "Method": "Método",
     "Insert": "Insertar",
     "Remove": "Eliminar",
@@ -43,6 +45,8 @@
     "UpperCase": "Mayúsculas",
     "LowerCase": "Minúsculas",
     "Trim": "Cortar",
+    "ArrayLength": "Cantidad de elementos del array",
+    "RelationCount": "Cantidad de relaciones",
     "FirstValue": "Primer valor",
     "LastValue": "Último valor",
     "Random": "Aleatorio",
@@ -204,7 +208,8 @@
     "ExportWithoutSlots": "Exportar sin slots",
     "RequiredSlots": "Slots requeridos",
     "Bindings": "Bindings",
-    "AskRequired": "Preguntar por campos requeridos"
+    "AskRequired": "Preguntar por campos requeridos",
+    "TableFromRelation": "Tabla de relación"
   },
   "error": {
     "MethodNotFound": "Método no encontrado: {methodId}",

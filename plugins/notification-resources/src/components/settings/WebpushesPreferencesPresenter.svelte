@@ -157,10 +157,10 @@
       : publicKey === undefined
         ? notification.string.PushNotConfigured
         : !browserSupported
-            ? notification.string.PushNotSupported
-            : permissionDenied
-              ? notification.string.PushDenied
-              : undefined
+          ? notification.string.PushNotSupported
+          : permissionDenied
+            ? notification.string.PushDenied
+            : undefined
 
   $: buttonDisabled =
     desktopPlatform || alreadySubscribed || publicKey === undefined || !browserSupported || permissionDenied

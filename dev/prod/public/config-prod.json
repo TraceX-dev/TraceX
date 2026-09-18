@@ -9,7 +9,6 @@
   "DATALAKE_URL": "https://app.tracex.co/datalake",
   "BRANDING_URL": "https://app.tracex.co/branding.json",
   "COLLABORATOR_URL": "wss://app.tracex.co/collaborator",
-  "PULSE_URL": "wss://app.tracex.co/pulse/ws",
   "PRINT_URL": "https://app.tracex.co/print",
   "SIGN_URL": "https://app.tracex.co/sign",
   "EXPORT_URL": "https://app.tracex.co/export",

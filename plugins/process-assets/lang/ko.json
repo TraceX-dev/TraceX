@@ -1,5 +1,7 @@
 {
     "string": {
+    "UpdateContext": "컨텍스트 업데이트",
+    "RemoveRelation": "관계 삭제",
         "Method": "메서드",
         "Execution": "실행",
         "Process": "프로세스",
@@ -39,6 +41,8 @@
         "UpperCase": "대문자",
         "LowerCase": "소문자",
         "Trim": "공백 제거",
+        "ArrayLength": "배열 요소 수",
+        "RelationCount": "관계 수",
         "FirstValue": "첫 번째 값",
         "LastValue": "마지막 값",
         "Random": "무작위",
@@ -204,7 +208,8 @@
         "ExportWithoutSlots": "슬롯 없이 내보내기",
         "RequiredSlots": "필수 슬롯",
         "Bindings": "바인딩",
-        "AskRequired": "필수 필드 질문"
+        "AskRequired": "필수 필드 질문",
+        "TableFromRelation": "관계의 표"
     },
     "error": {
         "MethodNotFound": "메서드를 찾을 수 없습니다: {methodId}",

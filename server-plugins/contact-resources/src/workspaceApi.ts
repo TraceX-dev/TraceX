@@ -71,7 +71,7 @@ async function create<T extends Person | Organization> (
   if (input.city !== undefined) values.city = input.city
   if (targetClass === contact.class.Person && input.birthday !== undefined) values.birthday = input.birthday
   const created = await context.client.createDoc(targetClass, contact.space.Contacts, values)
-  return (await get(context, targetClass as never, { id: created as unknown as Ref<T> })) as unknown as T
+  return (await get(context, targetClass as never, { id: created })) as unknown as T
 }
 
 async function patch<T extends Person | Organization> (
@@ -89,7 +89,7 @@ async function patch<T extends Person | Organization> (
   if (targetClass === contact.class.Person && input.birthday !== undefined) updates.birthday = input.birthday
   if (Object.keys(updates).length === 0) throw new Error('At least one editable field is required')
   await context.client.update(value, updates)
-  return (await get(context, targetClass as never, { id: value._id as unknown as Ref<T> })) as unknown as T
+  return (await get(context, targetClass as never, { id: value._id })) as unknown as T
 }
 
 export async function FindPersons (context: WorkspaceApiContext, input: Input): Promise<Person[]> {

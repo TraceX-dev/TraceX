@@ -61,9 +61,10 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
         const allPermissionIds = new Set<Ref<Permission>>()
         for (const group of docs as any[]) {
           if (group.enabled === false) continue
-          const role = ((group.role as AccountRole | undefined) ??
+          const role =
+            (group.role as AccountRole | undefined) ??
             (Array.isArray(group.roles) && group.roles.length > 0 ? (group.roles[0] as AccountRole) : undefined) ??
-            AccountRole.Guest) as AccountRole
+            AccountRole.Guest
           const permissions = (group.permissions ?? []) as Ref<Permission>[]
           const disabled = new Set<Ref<Permission>>((group.disabledPermissions ?? []) as Ref<Permission>[])
           const current = rolePermissions.get(role) ?? new Set<Ref<Permission>>()
@@ -76,11 +77,9 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
         }
         const classPermissions =
           allPermissionIds.size > 0
-            ? await this.findAll(
-              ctx,
-              core.class.ClassPermission as Ref<Class<Doc>>,
-              { _id: { $in: Array.from(allPermissionIds) } } as any
-            )
+            ? await this.findAll(ctx, core.class.ClassPermission, {
+                _id: { $in: Array.from(allPermissionIds) as Ref<ClassPermission>[] }
+              })
             : []
         const permissionToClass = new Map<Ref<Permission>, Ref<Class<Doc>>>(
           classPermissions
@@ -127,6 +126,9 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
 
     if (account.role === AccountRole.DocGuest || account.role === AccountRole.ReadOnlyGuest) {
+      for (const tx of txes) {
+        this.logForbiddenTx(ctx, account, tx, 'role-forbids-transactions')
+      }
       throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
     }
 
@@ -152,12 +154,22 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       const isSpace = h.isDerived(cudTx.objectClass, core.class.Space)
       if (isSpace) {
         if (await this.isForbiddenSpaceTx(ctx, cudTx as TxCUD<Space>, account)) {
+          this.logForbiddenTx(ctx, account, tx, 'space-access-not-granted')
           throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
         }
       } else if (cudTx.space !== core.space.DerivedTx && (await this.isForbiddenTx(ctx, cudTx, account))) {
+        this.logForbiddenTx(ctx, account, tx, 'document-access-not-granted')
         throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
       }
     }
+  }
+
+  private logForbiddenTx (ctx: MeasureContext, account: Account, tx: Tx, reason: string): void {
+    ctx.warn('Guest transaction rejected', {
+      reason,
+      accountRole: account.role,
+      objectClass: TxProcessor.isExtendsCUD(tx._class) ? (tx as TxCUD<Doc>).objectClass : tx._class
+    })
   }
 
   /**
@@ -244,10 +256,14 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     const accessLevelMixin = h.classHierarchyMixin(tx.objectClass, core.mixin.TxAccessLevel)
     if (accessLevelMixin === undefined) return false
     if (tx._class === core.class.TxCreateDoc) {
-      return accessLevelMixin.createAccessLevel === AccountRole.Guest
+      return (
+        accessLevelMixin.createAccessLevel !== undefined && hasAccountRole(account, accessLevelMixin.createAccessLevel)
+      )
     }
     if (tx._class === core.class.TxRemoveDoc) {
-      return accessLevelMixin.removeAccessLevel === AccountRole.Guest
+      return (
+        accessLevelMixin.removeAccessLevel !== undefined && hasAccountRole(account, accessLevelMixin.removeAccessLevel)
+      )
     }
     if (tx._class === core.class.TxUpdateDoc) {
       if (accessLevelMixin.isIdentity === true && account.socialIds.includes(tx.objectId as unknown as PersonId)) {
@@ -255,11 +271,12 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       }
       if (accessLevelMixin.isIdentity === true && h.isDerived(tx.objectClass, contact.class.Person)) {
         const person = (await this.findAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0] as
-          | Person
-          | undefined
+          Person | undefined
         return person?.personUuid === account.uuid
       }
-      return accessLevelMixin.updateAccessLevel === AccountRole.Guest
+      return (
+        accessLevelMixin.updateAccessLevel !== undefined && hasAccountRole(account, accessLevelMixin.updateAccessLevel)
+      )
     }
     return false
   }

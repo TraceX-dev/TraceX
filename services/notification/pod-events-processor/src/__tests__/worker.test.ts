@@ -73,7 +73,7 @@ describe('handleScheduledNotification', () => {
     kind: 'eventReminder',
     id: 'timer-workslot-1',
     eventId: 'workslot-1' as any,
-    eventClass: time.class.WorkSlot as any,
+    eventClass: time.class.WorkSlot,
     shiftMs: 1000,
     targetDate: 1_000_000
   }
@@ -91,7 +91,7 @@ describe('handleScheduledNotification', () => {
   // --------------------------------------------------------------------------------
   it('returns early for non-eventReminder messages (e.g. legacy todoReminder messages)', async () => {
     const legacy = { ...workSlotMessage, kind: 'todoReminder' as any }
-    await handleScheduledNotification(ctx, workspaceUuid, legacy as any, control)
+    await handleScheduledNotification(ctx, workspaceUuid, legacy, control)
 
     expect(getClient).not.toHaveBeenCalled()
     expect(control.heartbeat).not.toHaveBeenCalled()

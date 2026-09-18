@@ -1,5 +1,7 @@
 {
   "string": {
+    "UpdateContext": "Kontext aktualisieren",
+    "RemoveRelation": "Beziehung entfernen",
     "Method": "Methode",
     "Execution": "Ausführung",
     "Process": "Prozess",
@@ -39,6 +41,8 @@
     "UpperCase": "Großbuchstaben",
     "LowerCase": "Kleinbuchstaben",
     "Trim": "Entfernen",
+    "ArrayLength": "Anzahl der Arrayelemente",
+    "RelationCount": "Anzahl der Verknüpfungen",
     "FirstValue": "Erstes Wert",
     "LastValue": "Letztes Wert",
     "Random": "Zufällig",
@@ -199,7 +203,8 @@
     "ExportWithoutSlots": "Slot-freier Export",
     "RequiredSlots": "Erforderliche Slots",
     "Bindings": "Bindungen",
-    "AskRequiredFields": "Erforderliche Felder erfragen"
+    "AskRequiredFields": "Erforderliche Felder erfragen",
+    "TableFromRelation": "Tabelle aus Beziehung"
   },
   "error": {
     "MethodNotFound": "Methode nicht gefunden: {methodId}",

@@ -87,7 +87,7 @@ export async function performGmailAccountMigrations (
   const oldNewIds = new Map(allWorkpaces.map((it) => [it.dataId ?? it.uuid, it]))
   const workspaceProvider: WorkspaceInfoProvider = {
     getWorkspaceInfo: async (workspaceUuid: WorkspaceUuid) => {
-      const ws = oldNewIds.get(workspaceUuid as any) ?? byId.get(workspaceUuid as any)
+      const ws = oldNewIds.get(workspaceUuid) ?? byId.get(workspaceUuid)
       if (ws == null) {
         console.error('No workspace found for token', workspaceUuid)
         return undefined
@@ -128,7 +128,7 @@ async function migrateGmailIntegrations (
 
     for (const token of allTokens) {
       try {
-        const ws = await workspaceProvider.getWorkspaceInfo(token.workspace as any)
+        const ws = await workspaceProvider.getWorkspaceInfo(token.workspace)
         if (ws == null) {
           continue
         }
@@ -141,7 +141,8 @@ async function migrateGmailIntegrations (
         const socialId =
           socialKey !== undefined ? await accountClient.findFullSocialIdBySocialKey(socialKey) : undefined
         if (socialId == null) {
-          console.error('No socialId found for token', token)
+          const data = { workspace: token.workspace, userId: token.userId }
+          console.error('No socialId found for token', data)
           continue
         }
         // Check/create integration in account
@@ -195,7 +196,8 @@ async function migrateGmailIntegrations (
           })
         }
       } catch (e) {
-        console.error('Error migrating token', token, e)
+        const data = { workspace: token.workspace, userId: token.userId }
+        console.error('Error migrating token', data, e)
       }
     }
     console.log('Gmail integrations migrations done, integration count:', allTokens.length)
@@ -222,7 +224,7 @@ async function migrateGmailHistory (
 
     for (const history of allHistories) {
       try {
-        const ws = await workspaceProvider.getWorkspaceInfo(history.workspace as any)
+        const ws = await workspaceProvider.getWorkspaceInfo(history.workspace)
         if (ws == null) {
           continue
         }
@@ -295,7 +297,7 @@ async function getSociaKeysMap (
     if (systemAccounts.includes(account._id as any)) {
       ;(socialKeyByAccount as any)[account._id] = account._id
     } else {
-      socialKeyByAccount[account._id] = buildSocialIdString(getSocialKeyByOldEmail(account.email)) as any
+      socialKeyByAccount[account._id] = buildSocialIdString(getSocialKeyByOldEmail(account.email))
     }
   }
   return socialKeyByAccount

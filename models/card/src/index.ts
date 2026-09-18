@@ -142,13 +142,14 @@ export class TCard extends TDoc implements Card {
   @Prop(TypeRef(card.class.Card), card.string.Parent)
     parent?: Ref<Card> | null
 
+  @Hidden()
   @Prop(Collection(attachment.class.Attachment), attachment.string.Attachments, { shortLabel: attachment.string.Files })
     attachments?: number
 
   @Prop(TypeRank(), core.string.Rank)
-  @Hidden()
     rank!: Rank
 
+  @Hidden()
   @Prop(Collection(time.class.ToDo), getEmbeddedLabel('Action Items'))
     todos?: CollectionSize<ToDo>
 
@@ -171,6 +172,7 @@ export class TCard extends TDoc implements Card {
   @ReadOnly()
     peerId?: string
 
+  @Hidden()
   @Prop(Collection(chunter.class.ChatMessage), chunter.string.Comments)
     comments?: number
 }

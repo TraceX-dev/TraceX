@@ -22,6 +22,34 @@ export function defineFunctions (builder: Builder): void {
     process.class.ProcessFunction,
     core.space.Model,
     {
+      of: core.class.ArrOf,
+      to: core.class.TypeNumber,
+      category: 'attribute',
+      label: process.string.ArrayLength,
+      type: 'convert'
+    },
+    process.function.ArrayLength
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.TypeNumber,
+      category: 'attribute',
+      label: process.string.RelationCount,
+      editorProps: { withConfiguration: false },
+      type: 'context',
+      editor: process.component.RelationTableEditor,
+      presenter: process.transformPresenter.RelationTablePresenter
+    },
+    process.function.RelationCount
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
       of: core.class.TypeString,
       category: 'attribute',
       label: process.string.UpperCase,
@@ -532,6 +560,20 @@ export function defineFunctions (builder: Builder): void {
       type: 'context'
     },
     process.function.RoleContext
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.TypeMarkup,
+      editor: process.component.RelationTableEditor,
+      presenter: process.transformPresenter.RelationTablePresenter,
+      category: 'attribute',
+      label: process.string.TableFromRelation,
+      type: 'context'
+    },
+    process.function.TableFromRelation
   )
 
   builder.createDoc(

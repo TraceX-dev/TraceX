@@ -32,6 +32,7 @@ import core, {
   matchQuery,
   Ref,
   Relation,
+  Space,
   splitMixinUpdate,
   Tx,
   TxCreateDoc,
@@ -122,6 +123,31 @@ export async function SetContext (
     rollback: [],
     context: null,
     results: [{ _id: result._id, value: params.value }]
+  }
+}
+
+/** Updates an initialized process result without creating another context definition. */
+export async function UpdateContext (
+  params: MethodParams<Doc>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  if (typeof params.contextId !== 'string' || params.contextId === '' || params.value === undefined) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'contextId, value' })
+  }
+  const contextId = params.contextId as ContextId
+  const definition = control.client.getModel().findObject(execution.process)?.context[contextId]
+  if (definition?.isResult !== true || definition.type === undefined) {
+    throw processError(process.error.ContextValueNotProvided, { name: definition?.name ?? contextId })
+  }
+  if (!Object.prototype.hasOwnProperty.call(execution.context, contextId)) {
+    throw processError(process.error.ContextValueNotProvided, { name: definition.name })
+  }
+  return {
+    txes: [],
+    rollback: [],
+    context: null,
+    results: [{ _id: contextId, value: params.value }]
   }
 }
 
@@ -385,6 +411,40 @@ export async function AddRelation (
   }
 }
 
+/** Removes selected relations of the current execution card and prepares their restoration. */
+export async function RemoveRelation (
+  params: MethodParams<Relation>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  if (typeof params.association !== 'string' || params.association === '') {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'association' })
+  }
+  if (params.direction !== 'A' && params.direction !== 'B') {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'direction' })
+  }
+  const targets: unknown[] = Array.isArray(params._id) ? params._id : [params._id]
+  if (targets.some((id) => typeof id !== 'string' || id === '')) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: '_id' })
+  }
+  const targetIds = [...new Set(targets as Array<Ref<Doc>>)]
+  if (targetIds.length === 0) return { txes: [], rollback: [], context: null }
+  const relations = await control.client.findAll(core.class.Relation, {
+    association: params.association,
+    ...(params.direction === 'A'
+      ? { docA: { $in: targetIds }, docB: execution.card }
+      : { docA: execution.card, docB: { $in: targetIds } })
+  })
+  const txes: Tx[] = []
+  const rollback: Tx[] = []
+  for (const relation of relations) {
+    const { _id, _class, space, modifiedBy, modifiedOn, createdBy, createdOn, ...data } = relation
+    txes.push(control.client.txFactory.createTxRemoveDoc(_class, space, _id))
+    rollback.push(control.client.txFactory.createTxCreateDoc(_class, space, data, _id))
+  }
+  return { txes, rollback, context: null }
+}
+
 function respectAttributeType (attrType: Type<any>, value: any): any {
   switch (attrType._class) {
     case core.class.TypeNumber: {
@@ -565,7 +625,7 @@ export async function CreateNewVersion (
       : control.client.findAll(attachment.class.Attachment, { attachedTo: origin._id })
   ])
 
-  const createTx = control.client.txFactory.createTxCreateDoc(base, origin.space, props as Data<Card>, targetId)
+  const createTx = control.client.txFactory.createTxCreateDoc(base, origin.space, props, targetId)
   const txes: Tx[] = [createTx]
 
   for (const mixin of hierarchy.findAllMixins(origin)) {
@@ -719,7 +779,7 @@ export async function AddTag (
 
   const processes = control.client.getModel().findAllSync(process.class.Process, { masterTag: tagId, autoStart: true })
   for (const proc of processes) {
-    const [txes, rbTxes] = await createExecution(proc._id, execution.card, execution, control)
+    const [txes, rbTxes] = await createExecution(proc._id, execution.card, execution.space, control)
     res.push(...txes)
     rollback.push(...rbTxes)
   }
@@ -1213,26 +1273,28 @@ export async function CreateCard (
   if (requiredFields !== undefined && typeof requiredFields === 'object' && requiredFields !== null) {
     Object.assign(attrs, requiredFields)
   }
-  const resolvedAttrs: Record<string, any> = {}
+  const resolvedAttrs: Record<string, unknown> = {}
   for (const key in attrs) {
     resolvedAttrs[resolveAttributeId(_process, key)] = (attrs as any)[key]
   }
+  const { space, ...cardAttrs } = resolvedAttrs
+  const targetSpace = typeof space === 'string' && !isEmpty(space) ? (space as Ref<Space>) : execution.space
   const masterTag = _class as Ref<MasterTag>
   const _id = generateId<Card>()
   const newContent =
     content !== undefined && !isEmpty(content) ? await getContent(control, content, _id, masterTag) : content
   const data = {
     title,
-    ...resolvedAttrs
+    ...cardAttrs
   } as any
   if (newContent !== undefined) {
     data.content = newContent
   }
   const filledData = fillDefaults(control.client.getHierarchy(), data, masterTag)
 
-  const tx = control.client.txFactory.createTxCreateDoc(masterTag, execution.space, filledData, _id)
+  const tx = control.client.txFactory.createTxCreateDoc(masterTag, targetSpace, filledData, _id)
   const res: Tx[] = [tx]
-  const rollback: Tx[] = [control.client.txFactory.createTxRemoveDoc(masterTag, execution.space, _id)]
+  const rollback: Tx[] = [control.client.txFactory.createTxRemoveDoc(masterTag, targetSpace, _id)]
 
   const ancestors = control.client
     .getHierarchy()
@@ -1244,7 +1306,7 @@ export async function CreateCard (
     autoStart: true
   })
   for (const proc of processes) {
-    const [txes, rbTxes] = await createExecution(proc._id, _id, execution, control)
+    const [txes, rbTxes] = await createExecution(proc._id, _id, targetSpace, control)
     res.push(...txes)
     rollback.push(...rbTxes)
   }
@@ -1267,7 +1329,7 @@ function isEmpty (value: any): boolean {
 async function createExecution (
   proc: Ref<Process>,
   _id: Ref<Card>,
-  execution: Execution,
+  space: Ref<Space>,
   control: ProcessControl
 ): Promise<[Tx[], Tx[]]> {
   const res: Tx[] = []
@@ -1280,7 +1342,7 @@ async function createExecution (
   const execId = generateId()
   const tx = control.client.txFactory.createTxCreateDoc(
     process.class.Execution,
-    execution.space,
+    space,
     {
       process: proc,
       currentState: null as any,
@@ -1293,6 +1355,6 @@ async function createExecution (
   )
 
   res.push(tx)
-  rollback.push(control.client.txFactory.createTxRemoveDoc(process.class.Execution, execution.space, execId))
+  rollback.push(control.client.txFactory.createTxRemoveDoc(process.class.Execution, space, execId))
   return [res, rollback]
 }

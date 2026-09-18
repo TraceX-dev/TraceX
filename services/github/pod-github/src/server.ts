@@ -52,9 +52,10 @@ export async function start (ctx: MeasureContext, brandingMap: BrandingMap): Pro
   const localWebhookUrl = `http://localhost:${port}${path}`
 
   // See https://github.com/octokit/webhooks.js/#createnodemiddleware for all options
-  const middleware = createNodeMiddleware(octokitApp.webhooks as any, { path })
+  const middleware = createNodeMiddleware(octokitApp.webhooks, { path })
 
   const app = express()
+  app.disable('x-powered-by')
 
   app.use(middleware as any)
   app.use(cors())

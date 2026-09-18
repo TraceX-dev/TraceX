@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 <script lang="ts">
   import { Card } from '@hcengineering/card'
   import { Class, Ref } from '@hcengineering/core'
+  import type { DocumentQuery } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { createQuery } from '@hcengineering/presentation'
   import { Button, ButtonKind, ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
@@ -28,6 +30,7 @@
   export let label: IntlString = card.string.Card
   export let _class: Ref<Class<Card>>
   export let ignoreObjects: Ref<Card>[] | undefined = undefined
+  export let docQuery: DocumentQuery<Card> = {}
 
   export let focusIndex: number | undefined = undefined
   export let kind: ButtonKind = 'no-border'
@@ -44,7 +47,7 @@
       return
     }
 
-    showPopup(CardsPopup, { selected: value, _class, ignoreObjects }, eventToHTMLElement(event), change)
+    showPopup(CardsPopup, { selected: value, _class, ignoreObjects, docQuery }, eventToHTMLElement(event), change)
   }
 
   const change = (val: Card | undefined): void => {

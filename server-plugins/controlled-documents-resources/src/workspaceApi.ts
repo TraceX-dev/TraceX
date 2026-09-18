@@ -113,12 +113,10 @@ async function assertCanSendForApproval (context: WorkspaceApiContext, document:
   const reviews = await context.client.findAll<DocumentRequest>(documents.class.DocumentReviewRequest, {
     attachedTo: document._id
   })
-  if (
-    !(
-      (document.state === DocumentState.Draft && reviews.length === 0) ||
-      document.controlledState === ControlledDocumentState.Reviewed
-    )
-  ) {
+  if (!(
+    (document.state === DocumentState.Draft && reviews.length === 0) ||
+    document.controlledState === ControlledDocumentState.Reviewed
+  )) {
     throw new Error('Controlled document must be a new draft or successfully reviewed before approval')
   }
   const unresolved = await context.client.findAll(
@@ -135,7 +133,7 @@ async function assertCanSendForApproval (context: WorkspaceApiContext, document:
     }
     if (documentTraining.training !== undefined) {
       const query = { _id: documentTraining.training as Ref<Training> }
-      const trainingDoc = await context.client.findOne(training.class.Training, query as never)
+      const trainingDoc = await context.client.findOne(training.class.Training, query)
       if (trainingDoc === undefined || trainingDoc.state !== TrainingState.Released) {
         throw new Error('Document training must be released before approval')
       }
@@ -168,8 +166,8 @@ async function createRequest (
     rejectedState === undefined
       ? undefined
       : context.client.txFactory.createTxUpdateDoc(document._class, document.space, document._id, {
-        controlledState: rejectedState
-      })
+          controlledState: rejectedState
+        })
   await operations.addCollection(requestClass, document.space, document._id, document._class, 'requests', {
     requested,
     approved: [],
@@ -215,8 +213,8 @@ async function copyAttachments (
       id
     )
     await operations.updateMixin<AttachedDoc, DocumentAttachment>(
-      id as Ref<AttachedDoc>,
-      item._class as Ref<Class<AttachedDoc>>,
+      id,
+      item._class,
       source.space,
       documents.mixin.DocumentAttachment,
       { state: 'referenced' }
@@ -298,7 +296,7 @@ export async function CreateControlledDocumentDraft (
   await operations.addCollection(
     documents.class.ProjectDocument,
     projectMeta.space,
-    projectMeta._id as never,
+    projectMeta._id,
     projectMeta._class,
     'documents',
     {

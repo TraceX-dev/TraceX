@@ -173,7 +173,7 @@ export interface ApproveRequest extends ProcessToDo {
 export type MethodParams<T extends Doc> = {
   [P in keyof T]?: ObjQueryType<T[P]> | string
 } & DocumentUpdate<T> &
-Record<string, any>
+  Record<string, any>
 
 export interface State extends Doc {
   process: Ref<Process>
@@ -201,6 +201,7 @@ export interface UserResult {
   name: string
   key?: string
   type: Type<any>
+  selectionSpace?: string // Space reference or serialized process context
 }
 
 export interface ProcessCustomEvent extends Doc {
@@ -239,6 +240,7 @@ export interface ProcessFunction extends Doc {
   of: Ref<Class<Doc>>
   to?: Ref<Class<Doc>>
   editor?: AnyComponent
+  editorProps?: Record<string, unknown>
   presenter?: AnyComponent
   category: AttributeCategory | undefined
   allowMany?: boolean
@@ -254,7 +256,7 @@ export interface UpdateCriteriaComponent extends Doc {
 
 export * from './dslContext'
 export * from './errors'
-export * from './types'
+export type * from './types'
 export * from './utils'
 
 export default plugin(processId, {
@@ -278,12 +280,14 @@ export default plugin(processId, {
     CancelSubProcess: '' as Ref<Method<Process>>,
     CreateAction: '' as Ref<Method<EventButton>>,
     SetContext: '' as Ref<Method<Doc>>,
+    UpdateContext: '' as Ref<Method<Doc>>,
     CancellAction: '' as Ref<Method<EventButton>>,
     CreateToDo: '' as Ref<Method<ProcessToDo>>,
     CloseToDo: '' as Ref<Method<ProcessToDo>>,
     UpdateCard: '' as Ref<Method<Card>>,
     CreateCard: '' as Ref<Method<Card>>,
     AddRelation: '' as Ref<Method<Association>>,
+    RemoveRelation: '' as Ref<Method<Association>>,
     AddTag: '' as Ref<Method<Tag>>,
     RequestApproval: '' as Ref<Method<ApproveRequest>>,
     CancelToDo: '' as Ref<Method<ProcessToDo>>,
@@ -383,6 +387,8 @@ export default plugin(processId, {
     AllMatchValue: '' as Ref<ProcessFunction>,
     FirstMatchValue: '' as Ref<ProcessFunction>,
     Filter: '' as Ref<ProcessFunction>,
+    ArrayLength: '' as Ref<ProcessFunction>,
+    RelationCount: '' as Ref<ProcessFunction>,
     FirstValue: '' as Ref<ProcessFunction>,
     LastValue: '' as Ref<ProcessFunction>,
     Random: '' as Ref<ProcessFunction>,
@@ -442,6 +448,7 @@ export default plugin(processId, {
     StringFromEnum: '' as Ref<ProcessFunction>,
     EnumFromString: '' as Ref<ProcessFunction>,
     DateDifference: '' as Ref<ProcessFunction>,
+    TableFromRelation: '' as Ref<ProcessFunction>,
     ExportProcess: '' as Resource<ExportFunc>,
     CheckProcessSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>
   }

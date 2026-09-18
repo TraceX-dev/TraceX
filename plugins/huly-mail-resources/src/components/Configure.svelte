@@ -92,8 +92,8 @@
     integration = isWorkspaceIntegration(integration)
       ? integration
       : await integrationClient.integrate(integration, getCurrentWorkspaceUuid(), {
-        email: selectedMailbox
-      })
+          email: selectedMailbox
+        })
     await integrationClient.updateConfig(integration, {
       spaceId: selectedSpace
     })

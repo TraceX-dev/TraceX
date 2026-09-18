@@ -18,7 +18,6 @@ import { type Card, CardEvents, cardId, type CardSpace, type MasterTag, type Tag
 import { type PermissionsStore } from '@hcengineering/contact'
 import core, {
   AccountRole,
-  type Class,
   type ClassPermission,
   type Client,
   type Data,
@@ -420,7 +419,7 @@ async function generateLocation (loc: Location, id: string): Promise<ResolvedLoc
   const workspace = loc.path[1] ?? ''
   const special = doc._class
 
-  const objectPanel = client.getHierarchy().classHierarchyMixin(doc._class as Ref<Class<Doc>>, view.mixin.ObjectPanel)
+  const objectPanel = client.getHierarchy().classHierarchyMixin(doc._class, view.mixin.ObjectPanel)
   const component = objectPanel?.component ?? view.component.EditDoc
 
   return {
@@ -502,7 +501,7 @@ export async function cardReferenceObjectProvider<T extends Doc> (
   const baseId = object.baseId ?? object._id
   if (object.isLatest === true) return object
 
-  return (await client.findOne(object._class, { baseId, isLatest: true } as any)) ?? object
+  return (await client.findOne(object._class, { baseId, isLatest: true })) ?? object
 }
 
 export async function getCardLink (doc: Card): Promise<Location> {
@@ -634,9 +633,9 @@ export function getFirstCreatableSubtype (hierarchy: Hierarchy, type: Ref<Master
     return (
       descendantClass?._class === card.class.MasterTag &&
       descendantClass.removed !== true &&
-      !isBaseTypeWithSubtypes(hierarchy, descendant as Ref<MasterTag>)
+      !isBaseTypeWithSubtypes(hierarchy, descendant)
     )
-  }) as Ref<MasterTag> | undefined
+  })
 }
 
 export async function createChildCard (object: Card): Promise<void> {

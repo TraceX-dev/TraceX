@@ -16,18 +16,19 @@
 <script lang="ts">
   import { type Markup, type Ref, type Space } from '@hcengineering/core'
   import presentation, { Card, getClient, MessageViewer } from '@hcengineering/presentation'
-  import { ExecutionContext, Process, SelectedUserRequest, Transition } from '@hcengineering/process'
+  import { ExecutionContext, Process, Transition } from '@hcengineering/process'
   import { Label } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
   import TransitionPresenter from '../settings/TransitionPresenter.svelte'
   import RequestUserInputAttribute from './RequestUserInputAttribute.svelte'
   import ClassUserInput from './ClassUserInput.svelte'
+  import type { ResolvedUserRequest } from '../../selection-space'
 
   export let processId: Ref<Process>
   export let space: Ref<Space>
   export let transition: Ref<Transition>
-  export let inputs: SelectedUserRequest[]
+  export let inputs: ResolvedUserRequest[]
   export let values: ExecutionContext
   export let title: string | undefined = undefined
   export let description: Markup | undefined = undefined
@@ -92,6 +93,7 @@
           key={input.key}
           _class={input._class}
           {space}
+          selectionSpace={input.selectionSpace}
           value={values[input.id]}
           on:change={(e) => {
             values[input.id] = e.detail

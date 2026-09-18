@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,6 +31,8 @@
   export let allObjectsIcon: Asset
   export let allObjectsLabel: IntlString
   export let plainList: boolean = false
+  export let readonly: boolean = false
+  export let reorderable: boolean = false
 </script>
 
 <FoldersBrowser
@@ -42,5 +45,7 @@
   {allObjectsIcon}
   {allObjectsLabel}
   {plainList}
+  {readonly}
+  {reorderable}
   on:select
 />

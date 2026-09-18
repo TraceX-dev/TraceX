@@ -325,7 +325,7 @@
     allowClose={withClose && !embedded}
     {embedded}
     printHeader={false}
-    adaptive={'autoExtra'}
+    adaptive="autoExtra"
     overflowExtra
     hideSearch
     on:close
@@ -337,9 +337,9 @@
           <ProjectSelector
             value={project}
             space={$controlledDocument.space}
-            kind={'ghost'}
-            size={'medium'}
-            justify={'left'}
+            kind="ghost"
+            size="medium"
+            justify="left"
             disabled
             on:change={(e) => {
               project = e.detail
@@ -461,7 +461,7 @@
       {#if $editorMode === 'comparing'}
         <DocumentDiffViewer />
       {:else}
-        <Tabs model={tabs} bind:selected={selectedTab} size={'large'} padding="0 1.5rem" noMargin />
+        <Tabs model={tabs} bind:selected={selectedTab} size="large" padding="0 1.5rem" noMargin />
       {/if}
     </Collaboration>
     <svelte:fragment slot="custom-attributes">

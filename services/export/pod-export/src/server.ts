@@ -15,7 +15,7 @@
 //
 
 import { getClient, isWorkspaceLoginInfo } from '@hcengineering/account-client'
-import client, { ClientSocket } from '@hcengineering/client'
+import client from '@hcengineering/client'
 import core, {
   AccountRole,
   AccountUuid,
@@ -185,7 +185,7 @@ const normalizeRelations = (input: unknown): RelationDefinition[] | undefined =>
       }
 
       if (typeof value === 'string') {
-        result.push({ field: key, class: value as Ref<Class<Doc>>, direction: 'forward' })
+        result.push({ field: key, class: value, direction: 'forward' })
         continue
       }
 
@@ -295,6 +295,7 @@ export function createServer (
   const storageAdapter = buildStorageFromConfig(storageConfig)
 
   const app = express()
+  app.disable('x-powered-by')
   app.use(cors({ exposedHeaders: 'Content-Disposition' }))
   app.use(express.json())
 
@@ -529,12 +530,12 @@ export function createServer (
     if (format === 'docx') {
       for (const ref of collectImageRefs(markup)) {
         try {
-          const stat = await storageAdapter.stat(measureCtx, wsIds, ref as Ref<Blob>)
+          const stat = await storageAdapter.stat(measureCtx, wsIds, ref)
           if (stat === undefined) {
             continue
           }
-          const raw = await storageAdapter.read(measureCtx, wsIds, ref as Ref<Blob>)
-          images.set(ref, Buffer.concat(raw as any))
+          const raw = await storageAdapter.read(measureCtx, wsIds, ref)
+          images.set(ref, Buffer.concat(raw))
         } catch (err) {
           measureCtx.warn('failed to read image blob for export', { ref })
         }
@@ -604,7 +605,7 @@ export function createServer (
         throw new ApiError(404, `File ${blobId} not found`)
       }
       const raw = await storageAdapter.read(measureCtx, wsIds, blobId)
-      const candidate = conformToSchema(normalizeMarkup(await renderDocumentImport(format, Buffer.concat(raw as any))))
+      const candidate = conformToSchema(normalizeMarkup(await renderDocumentImport(format, Buffer.concat(raw))))
 
       // The uploaded file is a transient upload; drop it now that it's converted.
       try {
@@ -835,7 +836,7 @@ async function createPlatformClient (token: string): Promise<Client> {
       headers: {
         'User-Agent': process.env.SERVICE_ID
       }
-    }) as never as ClientSocket
+    }) as never
   })
 
   const endpoint = await getTransactorEndpoint(token)

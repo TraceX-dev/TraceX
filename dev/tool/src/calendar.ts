@@ -66,7 +66,7 @@ export async function performCalendarAccountMigrations (db: Db, region: string |
   const oldNewIds = new Map(allWorkpaces.map((it) => [it.dataId ?? it.uuid, it]))
   const workspaceProvider: WorkspaceInfoProvider = {
     getWorkspaceInfo: async (workspaceUuid: WorkspaceUuid) => {
-      const ws = oldNewIds.get(workspaceUuid as any) ?? byId.get(workspaceUuid as any)
+      const ws = oldNewIds.get(workspaceUuid) ?? byId.get(workspaceUuid)
       if (ws == null) {
         console.error('No workspace found for token', workspaceUuid)
         return undefined
@@ -118,7 +118,8 @@ async function migrateCalendarIntegrations (
 
         const personId = await getPersonIdByEmail(accountClient, token.email)
         if (personId == null) {
-          console.error('No socialId found for token', token)
+          const data = { email: token.email, workspace: token.workspace, userId: token.userId }
+          console.error('No socialId found for token', data)
           continue
         }
         // Check/create integration in account
@@ -170,7 +171,8 @@ async function migrateCalendarIntegrations (
           })
         }
       } catch (e) {
-        console.error('Error migrating token', token, e)
+        const data = { email: token.email, workspace: token.workspace, userId: token.userId }
+        console.error('Error migrating token', data, e)
       }
     }
     console.log('Calendar integrations migrations done, integration count:', allTokens.length)
@@ -205,7 +207,8 @@ async function migrateCalendarHistory (
 
         const personId = await getPersonIdByEmail(accountClient, history.email)
         if (personId == null) {
-          console.error('No socialId found for token', token)
+          const data = { email: history.email, workspace: history.workspace, userId: history.userId }
+          console.error('No socialId found for history entry', data)
           continue
         }
 

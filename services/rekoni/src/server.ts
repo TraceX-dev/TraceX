@@ -38,6 +38,7 @@ import { type ReconiDocument } from './types'
 
 export const startServer = async (): Promise<void> => {
   const app = express()
+  app.disable('x-powered-by')
 
   setMetadata(serverToken.metadata.Secret, process.env.SECRET)
   setMetadata(serverToken.metadata.Service, 'rekoni')
@@ -140,7 +141,7 @@ export const startServer = async (): Promise<void> => {
         temp.push(d)
       })
       bodyStream.on('end', function () {
-        resolve(Buffer.concat(temp as any))
+        resolve(Buffer.concat(temp))
       })
     })
 
