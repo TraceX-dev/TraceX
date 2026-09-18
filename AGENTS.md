@@ -25,6 +25,12 @@ Respond to user using Russian language, all comments should be in English.
 - `packages/*` - Reusable utilities
 - Projects 2-3 levels deep, each with `package.json`
 
+## UI Component Reuse
+
+- Before creating UI, check the [`@hcengineering/ui` component catalog](./packages/ui/docs/components.md), public exports, and existing usages. Prefer importing from `@hcengineering/ui` and extending or composing existing components; do not use deep imports or create near-duplicates.
+- If no suitable component exists, add it to `packages/ui` when it is a reusable UI primitive or serves multiple features. Keep domain-specific components with their owning feature and follow existing theming, localization, and accessibility patterns.
+- Export every new public component from `packages/ui/src/index.ts` and add it to one primary category in the component catalog.
+
 ## Rush Commands
 
 ```bash
