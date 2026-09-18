@@ -15,7 +15,7 @@
 <script lang="ts">
   import { getMetadata } from '@hcengineering/platform'
   import { upgradeDownloadProgress } from '@hcengineering/presentation'
-  import { Button, Component, AppLoading, Label, Notifications, location } from '@hcengineering/ui'
+  import { Button, Component, Label, LoadingScreen, Notifications, location } from '@hcengineering/ui'
   import { connect, disconnect, error, errorActions } from '../connect'
 
   import workbench, { workbenchId } from '@hcengineering/workbench'
@@ -31,21 +31,22 @@
 {#if $location.path[0] === workbenchId || $location.path[0] === workbenchRes.component.WorkbenchApp}
   {#key $location.path[1]}
     {#await connect(getMetadata(workbenchRes.metadata.PlatformTitle) ?? 'Platform')}
-      <AppLoading>
-        {#if ($workspaceCreating ?? -1) >= 0}
-          <div class="ml-1">
-            <Label label={workbenchRes.string.WorkspaceCreating} />
-            {$workspaceCreating} %
+      <LoadingScreen
+        caption={($workspaceCreating ?? -1) >= 0 ? workbenchRes.string.WorkspaceCreating : undefined}
+        progress={($workspaceCreating ?? -1) >= 0
+          ? $workspaceCreating
+          : $upgradeDownloadProgress >= 0
+            ? $upgradeDownloadProgress
+            : undefined}
+      >
+        {#if $upgradeDownloadProgress >= 0}
+          <div>
+            <Label label={workbench.string.UpgradeDownloadProgress} params={{ percent: $upgradeDownloadProgress }} />
           </div>
         {/if}
         {#if $error}
-          <div class="ml-2">
+          <div class="error-text">
             {$error}
-          </div>
-        {/if}
-        {#if $upgradeDownloadProgress >= 0}
-          <div class="ml-1" class:ml-2={$error === undefined}>
-            <Label label={workbench.string.UpgradeDownloadProgress} params={{ percent: $upgradeDownloadProgress }} />
           </div>
         {/if}
         <svelte:fragment slot="actions">
@@ -55,7 +56,7 @@
             {/each}
           {/if}
         </svelte:fragment>
-      </AppLoading>
+      </LoadingScreen>
     {:then client}
       {#if $error}
         <div class="version-wrapper">
@@ -95,6 +96,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  .error-text {
+    color: var(--theme-warning-color);
   }
   .please-update {
     margin-bottom: 1rem;
