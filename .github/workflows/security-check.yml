@@ -2,7 +2,6 @@ name: Security check
 
 on:
   workflow_dispatch: {}
-  pull_request: {}
   push:
     branches:
       - main
@@ -31,7 +30,38 @@ jobs:
       image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v6
-      - run: semgrep ci
+      - name: Run Semgrep
+        run: semgrep ci --sarif > semgrep.sarif
+      - name: Generate Semgrep summary
+        if: always()
+        run: |
+          node -e '
+          const fs = require("node:fs")
+
+          let markdown = "## Semgrep\n\n"
+          if (!fs.existsSync("semgrep.sarif")) {
+            markdown += "Semgrep did not produce a SARIF report. See the job log.\n"
+          } else {
+            const report = JSON.parse(fs.readFileSync("semgrep.sarif", "utf8"))
+            const findings = report.runs.flatMap((run) => run.results ?? []).slice(0, 20)
+            markdown += `Findings: ${findings.length}${findings.length === 20 ? "+" : ""}\n\n`
+            markdown += findings.length === 0
+              ? "No findings.\n"
+              : findings.map((finding) => `- **${finding.ruleId}** — ${finding.message?.text ?? "No message"}`).join("\n")
+          }
+
+          fs.writeFileSync("semgrep-summary.md", markdown)
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
+          '
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: semgrep-report
+          path: |
+            semgrep.sarif
+            semgrep-summary.md
+          if-no-files-found: warn
 
   grype:
     name: Grype
@@ -50,6 +80,27 @@ jobs:
           output-format: sarif
           output-file: grype-report.sarif
           cache-db: true
+      - name: Generate Grype summary
+        if: always()
+        run: |
+          node -e '
+          const fs = require("node:fs")
+
+          let markdown = "## Grype\n\n"
+          if (!fs.existsSync("grype-report.sarif")) {
+            markdown += "Grype did not produce a SARIF report. See the job log.\n"
+          } else {
+            const report = JSON.parse(fs.readFileSync("grype-report.sarif", "utf8"))
+            const findings = report.runs.flatMap((run) => run.results ?? []).slice(0, 20)
+            markdown += `Findings: ${findings.length}${findings.length === 20 ? "+" : ""}\n\n`
+            markdown += findings.length === 0
+              ? "No findings.\n"
+              : findings.map((finding) => `- **${finding.ruleId}** — ${finding.message?.text ?? "No message"}`).join("\n")
+          }
+
+          fs.writeFileSync("grype-summary.md", markdown)
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
+          '
       - name: Upload Grype findings to Code Scanning
         if: always() && steps.scan.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v4
@@ -60,7 +111,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: grype-report
-          path: grype-report.sarif
+          path: |
+            grype-report.sarif
+            grype-summary.md
           if-no-files-found: warn
 
   pnpm-audit:
@@ -72,7 +125,7 @@ jobs:
         name: Run pnpm audit
         run: |
           set +e
-          node common/scripts/install-run-rush-pnpm.js audit --json --quiet > pnpm-audit.json
+          node common/scripts/install-run-rush-pnpm.js audit --json --quiet > pnpm-audit-raw.txt
           audit_exit_code=$?
           set -e
           echo "exit_code=${audit_exit_code}" >> "$GITHUB_OUTPUT"
@@ -84,21 +137,27 @@ jobs:
           node -e '
           const fs = require("node:fs")
 
-          const reportPath = "pnpm-audit.json"
+          const reportPath = "pnpm-audit-raw.txt"
           const exitCode = process.env.AUDIT_EXIT_CODE || "unknown"
-          let markdown = "## pnpm audit\\n\\n"
+          let markdown = "## pnpm audit\n\n"
 
           try {
-            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"))
+            const rawReport = fs.readFileSync(reportPath, "utf8")
+            const jsonStart = rawReport.indexOf("{")
+            const jsonEnd = rawReport.lastIndexOf("}")
+            if (jsonStart === -1 || jsonEnd === -1) throw new Error("JSON audit report not found")
+
+            const report = JSON.parse(rawReport.slice(jsonStart, jsonEnd + 1))
             const vulnerabilities = report.metadata?.vulnerabilities ?? {}
             const severities = ["critical", "high", "moderate", "low", "info"]
 
-            markdown += `Exit code: ${exitCode}\\n\\n`
-            markdown += "| Severity | Findings |\\n| --- | ---: |\\n"
-            markdown += severities.map((severity) => `| ${severity} | ${vulnerabilities[severity] ?? 0} |`).join("\\n")
-            markdown += "\\n"
+            markdown += `Exit code: ${exitCode}\n\n`
+            markdown += "| Severity | Findings |\n| --- | ---: |\n"
+            markdown += severities.map((severity) => `| ${severity} | ${vulnerabilities[severity] ?? 0} |`).join("\n")
+            markdown += "\n"
+            fs.writeFileSync("pnpm-audit.json", JSON.stringify(report, null, 2))
           } catch (error) {
-            markdown += `Audit report could not be parsed (exit code: ${exitCode}). See the workflow log.\\n`
+            markdown += `Audit report could not be parsed (exit code: ${exitCode}). See the workflow log.\n`
           }
 
           fs.writeFileSync("pnpm-audit-summary.md", markdown)
@@ -111,6 +170,7 @@ jobs:
           name: pnpm-audit-report
           path: |
             pnpm-audit.json
+            pnpm-audit-raw.txt
             pnpm-audit-summary.md
           if-no-files-found: warn
 
@@ -134,10 +194,10 @@ jobs:
           const fs = require("node:fs")
 
           const reportPath = "report_json.json"
-          let markdown = "## ZAP staging baseline\\n\\n"
+          let markdown = "## ZAP staging baseline\n\n"
 
           if (!fs.existsSync(reportPath)) {
-            markdown += "The full ZAP report is attached as the `zap-staging-baseline-report` artifact.\\n"
+            markdown += "The full ZAP report is attached as the `zap-staging-baseline-report` artifact.\n"
           } else {
             const report = JSON.parse(fs.readFileSync(reportPath, "utf8"))
             const alerts = (report.site ?? []).flatMap((site) => site.alerts ?? [])
@@ -146,9 +206,9 @@ jobs:
 
             for (const alert of alerts) counts[alert.riskcode] = (counts[alert.riskcode] ?? 0) + 1
 
-            markdown += "| Risk | Alerts |\\n| --- | ---: |\\n"
-            markdown += Object.entries(riskNames).reverse().map(([risk, name]) => `| ${name} | ${counts[risk]} |`).join("\\n")
-            markdown += "\\n"
+            markdown += "| Risk | Alerts |\n| --- | ---: |\n"
+            markdown += Object.entries(riskNames).reverse().map(([risk, name]) => `| ${name} | ${counts[risk]} |`).join("\n")
+            markdown += "\n"
           }
 
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
