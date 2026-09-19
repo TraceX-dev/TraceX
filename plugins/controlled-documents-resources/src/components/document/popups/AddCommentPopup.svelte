@@ -6,7 +6,7 @@
   import { ReferenceInput } from '@hcengineering/text-editor-resources'
   import { popupstore as popups } from '@hcengineering/ui'
 
-  import { addDocumentCommentFx } from '../../../stores/editors/document'
+  import { $controlledDocument as controlledDocument, addDocumentCommentFx } from '../../../stores/editors/document'
 
   export let nodeId: string | undefined
   export let popupId: string | undefined
@@ -52,6 +52,7 @@
     focusable
     kindSend="primary"
     placeholder={chunter.string.AddCommentPlaceholder}
+    kitOptions={{ objectSpace: $controlledDocument?.space }}
     on:message={handleMessage}
   />
 </div>

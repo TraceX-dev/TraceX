@@ -520,7 +520,8 @@
       {placeholder}
       kitOptions={{
         file: false,
-        image: false
+        image: false,
+        objectSpace: space
       }}
     >
       <div slot="header">
