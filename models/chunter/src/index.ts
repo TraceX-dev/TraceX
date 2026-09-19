@@ -80,8 +80,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: chunter.class.Channel,
-      enabled: true,
-      order: 30
+      enabled: true
     },
     chunter.ids.ModulePermissionGroup
   )
@@ -94,8 +93,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: chunter.class.Channel,
-      enabled: true,
-      order: 15
+      enabled: true
     },
     chunter.ids.ModulePermissionGroupReadOnlyGuest
   )

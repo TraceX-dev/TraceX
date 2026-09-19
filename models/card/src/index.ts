@@ -1061,8 +1061,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [card.ids.GuestCardClassPermission],
       spaceClass: card.class.CardSpace,
-      enabled: true,
-      order: 20
+      enabled: true
     },
     card.ids.ModulePermissionGroup
   )
@@ -1075,8 +1074,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: card.class.CardSpace,
-      enabled: false,
-      order: 20
+      enabled: false
     },
     card.ids.ModulePermissionGroupReadOnlyGuest
   )
