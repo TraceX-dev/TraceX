@@ -13,10 +13,10 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { Employee, Person } from '@hcengineering/contact'
+  import contact, { Employee, getCurrentEmployee, getGuestVisibleEmployees, Person } from '@hcengineering/contact'
   import { AssigneeBox, AssigneePopup, employeeRefByAccountUuidStore } from '@hcengineering/contact-resources'
   import { AssigneeCategory } from '@hcengineering/contact-resources/src/assignee'
-  import { Doc, DocumentQuery, notEmpty, Ref, Space } from '@hcengineering/core'
+  import { Doc, DocumentQuery, getCurrentAccount, isGuestRole, notEmpty, Ref, Space } from '@hcengineering/core'
   import { RuleApplyResult, getClient, getDocRules } from '@hcengineering/presentation'
   import { Component, Issue, TrackerEvents } from '@hcengineering/tracker'
   import { ButtonKind, ButtonSize, IconSize, TooltipAlignment } from '@hcengineering/ui'
@@ -153,12 +153,52 @@
       }
     }
   }
+
+  // Guests can only assign people from the issue's project. Until the members are loaded
+  // (or without a project) a guest can only pick itself.
+  let guestEmployees: Array<Ref<Employee>> | undefined = isGuestRole(getCurrentAccount().role)
+    ? [getCurrentEmployee()]
+    : undefined
+
+  $: void updateGuestEmployees(docs)
+
+  async function updateGuestEmployees (items: AssigneeObject[]): Promise<void> {
+    if (guestEmployees === undefined) return
+    const spaces = Array.from(new Set(items.map((it) => it.space).filter(notEmpty))) as Array<Ref<Space>>
+    let allowed: Set<Ref<Employee>> | undefined
+    for (const space of spaces.length > 0 ? spaces : [undefined]) {
+      const employees = (await getGuestVisibleEmployees(client, space)) ?? []
+      const refs = new Set(employees.map((it) => it._id))
+      // Several issues at once: only people visible in every project
+      allowed = allowed === undefined ? refs : new Set(Array.from(allowed).filter((it) => refs.has(it)))
+    }
+    if (items !== docs) return
+    guestEmployees = Array.from(allowed ?? [])
+  }
+
+  function restrictQuery (
+    q: DocumentQuery<Employee> | undefined,
+    allowed: Array<Ref<Employee>> | undefined
+  ): DocumentQuery<Employee> | undefined {
+    if (allowed === undefined) return q
+    const base: DocumentQuery<Employee> = q ?? { active: true }
+    const idQuery = base._id
+    let ids: Array<Ref<Employee>> = allowed
+    if (typeof idQuery === 'string') {
+      ids = allowed.includes(idQuery) ? [idQuery] : []
+    } else if (Array.isArray(idQuery?.$in)) {
+      ids = idQuery.$in.filter((it) => allowed.includes(it))
+    }
+    return { ...base, _id: { ...(typeof idQuery === 'object' ? idQuery : {}), $in: ids } }
+  }
+
+  $: docQuery = restrictQuery(query, guestEmployees)
 </script>
 
 {#if _object}
   {#if isAction}
     <AssigneePopup
-      docQuery={query}
+      {docQuery}
       {categories}
       icon={contact.icon.Person}
       selected={sel}
@@ -177,7 +217,7 @@
     />
   {:else}
     <AssigneeBox
-      docQuery={query}
+      {docQuery}
       {focusIndex}
       label={tracker.string.Assignee}
       placeholder={tracker.string.Assignee}
