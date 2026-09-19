@@ -133,6 +133,26 @@
     "OpenChatInSidebar": "Sohbeti kenar çubuğunda aç",
     "ResolveThread": "Çöz",
     "NoThreadsYet": "Henüz başlık yok.",
-    "SummarizeMessages": "Tartışmayı özetle"
+    "SummarizeMessages": "Tartışmayı özetle",
+    "Resolved": "Çözüldü",
+    "ViewAllDiscussions": "Tüm tartışmaları görüntüle ({count})",
+    "DeleteDiscussion": "Tartışmayı sil",
+    "DeleteDiscussionConfirm": "Bu tartışmayı silmek istiyor musunuz? Bu işlem geri alınamaz.",
+    "NewDiscussion": "Yeni tartışma",
+    "CreateDiscussion": "Tartışma oluştur",
+    "FirstMessage": "İlk mesaj",
+    "FirstMessagePlaceholder": "Tartışmayı başlatmak için ilk mesajı yazın…",
+    "AttachTo": "Şuna bağla (isteğe bağlı)",
+    "AttachToDescription": "Tartışmayı daha kolay bulunması için belirli bir eke bağlayın.",
+    "AttachedTo": "Bağlı: {name}",
+    "JoinDiscussionRequest": "Mesajları okumak ve göndermek için bir tartışma katılımcısından sizi eklemesini isteyin.",
+    "NotAttached": "Bağlı değil",
+    "MarkAsResolved": "Çözüldü olarak işaretle",
+    "ReopenDiscussion": "Tartışmayı yeniden aç",
+    "ParticipantsCount": "{count, plural, one {# katılımcı} other {# katılımcı}}",
+    "AddAllCollaborators": "Kartın tüm ortak çalışanlarını ekle ({count})",
+    "Discussion": "Tartışma",
+    "Discussions": "Tartışmalar",
+    "NoDiscussionsYet": "Henüz tartışma yok."
   }
 }

@@ -133,6 +133,26 @@
     "OpenChatInSidebar": "Открыть чат в боковой панели",
     "ResolveThread": "Пометить завершенным",
     "NoThreadsYet": "Пока нет обсуждений.",
-    "SummarizeMessages": "Подвести итоги обсуждения"
+    "SummarizeMessages": "Подвести итоги обсуждения",
+    "Resolved": "Завершено",
+    "ViewAllDiscussions": "Все обсуждения ({count})",
+    "AddAllCollaborators": "Добавить всех участников карточки ({count})",
+    "DeleteDiscussion": "Удалить обсуждение",
+    "DeleteDiscussionConfirm": "Удалить это обсуждение? Это действие нельзя отменить.",
+    "NewDiscussion": "Новое обсуждение",
+    "CreateDiscussion": "Создать обсуждение",
+    "FirstMessage": "Первое сообщение",
+    "FirstMessagePlaceholder": "Напишите первое сообщение, чтобы начать обсуждение…",
+    "AttachTo": "Привязать к (необязательно)",
+    "AttachToDescription": "Привяжите обсуждение к конкретному вложению, чтобы его было проще найти.",
+    "AttachedTo": "Привязано к: {name}",
+    "JoinDiscussionRequest": "Попросите участника обсуждения добавить вас, чтобы читать и отправлять сообщения.",
+    "NotAttached": "Без привязки",
+    "MarkAsResolved": "Отметить как решённое",
+    "ReopenDiscussion": "Открыть заново",
+    "ParticipantsCount": "{count, plural, one {# участник} few {# участника} other {# участников}}",
+    "Discussion": "Обсуждение",
+    "Discussions": "Обсуждения",
+    "NoDiscussionsYet": "Пока нет обсуждений."
   }
 }
