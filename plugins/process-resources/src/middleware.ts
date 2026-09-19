@@ -13,14 +13,19 @@
 // limitations under the License.
 
 import cardPlugin, { type Card } from '@hcengineering/card'
+import { permissionsStore } from '@hcengineering/contact-resources'
 import core, {
+  AccountRole,
   generateId,
   getCurrentAccount,
+  hasAccountRole,
   SortingOrder,
   TxOperations,
   TxProcessor,
   type Client,
   type Doc,
+  type Ref,
+  type Space,
   type Tx,
   type TxApplyIf,
   type TxCreateDoc,
@@ -29,9 +34,11 @@ import core, {
   type TxResult,
   type TxUpdateDoc
 } from '@hcengineering/core'
-import { translate } from '@hcengineering/platform'
+import { getMetadata, translate } from '@hcengineering/platform'
 import { BasePresentationMiddleware, type PresentationMiddleware } from '@hcengineering/presentation'
 import { ExecutionStatus, type ApproveRequest, type ProcessCustomEvent, type ProcessToDo } from '@hcengineering/process'
+import { canCreateObject } from '@hcengineering/view-resources'
+import { get } from 'svelte/store'
 import process from './plugin'
 import { createExecution, getNextStateUserInput, pickTransition, requestResult } from './utils'
 
@@ -56,6 +63,14 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
   }
 
   private readonly txFactory = new TxOperations(this.client, getCurrentAccount().primarySocialId).txFactory
+
+  private canCreateExecution (space: Ref<Space>): boolean {
+    if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) return false
+    const store = get(permissionsStore)
+    const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
+    if (!arePermissionsDisabled && store.ps[space]?.has(process.permission.ForbidRunProcess)) return false
+    return canCreateObject(process.class.Execution, space, store)
+  }
 
   async tx (tx: Tx): Promise<TxResult> {
     const preTx: Array<TxCUD<Doc>> = []
@@ -206,6 +221,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
 
       // New-version processes are created by the server trigger to avoid duplicate executions.
       if (doc.baseId !== undefined && doc.baseId !== doc._id) return
+      if (!this.canCreateExecution(createTx.objectSpace)) return
 
       const ancestors = hierarchy
         .getAncestors(createTx.objectClass)
@@ -234,6 +250,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
     const hierarchy = this.client.getHierarchy()
     if (!hierarchy.isDerived(mixinTx.objectClass, cardPlugin.class.Card)) return
     if (Object.keys(mixinTx.attributes).length !== 0) return
+    if (!this.canCreateExecution(mixinTx.objectSpace)) return
 
     const processes = this.client
       .getModel()
