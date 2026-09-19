@@ -15,10 +15,8 @@
 import cardPlugin, { type Card } from '@hcengineering/card'
 import { permissionsStore } from '@hcengineering/contact-resources'
 import core, {
-  AccountRole,
   generateId,
   getCurrentAccount,
-  hasAccountRole,
   SortingOrder,
   TxOperations,
   TxProcessor,
@@ -37,7 +35,7 @@ import core, {
 import { getMetadata, translate } from '@hcengineering/platform'
 import { BasePresentationMiddleware, type PresentationMiddleware } from '@hcengineering/presentation'
 import { ExecutionStatus, type ApproveRequest, type ProcessCustomEvent, type ProcessToDo } from '@hcengineering/process'
-import { canCreateObject } from '@hcengineering/view-resources'
+import { getPermissions } from '@hcengineering/view-resources'
 import { get } from 'svelte/store'
 import process from './plugin'
 import { createExecution, getNextStateUserInput, pickTransition, requestResult } from './utils'
@@ -65,11 +63,9 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
   private readonly txFactory = new TxOperations(this.client, getCurrentAccount().primarySocialId).txFactory
 
   private canCreateExecution (space: Ref<Space>): boolean {
-    if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) return false
-    const store = get(permissionsStore)
+    if (!getPermissions().canCreate(process.class.Execution, space)) return false
     const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
-    if (!arePermissionsDisabled && store.ps[space]?.has(process.permission.ForbidRunProcess)) return false
-    return canCreateObject(process.class.Execution, space, store)
+    return arePermissionsDisabled || !get(permissionsStore).ps[space]?.has(process.permission.ForbidRunProcess)
   }
 
   async tx (tx: Tx): Promise<TxResult> {
