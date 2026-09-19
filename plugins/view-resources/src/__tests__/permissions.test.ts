@@ -221,6 +221,24 @@ describe('permissions', () => {
     }
   )
 
+  test.each([
+    [AccountRole.Guest, false],
+    [AccountRole.DocGuest, false],
+    [AccountRole.ReadOnlyGuest, false],
+    [AccountRole.User, true]
+  ])('resolves activity visibility for %s to %s', (role, expected) => {
+    const doc = {
+      _id: 'doc' as Ref<Doc>,
+      _class: 'test:class:Doc' as Ref<Class<Doc>>,
+      space: core.space.Space,
+      modifiedBy: 'system' as PersonId,
+      modifiedOn: 0
+    }
+    setCurrentAccount(createAccount(role))
+
+    expect(getPermissions().canViewActivity(doc)).toBe(expected)
+  })
+
   test('allows a channel member to add members but not remove them', () => {
     const account = createAccount(AccountRole.User)
     const space = createSpace('channel', core.class.Space, [account.uuid])
