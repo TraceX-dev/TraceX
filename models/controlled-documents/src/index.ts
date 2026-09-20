@@ -19,6 +19,7 @@ import activity from '@hcengineering/activity'
 import contact from '@hcengineering/contact'
 import documentsPlugin, {
   type ControlledDocument,
+  DOCUMENT_SEQUENCE_NAMESPACE,
   documentsId,
   DocumentState,
   type Document,
@@ -46,7 +47,15 @@ import setting from '@hcengineering/setting'
 import tags from '@hcengineering/tags'
 import textEditor from '@hcengineering/text-editor'
 
-import { AccountRole, type ClassCollaborators, type Class, type Doc, type Lookup, type Ref } from '@hcengineering/core'
+import {
+  AccountRole,
+  type ClassCollaborators,
+  type Class,
+  type Doc,
+  type Lookup,
+  type Permission,
+  type Ref
+} from '@hcengineering/core'
 import { type Action } from '@hcengineering/view'
 import { definePermissions } from './permissions'
 import documents from './plugin'
@@ -1220,14 +1229,34 @@ export function createModel (builder: Builder): void {
 
   defineSpaceType(builder)
   builder.createDoc(
+    core.class.ClassPermission,
+    core.space.Model,
+    {
+      label: documents.string.CreateDocumentPermission,
+      description: documents.string.CreateDocumentDescription,
+      scope: 'space',
+      targetClass: documents.class.ControlledDocument,
+      relatedCreateClasses: [
+        documents.class.DocumentMeta,
+        documents.class.ProjectMeta,
+        documents.class.ProjectDocument
+      ],
+      followUpCreateClasses: [documents.class.ChangeControl],
+      sequenceNamespaces: [DOCUMENT_SEQUENCE_NAMESPACE, documentsId]
+    },
+    documents.ids.GuestControlledDocumentClassPermission
+  )
+
+  builder.createDoc(
     core.class.ModulePermissionGroup,
     core.space.Model,
     {
       application: documents.app.Documents,
       role: AccountRole.Guest,
-      permissions: [],
+      permissions: [documents.ids.GuestControlledDocumentClassPermission as Ref<Permission>],
+      disabledPermissions: [documents.ids.GuestControlledDocumentClassPermission as Ref<Permission>],
       spaceClass: documents.class.OrgSpace,
-      enabled: true,
+      enabled: false,
       order: 42
     },
     documents.ids.ModulePermissionGroup

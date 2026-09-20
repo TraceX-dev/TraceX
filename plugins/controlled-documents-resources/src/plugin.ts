@@ -19,7 +19,14 @@ import documents, {
   type DocumentSpace,
   documentsId
 } from '@hcengineering/controlled-documents'
-import { type Client, type Doc, type Ref, type Space } from '@hcengineering/core'
+import {
+  type Client,
+  type ClassPermission,
+  type Doc,
+  type ModulePermissionGroup,
+  type Ref,
+  type Space
+} from '@hcengineering/core'
 import { type IntlString, mergeIds, type Resource } from '@hcengineering/platform'
 import { type AnyComponent, type Location } from '@hcengineering/ui/src/types'
 import type { KeyFilter, ReferenceVersion, SortFunc, ViewActionAvailabilityFunction } from '@hcengineering/view'
@@ -48,7 +55,10 @@ export default mergeIds(documentsId, documents, {
     CreateDocumentSpaceType: '' as AnyComponent
   },
   ids: {
-    AddCommentPopup: '' as Resource<string>
+    AddCommentPopup: '' as Resource<string>,
+    ModulePermissionGroup: '' as Ref<ModulePermissionGroup>,
+    ModulePermissionGroupReadOnlyGuest: '' as Ref<ModulePermissionGroup>,
+    GuestControlledDocumentClassPermission: '' as Ref<ClassPermission>
   },
   string: {
     ID: '' as IntlString,

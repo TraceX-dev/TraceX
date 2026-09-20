@@ -39,12 +39,14 @@ import documents, {
   transferDocuments
 } from '@hcengineering/controlled-documents'
 import core, {
+  AccountRole,
   type Class,
   type Client,
   type Doc,
   type DocumentQuery,
   type Hierarchy,
   type Markup,
+  type Permission,
   type QuerySelector,
   type Ref,
   type Space,
@@ -70,6 +72,21 @@ import { getProjectDocumentLink } from './navigation'
 import documentsResources from './plugin'
 import { wizardOpened } from './stores/wizards/create-document'
 import { getPersonRefByPersonId, getPersonRefsByPersonIds } from '@hcengineering/contact-resources'
+
+export async function canCreateControlledDocuments (client: Client = getClient()): Promise<boolean> {
+  const account = getCurrentAccount()
+  if (account.role !== AccountRole.Guest) {
+    return account.role !== AccountRole.DocGuest && account.role !== AccountRole.ReadOnlyGuest
+  }
+
+  const group = await client.findOne(core.class.ModulePermissionGroup, {
+    _id: documentsResources.ids.ModulePermissionGroup
+  })
+  if (group === undefined || !group.enabled) return false
+
+  const permission = documentsResources.ids.GuestControlledDocumentClassPermission as Ref<Permission>
+  return group.permissions.includes(permission) && !(group.disabledPermissions ?? []).includes(permission)
+}
 
 export type TranslatedDocumentStates = Readonly<Record<DocumentState, string>>
 
@@ -608,6 +625,7 @@ export async function canCreateChildTemplate (
   }
 
   const client = getClient()
+  if (!(await canCreateControlledDocuments(client))) return false
   const hierarchy = client.getHierarchy()
   const spaceId: Ref<DocumentSpace> = isSpace(hierarchy, doc) ? doc._id : doc.space
   const space = isSpace(hierarchy, doc) ? doc : await client.findOne(documents.class.DocumentSpace, { _id: spaceId })
@@ -627,6 +645,7 @@ export async function canCreateChildDocument (
   }
 
   const client = getClient()
+  if (!(await canCreateControlledDocuments(client))) return false
   const hierarchy = client.getHierarchy()
   const spaceId: Ref<DocumentSpace> = isSpace(hierarchy, doc) ? doc._id : doc.space
 

@@ -13,15 +13,16 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Mixin, DocumentQuery, Ref } from '@hcengineering/core'
+  import core, { Mixin, DocumentQuery, Ref } from '@hcengineering/core'
   import { type DocumentSpace, type DocumentTemplate } from '@hcengineering/controlled-documents'
-  import { ActionContext } from '@hcengineering/presentation'
+  import { ActionContext, createQuery } from '@hcengineering/presentation'
   import { Button, IconAdd, Loading, showPopup } from '@hcengineering/ui'
   import view, { ViewOptions, Viewlet, ViewletPreference } from '@hcengineering/view'
   import { TableBrowser, ViewletPanelHeader } from '@hcengineering/view-resources'
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
   import documents from '../plugin'
+  import { canCreateControlledDocuments } from '../utils'
 
   export let query: DocumentQuery<DocumentTemplate> = {}
 
@@ -35,9 +36,18 @@
   const _class: Ref<Mixin<DocumentTemplate>> = documents.mixin.DocumentTemplate
 
   $: srcQuery = { ...query }
-  $: canAddTemplate = Object.keys($permissionsStore.ps).some((space) =>
-    checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
-  )
+  let modulePermissionEnabled = false
+  const modulePermissionQuery = createQuery()
+  modulePermissionQuery.query(core.class.ModulePermissionGroup, { _id: documents.ids.ModulePermissionGroup }, () => {
+    void canCreateControlledDocuments().then((value) => {
+      modulePermissionEnabled = value
+    })
+  })
+  $: canAddTemplate =
+    modulePermissionEnabled &&
+    Object.keys($permissionsStore.ps).some((space) =>
+      checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
+    )
 
   function showCreateDialog (): void {
     showPopup(documents.component.QmsTemplateWizard, { _class: documents.class.ControlledDocument })

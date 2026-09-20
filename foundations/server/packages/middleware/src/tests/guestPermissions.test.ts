@@ -33,6 +33,7 @@ import core, {
   MeasureMetricsContext,
   type Account,
   type Class,
+  type CustomSequence,
   type Doc,
   type MeasureContext,
   type PersonId,
@@ -48,6 +49,9 @@ import { GuestPermissionsMiddleware } from '../guestPermissions'
 const COVERED_CLASS = 'test:class:CoveredClass' as Ref<Class<Doc>>
 const UNCOVERED_CLASS = 'test:class:UncoveredClass' as Ref<Class<Doc>>
 const COVERED_CLASS_PERMISSION = 'test:permission:CoveredClassPermission' as Ref<Doc>
+const RELATED_CLASS = 'test:class:RelatedClass' as Ref<Class<Doc>>
+const FOLLOW_UP_CLASS = 'test:class:FollowUpClass' as Ref<Class<Doc>>
+const ALLOWED_SEQUENCE_NAMESPACE = 'test.sequence' as const
 const MODULE_PERMISSION_GROUP_CLASS = core.class.ModulePermissionGroup
 const ALLOWED_SPACE = 'test:space:Allowed' as Ref<Space>
 const FORBIDDEN_SPACE = 'test:space:Forbidden' as Ref<Space>
@@ -235,6 +239,96 @@ describe('GuestPermissionsMiddleware', () => {
       const tx = makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)
       const ctx = makeCtx(makeAccount(AccountRole.Guest))
       await expect(mw.tx(ctx, [tx])).rejects.toThrow()
+    })
+  })
+
+  describe('class permission workflow policies', () => {
+    const settingsDoc = makeGuestSettingsDoc([COVERED_CLASS_PERMISSION])
+    const sequenceId = generateId<CustomSequence>()
+    const findAll: FindAllFn = async (_ctx, _class, query) => {
+      if (_class === MODULE_PERMISSION_GROUP_CLASS) return [settingsDoc]
+      if (_class === core.class.ClassPermission) {
+        return [
+          {
+            _id: COVERED_CLASS_PERMISSION,
+            targetClass: COVERED_CLASS,
+            relatedCreateClasses: [RELATED_CLASS],
+            followUpCreateClasses: [FOLLOW_UP_CLASS],
+            sequenceNamespaces: [ALLOWED_SEQUENCE_NAMESPACE]
+          } as any
+        ]
+      }
+      if (_class === core.class.CustomSequence && (query as any)._id === sequenceId) {
+        return [{ _id: sequenceId, namespace: ALLOWED_SEQUENCE_NAMESPACE } as any]
+      }
+      return []
+    }
+
+    function patchHierarchy (mw: GuestPermissionsMiddleware): void {
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
+        if (b === core.class.Space) return false
+        return a === b
+      }
+      ;(mw as any).context.hierarchy.classHierarchyMixin = () => undefined
+    }
+
+    it('allows related creates only in an apply that creates the permitted target class', async () => {
+      const mw = makeMiddleware(findAll)
+      patchHierarchy(mw)
+      const factory = new TxFactory('test:account:System' as PersonId)
+      const apply = factory.createTxApplyIf(
+        ALLOWED_SPACE,
+        undefined,
+        [],
+        [],
+        [
+          factory.createTxCreateDoc(RELATED_CLASS, ALLOWED_SPACE, {}),
+          factory.createTxCreateDoc(COVERED_CLASS, ALLOWED_SPACE, {})
+        ],
+        'test'
+      )
+
+      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [apply])
+      await expect(
+        mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [makeCreateTx(RELATED_CLASS, ALLOWED_SPACE)])
+      ).rejects.toThrow()
+    })
+
+    it('allows configured follow-up creates', async () => {
+      const mw = makeMiddleware(findAll)
+      patchHierarchy(mw)
+      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [makeCreateTx(FOLLOW_UP_CLASS, ALLOWED_SPACE)])
+    })
+
+    it('allows only configured custom sequence namespaces', async () => {
+      const mw = makeMiddleware(findAll)
+      patchHierarchy(mw)
+      const factory = new TxFactory('test:account:System' as PersonId)
+      const allowedCreate = factory.createTxCreateDoc(core.class.CustomSequence, core.space.Workspace, {
+        attachedTo: core.class.CustomSequence,
+        namespace: ALLOWED_SEQUENCE_NAMESPACE,
+        scope: '',
+        prefix: 'seq',
+        sequence: 0
+      })
+      const forbiddenCreate = factory.createTxCreateDoc(core.class.CustomSequence, core.space.Workspace, {
+        attachedTo: core.class.CustomSequence,
+        namespace: 'other.sequence',
+        scope: '',
+        prefix: 'seq',
+        sequence: 0
+      })
+      const allowedUpdate = factory.createTxUpdateDoc(core.class.CustomSequence, core.space.Workspace, sequenceId, {
+        $inc: { sequence: 1 }
+      })
+      const forbiddenUpdate = factory.createTxUpdateDoc(core.class.CustomSequence, core.space.Workspace, sequenceId, {
+        namespace: 'other.sequence'
+      })
+
+      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [allowedCreate])
+      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [allowedUpdate])
+      await expect(mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [forbiddenCreate])).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [forbiddenUpdate])).rejects.toThrow()
     })
   })
 
@@ -477,6 +571,34 @@ describe('GuestPermissionsMiddleware', () => {
       const tx = factory.createTxRemoveDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId)
       await mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])
       expect(nextCalled).toBe(true)
+    })
+
+    it('allows guest to create an attached document on a document it created', async () => {
+      const parentId = generateId()
+      const findAll: FindAllFn = async (_ctx, _class, query: any) => {
+        if (_class === COVERED_CLASS && query?._id === parentId) {
+          return [
+            {
+              _id: parentId,
+              _class: COVERED_CLASS,
+              space: ALLOWED_SPACE,
+              modifiedOn: Date.now(),
+              modifiedBy: GUEST_SOCIAL,
+              createdBy: GUEST_SOCIAL
+            }
+          ]
+        }
+        return []
+      }
+      const mw = makeMiddleware(findAll)
+      patchHierarchyNoTxAccessLevel(mw)
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const tx = factory.createTxCreateDoc(UNCOVERED_CLASS, ALLOWED_SPACE, {
+        attachedTo: parentId,
+        attachedToClass: COVERED_CLASS
+      })
+
+      await mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])
     })
 
     it('forbids guest to update document created by another account', async () => {

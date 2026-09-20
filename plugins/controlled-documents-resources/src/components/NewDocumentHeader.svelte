@@ -15,16 +15,27 @@
 <script lang="ts">
   import { Button, ButtonWithDropdown, IconAdd, IconDropdown, SelectPopupValueType, showPopup } from '@hcengineering/ui'
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
-  import { type Ref } from '@hcengineering/core'
+  import core, { type Ref } from '@hcengineering/core'
   import { type DocumentSpace } from '@hcengineering/controlled-documents'
+  import { createQuery } from '@hcengineering/presentation'
 
   import documents from '../plugin'
+  import { canCreateControlledDocuments } from '../utils'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   let dropdownItems: SelectPopupValueType[] = []
-  $: canCreateTemplate = Object.keys($permissionsStore.ps).some((space) =>
-    checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
-  )
+  let modulePermissionEnabled = false
+  const modulePermissionQuery = createQuery()
+  modulePermissionQuery.query(core.class.ModulePermissionGroup, { _id: documents.ids.ModulePermissionGroup }, () => {
+    void canCreateControlledDocuments().then((value) => {
+      modulePermissionEnabled = value
+    })
+  })
+  $: canCreateTemplate =
+    modulePermissionEnabled &&
+    Object.keys($permissionsStore.ps).some((space) =>
+      checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
+    )
   $: canCreateCategory = Object.keys($permissionsStore.ps).some((space) =>
     checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
   )
@@ -61,7 +72,7 @@
 </script>
 
 <div class="antiNav-subheader">
-  {#if dropdownItems.length > 0}
+  {#if canCreateTemplate && dropdownItems.length > 0}
     <ButtonWithDropdown
       icon={IconAdd}
       justify="left"
@@ -74,7 +85,7 @@
         dropdownItemSelected(ev.detail)
       }}
     />
-  {:else}
+  {:else if canCreateTemplate}
     <Button
       icon={IconAdd}
       justify="left"

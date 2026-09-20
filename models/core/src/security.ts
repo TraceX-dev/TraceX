@@ -183,7 +183,17 @@ export class TAttributePermission extends TPermission implements AttributePermis
 @Model(core.class.ClassPermission, core.class.Permission)
 @UX(core.string.Permission)
 export class TClassPermission extends TPermission implements ClassPermission {
-  targetClass!: Ref<Class<Doc>>
+  @Prop(TypeRef(core.class.Class), core.string.Class)
+    targetClass!: Ref<Class<Doc>>
+
+  @Prop(ArrOf(TypeRef(core.class.Class)), core.string.Class)
+    relatedCreateClasses?: Array<Ref<Class<Doc>>>
+
+  @Prop(ArrOf(TypeRef(core.class.Class)), core.string.Class)
+    followUpCreateClasses?: Array<Ref<Class<Doc>>>
+
+  @Prop(ArrOf(TypeString()), core.string.Name)
+    sequenceNamespaces?: string[]
 }
 
 @Mixin(core.mixin.SpacesTypeData, core.class.Space)
