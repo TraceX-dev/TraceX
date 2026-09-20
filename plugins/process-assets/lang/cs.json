@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Vyžádat přílohy",
     "UpdateContext": "Aktualizovat kontext",
     "RemoveRelation": "Odstranit vztah",
     "Method": "Metoda",

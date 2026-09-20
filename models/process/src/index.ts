@@ -294,6 +294,8 @@ export class TProcessCustomEvent extends TDoc implements ProcessCustomEvent {
 
 @Model(process.class.EventButton, core.class.Doc, DOMAIN_PROCESS)
 export class TEventButton extends TDoc implements EventButton {
+  requireAttachments?: boolean
+
   @Prop(TypeString(), core.string.Name)
     title!: string
 

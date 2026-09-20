@@ -69,6 +69,7 @@ import {
   CheckToDoCancelled,
   CheckToDoDone,
   CreateAction,
+  RequestAttachments,
   CreateCard,
   CreateNewVersion,
   CreateToDo,
@@ -919,6 +920,7 @@ export * from './utils'
 export default async () => ({
   func: {
     CreateAction,
+    RequestAttachments,
     RunSubProcess,
     SetContext,
     UpdateContext,

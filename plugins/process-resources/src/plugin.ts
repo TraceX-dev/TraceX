@@ -214,6 +214,7 @@ export default mergeIds(processId, process, {
     AutomationOnly: '' as IntlString,
     Continue: '' as IntlString,
     RequestFromUser: '' as IntlString,
+    RequestAttachments: '' as IntlString,
     EnterValue: '' as IntlString,
     OnToDoDone: '' as IntlString,
     OnSubProcessesDone: '' as IntlString,

@@ -211,6 +211,7 @@ export interface ProcessCustomEvent extends Doc {
 }
 
 export interface EventButton extends Doc {
+  requireAttachments?: boolean
   title: string
   description?: Markup
   eventType: string
@@ -279,6 +280,7 @@ export default plugin(processId, {
     RunSubProcess: '' as Ref<Method<Process>>,
     CancelSubProcess: '' as Ref<Method<Process>>,
     CreateAction: '' as Ref<Method<EventButton>>,
+    RequestAttachments: '' as Ref<Method<EventButton>>,
     SetContext: '' as Ref<Method<Doc>>,
     UpdateContext: '' as Ref<Method<Doc>>,
     CancellAction: '' as Ref<Method<EventButton>>,
