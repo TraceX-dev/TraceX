@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,6 +24,7 @@
   import { Class, Doc, getCurrentAccount, Ref, SortingOrder } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Grid, Lazy, location, Section, Spinner } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
   import { onDestroy, onMount } from 'svelte'
 
   import { editingMessageStore, messageInFocus } from '../activity'
@@ -288,54 +290,45 @@
   }
 </script>
 
-<Section label={activity.string.Activity} icon={activity.icon.Activity}>
-  <svelte:fragment slot="header">
-    {#if isLoading}
-      <div class="ml-1">
-        <Spinner size="small" />
-      </div>
-    {/if}
-    <ActivityFilter
-      messages={allMessages}
-      {object}
-      on:update={(e) => {
-        filteredMessages = e.detail
-      }}
-      bind:isNewestFirst
-    />
-  </svelte:fragment>
+{#if $permissions.canViewActivity(object)}
+  <Section label={activity.string.Activity} icon={activity.icon.Activity}>
+    <svelte:fragment slot="header">
+      {#if isLoading}
+        <div class="ml-1">
+          <Spinner size="small" />
+        </div>
+      {/if}
+      <ActivityFilter
+        messages={allMessages}
+        {object}
+        on:update={(e) => {
+          filteredMessages = e.detail
+        }}
+        bind:isNewestFirst
+      />
+    </svelte:fragment>
 
-  <svelte:fragment slot="content">
-    {#if isNewestFirst && showCommenInput}
-      <div class="ref-input newest-first">
-        <ActivityExtensionComponent
-          kind="input"
-          {extensions}
-          props={{ object, boundary, focusIndex, withTypingInfo: true, onKeyDown: handleKeyDown }}
-        />
-      </div>
-    {/if}
-    <div
-      class="p-activity select-text"
-      id={activity.string.Activity}
-      class:newest-first={isNewestFirst}
-      bind:this={activityBox}
-    >
-      {#if filteredMessages.length}
-        <Grid column={1} rowGap={0}>
-          {#each filteredMessages as message, index (message._id)}
-            {@const canGroup = canGroupMessages(message, filteredMessages[index - 1])}
-            {#if selectedMessageId}
-              <ActivityMessagePresenter
-                value={message}
-                doc={object}
-                hideLink={true}
-                type={canGroup ? 'short' : 'default'}
-                isHighlighted={selectedMessageId === message._id}
-                withShowMore
-              />
-            {:else}
-              <Lazy>
+    <svelte:fragment slot="content">
+      {#if isNewestFirst && showCommenInput}
+        <div class="ref-input newest-first">
+          <ActivityExtensionComponent
+            kind="input"
+            {extensions}
+            props={{ object, boundary, focusIndex, withTypingInfo: true, onKeyDown: handleKeyDown }}
+          />
+        </div>
+      {/if}
+      <div
+        class="p-activity select-text"
+        id={activity.string.Activity}
+        class:newest-first={isNewestFirst}
+        bind:this={activityBox}
+      >
+        {#if filteredMessages.length}
+          <Grid column={1} rowGap={0}>
+            {#each filteredMessages as message, index (message._id)}
+              {@const canGroup = canGroupMessages(message, filteredMessages[index - 1])}
+              {#if selectedMessageId}
                 <ActivityMessagePresenter
                   value={message}
                   doc={object}
@@ -344,23 +337,34 @@
                   isHighlighted={selectedMessageId === message._id}
                   withShowMore
                 />
-              </Lazy>
-            {/if}
-          {/each}
-        </Grid>
-      {/if}
-    </div>
-    {#if showCommenInput && !isNewestFirst}
-      <div class="ref-input oldest-first">
-        <ActivityExtensionComponent
-          kind="input"
-          {extensions}
-          props={{ object, boundary, focusIndex, withTypingInfo: true, onKeyDown: handleKeyDown }}
-        />
+              {:else}
+                <Lazy>
+                  <ActivityMessagePresenter
+                    value={message}
+                    doc={object}
+                    hideLink={true}
+                    type={canGroup ? 'short' : 'default'}
+                    isHighlighted={selectedMessageId === message._id}
+                    withShowMore
+                  />
+                </Lazy>
+              {/if}
+            {/each}
+          </Grid>
+        {/if}
       </div>
-    {/if}
-  </svelte:fragment>
-</Section>
+      {#if showCommenInput && !isNewestFirst}
+        <div class="ref-input oldest-first">
+          <ActivityExtensionComponent
+            kind="input"
+            {extensions}
+            props={{ object, boundary, focusIndex, withTypingInfo: true, onKeyDown: handleKeyDown }}
+          />
+        </div>
+      {/if}
+    </svelte:fragment>
+  </Section>
+{/if}
 
 <style lang="scss">
   .ref-input {

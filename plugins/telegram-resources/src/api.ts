@@ -27,9 +27,7 @@ import { withRetry } from '@hcengineering/retry'
 import type { Integration } from '@hcengineering/account-client'
 
 export type IntegrationState =
-  | { status: 'authorized' | 'wantcode' | 'wantpassword', number: string, socialId?: PersonId }
-  | 'Loading'
-  | 'Missing'
+  { status: 'authorized' | 'wantcode' | 'wantpassword', number: string, socialId?: PersonId } | 'Loading' | 'Missing'
 
 export interface TelegramChannel {
   id: string

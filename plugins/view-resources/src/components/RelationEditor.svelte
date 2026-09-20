@@ -33,6 +33,7 @@
   export let label: IntlString
   export let association: Association
   export let readonly: boolean = false
+  export let compactMode: boolean = false
   export let direction: 'A' | 'B'
   export let emptyKind: 'create' | 'placeholder' = 'create'
 
@@ -229,19 +230,21 @@
       {#if classLabel}
         <Label label={classLabel} />
       {/if}
-      <Switcher
-        name={`relation-viewlet-${association._id}-${direction}`}
-        items={[
-          { id: 'table', icon: view.icon.Table },
-          { id: 'master-detail', icon: view.icon.MasterDetail }
-        ]}
-        selected={relationViewMode}
-        kind={'subtle'}
-        onlyIcons
-        on:select={(event) => {
-          selectRelationViewMode(event.detail.id)
-        }}
-      />
+      {#if !compactMode}
+        <Switcher
+          name={`relation-viewlet-${association._id}-${direction}`}
+          items={[
+            { id: 'table', icon: view.icon.Table },
+            { id: 'master-detail', icon: view.icon.MasterDetail }
+          ]}
+          selected={relationViewMode}
+          kind={'subtle'}
+          onlyIcons
+          on:select={(event) => {
+            selectRelationViewMode(event.detail.id)
+          }}
+        />
+      {/if}
       <ViewletsSettingButton viewletQuery={{ attachTo: baseClass }} kind={'tertiary'} bind:viewlet bind:preference />
       {#if !readonly && allowToCreate}
         <Button id={core.string.AddRelation} icon={IconAdd} kind={'ghost'} on:click={add} />
@@ -251,7 +254,7 @@
 
   <svelte:fragment slot="content">
     {#if uniqueDocs?.length > 0 && config != null}
-      {#if relationViewMode === 'master-detail' && masterDetailViewlet !== undefined}
+      {#if !compactMode && relationViewMode === 'master-detail' && masterDetailViewlet !== undefined}
         <div class="relation-master-detail">
           <MasterDetailView
             query={relationQuery}

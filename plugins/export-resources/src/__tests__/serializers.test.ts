@@ -72,6 +72,7 @@ describe('serializeCsv', () => {
 
   it('honours a custom delimiter', () => {
     const csv = serializeCsv(table, ';')
+    // eslint-disable-next-line secure-coding/no-homoglyph-identifiers
     expect(csv.split('\n')[0]).toBe('﻿ID;Название;Заметка')
   })
 

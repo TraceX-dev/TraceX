@@ -28,8 +28,8 @@ jest.mock('../formatter', () => ({
 }))
 
 jest.mock('../model', () => ({
-  generateHeaders: jest.fn(
-    async (model: AttributeModel[]): Promise<string[]> => model.map((attribute) => String(attribute.label))
+  generateHeaders: jest.fn(async (model: AttributeModel[]): Promise<string[]> =>
+    model.map((attribute) => String(attribute.label))
   )
 }))
 

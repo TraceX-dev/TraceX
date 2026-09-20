@@ -349,9 +349,7 @@ function buildPermissions (
     canEditMembers,
     canOpenEmployeePreview: !isGuest,
 
-    // Access to the document itself is enforced by space security, so anyone who is able
-    // to read the document is able to read its activity.
-    canViewActivity: (doc) => doc !== undefined && !restrictions.disableComments,
+    canViewActivity: (doc) => doc !== undefined && !isGuest && !restrictions.disableComments,
     canComment,
     canReact: canComment,
     canTrackReadStatus: !isReadOnly

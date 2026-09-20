@@ -51,7 +51,7 @@
     "@types/cors": "^2.8.19",
     "@types/morgan": "~1.9.9",
     "eslint-plugin-svelte": "^3.23.0",
-    "eslint-config-love": "^155.0.0"
+    "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
     "@hcengineering/core": "workspace:^0.7.26",
@@ -65,7 +65,7 @@
     "express": "^4.21.2",
     "cors": "^2.8.6",
     "morgan": "^1.11.0",
-    "cheerio": "^1.1.2",
+    "cheerio": "^1.2.0",
     "image-size": "^1.2.1",
     "oembed-providers": "~1.0.20260106"
   }

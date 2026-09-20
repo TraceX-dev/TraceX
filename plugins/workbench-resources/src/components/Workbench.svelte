@@ -1060,7 +1060,7 @@
                 on:open={checkOnHide}
               />
               <NavFooter>
-                {#if currentApplication && currentApplication.navFooterComponent}
+                {#if currentApplication?.navFooterComponent}
                   <Component is={currentApplication.navFooterComponent} props={{ currentSpace }} />
                 {/if}
               </NavFooter>
@@ -1091,7 +1091,7 @@
             !(mobileAdaptive && $deviceInfo.isPortrait)}
           data-id={'contentPanel'}
         >
-          {#if currentApplication && currentApplication.component}
+          {#if currentApplication?.component}
             <Component
               is={currentApplication.component}
               props={{
