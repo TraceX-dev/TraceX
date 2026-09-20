@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "添付ファイルを依頼",
     "UpdateContext": "コンテキストを更新",
     "RemoveRelation": "関連付けを削除",
     "Method": "メソッド",

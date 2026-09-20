@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "请求附件",
     "UpdateContext": "更新上下文",
     "RemoveRelation": "删除关联",
     "Method": "方法",

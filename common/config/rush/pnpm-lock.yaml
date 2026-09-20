@@ -23864,6 +23864,9 @@ importers:
       '@hcengineering/analytics':
         specifier: workspace:^0.7.19
         version: link:../../foundations/core/packages/analytics
+      '@hcengineering/attachment':
+        specifier: workspace:^0.7.0
+        version: link:../attachment
       '@hcengineering/calendar':
         specifier: workspace:^0.7.0
         version: link:../calendar

@@ -68,6 +68,18 @@ function checkResult (execution: Execution, results: Record<string, any> | undef
   return true
 }
 
+/** Creates a user request that requires uploading attachments before emitting its event. */
+export async function RequestAttachments (
+  params: MethodParams<EventButton>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  if (isEmpty(params.user)) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'user' })
+  }
+  return await CreateAction({ ...params, requireAttachments: true }, execution, control)
+}
+
 export async function CreateAction (
   params: MethodParams<EventButton>,
   execution: Execution,
@@ -91,6 +103,7 @@ export async function CreateAction (
       description: params.description ?? '',
       eventType: params.eventType,
       user: params.user,
+      requireAttachments: params.requireAttachments,
       execution: execution._id,
       card: execution.card
     },

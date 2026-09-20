@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Запросить вложения",
     "UpdateContext": "Обновить контекст",
     "RemoveRelation": "Удалить связь",
     "Method": "Метод",

@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Anhänge anfordern",
     "UpdateContext": "Kontext aktualisieren",
     "RemoveRelation": "Beziehung entfernen",
     "Method": "Methode",

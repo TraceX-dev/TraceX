@@ -1,5 +1,6 @@
 {
     "string": {
+    "RequestAttachments": "첨부 파일 요청",
     "UpdateContext": "컨텍스트 업데이트",
     "RemoveRelation": "관계 삭제",
         "Method": "메서드",
