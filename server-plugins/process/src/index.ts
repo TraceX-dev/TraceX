@@ -65,6 +65,7 @@ export default plugin(serverProcessId, {
   },
   func: {
     CreateAction: '' as Resource<ExecuteFunc>,
+    RequestAttachments: '' as Resource<ExecuteFunc>,
     SetContext: '' as Resource<ExecuteFunc>,
     UpdateContext: '' as Resource<ExecuteFunc>,
     RunSubProcess: '' as Resource<ExecuteFunc>,

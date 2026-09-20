@@ -355,10 +355,18 @@ export function FirstWorkingDayAfter (val: Timestamp): Timestamp {
   return val
 }
 
-export function Offset (val: Timestamp, props: Record<string, any>): Timestamp {
+/** Shifts a date by a literal or context-provided number of calendar units. */
+export async function Offset (
+  val: Timestamp,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<Timestamp> {
   if (typeof val !== 'number') return val
   const value = new Date(val)
-  const offset = props.offset * (props.direction === 'after' ? 1 : -1)
+  const resolvedOffset = await getContextValue(props.offset, control, execution)
+  if (typeof resolvedOffset !== 'number' || !Number.isFinite(resolvedOffset)) return val
+  const offset = resolvedOffset * (props.direction === 'after' ? 1 : -1)
   switch (props.offsetType) {
     case 'days':
       return value.setDate(value.getDate() + offset)
@@ -682,8 +690,9 @@ export function NumberFromDate (value: Timestamp): number {
   return value
 }
 
-export function DateFromNumber (value: number): Date {
-  return new Date(value)
+/** Interprets milliseconds since the Unix epoch as a process date. */
+export function DateFromNumber (value: number): Timestamp {
+  return value
 }
 
 export function NumberFromString (value: string): number {

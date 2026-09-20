@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Request attachments",
     "UpdateContext": "Update context",
     "RemoveRelation": "Remove relation",
     "Method": "Method",

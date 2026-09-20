@@ -20,7 +20,8 @@
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { ApproveRequest, EventButton, Execution, ExecutionStatus, Process, ProcessToDo } from '@hcengineering/process'
-  import { Button } from '@hcengineering/ui'
+  import { Button, showPopup } from '@hcengineering/ui'
+  import RequestAttachments from './RequestAttachments.svelte'
   import process from '../plugin'
   import { createExecution } from '../utils'
   import ApproveRequestButtons from './ApproveRequestButtons.svelte'
@@ -106,6 +107,10 @@
   }
 
   async function performAction (action: EventButton): Promise<void> {
+    if (action.requireAttachments === true) {
+      showPopup(RequestAttachments, { action, card })
+      return
+    }
     await client.createDoc(process.class.ProcessCustomEvent, action.space, {
       execution: action.execution,
       eventType: action.eventType,
