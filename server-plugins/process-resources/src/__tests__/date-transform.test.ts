@@ -49,15 +49,28 @@ describe('process date transformations', () => {
     }
   })
 
-  it.each(['invalid', null, Number.NaN, Number.POSITIVE_INFINITY])('ignores a nonnumeric context offset: %p', async (offset) => {
-    await expect(
-      Offset(date, { offset: contextOffset, offsetType: 'days', direction: 'after' }, control, executionWithOffset(offset))
-    ).resolves.toBe(date)
-  })
+  it.each(['invalid', null, Number.NaN, Number.POSITIVE_INFINITY])(
+    'ignores a nonnumeric context offset: %p',
+    async (offset) => {
+      await expect(
+        Offset(
+          date,
+          { offset: contextOffset, offsetType: 'days', direction: 'after' },
+          control,
+          executionWithOffset(offset)
+        )
+      ).resolves.toBe(date)
+    }
+  )
 
   it('can offset a converted number', async () => {
     await expect(
-      Offset(DateFromNumber(date), { offset: contextOffset, offsetType: 'days', direction: 'after' }, control, executionWithOffset(2))
+      Offset(
+        DateFromNumber(date),
+        { offset: contextOffset, offsetType: 'days', direction: 'after' },
+        control,
+        executionWithOffset(2)
+      )
     ).resolves.toBe(new Date(2026, 0, 17, 12).getTime())
   })
 })

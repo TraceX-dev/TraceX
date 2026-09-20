@@ -48,7 +48,10 @@
   async function loadEditor (): Promise<void> {
     try {
       const hierarchy = client.getHierarchy()
-      const inlineEditor = hierarchy.as(hierarchy.getClass(core.class.TypeNumber), view.mixin.AttributeEditor).inlineEditor
+      const inlineEditor = hierarchy.as(
+        hierarchy.getClass(core.class.TypeNumber),
+        view.mixin.AttributeEditor
+      ).inlineEditor
       editor = await getResource(inlineEditor)
     } catch (error) {
       Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
