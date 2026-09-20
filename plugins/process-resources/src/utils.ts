@@ -569,13 +569,13 @@ export async function requestUserInput (
   return { context: userContext, state: target.to, changed }
 }
 
+function getAttributeRank (attribute: AnyAttribute | undefined): string {
+  return attribute === undefined ? '' : (attribute.rank ?? toRank(attribute._id) ?? '')
+}
+
 function sortAttributes (attributes: AnyAttribute[]): AnyAttribute[] {
   const arr = [...attributes]
-  arr.sort((a, b) => {
-    const rankA = a.rank ?? toRank(a._id) ?? ''
-    const rankB = b.rank ?? toRank(b._id) ?? ''
-    return rankA.localeCompare(rankB)
-  })
+  arr.sort((a, b) => getAttributeRank(a).localeCompare(getAttributeRank(b)))
   return arr
 }
 
@@ -667,6 +667,14 @@ export async function getTransitionUserInput (
           }
         }
       }
+    }
+
+    if (virtualContext?.type === 'userRequest' && virtualKey === 'requiredFields') {
+      inputs.sort((a, b) => {
+        const rankA = getAttributeRank(hierarchy.findAttribute(a._class, a.key))
+        const rankB = getAttributeRank(hierarchy.findAttribute(b._class, b.key))
+        return rankA.localeCompare(rankB)
+      })
     }
 
     if (inputs.length > 0) {
