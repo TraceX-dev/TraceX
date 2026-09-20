@@ -15,7 +15,7 @@
 
 import {
   Account,
-  AccountRole,
+  isGuestRole,
   AccountUuid,
   AttachedData,
   buildSocialIdString,
@@ -569,8 +569,7 @@ export async function ensureEmployeeForPerson (
 
     // NOTE: it is important to create Employee after Person and SocialIdentities are ensured so all the triggers applied
     // on Employee creation will be able to properly map things
-    const employeeRole =
-      person.role === AccountRole.Guest || person.role === AccountRole.ReadOnlyGuest ? 'GUEST' : 'USER'
+    const employeeRole = isGuestRole(person.role) ? 'GUEST' : 'USER'
     const employee = await client.findOne(contact.mixin.Employee, { _id: personRef as Ref<Employee> })
 
     if (
