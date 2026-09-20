@@ -22,11 +22,11 @@ import type { EventButton, Execution } from '@hcengineering/process'
 import type { ProcessControl } from '@hcengineering/server-process'
 import { RequestAttachments } from '../functions'
 
-const execution = {
+const execution: Execution = {
   _id: 'execution' as Ref<Execution>,
   space: 'space' as Ref<Space>,
   card: 'card' as Ref<Card>
-} as Execution
+} as unknown as Execution
 const control = {
   client: { txFactory: new TxFactory(core.account.System) }
 } as unknown as ProcessControl
