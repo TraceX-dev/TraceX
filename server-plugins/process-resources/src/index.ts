@@ -187,10 +187,28 @@ export async function OnProcessToDoClose (txes: Tx[], control: TriggerControl): 
     const updateTx = tx as TxUpdateDoc<ProcessToDo>
     if (!control.hierarchy.isDerived(updateTx.objectClass, process.class.ProcessToDo)) continue
     if (updateTx.operations.doneOn == null) continue
-    const todo = (
+    let todo = (
       await control.findAll(control.ctx, process.class.ProcessToDo, { _id: updateTx.objectId }, { limit: 1 })
     )[0]
     if (todo === undefined) continue
+    if (todo.completionMode === 'all') {
+      todo = { ...todo, results: [] }
+    }
+    const cancelledToDos: ProcessToDo[] = []
+    if (todo._class === process.class.ProcessToDo && todo.group !== undefined && todo.completionMode === 'any') {
+      const pending = await control.findAll(control.ctx, process.class.ProcessToDo, {
+        execution: todo.execution,
+        group: todo.group,
+        doneOn: null
+      })
+      for (const other of pending) {
+        if (other._id === todo._id) continue
+        cancelledToDos.push(other)
+        const removeTx = control.txFactory.createTxRemoveDoc(other._class, other.space, other._id)
+        removeTx.space = core.space.DerivedTx
+        res.push(removeTx)
+      }
+    }
     const events: Ref<Trigger>[] = [process.trigger.OnToDoClose]
     if (todo._class === process.class.ApproveRequest) {
       const request = todo as ApproveRequest
@@ -207,7 +225,8 @@ export async function OnProcessToDoClose (txes: Tx[], control: TriggerControl): 
         createdOn: tx.modifiedOn,
         _id: tx._id,
         context: {
-          todo
+          todo,
+          cancelledToDos
         }
       },
       control
@@ -570,8 +589,8 @@ async function reassignToDos (card: Card, ops: DocumentUpdate<Card>, control: Tr
   for (const todo of todos as any[]) {
     if (todo.field === undefined || !TxProcessor.hasUpdate(ops, todo.field)) continue
 
-    if (todo._class === process.class.ApproveRequest) {
-      const request = todo as ApproveRequest
+    if (todo.group !== undefined) {
+      const request = todo as ProcessToDo & { group: string }
       if (handledGroups.has(request.group)) continue
       handledGroups.add(request.group)
 
@@ -586,21 +605,20 @@ async function reassignToDos (card: Card, ops: DocumentUpdate<Card>, control: Tr
 
       const target = h.isMixin(_process.masterTag) ? h.asIf(card, _process.masterTag) : card
       if (target === undefined) continue
-      const fieldValue = target[todo.field as keyof Card] as
-        ApproveRequest['user'] | ApproveRequest['user'][] | undefined
-      const newUsers = fieldValue == null ? [] : Array.isArray(fieldValue) ? fieldValue : [fieldValue]
+      const fieldValue = target[todo.field as keyof Card] as ProcessToDo['user'] | ProcessToDo['user'][] | undefined
+      const newUsers = [...new Set(fieldValue == null ? [] : Array.isArray(fieldValue) ? fieldValue : [fieldValue])]
       if (newUsers.length === 0) {
         continue
       }
-      const currentRequests = await control.findAll(control.ctx, process.class.ApproveRequest, {
-        group: request.group,
-        doneOn: null
+      const currentRequests = await control.findAll(control.ctx, request._class, {
+        execution: request.execution,
+        group: request.group
       })
       const currentUsers = currentRequests.map((r) => r.user)
 
       // Remove users not in new list
       for (const req of currentRequests) {
-        if (!newUsers.includes(req.user)) {
+        if (req.doneOn === null && !newUsers.includes(req.user)) {
           res.push(control.txFactory.createTxRemoveDoc(req._class, req.space, req._id))
         }
       }
@@ -608,8 +626,8 @@ async function reassignToDos (card: Card, ops: DocumentUpdate<Card>, control: Tr
       // Add users not in current list
       for (const user of newUsers) {
         if (!currentUsers.includes(user)) {
-          const id = generateId<ApproveRequest>()
-          const { _id, modifiedBy, modifiedOn, ...data } = request as any
+          const id = generateId<ProcessToDo>()
+          const { _id, modifiedBy, modifiedOn, ...data } = request
           res.push(
             control.txFactory.createTxCreateDoc(
               request._class,

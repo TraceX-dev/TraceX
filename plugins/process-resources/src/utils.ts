@@ -53,6 +53,7 @@ import {
   type Process,
   type ProcessExecutionContext,
   type ProcessFunction,
+  type ProcessToDo,
   type RelatedContext,
   type SelectedContext,
   type SelectedUserRequest,
@@ -932,14 +933,24 @@ export async function requestResult (
   return context
 }
 
-export function todoTranstionCheck (
+export async function todoTranstionCheck (
   client: Client,
   execution: Execution,
   params: Record<string, any>,
   context: Record<string, any>
-): boolean {
+): Promise<boolean> {
   if (params._id === undefined) return false
-  return context.todo?._id === params._id && checkResult(context, params.result)
+  const todo = context.todo as ProcessToDo | undefined
+  if (todo === undefined || (todo._id !== params._id && todo.group !== params._id)) return false
+  if (todo.completionMode === 'all' && todo.group !== undefined) {
+    const todos = await client.findAll(process.class.ProcessToDo, {
+      execution: execution._id,
+      group: todo.group
+    })
+    // The current completion has not been submitted yet.
+    return todos.length > 0 && todos.every((item) => item._id === todo._id || item.doneOn != null)
+  }
+  return checkResult(context, params.result)
 }
 
 function checkResult (context: Record<string, any>, results: Record<string, any> | undefined): boolean {

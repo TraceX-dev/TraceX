@@ -73,7 +73,8 @@ export function defineMethods (builder: Builder): void {
       createdContext: { _class: process.class.ProcessToDo, nameField: 'title' },
       requiredParams: ['title', 'user'],
       defaultParams: {
-        withRollback: true
+        withRollback: true,
+        completionMode: 'all'
       }
     },
     process.method.CreateToDo

@@ -14,6 +14,12 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import contact from '@hcengineering/contact'
+  import core from '@hcengineering/core'
+  import { getAttributeEditor, getAttributePresenterClass, getClient } from '@hcengineering/presentation'
+  import type { AnySvelteComponent } from '@hcengineering/ui'
+  import { getContext, getMockAttribute } from '../../utils'
+  import ProcessAttribute from '../ProcessAttribute.svelte'
   import { parseContext, Process, ProcessToDo, Step, UserResult } from '@hcengineering/process'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
@@ -43,7 +49,36 @@
     }
   }
 
-  const keys = ['title', 'description', 'user', 'dueDate']
+  const keys = ['title', 'description', 'dueDate']
+  const client = getClient()
+  const userType = {
+    label: core.string.Array,
+    _class: core.class.ArrOf,
+    of: {
+      label: core.string.Ref,
+      _class: core.class.RefTo,
+      to: contact.mixin.Employee
+    }
+  }
+  const attribute = getMockAttribute(plugin.class.ProcessToDo, plugin.string.ToDoAssignees, userType)
+  const presenterClass = getAttributePresenterClass(client.getHierarchy(), attribute.type)
+  $: context = getContext(client, process, presenterClass.attrClass, 'object', undefined, true)
+  $: userValue =
+    typeof params.user === 'string' && parseContext(params.user) === undefined ? [params.user] : params.user
+  let editor: AnySvelteComponent | undefined
+  void getAttributeEditor(client, plugin.class.ProcessToDo, { attr: attribute, key: 'user' })
+    .then((value) => {
+      editor = value
+    })
+    .catch((error: unknown) => {
+      console.error('Failed to load process assignee editor', error)
+    })
+
+  function changeUsers (e: CustomEvent<ProcessToDo['user'][] | string | undefined>): void {
+    Object.assign(params, { user: e.detail })
+    step.params = params
+    dispatch('change', step)
+  }
 
   $: contextValue = typeof params.user === 'string' ? parseContext(params.user) : undefined
   $: userContext = contextValue?.type === 'attribute'
@@ -65,6 +100,18 @@
     step.params = params
     dispatch('change', step)
   }
+  $: completeAll = params.completionMode === 'all'
+  $: if (completeAll && ((step.results?.length ?? 0) > 0 || params.askRequired === true)) {
+    clearResults()
+  }
+
+  function clearResults (): void {
+    step.results = []
+    params.askRequired = false
+    step.params = params
+    dispatch('change', step)
+  }
+
   let askRequired = params.askRequired ?? false
   $: askRequired = params.askRequired ?? false
 
@@ -78,6 +125,30 @@
 </script>
 
 <ParamsEditor _class={plugin.class.ProcessToDo} {process} {keys} {params} on:change={changeParams} />
+<div class="grid">
+  <ProcessAttribute
+    {process}
+    {context}
+    {editor}
+    {attribute}
+    {presenterClass}
+    value={userValue}
+    masterTag={process.masterTag}
+    allowArray={true}
+    on:change={changeUsers}
+  />
+  <Label label={plugin.string.ToDoCompleteAll} />
+  <Toggle
+    on={completeAll}
+    on:change={(e) => {
+      params.completionMode = e.detail ? 'all' : 'any'
+      step.params = params
+      dispatch('change', step)
+    }}
+  />
+  <span />
+  <Label label={completeAll ? plugin.string.ToDoCompleteAllHint : plugin.string.ToDoCompleteAnyHint} />
+</div>
 <div class="divider" />
 <div class="grid">
   <div>
@@ -98,14 +169,16 @@
   </div>
   <Toggle disabled={!userContext} on={params.field !== undefined} on:change={toggleField} />
 </div>
-<div class="grid">
-  <div>
-    <Label label={plugin.string.AskRequired} />
+{#if !completeAll}
+  <div class="grid">
+    <div>
+      <Label label={plugin.string.AskRequired} />
+    </div>
+    <Toggle on={askRequired} on:change={changeAskRequired} />
   </div>
-  <Toggle on={askRequired} on:change={changeAskRequired} />
-</div>
-<div class="divider" />
-<ResultsEditor {process} result={step.results} on:change={changeResults} />
+  <div class="divider" />
+  <ResultsEditor {process} result={step.results} on:change={changeResults} />
+{/if}
 
 <style lang="scss">
   .divider {

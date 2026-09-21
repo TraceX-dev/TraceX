@@ -319,7 +319,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
       })
       if (execution === undefined) return
 
-      let results = todo.results ?? []
+      let results = todo.completionMode === 'all' ? [] : (todo.results ?? [])
       if (results.length > 0) {
         results = await Promise.all(
           results.map(async (r) => {

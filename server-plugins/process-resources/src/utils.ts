@@ -1,6 +1,7 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX SAS.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -303,11 +304,17 @@ async function getExecutionContextValue (
   if (userContext !== undefined) {
     if (context.key == null || context.key === '' || context.key === '_id') return userContext
     if (processContext !== undefined) {
-      const contextVal =
+      let contextVal =
         typeof userContext === 'object' && userContext !== null
           ? userContext
           : (control.cache.get(userContext) ??
             (await control.client.findOne(processContext?._class, { _id: userContext })))
+      if (contextVal === undefined && processContext._class === process.class.ProcessToDo) {
+        contextVal = await control.client.findOne(process.class.ProcessToDo, {
+          execution: execution._id,
+          group: userContext
+        })
+      }
       if (contextVal !== undefined) {
         const val = getValue(control, execution, context.key, contextVal)
         return val
