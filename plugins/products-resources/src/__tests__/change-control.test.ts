@@ -57,9 +57,9 @@ describe('getProductVersionCardAssociations', () => {
   })
 
   it('excludes unrelated and automation-only relations', () => {
-    const unrelated = { ...forward, _id: 'unrelated', classB: 'contact:class:Person' } as Association
-    const automated = { ...forward, _id: 'automated', automationOnly: true } as Association
-    const unnamed = { ...forward, _id: 'unnamed', nameB: '' } as Association
+    const unrelated: Association = { ...forward, _id: 'unrelated', classB: 'contact:class:Person' }
+    const automated: Association = { ...forward, _id: 'automated', automationOnly: true }
+    const unnamed: Association = { ...forward, _id: 'unnamed', nameB: '' }
 
     expect(getProductVersionCardAssociations(mockClient([unrelated, automated, unnamed]))).toEqual([])
   })

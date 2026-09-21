@@ -116,9 +116,7 @@
     return getProductVersionCardAssociation(client, product.changeControlRelation)
   }
 
-  async function updateChangeControlCardOptions (
-    association: ProductVersionCardAssociation | undefined
-  ): Promise<void> {
+  async function updateChangeControlCardOptions (association: ProductVersionCardAssociation | undefined): Promise<void> {
     const relation = association?.association._id
     if (relation !== previousChangeControlRelation) {
       previousChangeControlRelation = relation

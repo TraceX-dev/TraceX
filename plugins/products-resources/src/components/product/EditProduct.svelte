@@ -217,15 +217,7 @@
         {object}
         {mixins}
         readonly={!canEdit}
-        ignoreKeys={[
-          'name',
-          'description',
-          'fullDescription',
-          'archived',
-          'type',
-          'private',
-          'changeControlRelation'
-        ]}
+        ignoreKeys={['name', 'description', 'fullDescription', 'archived', 'type', 'private', 'changeControlRelation']}
       />
     </svelte:fragment>
   </Panel>
