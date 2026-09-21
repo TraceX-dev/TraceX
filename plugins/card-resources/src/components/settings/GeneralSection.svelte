@@ -212,17 +212,6 @@
           readonly: true,
           type: TypeBoolean()
         })
-        const firstVersions = await client.findAll(card.class.Card, {
-          _class: masterTag._id,
-          version: 1,
-          isLatest: { $in: [true, false] },
-          isEffective: { $exists: false }
-        })
-        const ops = client.apply(`Enable_versioning_${masterTag._id}`)
-        for (const version of firstVersions) {
-          await ops.update(version, { isEffective: true })
-        }
-        await ops.commit()
         versioningEnabled = true
       }
     })
