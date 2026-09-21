@@ -994,8 +994,7 @@ function defineSettings (builder: Builder): void {
       application: training.app.Training,
       role: AccountRole.Guest,
       permissions: [training.ids.GuestTrainingAttemptClassPermission],
-      enabled: true,
-      order: 25
+      enabled: true
     },
     training.ids.ModulePermissionGroup
   )
@@ -1007,8 +1006,7 @@ function defineSettings (builder: Builder): void {
       application: training.app.Training,
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
-      enabled: false,
-      order: 25
+      enabled: false
     },
     training.ids.ModulePermissionGroupReadOnlyGuest
   )
