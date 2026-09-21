@@ -1,5 +1,6 @@
 //
 // Copyright © 2022, 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -562,8 +563,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: document.class.Teamspace,
-      enabled: true,
-      order: 40
+      enabled: true
     },
     document.ids.ModulePermissionGroup
   )
@@ -576,8 +576,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: document.class.Teamspace,
-      enabled: false,
-      order: 40
+      enabled: false
     },
     document.ids.ModulePermissionGroupReadOnlyGuest
   )

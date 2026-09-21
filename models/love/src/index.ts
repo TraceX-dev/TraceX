@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -375,8 +376,7 @@ export function createModel (builder: Builder): void {
       application: love.app.Love,
       role: AccountRole.Guest,
       permissions: [],
-      enabled: true,
-      order: 50
+      enabled: true
     },
     love.ids.ModulePermissionGroup
   )
@@ -388,8 +388,7 @@ export function createModel (builder: Builder): void {
       application: love.app.Love,
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
-      enabled: false,
-      order: 50
+      enabled: false
     },
     love.ids.ModulePermissionGroupReadOnlyGuest
   )

@@ -28,6 +28,6 @@
 
 {#if _id === doc._id}
   {#key doc._id}
-    <EditCardTableOfContents {doc} {readonly} {compactMode} />
+    <EditCardTableOfContents {doc} {readonly} {compactMode} on:aside />
   {/key}
 {/if}

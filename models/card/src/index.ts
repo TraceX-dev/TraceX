@@ -153,6 +153,11 @@ export class TCard extends TDoc implements Card {
   @Prop(Collection(time.class.ToDo), getEmbeddedLabel('Action Items'))
     todos?: CollectionSize<ToDo>
 
+  // Declared so the generic collection logic moves and removes discussions together with the card.
+  @Hidden()
+  @Prop(Collection(chunter.class.ObjectDiscussion), chunter.string.Discussions)
+    discussions?: number
+
   @Prop(TypeString(), view.string.Icon)
   @Hidden()
     icon?: Asset
@@ -1061,8 +1066,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [card.ids.GuestCardClassPermission],
       spaceClass: card.class.CardSpace,
-      enabled: true,
-      order: 20
+      enabled: true
     },
     card.ids.ModulePermissionGroup
   )
@@ -1075,8 +1079,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: card.class.CardSpace,
-      enabled: false,
-      order: 20
+      enabled: false
     },
     card.ids.ModulePermissionGroupReadOnlyGuest
   )
@@ -1234,6 +1237,19 @@ function defineTabs (builder: Builder): void {
       navigation: []
     },
     card.section.Attachments
+  )
+
+  builder.createDoc(
+    card.class.CardSection,
+    core.space.Model,
+    {
+      label: chunter.string.Discussions,
+      component: chunter.component.ObjectDiscussionsSection,
+      order: 350,
+      navigation: [],
+      hideInCompactMode: true
+    },
+    card.section.Discussions
   )
 
   builder.createDoc(

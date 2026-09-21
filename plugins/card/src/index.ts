@@ -236,6 +236,7 @@ const cardPlugin = plugin(cardId, {
   },
   section: {
     Attachments: '' as Ref<CardSection>,
+    Discussions: '' as Ref<CardSection>,
     Children: '' as Ref<CardSection>,
     Content: '' as Ref<CardSection>,
     Properties: '' as Ref<CardSection>,

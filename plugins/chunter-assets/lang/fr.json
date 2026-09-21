@@ -132,6 +132,26 @@
     "ViewingArchivedChannel": "Vous consultez un canal archivé",
     "OpenChatInSidebar": "Ouvrir le chat dans la barre latérale",
     "NoThreadsYet": "Il n'y a pas encore de fils de discussion.",
-    "SummarizeMessages": "Résumer la discussion"
+    "SummarizeMessages": "Résumer la discussion",
+    "Resolved": "Résolu",
+    "ViewAllDiscussions": "Voir toutes les discussions ({count})",
+    "DeleteDiscussion": "Supprimer la discussion",
+    "DeleteDiscussionConfirm": "Voulez-vous supprimer cette discussion ? Cette action est irréversible.",
+    "NewDiscussion": "Nouvelle discussion",
+    "CreateDiscussion": "Créer la discussion",
+    "FirstMessage": "Premier message",
+    "FirstMessagePlaceholder": "Rédigez le premier message pour lancer la discussion…",
+    "AttachTo": "Lier à (facultatif)",
+    "AttachToDescription": "Liez cette discussion à une pièce jointe précise pour la retrouver plus facilement.",
+    "AttachedTo": "Lié à : {name}",
+    "JoinDiscussionRequest": "Demandez à un participant de la discussion de vous ajouter pour lire et envoyer des messages.",
+    "NotAttached": "Non lié",
+    "MarkAsResolved": "Marquer comme résolu",
+    "ReopenDiscussion": "Rouvrir la discussion",
+    "ParticipantsCount": "{count, plural, one {# participant} other {# participants}}",
+    "AddAllCollaborators": "Ajouter tous les collaborateurs de la carte ({count})",
+    "Discussion": "Discussion",
+    "Discussions": "Discussions",
+    "NoDiscussionsYet": "Il n’y a pas encore de discussions."
   }
 }

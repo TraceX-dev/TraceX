@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,6 +25,7 @@
     navigate
   } from '@hcengineering/ui'
   import presentation from '@hcengineering/presentation'
+  import { readOnlyGuestAccountUuid } from '@hcengineering/core'
 
   import {
     checkJoined,
@@ -178,7 +180,8 @@
 
     try {
       const info = await getLoginInfo()
-      if (info != null) {
+      // The shared anonymous account can't join: treat it as "not signed in"
+      if (info != null && info.account !== readOnlyGuestAccountUuid) {
         showJoinWithAccount = true
         currentAccountName = info.name
         if (info.token != null) {

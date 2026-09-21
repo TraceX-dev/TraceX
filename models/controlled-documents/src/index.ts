@@ -1227,8 +1227,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: documents.class.OrgSpace,
-      enabled: true,
-      order: 42
+      enabled: true
     },
     documents.ids.ModulePermissionGroup
   )
@@ -1241,8 +1240,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: documents.class.OrgSpace,
-      enabled: false,
-      order: 42
+      enabled: false
     },
     documents.ids.ModulePermissionGroupReadOnlyGuest
   )

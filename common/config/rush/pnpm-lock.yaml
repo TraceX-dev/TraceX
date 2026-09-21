@@ -13508,8 +13508,8 @@ importers:
         specifier: ^5.10.1
         version: 5.11.1
       image-size:
-        specifier: ^1.2.1
-        version: 1.2.1
+        specifier: ^2.0.4
+        version: 2.0.4
       jszip:
         specifier: ^3.10.1
         version: 3.10.2
@@ -13772,8 +13772,8 @@ importers:
         specifier: ^2.0.10
         version: 2.0.14
       image-size:
-        specifier: ^1.2.1
-        version: 1.2.1
+        specifier: ^2.0.4
+        version: 2.0.4
       js-yaml:
         specifier: ^4.3.2
         version: 4.3.2
@@ -24122,6 +24122,9 @@ importers:
       '@hcengineering/attachment-resources':
         specifier: workspace:^0.7.0
         version: link:../attachment-resources
+      '@hcengineering/card':
+        specifier: workspace:^0.7.0
+        version: link:../card
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../contact
@@ -30243,8 +30246,8 @@ importers:
         specifier: ^4.21.2
         version: 4.22.3
       image-size:
-        specifier: ^1.2.1
-        version: 1.2.1
+        specifier: ^2.0.4
+        version: 2.0.4
       morgan:
         specifier: ^1.11.0
         version: 1.12.1
@@ -39522,8 +39525,8 @@ importers:
         specifier: workspace:^0.7.16
         version: link:../../../foundations/server/packages/server-storage
       image-size:
-        specifier: ^1.2.1
-        version: 1.2.1
+        specifier: ^2.0.4
+        version: 2.0.4
       kafkajs:
         specifier: ^2.2.4
         version: 2.2.4
@@ -48162,9 +48165,9 @@ packages:
   image-q@4.0.0:
     resolution: {integrity: sha512-PfJGVgIfKQJuq3s0tTDOKtztksibuUEbJQIYT3by6wctQo+Rdlh7ef4evJ5NCdxY4CfMbvFkocEwbl4BF8RlJw==}
 
-  image-size@1.2.1:
-    resolution: {integrity: sha512-rH+46sQJ2dlwfjfhCyNx5thzrv+dtmBIhPHk0zgRUukHzZ/kRueTJXoYYsclBaKcSMBWuGbOFXtioLpzTb5euw==}
-    engines: {node: '>=16.x'}
+  image-size@2.0.4:
+    resolution: {integrity: sha512-QRUkFFsRV/6fuESxb9Vkq+a0LkSrgKXuc2NEqfikiXxxN/G3tjWt5EVUlMaImRBZRZK/jRBEbYvpPYZL8t08Zw==}
+    engines: {node: '>=18'}
     hasBin: true
 
   immediate@3.0.6:
@@ -50349,9 +50352,6 @@ packages:
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
-
-  queue@6.0.2:
-    resolution: {integrity: sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==}
 
   quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
@@ -59756,9 +59756,7 @@ snapshots:
     dependencies:
       '@types/node': 16.9.1
 
-  image-size@1.2.1:
-    dependencies:
-      queue: 6.0.2
+  image-size@2.0.4: {}
 
   immediate@3.0.6: {}
 
@@ -62378,10 +62376,6 @@ snapshots:
   querystringify@2.2.0: {}
 
   queue-microtask@1.2.3: {}
-
-  queue@6.0.2:
-    dependencies:
-      inherits: 2.0.4
 
   quick-lru@5.1.1: {}
 

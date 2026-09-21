@@ -47,7 +47,7 @@
     "fast-xml-parser": "^5.10.1",
     "jszip": "^3.10.1",
     "docx": "^9.0.0",
-    "image-size": "^1.2.1"
+    "image-size": "^2.0.4"
   },
   "repository": {
     "type": "git",
