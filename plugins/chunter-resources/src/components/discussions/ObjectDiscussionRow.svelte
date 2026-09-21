@@ -14,7 +14,6 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import attachment, { type Attachment } from '@hcengineering/attachment'
   import { type ChatMessage, type ObjectDiscussion } from '@hcengineering/chunter'
   import contact, { type Employee, getName } from '@hcengineering/contact'
   import { CombineAvatars, employeeRefByAccountUuidStore, getPersonByPersonId } from '@hcengineering/contact-resources'
@@ -34,7 +33,6 @@
   import { isObjectDiscussionParticipant } from '../../utils'
 
   export let discussion: ObjectDiscussion
-  export let linked: Attachment | undefined = undefined
 
   const dispatch = createEventDispatcher()
   const client = getClient()
@@ -122,12 +120,6 @@
   <div class="content">
     <div class="title-row">
       <span class="title overflow-label">{discussion.name}</span>
-      {#if linked !== undefined}
-        <span class="linked">
-          <Icon icon={attachment.icon.Attachment} size="x-small" />
-          <span class="overflow-label">{linked.name}</span>
-        </span>
-      {/if}
     </div>
     <div class="subtitle overflow-label">
       {#if resolved}
@@ -230,19 +222,6 @@
     font-size: 0.875rem;
     font-weight: 500;
     line-height: 1.25rem;
-  }
-
-  .linked {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    min-width: 0;
-    max-width: 12rem;
-    padding: 0.125rem 0.5rem;
-    border-radius: 0.375rem;
-    background: var(--global-ui-highlight-BackgroundColor);
-    color: var(--global-secondary-TextColor);
-    font-size: 0.6875rem;
   }
 
   .subtitle {

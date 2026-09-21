@@ -14,24 +14,12 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import attachment, { type Attachment } from '@hcengineering/attachment'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import core, { type AccountUuid, type Doc, getCurrentAccount, type Markup } from '@hcengineering/core'
-  import { getEmbeddedLabel } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { EmptyMarkup, isEmptyMarkup } from '@hcengineering/text'
   import { StyledTextArea } from '@hcengineering/text-editor-resources'
-  import {
-    Button,
-    IconAdd,
-    IconDropdown,
-    Label,
-    Modal,
-    ModernEditbox,
-    ModernPopup,
-    eventToHTMLElement,
-    showPopup
-  } from '@hcengineering/ui'
+  import { Button, IconAdd, Label, Modal, ModernEditbox } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
@@ -42,21 +30,14 @@
   const client = getClient()
   const me = getCurrentAccount().uuid
   const collaboratorsQuery = createQuery()
-  const attachmentsQuery = createQuery()
 
   let name = ''
   let members: AccountUuid[] = [me]
-  let linkedTo: Attachment | undefined = undefined
   let firstMessage: Markup = EmptyMarkup
   let collaborators: AccountUuid[] = []
-  let attachments: Attachment[] = []
 
   $: collaboratorsQuery.query(core.class.Collaborator, { attachedTo: object._id }, (result) => {
     collaborators = result.map(({ collaborator }) => collaborator)
-  })
-
-  $: attachmentsQuery.query(attachment.class.Attachment, { attachedTo: object._id }, (result) => {
-    attachments = result
   })
 
   $: missingCollaborators = collaborators.filter((account) => !members.includes(account))
@@ -64,17 +45,6 @@
 
   function addAllCollaborators (): void {
     members = [...members, ...missingCollaborators]
-  }
-
-  function selectAttachment (ev: MouseEvent): void {
-    const items = [
-      { id: '', label: chunter.string.NotAttached },
-      ...attachments.map((it) => ({ id: it._id, label: getEmbeddedLabel(it.name), icon: attachment.icon.Attachment }))
-    ]
-    showPopup(ModernPopup, { items, selected: linkedTo?._id ?? '' }, eventToHTMLElement(ev), (result) => {
-      if (result == null) return
-      linkedTo = attachments.find((it) => it._id === result)
-    })
   }
 
   async function save (): Promise<void> {
@@ -88,9 +58,7 @@
       {
         name: name.trim(),
         resolved: false,
-        members: members.includes(me) ? members : [me, ...members],
-        linkedTo: linkedTo?._id,
-        linkedToClass: linkedTo?._class
+        members: members.includes(me) ? members : [me, ...members]
       }
     )
 
@@ -150,23 +118,6 @@
       {/if}
     </div>
 
-    {#if attachments.length > 0}
-      <div class="field">
-        <span class="field-label"><Label label={chunter.string.AttachTo} /></span>
-        <Button
-          kind="regular"
-          size="large"
-          width="100%"
-          justify="left"
-          icon={attachment.icon.Attachment}
-          iconRight={IconDropdown}
-          label={linkedTo !== undefined ? getEmbeddedLabel(linkedTo.name) : chunter.string.NotAttached}
-          on:click={selectAttachment}
-        />
-        <span class="hint"><Label label={chunter.string.AttachToDescription} /></span>
-      </div>
-    {/if}
-
     <div class="field">
       <span class="field-label"><Label label={chunter.string.FirstMessage} /></span>
       <StyledTextArea
@@ -206,10 +157,5 @@
   .add-all {
     display: flex;
     align-self: flex-start;
-  }
-
-  .hint {
-    color: var(--global-tertiary-TextColor);
-    font-size: 0.75rem;
   }
 </style>

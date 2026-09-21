@@ -14,11 +14,10 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import attachment, { type Attachment } from '@hcengineering/attachment'
   import { type ObjectDiscussion } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import { type AccountUuid, type Ref } from '@hcengineering/core'
-  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { type AccountUuid } from '@hcengineering/core'
+  import { getClient } from '@hcengineering/presentation'
   import {
     ButtonIcon,
     Icon,
@@ -27,7 +26,6 @@
     IconDelete,
     IconMoreH,
     EditBox,
-    Label,
     ModernPopup,
     eventToHTMLElement,
     showPopup,
@@ -43,26 +41,10 @@
 
   const dispatch = createEventDispatcher()
   const client = getClient()
-  const linkedQuery = createQuery()
 
-  let linked: Attachment | undefined = undefined
   let title = ''
 
   $: canManage = canManageObjectDiscussion(discussion)
-
-  $: if (discussion.linkedTo !== undefined) {
-    linkedQuery.query(
-      attachment.class.Attachment,
-      { _id: discussion.linkedTo as Ref<Attachment> },
-      (result) => {
-        linked = result[0]
-      },
-      { limit: 1 }
-    )
-  } else {
-    linkedQuery.unsubscribe()
-    linked = undefined
-  }
 
   $: resolved = discussion.resolved
 
@@ -112,10 +94,6 @@
   async function updateMembers (members: AccountUuid[]): Promise<void> {
     await client.update(discussion, { members })
   }
-
-  async function unlink (): Promise<void> {
-    await client.update(discussion, { $unset: { linkedTo: true, linkedToClass: true } })
-  }
 </script>
 
 <div class="discussion-header">
@@ -159,18 +137,6 @@
   {/if}
 </div>
 
-{#if linked !== undefined}
-  <div class="discussion-scope">
-    <div class="linked-chip">
-      <Icon icon={attachment.icon.Attachment} size="x-small" />
-      <span class="overflow-label"><Label label={chunter.string.AttachedTo} params={{ name: linked.name }} /></span>
-      {#if canManage}
-        <ButtonIcon icon={IconClose} size="min" kind="tertiary" on:click={() => void unlink()} />
-      {/if}
-    </div>
-  </div>
-{/if}
-
 <style lang="scss">
   .discussion-header {
     display: flex;
@@ -201,27 +167,5 @@
     flex-shrink: 0;
     max-width: 50%;
     min-width: 0;
-  }
-
-  .discussion-scope {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.875rem 1.25rem;
-    border-bottom: 1px solid var(--global-ui-BorderColor);
-  }
-
-  .linked-chip {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    width: fit-content;
-    max-width: 100%;
-    padding: 0.3125rem 0.625rem;
-    border-radius: var(--small-BorderRadius);
-    background: var(--global-ui-highlight-BackgroundColor);
-    color: var(--global-secondary-TextColor);
-    font-size: 0.75rem;
-    font-weight: 600;
   }
 </style>

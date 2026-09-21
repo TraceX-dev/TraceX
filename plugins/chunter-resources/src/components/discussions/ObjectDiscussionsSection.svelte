@@ -14,7 +14,6 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import attachment, { type Attachment } from '@hcengineering/attachment'
   import { type ObjectDiscussion } from '@hcengineering/chunter'
   import { type Doc, type Ref, SortingOrder } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
@@ -35,10 +34,8 @@
 
   const dispatch = createEventDispatcher()
   const discussionsQuery = createQuery()
-  const linkedQuery = createQuery()
 
   let discussions: ObjectDiscussion[] = []
-  let linkedById = new Map<Ref<Doc>, Attachment>()
   let expanded = false
 
   $: discussionsQuery.query(
@@ -50,16 +47,6 @@
     },
     { sort: { modifiedOn: SortingOrder.Descending } }
   )
-
-  $: linkedIds = discussions.map((it) => it.linkedTo).filter((it): it is Ref<Doc> => it !== undefined)
-  $: if (linkedIds.length > 0) {
-    linkedQuery.query(attachment.class.Attachment, { _id: { $in: linkedIds as Array<Ref<Attachment>> } }, (result) => {
-      linkedById = new Map(result.map((it) => [it._id, it]))
-    })
-  } else {
-    linkedQuery.unsubscribe()
-    linkedById = new Map()
-  }
 
   $: canCreate = canCreateObjectDiscussion() && $permissions.canComment(doc)
 
@@ -116,7 +103,6 @@
             {#each visibleDiscussions as discussion (discussion._id)}
               <ObjectDiscussionRow
                 {discussion}
-                linked={discussion.linkedTo !== undefined ? linkedById.get(discussion.linkedTo) : undefined}
                 on:open={(event) => {
                   openDiscussion(event.detail._id)
                 }}
