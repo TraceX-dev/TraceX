@@ -15,7 +15,7 @@
 //
 
 import { ActivityMessage, ActivityMessageViewlet } from '@hcengineering/activity'
-import type { Class, Doc, Markup, Mixin, Ref, Space, Timestamp } from '@hcengineering/core'
+import type { AccountUuid, AttachedDoc, Class, Doc, Markup, Mixin, Ref, Space, Timestamp } from '@hcengineering/core'
 import { NotificationType } from '@hcengineering/notification'
 import type { Asset, Plugin, Resource } from '@hcengineering/platform'
 import { IntlString, plugin } from '@hcengineering/platform'
@@ -42,6 +42,23 @@ export interface ChunterSpace extends Space {
  */
 export interface Channel extends ChunterSpace {
   topic?: string
+}
+
+/**
+ * A discussion thread attached to an arbitrary platform object
+ * (e.g. a Card). Unlike a Channel, this is not a Space.
+ *
+ * @public
+ */
+export interface ObjectDiscussion extends AttachedDoc {
+  name: string
+  // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
+  resolved: boolean
+  members: AccountUuid[]
+  // An optional document of the owner (e.g. an attachment) the discussion is about.
+  linkedTo?: Ref<Doc>
+  linkedToClass?: Ref<Class<Doc>>
+  comments?: number
 }
 
 /**
@@ -133,7 +150,10 @@ export default plugin(chunterId, {
     ChatMessagePreview: '' as AnyComponent,
     ThreadMessagePreview: '' as AnyComponent,
     DirectIcon: '' as AnyComponent,
-    InlineCommentThread: '' as AnyComponent
+    InlineCommentThread: '' as AnyComponent,
+    ObjectDiscussionsSection: '' as AnyComponent,
+    ObjectDiscussionAside: '' as AnyComponent,
+    ObjectDiscussionPanel: '' as AnyComponent
   },
   activity: {
     MembersChangedMessage: '' as AnyComponent
@@ -142,6 +162,7 @@ export default plugin(chunterId, {
     ThreadMessage: '' as Ref<Class<ThreadMessage>>,
     ChunterSpace: '' as Ref<Class<ChunterSpace>>,
     Channel: '' as Ref<Class<Channel>>,
+    ObjectDiscussion: '' as Ref<Class<ObjectDiscussion>>,
     DirectMessage: '' as Ref<Class<DirectMessage>>,
     ChatMessage: '' as Ref<Class<ChatMessage>>,
     ChatMessageViewlet: '' as Ref<Class<ChatMessageViewlet>>,
@@ -162,6 +183,20 @@ export default plugin(chunterId, {
     Message: '' as IntlString,
     MessageOn: '' as IntlString,
     UnarchiveConfirm: '' as IntlString,
+    DeleteDiscussion: '' as IntlString,
+    DeleteDiscussionConfirm: '' as IntlString,
+    NewDiscussion: '' as IntlString,
+    CreateDiscussion: '' as IntlString,
+    FirstMessage: '' as IntlString,
+    FirstMessagePlaceholder: '' as IntlString,
+    AttachTo: '' as IntlString,
+    AttachToDescription: '' as IntlString,
+    AttachedTo: '' as IntlString,
+    JoinDiscussionRequest: '' as IntlString,
+    NotAttached: '' as IntlString,
+    MarkAsResolved: '' as IntlString,
+    ReopenDiscussion: '' as IntlString,
+    ParticipantsCount: '' as IntlString,
     ConvertToPrivate: '' as IntlString,
     DirectNotificationTitle: '' as IntlString,
     DirectNotificationBody: '' as IntlString,
@@ -171,6 +206,11 @@ export default plugin(chunterId, {
     Docs: '' as IntlString,
     Chat: '' as IntlString,
     Thread: '' as IntlString,
+    Discussion: '' as IntlString,
+    Discussions: '' as IntlString,
+    NoDiscussionsYet: '' as IntlString,
+    Resolved: '' as IntlString,
+    ViewAllDiscussions: '' as IntlString,
     ThreadMessage: '' as IntlString,
     ReplyToThread: '' as IntlString,
     Channels: '' as IntlString,
@@ -183,6 +223,7 @@ export default plugin(chunterId, {
     Visibility: '' as IntlString,
     Public: '' as IntlString,
     Private: '' as IntlString,
+    AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,
     CloseConversation: '' as IntlString,

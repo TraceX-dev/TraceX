@@ -132,6 +132,26 @@
     "ViewingArchivedChannel": "你正在查看已归档频道",
     "OpenChatInSidebar": "在侧边栏中打开聊天",
     "NoThreadsYet": "还没有线程。",
-    "SummarizeMessages": "总结讨论"
+    "SummarizeMessages": "总结讨论",
+    "Resolved": "已解决",
+    "ViewAllDiscussions": "查看全部讨论（{count}）",
+    "DeleteDiscussion": "删除讨论",
+    "DeleteDiscussionConfirm": "确定要删除此讨论吗？此操作无法撤销。",
+    "NewDiscussion": "新讨论",
+    "CreateDiscussion": "创建讨论",
+    "FirstMessage": "第一条消息",
+    "FirstMessagePlaceholder": "写下第一条消息以开始讨论…",
+    "AttachTo": "关联到（可选）",
+    "AttachToDescription": "将讨论关联到特定附件，便于查找。",
+    "AttachedTo": "已关联到：{name}",
+    "JoinDiscussionRequest": "请讨论参与者将您添加进来，以便阅读和发送消息。",
+    "NotAttached": "未关联",
+    "MarkAsResolved": "标记为已解决",
+    "ReopenDiscussion": "重新打开讨论",
+    "ParticipantsCount": "{count, plural, other {# 位参与者}}",
+    "AddAllCollaborators": "添加卡片的所有协作者（{count}）",
+    "Discussion": "讨论",
+    "Discussions": "讨论",
+    "NoDiscussionsYet": "暂无讨论。"
   }
 }

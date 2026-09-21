@@ -133,6 +133,26 @@
         "OpenChatInSidebar": "사이드바에서 채팅 열기",
         "ResolveThread": "해결",
         "NoThreadsYet": "아직 스레드가 없습니다.",
-        "SummarizeMessages": "내용 요약"
+        "SummarizeMessages": "내용 요약",
+        "Resolved": "해결됨",
+        "ViewAllDiscussions": "모든 토론 보기 ({count})",
+    "DeleteDiscussion": "토론 삭제",
+    "DeleteDiscussionConfirm": "이 토론을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+    "NewDiscussion": "새 토론",
+    "CreateDiscussion": "토론 만들기",
+    "FirstMessage": "첫 메시지",
+    "FirstMessagePlaceholder": "첫 메시지를 작성해 토론을 시작하세요…",
+    "AttachTo": "연결 대상 (선택)",
+    "AttachToDescription": "토론을 특정 첨부 파일에 연결하면 더 쉽게 찾을 수 있습니다.",
+    "AttachedTo": "연결됨: {name}",
+    "JoinDiscussionRequest": "메시지를 읽고 보내려면 토론 참여자에게 추가를 요청하세요.",
+    "NotAttached": "연결 안 됨",
+    "MarkAsResolved": "해결됨으로 표시",
+    "ReopenDiscussion": "토론 다시 열기",
+    "ParticipantsCount": "{count, plural, other {참여자 #명}}",
+    "AddAllCollaborators": "카드 협업자 모두 추가 ({count})",
+    "Discussion": "토론",
+    "Discussions": "토론",
+    "NoDiscussionsYet": "아직 토론이 없습니다."
     }
 }

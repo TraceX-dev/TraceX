@@ -36,6 +36,7 @@ import {
   TChunterSpace,
   TDirectMessage,
   TObjectChatPanel,
+  TObjectDiscussion,
   TThreadMessage
 } from './types'
 import { AccountRole } from '@hcengineering/core'
@@ -48,6 +49,7 @@ export function createModel (builder: Builder): void {
   builder.createModel(
     TChunterSpace,
     TChannel,
+    TObjectDiscussion,
     TDirectMessage,
     TChatMessage,
     TThreadMessage,
@@ -130,6 +132,12 @@ export function createModel (builder: Builder): void {
     createAccessLevel: AccountRole.Guest
   })
 
+  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.User,
+    updateAccessLevel: AccountRole.User,
+    removeAccessLevel: AccountRole.User
+  })
+
   const spaceClasses = [chunter.class.Channel, chunter.class.DirectMessage]
 
   spaceClasses.forEach((spaceClass) => {
@@ -183,6 +191,15 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(chunter.class.DirectMessage, core.class.Class, view.mixin.ObjectIdentifier, {
     provider: chunter.function.DmIdentifierProvider
+  })
+
+  // Inbox shows the owner object as the context label and the discussion name as its title.
+  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, view.mixin.ObjectTitle, {
+    titleProvider: chunter.function.ObjectDiscussionTitleProvider
+  })
+
+  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, view.mixin.ObjectIdentifier, {
+    provider: chunter.function.ObjectDiscussionIdentifierProvider
   })
 
   builder.mixin(chunter.class.ChatMessage, core.class.Class, view.mixin.CollectionPresenter, {
@@ -335,6 +352,16 @@ export function createModel (builder: Builder): void {
 
   builder.createDoc(activity.class.ActivityExtension, core.space.Model, {
     ofClass: chunter.class.DirectMessage,
+    components: { input: { component: chunter.component.ChatMessageInput } }
+  })
+
+  // Discussions open inside their owner panel (inbox, links) instead of the generic EditDoc.
+  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, view.mixin.ObjectPanel, {
+    component: chunter.component.ObjectDiscussionPanel
+  })
+
+  builder.createDoc(activity.class.ActivityExtension, core.space.Model, {
+    ofClass: chunter.class.ObjectDiscussion,
     components: { input: { component: chunter.component.ChatMessageInput } }
   })
 

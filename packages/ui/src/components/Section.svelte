@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,6 +23,7 @@
   export let id: string | undefined = undefined
   export let label: IntlString
   export let icon: Asset | AnySvelteComponent | undefined = undefined
+  export let counter: number | undefined = undefined
 
   export let showHeader: boolean = true
   export let spaceBeforeContent: boolean = false
@@ -38,8 +40,11 @@
         </div>
       {/if}
 
-      <span class="antiSection-header__title flex-row-center">
+      <span class="antiSection-header__title flex-row-center" class:withCounter={counter !== undefined}>
         <Label {label} />
+        {#if counter !== undefined}
+          <span class="antiSection-header__counter counter ml-2">{counter}</span>
+        {/if}
       </span>
 
       <slot name="header" />
@@ -48,3 +53,13 @@
 
   <slot name="content" />
 </div>
+
+<style lang="scss">
+  .withCounter {
+    align-items: baseline;
+  }
+
+  .counter {
+    font-size: 0.8125rem;
+  }
+</style>
