@@ -229,6 +229,9 @@ export class TProcessToDo extends TToDo implements ProcessToDo {
 
   @Prop(TypeBoolean(), process.string.AskRequired)
     askRequired?: boolean
+
+  group?: string
+  completionMode?: 'any' | 'all'
 }
 
 @Model(process.class.ApproveRequest, process.class.ProcessToDo)
@@ -240,7 +243,7 @@ export class TApproveRequest extends TProcessToDo implements ApproveRequest {
   @Prop(TypeString(), process.string.RejectionReason)
     reason?: string
 
-  group!: string
+  declare group: string
 
   card!: Ref<Card>
 
