@@ -1,0 +1,5 @@
+exclude:
+  - './foundations/**/pnpm-lock.yaml'
+  - './foundations/hulylake/**'
+  - './foundations/net/**'
+  - './foundations/stream/**'

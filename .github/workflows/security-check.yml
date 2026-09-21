@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       run_dast:
-        description: Run the ZAP baseline scan against staging
+        description: Run the ZAP baseline scans against staging and production
         required: false
         default: false
         type: boolean
@@ -29,7 +29,12 @@ jobs:
   semgrep:
     name: Semgrep (SAST)
     runs-on: ubuntu-latest
-    if: github.actor != 'dependabot[bot]'
+    timeout-minutes: 15
+    if: always()
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     outputs:
       critical: ${{ steps.summary.outputs.critical }}
       high: ${{ steps.summary.outputs.high }}
@@ -38,22 +43,16 @@ jobs:
     env:
       SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
     container:
-      image: semgrep/semgrep
+      # semgrep/semgrep:1.177.0 for linux/amd64
+      image: semgrep/semgrep@sha256:d1825c2c72110b5bfbf0602ff68f7f117322597a7c33037a79dba9f897f5f1f0
     steps:
-      - uses: actions/checkout@v6
-      - name: Run Semgrep (SAST)
+      # actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - id: scan
+        name: Run Semgrep (SAST)
         run: |
           mkdir -p reports
-          semgrep scan \
-            --config p/owasp-top-ten \
-            --config p/cwe-top-25 \
-            --config p/javascript \
-            --config p/typescript \
-            --config p/nodejs \
-            --config p/docker \
-            --sarif \
-            --output reports/semgrep.sarif \
-            --metrics off
+          semgrep ci --sarif > reports/semgrep.sarif
 
       - id: summary
         name: Generate Semgrep (SAST) summary
@@ -72,13 +71,31 @@ jobs:
               markdown += "Semgrep did not produce a SARIF report. See the job log.\n"
           else:
               report = json.loads(report_path.read_text())
-              findings = [finding for run in report.get("runs", []) for finding in run.get("results", [])]
+              findings = []
+              for run in report.get("runs", []):
+                  rules = run.get("tool", {}).get("driver", {}).get("rules", [])
+                  rule_levels = {
+                      rule.get("id"): rule.get("defaultConfiguration", {}).get("level")
+                      for rule in rules
+                  }
+                  findings.extend(
+                      (finding, rule_levels.get(finding.get("ruleId")))
+                      for finding in run.get("results", [])
+                  )
               counts = {severity: 0 for severity in ("critical", "high", "medium", "low")}
-              for finding in findings:
+              unclassified = 0
+              for finding, rule_level in findings:
                   properties = finding.get("properties", {})
                   extra = properties.get("extra", {})
                   metadata = extra.get("metadata", {})
-                  raw_severity = str(extra.get("severity") or metadata.get("severity") or metadata.get("impact") or finding.get("level", "")).lower()
+                  raw_severity = str(
+                      extra.get("severity")
+                      or metadata.get("severity")
+                      or metadata.get("impact")
+                      or finding.get("level")
+                      or rule_level
+                      or ""
+                  ).lower()
                   severity = {
                       "critical": "critical",
                       "high": "high",
@@ -89,15 +106,20 @@ jobs:
                       "low": "low",
                       "info": "low",
                       "note": "low",
-                  }.get(raw_severity, "medium")
-                  counts[severity] += 1
+                  }.get(raw_severity)
+                  if severity is None:
+                      unclassified += 1
+                  else:
+                      counts[severity] += 1
               markdown += f"Findings: {len(findings)}\n\n"
+              if unclassified:
+                  markdown += f"Unclassified: {unclassified}\n\n"
               if not findings:
                   markdown += "No findings.\n"
               else:
                   markdown += "\n".join(
                       f"- **{finding.get('ruleId', 'unknown')}** — {finding.get('message', {}).get('text', 'No message')}"
-                      for finding in findings[:20]
+                      for finding, _ in findings[:20]
                   )
 
           Path("semgrep-summary.md").write_text(markdown)
@@ -107,9 +129,15 @@ jobs:
               output.write("".join(f"{severity}={counts[severity]}\n" for severity in counts))
           PYTHON
 
+      - name: Upload Semgrep findings to Code Scanning
+        if: always() && hashFiles('reports/semgrep.sarif') != '' && env.ACT != 'true'
+        uses: github/codeql-action/upload-sarif@d8073367669608af8fbcc5f63dd0a0d52bb90cff # v4
+        with:
+          sarif_file: reports/semgrep.sarif
+
       - name: Upload Semgrep report
         if: always() && env.ACT != 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: semgrep-report
           path: |
@@ -120,6 +148,7 @@ jobs:
   grype:
     name: Grype (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
@@ -129,10 +158,11 @@ jobs:
       medium: ${{ steps.summary.outputs.medium }}
       low: ${{ steps.summary.outputs.low }}
     steps:
-      - uses: actions/checkout@v7
+      # actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - id: scan
         name: Scan dependencies with Grype (SCA)
-        uses: anchore/scan-action@v7
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7
         with:
           path: .
           fail-build: false
@@ -196,12 +226,12 @@ jobs:
           PYTHON
       - name: Upload Grype findings to Code Scanning
         if: always() && steps.scan.outcome == 'success' && env.ACT != 'true'
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@d8073367669608af8fbcc5f63dd0a0d52bb90cff # v4
         with:
           sarif_file: grype-report.sarif
       - name: Upload Grype report
         if: always() && env.ACT != 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: grype-report
           path: |
@@ -212,15 +242,17 @@ jobs:
   pnpm-audit:
     name: pnpm audit (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       critical: ${{ steps.summary.outputs.critical }}
       high: ${{ steps.summary.outputs.high }}
       medium: ${{ steps.summary.outputs.medium }}
       low: ${{ steps.summary.outputs.low }}
     steps:
-      - uses: actions/checkout@v7
+      # actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
       - name: Prepare Rush workspace
@@ -279,7 +311,7 @@ jobs:
           PYTHON
       - name: Upload pnpm audit report
         if: always() && env.ACT != 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: pnpm-audit-report
           path: |
@@ -295,59 +327,39 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      critical: ${{ steps.summary.outputs.critical }}
-      high: ${{ steps.summary.outputs.high }}
-      medium: ${{ steps.summary.outputs.medium }}
-      low: ${{ steps.summary.outputs.low }}
+      critical: ${{ steps.zap.outputs.critical }}
+      high: ${{ steps.zap.outputs.high }}
+      medium: ${{ steps.zap.outputs.medium }}
+      low: ${{ steps.zap.outputs.low }}
     steps:
-      - uses: zaproxy/action-baseline@v0.15.0
+      # actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - id: zap
+        uses: ./.github/actions/zap-baseline
         with:
           target: https://stg.tracex.co
-          cmd_options: '-m 2'
-          allow_issue_writing: false
-          fail_action: false
-          artifact_name: zap-staging-baseline-report
-      - id: summary
-        name: Generate ZAP (DAST) summary
-        if: always()
-        run: |
-          python3 - <<'PYTHON'
-          import json
-          import os
-          from pathlib import Path
+          environment-name: staging
+          artifact-name: zap-staging-baseline-report
 
-          report_path = Path("report_json.json")
-          markdown = "## ZAP staging baseline\n\n"
-          counts = {severity: "unknown" for severity in ("critical", "high", "medium", "low")}
-
-          if not report_path.exists():
-              markdown += "The full ZAP report is attached as the `zap-staging-baseline-report` artifact.\n"
-          else:
-              report = json.loads(report_path.read_text())
-              alerts = [alert for site in report.get("site", []) for alert in site.get("alerts", [])]
-              risk_names = {"0": "Informational", "1": "Low", "2": "Medium", "3": "High"}
-              counts = {risk: 0 for risk in risk_names}
-
-              for alert in alerts:
-                  risk = str(alert.get("riskcode", "0"))
-                  counts[risk] = counts.get(risk, 0) + 1
-              alert_count = str(len(alerts))
-
-              markdown += "| Risk | Alerts |\n| --- | ---: |\n"
-              markdown += "\n".join(f"| {risk_names[risk]} | {counts[risk]} |" for risk in reversed(risk_names))
-              markdown += "\n"
-              counts = {
-                  "critical": 0,
-                  "high": counts["3"],
-                  "medium": counts["2"],
-                  "low": counts["1"],
-              }
-
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write(markdown)
-          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write("".join(f"{severity}={counts[severity]}\n" for severity in counts))
-          PYTHON
+  zap-prod-baseline:
+    name: ZAP production baseline (DAST)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_dast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      critical: ${{ steps.zap.outputs.critical }}
+      high: ${{ steps.zap.outputs.high }}
+      medium: ${{ steps.zap.outputs.medium }}
+      low: ${{ steps.zap.outputs.low }}
+    steps:
+      # actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - id: zap
+        uses: ./.github/actions/zap-baseline
+        with:
+          target: https://app.tracex.co
+          environment-name: production
+          artifact-name: zap-prod-baseline-report
 
   security-summary:
     name: Security summary
@@ -357,7 +369,9 @@ jobs:
       - grype
       - pnpm-audit
       - zap-staging-baseline
+      - zap-prod-baseline
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Publish consolidated result
         env:
@@ -376,11 +390,16 @@ jobs:
           PNPM_AUDIT_HIGH: ${{ needs.pnpm-audit.outputs.high }}
           PNPM_AUDIT_MEDIUM: ${{ needs.pnpm-audit.outputs.medium }}
           PNPM_AUDIT_LOW: ${{ needs.pnpm-audit.outputs.low }}
-          ZAP_RESULT: ${{ needs.zap-staging-baseline.result }}
-          ZAP_CRITICAL: ${{ needs.zap-staging-baseline.outputs.critical }}
-          ZAP_HIGH: ${{ needs.zap-staging-baseline.outputs.high }}
-          ZAP_MEDIUM: ${{ needs.zap-staging-baseline.outputs.medium }}
-          ZAP_LOW: ${{ needs.zap-staging-baseline.outputs.low }}
+          ZAP_STAGING_RESULT: ${{ needs.zap-staging-baseline.result }}
+          ZAP_STAGING_CRITICAL: ${{ needs.zap-staging-baseline.outputs.critical }}
+          ZAP_STAGING_HIGH: ${{ needs.zap-staging-baseline.outputs.high }}
+          ZAP_STAGING_MEDIUM: ${{ needs.zap-staging-baseline.outputs.medium }}
+          ZAP_STAGING_LOW: ${{ needs.zap-staging-baseline.outputs.low }}
+          ZAP_PROD_RESULT: ${{ needs.zap-prod-baseline.result }}
+          ZAP_PROD_CRITICAL: ${{ needs.zap-prod-baseline.outputs.critical }}
+          ZAP_PROD_HIGH: ${{ needs.zap-prod-baseline.outputs.high }}
+          ZAP_PROD_MEDIUM: ${{ needs.zap-prod-baseline.outputs.medium }}
+          ZAP_PROD_LOW: ${{ needs.zap-prod-baseline.outputs.low }}
           RUN_ARTIFACTS_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts
         run: |
           python3 - <<'PYTHON'
@@ -407,7 +426,8 @@ jobs:
               ("Semgrep (SAST)", "SEMGREP", os.environ.get("SEMGREP_RESULT", "unknown")),
               ("Grype (SCA)", "GRYPE", os.environ.get("GRYPE_RESULT", "unknown")),
               ("pnpm audit (SCA)", "PNPM_AUDIT", os.environ.get("PNPM_AUDIT_RESULT", "unknown")),
-              ("ZAP staging baseline (DAST)", "ZAP", os.environ.get("ZAP_RESULT", "unknown")),
+              ("ZAP staging baseline (DAST)", "ZAP_STAGING", os.environ.get("ZAP_STAGING_RESULT", "unknown")),
+              ("ZAP prod baseline (DAST)", "ZAP_PROD", os.environ.get("ZAP_PROD_RESULT", "unknown")),
           ]
 
           markdown = textwrap.dedent(f'''\
