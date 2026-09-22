@@ -20,7 +20,7 @@ import activity from '@hcengineering/activity'
 
 import chunter from './plugin'
 import { type ClassCollaborators } from '@hcengineering/core'
-import { type Channel, type DirectMessage, type ObjectDiscussion } from '@hcengineering/chunter'
+import { type Channel, type DirectMessage, type Discussion } from '@hcengineering/chunter'
 
 export function defineNotifications (builder: Builder): void {
   builder.createDoc<ClassCollaborators<DirectMessage>>(core.class.ClassCollaborators, core.space.Model, {
@@ -33,8 +33,8 @@ export function defineNotifications (builder: Builder): void {
     fields: ['members']
   })
 
-  builder.createDoc<ClassCollaborators<ObjectDiscussion>>(core.class.ClassCollaborators, core.space.Model, {
-    attachedTo: chunter.class.ObjectDiscussion,
+  builder.createDoc<ClassCollaborators<Discussion>>(core.class.ClassCollaborators, core.space.Model, {
+    attachedTo: chunter.class.Discussion,
     fields: ['members']
   })
 

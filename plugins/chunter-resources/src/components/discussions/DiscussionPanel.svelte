@@ -14,27 +14,27 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type ObjectDiscussion } from '@hcengineering/chunter'
+  import { type Discussion } from '@hcengineering/chunter'
   import { type Ref } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Component } from '@hcengineering/ui'
   import view from '@hcengineering/view'
 
   import chunter from '../../plugin'
-  import ObjectDiscussionAside from './ObjectDiscussionAside.svelte'
+  import DiscussionAside from './DiscussionAside.svelte'
 
   // A discussion is always shown in the context of its owner (inbox, links): the owner panel
   // is opened with the discussion in its aside.
-  export let _id: Ref<ObjectDiscussion>
+  export let _id: Ref<Discussion>
   export let embedded: boolean = false
   export let allowClose: boolean = true
 
   const hierarchy = getClient().getHierarchy()
   const query = createQuery()
 
-  let discussion: ObjectDiscussion | undefined = undefined
+  let discussion: Discussion | undefined = undefined
 
-  $: query.query(chunter.class.ObjectDiscussion, { _id }, (result) => {
+  $: query.query(chunter.class.Discussion, { _id }, (result) => {
     discussion = result[0]
   })
 
@@ -45,7 +45,7 @@
 
   $: initialAside = {
     id: 'aside',
-    component: chunter.component.ObjectDiscussionAside,
+    component: chunter.component.DiscussionAside,
     props: { discussionId: _id }
   }
 </script>
@@ -65,6 +65,6 @@
       on:open
     />
   {:else}
-    <ObjectDiscussionAside discussionId={_id} on:close />
+    <DiscussionAside discussionId={_id} on:close />
   {/if}
 {/if}

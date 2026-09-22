@@ -50,7 +50,7 @@ export interface Channel extends ChunterSpace {
  *
  * @public
  */
-export interface ObjectDiscussion extends AttachedDoc {
+export interface Discussion extends AttachedDoc {
   name: string
   // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
   resolved: boolean
@@ -151,9 +151,9 @@ export default plugin(chunterId, {
     ThreadMessagePreview: '' as AnyComponent,
     DirectIcon: '' as AnyComponent,
     InlineCommentThread: '' as AnyComponent,
-    ObjectDiscussionsSection: '' as AnyComponent,
-    ObjectDiscussionAside: '' as AnyComponent,
-    ObjectDiscussionPanel: '' as AnyComponent
+    DiscussionsSection: '' as AnyComponent,
+    DiscussionAside: '' as AnyComponent,
+    DiscussionPanel: '' as AnyComponent
   },
   activity: {
     MembersChangedMessage: '' as AnyComponent
@@ -162,7 +162,7 @@ export default plugin(chunterId, {
     ThreadMessage: '' as Ref<Class<ThreadMessage>>,
     ChunterSpace: '' as Ref<Class<ChunterSpace>>,
     Channel: '' as Ref<Class<Channel>>,
-    ObjectDiscussion: '' as Ref<Class<ObjectDiscussion>>,
+    Discussion: '' as Ref<Class<Discussion>>,
     DirectMessage: '' as Ref<Class<DirectMessage>>,
     ChatMessage: '' as Ref<Class<ChatMessage>>,
     ChatMessageViewlet: '' as Ref<Class<ChatMessageViewlet>>,

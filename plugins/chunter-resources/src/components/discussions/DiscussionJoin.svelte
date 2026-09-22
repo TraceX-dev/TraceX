@@ -14,23 +14,23 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type ObjectDiscussion } from '@hcengineering/chunter'
+  import { type Discussion } from '@hcengineering/chunter'
   import { Label, ModernButton } from '@hcengineering/ui'
   import view from '@hcengineering/view'
 
   import chunter from '../../plugin'
-  import { canCreateObjectDiscussion, joinObjectDiscussion } from '../../utils'
+  import { canCreateDiscussion, joinDiscussion } from '../../utils'
 
-  export let discussion: ObjectDiscussion
+  export let discussion: Discussion
 
   // Guests cannot update the discussion, so they have to be added by a participant.
-  const canJoin = canCreateObjectDiscussion()
+  const canJoin = canCreateDiscussion()
   let joining = false
 
   async function join (): Promise<void> {
     joining = true
     try {
-      await joinObjectDiscussion(discussion)
+      await joinDiscussion(discussion)
     } finally {
       joining = false
     }

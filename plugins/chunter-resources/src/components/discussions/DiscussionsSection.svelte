@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type ObjectDiscussion } from '@hcengineering/chunter'
+  import { type Discussion } from '@hcengineering/chunter'
   import { type Doc, type Ref, SortingOrder } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
   import ui, { Button, ButtonIcon, IconAdd, Label, Section, showPopup } from '@hcengineering/ui'
@@ -22,9 +22,9 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { canCreateObjectDiscussion } from '../../utils'
-  import CreateObjectDiscussion from './CreateObjectDiscussion.svelte'
-  import ObjectDiscussionRow from './ObjectDiscussionRow.svelte'
+  import { canCreateDiscussion } from '../../utils'
+  import CreateDiscussion from './CreateDiscussion.svelte'
+  import DiscussionRow from './DiscussionRow.svelte'
 
   export let doc: Doc
   export let readonly: boolean = false
@@ -35,11 +35,11 @@
   const dispatch = createEventDispatcher()
   const discussionsQuery = createQuery()
 
-  let discussions: ObjectDiscussion[] = []
+  let discussions: Discussion[] = []
   let expanded = false
 
   $: discussionsQuery.query(
-    chunter.class.ObjectDiscussion,
+    chunter.class.Discussion,
     { attachedTo: doc._id },
     (result) => {
       discussions = result.sort(compareDiscussions)
@@ -48,11 +48,11 @@
     { sort: { modifiedOn: SortingOrder.Descending } }
   )
 
-  $: canCreate = canCreateObjectDiscussion() && $permissions.canComment(doc)
+  $: canCreate = canCreateDiscussion() && $permissions.canComment(doc)
 
   $: visibleDiscussions = expanded ? discussions : discussions.slice(0, COLLAPSED_LIMIT)
 
-  function compareDiscussions (left: ObjectDiscussion, right: ObjectDiscussion): number {
+  function compareDiscussions (left: Discussion, right: Discussion): number {
     if (left.resolved !== right.resolved) {
       return left.resolved ? 1 : -1
     }
@@ -60,16 +60,16 @@
   }
 
   function createDiscussion (): void {
-    showPopup(CreateObjectDiscussion, { object: doc }, 'top', (result?: Ref<ObjectDiscussion>) => {
+    showPopup(CreateDiscussion, { object: doc }, 'top', (result?: Ref<Discussion>) => {
       if (result != null) openDiscussion(result)
     })
   }
 
   // The owner panel shows the discussion in its aside, so it closes together with the object.
-  function openDiscussion (discussionId: Ref<ObjectDiscussion>): void {
+  function openDiscussion (discussionId: Ref<Discussion>): void {
     dispatch('action', {
       id: 'aside',
-      component: chunter.component.ObjectDiscussionAside,
+      component: chunter.component.DiscussionAside,
       props: { discussionId }
     })
   }
@@ -101,7 +101,7 @@
         {:else}
           <div class="discussions mt-3">
             {#each visibleDiscussions as discussion (discussion._id)}
-              <ObjectDiscussionRow
+              <DiscussionRow
                 {discussion}
                 on:open={(event) => {
                   openDiscussion(event.detail._id)

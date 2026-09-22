@@ -155,7 +155,7 @@ export class TCard extends TDoc implements Card {
 
   // Declared so the generic collection logic moves and removes discussions together with the card.
   @Hidden()
-  @Prop(Collection(chunter.class.ObjectDiscussion), chunter.string.Discussions)
+  @Prop(Collection(chunter.class.Discussion), chunter.string.Discussions)
     discussions?: number
 
   @Prop(TypeString(), view.string.Icon)
@@ -1244,7 +1244,7 @@ function defineTabs (builder: Builder): void {
     core.space.Model,
     {
       label: chunter.string.Discussions,
-      component: chunter.component.ObjectDiscussionsSection,
+      component: chunter.component.DiscussionsSection,
       order: 350,
       navigation: [],
       hideInCompactMode: true

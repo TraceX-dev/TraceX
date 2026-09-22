@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type ObjectDiscussion } from '@hcengineering/chunter'
+  import { type Discussion } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import { type AccountUuid } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
@@ -34,9 +34,9 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { canManageObjectDiscussion, deleteObjectDiscussion, setObjectDiscussionResolved } from '../../utils'
+  import { canManageDiscussion, deleteDiscussion, setDiscussionResolved } from '../../utils'
 
-  export let discussion: ObjectDiscussion
+  export let discussion: Discussion
   export let allowClose: boolean = false
 
   const dispatch = createEventDispatcher()
@@ -44,7 +44,7 @@
 
   let title = ''
 
-  $: canManage = canManageObjectDiscussion(discussion)
+  $: canManage = canManageDiscussion(discussion)
 
   $: resolved = discussion.resolved
 
@@ -58,13 +58,13 @@
     showPopup(ModernPopup, { items }, eventToHTMLElement(ev), (result) => {
       switch (result) {
         case 'resolve':
-          void setObjectDiscussionResolved(discussion, true)
+          void setDiscussionResolved(discussion, true)
           break
         case 'reopen':
-          void setObjectDiscussionResolved(discussion, false)
+          void setDiscussionResolved(discussion, false)
           break
         case 'delete':
-          void deleteObjectDiscussion(discussion)
+          void deleteDiscussion(discussion)
           break
       }
     })
