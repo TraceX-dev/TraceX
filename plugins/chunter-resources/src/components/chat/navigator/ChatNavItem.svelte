@@ -128,8 +128,8 @@
   {isSelected}
   iconProps={{ ...item.iconProps, value: item.object }}
   {count}
-  title={$$slots.default === undefined ? item.title : undefined}
-  description={$$slots.default === undefined ? item.description : undefined}
+  title={item.title}
+  description={item.description}
   secondaryNotifyMarker={context === undefined
     ? false
     : (context?.lastViewedTimestamp ?? 0) < (context?.lastUpdateTimestamp ?? 0)}
@@ -139,5 +139,14 @@
     dispatch('select', { object: item.object })
   }}
 >
-  <slot />
+  {#if item.secondaryTitle !== undefined}
+    <span class="secondary-title"> · {item.secondaryTitle}</span>
+  {/if}
 </NavItem>
+
+<style lang="scss">
+  .secondary-title {
+    color: var(--global-secondary-TextColor);
+    font-weight: 400;
+  }
+</style>

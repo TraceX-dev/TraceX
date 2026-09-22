@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,7 +22,7 @@
   import { getClient } from '@hcengineering/presentation'
   import ui, { Action, AnySvelteComponent, IconSize, ModernButton, NavGroup } from '@hcengineering/ui'
   import view from '@hcengineering/view'
-  import { getDocTitle } from '@hcengineering/view-resources'
+  import { getDocIdentifier, getDocTitle } from '@hcengineering/view-resources'
 
   import { createEventDispatcher } from 'svelte'
   import chunter from '../../../plugin'
@@ -37,6 +38,7 @@
   export let actions: Action[] = []
   export let objectId: Ref<Doc> | undefined
   export let sortFn: (items: ChatNavItemModel[], options: SortFnOptions) => ChatNavItemModel[]
+  export let showUnreadWhenCollapsed = false
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -79,13 +81,23 @@
           icon = await getResource(iconMixin.component)
         }
 
+        const isDiscussion = hierarchy.isDerived(_class, chunter.class.Discussion)
         const hasId = hierarchy.classHierarchyMixin(object._class, view.mixin.ObjectIdentifier) !== undefined
-        const showDescription = hasId && isDocChat && !isPerson
+        const showDescription = hasId && isDocChat && !isPerson && !isDiscussion
+
+        // Discussions read as "Name · Owner": the name first, the owner (its identifier) as a secondary title.
+        const title = isDiscussion
+          ? await getDocTitle(client, object._id, object._class, object)
+          : await getChannelName(object._id, object._class, object)
+        const secondaryTitle = isDiscussion
+          ? await getDocIdentifier(client, object._id, object._class, object)
+          : undefined
 
         items.push({
           id: object._id,
           object,
-          title: (await getChannelName(object._id, object._class, object)) ?? (await translate(titleIntl, {})),
+          title: title ?? (await translate(titleIntl, {})),
+          secondaryTitle: secondaryTitle !== '' ? secondaryTitle : undefined,
           description: showDescription ? await getDocTitle(client, object._id, object._class, object) : undefined,
           icon: icon ?? getObjectIcon(_class),
           iconProps: { showStatus: true },
@@ -102,7 +114,16 @@
     dispatcher('show-more')
   }
 
-  $: visibleItem = sortedItems.find(({ id }) => id === objectId)
+  function isUnread (context: DocNotifyContext | undefined): boolean {
+    return (context?.lastUpdateTimestamp ?? 0) > (context?.lastViewedTimestamp ?? 0)
+  }
+
+  // Items that stay visible when the section is collapsed: the selected one and, optionally, unread ones.
+  $: collapsedItems = sortedItems.filter(
+    ({ id }) =>
+      id === objectId ||
+      (showUnreadWhenCollapsed && isUnread(contexts.find(({ objectId: ctxObjectId }) => ctxObjectId === id)))
+  )
 </script>
 
 {#if sortedItems.length > 0 && contexts.length > 0}
@@ -114,12 +135,12 @@
     highlighted={items.some((it) => it.id === objectId)}
     isFold
     empty={sortedItems.length === 0}
-    visible={visibleItem !== undefined}
+    visible={collapsedItems.length > 0}
     noDivider
   >
     {#each sortedItems as item (item.id)}
       {@const context = contexts.find(({ objectId }) => objectId === item.id)}
-      <ChatNavItem {context} isSelected={objectId === item.id} {item} type={'type-object'} on:select />
+      <ChatNavItem {context} isSelected={objectId === item.id} {item} type="type-object" on:select />
     {/each}
     {#if canShowMore}
       <div class="showMore">
@@ -127,9 +148,11 @@
       </div>
     {/if}
     <svelte:fragment slot="visible" let:isOpen>
-      {#if visibleItem !== undefined && !isOpen}
-        {@const context = contexts.find(({ objectId }) => objectId === visibleItem?.id)}
-        <ChatNavItem {context} isSelected item={visibleItem} type={'type-object'} on:select />
+      {#if !isOpen}
+        {#each collapsedItems as item (item.id)}
+          {@const context = contexts.find(({ objectId }) => objectId === item.id)}
+          <ChatNavItem {context} isSelected={objectId === item.id} {item} type="type-object" on:select />
+        {/each}
       {/if}
     </svelte:fragment>
   </NavGroup>

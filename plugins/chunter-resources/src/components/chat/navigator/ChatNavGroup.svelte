@@ -25,7 +25,6 @@
   import chunter from '../../../plugin'
   import { ChatGroup, ChatNavGroupModel } from '../types'
   import ChatNavSection from './ChatNavSection.svelte'
-  import DiscussionsNavSection from './DiscussionsNavSection.svelte'
 
   export let object: Doc | undefined
   export let model: ChatNavGroupModel
@@ -87,7 +86,10 @@
 
     for (const [_class, ctx] of contextsByClass.entries()) {
       const isSpace = hierarchy.isDerived(_class, core.class.Space)
-      const ids = ctx.map(({ objectId }) => objectId)
+      // Newest first, so the limited slice contains the most recently updated objects.
+      const ids = [...ctx]
+        .sort((a, b) => (b.lastUpdateTimestamp ?? 0) - (a.lastUpdateTimestamp ?? 0))
+        .map(({ objectId }) => objectId)
       const { query, limit } = objectsQueryByClass.get(_class) ?? {
         query: createQuery(),
         limit: isSpace ? -1 : (model.maxSectionItems ?? 5)
@@ -95,14 +97,18 @@
 
       objectsQueryByClass.set(_class, { query, limit: limit ?? model.maxSectionItems ?? 5 })
 
+      const requestedIds = limit !== -1 ? ids.slice(0, limit) : ids
+
       query.query(
         _class,
         {
-          _id: { $in: limit !== -1 ? ids.slice(0, limit) : ids },
+          _id: { $in: requestedIds },
           ...(isSpace ? { space: core.space.Space, archived: false } : {})
         },
         (res) => {
-          objectsByClass = objectsByClass.set(_class, { docs: res, total: isSpace ? res.total : ctx.length })
+          // Contexts of removed/inaccessible objects are not counted, so "Show more" does not stick forever.
+          const missing = requestedIds.length - res.length
+          objectsByClass = objectsByClass.set(_class, { docs: res, total: isSpace ? res.total : ctx.length - missing })
         },
         { total: true }
       )
@@ -227,33 +233,19 @@
 </script>
 
 {#each sections as section (section.id)}
-  {#if model.id === 'discussions'}
-    <DiscussionsNavSection
-      id={section.id}
-      objects={section.objects}
-      {contexts}
-      selectedObject={object}
-      header={section.label}
-      itemsCount={section.count}
-      on:show-more={() => {
-        showMore(section)
-      }}
-      on:select
-    />
-  {:else}
-    <ChatNavSection
-      id={section.id}
-      objects={section.objects}
-      {contexts}
-      objectId={object?._id}
-      header={section.label}
-      actions={getSectionActions(section, contexts)}
-      sortFn={model.sortFn}
-      itemsCount={section.count}
-      on:show-more={() => {
-        showMore(section)
-      }}
-      on:select
-    />
-  {/if}
+  <ChatNavSection
+    id={section.id}
+    objects={section.objects}
+    {contexts}
+    objectId={object?._id}
+    header={section.label}
+    actions={getSectionActions(section, contexts)}
+    sortFn={model.sortFn}
+    itemsCount={section.count}
+    showUnreadWhenCollapsed={model.showUnreadWhenCollapsed ?? false}
+    on:show-more={() => {
+      showMore(section)
+    }}
+    on:select
+  />
 {/each}

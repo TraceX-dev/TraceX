@@ -151,6 +151,8 @@ export const chatNavGroupModels: ChatNavGroupModel[] = [
     label: chunter.string.Discussions,
     sortFn: sortActivityChannels,
     wrap: true,
+    getActionsFn: getActivityActions,
+    showUnreadWhenCollapsed: true,
     isPinned: false,
     _class: chunter.class.Discussion
   },

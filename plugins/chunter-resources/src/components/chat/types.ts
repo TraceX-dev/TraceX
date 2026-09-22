@@ -35,12 +35,16 @@ export interface ChatNavGroupModel {
   isPinned: boolean
   _class?: Ref<Class<Doc>>
   skipClasses?: Array<Ref<Class<Doc>>>
+  // Keep unread items visible when the section is collapsed.
+  showUnreadWhenCollapsed?: boolean
 }
 
 export interface ChatNavItemModel {
   id: Ref<Doc>
   object: Doc
   title: string
+  // Shown after the title in a secondary color, e.g. the owner of a discussion.
+  secondaryTitle?: string
   description?: string
   icon: Asset | AnySvelteComponent | undefined
   iconSize?: IconSize
