@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type ObjectDiscussion } from '@hcengineering/chunter'
+  import { type Discussion } from '@hcengineering/chunter'
   import { type Ref } from '@hcengineering/core'
   import { InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
   import { createQuery } from '@hcengineering/presentation'
@@ -23,39 +23,39 @@
 
   import chunter from '../../plugin'
   import Channel from '../Channel.svelte'
-  import { isObjectDiscussionParticipant } from '../../utils'
-  import ObjectDiscussionHeader from './ObjectDiscussionHeader.svelte'
-  import ObjectDiscussionJoin from './ObjectDiscussionJoin.svelte'
+  import { isDiscussionParticipant } from '../../utils'
+  import DiscussionHeader from './DiscussionHeader.svelte'
+  import DiscussionJoin from './DiscussionJoin.svelte'
 
-  export let discussionId: Ref<ObjectDiscussion>
+  export let discussionId: Ref<Discussion>
 
   const dispatch = createEventDispatcher()
   const contextByDocStore = InboxNotificationsClientImpl.getClient().contextByDoc
   const query = createQuery()
 
-  let discussion: ObjectDiscussion | undefined = undefined
+  let discussion: Discussion | undefined = undefined
 
-  $: query.query(chunter.class.ObjectDiscussion, { _id: discussionId }, (result) => {
+  $: query.query(chunter.class.Discussion, { _id: discussionId }, (result) => {
     discussion = result[0]
     // The discussion was deleted or became inaccessible.
     if (discussion === undefined) dispatch('close')
   })
 
   // Like channels, messages are hidden until the user joins the discussion.
-  $: joined = discussion !== undefined && isObjectDiscussionParticipant(discussion)
+  $: joined = discussion !== undefined && isDiscussionParticipant(discussion)
   $: context = discussion !== undefined ? $contextByDocStore.get(discussion._id) : undefined
 </script>
 
 {#if discussion !== undefined}
   <Presence object={discussion} />
   <div class="discussion-aside">
-    <ObjectDiscussionHeader {discussion} allowClose on:close />
+    <DiscussionHeader {discussion} allowClose on:close />
     {#if joined}
       {#key discussion._id}
         <Channel object={discussion} {context} syncLocation={false} />
       {/key}
     {:else}
-      <ObjectDiscussionJoin {discussion} />
+      <DiscussionJoin {discussion} />
     {/if}
   </div>
 {/if}

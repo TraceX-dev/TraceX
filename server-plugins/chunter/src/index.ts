@@ -42,7 +42,7 @@ export default plugin(serverChunterId, {
     ChunterNotificationContentProvider: '' as Resource<NotificationContentProvider>,
     ChatMessageTextPresenter: '' as Resource<Presenter>,
     ChatMessageHtmlPresenter: '' as Resource<Presenter>,
-    ObjectDiscussionTextPresenter: '' as Resource<Presenter>,
+    DiscussionTextPresenter: '' as Resource<Presenter>,
     JoinChannelTypeMatch: '' as TypeMatchFunc
   },
   workspaceApi: {

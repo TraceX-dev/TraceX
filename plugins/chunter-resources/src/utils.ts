@@ -26,7 +26,7 @@ import {
   type Channel,
   type ChatMessage,
   type DirectMessage,
-  type ObjectDiscussion,
+  type Discussion,
   type ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
@@ -138,33 +138,33 @@ export async function canDeleteMessage (doc?: ChatMessage): Promise<boolean> {
   return doc.createdBy !== undefined && me.socialIds.includes(doc.createdBy)
 }
 
-export function isObjectDiscussionParticipant (discussion: ObjectDiscussion): boolean {
+export function isDiscussionParticipant (discussion: Discussion): boolean {
   return discussion.members.includes(getCurrentAccount().uuid)
 }
 
-// Mirrors the TxAccessLevel of ObjectDiscussion: guests can only post messages, not create or change discussions.
-export function canCreateObjectDiscussion (): boolean {
+// Mirrors the TxAccessLevel of Discussion: guests can only post messages, not create or change discussions.
+export function canCreateDiscussion (): boolean {
   return hasAccountRole(getCurrentAccount(), AccountRole.User)
 }
 
-export function canManageObjectDiscussion (discussion: ObjectDiscussion): boolean {
+export function canManageDiscussion (discussion: Discussion): boolean {
   const me = getCurrentAccount()
   if (!hasAccountRole(me, AccountRole.User)) return false
-  return hasAccountRole(me, AccountRole.Maintainer) || isObjectDiscussionParticipant(discussion)
+  return hasAccountRole(me, AccountRole.Maintainer) || isDiscussionParticipant(discussion)
 }
 
-export async function joinObjectDiscussion (discussion: ObjectDiscussion): Promise<void> {
+export async function joinDiscussion (discussion: Discussion): Promise<void> {
   const me = getCurrentAccount().uuid
   if (discussion.members.includes(me)) return
   await getClient().update(discussion, { $push: { members: me } })
 }
 
-export async function setObjectDiscussionResolved (discussion: ObjectDiscussion, resolved: boolean): Promise<void> {
+export async function setDiscussionResolved (discussion: Discussion, resolved: boolean): Promise<void> {
   if (discussion.resolved === resolved) return
   await getClient().update(discussion, { resolved })
 }
 
-export async function deleteObjectDiscussion (discussion: ObjectDiscussion): Promise<void> {
+export async function deleteDiscussion (discussion: Discussion): Promise<void> {
   showPopup(MessageBox, {
     label: chunter.string.DeleteDiscussion,
     message: chunter.string.DeleteDiscussionConfirm,
@@ -232,22 +232,22 @@ export async function DirectTitleProvider (
   return await getDmName(client, direct)
 }
 
-export async function objectDiscussionTitleProvider (
+export async function discussionTitleProvider (
   client: Client,
-  id: Ref<ObjectDiscussion>,
-  doc?: ObjectDiscussion
+  id: Ref<Discussion>,
+  doc?: Discussion
 ): Promise<string> {
-  const discussion = doc ?? (await client.findOne(chunter.class.ObjectDiscussion, { _id: id }))
+  const discussion = doc ?? (await client.findOne(chunter.class.Discussion, { _id: id }))
   return discussion?.name ?? ''
 }
 
 // The owner object title, so a discussion can be told apart outside its owner (e.g. in the inbox).
-export async function objectDiscussionIdentifierProvider (
+export async function discussionIdentifierProvider (
   client: Client,
-  id: Ref<ObjectDiscussion>,
-  doc?: ObjectDiscussion
+  id: Ref<Discussion>,
+  doc?: Discussion
 ): Promise<string> {
-  const discussion = doc ?? (await client.findOne(chunter.class.ObjectDiscussion, { _id: id }))
+  const discussion = doc ?? (await client.findOne(chunter.class.Discussion, { _id: id }))
   if (discussion === undefined || !client.getHierarchy().hasClass(discussion.attachedToClass)) return ''
   return (await getDocTitle(client, discussion.attachedTo, discussion.attachedToClass)) ?? ''
 }

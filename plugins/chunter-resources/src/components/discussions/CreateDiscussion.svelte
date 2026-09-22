@@ -48,9 +48,9 @@
   }
 
   async function save (): Promise<void> {
-    const operations = client.apply(undefined, 'chunter.createObjectDiscussion')
+    const operations = client.apply(undefined, 'chunter.createDiscussion')
     const discussionId = await operations.addCollection(
-      chunter.class.ObjectDiscussion,
+      chunter.class.Discussion,
       object.space,
       object._id,
       object._class,
@@ -67,7 +67,7 @@
         chunter.class.ChatMessage,
         object.space,
         discussionId,
-        chunter.class.ObjectDiscussion,
+        chunter.class.Discussion,
         'comments',
         { message: firstMessage, attachments: 0 }
       )

@@ -57,9 +57,9 @@ import WorkbenchTabExtension from './components/WorkbenchTabExtension.svelte'
 import DirectMessageButton from './components/DirectMessageButton.svelte'
 import EmployeePresenter from './components/ChunterEmployeePresenter.svelte'
 import InlineCommentThread from './components/inline-comment/InlineCommentThread.svelte'
-import ObjectDiscussionsSection from './components/discussions/ObjectDiscussionsSection.svelte'
-import ObjectDiscussionAside from './components/discussions/ObjectDiscussionAside.svelte'
-import ObjectDiscussionPanel from './components/discussions/ObjectDiscussionPanel.svelte'
+import DiscussionsSection from './components/discussions/DiscussionsSection.svelte'
+import DiscussionAside from './components/discussions/DiscussionAside.svelte'
+import DiscussionPanel from './components/discussions/DiscussionPanel.svelte'
 
 import {
   chunterSpaceLinkFragmentProvider,
@@ -84,8 +84,8 @@ import {
   getChunterNotificationStore,
   getTitle,
   getUnreadThreadsCount,
-  objectDiscussionIdentifierProvider,
-  objectDiscussionTitleProvider,
+  discussionIdentifierProvider,
+  discussionTitleProvider,
   leaveChannelAction,
   removeChannelAction,
   translateMessage,
@@ -198,9 +198,9 @@ export default async (): Promise<Resources> => ({
     DirectMessageButton,
     EmployeePresenter,
     InlineCommentThread,
-    ObjectDiscussionsSection,
-    ObjectDiscussionAside,
-    ObjectDiscussionPanel
+    DiscussionsSection,
+    DiscussionAside,
+    DiscussionPanel
   },
   activity: {
     ChannelCreatedMessage,
@@ -215,8 +215,8 @@ export default async (): Promise<Resources> => ({
     DirectTitleProvider,
     ChannelTitleProvider,
     DmIdentifierProvider: dmIdentifierProvider,
-    ObjectDiscussionTitleProvider: objectDiscussionTitleProvider,
-    ObjectDiscussionIdentifierProvider: objectDiscussionIdentifierProvider,
+    DiscussionTitleProvider: discussionTitleProvider,
+    DiscussionIdentifierProvider: discussionIdentifierProvider,
     CanDeleteMessage: canDeleteMessage,
     CanCopyMessageLink: canCopyMessageLink,
     GetChunterSpaceLinkFragment: chunterSpaceLinkFragmentProvider,
