@@ -232,11 +232,7 @@ export async function DirectTitleProvider (
   return await getDmName(client, direct)
 }
 
-export async function discussionTitleProvider (
-  client: Client,
-  id: Ref<Discussion>,
-  doc?: Discussion
-): Promise<string> {
+export async function discussionTitleProvider (client: Client, id: Ref<Discussion>, doc?: Discussion): Promise<string> {
   const discussion = doc ?? (await client.findOne(chunter.class.Discussion, { _id: id }))
   return discussion?.name ?? ''
 }
