@@ -52,8 +52,8 @@ export function createModel (builder: Builder): void {
     presenter: serverChunter.function.ChannelTextPresenter
   })
 
-  builder.mixin(chunter.class.ObjectDiscussion, core.class.Class, serverNotification.mixin.TextPresenter, {
-    presenter: serverChunter.function.ObjectDiscussionTextPresenter
+  builder.mixin(chunter.class.Discussion, core.class.Class, serverNotification.mixin.TextPresenter, {
+    presenter: serverChunter.function.DiscussionTextPresenter
   })
 
   builder.mixin(chunter.class.ChatMessage, core.class.Class, serverNotification.mixin.TextPresenter, {

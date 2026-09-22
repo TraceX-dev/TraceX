@@ -38,7 +38,7 @@ import type {
   ChunterSpace,
   DirectMessage,
   ObjectChatPanel,
-  ObjectDiscussion,
+  Discussion,
   ThreadMessage
 } from '@hcengineering/chunter'
 import {
@@ -86,9 +86,9 @@ export class TChannel extends TChunterSpace implements Channel {
     topic?: string
 }
 
-@Model(chunter.class.ObjectDiscussion, core.class.AttachedDoc, DOMAIN_CHUNTER)
+@Model(chunter.class.Discussion, core.class.AttachedDoc, DOMAIN_CHUNTER)
 @UX(chunter.string.Discussion, chunter.icon.Thread, undefined, undefined, undefined, chunter.string.Discussions)
-export class TObjectDiscussion extends TAttachedDoc implements ObjectDiscussion {
+export class TDiscussion extends TAttachedDoc implements Discussion {
   @Prop(TypeString(), chunter.string.Topic)
   @Index(IndexKind.FullText)
     name!: string

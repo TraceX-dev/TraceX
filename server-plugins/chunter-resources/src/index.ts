@@ -20,7 +20,7 @@ import chunter, {
   ChatMessage,
   chunterId,
   ChunterSpace,
-  type ObjectDiscussion,
+  type Discussion,
   ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { Employee, Person } from '@hcengineering/contact'
@@ -110,8 +110,8 @@ export async function channelTextPresenter (doc: Doc): Promise<string> {
 }
 
 // Used as the notification title for messages posted in a discussion.
-export async function ObjectDiscussionTextPresenter (doc: Doc): Promise<string> {
-  return (doc as ObjectDiscussion).name
+export async function DiscussionTextPresenter (doc: Doc): Promise<string> {
+  return (doc as Discussion).name
 }
 
 export async function ChatMessageTextPresenter (doc: ChatMessage): Promise<string> {
@@ -573,7 +573,7 @@ export default async () => ({
     ChannelTextPresenter: channelTextPresenter,
     ChunterNotificationContentProvider: getChunterNotificationContent,
     ChatMessageTextPresenter,
-    ObjectDiscussionTextPresenter,
+    DiscussionTextPresenter,
     ChatMessageHtmlPresenter,
     JoinChannelTypeMatch
   },

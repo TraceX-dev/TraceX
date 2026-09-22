@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type ChatMessage, type ObjectDiscussion } from '@hcengineering/chunter'
+  import { type ChatMessage, type Discussion } from '@hcengineering/chunter'
   import contact, { type Employee, getName } from '@hcengineering/contact'
   import { CombineAvatars, employeeRefByAccountUuidStore, getPersonByPersonId } from '@hcengineering/contact-resources'
   import { notEmpty, type Ref, SortingOrder } from '@hcengineering/core'
@@ -30,9 +30,9 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { isObjectDiscussionParticipant } from '../../utils'
+  import { isDiscussionParticipant } from '../../utils'
 
-  export let discussion: ObjectDiscussion
+  export let discussion: Discussion
 
   const dispatch = createEventDispatcher()
   const client = getClient()
@@ -51,7 +51,7 @@
     .filter(notEmpty)
 
   // Messages are readable only after joining, so non-participants get no preview.
-  $: joined = isObjectDiscussionParticipant(discussion)
+  $: joined = isDiscussionParticipant(discussion)
   $: if (joined) {
     lastMessageQuery.query(
       chunter.class.ChatMessage,
