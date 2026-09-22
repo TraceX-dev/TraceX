@@ -18,7 +18,7 @@
   import { getCurrentEmployee } from '@hcengineering/contact'
   import { onMount } from 'svelte'
 
-  import { updatePresence, deletePresence } from '../presence'
+  import { canSendPulse, updatePresence, deletePresence } from '../presence'
 
   export let object: Doc
   export let presenceId: string | undefined = undefined
@@ -48,6 +48,8 @@
   })
 
   onMount(() => {
+    // Anonymous and read-only guests do not send presence transactions
+    if (!canSendPulse()) return
     void doUpdatePresence()
     const interval = setInterval(doUpdatePresence, presenceUpdateSeconds * 1000)
     return () => {
