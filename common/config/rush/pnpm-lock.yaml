@@ -24152,6 +24152,9 @@ importers:
       '@hcengineering/products':
         specifier: workspace:^0.7.0
         version: link:../products
+      '@hcengineering/setting':
+        specifier: workspace:^0.7.0
+        version: link:../setting
       '@hcengineering/tags':
         specifier: workspace:^0.7.0
         version: link:../tags
