@@ -25,6 +25,13 @@ import { transformImage } from './utils/sharp'
 import { SingleFlight } from './singleflight'
 import { OctetStreamProvider } from './providers/octet'
 
+// Blobs under fixed keys that are replaced in place, so they must not be cached as immutable.
+const mutableBlobNames = new Set(['logo'])
+
+export function isMutableBlob (name: string): boolean {
+  return mutableBlobNames.has(name)
+}
+
 export interface ThumbnailParams {
   fit: 'cover' | 'contain'
   format: 'webp' | 'avif' | 'jpeg' | 'png'
@@ -96,12 +103,15 @@ class PreviewServiceImpl implements PreviewService {
     name: string,
     params: ThumbnailParams
   ): Promise<PreviewFile> {
-    const imageKey = this.imageKey(workspace, name)
-    const thumbKey = this.thumbnailKey(workspace, name, params)
+    // Mutable blobs key their cache by etag; others skip the extra stat.
+    const knownStat = isMutableBlob(name) ? await this.statBlob(ctx, workspace, name) : undefined
+    const version = knownStat?.etag
+    const imageKey = this.imageKey(workspace, name, version)
+    const thumbKey = this.thumbnailKey(workspace, name, params, version)
 
     return await this.single.execute(thumbKey, () => {
       return withCache(ctx, this.cache, thumbKey, async () => {
-        const stat = await this.statBlob(ctx, workspace, name)
+        const stat = knownStat ?? (await this.statBlob(ctx, workspace, name))
         const provider = this.findProvider(ctx, stat.contentType)
 
         const image = await withCache(ctx, this.cache, imageKey, () => {
@@ -120,7 +130,8 @@ class PreviewServiceImpl implements PreviewService {
 
         return {
           filePath: thumbPath,
-          mimeType: contentType
+          mimeType: contentType,
+          etag: stat.etag
         }
       })
     })
@@ -147,11 +158,18 @@ class PreviewServiceImpl implements PreviewService {
     throw new BadRequestError(`Unsupported content type: ${contentType}`)
   }
 
-  private imageKey (workspaceId: string, name: string): string {
-    return `image/${workspaceId}/${name}`
+  // No suffix for ordinary blobs keeps existing cache keys valid; sanitized for file paths.
+  private versionSuffix (version: string | undefined): string {
+    return version === undefined ? '' : `-${version.replace(/[^a-zA-Z0-9]/g, '')}`
   }
 
-  private thumbnailKey (workspaceId: string, name: string, params: ThumbnailParams): string {
-    return `thumbnail/${workspaceId}/${name}-${params.width}-${params.height}-${params.format}`
+  private imageKey (workspaceId: string, name: string, version?: string): string {
+    return `image/${workspaceId}/${name}${this.versionSuffix(version)}`
+  }
+
+  private thumbnailKey (workspaceId: string, name: string, params: ThumbnailParams, version?: string): string {
+    return `thumbnail/${workspaceId}/${name}-${params.width}-${params.height}-${params.format}${this.versionSuffix(
+      version
+    )}`
   }
 }

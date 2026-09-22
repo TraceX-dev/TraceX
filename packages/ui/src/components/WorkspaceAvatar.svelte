@@ -12,6 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 -->
+<script lang="ts" context="module">
+  // Logos confirmed missing (404), so reopening the switcher doesn't refetch them until reload.
+  const missingUrls = new Set<string>()
+
+  // <img> errors carry no status, so ask the server whether the logo is really missing
+  // rather than remembering transient failures for the whole session.
+  async function rememberIfMissing (url: string): Promise<void> {
+    try {
+      const res = await fetch(url, { method: 'HEAD' })
+      if (res.status === 404) {
+        missingUrls.add(url)
+      }
+    } catch {
+      // Network error: transient, don't remember.
+    }
+  }
+</script>
+
 <script lang="ts">
   import { themeStore } from '@hcengineering/theme'
 
@@ -20,6 +38,7 @@
 
   export let colorSeed: string
   export let displayName: string
+  export let avatarUrl: string | null | undefined = undefined
   export let size: 'small' | 'medium' = 'small'
   export let hasUnread: boolean = false
   // Color of the surface the avatar sits on, so the unread ring stays
@@ -27,12 +46,31 @@
   export let ringColor: string = 'var(--theme-popup-color)'
 
   $: color = getPlatformColorForText(colorSeed, $themeStore.dark)
+
+  let failedUrl: string | null | undefined
+
+  $: imageUrl =
+    avatarUrl != null && avatarUrl !== '' && avatarUrl !== failedUrl && !missingUrls.has(avatarUrl)
+      ? avatarUrl
+      : undefined
 </script>
 
 <div class="workspaceAvatar-wrap {size}">
-  <div class="workspaceAvatar-circle" style:background-color={color}>
-    {getWorkspaceInitial(displayName)}
-  </div>
+  {#if imageUrl !== undefined}
+    <img
+      class="workspaceAvatar-circle"
+      src={imageUrl}
+      alt={displayName}
+      on:error={() => {
+        failedUrl = imageUrl
+        if (imageUrl !== undefined) void rememberIfMissing(imageUrl)
+      }}
+    />
+  {:else}
+    <div class="workspaceAvatar-circle" style:background-color={color}>
+      {getWorkspaceInitial(displayName)}
+    </div>
+  {/if}
   {#if hasUnread}
     <div class="workspaceAvatar-unread" style:box-shadow={`0 0 0 0.125rem ${ringColor}`} />
   {/if}
@@ -65,6 +103,7 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: #fff;
+    object-fit: cover;
   }
   .workspaceAvatar-unread {
     position: absolute;

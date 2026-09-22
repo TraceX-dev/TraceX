@@ -18,6 +18,8 @@ import { type MeasureContext, type WorkspaceUuid } from '@hcengineering/core'
 export interface PreviewFile {
   filePath: string
   mimeType: string
+  // Source blob etag, served as ETag for revalidation.
+  etag?: string
 }
 
 export interface ThumbnailPreviewMetadata {

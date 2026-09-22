@@ -48,7 +48,12 @@ export function getSrcSet (_blob: Ref<Blob>, width?: number, height?: number): s
   return blobToSrcSet(_blob, width, height)
 }
 
-function blobToSrcSet (blob: Ref<Blob>, width: number | undefined, height: number | undefined): string {
+function blobToSrcSet (
+  blob: Ref<Blob>,
+  width: number | undefined,
+  height: number | undefined,
+  version?: string | number
+): string {
   if (blob.includes('://')) {
     return ''
   }
@@ -60,11 +65,11 @@ function blobToSrcSet (blob: Ref<Blob>, width: number | undefined, height: numbe
   if (previewUrl !== '') {
     if (width !== undefined) {
       return (
-        getImagePreviewUrl(workspace, name, width, height ?? width, 1) +
+        withBlobVersion(getImagePreviewUrl(workspace, name, width, height ?? width, 1), version) +
         ' 1x , ' +
-        getImagePreviewUrl(workspace, name, width, height ?? width, 2) +
+        withBlobVersion(getImagePreviewUrl(workspace, name, width, height ?? width, 2), version) +
         ' 2x, ' +
-        getImagePreviewUrl(workspace, name, width, height ?? width, 3) +
+        withBlobVersion(getImagePreviewUrl(workspace, name, width, height ?? width, 3), version) +
         ' 3x'
       )
     } else {
@@ -78,11 +83,11 @@ function blobToSrcSet (blob: Ref<Blob>, width: number | undefined, height: numbe
   let result = ''
   if (width !== undefined) {
     result +=
-      formatImageSize(url, width, height ?? width, 1) +
+      withBlobVersion(formatImageSize(url, width, height ?? width, 1), version) +
       ' 1x , ' +
-      formatImageSize(url, width, height ?? width, 2) +
+      withBlobVersion(formatImageSize(url, width, height ?? width, 2), version) +
       ' 2x, ' +
-      formatImageSize(url, width, height ?? width, 3) +
+      withBlobVersion(formatImageSize(url, width, height ?? width, 3), version) +
       ' 3x'
   }
 
@@ -136,10 +141,23 @@ function formatImageSize (url: string, width: number, height: number, dpr: numbe
 }
 
 /***
+ * `version` busts the cache for blobs replaced in place (the workspace logo).
  * @deprecated, please use Blob direct operations.
  */
-export function getFileSrcSet (_blob: Ref<Blob>, width?: number, height?: number): string {
-  return blobToSrcSet(_blob, width, height)
+export function getFileSrcSet (_blob: Ref<Blob>, width?: number, height?: number, version?: string | number): string {
+  return blobToSrcSet(_blob, width, height, version)
+}
+
+/**
+ * Appends a cache-busting `v` query parameter to a blob URL.
+ * @public
+ */
+export function withBlobVersion (url: string, version: string | number | undefined): string {
+  if (version === undefined || version === '' || url === '') {
+    return url
+  }
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}v=${encodeURIComponent(String(version))}`
 }
 
 /**
