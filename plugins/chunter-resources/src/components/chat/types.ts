@@ -43,7 +43,7 @@ export interface ChatNavItemModel {
   id: Ref<Doc>
   object: Doc
   title: string
-  // Shown after the title in a secondary color, e.g. the owner of a discussion.
+  // Shown after the title in a secondary color, e.g. the parent object of a discussion.
   secondaryTitle?: string
   description?: string
   icon: Asset | AnySvelteComponent | undefined
