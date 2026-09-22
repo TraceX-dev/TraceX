@@ -17,6 +17,7 @@ import { type PersonId, type Ref, type Space } from '@hcengineering/core'
 import { type IntlString } from '@hcengineering/platform'
 import { createQuery, getClient } from '@hcengineering/presentation'
 import pulse, { type TypingIndicator } from '@hcengineering/pulse'
+import { canSendPulse } from './presence'
 
 export interface TypingInfo {
   socialId: PersonId
@@ -81,6 +82,7 @@ export async function setTyping (
   space: Ref<Space>,
   status?: IntlString
 ): Promise<void> {
+  if (!canSendPulse()) return
   try {
     const client = getClient()
     const id = typingDocId(objectId, socialId)
@@ -96,6 +98,7 @@ export async function setTyping (
 }
 
 export async function clearTyping (socialId: PersonId, objectId: string): Promise<void> {
+  if (!canSendPulse()) return
   try {
     const client = getClient()
     const id = typingDocId(objectId, socialId)

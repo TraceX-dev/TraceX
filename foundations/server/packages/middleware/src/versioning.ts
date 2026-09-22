@@ -139,7 +139,7 @@ export class VersioningMiddleware extends BaseMiddleware implements Middleware {
       tx.attributes.version = 1
       tx.attributes.baseId = tx.objectId
       if (versioningEnabled) {
-        tx.attributes.isEffective = true
+        tx.attributes.isEffective = false
       } else {
         delete tx.attributes.isEffective
         delete tx.attributes.versionCreationDisabled

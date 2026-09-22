@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,7 +18,17 @@
   import { isArchivingMode, systemAccountUuid, WorkspaceInfoWithStatus } from '@hcengineering/core'
   import login from '@hcengineering/login'
   import { getMetadata, getResource } from '@hcengineering/platform'
-  import presentation, { createQuery, decodeTokenPayload, hasResource, isAdminUser } from '@hcengineering/presentation'
+  import presentation, {
+    createQuery,
+    decodeTokenPayload,
+    getFileUrl,
+    getWorkspaceAvatarUrl,
+    hasResource,
+    isAdminUser,
+    withBlobVersion,
+    workspaceLogoBlobId
+  } from '@hcengineering/presentation'
+  import setting, { type WorkspaceSetting } from '@hcengineering/setting'
   import {
     closePopup,
     Component,
@@ -72,6 +83,28 @@
   })
 
   const hasRating = hasResource(ratingPlugin.component.RatingRing)
+
+  // The current workspace's logo URL is versioned by modifiedOn, so a change shows up at once
+  // instead of after the preview cache window; other workspaces rely on revalidation.
+  const wsSettingQuery = createQuery()
+  let currentWsSetting: WorkspaceSetting | undefined
+  wsSettingQuery.query(setting.class.WorkspaceSetting, { _id: setting.ids.WorkspaceSetting }, (res) => {
+    currentWsSetting = res[0]
+  })
+
+  // `_setting` is passed only so the markup re-evaluates when the setting changes.
+  function getAvatarUrl (
+    ws: WorkspaceInfoWithStatus,
+    isCurrentWs: boolean,
+    _setting: WorkspaceSetting | undefined
+  ): string | undefined {
+    if (!isCurrentWs) return getWorkspaceAvatarUrl(ws.uuid)
+    const icon = currentWsSetting?.icon
+    if (icon == null) return undefined
+    // A legacy icon (not yet backfilled to `logo`) is only reachable by its own blob id.
+    const url = icon === workspaceLogoBlobId ? getWorkspaceAvatarUrl(ws.uuid) : getFileUrl(icon)
+    return withBlobVersion(url, currentWsSetting?.modifiedOn)
+  }
 
   // Only show the "there's more below" fade when the list is actually
   // scrolled somewhere above the bottom — not when everything fits, and not
@@ -282,6 +315,7 @@
                   <WorkspaceAvatar
                     colorSeed={ws.uuid}
                     displayName={wsName}
+                    avatarUrl={getAvatarUrl(ws, isCurrentWs, currentWsSetting)}
                     size={'small'}
                     hasUnread={ws.hasUnread === true && !isCurrentWs}
                     ringColor={'var(--theme-popup-color)'}

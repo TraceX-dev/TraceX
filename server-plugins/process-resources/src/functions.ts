@@ -24,6 +24,7 @@ import core, {
   Data,
   Doc,
   DocumentUpdate,
+  type DocumentQuery,
   fillDefaults,
   findProperty,
   generateId,
@@ -164,6 +165,22 @@ export async function UpdateContext (
   }
 }
 
+async function findProcessToDos (
+  control: ProcessControl,
+  execution: Execution,
+  id: string,
+  pendingOnly: boolean = false
+): Promise<ProcessToDo[]> {
+  const query: DocumentQuery<ProcessToDo> = { execution: execution._id }
+  if (pendingOnly) query.doneOn = null
+  // Top-level $or is not supported by the storage query API.
+  const matches = await Promise.all([
+    control.client.findAll(process.class.ProcessToDo, { ...query, _id: id as Ref<ProcessToDo> }),
+    control.client.findAll(process.class.ProcessToDo, { ...query, group: id })
+  ])
+  return Array.from(new Map(matches.flat().map((todo) => [todo._id, todo])).values())
+}
+
 export async function CheckToDoDone (
   control: ProcessControl,
   execution: Execution,
@@ -171,14 +188,16 @@ export async function CheckToDoDone (
   context: Record<string, any>
 ): Promise<boolean> {
   if (params._id === undefined) return false
-  if (context.todo !== undefined) {
-    const matched = context.todo._id === params._id
-    return matched && checkResult(execution, params.result)
-  } else {
-    const todo = await control.client.findOne(process.class.ProcessToDo, { _id: params._id })
-    if (todo === undefined) return false
-    return todo.doneOn !== null && checkResult(execution, params.result)
-  }
+  const eventTodo = context.todo as ProcessToDo | undefined
+  if (eventTodo !== undefined && eventTodo._id !== params._id && eventTodo.group !== params._id) return false
+  if (eventTodo !== undefined && eventTodo.group === undefined) return checkResult(execution, params.result)
+  const todos = await findProcessToDos(control, execution, params._id)
+  if (todos.length === 0) return false
+  const completed =
+    todos[0].completionMode === 'any'
+      ? todos.some((todo) => todo.doneOn != null)
+      : todos.every((todo) => todo.doneOn != null)
+  return completed && (todos[0].completionMode === 'all' || checkResult(execution, params.result))
 }
 
 export async function CheckToDoCancelled (
@@ -189,7 +208,7 @@ export async function CheckToDoCancelled (
 ): Promise<boolean> {
   if (params._id === undefined) return false
   if (context.todo !== undefined) {
-    return context.todo._id === params._id
+    return context.todo._id === params._id || context.todo.group === params._id
   } else {
     const todo = await control.client.findOne(process.class.ProcessToDo, { _id: params._id })
     if (todo === undefined) return false
@@ -1145,14 +1164,19 @@ export async function CreateToDo (
     }
   }
   if (params.user === undefined || params.title === undefined) return { txes: [], rollback: [], context: null }
-  const res: Tx[] = []
+  if (Array.isArray(params.user) && (params.user.length === 0 || params.user.some(isEmpty))) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'user' })
+  }
+  const res: TxCreateDoc<ProcessToDo>[] = []
   const rollback: Tx[] = []
   const id = generateId<ProcessToDo>()
   const _process = control.client.getModel().findObject(execution.process)
   if (_process === undefined) return { txes: [], rollback: [], context: null }
   const field = resolveAttributeId(_process, (params as any).field)
-  const todoResults = results ?? []
-  if (params.askRequired === true) {
+  const completionMode = params.completionMode === 'all' ? 'all' : 'any'
+  const askRequired = completionMode !== 'all' && params.askRequired === true
+  const todoResults = completionMode === 'all' ? [] : [...(results ?? [])]
+  if (askRequired) {
     const h = control.client.getHierarchy()
     const card = control.cache.get(execution.card)
     if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
@@ -1174,38 +1198,44 @@ export async function CreateToDo (
     }
   }
 
-  const tx = control.client.txFactory.createTxCreateDoc(
-    process.class.ProcessToDo,
-    time.space.ToDos,
-    {
-      attachedTo: execution.card,
-      attachedToClass: cardPlugin.class.Card,
-      collection: 'todos',
-      workslots: 0,
-      execution: execution._id,
-      title: params.title,
-      user: params.user,
-      description: params.description ?? '',
-      dueDate: params.dueDate,
-      priority: params.priority ?? ToDoPriority.NoPriority,
-      visibility: 'public',
-      doneOn: null,
-      rank: '',
-      withRollback: params.withRollback ?? false,
-      results: todoResults,
-      field,
-      askRequired: params.askRequired
-    },
-    id
-  )
-  res.push(tx)
+  const users = [...new Set<ProcessToDo['user']>(Array.isArray(params.user) ? params.user : [params.user])]
+  for (const [index, user] of users.entries()) {
+    const todoId = index === 0 ? id : generateId<ProcessToDo>()
+    const tx = control.client.txFactory.createTxCreateDoc(
+      process.class.ProcessToDo,
+      time.space.ToDos,
+      {
+        attachedTo: execution.card,
+        attachedToClass: cardPlugin.class.Card,
+        collection: 'todos',
+        workslots: 0,
+        execution: execution._id,
+        title: params.title,
+        user,
+        group: id,
+        completionMode,
+        description: params.description ?? '',
+        dueDate: params.dueDate,
+        priority: params.priority ?? ToDoPriority.NoPriority,
+        visibility: 'public',
+        doneOn: null,
+        rank: '',
+        withRollback: params.withRollback ?? false,
+        results: todoResults,
+        field,
+        askRequired
+      },
+      todoId
+    )
+    res.push(tx)
+  }
   return {
     txes: res,
     rollback,
     context: [
       {
         _id: id,
-        value: TxProcessor.createDoc2Doc(tx, true)
+        value: TxProcessor.createDoc2Doc(res[0], true)
       }
     ]
   }
@@ -1216,21 +1246,23 @@ export async function CancelToDo (
   execution: Execution,
   control: ProcessControl
 ): Promise<ExecuteResult> {
-  if (params._id === undefined) throw processError(process.error.RequiredParamsNotProvided, { params: '_id' })
-  const todo = await control.client.findOne(process.class.ProcessToDo, { _id: params._id as any })
-  if (todo === undefined) return { txes: [], rollback: [], context: null }
-  if (todo.doneOn !== null) return { txes: [], rollback: [], context: null }
-  const res: Tx[] = [control.client.txFactory.createTxRemoveDoc(todo._class, todo.space, todo._id)]
-  const rollback: Tx[] = [
-    control.client.txFactory.createTxCreateDoc(
-      todo._class,
-      todo.space,
-      { ...todo },
-      todo._id,
-      todo.modifiedOn,
-      todo.modifiedBy
+  if (typeof params._id !== 'string') throw processError(process.error.RequiredParamsNotProvided, { params: '_id' })
+  const todos = await findProcessToDos(control, execution, params._id, true)
+  const res: Tx[] = []
+  const rollback: Tx[] = []
+  for (const todo of todos) {
+    res.push(control.client.txFactory.createTxRemoveDoc(todo._class, todo.space, todo._id))
+    rollback.push(
+      control.client.txFactory.createTxCreateDoc(
+        todo._class,
+        todo.space,
+        { ...todo },
+        todo._id,
+        todo.modifiedOn,
+        todo.modifiedBy
+      )
     )
-  ]
+  }
   return {
     txes: res,
     rollback,

@@ -156,6 +156,8 @@ export interface ProcessToDo extends ToDo {
   results?: UserResult[]
   field?: string
   askRequired?: boolean
+  group?: string
+  completionMode?: 'any' | 'all'
 }
 
 export interface ApproveRequest extends ProcessToDo {

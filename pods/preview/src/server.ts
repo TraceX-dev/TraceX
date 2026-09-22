@@ -30,13 +30,15 @@ import { pipeline } from 'stream/promises'
 import { createCache } from './cache'
 import { type Config } from './config'
 import { type RequestWithAuth, errorHandler, keepAlive } from './middleware'
-import { createPreviewService, ThumbnailParams } from './service'
+import { createPreviewService, isMutableBlob, ThumbnailParams } from './service'
 import { TemporaryDir } from './tempdir'
 
 const KEEP_ALIVE_TIMEOUT = 5 // seconds
 const KEEP_ALIVE_MAX = 1000
 
 const cacheControl = 'public, max-age=31536000, immutable'
+// For blobs replaced in place (the workspace logo): revalidate by ETag after a short window.
+const cacheControlMutable = 'public, max-age=60, must-revalidate'
 const cacheControlNoCache = 'public, no-store, no-cache, must-revalidate, max-age=0'
 
 type AsyncRequestHandler = (ctx: MeasureContext, req: RequestWithAuth, res: Response) => Promise<void>
@@ -114,6 +116,13 @@ function parseThumbnailParams (accept: string, transform: string): ThumbnailPara
   })
 
   return params
+}
+
+function matchesEtag (ifNoneMatch: string | undefined, etag: string): boolean {
+  if (ifNoneMatch === undefined) {
+    return false
+  }
+  return ifNoneMatch.split(',').some((it) => it.trim().replace(/^W\//, '') === etag)
 }
 
 async function writeToResponse (
@@ -194,9 +203,21 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
       const transform = req.params.transform
       const params = getThumbnailParams(accept, transform)
 
-      const { mimeType: contentType, filePath } = await service.thumbnail(ctx, workspace, name, params)
+      const { mimeType: contentType, filePath, etag } = await service.thumbnail(ctx, workspace, name, params)
+      const blobCacheControl = isMutableBlob(name) ? cacheControlMutable : cacheControl
+
+      if (etag !== undefined) {
+        const tag = etag.startsWith('"') ? etag : `"${etag}"`
+        res.setHeader('ETag', tag)
+        if (matchesEtag(req.headers['if-none-match'], tag)) {
+          res.setHeader('Cache-Control', blobCacheControl)
+          res.status(304).end()
+          return
+        }
+      }
+
       const stream = createReadStream(filePath)
-      await writeToResponse(ctx, stream, res, { contentType, cacheControl })
+      await writeToResponse(ctx, stream, res, { contentType, cacheControl: blobCacheControl })
     })
   )
 

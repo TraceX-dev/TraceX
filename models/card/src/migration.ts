@@ -714,7 +714,7 @@ async function fillEffectiveVersioning (client: MigrationClient): Promise<void> 
           DOMAIN_CARD,
           { _id: doc._id },
           {
-            isEffective: (doc.version ?? 1) === 1
+            isEffective: false
           }
         )
       }

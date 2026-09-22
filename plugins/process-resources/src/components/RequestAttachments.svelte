@@ -45,7 +45,9 @@
     void initialize().catch(async (error: unknown) => {
       await setPlatformStatus(unknownError(error))
     })
-    return () => { disposed = true }
+    return () => {
+      disposed = true
+    }
   })
 
   async function initialize (): Promise<void> {
@@ -111,7 +113,9 @@
         {query}
         {attachments}
         readonly={saving}
-        on:loading={(event) => { uploading = event.detail }}
+        on:loading={(event) => {
+          uploading = event.detail
+        }}
       />
     {:else}
       <Spinner />
