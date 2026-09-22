@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Intabia Fusion.
+// Copyright © 2026 TraceX SAS.
 //
 import {
   closePanel,
@@ -21,7 +22,7 @@ import {
 } from '@hcengineering/chunter'
 import { type DocNotifyContext, notificationId } from '@hcengineering/notification'
 import workbench, { type Widget, workbenchId, type LocationData } from '@hcengineering/workbench'
-import { classIcon, getObjectLinkId, parseLinkId } from '@hcengineering/view-resources'
+import { classIcon, getDocTitle, getObjectLinkId, parseLinkId } from '@hcengineering/view-resources'
 import presentation, { getClient } from '@hcengineering/presentation'
 import view, { encodeObjectURI, decodeObjectURI } from '@hcengineering/view'
 import { createWidgetTab, isElementFromSidebar, sidebarStore } from '@hcengineering/workbench-resources'
@@ -501,13 +502,16 @@ export async function locationDataResolver (loc: Location): Promise<LocationData
   const iconMixin = hierarchy.classHierarchyMixin(_class, view.mixin.ObjectIcon)
   const isDirect = hierarchy.isDerived(_class, chunter.class.DirectMessage)
   const isChunterSpace = hierarchy.isDerived(_class, chunter.class.ChunterSpace)
-  const name = (await getChannelName(_id, _class, object)) ?? (await translate(titleIntl, {}))
+  const isDiscussion = hierarchy.isDerived(_class, chunter.class.Discussion)
+  const name =
+    (isDiscussion ? await getDocTitle(client, _id, _class, object) : await getChannelName(_id, _class, object)) ??
+    (await translate(titleIntl, {}))
 
   return {
     objectId: object._id,
     objectClass: object._class,
     name,
-    icon: chunter.icon.Chunter,
+    icon: isDiscussion ? chunter.icon.Thread : chunter.icon.Chunter,
     iconComponent: isChunterSpace ? iconMixin?.component : undefined,
     iconProps: {
       _id: object._id,

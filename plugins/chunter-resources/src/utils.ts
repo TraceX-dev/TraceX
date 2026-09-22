@@ -331,7 +331,12 @@ export function getChunterNotificationStore (): Readable<ApplicationNotification
 
       for (const context of contexts) {
         if ((context.lastUpdateTimestamp ?? 0) <= (context.lastViewedTimestamp ?? 0)) continue
-        if (!hierarchy.isDerived(context.objectClass, chunter.class.ChunterSpace)) continue
+        if (
+          !hierarchy.isDerived(context.objectClass, chunter.class.ChunterSpace) &&
+          !hierarchy.isDerived(context.objectClass, chunter.class.Discussion)
+        ) {
+          continue
+        }
 
         const notifications = notificationsByContext.get(context._id) ?? []
         const relevantNotifications = notifications.filter((notification) => {

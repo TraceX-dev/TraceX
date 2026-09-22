@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -127,8 +128,8 @@
   {isSelected}
   iconProps={{ ...item.iconProps, value: item.object }}
   {count}
-  title={item.title}
-  description={item.description}
+  title={$$slots.default === undefined ? item.title : undefined}
+  description={$$slots.default === undefined ? item.description : undefined}
   secondaryNotifyMarker={context === undefined
     ? false
     : (context?.lastViewedTimestamp ?? 0) < (context?.lastUpdateTimestamp ?? 0)}
@@ -137,4 +138,6 @@
   on:click={() => {
     dispatch('select', { object: item.object })
   }}
-/>
+>
+  <slot />
+</NavItem>

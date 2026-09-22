@@ -132,6 +132,8 @@ export function createModel (builder: Builder): void {
     createAccessLevel: AccountRole.Guest
   })
 
+  builder.mixin(chunter.class.Discussion, core.class.Class, activity.mixin.ActivityDoc, {})
+
   builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.User,
     updateAccessLevel: AccountRole.User,

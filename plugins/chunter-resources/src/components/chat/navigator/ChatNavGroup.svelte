@@ -25,6 +25,7 @@
   import chunter from '../../../plugin'
   import { ChatGroup, ChatNavGroupModel } from '../types'
   import ChatNavSection from './ChatNavSection.svelte'
+  import DiscussionsNavSection from './DiscussionsNavSection.svelte'
 
   export let object: Doc | undefined
   export let model: ChatNavGroupModel
@@ -101,7 +102,7 @@
           ...(isSpace ? { space: core.space.Space, archived: false } : {})
         },
         (res) => {
-          objectsByClass = objectsByClass.set(_class, { docs: res, total: res.total })
+          objectsByClass = objectsByClass.set(_class, { docs: res, total: isSpace ? res.total : ctx.length })
         },
         { total: true }
       )
@@ -124,6 +125,10 @@
 
     if (hierarchy.isDerived(object._class, chunter.class.DirectMessage)) {
       return 'direct'
+    }
+
+    if (hierarchy.isDerived(object._class, chunter.class.Discussion)) {
+      return 'discussions'
     }
 
     return 'activity'
@@ -209,27 +214,46 @@
       return model.getActionsFn(contexts.filter(({ objectClass }) => objectClass === _class))
     }
   }
+
+  function showMore (section: Section): void {
+    if (section._class === undefined) return
+
+    const query = objectsQueryByClass.get(section._class)
+    if (query !== undefined) {
+      query.limit += 50
+      loadObjects(contexts)
+    }
+  }
 </script>
 
 {#each sections as section (section.id)}
-  <ChatNavSection
-    id={section.id}
-    objects={section.objects}
-    {contexts}
-    objectId={object?._id}
-    header={section.label}
-    actions={getSectionActions(section, contexts)}
-    sortFn={model.sortFn}
-    itemsCount={section.count}
-    on:show-more={() => {
-      if (section._class !== undefined) {
-        const query = objectsQueryByClass.get(section._class)
-        if (query !== undefined) {
-          query.limit += 50
-          loadObjects(contexts)
-        }
-      }
-    }}
-    on:select
-  />
+  {#if model.id === 'discussions'}
+    <DiscussionsNavSection
+      id={section.id}
+      objects={section.objects}
+      {contexts}
+      selectedObject={object}
+      header={section.label}
+      itemsCount={section.count}
+      on:show-more={() => {
+        showMore(section)
+      }}
+      on:select
+    />
+  {:else}
+    <ChatNavSection
+      id={section.id}
+      objects={section.objects}
+      {contexts}
+      objectId={object?._id}
+      header={section.label}
+      actions={getSectionActions(section, contexts)}
+      sortFn={model.sortFn}
+      itemsCount={section.count}
+      on:show-more={() => {
+        showMore(section)
+      }}
+      on:select
+    />
+  {/if}
 {/each}
