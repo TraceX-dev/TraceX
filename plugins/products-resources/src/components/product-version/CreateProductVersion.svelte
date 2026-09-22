@@ -26,7 +26,13 @@
     copyProjectDocuments,
     deleteProjectDrafts
   } from '@hcengineering/controlled-documents'
-  import { Product, ProductVersion, ProductVersionState } from '@hcengineering/products'
+  import {
+    ChangeControlMode,
+    Product,
+    ProductVersion,
+    ProductVersionState,
+    type ProductsSettings
+  } from '@hcengineering/products'
   import {
     SortingOrder,
     generateId,
@@ -46,7 +52,11 @@
     getRelationCandidatesClass
   } from '@hcengineering/view-resources'
 
-  import { getProductVersionCardAssociation, type ProductVersionCardAssociation } from '../../change-control'
+  import {
+    resolveProductChangeControl,
+    type ProductVersionCardAssociation,
+    type ResolvedChangeControl
+  } from '../../change-control'
   import products from '../../plugin'
 
   type Severity = 'major' | 'minor' | 'patch'
@@ -58,6 +68,7 @@
   const client = getClient()
   const query = createQuery()
   const productQuery = createQuery()
+  const settingsQuery = createQuery()
   const manager = createFocusManager()
 
   const id: Ref<ProductVersion> = generateId()
@@ -67,6 +78,7 @@
 
   let parent: ProductVersion | null | undefined
   let product: Product | undefined
+  let settings: ProductsSettings | undefined
   let severity: Severity = 'minor'
 
   let changeControlCard: Ref<Doc> | undefined
@@ -81,6 +93,10 @@
     object.changeControl = undefined
     changeControlCard = undefined
   }
+
+  settingsQuery.query(products.class.ProductsSettings, {}, (res) => {
+    settings = res[0]
+  })
 
   $: if (space !== undefined) {
     productQuery.query(products.class.Product, { _id: space }, (res) => {
@@ -108,13 +124,9 @@
   )
 
   $: updateSeverity(parent, severity)
-  $: changeControlAssociation = resolveChangeControlAssociation(product)
+  $: changeControl = resolveProductChangeControl(client, product, settings)
+  $: changeControlAssociation = changeControl.association
   $: void updateChangeControlCardOptions(changeControlAssociation)
-
-  function resolveChangeControlAssociation (product: Product | undefined): ProductVersionCardAssociation | undefined {
-    if (product?.changeControlRelation === undefined) return undefined
-    return getProductVersionCardAssociation(client, product.changeControlRelation)
-  }
 
   async function updateChangeControlCardOptions (association: ProductVersionCardAssociation | undefined): Promise<void> {
     const relation = association?.association._id
@@ -170,6 +182,7 @@
 
     const version = {
       ...object,
+      changeControl: changeControl.mode === ChangeControlMode.ControlledDocument ? object.changeControl : undefined,
       parent: parent?._id ?? products.ids.NoParentVersion,
       name: formatProductVersionName(object)
     }
@@ -237,10 +250,13 @@
     }
   }
 
-  function hasChangeControl (): boolean {
-    const changeControlRelation = product?.changeControlRelation
-    if (changeControlRelation === undefined) return object.changeControl !== undefined
-    return changeControlAssociation !== undefined && changeControlCard !== undefined
+  function hasChangeControl (
+    changeControl: ResolvedChangeControl,
+    document: Ref<Document> | undefined,
+    card: Ref<Doc> | undefined
+  ): boolean {
+    if (changeControl.mode === ChangeControlMode.ControlledDocument) return document !== undefined
+    return changeControl.association !== undefined && card !== undefined
   }
 
   $: canSave =
@@ -253,7 +269,7 @@
     object.minor >= 0 &&
     object.patch !== undefined &&
     object.patch >= 0 &&
-    (parent == null || hasChangeControl())
+    (parent == null || hasChangeControl(changeControl, object.changeControl, changeControlCard))
 </script>
 
 <FocusHandler {manager} />
@@ -319,14 +335,13 @@
         ]}
         bind:selected={severity}
       />
-      {#if product?.changeControlRelation === undefined}
+      {#if changeControl.mode === ChangeControlMode.ControlledDocument}
         <ObjectBox
           bind:value={object.changeControl}
           _class={documents.class.Document}
           docQuery={{
             space,
-            // TODO Use more robust category id
-            category: 'documents:category:DOC - CC',
+            category: changeControl.category,
             state: DocumentState.Effective
           }}
           docProps={{
@@ -354,7 +369,7 @@
         />
       {:else}
         <span class="error-color text-sm">
-          <Label label={products.string.ChangeControl} />
+          <Label label={products.string.ChangeControlNotConfigured} />
         </span>
       {/if}
     {/if}

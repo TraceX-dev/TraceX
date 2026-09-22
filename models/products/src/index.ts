@@ -16,13 +16,20 @@
 
 import documents, { TExternalSpace, TProject } from '@hcengineering/model-controlled-documents'
 import type { Document } from '@hcengineering/controlled-documents'
-import type { Product, ProductVersionState, ProductVersion } from '@hcengineering/products'
+import type { DocumentCategory } from '@hcengineering/controlled-documents'
+import type {
+  ChangeControlMode,
+  Product,
+  ProductVersionState,
+  ProductVersion,
+  ProductsSettings
+} from '@hcengineering/products'
 import { productsId } from '@hcengineering/products'
 import activity from '@hcengineering/activity'
 import { type Attachment } from '@hcengineering/attachment'
 import contact from '@hcengineering/contact'
 import chunter from '@hcengineering/chunter'
-import setting, { getRoleAttributeProps } from '@hcengineering/setting'
+import setting, { DOMAIN_SETTING, getRoleAttributeProps } from '@hcengineering/setting'
 import type {
   Type,
   Ref,
@@ -55,7 +62,7 @@ import {
   TypeAccountUuid
 } from '@hcengineering/model'
 import attachment from '@hcengineering/model-attachment'
-import core, { TType } from '@hcengineering/model-core'
+import core, { TConfiguration, TType } from '@hcengineering/model-core'
 import presentation from '@hcengineering/model-presentation'
 import tracker from '@hcengineering/model-tracker'
 import { type Action } from '@hcengineering/view'
@@ -114,9 +121,29 @@ export class TProduct extends TExternalSpace implements Product {
   @Prop(Collection(attachment.class.Attachment), attachment.string.Attachments, { shortLabel: attachment.string.Files })
     attachments?: CollectionSize<Attachment>
 
+  @Prop(TypeString(), products.string.ChangeControlMode)
+  @Hidden()
+    changeControlMode?: ChangeControlMode
+
   @Prop(TypeRef(core.class.Association), products.string.ChangeControl)
   @Hidden()
     changeControlRelation?: Ref<Association>
+}
+
+@Model(products.class.ProductsSettings, core.class.Configuration, DOMAIN_SETTING)
+@UX(products.string.ProductsSettings)
+export class TProductsSettings extends TConfiguration implements ProductsSettings {
+  @Prop(TypeString(), products.string.ChangeControlMode)
+    changeControlMode?: ChangeControlMode
+
+  @Prop(TypeRef(documents.class.DocumentCategory), products.string.ChangeControlCategory)
+    changeControlCategory?: Ref<DocumentCategory>
+
+  @Prop(ArrOf(TypeRef(core.class.Association)), products.string.ChangeControlRelations)
+    changeControlRelations?: Array<Ref<Association>>
+
+  @Prop(TypeRef(core.class.Association), products.string.DefaultChangeControlRelation)
+    defaultChangeControlRelation?: Ref<Association>
 }
 
 @Model(products.class.ProductVersion, documents.class.Project)
@@ -173,7 +200,7 @@ export class TProductTypeData extends TProduct implements RolesAssignment {
 }
 
 function defineProduct (builder: Builder): void {
-  builder.createModel(TProduct, TProductTypeData)
+  builder.createModel(TProduct, TProductTypeData, TProductsSettings)
 
   builder.mixin(products.class.Product, core.class.Class, activity.mixin.ActivityDoc, {})
 
@@ -536,6 +563,22 @@ function defineApplication (builder: Builder): void {
   )
 }
 
+function defineSettings (builder: Builder): void {
+  builder.createDoc(
+    setting.class.WorkspaceSettingCategory,
+    core.space.Model,
+    {
+      name: 'products',
+      label: products.string.ProductsApplication,
+      icon: products.icon.ProductsApplication,
+      component: products.component.ProductsSettings,
+      order: 1160,
+      role: AccountRole.Maintainer
+    },
+    products.setting.Products
+  )
+}
+
 export function createModel (builder: Builder): void {
   defineSpaceType(builder)
   defineProduct(builder)
@@ -543,6 +586,7 @@ export function createModel (builder: Builder): void {
   defineProductVersionState(builder)
   defineRelationMetadata(builder)
   defineApplication(builder)
+  defineSettings(builder)
 
   // Module permissions for guests/anonymous guests.
   // Product should appear after Controlled Docs in the guest modules list and be disabled by default.

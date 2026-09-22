@@ -37,6 +37,7 @@ import ProductVersionsPresenter from './components/product-version/ProductVersio
 import ProductVersionStateEditor from './components/product-version/ProductVersionStateEditor.svelte'
 import ProductVersionStatePresenter from './components/product-version/ProductVersionStatePresenter.svelte'
 import ProductVersionVersionPresenter from './components/product-version/ProductVersionVersionPresenter.svelte'
+import ProductsSettings from './components/settings/ProductsSettings.svelte'
 import {
   canCreateProductVersion,
   canDeleteProductVersion,
@@ -89,7 +90,8 @@ export default async (): Promise<Resources> => ({
     ProductVersionStateEditor,
     ProductVersionStatePresenter,
     ProductVersionVersionPresenter,
-    ChangeControlInlineEditor
+    ChangeControlInlineEditor,
+    ProductsSettings
   },
   completion: {
     ProductQuery: async (client: Client, query: string, filter?: { in?: RelatedDocument[], nin?: RelatedDocument[] }) =>

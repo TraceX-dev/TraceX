@@ -52,6 +52,9 @@ export default mergeIds(productsId, products, {
     CanDeleteProductVersion: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     ProductIdentifierProvider: '' as Resource<<T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<string>>
   },
+  setting: {
+    Products: '' as Ref<Doc>
+  },
   role: {
     QARA: '' as Ref<Role>,
     Manager: '' as Ref<Role>,

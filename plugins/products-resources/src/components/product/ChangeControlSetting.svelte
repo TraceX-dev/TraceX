@@ -14,9 +14,10 @@
 -->
 <script lang="ts">
   import documents from '@hcengineering/controlled-documents'
-  import { type Association, type Ref } from '@hcengineering/core'
-  import { type Product } from '@hcengineering/products'
-  import { getClient } from '@hcengineering/presentation'
+  import { type Association, type DocumentUpdate, type Ref } from '@hcengineering/core'
+  import { ChangeControlMode, type Product, type ProductsSettings } from '@hcengineering/products'
+  import { translate } from '@hcengineering/platform'
+  import { createQuery, getClient } from '@hcengineering/presentation'
   import {
     Button,
     Label,
@@ -24,85 +25,118 @@
     SelectPopup,
     type SelectPopupValueType,
     eventToHTMLElement,
-    showPopup
+    showPopup,
+    themeStore
   } from '@hcengineering/ui'
 
-  import { getProductVersionCardAssociations } from '../../change-control'
+  import {
+    type ResolvedChangeControl,
+    getAllowedChangeControlAssociations,
+    getChangeControlRelationName,
+    resolveProductChangeControl
+  } from '../../change-control'
   import products from '../../plugin'
 
   export let object: Product
   export let readonly: boolean = false
 
+  const WORKSPACE_DEFAULT = 'products:change-control:workspace-default'
   const CONTROLLED_DOCUMENT = 'products:change-control:controlled-document'
+
   const client = getClient()
-  let selectedRelation: Ref<Association> | undefined
+  const settingsQuery = createQuery()
 
-  $: syncRelation(object)
-  $: associations = getProductVersionCardAssociations(client)
-  $: selected = associations.find(({ association }) => association._id === selectedRelation)
+  let settings: ProductsSettings | undefined
+  settingsQuery.query(products.class.ProductsSettings, {}, (res) => {
+    settings = res[0]
+  })
 
-  function syncRelation (product: Product): void {
-    selectedRelation = product.changeControlRelation
+  $: allowed = getAllowedChangeControlAssociations(client, settings)
+  $: resolved = resolveProductChangeControl(client, object, settings)
+  $: workspaceResolved = resolveProductChangeControl(client, undefined, settings)
+  $: selectedId = getSelectedId(object)
+
+  function getSelectedId (product: Product): string {
+    if (product.changeControlMode === undefined) return WORKSPACE_DEFAULT
+    if (product.changeControlMode === ChangeControlMode.ControlledDocument) return CONTROLLED_DOCUMENT
+    return product.changeControlRelation ?? ''
   }
 
-  function relationName (association: Association, direction: 'A' | 'B'): string {
-    return direction === 'B' ? association.nameB : association.nameA
-  }
-
-  async function updateRelation (relation: Ref<Association> | undefined): Promise<void> {
-    if (readonly || relation === selectedRelation) return
-
-    const previous = selectedRelation
-    selectedRelation = relation
-
-    try {
-      if (relation === undefined) {
-        await client.updateDoc(products.class.Product, object.space, object._id, {
-          $unset: { changeControlRelation: true }
-        })
-      } else {
-        await client.updateDoc(products.class.Product, object.space, object._id, { changeControlRelation: relation })
-      }
-    } catch (error) {
-      selectedRelation = previous
-      throw error
+  async function describe (value: ResolvedChangeControl): Promise<string> {
+    if (value.mode === ChangeControlMode.ControlledDocument) {
+      return await translate(documents.string.ControlledDocument, {}, $themeStore.language)
     }
+    if (value.association !== undefined) return getChangeControlRelationName(value.association)
+    return await translate(products.string.ChangeControlNotConfigured, {}, $themeStore.language)
   }
 
-  function open (event: MouseEvent): void {
+  async function updateProduct (id: string): Promise<void> {
+    if (readonly || id === selectedId) return
+
+    let update: DocumentUpdate<Product>
+    if (id === WORKSPACE_DEFAULT) {
+      update = { $unset: { changeControlMode: true, changeControlRelation: true } }
+    } else if (id === CONTROLLED_DOCUMENT) {
+      update = { changeControlMode: ChangeControlMode.ControlledDocument, $unset: { changeControlRelation: true } }
+    } else {
+      update = { changeControlMode: ChangeControlMode.Cards, changeControlRelation: id as Ref<Association> }
+    }
+
+    await client.updateDoc(products.class.Product, object.space, object._id, update)
+  }
+
+  async function open (event: MouseEvent): Promise<void> {
     if (readonly) return
 
+    const target = eventToHTMLElement(event)
+    const workspaceDefault = await translate(products.string.WorkspaceDefault, {}, $themeStore.language)
     const items: SelectPopupValueType[] = [
+      {
+        id: WORKSPACE_DEFAULT,
+        text: `${workspaceDefault} (${await describe(workspaceResolved)})`,
+        isSelected: selectedId === WORKSPACE_DEFAULT
+      },
       {
         id: CONTROLLED_DOCUMENT,
         label: documents.string.ControlledDocument,
-        isSelected: selectedRelation === undefined
+        isSelected: selectedId === CONTROLLED_DOCUMENT
       },
-      ...associations.map(({ association, direction }) => ({
-        id: association._id,
-        text: relationName(association, direction),
-        isSelected: association._id === selectedRelation
+      ...allowed.map((association) => ({
+        id: association.association._id,
+        text: getChangeControlRelationName(association),
+        isSelected: association.association._id === selectedId
       }))
     ]
 
-    showPopup(SelectPopup, { value: items, searchable: true }, eventToHTMLElement(event), async (result) => {
-      if (result === undefined) return
-      const relation = result === CONTROLLED_DOCUMENT ? undefined : (result as Ref<Association>)
-      await updateRelation(relation)
+    showPopup(SelectPopup, { value: items, searchable: true }, target, async (result) => {
+      if (result === undefined || result === null) return
+      await updateProduct(result as string)
     })
   }
 </script>
 
 <Section label={products.string.ChangeControl}>
   <svelte:fragment slot="content">
-    <Button width={'100%'} disabled={readonly} on:click={open}>
-      <div slot="content">
-        {#if selectedRelation === undefined}
+    <Button
+      width={'100%'}
+      disabled={readonly}
+      on:click={(event) => {
+        void open(event)
+      }}
+    >
+      <div
+        slot="content"
+        class:error-color={resolved.mode === ChangeControlMode.Cards && resolved.association === undefined}
+      >
+        {#if resolved.inherited}
+          <Label label={products.string.WorkspaceDefault} />:
+        {/if}
+        {#if resolved.mode === ChangeControlMode.ControlledDocument}
           <Label label={documents.string.ControlledDocument} />
-        {:else if selected !== undefined}
-          {relationName(selected.association, selected.direction)}
+        {:else if resolved.association !== undefined}
+          {getChangeControlRelationName(resolved.association)}
         {:else}
-          <Label label={products.string.ChangeControl} />
+          <Label label={products.string.ChangeControlNotConfigured} />
         {/if}
       </div>
     </Button>
