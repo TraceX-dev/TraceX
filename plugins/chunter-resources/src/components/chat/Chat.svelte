@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -29,7 +30,7 @@
   import { NavigatorModel, SpecialNavModel } from '@hcengineering/workbench'
   import { InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
   import { onMount, onDestroy } from 'svelte'
-  import { chunterId } from '@hcengineering/chunter'
+  import chunter, { chunterId, type Discussion } from '@hcengineering/chunter'
   import view, { decodeObjectURI } from '@hcengineering/view'
   import { parseLinkId, getObjectLinkId } from '@hcengineering/view-resources'
   import { ActivityMessage } from '@hcengineering/activity'
@@ -37,6 +38,7 @@
 
   import ChatNavigator from './navigator/ChatNavigator.svelte'
   import ChannelView from '../ChannelView.svelte'
+  import DiscussionPanel from '../discussions/DiscussionPanel.svelte'
   import { chatSpecials } from './utils'
   import { SelectChannelEvent } from './types'
   import { openChannel, openThreadInSidebar } from '../../navigation'
@@ -45,6 +47,7 @@
   const contextByDocStore = notificationsClient.contextByDoc
   const objectQuery = createQuery()
   const client = getClient()
+  const hierarchy = client.getHierarchy()
 
   const navigatorModel: NavigatorModel = {
     spaces: [],
@@ -152,6 +155,10 @@
     openChannel(selectedData.id, selectedData._class, undefined, true)
   }
 
+  function getDiscussionId (object: Doc): Ref<Discussion> {
+    return object._id as Ref<Discussion>
+  }
+
   defineSeparators('chat', [
     { minSize: 20, maxSize: 40, size: 30, float: 'navigator' },
     { size: 'auto', minSize: 20, maxSize: 'auto' },
@@ -205,6 +212,8 @@
           }
         }}
       />
+    {:else if object && hierarchy.isDerived(object._class, chunter.class.Discussion)}
+      <DiscussionPanel _id={getDiscussionId(object)} allowClose={false} />
     {:else if object}
       {@const context = $contextByDocStore.get(object._id)}
       <ChannelView {object} {context} />
