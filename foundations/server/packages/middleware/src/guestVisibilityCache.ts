@@ -35,6 +35,7 @@ import core, {
   WorkspaceEvent
 } from '@hcengineering/core'
 import contact, { type Person } from '@hcengineering/contact'
+import { isDerivedSafe } from './guestPersonUtils'
 
 /**
  * Raw find used by the cache. Must bypass guest person filtering.
@@ -68,22 +69,6 @@ const MAIN_SPACES = new Set<Ref<Space>>([
 ])
 
 const MEMBERSHIP_KEYS = ['members', 'owners', 'archived'] as const
-
-/**
- * Hierarchy check that treats unknown classes (e.g. removed from model) as unrelated.
- */
-export function isDerivedSafe (
-  hierarchy: Pick<Hierarchy, 'isDerived'>,
-  _class: Ref<Class<Doc>> | undefined,
-  base: Ref<Class<Doc>>
-): boolean {
-  if (_class === undefined) return false
-  try {
-    return hierarchy.isDerived(_class, base)
-  } catch {
-    return false
-  }
-}
 
 /**
  * Per-workspace cache of persons visible to guest accounts.

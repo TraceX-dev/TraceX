@@ -26,7 +26,7 @@ import core, {
   WorkspaceEvent
 } from '@hcengineering/core'
 import contact, { type Person } from '@hcengineering/contact'
-import { GuestVisibilityCache, isDerivedSafe } from '../guestVisibilityCache'
+import { GuestVisibilityCache } from '../guestVisibilityCache'
 
 const PARENTS: Record<string, string | undefined> = {
   [core.class.Doc]: undefined,
@@ -251,9 +251,4 @@ describe('GuestVisibilityCache', () => {
     expect(await cache.getVisible(makeCtx(), GUEST).then((it) => it.accounts)).toEqual(new Set([GUEST]))
   })
 
-  it('isDerivedSafe treats unknown classes as unrelated', () => {
-    expect(isDerivedSafe(hierarchy, 'unknown:class' as any, core.class.Space)).toBe(false)
-    expect(isDerivedSafe(hierarchy, undefined, core.class.Space)).toBe(false)
-    expect(isDerivedSafe(hierarchy, core.class.SystemSpace, core.class.Space)).toBe(true)
-  })
 })

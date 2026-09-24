@@ -43,34 +43,18 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
-import { GuestVisibilityCache, isDerivedSafe, type VisibleSet } from './guestVisibilityCache'
-import { isSystem } from './utils'
+import {
+  getRestrictedAccount,
+  isPersonAttachedClass,
+  isPersonClass,
+  isPointValue,
+  restrictField
+} from './guestPersonUtils'
+import { GuestVisibilityCache, type VisibleSet } from './guestVisibilityCache'
 
 interface BroadcastPersonSubject {
   personRef: Ref<Person>
   personUuid?: string
-}
-
-/**
- * Value addresses concrete documents: a single id or a plain `$in` list.
- * Such lookups are allowed for guests, so references in visible documents keep resolving.
- */
-function isPointValue (value: unknown): boolean {
-  if (typeof value === 'string') return true
-  if (value === null || typeof value !== 'object') return false
-  const keys = Object.keys(value)
-  return keys.length === 1 && Array.isArray((value as { $in?: unknown }).$in)
-}
-
-/**
- * Restricts a query field to `allowed`, keeping other operators already set on the field (`$nin`, `$ne`, `$exists`, ...).
- */
-function restrictField (existing: unknown, allowed: Iterable<string>): Record<string, unknown> {
-  const list = Array.from(allowed)
-  if (existing === undefined || existing === null || typeof existing !== 'object') {
-    return { $in: list }
-  }
-  return { ...(existing as Record<string, unknown>), $in: list }
 }
 
 /**
@@ -101,24 +85,6 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     return new GuestPersonMiddleware(context, next)
   }
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────
-
-  private isPersonClass (_class: Ref<Class<Doc>> | undefined): boolean {
-    return isDerivedSafe(this.context.hierarchy, _class, contact.class.Person)
-  }
-
-  private isPersonAttachedClass (_class: Ref<Class<Doc>> | undefined): boolean {
-    const h = this.context.hierarchy
-    return isDerivedSafe(h, _class, contact.class.SocialIdentity) || isDerivedSafe(h, _class, contact.class.Channel)
-  }
-
-  private isRestrictedAccount (ctx: MeasureContext<SessionData>): Account | undefined {
-    const account = ctx.contextData?.account
-    if (account === undefined) return undefined
-    if (!isGuestRole(account.role) || isSystem(account, ctx)) return undefined
-    return account
-  }
-
   // ─── Find ───────────────────────────────────────────────────────────────────
 
   override async findAll<T extends Doc>(
@@ -127,14 +93,14 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     query: DocumentQuery<T>,
     options?: ServerFindOptions<T>
   ): Promise<FindResult<T>> {
-    const account = this.isRestrictedAccount(ctx)
+    const account = getRestrictedAccount(ctx)
     if (account === undefined) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
-    if (this.isPersonClass(_class)) {
+    if (isPersonClass(this.context.hierarchy, _class)) {
       return await this.findPersons(ctx, account, _class, query, options)
     }
-    if (this.isPersonAttachedClass(_class)) {
+    if (isPersonAttachedClass(this.context.hierarchy, _class)) {
       return await this.findPersonAttached(ctx, account, _class, query, options)
     }
     if (_class === (contact.class.Contact as Ref<Class<Doc>>)) {
@@ -172,7 +138,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     }
     // Channels of non-person contacts (e.g. organizations) are not restricted.
     const attachedToClass = q.attachedToClass
-    if (typeof attachedToClass === 'string' && !this.isPersonClass(attachedToClass as Ref<Class<Doc>>)) {
+    if (typeof attachedToClass === 'string' && !isPersonClass(this.context.hierarchy, attachedToClass as Ref<Class<Doc>>)) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
     const { personRefs: refs } = await this.cache.getVisible(ctx, account.uuid)
@@ -219,7 +185,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
 
   private filterContacts<T extends Doc> (docs: T[], accounts: ReadonlySet<string>): T[] {
     return docs.filter((doc) => {
-      if (!this.isPersonClass(doc._class)) return true
+      if (!isPersonClass(this.context.hierarchy, doc._class)) return true
       const personUuid = (doc as unknown as Person).personUuid
       return personUuid !== undefined && accounts.has(personUuid)
     })
@@ -230,7 +196,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     query: SearchQuery,
     options: SearchOptions
   ): Promise<SearchResult> {
-    const account = this.isRestrictedAccount(ctx)
+    const account = getRestrictedAccount(ctx)
     if (account === undefined) return await this.provideSearchFulltext(ctx, query, options)
 
     const visible = await this.cache.getVisible(ctx, account.uuid)
@@ -259,7 +225,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     docs: SearchResultDoc[],
     visible: VisibleSet
   ): Promise<SearchResultDoc[]> {
-    const personIds = docs.filter((it) => this.isPersonClass(it.doc._class)).map((it) => it.doc._id)
+    const personIds = docs.filter((it) => isPersonClass(this.context.hierarchy, it.doc._class)).map((it) => it.doc._id)
     const persons = personIds.length > 0
       ? ((await this.next?.findAll(
           ctx,
@@ -272,11 +238,11 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
       persons.filter((it) => it.personUuid !== undefined && visible.accounts.has(it.personUuid)).map((it) => it._id)
     )
     return docs.filter((it) => {
-      if (this.isPersonClass(it.doc._class)) return allowed.has(it.doc._id as Ref<Person>)
-      if (!this.isPersonAttachedClass(it.doc._class)) return true
+      if (isPersonClass(this.context.hierarchy, it.doc._class)) return allowed.has(it.doc._id as Ref<Person>)
+      if (!isPersonAttachedClass(this.context.hierarchy, it.doc._class)) return true
       if (
         it.doc.attachedToClass !== undefined &&
-        !this.isPersonClass(it.doc.attachedToClass as Ref<Class<Doc>>)
+        !isPersonClass(this.context.hierarchy, it.doc.attachedToClass)
       ) {
         return true
       }
@@ -344,7 +310,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     if (!TxProcessor.isExtendsCUD(tx._class)) return undefined
     const cud = tx as TxCUD<Doc>
 
-    if (this.isPersonClass(cud.objectClass)) {
+    if (isPersonClass(this.context.hierarchy, cud.objectClass)) {
       return {
         personRef: cud.objectId as Ref<Person>,
         personUuid:
@@ -352,7 +318,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
       }
     }
 
-    if (this.isPersonAttachedClass(cud.objectClass) && this.isPersonClass(cud.attachedToClass)) {
+    if (isPersonAttachedClass(this.context.hierarchy, cud.objectClass) && isPersonClass(this.context.hierarchy, cud.attachedToClass)) {
       const personRef = cud.attachedTo as Ref<Person> | undefined
       return personRef !== undefined ? { personRef } : undefined
     }
