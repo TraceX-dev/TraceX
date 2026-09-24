@@ -29,8 +29,6 @@
   export let selected: Ref<Employee>[] = []
   export let skipCurrentAccount = false
   export let skipAccounts: Ref<Employee>[] = []
-  // When defined, only these employees are shown
-  export let includeItems: Ref<Employee>[] | undefined = undefined
   export let disableDeselectFor: Ref<Employee>[] = []
   export let showStatus = true
   export let skipInactive = false
@@ -55,12 +53,7 @@
           ? { $search: search }
           : { [searchField]: { $like: '%' + search + '%' } }
         : {}),
-      ...{
-        _id: {
-          $nin: skipCurrentAccount ? [...skipAccounts, me] : [...skipAccounts],
-          ...(includeItems !== undefined ? { $in: includeItems } : {})
-        }
-      },
+      ...{ _id: { $nin: skipCurrentAccount ? [...skipAccounts, me] : [...skipAccounts] } },
       ...(skipInactive ? { active: true } : {}),
       ...(skipOnlyLocal ? { personUuid: { $exists: true } } : {})
     },

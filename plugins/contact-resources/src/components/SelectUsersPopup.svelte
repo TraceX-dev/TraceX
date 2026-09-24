@@ -32,8 +32,6 @@
   export let selected: Ref<Employee>[] = []
   export let skipCurrentAccount = false
   export let skipAccounts: Ref<Employee>[] = []
-  // When defined, only these employees are shown
-  export let includeItems: Ref<Employee>[] | undefined = undefined
   export let disableDeselectFor: Ref<Employee>[] = []
   export let showStatus = true
   export let skipInactive = false
@@ -95,7 +93,6 @@
           {disableDeselectFor}
           {skipCurrentAccount}
           {skipAccounts}
-          {includeItems}
           {skipInactive}
           on:select={handleSelectionChanged}
         />

@@ -14,18 +14,8 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Employee, getGuestVisibleEmployees } from '@hcengineering/contact'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import core, {
-    AccountUuid,
-    Collaborator,
-    Doc,
-    getCurrentAccount,
-    isGuestRole,
-    notEmpty,
-    Ref,
-    Space
-  } from '@hcengineering/core'
+  import core, { AccountUuid, Collaborator, Doc } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { permissions } from '@hcengineering/view-resources'
   import notification from '../plugin'
@@ -53,43 +43,13 @@
     )
   }
 
-  // Guests only see and pick collaborators who are members of the object's space.
-  // Until the space is loaded a guest sees nobody and cannot edit the list.
-  const isGuest = isGuestRole(getCurrentAccount().role)
-  let visibleEmployees: Employee[] | undefined = isGuest ? [] : undefined
-  let visibleLoaded = !isGuest
-
-  $: void updateVisibleEmployees(object)
-
-  async function updateVisibleEmployees (doc: Doc): Promise<void> {
-    const space = client.getHierarchy().isDerived(doc._class, core.class.Space) ? (doc._id as Ref<Space>) : doc.space
-    const employees = await getGuestVisibleEmployees(client, space)
-    if (doc !== object) return
-    visibleEmployees = employees
-    visibleLoaded = true
-  }
-
-  $: visibleAccounts =
-    visibleEmployees !== undefined ? new Set(visibleEmployees.map((e) => e.personUuid).filter(notEmpty)) : undefined
-  $: includeItems = visibleEmployees?.map((e) => e._id) ?? []
-
-  $: accounts = collaborators
-    .map((c) => c.collaborator)
-    .filter((account) => visibleAccounts === undefined || visibleAccounts.has(account))
+  $: accounts = collaborators.map((c) => c.collaborator)
 
   async function change (res: AccountUuid[]): Promise<void> {
-    if (!canEditCollaborators || !visibleLoaded) return
+    if (!canEditCollaborators) return
 
-    // Compare with all collaborators (including hidden ones) to avoid duplicates,
-    // and never add accounts outside of the visible set
-    const existing = new Set(collaborators.map((c) => c.collaborator))
-    const toAdd: AccountUuid[] = Array.from(new Set(res)).filter(
-      (a) => !existing.has(a) && (visibleAccounts === undefined || visibleAccounts.has(a))
-    )
-    // Hidden collaborators are never removed, only the visible ones can be changed
-    const toRemove: Collaborator[] = collaborators.filter(
-      (a) => accounts.includes(a.collaborator) && !res.includes(a.collaborator)
-    )
+    const toAdd: AccountUuid[] = res.filter((a) => !accounts.includes(a))
+    const toRemove: Collaborator[] = collaborators.filter((a) => !res.includes(a.collaborator))
     for (const account of toAdd) {
       await client.addCollection(core.class.Collaborator, object.space, object._id, object._class, 'collaborators', {
         collaborator: account
@@ -106,6 +66,5 @@
   value={accounts}
   onChange={change}
   dataId={'btnCollaborators'}
-  {includeItems}
-  readonly={readonly || !canEditCollaborators || !visibleLoaded}
+  readonly={readonly || !canEditCollaborators}
 />

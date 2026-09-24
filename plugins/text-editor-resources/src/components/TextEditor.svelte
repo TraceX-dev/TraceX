@@ -28,7 +28,6 @@
   import { EditorKitOptions, getEditorKit } from '../../src/kits/editor-kit'
   import { deleteAttachment } from '../command/deleteAttachment'
   import { defaultEditorAttributes } from './editor/editorProps'
-  import { updateEditorContext } from './extension/editorContext'
 
   export let content: Markup = EmptyMarkup
   export let placeholder: IntlString = textEditor.string.EditorPlaceholder
@@ -119,12 +118,6 @@
 
   export function insertMarkup (markup: Markup): void {
     editor?.commands.insertContent(markupToJSON(markup))
-  }
-
-  // Kit options are applied only on mount, so keep the editor context in sync with the space
-  // of the edited object (it can change, e.g. when a space is selected while creating a card).
-  $: if (editor !== undefined && 'objectSpace' in kitOptions) {
-    updateEditorContext(editor, { objectSpace: kitOptions.objectSpace })
   }
 
   let needFocus = false

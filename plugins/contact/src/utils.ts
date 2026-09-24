@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import core, {
+import {
   Account,
   AccountRole,
   AccountUuid,
@@ -34,10 +34,7 @@ import core, {
   SocialId,
   toIdMap,
   TxFactory,
-  DocumentUpdate,
-  getCurrentAccount,
-  isGuestRole,
-  Space
+  DocumentUpdate
 } from '@hcengineering/core'
 import platform, { getMetadata, PlatformError } from '@hcengineering/platform'
 import { ColorDefinition } from '@hcengineering/ui'
@@ -416,25 +413,6 @@ export async function getAllUserAccounts (client: Client): Promise<AccountUuid[]
   const employees = await client.findAll(contact.mixin.Employee, { active: true })
 
   return employees.map((it) => it.personUuid).filter(notEmpty)
-}
-
-/**
- * Guests may only see the people who share the given space with them.
- * Returns undefined when no restriction applies (the current account is not a guest).
- * Fails closed for guests: without a space context only the guest itself is visible.
- * @public
- */
-export async function getGuestVisibleEmployees (
-  client: Client,
-  space: Ref<Space> | undefined
-): Promise<Employee[] | undefined> {
-  const account = getCurrentAccount()
-  if (account === undefined || !isGuestRole(account.role)) return undefined
-
-  const spaceDoc = space !== undefined ? await client.findOne(core.class.Space, { _id: space }) : undefined
-  const accounts = new Set<AccountUuid>([account.uuid, ...(spaceDoc?.members ?? []), ...(spaceDoc?.owners ?? [])])
-
-  return await client.findAll(contact.mixin.Employee, { personUuid: { $in: Array.from(accounts) }, active: true })
 }
 
 export async function ensureEmployee (

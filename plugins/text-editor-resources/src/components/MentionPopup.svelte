@@ -14,16 +14,8 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { getGuestVisibleEmployees, getName } from '@hcengineering/contact'
-  import core, {
-    Class,
-    Doc,
-    Ref,
-    SearchResultDoc,
-    SortingOrder,
-    type Space,
-    type VersionableDoc
-  } from '@hcengineering/core'
+  import contact from '@hcengineering/contact'
+  import core, { Class, Doc, Ref, SearchResultDoc, SortingOrder, type VersionableDoc } from '@hcengineering/core'
   import { getResource, translate } from '@hcengineering/platform'
   import presentation, {
     getClient,
@@ -42,7 +34,6 @@
   export let query: string = ''
   export let multipleMentions: boolean = false
   export let docClass: Ref<Class<Doc>> | undefined = undefined
-  export let objectSpace: Ref<Space> | undefined = undefined
 
   let items: SearchItem[] = []
 
@@ -219,46 +210,8 @@
     return false
   }
 
-  const GUEST_EMPLOYEES_LIMIT = 10
-
-  // Guests only see people from the space of the edited object, so employees are taken
-  // from the space members instead of the full text search. Without a space only the guest is shown.
-  async function getGuestEmployeeItems (localQuery: string): Promise<SearchItem[] | undefined> {
-    const employees = await getGuestVisibleEmployees(client, objectSpace)
-    if (employees === undefined) return undefined
-    // Fail closed: a guest never gets the unrestricted full text results
-    const category = employeeSearchCategory
-    if (category === undefined) return []
-
-    const hierarchy = client.getHierarchy()
-    const search = localQuery.trim().toLowerCase()
-    return employees
-      .map((employee) => ({ employee, title: getName(hierarchy, employee) }))
-      .filter(
-        ({ employee, title }) =>
-          search === '' || title.toLowerCase().includes(search) || employee.name.toLowerCase().includes(search)
-      )
-      .sort((a, b) => a.title.localeCompare(b.title))
-      .slice(0, GUEST_EMPLOYEES_LIMIT)
-      .map(({ employee, title }, num) => ({
-        num,
-        category,
-        item: {
-          id: employee._id,
-          title,
-          iconComponent: { component: contact.component.AvatarRef, props: { _id: employee._id } },
-          titleComponent: { component: contact.component.ContactNamePresenter, props: { name: employee.name } },
-          doc: { _id: employee._id, _class: employee._class, createdOn: employee.createdOn }
-        }
-      }))
-  }
-
   const updateItems = reduceCalls(async function (localQuery: string): Promise<void> {
     const r = await searchFor('mention', localQuery)
-    const guestEmployeeItems = await getGuestEmployeeItems(localQuery)
-    if (guestEmployeeItems !== undefined) {
-      r.items = [...guestEmployeeItems, ...r.items.filter((it) => it.category.classToSearch !== contact.mixin.Employee)]
-    }
     if (r.query === query) {
       const latestIndex = r.items.findLastIndex((it) => it.category.classToSearch === contact.mixin.Employee)
       const multipleEmployeeSearchItems = await getMultipleEmployeeSearchItems(localQuery, latestIndex)

@@ -430,7 +430,7 @@
     {maxHeight}
     {focusable}
     {kind}
-    kitOptions={{ objectSpace: space, ...kitOptions }}
+    {kitOptions}
     {isScrollable}
     {boundary}
     {extraActions}

@@ -16,9 +16,7 @@
 <script lang="ts">
   import { showPopup, resizeObserver, deviceOptionsStore as deviceInfo, PopupResult } from '@hcengineering/ui'
   import { Ref, Class, Doc } from '@hcengineering/core'
-  import { type Editor } from '@tiptap/core'
   import { onDestroy, onMount } from 'svelte'
-  import { editorContextPluginKey } from './extension/editorContext'
   import MentionPopup from './MentionPopup.svelte'
   import DummyPopup from './DummyPopup.svelte'
 
@@ -28,10 +26,6 @@
   export let clientRect: () => ClientRect
   export let command: (props: any) => void
   export let close: () => void
-  export let editor: Editor | undefined = undefined
-
-  // Space of the edited object, used to limit suggested people for guests
-  $: objectSpace = editor !== undefined ? editorContextPluginKey.getState(editor.state)?.objectSpace : undefined
 
   let popup: HTMLDivElement
   let dummyPopup: PopupResult
@@ -125,7 +119,6 @@
   <MentionPopup
     bind:this={searchPopup}
     {docClass}
-    {objectSpace}
     {query}
     {multipleMentions}
     on:close={(evt) => {

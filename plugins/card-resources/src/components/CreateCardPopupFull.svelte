@@ -15,12 +15,12 @@
   import { Card, CardSpace, type CreateCardExtension, MasterTag } from '@hcengineering/card'
   import presentation, { createQuery, getClient, SpaceSelector } from '@hcengineering/presentation'
   import { createEventDispatcher } from 'svelte'
-  import core, { Data, generateId, Ref, Markup, getCurrentAccount, isGuestRole } from '@hcengineering/core'
+  import core, { Data, generateId, Ref, Markup, getCurrentAccount } from '@hcengineering/core'
   import { getResource, translate, getEmbeddedLabel } from '@hcengineering/platform'
   import { Notice, Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
   import { AttachmentStyledBox } from '@hcengineering/attachment-resources'
   import { EmptyMarkup } from '@hcengineering/text'
-  import { Employee, getCurrentEmployee, getGuestVisibleEmployees } from '@hcengineering/contact'
+  import { Employee, getCurrentEmployee } from '@hcengineering/contact'
   import { SelectUsersPopup, permissionsStore } from '@hcengineering/contact-resources'
   import view from '@hcengineering/view'
 
@@ -58,22 +58,6 @@
   let _space: Ref<CardSpace> | undefined = space
   let selectedSpace: CardSpace | undefined
   let collaborators: Ref<Employee>[] = [me]
-
-  // Guests can only pick collaborators from the members of the selected space.
-  // Until the space members are loaded a guest can only pick itself.
-  let visibleEmployees: Ref<Employee>[] | undefined = isGuestRole(getCurrentAccount().role) ? [me] : undefined
-
-  $: void updateVisibleEmployees(_space)
-
-  async function updateVisibleEmployees (space: Ref<CardSpace> | undefined): Promise<void> {
-    const employees = await getGuestVisibleEmployees(client, space)
-    if (space !== _space) return
-    visibleEmployees = employees?.map((it) => it._id)
-    if (visibleEmployees !== undefined) {
-      const allowed = new Set(visibleEmployees)
-      collaborators = collaborators.filter((it) => it === me || allowed.has(it))
-    }
-  }
 
   const spaceQuery = createQuery()
   $: if (_space != null) {
@@ -145,7 +129,6 @@
         skipCurrentAccount: false,
         skipInactive: true,
         selected: collaborators,
-        includeItems: visibleEmployees,
         showStatus: true
       },
       'top',
@@ -213,7 +196,7 @@
         placeholder={core.string.Description}
         kind="indented"
         isScrollable={true}
-        kitOptions={{ reference: true, objectSpace: _space }}
+        kitOptions={{ reference: true }}
         enableAttachments={false}
       />
     {/if}
