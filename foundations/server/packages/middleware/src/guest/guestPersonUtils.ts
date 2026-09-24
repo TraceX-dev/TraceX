@@ -25,7 +25,7 @@ import {
   isGuestRole
 } from '@hcengineering/core'
 import contact from '@hcengineering/contact'
-import { isSystem } from './utils'
+import { isSystem } from '../utils'
 
 type IsDerived = Pick<Hierarchy, 'isDerived'>
 
