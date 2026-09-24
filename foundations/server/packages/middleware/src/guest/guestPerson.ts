@@ -43,13 +43,7 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
-import {
-  getRestrictedAccount,
-  isPersonAttachedClass,
-  isPersonClass,
-  isPointValue,
-  restrictField
-} from './guestPersonUtils'
+import { getRestrictedAccount, isPersonAttachedClass, isPersonClass, restrictField } from './guestPersonUtils'
 import { GuestVisibilityCache, type VisibleSet } from './guestVisibilityCache'
 
 interface BroadcastPersonSubject {
@@ -61,8 +55,8 @@ interface BroadcastPersonSubject {
  * Limits which persons a guest can list.
  *
  * A guest can list only persons whose account is a member/owner of a non-system space the guest is a member of.
- * Point queries (by `_id` / `personUuid` / `attachedTo`) and lookups are not restricted, so names of authors,
- * assignees etc. referenced from visible documents still resolve, but the full user list can't be enumerated.
+ * Direct and list queries use the same visibility restrictions. Lookups are not restricted, so names of authors,
+ * assignees etc. referenced from visible documents still resolve.
  *
  * Non-guest sessions pass through with a single role check.
  */
@@ -117,9 +111,6 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     options?: ServerFindOptions<T>
   ): Promise<FindResult<T>> {
     const q = query as Record<string, unknown>
-    if (isPointValue(q._id) || isPointValue(q.personUuid)) {
-      return await this.provideFindAll(ctx, _class, query, options)
-    }
     const { accounts } = await this.cache.getVisible(ctx, account.uuid)
     const newQuery = { ...q, personUuid: restrictField(q.personUuid, accounts) } as unknown as DocumentQuery<T>
     return await this.provideFindAll(ctx, _class, newQuery, options)
@@ -133,12 +124,12 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     options?: ServerFindOptions<T>
   ): Promise<FindResult<T>> {
     const q = query as Record<string, unknown>
-    if (isPointValue(q._id) || isPointValue(q.attachedTo)) {
-      return await this.provideFindAll(ctx, _class, query, options)
-    }
     // Channels of non-person contacts (e.g. organizations) are not restricted.
     const attachedToClass = q.attachedToClass
-    if (typeof attachedToClass === 'string' && !isPersonClass(this.context.hierarchy, attachedToClass as Ref<Class<Doc>>)) {
+    if (
+      typeof attachedToClass === 'string' &&
+      !isPersonClass(this.context.hierarchy, attachedToClass as Ref<Class<Doc>>)
+    ) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
     const { personRefs: refs } = await this.cache.getVisible(ctx, account.uuid)
@@ -153,9 +144,6 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     query: DocumentQuery<T>,
     options?: ServerFindOptions<T>
   ): Promise<FindResult<T>> {
-    const q = query as Record<string, unknown>
-    if (isPointValue(q._id)) return await this.provideFindAll(ctx, _class, query, options)
-
     const { accounts } = await this.cache.getVisible(ctx, account.uuid)
     const requestedLimit = options?.limit
     let fetchLimit = requestedLimit
@@ -163,14 +151,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     let docs = this.filterContacts(result, accounts)
 
     while (
-      this.shouldRefill(
-        result.length,
-        docs.length,
-        fetchLimit,
-        requestedLimit,
-        result.total,
-        options?.total === true
-      )
+      this.shouldRefill(result.length, docs.length, fetchLimit, requestedLimit, result.total, options?.total === true)
     ) {
       const nextLimit = getNextLimit(fetchLimit, result.total)
       if (nextLimit === undefined) break
@@ -183,7 +164,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     return toFindResult(visibleDocs, options?.total === true ? docs.length : -1, result.lookupMap)
   }
 
-  private filterContacts<T extends Doc> (docs: T[], accounts: ReadonlySet<string>): T[] {
+  private filterContacts<T extends Doc>(docs: T[], accounts: ReadonlySet<string>): T[] {
     return docs.filter((doc) => {
       if (!isPersonClass(this.context.hierarchy, doc._class)) return true
       const personUuid = (doc as unknown as Person).personUuid
@@ -226,24 +207,22 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     visible: VisibleSet
   ): Promise<SearchResultDoc[]> {
     const personIds = docs.filter((it) => isPersonClass(this.context.hierarchy, it.doc._class)).map((it) => it.doc._id)
-    const persons = personIds.length > 0
-      ? ((await this.next?.findAll(
-          ctx,
-          contact.class.Person,
-          { _id: { $in: personIds as Ref<Person>[] } },
-          { projection: { _id: 1, personUuid: 1 } }
-        )) ?? []) as Person[]
-      : []
+    const persons =
+      personIds.length > 0
+        ? (((await this.next?.findAll(
+            ctx,
+            contact.class.Person,
+            { _id: { $in: personIds as Ref<Person>[] } },
+            { projection: { _id: 1, personUuid: 1 } }
+          )) ?? []) as Person[])
+        : []
     const allowed = new Set(
       persons.filter((it) => it.personUuid !== undefined && visible.accounts.has(it.personUuid)).map((it) => it._id)
     )
     return docs.filter((it) => {
       if (isPersonClass(this.context.hierarchy, it.doc._class)) return allowed.has(it.doc._id as Ref<Person>)
       if (!isPersonAttachedClass(this.context.hierarchy, it.doc._class)) return true
-      if (
-        it.doc.attachedToClass !== undefined &&
-        !isPersonClass(this.context.hierarchy, it.doc.attachedToClass)
-      ) {
+      if (it.doc.attachedToClass !== undefined && !isPersonClass(this.context.hierarchy, it.doc.attachedToClass)) {
         return true
       }
       return it.doc.attachedTo !== undefined && visible.personRefs.has(it.doc.attachedTo as Ref<Person>)
@@ -318,7 +297,10 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
       }
     }
 
-    if (isPersonAttachedClass(this.context.hierarchy, cud.objectClass) && isPersonClass(this.context.hierarchy, cud.attachedToClass)) {
+    if (
+      isPersonAttachedClass(this.context.hierarchy, cud.objectClass) &&
+      isPersonClass(this.context.hierarchy, cud.attachedToClass)
+    ) {
       const personRef = cud.attachedTo as Ref<Person> | undefined
       return personRef !== undefined ? { personRef } : undefined
     }

@@ -105,7 +105,9 @@ function makeCtx (account: Account, users: Array<[AccountUuid, AccountRole]> = [
     account,
     broadcast: { txes: [], targets: {}, queue: [], sessions: {} },
     removedMap: new Map(),
-    socialStringsToUsers: new Map(users.map(([uuid, role]) => [`social-${uuid}` as PersonId, { accontUuid: uuid, role }]))
+    socialStringsToUsers: new Map(
+      users.map(([uuid, role]) => [`social-${uuid}` as PersonId, { accontUuid: uuid, role }])
+    )
   } as any
   return ctx
 }
@@ -187,15 +189,15 @@ describe('GuestPersonMiddleware', () => {
       expect(personCall?.query.personUuid.$in).toBeDefined()
     })
 
-    it('does not restrict point queries', async () => {
+    it('restricts point queries to visible persons', async () => {
       const { mw, calls } = makeMiddleware()
       await mw.findAll(guestCtx(), contact.class.Person, { _id: 'person:stranger' } as any)
       await mw.findAll(guestCtx(), contact.class.Person, { _id: { $in: ['person:stranger'] } } as any)
       await mw.findAll(guestCtx(), EMPLOYEE, { personUuid: { $in: [STRANGER] } })
-      expect(calls.map((it) => it.query)).toEqual([
-        { _id: 'person:stranger' },
-        { _id: { $in: ['person:stranger'] } },
-        { personUuid: { $in: [STRANGER] } }
+      expect(calls.filter((it) => it.query._id !== undefined || it._class === EMPLOYEE).map((it) => it.query)).toEqual([
+        { _id: 'person:stranger', personUuid: { $in: [GUEST, MEMBER, OWNER] } },
+        { _id: { $in: ['person:stranger'] }, personUuid: { $in: [GUEST, MEMBER, OWNER] } },
+        { personUuid: { $in: [] } }
       ])
     })
 
@@ -215,14 +217,21 @@ describe('GuestPersonMiddleware', () => {
       expect(new Set(call?.query.attachedTo.$in)).toEqual(new Set(['person:guest', 'person:member', 'person:owner']))
     })
 
-    it('does not restrict point queries and non-person owners', async () => {
+    it('restricts point queries and keeps non-person owners unrestricted', async () => {
       const { mw, calls } = makeMiddleware()
       await mw.findAll(guestCtx(), contact.class.SocialIdentity, { _id: { $in: ['a', 'b'] } } as any)
       await mw.findAll(guestCtx(), contact.class.Channel, { attachedTo: 'person:stranger' } as any)
       await mw.findAll(guestCtx(), contact.class.Channel, { attachedToClass: ORGANIZATION })
-      expect(calls.map((it) => it.query)).toEqual([
-        { _id: { $in: ['a', 'b'] } },
-        { attachedTo: 'person:stranger' },
+      expect(
+        calls
+          .filter((it) => it._class === contact.class.SocialIdentity || it._class === contact.class.Channel)
+          .map((it) => it.query)
+      ).toEqual([
+        {
+          _id: { $in: ['a', 'b'] },
+          attachedTo: { $in: ['person:guest', 'person:member', 'person:owner'] }
+        },
+        { attachedTo: { $in: [] } },
         { attachedToClass: ORGANIZATION }
       ])
     })
@@ -247,10 +256,12 @@ describe('GuestPersonMiddleware', () => {
     expect(res.total).toBe(4)
   })
 
-  it('does not restrict Contact point queries', async () => {
+  it('filters Contact point queries while keeping organizations visible', async () => {
     const { mw } = makeMiddleware()
-    const res = await mw.findAll(guestCtx(), contact.class.Contact, { _id: 'organization:one' } as any)
-    expect(res.map((it) => it._id)).toEqual(['organization:one'])
+    const hiddenPerson = await mw.findAll(guestCtx(), contact.class.Contact, { _id: 'person:stranger' } as any)
+    const organization = await mw.findAll(guestCtx(), contact.class.Contact, { _id: 'organization:one' } as any)
+    expect(hiddenPerson).toHaveLength(0)
+    expect(organization.map((it) => it._id)).toEqual(['organization:one'])
   })
 
   it('filters persons from fulltext results and keeps total for an exhausted result', async () => {
@@ -303,12 +314,9 @@ describe('GuestPersonMiddleware', () => {
     await mw.findAll(ctx, EMPLOYEE, {})
 
     const factory = new TxFactory('test' as PersonId)
-    const tx = factory.createTxUpdateDoc(
-      core.class.Space,
-      core.space.Space,
-      'space:project' as Ref<Space>,
-      { $pull: { members: MEMBER } }
-    )
+    const tx = factory.createTxUpdateDoc(core.class.Space, core.space.Space, 'space:project' as Ref<Space>, {
+      $pull: { members: MEMBER }
+    })
     await mw.tx(ctx, [tx])
     await mw.findAll(ctx, EMPLOYEE, {})
 

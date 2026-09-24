@@ -32,7 +32,11 @@ type IsDerived = Pick<Hierarchy, 'isDerived'>
 /**
  * Hierarchy check that treats unknown classes (e.g. removed from model) as unrelated.
  */
-export function isDerivedSafe (hierarchy: IsDerived, _class: Ref<Class<Doc>> | undefined, base: Ref<Class<Doc>>): boolean {
+export function isDerivedSafe (
+  hierarchy: IsDerived,
+  _class: Ref<Class<Doc>> | undefined,
+  base: Ref<Class<Doc>>
+): boolean {
   if (_class === undefined) return false
   try {
     return hierarchy.isDerived(_class, base)
@@ -69,23 +73,23 @@ export function getRestrictedAccount (ctx: MeasureContext<SessionData>): Account
 }
 
 /**
- * Value addresses concrete documents: a single id or a plain `$in` list.
- * Such lookups are allowed for guests, so references in visible documents keep resolving.
- */
-export function isPointValue (value: unknown): boolean {
-  if (typeof value === 'string') return true
-  if (value === null || typeof value !== 'object') return false
-  const keys = Object.keys(value)
-  return keys.length === 1 && Array.isArray((value as { $in?: unknown }).$in)
-}
-
-/**
- * Restricts a query field to `allowed`, keeping other operators already set on the field (`$nin`, `$ne`, `$exists`, ...).
+ * Restricts a query field to `allowed`, intersecting scalar and `$in` point values while keeping other operators.
  */
 export function restrictField (existing: unknown, allowed: Iterable<string>): Record<string, unknown> {
-  const list = Array.from(allowed)
-  if (existing === undefined || existing === null || typeof existing !== 'object') {
+  const allowedSet = new Set(allowed)
+  const list = Array.from(allowedSet)
+  if (existing === undefined || existing === null) {
     return { $in: list }
   }
-  return { ...(existing as Record<string, unknown>), $in: list }
+  if (typeof existing !== 'object') {
+    return { $in: list.filter((value) => value === existing) }
+  }
+  const operators = existing as Record<string, unknown>
+  const requested = operators.$in
+  return {
+    ...operators,
+    $in: Array.isArray(requested)
+      ? requested.filter((value): value is string => typeof value === 'string' && allowedSet.has(value))
+      : list
+  }
 }

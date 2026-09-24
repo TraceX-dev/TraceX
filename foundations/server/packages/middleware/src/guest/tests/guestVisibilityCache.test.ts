@@ -110,7 +110,10 @@ describe('GuestVisibilityCache', () => {
   it('deduplicates concurrent loads', async () => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
-    await Promise.all([cache.getVisible(ctx, GUEST).then((it) => it.accounts), cache.getVisible(ctx, GUEST).then((it) => it.accounts)])
+    await Promise.all([
+      cache.getVisible(ctx, GUEST).then((it) => it.accounts),
+      cache.getVisible(ctx, GUEST).then((it) => it.accounts)
+    ])
     expect(spaceLoads(calls)).toBe(1)
   })
 
@@ -147,7 +150,9 @@ describe('GuestVisibilityCache', () => {
       event: WorkspaceEvent.BulkUpdate
     } as any)
     await load()
-    cache.handleTx(factory.createTxApplyIf(core.space.Tx, 'scope', [], [], [spaceUpdate({ $push: { members: LONER } })], undefined))
+    cache.handleTx(
+      factory.createTxApplyIf(core.space.Tx, 'scope', [], [], [spaceUpdate({ $push: { members: LONER } })], undefined)
+    )
     await load()
     expect(spaceLoads(calls)).toBe(4)
   })
@@ -170,9 +175,7 @@ describe('GuestVisibilityCache', () => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
     await cache.getVisible(ctx, GUEST).then((it) => it.personRefs)
-    cache.handleTx(
-      factory.createTxCreateDoc(contact.class.Person, core.space.Workspace, { personUuid: LONER } as any)
-    )
+    cache.handleTx(factory.createTxCreateDoc(contact.class.Person, core.space.Workspace, { personUuid: LONER } as any))
     await cache.getVisible(ctx, GUEST).then((it) => it.personRefs)
     expect(calls.filter((it) => it === contact.class.Person)).toHaveLength(2)
   })
@@ -250,5 +253,4 @@ describe('GuestVisibilityCache', () => {
     fail = false
     expect(await cache.getVisible(makeCtx(), GUEST).then((it) => it.accounts)).toEqual(new Set([GUEST]))
   })
-
 })

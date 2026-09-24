@@ -29,7 +29,6 @@ import {
   isDerivedSafe,
   isPersonAttachedClass,
   isPersonClass,
-  isPointValue,
   restrictField
 } from '../guestPersonUtils'
 
@@ -92,21 +91,15 @@ describe('guestPersonUtils', () => {
     expect(getRestrictedAccount(new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>)).toBeUndefined()
   })
 
-  it('isPointValue accepts only an id or a plain $in list', () => {
-    expect(isPointValue('id')).toBe(true)
-    expect(isPointValue({ $in: ['a', 'b'] })).toBe(true)
-    expect(isPointValue({ $in: [] })).toBe(true)
-    expect(isPointValue(undefined)).toBe(false)
-    expect(isPointValue(null)).toBe(false)
-    expect(isPointValue({ $nin: ['a'] })).toBe(false)
-    expect(isPointValue({ $ne: 'a' })).toBe(false)
-    expect(isPointValue({ $in: ['a'], $nin: ['b'] })).toBe(false)
-    expect(isPointValue({ $like: '%a%' })).toBe(false)
-  })
-
   it('restrictField adds $in and keeps other operators', () => {
     expect(restrictField(undefined, new Set(['a']))).toEqual({ $in: ['a'] })
     expect(restrictField({ $nin: ['b'] }, ['a'])).toEqual({ $nin: ['b'], $in: ['a'] })
     expect(restrictField({ $ne: 'b', $exists: true }, ['a'])).toEqual({ $ne: 'b', $exists: true, $in: ['a'] })
+  })
+
+  it('restrictField intersects point values with allowed values', () => {
+    expect(restrictField('a', ['a', 'b'])).toEqual({ $in: ['a'] })
+    expect(restrictField('c', ['a', 'b'])).toEqual({ $in: [] })
+    expect(restrictField({ $in: ['b', 'c'] }, ['a', 'b'])).toEqual({ $in: ['b'] })
   })
 })

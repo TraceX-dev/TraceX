@@ -171,9 +171,7 @@ function isMembershipChange (tx: TxCUD<Doc>): boolean {
   if (tx._class !== core.class.TxUpdateDoc) return false
   const ops = (tx as TxUpdateDoc<Space>).operations as Record<string, unknown>
   if (MEMBERSHIP_KEYS.some((key) => ops[key] !== undefined || hasOwn(ops.$unset, key))) return true
-  return ['members', 'owners'].some(
-    (key) => hasOwn(ops.$push, key) || hasOwn(ops.$pull, key)
-  )
+  return ['members', 'owners'].some((key) => hasOwn(ops.$push, key) || hasOwn(ops.$pull, key))
 }
 
 function isPersonIdentityChange (tx: TxCUD<Doc>): boolean {
