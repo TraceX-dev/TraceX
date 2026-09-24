@@ -345,6 +345,53 @@ describe('GuestPersonMiddleware', () => {
       expect(await getExclude(tx as Tx)).toEqual({ exclude: [OTHER_GUEST] })
     })
 
+    it('excludes every other guest for a person without an account', async () => {
+      const factory = new TxFactory('test' as PersonId)
+      const tx = factory.createTxUpdateDoc(contact.class.Person, core.space.Workspace, 'person:contact' as any, {
+        name: 'x'
+      })
+      expect(await getExclude(tx as Tx)).toEqual({ exclude: [GUEST, OTHER_GUEST] })
+    })
+
+    it('never excludes the person itself', async () => {
+      const factory = new TxFactory('test' as PersonId)
+      const tx = factory.createTxUpdateDoc(contact.class.Person, core.space.Workspace, 'person:guest' as any, {
+        name: 'x'
+      })
+      expect(await getExclude(tx as Tx)).toEqual({ exclude: [OTHER_GUEST] })
+    })
+
+    it('loads visibility of guests in parallel', async () => {
+      let inFlight = 0
+      let maxInFlight = 0
+      const next = {
+        findAll: async (_ctx: MeasureContext, _class: string, query: Record<string, any>) => {
+          if (_class === core.class.Space) {
+            inFlight++
+            maxInFlight = Math.max(maxInFlight, inFlight)
+            await new Promise((resolve) => setTimeout(resolve, 5))
+            inFlight--
+            return SPACES.filter((it) => matches(it, query))
+          }
+          return PERSONS.filter((it) => matches(it, query))
+        },
+        handleBroadcast: async () => {}
+      }
+      const mw = new (GuestPersonMiddleware as any)({ hierarchy }, next) as GuestPersonMiddleware
+      const ctx = makeCtx(makeAccount(MEMBER, AccountRole.User), [
+        [MEMBER, AccountRole.User],
+        [GUEST, AccountRole.Guest],
+        [OTHER_GUEST, AccountRole.Guest]
+      ])
+      await mw.handleBroadcast(ctx)
+      const factory = new TxFactory('test' as PersonId)
+      const tx = factory.createTxUpdateDoc(contact.class.Person, core.space.Workspace, 'person:member' as any, {
+        name: 'x'
+      })
+      expect(await ctx.contextData.broadcast.targets.guestPerson(tx as Tx)).toEqual({ exclude: [OTHER_GUEST] })
+      expect(maxInFlight).toBe(2)
+    })
+
     it('ignores unrelated classes', async () => {
       const factory = new TxFactory('test' as PersonId)
       const tx = factory.createTxCreateDoc(core.class.Space, core.space.Space, {} as any)

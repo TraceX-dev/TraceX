@@ -312,16 +312,17 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     guests: Set<AccountUuid>,
     personUuid: string | undefined
   ): Promise<{ exclude: AccountUuid[] } | undefined> {
-    const exclude: AccountUuid[] = []
-    for (const guest of guests) {
-      if (guest === personUuid) continue
-      if (personUuid === undefined) {
-        // Persons without an account are never listed for guests.
-        exclude.push(guest)
-        continue
-      }
-      const { accounts } = await this.cache.getVisible(ctx, guest)
-      if (!accounts.has(personUuid)) exclude.push(guest)
+    const others = Array.from(guests).filter((guest) => guest !== personUuid)
+    let exclude: AccountUuid[]
+    if (personUuid === undefined) {
+      // Persons without an account are never listed for guests.
+      exclude = others
+    } else {
+      // Load visibility of all guests in parallel: on a cold cache each load is a few DB queries.
+      const hidden = await Promise.all(
+        others.map(async (guest) => !(await this.cache.getVisible(ctx, guest)).accounts.has(personUuid))
+      )
+      exclude = others.filter((_, i) => hidden[i])
     }
     return exclude.length > 0 ? { exclude } : undefined
   }
