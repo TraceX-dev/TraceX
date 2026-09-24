@@ -27,17 +27,12 @@ import core, {
   type SearchQuery,
   type SearchResult,
   type SessionData,
-  type Space,
   type Tx,
-  type TxApplyIf,
   type TxCreateDoc,
   type TxCUD,
-  type TxUpdateDoc,
-  type TxWorkspaceEvent,
   isGuestRole,
   toFindResult,
-  TxProcessor,
-  WorkspaceEvent
+  TxProcessor
 } from '@hcengineering/core'
 import contact, { type Person } from '@hcengineering/contact'
 import {
@@ -47,30 +42,8 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
+import { GuestVisibilityCache, isDerivedSafe } from './guestVisibilityCache'
 import { isSystem } from './utils'
-
-type SpaceMembership = Pick<Space, '_id' | '_class' | 'members' | 'owners' | 'archived'>
-
-interface VisibleSet {
-  /** Account/person uuids the guest is allowed to list. Always contains the guest itself. */
-  accounts: Set<string>
-  /** Lazily resolved Person refs for `accounts`, used to filter attached contact docs. */
-  personRefs?: Promise<Set<Ref<Person>>>
-}
-
-/**
- * Spaces every workspace user implicitly belongs to. They never widen guest visibility.
- */
-const MAIN_SPACES = new Set<Ref<Space>>([
-  core.space.Configuration,
-  core.space.DerivedTx,
-  core.space.Model,
-  core.space.Space,
-  core.space.Workspace,
-  core.space.Tx
-])
-
-const MEMBERSHIP_KEYS = ['members', 'owners', 'archived'] as const
 
 /**
  * Value addresses concrete documents: a single id or a plain `$in` list.
@@ -104,10 +77,14 @@ function restrictField (existing: unknown, allowed: Iterable<string>): Record<st
  * Non-guest sessions pass through with a single role check.
  */
 export class GuestPersonMiddleware extends BaseMiddleware implements Middleware {
-  private readonly visibleByAccount = new Map<AccountUuid, Promise<VisibleSet>>()
+  private readonly cache: GuestVisibilityCache
 
   private constructor (context: PipelineContext, next?: Middleware) {
     super(context, next)
+    this.cache = new GuestVisibilityCache(
+      context.hierarchy,
+      async (ctx, _class, query, options) => (await this.next?.findAll(ctx, _class, query, options)) ?? []
+    )
   }
 
   static async create (
@@ -120,22 +97,13 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  private isDerived (_class: Ref<Class<Doc>> | undefined, base: Ref<Class<Doc>>): boolean {
-    if (_class === undefined) return false
-    try {
-      return this.context.hierarchy.isDerived(_class, base)
-    } catch {
-      // Unknown class (e.g. removed from model) can't be a person-related class.
-      return false
-    }
-  }
-
   private isPersonClass (_class: Ref<Class<Doc>> | undefined): boolean {
-    return this.isDerived(_class, contact.class.Person)
+    return isDerivedSafe(this.context.hierarchy, _class, contact.class.Person)
   }
 
   private isPersonAttachedClass (_class: Ref<Class<Doc>> | undefined): boolean {
-    return this.isDerived(_class, contact.class.SocialIdentity) || this.isDerived(_class, contact.class.Channel)
+    const h = this.context.hierarchy
+    return isDerivedSafe(h, _class, contact.class.SocialIdentity) || isDerivedSafe(h, _class, contact.class.Channel)
   }
 
   private isRestrictedAccount (ctx: MeasureContext<SessionData>): Account | undefined {
@@ -143,68 +111,6 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     if (account === undefined) return undefined
     if (!isGuestRole(account.role) || isSystem(account, ctx)) return undefined
     return account
-  }
-
-  private invalidate (): void {
-    this.visibleByAccount.clear()
-  }
-
-  // ─── Visibility cache ───────────────────────────────────────────────────────
-
-  private getVisible (ctx: MeasureContext, account: AccountUuid): Promise<VisibleSet> {
-    let result = this.visibleByAccount.get(account)
-    if (result === undefined) {
-      result = this.loadVisible(ctx, account)
-      this.visibleByAccount.set(account, result)
-      // Do not keep failed loads in cache.
-      result.catch(() => {
-        if (this.visibleByAccount.get(account) === result) {
-          this.visibleByAccount.delete(account)
-        }
-      })
-    }
-    return result
-  }
-
-  private async loadVisible (ctx: MeasureContext, account: AccountUuid): Promise<VisibleSet> {
-    return await ctx.with('guest-person-visible', {}, async (ctx) => {
-      const spaces = ((await this.next?.findAll(
-        ctx,
-        core.class.Space,
-        { members: account },
-        { projection: { _id: 1, _class: 1, members: 1, owners: 1, archived: 1 } }
-      )) ?? []) as SpaceMembership[]
-
-      const accounts = new Set<string>([account])
-      for (const space of spaces) {
-        if (space.archived) continue
-        if (MAIN_SPACES.has(space._id)) continue
-        if (this.isDerived(space._class, core.class.SystemSpace)) continue
-        for (const member of space.members ?? []) accounts.add(member)
-        for (const owner of space.owners ?? []) accounts.add(owner)
-      }
-      return { accounts }
-    })
-  }
-
-  private async getVisiblePersonRefs (ctx: MeasureContext, account: AccountUuid): Promise<Set<Ref<Person>>> {
-    const visible = await this.getVisible(ctx, account)
-    if (visible.personRefs === undefined) {
-      const refs = (async () => {
-        const persons = ((await this.next?.findAll(
-          ctx,
-          contact.class.Person,
-          { personUuid: { $in: Array.from(visible.accounts) as Array<Person['personUuid']> } },
-          { projection: { _id: 1 } }
-        )) ?? []) as Person[]
-        return new Set(persons.map((it) => it._id))
-      })()
-      visible.personRefs = refs
-      refs.catch(() => {
-        if (visible.personRefs === refs) visible.personRefs = undefined
-      })
-    }
-    return await visible.personRefs
   }
 
   // ─── Find ───────────────────────────────────────────────────────────────────
@@ -242,7 +148,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     if (isPointValue(q._id) || isPointValue(q.personUuid)) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
-    const { accounts } = await this.getVisible(ctx, account.uuid)
+    const accounts = await this.cache.getVisibleAccounts(ctx, account.uuid)
     const newQuery = { ...q, personUuid: restrictField(q.personUuid, accounts) } as unknown as DocumentQuery<T>
     return await this.provideFindAll(ctx, _class, newQuery, options)
   }
@@ -263,7 +169,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     if (typeof attachedToClass === 'string' && !this.isPersonClass(attachedToClass as Ref<Class<Doc>>)) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
-    const refs = await this.getVisiblePersonRefs(ctx, account.uuid)
+    const refs = await this.cache.getVisiblePersonRefs(ctx, account.uuid)
     const newQuery = { ...q, attachedTo: restrictField(q.attachedTo, refs) } as unknown as DocumentQuery<T>
     return await this.provideFindAll(ctx, _class, newQuery, options)
   }
@@ -278,7 +184,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     const result = await this.provideFindAll(ctx, _class, query, options)
     const q = query as Record<string, unknown>
     if (isPointValue(q._id)) return result
-    const { accounts } = await this.getVisible(ctx, account.uuid)
+    const accounts = await this.cache.getVisibleAccounts(ctx, account.uuid)
     const filtered = result.filter((doc) => {
       if (!this.isPersonClass(doc._class)) return true
       const personUuid = (doc as unknown as Person).personUuid
@@ -300,7 +206,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     const personIds = result.docs.filter((it) => this.isPersonClass(it.doc._class)).map((it) => it.doc._id)
     if (personIds.length === 0) return result
 
-    const { accounts } = await this.getVisible(ctx, account.uuid)
+    const accounts = await this.cache.getVisibleAccounts(ctx, account.uuid)
     const persons = ((await this.next?.findAll(
       ctx,
       contact.class.Person,
@@ -320,55 +226,8 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     }
   }
 
-  // ─── Cache invalidation ─────────────────────────────────────────────────────
-
-  private processTx (tx: Tx): void {
-    if (tx._class === core.class.TxApplyIf) {
-      for (const it of (tx as TxApplyIf).txes) this.processTx(it)
-      return
-    }
-    if (tx._class === core.class.TxWorkspaceEvent) {
-      if ((tx as TxWorkspaceEvent).event === WorkspaceEvent.BulkUpdate) this.invalidate()
-      return
-    }
-    if (!TxProcessor.isExtendsCUD(tx._class)) return
-    const cud = tx as TxCUD<Doc>
-    if (this.isDerived(cud.objectClass, core.class.Space)) {
-      if (this.isMembershipChange(cud)) this.invalidate()
-      return
-    }
-    if (this.isPersonClass(cud.objectClass) && this.isPersonIdentityChange(cud)) {
-      // Person refs cache depends on person <-> account binding.
-      this.invalidate()
-    }
-  }
-
-  private isMembershipChange (tx: TxCUD<Doc>): boolean {
-    if (tx._class === core.class.TxCreateDoc || tx._class === core.class.TxRemoveDoc) return true
-    if (tx._class !== core.class.TxUpdateDoc) return false
-    const ops = (tx as TxUpdateDoc<Space>).operations as Record<string, any>
-    if (MEMBERSHIP_KEYS.some((key) => ops[key] !== undefined)) return true
-    return (
-      ops.$push?.members !== undefined ||
-      ops.$pull?.members !== undefined ||
-      ops.$push?.owners !== undefined ||
-      ops.$pull?.owners !== undefined
-    )
-  }
-
-  private isPersonIdentityChange (tx: TxCUD<Doc>): boolean {
-    if (tx._class === core.class.TxCreateDoc) {
-      return (tx as TxCreateDoc<Person>).attributes.personUuid !== undefined
-    }
-    if (tx._class === core.class.TxRemoveDoc) return true
-    if (tx._class === core.class.TxUpdateDoc) {
-      return (tx as TxUpdateDoc<Person>).operations.personUuid !== undefined
-    }
-    return false
-  }
-
   override async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
-    for (const tx of txes) this.processTx(tx)
+    for (const tx of txes) this.cache.handleTx(tx)
     return await this.provideTx(ctx, txes)
   }
 
@@ -376,7 +235,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
 
   override async handleBroadcast (ctx: MeasureContext<SessionData>): Promise<void> {
     // Derived txes (triggers, other sessions) may change membership as well; invalidation is idempotent.
-    for (const tx of ctx.contextData.broadcast.txes) this.processTx(tx)
+    for (const tx of ctx.contextData.broadcast.txes) this.cache.handleTx(tx)
 
     ctx.contextData.broadcast.targets.guestPerson = async (tx) => await this.getBroadcastExclude(ctx, tx)
 
@@ -430,7 +289,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
         exclude.push(guest)
         continue
       }
-      const { accounts } = await this.getVisible(ctx, guest)
+      const accounts = await this.cache.getVisibleAccounts(ctx, guest)
       if (!accounts.has(personUuid)) exclude.push(guest)
     }
     return exclude.length > 0 ? { exclude } : undefined

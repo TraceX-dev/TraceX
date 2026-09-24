@@ -26,7 +26,6 @@ import core, {
   type Ref,
   type SearchResult,
   type SessionData,
-  type Space,
   type Tx,
   TxFactory
 } from '@hcengineering/core'
@@ -211,37 +210,6 @@ describe('GuestPersonMiddleware', () => {
     const { mw } = makeMiddleware()
     const res = await mw.findAll(guestCtx(), contact.class.Contact, {})
     expect(res.map((it) => it._id).sort()).toEqual(['person:guest', 'person:member', 'person:owner'])
-  })
-
-  describe('cache', () => {
-    it('loads spaces once and reloads after membership change', async () => {
-      const { mw, calls } = makeMiddleware()
-      const ctx = guestCtx()
-      await mw.findAll(ctx, EMPLOYEE, {})
-      await mw.findAll(ctx, EMPLOYEE, {})
-      expect(calls.filter((it) => it._class === core.class.Space)).toHaveLength(1)
-
-      const factory = new TxFactory('test' as PersonId)
-      const tx = factory.createTxUpdateDoc(core.class.Space, core.space.Space, 'space:project' as Ref<Space>, {
-        $push: { members: STRANGER }
-      })
-      await mw.tx(ctx, [tx])
-      await mw.findAll(ctx, EMPLOYEE, {})
-      expect(calls.filter((it) => it._class === core.class.Space)).toHaveLength(2)
-    })
-
-    it('ignores unrelated space updates', async () => {
-      const { mw, calls } = makeMiddleware()
-      const ctx = guestCtx()
-      await mw.findAll(ctx, EMPLOYEE, {})
-      const factory = new TxFactory('test' as PersonId)
-      const tx = factory.createTxUpdateDoc(core.class.Space, core.space.Space, 'space:project' as Ref<Space>, {
-        name: 'renamed'
-      })
-      await mw.tx(ctx, [tx])
-      await mw.findAll(ctx, EMPLOYEE, {})
-      expect(calls.filter((it) => it._class === core.class.Space)).toHaveLength(1)
-    })
   })
 
   it('filters persons from fulltext results', async () => {
