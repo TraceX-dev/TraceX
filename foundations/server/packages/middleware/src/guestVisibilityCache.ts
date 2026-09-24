@@ -48,13 +48,11 @@ export type VisibilityFindAll = <T extends Doc>(
 
 type SpaceMembership = Pick<Space, '_id' | '_class' | 'members' | 'owners' | 'archived'>
 
-interface VisibleSet {
-  /** Cache generation used to load this visibility set. */
-  generation: number
+export interface VisibleSet {
   /** Account/person uuids the guest is allowed to list. Always contains the guest itself. */
-  accounts: Set<string>
-  /** Lazily resolved Person refs for `accounts`, used to filter attached contact docs. */
-  personRefs?: Promise<Set<Ref<Person>>>
+  readonly accounts: ReadonlySet<string>
+  /** Person refs for `accounts`, used to filter attached contact docs (SocialIdentity, Channel). */
+  readonly personRefs: ReadonlySet<Ref<Person>>
 }
 
 /**
@@ -70,14 +68,6 @@ const MAIN_SPACES = new Set<Ref<Space>>([
 ])
 
 const MEMBERSHIP_KEYS = ['members', 'owners', 'archived'] as const
-
-/**
- * How many times a read retries a load invalidated while in flight.
- * Bounded so frequent space changes can't make a guest request spin; after the last attempt a possibly stale
- * set is returned. It is short-lived: every committed membership change invalidates the cache again from
- * `handleBroadcast`.
- */
-export const MAX_LOAD_ATTEMPTS = 3
 
 /**
  * Hierarchy check that treats unknown classes (e.g. removed from model) as unrelated.
@@ -99,10 +89,11 @@ export function isDerivedSafe (
  * Per-workspace cache of persons visible to guest accounts.
  *
  * Visible accounts = the guest itself ∪ members/owners of non-system, non-archived spaces the guest is a member of.
- * Loaded lazily per guest with a single space query and dropped entirely on any membership change (rare).
+ * Loaded lazily per guest (one space query + one person query) and dropped entirely on any membership or
+ * person <-> account binding change. Invalidation is driven by committed txes only.
  */
 export class GuestVisibilityCache {
-  private readonly visibleByAccount = new Map<AccountUuid, { generation: number, load: Promise<VisibleSet> }>()
+  private readonly visibleByAccount = new Map<AccountUuid, Promise<VisibleSet>>()
   private generation = 0
 
   constructor (
@@ -110,26 +101,26 @@ export class GuestVisibilityCache {
     private readonly findAll: VisibilityFindAll
   ) {}
 
-  async getVisibleAccounts (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<Set<string>> {
-    for (let attempt = 1; ; attempt++) {
-      const visible = await this.getVisible(ctx, account)
-      if (visible.generation === this.generation || attempt >= MAX_LOAD_ATTEMPTS) return visible.accounts
-    }
-  }
+  /**
+   * Returns the cached visibility set or loads it; concurrent calls share one load.
+   *
+   * A load invalidated while in flight still answers its callers (as if they came just before the change),
+   * but is not kept in cache.
+   */
+  getVisible (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<VisibleSet> {
+    const cached = this.visibleByAccount.get(account)
+    if (cached !== undefined) return cached
 
-  async getVisiblePersonRefs (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<Set<Ref<Person>>> {
-    for (let attempt = 1; ; attempt++) {
-      const visible = await this.getVisible(ctx, account)
-      if (visible.personRefs === undefined) {
-        const refs = this.loadPersonRefs(ctx, visible.accounts)
-        visible.personRefs = refs
-        refs.catch(() => {
-          if (visible.personRefs === refs) visible.personRefs = undefined
-        })
-      }
-      const refs = await visible.personRefs
-      if (visible.generation === this.generation || attempt >= MAX_LOAD_ATTEMPTS) return refs
+    const generation = this.generation
+    const load = this.loadVisible(ctx, account)
+    this.visibleByAccount.set(account, load)
+    const forget = (): void => {
+      if (this.visibleByAccount.get(account) === load) this.visibleByAccount.delete(account)
     }
+    load.then(() => {
+      if (generation !== this.generation) forget()
+    }, forget)
+    return load
   }
 
   /**
@@ -161,30 +152,7 @@ export class GuestVisibilityCache {
     this.visibleByAccount.clear()
   }
 
-  /**
-   * Returns the cached (or starts a new) load without retries; callers check `generation` themselves.
-   */
-  private getVisible (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<VisibleSet> {
-    const cached = this.visibleByAccount.get(account)
-    // An entry from an older generation can remain if invalidation happened before it was stored.
-    if (cached !== undefined && cached.generation === this.generation) return cached.load
-
-    const entry = { generation: this.generation, load: this.loadVisible(ctx, account, this.generation) }
-    this.visibleByAccount.set(account, entry)
-    // Do not keep failed loads in cache.
-    entry.load.catch(() => {
-      if (this.visibleByAccount.get(account) === entry) {
-        this.visibleByAccount.delete(account)
-      }
-    })
-    return entry.load
-  }
-
-  private async loadVisible (
-    ctx: MeasureContext<SessionData>,
-    account: AccountUuid,
-    generation: number
-  ): Promise<VisibleSet> {
+  private async loadVisible (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<VisibleSet> {
     return await ctx.with('guest-person-visible', {}, async (ctx) => {
       const spaces = (await this.findAll(
         ctx,
@@ -201,18 +169,15 @@ export class GuestVisibilityCache {
         for (const member of space.members ?? []) accounts.add(member)
         for (const owner of space.owners ?? []) accounts.add(owner)
       }
-      return { generation, accounts }
-    })
-  }
 
-  private async loadPersonRefs (ctx: MeasureContext<SessionData>, accounts: Set<string>): Promise<Set<Ref<Person>>> {
-    const persons = await this.findAll(
-      ctx,
-      contact.class.Person,
-      { personUuid: { $in: Array.from(accounts) as Array<Person['personUuid']> } },
-      { projection: { _id: 1 } }
-    )
-    return new Set(persons.map((it) => it._id))
+      const persons = await this.findAll(
+        ctx,
+        contact.class.Person,
+        { personUuid: { $in: Array.from(accounts) as Array<Person['personUuid']> } },
+        { projection: { _id: 1 } }
+      )
+      return { accounts, personRefs: new Set(persons.map((it) => it._id)) }
+    })
   }
 }
 

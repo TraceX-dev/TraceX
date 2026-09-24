@@ -26,7 +26,7 @@ import core, {
   WorkspaceEvent
 } from '@hcengineering/core'
 import contact, { type Person } from '@hcengineering/contact'
-import { GuestVisibilityCache, isDerivedSafe, MAX_LOAD_ATTEMPTS } from '../guestVisibilityCache'
+import { GuestVisibilityCache, isDerivedSafe } from '../guestVisibilityCache'
 
 const PARENTS: Record<string, string | undefined> = {
   [core.class.Doc]: undefined,
@@ -92,25 +92,25 @@ const spaceLoads = (calls: string[]): number => calls.filter((it) => it === core
 describe('GuestVisibilityCache', () => {
   it('collects members and owners, ignoring system, main and archived spaces', async () => {
     const { cache } = makeCache()
-    const accounts = await cache.getVisibleAccounts(makeCtx(), GUEST)
+    const accounts = await cache.getVisible(makeCtx(), GUEST).then((it) => it.accounts)
     expect(accounts).toEqual(new Set([GUEST, MEMBER, OWNER]))
   })
 
   it('contains only the account itself when it has no spaces', async () => {
     const { cache } = makeCache()
-    expect(await cache.getVisibleAccounts(makeCtx(), LONER)).toEqual(new Set([LONER]))
+    expect(await cache.getVisible(makeCtx(), LONER).then((it) => it.accounts)).toEqual(new Set([LONER]))
   })
 
   it('resolves person refs of visible accounts', async () => {
     const { cache } = makeCache()
-    const refs = await cache.getVisiblePersonRefs(makeCtx(), GUEST)
+    const refs = await cache.getVisible(makeCtx(), GUEST).then((it) => it.personRefs)
     expect(refs).toEqual(new Set(['person:guest', 'person:member', 'person:owner']))
   })
 
   it('deduplicates concurrent loads', async () => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
-    await Promise.all([cache.getVisibleAccounts(ctx, GUEST), cache.getVisibleAccounts(ctx, GUEST)])
+    await Promise.all([cache.getVisible(ctx, GUEST).then((it) => it.accounts), cache.getVisible(ctx, GUEST).then((it) => it.accounts)])
     expect(spaceLoads(calls)).toBe(1)
   })
 
@@ -126,9 +126,9 @@ describe('GuestVisibilityCache', () => {
   ])('reloads after space %s change', async (_name, ops) => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
-    await cache.getVisibleAccounts(ctx, GUEST)
+    await cache.getVisible(ctx, GUEST).then((it) => it.accounts)
     cache.handleTx(spaceUpdate(ops))
-    await cache.getVisibleAccounts(ctx, GUEST)
+    await cache.getVisible(ctx, GUEST).then((it) => it.accounts)
     expect(spaceLoads(calls)).toBe(2)
   })
 
@@ -136,7 +136,7 @@ describe('GuestVisibilityCache', () => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
     const load = async (): Promise<void> => {
-      await cache.getVisibleAccounts(ctx, GUEST)
+      await cache.getVisible(ctx, GUEST).then((it) => it.accounts)
     }
 
     await load()
@@ -155,42 +155,42 @@ describe('GuestVisibilityCache', () => {
   it('keeps cache on unrelated changes', async () => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
-    await cache.getVisibleAccounts(ctx, GUEST)
+    await cache.getVisible(ctx, GUEST).then((it) => it.accounts)
     cache.handleTx(spaceUpdate({ name: 'renamed' }))
     cache.handleTx(
       factory.createTxUpdateDoc(contact.class.Person, core.space.Workspace, 'person:member' as Ref<Person>, {
         name: 'x'
       })
     )
-    await cache.getVisibleAccounts(ctx, GUEST)
+    await cache.getVisible(ctx, GUEST).then((it) => it.accounts)
     expect(spaceLoads(calls)).toBe(1)
   })
 
   it('drops person refs when a person is bound to an account', async () => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
-    await cache.getVisiblePersonRefs(ctx, GUEST)
+    await cache.getVisible(ctx, GUEST).then((it) => it.personRefs)
     cache.handleTx(
       factory.createTxCreateDoc(contact.class.Person, core.space.Workspace, { personUuid: LONER } as any)
     )
-    await cache.getVisiblePersonRefs(ctx, GUEST)
+    await cache.getVisible(ctx, GUEST).then((it) => it.personRefs)
     expect(calls.filter((it) => it === contact.class.Person)).toHaveLength(2)
   })
 
   it('drops person refs when an account binding is unset', async () => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
-    await cache.getVisiblePersonRefs(ctx, GUEST)
+    await cache.getVisible(ctx, GUEST).then((it) => it.personRefs)
     cache.handleTx(
       factory.createTxUpdateDoc(contact.class.Person, core.space.Workspace, 'person:member' as Ref<Person>, {
         $unset: { personUuid: true }
       })
     )
-    await cache.getVisiblePersonRefs(ctx, GUEST)
+    await cache.getVisible(ctx, GUEST).then((it) => it.personRefs)
     expect(calls.filter((it) => it === contact.class.Person)).toHaveLength(2)
   })
 
-  it('retries an in-flight load invalidated by a membership change', async () => {
+  it('answers an in-flight load invalidated by a membership change, but does not cache it', async () => {
     let releaseFirst: () => void = () => {}
     let markStarted: () => void = () => {}
     const firstCanFinish = new Promise<void>((resolve) => {
@@ -199,10 +199,11 @@ describe('GuestVisibilityCache', () => {
     const firstStarted = new Promise<void>((resolve) => {
       markStarted = resolve
     })
-    let loads = 0
-    const findAll = async (): Promise<any[]> => {
-      const load = ++loads
-      if (load === 1) {
+    let spaceLoadCount = 0
+    const findAll = async (_ctx: MeasureContext, _class: string): Promise<any[]> => {
+      if (_class !== core.class.Space) return []
+      spaceLoadCount++
+      if (spaceLoadCount === 1) {
         markStarted()
         await firstCanFinish
         return SPACES
@@ -210,42 +211,32 @@ describe('GuestVisibilityCache', () => {
       return []
     }
     const cache = new GuestVisibilityCache(hierarchy, findAll)
-    const visible = cache.getVisibleAccounts(makeCtx(), GUEST)
+    const visible = cache.getVisible(makeCtx(), GUEST).then((it) => it.accounts)
 
     await firstStarted
     cache.handleTx(spaceUpdate({ $pull: { members: GUEST } }))
     releaseFirst()
 
-    expect(await visible).toEqual(new Set([GUEST]))
-    expect(loads).toBe(2)
+    // The in-flight caller gets the state from before the change...
+    expect(await visible).toEqual(new Set([GUEST, MEMBER, OWNER]))
+    // ...and the next call loads the new state.
+    expect(await cache.getVisible(makeCtx(), GUEST).then((it) => it.accounts)).toEqual(new Set([GUEST]))
+    expect(spaceLoadCount).toBe(2)
   })
 
-  it('bounds retries when the cache keeps being invalidated', async () => {
-    let loads = 0
-    const findAll = async (): Promise<any[]> => {
-      loads++
-      // Simulate constant membership churn: every load is invalidated while in flight.
-      cache.invalidate()
+  it('drops a load stored after a synchronous invalidation', async () => {
+    let spaceLoadCount = 0
+    const findAll = async (_ctx: MeasureContext, _class: string): Promise<any[]> => {
+      if (_class !== core.class.Space) return []
+      spaceLoadCount++
+      // Invalidation happens before the load promise is stored in the cache.
+      if (spaceLoadCount === 1) cache.invalidate()
       return SPACES
     }
     const cache = new GuestVisibilityCache(hierarchy, findAll)
-    expect(await cache.getVisibleAccounts(makeCtx(), GUEST)).toEqual(new Set([GUEST, MEMBER, OWNER]))
-    expect(loads).toBe(MAX_LOAD_ATTEMPTS)
-  })
-
-  it('bounds person refs retries when the cache keeps being invalidated', async () => {
-    let loads = 0
-    const findAll = async (_ctx: MeasureContext, _class: string, query: Record<string, any>): Promise<any[]> => {
-      loads++
-      cache.invalidate()
-      if (_class === core.class.Space) return SPACES.filter((it) => it.members.includes(query.members))
-      return PERSONS.filter((it) => query.personUuid.$in.includes(it.personUuid))
-    }
-    const cache = new GuestVisibilityCache(hierarchy, findAll)
-    const refs = await cache.getVisiblePersonRefs(makeCtx(), GUEST)
-    expect(refs).toEqual(new Set(['person:guest', 'person:member', 'person:owner']))
-    // One space load and one person refs load per attempt.
-    expect(loads).toBe(MAX_LOAD_ATTEMPTS * 2)
+    await cache.getVisible(makeCtx(), GUEST)
+    await cache.getVisible(makeCtx(), GUEST)
+    expect(spaceLoadCount).toBe(2)
   })
 
   it('does not cache failed loads', async () => {
@@ -255,9 +246,9 @@ describe('GuestVisibilityCache', () => {
       return []
     }
     const cache = new GuestVisibilityCache(hierarchy, findAll)
-    await expect(cache.getVisibleAccounts(makeCtx(), GUEST)).rejects.toThrow('db down')
+    await expect(cache.getVisible(makeCtx(), GUEST).then((it) => it.accounts)).rejects.toThrow('db down')
     fail = false
-    expect(await cache.getVisibleAccounts(makeCtx(), GUEST)).toEqual(new Set([GUEST]))
+    expect(await cache.getVisible(makeCtx(), GUEST).then((it) => it.accounts)).toEqual(new Set([GUEST]))
   })
 
   it('isDerivedSafe treats unknown classes as unrelated', () => {

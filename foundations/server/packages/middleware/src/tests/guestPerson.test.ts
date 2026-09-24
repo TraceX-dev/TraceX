@@ -121,9 +121,6 @@ function matches (doc: Record<string, any>, query: Record<string, any>): boolean
   })
 }
 
-// Mirrors MAX_EXPAND_ROUNDS in guestPerson.ts: one initial fetch plus bounded refills.
-const MAX_FETCHES = 4
-
 function makeMiddleware (
   search?: SearchResult,
   persons: Array<Record<string, any>> = PERSONS
@@ -183,7 +180,8 @@ describe('GuestPersonMiddleware', () => {
     it('keeps existing personUuid operators', async () => {
       const { mw, calls } = makeMiddleware()
       await mw.findAll(guestCtx(), contact.class.Person, { personUuid: { $nin: [MEMBER] } })
-      const personCall = calls.find((it) => it._class === contact.class.Person)
+      // The last Person call is the rewritten query; earlier ones come from the visibility cache.
+      const personCall = calls.filter((it) => it._class === contact.class.Person).pop()
       expect(personCall?.query.personUuid.$nin).toEqual([MEMBER])
       expect(personCall?.query.personUuid.$in).toBeDefined()
     })
@@ -229,53 +227,22 @@ describe('GuestPersonMiddleware', () => {
     })
   })
 
-  it('post-filters Contact queries', async () => {
-    const { mw } = makeMiddleware()
+  it('restricts Contact list queries like Person queries, hiding organizations', async () => {
+    const { mw, calls } = makeMiddleware()
     const res = await mw.findAll(guestCtx(), contact.class.Contact, {})
-    expect(res.map((it) => it._id).sort()).toEqual([
-      'organization:one',
-      'person:guest',
-      'person:member',
-      'person:owner'
-    ])
-    expect(res.total).toBe(-1)
+    expect(res.map((it) => it._id).sort()).toEqual(['person:guest', 'person:member', 'person:owner'])
+    expect(new Set(calls.find((it) => it._class === contact.class.Contact)?.query.personUuid.$in)).toEqual(
+      new Set([GUEST, MEMBER, OWNER])
+    )
   })
 
-  it('fills Contact pages and reports unknown total when not all matches were loaded', async () => {
+  it('does not restrict Contact point queries', async () => {
     const { mw } = makeMiddleware()
-    const res = await mw.findAll(guestCtx(), contact.class.Contact, {}, { limit: 2, total: true })
-    expect(res.map((it) => it._id)).toEqual(['person:guest', 'person:member'])
-    expect(res.total).toBe(-1)
+    const res = await mw.findAll(guestCtx(), contact.class.Contact, { _id: 'organization:one' } as any)
+    expect(res.map((it) => it._id)).toEqual(['organization:one'])
   })
 
-  it('calculates the visible Contact total when all matches were loaded', async () => {
-    const { mw } = makeMiddleware()
-    const res = await mw.findAll(guestCtx(), contact.class.Contact, {}, { limit: 10, total: true })
-    expect(res).toHaveLength(4)
-    expect(res.total).toBe(4)
-  })
-
-  it('bounds Contact refills when most matches are hidden', async () => {
-    const hidden = Array.from({ length: 100 }, (_, i) => ({
-      _id: `person:hidden-${i}`,
-      _class: contact.class.Person,
-      personUuid: `hidden-${i}`
-    }))
-    const { mw, calls } = makeMiddleware(undefined, hidden)
-    const res = await mw.findAll(guestCtx(), contact.class.Contact, {}, { limit: 2, total: true })
-    expect(res).toHaveLength(0)
-    expect(res.total).toBe(-1)
-    expect(calls.filter((it) => it._class === contact.class.Contact)).toHaveLength(MAX_FETCHES)
-  })
-
-  it('fills Contact pages without changing the unknown total sentinel', async () => {
-    const { mw } = makeMiddleware()
-    const res = await mw.findAll(guestCtx(), contact.class.Contact, {}, { limit: 2 })
-    expect(res.map((it) => it._id)).toEqual(['person:guest', 'person:member'])
-    expect(res.total).toBe(-1)
-  })
-
-  it('filters persons from fulltext results', async () => {
+  it('filters persons from fulltext results and keeps total for an exhausted result', async () => {
     const doc = (_id: string, _class: string): any => ({ id: _id, doc: { _id, _class, createdOn: 0 } })
     const { mw } = makeMiddleware({
       docs: [doc('person:member', EMPLOYEE), doc('person:stranger', EMPLOYEE), doc('issue:1', core.class.Doc)],
@@ -286,32 +253,16 @@ describe('GuestPersonMiddleware', () => {
     expect(res.total).toBe(2)
   })
 
-  it('fills fulltext pages after filtering hidden persons', async () => {
+  it('does not refill fulltext pages and hides total of a partial result', async () => {
     const doc = (_id: string, _class: string): any => ({ id: _id, doc: { _id, _class, createdOn: 0 } })
-    const { mw } = makeMiddleware({
-      docs: [
-        doc('person:stranger', EMPLOYEE),
-        doc('person:member', EMPLOYEE),
-        doc('issue:1', core.class.Doc),
-        doc('issue:2', core.class.Doc)
-      ],
-      total: 4
+    const { mw, calls } = makeMiddleware({
+      docs: [doc('person:stranger', EMPLOYEE), doc('person:member', EMPLOYEE), doc('issue:1', core.class.Doc)],
+      total: 3
     })
     const res = await mw.searchFulltext(guestCtx(), { query: 'x' }, { limit: 2 })
-    expect(res.docs.map((it) => it.id)).toEqual(['person:member', 'issue:1'])
-    expect(res.total).toBe(3)
-  })
-
-  it('bounds fulltext refills when most matches are hidden', async () => {
-    const docs = Array.from({ length: 100 }, (_, i) => ({
-      id: `person:hidden-${i}`,
-      doc: { _id: `person:hidden-${i}`, _class: EMPLOYEE, createdOn: 0 }
-    })) as any[]
-    const { mw, calls } = makeMiddleware({ docs, total: docs.length })
-    const res = await mw.searchFulltext(guestCtx(), { query: 'x' }, { limit: 2 })
-    expect(res.docs).toHaveLength(0)
+    expect(res.docs.map((it) => it.id)).toEqual(['person:member'])
     expect(res.total).toBeUndefined()
-    expect(calls.filter((it) => it._class === 'search').map((it) => it.query.limit)).toEqual([2, 4, 8, 16])
+    expect(calls.filter((it) => it._class === 'search')).toHaveLength(1)
   })
 
   describe('broadcast', () => {
