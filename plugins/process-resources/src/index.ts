@@ -73,6 +73,7 @@ import CreateCardPresenter from './components/presenters/CreateCardPresenter.sve
 import ProcessesHeaderExtension from './components/ProcessesHeaderExtension.svelte'
 import AddRelationEditor from './components/settings/AddRelationEditor.svelte'
 import AddTagEditor from './components/settings/AddTagEditor.svelte'
+import RemoveTagEditor from './components/settings/RemoveTagEditor.svelte'
 import ApproveRequestEditor from './components/settings/ApproveRequestEditor.svelte'
 import ApproveRequestTriggerEditor from './components/settings/ApproveRequestTriggerEditor.svelte'
 import ApproveRequestTriggerPresenter from './components/settings/ApproveRequestTriggerPresenter.svelte'
@@ -182,6 +183,7 @@ export default async (): Promise<Resources> => ({
     TimeEditor,
     TimePresenter,
     AddTagEditor,
+    RemoveTagEditor,
     AddTagPresenter,
     ExecutionMyToDos,
     FieldChangesEditor,

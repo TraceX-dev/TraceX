@@ -1,5 +1,6 @@
 {
   "string": {
+    "RemoveTag": "Remove tag",
     "RequestAttachments": "添付ファイルを依頼",
     "UpdateContext": "コンテキストを更新",
     "RemoveRelation": "関連付けを削除",
@@ -216,6 +217,7 @@
     "TableFromRelation": "リレーションからのテーブル"
   },
   "error": {
+    "TagHasSubtags": "Cannot remove tag: the card has a descendant tag",
     "MethodNotFound": "メソッドが見つかりません: {methodId}",
     "AttributeNotExists": "属性が存在しません: {key}",
     "RelatedObjectNotFound": "関連オブジェクトが見つかりません: {attr}",

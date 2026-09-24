@@ -1,5 +1,6 @@
 {
     "string": {
+    "RemoveTag": "Remove tag",
     "RequestAttachments": "첨부 파일 요청",
     "UpdateContext": "컨텍스트 업데이트",
     "RemoveRelation": "관계 삭제",
@@ -217,6 +218,7 @@
         "TableFromRelation": "관계의 표"
     },
     "error": {
+    "TagHasSubtags": "Cannot remove tag: the card has a descendant tag",
         "MethodNotFound": "메서드를 찾을 수 없습니다: {methodId}",
         "AttributeNotExists": "속성이 존재하지 않습니다: {key}",
         "RelatedObjectNotFound": "관련 객체를 찾을 수 없습니다: {attr}",
