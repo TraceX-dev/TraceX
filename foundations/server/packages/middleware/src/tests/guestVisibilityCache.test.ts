@@ -26,7 +26,7 @@ import core, {
   WorkspaceEvent
 } from '@hcengineering/core'
 import contact, { type Person } from '@hcengineering/contact'
-import { GuestVisibilityCache, isDerivedSafe } from '../guestVisibilityCache'
+import { GuestVisibilityCache, isDerivedSafe, MAX_LOAD_ATTEMPTS } from '../guestVisibilityCache'
 
 const PARENTS: Record<string, string | undefined> = {
   [core.class.Doc]: undefined,
@@ -119,7 +119,10 @@ describe('GuestVisibilityCache', () => {
     ['$pull members', { $pull: { members: MEMBER } }],
     ['members', { members: [GUEST] }],
     ['owners', { owners: [] }],
-    ['archived', { archived: true }]
+    ['archived', { archived: true }],
+    ['$unset members', { $unset: { members: true } }],
+    ['$unset owners', { $unset: { owners: true } }],
+    ['$unset archived', { $unset: { archived: true } }]
   ])('reloads after space %s change', async (_name, ops) => {
     const { cache, calls } = makeCache()
     const ctx = makeCtx()
@@ -172,6 +175,77 @@ describe('GuestVisibilityCache', () => {
     )
     await cache.getVisiblePersonRefs(ctx, GUEST)
     expect(calls.filter((it) => it === contact.class.Person)).toHaveLength(2)
+  })
+
+  it('drops person refs when an account binding is unset', async () => {
+    const { cache, calls } = makeCache()
+    const ctx = makeCtx()
+    await cache.getVisiblePersonRefs(ctx, GUEST)
+    cache.handleTx(
+      factory.createTxUpdateDoc(contact.class.Person, core.space.Workspace, 'person:member' as Ref<Person>, {
+        $unset: { personUuid: true }
+      })
+    )
+    await cache.getVisiblePersonRefs(ctx, GUEST)
+    expect(calls.filter((it) => it === contact.class.Person)).toHaveLength(2)
+  })
+
+  it('retries an in-flight load invalidated by a membership change', async () => {
+    let releaseFirst: () => void = () => {}
+    let markStarted: () => void = () => {}
+    const firstCanFinish = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const firstStarted = new Promise<void>((resolve) => {
+      markStarted = resolve
+    })
+    let loads = 0
+    const findAll = async (): Promise<any[]> => {
+      const load = ++loads
+      if (load === 1) {
+        markStarted()
+        await firstCanFinish
+        return SPACES
+      }
+      return []
+    }
+    const cache = new GuestVisibilityCache(hierarchy, findAll)
+    const visible = cache.getVisibleAccounts(makeCtx(), GUEST)
+
+    await firstStarted
+    cache.handleTx(spaceUpdate({ $pull: { members: GUEST } }))
+    releaseFirst()
+
+    expect(await visible).toEqual(new Set([GUEST]))
+    expect(loads).toBe(2)
+  })
+
+  it('bounds retries when the cache keeps being invalidated', async () => {
+    let loads = 0
+    const findAll = async (): Promise<any[]> => {
+      loads++
+      // Simulate constant membership churn: every load is invalidated while in flight.
+      cache.invalidate()
+      return SPACES
+    }
+    const cache = new GuestVisibilityCache(hierarchy, findAll)
+    expect(await cache.getVisibleAccounts(makeCtx(), GUEST)).toEqual(new Set([GUEST, MEMBER, OWNER]))
+    expect(loads).toBe(MAX_LOAD_ATTEMPTS)
+  })
+
+  it('bounds person refs retries when the cache keeps being invalidated', async () => {
+    let loads = 0
+    const findAll = async (_ctx: MeasureContext, _class: string, query: Record<string, any>): Promise<any[]> => {
+      loads++
+      cache.invalidate()
+      if (_class === core.class.Space) return SPACES.filter((it) => it.members.includes(query.members))
+      return PERSONS.filter((it) => query.personUuid.$in.includes(it.personUuid))
+    }
+    const cache = new GuestVisibilityCache(hierarchy, findAll)
+    const refs = await cache.getVisiblePersonRefs(makeCtx(), GUEST)
+    expect(refs).toEqual(new Set(['person:guest', 'person:member', 'person:owner']))
+    // One space load and one person refs load per attempt.
+    expect(loads).toBe(MAX_LOAD_ATTEMPTS * 2)
   })
 
   it('does not cache failed loads', async () => {

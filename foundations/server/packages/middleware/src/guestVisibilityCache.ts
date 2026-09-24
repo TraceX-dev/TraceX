@@ -49,6 +49,8 @@ export type VisibilityFindAll = <T extends Doc>(
 type SpaceMembership = Pick<Space, '_id' | '_class' | 'members' | 'owners' | 'archived'>
 
 interface VisibleSet {
+  /** Cache generation used to load this visibility set. */
+  generation: number
   /** Account/person uuids the guest is allowed to list. Always contains the guest itself. */
   accounts: Set<string>
   /** Lazily resolved Person refs for `accounts`, used to filter attached contact docs. */
@@ -68,6 +70,14 @@ const MAIN_SPACES = new Set<Ref<Space>>([
 ])
 
 const MEMBERSHIP_KEYS = ['members', 'owners', 'archived'] as const
+
+/**
+ * How many times a read retries a load invalidated while in flight.
+ * Bounded so frequent space changes can't make a guest request spin; after the last attempt a possibly stale
+ * set is returned. It is short-lived: every committed membership change invalidates the cache again from
+ * `handleBroadcast`.
+ */
+export const MAX_LOAD_ATTEMPTS = 3
 
 /**
  * Hierarchy check that treats unknown classes (e.g. removed from model) as unrelated.
@@ -92,7 +102,8 @@ export function isDerivedSafe (
  * Loaded lazily per guest with a single space query and dropped entirely on any membership change (rare).
  */
 export class GuestVisibilityCache {
-  private readonly visibleByAccount = new Map<AccountUuid, Promise<VisibleSet>>()
+  private readonly visibleByAccount = new Map<AccountUuid, { generation: number, load: Promise<VisibleSet> }>()
+  private generation = 0
 
   constructor (
     private readonly hierarchy: Pick<Hierarchy, 'isDerived'>,
@@ -100,19 +111,25 @@ export class GuestVisibilityCache {
   ) {}
 
   async getVisibleAccounts (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<Set<string>> {
-    return (await this.getVisible(ctx, account)).accounts
+    for (let attempt = 1; ; attempt++) {
+      const visible = await this.getVisible(ctx, account)
+      if (visible.generation === this.generation || attempt >= MAX_LOAD_ATTEMPTS) return visible.accounts
+    }
   }
 
   async getVisiblePersonRefs (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<Set<Ref<Person>>> {
-    const visible = await this.getVisible(ctx, account)
-    if (visible.personRefs === undefined) {
-      const refs = this.loadPersonRefs(ctx, visible.accounts)
-      visible.personRefs = refs
-      refs.catch(() => {
-        if (visible.personRefs === refs) visible.personRefs = undefined
-      })
+    for (let attempt = 1; ; attempt++) {
+      const visible = await this.getVisible(ctx, account)
+      if (visible.personRefs === undefined) {
+        const refs = this.loadPersonRefs(ctx, visible.accounts)
+        visible.personRefs = refs
+        refs.catch(() => {
+          if (visible.personRefs === refs) visible.personRefs = undefined
+        })
+      }
+      const refs = await visible.personRefs
+      if (visible.generation === this.generation || attempt >= MAX_LOAD_ATTEMPTS) return refs
     }
-    return await visible.personRefs
   }
 
   /**
@@ -140,25 +157,34 @@ export class GuestVisibilityCache {
   }
 
   invalidate (): void {
+    this.generation++
     this.visibleByAccount.clear()
   }
 
+  /**
+   * Returns the cached (or starts a new) load without retries; callers check `generation` themselves.
+   */
   private getVisible (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<VisibleSet> {
-    let result = this.visibleByAccount.get(account)
-    if (result === undefined) {
-      result = this.loadVisible(ctx, account)
-      this.visibleByAccount.set(account, result)
-      // Do not keep failed loads in cache.
-      result.catch(() => {
-        if (this.visibleByAccount.get(account) === result) {
-          this.visibleByAccount.delete(account)
-        }
-      })
-    }
-    return result
+    const cached = this.visibleByAccount.get(account)
+    // An entry from an older generation can remain if invalidation happened before it was stored.
+    if (cached !== undefined && cached.generation === this.generation) return cached.load
+
+    const entry = { generation: this.generation, load: this.loadVisible(ctx, account, this.generation) }
+    this.visibleByAccount.set(account, entry)
+    // Do not keep failed loads in cache.
+    entry.load.catch(() => {
+      if (this.visibleByAccount.get(account) === entry) {
+        this.visibleByAccount.delete(account)
+      }
+    })
+    return entry.load
   }
 
-  private async loadVisible (ctx: MeasureContext<SessionData>, account: AccountUuid): Promise<VisibleSet> {
+  private async loadVisible (
+    ctx: MeasureContext<SessionData>,
+    account: AccountUuid,
+    generation: number
+  ): Promise<VisibleSet> {
     return await ctx.with('guest-person-visible', {}, async (ctx) => {
       const spaces = (await this.findAll(
         ctx,
@@ -175,7 +201,7 @@ export class GuestVisibilityCache {
         for (const member of space.members ?? []) accounts.add(member)
         for (const owner of space.owners ?? []) accounts.add(owner)
       }
-      return { accounts }
+      return { generation, accounts }
     })
   }
 
@@ -193,13 +219,10 @@ export class GuestVisibilityCache {
 function isMembershipChange (tx: TxCUD<Doc>): boolean {
   if (tx._class === core.class.TxCreateDoc || tx._class === core.class.TxRemoveDoc) return true
   if (tx._class !== core.class.TxUpdateDoc) return false
-  const ops = (tx as TxUpdateDoc<Space>).operations as Record<string, any>
-  if (MEMBERSHIP_KEYS.some((key) => ops[key] !== undefined)) return true
-  return (
-    ops.$push?.members !== undefined ||
-    ops.$pull?.members !== undefined ||
-    ops.$push?.owners !== undefined ||
-    ops.$pull?.owners !== undefined
+  const ops = (tx as TxUpdateDoc<Space>).operations as Record<string, unknown>
+  if (MEMBERSHIP_KEYS.some((key) => ops[key] !== undefined || hasOwn(ops.$unset, key))) return true
+  return ['members', 'owners'].some(
+    (key) => hasOwn(ops.$push, key) || hasOwn(ops.$pull, key)
   )
 }
 
@@ -209,7 +232,12 @@ function isPersonIdentityChange (tx: TxCUD<Doc>): boolean {
   }
   if (tx._class === core.class.TxRemoveDoc) return true
   if (tx._class === core.class.TxUpdateDoc) {
-    return (tx as TxUpdateDoc<Person>).operations.personUuid !== undefined
+    const operations = (tx as TxUpdateDoc<Person>).operations
+    return operations.personUuid !== undefined || hasOwn(operations.$unset, 'personUuid')
   }
   return false
+}
+
+function hasOwn (value: unknown, key: string): boolean {
+  return value !== null && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, key)
 }
