@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Запросить вложения",
     "UpdateContext": "Обновить контекст",
     "RemoveRelation": "Удалить связь",
     "Method": "Метод",
@@ -168,6 +169,10 @@
     "LockCard": "Заблокировать карточку",
     "LockSection": "Заблокировать секцию",
     "Approvers": "Утверждающие",
+    "ToDoAssignees": "Исполнители",
+    "ToDoCompleteAll": "Должны выполнить все",
+    "ToDoCompleteAllHint": "Процесс ожидает выполнения туду всеми исполнителями.",
+    "ToDoCompleteAnyHint": "При первом выполненном туду остальные отменяются.",
     "UnlockCard": "Разблокировать карточку",
     "UnlockSection": "Разблокировать секцию",
     "CancelToDo": "Отменить задачу",

@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "添付ファイルを依頼",
     "UpdateContext": "コンテキストを更新",
     "RemoveRelation": "関連付けを削除",
     "Method": "メソッド",
@@ -167,6 +168,10 @@
     "LockCard": "カードをロック",
     "LockSection": "セクションをロック",
     "Approvers": "承認者",
+    "ToDoAssignees": "担当者",
+    "ToDoCompleteAll": "全員の完了が必要",
+    "ToDoCompleteAllHint": "全担当者がタスクを完了するまでプロセスは待機します。",
+    "ToDoCompleteAnyHint": "最初のタスクが完了すると、残りはキャンセルされます。",
     "UnlockCard": "カードのロックを解除",
     "UnlockSection": "セクションのロックを解除",
     "CancelToDo": "アクションをキャンセル",

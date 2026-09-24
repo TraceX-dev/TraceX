@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Anhänge anfordern",
     "UpdateContext": "Kontext aktualisieren",
     "RemoveRelation": "Beziehung entfernen",
     "Method": "Methode",
@@ -161,6 +162,10 @@
     "LockCard": "Karte sperren",
     "LockSection": "Abschnitt sperren",
     "Approvers": "Genehmiger",
+    "ToDoAssignees": "Verantwortliche",
+    "ToDoCompleteAll": "Alle müssen abschließen",
+    "ToDoCompleteAllHint": "Der Prozess wartet, bis alle ihre Aufgaben abgeschlossen haben.",
+    "ToDoCompleteAnyHint": "Die erste abgeschlossene Aufgabe storniert die übrigen Aufgaben.",
     "UnlockCard": "Karte entsperren",
     "UnlockSection": "Abschnitt entsperren",
     "CancelToDo": "Action Item abbrechen",

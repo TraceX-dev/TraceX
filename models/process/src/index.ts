@@ -229,6 +229,9 @@ export class TProcessToDo extends TToDo implements ProcessToDo {
 
   @Prop(TypeBoolean(), process.string.AskRequired)
     askRequired?: boolean
+
+  group?: string
+  completionMode?: 'any' | 'all'
 }
 
 @Model(process.class.ApproveRequest, process.class.ProcessToDo)
@@ -240,7 +243,7 @@ export class TApproveRequest extends TProcessToDo implements ApproveRequest {
   @Prop(TypeString(), process.string.RejectionReason)
     reason?: string
 
-  group!: string
+  declare group: string
 
   card!: Ref<Card>
 
@@ -294,6 +297,8 @@ export class TProcessCustomEvent extends TDoc implements ProcessCustomEvent {
 
 @Model(process.class.EventButton, core.class.Doc, DOMAIN_PROCESS)
 export class TEventButton extends TDoc implements EventButton {
+  requireAttachments?: boolean
+
   @Prop(TypeString(), core.string.Name)
     title!: string
 

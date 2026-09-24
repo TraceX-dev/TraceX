@@ -162,6 +162,10 @@ export function createModel (builder: Builder): void {
     func: serverProcess.func.CreateToDo
   })
 
+  builder.mixin(process.method.RequestAttachments, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.RequestAttachments
+  })
+
   builder.mixin(process.method.CreateAction, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.CreateAction
   })

@@ -1,13 +1,19 @@
-name: Security check
+name: Security checks
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      run_dast:
+        description: Run the ZAP baseline scans against staging and production
+        required: false
+        default: false
+        type: boolean
   push:
-    branches:
-      - main
-      - master
-    paths:
-      - .github/workflows/security-check.yml
+    branches: [staging, staging-new, main]
+    tags:
+      - v*
+      - s*
+
   schedule:
     # Random HH:MM to avoid a load spike on GitHub Actions at 00:00.
     - cron: '17 3 * * *'
@@ -21,94 +27,211 @@ concurrency:
 
 jobs:
   semgrep:
-    name: Semgrep
+    name: Semgrep (SAST)
     runs-on: ubuntu-latest
-    if: github.actor != 'dependabot[bot]'
+    timeout-minutes: 15
+    if: always()
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    outputs:
+      critical: ${{ steps.summary.outputs.critical }}
+      high: ${{ steps.summary.outputs.high }}
+      medium: ${{ steps.summary.outputs.medium }}
+      low: ${{ steps.summary.outputs.low }}
     env:
       SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
     container:
-      image: semgrep/semgrep
+      # semgrep/semgrep:1.177.0 for linux/amd64
+      image: semgrep/semgrep@sha256:d1825c2c72110b5bfbf0602ff68f7f117322597a7c33037a79dba9f897f5f1f0
     steps:
-      - uses: actions/checkout@v6
-      - name: Run Semgrep
-        run: semgrep ci --sarif > semgrep.sarif
-      - name: Generate Semgrep summary
+      # actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - id: scan
+        name: Run Semgrep (SAST)
+        run: |
+          mkdir -p reports
+          semgrep ci --sarif > reports/semgrep.sarif
+
+      - id: summary
+        name: Generate Semgrep (SAST) summary
         if: always()
         run: |
-          node -e '
-          const fs = require("node:fs")
+          python3 - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
 
-          let markdown = "## Semgrep\n\n"
-          if (!fs.existsSync("semgrep.sarif")) {
-            markdown += "Semgrep did not produce a SARIF report. See the job log.\n"
-          } else {
-            const report = JSON.parse(fs.readFileSync("semgrep.sarif", "utf8"))
-            const findings = report.runs.flatMap((run) => run.results ?? []).slice(0, 20)
-            markdown += `Findings: ${findings.length}${findings.length === 20 ? "+" : ""}\n\n`
-            markdown += findings.length === 0
-              ? "No findings.\n"
-              : findings.map((finding) => `- **${finding.ruleId}** — ${finding.message?.text ?? "No message"}`).join("\n")
-          }
+          report_path = Path("reports/semgrep.sarif")
+          markdown = "## Semgrep\n\n"
+          counts = {severity: "unknown" for severity in ("critical", "high", "medium", "low")}
 
-          fs.writeFileSync("semgrep-summary.md", markdown)
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
-          '
+          if not report_path.exists():
+              markdown += "Semgrep did not produce a SARIF report. See the job log.\n"
+          else:
+              report = json.loads(report_path.read_text())
+              findings = []
+              for run in report.get("runs", []):
+                  rules = run.get("tool", {}).get("driver", {}).get("rules", [])
+                  rule_levels = {
+                      rule.get("id"): rule.get("defaultConfiguration", {}).get("level")
+                      for rule in rules
+                  }
+                  findings.extend(
+                      (finding, rule_levels.get(finding.get("ruleId")))
+                      for finding in run.get("results", [])
+                  )
+              counts = {severity: 0 for severity in ("critical", "high", "medium", "low")}
+              unclassified = 0
+              for finding, rule_level in findings:
+                  properties = finding.get("properties", {})
+                  extra = properties.get("extra", {})
+                  metadata = extra.get("metadata", {})
+                  raw_severity = str(
+                      extra.get("severity")
+                      or metadata.get("severity")
+                      or metadata.get("impact")
+                      or finding.get("level")
+                      or rule_level
+                      or ""
+                  ).lower()
+                  severity = {
+                      "critical": "critical",
+                      "high": "high",
+                      "error": "high",
+                      "medium": "medium",
+                      "moderate": "medium",
+                      "warning": "medium",
+                      "low": "low",
+                      "info": "low",
+                      "note": "low",
+                  }.get(raw_severity)
+                  if severity is None:
+                      unclassified += 1
+                  else:
+                      counts[severity] += 1
+              markdown += f"Findings: {len(findings)}\n\n"
+              if unclassified:
+                  markdown += f"Unclassified: {unclassified}\n\n"
+              if not findings:
+                  markdown += "No findings.\n"
+              else:
+                  markdown += "\n".join(
+                      f"- **{finding.get('ruleId', 'unknown')}** — {finding.get('message', {}).get('text', 'No message')}"
+                      for finding, _ in findings[:20]
+                  )
+
+          Path("semgrep-summary.md").write_text(markdown)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(markdown)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("".join(f"{severity}={counts[severity]}\n" for severity in counts))
+          PYTHON
+
+      - name: Upload Semgrep findings to Code Scanning
+        if: always() && hashFiles('reports/semgrep.sarif') != '' && env.ACT != 'true'
+        uses: github/codeql-action/upload-sarif@d8073367669608af8fbcc5f63dd0a0d52bb90cff # v4
+        with:
+          sarif_file: reports/semgrep.sarif
+
       - name: Upload Semgrep report
-        if: always()
-        uses: actions/upload-artifact@v6
+        if: always() && env.ACT != 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: semgrep-report
           path: |
-            semgrep.sarif
+            reports/semgrep.sarif
             semgrep-summary.md
           if-no-files-found: warn
 
   grype:
-    name: Grype
+    name: Grype (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
+    outputs:
+      critical: ${{ steps.summary.outputs.critical }}
+      high: ${{ steps.summary.outputs.high }}
+      medium: ${{ steps.summary.outputs.medium }}
+      low: ${{ steps.summary.outputs.low }}
     steps:
-      - uses: actions/checkout@v7
+      # actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - id: scan
-        name: Scan repository dependencies
-        uses: anchore/scan-action@v7
+        name: Scan dependencies with Grype (SCA)
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7
         with:
           path: .
           fail-build: false
           output-format: sarif
           output-file: grype-report.sarif
           cache-db: true
-      - name: Generate Grype summary
+      - id: summary
+        name: Generate Grype (SCA) summary
         if: always()
         run: |
-          node -e '
-          const fs = require("node:fs")
+          python3 - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
 
-          let markdown = "## Grype\n\n"
-          if (!fs.existsSync("grype-report.sarif")) {
-            markdown += "Grype did not produce a SARIF report. See the job log.\n"
-          } else {
-            const report = JSON.parse(fs.readFileSync("grype-report.sarif", "utf8"))
-            const findings = report.runs.flatMap((run) => run.results ?? []).slice(0, 20)
-            markdown += `Findings: ${findings.length}${findings.length === 20 ? "+" : ""}\n\n`
-            markdown += findings.length === 0
-              ? "No findings.\n"
-              : findings.map((finding) => `- **${finding.ruleId}** — ${finding.message?.text ?? "No message"}`).join("\n")
-          }
+          report_path = Path("grype-report.sarif")
+          markdown = "## Grype\n\n"
+          counts = {severity: "unknown" for severity in ("critical", "high", "medium", "low")}
 
-          fs.writeFileSync("grype-summary.md", markdown)
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
-          '
+          if not report_path.exists():
+              markdown += "Grype did not produce a SARIF report. See the job log.\n"
+          else:
+              report = json.loads(report_path.read_text())
+              findings = [finding for run in report.get("runs", []) for finding in run.get("results", [])]
+              rules = {
+                  rule.get("id"): rule.get("properties", {})
+                  for run in report.get("runs", [])
+                  for rule in run.get("tool", {}).get("driver", {}).get("rules", [])
+              }
+              counts = {severity: 0 for severity in ("critical", "high", "medium", "low")}
+              for finding in findings:
+                  properties = rules.get(finding.get("ruleId"), {}) | finding.get("properties", {})
+                  raw_severity = str(properties.get("severity") or properties.get("security-severity") or finding.get("level", "")).lower()
+                  try:
+                      score = float(raw_severity)
+                      severity = "critical" if score >= 9 else "high" if score >= 7 else "medium" if score >= 4 else "low"
+                  except ValueError:
+                      severity = {
+                          "critical": "critical",
+                          "high": "high",
+                          "error": "high",
+                          "medium": "medium",
+                          "moderate": "medium",
+                          "warning": "medium",
+                          "low": "low",
+                          "info": "low",
+                          "note": "low",
+                      }.get(raw_severity, "medium")
+                  counts[severity] += 1
+              markdown += f"Findings: {len(findings)}\n\n"
+              markdown += "No findings.\n" if not findings else "\n".join(
+                  f"- **{finding.get('ruleId', 'unknown')}** — {finding.get('message', {}).get('text', 'No message')}"
+                  for finding in findings[:20]
+              )
+
+          Path("grype-summary.md").write_text(markdown)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(markdown)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("".join(f"{severity}={counts[severity]}\n" for severity in counts))
+          PYTHON
       - name: Upload Grype findings to Code Scanning
-        if: always() && steps.scan.outcome == 'success'
-        uses: github/codeql-action/upload-sarif@v4
+        if: always() && steps.scan.outcome == 'success' && env.ACT != 'true'
+        uses: github/codeql-action/upload-sarif@d8073367669608af8fbcc5f63dd0a0d52bb90cff # v4
         with:
           sarif_file: grype-report.sarif
       - name: Upload Grype report
-        if: always()
-        uses: actions/upload-artifact@v6
+        if: always() && env.ACT != 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: grype-report
           path: |
@@ -117,99 +240,212 @@ jobs:
           if-no-files-found: warn
 
   pnpm-audit:
-    name: pnpm audit
+    name: pnpm audit (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      critical: ${{ steps.summary.outputs.critical }}
+      high: ${{ steps.summary.outputs.high }}
+      medium: ${{ steps.summary.outputs.medium }}
+      low: ${{ steps.summary.outputs.low }}
     steps:
-      - uses: actions/checkout@v7
+      # actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Prepare Rush workspace
+        run: node common/scripts/install-run-rush.js install
       - id: audit
-        name: Run pnpm audit
+        name: Run pnpm audit (SCA)
         run: |
           set +e
-          node common/scripts/install-run-rush-pnpm.js audit --json --quiet > pnpm-audit-raw.txt
+          RUSH_QUIET_MODE=1 node common/scripts/install-run-rush-pnpm.js audit --json > pnpm-audit-output.txt 2> pnpm-audit.log
           audit_exit_code=$?
           set -e
           echo "exit_code=${audit_exit_code}" >> "$GITHUB_OUTPUT"
-      - name: Generate pnpm audit summary
+      - id: summary
+        name: Generate pnpm audit (SCA) summary
         if: always()
         env:
           AUDIT_EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
         run: |
-          node -e '
-          const fs = require("node:fs")
+          python3 - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
 
-          const reportPath = "pnpm-audit-raw.txt"
-          const exitCode = process.env.AUDIT_EXIT_CODE || "unknown"
-          let markdown = "## pnpm audit\n\n"
+          exit_code = os.environ.get("AUDIT_EXIT_CODE", "unknown")
+          markdown = "## pnpm audit\n\n"
+          critical = "unknown"
+          high = "unknown"
+          medium = "unknown"
+          low = "unknown"
 
-          try {
-            const rawReport = fs.readFileSync(reportPath, "utf8")
-            const jsonStart = rawReport.indexOf("{")
-            const jsonEnd = rawReport.lastIndexOf("}")
-            if (jsonStart === -1 || jsonEnd === -1) throw new Error("JSON audit report not found")
+          try:
+              raw_report = Path("pnpm-audit-output.txt").read_text()
+              json_start = raw_report.index("{")
+              report, _ = json.JSONDecoder().raw_decode(raw_report[json_start:])
+              if not isinstance(report, dict) or "vulnerabilities" not in report.get("metadata", {}):
+                  raise ValueError("pnpm audit JSON report not found in command output")
+              vulnerabilities = report.get("metadata", {}).get("vulnerabilities", {})
+              severities = ["critical", "high", "moderate", "low", "info"]
 
-            const report = JSON.parse(rawReport.slice(jsonStart, jsonEnd + 1))
-            const vulnerabilities = report.metadata?.vulnerabilities ?? {}
-            const severities = ["critical", "high", "moderate", "low", "info"]
+              markdown += f"Exit code: {exit_code}\n\n| Severity | Findings |\n| --- | ---: |\n"
+              markdown += "\n".join(f"| {severity} | {vulnerabilities.get(severity, 0)} |" for severity in severities)
+              markdown += "\n"
+              critical = str(vulnerabilities.get("critical", 0))
+              high = str(vulnerabilities.get("high", 0))
+              medium = str(vulnerabilities.get("moderate", 0))
+              low = str(vulnerabilities.get("low", 0))
+              Path("pnpm-audit.json").write_text(json.dumps(report, indent=2) + "\n")
+          except (OSError, ValueError, json.JSONDecodeError) as error:
+              markdown += f"Audit report could not be parsed (exit code: {exit_code}): {error}. See the workflow log.\n"
 
-            markdown += `Exit code: ${exitCode}\n\n`
-            markdown += "| Severity | Findings |\n| --- | ---: |\n"
-            markdown += severities.map((severity) => `| ${severity} | ${vulnerabilities[severity] ?? 0} |`).join("\n")
-            markdown += "\n"
-            fs.writeFileSync("pnpm-audit.json", JSON.stringify(report, null, 2))
-          } catch (error) {
-            markdown += `Audit report could not be parsed (exit code: ${exitCode}). See the workflow log.\n`
-          }
-
-          fs.writeFileSync("pnpm-audit-summary.md", markdown)
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
-          '
+          Path("pnpm-audit-summary.md").write_text(markdown)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(markdown)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"critical={critical}\nhigh={high}\nmedium={medium}\nlow={low}\n")
+          PYTHON
       - name: Upload pnpm audit report
-        if: always()
-        uses: actions/upload-artifact@v6
+        if: always() && env.ACT != 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: pnpm-audit-report
           path: |
             pnpm-audit.json
-            pnpm-audit-raw.txt
+            pnpm-audit-output.txt
+            pnpm-audit.log
             pnpm-audit-summary.md
           if-no-files-found: warn
 
   zap-staging-baseline:
-    name: ZAP staging baseline
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: ZAP staging baseline (DAST)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_dast)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      critical: ${{ steps.zap.outputs.critical }}
+      high: ${{ steps.zap.outputs.high }}
+      medium: ${{ steps.zap.outputs.medium }}
+      low: ${{ steps.zap.outputs.low }}
     steps:
-      - uses: zaproxy/action-baseline@v0.15.0
+      # actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - id: zap
+        uses: ./.github/actions/zap-baseline
         with:
           target: https://stg.tracex.co
-          cmd_options: '-m 2'
-          allow_issue_writing: false
-          fail_action: false
-          artifact_name: zap-staging-baseline-report
-      - name: Generate ZAP summary
-        if: always()
+          environment-name: staging
+          artifact-name: zap-staging-baseline-report
+
+  zap-prod-baseline:
+    name: ZAP production baseline (DAST)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_dast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      critical: ${{ steps.zap.outputs.critical }}
+      high: ${{ steps.zap.outputs.high }}
+      medium: ${{ steps.zap.outputs.medium }}
+      low: ${{ steps.zap.outputs.low }}
+    steps:
+      # actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - id: zap
+        uses: ./.github/actions/zap-baseline
+        with:
+          target: https://app.tracex.co
+          environment-name: production
+          artifact-name: zap-prod-baseline-report
+
+  security-summary:
+    name: Security summary
+    if: always()
+    needs:
+      - semgrep
+      - grype
+      - pnpm-audit
+      - zap-staging-baseline
+      - zap-prod-baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Publish consolidated result
+        env:
+          SEMGREP_RESULT: ${{ needs.semgrep.result }}
+          SEMGREP_CRITICAL: ${{ needs.semgrep.outputs.critical }}
+          SEMGREP_HIGH: ${{ needs.semgrep.outputs.high }}
+          SEMGREP_MEDIUM: ${{ needs.semgrep.outputs.medium }}
+          SEMGREP_LOW: ${{ needs.semgrep.outputs.low }}
+          GRYPE_RESULT: ${{ needs.grype.result }}
+          GRYPE_CRITICAL: ${{ needs.grype.outputs.critical }}
+          GRYPE_HIGH: ${{ needs.grype.outputs.high }}
+          GRYPE_MEDIUM: ${{ needs.grype.outputs.medium }}
+          GRYPE_LOW: ${{ needs.grype.outputs.low }}
+          PNPM_AUDIT_RESULT: ${{ needs.pnpm-audit.result }}
+          PNPM_AUDIT_CRITICAL: ${{ needs.pnpm-audit.outputs.critical }}
+          PNPM_AUDIT_HIGH: ${{ needs.pnpm-audit.outputs.high }}
+          PNPM_AUDIT_MEDIUM: ${{ needs.pnpm-audit.outputs.medium }}
+          PNPM_AUDIT_LOW: ${{ needs.pnpm-audit.outputs.low }}
+          ZAP_STAGING_RESULT: ${{ needs.zap-staging-baseline.result }}
+          ZAP_STAGING_CRITICAL: ${{ needs.zap-staging-baseline.outputs.critical }}
+          ZAP_STAGING_HIGH: ${{ needs.zap-staging-baseline.outputs.high }}
+          ZAP_STAGING_MEDIUM: ${{ needs.zap-staging-baseline.outputs.medium }}
+          ZAP_STAGING_LOW: ${{ needs.zap-staging-baseline.outputs.low }}
+          ZAP_PROD_RESULT: ${{ needs.zap-prod-baseline.result }}
+          ZAP_PROD_CRITICAL: ${{ needs.zap-prod-baseline.outputs.critical }}
+          ZAP_PROD_HIGH: ${{ needs.zap-prod-baseline.outputs.high }}
+          ZAP_PROD_MEDIUM: ${{ needs.zap-prod-baseline.outputs.medium }}
+          ZAP_PROD_LOW: ${{ needs.zap-prod-baseline.outputs.low }}
+          RUN_ARTIFACTS_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts
         run: |
-          node -e '
-          const fs = require("node:fs")
+          python3 - <<'PYTHON'
+          import os
+          import textwrap
 
-          const reportPath = "report_json.json"
-          let markdown = "## ZAP staging baseline\n\n"
+          def value(prefix, severity, status):
+              result = os.environ.get(f"{prefix}_{severity}")
+              unevaluated_expression = "$" + "{{"
+              if not result or unevaluated_expression in result:
+                  return "—" if status == "skipped" else "unknown"
+              return result
 
-          if (!fs.existsSync(reportPath)) {
-            markdown += "The full ZAP report is attached as the `zap-staging-baseline-report` artifact.\n"
-          } else {
-            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"))
-            const alerts = (report.site ?? []).flatMap((site) => site.alerts ?? [])
-            const riskNames = { 0: "Informational", 1: "Low", 2: "Medium", 3: "High" }
-            const counts = Object.fromEntries(Object.keys(riskNames).map((risk) => [risk, 0]))
+          def report_link(status):
+              if status == "skipped":
+                  return "Not run"
+              if os.environ.get("ACT") == "true":
+                  return "Local files"
+              if os.environ.get("GITHUB_ACTIONS") == "true":
+                  return f"[Artifacts]({os.environ['RUN_ARTIFACTS_URL']})"
+              return "Local files"
 
-            for (const alert of alerts) counts[alert.riskcode] = (counts[alert.riskcode] ?? 0) + 1
+          checks = [
+              ("Semgrep (SAST)", "SEMGREP", os.environ.get("SEMGREP_RESULT", "unknown")),
+              ("Grype (SCA)", "GRYPE", os.environ.get("GRYPE_RESULT", "unknown")),
+              ("pnpm audit (SCA)", "PNPM_AUDIT", os.environ.get("PNPM_AUDIT_RESULT", "unknown")),
+              ("ZAP staging baseline (DAST)", "ZAP_STAGING", os.environ.get("ZAP_STAGING_RESULT", "unknown")),
+              ("ZAP prod baseline (DAST)", "ZAP_PROD", os.environ.get("ZAP_PROD_RESULT", "unknown")),
+          ]
 
-            markdown += "| Risk | Alerts |\n| --- | ---: |\n"
-            markdown += Object.entries(riskNames).reverse().map(([risk, name]) => `| ${name} | ${counts[risk]} |`).join("\n")
-            markdown += "\n"
-          }
+          markdown = textwrap.dedent(f'''\
+          # Security check result
 
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
-          '
+          | Check | Job status | Critical | High | Medium | Low | Report |
+          | --- | --- | ---: | ---: | ---: | ---: | --- |
+          ''')
+          markdown += "\n".join(
+              f"| {name} | {status} | {value(prefix, 'CRITICAL', status)} | {value(prefix, 'HIGH', status)} | {value(prefix, 'MEDIUM', status)} | {value(prefix, 'LOW', status)} | {report_link(status)} |"
+              for name, prefix, status in checks
+          )
+          markdown += textwrap.dedent('''
+
+          Detailed reports are attached to their scanner jobs as workflow artifacts on GitHub Actions.
+          The ZAP check runs on schedule or when explicitly enabled in a manual GitHub Actions run.
+          ''')
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(markdown)
+          PYTHON

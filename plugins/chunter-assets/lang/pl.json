@@ -133,6 +133,26 @@
     "OpenChatInSidebar": "Otwórz czat w panelu bocznym",
     "ResolveThread": "Rozwiąż dyskusję",
     "NoThreadsYet": "Nie ma jeszcze wątków.",
-    "SummarizeMessages": "Podsumuj dyskusję"
+    "SummarizeMessages": "Podsumuj dyskusję",
+    "Resolved": "Rozwiązany",
+    "ViewAllDiscussions": "Pokaż wszystkie dyskusje ({count})",
+    "DeleteDiscussion": "Usuń dyskusję",
+    "DeleteDiscussionConfirm": "Czy chcesz usunąć tę dyskusję? Tej operacji nie można cofnąć.",
+    "NewDiscussion": "Nowa dyskusja",
+    "CreateDiscussion": "Utwórz dyskusję",
+    "FirstMessage": "Pierwsza wiadomość",
+    "FirstMessagePlaceholder": "Napisz pierwszą wiadomość, aby rozpocząć dyskusję…",
+    "AttachTo": "Powiąż z (opcjonalnie)",
+    "AttachToDescription": "Powiąż dyskusję z konkretnym załącznikiem, aby łatwiej ją znaleźć.",
+    "AttachedTo": "Powiązano z: {name}",
+    "JoinDiscussionRequest": "Poproś uczestnika dyskusji o dodanie Cię, aby czytać i wysyłać wiadomości.",
+    "NotAttached": "Brak powiązania",
+    "MarkAsResolved": "Oznacz jako rozwiązany",
+    "ReopenDiscussion": "Otwórz dyskusję ponownie",
+    "ParticipantsCount": "{count, plural, one {# uczestnik} few {# uczestników} many {# uczestników} other {# uczestnika}}",
+    "AddAllCollaborators": "Dodaj wszystkich współpracowników karty ({count})",
+    "Discussion": "Dyskusja",
+    "Discussions": "Dyskusje",
+    "NoDiscussionsYet": "Nie ma jeszcze dyskusji."
   }
 }

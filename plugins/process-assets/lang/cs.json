@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Vyžádat přílohy",
     "UpdateContext": "Aktualizovat kontext",
     "RemoveRelation": "Odstranit vztah",
     "Method": "Metoda",
@@ -161,6 +162,10 @@
     "LockCard": "Zamknout kartu",
     "LockSection": "Zamknout sekci",
     "Approvers": "Schvalovatelé",
+    "ToDoAssignees": "Řešitelé",
+    "ToDoCompleteAll": "Dokončit musí všichni",
+    "ToDoCompleteAllHint": "Proces čeká, až všichni dokončí své úkoly.",
+    "ToDoCompleteAnyHint": "První dokončený úkol zruší ostatní úkoly.",
     "UnlockCard": "Odemknout kartu",
     "UnlockSection": "Odemknout sekci",
     "CancelToDo": "Zrušit akční položku",

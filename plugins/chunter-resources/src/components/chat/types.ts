@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,7 +18,7 @@ import { type Class, type Doc, type Ref, type UserStatus, type AccountUuid } fro
 import { type DocNotifyContext } from '@hcengineering/notification'
 import { type AnySvelteComponent, type IconSize, type Action } from '@hcengineering/ui'
 
-export type ChatGroup = 'activity' | 'direct' | 'channels' | 'starred'
+export type ChatGroup = 'activity' | 'direct' | 'channels' | 'discussions' | 'starred'
 
 export interface SortFnOptions {
   contexts: DocNotifyContext[]
@@ -34,12 +35,16 @@ export interface ChatNavGroupModel {
   isPinned: boolean
   _class?: Ref<Class<Doc>>
   skipClasses?: Array<Ref<Class<Doc>>>
+  // Keep unread items visible when the section is collapsed.
+  showUnreadWhenCollapsed?: boolean
 }
 
 export interface ChatNavItemModel {
   id: Ref<Doc>
   object: Doc
   title: string
+  // Shown after the title in a secondary color, e.g. the parent object of a discussion.
+  secondaryTitle?: string
   description?: string
   icon: Asset | AnySvelteComponent | undefined
   iconSize?: IconSize

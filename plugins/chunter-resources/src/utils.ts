@@ -22,7 +22,13 @@ import activity, {
 } from '@hcengineering/activity'
 import aiBot from '@hcengineering/ai-bot'
 import { summarizeMessages as aiSummarizeMessages, translate as aiTranslate } from '@hcengineering/ai-bot-resources'
-import { type Channel, type ChatMessage, type DirectMessage, type ThreadMessage } from '@hcengineering/chunter'
+import {
+  type Channel,
+  type ChatMessage,
+  type DirectMessage,
+  type Discussion,
+  type ThreadMessage
+} from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
 import { employeeByAccountStore, employeeByIdStore, PersonIcon } from '@hcengineering/contact-resources'
 import core, {
@@ -47,8 +53,8 @@ import {
   isReactionNotification
 } from '@hcengineering/notification-resources'
 import { type Asset, getMetadata, translate } from '@hcengineering/platform'
-import { getClient } from '@hcengineering/presentation'
-import { type AnySvelteComponent, languageStore } from '@hcengineering/ui'
+import { MessageBox, getClient } from '@hcengineering/presentation'
+import { type AnySvelteComponent, languageStore, showPopup } from '@hcengineering/ui'
 import { classIcon, getDocLinkTitle, getDocTitle } from '@hcengineering/view-resources'
 import type { ApplicationNotificationState } from '@hcengineering/workbench'
 import { derived, get, type Readable, type Unsubscriber, writable } from 'svelte/store'
@@ -132,6 +138,43 @@ export async function canDeleteMessage (doc?: ChatMessage): Promise<boolean> {
   return doc.createdBy !== undefined && me.socialIds.includes(doc.createdBy)
 }
 
+export function isDiscussionParticipant (discussion: Discussion): boolean {
+  return discussion.members.includes(getCurrentAccount().uuid)
+}
+
+// Mirrors the TxAccessLevel of Discussion: guests can only post messages, not create or change discussions.
+export function canCreateDiscussion (): boolean {
+  return hasAccountRole(getCurrentAccount(), AccountRole.User)
+}
+
+export function canManageDiscussion (discussion: Discussion): boolean {
+  const me = getCurrentAccount()
+  if (!hasAccountRole(me, AccountRole.User)) return false
+  return hasAccountRole(me, AccountRole.Maintainer) || isDiscussionParticipant(discussion)
+}
+
+export async function joinDiscussion (discussion: Discussion): Promise<void> {
+  const me = getCurrentAccount().uuid
+  if (discussion.members.includes(me)) return
+  await getClient().update(discussion, { $push: { members: me } })
+}
+
+export async function setDiscussionResolved (discussion: Discussion, resolved: boolean): Promise<void> {
+  if (discussion.resolved === resolved) return
+  await getClient().update(discussion, { resolved })
+}
+
+export async function deleteDiscussion (discussion: Discussion): Promise<void> {
+  showPopup(MessageBox, {
+    label: chunter.string.DeleteDiscussion,
+    message: chunter.string.DeleteDiscussionConfirm,
+    action: async () => {
+      const client = getClient()
+      await client.remove(discussion)
+    }
+  })
+}
+
 export function canReplyToThread (doc?: ActivityMessage): boolean {
   if (doc === undefined) {
     return false
@@ -187,6 +230,22 @@ export async function DirectTitleProvider (
   }
 
   return await getDmName(client, direct)
+}
+
+export async function discussionTitleProvider (client: Client, id: Ref<Discussion>, doc?: Discussion): Promise<string> {
+  const discussion = doc ?? (await client.findOne(chunter.class.Discussion, { _id: id }))
+  return discussion?.name ?? ''
+}
+
+// The owner object title, so a discussion can be told apart outside its owner (e.g. in the inbox).
+export async function discussionIdentifierProvider (
+  client: Client,
+  id: Ref<Discussion>,
+  doc?: Discussion
+): Promise<string> {
+  const discussion = doc ?? (await client.findOne(chunter.class.Discussion, { _id: id }))
+  if (discussion === undefined || !client.getHierarchy().hasClass(discussion.attachedToClass)) return ''
+  return (await getDocTitle(client, discussion.attachedTo, discussion.attachedToClass)) ?? ''
 }
 
 export async function ChannelTitleProvider (client: Client, id: Ref<Channel>, doc?: Channel): Promise<string> {
@@ -272,7 +331,12 @@ export function getChunterNotificationStore (): Readable<ApplicationNotification
 
       for (const context of contexts) {
         if ((context.lastUpdateTimestamp ?? 0) <= (context.lastViewedTimestamp ?? 0)) continue
-        if (!hierarchy.isDerived(context.objectClass, chunter.class.ChunterSpace)) continue
+        if (
+          !hierarchy.isDerived(context.objectClass, chunter.class.ChunterSpace) &&
+          !hierarchy.isDerived(context.objectClass, chunter.class.Discussion)
+        ) {
+          continue
+        }
 
         const notifications = notificationsByContext.get(context._id) ?? []
         const relevantNotifications = notifications.filter((notification) => {

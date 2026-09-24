@@ -55,9 +55,9 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(pulse.class.DocumentPresence, core.class.Class, core.mixin.TxAccessLevel, {
-    createAccessLevel: AccountRole.ReadOnlyGuest,
-    updateAccessLevel: AccountRole.ReadOnlyGuest,
-    removeAccessLevel: AccountRole.ReadOnlyGuest
+    createAccessLevel: AccountRole.Guest,
+    updateAccessLevel: AccountRole.Guest,
+    removeAccessLevel: AccountRole.Guest
   })
 
   builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.TransientTTL, {
@@ -65,8 +65,8 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(pulse.class.TypingIndicator, core.class.Class, core.mixin.TxAccessLevel, {
-    createAccessLevel: AccountRole.ReadOnlyGuest,
-    updateAccessLevel: AccountRole.ReadOnlyGuest,
-    removeAccessLevel: AccountRole.ReadOnlyGuest
+    createAccessLevel: AccountRole.Guest,
+    updateAccessLevel: AccountRole.Guest,
+    removeAccessLevel: AccountRole.Guest
   })
 }

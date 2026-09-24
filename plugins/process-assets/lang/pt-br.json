@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Solicitar anexos",
     "UpdateContext": "Atualizar contexto",
     "RemoveRelation": "Remover relação",
     "Method": "Método",
@@ -152,6 +153,10 @@
     "ForbidRunProcessPermission": "Proibir execução do processo",
     "ForbidCancelProcessPermission": "Proibir cancelamento do processo",
     "Approvers": "Aprovadores",
+    "ToDoAssignees": "Responsáveis",
+    "ToDoCompleteAll": "Todos devem concluir",
+    "ToDoCompleteAllHint": "O processo aguarda que todos concluam suas tarefas.",
+    "ToDoCompleteAnyHint": "A primeira tarefa concluída cancela as restantes.",
     "LockCard": "Bloquear cartão",
     "LockSection": "Bloquear seção",
     "Reviewers": "Revisores",

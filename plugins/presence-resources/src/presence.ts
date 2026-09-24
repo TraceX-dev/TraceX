@@ -14,7 +14,15 @@
 // limitations under the License
 
 import { type Employee, type Person } from '@hcengineering/contact'
-import { type Class, type Doc, type Ref, type Space } from '@hcengineering/core'
+import {
+  AccountRole,
+  getCurrentAccount,
+  hasAccountRole,
+  type Class,
+  type Doc,
+  type Ref,
+  type Space
+} from '@hcengineering/core'
 import { createQuery, getClient } from '@hcengineering/presentation'
 import pulse, { type DocumentPresence } from '@hcengineering/pulse'
 
@@ -30,6 +38,15 @@ export interface PresenceActionParams {
   objectId: string
   objectClass: Ref<Class<Doc>>
   onPresence: (presence: Map<string, Ref<Person>>) => void
+}
+
+/**
+ * Pulse transactions (presence, typing) are allowed only for Guest role and above.
+ * Anonymous and read-only guest accounts must not send them.
+ * @public
+ */
+export function canSendPulse (): boolean {
+  return hasAccountRole(getCurrentAccount(), AccountRole.Guest)
 }
 
 function presenceDocId (objectId: string, personId: Ref<Person>): Ref<DocumentPresence> {
@@ -81,6 +98,7 @@ export function presence (node: HTMLElement, params: PresenceActionParams): any 
 }
 
 export async function updatePresence (info: PresenceInfo): Promise<void> {
+  if (!canSendPulse()) return
   try {
     const client = getClient()
     const id = presenceDocId(info.objectId, info.personId)
@@ -107,6 +125,7 @@ export async function updatePresence (info: PresenceInfo): Promise<void> {
 }
 
 export async function deletePresence (info: PresenceInfo): Promise<void> {
+  if (!canSendPulse()) return
   try {
     const client = getClient()
     const id = presenceDocId(info.objectId, info.personId)

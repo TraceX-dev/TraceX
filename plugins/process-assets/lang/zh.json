@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "请求附件",
     "UpdateContext": "更新上下文",
     "RemoveRelation": "删除关联",
     "Method": "方法",
@@ -168,6 +169,10 @@
     "LockCard": "锁定卡片",
     "LockSection": "锁定部分",
     "Approvers": "批准人",
+    "ToDoAssignees": "负责人",
+    "ToDoCompleteAll": "所有人都必须完成",
+    "ToDoCompleteAllHint": "流程将等待所有负责人完成待办事项。",
+    "ToDoCompleteAnyHint": "第一个待办事项完成后，其余待办事项将被取消。",
     "UnlockCard": "解锁卡片",
     "UnlockSection": "解锁部分",
     "CancelToDo": "取消任务",

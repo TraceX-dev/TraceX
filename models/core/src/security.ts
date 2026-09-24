@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -47,7 +48,6 @@ import {
   Prop,
   TypeAccountUuid,
   TypeBoolean,
-  TypeNumber,
   TypeRef,
   TypeString,
   UX
@@ -219,7 +219,4 @@ export class TModulePermissionGroup extends TDoc implements ModulePermissionGrou
 
   @Prop(TypeBoolean(), core.string.Name)
     enabled!: boolean
-
-  @Prop(TypeNumber(), core.string.Order)
-    order?: number
 }

@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,17 +27,26 @@
     deleteProjectDrafts
   } from '@hcengineering/controlled-documents'
   import { Product, ProductVersion, ProductVersionState } from '@hcengineering/products'
-  import { Data, Ref, SortingOrder, generateId } from '@hcengineering/core'
+  import {
+    SortingOrder,
+    generateId,
+    type Association,
+    type Data,
+    type Doc,
+    type DocumentQuery,
+    type Ref
+  } from '@hcengineering/core'
   import { Card, MessageBox, SpaceSelector, createQuery, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
-  import { DropdownLabelsIntl, EditBox, FocusHandler, createFocusManager, showPopup } from '@hcengineering/ui'
+  import { DropdownLabelsIntl, EditBox, FocusHandler, Label, createFocusManager, showPopup } from '@hcengineering/ui'
   import {
     ObjectBox,
-    RelationsCreateEditor,
+    buildRelationCandidatesQuery,
     commitPendingRelations,
-    type PendingRelation
+    getRelationCandidatesClass
   } from '@hcengineering/view-resources'
 
+  import { getProductVersionCardAssociation, type ProductVersionCardAssociation } from '../../change-control'
   import products from '../../plugin'
 
   type Severity = 'major' | 'minor' | 'patch'
@@ -47,6 +57,7 @@
   const dispatch = createEventDispatcher()
   const client = getClient()
   const query = createQuery()
+  const productQuery = createQuery()
   const manager = createFocusManager()
 
   const id: Ref<ProductVersion> = generateId()
@@ -55,9 +66,30 @@
   let excludedChangeControl: Array<Ref<Document>> = []
 
   let parent: ProductVersion | null | undefined
+  let product: Product | undefined
   let severity: Severity = 'minor'
 
-  let pendingRelations: PendingRelation[] = []
+  let changeControlCard: Ref<Doc> | undefined
+  let changeControlCardQuery: DocumentQuery<Doc> = {}
+  let previousChangeControlRelation: Ref<Association> | undefined
+  let changeControlQueryRequest = 0
+  let previousSpace = space
+
+  $: if (space !== previousSpace) {
+    previousSpace = space
+    product = undefined
+    object.changeControl = undefined
+    changeControlCard = undefined
+  }
+
+  $: if (space !== undefined) {
+    productQuery.query(products.class.Product, { _id: space }, (res) => {
+      product = res[0]
+    })
+  } else {
+    productQuery.unsubscribe()
+    product = undefined
+  }
 
   $: query.query(
     products.class.ProductVersion,
@@ -76,6 +108,38 @@
   )
 
   $: updateSeverity(parent, severity)
+  $: changeControlAssociation = resolveChangeControlAssociation(product)
+  $: void updateChangeControlCardOptions(changeControlAssociation)
+
+  function resolveChangeControlAssociation (product: Product | undefined): ProductVersionCardAssociation | undefined {
+    if (product?.changeControlRelation === undefined) return undefined
+    return getProductVersionCardAssociation(client, product.changeControlRelation)
+  }
+
+  async function updateChangeControlCardOptions (association: ProductVersionCardAssociation | undefined): Promise<void> {
+    const relation = association?.association._id
+    if (relation !== previousChangeControlRelation) {
+      previousChangeControlRelation = relation
+      changeControlCard = undefined
+    }
+
+    const request = ++changeControlQueryRequest
+    if (association === undefined) {
+      changeControlCardQuery = {}
+      return
+    }
+
+    try {
+      const query = await buildRelationCandidatesQuery(association.association, association.direction)
+      if (request === changeControlQueryRequest) {
+        changeControlCardQuery = query
+      }
+    } catch {
+      if (request === changeControlQueryRequest) {
+        changeControlCardQuery = {}
+      }
+    }
+  }
 
   function updateSeverity (parent: ProductVersion | null | undefined, severity: Severity): void {
     if (parent != null) {
@@ -98,7 +162,7 @@
   }
 
   async function handleOkAction (): Promise<void> {
-    if (space === undefined) {
+    if (space === undefined || product === undefined) {
       return
     }
 
@@ -121,12 +185,22 @@
     await deleteProjectDrafts(ops, version.parent)
     await copyProjectDocuments(ops, version.parent, id)
 
-    await commitPendingRelations(ops, id, pendingRelations)
+    const changeControlRelations =
+      changeControlAssociation !== undefined && changeControlCard !== undefined
+        ? [
+            {
+              association: changeControlAssociation.association._id,
+              direction: changeControlAssociation.direction,
+              doc: changeControlCard
+            }
+          ]
+        : []
+    await commitPendingRelations(ops, id, changeControlRelations)
 
     await ops.commit()
 
     object = createDefaultObject()
-    pendingRelations = []
+    changeControlCard = undefined
     dispatch('close', id)
   }
 
@@ -164,14 +238,14 @@
   }
 
   function hasChangeControl (): boolean {
-    if (object.changeControl !== undefined) {
-      return true
-    }
-    return pendingRelations.length > 0 && pendingRelations.every((relation) => relation.doc != null)
+    const changeControlRelation = product?.changeControlRelation
+    if (changeControlRelation === undefined) return object.changeControl !== undefined
+    return changeControlAssociation !== undefined && changeControlCard !== undefined
   }
 
   $: canSave =
     space !== undefined &&
+    product !== undefined &&
     parent !== undefined &&
     object.major !== undefined &&
     object.major >= 0 &&
@@ -245,28 +319,44 @@
         ]}
         bind:selected={severity}
       />
-      <ObjectBox
-        bind:value={object.changeControl}
-        _class={documents.class.Document}
-        docQuery={{
-          space,
-          // TODO Use more robust category id
-          category: 'documents:category:DOC - CC',
-          state: DocumentState.Effective
-        }}
-        docProps={{
-          withTitle: true,
-          isRegular: true,
-          disableLink: true
-        }}
-        searchField={'code'}
-        excluded={excludedChangeControl}
-        kind={'regular'}
-        size={'small'}
-        label={products.string.ChangeControl}
-        showNavigate={false}
-      />
+      {#if product?.changeControlRelation === undefined}
+        <ObjectBox
+          bind:value={object.changeControl}
+          _class={documents.class.Document}
+          docQuery={{
+            space,
+            // TODO Use more robust category id
+            category: 'documents:category:DOC - CC',
+            state: DocumentState.Effective
+          }}
+          docProps={{
+            withTitle: true,
+            isRegular: true,
+            disableLink: true
+          }}
+          searchField={'code'}
+          excluded={excludedChangeControl}
+          kind={'regular'}
+          size={'small'}
+          label={products.string.ChangeControl}
+          showNavigate={false}
+        />
+      {:else if changeControlAssociation !== undefined}
+        <ObjectBox
+          bind:value={changeControlCard}
+          _class={getRelationCandidatesClass(changeControlAssociation.association, changeControlAssociation.direction)}
+          docQuery={changeControlCardQuery}
+          docProps={{ shouldShowAvatar: true }}
+          kind={'regular'}
+          size={'small'}
+          label={products.string.ChangeControl}
+          showNavigate={false}
+        />
+      {:else}
+        <span class="error-color text-sm">
+          <Label label={products.string.ChangeControl} />
+        </span>
+      {/if}
     {/if}
-    <RelationsCreateEditor _class={products.class.ProductVersion} bind:selection={pendingRelations} />
   </svelte:fragment>
 </Card>

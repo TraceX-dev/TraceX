@@ -32,7 +32,8 @@ import type {
   Permission,
   Role,
   Class,
-  Doc
+  Doc,
+  Association
 } from '@hcengineering/core'
 import { AccountRole, IndexKind, AccountUuid } from '@hcengineering/core'
 import {
@@ -112,6 +113,10 @@ export class TProduct extends TExternalSpace implements Product {
 
   @Prop(Collection(attachment.class.Attachment), attachment.string.Attachments, { shortLabel: attachment.string.Files })
     attachments?: CollectionSize<Attachment>
+
+  @Prop(TypeRef(core.class.Association), products.string.ChangeControl)
+  @Hidden()
+    changeControlRelation?: Ref<Association>
 }
 
 @Model(products.class.ProductVersion, documents.class.Project)
@@ -549,8 +554,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: products.class.Product,
-      enabled: false,
-      order: 45
+      enabled: false
     },
     products.ids.ModulePermissionGroup
   )
@@ -563,8 +567,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: products.class.Product,
-      enabled: false,
-      order: 45
+      enabled: false
     },
     products.ids.ModulePermissionGroupReadOnlyGuest
   )

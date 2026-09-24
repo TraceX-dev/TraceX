@@ -15,7 +15,14 @@
 //
 
 import activity, { ActivityMessage, ActivityReference } from '@hcengineering/activity'
-import chunter, { Channel, ChatMessage, chunterId, ChunterSpace, ThreadMessage } from '@hcengineering/chunter'
+import chunter, {
+  Channel,
+  ChatMessage,
+  chunterId,
+  ChunterSpace,
+  type Discussion,
+  ThreadMessage
+} from '@hcengineering/chunter'
 import contact, { Employee, Person } from '@hcengineering/contact'
 import core, {
   AccountUuid,
@@ -100,6 +107,11 @@ export async function channelTextPresenter (doc: Doc): Promise<string> {
   }
 
   return `#${channel.name}`
+}
+
+// Used as the notification title for messages posted in a discussion.
+export async function DiscussionTextPresenter (doc: Doc): Promise<string> {
+  return (doc as Discussion).name
 }
 
 export async function ChatMessageTextPresenter (doc: ChatMessage): Promise<string> {
@@ -561,6 +573,7 @@ export default async () => ({
     ChannelTextPresenter: channelTextPresenter,
     ChunterNotificationContentProvider: getChunterNotificationContent,
     ChatMessageTextPresenter,
+    DiscussionTextPresenter,
     ChatMessageHtmlPresenter,
     JoinChannelTypeMatch
   },

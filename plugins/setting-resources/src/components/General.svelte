@@ -17,10 +17,25 @@
   import { AvatarType } from '@hcengineering/contact'
   import type { ApiKey } from '@hcengineering/account-client'
   import { EditableAvatar, getAccountClient } from '@hcengineering/contact-resources'
-  import core, { Configuration, DateRangeMode, WorkspaceAccountPermission } from '@hcengineering/core'
+  import core, {
+    type Blob as PlatformBlob,
+    Configuration,
+    DateRangeMode,
+    type Ref,
+    WorkspaceAccountPermission
+  } from '@hcengineering/core'
   import { loginId } from '@hcengineering/login'
-  import { translateCB } from '@hcengineering/platform'
-  import { copyTextToClipboard, createQuery, getClient, MessageBox } from '@hcengineering/presentation'
+  import { setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
+  import {
+    copyTextToClipboard,
+    createQuery,
+    getClient,
+    getCurrentWorkspaceUuid,
+    getFileUrl,
+    MessageBox,
+    withBlobVersion,
+    workspaceLogoBlobId
+  } from '@hcengineering/presentation'
   import { WorkspaceSetting } from '@hcengineering/setting'
   import view from '@hcengineering/view'
   import {
@@ -32,6 +47,7 @@
     type DropdownTextItem,
     EditBox,
     getLocalWeekStart,
+    getPlatformColorForText,
     getWeekDayNames,
     hasLocalWeekStart,
     Header,
@@ -75,6 +91,9 @@
       name.trim() === oldName ||
       name.trim() === '' ||
       disabledSet.some((it) => name.includes(it)))
+
+  // Same seed as the workspace switcher, so the fallback color matches.
+  $: workspaceAvatarColor = getPlatformColorForText(getCurrentWorkspaceUuid(), $themeStore.dark)
 
   void loadWorkspaceName()
   void loadApiKeys()
@@ -123,31 +142,50 @@
   let avatarEditor: EditableAvatar
   let workspaceSettings: WorkspaceSetting | undefined = undefined
 
+  // The logo blob key never changes, so version the URL by modifiedOn to bypass the cache.
+  $: workspaceLogoUrl =
+    workspaceSettings?.icon != null
+      ? (withBlobVersion(getFileUrl(workspaceSettings.icon), workspaceSettings.modifiedOn) as Ref<PlatformBlob>)
+      : undefined
+
   const client = getClient()
-  void client.findOne(settingsRes.class.WorkspaceSetting, {}).then((r) => {
-    workspaceSettings = r
+  const workspaceSettingsQuery = createQuery()
+  workspaceSettingsQuery.query(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting }, (res) => {
+    workspaceSettings = res[0]
   })
 
   async function handleAvatarDone (): Promise<void> {
-    const existing = await client.findOne(settingsRes.class.WorkspaceSetting, { _id: settingsRes.ids.WorkspaceSetting })
-    if (existing !== undefined) {
-      const avatar = await avatarEditor.createAvatar()
-      // Remove old avatar if changed
-      if (existing.icon != null && existing.icon !== avatar.avatar) {
-        await avatarEditor.removeAvatar(existing.icon)
+    try {
+      const existing = await client.findOne(settingsRes.class.WorkspaceSetting, {
+        _id: settingsRes.ids.WorkspaceSetting
+      })
+      const avatar = await avatarEditor.createAvatar(workspaceLogoBlobId)
+      const previousIcon = existing?.icon ?? null
+      // Without a new file createAvatar returns the displayed URL, not a blob id.
+      const icon: NonNullable<WorkspaceSetting['icon']> | null =
+        avatar.avatarType !== AvatarType.IMAGE
+          ? null
+          : avatar.avatar != null && avatar.avatar.includes('://')
+            ? previousIcon
+            : (avatar.avatar ?? null)
+
+      if (existing !== undefined) {
+        // Not diffUpdate: icon stays `logo`, but modifiedOn must change to bust the cache.
+        await client.update(existing, { icon })
+      } else {
+        await client.createDoc(
+          settingsRes.class.WorkspaceSetting,
+          core.space.Workspace,
+          { icon },
+          settingsRes.ids.WorkspaceSetting
+        )
       }
 
-      const icon = avatar.avatarType === AvatarType.IMAGE ? avatar.avatar : null
-      await client.diffUpdate(existing, { icon })
-    } else {
-      const avatar = await avatarEditor.createAvatar()
-
-      await client.createDoc(
-        settingsRes.class.WorkspaceSetting,
-        core.space.Workspace,
-        { icon: avatar.avatar },
-        settingsRes.ids.WorkspaceSetting
-      )
+      if (previousIcon != null && previousIcon !== icon) {
+        await avatarEditor.removeAvatar(previousIcon)
+      }
+    } catch (err: unknown) {
+      await setPlatformStatus(unknownError(err))
     }
   }
 
@@ -283,8 +321,9 @@
                 <div class="flex-row-bottom flex-gap-4">
                   <EditableAvatar
                     person={{
-                      avatarType: workspaceSettings?.icon !== undefined ? AvatarType.IMAGE : AvatarType.COLOR,
-                      avatar: workspaceSettings?.icon
+                      avatarType: workspaceSettings?.icon != null ? AvatarType.IMAGE : AvatarType.COLOR,
+                      avatar: workspaceLogoUrl,
+                      avatarProps: { color: workspaceAvatarColor, colorPalette: 'platform' }
                     }}
                     size="medium"
                     {name}

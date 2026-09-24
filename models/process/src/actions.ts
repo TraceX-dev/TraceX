@@ -22,6 +22,20 @@ export function defineMethods (builder: Builder): void {
     process.class.Method,
     core.space.Model,
     {
+      label: process.string.RequestAttachments,
+      editor: process.component.CreateActionEditor,
+      presenter: process.component.ToDoPresenter,
+      objectClass: process.class.EventButton,
+      createdContext: { _class: process.class.EventButton, nameField: 'title' },
+      requiredParams: ['title', 'eventType', 'user']
+    },
+    process.method.RequestAttachments
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
       label: process.string.RunProcess,
       objectClass: process.class.Process,
       editor: process.component.SubProcessEditor,
@@ -59,7 +73,8 @@ export function defineMethods (builder: Builder): void {
       createdContext: { _class: process.class.ProcessToDo, nameField: 'title' },
       requiredParams: ['title', 'user'],
       defaultParams: {
-        withRollback: true
+        withRollback: true,
+        completionMode: 'all'
       }
     },
     process.method.CreateToDo

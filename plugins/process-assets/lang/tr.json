@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Ek iste",
     "UpdateContext": "Bağlamı güncelle",
     "RemoveRelation": "İlişkiyi kaldır",
     "Method": "Metod",
@@ -165,6 +166,10 @@
     "LockCard": "Kartı kilitle",
     "LockSection": "Bölümü kilitle",
     "Approvers": "Onaylayanlar",
+    "ToDoAssignees": "Sorumlular",
+    "ToDoCompleteAll": "Herkes tamamlamalı",
+    "ToDoCompleteAllHint": "Süreç, tüm sorumluların görevlerini tamamlamasını bekler.",
+    "ToDoCompleteAnyHint": "İlk görev tamamlandığında kalan görevler iptal edilir.",
     "UnlockCard": "Kartın kilidini aç",
     "UnlockSection": "Bölümün kilidini aç",
     "CancelToDo": "Eylem öğesini iptal et",

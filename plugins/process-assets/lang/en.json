@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Request attachments",
     "UpdateContext": "Update context",
     "RemoveRelation": "Remove relation",
     "Method": "Method",
@@ -168,6 +169,10 @@
     "LockCard": "Lock card",
     "LockSection": "Lock section",
     "Approvers": "Approvers",
+    "ToDoAssignees": "Assignees",
+    "ToDoCompleteAll": "Everyone must complete",
+    "ToDoCompleteAllHint": "The process waits for all assignees to complete their to-dos.",
+    "ToDoCompleteAnyHint": "The first completed to-do cancels the remaining to-dos.",
     "UnlockCard": "Unlock card",
     "UnlockSection": "Unlock section",
     "CancelToDo": "Cancel Action item",

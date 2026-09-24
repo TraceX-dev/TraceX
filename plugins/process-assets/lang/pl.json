@@ -1,5 +1,6 @@
 {
   "string": {
+    "RequestAttachments": "Poproś o załączniki",
     "UpdateContext": "Aktualizuj kontekst",
     "RemoveRelation": "Usuń relację",
     "Method": "Metoda",
@@ -168,6 +169,10 @@
     "LockCard": "Zablokuj kartę",
     "LockSection": "Zablokuj sekcję",
     "Approvers": "Zatwierdzający",
+    "ToDoAssignees": "Wykonawcy",
+    "ToDoCompleteAll": "Wszyscy muszą ukończyć",
+    "ToDoCompleteAllHint": "Proces czeka, aż wszyscy ukończą swoje zadania.",
+    "ToDoCompleteAnyHint": "Pierwsze ukończone zadanie anuluje pozostałe.",
     "UnlockCard": "Odblokuj kartę",
     "UnlockSection": "Odblokuj sekcję",
     "CancelToDo": "Anuluj działanie",

@@ -53,6 +53,7 @@ import {
   type Process,
   type ProcessExecutionContext,
   type ProcessFunction,
+  type ProcessToDo,
   type RelatedContext,
   type SelectedContext,
   type SelectedUserRequest,
@@ -569,13 +570,13 @@ export async function requestUserInput (
   return { context: userContext, state: target.to, changed }
 }
 
+function getAttributeRank (attribute: AnyAttribute | undefined): string {
+  return attribute === undefined ? '' : (attribute.rank ?? toRank(attribute._id) ?? '')
+}
+
 function sortAttributes (attributes: AnyAttribute[]): AnyAttribute[] {
   const arr = [...attributes]
-  arr.sort((a, b) => {
-    const rankA = a.rank ?? toRank(a._id) ?? ''
-    const rankB = b.rank ?? toRank(b._id) ?? ''
-    return rankA.localeCompare(rankB)
-  })
+  arr.sort((a, b) => getAttributeRank(a).localeCompare(getAttributeRank(b)))
   return arr
 }
 
@@ -667,6 +668,14 @@ export async function getTransitionUserInput (
           }
         }
       }
+    }
+
+    if (virtualContext?.type === 'userRequest' && virtualKey === 'requiredFields') {
+      inputs.sort((a, b) => {
+        const rankA = getAttributeRank(hierarchy.findAttribute(a._class, a.key))
+        const rankB = getAttributeRank(hierarchy.findAttribute(b._class, b.key))
+        return rankA.localeCompare(rankB)
+      })
     }
 
     if (inputs.length > 0) {
@@ -924,14 +933,24 @@ export async function requestResult (
   return context
 }
 
-export function todoTranstionCheck (
+export async function todoTranstionCheck (
   client: Client,
   execution: Execution,
   params: Record<string, any>,
   context: Record<string, any>
-): boolean {
+): Promise<boolean> {
   if (params._id === undefined) return false
-  return context.todo?._id === params._id && checkResult(context, params.result)
+  const todo = context.todo as ProcessToDo | undefined
+  if (todo === undefined || (todo._id !== params._id && todo.group !== params._id)) return false
+  if (todo.completionMode === 'all' && todo.group !== undefined) {
+    const todos = await client.findAll(process.class.ProcessToDo, {
+      execution: execution._id,
+      group: todo.group
+    })
+    // The current completion has not been submitted yet.
+    return todos.length > 0 && todos.every((item) => item._id === todo._id || item.doneOn != null)
+  }
+  return checkResult(context, params.result)
 }
 
 function checkResult (context: Record<string, any>, results: Record<string, any> | undefined): boolean {
