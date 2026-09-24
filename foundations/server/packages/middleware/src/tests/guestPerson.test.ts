@@ -26,6 +26,7 @@ import core, {
   type Ref,
   type SearchResult,
   type SessionData,
+  type Space,
   type Tx,
   toFindResult,
   TxFactory
@@ -227,13 +228,23 @@ describe('GuestPersonMiddleware', () => {
     })
   })
 
-  it('restricts Contact list queries like Person queries, hiding organizations', async () => {
-    const { mw, calls } = makeMiddleware()
+  it('filters hidden persons from Contact lists without hiding organizations', async () => {
+    const { mw } = makeMiddleware()
     const res = await mw.findAll(guestCtx(), contact.class.Contact, {})
-    expect(res.map((it) => it._id).sort()).toEqual(['person:guest', 'person:member', 'person:owner'])
-    expect(new Set(calls.find((it) => it._class === contact.class.Contact)?.query.personUuid.$in)).toEqual(
-      new Set([GUEST, MEMBER, OWNER])
-    )
+    expect(res.map((it) => it._id).sort()).toEqual([
+      'organization:one',
+      'person:guest',
+      'person:member',
+      'person:owner'
+    ])
+    expect(res.total).toBe(-1)
+  })
+
+  it('refills Contact pages and calculates visible total', async () => {
+    const { mw } = makeMiddleware()
+    const res = await mw.findAll(guestCtx(), contact.class.Contact, {}, { limit: 2, total: true })
+    expect(res.map((it) => it._id)).toEqual(['person:guest', 'person:member'])
+    expect(res.total).toBe(4)
   })
 
   it('does not restrict Contact point queries', async () => {
@@ -253,16 +264,55 @@ describe('GuestPersonMiddleware', () => {
     expect(res.total).toBe(2)
   })
 
-  it('does not refill fulltext pages and hides total of a partial result', async () => {
+  it('refills fulltext pages after removing hidden persons', async () => {
     const doc = (_id: string, _class: string): any => ({ id: _id, doc: { _id, _class, createdOn: 0 } })
     const { mw, calls } = makeMiddleware({
       docs: [doc('person:stranger', EMPLOYEE), doc('person:member', EMPLOYEE), doc('issue:1', core.class.Doc)],
       total: 3
     })
     const res = await mw.searchFulltext(guestCtx(), { query: 'x' }, { limit: 2 })
-    expect(res.docs.map((it) => it.id)).toEqual(['person:member'])
-    expect(res.total).toBeUndefined()
-    expect(calls.filter((it) => it._class === 'search')).toHaveLength(1)
+    expect(res.docs.map((it) => it.id)).toEqual(['person:member', 'issue:1'])
+    expect(res.total).toBe(2)
+    expect(calls.filter((it) => it._class === 'search')).toHaveLength(2)
+  })
+
+  it('filters person-attached documents from fulltext results', async () => {
+    const doc = (
+      _id: string,
+      _class: string,
+      attachedTo: string,
+      attachedToClass: string = contact.class.Person
+    ): any => ({ id: _id, doc: { _id, _class, attachedTo, attachedToClass, createdOn: 0 } })
+    const { mw } = makeMiddleware({
+      docs: [
+        doc('channel:member', contact.class.Channel, 'person:member'),
+        doc('channel:stranger', contact.class.Channel, 'person:stranger'),
+        doc('social:stranger', contact.class.SocialIdentity, 'person:stranger'),
+        doc('channel:organization', contact.class.Channel, 'organization:one', ORGANIZATION)
+      ],
+      total: 4
+    })
+    const res = await mw.searchFulltext(guestCtx(), { query: 'x' }, {})
+    expect(res.docs.map((it) => it.id)).toEqual(['channel:member', 'channel:organization'])
+    expect(res.total).toBe(2)
+  })
+
+  it('invalidates visibility after a successful local transaction', async () => {
+    const { mw, calls } = makeMiddleware()
+    const ctx = guestCtx()
+    await mw.findAll(ctx, EMPLOYEE, {})
+
+    const factory = new TxFactory('test' as PersonId)
+    const tx = factory.createTxUpdateDoc(
+      core.class.Space,
+      core.space.Space,
+      'space:project' as Ref<Space>,
+      { $pull: { members: MEMBER } }
+    )
+    await mw.tx(ctx, [tx])
+    await mw.findAll(ctx, EMPLOYEE, {})
+
+    expect(calls.filter((it) => it._class === core.class.Space)).toHaveLength(2)
   })
 
   describe('broadcast', () => {

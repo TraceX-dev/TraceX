@@ -32,6 +32,7 @@ import core, {
   type TxCreateDoc,
   type TxCUD,
   isGuestRole,
+  toFindResult,
   TxProcessor
 } from '@hcengineering/core'
 import contact, { type Person } from '@hcengineering/contact'
@@ -39,9 +40,10 @@ import {
   BaseMiddleware,
   type Middleware,
   type PipelineContext,
-  type ServerFindOptions
+  type ServerFindOptions,
+  type TxMiddlewareResult
 } from '@hcengineering/server-core'
-import { GuestVisibilityCache, isDerivedSafe } from './guestVisibilityCache'
+import { GuestVisibilityCache, isDerivedSafe, type VisibleSet } from './guestVisibilityCache'
 import { isSystem } from './utils'
 
 interface BroadcastPersonSubject {
@@ -129,13 +131,14 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     if (account === undefined) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
-    // Contact is filtered like Person: `$or` is not supported by adapters, so non-person contacts
-    // (organizations) are hidden from guest list queries on Contact as well.
-    if (this.isPersonClass(_class) || _class === (contact.class.Contact as Ref<Class<Doc>>)) {
+    if (this.isPersonClass(_class)) {
       return await this.findPersons(ctx, account, _class, query, options)
     }
     if (this.isPersonAttachedClass(_class)) {
       return await this.findPersonAttached(ctx, account, _class, query, options)
+    }
+    if (_class === (contact.class.Contact as Ref<Class<Doc>>)) {
+      return await this.findContacts(ctx, account, _class, query, options)
     }
     return await this.provideFindAll(ctx, _class, query, options)
   }
@@ -177,50 +180,133 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     return await this.provideFindAll(ctx, _class, newQuery, options)
   }
 
+  private async findContacts<T extends Doc>(
+    ctx: MeasureContext<SessionData>,
+    account: Account,
+    _class: Ref<Class<T>>,
+    query: DocumentQuery<T>,
+    options?: ServerFindOptions<T>
+  ): Promise<FindResult<T>> {
+    const q = query as Record<string, unknown>
+    if (isPointValue(q._id)) return await this.provideFindAll(ctx, _class, query, options)
+
+    const { accounts } = await this.cache.getVisible(ctx, account.uuid)
+    const requestedLimit = options?.limit
+    let fetchLimit = requestedLimit
+    let result = await this.provideFindAll(ctx, _class, query, options)
+    let docs = this.filterContacts(result, accounts)
+
+    while (
+      this.shouldRefill(
+        result.length,
+        docs.length,
+        fetchLimit,
+        requestedLimit,
+        result.total,
+        options?.total === true
+      )
+    ) {
+      const nextLimit = getNextLimit(fetchLimit, result.total)
+      if (nextLimit === undefined) break
+      fetchLimit = nextLimit
+      result = await this.provideFindAll(ctx, _class, query, { ...options, limit: fetchLimit })
+      docs = this.filterContacts(result, accounts)
+    }
+
+    const visibleDocs = requestedLimit !== undefined ? docs.slice(0, requestedLimit) : docs
+    return toFindResult(visibleDocs, options?.total === true ? docs.length : -1, result.lookupMap)
+  }
+
+  private filterContacts<T extends Doc> (docs: T[], accounts: ReadonlySet<string>): T[] {
+    return docs.filter((doc) => {
+      if (!this.isPersonClass(doc._class)) return true
+      const personUuid = (doc as unknown as Person).personUuid
+      return personUuid !== undefined && accounts.has(personUuid)
+    })
+  }
+
   override async searchFulltext (
     ctx: MeasureContext<SessionData>,
     query: SearchQuery,
     options: SearchOptions
   ): Promise<SearchResult> {
-    const result = await this.provideSearchFulltext(ctx, query, options)
     const account = this.isRestrictedAccount(ctx)
-    if (account === undefined) return result
+    if (account === undefined) return await this.provideSearchFulltext(ctx, query, options)
 
-    const { accounts } = await this.cache.getVisible(ctx, account.uuid)
-    // The page is not refilled, so it may be shorter than the limit.
-    const docs = await this.filterSearchDocs(ctx, result.docs, accounts)
-    // Report total only when it can't reveal hidden matches beyond the returned page.
+    const visible = await this.cache.getVisible(ctx, account.uuid)
+    const requestedLimit = options.limit
+    let fetchLimit = requestedLimit
+    let result = await this.provideSearchFulltext(ctx, query, options)
+    let docs = await this.filterSearchDocs(ctx, result.docs, visible)
+
+    while (this.shouldRefill(result.docs.length, docs.length, fetchLimit, requestedLimit, result.total, false)) {
+      const nextLimit = getNextLimit(fetchLimit, result.total)
+      if (nextLimit === undefined) break
+      fetchLimit = nextLimit
+      result = await this.provideSearchFulltext(ctx, query, { ...options, limit: fetchLimit })
+      docs = await this.filterSearchDocs(ctx, result.docs, visible)
+    }
+
     const exhausted = result.total !== undefined && result.docs.length >= result.total
-    return { docs, total: exhausted ? docs.length : undefined }
+    return {
+      docs: requestedLimit !== undefined ? docs.slice(0, requestedLimit) : docs,
+      total: exhausted ? docs.length : undefined
+    }
   }
 
-  private async filterSearchDocs(
+  private async filterSearchDocs (
     ctx: MeasureContext<SessionData>,
     docs: SearchResultDoc[],
-    accounts: ReadonlySet<string>
+    visible: VisibleSet
   ): Promise<SearchResultDoc[]> {
     const personIds = docs.filter((it) => this.isPersonClass(it.doc._class)).map((it) => it.doc._id)
-    if (personIds.length === 0) return docs
-
-    const persons = ((await this.next?.findAll(
-      ctx,
-      contact.class.Person,
-      { _id: { $in: personIds as Ref<Person>[] } },
-      { projection: { _id: 1, personUuid: 1 } }
-    )) ?? []) as Person[]
+    const persons = personIds.length > 0
+      ? ((await this.next?.findAll(
+          ctx,
+          contact.class.Person,
+          { _id: { $in: personIds as Ref<Person>[] } },
+          { projection: { _id: 1, personUuid: 1 } }
+        )) ?? []) as Person[]
+      : []
     const allowed = new Set(
-      persons.filter((it) => it.personUuid !== undefined && accounts.has(it.personUuid)).map((it) => it._id)
+      persons.filter((it) => it.personUuid !== undefined && visible.accounts.has(it.personUuid)).map((it) => it._id)
     )
-    return docs.filter(
-      (it) => !this.isPersonClass(it.doc._class) || allowed.has(it.doc._id as Ref<Person>)
-    )
+    return docs.filter((it) => {
+      if (this.isPersonClass(it.doc._class)) return allowed.has(it.doc._id as Ref<Person>)
+      if (!this.isPersonAttachedClass(it.doc._class)) return true
+      if (
+        it.doc.attachedToClass !== undefined &&
+        !this.isPersonClass(it.doc.attachedToClass as Ref<Class<Doc>>)
+      ) {
+        return true
+      }
+      return it.doc.attachedTo !== undefined && visible.personRefs.has(it.doc.attachedTo as Ref<Person>)
+    })
+  }
+
+  private shouldRefill (
+    loaded: number,
+    visible: number,
+    fetchLimit: number | undefined,
+    requestedLimit: number | undefined,
+    total: number | undefined,
+    needsTotal: boolean
+  ): boolean {
+    if (fetchLimit === undefined || loaded < fetchLimit) return false
+    if (needsTotal) return total === undefined || total < 0 || loaded < total
+    return requestedLimit !== undefined && visible < requestedLimit && (total === undefined || loaded < total)
+  }
+
+  override async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
+    const result = await this.provideTx(ctx, txes)
+    for (const tx of txes) this.cache.handleTx(tx)
+    return result
   }
 
   // ─── Broadcast ──────────────────────────────────────────────────────────────
 
   override async handleBroadcast (ctx: MeasureContext<SessionData>): Promise<void> {
-    // The only invalidation point: broadcast txes include this session's own txes (see BroadcastMiddleware.tx)
-    // and derived ones, and are processed after they were stored.
+    // Broadcast invalidation covers derived txes and txes committed by other sessions.
     for (const tx of ctx.contextData.broadcast.txes) this.cache.handleTx(tx)
 
     ctx.contextData.broadcast.targets.guestPerson = async (tx) => await this.getBroadcastExclude(ctx, tx)
@@ -306,4 +392,11 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     )) ?? []) as Person[]
     return persons[0]?.personUuid
   }
+}
+
+function getNextLimit (current: number | undefined, total: number | undefined): number | undefined {
+  if (current === undefined || current >= Number.MAX_SAFE_INTEGER) return undefined
+  const expanded = Math.min(Number.MAX_SAFE_INTEGER, Math.max(current + 1, current * 2))
+  const next = total !== undefined && total >= 0 ? Math.min(expanded, total) : expanded
+  return next > current ? next : undefined
 }
