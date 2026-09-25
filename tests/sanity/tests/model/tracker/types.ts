@@ -27,10 +27,12 @@ export interface NewProject {
   identifier: string
   description: string
   private: boolean
-  defaultAssigneeForIssues: string
-  defaultIssueStatus: string
+  defaultAssigneeForIssues?: string
+  defaultIssueStatus?: string
   iconNumber?: number
   type?: string
+  // Display names of employees to add as project members
+  members?: string[]
 }
 
 export interface NewMilestone {

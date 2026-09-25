@@ -101,11 +101,11 @@ For detailed information about the platform architecture, services, and their in
 
 ## Licensing
 
-TraceX is built on the open-source [Huly Platform](https://github.com/hcengineering/platform). Code inherited or modified from Huly remains licensed under the [Eclipse Public License 2.0](./LICENSE).
+TraceX is built on the open-source [Huly Platform](https://github.com/hcengineering/platform). Code inherited or modified from Huly, as well as new source files by default, is licensed under the [Eclipse Public License 2.0](./LICENSE).
 
-Some new, wholly TraceX-original files are licensed separately under the [PolyForm Shield License 1.0.0](./LICENSE-POLYFORM-SHIELD), which permits use and modification but restricts building competing products with them. This currently covers.
+Some separately designated TraceX-original packages are licensed under the [PolyForm Shield License 1.0.0](./LICENSE-POLYFORM-SHIELD), which permits use and modification but restricts building competing products with them.
 
-Each source file's header states which license applies to it; that header is authoritative over a package's `license` field, which for mixed packages uses the SPDX `AND` form (e.g. `(EPL-2.0 AND LicenseRef-PolyForm-Shield-1.0.0)`).
+Source file headers and package metadata identify the applicable license. Mixed packages use the SPDX `AND` form, such as `(EPL-2.0 AND LicenseRef-PolyForm-Shield-1.0.0)`.
 
 ## Table of Contents
 
