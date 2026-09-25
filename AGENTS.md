@@ -223,31 +223,15 @@ Key principles:
 
 ## Copyright headers
 
-See [Licensing](./README.md#licensing) for the full picture. Two cases:
+- Use EPL 2.0 for all new and modified source files.
+- For new files, use `Copyright © <year> TraceX SAS.`
+- Preserve all existing copyright and license notices.
+- When materially modifying an existing EPL file, add the TraceX SAS copyright line without removing the original copyright lines.
 
-**New file, wholly TraceX-original (no code derived from Huly)** — use the PolyForm Shield header:
-
-```
-//
-// Copyright © <year> TraceX SAS.
-//
-// Licensed under the PolyForm Shield License 1.0.0 (the "License");
-// you may not use this file except in compliance with the License. You may
-// obtain a copy of the License at https://polyformproject.org/licenses/shield/1.0.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//
-// See the License for the specific language governing permissions and
-// limitations under the License.
-```
-
-**Existing file carried over or modified from Huly** — never relicense it. Keep the original EPL 2.0 header and its original copyright line(s) (e.g. `Hardcore Engineering Inc.`, `Anticrm Platform Contributors`) untouched. If you materially modify the file, add a second copyright line below the original one, but keep the license paragraph as EPL 2.0:
+Use the following header, adapting only the comment syntax to the file type:
 
 ```
 //
-// Copyright © <year> Hardcore Engineering Inc.
 // Copyright © <year> TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -261,5 +245,3 @@ See [Licensing](./README.md#licensing) for the full picture. Two cases:
 // See the License for the specific language governing permissions and
 // limitations under the License.
 ```
-
-When in doubt whether a file is "new" or "derived," check git blame / whether it started from an upstream Huly commit — not just whether it currently looks new.
