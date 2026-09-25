@@ -81,6 +81,7 @@ export default plugin(serverProcessId, {
     RemoveRelation: '' as Resource<ExecuteFunc>,
     WaitSubProcess: '' as Resource<ExecuteFunc>,
     AddTag: '' as Resource<ExecuteFunc>,
+    RemoveTag: '' as Resource<ExecuteFunc>,
     RequestApproval: '' as Resource<ExecuteFunc>,
     LockCard: '' as Resource<ExecuteFunc>,
     LockSection: '' as Resource<ExecuteFunc>,

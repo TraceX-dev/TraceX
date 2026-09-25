@@ -1,5 +1,6 @@
 {
   "string": {
+    "RemoveTag": "Снять тег",
     "RequestAttachments": "Запросить вложения",
     "UpdateContext": "Обновить контекст",
     "RemoveRelation": "Удалить связь",
@@ -217,6 +218,7 @@
     "TableFromRelation": "Таблица из связи"
   },
   "error": {
+    "TagHasSubtags": "Нельзя снять тег: у карточки есть его подтег",
     "MethodNotFound": "Метод не найден: {methodId}",
     "InternalServerError": "Внутренняя ошибка сервера, свяжитесь с поддержкой, идентификатор ошибки: {errorId}",
     "EmptyRelatedObjectValue": "Пустое значение {attr} для связанного объекта: {parent}",

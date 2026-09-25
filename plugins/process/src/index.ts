@@ -293,6 +293,7 @@ export default plugin(processId, {
     AddRelation: '' as Ref<Method<Association>>,
     RemoveRelation: '' as Ref<Method<Association>>,
     AddTag: '' as Ref<Method<Tag>>,
+    RemoveTag: '' as Ref<Method<Tag>>,
     RequestApproval: '' as Ref<Method<ApproveRequest>>,
     CancelToDo: '' as Ref<Method<ProcessToDo>>,
     LockCard: '' as Ref<Method<Card>>,
@@ -358,6 +359,7 @@ export default plugin(processId, {
     Review: '' as IntlString
   },
   error: {
+    TagHasSubtags: '' as IntlString,
     MethodNotFound: '' as IntlString,
     InternalServerError: '' as IntlString,
     EmptyRelatedObjectValue: '' as IntlString,
