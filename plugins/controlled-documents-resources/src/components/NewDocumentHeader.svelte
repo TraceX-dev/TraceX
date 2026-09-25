@@ -15,24 +15,18 @@
 <script lang="ts">
   import { Button, ButtonWithDropdown, IconAdd, IconDropdown, SelectPopupValueType, showPopup } from '@hcengineering/ui'
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
-  import core, { type Ref } from '@hcengineering/core'
+  import { type Ref } from '@hcengineering/core'
   import { type DocumentSpace } from '@hcengineering/controlled-documents'
-  import { createQuery } from '@hcengineering/presentation'
 
   import documents from '../plugin'
-  import { canCreateControlledDocuments } from '../utils'
+  import { canCreateControlledDocumentsStore } from '../stores/permissions'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   let dropdownItems: SelectPopupValueType[] = []
-  let modulePermissionEnabled = false
-  const modulePermissionQuery = createQuery()
-  modulePermissionQuery.query(core.class.ModulePermissionGroup, { _id: documents.ids.ModulePermissionGroup }, () => {
-    void canCreateControlledDocuments().then((value) => {
-      modulePermissionEnabled = value
-    })
-  })
+  // Guests without the module permission cannot create documents or templates at all.
+  $: canCreateDocument = $canCreateControlledDocumentsStore
   $: canCreateTemplate =
-    modulePermissionEnabled &&
+    canCreateDocument &&
     Object.keys($permissionsStore.ps).some((space) =>
       checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
     )
@@ -72,7 +66,7 @@
 </script>
 
 <div class="antiNav-subheader">
-  {#if canCreateTemplate && dropdownItems.length > 0}
+  {#if canCreateDocument && dropdownItems.length > 0}
     <ButtonWithDropdown
       icon={IconAdd}
       justify="left"
@@ -85,7 +79,7 @@
         dropdownItemSelected(ev.detail)
       }}
     />
-  {:else if canCreateTemplate}
+  {:else if canCreateDocument}
     <Button
       icon={IconAdd}
       justify="left"

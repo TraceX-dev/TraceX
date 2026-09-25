@@ -57,9 +57,20 @@ export async function createControlledDocFromTemplate (
   space: Ref<DocumentSpace>,
   project: Ref<Project> | undefined,
   parent: Ref<ProjectDocument> | undefined,
-  docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument
+  docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument,
+  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
 ): Promise<{ seqNumber: number, success: boolean }> {
-  const result = await controlledDocFromTemplate(client, templateId, documentId, spec, space, project, parent, docClass)
+  const result = await controlledDocFromTemplate(
+    client,
+    templateId,
+    documentId,
+    spec,
+    space,
+    project,
+    parent,
+    docClass,
+    changeControl
+  )
 
   if (result.success && templateId !== undefined) {
     const source = makeCollabId(documents.mixin.DocumentTemplate, templateId, 'content')

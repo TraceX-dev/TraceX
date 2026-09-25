@@ -1239,9 +1239,10 @@ export function createModel (builder: Builder): void {
       relatedCreateClasses: [
         documents.class.DocumentMeta,
         documents.class.ProjectMeta,
-        documents.class.ProjectDocument
+        documents.class.ProjectDocument,
+        documents.class.ChangeControl
       ],
-      followUpCreateClasses: [documents.class.ChangeControl],
+      // Document numbers per template and per-prefix document codes.
       sequenceNamespaces: [DOCUMENT_SEQUENCE_NAMESPACE, documentsId]
     },
     documents.ids.GuestControlledDocumentClassPermission

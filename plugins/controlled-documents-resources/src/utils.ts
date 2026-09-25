@@ -39,6 +39,7 @@ import documents, {
   transferDocuments
 } from '@hcengineering/controlled-documents'
 import core, {
+  type Account,
   AccountRole,
   type Class,
   type Client,
@@ -46,7 +47,6 @@ import core, {
   type DocumentQuery,
   type Hierarchy,
   type Markup,
-  type Permission,
   type QuerySelector,
   type Ref,
   type Space,
@@ -58,6 +58,9 @@ import core, {
   SortingOrder,
   checkPermission,
   getCurrentAccount,
+  hasAccountRole,
+  isModulePermissionGranted,
+  type ModulePermissionGroup,
   notEmpty
 } from '@hcengineering/core'
 import { type IntlString, translate } from '@hcengineering/platform'
@@ -73,19 +76,21 @@ import documentsResources from './plugin'
 import { wizardOpened } from './stores/wizards/create-document'
 import { getPersonRefByPersonId, getPersonRefsByPersonIds } from '@hcengineering/contact-resources'
 
+/**
+ * Whether the account may create controlled documents, given the module permission groups.
+ * Users and above always can; guests only when the guest class permission is effectively granted.
+ */
+export function isControlledDocumentCreationGranted (account: Account, groups: ModulePermissionGroup[]): boolean {
+  if (hasAccountRole(account, AccountRole.User)) return true
+  if (account.role !== AccountRole.Guest) return false
+  return isModulePermissionGranted(groups, AccountRole.Guest, documentsResources.ids.GuestControlledDocumentClassPermission)
+}
+
 export async function canCreateControlledDocuments (client: Client = getClient()): Promise<boolean> {
   const account = getCurrentAccount()
-  if (account.role !== AccountRole.Guest) {
-    return account.role !== AccountRole.DocGuest && account.role !== AccountRole.ReadOnlyGuest
-  }
-
-  const group = await client.findOne(core.class.ModulePermissionGroup, {
-    _id: documentsResources.ids.ModulePermissionGroup
-  })
-  if (group === undefined || !group.enabled) return false
-
-  const permission = documentsResources.ids.GuestControlledDocumentClassPermission as Ref<Permission>
-  return group.permissions.includes(permission) && !(group.disabledPermissions ?? []).includes(permission)
+  if (account.role !== AccountRole.Guest) return isControlledDocumentCreationGranted(account, [])
+  const groups = await client.findAll(core.class.ModulePermissionGroup, {})
+  return isControlledDocumentCreationGranted(account, groups)
 }
 
 export type TranslatedDocumentStates = Readonly<Record<DocumentState, string>>

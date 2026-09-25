@@ -13,16 +13,16 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { Mixin, DocumentQuery, Ref } from '@hcengineering/core'
+  import { Mixin, DocumentQuery, Ref } from '@hcengineering/core'
   import { type DocumentSpace, type DocumentTemplate } from '@hcengineering/controlled-documents'
-  import { ActionContext, createQuery } from '@hcengineering/presentation'
+  import { ActionContext } from '@hcengineering/presentation'
   import { Button, IconAdd, Loading, showPopup } from '@hcengineering/ui'
   import view, { ViewOptions, Viewlet, ViewletPreference } from '@hcengineering/view'
   import { TableBrowser, ViewletPanelHeader } from '@hcengineering/view-resources'
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
   import documents from '../plugin'
-  import { canCreateControlledDocuments } from '../utils'
+  import { canCreateControlledDocumentsStore } from '../stores/permissions'
 
   export let query: DocumentQuery<DocumentTemplate> = {}
 
@@ -36,15 +36,8 @@
   const _class: Ref<Mixin<DocumentTemplate>> = documents.mixin.DocumentTemplate
 
   $: srcQuery = { ...query }
-  let modulePermissionEnabled = false
-  const modulePermissionQuery = createQuery()
-  modulePermissionQuery.query(core.class.ModulePermissionGroup, { _id: documents.ids.ModulePermissionGroup }, () => {
-    void canCreateControlledDocuments().then((value) => {
-      modulePermissionEnabled = value
-    })
-  })
   $: canAddTemplate =
-    modulePermissionEnabled &&
+    $canCreateControlledDocumentsStore &&
     Object.keys($permissionsStore.ps).some((space) =>
       checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
     )

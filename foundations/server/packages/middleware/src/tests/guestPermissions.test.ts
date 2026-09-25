@@ -33,6 +33,7 @@ import core, {
   MeasureMetricsContext,
   type Account,
   type Class,
+  type ClassPermission,
   type CustomSequence,
   type Doc,
   type MeasureContext,
@@ -50,7 +51,6 @@ const COVERED_CLASS = 'test:class:CoveredClass' as Ref<Class<Doc>>
 const UNCOVERED_CLASS = 'test:class:UncoveredClass' as Ref<Class<Doc>>
 const COVERED_CLASS_PERMISSION = 'test:permission:CoveredClassPermission' as Ref<Doc>
 const RELATED_CLASS = 'test:class:RelatedClass' as Ref<Class<Doc>>
-const FOLLOW_UP_CLASS = 'test:class:FollowUpClass' as Ref<Class<Doc>>
 const ALLOWED_SEQUENCE_NAMESPACE = 'test.sequence' as const
 const MODULE_PERMISSION_GROUP_CLASS = core.class.ModulePermissionGroup
 const ALLOWED_SPACE = 'test:space:Allowed' as Ref<Space>
@@ -243,25 +243,53 @@ describe('GuestPermissionsMiddleware', () => {
   })
 
   describe('class permission workflow policies', () => {
+    const GUEST_SOCIAL = 'test:guest-social' as PersonId
+    const OTHER_SOCIAL = 'test:other-social' as PersonId
     const settingsDoc = makeGuestSettingsDoc([COVERED_CLASS_PERMISSION])
     const sequenceId = generateId<CustomSequence>()
-    const findAll: FindAllFn = async (_ctx, _class, query) => {
-      if (_class === MODULE_PERMISSION_GROUP_CLASS) return [settingsDoc]
-      if (_class === core.class.ClassPermission) {
-        return [
-          {
-            _id: COVERED_CLASS_PERMISSION,
-            targetClass: COVERED_CLASS,
-            relatedCreateClasses: [RELATED_CLASS],
-            followUpCreateClasses: [FOLLOW_UP_CLASS],
-            sequenceNamespaces: [ALLOWED_SEQUENCE_NAMESPACE]
-          } as any
-        ]
+    const ownParentId = generateId()
+    const foreignParentId = generateId()
+    const policyPermission = {
+      _id: COVERED_CLASS_PERMISSION,
+      targetClass: COVERED_CLASS,
+      relatedCreateClasses: [RELATED_CLASS],
+      sequenceNamespaces: [ALLOWED_SEQUENCE_NAMESPACE]
+    }
+
+    function makeParent (_id: Ref<Doc>, createdBy: PersonId): Doc {
+      return {
+        _id,
+        _class: COVERED_CLASS,
+        space: ALLOWED_SPACE,
+        modifiedOn: Date.now(),
+        modifiedBy: createdBy,
+        createdBy
       }
-      if (_class === core.class.CustomSequence && (query as any)._id === sequenceId) {
-        return [{ _id: sequenceId, namespace: ALLOWED_SEQUENCE_NAMESPACE } as any]
+    }
+
+    function makeFindAll (groups: Doc[] = [settingsDoc]): FindAllFn {
+      return async (_ctx, _class, query: any) => {
+        if (_class === MODULE_PERMISSION_GROUP_CLASS) return groups
+        if (_class === core.class.ClassPermission) return [policyPermission as any]
+        if (_class === core.class.CustomSequence && query?._id === sequenceId) {
+          return [{ _id: sequenceId, namespace: ALLOWED_SEQUENCE_NAMESPACE } as any]
+        }
+        if (_class === COVERED_CLASS && query?._id === ownParentId) return [makeParent(ownParentId, GUEST_SOCIAL)]
+        if (_class === COVERED_CLASS && query?._id === foreignParentId) {
+          return [makeParent(foreignParentId, OTHER_SOCIAL)]
+        }
+        return []
       }
-      return []
+    }
+
+    function makeGuest (): Account {
+      return {
+        uuid: generateId() as any,
+        role: AccountRole.Guest,
+        primarySocialId: GUEST_SOCIAL,
+        socialIds: [GUEST_SOCIAL],
+        fullSocialIds: []
+      }
     }
 
     function patchHierarchy (mw: GuestPermissionsMiddleware): void {
@@ -272,63 +300,158 @@ describe('GuestPermissionsMiddleware', () => {
       ;(mw as any).context.hierarchy.classHierarchyMixin = () => undefined
     }
 
-    it('allows related creates only in an apply that creates the permitted target class', async () => {
-      const mw = makeMiddleware(findAll)
+    function makePolicyMiddleware (groups?: Doc[]): GuestPermissionsMiddleware {
+      const mw = makeMiddleware(makeFindAll(groups))
       patchHierarchy(mw)
-      const factory = new TxFactory('test:account:System' as PersonId)
-      const apply = factory.createTxApplyIf(
-        ALLOWED_SPACE,
-        undefined,
-        [],
-        [],
-        [
-          factory.createTxCreateDoc(RELATED_CLASS, ALLOWED_SPACE, {}),
-          factory.createTxCreateDoc(COVERED_CLASS, ALLOWED_SPACE, {})
-        ],
-        'test'
-      )
+      return mw
+    }
 
-      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [apply])
+    function makeApply (txes: Tx[]): Tx {
+      const factory = new TxFactory('test:account:System' as PersonId)
+      return factory.createTxApplyIf(ALLOWED_SPACE, undefined, [], [], txes as any, 'test')
+    }
+
+    function makeSequenceCreate (namespace: string, sequence: number): Tx {
+      const factory = new TxFactory('test:account:System' as PersonId)
+      return factory.createTxCreateDoc(core.class.CustomSequence, core.space.Workspace, {
+        attachedTo: core.class.CustomSequence,
+        namespace,
+        scope: '',
+        prefix: 'seq',
+        sequence
+      })
+    }
+
+    function makeSequenceUpdate (operations: any): Tx {
+      const factory = new TxFactory('test:account:System' as PersonId)
+      return factory.createTxUpdateDoc(core.class.CustomSequence, core.space.Workspace, sequenceId, operations)
+    }
+
+    function makeAttachedCreate (objectClass: Ref<Class<Doc>>, space: Ref<Space>, parentId: Ref<Doc>): Tx {
+      const factory = new TxFactory(GUEST_SOCIAL)
+      return factory.createTxCreateDoc(objectClass, space, {
+        attachedTo: parentId,
+        attachedToClass: COVERED_CLASS
+      })
+    }
+
+    it('allows related creates in an apply that creates the target class in the same space', async () => {
+      const mw = makePolicyMiddleware()
+      const apply = makeApply([
+        makeCreateTx(RELATED_CLASS, ALLOWED_SPACE),
+        makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)
+      ])
+      await mw.tx(makeCtx(makeGuest()), [apply])
+    })
+
+    it('forbids related creates outside of an apply with the target class', async () => {
+      const mw = makePolicyMiddleware()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeCreateTx(RELATED_CLASS, ALLOWED_SPACE)])).rejects.toThrow()
+    })
+
+    it('forbids related creates in a different space than the target document', async () => {
+      const mw = makePolicyMiddleware()
+      const apply = makeApply([
+        makeCreateTx(COVERED_CLASS, ALLOWED_SPACE),
+        makeCreateTx(RELATED_CLASS, FORBIDDEN_SPACE)
+      ])
+      await expect(mw.tx(makeCtx(makeGuest()), [apply])).rejects.toThrow()
+    })
+
+    it('forbids everything when the permission is disabled in the group', async () => {
+      const mw = makePolicyMiddleware([makeGuestSettingsDoc([COVERED_CLASS_PERMISSION], [COVERED_CLASS_PERMISSION])])
+      await expect(mw.tx(makeCtx(makeGuest()), [makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])).rejects.toThrow()
       await expect(
-        mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [makeCreateTx(RELATED_CLASS, ALLOWED_SPACE)])
+        mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])
       ).rejects.toThrow()
     })
 
-    it('allows configured follow-up creates', async () => {
-      const mw = makeMiddleware(findAll)
-      patchHierarchy(mw)
-      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [makeCreateTx(FOLLOW_UP_CLASS, ALLOWED_SPACE)])
+    it('forbids everything when the group is disabled', async () => {
+      const disabledGroup = { ...(makeGuestSettingsDoc([COVERED_CLASS_PERMISSION]) as any), enabled: false }
+      const mw = makePolicyMiddleware([disabledGroup])
+      const apply = makeApply([
+        makeCreateTx(RELATED_CLASS, ALLOWED_SPACE),
+        makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)
+      ])
+      await expect(mw.tx(makeCtx(makeGuest()), [apply])).rejects.toThrow()
     })
 
-    it('allows only configured custom sequence namespaces', async () => {
+    it('allows creating a permitted sequence from zero only', async () => {
+      const mw = makePolicyMiddleware()
+      await mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 1000)])
+      ).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceCreate('other.sequence', 0)])).rejects.toThrow()
+    })
+
+    it('allows advancing a permitted sequence by one only', async () => {
+      const mw = makePolicyMiddleware()
+      await mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1 } })])
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1000 } })])).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: -1 } })])).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ sequence: 0 })])).rejects.toThrow()
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ namespace: 'other.sequence' })])
+      ).rejects.toThrow()
+    })
+
+    it('forbids sequence changes when no policy grants a namespace', async () => {
+      const mw = makePolicyMiddleware([makeGuestSettingsDoc([])])
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])
+      ).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1 } })])).rejects.toThrow()
+    })
+
+    it('allows attaching a related class to an own target document', async () => {
+      const mw = makePolicyMiddleware()
+      await mw.tx(makeCtx(makeGuest()), [makeAttachedCreate(RELATED_CLASS, ALLOWED_SPACE, ownParentId)])
+    })
+
+    it('forbids attaching a class outside the policy to an own document', async () => {
+      const mw = makePolicyMiddleware()
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeAttachedCreate(UNCOVERED_CLASS, ALLOWED_SPACE, ownParentId)])
+      ).rejects.toThrow()
+    })
+
+    it('forbids attaching a related class to a document created by another account', async () => {
+      const mw = makePolicyMiddleware()
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeAttachedCreate(RELATED_CLASS, ALLOWED_SPACE, foreignParentId)])
+      ).rejects.toThrow()
+    })
+
+    it('forbids attaching a related class to an own document from another space', async () => {
+      const mw = makePolicyMiddleware()
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeAttachedCreate(RELATED_CLASS, FORBIDDEN_SPACE, ownParentId)])
+      ).rejects.toThrow()
+    })
+
+    it('reloads policies after a ClassPermission change', async () => {
+      let permission: object = policyPermission
+      const findAll: FindAllFn = async (_ctx, _class) => {
+        if (_class === MODULE_PERMISSION_GROUP_CLASS) return [settingsDoc]
+        if (_class === core.class.ClassPermission) return [permission as any]
+        return []
+      }
       const mw = makeMiddleware(findAll)
       patchHierarchy(mw)
-      const factory = new TxFactory('test:account:System' as PersonId)
-      const allowedCreate = factory.createTxCreateDoc(core.class.CustomSequence, core.space.Workspace, {
-        attachedTo: core.class.CustomSequence,
-        namespace: ALLOWED_SEQUENCE_NAMESPACE,
-        scope: '',
-        prefix: 'seq',
-        sequence: 0
-      })
-      const forbiddenCreate = factory.createTxCreateDoc(core.class.CustomSequence, core.space.Workspace, {
-        attachedTo: core.class.CustomSequence,
-        namespace: 'other.sequence',
-        scope: '',
-        prefix: 'seq',
-        sequence: 0
-      })
-      const allowedUpdate = factory.createTxUpdateDoc(core.class.CustomSequence, core.space.Workspace, sequenceId, {
-        $inc: { sequence: 1 }
-      })
-      const forbiddenUpdate = factory.createTxUpdateDoc(core.class.CustomSequence, core.space.Workspace, sequenceId, {
-        namespace: 'other.sequence'
-      })
+      await mw.tx(makeCtx(makeGuest()), [makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])
 
-      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [allowedCreate])
-      await mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [allowedUpdate])
-      await expect(mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [forbiddenCreate])).rejects.toThrow()
-      await expect(mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [forbiddenUpdate])).rejects.toThrow()
+      permission = { ...policyPermission, targetClass: UNCOVERED_CLASS }
+      const factory = new TxFactory('test:account:System' as PersonId)
+      const permissionUpdate = factory.createTxUpdateDoc(
+        core.class.ClassPermission,
+        core.space.Model,
+        COVERED_CLASS_PERMISSION as Ref<ClassPermission>,
+        { targetClass: UNCOVERED_CLASS }
+      )
+      await mw.tx(makeCtx(makeAccount(AccountRole.Owner)), [permissionUpdate])
+
+      await expect(mw.tx(makeCtx(makeGuest()), [makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])).rejects.toThrow()
     })
   })
 
@@ -571,34 +694,6 @@ describe('GuestPermissionsMiddleware', () => {
       const tx = factory.createTxRemoveDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId)
       await mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])
       expect(nextCalled).toBe(true)
-    })
-
-    it('allows guest to create an attached document on a document it created', async () => {
-      const parentId = generateId()
-      const findAll: FindAllFn = async (_ctx, _class, query: any) => {
-        if (_class === COVERED_CLASS && query?._id === parentId) {
-          return [
-            {
-              _id: parentId,
-              _class: COVERED_CLASS,
-              space: ALLOWED_SPACE,
-              modifiedOn: Date.now(),
-              modifiedBy: GUEST_SOCIAL,
-              createdBy: GUEST_SOCIAL
-            }
-          ]
-        }
-        return []
-      }
-      const mw = makeMiddleware(findAll)
-      patchHierarchyNoTxAccessLevel(mw)
-      const factory = new TxFactory(GUEST_SOCIAL)
-      const tx = factory.createTxCreateDoc(UNCOVERED_CLASS, ALLOWED_SPACE, {
-        attachedTo: parentId,
-        attachedToClass: COVERED_CLASS
-      })
-
-      await mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])
     })
 
     it('forbids guest to update document created by another account', async () => {

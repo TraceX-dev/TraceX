@@ -600,11 +600,15 @@ export interface AttributePermission extends Permission {
 
 export interface ClassPermission extends Permission {
   targetClass: Ref<Class<Doc>>
-  /** Classes that may be created in the same TxApplyIf as targetClass. */
+  /**
+   * Classes that may be created in the same TxApplyIf and the same space as a targetClass document,
+   * or attached later to such a document created by the same account.
+   */
   relatedCreateClasses?: Array<Ref<Class<Doc>>>
-  /** Classes that may be created as follow-up documents for the permitted operation. */
-  followUpCreateClasses?: Array<Ref<Class<Doc>>>
-  /** CustomSequence namespaces that may be created and advanced for the permitted operation. */
+  /**
+   * CustomSequence namespaces that may be created (starting from 0) and advanced by one
+   * for the permitted operation.
+   */
   sequenceNamespaces?: string[]
 }
 

@@ -14,14 +14,14 @@
 -->
 
 <script lang="ts">
-  import core, { TypedSpace, type Doc, type Ref, type Space } from '@hcengineering/core'
+  import { TypedSpace, type Doc, type Ref, type Space } from '@hcengineering/core'
   import documents, {
     type DocumentSpace,
     type DocumentSpaceType,
     type Project,
     type ProjectDocument
   } from '@hcengineering/controlled-documents'
-  import { SpaceSelector, createQuery, getClient } from '@hcengineering/presentation'
+  import { SpaceSelector, getClient } from '@hcengineering/presentation'
   import { Label } from '@hcengineering/ui'
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
@@ -29,20 +29,14 @@
   import DocumentParentSelector from '../../hierarchy/DocumentParentSelector.svelte'
   import ProjectSelector from '../../project/ProjectSelector.svelte'
   import documentsRes from '../../../plugin'
-  import { canCreateControlledDocuments, getLatestProjectId } from '../../../utils'
+  import { getLatestProjectId } from '../../../utils'
+  import { canCreateControlledDocumentsStore } from '../../../stores/permissions'
 
   export let canProceed: boolean
   export let isTemplate: boolean = false
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
-  let modulePermissionEnabled = false
-  const modulePermissionQuery = createQuery()
-  modulePermissionQuery.query(core.class.ModulePermissionGroup, { _id: documentsRes.ids.ModulePermissionGroup }, () => {
-    void canCreateControlledDocuments(client).then((value) => {
-      modulePermissionEnabled = value
-    })
-  })
 
   let spaceRef: Ref<DocumentSpace> | undefined = $locationStep.space
   $: locationStepUpdated({ space: spaceRef })
@@ -85,13 +79,14 @@
     projectRef = value
   }
 
-  $: canProceed = modulePermissionEnabled && $locationStep.space !== undefined && $locationStep.project !== undefined
+  $: canProceed =
+    $canCreateControlledDocumentsStore && $locationStep.space !== undefined && $locationStep.project !== undefined
   $: hasParentSelector = $locationStep.space !== documents.space.UnsortedTemplates
   $: restrictedSpaces = Object.keys($permissionsStore.ps).filter(
     (s) => !checkMyPermission(documents.permission.CreateDocument, s as Ref<TypedSpace>, $permissionsStore)
   ) as Ref<TypedSpace>[]
 
-  $: spaceQuery = modulePermissionEnabled
+  $: spaceQuery = $canCreateControlledDocumentsStore
     ? { _id: { $nin: restrictedSpaces }, archived: false }
     : { _id: { $in: [] as Ref<TypedSpace>[] } }
 </script>

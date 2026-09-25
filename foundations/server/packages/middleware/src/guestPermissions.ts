@@ -11,6 +11,8 @@ import core, {
   type CustomSequence,
   type Doc,
   type ClassPermission,
+  getRoleEffectivePermissions,
+  type ModulePermissionGroup,
   type Permission,
   hasAccountRole,
   type MeasureContext,
@@ -37,8 +39,20 @@ interface GuestPermissionsCache {
 interface GuestClassPermissionPolicy {
   targetClass: Ref<Class<Doc>>
   relatedCreateClasses: Set<Ref<Class<Doc>>>
-  followUpCreateClasses: Set<Ref<Class<Doc>>>
   sequenceNamespaces: Set<string>
+}
+
+/**
+ * Classes a guest may additionally create inside a TxApplyIf, keyed by the space
+ * of the permitted target document created in the same apply.
+ */
+type RelatedCreateScope = Map<Ref<Space>, Set<Ref<Class<Doc>>>>
+
+/** The only increment a guest may apply to a permitted CustomSequence. */
+const GUEST_SEQUENCE_STEP = 1
+
+function emptyPermissionsCache (): GuestPermissionsCache {
+  return { roleAllowedClasses: new Map(), rolePermissionPolicies: new Map() }
 }
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
@@ -60,70 +74,54 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
     await this.initPromise
     this.initPromise = undefined
-    return this.permissionsCache ?? { roleAllowedClasses: new Map(), rolePermissionPolicies: new Map() }
+    return this.permissionsCache ?? emptyPermissionsCache()
   }
 
   private async loadPermissionsCache (ctx: MeasureContext): Promise<void> {
     try {
-      const docs = await this.findAll(ctx, core.class.ModulePermissionGroup, {}, {})
-      if (docs.length > 0) {
-        const rolePermissions = new Map<AccountRole, Set<Ref<Permission>>>()
-        const allPermissionIds = new Set<Ref<Permission>>()
-        for (const group of docs as any[]) {
-          if (group.enabled === false) continue
-          const role =
-            (group.role as AccountRole | undefined) ??
-            (Array.isArray(group.roles) && group.roles.length > 0 ? (group.roles[0] as AccountRole) : undefined) ??
-            AccountRole.Guest
-          const permissions = (group.permissions ?? []) as Ref<Permission>[]
-          const disabled = new Set<Ref<Permission>>((group.disabledPermissions ?? []) as Ref<Permission>[])
-          const current = rolePermissions.get(role) ?? new Set<Ref<Permission>>()
-          for (const permissionId of permissions) {
-            if (disabled.has(permissionId)) continue
-            current.add(permissionId)
-            allPermissionIds.add(permissionId)
-          }
-          rolePermissions.set(role, current)
-        }
-        const classPermissions =
-          allPermissionIds.size > 0
-            ? await this.findAll(ctx, core.class.ClassPermission, {
-                _id: { $in: Array.from(allPermissionIds) as Ref<ClassPermission>[] }
-              })
-            : []
-        const permissionToClass = new Map<Ref<Permission>, Ref<Class<Doc>>>(
-          classPermissions
-            .map(
-              (permission) => [permission._id as Ref<Permission>, (permission as ClassPermission).targetClass] as const
-            )
-            .filter((entry): entry is readonly [Ref<Permission>, Ref<Class<Doc>>] => entry[1] !== undefined)
-        )
-        const roleAllowedClasses = new Map<AccountRole, Set<Ref<Class<Doc>>>>()
-        const rolePermissionPolicies = new Map<AccountRole, GuestClassPermissionPolicy[]>()
-        for (const [role, permissions] of rolePermissions.entries()) {
-          const allowedClasses = new Set<Ref<Class<Doc>>>()
-          const policies: GuestClassPermissionPolicy[] = []
-          for (const permissionId of permissions) {
-            const targetClass = permissionToClass.get(permissionId)
-            if (targetClass === undefined) continue
-            allowedClasses.add(targetClass)
-            const permission = classPermissions.find((item) => item._id === permissionId)
-            policies.push({
-              targetClass,
-              relatedCreateClasses: new Set(permission?.relatedCreateClasses ?? []),
-              followUpCreateClasses: new Set(permission?.followUpCreateClasses ?? []),
-              sequenceNamespaces: new Set(permission?.sequenceNamespaces ?? [])
-            })
-          }
-          roleAllowedClasses.set(role, allowedClasses)
-          rolePermissionPolicies.set(role, policies)
-        }
-        this.permissionsCache = { roleAllowedClasses, rolePermissionPolicies }
-      } else {
-        this.permissionsCache = { roleAllowedClasses: new Map(), rolePermissionPolicies: new Map() }
+      const groups = (await this.findAll(ctx, core.class.ModulePermissionGroup, {}, {})) as ModulePermissionGroup[]
+      if (groups.length === 0) {
+        this.permissionsCache = emptyPermissionsCache()
+        return
       }
-    } catch {
-      this.permissionsCache = { roleAllowedClasses: new Map(), rolePermissionPolicies: new Map() }
+      const rolePermissions = getRoleEffectivePermissions(groups)
+      const allPermissionIds = new Set<Ref<Permission>>()
+      for (const permissions of rolePermissions.values()) {
+        for (const permissionId of permissions) allPermissionIds.add(permissionId)
+      }
+      const classPermissions =
+        allPermissionIds.size > 0
+          ? ((await this.findAll(ctx, core.class.ClassPermission, {
+              _id: { $in: Array.from(allPermissionIds) as Ref<ClassPermission>[] }
+            })) as ClassPermission[])
+          : []
+      const permissionsById = new Map<Ref<Permission>, ClassPermission>(
+        classPermissions
+          .filter((permission) => permission.targetClass !== undefined)
+          .map((permission) => [permission._id as Ref<Permission>, permission] as const)
+      )
+      const roleAllowedClasses = new Map<AccountRole, Set<Ref<Class<Doc>>>>()
+      const rolePermissionPolicies = new Map<AccountRole, GuestClassPermissionPolicy[]>()
+      for (const [role, permissions] of rolePermissions.entries()) {
+        const allowedClasses = new Set<Ref<Class<Doc>>>()
+        const policies: GuestClassPermissionPolicy[] = []
+        for (const permissionId of permissions) {
+          const permission = permissionsById.get(permissionId)
+          if (permission === undefined) continue
+          allowedClasses.add(permission.targetClass)
+          policies.push({
+            targetClass: permission.targetClass,
+            relatedCreateClasses: new Set(permission.relatedCreateClasses ?? []),
+            sequenceNamespaces: new Set(permission.sequenceNamespaces ?? [])
+          })
+        }
+        roleAllowedClasses.set(role, allowedClasses)
+        rolePermissionPolicies.set(role, policies)
+      }
+      this.permissionsCache = { roleAllowedClasses, rolePermissionPolicies }
+    } catch (err: unknown) {
+      ctx.error('Failed to load guest permissions', { err })
+      this.permissionsCache = emptyPermissionsCache()
     }
   }
 
@@ -166,17 +164,14 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   private async processTx (
     ctx: MeasureContext<SessionData>,
     tx: Tx,
-    relatedCreateClasses = new Set<Ref<Class<Doc>>>()
+    relatedCreates: RelatedCreateScope = new Map()
   ): Promise<void> {
     const h = this.context.hierarchy
     if (tx._class === core.class.TxApplyIf) {
       const applyTx = tx as TxApplyIf
-      const applyRelatedCreateClasses = new Set(relatedCreateClasses)
-      for (const relatedClass of await this.getApplyRelatedCreateClasses(ctx, applyTx)) {
-        applyRelatedCreateClasses.add(relatedClass)
-      }
+      const applyRelatedCreates = await this.getApplyRelatedCreates(ctx, applyTx, relatedCreates)
       for (const t of applyTx.txes) {
-        await this.processTx(ctx, t, applyRelatedCreateClasses)
+        await this.processTx(ctx, t, applyRelatedCreates)
       }
       return
     }
@@ -191,7 +186,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
         }
       } else if (
         cudTx.space !== core.space.DerivedTx &&
-        (await this.isForbiddenTx(ctx, cudTx, account, relatedCreateClasses))
+        (await this.isForbiddenTx(ctx, cudTx, account, relatedCreates))
       ) {
         this.logForbiddenTx(ctx, account, tx, 'document-access-not-granted')
         throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
@@ -204,19 +199,31 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return (tx as TxApplyIf).txes.flatMap((nested) => this.getNestedTxes(nested))
   }
 
-  private async getApplyRelatedCreateClasses (
+  /**
+   * Related classes of a policy are unlocked only in the spaces where the same apply
+   * creates a document of the policy target class.
+   */
+  private async getApplyRelatedCreates (
     ctx: MeasureContext<SessionData>,
-    applyTx: TxApplyIf
-  ): Promise<Set<Ref<Class<Doc>>>> {
+    applyTx: TxApplyIf,
+    inherited: RelatedCreateScope
+  ): Promise<RelatedCreateScope> {
+    const result: RelatedCreateScope = new Map(
+      Array.from(inherited.entries()).map(([space, classes]) => [space, new Set(classes)])
+    )
     const cache = await this.getPermissionsCache(ctx)
     const policies = cache.rolePermissionPolicies.get(ctx.contextData.account.role) ?? []
+    if (policies.length === 0) return result
+
     const createTxes = this.getNestedTxes(applyTx).filter(
       (tx): tx is TxCreateDoc<Doc> => tx._class === core.class.TxCreateDoc
     )
-    const result = new Set<Ref<Class<Doc>>>()
-    for (const policy of policies) {
-      if (createTxes.some((tx) => this.context.hierarchy.isDerived(tx.objectClass, policy.targetClass))) {
-        for (const relatedClass of policy.relatedCreateClasses) result.add(relatedClass)
+    for (const tx of createTxes) {
+      for (const policy of policies) {
+        if (!this.context.hierarchy.isDerived(tx.objectClass, policy.targetClass)) continue
+        const classes = result.get(tx.objectSpace) ?? new Set<Ref<Class<Doc>>>()
+        for (const relatedClass of policy.relatedCreateClasses) classes.add(relatedClass)
+        result.set(tx.objectSpace, classes)
       }
     }
     return result
@@ -263,7 +270,22 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return this.isCreatedByAccount(doc, account)
   }
 
-  private async isGuestCreateOnOwnDoc (ctx: MeasureContext, tx: TxCreateDoc<Doc>, account: Account): Promise<boolean> {
+  /**
+   * Allows a guest to attach a related class of a policy to a document it created itself,
+   * when that parent belongs to the same policy (its target class or one of its related classes)
+   * and lives in the same space.
+   */
+  private async isGuestRelatedCreateOnOwnDoc (
+    ctx: MeasureContext,
+    tx: TxCreateDoc<Doc>,
+    account: Account,
+    policies: GuestClassPermissionPolicy[]
+  ): Promise<boolean> {
+    const matchingPolicies = policies.filter(
+      (policy) => this.getCoveredClass(tx.objectClass, policy.relatedCreateClasses) !== undefined
+    )
+    if (matchingPolicies.length === 0) return false
+
     const attributes = tx.attributes as { attachedTo?: Ref<Doc>, attachedToClass?: Ref<Class<Doc>> }
     const attachedTo = tx.attachedTo ?? attributes.attachedTo
     const attachedToClass = tx.attachedToClass ?? attributes.attachedToClass
@@ -271,34 +293,44 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
 
     const parents = await this.findAll(ctx, attachedToClass, { _id: attachedTo }, { limit: 1 })
     const parent = parents[0] as Doc | undefined
-    return parent !== undefined && this.isCreatedByAccount(parent, account)
+    if (parent === undefined || parent.space !== tx.objectSpace || !this.isCreatedByAccount(parent, account)) {
+      return false
+    }
+
+    const h = this.context.hierarchy
+    return matchingPolicies.some(
+      (policy) =>
+        h.isDerived(parent._class, policy.targetClass) ||
+        this.getCoveredClass(parent._class, policy.relatedCreateClasses) !== undefined
+    )
   }
 
   private async isForbiddenTx (
     ctx: MeasureContext,
     tx: TxCUD<Doc>,
     account: Account,
-    relatedCreateClasses: Set<Ref<Class<Doc>>>
+    relatedCreates: RelatedCreateScope
   ): Promise<boolean> {
     if (tx._class === core.class.TxMixin) return false
 
     const cache = await this.getPermissionsCache(ctx)
     const policies = cache.rolePermissionPolicies.get(account.role) ?? []
 
-    if (await this.isAllowedSequenceTx(ctx, tx, policies)) return false
+    if (tx.objectClass === core.class.CustomSequence) {
+      // Sequences are guarded only by the policy: the generic fallbacks below must not apply to them.
+      return !(await this.isAllowedSequenceTx(ctx, tx, policies))
+    }
 
     // For TxCreateDoc, check the new permission model first for covered types.
     if (tx._class === core.class.TxCreateDoc) {
       const roleAllowedClasses = cache.roleAllowedClasses.get(account.role) ?? new Set<Ref<Class<Doc>>>()
-      const coveredClass = this.getCoveredClass(tx.objectClass, roleAllowedClasses)
-      const isRelatedCreate = this.getCoveredClass(tx.objectClass, relatedCreateClasses) !== undefined
-      const isFollowUpCreate = policies.some(
-        (policy) => this.getCoveredClass(tx.objectClass, policy.followUpCreateClasses) !== undefined
-      )
-      if (coveredClass !== undefined || isRelatedCreate || isFollowUpCreate) {
+      if (this.getCoveredClass(tx.objectClass, roleAllowedClasses) !== undefined) return false
+
+      const spaceRelatedClasses = relatedCreates.get(tx.objectSpace)
+      if (spaceRelatedClasses !== undefined && this.getCoveredClass(tx.objectClass, spaceRelatedClasses) !== undefined) {
         return false
       }
-      if (await this.isGuestCreateOnOwnDoc(ctx, tx as TxCreateDoc<Doc>, account)) return false
+      if (await this.isGuestRelatedCreateOnOwnDoc(ctx, tx as TxCreateDoc<Doc>, account, policies)) return false
       // Uncovered class: fall through to TxAccessLevel check.
     }
 
@@ -315,18 +347,27 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return true
   }
 
+  /**
+   * A guest may only create a permitted sequence from zero and advance it by one,
+   * so it cannot skip or reset document numbers.
+   */
   private async isAllowedSequenceTx (
     ctx: MeasureContext,
     tx: TxCUD<Doc>,
     policies: GuestClassPermissionPolicy[]
   ): Promise<boolean> {
-    if (tx.objectClass !== core.class.CustomSequence) return false
     const namespaces = new Set(policies.flatMap((policy) => Array.from(policy.sequenceNamespaces)))
-    if (namespaces.size === 0) return false
+    if (namespaces.size === 0 || tx.objectSpace !== core.space.Workspace) return false
 
     if (tx._class === core.class.TxCreateDoc) {
-      const namespace = (tx as TxCreateDoc<CustomSequence>).attributes.namespace
-      return namespace !== undefined && namespaces.has(namespace)
+      const attributes = (tx as TxCreateDoc<CustomSequence>).attributes
+      return (
+        attributes.namespace !== undefined &&
+        namespaces.has(attributes.namespace) &&
+        typeof attributes.prefix === 'string' &&
+        (attributes.scope === undefined || typeof attributes.scope === 'string') &&
+        attributes.sequence === 0
+      )
     }
     if (tx._class !== core.class.TxUpdateDoc) return false
 
@@ -336,9 +377,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     if (
       increment === undefined ||
       Object.keys(increment).length !== 1 ||
-      typeof increment.sequence !== 'number' ||
-      !Number.isSafeInteger(increment.sequence) ||
-      increment.sequence <= 0
+      increment.sequence !== GUEST_SEQUENCE_STEP
     ) {
       return false
     }
@@ -350,7 +389,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       { limit: 1 }
     )
     const sequence = sequences[0] as CustomSequence | undefined
-    return sequence !== undefined && namespaces.has(sequence.namespace ?? '')
+    return sequence?.namespace !== undefined && namespaces.has(sequence.namespace)
   }
 
   private async isForbiddenSpaceTx (ctx: MeasureContext, tx: TxCUD<Space>, account: Account): Promise<boolean> {

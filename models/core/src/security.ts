@@ -186,13 +186,13 @@ export class TClassPermission extends TPermission implements ClassPermission {
   @Prop(TypeRef(core.class.Class), core.string.Class)
     targetClass!: Ref<Class<Doc>>
 
-  @Prop(ArrOf(TypeRef(core.class.Class)), core.string.Class)
+  // Technical policy settings, not editable from the UI.
+  @Prop(ArrOf(TypeRef(core.class.Class)), getEmbeddedLabel('Related create classes'))
+  @Hidden()
     relatedCreateClasses?: Array<Ref<Class<Doc>>>
 
-  @Prop(ArrOf(TypeRef(core.class.Class)), core.string.Class)
-    followUpCreateClasses?: Array<Ref<Class<Doc>>>
-
-  @Prop(ArrOf(TypeString()), core.string.Name)
+  @Prop(ArrOf(TypeString()), getEmbeddedLabel('Sequence namespaces'))
+  @Hidden()
     sequenceNamespaces?: string[]
 }
 

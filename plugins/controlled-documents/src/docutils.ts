@@ -81,7 +81,8 @@ export async function createControlledDocFromTemplate (
   space: Ref<DocumentSpace>,
   project: Ref<Project> | undefined,
   parent: Ref<ProjectDocument> | undefined,
-  docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument
+  docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument,
+  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
 ): Promise<{ seqNumber: number, success: boolean }> {
   if (templateId == null) {
     return { seqNumber: -1, success: false }
@@ -121,7 +122,8 @@ export async function createControlledDocFromTemplate (
         content,
         category,
         templateSpace,
-        docClass
+        docClass,
+        changeControl
       )
   )
 }
@@ -241,7 +243,8 @@ async function createControlledDocAttempt (
   content: Ref<Blob> | null,
   category: Ref<DocumentCategory>,
   templateSpace: Ref<Space>,
-  docClass: Ref<Class<ControlledDocument>>
+  docClass: Ref<Class<ControlledDocument>>,
+  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
 ): Promise<boolean> {
   const projectId = project ?? documents.ids.NoProject
 
@@ -308,6 +311,12 @@ async function createControlledDocAttempt (
   await ops.updateMixin(templateId, documents.class.Document, templateSpace, documents.mixin.DocumentTemplate, {
     sequence: seqNumber
   })
+
+  // Created in the same apply, so the document and its change control appear together
+  // and guests can create both under a single class permission.
+  if (changeControl !== undefined) {
+    await ops.createDoc(documents.class.ChangeControl, space, changeControl.data, changeControl.id)
+  }
 
   const success = await ops.commit()
 
