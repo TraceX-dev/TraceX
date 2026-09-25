@@ -29,6 +29,7 @@ import {
   FindSecurityMiddleware,
   FullTextMiddleware,
   GuestPermissionsMiddleware,
+  GuestPersonMiddleware,
   IdentityMiddleware,
   LiveQueryMiddleware,
   LookupMiddleware,
@@ -151,6 +152,7 @@ export function createServerPipeline (
         SpaceSecurityMiddleware.create(opt.adapterSecurity ?? false, ctx, context, next),
       SpacePermissionsMiddleware.create,
       GuestPermissionsMiddleware.create,
+      GuestPersonMiddleware.create, // Limit person listing for guests
       ConfigurationMiddleware.create,
       ContextNameMiddleware.create,
       MarkDerivedEntryMiddleware.create,
