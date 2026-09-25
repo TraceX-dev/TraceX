@@ -363,7 +363,8 @@ export default plugin(settingId, {
     NotConnectedIntegration: '' as IntlString,
     IntegrationIsUnstable: '' as IntlString,
     RelationFilter: '' as IntlString,
-    AddRelationFilter: '' as IntlString
+    AddRelationFilter: '' as IntlString,
+    RefSameSpaceOnly: '' as IntlString
   },
   icon: {
     AccountSettings: '' as Asset,

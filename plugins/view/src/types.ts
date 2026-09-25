@@ -106,6 +106,19 @@ export interface Filter {
 
 /**
  * @public
+ *
+ * Extra options of a reference attribute (stored on the attribute) narrowing the documents
+ * that can be selected as its value.
+ */
+export interface RefAttributeOptions {
+  // Serialized filters, same format as `FilteredView.filters`
+  refFilter?: string
+  // Only documents from the same space as the document that holds the reference
+  refSameSpace?: boolean
+}
+
+/**
+ * @public
  */
 export interface FilteredView extends Doc {
   name: string

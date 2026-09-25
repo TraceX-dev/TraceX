@@ -15,7 +15,7 @@
 //
 
 import documents, { TExternalSpace, TProject } from '@hcengineering/model-controlled-documents'
-import type { Document } from '@hcengineering/controlled-documents'
+import { DocumentState } from '@hcengineering/controlled-documents'
 import type { Product, ProductVersionState, ProductVersion } from '@hcengineering/products'
 import { productsId } from '@hcengineering/products'
 import activity from '@hcengineering/activity'
@@ -32,8 +32,7 @@ import type {
   Permission,
   Role,
   Class,
-  Doc,
-  Association
+  Doc
 } from '@hcengineering/core'
 import { AccountRole, IndexKind, AccountUuid } from '@hcengineering/core'
 import {
@@ -49,7 +48,6 @@ import {
   TypeNumber,
   Collection,
   ArrOf,
-  TypeAny,
   ReadOnly,
   Mixin,
   TypeAccountUuid
@@ -58,7 +56,7 @@ import attachment from '@hcengineering/model-attachment'
 import core, { TType } from '@hcengineering/model-core'
 import presentation from '@hcengineering/model-presentation'
 import tracker from '@hcengineering/model-tracker'
-import { type Action } from '@hcengineering/view'
+import { type Action, type Filter, type RefAttributeOptions } from '@hcengineering/view'
 import view, { createAction } from '@hcengineering/model-view'
 import workbench from '@hcengineering/model-workbench'
 import { getEmbeddedLabel, type Asset } from '@hcengineering/platform'
@@ -113,10 +111,30 @@ export class TProduct extends TExternalSpace implements Product {
 
   @Prop(Collection(attachment.class.Attachment), attachment.string.Attachments, { shortLabel: attachment.string.Files })
     attachments?: CollectionSize<Attachment>
+}
 
-  @Prop(TypeRef(core.class.Association), products.string.ChangeControl)
-  @Hidden()
-    changeControlRelation?: Ref<Association>
+/**
+ * Default change control: effective controlled documents of the change control category
+ * from the product of the version. Can be changed in the class settings.
+ */
+function defaultChangeControlOptions (): RefAttributeOptions {
+  const filters: Array<Omit<Filter, 'key'> & { key: Pick<Filter['key'], '_class' | 'key' | 'label'> }> = [
+    {
+      key: { _class: documents.class.Document, key: 'category', label: documents.string.Category },
+      mode: view.filter.FilterObjectIn,
+      modes: [view.filter.FilterObjectIn, view.filter.FilterObjectNin],
+      value: ['documents:category:DOC - CC'],
+      index: 1
+    },
+    {
+      key: { _class: documents.class.Document, key: 'state', label: documents.string.Status },
+      mode: view.filter.FilterObjectIn,
+      modes: [view.filter.FilterObjectIn, view.filter.FilterObjectNin],
+      value: [DocumentState.Effective],
+      index: 2
+    }
+  ]
+  return { refFilter: JSON.stringify(filters), refSameSpace: true }
 }
 
 @Model(products.class.ProductVersion, documents.class.Project)
@@ -154,16 +172,9 @@ export class TProductVersion extends TProject implements ProductVersion {
   @ReadOnly()
     state!: ProductVersionState
 
-  @Prop(
-    TypeAny(
-      products.component.ChangeControlInlineEditor,
-      products.string.ChangeControl,
-      products.component.ChangeControlInlineEditor
-    ),
-    products.string.ChangeControl
-  )
+  @Prop(TypeRef(documents.class.ControlledDocument), products.string.ChangeControl, defaultChangeControlOptions())
   @ReadOnly()
-    changeControl?: Ref<Document>
+    changeControl?: Ref<Doc>
 }
 
 @Mixin(products.mixin.ProductTypeData, products.class.Product)

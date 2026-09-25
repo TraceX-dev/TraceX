@@ -24122,9 +24122,6 @@ importers:
       '@hcengineering/attachment-resources':
         specifier: workspace:^0.7.0
         version: link:../attachment-resources
-      '@hcengineering/card':
-        specifier: workspace:^0.7.0
-        version: link:../card
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../contact

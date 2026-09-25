@@ -1,6 +1,5 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,9 +13,9 @@
 // limitations under the License.
 //
 
-import { type Document, ExternalSpace, Project } from '@hcengineering/controlled-documents'
+import { ExternalSpace, Project } from '@hcengineering/controlled-documents'
 import { Attachment } from '@hcengineering/attachment'
-import { type Association, type CollectionSize, type Ref, Markup } from '@hcengineering/core'
+import { type CollectionSize, type Doc, type Ref, Markup } from '@hcengineering/core'
 import { IconProps } from '@hcengineering/view'
 
 /** @public */
@@ -32,7 +31,6 @@ export const productVersionStates = [ProductVersionState.Active, ProductVersionS
 export interface Product extends ExternalSpace, IconProps {
   fullDescription?: Markup
   attachments?: CollectionSize<Attachment>
-  changeControlRelation?: Ref<Association>
 }
 
 /** @public */
@@ -44,5 +42,6 @@ export interface ProductVersion extends Project<Product> {
   description: Markup
   state: ProductVersionState
   parent: Ref<ProductVersion>
-  changeControl?: Ref<Document>
+  // Reference configured in the ProductVersion class settings, a controlled document by default
+  changeControl?: Ref<Doc>
 }

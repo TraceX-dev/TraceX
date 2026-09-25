@@ -20,33 +20,21 @@
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
 
-  import documents, {
-    Document,
-    DocumentState,
-    copyProjectDocuments,
-    deleteProjectDrafts
-  } from '@hcengineering/controlled-documents'
+  import documents, { copyProjectDocuments, deleteProjectDrafts } from '@hcengineering/controlled-documents'
   import { Product, ProductVersion, ProductVersionState } from '@hcengineering/products'
-  import {
-    SortingOrder,
-    generateId,
-    type Association,
-    type Data,
-    type Doc,
-    type DocumentQuery,
-    type Ref
-  } from '@hcengineering/core'
+  import { Data, Doc, DocumentQuery, Ref, SortingOrder, generateId } from '@hcengineering/core'
   import { Card, MessageBox, SpaceSelector, createQuery, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
-  import { DropdownLabelsIntl, EditBox, FocusHandler, Label, createFocusManager, showPopup } from '@hcengineering/ui'
+  import { DropdownLabelsIntl, EditBox, FocusHandler, createFocusManager, showPopup } from '@hcengineering/ui'
   import {
     ObjectBox,
-    buildRelationCandidatesQuery,
+    RelationsCreateEditor,
+    buildRefAttributeQuery,
     commitPendingRelations,
-    getRelationCandidatesClass
+    getRefAttributeClass,
+    type PendingRelation
   } from '@hcengineering/view-resources'
 
-  import { getProductVersionCardAssociation, type ProductVersionCardAssociation } from '../../change-control'
   import products from '../../plugin'
 
   type Severity = 'major' | 'minor' | 'patch'
@@ -57,39 +45,35 @@
   const dispatch = createEventDispatcher()
   const client = getClient()
   const query = createQuery()
-  const productQuery = createQuery()
   const manager = createFocusManager()
+  const hierarchy = client.getHierarchy()
+
+  // Change control is a reference configured in the ProductVersion class settings
+  const changeControlAttribute = hierarchy.findAttribute(products.class.ProductVersion, 'changeControl')
+  const changeControlClass =
+    changeControlAttribute !== undefined && changeControlAttribute.hidden !== true
+      ? getRefAttributeClass(hierarchy, changeControlAttribute)
+      : undefined
+  const isDocumentChangeControl =
+    changeControlClass !== undefined && hierarchy.isDerived(changeControlClass, documents.class.Document)
+  const changeControlSearchField = isDocumentChangeControl
+    ? 'code'
+    : changeControlClass !== undefined && hierarchy.findAttribute(changeControlClass, 'title') !== undefined
+      ? 'title'
+      : 'name'
 
   const id: Ref<ProductVersion> = generateId()
 
   let object: Omit<Data<ProductVersion>, 'parent' | 'name'> = createDefaultObject()
-  let excludedChangeControl: Array<Ref<Document>> = []
-
-  let parent: ProductVersion | null | undefined
-  let product: Product | undefined
-  let severity: Severity = 'minor'
-
-  let changeControlCard: Ref<Doc> | undefined
-  let changeControlCardQuery: DocumentQuery<Doc> = {}
-  let previousChangeControlRelation: Ref<Association> | undefined
+  let excludedChangeControl: Array<Ref<Doc>> = []
+  let changeControlQuery: DocumentQuery<Doc> | undefined
   let changeControlQueryRequest = 0
   let previousSpace = space
 
-  $: if (space !== previousSpace) {
-    previousSpace = space
-    product = undefined
-    object.changeControl = undefined
-    changeControlCard = undefined
-  }
+  let parent: ProductVersion | null | undefined
+  let severity: Severity = 'minor'
 
-  $: if (space !== undefined) {
-    productQuery.query(products.class.Product, { _id: space }, (res) => {
-      product = res[0]
-    })
-  } else {
-    productQuery.unsubscribe()
-    product = undefined
-  }
+  let pendingRelations: PendingRelation[] = []
 
   $: query.query(
     products.class.ProductVersion,
@@ -108,36 +92,25 @@
   )
 
   $: updateSeverity(parent, severity)
-  $: changeControlAssociation = resolveChangeControlAssociation(product)
-  $: void updateChangeControlCardOptions(changeControlAssociation)
 
-  function resolveChangeControlAssociation (product: Product | undefined): ProductVersionCardAssociation | undefined {
-    if (product?.changeControlRelation === undefined) return undefined
-    return getProductVersionCardAssociation(client, product.changeControlRelation)
+  $: if (space !== previousSpace) {
+    previousSpace = space
+    object.changeControl = undefined
   }
 
-  async function updateChangeControlCardOptions (association: ProductVersionCardAssociation | undefined): Promise<void> {
-    const relation = association?.association._id
-    if (relation !== previousChangeControlRelation) {
-      previousChangeControlRelation = relation
-      changeControlCard = undefined
-    }
+  $: void updateChangeControlQuery(space)
 
+  async function updateChangeControlQuery (space: Ref<Product> | undefined): Promise<void> {
     const request = ++changeControlQueryRequest
-    if (association === undefined) {
-      changeControlCardQuery = {}
-      return
-    }
-
+    changeControlQuery = undefined
+    if (changeControlAttribute === undefined || changeControlClass === undefined) return
     try {
-      const query = await buildRelationCandidatesQuery(association.association, association.direction)
+      const query = await buildRefAttributeQuery(changeControlAttribute, { space })
       if (request === changeControlQueryRequest) {
-        changeControlCardQuery = query
+        changeControlQuery = query
       }
-    } catch {
-      if (request === changeControlQueryRequest) {
-        changeControlCardQuery = {}
-      }
+    } catch (err) {
+      console.error('Failed to build change control query', err)
     }
   }
 
@@ -162,7 +135,7 @@
   }
 
   async function handleOkAction (): Promise<void> {
-    if (space === undefined || product === undefined) {
+    if (space === undefined) {
       return
     }
 
@@ -185,22 +158,12 @@
     await deleteProjectDrafts(ops, version.parent)
     await copyProjectDocuments(ops, version.parent, id)
 
-    const changeControlRelations =
-      changeControlAssociation !== undefined && changeControlCard !== undefined
-        ? [
-            {
-              association: changeControlAssociation.association._id,
-              direction: changeControlAssociation.direction,
-              doc: changeControlCard
-            }
-          ]
-        : []
-    await commitPendingRelations(ops, id, changeControlRelations)
+    await commitPendingRelations(ops, id, pendingRelations)
 
     await ops.commit()
 
     object = createDefaultObject()
-    changeControlCard = undefined
+    pendingRelations = []
     dispatch('close', id)
   }
 
@@ -237,15 +200,13 @@
     }
   }
 
-  function hasChangeControl (): boolean {
-    const changeControlRelation = product?.changeControlRelation
-    if (changeControlRelation === undefined) return object.changeControl !== undefined
-    return changeControlAssociation !== undefined && changeControlCard !== undefined
+  // Change control is required for every version except the first one, when it is configured
+  function hasChangeControl (changeControl: Ref<Doc> | undefined): boolean {
+    return changeControlClass === undefined || changeControl !== undefined
   }
 
   $: canSave =
     space !== undefined &&
-    product !== undefined &&
     parent !== undefined &&
     object.major !== undefined &&
     object.major >= 0 &&
@@ -253,7 +214,7 @@
     object.minor >= 0 &&
     object.patch !== undefined &&
     object.patch >= 0 &&
-    (parent == null || hasChangeControl())
+    (parent == null || hasChangeControl(object.changeControl))
 </script>
 
 <FocusHandler {manager} />
@@ -319,44 +280,23 @@
         ]}
         bind:selected={severity}
       />
-      {#if product?.changeControlRelation === undefined}
+      {#if changeControlClass !== undefined && changeControlQuery !== undefined}
         <ObjectBox
           bind:value={object.changeControl}
-          _class={documents.class.Document}
-          docQuery={{
-            space,
-            // TODO Use more robust category id
-            category: 'documents:category:DOC - CC',
-            state: DocumentState.Effective
-          }}
-          docProps={{
-            withTitle: true,
-            isRegular: true,
-            disableLink: true
-          }}
-          searchField={'code'}
+          _class={changeControlClass}
+          docQuery={changeControlQuery}
+          docProps={isDocumentChangeControl
+            ? { withTitle: true, isRegular: true, disableLink: true }
+            : { shouldShowAvatar: true }}
+          searchField={changeControlSearchField}
           excluded={excludedChangeControl}
           kind={'regular'}
           size={'small'}
-          label={products.string.ChangeControl}
+          label={changeControlAttribute?.label ?? products.string.ChangeControl}
           showNavigate={false}
         />
-      {:else if changeControlAssociation !== undefined}
-        <ObjectBox
-          bind:value={changeControlCard}
-          _class={getRelationCandidatesClass(changeControlAssociation.association, changeControlAssociation.direction)}
-          docQuery={changeControlCardQuery}
-          docProps={{ shouldShowAvatar: true }}
-          kind={'regular'}
-          size={'small'}
-          label={products.string.ChangeControl}
-          showNavigate={false}
-        />
-      {:else}
-        <span class="error-color text-sm">
-          <Label label={products.string.ChangeControl} />
-        </span>
       {/if}
     {/if}
+    <RelationsCreateEditor _class={products.class.ProductVersion} bind:selection={pendingRelations} />
   </svelte:fragment>
 </Card>

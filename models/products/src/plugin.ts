@@ -38,7 +38,6 @@ export default mergeIds(productsId, products, {
     ProductPresenter: '' as AnyComponent,
     NewProductHeader: '' as AnyComponent,
     CreateProductVersion: '' as AnyComponent,
-    ChangeControlInlineEditor: '' as AnyComponent,
     ProductVersionPresenter: '' as AnyComponent,
     ProductVersionInlineEditor: '' as AnyComponent,
     ProductVersionsEditor: '' as AnyComponent,

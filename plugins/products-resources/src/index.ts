@@ -27,7 +27,6 @@ import ProductInlineEditor from './components/product/ProductInlineEditor.svelte
 import ProductPresenter from './components/product/ProductPresenter.svelte'
 import ProductSearchIcon from './components/product/ProductSearchIcon.svelte'
 import ProductSearchItem from './components/product/ProductSearchItem.svelte'
-import ChangeControlInlineEditor from './components/product-version/ChangeControlInlineEditor.svelte'
 import CreateProductVersion from './components/product-version/CreateProductVersion.svelte'
 import EditProductVersion from './components/product-version/EditProductVersion.svelte'
 import ProductVersionPresenter from './components/product-version/ProductVersionPresenter.svelte'
@@ -88,8 +87,7 @@ export default async (): Promise<Resources> => ({
     ProductVersionsPresenter,
     ProductVersionStateEditor,
     ProductVersionStatePresenter,
-    ProductVersionVersionPresenter,
-    ChangeControlInlineEditor
+    ProductVersionVersionPresenter
   },
   completion: {
     ProductQuery: async (client: Client, query: string, filter?: { in?: RelatedDocument[], nin?: RelatedDocument[] }) =>

@@ -265,6 +265,7 @@
     "Required": "必须",
     "RelationFilter": "筛选器",
     "AddRelationFilter": "添加筛选器",
+    "RefSameSpaceOnly": "仅限同一空间",
     "RemoveMemberFromSpace": "将用户移出空间",
     "OtherSpaces": "其他空间",
     "Public": "公开",

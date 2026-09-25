@@ -263,6 +263,7 @@
     "Required": "Požadované",
     "RelationFilter": "Filtr",
     "AddRelationFilter": "Přidat filtr",
+    "RefSameSpaceOnly": "Pouze ze stejného prostoru",
     "RemoveMemberFromSpace": "Odebrat uživatele z prostoru",
     "OtherSpaces": "Ostatní prostory",
     "Public": "Veřejné",

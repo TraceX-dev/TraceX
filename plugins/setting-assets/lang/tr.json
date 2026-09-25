@@ -265,6 +265,7 @@
     "Required": "Zorunlu",
     "RelationFilter": "Filtre",
     "AddRelationFilter": "Filtre ekle",
+    "RefSameSpaceOnly": "Yalnızca aynı alandan",
     "RemoveMemberFromSpace": "Kullanıcıyı alandan çıkar",
     "OtherSpaces": "Diğer alanlar",
     "Public": "Herkese açık",

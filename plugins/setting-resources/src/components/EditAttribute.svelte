@@ -311,6 +311,7 @@
           defaultValue,
           width: '100%',
           editable: !exist && !disabled,
+          disabled,
           kind: 'regular',
           size: 'large',
           attribute,

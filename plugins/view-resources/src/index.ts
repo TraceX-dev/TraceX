@@ -201,6 +201,7 @@ export { canArchiveSpace, canDeleteObject, canDeleteSpace, canEditSpace } from '
 
 export * from './filter'
 export * from './relations'
+export * from './refAttribute'
 export * from './icons'
 export * from './middleware'
 export * from './objectIterator'
