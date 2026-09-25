@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,11 +17,14 @@
   import core, { AnyAttribute, Class, Doc, DOMAIN_STATUS, Ref, RefTo } from '@hcengineering/core'
   import { TypeRef } from '@hcengineering/model'
   import { getClient } from '@hcengineering/presentation'
-  import { Component, DropdownLabelsIntl, Label } from '@hcengineering/ui'
+  import { Component, DropdownLabelsIntl, Label, Toggle } from '@hcengineering/ui'
+  import { type RefAttributeOptions } from '@hcengineering/view'
   import view from '@hcengineering/view-resources/src/plugin'
   import card from '@hcengineering/card'
   import { createEventDispatcher } from 'svelte'
   import type { ButtonKind, ButtonSize, DropdownIntlItem } from '@hcengineering/ui'
+  import setting from '../../plugin'
+  import RefFiltersEditor from './RefFiltersEditor.svelte'
 
   export let type: RefTo<Doc> | undefined
   export let attribute: AnyAttribute | undefined
@@ -30,6 +34,10 @@
   export let size: ButtonSize = 'medium'
   export let isCard: boolean = false
   export let width: string | undefined = undefined
+  // Filters and the space restriction do not affect stored values, so they stay editable
+  // when the class can not be changed anymore
+  export let disabled: boolean = false
+  export let nested: boolean = false
 
   const _classes = [core.class.Doc]
 
@@ -59,9 +67,29 @@
 
   let refClass: Ref<Class<Doc>> | undefined = type?.to
 
+  const options = (attribute ?? {}) as RefAttributeOptions
+  // Filters are shown only for attributes that declare them in the model: generic reference
+  // editors do not apply them, only the components that build the query with buildRefAttributeQuery
+  const withFilters = !nested && (options.refFilter !== undefined || options.refSameSpace !== undefined)
+  let refFilter: string | undefined = options.refFilter
+  let refSameSpace: boolean = options.refSameSpace ?? false
+  let previousClass = refClass
+
   $: selected = classes.find((p) => p.id === refClass)
 
-  $: refClass !== undefined && dispatch('change', { type: TypeRef(refClass) })
+  $: if (refClass !== previousClass) {
+    // Filters of the previous class do not apply to the new one
+    previousClass = refClass
+    refFilter = refFilter !== undefined ? '' : undefined
+    refSameSpace = false
+  }
+
+  $: refClass !== undefined &&
+    dispatch('change', { type: TypeRef(refClass), extra: withFilters ? getOptions(refFilter, refSameSpace) : {} })
+
+  function getOptions (refFilter: string | undefined, refSameSpace: boolean): RefAttributeOptions {
+    return { refFilter, refSameSpace }
+  }
 
   $: editor = refClass !== undefined && hierarchy.classHierarchyMixin(refClass, view.mixin.TypeEditor)?.editor
 </script>
@@ -81,6 +109,23 @@
   />
 {:else if selected}
   <Label label={selected.label} />
+{/if}
+{#if withFilters && refClass !== undefined}
+  <span class="label">
+    <Label label={setting.string.RelationFilter} />
+  </span>
+  <RefFiltersEditor
+    _class={refClass}
+    value={refFilter}
+    editable={!disabled}
+    on:change={(e) => {
+      refFilter = e.detail
+    }}
+  />
+  <span class="label">
+    <Label label={setting.string.RefSameSpaceOnly} />
+  </span>
+  <Toggle bind:on={refSameSpace} {disabled} />
 {/if}
 {#if editor}
   <Component is={editor} props={{ attribute, type, editable, attributeOf, isCard }} on:change />

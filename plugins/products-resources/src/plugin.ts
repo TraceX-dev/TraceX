@@ -26,8 +26,7 @@ export default mergeIds(productsId, products, {
     EditProduct: '' as AnyComponent,
     EditProductVersion: '' as AnyComponent,
     ProductArrayEditor: '' as AnyComponent,
-    ProductInlineEditor: '' as AnyComponent,
-    ProductsSettings: '' as AnyComponent
+    ProductInlineEditor: '' as AnyComponent
   },
   completion: {
     ProductQuery: '' as Resource<ObjectSearchFactory>,
@@ -67,21 +66,6 @@ export default mergeIds(productsId, products, {
     ProductVersionStateActive: '' as IntlString,
     ProductVersionStateReleased: '' as IntlString,
     ChangeControl: '' as IntlString,
-    ChangeSeverity: '' as IntlString,
-    ProductsSettings: '' as IntlString,
-    ChangeControlMode: '' as IntlString,
-    ChangeControlModeDescription: '' as IntlString,
-    ChangeControlModeCards: '' as IntlString,
-    ChangeControlCategory: '' as IntlString,
-    ChangeControlCategoryDescription: '' as IntlString,
-    ChangeControlRelations: '' as IntlString,
-    ChangeControlRelationsDescription: '' as IntlString,
-    AddChangeControlRelation: '' as IntlString,
-    CreateChangeControlRelation: '' as IntlString,
-    NoChangeControlRelations: '' as IntlString,
-    DefaultChangeControlRelation: '' as IntlString,
-    MakeDefault: '' as IntlString,
-    WorkspaceDefault: '' as IntlString,
-    ChangeControlNotConfigured: '' as IntlString
+    ChangeSeverity: '' as IntlString
   }
 })

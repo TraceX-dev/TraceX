@@ -268,6 +268,7 @@
     "Required": "Обязательный",
     "RelationFilter": "Фильтр",
     "AddRelationFilter": "Добавить фильтр",
+    "RefSameSpaceOnly": "Только из того же пространства",
     "RemoveMemberFromSpace": "Исключить пользователя из пространства",
     "OtherSpaces": "Другие пространства",
     "Public": "Публичное",

@@ -265,6 +265,7 @@
     "Required": "Requis",
     "RelationFilter": "Filtre",
     "AddRelationFilter": "Ajouter un filtre",
+    "RefSameSpaceOnly": "Uniquement du même espace",
     "RemoveMemberFromSpace": "Retirer l’utilisateur de l’espace",
     "OtherSpaces": "Autres espaces",
     "Public": "Public",

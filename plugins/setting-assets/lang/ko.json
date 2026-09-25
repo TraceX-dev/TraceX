@@ -265,6 +265,7 @@
         "Required": "필수",
         "RelationFilter": "필터",
         "AddRelationFilter": "필터 추가",
+        "RefSameSpaceOnly": "같은 공간에서만",
         "RemoveMemberFromSpace": "스페이스에서 사용자 제거",
         "OtherSpaces": "기타 스페이스",
         "Public": "공개",

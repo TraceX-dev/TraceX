@@ -1,7 +1,6 @@
 <!--
 //
 // Copyright © 2024 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -32,7 +31,6 @@
 
   import products from '../../plugin'
   import ProductVersionsEditor from '../product-version/ProductVersionsEditor.svelte'
-  import ChangeControlSetting from './ChangeControlSetting.svelte'
   import DocIcon from '../DocIcon.svelte'
 
   export let _id: Ref<Product>
@@ -185,10 +183,6 @@
     </div>
 
     <div class="w-full mt-6">
-      <ChangeControlSetting {object} readonly={!canEdit} />
-    </div>
-
-    <div class="w-full mt-6">
       <ProductVersionsEditor objectId={object._id} readonly={!canEdit} />
     </div>
 
@@ -217,7 +211,7 @@
         {object}
         {mixins}
         readonly={!canEdit}
-        ignoreKeys={['name', 'description', 'fullDescription', 'archived', 'type', 'private', 'changeControlRelation']}
+        ignoreKeys={['name', 'description', 'fullDescription', 'archived', 'type', 'private']}
       />
     </svelte:fragment>
   </Panel>

@@ -265,6 +265,7 @@
     "Required": "必須",
     "RelationFilter": "フィルター",
     "AddRelationFilter": "フィルターを追加",
+    "RefSameSpaceOnly": "同じスペースのみ",
     "RemoveMemberFromSpace": "スペースからユーザーを削除",
     "OtherSpaces": "その他のスペース",
     "Public": "公開",

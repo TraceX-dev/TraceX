@@ -20,7 +20,7 @@ import { plugin } from '@hcengineering/platform'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 import { ActionCategory, Viewlet } from '@hcengineering/view'
 import type { DocumentSpaceType, DocumentSpaceTypeDescriptor } from '@hcengineering/controlled-documents'
-import { Product, ProductVersion, ProductVersionState, ProductsSettings } from './types'
+import { Product, ProductVersion, ProductVersionState } from './types'
 
 /** @public */
 export const productsId = 'products' as Plugin
@@ -38,7 +38,6 @@ export const productsPlugin = plugin(productsId, {
   class: {
     Product: '' as Ref<Class<Product>>,
     ProductVersion: '' as Ref<Class<ProductVersion>>,
-    ProductsSettings: '' as Ref<Class<ProductsSettings>>,
     TypeProductVersionState: '' as Ref<Class<Type<ProductVersionState>>>
   },
   mixin: {

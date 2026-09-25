@@ -27,7 +27,6 @@ import ProductInlineEditor from './components/product/ProductInlineEditor.svelte
 import ProductPresenter from './components/product/ProductPresenter.svelte'
 import ProductSearchIcon from './components/product/ProductSearchIcon.svelte'
 import ProductSearchItem from './components/product/ProductSearchItem.svelte'
-import ChangeControlInlineEditor from './components/product-version/ChangeControlInlineEditor.svelte'
 import CreateProductVersion from './components/product-version/CreateProductVersion.svelte'
 import EditProductVersion from './components/product-version/EditProductVersion.svelte'
 import ProductVersionPresenter from './components/product-version/ProductVersionPresenter.svelte'
@@ -37,7 +36,6 @@ import ProductVersionsPresenter from './components/product-version/ProductVersio
 import ProductVersionStateEditor from './components/product-version/ProductVersionStateEditor.svelte'
 import ProductVersionStatePresenter from './components/product-version/ProductVersionStatePresenter.svelte'
 import ProductVersionVersionPresenter from './components/product-version/ProductVersionVersionPresenter.svelte'
-import ProductsSettings from './components/settings/ProductsSettings.svelte'
 import {
   canCreateProductVersion,
   canDeleteProductVersion,
@@ -89,9 +87,7 @@ export default async (): Promise<Resources> => ({
     ProductVersionsPresenter,
     ProductVersionStateEditor,
     ProductVersionStatePresenter,
-    ProductVersionVersionPresenter,
-    ChangeControlInlineEditor,
-    ProductsSettings
+    ProductVersionVersionPresenter
   },
   completion: {
     ProductQuery: async (client: Client, query: string, filter?: { in?: RelatedDocument[], nin?: RelatedDocument[] }) =>

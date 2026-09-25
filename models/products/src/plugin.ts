@@ -38,7 +38,6 @@ export default mergeIds(productsId, products, {
     ProductPresenter: '' as AnyComponent,
     NewProductHeader: '' as AnyComponent,
     CreateProductVersion: '' as AnyComponent,
-    ChangeControlInlineEditor: '' as AnyComponent,
     ProductVersionPresenter: '' as AnyComponent,
     ProductVersionInlineEditor: '' as AnyComponent,
     ProductVersionsEditor: '' as AnyComponent,
@@ -51,9 +50,6 @@ export default mergeIds(productsId, products, {
     CanCreateProductVersion: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     CanDeleteProductVersion: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     ProductIdentifierProvider: '' as Resource<<T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<string>>
-  },
-  setting: {
-    Products: '' as Ref<Doc>
   },
   role: {
     QARA: '' as Ref<Role>,

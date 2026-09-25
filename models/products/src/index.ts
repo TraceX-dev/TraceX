@@ -15,21 +15,14 @@
 //
 
 import documents, { TExternalSpace, TProject } from '@hcengineering/model-controlled-documents'
-import type { Document } from '@hcengineering/controlled-documents'
-import type { DocumentCategory } from '@hcengineering/controlled-documents'
-import type {
-  ChangeControlMode,
-  Product,
-  ProductVersionState,
-  ProductVersion,
-  ProductsSettings
-} from '@hcengineering/products'
+import { DocumentState } from '@hcengineering/controlled-documents'
+import type { Product, ProductVersionState, ProductVersion } from '@hcengineering/products'
 import { productsId } from '@hcengineering/products'
 import activity from '@hcengineering/activity'
 import { type Attachment } from '@hcengineering/attachment'
 import contact from '@hcengineering/contact'
 import chunter from '@hcengineering/chunter'
-import setting, { DOMAIN_SETTING, getRoleAttributeProps } from '@hcengineering/setting'
+import setting, { getRoleAttributeProps } from '@hcengineering/setting'
 import type {
   Type,
   Ref,
@@ -39,8 +32,7 @@ import type {
   Permission,
   Role,
   Class,
-  Doc,
-  Association
+  Doc
 } from '@hcengineering/core'
 import { AccountRole, IndexKind, AccountUuid } from '@hcengineering/core'
 import {
@@ -56,16 +48,15 @@ import {
   TypeNumber,
   Collection,
   ArrOf,
-  TypeAny,
   ReadOnly,
   Mixin,
   TypeAccountUuid
 } from '@hcengineering/model'
 import attachment from '@hcengineering/model-attachment'
-import core, { TConfiguration, TType } from '@hcengineering/model-core'
+import core, { TType } from '@hcengineering/model-core'
 import presentation from '@hcengineering/model-presentation'
 import tracker from '@hcengineering/model-tracker'
-import { type Action } from '@hcengineering/view'
+import { type Action, type Filter, type RefAttributeOptions } from '@hcengineering/view'
 import view, { createAction } from '@hcengineering/model-view'
 import workbench from '@hcengineering/model-workbench'
 import { getEmbeddedLabel, type Asset } from '@hcengineering/platform'
@@ -120,30 +111,30 @@ export class TProduct extends TExternalSpace implements Product {
 
   @Prop(Collection(attachment.class.Attachment), attachment.string.Attachments, { shortLabel: attachment.string.Files })
     attachments?: CollectionSize<Attachment>
-
-  @Prop(TypeString(), products.string.ChangeControlMode)
-  @Hidden()
-    changeControlMode?: ChangeControlMode
-
-  @Prop(TypeRef(core.class.Association), products.string.ChangeControl)
-  @Hidden()
-    changeControlRelation?: Ref<Association>
 }
 
-@Model(products.class.ProductsSettings, core.class.Configuration, DOMAIN_SETTING)
-@UX(products.string.ProductsSettings)
-export class TProductsSettings extends TConfiguration implements ProductsSettings {
-  @Prop(TypeString(), products.string.ChangeControlMode)
-    changeControlMode?: ChangeControlMode
-
-  @Prop(TypeRef(documents.class.DocumentCategory), products.string.ChangeControlCategory)
-    changeControlCategory?: Ref<DocumentCategory>
-
-  @Prop(ArrOf(TypeRef(core.class.Association)), products.string.ChangeControlRelations)
-    changeControlRelations?: Array<Ref<Association>>
-
-  @Prop(TypeRef(core.class.Association), products.string.DefaultChangeControlRelation)
-    defaultChangeControlRelation?: Ref<Association>
+/**
+ * Default change control: effective controlled documents of the change control category
+ * from the product of the version. Can be changed in the class settings.
+ */
+function defaultChangeControlOptions (): RefAttributeOptions {
+  const filters: Array<Omit<Filter, 'key'> & { key: Pick<Filter['key'], '_class' | 'key' | 'label'> }> = [
+    {
+      key: { _class: documents.class.Document, key: 'category', label: documents.string.Category },
+      mode: view.filter.FilterObjectIn,
+      modes: [view.filter.FilterObjectIn, view.filter.FilterObjectNin],
+      value: ['documents:category:DOC - CC'],
+      index: 1
+    },
+    {
+      key: { _class: documents.class.Document, key: 'state', label: documents.string.Status },
+      mode: view.filter.FilterObjectIn,
+      modes: [view.filter.FilterObjectIn, view.filter.FilterObjectNin],
+      value: [DocumentState.Effective],
+      index: 2
+    }
+  ]
+  return { refFilter: JSON.stringify(filters), refSameSpace: true }
 }
 
 @Model(products.class.ProductVersion, documents.class.Project)
@@ -181,16 +172,9 @@ export class TProductVersion extends TProject implements ProductVersion {
   @ReadOnly()
     state!: ProductVersionState
 
-  @Prop(
-    TypeAny(
-      products.component.ChangeControlInlineEditor,
-      products.string.ChangeControl,
-      products.component.ChangeControlInlineEditor
-    ),
-    products.string.ChangeControl
-  )
+  @Prop(TypeRef(documents.class.ControlledDocument), products.string.ChangeControl, defaultChangeControlOptions())
   @ReadOnly()
-    changeControl?: Ref<Document>
+    changeControl?: Ref<Doc>
 }
 
 @Mixin(products.mixin.ProductTypeData, products.class.Product)
@@ -200,7 +184,7 @@ export class TProductTypeData extends TProduct implements RolesAssignment {
 }
 
 function defineProduct (builder: Builder): void {
-  builder.createModel(TProduct, TProductTypeData, TProductsSettings)
+  builder.createModel(TProduct, TProductTypeData)
 
   builder.mixin(products.class.Product, core.class.Class, activity.mixin.ActivityDoc, {})
 
@@ -563,22 +547,6 @@ function defineApplication (builder: Builder): void {
   )
 }
 
-function defineSettings (builder: Builder): void {
-  builder.createDoc(
-    setting.class.WorkspaceSettingCategory,
-    core.space.Model,
-    {
-      name: 'products',
-      label: products.string.ProductsApplication,
-      icon: products.icon.ProductsApplication,
-      component: products.component.ProductsSettings,
-      order: 1160,
-      role: AccountRole.Maintainer
-    },
-    products.setting.Products
-  )
-}
-
 export function createModel (builder: Builder): void {
   defineSpaceType(builder)
   defineProduct(builder)
@@ -586,7 +554,6 @@ export function createModel (builder: Builder): void {
   defineProductVersionState(builder)
   defineRelationMetadata(builder)
   defineApplication(builder)
-  defineSettings(builder)
 
   // Module permissions for guests/anonymous guests.
   // Product should appear after Controlled Docs in the guest modules list and be disabled by default.
