@@ -41,9 +41,7 @@ export function getModulePermissionGroupRole (group: ModulePermissionGroup): Acc
  *
  * @public
  */
-export function getRoleEffectivePermissions (
-  groups: ModulePermissionGroup[]
-): Map<AccountRole, Set<Ref<Permission>>> {
+export function getRoleEffectivePermissions (groups: ModulePermissionGroup[]): Map<AccountRole, Set<Ref<Permission>>> {
   const result = new Map<AccountRole, Set<Ref<Permission>>>()
   for (const group of groups) {
     // Stored groups may lack `enabled`: only an explicit false disables a group.

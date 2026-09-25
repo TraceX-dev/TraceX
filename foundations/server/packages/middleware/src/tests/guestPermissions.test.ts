@@ -337,10 +337,7 @@ describe('GuestPermissionsMiddleware', () => {
 
     it('allows related creates in an apply that creates the target class in the same space', async () => {
       const mw = makePolicyMiddleware()
-      const apply = makeApply([
-        makeCreateTx(RELATED_CLASS, ALLOWED_SPACE),
-        makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)
-      ])
+      const apply = makeApply([makeCreateTx(RELATED_CLASS, ALLOWED_SPACE), makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])
       await mw.tx(makeCtx(makeGuest()), [apply])
     })
 
@@ -361,18 +358,13 @@ describe('GuestPermissionsMiddleware', () => {
     it('forbids everything when the permission is disabled in the group', async () => {
       const mw = makePolicyMiddleware([makeGuestSettingsDoc([COVERED_CLASS_PERMISSION], [COVERED_CLASS_PERMISSION])])
       await expect(mw.tx(makeCtx(makeGuest()), [makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])).rejects.toThrow()
-      await expect(
-        mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])
-      ).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])).rejects.toThrow()
     })
 
     it('forbids everything when the group is disabled', async () => {
       const disabledGroup = { ...(makeGuestSettingsDoc([COVERED_CLASS_PERMISSION]) as any), enabled: false }
       const mw = makePolicyMiddleware([disabledGroup])
-      const apply = makeApply([
-        makeCreateTx(RELATED_CLASS, ALLOWED_SPACE),
-        makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)
-      ])
+      const apply = makeApply([makeCreateTx(RELATED_CLASS, ALLOWED_SPACE), makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])
       await expect(mw.tx(makeCtx(makeGuest()), [apply])).rejects.toThrow()
     })
 
@@ -391,16 +383,12 @@ describe('GuestPermissionsMiddleware', () => {
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1000 } })])).rejects.toThrow()
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: -1 } })])).rejects.toThrow()
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ sequence: 0 })])).rejects.toThrow()
-      await expect(
-        mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ namespace: 'other.sequence' })])
-      ).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ namespace: 'other.sequence' })])).rejects.toThrow()
     })
 
     it('forbids sequence changes when no policy grants a namespace', async () => {
       const mw = makePolicyMiddleware([makeGuestSettingsDoc([])])
-      await expect(
-        mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])
-      ).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])).rejects.toThrow()
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1 } })])).rejects.toThrow()
     })
 

@@ -83,7 +83,11 @@ import { getPersonRefByPersonId, getPersonRefsByPersonIds } from '@hcengineering
 export function isControlledDocumentCreationGranted (account: Account, groups: ModulePermissionGroup[]): boolean {
   if (hasAccountRole(account, AccountRole.User)) return true
   if (account.role !== AccountRole.Guest) return false
-  return isModulePermissionGranted(groups, AccountRole.Guest, documentsResources.ids.GuestControlledDocumentClassPermission)
+  return isModulePermissionGranted(
+    groups,
+    AccountRole.Guest,
+    documentsResources.ids.GuestControlledDocumentClassPermission
+  )
 }
 
 export async function canCreateControlledDocuments (client: Client = getClient()): Promise<boolean> {

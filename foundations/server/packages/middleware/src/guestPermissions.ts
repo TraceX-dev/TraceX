@@ -327,7 +327,10 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       if (this.getCoveredClass(tx.objectClass, roleAllowedClasses) !== undefined) return false
 
       const spaceRelatedClasses = relatedCreates.get(tx.objectSpace)
-      if (spaceRelatedClasses !== undefined && this.getCoveredClass(tx.objectClass, spaceRelatedClasses) !== undefined) {
+      if (
+        spaceRelatedClasses !== undefined &&
+        this.getCoveredClass(tx.objectClass, spaceRelatedClasses) !== undefined
+      ) {
         return false
       }
       if (await this.isGuestRelatedCreateOnOwnDoc(ctx, tx as TxCreateDoc<Doc>, account, policies)) return false
@@ -374,11 +377,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     const operations = (tx as TxUpdateDoc<CustomSequence>).operations as Record<string, unknown>
     if (Object.keys(operations).length !== 1) return false
     const increment = operations.$inc as Record<string, unknown> | undefined
-    if (
-      increment === undefined ||
-      Object.keys(increment).length !== 1 ||
-      increment.sequence !== GUEST_SEQUENCE_STEP
-    ) {
+    if (increment === undefined || Object.keys(increment).length !== 1 || increment.sequence !== GUEST_SEQUENCE_STEP) {
       return false
     }
 
