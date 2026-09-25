@@ -14,18 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import {
-  type Account,
-  type Class,
-  type Doc,
-  type Hierarchy,
-  type MeasureContext,
-  type Ref,
-  type SessionData,
-  isGuestRole
-} from '@hcengineering/core'
+import type { Class, Doc, Hierarchy, Ref } from '@hcengineering/core'
 import contact from '@hcengineering/contact'
-import { isSystem } from '../utils'
 
 type IsDerived = Pick<Hierarchy, 'isDerived'>
 
@@ -60,16 +50,6 @@ export function isPersonAttachedClass (hierarchy: IsDerived, _class: Ref<Class<D
     isDerivedSafe(hierarchy, _class, contact.class.SocialIdentity) ||
     isDerivedSafe(hierarchy, _class, contact.class.Channel)
   )
-}
-
-/**
- * Returns the session account if person visibility must be restricted for it (any guest role), otherwise undefined.
- */
-export function getRestrictedAccount (ctx: MeasureContext<SessionData>): Account | undefined {
-  const account = ctx.contextData?.account
-  if (account === undefined) return undefined
-  if (!isGuestRole(account.role) || isSystem(account, ctx)) return undefined
-  return account
 }
 
 /**

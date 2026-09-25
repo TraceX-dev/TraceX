@@ -14,18 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import core, {
-  AccountRole,
-  MeasureMetricsContext,
-  systemAccountUuid,
-  type AccountUuid,
-  type MeasureContext,
-  type PersonId,
-  type SessionData
-} from '@hcengineering/core'
+import core from '@hcengineering/core'
 import contact from '@hcengineering/contact'
 import {
-  getRestrictedAccount,
   isDerivedSafe,
   isPersonAttachedClass,
   isPersonClass,
@@ -57,14 +48,6 @@ const hierarchy = {
   }
 }
 
-function makeCtx (uuid: string, role: AccountRole): MeasureContext<SessionData> {
-  const ctx = new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>
-  ctx.contextData = {
-    account: { uuid: uuid as AccountUuid, role, primarySocialId: 'test' as PersonId, socialIds: [], fullSocialIds: [] }
-  } as any
-  return ctx
-}
-
 describe('guestPersonUtils', () => {
   it('isDerivedSafe treats unknown classes as unrelated', () => {
     expect(isDerivedSafe(hierarchy, 'unknown:class' as any, core.class.Space)).toBe(false)
@@ -79,16 +62,6 @@ describe('guestPersonUtils', () => {
     expect(isPersonAttachedClass(hierarchy, contact.class.SocialIdentity)).toBe(true)
     expect(isPersonAttachedClass(hierarchy, contact.class.Channel)).toBe(true)
     expect(isPersonAttachedClass(hierarchy, contact.class.Person)).toBe(false)
-  })
-
-  it('restricts only guest roles', () => {
-    for (const role of [AccountRole.Guest, AccountRole.ReadOnlyGuest, AccountRole.DocGuest]) {
-      expect(getRestrictedAccount(makeCtx('guest', role))?.uuid).toBe('guest')
-    }
-    expect(getRestrictedAccount(makeCtx('user', AccountRole.User))).toBeUndefined()
-    expect(getRestrictedAccount(makeCtx('owner', AccountRole.Owner))).toBeUndefined()
-    expect(getRestrictedAccount(makeCtx(systemAccountUuid, AccountRole.Guest))).toBeUndefined()
-    expect(getRestrictedAccount(new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>)).toBeUndefined()
   })
 
   it('restrictField adds $in and keeps other operators', () => {

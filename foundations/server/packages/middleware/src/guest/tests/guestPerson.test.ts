@@ -163,11 +163,35 @@ function makeMiddleware (
 const guestCtx = (): MeasureContext<SessionData> => makeCtx(makeAccount(GUEST, AccountRole.Guest))
 
 describe('GuestPersonMiddleware', () => {
-  describe('non-guest', () => {
-    it('passes person queries through unchanged', async () => {
+  describe('role check', () => {
+    it.each([AccountRole.User, AccountRole.Maintainer, AccountRole.Owner])(
+      'passes %s person queries through unchanged',
+      async (role) => {
+        const { mw, calls } = makeMiddleware()
+        await mw.findAll(makeCtx(makeAccount(MEMBER, role)), EMPLOYEE, { active: true })
+        expect(calls).toEqual([{ _class: EMPLOYEE, query: { active: true } }])
+      }
+    )
+
+    it.each([AccountRole.Guest, AccountRole.ReadOnlyGuest, AccountRole.DocGuest])(
+      'restricts %s person queries',
+      async (role) => {
+        const { mw, calls } = makeMiddleware()
+        await mw.findAll(makeCtx(makeAccount(GUEST, role)), EMPLOYEE, {})
+        expect(calls.find((it) => it._class === EMPLOYEE)?.query.personUuid.$in).toBeDefined()
+      }
+    )
+
+    it('passes internal calls without contextData through unchanged', async () => {
       const { mw, calls } = makeMiddleware()
-      await mw.findAll(makeCtx(makeAccount(MEMBER, AccountRole.User)), EMPLOYEE, { active: true })
-      expect(calls).toEqual([{ _class: EMPLOYEE, query: { active: true } }])
+      const ctx = new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>
+      await mw.findAll(ctx, EMPLOYEE, { active: true })
+      const search = await mw.searchFulltext(ctx, { query: 'x' }, {})
+      expect(calls).toEqual([
+        { _class: EMPLOYEE, query: { active: true } },
+        { _class: 'search', query: { limit: undefined } }
+      ])
+      expect(search.docs).toEqual([])
     })
   })
 

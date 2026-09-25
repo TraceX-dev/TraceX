@@ -43,7 +43,7 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
-import { getRestrictedAccount, isPersonAttachedClass, isPersonClass, restrictField } from './guestPersonUtils'
+import { isPersonAttachedClass, isPersonClass, restrictField } from './guestPersonUtils'
 import { GuestVisibilityCache, type VisibleSet } from './guestVisibilityCache'
 
 interface BroadcastPersonSubject {
@@ -87,8 +87,9 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     query: DocumentQuery<T>,
     options?: ServerFindOptions<T>
   ): Promise<FindResult<T>> {
-    const account = getRestrictedAccount(ctx)
-    if (account === undefined) {
+    // contextData is unset for internal calls (e.g. SpaceSecurityMiddleware init).
+    const account = ctx.contextData?.account
+    if (account === undefined || !isGuestRole(account.role)) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
     if (isPersonClass(this.context.hierarchy, _class)) {
@@ -177,8 +178,10 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     query: SearchQuery,
     options: SearchOptions
   ): Promise<SearchResult> {
-    const account = getRestrictedAccount(ctx)
-    if (account === undefined) return await this.provideSearchFulltext(ctx, query, options)
+    const account = ctx.contextData?.account
+    if (account === undefined || !isGuestRole(account.role)) {
+      return await this.provideSearchFulltext(ctx, query, options)
+    }
 
     const visible = await this.cache.getVisible(ctx, account.uuid)
     const requestedLimit = options.limit
