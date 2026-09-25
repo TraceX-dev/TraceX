@@ -186,14 +186,14 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     const visible = await this.cache.getVisible(ctx, account.uuid)
     const requestedLimit = options.limit
     let fetchLimit = requestedLimit
-    let result = await this.provideSearchFulltext(ctx, query, options)
+    let result = await this.searchWithPersons(ctx, query, options)
     let docs = await this.filterSearchDocs(ctx, result.docs, visible)
 
     while (this.shouldRefill(result.docs.length, docs.length, fetchLimit, requestedLimit, result.total, false)) {
       const nextLimit = getNextLimit(fetchLimit, result.total)
       if (nextLimit === undefined) break
       fetchLimit = nextLimit
-      result = await this.provideSearchFulltext(ctx, query, { ...options, limit: fetchLimit })
+      result = await this.searchWithPersons(ctx, query, { ...options, limit: fetchLimit })
       docs = await this.filterSearchDocs(ctx, result.docs, visible)
     }
 
@@ -202,6 +202,46 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
       docs: requestedLimit !== undefined ? docs.slice(0, requestedLimit) : docs,
       total: exhausted ? docs.length : undefined
     }
+  }
+
+  /**
+   * SpaceSecurityMiddleware drops system spaces from guest searches, and every Person lives in the
+   * `contact.space.Contacts` system space, so a guest would never find anybody. Person classes are searched
+   * with that space added; the results are then limited to visible persons by `filterSearchDocs`.
+   * Other classes and other system spaces stay closed.
+   */
+  private async searchWithPersons (
+    ctx: MeasureContext<SessionData>,
+    query: SearchQuery,
+    options: SearchOptions
+  ): Promise<SearchResult> {
+    // Clients always search per category with explicit classes (see presentation `searchFor`).
+    const personClasses = (query.classes ?? []).filter((it) => isPersonClass(this.context.hierarchy, it))
+    if (personClasses.length === 0 || query.spaces === undefined) {
+      return await this.provideSearchFulltext(ctx, query, options)
+    }
+
+    const personQuery: SearchQuery = {
+      ...query,
+      classes: personClasses,
+      spaces: [...query.spaces, contact.space.Contacts]
+    }
+
+    // Persons only (e.g. the Employee category of mentions/spotlight): a single search is enough.
+    if (personClasses.length === query.classes?.length) {
+      return await this.provideSearchFulltext(ctx, personQuery, options)
+    }
+
+    const [main, persons] = await Promise.all([
+      this.provideSearchFulltext(ctx, query, options),
+      this.provideSearchFulltext(ctx, personQuery, options)
+    ])
+    const seen = new Set(main.docs.map((it) => it.id))
+    const docs = [...main.docs, ...persons.docs.filter((it) => !seen.has(it.id))].sort(
+      (a, b) => (b.score ?? 0) - (a.score ?? 0)
+    )
+    const total = main.total !== undefined && persons.total !== undefined ? main.total + persons.total : undefined
+    return { docs: options.limit !== undefined ? docs.slice(0, options.limit) : docs, total }
   }
 
   private async filterSearchDocs (

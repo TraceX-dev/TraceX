@@ -16,12 +16,7 @@ limitations under the License.
 
 import core from '@hcengineering/core'
 import contact from '@hcengineering/contact'
-import {
-  isDerivedSafe,
-  isPersonAttachedClass,
-  isPersonClass,
-  restrictField
-} from '../guestPersonUtils'
+import { isDerivedSafe, isPersonAttachedClass, isPersonClass, restrictField } from '../guestPersonUtils'
 
 const EMPLOYEE = contact.mixin.Employee as unknown as string
 

@@ -24,6 +24,7 @@ import core, {
   type MeasureContext,
   type PersonId,
   type Ref,
+  type SearchQuery,
   type SearchResult,
   type SessionData,
   type Space,
@@ -330,6 +331,84 @@ describe('GuestPersonMiddleware', () => {
     const res = await mw.searchFulltext(guestCtx(), { query: 'x' }, {})
     expect(res.docs.map((it) => it.id)).toEqual(['channel:member', 'channel:organization'])
     expect(res.total).toBe(2)
+  })
+
+  describe('person search', () => {
+    const CONTACTS = contact.space.Contacts as string
+    const doc = (_id: string, _class: string): any => ({ id: _id, doc: { _id, _class, createdOn: 0 } })
+
+    function makeSearchMiddleware (byQuery: (query: SearchQuery) => SearchResult): {
+      mw: GuestPersonMiddleware
+      queries: SearchQuery[]
+    } {
+      const queries: SearchQuery[] = []
+      const next = {
+        findAll: async (_ctx: MeasureContext, _class: string, query: Record<string, any>) => {
+          const docs =
+            _class === core.class.Space
+              ? SPACES.filter((it) => matches(it, query))
+              : PERSONS.filter((it) => matches(it, query))
+          return toFindResult(docs as any[], -1)
+        },
+        searchFulltext: async (_ctx: MeasureContext, query: SearchQuery) => {
+          queries.push(query)
+          return byQuery(query)
+        }
+      }
+      const mw = new (GuestPersonMiddleware as any)({ hierarchy }, next) as GuestPersonMiddleware
+      return { mw, queries }
+    }
+
+    it('adds the Contacts space to a guest person search and keeps only visible persons', async () => {
+      const { mw, queries } = makeSearchMiddleware(() => ({
+        docs: [doc('person:member', EMPLOYEE), doc('person:stranger', EMPLOYEE)],
+        total: 2
+      }))
+      const query: SearchQuery = { query: 'x', classes: [EMPLOYEE], spaces: ['space:project'] as any }
+      const res = await mw.searchFulltext(guestCtx(), query, {})
+      expect(queries).toEqual([{ query: 'x', classes: [EMPLOYEE], spaces: ['space:project', CONTACTS] }])
+      expect(res.docs.map((it) => it.id)).toEqual(['person:member'])
+    })
+
+    it('searches persons separately for mixed classes and merges by score', async () => {
+      const { mw, queries } = makeSearchMiddleware((query) =>
+        query.spaces?.includes(contact.space.Contacts) === true
+          ? {
+              docs: [
+                { ...doc('person:member', EMPLOYEE), score: 2 },
+                { ...doc('person:stranger', EMPLOYEE), score: 3 }
+              ],
+              total: 2
+            }
+          : { docs: [{ ...doc('issue:1', core.class.Doc), score: 1 }], total: 1 }
+      )
+      const res = await mw.searchFulltext(
+        guestCtx(),
+        { query: 'x', classes: [core.class.Doc, EMPLOYEE], spaces: ['space:project'] as any },
+        {}
+      )
+      expect(queries).toHaveLength(2)
+      expect(queries.find((it) => it.spaces?.includes(contact.space.Contacts) === true)?.classes).toEqual([EMPLOYEE])
+      expect(queries.find((it) => it.spaces?.includes(contact.space.Contacts) !== true)?.classes).toEqual([
+        core.class.Doc,
+        EMPLOYEE
+      ])
+      expect(res.docs.map((it) => it.id)).toEqual(['person:member', 'issue:1'])
+    })
+
+    it('does not widen searches without person classes', async () => {
+      const { mw, queries } = makeSearchMiddleware(() => ({ docs: [], total: 0 }))
+      const query: SearchQuery = { query: 'x', classes: [core.class.Doc], spaces: ['space:project'] as any }
+      await mw.searchFulltext(guestCtx(), query, {})
+      expect(queries).toEqual([{ query: 'x', classes: [core.class.Doc], spaces: ['space:project'] }])
+    })
+
+    it('does not change searches of regular users', async () => {
+      const { mw, queries } = makeSearchMiddleware(() => ({ docs: [], total: 0 }))
+      const ctx = makeCtx(makeAccount(MEMBER, AccountRole.User))
+      await mw.searchFulltext(ctx, { query: 'x', classes: [EMPLOYEE], spaces: ['space:project'] as any }, {})
+      expect(queries).toEqual([{ query: 'x', classes: [EMPLOYEE], spaces: ['space:project'] }])
+    })
   })
 
   it('invalidates visibility after a successful local transaction', async () => {

@@ -1,4 +1,5 @@
 import type { WorkspaceInfoWithStatus, WorkspaceLoginInfo } from '@hcengineering/account'
+import type { AccountRole } from '@hcengineering/core'
 import { APIRequestContext } from '@playwright/test'
 import { DevUrl, LocalUrl, PlatformURI, PlatformWorkspaceRegion } from '../utils'
 
@@ -113,6 +114,54 @@ export class ApiEndpoint {
     const headers = this.getDefaultHeaders()
     const response = await this.request.post(url, { data: payload, headers })
     return await response.json()
+  }
+
+  private async getWorkspaceToken (email: string, password: string, workspaceUrl: string): Promise<string> {
+    const token = await this.loginAndGetToken(email, password)
+    const response = await this.request.post(this.baseUrl, {
+      data: { method: 'selectWorkspace', params: { workspaceUrl } },
+      headers: this.getDefaultHeaders(token)
+    })
+    const wsToken: string | undefined = (await response.json()).result?.token
+    if (wsToken === undefined) {
+      throw new Error(`Failed to select workspace ${workspaceUrl}`)
+    }
+    return wsToken
+  }
+
+  /**
+   * Creates a single-use invite to the workspace with the given role and returns its id.
+   */
+  async createWorkspaceInvite (
+    email: string,
+    password: string,
+    workspaceUrl: string,
+    role: AccountRole
+  ): Promise<string> {
+    const wsToken = await this.getWorkspaceToken(email, password, workspaceUrl)
+    const response = await this.request.post(this.baseUrl, {
+      data: { method: 'createInvite', params: { exp: -1, emailMask: '', limit: 1, role } },
+      headers: this.getDefaultHeaders(wsToken)
+    })
+    const body = await response.json()
+    if (typeof body.result !== 'string') {
+      throw new Error(`Failed to create invite: ${JSON.stringify(body.error ?? body)}`)
+    }
+    return body.result
+  }
+
+  /**
+   * Joins an existing account to the workspace by invite id.
+   */
+  async joinWorkspace (email: string, password: string, inviteId: string, workspaceUrl: string): Promise<void> {
+    const response = await this.request.post(this.baseUrl, {
+      data: { method: 'join', params: { email, password, inviteId, workspaceUrl } },
+      headers: this.getDefaultHeaders()
+    })
+    const body = await response.json()
+    if (body.error !== undefined) {
+      throw new Error(`Failed to join workspace: ${JSON.stringify(body.error)}`)
+    }
   }
 
   async leaveWorkspace (account: string, username: string, password: string): Promise<any> {
