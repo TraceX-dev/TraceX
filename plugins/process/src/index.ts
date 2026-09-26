@@ -198,12 +198,18 @@ export interface StepContext {
   _class?: Ref<Class<Doc>> // class of the context
 }
 
+export interface SelectionRelation {
+  association: Ref<Association>
+  direction: 'A' | 'B'
+}
+
 export interface UserResult {
   _id: ContextId // context id
   name: string
   key?: string
   type: Type<any>
   selectionSpace?: string // Space reference or serialized process context
+  excludeRelation?: SelectionRelation
 }
 
 export interface ProcessCustomEvent extends Doc {

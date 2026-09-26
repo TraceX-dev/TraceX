@@ -94,6 +94,8 @@
           _class={input._class}
           {space}
           selectionSpace={input.selectionSpace}
+          docQuery={input.docQuery}
+          multiple={input.multiple ?? false}
           value={values[input.id]}
           on:change={(e) => {
             values[input.id] = e.detail

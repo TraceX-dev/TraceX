@@ -68,7 +68,7 @@ import { isEmptyMarkup } from '@hcengineering/text-core'
 import { showPopup } from '@hcengineering/ui'
 import { type AttributeCategory } from '@hcengineering/view'
 import process from './plugin'
-import { resolveSelectionSpace } from './selection-space'
+import { resolveSelectionQuery, resolveSelectionSpace } from './selection-space'
 
 export function isTypeEqual (toCheck: any | undefined, attr: Type<any>, bindings?: Record<string, string>): boolean {
   if (toCheck === undefined) return true
@@ -683,10 +683,22 @@ export async function getTransitionUserInput (
       const needsCard = inputs.some((input) => parseContext(input.selectionSpace)?.type === 'attribute')
       const doc = needsCard && cardId !== undefined ? await client.findOne(card.class.Card, { _id: cardId }) : undefined
       const resolvedInputs = await Promise.all(
-        inputs.map(async (input) => ({
-          ...input,
-          selectionSpace: await resolveSelectionSpace(client, definition, doc, userContext, input.selectionSpace)
-        }))
+        inputs.map(async (input) => {
+          const selectionSpace = await resolveSelectionSpace(client, definition, doc, userContext, input.selectionSpace)
+          const target = parseContext(action.params._id)
+          const relation =
+            action.methodId === process.method.AddRelation && target?.type === 'userRequest' && target.id === input.id
+              ? {
+                  association: action.params.association as Ref<Association>,
+                  direction: action.params.direction as 'A' | 'B'
+                }
+              : undefined
+          return {
+            ...input,
+            selectionSpace,
+            docQuery: await resolveSelectionQuery(client, cardId, selectionSpace, relation)
+          }
+        })
       )
       const { title, description } = getUserInputMeta(inputContext)
       const promise = new Promise<void>((resolve, reject) => {
@@ -905,10 +917,14 @@ export async function requestResult (
   const isMixin = h.isMixin(_process.masterTag)
   const targetDoc = isMixin ? h.as(doc, _process.masterTag) : doc
   const resolvedResults = await Promise.all(
-    results.map(async (result) => ({
-      ...result,
-      selectionSpace: await resolveSelectionSpace(client, _process, targetDoc, context, result.selectionSpace)
-    }))
+    results.map(async (result) => {
+      const selectionSpace = await resolveSelectionSpace(client, _process, targetDoc, context, result.selectionSpace)
+      return {
+        ...result,
+        selectionSpace,
+        docQuery: await resolveSelectionQuery(client, execution.card, selectionSpace, result.excludeRelation)
+      }
+    })
   )
 
   const promise = new Promise<void>((resolve, reject) => {

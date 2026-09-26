@@ -15,14 +15,16 @@
 -->
 <script lang="ts">
   import card from '@hcengineering/card'
-  import core, { Type } from '@hcengineering/core'
+  import core, { ArrOf, Doc, Ref, Type } from '@hcengineering/core'
   import { translate } from '@hcengineering/platform'
   import { getAttributePresenterClass, getClient } from '@hcengineering/presentation'
-  import { Process, UserResult } from '@hcengineering/process'
-  import { Button, EditBox, IconClose, Label } from '@hcengineering/ui'
+  import { Process, SelectionRelation, UserResult } from '@hcengineering/process'
+  import { Button, EditBox, IconClose, Label, Toggle } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { generateContextId } from '../../utils'
   import ResultTypeSelector from './ResultTypeSelector.svelte'
+  import AssociationSelector from './AssociationSelector.svelte'
+  import plugin from '../../plugin'
   import SelectionSpaceEditor from './SelectionSpaceEditor.svelte'
 
   export let result: UserResult | null
@@ -32,6 +34,7 @@
   let name: string = result?.name ?? ''
   let key: string | undefined = result?.key
   let selectionSpace = result?.selectionSpace
+  let excludeRelation = result?.excludeRelation
 
   const dispatch = createEventDispatcher()
 
@@ -51,13 +54,15 @@
       const target = getAttributePresenterClass(hierarchy, type)
       if (!['object', 'array'].includes(target.category) || !hierarchy.isDerived(target.attrClass, card.class.Card)) {
         selectionSpace = undefined
+        excludeRelation = undefined
       }
       result = {
         _id: result?._id ?? generateContextId(),
         name,
         key,
         type,
-        selectionSpace
+        selectionSpace,
+        excludeRelation
       }
       if (key !== undefined) {
         const attr = client.getModel().findAllSync(core.class.Attribute, { name: key })[0]
@@ -75,6 +80,26 @@
       result.name = name
       dispatch('change', result)
     }
+  }
+
+  function changeRelation (event: CustomEvent<Partial<SelectionRelation>>): void {
+    const { association, direction } = event.detail
+    excludeRelation = association !== undefined && direction !== undefined ? { association, direction } : undefined
+    if (result != null) {
+      result.excludeRelation = excludeRelation
+      dispatch('change', result)
+    }
+  }
+
+  function changeMultiple (event: CustomEvent<boolean>): void {
+    if (type == null) return
+    if (event.detail) {
+      const arrayType: ArrOf<Ref<Doc>> = { _class: core.class.ArrOf, label: core.string.Array, of: type }
+      type = arrayType
+    } else {
+      type = (type as ArrOf<Ref<Doc>>).of
+    }
+    void update()
   }
 
   function changeSelectionSpace (event: CustomEvent<string | undefined>): void {
@@ -103,5 +128,16 @@
   <ResultTypeSelector {process} bind:key bind:type on:change={update} />
   {#if canLimitSelection}
     <SelectionSpaceEditor {process} value={selectionSpace} on:change={changeSelectionSpace} />
+    {#if key === undefined}
+      <Label label={plugin.string.MultipleSelection} />
+      <Toggle on={type?._class === core.class.ArrOf} on:change={changeMultiple} />
+    {/if}
+    <Label label={plugin.string.ExcludeRelatedObjects} />
+    <AssociationSelector
+      {process}
+      association={excludeRelation?.association}
+      direction={excludeRelation?.direction}
+      on:change={changeRelation}
+    />
   {/if}
 </div>
