@@ -27,10 +27,12 @@
 
   const dispatch = createEventDispatcher<{ change: Step<Tag> }>()
 
+  $: tag = typeof step.params._id === 'string' ? (step.params._id as Ref<Tag>) : undefined
+
   function changeTag (event: CustomEvent<{ tag: Ref<Tag> }>): void {
     step.params = { ...step.params, _id: event.detail.tag }
     dispatch('change', step)
   }
 </script>
 
-<TagSelector {process} tag={step.params._id} on:change={changeTag} />
+<TagSelector {process} {tag} on:change={changeTag} />
