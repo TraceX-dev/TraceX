@@ -762,6 +762,38 @@ export async function EnableVersionCreation (
   return await setVersionCreationDisabled(execution, control, false)
 }
 
+/** Removes a tag from the execution card unless a descendant tag is still applied. */
+export async function RemoveTag (
+  params: MethodParams<Tag>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<ExecuteResult> {
+  if (typeof params._id !== 'string' || params._id === '') {
+    throw processError(process.error.RequiredParamsNotProvided, { params: '_id' })
+  }
+  const tagId = params._id as Ref<Tag>
+  const card: Card | undefined =
+    control.cache.get(execution.card) ?? (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
+  if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
+  const hierarchy = control.client.getHierarchy()
+  const tag = control.client.getModel().findObject(tagId)
+  if (
+    tag !== undefined &&
+    hierarchy.getDescendants(tagId).some((descendant) => descendant !== tagId && hierarchy.hasMixin(card, descendant))
+  ) {
+    throw processError(process.error.TagHasSubtags)
+  }
+  if (!hierarchy.hasMixin(card, tagId)) return { txes: [], rollback: [], context: null }
+
+  const tx = control.client.txFactory.createTxUpdateDoc(card._class, card.space, card._id, {
+    $unset: { [tagId]: true }
+  })
+  const rollback = control.client.txFactory.createTxUpdateDoc(card._class, card.space, card._id, {
+    [tagId]: getObjectValue(tagId, card)
+  })
+  return { txes: [tx], rollback: [rollback], context: null }
+}
+
 export async function AddTag (
   params: MethodParams<Tag>,
   execution: Execution,

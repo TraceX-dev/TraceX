@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -57,7 +58,7 @@ async function main (): Promise<void> {
     async (ct, message) => {
       const ws = message.workspace
       const record = message.value
-      await messageHandler(record, ws, ctx)
+      await messageHandler(record, ws, ct)
     }
   )
 

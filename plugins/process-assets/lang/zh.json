@@ -1,5 +1,6 @@
 {
   "string": {
+    "RemoveTag": "Remove tag",
     "RequestAttachments": "请求附件",
     "UpdateContext": "更新上下文",
     "RemoveRelation": "删除关联",
@@ -217,6 +218,7 @@
     "TableFromRelation": "来自关系的表格"
   },
   "error": {
+    "TagHasSubtags": "Cannot remove tag: the card has a descendant tag",
     "MethodNotFound": "找不到方法：{methodId}",
     "AttributeNotExists": "属性不存在：{key}",
     "RelatedObjectNotFound": "找不到相关对象：{attr}",

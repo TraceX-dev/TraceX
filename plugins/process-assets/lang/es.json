@@ -1,5 +1,6 @@
 {
   "string": {
+    "RemoveTag": "Remove tag",
     "RequestAttachments": "Solicitar archivos adjuntos",
     "UpdateContext": "Actualizar contexto",
     "RemoveRelation": "Eliminar relación",
@@ -217,6 +218,7 @@
     "TableFromRelation": "Tabla de relación"
   },
   "error": {
+    "TagHasSubtags": "Cannot remove tag: the card has a descendant tag",
     "MethodNotFound": "Método no encontrado: {methodId}",
     "AttributeNotExists": "Atributo no existe: {key}",
     "RelatedObjectNotFound": "Objeto relacionado no encontrado: {attr}",

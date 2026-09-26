@@ -1,5 +1,6 @@
 {
   "string": {
+    "RemoveTag": "Remove tag",
     "RequestAttachments": "Ek iste",
     "UpdateContext": "Bağlamı güncelle",
     "RemoveRelation": "İlişkiyi kaldır",
@@ -212,6 +213,7 @@
     "TableFromRelation": "İlişkiden tablo"
   },
   "error": {
+    "TagHasSubtags": "Cannot remove tag: the card has a descendant tag",
     "MethodNotFound": "Metod bulunamadı: {methodId}",
     "AttributeNotExists": "Öznitelik mevcut değil: {key}",
     "RelatedObjectNotFound": "İlişkili nesne bulunamadı: {attr}",
