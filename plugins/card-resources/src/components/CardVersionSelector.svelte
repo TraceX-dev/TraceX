@@ -20,7 +20,7 @@
   import core, { Ref } from '@hcengineering/core'
   import { setPlatformStatus, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { Button, DropdownLabels, DropdownTextItem, getCurrentLocation, navigate, showPopup } from '@hcengineering/ui'
+  import { Button, DropdownLabels, DropdownTextItem, getCurrentLocation, navigate } from '@hcengineering/ui'
   import card from '../plugin'
   import { createNewVersion } from '../utils'
 
@@ -29,7 +29,9 @@
   const client = getClient()
   const h = client.getHierarchy()
 
-  $: enabled = h.classHierarchyMixin(value._class, core.mixin.VersionableClass)?.enabled
+  $: versioning = h.classHierarchyMixin(value._class, core.mixin.VersionableClass)
+  $: enabled = versioning?.enabled
+  $: managedByProcess = versioning?.managedByProcess === true
 
   let versions: Card[] = []
 
@@ -55,7 +57,7 @@
   $: latestEffectiveVersion = versions.reduce((latest, current) => {
     return current.isEffective === true ? Math.max(latest, current.version ?? 1) : latest
   }, 0)
-  $: canMakeEffective = value.isEffective !== true && (value.version ?? 1) > latestEffectiveVersion
+  $: canMakeEffective = !managedByProcess && value.isEffective !== true && (value.version ?? 1) > latestEffectiveVersion
 
   $: items = versions.map((p) => {
     return {
@@ -79,7 +81,7 @@
   }
 
   async function newVersion (): Promise<void> {
-    if (value.versionCreationDisabled === true) return
+    if (managedByProcess || value.versionCreationDisabled === true) return
     try {
       const _id = await createNewVersion(value)
       const loc = getCurrentLocation()
@@ -106,7 +108,7 @@
 
 {#if enabled}
   <DropdownLabels kind={'link'} {items} on:selected={selectHandler} selected={value._id} />
-  {#if value.isLatest}
+  {#if value.isLatest && !managedByProcess}
     <Button
       label={card.string.NewVersion}
       disabled={value.versionCreationDisabled === true}

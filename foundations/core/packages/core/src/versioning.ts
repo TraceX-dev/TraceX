@@ -27,6 +27,7 @@ export interface VersionableDoc extends Doc {
 
 export interface VersionableClass extends Class<Doc> {
   enabled: boolean
+  managedByProcess?: boolean
   excludedProperties?: string[]
   excludedRelations?: string[] // ${associationId}_${a|b}
   excludeMixins?: Ref<Mixin<Doc>>[]

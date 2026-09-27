@@ -72,6 +72,7 @@
     "NewVersion": "Nouvelle version",
     "VersionCreationUnavailable": "La création d’une nouvelle version est actuellement indisponible",
     "Versioning": "Gestion des versions",
+    "VersioningManagedByProcess": "Gérer les versions via un processus",
     "EnableVersioning": "Activer la gestion des versions",
     "EnableVersioningConfirm": "Voulez-vous activer la gestion des versions ?",
     "NewVersionConfirmation": "Voulez-vous créer une nouvelle version ?",
