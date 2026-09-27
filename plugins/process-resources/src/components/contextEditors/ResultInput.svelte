@@ -16,10 +16,17 @@
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
   import card from '@hcengineering/card'
-  import { type Doc, getObjectValue, type Markup } from '@hcengineering/core'
-  import presentation, { Card, getAttrEditor, getClient, MessageViewer } from '@hcengineering/presentation'
+  import { type Class, type Doc, getObjectValue, type Markup, type Ref } from '@hcengineering/core'
+  import presentation, {
+    Card,
+    getAttrEditor,
+    getAttributePresenterClass,
+    getClient,
+    MessageViewer
+  } from '@hcengineering/presentation'
   import { ContextId, ExecutionContext, UserResult } from '@hcengineering/process'
-  import { Component, tooltip } from '@hcengineering/ui'
+  import { type AnyComponent, Component, tooltip } from '@hcengineering/ui'
+  import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
   import type { ResolvedUserResult } from '../../selection-space'
@@ -41,9 +48,14 @@
       results.map(async (result) => {
         try {
           const value = getVal(result)
-          if (result.selectionSpace !== undefined && value != null) {
+          if (result.docQuery !== undefined && Object.keys(result.docQuery).length > 0 && value != null) {
             const ids = Array.isArray(value) ? value : [value]
-            const objects = await client.findAll(card.class.Card, { _id: { $in: ids }, space: result.selectionSpace })
+            const excluded = result.docQuery._id
+            const allowedIds =
+              typeof excluded === 'object' && excluded.$nin !== undefined
+                ? ids.filter((id) => !excluded.$nin?.includes(id))
+                : ids
+            const objects = await client.findAll(card.class.Card, { ...result.docQuery, _id: { $in: allowedIds } })
             values[result._id] = ids.every((id) => objects.some((object) => object._id === id)) ? value : undefined
           } else {
             values[result._id] = value
@@ -69,6 +81,22 @@
 
   export function canClose (): boolean {
     return false
+  }
+
+  function getEditor (result: ResolvedUserResult): AnyComponent | undefined {
+    const target = getAttributePresenterClass(h, result.type)
+    if (
+      result.docQuery !== undefined &&
+      Object.keys(result.docQuery).length > 0 &&
+      ['object', 'array'].includes(target.category) &&
+      h.isDerived(target.attrClass, card.class.Card)
+    ) {
+      return h.classHierarchyMixin(
+        card.class.Card as Ref<Class<Doc>>,
+        target.category === 'array' ? view.mixin.ArrayEditor : view.mixin.AttributeEditor
+      )?.inlineEditor
+    }
+    return getAttrEditor(result.type, h)
   }
 
   function save (): void {
@@ -99,7 +127,7 @@
   {/if}
   <div class="grid">
     {#each results as result, i}
-      {@const editor = getAttrEditor(result.type, h)}
+      {@const editor = getEditor(result)}
       <span
         class="labelOnPanel"
         use:tooltip={{
@@ -120,7 +148,7 @@
               width: '100%',
               justify: 'left',
               type: result.type,
-              docQuery: result.selectionSpace !== undefined ? { space: result.selectionSpace } : undefined,
+              docQuery: result.docQuery,
               value: values[result._id],
               onChange: getOnChange(result._id),
               focus

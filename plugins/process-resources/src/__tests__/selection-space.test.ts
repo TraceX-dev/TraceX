@@ -13,10 +13,10 @@
 // limitations under the License.
 
 import core from '@hcengineering/core'
-import type { Client, Doc, Ref, Space } from '@hcengineering/core'
+import type { Association, Client, Doc, Ref, Space } from '@hcengineering/core'
 import { createContext } from '@hcengineering/process'
 import type { ContextId, ExecutionContext, Process, SelectedContext } from '@hcengineering/process'
-import { resolveSelectionSpace } from '../selection-space'
+import { resolveSelectionQuery, resolveSelectionSpace } from '../selection-space'
 
 const contextId = 'previous-step' as ContextId
 const targetSpace = 'target-space' as Ref<Space>
@@ -111,4 +111,35 @@ test.each([undefined, null, '', [], [targetSpace]])(
 test('does not remove the restriction when the referenced object is unavailable', async () => {
   findOne.mockResolvedValue(undefined)
   await expect(resolve({ type: 'context', id: contextId, key: 'space' }, 'missing-card')).rejects.toThrow()
+})
+
+describe('relation selection', () => {
+  const association = 'association' as Ref<Association>
+  const findAll = jest.fn()
+  const relationClient = { findAll } as unknown as Client
+
+  test.each(['A', 'B'] as const)('excludes only targets on side %s and retains the space', async (direction) => {
+    findAll.mockReset().mockResolvedValue([
+      { docA: 'target-a', docB: 'target-b' },
+      { docA: 'target-a', docB: 'target-b' }
+    ])
+    const query = await resolveSelectionQuery(relationClient, doc._id, targetSpace, { association, direction })
+    expect(findAll).toHaveBeenCalledWith(core.class.Relation, {
+      association,
+      ...(direction === 'A' ? { docB: doc._id } : { docA: doc._id })
+    })
+    expect(query).toEqual({ space: targetSpace, _id: { $nin: [direction === 'A' ? 'target-a' : 'target-b'] } })
+  })
+
+  test('does not query relations without a configured restriction', async () => {
+    findAll.mockReset()
+    await expect(resolveSelectionQuery(relationClient, undefined, targetSpace)).resolves.toEqual({ space: targetSpace })
+    expect(findAll).not.toHaveBeenCalled()
+  })
+
+  test('does not silently drop the filter without a process card', async () => {
+    await expect(
+      resolveSelectionQuery(relationClient, undefined, undefined, { association, direction: 'A' })
+    ).rejects.toThrow()
+  })
 })

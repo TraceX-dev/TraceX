@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -28,16 +29,14 @@
   export let width: string | undefined = undefined
 </script>
 
-{#if value}
-  <ObjectBox
-    bind:value
-    _class={products.class.ProductVersion}
-    label={products.string.ProductVersion}
-    showNavigate={false}
-    {readonly}
-    {kind}
-    {size}
-    {justify}
-    {width}
-  />
-{/if}
+<ObjectBox
+  bind:value
+  _class={products.class.ProductVersion}
+  label={products.string.ProductVersion}
+  showNavigate={false}
+  {readonly}
+  {kind}
+  {size}
+  {justify}
+  {width}
+/>

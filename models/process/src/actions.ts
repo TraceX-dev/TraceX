@@ -194,6 +194,20 @@ export function defineMethods (builder: Builder): void {
     process.class.Method,
     core.space.Model,
     {
+      label: process.string.RemoveTag,
+      objectClass: card.class.Tag,
+      editor: process.component.RemoveTagEditor,
+      presenter: process.component.AddTagPresenter,
+      createdContext: null,
+      requiredParams: ['_id']
+    },
+    process.method.RemoveTag
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
       label: process.string.CancelToDo,
       editor: process.component.CancelToDoEditor,
       presenter: process.component.ToDoValuePresenter,

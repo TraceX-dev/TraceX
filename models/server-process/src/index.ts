@@ -210,6 +210,10 @@ export function createModel (builder: Builder): void {
     func: serverProcess.func.AddRelation
   })
 
+  builder.mixin(process.method.RemoveTag, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.RemoveTag
+  })
+
   builder.mixin(process.method.AddTag, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.AddTag
   })

@@ -1,5 +1,8 @@
 {
   "string": {
+    "MultipleSelection": "Multiple selection",
+    "ExcludeRelatedObjects": "Exclude objects already linked by relation",
+    "RemoveTag": "Remove tag",
     "RequestAttachments": "Richiedi allegati",
     "UpdateContext": "Aggiorna contesto",
     "RemoveRelation": "Rimuovi relazione",
@@ -217,6 +220,7 @@
     "TableFromRelation": "Tabella dalla relazione"
   },
   "error": {
+    "TagHasSubtags": "Cannot remove tag: the card has a descendant tag",
     "MethodNotFound": "Metodo non trovato: {methodId}",
     "AttributeNotExists": "Attributo non esiste: {key}",
     "RelatedObjectNotFound": "Oggetto correlato non trovato: {attr}",

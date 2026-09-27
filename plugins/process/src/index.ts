@@ -198,12 +198,18 @@ export interface StepContext {
   _class?: Ref<Class<Doc>> // class of the context
 }
 
+export interface SelectionRelation {
+  association: Ref<Association>
+  direction: 'A' | 'B'
+}
+
 export interface UserResult {
   _id: ContextId // context id
   name: string
   key?: string
   type: Type<any>
   selectionSpace?: string // Space reference or serialized process context
+  excludeRelation?: SelectionRelation
 }
 
 export interface ProcessCustomEvent extends Doc {
@@ -293,6 +299,7 @@ export default plugin(processId, {
     AddRelation: '' as Ref<Method<Association>>,
     RemoveRelation: '' as Ref<Method<Association>>,
     AddTag: '' as Ref<Method<Tag>>,
+    RemoveTag: '' as Ref<Method<Tag>>,
     RequestApproval: '' as Ref<Method<ApproveRequest>>,
     CancelToDo: '' as Ref<Method<ProcessToDo>>,
     LockCard: '' as Ref<Method<Card>>,
@@ -358,6 +365,7 @@ export default plugin(processId, {
     Review: '' as IntlString
   },
   error: {
+    TagHasSubtags: '' as IntlString,
     MethodNotFound: '' as IntlString,
     InternalServerError: '' as IntlString,
     EmptyRelatedObjectValue: '' as IntlString,

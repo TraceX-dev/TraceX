@@ -65,8 +65,12 @@ function createDSLExpression (context: SelectedContext): string {
     }
     case 'userRequest': {
       const req = context
-      const selectionSpace = req.selectionSpace !== undefined ? `,${encodeValue(req.selectionSpace)}` : ''
-      return `$userRequest(${req.id},${req.key},${req._class}${selectionSpace})`
+      const selectionSpace =
+        req.selectionSpace !== undefined || req.multiple !== undefined
+          ? `,${encodeValue(req.selectionSpace ?? null)}`
+          : ''
+      const multiple = req.multiple !== undefined ? `,${encodeValue(req.multiple)}` : ''
+      return `$userRequest(${req.id},${req.key},${req._class}${selectionSpace}${multiple})`
     }
     default: {
       throw new Error(`Unsupported SelectedContext type: ${(context as any)?.type}`)
@@ -237,8 +241,10 @@ function parseExpression (expr: string): Base<SelectedContext> {
 
     const res: Base<SelectedUserRequest> = { type: 'userRequest', id, key, _class }
     if (parts[3] !== undefined) {
-      res.selectionSpace = decodeValue(parts[3]) as string
+      const selectionSpace = decodeValue(parts[3])
+      if (typeof selectionSpace === 'string') res.selectionSpace = selectionSpace
     }
+    if (parts[4] !== undefined) res.multiple = decodeValue(parts[4]) === true
     return res
   }
 

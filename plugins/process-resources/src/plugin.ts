@@ -88,6 +88,7 @@ export default mergeIds(processId, process, {
     TimeEditor: '' as AnyComponent,
     TimePresenter: '' as AnyComponent,
     AddTagEditor: '' as AnyComponent,
+    RemoveTagEditor: '' as AnyComponent,
     AddTagPresenter: '' as AnyComponent,
     SubProcessMatchEditor: '' as AnyComponent,
     SubProcessMatchPresenter: '' as AnyComponent,
@@ -135,6 +136,8 @@ export default mergeIds(processId, process, {
     CreateMiddleware: '' as Resource<PresentationMiddlewareCreator>
   },
   string: {
+    MultipleSelection: '' as IntlString,
+    ExcludeRelatedObjects: '' as IntlString,
     DeleteProcess: '' as IntlString,
     DeleteProcessConfirm: '' as IntlString,
     DeleteState: '' as IntlString,
@@ -268,6 +271,7 @@ export default mergeIds(processId, process, {
     SetContext: '' as IntlString,
     UpdateContext: '' as IntlString,
     RemoveRelation: '' as IntlString,
+    RemoveTag: '' as IntlString,
     EmptyValue: '' as IntlString,
     EmptyArray: '' as IntlString,
     ExecutionInitiator: '' as IntlString,

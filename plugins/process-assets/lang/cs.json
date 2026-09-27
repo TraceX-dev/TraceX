@@ -1,5 +1,8 @@
 {
   "string": {
+    "MultipleSelection": "Multiple selection",
+    "ExcludeRelatedObjects": "Exclude objects already linked by relation",
+    "RemoveTag": "Remove tag",
     "RequestAttachments": "Vyžádat přílohy",
     "UpdateContext": "Aktualizovat kontext",
     "RemoveRelation": "Odstranit vztah",
@@ -212,6 +215,7 @@
     "TableFromRelation": "Tabulka z vazby"
   },
   "error": {
+    "TagHasSubtags": "Cannot remove tag: the card has a descendant tag",
     "MethodNotFound": "Metoda nenalezena: {methodId}",
     "AttributeNotExists": "Atribut neexistuje: {key}",
     "RelatedObjectNotFound": "Související objekt nenalezen: {attr}",
