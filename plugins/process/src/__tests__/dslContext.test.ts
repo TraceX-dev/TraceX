@@ -18,6 +18,18 @@ import type { ContextId } from '../index'
 import type { SelectedUserRequest } from '../types'
 
 describe('dslContext roundtrip', () => {
+  test.each([undefined, 'target-space'])('preserves multiple selection with space %p', (selectionSpace) => {
+    const original: SelectedUserRequest = {
+      type: 'userRequest',
+      id: 'input' as ContextId,
+      key: '',
+      _class: 'test:class:Card' as Ref<Class<Doc>>,
+      multiple: true,
+      ...(selectionSpace !== undefined ? { selectionSpace } : {})
+    }
+    expect(parseDSLContext(createDSLContext(original))).toEqual(expect.objectContaining(original))
+  })
+
   test.each([
     { type: 'attribute', key: 'space' },
     { type: 'context', id: 'selected-card' as ContextId, key: 'space' },

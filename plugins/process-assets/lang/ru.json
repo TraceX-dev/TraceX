@@ -1,5 +1,7 @@
 {
   "string": {
+    "MultipleSelection": "Множественный выбор",
+    "ExcludeRelatedObjects": "Исключать объекты с существующей связью",
     "RemoveTag": "Снять тег",
     "RequestAttachments": "Запросить вложения",
     "UpdateContext": "Обновить контекст",

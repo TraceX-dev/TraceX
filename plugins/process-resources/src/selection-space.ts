@@ -13,16 +13,25 @@
 // limitations under the License.
 
 import core, { checkMixinKey, getObjectValue } from '@hcengineering/core'
-import type { AnyAttribute, Class, Client, Doc, Ref, RefTo, Space } from '@hcengineering/core'
+import type { AnyAttribute, Class, Client, Doc, DocumentQuery, Ref, RefTo, Space } from '@hcengineering/core'
 import process, { parseContext, processError } from '@hcengineering/process'
-import type { Context, ExecutionContext, Process, SelectedUserRequest, UserResult } from '@hcengineering/process'
+import type {
+  Context,
+  ExecutionContext,
+  Process,
+  SelectedUserRequest,
+  SelectionRelation,
+  UserResult
+} from '@hcengineering/process'
 
 export interface ResolvedUserRequest extends Omit<SelectedUserRequest, 'selectionSpace'> {
   selectionSpace?: Ref<Space>
+  docQuery?: DocumentQuery<Doc>
 }
 
 export interface ResolvedUserResult extends Omit<UserResult, 'selectionSpace'> {
   selectionSpace?: Ref<Space>
+  docQuery?: DocumentQuery<Doc>
 }
 
 /** Lists scalar space sources available before the user supplies a result. */
@@ -103,4 +112,24 @@ export async function resolveSelectionSpace (
     throw processError(process.error.ContextValueNotProvided, { name })
   }
   return value as Ref<Space>
+}
+
+/** Excludes targets already connected to the current process card, preserving the space restriction. */
+export async function resolveSelectionQuery (
+  client: Client,
+  cardId: Ref<Doc> | undefined,
+  selectionSpace: Ref<Space> | undefined,
+  relation?: SelectionRelation
+): Promise<DocumentQuery<Doc>> {
+  const query: DocumentQuery<Doc> = selectionSpace !== undefined ? { space: selectionSpace } : {}
+  if (relation === undefined) return query
+  if (cardId === undefined) {
+    throw processError(process.error.ContextValueNotProvided, { name: 'card' })
+  }
+  const relations = await client.findAll(core.class.Relation, {
+    association: relation.association,
+    ...(relation.direction === 'A' ? { docB: cardId } : { docA: cardId })
+  })
+  query._id = { $nin: [...new Set(relations.map((item) => (relation.direction === 'A' ? item.docA : item.docB)))] }
+  return query
 }

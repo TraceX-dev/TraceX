@@ -14,8 +14,9 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { AnyAttribute, Class, Doc, generateId, Ref, RefTo, Space } from '@hcengineering/core'
-  import { findAttributeEditor, getClient } from '@hcengineering/presentation'
+  import card from '@hcengineering/card'
+  import core, { AnyAttribute, Class, Doc, DocumentQuery, generateId, Ref, RefTo, Space } from '@hcengineering/core'
+  import { findAttributeEditor, getAttrEditor, getClient } from '@hcengineering/presentation'
   import { AnyComponent, Component, Label } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
@@ -26,9 +27,16 @@
   export let space: Ref<Space>
   export let selectionSpace: Ref<Space> | undefined = undefined
 
+  export let multiple: boolean = false
+  export let docQuery: DocumentQuery<Doc> | undefined = undefined
+
   const client = getClient()
   const hierarchy = client.getHierarchy()
-  const attribute = hierarchy.findAttribute(_class, key) ?? (key === '' ? mockAttribute(_class) : undefined)
+  $: baseAttribute = key === '' || key === '_id' ? mockAttribute(_class) : hierarchy.findAttribute(_class, key)
+  $: attribute =
+    multiple && baseAttribute !== undefined
+      ? { ...baseAttribute, type: { _class: core.class.ArrOf, label: core.string.Array, of: baseAttribute.type } }
+      : baseAttribute
 
   function mockAttribute (_class: Ref<Class<Doc>>): AnyAttribute {
     const type: RefTo<Doc> = {
@@ -51,7 +59,29 @@
 
   let editor: AnyComponent | undefined
 
-  function getEditor (_class: Ref<Class<Doc>>, key: string): void {
+  function getEditor (
+    _class: Ref<Class<Doc>>,
+    key: string,
+    multiple: boolean,
+    attribute: AnyAttribute | undefined,
+    docQuery: DocumentQuery<Doc> | undefined
+  ): void {
+    if (
+      docQuery !== undefined &&
+      Object.keys(docQuery).length > 0 &&
+      (key === '' || key === '_id') &&
+      hierarchy.isDerived(_class, card.class.Card)
+    ) {
+      editor = hierarchy.classHierarchyMixin(
+        card.class.Card as Ref<Class<Doc>>,
+        multiple ? view.mixin.ArrayEditor : view.mixin.AttributeEditor
+      )?.inlineEditor
+      return
+    }
+    if (multiple && attribute !== undefined) {
+      editor = getAttrEditor(attribute.type, hierarchy)
+      return
+    }
     if (key === '' || key === '_id') {
       const mixin = hierarchy.classHierarchyMixin(_class, view.mixin.AttributeEditor)
       if (mixin?.inlineEditor !== undefined) {
@@ -68,7 +98,7 @@
     dispatch('change', val)
   }
 
-  $: getEditor(_class, key)
+  $: getEditor(_class, key, multiple, attribute, docQuery)
 </script>
 
 {#if attribute}
@@ -92,7 +122,7 @@
         value,
         attribute,
         space,
-        docQuery: selectionSpace !== undefined ? { space: selectionSpace } : undefined,
+        docQuery: docQuery ?? (selectionSpace !== undefined ? { space: selectionSpace } : undefined),
         onChange,
         focus
       }}

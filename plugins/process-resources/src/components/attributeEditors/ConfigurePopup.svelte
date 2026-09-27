@@ -29,7 +29,8 @@
     resizeObserver,
     Scroller,
     showPopup,
-    Submenu
+    Submenu,
+    Toggle
   } from '@hcengineering/ui'
   import { AttributeCategory } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
@@ -345,6 +346,18 @@
     on:close
   >
     <div class="editor-grid">
+      {#if allowArray && (contextValue.key === '' || contextValue.key === '_id')}
+        <Label label={plugin.string.MultipleSelection} />
+        <Toggle
+          on={contextValue.multiple ?? false}
+          on:change={(event) => {
+            if (contextValue.type === 'userRequest') {
+              contextValue.multiple = event.detail
+              onChange(contextValue)
+            }
+          }}
+        />
+      {/if}
       <Component
         is={plugin.component.SelectionSpaceEditor}
         props={{ process, value: contextValue.selectionSpace }}

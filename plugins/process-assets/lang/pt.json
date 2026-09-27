@@ -1,5 +1,7 @@
 {
   "string": {
+    "MultipleSelection": "Multiple selection",
+    "ExcludeRelatedObjects": "Exclude objects already linked by relation",
     "RemoveTag": "Remove tag",
     "RequestAttachments": "Solicitar anexos",
     "UpdateContext": "Atualizar contexto",
