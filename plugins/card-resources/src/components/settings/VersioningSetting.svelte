@@ -20,7 +20,7 @@
   import core, { Doc, Mixin, Ref } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import setting from '@hcengineering/setting'
-  import { DropdownLabelsIntl, Label, Toggle } from '@hcengineering/ui'
+  import { DropdownLabelsIntl, Label, Toggle, ToggleWithLabel } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import card from '../../plugin'
 
@@ -42,6 +42,7 @@
   let excludedRelations = new Set<string>(current?.excludedRelations ?? [])
   let excludedProperties = new Set<string>(current?.excludedProperties ?? [])
   let excludeMixins = new Set<Ref<Mixin<Doc>>>(current?.excludeMixins ?? [])
+  let managedByProcess = current?.managedByProcess ?? false
 
   $: selectedMixins = mixins.filter((it) => !excludeMixins.has(it))
 
@@ -89,6 +90,7 @@
         excludedRelations: [...excludedRelations],
         excludedProperties: [...excludedProperties],
         excludeMixins: [...excludeMixins],
+        managedByProcess,
         enabled: true
       })
     } else {
@@ -96,6 +98,7 @@
         excludedRelations: [...excludedRelations],
         excludedProperties: [...excludedProperties],
         excludeMixins: [...excludeMixins],
+        managedByProcess,
         enabled: true
       })
     }
@@ -136,6 +139,7 @@
   on:close
 >
   <div class="flex-col flex-gap-2">
+    <ToggleWithLabel label={card.string.VersioningManagedByProcess} bind:on={managedByProcess} />
     {#if allProperties.length > 0}
       <div class="flex-between">
         <Label label={setting.string.Properties} />

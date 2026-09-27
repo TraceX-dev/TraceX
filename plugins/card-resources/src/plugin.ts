@@ -166,6 +166,7 @@ export default mergeIds(cardId, card, {
     NewVersion: '' as IntlString,
     VersionCreationUnavailable: '' as IntlString,
     Versioning: '' as IntlString,
+    VersioningManagedByProcess: '' as IntlString,
     EnableVersioning: '' as IntlString,
     EnableVersioningConfirm: '' as IntlString,
     NewVersionConfirmation: '' as IntlString,

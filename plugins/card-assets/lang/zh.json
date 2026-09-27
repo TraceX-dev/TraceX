@@ -72,6 +72,7 @@
     "NewVersion": "新版本",
     "VersionCreationUnavailable": "当前无法创建新版本",
     "Versioning": "版本控制",
+    "VersioningManagedByProcess": "通过流程管理版本",
     "EnableVersioning": "启用版本控制",
     "EnableVersioningConfirm": "您要启用版本控制吗？",
     "NewVersionConfirmation": "您想创建一个新版本吗？",

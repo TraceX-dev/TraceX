@@ -72,6 +72,7 @@
     "NewVersion": "Yeni sürüm",
     "VersionCreationUnavailable": "Yeni sürüm oluşturma şu anda kullanılamıyor",
     "Versioning": "Sürümleme",
+    "VersioningManagedByProcess": "Sürümleri bir süreç aracılığıyla yönet",
     "EnableVersioning": "Sürümlemeyi etkinleştir",
     "EnableVersioningConfirm": "Sürümlemeyi etkinleştirmek istiyor musunuz?",
     "NewVersionConfirmation": "Yeni bir sürüm oluşturmak istiyor musunuz?",

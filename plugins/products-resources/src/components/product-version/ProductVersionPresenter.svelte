@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,9 +17,10 @@
 -->
 
 <script lang="ts">
-  import { Product, ProductVersion } from '@hcengineering/products'
-  import { WithLookup } from '@hcengineering/core'
+  import type { Product, ProductVersion } from '@hcengineering/products'
+  import type { WithLookup } from '@hcengineering/core'
   import { getEmbeddedLabel } from '@hcengineering/platform'
+  import { createQuery } from '@hcengineering/presentation'
   import { tooltip } from '@hcengineering/ui'
   import { DocNavLink, ObjectMention } from '@hcengineering/view-resources'
 
@@ -33,13 +35,25 @@
   export let noUnderline: boolean = false
   export let shouldShowAvatar: boolean = true
 
+  const productQuery = createQuery()
+  let queriedProduct: Product | undefined
+
   function getProductVersionName (value: ProductVersion): string {
     const version = `${value.major}.${value.minor}.${value.patch}`
     const codename = value.codename ?? ''
     return codename !== '' ? `${version} ${codename}` : version
   }
 
-  $: product = value?.$lookup?.space as Product
+  $: if (value !== undefined && value.$lookup?.space === undefined) {
+    productQuery.query(products.class.Product, { _id: value.space }, (result) => {
+      queriedProduct = result[0]
+    })
+  } else {
+    productQuery.unsubscribe()
+    queriedProduct = undefined
+  }
+
+  $: product = value?.$lookup?.space ?? (queriedProduct?._id === value?.space ? queriedProduct : undefined)
   $: version = value !== undefined ? getProductVersionName(value) : ''
   $: name = product !== undefined ? `${product.name} ${version}` : version
 </script>
