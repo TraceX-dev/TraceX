@@ -72,6 +72,7 @@
     "NewVersion": "新しいバージョン",
     "VersionCreationUnavailable": "現在、新しいバージョンは作成できません",
     "Versioning": "バージョン管理",
+    "VersioningManagedByProcess": "プロセスでバージョンを管理する",
     "EnableVersioning": "バージョン管理を有効にする",
     "EnableVersioningConfirm": "バージョン管理を有効にしますか？",
     "NewVersionConfirmation": "新しいバージョンを作成しますか？",
