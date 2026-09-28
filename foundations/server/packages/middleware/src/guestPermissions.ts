@@ -26,6 +26,25 @@ import core, {
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import contact, { type Person } from '@hcengineering/contact'
 
+/**
+ * Names of the attributes an update touches: plain keys as is, operator keys (`$push`, `$inc`, ...)
+ * as `$operator.attribute`.
+ */
+function getOperationKeys (operations: object): string[] {
+  const result: string[] = []
+  for (const [key, value] of Object.entries(operations)) {
+    if (key.startsWith('$') && value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      const nested = Object.keys(value)
+      if (nested.length > 0) {
+        for (const attribute of nested) result.push(`${key}.${attribute}`)
+        continue
+      }
+    }
+    result.push(key)
+  }
+  return result
+}
+
 /** Cached state loaded from GuestPermissionsSettings configuration document. */
 interface GuestPermissionsCache {
   roleAllowedClasses: Map<AccountRole, Set<Ref<Class<Doc>>>>
@@ -165,10 +184,16 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   }
 
   private logForbiddenTx (ctx: MeasureContext, account: Account, tx: Tx, reason: string): void {
+    const isCud = TxProcessor.isExtendsCUD(tx._class)
     ctx.warn('Guest transaction rejected', {
       reason,
       accountRole: account.role,
-      objectClass: TxProcessor.isExtendsCUD(tx._class) ? (tx as TxCUD<Doc>).objectClass : tx._class
+      txClass: tx._class,
+      objectClass: isCud ? (tx as TxCUD<Doc>).objectClass : tx._class,
+      objectSpace: isCud ? (tx as TxCUD<Doc>).objectSpace : undefined,
+      // Only attribute names are logged, never values, to keep document content out of the logs.
+      operations:
+        tx._class === core.class.TxUpdateDoc ? getOperationKeys((tx as TxUpdateDoc<Doc>).operations) : undefined
     })
   }
 
