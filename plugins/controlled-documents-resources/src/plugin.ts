@@ -21,7 +21,6 @@ import documents, {
 } from '@hcengineering/controlled-documents'
 import {
   type Client,
-  type ClassPermission,
   type Doc,
   type ModulePermissionGroup,
   type Ref,
@@ -57,9 +56,7 @@ export default mergeIds(documentsId, documents, {
   ids: {
     AddCommentPopup: '' as Resource<string>,
     ModulePermissionGroup: '' as Ref<ModulePermissionGroup>,
-    ModulePermissionGroupReadOnlyGuest: '' as Ref<ModulePermissionGroup>,
-    GuestControlledDocumentClassPermission: '' as Ref<ClassPermission>,
-    GuestDocumentCategoryClassPermission: '' as Ref<ClassPermission>
+    ModulePermissionGroupReadOnlyGuest: '' as Ref<ModulePermissionGroup>
   },
   string: {
     ID: '' as IntlString,

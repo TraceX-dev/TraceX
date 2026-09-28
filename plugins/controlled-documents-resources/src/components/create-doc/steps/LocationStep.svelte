@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,7 +31,7 @@
   import ProjectSelector from '../../project/ProjectSelector.svelte'
   import documentsRes from '../../../plugin'
   import { getLatestProjectId } from '../../../utils'
-  import { canCreateControlledDocumentsStore } from '../../../stores/permissions'
+  import { canGuestCreateDocumentsStore } from '../../../stores/permissions'
 
   export let canProceed: boolean
   export let isTemplate: boolean = false
@@ -80,13 +81,13 @@
   }
 
   $: canProceed =
-    $canCreateControlledDocumentsStore && $locationStep.space !== undefined && $locationStep.project !== undefined
+    $canGuestCreateDocumentsStore && $locationStep.space !== undefined && $locationStep.project !== undefined
   $: hasParentSelector = $locationStep.space !== documents.space.UnsortedTemplates
   $: restrictedSpaces = Object.keys($permissionsStore.ps).filter(
     (s) => !checkMyPermission(documents.permission.CreateDocument, s as Ref<TypedSpace>, $permissionsStore)
   ) as Ref<TypedSpace>[]
 
-  $: spaceQuery = $canCreateControlledDocumentsStore
+  $: spaceQuery = $canGuestCreateDocumentsStore
     ? { _id: { $nin: restrictedSpaces }, archived: false }
     : { _id: { $in: [] as Ref<TypedSpace>[] } }
 </script>

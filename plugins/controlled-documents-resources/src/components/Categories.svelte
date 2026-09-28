@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,7 +23,7 @@
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
   import document from '../plugin'
-  import { canCreateDocumentCategoriesStore } from '../stores/permissions'
+  import { canGuestCreateDocumentsStore } from '../stores/permissions'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   export let query: DocumentQuery<DocumentCategory> = {}
@@ -34,7 +35,7 @@
   let loading = true
 
   $: canCreate =
-    $canCreateDocumentCategoriesStore &&
+    $canGuestCreateDocumentsStore &&
     Object.keys($permissionsStore.ps).some((space) =>
       checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
     )

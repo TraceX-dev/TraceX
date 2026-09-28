@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -42,7 +43,6 @@ import core, {
   type Account,
   AccountRole,
   type Class,
-  type ClassPermission,
   type Client,
   type Doc,
   type DocumentQuery,
@@ -62,6 +62,7 @@ import core, {
   hasAccountRole,
   isModulePermissionGranted,
   type ModulePermissionGroup,
+  type Permission,
   notEmpty
 } from '@hcengineering/core'
 import { type IntlString, translate } from '@hcengineering/platform'
@@ -78,32 +79,28 @@ import { wizardOpened } from './stores/wizards/create-document'
 import { getPersonRefByPersonId, getPersonRefsByPersonIds } from '@hcengineering/contact-resources'
 
 /**
- * Whether the account holds a guest class permission of the documents module, given the module permission groups.
- * Users and above always do; guests only when the permission is effectively granted to them.
+ * Whether the account may create objects in the documents module.
+ * Users and above always do; guests are resolved from the module permission group.
  */
-export function isGuestClassPermissionGranted (
+export function isGuestModuleCreateGranted (
   account: Account,
-  groups: ModulePermissionGroup[],
-  permission: Ref<ClassPermission>
+  groups: ModulePermissionGroup[]
 ): boolean {
   if (hasAccountRole(account, AccountRole.User)) return true
   if (account.role !== AccountRole.Guest) return false
-  return isModulePermissionGranted(groups, AccountRole.Guest, permission)
+  const documentGroups = groups.filter((group) => group.application === documentsResources.app.Documents)
+  return isModulePermissionGranted(
+    documentGroups,
+    AccountRole.Guest,
+    core.permission.CreateObject as Ref<Permission>
+  )
 }
 
-async function hasGuestClassPermission (client: Client, permission: Ref<ClassPermission>): Promise<boolean> {
+export async function canGuestCreateDocuments (client: Client = getClient()): Promise<boolean> {
   const account = getCurrentAccount()
-  if (account.role !== AccountRole.Guest) return isGuestClassPermissionGranted(account, [], permission)
+  if (account.role !== AccountRole.Guest) return isGuestModuleCreateGranted(account, [])
   const groups = await client.findAll(core.class.ModulePermissionGroup, {})
-  return isGuestClassPermissionGranted(account, groups, permission)
-}
-
-export async function canCreateControlledDocuments (client: Client = getClient()): Promise<boolean> {
-  return await hasGuestClassPermission(client, documentsResources.ids.GuestControlledDocumentClassPermission)
-}
-
-export async function canCreateDocumentCategories (client: Client = getClient()): Promise<boolean> {
-  return await hasGuestClassPermission(client, documentsResources.ids.GuestDocumentCategoryClassPermission)
+  return isGuestModuleCreateGranted(account, groups)
 }
 
 export type TranslatedDocumentStates = Readonly<Record<DocumentState, string>>
@@ -643,7 +640,7 @@ export async function canCreateChildTemplate (
   }
 
   const client = getClient()
-  if (!(await canCreateControlledDocuments(client))) return false
+  if (!(await canGuestCreateDocuments(client))) return false
   const hierarchy = client.getHierarchy()
   const spaceId: Ref<DocumentSpace> = isSpace(hierarchy, doc) ? doc._id : doc.space
   const space = isSpace(hierarchy, doc) ? doc : await client.findOne(documents.class.DocumentSpace, { _id: spaceId })
@@ -663,7 +660,7 @@ export async function canCreateChildDocument (
   }
 
   const client = getClient()
-  if (!(await canCreateControlledDocuments(client))) return false
+  if (!(await canGuestCreateDocuments(client))) return false
   const hierarchy = client.getHierarchy()
   const spaceId: Ref<DocumentSpace> = isSpace(hierarchy, doc) ? doc._id : doc.space
 

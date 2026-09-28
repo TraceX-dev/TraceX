@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -48,6 +49,7 @@ import {
   TypeAccountUuid,
   TypeBoolean,
   TypeNumber,
+  TypeRecord,
   TypeRef,
   TypeString,
   UX
@@ -172,6 +174,11 @@ export class TPermission extends TDoc implements Permission {
   scope?: 'space' | 'workspace'
   description?: IntlString
   icon?: Asset
+
+  // Technical module policy setting, not editable from the UI.
+  @Prop(TypeBoolean(), getEmbeddedLabel('Guest object creation'))
+  @Hidden()
+    guestCreate?: boolean
 }
 
 @Model(core.class.AttributePermission, core.class.Permission)
@@ -185,6 +192,18 @@ export class TAttributePermission extends TPermission implements AttributePermis
 export class TClassPermission extends TPermission implements ClassPermission {
   @Prop(TypeRef(core.class.Class), core.string.Class)
     targetClass!: Ref<Class<Doc>>
+
+  @Prop(TypeRef(core.class.Doc), getEmbeddedLabel('Application'))
+  @Hidden()
+    application?: Ref<Doc>
+
+  @Prop(ArrOf(TypeString()), getEmbeddedLabel('Guest update attributes'))
+  @Hidden()
+    guestUpdateAttributes?: string[]
+
+  @Prop(TypeRecord(), getEmbeddedLabel('Guest update mixin attributes'))
+  @Hidden()
+    guestUpdateMixinAttributes?: Record<string, string[]>
 
   // Technical policy settings, not editable from the UI.
   @Prop(ArrOf(TypeRef(core.class.Class)), getEmbeddedLabel('Related create classes'))

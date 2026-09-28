@@ -37,6 +37,7 @@ import core, {
   type CustomSequence,
   type Doc,
   type MeasureContext,
+  type Mixin,
   type PersonId,
   type Ref,
   type SessionData,
@@ -50,7 +51,11 @@ import { GuestPermissionsMiddleware } from '../guestPermissions'
 const COVERED_CLASS = 'test:class:CoveredClass' as Ref<Class<Doc>>
 const UNCOVERED_CLASS = 'test:class:UncoveredClass' as Ref<Class<Doc>>
 const COVERED_CLASS_PERMISSION = 'test:permission:CoveredClassPermission' as Ref<Doc>
+const GUEST_CREATE_PERMISSION = 'test:permission:GuestCreate' as Ref<Doc>
+const TEST_APPLICATION = 'test:app:tracker' as Ref<Doc>
 const RELATED_CLASS = 'test:class:RelatedClass' as Ref<Class<Doc>>
+const ALLOWED_MIXIN = 'test:mixin:Allowed' as Ref<Mixin<Doc>>
+const OTHER_SPACE_CLASS = 'test:class:OtherSpace' as Ref<Class<Space>>
 const ALLOWED_SEQUENCE_NAMESPACE = 'test.sequence' as const
 const MODULE_PERMISSION_GROUP_CLASS = core.class.ModulePermissionGroup
 const ALLOWED_SPACE = 'test:space:Allowed' as Ref<Space>
@@ -98,11 +103,29 @@ function makeMiddleware (
   findAll: FindAllFn,
   nextFn?: (ctx: MeasureContext, txes: Tx[]) => Promise<TxMiddlewareResult>
 ): GuestPermissionsMiddleware {
-  const context = makePipelineContext(findAll)
+  const effectiveFindAll: FindAllFn = async (ctx, _class, query, options) => {
+    if (
+      _class === core.class.Space &&
+      ((query as { _id?: Ref<Space> })._id === ALLOWED_SPACE ||
+        (query as { _id?: Ref<Space> })._id === FORBIDDEN_SPACE)
+    ) {
+      return [
+        {
+          _id: (query as { _id: Ref<Space> })._id,
+          _class: core.class.Space,
+          space: core.space.Workspace,
+          modifiedOn: Date.now(),
+          modifiedBy: 'test' as PersonId
+        } as Space
+      ]
+    }
+    return await findAll(ctx, _class, query, options)
+  }
+  const context = makePipelineContext(effectiveFindAll)
   const next = nextFn !== undefined ? { tx: nextFn } : { tx: async (_ctx: MeasureContext, _txes: Tx[]) => ({}) }
   const mw = new (GuestPermissionsMiddleware as any)(context, next)
   // Override findAll to inject our test data
-  mw.findAll = findAll
+  mw.findAll = effectiveFindAll
   return mw
 }
 
@@ -119,7 +142,7 @@ function makeGuestSettingsDoc (allowedPermissions: Ref<Doc>[], disabledPermissio
     space: 'core:space:Workspace' as Ref<Space>,
     modifiedOn: Date.now(),
     modifiedBy: 'test' as PersonId,
-    application: 'test:app:tracker' as Ref<Doc>,
+    application: TEST_APPLICATION,
     role: AccountRole.Guest,
     permissions: allowedPermissions,
     ...(disabledPermissions !== undefined && disabledPermissions.length > 0 ? { disabledPermissions } : {}),
@@ -225,6 +248,22 @@ describe('GuestPermissionsMiddleware', () => {
       expect(nextCalled).toBe(true)
     })
 
+    it('forbids create when the space class does not match the module group', async () => {
+      const group = { ...(settingsDoc as any), spaceClass: OTHER_SPACE_CLASS }
+      const mw = makeMiddleware(async (_ctx, _class) => {
+        if (_class === MODULE_PERMISSION_GROUP_CLASS) return [group]
+        if (_class === core.class.ClassPermission) {
+          return [{ _id: COVERED_CLASS_PERMISSION, targetClass: COVERED_CLASS } as any]
+        }
+        return []
+      })
+      patchHierarchy(mw)
+
+      await expect(
+        mw.tx(makeCtx(makeAccount(AccountRole.Guest)), [makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])
+      ).rejects.toThrow()
+    })
+
     it('ignores permissions listed in disabledPermissions (falls back to TxAccessLevel)', async () => {
       const docWithDisabled = makeGuestSettingsDoc([COVERED_CLASS_PERMISSION], [COVERED_CLASS_PERMISSION])
       const findAll: FindAllFn = async (_ctx, _class) => {
@@ -252,6 +291,7 @@ describe('GuestPermissionsMiddleware', () => {
     const policyPermission = {
       _id: COVERED_CLASS_PERMISSION,
       targetClass: COVERED_CLASS,
+      application: TEST_APPLICATION,
       relatedCreateClasses: [RELATED_CLASS],
       sequenceNamespaces: [ALLOWED_SEQUENCE_NAMESPACE]
     }
@@ -272,7 +312,7 @@ describe('GuestPermissionsMiddleware', () => {
         if (_class === MODULE_PERMISSION_GROUP_CLASS) return groups
         if (_class === core.class.ClassPermission) return [policyPermission as any]
         if (_class === core.class.CustomSequence && query?._id === sequenceId) {
-          return [{ _id: sequenceId, namespace: ALLOWED_SEQUENCE_NAMESPACE } as any]
+          return [{ _id: sequenceId, namespace: ALLOWED_SEQUENCE_NAMESPACE, sequence: 10 } as any]
         }
         if (_class === COVERED_CLASS && query?._id === ownParentId) return [makeParent(ownParentId, GUEST_SOCIAL)]
         if (_class === COVERED_CLASS && query?._id === foreignParentId) {
@@ -322,6 +362,18 @@ describe('GuestPermissionsMiddleware', () => {
       })
     }
 
+    function makeGuardedSequenceCreate (namespace: string, sequence: number): Tx {
+      const factory = new TxFactory('test:account:System' as PersonId)
+      return factory.createTxApplyIf(
+        core.space.Workspace,
+        undefined,
+        [],
+        [{ _class: core.class.CustomSequence, query: { namespace, scope: '', prefix: 'seq' } }],
+        [makeSequenceCreate(namespace, sequence) as any],
+        'test'
+      )
+    }
+
     function makeSequenceUpdate (operations: any): Tx {
       const factory = new TxFactory('test:account:System' as PersonId)
       return factory.createTxUpdateDoc(core.class.CustomSequence, core.space.Workspace, sequenceId, operations)
@@ -339,6 +391,22 @@ describe('GuestPermissionsMiddleware', () => {
       const mw = makePolicyMiddleware()
       const apply = makeApply([makeCreateTx(RELATED_CLASS, ALLOWED_SPACE), makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])
       await mw.tx(makeCtx(makeGuest()), [apply])
+    })
+
+    it('loads application class policies from a single guest create permission', async () => {
+      const createGroup = makeGuestSettingsDoc([GUEST_CREATE_PERMISSION])
+      const findAll: FindAllFn = async (_ctx, _class) => {
+        if (_class === MODULE_PERMISSION_GROUP_CLASS) return [createGroup]
+        if (_class === core.class.Permission) {
+          return [{ _id: GUEST_CREATE_PERMISSION, guestCreate: true } as any]
+        }
+        if (_class === core.class.ClassPermission) return [policyPermission as any]
+        return []
+      }
+      const mw = makeMiddleware(findAll)
+      patchHierarchy(mw)
+
+      await mw.tx(makeCtx(makeGuest()), [makeCreateTx(COVERED_CLASS, ALLOWED_SPACE)])
     })
 
     it('forbids related creates outside of an apply with the target class', async () => {
@@ -368,13 +436,20 @@ describe('GuestPermissionsMiddleware', () => {
       await expect(mw.tx(makeCtx(makeGuest()), [apply])).rejects.toThrow()
     })
 
-    it('allows creating a permitted sequence from zero only', async () => {
+    it('allows creating a guarded permitted sequence from zero only', async () => {
       const mw = makePolicyMiddleware()
-      await mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])
+      await mw.tx(makeCtx(makeGuest()), [makeGuardedSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])
       await expect(
-        mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 1000)])
+        mw.tx(makeCtx(makeGuest()), [makeGuardedSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 1000)])
       ).rejects.toThrow()
-      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceCreate('other.sequence', 0)])).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeGuardedSequenceCreate('other.sequence', 0)])).rejects.toThrow()
+    })
+
+    it('forbids creating a sequence without a matching apply guard', async () => {
+      const mw = makePolicyMiddleware()
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeSequenceCreate(ALLOWED_SEQUENCE_NAMESPACE, 0)])
+      ).rejects.toThrow()
     })
 
     it('allows moving a permitted sequence forward only', async () => {
@@ -385,6 +460,9 @@ describe('GuestPermissionsMiddleware', () => {
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 0 } })])).rejects.toThrow()
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: -1 } })])).rejects.toThrow()
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1.5 } })])).rejects.toThrow()
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 100_001 } })])
+      ).rejects.toThrow()
       await expect(
         mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1, other: 1 } })])
       ).rejects.toThrow()
@@ -610,9 +688,10 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
-  // ─── Own-document mutations for guests ───────────────────────────────────────
-  describe('guest update/remove own documents', () => {
+  // ─── Policy-controlled updates of guest-owned documents ──────────────────────
+  describe('guest updates of own documents', () => {
     const GUEST_SOCIAL = 'test:guest-social' as PersonId
+    const objectId = generateId()
 
     function makeGuestAccountWithSocial (): Account {
       return {
@@ -632,86 +711,120 @@ describe('GuestPermissionsMiddleware', () => {
       }
     }
 
-    it('allows guest to update document created by same account', async () => {
-      const objectId = generateId()
-      const findAll: FindAllFn = async (_ctx, _class, query: any) => {
-        if (_class === UNCOVERED_CLASS && query?._id === objectId) {
-          return [
-            {
-              _id: objectId,
-              _class: UNCOVERED_CLASS,
-              space: ALLOWED_SPACE,
-              modifiedOn: Date.now(),
-              modifiedBy: GUEST_SOCIAL,
-              createdBy: GUEST_SOCIAL
-            }
-          ]
-        }
-        return []
+    function makeOwnedDocument (createdBy: PersonId = GUEST_SOCIAL): Doc {
+      return {
+        _id: objectId,
+        _class: COVERED_CLASS,
+        space: ALLOWED_SPACE,
+        modifiedOn: Date.now(),
+        modifiedBy: createdBy,
+        createdBy
       }
-      let nextCalled = false
-      const mw = makeMiddleware(findAll, async () => {
-        nextCalled = true
-        return {}
+    }
+
+    function makeOwnUpdateMiddleware (
+      policyOverrides: Partial<ClassPermission> = {},
+      createdBy: PersonId = GUEST_SOCIAL,
+      groupOverrides: Record<string, unknown> = {}
+    ): GuestPermissionsMiddleware {
+      const group = { ...makeGuestSettingsDoc([GUEST_CREATE_PERMISSION]), ...groupOverrides } as Doc
+      const permission = {
+        _id: COVERED_CLASS_PERMISSION,
+        targetClass: COVERED_CLASS,
+        application: TEST_APPLICATION,
+        guestUpdateAttributes: ['name'],
+        guestUpdateMixinAttributes: { [ALLOWED_MIXIN]: ['caption'] },
+        ...policyOverrides
+      }
+      const mw = makeMiddleware(async (_ctx, _class, query: any) => {
+        if (_class === MODULE_PERMISSION_GROUP_CLASS) return [group]
+        if (_class === core.class.Permission) return [{ _id: GUEST_CREATE_PERMISSION, guestCreate: true } as any]
+        if (_class === core.class.ClassPermission) return [permission as any]
+        if (_class === COVERED_CLASS && query?._id === objectId) return [makeOwnedDocument(createdBy)]
+        return []
       })
       patchHierarchyNoTxAccessLevel(mw)
+      return mw
+    }
+
+    it('allows a guest to update whitelisted fields of a document created by the same account', async () => {
+      const mw = makeOwnUpdateMiddleware()
       const factory = new TxFactory(GUEST_SOCIAL)
-      const tx = factory.createTxUpdateDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
+      const tx = factory.createTxUpdateDoc(COVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
       await mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])
-      expect(nextCalled).toBe(true)
     })
 
-    it('allows guest to remove document created by same account', async () => {
-      const objectId = generateId()
-      const findAll: FindAllFn = async (_ctx, _class, query: any) => {
-        if (_class === UNCOVERED_CLASS && query?._id === objectId) {
-          return [
-            {
-              _id: objectId,
-              _class: UNCOVERED_CLASS,
-              space: ALLOWED_SPACE,
-              modifiedOn: Date.now(),
-              modifiedBy: GUEST_SOCIAL,
-              createdBy: GUEST_SOCIAL
-            }
-          ]
-        }
-        return []
-      }
-      let nextCalled = false
-      const mw = makeMiddleware(findAll, async () => {
-        nextCalled = true
-        return {}
-      })
-      patchHierarchyNoTxAccessLevel(mw)
+    it('allows whitelisted update operators', async () => {
+      const mw = makeOwnUpdateMiddleware()
       const factory = new TxFactory(GUEST_SOCIAL)
-      const tx = factory.createTxRemoveDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId)
+      const tx = factory.createTxUpdateDoc(COVERED_CLASS, ALLOWED_SPACE, objectId, { $unset: { name: true } } as any)
       await mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])
-      expect(nextCalled).toBe(true)
     })
 
-    it('forbids guest to update document created by another account', async () => {
-      const objectId = generateId()
+    it('forbids updating fields outside the whitelist', async () => {
+      const mw = makeOwnUpdateMiddleware()
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const tx = factory.createTxUpdateDoc(COVERED_CLASS, ALLOWED_SPACE, objectId, { state: 'approved' } as any)
+      await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
+    })
+
+    it('forbids updating a document created by another account', async () => {
       const otherSocial = 'test:other-social' as PersonId
-      const findAll: FindAllFn = async (_ctx, _class, query: any) => {
-        if (_class === UNCOVERED_CLASS && query?._id === objectId) {
-          return [
-            {
-              _id: objectId,
-              _class: UNCOVERED_CLASS,
-              space: ALLOWED_SPACE,
-              modifiedOn: Date.now(),
-              modifiedBy: otherSocial,
-              createdBy: otherSocial
-            }
-          ]
-        }
-        return []
-      }
-      const mw = makeMiddleware(findAll)
-      patchHierarchyNoTxAccessLevel(mw)
+      const mw = makeOwnUpdateMiddleware({}, otherSocial)
       const factory = new TxFactory(GUEST_SOCIAL)
-      const tx = factory.createTxUpdateDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
+      const tx = factory.createTxUpdateDoc(COVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
+      await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
+    })
+
+    it('forbids updating an own document when the module group is disabled', async () => {
+      const mw = makeOwnUpdateMiddleware({}, GUEST_SOCIAL, { enabled: false })
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const tx = factory.createTxUpdateDoc(COVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
+      await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
+    })
+
+    it('forbids updating an own document when guest object creation is disabled', async () => {
+      const mw = makeOwnUpdateMiddleware({}, GUEST_SOCIAL, {
+        disabledPermissions: [GUEST_CREATE_PERMISSION]
+      })
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const tx = factory.createTxUpdateDoc(COVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
+      await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
+    })
+
+    it('forbids updating an own document in a space of another class', async () => {
+      const mw = makeOwnUpdateMiddleware({}, GUEST_SOCIAL, { spaceClass: OTHER_SPACE_CLASS })
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const tx = factory.createTxUpdateDoc(COVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
+      await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
+    })
+
+    it('allows only whitelisted mixin fields on an own document', async () => {
+      const mw = makeOwnUpdateMiddleware()
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const allowedTx = factory.createTxMixin(
+        objectId,
+        COVERED_CLASS,
+        ALLOWED_SPACE,
+        ALLOWED_MIXIN,
+        { caption: 'x' } as any
+      )
+      await mw.tx(makeCtx(makeGuestAccountWithSocial()), [allowedTx])
+
+      const forbiddenTx = factory.createTxMixin(
+        objectId,
+        COVERED_CLASS,
+        ALLOWED_SPACE,
+        ALLOWED_MIXIN,
+        { systemState: 'approved' } as any
+      )
+      await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [forbiddenTx])).rejects.toThrow()
+    })
+
+    it('forbids removing an own document without an explicit removal policy', async () => {
+      const mw = makeOwnUpdateMiddleware()
+      const factory = new TxFactory(GUEST_SOCIAL)
+      const tx = factory.createTxRemoveDoc(COVERED_CLASS, ALLOWED_SPACE, objectId)
       await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
     })
   })

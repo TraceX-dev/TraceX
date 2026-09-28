@@ -1,5 +1,6 @@
 import {
   type Class,
+  type ClassPermission,
   type Doc,
   type Mixin,
   type Ref,
@@ -337,9 +338,9 @@ export const documentsPlugin = plugin(documentsId, {
     ApproveDocument: '' as Ref<Permission>,
     ArchiveDocument: '' as Ref<Permission>,
     CoAuthorDocument: '' as Ref<Permission>,
-    CreateDocument: '' as Ref<Permission>,
+    CreateDocument: '' as Ref<ClassPermission>,
     UpdateDocumentOwner: '' as Ref<Permission>,
-    CreateDocumentCategory: '' as Ref<Permission>,
+    CreateDocumentCategory: '' as Ref<ClassPermission>,
     UpdateDocumentCategory: '' as Ref<Permission>,
     DeleteDocumentCategory: '' as Ref<Permission>
   },

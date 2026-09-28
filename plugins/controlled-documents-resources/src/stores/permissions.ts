@@ -14,28 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import core, { AccountRole, type ClassPermission, getCurrentAccount, type Ref } from '@hcengineering/core'
+import core, { AccountRole, getCurrentAccount } from '@hcengineering/core'
 import { createQuery } from '@hcengineering/presentation'
 import { readable, type Readable } from 'svelte/store'
 
-import documents from '../plugin'
-import { isGuestClassPermissionGranted } from '../utils'
+import { isGuestModuleCreateGranted } from '../utils'
 
 /**
- * Whether the current account holds a guest class permission of the documents module.
+ * Whether the current account may create objects in the documents module.
  * Guests are resolved live from module permission groups; other roles need no query.
  */
-function guestClassPermissionStore (permission: Ref<ClassPermission>): Readable<boolean> {
+function guestModuleCreateStore (): Readable<boolean> {
   return readable<boolean>(false, (set) => {
     const account = getCurrentAccount()
     if (account.role !== AccountRole.Guest) {
-      set(isGuestClassPermissionGranted(account, [], permission))
+      set(isGuestModuleCreateGranted(account, []))
       return
     }
 
     const query = createQuery(true)
     query.query(core.class.ModulePermissionGroup, {}, (groups) => {
-      set(isGuestClassPermissionGranted(account, groups, permission))
+      set(isGuestModuleCreateGranted(account, groups))
     })
     return () => {
       query.unsubscribe()
@@ -43,12 +42,5 @@ function guestClassPermissionStore (permission: Ref<ClassPermission>): Readable<
   })
 }
 
-/** Whether the current account may create controlled documents and templates. */
-export const canCreateControlledDocumentsStore = guestClassPermissionStore(
-  documents.ids.GuestControlledDocumentClassPermission
-)
-
-/** Whether the current account may create document categories. */
-export const canCreateDocumentCategoriesStore = guestClassPermissionStore(
-  documents.ids.GuestDocumentCategoryClassPermission
-)
+/** Whether the current account may perform create workflows in the documents module. */
+export const canGuestCreateDocumentsStore = guestModuleCreateStore()

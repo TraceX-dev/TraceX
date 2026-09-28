@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { combine, createStore } from 'effector'
+import { combine, createEvent, createStore } from 'effector'
 import {
   type ControlledDocument,
   ControlledDocumentState,
@@ -26,7 +26,7 @@ import {
   type ProjectDocument
 } from '@hcengineering/controlled-documents'
 import chunter from '@hcengineering/chunter'
-import { type Ref } from '@hcengineering/core'
+import { AccountRole, getCurrentAccount, type Ref } from '@hcengineering/core'
 import { getCurrentEmployee } from '@hcengineering/contact'
 import { type Training } from '@hcengineering/training'
 import { type IntlString } from '@hcengineering/platform'
@@ -51,6 +51,17 @@ import {
   projectUpdated
 } from './actions'
 import { documentCompareFn } from '../../../utils'
+import { canGuestCreateDocumentsStore } from '../../permissions'
+
+const guestCreateAccessUpdated = createEvent<boolean>()
+const $guestCreateAccess = createStore(getCurrentAccount().role !== AccountRole.Guest).on(
+  guestCreateAccessUpdated,
+  (_, allowed) => allowed
+)
+
+canGuestCreateDocumentsStore.subscribe((allowed) => {
+  guestCreateAccessUpdated(allowed)
+})
 
 export const $controlledDocument = createStore<ControlledDocument | null>(null)
   .on(controlledDocumentUpdated, (_, payload) => payload)
@@ -168,6 +179,16 @@ export const $isDocumentCoAuthor = $controlledDocument.map((doc) => {
   return doc.coAuthors.includes(employee)
 })
 
+const $guestMayEditDocument = combine($controlledDocument, $guestCreateAccess, (doc, moduleCreateEnabled) => {
+  const account = getCurrentAccount()
+  if (account.role !== AccountRole.Guest) return true
+  return (
+    moduleCreateEnabled &&
+    doc?.createdBy !== undefined &&
+    (doc.createdBy === account.primarySocialId || account.socialIds.includes(doc.createdBy))
+  )
+})
+
 export const $isDocumentOwnerOrCoAuthor = combine(
   $isDocumentOwner,
   $isDocumentCoAuthor,
@@ -258,13 +279,14 @@ export const $availableEditorModes = combine(
   $documentComparisonVersions,
   $isDocumentOwner,
   $isDocumentCoAuthor,
-  (state, versions, isOwner, isCoAuthor) => {
+  $guestMayEditDocument,
+  (state, versions, isOwner, isCoAuthor, guestMayEdit) => {
     const modes: Array<{
       id: EditorMode
       label: IntlString
     }> = []
 
-    if (state === DocumentState.Draft && (isOwner || isCoAuthor)) {
+    if (state === DocumentState.Draft && (isOwner || isCoAuthor) && guestMayEdit) {
       modes.push({
         id: 'editing',
         label: plugin.string.EditMode
@@ -298,7 +320,9 @@ export const $isEditable = combine(
   $editorMode,
   $isDocumentOwner,
   $isDocumentCoAuthor,
-  (state, mode, isOwner, isCoAuthor) => (isOwner || isCoAuthor) && mode === 'editing' && state === DocumentState.Draft
+  $guestMayEditDocument,
+  (state, mode, isOwner, isCoAuthor, guestMayEdit) =>
+    (isOwner || isCoAuthor) && guestMayEdit && mode === 'editing' && state === DocumentState.Draft
 )
 
 export const $canViewDocumentComments = combine(

@@ -592,6 +592,8 @@ export interface Permission extends Doc {
   txMatch?: DocumentQuery<Tx>
   description?: IntlString
   icon?: Asset
+  /** Enables guest object creation policies while the containing module is enabled. */
+  guestCreate?: boolean
 }
 
 export interface AttributePermission extends Permission {
@@ -600,6 +602,12 @@ export interface AttributePermission extends Permission {
 
 export interface ClassPermission extends Permission {
   targetClass: Ref<Class<Doc>>
+  /** Application whose guest object creation switch controls this permission. */
+  application?: Ref<Doc>
+  /** Attributes a guest may update on an object they created through this policy. */
+  guestUpdateAttributes?: string[]
+  /** Mixin attributes a guest may update on an object they created through this policy. */
+  guestUpdateMixinAttributes?: Record<string, string[]>
   /**
    * Classes that may be created in the same TxApplyIf and the same space as a targetClass document,
    * or attached later to such a document created by the same account.

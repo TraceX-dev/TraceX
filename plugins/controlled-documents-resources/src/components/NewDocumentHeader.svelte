@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,19 +20,19 @@
   import { type DocumentSpace } from '@hcengineering/controlled-documents'
 
   import documents from '../plugin'
-  import { canCreateControlledDocumentsStore, canCreateDocumentCategoriesStore } from '../stores/permissions'
+  import { canGuestCreateDocumentsStore } from '../stores/permissions'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   let dropdownItems: SelectPopupValueType[] = []
   // Guests without the module permission cannot create documents or templates at all.
-  $: canCreateDocument = $canCreateControlledDocumentsStore
+  $: canCreateDocument = $canGuestCreateDocumentsStore
   $: canCreateTemplate =
     canCreateDocument &&
     Object.keys($permissionsStore.ps).some((space) =>
       checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
     )
   $: canCreateCategory =
-    $canCreateDocumentCategoriesStore &&
+    $canGuestCreateDocumentsStore &&
     Object.keys($permissionsStore.ps).some((space) =>
       checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
     )

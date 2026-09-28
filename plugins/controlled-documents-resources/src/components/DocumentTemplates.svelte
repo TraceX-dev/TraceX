@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,7 +23,7 @@
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
   import documents from '../plugin'
-  import { canCreateControlledDocumentsStore } from '../stores/permissions'
+  import { canGuestCreateDocumentsStore } from '../stores/permissions'
 
   export let query: DocumentQuery<DocumentTemplate> = {}
 
@@ -37,7 +38,7 @@
 
   $: srcQuery = { ...query }
   $: canAddTemplate =
-    $canCreateControlledDocumentsStore &&
+    $canGuestCreateDocumentsStore &&
     Object.keys($permissionsStore.ps).some((space) =>
       checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
     )
