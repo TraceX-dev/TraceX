@@ -42,7 +42,8 @@
   let excludedRelations = new Set<string>(current?.excludedRelations ?? [])
   let excludedProperties = new Set<string>(current?.excludedProperties ?? [])
   let excludeMixins = new Set<Ref<Mixin<Doc>>>(current?.excludeMixins ?? [])
-  let managedByProcess = current?.managedByProcess ?? false
+  let creationManagedByProcess = current?.creationManagedByProcess ?? false
+  let effectiveManagedByProcess = current?.effectiveManagedByProcess ?? false
 
   $: selectedMixins = mixins.filter((it) => !excludeMixins.has(it))
 
@@ -90,7 +91,8 @@
         excludedRelations: [...excludedRelations],
         excludedProperties: [...excludedProperties],
         excludeMixins: [...excludeMixins],
-        managedByProcess,
+        creationManagedByProcess,
+        effectiveManagedByProcess,
         enabled: true
       })
     } else {
@@ -98,7 +100,8 @@
         excludedRelations: [...excludedRelations],
         excludedProperties: [...excludedProperties],
         excludeMixins: [...excludeMixins],
-        managedByProcess,
+        creationManagedByProcess,
+        effectiveManagedByProcess,
         enabled: true
       })
     }
@@ -139,7 +142,8 @@
   on:close
 >
   <div class="flex-col flex-gap-2">
-    <ToggleWithLabel label={card.string.VersioningManagedByProcess} bind:on={managedByProcess} />
+    <ToggleWithLabel label={card.string.VersionCreationManagedByProcess} bind:on={creationManagedByProcess} />
+    <ToggleWithLabel label={card.string.VersionEffectiveManagedByProcess} bind:on={effectiveManagedByProcess} />
     {#if allProperties.length > 0}
       <div class="flex-between">
         <Label label={setting.string.Properties} />
