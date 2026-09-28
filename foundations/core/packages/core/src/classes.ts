@@ -592,6 +592,11 @@ export interface Permission extends Doc {
   txMatch?: DocumentQuery<Tx>
   description?: IntlString
   icon?: Asset
+  /**
+   * When granted to guests by an enabled module permission group, enables the guest create policies
+   * (class permissions with the same `application`) of that module.
+   */
+  guestCreate?: boolean
 }
 
 export interface AttributePermission extends Permission {
@@ -600,6 +605,35 @@ export interface AttributePermission extends Permission {
 
 export interface ClassPermission extends Permission {
   targetClass: Ref<Class<Doc>>
+  /**
+   * Module whose guest create switch (a `guestCreate` permission in its guest group) enables this policy.
+   * Such a policy only applies in spaces of the group's `spaceClass`.
+   */
+  application?: Ref<Doc>
+  /**
+   * Attributes a guest may update on a targetClass object it created. When set, other updates of
+   * targetClass objects by guests are rejected instead of falling back to the generic own-document rule.
+   */
+  guestUpdateAttributes?: string[]
+  /**
+   * Mixin attributes a guest may update on a targetClass object it created. When set, other mixins
+   * on targetClass objects by guests are rejected.
+   */
+  guestUpdateMixinAttributes?: Record<string, string[]>
+  /**
+   * Mixin attributes a guest may set on a targetClass object in the same TxApplyIf that creates it.
+   */
+  guestCreateMixinAttributes?: Record<string, string[]>
+  /**
+   * Classes that may be created in the same TxApplyIf and the same space as a targetClass object,
+   * or attached later to such an object created by the same account.
+   */
+  relatedCreateClasses?: Array<Ref<Class<Doc>>>
+  /**
+   * CustomSequence namespaces that may be created (starting from 0, guarded by a notMatch) and
+   * advanced by a positive increment for the permitted operation.
+   */
+  sequenceNamespaces?: string[]
 }
 
 /**
