@@ -171,9 +171,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       accountRole: account.role,
       txClass: tx._class,
       objectClass: isCud ? (tx as TxCUD<Doc>).objectClass : tx._class,
-      objectSpace: isCud ? (tx as TxCUD<Doc>).objectSpace : undefined,
-      // Only operation keys are logged, never values, to keep document content out of the logs.
-      operations: tx._class === core.class.TxUpdateDoc ? Object.keys((tx as TxUpdateDoc<Doc>).operations) : undefined
+      objectSpace: isCud ? (tx as TxCUD<Doc>).objectSpace : undefined
     })
   }
 
