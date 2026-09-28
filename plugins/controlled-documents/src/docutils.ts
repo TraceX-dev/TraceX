@@ -73,6 +73,15 @@ async function getParentPath (client: TxOperations, parent: Ref<ProjectDocument>
   return [parentMeta.meta, ...parentMeta.path]
 }
 
+export interface ControlledDocCreationOptions {
+  /**
+   * Whether to advance the `sequence` hint on the template, `true` by default. Guests skip it, as the guest
+   * create policy does not let them update templates they did not create. The hint is optional: numbers come
+   * from the custom sequence.
+   */
+  updateTemplateSequenceHint?: boolean
+}
+
 export async function createControlledDocFromTemplate (
   client: TxOperations,
   templateId: Ref<DocumentTemplate> | undefined,
@@ -82,7 +91,8 @@ export async function createControlledDocFromTemplate (
   project: Ref<Project> | undefined,
   parent: Ref<ProjectDocument> | undefined,
   docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument,
-  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
+  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> },
+  options: ControlledDocCreationOptions = {}
 ): Promise<{ seqNumber: number, success: boolean }> {
   if (templateId == null) {
     return { seqNumber: -1, success: false }
@@ -123,7 +133,8 @@ export async function createControlledDocFromTemplate (
         category,
         templateSpace,
         docClass,
-        changeControl
+        changeControl,
+        options.updateTemplateSequenceHint ?? true
       )
   )
 }
@@ -244,7 +255,8 @@ async function createControlledDocAttempt (
   category: Ref<DocumentCategory>,
   templateSpace: Ref<Space>,
   docClass: Ref<Class<ControlledDocument>>,
-  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> }
+  changeControl: { id: Ref<ChangeControl>, data: Data<ChangeControl> } | undefined,
+  updateTemplateSequenceHint: boolean
 ): Promise<boolean> {
   const projectId = project ?? documents.ids.NoProject
 
@@ -308,9 +320,11 @@ async function createControlledDocAttempt (
 
   // Best effort hint for the UI: concurrent creations may leave it behind,
   // the custom sequence stays the source of truth.
-  await ops.updateMixin(templateId, documents.class.Document, templateSpace, documents.mixin.DocumentTemplate, {
-    sequence: seqNumber
-  })
+  if (updateTemplateSequenceHint) {
+    await ops.updateMixin(templateId, documents.class.Document, templateSpace, documents.mixin.DocumentTemplate, {
+      sequence: seqNumber
+    })
+  }
 
   // Created in the same apply, so the document never references a change control that failed to be created.
   if (changeControl !== undefined) {

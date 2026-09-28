@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,6 +23,7 @@
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
   import documents from '../plugin'
+  import { canGuestCreateDocumentsStore } from '../stores/permissions'
 
   export let query: DocumentQuery<DocumentTemplate> = {}
 
@@ -35,9 +37,11 @@
   const _class: Ref<Mixin<DocumentTemplate>> = documents.mixin.DocumentTemplate
 
   $: srcQuery = { ...query }
-  $: canAddTemplate = Object.keys($permissionsStore.ps).some((space) =>
-    checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
-  )
+  $: canAddTemplate =
+    $canGuestCreateDocumentsStore &&
+    Object.keys($permissionsStore.ps).some((space) =>
+      checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
+    )
 
   function showCreateDialog (): void {
     showPopup(documents.component.QmsTemplateWizard, { _class: documents.class.ControlledDocument })
