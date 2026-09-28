@@ -14,32 +14,62 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Ref } from '@hcengineering/core'
-  import { ButtonKind, ButtonSize } from '@hcengineering/ui'
-  import { ObjectBox } from '@hcengineering/view-resources'
-  import { ProductVersion } from '@hcengineering/products'
+  import type { DocumentQuery, Ref } from '@hcengineering/core'
+  import { createQuery } from '@hcengineering/presentation'
+  import { Button, Label, eventToHTMLElement, showPopup } from '@hcengineering/ui'
+  import type { ButtonKind, ButtonSize } from '@hcengineering/ui'
+  import type { ProductVersion } from '@hcengineering/products'
+  import { createEventDispatcher } from 'svelte'
 
   import products from '../../plugin'
+  import ProductVersionPresenter from './ProductVersionPresenter.svelte'
+  import ProductVersionSelectPopup from './ProductVersionSelectPopup.svelte'
 
   export let value: Ref<ProductVersion> | undefined
   export let onChange: ((value: Ref<ProductVersion> | undefined) => void) | undefined = undefined
   export let readonly: boolean = false
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
-  export let justify: 'left' | 'center' = 'center'
+  export let justify: 'left' | 'center' = 'left'
   export let width: string | undefined = undefined
+  export let docQuery: DocumentQuery<ProductVersion> | undefined = undefined
+
+  const dispatch = createEventDispatcher<{ change: Ref<ProductVersion> }>()
+  const query = createQuery()
+  let selected: ProductVersion | undefined
+
+  $: if (value !== undefined) {
+    query.query(products.class.ProductVersion, { _id: value }, (result) => {
+      selected = result[0]
+    })
+  } else {
+    query.unsubscribe()
+    selected = undefined
+  }
+
+  function openPopup (event: MouseEvent): void {
+    if (readonly) return
+
+    showPopup(
+      ProductVersionSelectPopup,
+      { selected: value, docQuery },
+      eventToHTMLElement(event),
+      (result: Ref<ProductVersion> | undefined) => {
+        if (result === undefined || result === value) return
+        value = result
+        dispatch('change', value)
+        onChange?.(value)
+      }
+    )
+  }
 </script>
 
-<ObjectBox
-  bind:value
-  _class={products.class.ProductVersion}
-  label={products.string.ProductVersion}
-  showNavigate={false}
-  {readonly}
-  {kind}
-  {size}
-  {justify}
-  {width}
-  on:change
-  on:change={(event) => onChange?.(event.detail)}
-/>
+<Button disabled={readonly} {kind} {size} {justify} width={width ?? 'min-content'} on:click={openPopup}>
+  <div slot="content" class="overflow-label flex-grow">
+    {#if selected}
+      <ProductVersionPresenter value={selected} disabled />
+    {:else}
+      <Label label={products.string.ProductVersion} />
+    {/if}
+  </div>
+</Button>
