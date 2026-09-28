@@ -22,6 +22,7 @@
   import products from '../../plugin'
 
   export let value: Ref<ProductVersion> | undefined
+  export let onChange: ((value: Ref<ProductVersion> | undefined) => void) | undefined = undefined
   export let readonly: boolean = false
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
@@ -39,4 +40,6 @@
   {size}
   {justify}
   {width}
+  on:change
+  on:change={(event) => onChange?.(event.detail)}
 />
