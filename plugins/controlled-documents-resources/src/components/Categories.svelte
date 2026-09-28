@@ -22,6 +22,7 @@
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
   import document from '../plugin'
+  import { canCreateDocumentCategoriesStore } from '../stores/permissions'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   export let query: DocumentQuery<DocumentCategory> = {}
@@ -32,9 +33,11 @@
   let preference: ViewletPreference | undefined = undefined
   let loading = true
 
-  $: canCreate = Object.keys($permissionsStore.ps).some((space) =>
-    checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
-  )
+  $: canCreate =
+    $canCreateDocumentCategoriesStore &&
+    Object.keys($permissionsStore.ps).some((space) =>
+      checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
+    )
 
   const _class: Ref<Class<DocumentCategory>> = document.class.DocumentCategory
 

@@ -58,7 +58,8 @@ export default mergeIds(documentsId, documents, {
     AddCommentPopup: '' as Resource<string>,
     ModulePermissionGroup: '' as Ref<ModulePermissionGroup>,
     ModulePermissionGroupReadOnlyGuest: '' as Ref<ModulePermissionGroup>,
-    GuestControlledDocumentClassPermission: '' as Ref<ClassPermission>
+    GuestControlledDocumentClassPermission: '' as Ref<ClassPermission>,
+    GuestDocumentCategoryClassPermission: '' as Ref<ClassPermission>
   },
   string: {
     ID: '' as IntlString,

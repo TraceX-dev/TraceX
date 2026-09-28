@@ -26,6 +26,7 @@
 
   import IconWarning from './icons/IconWarning.svelte'
   import documents from '../plugin'
+  import { canCreateDocumentCategoriesStore } from '../stores/permissions'
 
   const _id = generateId<DocumentCategory>()
   export let space: Ref<DocumentSpace> | undefined = undefined
@@ -43,7 +44,9 @@
   ) as Ref<TypedSpace>[]
   $: spaceQuery = { _id: { $nin: restrictedSpaces }, archived: false }
   $: canCreate =
-    space !== undefined && checkMyPermission(documents.permission.CreateDocumentCategory, space, $permissionsStore)
+    $canCreateDocumentCategoriesStore &&
+    space !== undefined &&
+    checkMyPermission(documents.permission.CreateDocumentCategory, space, $permissionsStore)
 
   async function handleOkAction (): Promise<void> {
     if (isCodeWrong || isTitleWrong || !canCreate || space === undefined) {

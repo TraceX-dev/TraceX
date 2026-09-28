@@ -1249,13 +1249,31 @@ export function createModel (builder: Builder): void {
   )
 
   builder.createDoc(
+    core.class.ClassPermission,
+    core.space.Model,
+    {
+      label: documents.string.CreateDocumentCategoryPermission,
+      description: documents.string.CreateDocumentCategoryDescription,
+      scope: 'space',
+      targetClass: documents.class.DocumentCategory
+    },
+    documents.ids.GuestDocumentCategoryClassPermission
+  )
+
+  builder.createDoc(
     core.class.ModulePermissionGroup,
     core.space.Model,
     {
       application: documents.app.Documents,
       role: AccountRole.Guest,
-      permissions: [documents.ids.GuestControlledDocumentClassPermission as Ref<Permission>],
-      disabledPermissions: [documents.ids.GuestControlledDocumentClassPermission as Ref<Permission>],
+      permissions: [
+        documents.ids.GuestControlledDocumentClassPermission as Ref<Permission>,
+        documents.ids.GuestDocumentCategoryClassPermission as Ref<Permission>
+      ],
+      disabledPermissions: [
+        documents.ids.GuestControlledDocumentClassPermission as Ref<Permission>,
+        documents.ids.GuestDocumentCategoryClassPermission as Ref<Permission>
+      ],
       spaceClass: documents.class.OrgSpace,
       enabled: false,
       order: 42

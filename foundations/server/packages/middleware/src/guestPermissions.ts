@@ -48,9 +48,6 @@ interface GuestClassPermissionPolicy {
  */
 type RelatedCreateScope = Map<Ref<Space>, Set<Ref<Class<Doc>>>>
 
-/** The only increment a guest may apply to a permitted CustomSequence. */
-const GUEST_SEQUENCE_STEP = 1
-
 function emptyPermissionsCache (): GuestPermissionsCache {
   return { roleAllowedClasses: new Map(), rolePermissionPolicies: new Map() }
 }
@@ -230,10 +227,15 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   }
 
   private logForbiddenTx (ctx: MeasureContext, account: Account, tx: Tx, reason: string): void {
+    const isCud = TxProcessor.isExtendsCUD(tx._class)
     ctx.warn('Guest transaction rejected', {
       reason,
       accountRole: account.role,
-      objectClass: TxProcessor.isExtendsCUD(tx._class) ? (tx as TxCUD<Doc>).objectClass : tx._class
+      txClass: tx._class,
+      objectClass: isCud ? (tx as TxCUD<Doc>).objectClass : tx._class,
+      objectSpace: isCud ? (tx as TxCUD<Doc>).objectSpace : undefined,
+      // Only operation keys are logged, never values, to keep document content out of the logs.
+      operations: tx._class === core.class.TxUpdateDoc ? Object.keys((tx as TxUpdateDoc<Doc>).operations) : undefined
     })
   }
 
@@ -351,8 +353,8 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   }
 
   /**
-   * A guest may only create a permitted sequence from zero and advance it by one,
-   * so it cannot skip or reset document numbers.
+   * A guest may only create a permitted sequence from zero and move it forward,
+   * so it can never reset or reuse document numbers.
    */
   private async isAllowedSequenceTx (
     ctx: MeasureContext,
@@ -377,7 +379,15 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     const operations = (tx as TxUpdateDoc<CustomSequence>).operations as Record<string, unknown>
     if (Object.keys(operations).length !== 1) return false
     const increment = operations.$inc as Record<string, unknown> | undefined
-    if (increment === undefined || Object.keys(increment).length !== 1 || increment.sequence !== GUEST_SEQUENCE_STEP) {
+    const step = increment?.sequence
+    // A step above one is legitimate: allocation catches a lagging sequence up to the minimum in one increment.
+    if (
+      increment === undefined ||
+      Object.keys(increment).length !== 1 ||
+      typeof step !== 'number' ||
+      !Number.isSafeInteger(step) ||
+      step <= 0
+    ) {
       return false
     }
 

@@ -19,7 +19,7 @@
   import { type DocumentSpace } from '@hcengineering/controlled-documents'
 
   import documents from '../plugin'
-  import { canCreateControlledDocumentsStore } from '../stores/permissions'
+  import { canCreateControlledDocumentsStore, canCreateDocumentCategoriesStore } from '../stores/permissions'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   let dropdownItems: SelectPopupValueType[] = []
@@ -30,9 +30,11 @@
     Object.keys($permissionsStore.ps).some((space) =>
       checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
     )
-  $: canCreateCategory = Object.keys($permissionsStore.ps).some((space) =>
-    checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
-  )
+  $: canCreateCategory =
+    $canCreateDocumentCategoriesStore &&
+    Object.keys($permissionsStore.ps).some((space) =>
+      checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
+    )
   $: {
     dropdownItems = []
     if (canCreateTemplate) {
@@ -87,6 +89,18 @@
       label={documents.string.NewDocument}
       width="100%"
       on:click={newDocument}
+    />
+  {:else if canCreateCategory}
+    <!-- A guest may be allowed to create categories without being allowed to create documents. -->
+    <Button
+      icon={IconAdd}
+      justify="left"
+      kind="primary"
+      label={documents.string.NewDocumentCategory}
+      width="100%"
+      on:click={() => {
+        showPopup(CreateDocumentCategory, {})
+      }}
     />
   {/if}
 </div>

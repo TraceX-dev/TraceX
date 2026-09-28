@@ -377,11 +377,17 @@ describe('GuestPermissionsMiddleware', () => {
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceCreate('other.sequence', 0)])).rejects.toThrow()
     })
 
-    it('allows advancing a permitted sequence by one only', async () => {
+    it('allows moving a permitted sequence forward only', async () => {
       const mw = makePolicyMiddleware()
       await mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1 } })])
-      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1000 } })])).rejects.toThrow()
+      // Allocation catches a lagging sequence up to the minimum in a single increment.
+      await mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 42 } })])
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 0 } })])).rejects.toThrow()
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: -1 } })])).rejects.toThrow()
+      await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1.5 } })])).rejects.toThrow()
+      await expect(
+        mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ $inc: { sequence: 1, other: 1 } })])
+      ).rejects.toThrow()
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ sequence: 0 })])).rejects.toThrow()
       await expect(mw.tx(makeCtx(makeGuest()), [makeSequenceUpdate({ namespace: 'other.sequence' })])).rejects.toThrow()
     })

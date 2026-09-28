@@ -42,6 +42,7 @@ import core, {
   type Account,
   AccountRole,
   type Class,
+  type ClassPermission,
   type Client,
   type Doc,
   type DocumentQuery,
@@ -77,24 +78,32 @@ import { wizardOpened } from './stores/wizards/create-document'
 import { getPersonRefByPersonId, getPersonRefsByPersonIds } from '@hcengineering/contact-resources'
 
 /**
- * Whether the account may create controlled documents, given the module permission groups.
- * Users and above always can; guests only when the guest class permission is effectively granted.
+ * Whether the account holds a guest class permission of the documents module, given the module permission groups.
+ * Users and above always do; guests only when the permission is effectively granted to them.
  */
-export function isControlledDocumentCreationGranted (account: Account, groups: ModulePermissionGroup[]): boolean {
+export function isGuestClassPermissionGranted (
+  account: Account,
+  groups: ModulePermissionGroup[],
+  permission: Ref<ClassPermission>
+): boolean {
   if (hasAccountRole(account, AccountRole.User)) return true
   if (account.role !== AccountRole.Guest) return false
-  return isModulePermissionGranted(
-    groups,
-    AccountRole.Guest,
-    documentsResources.ids.GuestControlledDocumentClassPermission
-  )
+  return isModulePermissionGranted(groups, AccountRole.Guest, permission)
+}
+
+async function hasGuestClassPermission (client: Client, permission: Ref<ClassPermission>): Promise<boolean> {
+  const account = getCurrentAccount()
+  if (account.role !== AccountRole.Guest) return isGuestClassPermissionGranted(account, [], permission)
+  const groups = await client.findAll(core.class.ModulePermissionGroup, {})
+  return isGuestClassPermissionGranted(account, groups, permission)
 }
 
 export async function canCreateControlledDocuments (client: Client = getClient()): Promise<boolean> {
-  const account = getCurrentAccount()
-  if (account.role !== AccountRole.Guest) return isControlledDocumentCreationGranted(account, [])
-  const groups = await client.findAll(core.class.ModulePermissionGroup, {})
-  return isControlledDocumentCreationGranted(account, groups)
+  return await hasGuestClassPermission(client, documentsResources.ids.GuestControlledDocumentClassPermission)
+}
+
+export async function canCreateDocumentCategories (client: Client = getClient()): Promise<boolean> {
+  return await hasGuestClassPermission(client, documentsResources.ids.GuestDocumentCategoryClassPermission)
 }
 
 export type TranslatedDocumentStates = Readonly<Record<DocumentState, string>>

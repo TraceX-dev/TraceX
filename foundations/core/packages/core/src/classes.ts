@@ -606,8 +606,8 @@ export interface ClassPermission extends Permission {
    */
   relatedCreateClasses?: Array<Ref<Class<Doc>>>
   /**
-   * CustomSequence namespaces that may be created (starting from 0) and advanced by one
-   * for the permitted operation.
+   * CustomSequence namespaces that may be created (starting from 0) and advanced by a positive
+   * increment for the permitted operation.
    */
   sequenceNamespaces?: string[]
 }
