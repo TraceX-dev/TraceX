@@ -183,9 +183,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     const policies = await this.getPolicies(ctx, ctx.contextData.account)
     if (policies.length === 0) return scope
 
-    const createTxes = applyTx.txes.filter(
-      (tx): tx is TxCreateDoc<Doc> => tx._class === core.class.TxCreateDoc
-    )
+    const createTxes = applyTx.txes.filter((tx): tx is TxCreateDoc<Doc> => tx._class === core.class.TxCreateDoc)
     for (const tx of createTxes) {
       const permitted = await this.getCreatePolicies(ctx, tx, policies, scope)
       if (permitted.length === 0) continue
@@ -390,7 +388,10 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       const createTx = tx as TxCreateDoc<Doc>
       if ((await this.getCreatePolicies(ctx, createTx, policies, scope)).length > 0) return false
       const spaceRelatedClasses = scope.relatedCreates.get(tx.objectSpace)
-      if (spaceRelatedClasses !== undefined && this.getCoveredClass(tx.objectClass, spaceRelatedClasses) !== undefined) {
+      if (
+        spaceRelatedClasses !== undefined &&
+        this.getCoveredClass(tx.objectClass, spaceRelatedClasses) !== undefined
+      ) {
         return false
       }
       if (await this.isGuestRelatedCreateOnOwnDoc(ctx, createTx, account, policies, scope)) return false
@@ -404,7 +405,14 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
         (policy) => policy.guestUpdateAttributes !== undefined
       )
       if (restricting.doc !== undefined && restricting.policies.length > 0) {
-        if (this.isWhitelistedOwnUpdate(tx, restricting.doc, account, restricting.policies.map((it) => it.guestUpdateAttributes))) {
+        if (
+          this.isWhitelistedOwnUpdate(
+            tx,
+            restricting.doc,
+            account,
+            restricting.policies.map((it) => it.guestUpdateAttributes)
+          )
+        ) {
           return false
         }
         return !(await this.hasMixinAccessLevel(ctx, tx, account))

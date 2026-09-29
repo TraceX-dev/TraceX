@@ -78,10 +78,7 @@ import { wizardOpened } from './stores/wizards/create-document'
 import { getPersonRefByPersonId, getPersonRefsByPersonIds } from '@hcengineering/contact-resources'
 
 /** Checks whether the account may create objects in the documents module. */
-export function isGuestModuleCreateGranted (
-  account: Account,
-  groups: ModulePermissionGroup[]
-): boolean {
+export function isGuestModuleCreateGranted (account: Account, groups: ModulePermissionGroup[]): boolean {
   if (hasAccountRole(account, AccountRole.User)) return true
   if (account.role !== AccountRole.Guest) return false
   const documentGroups = groups.filter((group) => group.application === documentsResources.app.Documents)

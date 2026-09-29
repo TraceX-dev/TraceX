@@ -63,7 +63,14 @@ const docs = new Map<Ref<Doc>, Doc>([
   [ownUncovered, makeDoc(ownUncovered, UNCOVERED, GUEST)],
   [SPACE, makeDoc(SPACE, POLICY_SPACE_CLASS, OTHER, core.space.Space)],
   [OTHER_SPACE, makeDoc(OTHER_SPACE, OTHER_SPACE_CLASS, OTHER, core.space.Space)],
-  [sequenceId, { ...makeDoc(sequenceId, core.class.CustomSequence, GUEST, core.space.Workspace), namespace: NAMESPACE, sequence: 3 } as any]
+  [
+    sequenceId,
+    {
+      ...makeDoc(sequenceId, core.class.CustomSequence, GUEST, core.space.Workspace),
+      namespace: NAMESPACE,
+      sequence: 3
+    } as any
+  ]
 ])
 
 function makeGroup (overrides: Record<string, unknown> = {}): Doc {
@@ -158,10 +165,7 @@ async function forbidden (mw: GuestPermissionsMiddleware, txes: Tx[]): Promise<v
 
 describe('GuestPermissionsMiddleware module create policies', () => {
   describe('module create disabled', () => {
-    const disabledGroups = [
-      [makeGroup({ enabled: false })],
-      [makeGroup({ disabledPermissions: [GUEST_CREATE] })]
-    ]
+    const disabledGroups = [[makeGroup({ enabled: false })], [makeGroup({ disabledPermissions: [GUEST_CREATE] })]]
 
     it.each(disabledGroups)('forbids creating the target class', async (group) => {
       await forbidden(makeMiddleware([group]), [create(TARGET)])

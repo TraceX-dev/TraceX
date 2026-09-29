@@ -55,22 +55,19 @@ export interface GuestTxScope {
 }
 
 interface GuestPermissionsReader {
-  findAll<T extends Doc>(
+  findAll: <T extends Doc>(
     ctx: MeasureContext<SessionData>,
     _class: Ref<Class<T>>,
     query: DocumentQuery<T>,
     options?: FindOptions<T>
-  ): Promise<FindResult<T>>
+  ) => Promise<FindResult<T>>
 }
 
 function toAttributeMap (value: Record<string, string[]> | undefined): Map<string, Set<string>> {
   return new Map(Object.entries(value ?? {}).map(([mixin, attributes]) => [mixin, new Set(attributes)]))
 }
 
-function toPolicy (
-  permission: ClassPermission,
-  spaceClass: Ref<Class<Space>> | undefined
-): GuestClassPermissionPolicy {
+function toPolicy (permission: ClassPermission, spaceClass: Ref<Class<Space>> | undefined): GuestClassPermissionPolicy {
   return {
     targetClass: permission.targetClass,
     spaceClass,
