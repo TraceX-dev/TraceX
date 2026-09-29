@@ -28,7 +28,7 @@
   import { permissions } from '@hcengineering/view-resources'
 
   import DocTeam from './DocTeam.svelte'
-  import { filterExistingEmployees, updateExternalApproversAccess } from '../../utils'
+  import { updateExternalApproversAccess } from '../../utils'
 
   export let controlledDoc: ControlledDocument
   export let editable: boolean = true
@@ -63,9 +63,7 @@
   }): Promise<void> {
     if (!canEditMembers) return
 
-    const { type } = detail
-    // Drop refs to employees that do not exist in this workspace (phantom members)
-    const users = await filterExistingEmployees(client, detail.users)
+    const { type, users } = detail
 
     const request = detail.type === 'reviewers' ? reviewRequest : approvalRequest
     let requestUsers: Ref<Person>[] = []
@@ -77,7 +75,6 @@
     } else if (type === 'approvers') {
       requestUsers = [...users, ...controlledDoc.externalApprovers]
     }
-    requestUsers = await filterExistingEmployees(client, requestUsers)
 
     const ops = client.apply(controlledDoc._id)
 
