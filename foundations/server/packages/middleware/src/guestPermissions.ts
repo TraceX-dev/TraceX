@@ -183,7 +183,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     const policies = await this.getPolicies(ctx, ctx.contextData.account)
     if (policies.length === 0) return scope
 
-    const createTxes = getNestedTxes(applyTx).filter(
+    const createTxes = applyTx.txes.filter(
       (tx): tx is TxCreateDoc<Doc> => tx._class === core.class.TxCreateDoc
     )
     for (const tx of createTxes) {

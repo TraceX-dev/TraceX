@@ -137,6 +137,17 @@ function apply (txes: Tx[], notMatch: any[] = []): Tx {
   return factory.createTxApplyIf(SPACE, undefined, [], notMatch, txes as any, 'test')
 }
 
+function skippedApply (txes: Tx[]): Tx {
+  return factory.createTxApplyIf(
+    SPACE,
+    undefined,
+    [{ _class: TARGET, query: { _id: generateId() } }],
+    [],
+    txes as any,
+    'test'
+  )
+}
+
 async function allowed (mw: GuestPermissionsMiddleware, txes: Tx[]): Promise<void> {
   await mw.tx(makeCtx(), txes)
 }
@@ -181,6 +192,11 @@ describe('GuestPermissionsMiddleware module create policies', () => {
       await forbidden(mw, [apply([create(TARGET), create(RELATED, OTHER_SPACE)])])
     })
 
+    it('does not grant related create access from a conditional nested apply', async () => {
+      const mw = makeMiddleware()
+      await forbidden(mw, [apply([skippedApply([create(TARGET)]), create(RELATED)])])
+    })
+
     it('allows attaching a related class to an own target only', async () => {
       const mw = makeMiddleware()
       const attached = (parent: Ref<Doc>): Tx => create(RELATED, SPACE, { attachedTo: parent, attachedToClass: TARGET })
@@ -204,6 +220,13 @@ describe('GuestPermissionsMiddleware module create policies', () => {
       await allowed(mw, [factory.createTxMixin(ownTarget, BASE_CLASS, SPACE, MIXIN, { prefix: 'T' } as any)])
       await forbidden(mw, [factory.createTxMixin(ownTarget, BASE_CLASS, SPACE, MIXIN, { sequence: 9 } as any)])
       await forbidden(mw, [factory.createTxMixin(foreignTarget, BASE_CLASS, SPACE, MIXIN, { prefix: 'T' } as any)])
+    })
+
+    it('does not grant creation mixin access from a conditional nested apply', async () => {
+      const mw = makeMiddleware()
+      const forgedTarget = factory.createTxCreateDoc(TARGET, SPACE, {}, foreignTarget)
+      const mixin = factory.createTxMixin(foreignTarget, BASE_CLASS, SPACE, MIXIN, { prefix: 'T' } as any)
+      await forbidden(mw, [apply([skippedApply([forgedTarget]), mixin])])
     })
 
     it('keeps mixins unrestricted for classes without a restricting policy', async () => {
