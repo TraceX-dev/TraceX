@@ -25,6 +25,7 @@ import {
   type AttributePermission,
   type Class,
   type ClassPermission,
+  type GuestAssigneePolicy,
   type CollectionSize,
   type Doc,
   type Permission,
@@ -213,6 +214,10 @@ export class TClassPermission extends TPermission implements ClassPermission {
   @Prop(ArrOf(TypeString()), getEmbeddedLabel('Sequence namespaces'))
   @Hidden()
     sequenceNamespaces?: string[]
+
+  @Prop(TypeRecord(), getEmbeddedLabel('Guest assignee'))
+  @Hidden()
+    guestAssignee?: GuestAssigneePolicy
 }
 
 @Mixin(core.mixin.SpacesTypeData, core.class.Space)

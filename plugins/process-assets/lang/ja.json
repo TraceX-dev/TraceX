@@ -154,6 +154,8 @@
     "CancelProcessPermission": "プロセスをキャンセル",
     "ForbidRunProcessPermission": "プロセスの実行を禁止",
     "ForbidCancelProcessPermission": "Forbid cancelling process",
+    "GuestParticipatePermission": "割り当てられたプロセスタスクを完了する",
+    "GuestInputNotSupported": "このタスクは入力が必要なため、ゲストはまだ完了できません",
     "RequestApproval": "承認をリクエスト",
     "IsApproved": "承認済み",
     "Approve": "承認",
@@ -234,6 +236,7 @@
     "RequiredParamsNotProvided": "必須パラメータが提供されていません: {params}",
     "ResultNotProvided": "結果が提供されていません",
     "TooDeepTransitionRecursion": "遷移の再帰が深すぎます",
-    "ToDoAlreadyCompleted": "アクションは既に完了しています"
+    "ToDoAlreadyCompleted": "アクションは既に完了しています",
+    "GuestWithoutCardAccess": "ゲスト {user} はカードにアクセスできないため割り当てられません"
   }
 }

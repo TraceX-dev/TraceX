@@ -614,6 +614,24 @@ export interface ClassPermission extends Permission {
   relatedCreateClasses?: Array<Ref<Class<Doc>>>
   /** Custom sequence namespaces allowed by the policy. */
   sequenceNamespaces?: string[]
+  /** Lets guests update target documents assigned to them. */
+  guestAssignee?: GuestAssigneePolicy
+}
+
+/**
+ * Update access for documents assigned to a guest, e.g. a task the guest has to complete.
+ *
+ * @public
+ */
+export interface GuestAssigneePolicy {
+  /** Attribute holding the assigned `Person`. */
+  field: string
+  /** Attributes the assignee may change; attributes missing on the document class are rejected. */
+  attributes: string[]
+  /** Update is allowed only while this attribute is empty, e.g. `doneOn` of an open task. */
+  openField?: string
+  /** The assignee must be able to read the document it is attached to, e.g. the card of a process task. */
+  requireAttachedToAccess?: boolean
 }
 
 /**

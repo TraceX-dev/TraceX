@@ -152,6 +152,8 @@
     "CancelProcessPermission": "Süreci iptal et",
     "ForbidRunProcessPermission": "Süreci çalıştırmayı yasakla",
     "ForbidCancelProcessPermission": "Forbid cancelling process",
+    "GuestParticipatePermission": "Atanan süreç görevlerini tamamla",
+    "GuestInputNotSupported": "Bu görev veri girişi istiyor, misafirler henüz tamamlayamaz",
     "RequestApproval": "Onay iste",
     "IsApproved": "Onaylandı",
     "Approve": "Onayla",
@@ -230,6 +232,7 @@
     "ContextValueNotProvided": "Bağlam değeri sağlanmadı: {name}",
     "RequiredParamsNotProvided": "Gerekli parametreler sağlanmadı: {params}",
     "TooDeepTransitionRecursion": "Çok derin geçiş özyinelemesi",
-    "ToDoAlreadyCompleted": "Eylem öğesi zaten tamamlandı"
+    "ToDoAlreadyCompleted": "Eylem öğesi zaten tamamlandı",
+    "GuestWithoutCardAccess": "Misafir {user} karta erişemez ve atanamaz"
   }
 }

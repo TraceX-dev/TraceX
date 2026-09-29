@@ -22,9 +22,12 @@ import {
 import core, {
   type Account,
   AccountRole,
+  type AttachedDoc,
   type Class,
+  type Collaborator,
   type CustomSequence,
   type Doc,
+  getClassCollaborators,
   hasAccountRole,
   type MeasureContext,
   type PersonId,
@@ -351,6 +354,86 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return this.isCreatedByAccount(doc, account)
   }
 
+  /**
+   * An update of a document assigned to the guest, e.g. completing its process task. Allowed when a policy
+   * of the document class has a `guestAssignee` rule and every condition of the rule holds.
+   */
+  private async isAssigneeUpdate (
+    ctx: MeasureContext,
+    tx: TxUpdateDoc<Doc>,
+    account: Account,
+    policies: GuestClassPermissionPolicy[]
+  ): Promise<boolean> {
+    const h = this.context.hierarchy
+    const candidates = policies.filter(
+      (policy) => policy.guestAssignee !== undefined && h.isDerived(tx.objectClass, policy.targetClass)
+    )
+    if (candidates.length === 0) return false
+    const updated = getUpdatedAttributes(tx.operations as Record<string, unknown>)
+    if (updated === undefined) return false
+    const doc = await this.findDoc(ctx, tx.objectClass, tx.objectId)
+    if (doc === undefined || doc.space !== tx.objectSpace) return false
+
+    for (const policy of candidates) {
+      const rule = policy.guestAssignee
+      if (rule === undefined || !h.isDerived(doc._class, policy.targetClass)) continue
+      // Attributes of a derived class are allowed only on documents of that class.
+      const allowed = Array.from(updated).every(
+        (attribute) => rule.attributes.includes(attribute) && h.findAttribute(doc._class, attribute) !== undefined
+      )
+      if (!allowed) continue
+      if (rule.openField !== undefined && (doc as any)[rule.openField] != null) continue
+      if (!(await this.isAssignedTo(ctx, (doc as any)[rule.field], account))) continue
+      if (rule.requireAttachedToAccess === true && !(await this.canReadAttachedTo(ctx, doc, account))) continue
+      return true
+    }
+    return false
+  }
+
+  private async isAssignedTo (ctx: MeasureContext, assignee: unknown, account: Account): Promise<boolean> {
+    if (typeof assignee !== 'string') return false
+    const person = (await this.findDoc(ctx, contact.class.Person, assignee as Ref<Doc>)) as Person | undefined
+    return person?.personUuid === account.uuid
+  }
+
+  private async canReadAttachedTo (ctx: MeasureContext, doc: Doc, account: Account): Promise<boolean> {
+    const { attachedTo, attachedToClass } = doc as Partial<AttachedDoc>
+    if (attachedTo == null || attachedToClass == null) return false
+    const target = await this.findDoc(ctx, attachedToClass, attachedTo)
+    return target !== undefined && (await this.canGuestRead(ctx, target, account))
+  }
+
+  /**
+   * Mirrors the read security the storage applies to guests: a document is readable in the shared and
+   * system spaces, in non-archived spaces the guest is a member of, and through collaborator security.
+   * This middleware runs below the find security, so its own finds are not filtered.
+   */
+  private async canGuestRead (ctx: MeasureContext, doc: Doc, account: Account): Promise<boolean> {
+    const space = await this.findDoc(ctx, core.class.Space, doc.space)
+    if (space !== undefined && !(space as Space).archived) {
+      if (
+        space._id === core.space.Space ||
+        space._class === core.class.SystemSpace ||
+        (space as Space).members.includes(account.uuid)
+      ) {
+        return true
+      }
+    }
+    const collabSec = getClassCollaborators(this.context.modelDb, this.context.hierarchy, doc._class)
+    const targets: Array<Ref<Doc>> = []
+    if (collabSec?.provideSecurity === true) targets.push(doc._id)
+    const attachedTo = (doc as Partial<AttachedDoc>).attachedTo
+    if (collabSec?.provideAttachedSecurity === true && attachedTo != null) targets.push(attachedTo)
+    if (targets.length === 0) return false
+    const collaborators = await this.findAll(
+      ctx,
+      core.class.Collaborator,
+      { attachedTo: { $in: targets }, collaborator: account.uuid },
+      { limit: 1 }
+    )
+    return (collaborators as Collaborator[]).length > 0
+  }
+
   private async isForbiddenTx (
     ctx: MeasureContext,
     tx: TxCUD<Doc>,
@@ -395,6 +478,13 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
         return false
       }
       if (await this.isGuestRelatedCreateOnOwnDoc(ctx, createTx, account, policies, scope)) return false
+    }
+
+    if (
+      tx._class === core.class.TxUpdateDoc &&
+      (await this.isAssigneeUpdate(ctx, tx as TxUpdateDoc<Doc>, account, policies))
+    ) {
+      return false
     }
 
     if (tx._class === core.class.TxUpdateDoc) {

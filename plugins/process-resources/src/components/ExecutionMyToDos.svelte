@@ -14,11 +14,13 @@
 -->
 <script lang="ts">
   import { getCurrentEmployee } from '@hcengineering/contact'
+  import { getCurrentAccount } from '@hcengineering/core'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { ApproveRequest, Execution, ExecutionStatus, ProcessToDo } from '@hcengineering/process'
   import { Button } from '@hcengineering/ui'
   import plugin from '../plugin'
+  import { canParticipateInProcessesStore, isGuestInputRequired } from '../guestParticipation'
   import ApproveRequestButtons from './ApproveRequestButtons.svelte'
 
   export let value: Execution
@@ -28,6 +30,7 @@
   const client = getClient()
 
   const emp = getCurrentEmployee()
+  const account = getCurrentAccount()
 
   const query = createQuery()
   $: if (value.status === ExecutionStatus.Active) {
@@ -58,10 +61,18 @@
   }
 </script>
 
-{#each todos as todo (todo._id)}
-  {#if isRequest(todo)}
-    <ApproveRequestButtons {todo} card={value.card} />
-  {:else}
-    <Button label={getEmbeddedLabel(todo.title)} on:click={() => checkTodo(todo)} />
-  {/if}
-{/each}
+{#if $canParticipateInProcessesStore}
+  {#each todos as todo (todo._id)}
+    {#if isRequest(todo)}
+      <ApproveRequestButtons {todo} card={value.card} />
+    {:else}
+      {@const inputBlocked = isGuestInputRequired(account, todo)}
+      <Button
+        label={getEmbeddedLabel(todo.title)}
+        disabled={inputBlocked}
+        showTooltip={inputBlocked ? { label: plugin.string.GuestInputNotSupported } : undefined}
+        on:click={() => checkTodo(todo)}
+      />
+    {/if}
+  {/each}
+{/if}

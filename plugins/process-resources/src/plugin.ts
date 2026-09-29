@@ -279,6 +279,8 @@ export default mergeIds(processId, process, {
     RunProcessPermission: '' as IntlString,
     CancelProcessPermission: '' as IntlString,
     ForbidRunProcessPermission: '' as IntlString,
+    GuestParticipatePermission: '' as IntlString,
+    GuestInputNotSupported: '' as IntlString,
     ForbidCancelProcessPermission: '' as IntlString,
     CancelToDo: '' as IntlString,
     RequestApproval: '' as IntlString,
@@ -340,6 +342,8 @@ export default mergeIds(processId, process, {
     RunProcess: '' as Ref<Permission>,
     CancelProcess: '' as Ref<Permission>,
     ForbidRunProcess: '' as Ref<Permission>,
-    ForbidCancelProcess: '' as Ref<Permission>
+    ForbidCancelProcess: '' as Ref<Permission>,
+    /** Guest policy: complete process tasks assigned to the guest. */
+    GuestParticipate: '' as Ref<Permission>
   }
 })

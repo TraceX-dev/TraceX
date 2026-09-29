@@ -155,6 +155,8 @@
     "CancelProcessPermission": "取消过程",
     "ForbidRunProcessPermission": "禁止运行过程",
     "ForbidCancelProcessPermission": "禁止取消过程",
+    "GuestParticipatePermission": "完成分配的流程任务",
+    "GuestInputNotSupported": "此任务需要输入，访客暂时无法完成",
     "RequestApproval": "请求批准",
     "IsApproved": "批准",
     "Approve": "批准",
@@ -235,6 +237,7 @@
     "ContextValueNotProvided": "未提供上下文值：{name}",
     "RequiredParamsNotProvided": "未提供必需的参数：{params}",
     "TooDeepTransitionRecursion": "转换递归过深",
-    "ToDoAlreadyCompleted": "任务已完成"
+    "ToDoAlreadyCompleted": "任务已完成",
+    "GuestWithoutCardAccess": "访客 {user} 无权访问该卡片，无法被分配"
   }
 }

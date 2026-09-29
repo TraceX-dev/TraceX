@@ -155,6 +155,8 @@
     "CancelProcessPermission": "Anuluj proces",
     "ForbidRunProcessPermission": "Zabroń uruchamiania procesu",
     "ForbidCancelProcessPermission": "Zabroń anulowania procesu",
+    "GuestParticipatePermission": "Wykonywać przypisane zadania procesów",
+    "GuestInputNotSupported": "To zadanie wymaga danych, goście nie mogą go jeszcze wykonać",
     "RequestApproval": "Wymagaj zatwierdzenia",
     "IsApproved": "Zatwierdzono",
     "Approve": "Zatwierdź",
@@ -235,6 +237,7 @@
     "ContextValueNotProvided": "Wartość kontekstowa nie została podana: {name}",
     "RequiredParamsNotProvided": "Wymagane parametry nie zostały podane: {params}",
     "TooDeepTransitionRecursion": "Zbyt głęboka rekursja przejścia",
-    "ToDoAlreadyCompleted": "Działanie zostało już ukończone"
+    "ToDoAlreadyCompleted": "Działanie zostało już ukończone",
+    "GuestWithoutCardAccess": "Gość {user} nie ma dostępu do karty i nie może zostać przypisany"
   }
 }
