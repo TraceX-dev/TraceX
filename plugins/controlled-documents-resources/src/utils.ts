@@ -238,11 +238,25 @@ export interface TeamPopupData {
   requireSignature?: boolean
 }
 
+/**
+ * Keeps only refs of employees that exist in the current workspace.
+ * Dangling refs (e.g. left after a cross-workspace export) are invisible in the UI,
+ * but would be counted as required approvers and block the request forever.
+ */
+export async function filterExistingEmployees<T extends Ref<Person>> (client: TxOperations, users: T[]): Promise<T[]> {
+  if (users.length === 0) return users
+  const existing = await client.findAll(contact.mixin.Employee, { _id: { $in: users as Array<Ref<Employee>> } })
+  const existingIds = new Set<Ref<Person>>(existing.map((e) => e._id))
+  return users.filter((u) => existingIds.has(u))
+}
+
 export async function sendReviewRequest (
   client: TxOperations,
   controlledDoc: ControlledDocument,
   reviewers: Array<Ref<Employee>>
 ): Promise<void> {
+  reviewers = await filterExistingEmployees(client, reviewers)
+
   const approveTx = client.txFactory.createTxUpdateDoc(controlledDoc._class, controlledDoc.space, controlledDoc._id, {
     controlledState: ControlledDocumentState.Reviewed
   })
@@ -272,6 +286,9 @@ export async function sendApprovalRequest (
   externalApprovers: Array<Ref<Employee>>,
   oldExternalApprovers: Array<Ref<Employee>>
 ): Promise<void> {
+  approvers = await filterExistingEmployees(client, approvers)
+  externalApprovers = await filterExistingEmployees(client, externalApprovers)
+
   const approveTx = client.txFactory.createTxUpdateDoc(controlledDoc._class, controlledDoc.space, controlledDoc._id, {
     controlledState: ControlledDocumentState.Approved
   })

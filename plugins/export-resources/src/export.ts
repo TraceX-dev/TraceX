@@ -54,7 +54,12 @@ export async function exportToWorkspace (
         state: 'draft',
         major: 1,
         minor: 0,
+        // Team members are Employee refs of the source workspace and do not exist in the target one.
+        // Keeping them creates "phantom" members that block review/approval of the exported document.
         reviewers: [],
+        approvers: [],
+        externalApprovers: [],
+        coAuthors: [],
         controlledState: '',
         seqNumber: '$generateSeqNumber',
         code: '$preserveUniqueCode'
