@@ -116,17 +116,29 @@ export class ApiEndpoint {
     return await response.json()
   }
 
-  private async getWorkspaceToken (email: string, password: string, workspaceUrl: string): Promise<string> {
-    const token = await this.loginAndGetToken(email, password)
+  /**
+   * Logs in and selects the workspace: the result carries the workspace token, uuid and transactor endpoint.
+   */
+  async getWorkspaceLoginInfo (
+    email: string,
+    password: string,
+    workspaceUrl: string
+  ): Promise<WorkspaceLoginInfo & { token: string }> {
+    const accountToken = await this.loginAndGetToken(email, password)
     const response = await this.request.post(this.baseUrl, {
       data: { method: 'selectWorkspace', params: { workspaceUrl } },
-      headers: this.getDefaultHeaders(token)
+      headers: this.getDefaultHeaders(accountToken)
     })
-    const wsToken: string | undefined = (await response.json()).result?.token
-    if (wsToken === undefined) {
+    const info: WorkspaceLoginInfo | undefined = (await response.json()).result
+    const token = info?.token
+    if (info === undefined || token === undefined) {
       throw new Error(`Failed to select workspace ${workspaceUrl}`)
     }
-    return wsToken
+    return { ...info, token }
+  }
+
+  private async getWorkspaceToken (email: string, password: string, workspaceUrl: string): Promise<string> {
+    return (await this.getWorkspaceLoginInfo(email, password, workspaceUrl)).token
   }
 
   /**

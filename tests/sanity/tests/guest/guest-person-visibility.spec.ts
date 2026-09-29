@@ -15,10 +15,7 @@ limitations under the License.
 */
 
 import { AccountRole } from '@hcengineering/core'
-import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test'
-import { ApiEndpoint } from '../API/Api'
-import { LeftSideMenuPage } from '../model/left-side-menu-page'
-import { LoginPage } from '../model/login-page'
+import { expect, test, type Browser, type Page } from '@playwright/test'
 import { SpotlightPopup } from '../model/spotlight-popup'
 import { IssuesDetailsPage } from '../model/tracker/issues-details-page'
 import { IssuesPage } from '../model/tracker/issues-page'
@@ -26,16 +23,8 @@ import { NewProjectPage } from '../model/tracker/new-project-page'
 import { TrackerNavigationMenuPage } from '../model/tracker/tracker-navigation-menu-page'
 import { prepareNewIssueWithOpenStep } from '../tracker/common-steps'
 import { generateProjectId } from '../tracker/tracker.utils'
-import {
-  generateId,
-  generateUser,
-  PlatformSetting,
-  PlatformURI,
-  PlatformUser,
-  PlatformWs,
-  setTestOptions,
-  waitForNetworIdle
-} from '../utils'
+import { generateId, generateUser, PlatformURI, PlatformWs, setTestOptions, waitForNetworIdle } from '../utils'
+import { createWorkspaceMember, loginAs, newIssueButton, openAsOwner, type OpenedPage } from './guest-utils'
 
 // Employees of the sanity-ws dump.
 // PlatformUser: creates the private project and shares it with the guest.
@@ -45,11 +34,6 @@ const HIDDEN_NAME = 'Chen Rosamund'
 
 // The mention popup and spotlight search asynchronously; give a negative check time to settle.
 const SEARCH_SETTLE_MS = 1000
-
-interface OpenedPage {
-  page: Page
-  context: BrowserContext
-}
 
 test.describe('Guest person visibility', () => {
   test.describe.configure({ mode: 'serial' })
@@ -65,25 +49,7 @@ test.describe('Guest person visibility', () => {
     // Setup creates an account, a project and an issue through the UI: more than a single test budget.
     test.setTimeout(180_000)
 
-    const request = await playwright.request.newContext()
-    try {
-      const api = new ApiEndpoint(request)
-      await api.createAccount(guest.email, guest.password, guest.firstName, guest.lastName)
-      const inviteId = await api.createWorkspaceInvite(PlatformUser, '1234', PlatformWs, AccountRole.Guest)
-      await api.joinWorkspace(guest.email, guest.password, inviteId, PlatformWs)
-    } finally {
-      await request.dispose()
-    }
-
-    // Employee (and its Person) of a new member is created on the first workbench connect,
-    // so the guest has to open the workspace once before it can be added to a project.
-    const guestSession = await loginAsGuest(browser)
-    try {
-      await (await guestSession.page.goto(`${PlatformURI}/workbench/${PlatformWs}`))?.finished()
-      await expect(new LeftSideMenuPage(guestSession.page).profileButton()).toBeVisible()
-    } finally {
-      await guestSession.context.close()
-    }
+    await createWorkspaceMember(playwright, browser, guest, AccountRole.Guest)
 
     const { page, context } = await openAsOwner(browser)
     try {
@@ -110,21 +76,8 @@ test.describe('Guest person visibility', () => {
     }
   })
 
-  async function openAsOwner (browser: Browser): Promise<OpenedPage> {
-    const context = await browser.newContext({ storageState: PlatformSetting })
-    const page = await context.newPage()
-    await (await page.goto(`${PlatformURI}/workbench/${PlatformWs}`))?.finished()
-    await setTestOptions(page)
-    return { page, context }
-  }
-
   async function loginAsGuest (browser: Browser): Promise<OpenedPage> {
-    const context = await browser.newContext()
-    const page = await context.newPage()
-    await (await page.goto(`${PlatformURI}/login/login`))?.finished()
-    await new LoginPage(page).login(guest.email, guest.password)
-    await page.waitForURL((url) => !url.pathname.startsWith('/login/login'))
-    return { page, context }
+    return await loginAs(browser, guest)
   }
 
   async function openIssueAsGuest (browser: Browser): Promise<OpenedPage & { details: IssuesDetailsPage }> {
@@ -153,12 +106,6 @@ test.describe('Guest person visibility', () => {
    * Opens the "New issue" form. Its assignee picker and description editor (mentions) are editable
    * for a guest, unlike the fields of an existing issue.
    */
-  // IssuesPage.buttonCreateNewIssue expects the split button of a regular user (`button > div`);
-  // for a guest "New issue" is a plain button, so locate it by role.
-  function newIssueButton (page: Page): Locator {
-    return page.getByRole('button', { name: 'New issue', exact: true }).first()
-  }
-
   async function openNewIssueForm (page: Page): Promise<IssuesPage> {
     const issuesPage = new IssuesPage(page)
     await newIssueButton(page).click()
