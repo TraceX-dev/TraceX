@@ -119,9 +119,25 @@ export async function resolveSelectionQuery (
   client: Client,
   cardId: Ref<Doc> | undefined,
   selectionSpace: Ref<Space> | undefined,
-  relation?: SelectionRelation
+  relation?: SelectionRelation,
+  selectionClass?: Ref<Class<Doc>>,
+  versions?: SelectionRelation['versions']
 ): Promise<DocumentQuery<Doc>> {
   const query: DocumentQuery<Doc> = selectionSpace !== undefined ? { space: selectionSpace } : {}
+  const association = relation !== undefined ? client.getModel().getObject(relation.association) : undefined
+  const targetClass =
+    selectionClass ??
+    (association !== undefined ? (relation?.direction === 'A' ? association.classA : association.classB) : undefined)
+  const selectedVersions = versions ?? relation?.versions
+  if (
+    targetClass !== undefined &&
+    (relation !== undefined || selectedVersions !== undefined) &&
+    client.getHierarchy().classHierarchyMixin(targetClass, core.mixin.VersionableClass) !== undefined
+  ) {
+    // Explicitly include historical targets so versioning middleware preserves the selection query.
+    query.isLatest = selectedVersions === 'latest' ? true : { $in: [true, false] }
+    if (selectedVersions === 'effective') query.isEffective = true
+  }
   if (relation === undefined) return query
   if (cardId === undefined) {
     throw processError(process.error.ContextValueNotProvided, { name: 'card' })

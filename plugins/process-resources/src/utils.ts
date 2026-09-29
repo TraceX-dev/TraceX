@@ -690,13 +690,24 @@ export async function getTransitionUserInput (
             action.methodId === process.method.AddRelation && target?.type === 'userRequest' && target.id === input.id
               ? {
                   association: action.params.association as Ref<Association>,
-                  direction: action.params.direction as 'A' | 'B'
+                  direction: action.params.direction as 'A' | 'B',
+                  versions:
+                    action.params.versions === 'latest' || action.params.versions === 'effective'
+                      ? action.params.versions
+                      : 'all'
                 }
               : undefined
           return {
             ...input,
             selectionSpace,
-            docQuery: await resolveSelectionQuery(client, cardId, selectionSpace, relation)
+            docQuery: await resolveSelectionQuery(
+              client,
+              cardId,
+              selectionSpace,
+              relation,
+              input.key === '' || input.key === '_id' ? input._class : undefined,
+              input.versions
+            )
           }
         })
       )

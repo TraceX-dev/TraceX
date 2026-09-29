@@ -39,8 +39,8 @@
   const hierarchy = client.getHierarchy()
 
   $: query = {
-    ...docQuery,
-    isLatest: true
+    isLatest: true,
+    ...docQuery
   }
 </script>
 

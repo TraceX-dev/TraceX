@@ -1,5 +1,9 @@
 {
   "string": {
+    "SelectionVersions": "Versions available for selection",
+    "OnlyEffectiveVersions": "Only effective versions",
+    "OnlyLatestVersions": "Only latest versions",
+    "AllVersions": "All versions",
     "MultipleSelection": "Multiple selection",
     "ExcludeRelatedObjects": "Exclude objects already linked by relation",
     "RemoveTag": "Remove tag",

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import core from '@hcengineering/core'
-import type { Association, Client, Doc, Ref, Space } from '@hcengineering/core'
+import type { Association, Class, Client, Doc, Ref, Space } from '@hcengineering/core'
 import { createContext } from '@hcengineering/process'
 import type { ContextId, ExecutionContext, Process, SelectedContext } from '@hcengineering/process'
 import { resolveSelectionQuery, resolveSelectionSpace } from '../selection-space'
@@ -116,7 +116,16 @@ test('does not remove the restriction when the referenced object is unavailable'
 describe('relation selection', () => {
   const association = 'association' as Ref<Association>
   const findAll = jest.fn()
-  const relationClient = { findAll } as unknown as Client
+  const classHierarchyMixin = jest.fn()
+  const relationClient = {
+    findAll,
+    getModel: () => ({ getObject: () => ({ classA: 'class-a', classB: 'class-b' }) }),
+    getHierarchy: () => ({ classHierarchyMixin })
+  } as unknown as Client
+
+  beforeEach(() => {
+    classHierarchyMixin.mockReset()
+  })
 
   test.each(['A', 'B'] as const)('excludes only targets on side %s and retains the space', async (direction) => {
     findAll.mockReset().mockResolvedValue([
@@ -129,6 +138,77 @@ describe('relation selection', () => {
       ...(direction === 'A' ? { docB: doc._id } : { docA: doc._id })
     })
     expect(query).toEqual({ space: targetSpace, _id: { $nin: [direction === 'A' ? 'target-a' : 'target-b'] } })
+  })
+
+  test.each(['A', 'B'] as const)('explicitly includes historical relation targets on side %s', async (direction) => {
+    classHierarchyMixin.mockReturnValue({ enabled: true })
+    findAll.mockResolvedValue([])
+    const query = await resolveSelectionQuery(relationClient, doc._id, targetSpace, { association, direction })
+    expect(classHierarchyMixin).toHaveBeenCalledWith(
+      direction === 'A' ? 'class-a' : 'class-b',
+      core.mixin.VersionableClass
+    )
+    expect(query).toEqual({ space: targetSpace, isLatest: { $in: [true, false] }, _id: { $nin: [] } })
+  })
+
+  test.each([
+    ['all', { isLatest: { $in: [true, false] } }],
+    ['latest', { isLatest: true }],
+    ['effective', { isLatest: { $in: [true, false] }, isEffective: true }]
+  ] as const)('applies the %s version mode without losing selection constraints', async (versions, expected) => {
+    classHierarchyMixin.mockReturnValue({ enabled: true })
+    findAll.mockResolvedValue([{ docA: doc._id, docB: 'linked-version' }])
+    const query = await resolveSelectionQuery(relationClient, doc._id, targetSpace, {
+      association,
+      direction: 'B',
+      versions
+    })
+    expect(query).toEqual({ space: targetSpace, ...expected, _id: { $nin: ['linked-version'] } })
+  })
+
+  test('does not filter non-versionable targets by version fields', async () => {
+    findAll.mockResolvedValue([])
+    await expect(
+      resolveSelectionQuery(relationClient, doc._id, undefined, {
+        association,
+        direction: 'B',
+        versions: 'effective'
+      })
+    ).resolves.toEqual({ _id: { $nin: [] } })
+  })
+
+  test('request settings override legacy AddRelation settings', async () => {
+    classHierarchyMixin.mockReturnValue({ enabled: true })
+    findAll.mockResolvedValue([])
+    const query = await resolveSelectionQuery(
+      relationClient,
+      doc._id,
+      targetSpace,
+      { association, direction: 'B', versions: 'latest' },
+      'class-b' as Ref<Class<Doc>>,
+      'effective'
+    )
+    expect(query).toEqual({
+      space: targetSpace,
+      isLatest: { $in: [true, false] },
+      isEffective: true,
+      _id: { $nin: [] }
+    })
+  })
+
+  test('applies request version settings without a relation', async () => {
+    classHierarchyMixin.mockReturnValue({ enabled: true })
+    findAll.mockReset()
+    const query = await resolveSelectionQuery(
+      relationClient,
+      undefined,
+      targetSpace,
+      undefined,
+      'class-b' as Ref<Class<Doc>>,
+      'effective'
+    )
+    expect(query).toEqual({ space: targetSpace, isLatest: { $in: [true, false] }, isEffective: true })
+    expect(findAll).not.toHaveBeenCalled()
   })
 
   test('does not query relations without a configured restriction', async () => {

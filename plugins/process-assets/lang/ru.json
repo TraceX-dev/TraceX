@@ -1,5 +1,9 @@
 {
   "string": {
+    "SelectionVersions": "Версии для выбора",
+    "OnlyEffectiveVersions": "Только эффективные",
+    "OnlyLatestVersions": "Только последние",
+    "AllVersions": "Все версии",
     "MultipleSelection": "Множественный выбор",
     "ExcludeRelatedObjects": "Исключать объекты с существующей связью",
     "RemoveTag": "Снять тег",

@@ -35,6 +35,7 @@
   import { AttributeCategory } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
+  import RelationVersionsEditor from '../settings/RelationVersionsEditor.svelte'
   import FallbackEditor from '../contextEditors/FallbackEditor.svelte'
   import RelationTableConfigPopup from '../contextEditors/RelationTableConfigPopup.svelte'
 
@@ -353,6 +354,17 @@
           on:change={(event) => {
             if (contextValue.type === 'userRequest') {
               contextValue.multiple = event.detail
+              onChange(contextValue)
+            }
+          }}
+        />
+      {/if}
+      {#if (contextValue.key === '' || contextValue.key === '_id') && hierarchy.classHierarchyMixin(attrClass, core.mixin.VersionableClass) !== undefined}
+        <RelationVersionsEditor
+          value={contextValue.versions ?? 'all'}
+          on:change={(event) => {
+            if (contextValue.type === 'userRequest') {
+              contextValue.versions = event.detail
               onChange(contextValue)
             }
           }}

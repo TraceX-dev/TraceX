@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Class, Doc, type AnyAttribute, type Association, type Ref } from '@hcengineering/core'
-import { ContextId, ProcessFunction } from '.'
+import { ContextId, ProcessFunction, type SelectionRelation } from '.'
 
 export interface Context {
   functions: Ref<ProcessFunction>[]
@@ -92,6 +92,7 @@ export interface SelectedUserRequest extends BaseSelectedContext {
   id: ContextId
   selectionSpace?: string // Space reference or serialized process context
   multiple?: boolean
+  versions?: SelectionRelation['versions']
 }
 
 export interface SelectedExecutionContext extends BaseSelectedContext {
