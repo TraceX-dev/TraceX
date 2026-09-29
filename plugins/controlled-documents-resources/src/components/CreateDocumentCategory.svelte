@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,6 +27,7 @@
 
   import IconWarning from './icons/IconWarning.svelte'
   import documents from '../plugin'
+  import { canGuestCreateDocumentsStore } from '../stores/permissions'
 
   const _id = generateId<DocumentCategory>()
   export let space: Ref<DocumentSpace> | undefined = undefined
@@ -43,7 +45,9 @@
   ) as Ref<TypedSpace>[]
   $: spaceQuery = { _id: { $nin: restrictedSpaces }, archived: false }
   $: canCreate =
-    space !== undefined && checkMyPermission(documents.permission.CreateDocumentCategory, space, $permissionsStore)
+    $canGuestCreateDocumentsStore &&
+    space !== undefined &&
+    checkMyPermission(documents.permission.CreateDocumentCategory, space, $permissionsStore)
 
   async function handleOkAction (): Promise<void> {
     if (isCodeWrong || isTitleWrong || !canCreate || space === undefined) {

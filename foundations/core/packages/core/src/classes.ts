@@ -592,6 +592,8 @@ export interface Permission extends Doc {
   txMatch?: DocumentQuery<Tx>
   description?: IntlString
   icon?: Asset
+  /** Enables the module's guest creation policies. */
+  guestCreate?: boolean
 }
 
 export interface AttributePermission extends Permission {
@@ -600,6 +602,18 @@ export interface AttributePermission extends Permission {
 
 export interface ClassPermission extends Permission {
   targetClass: Ref<Class<Doc>>
+  /** Module that owns this guest creation policy. */
+  application?: Ref<Doc>
+  /** Attributes guests may update on their own target documents. */
+  guestUpdateAttributes?: string[]
+  /** Mixin attributes guests may update on their own target documents. */
+  guestUpdateMixinAttributes?: Record<string, string[]>
+  /** Mixin attributes allowed while creating a target document. */
+  guestCreateMixinAttributes?: Record<string, string[]>
+  /** Related classes allowed for guest-created target documents. */
+  relatedCreateClasses?: Array<Ref<Class<Doc>>>
+  /** Custom sequence namespaces allowed by the policy. */
+  sequenceNamespaces?: string[]
 }
 
 /**

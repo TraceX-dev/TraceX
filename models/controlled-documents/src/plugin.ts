@@ -15,7 +15,7 @@
 
 import { documentsId } from '@hcengineering/controlled-documents'
 import documents from '@hcengineering/controlled-documents-resources/src/plugin'
-import type { Client, Doc, Ref } from '@hcengineering/core'
+import type { ClassPermission, Client, Doc, Ref } from '@hcengineering/core'
 import { type ObjectSearchCategory, type ObjectSearchFactory } from '@hcengineering/model-presentation'
 import { mergeIds, type Resource } from '@hcengineering/platform'
 import { type TagCategory } from '@hcengineering/tags'
@@ -94,6 +94,8 @@ export default mergeIds(documentsId, documents, {
   },
   ids: {
     ModulePermissionGroup: '' as Ref<Doc>,
-    ModulePermissionGroupReadOnlyGuest: '' as Ref<Doc>
+    ModulePermissionGroupReadOnlyGuest: '' as Ref<Doc>,
+    GuestCreateDocumentPolicy: '' as Ref<ClassPermission>,
+    GuestCreateDocumentCategoryPolicy: '' as Ref<ClassPermission>
   }
 })

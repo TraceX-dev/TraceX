@@ -49,6 +49,7 @@ import textEditor from '@hcengineering/text-editor'
 import { AccountRole, type ClassCollaborators, type Class, type Doc, type Lookup, type Ref } from '@hcengineering/core'
 import { type Action } from '@hcengineering/view'
 import { definePermissions } from './permissions'
+import { defineGuestCreatePolicies } from './guestPolicies'
 import documents from './plugin'
 import { defineSpaceType } from './spaceType'
 import {
@@ -1225,7 +1226,9 @@ export function createModel (builder: Builder): void {
     {
       application: documents.app.Documents,
       role: AccountRole.Guest,
-      permissions: [],
+      // Guest creation is off until enabled in the guest settings.
+      permissions: [core.permission.CreateObject],
+      disabledPermissions: [core.permission.CreateObject],
       spaceClass: documents.class.OrgSpace,
       enabled: true
     },
@@ -1245,6 +1248,7 @@ export function createModel (builder: Builder): void {
     documents.ids.ModulePermissionGroupReadOnlyGuest
   )
   definePermissions(builder)
+  defineGuestCreatePolicies(builder)
   defineNotifications(builder)
   defineSearch(builder)
   defineTextActions(builder)
