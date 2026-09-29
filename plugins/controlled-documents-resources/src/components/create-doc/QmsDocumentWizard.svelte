@@ -34,7 +34,6 @@
     type DocumentCategory,
     type DocumentTemplate,
     DocumentState,
-    createChangeControl,
     DEFAULT_PERIODIC_REVIEW_INTERVAL
   } from '@hcengineering/controlled-documents'
 
@@ -160,7 +159,8 @@
       _space,
       $locationStep.project,
       $locationStep.parent,
-      documents.class.ControlledDocument
+      documents.class.ControlledDocument,
+      { id: ccRecordId, data: ccRecord }
     )
 
     if (!success) {
@@ -175,8 +175,6 @@
       dispatch('close')
       return
     }
-
-    await createChangeControl(client, ccRecordId, ccRecord, _space)
 
     if (docObject.externalApprovers.length > 0) {
       const controlledDoc = await client.findOne(documents.class.ControlledDocument, { _id: newDocId })

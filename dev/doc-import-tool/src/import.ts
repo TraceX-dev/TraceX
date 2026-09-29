@@ -8,7 +8,6 @@ import documents, {
   type DocumentCategory,
   DocumentState,
   type DocumentTemplate,
-  createChangeControl,
   createControlledDocFromTemplate,
   createDocumentTemplate
 } from '@hcengineering/controlled-documents'
@@ -123,13 +122,12 @@ async function createDocument (
     space,
     undefined,
     undefined,
-    documents.class.ControlledDocument
+    documents.class.ControlledDocument,
+    { id: ccRecordId, data: ccRecord }
   )
   if (!success) {
     throw new Error('Failed to create controlled document from template')
   }
-
-  await createChangeControl(txops, ccRecordId, ccRecord, space)
 
   console.log('Done creating document')
 
@@ -195,13 +193,12 @@ async function createTemplateIfNotExist (
     prefix,
     data,
     category,
-    owner
+    owner,
+    { id: ccRecordId, data: ccRecord }
   )
   if (!success) {
     throw new Error('Failed to create document template')
   }
-
-  await createChangeControl(txops, ccRecordId, ccRecord, space)
 
   console.log(`Done creating template with prefix: ${prefix}`)
 

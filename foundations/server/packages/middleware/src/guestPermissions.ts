@@ -165,10 +165,13 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   }
 
   private logForbiddenTx (ctx: MeasureContext, account: Account, tx: Tx, reason: string): void {
+    const isCud = TxProcessor.isExtendsCUD(tx._class)
     ctx.warn('Guest transaction rejected', {
       reason,
       accountRole: account.role,
-      objectClass: TxProcessor.isExtendsCUD(tx._class) ? (tx as TxCUD<Doc>).objectClass : tx._class
+      txClass: tx._class,
+      objectClass: isCud ? (tx as TxCUD<Doc>).objectClass : tx._class,
+      objectSpace: isCud ? (tx as TxCUD<Doc>).objectSpace : undefined
     })
   }
 
