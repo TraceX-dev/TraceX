@@ -74,11 +74,7 @@ async function getParentPath (client: TxOperations, parent: Ref<ProjectDocument>
 }
 
 export interface ControlledDocCreationOptions {
-  /**
-   * Whether to advance the `sequence` hint on the template, `true` by default. Guests skip it, as the guest
-   * create policy does not let them update templates they did not create. The hint is optional: numbers come
-   * from the custom sequence.
-   */
+  /** Advances the optional template sequence hint. Defaults to `true`. */
   updateTemplateSequenceHint?: boolean
 }
 

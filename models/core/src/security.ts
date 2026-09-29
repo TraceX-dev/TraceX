@@ -174,7 +174,6 @@ export class TPermission extends TDoc implements Permission {
   description?: IntlString
   icon?: Asset
 
-  // Technical module policy setting, not editable from the UI.
   @Prop(TypeBoolean(), getEmbeddedLabel('Guest object creation'))
   @Hidden()
     guestCreate?: boolean
@@ -191,7 +190,6 @@ export class TAttributePermission extends TPermission implements AttributePermis
 export class TClassPermission extends TPermission implements ClassPermission {
   targetClass!: Ref<Class<Doc>>
 
-  // Technical guest policy settings, not editable from the UI.
   @Prop(TypeRef(core.class.Doc), getEmbeddedLabel('Application'))
   @Hidden()
     application?: Ref<Doc>

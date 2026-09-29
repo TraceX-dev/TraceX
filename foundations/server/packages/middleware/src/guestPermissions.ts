@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import {
   BaseMiddleware,
   type Middleware,
@@ -8,15 +23,10 @@ import core, {
   type Account,
   AccountRole,
   type Class,
-  type ClassPermission,
   type CustomSequence,
   type Doc,
-  getGroupEffectivePermissions,
-  getModulePermissionGroupRole,
   hasAccountRole,
   type MeasureContext,
-  type ModulePermissionGroup,
-  type Permission,
   type PersonId,
   type Ref,
   type SessionData,
@@ -31,73 +41,19 @@ import core, {
 } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import contact, { type Person } from '@hcengineering/contact'
-
-/** Guest policies resolved from module permission groups and class permissions. */
-interface GuestPermissionsCache {
-  rolePolicies: Map<AccountRole, GuestClassPermissionPolicy[]>
-}
-
-interface GuestClassPermissionPolicy {
-  targetClass: Ref<Class<Doc>>
-  /** Space class the policy is limited to; undefined for group class permissions, which apply in any space. */
-  spaceClass: Ref<Class<Space>> | undefined
-  /** Undefined when the policy does not restrict updates: the generic own-document rule applies. */
-  guestUpdateAttributes: Set<string> | undefined
-  /** Undefined when the policy does not restrict mixins: any mixin is allowed as before. */
-  guestUpdateMixinAttributes: Map<string, Set<string>> | undefined
-  guestCreateMixinAttributes: Map<string, Set<string>>
-  relatedCreateClasses: Set<Ref<Class<Doc>>>
-  sequenceNamespaces: Set<string>
-}
-
-/** State of one guest `tx` call, shared by the nested transactions of its applies. */
-interface GuestTxScope {
-  /** Classes unlocked by a target created in the same apply, per space. */
-  relatedCreates: Map<Ref<Space>, Set<Ref<Class<Doc>>>>
-  /** Target documents created in the same apply, with the policies that permitted them. */
-  createdTargets: Map<Ref<Doc>, { space: Ref<Space>, policies: GuestClassPermissionPolicy[] }>
-  /** CustomSequence keys guarded by a notMatch of the enclosing apply. */
-  sequenceGuards: Set<string>
-  /** Space classes loaded while checking this call. */
-  spaceClasses: Map<Ref<Space>, Ref<Class<Space>> | undefined>
-}
+import {
+  createGuestTxScope,
+  emptyGuestPermissionsCache,
+  getNestedTxes,
+  getUpdatedAttributes,
+  type GuestClassPermissionPolicy,
+  type GuestPermissionsCache,
+  type GuestTxScope,
+  loadGuestPermissionsCache,
+  sequenceGuardKey
+} from './guest-permission-policies'
 
 const MAX_SEQUENCE_INCREMENT = 100_000
-
-function sequenceGuardKey (namespace: string, scope: string, prefix: string): string {
-  return JSON.stringify([namespace, scope, prefix])
-}
-
-function toAttributeMap (value: Record<string, string[]> | undefined): Map<string, Set<string>> {
-  return new Map(Object.entries(value ?? {}).map(([mixin, attributes]) => [mixin, new Set(attributes)]))
-}
-
-function toPolicy (
-  permission: ClassPermission,
-  spaceClass: Ref<Class<Space>> | undefined
-): GuestClassPermissionPolicy {
-  return {
-    targetClass: permission.targetClass,
-    spaceClass,
-    guestUpdateAttributes:
-      permission.guestUpdateAttributes !== undefined ? new Set(permission.guestUpdateAttributes) : undefined,
-    guestUpdateMixinAttributes:
-      permission.guestUpdateMixinAttributes !== undefined || permission.guestCreateMixinAttributes !== undefined
-        ? toAttributeMap(permission.guestUpdateMixinAttributes)
-        : undefined,
-    guestCreateMixinAttributes: toAttributeMap(permission.guestCreateMixinAttributes),
-    relatedCreateClasses: new Set(permission.relatedCreateClasses ?? []),
-    sequenceNamespaces: new Set(permission.sequenceNamespaces ?? [])
-  }
-}
-
-function emptyPermissionsCache (): GuestPermissionsCache {
-  return { rolePolicies: new Map() }
-}
-
-function newTxScope (): GuestTxScope {
-  return { relatedCreates: new Map(), createdTargets: new Map(), sequenceGuards: new Set(), spaceClasses: new Map() }
-}
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
   private permissionsCache: GuestPermissionsCache | undefined = undefined
@@ -118,85 +74,24 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
     await this.initPromise
     this.initPromise = undefined
-    return this.permissionsCache ?? emptyPermissionsCache()
+    return this.permissionsCache ?? emptyGuestPermissionsCache()
   }
 
   private async getPolicies (ctx: MeasureContext, account: Account): Promise<GuestClassPermissionPolicy[]> {
     return (await this.getPermissionsCache(ctx)).rolePolicies.get(account.role) ?? []
   }
 
-  /**
-   * Two kinds of policies are loaded:
-   * - class permissions listed in a group directly: they cover their class in any space, as before;
-   * - class permissions of a module (`application`) whose group grants a `guestCreate` permission:
-   *   they apply only in spaces of the group's `spaceClass`.
-   */
   private async loadPermissionsCache (ctx: MeasureContext): Promise<void> {
     try {
-      const groups = (await this.findAll(ctx, core.class.ModulePermissionGroup, {}, {})) as ModulePermissionGroup[]
-      const activeGroups = groups.map((group) => ({
-        group,
-        role: getModulePermissionGroupRole(group),
-        permissions: getGroupEffectivePermissions(group)
-      }))
-      const allPermissionIds = new Set<Ref<Permission>>(activeGroups.flatMap((it) => it.permissions))
-      if (allPermissionIds.size === 0) {
-        this.permissionsCache = emptyPermissionsCache()
-        return
-      }
-
-      const permissions = (await this.findAll(ctx, core.class.Permission, {
-        _id: { $in: Array.from(allPermissionIds) }
-      })) as Permission[]
-      const guestCreatePermissions = new Set(
-        permissions.filter((permission) => permission.guestCreate === true).map((permission) => permission._id)
-      )
-      const classPermissions = (await this.findAll(ctx, core.class.ClassPermission, {
-        _id: { $in: Array.from(allPermissionIds) as Array<Ref<ClassPermission>> }
-      })) as ClassPermission[]
-      const classPermissionsById = new Map<Ref<Permission>, ClassPermission>(
-        classPermissions.map((permission) => [permission._id as Ref<Permission>, permission])
-      )
-
-      const createApplications = new Set<Ref<Doc>>()
-      for (const { group, permissions } of activeGroups) {
-        if (group.spaceClass !== undefined && permissions.some((it) => guestCreatePermissions.has(it))) {
-          createApplications.add(group.application)
-        }
-      }
-      const applicationPermissions =
-        createApplications.size > 0
-          ? ((await this.findAll(ctx, core.class.ClassPermission, {
-              application: { $in: Array.from(createApplications) }
-            })) as ClassPermission[])
-          : []
-
-      const rolePolicies = new Map<AccountRole, GuestClassPermissionPolicy[]>()
-      for (const { group, role, permissions } of activeGroups) {
-        const policies = rolePolicies.get(role) ?? []
-        for (const permissionId of permissions) {
-          const permission = classPermissionsById.get(permissionId)
-          if (permission?.targetClass !== undefined) policies.push(toPolicy(permission, undefined))
-        }
-        if (group.spaceClass !== undefined && createApplications.has(group.application)) {
-          if (permissions.some((it) => guestCreatePermissions.has(it))) {
-            for (const permission of applicationPermissions) {
-              if (permission.application !== group.application || permission.targetClass === undefined) continue
-              policies.push(toPolicy(permission, group.spaceClass))
-            }
-          }
-        }
-        rolePolicies.set(role, policies)
-      }
-      this.permissionsCache = { rolePolicies }
+      this.permissionsCache = await loadGuestPermissionsCache(ctx, this)
     } catch (err: unknown) {
       ctx.error('Failed to load guest permissions', { err })
-      this.permissionsCache = emptyPermissionsCache()
+      this.permissionsCache = emptyGuestPermissionsCache()
     }
   }
 
   private invalidateCacheIfNeeded (txes: Tx[]): void {
-    for (const tx of txes.flatMap((it) => this.getNestedTxes(it))) {
+    for (const tx of txes.flatMap(getNestedTxes)) {
       if (TxProcessor.isExtendsCUD(tx._class)) {
         const cudTx = tx as TxCUD<Doc>
         if (
@@ -224,7 +119,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
     }
 
-    const scope = newTxScope()
+    const scope = createGuestTxScope()
     for (const tx of txes) {
       await this.processTx(ctx, tx, scope)
     }
@@ -258,15 +153,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
   }
 
-  private getNestedTxes (tx: Tx): Tx[] {
-    if (tx._class !== core.class.TxApplyIf) return [tx]
-    return (tx as TxApplyIf).txes.flatMap((nested) => this.getNestedTxes(nested))
-  }
-
-  /**
-   * Builds the scope of an apply: related classes and creation mixins are unlocked only for the space
-   * and the documents of a policy target created in the same apply.
-   */
   private async getApplyScope (
     ctx: MeasureContext<SessionData>,
     applyTx: TxApplyIf,
@@ -297,7 +183,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     const policies = await this.getPolicies(ctx, ctx.contextData.account)
     if (policies.length === 0) return scope
 
-    const createTxes = this.getNestedTxes(applyTx).filter(
+    const createTxes = getNestedTxes(applyTx).filter(
       (tx): tx is TxCreateDoc<Doc> => tx._class === core.class.TxCreateDoc
     )
     for (const tx of createTxes) {
@@ -324,9 +210,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     })
   }
 
-  /**
-   * Returns the covered-class ancestor of the objectClass, or undefined if the class is not covered.
-   */
   private getCoveredClass (
     objectClass: Ref<Class<Doc>>,
     allowedClasses: Set<Ref<Class<Doc>>>
@@ -367,7 +250,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return spaceClass !== undefined && this.context.hierarchy.isDerived(spaceClass, policy.spaceClass)
   }
 
-  /** Policies that permit creating the document of this tx in its space. */
   private async getCreatePolicies (
     ctx: MeasureContext,
     tx: TxCreateDoc<Doc>,
@@ -382,27 +264,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return result
   }
 
-  private getUpdatedAttributes (operations: Record<string, unknown>): Set<string> | undefined {
-    const result = new Set<string>()
-    const supportedOperators = new Set(['$push', '$pull', '$inc', '$unset', '$update'])
-    for (const [key, value] of Object.entries(operations)) {
-      if (!key.startsWith('$')) {
-        result.add(key)
-        continue
-      }
-      if (!supportedOperators.has(key) || value === null || typeof value !== 'object' || Array.isArray(value)) {
-        return undefined
-      }
-      for (const attribute of Object.keys(value)) result.add(attribute)
-    }
-    return result.size > 0 ? result : undefined
-  }
-
-  /**
-   * Policies that restrict updates (or mixins) of the document the tx changes, together with the document.
-   * A tx may name an ancestor class (e.g. a mixin applied through the base class), so the document is
-   * loaded whenever a restricting policy could cover it.
-   */
   private async getRestrictingPolicies (
     ctx: MeasureContext,
     tx: TxCUD<Doc>,
@@ -421,11 +282,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return { doc, policies: candidates.filter((policy) => h.isDerived(doc._class, policy.targetClass)) }
   }
 
-  /**
-   * Allows a guest to attach a related class of a policy to a document it created itself,
-   * when that parent belongs to the same policy (its target class or one of its related classes)
-   * and lives in the same space.
-   */
   private async isGuestRelatedCreateOnOwnDoc (
     ctx: MeasureContext,
     tx: TxCreateDoc<Doc>,
@@ -464,7 +320,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   private isCreationMixinAllowed (tx: TxMixin<Doc, Doc>, scope: GuestTxScope): boolean {
     const created = scope.createdTargets.get(tx.objectId)
     if (created === undefined || created.space !== tx.objectSpace) return false
-    const attributes = this.getUpdatedAttributes(tx.attributes as Record<string, unknown>)
+    const attributes = getUpdatedAttributes(tx.attributes as Record<string, unknown>)
     if (attributes === undefined) return false
     return created.policies.some((policy) => {
       const allowed = policy.guestCreateMixinAttributes.get(tx.mixin)
@@ -472,10 +328,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     })
   }
 
-  /**
-   * Checks an update or a mixin of a document covered by policies that restrict it:
-   * only the guest's own documents, and only whitelisted attributes.
-   */
   private isWhitelistedOwnUpdate (
     tx: TxCUD<Doc>,
     doc: Doc,
@@ -483,7 +335,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     allowed: Array<Set<string> | undefined>
   ): boolean {
     if (doc.space !== tx.objectSpace || !this.isCreatedByAccount(doc, account)) return false
-    const updated = this.getUpdatedAttributes(
+    const updated = getUpdatedAttributes(
       tx._class === core.class.TxMixin
         ? ((tx as TxMixin<Doc, Doc>).attributes as Record<string, unknown>)
         : ((tx as TxUpdateDoc<Doc>).operations as Record<string, unknown>)
@@ -510,14 +362,14 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     const policies = await this.getPolicies(ctx, account)
 
     if (tx.objectClass === core.class.CustomSequence) {
-      // Guests only touch sequences through a policy: the generic own-document rule must not apply to them.
+      // Sequences never use the generic own-document rule.
       return !(await this.isAllowedSequenceTx(ctx, tx, policies, scope))
     }
 
     if (tx._class === core.class.TxMixin) {
       const mixinTx = tx as TxMixin<Doc, Doc>
       if (this.isCreationMixinAllowed(mixinTx, scope)) return false
-      // A mixin on a target created in this apply is part of its creation and must be whitelisted for it.
+      // Creation mixins must be explicitly allowed.
       if (scope.createdTargets.has(tx.objectId)) return true
       const restricting = await this.getRestrictingPolicies(
         ctx,
@@ -525,7 +377,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
         policies,
         (policy) => policy.guestUpdateMixinAttributes !== undefined
       )
-      // Mixins stay unrestricted for guests unless a policy restricts them for the document class.
       if (restricting.doc === undefined || restricting.policies.length === 0) return false
       return !this.isWhitelistedOwnUpdate(
         tx,
@@ -543,7 +394,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
         return false
       }
       if (await this.isGuestRelatedCreateOnOwnDoc(ctx, createTx, account, policies, scope)) return false
-      // Uncovered class: fall through to TxAccessLevel check.
     }
 
     if (tx._class === core.class.TxUpdateDoc) {
@@ -574,10 +424,6 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return true
   }
 
-  /**
-   * A guest may only create a permitted sequence from zero inside an apply guarded against a concurrent
-   * creation, and move it forward, so it can never reset or reuse numbers.
-   */
   private async isAllowedSequenceTx (
     ctx: MeasureContext,
     tx: TxCUD<Doc>,
@@ -608,7 +454,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     if (Object.keys(operations).length !== 1) return false
     const increment = operations.$inc as Record<string, unknown> | undefined
     const step = increment?.sequence
-    // A step above one is legitimate: allocation catches a lagging sequence up to the minimum in one increment.
+    // Allocation may catch a lagging sequence up in one increment.
     if (
       increment === undefined ||
       Object.keys(increment).length !== 1 ||

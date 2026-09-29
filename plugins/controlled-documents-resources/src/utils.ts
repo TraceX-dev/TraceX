@@ -77,10 +77,7 @@ import documentsResources from './plugin'
 import { wizardOpened } from './stores/wizards/create-document'
 import { getPersonRefByPersonId, getPersonRefsByPersonIds } from '@hcengineering/contact-resources'
 
-/**
- * Whether the account may create objects in the documents module.
- * Users and above always do; guests are resolved from the module permission group.
- */
+/** Checks whether the account may create objects in the documents module. */
 export function isGuestModuleCreateGranted (
   account: Account,
   groups: ModulePermissionGroup[]

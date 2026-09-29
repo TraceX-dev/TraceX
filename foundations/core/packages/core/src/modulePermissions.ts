@@ -1,31 +1,26 @@
-/**
-
-Copyright © 2026 TraceX SAS.
-
-Licensed under the PolyForm Shield License 1.0.0 (the "License");
-you may not use this file except in compliance with the License. You may
-obtain a copy of the License at https://polyformproject.org/licenses/shield/1.0.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 import { AccountRole, type ModulePermissionGroup, type Permission, type Ref } from './classes'
 
-/**
- * Legacy groups may carry a `roles` array instead of a single `role`.
- */
 interface LegacyModulePermissionGroup {
   roles?: AccountRole[]
 }
 
 /**
- * Returns the role a module permission group applies to.
- * Falls back to the legacy `roles` field and then to {@link AccountRole.Guest}.
+ * Returns the group's role, including the legacy `roles` fallback.
  *
  * @public
  */
@@ -35,13 +30,12 @@ export function getModulePermissionGroupRole (group: ModulePermissionGroup): Acc
 }
 
 /**
- * Returns the permissions a module permission group effectively grants: nothing when the group is disabled,
- * otherwise `permissions` without `disabledPermissions`.
+ * Returns the permissions granted by an enabled group.
  *
  * @public
  */
 export function getGroupEffectivePermissions (group: ModulePermissionGroup): Array<Ref<Permission>> {
-  // Stored groups may lack `enabled`: only an explicit false disables a group.
+  // Legacy records may omit `enabled`.
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-boolean-literal-compare
   if (group.enabled === false) return []
   const disabled = new Set<Ref<Permission>>(group.disabledPermissions ?? [])
@@ -49,8 +43,7 @@ export function getGroupEffectivePermissions (group: ModulePermissionGroup): Arr
 }
 
 /**
- * Computes the effective permissions granted to every role by module permission groups.
- * Server and client must use these helpers so that they never diverge.
+ * Groups effective permissions by role.
  *
  * @public
  */
@@ -68,7 +61,7 @@ export function getRoleEffectivePermissions (groups: ModulePermissionGroup[]): M
 }
 
 /**
- * Checks whether the permission is effectively granted to the role by module permission groups.
+ * Checks whether a role has an effective permission.
  *
  * @public
  */
