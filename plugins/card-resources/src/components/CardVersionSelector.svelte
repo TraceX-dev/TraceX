@@ -31,7 +31,8 @@
 
   $: versioning = h.classHierarchyMixin(value._class, core.mixin.VersionableClass)
   $: enabled = versioning?.enabled
-  $: managedByProcess = versioning?.managedByProcess === true
+  $: creationManagedByProcess = versioning?.creationManagedByProcess ?? false
+  $: effectiveManagedByProcess = versioning?.effectiveManagedByProcess ?? false
 
   let versions: Card[] = []
 
@@ -57,7 +58,8 @@
   $: latestEffectiveVersion = versions.reduce((latest, current) => {
     return current.isEffective === true ? Math.max(latest, current.version ?? 1) : latest
   }, 0)
-  $: canMakeEffective = !managedByProcess && value.isEffective !== true && (value.version ?? 1) > latestEffectiveVersion
+  $: canMakeEffective =
+    !effectiveManagedByProcess && value.isEffective !== true && (value.version ?? 1) > latestEffectiveVersion
 
   $: items = versions.map((p) => {
     return {
@@ -81,7 +83,7 @@
   }
 
   async function newVersion (): Promise<void> {
-    if (managedByProcess || value.versionCreationDisabled === true) return
+    if (creationManagedByProcess || value.versionCreationDisabled === true) return
     try {
       const _id = await createNewVersion(value)
       const loc = getCurrentLocation()
@@ -108,7 +110,7 @@
 
 {#if enabled}
   <DropdownLabels kind={'link'} {items} on:selected={selectHandler} selected={value._id} />
-  {#if value.isLatest && !managedByProcess}
+  {#if value.isLatest && !creationManagedByProcess}
     <Button
       label={card.string.NewVersion}
       disabled={value.versionCreationDisabled === true}
