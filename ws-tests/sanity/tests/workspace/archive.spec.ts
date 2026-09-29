@@ -26,6 +26,8 @@ test.describe('Workspace Archive tests', () => {
   })
 
   test('New workspace with date, archive, unarchive', async ({ page, browser, request }) => {
+    // Archive and restore both go through the workspace service asynchronously and may take a while
+    test.setTimeout(180000)
     const api: ApiEndpoint = new ApiEndpoint(request)
     const wsId = generateId(5)
     await api.createWorkspaceWithLogin(wsId, 'user1', '1234')
@@ -82,11 +84,13 @@ test.describe('Workspace Archive tests', () => {
 
       await page2.getByRole('button', { name: 'Ok' }).click()
       await page2.locator('[data-id="tab-inactive"]').click()
-      await expect(workspaceRow).toContainText('archived')
+      // Archiving is processed asynchronously by the workspace service (backup -> clean -> archived)
+      await expect(workspaceRow).toContainText('archived', { timeout: 60000 })
     })
     await test.step('Check workspace is archived', async () => {
       await page.reload() // Will redirect to select workspace page
-      await page.getByText('archived').waitFor()
+      // Scope to this workspace: user1 may own other archived workspaces (e.g. from retries)
+      await expect(page.getByText(`${wsId} - (archived)`)).toBeVisible()
     })
     await test.step('Restore workspace', async () => {
       const workspaceRow = page2.getByRole('row').filter({ hasText: wsId })
@@ -94,7 +98,8 @@ test.describe('Workspace Archive tests', () => {
 
       await page2.getByRole('button', { name: 'Ok' }).click()
       await page2.locator('[data-id="tab-active"]').click()
-      await expect(workspaceRow).toContainText('active')
+      // Restore is processed asynchronously by the workspace service (pending-restore -> restoring -> active)
+      await expect(workspaceRow).toContainText('active', { timeout: 60000 })
     })
     await test.step('Check workspace is active again', async () => {
       await page.reload()
