@@ -377,11 +377,8 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     for (const policy of candidates) {
       const rule = policy.guestAssignee
       if (rule === undefined || !h.isDerived(doc._class, policy.targetClass)) continue
-      // Attributes of a derived class are allowed only on documents of that class.
-      const allowed = Array.from(updated).every(
-        (attribute) => rule.attributes.includes(attribute) && h.findAttribute(doc._class, attribute) !== undefined
-      )
-      if (!allowed) continue
+      // An exact whitelist: model declarations can not be used here, e.g. `ToDo.doneOn` is not a declared attribute.
+      if (!Array.from(updated).every((attribute) => rule.attributes.includes(attribute))) continue
       if (rule.openField !== undefined && (doc as any)[rule.openField] != null) continue
       if (!(await this.isAssignedTo(ctx, (doc as any)[rule.field], account))) continue
       if (rule.requireAttachedToAccess === true && !(await this.canReadAttachedTo(ctx, doc, account))) continue

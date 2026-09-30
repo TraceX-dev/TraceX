@@ -626,7 +626,7 @@ export interface ClassPermission extends Permission {
 export interface GuestAssigneePolicy {
   /** Attribute holding the assigned `Person`. */
   field: string
-  /** Attributes the assignee may change; attributes missing on the document class are rejected. */
+  /** Exact list of attributes the assignee may change. */
   attributes: string[]
   /** Update is allowed only while this attribute is empty, e.g. `doneOn` of an open task. */
   openField?: string

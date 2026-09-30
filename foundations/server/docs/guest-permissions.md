@@ -82,7 +82,7 @@ The generic own-document rule continues to apply to uncovered classes and to rem
 A policy with `guestAssignee` lets a guest update a target document assigned to it, such as a process task or an approval request. The rule is checked before the other update rules and allows the update when all of the following are true:
 
 - the attribute named by `field` references the guest's `Person`;
-- every changed attribute is listed in `attributes` and is declared on the document class, so attributes of a derived class are accepted only on documents of that class;
+- every changed attribute is listed in `attributes`. The list is exact and does not depend on model declarations, because some updated fields, such as `ToDo.doneOn`, are not declared attributes;
 - the attribute named by `openField`, when set, is empty, so a completed task can not be changed or reopened;
 - with `requireAttachedToAccess`, the guest can read the document the target is attached to.
 

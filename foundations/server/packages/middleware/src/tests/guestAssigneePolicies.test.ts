@@ -55,12 +55,6 @@ const hiddenCard = 'test:card:Hidden' as Ref<Doc>
 const collaboratorCard = 'test:card:Collaborator' as Ref<Doc>
 const archivedCard = 'test:card:Archived' as Ref<Doc>
 
-/** Attributes declared by each class; APPROVAL is derived from TASK. */
-const attributes = new Map<Ref<Class<Doc>>, string[]>([
-  [TASK, ['user', 'doneOn', 'title']],
-  [APPROVAL, ['user', 'doneOn', 'title', 'approved', 'reason']]
-])
-
 function makeDoc (_id: Ref<Doc>, _class: Ref<Class<Doc>>, space: Ref<Space>, extra: Record<string, unknown> = {}): Doc {
   return { _id, _class, space, modifiedOn: 0, modifiedBy: OTHER, createdBy: OTHER, ...extra }
 }
@@ -163,8 +157,8 @@ function makeMiddleware ({
   const hierarchy = {
     isDerived: (a: Ref<Class<Doc>>, b: Ref<Class<Doc>>) =>
       a === b || (a === APPROVAL && b === TASK) || (a === core.class.ClassPermission && b === core.class.Permission),
-    findAttribute: (_class: Ref<Class<Doc>>, name: string) =>
-      attributes.get(_class)?.includes(name) === true ? { name } : undefined,
+    // Like `ToDo.doneOn`, rule attributes may be undeclared in the model: the rule must not depend on it.
+    findAttribute: () => undefined,
     getAncestors: (_class: Ref<Class<Doc>>) => [_class],
     classHierarchyMixin: () => undefined
   }
@@ -226,11 +220,10 @@ describe('GuestPermissionsMiddleware assignee policies', () => {
     await allowed(makeMiddleware(), tx)
   })
 
-  it('rejects attributes outside of the rule or missing on the document class', async () => {
+  it('rejects attributes outside of the rule', async () => {
     const mw = makeMiddleware()
     await forbidden(mw, update(openTask, { doneOn: Date.now(), title: 'Renamed' }))
-    // `approved` is declared by the approval class only.
-    await forbidden(mw, update(openTask, { doneOn: Date.now(), approved: true }))
+    await forbidden(mw, update(openApproval, { doneOn: Date.now(), approved: true, user: OTHER_PERSON }))
   })
 
   it('rejects a task assigned to someone else', async () => {
