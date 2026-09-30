@@ -24,7 +24,10 @@ import {
   type Class,
   type MixinData,
   makeCollabId,
-  makeDocCollabId
+  makeDocCollabId,
+  AccountRole,
+  getCurrentAccount,
+  hasAccountRole
 } from '@hcengineering/core'
 import { setPlatformStatus, translate, unknownError } from '@hcengineering/platform'
 import { copyMarkup } from '@hcengineering/presentation'
@@ -42,7 +45,8 @@ import documents, {
   type Project,
   DocumentState,
   createChangeControl,
-  createControlledDocFromTemplate as controlledDocFromTemplate
+  createControlledDocFromTemplate as controlledDocFromTemplate,
+  type ControlledDocCreationOptions
 } from '@hcengineering/controlled-documents'
 import attachment, { type Attachment } from '@hcengineering/attachment'
 import { getCurrentEmployee } from '@hcengineering/contact'
@@ -57,9 +61,23 @@ export async function createControlledDocFromTemplate (
   space: Ref<DocumentSpace>,
   project: Ref<Project> | undefined,
   parent: Ref<ProjectDocument> | undefined,
-  docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument
+  docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument,
+  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> },
+  options: ControlledDocCreationOptions = {}
 ): Promise<{ seqNumber: number, success: boolean }> {
-  const result = await controlledDocFromTemplate(client, templateId, documentId, spec, space, project, parent, docClass)
+  const result = await controlledDocFromTemplate(
+    client,
+    templateId,
+    documentId,
+    spec,
+    space,
+    project,
+    parent,
+    docClass,
+    changeControl,
+    // Guests may not update templates they did not create, so they leave the sequence hint alone.
+    { updateTemplateSequenceHint: hasAccountRole(getCurrentAccount(), AccountRole.User), ...options }
+  )
 
   if (result.success && templateId !== undefined) {
     const source = makeCollabId(documents.mixin.DocumentTemplate, templateId, 'content')

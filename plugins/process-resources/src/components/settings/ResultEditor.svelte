@@ -23,6 +23,7 @@
   import { createEventDispatcher } from 'svelte'
   import { generateContextId } from '../../utils'
   import ResultTypeSelector from './ResultTypeSelector.svelte'
+  import RelationVersionsEditor from './RelationVersionsEditor.svelte'
   import AssociationSelector from './AssociationSelector.svelte'
   import plugin from '../../plugin'
   import SelectionSpaceEditor from './SelectionSpaceEditor.svelte'
@@ -84,7 +85,10 @@
 
   function changeRelation (event: CustomEvent<Partial<SelectionRelation>>): void {
     const { association, direction } = event.detail
-    excludeRelation = association !== undefined && direction !== undefined ? { association, direction } : undefined
+    excludeRelation =
+      association !== undefined && direction !== undefined
+        ? { association, direction, versions: excludeRelation?.versions }
+        : undefined
     if (result != null) {
       result.excludeRelation = excludeRelation
       dispatch('change', result)
@@ -131,6 +135,18 @@
     {#if key === undefined}
       <Label label={plugin.string.MultipleSelection} />
       <Toggle on={type?._class === core.class.ArrOf} on:change={changeMultiple} />
+    {/if}
+    {#if excludeRelation !== undefined && presenterClass !== undefined && hierarchy.classHierarchyMixin(presenterClass.attrClass, core.mixin.VersionableClass) !== undefined}
+      <RelationVersionsEditor
+        value={excludeRelation.versions ?? 'all'}
+        on:change={(event) => {
+          if (excludeRelation !== undefined && result != null) {
+            excludeRelation = { ...excludeRelation, versions: event.detail }
+            result.excludeRelation = excludeRelation
+            dispatch('change', result)
+          }
+        }}
+      />
     {/if}
     <Label label={plugin.string.ExcludeRelatedObjects} />
     <AssociationSelector

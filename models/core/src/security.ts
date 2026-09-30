@@ -25,6 +25,7 @@ import {
   type AttributePermission,
   type Class,
   type ClassPermission,
+  type GuestAssigneePolicy,
   type CollectionSize,
   type Doc,
   type Permission,
@@ -48,6 +49,7 @@ import {
   Prop,
   TypeAccountUuid,
   TypeBoolean,
+  TypeRecord,
   TypeRef,
   TypeString,
   UX
@@ -172,6 +174,10 @@ export class TPermission extends TDoc implements Permission {
   scope?: 'space' | 'workspace'
   description?: IntlString
   icon?: Asset
+
+  @Prop(TypeBoolean(), getEmbeddedLabel('Guest object creation'))
+  @Hidden()
+    guestCreate?: boolean
 }
 
 @Model(core.class.AttributePermission, core.class.Permission)
@@ -184,6 +190,34 @@ export class TAttributePermission extends TPermission implements AttributePermis
 @UX(core.string.Permission)
 export class TClassPermission extends TPermission implements ClassPermission {
   targetClass!: Ref<Class<Doc>>
+
+  @Prop(TypeRef(core.class.Doc), getEmbeddedLabel('Application'))
+  @Hidden()
+    application?: Ref<Doc>
+
+  @Prop(ArrOf(TypeString()), getEmbeddedLabel('Guest update attributes'))
+  @Hidden()
+    guestUpdateAttributes?: string[]
+
+  @Prop(TypeRecord(), getEmbeddedLabel('Guest update mixin attributes'))
+  @Hidden()
+    guestUpdateMixinAttributes?: Record<string, string[]>
+
+  @Prop(TypeRecord(), getEmbeddedLabel('Guest create mixin attributes'))
+  @Hidden()
+    guestCreateMixinAttributes?: Record<string, string[]>
+
+  @Prop(ArrOf(TypeRef(core.class.Class)), getEmbeddedLabel('Related create classes'))
+  @Hidden()
+    relatedCreateClasses?: Array<Ref<Class<Doc>>>
+
+  @Prop(ArrOf(TypeString()), getEmbeddedLabel('Sequence namespaces'))
+  @Hidden()
+    sequenceNamespaces?: string[]
+
+  @Prop(TypeRecord(), getEmbeddedLabel('Guest assignee'))
+  @Hidden()
+    guestAssignee?: GuestAssigneePolicy
 }
 
 @Mixin(core.mixin.SpacesTypeData, core.class.Space)
@@ -198,6 +232,9 @@ export class TTxAccessLevel extends TClass implements TxAccessLevel {
   removeAccessLevel?: AccountRole
   updateAccessLevel?: AccountRole
   isIdentity?: boolean
+  ownerAttribute?: string
+  ownerUpdateAttributes?: string[]
+  ownerRemove?: boolean
 }
 
 @Model(core.class.ModulePermissionGroup, core.class.Doc, DOMAIN_MODEL)

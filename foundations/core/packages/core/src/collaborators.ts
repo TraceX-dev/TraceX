@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 
-import core, { Class, ClassCollaborators, Doc, Hierarchy, ModelDb, Ref } from '.'
+import core, { AccountUuid, AttachedDoc, Class, ClassCollaborators, Doc, Hierarchy, ModelDb, Ref, Space } from '.'
 
 export function getClassCollaborators<T extends Doc> (
   model: ModelDb,
@@ -34,4 +35,30 @@ export function getClassCollaborators<T extends Doc> (
       return res
     }
   }
+}
+
+/**
+ * Space part of the read security the storage applies to guests: the shared and system spaces, and
+ * non-archived spaces the guest is a member of. Keep in sync with the storage adapters.
+ *
+ * @public
+ */
+export function isSpaceReadableByGuest (space: Space | undefined, account: AccountUuid): boolean {
+  if (space === undefined || space.archived) return false
+  return space._id === core.space.Space || space._class === core.class.SystemSpace || space.members.includes(account)
+}
+
+/**
+ * Documents whose collaborators may read `doc` although its space is not readable: the document itself
+ * with `provideSecurity`, the document it is attached to with `provideAttachedSecurity`.
+ *
+ * @public
+ */
+export function getGuestReadCollaboratorTargets (model: ModelDb, hierarchy: Hierarchy, doc: Doc): Array<Ref<Doc>> {
+  const collabSec = getClassCollaborators(model, hierarchy, doc._class)
+  const targets: Array<Ref<Doc>> = []
+  if (collabSec?.provideSecurity === true) targets.push(doc._id)
+  const attachedTo = (doc as Partial<AttachedDoc>).attachedTo
+  if (collabSec?.provideAttachedSecurity === true && attachedTo != null) targets.push(attachedTo)
+  return targets
 }

@@ -1,5 +1,9 @@
 {
     "string": {
+    "SelectionVersions": "Versions available for selection",
+    "OnlyEffectiveVersions": "Only effective versions",
+    "OnlyLatestVersions": "Only latest versions",
+    "AllVersions": "All versions",
     "MultipleSelection": "Multiple selection",
     "ExcludeRelatedObjects": "Exclude objects already linked by relation",
     "RemoveTag": "Remove tag",
@@ -155,6 +159,8 @@
         "CancelProcessPermission": "프로세스 취소",
         "ForbidRunProcessPermission": "프로세스 실행 금지",
         "ForbidCancelProcessPermission": "프로세스 취소 금지",
+        "GuestParticipatePermission": "할당된 프로세스 작업 완료",
+        "GuestInputNotSupported": "이 작업은 입력이 필요하여 게스트는 아직 완료할 수 없습니다",
         "RequestApproval": "승인 요청",
         "IsApproved": "승인됨",
         "Approve": "승인",
@@ -235,6 +241,7 @@
         "ContextValueNotProvided": "컨텍스트 값이 입력되지 않았습니다: {name}",
         "RequiredParamsNotProvided": "필수 매개변수가 입력되지 않았습니다: {params}",
         "TooDeepTransitionRecursion": "전환 재귀가 너무 깊습니다",
-        "ToDoAlreadyCompleted": "액션 항목이 이미 완료되었습니다"
+        "ToDoAlreadyCompleted": "액션 항목이 이미 완료되었습니다",
+        "GuestWithoutCardAccess": "게스트 {user}는 카드에 접근할 수 없어 할당할 수 없습니다"
     }
 }

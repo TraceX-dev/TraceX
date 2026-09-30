@@ -16,6 +16,7 @@
 
 import attachment, { type Attachment } from '@hcengineering/attachment'
 import cardPlugin, { Card, MasterTag, Tag } from '@hcengineering/card'
+import contact, { formatName, type Person } from '@hcengineering/contact'
 import core, {
   Association,
   AnyAttribute,
@@ -28,7 +29,9 @@ import core, {
   fillDefaults,
   findProperty,
   generateId,
+  getGuestReadCollaboratorTargets,
   getObjectValue,
+  isSpaceReadableByGuest,
   makeDocCollabId,
   matchQuery,
   Ref,
@@ -947,6 +950,46 @@ export async function RunSubProcess (
   return { txes: res, rollback, context: resultContext }
 }
 
+/**
+ * A guest assigned to a process task must be able to read the card, otherwise it can not complete the task and
+ * the execution would wait forever. Such an assignment fails the step instead of granting access implicitly.
+ * Uses the same guest read rules as the guest permissions middleware, which checks the task updates.
+ */
+async function checkGuestAssignees (
+  users: Array<Ref<Person>>,
+  execution: Execution,
+  control: ProcessControl
+): Promise<void> {
+  if (users.length === 0) return
+  const persons = await control.client.findAll(contact.class.Person, { _id: { $in: users } })
+  if (persons.length === 0) return
+  const h = control.client.getHierarchy()
+  const guests = persons.filter(
+    (person) => h.hasMixin(person, contact.mixin.Employee) && h.as(person, contact.mixin.Employee).role === 'GUEST'
+  )
+  if (guests.length === 0) return
+
+  const card: Card | undefined =
+    control.cache.get(execution.card) ?? (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
+  if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
+  const space = await control.client.findOne(core.class.Space, { _id: card.space })
+  const collaboratorTargets = getGuestReadCollaboratorTargets(control.client.getModel(), h, card)
+
+  for (const guest of guests) {
+    const account = h.as(guest, contact.mixin.Employee).personUuid
+    if (account !== undefined && isSpaceReadableByGuest(space, account)) continue
+    if (account !== undefined && collaboratorTargets.length > 0) {
+      const collaborators = await control.client.findAll(
+        core.class.Collaborator,
+        { attachedTo: { $in: collaboratorTargets }, collaborator: account },
+        { limit: 1 }
+      )
+      if (collaborators.length > 0) continue
+    }
+    throw processError(process.error.GuestWithoutCardAccess, { user: formatName(guest.name) })
+  }
+}
+
 export async function RequestApproval (
   params: MethodParams<ApproveRequest>,
   execution: Execution,
@@ -963,7 +1006,9 @@ export async function RequestApproval (
   if (_process === undefined) {
     throw processError(process.error.RequiredParamsNotProvided, { params: 'user' })
   }
-  for (const user of Array.isArray(params.user) ? params.user : [params.user]) {
+  const approvers = Array.isArray(params.user) ? params.user : [params.user]
+  await checkGuestAssignees(approvers, execution, control)
+  for (const user of approvers) {
     const id = generateId<ApproveRequest>()
     const tx = control.client.txFactory.createTxCreateDoc(
       process.class.ApproveRequest,
@@ -1231,6 +1276,7 @@ export async function CreateToDo (
   }
 
   const users = [...new Set<ProcessToDo['user']>(Array.isArray(params.user) ? params.user : [params.user])]
+  await checkGuestAssignees(users, execution, control)
   for (const [index, user] of users.entries()) {
     const todoId = index === 0 ? id : generateId<ProcessToDo>()
     const tx = control.client.txFactory.createTxCreateDoc(

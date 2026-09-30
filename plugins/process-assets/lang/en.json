@@ -1,5 +1,9 @@
 {
   "string": {
+    "SelectionVersions": "Versions available for selection",
+    "OnlyEffectiveVersions": "Only effective versions",
+    "OnlyLatestVersions": "Only latest versions",
+    "AllVersions": "All versions",
     "MultipleSelection": "Multiple selection",
     "ExcludeRelatedObjects": "Exclude objects already linked by relation",
     "RemoveTag": "Remove tag",
@@ -155,6 +159,8 @@
     "CancelProcessPermission": "Cancel process",
     "ForbidRunProcessPermission": "Forbid running process",
     "ForbidCancelProcessPermission": "Forbid cancelling process",
+    "GuestParticipatePermission": "Complete assigned process tasks",
+    "GuestInputNotSupported": "This task asks for input, guests can not complete it yet",
     "RequestApproval": "Request approval",
     "IsApproved": "Is approved",
     "Approve": "Approve",
@@ -235,6 +241,7 @@
     "ContextValueNotProvided": "Context value not provided: {name}",
     "RequiredParamsNotProvided": "Required parameters not provided: {params}",
     "TooDeepTransitionRecursion": "Too deep transition recursion",
-    "ToDoAlreadyCompleted": "Action item already completed"
+    "ToDoAlreadyCompleted": "Action item already completed",
+    "GuestWithoutCardAccess": "Guest {user} has no access to the card and can not be assigned"
   }
 }

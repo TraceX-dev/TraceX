@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,7 +17,16 @@
   import { Card } from '@hcengineering/card'
   import { PermissionsStore } from '@hcengineering/contact'
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
-  import core, { Doc, FindOptions, Ref, SortingOrder, TypedSpace } from '@hcengineering/core'
+  import core, {
+    AccountRole,
+    Doc,
+    FindOptions,
+    getCurrentAccount,
+    hasAccountRole,
+    Ref,
+    SortingOrder,
+    TypedSpace
+  } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Execution, Process } from '@hcengineering/process'
   import {
@@ -125,6 +135,9 @@
 
   let docsProvided = false
 
+  // Guests can not start processes yet, the server rejects the execution.
+  const isGuest = !hasAccountRole(getCurrentAccount(), AccountRole.User)
+
   function checkForbiddenPermission (permissionsStore: PermissionsStore): boolean {
     return checkMyPermission(process.permission.ForbidRunProcess, card.space as Ref<TypedSpace>, permissionsStore)
   }
@@ -134,7 +147,7 @@
   <svelte:fragment slot="header">
     <div class="buttons-group xsmall-gap">
       <ViewletsSettingButton bind:viewOptions viewletQuery={{ _id: viewletId }} kind={'tertiary'} bind:viewlet />
-      {#if !readonly && !checkForbiddenPermission($permissionsStore)}
+      {#if !readonly && !isGuest && !checkForbiddenPermission($permissionsStore)}
         <Button id={process.string.RunProcess} icon={IconAdd} kind={'ghost'} on:click={add} />
       {/if}
     </div>

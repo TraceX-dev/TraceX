@@ -18,6 +18,33 @@ import type { ContextId } from '../index'
 import type { SelectedUserRequest } from '../types'
 
 describe('dslContext roundtrip', () => {
+  test.each(['all', 'latest', 'effective'] as const)(
+    'preserves the %s version mode with multiple selection',
+    (versions) => {
+      const original: SelectedUserRequest = {
+        type: 'userRequest',
+        id: 'input' as ContextId,
+        key: '',
+        _class: 'test:class:Card' as Ref<Class<Doc>>,
+        multiple: true,
+        versions,
+        selectionSpace: 'target-space'
+      }
+      expect(parseDSLContext(createDSLContext(original))).toEqual(expect.objectContaining(original))
+    }
+  )
+
+  test('preserves a version mode without optional space or multiple selection', () => {
+    const original: SelectedUserRequest = {
+      type: 'userRequest',
+      id: 'input' as ContextId,
+      key: '',
+      _class: 'test:class:Card' as Ref<Class<Doc>>,
+      versions: 'effective'
+    }
+    expect(parseDSLContext(createDSLContext(original))).toEqual(expect.objectContaining(original))
+  })
+
   test.each([undefined, 'target-space'])('preserves multiple selection with space %p', (selectionSpace) => {
     const original: SelectedUserRequest = {
       type: 'userRequest',

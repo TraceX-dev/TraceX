@@ -201,6 +201,7 @@ export interface StepContext {
 export interface SelectionRelation {
   association: Ref<Association>
   direction: 'A' | 'B'
+  versions?: 'all' | 'latest' | 'effective'
 }
 
 export interface UserResult {
@@ -380,7 +381,8 @@ export default plugin(processId, {
     ContextValueNotProvided: '' as IntlString,
     RequiredParamsNotProvided: '' as IntlString,
     TooDeepTransitionRecursion: '' as IntlString,
-    ToDoAlreadyCompleted: '' as IntlString
+    ToDoAlreadyCompleted: '' as IntlString,
+    GuestWithoutCardAccess: '' as IntlString
   },
   icon: {
     Process: '' as Asset,

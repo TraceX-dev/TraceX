@@ -1,5 +1,9 @@
 {
   "string": {
+    "SelectionVersions": "Версии для выбора",
+    "OnlyEffectiveVersions": "Только эффективные",
+    "OnlyLatestVersions": "Только последние",
+    "AllVersions": "Все версии",
     "MultipleSelection": "Множественный выбор",
     "ExcludeRelatedObjects": "Исключать объекты с существующей связью",
     "RemoveTag": "Снять тег",
@@ -155,6 +159,8 @@
     "CancelProcessPermission": "Отменить процесс",
     "ForbidRunProcessPermission": "Запретить запуск процесса",
     "ForbidCancelProcessPermission": "Запретить отмену процесса",
+    "GuestParticipatePermission": "Выполнять назначенные задачи процессов",
+    "GuestInputNotSupported": "Задача требует ввода данных, гости пока не могут её выполнить",
     "RequestApproval": "Запрос на утверждение",
     "IsApproved": "Утверждено",
     "Approve": "Утвердить",
@@ -235,6 +241,7 @@
     "ContextValueNotProvided": "Значение контекста не предоставлено: {name}",
     "RequiredParamsNotProvided": "Отсутствуют обязательные параметры: {params}",
     "TooDeepTransitionRecursion": "Слишком глубокая рекурсия переходов",
-    "ToDoAlreadyCompleted": "Задача уже выполнена"
+    "ToDoAlreadyCompleted": "Задача уже выполнена",
+    "GuestWithoutCardAccess": "У гостя {user} нет доступа к карточке, его нельзя назначить"
   }
 }

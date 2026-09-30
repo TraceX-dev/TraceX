@@ -592,6 +592,8 @@ export interface Permission extends Doc {
   txMatch?: DocumentQuery<Tx>
   description?: IntlString
   icon?: Asset
+  /** Enables the module's guest creation policies. */
+  guestCreate?: boolean
 }
 
 export interface AttributePermission extends Permission {
@@ -600,6 +602,36 @@ export interface AttributePermission extends Permission {
 
 export interface ClassPermission extends Permission {
   targetClass: Ref<Class<Doc>>
+  /** Module that owns this guest creation policy. */
+  application?: Ref<Doc>
+  /** Attributes guests may update on their own target documents. */
+  guestUpdateAttributes?: string[]
+  /** Mixin attributes guests may update on their own target documents. */
+  guestUpdateMixinAttributes?: Record<string, string[]>
+  /** Mixin attributes allowed while creating a target document. */
+  guestCreateMixinAttributes?: Record<string, string[]>
+  /** Related classes allowed for guest-created target documents. */
+  relatedCreateClasses?: Array<Ref<Class<Doc>>>
+  /** Custom sequence namespaces allowed by the policy. */
+  sequenceNamespaces?: string[]
+  /** Lets guests update target documents assigned to them. */
+  guestAssignee?: GuestAssigneePolicy
+}
+
+/**
+ * Update access for documents assigned to a guest, e.g. a task the guest has to complete.
+ *
+ * @public
+ */
+export interface GuestAssigneePolicy {
+  /** Attribute holding the assigned `Person`. */
+  field: string
+  /** Exact list of attributes the assignee may change. */
+  attributes: string[]
+  /** Update is allowed only while this attribute is empty, e.g. `doneOn` of an open task. */
+  openField?: string
+  /** The assignee must be able to read the document it is attached to, e.g. the card of a process task. */
+  requireAttachedToAccess?: boolean
 }
 
 /**
@@ -645,6 +677,14 @@ export interface TxAccessLevel extends Class<Doc> {
   removeAccessLevel?: AccountRole
   updateAccessLevel?: AccountRole
   isIdentity?: boolean
+  /**
+   * Attribute holding the owner's AccountUuid (e.g. `user` of an inbox notification).
+   * The owner may update `ownerUpdateAttributes` and, with `ownerRemove`, remove the document,
+   * even when the role-based access levels above do not allow it.
+   */
+  ownerAttribute?: string
+  ownerUpdateAttributes?: string[]
+  ownerRemove?: boolean
 }
 
 /**
