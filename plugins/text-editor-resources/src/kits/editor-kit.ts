@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+import { type GuestPeopleScope } from '@hcengineering/contact'
 import { type Class, type Doc, type Ref, type Space } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
@@ -79,6 +80,8 @@ export interface EditorKitContext {
   objectId?: Ref<Doc>
   objectClass?: Ref<Class<Doc>>
   objectSpace?: Ref<Space>
+  // Narrows the people suggested to guests in mentions
+  peopleScope?: GuestPeopleScope
 }
 
 export type EditorKitOptions = EditorKitContext & (typeof StaticEditorKit)['options']
@@ -135,7 +138,8 @@ const StaticEditorKit = extensionKit(
       editorContext: e(EditorContextExtension, {
         objectId: context.objectId,
         objectClass: context.objectClass,
-        objectSpace: context.objectSpace
+        objectSpace: context.objectSpace,
+        peopleScope: context.peopleScope
       }),
 
       collaboration: e(subKits.collaboration, false),

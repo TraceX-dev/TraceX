@@ -20,7 +20,7 @@
   import { Notice, Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
   import { AttachmentStyledBox } from '@hcengineering/attachment-resources'
   import { EmptyMarkup } from '@hcengineering/text'
-  import { Employee, getCurrentEmployee } from '@hcengineering/contact'
+  import { Employee, getCurrentEmployee, getGuestScopedEmployees } from '@hcengineering/contact'
   import { SelectUsersPopup, permissionsStore } from '@hcengineering/contact-resources'
   import view from '@hcengineering/view'
 
@@ -58,6 +58,22 @@
   let _space: Ref<CardSpace> | undefined = space
   let selectedSpace: CardSpace | undefined
   let collaborators: Ref<Employee>[] = [me]
+
+  // Guests pick collaborators among the people of the selected space.
+  // Undefined means no narrowing: not a guest or no space selected.
+  let scopedEmployees: Ref<Employee>[] | undefined = undefined
+
+  $: void updateScopedEmployees(_space)
+
+  async function updateScopedEmployees (space: Ref<CardSpace> | undefined): Promise<void> {
+    const employees = await getGuestScopedEmployees(client, space !== undefined ? { space } : undefined)
+    if (space !== _space) return
+    scopedEmployees = employees?.map((it) => it._id)
+    if (scopedEmployees !== undefined) {
+      const allowed = new Set(scopedEmployees)
+      collaborators = collaborators.filter((it) => it === me || allowed.has(it))
+    }
+  }
 
   const spaceQuery = createQuery()
   $: if (_space != null) {
@@ -129,6 +145,7 @@
         skipCurrentAccount: false,
         skipInactive: true,
         selected: collaborators,
+        includeItems: scopedEmployees,
         showStatus: true
       },
       'top',

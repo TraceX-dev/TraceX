@@ -14,8 +14,9 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import core, { AccountUuid, Collaborator, Doc } from '@hcengineering/core'
+  import { type Employee, getGuestScopedEmployees } from '@hcengineering/contact'
+  import { AccountArrayEditor, employeeRefByAccountUuidStore } from '@hcengineering/contact-resources'
+  import core, { AccountUuid, Collaborator, Doc, Ref, Space } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { permissions } from '@hcengineering/view-resources'
   import notification from '../plugin'
@@ -45,11 +46,29 @@
 
   $: accounts = collaborators.map((c) => c.collaborator)
 
+  // Guests pick collaborators among the people of the object's space (and its current collaborators).
+  // Undefined means no narrowing: not a guest or the context can't be resolved.
+  let scopedEmployees: Employee[] | undefined = undefined
+  $: void updateScopedEmployees(object)
+
+  async function updateScopedEmployees (doc: Doc): Promise<void> {
+    const space = client.getHierarchy().isDerived(doc._class, core.class.Space) ? (doc._id as Ref<Space>) : doc.space
+    const employees = await getGuestScopedEmployees(client, { space, objectId: doc._id })
+    if (doc !== object) return
+    scopedEmployees = employees
+  }
+
+  $: includeItems = scopedEmployees?.map((it) => it._id) ?? []
+
   async function change (res: AccountUuid[]): Promise<void> {
     if (!canEditCollaborators) return
 
     const toAdd: AccountUuid[] = res.filter((a) => !accounts.includes(a))
-    const toRemove: Collaborator[] = collaborators.filter((a) => !res.includes(a.collaborator))
+    // Collaborators the current user can't see (e.g. hidden from guests by the server) are not shown
+    // in the editor, so they are missing in `res` as well and must not be removed.
+    const toRemove: Collaborator[] = collaborators.filter(
+      (a) => !res.includes(a.collaborator) && $employeeRefByAccountUuidStore.has(a.collaborator)
+    )
     for (const account of toAdd) {
       await client.addCollection(core.class.Collaborator, object.space, object._id, object._class, 'collaborators', {
         collaborator: account
@@ -66,5 +85,6 @@
   value={accounts}
   onChange={change}
   dataId={'btnCollaborators'}
+  {includeItems}
   readonly={readonly || !canEditCollaborators}
 />

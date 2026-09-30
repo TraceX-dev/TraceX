@@ -28,6 +28,7 @@
   import { EditorKitOptions, getEditorKit } from '../../src/kits/editor-kit'
   import { deleteAttachment } from '../command/deleteAttachment'
   import { defaultEditorAttributes } from './editor/editorProps'
+  import { updateEditorContext } from './extension/editorContext'
 
   export let content: Markup = EmptyMarkup
   export let placeholder: IntlString = textEditor.string.EditorPlaceholder
@@ -118,6 +119,12 @@
 
   export function insertMarkup (markup: Markup): void {
     editor?.commands.insertContent(markupToJSON(markup))
+  }
+
+  // Kit options are applied only on mount, so keep the people scope in sync,
+  // e.g. when a space is selected while creating a card.
+  $: if (editor != null && kitOptions.peopleScope !== undefined) {
+    updateEditorContext(editor, { peopleScope: kitOptions.peopleScope })
   }
 
   let needFocus = false

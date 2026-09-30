@@ -430,7 +430,7 @@
     {maxHeight}
     {focusable}
     {kind}
-    {kitOptions}
+    kitOptions={{ peopleScope: { space, objectId }, ...kitOptions }}
     {isScrollable}
     {boundary}
     {extraActions}
