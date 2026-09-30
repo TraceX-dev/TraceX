@@ -56,6 +56,8 @@
   import IconUpDown from './icons/UpDown.svelte'
   import RelationsSelectorPopup from './RelationsSelectorPopup.svelte'
 
+  import { isObjectAttributeReadonly } from '../readonly'
+
   export let _class: Ref<Class<Doc>>
   export let query: DocumentQuery<Doc>
   export let highlightRows: boolean = false
@@ -230,11 +232,12 @@
 
   const joinProps = (attribute: AttributeModel, object: Doc, readonly: boolean) => {
     const readonlyParams =
-      readonly || (attribute?.attribute?.readonly ?? false)
+      readonly || isObjectAttributeReadonly(object, attribute) || (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             editable: false,
-            disabled: true
+            disabled: true,
+            onChange: undefined
           }
         : {
             readonly: false,
@@ -259,11 +262,13 @@
   }
 
   function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute): void {
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, { key }) || attribute.readonly) return
     updateAttribute(client, doc, _class, { key, attr: attribute }, value)
   }
 
   function getOnChange (doc: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, attribute)) return
     if (attr === undefined) return
     if (attribute.collectionAttr) return
     if (attribute.isLookup) return
