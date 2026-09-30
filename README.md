@@ -40,14 +40,6 @@ Track and manage your product lifecycle from concept to market release and post-
 
 Teams collaborate on design control, requirement specifications, development, and verification and validation while maintaining compliance at every stage.
 
-
-
-## Activity
-
-![Alt](https://repobeats.axiom.co/api/embed/c42c99e21691fa60ea61b5cdf11c2e0647621534.svg 'Repobeats analytics image')
-
-
-
 ## Changelog
 
 For detailed information about changes, improvements, and bug fixes in each version, see our [Changelog](./changelog.md).
@@ -88,7 +80,6 @@ Source file headers and package metadata identify the applicable license. Mixed 
   - [Core Pillars](#core-pillars)
     - [Electronic Quality Management System (eQMS)](#electronic-quality-management-system-eqms)
     - [Product Lifecycle Management (PLM)](#product-lifecycle-management-plm)
-  - [Activity](#activity)
   - [Changelog](#changelog)
   - [Versions](#versions)
   - [Architecture](#architecture)
