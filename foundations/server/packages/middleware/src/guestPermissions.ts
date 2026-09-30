@@ -24,11 +24,11 @@ import core, {
   AccountRole,
   type AttachedDoc,
   type Class,
-  type Collaborator,
   type CustomSequence,
   type Doc,
-  getClassCollaborators,
+  getGuestReadCollaboratorTargets,
   hasAccountRole,
+  isSpaceReadableByGuest,
   type MeasureContext,
   type PersonId,
   type Ref,
@@ -401,26 +401,13 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
   }
 
   /**
-   * Mirrors the read security the storage applies to guests: a document is readable in the shared and
-   * system spaces, in non-archived spaces the guest is a member of, and through collaborator security.
-   * This middleware runs below the find security, so its own finds are not filtered.
+   * Mirrors the read security the storage applies to guests. This middleware runs after the find security,
+   * so its own finds are not filtered and it has to check the access itself.
    */
   private async canGuestRead (ctx: MeasureContext, doc: Doc, account: Account): Promise<boolean> {
-    const space = await this.findDoc(ctx, core.class.Space, doc.space)
-    if (space !== undefined && !(space as Space).archived) {
-      if (
-        space._id === core.space.Space ||
-        space._class === core.class.SystemSpace ||
-        (space as Space).members.includes(account.uuid)
-      ) {
-        return true
-      }
-    }
-    const collabSec = getClassCollaborators(this.context.modelDb, this.context.hierarchy, doc._class)
-    const targets: Array<Ref<Doc>> = []
-    if (collabSec?.provideSecurity === true) targets.push(doc._id)
-    const attachedTo = (doc as Partial<AttachedDoc>).attachedTo
-    if (collabSec?.provideAttachedSecurity === true && attachedTo != null) targets.push(attachedTo)
+    const space = (await this.findDoc(ctx, core.class.Space, doc.space)) as Space | undefined
+    if (isSpaceReadableByGuest(space, account.uuid)) return true
+    const targets = getGuestReadCollaboratorTargets(this.context.modelDb, this.context.hierarchy, doc)
     if (targets.length === 0) return false
     const collaborators = await this.findAll(
       ctx,
@@ -428,7 +415,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       { attachedTo: { $in: targets }, collaborator: account.uuid },
       { limit: 1 }
     )
-    return (collaborators as Collaborator[]).length > 0
+    return collaborators.length > 0
   }
 
   private async isForbiddenTx (

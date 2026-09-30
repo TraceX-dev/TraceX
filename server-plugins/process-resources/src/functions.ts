@@ -29,7 +29,9 @@ import core, {
   fillDefaults,
   findProperty,
   generateId,
+  getGuestReadCollaboratorTargets,
   getObjectValue,
+  isSpaceReadableByGuest,
   makeDocCollabId,
   matchQuery,
   Ref,
@@ -951,8 +953,7 @@ export async function RunSubProcess (
 /**
  * A guest assigned to a process task must be able to read the card, otherwise it can not complete the task and
  * the execution would wait forever. Such an assignment fails the step instead of granting access implicitly.
- * The check mirrors the guest read security of the storage for cards: shared and system spaces, or membership
- * in a non-archived card space.
+ * Uses the same guest read rules as the guest permissions middleware, which checks the task updates.
  */
 async function checkGuestAssignees (
   users: Array<Ref<Person>>,
@@ -960,8 +961,9 @@ async function checkGuestAssignees (
   control: ProcessControl
 ): Promise<void> {
   if (users.length === 0) return
-  const h = control.client.getHierarchy()
   const persons = await control.client.findAll(contact.class.Person, { _id: { $in: users } })
+  if (persons.length === 0) return
+  const h = control.client.getHierarchy()
   const guests = persons.filter(
     (person) => h.hasMixin(person, contact.mixin.Employee) && h.as(person, contact.mixin.Employee).role === 'GUEST'
   )
@@ -971,14 +973,20 @@ async function checkGuestAssignees (
     control.cache.get(execution.card) ?? (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
   if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
   const space = await control.client.findOne(core.class.Space, { _id: card.space })
-  const isShared = space !== undefined && (space._id === core.space.Space || space._class === core.class.SystemSpace)
+  const collaboratorTargets = getGuestReadCollaboratorTargets(control.client.getModel(), h, card)
+
   for (const guest of guests) {
     const account = h.as(guest, contact.mixin.Employee).personUuid
-    const hasAccess =
-      space !== undefined && !space.archived && (isShared || (account !== undefined && space.members.includes(account)))
-    if (!hasAccess) {
-      throw processError(process.error.GuestWithoutCardAccess, { user: formatName(guest.name) })
+    if (account !== undefined && isSpaceReadableByGuest(space, account)) continue
+    if (account !== undefined && collaboratorTargets.length > 0) {
+      const collaborators = await control.client.findAll(
+        core.class.Collaborator,
+        { attachedTo: { $in: collaboratorTargets }, collaborator: account },
+        { limit: 1 }
+      )
+      if (collaborators.length > 0) continue
     }
+    throw processError(process.error.GuestWithoutCardAccess, { user: formatName(guest.name) })
   }
 }
 
