@@ -13,14 +13,17 @@
 // limitations under the License.
 //
 
+import { type GuestPeopleScope } from '@hcengineering/contact'
 import { type Class, type Doc, type Ref, type Space } from '@hcengineering/core'
-import { Extension } from '@tiptap/core'
+import { type Editor, Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 
 export interface EditorContext {
   objectId?: Ref<Doc>
   objectClass?: Ref<Class<Doc>>
   objectSpace?: Ref<Space>
+  // Narrows the people suggested to guests in mentions. Falls back to objectSpace/objectId when not set.
+  peopleScope?: GuestPeopleScope
 }
 
 export const editorContextPluginKey = new PluginKey<EditorContext>('editor-context-plugin')
@@ -35,11 +38,37 @@ export const EditorContextExtension = Extension.create<EditorContext>({
         init () {
           return context
         },
-        apply (_tr, val) {
-          return val
+        apply (tr, val) {
+          const update: Partial<EditorContext> | undefined = tr.getMeta(editorContextPluginKey)
+          return update !== undefined ? { ...val, ...update } : val
         }
       }
     })
     return [plugin]
   }
 })
+
+/**
+ * Updates the context of an existing editor, e.g. when the space of the edited object changes.
+ * Kit options are applied only on editor creation, so later changes have to be pushed explicitly.
+ * Does nothing if the values are unchanged.
+ */
+export function updateEditorContext (editor: Editor, update: Partial<EditorContext>): void {
+  if (editor.isDestroyed) return
+  const current = editorContextPluginKey.getState(editor.state)
+  if (current === undefined) return
+  const changed = (Object.keys(update) as Array<keyof EditorContext>).some(
+    (key) => !isShallowEqual(current[key], update[key])
+  )
+  if (!changed) return
+  editor.view.dispatch(editor.state.tr.setMeta(editorContextPluginKey, update).setMeta('addToHistory', false))
+}
+
+function isShallowEqual (a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
+  const aRecord = a as Record<string, unknown>
+  const bRecord = b as Record<string, unknown>
+  const keys = new Set([...Object.keys(aRecord), ...Object.keys(bRecord)])
+  return Array.from(keys).every((key) => aRecord[key] === bRecord[key])
+}
