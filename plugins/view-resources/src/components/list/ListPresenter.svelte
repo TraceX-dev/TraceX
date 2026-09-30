@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,6 +23,8 @@
   import { canChangeAttribute, FixedColumn, restrictionStore } from '../..'
   import DividerPresenter from './DividerPresenter.svelte'
 
+  import { isObjectAttributeReadonly } from '../../readonly'
+
   export let docObject: Doc
   export let attributeModel: AttributeModel
   export let onChange: ((value: any) => void) | undefined
@@ -37,12 +40,13 @@
 
   function joinProps (attribute: AttributeModel, object: Doc, props: Record<string, any>, readonly: boolean) {
     const readonlyParams =
-      readonly || (attribute?.attribute?.readonly ?? false)
+      readonly || isObjectAttributeReadonly(object, attribute) || (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             disabled: true,
             editable: false,
-            isEditable: false
+            isEditable: false,
+            onChange: undefined
           }
         : {}
     const clearAttributeProps = attribute.props

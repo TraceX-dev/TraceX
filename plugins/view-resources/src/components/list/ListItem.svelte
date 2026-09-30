@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -20,6 +21,8 @@
   import { AttributeModel } from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
   import view from '../../plugin'
+  import { isObjectAttributeReadonly } from '../../readonly'
+  import { restrictionStore } from '../../utils'
   import GrowPresenter from './GrowPresenter.svelte'
   import ListPresenter from './ListPresenter.svelte'
 
@@ -53,11 +56,13 @@
   const client = getClient()
 
   function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute) {
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, { key }) || attribute.readonly) return
     updateAttribute(client, doc, doc._class, { key, attr: attribute }, value)
   }
 
   function getOnChange (docObject: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(docObject, attribute)) return
     if (attr === undefined) return
     if (attribute.collectionAttr) return
     if (attribute.isLookup) return
