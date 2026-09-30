@@ -4,6 +4,8 @@ The `sX.Y.Z` tag builds **TraceX Staging** for `https://stg.tracex.co/`. The
 `vX.Y.Z` tag builds **TraceX** for `https://app.tracex.co/`. Each build has its
 own application ID, install directory, icon, bundled server, and update channel.
 
+## Automatic updates
+
 The build workflow uploads installers and immutable update manifests to
 `https://dist.tracex.co`:
 
@@ -15,6 +17,14 @@ The build workflow uploads installers and immutable update manifests to
 The infrastructure deployment workflow copies the matching versioned manifests
 to the channel names after a successful service deploy. The desktop build does
 not promote a channel itself.
+
+Current channel manifests:
+
+| Platform | Prod | Staging |
+| --- | --- | --- |
+| macOS | [tracex-mac.yml](https://dist.tracex.co/tracex-mac.yml) | [tracex-staging-mac.yml](https://dist.tracex.co/tracex-staging-mac.yml) |
+| Windows | [tracex.yml](https://dist.tracex.co/tracex.yml) | [tracex-staging.yml](https://dist.tracex.co/tracex-staging.yml) |
+| Linux | [tracex-linux.yml](https://dist.tracex.co/tracex-linux.yml) | [tracex-staging-linux.yml](https://dist.tracex.co/tracex-staging-linux.yml) |
 
 ## Run locally
 
