@@ -136,7 +136,12 @@ test.describe('Guest person visibility', () => {
       await description.fill(`@${VISIBLE_NAME.split(' ')[0]}`)
       await expect(issuesPage.mentionPopupListItem(VISIBLE_NAME).first()).toBeVisible()
 
+      // Replacing one mention query with another in a single `fill` closes the popup for good:
+      // clear the input first and make sure the popup is open, otherwise the negative check proves nothing.
+      await description.fill('')
+      await expect(page.locator('form.mentionPoup')).toHaveCount(0)
       await description.fill(`@${HIDDEN_NAME.split(' ')[0]}`)
+      await expect(page.locator('form.mentionPoup')).toBeVisible()
       await page.waitForTimeout(SEARCH_SETTLE_MS)
       await expect(issuesPage.mentionPopupListItem(HIDDEN_NAME)).toHaveCount(0)
     } finally {
