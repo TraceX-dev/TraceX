@@ -18,6 +18,6 @@
   "GITHUB_NEXT_CLIENTID": "Ov23liv6hK0ifBRInXFz",
   "GITHUB_NEXT_URL": "https://stg.tracex.co/github-next",
   "SIGNUP_URL": "/login/signup",
-  "DESKTOP_UPDATES_CHANNEL": "selfhost",
+  "DESKTOP_UPDATES_CHANNEL": "tracex-staging",
   "DISABLED_FEATURES": "mail,auto-translate,github,inventory,survey,lead,recruit,gmail,mailboxes,testManagement,telegram,calendar,hr"
 }

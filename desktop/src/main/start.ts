@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -434,7 +435,7 @@ function runTheApp (): void {
 
     setupCookieHandler(config)
 
-    const updatesUrl = process.env.DESKTOP_UPDATES_URL ?? config.DESKTOP_UPDATES_URL ?? 'https://dist.huly.io'
+    const updatesUrl = packedConfig?.updatesUrl ?? process.env.DESKTOP_UPDATES_URL ?? config.DESKTOP_UPDATES_URL ?? 'https://dist.huly.io'
     // NOTE: env format is: default_value;key1:value1;key2:value2...
     const updatesChannels = (process.env.DESKTOP_UPDATES_CHANNEL ?? config.DESKTOP_UPDATES_CHANNELS ?? config.DESKTOP_UPDATES_CHANNEL ?? 'huly').split(';').map(c => c.trim().split(':'))
     const updateChannelsMap: Record<string, string> = {}
@@ -448,7 +449,7 @@ function runTheApp (): void {
     }
 
     const updatesChannelKey = packedConfig?.updatesChannelKey ?? 'default'
-    const updatesChannel = updateChannelsMap[updatesChannelKey] ?? updateChannelsMap.default ?? 'huly'
+    const updatesChannel = packedConfig?.updatesChannel ?? updateChannelsMap[updatesChannelKey] ?? updateChannelsMap.default ?? 'huly'
 
     log.info('updates channels', updatesChannels)
     log.info('updates channel', updatesChannelKey, updatesChannel)

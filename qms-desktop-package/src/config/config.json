@@ -1,5 +1,6 @@
 {
     "server": "https://app.tracex.co/",
-    "updatesChannelKey": "tracex",
+    "updatesChannel": "tracex",
+    "updatesUrl": "https://dist.tracex.co",
     "_version": "1.0.0"
 }
