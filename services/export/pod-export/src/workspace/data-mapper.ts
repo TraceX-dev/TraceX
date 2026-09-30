@@ -14,12 +14,15 @@
 // limitations under the License.
 //
 
-import {
+import contact, { type Person } from '@hcengineering/contact'
+import core, {
   parseIdentifier,
+  type ArrOf,
   type Class,
   type Doc,
   type MeasureContext,
   type Ref,
+  type RefTo,
   type Space,
   type TxOperations
 } from '@hcengineering/core'
@@ -29,6 +32,9 @@ import { type ExportState } from './types'
  * Handles data preparation, remapping, and field mapping for document export
  */
 export class DataMapper {
+  // Cache of person refs already checked in the target workspace: ref -> exists
+  private readonly personExistence = new Map<Ref<Person>, boolean>()
+
   constructor (
     private readonly context: MeasureContext,
     private readonly targetClient: TxOperations,
@@ -103,7 +109,65 @@ export class DataMapper {
     // Apply field mappers for specific document classes
     await this.applyFieldMappers(doc._class, data)
 
+    // Person refs are workspace-local, drop the ones that do not exist in the target workspace
+    await this.dropUnknownPersonRefs(doc._class, data)
+
     return data
+  }
+
+  /**
+   * Removes references to persons that do not exist in the target workspace from
+   * array attributes typed as ArrOf(RefTo(Person | Employee)), e.g. approvers/reviewers.
+   * Such dangling refs are invisible in the UI but still counted, which leads to
+   * "phantom" members (e.g. an approval request that can never be completed).
+   */
+  private async dropUnknownPersonRefs (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
+    const hierarchy = this.targetClient.getHierarchy()
+    const personFields: string[] = []
+
+    for (const [key, attr] of hierarchy.getAllAttributes(docClass)) {
+      const value = data[key]
+      if (!Array.isArray(value) || value.length === 0) continue
+      if (attr.type._class !== core.class.ArrOf) continue
+
+      const itemType = (attr.type as ArrOf<Doc>).of
+      if (itemType._class !== core.class.RefTo) continue
+
+      const to = (itemType as RefTo<Doc>).to
+      if (!hierarchy.isDerived(to, contact.class.Person)) continue
+
+      personFields.push(key)
+    }
+
+    if (personFields.length === 0) return
+
+    const unchecked = new Set<Ref<Person>>()
+    for (const field of personFields) {
+      for (const ref of data[field] as Array<Ref<Person>>) {
+        if (typeof ref === 'string' && !this.personExistence.has(ref)) {
+          unchecked.add(ref)
+        }
+      }
+    }
+
+    if (unchecked.size > 0) {
+      const found = await this.targetClient.findAll(contact.class.Person, { _id: { $in: Array.from(unchecked) } })
+      const foundIds = new Set<Ref<Person>>(found.map((p) => p._id))
+      for (const ref of unchecked) {
+        this.personExistence.set(ref, foundIds.has(ref))
+      }
+    }
+
+    for (const field of personFields) {
+      const refs = data[field] as Array<Ref<Person>>
+      const filtered = refs.filter((ref) => this.personExistence.get(ref) === true)
+      if (filtered.length !== refs.length) {
+        this.context.warn(
+          `Dropped ${refs.length - filtered.length} unknown person ref(s) from ${field} of ${docClass} in target workspace`
+        )
+        data[field] = filtered
+      }
+    }
   }
 
   /**
