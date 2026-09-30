@@ -381,7 +381,8 @@ export default plugin(processId, {
     ContextValueNotProvided: '' as IntlString,
     RequiredParamsNotProvided: '' as IntlString,
     TooDeepTransitionRecursion: '' as IntlString,
-    ToDoAlreadyCompleted: '' as IntlString
+    ToDoAlreadyCompleted: '' as IntlString,
+    GuestWithoutCardAccess: '' as IntlString
   },
   icon: {
     Process: '' as Asset,

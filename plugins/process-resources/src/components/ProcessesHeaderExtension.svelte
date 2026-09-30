@@ -16,7 +16,7 @@
 <script lang="ts">
   import { Card, MasterTag, Tag } from '@hcengineering/card'
   import { getCurrentEmployee } from '@hcengineering/contact'
-  import { Class, Doc, Ref } from '@hcengineering/core'
+  import { AccountRole, Class, Doc, getCurrentAccount, hasAccountRole, Ref } from '@hcengineering/core'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { ApproveRequest, EventButton, Execution, ExecutionStatus, Process, ProcessToDo } from '@hcengineering/process'
@@ -25,6 +25,7 @@
   import process from '../plugin'
   import { createExecution } from '../utils'
   import ApproveRequestButtons from './ApproveRequestButtons.svelte'
+  import { canParticipateInProcessesStore, isGuestInputRequired } from '../guestParticipation'
 
   export let card: Card
 
@@ -84,6 +85,10 @@
   )
 
   const emp = getCurrentEmployee()
+  const account = getCurrentAccount()
+  // Guests only complete the tasks assigned to them: events, starting and rolling back processes are not
+  // available to them yet and would be rejected by the server.
+  const isGuest = !hasAccountRole(account, AccountRole.User)
 
   const query = createQuery()
   $: query.query(
@@ -153,22 +158,33 @@
   }
 </script>
 
-{#each todos as todo (todo._id)}
-  {#if isRequest(todo)}
-    <ApproveRequestButtons {todo} card={card._id} />
-  {:else}
-    <Button kind={'primary'} label={getEmbeddedLabel(todo.title)} on:click={() => checkTodo(todo)} />
-  {/if}
-{/each}
-{#each actions as action (action._id)}
-  {#if activeExecutionIds.has(action.execution) && (action.user === undefined || action.user === emp)}
-    <Button kind={'primary'} label={getEmbeddedLabel(action.title)} on:click={() => performAction(action)} />
-  {/if}
-{/each}
-{#each visibleHeaderProcesses as headerProcess (headerProcess._id)}
-  <Button kind={'primary'} label={getEmbeddedLabel(headerProcess.name)} on:click={() => runProcess(headerProcess)} />
-{/each}
-{#each rollbacks as rollback}
-  {getExecutionLabel(rollback)}
-  <Button kind={'dangerous'} label={process.string.Rollback} on:click={() => performRollback(rollback)} />
-{/each}
+{#if $canParticipateInProcessesStore}
+  {#each todos as todo (todo._id)}
+    {#if isRequest(todo)}
+      <ApproveRequestButtons {todo} card={card._id} />
+    {:else}
+      {@const inputBlocked = isGuestInputRequired(account, todo)}
+      <Button
+        kind={'primary'}
+        label={getEmbeddedLabel(todo.title)}
+        disabled={inputBlocked}
+        showTooltip={inputBlocked ? { label: process.string.GuestInputNotSupported } : undefined}
+        on:click={() => checkTodo(todo)}
+      />
+    {/if}
+  {/each}
+{/if}
+{#if !isGuest}
+  {#each actions as action (action._id)}
+    {#if activeExecutionIds.has(action.execution) && (action.user === undefined || action.user === emp)}
+      <Button kind={'primary'} label={getEmbeddedLabel(action.title)} on:click={() => performAction(action)} />
+    {/if}
+  {/each}
+  {#each visibleHeaderProcesses as headerProcess (headerProcess._id)}
+    <Button kind={'primary'} label={getEmbeddedLabel(headerProcess.name)} on:click={() => runProcess(headerProcess)} />
+  {/each}
+  {#each rollbacks as rollback}
+    {getExecutionLabel(rollback)}
+    <Button kind={'dangerous'} label={process.string.Rollback} on:click={() => performRollback(rollback)} />
+  {/each}
+{/if}

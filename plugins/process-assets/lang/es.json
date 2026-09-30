@@ -159,6 +159,8 @@
     "CancelProcessPermission": "Cancelar proceso",
     "ForbidRunProcessPermission": "Prohibir ejecución de proceso",
     "ForbidCancelProcessPermission": "Forbid cancelling process",
+    "GuestParticipatePermission": "Completar tareas de proceso asignadas",
+    "GuestInputNotSupported": "Esta tarea requiere datos, los invitados aún no pueden completarla",
     "RequestApproval": "Solicitar aprobación",
     "IsApproved": "Aprobado",
     "Approve": "Aprobar",
@@ -239,6 +241,7 @@
     "ContextValueNotProvided": "Valor de contexto no proporcionado: {name}",
     "RequiredParamsNotProvided": "Faltan parámetros requeridos: {params}",
     "TooDeepTransitionRecursion": "Demasiada recursión de transición",
-    "ToDoAlreadyCompleted": "Acción ya completada"
+    "ToDoAlreadyCompleted": "Acción ya completada",
+    "GuestWithoutCardAccess": "El invitado {user} no tiene acceso a la tarjeta y no puede ser asignado"
   }
 }

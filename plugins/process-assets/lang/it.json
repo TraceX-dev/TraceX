@@ -159,6 +159,8 @@
     "CancelProcessPermission": "Annulla processo",
     "ForbidRunProcessPermission": "Vieta l'esecuzione del processo",
     "ForbidCancelProcessPermission": "Vieta l'annullamento del processo",
+    "GuestParticipatePermission": "Completare le attività di processo assegnate",
+    "GuestInputNotSupported": "Questa attività richiede dati, gli ospiti non possono ancora completarla",
     "RequestApproval": "Richiedi approvazione",
     "IsApproved": "Approvato",
     "Approve": "Approva",
@@ -239,6 +241,7 @@
     "ContextValueNotProvided": "Valore di contesto non fornito: {name}",
     "RequiredParamsNotProvided": "Parametri richiesti non forniti: {params}",
     "TooDeepTransitionRecursion": "Ricorsione di transizione troppo profonda",
-    "ToDoAlreadyCompleted": "Azione già completata"
+    "ToDoAlreadyCompleted": "Azione già completata",
+    "GuestWithoutCardAccess": "L'ospite {user} non ha accesso alla scheda e non può essere assegnato"
   }
 }

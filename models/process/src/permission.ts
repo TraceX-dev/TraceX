@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 
-import core from '@hcengineering/core'
+import core, { AccountRole, type ClassPermission, type Ref } from '@hcengineering/core'
 import process from '.'
 import { type Builder } from '@hcengineering/model'
 import { ExecutionStatus } from '@hcengineering/process'
@@ -73,5 +74,43 @@ export function definePermissions (builder: Builder): void {
       forbid: true
     },
     process.permission.ForbidCancelProcess
+  )
+
+  defineGuestPermissions(builder)
+}
+
+/**
+ * Guests take part in processes of the cards they can read: they complete the process tasks and
+ * approval requests assigned to them. Starting or cancelling processes is not available to guests.
+ */
+function defineGuestPermissions (builder: Builder): void {
+  builder.createDoc<ClassPermission>(
+    core.class.ClassPermission,
+    core.space.Model,
+    {
+      label: process.string.GuestParticipatePermission,
+      // ApproveRequest is derived from ProcessToDo, so both are covered.
+      targetClass: process.class.ProcessToDo,
+      guestAssignee: {
+        field: 'user',
+        attributes: ['doneOn', 'approved', 'reason'],
+        openField: 'doneOn',
+        requireAttachedToAccess: true
+      }
+    },
+    process.permission.GuestParticipate as Ref<ClassPermission>
+  )
+
+  // No space class: process tasks live in the shared todo space, access is checked through the card.
+  builder.createDoc(
+    core.class.ModulePermissionGroup,
+    core.space.Model,
+    {
+      application: process.app.Process,
+      role: AccountRole.Guest,
+      permissions: [process.permission.GuestParticipate],
+      enabled: true
+    },
+    process.ids.ModulePermissionGroup
   )
 }

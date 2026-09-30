@@ -59,6 +59,7 @@ Class permissions listed directly in a permission group remain supported. They a
 | `guestCreateMixinAttributes` | Map of mixin IDs to attributes allowed while the target is created in the same apply scope. Defining this field also makes later mixin updates policy-controlled. |
 | `relatedCreateClasses` | Classes that may be created with a target, or attached later to a qualifying document created by the same account. |
 | `sequenceNamespaces` | `CustomSequence` namespaces required by the module's creation workflow. |
+| `guestAssignee` | Update access for target documents assigned to the guest, see [Assigned documents](#assigned-documents). |
 
 An attribute whitelist accepts direct assignments and the supported update operators `$push`, `$pull`, `$inc`, `$unset`, and `$update`. Unknown operators are rejected by the policy check.
 
@@ -75,6 +76,21 @@ If no policy covers the class, the existing `TxAccessLevel` behavior applies.
 For a target with `guestUpdateAttributes`, a guest may update its own document when every changed attribute is whitelisted. A failed policy update may still be accepted by an explicit `TxAccessLevel` rule; it does not fall back to the generic own-document rule.
 
 The generic own-document rule continues to apply to uncovered classes and to removals.
+
+### Assigned documents
+
+A policy with `guestAssignee` lets a guest update a target document assigned to it, such as a process task or an approval request. The rule is checked before the other update rules and allows the update when all of the following are true:
+
+- the attribute named by `field` references the guest's `Person`;
+- every changed attribute is listed in `attributes`. The list is exact and does not depend on model declarations, because some updated fields, such as `ToDo.doneOn`, are not declared attributes;
+- the attribute named by `openField`, when set, is empty, so a completed task can not be changed or reopened;
+- with `requireAttachedToAccess`, the guest can read the document the target is attached to.
+
+Read access mirrors the guest read security of the storage: the shared and system spaces, non-archived spaces the guest is a member of, and collaborator security of the class. The middleware runs after the find security, so it performs this check itself.
+
+The rule never allows removals. When it does not match, the generic update rules still apply.
+
+Processes use it through `process.permission.GuestParticipate`, listed directly in the guest permission group of the Processes module. The group has no `spaceClass`: process tasks are stored in the shared todo space, and access is checked through the card. A process step that assigns a guest without access to the card fails with `process.error.GuestWithoutCardAccess` instead of granting access.
 
 ### Mixins
 
@@ -133,6 +149,8 @@ Client code may mirror module activation to prevent opening workflows that the s
 
 For controlled documents, the reactive check is implemented by `canGuestCreateDocumentsStore`. Server validation remains mandatory even when the UI action is hidden.
 
+For processes, `canParticipateInProcessesStore` shows the task buttons of the assignee. Guests do not get buttons for events, starting, cancelling or rolling back processes, and tasks that ask for input are disabled for them because completing such a task writes the execution context.
+
 ## Adding a module policy
 
 1. Reuse a module-level permission with `guestCreate: true`, or define one if the module has no suitable switch.
@@ -150,3 +168,5 @@ For controlled documents, the reactive check is implemented by `canGuestCreateDo
 - `foundations/core/packages/core/src/modulePermissions.ts`
 - `foundations/server/packages/middleware/src/tests/guestCreatePolicies.test.ts`
 - `models/controlled-documents/src/guestPolicies.ts`
+- `models/process/src/permission.ts`
+- `foundations/server/packages/middleware/src/tests/guestAssigneePolicies.test.ts`

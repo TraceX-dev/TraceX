@@ -152,6 +152,8 @@
     "CancelProcessPermission": "Prozess abbrechen",
     "ForbidRunProcessPermission": "Ausführen des Prozesses verbieten",
     "ForbidCancelProcessPermission": "Abbrechen des Prozesses verbieten",
+    "GuestParticipatePermission": "Zugewiesene Prozessaufgaben erledigen",
+    "GuestInputNotSupported": "Diese Aufgabe erfordert Eingaben, Gäste können sie noch nicht erledigen",
     "RequestApproval": "Genehmigung anfordern",
     "IsApproved": "Ist genehmigt",
     "Approve": "Genehmigen",
@@ -234,6 +236,7 @@
     "ContextValueNotProvided": "Kontextwert nicht bereitgestellt: {name}",
     "RequiredParamsNotProvided": "Erforderliche Parameter nicht bereitgestellt: {params}",
     "TooDeepTransitionRecursion": "Zu tiefe Übergangsrekursion",
-    "ToDoAlreadyCompleted": "Action Item bereits abgeschlossen"
+    "ToDoAlreadyCompleted": "Action Item bereits abgeschlossen",
+    "GuestWithoutCardAccess": "Gast {user} hat keinen Zugriff auf die Karte und kann nicht zugewiesen werden"
   }
 }

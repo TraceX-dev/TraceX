@@ -152,6 +152,8 @@
     "CancelProcessPermission": "Zrušit proces",
     "ForbidRunProcessPermission": "Zakázat spuštění procesu",
     "ForbidCancelProcessPermission": "Forbid cancelling process",
+    "GuestParticipatePermission": "Plnit přiřazené úkoly procesů",
+    "GuestInputNotSupported": "Tento úkol vyžaduje zadání údajů, hosté jej zatím nemohou dokončit",
     "RequestApproval": "Požádat o schválení",
     "IsApproved": "Schváleno",
     "Approve": "Schválit",
@@ -234,6 +236,7 @@
     "ContextValueNotProvided": "Hodnota kontextu nebyla poskytnuta: {name}",
     "RequiredParamsNotProvided": "Chybí požadované parametry: {params}",
     "TooDeepTransitionRecursion": "Příliš hluboká rekurze přechodů",
-    "ToDoAlreadyCompleted": "Akční položka již byla dokončena"
+    "ToDoAlreadyCompleted": "Akční položka již byla dokončena",
+    "GuestWithoutCardAccess": "Host {user} nemá přístup ke kartě a nelze jej přiřadit"
   }
 }

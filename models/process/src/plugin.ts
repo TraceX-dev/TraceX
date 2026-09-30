@@ -32,6 +32,7 @@ export default mergeIds(processId, process, {
   },
   ids: {
     ProcessSettings: '' as Ref<Doc>,
+    ModulePermissionGroup: '' as Ref<Doc>,
     ProcessToDoCreated: '' as Ref<Doc>,
     ApproveRequestCreated: '' as Ref<Doc>
   },

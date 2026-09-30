@@ -21,6 +21,7 @@ import core, {
   type DocumentQuery,
   type FindOptions,
   type FindResult,
+  type GuestAssigneePolicy,
   getGroupEffectivePermissions,
   getModulePermissionGroupRole,
   type MeasureContext,
@@ -45,6 +46,7 @@ export interface GuestClassPermissionPolicy {
   guestCreateMixinAttributes: Map<string, Set<string>>
   relatedCreateClasses: Set<Ref<Class<Doc>>>
   sequenceNamespaces: Set<string>
+  guestAssignee: GuestAssigneePolicy | undefined
 }
 
 export interface GuestTxScope {
@@ -79,7 +81,8 @@ function toPolicy (permission: ClassPermission, spaceClass: Ref<Class<Space>> | 
         : undefined,
     guestCreateMixinAttributes: toAttributeMap(permission.guestCreateMixinAttributes),
     relatedCreateClasses: new Set(permission.relatedCreateClasses ?? []),
-    sequenceNamespaces: new Set(permission.sequenceNamespaces ?? [])
+    sequenceNamespaces: new Set(permission.sequenceNamespaces ?? []),
+    guestAssignee: permission.guestAssignee
   }
 }
 
