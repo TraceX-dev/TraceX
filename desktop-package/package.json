@@ -47,6 +47,7 @@
     "directories": {
       "output": "deploy"
     },
+    "beforeBuild": "scripts/before-build.js",
     "files": [
       "./dist/**"
     ],
