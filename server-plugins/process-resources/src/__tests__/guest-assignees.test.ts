@@ -122,9 +122,7 @@ describe('process steps assigning guests', () => {
   })
 
   it('accepts cards in a system space', async () => {
-    await expect(createToDo(makeControl({ spaceClass: core.class.SystemSpace }), GUEST)).resolves.toHaveProperty(
-      'txes'
-    )
+    await expect(createToDo(makeControl({ spaceClass: core.class.SystemSpace }), GUEST)).resolves.toHaveProperty('txes')
   })
 
   it('accepts access through collaborator security, like the guest permissions middleware', async () => {
