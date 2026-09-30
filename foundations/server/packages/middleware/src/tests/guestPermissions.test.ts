@@ -510,7 +510,10 @@ describe('GuestPermissionsMiddleware', () => {
     const OWNED_CLASS = 'test:class:OwnedClass' as Ref<Class<Doc>>
     const SYSTEM_SOCIAL = 'test:account:System' as PersonId
 
-    function setup (owner: string, docSpace: Ref<Space> = ALLOWED_SPACE): {
+    function setup (
+      owner: string,
+      docSpace: Ref<Space> = ALLOWED_SPACE
+    ): {
       mw: GuestPermissionsMiddleware
       objectId: Ref<Doc>
       nextCalls: () => number
