@@ -201,6 +201,7 @@ export interface StepContext {
 export interface SelectionRelation {
   association: Ref<Association>
   direction: 'A' | 'B'
+  versions?: 'all' | 'latest' | 'effective'
 }
 
 export interface UserResult {

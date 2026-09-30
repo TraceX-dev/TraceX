@@ -65,7 +65,7 @@
 </script>
 
 <Button disabled={readonly} {kind} {size} {justify} width={width ?? 'min-content'} on:click={openPopup}>
-  <div slot="content" class="overflow-label flex-grow">
+  <div slot="content">
     {#if selected}
       <ProductVersionPresenter value={selected} disabled />
     {:else}

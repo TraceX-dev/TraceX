@@ -136,6 +136,10 @@ export default mergeIds(processId, process, {
     CreateMiddleware: '' as Resource<PresentationMiddlewareCreator>
   },
   string: {
+    SelectionVersions: '' as IntlString,
+    OnlyEffectiveVersions: '' as IntlString,
+    OnlyLatestVersions: '' as IntlString,
+    AllVersions: '' as IntlString,
     MultipleSelection: '' as IntlString,
     ExcludeRelatedObjects: '' as IntlString,
     DeleteProcess: '' as IntlString,
