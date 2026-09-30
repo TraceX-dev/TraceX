@@ -612,6 +612,12 @@ export function createModel (builder: Builder): void {
     removeAccessLevel: AccountRole.Guest
   })
 
+  builder.mixin(notification.class.InboxNotification, core.class.Class, core.mixin.TxAccessLevel, {
+    ownerAttribute: 'user',
+    ownerUpdateAttributes: ['isViewed', 'archived'],
+    ownerRemove: true
+  })
+
   builder.mixin(notification.class.DocNotifyContext, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.Guest,
     updateAccessLevel: AccountRole.Guest,
