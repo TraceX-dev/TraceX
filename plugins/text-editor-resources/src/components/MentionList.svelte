@@ -15,8 +15,11 @@
 -->
 <script lang="ts">
   import { showPopup, resizeObserver, deviceOptionsStore as deviceInfo, PopupResult } from '@hcengineering/ui'
-  import { Ref, Class, Doc } from '@hcengineering/core'
+  import { type GuestPeopleScope } from '@hcengineering/contact'
+  import { Ref, Class, Doc, Space } from '@hcengineering/core'
+  import { type Editor } from '@tiptap/core'
   import { onDestroy, onMount } from 'svelte'
+  import { editorContextPluginKey } from './extension/editorContext'
   import MentionPopup from './MentionPopup.svelte'
   import DummyPopup from './DummyPopup.svelte'
 
@@ -26,6 +29,21 @@
   export let clientRect: () => ClientRect
   export let command: (props: any) => void
   export let close: () => void
+  export let editor: Editor | undefined = undefined
+
+  // Context of the edited object, used to narrow people suggested to guests
+  $: editorContext = editor !== undefined ? editorContextPluginKey.getState(editor.state) : undefined
+  $: peopleScope = getPeopleScope(editorContext?.peopleScope, editorContext?.objectSpace, editorContext?.objectId)
+
+  function getPeopleScope (
+    scope: GuestPeopleScope | undefined,
+    space: Ref<Space> | undefined,
+    objectId: Ref<Doc> | undefined
+  ): GuestPeopleScope | undefined {
+    if (scope !== undefined) return scope
+    if (space === undefined && objectId === undefined) return undefined
+    return { space, objectId }
+  }
 
   let popup: HTMLDivElement
   let dummyPopup: PopupResult
@@ -119,6 +137,7 @@
   <MentionPopup
     bind:this={searchPopup}
     {docClass}
+    {peopleScope}
     {query}
     {multipleMentions}
     on:close={(evt) => {

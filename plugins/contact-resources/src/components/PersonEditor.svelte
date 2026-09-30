@@ -13,8 +13,10 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Person } from '@hcengineering/contact'
-  import { Ref, RefTo } from '@hcengineering/core'
+  import { Contact, Person } from '@hcengineering/contact'
+  import { DocumentQuery, Ref, RefTo, Space } from '@hcengineering/core'
+  import { getClient } from '@hcengineering/presentation'
+  import { getGuestScopedPersonQuery } from '../utils'
   import { IntlString } from '@hcengineering/platform'
   import contact from '../plugin'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
@@ -28,6 +30,19 @@
   export let size: ButtonSize = 'small'
   export let justify: 'left' | 'center' = 'center'
   export let width: string | undefined = undefined
+  export let space: Ref<Space> | undefined = undefined
+
+  const client = getClient()
+
+  // Guests are offered only people of the object's space
+  let docQuery: DocumentQuery<Contact> | undefined = undefined
+  $: void updateDocQuery(space)
+
+  async function updateDocQuery (_space: Ref<Space> | undefined): Promise<void> {
+    const query = await getGuestScopedPersonQuery<Person>(client, _space)
+    if (_space !== space) return
+    docQuery = Object.keys(query).length > 0 ? (query as DocumentQuery<Contact>) : undefined
+  }
 
   $: _class = type?.to ?? contact.class.Person
 </script>
@@ -39,6 +54,7 @@
   {size}
   {justify}
   {width}
+  {docQuery}
   bind:value
   on:change={(e) => {
     onChange(e.detail)

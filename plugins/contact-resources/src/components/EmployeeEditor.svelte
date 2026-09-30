@@ -18,7 +18,7 @@
   import { IntlString } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
-  import { employeeRefByAccountUuidStore } from '..'
+  import { employeeRefByAccountUuidStore, getGuestScopedPersonQuery } from '..'
   import contact from '../plugin'
   import EmployeeBox from './EmployeeBox.svelte'
 
@@ -46,8 +46,10 @@
   $: buildQuery(attribute, space)
 
   async function buildQuery (attribute: AnyAttribute | undefined, space: Ref<Space> | undefined): Promise<void> {
-    const baseQuery = {
-      active: true
+    // Guests are offered only people of the object's space
+    const baseQuery: DocumentQuery<Employee> = {
+      active: true,
+      ...(await getGuestScopedPersonQuery<Employee>(client, space))
     }
     if (attribute === undefined || space === undefined) {
       query = baseQuery
