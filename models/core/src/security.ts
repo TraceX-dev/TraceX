@@ -232,6 +232,9 @@ export class TTxAccessLevel extends TClass implements TxAccessLevel {
   removeAccessLevel?: AccountRole
   updateAccessLevel?: AccountRole
   isIdentity?: boolean
+  ownerAttribute?: string
+  ownerUpdateAttributes?: string[]
+  ownerRemove?: boolean
 }
 
 @Model(core.class.ModulePermissionGroup, core.class.Doc, DOMAIN_MODEL)

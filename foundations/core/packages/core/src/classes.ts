@@ -677,6 +677,14 @@ export interface TxAccessLevel extends Class<Doc> {
   removeAccessLevel?: AccountRole
   updateAccessLevel?: AccountRole
   isIdentity?: boolean
+  /**
+   * Attribute holding the owner's AccountUuid (e.g. `user` of an inbox notification).
+   * The owner may update `ownerUpdateAttributes` and, with `ownerRemove`, remove the document,
+   * even when the role-based access levels above do not allow it.
+   */
+  ownerAttribute?: string
+  ownerUpdateAttributes?: string[]
+  ownerRemove?: boolean
 }
 
 /**

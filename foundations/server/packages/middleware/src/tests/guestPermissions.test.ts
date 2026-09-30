@@ -505,6 +505,98 @@ describe('GuestPermissionsMiddleware', () => {
     })
   })
 
+  // ─── Owner access via TxAccessLevel.ownerAttribute ──────────────────────────
+  describe('owner access (TxAccessLevel.ownerAttribute)', () => {
+    const OWNED_CLASS = 'test:class:OwnedClass' as Ref<Class<Doc>>
+    const SYSTEM_SOCIAL = 'test:account:System' as PersonId
+
+    function setup (owner: string, docSpace: Ref<Space> = ALLOWED_SPACE): {
+      mw: GuestPermissionsMiddleware
+      objectId: Ref<Doc>
+      nextCalls: () => number
+    } {
+      const objectId = generateId<Doc>()
+      let calls = 0
+      const findAll: FindAllFn = async (_ctx, _class, query: any) => {
+        if (_class === OWNED_CLASS && query?._id === objectId) {
+          return [
+            {
+              _id: objectId,
+              _class: OWNED_CLASS,
+              space: docSpace,
+              modifiedOn: Date.now(),
+              modifiedBy: SYSTEM_SOCIAL,
+              createdBy: SYSTEM_SOCIAL,
+              user: owner
+            } as any
+          ]
+        }
+        return []
+      }
+      const mw = makeMiddleware(findAll, async () => {
+        calls++
+        return {}
+      })
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any) =>
+        _class === OWNED_CLASS
+          ? { ownerAttribute: 'user', ownerUpdateAttributes: ['isViewed', 'archived'], ownerRemove: true }
+          : undefined
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
+        if (b === core.class.Space) return false
+        return a === b
+      }
+      return { mw, objectId, nextCalls: () => calls }
+    }
+
+    it('allows the owner to mark a system-created document as viewed and archived', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId, nextCalls } = setup(account.uuid)
+      const factory = new TxFactory(account.primarySocialId)
+      await mw.tx(makeCtx(account), [
+        factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, { isViewed: true } as any)
+      ])
+      await mw.tx(makeCtx(account), [
+        factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, { archived: true, isViewed: true } as any)
+      ])
+      expect(nextCalls()).toBe(2)
+    })
+
+    it('allows the owner to remove the document', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId, nextCalls } = setup(account.uuid)
+      const factory = new TxFactory(account.primarySocialId)
+      await mw.tx(makeCtx(account), [factory.createTxRemoveDoc(OWNED_CLASS, ALLOWED_SPACE, objectId)])
+      expect(nextCalls()).toBe(1)
+    })
+
+    it('forbids updating attributes outside ownerUpdateAttributes', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId } = setup(account.uuid)
+      const factory = new TxFactory(account.primarySocialId)
+      const tx = factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, {
+        isViewed: true,
+        user: 'someone-else'
+      } as any)
+      await expect(mw.tx(makeCtx(account), [tx])).rejects.toThrow()
+    })
+
+    it('forbids updating a document owned by another account', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId } = setup('other-account')
+      const factory = new TxFactory(account.primarySocialId)
+      const tx = factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, { isViewed: true } as any)
+      await expect(mw.tx(makeCtx(account), [tx])).rejects.toThrow()
+    })
+
+    it('forbids the tx when its space does not match the document space', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId } = setup(account.uuid, FORBIDDEN_SPACE)
+      const factory = new TxFactory(account.primarySocialId)
+      const tx = factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, { isViewed: true } as any)
+      await expect(mw.tx(makeCtx(account), [tx])).rejects.toThrow()
+    })
+  })
+
   // ─── Cache invalidation ──────────────────────────────────────────────────────
   describe('cache invalidation', () => {
     it('invalidates cache when GuestPermissionsSettings is updated', async () => {

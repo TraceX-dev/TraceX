@@ -40,6 +40,7 @@ import core, {
   type TxCUD,
   type TxMixin,
   TxProcessor,
+  type TxAccessLevel,
   type TxUpdateDoc
 } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
@@ -576,10 +577,33 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return false
   }
 
+  private async isOwnerAccessTx (
+    ctx: MeasureContext,
+    tx: TxCUD<Doc>,
+    account: Account,
+    accessLevel: TxAccessLevel
+  ): Promise<boolean> {
+    const ownerAttribute = accessLevel.ownerAttribute
+    if (ownerAttribute === undefined) return false
+    if (tx._class === core.class.TxUpdateDoc) {
+      const allowed = accessLevel.ownerUpdateAttributes ?? []
+      const updated = getUpdatedAttributes((tx as TxUpdateDoc<Doc>).operations as Record<string, unknown>)
+      if (updated === undefined || !Array.from(updated).every((attribute) => allowed.includes(attribute))) {
+        return false
+      }
+    } else if (tx._class !== core.class.TxRemoveDoc || accessLevel.ownerRemove !== true) {
+      return false
+    }
+    const doc = await this.findDoc(ctx, tx.objectClass, tx.objectId)
+    if (doc === undefined || doc.space !== tx.objectSpace) return false
+    return (doc as unknown as Record<string, unknown>)[ownerAttribute] === account.uuid
+  }
+
   private async hasMixinAccessLevel (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
     const h = this.context.hierarchy
     const accessLevelMixin = h.classHierarchyMixin(tx.objectClass, core.mixin.TxAccessLevel)
     if (accessLevelMixin === undefined) return false
+    if (await this.isOwnerAccessTx(ctx, tx, account, accessLevelMixin)) return true
     if (tx._class === core.class.TxCreateDoc) {
       return (
         accessLevelMixin.createAccessLevel !== undefined && hasAccountRole(account, accessLevelMixin.createAccessLevel)
