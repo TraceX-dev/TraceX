@@ -52,7 +52,8 @@ describe('client', () => {
     const error = new Error('model unavailable')
     const close = jest.fn().mockResolvedValue(undefined)
     const connection = {
-      loadModel: jest.fn().mockRejectedValue(error), close
+      loadModel: jest.fn().mockRejectedValue(error),
+      close
     } as unknown as ClientConnection
     await expect(createClient(async () => connection)).rejects.toBe(error)
     expect(close).toHaveBeenCalledTimes(1)
@@ -62,9 +63,17 @@ describe('client', () => {
     const error = new Error('invalid model')
     const close = jest.fn().mockResolvedValue(undefined)
     const connection = {
-      loadModel: jest.fn().mockResolvedValue({ full: true, hash: 'hash', transactions: [] }), close
+      loadModel: jest.fn().mockResolvedValue({ full: true, hash: 'hash', transactions: [] }),
+      close
     } as unknown as ClientConnection
-    await expect(createClient(async () => connection, () => { throw error })).rejects.toBe(error)
+    await expect(
+      createClient(
+        async () => connection,
+        () => {
+          throw error
+        }
+      )
+    ).rejects.toBe(error)
     expect(close).toHaveBeenCalledTimes(1)
   })
 

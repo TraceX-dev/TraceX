@@ -118,7 +118,9 @@ export async function releaseClient (workspace: WorkspaceUuid): Promise<void> {
     if (entry.invalidated) {
       closeInBackground(workspace, entry)
     } else {
-      entry.idleTimer = setTimeout(() => { closeInBackground(workspace, entry) }, config.ClientIdleTimeoutMs)
+      entry.idleTimer = setTimeout(() => {
+        closeInBackground(workspace, entry)
+      }, config.ClientIdleTimeoutMs)
       trimClients()
     }
   }
@@ -136,9 +138,11 @@ async function close (workspace: WorkspaceUuid, entry: CachedClient, force: bool
 
 /** Close connections after the consumer has finished processing its messages. */
 export async function closeClients (): Promise<void> {
-  const results = await Promise.allSettled(Array.from(clients, async ([workspace, entry]) => {
-    await close(workspace, entry, true)
-  }))
+  const results = await Promise.allSettled(
+    Array.from(clients, async ([workspace, entry]) => {
+      await close(workspace, entry, true)
+    })
+  )
   for (const result of results) {
     if (result.status === 'rejected') {
       lifecycleContext?.error('Failed to close process client during shutdown', { error: result.reason })
@@ -147,7 +151,9 @@ export async function closeClients (): Promise<void> {
 }
 
 async function createClient (
-  workspace: WorkspaceUuid, entry: CachedClient, ctx?: MeasureContext
+  workspace: WorkspaceUuid,
+  entry: CachedClient,
+  ctx?: MeasureContext
 ): Promise<TxOperations> {
   const token = generateToken(systemAccountUuid, workspace, { service: SERVICE_NAME })
   const accountClient = getAccountClient(config.AccountsUrl, token)

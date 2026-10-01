@@ -64,13 +64,16 @@ async function main (): Promise<void> {
   )
 
   const shutdown = (): void => {
-    void consumer.close().then(async () => {
-      await closeClients()
-      process.exit()
-    }).catch((error: unknown) => {
-      ctx.error('Failed to stop process service', { error })
-      process.exit(1)
-    })
+    void consumer
+      .close()
+      .then(async () => {
+        await closeClients()
+        process.exit()
+      })
+      .catch((error: unknown) => {
+        ctx.error('Failed to stop process service', { error })
+        process.exit(1)
+      })
   }
 
   process.once('SIGINT', shutdown)

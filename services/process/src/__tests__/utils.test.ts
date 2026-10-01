@@ -31,12 +31,13 @@
 
 import clientPlugin from '@hcengineering/client'
 import clientResources from '@hcengineering/client-resources'
-import type { TxOperations, WorkspaceUuid } from '@hcengineering/core'
+import type { WorkspaceUuid } from '@hcengineering/core'
 import { setMetadata } from '@hcengineering/platform'
 import { closeClients, getClient, releaseClient } from '../utils'
 
 jest.mock('@hcengineering/client', () => ({
-  __esModule: true, default: { metadata: { FilterModel: 'filter' } }
+  __esModule: true,
+  default: { metadata: { FilterModel: 'filter' } }
 }))
 jest.mock('@hcengineering/client-resources', () => ({ __esModule: true, default: jest.fn() }))
 jest.mock('@hcengineering/api-client', () => ({ NodeWebSocketFactory: jest.fn() }))
@@ -47,16 +48,22 @@ jest.mock('@hcengineering/account-client', () => ({
   })
 }))
 jest.mock('@hcengineering/core', () => ({
-  __esModule: true, default: { account: { System: 'system-social-id' } },
+  __esModule: true,
+  default: { account: { System: 'system-social-id' } },
   systemAccountUuid: 'system',
   TxOperations: jest.fn((client: unknown) => client),
   ClientConnectEvent: { Connected: 0, Reconnected: 1, Maintenance: 4 }
 }))
 jest.mock('@hcengineering/server-token', () => ({ generateToken: () => 'token' }))
-jest.mock('../config', () => ({ __esModule: true, default: {
-  AccountsUrl: 'http://accounts', ClientIdleTimeoutMs: 600000,
-  ClientCacheMaxSize: 2, ClientConnectionTimeoutMs: 30000
-} }))
+jest.mock('../config', () => ({
+  __esModule: true,
+  default: {
+    AccountsUrl: 'http://accounts',
+    ClientIdleTimeoutMs: 600000,
+    ClientCacheMaxSize: 2,
+    ClientConnectionTimeoutMs: 30000
+  }
+}))
 
 const createWebSocketClient = jest.fn()
 let workspace: WorkspaceUuid
@@ -68,7 +75,7 @@ beforeEach(() => {
   workspace = `workspace-${sequence++}` as WorkspaceUuid
   closeClient = jest.fn().mockResolvedValue(undefined)
   createWebSocketClient.mockReset()
-  createWebSocketClient.mockResolvedValue({ close: closeClient } as unknown as TxOperations)
+  createWebSocketClient.mockResolvedValue({ close: closeClient })
   jest.mocked(clientResources).mockResolvedValue({ function: { GetClient: createWebSocketClient } })
 })
 
@@ -169,10 +176,16 @@ it('allows active overflow and trims it as soon as a client is released', async 
 it('requests the full model and a bounded binary WebSocket connection', async () => {
   await getClient(workspace)
   expect(setMetadata).toHaveBeenCalledWith(clientPlugin.metadata.FilterModel, 'none')
-  expect(createWebSocketClient).toHaveBeenCalledWith('token', 'ws://transactor', expect.objectContaining({
-    socketFactory: expect.any(Function), useBinaryProtocol: true,
-    useProtocolCompression: true, connectionTimeout: 30000
-  }))
+  expect(createWebSocketClient).toHaveBeenCalledWith(
+    'token',
+    'ws://transactor',
+    expect.objectContaining({
+      socketFactory: expect.any(Function),
+      useBinaryProtocol: true,
+      useProtocolCompression: true,
+      connectionTimeout: 30000
+    })
+  )
 })
 
 it('discards an upgraded client after the current event releases it', async () => {
