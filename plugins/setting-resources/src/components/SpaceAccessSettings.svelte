@@ -79,7 +79,6 @@
   let operationError = false
   let pendingSpaceOperations = new Set<string>()
   let pendingRoleUpdates = new Set<AccountUuid>()
-  // HiddenApplication is a personal app-switcher preference and must not affect workspace-level access settings.
   const workspaceApplications = client.getModel().findAllSync<Application>(workbench.class.Application, {
     hidden: false,
     _id: { $nin: excludedApplicationIds }

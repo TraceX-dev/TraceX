@@ -96,11 +96,6 @@
     loadingPermissions = false
   })
 
-  /**
-   * Applications available in this workspace: model apps minus excluded ones.
-   * HiddenApplication is a personal app-switcher preference of the current user and must not
-   * affect workspace-level guest settings, so it is intentionally not applied here.
-   */
   const workspaceApplications = client.getModel().findAllSync<Application>(workbench.class.Application, {
     hidden: false,
     _id: { $nin: excludedApplicationIds }
