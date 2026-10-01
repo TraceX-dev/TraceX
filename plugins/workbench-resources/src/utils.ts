@@ -17,16 +17,16 @@
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import type {
   Account,
-  AccountRole,
   Class,
   Client,
   Doc,
+  ModulePermissionGroup,
   Ref,
   Space,
   TxOperations,
   WorkspaceInfoWithStatus
 } from '@hcengineering/core'
-import core, { getCurrentAccount, hasAccountRole } from '@hcengineering/core'
+import core, { AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
 import login from '@hcengineering/login'
 import { getMetadata, getResource, setMetadata } from '@hcengineering/platform'
 import presentation, { closeClient, getClient, setPresentationCookie } from '@hcengineering/presentation'
@@ -145,6 +145,17 @@ export async function doNavigate (
 export function isAllowedToRole (role: AccountRole | undefined, acc: Account): boolean {
   if (role === undefined) return true
   return hasAccountRole(acc, role)
+}
+
+export function isModuleDisabledForAccount (group: ModulePermissionGroup, account: Account): boolean {
+  if (group.enabled ?? true) {
+    return false
+  }
+  if (account.role === group.role) {
+    return true
+  }
+  // DocGuest should also respect Guest module disables.
+  return account.role === AccountRole.DocGuest && group.role === AccountRole.Guest
 }
 
 export async function hideApplication (app: Application): Promise<void> {

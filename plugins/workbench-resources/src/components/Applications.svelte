@@ -23,6 +23,7 @@
   import { getMetadata } from '@hcengineering/platform'
 
   import ApplicationNavItem from './ApplicationNavItem.svelte'
+  import { isModuleDisabledForAccount } from '../utils'
 
   export let active: Ref<Application> | undefined
   export let apps: Application[] = []
@@ -54,7 +55,9 @@
     try {
       const modulePermissionGroups = res as ModulePermissionGroup[]
       disabledApplications = new Set<Ref<Application>>(
-        modulePermissionGroups.filter(checkPermissionGroup).map((g) => g.application as Ref<Application>)
+        modulePermissionGroups
+          .filter((g) => isModuleDisabledForAccount(g, account))
+          .map((g) => g.application as Ref<Application>)
       )
     } catch (error) {
       console.error('Error loading module permission groups:', error)
@@ -62,17 +65,6 @@
       permissionsLoaded = true
     }
   })
-
-  function checkPermissionGroup (group: ModulePermissionGroup): boolean {
-    if (group.enabled ?? true) {
-      return false
-    }
-    if (account.role === group.role) {
-      return true
-    }
-    // DocGuest should also respect Guest module disables.
-    return account.role === AccountRole.DocGuest && group.role === AccountRole.Guest
-  }
 
   hiddenAppsIdsQuery.query(
     workbench.class.HiddenApplication,
