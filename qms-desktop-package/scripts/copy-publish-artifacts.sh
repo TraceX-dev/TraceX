@@ -33,10 +33,7 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 
-if [[ -e "$TARGET_FOLDER" ]]; then
-  echo "Target folder already exists: $TARGET_FOLDER" >&2
-  exit 1
-fi
+rm -rf "$TARGET_FOLDER"
 mkdir -p "$TARGET_FOLDER"
 shopt -s nullglob
 artifacts=()

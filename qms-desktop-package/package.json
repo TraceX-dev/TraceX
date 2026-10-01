@@ -11,7 +11,7 @@
     "dist-local": "node scripts/prepare-variant.js prod && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -p never",
     "dist-signed": "node scripts/prepare-variant.js prod && cross-env CSC_IDENTITY_AUTO_DISCOVERY=true NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -c.afterSign=scripts/notarize.js -p never",
     "dist-staging": "node scripts/prepare-variant.js staging && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -c scripts/staging.config.cjs -p never",
-    "dist-staging-signed": "node scripts/prepare-variant.js staging && cross-env CSC_IDENTITY_AUTO_DISCOVERY=true NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -c scripts/staging.config.cjs -c.afterSign=scripts/notarize.js -p never",
+    "dist-staging-signed": "node scripts/prepare-variant.js staging && cross-env CSC_IDENTITY_AUTO_DISCOVERY=true TRACEX_NOTARIZE=true NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -c scripts/staging.config.cjs -p never",
     "dist-mac-win": "node scripts/prepare-variant.js prod && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build --windows --x64 -p never",
     "format": "echo done",
     "bump": "bump-package-version"
@@ -45,7 +45,7 @@
   "build": {
     "productName": "TraceX",
     "extraMetadata": {
-      "productName": "TraceX"
+      "productName": "TraceX Desktop"
     },
     "copyright": "Copyright © 2026 TraceX",
     "appId": "co.tracex.desktop",

@@ -26,6 +26,9 @@ module.exports = {
   productName: 'TraceX Staging',
   extraMetadata: { productName: 'TraceX Staging' },
   appId: 'co.tracex.desktop.staging',
+  // Set here, not via `-c.afterSign=...`: mixing a `-c <file>` with `-c.<key>` makes
+  // electron-builder treat this file as a parent config and let package.json `build` win.
+  afterSign: process.env.TRACEX_NOTARIZE === 'true' ? 'scripts/notarize.js' : undefined,
   extraResources: [{
     from: './src/config-staging/',
     to: './config/',
