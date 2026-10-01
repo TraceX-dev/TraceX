@@ -13,11 +13,11 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { AccountRole, getCurrentAccount, type Ref } from '@hcengineering/core'
+  import core, { AccountRole, getCurrentAccount, type ModulePermissionGroup, type Ref } from '@hcengineering/core'
   import type { Application } from '@hcengineering/workbench'
   import { createQuery } from '@hcengineering/presentation'
   import workbench from '@hcengineering/workbench'
-  import { hideApplication, isAllowedToRole, showApplication } from '../utils'
+  import { hideApplication, isAllowedToRole, isModuleDisabledForAccount, showApplication } from '../utils'
   import { Loading, IconCheck, Label, Icon } from '@hcengineering/ui'
   import { getMetadata } from '@hcengineering/platform'
   // import Drag from './icons/Drag.svelte'
@@ -69,9 +69,21 @@
 
   const me = getCurrentAccount()
 
-  const filteredApps = apps.filter(
+  let permissionsLoaded = false
+  let disabledApplications = new Set<Ref<Application>>()
+  const modulePermissionGroupsQuery = createQuery()
+  modulePermissionGroupsQuery.query(core.class.ModulePermissionGroup, {}, (res) => {
+    disabledApplications = new Set<Ref<Application>>(
+      (res as ModulePermissionGroup[])
+        .filter((g) => isModuleDisabledForAccount(g, me))
+        .map((g) => g.application as Ref<Application>)
+    )
+    permissionsLoaded = true
+  })
+
+  $: filteredApps = apps.filter(
     (it) =>
-      !hiddenAppsIds.includes(it._id) &&
+      !disabledApplications.has(it._id) &&
       isAllowedToRole(it.accessLevel, me) &&
       it.position !== 'top' &&
       !isExcludedApp(it.alias)
@@ -93,7 +105,7 @@
   <div class="ap-space x2" />
   <div class="ap-scroll">
     <div class="ap-box">
-      {#if loaded}
+      {#if loaded && permissionsLoaded}
         {#each filteredApps as app, i}
           <button
             bind:this={btns[i]}
