@@ -119,6 +119,17 @@ export function createModel (builder: Builder): void {
     TWorkbenchTab
   )
 
+  // Hidden applications are personal preferences (private `preference` domain): guests may hide apps for
+  // themselves. Showing an app again removes the guest's own document, which the own-document rule allows.
+  builder.mixin(workbench.class.HiddenApplication, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.Guest
+  })
+
+  // Widget preferences are personal too: guests create them, then toggle `enabled` on their own document.
+  builder.mixin(workbench.class.WidgetPreference, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.Guest
+  })
+
   builder.mixin(workbench.class.WorkbenchTab, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.Guest,
     removeAccessLevel: AccountRole.Guest,

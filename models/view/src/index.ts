@@ -17,6 +17,7 @@
 //
 
 import {
+  AccountRole,
   type AccountUuid,
   type AnyAttribute,
   type Class,
@@ -1405,6 +1406,12 @@ export function createModel (builder: Builder): void {
   builder.mixin(core.class.Space, core.class.Class, view.mixin.IgnoreActions, {
     actions: [view.action.Open, view.action.OpenInNewTab, view.action.Delete]
   })
+  // Viewlet preferences are personal (private `preference` domain): guests may create them. Updating the
+  // config and restoring defaults (remove) act on the guest's own document, which the own-document rule allows.
+  builder.mixin(view.class.ViewletPreference, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.Guest
+  })
+
   builder.mixin(view.class.FilteredView, core.class.Class, core.mixin.IndexConfiguration, {
     indexes: [],
     searchDisabled: true
