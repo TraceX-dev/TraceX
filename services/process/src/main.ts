@@ -72,7 +72,7 @@ const processedMessages = new Map<string, number>()
 const MAX_PROCESSED_MESSAGES = 1000
 
 export async function messageHandler (record: ProcessMessage, ws: WorkspaceUuid, ctx: MeasureContext): Promise<void> {
-  const measurements: ProcessMeasurements = { rest_calls: 0, rest_ms: 0, rest_errors: 0, outcome: 'handled' }
+  const measurements: ProcessMeasurements = { client_calls: 0, client_ms: 0, client_errors: 0, outcome: 'handled' }
   const eventAge = Number.isFinite(record.createdOn) ? Date.now() - record.createdOn : undefined
   const route = record.execution !== undefined ? 'execution' : record.card !== undefined ? 'card' : 'broadcast'
   await ctx.with(

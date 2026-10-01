@@ -26,7 +26,7 @@ import { join } from 'path'
 import config from './config'
 import { prepare } from './init'
 import { messageHandler } from './main'
-import { SERVICE_NAME } from './utils'
+import { closeClients, configureClients, SERVICE_NAME } from './utils'
 
 async function main (): Promise<void> {
   prepare()
@@ -46,6 +46,7 @@ async function main (): Promise<void> {
   })
 
   Analytics.setTag('application', SERVICE_NAME)
+  configureClients(ctx)
   setMetadata(serverToken.metadata.Secret, config.Secret)
   setMetadata(serverToken.metadata.Service, SERVICE_NAME)
 
@@ -63,8 +64,12 @@ async function main (): Promise<void> {
   )
 
   const shutdown = (): void => {
-    void Promise.all([consumer.close()]).then(() => {
+    void consumer.close().then(async () => {
+      await closeClients()
       process.exit()
+    }).catch((error: unknown) => {
+      ctx.error('Failed to stop process service', { error })
+      process.exit(1)
     })
   }
 
