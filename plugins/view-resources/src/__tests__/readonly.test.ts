@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import type { Class, Doc, Mixin, PersonId, Ref, Space, VersionableDoc } from '@hcengineering/core'
+import type { Class, Doc, Hierarchy, Mixin, PersonId, Ref, Space, VersionableDoc } from '@hcengineering/core'
 import { isObjectAttributeReadonly } from '../readonly'
 
 const doc: Doc = {
@@ -24,30 +24,42 @@ const doc: Doc = {
   modifiedBy: 'test:person' as PersonId
 }
 
+const parentClass = 'test:class:Parent' as Ref<Class<Doc>>
+const tag = 'test:mixin:Details' as Ref<Mixin<Doc>>
+const otherTag = 'test:mixin:Other' as Ref<Mixin<Doc>>
+const hierarchy: Pick<Hierarchy, 'isMixin' | 'getAncestors'> = {
+  isMixin: (id) => id === tag || id === otherTag,
+  getAncestors: (id) => [id, parentClass]
+}
+
 describe('object readonly in collection views', () => {
   it('leaves ordinary documents editable', () => {
-    expect(isObjectAttributeReadonly(doc, { key: 'title' })).toBe(false)
+    expect(isObjectAttributeReadonly(doc, { key: 'title' }, hierarchy)).toBe(false)
   })
 
   it('locks every field of a readonly document', () => {
     const object: VersionableDoc = { ...doc, readonly: true }
-    expect(isObjectAttributeReadonly(object, { key: 'title' })).toBe(true)
-    expect(isObjectAttributeReadonly(object, { key: 'rank' })).toBe(true)
+    expect(isObjectAttributeReadonly(object, { key: 'title' }, hierarchy)).toBe(true)
+    expect(isObjectAttributeReadonly(object, { key: 'rank' }, hierarchy)).toBe(true)
   })
 
   it('locks only the fields listed on the object', () => {
     const object = { ...doc, readonly: false, readonlyFields: ['title'] }
-    expect(isObjectAttributeReadonly(object, { key: 'title' })).toBe(true)
-    expect(isObjectAttributeReadonly(object, { key: 'rank' })).toBe(false)
+    expect(isObjectAttributeReadonly(object, { key: 'title' }, hierarchy)).toBe(true)
+    expect(isObjectAttributeReadonly(object, { key: 'rank' }, hierarchy)).toBe(false)
   })
 
   it('checks mixin fields without the cast prefix', () => {
     const object = { ...doc, readonlyFields: ['status'] }
     expect(
-      isObjectAttributeReadonly(object, {
-        key: 'test:mixin:Details.status',
-        castRequest: 'test:mixin:Details' as Ref<Mixin<Doc>>
-      })
+      isObjectAttributeReadonly(
+        object,
+        {
+          key: 'test:mixin:Details.status',
+          castRequest: tag
+        },
+        hierarchy
+      )
     ).toBe(true)
   })
 
@@ -55,8 +67,80 @@ describe('object readonly in collection views', () => {
     'checks the related object field for %s',
     (key) => {
       const object = { ...doc, readonlyFields: ['title'] }
-      expect(isObjectAttributeReadonly(object, { key })).toBe(true)
-      expect(isObjectAttributeReadonly(doc, { key })).toBe(false)
+      expect(isObjectAttributeReadonly(object, { key }, hierarchy)).toBe(true)
+      expect(isObjectAttributeReadonly(doc, { key }, hierarchy)).toBe(false)
     }
   )
+
+  it.each([doc._class, parentClass])('locks main fields for section %s, leaving tag fields editable', (section) => {
+    const object = { ...doc, readonlySections: [section] }
+    expect(isObjectAttributeReadonly(object, { key: 'title' }, hierarchy)).toBe(true)
+    expect(isObjectAttributeReadonly(object, { key: 'rank' }, hierarchy)).toBe(true)
+    expect(isObjectAttributeReadonly(object, { key: `${tag}.status`, castRequest: tag }, hierarchy)).toBe(false)
+  })
+
+  it('locks only fields of the selected tag', () => {
+    const object = { ...doc, readonlySections: [tag] }
+    expect(isObjectAttributeReadonly(object, { key: `${tag}.status`, castRequest: tag }, hierarchy)).toBe(true)
+    expect(isObjectAttributeReadonly(object, { key: 'title' }, hierarchy)).toBe(false)
+    expect(isObjectAttributeReadonly(object, { key: `${otherTag}.status`, castRequest: otherTag }, hierarchy)).toBe(
+      false
+    )
+  })
+
+  it('checks section locks in update handlers without a cast prefix', () => {
+    const object = { ...doc, readonlySections: [tag] }
+    expect(isObjectAttributeReadonly(object, { key: 'status', attribute: { attributeOf: tag } }, hierarchy)).toBe(true)
+    expect(isObjectAttributeReadonly(object, { key: 'status', attribute: { attributeOf: otherTag } }, hierarchy)).toBe(
+      false
+    )
+  })
+
+  it('uses the displayed tag section for inherited attributes', () => {
+    const object = { ...doc, readonlySections: [tag] }
+    expect(
+      isObjectAttributeReadonly(
+        object,
+        {
+          key: `${tag}.status`,
+          castRequest: tag,
+          attribute: { attributeOf: otherTag }
+        },
+        hierarchy
+      )
+    ).toBe(true)
+  })
+
+  it('checks the related document main section', () => {
+    const object = { ...doc, readonlySections: [parentClass] }
+    const attribute = { key: '$associations.related_b.title' }
+    expect(isObjectAttributeReadonly(object, attribute, hierarchy)).toBe(true)
+    expect(isObjectAttributeReadonly(doc, attribute, hierarchy)).toBe(false)
+  })
+
+  it('preserves the tag section when an update uses an unprefixed field key', () => {
+    const object = { ...doc, readonlySections: [tag], readonlyFields: ['status'] }
+    expect(
+      isObjectAttributeReadonly(
+        object,
+        {
+          key: 'status',
+          castRequest: tag,
+          attribute: { attributeOf: otherTag }
+        },
+        hierarchy
+      )
+    ).toBe(true)
+    expect(
+      isObjectAttributeReadonly(
+        { ...object, readonlyFields: [] },
+        {
+          key: 'status',
+          castRequest: tag,
+          attribute: { attributeOf: otherTag }
+        },
+        hierarchy
+      )
+    ).toBe(true)
+  })
 })

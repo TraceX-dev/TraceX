@@ -13,22 +13,39 @@
 // limitations under the License.
 //
 
-import type { VersionableDoc } from '@hcengineering/core'
+import type { AnyAttribute, Class, Doc, Hierarchy, Ref, VersionableDoc } from '@hcengineering/core'
 import type { AttributeModel } from '@hcengineering/view'
 
 interface ObjectWithReadonlyFields extends VersionableDoc {
   readonlyFields?: string[]
+  readonlySections?: Array<Ref<Class<Doc>>>
 }
 
-/** Checks object and field locks, including mixin and relationship fields. */
+interface ReadonlyAttribute extends Pick<AttributeModel, 'key' | 'castRequest'> {
+  attribute?: Pick<AnyAttribute, 'attributeOf'>
+}
+
+/** Checks object, field and section locks, including mixin and relationship fields. */
 export function isObjectAttributeReadonly (
   object: ObjectWithReadonlyFields,
-  attribute: Pick<AttributeModel, 'key' | 'castRequest'>
+  attribute: ReadonlyAttribute,
+  hierarchy: Pick<Hierarchy, 'isMixin' | 'getAncestors'>
 ): boolean {
-  let key = attribute.castRequest ? attribute.key.substring(attribute.castRequest.length + 1) : attribute.key
+  let key = attribute.key
+  if (attribute.castRequest !== undefined && key.startsWith(`${attribute.castRequest}.`)) {
+    key = key.substring(attribute.castRequest.length + 1)
+  }
   if (key.startsWith('$associations.')) {
     const parts = key.split('.')
     key = parts.slice(parts.lastIndexOf('$associations') + 2).join('.')
   }
-  return object.readonly === true || object.readonlyFields?.includes(key) === true
+  if (object.readonly === true || object.readonlyFields?.includes(key) === true) return true
+  const sections = object.readonlySections
+  if (sections === undefined || sections.length === 0) return false
+
+  const section = attribute.castRequest ?? attribute.attribute?.attributeOf
+  if (section !== undefined && hierarchy.isMixin(section)) {
+    return sections.includes(section)
+  }
+  return hierarchy.getAncestors(object._class).some((ancestor) => sections.includes(ancestor))
 }
