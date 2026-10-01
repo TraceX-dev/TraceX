@@ -79,20 +79,11 @@
   let operationError = false
   let pendingSpaceOperations = new Set<string>()
   let pendingRoleUpdates = new Set<AccountUuid>()
-  let hiddenApplicationIds: Array<Ref<Application>> = []
-
-  const hiddenAppsQuery = createQuery()
-  hiddenAppsQuery.query(workbench.class.HiddenApplication, { space: core.space.Workspace }, (result) => {
-    hiddenApplicationIds = result.map((preference) => preference.attachedTo)
+  // HiddenApplication is a personal app-switcher preference and must not affect workspace-level access settings.
+  const workspaceApplications = client.getModel().findAllSync<Application>(workbench.class.Application, {
+    hidden: false,
+    _id: { $nin: excludedApplicationIds }
   })
-
-  $: workspaceApplications = client
-    .getModel()
-    .findAllSync<Application>(workbench.class.Application, {
-      hidden: false,
-      _id: { $nin: excludedApplicationIds }
-    })
-    .filter((application) => !hiddenApplicationIds.includes(application._id))
   $: spaceApplicationResolver = createSpaceApplicationResolver(hierarchy, workspaceApplications, applicationNavModels)
 
   const spacesQuery = createQuery()
