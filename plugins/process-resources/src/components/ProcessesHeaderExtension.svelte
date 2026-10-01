@@ -17,7 +17,7 @@
   import { Card, MasterTag, Tag } from '@hcengineering/card'
   import { getCurrentEmployee } from '@hcengineering/contact'
   import { AccountRole, Class, Doc, getCurrentAccount, hasAccountRole, Ref } from '@hcengineering/core'
-  import { getEmbeddedLabel } from '@hcengineering/platform'
+  import { getEmbeddedLabel, setPlatformStatus, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { ApproveRequest, EventButton, Execution, ExecutionStatus, Process, ProcessToDo } from '@hcengineering/process'
   import { Button, showPopup } from '@hcengineering/ui'
@@ -33,6 +33,7 @@
   let todos: ProcessToDo[] = []
   let actions: EventButton[] = []
   let headerProcesses: Process[] = []
+  let pendingButtons = new Set<Ref<Doc>>()
 
   const buttonsQuery = createQuery()
   $: buttonsQuery.query(
@@ -105,10 +106,25 @@
 
   const client = getClient()
 
+  async function submitButton (id: Ref<Doc>, submit: () => Promise<unknown>): Promise<void> {
+    if (pendingButtons.has(id)) return
+    pendingButtons = new Set(pendingButtons).add(id)
+    try {
+      await submit()
+    } catch (error: unknown) {
+      await setPlatformStatus(unknownError(error))
+    } finally {
+      pendingButtons.delete(id)
+      pendingButtons = new Set(pendingButtons)
+    }
+  }
+
   async function checkTodo (todo: ProcessToDo): Promise<void> {
-    await client.update(todo, {
-      doneOn: new Date().getTime()
-    })
+    await submitButton(todo._id, () =>
+      client.update(todo, {
+        doneOn: new Date().getTime()
+      })
+    )
   }
 
   async function performAction (action: EventButton): Promise<void> {
@@ -116,11 +132,13 @@
       showPopup(RequestAttachments, { action, card })
       return
     }
-    await client.createDoc(process.class.ProcessCustomEvent, action.space, {
-      execution: action.execution,
-      eventType: action.eventType,
-      card: card._id
-    })
+    await submitButton(action._id, () =>
+      client.createDoc(process.class.ProcessCustomEvent, action.space, {
+        execution: action.execution,
+        eventType: action.eventType,
+        card: card._id
+      })
+    )
   }
 
   async function performRollback (execution: Execution): Promise<void> {
@@ -168,6 +186,7 @@
         kind={'primary'}
         label={getEmbeddedLabel(todo.title)}
         disabled={inputBlocked}
+        loading={pendingButtons.has(todo._id)}
         showTooltip={inputBlocked ? { label: process.string.GuestInputNotSupported } : undefined}
         on:click={() => checkTodo(todo)}
       />
@@ -177,7 +196,12 @@
 {#if !isGuest}
   {#each actions as action (action._id)}
     {#if activeExecutionIds.has(action.execution) && (action.user === undefined || action.user === emp)}
-      <Button kind={'primary'} label={getEmbeddedLabel(action.title)} on:click={() => performAction(action)} />
+      <Button
+        kind={'primary'}
+        label={getEmbeddedLabel(action.title)}
+        loading={pendingButtons.has(action._id)}
+        on:click={() => performAction(action)}
+      />
     {/if}
   {/each}
   {#each visibleHeaderProcesses as headerProcess (headerProcess._id)}
