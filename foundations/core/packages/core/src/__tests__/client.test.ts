@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering, Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -47,6 +48,35 @@ function filterPlugin (plugin: Plugin): (txes: Tx[]) => Tx[] {
 }
 
 describe('client', () => {
+  it('closes an established connection when initial model loading fails', async () => {
+    const error = new Error('model unavailable')
+    const close = jest.fn().mockResolvedValue(undefined)
+    const connection = {
+      loadModel: jest.fn().mockRejectedValue(error),
+      close
+    } as unknown as ClientConnection
+    await expect(createClient(async () => connection)).rejects.toBe(error)
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes an established connection when model reconstruction fails', async () => {
+    const error = new Error('invalid model')
+    const close = jest.fn().mockResolvedValue(undefined)
+    const connection = {
+      loadModel: jest.fn().mockResolvedValue({ full: true, hash: 'hash', transactions: [] }),
+      close
+    } as unknown as ClientConnection
+    await expect(
+      createClient(
+        async () => connection,
+        () => {
+          throw error
+        }
+      )
+    ).rejects.toBe(error)
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
   it('should create client and spaces', async () => {
     const klass = core.class.Space
     const client = new TxOperations(await createClient(connect), core.account.System)
