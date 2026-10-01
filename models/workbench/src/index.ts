@@ -119,6 +119,15 @@ export function createModel (builder: Builder): void {
     TWorkbenchTab
   )
 
+  // Personal preferences: guests may create their own; update/remove are covered by the own-document rule.
+  builder.mixin(workbench.class.HiddenApplication, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.Guest
+  })
+
+  builder.mixin(workbench.class.WidgetPreference, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.Guest
+  })
+
   builder.mixin(workbench.class.WorkbenchTab, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.Guest,
     removeAccessLevel: AccountRole.Guest,

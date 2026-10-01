@@ -1,4 +1,5 @@
 <!--
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
@@ -55,6 +56,8 @@
   import { Readable } from 'svelte/store'
   import { getResource } from '@hcengineering/platform'
   import { canChangeAttribute } from '../permissions'
+
+  import { isObjectAttributeReadonly } from '../readonly'
 
   export let _class: Ref<Class<Doc>>
   export let query: DocumentQuery<Doc>
@@ -292,11 +295,12 @@
 
   const joinProps = (attribute: AttributeModel, object: Doc, readonly: boolean, editable: boolean) => {
     const readonlyParams =
-      readonly || (attribute?.attribute?.readonly ?? false)
+      readonly || isObjectAttributeReadonly(object, attribute) || (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             editable: false,
-            disabled: true
+            disabled: true,
+            onChange: undefined
           }
         : {
             readonly: !editable,
@@ -321,11 +325,13 @@
   }
 
   function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute): void {
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, { key }) || attribute.readonly) return
     updateAttribute(client, doc, _class, { key, attr: attribute }, value)
   }
 
   function getOnChange (doc: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, attribute)) return
     if (attr === undefined) return
     if (attribute.collectionAttr) return
     if (attribute.isLookup) return

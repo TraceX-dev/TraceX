@@ -96,7 +96,7 @@ services:
       - PRINT_URL=http://localhost:4005
       - SIGN_URL=http://localhost:4006
       - ANALYTICS_COLLECTOR_URL=http://localhost:4007
-      - DESKTOP_UPDATES_URL=https://dist.huly.io
+      - DESKTOP_UPDATES_URL=https://dist.tracex.co
       - DESKTOP_UPDATES_CHANNEL=dev
       - BRANDING_URL=http://localhost:8087/branding.json
     restart: unless-stopped

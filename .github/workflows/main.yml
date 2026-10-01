@@ -849,10 +849,19 @@ jobs:
           TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           cd qms-desktop-package
-          node ../common/scripts/install-run-rushx.js dist --linux --x64
-          node ../common/scripts/install-run-rushx.js dist --windows --x64 --arm64
-          node ../common/scripts/install-run-rushx.js dist-signed --macos --x64 --arm64
-          ./scripts/copy-publish-artifacts.sh ${{ env.PublishTempFolder}}
+          if [[ "${GITHUB_REF_NAME}" == s* ]]; then
+            variant=staging
+            dist_command=dist-staging
+            signed_command=dist-staging-signed
+          else
+            variant=prod
+            dist_command=dist
+            signed_command=dist-signed
+          fi
+          node ../common/scripts/install-run-rushx.js "$dist_command" --linux --x64
+          node ../common/scripts/install-run-rushx.js "$dist_command" --windows --x64 --arm64
+          node ../common/scripts/install-run-rushx.js "$signed_command" --macos --x64 --arm64
+          ./scripts/copy-publish-artifacts.sh ${{ env.PublishTempFolder}} "$variant"
       - name: Publish distribution assets and version
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
         env:
@@ -866,23 +875,23 @@ jobs:
       - name: Upload MacOS
         uses: actions/upload-artifact@v6
         with:
-          name: TraceX-MacOS-x64
-          path: ./qms-desktop-package/deploy/TraceX-macos-*-x64.dmg
+          name: ${{ startsWith(github.ref, 'refs/tags/s') && 'TraceX-Staging-MacOS-x64' || 'TraceX-MacOS-x64' }}
+          path: ./qms-desktop-package/deploy/TraceX*-macos-*-x64.dmg
       - name: Upload MacOS arm64
         uses: actions/upload-artifact@v6
         with:
-          name: TraceX-MacOS-arm64
-          path: ./qms-desktop-package/deploy/TraceX-macos-*-arm64.dmg
+          name: ${{ startsWith(github.ref, 'refs/tags/s') && 'TraceX-Staging-MacOS-arm64' || 'TraceX-MacOS-arm64' }}
+          path: ./qms-desktop-package/deploy/TraceX*-macos-*-arm64.dmg
       - name: Upload Windows
         uses: actions/upload-artifact@v6
         with:
-          name: TraceX-Windows
-          path: ./qms-desktop-package/deploy/TraceX-windows-*.zip
+          name: ${{ startsWith(github.ref, 'refs/tags/s') && 'TraceX-Staging-Windows' || 'TraceX-Windows' }}
+          path: ./qms-desktop-package/deploy/TraceX*-windows-*.zip
       - name: Upload Linux
         uses: actions/upload-artifact@v6
         with:
-          name: TraceX-Linux
-          path: ./qms-desktop-package/deploy/TraceX-linux-*.zip
+          name: ${{ startsWith(github.ref, 'refs/tags/s') && 'TraceX-Staging-Linux' || 'TraceX-Linux' }}
+          path: ./qms-desktop-package/deploy/TraceX*-linux-*.zip
 
   publish-npm:
     if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v') && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true')

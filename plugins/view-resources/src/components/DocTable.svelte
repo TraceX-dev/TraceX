@@ -32,6 +32,8 @@
   import { canChangeAttribute } from '../permissions'
   import { canEditSpace } from '../visibilityTester'
 
+  import { isObjectAttributeReadonly } from '../readonly'
+
   export let objects: Doc[]
   export let config: Array<string | BuildModelKey>
 
@@ -68,6 +70,7 @@
 
   function canReorder (object: Doc, permissions: PermissionsStore | undefined): boolean {
     if (!sortByRank || readonly || $restrictionStore.readonly || savingRank || permissions === undefined) return false
+    if (isObjectAttributeReadonly(object, { key: 'rank' })) return false
     const attribute = hierarchy.getAllAttributes(object._class).get('rank')
     return attribute !== undefined && attribute.readonly !== true && canChangeAttr(object, attribute, permissions)
   }
@@ -185,11 +188,12 @@
 
   const joinProps = (attribute: AttributeModel, object: Doc, readonly: boolean, editable: boolean) => {
     const readonlyParams =
-      readonly || (attribute?.attribute?.readonly ?? false)
+      readonly || isObjectAttributeReadonly(object, attribute) || (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             editable: false,
-            disabled: true
+            disabled: true,
+            onChange: undefined
           }
         : {
             readonly: !editable,
@@ -216,11 +220,13 @@
   }
 
   function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute) {
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, { key }) || attribute.readonly) return
     updateAttribute(client, doc, _class, { key, attr: attribute }, value)
   }
 
   function getOnChange (doc: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, attribute)) return
     if (attr === undefined) return
     if (attribute.collectionAttr) return
     if (attribute.isLookup) return

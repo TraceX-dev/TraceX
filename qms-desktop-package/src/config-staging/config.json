@@ -1,0 +1,6 @@
+{
+  "server": "https://stg.tracex.co/",
+  "updatesChannel": "tracex-staging",
+  "updatesUrl": "https://dist.tracex.co",
+  "_version": "1.0.0"
+}

@@ -55,7 +55,6 @@
 
   let loadingSettings = true
   let loadingPermissions = true
-  let workspaceAppsReady = false
   let loadingWorkspaceGuest = true
 
   let allowReadOnlyGuests = false
@@ -65,7 +64,6 @@
 
   let moduleGroups: ModulePermissionGroup[] = []
   let permissionsMap: Map<Ref<Permission>, Permission> = new Map<Ref<Permission>, Permission>()
-  let hiddenApplicationIds: Array<Ref<Application>> = []
 
   const excludedApplicationIds = getMetadata(workbench.metadata.ExcludedApplications) ?? []
 
@@ -75,7 +73,6 @@
   const client = getClient()
   const moduleGroupsQuery = createQuery()
   const permissionsQuery = createQuery()
-  const hiddenAppsQuery = createQuery()
 
   onMount(() => {
     void (async (): Promise<void> => {
@@ -99,25 +96,16 @@
     loadingPermissions = false
   })
 
-  $: hiddenAppsQuery.query(workbench.class.HiddenApplication, { space: core.space.Workspace }, (res) => {
-    hiddenApplicationIds = res.map((r) => r.attachedTo)
-    workspaceAppsReady = true
+  const workspaceApplications = client.getModel().findAllSync<Application>(workbench.class.Application, {
+    hidden: false,
+    _id: { $nin: excludedApplicationIds }
   })
 
-  /** Same notion of “available in this workspace” as the app switcher: model apps minus hidden/excluded. */
-  $: workspaceApplications = client
-    .getModel()
-    .findAllSync<Application>(workbench.class.Application, {
-      hidden: false,
-      _id: { $nin: excludedApplicationIds }
-    })
-    .filter((app) => !hiddenApplicationIds.includes(app._id))
-
-  $: applicationsMap = new Map<Ref<Doc>, Application>(
+  const applicationsMap = new Map<Ref<Doc>, Application>(
     workspaceApplications.map((application) => [application._id as Ref<Doc>, application])
   )
 
-  $: loading = loadingSettings || loadingPermissions || !workspaceAppsReady || loadingWorkspaceGuest
+  $: loading = loadingSettings || loadingPermissions || loadingWorkspaceGuest
 
   $: modulePermissionsRole = guestPermissionsTab === 'guest' ? AccountRole.Guest : AccountRole.ReadOnlyGuest
 
