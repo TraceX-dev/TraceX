@@ -7,10 +7,12 @@
   "scripts": {
     "_phase:package": "rushx package",
     "package": "rm -rf ./dist && cp -r ../desktop/dist . && cp ../desktop/.env ./dist && cp src/AppIcon.png ./dist/ui/public && cp src/AppIcon.ico ./dist/ui/public && echo 'done'",
-    "dist": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -p onTag",
-    "dist-local": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build",
-    "dist-signed": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=true NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -c.afterSign=scripts/notarize.js -p onTag",
-    "dist-mac-win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build --windows --x64",
+    "dist": "node scripts/prepare-variant.js prod && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -p never",
+    "dist-local": "node scripts/prepare-variant.js prod && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -p never",
+    "dist-signed": "node scripts/prepare-variant.js prod && cross-env CSC_IDENTITY_AUTO_DISCOVERY=true NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -c.afterSign=scripts/notarize.js -p never",
+    "dist-staging": "node scripts/prepare-variant.js staging && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -c scripts/staging.config.cjs -p never",
+    "dist-staging-signed": "node scripts/prepare-variant.js staging && cross-env CSC_IDENTITY_AUTO_DISCOVERY=true TRACEX_NOTARIZE=true NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build -c scripts/staging.config.cjs -p never",
+    "dist-mac-win": "node scripts/prepare-variant.js prod && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false NODE_ENV=production VERSION=$(node ../common/scripts/show_tag.js) MODEL_VERSION=$(node ../common/scripts/show_version.js) electron-builder build --windows --x64 -p never",
     "format": "echo done",
     "bump": "bump-package-version"
   },
@@ -42,8 +44,11 @@
   "description": "TraceX Desktop experience",
   "build": {
     "productName": "TraceX",
+    "extraMetadata": {
+      "productName": "TraceX Desktop"
+    },
     "copyright": "Copyright © 2026 TraceX",
-    "appId": "app.huly.TraceX",
+    "appId": "co.tracex.desktop",
     "directories": {
       "output": "deploy"
     },
@@ -72,7 +77,7 @@
       "publish": {
         "provider": "generic",
         "url": "https://dist.tracex.co",
-        "channel": "qms-latest"
+        "channel": "tracex"
       }
     },
     "win": {
@@ -80,13 +85,13 @@
         "zip",
         "nsis"
       ],
-      "artifactName": "TraceX-windows-${version}.${ext}",
+      "artifactName": "TraceX-windows-${version}-${arch}.${ext}",
       "verifyUpdateCodeSignature": false,
       "icon": "./src/AppIcon.ico",
       "publish": {
         "provider": "generic",
         "url": "https://dist.tracex.co",
-        "channel": "qms-latest"
+        "channel": "tracex"
       },
       "extraResources": [
         {
@@ -115,7 +120,7 @@
       "publish": {
         "provider": "generic",
         "url": "https://dist.tracex.co",
-        "channel": "qms-latest"
+        "channel": "tracex"
       }
     }
   },
