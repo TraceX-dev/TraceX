@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,6 +25,17 @@ export interface Config {
   TemporalAddress: string
   TemporalNamespace: string
   CollaboratorURL: string
+  ClientIdleTimeoutMs: number
+  ClientCacheMaxSize: number
+  ClientConnectionTimeoutMs: number
+}
+
+function positiveInteger (name: string, fallback: number): number {
+  const value = process.env[name]
+  if (value === undefined) return fallback
+  const parsed = Number(value)
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error(`${name} must be a positive integer`)
+  return parsed
 }
 
 const config: Config = {
@@ -33,7 +45,10 @@ const config: Config = {
   AccountsUrl: process.env.ACCOUNTS_URL ?? '',
   TemporalAddress: process.env.TEMPORAL_ADDRESS ?? 'localhost:7233',
   TemporalNamespace: process.env.TEMPORAL_NAMESPACE ?? 'huly',
-  CollaboratorURL: process.env.COLLABORATOR_URL ?? ''
+  CollaboratorURL: process.env.COLLABORATOR_URL ?? '',
+  ClientIdleTimeoutMs: positiveInteger('PROCESS_CLIENT_IDLE_TIMEOUT_MS', 600000),
+  ClientCacheMaxSize: positiveInteger('PROCESS_CLIENT_CACHE_MAX_SIZE', 32),
+  ClientConnectionTimeoutMs: positiveInteger('PROCESS_CLIENT_CONNECTION_TIMEOUT_MS', 30000)
 }
 
 export default config

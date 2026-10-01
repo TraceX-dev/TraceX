@@ -40450,6 +40450,12 @@ importers:
       '@hcengineering/card':
         specifier: workspace:^0.7.0
         version: link:../../plugins/card
+      '@hcengineering/client':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/client
+      '@hcengineering/client-resources':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/client-resources
       '@hcengineering/collaborator-client':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/collaborator-client
@@ -40480,6 +40486,9 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.3(bufferutil@4.1.0)(utf-8-validate@6.0.6)
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21

@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -289,21 +290,31 @@ export async function createClient (
   }
   const conn = await ctx.with('connect', {}, () => connect(txHandler), {}, { suspendErrors: true })
 
-  let { mode, current, addition } = await ctx.with('load-model', {}, (ctx) => loadModel(ctx, conn, txPersistence))
-  switch (mode) {
-    case 'same':
-    case 'upgrade':
-      ctx.withSync('build-model', {}, (ctx) => {
-        buildModel(ctx, current, modelFilter, hierarchy, model)
-      })
-      break
-    case 'addition':
-      ctx.withSync('build-model', {}, (ctx) => {
-        buildModel(ctx, current.concat(addition), modelFilter, hierarchy, model)
-      })
+  try {
+    let { mode, current, addition } = await ctx.with('load-model', {}, (ctx) => loadModel(ctx, conn, txPersistence))
+    switch (mode) {
+      case 'same':
+      case 'upgrade':
+        ctx.withSync('build-model', {}, (ctx) => {
+          buildModel(ctx, current, modelFilter, hierarchy, model)
+        })
+        break
+      case 'addition':
+        ctx.withSync('build-model', {}, (ctx) => {
+          buildModel(ctx, current.concat(addition), modelFilter, hierarchy, model)
+        })
+    }
+    current = []
+    addition = []
+  } catch (error) {
+    txBuffer = undefined
+    try {
+      await conn.close()
+    } catch (closeError) {
+      ctx.error('Failed to close connection after model initialization error', { error: closeError })
+    }
+    throw error
   }
-  current = []
-  addition = []
 
   txBuffer = txBuffer.filter((tx) => tx.space !== core.space.Model)
 
