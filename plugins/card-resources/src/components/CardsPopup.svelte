@@ -53,6 +53,7 @@
   {titleDeselect}
   {ignoreObjects}
   docQuery={query}
+  versionsQuery={docQuery}
   searchField={'title'}
   type={'object'}
   groupBy={'_class'}

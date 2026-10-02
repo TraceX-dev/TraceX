@@ -17,17 +17,20 @@
 <script lang="ts">
   import { type Product } from '@hcengineering/products'
   import { AnyAttribute, type Ref } from '@hcengineering/core'
-  import { createQuery } from '@hcengineering/presentation'
-  import { Button, ButtonKind, ButtonSize, Label, eventToHTMLElement, showPopup } from '@hcengineering/ui'
+  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { ActionIcon, Button, ButtonKind, ButtonSize, Label, eventToHTMLElement, showPopup } from '@hcengineering/ui'
+  import view from '@hcengineering/view'
+  import { openDoc } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import products from '../../plugin'
   import ProductPresenter from './ProductPresenter.svelte'
   import ProductsPopup from './ProductsPopup.svelte'
-  import { IntlString } from '@hcengineering/platform'
+  import { IntlString, setPlatformStatus, unknownError } from '@hcengineering/platform'
 
   export let value: Ref<Product> | undefined
   export let readonly: boolean = false
+  export let showNavigate: boolean = true
   export let label: IntlString = products.string.Product
   export let onChange: (value: any) => void
   export let attribute: AnyAttribute | undefined = undefined
@@ -36,15 +39,21 @@
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
   export let justify: 'left' | 'center' = 'left'
-  export let width: string | undefined = 'min-content'
+  export let width: string | undefined = '100%'
 
+  const client = getClient()
   const dispatch = createEventDispatcher()
   const query = createQuery()
   let product: Product | undefined
 
-  $: query.query(products.class.Product, { _id: value }, (result) => {
-    ;[product] = result
-  })
+  $: if (value !== undefined) {
+    query.query(products.class.Product, { _id: value }, (result) => {
+      ;[product] = result
+    })
+  } else {
+    query.unsubscribe()
+    product = undefined
+  }
 
   function openPopup (event: MouseEvent): void {
     event.stopPropagation()
@@ -68,17 +77,34 @@
     {justify}
     {focusIndex}
     showTooltip={{ label }}
-    width={width ?? 'min-content'}
+    width={width ?? '100%'}
     {size}
     {kind}
     disabled={readonly}
     on:click={openPopup}
   >
-    <div slot="content" class="overflow-label">
-      {#if product}
-        <ProductPresenter value={product} disabled />
-      {:else}
-        <Label label={products.string.Product} />
+    <div slot="content" class="overflow-label flex-row-center w-full" class:flex-between={showNavigate && product}>
+      <div class="overflow-label flex-grow min-w-0 text-left">
+        {#if product}
+          <ProductPresenter value={product} disabled />
+        {:else}
+          <Label label={products.string.Product} />
+        {/if}
+      </div>
+      {#if product && showNavigate}
+        <div class="ml-2 flex-row-center flex-no-shrink">
+          <ActionIcon
+            icon={view.icon.ArrowRight}
+            size={'small'}
+            action={() => {
+              if (product) {
+                return openDoc(client.getHierarchy(), product).catch((err) => {
+                  setPlatformStatus(unknownError(err))
+                })
+              }
+            }}
+          />
+        </div>
       {/if}
     </div>
   </Button>
