@@ -28,6 +28,7 @@ import type { AccountUuid, Class, Collaborator, Doc, Ref } from './classes'
 import core from './component'
 import type { Hierarchy } from './hierarchy'
 import type { DocumentQuery, FindOptions } from './storage'
+import type { DocumentUpdate } from './tx'
 
 /**
  * Field the server sets on a security root (pointing to itself) and on all of its descendants.
@@ -197,9 +198,18 @@ export function isRestrictedAudience (audience: AccessAudience | undefined): boo
 /**
  * @public
  */
-export function getAccessRoot (doc: Doc): Ref<Doc> | undefined {
-  const root = (doc as Doc & AccessMarked).accessRoot
+export function getAccessRoot (doc: object): Ref<Doc> | undefined {
+  const root = (doc as AccessMarked).accessRoot
   return typeof root === 'string' && root !== '' ? root : undefined
+}
+
+/**
+ * Update operations that set the mark (server-side, raw updates).
+ * @public
+ */
+export function makeAccessRootUpdate (root: Ref<Doc>): DocumentUpdate<Doc> {
+  const ops: AccessMarked = { accessRoot: root }
+  return ops as DocumentUpdate<Doc>
 }
 
 /**

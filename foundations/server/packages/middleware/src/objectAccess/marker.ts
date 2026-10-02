@@ -28,6 +28,7 @@ import core, {
   getAccessRoot,
   getClassAccessPolicy,
   isAccessAudience,
+  makeAccessRootUpdate,
   type MeasureContext,
   type Ref,
   type SessionData,
@@ -323,7 +324,7 @@ export class ObjectAccessMarkerMiddleware extends BaseMiddleware implements Midd
     }
     const h = this.context.hierarchy
     const rootId = info._id
-    const update = (): DocumentUpdate<Doc> => ({ [ACCESS_ROOT_FIELD]: rootId })
+    const update = (): DocumentUpdate<Doc> => makeAccessRootUpdate(rootId)
     await lowLevel.rawUpdate(h.getDomain(info._class), { _id: rootId }, update())
     this.state.setDocRoot(rootId, rootId)
 
