@@ -11,7 +11,7 @@
     ControlledDocumentState,
     DocumentRequest
   } from '@hcengineering/controlled-documents'
-  import { Class, Ref, TxOperations } from '@hcengineering/core'
+  import { AccountRole, Class, getCurrentAccount, Ref, TxOperations } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { RequestStatus } from '@hcengineering/request'
   import { Label, ModernDialog, showPopup } from '@hcengineering/ui'
@@ -39,6 +39,8 @@
   const dispatch = createEventDispatcher()
 
   const isReviewRequest = hierarchy.isDerived(requestClass, documentsRes.class.DocumentReviewRequest)
+  // Adding an external approver grants it access to the document, guests are not allowed to do that.
+  const isGuest = getCurrentAccount().role === AccountRole.Guest
 
   const docField: keyof ControlledDocument = isReviewRequest ? 'reviewers' : 'approvers'
   const label = isReviewRequest ? documentsRes.string.SelectReviewers : documentsRes.string.SelectApprovers
@@ -137,7 +139,8 @@
             label={documentsRes.string.ExternalApprovers}
             readonly={controlledDoc.controlledState === ControlledDocumentState.InReview ||
               controlledDoc.controlledState === ControlledDocumentState.InApproval ||
-              readonly}
+              readonly ||
+              isGuest}
             docQuery={{
               active: true,
               role: 'GUEST',

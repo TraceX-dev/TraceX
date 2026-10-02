@@ -22,11 +22,22 @@
   import type { Action } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import products from '../../plugin'
+  import ProductVersionMultiSelectPopup from './ProductVersionMultiSelectPopup.svelte'
 
   export let selected: Ref<ProductVersion> | undefined = undefined
+  export let selectedObjects: Ref<ProductVersion>[] = []
+  export let multiSelect: boolean = false
   export let docQuery: DocumentQuery<ProductVersion> | undefined = undefined
 
-  const dispatch = createEventDispatcher<{ close: Ref<ProductVersion> | undefined }>()
+  const dispatch = createEventDispatcher<{
+    close: Ref<ProductVersion> | undefined
+    update: Ref<ProductVersion>[]
+  }>()
+
+  function updateSelection (value: Ref<ProductVersion>[]): void {
+    selectedObjects = [...value]
+    dispatch('update', selectedObjects)
+  }
   const productQuery = createQuery()
   const versionQuery = createQuery()
   let productList: Product[] = []
@@ -67,16 +78,22 @@
       label: getEmbeddedLabel(product.name),
       icon: products.icon.Product,
       action: async () => {},
-      component: SelectPopup,
-      props: {
-        searchable: true,
-        value: (versionsByProduct.get(product._id) ?? []).map((version) => ({
-          id: version._id,
-          text: `${version.major}.${version.minor}.${version.patch}${version.codename ? ` ${version.codename}` : ''}`,
-          isSelected: version._id === selected
-        })),
-        onSelect: (value: Ref<ProductVersion>) => dispatch('close', value)
-      }
+      component: multiSelect ? ProductVersionMultiSelectPopup : SelectPopup,
+      props: multiSelect
+        ? {
+            versions: versionsByProduct.get(product._id) ?? [],
+            selectedObjects,
+            onChange: updateSelection
+          }
+        : {
+            searchable: true,
+            value: (versionsByProduct.get(product._id) ?? []).map((version) => ({
+              id: version._id,
+              text: `${version.major}.${version.minor}.${version.patch}${version.codename ? ` ${version.codename}` : ''}`,
+              isSelected: version._id === selected
+            })),
+            onSelect: (value: Ref<ProductVersion>) => dispatch('close', value)
+          }
     }))
 </script>
 

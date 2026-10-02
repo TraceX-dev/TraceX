@@ -55,20 +55,39 @@
 
   const client = getClient()
 
-  function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute) {
-    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, { key }) || attribute.readonly) return
+  function onChange (
+    value: any,
+    doc: Doc,
+    key: string,
+    attribute: AnyAttribute,
+    castRequest: AttributeModel['castRequest']
+  ): void {
+    if (
+      readonly ||
+      $restrictionStore.readonly ||
+      isObjectAttributeReadonly(doc, { key, attribute, castRequest }, client.getHierarchy()) ||
+      attribute.readonly === true
+    ) {
+      return
+    }
     updateAttribute(client, doc, doc._class, { key, attr: attribute }, value)
   }
 
   function getOnChange (docObject: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
-    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(docObject, attribute)) return
+    if (
+      readonly ||
+      $restrictionStore.readonly ||
+      isObjectAttributeReadonly(docObject, attribute, client.getHierarchy())
+    ) {
+      return
+    }
     if (attr === undefined) return
     if (attribute.collectionAttr) return
     if (attribute.isLookup) return
     if (attribute?.attribute?.readonly === true) return
     return (value: any) => {
-      onChange(value, docObject, attribute.key, attr)
+      onChange(value, docObject, attribute.key, attr, attribute.castRequest)
     }
   }
 

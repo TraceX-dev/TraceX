@@ -40,6 +40,7 @@ export interface GuestPermissionsCache {
 
 export interface GuestClassPermissionPolicy {
   targetClass: Ref<Class<Doc>>
+  application: Ref<Doc> | undefined
   spaceClass: Ref<Class<Space>> | undefined
   guestUpdateAttributes: Set<string> | undefined
   guestUpdateMixinAttributes: Map<string, Set<string>> | undefined
@@ -54,6 +55,8 @@ export interface GuestTxScope {
   createdTargets: Map<Ref<Doc>, { space: Ref<Space>, policies: GuestClassPermissionPolicy[] }>
   sequenceGuards: Set<string>
   spaceClasses: Map<Ref<Space>, Ref<Class<Space>> | undefined>
+  /** Transactions of the enclosing apply. */
+  applyTxes: Tx[]
 }
 
 interface GuestPermissionsReader {
@@ -72,6 +75,7 @@ function toAttributeMap (value: Record<string, string[]> | undefined): Map<strin
 function toPolicy (permission: ClassPermission, spaceClass: Ref<Class<Space>> | undefined): GuestClassPermissionPolicy {
   return {
     targetClass: permission.targetClass,
+    application: permission.application,
     spaceClass,
     guestUpdateAttributes:
       permission.guestUpdateAttributes !== undefined ? new Set(permission.guestUpdateAttributes) : undefined,
@@ -91,7 +95,13 @@ export function emptyGuestPermissionsCache (): GuestPermissionsCache {
 }
 
 export function createGuestTxScope (): GuestTxScope {
-  return { relatedCreates: new Map(), createdTargets: new Map(), sequenceGuards: new Set(), spaceClasses: new Map() }
+  return {
+    relatedCreates: new Map(),
+    createdTargets: new Map(),
+    sequenceGuards: new Set(),
+    spaceClasses: new Map(),
+    applyTxes: []
+  }
 }
 
 export function getNestedTxes (tx: Tx): Tx[] {

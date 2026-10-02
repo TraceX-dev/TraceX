@@ -163,7 +163,10 @@ function makeMiddleware ({
     classHierarchyMixin: () => undefined
   }
   const modelDb = {
-    findAllSync: () => (collaboratorSecurity ? [{ attachedTo: CARD_CLASS, fields: [], provideSecurity: true }] : [])
+    findAllSync: (_class: Ref<Class<Doc>>) =>
+      collaboratorSecurity && _class === core.class.ClassCollaborators
+        ? [{ attachedTo: CARD_CLASS, fields: [], provideSecurity: true }]
+        : []
   }
   const context = { hierarchy, modelDb } as unknown as PipelineContext
   const next = { tx: async () => ({}) }

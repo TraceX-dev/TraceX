@@ -17,6 +17,7 @@
   import contact, { PermissionsStore } from '@hcengineering/contact'
   import core, { AnyAttribute, Doc, Ref, TypedSpace } from '@hcengineering/core'
   import { getResource } from '@hcengineering/platform'
+  import { getClient } from '@hcengineering/presentation'
   import { AttributeModel } from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
   import { Readable } from 'svelte/store'
@@ -35,12 +36,15 @@
   export let readonly: boolean = false
 
   const dispatch = createEventDispatcher()
+  const client = getClient()
 
   $: dp = attributeModel?.displayProps
 
   function joinProps (attribute: AttributeModel, object: Doc, props: Record<string, any>, readonly: boolean) {
     const readonlyParams =
-      readonly || isObjectAttributeReadonly(object, attribute) || (attribute?.attribute?.readonly ?? false)
+      readonly ||
+      isObjectAttributeReadonly(object, attribute, client.getHierarchy()) ||
+      (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             disabled: true,

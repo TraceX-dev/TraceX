@@ -7,7 +7,7 @@
 import type { Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import type { WorkspaceApiOperation } from '@hcengineering/integration'
-import { TriggerFunc } from '@hcengineering/server-core'
+import { type GuestTxValidatorFunc, TriggerFunc } from '@hcengineering/server-core'
 import { Presenter, TypeMatchFunc } from '@hcengineering/server-notification'
 
 /**
@@ -30,7 +30,8 @@ export default plugin(serverDocumentsId, {
     ControlledDocumentTextPresenter: '' as Resource<Presenter>,
     ControlledDocumentHTMLPresenter: '' as Resource<Presenter>,
     CoAuthorsTypeMatch: '' as TypeMatchFunc,
-    DocumentReviewedTypeMatch: '' as TypeMatchFunc
+    DocumentReviewedTypeMatch: '' as TypeMatchFunc,
+    ValidateGuestTx: '' as Resource<GuestTxValidatorFunc>
   },
   workspaceApi: {
     FindControlledDocuments: '' as Resource<WorkspaceApiOperation>,

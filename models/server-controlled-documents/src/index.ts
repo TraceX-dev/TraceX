@@ -27,6 +27,18 @@ export function createModel (builder: Builder): void {
     }
   })
 
+  builder.createDoc(serverCore.class.GuestTxValidator, core.space.Model, {
+    validator: serverDocuments.function.ValidateGuestTx,
+    application: documents.app.Documents,
+    classes: [
+      documents.class.ControlledDocument,
+      documents.class.DocumentRequest,
+      documents.class.ControlledDocumentSnapshot,
+      documents.class.DocumentComment,
+      documents.class.ChangeControl
+    ]
+  })
+
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverDocuments.trigger.OnDocEnteredNonActionableState,
     txMatch: {

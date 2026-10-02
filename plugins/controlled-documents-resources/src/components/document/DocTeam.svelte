@@ -16,7 +16,7 @@
   import { getCurrentEmployee, type Employee } from '@hcengineering/contact'
   import { UserBoxItems, getPermittedPersons, permissionsStore } from '@hcengineering/contact-resources'
   import documents, { type ControlledDocument } from '@hcengineering/controlled-documents'
-  import { TypedSpace, type Data, type Ref } from '@hcengineering/core'
+  import { AccountRole, getCurrentAccount, TypedSpace, type Data, type Ref } from '@hcengineering/core'
   import { Label } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
@@ -32,6 +32,8 @@
 
   const dispatch = createEventDispatcher()
   const currentEmployee = getCurrentEmployee()
+  // Adding an external approver grants it access to the document, guests are not allowed to do that.
+  const isGuest = getCurrentAccount().role === AccountRole.Guest
 
   $: permissionsSpace = space === documents.space.UnsortedTemplates ? documents.space.QualityDocuments : space
 
@@ -140,7 +142,7 @@
         _id: { $nin: permittedApprovers }
       }}
       label={documents.string.ExternalApprovers}
-      readonly={!canChangeApprovers}
+      readonly={!canChangeApprovers || isGuest}
       on:update={({ detail }) => {
         handleUsersUpdated('externalApprovers', detail)
       }}

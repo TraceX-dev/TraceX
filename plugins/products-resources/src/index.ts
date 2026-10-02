@@ -32,6 +32,7 @@ import CreateProductVersion from './components/product-version/CreateProductVers
 import EditProductVersion from './components/product-version/EditProductVersion.svelte'
 import ProductVersionPresenter from './components/product-version/ProductVersionPresenter.svelte'
 import ProductVersionInlineEditor from './components/product-version/ProductVersionInlineEditor.svelte'
+import ProductVersionArrayEditor from './components/product-version/ProductVersionArrayEditor.svelte'
 import ProductVersionsEditor from './components/product-version/ProductVersionsEditor.svelte'
 import ProductVersionsPresenter from './components/product-version/ProductVersionsPresenter.svelte'
 import ProductVersionStateEditor from './components/product-version/ProductVersionStateEditor.svelte'
@@ -84,6 +85,7 @@ export default async (): Promise<Resources> => ({
     ProductSearchIcon,
     ProductVersionPresenter,
     ProductVersionInlineEditor,
+    ProductVersionArrayEditor,
     ProductVersionsEditor,
     ProductVersionsPresenter,
     ProductVersionStateEditor,
