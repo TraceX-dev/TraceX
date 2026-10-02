@@ -247,11 +247,8 @@ export async function sendReviewRequest (
     controlledState: ControlledDocumentState.Reviewed
   })
 
-  await client.update(controlledDoc, {
-    reviewers,
-    controlledState: ControlledDocumentState.InReview
-  })
-
+  // The state change and the request are applied together: the server accepts the state change of a guest only
+  // together with the matching request, and a failed request must not leave the document in review.
   await createRequest(
     client,
     controlledDoc._id,
@@ -261,7 +258,13 @@ export async function sendReviewRequest (
     reviewers,
     approveTx,
     undefined,
-    true
+    true,
+    async (ops) => {
+      await ops.update(controlledDoc, {
+        reviewers,
+        controlledState: ControlledDocumentState.InReview
+      })
+    }
   )
 }
 
@@ -295,18 +298,6 @@ export async function sendApprovalRequest (
     }
   }
 
-  const ops = client.apply(controlledDoc._id)
-
-  await ops.update(controlledDoc, {
-    approvers,
-    externalApprovers,
-    controlledState: ControlledDocumentState.InApproval
-  })
-
-  await updateExternalApproversAccess(ops, controlledDoc, Array.from(added), Array.from(removed))
-
-  await ops.commit()
-
   await createRequest(
     client,
     controlledDoc._id,
@@ -316,7 +307,16 @@ export async function sendApprovalRequest (
     [...approvers, ...externalApprovers],
     approveTx,
     rejectTx,
-    true
+    true,
+    async (ops) => {
+      await ops.update(controlledDoc, {
+        approvers,
+        externalApprovers,
+        controlledState: ControlledDocumentState.InApproval
+      })
+
+      await updateExternalApproversAccess(ops, controlledDoc, Array.from(added), Array.from(removed))
+    }
   )
 }
 
@@ -410,7 +410,8 @@ async function createRequest<T extends Doc> (
   users: Array<Ref<Person>>,
   approveTx: Tx,
   rejectedTx?: Tx,
-  areAllApprovesRequired = true
+  areAllApprovesRequired = true,
+  prepare?: (ops: TxOperations) => Promise<void>
 ): Promise<Ref<Request> | undefined> {
   const sequentialRequestClassGroup = [documents.class.DocumentReviewRequest, documents.class.DocumentApprovalRequest]
 
@@ -425,6 +426,8 @@ async function createRequest<T extends Doc> (
       })
     }
   }
+
+  await prepare?.(ops)
 
   const ref = await ops.addCollection(reqClass, space, attachedTo, attachedToClass, 'requests', {
     requested: users,

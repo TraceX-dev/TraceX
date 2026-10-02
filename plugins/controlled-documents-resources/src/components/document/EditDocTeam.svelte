@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { Employee, Person } from '@hcengineering/contact'
+  import contact, { Employee, getCurrentEmployee, Person } from '@hcengineering/contact'
   import documents, {
     ControlledDocument,
     ControlledDocumentState,
@@ -22,13 +22,22 @@
     DocumentReviewRequest,
     DocumentState
   } from '@hcengineering/controlled-documents'
-  import core, { AccountUuid, DocumentUpdate, notEmpty, PersonUuid, Ref } from '@hcengineering/core'
+  import core, {
+    AccountRole,
+    AccountUuid,
+    DocumentUpdate,
+    getCurrentAccount,
+    notEmpty,
+    PersonUuid,
+    Ref
+  } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { Scroller } from '@hcengineering/ui'
   import { permissions } from '@hcengineering/view-resources'
 
   import DocTeam from './DocTeam.svelte'
   import { updateExternalApproversAccess } from '../../utils'
+  import { canGuestCreateDocumentsStore } from '../../stores/permissions'
 
   export let controlledDoc: ControlledDocument
   export let editable: boolean = true
@@ -44,7 +53,14 @@
   $: inApproval = controlledState === ControlledDocumentState.InApproval && approvalRequest !== undefined
   $: isReviewed = controlledState === ControlledDocumentState.Reviewed
 
-  $: canEditMembers = $permissions.canEditMembers(controlledDoc)
+  // A guest owner manages the team while the guest permission of the module is enabled, see the guest validator of
+  // server-controlled-documents-resources.
+  $: isGuestOwner =
+    getCurrentAccount().role === AccountRole.Guest &&
+    controlledDoc.owner !== undefined &&
+    controlledDoc.owner === getCurrentEmployee() &&
+    $canGuestCreateDocumentsStore
+  $: canEditMembers = $permissions.canEditMembers(controlledDoc) || isGuestOwner
   $: canChangeCoAuthors = canEditMembers && isEditableDraft && inCleanState
   $: canChangeReviewers = canEditMembers && isEditableDraft && (inCleanState || inReview)
   $: canChangeApprovers = canEditMembers && isEditableDraft && (inCleanState || inApproval || inReview || isReviewed)

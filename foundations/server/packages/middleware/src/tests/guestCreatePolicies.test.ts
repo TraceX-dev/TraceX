@@ -117,7 +117,8 @@ function makeMiddleware (groups: Doc[] = [makeGroup()]): GuestPermissionsMiddlew
       (a === core.class.ClassPermission && b === core.class.Permission),
     classHierarchyMixin: () => undefined
   }
-  const context = { hierarchy } as unknown as PipelineContext
+  const modelDb = { findAllSync: () => [] }
+  const context = { hierarchy, modelDb } as unknown as PipelineContext
   const next = { tx: async () => ({}) }
   const mw = new (GuestPermissionsMiddleware as any)(context, next) as GuestPermissionsMiddleware
   ;(mw as any).findAll = findAll

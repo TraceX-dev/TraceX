@@ -18,9 +18,11 @@ import { Mixin, Model, type Builder } from '@hcengineering/model'
 import { TClass, TDoc } from '@hcengineering/model-core'
 import type { Resource } from '@hcengineering/platform'
 
-import core, { DOMAIN_MODEL } from '@hcengineering/core'
+import core, { type Class, type Doc, DOMAIN_MODEL, type Ref } from '@hcengineering/core'
 import type {
   FieldTemplateComponent,
+  GuestTxValidator,
+  GuestTxValidatorFunc,
   ObjectDDParticipant,
   ObjectDDParticipantFunc,
   SearchPresenter,
@@ -36,6 +38,13 @@ export class TTrigger extends TDoc implements Trigger {
   trigger!: Resource<TriggerFunc>
 }
 
+@Model(serverCore.class.GuestTxValidator, core.class.Doc, DOMAIN_MODEL)
+export class TGuestTxValidator extends TDoc implements GuestTxValidator {
+  validator!: Resource<GuestTxValidatorFunc>
+  application!: Ref<Doc>
+  classes!: Array<Ref<Class<Doc>>>
+}
+
 @Model(serverCore.mixin.ObjectDDParticipant, core.class.Class)
 export class TObjectDDParticipant extends TClass implements ObjectDDParticipant {
   collectDocs!: Resource<ObjectDDParticipantFunc>
@@ -47,5 +56,5 @@ export class TSearchPresenter extends TClass implements SearchPresenter {
 }
 
 export function createModel (builder: Builder): void {
-  builder.createModel(TTrigger, TObjectDDParticipant, TSearchPresenter)
+  builder.createModel(TTrigger, TGuestTxValidator, TObjectDDParticipant, TSearchPresenter)
 }
