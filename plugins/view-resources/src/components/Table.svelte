@@ -295,7 +295,9 @@
 
   const joinProps = (attribute: AttributeModel, object: Doc, readonly: boolean, editable: boolean) => {
     const readonlyParams =
-      readonly || isObjectAttributeReadonly(object, attribute) || (attribute?.attribute?.readonly ?? false)
+      readonly ||
+      isObjectAttributeReadonly(object, attribute, client.getHierarchy()) ||
+      (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             editable: false,
@@ -324,21 +326,36 @@
     return getObjectValue(attribute.key, object)
   }
 
-  function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute): void {
-    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, { key }) || attribute.readonly) return
+  function onChange (
+    value: any,
+    doc: Doc,
+    key: string,
+    attribute: AnyAttribute,
+    castRequest: AttributeModel['castRequest']
+  ): void {
+    if (
+      readonly ||
+      $restrictionStore.readonly ||
+      isObjectAttributeReadonly(doc, { key, attribute, castRequest }, client.getHierarchy()) ||
+      attribute.readonly === true
+    ) {
+      return
+    }
     updateAttribute(client, doc, _class, { key, attr: attribute }, value)
   }
 
   function getOnChange (doc: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
-    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, attribute)) return
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, attribute, client.getHierarchy())) {
+      return
+    }
     if (attr === undefined) return
     if (attribute.collectionAttr) return
     if (attribute.isLookup) return
     if (attribute.attribute?.readonly === true) return
     const key = attribute.castRequest ? attribute.key.substring(attribute.castRequest.length + 1) : attribute.key
     return (value: any) => {
-      onChange(value, doc, key, attr)
+      onChange(value, doc, key, attr, attribute.castRequest)
     }
   }
 
