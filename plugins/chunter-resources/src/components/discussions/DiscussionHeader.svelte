@@ -14,9 +14,10 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Discussion } from '@hcengineering/chunter'
+  import { type Discussion, getDiscussionTitle } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import { type AccountUuid } from '@hcengineering/core'
+  import { type AccountUuid, type ObjectVisibility } from '@hcengineering/core'
+  import { getEmbeddedLabel } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import {
     ButtonIcon,
@@ -25,6 +26,7 @@
     IconClose,
     IconDelete,
     IconMoreH,
+    Label,
     EditBox,
     ModernPopup,
     eventToHTMLElement,
@@ -34,7 +36,16 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { canManageDiscussion, deleteDiscussion, setDiscussionResolved } from '../../utils'
+  import {
+    canChangeDiscussionVisibility,
+    canEditDiscussionMembers,
+    canManageDiscussion,
+    deleteDiscussion,
+    getDiscussionVisibility,
+    setDiscussionResolved,
+    setDiscussionVisibility
+  } from '../../utils'
+  import DiscussionVisibilityMenu from './DiscussionVisibilityMenu.svelte'
 
   export let discussion: Discussion
   export let allowClose: boolean = false
@@ -45,6 +56,13 @@
   let title = ''
 
   $: canManage = canManageDiscussion(discussion)
+  $: canChangeVisibility = canChangeDiscussionVisibility(discussion)
+  $: canEditMembers = canEditDiscussionMembers(discussion)
+  $: visibility = getDiscussionVisibility(discussion)
+
+  // Without an explicit title: the excerpt of the first message, otherwise a placeholder.
+  $: displayTitle = getDiscussionTitle(discussion)
+  $: fallbackTitle = getDiscussionTitle({ excerpt: discussion.excerpt })
 
   $: resolved = discussion.resolved
 
@@ -72,16 +90,21 @@
 
   // Keeps the draft while the user is typing; synced from the discussion otherwise.
   let isTitleEditing = false
-  $: if (!isTitleEditing) title = discussion.name
+  $: if (!isTitleEditing) title = discussion.name ?? ''
 
+  // The title is optional, so clearing it falls back to the excerpt.
   async function saveTitle (): Promise<void> {
     isTitleEditing = false
     const name = title.trim()
-    if (name !== '' && name !== discussion.name) {
+    if (name !== (discussion.name ?? '').trim()) {
       await client.update(discussion, { name })
     } else {
-      title = discussion.name
+      title = discussion.name ?? ''
     }
+  }
+
+  async function changeVisibility (value: ObjectVisibility): Promise<void> {
+    await setDiscussionVisibility(discussion, value)
   }
 
   function handleTitleKeydown (event: KeyboardEvent): void {
@@ -102,7 +125,7 @@
     {#if canManage}
       <EditBox
         bind:value={title}
-        placeholder={chunter.string.Topic}
+        placeholder={fallbackTitle !== undefined ? getEmbeddedLabel(fallbackTitle) : chunter.string.Topic}
         fullSize
         on:value={() => {
           isTitleEditing = true
@@ -111,7 +134,9 @@
         on:blur={() => void saveTitle()}
       />
     {:else}
-      <span class="overflow-label">{discussion.name}</span>
+      <span class="overflow-label">
+        {#if displayTitle !== undefined}{displayTitle}{:else}<Label label={chunter.string.UntitledDiscussion} />{/if}
+      </span>
     {/if}
   </div>
   {#if resolved}
@@ -119,16 +144,27 @@
       <Icon icon={IconCheckCircle} size="small" />
     </span>
   {/if}
-  <div class="members">
-    <AccountArrayEditor
-      value={discussion.members}
-      label={chunter.string.Members}
-      readonly={!canManage}
-      onChange={updateMembers}
-      kind="ghost"
-      size="small"
-    />
-  </div>
+  <DiscussionVisibilityMenu
+    value={visibility}
+    parentClass={discussion.attachedToClass}
+    disabled={!canChangeVisibility}
+    kind="tertiary"
+    size="small"
+    iconOnly
+    on:change={(ev) => void changeVisibility(ev.detail)}
+  />
+  {#if visibility === 'private'}
+    <div class="members">
+      <AccountArrayEditor
+        value={discussion.members}
+        label={chunter.string.Members}
+        readonly={!canEditMembers}
+        onChange={updateMembers}
+        kind="ghost"
+        size="small"
+      />
+    </div>
+  {/if}
   {#if canManage}
     <ButtonIcon icon={IconMoreH} size="small" kind="tertiary" on:click={openMenu} />
   {/if}

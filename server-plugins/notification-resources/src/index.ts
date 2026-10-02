@@ -48,7 +48,10 @@ import core, {
   TxProcessor,
   TxRemoveDoc,
   TxUpdateDoc,
-  getClassCollaborators
+  getClassCollaborators,
+  getAccessRoot,
+  getObjectAccessReaders,
+  type AccessFindFn
 } from '@hcengineering/core'
 import notification, {
   ActivityInboxNotification,
@@ -112,6 +115,36 @@ function toTemplateParams (params?: Record<string, unknown>): Record<string, str
   return Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, String(value)]))
 }
 
+function getAccessFind (ctx: MeasureContext, control: TriggerControl): AccessFindFn {
+  return async (_class, query, options) => await control.findAll(ctx, _class, query, options)
+}
+
+/**
+ * Object access: readers of the restricted object the documents belong to (intersection), or undefined
+ * when none of them is restricted. Cached per request by root.
+ */
+async function getAccessReadersOf (
+  ctx: MeasureContext,
+  control: TriggerControl,
+  docs: Doc[]
+): Promise<Set<AccountUuid> | undefined> {
+  let result: Set<AccountUuid> | undefined
+  for (const doc of docs) {
+    const root = getAccessRoot(doc)
+    if (root === undefined) continue
+    const key = `objectAccessReaders:${root}`
+    let readers: Set<AccountUuid> | undefined = control.contextCache.get(key)
+    if (!control.contextCache.has(key)) {
+      readers = await getObjectAccessReaders(control.hierarchy, getAccessFind(ctx, control), doc)
+      control.contextCache.set(key, readers)
+    }
+    if (readers === undefined) continue
+    const current: Set<AccountUuid> = readers
+    result = result === undefined ? new Set(current) : new Set(Array.from(result).filter((it) => current.has(it)))
+  }
+  return result
+}
+
 export async function getCommonNotificationTxes (
   ctx: MeasureContext,
   control: TriggerControl,
@@ -128,6 +161,12 @@ export async function getCommonNotificationTxes (
   tx?: TxCUD<Doc>
 ): Promise<Tx[]> {
   if (notifyResult.size === 0 || !notifyResult.has(notification.providers.InboxNotificationProvider)) {
+    return []
+  }
+
+  // Object access: a receiver that cannot read a restricted object must not get its content.
+  const readers = await getAccessReadersOf(ctx, control, [doc])
+  if (readers !== undefined && !readers.has(receiver.account)) {
     return []
   }
 
@@ -816,7 +855,12 @@ export async function createCollabDocInfo (
             return false
           })
       )
-  const targets = new Set(filteredCollaborators)
+  // Object access: only accounts that can read a restricted object are notified about it.
+  // Messages are checked too: e.g. activity on a card about a restricted discussion attached to it.
+  const readers = await getAccessReadersOf(ctx, control, [object, ...docMessages])
+  const targets = new Set(
+    readers === undefined ? filteredCollaborators : filteredCollaborators.filter((it) => readers.has(it))
+  )
 
   // user is not collaborator of himself, but we should notify user of changes related to users account (mentions, comments etc)
   if (control.hierarchy.isDerived(object._class, contact.mixin.Employee)) {
@@ -824,6 +868,12 @@ export async function createCollabDocInfo (
 
     if (account != null) {
       targets.add(account)
+    }
+  }
+
+  if (readers !== undefined) {
+    for (const it of Array.from(targets)) {
+      if (!readers.has(it)) targets.delete(it)
     }
   }
 

@@ -27,13 +27,25 @@ import {
   type ChatMessage,
   type DirectMessage,
   type Discussion,
+  getDiscussionTitle,
   type ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
-import { employeeByAccountStore, employeeByIdStore, PersonIcon } from '@hcengineering/contact-resources'
+import {
+  employeeByAccountStore,
+  employeeByIdStore,
+  employeeByPersonIdStore,
+  PersonIcon
+} from '@hcengineering/contact-resources'
 import core, {
+  type AccessControlled,
   AccountRole,
   type AccountUuid,
+  audienceToVisibility,
+  getAccessAudience,
+  getAccessOwners,
+  type ObjectVisibility,
+  visibilityToAudience,
   type Class,
   type Client,
   type Doc,
@@ -42,7 +54,8 @@ import core, {
   notEmpty,
   type Ref,
   type Space,
-  type Timestamp
+  type Timestamp,
+  type TxOperations
 } from '@hcengineering/core'
 import notification, { type DocNotifyContext, type InboxNotification } from '@hcengineering/notification'
 import {
@@ -147,16 +160,88 @@ export function canCreateDiscussion (): boolean {
   return hasAccountRole(getCurrentAccount(), AccountRole.User)
 }
 
+// The creator of a discussion: stored as the policy owner of a restricted one.
+export function isDiscussionOwner (discussion: Discussion): boolean {
+  const me = getCurrentAccount()
+  const owners = getAccessOwners(getClient().getHierarchy(), discussion)
+  if (owners.length > 0) return owners.includes(me.uuid)
+  return discussion.createdBy !== undefined && me.socialIds.includes(discussion.createdBy)
+}
+
 export function canManageDiscussion (discussion: Discussion): boolean {
   const me = getCurrentAccount()
   if (!hasAccountRole(me, AccountRole.User)) return false
-  return hasAccountRole(me, AccountRole.Maintainer) || isDiscussionParticipant(discussion)
+  if (hasAccountRole(me, AccountRole.Maintainer) || isDiscussionOwner(discussion)) return true
+  // Members exist only for private discussions.
+  return getDiscussionVisibility(discussion) === 'private' && isDiscussionParticipant(discussion)
 }
 
-export async function joinDiscussion (discussion: Discussion): Promise<void> {
+export function getDiscussionVisibility (discussion: Discussion): ObjectVisibility {
+  return audienceToVisibility(getAccessAudience(getClient().getHierarchy(), discussion))
+}
+
+// Mirrors ObjectSecurityMiddleware: the visibility is managed by the owners (the creator) and maintainers,
+// so a member cannot lock the others out.
+export function canChangeDiscussionVisibility (discussion: Discussion): boolean {
+  const me = getCurrentAccount()
+  if (!hasAccountRole(me, AccountRole.User)) return false
+  return hasAccountRole(me, AccountRole.Maintainer) || isDiscussionOwner(discussion)
+}
+
+// Members exist only for private discussions; only managers edit them (the server rejects removing
+// somebody else by a plain member).
+export function canEditDiscussionMembers (discussion: Discussion): boolean {
+  return getDiscussionVisibility(discussion) === 'private' && canChangeDiscussionVisibility(discussion)
+}
+
+/**
+ * Makes the current user a collaborator of the object, so the "participants" level keeps them in.
+ */
+export async function ensureCollaborator (
+  client: TxOperations,
+  object: Pick<Doc, '_id' | '_class' | 'space'>
+): Promise<void> {
   const me = getCurrentAccount().uuid
-  if (discussion.members.includes(me)) return
-  await getClient().update(discussion, { $push: { members: me } })
+  const current = await client.findOne(core.class.Collaborator, { attachedTo: object._id, collaborator: me })
+  if (current !== undefined) return
+  await client.addCollection(core.class.Collaborator, object.space, object._id, object._class, 'collaborators', {
+    collaborator: me
+  })
+}
+
+// Initial members of a discussion that becomes private: the current user and everyone who wrote in it.
+async function getInitialPrivateMembers (discussion: Discussion): Promise<AccountUuid[]> {
+  const client = getClient()
+  const messages = await client.findAll(
+    chunter.class.ChatMessage,
+    { attachedTo: discussion._id },
+    { projection: { _id: 1, createdBy: 1 } }
+  )
+  const employees = get(employeeByPersonIdStore)
+  const authors = messages
+    .map((it) => (it.createdBy !== undefined ? employees.get(it.createdBy)?.personUuid : undefined))
+    .filter(notEmpty)
+  return Array.from(new Set([getCurrentAccount().uuid, ...authors]))
+}
+
+export async function setDiscussionVisibility (discussion: Discussion, visibility: ObjectVisibility): Promise<void> {
+  if (getDiscussionVisibility(discussion) === visibility) return
+  const client = getClient()
+  if (visibility === 'private' && discussion.members.length === 0) {
+    // Stored first: the server requires a private discussion to have a member.
+    await client.update(discussion, { members: await getInitialPrivateMembers(discussion) })
+  }
+  if (visibility === 'participants') {
+    const parent = { _id: discussion.attachedTo, _class: discussion.attachedToClass, space: discussion.space }
+    await ensureCollaborator(client, parent)
+  }
+  await client.updateMixin<Doc, AccessControlled>(
+    discussion._id,
+    discussion._class,
+    discussion.space,
+    core.mixin.AccessControlled,
+    { read: visibilityToAudience(visibility) }
+  )
 }
 
 export async function setDiscussionResolved (discussion: Discussion, resolved: boolean): Promise<void> {
@@ -234,7 +319,15 @@ export async function DirectTitleProvider (
 
 export async function discussionTitleProvider (client: Client, id: Ref<Discussion>, doc?: Discussion): Promise<string> {
   const discussion = doc ?? (await client.findOne(chunter.class.Discussion, { _id: id }))
-  return discussion?.name ?? ''
+  if (discussion === undefined) return ''
+  return await getDiscussionDisplayTitle(discussion)
+}
+
+/**
+ * Title, excerpt of the first message or a localized placeholder.
+ */
+export async function getDiscussionDisplayTitle (discussion: Discussion): Promise<string> {
+  return getDiscussionTitle(discussion) ?? (await translate(chunter.string.UntitledDiscussion, {}, get(languageStore)))
 }
 
 // The owner object title, so a discussion can be told apart outside its owner (e.g. in the inbox).

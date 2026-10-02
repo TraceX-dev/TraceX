@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type ChatMessage, type Discussion } from '@hcengineering/chunter'
+  import { type ChatMessage, type Discussion, getDiscussionTitle } from '@hcengineering/chunter'
   import contact, { type Employee, getName } from '@hcengineering/contact'
   import { CombineAvatars, employeeRefByAccountUuidStore, getPersonByPersonId } from '@hcengineering/contact-resources'
   import { notEmpty, type Ref, SortingOrder } from '@hcengineering/core'
@@ -26,11 +26,11 @@
   } from '@hcengineering/notification-resources'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { markupToText } from '@hcengineering/text'
-  import { Icon, IconCheckCircle, Label, TimeSince } from '@hcengineering/ui'
+  import { Icon, IconCheckCircle, Label, TimeSince, tooltip } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { isDiscussionParticipant } from '../../utils'
+  import { getDiscussionVisibility } from '../../utils'
 
   export let discussion: Discussion
 
@@ -46,25 +46,24 @@
   let unreadCount = 0
 
   $: resolved = discussion.resolved
+  $: visibility = getDiscussionVisibility(discussion)
+
+  $: title = getDiscussionTitle(discussion)
   $: memberRefs = discussion.members
     .map((account) => $employeeRefByAccountUuidStore.get(account) as Ref<Employee> | undefined)
     .filter(notEmpty)
 
-  // Messages are readable only after joining, so non-participants get no preview.
-  $: joined = isDiscussionParticipant(discussion)
-  $: if (joined) {
-    lastMessageQuery.query(
-      chunter.class.ChatMessage,
-      { attachedTo: discussion._id, attachedToClass: discussion._class },
-      (result) => {
-        lastMessage = result[0]
-      },
-      { sort: { createdOn: SortingOrder.Descending }, limit: 1 }
-    )
-  } else {
-    lastMessageQuery.unsubscribe()
-    lastMessage = undefined
-  }
+  // The server returns only discussions the user can read, so the preview is always shown.
+  // Members exist only for private discussions.
+  $: isPrivate = visibility === 'private'
+  $: lastMessageQuery.query(
+    chunter.class.ChatMessage,
+    { attachedTo: discussion._id, attachedToClass: discussion._class },
+    (result) => {
+      lastMessage = result[0]
+    },
+    { sort: { createdOn: SortingOrder.Descending }, limit: 1 }
+  )
 
   $: void formatLastMessage(lastMessage).then((text) => {
     lastMessageText = text
@@ -119,14 +118,29 @@
 
   <div class="content">
     <div class="title-row">
-      <span class="title overflow-label">{discussion.name}</span>
+      {#if visibility !== 'public'}
+        <span
+          class="visibility-icon"
+          use:tooltip={{
+            label:
+              visibility === 'private'
+                ? chunter.string.VisibilityMembers
+                : chunter.string.VisibilityParticipantsDescription
+          }}
+        >
+          <Icon icon={visibility === 'private' ? chunter.icon.Lock : contact.icon.ComponentMembers} size="x-small" />
+        </span>
+      {/if}
+      <span class="title overflow-label">
+        {#if title !== undefined}{title}{:else}<Label label={chunter.string.UntitledDiscussion} />{/if}
+      </span>
     </div>
     <div class="subtitle overflow-label">
       {#if resolved}
-        <Label label={chunter.string.Resolved} /> ·
-        <Label label={chunter.string.ParticipantsCount} params={{ count: discussion.members.length }} />
-      {:else if !joined}
-        <Label label={chunter.string.ParticipantsCount} params={{ count: discussion.members.length }} />
+        <Label label={chunter.string.Resolved} />
+        {#if isPrivate}
+          · <Label label={chunter.string.ParticipantsCount} params={{ count: discussion.members.length }} />
+        {/if}
       {:else if lastMessageText !== ''}
         {lastMessageText}
       {:else}
@@ -135,9 +149,11 @@
     </div>
   </div>
 
-  <div class="avatars">
-    <CombineAvatars _class={contact.mixin.Employee} items={memberRefs} size="x-small" limit={3} />
-  </div>
+  {#if isPrivate}
+    <div class="avatars">
+      <CombineAvatars _class={contact.mixin.Employee} items={memberRefs} size="x-small" limit={3} />
+    </div>
+  {/if}
 
   <div class="meta">
     <span class="time"><TimeSince value={lastMessage?.createdOn ?? discussion.modifiedOn} /></span>
@@ -215,6 +231,12 @@
     gap: 0.5rem;
     min-width: 0;
     height: 1.25rem;
+  }
+
+  .visibility-icon {
+    display: flex;
+    flex-shrink: 0;
+    color: var(--global-secondary-TextColor);
   }
 
   .title {

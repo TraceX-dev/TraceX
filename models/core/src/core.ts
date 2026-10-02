@@ -15,6 +15,11 @@
 //
 
 import {
+  type AccessAudience,
+  type AccessControlled,
+  type AccessParent,
+  type AccessParticipants,
+  type AccessRefField,
   type AccountUuid,
   type AnyAttribute,
   type ArrOf,
@@ -22,6 +27,7 @@ import {
   type AttachedDoc,
   type Blob,
   type Class,
+  type ClassAccessPolicy,
   type ClassCollaborators,
   type ClassifierKind,
   type Collaborator,
@@ -469,4 +475,27 @@ export class TVersionableClass extends TClass implements VersionableClass {
 @MMixin(core.mixin.TransientTTL, core.class.Class)
 export class TTTransientTTL extends TClass implements TransientTTL {
   ttl!: number
+}
+
+// Object-level access control. The mixin is stored on a security root; attributes are not exposed in the UI.
+@MMixin(core.mixin.AccessControlled, core.class.Doc)
+export class TAccessControlled extends TDoc implements AccessControlled {
+  read!: AccessAudience
+  owners?: AccountUuid[]
+}
+
+@MMixin(core.mixin.ClassAccessPolicy, core.class.Class)
+export class TClassAccessPolicy extends TClass implements ClassAccessPolicy {
+  membersField!: string
+  parent?: AccessRefField
+}
+
+@MMixin(core.mixin.AccessParent, core.class.Class)
+export class TAccessParent extends TClass implements AccessParent {
+  parents!: AccessRefField[]
+}
+
+@MMixin(core.mixin.AccessParticipants, core.class.Class)
+export class TAccessParticipants extends TClass implements AccessParticipants {
+  membersField?: string
 }

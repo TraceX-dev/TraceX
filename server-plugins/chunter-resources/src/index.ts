@@ -21,6 +21,8 @@ import chunter, {
   chunterId,
   ChunterSpace,
   type Discussion,
+  getDiscussionTitle,
+  makeDiscussionExcerpt,
   ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { Employee, Person } from '@hcengineering/contact'
@@ -37,6 +39,7 @@ import core, {
   notEmpty,
   PersonId,
   Ref,
+  SortingOrder,
   Timestamp,
   Tx,
   TxCreateDoc,
@@ -111,7 +114,7 @@ export async function channelTextPresenter (doc: Doc): Promise<string> {
 
 // Used as the notification title for messages posted in a discussion.
 export async function DiscussionTextPresenter (doc: Doc): Promise<string> {
-  return (doc as Discussion).name
+  return getDiscussionTitle(doc as Discussion) ?? ''
 }
 
 export async function ChatMessageTextPresenter (doc: ChatMessage): Promise<string> {
@@ -329,9 +332,86 @@ async function OnThreadMessageDeleted (tx: Tx, control: TriggerControl): Promise
 /**
  * @public
  */
+/**
+ * Keeps `Discussion.excerpt` equal to the beginning of the first top-level message,
+ * so a discussion without a title still has something to be shown by.
+ */
+async function updateDiscussionExcerpt (
+  ctx: MeasureContext,
+  control: TriggerControl,
+  discussionId: Ref<Discussion>
+): Promise<Tx[]> {
+  const discussion = (await control.findAll(ctx, chunter.class.Discussion, { _id: discussionId }, { limit: 1 }))[0]
+  if (discussion === undefined) return []
+  const first = (
+    await control.findAll(
+      ctx,
+      chunter.class.ChatMessage,
+      { attachedTo: discussion._id },
+      { sort: { createdOn: SortingOrder.Ascending }, limit: 1 }
+    )
+  )[0]
+  const excerpt = first !== undefined ? makeDiscussionExcerpt(markupToText(first.message)) : ''
+  if ((discussion.excerpt ?? '') === excerpt) return []
+  return [control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, { excerpt })]
+}
+
+async function getDiscussionOfMessage (
+  ctx: MeasureContext,
+  control: TriggerControl,
+  tx: TxCUD<Doc>
+): Promise<Ref<Discussion> | undefined> {
+  const h = control.hierarchy
+  const isDiscussion = (_class: Ref<Class<Doc>> | undefined): boolean =>
+    _class !== undefined && h.hasClass(_class) && h.isDerived(_class, chunter.class.Discussion)
+  if (tx._class === core.class.TxCreateDoc) {
+    const message = TxProcessor.createDoc2Doc(tx as TxCreateDoc<ChatMessage>, false)
+    return isDiscussion(message.attachedToClass) ? (message.attachedTo as Ref<Discussion>) : undefined
+  }
+  if (tx._class === core.class.TxRemoveDoc) {
+    const removed = control.removedMap.get(tx.objectId) as ChatMessage | undefined
+    if (removed !== undefined) {
+      return isDiscussion(removed.attachedToClass) ? (removed.attachedTo as Ref<Discussion>) : undefined
+    }
+    return isDiscussion(tx.attachedToClass) ? (tx.attachedTo as Ref<Discussion>) : undefined
+  }
+  if (isDiscussion(tx.attachedToClass)) return tx.attachedTo as Ref<Discussion>
+  const message = (await control.findAll(ctx, chunter.class.ChatMessage, { _id: tx.objectId as Ref<ChatMessage> }))[0]
+  return message !== undefined && isDiscussion(message.attachedToClass)
+    ? (message.attachedTo as Ref<Discussion>)
+    : undefined
+}
+
+async function OnDiscussionMessageChanged (
+  ctx: MeasureContext,
+  tx: TxCUD<Doc>,
+  control: TriggerControl
+): Promise<Tx[]> {
+  if (tx._class === core.class.TxUpdateDoc) {
+    const update = tx as TxUpdateDoc<ChatMessage>
+    if (update.operations.message === undefined) return []
+  }
+  const discussion = await getDiscussionOfMessage(ctx, control, tx)
+  if (discussion === undefined) return []
+  // Always derived from the stored first message, so a client-supplied excerpt cannot stick.
+  return await updateDiscussionExcerpt(ctx, control, discussion)
+}
+
 export async function ChunterTrigger (txes: TxCUD<Doc>[], control: TriggerControl): Promise<Tx[]> {
   const res: Tx[] = []
   for (const tx of txes) {
+    if (
+      control.hierarchy.hasClass(tx.objectClass) &&
+      control.hierarchy.isDerived(tx.objectClass, chunter.class.ChatMessage) &&
+      !control.hierarchy.isDerived(tx.objectClass, chunter.class.ThreadMessage) &&
+      tx._class !== core.class.TxMixin
+    ) {
+      res.push(
+        ...(await control.ctx.with('OnDiscussionMessageChanged', {}, (ctx) =>
+          OnDiscussionMessageChanged(ctx, tx, control)
+        ))
+      )
+    }
     if (
       tx._class === core.class.TxCreateDoc &&
       control.hierarchy.isDerived(tx.objectClass, chunter.class.ThreadMessage)

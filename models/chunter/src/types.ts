@@ -91,7 +91,12 @@ export class TChannel extends TChunterSpace implements Channel {
 export class TDiscussion extends TAttachedDoc implements Discussion {
   @Prop(TypeString(), chunter.string.Topic)
   @Index(IndexKind.FullText)
-    name!: string
+    name?: string
+
+  // Derived from the first message; not tracked in activity.
+  @Prop(TypeString(), chunter.string.Excerpt)
+  @Hidden()
+    excerpt?: string
 
   // Changed only through the resolve/reopen actions.
   @Prop(TypeBoolean(), chunter.string.Resolved)

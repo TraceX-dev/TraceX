@@ -14,15 +14,25 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { type Discussion, makeDiscussionExcerpt } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import core, { type AccountUuid, type Doc, getCurrentAccount, type Markup } from '@hcengineering/core'
+  import core, {
+    type AccountUuid,
+    type AttachedData,
+    type Doc,
+    getCurrentAccount,
+    type Markup,
+    type ObjectVisibility,
+    visibilityToAudience
+  } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { EmptyMarkup, isEmptyMarkup } from '@hcengineering/text'
+  import { EmptyMarkup, isEmptyMarkup, markupToText } from '@hcengineering/text'
   import { StyledTextArea } from '@hcengineering/text-editor-resources'
   import { Button, IconAdd, Label, Modal, ModernEditbox } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
+  import DiscussionVisibilityMenu from './DiscussionVisibilityMenu.svelte'
 
   export let object: Doc
 
@@ -33,6 +43,7 @@
 
   let name = ''
   let members: AccountUuid[] = [me]
+  let visibility: ObjectVisibility = 'public'
   let firstMessage: Markup = EmptyMarkup
   let collaborators: AccountUuid[] = []
 
@@ -41,7 +52,8 @@
   })
 
   $: missingCollaborators = collaborators.filter((account) => !members.includes(account))
-  $: canSave = name.trim().length > 0
+  // The title is optional: a discussion without one is shown by its first message.
+  $: canSave = name.trim().length > 0 || !isEmptyMarkup(firstMessage)
 
   function addAllCollaborators (): void {
     members = [...members, ...missingCollaborators]
@@ -49,17 +61,42 @@
 
   async function save (): Promise<void> {
     const operations = client.apply(undefined, 'chunter.createDiscussion')
+    const title = name.trim()
+    const excerpt = isEmptyMarkup(firstMessage) ? '' : makeDiscussionExcerpt(markupToText(firstMessage))
+    const data: AttachedData<Discussion> = {
+      ...(title !== '' ? { name: title } : {}),
+      ...(excerpt !== '' ? { excerpt } : {}),
+      resolved: false,
+      // Members exist only for a private discussion; the other levels follow the space or the card.
+      members: visibility !== 'private' ? [] : members.includes(me) ? members : [me, ...members]
+    }
+    // A restricted discussion carries its policy from the very first transaction,
+    // so it is never visible to the whole space, not even for a moment.
+    const attributes: AttachedData<Discussion> =
+      visibility === 'public'
+        ? data
+        : ({
+            ...data,
+            [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) }
+          } as AttachedData<Discussion>)
+    // The "participants" level is defined by the card collaborators: the creator must stay among them.
+    if (visibility === 'participants' && !collaborators.includes(me)) {
+      await operations.addCollection(
+        core.class.Collaborator,
+        object.space,
+        object._id,
+        object._class,
+        'collaborators',
+        { collaborator: me }
+      )
+    }
     const discussionId = await operations.addCollection(
       chunter.class.Discussion,
       object.space,
       object._id,
       object._class,
       'discussions',
-      {
-        name: name.trim(),
-        resolved: false,
-        members: members.includes(me) ? members : [me, ...members]
-      }
+      attributes
     )
 
     if (!isEmptyMarkup(firstMessage)) {
@@ -89,34 +126,49 @@
 >
   <div class="form">
     <div class="field">
-      <span class="field-label"><Label label={chunter.string.Topic} /></span>
+      <span class="field-label"><Label label={chunter.string.DiscussionTitleOptional} /></span>
       <ModernEditbox bind:value={name} label={chunter.string.Topic} size="medium" autoFocus />
     </div>
 
     <div class="field">
-      <span class="field-label"><Label label={chunter.string.Members} /></span>
-      <AccountArrayEditor
-        value={members}
-        label={chunter.string.Members}
-        onChange={(value) => {
-          members = value
-        }}
-        kind="regular"
-        size="large"
-      />
-      {#if missingCollaborators.length > 0}
-        <div class="add-all">
-          <Button
-            kind="link"
-            size="small"
-            icon={IconAdd}
-            label={chunter.string.AddAllCollaborators}
-            labelParams={{ count: missingCollaborators.length }}
-            on:click={addAllCollaborators}
-          />
-        </div>
-      {/if}
+      <span class="field-label"><Label label={chunter.string.Visibility} /></span>
+      <div class="visibility">
+        <DiscussionVisibilityMenu
+          value={visibility}
+          parentClass={object._class}
+          on:change={(ev) => {
+            visibility = ev.detail
+          }}
+        />
+      </div>
     </div>
+
+    {#if visibility === 'private'}
+      <div class="field">
+        <span class="field-label"><Label label={chunter.string.Members} /></span>
+        <AccountArrayEditor
+          value={members}
+          label={chunter.string.Members}
+          onChange={(value) => {
+            members = value
+          }}
+          kind="regular"
+          size="large"
+        />
+        {#if missingCollaborators.length > 0}
+          <div class="add-all">
+            <Button
+              kind="link"
+              size="small"
+              icon={IconAdd}
+              label={chunter.string.AddAllCollaborators}
+              labelParams={{ count: missingCollaborators.length }}
+              on:click={addAllCollaborators}
+            />
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <div class="field">
       <span class="field-label"><Label label={chunter.string.FirstMessage} /></span>
@@ -154,7 +206,8 @@
     text-transform: uppercase;
   }
 
-  .add-all {
+  .add-all,
+  .visibility {
     display: flex;
     align-self: flex-start;
   }
