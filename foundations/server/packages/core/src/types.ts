@@ -43,6 +43,7 @@ import {
   type Space,
   type Timestamp,
   type Tx,
+  type TxCUD,
   type TxFactory,
   type TxResult,
   type UserStatus,
@@ -317,6 +318,50 @@ export interface Trigger extends Doc {
 
   // We should match transaction
   txMatch?: DocumentQuery<Tx>
+}
+
+/**
+ * Decision of a guest transaction validator: `allow` accepts the transaction, `deny` rejects it,
+ * `undefined` leaves it to the generic guest rules.
+ * @public
+ */
+export type GuestTxDecision = 'allow' | 'deny' | undefined
+
+/**
+ * @public
+ */
+export interface GuestTxValidatorControl {
+  ctx: MeasureContext
+  account: Account
+  hierarchy: Hierarchy
+  findAll: <T extends Doc>(
+    _class: Ref<Class<T>>,
+    query: DocumentQuery<T>,
+    options?: FindOptions<T>
+  ) => Promise<FindResult<T>>
+  /** `Person` of the guest account, if it has one. */
+  person: Ref<Doc> | undefined
+  /** Whether the guest can read the document, mirroring the storage read security for guests. */
+  canRead: (doc: Doc) => Promise<boolean>
+  /** Transactions of the enclosing apply, including the validated one. Empty outside of an apply. */
+  applyTxes: Tx[]
+}
+
+/**
+ * @public
+ */
+export type GuestTxValidatorFunc = (tx: TxCUD<Doc>, control: GuestTxValidatorControl) => Promise<GuestTxDecision>
+
+/**
+ * Module specific validation of guest transactions. A validator is active for a guest only while the guest has an
+ * active policy of `application`, i.e. the module guest permission is enabled.
+ * @public
+ */
+export interface GuestTxValidator extends Doc {
+  validator: Resource<GuestTxValidatorFunc>
+  application: Ref<Doc>
+  /** Classes whose transactions are validated, including derived classes. */
+  classes: Array<Ref<Class<Doc>>>
 }
 
 /**

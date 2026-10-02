@@ -306,9 +306,10 @@ export async function createDocumentSnapshotAndEdit (client: TxOperations, docum
     newSnapshotId
   )
 
-  await op.commit()
+  // Reset together with the snapshot: the server accepts the reset of a guest only with the snapshot.
+  await op.update(document, { $unset: { controlledState: true } })
 
-  await client.update(document, { $unset: { controlledState: true } })
+  await op.commit()
 
   const source = makeDocCollabId(document, 'content')
   const target = makeCollabId(documents.class.ControlledDocumentSnapshot, newSnapshotId, 'content')

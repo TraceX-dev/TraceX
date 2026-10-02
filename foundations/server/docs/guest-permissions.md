@@ -92,6 +92,30 @@ The rule never allows removals. When it does not match, the generic update rules
 
 Processes use it through `process.permission.GuestParticipate`, listed directly in the guest permission group of the Processes module. The group has no `spaceClass`: process tasks are stored in the shared todo space, and access is checked through the card. A process step that assigns a guest without access to the card fails with `process.error.GuestWithoutCardAccess` instead of granting access.
 
+### Module validators
+
+A module can register a `serverCore.class.GuestTxValidator` model document with a validator function, the module `application` and the validated `classes` (derived classes included). The middleware calls the validator for guest CUD transactions of these classes before the other rules, while the guest has an active policy of the application, i.e. the module guest permission is enabled.
+
+The validator returns:
+
+- `allow`: the transaction is accepted;
+- `deny`: the transaction is rejected, even if the generic rules would accept it;
+- `undefined`: the generic rules decide.
+
+The validator gets the guest `Person`, a read check that mirrors the guest storage security and the transactions of the enclosing apply. The latter lets it require that related changes are applied together.
+
+Validators are for rules that depend on the document state or role, which the declarative fields can not express. Controlled documents use one (`ValidateGuestTx` in `server-controlled-documents-resources`) for the document lifecycle:
+
+| Who | What |
+| --- | --- |
+| Owner | team (`coAuthors`, `reviewers`, `approvers`) in the states of the team editor, withdrawing approvals of removed request members; content fields, `reviewInterval` and the next minor or major version of a clean draft; the `DocumentTraining` mixin |
+| Owner | sending for review or approval: the state change and the request in one apply; the request applies exactly the expected state change of the document, has no approvals and requests the selected team. External approvers can not be changed by a guest, since adding one grants document access |
+| Owner | editing after review, approval or rejection: a snapshot of the current content and the reset of `controlledState` in one apply |
+| Owner, co-author | `title`, `abstract` and the change control of a clean draft |
+| Owner, co-author, reviewer | `commentSequence` increments (comments in a draft or in review, as on the client) and resolving comments |
+
+Changes of `controlledState`, `state`, `owner`, `author`, `effectiveDate` and `plannedEffectiveDate` that match no rule are always rejected. The owner is the `owner` attribute of the document, so a guest that is made owner by a user gets the owner rules too.
+
 ### Mixins
 
 A creation mixin must:
@@ -170,3 +194,5 @@ For processes, `canParticipateInProcessesStore` shows the task buttons of the as
 - `models/controlled-documents/src/guestPolicies.ts`
 - `models/process/src/permission.ts`
 - `foundations/server/packages/middleware/src/tests/guestAssigneePolicies.test.ts`
+- `foundations/server/packages/middleware/src/tests/guestTxValidators.test.ts`
+- `server-plugins/controlled-documents-resources/src/guestValidator.ts`

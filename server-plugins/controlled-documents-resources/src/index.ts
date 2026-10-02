@@ -49,6 +49,7 @@ import {
   SendControlledDocumentForApproval,
   SendControlledDocumentForReview
 } from './workspaceApi'
+import { ValidateGuestTx } from './guestValidator'
 
 export {
   CreateControlledDocumentDraft,
@@ -495,7 +496,8 @@ export default async () => ({
     ControlledDocumentTextPresenter,
     ControlledDocumentHTMLPresenter,
     CoAuthorsTypeMatch,
-    DocumentReviewedTypeMatch
+    DocumentReviewedTypeMatch,
+    ValidateGuestTx
   },
   workspaceApi: {
     FindControlledDocuments,

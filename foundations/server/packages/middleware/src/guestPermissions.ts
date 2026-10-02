@@ -13,8 +13,11 @@
 // limitations under the License.
 //
 
-import {
+import serverCore, {
   BaseMiddleware,
+  type GuestTxDecision,
+  type GuestTxValidator,
+  type GuestTxValidatorFunc,
   type Middleware,
   type PipelineContext,
   type TxMiddlewareResult
@@ -26,6 +29,8 @@ import core, {
   type Class,
   type CustomSequence,
   type Doc,
+  type DocumentQuery,
+  type FindOptions,
   getGuestReadCollaboratorTargets,
   hasAccountRole,
   isSpaceReadableByGuest,
@@ -43,7 +48,7 @@ import core, {
   type TxAccessLevel,
   type TxUpdateDoc
 } from '@hcengineering/core'
-import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
+import platform, { getResource, PlatformError, Severity, Status } from '@hcengineering/platform'
 import contact, { type Person } from '@hcengineering/contact'
 import {
   createGuestTxScope,
@@ -59,9 +64,16 @@ import {
 
 const MAX_SEQUENCE_INCREMENT = 100_000
 
+interface LoadedGuestTxValidator {
+  application: Ref<Doc>
+  classes: Array<Ref<Class<Doc>>>
+  validate: GuestTxValidatorFunc
+}
+
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
   private permissionsCache: GuestPermissionsCache | undefined = undefined
   private initPromise: Promise<void> | undefined = undefined
+  private validators: Promise<LoadedGuestTxValidator[]> | undefined = undefined
 
   static async create (
     ctx: MeasureContext,
@@ -168,7 +180,8 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       ),
       createdTargets: new Map(parent.createdTargets),
       sequenceGuards: new Set(parent.sequenceGuards),
-      spaceClasses: parent.spaceClasses
+      spaceClasses: parent.spaceClasses,
+      applyTxes: applyTx.txes
     }
 
     for (const condition of applyTx.notMatch ?? []) {
@@ -419,6 +432,58 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return collaborators.length > 0
   }
 
+  private async getValidators (): Promise<LoadedGuestTxValidator[]> {
+    if (this.validators === undefined) {
+      const docs = this.context.modelDb.findAllSync<GuestTxValidator>(serverCore.class.GuestTxValidator, {})
+      this.validators = Promise.all(
+        docs.map(async (it) => ({
+          application: it.application,
+          classes: it.classes,
+          validate: await getResource(it.validator)
+        }))
+      )
+    }
+    return await this.validators
+  }
+
+  /**
+   * Module validators decide on transactions of their classes while the guest has an active policy of the module.
+   */
+  private async validateByModule (
+    ctx: MeasureContext,
+    tx: TxCUD<Doc>,
+    account: Account,
+    policies: GuestClassPermissionPolicy[],
+    scope: GuestTxScope
+  ): Promise<GuestTxDecision> {
+    const applications = new Set(policies.map((it) => it.application).filter((it) => it !== undefined))
+    if (applications.size === 0) return undefined
+    const h = this.context.hierarchy
+    const validators = (await this.getValidators()).filter(
+      (it) => applications.has(it.application) && it.classes.some((_class) => h.isDerived(tx.objectClass, _class))
+    )
+    if (validators.length === 0) return undefined
+
+    const person = (await this.findAll(ctx, contact.class.Person, { personUuid: account.uuid }, { limit: 1 }))[0]
+    const control = {
+      ctx,
+      account,
+      hierarchy: h,
+      findAll: async <T extends Doc>(_class: Ref<Class<T>>, query: DocumentQuery<T>, options?: FindOptions<T>) =>
+        await this.findAll(ctx, _class, query, options),
+      person: person?._id,
+      canRead: async (doc: Doc) => await this.canGuestRead(ctx, doc, account),
+      applyTxes: scope.applyTxes
+    }
+    let result: GuestTxDecision
+    for (const validator of validators) {
+      const decision = await validator.validate(tx, control)
+      if (decision === 'deny') return 'deny'
+      if (decision === 'allow') result = 'allow'
+    }
+    return result
+  }
+
   private async isForbiddenTx (
     ctx: MeasureContext,
     tx: TxCUD<Doc>,
@@ -431,6 +496,10 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       // Sequences never use the generic own-document rule.
       return !(await this.isAllowedSequenceTx(ctx, tx, policies, scope))
     }
+
+    const decision = await this.validateByModule(ctx, tx, account, policies, scope)
+    if (decision === 'allow') return false
+    if (decision === 'deny') return true
 
     if (tx._class === core.class.TxMixin) {
       const mixinTx = tx as TxMixin<Doc, Doc>
