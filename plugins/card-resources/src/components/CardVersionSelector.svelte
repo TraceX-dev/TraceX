@@ -17,7 +17,7 @@
 -->
 <script lang="ts">
   import { Card, cardId } from '@hcengineering/card'
-  import core, { Ref } from '@hcengineering/core'
+  import core, { Ref, SortingOrder } from '@hcengineering/core'
   import { setPlatformStatus, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Button, DropdownLabels, DropdownTextItem, getCurrentLocation, navigate } from '@hcengineering/ui'
@@ -45,6 +45,9 @@
       },
       (res) => {
         versions = res
+      },
+      {
+        sort: { version: SortingOrder.Descending }
       }
     )
   } else {
