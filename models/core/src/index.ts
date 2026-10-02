@@ -29,7 +29,6 @@ import core from './component'
 import {
   TAccessControlled,
   TAccessParent,
-  TAccessParticipants,
   TArrOf,
   TAssociation,
   TAttachedDoc,
@@ -196,8 +195,7 @@ export function createModel (builder: Builder): void {
     TTTransientTTL,
     TAccessControlled,
     TClassAccessPolicy,
-    TAccessParent,
-    TAccessParticipants
+    TAccessParent
   )
 
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {

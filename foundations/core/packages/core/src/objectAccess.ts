@@ -14,25 +14,18 @@
 //
 
 /**
- * Object-level access control.
- *
- * An object of a class with a `ClassAccessPolicy` may carry the `AccessControlled` mixin, which narrows
- * who can see it inside its space. Such an object is a "security root". Every document that belongs to a
- * root (messages, replies, reactions, attachments, activity, notifications...) is marked by the server
- * with the `accessRoot` field, so a single query condition hides the whole subtree.
- *
- * Access is always: space access ∩ object policy. The policy can only narrow, never widen.
+ * Object access control: an object with the `AccessControlled` mixin (a security root) narrows who can see
+ * it and everything that belongs to it inside its space. The server marks the root and its descendants with
+ * `accessRoot`. See foundations/server/docs/object-access-control.md.
  */
 
 import type { AccountUuid, Class, Collaborator, Doc, Ref } from './classes'
 import core from './component'
 import type { Hierarchy } from './hierarchy'
-import type { DocumentQuery, FindOptions } from './storage'
+import type { DocumentQuery, FindOptions, Projection } from './storage'
 import type { DocumentUpdate } from './tx'
 
 /**
- * Field the server sets on a security root (pointing to itself) and on all of its descendants.
- * Documents without the field are not restricted by object policies.
  * @public
  */
 export const ACCESS_ROOT_FIELD = 'accessRoot'
@@ -43,19 +36,6 @@ export const ACCESS_ROOT_FIELD = 'accessRoot'
 export interface AccessMarked {
   accessRoot?: Ref<Doc>
 }
-
-/**
- * Who may read (and write) a security root and its descendants.
- *
- * - `space` — everyone with access to the space (the object is public, but stays marked so its level can
- *   be narrowed again without re-marking the subtree);
- * - `parentParticipants` — the participants of the parent object (by default its collaborators);
- * - `members` — only the members of the object itself.
- *
- * Members of the object matter only for `members`; the other levels are defined by the space or the parent.
- * @public
- */
-export type AccessAudience = SpaceAudience | ParentParticipantsAudience | MembersAudience
 
 /**
  * @public
@@ -79,22 +59,20 @@ export interface MembersAudience {
 }
 
 /**
+ * Who reads (and writes): the space, collaborators of the parent object, or members of the object.
  * @public
  */
-export type AccessAudienceKind = AccessAudience['kind']
+export type AccessAudience = SpaceAudience | ParentParticipantsAudience | MembersAudience
 
 /**
- * The mixin is set on the security root itself.
  * @public
  */
 export interface AccessControlled extends Doc {
   read: AccessAudience
-  // Accounts that manage the policy and membership (server-managed: the creator of the object).
-  owners?: AccountUuid[]
+  owners?: AccountUuid[] // server-managed: the creator
 }
 
 /**
- * A reference attribute together with the attribute holding the class of the referenced document.
  * @public
  */
 export interface AccessRefField {
@@ -103,20 +81,16 @@ export interface AccessRefField {
 }
 
 /**
- * Enables object-level access control for a class.
+ * Enables object access control for a class.
  * @public
  */
 export interface ClassAccessPolicy extends Class<Doc> {
-  // Attribute with AccountUuid[] of the object members, used by the `members` audience.
-  membersField: string
-  // Parent whose participants are used by the `parentParticipants` audience. Defaults to attachedTo.
-  parent?: AccessRefField
+  membersField: string // AccountUuid[] used by the `members` audience
+  parent?: AccessRefField // default: attachedTo
 }
 
 /**
- * Declares how a document of the class is linked to a security root.
- * Defaults to `attachedTo` for every document that has it.
- * The first reference that leads to a security root wins.
+ * Reference fields linking documents of the class to a root (default: attachedTo); the first resolved wins.
  * @public
  */
 export interface AccessParent extends Class<Doc> {
@@ -124,25 +98,9 @@ export interface AccessParent extends Class<Doc> {
 }
 
 /**
- * Declares who the participants of a parent object are, for the `parentParticipants` audience.
- * Without the mixin the participants are the object collaborators (`core.class.Collaborator`).
- * @public
- */
-export interface AccessParticipants extends Class<Doc> {
-  // Attribute with AccountUuid[]; when omitted, collaborators are used.
-  membersField?: string
-}
-
-/**
- * UI level of an object, mapped onto an audience.
  * @public
  */
 export type ObjectVisibility = 'public' | 'participants' | 'private'
-
-/**
- * @public
- */
-export const objectVisibilities: ObjectVisibility[] = ['public', 'participants', 'private']
 
 /**
  * @public
@@ -167,14 +125,13 @@ export function visibilityToAudience (visibility: ObjectVisibility): AccessAudie
  * @public
  */
 export function audienceToVisibility (audience: AccessAudience | undefined): ObjectVisibility {
-  if (audience === undefined) return 'public'
-  switch (audience.kind) {
-    case 'space':
-      return 'public'
+  switch (audience?.kind) {
     case 'parentParticipants':
       return 'participants'
     case 'members':
       return 'private'
+    default:
+      return 'public'
   }
 }
 
@@ -182,17 +139,8 @@ export function audienceToVisibility (audience: AccessAudience | undefined): Obj
  * @public
  */
 export function isAccessAudience (value: unknown): value is AccessAudience {
-  if (typeof value !== 'object' || value === null) return false
-  const kind = (value as { kind?: unknown }).kind
+  const kind = (value as { kind?: unknown } | null | undefined)?.kind
   return kind === 'space' || kind === 'parentParticipants' || kind === 'members'
-}
-
-/**
- * True when the audience narrows access below the space.
- * @public
- */
-export function isRestrictedAudience (audience: AccessAudience | undefined): boolean {
-  return audience !== undefined && audience.kind !== 'space'
 }
 
 /**
@@ -204,12 +152,18 @@ export function getAccessRoot (doc: object): Ref<Doc> | undefined {
 }
 
 /**
- * Update operations that set the mark (server-side, raw updates).
+ * Projection reading only the mark.
+ * @public
+ */
+const accessRootProjection: Record<string, 1> = { _id: 1, [ACCESS_ROOT_FIELD]: 1 }
+export const ACCESS_ROOT_PROJECTION: Projection<Doc> = accessRootProjection
+
+/**
  * @public
  */
 export function makeAccessRootUpdate (root: Ref<Doc>): DocumentUpdate<Doc> {
   const ops: AccessMarked = { accessRoot: root }
-  return ops as DocumentUpdate<Doc>
+  return ops
 }
 
 /**
@@ -231,15 +185,6 @@ export function getAccessParents (hierarchy: Hierarchy, _class: Ref<Class<Doc>>)
 /**
  * @public
  */
-export function getAccessParticipants (hierarchy: Hierarchy, _class: Ref<Class<Doc>>): AccessParticipants | undefined {
-  if (!hierarchy.hasClass(_class)) return undefined
-  return hierarchy.classHierarchyMixin(_class, core.mixin.AccessParticipants)
-}
-
-/**
- * The audience stored on a document, if any.
- * @public
- */
 export function getAccessAudience (hierarchy: Hierarchy, doc: Doc): AccessAudience | undefined {
   if (!hierarchy.hasMixin(doc, core.mixin.AccessControlled)) return undefined
   const read = hierarchy.as(doc, core.mixin.AccessControlled).read
@@ -247,7 +192,6 @@ export function getAccessAudience (hierarchy: Hierarchy, doc: Doc): AccessAudien
 }
 
 /**
- * Owners stored in the policy of a document.
  * @public
  */
 export function getAccessOwners (hierarchy: Hierarchy, doc: Doc): AccountUuid[] {
@@ -257,19 +201,14 @@ export function getAccessOwners (hierarchy: Hierarchy, doc: Doc): AccountUuid[] 
 }
 
 /**
- * True when update operations touch the attribute, including dotted paths (`field.x`) at any level.
+ * True when update operations touch the attribute, including dotted paths (`field.x`).
  * @public
  */
 export function touchesAttribute (ops: Record<string, any>, attribute: string): boolean {
   const matches = (key: string): boolean => key === attribute || key.startsWith(`${attribute}.`)
-  for (const key of Object.keys(ops)) {
-    if (matches(key)) return true
-    const value = ops[key]
-    if (key.startsWith('$') && typeof value === 'object' && value !== null) {
-      if (Object.keys(value).some(matches)) return true
-    }
-  }
-  return false
+  return Object.keys(ops).some(
+    (key) => matches(key) || (key.startsWith('$') && Object.keys(ops[key] ?? {}).some(matches))
+  )
 }
 
 /**
@@ -277,11 +216,11 @@ export function touchesAttribute (ops: Record<string, any>, attribute: string): 
  */
 export function getAccessMembers (doc: Doc, policy: ClassAccessPolicy): AccountUuid[] {
   const value = (doc as unknown as Record<string, unknown>)[policy.membersField]
-  return Array.isArray(value) ? (value.filter((it) => typeof it === 'string') as AccountUuid[]) : []
+  return Array.isArray(value) ? value.filter((it): it is AccountUuid => typeof it === 'string') : []
 }
 
 /**
- * Accounts that may read a security root, or `undefined` when the policy does not narrow the space.
+ * Readers of a root, or `undefined` when the policy does not narrow the space.
  * @public
  */
 export function getAccessReaders (
@@ -319,7 +258,6 @@ export function canReadByAudience (
 }
 
 /**
- * Unrestricted find used to resolve readers outside of the security middlewares (e.g. in triggers).
  * @public
  */
 export type AccessFindFn = <T extends Doc>(
@@ -329,21 +267,18 @@ export type AccessFindFn = <T extends Doc>(
 ) => Promise<T[]>
 
 /**
- * Classes that declare an access policy. A query by such a class also returns its subclasses,
- * so these are enough to find every security root.
+ * Classes declaring a policy; a query by them also returns their subclasses.
  * @public
  */
 export function getAccessPolicyClasses (hierarchy: Hierarchy): Ref<Class<Doc>>[] {
-  return hierarchy.getDescendants(core.class.Doc).filter((_class) => {
-    if (hierarchy.isMixin(_class)) return false
-    return hierarchy.hasMixin(hierarchy.getClass(_class), core.mixin.ClassAccessPolicy)
-  })
+  return hierarchy
+    .getDescendants(core.class.Doc)
+    .filter((it) => !hierarchy.isMixin(it) && hierarchy.hasMixin(hierarchy.getClass(it), core.mixin.ClassAccessPolicy))
 }
 
 /**
- * Readers of the restricted object a document belongs to (by its `accessRoot` mark).
- * Returns `undefined` when the document is not restricted. Fails closed (an empty set) when the
- * root cannot be resolved.
+ * Readers of the root a document belongs to (for triggers): `undefined` when not restricted,
+ * an empty set when the root cannot be resolved (fail-closed).
  * @public
  */
 export async function getObjectAccessReaders (
@@ -354,37 +289,19 @@ export async function getObjectAccessReaders (
   const rootId = getAccessRoot(doc)
   if (rootId === undefined) return undefined
   let root: Doc | undefined = rootId === doc._id ? doc : undefined
-  if (root === undefined) {
-    for (const _class of getAccessPolicyClasses(hierarchy)) {
-      root = (await find(_class, { _id: rootId }, { limit: 1 }))[0]
-      if (root !== undefined) break
-    }
+  for (const _class of root === undefined ? getAccessPolicyClasses(hierarchy) : []) {
+    root = (await find(_class, { _id: rootId }, { limit: 1 }))[0]
+    if (root !== undefined) break
   }
-  if (root === undefined) return new Set()
-  const policy = getClassAccessPolicy(hierarchy, root._class)
-  const audience = getAccessAudience(hierarchy, root)
-  if (policy === undefined || audience === undefined) return new Set()
-  if (audience.kind === 'space') return undefined
+  const policy = root !== undefined ? getClassAccessPolicy(hierarchy, root._class) : undefined
+  const audience = root !== undefined ? getAccessAudience(hierarchy, root) : undefined
+  if (root === undefined || policy === undefined || audience === undefined) return new Set()
 
   let participants: AccountUuid[] | undefined
-  if (audience.kind === 'parentParticipants') {
-    const parentRef = policy.parent ?? DEFAULT_ACCESS_PARENT
-    const record = root as unknown as Record<string, unknown>
-    const parentId = record[parentRef.field]
-    const parentClass = record[parentRef.classField]
-    if (typeof parentId === 'string' && typeof parentClass === 'string') {
-      const _class = parentClass as Ref<Class<Doc>>
-      const _id = parentId as Ref<Doc>
-      const field = getAccessParticipants(hierarchy, _class)?.membersField
-      if (field === undefined) {
-        const collaborators = await find(core.class.Collaborator, { attachedTo: _id })
-        participants = collaborators.map((it: Collaborator) => it.collaborator)
-      } else if (hierarchy.hasClass(_class)) {
-        const parent = (await find(_class, { _id }, { limit: 1 }))[0]
-        const value = (parent as unknown as Record<string, unknown> | undefined)?.[field]
-        participants = Array.isArray(value) ? value.filter((it): it is AccountUuid => typeof it === 'string') : []
-      }
-    }
+  const parentId = (root as unknown as Record<string, unknown>)[(policy.parent ?? DEFAULT_ACCESS_PARENT).field]
+  if (audience.kind === 'parentParticipants' && typeof parentId === 'string') {
+    const collaborators = await find(core.class.Collaborator, { attachedTo: parentId as Ref<Doc> })
+    participants = collaborators.map((it: Collaborator) => it.collaborator)
   }
   return getAccessReaders(audience, getAccessMembers(root, policy), participants)
 }

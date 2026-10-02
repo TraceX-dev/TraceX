@@ -18,7 +18,6 @@ import {
   type AccessAudience,
   type AccessControlled,
   type AccessParent,
-  type AccessParticipants,
   type AccessRefField,
   type AccountUuid,
   type AnyAttribute,
@@ -477,7 +476,7 @@ export class TTTransientTTL extends TClass implements TransientTTL {
   ttl!: number
 }
 
-// Object-level access control. The mixin is stored on a security root; attributes are not exposed in the UI.
+// Object access control (see foundations/server/docs/object-access-control.md).
 @MMixin(core.mixin.AccessControlled, core.class.Doc)
 export class TAccessControlled extends TDoc implements AccessControlled {
   read!: AccessAudience
@@ -493,9 +492,4 @@ export class TClassAccessPolicy extends TClass implements ClassAccessPolicy {
 @MMixin(core.mixin.AccessParent, core.class.Class)
 export class TAccessParent extends TClass implements AccessParent {
   parents!: AccessRefField[]
-}
-
-@MMixin(core.mixin.AccessParticipants, core.class.Class)
-export class TAccessParticipants extends TClass implements AccessParticipants {
-  membersField?: string
 }

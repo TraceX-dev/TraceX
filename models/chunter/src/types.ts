@@ -93,7 +93,7 @@ export class TDiscussion extends TAttachedDoc implements Discussion {
   @Index(IndexKind.FullText)
     name?: string
 
-  // Derived from the first message; not tracked in activity.
+  // Maintained by a trigger from the first message.
   @Prop(TypeString(), chunter.string.Excerpt)
   @Hidden()
     excerpt?: string

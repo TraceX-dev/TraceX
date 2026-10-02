@@ -51,10 +51,8 @@ export interface Channel extends ChunterSpace {
  * @public
  */
 export interface Discussion extends AttachedDoc {
-  // Optional explicit title. Without it the discussion is shown by `excerpt`.
   name?: string
-  // Plain-text beginning of the first message, maintained by the server.
-  excerpt?: string
+  excerpt?: string // beginning of the first message, maintained by the server
   // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
   resolved: boolean
   members: AccountUuid[]
@@ -234,8 +232,6 @@ export default plugin(chunterId, {
     VisibilityParticipantsDescription: '' as IntlString,
     VisibilityMembers: '' as IntlString,
     VisibilityMembersDescription: '' as IntlString,
-    ChangeVisibility: '' as IntlString,
-    FirstMessageOrTitleRequired: '' as IntlString,
     AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,

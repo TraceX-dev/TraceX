@@ -29,13 +29,11 @@ export async function getDirectChannel (
 }
 
 /**
- * Maximum length of a discussion excerpt, in characters.
  * @public
  */
 export const DISCUSSION_EXCERPT_LENGTH = 140
 
 /**
- * Builds a single-line excerpt from plain text.
  * @public
  */
 export function makeDiscussionExcerpt (text: string): string {
@@ -45,8 +43,7 @@ export function makeDiscussionExcerpt (text: string): string {
 }
 
 /**
- * The title a discussion is shown with: its explicit name, otherwise the excerpt of the first message.
- * Returns undefined when there is neither, so the caller can show a localized placeholder.
+ * Name, otherwise excerpt; undefined when there is neither.
  * @public
  */
 export function getDiscussionTitle (discussion: Pick<Discussion, 'name' | 'excerpt'>): string | undefined {

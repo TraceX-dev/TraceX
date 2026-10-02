@@ -70,7 +70,7 @@ import type {
   Version
 } from './classes'
 import { AccountRole, TxAccessLevel } from './classes'
-import type { AccessControlled, AccessParent, AccessParticipants, ClassAccessPolicy } from './objectAccess'
+import type { AccessControlled, AccessParent, ClassAccessPolicy } from './objectAccess'
 import type { Status, StatusCategory } from './status'
 import type {
   Tx,
@@ -211,8 +211,7 @@ export default plugin(coreId, {
     TransientTTL: '' as Ref<Class<TransientTTL>>,
     AccessControlled: '' as Ref<Mixin<AccessControlled>>,
     ClassAccessPolicy: '' as Ref<Mixin<ClassAccessPolicy>>,
-    AccessParent: '' as Ref<Mixin<AccessParent>>,
-    AccessParticipants: '' as Ref<Mixin<AccessParticipants>>
+    AccessParent: '' as Ref<Mixin<AccessParent>>
   },
   space: {
     Tx: '' as Ref<Space>,

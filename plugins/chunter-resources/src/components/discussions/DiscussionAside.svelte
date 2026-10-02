@@ -39,7 +39,6 @@
     if (discussion === undefined) dispatch('close')
   })
 
-  // The server returns only discussions the user can read: no joining is needed.
   $: context = discussion !== undefined ? $contextByDocStore.get(discussion._id) : undefined
 </script>
 

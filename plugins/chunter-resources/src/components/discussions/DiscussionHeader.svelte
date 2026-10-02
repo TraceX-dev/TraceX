@@ -60,7 +60,6 @@
   $: canEditMembers = canEditDiscussionMembers(discussion)
   $: visibility = getDiscussionVisibility(discussion)
 
-  // Without an explicit title: the excerpt of the first message, otherwise a placeholder.
   $: displayTitle = getDiscussionTitle(discussion)
   $: fallbackTitle = getDiscussionTitle({ excerpt: discussion.excerpt })
 
@@ -92,7 +91,6 @@
   let isTitleEditing = false
   $: if (!isTitleEditing) title = discussion.name ?? ''
 
-  // The title is optional, so clearing it falls back to the excerpt.
   async function saveTitle (): Promise<void> {
     isTitleEditing = false
     const name = title.trim()

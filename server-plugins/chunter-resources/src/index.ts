@@ -332,10 +332,7 @@ async function OnThreadMessageDeleted (tx: Tx, control: TriggerControl): Promise
 /**
  * @public
  */
-/**
- * Keeps `Discussion.excerpt` equal to the beginning of the first top-level message,
- * so a discussion without a title still has something to be shown by.
- */
+// Keeps `Discussion.excerpt` equal to the beginning of the first top-level message.
 async function updateDiscussionExcerpt (
   ctx: MeasureContext,
   control: TriggerControl,

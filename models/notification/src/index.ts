@@ -618,7 +618,7 @@ export function createModel (builder: Builder): void {
     ownerRemove: true
   })
 
-  // Object access: notifications belong to the restricted object they are about.
+  // Object access: notifications belong to the object they are about.
   builder.mixin(notification.class.DocNotifyContext, core.class.Class, core.mixin.AccessParent, {
     parents: [{ field: 'objectId', classField: 'objectClass' }]
   })

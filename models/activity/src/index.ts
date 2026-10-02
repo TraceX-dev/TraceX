@@ -284,7 +284,7 @@ export function createModel (builder: Builder): void {
     removeAccessLevel: AccountRole.Guest
   })
 
-  // Object access: activity about a restricted object belongs to it even when shown on its parent.
+  // Object access: activity about a restricted object belongs to it.
   builder.mixin(activity.class.DocUpdateMessage, core.class.Class, core.mixin.AccessParent, {
     parents: [
       { field: 'attachedTo', classField: 'attachedToClass' },
@@ -292,8 +292,7 @@ export function createModel (builder: Builder): void {
     ]
   })
 
-  // A reference made from a restricted object (e.g. a mention in a private discussion) carries its text,
-  // so the source wins over the mentioned document.
+  // The source carries the text, so it wins over the mentioned document.
   builder.mixin(activity.class.ActivityReference, core.class.Class, core.mixin.AccessParent, {
     parents: [
       { field: 'srcDocId', classField: 'srcDocClass' },

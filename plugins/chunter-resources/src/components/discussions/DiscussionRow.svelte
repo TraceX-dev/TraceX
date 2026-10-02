@@ -53,8 +53,6 @@
     .map((account) => $employeeRefByAccountUuidStore.get(account) as Ref<Employee> | undefined)
     .filter(notEmpty)
 
-  // The server returns only discussions the user can read, so the preview is always shown.
-  // Members exist only for private discussions.
   $: isPrivate = visibility === 'private'
   $: lastMessageQuery.query(
     chunter.class.ChatMessage,

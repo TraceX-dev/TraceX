@@ -115,8 +115,6 @@
     "VisibilityParticipantsDescription": "Only participants (followers) of the parent object",
     "VisibilityMembers": "Discussion members only",
     "VisibilityMembersDescription": "Only discussion members can find and read it",
-    "ChangeVisibility": "Change visibility",
-    "FirstMessageOrTitleRequired": "Add a title or a first message",
     "AddAllCollaborators": "Add all card collaborators ({count})",
     "NewDirectChat": "New direct chat",
     "AddMembers": "Add members",

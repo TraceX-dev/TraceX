@@ -134,8 +134,6 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(chunter.class.Discussion, core.class.Class, activity.mixin.ActivityDoc, {})
 
-  // Object-level access: a discussion can be visible to the space, to the participants of its parent
-  // object (its collaborators) or to its own members only.
   builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.ClassAccessPolicy, {
     membersField: 'members',
     parent: { field: 'attachedTo', classField: 'attachedToClass' }

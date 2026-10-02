@@ -24,7 +24,6 @@
   import chunter from '../../plugin'
 
   export let value: ObjectVisibility
-  // Class of the object the discussion is attached to, used to name its participants.
   export let parentClass: Ref<Class<Doc>> | undefined = undefined
   export let disabled: boolean = false
   export let kind: 'primary' | 'secondary' | 'tertiary' | 'negative' = 'secondary'

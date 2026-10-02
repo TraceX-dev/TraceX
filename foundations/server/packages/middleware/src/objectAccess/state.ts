@@ -15,12 +15,12 @@
 
 import core, {
   ACCESS_ROOT_FIELD,
+  ACCESS_ROOT_PROJECTION,
   type AccessAudience,
   type AccessMarked,
   type AccountUuid,
   canReadByAudience,
   type Class,
-  type ClassAccessPolicy,
   type Collaborator,
   DEFAULT_ACCESS_PARENT,
   type Doc,
@@ -33,7 +33,6 @@ import core, {
   getAccessMembers,
   getAccessOwners,
   getAccessParents,
-  getAccessParticipants,
   getAccessPolicyClasses,
   getAccessReaders,
   getAccessRoot,
@@ -42,12 +41,13 @@ import core, {
   type MeasureContext,
   type Ref,
   type Space,
-  systemAccountUuid
+  systemAccountUuid,
+  TxProcessor
 } from '@hcengineering/core'
 import type { PipelineContext } from '@hcengineering/server-core'
 
 /**
- * Unrestricted find used by the object access state (no security middlewares below it).
+ * Unrestricted find (no security middlewares below it).
  * @public
  */
 export type AccessFinder = <T extends Doc>(
@@ -60,14 +60,6 @@ export type AccessFinder = <T extends Doc>(
 /**
  * @public
  */
-export interface AccessParentRef {
-  _id: Ref<Doc>
-  _class: Ref<Class<Doc>>
-}
-
-/**
- * @public
- */
 export interface AccessRootInfo {
   _id: Ref<Doc>
   _class: Ref<Class<Doc>>
@@ -75,59 +67,49 @@ export interface AccessRootInfo {
   audience: AccessAudience
   members: Set<AccountUuid>
   owners: Set<AccountUuid>
-  parent?: AccessParentRef
+  parent?: { _id: Ref<Doc>, _class: Ref<Class<Doc>> }
 }
 
 /**
- * `undefined` — not restricted (everyone with space access), otherwise the exact set of readers.
+ * `undefined` — everyone with space access, otherwise the exact set of readers.
  * @public
  */
 export type AccessReaders = Set<AccountUuid> | undefined
 
-interface ParticipantsEntry {
-  _class: Ref<Class<Doc>>
-  // Attribute of the parent with AccountUuid[]; undefined means core.class.Collaborator.
-  field?: string
-  accounts: Set<AccountUuid>
-  roots: Set<Ref<Doc>>
-}
+/**
+ * Pending roots of documents created earlier in the same request.
+ * @public
+ */
+export type PendingRoots = Map<Ref<Doc>, Ref<Doc> | null>
 
-interface DomainInfo {
-  domains: Set<Domain>
-  parentFields: Map<Domain, Set<string>>
+interface ParentEntry {
+  // Collaborator id -> account; an account may be added more than once.
+  collaborators: Map<Ref<Collaborator>, AccountUuid>
+  roots: Set<Ref<Doc>>
 }
 
 const DOC_ROOT_CACHE_SIZE = 50000
 
-class BoundedCache<K, V> {
-  private readonly map = new Map<K, V>()
-
-  constructor (private readonly limit: number) {}
-
-  get (key: K): V | undefined {
-    return this.map.get(key)
+/**
+ * Applies update operations of an AccountUuid[] attribute to its current value.
+ * @public
+ */
+export function applyArrayUpdate (current: Iterable<AccountUuid>, ops: Record<string, any>, field: string): AccountUuid[] {
+  const target: Record<string, any> = { [field]: Array.from(current) }
+  const fieldOps: Record<string, any> = {}
+  for (const key of Object.keys(ops)) {
+    if (key === field) fieldOps[key] = ops[key]
+    else if (key.startsWith('$') && ops[key]?.[field] !== undefined) fieldOps[key] = { [field]: ops[key][field] }
   }
-
-  set (key: K, value: V): void {
-    if (this.map.has(key)) {
-      this.map.delete(key)
-    } else if (this.map.size >= this.limit) {
-      const oldest = this.map.keys().next()
-      if (oldest.done !== true) this.map.delete(oldest.value)
-    }
-    this.map.set(key, value)
-  }
-
-  delete (key: K): void {
-    this.map.delete(key)
-  }
+  TxProcessor.applyUpdate(target as unknown as Doc, fieldOps)
+  const value = target[field]
+  return Array.isArray(value) ? value.filter((it): it is AccountUuid => typeof it === 'string') : []
 }
 
 const states = new WeakMap<PipelineContext, ObjectAccessState>()
 
 /**
- * The state is shared between the object security middleware (user requests)
- * and the object access marker middleware (all transactions, including derived ones).
+ * Shared by the security middleware (user requests) and the marker middleware (all transactions).
  * There is one transactor per workspace, so an in-memory state is consistent.
  * @public
  */
@@ -145,16 +127,14 @@ export function getObjectAccessState (context: PipelineContext): ObjectAccessSta
  */
 export class ObjectAccessState {
   private readonly roots = new Map<Ref<Doc>, AccessRootInfo>()
-  private readonly participants = new Map<Ref<Doc>, ParticipantsEntry>()
-  private readonly collaborators = new Map<Ref<Collaborator>, { parent: Ref<Doc>, account: AccountUuid }>()
-  private readonly docRoots = new BoundedCache<Ref<Doc>, Ref<Doc> | null>(DOC_ROOT_CACHE_SIZE)
+  private readonly parents = new Map<Ref<Doc>, ParentEntry>()
+  private readonly docRoots = new Map<Ref<Doc>, Ref<Doc> | null>()
   private readonly readable = new Map<AccountUuid, Ref<Doc>[]>()
-  private domainInfo: DomainInfo | undefined
+  private domains: { all: Set<Domain>, parentFields: Map<Domain, Set<string>> } | undefined
   private finder: AccessFinder | undefined
   private initPromise: Promise<void> | undefined
   private initialized = false
-  // Marks exist in the workspace. Once true it stays true: marks outlive their roots (e.g. stored txes
-  // of a removed private object), so the filter must keep hiding them.
+  // Marks outlive their roots (e.g. stored txes of a removed object), so once set the filter stays on.
   private marked = false
 
   constructor (readonly context: PipelineContext) {}
@@ -167,23 +147,25 @@ export class ObjectAccessState {
     this.finder = finder
   }
 
+  private readonly find: AccessFinder = async (ctx, _class, query, options) => {
+    if (this.finder === undefined) throw new Error('Object access finder is not configured')
+    return await this.finder(ctx, _class, query, options)
+  }
+
   async init (ctx: MeasureContext): Promise<void> {
     if (this.initialized) return
-    if (this.initPromise === undefined) {
-      this.initPromise = ctx.with('init-object-access', {}, (ctx) => this.load(ctx))
-    }
+    this.initPromise ??= ctx.with('init-object-access', {}, (ctx) => this.load(ctx))
     try {
       await this.initPromise
       this.initialized = true
     } catch (err: any) {
-      // Retry on the next request instead of failing forever.
-      this.initPromise = undefined
+      this.initPromise = undefined // retry on the next request
       throw err
     }
   }
 
   /**
-   * False when the workspace has never had restricted objects: all checks can be skipped.
+   * False until the workspace has a restricted object: all checks can be skipped.
    */
   isActive (): boolean {
     return this.marked || this.roots.size > 0
@@ -197,88 +179,63 @@ export class ObjectAccessState {
     return this.roots.has(_id)
   }
 
-  // ---------------------------------------------------------------------------------------------
-  // Domains
-
   onModelChanged (): void {
-    this.domainInfo = undefined
+    this.domains = undefined
   }
 
-  private getDomainInfo (): DomainInfo {
-    if (this.domainInfo !== undefined) return this.domainInfo
+  private getDomains (): { all: Set<Domain>, parentFields: Map<Domain, Set<string>> } {
+    if (this.domains !== undefined) return this.domains
     const h = this.hierarchy
-    const domains = new Set<Domain>([DOMAIN_TX])
+    const all = new Set<Domain>([DOMAIN_TX])
     const parentFields = new Map<Domain, Set<string>>()
     for (const _class of h.getDescendants(core.class.Doc)) {
       if (h.isMixin(_class)) continue
       const domain = h.findDomain(_class)
       if (domain === undefined || domain === DOMAIN_MODEL || domain === DOMAIN_TX) continue
-      const policy = getClassAccessPolicy(h, _class)
-      const accessParent = h.classHierarchyMixin(_class, core.mixin.AccessParent)
-      const hasAttachedTo = h.findAttribute(_class, DEFAULT_ACCESS_PARENT.field) !== undefined
-      if (policy === undefined && accessParent === undefined && !hasAttachedTo) continue
-      domains.add(domain)
-      if (accessParent !== undefined || hasAttachedTo) {
+      const hasParent =
+        h.classHierarchyMixin(_class, core.mixin.AccessParent) !== undefined ||
+        h.findAttribute(_class, DEFAULT_ACCESS_PARENT.field) !== undefined
+      if (!hasParent && getClassAccessPolicy(h, _class) === undefined) continue
+      all.add(domain)
+      if (hasParent) {
         const fields = parentFields.get(domain) ?? new Set<string>()
-        for (const ref of getAccessParents(h, _class)) {
-          fields.add(ref.field)
-        }
+        for (const ref of getAccessParents(h, _class)) fields.add(ref.field)
         parentFields.set(domain, fields)
       }
     }
-    this.domainInfo = { domains, parentFields }
-    return this.domainInfo
+    this.domains = { all, parentFields }
+    return this.domains
   }
 
   /**
-   * True when documents of the domain may belong to a security root.
+   * True when documents of the domain may belong to a root.
    */
   isProtectedDomain (domain: Domain): boolean {
-    return this.getDomainInfo().domains.has(domain)
+    return this.getDomains().all.has(domain)
   }
 
   getProtectedDomains (): Domain[] {
-    return Array.from(this.getDomainInfo().domains)
+    return Array.from(this.getDomains().all)
   }
 
   getParentFields (domain: Domain): string[] {
-    return Array.from(this.getDomainInfo().parentFields.get(domain) ?? [])
-  }
-
-  // ---------------------------------------------------------------------------------------------
-  // Loading
-
-  private requireFinder (): AccessFinder {
-    if (this.finder === undefined) {
-      throw new Error('Object access finder is not configured')
-    }
-    return this.finder
+    return Array.from(this.getDomains().parentFields.get(domain) ?? [])
   }
 
   private async load (ctx: MeasureContext): Promise<void> {
-    const find = this.requireFinder()
     const policyClasses = getAccessPolicyClasses(this.hierarchy)
-    const docs = new Map<Ref<Doc>, Doc>()
     for (const _class of policyClasses) {
-      const result = await find(ctx, _class, {
-        [ACCESS_ROOT_FIELD]: { $exists: true }
-      })
-      for (const doc of result) {
-        // A root points to itself; descendants of other roots in the same domain are skipped.
-        if (getAccessRoot(doc) === doc._id) docs.set(doc._id, doc)
+      for (const doc of await this.find(ctx, _class, { [ACCESS_ROOT_FIELD]: { $exists: true } })) {
+        const info = getAccessRoot(doc) === doc._id ? this.buildRootInfo(doc) : undefined
+        if (info !== undefined) this.roots.set(info._id, info)
       }
-    }
-    for (const doc of docs.values()) {
-      const info = this.buildRootInfo(doc)
-      if (info !== undefined) this.roots.set(info._id, info)
     }
     if (this.roots.size > 0) {
       this.marked = true
     } else if (policyClasses.length > 0) {
-      // Roots may all be removed while their stored txes are still marked. The creation tx of a root is
-      // always marked and the tx domain is indexed by objectClass, so this lookup is cheap.
+      // The creation tx of a root is always marked and the tx domain is indexed by objectClass.
       const classes = policyClasses.flatMap((it) => this.hierarchy.getDescendants(it))
-      const txes = await find(
+      const txes = await this.find(
         ctx,
         core.class.Tx,
         { objectClass: { $in: classes }, [ACCESS_ROOT_FIELD]: { $exists: true } },
@@ -286,136 +243,89 @@ export class ObjectAccessState {
       )
       this.marked = txes.length > 0
     }
-    const parents = new Map<Ref<Doc>, AccessParentRef>()
     for (const info of this.roots.values()) {
-      if (info.audience.kind === 'parentParticipants' && info.parent !== undefined) {
-        parents.set(info.parent._id, info.parent)
-      }
-    }
-    await this.loadParticipants(ctx, Array.from(parents.values()))
-    for (const info of this.roots.values()) {
-      if (info.parent !== undefined) {
-        this.participants.get(info.parent._id)?.roots.add(info._id)
-      }
+      await this.trackParent(ctx, info)
     }
   }
 
-  /**
-   * Builds the root description from a stored document (or a document built from a create tx).
-   */
-  buildRootInfo (
-    doc: Doc,
-    audienceOverride?: AccessAudience,
-    ownersOverride?: AccountUuid[]
-  ): AccessRootInfo | undefined {
+  buildRootInfo (doc: Doc, audience?: AccessAudience, owners?: AccountUuid[]): AccessRootInfo | undefined {
     const policy = getClassAccessPolicy(this.hierarchy, doc._class)
-    if (policy === undefined) return undefined
-    const audience = audienceOverride ?? getAccessAudience(this.hierarchy, doc)
-    if (audience === undefined) return undefined
+    const read = audience ?? getAccessAudience(this.hierarchy, doc)
+    if (policy === undefined || read === undefined) return undefined
+    const ref = policy.parent ?? DEFAULT_ACCESS_PARENT
+    const record = doc as unknown as Record<string, unknown>
+    const parentId = record[ref.field]
+    const parentClass = record[ref.classField]
     return {
       _id: doc._id,
       _class: doc._class,
       space: doc.space,
-      audience,
+      audience: read,
       members: new Set(getAccessMembers(doc, policy)),
-      owners: new Set(ownersOverride ?? getAccessOwners(this.hierarchy, doc)),
-      parent: this.getPolicyParent(doc, policy)
+      owners: new Set(owners ?? getAccessOwners(this.hierarchy, doc)),
+      parent:
+        typeof parentId === 'string' && typeof parentClass === 'string'
+          ? { _id: parentId as Ref<Doc>, _class: parentClass as Ref<Class<Doc>> }
+          : undefined
     }
   }
 
-  private getPolicyParent (doc: Doc, policy: ClassAccessPolicy): AccessParentRef | undefined {
-    const ref = policy.parent ?? DEFAULT_ACCESS_PARENT
-    const record = doc as unknown as Record<string, unknown>
-    const _id = record[ref.field]
-    const _class = record[ref.classField]
-    if (typeof _id !== 'string' || typeof _class !== 'string') return undefined
-    return { _id: _id as Ref<Doc>, _class: _class as Ref<Class<Doc>> }
-  }
-
-  private async loadParticipants (ctx: MeasureContext, parents: AccessParentRef[]): Promise<void> {
-    const missing = parents.filter((it) => !this.participants.has(it._id))
-    if (missing.length === 0) return
-    const find = this.requireFinder()
-    const byCollaborators: Ref<Doc>[] = []
-    const byField = new Map<Ref<Class<Doc>>, { field: string, ids: Ref<Doc>[] }>()
-    for (const parent of missing) {
-      const field = getAccessParticipants(this.hierarchy, parent._class)?.membersField
-      this.participants.set(parent._id, { _class: parent._class, field, accounts: new Set(), roots: new Set() })
-      if (field === undefined) {
-        byCollaborators.push(parent._id)
-      } else {
-        const entry = byField.get(parent._class) ?? { field, ids: [] }
-        entry.ids.push(parent._id)
-        byField.set(parent._class, entry)
+  /**
+   * Loads collaborators of the parent of a `parentParticipants` root.
+   */
+  private async trackParent (ctx: MeasureContext, info: AccessRootInfo): Promise<void> {
+    if (info.parent === undefined) return
+    let entry = this.parents.get(info.parent._id)
+    if (entry === undefined && info.audience.kind === 'parentParticipants') {
+      entry = { collaborators: new Map(), roots: new Set() }
+      this.parents.set(info.parent._id, entry)
+      for (const it of await this.find(ctx, core.class.Collaborator, { attachedTo: info.parent._id })) {
+        entry.collaborators.set(it._id, it.collaborator)
       }
     }
-    if (byCollaborators.length > 0) {
-      const collaborators = await find(ctx, core.class.Collaborator, { attachedTo: { $in: byCollaborators } })
-      for (const collaborator of collaborators) {
-        this.addCollaborator(collaborator)
-      }
-    }
-    for (const [_class, { field, ids }] of byField.entries()) {
-      if (!this.hierarchy.hasClass(_class)) continue
-      const docs = await find(ctx, _class, { _id: { $in: ids } })
-      for (const doc of docs) {
-        const entry = this.participants.get(doc._id)
-        const value = (doc as unknown as Record<string, unknown>)[field]
-        if (entry !== undefined && Array.isArray(value)) {
-          entry.accounts = new Set(value.filter((it): it is AccountUuid => typeof it === 'string'))
-        }
-      }
-    }
-    this.invalidate()
+    entry?.roots.add(info._id)
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Mutations (called by the marker middleware)
+  // Mutations (by the marker middleware)
 
   async setRoot (ctx: MeasureContext, info: AccessRootInfo): Promise<void> {
     const prev = this.roots.get(info._id)
     if (prev?.parent !== undefined && prev.parent._id !== info.parent?._id) {
-      this.participants.get(prev.parent._id)?.roots.delete(info._id)
+      this.parents.get(prev.parent._id)?.roots.delete(info._id)
     }
     this.roots.set(info._id, info)
     this.marked = true
     this.docRoots.set(info._id, info._id)
-    if (info.parent !== undefined) {
-      if (info.audience.kind === 'parentParticipants') {
-        await this.loadParticipants(ctx, [info.parent])
-      }
-      this.participants.get(info.parent._id)?.roots.add(info._id)
-    }
-    this.invalidate()
+    await this.trackParent(ctx, info)
+    this.readable.clear()
   }
 
   removeRoot (_id: Ref<Doc>): void {
     const prev = this.roots.get(_id)
     if (prev === undefined) return
     this.roots.delete(_id)
-    if (prev.parent !== undefined) {
-      const entry = this.participants.get(prev.parent._id)
-      entry?.roots.delete(_id)
-      if (entry !== undefined && entry.roots.size === 0) {
-        this.participants.delete(prev.parent._id)
-        for (const [id, value] of this.collaborators.entries()) {
-          if (value.parent === prev.parent._id) this.collaborators.delete(id)
-        }
-      }
-    }
-    this.invalidate()
+    const entry = prev.parent !== undefined ? this.parents.get(prev.parent._id) : undefined
+    entry?.roots.delete(_id)
+    if (prev.parent !== undefined && entry?.roots.size === 0) this.parents.delete(prev.parent._id)
+    this.readable.clear()
   }
 
   /**
-   * A root created in the current request: derived documents produced by triggers (which run before
-   * the request state is applied) must already resolve to it.
+   * A root created in the current request: documents produced by triggers (before the request state
+   * is applied) must already resolve to it.
    */
   notePendingRoot (_id: Ref<Doc>): void {
-    this.docRoots.set(_id, _id)
+    this.setDocRoot(_id, _id)
     this.marked = true
   }
 
   setDocRoot (_id: Ref<Doc>, root: Ref<Doc> | undefined): void {
+    this.docRoots.delete(_id)
+    if (this.docRoots.size >= DOC_ROOT_CACHE_SIZE) {
+      const oldest = this.docRoots.keys().next()
+      if (oldest.done !== true) this.docRoots.delete(oldest.value)
+    }
     this.docRoots.set(_id, root ?? null)
   }
 
@@ -423,174 +333,123 @@ export class ObjectAccessState {
     this.docRoots.delete(_id)
   }
 
-  isTrackedParent (_id: Ref<Doc>): boolean {
-    return this.participants.has(_id)
-  }
-
-  getParticipantsField (_id: Ref<Doc>): string | undefined {
-    return this.participants.get(_id)?.field
-  }
-
-  getParentParticipants (_id: Ref<Doc>): ReadonlySet<AccountUuid> | undefined {
-    return this.participants.get(_id)?.accounts
-  }
-
   /**
-   * Roots whose readers depend on the participants of the given parent.
+   * `parentParticipants` roots whose readers depend on the collaborators of the parent.
    */
-  getDependentRoots (parent: Ref<Doc>): Ref<Doc>[] {
-    return Array.from(this.participants.get(parent)?.roots ?? []).filter(
-      (it) => this.roots.get(it)?.audience.kind === 'parentParticipants'
-    )
-  }
-
-  setParentParticipants (parent: Ref<Doc>, accounts: Iterable<AccountUuid>): void {
-    const entry = this.participants.get(parent)
-    if (entry === undefined) return
-    entry.accounts = new Set(accounts)
-    this.invalidate()
+  getDependentRoots (parent: Ref<Doc>): AccessRootInfo[] {
+    return Array.from(this.parents.get(parent)?.roots ?? [])
+      .map((it) => this.roots.get(it))
+      .filter((it): it is AccessRootInfo => it?.audience.kind === 'parentParticipants')
   }
 
   /**
    * Returns true when the collaborator belongs to a tracked parent.
    */
   addCollaborator (collaborator: Pick<Collaborator, '_id' | 'attachedTo' | 'collaborator'>): boolean {
-    const entry = this.participants.get(collaborator.attachedTo)
-    if (entry === undefined || entry.field !== undefined) return false
-    entry.accounts.add(collaborator.collaborator)
-    this.collaborators.set(collaborator._id, { parent: collaborator.attachedTo, account: collaborator.collaborator })
-    this.invalidate()
+    const entry = this.parents.get(collaborator.attachedTo)
+    if (entry === undefined) return false
+    entry.collaborators.set(collaborator._id, collaborator.collaborator)
+    this.readable.clear()
     return true
   }
 
   /**
-   * Returns the affected parent and account when the collaborator was tracked.
+   * Returns the parent and account when the collaborator was tracked.
    */
   removeCollaborator (_id: Ref<Collaborator>): { parent: Ref<Doc>, account: AccountUuid } | undefined {
-    const value = this.collaborators.get(_id)
-    if (value === undefined) return undefined
-    this.collaborators.delete(_id)
-    const entry = this.participants.get(value.parent)
-    if (entry !== undefined) {
-      const stillPresent = Array.from(this.collaborators.values()).some(
-        (it) => it.parent === value.parent && it.account === value.account
-      )
-      if (!stillPresent) entry.accounts.delete(value.account)
+    for (const [parent, entry] of this.parents.entries()) {
+      const account = entry.collaborators.get(_id)
+      if (account === undefined) continue
+      entry.collaborators.delete(_id)
+      this.readable.clear()
+      return { parent, account }
     }
-    this.invalidate()
-    return value
-  }
-
-  private invalidate (): void {
-    this.readable.clear()
+    return undefined
   }
 
   // ---------------------------------------------------------------------------------------------
   // Queries
 
+  private getParticipants (root: AccessRootInfo): Set<AccountUuid> | undefined {
+    const entry = root.parent !== undefined ? this.parents.get(root.parent._id) : undefined
+    return entry !== undefined ? new Set(entry.collaborators.values()) : undefined
+  }
+
   getReaders (root: AccessRootInfo): AccessReaders {
-    const participants = root.parent !== undefined ? this.participants.get(root.parent._id)?.accounts : undefined
-    return getAccessReaders(root.audience, root.members, participants)
+    return getAccessReaders(root.audience, root.members, this.getParticipants(root))
   }
 
   canReadRoot (account: AccountUuid, rootId: Ref<Doc>): boolean {
     if (account === systemAccountUuid) return true
     const root = this.roots.get(rootId)
-    // A mark pointing to an unknown root is closed (fail-closed).
-    if (root === undefined) return false
-    const participants = root.parent !== undefined ? this.participants.get(root.parent._id)?.accounts : undefined
-    return canReadByAudience(account, root.audience, root.members, participants)
+    // A mark pointing to an unknown root is closed.
+    return root !== undefined && canReadByAudience(account, root.audience, root.members, this.getParticipants(root))
   }
 
   /**
-   * All roots the account can read. Used as the allow-list of the `accessRoot` query condition.
+   * Allow-list of the `accessRoot` query condition.
    */
   getReadableRoots (account: AccountUuid): Ref<Doc>[] {
     let result = this.readable.get(account)
     if (result === undefined) {
-      result = []
-      for (const _id of this.roots.keys()) {
-        if (this.canReadRoot(account, _id)) result.push(_id)
-      }
+      result = Array.from(this.roots.keys()).filter((it) => this.canReadRoot(account, it))
       this.readable.set(account, result)
     }
     return result
   }
 
-  /**
-   * Loads a document without security checks.
-   */
   async loadDoc (ctx: MeasureContext, _class: Ref<Class<Doc>>, _id: Ref<Doc>): Promise<Doc | undefined> {
     if (!this.hierarchy.hasClass(_class)) return undefined
-    const docs = await this.requireFinder()(ctx, _class, { _id }, { limit: 1 })
-    return docs[0]
+    return (await this.find(ctx, _class, { _id }, { limit: 1 }))[0]
   }
 
   /**
-   * Resolves the security root of an existing document.
-   * The class is only used to pick the domain: the lookup is by id, so a client cannot hide a document
-   * of the same domain behind another class.
-   * `pending` holds roots of documents created earlier in the same request.
+   * Root of an existing document. The class only picks the domain: the lookup is by id, so a client
+   * cannot hide a document behind another class of the same domain.
    */
   async resolveDocRoot (
     ctx: MeasureContext,
     _id: Ref<Doc>,
     _class: Ref<Class<Doc>> | undefined,
-    pending?: Map<Ref<Doc>, Ref<Doc> | null>
+    pending?: PendingRoots
   ): Promise<Ref<Doc> | undefined> {
     if (this.roots.has(_id)) return _id
-    const fromPending = pending?.get(_id)
-    if (fromPending !== undefined) return fromPending ?? undefined
-    const cached = this.docRoots.get(_id)
-    if (cached !== undefined) return cached ?? undefined
+    const known = pending?.has(_id) === true ? pending.get(_id) : this.docRoots.get(_id)
+    if (known !== undefined) return known ?? undefined
     if (!this.isActive() || _class === undefined || !this.hierarchy.hasClass(_class)) return undefined
     const domain = this.hierarchy.findDomain(_class)
     if (domain === undefined || domain === DOMAIN_MODEL || !this.isProtectedDomain(domain)) return undefined
-    const projection = { _id: 1, [ACCESS_ROOT_FIELD]: 1 } as unknown as FindOptions<Doc>['projection']
+    const options = { limit: 1, projection: ACCESS_ROOT_PROJECTION }
     const lowLevel = this.context.lowLevelStorage
     const docs =
       lowLevel !== undefined
-        ? await lowLevel.rawFindAll<Doc>(domain, { _id }, { limit: 1, projection })
-        : await this.requireFinder()(ctx, _class, { _id }, { limit: 1, projection })
+        ? await lowLevel.rawFindAll<Doc>(domain, { _id }, options)
+        : await this.find(ctx, _class, { _id }, options)
     if (docs.length === 0) return undefined
     const root = getAccessRoot(docs[0])
-    this.docRoots.set(_id, root ?? null)
+    this.setDocRoot(_id, root)
     return root
   }
 
   /**
-   * Resolves the root a new document belongs to, following its declared parent references.
+   * Root of a new document, following its declared parent references.
    */
-  async resolveNewDocRoot (
-    ctx: MeasureContext,
-    doc: Doc,
-    pending?: Map<Ref<Doc>, Ref<Doc> | null>
-  ): Promise<Ref<Doc> | undefined> {
+  async resolveNewDocRoot (ctx: MeasureContext, doc: Doc, pending?: PendingRoots): Promise<Ref<Doc> | undefined> {
     const record = doc as unknown as Record<string, unknown>
     for (const ref of getAccessParents(this.hierarchy, doc._class)) {
       const parentId = record[ref.field]
       if (typeof parentId !== 'string' || parentId === '' || parentId === doc._id) continue
       const parentClass = record[ref.classField]
-      const root = await this.resolveDocRoot(
-        ctx,
-        parentId as Ref<Doc>,
-        typeof parentClass === 'string' ? (parentClass as Ref<Class<Doc>>) : undefined,
-        pending
-      )
+      const _class = typeof parentClass === 'string' ? (parentClass as Ref<Class<Doc>>) : undefined
+      const root = await this.resolveDocRoot(ctx, parentId as Ref<Doc>, _class, pending)
       if (root !== undefined) return root
     }
     return undefined
   }
 
-  /**
-   * Marks a document (or a transaction) as belonging to a root.
-   */
   static mark (target: object, root: Ref<Doc> | undefined): void {
     const record = target as AccessMarked
-    if (root === undefined) {
-      delete record.accessRoot
-    } else {
-      record.accessRoot = root
-    }
+    if (root === undefined) delete record.accessRoot
+    else record.accessRoot = root
   }
 }

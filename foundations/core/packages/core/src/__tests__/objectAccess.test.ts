@@ -32,8 +32,7 @@ import {
   getClassAccessPolicy,
   getObjectAccessReaders,
   isAccessAudience,
-  isRestrictedAudience,
-  objectVisibilities,
+  type ObjectVisibility,
   touchesAttribute,
   visibilityToAudience
 } from '../objectAccess'
@@ -59,7 +58,6 @@ function buildHierarchy (): Hierarchy {
   const classes: Array<[Ref<Class<Doc>>, Ref<Class<Doc>>, ClassifierKind, Domain | undefined]> = [
     [core.mixin.ClassAccessPolicy, core.class.Class, ClassifierKind.MIXIN, undefined],
     [core.mixin.AccessParent, core.class.Class, ClassifierKind.MIXIN, undefined],
-    [core.mixin.AccessParticipants, core.class.Class, ClassifierKind.MIXIN, undefined],
     [core.mixin.AccessControlled, core.class.Doc, ClassifierKind.MIXIN, undefined],
     [core.class.Collaborator, core.class.AttachedDoc, ClassifierKind.CLASS, DOMAIN_TEST],
     [Card, core.class.Doc, ClassifierKind.CLASS, DOMAIN_TEST],
@@ -141,14 +139,10 @@ function finder (docs: Doc[]): AccessFindFn {
 
 describe('object access', () => {
   it('maps visibility to audience and back', () => {
-    for (const visibility of objectVisibilities) {
+    for (const visibility of ['public', 'participants', 'private'] as ObjectVisibility[]) {
       expect(audienceToVisibility(visibilityToAudience(visibility))).toBe(visibility)
     }
     expect(audienceToVisibility(undefined)).toBe('public')
-    expect(isRestrictedAudience(undefined)).toBe(false)
-    expect(isRestrictedAudience({ kind: 'space' })).toBe(false)
-    expect(isRestrictedAudience({ kind: 'members' })).toBe(true)
-    expect(isRestrictedAudience({ kind: 'parentParticipants' })).toBe(true)
   })
 
   it('validates audiences', () => {

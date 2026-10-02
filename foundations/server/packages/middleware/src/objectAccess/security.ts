@@ -57,10 +57,7 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
-import { type AccessRootInfo, getObjectAccessState, type ObjectAccessState } from './state'
-import { applyArrayUpdate } from './utils'
-
-type Pending = Map<Ref<Doc>, Ref<Doc> | null>
+import { type AccessRootInfo, applyArrayUpdate, getObjectAccessState, type ObjectAccessState, type PendingRoots } from './state'
 
 const BROADCAST_TARGET = 'objectAccess'
 
@@ -69,18 +66,10 @@ function forbidden (): PlatformError<any> {
 }
 
 /**
- * Enforces object-level access policies (`core.mixin.AccessControlled`) for user requests:
- * - narrows queries with an allow-list of readable security roots;
- * - filters lookups and full-text results;
- * - rejects writes into objects the account cannot read and unauthorized policy or membership changes;
- * - restricts broadcast of transactions of restricted objects to their readers.
- *
- * Who manages a restricted object (visibility, removing other members): its owners (the creator),
- * maintainers that can read it, and workspace owners (recovery, even without read access).
- * Members matter only for the `members` audience: there any member may leave or invite.
- * For the other audiences access comes from the space or the parent, and members are not checked.
- *
- * Marking documents with `accessRoot` is done by `ObjectAccessMarkerMiddleware`.
+ * Enforces object access policies for user requests: filters reads (queries, lookups, full-text) by the
+ * readable roots, checks writes and policy changes, narrows broadcast to readers.
+ * Managers (change the level, remove private members): owners, maintainers who can read the object,
+ * workspace owners (also without read access, for recovery). Members matter only for Private.
  * @public
  */
 export class ObjectSecurityMiddleware extends BaseMiddleware implements Middleware {
@@ -103,8 +92,6 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     return account === undefined || account.uuid === systemAccountUuid
   }
 
-  // -----------------------------------------------------------------------------------------------
-  // Read
 
   override async findAll<T extends Doc>(
     ctx: MeasureContext<SessionData>,
@@ -121,8 +108,7 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     const domain = this.context.hierarchy.findDomain(_class)
     let newQuery = query
     if (domain !== undefined && domain !== DOMAIN_MODEL && this.state.isProtectedDomain(domain)) {
-      // Documents without the mark are not restricted; marked ones must belong to a readable root.
-      // A string value goes first: the postgres adapter infers the array type from it.
+      // Unmarked documents are not restricted. A string goes first: postgres infers the array type from it.
       const condition = readable.length > 0 ? { $in: [...readable, null] } : { $exists: false }
       newQuery = { ...query, [ACCESS_ROOT_FIELD]: condition }
     }
@@ -186,14 +172,12 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     }
   }
 
-  // -----------------------------------------------------------------------------------------------
-  // Write
 
   override async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
     await this.state.init(ctx)
     const account = ctx.contextData?.account
     if (!this.isUnrestricted(account)) {
-      const pending: Pending = new Map()
+      const pending: PendingRoots = new Map()
       for (const tx of txes) {
         await this.checkTx(ctx, account, tx, pending)
       }
@@ -201,7 +185,7 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     return await this.provideTx(ctx, txes)
   }
 
-  private async checkTx (ctx: MeasureContext<SessionData>, account: Account, tx: Tx, pending: Pending): Promise<void> {
+  private async checkTx (ctx: MeasureContext<SessionData>, account: Account, tx: Tx, pending: PendingRoots): Promise<void> {
     if (tx._class === core.class.TxApplyIf) {
       for (const it of (tx as TxApplyIf).txes) {
         await this.checkTx(ctx, account, it, pending)
@@ -238,10 +222,7 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     throw forbidden()
   }
 
-  /**
-   * Owners of a restricted object, maintainers that can read it and workspace owners.
-   * For a public object (no info yet) the owners are passed explicitly.
-   */
+  // For a public object (no info) the owners are passed explicitly.
   private canManage (account: Account, info: AccessRootInfo | undefined, owners: Iterable<AccountUuid>): boolean {
     if (hasAccountRole(account, AccountRole.Owner)) return true
     if (new Set(owners).has(account.uuid)) return true
@@ -249,15 +230,12 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     return info === undefined || this.state.canReadRoot(account.uuid, info._id)
   }
 
-  /**
-   * Writing to a document requires reading its root. A root itself may also be written by those
-   * who manage it (e.g. a workspace owner restoring access to a locked object).
-   */
+  // Writing requires reading the root; a root itself may also be written by its managers (recovery).
   private async checkWritable (
     ctx: MeasureContext,
     account: Account,
     tx: TxCUD<Doc>,
-    pending: Pending
+    pending: PendingRoots
   ): Promise<Ref<Doc> | undefined> {
     const root = await this.state.resolveDocRoot(ctx, tx.objectId, tx.objectClass, pending)
     if (root === undefined || this.state.canReadRoot(account.uuid, root)) return root
@@ -272,7 +250,7 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     ctx: MeasureContext,
     account: Account,
     tx: TxCreateDoc<Doc>,
-    pending: Pending
+    pending: PendingRoots
   ): Promise<void> {
     const h = this.context.hierarchy
     const attributes = tx.attributes as Record<string, any>
@@ -302,9 +280,8 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
       // A restricted object inside another restricted object is not supported yet.
       this.deny(ctx, account, tx, 'nested-security-root')
     }
-    // Owners are server-managed: the creator manages what they create.
+    // Owners are server-managed; the creator of a private object is also its member.
     mixin.owners = [account.uuid]
-    // For a private object the creator also keeps access to it.
     const members = getAccessMembers(doc, policy)
     if (mixin.read.kind === 'members' && !members.includes(account.uuid)) {
       attributes[policy.membersField] = [...members, account.uuid]
@@ -316,13 +293,13 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     ctx: MeasureContext,
     account: Account,
     tx: TxUpdateDoc<Doc>,
-    pending: Pending
+    pending: PendingRoots
   ): Promise<void> {
     const ops = tx.operations as Record<string, any>
     if (touchesAttribute(ops, ACCESS_ROOT_FIELD)) {
       this.deny(ctx, account, tx, 'access-root-is-server-managed')
     }
-    // The policy is changed only with TxMixin, where it is validated; never as raw mixin data.
+    // The policy is changed only by a validated TxMixin.
     if (touchesAttribute(ops, core.mixin.AccessControlled)) {
       this.deny(ctx, account, tx, 'access-policy-update-requires-mixin-tx')
     }
@@ -330,7 +307,6 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     await this.checkReparent(ctx, account, tx, root, ops, pending)
 
     const info = root === tx.objectId ? this.state.getRoot(tx.objectId) : undefined
-    // Members grant access only to a private object.
     if (info === undefined || info.audience.kind !== 'members') return
     const policy = getClassAccessPolicy(this.context.hierarchy, info._class)
     if (policy === undefined || !touchesAttribute(ops, policy.membersField)) return
@@ -356,16 +332,14 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     }
   }
 
-  /**
-   * Moving a document between security roots would leave stale marks, so it is not allowed.
-   */
+  // Moving a document between roots would leave stale marks.
   private async checkReparent (
     ctx: MeasureContext,
     account: Account,
     tx: TxUpdateDoc<Doc>,
     root: Ref<Doc> | undefined,
     ops: Record<string, any>,
-    pending: Pending
+    pending: PendingRoots
   ): Promise<void> {
     const h = this.context.hierarchy
     const policy = getClassAccessPolicy(h, tx.objectClass)
@@ -392,7 +366,7 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     ctx: MeasureContext<SessionData>,
     account: Account,
     tx: TxMixin<Doc, Doc>,
-    pending: Pending
+    pending: PendingRoots
   ): Promise<void> {
     const h = this.context.hierarchy
     if (!h.hasClass(tx.mixin) || !h.isDerived(tx.mixin, core.mixin.AccessControlled)) {
@@ -430,15 +404,12 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     }
   }
 
-  // -----------------------------------------------------------------------------------------------
-  // Broadcast
 
   override async handleBroadcast (ctx: MeasureContext<SessionData>): Promise<void> {
     const targets = ctx.contextData.broadcast.targets
     if (this.state.isActive() && targets[BROADCAST_TARGET] === undefined) {
-      // BroadcastMiddleware evaluates targets in insertion order and the first defined result wins.
-      // Ours goes first and itself evaluates every other target at broadcast time, including those added
-      // by middlewares below, then narrows the chosen result to the readers of the object.
+      // The first defined target wins: ours goes first, evaluates all others at broadcast time
+      // (including ones added below) and narrows the result to the readers.
       const others = Object.entries(targets)
       for (const [key] of others) {
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete

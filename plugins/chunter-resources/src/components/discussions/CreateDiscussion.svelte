@@ -52,7 +52,6 @@
   })
 
   $: missingCollaborators = collaborators.filter((account) => !members.includes(account))
-  // The title is optional: a discussion without one is shown by its first message.
   $: canSave = name.trim().length > 0 || !isEmptyMarkup(firstMessage)
 
   function addAllCollaborators (): void {
@@ -67,11 +66,10 @@
       ...(title !== '' ? { name: title } : {}),
       ...(excerpt !== '' ? { excerpt } : {}),
       resolved: false,
-      // Members exist only for a private discussion; the other levels follow the space or the card.
+      // Members exist only for a private discussion.
       members: visibility !== 'private' ? [] : members.includes(me) ? members : [me, ...members]
     }
-    // A restricted discussion carries its policy from the very first transaction,
-    // so it is never visible to the whole space, not even for a moment.
+    // The policy goes with the create tx, so the discussion is never visible to the whole space.
     const attributes: AttachedData<Discussion> =
       visibility === 'public'
         ? data
@@ -79,7 +77,7 @@
             ...data,
             [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) }
           } as AttachedData<Discussion>)
-    // The "participants" level is defined by the card collaborators: the creator must stay among them.
+    // The creator must be a card collaborator to keep access.
     if (visibility === 'participants' && !collaborators.includes(me)) {
       await operations.addCollection(
         core.class.Collaborator,

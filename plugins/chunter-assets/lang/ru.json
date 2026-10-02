@@ -102,8 +102,6 @@
     "VisibilityParticipantsDescription": "Только участники (подписчики) родительского объекта",
     "VisibilityMembers": "Только участники обсуждения",
     "VisibilityMembersDescription": "Найти и прочитать обсуждение могут только его участники",
-    "ChangeVisibility": "Изменить видимость",
-    "FirstMessageOrTitleRequired": "Добавьте заголовок или первое сообщение",
     "NewDirectChat": "Новый личный чат",
     "AddMembers": "Добавить участников",
     "PinnedCount": "{count} закреплено",

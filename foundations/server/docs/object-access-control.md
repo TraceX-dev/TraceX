@@ -21,7 +21,6 @@ Readers can read and write. Members are used only by Private.
 - `core.mixin.ClassAccessPolicy` on a class — enables the mechanism: `membersField`, `parent` (default `attachedTo`).
 - `core.mixin.AccessParent` on a class — which reference fields lead to a root (default `attachedTo`).
   Declared for activity and notification classes that point to an object by `objectId` / `srcDocId` / etc.
-- `core.mixin.AccessParticipants` on a parent class — optional `membersField` instead of collaborators.
 
 To protect a new class: add `ClassAccessPolicy` to it; add `AccessParent` to classes that reference it other than
 by `attachedTo`. Helpers shared by client, server and triggers: `foundations/core/packages/core/src/objectAccess.ts`.

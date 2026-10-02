@@ -119,10 +119,7 @@ function getAccessFind (ctx: MeasureContext, control: TriggerControl): AccessFin
   return async (_class, query, options) => await control.findAll(ctx, _class, query, options)
 }
 
-/**
- * Object access: readers of the restricted object the documents belong to (intersection), or undefined
- * when none of them is restricted. Cached per request by root.
- */
+// Object access: readers allowed for all the documents (undefined: not restricted), cached per request.
 async function getAccessReadersOf (
   ctx: MeasureContext,
   control: TriggerControl,
@@ -164,7 +161,6 @@ export async function getCommonNotificationTxes (
     return []
   }
 
-  // Object access: a receiver that cannot read a restricted object must not get its content.
   const readers = await getAccessReadersOf(ctx, control, [doc])
   if (readers !== undefined && !readers.has(receiver.account)) {
     return []
@@ -855,8 +851,7 @@ export async function createCollabDocInfo (
             return false
           })
       )
-  // Object access: only accounts that can read a restricted object are notified about it.
-  // Messages are checked too: e.g. activity on a card about a restricted discussion attached to it.
+  // Object access: messages too, e.g. card activity about a restricted discussion.
   const readers = await getAccessReadersOf(ctx, control, [object, ...docMessages])
   const targets = new Set(
     readers === undefined ? filteredCollaborators : filteredCollaborators.filter((it) => readers.has(it))
