@@ -378,6 +378,10 @@ function defineProductVersion (builder: Builder): void {
     inlineEditor: products.component.ProductVersionInlineEditor
   })
 
+  builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.ArrayEditor, {
+    inlineEditor: products.component.ProductVersionArrayEditor
+  })
+
   // builder.createDoc(
   //   presentation.class.ObjectSearchCategory,
   //   core.space.Model,
