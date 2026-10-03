@@ -26,6 +26,7 @@
 
   export let value: Ref<Card> | undefined
   export let readonly: boolean = false
+  export let showNavigate: boolean = true
   export let label: IntlString = card.string.Card
   export let onChange: (value: any) => void
   export let attribute: AnyAttribute | undefined = undefined
@@ -36,7 +37,7 @@
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
   export let justify: 'left' | 'center' = 'left'
-  export let width: string | undefined = 'min-content'
+  export let width: string | undefined = '100%'
 
   const dispatch = createEventDispatcher()
 
@@ -54,6 +55,7 @@
   <CardSelector
     {value}
     {readonly}
+    {showNavigate}
     {label}
     {_class}
     {docQuery}

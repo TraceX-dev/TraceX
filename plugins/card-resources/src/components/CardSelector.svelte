@@ -17,9 +17,11 @@
   import { Card } from '@hcengineering/card'
   import { Class, Ref } from '@hcengineering/core'
   import type { DocumentQuery } from '@hcengineering/core'
-  import { IntlString } from '@hcengineering/platform'
-  import { createQuery } from '@hcengineering/presentation'
-  import { Button, ButtonKind, ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
+  import { IntlString, setPlatformStatus, unknownError } from '@hcengineering/platform'
+  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { ActionIcon, Button, ButtonKind, ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
+  import view from '@hcengineering/view'
+  import { openDoc } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
   import card from '../plugin'
   import CardPresenter from './CardPresenter.svelte'
@@ -27,6 +29,7 @@
 
   export let value: Ref<Card> | undefined
   export let readonly: boolean = false
+  export let showNavigate: boolean = true
   export let label: IntlString = card.string.Card
   export let _class: Ref<Class<Card>>
   export let ignoreObjects: Ref<Card>[] | undefined = undefined
@@ -36,8 +39,9 @@
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
   export let justify: 'left' | 'center' = 'left'
-  export let width: string | undefined = 'min-content'
+  export let width: string | undefined = '100%'
 
+  const client = getClient()
   const dispatch = createEventDispatcher()
 
   const handleOpen = (event: MouseEvent): void => {
@@ -67,6 +71,9 @@
     query.query(card.class.Card, { _id: value }, (res) => {
       doc = res[0]
     })
+  } else {
+    query.unsubscribe()
+    doc = undefined
   }
 </script>
 
@@ -74,17 +81,34 @@
   showTooltip={!readonly ? { label } : undefined}
   {justify}
   {focusIndex}
-  {width}
+  width={width ?? '100%'}
   {size}
   {kind}
   disabled={readonly}
   on:click={handleOpen}
 >
-  <div slot="content" class="overflow-label">
-    {#if doc}
-      <CardPresenter value={doc} type={'text'} />
-    {:else}
-      <Label {label} />
+  <div slot="content" class="overflow-label flex-row-center w-full" class:flex-between={showNavigate && doc}>
+    <div class="overflow-label flex-grow min-w-0 text-left">
+      {#if doc}
+        <CardPresenter value={doc} type={'text'} />
+      {:else}
+        <Label {label} />
+      {/if}
+    </div>
+    {#if doc && showNavigate}
+      <div class="ml-2 flex-row-center flex-no-shrink">
+        <ActionIcon
+          icon={view.icon.ArrowRight}
+          size={'small'}
+          action={() => {
+            if (doc) {
+              return openDoc(client.getHierarchy(), doc).catch((err) => {
+                setPlatformStatus(unknownError(err))
+              })
+            }
+          }}
+        />
+      </div>
     {/if}
   </div>
 </Button>
