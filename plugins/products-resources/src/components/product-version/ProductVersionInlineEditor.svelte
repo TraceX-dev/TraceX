@@ -15,10 +15,13 @@
 -->
 <script lang="ts">
   import type { DocumentQuery, Ref } from '@hcengineering/core'
-  import { createQuery } from '@hcengineering/presentation'
-  import { Button, Label, eventToHTMLElement, showPopup } from '@hcengineering/ui'
+  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { ActionIcon, Button, Label, eventToHTMLElement, showPopup } from '@hcengineering/ui'
   import type { ButtonKind, ButtonSize } from '@hcengineering/ui'
   import type { ProductVersion } from '@hcengineering/products'
+  import { setPlatformStatus, unknownError } from '@hcengineering/platform'
+  import view from '@hcengineering/view'
+  import { openDoc } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import products from '../../plugin'
@@ -28,12 +31,14 @@
   export let value: Ref<ProductVersion> | undefined
   export let onChange: ((value: Ref<ProductVersion> | undefined) => void) | undefined = undefined
   export let readonly: boolean = false
+  export let showNavigate: boolean = true
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
   export let justify: 'left' | 'center' = 'left'
-  export let width: string | undefined = undefined
+  export let width: string | undefined = '100%'
   export let docQuery: DocumentQuery<ProductVersion> | undefined = undefined
 
+  const client = getClient()
   const dispatch = createEventDispatcher<{ change: Ref<ProductVersion> }>()
   const query = createQuery()
   let selected: ProductVersion | undefined
@@ -64,12 +69,29 @@
   }
 </script>
 
-<Button disabled={readonly} {kind} {size} {justify} width={width ?? 'min-content'} on:click={openPopup}>
-  <div slot="content">
-    {#if selected}
-      <ProductVersionPresenter value={selected} disabled />
-    {:else}
-      <Label label={products.string.ProductVersion} />
+<Button disabled={readonly} {kind} {size} {justify} width={width ?? '100%'} on:click={openPopup}>
+  <div slot="content" class="overflow-label flex-row-center w-full" class:flex-between={showNavigate && selected}>
+    <div class="overflow-label flex-grow min-w-0 text-left">
+      {#if selected}
+        <ProductVersionPresenter value={selected} disabled />
+      {:else}
+        <Label label={products.string.ProductVersion} />
+      {/if}
+    </div>
+    {#if selected && showNavigate}
+      <div class="ml-2 flex-row-center flex-no-shrink">
+        <ActionIcon
+          icon={view.icon.ArrowRight}
+          size={'small'}
+          action={() => {
+            if (selected) {
+              return openDoc(client.getHierarchy(), selected).catch((err) => {
+                setPlatformStatus(unknownError(err))
+              })
+            }
+          }}
+        />
+      </div>
     {/if}
   </div>
 </Button>

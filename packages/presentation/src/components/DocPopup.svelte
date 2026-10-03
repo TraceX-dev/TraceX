@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,16 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { getObjectValue, VersionableDoc, type Class, type Doc, type Ref } from '@hcengineering/core'
+  import core, {
+    getObjectValue,
+    mergeQueries,
+    SortingOrder,
+    type VersionableDoc,
+    type DocumentQuery,
+    type Class,
+    type Doc,
+    type Ref
+  } from '@hcengineering/core'
   import { getResource, type IntlString } from '@hcengineering/platform'
   import {
     AnySvelteComponent,
@@ -67,6 +77,7 @@
   export let loading: boolean = false
   export let type: 'text' | 'object' | 'presenter' = 'text'
   export let showVersions: boolean = false
+  export let versionsQuery: DocumentQuery<Doc> = {}
 
   export let onSelect: ((doc: Doc) => void) | undefined = undefined
 
@@ -234,6 +245,10 @@
     return vDoc
   }
 
+  function compareVersions (a: Doc, b: Doc): number {
+    return ((b as VersionableDoc).version ?? 1) - ((a as VersionableDoc).version ?? 1)
+  }
+
   const onVersionSelect = (doc: Doc) => {
     select(doc)
   }
@@ -325,7 +340,7 @@
                   </span>
                 {:else if type === 'presenter'}
                   {#if presenter !== undefined}
-                    <svelte:component this={presenter} value={obj} />
+                    <svelte:component this={presenter} value={obj} disabled noUnderline type={'text'} />
                   {/if}
                 {:else}
                   <slot name="item" item={obj} />
@@ -363,8 +378,14 @@
                 loading,
                 type: 'presenter',
                 forceShowSelected: false,
+                selectedFirst: false,
+                sort: compareVersions,
+                options: { sort: { version: SortingOrder.Descending } },
                 searchMode: 'disabled',
-                docQuery: { baseId: versionedDoc.baseId },
+                docQuery: mergeQueries(
+                  { isLatest: { $in: [true, false] }, ...versionsQuery },
+                  { baseId: versionedDoc.baseId }
+                ),
                 onSelect: onVersionSelect
               }}
               options={{ component: ObjectPopup }}
@@ -376,7 +397,7 @@
                   </span>
                 {:else if type === 'presenter'}
                   {#if presenter !== undefined}
-                    <svelte:component this={presenter} value={obj} />
+                    <svelte:component this={presenter} value={obj} disabled noUnderline type={'text'} />
                   {/if}
                 {:else}
                   <slot name="item" item={obj} />
@@ -410,7 +431,7 @@
                 </span>
               {:else if type === 'presenter'}
                 {#if presenter !== undefined}
-                  <svelte:component this={presenter} value={obj} />
+                  <svelte:component this={presenter} value={obj} disabled noUnderline type={'text'} />
                 {/if}
               {:else}
                 <slot name="item" item={obj} />
