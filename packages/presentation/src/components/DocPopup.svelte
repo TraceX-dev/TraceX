@@ -78,12 +78,14 @@
   export let type: 'text' | 'object' | 'presenter' = 'text'
   export let showVersions: boolean = false
   export let versionsQuery: DocumentQuery<Doc> = {}
+  export let selectedVersionBaseIds: Ref<Doc>[] = []
 
   export let onSelect: ((doc: Doc) => void) | undefined = undefined
 
   let search: string = ''
 
   $: selectedElements = new Set(selectedObjects)
+  $: selectedVersionBases = new Set(selectedVersionBaseIds)
 
   const dispatch = createEventDispatcher()
 
@@ -93,7 +95,8 @@
   $: showCategories =
     created.length > 0 ||
     objects.map((it) => getObjectValue(groupBy, it)).filter((it, index, arr) => arr.indexOf(it) === index).length > 1 ||
-    selectedObjects.length > 0
+    selectedObjects.length > 0 ||
+    (showVersions && selectedVersionBaseIds.length > 0)
 
   let presenter: AnySvelteComponent | undefined = undefined
   $: if (type === 'presenter') {
@@ -218,10 +221,16 @@
     if (created.find((it) => it._id === doc._id) !== undefined) {
       return '_created'
     }
-    if ((selectedObjects ?? []).find((it) => it === doc._id) !== undefined) {
+    if (isSelectedDoc(doc)) {
       return '_selected'
     }
     return getObjectValue(groupBy, toAny(doc))
+  }
+
+  function isSelectedDoc (doc: Doc): boolean {
+    if (doc._id === selected || selectedElements.has(doc._id)) return true
+    if (!showVersions || h.classHierarchyMixin(doc._class, core.mixin.VersionableClass)?.enabled !== true) return false
+    return selectedVersionBases.has((doc as VersionableDoc).baseId ?? doc._id)
   }
 
   function findObjectPresenter (_class: Ref<Class<Doc>>): void {
@@ -309,7 +318,7 @@
               <!--Category for first item-->
               {#if item > 0}<div class="menu-separator" />{/if}
               <div class="category-box">
-                <slot name="category" item={obj} />
+                <slot name="category" item={obj} isSelected={isSelectedDoc(obj)} />
               </div>
             {/if}
           {/if}
@@ -347,7 +356,7 @@
                 {/if}
                 {#if (allowDeselect && selected) || multiSelect || selected}
                   <div class="check mr-2" class:disabled={readonly}>
-                    {#if obj._id === selected || selectedElements.has(obj._id)}
+                    {#if isSelectedDoc(obj)}
                       {#if loading}
                         <Spinner size={'small'} />
                       {:else}
@@ -378,7 +387,6 @@
                 loading,
                 type: 'presenter',
                 forceShowSelected: false,
-                selectedFirst: false,
                 sort: compareVersions,
                 options: { sort: { version: SortingOrder.Descending } },
                 searchMode: 'disabled',
@@ -404,7 +412,7 @@
                 {/if}
                 {#if (allowDeselect && selected) || multiSelect || selected}
                   <div class="check mr-2" class:disabled={readonly}>
-                    {#if obj._id === selected || selectedElements.has(obj._id)}
+                    {#if isSelectedDoc(obj)}
                       {#if loading}
                         <Spinner size={'small'} />
                       {:else}
@@ -438,7 +446,7 @@
               {/if}
               {#if (allowDeselect && selected) || multiSelect || selected}
                 <div class="check" class:disabled={readonly}>
-                  {#if obj._id === selected || selectedElements.has(obj._id)}
+                  {#if isSelectedDoc(obj)}
                     {#if loading}
                       <Spinner size={'small'} />
                     {:else}

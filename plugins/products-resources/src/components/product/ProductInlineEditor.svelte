@@ -83,7 +83,7 @@
     disabled={readonly}
     on:click={openPopup}
   >
-    <div slot="content" class="overflow-label flex-row-center w-full" class:flex-between={showNavigate && product}>
+    <div slot="content" class="flex-row-center w-full" class:flex-between={showNavigate && product}>
       <div class="overflow-label flex-grow min-w-0 text-left">
         {#if product}
           <ProductPresenter value={product} disabled />
@@ -92,7 +92,7 @@
         {/if}
       </div>
       {#if product && showNavigate}
-        <div class="ml-2 flex-row-center flex-no-shrink">
+        <div class="ml-auto pl-2 flex-row-center flex-no-shrink">
           <ActionIcon
             icon={view.icon.ArrowRight}
             size={'small'}
