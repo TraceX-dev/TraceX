@@ -99,12 +99,7 @@
   }
 </script>
 
-<Card
-  label={process.string.RequestAttachments}
-  canSave={canSubmit}
-  okAction={submit}
-  onCancel={close}
->
+<Card label={process.string.RequestAttachments} canSave={canSubmit} okAction={submit} onCancel={close}>
   <svelte:fragment slot="buttons">
     {#if action.requireAttachments === false}
       <Button kind="regular" size="large" label={process.string.Skip} disabled={!canSkip} on:click={skip} />
