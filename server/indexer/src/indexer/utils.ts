@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -104,6 +105,9 @@ export function createIndexedDoc (doc: Doc, mixins: Ref<Class<Doc>>[] | undefine
   }
   if ((doc as VersionableDoc).baseId !== undefined) {
     indexedDoc.baseId = (doc as VersionableDoc).baseId
+  }
+  if ((doc as VersionableDoc).version !== undefined) {
+    indexedDoc.version = (doc as VersionableDoc).version
   }
   return indexedDoc
 }
