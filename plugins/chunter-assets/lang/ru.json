@@ -100,8 +100,6 @@
     "VisibilitySpaceDescription": "Читать и присоединяться может любой, у кого есть доступ к пространству",
     "VisibilityParticipants": "Участники: {label}",
     "VisibilityParticipantsDescription": "Только участники (подписчики) родительского объекта",
-    "VisibilityMembers": "Только участники обсуждения",
-    "VisibilityMembersDescription": "Найти и прочитать обсуждение могут только его участники",
     "NewDirectChat": "Новый личный чат",
     "AddMembers": "Добавить участников",
     "PinnedCount": "{count} закреплено",

@@ -138,6 +138,38 @@ async function* createCursorGenerator (
   }
 }
 
+/**
+ * Context of an extra read restriction, see {@link registerSecurityRule}.
+ * @public
+ */
+export interface SecurityRuleContext {
+  // Table (translated domain) of the query; it is also the alias of the queried row.
+  table: string
+  workspaceId: string
+  account: string
+  // SQL placeholder with the workspace id.
+  workspace: string
+  // Adds a query parameter and returns its placeholder.
+  value: (value: string) => string
+}
+
+/**
+ * Returns an SQL condition the queried row must satisfy, or undefined when the rule does not apply to the table.
+ * @public
+ */
+export type SecurityRule = (ctx: SecurityRuleContext) => string | undefined
+
+const securityRules = new Set<SecurityRule>()
+
+/**
+ * Registers an extra read restriction. It narrows the space security of queries,
+ * so it is skipped wherever space security is (admins, doc guests, the system account, triggers).
+ * @public
+ */
+export function registerSecurityRule (rule: SecurityRule): void {
+  securityRules.add(rule)
+}
+
 class ValuesVariables {
   index: number = 1
   values: any[] = []
@@ -647,7 +679,21 @@ abstract class PostgresAdapterBase implements DbAdapter {
             collabRes += ` OR EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_COLLABORATOR)} collab_sec WHERE collab_sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND collab_sec."attachedTo" = ${domain}."attachedTo" AND collab_sec.collaborator = '${acc.uuid}')`
           }
         }
-        return `AND (${res}${collabRes})`
+        let rulesRes = ''
+        if (securityRules.size > 0) {
+          const ruleCtx: SecurityRuleContext = {
+            table: domain,
+            workspaceId: this.workspaceId,
+            account: acc.uuid,
+            workspace: vars.add(this.workspaceId, '::uuid'),
+            value: (value) => vars.add(value, '::text')
+          }
+          for (const rule of securityRules) {
+            const condition = rule(ruleCtx)
+            if (condition !== undefined) rulesRes += ` AND (${condition})`
+          }
+        }
+        return `AND (${res}${collabRes})${rulesRes}`
       }
     }
   }

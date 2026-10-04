@@ -68,6 +68,9 @@ export interface ServerFindOptions<T extends Doc> extends FindOptions<T> {
   // using for join query security
   allowedSpaces?: Ref<Space>[]
 
+  // Set when the result depends on the account beyond space access, so queries of different accounts are not joined.
+  securityKey?: string
+
   // Optional measure context, for server side operations
   ctx?: MeasureContext
 

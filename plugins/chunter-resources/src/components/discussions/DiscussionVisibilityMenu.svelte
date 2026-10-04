@@ -14,8 +14,9 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { type DiscussionVisibility } from '@hcengineering/chunter'
   import contact from '@hcengineering/contact'
-  import { type Class, type Doc, type ObjectVisibility, type Ref } from '@hcengineering/core'
+  import { type Class, type Doc, type Ref } from '@hcengineering/core'
   import { translate } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import { ButtonMenu, type DropdownIntlItem, languageStore } from '@hcengineering/ui'
@@ -23,22 +24,21 @@
 
   import chunter from '../../plugin'
 
-  export let value: ObjectVisibility
-  export let parentClass: Ref<Class<Doc>> | undefined = undefined
-  export let disabled: boolean = false
-  export let kind: 'primary' | 'secondary' | 'tertiary' | 'negative' = 'secondary'
-  export let size: 'large' | 'medium' | 'small' | 'extra-small' | 'min' = 'medium'
+  export let value: DiscussionVisibility
+  export let parentClass: Ref<Class<Doc>>
+  export let kind: 'secondary' | 'tertiary' = 'secondary'
+  export let size: 'medium' | 'small' = 'medium'
+  // Shows only the icon, with the current level in the tooltip.
   export let iconOnly: boolean = false
 
-  const dispatch = createEventDispatcher<{ change: ObjectVisibility }>()
+  const dispatch = createEventDispatcher<{ change: DiscussionVisibility }>()
   const hierarchy = getClient().getHierarchy()
 
   let parentLabel = ''
   $: void updateParentLabel(parentClass, $languageStore)
 
-  async function updateParentLabel (_class: Ref<Class<Doc>> | undefined, language: string): Promise<void> {
-    const label = _class !== undefined && hierarchy.hasClass(_class) ? hierarchy.getClass(_class).label : undefined
-    parentLabel = label !== undefined ? await translate(label, {}, language) : ''
+  async function updateParentLabel (_class: Ref<Class<Doc>>, language: string): Promise<void> {
+    parentLabel = await translate(hierarchy.getClass(_class).label, {}, language)
   }
 
   let items: DropdownIntlItem[] = []
@@ -55,20 +55,13 @@
       label: chunter.string.VisibilityParticipants,
       params: { label: parentLabel },
       description: chunter.string.VisibilityParticipantsDescription
-    },
-    {
-      id: 'private',
-      icon: chunter.icon.Lock,
-      label: chunter.string.VisibilityMembers,
-      description: chunter.string.VisibilityMembersDescription
     }
   ]
 
   $: current = items.find((it) => it.id === value) ?? items[0]
 
   function handleSelected (event: CustomEvent<DropdownIntlItem['id']>): void {
-    const selected = event.detail as ObjectVisibility
-    if (selected !== value) dispatch('change', selected)
+    dispatch('change', event.detail as DiscussionVisibility)
   }
 </script>
 
@@ -78,10 +71,9 @@
   icon={current.icon}
   label={iconOnly ? undefined : current.label}
   labelParams={current.params ?? {}}
-  tooltip={{ label: current.description ?? current.label }}
+  tooltip={iconOnly ? { label: current.label, props: current.params ?? {} } : undefined}
   {kind}
   {size}
-  {disabled}
   dataId="discussionVisibility"
   on:selected={handleSelected}
 />

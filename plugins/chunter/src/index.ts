@@ -53,6 +53,8 @@ export interface Channel extends ChunterSpace {
 export interface Discussion extends AttachedDoc {
   name?: string
   excerpt?: string // beginning of the first message, maintained by the server
+  // 'participants': visible only to the collaborators of the parent object (enforced by the server).
+  visibility?: DiscussionVisibility
   // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
   resolved: boolean
   members: AccountUuid[]
@@ -61,6 +63,11 @@ export interface Discussion extends AttachedDoc {
   linkedToClass?: Ref<Class<Doc>>
   comments?: number
 }
+
+/**
+ * @public
+ */
+export type DiscussionVisibility = 'public' | 'participants'
 
 /**
  * @public
@@ -230,8 +237,6 @@ export default plugin(chunterId, {
     VisibilitySpaceDescription: '' as IntlString,
     VisibilityParticipants: '' as IntlString,
     VisibilityParticipantsDescription: '' as IntlString,
-    VisibilityMembers: '' as IntlString,
-    VisibilityMembersDescription: '' as IntlString,
     AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,

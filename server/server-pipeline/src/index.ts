@@ -17,3 +17,4 @@
 export * from './internationalization'
 export * from './pipeline'
 export * from './serverPlugins'
+export { discussionSecurityRule } from '@hcengineering/server-chunter-resources'

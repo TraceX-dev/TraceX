@@ -46,7 +46,6 @@ export * from './common'
 export * from './time'
 export * from './benchmark'
 export * from './collaborators'
-export * from './objectAccess'
 export type * from './versioning'
 
 export default core

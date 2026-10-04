@@ -39,8 +39,6 @@ import {
   ModifiedMiddleware,
   IdentifierMiddleware,
   NormalizeTxMiddleware,
-  ObjectAccessMarkerMiddleware,
-  ObjectSecurityMiddleware,
   PluginConfigurationMiddleware,
   PrivateMiddleware,
   QueryJoinMiddleware,
@@ -76,6 +74,7 @@ import { generateToken } from '@hcengineering/server-token'
 import { createStorageDataAdapter } from './blobStorage'
 
 import { RatingMiddleware } from '@hcengineering/server-rating'
+import { DiscussionSecurityMiddleware } from '@hcengineering/server-chunter-resources'
 
 /**
  * @public
@@ -152,7 +151,8 @@ export function createServerPipeline (
       PrivateMiddleware.create,
       (ctx: MeasureContext, context: PipelineContext, next?: Middleware) =>
         SpaceSecurityMiddleware.create(opt.adapterSecurity ?? false, ctx, context, next),
-      ObjectSecurityMiddleware.create, // Object-level access policies for user requests
+      // Restricted discussions: broadcast, lookups and search; queries are restricted by the postgres rule.
+      ...(opt.adapterSecurity === true ? [DiscussionSecurityMiddleware.create] : []),
       SpacePermissionsMiddleware.create,
       GuestPermissionsMiddleware.create,
       GuestPersonMiddleware.create, // Limit person listing for guests
@@ -161,7 +161,6 @@ export function createServerPipeline (
       MarkDerivedEntryMiddleware.create,
       UserStatusMiddleware.create,
       ApplyTxMiddleware.create, // Extract apply
-      ObjectAccessMarkerMiddleware.create, // Mark documents of restricted objects, sees derived txes too
       VersioningMiddleware.create,
       IdentifierMiddleware.create, // After ApplyTx to ensure that it pass
       RatingMiddleware.create, // Rating editing restrictions

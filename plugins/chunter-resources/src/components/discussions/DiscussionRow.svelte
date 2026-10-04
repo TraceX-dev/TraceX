@@ -53,7 +53,6 @@
     .map((account) => $employeeRefByAccountUuidStore.get(account) as Ref<Employee> | undefined)
     .filter(notEmpty)
 
-  $: isPrivate = visibility === 'private'
   $: lastMessageQuery.query(
     chunter.class.ChatMessage,
     { attachedTo: discussion._id, attachedToClass: discussion._class },
@@ -116,17 +115,9 @@
 
   <div class="content">
     <div class="title-row">
-      {#if visibility !== 'public'}
-        <span
-          class="visibility-icon"
-          use:tooltip={{
-            label:
-              visibility === 'private'
-                ? chunter.string.VisibilityMembers
-                : chunter.string.VisibilityParticipantsDescription
-          }}
-        >
-          <Icon icon={visibility === 'private' ? chunter.icon.Lock : contact.icon.ComponentMembers} size="x-small" />
+      {#if visibility === 'participants'}
+        <span class="visibility-icon" use:tooltip={{ label: chunter.string.VisibilityParticipantsDescription }}>
+          <Icon icon={contact.icon.ComponentMembers} size="x-small" />
         </span>
       {/if}
       <span class="title overflow-label">
@@ -136,9 +127,6 @@
     <div class="subtitle overflow-label">
       {#if resolved}
         <Label label={chunter.string.Resolved} />
-        {#if isPrivate}
-          · <Label label={chunter.string.ParticipantsCount} params={{ count: discussion.members.length }} />
-        {/if}
       {:else if lastMessageText !== ''}
         {lastMessageText}
       {:else}
@@ -147,11 +135,9 @@
     </div>
   </div>
 
-  {#if isPrivate}
-    <div class="avatars">
-      <CombineAvatars _class={contact.mixin.Employee} items={memberRefs} size="x-small" limit={3} />
-    </div>
-  {/if}
+  <div class="avatars">
+    <CombineAvatars _class={contact.mixin.Employee} items={memberRefs} size="x-small" limit={3} />
+  </div>
 
   <div class="meta">
     <span class="time"><TimeSince value={lastMessage?.createdOn ?? discussion.modifiedOn} /></span>

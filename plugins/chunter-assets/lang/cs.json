@@ -100,8 +100,6 @@
     "VisibilitySpaceDescription": "Anyone with access to the space can read and join",
     "VisibilityParticipants": "{label} participants",
     "VisibilityParticipantsDescription": "Only participants (followers) of the parent object",
-    "VisibilityMembers": "Discussion members only",
-    "VisibilityMembersDescription": "Only discussion members can find and read it",
     "NewDirectChat": "Nový přímý chat",
     "AddMembers": "Přidat členy",
     "PinnedCount": "{count} připnuto",

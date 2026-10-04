@@ -16,7 +16,7 @@
 
 import activity, { ActivityMessage, DocUpdateMessage } from '@hcengineering/activity'
 import { Analytics } from '@hcengineering/analytics'
-import chunter, { ChatMessage } from '@hcengineering/chunter'
+import chunter, { ChatMessage, type Discussion } from '@hcengineering/chunter'
 import contact, { Employee, type Person } from '@hcengineering/contact'
 import core, {
   AccountUuid,
@@ -48,10 +48,7 @@ import core, {
   TxProcessor,
   TxRemoveDoc,
   TxUpdateDoc,
-  getClassCollaborators,
-  getAccessRoot,
-  getObjectAccessReaders,
-  type AccessFindFn
+  getClassCollaborators
 } from '@hcengineering/core'
 import notification, {
   ActivityInboxNotification,
@@ -111,35 +108,55 @@ interface EmailTemplateParams extends Record<string, string> {
   link: string
 }
 
-function toTemplateParams (params?: Record<string, unknown>): Record<string, string> {
-  return Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, String(value)]))
+// The discussion a document belongs to: the discussion itself, its message or a reply in it.
+function getOwnDiscussion (doc: Pick<Doc, '_id' | '_class'> & Partial<ThreadMessageLink>): Ref<Discussion> | undefined {
+  if (doc._class === chunter.class.Discussion) return doc._id as Ref<Discussion>
+  if (doc.attachedToClass === chunter.class.Discussion) return doc.attachedTo as Ref<Discussion>
+  if (doc.objectClass === chunter.class.Discussion) return doc.objectId as Ref<Discussion>
+  return undefined
 }
 
-function getAccessFind (ctx: MeasureContext, control: TriggerControl): AccessFindFn {
-  return async (_class, query, options) => await control.findAll(ctx, _class, query, options)
+interface ThreadMessageLink {
+  attachedTo: Ref<Doc>
+  attachedToClass: Ref<Class<Doc>>
+  objectId: Ref<Doc>
+  objectClass: Ref<Class<Doc>>
 }
 
-// Object access: readers allowed for all the documents (undefined: not restricted), cached per request.
-async function getAccessReadersOf (
+/**
+ * A 'participants' discussion is visible only to the collaborators of its parent object,
+ * so nobody else is notified about it.
+ */
+async function filterDiscussionReaders (
   ctx: MeasureContext,
   control: TriggerControl,
-  docs: Doc[]
-): Promise<Set<AccountUuid> | undefined> {
-  let result: Set<AccountUuid> | undefined
-  for (const doc of docs) {
-    const root = getAccessRoot(doc)
-    if (root === undefined) continue
-    const key = `objectAccessReaders:${root}`
-    let readers: Set<AccountUuid> | undefined = control.contextCache.get(key)
-    if (!control.contextCache.has(key)) {
-      readers = await getObjectAccessReaders(control.hierarchy, getAccessFind(ctx, control), doc)
-      control.contextCache.set(key, readers)
-    }
-    if (readers === undefined) continue
-    const current: Set<AccountUuid> = readers
-    result = result === undefined ? new Set(current) : new Set(Array.from(result).filter((it) => current.has(it)))
+  doc: Pick<Doc, '_id' | '_class'> & Partial<ThreadMessageLink>,
+  accounts: AccountUuid[]
+): Promise<AccountUuid[]> {
+  if (accounts.length === 0) return accounts
+  let discussionId = getOwnDiscussion(doc)
+  // A message given by id only (e.g. the source of a mention from a thread reply).
+  if (
+    discussionId === undefined &&
+    doc.attachedToClass === undefined &&
+    control.hierarchy.isDerived(doc._class, activity.class.ActivityMessage)
+  ) {
+    const message = (await control.findAll(ctx, activity.class.ActivityMessage, { _id: doc._id as Ref<ActivityMessage> }, { limit: 1 }))[0]
+    if (message !== undefined) discussionId = getOwnDiscussion(message)
   }
-  return result
+  if (discussionId === undefined) return accounts
+  const discussion = (await control.findAll(ctx, chunter.class.Discussion, { _id: discussionId }, { limit: 1 }))[0]
+  if (discussion?.visibility !== 'participants') return accounts
+  const readers = new Set(
+    (await control.findAll(ctx, core.class.Collaborator, { attachedTo: discussion.attachedTo })).map(
+      (it) => it.collaborator
+    )
+  )
+  return accounts.filter((it) => readers.has(it))
+}
+
+function toTemplateParams (params?: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, String(value)]))
 }
 
 export async function getCommonNotificationTxes (
@@ -161,10 +178,10 @@ export async function getCommonNotificationTxes (
     return []
   }
 
-  const readers = await getAccessReadersOf(ctx, control, [doc])
-  if (readers !== undefined && !readers.has(receiver.account)) {
-    return []
-  }
+  const readers = await filterDiscussionReaders(ctx, control, { _id: attachedTo, _class: attachedToClass }, [
+    receiver.account
+  ])
+  if (readers.length === 0) return []
 
   const res: Tx[] = []
   const notifyContexts = await control.findAll(ctx, notification.class.DocNotifyContext, { objectId: attachedTo })
@@ -851,11 +868,7 @@ export async function createCollabDocInfo (
             return false
           })
       )
-  // Object access: messages too, e.g. card activity about a restricted discussion.
-  const readers = await getAccessReadersOf(ctx, control, [object, ...docMessages])
-  const targets = new Set(
-    readers === undefined ? filteredCollaborators : filteredCollaborators.filter((it) => readers.has(it))
-  )
+  const targets = new Set(await filterDiscussionReaders(ctx, control, object, filteredCollaborators))
 
   // user is not collaborator of himself, but we should notify user of changes related to users account (mentions, comments etc)
   if (control.hierarchy.isDerived(object._class, contact.mixin.Employee)) {
@@ -863,12 +876,6 @@ export async function createCollabDocInfo (
 
     if (account != null) {
       targets.add(account)
-    }
-  }
-
-  if (readers !== undefined) {
-    for (const it of Array.from(targets)) {
-      if (!readers.has(it)) targets.delete(it)
     }
   }
 

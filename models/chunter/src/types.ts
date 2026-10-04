@@ -39,6 +39,7 @@ import type {
   DirectMessage,
   ObjectChatPanel,
   Discussion,
+  DiscussionVisibility,
   ThreadMessage
 } from '@hcengineering/chunter'
 import {
@@ -115,6 +116,10 @@ export class TDiscussion extends TAttachedDoc implements Discussion {
 
   @Prop(PropCollection(chunter.class.ChatMessage), chunter.string.Comments)
     comments?: number
+
+  @Prop(TypeString(), chunter.string.Visibility)
+  @Hidden()
+    visibility?: DiscussionVisibility
 }
 
 @Model(chunter.class.DirectMessage, chunter.class.ChunterSpace)

@@ -134,11 +134,6 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(chunter.class.Discussion, core.class.Class, activity.mixin.ActivityDoc, {})
 
-  builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.ClassAccessPolicy, {
-    membersField: 'members',
-    parent: { field: 'attachedTo', classField: 'attachedToClass' }
-  })
-
   builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.User,
     updateAccessLevel: AccountRole.User,

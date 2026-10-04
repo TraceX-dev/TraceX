@@ -22,6 +22,7 @@ import { type PlatformQueue, type SessionManager, type StorageConfiguration } fr
 
 import {
   createServerPipeline,
+  discussionSecurityRule,
   isAdapterSecurity,
   registerAdapterFactory,
   registerDestroyFactory,
@@ -41,6 +42,7 @@ import {
   createPostgreeDestroyAdapter,
   createPostgresAdapter,
   createPostgresTxAdapter,
+  registerSecurityRule,
   setDBExtraOptions,
   shutdownPostgres
 } from '@hcengineering/postgres'
@@ -93,6 +95,7 @@ export function start (
   registerAdapterFactory('postgresql', createPostgresAdapter, true)
   registerDestroyFactory('postgresql', createPostgreeDestroyAdapter, true)
   setAdapterSecurity('postgresql', true)
+  registerSecurityRule(discussionSecurityRule)
 
   const usePrepare = (process.env.DB_PREPARE ?? 'true') === 'true'
 

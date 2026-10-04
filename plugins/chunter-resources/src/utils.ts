@@ -27,25 +27,15 @@ import {
   type ChatMessage,
   type DirectMessage,
   type Discussion,
+  type DiscussionVisibility,
   getDiscussionTitle,
   type ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
-import {
-  employeeByAccountStore,
-  employeeByIdStore,
-  employeeByPersonIdStore,
-  PersonIcon
-} from '@hcengineering/contact-resources'
+import { employeeByAccountStore, employeeByIdStore, PersonIcon } from '@hcengineering/contact-resources'
 import core, {
-  type AccessControlled,
   AccountRole,
   type AccountUuid,
-  audienceToVisibility,
-  getAccessAudience,
-  getAccessOwners,
-  type ObjectVisibility,
-  visibilityToAudience,
   type Class,
   type Client,
   type Doc,
@@ -151,93 +141,57 @@ export async function canDeleteMessage (doc?: ChatMessage): Promise<boolean> {
   return doc.createdBy !== undefined && me.socialIds.includes(doc.createdBy)
 }
 
-export function isDiscussionParticipant (discussion: Discussion): boolean {
-  return discussion.members.includes(getCurrentAccount().uuid)
-}
-
 // Mirrors the TxAccessLevel of Discussion: guests can only post messages, not create or change discussions.
 export function canCreateDiscussion (): boolean {
   return hasAccountRole(getCurrentAccount(), AccountRole.User)
 }
 
-export function isDiscussionOwner (discussion: Discussion): boolean {
+function isDiscussionCreator (discussion: Discussion): boolean {
   const me = getCurrentAccount()
-  const owners = getAccessOwners(getClient().getHierarchy(), discussion)
-  if (owners.length > 0) return owners.includes(me.uuid)
   return discussion.createdBy !== undefined && me.socialIds.includes(discussion.createdBy)
 }
 
 export function canManageDiscussion (discussion: Discussion): boolean {
   const me = getCurrentAccount()
   if (!hasAccountRole(me, AccountRole.User)) return false
-  if (hasAccountRole(me, AccountRole.Maintainer) || isDiscussionOwner(discussion)) return true
-  return getDiscussionVisibility(discussion) === 'private' && isDiscussionParticipant(discussion)
+  return hasAccountRole(me, AccountRole.Maintainer) || isDiscussionCreator(discussion)
 }
 
-export function getDiscussionVisibility (discussion: Discussion): ObjectVisibility {
-  return audienceToVisibility(getAccessAudience(getClient().getHierarchy(), discussion))
-}
-
-// Mirrors ObjectSecurityMiddleware: owners and maintainers manage the visibility.
-export function canChangeDiscussionVisibility (discussion: Discussion): boolean {
-  const me = getCurrentAccount()
-  if (!hasAccountRole(me, AccountRole.User)) return false
-  return hasAccountRole(me, AccountRole.Maintainer) || isDiscussionOwner(discussion)
-}
-
-export function canEditDiscussionMembers (discussion: Discussion): boolean {
-  return getDiscussionVisibility(discussion) === 'private' && canChangeDiscussionVisibility(discussion)
-}
-
-export async function ensureCollaborator (
-  client: TxOperations,
-  object: Pick<Doc, '_id' | '_class' | 'space'>
-): Promise<void> {
-  const me = getCurrentAccount().uuid
-  const current = await client.findOne(core.class.Collaborator, { attachedTo: object._id, collaborator: me })
-  if (current !== undefined) return
-  await client.addCollection(core.class.Collaborator, object.space, object._id, object._class, 'collaborators', {
-    collaborator: me
-  })
-}
-
-async function getInitialPrivateMembers (discussion: Discussion): Promise<AccountUuid[]> {
-  const client = getClient()
-  const messages = await client.findAll(
-    chunter.class.ChatMessage,
-    { attachedTo: discussion._id },
-    { projection: { _id: 1, createdBy: 1 } }
-  )
-  const employees = get(employeeByPersonIdStore)
-  const authors = messages
-    .map((it) => (it.createdBy !== undefined ? employees.get(it.createdBy)?.personUuid : undefined))
-    .filter(notEmpty)
-  return Array.from(new Set([getCurrentAccount().uuid, ...authors]))
-}
-
-export async function setDiscussionVisibility (discussion: Discussion, visibility: ObjectVisibility): Promise<void> {
-  if (getDiscussionVisibility(discussion) === visibility) return
-  const client = getClient()
-  if (visibility === 'private' && discussion.members.length === 0) {
-    // Stored first: the server requires a private discussion to have a member.
-    await client.update(discussion, { members: await getInitialPrivateMembers(discussion) })
-  }
-  if (visibility === 'participants') {
-    const parent = { _id: discussion.attachedTo, _class: discussion.attachedToClass, space: discussion.space }
-    await ensureCollaborator(client, parent)
-  }
-  await client.updateMixin<Doc, AccessControlled>(
-    discussion._id,
-    discussion._class,
-    discussion.space,
-    core.mixin.AccessControlled,
-    { read: visibilityToAudience(visibility) }
-  )
+export function getDiscussionVisibility (discussion: Discussion): DiscussionVisibility {
+  return discussion.visibility ?? 'public'
 }
 
 export async function setDiscussionResolved (discussion: Discussion, resolved: boolean): Promise<void> {
   if (discussion.resolved === resolved) return
   await getClient().update(discussion, { resolved })
+}
+
+// A 'participants' discussion is visible only to the collaborators of its parent,
+// so whoever restricts it follows the parent to keep access.
+export async function ensureParentCollaborator (
+  ops: TxOperations,
+  parent: Pick<Doc, '_id' | '_class' | 'space'>
+): Promise<void> {
+  const me = getCurrentAccount().uuid
+  const existing = await ops.findOne(core.class.Collaborator, { attachedTo: parent._id, collaborator: me })
+  if (existing !== undefined) return
+  await ops.addCollection(core.class.Collaborator, parent.space, parent._id, parent._class, 'collaborators', {
+    collaborator: me
+  })
+}
+
+export async function setDiscussionVisibility (discussion: Discussion, visibility: DiscussionVisibility): Promise<void> {
+  if (getDiscussionVisibility(discussion) === visibility) return
+  const ops = getClient().apply(undefined, 'chunter.setDiscussionVisibility')
+  if (visibility === 'participants') {
+    await ensureParentCollaborator(ops, {
+      _id: discussion.attachedTo,
+      _class: discussion.attachedToClass,
+      space: discussion.space
+    })
+  }
+  await ops.update(discussion, { visibility })
+  await ops.commit()
 }
 
 export async function deleteDiscussion (discussion: Discussion): Promise<void> {

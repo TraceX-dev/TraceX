@@ -14,97 +14,61 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Discussion, makeDiscussionExcerpt } from '@hcengineering/chunter'
-  import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import core, {
-    type AccountUuid,
-    type AttachedData,
-    type Doc,
-    getCurrentAccount,
-    type Markup,
-    type ObjectVisibility,
-    visibilityToAudience
-  } from '@hcengineering/core'
-  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { type DiscussionVisibility, makeDiscussionExcerpt } from '@hcengineering/chunter'
+  import { type Doc, type Markup } from '@hcengineering/core'
+  import { getClient } from '@hcengineering/presentation'
   import { EmptyMarkup, isEmptyMarkup, markupToText } from '@hcengineering/text'
   import { StyledTextArea } from '@hcengineering/text-editor-resources'
-  import { Button, IconAdd, Label, Modal, ModernEditbox } from '@hcengineering/ui'
+  import { Label, Modal, ModernEditbox } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
+  import { ensureParentCollaborator } from '../../utils'
   import DiscussionVisibilityMenu from './DiscussionVisibilityMenu.svelte'
 
   export let object: Doc
 
   const dispatch = createEventDispatcher()
   const client = getClient()
-  const me = getCurrentAccount().uuid
-  const collaboratorsQuery = createQuery()
 
   let name = ''
-  let members: AccountUuid[] = [me]
-  let visibility: ObjectVisibility = 'public'
-  let firstMessage: Markup = EmptyMarkup
-  let collaborators: AccountUuid[] = []
-
-  $: collaboratorsQuery.query(core.class.Collaborator, { attachedTo: object._id }, (result) => {
-    collaborators = result.map(({ collaborator }) => collaborator)
-  })
-
-  $: missingCollaborators = collaborators.filter((account) => !members.includes(account))
-  $: canSave = name.trim().length > 0 || !isEmptyMarkup(firstMessage)
-
-  function addAllCollaborators (): void {
-    members = [...members, ...missingCollaborators]
-  }
+  let visibility: DiscussionVisibility = 'public'
+  // StyledTextArea updates its bound content only on blur.
+  let draftMessage: Markup = EmptyMarkup
 
   async function save (): Promise<void> {
     const operations = client.apply(undefined, 'chunter.createDiscussion')
     const title = name.trim()
-    const excerpt = isEmptyMarkup(firstMessage) ? '' : makeDiscussionExcerpt(markupToText(firstMessage))
-    const data: AttachedData<Discussion> = {
-      ...(title !== '' ? { name: title } : {}),
-      ...(excerpt !== '' ? { excerpt } : {}),
-      resolved: false,
-      // Members exist only for a private discussion.
-      members: visibility !== 'private' ? [] : members.includes(me) ? members : [me, ...members]
+    const excerpt = isEmptyMarkup(draftMessage) ? '' : makeDiscussionExcerpt(markupToText(draftMessage))
+    const space = object.space
+
+    if (visibility === 'participants') {
+      await ensureParentCollaborator(operations, object)
     }
-    // The policy goes with the create tx, so the discussion is never visible to the whole space.
-    const attributes: AttachedData<Discussion> =
-      visibility === 'public'
-        ? data
-        : ({
-            ...data,
-            [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) }
-          } as AttachedData<Discussion>)
-    // The creator must be a card collaborator to keep access.
-    if (visibility === 'participants' && !collaborators.includes(me)) {
-      await operations.addCollection(
-        core.class.Collaborator,
-        object.space,
-        object._id,
-        object._class,
-        'collaborators',
-        { collaborator: me }
-      )
-    }
+
     const discussionId = await operations.addCollection(
       chunter.class.Discussion,
-      object.space,
+      space,
       object._id,
       object._class,
       'discussions',
-      attributes
+      {
+        ...(title !== '' ? { name: title } : {}),
+        ...(excerpt !== '' ? { excerpt } : {}),
+        resolved: false,
+        members: [],
+        visibility
+      }
     )
 
-    if (!isEmptyMarkup(firstMessage)) {
+    if (!isEmptyMarkup(draftMessage)) {
       await operations.addCollection(
         chunter.class.ChatMessage,
-        object.space,
+        space,
         discussionId,
         chunter.class.Discussion,
         'comments',
-        { message: firstMessage, attachments: 0 }
+        { message: draftMessage, attachments: 0 }
       )
     }
 
@@ -118,7 +82,7 @@
   type="type-popup"
   okLabel={chunter.string.CreateDiscussion}
   okAction={save}
-  {canSave}
+  canSave
   onCancel={() => dispatch('close')}
   on:close
 >
@@ -141,37 +105,13 @@
       </div>
     </div>
 
-    {#if visibility === 'private'}
-      <div class="field">
-        <span class="field-label"><Label label={chunter.string.Members} /></span>
-        <AccountArrayEditor
-          value={members}
-          label={chunter.string.Members}
-          onChange={(value) => {
-            members = value
-          }}
-          kind="regular"
-          size="large"
-        />
-        {#if missingCollaborators.length > 0}
-          <div class="add-all">
-            <Button
-              kind="link"
-              size="small"
-              icon={IconAdd}
-              label={chunter.string.AddAllCollaborators}
-              labelParams={{ count: missingCollaborators.length }}
-              on:click={addAllCollaborators}
-            />
-          </div>
-        {/if}
-      </div>
-    {/if}
-
     <div class="field">
       <span class="field-label"><Label label={chunter.string.FirstMessage} /></span>
       <StyledTextArea
-        bind:content={firstMessage}
+        content={EmptyMarkup}
+        on:changeContent={(ev) => {
+          draftMessage = ev.detail
+        }}
         placeholder={chunter.string.FirstMessagePlaceholder}
         kind="emphasized"
         showButtons={false}
@@ -204,7 +144,6 @@
     text-transform: uppercase;
   }
 
-  .add-all,
   .visibility {
     display: flex;
     align-self: flex-start;

@@ -75,6 +75,8 @@ import { workbenchId } from '@hcengineering/workbench'
 import { NOTIFICATION_BODY_SIZE } from '@hcengineering/server-notification'
 import { encodeObjectURI } from '@hcengineering/view'
 
+export * from './discussionMiddleware'
+export * from './discussionSecurity'
 export {
   CreateChannelMessage,
   CreateChannelMessageByName,
@@ -114,7 +116,7 @@ export async function channelTextPresenter (doc: Doc): Promise<string> {
 
 // Used as the notification title for messages posted in a discussion.
 export async function DiscussionTextPresenter (doc: Doc): Promise<string> {
-  return getDiscussionTitle(doc as Discussion) ?? ''
+  return getDiscussionTitle(doc as Discussion) ?? (await translate(chunter.string.UntitledDiscussion, {}))
 }
 
 export async function ChatMessageTextPresenter (doc: ChatMessage): Promise<string> {
@@ -379,11 +381,7 @@ async function getDiscussionOfMessage (
     : undefined
 }
 
-async function OnDiscussionMessageChanged (
-  ctx: MeasureContext,
-  tx: TxCUD<Doc>,
-  control: TriggerControl
-): Promise<Tx[]> {
+async function OnDiscussionMessageChanged (ctx: MeasureContext, tx: TxCUD<Doc>, control: TriggerControl): Promise<Tx[]> {
   if (tx._class === core.class.TxUpdateDoc) {
     const update = tx as TxUpdateDoc<ChatMessage>
     if (update.operations.message === undefined) return []

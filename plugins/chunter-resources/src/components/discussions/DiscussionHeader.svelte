@@ -15,8 +15,7 @@
 -->
 <script lang="ts">
   import { type Discussion, getDiscussionTitle } from '@hcengineering/chunter'
-  import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import { type AccountUuid, type ObjectVisibility } from '@hcengineering/core'
+  import contact from '@hcengineering/contact'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import {
@@ -37,8 +36,6 @@
 
   import chunter from '../../plugin'
   import {
-    canChangeDiscussionVisibility,
-    canEditDiscussionMembers,
     canManageDiscussion,
     deleteDiscussion,
     getDiscussionVisibility,
@@ -56,8 +53,6 @@
   let title = ''
 
   $: canManage = canManageDiscussion(discussion)
-  $: canChangeVisibility = canChangeDiscussionVisibility(discussion)
-  $: canEditMembers = canEditDiscussionMembers(discussion)
   $: visibility = getDiscussionVisibility(discussion)
 
   $: displayTitle = getDiscussionTitle(discussion)
@@ -101,19 +96,11 @@
     }
   }
 
-  async function changeVisibility (value: ObjectVisibility): Promise<void> {
-    await setDiscussionVisibility(discussion, value)
-  }
-
   function handleTitleKeydown (event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       event.preventDefault()
       ;(event.target as HTMLInputElement).blur()
     }
-  }
-
-  async function updateMembers (members: AccountUuid[]): Promise<void> {
-    await client.update(discussion, { members })
   }
 </script>
 
@@ -142,26 +129,19 @@
       <Icon icon={IconCheckCircle} size="small" />
     </span>
   {/if}
-  <DiscussionVisibilityMenu
-    value={visibility}
-    parentClass={discussion.attachedToClass}
-    disabled={!canChangeVisibility}
-    kind="tertiary"
-    size="small"
-    iconOnly
-    on:change={(ev) => void changeVisibility(ev.detail)}
-  />
-  {#if visibility === 'private'}
-    <div class="members">
-      <AccountArrayEditor
-        value={discussion.members}
-        label={chunter.string.Members}
-        readonly={!canEditMembers}
-        onChange={updateMembers}
-        kind="ghost"
-        size="small"
-      />
-    </div>
+  {#if canManage}
+    <DiscussionVisibilityMenu
+      value={visibility}
+      parentClass={discussion.attachedToClass}
+      kind="tertiary"
+      size="small"
+      iconOnly
+      on:change={(ev) => void setDiscussionVisibility(discussion, ev.detail)}
+    />
+  {:else if visibility === 'participants'}
+    <span class="visibility" use:tooltip={{ label: chunter.string.VisibilityParticipantsDescription }}>
+      <Icon icon={contact.icon.ComponentMembers} size="small" />
+    </span>
   {/if}
   {#if canManage}
     <ButtonIcon icon={IconMoreH} size="small" kind="tertiary" on:click={openMenu} />
@@ -196,10 +176,9 @@
     color: var(--global-online-color);
   }
 
-  .members {
+  .visibility {
     display: flex;
     flex-shrink: 0;
-    max-width: 50%;
-    min-width: 0;
+    color: var(--global-secondary-TextColor);
   }
 </style>
