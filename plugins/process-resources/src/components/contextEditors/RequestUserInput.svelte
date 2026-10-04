@@ -20,6 +20,7 @@
   import { Label } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
+  import { isRequiredValueFilled } from '../../required-value'
   import TransitionPresenter from '../settings/TransitionPresenter.svelte'
   import RequestUserInputAttribute from './RequestUserInputAttribute.svelte'
   import ClassUserInput from './ClassUserInput.svelte'
@@ -38,10 +39,13 @@
   const model = client.getModel()
 
   function save (): void {
+    if (!canSaveValue) return
     dispatch('close', { value: values })
   }
 
-  $: canSaveValue = inputs.every((input) => values[input.id] != null)
+  $: canSaveValue = inputs.every((input) =>
+    isRequiredValueFilled(values[input.id], client.getHierarchy().findAttribute(input._class, input.key)?.type)
+  )
 
   export function canClose (): boolean {
     return false
