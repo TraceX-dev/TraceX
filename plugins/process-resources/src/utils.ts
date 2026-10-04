@@ -68,6 +68,7 @@ import { isEmptyMarkup } from '@hcengineering/text-core'
 import { showPopup } from '@hcengineering/ui'
 import { type AttributeCategory } from '@hcengineering/view'
 import process from './plugin'
+import { isRequiredValueFilled } from './required-value'
 import { resolveSelectionQuery, resolveSelectionSpace } from './selection-space'
 
 export function isTypeEqual (toCheck: any | undefined, attr: Type<any>, bindings?: Record<string, string>): boolean {
@@ -726,7 +727,11 @@ export async function getTransitionUserInput (
           },
           undefined,
           (res) => {
-            const isComplete = res?.value !== undefined && inputs.every((input) => res.value[input.id] != null)
+            const isComplete =
+              res?.value !== undefined &&
+              inputs.every((input) =>
+                isRequiredValueFilled(res.value[input.id], hierarchy.findAttribute(input._class, input.key)?.type)
+              )
             if (isComplete) {
               changed = true
               const groupedValues: Record<string, Record<string, any>> = {}
@@ -944,7 +949,7 @@ export async function requestResult (
       { results: resolvedResults, context, doc: targetDoc, description },
       undefined,
       (res) => {
-        if (res !== undefined) {
+        if (res !== undefined && results.every((result) => isRequiredValueFilled(res[result._id], result.type))) {
           for (const contextId in res) {
             const val = res[contextId]
             context[contextId as ContextId] = val
@@ -1108,12 +1113,6 @@ export function fieldChangesCheck (
   return res.length > 0
 }
 
-function isRequiredValueFilled (value: any, attr: AnyAttribute): boolean {
-  if (attr.type?._class === core.class.TypeMarkup) return !isEmptyMarkup(value)
-  if (Array.isArray(value)) return value.length > 0
-  return value !== undefined && value !== null && value !== ''
-}
-
 export function requiredFieldsFilledCheck (
   client: Client,
   execution: Execution,
@@ -1135,7 +1134,7 @@ export function requiredFieldsFilledCheck (
     doc = hierarchy.as(doc, _process.masterTag)
   }
 
-  return attributes.every(([key, attr]) => isRequiredValueFilled(getObjectValue(key, doc), attr))
+  return attributes.every(([key, attr]) => isRequiredValueFilled(getObjectValue(key, doc), attr.type))
 }
 
 export async function subProcessesDoneCheck (

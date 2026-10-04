@@ -29,6 +29,7 @@
   import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
+  import { isRequiredValueFilled } from '../../required-value'
   import type { ResolvedUserResult } from '../../selection-space'
 
   export let results: ResolvedUserResult[]
@@ -100,6 +101,7 @@
   }
 
   function save (): void {
+    if (!canSaveValue) return
     dispatch('close', values)
   }
 
@@ -109,13 +111,15 @@
       values = values
     }
   }
+
+  $: canSaveValue = !loading && results.every((result) => isRequiredValueFilled(values[result._id], result.type))
 </script>
 
 <Card
   width={'small'}
   on:close
   label={plugin.string.Result}
-  canSave={!loading && Object.values(values).filter((v) => v != null).length === results.length}
+  canSave={canSaveValue}
   okAction={save}
   hideClose
   okLabel={presentation.string.Save}
