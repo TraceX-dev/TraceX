@@ -128,7 +128,7 @@
   }
 
   async function performAction (action: EventButton): Promise<void> {
-    if (action.requireAttachments === true) {
+    if (action.requireAttachments !== undefined) {
       showPopup(RequestAttachments, { action, card })
       return
     }

@@ -1,5 +1,6 @@
 {
   "string": {
+    "Skip": "スキップ",
     "SelectionVersions": "Versions available for selection",
     "OnlyEffectiveVersions": "Only effective versions",
     "OnlyLatestVersions": "Only latest versions",
