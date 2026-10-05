@@ -27,12 +27,15 @@ import { type Builder } from '@hcengineering/model'
 import { TBenchmarkDoc } from './benchmark'
 import core from './component'
 import {
+  TAccessControlled,
+  TAccessParent,
   TArrOf,
   TAssociation,
   TAttachedDoc,
   TAttribute,
   TBlob,
   TClass,
+  TClassAccessPolicy,
   TClassCollaborators,
   TCollaborator,
   TCollection,
@@ -189,7 +192,10 @@ export function createModel (builder: Builder): void {
     TClassCollaborators,
     TCollaborator,
     TVersionableClass,
-    TTTransientTTL
+    TTTransientTTL,
+    TAccessControlled,
+    TClassAccessPolicy,
+    TAccessParent
   )
 
   builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {

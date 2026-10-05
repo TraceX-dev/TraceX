@@ -51,7 +51,7 @@ export interface Channel extends ChunterSpace {
  * @public
  */
 export interface Discussion extends AttachedDoc {
-  name: string
+  name?: string
   // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
   resolved: boolean
   members: AccountUuid[]
@@ -192,7 +192,6 @@ export default plugin(chunterId, {
     AttachTo: '' as IntlString,
     AttachToDescription: '' as IntlString,
     AttachedTo: '' as IntlString,
-    JoinDiscussionRequest: '' as IntlString,
     NotAttached: '' as IntlString,
     MarkAsResolved: '' as IntlString,
     ReopenDiscussion: '' as IntlString,
@@ -223,6 +222,16 @@ export default plugin(chunterId, {
     Visibility: '' as IntlString,
     Public: '' as IntlString,
     Private: '' as IntlString,
+    DiscussionTitleOptional: '' as IntlString,
+    UntitledDiscussion: '' as IntlString,
+    VisibilitySpace: '' as IntlString,
+    VisibilitySpaceDescription: '' as IntlString,
+    VisibilityParticipants: '' as IntlString,
+    VisibilityParticipantsDescription: '' as IntlString,
+    VisibilityMembers: '' as IntlString,
+    VisibilityMembersDescription: '' as IntlString,
+    LeaveDiscussion: '' as IntlString,
+    LeaveDiscussionConfirm: '' as IntlString,
     AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,

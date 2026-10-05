@@ -618,6 +618,29 @@ export function createModel (builder: Builder): void {
     ownerRemove: true
   })
 
+  // Object access: notifications belong to the object they are about.
+  builder.mixin(notification.class.DocNotifyContext, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'objectId', classField: 'objectClass' }]
+  })
+
+  builder.mixin(notification.class.InboxNotification, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'objectId', classField: 'objectClass' }]
+  })
+
+  builder.mixin(notification.class.ActivityInboxNotification, core.class.Class, core.mixin.AccessParent, {
+    parents: [
+      { field: 'attachedTo', classField: 'attachedToClass' },
+      { field: 'objectId', classField: 'objectClass' }
+    ]
+  })
+
+  builder.mixin(notification.class.MentionInboxNotification, core.class.Class, core.mixin.AccessParent, {
+    parents: [
+      { field: 'objectId', classField: 'objectClass' },
+      { field: 'mentionedIn', classField: 'mentionedInClass' }
+    ]
+  })
+
   builder.mixin(notification.class.DocNotifyContext, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.Guest,
     updateAccessLevel: AccountRole.Guest,

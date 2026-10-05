@@ -21,6 +21,7 @@ import chunter, {
   chunterId,
   ChunterSpace,
   type Discussion,
+  getDiscussionTitle,
   ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { Employee, Person } from '@hcengineering/contact'
@@ -111,7 +112,7 @@ export async function channelTextPresenter (doc: Doc): Promise<string> {
 
 // Used as the notification title for messages posted in a discussion.
 export async function DiscussionTextPresenter (doc: Doc): Promise<string> {
-  return (doc as Discussion).name
+  return getDiscussionTitle(doc as Discussion) ?? (await translate(chunter.string.UntitledDiscussion, {}))
 }
 
 export async function ChatMessageTextPresenter (doc: ChatMessage): Promise<string> {

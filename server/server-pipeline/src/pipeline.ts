@@ -39,6 +39,8 @@ import {
   ModifiedMiddleware,
   IdentifierMiddleware,
   NormalizeTxMiddleware,
+  ObjectAccessMarkerMiddleware,
+  ObjectSecurityMiddleware,
   PluginConfigurationMiddleware,
   PrivateMiddleware,
   QueryJoinMiddleware,
@@ -150,6 +152,7 @@ export function createServerPipeline (
       PrivateMiddleware.create,
       (ctx: MeasureContext, context: PipelineContext, next?: Middleware) =>
         SpaceSecurityMiddleware.create(opt.adapterSecurity ?? false, ctx, context, next),
+      ObjectSecurityMiddleware.create, // Object-level access policies for user requests
       SpacePermissionsMiddleware.create,
       GuestPermissionsMiddleware.create,
       GuestPersonMiddleware.create, // Limit person listing for guests
@@ -158,6 +161,7 @@ export function createServerPipeline (
       MarkDerivedEntryMiddleware.create,
       UserStatusMiddleware.create,
       ApplyTxMiddleware.create, // Extract apply
+      ObjectAccessMarkerMiddleware.create, // Mark documents of restricted objects, sees derived txes too
       VersioningMiddleware.create,
       IdentifierMiddleware.create, // After ApplyTx to ensure that it pass
       RatingMiddleware.create, // Rating editing restrictions

@@ -1,7 +1,7 @@
 import { deepEqual } from 'fast-equals'
 import core, { type AccountUuid, type Ref, TxOperations } from '@hcengineering/core'
 
-import chunter, { DirectMessage } from '.'
+import chunter, { type Discussion, DirectMessage } from '.'
 
 /**
  * @public
@@ -26,4 +26,13 @@ export async function getDirectChannel (
     archived: false,
     members: accIds
   })
+}
+
+/**
+ * The name, or undefined for an untitled discussion.
+ * @public
+ */
+export function getDiscussionTitle (discussion: Pick<Discussion, 'name'>): string | undefined {
+  const name = discussion.name?.trim() ?? ''
+  return name !== '' ? name : undefined
 }

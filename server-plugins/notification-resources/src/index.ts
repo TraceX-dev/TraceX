@@ -48,7 +48,10 @@ import core, {
   TxProcessor,
   TxRemoveDoc,
   TxUpdateDoc,
-  getClassCollaborators
+  getClassCollaborators,
+  getAccessRoot,
+  getObjectAccessReaders,
+  type AccessFindFn
 } from '@hcengineering/core'
 import notification, {
   ActivityInboxNotification,
@@ -112,6 +115,33 @@ function toTemplateParams (params?: Record<string, unknown>): Record<string, str
   return Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, String(value)]))
 }
 
+function getAccessFind (ctx: MeasureContext, control: TriggerControl): AccessFindFn {
+  return async (_class, query, options) => await control.findAll(ctx, _class, query, options)
+}
+
+// Object access: readers allowed for all the documents (undefined: not restricted), cached per request.
+async function getAccessReadersOf (
+  ctx: MeasureContext,
+  control: TriggerControl,
+  docs: Doc[]
+): Promise<Set<AccountUuid> | undefined> {
+  let result: Set<AccountUuid> | undefined
+  for (const doc of docs) {
+    const root = getAccessRoot(doc)
+    if (root === undefined) continue
+    const key = `objectAccessReaders:${root}`
+    let readers: Set<AccountUuid> | undefined = control.contextCache.get(key)
+    if (!control.contextCache.has(key)) {
+      readers = await getObjectAccessReaders(control.hierarchy, getAccessFind(ctx, control), doc)
+      control.contextCache.set(key, readers)
+    }
+    if (readers === undefined) continue
+    const current: Set<AccountUuid> = readers
+    result = result === undefined ? new Set(current) : new Set(Array.from(result).filter((it) => current.has(it)))
+  }
+  return result
+}
+
 export async function getCommonNotificationTxes (
   ctx: MeasureContext,
   control: TriggerControl,
@@ -128,6 +158,11 @@ export async function getCommonNotificationTxes (
   tx?: TxCUD<Doc>
 ): Promise<Tx[]> {
   if (notifyResult.size === 0 || !notifyResult.has(notification.providers.InboxNotificationProvider)) {
+    return []
+  }
+
+  const readers = await getAccessReadersOf(ctx, control, [doc])
+  if (readers !== undefined && !readers.has(receiver.account)) {
     return []
   }
 
@@ -824,6 +859,14 @@ export async function createCollabDocInfo (
 
     if (account != null) {
       targets.add(account)
+    }
+  }
+
+  // Object access: the messages count too, e.g. card activity about a restricted discussion.
+  const readers = await getAccessReadersOf(ctx, control, [object, ...docMessages])
+  if (readers !== undefined) {
+    for (const it of Array.from(targets)) {
+      if (!readers.has(it)) targets.delete(it)
     }
   }
 

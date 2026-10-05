@@ -143,8 +143,8 @@
     border-radius: 0.75rem;
   }
 
+  // The last row above already draws the divider.
   .footer {
     padding: 0.25rem;
-    border-top: 1px solid var(--theme-divider-color);
   }
 </style>
