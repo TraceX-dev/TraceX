@@ -72,7 +72,7 @@ function checkResult (execution: Execution, results: Record<string, any> | undef
   return true
 }
 
-/** Creates a user request that requires uploading attachments before emitting its event. */
+/** Creates a user request with required attachments by default. */
 export async function RequestAttachments (
   params: MethodParams<EventButton>,
   execution: Execution,
@@ -81,7 +81,7 @@ export async function RequestAttachments (
   if (isEmpty(params.user)) {
     throw processError(process.error.RequiredParamsNotProvided, { params: 'user' })
   }
-  return await CreateAction({ ...params, requireAttachments: true }, execution, control)
+  return await CreateAction({ ...params, requireAttachments: params.requireAttachments !== false }, execution, control)
 }
 
 export async function CreateAction (

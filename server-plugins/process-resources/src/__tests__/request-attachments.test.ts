@@ -59,4 +59,11 @@ describe('RequestAttachments', () => {
   it.each(['title', 'eventType', 'user'])('rejects a missing %s', async (key) => {
     await expect(RequestAttachments({ ...params, [key]: undefined }, execution, control)).rejects.toBeDefined()
   })
+
+  it.each([true, false])('preserves the attachment requirement when set to %s', async (requireAttachments) => {
+    const result = await RequestAttachments({ ...params, requireAttachments }, execution, control)
+    if (!('txes' in result)) throw new Error('Expected request creation transactions')
+    const tx = result.txes[0] as TxCreateDoc<EventButton>
+    expect(tx.attributes.requireAttachments).toBe(requireAttachments)
+  })
 })

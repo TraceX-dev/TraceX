@@ -16,6 +16,7 @@
 
 <script lang="ts">
   import { type EventButton, type MethodParams, type Process, type Step } from '@hcengineering/process'
+  import { ToggleWithLabel } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
   import ParamsEditor from './ParamsEditor.svelte'
@@ -26,6 +27,13 @@
   const dispatch = createEventDispatcher()
   const keys = ['title', 'description', 'eventType', 'user']
 
+  $: requireAttachments = step.params.requireAttachments !== false
+
+  function changeRequired (event: CustomEvent<boolean>): void {
+    step.params = { ...step.params, requireAttachments: event.detail }
+    dispatch('change', step)
+  }
+
   function changeParams (event: CustomEvent<MethodParams<EventButton>>): void {
     step.params = event.detail
     dispatch('change', step)
@@ -33,3 +41,14 @@
 </script>
 
 <ParamsEditor _class={plugin.class.EventButton} {process} {keys} params={step.params} on:change={changeParams} />
+{#if step.methodId === plugin.method.RequestAttachments}
+  <div class="attachment-options">
+    <ToggleWithLabel label={plugin.string.Required} on={requireAttachments} on:change={changeRequired} />
+  </div>
+{/if}
+
+<style lang="scss">
+  .attachment-options {
+    margin: 0.5rem 2rem 0;
+  }
+</style>
