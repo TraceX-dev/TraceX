@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Discussion } from '@hcengineering/chunter'
+  import { type Discussion, withDiscussionVisibility } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import core, {
     type AccountUuid,
@@ -31,7 +31,7 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { ensureCollaborator, withDiscussionVisibility } from '../../utils'
+  import { ensureCollaborator } from '../../utils'
   import DiscussionVisibilityMenu from './DiscussionVisibilityMenu.svelte'
 
   export let object: Doc

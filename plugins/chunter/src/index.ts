@@ -241,6 +241,7 @@ export default plugin(chunterId, {
     DefaultDiscussion: '' as IntlString,
     DefaultDiscussions: '' as IntlString,
     DefaultDiscussionsDescription: '' as IntlString,
+    DefaultDiscussionUnavailable: '' as IntlString,
     AddDefaultDiscussion: '' as IntlString,
     ThreadMessage: '' as IntlString,
     ReplyToThread: '' as IntlString,

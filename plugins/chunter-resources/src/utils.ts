@@ -26,9 +26,12 @@ import {
   type Channel,
   type ChatMessage,
   type DefaultDiscussion,
+  defaultDiscussionVisibilityLevels,
   type DirectMessage,
   type Discussion,
+  ensureObjectCollaborator,
   getDiscussionTitle,
+  getOrCreateDefaultDiscussion as getOrCreateObjectDefaultDiscussion,
   type ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
@@ -43,7 +46,6 @@ import core, {
   getAccessRoot,
   type ObjectVisibility,
   visibilityToAudience,
-  type AttachedData,
   type Class,
   type Client,
   type Doc,
@@ -183,7 +185,16 @@ export function getDiscussionVisibility (discussion: Discussion): ObjectVisibili
 export function canChangeDiscussionVisibility (discussion: Discussion): boolean {
   const me = getCurrentAccount()
   if (!hasAccountRole(me, AccountRole.User) || !isAccessRoot(discussion)) return false
-  return hasAccountRole(me, AccountRole.Maintainer) || isDiscussionOwner(discussion)
+  if (hasAccountRole(me, AccountRole.Maintainer)) return true
+  // A default discussion belongs to the owner type, so whoever created it first must not hide it from others.
+  return isDiscussionOwner(discussion) && !isConfiguredDefaultDiscussion(discussion)
+}
+
+// The visibility levels a discussion may get; a private default discussion could not be opened by others.
+export function getDiscussionVisibilityLevels (discussion: Discussion): ObjectVisibility[] {
+  return isConfiguredDefaultDiscussion(discussion)
+    ? defaultDiscussionVisibilityLevels
+    : ['public', 'participants', 'private']
 }
 
 // Members of a private discussion may invite others and leave; managers may also remove others.
@@ -210,18 +221,14 @@ export async function ensureCollaborator (
   client: TxOperations,
   object: Pick<Doc, '_id' | '_class' | 'space'>
 ): Promise<void> {
-  const me = getCurrentAccount().uuid
-  const current = await client.findOne(core.class.Collaborator, { attachedTo: object._id, collaborator: me })
-  if (current !== undefined) return
-  await client.addCollection(core.class.Collaborator, object.space, object._id, object._class, 'collaborators', {
-    collaborator: me
-  })
+  await ensureObjectCollaborator(client, object, getCurrentAccount().uuid)
 }
 
 // The checks are done upfront: the steps are separate requests, a rejected one must not leave others behind.
 export async function setDiscussionVisibility (discussion: Discussion, visibility: ObjectVisibility): Promise<void> {
   const current = getDiscussionVisibility(discussion)
   if (current === visibility || !canChangeDiscussionVisibility(discussion)) return
+  if (!getDiscussionVisibilityLevels(discussion).includes(visibility)) return
   const client = getClient()
   const me = getCurrentAccount().uuid
   if (visibility === 'private' && !discussion.members.includes(me)) {
@@ -250,23 +257,6 @@ export async function setDiscussionResolved (discussion: Discussion, resolved: b
   await getClient().update(discussion, { resolved })
 }
 
-/**
- * Adds the access policy for a non-public discussion. The policy goes with the create tx,
- * so the discussion is never visible to the whole space.
- */
-export function withDiscussionVisibility (
-  data: AttachedData<Discussion>,
-  visibility: ObjectVisibility
-): AttachedData<Discussion> {
-  if (visibility === 'public') return data
-  // The computed mixin key is not checked as an excess property, so no assertion is needed.
-  const attributes: AttachedData<Discussion> = {
-    ...data,
-    [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) }
-  }
-  return attributes
-}
-
 // The discussion is created from a default discussion still configured for its owner class.
 export function isConfiguredDefaultDiscussion (discussion: Discussion): boolean {
   if (discussion.defaultDiscussion === undefined) return false
@@ -285,53 +275,12 @@ export function canRenameDiscussion (discussion: Discussion): boolean {
   return canManageDiscussion(discussion) && !isConfiguredDefaultDiscussion(discussion)
 }
 
-/**
- * Creates the default discussion on first access. The notMatch check is done by the server
- * without object access filtering, so a discussion hidden from the user is never duplicated.
- */
+// Creates the default discussion on first access, see getOrCreateDefaultDiscussion in @hcengineering/chunter.
 export async function getOrCreateDefaultDiscussion (
   object: Doc,
   config: DefaultDiscussion
 ): Promise<Ref<Discussion> | undefined> {
-  const client = getClient()
-  const query = { attachedTo: object._id, defaultDiscussion: config._id }
-  const existing = await client.findOne(chunter.class.Discussion, query)
-  if (existing !== undefined) return existing._id
-
-  // Private is not offered for default discussions: only the creator could open it.
-  const visibility: ObjectVisibility = config.visibility === 'private' ? 'participants' : config.visibility
-  const operations = client.apply(`chunter.createDefaultDiscussion.${object._id}`, 'chunter.createDefaultDiscussion')
-  operations.notMatch(chunter.class.Discussion, query)
-  // The creator must be a card collaborator to keep access.
-  if (visibility === 'participants') {
-    await ensureCollaborator(operations, object)
-  }
-  const data: AttachedData<Discussion> = {
-    name: config.name,
-    resolved: false,
-    // Members exist only for a private discussion.
-    members: [],
-    defaultDiscussion: config._id
-  }
-  const discussionId = await operations.addCollection(
-    chunter.class.Discussion,
-    object.space,
-    object._id,
-    object._class,
-    'discussions',
-    withDiscussionVisibility(data, visibility)
-  )
-  const { result } = await operations.commit()
-  if (result) return discussionId
-
-  // It already exists but may be hidden: card participants get access by becoming collaborators.
-  const current = await client.findOne(chunter.class.Discussion, query)
-  if (current !== undefined) return current._id
-  if (visibility === 'participants') {
-    await ensureCollaborator(client, object)
-    return (await client.findOne(chunter.class.Discussion, query))?._id
-  }
-  return undefined
+  return await getOrCreateObjectDefaultDiscussion(getClient(), object, config, getCurrentAccount().uuid)
 }
 
 export async function deleteDiscussion (discussion: Discussion): Promise<void> {

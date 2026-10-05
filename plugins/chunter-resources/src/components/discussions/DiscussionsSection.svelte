@@ -16,7 +16,7 @@
 <script lang="ts">
   import { type DefaultDiscussion, type Discussion } from '@hcengineering/chunter'
   import { type Doc, type Ref, SortingOrder } from '@hcengineering/core'
-  import { createQuery } from '@hcengineering/presentation'
+  import { createQuery, MessageBox } from '@hcengineering/presentation'
   import ui, { Button, ButtonIcon, IconAdd, Label, Section, showPopup } from '@hcengineering/ui'
   import { permissions } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
@@ -100,7 +100,16 @@
     creatingDefault = config._id
     try {
       const discussionId = await getOrCreateDefaultDiscussion(doc, config)
-      if (discussionId !== undefined) openDiscussion(discussionId)
+      if (discussionId !== undefined) {
+        openDiscussion(discussionId)
+      } else {
+        // It exists but its visibility was restricted, so the user cannot open it.
+        showPopup(MessageBox, {
+          label: chunter.string.DefaultDiscussion,
+          message: chunter.string.DefaultDiscussionUnavailable,
+          canSubmit: false
+        })
+      }
     } finally {
       creatingDefault = undefined
     }

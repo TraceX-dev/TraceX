@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type DefaultDiscussion } from '@hcengineering/chunter'
+  import { type DefaultDiscussion, defaultDiscussionVisibilityLevels } from '@hcengineering/chunter'
   import core, { type Class, type Doc, type ObjectVisibility } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { ButtonIcon, EditBox, Icon, IconAdd, IconDelete, Label } from '@hcengineering/ui'
@@ -27,9 +27,6 @@
 
   // Card collaborators by default.
   const DEFAULT_VISIBILITY: ObjectVisibility = 'participants'
-  // A private discussion is visible to its members only, and a lazily created one would have just its creator,
-  // so other card participants could never open it.
-  const LEVELS: ObjectVisibility[] = ['public', 'participants']
 
   const client = getClient()
   const query = createQuery()
@@ -118,7 +115,7 @@
             <DiscussionVisibilityMenu
               value={item.visibility}
               parentClass={masterTag._id}
-              levels={LEVELS}
+              levels={defaultDiscussionVisibilityLevels}
               kind="tertiary"
               size="small"
               on:change={(event) => void changeVisibility(item, event.detail)}

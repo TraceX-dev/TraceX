@@ -428,11 +428,22 @@ async function OnChatMessageRemoved (txes: TxCUD<ChatMessage>[], control: Trigge
   return res
 }
 
+// The default discussion configured for the owner class it was created for, if it is still configured.
+function getConfiguredDefaultDiscussion (
+  control: TriggerControl,
+  discussion: Discussion
+): DefaultDiscussion | undefined {
+  if (discussion.defaultDiscussion === undefined) return undefined
+  const config = control.modelDb.findAllSync(chunter.class.DefaultDiscussion, { _id: discussion.defaultDiscussion })[0]
+  return config?.ofClass === discussion.attachedToClass ? config : undefined
+}
+
 /**
  * The default discussion name is defined by the owner type only, so created discussions are renamed with it.
  * Trigger transactions are derived, so they produce no activity.
+ * @public
  */
-async function OnDefaultDiscussionUpdated (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+export async function OnDefaultDiscussionUpdated (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const res: Tx[] = []
   for (const tx of txes) {
     if (tx._class !== core.class.TxUpdateDoc) continue
@@ -455,10 +466,36 @@ async function OnDefaultDiscussionUpdated (txes: Tx[], control: TriggerControl):
 }
 
 /**
- * Keeps discussions consistent when the owner object changes its class (e.g. the card type is changed).
- * Default discussions are not inherited, so one of another type becomes a regular discussion.
+ * Restores the name of a default discussion renamed directly (e.g. through the API): the interface does not
+ * allow it, and a trigger cannot reject the transaction.
+ * @public
  */
-async function OnDiscussionOwnerClassChanged (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+export async function OnDefaultDiscussionRenamed (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxUpdateDoc) continue
+    const updateTx = tx as TxUpdateDoc<Discussion>
+    if (updateTx.operations.name === undefined) continue
+    const discussion = (
+      await control.findAll(control.ctx, chunter.class.Discussion, { _id: updateTx.objectId }, { limit: 1 })
+    )[0]
+    if (discussion === undefined) continue
+    const config = getConfiguredDefaultDiscussion(control, discussion)
+    if (config === undefined || discussion.name === config.name) continue
+    res.push(
+      control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, { name: config.name })
+    )
+  }
+  return res
+}
+
+/**
+ * Keeps discussions consistent when the owner object changes its class (e.g. the card type is changed).
+ * Default discussions are not inherited: one of the old type is linked to the entry of the new type with
+ * the same name, if any, and becomes a regular discussion otherwise.
+ * @public
+ */
+export async function OnDiscussionOwnerClassChanged (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const res: Tx[] = []
   for (const tx of txes) {
     if (tx._class !== core.class.TxUpdateDoc) continue
@@ -467,14 +504,27 @@ async function OnDiscussionOwnerClassChanged (txes: Tx[], control: TriggerContro
     if (newClass === undefined) continue
 
     const discussions = await control.findAll(control.ctx, chunter.class.Discussion, { attachedTo: updateTx.objectId })
+    if (discussions.length === 0) continue
+    const newConfigs = control.modelDb.findAllSync(chunter.class.DefaultDiscussion, { ofClass: newClass })
+    // Entries of the new type already used by a discussion of the object.
+    const linked = new Set(
+      discussions.map((it) => it.defaultDiscussion).filter((it) => newConfigs.some((config) => config._id === it))
+    )
+
     for (const discussion of discussions) {
       const operations: DocumentUpdate<Discussion> = {}
       if (discussion.attachedToClass !== newClass) operations.attachedToClass = newClass
-      if (discussion.defaultDiscussion !== undefined) {
-        const config = control.modelDb.findAllSync(chunter.class.DefaultDiscussion, {
-          _id: discussion.defaultDiscussion
-        })[0]
-        if (config?.ofClass !== newClass) operations.$unset = { defaultDiscussion: true }
+      const current = discussion.defaultDiscussion
+      if (current !== undefined && !newConfigs.some((config) => config._id === current)) {
+        const name = discussion.name?.trim()
+        const match = newConfigs.find((config) => !linked.has(config._id) && config.name.trim() === name)
+        if (match !== undefined) {
+          linked.add(match._id)
+          operations.defaultDiscussion = match._id
+          if (discussion.name !== match.name) operations.name = match.name
+        } else {
+          operations.$unset = { defaultDiscussion: true }
+        }
       }
       if (Object.keys(operations).length === 0) continue
       res.push(control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, operations))
@@ -625,6 +675,7 @@ export default async () => ({
     ChatNotificationsHandler,
     OnUserStatus,
     OnDefaultDiscussionUpdated,
+    OnDefaultDiscussionRenamed,
     OnDiscussionOwnerClassChanged
   },
   function: {

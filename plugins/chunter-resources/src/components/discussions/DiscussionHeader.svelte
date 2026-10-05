@@ -43,6 +43,7 @@
     canRenameDiscussion,
     deleteDiscussion,
     getDiscussionVisibility,
+    getDiscussionVisibilityLevels,
     normalizeDiscussionMembers,
     setDiscussionResolved,
     setDiscussionVisibility
@@ -64,6 +65,7 @@
   $: canChangeVisibility = canChangeDiscussionVisibility(discussion)
   $: canEditMembers = canEditDiscussionMembers(discussion)
   $: visibility = getDiscussionVisibility(discussion)
+  $: visibilityLevels = getDiscussionVisibilityLevels(discussion)
 
   $: displayTitle = getDiscussionTitle(discussion)
 
@@ -163,6 +165,7 @@
   <DiscussionVisibilityMenu
     value={visibility}
     parentClass={discussion.attachedToClass}
+    levels={visibilityLevels}
     disabled={!canChangeVisibility}
     kind="tertiary"
     size="small"
