@@ -15,24 +15,19 @@
 
 import core, {
   ACCESS_ROOT_FIELD,
-  ACCESS_ROOT_PROJECTION,
   type AccessAudience,
   type AccountUuid,
-  type Class,
   type Collaborator,
   type Doc,
-  type DocumentQuery,
-  DOMAIN_TX,
   generateId,
-  getAccessRoot,
   getClassAccessPolicy,
   isAccessAudience,
-  makeAccessRootUpdate,
   type MeasureContext,
   type Ref,
   type SessionData,
   type Space,
   systemAccountUuid,
+  touchesAttribute,
   type Tx,
   type TxCreateDoc,
   type TxCUD,
@@ -42,44 +37,29 @@ import core, {
   type TxWorkspaceEvent,
   WorkspaceEvent
 } from '@hcengineering/core'
-import { BaseMiddleware, type Middleware, type PipelineContext, type TxMiddlewareResult } from '@hcengineering/server-core'
 import {
-  type AccessReaders,
-  type AccessRootInfo,
-  applyArrayUpdate,
-  getObjectAccessState,
-  ObjectAccessState,
-  type PendingRoots
-} from './state'
+  BaseMiddleware,
+  type Middleware,
+  type PipelineContext,
+  type TxMiddlewareResult
+} from '@hcengineering/server-core'
+import { getObjectAccessState, ObjectAccessState, type PendingRoots } from './state'
 
-const BACKFILL_CHUNK = 500
-const BACKFILL_MAX_DEPTH = 16
+const PENDING_KEY = 'objectAccess.pending'
 
 interface SecurityEvent {
   space: Ref<Space>
-  accounts: AccessReaders // undefined: everybody
+  accounts?: AccountUuid[] // undefined: everybody in the space
 }
 
 /**
- * State changes are applied after the transactions are stored, so a rejected request never leaves
- * an over-granted state behind.
+ * Cache changes are applied after the transactions are stored, so a rejected request leaves nothing behind.
  */
-type Effect = (ctx: MeasureContext, events: SecurityEvent[]) => Promise<void> | void
+type Effect = (events: SecurityEvent[]) => void
 
 interface Batch {
   pending: PendingRoots
   effects: Effect[]
-  events: SecurityEvent[]
-}
-
-function union (a: AccessReaders, b: AccessReaders): AccessReaders {
-  return a === undefined || b === undefined ? undefined : new Set([...a, ...b])
-}
-
-function chunks<T> (items: T[], size: number): T[][] {
-  const result: T[][] = []
-  for (let i = 0; i < items.length; i += size) result.push(items.slice(i, i + size))
-  return result
 }
 
 function readOwners (attributes: Record<string, any>): AccountUuid[] | undefined {
@@ -87,7 +67,10 @@ function readOwners (attributes: Record<string, any>): AccountUuid[] | undefined
 }
 
 /**
- * Marks documents and transactions of security roots with `accessRoot` and keeps the shared state in sync.
+ * Marks documents and transactions of protected classes with `accessRoot` and keeps the caches in sync.
+ * Every document of a class with a policy is a root from its creation (public ones too), so changing the
+ * level never has to re-mark existing content. Transactions of other classes pass untouched; the only
+ * exception is collaborators of cached parents (an in-memory check).
  * Placed after ApplyTxMiddleware (sees unpacked user and trigger txes) and before TxMiddleware
  * (stored txes carry the mark).
  * @public
@@ -98,238 +81,188 @@ export class ObjectAccessMarkerMiddleware extends BaseMiddleware implements Midd
   private constructor (context: PipelineContext, next?: Middleware) {
     super(context, next)
     this.state = getObjectAccessState(context)
-    this.state.setFinder(async (ctx, _class, query, options) => (await this.next?.findAll(ctx, _class, query, options)) ?? [])
+    this.state.setFinder(
+      async (ctx, _class, query, options) => (await this.next?.findAll(ctx, _class, query, options)) ?? []
+    )
   }
 
-  static async create (ctx: MeasureContext, context: PipelineContext, next?: Middleware): Promise<ObjectAccessMarkerMiddleware> {
+  static async create (
+    ctx: MeasureContext,
+    context: PipelineContext,
+    next?: Middleware
+  ): Promise<ObjectAccessMarkerMiddleware> {
     return new ObjectAccessMarkerMiddleware(context, next)
   }
 
   async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
-    await this.state.init(ctx)
-    const batch: Batch = { pending: new Map(), effects: [], events: [] }
+    // Shared with derived transactions of the same request (triggers), so they resolve new documents
+    // without a lookup. It lives only as long as the request, which fails as a whole on a storage error.
+    const cache = ctx.contextData?.contextCache
+    let pending: PendingRoots | undefined = cache?.get(PENDING_KEY)
+    if (pending === undefined) {
+      pending = new Map()
+      cache?.set(PENDING_KEY, pending)
+    }
+    const batch: Batch = { pending, effects: [] }
+    const cuds: Array<TxCUD<Doc>> = []
+    let modelChanged = false
     for (const tx of txes) {
       if (!TxProcessor.isExtendsCUD(tx._class)) continue
       const cud = tx as TxCUD<Doc>
-      if (cud.objectSpace === core.space.Model) {
-        this.state.onModelChanged()
-      } else if (this.context.hierarchy.hasClass(cud.objectClass)) {
-        await this.processCud(ctx, cud, batch)
+      // The domain decides, not the claimed space: storage writes by the class domain.
+      if (cud.objectSpace === core.space.Model) modelChanged = true
+      if (this.state.isProtectedDomainClass(cud.objectClass)) cuds.push(cud)
+      if (cud.objectClass === core.class.Collaborator) this.processCollaborator(ctx, cud as TxCUD<Collaborator>, batch)
+    }
+    if (modelChanged) this.state.onModelChanged()
+    if (cuds.length > 0) {
+      await this.state.prefetch(
+        cuds
+          .filter((it) => it._class !== core.class.TxCreateDoc)
+          .map((it) => ({ _id: it.objectId, _class: it.objectClass }))
+      )
+      for (const cud of cuds) {
+        await this.process(cud, batch)
       }
     }
     const result = await this.provideTx(ctx, txes)
-    for (const effect of batch.effects) {
-      await effect(ctx, batch.events)
+    // The hierarchy is updated by now.
+    if (modelChanged) this.state.onModelChanged()
+    if (batch.effects.length > 0) {
+      const events: SecurityEvent[] = []
+      for (const effect of batch.effects) effect(events)
+      this.emitEvents(ctx, events)
     }
-    this.emitEvents(ctx, batch.events)
     return result
   }
 
-  private async processCud (ctx: MeasureContext<SessionData>, tx: TxCUD<Doc>, batch: Batch): Promise<void> {
+  // A transaction of a protected domain. Its class is not trusted: existing documents are resolved by id.
+  private async process (tx: TxCUD<Doc>, batch: Batch): Promise<void> {
     if (tx._class === core.class.TxCreateDoc) {
-      await this.processCreate(ctx, tx as TxCreateDoc<Doc>, batch)
+      const create = tx as TxCreateDoc<Doc>
+      ObjectAccessState.mark(create.attributes, undefined) // never trust a client mark
+      if (!this.state.isProtectedClass(tx.objectClass)) return
+      const root = this.state.isRootClass(tx.objectClass)
+        ? this.createRoot(create, batch)
+        : await this.state.resolveNewDocRoot(TxProcessor.createDoc2Doc(create, false), batch.pending)
+      ObjectAccessState.mark(create.attributes, root)
+      ObjectAccessState.mark(tx, root)
+      const key = this.state.keyOf(tx.objectClass, tx.objectId)
+      if (key !== undefined) batch.pending.set(key, root ?? null)
+      batch.effects.push(() => {
+        this.state.noteDoc(tx.objectClass, tx.objectId, root)
+      })
       return
     }
     if (tx._class === core.class.TxUpdateDoc) {
-      this.processUpdate(tx as TxUpdateDoc<Doc>, batch)
-    } else if (tx._class === core.class.TxMixin) {
-      await this.processMixin(ctx, tx as TxMixin<Doc, Doc>, batch)
-    } else if (tx._class === core.class.TxRemoveDoc) {
-      this.processRemove(tx, batch)
+      stripMark((tx as TxUpdateDoc<Doc>).operations as Record<string, any>)
     }
-    ObjectAccessState.mark(tx, await this.state.resolveDocRoot(ctx, tx.objectId, tx.objectClass, batch.pending))
-  }
-
-  private async processCreate (ctx: MeasureContext, tx: TxCreateDoc<Doc>, batch: Batch): Promise<void> {
-    ObjectAccessState.mark(tx.attributes, undefined) // never trust a client mark
-    const doc = TxProcessor.createDoc2Doc(tx, false)
-    const mixin = (tx.attributes as Record<string, any>)[core.mixin.AccessControlled]
-    if (getClassAccessPolicy(this.context.hierarchy, tx.objectClass) !== undefined && isAccessAudience(mixin?.read)) {
-      const info = this.state.buildRootInfo(doc, mixin.read, readOwners(mixin))
-      if (info === undefined) throw new Error(`Cannot restrict ${tx.objectId}: invalid access policy`)
-      ObjectAccessState.mark(tx.attributes, tx.objectId)
-      ObjectAccessState.mark(tx, tx.objectId)
-      batch.pending.set(tx.objectId, tx.objectId)
-      this.state.notePendingRoot(tx.objectId)
-      batch.effects.push(async (ctx) => {
-        await this.state.setRoot(ctx, info)
-      })
-      return
-    }
-
-    const root = await this.state.resolveNewDocRoot(ctx, doc, batch.pending)
-    ObjectAccessState.mark(tx.attributes, root)
+    const root = await this.state.resolveDocRoot(tx.objectId, tx.objectClass, batch.pending)
     ObjectAccessState.mark(tx, root)
-    batch.pending.set(tx.objectId, root ?? null)
-    this.state.setDocRoot(tx.objectId, root)
-
-    if (this.context.hierarchy.isDerived(tx.objectClass, core.class.Collaborator)) {
-      const collaborator = doc as Collaborator
-      batch.effects.push((_ctx, events) => {
-        if (this.state.addCollaborator(collaborator)) {
-          this.pushParentEvents(collaborator.attachedTo, collaborator.collaborator, events)
-        }
+    if (root !== undefined && root === tx.objectId) {
+      this.processRootChange(tx, batch)
+    } else if (tx._class === core.class.TxRemoveDoc) {
+      batch.effects.push(() => {
+        this.state.forgetDoc(tx.objectClass, tx.objectId)
       })
     }
-  }
-
-  private processUpdate (tx: TxUpdateDoc<Doc>, batch: Batch): void {
-    const ops = tx.operations as Record<string, any>
-    // The mark is server-managed.
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete ops[ACCESS_ROOT_FIELD]
-    for (const key of Object.keys(ops)) {
-      if (key.startsWith('$') && typeof ops[key] === 'object') delete ops[key]?.[ACCESS_ROOT_FIELD]
-    }
-    if (!this.state.isRoot(tx.objectId)) return
-    batch.effects.push(async (ctx, events) => {
-      const info = this.state.getRoot(tx.objectId)
-      if (info !== undefined) await this.updateRootFromOps(ctx, info, ops, events)
-    })
-  }
-
-  private async updateRootFromOps (
-    ctx: MeasureContext,
-    info: AccessRootInfo,
-    ops: Record<string, any>,
-    events: SecurityEvent[]
-  ): Promise<void> {
-    const policy = getClassAccessPolicy(this.context.hierarchy, info._class)
-    if (policy === undefined) return
-    const next: AccessRootInfo = { ...info }
-    if (TxProcessor.hasUpdate(ops, policy.membersField)) {
-      next.members = new Set(applyArrayUpdate(info.members, ops, policy.membersField))
-    }
-    const parentId: unknown = ops[policy.parent?.field ?? 'attachedTo']
-    const parentClass: unknown = ops[policy.parent?.classField ?? 'attachedToClass']
-    if (typeof parentId === 'string') {
-      const _class = typeof parentClass === 'string' ? (parentClass as Ref<Class<Doc>>) : info.parent?._class
-      next.parent = _class !== undefined ? { _id: parentId as Ref<Doc>, _class } : undefined
-    }
-    if (typeof ops.space === 'string') next.space = ops.space as Ref<Space>
-    const before = this.state.getReaders(info)
-    await this.state.setRoot(ctx, next)
-    events.push({ space: next.space, accounts: union(before, this.state.getReaders(next)) })
-  }
-
-  private async processMixin (ctx: MeasureContext<SessionData>, tx: TxMixin<Doc, Doc>, batch: Batch): Promise<void> {
-    const h = this.context.hierarchy
-    const attributes = tx.attributes as Record<string, any>
-    const isPolicy =
-      h.hasClass(tx.mixin) &&
-      h.isDerived(tx.mixin, core.mixin.AccessControlled) &&
-      getClassAccessPolicy(h, tx.objectClass) !== undefined
-    if (isPolicy && isAccessAudience(attributes.read)) {
-      await this.changeAudience(ctx, tx, attributes.read, readOwners(attributes), batch)
-    }
-  }
-
-  private async changeAudience (
-    ctx: MeasureContext,
-    tx: TxMixin<Doc, Doc>,
-    audience: AccessAudience,
-    owners: AccountUuid[] | undefined,
-    batch: Batch
-  ): Promise<void> {
-    if (this.state.isRoot(tx.objectId)) {
-      batch.effects.push(async (ctx, events) => {
-        const info = this.state.getRoot(tx.objectId)
-        if (info === undefined) return
-        const next: AccessRootInfo = { ...info, audience, owners: owners !== undefined ? new Set(owners) : info.owners }
-        const before = this.state.getReaders(info)
-        await this.state.setRoot(ctx, next)
-        events.push({ space: next.space, accounts: union(before, this.state.getReaders(next)) })
-      })
-      return
-    }
-    if (audience.kind === 'space') return // an unmarked object is already public
-
-    // A public object becomes restricted: mark it and its subtree. Every failure is an error,
-    // a silent skip would store a policy that is not enforced.
-    const doc = await this.state.loadDoc(ctx, tx.objectClass, tx.objectId)
-    if (doc === undefined) throw new Error(`Cannot restrict ${tx.objectId}: the object is not found`)
-    const existingRoot = getAccessRoot(doc)
-    if (existingRoot !== undefined && existingRoot !== doc._id) {
-      throw new Error(`Cannot restrict ${tx.objectId}: it already belongs to a restricted object`)
-    }
-    const info = this.state.buildRootInfo(doc, audience, owners)
-    if (info === undefined) throw new Error(`Cannot restrict ${tx.objectId}: invalid access policy`)
-
-    // Registered before the backfill, so documents created meanwhile are marked as well.
-    await this.state.setRoot(ctx, info)
-    try {
-      await ctx.with('object-access-backfill', { _class: tx.objectClass }, (ctx) => this.backfill(ctx, info._id))
-    } catch (err: any) {
-      // Partially marked documents stay hidden (unknown root); the policy is not stored, so it can be retried.
-      this.state.removeRoot(info._id)
-      throw err
-    }
-    batch.events.push({ space: info.space, accounts: undefined }) // the content was public
   }
 
   /**
-   * Marks an existing object, its descendants (by declared parent fields) and their stored txes.
+   * Every document of a class with a policy is a root, public ones too (the mixin is added when missing).
+   * The cache learns about it after it is stored; documents of the same request resolve to it via pending.
    */
-  private async backfill (ctx: MeasureContext, rootId: Ref<Doc>): Promise<void> {
-    const lowLevel = this.context.lowLevelStorage
-    if (lowLevel === undefined) throw new Error('Low level storage is required to restrict an existing object')
-    const root = this.state.getRoot(rootId)
-    if (root === undefined) return
-    await lowLevel.rawUpdate(this.context.hierarchy.getDomain(root._class), { _id: rootId }, makeAccessRootUpdate(rootId))
-
-    const marked = new Set<Ref<Doc>>([rootId])
-    let frontier: Ref<Doc>[] = [rootId]
-    for (let depth = 0; depth < BACKFILL_MAX_DEPTH && frontier.length > 0; depth++) {
-      const found: Ref<Doc>[] = []
-      for (const domain of this.state.getProtectedDomains()) {
-        if (domain === DOMAIN_TX) continue
-        for (const field of this.state.getParentFields(domain)) {
-          for (const chunk of chunks(frontier, BACKFILL_CHUNK)) {
-            const query = { [field]: { $in: chunk } } as unknown as DocumentQuery<Doc>
-            const docs = await lowLevel.rawFindAll(domain, query, { projection: ACCESS_ROOT_PROJECTION })
-            const ids = docs.filter((it) => !marked.has(it._id) && getAccessRoot(it) === undefined).map((it) => it._id)
-            if (ids.length === 0) continue
-            for (const id of ids) {
-              marked.add(id)
-              found.push(id)
-              this.state.setDocRoot(id, rootId)
-            }
-            await lowLevel.rawUpdate(domain, { _id: { $in: ids } }, makeAccessRootUpdate(rootId))
-          }
-        }
-      }
-      frontier = found
+  private createRoot (tx: TxCreateDoc<Doc>, batch: Batch): Ref<Doc> {
+    const attributes = tx.attributes as Record<string, any>
+    const mixin = attributes[core.mixin.AccessControlled]
+    if (!isAccessAudience(mixin?.read)) {
+      attributes[core.mixin.AccessControlled] = { ...(mixin ?? {}), read: { kind: 'space' } }
     }
-    for (const chunk of chunks(Array.from(marked), BACKFILL_CHUNK * 10)) {
-      await lowLevel.rawUpdate(DOMAIN_TX, { objectId: { $in: chunk } }, makeAccessRootUpdate(rootId))
+    const policy = attributes[core.mixin.AccessControlled]
+    const audience: AccessAudience = policy.read
+    const info = this.state.buildRootInfo(TxProcessor.createDoc2Doc(tx, false), audience, readOwners(policy) ?? [])
+    if (info !== undefined) {
+      batch.effects.push(() => {
+        this.state.setRoot(info)
+      })
     }
-    ctx.info('object access: restricted an existing object', { _id: rootId, documents: marked.size })
+    return tx.objectId
   }
 
-  private processRemove (tx: TxCUD<Doc>, batch: Batch): void {
-    const isCollaborator = this.context.hierarchy.isDerived(tx.objectClass, core.class.Collaborator)
-    batch.effects.push((_ctx, events) => {
-      this.state.removeRoot(tx.objectId)
-      const removed = isCollaborator ? this.state.removeCollaborator(tx.objectId as Ref<Collaborator>) : undefined
-      if (removed !== undefined) this.pushParentEvents(removed.parent, removed.account, events)
-      this.state.forgetDoc(tx.objectId)
+  // The level, members or parent of a root may change: its info is dropped now (requests running meanwhile
+  // reload it) and after the change is stored.
+  private processRootChange (tx: TxCUD<Doc>, batch: Batch): void {
+    let changesAccess = tx._class === core.class.TxRemoveDoc
+    if (tx._class === core.class.TxMixin) {
+      changesAccess = (tx as TxMixin<Doc, Doc>).mixin === core.mixin.AccessControlled
+    } else if (tx._class === core.class.TxUpdateDoc) {
+      const ops = (tx as TxUpdateDoc<Doc>).operations as Record<string, any>
+      const policy = getClassAccessPolicy(this.context.hierarchy, tx.objectClass)
+      changesAccess =
+        policy === undefined ||
+        touchesAttribute(ops, policy.membersField) ||
+        touchesAttribute(ops, policy.parent?.field ?? 'attachedTo') ||
+        touchesAttribute(ops, 'space')
+    }
+    if (!changesAccess) return
+    this.state.forgetRoot(tx.objectId)
+    batch.effects.push((events) => {
+      this.state.forgetRoot(tx.objectId)
+      if (tx._class !== core.class.TxRemoveDoc) events.push({ space: tx.objectSpace })
     })
   }
 
-  private pushParentEvents (parent: Ref<Doc>, account: AccountUuid, events: SecurityEvent[]): void {
-    for (const info of this.state.getDependentRoots(parent)) {
-      events.push({ space: info.space, accounts: new Set([account]) })
+  // Participants of cached parents follow their collaborators.
+  private processCollaborator (ctx: MeasureContext<SessionData>, tx: TxCUD<Collaborator>, batch: Batch): void {
+    // A participants load running meanwhile must not cache a stale list.
+    this.state.onCollaboratorChange()
+    batch.effects.push(() => {
+      this.state.onCollaboratorChange()
+    })
+    if (tx._class === core.class.TxCreateDoc) {
+      const collaborator = TxProcessor.createDoc2Doc(tx as TxCreateDoc<Collaborator>, false)
+      batch.effects.push((events) => {
+        if (this.state.forgetParticipants(collaborator.attachedTo)) {
+          events.push({ space: tx.objectSpace, accounts: [collaborator.collaborator] })
+        }
+      })
+    } else if (tx._class === core.class.TxRemoveDoc) {
+      // Access is lost at once, not after the removal is stored.
+      const known = this.state.onCollaboratorRemoved(tx.objectId)
+      batch.effects.push((events) => {
+        const removed = ctx.contextData?.removedMap?.get(tx.objectId) as Collaborator | undefined
+        const parent = removed?.attachedTo ?? known
+        if (parent === undefined) return
+        if (this.state.forgetParticipants(parent) || known !== undefined) {
+          events.push({ space: tx.objectSpace, accounts: removed !== undefined ? [removed.collaborator] : undefined })
+        }
+      })
+    } else if (tx._class === core.class.TxUpdateDoc) {
+      const ops = (tx as TxUpdateDoc<Collaborator>).operations as Record<string, any>
+      if (!touchesAttribute(ops, 'attachedTo') && !touchesAttribute(ops, 'collaborator')) return
+      const known = this.state.onCollaboratorRemoved(tx.objectId)
+      batch.effects.push((events) => {
+        const target = typeof ops.attachedTo === 'string' ? (ops.attachedTo as Ref<Doc>) : undefined
+        const changed = [known, target].filter((it): it is Ref<Doc> => it !== undefined)
+        if (changed.some((it) => this.state.forgetParticipants(it)) || known !== undefined) {
+          events.push({ space: tx.objectSpace })
+        }
+      })
     }
   }
 
   /**
-   * One SecurityChange per space: clients refresh all queries of the space.
+   * One SecurityChange per space: clients refresh their queries of the space.
    */
   private emitEvents (ctx: MeasureContext<SessionData>, events: SecurityEvent[]): void {
     if (events.length === 0 || ctx.contextData?.broadcast === undefined) return
-    const bySpace = new Map<Ref<Space>, AccessReaders>()
+    const bySpace = new Map<Ref<Space>, Set<AccountUuid> | undefined>()
     for (const event of events) {
-      bySpace.set(event.space, bySpace.has(event.space) ? union(bySpace.get(event.space), event.accounts) : event.accounts)
+      const known = bySpace.has(event.space) ? bySpace.get(event.space) : new Set<AccountUuid>()
+      bySpace.set(
+        event.space,
+        known === undefined || event.accounts === undefined ? undefined : new Set([...known, ...event.accounts])
+      )
     }
     for (const [space, accounts] of bySpace.entries()) {
       const tx: TxWorkspaceEvent = {
@@ -345,8 +278,18 @@ export class ObjectAccessMarkerMiddleware extends BaseMiddleware implements Midd
       ctx.contextData.broadcast.txes.push(tx)
       if (accounts !== undefined) {
         const target = [...accounts, systemAccountUuid]
-        ctx.contextData.broadcast.targets['objectAccess' + tx._id] = async (it) => (it._id === tx._id ? { target } : undefined)
+        ctx.contextData.broadcast.targets['objectAccess' + tx._id] = async (it) =>
+          it._id === tx._id ? { target } : undefined
       }
     }
+  }
+}
+
+// The mark is server-managed.
+function stripMark (ops: Record<string, any>): void {
+  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  delete ops[ACCESS_ROOT_FIELD]
+  for (const key of Object.keys(ops)) {
+    if (key.startsWith('$') && typeof ops[key] === 'object') delete ops[key]?.[ACCESS_ROOT_FIELD]
   }
 }

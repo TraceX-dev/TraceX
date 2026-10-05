@@ -15,31 +15,33 @@
 
 import core, {
   ACCESS_ROOT_FIELD,
+  ACCESS_ROOT_PROJECTION,
   type AccessAudience,
+  type AccessMarked,
   type Account,
   AccountRole,
   type AccountUuid,
   type BroadcastResult,
   type BroadcastTargets,
   type Class,
+  DEFAULT_ACCESS_PARENT,
   type Doc,
   type DocumentQuery,
-  DOMAIN_MODEL,
   type FindResult,
   getAccessMembers,
-  getAccessParents,
   getAccessRoot,
   getClassAccessPolicy,
   hasAccountRole,
   isAccessAudience,
-  type LookupData,
   type MeasureContext,
+  type Projection,
   type Ref,
   type SearchOptions,
   type SearchQuery,
   type SearchResult,
   type SessionData,
   systemAccountUuid,
+  toFindResult,
   touchesAttribute,
   type Tx,
   type TxApplyIf,
@@ -47,7 +49,8 @@ import core, {
   type TxCUD,
   type TxMixin,
   TxProcessor,
-  type TxUpdateDoc
+  type TxUpdateDoc,
+  type WithLookup
 } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import {
@@ -57,17 +60,34 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
-import { type AccessRootInfo, applyArrayUpdate, getObjectAccessState, type ObjectAccessState, type PendingRoots } from './state'
+import {
+  type AccessRootInfo,
+  applyArrayUpdate,
+  getObjectAccessState,
+  type ObjectAccessState,
+  type PendingRoots
+} from './state'
 
 const BROADCAST_TARGET = 'objectAccess'
+
+function unwrapApply (txes: Tx[]): Tx[] {
+  return txes.flatMap((tx) => (tx._class === core.class.TxApplyIf ? unwrapApply((tx as TxApplyIf).txes) : [tx]))
+}
+
+// Readability of roots within one request.
+type AccessCache = Map<Ref<Doc>, boolean>
 
 function forbidden (): PlatformError<any> {
   return new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
 }
 
 /**
- * Enforces object access policies for user requests: filters reads (queries, lookups, full-text) by the
- * readable roots, checks writes and policy changes, narrows broadcast to readers.
+ * Enforces object access policies for user requests. Requests touching only unprotected classes pass
+ * untouched: no queries, no query conditions.
+ * - Reads: results of protected classes (and `$lookup`, full-text) are filtered by the root mark. Filtering
+ *   happens after the query, so a page of a mixed list may come shorter than its limit.
+ * - Writes into a root the account cannot read are rejected; the policy is changed only by a `TxMixin`.
+ * - Broadcast of marked transactions is narrowed to the readers.
  * Managers (change the level, remove private members): owners, maintainers who can read the object,
  * workspace owners (also without read access, for recovery). Members matter only for Private.
  * @public
@@ -88,10 +108,21 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     return new ObjectSecurityMiddleware(context, next)
   }
 
-  private isUnrestricted (account: Account | undefined): boolean {
+  private isUnrestricted (account: Account | undefined): account is undefined {
     return account === undefined || account.uuid === systemAccountUuid
   }
 
+  private async canRead (ctx: MeasureContext, account: Account, root: Ref<Doc>, cache: AccessCache): Promise<boolean> {
+    let result = cache.get(root)
+    if (result === undefined) {
+      result = await this.state.canRead(ctx, account.uuid, root)
+      cache.set(root, result)
+    }
+    return result
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Reads
 
   override async findAll<T extends Doc>(
     ctx: MeasureContext<SessionData>,
@@ -99,52 +130,133 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     query: DocumentQuery<T>,
     options?: ServerFindOptions<T>
   ): Promise<FindResult<T>> {
-    await this.state.init(ctx)
     const account = ctx.contextData?.account
-    if (!this.state.isActive() || this.isUnrestricted(account)) {
+    if (this.isUnrestricted(account)) return await this.provideFindAll(ctx, _class, query, options)
+    const checkDocs = this.state.mayReturnProtected(_class)
+    if (!checkDocs && options?.lookup === undefined && options?.associations === undefined) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
-    const readable = this.state.getReadableRoots(account.uuid)
-    const domain = this.context.hierarchy.findDomain(_class)
-    let newQuery = query
-    if (domain !== undefined && domain !== DOMAIN_MODEL && this.state.isProtectedDomain(domain)) {
-      // Unmarked documents are not restricted. A string goes first: postgres infers the array type from it.
-      const condition = readable.length > 0 ? { $in: [...readable, null] } : { $exists: false }
-      newQuery = { ...query, [ACCESS_ROOT_FIELD]: condition }
-    }
-    const result = await this.provideFindAll(ctx, _class, newQuery, options)
-    if (options?.lookup !== undefined) {
-      const readableSet = new Set(readable)
-      for (const doc of result) {
-        if (doc.$lookup !== undefined) this.filterLookup(doc.$lookup, readableSet)
+
+    const findOptions = checkDocs ? withMarkProjection(options) : options
+    const result = await this.provideFindAll(ctx, _class, query, findOptions)
+
+    const cache: AccessCache = new Map()
+    const docs: Array<WithLookup<T>> = []
+    let changed = false
+    let hidden = 0
+    for (const doc of result) {
+      const root = checkDocs ? this.trustedRoot(doc) : undefined
+      if (checkDocs && this.state.isProtectedClass(doc._class)) this.state.noteDoc(doc._class, doc._id, root)
+      if (root !== undefined && !(await this.canRead(ctx, account, root, cache))) {
+        changed = true
+        hidden++
+        continue
       }
+      const filtered = await this.filterLookup(ctx, account, doc, cache)
+      changed ||= filtered !== doc
+      docs.push(filtered)
     }
-    return result
+    let total = result.total
+    if (checkDocs && total > 0) {
+      // The total must not count hidden documents, it would reveal matches inside them.
+      total =
+        total > result.length
+          ? Math.max(result.length - hidden, total - (await this.countHidden(ctx, account, _class, query, cache)))
+          : Math.max(0, total - hidden)
+    }
+    if (!changed && total === result.total) return result
+    return toFindResult<T>(docs, total, result.lookupMap)
   }
 
-  private isReadableDoc (doc: unknown, readable: Set<Ref<Doc>>): boolean {
-    if (typeof doc !== 'object' || doc === null) return true
-    const root = getAccessRoot(doc)
-    return root === undefined || readable.has(root)
+  // Only marked documents can be hidden: they are counted per root, one row per root.
+  private async countHidden<T extends Doc>(
+    ctx: MeasureContext<SessionData>,
+    account: Account,
+    _class: Ref<Class<T>>,
+    query: DocumentQuery<T>,
+    cache: AccessCache
+  ): Promise<number> {
+    const h = this.context.hierarchy
+    const marked: Record<string, any> = { ...query, [ACCESS_ROOT_FIELD]: { $exists: true } }
+    let count = 0
+    if (!h.isMixin(_class)) {
+      const byClass: DocumentQuery<Doc> = { ...marked, _class: { $in: h.getDescendants(_class) } }
+      const byRoot = await this.provideGroupBy<Ref<Doc>, Doc>(ctx, h.getDomain(_class), ACCESS_ROOT_FIELD, byClass)
+      for (const [root, value] of byRoot) {
+        if (!(await this.canRead(ctx, account, root, cache))) count += value
+      }
+      return count
+    }
+    const projection: Projection<Doc> = ACCESS_ROOT_PROJECTION
+    for (const doc of await this.provideFindAll(ctx, _class, marked, { projection })) {
+      const root = getAccessRoot(doc)
+      if (root !== undefined && !(await this.canRead(ctx, account, root, cache))) count++
+    }
+    return count
   }
 
-  private filterLookup<T extends Doc>(lookup: LookupData<T>, readable: Set<Ref<Doc>>): void {
-    const record = lookup as Record<string, any>
-    for (const key of Object.keys(record)) {
-      const value = record[key]
+  // Marks are set by the server on protected documents and their transactions only.
+  private trustedRoot (doc: Doc): Ref<Doc> | undefined {
+    if (!this.state.isProtectedClass(doc._class) && !TxProcessor.isExtendsCUD(doc._class)) return undefined
+    return getAccessRoot(doc)
+  }
+
+  // Results may be shared with concurrent queries (query joining), so documents are copied, not changed.
+  private async filterLookup<T extends Doc>(
+    ctx: MeasureContext,
+    account: Account,
+    doc: WithLookup<T>,
+    cache: AccessCache
+  ): Promise<WithLookup<T>> {
+    if (doc.$lookup === undefined && doc.$associations === undefined) return doc
+    const isVisible = async (value: Doc): Promise<boolean> => {
+      const root = this.trustedRoot(value)
+      return root === undefined || (await this.canRead(ctx, account, root, cache))
+    }
+    let changed = false
+    const associations: Record<string, Doc[]> = {}
+    for (const [key, value] of Object.entries(doc.$associations ?? {})) {
+      const visible: Doc[] = []
+      for (const it of value) {
+        if (await isVisible(it)) visible.push(it)
+      }
+      changed ||= visible.length !== value.length
+      associations[key] = visible
+    }
+    const lookup: Record<string, any> = {}
+    for (const [key, value] of Object.entries((doc.$lookup ?? {}) as Record<string, any>)) {
       if (Array.isArray(value)) {
-        const filtered = value.filter((it) => this.isReadableDoc(it, readable))
-        for (const it of filtered) {
-          if (it?.$lookup !== undefined) this.filterLookup(it.$lookup, readable)
+        const visible: Doc[] = []
+        for (const it of value) {
+          if (typeof it !== 'object' || it === null) {
+            visible.push(it)
+          } else if (await isVisible(it)) {
+            const filtered = await this.filterLookup(ctx, account, it, cache)
+            changed ||= filtered !== it
+            visible.push(filtered)
+          } else {
+            changed = true
+          }
         }
-        record[key] = filtered
-      } else if (value !== undefined && value !== null) {
-        if (!this.isReadableDoc(value, readable)) {
-          record[key] = undefined
-        } else if (value.$lookup !== undefined) {
-          this.filterLookup(value.$lookup, readable)
+        lookup[key] = visible
+      } else if (typeof value === 'object' && value !== null) {
+        if (await isVisible(value)) {
+          const filtered = await this.filterLookup(ctx, account, value, cache)
+          changed ||= filtered !== value
+          lookup[key] = filtered
+        } else {
+          changed = true
+          lookup[key] = undefined
         }
+      } else {
+        lookup[key] = value
       }
+    }
+    if (!changed) return doc
+    return {
+      ...doc,
+      ...(doc.$lookup !== undefined ? { $lookup: lookup as WithLookup<T>['$lookup'] } : {}),
+      ...(doc.$associations !== undefined ? { $associations: associations } : {})
     }
   }
 
@@ -153,17 +265,20 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     query: SearchQuery,
     options: SearchOptions
   ): Promise<SearchResult> {
-    await this.state.init(ctx)
     const result = await this.provideSearchFulltext(ctx, query, options)
     const account = ctx.contextData?.account
-    if (!this.state.isActive() || this.isUnrestricted(account)) return result
-    const readable = new Set(this.state.getReadableRoots(account.uuid))
+    if (this.isUnrestricted(account)) return result
+    const items = result.docs.map((it) => ({ item: it, _id: it.doc?._id ?? it.id, _class: it.doc?._class }))
+    const protectedItems = items.filter((it) => this.state.isProtectedClass(it._class))
+    if (protectedItems.length === 0) return result
+    await this.state.prefetch(protectedItems.map((it) => ({ _id: it._id, _class: it._class })))
+    const cache: AccessCache = new Map()
     const docs: SearchResult['docs'] = []
-    for (const item of result.docs) {
-      const _id = item.doc?._id ?? item.id
-      const root = await this.state.resolveDocRoot(ctx, _id, item.doc?._class)
-      if (root === undefined || readable.has(root)) docs.push(item)
+    for (const { item, _id, _class } of items) {
+      const root = this.state.isProtectedClass(_class) ? await this.state.resolveDocRoot(_id, _class) : undefined
+      if (root === undefined || (await this.canRead(ctx, account, root, cache))) docs.push(item)
     }
+    if (docs.length === result.docs.length) return result
     const removed = result.docs.length - docs.length
     return {
       ...result,
@@ -172,41 +287,51 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     }
   }
 
+  // ---------------------------------------------------------------------------------------------
+  // Writes
 
   override async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
-    await this.state.init(ctx)
     const account = ctx.contextData?.account
     if (!this.isUnrestricted(account)) {
-      const pending: PendingRoots = new Map()
-      for (const tx of txes) {
-        await this.checkTx(ctx, account, tx, pending)
+      const cuds = unwrapApply(txes).filter((it): it is TxCUD<Doc> => TxProcessor.isExtendsCUD(it._class))
+      // Marks are server-managed: dropped from every client transaction (property deletes, no queries).
+      for (const cud of cuds) stripClientMarks(cud)
+      const scope: RequestScope = { pending: new Map(), newRoots: new Set(), cache: new Map() }
+      const checked = cuds.filter((it) => this.state.isProtectedDomainClass(it.objectClass))
+      if (checked.length > 0) {
+        await this.state.prefetch(
+          checked
+            .filter((it) => it._class !== core.class.TxCreateDoc)
+            .map((it) => ({ _id: it.objectId, _class: it.objectClass }))
+        )
+        for (const cud of checked) {
+          await this.checkCud(ctx, account, cud, scope)
+        }
       }
     }
     return await this.provideTx(ctx, txes)
   }
 
-  private async checkTx (ctx: MeasureContext<SessionData>, account: Account, tx: Tx, pending: PendingRoots): Promise<void> {
-    if (tx._class === core.class.TxApplyIf) {
-      for (const it of (tx as TxApplyIf).txes) {
-        await this.checkTx(ctx, account, it, pending)
-      }
-      return
-    }
-    if (!TxProcessor.isExtendsCUD(tx._class)) return
-    const cud = tx as TxCUD<Doc>
-    if (cud.objectSpace === core.space.Model || !this.context.hierarchy.hasClass(cud.objectClass)) return
+  // Storage addresses documents by id within the domain of the claimed class, so the class and the space
+  // are not trusted: every transaction of a domain holding protected documents is checked.
+  private async checkCud (
+    ctx: MeasureContext<SessionData>,
+    account: Account,
+    cud: TxCUD<Doc>,
+    scope: RequestScope
+  ): Promise<void> {
     switch (cud._class) {
       case core.class.TxCreateDoc:
-        await this.checkCreate(ctx, account, cud as TxCreateDoc<Doc>, pending)
+        await this.checkCreate(ctx, account, cud as TxCreateDoc<Doc>, scope)
         break
       case core.class.TxUpdateDoc:
-        await this.checkUpdate(ctx, account, cud as TxUpdateDoc<Doc>, pending)
+        await this.checkUpdate(ctx, account, cud as TxUpdateDoc<Doc>, scope)
         break
       case core.class.TxMixin:
-        await this.checkMixin(ctx, account, cud as TxMixin<Doc, Doc>, pending)
+        await this.checkMixin(ctx, account, cud as TxMixin<Doc, Doc>, scope)
         break
       case core.class.TxRemoveDoc:
-        await this.checkWritable(ctx, account, cud, pending)
+        await this.checkWritable(ctx, account, cud, scope)
         break
     }
   }
@@ -222,26 +347,34 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     throw forbidden()
   }
 
-  // For a public object (no info) the owners are passed explicitly.
-  private canManage (account: Account, info: AccessRootInfo | undefined, owners: Iterable<AccountUuid>): boolean {
+  private async canManage (
+    ctx: MeasureContext,
+    account: Account,
+    info: AccessRootInfo,
+    cache: AccessCache
+  ): Promise<boolean> {
     if (hasAccountRole(account, AccountRole.Owner)) return true
-    if (new Set(owners).has(account.uuid)) return true
+    if (info.owners.has(account.uuid)) return true
     if (!hasAccountRole(account, AccountRole.Maintainer)) return false
-    return info === undefined || this.state.canReadRoot(account.uuid, info._id)
+    return await this.canRead(ctx, account, info._id, cache)
   }
 
   // Writing requires reading the root; a root itself may also be written by its managers (recovery).
+  // The stored mark decides: documents created in the request are not trusted here, as a create may be
+  // skipped (a failed apply) or rejected by storage (an existing id).
   private async checkWritable (
     ctx: MeasureContext,
     account: Account,
     tx: TxCUD<Doc>,
-    pending: PendingRoots
+    scope: RequestScope
   ): Promise<Ref<Doc> | undefined> {
-    const root = await this.state.resolveDocRoot(ctx, tx.objectId, tx.objectClass, pending)
-    if (root === undefined || this.state.canReadRoot(account.uuid, root)) return root
+    const root = await this.state.resolveDocRoot(tx.objectId, tx.objectClass)
+    if (root === undefined || scope.newRoots.has(root) || (await this.canRead(ctx, account, root, scope.cache))) {
+      return root
+    }
     if (root === tx.objectId) {
-      const info = this.state.getRoot(root)
-      if (this.canManage(account, info, info?.owners ?? [])) return root
+      const info = await this.state.getRoot(ctx, root)
+      if (info !== undefined && (await this.canManage(ctx, account, info, scope.cache))) return root
     }
     this.deny(ctx, account, tx, 'root-not-readable')
   }
@@ -250,24 +383,37 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     ctx: MeasureContext,
     account: Account,
     tx: TxCreateDoc<Doc>,
-    pending: PendingRoots
+    scope: RequestScope
   ): Promise<void> {
-    const h = this.context.hierarchy
+    if (!this.state.isProtectedClass(tx.objectClass)) return
     const attributes = tx.attributes as Record<string, any>
     const doc = TxProcessor.createDoc2Doc(tx, false)
-    const parentRoot = await this.state.resolveNewDocRoot(ctx, doc, pending)
-    if (parentRoot !== undefined && !this.state.canReadRoot(account.uuid, parentRoot)) {
-      this.deny(ctx, account, tx, 'parent-not-readable')
-    }
-
-    const mixin = attributes[core.mixin.AccessControlled]
-    if (mixin === undefined) {
-      pending.set(tx.objectId, parentRoot ?? null)
+    const policy = getClassAccessPolicy(this.context.hierarchy, tx.objectClass)
+    if (policy === undefined) {
+      // Stored marks win over creates of the request: a create may be skipped (a failed apply).
+      const root = await this.state.resolveNewDocRoot(doc, scope.pending, true)
+      if (root !== undefined && !scope.newRoots.has(root) && !(await this.canRead(ctx, account, root, scope.cache))) {
+        this.deny(ctx, account, tx, 'parent-not-readable')
+      }
+      const key = this.state.keyOf(tx.objectClass, tx.objectId)
+      if (key !== undefined) scope.pending.set(key, root ?? null)
       return
     }
 
-    const policy = getClassAccessPolicy(h, tx.objectClass)
-    if (policy === undefined) this.deny(ctx, account, tx, 'class-has-no-access-policy')
+    // A restricted object inside another restricted object is not supported.
+    const parentRef = policy.parent ?? DEFAULT_ACCESS_PARENT
+    const parentId = attributes[parentRef.field]
+    const parentClass = attributes[parentRef.classField]
+    if (
+      typeof parentId === 'string' &&
+      typeof parentClass === 'string' &&
+      this.state.isProtectedClass(parentClass as Ref<Class<Doc>>) &&
+      (await this.state.resolveDocRoot(parentId as Ref<Doc>, parentClass as Ref<Class<Doc>>, scope.pending, true)) !==
+        undefined
+    ) {
+      this.deny(ctx, account, tx, 'nested-security-root')
+    }
+    const mixin = attributes[core.mixin.AccessControlled] ?? { read: { kind: 'space' } }
     if (
       typeof mixin !== 'object' ||
       mixin === null ||
@@ -276,40 +422,45 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     ) {
       this.deny(ctx, account, tx, 'invalid-access-policy')
     }
-    if (parentRoot !== undefined) {
-      // A restricted object inside another restricted object is not supported yet.
-      this.deny(ctx, account, tx, 'nested-security-root')
-    }
-    // Owners are server-managed; the creator of a private object is also its member.
+    // Ownership of a new root is trusted within the request, so its id must really be new.
+    if (await this.state.exists(tx.objectClass, tx.objectId)) this.deny(ctx, account, tx, 'object-exists')
+    // Every object of the class is a root from the start; owners are server-managed (the creator).
     mixin.owners = [account.uuid]
+    attributes[core.mixin.AccessControlled] = mixin
     const members = getAccessMembers(doc, policy)
     if (mixin.read.kind === 'members' && !members.includes(account.uuid)) {
       attributes[policy.membersField] = [...members, account.uuid]
     }
-    pending.set(tx.objectId, tx.objectId)
+    scope.newRoots.add(tx.objectId)
+    const key = this.state.keyOf(tx.objectClass, tx.objectId)
+    if (key !== undefined) scope.pending.set(key, tx.objectId)
   }
 
   private async checkUpdate (
     ctx: MeasureContext,
     account: Account,
     tx: TxUpdateDoc<Doc>,
-    pending: PendingRoots
+    scope: RequestScope
   ): Promise<void> {
     const ops = tx.operations as Record<string, any>
-    if (touchesAttribute(ops, ACCESS_ROOT_FIELD)) {
-      this.deny(ctx, account, tx, 'access-root-is-server-managed')
-    }
     // The policy is changed only by a validated TxMixin.
     if (touchesAttribute(ops, core.mixin.AccessControlled)) {
       this.deny(ctx, account, tx, 'access-policy-update-requires-mixin-tx')
     }
-    const root = await this.checkWritable(ctx, account, tx, pending)
-    await this.checkReparent(ctx, account, tx, root, ops, pending)
+    const root = await this.checkWritable(ctx, account, tx, scope)
+    await this.checkReparent(ctx, account, tx, root, ops)
 
-    const info = root === tx.objectId ? this.state.getRoot(tx.objectId) : undefined
-    if (info === undefined || info.audience.kind !== 'members') return
-    const policy = getClassAccessPolicy(this.context.hierarchy, info._class)
-    if (policy === undefined || !touchesAttribute(ops, policy.membersField)) return
+    if (root !== tx.objectId) return
+    const info = await this.state.getRoot(ctx, tx.objectId)
+    // The class of the stored root, not the claimed one.
+    const policy = info !== undefined ? getClassAccessPolicy(this.context.hierarchy, info._class) : undefined
+    if (info === undefined || policy === undefined || !touchesAttribute(ops, policy.membersField)) return
+    if (info.audience.kind !== 'members') {
+      // Members matter only for a private object: set up by managers, so nobody joins in advance.
+      if (!(await this.canManage(ctx, account, info, scope.cache)))
+        {this.deny(ctx, account, tx, 'members-require-manage')}
+      return
+    }
     const field = policy.membersField
     const dotted = Object.keys(ops).some(
       (key) =>
@@ -322,92 +473,70 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     const added = Array.from(after).filter((it) => !info.members.has(it))
     const removed = Array.from(info.members).filter((it) => !after.has(it))
     const self = account.uuid
-    const manage = this.canManage(account, info, info.owners)
-    const isMember = info.members.has(self)
+    const manage = await this.canManage(ctx, account, info, scope.cache)
     // Members may invite and leave; only managers may remove somebody else.
-    if (added.length > 0 && !isMember && !manage) this.deny(ctx, account, tx, 'invite-requires-membership')
+    if (added.length > 0 && !info.members.has(self) && !manage)
+      {this.deny(ctx, account, tx, 'invite-requires-membership')}
     if (removed.some((it) => it !== self) && !manage) this.deny(ctx, account, tx, 'removal-requires-manage')
-    if (after.size === 0) {
-      this.deny(ctx, account, tx, 'private-object-needs-a-member')
-    }
+    if (after.size === 0) this.deny(ctx, account, tx, 'private-object-needs-a-member')
   }
 
-  // Moving a document between roots would leave stale marks.
+  // Moving a document between roots would leave stale marks. The claimed class is not trusted, so every
+  // reference field used by object access is checked against all protected domains.
   private async checkReparent (
     ctx: MeasureContext,
     account: Account,
     tx: TxUpdateDoc<Doc>,
     root: Ref<Doc> | undefined,
-    ops: Record<string, any>,
-    pending: PendingRoots
+    ops: Record<string, any>
   ): Promise<void> {
-    const h = this.context.hierarchy
-    const policy = getClassAccessPolicy(h, tx.objectClass)
-    if (root === tx.objectId && policy !== undefined) {
-      const parentField = policy.parent?.field ?? 'attachedTo'
-      if (touchesAttribute(ops, parentField)) this.deny(ctx, account, tx, 'restricted-object-move')
-      return
+    for (const field of this.state.getParentFields()) {
+      if (!touchesAttribute(ops, field)) continue
+      if (root === tx.objectId) this.deny(ctx, account, tx, 'restricted-object-move')
+      const target = ops[field]
+      // Operator forms ($unset, $rename...) of a reference field are not supported.
+      if (typeof target !== 'string') this.deny(ctx, account, tx, 'invalid-reference-update')
+      if ((await this.state.resolveAnyRoot(target as Ref<Doc>)) !== root) {
+        this.deny(ctx, account, tx, 'move-between-security-roots')
+      }
     }
-    for (const ref of getAccessParents(h, tx.objectClass)) {
-      const target = ops[ref.field]
-      if (typeof target !== 'string') continue
-      const targetClass = typeof ops[ref.classField] === 'string' ? ops[ref.classField] : undefined
-      const targetRoot = await this.state.resolveDocRoot(ctx, target as Ref<Doc>, targetClass, pending)
-      if (targetRoot !== root) this.deny(ctx, account, tx, 'move-between-security-roots')
-    }
-  }
-
-  private resolveCreatorAccount (ctx: MeasureContext<SessionData>, doc: Doc): AccountUuid | undefined {
-    const creator = doc.createdBy ?? doc.modifiedBy
-    return ctx.contextData?.socialStringsToUsers?.get(creator)?.accontUuid
   }
 
   private async checkMixin (
     ctx: MeasureContext<SessionData>,
     account: Account,
     tx: TxMixin<Doc, Doc>,
-    pending: PendingRoots
+    scope: RequestScope
   ): Promise<void> {
-    const h = this.context.hierarchy
-    if (!h.hasClass(tx.mixin) || !h.isDerived(tx.mixin, core.mixin.AccessControlled)) {
-      await this.checkWritable(ctx, account, tx, pending)
+    if (tx.mixin !== core.mixin.AccessControlled) {
+      await this.checkWritable(ctx, account, tx, scope)
       return
     }
-
-    const policy = getClassAccessPolicy(h, tx.objectClass)
-    if (policy === undefined) this.deny(ctx, account, tx, 'class-has-no-access-policy')
+    if (!this.state.isRootClass(tx.objectClass)) this.deny(ctx, account, tx, 'class-has-no-access-policy')
     const attributes = tx.attributes as Record<string, any>
     const audience: AccessAudience | undefined = isAccessAudience(attributes.read) ? attributes.read : undefined
     if (audience === undefined || Object.keys(attributes).some((it) => it !== 'read')) {
       this.deny(ctx, account, tx, 'invalid-access-policy')
     }
-
-    const info = this.state.getRoot(tx.objectId)
-    let members: AccountUuid[]
-    if (info !== undefined) {
-      if (!this.canManage(account, info, info.owners)) this.deny(ctx, account, tx, 'policy-change-requires-manage')
-      members = Array.from(info.members)
-    } else {
-      const doc = await this.state.loadDoc(ctx, tx.objectClass, tx.objectId)
-      if (doc === undefined) this.deny(ctx, account, tx, 'object-not-found')
-      const docRoot = getAccessRoot(doc)
-      if (docRoot !== undefined && docRoot !== doc._id) this.deny(ctx, account, tx, 'nested-security-root')
-      const creator = this.resolveCreatorAccount(ctx, doc)
-      const owners = creator !== undefined ? [creator] : []
-      if (!this.canManage(account, undefined, owners)) this.deny(ctx, account, tx, 'policy-change-requires-manage')
-      // The first restriction stores the owners; afterwards they are server-managed.
-      attributes.owners = owners.length > 0 ? owners : [account.uuid]
-      members = getAccessMembers(doc, policy)
+    // Created in this request by this account (its owner); its id was checked to be new.
+    if (scope.newRoots.has(tx.objectId)) return
+    // Objects created before the class got its policy are not marked and cannot be restricted.
+    const info = await this.state.getRoot(ctx, tx.objectId)
+    if (info === undefined) this.deny(ctx, account, tx, 'object-is-not-a-root')
+    if (!(await this.canManage(ctx, account, info, scope.cache))) {
+      this.deny(ctx, account, tx, 'policy-change-requires-manage')
     }
-    if (audience.kind === 'members' && members.length === 0) {
+    if (audience.kind === 'members' && info.members.size === 0) {
       this.deny(ctx, account, tx, 'private-object-needs-a-member')
     }
   }
 
+  // ---------------------------------------------------------------------------------------------
+  // Broadcast
 
   override async handleBroadcast (ctx: MeasureContext<SessionData>): Promise<void> {
-    const targets = ctx.contextData.broadcast.targets
-    if (this.state.isActive() && targets[BROADCAST_TARGET] === undefined) {
+    const { targets, txes } = ctx.contextData.broadcast
+    if (targets[BROADCAST_TARGET] === undefined && txes.some((it) => getAccessRoot(it) !== undefined)) {
       // The first defined target wins: ours goes first, evaluates all others at broadcast time
       // (including ones added below) and narrows the result to the readers.
       const others = Object.entries(targets)
@@ -415,7 +544,7 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete targets[key]
       }
-      targets[BROADCAST_TARGET] = async (tx) => this.restrictBroadcast(tx, await this.resolveBase(targets, tx))
+      targets[BROADCAST_TARGET] = async (tx) => await this.restrictBroadcast(ctx, tx, targets)
       for (const [key, value] of others) {
         targets[key] = value
       }
@@ -432,23 +561,61 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     return undefined
   }
 
-  private restrictBroadcast (tx: Tx, base: BroadcastResult): BroadcastResult {
-    if (!TxProcessor.isExtendsCUD(tx._class)) return base
-    const root = getAccessRoot(tx)
-    if (root === undefined) return base
-    const info = this.state.getRoot(root)
-    if (info === undefined) {
-      // The root was removed in this request: a removal reveals nothing but ids.
+  private async restrictBroadcast (ctx: MeasureContext, tx: Tx, targets: BroadcastTargets): Promise<BroadcastResult> {
+    // Unmarked transactions are left to the other targets, which the broadcast evaluates next.
+    const root = TxProcessor.isExtendsCUD(tx._class) ? getAccessRoot(tx) : undefined
+    if (root === undefined) return undefined
+    const base = await this.resolveBase(targets, tx)
+    const readers = await this.state.getReaders(ctx, root)
+    if (readers === null) {
+      // The root is gone (e.g. removed in this request): a removal reveals nothing but ids.
       return tx._class === core.class.TxRemoveDoc ? base : { target: [systemAccountUuid] }
     }
-    const readers = this.state.getReaders(info)
     if (readers === undefined) return base
-    readers.add(systemAccountUuid)
-    if (base === undefined) return { target: Array.from(readers) }
+    const allowed = new Set<AccountUuid>([...readers, systemAccountUuid])
+    if (base === undefined) return { target: Array.from(allowed) }
     if ('exclude' in base) {
       const excluded = new Set(base.exclude)
-      return { target: Array.from(readers).filter((it) => !excluded.has(it)) }
+      return { target: Array.from(allowed).filter((it) => !excluded.has(it)) }
     }
-    return { target: base.target.filter((it) => readers.has(it)) }
+    return { target: base.target.filter((it) => allowed.has(it)) }
   }
+}
+
+interface RequestScope {
+  // Roots of documents created earlier in the request: used only to resolve their new children.
+  pending: PendingRoots
+  // Roots created in the request by this account, with ids checked to be new.
+  newRoots: Set<Ref<Doc>>
+  cache: AccessCache
+}
+
+function stripClientMarks (tx: TxCUD<Doc>): void {
+  delete (tx as AccessMarked).accessRoot
+  if (tx._class === core.class.TxCreateDoc) {
+    delete ((tx as TxCreateDoc<Doc>).attributes as AccessMarked).accessRoot
+  } else if (tx._class === core.class.TxUpdateDoc) {
+    const ops = (tx as TxUpdateDoc<Doc>).operations as Record<string, any>
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete ops[ACCESS_ROOT_FIELD]
+    for (const key of Object.keys(ops)) {
+      if (key.startsWith('$') && typeof ops[key] === 'object') delete ops[key]?.[ACCESS_ROOT_FIELD]
+    }
+  }
+}
+
+// The mark must come back with the results: added to an inclusive projection, kept in an exclusive one.
+function withMarkProjection<T extends Doc> (
+  options: ServerFindOptions<T> | undefined
+): ServerFindOptions<T> | undefined {
+  if (options?.projection === undefined) return options
+  const projection: Record<string, any> = { ...options.projection }
+  if (Object.values(projection).some((it) => it === 1)) {
+    projection[ACCESS_ROOT_FIELD] = 1
+    projection._class = 1 // marks are trusted by class
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete projection[ACCESS_ROOT_FIELD]
+  }
+  return { ...options, projection: projection as Projection<T> }
 }

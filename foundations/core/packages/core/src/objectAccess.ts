@@ -23,7 +23,6 @@ import type { AccountUuid, Class, Collaborator, Doc, Ref } from './classes'
 import core from './component'
 import type { Hierarchy } from './hierarchy'
 import type { DocumentQuery, FindOptions, Projection } from './storage'
-import type { DocumentUpdate } from './tx'
 
 /**
  * @public
@@ -90,7 +89,8 @@ export interface ClassAccessPolicy extends Class<Doc> {
 }
 
 /**
- * Reference fields linking documents of the class to a root (default: attachedTo); the first resolved wins.
+ * Opts a class in: its documents belong to the root their reference fields lead to; the first resolved wins.
+ * Classes without it (and without a policy) are never checked.
  * @public
  */
 export interface AccessParent extends Class<Doc> {
@@ -151,20 +151,13 @@ export function getAccessRoot (doc: object): Ref<Doc> | undefined {
   return typeof root === 'string' && root !== '' ? root : undefined
 }
 
+const accessRootProjection: Record<string, 1> = { _id: 1, [ACCESS_ROOT_FIELD]: 1 }
+
 /**
  * Projection reading only the mark.
  * @public
  */
-const accessRootProjection: Record<string, 1> = { _id: 1, [ACCESS_ROOT_FIELD]: 1 }
 export const ACCESS_ROOT_PROJECTION: Projection<Doc> = accessRootProjection
-
-/**
- * @public
- */
-export function makeAccessRootUpdate (root: Ref<Doc>): DocumentUpdate<Doc> {
-  const ops: AccessMarked = { accessRoot: root }
-  return ops
-}
 
 /**
  * @public
@@ -178,8 +171,8 @@ export function getClassAccessPolicy (hierarchy: Hierarchy, _class: Ref<Class<Do
  * @public
  */
 export function getAccessParents (hierarchy: Hierarchy, _class: Ref<Class<Doc>>): AccessRefField[] {
-  if (!hierarchy.hasClass(_class)) return [DEFAULT_ACCESS_PARENT]
-  return hierarchy.classHierarchyMixin(_class, core.mixin.AccessParent)?.parents ?? [DEFAULT_ACCESS_PARENT]
+  if (!hierarchy.hasClass(_class)) return []
+  return hierarchy.classHierarchyMixin(_class, core.mixin.AccessParent)?.parents ?? []
 }
 
 /**
@@ -241,25 +234,6 @@ export function getAccessReaders (
 /**
  * @public
  */
-export function canReadByAudience (
-  account: AccountUuid,
-  audience: AccessAudience,
-  members: ReadonlySet<AccountUuid>,
-  parentParticipants: ReadonlySet<AccountUuid> | undefined
-): boolean {
-  switch (audience.kind) {
-    case 'space':
-      return true
-    case 'parentParticipants':
-      return parentParticipants?.has(account) === true
-    case 'members':
-      return members.has(account)
-  }
-}
-
-/**
- * @public
- */
 export type AccessFindFn = <T extends Doc>(
   _class: Ref<Class<T>>,
   query: DocumentQuery<T>,
@@ -271,9 +245,26 @@ export type AccessFindFn = <T extends Doc>(
  * @public
  */
 export function getAccessPolicyClasses (hierarchy: Hierarchy): Ref<Class<Doc>>[] {
-  return hierarchy
-    .getDescendants(core.class.Doc)
-    .filter((it) => !hierarchy.isMixin(it) && hierarchy.hasMixin(hierarchy.getClass(it), core.mixin.ClassAccessPolicy))
+  let result = policyClasses.get(hierarchy)
+  if (result === undefined) {
+    result = hierarchy
+      .getDescendants(core.class.Doc)
+      .filter(
+        (it) => !hierarchy.isMixin(it) && hierarchy.hasMixin(hierarchy.getClass(it), core.mixin.ClassAccessPolicy)
+      )
+    policyClasses.set(hierarchy, result)
+  }
+  return result
+}
+
+const policyClasses = new WeakMap<Hierarchy, Array<Ref<Class<Doc>>>>()
+
+/**
+ * Drops the cached policy classes after a model change.
+ * @public
+ */
+export function resetAccessPolicyClasses (hierarchy: Hierarchy): void {
+  policyClasses.delete(hierarchy)
 }
 
 /**
@@ -294,8 +285,9 @@ export async function getObjectAccessReaders (
     if (root !== undefined) break
   }
   const policy = root !== undefined ? getClassAccessPolicy(hierarchy, root._class) : undefined
-  const audience = root !== undefined ? getAccessAudience(hierarchy, root) : undefined
-  if (root === undefined || policy === undefined || audience === undefined) return new Set()
+  if (root === undefined || policy === undefined || getAccessRoot(root) !== root._id) return new Set()
+  // Every document of a class with a policy is a root; without the mixin it is public.
+  const audience = getAccessAudience(hierarchy, root) ?? { kind: 'space' }
 
   let participants: AccountUuid[] | undefined
   const parentId = (root as unknown as Record<string, unknown>)[(policy.parent ?? DEFAULT_ACCESS_PARENT).field]

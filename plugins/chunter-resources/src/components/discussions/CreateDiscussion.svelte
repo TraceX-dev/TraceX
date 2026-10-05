@@ -32,6 +32,7 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
+  import { ensureCollaborator } from '../../utils'
   import DiscussionVisibilityMenu from './DiscussionVisibilityMenu.svelte'
 
   export let object: Doc
@@ -44,24 +45,35 @@
   let name = ''
   let members: AccountUuid[] = [me]
   let visibility: ObjectVisibility = 'public'
-  let firstMessage: Markup = EmptyMarkup
+  // StyledTextArea updates its bound content only on blur.
+  let draftMessage: Markup = EmptyMarkup
   let collaborators: AccountUuid[] = []
+  let saving = false
 
   $: collaboratorsQuery.query(core.class.Collaborator, { attachedTo: object._id }, (result) => {
     collaborators = result.map(({ collaborator }) => collaborator)
   })
 
   $: missingCollaborators = collaborators.filter((account) => !members.includes(account))
-  $: canSave = name.trim().length > 0 || !isEmptyMarkup(firstMessage)
 
   function addAllCollaborators (): void {
     members = [...members, ...missingCollaborators]
   }
 
   async function save (): Promise<void> {
+    if (saving) return
+    saving = true
+    try {
+      await create()
+    } finally {
+      saving = false
+    }
+  }
+
+  async function create (): Promise<void> {
     const operations = client.apply(undefined, 'chunter.createDiscussion')
     const title = name.trim()
-    const excerpt = isEmptyMarkup(firstMessage) ? '' : makeDiscussionExcerpt(markupToText(firstMessage))
+    const excerpt = isEmptyMarkup(draftMessage) ? '' : makeDiscussionExcerpt(markupToText(draftMessage))
     const data: AttachedData<Discussion> = {
       ...(title !== '' ? { name: title } : {}),
       ...(excerpt !== '' ? { excerpt } : {}),
@@ -78,15 +90,8 @@
             [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) }
           } as AttachedData<Discussion>)
     // The creator must be a card collaborator to keep access.
-    if (visibility === 'participants' && !collaborators.includes(me)) {
-      await operations.addCollection(
-        core.class.Collaborator,
-        object.space,
-        object._id,
-        object._class,
-        'collaborators',
-        { collaborator: me }
-      )
+    if (visibility === 'participants') {
+      await ensureCollaborator(operations, object)
     }
     const discussionId = await operations.addCollection(
       chunter.class.Discussion,
@@ -97,14 +102,14 @@
       attributes
     )
 
-    if (!isEmptyMarkup(firstMessage)) {
+    if (!isEmptyMarkup(draftMessage)) {
       await operations.addCollection(
         chunter.class.ChatMessage,
         object.space,
         discussionId,
         chunter.class.Discussion,
         'comments',
-        { message: firstMessage, attachments: 0 }
+        { message: draftMessage, attachments: 0 }
       )
     }
 
@@ -118,7 +123,8 @@
   type="type-popup"
   okLabel={chunter.string.CreateDiscussion}
   okAction={save}
-  {canSave}
+  okLoading={saving}
+  canSave={!saving}
   onCancel={() => dispatch('close')}
   on:close
 >
@@ -171,7 +177,10 @@
     <div class="field">
       <span class="field-label"><Label label={chunter.string.FirstMessage} /></span>
       <StyledTextArea
-        bind:content={firstMessage}
+        content={EmptyMarkup}
+        on:changeContent={(ev) => {
+          draftMessage = ev.detail
+        }}
         placeholder={chunter.string.FirstMessagePlaceholder}
         kind="emphasized"
         showButtons={false}

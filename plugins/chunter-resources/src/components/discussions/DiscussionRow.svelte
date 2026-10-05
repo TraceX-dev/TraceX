@@ -26,7 +26,8 @@
   } from '@hcengineering/notification-resources'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { markupToText } from '@hcengineering/text'
-  import { Icon, IconCheckCircle, Label, TimeSince, tooltip } from '@hcengineering/ui'
+  import { translate } from '@hcengineering/platform'
+  import { Icon, IconCheckCircle, Label, languageStore, TimeSince, tooltip } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
@@ -47,6 +48,14 @@
 
   $: resolved = discussion.resolved
   $: visibility = getDiscussionVisibility(discussion)
+  $: visibilityHint =
+    visibility === 'private'
+      ? chunter.string.VisibilityMembersDescription
+      : chunter.string.VisibilityParticipantsDescription
+  let visibilityLabel = ''
+  $: void translate(visibilityHint, {}, $languageStore).then((it) => {
+    visibilityLabel = it
+  })
 
   $: title = getDiscussionTitle(discussion)
   $: memberRefs = discussion.members
@@ -117,15 +126,7 @@
   <div class="content">
     <div class="title-row">
       {#if visibility !== 'public'}
-        <span
-          class="visibility-icon"
-          use:tooltip={{
-            label:
-              visibility === 'private'
-                ? chunter.string.VisibilityMembers
-                : chunter.string.VisibilityParticipantsDescription
-          }}
-        >
+        <span class="visibility-icon" role="img" aria-label={visibilityLabel} use:tooltip={{ label: visibilityHint }}>
           <Icon icon={visibility === 'private' ? chunter.icon.Lock : contact.icon.ComponentMembers} size="x-small" />
         </span>
       {/if}

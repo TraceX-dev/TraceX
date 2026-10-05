@@ -16,9 +16,9 @@
 <script lang="ts">
   import { type Discussion, getDiscussionTitle } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import { type AccountUuid, type ObjectVisibility } from '@hcengineering/core'
+  import { type AccountUuid, getCurrentAccount, type ObjectVisibility } from '@hcengineering/core'
   import { getEmbeddedLabel } from '@hcengineering/platform'
-  import { getClient } from '@hcengineering/presentation'
+  import { getClient, MessageBox } from '@hcengineering/presentation'
   import {
     ButtonIcon,
     Icon,
@@ -42,6 +42,7 @@
     canManageDiscussion,
     deleteDiscussion,
     getDiscussionVisibility,
+    normalizeDiscussionMembers,
     setDiscussionResolved,
     setDiscussionVisibility
   } from '../../utils'
@@ -91,13 +92,13 @@
   let isTitleEditing = false
   $: if (!isTitleEditing) title = discussion.name ?? ''
 
+  // The draft stays until the update is stored, so the old title does not flash back.
   async function saveTitle (): Promise<void> {
-    isTitleEditing = false
     const name = title.trim()
-    if (name !== (discussion.name ?? '').trim()) {
-      await client.update(discussion, { name })
-    } else {
-      title = discussion.name ?? ''
+    try {
+      if (name !== (discussion.name ?? '').trim()) await client.update(discussion, { name })
+    } finally {
+      isTitleEditing = false
     }
   }
 
@@ -112,7 +113,21 @@
     }
   }
 
-  async function updateMembers (members: AccountUuid[]): Promise<void> {
+  async function updateMembers (value: AccountUuid[]): Promise<void> {
+    const members = normalizeDiscussionMembers(discussion, value)
+    if (members === undefined) return // a private discussion keeps at least one member
+    const me = getCurrentAccount().uuid
+    if (discussion.members.includes(me) && !members.includes(me)) {
+      // Leaving a private discussion hides it, ask first.
+      showPopup(MessageBox, {
+        label: chunter.string.LeaveDiscussion,
+        message: chunter.string.LeaveDiscussionConfirm,
+        action: async () => {
+          await client.update(discussion, { members })
+        }
+      })
+      return
+    }
     await client.update(discussion, { members })
   }
 </script>
@@ -123,7 +138,7 @@
     {#if canManage}
       <EditBox
         bind:value={title}
-        placeholder={fallbackTitle !== undefined ? getEmbeddedLabel(fallbackTitle) : chunter.string.Topic}
+        placeholder={fallbackTitle !== undefined ? getEmbeddedLabel(fallbackTitle) : chunter.string.UntitledDiscussion}
         fullSize
         on:value={() => {
           isTitleEditing = true

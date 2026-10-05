@@ -52,7 +52,9 @@
     {
       id: 'participants',
       icon: contact.icon.ComponentMembers,
-      label: chunter.string.VisibilityParticipants,
+      // The class label is translated asynchronously; the description is shown until it is ready.
+      label:
+        parentLabel !== '' ? chunter.string.VisibilityParticipants : chunter.string.VisibilityParticipantsDescription,
       params: { label: parentLabel },
       description: chunter.string.VisibilityParticipantsDescription
     },
@@ -66,6 +68,12 @@
 
   $: current = items.find((it) => it.id === value) ?? items[0]
 
+  // Accessible name of the (icon-only) button.
+  let title = ''
+  $: void translate(current.label, current.params ?? {}, $languageStore).then((it) => {
+    title = it
+  })
+
   function handleSelected (event: CustomEvent<DropdownIntlItem['id']>): void {
     const selected = event.detail as ObjectVisibility
     if (selected !== value) dispatch('change', selected)
@@ -74,6 +82,7 @@
 
 <ButtonMenu
   {items}
+  {title}
   selected={value}
   icon={current.icon}
   label={iconOnly ? undefined : current.label}

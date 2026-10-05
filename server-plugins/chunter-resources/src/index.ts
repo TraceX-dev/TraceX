@@ -114,7 +114,7 @@ export async function channelTextPresenter (doc: Doc): Promise<string> {
 
 // Used as the notification title for messages posted in a discussion.
 export async function DiscussionTextPresenter (doc: Doc): Promise<string> {
-  return getDiscussionTitle(doc as Discussion) ?? ''
+  return getDiscussionTitle(doc as Discussion) ?? (await translate(chunter.string.UntitledDiscussion, {}))
 }
 
 export async function ChatMessageTextPresenter (doc: ChatMessage): Promise<string> {
@@ -329,17 +329,12 @@ async function OnThreadMessageDeleted (tx: Tx, control: TriggerControl): Promise
   // return [updateTx]
 }
 
-/**
- * @public
- */
 // Keeps `Discussion.excerpt` equal to the beginning of the first top-level message.
 async function updateDiscussionExcerpt (
   ctx: MeasureContext,
   control: TriggerControl,
-  discussionId: Ref<Discussion>
+  discussion: Discussion
 ): Promise<Tx[]> {
-  const discussion = (await control.findAll(ctx, chunter.class.Discussion, { _id: discussionId }, { limit: 1 }))[0]
-  if (discussion === undefined) return []
   const first = (
     await control.findAll(
       ctx,
@@ -372,28 +367,33 @@ async function getDiscussionOfMessage (
     }
     return isDiscussion(tx.attachedToClass) ? (tx.attachedTo as Ref<Discussion>) : undefined
   }
-  if (isDiscussion(tx.attachedToClass)) return tx.attachedTo as Ref<Discussion>
+  if (tx.attachedToClass !== undefined) {
+    return isDiscussion(tx.attachedToClass) ? (tx.attachedTo as Ref<Discussion>) : undefined
+  }
   const message = (await control.findAll(ctx, chunter.class.ChatMessage, { _id: tx.objectId as Ref<ChatMessage> }))[0]
   return message !== undefined && isDiscussion(message.attachedToClass)
     ? (message.attachedTo as Ref<Discussion>)
     : undefined
 }
 
-async function OnDiscussionMessageChanged (
-  ctx: MeasureContext,
-  tx: TxCUD<Doc>,
-  control: TriggerControl
-): Promise<Tx[]> {
+async function OnDiscussionMessageChanged (ctx: MeasureContext, tx: TxCUD<Doc>, control: TriggerControl): Promise<Tx[]> {
   if (tx._class === core.class.TxUpdateDoc) {
     const update = tx as TxUpdateDoc<ChatMessage>
     if (update.operations.message === undefined) return []
   }
-  const discussion = await getDiscussionOfMessage(ctx, control, tx)
+  const discussionId = await getDiscussionOfMessage(ctx, control, tx)
+  if (discussionId === undefined) return []
+  const discussion = (await control.findAll(ctx, chunter.class.Discussion, { _id: discussionId }, { limit: 1 }))[0]
   if (discussion === undefined) return []
-  // Always derived from the stored first message, so a client-supplied excerpt cannot stick.
+  // A new message changes the excerpt only when it is the first one (an excerpt sent with the discussion
+  // stays until the first message changes).
+  if (tx._class === core.class.TxCreateDoc && (discussion.excerpt ?? '') !== '') return []
   return await updateDiscussionExcerpt(ctx, control, discussion)
 }
 
+/**
+ * @public
+ */
 export async function ChunterTrigger (txes: TxCUD<Doc>[], control: TriggerControl): Promise<Tx[]> {
   const res: Tx[] = []
   for (const tx of txes) {

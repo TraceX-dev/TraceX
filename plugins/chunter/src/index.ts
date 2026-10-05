@@ -232,6 +232,8 @@ export default plugin(chunterId, {
     VisibilityParticipantsDescription: '' as IntlString,
     VisibilityMembers: '' as IntlString,
     VisibilityMembersDescription: '' as IntlString,
+    LeaveDiscussion: '' as IntlString,
+    LeaveDiscussionConfirm: '' as IntlString,
     AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,

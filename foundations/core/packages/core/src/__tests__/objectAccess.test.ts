@@ -21,8 +21,6 @@ import { Hierarchy } from '../hierarchy'
 import {
   type AccessFindFn,
   audienceToVisibility,
-  canReadByAudience,
-  DEFAULT_ACCESS_PARENT,
   getAccessAudience,
   getAccessOwners,
   getAccessParents,
@@ -50,7 +48,6 @@ const Notice = 'class:test.Notice' as Ref<Class<Doc>>
 
 const alice = 'alice' as AccountUuid
 const bob = 'bob' as AccountUuid
-const carol = 'carol' as AccountUuid
 
 function buildHierarchy (): Hierarchy {
   const hierarchy = new Hierarchy()
@@ -155,15 +152,6 @@ describe('object access', () => {
   it('computes readers per audience', () => {
     const members = new Set([alice])
     const participants = new Set([bob])
-    expect(canReadByAudience(carol, { kind: 'space' }, members, participants)).toBe(true)
-    expect(canReadByAudience(alice, { kind: 'members' }, members, participants)).toBe(true)
-    expect(canReadByAudience(bob, { kind: 'members' }, members, participants)).toBe(false)
-    expect(canReadByAudience(bob, { kind: 'parentParticipants' }, members, participants)).toBe(true)
-    // Members of the object do not matter for the participants level.
-    expect(canReadByAudience(alice, { kind: 'parentParticipants' }, members, participants)).toBe(false)
-    expect(canReadByAudience(carol, { kind: 'parentParticipants' }, members, participants)).toBe(false)
-    expect(canReadByAudience(bob, { kind: 'parentParticipants' }, members, undefined)).toBe(false)
-
     expect(getAccessReaders({ kind: 'space' }, members, participants)).toBeUndefined()
     expect(getAccessReaders({ kind: 'members' }, members, participants)).toEqual(new Set([alice]))
     expect(getAccessReaders({ kind: 'parentParticipants' }, members, participants)).toEqual(new Set([bob]))
@@ -175,7 +163,8 @@ describe('object access', () => {
     expect(getClassAccessPolicy(hierarchy, SubThread)?.membersField).toBe('members')
     expect(getClassAccessPolicy(hierarchy, Message)).toBeUndefined()
     expect(getClassAccessPolicy(hierarchy, 'class:unknown' as Ref<Class<Doc>>)).toBeUndefined()
-    expect(getAccessParents(hierarchy, Message)).toEqual([DEFAULT_ACCESS_PARENT])
+    // Only declared classes belong to roots.
+    expect(getAccessParents(hierarchy, Message)).toEqual([])
     expect(getAccessParents(hierarchy, Notice)).toEqual([{ field: 'objectId', classField: 'objectClass' }])
     // Only declaring classes: a query by a class covers its subclasses.
     expect(getAccessPolicyClasses(hierarchy)).toEqual([Thread])

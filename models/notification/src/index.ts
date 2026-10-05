@@ -641,13 +641,6 @@ export function createModel (builder: Builder): void {
     ]
   })
 
-  builder.mixin(notification.class.BrowserNotification, core.class.Class, core.mixin.AccessParent, {
-    parents: [
-      { field: 'objectId', classField: 'objectClass' },
-      { field: 'messageId', classField: 'messageClass' }
-    ]
-  })
-
   builder.mixin(notification.class.DocNotifyContext, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.Guest,
     updateAccessLevel: AccountRole.Guest,

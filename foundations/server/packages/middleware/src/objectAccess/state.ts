@@ -14,12 +14,10 @@
 //
 
 import core, {
-  ACCESS_ROOT_FIELD,
   ACCESS_ROOT_PROJECTION,
   type AccessAudience,
   type AccessMarked,
   type AccountUuid,
-  canReadByAudience,
   type Class,
   type Collaborator,
   DEFAULT_ACCESS_PARENT,
@@ -27,6 +25,7 @@ import core, {
   type DocumentQuery,
   type Domain,
   DOMAIN_MODEL,
+  DOMAIN_TRANSIENT,
   DOMAIN_TX,
   type FindOptions,
   getAccessAudience,
@@ -34,6 +33,7 @@ import core, {
   getAccessOwners,
   getAccessParents,
   getAccessPolicyClasses,
+  resetAccessPolicyClasses,
   getAccessReaders,
   getAccessRoot,
   getClassAccessPolicy,
@@ -77,24 +77,74 @@ export interface AccessRootInfo {
 export type AccessReaders = Set<AccountUuid> | undefined
 
 /**
- * Pending roots of documents created earlier in the same request.
+ * Roots of documents created earlier in the same request, by {@link markKey}.
  * @public
  */
-export type PendingRoots = Map<Ref<Doc>, Ref<Doc> | null>
+export type PendingRoots = Map<string, Ref<Doc> | null>
 
-interface ParentEntry {
-  // Collaborator id -> account; an account may be added more than once.
-  collaborators: Map<Ref<Collaborator>, AccountUuid>
-  roots: Set<Ref<Doc>>
+/**
+ * Storage addresses documents by id within a domain, so marks are keyed by both.
+ * @public
+ */
+export function markKey (domain: Domain, _id: Ref<Doc>): string {
+  return `${domain}/${_id}`
 }
 
+const ROOT_CACHE_SIZE = 10000
+const PARENT_CACHE_SIZE = 10000
 const DOC_ROOT_CACHE_SIZE = 50000
+const MISSING_ROOT_CACHE_SIZE = 1000
+
+/**
+ * A Map that drops the least recently used entries above the limit.
+ */
+class BoundedMap<K, V> {
+  private readonly map = new Map<K, V>()
+
+  constructor (private readonly limit: number) {}
+
+  get (key: K): V | undefined {
+    const value = this.map.get(key)
+    if (value !== undefined) {
+      this.map.delete(key)
+      this.map.set(key, value)
+    }
+    return value
+  }
+
+  set (key: K, value: V): void {
+    this.map.delete(key)
+    if (this.map.size >= this.limit) {
+      const oldest = this.map.keys().next()
+      if (oldest.done !== true) this.map.delete(oldest.value)
+    }
+    this.map.set(key, value)
+  }
+
+  delete (key: K): void {
+    this.map.delete(key)
+  }
+}
+
+interface AccessClasses {
+  policy: Ref<Class<Doc>>[] // declaring a policy; a query by them returns subclasses too
+  roots: Set<Ref<Class<Doc>>>
+  protected: Set<Ref<Class<Doc>>> // roots and classes declaring AccessParent
+  // Domains holding protected documents. Storage addresses documents by id within a domain, so any
+  // transaction there is checked whatever class it claims; other domains are never looked at.
+  domains: Set<Domain>
+  parentFields: Set<string> // reference fields of AccessParent and policies
+}
 
 /**
  * Applies update operations of an AccountUuid[] attribute to its current value.
  * @public
  */
-export function applyArrayUpdate (current: Iterable<AccountUuid>, ops: Record<string, any>, field: string): AccountUuid[] {
+export function applyArrayUpdate (
+  current: Iterable<AccountUuid>,
+  ops: Record<string, any>,
+  field: string
+): AccountUuid[] {
   const target: Record<string, any> = { [field]: Array.from(current) }
   const fieldOps: Record<string, any> = {}
   for (const key of Object.keys(ops)) {
@@ -110,7 +160,6 @@ const states = new WeakMap<PipelineContext, ObjectAccessState>()
 
 /**
  * Shared by the security middleware (user requests) and the marker middleware (all transactions).
- * There is one transactor per workspace, so an in-memory state is consistent.
  * @public
  */
 export function getObjectAccessState (context: PipelineContext): ObjectAccessState {
@@ -123,19 +172,26 @@ export function getObjectAccessState (context: PipelineContext): ObjectAccessSta
 }
 
 /**
+ * Nothing is loaded upfront: roots, parent participants and document marks are read on demand and cached.
+ * There is one transactor per workspace, so the caches are kept in sync by the marker middleware.
+ * Only classes with a `ClassAccessPolicy` or an `AccessParent` are ever looked at.
  * @public
  */
 export class ObjectAccessState {
-  private readonly roots = new Map<Ref<Doc>, AccessRootInfo>()
-  private readonly parents = new Map<Ref<Doc>, ParentEntry>()
-  private readonly docRoots = new Map<Ref<Doc>, Ref<Doc> | null>()
-  private readonly readable = new Map<AccountUuid, Ref<Doc>[]>()
-  private domains: { all: Set<Domain>, parentFields: Map<Domain, Set<string>> } | undefined
+  private classes: AccessClasses | undefined
+  private readonly roots = new BoundedMap<Ref<Doc>, AccessRootInfo>(ROOT_CACHE_SIZE)
+  // Marks pointing to nothing (e.g. a removed root); kept apart so probing ids cannot evict real roots.
+  private readonly missingRoots = new BoundedMap<Ref<Doc>, true>(MISSING_ROOT_CACHE_SIZE)
+  // Parent object -> its collaborators (collaborator id -> account).
+  private readonly participants = new BoundedMap<Ref<Doc>, Map<Ref<Collaborator>, AccountUuid>>(PARENT_CACHE_SIZE)
+  // markKey -> root of the document (null: not restricted).
+  private readonly docRoots = new BoundedMap<string, Ref<Doc> | null>(DOC_ROOT_CACHE_SIZE)
+  // Collaborator id -> parent, for collaborators of cached parents.
+  private readonly collaboratorParents = new BoundedMap<Ref<Collaborator>, Ref<Doc>>(DOC_ROOT_CACHE_SIZE)
+  // Bumped on invalidation: a load that started earlier does not store its (possibly stale) result.
+  private rootsVersion = 0
+  private participantsVersion = 0
   private finder: AccessFinder | undefined
-  private initPromise: Promise<void> | undefined
-  private initialized = false
-  // Marks outlive their roots (e.g. stored txes of a removed object), so once set the filter stays on.
-  private marked = false
 
   constructor (readonly context: PipelineContext) {}
 
@@ -152,106 +208,80 @@ export class ObjectAccessState {
     return await this.finder(ctx, _class, query, options)
   }
 
-  async init (ctx: MeasureContext): Promise<void> {
-    if (this.initialized) return
-    this.initPromise ??= ctx.with('init-object-access', {}, (ctx) => this.load(ctx))
-    try {
-      await this.initPromise
-      this.initialized = true
-    } catch (err: any) {
-      this.initPromise = undefined // retry on the next request
-      throw err
-    }
-  }
+  // ---------------------------------------------------------------------------------------------
+  // Classes (from the model, in memory)
 
-  /**
-   * False until the workspace has a restricted object: all checks can be skipped.
-   */
-  isActive (): boolean {
-    return this.marked || this.roots.size > 0
-  }
-
-  getRoot (_id: Ref<Doc>): AccessRootInfo | undefined {
-    return this.roots.get(_id)
-  }
-
-  isRoot (_id: Ref<Doc>): boolean {
-    return this.roots.has(_id)
-  }
-
+  // Called before and after a model change is applied to the hierarchy.
   onModelChanged (): void {
-    this.domains = undefined
+    this.classes = undefined
+    resetAccessPolicyClasses(this.hierarchy)
   }
 
-  private getDomains (): { all: Set<Domain>, parentFields: Map<Domain, Set<string>> } {
-    if (this.domains !== undefined) return this.domains
+  private getClasses (): AccessClasses {
+    if (this.classes !== undefined) return this.classes
     const h = this.hierarchy
-    const all = new Set<Domain>([DOMAIN_TX])
-    const parentFields = new Map<Domain, Set<string>>()
+    const roots = new Set<Ref<Class<Doc>>>()
+    const prot = new Set<Ref<Class<Doc>>>()
+    const domains = new Set<Domain>()
+    const parentFields = new Set<string>()
     for (const _class of h.getDescendants(core.class.Doc)) {
       if (h.isMixin(_class)) continue
-      const domain = h.findDomain(_class)
-      if (domain === undefined || domain === DOMAIN_MODEL || domain === DOMAIN_TX) continue
-      const hasParent =
-        h.classHierarchyMixin(_class, core.mixin.AccessParent) !== undefined ||
-        h.findAttribute(_class, DEFAULT_ACCESS_PARENT.field) !== undefined
-      if (!hasParent && getClassAccessPolicy(h, _class) === undefined) continue
-      all.add(domain)
-      if (hasParent) {
-        const fields = parentFields.get(domain) ?? new Set<string>()
-        for (const ref of getAccessParents(h, _class)) fields.add(ref.field)
-        parentFields.set(domain, fields)
+      const policy = getClassAccessPolicy(h, _class)
+      const parents = getAccessParents(h, _class)
+      if (policy === undefined && parents.length === 0) continue
+      if (policy !== undefined) {
+        roots.add(_class)
+        parentFields.add((policy.parent ?? DEFAULT_ACCESS_PARENT).field)
       }
+      for (const ref of parents) parentFields.add(ref.field)
+      prot.add(_class)
+      const domain = h.findDomain(_class)
+      // Transient and model documents are not stored, marks cannot be read back from them.
+      if (domain !== undefined && domain !== DOMAIN_TRANSIENT && domain !== DOMAIN_MODEL) domains.add(domain)
     }
-    this.domains = { all, parentFields }
-    return this.domains
+    this.classes = { policy: getAccessPolicyClasses(h), roots, protected: prot, domains, parentFields }
+    return this.classes
+  }
+
+  getParentFields (): Set<string> {
+    return this.getClasses().parentFields
+  }
+
+  getDomain (_class: Ref<Class<Doc>> | undefined): Domain | undefined {
+    if (_class === undefined || !this.hierarchy.hasClass(_class)) return undefined
+    return this.hierarchy.findDomain(_class)
   }
 
   /**
-   * True when documents of the domain may belong to a root.
+   * True when transactions of the class may touch protected documents (its domain holds them).
    */
-  isProtectedDomain (domain: Domain): boolean {
-    return this.getDomains().all.has(domain)
+  isProtectedDomainClass (_class: Ref<Class<Doc>> | undefined): boolean {
+    const domain = this.getDomain(_class)
+    return domain !== undefined && this.getClasses().domains.has(domain)
   }
 
-  getProtectedDomains (): Domain[] {
-    return Array.from(this.getDomains().all)
+  isRootClass (_class: Ref<Class<Doc>> | undefined): boolean {
+    return _class !== undefined && this.getClasses().roots.has(_class)
   }
 
-  getParentFields (domain: Domain): string[] {
-    return Array.from(this.getDomains().parentFields.get(domain) ?? [])
+  isProtectedClass (_class: Ref<Class<Doc>> | undefined): boolean {
+    return _class !== undefined && this.getClasses().protected.has(_class)
   }
 
-  private async load (ctx: MeasureContext): Promise<void> {
-    const policyClasses = getAccessPolicyClasses(this.hierarchy)
-    for (const _class of policyClasses) {
-      for (const doc of await this.find(ctx, _class, { [ACCESS_ROOT_FIELD]: { $exists: true } })) {
-        const info = getAccessRoot(doc) === doc._id ? this.buildRootInfo(doc) : undefined
-        if (info !== undefined) this.roots.set(info._id, info)
-      }
-    }
-    if (this.roots.size > 0) {
-      this.marked = true
-    } else if (policyClasses.length > 0) {
-      // The creation tx of a root is always marked and the tx domain is indexed by objectClass.
-      const classes = policyClasses.flatMap((it) => this.hierarchy.getDescendants(it))
-      const txes = await this.find(
-        ctx,
-        core.class.Tx,
-        { objectClass: { $in: classes }, [ACCESS_ROOT_FIELD]: { $exists: true } },
-        { limit: 1, projection: { _id: 1 } }
-      )
-      this.marked = txes.length > 0
-    }
-    for (const info of this.roots.values()) {
-      await this.trackParent(ctx, info)
-    }
+  /**
+   * True when a query by the class (a mixin or a base class too) may return marked documents or transactions.
+   */
+  mayReturnProtected (_class: Ref<Class<Doc>>): boolean {
+    const domain = this.getDomain(_class)
+    return domain !== undefined && (domain === DOMAIN_TX || this.getClasses().domains.has(domain))
   }
+
+  // ---------------------------------------------------------------------------------------------
+  // Roots
 
   buildRootInfo (doc: Doc, audience?: AccessAudience, owners?: AccountUuid[]): AccessRootInfo | undefined {
     const policy = getClassAccessPolicy(this.hierarchy, doc._class)
-    const read = audience ?? getAccessAudience(this.hierarchy, doc)
-    if (policy === undefined || read === undefined) return undefined
+    if (policy === undefined) return undefined
     const ref = policy.parent ?? DEFAULT_ACCESS_PARENT
     const record = doc as unknown as Record<string, unknown>
     const parentId = record[ref.field]
@@ -260,7 +290,7 @@ export class ObjectAccessState {
       _id: doc._id,
       _class: doc._class,
       space: doc.space,
-      audience: read,
+      audience: audience ?? getAccessAudience(this.hierarchy, doc) ?? { kind: 'space' },
       members: new Set(getAccessMembers(doc, policy)),
       owners: new Set(owners ?? getAccessOwners(this.hierarchy, doc)),
       parent:
@@ -271,177 +301,228 @@ export class ObjectAccessState {
   }
 
   /**
-   * Loads collaborators of the parent of a `parentParticipants` root.
+   * A root mark that points to nothing (e.g. a removed root) is closed.
    */
-  private async trackParent (ctx: MeasureContext, info: AccessRootInfo): Promise<void> {
-    if (info.parent === undefined) return
-    let entry = this.parents.get(info.parent._id)
-    if (entry === undefined && info.audience.kind === 'parentParticipants') {
-      entry = { collaborators: new Map(), roots: new Set() }
-      this.parents.set(info.parent._id, entry)
-      for (const it of await this.find(ctx, core.class.Collaborator, { attachedTo: info.parent._id })) {
-        entry.collaborators.set(it._id, it.collaborator)
-      }
+  async getRoot (ctx: MeasureContext, _id: Ref<Doc>): Promise<AccessRootInfo | undefined> {
+    const cached = this.roots.get(_id)
+    if (cached !== undefined) return cached
+    if (this.missingRoots.get(_id) !== undefined) return undefined
+    const version = this.rootsVersion
+    let doc: Doc | undefined
+    for (const _class of this.getClasses().policy) {
+      doc = (await this.find(ctx, _class, { _id }, { limit: 1 }))[0]
+      if (doc !== undefined) break
     }
-    entry?.roots.add(info._id)
+    const info = doc !== undefined && getAccessRoot(doc) === doc._id ? this.buildRootInfo(doc) : undefined
+    if (version === this.rootsVersion) {
+      if (info !== undefined) this.roots.set(_id, info)
+      else this.missingRoots.set(_id, true)
+    }
+    return info
+  }
+
+  setRoot (info: AccessRootInfo): void {
+    this.rootsVersion++
+    this.missingRoots.delete(info._id)
+    this.roots.set(info._id, info)
+    const domain = this.getDomain(info._class)
+    if (domain !== undefined) this.docRoots.set(markKey(domain, info._id), info._id)
+  }
+
+  /**
+   * Reloaded on the next use.
+   */
+  forgetRoot (_id: Ref<Doc>): void {
+    this.rootsVersion++
+    this.roots.delete(_id)
+    this.missingRoots.delete(_id)
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Mutations (by the marker middleware)
+  // Parent participants
 
-  async setRoot (ctx: MeasureContext, info: AccessRootInfo): Promise<void> {
-    const prev = this.roots.get(info._id)
-    if (prev?.parent !== undefined && prev.parent._id !== info.parent?._id) {
-      this.parents.get(prev.parent._id)?.roots.delete(info._id)
+  private async getParticipants (ctx: MeasureContext, parent: Ref<Doc>): Promise<Set<AccountUuid>> {
+    let entry = this.participants.get(parent)
+    if (entry === undefined) {
+      const version = this.participantsVersion
+      entry = new Map()
+      for (const it of await this.find(ctx, core.class.Collaborator, { attachedTo: parent })) {
+        entry.set(it._id, it.collaborator)
+      }
+      if (version === this.participantsVersion) {
+        this.participants.set(parent, entry)
+        for (const id of entry.keys()) this.collaboratorParents.set(id, parent)
+      }
     }
-    this.roots.set(info._id, info)
-    this.marked = true
-    this.docRoots.set(info._id, info._id)
-    await this.trackParent(ctx, info)
-    this.readable.clear()
-  }
-
-  removeRoot (_id: Ref<Doc>): void {
-    const prev = this.roots.get(_id)
-    if (prev === undefined) return
-    this.roots.delete(_id)
-    const entry = prev.parent !== undefined ? this.parents.get(prev.parent._id) : undefined
-    entry?.roots.delete(_id)
-    if (prev.parent !== undefined && entry?.roots.size === 0) this.parents.delete(prev.parent._id)
-    this.readable.clear()
+    return new Set(entry.values())
   }
 
   /**
-   * A root created in the current request: documents produced by triggers (before the request state
-   * is applied) must already resolve to it.
+   * Any collaborator change: a participants load running meanwhile must not store its result.
    */
-  notePendingRoot (_id: Ref<Doc>): void {
-    this.setDocRoot(_id, _id)
-    this.marked = true
-  }
-
-  setDocRoot (_id: Ref<Doc>, root: Ref<Doc> | undefined): void {
-    this.docRoots.delete(_id)
-    if (this.docRoots.size >= DOC_ROOT_CACHE_SIZE) {
-      const oldest = this.docRoots.keys().next()
-      if (oldest.done !== true) this.docRoots.delete(oldest.value)
-    }
-    this.docRoots.set(_id, root ?? null)
-  }
-
-  forgetDoc (_id: Ref<Doc>): void {
-    this.docRoots.delete(_id)
+  onCollaboratorChange (): void {
+    this.participantsVersion++
   }
 
   /**
-   * `parentParticipants` roots whose readers depend on the collaborators of the parent.
+   * Collaborators of the parent changed: returns true when it was cached (some restricted object depends
+   * on it). It is reloaded on the next use.
    */
-  getDependentRoots (parent: Ref<Doc>): AccessRootInfo[] {
-    return Array.from(this.parents.get(parent)?.roots ?? [])
-      .map((it) => this.roots.get(it))
-      .filter((it): it is AccessRootInfo => it?.audience.kind === 'parentParticipants')
-  }
-
-  /**
-   * Returns true when the collaborator belongs to a tracked parent.
-   */
-  addCollaborator (collaborator: Pick<Collaborator, '_id' | 'attachedTo' | 'collaborator'>): boolean {
-    const entry = this.parents.get(collaborator.attachedTo)
-    if (entry === undefined) return false
-    entry.collaborators.set(collaborator._id, collaborator.collaborator)
-    this.readable.clear()
+  forgetParticipants (parent: Ref<Doc>): boolean {
+    if (this.participants.get(parent) === undefined) return false
+    this.participantsVersion++
+    this.participants.delete(parent)
     return true
   }
 
   /**
-   * Returns the parent and account when the collaborator was tracked.
+   * A collaborator is removed: drops its parent from the cache right away (also before the removal is
+   * stored), returns the parent when it was cached.
    */
-  removeCollaborator (_id: Ref<Collaborator>): { parent: Ref<Doc>, account: AccountUuid } | undefined {
-    for (const [parent, entry] of this.parents.entries()) {
-      const account = entry.collaborators.get(_id)
-      if (account === undefined) continue
-      entry.collaborators.delete(_id)
-      this.readable.clear()
-      return { parent, account }
-    }
-    return undefined
+  onCollaboratorRemoved (_id: Ref<Collaborator>): Ref<Doc> | undefined {
+    const parent = this.collaboratorParents.get(_id)
+    if (parent === undefined) return undefined
+    this.collaboratorParents.delete(_id)
+    this.participantsVersion++
+    this.participants.delete(parent)
+    return parent
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Queries
-
-  private getParticipants (root: AccessRootInfo): Set<AccountUuid> | undefined {
-    const entry = root.parent !== undefined ? this.parents.get(root.parent._id) : undefined
-    return entry !== undefined ? new Set(entry.collaborators.values()) : undefined
-  }
-
-  getReaders (root: AccessRootInfo): AccessReaders {
-    return getAccessReaders(root.audience, root.members, this.getParticipants(root))
-  }
-
-  canReadRoot (account: AccountUuid, rootId: Ref<Doc>): boolean {
-    if (account === systemAccountUuid) return true
-    const root = this.roots.get(rootId)
-    // A mark pointing to an unknown root is closed.
-    return root !== undefined && canReadByAudience(account, root.audience, root.members, this.getParticipants(root))
-  }
+  // Readers
 
   /**
-   * Allow-list of the `accessRoot` query condition.
+   * `null` — the root is unknown, nobody but the system reads it.
    */
-  getReadableRoots (account: AccountUuid): Ref<Doc>[] {
-    let result = this.readable.get(account)
-    if (result === undefined) {
-      result = Array.from(this.roots.keys()).filter((it) => this.canReadRoot(account, it))
-      this.readable.set(account, result)
-    }
-    return result
+  async getReaders (ctx: MeasureContext, rootId: Ref<Doc>): Promise<AccessReaders | null> {
+    const info = await this.getRoot(ctx, rootId)
+    if (info === undefined) return null
+    const participants =
+      info.audience.kind === 'parentParticipants' && info.parent !== undefined
+        ? await this.getParticipants(ctx, info.parent._id)
+        : undefined
+    return getAccessReaders(info.audience, info.members, participants)
   }
 
-  async loadDoc (ctx: MeasureContext, _class: Ref<Class<Doc>>, _id: Ref<Doc>): Promise<Doc | undefined> {
-    if (!this.hierarchy.hasClass(_class)) return undefined
-    return (await this.find(ctx, _class, { _id }, { limit: 1 }))[0]
+  async canRead (ctx: MeasureContext, account: AccountUuid, rootId: Ref<Doc>): Promise<boolean> {
+    if (account === systemAccountUuid) return true
+    const readers = await this.getReaders(ctx, rootId)
+    return readers !== null && (readers === undefined || readers.has(account))
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Document marks
+
+  /**
+   * Key of a document of a protected domain, or undefined when its class is outside protected domains.
+   */
+  keyOf (_class: Ref<Class<Doc>> | undefined, _id: Ref<Doc>): string | undefined {
+    const domain = this.getDomain(_class)
+    return domain !== undefined && this.getClasses().domains.has(domain) ? markKey(domain, _id) : undefined
+  }
+
+  noteDoc (_class: Ref<Class<Doc>> | undefined, _id: Ref<Doc>, root: Ref<Doc> | undefined): void {
+    const key = this.keyOf(_class, _id)
+    if (key !== undefined) this.docRoots.set(key, root ?? null)
+  }
+
+  forgetDoc (_class: Ref<Class<Doc>> | undefined, _id: Ref<Doc>): void {
+    const key = this.keyOf(_class, _id)
+    if (key !== undefined) this.docRoots.delete(key)
   }
 
   /**
    * Root of an existing document. The class only picks the domain: the lookup is by id, so a client
-   * cannot hide a document behind another class of the same domain.
+   * cannot hide a document behind another class of the same domain. Pending entries (documents created
+   * earlier in the request) win over stored ones.
    */
   async resolveDocRoot (
-    ctx: MeasureContext,
     _id: Ref<Doc>,
     _class: Ref<Class<Doc>> | undefined,
-    pending?: PendingRoots
+    pending?: PendingRoots,
+    storedFirst: boolean = false
   ): Promise<Ref<Doc> | undefined> {
-    if (this.roots.has(_id)) return _id
-    const known = pending?.has(_id) === true ? pending.get(_id) : this.docRoots.get(_id)
-    if (known !== undefined) return known ?? undefined
-    if (!this.isActive() || _class === undefined || !this.hierarchy.hasClass(_class)) return undefined
-    const domain = this.hierarchy.findDomain(_class)
-    if (domain === undefined || domain === DOMAIN_MODEL || !this.isProtectedDomain(domain)) return undefined
-    const options = { limit: 1, projection: ACCESS_ROOT_PROJECTION }
-    const lowLevel = this.context.lowLevelStorage
-    const docs =
-      lowLevel !== undefined
-        ? await lowLevel.rawFindAll<Doc>(domain, { _id }, options)
-        : await this.find(ctx, _class, { _id }, options)
-    if (docs.length === 0) return undefined
-    const root = getAccessRoot(docs[0])
-    this.setDocRoot(_id, root)
-    return root
+    const domain = this.getDomain(_class)
+    if (domain === undefined || !this.getClasses().domains.has(domain)) return undefined
+    const key = markKey(domain, _id)
+    if (!storedFirst && pending?.has(key) === true) return pending.get(key) ?? undefined
+    if (this.docRoots.get(key) === undefined) await this.loadMarks(domain, [_id])
+    const stored = this.docRoots.get(key)
+    if (stored !== undefined) return stored ?? undefined
+    return pending?.get(key) ?? undefined
   }
 
   /**
-   * Root of a new document, following its declared parent references.
+   * True when a document with the id is stored in the domain of the class.
    */
-  async resolveNewDocRoot (ctx: MeasureContext, doc: Doc, pending?: PendingRoots): Promise<Ref<Doc> | undefined> {
+  async exists (_class: Ref<Class<Doc>>, _id: Ref<Doc>): Promise<boolean> {
+    const domain = this.getDomain(_class)
+    if (domain === undefined) return false
+    if (this.getClasses().domains.has(domain) && this.docRoots.get(markKey(domain, _id)) !== undefined) return true
+    return (await this.loadMarks(domain, [_id])) > 0
+  }
+
+  /**
+   * Root of a document of any protected domain (when its class is not trusted).
+   */
+  async resolveAnyRoot (_id: Ref<Doc>): Promise<Ref<Doc> | undefined> {
+    for (const domain of this.getClasses().domains) {
+      const key = markKey(domain, _id)
+      if (this.docRoots.get(key) === undefined) await this.loadMarks(domain, [_id])
+      const root = this.docRoots.get(key)
+      if (root !== undefined) return root ?? undefined
+    }
+    return undefined
+  }
+
+  /**
+   * Loads the marks of the documents in one query per domain.
+   */
+  async prefetch (docs: Array<{ _id: Ref<Doc>, _class: Ref<Class<Doc>> }>): Promise<void> {
+    const byDomain = new Map<Domain, Ref<Doc>[]>()
+    for (const doc of docs) {
+      const domain = this.getDomain(doc._class)
+      if (domain === undefined || !this.getClasses().domains.has(domain)) continue
+      if (this.docRoots.get(markKey(domain, doc._id)) !== undefined) continue
+      const ids = byDomain.get(domain)
+      if (ids !== undefined) ids.push(doc._id)
+      else byDomain.set(domain, [doc._id])
+    }
+    for (const [domain, ids] of byDomain) {
+      await this.loadMarks(domain, ids)
+    }
+  }
+
+  private async loadMarks (domain: Domain, ids: Ref<Doc>[]): Promise<number> {
+    const lowLevel = this.context.lowLevelStorage
+    if (lowLevel === undefined) throw new Error('Object access requires the low level storage')
+    const docs = await lowLevel.rawFindAll<Doc>(
+      domain,
+      { _id: ids.length === 1 ? ids[0] : { $in: ids } },
+      { projection: ACCESS_ROOT_PROJECTION }
+    )
+    if (this.getClasses().domains.has(domain)) {
+      for (const doc of docs) this.docRoots.set(markKey(domain, doc._id), getAccessRoot(doc) ?? null)
+    }
+    return docs.length
+  }
+
+  /**
+   * Root of a new document, following its declared references. References to documents of
+   * unprotected classes are skipped without any lookup.
+   */
+  async resolveNewDocRoot (
+    doc: Doc,
+    pending?: PendingRoots,
+    storedFirst: boolean = false
+  ): Promise<Ref<Doc> | undefined> {
     const record = doc as unknown as Record<string, unknown>
     for (const ref of getAccessParents(this.hierarchy, doc._class)) {
       const parentId = record[ref.field]
-      if (typeof parentId !== 'string' || parentId === '' || parentId === doc._id) continue
       const parentClass = record[ref.classField]
-      const _class = typeof parentClass === 'string' ? (parentClass as Ref<Class<Doc>>) : undefined
-      const root = await this.resolveDocRoot(ctx, parentId as Ref<Doc>, _class, pending)
+      if (typeof parentId !== 'string' || parentId === '' || parentId === doc._id) continue
+      if (typeof parentClass !== 'string' || !this.isProtectedClass(parentClass as Ref<Class<Doc>>)) continue
+      const root = await this.resolveDocRoot(parentId as Ref<Doc>, parentClass as Ref<Class<Doc>>, pending, storedFirst)
       if (root !== undefined) return root
     }
     return undefined

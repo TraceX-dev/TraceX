@@ -851,11 +851,7 @@ export async function createCollabDocInfo (
             return false
           })
       )
-  // Object access: messages too, e.g. card activity about a restricted discussion.
-  const readers = await getAccessReadersOf(ctx, control, [object, ...docMessages])
-  const targets = new Set(
-    readers === undefined ? filteredCollaborators : filteredCollaborators.filter((it) => readers.has(it))
-  )
+  const targets = new Set(filteredCollaborators)
 
   // user is not collaborator of himself, but we should notify user of changes related to users account (mentions, comments etc)
   if (control.hierarchy.isDerived(object._class, contact.mixin.Employee)) {
@@ -866,6 +862,8 @@ export async function createCollabDocInfo (
     }
   }
 
+  // Object access: the messages count too, e.g. card activity about a restricted discussion.
+  const readers = await getAccessReadersOf(ctx, control, [object, ...docMessages])
   if (readers !== undefined) {
     for (const it of Array.from(targets)) {
       if (!readers.has(it)) targets.delete(it)

@@ -128,6 +128,15 @@ export function createModel (builder: Builder): void {
     createAccessLevel: AccountRole.Guest
   })
 
+  // Object access: files of a message of a restricted object belong to it.
+  builder.mixin(attachment.class.Attachment, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'attachedTo', classField: 'attachedToClass' }]
+  })
+
+  builder.mixin(attachment.class.Drawing, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'parent', classField: 'parentClass' }]
+  })
+
   builder.mixin(attachment.class.Photo, core.class.Class, view.mixin.CollectionEditor, {
     editor: attachment.component.Photos
   })
