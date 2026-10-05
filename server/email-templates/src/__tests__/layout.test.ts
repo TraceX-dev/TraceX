@@ -13,9 +13,8 @@
 // limitations under the License.
 //
 
-import { emailFixtures } from '../email/fixtures'
-import { escapeHtml, initials, mention, safeUrl, text } from '../email/html'
-import { renderEmail, type EmailLayout } from '../email/layout'
+import { escapeHtml, initials, mention, safeUrl, text } from '../html'
+import { renderEmail, type EmailLayout } from '../layout'
 
 const front = 'https://tracex.example'
 
@@ -98,22 +97,24 @@ describe('renderEmail', () => {
     expect(html).not.toContain('javascript:')
   })
 
+  it('renders a code and a note', () => {
+    const html = renderEmail(
+      minimal({
+        blocks: [
+          { type: 'code', code: '12<34' },
+          { type: 'note', body: text('Copy <this>') }
+        ]
+      })
+    )
+    expect(html).toContain('letter-spacing:10px')
+    expect(html).toContain('12&lt;34')
+    expect(html).toContain('Copy &lt;this&gt;')
+  })
+
   it('omits empty optional parts', () => {
     const html = renderEmail(minimal())
     expect(html).not.toContain('Reply in')
     expect(html).not.toContain('border-top:1px solid #ECECF0;padding:24px 0 0 0')
     expect(html).not.toContain('display:none;max-height:0')
-  })
-
-  it('renders every fixture', () => {
-    const fixtures = emailFixtures(front)
-    expect(Object.keys(fixtures)).toEqual(['reply', 'mention', 'message', 'assignment', 'approval', 'update', 'system'])
-    for (const [kind, layout] of Object.entries(fixtures)) {
-      const html = renderEmail(layout)
-      expect(html).toContain(escapeHtml(layout.title))
-      expect(html.match(/<table/g)?.length).toBe(html.match(/<\/table>/g)?.length)
-      expect(html.match(/<tr>/g)?.length).toBe(html.match(/<\/tr>/g)?.length)
-      expect(kind.length).toBeGreaterThan(0)
-    }
   })
 })

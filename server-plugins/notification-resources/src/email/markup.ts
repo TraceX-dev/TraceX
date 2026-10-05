@@ -22,8 +22,7 @@ import {
   type MarkupNode
 } from '@hcengineering/text-core'
 
-import { escapeHtml, mention, safeUrl, trusted, type SafeHtml } from './html'
-import { colors } from './theme'
+import { colors, escapeHtml, mention, safeUrl, trusted, type SafeHtml } from '@hcengineering/email-templates'
 
 /**
  * Object referenced from a message (not a person).

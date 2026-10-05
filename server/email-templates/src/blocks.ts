@@ -73,9 +73,28 @@ export interface FieldsBlock {
 }
 
 /**
+ * One-time code shown large, e.g. a sign-in code.
  * @public
  */
-export type EmailBlock = QuoteBlock | MessageBlock | ObjectLinkBlock | ParagraphBlock | FieldsBlock
+export interface CodeBlock {
+  type: 'code'
+  code: string
+}
+
+/**
+ * Small muted text, e.g. a fallback link under a button.
+ * @public
+ */
+export interface NoteBlock {
+  type: 'note'
+  body: SafeHtml
+}
+
+/**
+ * @public
+ */
+export type EmailBlock =
+  QuoteBlock | MessageBlock | ObjectLinkBlock | ParagraphBlock | FieldsBlock | CodeBlock | NoteBlock
 
 const table = 'role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
 
@@ -150,6 +169,14 @@ function fields (block: FieldsBlock): string {
   return `<table ${table} style="border:1px solid ${colors.border};border-radius:10px;border-collapse:separate"><tr><td style="padding:4px 16px"><table ${table}>${rows}</table></td></tr></table>`
 }
 
+function code (block: CodeBlock): string {
+  return `<table ${table} style="background-color:${colors.quoteBg};border:1px solid ${colors.border};border-radius:10px;border-collapse:separate"><tr><td align="center" style="padding:20px;text-align:center"><span style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:700;letter-spacing:10px;color:${colors.text};line-height:1.2">${escapeHtml(block.code)}</span></td></tr></table>`
+}
+
+function note (block: NoteBlock): string {
+  return `<div style="font-family:${font};font-size:13px;line-height:1.6;color:${colors.faint};word-wrap:break-word;overflow-wrap:anywhere">${block.body}</div>`
+}
+
 /**
  * @public
  */
@@ -165,5 +192,9 @@ export function renderBlock (block: EmailBlock): SafeHtml {
       return trusted(paragraph(block))
     case 'fields':
       return trusted(fields(block))
+    case 'code':
+      return trusted(code(block))
+    case 'note':
+      return trusted(note(block))
   }
 }

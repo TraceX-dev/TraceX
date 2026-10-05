@@ -18,10 +18,17 @@
 import type { MarkupNode } from '@hcengineering/text-core'
 
 import type { EmailNotificationData, EmailObject } from './content'
-import { join, mention, strong, text, trusted } from './html'
-import { assetUrl, type EmailLayout } from './layout'
+import {
+  assets,
+  assetUrl,
+  join,
+  mention,
+  strong,
+  text,
+  trusted,
+  type EmailLayout
+} from '@hcengineering/email-templates'
 import { markupToEmailHtml, type EmailMarkup } from './markup'
-import { assets } from './theme'
 
 /**
  * Front url of the samples: a reserved example domain.

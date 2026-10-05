@@ -23,8 +23,9 @@ import {
   formatEmailTime,
   type EmailNotificationData
 } from '../email/content'
-import { text } from '../email/html'
-import { renderEmail } from '../email/layout'
+import { escapeHtml, renderEmail, text } from '@hcengineering/email-templates'
+
+import { emailFixtures } from '../email/fixtures'
 import { markupToEmailHtml, type MarkupToEmailOptions } from '../email/markup'
 
 const personClass = 'contact:class:Person' as Ref<Class<Doc>>
@@ -244,6 +245,18 @@ describe('email content', () => {
       const html = renderEmail(buildEmailLayout({ ...base, kind, emoji: '👍', quote: { own: true, text: 'q' } }))
       expect(html.match(/<table/g)?.length).toBe(html.match(/<\/table>/g)?.length)
       expect(html).toContain('CAPA')
+    }
+  })
+
+  it('renders every fixture', () => {
+    const fixtures = emailFixtures('https://tracex.example')
+    expect(Object.keys(fixtures)).toEqual(['reply', 'mention', 'message', 'assignment', 'approval', 'update', 'system'])
+    for (const [kind, layout] of Object.entries(fixtures)) {
+      const html = renderEmail(layout)
+      expect(html).toContain(escapeHtml(layout.title))
+      expect(html.match(/<table/g)?.length).toBe(html.match(/<\/table>/g)?.length)
+      expect(html.match(/<tr>/g)?.length).toBe(html.match(/<\/tr>/g)?.length)
+      expect(kind.length).toBeGreaterThan(0)
     }
   })
 })

@@ -45,6 +45,8 @@ export interface EmailLayout {
   title: string
   blocks: EmailBlock[]
   actions?: EmailAction[]
+  /** Blocks under the buttons, e.g. a fallback link. */
+  afterActions?: EmailBlock[]
   /** Why the receiver gets this email. */
   reason?: string
   /** Footer links, e.g. notification settings. */
@@ -99,7 +101,7 @@ function button (action: EmailAction): string {
     action.primary === true
       ? `background-color:${colors.header};border:1px solid ${colors.header};color:#FFFFFF`
       : `background-color:#FFFFFF;border:1px solid ${colors.buttonBorder};color:${colors.text}`
-  return `<td style="padding:0 12px 12px 0"><a href="${href}" style="display:inline-block;${style};border-radius:10px;padding:13px 24px;font-family:${font};font-size:15px;font-weight:600;line-height:18px;text-decoration:none;white-space:nowrap">${escapeHtml(action.label)}</a></td>`
+  return `<td style="padding:0 12px 12px 0"><a href="${href}" style="display:inline-block;${style};border-radius:10px;padding:13px 24px;font-family:${font};font-size:15px;font-weight:600;line-height:18px;text-decoration:none">${escapeHtml(action.label)}</a></td>`
 }
 
 function actions (layout: EmailLayout): string {
@@ -142,6 +144,9 @@ export function renderEmail (layout: EmailLayout): SafeHtml {
     )
     .join('\n')
   const hasActions = (layout.actions ?? []).length > 0
+  const afterActions = (layout.afterActions ?? [])
+    .map((block) => `<tr><td class="tx-pad" style="padding:20px 40px 0 40px">${renderBlock(block)}</td></tr>`)
+    .join('\n')
   const copyright = layout.copyright ?? `© ${layout.appName} — All rights reserved`
 
   return trusted(`<!DOCTYPE html>
@@ -163,6 +168,7 @@ ${header(layout)}
 <tr><td class="tx-pad" style="padding:36px 40px 0 40px">${context(layout)}<h1 style="margin:0;font-family:${font};font-size:24px;line-height:1.3;font-weight:700;letter-spacing:-0.4px;color:${colors.text}">${escapeHtml(layout.title)}</h1></td></tr>
 ${blocks}
 ${hasActions ? actions(layout) : ''}
+${afterActions}
 ${footer(layout)}
 </table>
 </td></tr>
