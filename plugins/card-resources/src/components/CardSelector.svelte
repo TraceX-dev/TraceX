@@ -68,9 +68,14 @@
 
   const query = createQuery()
   $: if (value !== undefined) {
-    query.query(card.class.Card, { _id: value }, (res) => {
-      doc = res[0]
-    })
+    query.query(
+      card.class.Card,
+      { _id: value },
+      (res) => {
+        doc = res[0]
+      },
+      { unsecured: true }
+    )
   } else {
     query.unsubscribe()
     doc = undefined

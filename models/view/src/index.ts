@@ -210,6 +210,7 @@ export class TSpacePresenter extends TClass implements SpacePresenter {
 @Mixin(view.mixin.ObjectPresenter, core.class.Class)
 export class TObjectPresenter extends TClass implements ObjectPresenter {
   presenter!: AnyComponent
+  requiredFields?: string[]
 }
 
 @Mixin(view.mixin.ListItemPresenter, core.class.Class)

@@ -44,9 +44,14 @@
   let selected: ProductVersion | undefined
 
   $: if (value !== undefined) {
-    query.query(products.class.ProductVersion, { _id: value }, (result) => {
-      selected = result[0]
-    })
+    query.query(
+      products.class.ProductVersion,
+      { _id: value },
+      (result) => {
+        selected = result[0]
+      },
+      { unsecured: true }
+    )
   } else {
     query.unsubscribe()
     selected = undefined

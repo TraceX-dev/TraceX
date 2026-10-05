@@ -218,7 +218,11 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     for (const [key, value] of Object.entries(doc.$associations ?? {})) {
       const visible: Doc[] = []
       for (const it of value) {
-        if (await isVisible(it)) visible.push(it)
+        if (await isVisible(it)) {
+          const filtered = await this.filterLookup(ctx, account, it, cache)
+          changed ||= filtered !== it
+          visible.push(filtered)
+        }
       }
       changed ||= visible.length !== value.length
       associations[key] = visible

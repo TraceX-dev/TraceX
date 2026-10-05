@@ -957,7 +957,8 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: card.component.CardPresenter
+    presenter: card.component.CardPresenter,
+    requiredFields: ['title', 'version', 'icon', 'color', 'parentInfo']
   })
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.CollectionPresenter, {

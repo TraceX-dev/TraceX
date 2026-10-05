@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -480,7 +481,10 @@ abstract class PostgresAdapterBase implements DbAdapter {
           sqlChunks.push(`WHERE ${this.buildQuery(vars, _class, domain, query, joins, options)}`)
 
           const showArchived = shouldShowArchived(query, options)
-          const secJoin = this.addSecurity(_class, vars, query, showArchived, domain, ctx.contextData)
+          const secJoin =
+            options?.unsecured === true
+              ? undefined
+              : this.addSecurity(_class, vars, query, showArchived, domain, ctx.contextData)
           if (secJoin !== undefined) {
             sqlChunks.push(secJoin)
           }
@@ -502,7 +506,10 @@ abstract class PostgresAdapterBase implements DbAdapter {
               }
               totalChunks.push(`WHERE ${this.buildQuery(pvars, _class, domain, query, joins, options)}`)
               const showArchived = shouldShowArchived(query, options)
-              const secJoin = this.addSecurity(_class, pvars, query, showArchived, domain, ctx.contextData)
+              const secJoin =
+                options?.unsecured === true
+                  ? undefined
+                  : this.addSecurity(_class, pvars, query, showArchived, domain, ctx.contextData)
               if (secJoin !== undefined) {
                 totalChunks.push(secJoin)
               }
@@ -554,7 +561,15 @@ abstract class PostgresAdapterBase implements DbAdapter {
                 total
               )
             } else {
-              const res = await this.parseLookup<T>(ctx, result, joins, projection, options.associations, domain)
+              const res = await this.parseLookup<T>(
+                ctx,
+                result,
+                joins,
+                projection,
+                options.associations,
+                domain,
+                showArchived
+              )
               return toFindResult(res, total)
             }
           })) as FindResult<T>
@@ -621,7 +636,8 @@ abstract class PostgresAdapterBase implements DbAdapter {
     query: DocumentQuery<T>,
     showArchived: boolean,
     domain: string,
-    sessionContext: SessionData
+    sessionContext: SessionData,
+    tableAlias: string = domain
   ): string | undefined {
     if (sessionContext !== undefined && sessionContext.isTriggerCtx !== true) {
       if (sessionContext.account?.role !== AccountRole.Admin && sessionContext.account !== undefined) {
@@ -635,16 +651,16 @@ abstract class PostgresAdapterBase implements DbAdapter {
         const privateCheck = domain === DOMAIN_SPACE ? ' OR sec.private = false' : ''
         const archivedCheck = showArchived ? '' : ' AND sec.archived = false'
         const q = `(sec._id = '${core.space.Space}' OR sec."_class" = '${core.class.SystemSpace}' OR sec.members @> '{"${acc.uuid}"}'${privateCheck})${archivedCheck}`
-        const res = `EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_SPACE)} sec WHERE sec._id = ${domain}.${key} AND sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND ${q})`
+        const res = `EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_SPACE)} sec WHERE sec._id = ${tableAlias}.${key} AND sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND ${q})`
 
         const collabSec = getClassCollaborators(this.modelDb, this.hierarchy, _class)
         let collabRes = ''
         if ([AccountRole.Guest, AccountRole.ReadOnlyGuest].includes(acc.role)) {
           if (collabSec?.provideSecurity === true) {
-            collabRes += ` OR EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_COLLABORATOR)} collab_sec WHERE collab_sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND collab_sec."attachedTo" = ${domain}._id AND collab_sec.collaborator = '${acc.uuid}')`
+            collabRes += ` OR EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_COLLABORATOR)} collab_sec WHERE collab_sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND collab_sec."attachedTo" = ${tableAlias}._id AND collab_sec.collaborator = '${acc.uuid}')`
           }
           if (collabSec?.provideAttachedSecurity === true) {
-            collabRes += ` OR EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_COLLABORATOR)} collab_sec WHERE collab_sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND collab_sec."attachedTo" = ${domain}."attachedTo" AND collab_sec.collaborator = '${acc.uuid}')`
+            collabRes += ` OR EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_COLLABORATOR)} collab_sec WHERE collab_sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND collab_sec."attachedTo" = ${tableAlias}."attachedTo" AND collab_sec.collaborator = '${acc.uuid}')`
           }
         }
         return `AND (${res}${collabRes})`
@@ -658,7 +674,8 @@ abstract class PostgresAdapterBase implements DbAdapter {
     joins: JoinProps[],
     projection: Projection<T> | undefined,
     associations: AssociationQuery[] | undefined,
-    domain: string
+    domain: string,
+    showArchived: boolean = false
   ): Promise<WithLookup<T>[]> {
     const map = new Map<Ref<T>, WithLookup<T>>()
 
@@ -698,7 +715,7 @@ abstract class PostgresAdapterBase implements DbAdapter {
     }
 
     if (associations !== undefined && map.size > 0) {
-      await this.fetchAssociations(ctx, map, associations)
+      await this.fetchAssociations(ctx, map, associations, showArchived)
     }
 
     return [...map.values()]
@@ -707,7 +724,8 @@ abstract class PostgresAdapterBase implements DbAdapter {
   async fetchAssociations (
     ctx: MeasureContext<SessionData>,
     parentMap: Map<string, WithLookup<Doc>>,
-    associations: AssociationQuery[]
+    associations: AssociationQuery[],
+    showArchived: boolean = false
   ): Promise<void> {
     for (const association of associations) {
       const [assocId, dir, nested] = association
@@ -729,6 +747,8 @@ abstract class PostgresAdapterBase implements DbAdapter {
       const wsId = vars.add(this.workspaceId, '::uuid')
       const parentIds = vars.add(Array.from(parentMap.keys()), '::text[]')
       const assocIdVar = vars.add(assocId)
+      const targetQuery = this.buildQuery(vars, _class, 'assoc', {}, [])
+      const security = this.addSecurity(_class, vars, {}, showArchived, tagetDomain, ctx.contextData, 'assoc')
 
       const rows = await this.mgr.retry(ctx.id, this.mgrId, async (connection) => {
         return await connection.execute(
@@ -740,7 +760,8 @@ abstract class PostgresAdapterBase implements DbAdapter {
           WHERE r."${keyA}" = ANY(${parentIds})
             AND r.association = ${assocIdVar}
             AND r."workspaceId" = ${wsId}
-            AND assoc."workspaceId" = ${wsId}
+            AND ${targetQuery}
+            ${security ?? ''}
           `,
           vars.getValues()
         )
@@ -768,7 +789,7 @@ abstract class PostgresAdapterBase implements DbAdapter {
       }
 
       if (nested !== undefined && nested.length > 0 && nextParentMap.size > 0) {
-        await this.fetchAssociations(ctx, nextParentMap, nested)
+        await this.fetchAssociations(ctx, nextParentMap, nested, showArchived)
       }
     }
   }

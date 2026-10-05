@@ -1,6 +1,8 @@
 <!--
 // Copyright © 2021 Anticrm Platform Contributors.
 //
+// Copyright © 2026 TraceX SAS.
+//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
@@ -40,9 +42,14 @@
   let doc: Doc | undefined
 
   $: if (value === undefined && _class != null && objectId != null) {
-    docQuery.query(_class, { _id: objectId }, (r) => {
-      doc = r.shift()
-    })
+    docQuery.query(
+      _class,
+      { _id: objectId },
+      (r) => {
+        doc = r.shift()
+      },
+      { unsecured: true }
+    )
   } else if (
     value?._id !== undefined &&
     value?._class !== undefined &&
@@ -50,9 +57,14 @@
     _class === undefined &&
     (value as Doc)?.space === undefined
   ) {
-    docQuery.query(value._class, { _id: value._id }, (r) => {
-      ;[doc] = r
-    })
+    docQuery.query(
+      value._class,
+      { _id: value._id },
+      (r) => {
+        ;[doc] = r
+      },
+      { unsecured: true }
+    )
   } else if (value?._id !== undefined && value?._class !== undefined && (value as Doc).space !== undefined) {
     docQuery.unsubscribe()
     doc = value as Doc
