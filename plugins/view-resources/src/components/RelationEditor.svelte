@@ -226,7 +226,7 @@
 
 <Section {label}>
   <svelte:fragment slot="header">
-    <div class="buttons-group xsmall-gap">
+    <div class="buttons-group xsmall-gap no-print">
       {#if classLabel}
         <Label label={classLabel} />
       {/if}
@@ -270,7 +270,7 @@
           <DocTable objects={uniqueDocs} {_class} {config} {onContextMenu} {readonly} reorderable />
         </Scroller>
       {/if}
-    {:else if !readonly}
+    {:else if !readonly || emptyKind === 'placeholder'}
       <div
         class="antiSection-empty clear-mins mt-3"
         class:solid={emptyKind === 'create'}

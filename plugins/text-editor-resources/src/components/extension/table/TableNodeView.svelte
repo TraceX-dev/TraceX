@@ -20,6 +20,7 @@
   import { onDestroy, onMount } from 'svelte'
   import { NodeViewContent, NodeViewProps, NodeViewWrapper } from '../../node-view'
   import { findTable, insertColumn, insertRow } from './utils'
+  import { TablePrintController } from './print-table'
   import { TableMap, updateColumnsOnResize } from '@tiptap/pm/tables'
   import { getToolbarCursor, setToolbarMeta } from '../toolbar/toolbar'
 
@@ -78,53 +79,16 @@
   let tableElement: HTMLTableElement
   let colgroupElement: HTMLTableColElement
   let printTableContainer: HTMLDivElement
-  let printMediaQuery: MediaQueryList | undefined
-
-  function handleBeforePrint (): void {
-    const printTable = tableElement.cloneNode(true) as HTMLTableElement
-    const printBody = printTable.tBodies.item(0)
-    if (printBody !== null) {
-      const headerRows: HTMLTableRowElement[] = []
-      for (const row of Array.from(printBody.rows)) {
-        if (row.cells[0]?.tagName !== 'TH') break
-        headerRows.push(row)
-      }
-
-      if (headerRows.length > 0) {
-        const printHead = document.createElement('thead')
-        printHead.append(...headerRows)
-        printTable.insertBefore(printHead, printBody)
-      }
-    }
-
-    printTableContainer.replaceChildren(printTable)
-  }
-
-  function handleAfterPrint (): void {
-    printTableContainer.replaceChildren()
-  }
-
-  function handlePrintMediaChange (event: MediaQueryListEvent): void {
-    if (event.matches) {
-      handleBeforePrint()
-    } else {
-      handleAfterPrint()
-    }
-  }
+  let tablePrintController: TablePrintController | undefined
 
   onMount(() => {
     updateColumns()
-    printMediaQuery = window.matchMedia('print')
-    window.addEventListener('beforeprint', handleBeforePrint)
-    window.addEventListener('afterprint', handleAfterPrint)
-    printMediaQuery.addEventListener('change', handlePrintMediaChange)
+    tablePrintController = new TablePrintController(tableElement, printTableContainer)
   })
 
   onDestroy(() => {
+    tablePrintController?.destroy()
     editor.off('selectionUpdate', handleSelectionUpdate)
-    window.removeEventListener('beforeprint', handleBeforePrint)
-    window.removeEventListener('afterprint', handleAfterPrint)
-    printMediaQuery?.removeEventListener('change', handlePrintMediaChange)
   })
 
   function onScroll (event: Event): void {
@@ -149,7 +113,6 @@
 <!-- prettier-ignore -->
 <NodeViewWrapper class="table-node-wrapper" data-drag-handle>
   <div class="table-wrapper" class:table-selected={editable && focused}>
-    <div class="table-print" bind:this={printTableContainer}></div>
     <div class="table-scroller" on:scroll={(e) => { onScroll(e) }}>
       <table class={className} bind:this={tableElement}>
         <colgroup bind:this={colgroupElement} />
@@ -178,6 +141,7 @@
         </div>
       {/if}
     </div>
+    <div class="table-print" contenteditable="false" bind:this={printTableContainer}></div>
   </div>
 </NodeViewWrapper>
 
@@ -283,8 +247,6 @@
         :global(tr),
         :global(td),
         :global(th) {
-          break-inside: avoid;
-          page-break-inside: avoid;
           border-right: 0.5px solid var(--text-editor-table-border-color) !important;
           border-bottom: 0.5px solid var(--text-editor-table-border-color) !important;
         }
