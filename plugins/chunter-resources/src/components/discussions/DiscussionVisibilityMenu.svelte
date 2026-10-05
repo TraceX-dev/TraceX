@@ -30,6 +30,8 @@
   export let kind: 'primary' | 'secondary' | 'tertiary' | 'negative' = 'secondary'
   export let size: 'large' | 'medium' | 'small' | 'extra-small' | 'min' = 'medium'
   export let iconOnly: boolean = false
+  // The levels offered in the menu, all by default.
+  export let levels: ObjectVisibility[] = ['public', 'participants', 'private']
 
   const dispatch = createEventDispatcher<{ change: ObjectVisibility }>()
   const hierarchy = getClient().getHierarchy()
@@ -42,8 +44,8 @@
     parentLabel = label !== undefined ? await translate(label, {}, language) : ''
   }
 
-  let items: DropdownIntlItem[] = []
-  $: items = [
+  let allItems: DropdownIntlItem[] = []
+  $: allItems = [
     {
       id: 'public',
       icon: chunter.icon.Hashtag,
@@ -66,6 +68,7 @@
     }
   ]
 
+  $: items = allItems.filter((it) => levels.includes(it.id as ObjectVisibility))
   $: current = items.find((it) => it.id === value) ?? items[0]
 
   function handleSelected (event: CustomEvent<DropdownIntlItem['id']>): void {

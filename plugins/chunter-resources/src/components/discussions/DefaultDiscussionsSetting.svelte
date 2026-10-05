@@ -27,6 +27,9 @@
 
   // Card collaborators by default.
   const DEFAULT_VISIBILITY: ObjectVisibility = 'participants'
+  // A private discussion is visible to its members only, and a lazily created one would have just its creator,
+  // so other card participants could never open it.
+  const LEVELS: ObjectVisibility[] = ['public', 'participants']
 
   const client = getClient()
   const query = createQuery()
@@ -115,6 +118,7 @@
             <DiscussionVisibilityMenu
               value={item.visibility}
               parentClass={masterTag._id}
+              levels={LEVELS}
               kind="tertiary"
               size="small"
               on:change={(event) => void changeVisibility(item, event.detail)}

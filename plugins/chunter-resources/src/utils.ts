@@ -259,8 +259,12 @@ export function withDiscussionVisibility (
   visibility: ObjectVisibility
 ): AttachedData<Discussion> {
   if (visibility === 'public') return data
-  const policy = { [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) } }
-  return { ...data, ...policy } as AttachedData<Discussion>
+  // The computed mixin key is not checked as an excess property, so no assertion is needed.
+  const attributes: AttachedData<Discussion> = {
+    ...data,
+    [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) }
+  }
+  return attributes
 }
 
 // The discussion is created from a default discussion still configured for its owner class.
@@ -294,8 +298,8 @@ export async function getOrCreateDefaultDiscussion (
   const existing = await client.findOne(chunter.class.Discussion, query)
   if (existing !== undefined) return existing._id
 
-  const me = getCurrentAccount().uuid
-  const { visibility } = config
+  // Private is not offered for default discussions: only the creator could open it.
+  const visibility: ObjectVisibility = config.visibility === 'private' ? 'participants' : config.visibility
   const operations = client.apply(`chunter.createDefaultDiscussion.${object._id}`, 'chunter.createDefaultDiscussion')
   operations.notMatch(chunter.class.Discussion, query)
   // The creator must be a card collaborator to keep access.
@@ -306,7 +310,7 @@ export async function getOrCreateDefaultDiscussion (
     name: config.name,
     resolved: false,
     // Members exist only for a private discussion.
-    members: visibility === 'private' ? [me] : [],
+    members: [],
     defaultDiscussion: config._id
   }
   const discussionId = await operations.addCollection(
