@@ -330,6 +330,16 @@
     align-self: stretch;
   }
 
+  @media print {
+    .hulyComponent-content__container,
+    .hulyComponent-content__column,
+    .hulyComponent-content,
+    .section {
+      display: block;
+      height: auto !important;
+    }
+  }
+
   .down-button {
     position: absolute;
     width: 100%;

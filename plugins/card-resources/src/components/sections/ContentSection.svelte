@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -53,7 +54,7 @@
 </script>
 
 {#if contentDiv != null}
-  <div class="content" class:hidden>
+  <div class="content" class:readonly class:hidden>
     <Content
       {doc}
       readonly={readonly ||
@@ -75,6 +76,14 @@
     padding: 0 2.5rem;
     flex: 1;
     min-height: 5.5rem;
+
+    @media print {
+      padding: 0 1rem;
+    }
+
+    &.readonly {
+      padding: 0 1rem;
+    }
 
     &.hidden {
       display: none;

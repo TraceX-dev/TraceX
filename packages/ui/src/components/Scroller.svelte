@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -1013,6 +1014,27 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+  }
+
+  @media print {
+    .scroller-container.vertical,
+    .scroller-container.vertical > .horizontalBox,
+    .scroller-container.vertical > .horizontalBox > .scroll,
+    .scroller-container.vertical > .horizontalBox > .scroll > .box {
+      display: block;
+      height: auto !important;
+      max-height: none !important;
+    }
+
+    .bar,
+    .bar-horizontal,
+    .track,
+    .track-horizontal,
+    .scrollButton,
+    .updown-container,
+    .scrollArrow {
+      display: none !important;
+    }
   }
 
   .bar,

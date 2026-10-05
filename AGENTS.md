@@ -12,6 +12,8 @@ Respond to user using Russian language, all comments should be in English.
 
 ## Code Style
 
+- Do not add `:global` styles in feature components to override other components' internals. Keep styles scoped to the owning component. Fix shared layout or printing issues in the responsible shared component (for example, Scroller), rather than adding feature-specific overrides.
+
 **TypeScript**: Strict types, interfaces over types, avoid `any`, export types separately
 **Svelte**: Script/style/markup order, reactive `$:`, stores for state, small focused components
 **Naming**: Files `kebab-case`, Components `PascalCase`, functions `camelCase`, constants `UPPER_SNAKE_CASE`
