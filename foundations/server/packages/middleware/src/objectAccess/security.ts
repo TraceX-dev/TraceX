@@ -457,8 +457,9 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     if (info === undefined || policy === undefined || !touchesAttribute(ops, policy.membersField)) return
     if (info.audience.kind !== 'members') {
       // Members matter only for a private object: set up by managers, so nobody joins in advance.
-      if (!(await this.canManage(ctx, account, info, scope.cache)))
-        {this.deny(ctx, account, tx, 'members-require-manage')}
+      if (!(await this.canManage(ctx, account, info, scope.cache))) {
+        this.deny(ctx, account, tx, 'members-require-manage')
+      }
       return
     }
     const field = policy.membersField
@@ -475,8 +476,9 @@ export class ObjectSecurityMiddleware extends BaseMiddleware implements Middlewa
     const self = account.uuid
     const manage = await this.canManage(ctx, account, info, scope.cache)
     // Members may invite and leave; only managers may remove somebody else.
-    if (added.length > 0 && !info.members.has(self) && !manage)
-      {this.deny(ctx, account, tx, 'invite-requires-membership')}
+    if (added.length > 0 && !info.members.has(self) && !manage) {
+      this.deny(ctx, account, tx, 'invite-requires-membership')
+    }
     if (removed.some((it) => it !== self) && !manage) this.deny(ctx, account, tx, 'removal-requires-manage')
     if (after.size === 0) this.deny(ctx, account, tx, 'private-object-needs-a-member')
   }
