@@ -13,8 +13,7 @@
 // limitations under the License.
 //
 
-export * from '@hcengineering/email-templates'
-export * from './collect'
-export * from './content'
-export * from './fixtures'
-export * from './markup'
+export * from './blocks'
+export * from './html'
+export * from './layout'
+export * from './theme'

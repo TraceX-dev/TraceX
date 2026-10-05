@@ -46,6 +46,7 @@ import { authenticator } from 'otplib'
 import { Analytics } from '@hcengineering/analytics'
 import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } from '@hcengineering/server-token'
 import { PostgresAccountDB } from './collections/postgres/postgres'
+import { getEmailAppName, renderAccountEmail } from './emails'
 import { accountPlugin } from './plugin'
 import {
   type Account,
@@ -551,7 +552,7 @@ export async function sendOtpEmail (
   const app = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName)
 
   const text = await translate(accountPlugin.string.OtpText, { code: otp, app }, lang)
-  const html = await translate(accountPlugin.string.OtpHTML, { code: otp, app }, lang)
+  const html = await renderAccountEmail('otp', { code: otp }, branding)
   const subject = await translate(accountPlugin.string.OtpSubject, { code: otp, app }, lang)
 
   const to = email
@@ -1287,7 +1288,7 @@ export async function sendEmailConfirmation (
   const name = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName)
   const lang = branding?.language
   const text = await translate(accountPlugin.string.ConfirmationText, { name, link }, lang)
-  const html = await translate(accountPlugin.string.ConfirmationHTML, { name, link }, lang)
+  const html = await renderAccountEmail('confirmation', { name: getEmailAppName(branding), link }, branding)
   const subject = await translate(accountPlugin.string.ConfirmationSubject, { name }, lang)
 
   const response = await fetch(concatLink(mailURL, '/send'), {
@@ -1843,11 +1844,7 @@ export async function getInviteEmail (
       { link, ws, expHours },
       lang
     ),
-    html: await translate(
-      resend ? accountPlugin.string.ResendInviteHTML : accountPlugin.string.InviteHTML,
-      { link, ws, expHours },
-      lang
-    ),
+    html: await renderAccountEmail(resend ? 'resendInvite' : 'invite', { link, ws, expHours }, branding),
     subject: await translate(
       resend ? accountPlugin.string.ResendInviteSubject : accountPlugin.string.InviteSubject,
       { ws },

@@ -2124,6 +2124,16 @@ describe('account utils', () => {
         to: 'test@example.com'
       })
     })
+
+    test('should render the html in the shared email layout', async () => {
+      const result = await getInviteEmail(mockBranding, 'test@example.com', 'invite-id', mockWorkspace, 24)
+
+      expect(result.html).toContain('<!DOCTYPE html>')
+      expect(result.html).toContain('src="https://app.example.com/tracex/email-logo.png"')
+      expect(result.html).toContain('account:string:InviteEmailTitle')
+      // Not an http(s) link, so the button does not point anywhere.
+      expect(result.html).not.toContain('href="invite-id"')
+    })
   })
 
   describe('addSocialIdBase', () => {

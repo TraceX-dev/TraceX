@@ -13,10 +13,16 @@
 // limitations under the License.
 //
 
-import type { EmailBlock, ObjectLinkBlock } from './blocks'
-import { text, type SafeHtml } from './html'
-import { assetUrl, type EmailAction, type EmailLayout } from './layout'
-import { assets } from './theme'
+import {
+  assets,
+  assetUrl,
+  text,
+  type EmailAction,
+  type EmailBlock,
+  type EmailLayout,
+  type ObjectLinkBlock,
+  type SafeHtml
+} from '@hcengineering/email-templates'
 
 /**
  * What happened, decides the email layout.

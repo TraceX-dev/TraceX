@@ -51,6 +51,7 @@
     "@hcengineering/text-core": "workspace:^0.7.19",
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/server-view": "workspace:^0.7.0",
-    "@hcengineering/server-contact": "workspace:^0.7.0"
+    "@hcengineering/server-contact": "workspace:^0.7.0",
+    "@hcengineering/email-templates": "workspace:^0.7.0"
   }
 }

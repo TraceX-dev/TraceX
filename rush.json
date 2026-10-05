@@ -956,6 +956,11 @@
       "shouldPublish": false
     },
     {
+      "packageName": "@hcengineering/email-templates",
+      "projectFolder": "server/email-templates",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@hcengineering/account-service",
       "projectFolder": "server/account-service",
       "shouldPublish": false
