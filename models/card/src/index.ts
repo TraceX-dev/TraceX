@@ -1159,6 +1159,14 @@ export function createModel (builder: Builder): void {
     component: card.component.ViewsSection
   })
 
+  // Below the type structure sections. Tags are mixins without own discussions, so master tags only.
+  builder.createDoc(card.class.MasterTagEditorSection, core.space.Model, {
+    id: 'discussions',
+    label: chunter.string.DefaultDiscussions,
+    masterOnly: true,
+    component: chunter.component.DefaultDiscussionsSetting
+  })
+
   builder.createDoc(
     workbench.class.Widget,
     core.space.Model,

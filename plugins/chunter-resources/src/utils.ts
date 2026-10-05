@@ -25,9 +25,13 @@ import { summarizeMessages as aiSummarizeMessages, translate as aiTranslate } fr
 import {
   type Channel,
   type ChatMessage,
+  type DefaultDiscussion,
+  defaultDiscussionVisibilityLevels,
   type DirectMessage,
   type Discussion,
+  ensureObjectCollaborator,
   getDiscussionTitle,
+  getOrCreateDefaultDiscussion as getOrCreateObjectDefaultDiscussion,
   type ThreadMessage
 } from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
@@ -181,7 +185,16 @@ export function getDiscussionVisibility (discussion: Discussion): ObjectVisibili
 export function canChangeDiscussionVisibility (discussion: Discussion): boolean {
   const me = getCurrentAccount()
   if (!hasAccountRole(me, AccountRole.User) || !isAccessRoot(discussion)) return false
-  return hasAccountRole(me, AccountRole.Maintainer) || isDiscussionOwner(discussion)
+  if (hasAccountRole(me, AccountRole.Maintainer)) return true
+  // A default discussion belongs to the owner type, so whoever created it first must not hide it from others.
+  return isDiscussionOwner(discussion) && !isConfiguredDefaultDiscussion(discussion)
+}
+
+// The visibility levels a discussion may get; a private default discussion could not be opened by others.
+export function getDiscussionVisibilityLevels (discussion: Discussion): ObjectVisibility[] {
+  return isConfiguredDefaultDiscussion(discussion)
+    ? defaultDiscussionVisibilityLevels
+    : ['public', 'participants', 'private']
 }
 
 // Members of a private discussion may invite others and leave; managers may also remove others.
@@ -208,18 +221,14 @@ export async function ensureCollaborator (
   client: TxOperations,
   object: Pick<Doc, '_id' | '_class' | 'space'>
 ): Promise<void> {
-  const me = getCurrentAccount().uuid
-  const current = await client.findOne(core.class.Collaborator, { attachedTo: object._id, collaborator: me })
-  if (current !== undefined) return
-  await client.addCollection(core.class.Collaborator, object.space, object._id, object._class, 'collaborators', {
-    collaborator: me
-  })
+  await ensureObjectCollaborator(client, object, getCurrentAccount().uuid)
 }
 
 // The checks are done upfront: the steps are separate requests, a rejected one must not leave others behind.
 export async function setDiscussionVisibility (discussion: Discussion, visibility: ObjectVisibility): Promise<void> {
   const current = getDiscussionVisibility(discussion)
   if (current === visibility || !canChangeDiscussionVisibility(discussion)) return
+  if (!getDiscussionVisibilityLevels(discussion).includes(visibility)) return
   const client = getClient()
   const me = getCurrentAccount().uuid
   if (visibility === 'private' && !discussion.members.includes(me)) {
@@ -248,7 +257,34 @@ export async function setDiscussionResolved (discussion: Discussion, resolved: b
   await getClient().update(discussion, { resolved })
 }
 
+// The discussion is created from a default discussion still configured for its owner class.
+export function isConfiguredDefaultDiscussion (discussion: Discussion): boolean {
+  if (discussion.defaultDiscussion === undefined) return false
+  const config = getClient()
+    .getModel()
+    .findAllSync(chunter.class.DefaultDiscussion, { _id: discussion.defaultDiscussion })[0]
+  return config !== undefined && config.ofClass === discussion.attachedToClass
+}
+
+// A configured default discussion is part of the owner type: its name comes from the type and it cannot be deleted.
+export function canDeleteDiscussion (discussion: Discussion): boolean {
+  return !isConfiguredDefaultDiscussion(discussion)
+}
+
+export function canRenameDiscussion (discussion: Discussion): boolean {
+  return canManageDiscussion(discussion) && !isConfiguredDefaultDiscussion(discussion)
+}
+
+// Creates the default discussion on first access, see getOrCreateDefaultDiscussion in @hcengineering/chunter.
+export async function getOrCreateDefaultDiscussion (
+  object: Doc,
+  config: DefaultDiscussion
+): Promise<Ref<Discussion> | undefined> {
+  return await getOrCreateObjectDefaultDiscussion(getClient(), object, config, getCurrentAccount().uuid)
+}
+
 export async function deleteDiscussion (discussion: Discussion): Promise<void> {
+  if (!canDeleteDiscussion(discussion)) return
   showPopup(MessageBox, {
     label: chunter.string.DeleteDiscussion,
     message: chunter.string.DeleteDiscussionConfirm,

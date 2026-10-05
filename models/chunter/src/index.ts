@@ -36,6 +36,7 @@ import {
   TChunterSpace,
   TDirectMessage,
   TObjectChatPanel,
+  TDefaultDiscussion,
   TDiscussion,
   TThreadMessage
 } from './types'
@@ -50,6 +51,7 @@ export function createModel (builder: Builder): void {
     TChunterSpace,
     TChannel,
     TDiscussion,
+    TDefaultDiscussion,
     TDirectMessage,
     TChatMessage,
     TThreadMessage,
