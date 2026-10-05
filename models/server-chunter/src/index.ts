@@ -108,6 +108,26 @@ export function createModel (builder: Builder): void {
   })
 
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverChunter.trigger.OnDefaultDiscussionUpdated,
+    txMatch: {
+      _class: core.class.TxUpdateDoc,
+      objectClass: chunter.class.DefaultDiscussion,
+      'operations.name': { $exists: true }
+    },
+    isAsync: true
+  })
+
+  // Any object can own discussions, so the class change is matched for all documents.
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverChunter.trigger.OnDiscussionOwnerClassChanged,
+    txMatch: {
+      _class: core.class.TxUpdateDoc,
+      'operations._class': { $exists: true }
+    },
+    isAsync: true
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverChunter.trigger.ChatNotificationsHandler,
     txMatch: {
       _class: core.class.TxCreateDoc,

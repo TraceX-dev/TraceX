@@ -22,8 +22,7 @@
     type Doc,
     getCurrentAccount,
     type Markup,
-    type ObjectVisibility,
-    visibilityToAudience
+    type ObjectVisibility
   } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { EmptyMarkup, isEmptyMarkup } from '@hcengineering/text'
@@ -32,7 +31,7 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { ensureCollaborator } from '../../utils'
+  import { ensureCollaborator, withDiscussionVisibility } from '../../utils'
   import DiscussionVisibilityMenu from './DiscussionVisibilityMenu.svelte'
 
   export let object: Doc
@@ -79,14 +78,6 @@
       // Members exist only for a private discussion.
       members: visibility !== 'private' ? [] : members.includes(me) ? members : [me, ...members]
     }
-    // The policy goes with the create tx, so the discussion is never visible to the whole space.
-    const attributes: AttachedData<Discussion> =
-      visibility === 'public'
-        ? data
-        : ({
-            ...data,
-            [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) }
-          } as AttachedData<Discussion>)
     // The creator must be a card collaborator to keep access.
     if (visibility === 'participants') {
       await ensureCollaborator(operations, object)
@@ -97,7 +88,7 @@
       object._id,
       object._class,
       'discussions',
-      attributes
+      withDiscussionVisibility(data, visibility)
     )
 
     if (!isEmptyMarkup(draftMessage)) {

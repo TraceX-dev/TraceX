@@ -160,6 +160,10 @@
     "SummarizeMessages": "Summarize discussion",
     "Resolved": "Resolved",
     "ViewAllDiscussions": "View all discussions ({count})",
+    "DefaultDiscussion": "Default discussion",
+    "DefaultDiscussions": "Default discussions",
+    "DefaultDiscussionsDescription": "Every card of this type gets these discussions. Each one is created when someone opens it for the first time.",
+    "AddDefaultDiscussion": "Add default discussion",
     "Discussion": "Discussion",
     "Discussions": "Discussions",
     "NoDiscussionsYet": "There are no discussions yet."

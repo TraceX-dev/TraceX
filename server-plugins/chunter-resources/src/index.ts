@@ -20,6 +20,7 @@ import chunter, {
   ChatMessage,
   chunterId,
   ChunterSpace,
+  type DefaultDiscussion,
   type Discussion,
   getDiscussionTitle,
   ThreadMessage
@@ -32,6 +33,7 @@ import core, {
   concatLink,
   Doc,
   DocumentQuery,
+  type DocumentUpdate,
   FindOptions,
   FindResult,
   Hierarchy,
@@ -426,6 +428,61 @@ async function OnChatMessageRemoved (txes: TxCUD<ChatMessage>[], control: Trigge
   return res
 }
 
+/**
+ * The default discussion name is defined by the owner type only, so created discussions are renamed with it.
+ * Trigger transactions are derived, so they produce no activity.
+ */
+async function OnDefaultDiscussionUpdated (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxUpdateDoc) continue
+    const updateTx = tx as TxUpdateDoc<DefaultDiscussion>
+    const name = updateTx.operations.name?.trim()
+    if (name === undefined || name === '') continue
+
+    // Only the fields required for the update are loaded.
+    const discussions = await control.findAll(
+      control.ctx,
+      chunter.class.Discussion,
+      { defaultDiscussion: updateTx.objectId, name: { $ne: name } },
+      { projection: { _id: 1, _class: 1, space: 1 } }
+    )
+    for (const discussion of discussions) {
+      res.push(control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, { name }))
+    }
+  }
+  return res
+}
+
+/**
+ * Keeps discussions consistent when the owner object changes its class (e.g. the card type is changed).
+ * Default discussions are not inherited, so one of another type becomes a regular discussion.
+ */
+async function OnDiscussionOwnerClassChanged (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxUpdateDoc) continue
+    const updateTx = tx as TxUpdateDoc<Doc>
+    const newClass = (updateTx.operations as { _class?: Ref<Class<Doc>> })._class
+    if (newClass === undefined) continue
+
+    const discussions = await control.findAll(control.ctx, chunter.class.Discussion, { attachedTo: updateTx.objectId })
+    for (const discussion of discussions) {
+      const operations: DocumentUpdate<Discussion> = {}
+      if (discussion.attachedToClass !== newClass) operations.attachedToClass = newClass
+      if (discussion.defaultDiscussion !== undefined) {
+        const config = control.modelDb.findAllSync(chunter.class.DefaultDiscussion, {
+          _id: discussion.defaultDiscussion
+        })[0]
+        if (config?.ofClass !== newClass) operations.$unset = { defaultDiscussion: true }
+      }
+      if (Object.keys(operations).length === 0) continue
+      res.push(control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, operations))
+    }
+  }
+  return res
+}
+
 function getDirectsToHide (directs: DocNotifyContext[], date: Timestamp): DocNotifyContext[] {
   const minVisibleDirects = 10
 
@@ -566,7 +623,9 @@ export default async () => ({
     ChunterTrigger,
     OnChatMessageRemoved,
     ChatNotificationsHandler,
-    OnUserStatus
+    OnUserStatus,
+    OnDefaultDiscussionUpdated,
+    OnDiscussionOwnerClassChanged
   },
   function: {
     CommentRemove,

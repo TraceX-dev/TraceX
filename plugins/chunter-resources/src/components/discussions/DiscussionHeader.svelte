@@ -37,8 +37,10 @@
   import chunter from '../../plugin'
   import {
     canChangeDiscussionVisibility,
+    canDeleteDiscussion,
     canEditDiscussionMembers,
     canManageDiscussion,
+    canRenameDiscussion,
     deleteDiscussion,
     getDiscussionVisibility,
     normalizeDiscussionMembers,
@@ -56,6 +58,9 @@
   let title = ''
 
   $: canManage = canManageDiscussion(discussion)
+  // A default discussion gets its name from the owner type and cannot be deleted while configured there.
+  $: canRename = canRenameDiscussion(discussion)
+  $: canDelete = canDeleteDiscussion(discussion)
   $: canChangeVisibility = canChangeDiscussionVisibility(discussion)
   $: canEditMembers = canEditDiscussionMembers(discussion)
   $: visibility = getDiscussionVisibility(discussion)
@@ -69,7 +74,7 @@
       resolved
         ? { id: 'reopen', label: chunter.string.ReopenDiscussion, icon: IconCheckCircle }
         : { id: 'resolve', label: chunter.string.MarkAsResolved, icon: IconCheckCircle },
-      { id: 'delete', label: chunter.string.DeleteDiscussion, icon: IconDelete }
+      ...(canDelete ? [{ id: 'delete', label: chunter.string.DeleteDiscussion, icon: IconDelete }] : [])
     ]
     showPopup(ModernPopup, { items }, eventToHTMLElement(ev), (result) => {
       switch (result) {
@@ -94,7 +99,7 @@
   async function saveTitle (): Promise<void> {
     const name = title.trim()
     try {
-      if (name !== (discussion.name ?? '').trim()) await client.update(discussion, { name })
+      if (canRename && name !== (discussion.name ?? '').trim()) await client.update(discussion, { name })
     } finally {
       isTitleEditing = false
     }
@@ -133,7 +138,7 @@
 <div class="discussion-header">
   <Icon icon={chunter.icon.Thread} size="small" />
   <div class="title">
-    {#if canManage}
+    {#if canRename}
       <EditBox
         bind:value={title}
         placeholder={chunter.string.UntitledDiscussion}

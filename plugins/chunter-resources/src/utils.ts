@@ -25,6 +25,7 @@ import { summarizeMessages as aiSummarizeMessages, translate as aiTranslate } fr
 import {
   type Channel,
   type ChatMessage,
+  type DefaultDiscussion,
   type DirectMessage,
   type Discussion,
   getDiscussionTitle,
@@ -42,6 +43,7 @@ import core, {
   getAccessRoot,
   type ObjectVisibility,
   visibilityToAudience,
+  type AttachedData,
   type Class,
   type Client,
   type Doc,
@@ -248,7 +250,88 @@ export async function setDiscussionResolved (discussion: Discussion, resolved: b
   await getClient().update(discussion, { resolved })
 }
 
+/**
+ * Adds the access policy for a non-public discussion. The policy goes with the create tx,
+ * so the discussion is never visible to the whole space.
+ */
+export function withDiscussionVisibility (
+  data: AttachedData<Discussion>,
+  visibility: ObjectVisibility
+): AttachedData<Discussion> {
+  if (visibility === 'public') return data
+  const policy = { [core.mixin.AccessControlled]: { read: visibilityToAudience(visibility) } }
+  return { ...data, ...policy } as AttachedData<Discussion>
+}
+
+// The discussion is created from a default discussion still configured for its owner class.
+export function isConfiguredDefaultDiscussion (discussion: Discussion): boolean {
+  if (discussion.defaultDiscussion === undefined) return false
+  const config = getClient()
+    .getModel()
+    .findAllSync(chunter.class.DefaultDiscussion, { _id: discussion.defaultDiscussion })[0]
+  return config !== undefined && config.ofClass === discussion.attachedToClass
+}
+
+// A configured default discussion is part of the owner type: its name comes from the type and it cannot be deleted.
+export function canDeleteDiscussion (discussion: Discussion): boolean {
+  return !isConfiguredDefaultDiscussion(discussion)
+}
+
+export function canRenameDiscussion (discussion: Discussion): boolean {
+  return canManageDiscussion(discussion) && !isConfiguredDefaultDiscussion(discussion)
+}
+
+/**
+ * Creates the default discussion on first access. The notMatch check is done by the server
+ * without object access filtering, so a discussion hidden from the user is never duplicated.
+ */
+export async function getOrCreateDefaultDiscussion (
+  object: Doc,
+  config: DefaultDiscussion
+): Promise<Ref<Discussion> | undefined> {
+  const client = getClient()
+  const query = { attachedTo: object._id, defaultDiscussion: config._id }
+  const existing = await client.findOne(chunter.class.Discussion, query)
+  if (existing !== undefined) return existing._id
+
+  const me = getCurrentAccount().uuid
+  const { visibility } = config
+  const operations = client.apply(`chunter.createDefaultDiscussion.${object._id}`, 'chunter.createDefaultDiscussion')
+  operations.notMatch(chunter.class.Discussion, query)
+  // The creator must be a card collaborator to keep access.
+  if (visibility === 'participants') {
+    await ensureCollaborator(operations, object)
+  }
+  const data: AttachedData<Discussion> = {
+    name: config.name,
+    resolved: false,
+    // Members exist only for a private discussion.
+    members: visibility === 'private' ? [me] : [],
+    defaultDiscussion: config._id
+  }
+  const discussionId = await operations.addCollection(
+    chunter.class.Discussion,
+    object.space,
+    object._id,
+    object._class,
+    'discussions',
+    withDiscussionVisibility(data, visibility)
+  )
+  const { result } = await operations.commit()
+  if (result) return discussionId
+
+  // It already exists but may be hidden: card participants get access by becoming collaborators.
+  const current = await client.findOne(chunter.class.Discussion, query)
+  if (current !== undefined) return current._id
+  if (visibility === 'participants') {
+    await ensureCollaborator(client, object)
+    return (await client.findOne(chunter.class.Discussion, query))?._id
+  }
+  return undefined
+}
+
 export async function deleteDiscussion (discussion: Discussion): Promise<void> {
+  if (!canDeleteDiscussion(discussion)) return
   showPopup(MessageBox, {
     label: chunter.string.DeleteDiscussion,
     message: chunter.string.DeleteDiscussionConfirm,
