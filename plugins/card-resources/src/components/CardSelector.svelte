@@ -87,7 +87,7 @@
   disabled={readonly}
   on:click={handleOpen}
 >
-  <div slot="content" class="overflow-label flex-row-center w-full" class:flex-between={showNavigate && doc}>
+  <div slot="content" class="flex-row-center w-full" class:flex-between={showNavigate && doc}>
     <div class="overflow-label flex-grow min-w-0 text-left">
       {#if doc}
         <CardPresenter value={doc} type={'text'} />
@@ -96,7 +96,7 @@
       {/if}
     </div>
     {#if doc && showNavigate}
-      <div class="ml-2 flex-row-center flex-no-shrink">
+      <div class="ml-auto pl-2 flex-row-center flex-no-shrink">
         <ActionIcon
           icon={view.icon.ArrowRight}
           size={'small'}

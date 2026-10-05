@@ -70,7 +70,7 @@
 </script>
 
 <Button disabled={readonly} {kind} {size} {justify} width={width ?? '100%'} on:click={openPopup}>
-  <div slot="content" class="overflow-label flex-row-center w-full" class:flex-between={showNavigate && selected}>
+  <div slot="content" class="flex-row-center w-full" class:flex-between={showNavigate && selected}>
     <div class="overflow-label flex-grow min-w-0 text-left">
       {#if selected}
         <ProductVersionPresenter value={selected} disabled />
@@ -79,7 +79,7 @@
       {/if}
     </div>
     {#if selected && showNavigate}
-      <div class="ml-2 flex-row-center flex-no-shrink">
+      <div class="ml-auto pl-2 flex-row-center flex-no-shrink">
         <ActionIcon
           icon={view.icon.ArrowRight}
           size={'small'}
