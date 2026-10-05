@@ -1,5 +1,6 @@
 {
   "string": {
+    "Skip": "Пропустить",
     "SelectionVersions": "Версии для выбора",
     "OnlyEffectiveVersions": "Только эффективные",
     "OnlyLatestVersions": "Только последние",

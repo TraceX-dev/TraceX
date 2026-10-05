@@ -16,17 +16,17 @@
 
 <script lang="ts">
   import attachment, { type Attachment } from '@hcengineering/attachment'
-  import type { Card } from '@hcengineering/card'
+  import type { Card as TypeCard } from '@hcengineering/card'
   import type { DocumentQuery } from '@hcengineering/core'
   import { getResource, setPlatformStatus, unknownError } from '@hcengineering/platform'
-  import { createQuery, getClient, MessageViewer } from '@hcengineering/presentation'
+  import { Card, createQuery, getClient, MessageViewer } from '@hcengineering/presentation'
   import type { EventButton } from '@hcengineering/process'
-  import { type AnySvelteComponent, ModernDialog, Spinner } from '@hcengineering/ui'
+  import { type AnySvelteComponent, Button, Spinner } from '@hcengineering/ui'
   import { createEventDispatcher, onMount } from 'svelte'
   import process from '../plugin'
 
   export let action: EventButton
-  export let card: Card
+  export let card: TypeCard
 
   const dispatch = createEventDispatcher()
   const client = getClient()
@@ -39,7 +39,8 @@
   let disposed = false
 
   $: busy = uploading || saving
-  $: canSubmit = !busy && attachments > 0
+  $: canSubmit = !busy && editor !== undefined && attachments > 0
+  $: canSkip = !busy && editor !== undefined && action.requireAttachments === false
 
   onMount(() => {
     void initialize().catch(async (error: unknown) => {
@@ -71,8 +72,7 @@
     if (!busy) dispatch('close')
   }
 
-  async function submit (): Promise<void> {
-    if (!canSubmit) return
+  async function complete (): Promise<void> {
     saving = true
     try {
       await client.createDoc(process.class.ProcessCustomEvent, action.space, {
@@ -87,17 +87,24 @@
       saving = false
     }
   }
+
+  async function submit (): Promise<void> {
+    if (!canSubmit) return
+    await complete()
+  }
+
+  async function skip (): Promise<void> {
+    if (!canSkip) return
+    await complete()
+  }
 </script>
 
-<ModernDialog
-  label={process.string.RequestAttachments}
-  {canSubmit}
-  loading={busy}
-  shouldCloseOnCancel={!busy}
-  width="40rem"
-  on:submit={submit}
-  on:close={close}
->
+<Card label={process.string.RequestAttachments} canSave={canSubmit} okAction={submit} onCancel={close}>
+  <svelte:fragment slot="buttons">
+    {#if action.requireAttachments === false}
+      <Button kind="regular" size="large" label={process.string.Skip} disabled={!canSkip} on:click={skip} />
+    {/if}
+  </svelte:fragment>
   <div class="flex-col flex-gap-2">
     <div>{action.title}</div>
     {#if action.description}
@@ -121,4 +128,4 @@
       <Spinner />
     {/if}
   </div>
-</ModernDialog>
+</Card>

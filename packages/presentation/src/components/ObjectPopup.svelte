@@ -63,7 +63,6 @@
   export let showVersions: boolean = false
   export let versionsQuery: DocumentQuery<Doc> | undefined = undefined
   export let forceShowSelected: boolean = true
-  export let selectedFirst: boolean = true
 
   export let onSelect: ((doc: Doc) => void) | undefined = undefined
 
@@ -84,12 +83,14 @@
   let search: string = ''
   let objects: Doc[] = []
   let selObjects: Doc[] = []
+  let selectedDoc: Doc | undefined
   let resObjects: Doc[] = []
 
   let extraItems: Ref<Doc>[] = []
 
   const query = createQuery()
   const sQuery = createQuery() // Query for selected objects
+  const selectedQuery = createQuery()
 
   $: noSearchField = searchMode === 'disabled'
   $: _idExtra = typeof docQuery?._id === 'object' ? docQuery?._id : {}
@@ -150,6 +151,15 @@
     sQuery.unsubscribe()
   }
 
+  $: if (showVersions && selected !== undefined) {
+    selectedQuery.query<Doc>(_class, { _id: selected }, (result) => {
+      selectedDoc = result[0]
+    })
+  } else {
+    selectedQuery.unsubscribe()
+    selectedDoc = undefined
+  }
+
   $: {
     if (created.length > 0 || selObjects.length > 0) {
       const docIds = new Set(resObjects.map((it) => it._id))
@@ -163,10 +173,12 @@
     } else {
       objects = resObjects.filter(filter)
     }
-    if (!selectedFirst) objects.sort(sort)
   }
 
   $: displayedObjects = showVersions ? groupVersions(objects) : objects
+  $: selectedVersionBaseIds = [...(selectedDoc !== undefined ? [selectedDoc] : []), ...selObjects].map(
+    (doc) => (doc as VersionableDoc).baseId ?? doc._id
+  )
   $: versionSelectionQuery = mergeQueries(versionsQuery ?? docQuery ?? {}, { _id: { $nin: ignoreObjects } })
 
   function groupVersions (docs: Doc[]): Doc[] {
@@ -197,6 +209,7 @@
 <DocPopup
   {_class}
   objects={displayedObjects}
+  {selectedVersionBaseIds}
   versionsQuery={versionSelectionQuery}
   {selected}
   {multiSelect}
@@ -236,14 +249,14 @@
       <slot name="item" {item} />
     {/if}
   </svelte:fragment>
-  <svelte:fragment slot="category" let:item>
+  <svelte:fragment slot="category" let:item let:isSelected>
     {#if created.length > 0 && created.includes(item._id)}
       <div class="menu-group__header">
         <span class="overflow-label">
           <Label label={presentation.string.Created} />
         </span>
       </div>
-    {:else if selectedObjects.length > 0 && selectedObjects.includes(item._id)}
+    {:else if isSelected}
       <div class="menu-group__header">
         <span class="overflow-label">
           <Label label={presentation.string.Selected} />
