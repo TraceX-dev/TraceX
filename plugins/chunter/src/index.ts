@@ -52,7 +52,6 @@ export interface Channel extends ChunterSpace {
  */
 export interface Discussion extends AttachedDoc {
   name?: string
-  excerpt?: string // beginning of the first message, maintained by the server
   // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
   resolved: boolean
   members: AccountUuid[]
@@ -225,7 +224,6 @@ export default plugin(chunterId, {
     Private: '' as IntlString,
     DiscussionTitleOptional: '' as IntlString,
     UntitledDiscussion: '' as IntlString,
-    Excerpt: '' as IntlString,
     VisibilitySpace: '' as IntlString,
     VisibilitySpaceDescription: '' as IntlString,
     VisibilityParticipants: '' as IntlString,

@@ -18,6 +18,7 @@
   import { type Class, type Doc, type ObjectVisibility, type Ref } from '@hcengineering/core'
   import { translate } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
+  import notification from '@hcengineering/notification'
   import { ButtonMenu, type DropdownIntlItem, languageStore } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
@@ -52,9 +53,8 @@
     {
       id: 'participants',
       icon: contact.icon.ComponentMembers,
-      // The class label is translated asynchronously; the description is shown until it is ready.
-      label:
-        parentLabel !== '' ? chunter.string.VisibilityParticipants : chunter.string.VisibilityParticipantsDescription,
+      // The class label is translated asynchronously.
+      label: parentLabel !== '' ? chunter.string.VisibilityParticipants : notification.string.Collaborators,
       params: { label: parentLabel },
       description: chunter.string.VisibilityParticipantsDescription
     },
@@ -68,12 +68,6 @@
 
   $: current = items.find((it) => it.id === value) ?? items[0]
 
-  // Accessible name of the (icon-only) button.
-  let title = ''
-  $: void translate(current.label, current.params ?? {}, $languageStore).then((it) => {
-    title = it
-  })
-
   function handleSelected (event: CustomEvent<DropdownIntlItem['id']>): void {
     const selected = event.detail as ObjectVisibility
     if (selected !== value) dispatch('change', selected)
@@ -82,7 +76,6 @@
 
 <ButtonMenu
   {items}
-  {title}
   selected={value}
   icon={current.icon}
   label={iconOnly ? undefined : current.label}

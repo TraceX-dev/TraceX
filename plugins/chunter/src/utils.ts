@@ -29,26 +29,10 @@ export async function getDirectChannel (
 }
 
 /**
+ * The name, or undefined for an untitled discussion.
  * @public
  */
-export const DISCUSSION_EXCERPT_LENGTH = 140
-
-/**
- * @public
- */
-export function makeDiscussionExcerpt (text: string): string {
-  const line = text.replace(/\s+/g, ' ').trim()
-  if (line.length <= DISCUSSION_EXCERPT_LENGTH) return line
-  return `${line.slice(0, DISCUSSION_EXCERPT_LENGTH - 1).trimEnd()}…`
-}
-
-/**
- * Name, otherwise excerpt; undefined when there is neither.
- * @public
- */
-export function getDiscussionTitle (discussion: Pick<Discussion, 'name' | 'excerpt'>): string | undefined {
+export function getDiscussionTitle (discussion: Pick<Discussion, 'name'>): string | undefined {
   const name = discussion.name?.trim() ?? ''
-  if (name !== '') return name
-  const excerpt = discussion.excerpt?.trim() ?? ''
-  return excerpt !== '' ? excerpt : undefined
+  return name !== '' ? name : undefined
 }

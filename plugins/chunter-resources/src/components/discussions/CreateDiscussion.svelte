@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Discussion, makeDiscussionExcerpt } from '@hcengineering/chunter'
+  import { type Discussion } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import core, {
     type AccountUuid,
@@ -26,7 +26,7 @@
     visibilityToAudience
   } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { EmptyMarkup, isEmptyMarkup, markupToText } from '@hcengineering/text'
+  import { EmptyMarkup, isEmptyMarkup } from '@hcengineering/text'
   import { StyledTextArea } from '@hcengineering/text-editor-resources'
   import { Button, IconAdd, Label, Modal, ModernEditbox } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
@@ -73,10 +73,8 @@
   async function create (): Promise<void> {
     const operations = client.apply(undefined, 'chunter.createDiscussion')
     const title = name.trim()
-    const excerpt = isEmptyMarkup(draftMessage) ? '' : makeDiscussionExcerpt(markupToText(draftMessage))
     const data: AttachedData<Discussion> = {
       ...(title !== '' ? { name: title } : {}),
-      ...(excerpt !== '' ? { excerpt } : {}),
       resolved: false,
       // Members exist only for a private discussion.
       members: visibility !== 'private' ? [] : members.includes(me) ? members : [me, ...members]

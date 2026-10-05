@@ -17,7 +17,6 @@
   import { type Discussion, getDiscussionTitle } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import { type AccountUuid, getCurrentAccount, type ObjectVisibility } from '@hcengineering/core'
-  import { getEmbeddedLabel } from '@hcengineering/platform'
   import { getClient, MessageBox } from '@hcengineering/presentation'
   import {
     ButtonIcon,
@@ -62,7 +61,6 @@
   $: visibility = getDiscussionVisibility(discussion)
 
   $: displayTitle = getDiscussionTitle(discussion)
-  $: fallbackTitle = getDiscussionTitle({ excerpt: discussion.excerpt })
 
   $: resolved = discussion.resolved
 
@@ -138,7 +136,7 @@
     {#if canManage}
       <EditBox
         bind:value={title}
-        placeholder={fallbackTitle !== undefined ? getEmbeddedLabel(fallbackTitle) : chunter.string.UntitledDiscussion}
+        placeholder={chunter.string.UntitledDiscussion}
         fullSize
         on:value={() => {
           isTitleEditing = true
