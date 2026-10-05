@@ -1,0 +1,169 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+import { escapeHtml, initials, safeUrl, trusted, type SafeHtml } from './html'
+import { colors, font } from './theme'
+
+/**
+ * Quoted earlier message, e.g. the one being replied to.
+ * @public
+ */
+export interface QuoteBlock {
+  type: 'quote'
+  label: string
+  body: SafeHtml
+}
+
+/**
+ * A message with its author.
+ * @public
+ */
+export interface MessageBlock {
+  type: 'message'
+  sender: string
+  time?: string
+  body: SafeHtml
+  /** Draw a border around the message (mentions). */
+  framed?: boolean
+  /** Objects referenced by the message, shown under its text. */
+  objects?: ObjectLinkBlock[]
+}
+
+/**
+ * Link to an object (card, document, issue), shown as a small tile.
+ * @public
+ */
+export interface ObjectLinkBlock {
+  type: 'object'
+  title: string
+  subtitle?: string
+  href: string
+  /** Absolute icon url; omitted icon leaves only the text. */
+  iconUrl?: string
+}
+
+/**
+ * Plain paragraph of text.
+ * @public
+ */
+export interface ParagraphBlock {
+  type: 'paragraph'
+  body: SafeHtml
+}
+
+/**
+ * Attribute changes: label, old value, new value.
+ * @public
+ */
+export interface FieldsBlock {
+  type: 'fields'
+  rows: Array<{ label: string, from?: SafeHtml, to: SafeHtml }>
+}
+
+/**
+ * @public
+ */
+export type EmailBlock = QuoteBlock | MessageBlock | ObjectLinkBlock | ParagraphBlock | FieldsBlock
+
+const table = 'role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
+
+function quote (block: QuoteBlock): string {
+  return `<table ${table} style="background-color:${colors.quoteBg};border-radius:10px;border-collapse:separate"><tr><td style="padding:14px 16px">
+<table ${table}><tr>
+<td width="3" style="width:3px;background-color:${colors.quoteBar};border-radius:2px;font-size:0;line-height:0">&nbsp;</td>
+<td style="padding:0 0 0 12px;font-family:${font}">
+<div style="font-size:12px;font-weight:600;color:${colors.muted};line-height:1.4;margin:0 0 4px 0">${escapeHtml(block.label)}</div>
+<div style="font-size:14px;line-height:1.5;color:${colors.secondary}">${block.body}</div>
+</td></tr></table>
+</td></tr></table>`
+}
+
+function avatar (name: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;border-radius:20px;background-color:${colors.avatar};color:#FFFFFF;font-family:${font};font-size:14px;font-weight:700;line-height:40px;text-align:center">${escapeHtml(initials(name))}</td></tr></table>`
+}
+
+function message (block: MessageBlock): string {
+  const time =
+    block.time !== undefined && block.time !== ''
+      ? `&nbsp;&nbsp;<span style="font-size:13px;font-weight:400;color:${colors.muted}">${escapeHtml(block.time)}</span>`
+      : ''
+  const inner = `<table ${table}><tr>
+<td width="40" valign="top" style="width:40px;padding:0 14px 0 0">${avatar(block.sender)}</td>
+<td valign="top" style="font-family:${font}">
+<div style="font-size:15px;font-weight:700;color:${colors.text};line-height:1.4;margin:0 0 6px 0">${escapeHtml(block.sender)}${time}</div>
+<div style="font-size:16px;line-height:1.6;color:${colors.body};word-wrap:break-word;overflow-wrap:anywhere">${block.body}</div>${(
+    block.objects ?? []
+  )
+    .map((it) => `<div style="margin:10px 0 0 0">${objectLink(it)}</div>`)
+    .join('')}
+</td></tr></table>`
+  if (block.framed !== true) return inner
+  return `<table ${table} style="border:1px solid ${colors.border};border-radius:12px;border-collapse:separate"><tr><td style="padding:20px">${inner}</td></tr></table>`
+}
+
+function objectLink (block: ObjectLinkBlock): string {
+  const href = safeUrl(block.href)
+  const icon =
+    block.iconUrl !== undefined
+      ? `<td width="18" valign="middle" style="width:18px;padding:0 10px 0 0"><img src="${safeUrl(block.iconUrl)}" width="18" height="18" alt="" style="display:block;border:0;width:18px;height:18px"></td>`
+      : ''
+  const subtitle =
+    block.subtitle !== undefined && block.subtitle !== ''
+      ? `<div style="font-size:12px;color:${colors.muted};line-height:1.4">${escapeHtml(block.subtitle)}</div>`
+      : ''
+  return `<table ${table} style="border:1px solid ${colors.border};border-radius:10px;border-collapse:separate"><tr><td style="padding:10px 14px">
+<a href="${href}" style="text-decoration:none;color:${colors.text};display:block"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${icon}
+<td valign="middle" style="font-family:${font}"><div style="font-size:14px;font-weight:600;color:${colors.text};line-height:1.4">${escapeHtml(block.title)}</div>${subtitle}</td>
+</tr></table></a></td></tr></table>`
+}
+
+function paragraph (block: ParagraphBlock): string {
+  return `<div style="font-family:${font};font-size:15px;line-height:1.65;color:${colors.secondary}">${block.body}</div>`
+}
+
+function fields (block: FieldsBlock): string {
+  const rows = block.rows
+    .map((row, i) => {
+      const border = i === 0 ? '' : `border-top:1px solid ${colors.divider};`
+      const from =
+        row.from !== undefined
+          ? `<span style="color:${colors.strike};text-decoration:line-through">${row.from}</span>&nbsp;<span style="color:${colors.strike}">&rarr;</span>&nbsp;`
+          : ''
+      return `<tr>
+<td valign="top" width="35%" style="${border}padding:10px 12px 10px 0;font-family:${font};font-size:13px;color:${colors.muted};line-height:1.5">${escapeHtml(row.label)}</td>
+<td valign="top" style="${border}padding:10px 0;font-family:${font};font-size:14px;color:${colors.text};font-weight:600;line-height:1.5;word-wrap:break-word">${from}${row.to}</td>
+</tr>`
+    })
+    .join('')
+  return `<table ${table} style="border:1px solid ${colors.border};border-radius:10px;border-collapse:separate"><tr><td style="padding:4px 16px"><table ${table}>${rows}</table></td></tr></table>`
+}
+
+/**
+ * @public
+ */
+export function renderBlock (block: EmailBlock): SafeHtml {
+  switch (block.type) {
+    case 'quote':
+      return trusted(quote(block))
+    case 'message':
+      return trusted(message(block))
+    case 'object':
+      return trusted(objectLink(block))
+    case 'paragraph':
+      return trusted(paragraph(block))
+    case 'fields':
+      return trusted(fields(block))
+  }
+}

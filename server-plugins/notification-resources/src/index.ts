@@ -68,6 +68,7 @@ import { type TriggerControl } from '@hcengineering/server-core'
 import { NOTIFICATION_BODY_SIZE, ReceiverInfo, SenderInfo } from '@hcengineering/server-notification'
 import { markupToText, stripTags } from '@hcengineering/text-core'
 
+import { buildEmailLayout, collectEmailData, renderEmail } from './email'
 import { OnInboxNotificationCreate, PushNotificationsHandler } from './push'
 import {
   AvailableProvidersCache,
@@ -282,11 +283,36 @@ export async function getContentByTemplate (
   }
 
   const text = fillTemplate(notificationType.templates.textTemplate, sender, textPart, data, params)
-  const htmlPart = await getHtmlPart(doc, control)
-  const html = fillTemplate(notificationType.templates.htmlTemplate, sender, htmlPart ?? textPart, data, params)
   const subject = fillTemplate(notificationType.templates.subjectTemplate, sender, textPart, data, params)
 
   if (subject === '') return
+
+  let html: string
+  try {
+    const emailData = await collectEmailData(control, {
+      doc,
+      type: notificationType,
+      senderName: sender,
+      objectTitle: textPart,
+      content: {
+        title: notificationContent.title,
+        // Without an inbox notification (e.g. HR emails) the filled text template is the only body we have.
+        body: notificationContent.body !== '' ? notificationContent.body : text !== textPart ? text : ''
+      },
+      objectLink: message !== undefined ? await getNotificationLink(control, doc) : link,
+      messageLink: message !== undefined ? link : undefined,
+      notification: notificationData,
+      message
+    })
+    html = renderEmail(buildEmailLayout(emailData))
+  } catch (err: any) {
+    control.ctx.error('Failed to render notification email, falling back to the plain template', {
+      err: err?.message,
+      type
+    })
+    const htmlPart = await getHtmlPart(doc, control)
+    html = fillTemplate(notificationType.templates.htmlTemplate, sender, htmlPart ?? textPart, data, params)
+  }
 
   return {
     text,
@@ -1726,6 +1752,7 @@ async function OnDocRemove (txes: TxCUD<Doc>[], control: TriggerControl): Promis
 export * from './push'
 export * from './types'
 export * from './utils'
+export * from './email'
 
 /**
  * Generic on-demand delivery: fans an {@link OnDemandNotification} command doc out into each target's
