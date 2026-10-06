@@ -80,12 +80,20 @@ export function link (href: string, label: string): SafeHtml {
 }
 
 /**
- * Highlighted @mention.
+ * Highlighted name in a heading, e.g. the sender.
  * @public
  */
-export function mention (name: string): SafeHtml {
+export function emphasis (value: string): SafeHtml {
+  return trusted(`<strong style="font-weight:600;color:${colors.text}">${escapeHtml(value)}</strong>`)
+}
+
+/**
+ * Highlighted link in a heading, e.g. the document title.
+ * @public
+ */
+export function emphasisLink (href: string, label: string): SafeHtml {
   return trusted(
-    `<span style="padding:1px 6px;border-radius:6px;background-color:${colors.mentionBg};color:${colors.mentionText};font-weight:600;white-space:nowrap">@${escapeHtml(name)}</span>`
+    `<a href="${safeUrl(href)}" style="font-weight:600;color:${colors.text};text-decoration:underline">${escapeHtml(label)}</a>`
   )
 }
 

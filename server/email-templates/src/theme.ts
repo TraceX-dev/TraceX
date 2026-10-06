@@ -23,6 +23,7 @@ export const colors = {
   border: '#E4E4E9',
   divider: '#ECECF0',
   header: '#19191B',
+  headerNote: '#E4E4E7',
   text: '#18181B',
   body: '#27272A',
   secondary: '#52525B',

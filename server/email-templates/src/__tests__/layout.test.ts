@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { escapeHtml, initials, mention, safeUrl, text } from '../html'
+import { emphasis, emphasisLink, escapeHtml, initials, join, safeUrl, text } from '../html'
 import { assetUrl, emailAppName, renderEmail, type EmailLayout } from '../layout'
 
 const front = 'https://tracex.example'
@@ -47,8 +47,9 @@ describe('email html helpers', () => {
     expect(initials('')).toBe('?')
   })
 
-  it('escapes mention names', () => {
-    expect(mention('<x>')).toContain('@&lt;x&gt;')
+  it('escapes highlighted parts', () => {
+    expect(emphasis('<x>')).toContain('&lt;x&gt;')
+    expect(emphasisLink('javascript:alert(1)', 'a')).toContain('href="#"')
   })
 })
 
@@ -89,6 +90,7 @@ describe('renderEmail', () => {
         title: evil,
         preheader: evil,
         reason: evil,
+        headerNote: evil,
         footerLinks: [{ label: evil, href: 'javascript:alert(1)' }],
         actions: [{ label: evil, href: 'javascript:alert(1)', primary: true }],
         blocks: [
@@ -97,8 +99,7 @@ describe('renderEmail', () => {
             type: 'message',
             sender: evil,
             time: evil,
-            body: text(evil),
-            objects: [{ type: 'object', title: evil, href: 'javascript:alert(1)' }]
+            body: text(evil)
           },
           { type: 'object', title: evil, subtitle: evil, href: 'javascript:alert(1)' }
         ]
@@ -120,6 +121,20 @@ describe('renderEmail', () => {
     expect(html).toContain('letter-spacing:10px')
     expect(html).toContain('12&lt;34')
     expect(html).toContain('Copy &lt;this&gt;')
+  })
+
+  it('renders a rich heading and a header note', () => {
+    const html = renderEmail(
+      minimal({
+        title: 'Jane mentioned you in Doc',
+        heading: join([emphasis('Jane'), text(' mentioned you in '), emphasisLink(`${front}/doc`, 'Doc')]),
+        headerNote: 'Demo workspace'
+      })
+    )
+    expect(html).toContain('<title>Jane mentioned you in Doc</title>')
+    expect(html).toContain('font-size:18px;line-height:1.45;font-weight:400')
+    expect(html).toContain(`<a href="${front}/doc"`)
+    expect(html).toContain('>Demo workspace</td>')
   })
 
   it('omits empty optional parts', () => {

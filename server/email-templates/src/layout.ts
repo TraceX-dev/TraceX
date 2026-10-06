@@ -38,7 +38,12 @@ export interface EmailLayout {
   lang?: string
   /** Inbox preview line, hidden in the body. */
   preheader?: string
+  /** Plain title: the document title and the heading when `heading` is not set. */
   title: string
+  /** Heading with highlighted parts (names, links); replaces the plain title in the body. */
+  heading?: SafeHtml
+  /** Small text on the right of the header, e.g. the workspace name. */
+  headerNote?: string
   blocks: EmailBlock[]
   actions?: EmailAction[]
   /** Blocks under the buttons, e.g. a fallback link. */
@@ -81,6 +86,11 @@ function header (layout: EmailLayout): string {
   return `<tr><td class="tx-pad" style="background-color:${colors.header};border-radius:16px 16px 0 0;padding:18px 40px">
 <table ${table}><tr>
 <td valign="middle"><img src="${safeUrl(assetUrl(layout.frontUrl, logo.path))}" width="${logo.width}" height="${logo.height}" alt="${escapeHtml(layout.appName)}" style="display:block;border:0;outline:none;width:${logo.width}px;height:${logo.height}px;color:#FFFFFF;font-family:${font};font-size:18px;font-weight:800;line-height:${logo.height}px"></td>
+${
+  layout.headerNote !== undefined && layout.headerNote !== ''
+    ? `<td align="right" valign="middle" style="padding:0 0 0 16px;font-family:${font};font-size:18px;line-height:1.3;font-weight:600;color:${colors.headerNote}">${escapeHtml(layout.headerNote)}</td>`
+    : ''
+}
 </tr></table>
 </td></tr>`
 }
@@ -115,6 +125,14 @@ function footer (layout: EmailLayout): string {
   return `<tr><td class="tx-pad" style="padding:16px 40px 36px 40px">
 <table ${table}><tr><td style="border-top:1px solid ${colors.divider};padding:24px 0 0 0;font-family:${font};font-size:13px;line-height:1.6;color:${colors.faint}">${content}</td></tr></table>
 </td></tr>`
+}
+
+function heading (layout: EmailLayout): string {
+  // A rich heading reads as a sentence with highlighted names; a plain title stays a title.
+  if (layout.heading !== undefined) {
+    return `<h1 style="margin:0;font-family:${font};font-size:18px;line-height:1.45;font-weight:400;color:${colors.body}">${layout.heading}</h1>`
+  }
+  return `<h1 style="margin:0;font-family:${font};font-size:20px;line-height:1.35;font-weight:600;letter-spacing:-0.2px;color:${colors.text}">${escapeHtml(layout.title)}</h1>`
 }
 
 /**
@@ -155,7 +173,7 @@ ${preheader}
 ${header(layout)}
 <tr><td style="background-color:${colors.card};border:1px solid ${colors.border};border-top:none;border-radius:0 0 16px 16px">
 <table ${table}>
-<tr><td class="tx-pad" style="padding:36px 40px 0 40px"><h1 style="margin:0;font-family:${font};font-size:24px;line-height:1.3;font-weight:700;letter-spacing:-0.4px;color:${colors.text}">${escapeHtml(layout.title)}</h1></td></tr>
+<tr><td class="tx-pad" style="padding:36px 40px 0 40px">${heading(layout)}</td></tr>
 ${blocks}
 ${hasActions ? actions(layout) : ''}
 ${afterActions}

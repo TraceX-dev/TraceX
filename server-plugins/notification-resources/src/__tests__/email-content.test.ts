@@ -13,12 +13,10 @@
 // limitations under the License.
 //
 
-import type { Class, Doc, Ref } from '@hcengineering/core'
-import { MarkupMarkType, MarkupNodeType, type MarkupNode } from '@hcengineering/text-core'
-
 import {
   buildEmailLayout,
   defaultEmailStrings,
+  fillHtml,
   fillString,
   formatEmailTime,
   type EmailNotificationData
@@ -26,156 +24,25 @@ import {
 import { escapeHtml, renderEmail, text } from '@hcengineering/email-templates'
 
 import { emailStrings, getEmailStrings } from '../email/strings'
-import { markupToEmailHtml, type MarkupToEmailOptions } from '../email/markup'
 import { emailDataFixtures } from './fixtures'
-
-const personClass = 'contact:class:Person' as Ref<Class<Doc>>
-const cardClass = 'card:class:Card' as Ref<Class<Doc>>
-
-const options: MarkupToEmailOptions = {
-  isPerson: (_class) => _class === personClass,
-  referenceHref: (id) => `https://front/obj/${id}`
-}
-
-function txt (value: string, marks?: Array<{ type: MarkupMarkType, attrs?: Record<string, any> }>): MarkupNode {
-  return { type: MarkupNodeType.text, text: value, marks }
-}
-
-function doc (...content: MarkupNode[]): MarkupNode {
-  return { type: MarkupNodeType.doc, content }
-}
-
-function p (...content: MarkupNode[]): MarkupNode {
-  return { type: MarkupNodeType.paragraph, content }
-}
-
-function ref (id: string, objectclass: Ref<Class<Doc>>, label: string): MarkupNode {
-  return { type: MarkupNodeType.reference, attrs: { id, objectclass, label } }
-}
-
-describe('markupToEmailHtml', () => {
-  it('renders paragraphs and marks with escaping', () => {
-    const res = markupToEmailHtml(
-      doc(p(txt('a <b> '), txt('bold', [{ type: MarkupMarkType.bold }])), p(txt('second'))),
-      options
-    )
-    expect(res.html).toBe(
-      '<p style="margin:0">a &lt;b&gt; <strong style="font-weight:700">bold</strong></p><p style="margin:12px 0 0 0">second</p>'
-    )
-    expect(res.text).toBe('a <b> bold second')
-    expect(res.truncated).toBe(false)
-  })
-
-  it('accepts serialized markup and plain text', () => {
-    expect(markupToEmailHtml(JSON.stringify(doc(p(txt('json')))), options).text).toBe('json')
-    expect(markupToEmailHtml('plain <i>', options).html).toContain('plain &lt;i&gt;')
-  })
-
-  it('keeps only safe links', () => {
-    const res = markupToEmailHtml(
-      doc(
-        p(
-          txt('ok', [{ type: MarkupMarkType.link, attrs: { href: 'https://x.y/?a=1&b=2' } }]),
-          txt(' bad', [{ type: MarkupMarkType.link, attrs: { href: 'javascript:alert(1)' } }])
-        )
-      ),
-      options
-    )
-    expect(res.html).toContain('href="https://x.y/?a=1&amp;b=2"')
-    expect(res.html).not.toContain('javascript')
-    expect(res.html).toContain(' bad')
-  })
-
-  it('renders person references as mentions and collects other references', () => {
-    const res = markupToEmailHtml(
-      doc(
-        p(
-          ref('p1', personClass, 'Jane Doe'),
-          txt(' see '),
-          ref('c1', cardClass, 'Card <1>'),
-          ref('c1', cardClass, 'Card <1>')
-        )
-      ),
-      options
-    )
-    expect(res.html).toContain('@Jane Doe')
-    expect(res.html).toContain('background-color:#FFF0E6')
-    expect(res.html).toContain('<a href="https://front/obj/c1"')
-    expect(res.html).toContain('Card &lt;1&gt;')
-    expect(res.references).toEqual([{ id: 'c1', objectClass: cardClass, label: 'Card <1>' }])
-    expect(res.text).toBe('@Jane Doe see Card <1>Card <1>')
-  })
-
-  it('renders lists, todo items, hard breaks and emoji', () => {
-    const res = markupToEmailHtml(
-      doc(
-        {
-          type: MarkupNodeType.bullet_list,
-          content: [{ type: MarkupNodeType.list_item, content: [p(txt('one'))] }]
-        },
-        {
-          type: MarkupNodeType.todoList,
-          content: [{ type: MarkupNodeType.todoItem, attrs: { checked: true }, content: [p(txt('done'))] }]
-        },
-        p(txt('a'), { type: MarkupNodeType.hard_break }, txt('b'), {
-          type: MarkupNodeType.emoji,
-          attrs: { emoji: '👍', kind: 'unicode' }
-        })
-      ),
-      options
-    )
-    expect(res.html).toContain(
-      '<ul style="margin:0;padding:0 0 0 22px"><li style="margin:4px 0 0 0"><div>one</div></li></ul>'
-    )
-    expect(res.html).toContain('&#9745;&nbsp;<div>done</div>')
-    expect(res.html).toContain('a<br>b👍')
-  })
-
-  it('drops embeds and unknown attributes, keeps text of unknown nodes', () => {
-    const res = markupToEmailHtml(
-      doc(
-        { type: MarkupNodeType.embed, attrs: { src: 'https://evil' } },
-        { type: 'somethingNew' as MarkupNodeType, content: [txt('inner')] }
-      ),
-      options
-    )
-    expect(res.html).not.toContain('evil')
-    expect(res.text).toBe('inner')
-  })
-
-  it('counts mentions towards the length limit', () => {
-    const mentions = Array.from({ length: 200 }, (_, i) => ref(`p${i}`, personClass, `Person ${i}`))
-    const res = markupToEmailHtml(doc(p(...mentions)), { ...options, maxLength: 30 })
-    expect(res.truncated).toBe(true)
-    expect(res.text.length).toBeLessThanOrEqual(31)
-    expect(res.html.match(/background-color:#FFF0E6/g)?.length).toBe(3)
-    expect(res.text.endsWith('…')).toBe(true)
-  })
-
-  it('truncates long messages on a word boundary', () => {
-    const res = markupToEmailHtml(doc(p(txt('alpha beta gamma delta')), p(txt('never'))), { ...options, maxLength: 13 })
-    expect(res.truncated).toBe(true)
-    expect(res.text).toBe('alpha beta…')
-    expect(res.html).not.toContain('never')
-  })
-})
 
 describe('email content', () => {
   const base: EmailNotificationData = {
     kind: 'message',
     frontUrl: 'https://front',
     appName: 'TraceX',
+    workspace: 'demo-workspace',
     settingsUrl: 'https://front/workbench/ws/setting/notifications',
     senderName: 'John Doe',
     time: 'Oct 4, 23:00 UTC',
     object: { title: 'CAPA-1 Audit', classLabel: 'CAPA', href: 'https://front/card' },
     messageHref: 'https://front/card?message=m1',
-    messageHtml: text('Hello'),
     messageText: 'Hello'
   }
 
   it('fills placeholders', () => {
     expect(fillString('{a} and {b}', { a: 'x' })).toBe('x and')
+    expect(fillHtml('<{a}> and {b}', { a: text('<x>') })).toBe('&lt;&lt;x&gt;&gt; and')
   })
 
   it('formats time in UTC', () => {
@@ -193,6 +60,23 @@ describe('email content', () => {
     expect(layout.copyright).toBe('© TraceX — All rights reserved')
   })
 
+  it('highlights the sender and links the object in the heading', () => {
+    const layout = buildEmailLayout({ ...base, kind: 'mention', object: { ...base.object, title: 'Doc <1>' } })
+    expect(layout.title).toBe('John Doe mentioned you in Doc <1>')
+    expect(layout.heading).toContain('<strong style="font-weight:600;color:#18181B">John Doe</strong>')
+    expect(layout.heading).toContain('<a href="https://front/card"')
+    expect(layout.heading).toContain('>Doc &lt;1&gt;</a>')
+    expect(layout.headerNote).toBe('demo-workspace')
+    // Free-text titles from the notification stay plain.
+    const common = buildEmailLayout({ ...base, kind: 'common', title: 'Approve <b>', messageText: undefined })
+    expect(common.heading).toBe('Approve &lt;b&gt;')
+  })
+
+  it('shows the message as escaped plain text', () => {
+    const layout = buildEmailLayout({ ...base, messageText: 'a <b> @Jane' })
+    expect(layout.blocks[0]).toMatchObject({ type: 'message', body: 'a &lt;b&gt; @Jane' })
+  })
+
   it('builds a reply to own message', () => {
     const layout = buildEmailLayout({ ...base, kind: 'reply', quote: { own: true, text: 'Question?' } })
     expect(layout.title).toBe('John Doe replied to your message in CAPA-1 Audit')
@@ -206,15 +90,13 @@ describe('email content', () => {
     expect(layout.blocks[0]).toMatchObject({ label: 'Alex wrote' })
   })
 
-  it('frames mentions and adds reference tiles', () => {
+  it('frames mentions', () => {
     const layout = buildEmailLayout({
       ...base,
-      kind: 'mention',
-      references: [{ title: 'Other', classLabel: 'Card', href: 'https://front/o' }]
+      kind: 'mention'
     })
     expect(layout.title).toBe('John Doe mentioned you in CAPA-1 Audit')
     expect(layout.blocks[0]).toMatchObject({ type: 'message', framed: true })
-    expect((layout.blocks[0] as any).objects).toHaveLength(1)
     expect(layout.reason).toBe(defaultEmailStrings.reasonMention)
   })
 
@@ -224,7 +106,7 @@ describe('email content', () => {
   })
 
   it('builds update and common emails without a reply button', () => {
-    const update = buildEmailLayout({ ...base, kind: 'update', body: 'Status: Open → Done', messageHtml: undefined })
+    const update = buildEmailLayout({ ...base, kind: 'update', body: 'Status: Open → Done', messageText: undefined })
     expect(update.title).toBe('CAPA-1 Audit was updated')
     expect(update.actions).toEqual([{ label: 'Open in TraceX', href: base.messageHref, primary: true }])
     expect(update.reason).toBe("You're receiving this because you're subscribed to updates of “CAPA-1 Audit”.")
@@ -236,12 +118,12 @@ describe('email content', () => {
       kind: 'common',
       title: 'Approve SOP-12',
       body: 'Please approve',
-      messageHtml: undefined
+      messageText: undefined
     })
     expect(common.title).toBe('Approve SOP-12')
     // The title does not name the object, so a tile does.
     expect(common.blocks.map((it) => it.type)).toEqual(['paragraph', 'object'])
-    const named = buildEmailLayout({ ...base, kind: 'common', title: 'Review CAPA-1 Audit', messageHtml: undefined })
+    const named = buildEmailLayout({ ...base, kind: 'common', title: 'Review CAPA-1 Audit', messageText: undefined })
     expect(named.blocks).toEqual([])
   })
 
@@ -275,11 +157,11 @@ describe('email content', () => {
       kind: 'request',
       title: 'Approve SOP-12',
       body: 'Please approve',
-      messageHtml: undefined
+      messageText: undefined
     })
     expect(titled.title).toBe('Approve SOP-12')
     expect(titled.blocks.map((it) => it.type)).toEqual(['paragraph'])
-    const untitled = buildEmailLayout({ ...base, kind: 'request', messageHtml: undefined })
+    const untitled = buildEmailLayout({ ...base, kind: 'request', messageText: undefined })
     expect(untitled.title).toBe('Action required: CAPA-1 Audit')
   })
 
