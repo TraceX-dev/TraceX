@@ -51,8 +51,7 @@ import type {
   AccountAggregatedInfo,
   UserProfile,
   Subscription,
-  WorkspacePermission,
-  DBFlavor
+  WorkspacePermission
 } from '../../types'
 
 function toSnakeCase (str: string): string {
@@ -557,8 +556,7 @@ export class PostgresAccountDB implements AccountDB {
 
   constructor (
     readonly client: Sql,
-    readonly ns: string = 'global_account',
-    readonly dbFlavor: DBFlavor = 'cockroach'
+    readonly ns: string = 'global_account'
   ) {
     const withRetryClient = this.withRetry
     this.person = new PostgresDbCollection<Person, 'uuid'>('person', client, { ns, idKey: 'uuid', withRetryClient })
@@ -1272,7 +1270,7 @@ export class PostgresAccountDB implements AccountDB {
   }
 
   protected getMigrations (): [string, string][] {
-    return getMigrations(this.ns, this.dbFlavor)
+    return getMigrations(this.ns)
   }
 
   async batchAssignWorkspacePermission (

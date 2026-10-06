@@ -57,7 +57,7 @@ Symptom when missing: console shows `domain not found: pulse:class:DocumentPrese
 ## Build / test workflow for pulse
 
 1. Rebuild front image after changing `dev/prod` config: `rush fast-build:docker-build --to @hcengineering/pod-front` (~8s incremental). Model changes also need `--to @hcengineering/pod-server`. Full rebuild: `rush fast-build:docker-build` (~3.5min, 42 images).
-2. Restart sanity env: `cd tests && ./prepare-pg.sh` — includes `--remove-orphans` on both `down` and `up` to clean stale services.
+2. Restart the PostgreSQL/Datalake sanity environment: `cd tests && ./prepare.sh`.
 3. Run Playwright pulse spec without auto-opening HTML report:
    ```
    cd tests/sanity

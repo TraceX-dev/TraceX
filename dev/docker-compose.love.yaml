@@ -34,7 +34,7 @@ services:
       - SECRET=secret
       - ACCOUNTS_URL=http://huly.local:3000
       - STATS_URL=http://huly.local:4900
-      - REGION=cockroach
+      - REGION=pg
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - LIVEKIT_HOST=http://huly.local:7880

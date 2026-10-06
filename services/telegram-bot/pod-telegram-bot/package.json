@@ -64,7 +64,6 @@
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/kafka": "workspace:^0.7.20",
-    "@hcengineering/mongo": "workspace:^0.7.16",
     "@hcengineering/notification": "workspace:^0.7.0",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/server-client": "workspace:^0.7.16",
@@ -82,7 +81,6 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "htmlparser2": "~10.1.0",
-    "mongodb": "^6.16.0",
     "otp-generator": "^4.0.1",
     "postgres": "^3.4.9",
     "telegraf": "^4.16.3"

@@ -33,12 +33,6 @@ import {
 } from '@hcengineering/server-pipeline'
 
 import {
-  createMongoAdapter,
-  createMongoDestroyAdapter,
-  createMongoTxAdapter,
-  shutdownMongo
-} from '@hcengineering/mongo'
-import {
   createPostgreeDestroyAdapter,
   createPostgresAdapter,
   createPostgresTxAdapter,
@@ -57,9 +51,7 @@ process.on('exit', () => {
   shutdownPostgres().catch((err) => {
     console.error(err)
   })
-  shutdownMongo().catch((err) => {
-    console.error(err)
-  })
+
 })
 /**
  * @public
@@ -83,12 +75,8 @@ export function start (
       stop: () => Promise<string | undefined>
     }
 
-    mongoUrl?: string
   }
 ): { shutdown: () => Promise<void>, sessionManager: SessionManager } {
-  registerTxAdapterFactory('mongodb', createMongoTxAdapter)
-  registerAdapterFactory('mongodb', createMongoAdapter)
-  registerDestroyFactory('mongodb', createMongoDestroyAdapter)
 
   registerTxAdapterFactory('postgresql', createPostgresTxAdapter, true)
   registerAdapterFactory('postgresql', createPostgresAdapter, true)

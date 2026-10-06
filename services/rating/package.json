@@ -71,7 +71,6 @@
     "@hcengineering/account-client": "workspace:^0.7.25",
     "@hcengineering/server-storage": "workspace:^0.7.16",
     "@hcengineering/postgres": "workspace:^0.7.22",
-    "@hcengineering/mongo": "workspace:^0.7.16",
     "@hcengineering/kafka": "workspace:^0.7.20",
     "@hcengineering/rating": "workspace:^0.7.0",
     "@hcengineering/contact": "workspace:^0.7.0",

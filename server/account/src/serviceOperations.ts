@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -202,7 +203,6 @@ export async function performWorkspaceOperation (
         }
 
         update.mode = 'migration-pending-backup'
-        // NOTE: will only work for Mongo accounts
         update.targetRegion = params[0]
         update.processingAttempts = 0
         update.processingProgress = 0

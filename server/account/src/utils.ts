@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -36,7 +37,6 @@ import {
   type WorkspaceMode,
   type WorkspaceUuid
 } from '@hcengineering/core'
-import { getMongoClient } from '@hcengineering/mongo' // TODO: get rid of this import later
 import platform, { getMetadata, PlatformError, Severity, Status, translate } from '@hcengineering/platform'
 import { getDBClient, setDBExtraOptions } from '@hcengineering/postgres'
 import { pbkdf2Sync, randomBytes } from 'crypto'
@@ -45,7 +45,6 @@ import { authenticator } from 'otplib'
 
 import { Analytics } from '@hcengineering/analytics'
 import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } from '@hcengineering/server-token'
-import { MongoAccountDB } from './collections/mongo'
 import { PostgresAccountDB } from './collections/postgres/postgres'
 import { accountPlugin } from './plugin'
 import {
@@ -67,96 +66,48 @@ import {
   type WorkspaceInvite,
   type WorkspaceJoinInfo,
   type WorkspaceLoginInfo,
-  type WorkspaceStatus,
-  type DBFlavor
+  type WorkspaceStatus
 } from './types'
 import { isAdminEmail } from './admin'
-import { type Sql } from 'postgres'
 
 export const GUEST_ACCOUNT = 'b6996120-416f-49cd-841e-e4a5d2e49c9b' as PersonUuid
 
-export async function getDbFlavor (pgClient: Sql<any>): Promise<DBFlavor> {
-  // Run the version query
-  const [{ version }] = await pgClient`SELECT version()`
-
-  // CockroachDB’s string contains “Cockroach” (case‑insensitive)
-  if (/cockroach/i.test(version)) {
-    return 'cockroach'
-  }
-
-  // Anything else that looks like a PostgreSQL version string
-  if (/postgresql/i.test(version)) {
-    return 'postgres'
-  }
-
-  // Fallback – could be a custom build or something unexpected
-  return 'unknown'
-}
 export async function getAccountDB (
   uri: string,
   dbNs?: string,
   appName: string = 'account'
 ): Promise<[AccountDB, () => void]> {
-  const isMongo = uri.startsWith('mongodb://')
-
-  if (isMongo) {
-    const client = getMongoClient(uri)
-    const db = (await client.getClient()).db(dbNs ?? 'global-account')
-    const mongoAccount = new MongoAccountDB(db)
-
-    await mongoAccount.init()
-
-    return [
-      mongoAccount,
-      () => {
-        client.close()
-      }
-    ]
-  } else {
-    setDBExtraOptions({
-      connection: {
-        application_name: appName
-      }
-    })
-    const client = getDBClient(uri)
-    const pgClient = await client.getClient()
-
-    let flavor: DBFlavor = 'unknown'
-
-    let error = false
-
-    do {
-      try {
-        flavor = await getDbFlavor(pgClient)
-        error = false
-      } catch (err: any) {
-        error = true
-        console.error('Error while initializing postgres account db', err.message)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      }
-    } while (error)
-    error = false
-
-    const pgAccount = new PostgresAccountDB(pgClient, dbNs ?? 'global_account', flavor)
-
-    do {
-      try {
-        await pgAccount.init()
-        error = false
-      } catch (e) {
-        console.error('Error while initializing postgres account db', e)
-        error = true
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      }
-    } while (error)
-
-    return [
-      pgAccount,
-      () => {
-        client.close()
-      }
-    ]
+  if (!/^postgres(?:ql)?:\/\//.test(uri)) {
+    throw new Error('Account DB_URL must use PostgreSQL')
   }
+  setDBExtraOptions({
+    connection: {
+      application_name: appName
+    }
+  })
+  const client = getDBClient(uri)
+  const pgClient = await client.getClient()
+
+  let error = false
+  const pgAccount = new PostgresAccountDB(pgClient, dbNs ?? 'global_account')
+
+  do {
+    try {
+      await pgAccount.init()
+      error = false
+    } catch (e) {
+      console.error('Error while initializing postgres account db', e)
+      error = true
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+  } while (error)
+
+  return [
+    pgAccount,
+    () => {
+      client.close()
+    }
+  ]
 }
 
 export const assignableRoles = [AccountRole.Guest, AccountRole.User, AccountRole.Maintainer, AccountRole.Owner]
@@ -1178,12 +1129,8 @@ export function generateWorkspaceUrl (name: string): string {
   return result.replace(/-+$/, '')
 }
 
-// TODO: rework later to map exact codes for specific DBs
 const DB_ERROR_CODES = {
-  UNIQUE_VIOLATION: [
-    '23505', // Postgres, CockroachDB
-    11000 // Mongo
-  ]
+  UNIQUE_VIOLATION: ['23505']
 }
 
 interface CreateWorkspaceRecordResult {

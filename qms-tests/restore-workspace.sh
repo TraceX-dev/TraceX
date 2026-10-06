@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Restore workspace contents in mongo/elastic
+# Restore workspace contents in PostgreSQL/Elasticsearch
 ./tool.sh backup-restore ./sanity-ws-qms/ sanity-ws-qms --upgrade
 
 # Re-assign user to workspace.

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -87,7 +88,7 @@ console.log(`  Size: ${r4.size} bytes`)
 console.log(`  Time: ${r4.time.toFixed(2)}ms for 1000 iterations`)
 console.log(`  Avg:  ${(r4.time / 1000).toFixed(4)}ms per call\n`)
 
-// Test 5: Complex document (MongoDB-like)
+// Test 5: Complex document (JSON)
 const complexDoc = {
   _id: '507f1f77bcf86cd799439011',
   _class: 'contact.class.Person',

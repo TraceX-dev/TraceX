@@ -28,11 +28,7 @@ import accountPlugin, {
   type AccountDB,
   type Workspace
 } from '@hcengineering/account'
-import {
-  getMongoAccountDB,
-  type Account as OldAccount,
-  type Workspace as OldWorkspace
-} from '@hcengineering/account-service'
+
 import { setMetadata } from '@hcengineering/platform'
 import {
   createPostgreeDestroyAdapter,
@@ -88,7 +84,6 @@ import core, {
   type Data,
   type Doc,
   type PersonId,
-  type PersonUuid,
   type Ref,
   type Tx,
   type Version,
@@ -96,13 +91,6 @@ import core, {
   type WorkspaceUuid
 } from '@hcengineering/core'
 import { consoleModelLogger, type MigrateOperation } from '@hcengineering/model'
-import {
-  createMongoAdapter,
-  createMongoDestroyAdapter,
-  createMongoTxAdapter,
-  getMongoClient,
-  shutdownMongo
-} from '@hcengineering/mongo'
 
 import { getModelVersion } from '@hcengineering/model-all'
 import {
@@ -112,23 +100,17 @@ import {
   type QueueWorkspaceMessage,
   type StorageAdapter
 } from '@hcengineering/server-core'
-import { getAccountDBUrl, getKvsUrl, getMongoDBUrl } from './__start'
+import { getAccountDBUrl } from './__start'
 import { changeConfiguration } from './configuration'
 
-import { performCalendarAccountMigrations } from './calendar'
 import {
   ensureGlobalPersonsForLocalAccounts,
   filterMergedAccountsInMembers,
   migrateCreatedModifiedBy,
-  migrateMergedAccounts,
-  migrateTrustedV6Accounts,
-  moveAccountDbFromMongoToPG,
-  restoreFromv6All,
-  restoreTrustedV6Workspace
+  migrateMergedAccounts
 } from './db'
 import { ensureMissingSocialIdentities } from './contact'
-import { performGithubAccountMigrations } from './github'
-import { performGmailAccountMigrations } from './gmail'
+
 import { getToolToken, getWorkspace, getWorkspaceTransactorEndpoint } from './utils'
 import { backfillWorkspaceAvatars } from './workspaceAvatar'
 
@@ -158,9 +140,7 @@ process.on('exit', () => {
   shutdownPostgres().catch((err) => {
     console.error(err)
   })
-  shutdownMongo().catch((err) => {
-    console.error(err)
-  })
+
 })
 
 /**
@@ -176,10 +156,6 @@ export function devTool (
   extendProgram?: (prog: Command) => void
 ): void {
   const toolCtx = new MeasureMetricsContext('tool', {})
-
-  registerTxAdapterFactory('mongodb', createMongoTxAdapter)
-  registerAdapterFactory('mongodb', createMongoAdapter)
-  registerDestroyFactory('mongodb', createMongoDestroyAdapter)
 
   registerTxAdapterFactory('postgresql', createPostgresTxAdapter, true)
   registerAdapterFactory('postgresql', createPostgresAdapter, true)
@@ -226,7 +202,7 @@ export function devTool (
       console.error(err)
     }
     closeAccountsDb()
-    await shutdownMongo()
+
   }
 
   async function withStorage (f: (storageAdapter: StorageAdapter) => Promise<any>): Promise<void> {
@@ -1147,27 +1123,6 @@ export function devTool (
       console.log('done')
     })
 
-  program.command('move-account-db-to-pg').action(async () => {
-    const { dbUrl } = prepareTools()
-    const mongodbUri = getMongoDBUrl()
-
-    if (mongodbUri === dbUrl) {
-      throw new Error('MONGO_URL and DB_URL are the same')
-    }
-
-    const mongoNs = process.env.OLD_ACCOUNTS_NS
-
-    await withAccountDatabase(async (pgDb) => {
-      await withAccountDatabase(
-        async (mongoDb) => {
-          await moveAccountDbFromMongoToPG(toolCtx, mongoDb, pgDb)
-        },
-        mongodbUri,
-        mongoNs
-      )
-    }, dbUrl)
-  })
-
   program
     .command('migrate-created-modified-by')
     .option('--include-domains <includeDomains>', 'Domains to migrate(comma-separated)')
@@ -1272,60 +1227,12 @@ export function devTool (
   })
 
   program
-    .command('migrate-github-account')
-    .option('--db <db>', 'Github DB', '%github')
-    .option('--region <region>', 'Github DB')
-    .action(async (cmd: { db: string, region?: string }) => {
-      const mongodbUri = getMongoDBUrl()
-      const client = getMongoClient(mongodbUri)
-      const _client = await client.getClient()
-
-      const { dbUrl, txes } = prepareTools()
-
-      await performGithubAccountMigrations(_client.db(cmd.db), dbUrl, txes, cmd.region ?? null)
-      await _client.close()
-      client.close()
-    })
-
-  program
     .command('queue-init-topics')
     .description('create required kafka topics')
     .option('--tx <tx>', 'Number of TX partitions', '5')
     .action(async (cmd: { tx: string }) => {
       const queue = getPlatformQueue('tool')
       await queue.createTopics(parseInt(cmd.tx ?? '1'))
-    })
-
-  program
-    .command('migrate-gmail-account')
-    .option('--db <db>', 'DB name', 'gmail-service')
-    .option('--region <region>', 'DB region')
-    .action(async (cmd: { db: string, region?: string }) => {
-      const mongodbUri = getMongoDBUrl()
-      const client = getMongoClient(mongodbUri)
-      const _client = await client.getClient()
-
-      const kvsUrl = getKvsUrl()
-      const { dbUrl, txes } = prepareTools()
-
-      await performGmailAccountMigrations(_client.db(cmd.db), dbUrl, cmd.region ?? null, kvsUrl, txes)
-      await _client.close()
-      client.close()
-    })
-
-  program
-    .command('migrate-calendar-integrations-data')
-    .option('--db <db>', 'DB name', 'calendar-service')
-    .option('--region <region>', 'DB region')
-    .action(async (cmd: { db: string, region?: string }) => {
-      const mongodbUri = getMongoDBUrl()
-      const client = getMongoClient(mongodbUri)
-      const _client = await client.getClient()
-
-      const kvsUrl = getKvsUrl()
-      await performCalendarAccountMigrations(_client.db(cmd.db), cmd.region ?? null, kvsUrl)
-      await _client.close()
-      client.close()
     })
 
   program
@@ -1347,133 +1254,6 @@ export function devTool (
       const { dbUrl } = prepareTools()
 
       await restoreGithubIntegrations(dbUrl, cmd.dryrun)
-    })
-
-  program
-    .command('migrate-trusted-v6-accounts')
-    .description('Migrate trusted v6 accounts')
-    .option('-s|--skip [skip]', 'A command separated list of workspaces to skip', '')
-    .option('-d|--dry [dry]', 'Dry run', false)
-    .action(async (cmd: { skip: string, dry: boolean }) => {
-      const { dbUrl } = prepareTools()
-      const mongodbUri = getMongoDBUrl()
-
-      if (mongodbUri === dbUrl) {
-        throw new Error('MONGO_URL and DB_URL are the same')
-      }
-
-      const mongoNs = process.env.OLD_ACCOUNTS_NS
-      const skipWorkspaces = new Set(cmd.skip.split(',').map((it) => it.trim()))
-
-      await withAccountDatabase(async (pgDb) => {
-        const [v6MongoAccountDb, closeMongoAccountDb] = await getMongoAccountDB(mongodbUri, mongoNs)
-        try {
-          await migrateTrustedV6Accounts(toolCtx, pgDb, v6MongoAccountDb, cmd.dry, skipWorkspaces)
-        } finally {
-          closeMongoAccountDb()
-        }
-      }, dbUrl)
-    })
-
-  program
-    .command('restore-from-v6-all <dirName>')
-    .description('Restore from full v6 dump')
-    .action(async (dirName) => {
-      const { txes, dbUrl } = prepareTools()
-
-      await withAccountDatabase(async (pgDb) => {
-        await restoreFromv6All(toolCtx, pgDb, dirName, txes, dbUrl)
-      }, dbUrl)
-    })
-
-  program
-    .command('restore-v6-from-storage <workspace> <accsRoot>')
-    .description('Restore a workspace from v6 backup storage with accounts info')
-    .option('-r, --region <region>', 'Region to restore workspace to')
-    .option('-b, --branding <branding>', 'Branding to restore workspace with', 'huly')
-    .option('-s, --suffix <suffix>', 'Url suffix if conflicting', 'bold')
-    .option('-f, --force', 'Force restore if the same uuid', false)
-    .action(async (workspace, accsRoot, cmd: { suffix: string, region: string, branding: string, force: boolean }) => {
-      const bucketName = process.env.BUCKET_NAME
-      if (bucketName === '' || bucketName == null) {
-        console.error('please provide bucket name env')
-        process.exit(1)
-      }
-
-      const backupStorageConfig = storageConfigFromEnv(process.env.BACKUP_STORAGE)
-      const backupStorageAdapter = createStorageFromConfig(backupStorageConfig.storages[0])
-      const backupIds = { uuid: bucketName as WorkspaceUuid, dataId: bucketName as WorkspaceDataId, url: '' }
-      const backupAccsStorage = await createStorageBackupStorage(toolCtx, backupStorageAdapter, backupIds, accsRoot)
-      const v6AccountsFile = 'account.accounts.json'
-      const v6WorkspacesFile = 'account.workspaces.json'
-      const v6InvitesFile = 'account.invites.json'
-
-      if (!(await backupAccsStorage.exists(v6AccountsFile))) {
-        toolCtx.error('file not present', { file: v6AccountsFile })
-        throw new Error(`${v6AccountsFile} should be present to restore`)
-      }
-      if (!(await backupAccsStorage.exists(v6WorkspacesFile))) {
-        toolCtx.error('file not present', { file: v6WorkspacesFile })
-        throw new Error(`${v6WorkspacesFile} should be present to restore`)
-      }
-      if (!(await backupAccsStorage.exists(v6InvitesFile))) {
-        toolCtx.error('file not present', { file: v6InvitesFile })
-        throw new Error(`${v6InvitesFile} should be present to restore`)
-      }
-
-      const v6Workspaces = JSON.parse((await backupAccsStorage.loadFile(v6WorkspacesFile)).toString()) as OldWorkspace[]
-      const v6Workspace = v6Workspaces.find((it) => it.workspace === workspace)
-
-      if (v6Workspace == null) {
-        toolCtx.error('workspace not found in the accounts backup', { workspace })
-        throw new Error(`workspace ${workspace} not found in the accounts backup`)
-      }
-
-      const uniqueWorkspaceAccounts = new Set((v6Workspace.accounts ?? []).map((it) => it.toString()))
-      const v6AccountsRaw = JSON.parse((await backupAccsStorage.loadFile(v6AccountsFile)).toString()) as any[]
-      const v6WorkspaceAccountsRaw = v6AccountsRaw.filter((acc) => uniqueWorkspaceAccounts.has(acc._id.toString()))
-
-      const v6WorkspaceAccounts: OldAccount[] = []
-      for (const rawAccount of v6WorkspaceAccountsRaw) {
-        const hashTypedArray = rawAccount.hash != null ? new Uint8Array(rawAccount.hash.data) : null
-        const saltTypedArray = new Uint8Array(rawAccount.salt.data)
-
-        v6WorkspaceAccounts.push({
-          ...rawAccount,
-          hash: hashTypedArray != null ? Buffer.from(hashTypedArray.buffer) : null,
-          salt: Buffer.from(saltTypedArray.buffer)
-        })
-      }
-
-      let v6Invites = JSON.parse((await backupAccsStorage.loadFile(v6InvitesFile)).toString()) as any[]
-      v6Invites = v6Invites.filter((invite: any) => invite.workspace.name === v6Workspace.workspace)
-
-      const { txes, dbUrl } = prepareTools()
-      const backupWsStorage = await createStorageBackupStorage(
-        toolCtx,
-        backupStorageAdapter,
-        backupIds,
-        v6Workspace.uuid ?? v6Workspace.workspace
-      )
-
-      const storageConfig = storageConfigFromEnv()
-      const workspaceStorage: StorageAdapter = buildStorageFromConfig(storageConfig)
-      const { suffix, region, branding, force } = cmd
-
-      await withAccountDatabase(async (pgDb) => {
-        await restoreTrustedV6Workspace(
-          toolCtx,
-          pgDb,
-          v6Workspace,
-          v6WorkspaceAccounts,
-          v6Invites,
-          backupWsStorage,
-          workspaceStorage,
-          txes,
-          dbUrl,
-          { conflictSuffix: suffix, region, branding, force }
-        )
-      }, dbUrl)
     })
 
   program

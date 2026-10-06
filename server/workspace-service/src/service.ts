@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -42,12 +43,7 @@ import { randomUUID } from 'crypto'
 import path from 'path'
 
 import { Analytics } from '@hcengineering/analytics'
-import {
-  createMongoAdapter,
-  createMongoDestroyAdapter,
-  createMongoTxAdapter,
-  shutdownMongo
-} from '@hcengineering/mongo'
+
 import {
   createPostgreeDestroyAdapter,
   createPostgresAdapter,
@@ -97,9 +93,7 @@ process.on('exit', () => {
   shutdownPostgres().catch((err) => {
     console.error(err)
   })
-  shutdownMongo().catch((err) => {
-    console.error(err)
-  })
+
 })
 
 export type WorkspaceOperation = 'create' | 'upgrade' | 'all' | 'all+backup'
@@ -168,10 +162,6 @@ export class WorkspaceWorker {
     ctx.info('Successfully connected to the account service')
 
     setDBExtraOptions({ connection: { application_name: `workspace-${this.id}` } })
-
-    registerTxAdapterFactory('mongodb', createMongoTxAdapter)
-    registerAdapterFactory('mongodb', createMongoAdapter)
-    registerDestroyFactory('mongodb', createMongoDestroyAdapter)
 
     registerTxAdapterFactory('postgresql', createPostgresTxAdapter, true)
     registerAdapterFactory('postgresql', createPostgresAdapter, true)

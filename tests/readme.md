@@ -18,6 +18,19 @@ To purge content of sanity workspace following command could be used.
 ./restore-workspace.sh
 ```
 
+## Update the workspace snapshot
+
+Use the same command locally and in CI:
+
+```bash
+./update-snapshot.sh [backup-directory]
+```
+
+The test stack uses PostgreSQL on port 5433 and Datalake on port 4031.
+`tool.sh`, `prepare.sh`, and `restore-workspace.sh` are the shared test commands.
+The `*-local.sh` commands target the development stack on ports 5432 and 4030.
+`prepare-tests.sh` starts only the infrastructure required by integration tests.
+
 ## Prepare local dev environment
 
 ```bash

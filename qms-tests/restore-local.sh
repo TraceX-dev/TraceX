@@ -2,10 +2,9 @@
 export MINIO_ACCESS_KEY=minioadmin
 export MINIO_SECRET_KEY=minioadmin
 export MINIO_ENDPOINT=localhost:9000
-export MONGO_URL=mongodb://localhost:27017
 export SERVER_SECRET=secret
 
-# Restore workspace contents in mongo/elastic
+# Restore workspace contents in PostgreSQL/Elasticsearch
 ./tool-local.sh backup-restore ./sanity-ws-qms sanity-ws-qms --upgrade
 
 # Re-assign user to workspace.

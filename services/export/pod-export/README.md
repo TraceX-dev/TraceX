@@ -63,7 +63,7 @@ Initiates an asynchronous export job.
 
 **Parameters**:
 - `_class` (required): Ref to the document class to export (e.g., `task:class:Issue`)
-- `query` (optional): MongoDB-style query to filter documents
+- `query` (optional): document query to filter documents
 - `attributesOnly` (boolean): If true, excludes attachments and collections
 
 **Response**:
@@ -124,7 +124,7 @@ Exports documents from the current workspace to another workspace. This endpoint
 **Parameters**:
 - `targetWorkspace` (required): UUID of the target workspace to export to
 - `_class` (required): Ref to the document class to export (e.g., `documents:class:ControlledDocument`)
-- `query` (optional): MongoDB-style query to filter documents. If not provided and specific documents are selected, uses `_id: { $in: [...] }`
+- `query` (optional): document query to filter documents. If not provided and specific documents are selected, uses `_id: { $in: [...] }`
 - `conflictStrategy` (optional): How to handle existing documents in target workspace
   - `"duplicate"` (default): Create new documents with new IDs
   - `"skip"`: Skip documents that already exist (based on matching criteria)
@@ -284,7 +284,7 @@ rush build --to @hcengineering/pod-export
 
 ```bash
 cd services/export/pod-export
-ACCOUNTS_URL="http://127.0.0.1:3000" SECRET="secret" DB_URL=postgresql://root@tracex.local:26257/defaultdb?sslmode=disable SERVICE_ID="export" STORAGE_CONFIG="datalake|http://tracex.local:4030" rushx run-local
+ACCOUNTS_URL="http://127.0.0.1:3000" SECRET="secret" DB_URL=postgresql://postgres:postgres@tracex.local:5432/postgres SERVICE_ID="export" STORAGE_CONFIG="datalake|http://tracex.local:4030" rushx run-local
 ```
 
 ### Testing

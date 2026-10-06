@@ -523,11 +523,6 @@
       "shouldPublish": true
     },
     {
-      "packageName": "@hcengineering/mongo",
-      "projectFolder": "foundations/server/packages/mongo",
-      "shouldPublish": true
-    },
-    {
       "packageName": "@hcengineering/postgres",
       "projectFolder": "foundations/server/packages/postgres",
       "shouldPublish": true
