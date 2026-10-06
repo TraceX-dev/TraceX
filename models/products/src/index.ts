@@ -363,7 +363,8 @@ function defineProductVersion (builder: Builder): void {
   })
 
   builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: products.component.ProductVersionPresenter
+    presenter: products.component.ProductVersionPresenter,
+    requiredFields: ['major', 'minor', 'patch', 'codename', 'space']
   })
 
   builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.CollectionPresenter, {

@@ -77,15 +77,21 @@
       { _id: { $in: toArray(value) as Ref<ControlledDocument>[] } },
       (result) => {
         docs = result
-      }
+      },
+      { unsecured: true }
     )
   }
   $: if (toArray(value).length === 0) {
     metas = []
   } else {
-    metaQuery.query(documents.class.DocumentMeta, { _id: { $in: toArray(value) as Ref<DocumentMeta>[] } }, (result) => {
-      metas = result
-    })
+    metaQuery.query(
+      documents.class.DocumentMeta,
+      { _id: { $in: toArray(value) as Ref<DocumentMeta>[] } },
+      (result) => {
+        metas = result
+      },
+      { unsecured: true }
+    )
   }
 
   $: emptyLabel = label ?? documents.string.ControlledDocument

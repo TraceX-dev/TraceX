@@ -4556,6 +4556,9 @@ importers:
       '@hcengineering/server-core':
         specifier: workspace:^0.7.19
         version: link:../core
+      '@hcengineering/view':
+        specifier: workspace:^0.7.0
+        version: link:../../../../plugins/view
       fast-equals:
         specifier: ^5.2.2
         version: 5.4.2

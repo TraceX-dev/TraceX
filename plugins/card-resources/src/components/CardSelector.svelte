@@ -65,12 +65,33 @@
   }
 
   let doc: Card | undefined
+  let accessibleCard: Ref<Card> | undefined
 
   const query = createQuery()
-  $: if (value !== undefined) {
-    query.query(card.class.Card, { _id: value }, (res) => {
-      doc = res[0]
+  const accessQuery = createQuery()
+  $: if (value !== undefined && showNavigate) {
+    const selected = value
+    accessibleCard = undefined
+    accessQuery.query(card.class.Card, { _id: selected }, (res) => {
+      if (value === selected) {
+        accessibleCard = res[0]?._id
+      }
     })
+  } else {
+    accessQuery.unsubscribe()
+    accessibleCard = undefined
+  }
+  $: canNavigate = showNavigate && value !== undefined && accessibleCard === value
+
+  $: if (value !== undefined) {
+    query.query(
+      card.class.Card,
+      { _id: value },
+      (res) => {
+        doc = res[0]
+      },
+      { unsecured: true }
+    )
   } else {
     query.unsubscribe()
     doc = undefined
@@ -87,7 +108,7 @@
   disabled={readonly}
   on:click={handleOpen}
 >
-  <div slot="content" class="flex-row-center w-full" class:flex-between={showNavigate && doc}>
+  <div slot="content" class="flex-row-center w-full" class:flex-between={canNavigate && doc}>
     <div class="overflow-label flex-grow min-w-0 text-left">
       {#if doc}
         <CardPresenter value={doc} type={'text'} />
@@ -95,7 +116,7 @@
         <Label {label} />
       {/if}
     </div>
-    {#if doc && showNavigate}
+    {#if doc && canNavigate}
       <div class="ml-auto pl-2 flex-row-center flex-no-shrink">
         <ActionIcon
           icon={view.icon.ArrowRight}

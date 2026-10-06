@@ -1,5 +1,4 @@
 //
-// Copyright © 2025 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+
 import {
   type Class,
   type Doc,
@@ -20,15 +20,18 @@ import {
   type FindOptions,
   type FindResult,
   type MeasureContext,
+  type Projection,
   type Ref,
   type SessionData
 } from '@hcengineering/core'
 import { BaseMiddleware, type Middleware, type PipelineContext } from '@hcengineering/server-core'
+import view, { type ObjectPresenter } from '@hcengineering/view'
 
 /**
+ * Restricts unsecured queries to the fields declared by their object presenter.
  * @public
  */
-export class FindSecurityMiddleware extends BaseMiddleware implements Middleware {
+export class ObjectProjectionMiddleware extends BaseMiddleware implements Middleware {
   private constructor (context: PipelineContext, next?: Middleware) {
     super(context, next)
   }
@@ -37,8 +40,8 @@ export class FindSecurityMiddleware extends BaseMiddleware implements Middleware
     ctx: MeasureContext,
     context: PipelineContext,
     next: Middleware | undefined
-  ): Promise<FindSecurityMiddleware> {
-    return new FindSecurityMiddleware(context, next)
+  ): Promise<ObjectProjectionMiddleware> {
+    return new ObjectProjectionMiddleware(context, next)
   }
 
   findAll<T extends Doc>(
@@ -47,19 +50,20 @@ export class FindSecurityMiddleware extends BaseMiddleware implements Middleware
     query: DocumentQuery<T>,
     options?: FindOptions<T>
   ): Promise<FindResult<T>> {
-    if (options != null) {
-      const { limit, sort, lookup, projection, associations, total, showArchived, unsecured } = options
-      return this.provideFindAll(ctx, _class, query, {
-        limit,
-        sort,
-        lookup,
-        projection,
-        associations,
-        total,
-        showArchived,
-        unsecured
-      })
+    if (options?.unsecured !== true) return this.provideFindAll(ctx, _class, query, options)
+
+    const presenter = this.context.hierarchy.classHierarchyMixin<Doc, ObjectPresenter>(
+      _class,
+      view.mixin.ObjectPresenter
+    )
+    if (presenter?.requiredFields === undefined) {
+      const { unsecured, ...securedOptions } = options
+      return this.provideFindAll(ctx, _class, query, securedOptions)
     }
-    return this.provideFindAll(ctx, _class, query, options)
+    const projection = Object.fromEntries(
+      [...presenter.requiredFields, '_id', '_class', 'space'].map((field) => [field, 1])
+    ) as Projection<T>
+
+    return this.provideFindAll(ctx, _class, query, { ...options, projection })
   }
 }

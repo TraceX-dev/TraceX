@@ -43,6 +43,30 @@ and kept in bounded in-memory caches (one transactor per workspace), updated aft
    `TxMixin` of `AccessControlled`.
 5. **Notifications** — triggers notify only readers (`getObjectAccessReaders`).
 
+## Reference presentation (PostgreSQL)
+
+Ref attributes can request a limited object for its existing presenter, even without access to its space.
+Relations remain subject to access checks and omit inaccessible targets.
+
+1. Declare `requiredFields?: string[]` in the class's `view.mixin.ObjectPresenter` model configuration.
+   This is the list of object fields allowed for reference presentation, for example `['title', 'version']`.
+2. Queries that load saved Ref values use `{ unsecured: true }` in `FindOptions`. Queries listing candidates
+   for selection keep normal access checks.
+3. `FindSecurityMiddleware` preserves the flag. Immediately after it, `ObjectProjectionMiddleware` resolves
+   the queried class's presenter mixin (including inheritance) and **replaces** the client's projection with
+   `requiredFields` plus `_id`, `_class` and `space`.
+   If `requiredFields` is absent, it removes `unsecured` and preserves the original projection.
+   An explicit empty list allows only the three mandatory fields.
+4. The PostgreSQL adapter skips its access predicate for the direct query and its `total` count when
+   `unsecured` is still true. The existing presenter renders the returned object.
+5. The client caches normal and `unsecured` objects separately, including lookup fallback and transaction
+   refresh queries, so a limited reference object cannot satisfy a normal read from the shared ID cache.
+
+This flag does not bypass `ObjectSecurityMiddleware` or enable unsecured nested queries. Object security may
+still hide protected targets and add its internal `accessRoot` field to the projection.
+MongoDB's `SpaceSecurityMiddleware` is unchanged. Dynamic Card fields marked `showInPresenter` and data
+loaded through additional queries or `$lookup` are not automatically included in `requiredFields`.
+
 ## Permissions
 
 - Change the level, remove private members: owners (creator), maintainers who can read the object,

@@ -291,7 +291,8 @@ function defineDocument (builder: Builder): void {
   })
 
   builder.mixin(document.class.Document, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: document.component.DocumentPresenter
+    presenter: document.component.DocumentPresenter,
+    requiredFields: ['title', 'icon', 'color']
   })
 
   builder.mixin(document.class.Document, core.class.Class, view.mixin.LinkProvider, {
