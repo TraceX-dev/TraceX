@@ -31,7 +31,9 @@ describe('Telegram PostgreSQL storage', () => {
     email: 'person@example.com',
     token: 'session-token'
   }
-  const query = jest.fn(async (_sql: TemplateStringsArray, _values: unknown[]): Promise<Array<{ data: UserRecord }>> => [])
+  const query = jest.fn(
+    async (_sql: TemplateStringsArray, _values: unknown[]): Promise<Array<{ data: UserRecord }>> => []
+  )
   const end = jest.fn(async () => {})
   const client = Object.assign(
     (sql: string | TemplateStringsArray, ...values: unknown[]) => {

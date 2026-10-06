@@ -44,7 +44,6 @@ process.on('exit', () => {
   shutdownPostgres().catch((err) => {
     console.error(err)
   })
-
 })
 
 const metricsContext = initStatisticsContext('backup', {

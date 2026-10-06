@@ -51,7 +51,6 @@ process.on('exit', () => {
   shutdownPostgres().catch((err) => {
     console.error(err)
   })
-
 })
 /**
  * @public
@@ -74,10 +73,8 @@ export function start (
       start: () => void
       stop: () => Promise<string | undefined>
     }
-
   }
 ): { shutdown: () => Promise<void>, sessionManager: SessionManager } {
-
   registerTxAdapterFactory('postgresql', createPostgresTxAdapter, true)
   registerAdapterFactory('postgresql', createPostgresAdapter, true)
   registerDestroyFactory('postgresql', createPostgreeDestroyAdapter, true)

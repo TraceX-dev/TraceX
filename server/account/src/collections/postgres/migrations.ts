@@ -71,10 +71,8 @@ export function getMigrations (ns: string): [string, string][] {
 
 // NOTE: NEVER MODIFY EXISTING MIGRATIONS. IF YOU NEED TO ADJUST THE SCHEMA, ADD A NEW MIGRATION.
 function getV1Migration (ns: string): [string, string] {
-
   // For PostgreSQL, we use a custom immutable function to ensure the expression is valid.
-  const keyColumnDefinition =
-    `key ${types.string} GENERATED ALWAYS AS (${ns}.social_id_type_to_text(type) || ':' || value) STORED`
+  const keyColumnDefinition = `key ${types.string} GENERATED ALWAYS AS (${ns}.social_id_type_to_text(type) || ':' || value) STORED`
 
   return [
     'account_db_v1_global_init',
@@ -102,15 +100,13 @@ function getV1Migration (ns: string): [string, string] {
     RETURNS TEXT AS $$         SELECT val::TEXT;
     $$ LANGUAGE SQL IMMUTABLE;
 
-    ${
-      `
+    ${`
     -- Create a function to generate a random, non-sequential, non-negative BIGINT for secure IDs.
     -- This prevents enumeration attacks. We use a standard method of encoding to hex and casting.
     CREATE OR REPLACE FUNCTION ${ns}.gen_random_bigint()
     RETURNS BIGINT AS $$             SELECT ('x' || encode(gen_random_bytes(8), 'hex'))::bit(64)::bigint & 9223372036854775807::bigint;
     $$ LANGUAGE SQL VOLATILE;
-    `
-    }
+    `}
 
     /* ======= P E R S O N ======= */
     CREATE TABLE IF NOT EXISTS ${ns}.person (
@@ -270,9 +266,7 @@ function getV2Migration2 (ns: string): [string, string] {
 }
 
 function getV2Migration3 (ns: string): [string, string] {
-
-  const addConstraintSql =
-    `
+  const addConstraintSql = `
     -- Add unique constraint on type, value (PostgreSQL compatible with DO block)
     DO $$     BEGIN
         IF NOT EXISTS (
@@ -309,7 +303,6 @@ function getV2Migration3 (ns: string): [string, string] {
 }
 
 function getV3Migration (ns: string): [string, string] {
-
   return [
     'account_db_v3_add_invite_auto_join_final',
     `
@@ -324,7 +317,6 @@ function getV3Migration (ns: string): [string, string] {
 }
 
 function getV4Migration (ns: string): [string, string] {
-
   return [
     'account_db_v4_mailbox',
     `
@@ -356,7 +348,6 @@ function getV4Migration1 (ns: string): [string, string] {
 }
 
 function getV5Migration (ns: string): [string, string] {
-
   return [
     'account_db_v5_social_id_is_deleted',
     `
@@ -367,7 +358,6 @@ function getV5Migration (ns: string): [string, string] {
 }
 
 function getV6Migration (ns: string): [string, string] {
-
   // Generated column syntax: PostgreSQL uses GENERATED ALWAYS AS (...) STORED
   return [
     'account_db_v6_add_social_id_integrations',
@@ -432,8 +422,7 @@ function getV9Migration (ns: string): [string, string] {
 
 function getV10Migration1 (ns: string): [string, string] {
   // For PostgreSQL, we need to check if the value exists before adding it
-  const addValueSql =
-    `
+  const addValueSql = `
     -- Add READONLYGUEST value to workspace_role enum (PostgreSQL)
     DO $$     BEGIN
         IF NOT EXISTS (
@@ -450,7 +439,6 @@ function getV10Migration1 (ns: string): [string, string] {
 }
 
 function getV10Migration2 (ns: string): [string, string] {
-
   return [
     'account_db_v10_add_allow_guests_flag_to_workspace',
     `
@@ -461,7 +449,6 @@ function getV10Migration2 (ns: string): [string, string] {
 }
 
 function getV11Migration (ns: string): [string, string] {
-
   return [
     'account_db_v11_add_pending_workspace_lock',
     `
@@ -511,7 +498,6 @@ function getV13Migration (ns: string): [string, string] {
 }
 
 function getV14Migration (ns: string): [string, string] {
-
   return [
     'account_db_v14_add_allow_guest_signup_flag_to_workspace',
     `
@@ -522,7 +508,6 @@ function getV14Migration (ns: string): [string, string] {
 }
 
 function getV15Migration (ns: string): [string, string] {
-
   return [
     'account_db_v15_add_target_region_to_workspace_status',
     `
@@ -534,8 +519,7 @@ function getV15Migration (ns: string): [string, string] {
 
 function getV16Migration (ns: string): [string, string] {
   // For PostgreSQL, we need to check if the value exists before adding it
-  const addValueSql =
-    `
+  const addValueSql = `
     -- Add huly-assistant value to social_id_type enum (PostgreSQL)
     DO $$     BEGIN
         IF NOT EXISTS (
@@ -552,7 +536,6 @@ function getV16Migration (ns: string): [string, string] {
 }
 
 function getV17Migration (ns: string): [string, string] {
-
   return [
     'account_db_v17_create_user_profile_table',
     `
@@ -597,7 +580,6 @@ function getV18Migration (ns: string): [string, string] {
 }
 
 function getV19Migration (ns: string): [string, string] {
-
   return [
     'account_db_v19_subscription_table',
     `
@@ -755,8 +737,7 @@ function getV26Migration (ns: string): [string, string] {
 
 function getV27Migration (ns: string): [string, string] {
   // For PostgreSQL, we need to check if the value exists before adding it
-  const addValueSql =
-    `
+  const addValueSql = `
     -- Add office value to social_id_type enum (PostgreSQL)
     DO $$     BEGIN
         IF NOT EXISTS (
@@ -773,7 +754,6 @@ function getV27Migration (ns: string): [string, string] {
 }
 
 function getV28Migration (ns: string): [string, string] {
-
   return [
     'account_db_v28_api_keys',
     `
@@ -797,7 +777,6 @@ function getV28Migration (ns: string): [string, string] {
 }
 
 function getV29Migration (ns: string): [string, string] {
-
   return [
     'account_db_v29_add_api_key_suffix',
     `

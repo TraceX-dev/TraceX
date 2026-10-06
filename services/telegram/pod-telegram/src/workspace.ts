@@ -692,10 +692,9 @@ export class WorkspaceWorker {
   // #region Channels
 
   private async initChannels (): Promise<void> {
-    const oldChannels = await this.channelsStorage
-      .find({
-        workspace: this.workspace
-      })
+    const oldChannels = await this.channelsStorage.find({
+      workspace: this.workspace
+    })
 
     const oldChannelsSet = new Set(oldChannels.map((p) => p.value))
     const channels = await this.getChannels()

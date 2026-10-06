@@ -93,7 +93,6 @@ process.on('exit', () => {
   shutdownPostgres().catch((err) => {
     console.error(err)
   })
-
 })
 
 export type WorkspaceOperation = 'create' | 'upgrade' | 'all' | 'all+backup'

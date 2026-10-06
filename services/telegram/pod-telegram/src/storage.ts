@@ -24,7 +24,10 @@ interface StoredRecord {
 
 /** Stores Telegram integration records in PostgreSQL. */
 export class RecordStorage<T extends StoredRecord> {
-  constructor (private readonly client: postgres.Sql, private readonly table: string) {}
+  constructor (
+    private readonly client: postgres.Sql,
+    private readonly table: string
+  ) {}
 
   async find (query: Partial<T> = {}): Promise<T[]> {
     const rows = await this.client<{ data: T }[]>`

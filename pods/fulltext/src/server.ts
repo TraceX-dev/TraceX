@@ -82,7 +82,6 @@ process.on('exit', () => {
   shutdownPostgres().catch((err) => {
     console.error(err)
   })
-
 })
 
 export async function startIndexer (

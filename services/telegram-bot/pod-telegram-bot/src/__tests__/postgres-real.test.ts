@@ -75,7 +75,6 @@ describe('PostgresDB compatibility tests', () => {
   })
 
   afterAll(async () => {
-
     await adminClientPG.end({ timeout: 0 })
   })
 
@@ -112,7 +111,6 @@ describe('PostgresDB compatibility tests', () => {
 
   afterEach(async () => {
     try {
-
       await pgDb.close()
 
       await pgClient.end({ timeout: 0 })
@@ -126,7 +124,6 @@ describe('PostgresDB compatibility tests', () => {
   })
 
   describe('Schema initialization', () => {
-
     it('should create schema successfully on PostgreSQL', async () => {
       // Schema creation is done in beforeEach via PostgresDB.create()
       // Verify tables exist by querying them
@@ -158,7 +155,6 @@ describe('PostgresDB compatibility tests', () => {
   })
 
   describe('OTP operations', () => {
-
     it('should insert and retrieve OTP on PostgreSQL', async () => {
       const otp: OtpRecord = {
         telegramId: 12345,
@@ -213,7 +209,6 @@ describe('PostgresDB compatibility tests', () => {
   })
 
   describe('Channel operations', () => {
-
     it('should insert and retrieve channels on PostgreSQL', async () => {
       const channel: Omit<ChannelRecord, 'rowId'> = {
         workspace: testWorkspace,
@@ -259,7 +254,6 @@ describe('PostgresDB compatibility tests', () => {
   })
 
   describe('Message operations', () => {
-
     it('should insert and retrieve messages on PostgreSQL', async () => {
       const message: MessageRecord = {
         messageId: 'msg1' as any,
@@ -293,7 +287,6 @@ describe('PostgresDB compatibility tests', () => {
   })
 
   describe('Reply operations', () => {
-
     it('should insert and retrieve replies on PostgreSQL', async () => {
       const reply: ReplyRecord = {
         messageId: 'msg3' as any,

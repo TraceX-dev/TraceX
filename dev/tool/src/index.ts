@@ -140,7 +140,6 @@ process.on('exit', () => {
   shutdownPostgres().catch((err) => {
     console.error(err)
   })
-
 })
 
 /**
@@ -202,7 +201,6 @@ export function devTool (
       console.error(err)
     }
     closeAccountsDb()
-
   }
 
   async function withStorage (f: (storageAdapter: StorageAdapter) => Promise<any>): Promise<void> {

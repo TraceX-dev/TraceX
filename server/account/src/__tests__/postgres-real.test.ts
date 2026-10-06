@@ -92,7 +92,6 @@ describe('real-account', () => {
   })
 
   afterAll(async () => {
-
     adminClientPGRef.close()
     await shutdownPostgres()
   })
