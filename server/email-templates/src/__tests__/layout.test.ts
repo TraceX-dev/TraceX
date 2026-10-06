@@ -14,7 +14,7 @@
 //
 
 import { escapeHtml, initials, mention, safeUrl, text } from '../html'
-import { assetUrl, renderEmail, type EmailLayout } from '../layout'
+import { assetUrl, emailAppName, renderEmail, type EmailLayout } from '../layout'
 
 const front = 'https://tracex.example'
 
@@ -62,6 +62,12 @@ describe('renderEmail', () => {
     expect(html).toContain('alt="TraceX"')
     expect(html).toContain('New reply')
     expect(html).toContain('© TraceX — All rights reserved')
+  })
+
+  it('picks the first non-empty product name', () => {
+    expect(emailAppName('Acme', 'Other')).toBe('Acme')
+    expect(emailAppName(undefined, ' ', 'Product')).toBe('Product')
+    expect(emailAppName(undefined, null)).toBe('TraceX')
   })
 
   it('trims any number of trailing slashes quickly', () => {

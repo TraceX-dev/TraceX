@@ -28,7 +28,8 @@ import {
  * What happened, decides the email layout.
  * @public
  */
-export type EmailKind = 'mention' | 'reply' | 'message' | 'reaction' | 'update' | 'assignment' | 'request' | 'common'
+export type EmailKind =
+  'mention' | 'reply' | 'message' | 'reaction' | 'update' | 'assignment' | 'coAuthor' | 'request' | 'common'
 
 /**
  * Object tile data.
@@ -36,7 +37,7 @@ export type EmailKind = 'mention' | 'reply' | 'message' | 'reaction' | 'update' 
  */
 export interface EmailObject {
   title: string
-  /** Translated class label, e.g. "Vigilance card". */
+  /** Class label, e.g. a master tag name; omitted when it is not in the email language. */
   classLabel?: string
   href: string
 }
@@ -91,6 +92,7 @@ export interface EmailStrings {
   eventUpdate: string
   eventCreate: string
   eventAssignment: string
+  eventCoAuthor: string
   eventRequest: string
   titleMention: string
   titleReply: string
@@ -101,6 +103,8 @@ export interface EmailStrings {
   titleCreate: string
   titleAssignment: string
   titleAssignmentNoSender: string
+  titleCoAuthor: string
+  titleCoAuthorNoSender: string
   titleRequest: string
   quoteOwn: string
   quoteOther: string
@@ -113,6 +117,8 @@ export interface EmailStrings {
   reasonConversation: string
   reasonObject: string
   reasonAssignment: string
+  reasonCoAuthor: string
+  reasonReaction: string
   reasonRequest: string
   reasonDefault: string
   notificationSettings: string
@@ -130,6 +136,7 @@ export const defaultEmailStrings: EmailStrings = {
   eventUpdate: 'Updated',
   eventCreate: 'Created',
   eventAssignment: 'Assigned to you',
+  eventCoAuthor: 'Co-author',
   eventRequest: 'Action required',
   titleMention: '{sender} mentioned you',
   titleReply: '{sender} replied in {object}',
@@ -140,6 +147,8 @@ export const defaultEmailStrings: EmailStrings = {
   titleCreate: '{object} was created',
   titleAssignment: '{sender} assigned you {object}',
   titleAssignmentNoSender: '{object} was assigned to you',
+  titleCoAuthor: '{sender} added you as a co-author of {object}',
+  titleCoAuthorNoSender: 'You were added as a co-author of {object}',
   titleRequest: 'Action required: {object}',
   quoteOwn: 'Your message',
   quoteOther: '{author} wrote',
@@ -152,6 +161,8 @@ export const defaultEmailStrings: EmailStrings = {
   reasonConversation: "You're receiving this because you're subscribed to this conversation.",
   reasonObject: "You're receiving this because you're subscribed to updates of “{object}”.",
   reasonAssignment: "You're receiving this because you were assigned.",
+  reasonCoAuthor: "You're receiving this because you were added as a co-author.",
+  reasonReaction: "You're receiving this because someone reacted to your message.",
   reasonRequest: "You're receiving this because your action is requested.",
   reasonDefault: "You're receiving this because of your notification settings.",
   notificationSettings: 'Notification settings',
@@ -186,6 +197,25 @@ export function formatEmailTime (timestamp: number, lang = 'en', timeZone = 'UTC
     date
   )
   return `${day}, ${time}${timeZone === 'UTC' ? ' UTC' : ''}`
+}
+
+/**
+ * Drops HTML tags from a plain-text template result, e.g. the `<a>` of `{link}`.
+ * A character loop rather than /<[^>]*>/g, which is quadratic on many unclosed '<'.
+ * @public
+ */
+export function stripHtmlTags (value: string): string {
+  let result = ''
+  let inTag = false
+  for (const ch of value) {
+    if (ch === '<') inTag = true
+    else if (ch === '>' && inTag) inTag = false
+    else if (!inTag) result += ch
+  }
+  return result
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 const PREHEADER_LENGTH = 140
@@ -291,7 +321,7 @@ export function buildEmailLayout (
       eventLabel = strings.eventReaction
       title = fillString(strings.titleReaction, params)
       blocks = [quoteBlock(data, strings)].filter((it): it is EmailBlock => it !== undefined)
-      reason = fillString(strings.reasonObject, params)
+      reason = strings.reasonReaction
       break
     case 'update':
       eventLabel = data.created === true ? strings.eventCreate : strings.eventUpdate
@@ -304,6 +334,12 @@ export function buildEmailLayout (
       title = fillString(data.senderName !== '' ? strings.titleAssignment : strings.titleAssignmentNoSender, params)
       blocks = [objectTile(data, data.object)]
       reason = strings.reasonAssignment
+      break
+    case 'coAuthor':
+      eventLabel = strings.eventCoAuthor
+      title = fillString(data.senderName !== '' ? strings.titleCoAuthor : strings.titleCoAuthorNoSender, params)
+      blocks = [objectTile(data, data.object)]
+      reason = strings.reasonCoAuthor
       break
     case 'request':
       eventLabel = strings.eventRequest

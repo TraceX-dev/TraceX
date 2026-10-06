@@ -58,6 +58,18 @@ export interface EmailLayout {
 const table = 'role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
 
 /**
+ * Product name shown in emails: the first non-empty candidate (branding title, PRODUCT_NAME), else TraceX.
+ * Every email uses it, so the name is the same in all of them.
+ * @public
+ */
+export function emailAppName (...candidates: Array<string | undefined | null>): string {
+  for (const name of candidates) {
+    if (name !== undefined && name !== null && name.trim() !== '') return name.trim()
+  }
+  return 'TraceX'
+}
+
+/**
  * Absolute url of a hosted email asset.
  * @public
  */

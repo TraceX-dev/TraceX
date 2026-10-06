@@ -159,6 +159,13 @@ function reference (w: Writer, node: MarkupNode): void {
   const label = str(node.attrs?.label !== undefined && node.attrs?.label !== null ? node.attrs.label : node.text)
   if (w.options.isPerson(objectClass)) {
     if (w.full) return
+    const max = w.options.maxLength
+    if (max !== undefined && w.length + label.length + 1 > max) {
+      // A mention is not cut in the middle: stop before it.
+      w.addText('…')
+      w.truncated = true
+      return
+    }
     w.text += `@${label}`
     w.length += label.length + 1
     w.raw(mention(label))

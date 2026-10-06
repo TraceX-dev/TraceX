@@ -15,6 +15,7 @@
 
 import { type Branding } from '@hcengineering/core'
 import {
+  emailAppName,
   join,
   link,
   renderEmail,
@@ -90,8 +91,7 @@ const specs: Record<AccountEmail, AccountEmailSpec> = {
  * @public
  */
 export function getEmailAppName (branding: Branding | null): string {
-  const name = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName)
-  return name !== undefined && name !== '' ? name : 'TraceX'
+  return emailAppName(branding?.title, getMetadata(accountPlugin.metadata.ProductName))
 }
 
 /**

@@ -19,6 +19,7 @@ import { MarkupMarkType, MarkupNodeType, type MarkupNode } from '@hcengineering/
 import {
   buildEmailLayout,
   defaultEmailStrings,
+  stripHtmlTags,
   fillString,
   formatEmailTime,
   type EmailNotificationData
@@ -143,6 +144,15 @@ describe('markupToEmailHtml', () => {
     expect(res.text).toBe('inner')
   })
 
+  it('counts mentions towards the length limit', () => {
+    const mentions = Array.from({ length: 200 }, (_, i) => ref(`p${i}`, personClass, `Person ${i}`))
+    const res = markupToEmailHtml(doc(p(...mentions)), { ...options, maxLength: 30 })
+    expect(res.truncated).toBe(true)
+    expect(res.text.length).toBeLessThanOrEqual(31)
+    expect(res.html.match(/background-color:#FFF0E6/g)?.length).toBe(3)
+    expect(res.text.endsWith('…')).toBe(true)
+  })
+
   it('truncates long messages on a word boundary', () => {
     const res = markupToEmailHtml(doc(p(txt('alpha beta gamma delta')), p(txt('never'))), { ...options, maxLength: 13 })
     expect(res.truncated).toBe(true)
@@ -249,6 +259,31 @@ describe('email content', () => {
     )
   })
 
+  it('builds co-author emails', () => {
+    const layout = buildEmailLayout({ ...base, kind: 'coAuthor' })
+    expect(layout.eventLabel).toBe('Co-author')
+    expect(layout.title).toBe('John Doe added you as a co-author of CAPA-1 Audit')
+    expect(layout.reason).toBe("You're receiving this because you were added as a co-author.")
+    expect(buildEmailLayout({ ...base, kind: 'coAuthor', senderName: '' }).title).toBe(
+      'You were added as a co-author of CAPA-1 Audit'
+    )
+  })
+
+  it('gives reactions their own reason', () => {
+    const layout = buildEmailLayout({ ...base, kind: 'reaction', emoji: '👍', quote: { own: true, text: 'Q' } })
+    expect(layout.reason).toBe("You're receiving this because someone reacted to your message.")
+  })
+
+  it('strips tags from plain-text template results', () => {
+    expect(stripHtmlTags("New message in A () from B: <a href='x'>View</a> ok")).toBe(
+      'New message in A from B: View ok'
+    )
+    expect(stripHtmlTags('a < b')).toBe('a')
+    const started = Date.now()
+    stripHtmlTags('<'.repeat(100000))
+    expect(Date.now() - started).toBeLessThan(200)
+  })
+
   it('builds request emails', () => {
     const titled = buildEmailLayout({
       ...base,
@@ -298,6 +333,7 @@ describe('email content', () => {
       'reaction',
       'update',
       'assignment',
+      'coAuthor',
       'request',
       'common'
     ] as const) {
