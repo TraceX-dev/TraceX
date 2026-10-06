@@ -23,7 +23,6 @@ export const colors = {
   border: '#E4E4E9',
   divider: '#ECECF0',
   header: '#19191B',
-  headerMuted: '#A1A1AA',
   text: '#18181B',
   body: '#27272A',
   secondary: '#52525B',
@@ -56,6 +55,6 @@ export const contentWidth = 600
  * @public
  */
 export const assets = {
-  logo: { path: '/tracex/email-logo.png', width: 189, height: 28 },
+  logo: { path: '/tracex/email-logo.png', width: 135, height: 20 },
   cardIcon: { path: '/tracex/email-icon-card.png', width: 18, height: 18 }
 } as const

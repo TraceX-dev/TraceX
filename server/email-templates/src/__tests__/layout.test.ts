@@ -54,13 +54,13 @@ describe('email html helpers', () => {
 
 describe('renderEmail', () => {
   it('renders a light-only document with logo and footer', () => {
-    const html = renderEmail(minimal({ eventLabel: 'New reply' }))
+    const html = renderEmail(minimal())
     expect(html.startsWith('<!DOCTYPE html>')).toBe(true)
     expect(html).toContain('<meta name="color-scheme" content="light">')
     expect(html).not.toContain('prefers-color-scheme')
     expect(html).toContain(`src="${front}/tracex/email-logo.png"`)
     expect(html).toContain('alt="TraceX"')
-    expect(html).toContain('New reply')
+    expect(html).toContain('width="135" height="20"')
     expect(html).toContain('© TraceX — All rights reserved')
   })
 
@@ -88,8 +88,6 @@ describe('renderEmail', () => {
       minimal({
         title: evil,
         preheader: evil,
-        eventLabel: evil,
-        context: { chip: evil, workspace: evil },
         reason: evil,
         footerLinks: [{ label: evil, href: 'javascript:alert(1)' }],
         actions: [{ label: evil, href: 'javascript:alert(1)', primary: true }],
