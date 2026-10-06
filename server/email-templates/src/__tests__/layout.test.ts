@@ -14,7 +14,7 @@
 //
 
 import { escapeHtml, initials, mention, safeUrl, text } from '../html'
-import { renderEmail, type EmailLayout } from '../layout'
+import { assetUrl, renderEmail, type EmailLayout } from '../layout'
 
 const front = 'https://tracex.example'
 
@@ -62,6 +62,14 @@ describe('renderEmail', () => {
     expect(html).toContain('alt="TraceX"')
     expect(html).toContain('New reply')
     expect(html).toContain('© TraceX — All rights reserved')
+  })
+
+  it('trims any number of trailing slashes quickly', () => {
+    expect(assetUrl(`${front}///`, '/x.png')).toBe(`${front}/x.png`)
+    expect(assetUrl('', '/x.png')).toBe('/x.png')
+    const started = Date.now()
+    assetUrl('/'.repeat(100000) + 'x', '/x.png')
+    expect(Date.now() - started).toBeLessThan(100)
   })
 
   it('does not double the slash in asset urls', () => {
