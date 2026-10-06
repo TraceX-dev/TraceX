@@ -82,7 +82,6 @@ export function emailDataFixtures (frontUrl = fixtureFrontUrl): Record<string, E
     kind: 'message',
     frontUrl,
     appName: 'TraceX',
-    workspace,
     settingsUrl: `${frontUrl}/workbench/${workspace}/setting/notifications`,
     senderName: sender,
     time: 'Jan 15, 10:30 UTC',
@@ -144,7 +143,6 @@ export function emailDataFixtures (frontUrl = fixtureFrontUrl): Record<string, E
     'data-common': {
       ...base,
       kind: 'common',
-      typeLabel: 'Approval request',
       title: 'Approve the change of DOC-001 Sample document',
       body: `${other} asks you to approve the document before it becomes effective.`,
       object: { title: 'DOC-001 Sample document', classLabel: 'Document', href: cardHref },

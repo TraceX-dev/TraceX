@@ -51,7 +51,6 @@ export interface EmailNotificationData {
   lang?: string
   frontUrl: string
   appName: string
-  workspace: string
   settingsUrl: string
   senderName: string
   /** Formatted time of the message. */
@@ -73,8 +72,6 @@ export interface EmailNotificationData {
   /** Notification title / body texts from the inbox notification. */
   title?: string
   body?: string
-  /** Translated label of the notification type, e.g. "Assigned to me". */
-  typeLabel?: string
   /** The object was created rather than updated. */
   created?: boolean
 }
@@ -85,15 +82,6 @@ export interface EmailNotificationData {
  * @public
  */
 export interface EmailStrings {
-  eventMention: string
-  eventReply: string
-  eventMessage: string
-  eventReaction: string
-  eventUpdate: string
-  eventCreate: string
-  eventAssignment: string
-  eventCoAuthor: string
-  eventRequest: string
   titleMention: string
   titleReply: string
   titleReplyOwn: string
@@ -111,7 +99,6 @@ export interface EmailStrings {
   quoteAnonymous: string
   actionReply: string
   actionOpen: string
-  actionOpenObject: string
   readMore: string
   reasonMention: string
   reasonConversation: string
@@ -129,20 +116,11 @@ export interface EmailStrings {
  * @public
  */
 export const defaultEmailStrings: EmailStrings = {
-  eventMention: 'You were mentioned',
-  eventReply: 'New reply',
-  eventMessage: 'New message',
-  eventReaction: 'New reaction',
-  eventUpdate: 'Updated',
-  eventCreate: 'Created',
-  eventAssignment: 'Assigned to you',
-  eventCoAuthor: 'Co-author',
-  eventRequest: 'Action required',
-  titleMention: '{sender} mentioned you',
+  titleMention: '{sender} mentioned you in {object}',
   titleReply: '{sender} replied in {object}',
-  titleReplyOwn: '{sender} replied to your message',
+  titleReplyOwn: '{sender} replied to your message in {object}',
   titleMessage: 'New message in {object}',
-  titleReaction: '{sender} reacted {emoji} to your message',
+  titleReaction: '{sender} reacted {emoji} to your message in {object}',
   titleUpdate: '{object} was updated',
   titleCreate: '{object} was created',
   titleAssignment: '{sender} assigned you {object}',
@@ -155,7 +133,6 @@ export const defaultEmailStrings: EmailStrings = {
   quoteAnonymous: 'Original message',
   actionReply: 'Reply in {app}',
   actionOpen: 'Open in {app}',
-  actionOpenObject: 'Open {class}',
   readMore: 'Read the full message in {app}',
   reasonMention: "You're receiving this because you were mentioned.",
   reasonConversation: "You're receiving this because you're subscribed to this conversation.",
@@ -266,26 +243,24 @@ export function buildEmailLayout (
   const params: Record<string, string | undefined> = {
     sender: data.senderName,
     object: data.object.title,
-    class: data.object.classLabel ?? '',
     app: data.appName,
     emoji: data.emoji
   }
   const isConversation = data.kind === 'mention' || data.kind === 'reply' || data.kind === 'message'
 
-  let eventLabel: string | undefined
+  // One idea per element: the title names the event and the object, so there is no header label,
+  // no object chip and no tile repeating the object; one button; a one-line footer.
   let title: string
   let blocks: EmailBlock[]
   let reason: string
 
   switch (data.kind) {
     case 'mention':
-      eventLabel = strings.eventMention
       title = fillString(strings.titleMention, params)
       blocks = messageBlocks(data, strings, true)
       reason = strings.reasonMention
       break
     case 'reply':
-      eventLabel = strings.eventReply
       title = fillString(data.quote?.own === true ? strings.titleReplyOwn : strings.titleReply, params)
       blocks = [quoteBlock(data, strings), ...messageBlocks(data, strings, false)].filter(
         (it): it is EmailBlock => it !== undefined
@@ -293,74 +268,61 @@ export function buildEmailLayout (
       reason = strings.reasonConversation
       break
     case 'message':
-      eventLabel = strings.eventMessage
       title = fillString(strings.titleMessage, params)
       blocks = messageBlocks(data, strings, false)
       reason = strings.reasonConversation
       break
     case 'reaction':
-      eventLabel = strings.eventReaction
       title = fillString(strings.titleReaction, params)
       blocks = [quoteBlock(data, strings)].filter((it): it is EmailBlock => it !== undefined)
       reason = strings.reasonReaction
       break
     case 'update':
-      eventLabel = data.created === true ? strings.eventCreate : strings.eventUpdate
       title = fillString(data.created === true ? strings.titleCreate : strings.titleUpdate, params)
-      blocks = [...bodyParagraph(data.body), objectTile(data, data.object)]
+      blocks = bodyParagraph(data.body)
       reason = fillString(strings.reasonObject, params)
       break
     case 'assignment':
-      eventLabel = strings.eventAssignment
       title = fillString(data.senderName !== '' ? strings.titleAssignment : strings.titleAssignmentNoSender, params)
-      blocks = [objectTile(data, data.object)]
+      blocks = []
       reason = strings.reasonAssignment
       break
     case 'coAuthor':
-      eventLabel = strings.eventCoAuthor
       title = fillString(data.senderName !== '' ? strings.titleCoAuthor : strings.titleCoAuthorNoSender, params)
-      blocks = [objectTile(data, data.object)]
+      blocks = []
       reason = strings.reasonCoAuthor
       break
     case 'request':
-      eventLabel = strings.eventRequest
       title = data.title !== undefined && data.title !== '' ? data.title : fillString(strings.titleRequest, params)
-      blocks = [...bodyParagraph(data.body), ...messageBlocks(data, strings, false), objectTile(data, data.object)]
+      blocks = [...bodyParagraph(data.body), ...messageBlocks(data, strings, false)]
       reason = strings.reasonRequest
       break
     case 'common':
-      eventLabel = data.typeLabel
       title = data.title !== undefined && data.title !== '' ? data.title : data.object.title
       blocks = [
         ...bodyParagraph(data.body),
         ...messageBlocks(data, strings, false),
-        ...(title !== data.object.title ? [objectTile(data, data.object)] : [])
+        // Name the object only when the title does not.
+        ...(title.includes(data.object.title) ? [] : [objectTile(data, data.object)])
       ]
       reason = strings.reasonDefault
       break
   }
 
-  const objectHref = data.object.href
-  const messageHref = data.messageHref ?? objectHref
-  const actions: EmailAction[] = isConversation
-    ? [
-        { label: fillString(strings.actionReply, params), href: messageHref, primary: true },
-        ...(data.object.classLabel !== undefined && data.object.classLabel !== '' && messageHref !== objectHref
-          ? [{ label: fillString(strings.actionOpenObject, params), href: objectHref }]
-          : [])
-      ]
-    : [{ label: fillString(strings.actionOpen, params), href: messageHref, primary: true }]
+  const action: EmailAction = {
+    label: fillString(isConversation ? strings.actionReply : strings.actionOpen, params),
+    href: data.messageHref ?? data.object.href,
+    primary: true
+  }
 
   return {
     frontUrl: data.frontUrl,
     appName: data.appName,
     lang: data.lang,
     preheader: preheader(data.messageText ?? data.body ?? data.quote?.text),
-    eventLabel,
-    context: { chip: data.object.classLabel, workspace: data.workspace },
     title,
     blocks,
-    actions,
+    actions: [action],
     reason,
     footerLinks: [{ label: strings.notificationSettings, href: data.settingsUrl }],
     copyright: fillString(strings.copyright, params)

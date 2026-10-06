@@ -165,7 +165,6 @@ describe('email content', () => {
     kind: 'message',
     frontUrl: 'https://front',
     appName: 'TraceX',
-    workspace: 'ws',
     settingsUrl: 'https://front/workbench/ws/setting/notifications',
     senderName: 'John Doe',
     time: 'Oct 4, 23:00 UTC',
@@ -186,13 +185,9 @@ describe('email content', () => {
 
   it('builds a message email', () => {
     const layout = buildEmailLayout(base)
-    expect(layout.eventLabel).toBe('New message')
     expect(layout.title).toBe('New message in CAPA-1 Audit')
-    expect(layout.context).toEqual({ chip: 'CAPA', workspace: 'ws' })
-    expect(layout.actions).toEqual([
-      { label: 'Reply in TraceX', href: 'https://front/card?message=m1', primary: true },
-      { label: 'Open CAPA', href: 'https://front/card' }
-    ])
+    // One button, straight to the message.
+    expect(layout.actions).toEqual([{ label: 'Reply in TraceX', href: 'https://front/card?message=m1', primary: true }])
     expect(layout.preheader).toBe('Hello')
     expect(layout.footerLinks?.[0].href).toBe(base.settingsUrl)
     expect(layout.copyright).toBe('© TraceX — All rights reserved')
@@ -200,7 +195,7 @@ describe('email content', () => {
 
   it('builds a reply to own message', () => {
     const layout = buildEmailLayout({ ...base, kind: 'reply', quote: { own: true, text: 'Question?' } })
-    expect(layout.title).toBe('John Doe replied to your message')
+    expect(layout.title).toBe('John Doe replied to your message in CAPA-1 Audit')
     expect(layout.blocks.map((it) => it.type)).toEqual(['quote', 'message'])
     expect(layout.blocks[0]).toMatchObject({ label: 'Your message' })
   })
@@ -217,7 +212,7 @@ describe('email content', () => {
       kind: 'mention',
       references: [{ title: 'Other', classLabel: 'Card', href: 'https://front/o' }]
     })
-    expect(layout.title).toBe('John Doe mentioned you')
+    expect(layout.title).toBe('John Doe mentioned you in CAPA-1 Audit')
     expect(layout.blocks[0]).toMatchObject({ type: 'message', framed: true })
     expect((layout.blocks[0] as any).objects).toHaveLength(1)
     expect(layout.reason).toBe(defaultEmailStrings.reasonMention)
@@ -233,25 +228,27 @@ describe('email content', () => {
     expect(update.title).toBe('CAPA-1 Audit was updated')
     expect(update.actions).toEqual([{ label: 'Open in TraceX', href: base.messageHref, primary: true }])
     expect(update.reason).toBe("You're receiving this because you're subscribed to updates of “CAPA-1 Audit”.")
+    // The title already names the object: no tile repeating it.
+    expect(update.blocks.map((it) => it.type)).toEqual(['paragraph'])
 
     const common = buildEmailLayout({
       ...base,
       kind: 'common',
-      typeLabel: 'Approval requested',
       title: 'Approve SOP-12',
       body: 'Please approve',
       messageHtml: undefined
     })
-    expect(common.eventLabel).toBe('Approval requested')
     expect(common.title).toBe('Approve SOP-12')
+    // The title does not name the object, so a tile does.
     expect(common.blocks.map((it) => it.type)).toEqual(['paragraph', 'object'])
+    const named = buildEmailLayout({ ...base, kind: 'common', title: 'Review CAPA-1 Audit', messageHtml: undefined })
+    expect(named.blocks).toEqual([])
   })
 
   it('builds assignment emails with and without a sender', () => {
     const layout = buildEmailLayout({ ...base, kind: 'assignment' })
-    expect(layout.eventLabel).toBe('Assigned to you')
     expect(layout.title).toBe('John Doe assigned you CAPA-1 Audit')
-    expect(layout.blocks.map((it) => it.type)).toEqual(['object'])
+    expect(layout.blocks).toEqual([])
     expect(layout.reason).toBe("You're receiving this because you were assigned.")
     expect(buildEmailLayout({ ...base, kind: 'assignment', senderName: '' }).title).toBe(
       'CAPA-1 Audit was assigned to you'
@@ -260,7 +257,6 @@ describe('email content', () => {
 
   it('builds co-author emails', () => {
     const layout = buildEmailLayout({ ...base, kind: 'coAuthor' })
-    expect(layout.eventLabel).toBe('Co-author')
     expect(layout.title).toBe('John Doe added you as a co-author of CAPA-1 Audit')
     expect(layout.reason).toBe("You're receiving this because you were added as a co-author.")
     expect(buildEmailLayout({ ...base, kind: 'coAuthor', senderName: '' }).title).toBe(
@@ -281,21 +277,20 @@ describe('email content', () => {
       body: 'Please approve',
       messageHtml: undefined
     })
-    expect(titled.eventLabel).toBe('Action required')
     expect(titled.title).toBe('Approve SOP-12')
-    expect(titled.blocks.map((it) => it.type)).toEqual(['paragraph', 'object'])
+    expect(titled.blocks.map((it) => it.type)).toEqual(['paragraph'])
     const untitled = buildEmailLayout({ ...base, kind: 'request', messageHtml: undefined })
     expect(untitled.title).toBe('Action required: CAPA-1 Audit')
   })
 
   it('translates the wording', () => {
-    expect(getEmailStrings('ru').eventReply).toBe('Новый ответ')
+    expect(getEmailStrings('ru').quoteOwn).toBe('Ваше сообщение')
     expect(getEmailStrings('pt-BR')).toBe(emailStrings['pt-br'])
     expect(getEmailStrings('de-AT')).toBe(emailStrings.de)
     expect(getEmailStrings('xx')).toBe(defaultEmailStrings)
     expect(getEmailStrings(undefined)).toBe(defaultEmailStrings)
     const layout = buildEmailLayout({ ...base, kind: 'reply', quote: { own: true, text: 'Q' } }, getEmailStrings('ru'))
-    expect(layout.title).toBe('John Doe ответил(а) на ваше сообщение')
+    expect(layout.title).toBe('John Doe ответил(а) на ваше сообщение в CAPA-1 Audit')
     expect(layout.actions?.[0].label).toBe('Ответить в TraceX')
     expect(layout.copyright).toBe('© TraceX — Все права защищены')
   })

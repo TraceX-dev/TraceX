@@ -38,10 +38,6 @@ export interface EmailLayout {
   lang?: string
   /** Inbox preview line, hidden in the body. */
   preheader?: string
-  /** Short event label in the header: "New reply", "You were mentioned". */
-  eventLabel?: string
-  /** Object kind chip and workspace name above the title. */
-  context?: { chip?: string, workspace?: string }
   title: string
   blocks: EmailBlock[]
   actions?: EmailAction[]
@@ -82,32 +78,11 @@ export function assetUrl (frontUrl: string, path: string): string {
 
 function header (layout: EmailLayout): string {
   const logo = assets.logo
-  const label =
-    layout.eventLabel !== undefined && layout.eventLabel !== ''
-      ? `<td align="right" valign="middle" style="font-family:${font};font-size:13px;color:${colors.headerMuted};line-height:1.4">${escapeHtml(layout.eventLabel)}</td>`
-      : ''
-  return `<tr><td class="tx-pad" style="background-color:${colors.header};border-radius:16px 16px 0 0;padding:24px 40px">
+  return `<tr><td class="tx-pad" style="background-color:${colors.header};border-radius:16px 16px 0 0;padding:18px 40px">
 <table ${table}><tr>
-<td valign="middle"><img src="${safeUrl(assetUrl(layout.frontUrl, logo.path))}" width="${logo.width}" height="${logo.height}" alt="${escapeHtml(layout.appName)}" style="display:block;border:0;outline:none;width:${logo.width}px;height:${logo.height}px;color:#FFFFFF;font-family:${font};font-size:22px;font-weight:800;line-height:${logo.height}px"></td>
-${label}
+<td valign="middle"><img src="${safeUrl(assetUrl(layout.frontUrl, logo.path))}" width="${logo.width}" height="${logo.height}" alt="${escapeHtml(layout.appName)}" style="display:block;border:0;outline:none;width:${logo.width}px;height:${logo.height}px;color:#FFFFFF;font-family:${font};font-size:18px;font-weight:800;line-height:${logo.height}px"></td>
 </tr></table>
 </td></tr>`
-}
-
-function context (layout: EmailLayout): string {
-  const chip = layout.context?.chip
-  const workspace = layout.context?.workspace
-  const parts: string[] = []
-  if (chip !== undefined && chip !== '') {
-    parts.push(
-      `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background-color:${colors.chipBg};border:1px solid ${colors.border};color:${colors.chipText};font-weight:600">${escapeHtml(chip)}</span>`
-    )
-  }
-  if (workspace !== undefined && workspace !== '') {
-    parts.push(`<span>${escapeHtml(workspace)}</span>`)
-  }
-  if (parts.length === 0) return ''
-  return `<div style="font-family:${font};font-size:13px;line-height:1.6;color:${colors.muted};margin:0 0 10px 0">${parts.join('&nbsp;&nbsp;&middot;&nbsp;&nbsp;')}</div>`
 }
 
 function button (action: EmailAction): string {
@@ -180,7 +155,7 @@ ${preheader}
 ${header(layout)}
 <tr><td style="background-color:${colors.card};border:1px solid ${colors.border};border-top:none;border-radius:0 0 16px 16px">
 <table ${table}>
-<tr><td class="tx-pad" style="padding:36px 40px 0 40px">${context(layout)}<h1 style="margin:0;font-family:${font};font-size:24px;line-height:1.3;font-weight:700;letter-spacing:-0.4px;color:${colors.text}">${escapeHtml(layout.title)}</h1></td></tr>
+<tr><td class="tx-pad" style="padding:36px 40px 0 40px"><h1 style="margin:0;font-family:${font};font-size:24px;line-height:1.3;font-weight:700;letter-spacing:-0.4px;color:${colors.text}">${escapeHtml(layout.title)}</h1></td></tr>
 ${blocks}
 ${hasActions ? actions(layout) : ''}
 ${afterActions}

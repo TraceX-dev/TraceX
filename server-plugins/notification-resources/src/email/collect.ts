@@ -201,7 +201,6 @@ export async function collectEmailData (
     lang,
     frontUrl: front,
     appName: getNotificationAppName(control),
-    workspace: control.workspace.url,
     settingsUrl: concatLink(front, `${workbenchId}/${control.workspace.url}/setting/notifications`),
     senderName: params.senderName,
     object,
@@ -283,12 +282,6 @@ export async function collectEmailData (
 
   if (kind === 'update' && message !== undefined) {
     data.created = (message as DocUpdateMessage).action === 'create'
-  }
-
-  // Type labels are translated to English only on the server, so other languages get no label.
-  if (kind === 'common' && isEnglish(lang)) {
-    const label = params.type.label
-    data.typeLabel = label !== undefined ? await translate(label, {}, lang) : undefined
   }
 
   return data
