@@ -60,6 +60,7 @@ import InlineCommentThread from './components/inline-comment/InlineCommentThread
 import DiscussionsSection from './components/discussions/DiscussionsSection.svelte'
 import DiscussionAside from './components/discussions/DiscussionAside.svelte'
 import DiscussionPanel from './components/discussions/DiscussionPanel.svelte'
+import DefaultDiscussionsSetting from './components/discussions/DefaultDiscussionsSetting.svelte'
 
 import {
   chunterSpaceLinkFragmentProvider,
@@ -200,7 +201,8 @@ export default async (): Promise<Resources> => ({
     InlineCommentThread,
     DiscussionsSection,
     DiscussionAside,
-    DiscussionPanel
+    DiscussionPanel,
+    DefaultDiscussionsSetting
   },
   activity: {
     ChannelCreatedMessage,

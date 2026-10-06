@@ -71,7 +71,6 @@
       config={preference?.config ?? viewlet.config}
       query={{ attachedTo: value._id }}
       {options}
-      loadingProps={{ length: value.versions ?? 0 }}
     />
   {:else}
     <Loading />

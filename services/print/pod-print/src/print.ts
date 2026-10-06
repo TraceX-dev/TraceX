@@ -2,6 +2,17 @@
 // Copyright © 2024 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX SAS.
 //
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 import { MeasureContext } from '@hcengineering/core'
 import puppeteer, { Page, Viewport } from 'puppeteer'
 
@@ -66,6 +77,7 @@ export async function print (ctx: MeasureContext, url: string, options?: PrintOp
   let res: Uint8Array | undefined
 
   if (kind === 'pdf') {
+    await waitForContentReady(ctx, page)
     await page.emulateMediaType('print')
     // Wait for two animation frames: the first applies the print media query and the second
     // lets reactive UI state update the layout. Resource readiness is handled separately below.
@@ -139,6 +151,21 @@ async function waitForPrintLayout (page: Page): Promise<void> {
       })
     })
   })
+}
+
+async function waitForContentReady (ctx: MeasureContext, page: Page): Promise<void> {
+  try {
+    await page.waitForFunction(
+      () => {
+        const pendingContent = document.querySelectorAll<HTMLElement>('[aria-busy="true"]')
+        return Array.from(pendingContent).every((element) => element.getClientRects().length === 0)
+      },
+      { timeout: 30000 }
+    )
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    ctx.warn('page content did not finish loading before PDF generation', { message })
+  }
 }
 
 async function scrollThrough (page: Page): Promise<void> {

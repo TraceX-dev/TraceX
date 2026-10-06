@@ -441,7 +441,8 @@ function defineFolder (builder: Builder): void {
   builder.createModel(TFolder)
 
   builder.mixin(drive.class.Folder, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: drive.component.FolderPresenter
+    presenter: drive.component.FolderPresenter,
+    requiredFields: ['title']
   })
 
   builder.mixin(drive.class.Folder, core.class.Class, view.mixin.ObjectEditor, {
@@ -629,7 +630,8 @@ function defineFile (builder: Builder): void {
   builder.createModel(TFile)
 
   builder.mixin(drive.class.File, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: drive.component.FilePresenter
+    presenter: drive.component.FilePresenter,
+    requiredFields: ['title', 'version']
   })
 
   builder.mixin(drive.class.File, core.class.Class, view.mixin.ObjectEditor, {

@@ -492,7 +492,8 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(documents.class.Document, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: documents.component.DocumentPresenter
+    presenter: documents.component.DocumentPresenter,
+    requiredFields: ['code', 'title']
   })
 
   builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.LinkProvider, {

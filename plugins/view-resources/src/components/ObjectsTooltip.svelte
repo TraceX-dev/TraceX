@@ -37,9 +37,14 @@
   }
 
   $: if (_class !== undefined && objectIds.length > 0) {
-    query.query(_class, { _id: { $in: objectIds } }, (result) => {
-      queriedObjects = orderObjects(result, objectIds)
-    })
+    query.query(
+      _class,
+      { _id: { $in: objectIds } },
+      (result) => {
+        queriedObjects = orderObjects(result, objectIds)
+      },
+      { unsecured: true }
+    )
   } else {
     query.unsubscribe()
     queriedObjects = []

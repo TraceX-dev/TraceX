@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -595,7 +596,10 @@ export class LiveQuery implements WithTx, Client {
     space: Ref<Space>,
     q: Query
   ): Promise<Doc | undefined> {
-    const options: any = {}
+    const options: FindOptions<Doc> = {}
+    if (q.options?.unsecured !== undefined) {
+      options.unsecured = q.options.unsecured
+    }
     if (q.options?.associations !== undefined) {
       options.associations = q.options?.associations
     }

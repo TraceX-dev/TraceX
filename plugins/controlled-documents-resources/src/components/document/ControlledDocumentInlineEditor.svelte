@@ -49,17 +49,27 @@
   $: if (value === undefined) {
     document = undefined
   } else {
-    documentQuery.query(documents.class.ControlledDocument, { _id: value as Ref<ControlledDocument> }, (result) => {
-      ;[document] = result
-    })
+    documentQuery.query(
+      documents.class.ControlledDocument,
+      { _id: value as Ref<ControlledDocument> },
+      (result) => {
+        ;[document] = result
+      },
+      { unsecured: true }
+    )
   }
 
   $: if (value === undefined) {
     meta = undefined
   } else {
-    metaQuery.query(documents.class.DocumentMeta, { _id: value as Ref<DocumentMeta> }, (result) => {
-      ;[meta] = result
-    })
+    metaQuery.query(
+      documents.class.DocumentMeta,
+      { _id: value as Ref<DocumentMeta> },
+      (result) => {
+        ;[meta] = result
+      },
+      { unsecured: true }
+    )
   }
 
   function openPopup (event: MouseEvent): void {

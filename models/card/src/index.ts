@@ -957,7 +957,8 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: card.component.CardPresenter
+    presenter: card.component.CardPresenter,
+    requiredFields: ['title', 'version', 'icon', 'color', 'parentInfo']
   })
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.CollectionPresenter, {
@@ -1157,6 +1158,14 @@ export function createModel (builder: Builder): void {
     id: 'views',
     label: card.string.Views,
     component: card.component.ViewsSection
+  })
+
+  // Below the type structure sections. Tags are mixins without own discussions, so master tags only.
+  builder.createDoc(card.class.MasterTagEditorSection, core.space.Model, {
+    id: 'discussions',
+    label: chunter.string.DefaultDiscussions,
+    masterOnly: true,
+    component: chunter.component.DefaultDiscussionsSetting
   })
 
   builder.createDoc(
