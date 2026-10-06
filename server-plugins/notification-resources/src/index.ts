@@ -68,7 +68,7 @@ import { type TriggerControl } from '@hcengineering/server-core'
 import { NOTIFICATION_BODY_SIZE, ReceiverInfo, SenderInfo } from '@hcengineering/server-notification'
 import { markupToText, stripTags } from '@hcengineering/text-core'
 
-import { buildEmailLayout, collectEmailData, renderEmail } from './email'
+import { buildEmailLayout, collectEmailData, getEmailStrings, renderEmail } from './email'
 import { OnInboxNotificationCreate, PushNotificationsHandler } from './push'
 import {
   AvailableProvidersCache,
@@ -304,7 +304,7 @@ export async function getContentByTemplate (
       notification: notificationData,
       message
     })
-    html = renderEmail(buildEmailLayout(emailData))
+    html = renderEmail(buildEmailLayout(emailData, getEmailStrings(emailData.lang)))
   } catch (err: any) {
     control.ctx.error('Failed to render notification email, falling back to the plain template', {
       err: err?.message,

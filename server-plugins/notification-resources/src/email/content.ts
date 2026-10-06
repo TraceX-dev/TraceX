@@ -28,7 +28,7 @@ import {
  * What happened, decides the email layout.
  * @public
  */
-export type EmailKind = 'mention' | 'reply' | 'message' | 'reaction' | 'update' | 'common'
+export type EmailKind = 'mention' | 'reply' | 'message' | 'reaction' | 'update' | 'assignment' | 'request' | 'common'
 
 /**
  * Object tile data.
@@ -90,6 +90,8 @@ export interface EmailStrings {
   eventReaction: string
   eventUpdate: string
   eventCreate: string
+  eventAssignment: string
+  eventRequest: string
   titleMention: string
   titleReply: string
   titleReplyOwn: string
@@ -97,6 +99,9 @@ export interface EmailStrings {
   titleReaction: string
   titleUpdate: string
   titleCreate: string
+  titleAssignment: string
+  titleAssignmentNoSender: string
+  titleRequest: string
   quoteOwn: string
   quoteOther: string
   quoteAnonymous: string
@@ -107,6 +112,8 @@ export interface EmailStrings {
   reasonMention: string
   reasonConversation: string
   reasonObject: string
+  reasonAssignment: string
+  reasonRequest: string
   reasonDefault: string
   notificationSettings: string
   copyright: string
@@ -122,6 +129,8 @@ export const defaultEmailStrings: EmailStrings = {
   eventReaction: 'New reaction',
   eventUpdate: 'Updated',
   eventCreate: 'Created',
+  eventAssignment: 'Assigned to you',
+  eventRequest: 'Action required',
   titleMention: '{sender} mentioned you',
   titleReply: '{sender} replied in {object}',
   titleReplyOwn: '{sender} replied to your message',
@@ -129,6 +138,9 @@ export const defaultEmailStrings: EmailStrings = {
   titleReaction: '{sender} reacted {emoji} to your message',
   titleUpdate: '{object} was updated',
   titleCreate: '{object} was created',
+  titleAssignment: '{sender} assigned you {object}',
+  titleAssignmentNoSender: '{object} was assigned to you',
+  titleRequest: 'Action required: {object}',
   quoteOwn: 'Your message',
   quoteOther: '{author} wrote',
   quoteAnonymous: 'Original message',
@@ -138,7 +150,9 @@ export const defaultEmailStrings: EmailStrings = {
   readMore: 'Read the full message in {app}',
   reasonMention: "You're receiving this because you were mentioned.",
   reasonConversation: "You're receiving this because you're subscribed to this conversation.",
-  reasonObject: "You're receiving this because you're subscribed to updates of this {classLower}.",
+  reasonObject: "You're receiving this because you're subscribed to updates of “{object}”.",
+  reasonAssignment: "You're receiving this because you were assigned.",
+  reasonRequest: "You're receiving this because your action is requested.",
   reasonDefault: "You're receiving this because of your notification settings.",
   notificationSettings: 'Notification settings',
   copyright: '© {app} — All rights reserved'
@@ -180,13 +194,6 @@ function preheader (value: string | undefined): string | undefined {
   if (value === undefined) return undefined
   const line = value.replace(/\s+/g, ' ').trim()
   return line.length > PREHEADER_LENGTH ? line.slice(0, PREHEADER_LENGTH - 1).trimEnd() + '…' : line
-}
-
-function lowerFirst (value: string | undefined): string | undefined {
-  if (value === undefined || value === '') return value
-  // Keep acronyms and proper names written in caps: "CAPA", "SOP".
-  if (value.length > 1 && value[1] === value[1].toUpperCase() && value[1] !== value[1].toLowerCase()) return value
-  return value[0].toLowerCase() + value.slice(1)
 }
 
 function objectTile (data: EmailNotificationData, object: EmailObject): ObjectLinkBlock {
@@ -249,7 +256,6 @@ export function buildEmailLayout (
     sender: data.senderName,
     object: data.object.title,
     class: data.object.classLabel ?? '',
-    classLower: lowerFirst(data.object.classLabel) ?? '',
     app: data.appName,
     emoji: data.emoji
   }
@@ -292,6 +298,18 @@ export function buildEmailLayout (
       title = fillString(data.created === true ? strings.titleCreate : strings.titleUpdate, params)
       blocks = [...bodyParagraph(data.body), objectTile(data, data.object)]
       reason = fillString(strings.reasonObject, params)
+      break
+    case 'assignment':
+      eventLabel = strings.eventAssignment
+      title = fillString(data.senderName !== '' ? strings.titleAssignment : strings.titleAssignmentNoSender, params)
+      blocks = [objectTile(data, data.object)]
+      reason = strings.reasonAssignment
+      break
+    case 'request':
+      eventLabel = strings.eventRequest
+      title = data.title !== undefined && data.title !== '' ? data.title : fillString(strings.titleRequest, params)
+      blocks = [...bodyParagraph(data.body), ...messageBlocks(data, strings, false), objectTile(data, data.object)]
+      reason = strings.reasonRequest
       break
     case 'common':
       eventLabel = data.typeLabel

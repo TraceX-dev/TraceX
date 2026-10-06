@@ -389,6 +389,7 @@ export function createModel (builder: Builder): void {
       objectClass: process.class.ProcessToDo,
       onlyOwn: true,
       defaultEnabled: true,
+      emailKind: 'request',
       templates: {
         textTemplate: '{body}',
         htmlTemplate: '<p>{body}</p>',
@@ -411,6 +412,7 @@ export function createModel (builder: Builder): void {
       objectClass: process.class.ApproveRequest,
       onlyOwn: true,
       defaultEnabled: true,
+      emailKind: 'request',
       templates: {
         textTemplate: '{body}',
         htmlTemplate: '<p>{body}</p>',
@@ -810,6 +812,7 @@ export function createModel (builder: Builder): void {
       objectClass: process.class.ProcessToDo
     },
     defaultEnabled: true,
+    emailKind: 'request',
     templates: {
       textTemplate: '{body}',
       htmlTemplate: '<p>{body}</p>',

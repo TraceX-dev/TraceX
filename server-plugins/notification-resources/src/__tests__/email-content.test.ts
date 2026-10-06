@@ -26,6 +26,7 @@ import {
 import { escapeHtml, renderEmail, text } from '@hcengineering/email-templates'
 
 import { emailFixtures } from '../email/fixtures'
+import { emailStrings, getEmailStrings } from '../email/strings'
 import { markupToEmailHtml, type MarkupToEmailOptions } from '../email/markup'
 
 const personClass = 'contact:class:Person' as Ref<Class<Doc>>
@@ -222,7 +223,7 @@ describe('email content', () => {
     const update = buildEmailLayout({ ...base, kind: 'update', body: 'Status: Open → Done', messageHtml: undefined })
     expect(update.title).toBe('CAPA-1 Audit was updated')
     expect(update.actions).toEqual([{ label: 'Open in TraceX', href: base.messageHref, primary: true }])
-    expect(update.reason).toBe("You're receiving this because you're subscribed to updates of this CAPA.")
+    expect(update.reason).toBe("You're receiving this because you're subscribed to updates of “CAPA-1 Audit”.")
 
     const common = buildEmailLayout({
       ...base,
@@ -235,13 +236,71 @@ describe('email content', () => {
     expect(common.eventLabel).toBe('Approval requested')
     expect(common.title).toBe('Approve SOP-12')
     expect(common.blocks.map((it) => it.type)).toEqual(['paragraph', 'object'])
+  })
 
-    const card = buildEmailLayout({ ...base, kind: 'update', object: { ...base.object, classLabel: 'Sample card' } })
-    expect(card.reason).toBe("You're receiving this because you're subscribed to updates of this sample card.")
+  it('builds assignment emails with and without a sender', () => {
+    const layout = buildEmailLayout({ ...base, kind: 'assignment' })
+    expect(layout.eventLabel).toBe('Assigned to you')
+    expect(layout.title).toBe('John Doe assigned you CAPA-1 Audit')
+    expect(layout.blocks.map((it) => it.type)).toEqual(['object'])
+    expect(layout.reason).toBe("You're receiving this because you were assigned.")
+    expect(buildEmailLayout({ ...base, kind: 'assignment', senderName: '' }).title).toBe(
+      'CAPA-1 Audit was assigned to you'
+    )
+  })
+
+  it('builds request emails', () => {
+    const titled = buildEmailLayout({
+      ...base,
+      kind: 'request',
+      title: 'Approve SOP-12',
+      body: 'Please approve',
+      messageHtml: undefined
+    })
+    expect(titled.eventLabel).toBe('Action required')
+    expect(titled.title).toBe('Approve SOP-12')
+    expect(titled.blocks.map((it) => it.type)).toEqual(['paragraph', 'object'])
+    const untitled = buildEmailLayout({ ...base, kind: 'request', messageHtml: undefined })
+    expect(untitled.title).toBe('Action required: CAPA-1 Audit')
+  })
+
+  it('translates the wording', () => {
+    expect(getEmailStrings('ru').eventReply).toBe('Новый ответ')
+    expect(getEmailStrings('pt-BR')).toBe(emailStrings['pt-br'])
+    expect(getEmailStrings('de-AT')).toBe(emailStrings.de)
+    expect(getEmailStrings('xx')).toBe(defaultEmailStrings)
+    expect(getEmailStrings(undefined)).toBe(defaultEmailStrings)
+    const layout = buildEmailLayout({ ...base, kind: 'reply', quote: { own: true, text: 'Q' } }, getEmailStrings('ru'))
+    expect(layout.title).toBe('John Doe ответил(а) на ваше сообщение')
+    expect(layout.actions?.[0].label).toBe('Ответить в TraceX')
+    expect(layout.copyright).toBe('© TraceX — Все права защищены')
+  })
+
+  it('has every string in every language', () => {
+    const placeholders = (value: string): string =>
+      [...value.matchAll(/\{(\w+)\}/g)]
+        .map((m) => m[1])
+        .sort()
+        .join(',')
+    for (const strings of Object.values(emailStrings)) {
+      expect(Object.keys(strings).sort()).toEqual(Object.keys(defaultEmailStrings).sort())
+      for (const [key, value] of Object.entries(strings)) {
+        expect(placeholders(value)).toBe(placeholders((defaultEmailStrings as any)[key]))
+      }
+    }
   })
 
   it('renders every kind to valid documents', () => {
-    for (const kind of ['mention', 'reply', 'message', 'reaction', 'update', 'common'] as const) {
+    for (const kind of [
+      'mention',
+      'reply',
+      'message',
+      'reaction',
+      'update',
+      'assignment',
+      'request',
+      'common'
+    ] as const) {
       const html = renderEmail(buildEmailLayout({ ...base, kind, emoji: '👍', quote: { own: true, text: 'q' } }))
       expect(html.match(/<table/g)?.length).toBe(html.match(/<\/table>/g)?.length)
       expect(html).toContain('CAPA')

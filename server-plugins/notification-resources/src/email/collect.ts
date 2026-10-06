@@ -95,6 +95,7 @@ function objectHref (control: TriggerControl, id: Ref<Doc>, _class: Ref<Class<Do
 
 function kindOf (
   control: TriggerControl,
+  type: NotificationType,
   n: InboxNotification | undefined,
   message: ActivityMessage | undefined
 ): EmailKind {
@@ -102,6 +103,8 @@ function kindOf (
     if (isDerived(control, n._class, notification.class.MentionInboxNotification)) return 'mention'
     if (isDerived(control, n._class, notification.class.ReactionInboxNotification)) return 'reaction'
   }
+  // Set on the notification type in the model, e.g. assignments and approval requests.
+  if (type.emailKind !== undefined) return type.emailKind
   if (message !== undefined) {
     if (isDerived(control, message._class, chunter.class.ThreadMessage)) return 'reply'
     if (isDerived(control, message._class, chunter.class.ChatMessage)) return 'message'
@@ -144,7 +147,7 @@ export async function collectEmailData (
   const n = params.notification
   const lang = control.branding?.language
   const front = frontUrl(control)
-  const kind = kindOf(control, n, message)
+  const kind = kindOf(control, params.type, n, message)
 
   const object: EmailObject = {
     title: params.objectTitle,
@@ -171,7 +174,7 @@ export async function collectEmailData (
 
   // Message body: the message itself, or the mention snippet stored in the notification.
   let markup: Markup | undefined
-  if (kind === 'mention' || kind === 'reply' || kind === 'message' || kind === 'common') {
+  if (kind === 'mention' || kind === 'reply' || kind === 'message' || kind === 'request' || kind === 'common') {
     markup = message !== undefined ? await messageToMarkup(control, message) : undefined
     if (markup === undefined && n !== undefined && kind === 'mention') {
       markup = (n as MentionInboxNotification).messageHtml
@@ -225,7 +228,9 @@ export async function collectEmailData (
     data.created = (message as DocUpdateMessage).action === 'create'
   }
 
-  if (kind === 'common') {
+  // Type labels are translated to English only on the server, so other languages get no label.
+  const isEnglish = lang === undefined || lang === '' || lang.toLowerCase().startsWith('en')
+  if (kind === 'common' && isEnglish) {
     const label = params.type.label
     data.typeLabel = label !== undefined ? await translate(label, {}, lang) : undefined
   }
