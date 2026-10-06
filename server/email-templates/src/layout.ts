@@ -62,7 +62,10 @@ const table = 'role="presentation" width="100%" cellpadding="0" cellspacing="0" 
  * @public
  */
 export function assetUrl (frontUrl: string, path: string): string {
-  return frontUrl.replace(/\/+$/, '') + path
+  // Trim trailing slashes with a loop: an anchored /\/+$/ regex is quadratic on long runs of '/'.
+  let end = frontUrl.length
+  while (end > 0 && frontUrl.charCodeAt(end - 1) === 47) end--
+  return frontUrl.slice(0, end) + path
 }
 
 function header (layout: EmailLayout): string {
