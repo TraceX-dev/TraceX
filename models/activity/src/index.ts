@@ -284,6 +284,34 @@ export function createModel (builder: Builder): void {
     removeAccessLevel: AccountRole.Guest
   })
 
+  // Object access (foundations/server/docs/object-access-control.md): messages and activity inside
+  // a restricted object belong to it.
+  builder.mixin(activity.class.ActivityMessage, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'attachedTo', classField: 'attachedToClass' }]
+  })
+
+  // Activity of the parent about it (e.g. "discussion added") as well: it shows the title.
+  builder.mixin(activity.class.DocUpdateMessage, core.class.Class, core.mixin.AccessParent, {
+    parents: [
+      { field: 'attachedTo', classField: 'attachedToClass' },
+      { field: 'objectId', classField: 'objectClass' }
+    ]
+  })
+
+  // Mention texts.
+  builder.mixin(activity.class.UserMentionInfo, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'attachedTo', classField: 'attachedToClass' }]
+  })
+
+  // The source carries the text.
+  builder.mixin(activity.class.ActivityReference, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'srcDocId', classField: 'srcDocClass' }]
+  })
+
+  builder.mixin(activity.class.Reaction, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'attachedTo', classField: 'attachedToClass' }]
+  })
+
   builder.mixin(activity.class.DocUpdateMessage, core.class.Class, view.mixin.ObjectPresenter, {
     presenter: activity.component.DocUpdateMessagePresenter
   })

@@ -14,10 +14,10 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Discussion } from '@hcengineering/chunter'
+  import { type Discussion, getDiscussionTitle } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
-  import { type AccountUuid } from '@hcengineering/core'
-  import { getClient } from '@hcengineering/presentation'
+  import { type AccountUuid, getCurrentAccount, type ObjectVisibility } from '@hcengineering/core'
+  import { getClient, MessageBox } from '@hcengineering/presentation'
   import {
     ButtonIcon,
     Icon,
@@ -25,6 +25,7 @@
     IconClose,
     IconDelete,
     IconMoreH,
+    Label,
     EditBox,
     ModernPopup,
     eventToHTMLElement,
@@ -34,7 +35,20 @@
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
-  import { canManageDiscussion, deleteDiscussion, setDiscussionResolved } from '../../utils'
+  import {
+    canChangeDiscussionVisibility,
+    canDeleteDiscussion,
+    canEditDiscussionMembers,
+    canManageDiscussion,
+    canRenameDiscussion,
+    deleteDiscussion,
+    getDiscussionVisibility,
+    getDiscussionVisibilityLevels,
+    normalizeDiscussionMembers,
+    setDiscussionResolved,
+    setDiscussionVisibility
+  } from '../../utils'
+  import DiscussionVisibilityMenu from './DiscussionVisibilityMenu.svelte'
 
   export let discussion: Discussion
   export let allowClose: boolean = false
@@ -45,6 +59,15 @@
   let title = ''
 
   $: canManage = canManageDiscussion(discussion)
+  // A default discussion gets its name from the owner type and cannot be deleted while configured there.
+  $: canRename = canRenameDiscussion(discussion)
+  $: canDelete = canDeleteDiscussion(discussion)
+  $: canChangeVisibility = canChangeDiscussionVisibility(discussion)
+  $: canEditMembers = canEditDiscussionMembers(discussion)
+  $: visibility = getDiscussionVisibility(discussion)
+  $: visibilityLevels = getDiscussionVisibilityLevels(discussion)
+
+  $: displayTitle = getDiscussionTitle(discussion)
 
   $: resolved = discussion.resolved
 
@@ -53,7 +76,7 @@
       resolved
         ? { id: 'reopen', label: chunter.string.ReopenDiscussion, icon: IconCheckCircle }
         : { id: 'resolve', label: chunter.string.MarkAsResolved, icon: IconCheckCircle },
-      { id: 'delete', label: chunter.string.DeleteDiscussion, icon: IconDelete }
+      ...(canDelete ? [{ id: 'delete', label: chunter.string.DeleteDiscussion, icon: IconDelete }] : [])
     ]
     showPopup(ModernPopup, { items }, eventToHTMLElement(ev), (result) => {
       switch (result) {
@@ -72,16 +95,20 @@
 
   // Keeps the draft while the user is typing; synced from the discussion otherwise.
   let isTitleEditing = false
-  $: if (!isTitleEditing) title = discussion.name
+  $: if (!isTitleEditing) title = discussion.name ?? ''
 
+  // The draft stays until the update is stored, so the old title does not flash back.
   async function saveTitle (): Promise<void> {
-    isTitleEditing = false
     const name = title.trim()
-    if (name !== '' && name !== discussion.name) {
-      await client.update(discussion, { name })
-    } else {
-      title = discussion.name
+    try {
+      if (canRename && name !== (discussion.name ?? '').trim()) await client.update(discussion, { name })
+    } finally {
+      isTitleEditing = false
     }
+  }
+
+  async function changeVisibility (value: ObjectVisibility): Promise<void> {
+    await setDiscussionVisibility(discussion, value)
   }
 
   function handleTitleKeydown (event: KeyboardEvent): void {
@@ -91,7 +118,21 @@
     }
   }
 
-  async function updateMembers (members: AccountUuid[]): Promise<void> {
+  async function updateMembers (value: AccountUuid[]): Promise<void> {
+    const members = normalizeDiscussionMembers(discussion, value)
+    if (members === undefined) return // a private discussion keeps at least one member
+    const me = getCurrentAccount().uuid
+    if (discussion.members.includes(me) && !members.includes(me)) {
+      // Leaving a private discussion hides it, ask first.
+      showPopup(MessageBox, {
+        label: chunter.string.LeaveDiscussion,
+        message: chunter.string.LeaveDiscussionConfirm,
+        action: async () => {
+          await client.update(discussion, { members })
+        }
+      })
+      return
+    }
     await client.update(discussion, { members })
   }
 </script>
@@ -99,10 +140,10 @@
 <div class="discussion-header">
   <Icon icon={chunter.icon.Thread} size="small" />
   <div class="title">
-    {#if canManage}
+    {#if canRename}
       <EditBox
         bind:value={title}
-        placeholder={chunter.string.Topic}
+        placeholder={chunter.string.UntitledDiscussion}
         fullSize
         on:value={() => {
           isTitleEditing = true
@@ -111,7 +152,9 @@
         on:blur={() => void saveTitle()}
       />
     {:else}
-      <span class="overflow-label">{discussion.name}</span>
+      <span class="overflow-label">
+        {#if displayTitle !== undefined}{displayTitle}{:else}<Label label={chunter.string.UntitledDiscussion} />{/if}
+      </span>
     {/if}
   </div>
   {#if resolved}
@@ -119,16 +162,28 @@
       <Icon icon={IconCheckCircle} size="small" />
     </span>
   {/if}
-  <div class="members">
-    <AccountArrayEditor
-      value={discussion.members}
-      label={chunter.string.Members}
-      readonly={!canManage}
-      onChange={updateMembers}
-      kind="ghost"
-      size="small"
-    />
-  </div>
+  <DiscussionVisibilityMenu
+    value={visibility}
+    parentClass={discussion.attachedToClass}
+    levels={visibilityLevels}
+    disabled={!canChangeVisibility}
+    kind="tertiary"
+    size="small"
+    iconOnly
+    on:change={(ev) => void changeVisibility(ev.detail)}
+  />
+  {#if visibility === 'private'}
+    <div class="members">
+      <AccountArrayEditor
+        value={discussion.members}
+        label={chunter.string.Members}
+        readonly={!canEditMembers}
+        onChange={updateMembers}
+        kind="ghost"
+        size="small"
+      />
+    </div>
+  {/if}
   {#if canManage}
     <ButtonIcon icon={IconMoreH} size="small" kind="tertiary" on:click={openMenu} />
   {/if}

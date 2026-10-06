@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 /* eslint-disable @typescript-eslint/unbound-method */
 import card from '@hcengineering/card'
 import {
@@ -39,6 +54,9 @@ import {
   ModifiedMiddleware,
   IdentifierMiddleware,
   NormalizeTxMiddleware,
+  ObjectAccessMarkerMiddleware,
+  ObjectProjectionMiddleware,
+  ObjectSecurityMiddleware,
   PluginConfigurationMiddleware,
   PrivateMiddleware,
   QueryJoinMiddleware,
@@ -146,10 +164,12 @@ export function createServerPipeline (
       ModifiedMiddleware.create,
       RankMiddleware.create,
       FindSecurityMiddleware.create,
+      ObjectProjectionMiddleware.create,
       PluginConfigurationMiddleware.create,
       PrivateMiddleware.create,
       (ctx: MeasureContext, context: PipelineContext, next?: Middleware) =>
         SpaceSecurityMiddleware.create(opt.adapterSecurity ?? false, ctx, context, next),
+      ObjectSecurityMiddleware.create, // Object-level access policies for user requests
       SpacePermissionsMiddleware.create,
       GuestPermissionsMiddleware.create,
       GuestPersonMiddleware.create, // Limit person listing for guests
@@ -158,6 +178,7 @@ export function createServerPipeline (
       MarkDerivedEntryMiddleware.create,
       UserStatusMiddleware.create,
       ApplyTxMiddleware.create, // Extract apply
+      ObjectAccessMarkerMiddleware.create, // Mark documents of restricted objects, sees derived txes too
       VersioningMiddleware.create,
       IdentifierMiddleware.create, // After ApplyTx to ensure that it pass
       RatingMiddleware.create, // Rating editing restrictions

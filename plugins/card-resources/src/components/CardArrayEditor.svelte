@@ -89,9 +89,14 @@
   let docs: Card[] = []
 
   const query = createQuery()
-  $: query.query(card.class.Card, { _id: { $in: toArray(value) } }, (res) => {
-    docs = res
-  })
+  $: query.query(
+    card.class.Card,
+    { _id: { $in: toArray(value) } },
+    (res) => {
+      docs = res
+    },
+    { unsecured: true }
+  )
 
   $: clazz = hierarchy.findClass(_class) as MasterTag
 

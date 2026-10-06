@@ -36,6 +36,7 @@ import {
   TChunterSpace,
   TDirectMessage,
   TObjectChatPanel,
+  TDefaultDiscussion,
   TDiscussion,
   TThreadMessage
 } from './types'
@@ -50,6 +51,7 @@ export function createModel (builder: Builder): void {
     TChunterSpace,
     TChannel,
     TDiscussion,
+    TDefaultDiscussion,
     TDirectMessage,
     TChatMessage,
     TThreadMessage,
@@ -133,6 +135,17 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(chunter.class.Discussion, core.class.Class, activity.mixin.ActivityDoc, {})
+
+  // Object access (foundations/server/docs/object-access-control.md).
+  builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.ClassAccessPolicy, {
+    membersField: 'members',
+    parent: { field: 'attachedTo', classField: 'attachedToClass' }
+  })
+
+  // A reply points to the object of the thread directly, so the parent message is never looked up.
+  builder.mixin(chunter.class.ThreadMessage, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'objectId', classField: 'objectClass' }]
+  })
 
   builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.User,

@@ -35,7 +35,8 @@ import core, {
   TxProcessor,
   type TxUpdateDoc,
   type Type,
-  getClassCollaborators
+  getClassCollaborators,
+  getObjectAccessReaders
 } from '@hcengineering/core'
 import notification, { type MentionInboxNotification, type NotificationType } from '@hcengineering/notification'
 import { getPerson } from '@hcengineering/server-contact'
@@ -59,6 +60,26 @@ export function isDocMentioned (doc: Ref<Doc>, content: string): boolean {
   }
 
   return false
+}
+
+// Object access: somebody who cannot read the source is neither subscribed nor notified.
+async function canReadSource (
+  ctx: MeasureContext,
+  control: TriggerControl,
+  doc: Doc,
+  account: AccountUuid
+): Promise<boolean> {
+  const key = `objectAccessReaders:${doc._id}`
+  let readers: Set<AccountUuid> | undefined = control.contextCache.get(key)
+  if (!control.contextCache.has(key)) {
+    readers = await getObjectAccessReaders(
+      control.hierarchy,
+      async (_class, query, options) => await control.findAll(ctx, _class, query, options),
+      doc
+    )
+    control.contextCache.set(key, readers)
+  }
+  return readers === undefined || readers.has(account)
 }
 
 export async function getPersonNotificationTxes (
@@ -108,7 +129,11 @@ export async function getPersonNotificationTxes (
     const employee = (
       await control.findAll(ctx, contact.mixin.Employee, { _id: reference.attachedTo as Ref<Employee> })
     )[0]
-    if (employee?.personUuid != null && employee.personUuid !== senderAccount) {
+    if (
+      employee?.personUuid != null &&
+      employee.personUuid !== senderAccount &&
+      (await canReadSource(ctx, control, doc, employee.personUuid))
+    ) {
       collaborators = [employee.personUuid]
 
       const collaboratorsTx = getCollaboratorsTxes(control, employee.personUuid, doc)

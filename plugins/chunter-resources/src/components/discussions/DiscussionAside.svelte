@@ -23,9 +23,7 @@
 
   import chunter from '../../plugin'
   import Channel from '../Channel.svelte'
-  import { isDiscussionParticipant } from '../../utils'
   import DiscussionHeader from './DiscussionHeader.svelte'
-  import DiscussionJoin from './DiscussionJoin.svelte'
 
   export let discussionId: Ref<Discussion>
 
@@ -41,8 +39,6 @@
     if (discussion === undefined) dispatch('close')
   })
 
-  // Like channels, messages are hidden until the user joins the discussion.
-  $: joined = discussion !== undefined && isDiscussionParticipant(discussion)
   $: context = discussion !== undefined ? $contextByDocStore.get(discussion._id) : undefined
 </script>
 
@@ -50,13 +46,9 @@
   <Presence object={discussion} />
   <div class="discussion-aside">
     <DiscussionHeader {discussion} allowClose on:close />
-    {#if joined}
-      {#key discussion._id}
-        <Channel object={discussion} {context} syncLocation={false} />
-      {/key}
-    {:else}
-      <DiscussionJoin {discussion} />
-    {/if}
+    {#key discussion._id}
+      <Channel object={discussion} {context} syncLocation={false} />
+    {/key}
   </div>
 {/if}
 

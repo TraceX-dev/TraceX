@@ -65,9 +65,14 @@
 
   let productsList: ProductVersion[] = []
   const query = createQuery()
-  $: query.query(products.class.ProductVersion, { _id: { $in: toArray(value) } }, (result) => {
-    productsList = result
-  })
+  $: query.query(
+    products.class.ProductVersion,
+    { _id: { $in: toArray(value) } },
+    (result) => {
+      productsList = result
+    },
+    { unsecured: true }
+  )
 
   $: emptyLabel = label ?? attribute?.label ?? products.string.ProductVersion
 </script>

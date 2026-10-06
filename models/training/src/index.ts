@@ -196,7 +196,8 @@ function defineTraining (builder: Builder): void {
   })
 
   builder.mixin(training.class.Training, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: training.component.TrainingPresenter
+    presenter: training.component.TrainingPresenter,
+    requiredFields: ['code', 'title', 'revision', 'state']
   })
 
   builder.createDoc(view.class.Viewlet, core.space.Model, {

@@ -38,6 +38,7 @@ import type {
   ChunterSpace,
   DirectMessage,
   ObjectChatPanel,
+  DefaultDiscussion,
   Discussion,
   ThreadMessage
 } from '@hcengineering/chunter'
@@ -48,6 +49,7 @@ import {
   type Domain,
   DOMAIN_MODEL,
   IndexKind,
+  type ObjectVisibility,
   type Ref,
   type Space,
   type Timestamp
@@ -91,7 +93,7 @@ export class TChannel extends TChunterSpace implements Channel {
 export class TDiscussion extends TAttachedDoc implements Discussion {
   @Prop(TypeString(), chunter.string.Topic)
   @Index(IndexKind.FullText)
-    name!: string
+    name?: string
 
   // Changed only through the resolve/reopen actions.
   @Prop(TypeBoolean(), chunter.string.Resolved)
@@ -110,6 +112,25 @@ export class TDiscussion extends TAttachedDoc implements Discussion {
 
   @Prop(PropCollection(chunter.class.ChatMessage), chunter.string.Comments)
     comments?: number
+
+  @Prop(TypeRef(chunter.class.DefaultDiscussion), chunter.string.DefaultDiscussion)
+  @Index(IndexKind.Indexed)
+  @Hidden()
+    defaultDiscussion?: Ref<DefaultDiscussion>
+}
+
+@Model(chunter.class.DefaultDiscussion, core.class.Doc, DOMAIN_MODEL)
+@UX(chunter.string.DefaultDiscussion, chunter.icon.Thread)
+export class TDefaultDiscussion extends TDoc implements DefaultDiscussion {
+  @Prop(TypeRef(core.class.Class), core.string.Class)
+  @Index(IndexKind.Indexed)
+    ofClass!: Ref<Class<Doc>>
+
+  @Prop(TypeString(), chunter.string.Topic)
+    name!: string
+
+  @Prop(TypeString(), chunter.string.Visibility)
+    visibility!: ObjectVisibility
 }
 
 @Model(chunter.class.DirectMessage, chunter.class.ChunterSpace)

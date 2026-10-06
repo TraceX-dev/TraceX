@@ -15,7 +15,18 @@
 //
 
 import { ActivityMessage, ActivityMessageViewlet } from '@hcengineering/activity'
-import type { AccountUuid, AttachedDoc, Class, Doc, Markup, Mixin, Ref, Space, Timestamp } from '@hcengineering/core'
+import type {
+  AccountUuid,
+  AttachedDoc,
+  Class,
+  Doc,
+  Markup,
+  Mixin,
+  ObjectVisibility,
+  Ref,
+  Space,
+  Timestamp
+} from '@hcengineering/core'
 import { NotificationType } from '@hcengineering/notification'
 import type { Asset, Plugin, Resource } from '@hcengineering/platform'
 import { IntlString, plugin } from '@hcengineering/platform'
@@ -51,7 +62,7 @@ export interface Channel extends ChunterSpace {
  * @public
  */
 export interface Discussion extends AttachedDoc {
-  name: string
+  name?: string
   // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
   resolved: boolean
   members: AccountUuid[]
@@ -59,6 +70,21 @@ export interface Discussion extends AttachedDoc {
   linkedTo?: Ref<Doc>
   linkedToClass?: Ref<Class<Doc>>
   comments?: number
+  // The owner class configuration this discussion was created from.
+  defaultDiscussion?: Ref<DefaultDiscussion>
+}
+
+/**
+ * A discussion that every object of the class has by default (e.g. "General" for a card type).
+ * The discussion itself is created lazily, when a user opens it for the first time.
+ *
+ * @public
+ */
+export interface DefaultDiscussion extends Doc {
+  ofClass: Ref<Class<Doc>>
+  name: string
+  // The visibility the discussion is created with.
+  visibility: ObjectVisibility
 }
 
 /**
@@ -153,7 +179,8 @@ export default plugin(chunterId, {
     InlineCommentThread: '' as AnyComponent,
     DiscussionsSection: '' as AnyComponent,
     DiscussionAside: '' as AnyComponent,
-    DiscussionPanel: '' as AnyComponent
+    DiscussionPanel: '' as AnyComponent,
+    DefaultDiscussionsSetting: '' as AnyComponent
   },
   activity: {
     MembersChangedMessage: '' as AnyComponent
@@ -163,6 +190,7 @@ export default plugin(chunterId, {
     ChunterSpace: '' as Ref<Class<ChunterSpace>>,
     Channel: '' as Ref<Class<Channel>>,
     Discussion: '' as Ref<Class<Discussion>>,
+    DefaultDiscussion: '' as Ref<Class<DefaultDiscussion>>,
     DirectMessage: '' as Ref<Class<DirectMessage>>,
     ChatMessage: '' as Ref<Class<ChatMessage>>,
     ChatMessageViewlet: '' as Ref<Class<ChatMessageViewlet>>,
@@ -192,7 +220,6 @@ export default plugin(chunterId, {
     AttachTo: '' as IntlString,
     AttachToDescription: '' as IntlString,
     AttachedTo: '' as IntlString,
-    JoinDiscussionRequest: '' as IntlString,
     NotAttached: '' as IntlString,
     MarkAsResolved: '' as IntlString,
     ReopenDiscussion: '' as IntlString,
@@ -211,6 +238,11 @@ export default plugin(chunterId, {
     NoDiscussionsYet: '' as IntlString,
     Resolved: '' as IntlString,
     ViewAllDiscussions: '' as IntlString,
+    DefaultDiscussion: '' as IntlString,
+    DefaultDiscussions: '' as IntlString,
+    DefaultDiscussionsDescription: '' as IntlString,
+    DefaultDiscussionUnavailable: '' as IntlString,
+    AddDefaultDiscussion: '' as IntlString,
     ThreadMessage: '' as IntlString,
     ReplyToThread: '' as IntlString,
     Channels: '' as IntlString,
@@ -223,6 +255,16 @@ export default plugin(chunterId, {
     Visibility: '' as IntlString,
     Public: '' as IntlString,
     Private: '' as IntlString,
+    DiscussionTitleOptional: '' as IntlString,
+    UntitledDiscussion: '' as IntlString,
+    VisibilitySpace: '' as IntlString,
+    VisibilitySpaceDescription: '' as IntlString,
+    VisibilityParticipants: '' as IntlString,
+    VisibilityParticipantsDescription: '' as IntlString,
+    VisibilityMembers: '' as IntlString,
+    VisibilityMembersDescription: '' as IntlString,
+    LeaveDiscussion: '' as IntlString,
+    LeaveDiscussionConfirm: '' as IntlString,
     AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,
