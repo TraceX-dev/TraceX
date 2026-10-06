@@ -68,14 +68,7 @@ import { type TriggerControl } from '@hcengineering/server-core'
 import { NOTIFICATION_BODY_SIZE, ReceiverInfo, SenderInfo } from '@hcengineering/server-notification'
 import { markupToText, stripTags } from '@hcengineering/text-core'
 
-import {
-  buildEmailLayout,
-  collectEmailData,
-  getEmailStrings,
-  getNotificationAppName,
-  renderEmail,
-  stripHtmlTags
-} from './email'
+import { buildEmailLayout, collectEmailData, getEmailStrings, getNotificationAppName, renderEmail } from './email'
 import { OnInboxNotificationCreate, PushNotificationsHandler } from './push'
 import {
   AvailableProvidersCache,
@@ -229,11 +222,6 @@ function fillTemplate (
   return res
 }
 
-function plainBody (value: string, title: string): string {
-  const body = stripHtmlTags(value)
-  return body !== title ? body : ''
-}
-
 /**
  * @public
  */
@@ -294,8 +282,10 @@ export async function getContentByTemplate (
     link: `<a href='${link}'>${linkText}</a>`
   }
 
-  const text = fillTemplate(notificationType.templates.textTemplate, sender, textPart, data, params)
-  const subject = fillTemplate(notificationType.templates.subjectTemplate, sender, textPart, data, params)
+  // Plain text gets the bare url: `{link}` holds an <a> tag for the legacy HTML template only.
+  const textParams: EmailTemplateParams = { ...params, link }
+  const text = fillTemplate(notificationType.templates.textTemplate, sender, textPart, data, textParams)
+  const subject = fillTemplate(notificationType.templates.subjectTemplate, sender, textPart, data, textParams)
 
   if (subject === '') return
 
@@ -309,18 +299,11 @@ export async function getContentByTemplate (
       content: {
         title: notificationContent.title,
         // Without an inbox notification (e.g. HR emails) the filled text template is the only body we have.
-        // The link goes to the button instead; any other tags are dropped.
         body:
           notificationContent.body !== ''
             ? notificationContent.body
-            : notificationData === undefined
-              ? plainBody(
-                  fillTemplate(notificationType.templates.textTemplate, sender, textPart, data, {
-                    ...params,
-                    link: ''
-                  }),
-                  textPart
-                )
+            : notificationData === undefined && text !== textPart
+              ? text
               : ''
       },
       objectLink: message !== undefined ? await getNotificationLink(control, doc) : link,

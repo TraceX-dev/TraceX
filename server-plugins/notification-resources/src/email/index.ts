@@ -16,6 +16,5 @@
 export * from '@hcengineering/email-templates'
 export * from './collect'
 export * from './content'
-export * from './fixtures'
 export * from './markup'
 export * from './strings'

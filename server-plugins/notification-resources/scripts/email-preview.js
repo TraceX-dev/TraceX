@@ -13,13 +13,16 @@
 // limitations under the License.
 //
 
-// Renders sample notification emails into ./email-preview for manual review.
+// Renders the sample notification emails into ./email-preview for manual review.
 // Images are copied next to the HTML, so the preview works offline.
-// Usage: rushx build && rushx email-preview
+// Usage: rushx build && rushx email-preview [lang], e.g. `rushx email-preview ru`
 const fs = require('fs')
 const path = require('path')
-const { assets, buildEmailLayout, emailDataFixtures, emailFixtures, fixtureFrontUrl, renderEmail } = require('../lib/email')
+const { assets, buildEmailLayout, getEmailStrings, renderEmail } = require('../lib/email')
+// Test fixtures are compiled into lib/__tests__ but are not exported from the package.
+const { emailDataFixtures, fixtureFrontUrl } = require('../lib/__tests__/fixtures')
 
+const lang = process.argv[2] ?? 'en'
 const out = path.join(__dirname, '..', 'email-preview')
 const publicDir = path.join(__dirname, '..', '..', '..', 'dev', 'prod', 'public')
 
@@ -30,11 +33,10 @@ for (const asset of Object.values(assets)) {
   fs.copyFileSync(path.join(publicDir, asset.path), target)
 }
 
-// Hand-made layouts (design reference) and layouts built from notification data.
-const kinds = [
-  ...Object.entries(emailFixtures()),
-  ...Object.entries(emailDataFixtures()).map(([kind, data]) => [kind, buildEmailLayout(data)])
-]
+const kinds = Object.entries(emailDataFixtures()).map(([kind, data]) => [
+  `${lang}-${kind}`,
+  buildEmailLayout({ ...data, lang }, getEmailStrings(lang))
+])
 for (const [kind, layout] of kinds) {
   let html = renderEmail(layout)
   for (const asset of Object.values(assets)) {
@@ -43,5 +45,5 @@ for (const [kind, layout] of kinds) {
   fs.writeFileSync(path.join(out, `${kind}.html`), html)
 }
 const index = kinds.map(([kind]) => `<li><a href="${kind}.html">${kind}</a></li>`).join('')
-fs.writeFileSync(path.join(out, 'index.html'), `<!DOCTYPE html><meta charset="utf-8"><ul>${index}</ul>`)
+fs.writeFileSync(path.join(out, `index-${lang}.html`), `<!DOCTYPE html><meta charset="utf-8"><ul>${index}</ul>`)
 console.log(`Rendered ${kinds.length} emails to ${out}`)

@@ -64,15 +64,6 @@ export interface ParagraphBlock {
 }
 
 /**
- * Attribute changes: label, old value, new value.
- * @public
- */
-export interface FieldsBlock {
-  type: 'fields'
-  rows: Array<{ label: string, from?: SafeHtml, to: SafeHtml }>
-}
-
-/**
  * One-time code shown large, e.g. a sign-in code.
  * @public
  */
@@ -93,8 +84,7 @@ export interface NoteBlock {
 /**
  * @public
  */
-export type EmailBlock =
-  QuoteBlock | MessageBlock | ObjectLinkBlock | ParagraphBlock | FieldsBlock | CodeBlock | NoteBlock
+export type EmailBlock = QuoteBlock | MessageBlock | ObjectLinkBlock | ParagraphBlock | CodeBlock | NoteBlock
 
 const table = 'role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
 
@@ -152,23 +142,6 @@ function paragraph (block: ParagraphBlock): string {
   return `<div style="font-family:${font};font-size:15px;line-height:1.65;color:${colors.secondary}">${block.body}</div>`
 }
 
-function fields (block: FieldsBlock): string {
-  const rows = block.rows
-    .map((row, i) => {
-      const border = i === 0 ? '' : `border-top:1px solid ${colors.divider};`
-      const from =
-        row.from !== undefined
-          ? `<span style="color:${colors.strike};text-decoration:line-through">${row.from}</span>&nbsp;<span style="color:${colors.strike}">&rarr;</span>&nbsp;`
-          : ''
-      return `<tr>
-<td valign="top" width="35%" style="${border}padding:10px 12px 10px 0;font-family:${font};font-size:13px;color:${colors.muted};line-height:1.5">${escapeHtml(row.label)}</td>
-<td valign="top" style="${border}padding:10px 0;font-family:${font};font-size:14px;color:${colors.text};font-weight:600;line-height:1.5;word-wrap:break-word">${from}${row.to}</td>
-</tr>`
-    })
-    .join('')
-  return `<table ${table} style="border:1px solid ${colors.border};border-radius:10px;border-collapse:separate"><tr><td style="padding:4px 16px"><table ${table}>${rows}</table></td></tr></table>`
-}
-
 function code (block: CodeBlock): string {
   return `<table ${table} style="background-color:${colors.quoteBg};border:1px solid ${colors.border};border-radius:10px;border-collapse:separate"><tr><td align="center" style="padding:20px;text-align:center"><span style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:700;letter-spacing:10px;color:${colors.text};line-height:1.2">${escapeHtml(block.code)}</span></td></tr></table>`
 }
@@ -190,8 +163,6 @@ export function renderBlock (block: EmailBlock): SafeHtml {
       return trusted(objectLink(block))
     case 'paragraph':
       return trusted(paragraph(block))
-    case 'fields':
-      return trusted(fields(block))
     case 'code':
       return trusted(code(block))
     case 'note':

@@ -73,13 +73,6 @@ export function join (parts: SafeHtml[], separator: SafeHtml = trusted('')): Saf
 /**
  * @public
  */
-export function strong (value: string): SafeHtml {
-  return trusted(`<strong style="font-weight:700;color:${colors.text}">${escapeHtml(value)}</strong>`)
-}
-
-/**
- * @public
- */
 export function link (href: string, label: string): SafeHtml {
   return trusted(
     `<a href="${safeUrl(href)}" style="color:${colors.text};text-decoration:underline">${escapeHtml(label)}</a>`

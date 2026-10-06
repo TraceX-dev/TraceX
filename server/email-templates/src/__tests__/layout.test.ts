@@ -102,8 +102,7 @@ describe('renderEmail', () => {
             body: text(evil),
             objects: [{ type: 'object', title: evil, href: 'javascript:alert(1)' }]
           },
-          { type: 'object', title: evil, subtitle: evil, href: 'javascript:alert(1)' },
-          { type: 'fields', rows: [{ label: evil, from: text(evil), to: text(evil) }] }
+          { type: 'object', title: evil, subtitle: evil, href: 'javascript:alert(1)' }
         ]
       })
     )
