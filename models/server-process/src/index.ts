@@ -15,7 +15,7 @@
 import cardPlugin from '@hcengineering/card'
 import core, { type Doc } from '@hcengineering/core'
 import { Mixin, type Builder } from '@hcengineering/model'
-import { TMethod, TProcessFunction, TTrigger } from '@hcengineering/model-process'
+import processModel, { TMethod, TProcessFunction, TTrigger } from '@hcengineering/model-process'
 import type { Resource } from '@hcengineering/platform'
 import process, { ExecutionStatus } from '@hcengineering/process'
 import serverCore from '@hcengineering/server-core'
@@ -51,6 +51,13 @@ export class TTriggerImpl extends TTrigger implements TriggerImpl {
 
 export function createModel (builder: Builder): void {
   builder.createModel(TMethodImpl, TFuncImpl, TTriggerImpl)
+
+  // Lets guests start the auto-start processes of the cards they create, with the input they entered.
+  builder.createDoc(serverCore.class.GuestTxValidator, core.space.Model, {
+    validator: serverProcess.function.ValidateGuestTx,
+    application: processModel.app.Process,
+    classes: [process.class.Execution]
+  })
 
   builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
     targetClass: process.class.ProcessToDo,

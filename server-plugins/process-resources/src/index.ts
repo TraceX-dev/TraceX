@@ -53,6 +53,7 @@ import process, {
   Trigger
 } from '@hcengineering/process'
 import { QueueTopic, TriggerControl } from '@hcengineering/server-core'
+import { ValidateGuestTx } from './guestValidator'
 import { ProcessMessage } from '@hcengineering/server-process'
 import time from '@hcengineering/time'
 import {
@@ -937,6 +938,9 @@ export * from './utils'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export default async () => ({
+  function: {
+    ValidateGuestTx
+  },
   func: {
     CreateAction,
     RequestAttachments,

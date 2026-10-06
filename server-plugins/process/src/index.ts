@@ -18,7 +18,7 @@ import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import type { Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import { Execution, Method, ProcessFunction, Trigger } from '@hcengineering/process'
-import { TriggerFunc } from '@hcengineering/server-core'
+import { type GuestTxValidatorFunc, TriggerFunc } from '@hcengineering/server-core'
 import { ExecuteFunc, ProcessControl, RollbackFunc, TransformFunc } from './types'
 
 export type * from './types'
@@ -57,6 +57,9 @@ export default plugin(serverProcessId, {
     MethodImpl: '' as Ref<Mixin<MethodImpl<Doc>>>,
     FuncImpl: '' as Ref<Mixin<FuncImpl>>,
     TriggerImpl: '' as Ref<Mixin<TriggerImpl>>
+  },
+  function: {
+    ValidateGuestTx: '' as Resource<GuestTxValidatorFunc>
   },
   rollbacks: {
     ToDoCloseRollback: '' as Resource<RollbackFunc>,

@@ -81,7 +81,8 @@ export function definePermissions (builder: Builder): void {
 
 /**
  * Guests take part in processes of the cards they can read: they complete the process tasks and
- * approval requests assigned to them. Starting or cancelling processes is not available to guests.
+ * approval requests assigned to them, and start the auto-start processes of the cards they create, so they can
+ * provide the input those processes ask for. Otherwise starting or cancelling processes is not available to guests.
  */
 function defineGuestPermissions (builder: Builder): void {
   builder.createDoc<ClassPermission>(
@@ -89,6 +90,8 @@ function defineGuestPermissions (builder: Builder): void {
     core.space.Model,
     {
       label: process.string.GuestParticipatePermission,
+      // Activates the process guest validator, which lets guests start processes of the cards they create.
+      application: process.app.Process,
       // ApproveRequest is derived from ProcessToDo, so both are covered.
       targetClass: process.class.ProcessToDo,
       guestAssignee: {

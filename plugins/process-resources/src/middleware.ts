@@ -15,6 +15,7 @@
 import cardPlugin, { type Card } from '@hcengineering/card'
 import { permissionsStore } from '@hcengineering/contact-resources'
 import core, {
+  AccountRole,
   generateId,
   getCurrentAccount,
   SortingOrder,
@@ -35,8 +36,9 @@ import core, {
 import { getMetadata, translate } from '@hcengineering/platform'
 import { BasePresentationMiddleware, type PresentationMiddleware } from '@hcengineering/presentation'
 import { ExecutionStatus, type ApproveRequest, type ProcessCustomEvent, type ProcessToDo } from '@hcengineering/process'
-import { getPermissions } from '@hcengineering/view-resources'
+import { canCreateObject, getPermissions } from '@hcengineering/view-resources'
 import { get } from 'svelte/store'
+import { isProcessParticipationGranted } from './guestParticipation'
 import process from './plugin'
 import { createExecution, getNextStateUserInput, pickTransition, requestResult } from './utils'
 
@@ -64,8 +66,26 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
 
   private canCreateExecution (space: Ref<Space>): boolean {
     if (!getPermissions().canCreate(process.class.Execution, space)) return false
+    return this.isRunProcessAllowedInSpace(space)
+  }
+
+  private isRunProcessAllowedInSpace (space: Ref<Space>): boolean {
     const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
     return arePermissionsDisabled || !get(permissionsStore).ps[space]?.has(process.permission.ForbidRunProcess)
+  }
+
+  /**
+   * Guests can not start processes in general, but the auto-start processes of a card they create are started
+   * together with the card, so the guest gets the same input popup as a user. Mirrors the server guest validator
+   * of the process module, which accepts these executions only in the apply that creates the card.
+   */
+  private canGuestStartOnCardCreate (space: Ref<Space>): boolean {
+    const account = getCurrentAccount()
+    if (account.role !== AccountRole.Guest) return false
+    const groups = this.client.getModel().findAllSync(core.class.ModulePermissionGroup, {})
+    if (!isProcessParticipationGranted(account, groups)) return false
+    if (!canCreateObject(process.class.Execution, space, get(permissionsStore))) return false
+    return this.isRunProcessAllowedInSpace(space)
   }
 
   async tx (tx: Tx): Promise<TxResult> {
@@ -217,7 +237,9 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
 
       // New-version processes are created by the server trigger to avoid duplicate executions.
       if (doc.baseId !== undefined && doc.baseId !== doc._id) return
-      if (!this.canCreateExecution(createTx.objectSpace)) return
+      if (!this.canCreateExecution(createTx.objectSpace) && !this.canGuestStartOnCardCreate(createTx.objectSpace)) {
+        return
+      }
 
       const ancestors = hierarchy
         .getAncestors(createTx.objectClass)
