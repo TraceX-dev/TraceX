@@ -1390,6 +1390,7 @@ export function defineNotifications (builder: Builder): void {
       txClasses: [core.class.TxCreateDoc, core.class.TxUpdateDoc],
       objectClass: documents.class.ControlledDocument,
       defaultEnabled: true,
+      emailKind: 'assignment',
       templates: {
         textTemplate: '{sender} assigned you as a co-author of {doc}',
         htmlTemplate: '<p>{sender} assigned you as a co-author of {doc}</p>',

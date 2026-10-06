@@ -80,6 +80,7 @@ import {
   type NotificationProvider,
   type NotificationProviderDefaults,
   type NotificationProviderSetting,
+  type NotificationEmailKind,
   type NotificationTemplate,
   type NotificationType,
   type NotificationTypeSetting,
@@ -153,6 +154,7 @@ export class TNotificationType extends TDoc implements NotificationType {
   txClasses!: Ref<Class<Tx>>[]
   objectClass!: Ref<Class<Doc>>
   onlyOwn?: boolean
+  emailKind?: NotificationEmailKind
 }
 
 @Model(notification.class.NotificationGroup, core.class.Doc, DOMAIN_MODEL)

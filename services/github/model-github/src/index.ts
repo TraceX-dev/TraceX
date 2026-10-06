@@ -835,6 +835,7 @@ export function createModel (builder: Builder): void {
       field: 'assignee',
       txClasses: [core.class.TxCreateDoc, core.class.TxUpdateDoc],
       objectClass: github.class.GithubPullRequest,
+      emailKind: 'assignment',
       templates: {
         textTemplate: 'Pull request {doc} was assigned to you by {sender}',
         htmlTemplate: '<p>Pull request {doc} was assigned to you by {sender}</p>',

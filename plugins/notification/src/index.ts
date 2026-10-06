@@ -168,7 +168,15 @@ export interface NotificationType extends Doc {
   spaceSubscribe?: boolean
   // when true notification will be created for user which trigger it (default - false)
   allowedForAuthor?: boolean
+  // how the email of this notification is laid out; derived from the notification data when omitted
+  emailKind?: NotificationEmailKind
 }
+
+/**
+ * Email layouts that can't be derived from the notification data and are set on the type.
+ * @public
+ */
+export type NotificationEmailKind = 'assignment' | 'request'
 
 export interface NotificationProvider extends Doc {
   label: IntlString

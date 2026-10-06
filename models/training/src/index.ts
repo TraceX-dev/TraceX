@@ -626,6 +626,7 @@ function defineTrainingRequest (builder: Builder): void {
       txClasses: [core.class.TxCreateDoc, core.class.TxUpdateDoc],
       objectClass: training.class.TrainingRequest,
       defaultEnabled: true,
+      emailKind: 'request',
       templates: {
         textTemplate: '{sender} sent you a training request {doc}',
         htmlTemplate: '<p><b>{sender}</b> sent you a training request {doc}</p>',
@@ -663,6 +664,7 @@ function defineTrainingRequest (builder: Builder): void {
       txClasses: [core.class.TxCreateDoc],
       objectClass: training.class.TrainingRequest,
       defaultEnabled: true,
+      emailKind: 'request',
       templates: {
         textTemplate: 'Training {doc} is due soon',
         htmlTemplate: '<p>Training <b>{doc}</b> is due soon</p>',

@@ -301,6 +301,20 @@ export function emailDataFixtures (frontUrl = fixtureFrontUrl): Record<string, E
       body: 'Status: Open → In progress',
       messageHref: cardHref
     },
+    'data-assignment': {
+      ...base,
+      kind: 'assignment',
+      object: { title: 'DEMO-003 Sample task', classLabel: 'Task', href: cardHref },
+      messageHref: cardHref
+    },
+    'data-request': {
+      ...base,
+      kind: 'request',
+      title: 'Approve the change of DOC-001 Sample document',
+      body: `${other} asks you to approve the document before it becomes effective.`,
+      object: { title: 'DOC-001 Sample document', classLabel: 'Document', href: cardHref },
+      messageHref: cardHref
+    },
     'data-common': {
       ...base,
       kind: 'common',
