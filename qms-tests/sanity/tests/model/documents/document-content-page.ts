@@ -476,7 +476,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async checkIfFolderExists (folderName: string): Promise<void> {
-    await expect(this.page.getByRole('button', { name: folderName })).toBeVisible()
+    await expect(this.page.getByRole('button', { name: folderName, exact: true })).toBeVisible()
   }
 
   async clickAddFolderButton (): Promise<void> {
@@ -524,7 +524,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   async checkIfUserCanCreateDocument (spaceName: string): Promise<void> {
     await this.page.getByRole('button', { name: 'New document', exact: true }).click()
     await this.page.locator('[id="space\\.selector"]').click()
-    await expect(this.page.locator('.selectPopup').getByRole('button', { name: spaceName })).not.toBeVisible()
+    await expect(this.page.locator('.selectPopup').getByRole('button', { name: spaceName, exact: true })).not.toBeVisible()
   }
 
   async fillDocumentAndSetMemberPrivate (spaceName: string): Promise<void> {
@@ -578,19 +578,20 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async changeTeamspaceMembers (spaceName: string): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName }).hover()
-    await this.page.getByRole('button', { name: spaceName }).getByRole('button').nth(1).click()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').nth(1).click()
     await this.page.getByRole('button', { name: 'Edit teamspace' }).click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).first().click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).nth(2).click()
-    await this.page.getByRole('button', { name: 'AJ Appleseed John' }).click()
+    await this.documentSpaceOwners.click()
+    await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
+    await this.addMemberDropdown.getByRole('button', { name: 'AJ Appleseed John' }).click()
+    await this.page.keyboard.press('Escape')
+    // Owners are added to members after the account editor's delayed update.
+    await expect(this.qualityButtonMembers).toContainText('2 members')
+    await this.qualityButtonMembers.click()
+    await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
     await this.page.keyboard.press('Escape')
     await this.page.waitForTimeout(1000)
-    await this.page.getByRole('button', { name: 'AJ DK 2 members' }).click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).click()
-    await this.page.keyboard.press('Escape')
-    await this.page.waitForTimeout(1000)
-    await this.page.getByRole('button', { name: 'Save' }).click()
+    await this.saveButton.click()
   }
 
   async changeDocumentSpaceMembers (spaceName: string): Promise<void> {
@@ -602,6 +603,8 @@ export class DocumentContentPage extends DocumentCommonPage {
     await this.addMemberDropdown.getByRole('button', { name: 'AJ Appleseed John' }).click()
     await this.page.keyboard.press('Escape')
     await expect(this.documentSpaceOwners).toContainText('Appleseed John')
+    // The owner label changes before the new owner is added to members.
+    await expect(this.qualityButtonMembers).toContainText('2 members')
     await this.qualityButtonMembers.click()
     await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
     await this.page.keyboard.press('Escape')
@@ -654,18 +657,18 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async checkSpaceFormIsCreated (spaceName: string): Promise<void> {
-    await expect(this.page.getByRole('button', { name: spaceName })).toBeVisible()
+    await expect(this.page.getByRole('button', { name: spaceName, exact: true })).toBeVisible()
   }
 
   async createNewDocumentInsideFolder (folderName: string): Promise<void> {
-    await this.page.getByRole('button', { name: folderName }).hover()
-    await this.page.getByRole('button', { name: folderName }).getByRole('button').click()
+    await this.page.getByRole('button', { name: folderName, exact: true }).hover()
+    await this.page.getByRole('button', { name: folderName, exact: true }).getByRole('button').click()
     await this.createNewDocument.click()
   }
 
   async clickLeaveFolder (folderName: string): Promise<void> {
-    await this.page.getByRole('button', { name: folderName }).hover()
-    await this.page.getByRole('button', { name: folderName }).getByRole('button').click()
+    await this.page.getByRole('button', { name: folderName, exact: true }).hover()
+    await this.page.getByRole('button', { name: folderName, exact: true }).getByRole('button').click()
     await this.leaveFolder.click()
   }
 
