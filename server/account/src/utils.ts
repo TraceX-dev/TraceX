@@ -598,7 +598,7 @@ export async function sendOtpEmail (
   const mailAuth = getMetadata(accountPlugin.metadata.MAIL_AUTH_TOKEN)
 
   const lang = branding?.language
-  const app = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName)
+  const app = getEmailAppName(branding)
 
   const text = await translate(accountPlugin.string.OtpText, { code: otp, app }, lang)
   const html = await renderAccountEmail('otp', { code: otp }, branding)
@@ -1338,10 +1338,10 @@ export async function sendEmailConfirmation (
 
   const link = concatLink(front, `/login/confirm?id=${token}`)
 
-  const name = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName)
+  const name = getEmailAppName(branding)
   const lang = branding?.language
   const text = await translate(accountPlugin.string.ConfirmationText, { name, link }, lang)
-  const html = await renderAccountEmail('confirmation', { name: getEmailAppName(branding), link }, branding)
+  const html = await renderAccountEmail('confirmation', { name, link }, branding)
   const subject = await translate(accountPlugin.string.ConfirmationSubject, { name }, lang)
 
   const response = await fetch(concatLink(mailURL, '/send'), {

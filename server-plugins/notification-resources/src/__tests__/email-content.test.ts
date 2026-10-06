@@ -19,16 +19,15 @@ import { MarkupMarkType, MarkupNodeType, type MarkupNode } from '@hcengineering/
 import {
   buildEmailLayout,
   defaultEmailStrings,
-  stripHtmlTags,
   fillString,
   formatEmailTime,
   type EmailNotificationData
 } from '../email/content'
 import { escapeHtml, renderEmail, text } from '@hcengineering/email-templates'
 
-import { emailFixtures } from '../email/fixtures'
 import { emailStrings, getEmailStrings } from '../email/strings'
 import { markupToEmailHtml, type MarkupToEmailOptions } from '../email/markup'
+import { emailDataFixtures } from './fixtures'
 
 const personClass = 'contact:class:Person' as Ref<Class<Doc>>
 const cardClass = 'card:class:Card' as Ref<Class<Doc>>
@@ -274,16 +273,6 @@ describe('email content', () => {
     expect(layout.reason).toBe("You're receiving this because someone reacted to your message.")
   })
 
-  it('strips tags from plain-text template results', () => {
-    expect(stripHtmlTags("New message in A () from B: <a href='x'>View</a> ok")).toBe(
-      'New message in A from B: View ok'
-    )
-    expect(stripHtmlTags('a < b')).toBe('a')
-    const started = Date.now()
-    stripHtmlTags('<'.repeat(100000))
-    expect(Date.now() - started).toBeLessThan(200)
-  })
-
   it('builds request emails', () => {
     const titled = buildEmailLayout({
       ...base,
@@ -343,15 +332,16 @@ describe('email content', () => {
     }
   })
 
-  it('renders every fixture', () => {
-    const fixtures = emailFixtures('https://tracex.example')
-    expect(Object.keys(fixtures)).toEqual(['reply', 'mention', 'message', 'assignment', 'approval', 'update', 'system'])
-    for (const [kind, layout] of Object.entries(fixtures)) {
-      const html = renderEmail(layout)
-      expect(html).toContain(escapeHtml(layout.title))
-      expect(html.match(/<table/g)?.length).toBe(html.match(/<\/table>/g)?.length)
-      expect(html.match(/<tr>/g)?.length).toBe(html.match(/<\/tr>/g)?.length)
-      expect(kind.length).toBeGreaterThan(0)
+  it('renders every fixture in every language', () => {
+    for (const lang of Object.keys(emailStrings)) {
+      for (const data of Object.values(emailDataFixtures())) {
+        const layout = buildEmailLayout({ ...data, lang }, getEmailStrings(lang))
+        const html = renderEmail(layout)
+        expect(html).toContain(escapeHtml(layout.title))
+        expect(html).not.toMatch(/\{\w+\}/)
+        expect(html.match(/<table/g)?.length).toBe(html.match(/<\/table>/g)?.length)
+        expect(html.match(/<tr>/g)?.length).toBe(html.match(/<\/tr>/g)?.length)
+      }
     }
   })
 })

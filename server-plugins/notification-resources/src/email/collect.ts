@@ -227,9 +227,12 @@ export async function collectEmailData (
     const objects = extractReferences(markup).filter(
       (it) => !isDerived(control, it.objectClass, contact.class.Person) && it.objectId !== doc._id
     )
-    for (const it of objects.slice(0, 5)) {
-      hrefs.set(it.objectId, await readableHref(control, it.objectId, it.objectClass))
-    }
+    const resolved = await Promise.all(
+      objects
+        .slice(0, 5)
+        .map(async (it) => [it.objectId, await readableHref(control, it.objectId, it.objectClass)] as const)
+    )
+    for (const [id, href] of resolved) hrefs.set(id, href)
     const result = markupToEmailHtml(markup, {
       isPerson: (_class) => isDerived(control, _class, contact.class.Person),
       referenceHref: (id, _class) => hrefs.get(id) ?? objectHref(control, id, _class),

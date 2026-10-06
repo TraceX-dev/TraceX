@@ -199,25 +199,6 @@ export function formatEmailTime (timestamp: number, lang = 'en', timeZone = 'UTC
   return `${day}, ${time}${timeZone === 'UTC' ? ' UTC' : ''}`
 }
 
-/**
- * Drops HTML tags from a plain-text template result, e.g. the `<a>` of `{link}`.
- * A character loop rather than /<[^>]*>/g, which is quadratic on many unclosed '<'.
- * @public
- */
-export function stripHtmlTags (value: string): string {
-  let result = ''
-  let inTag = false
-  for (const ch of value) {
-    if (ch === '<') inTag = true
-    else if (ch === '>' && inTag) inTag = false
-    else if (!inTag) result += ch
-  }
-  return result
-    .replace(/\(\s*\)/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 const PREHEADER_LENGTH = 140
 
 function preheader (value: string | undefined): string | undefined {

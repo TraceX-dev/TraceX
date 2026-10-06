@@ -29,7 +29,6 @@ export const colors = {
   secondary: '#52525B',
   muted: '#6B6B76',
   faint: '#71717A',
-  strike: '#A1A1AA',
   chipBg: '#F4F4F6',
   chipText: '#3F3F46',
   quoteBg: '#F8F8FA',
