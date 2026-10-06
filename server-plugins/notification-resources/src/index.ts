@@ -68,7 +68,14 @@ import { type TriggerControl } from '@hcengineering/server-core'
 import { NOTIFICATION_BODY_SIZE, ReceiverInfo, SenderInfo } from '@hcengineering/server-notification'
 import { markupToText, stripTags } from '@hcengineering/text-core'
 
-import { buildEmailLayout, collectEmailData, getEmailStrings, renderEmail } from './email'
+import {
+  buildEmailLayout,
+  collectEmailData,
+  getEmailStrings,
+  getNotificationAppName,
+  renderEmail,
+  stripHtmlTags
+} from './email'
 import { OnInboxNotificationCreate, PushNotificationsHandler } from './push'
 import {
   AvailableProvidersCache,
@@ -222,6 +229,11 @@ function fillTemplate (
   return res
 }
 
+function plainBody (value: string, title: string): string {
+  const body = stripHtmlTags(value)
+  return body !== title ? body : ''
+}
+
 /**
  * @public
  */
@@ -271,7 +283,7 @@ export async function getContentByTemplate (
   }
 
   const link = await getNotificationLink(control, doc, message?._id)
-  const app = control.branding?.title ?? 'Huly'
+  const app = getNotificationAppName(control)
   const linkText = await translate(notification.string.ViewIn, { app })
 
   const params: EmailTemplateParams = {
@@ -297,7 +309,19 @@ export async function getContentByTemplate (
       content: {
         title: notificationContent.title,
         // Without an inbox notification (e.g. HR emails) the filled text template is the only body we have.
-        body: notificationContent.body !== '' ? notificationContent.body : text !== textPart ? text : ''
+        // The link goes to the button instead; any other tags are dropped.
+        body:
+          notificationContent.body !== ''
+            ? notificationContent.body
+            : notificationData === undefined
+              ? plainBody(
+                  fillTemplate(notificationType.templates.textTemplate, sender, textPart, data, {
+                    ...params,
+                    link: ''
+                  }),
+                  textPart
+                )
+              : ''
       },
       objectLink: message !== undefined ? await getNotificationLink(control, doc) : link,
       messageLink: message !== undefined ? link : undefined,

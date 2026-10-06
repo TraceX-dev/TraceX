@@ -15,7 +15,7 @@
 
 import activity, { type ActivityMessage, type DocUpdateMessage } from '@hcengineering/activity'
 import chunter from '@hcengineering/chunter'
-import contact from '@hcengineering/contact'
+import contact, { formatName } from '@hcengineering/contact'
 import { concatLink, type Class, type Doc, type Markup, type Ref } from '@hcengineering/core'
 import notification, {
   type InboxNotification,
@@ -25,13 +25,15 @@ import notification, {
   notificationId
 } from '@hcengineering/notification'
 import { getMetadata, translate } from '@hcengineering/platform'
-import { getAccountBySocialId } from '@hcengineering/server-contact'
+import { emailAppName } from '@hcengineering/email-templates'
+import { getAccountBySocialId, getPerson } from '@hcengineering/server-contact'
 import serverCore, { type TriggerControl } from '@hcengineering/server-core'
-import { markupToText } from '@hcengineering/text-core'
+import serverNotification from '@hcengineering/server-notification'
+import { extractReferences, markupToText } from '@hcengineering/text-core'
 import { encodeObjectURI } from '@hcengineering/view'
 import { workbenchId } from '@hcengineering/workbench'
 
-import { messageToMarkup } from '../utils'
+import { getNotificationLink, messageToMarkup } from '../utils'
 import { formatEmailTime, type EmailKind, type EmailNotificationData, type EmailObject } from './content'
 import { markupToEmailHtml } from './markup'
 
@@ -67,6 +69,22 @@ function isDerived (control: TriggerControl, _class: Ref<Class<Doc>>, from: Ref<
   }
 }
 
+function isEnglish (lang?: string): boolean {
+  return lang === undefined || lang === '' || lang.toLowerCase().startsWith('en')
+}
+
+/**
+ * Product name for every notification email and its plain-text part.
+ * @public
+ */
+export function getNotificationAppName (control: TriggerControl): string {
+  return emailAppName(control.branding?.title, getMetadata(serverNotification.metadata.ProductName))
+}
+
+/**
+ * Class label in the email language. Platform labels are translated to English only on the server,
+ * so in other languages only labels people typed themselves (e.g. master tag names) are kept.
+ */
 async function classLabel (
   control: TriggerControl,
   _class: Ref<Class<Doc>>,
@@ -75,6 +93,7 @@ async function classLabel (
   try {
     const label = control.hierarchy.getClass(_class).label
     if (label === undefined) return undefined
+    if (!isEnglish(lang) && !label.startsWith('embedded:')) return undefined
     const value = await translate(label, {}, lang)
     return value !== '' ? value : undefined
   } catch {
@@ -91,6 +110,28 @@ function objectHref (control: TriggerControl, id: Ref<Doc>, _class: Ref<Class<Do
     .map((it) => encodeURIComponent(it))
     .join('/')
   return concatLink(frontUrl(control), path)
+}
+
+/** Link to an object as the main notification link builds it, e.g. with readable ids like TSK-123. */
+async function readableHref (control: TriggerControl, id: Ref<Doc>, _class: Ref<Class<Doc>>): Promise<string> {
+  try {
+    const doc = (await control.findAll(control.ctx, _class, { _id: id }, { limit: 1 }))[0]
+    if (doc !== undefined) return await getNotificationLink(control, doc)
+  } catch {
+    // Unknown or removed class: fall back to the plain id.
+  }
+  return objectHref(control, id, _class)
+}
+
+async function authorName (control: TriggerControl, message: ActivityMessage): Promise<string | undefined> {
+  const author = message.createdBy ?? message.modifiedBy
+  if (author === undefined) return undefined
+  try {
+    const person = await getPerson(control, author)
+    return person !== undefined ? formatName(person.name, control.branding?.lastNameFirst) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function kindOf (
@@ -159,7 +200,7 @@ export async function collectEmailData (
     kind,
     lang,
     frontUrl: front,
-    appName: control.branding?.title ?? 'TraceX',
+    appName: getNotificationAppName(control),
     workspace: control.workspace.url,
     settingsUrl: concatLink(front, `${workbenchId}/${control.workspace.url}/setting/notifications`),
     senderName: params.senderName,
@@ -181,9 +222,17 @@ export async function collectEmailData (
     }
   }
   if (markup !== undefined && markup !== '') {
+    // Links are resolved up front: rendering is synchronous.
+    const hrefs = new Map<Ref<Doc>, string>()
+    const objects = extractReferences(markup).filter(
+      (it) => !isDerived(control, it.objectClass, contact.class.Person) && it.objectId !== doc._id
+    )
+    for (const it of objects.slice(0, 5)) {
+      hrefs.set(it.objectId, await readableHref(control, it.objectId, it.objectClass))
+    }
     const result = markupToEmailHtml(markup, {
       isPerson: (_class) => isDerived(control, _class, contact.class.Person),
-      referenceHref: (id, _class) => objectHref(control, id, _class),
+      referenceHref: (id, _class) => hrefs.get(id) ?? objectHref(control, id, _class),
       maxLength: EMAIL_MESSAGE_LENGTH
     })
     if (result.text !== '') {
@@ -197,7 +246,7 @@ export async function collectEmailData (
           .map(async (it) => ({
             title: it.label,
             classLabel: await classLabel(control, it.objectClass, lang),
-            href: objectHref(control, it.id, it.objectClass)
+            href: hrefs.get(it.id) ?? objectHref(control, it.id, it.objectClass)
           }))
       )
     }
@@ -213,7 +262,12 @@ export async function collectEmailData (
       )
     )[0]
     if (parent !== undefined) {
-      data.quote = { own: await isOwnMessage(control, parent, n), text: await messageText(control, parent) }
+      const own = await isOwnMessage(control, parent, n)
+      data.quote = {
+        own,
+        author: own ? undefined : await authorName(control, parent),
+        text: await messageText(control, parent)
+      }
     }
   }
 
@@ -229,8 +283,7 @@ export async function collectEmailData (
   }
 
   // Type labels are translated to English only on the server, so other languages get no label.
-  const isEnglish = lang === undefined || lang === '' || lang.toLowerCase().startsWith('en')
-  if (kind === 'common' && isEnglish) {
+  if (kind === 'common' && isEnglish(lang)) {
     const label = params.type.label
     data.typeLabel = label !== undefined ? await translate(label, {}, lang) : undefined
   }
