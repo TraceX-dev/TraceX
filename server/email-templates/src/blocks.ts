@@ -37,8 +37,6 @@ export interface MessageBlock {
   body: SafeHtml
   /** Draw a border around the message (mentions). */
   framed?: boolean
-  /** Objects referenced by the message, shown under its text. */
-  objects?: ObjectLinkBlock[]
 }
 
 /**
@@ -111,12 +109,8 @@ function message (block: MessageBlock): string {
   const inner = `<table ${table}><tr>
 <td width="40" valign="top" style="width:40px;padding:0 14px 0 0">${avatar(block.sender)}</td>
 <td valign="top" style="font-family:${font}">
-<div style="font-size:15px;font-weight:700;color:${colors.text};line-height:1.4;margin:0 0 6px 0">${escapeHtml(block.sender)}${time}</div>
-<div style="font-size:16px;line-height:1.6;color:${colors.body};word-wrap:break-word;overflow-wrap:anywhere">${block.body}</div>${(
-    block.objects ?? []
-  )
-    .map((it) => `<div style="margin:10px 0 0 0">${objectLink(it)}</div>`)
-    .join('')}
+<div style="font-size:15px;font-weight:600;color:${colors.text};line-height:1.4;margin:0 0 6px 0">${escapeHtml(block.sender)}${time}</div>
+<div style="font-size:16px;line-height:1.6;color:${colors.body};word-wrap:break-word;overflow-wrap:anywhere">${block.body}</div>
 </td></tr></table>`
   if (block.framed !== true) return inner
   return `<table ${table} style="border:1px solid ${colors.border};border-radius:12px;border-collapse:separate"><tr><td style="padding:20px">${inner}</td></tr></table>`

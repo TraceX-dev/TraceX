@@ -16,7 +16,11 @@
 import {
   assets,
   assetUrl,
+  emphasis,
+  emphasisLink,
+  escapeHtml,
   text,
+  trusted,
   type EmailAction,
   type EmailBlock,
   type EmailLayout,
@@ -51,6 +55,8 @@ export interface EmailNotificationData {
   lang?: string
   frontUrl: string
   appName: string
+  /** Shown in the header. */
+  workspace: string
   settingsUrl: string
   senderName: string
   /** Formatted time of the message. */
@@ -59,12 +65,9 @@ export interface EmailNotificationData {
   object: EmailObject
   /** Link to the message itself (falls back to the object link). */
   messageHref?: string
-  /** Message body, already sanitized. */
-  messageHtml?: SafeHtml
+  /** Message as plain text, already cut to length. */
   messageText?: string
   messageTruncated?: boolean
-  /** Objects referenced in the message. */
-  references?: EmailObject[]
   /** Parent message for replies, reacted message for reactions. */
   quote?: { own: boolean, author?: string, text: string }
   /** Reaction emoji. */
@@ -158,6 +161,21 @@ export function fillString (template: string, params: Record<string, string | un
 }
 
 /**
+ * Like fillString, but for the heading: the template text is escaped and placeholders take
+ * ready HTML (a highlighted name, a link to the object).
+ * @public
+ */
+export function fillHtml (template: string, params: Record<string, SafeHtml | undefined>): SafeHtml {
+  let result = ''
+  let last = 0
+  for (const match of template.matchAll(/\{(\w+)\}/g)) {
+    result += escapeHtml(template.slice(last, match.index)) + (params[match[1]] ?? '')
+    last = (match.index ?? 0) + match[0].length
+  }
+  return trusted((result + escapeHtml(template.slice(last))).replace(/\s{2,}/g, ' ').trim())
+}
+
+/**
  * "Oct 4, 23:00 UTC". The receiver's time zone is unknown, so UTC is shown explicitly.
  * @public
  */
@@ -206,16 +224,14 @@ function quoteBlock (data: EmailNotificationData, strings: EmailStrings): EmailB
 }
 
 function messageBlocks (data: EmailNotificationData, strings: EmailStrings, framed: boolean): EmailBlock[] {
-  if (data.messageHtml === undefined || data.messageHtml === '') return []
-  const references = (data.references ?? []).map((it) => objectTile(data, it))
+  if (data.messageText === undefined || data.messageText === '') return []
   const blocks: EmailBlock[] = [
     {
       type: 'message',
       sender: data.senderName,
       time: data.time,
-      body: data.messageHtml,
-      framed,
-      objects: references
+      body: text(data.messageText),
+      framed
     }
   ]
   if (data.messageTruncated === true) {
@@ -246,59 +262,66 @@ export function buildEmailLayout (
     app: data.appName,
     emoji: data.emoji
   }
+  // In the heading the sender and the object stand out, and the object links to itself.
+  const htmlParams: Record<string, SafeHtml | undefined> = {
+    sender: emphasis(data.senderName),
+    object: emphasisLink(data.object.href, data.object.title),
+    app: text(data.appName),
+    emoji: text(data.emoji)
+  }
   const isConversation = data.kind === 'mention' || data.kind === 'reply' || data.kind === 'message'
 
-  // One idea per element: the title names the event and the object, so there is no header label,
-  // no object chip and no tile repeating the object; one button; a one-line footer.
-  let title: string
+  // One idea per element: the heading names the event and the object, so there is no object chip
+  // and no tile repeating the object; one button; a one-line footer.
+  let template: string | undefined
   let blocks: EmailBlock[]
   let reason: string
 
   switch (data.kind) {
     case 'mention':
-      title = fillString(strings.titleMention, params)
+      template = strings.titleMention
       blocks = messageBlocks(data, strings, true)
       reason = strings.reasonMention
       break
     case 'reply':
-      title = fillString(data.quote?.own === true ? strings.titleReplyOwn : strings.titleReply, params)
+      template = data.quote?.own === true ? strings.titleReplyOwn : strings.titleReply
       blocks = [quoteBlock(data, strings), ...messageBlocks(data, strings, false)].filter(
         (it): it is EmailBlock => it !== undefined
       )
       reason = strings.reasonConversation
       break
     case 'message':
-      title = fillString(strings.titleMessage, params)
+      template = strings.titleMessage
       blocks = messageBlocks(data, strings, false)
       reason = strings.reasonConversation
       break
     case 'reaction':
-      title = fillString(strings.titleReaction, params)
+      template = strings.titleReaction
       blocks = [quoteBlock(data, strings)].filter((it): it is EmailBlock => it !== undefined)
       reason = strings.reasonReaction
       break
     case 'update':
-      title = fillString(data.created === true ? strings.titleCreate : strings.titleUpdate, params)
+      template = data.created === true ? strings.titleCreate : strings.titleUpdate
       blocks = bodyParagraph(data.body)
       reason = fillString(strings.reasonObject, params)
       break
     case 'assignment':
-      title = fillString(data.senderName !== '' ? strings.titleAssignment : strings.titleAssignmentNoSender, params)
+      template = data.senderName !== '' ? strings.titleAssignment : strings.titleAssignmentNoSender
       blocks = []
       reason = strings.reasonAssignment
       break
     case 'coAuthor':
-      title = fillString(data.senderName !== '' ? strings.titleCoAuthor : strings.titleCoAuthorNoSender, params)
+      template = data.senderName !== '' ? strings.titleCoAuthor : strings.titleCoAuthorNoSender
       blocks = []
       reason = strings.reasonCoAuthor
       break
     case 'request':
-      title = data.title !== undefined && data.title !== '' ? data.title : fillString(strings.titleRequest, params)
+      template = data.title !== undefined && data.title !== '' ? undefined : strings.titleRequest
       blocks = [...bodyParagraph(data.body), ...messageBlocks(data, strings, false)]
       reason = strings.reasonRequest
       break
-    case 'common':
-      title = data.title !== undefined && data.title !== '' ? data.title : data.object.title
+    case 'common': {
+      const title = data.title !== undefined && data.title !== '' ? data.title : data.object.title
       blocks = [
         ...bodyParagraph(data.body),
         ...messageBlocks(data, strings, false),
@@ -307,7 +330,13 @@ export function buildEmailLayout (
       ]
       reason = strings.reasonDefault
       break
+    }
   }
+
+  // Titles that come from the notification itself are plain text.
+  const freeTitle = data.title !== undefined && data.title !== '' ? data.title : data.object.title
+  const title = template !== undefined ? fillString(template, params) : freeTitle
+  const heading = template !== undefined ? fillHtml(template, htmlParams) : text(freeTitle)
 
   const action: EmailAction = {
     label: fillString(isConversation ? strings.actionReply : strings.actionOpen, params),
@@ -320,7 +349,9 @@ export function buildEmailLayout (
     appName: data.appName,
     lang: data.lang,
     preheader: preheader(data.messageText ?? data.body ?? data.quote?.text),
+    headerNote: data.workspace,
     title,
+    heading,
     blocks,
     actions: [action],
     reason,

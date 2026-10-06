@@ -15,27 +15,24 @@
 
 import activity, { type ActivityMessage, type DocUpdateMessage } from '@hcengineering/activity'
 import chunter from '@hcengineering/chunter'
-import contact, { formatName } from '@hcengineering/contact'
+import { formatName } from '@hcengineering/contact'
 import { concatLink, type Class, type Doc, type Markup, type Ref } from '@hcengineering/core'
 import notification, {
   type InboxNotification,
   type MentionInboxNotification,
   type NotificationType,
-  type ReactionInboxNotification,
-  notificationId
+  type ReactionInboxNotification
 } from '@hcengineering/notification'
 import { getMetadata, translate } from '@hcengineering/platform'
 import { emailAppName } from '@hcengineering/email-templates'
 import { getAccountBySocialId, getPerson } from '@hcengineering/server-contact'
 import serverCore, { type TriggerControl } from '@hcengineering/server-core'
 import serverNotification from '@hcengineering/server-notification'
-import { extractReferences, markupToText } from '@hcengineering/text-core'
-import { encodeObjectURI } from '@hcengineering/view'
+import { stripTags } from '@hcengineering/text-core'
 import { workbenchId } from '@hcengineering/workbench'
 
-import { getNotificationLink, messageToMarkup } from '../utils'
+import { messageToMarkup } from '../utils'
 import { formatEmailTime, type EmailKind, type EmailNotificationData, type EmailObject } from './content'
-import { markupToEmailHtml } from './markup'
 
 /** Visible characters of a message body in an email. */
 export const EMAIL_MESSAGE_LENGTH = 1500
@@ -105,24 +102,6 @@ function frontUrl (control: TriggerControl): string {
   return control.branding?.front ?? getMetadata(serverCore.metadata.FrontUrl) ?? ''
 }
 
-function objectHref (control: TriggerControl, id: Ref<Doc>, _class: Ref<Class<Doc>>): string {
-  const path = [workbenchId, control.workspace.url, notificationId, encodeObjectURI(id, _class)]
-    .map((it) => encodeURIComponent(it))
-    .join('/')
-  return concatLink(frontUrl(control), path)
-}
-
-/** Link to an object as the main notification link builds it, e.g. with readable ids like TSK-123. */
-async function readableHref (control: TriggerControl, id: Ref<Doc>, _class: Ref<Class<Doc>>): Promise<string> {
-  try {
-    const doc = (await control.findAll(control.ctx, _class, { _id: id }, { limit: 1 }))[0]
-    if (doc !== undefined) return await getNotificationLink(control, doc)
-  } catch {
-    // Unknown or removed class: fall back to the plain id.
-  }
-  return objectHref(control, id, _class)
-}
-
 async function authorName (control: TriggerControl, message: ActivityMessage): Promise<string | undefined> {
   const author = message.createdBy ?? message.modifiedBy
   if (author === undefined) return undefined
@@ -169,11 +148,17 @@ async function isOwnMessage (
   }
 }
 
+/**
+ * Message markup as one line of plain text, cut at `limit` with an ellipsis.
+ * Uses the platform's stripTags, so the email needs no markup converter of its own.
+ */
+function plainText (markup: Markup, limit: number): string {
+  return stripTags(markup, limit).replace(/\s+/g, ' ').trim()
+}
+
 async function messageText (control: TriggerControl, message: ActivityMessage): Promise<string> {
   const markup = await messageToMarkup(control, message)
-  if (markup === undefined) return ''
-  const value = markupToText(markup).replace(/\s+/g, ' ').trim()
-  return value.length > EMAIL_QUOTE_LENGTH ? value.slice(0, EMAIL_QUOTE_LENGTH - 1).trimEnd() + '…' : value
+  return markup !== undefined ? plainText(markup, EMAIL_QUOTE_LENGTH) : ''
 }
 
 /**
@@ -201,6 +186,7 @@ export async function collectEmailData (
     lang,
     frontUrl: front,
     appName: getNotificationAppName(control),
+    workspace: control.workspace.url,
     settingsUrl: concatLink(front, `${workbenchId}/${control.workspace.url}/setting/notifications`),
     senderName: params.senderName,
     object,
@@ -221,36 +207,10 @@ export async function collectEmailData (
     }
   }
   if (markup !== undefined && markup !== '') {
-    // Links are resolved up front: rendering is synchronous.
-    const hrefs = new Map<Ref<Doc>, string>()
-    const objects = extractReferences(markup).filter(
-      (it) => !isDerived(control, it.objectClass, contact.class.Person) && it.objectId !== doc._id
-    )
-    const resolved = await Promise.all(
-      objects
-        .slice(0, 5)
-        .map(async (it) => [it.objectId, await readableHref(control, it.objectId, it.objectClass)] as const)
-    )
-    for (const [id, href] of resolved) hrefs.set(id, href)
-    const result = markupToEmailHtml(markup, {
-      isPerson: (_class) => isDerived(control, _class, contact.class.Person),
-      referenceHref: (id, _class) => hrefs.get(id) ?? objectHref(control, id, _class),
-      maxLength: EMAIL_MESSAGE_LENGTH
-    })
-    if (result.text !== '') {
-      data.messageHtml = result.html
-      data.messageText = result.text
-      data.messageTruncated = result.truncated
-      data.references = await Promise.all(
-        result.references
-          .filter((it) => it.id !== doc._id)
-          .slice(0, 5)
-          .map(async (it) => ({
-            title: it.label,
-            classLabel: await classLabel(control, it.objectClass, lang),
-            href: hrefs.get(it.id) ?? objectHref(control, it.id, it.objectClass)
-          }))
-      )
+    const value = plainText(markup, EMAIL_MESSAGE_LENGTH)
+    if (value !== '') {
+      data.messageText = value
+      data.messageTruncated = stripTags(markup).trim().length > EMAIL_MESSAGE_LENGTH
     }
   }
 
