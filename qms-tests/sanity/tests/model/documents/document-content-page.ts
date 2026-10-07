@@ -524,7 +524,9 @@ export class DocumentContentPage extends DocumentCommonPage {
   async checkIfUserCanCreateDocument (spaceName: string): Promise<void> {
     await this.page.getByRole('button', { name: 'New document', exact: true }).click()
     await this.page.locator('[id="space\\.selector"]').click()
-    await expect(this.page.locator('.selectPopup').getByRole('button', { name: spaceName, exact: true })).not.toBeVisible()
+    await expect(
+      this.page.locator('.selectPopup').getByRole('button', { name: spaceName, exact: true })
+    ).not.toBeVisible()
   }
 
   async fillDocumentAndSetMemberPrivate (spaceName: string): Promise<void> {
