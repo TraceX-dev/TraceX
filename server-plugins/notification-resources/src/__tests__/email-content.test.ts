@@ -39,6 +39,8 @@ describe('email content', () => {
     messageHref: 'https://front/card?message=m1',
     messageText: 'Hello'
   }
+  const subscribed =
+    "You're receiving this because you're subscribed to this type of notification in the demo-workspace workspace."
 
   it('fills placeholders', () => {
     expect(fillString('{a} and {b}', { a: 'x' })).toBe('x and')
@@ -66,7 +68,7 @@ describe('email content', () => {
     expect(layout.heading).toContain('<strong style="font-weight:600;color:#18181B">John Doe</strong>')
     expect(layout.heading).toContain('<a href="https://front/card"')
     expect(layout.heading).toContain('>Doc &lt;1&gt;</a>')
-    expect(layout.headerNote).toBe('demo-workspace')
+    expect(layout.context).toBe('demo-workspace')
     // Free-text titles from the notification stay plain.
     const common = buildEmailLayout({ ...base, kind: 'common', title: 'Approve <b>', messageText: undefined })
     expect(common.heading).toBe('Approve &lt;b&gt;')
@@ -97,7 +99,7 @@ describe('email content', () => {
     })
     expect(layout.title).toBe('John Doe mentioned you in CAPA-1 Audit')
     expect(layout.blocks[0]).toMatchObject({ type: 'message', framed: true })
-    expect(layout.reason).toBe(defaultEmailStrings.reasonMention)
+    expect(layout.reason).toBe(subscribed)
   })
 
   it('adds a read-more line for truncated messages', () => {
@@ -109,7 +111,7 @@ describe('email content', () => {
     const update = buildEmailLayout({ ...base, kind: 'update', body: 'Status: Open → Done', messageText: undefined })
     expect(update.title).toBe('CAPA-1 Audit was updated')
     expect(update.actions).toEqual([{ label: 'Open in TraceX', href: base.messageHref, primary: true }])
-    expect(update.reason).toBe("You're receiving this because you're subscribed to updates of “CAPA-1 Audit”.")
+    expect(update.reason).toBe(subscribed)
     // The title already names the object: no tile repeating it.
     expect(update.blocks.map((it) => it.type)).toEqual(['paragraph'])
 
@@ -131,7 +133,7 @@ describe('email content', () => {
     const layout = buildEmailLayout({ ...base, kind: 'assignment' })
     expect(layout.title).toBe('John Doe assigned you CAPA-1 Audit')
     expect(layout.blocks).toEqual([])
-    expect(layout.reason).toBe("You're receiving this because you were assigned.")
+    expect(layout.reason).toBe(subscribed)
     expect(buildEmailLayout({ ...base, kind: 'assignment', senderName: '' }).title).toBe(
       'CAPA-1 Audit was assigned to you'
     )
@@ -140,15 +142,26 @@ describe('email content', () => {
   it('builds co-author emails', () => {
     const layout = buildEmailLayout({ ...base, kind: 'coAuthor' })
     expect(layout.title).toBe('John Doe added you as a co-author of CAPA-1 Audit')
-    expect(layout.reason).toBe("You're receiving this because you were added as a co-author.")
+    expect(layout.reason).toBe(subscribed)
     expect(buildEmailLayout({ ...base, kind: 'coAuthor', senderName: '' }).title).toBe(
       'You were added as a co-author of CAPA-1 Audit'
     )
   })
 
-  it('gives reactions their own reason', () => {
-    const layout = buildEmailLayout({ ...base, kind: 'reaction', emoji: '👍', quote: { own: true, text: 'Q' } })
-    expect(layout.reason).toBe("You're receiving this because someone reacted to your message.")
+  it('gives every kind the same subscription reason', () => {
+    const kinds = [
+      'mention',
+      'reply',
+      'message',
+      'reaction',
+      'update',
+      'assignment',
+      'coAuthor',
+      'request',
+      'common'
+    ] as const
+    const reasons = new Set(kinds.map((kind) => buildEmailLayout({ ...base, kind }).reason))
+    expect([...reasons]).toEqual([subscribed])
   })
 
   it('builds request emails', () => {

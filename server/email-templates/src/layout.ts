@@ -42,8 +42,8 @@ export interface EmailLayout {
   title: string
   /** Heading with highlighted parts (names, links); replaces the plain title in the body. */
   heading?: SafeHtml
-  /** Small text on the right of the header, e.g. the workspace name. */
-  headerNote?: string
+  /** Small line above the heading, e.g. the workspace name. */
+  context?: string
   blocks: EmailBlock[]
   actions?: EmailAction[]
   /** Blocks under the buttons, e.g. a fallback link. */
@@ -86,11 +86,6 @@ function header (layout: EmailLayout): string {
   return `<tr><td class="tx-pad" style="background-color:${colors.header};border-radius:16px 16px 0 0;padding:18px 40px">
 <table ${table}><tr>
 <td valign="middle"><img src="${safeUrl(assetUrl(layout.frontUrl, logo.path))}" width="${logo.width}" height="${logo.height}" alt="${escapeHtml(layout.appName)}" style="display:block;border:0;outline:none;width:${logo.width}px;height:${logo.height}px;color:#FFFFFF;font-family:${font};font-size:18px;font-weight:800;line-height:${logo.height}px"></td>
-${
-  layout.headerNote !== undefined && layout.headerNote !== ''
-    ? `<td align="right" valign="middle" style="padding:0 0 0 16px;font-family:${font};font-size:18px;line-height:1.3;font-weight:600;color:${colors.headerNote}">${escapeHtml(layout.headerNote)}</td>`
-    : ''
-}
 </tr></table>
 </td></tr>`
 }
@@ -125,6 +120,11 @@ function footer (layout: EmailLayout): string {
   return `<tr><td class="tx-pad" style="padding:16px 40px 36px 40px">
 <table ${table}><tr><td style="border-top:1px solid ${colors.divider};padding:24px 0 0 0;font-family:${font};font-size:13px;line-height:1.6;color:${colors.faint}">${content}</td></tr></table>
 </td></tr>`
+}
+
+function context (layout: EmailLayout): string {
+  if (layout.context === undefined || layout.context === '') return ''
+  return `<div style="margin:0 0 8px 0;font-family:${font};font-size:13px;line-height:1.4;font-weight:500;color:${colors.muted}">${escapeHtml(layout.context)}</div>`
 }
 
 function heading (layout: EmailLayout): string {
@@ -173,7 +173,7 @@ ${preheader}
 ${header(layout)}
 <tr><td style="background-color:${colors.card};border:1px solid ${colors.border};border-top:none;border-radius:0 0 16px 16px">
 <table ${table}>
-<tr><td class="tx-pad" style="padding:36px 40px 0 40px">${heading(layout)}</td></tr>
+<tr><td class="tx-pad" style="padding:32px 40px 0 40px">${context(layout)}${heading(layout)}</td></tr>
 ${blocks}
 ${hasActions ? actions(layout) : ''}
 ${afterActions}
