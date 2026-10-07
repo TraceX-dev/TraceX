@@ -37,6 +37,10 @@ function hasMergedCells (tableNode: Node): boolean {
   return result
 }
 
+function escapeTableCell (value: string): string {
+  return value.replace(/\\?\|/g, '\\|').replace(/\r?\n/g, '<br>')
+}
+
 /**
  * Extract markdown string from a ProseMirror table node
  */
@@ -64,7 +68,7 @@ export function extractTableMarkdown (tableNode: Node): string {
         if (!visitedCells.has(pos)) {
           const cell = tableNode.nodeAt(pos)
           if (cell !== null) {
-            rowCells.push(cell.textContent.trim() ?? '')
+            rowCells.push(escapeTableCell(cell.textContent.trim()))
           } else {
             rowCells.push('')
           }

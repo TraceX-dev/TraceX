@@ -97,4 +97,10 @@ describe('extractTableMarkdown', () => {
 
     expect(markdown).toBe('| Header |\n| --- |\n| Value |\n')
   })
+
+  it('escapes a pipe in a flat table cell', () => {
+    const table = createTable([row(cell('Header')), row(cell('A | B'))])
+
+    expect(extractTableMarkdown(table)).toBe('| Header |\n| --- |\n| A \\| B |\n')
+  })
 })

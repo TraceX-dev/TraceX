@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,13 +15,12 @@
 //
 -->
 <script lang="ts">
-  import { markdownToMarkup } from '@hcengineering/text-markdown'
   import presentation, { Card } from '@hcengineering/presentation'
   import textEditor from '@hcengineering/text-editor'
   import { createEventDispatcher } from 'svelte'
   import type { TableMetadata } from '@hcengineering/view'
 
-  import MarkupDiffViewer from '../../../MarkupDiffViewer.svelte'
+  import StructuredTableDiff from './StructuredTableDiff.svelte'
   import TableSourceInfo from './TableSourceInfo.svelte'
 
   export let oldMarkdown: string
@@ -28,10 +28,6 @@
   export let metadata: TableMetadata
 
   const dispatch = createEventDispatcher()
-
-  // Convert markdown strings to MarkupNode for structured diffing
-  $: oldContent = markdownToMarkup(oldMarkdown)
-  $: newContent = markdownToMarkup(newMarkdown)
 
   function handleClose (): void {
     dispatch('close')
@@ -48,7 +44,7 @@
   on:close={handleClose}
 >
   <div class="table-diff-container">
-    <MarkupDiffViewer content={newContent} comparedVersion={oldContent} />
+    <StructuredTableDiff {oldMarkdown} {newMarkdown} />
   </div>
   <TableSourceInfo {metadata} />
 </Card>
