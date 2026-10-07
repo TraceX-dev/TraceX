@@ -68,7 +68,9 @@ export function extractTableMarkdown (tableNode: Node): string {
         if (!visitedCells.has(pos)) {
           const cell = tableNode.nodeAt(pos)
           if (cell !== null) {
-            rowCells.push(escapeTableCell(cell.textContent.trim()))
+            const cellMarkup = cell.toJSON() as MarkupNode
+            const cellMarkdown = markupToMarkdown({ type: MarkupNodeType.doc, content: cellMarkup.content ?? [] })
+            rowCells.push(escapeTableCell(cellMarkdown.trim()))
           } else {
             rowCells.push('')
           }

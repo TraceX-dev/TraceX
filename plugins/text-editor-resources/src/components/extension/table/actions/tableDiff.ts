@@ -105,6 +105,23 @@ function uniqueMatches (oldValues: string[], newValues: string[]): Map<number, n
 function matchColumns (oldTable: ParsedTable, newTable: ParsedTable): TableDiffColumn[] {
   const matches = uniqueMatches(oldTable.headers, newTable.headers)
   const usedOld = new Set(matches.values())
+
+  // Display labels are not unique. Pair repeated labels by occurrence before treating other columns as renames.
+  for (const label of new Set(oldTable.headers)) {
+    const oldIndices = oldTable.headers
+      .map((header, index) => ({ header, index }))
+      .filter(({ header, index }) => header === label && !usedOld.has(index))
+      .map(({ index }) => index)
+    const newIndices = newTable.headers
+      .map((header, index) => ({ header, index }))
+      .filter(({ header, index }) => header === label && !matches.has(index))
+      .map(({ index }) => index)
+    for (let index = 0; index < Math.min(oldIndices.length, newIndices.length); index++) {
+      matches.set(newIndices[index], oldIndices[index])
+      usedOld.add(oldIndices[index])
+    }
+  }
+
   const unmatchedOld = oldTable.headers.map((_, index) => index).filter((index) => !usedOld.has(index))
   const unmatchedNew = newTable.headers.map((_, index) => index).filter((index) => !matches.has(index))
 
@@ -142,6 +159,12 @@ function similarity (oldValues: string[], newValues: string[]): number {
   return same / oldValues.length
 }
 
+function countValues (values: string[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1)
+  return counts
+}
+
 function movedRows (matches: Map<number, number>): Set<number> {
   const entries = [...matches.entries()].sort(([a], [b]) => a - b)
   const moved = new Set<number>()
@@ -173,14 +196,47 @@ export function buildTableDiff (oldMarkdown: string, newMarkdown: string): Table
     newValues.map((values) => JSON.stringify(values))
   )
   const usedOld = new Set(matches.values())
+  const identityColumn = columns.find((column) => column.oldIndex === 0 && column.newIndex !== undefined)
+  const oldIdentityValues = oldTable.rows.map((row) => row[0]?.value ?? '')
+  const newIdentityValues = newTable.rows.map((row) =>
+    identityColumn?.newIndex === undefined ? '' : (row[identityColumn.newIndex]?.value ?? '')
+  )
+  const oldIdentityLinks = oldTable.rows.map((row) => row[0]?.href ?? '')
+  const newIdentityLinks = newTable.rows.map((row) =>
+    identityColumn?.newIndex === undefined ? '' : (row[identityColumn.newIndex]?.href ?? '')
+  )
+  const oldIdentityCounts = countValues(oldIdentityValues)
+  const newIdentityCounts = countValues(newIdentityValues)
+  const oldLinkCounts = countValues(oldIdentityLinks)
+  const newLinkCounts = countValues(newIdentityLinks)
 
-  // Pair edited rows only when both the best match and its reverse are unambiguous.
+  function hasSameIdentity (oldIndex: number, newIndex: number): boolean {
+    if (identityColumn === undefined) return false
+    const oldLink = oldIdentityLinks[oldIndex]
+    if (
+      oldLink !== '' &&
+      oldLink === newIdentityLinks[newIndex] &&
+      oldLinkCounts.get(oldLink) === 1 &&
+      newLinkCounts.get(oldLink) === 1
+    )
+      {return true}
+    const oldValue = oldIdentityValues[oldIndex]
+    return (
+      oldValue !== '' &&
+      oldValue === newIdentityValues[newIndex] &&
+      oldIdentityCounts.get(oldValue) === 1 &&
+      newIdentityCounts.get(oldValue) === 1
+    )
+  }
+
+  // Pair edited rows only when their original first column identifies the same unique row.
   for (let newIndex = 0; newIndex < newValues.length; newIndex++) {
     if (matches.has(newIndex)) continue
     const candidates = oldValues
       .map((values, oldIndex) => ({
         oldIndex,
-        score: usedOld.has(oldIndex) ? 0 : similarity(values, newValues[newIndex])
+        score:
+          usedOld.has(oldIndex) || !hasSameIdentity(oldIndex, newIndex) ? 0 : similarity(values, newValues[newIndex])
       }))
       .sort((a, b) => b.score - a.score)
     const best = candidates[0]
@@ -188,7 +244,10 @@ export function buildTableDiff (oldMarkdown: string, newMarkdown: string): Table
     const reverse = newValues
       .map((values, candidateIndex) => ({
         candidateIndex,
-        score: matches.has(candidateIndex) ? 0 : similarity(oldValues[best.oldIndex], values)
+        score:
+          matches.has(candidateIndex) || !hasSameIdentity(best.oldIndex, candidateIndex)
+            ? 0
+            : similarity(oldValues[best.oldIndex], values)
       }))
       .sort((a, b) => b.score - a.score)
     if (reverse[0]?.candidateIndex !== newIndex || reverse[0].score === reverse[1]?.score) continue
@@ -214,7 +273,7 @@ export function buildTableDiff (oldMarkdown: string, newMarkdown: string): Table
   })
   oldTable.rows.forEach((row, oldIndex) => {
     if (!usedOld.has(oldIndex)) {
-      rows.push({
+      const deletedRow: TableDiffRow = {
         oldIndex,
         moved: false,
         cells: columns.map((column) => ({
@@ -222,7 +281,11 @@ export function buildTableDiff (oldMarkdown: string, newMarkdown: string): Table
           oldHref: column.oldIndex === undefined ? undefined : row[column.oldIndex].href,
           newValue: ''
         }))
-      })
+      }
+      const nextOldIndex = [...matches.values()].filter((index) => index > oldIndex).sort((a, b) => a - b)[0]
+      const insertAt =
+        nextOldIndex === undefined ? rows.length : rows.findIndex((candidate) => candidate.oldIndex === nextOldIndex)
+      rows.splice(insertAt < 0 ? rows.length : insertAt, 0, deletedRow)
     }
   })
   return { columns, rows }

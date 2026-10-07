@@ -40,7 +40,15 @@ describe('buildTableDiff', () => {
     const diff = buildTableDiff(oldTable, '| Name | State |\n| --- | --- |\n| Beta | Closed |\n')
 
     expect(diff?.rows.filter((row) => row.newIndex === undefined)).toMatchObject([{ oldIndex: 0, moved: false }])
-    expect(diff?.rows[0]).toMatchObject({ oldIndex: 1, newIndex: 0, moved: false })
+    expect(diff?.rows.map((row) => row.oldIndex)).toEqual([0, 1])
+    expect(diff?.rows[1]).toMatchObject({ oldIndex: 1, newIndex: 0, moved: false })
+  })
+
+  it('keeps a deleted middle row beside its former neighbours', () => {
+    const old = '| Name | State |\n| --- | --- |\n| Alpha | Open |\n| Beta | Closed |\n| Gamma | New |\n'
+    const fresh = '| Name | State |\n| --- | --- |\n| Alpha | Open |\n| Gamma | New |\n'
+
+    expect(buildTableDiff(old, fresh)?.rows.map((row) => row.oldIndex)).toEqual([0, 1, 2])
   })
 
   it('shows an inserted column without changing shared cells', () => {
@@ -55,6 +63,16 @@ describe('buildTableDiff', () => {
       { oldValue: '', newValue: 'Jane' },
       { oldValue: 'Open', newValue: 'Open' }
     ])
+  })
+
+  it('matches repeated headers before marking a new column', () => {
+    const old = '| Name | Name |\n| --- | --- |\n| Alpha | One |\n'
+    const fresh = '| Name | Name | Owner |\n| --- | --- | --- |\n| Alpha | One | Jane |\n'
+    const diff = buildTableDiff(old, fresh)
+
+    expect(diff?.columns.map((column) => column.oldIndex)).toEqual([0, 1, undefined])
+    expect(diff?.rows[0]).toMatchObject({ oldIndex: 0, newIndex: 0 })
+    expect(diff?.rows[0].cells[0]).toMatchObject({ oldValue: 'Alpha', newValue: 'Alpha' })
   })
 
   it('shows a removed column without changing shared cells', () => {
@@ -87,6 +105,17 @@ describe('buildTableDiff', () => {
 
     expect(diff?.rows[0]).toMatchObject({ oldIndex: 0, newIndex: 0 })
     expect(diff?.rows[0].cells[1]).toEqual({ oldValue: 'Open', newValue: 'Done' })
+  })
+
+  it('does not pair distinct rows that only share a status', () => {
+    const old = '| Name | State |\n| --- | --- |\n| Alpha | Open |\n'
+    const fresh = '| Name | State |\n| --- | --- |\n| Beta | Open |\n'
+    const diff = buildTableDiff(old, fresh)
+
+    expect(diff?.rows.map((row) => [row.oldIndex, row.newIndex])).toEqual([
+      [undefined, 0],
+      [0, undefined]
+    ])
   })
 
   it('keeps the row match when a column and a cell change together', () => {
@@ -122,6 +151,28 @@ describe('buildTableDiff', () => {
       newValue: 'Alpha',
       newHref: 'https://example.com/a'
     })
+  })
+
+  it('retains both link targets when only the target changes', () => {
+    const old = '| Name | State |\n| --- | --- |\n| [Alpha](https://example.com/old) | Open |\n'
+    const fresh = '| Name | State |\n| --- | --- |\n| [Alpha](https://example.com/new) | Open |\n'
+    const diff = buildTableDiff(old, fresh)
+
+    expect(diff?.rows[0].cells[0]).toMatchObject({
+      oldValue: 'Alpha',
+      newValue: 'Alpha',
+      oldHref: 'https://example.com/old',
+      newHref: 'https://example.com/new'
+    })
+  })
+
+  it('matches a renamed linked row by its stable target', () => {
+    const old = '| Name | State |\n| --- | --- |\n| [Alpha](https://example.com/item) | Open |\n'
+    const fresh = '| Name | State |\n| --- | --- |\n| [Renamed](https://example.com/item) | Open |\n'
+    const diff = buildTableDiff(old, fresh)
+
+    expect(diff?.rows[0]).toMatchObject({ oldIndex: 0, newIndex: 0 })
+    expect(diff?.rows[0].cells[0]).toMatchObject({ oldValue: 'Alpha', newValue: 'Renamed' })
   })
 
   it('leaves merged tables to the existing viewer', () => {

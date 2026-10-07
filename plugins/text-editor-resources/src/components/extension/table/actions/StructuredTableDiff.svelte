@@ -77,6 +77,12 @@
                 {:else if safeHref(cell.newHref) !== undefined}
                   <a href={safeHref(cell.newHref)} target="_blank" rel="noopener noreferrer">{cell.newValue}</a>
                 {:else}{cell.newValue}{/if}
+                {#if row.oldIndex !== undefined && row.newIndex !== undefined && diff.columns[index].oldIndex !== undefined && diff.columns[index].newIndex !== undefined && cell.oldHref !== cell.newHref}
+                  <div class="link-change">
+                    {#if cell.oldHref !== undefined}<span class="removed-link">− {cell.oldHref}</span>{/if}
+                    {#if cell.newHref !== undefined}<span class="added-link">+ {cell.newHref}</span>{/if}
+                  </div>
+                {/if}
               </td>
             {/each}
           </tr>
@@ -124,5 +130,24 @@
     background-color: var(--text-editor-highlighted-node-delete-background-color);
     color: var(--text-editor-highlighted-node-delete-font-color);
     text-decoration: line-through;
+  }
+
+  .link-change {
+    display: flex;
+    flex-direction: column;
+    overflow-wrap: anywhere;
+    margin-top: 0.25rem;
+    font-size: 0.85em;
+  }
+
+  .removed-link {
+    color: var(--text-editor-highlighted-node-delete-font-color);
+    background-color: var(--text-editor-highlighted-node-delete-background-color);
+    text-decoration: line-through;
+  }
+
+  .added-link {
+    color: var(--text-editor-highlighted-node-add-font-color);
+    background-color: var(--text-editor-highlighted-node-add-background-color);
   }
 </style>

@@ -40,6 +40,9 @@ const schema = new Schema({
     },
     paragraph: { content: 'text*' },
     text: {}
+  },
+  marks: {
+    link: { attrs: { href: {} } }
   }
 })
 
@@ -56,14 +59,17 @@ function createTable (rows: object[]): Node {
   return doc.firstChild as Node
 }
 
-function cell (text: string, rowspan: number = 1): object {
+function cell (text: string, rowspan: number = 1, href?: string): object {
   return {
     type: 'tableCell',
     attrs: { colspan: 1, rowspan, colwidth: null },
     content: [
       {
         type: 'paragraph',
-        content: text.length > 0 ? [{ type: 'text', text }] : []
+        content:
+          text.length > 0
+            ? [{ type: 'text', text, marks: href === undefined ? [] : [{ type: 'link', attrs: { href } }] }]
+            : []
       }
     ]
   }
@@ -102,5 +108,11 @@ describe('extractTableMarkdown', () => {
     const table = createTable([row(cell('Header')), row(cell('A | B'))])
 
     expect(extractTableMarkdown(table)).toBe('| Header |\n| --- |\n| A \\| B |\n')
+  })
+
+  it('preserves a link target in a flat table cell', () => {
+    const table = createTable([row(cell('Header')), row(cell('Alpha', 1, 'https://example.com/old'))])
+
+    expect(extractTableMarkdown(table)).toContain('[Alpha](https://example.com/old)')
   })
 })
