@@ -13,13 +13,20 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { Employee, getCurrentEmployee } from '@hcengineering/contact'
+  import contact, {
+    ambientPeopleScope,
+    Employee,
+    getCurrentEmployee,
+    type PeopleScopeInput,
+    resolvePeopleScope
+  } from '@hcengineering/contact'
   import { Class, flipSet, getObjectValue, Ref } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
   import { CheckBox, createFocusManager, FocusHandler, ListView } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
 
   import UserDetails from './UserDetails.svelte'
+  import { createGuestPeopleFilter, restrictPersonQuery } from '../guestPeopleFilter'
 
   export let _class: Ref<Class<Employee>> = contact.mixin.Employee
   export let searchField: string = 'name'
@@ -35,6 +42,11 @@
   export let showStatus = true
   export let skipInactive = false
   export let skipOnlyLocal = true
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+
+  const guestFilter = createGuestPeopleFilter('UsersList')
+  $: guestFilter.update(resolvePeopleScope(peopleScope, $ambientPeopleScope))
 
   const dispatch = createEventDispatcher()
   const query = createQuery()
@@ -49,21 +61,24 @@
   let persons: Employee[] = []
   $: query.query(
     _class,
-    {
-      ...(searchMode !== 'disabled' && search !== ''
-        ? searchMode === 'fulltext'
-          ? { $search: search }
-          : { [searchField]: { $like: '%' + search + '%' } }
-        : {}),
-      ...{
-        _id: {
-          $nin: skipCurrentAccount ? [...skipAccounts, me] : [...skipAccounts],
-          ...(includeItems !== undefined ? { $in: includeItems } : {})
-        }
+    restrictPersonQuery<Employee>(
+      {
+        ...(searchMode !== 'disabled' && search !== ''
+          ? searchMode === 'fulltext'
+            ? { $search: search }
+            : { [searchField]: { $like: '%' + search + '%' } }
+          : {}),
+        ...{
+          _id: {
+            $nin: skipCurrentAccount ? [...skipAccounts, me] : [...skipAccounts],
+            ...(includeItems !== undefined ? { $in: includeItems } : {})
+          }
+        },
+        ...(skipInactive ? { active: true } : {}),
+        ...(skipOnlyLocal ? { personUuid: { $exists: true } } : {})
       },
-      ...(skipInactive ? { active: true } : {}),
-      ...(skipOnlyLocal ? { personUuid: { $exists: true } } : {})
-    },
+      $guestFilter
+    ) ?? {},
     (result) => {
       result.sort((a, b) => {
         const aval: string = `${getObjectValue(groupBy, a as any)}`

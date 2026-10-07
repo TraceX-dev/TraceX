@@ -159,6 +159,7 @@ import {
 } from './utils'
 
 export * from './utils'
+export * from './guestPeopleFilter'
 export * from './workspaceMemberStatus'
 export { employeeByIdStore } from './utils'
 export type * from './assignee'

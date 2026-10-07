@@ -15,8 +15,8 @@
 -->
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
-  import { Contact, Employee, getCurrentEmployee, getName, Person } from '@hcengineering/contact'
-  import { AccountUuid, notEmpty, Ref } from '@hcengineering/core'
+  import { Contact, Employee, getCurrentEmployee, getName, type PeopleScopeInput, Person } from '@hcengineering/contact'
+  import { AccountUuid, Doc, notEmpty, Ref, Space } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
@@ -24,6 +24,7 @@
   import contact from '../plugin'
   import { employeeByIdStore, employeeRefByAccountUuidStore } from '../utils'
   import UserBoxList from './UserBoxList.svelte'
+  import { getEditorPeopleScope } from '../guestPeopleFilter'
 
   export let label: IntlString
   export let value: AccountUuid | AccountUuid[] | undefined
@@ -38,6 +39,10 @@
   export let allowGuests: boolean = false
   export let attributeKey: string | undefined = undefined
   export let dataId: string | undefined = undefined
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let space: Ref<Space> | undefined = undefined
+  export let object: Doc | undefined = undefined
 
   $: accounts = typeof value === 'string' ? [value] : (value ?? [])
 
@@ -151,6 +156,7 @@
   {emptyLabel}
   {readonly}
   {docQuery}
+  peopleScope={getEditorPeopleScope(peopleScope, space, object)}
   on:update={onUpdate}
   {size}
   {sort}

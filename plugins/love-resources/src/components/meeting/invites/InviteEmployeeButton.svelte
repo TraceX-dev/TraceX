@@ -48,7 +48,9 @@
         skipCurrentAccount: true,
         skipAccounts,
         skipInactive: true,
-        showStatus: true
+        showStatus: true,
+        // Meeting invites are not tied to an object: the whole (server filtered) list is relevant
+        peopleScope: null
       },
       'top',
       (result?: Ref<Employee>[]) => {

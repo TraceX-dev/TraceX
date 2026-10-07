@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { Contact, getName } from '@hcengineering/contact'
+  import contact, { Contact, getName, type PeopleScopeInput } from '@hcengineering/contact'
   import { Class, Doc, DocumentQuery, FindOptions, Ref } from '@hcengineering/core'
   import { Asset, IntlString, getEmbeddedLabel } from '@hcengineering/platform'
   import presentation, { ObjectCreate, getClient } from '@hcengineering/presentation'
@@ -52,6 +52,8 @@
   export let allowDeselect = false
   export let titleDeselect: IntlString | undefined = undefined
   export let readonly = false
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
   export let avatarSize: IconSize = kind === 'link' ? 'x-small' : 'tiny'
@@ -90,6 +92,7 @@
           _class,
           options,
           docQuery,
+          peopleScope,
           ignoreUsers: excluded ?? [],
           icon,
           allowDeselect,

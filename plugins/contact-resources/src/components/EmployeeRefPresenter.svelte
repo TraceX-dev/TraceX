@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Employee } from '@hcengineering/contact'
-  import { AnyAttribute, Ref, Space } from '@hcengineering/core'
+  import { Employee, type PeopleScopeInput } from '@hcengineering/contact'
+  import { AnyAttribute, Doc, Ref, Space } from '@hcengineering/core'
   import { ButtonKind, IconSize } from '@hcengineering/ui'
   import { PersonLabelTooltip } from '..'
   import EmployeeAttributePresenter from './EmployeeAttributePresenter.svelte'
@@ -17,6 +17,9 @@
   export let readonly = false
   export let attribute: AnyAttribute | undefined = undefined
   export let space: Ref<Space> | undefined = undefined
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let object: Doc | undefined = undefined
 </script>
 
 {#if Array.isArray(value)}
@@ -35,6 +38,8 @@
         {readonly}
         {attribute}
         {space}
+        {peopleScope}
+        {object}
         on:accent-color
       />
     {/each}
@@ -53,6 +58,8 @@
     {readonly}
     {attribute}
     {space}
+    {peopleScope}
+    {object}
     on:accent-color
   />
 {/if}

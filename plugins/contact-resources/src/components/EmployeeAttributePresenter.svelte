@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { Employee } from '@hcengineering/contact'
-  import core, { AccountUuid, AnyAttribute, DocumentQuery, notEmpty, Ref, Space } from '@hcengineering/core'
+  import { Employee, type PeopleScopeInput } from '@hcengineering/contact'
+  import core, { AccountUuid, AnyAttribute, Doc, DocumentQuery, notEmpty, Ref, Space } from '@hcengineering/core'
   import { ButtonKind, IconSize } from '@hcengineering/ui'
   import { employeeRefByAccountUuidStore, PersonLabelTooltip } from '..'
   import contact from '../plugin'
   import { employeeByIdStore } from '../utils'
   import AssigneeBox from './AssigneeBox.svelte'
+  import { getEditorPeopleScope } from '../guestPeopleFilter'
   import EmployeePresenter from './EmployeePresenter.svelte'
   import { getClient } from '@hcengineering/presentation'
 
@@ -21,6 +22,9 @@
   export let readonly = false
   export let attribute: AnyAttribute | undefined = undefined
   export let space: Ref<Space> | undefined = undefined
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let object: Doc | undefined = undefined
 
   $: employee = value ? $employeeByIdStore.get(value) : undefined
 
@@ -88,6 +92,7 @@
     size={'medium'}
     kind={'link'}
     docQuery={query}
+    peopleScope={getEditorPeopleScope(peopleScope, space, object)}
     showNavigate={false}
     justify={'left'}
     {shouldShowName}

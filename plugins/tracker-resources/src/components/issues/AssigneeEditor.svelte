@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { Employee, Person } from '@hcengineering/contact'
+  import contact, { Employee, makePeopleScope, Person } from '@hcengineering/contact'
   import { AssigneeBox, AssigneePopup, employeeRefByAccountUuidStore } from '@hcengineering/contact-resources'
   import { AssigneeCategory } from '@hcengineering/contact-resources/src/assignee'
   import { Doc, DocumentQuery, notEmpty, Ref, Space } from '@hcengineering/core'
@@ -153,12 +153,20 @@
       }
     }
   }
+
+  // Guests are offered only people of the issue (or the common space of several issues)
+  $: peopleScope = Array.isArray(_object)
+    ? new Set(_object.map((it) => it.space)).size === 1
+      ? makePeopleScope(_object[0]?.space)
+      : undefined
+    : makePeopleScope(_object?.space, _object?._id)
 </script>
 
 {#if _object}
   {#if isAction}
     <AssigneePopup
       docQuery={query}
+      {peopleScope}
       {categories}
       icon={contact.icon.Person}
       selected={sel}
@@ -178,6 +186,7 @@
   {:else}
     <AssigneeBox
       docQuery={query}
+      {peopleScope}
       {focusIndex}
       label={tracker.string.Assignee}
       placeholder={tracker.string.Assignee}

@@ -71,7 +71,9 @@
         skipCurrentAccount: false,
         skipInactive: true,
         selected: employeeIds,
-        showStatus: true
+        showStatus: true,
+        // Direct messages are not tied to an object: the whole (server filtered) list is relevant
+        peopleScope: null
       },
       'top',
       (result?: Ref<Employee>[]) => {

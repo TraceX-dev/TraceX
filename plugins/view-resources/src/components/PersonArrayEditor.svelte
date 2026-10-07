@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { PersonId } from '@hcengineering/core'
+  import { Doc, PersonId, Ref, Space } from '@hcengineering/core'
   import contact from '@hcengineering/contact'
   import { IntlString } from '@hcengineering/platform'
   import { ButtonKind, ButtonSize, Component } from '@hcengineering/ui'
@@ -24,6 +24,9 @@
   export let onChange: ((refs: PersonId[]) => void | Promise<void>) | undefined
   export let kind: ButtonKind = 'link'
   export let size: ButtonSize = 'large'
+  // The edited object: guests are offered only people of it
+  export let space: Ref<Space> | undefined = undefined
+  export let object: Doc | undefined = undefined
 </script>
 
 <Component
@@ -34,6 +37,8 @@
     readonly,
     onChange,
     kind,
-    size
+    size,
+    space,
+    object
   }}
 />

@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Employee } from '@hcengineering/contact'
+  import { Employee, type PeopleScopeInput } from '@hcengineering/contact'
   import { notEmpty, PersonId, Ref } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { ButtonKind, ButtonSize, IconSize } from '@hcengineering/ui'
@@ -32,6 +32,8 @@
   export let justify: 'left' | 'center' = 'center'
   export let width: string | undefined = undefined
   export let readonly = false
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
   export let mapToPrimarySocialId = true
 
   $: docQuery =
@@ -84,6 +86,7 @@
 </script>
 
 <UserBox
+  {peopleScope}
   _class={contact.mixin.Employee}
   {docQuery}
   showNavigate={false}

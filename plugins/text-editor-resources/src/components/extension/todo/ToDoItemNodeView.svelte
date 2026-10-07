@@ -1,5 +1,5 @@
 <script lang="ts">
-  import contact, { Employee, Person } from '@hcengineering/contact'
+  import contact, { Employee, makePeopleScope, Person } from '@hcengineering/contact'
   import { type Class, type Doc, type Ref, type Space, SortingOrder } from '@hcengineering/core'
   import { MessageBox, createQuery, getClient } from '@hcengineering/presentation'
   import { makeRank } from '@hcengineering/rank'
@@ -9,6 +9,7 @@
   import { NodeViewProps } from '../../node-view'
   import NodeViewWrapper from '../../node-view/NodeViewWrapper.svelte'
   import NodeViewContent from '../../node-view/NodeViewContent.svelte'
+  import { editorContextPluginKey } from '../editorContext'
 
   export let node: NodeViewProps['node']
   export let editor: NodeViewProps['editor']
@@ -190,7 +191,10 @@
     showPopup(
       contact.component.AssigneePopup,
       {
-        selected: userId
+        selected: userId,
+        // Guests are offered only people of the edited object
+        peopleScope:
+          editorContextPluginKey.getState(editor.state)?.peopleScope ?? makePeopleScope(objectSpace, objectId)
       },
       getEventPositionElement(ev),
       async (result) => {

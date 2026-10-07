@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { Contact } from '@hcengineering/contact'
-  import { ArrOf, Doc, Ref, RefTo } from '@hcengineering/core'
+  import { Contact, type PeopleScopeInput } from '@hcengineering/contact'
+  import { ArrOf, Doc, Ref, RefTo, Space } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { ButtonKind } from '@hcengineering/ui'
   import ContactList from './ContactList.svelte'
+  import { getEditorPeopleScope } from '../guestPeopleFilter'
 
   export let label: IntlString
   export let value: Ref<Contact>[]
@@ -11,6 +12,10 @@
   export let onChange: (refs: Ref<Contact>[]) => void
   export let readonly = false
   export let kind: ButtonKind = 'link'
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let space: Ref<Space> | undefined = undefined
+  export let object: Doc | undefined = undefined
 
   $: _clazz = (type?.of as RefTo<Doc>)?.to
   let timer: any
@@ -27,6 +32,7 @@
   items={value}
   {label}
   _class={_clazz}
+  peopleScope={getEditorPeopleScope(peopleScope, space, object)}
   on:update={onUpdate}
   {kind}
   size={'medium'}

@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Employee, getGuestScopedEmployees } from '@hcengineering/contact'
+  import { type Employee, getGuestScopedEmployees, makePeopleScope } from '@hcengineering/contact'
   import { AccountArrayEditor, employeeRefByAccountUuidStore } from '@hcengineering/contact-resources'
   import core, { AccountUuid, Collaborator, Doc, Ref, Space } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
@@ -84,6 +84,7 @@
   label={notification.string.Collaborators}
   value={accounts}
   onChange={change}
+  peopleScope={makePeopleScope(object.space, object._id)}
   dataId={'btnCollaborators'}
   {includeItems}
   readonly={readonly || !canEditCollaborators}

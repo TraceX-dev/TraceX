@@ -15,12 +15,26 @@
 -->
 <script lang="ts">
   import contact, {
+    ambientPeopleScope,
     type Employee,
     type GuestPeopleScope,
     getGuestScopedEmployees,
-    getName
+    getName,
+    peopleScopeKey,
+    type PeopleScopeInput,
+    reportUnscopedPeople,
+    resolvePeopleScope
   } from '@hcengineering/contact'
-  import core, { Class, Doc, Ref, SearchResultDoc, SortingOrder, type VersionableDoc } from '@hcengineering/core'
+  import core, {
+    Class,
+    getCurrentAccount,
+    isGuestRole,
+    Doc,
+    Ref,
+    SearchResultDoc,
+    SortingOrder,
+    type VersionableDoc
+  } from '@hcengineering/core'
   import { getResource, translate } from '@hcengineering/platform'
   import presentation, {
     getClient,
@@ -39,7 +53,8 @@
   export let query: string = ''
   export let multipleMentions: boolean = false
   export let docClass: Ref<Class<Doc>> | undefined = undefined
-  export let peopleScope: GuestPeopleScope | undefined = undefined
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
 
   let items: SearchItem[] = []
 
@@ -223,16 +238,31 @@
   let scopedEmployeesKey: string | undefined
   let scopedEmployees: Promise<Employee[] | undefined> = Promise.resolve(undefined)
 
-  $: loadScopedEmployees(peopleScope)
+  const isGuest = isGuestRole(getCurrentAccount().role)
 
-  function loadScopedEmployees (scope: GuestPeopleScope | undefined): void {
-    const key = `${scope?.space ?? ''}:${scope?.objectId ?? ''}`
+  $: loadScopedEmployees(resolvePeopleScope(peopleScope, $ambientPeopleScope))
+
+  function loadScopedEmployees (scope: GuestPeopleScope | null | undefined): void {
+    if (!isGuest) return
+    const key = peopleScopeKey(scope)
     if (key === scopedEmployeesKey) return
     scopedEmployeesKey = key
-    scopedEmployees = getGuestScopedEmployees(client, scope).catch((err) => {
-      console.error('Failed to load people for mention scope', err)
-      return undefined
-    })
+    if (scope == null) {
+      if (scope === undefined) reportUnscopedPeople('MentionPopup', 'no scope')
+      scopedEmployees = Promise.resolve(undefined)
+      return
+    }
+    scopedEmployees = getGuestScopedEmployees(client, scope).then(
+      (employees) => {
+        if (employees === undefined) reportUnscopedPeople('MentionPopup', 'scope can not be resolved', scope)
+        return employees
+      },
+      (err) => {
+        console.error('Failed to load people for mention scope', err)
+        reportUnscopedPeople('MentionPopup', 'scope resolution failed', scope)
+        return undefined
+      }
+    )
   }
 
   // Employees are searched locally among the scoped ones: filtering full text results

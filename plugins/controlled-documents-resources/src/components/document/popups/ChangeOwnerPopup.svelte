@@ -15,7 +15,7 @@
 
 <script lang="ts">
   import documents, { Document } from '@hcengineering/controlled-documents'
-  import { Employee } from '@hcengineering/contact'
+  import { Employee, makePeopleScope } from '@hcengineering/contact'
   import { EmployeeBox, EmployeePresenter, employeeRefByAccountUuidStore } from '@hcengineering/contact-resources'
   import core, { Ref, Space, notEmpty } from '@hcengineering/core'
   import presentation, { createQuery, getClient } from '@hcengineering/presentation'
@@ -90,6 +90,7 @@
         <EmployeeBox
           bind:value={owner}
           {docQuery}
+          peopleScope={makePeopleScope(object.space, object._id)}
           label={documents.string.SelectOwner}
           readonly={!canChange}
           showNavigate={false}

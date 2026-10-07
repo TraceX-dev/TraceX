@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { Employee } from '@hcengineering/contact'
-  import core, { AccountUuid, AnyAttribute, DocumentQuery, notEmpty, Ref, Space } from '@hcengineering/core'
+  import { Employee, type PeopleScopeInput } from '@hcengineering/contact'
+  import core, { AccountUuid, AnyAttribute, Doc, DocumentQuery, notEmpty, Ref, Space } from '@hcengineering/core'
   import type { ButtonKind, ButtonSize } from '@hcengineering/ui'
   import { IntlString } from '@hcengineering/platform'
   import UserBoxList from './UserBoxList.svelte'
-  import { employeeRefByAccountUuidStore, getGuestScopedPersonQuery } from '..'
+  import { employeeRefByAccountUuidStore } from '..'
+  import { getEditorPeopleScope } from '../guestPeopleFilter'
   import { getClient } from '@hcengineering/presentation'
 
   export let label: IntlString
@@ -18,6 +19,9 @@
   export let justify: 'left' | 'center' = 'left'
   export let attribute: AnyAttribute | undefined = undefined
   export let space: Ref<Space> | undefined = undefined
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let object: Doc | undefined = undefined
 
   let docQuery: DocumentQuery<Employee> = {
     active: true
@@ -37,10 +41,8 @@
   $: buildQuery(attribute, space)
 
   async function buildQuery (attribute: AnyAttribute | undefined, space: Ref<Space> | undefined): Promise<void> {
-    // Guests are offered only people of the object's space
     const baseQuery: DocumentQuery<Employee> = {
-      active: true,
-      ...(await getGuestScopedPersonQuery<Employee>(client, space))
+      active: true
     }
     if (attribute === undefined || space === undefined) {
       docQuery = baseQuery
@@ -84,6 +86,7 @@
   {size}
   {justify}
   {docQuery}
+  peopleScope={getEditorPeopleScope(peopleScope, space, object)}
   width={kind === 'list' ? undefined : width}
   {readonly}
 />

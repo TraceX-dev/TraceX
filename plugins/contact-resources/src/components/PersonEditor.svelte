@@ -13,10 +13,9 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Contact, Person } from '@hcengineering/contact'
-  import { DocumentQuery, Ref, RefTo, Space } from '@hcengineering/core'
-  import { getClient } from '@hcengineering/presentation'
-  import { getGuestScopedPersonQuery } from '../utils'
+  import { Person, type PeopleScopeInput } from '@hcengineering/contact'
+  import { Doc, Ref, RefTo, Space } from '@hcengineering/core'
+  import { getEditorPeopleScope } from '../guestPeopleFilter'
   import { IntlString } from '@hcengineering/platform'
   import contact from '../plugin'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
@@ -31,18 +30,9 @@
   export let justify: 'left' | 'center' = 'center'
   export let width: string | undefined = undefined
   export let space: Ref<Space> | undefined = undefined
-
-  const client = getClient()
-
-  // Guests are offered only people of the object's space
-  let docQuery: DocumentQuery<Contact> | undefined = undefined
-  $: void updateDocQuery(space)
-
-  async function updateDocQuery (_space: Ref<Space> | undefined): Promise<void> {
-    const query = await getGuestScopedPersonQuery<Person>(client, _space)
-    if (_space !== space) return
-    docQuery = Object.keys(query).length > 0 ? (query as DocumentQuery<Contact>) : undefined
-  }
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let object: Doc | undefined = undefined
 
   $: _class = type?.to ?? contact.class.Person
 </script>
@@ -54,7 +44,7 @@
   {size}
   {justify}
   {width}
-  {docQuery}
+  peopleScope={getEditorPeopleScope(peopleScope, space, object)}
   bind:value
   on:change={(e) => {
     onChange(e.detail)

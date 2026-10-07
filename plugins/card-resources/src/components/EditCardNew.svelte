@@ -43,7 +43,8 @@
   import { canChangeDoc, showMenu } from '@hcengineering/view-resources'
 
   import { permissionsStore } from '@hcengineering/contact-resources'
-  import { afterUpdate, tick } from 'svelte'
+  import { makePeopleScope, providePeopleScope } from '@hcengineering/contact'
+  import { afterUpdate, onDestroy, tick } from 'svelte'
   import card from '../plugin'
   import { openCardInSidebar, setViewMode, viewStore } from '../utils'
   import CardIcon from './CardIcon.svelte'
@@ -67,6 +68,11 @@
   const query = createQuery()
 
   let doc: WithLookup<Card> | undefined
+
+  // Person pickers opened from this view offer guests only people of the card
+  const peopleScope = providePeopleScope()
+  $: peopleScope.set(makePeopleScope(doc?.space, doc?._id))
+  onDestroy(peopleScope.dispose)
 
   let title: string = ''
   let isTitleEditing = false

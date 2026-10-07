@@ -15,6 +15,7 @@
 -->
 <script lang="ts">
   import { type Discussion, withDiscussionVisibility } from '@hcengineering/chunter'
+  import { makePeopleScope } from '@hcengineering/contact'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import core, {
     type AccountUuid,
@@ -142,6 +143,7 @@
         <AccountArrayEditor
           value={members}
           label={chunter.string.Members}
+          peopleScope={makePeopleScope(object.space, object._id)}
           onChange={(value) => {
             members = value
           }}

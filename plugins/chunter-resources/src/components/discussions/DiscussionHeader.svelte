@@ -15,6 +15,7 @@
 -->
 <script lang="ts">
   import { type Discussion, getDiscussionTitle } from '@hcengineering/chunter'
+  import { makePeopleScope } from '@hcengineering/contact'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import { type AccountUuid, getCurrentAccount, type ObjectVisibility } from '@hcengineering/core'
   import { getClient, MessageBox } from '@hcengineering/presentation'
@@ -177,6 +178,7 @@
       <AccountArrayEditor
         value={discussion.members}
         label={chunter.string.Members}
+        peopleScope={makePeopleScope(discussion.space, discussion.attachedTo)}
         readonly={!canEditMembers}
         onChange={updateMembers}
         kind="ghost"

@@ -13,8 +13,8 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Contact, Employee, getCurrentEmployee, getName, Person } from '@hcengineering/contact'
-  import { notEmpty, PersonId, Ref } from '@hcengineering/core'
+  import { Contact, Employee, getCurrentEmployee, getName, type PeopleScopeInput, Person } from '@hcengineering/contact'
+  import { Doc, notEmpty, PersonId, Ref, Space } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
@@ -22,6 +22,7 @@
   import contact from '../plugin'
   import { employeeByPersonIdStore, primarySocialIdByEmployeeRefStore } from '../utils'
   import UserBoxList from './UserBoxList.svelte'
+  import { getEditorPeopleScope } from '../guestPeopleFilter'
   import { Analytics } from '@hcengineering/analytics'
 
   export let label: IntlString
@@ -35,6 +36,10 @@
   export let excludeItems: Ref<Person>[] = []
   export let emptyLabel: IntlString | undefined = undefined
   export let allowGuests: boolean = false
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let space: Ref<Space> | undefined = undefined
+  export let object: Doc | undefined = undefined
 
   let timer: any = null
   const client = getClient()
@@ -146,6 +151,7 @@
   {emptyLabel}
   {readonly}
   {docQuery}
+  peopleScope={getEditorPeopleScope(peopleScope, space, object)}
   on:update={onUpdate}
   {size}
   {sort}

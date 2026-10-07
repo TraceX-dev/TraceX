@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Contact } from '@hcengineering/contact'
+  import { Contact, type PeopleScopeInput } from '@hcengineering/contact'
   import type { Class, DocumentQuery, Ref } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
   import { createQuery } from '@hcengineering/presentation'
@@ -39,6 +39,8 @@
   export let labelDirection: TooltipAlignment | undefined = undefined
   export let emptyLabel = contact.string.Contacts
   export let readonly: boolean = false
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
 
   let contacts: Contact[] = []
 
@@ -57,6 +59,7 @@
         _class,
         label,
         docQuery,
+        peopleScope,
         multiSelect: true,
         allowDeselect: false,
         selectedUsers: items,

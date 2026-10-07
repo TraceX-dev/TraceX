@@ -14,6 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { makePeopleScope } from '@hcengineering/contact'
   import { Doc } from '@hcengineering/core'
 
   import { getAttribute, getClient, KeyedAttribute, updateAttribute } from '@hcengineering/presentation'
@@ -30,6 +31,7 @@
   <FullDescriptionBox
     label={key.attr.label}
     content={description}
+    kitOptions={{ peopleScope: makePeopleScope(object.space, object._id) }}
     on:save={(res) => {
       if (res.detail != null) {
         updateAttribute(getClient(), object, object._class, key, res.detail)

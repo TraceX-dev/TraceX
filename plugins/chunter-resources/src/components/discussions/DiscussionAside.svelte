@@ -19,7 +19,8 @@
   import { InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
   import { createQuery } from '@hcengineering/presentation'
   import { Presence } from '@hcengineering/presence-resources'
-  import { createEventDispatcher } from 'svelte'
+  import { makePeopleScope, providePeopleScope } from '@hcengineering/contact'
+  import { createEventDispatcher, onDestroy } from 'svelte'
 
   import chunter from '../../plugin'
   import Channel from '../Channel.svelte'
@@ -38,6 +39,11 @@
     // The discussion was deleted or became inaccessible.
     if (discussion === undefined) dispatch('close')
   })
+
+  // Person pickers opened from the discussion offer guests only people of the discussed object
+  const peopleScope = providePeopleScope()
+  $: peopleScope.set(makePeopleScope(discussion?.space, discussion?.attachedTo))
+  onDestroy(peopleScope.dispose)
 
   $: context = discussion !== undefined ? $contextByDocStore.get(discussion._id) : undefined
 </script>

@@ -13,13 +13,28 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { Contact, getFirstName, getLastName, getName, Person } from '@hcengineering/contact'
+  import contact, {
+    ambientPeopleScope,
+    Contact,
+    getFirstName,
+    getLastName,
+    getName,
+    type PeopleScopeInput,
+    Person,
+    resolvePeopleScope
+  } from '@hcengineering/contact'
   import type { Class, Doc, DocumentQuery, FindOptions, Ref } from '@hcengineering/core'
   import type { Asset, IntlString } from '@hcengineering/platform'
   import presentation, { getClient, ObjectCreate, ObjectPopup } from '@hcengineering/presentation'
   import { AnySvelteComponent, Label } from '@hcengineering/ui'
   import UserInfo from './UserInfo.svelte'
   import { createEventDispatcher } from 'svelte'
+  import {
+    createGuestPeopleFilter,
+    isAllowedByGuestFilter,
+    isPersonPickerClass,
+    restrictPersonQuery
+  } from '../guestPeopleFilter'
 
   export let _class: Ref<Class<Contact>>
   export let options: FindOptions<Contact> | undefined = undefined
@@ -35,8 +50,14 @@
   export let icon: Asset | AnySvelteComponent | undefined = undefined
   export let create: ObjectCreate | undefined = undefined
   export let readonly = false
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
 
   const client = getClient()
+
+  const guestFilter = createGuestPeopleFilter('UsersPopup')
+  $: guestFilter.update(resolvePeopleScope(readonly ? null : peopleScope, $ambientPeopleScope))
+  $: personsOnly = isPersonPickerClass(_class)
 
   export let filter: (it: Doc) => boolean = (it) => {
     if (client.getHierarchy().hasMixin(it, contact.mixin.Employee)) {
@@ -76,8 +97,12 @@
   {titleDeselect}
   {placeholder}
   type={'object'}
-  docQuery={readonly ? { ...docQuery, _id: { $in: selectedUsers } } : docQuery}
-  {filter}
+  docQuery={readonly
+    ? { ...docQuery, _id: { $in: selectedUsers } }
+    : personsOnly
+      ? restrictPersonQuery(docQuery, $guestFilter)
+      : docQuery}
+  filter={personsOnly || readonly ? filter : (it) => filter(it) && isAllowedByGuestFilter(it, $guestFilter)}
   {sort}
   groupBy={'_class'}
   bind:selectedObjects={selectedUsers}

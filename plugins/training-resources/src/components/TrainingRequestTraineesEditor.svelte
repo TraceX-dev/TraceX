@@ -16,11 +16,11 @@
 -->
 
 <script lang="ts">
-  import { Employee } from '@hcengineering/contact'
-  import { Ref } from '@hcengineering/core'
+  import { Employee, type PeopleScopeInput } from '@hcengineering/contact'
+  import { Doc, Ref, Space } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import type { ButtonKind, ButtonSize } from '@hcengineering/ui'
-  import { UserBoxList } from '@hcengineering/contact-resources'
+  import { getEditorPeopleScope, UserBoxList } from '@hcengineering/contact-resources'
   import training from '../plugin'
 
   export let value: Ref<Employee>[]
@@ -33,6 +33,10 @@
   export let size: ButtonSize = 'medium'
   export let width: string | undefined = 'max-content'
   export let justify: 'left' | 'center' = 'left'
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let space: Ref<Space> | undefined = undefined
+  export let object: Doc | undefined = undefined
 </script>
 
 <UserBoxList
@@ -47,4 +51,5 @@
   {justify}
   {width}
   {readonly}
+  peopleScope={getEditorPeopleScope(peopleScope, space, object)}
 />

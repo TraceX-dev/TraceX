@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
-  import contact, { Employee } from '@hcengineering/contact'
+  import contact, { Employee, type PeopleScopeInput } from '@hcengineering/contact'
   import type { Class, Doc, DocumentQuery, IdMap, Ref } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
   import { Label, showPopup, ActionIcon, IconClose, IconAdd, Icon } from '@hcengineering/ui'
@@ -36,6 +36,8 @@
   export let size: IconSize = 'x-small'
   export let width: string | undefined = undefined
   export let readonly: boolean = false
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
 
   $: fixedItems = readonly ? items : items.filter((item) => readonlyItems.has(item))
   $: editableItems = readonly ? [] : items.filter((item) => !readonlyItems.has(item))
@@ -53,6 +55,7 @@
         _class,
         label,
         docQuery,
+        peopleScope,
         multiSelect: true,
         allowDeselect: false,
         selectedUsers: items,

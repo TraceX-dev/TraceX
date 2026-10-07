@@ -28,7 +28,6 @@ import {
   formatName,
   getCurrentEmployee,
   getFirstName,
-  getGuestScopedAccounts,
   getLastName,
   getName,
   contactCache,
@@ -923,17 +922,4 @@ export function getPersonByPersonRefStore (
 
 export function hideInactive (value: any, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
   return value === true ? { ...query, active: true } : query
-}
-
-/**
- * Query narrowing people offered to a guest to the ones of the given space (see `getGuestScopedAccounts`).
- * Returns an empty query when no narrowing applies.
- */
-export async function getGuestScopedPersonQuery<T extends Person> (
-  client: Client,
-  space: Ref<Space> | undefined
-): Promise<DocumentQuery<T>> {
-  const accounts = await getGuestScopedAccounts(client, space !== undefined ? { space } : undefined)
-  if (accounts === undefined) return {}
-  return { personUuid: { $in: Array.from(accounts) } } as unknown as DocumentQuery<T>
 }

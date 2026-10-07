@@ -64,6 +64,9 @@ const B_ONLY_NAME = 'Chen Rosamund'
 // The mention popup searches asynchronously; give a negative check time to settle.
 const SEARCH_SETTLE_MS = 1000
 
+// Reported by person pickers offered to a guest without a people scope (UNSCOPED_PEOPLE_WARNING of contact).
+const UNSCOPED_PEOPLE_WARNING = '[guest-people-scope] unscoped person picker'
+
 /**
  * Guests see people of all their spaces (server, see guest-person-visibility.spec.ts), but pickers and mentions
  * only offer people related to the current space. Every test has a guest in two spaces: A (owner + guest) and
@@ -83,6 +86,19 @@ test.describe('Guest people scoped to the space', () => {
   let channelB: Ref<Space>
   let cardA: Ref<Doc>
   let cardB: Ref<Doc>
+
+  // A picker without a scope falls back to all people visible to the guest: every test fails on it.
+  const unscopedPeople: string[] = []
+
+  function watchUnscopedPeople (page: Page): void {
+    page.on('console', (message) => {
+      if (message.text().includes(UNSCOPED_PEOPLE_WARNING)) unscopedPeople.push(message.text())
+    })
+  }
+
+  test.afterEach(() => {
+    expect(unscopedPeople.splice(0), 'person pickers offered to the guest without a scope').toEqual([])
+  })
 
   test.beforeAll(async ({ browser, playwright }) => {
     // A member and two projects through the UI: more than a single test budget.
@@ -190,6 +206,7 @@ test.describe('Guest people scoped to the space', () => {
 
   async function openTrackerAsGuest (browser: Browser): Promise<OpenedPage> {
     const { page, context } = await loginAs(browser, guest)
+    watchUnscopedPeople(page)
     await (await page.goto(`${PlatformURI}/workbench/${PlatformWs}/tracker`))?.finished()
     await setTestOptions(page)
     await expect(newIssueButton(page)).toBeVisible()
@@ -202,6 +219,7 @@ test.describe('Guest people scoped to the space', () => {
    */
   async function openCardAsGuest (browser: Browser, cardId: Ref<Doc>): Promise<OpenedPage & { description: Locator }> {
     const { page, context } = await loginAs(browser, guest)
+    watchUnscopedPeople(page)
     await (await page.goto(`${PlatformURI}/workbench/${PlatformWs}/card/${cardId}`))?.finished()
     await setTestOptions(page)
     const description = page.locator('div.popupPanel-body div.textInput div.tiptap[contenteditable="true"]').first()
@@ -211,6 +229,7 @@ test.describe('Guest people scoped to the space', () => {
 
   async function openChannelAsGuest (browser: Browser, channel: Ref<Space>): Promise<OpenedPage> {
     const { page, context } = await loginAs(browser, guest)
+    watchUnscopedPeople(page)
     const location = encodeURIComponent(`${channel}|${CHANNEL}`)
     await (await page.goto(`${PlatformURI}/workbench/${PlatformWs}/chunter/${location}`))?.finished()
     await setTestOptions(page)

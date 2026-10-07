@@ -13,12 +13,13 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Employee } from '@hcengineering/contact'
-  import core, { AccountUuid, AnyAttribute, DocumentQuery, notEmpty, Ref, RefTo, Space } from '@hcengineering/core'
+  import { Employee, type PeopleScopeInput } from '@hcengineering/contact'
+  import core, { AccountUuid, AnyAttribute, Doc, DocumentQuery, notEmpty, Ref, RefTo, Space } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
-  import { employeeRefByAccountUuidStore, getGuestScopedPersonQuery } from '..'
+  import { employeeRefByAccountUuidStore } from '..'
+  import { getEditorPeopleScope } from '../guestPeopleFilter'
   import contact from '../plugin'
   import EmployeeBox from './EmployeeBox.svelte'
 
@@ -34,6 +35,9 @@
   export let showNavigate = true
   export let attribute: AnyAttribute | undefined = undefined
   export let space: Ref<Space> | undefined = undefined
+  // Guests are offered only people of this scope (by default: the edited object), see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+  export let object: Doc | undefined = undefined
 
   $: _class = type?.to ?? contact.mixin.Employee
 
@@ -46,10 +50,8 @@
   $: buildQuery(attribute, space)
 
   async function buildQuery (attribute: AnyAttribute | undefined, space: Ref<Space> | undefined): Promise<void> {
-    // Guests are offered only people of the object's space
     const baseQuery: DocumentQuery<Employee> = {
-      active: true,
-      ...(await getGuestScopedPersonQuery<Employee>(client, space))
+      active: true
     }
     if (attribute === undefined || space === undefined) {
       query = baseQuery
@@ -88,6 +90,7 @@
 <EmployeeBox
   {_class}
   docQuery={query}
+  peopleScope={getEditorPeopleScope(peopleScope, space, object)}
   {label}
   {kind}
   {size}

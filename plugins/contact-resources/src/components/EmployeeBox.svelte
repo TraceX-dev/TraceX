@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { Employee, Person } from '@hcengineering/contact'
+  import contact, { Employee, Person, type PeopleScopeInput } from '@hcengineering/contact'
   import type { Class, DocumentQuery, FindOptions, Ref } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
   import presentation from '@hcengineering/presentation'
@@ -41,9 +41,12 @@
   export let showTooltip: LabelAndProps | undefined = undefined
   export let showNavigate = true
   export let readonly = false
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
 </script>
 
 <UserBox
+  {peopleScope}
   {_class}
   {options}
   {docQuery}

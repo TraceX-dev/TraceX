@@ -39,6 +39,7 @@
     Tabs
   } from '@hcengineering/ui'
   import { showMenu } from '@hcengineering/view-resources'
+  import { makePeopleScope, providePeopleScope } from '@hcengineering/contact'
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
 
   import { createDocumentSnapshotAndEdit, createNewDraftForControlledDoc, getDocReference } from '../docutils'
@@ -113,6 +114,11 @@
       void notificationClient.then((client) => client.readDoc(prev))
     }
   }
+
+  // Person pickers opened from this view offer guests only people of the document
+  const peopleScope = providePeopleScope()
+  $: peopleScope.set(makePeopleScope($controlledDocument?.space, $controlledDocument?._id))
+  onDestroy(peopleScope.dispose)
 
   onDestroy(async () => {
     controlledDocumentClosed()

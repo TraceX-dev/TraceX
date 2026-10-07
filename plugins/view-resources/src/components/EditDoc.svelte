@@ -30,6 +30,7 @@
   } from '@hcengineering/presentation'
   import { AnyComponent, Button, Component, IconMixin, IconMoreH } from '@hcengineering/ui'
   import view, { AttributeCategory } from '@hcengineering/view'
+  import { makePeopleScope, providePeopleScope } from '@hcengineering/contact'
   import { createEventDispatcher, onDestroy } from 'svelte'
 
   import { DocNavLink, ParentsNavigator, getDocAttrsInfo, getDocLabel, getDocMixins, showMenu, parseLinkId } from '..'
@@ -47,6 +48,11 @@
   let lastId: Ref<Doc> | undefined
   let objectId: Ref<Doc> | undefined
   let object: Doc
+
+  // Person pickers opened from this view offer guests only people of the object
+  const peopleScope = providePeopleScope()
+  $: peopleScope.set(makePeopleScope(object?.space, object?._id))
+  onDestroy(peopleScope.dispose)
 
   const pClient = getClient()
   const hierarchy = pClient.getHierarchy()

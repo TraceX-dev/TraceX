@@ -20,7 +20,7 @@
   import { Notice, Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
   import { AttachmentStyledBox } from '@hcengineering/attachment-resources'
   import { EmptyMarkup } from '@hcengineering/text'
-  import { Employee, getCurrentEmployee, getGuestScopedEmployees } from '@hcengineering/contact'
+  import { Employee, getCurrentEmployee, getGuestScopedEmployees, makePeopleScope } from '@hcengineering/contact'
   import { SelectUsersPopup, permissionsStore } from '@hcengineering/contact-resources'
   import view from '@hcengineering/view'
 
@@ -146,7 +146,9 @@
         skipInactive: true,
         selected: collaborators,
         includeItems: scopedEmployees,
-        showStatus: true
+        showStatus: true,
+        // The space selected in the form, not the one of a card opened underneath
+        peopleScope: makePeopleScope(_space) ?? null
       },
       'top',
       (result?: Ref<Employee>[]) => {

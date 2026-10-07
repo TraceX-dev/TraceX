@@ -18,7 +18,7 @@
   import { deviceOptionsStore, EditWithIcon, IconSearch, Modal, Scroller } from '@hcengineering/ui'
   import { IntlString } from '@hcengineering/platform'
   import { Class, Ref } from '@hcengineering/core'
-  import { Employee } from '@hcengineering/contact'
+  import { Employee, type PeopleScopeInput } from '@hcengineering/contact'
 
   import contact from '../plugin'
   import UsersList from './UsersList.svelte'
@@ -37,6 +37,8 @@
   export let disableDeselectFor: Ref<Employee>[] = []
   export let showStatus = true
   export let skipInactive = false
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
 
   const dispatch = createEventDispatcher()
 
@@ -97,6 +99,7 @@
           {skipAccounts}
           {includeItems}
           {skipInactive}
+          {peopleScope}
           on:select={handleSelectionChanged}
         />
       </Scroller>

@@ -21,6 +21,8 @@
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
   import type { EditorKitOptions, ImageUploadOptions } from '@hcengineering/text-editor-resources'
   import textEditorPlugin from '@hcengineering/text-editor'
+  import { makePeopleScope } from '@hcengineering/contact'
+  import type { Doc, Ref, Space } from '@hcengineering/core'
 
   // export let label: IntlString
   export let placeholder: IntlString = textEditorPlugin.string.EditorPlaceholder
@@ -35,6 +37,14 @@
   export let kitOptions: Partial<EditorKitOptions> = { reference: true, emoji: true }
   export let attachFile: ImageUploadOptions['attachFile'] | undefined = undefined
   export let isScrollable: boolean = true
+  // The edited object: mentions offer guests only people of it
+  export let object: Doc | undefined = undefined
+  export let space: Ref<Space> | undefined = undefined
+
+  $: _kitOptions =
+    kitOptions.peopleScope === undefined
+      ? { ...kitOptions, peopleScope: makePeopleScope(space ?? object?.space, object?._id) }
+      : kitOptions
 
   let shown: boolean = false
 </script>
@@ -48,7 +58,7 @@
     height={value ? 'auto' : undefined}
     on:click={(ev) => {
       if (!shown && !readonly) {
-        showPopup(MarkupEditorPopup, { value, kitOptions, attachFile }, eventToHTMLElement(ev), (res) => {
+        showPopup(MarkupEditorPopup, { value, kitOptions: _kitOptions, attachFile }, eventToHTMLElement(ev), (res) => {
           if (res != null) {
             value = res
             onChange(value)
@@ -74,7 +84,7 @@
     {placeholder}
     alwaysEdit
     previewUnlimit
-    {kitOptions}
+    kitOptions={_kitOptions}
     mode={2}
     {readonly}
     {isScrollable}

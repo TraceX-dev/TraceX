@@ -13,7 +13,14 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Contact, getCurrentEmployee, Person } from '@hcengineering/contact'
+  import {
+    ambientPeopleScope,
+    Contact,
+    getCurrentEmployee,
+    type PeopleScopeInput,
+    Person,
+    resolvePeopleScope
+  } from '@hcengineering/contact'
   import { DocumentQuery, FindOptions, Ref } from '@hcengineering/core'
   import type { Asset, IntlString } from '@hcengineering/platform'
   import presentation, { createQuery } from '@hcengineering/presentation'
@@ -36,6 +43,7 @@
   import { AssigneeCategory } from '../assignee'
   import contact from '../plugin'
   import UserInfo from './UserInfo.svelte'
+  import { createGuestPeopleFilter, restrictPersonQuery } from '../guestPeopleFilter'
 
   export let options: FindOptions<Contact> | undefined = undefined
   export let selected: Ref<Person> | undefined
@@ -51,6 +59,11 @@
   export let searchField: string = 'name'
   export let icon: Asset | AnySvelteComponent | undefined = undefined
   export let loading = false
+  // Guests are offered only people of this scope, see `PeopleScopeInput`
+  export let peopleScope: PeopleScopeInput = undefined
+
+  const guestFilter = createGuestPeopleFilter('AssigneePopup')
+  $: guestFilter.update(resolvePeopleScope(peopleScope, $ambientPeopleScope))
 
   $: showCategories = categories !== undefined && categories.length > 0
 
@@ -66,7 +79,7 @@
   $: query.query<Contact>(
     contact.mixin.Employee,
     {
-      ...(docQuery ?? {}),
+      ...(restrictPersonQuery(docQuery, $guestFilter) ?? {}),
       [searchField]: { $like: '%' + search + '%' },
       _id: {
         ...(typeof docQuery?._id === 'object' ? docQuery._id : {}),

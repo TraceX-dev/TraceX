@@ -25,6 +25,7 @@
     Toggle
   } from '@hcengineering/ui'
   import { getClient } from '@hcengineering/presentation'
+  import { makePeopleScope } from '@hcengineering/contact'
   import { UserBoxItems } from '@hcengineering/contact-resources'
   import {
     type Document,
@@ -359,6 +360,7 @@
         <UserBoxItems
           items={$documentTraining.trainees}
           label={traineesAttribute.label}
+          peopleScope={makePeopleScope($controlledDocument?.space, $controlledDocument?._id)}
           readonly={!canEdit}
           size="card"
           on:update={(event) => {

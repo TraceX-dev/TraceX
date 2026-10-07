@@ -89,6 +89,7 @@
       <MarkupEditor
         value={val}
         isScrollable={false}
+        object={doc}
         onChange={(value) => {
           onChange(value, key)
         }}

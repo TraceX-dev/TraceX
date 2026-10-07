@@ -107,7 +107,9 @@
         disableDeselectFor: canRemoveMembers ? disabledRemoveFor : Array.from(members),
         skipInactive: true,
         selected: members,
-        showStatus: true
+        showStatus: true,
+        // Channel membership is not tied to an object: the whole (server filtered) list is relevant
+        peopleScope: null
       },
       'top',
       (result?: Ref<Person>[]) => {
