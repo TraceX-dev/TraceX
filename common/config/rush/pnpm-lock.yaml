@@ -225,6 +225,15 @@ importers:
       '@hcengineering/export-resources':
         specifier: workspace:^0.7.0
         version: link:../plugins/export-resources
+      '@hcengineering/forms':
+        specifier: workspace:^0.7.0
+        version: link:../plugins/forms
+      '@hcengineering/forms-assets':
+        specifier: workspace:^0.7.0
+        version: link:../plugins/forms-assets
+      '@hcengineering/forms-resources':
+        specifier: workspace:^0.7.0
+        version: link:../plugins/forms-resources
       '@hcengineering/github':
         specifier: workspace:^0.7.0
         version: link:../services/github/github
@@ -1294,6 +1303,15 @@ importers:
       '@hcengineering/export-resources':
         specifier: workspace:^0.7.0
         version: link:../../plugins/export-resources
+      '@hcengineering/forms':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/forms
+      '@hcengineering/forms-assets':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/forms-assets
+      '@hcengineering/forms-resources':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/forms-resources
       '@hcengineering/github':
         specifier: workspace:^0.7.0
         version: link:../../services/github/github
@@ -5467,6 +5485,9 @@ importers:
       '@hcengineering/model-export':
         specifier: workspace:^0.7.0
         version: link:../export
+      '@hcengineering/model-forms':
+        specifier: workspace:^0.7.0
+        version: link:../forms
       '@hcengineering/model-github':
         specifier: workspace:^0.7.0
         version: link:../../services/github/model-github
@@ -7405,6 +7426,76 @@ importers:
       '@hcengineering/workbench':
         specifier: workspace:^0.7.0
         version: link:../../plugins/workbench
+    devDependencies:
+      '@hcengineering/platform-rig':
+        specifier: workspace:^0.7.21
+        version: link:../../foundations/utils/packages/platform-rig
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.4
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.67.0
+        version: 8.70.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.67.0
+        version: 8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.7.0)
+      eslint-config-love:
+        specifier: ^157.0.0
+        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-n:
+        specifier: ^18.3.0
+        version: 18.3.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-promise:
+        specifier: ^7.3.0
+        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-svelte:
+        specifier: ^3.23.0
+        version: 3.23.0(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@24.13.4)(typescript@5.9.3))
+      jest:
+        specifier: ^30.4.2
+        version: 30.5.1(@types/node@24.13.4)(ts-node@10.9.2(@types/node@24.13.4)(typescript@5.9.3))
+      prettier:
+        specifier: ^3.6.2
+        version: 3.9.6
+      ts-jest:
+        specifier: ^29.4.12
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.1)(@jest/types@30.5.1)(babel-jest@30.5.1(@babel/core@7.29.7))(esbuild@0.25.12)(jest-util@30.5.1)(jest@30.5.1(@types/node@24.13.4)(ts-node@10.9.2(@types/node@24.13.4)(typescript@5.9.3)))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  ../../models/forms:
+    dependencies:
+      '@hcengineering/card':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/card
+      '@hcengineering/core':
+        specifier: workspace:^0.7.26
+        version: link:../../foundations/core/packages/core
+      '@hcengineering/forms':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/forms
+      '@hcengineering/forms-resources':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/forms-resources
+      '@hcengineering/model':
+        specifier: workspace:^0.7.17
+        version: link:../../foundations/core/packages/model
+      '@hcengineering/model-core':
+        specifier: workspace:^0.7.0
+        version: link:../core
+      '@hcengineering/platform':
+        specifier: workspace:^0.7.20
+        version: link:../../foundations/core/packages/platform
+      '@hcengineering/setting':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/setting
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -19906,6 +19997,198 @@ importers:
       '@hcengineering/view-resources':
         specifier: workspace:^0.7.0
         version: link:../view-resources
+      svelte:
+        specifier: ^4.2.20
+        version: 4.2.20
+    devDependencies:
+      '@hcengineering/platform-rig':
+        specifier: workspace:^0.7.21
+        version: link:../../foundations/utils/packages/platform-rig
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.67.0
+        version: 8.70.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.67.0
+        version: 8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.7.0)
+      eslint-config-love:
+        specifier: ^157.0.0
+        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-n:
+        specifier: ^18.3.0
+        version: 18.3.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-promise:
+        specifier: ^7.3.0
+        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-svelte:
+        specifier: ^3.23.0
+        version: 3.23.0(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@25.9.6)(typescript@5.9.3))
+      jest:
+        specifier: ^30.4.2
+        version: 30.5.1(@types/node@25.9.6)(ts-node@10.9.2(@types/node@25.9.6)(typescript@5.9.3))
+      prettier:
+        specifier: ^3.6.2
+        version: 3.9.6
+      prettier-plugin-svelte:
+        specifier: ^3.4.0
+        version: 3.5.2(prettier@3.9.6)(svelte@4.2.20)
+      sass:
+        specifier: ^1.80.0
+        version: 1.104.1
+      svelte-check:
+        specifier: ^3.6.9
+        version: 3.8.6(@babel/core@7.29.7)(postcss-load-config@4.0.2(postcss@8.5.28)(ts-node@10.9.2(@types/node@25.9.6)(typescript@5.9.3)))(postcss@8.5.28)(sass@1.104.1)(svelte@4.2.20)
+      svelte-eslint-parser:
+        specifier: ^1.8.1
+        version: 1.8.1(svelte@4.2.20)
+      svelte-loader:
+        specifier: ^3.2.0
+        version: 3.2.4(svelte@4.2.20)
+      svelte-preprocess:
+        specifier: ^5.1.4
+        version: 5.1.4(@babel/core@7.29.7)(postcss-load-config@4.0.2(postcss@8.5.28)(ts-node@10.9.2(@types/node@25.9.6)(typescript@5.9.3)))(postcss@8.5.28)(sass@1.104.1)(svelte@4.2.20)(typescript@5.9.3)
+      ts-jest:
+        specifier: ^29.4.12
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.1)(@jest/types@30.5.1)(babel-jest@30.5.1(@babel/core@7.29.7))(jest-util@30.5.1)(jest@30.5.1(@types/node@25.9.6)(ts-node@10.9.2(@types/node@25.9.6)(typescript@5.9.3)))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  ../../plugins/forms:
+    dependencies:
+      '@hcengineering/card':
+        specifier: workspace:^0.7.0
+        version: link:../card
+      '@hcengineering/core':
+        specifier: workspace:^0.7.26
+        version: link:../../foundations/core/packages/core
+      '@hcengineering/platform':
+        specifier: workspace:^0.7.20
+        version: link:../../foundations/core/packages/platform
+    devDependencies:
+      '@hcengineering/platform-rig':
+        specifier: workspace:^0.7.21
+        version: link:../../foundations/utils/packages/platform-rig
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.67.0
+        version: 8.70.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.67.0
+        version: 8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.7.0)
+      eslint-config-love:
+        specifier: ^157.0.0
+        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-n:
+        specifier: ^18.3.0
+        version: 18.3.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-promise:
+        specifier: ^7.3.0
+        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-svelte:
+        specifier: ^3.23.0
+        version: 3.23.0(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@25.9.6)(typescript@5.9.3))
+      jest:
+        specifier: ^30.4.2
+        version: 30.5.1(@types/node@25.9.6)(ts-node@10.9.2(@types/node@25.9.6)(typescript@5.9.3))
+      prettier:
+        specifier: ^3.6.2
+        version: 3.9.6
+      ts-jest:
+        specifier: ^29.4.12
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.1)(@jest/types@30.5.1)(babel-jest@30.5.1(@babel/core@7.29.7))(jest-util@30.5.1)(jest@30.5.1(@types/node@25.9.6)(ts-node@10.9.2(@types/node@25.9.6)(typescript@5.9.3)))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  ../../plugins/forms-assets:
+    dependencies:
+      '@hcengineering/forms':
+        specifier: workspace:^0.7.0
+        version: link:../forms
+      '@hcengineering/platform':
+        specifier: workspace:^0.7.20
+        version: link:../../foundations/core/packages/platform
+    devDependencies:
+      '@hcengineering/platform-rig':
+        specifier: workspace:^0.7.21
+        version: link:../../foundations/utils/packages/platform-rig
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.4
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.67.0
+        version: 8.70.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.67.0
+        version: 8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.7.0)
+      eslint-config-love:
+        specifier: ^157.0.0
+        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-n:
+        specifier: ^18.3.0
+        version: 18.3.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-promise:
+        specifier: ^7.3.0
+        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-svelte:
+        specifier: ^3.23.0
+        version: 3.23.0(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@24.13.4)(typescript@5.9.3))
+      jest:
+        specifier: ^30.4.2
+        version: 30.5.1(@types/node@24.13.4)(ts-node@10.9.2(@types/node@24.13.4)(typescript@5.9.3))
+      prettier:
+        specifier: ^3.6.2
+        version: 3.9.6
+      ts-jest:
+        specifier: ^29.4.12
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.1)(@jest/types@30.5.1)(babel-jest@30.5.1(@babel/core@7.29.7))(esbuild@0.25.12)(jest-util@30.5.1)(jest@30.5.1(@types/node@24.13.4)(ts-node@10.9.2(@types/node@24.13.4)(typescript@5.9.3)))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  ../../plugins/forms-resources:
+    dependencies:
+      '@hcengineering/card':
+        specifier: workspace:^0.7.0
+        version: link:../card
+      '@hcengineering/core':
+        specifier: workspace:^0.7.26
+        version: link:../../foundations/core/packages/core
+      '@hcengineering/forms':
+        specifier: workspace:^0.7.0
+        version: link:../forms
+      '@hcengineering/login':
+        specifier: workspace:^0.7.0
+        version: link:../login
+      '@hcengineering/login-resources':
+        specifier: workspace:^0.7.0
+        version: link:../login-resources
+      '@hcengineering/platform':
+        specifier: workspace:^0.7.20
+        version: link:../../foundations/core/packages/platform
+      '@hcengineering/presentation':
+        specifier: workspace:^0.7.0
+        version: link:../../packages/presentation
+      '@hcengineering/ui':
+        specifier: workspace:^0.7.0
+        version: link:../../packages/ui
       svelte:
         specifier: ^4.2.20
         version: 4.2.20
@@ -35832,9 +36115,21 @@ importers:
       '@hcengineering/attachment':
         specifier: workspace:^0.7.0
         version: link:../../plugins/attachment
+      '@hcengineering/card':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/card
+      '@hcengineering/collaborator-client':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/core/packages/collaborator-client
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/forms':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/forms
+      '@hcengineering/guest':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/guest
       '@hcengineering/minio':
         specifier: workspace:^0.7.18
         version: link:../../foundations/server/packages/minio
@@ -35844,6 +36139,9 @@ importers:
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
+      '@hcengineering/server-client':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/server/packages/client
       '@hcengineering/server-core':
         specifier: workspace:^0.7.19
         version: link:../../foundations/server/packages/core
@@ -35856,6 +36154,9 @@ importers:
       '@hcengineering/storage':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/storage
+      '@hcengineering/view':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/view
       body-parser:
         specifier: ^1.20.3
         version: 1.20.8

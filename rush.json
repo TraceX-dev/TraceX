@@ -2427,6 +2427,26 @@
       "shouldPublish": false
     },
     {
+      "packageName": "@hcengineering/forms",
+      "projectFolder": "plugins/forms",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/forms-resources",
+      "projectFolder": "plugins/forms-resources",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/forms-assets",
+      "projectFolder": "plugins/forms-assets",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/model-forms",
+      "projectFolder": "models/forms",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@hcengineering/card",
       "projectFolder": "plugins/card",
       "shouldPublish": true

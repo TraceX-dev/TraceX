@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -56,6 +57,11 @@ const devProxy = {
     changeOrigin: true,
     logLevel: 'debug'
   },
+  '/api/forms': {
+    target: 'http://tracex.local:8087',
+    changeOrigin: true,
+    logLevel: 'debug'
+  },
   '/rekoni/recognize': {
     target: 'http://tracex.local:4004',
     changeOrigin: true,
@@ -77,6 +83,11 @@ const devProxyTest = {
     logLevel: 'debug'
   },
   '/api/v1': {
+    target: 'http://tracex.local:8083',
+    changeOrigin: true,
+    logLevel: 'debug'
+  },
+  '/api/forms': {
     target: 'http://tracex.local:8083',
     changeOrigin: true,
     logLevel: 'debug'
@@ -105,6 +116,11 @@ const devProductionProxy = {
     changeOrigin: true,
     logLevel: 'debug'
   },
+  '/api/forms': {
+    target: 'https://app.tracex.co',
+    changeOrigin: true,
+    logLevel: 'debug'
+  },
   '/rekoni/recognize': {
     target: 'https://app.tracex.co/rekoni',
     changeOrigin: true,
@@ -125,6 +141,11 @@ const devStagingProxy = {
     logLevel: 'debug'
   },
   '/api/v1': {
+    target: 'https://stg.tracex.co',
+    changeOrigin: true,
+    logLevel: 'debug'
+  },
+  '/api/forms': {
     target: 'https://stg.tracex.co',
     changeOrigin: true,
     logLevel: 'debug'
