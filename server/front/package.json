@@ -62,6 +62,12 @@
     "sharp": "~0.35.3",
     "@hcengineering/minio": "workspace:^0.7.18",
     "morgan": "^1.11.0",
-    "@hcengineering/analytics": "workspace:^0.7.19"
+    "@hcengineering/analytics": "workspace:^0.7.19",
+    "@hcengineering/forms": "workspace:^0.7.0",
+    "@hcengineering/card": "workspace:^0.7.0",
+    "@hcengineering/guest": "workspace:^0.7.0",
+    "@hcengineering/view": "workspace:^0.7.0",
+    "@hcengineering/server-client": "workspace:^0.7.16",
+    "@hcengineering/collaborator-client": "workspace:^0.7.18"
   }
 }

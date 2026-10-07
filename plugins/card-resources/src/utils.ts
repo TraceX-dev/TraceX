@@ -723,7 +723,7 @@ export function cardCustomLinkMatch (doc: Card): boolean {
     alias
   })[0]
 
-  return app.type === 'cards'
+  return app?.type === 'cards'
 }
 
 export function cardCustomLinkEncode (doc: Card): Location {

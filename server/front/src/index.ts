@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,6 +31,7 @@ import { cwd } from 'process'
 import sharp, { type Sharp } from 'sharp'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { preConditions } from './utils'
+import { registerFormsRoutes } from './forms'
 
 import fs, { createReadStream, mkdtempSync } from 'fs'
 import { rm, writeFile } from 'fs/promises'
@@ -316,6 +318,10 @@ export function start (
   )
   app.use(bp.json())
   app.use(bp.urlencoded({ extended: true }))
+  registerFormsRoutes(app, ctx, {
+    accountsUrl: config.accountsUrlInternal ?? config.accountsUrl,
+    collaboratorUrl: config.collaboratorUrl
+  })
 
   const childLogger = ctx.logger.childLogger?.('requests', {
     enableConsole: 'true'
