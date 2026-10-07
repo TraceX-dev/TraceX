@@ -37,14 +37,7 @@ const ru: EmailStrings = {
   actionReply: 'Ответить в {app}',
   actionOpen: 'Открыть в {app}',
   readMore: 'Полный текст сообщения — в {app}',
-  reasonMention: 'Вы получили это письмо, потому что вас упомянули.',
-  reasonConversation: 'Вы получили это письмо, потому что подписаны на это обсуждение.',
-  reasonObject: 'Вы получили это письмо, потому что подписаны на обновления «{object}».',
-  reasonAssignment: 'Вы получили это письмо, потому что вас назначили.',
-  reasonCoAuthor: 'Вы получили это письмо, потому что вас добавили в соавторы.',
-  reasonReaction: 'Вы получили это письмо, потому что кто-то отреагировал на ваше сообщение.',
-  reasonRequest: 'Вы получили это письмо, потому что от вас ожидается действие.',
-  reasonDefault: 'Вы получили это письмо в соответствии с настройками уведомлений.',
+  reason: 'Вы получили это письмо, потому что подписаны на такие уведомления в рабочем пространстве {workspace}.',
   notificationSettings: 'Настройки уведомлений',
   copyright: '© {app} — Все права защищены'
 }
@@ -68,14 +61,8 @@ const de: EmailStrings = {
   actionReply: 'In {app} antworten',
   actionOpen: 'In {app} öffnen',
   readMore: 'Die vollständige Nachricht finden Sie in {app}',
-  reasonMention: 'Sie erhalten diese E-Mail, weil Sie erwähnt wurden.',
-  reasonConversation: 'Sie erhalten diese E-Mail, weil Sie diese Unterhaltung abonniert haben.',
-  reasonObject: 'Sie erhalten diese E-Mail, weil Sie Aktualisierungen zu „{object}“ abonniert haben.',
-  reasonAssignment: 'Sie erhalten diese E-Mail, weil Ihnen etwas zugewiesen wurde.',
-  reasonCoAuthor: 'Sie erhalten diese E-Mail, weil Sie als Mitautor hinzugefügt wurden.',
-  reasonReaction: 'Sie erhalten diese E-Mail, weil jemand auf Ihre Nachricht reagiert hat.',
-  reasonRequest: 'Sie erhalten diese E-Mail, weil eine Aktion von Ihnen erforderlich ist.',
-  reasonDefault: 'Sie erhalten diese E-Mail aufgrund Ihrer Benachrichtigungseinstellungen.',
+  reason:
+    'Sie erhalten diese E-Mail, weil Sie diese Art von Benachrichtigungen im Arbeitsbereich {workspace} abonniert haben.',
   notificationSettings: 'Benachrichtigungseinstellungen',
   copyright: '© {app} — Alle Rechte vorbehalten'
 }
@@ -99,14 +86,8 @@ const fr: EmailStrings = {
   actionReply: 'Répondre dans {app}',
   actionOpen: 'Ouvrir dans {app}',
   readMore: 'Lire le message complet dans {app}',
-  reasonMention: 'Vous recevez cet e-mail parce que vous avez été mentionné.',
-  reasonConversation: 'Vous recevez cet e-mail parce que vous suivez cette conversation.',
-  reasonObject: 'Vous recevez cet e-mail parce que vous suivez les mises à jour de « {object} ».',
-  reasonAssignment: 'Vous recevez cet e-mail parce que quelque chose vous a été assigné.',
-  reasonCoAuthor: 'Vous recevez cet e-mail parce que vous avez été ajouté comme co-auteur.',
-  reasonReaction: 'Vous recevez cet e-mail parce que quelqu’un a réagi à votre message.',
-  reasonRequest: 'Vous recevez cet e-mail parce qu’une action de votre part est requise.',
-  reasonDefault: 'Vous recevez cet e-mail en raison de vos paramètres de notification.',
+  reason:
+    'Vous recevez cet e-mail parce que vous êtes abonné à ce type de notification dans l’espace de travail {workspace}.',
   notificationSettings: 'Paramètres de notification',
   copyright: '© {app} — Tous droits réservés'
 }
@@ -130,14 +111,8 @@ const es: EmailStrings = {
   actionReply: 'Responder en {app}',
   actionOpen: 'Abrir en {app}',
   readMore: 'Lee el mensaje completo en {app}',
-  reasonMention: 'Recibes este correo porque te han mencionado.',
-  reasonConversation: 'Recibes este correo porque sigues esta conversación.',
-  reasonObject: 'Recibes este correo porque sigues las actualizaciones de «{object}».',
-  reasonAssignment: 'Recibes este correo porque se te ha asignado algo.',
-  reasonCoAuthor: 'Recibes este correo porque se te ha añadido como coautor.',
-  reasonReaction: 'Recibes este correo porque alguien ha reaccionado a tu mensaje.',
-  reasonRequest: 'Recibes este correo porque se requiere una acción por tu parte.',
-  reasonDefault: 'Recibes este correo según tu configuración de notificaciones.',
+  reason:
+    'Recibes este correo porque estás suscrito a este tipo de notificaciones en el espacio de trabajo {workspace}.',
   notificationSettings: 'Configuración de notificaciones',
   copyright: '© {app} — Todos los derechos reservados'
 }
@@ -161,14 +136,7 @@ const it: EmailStrings = {
   actionReply: 'Rispondi in {app}',
   actionOpen: 'Apri in {app}',
   readMore: 'Leggi il messaggio completo in {app}',
-  reasonMention: 'Ricevi questa email perché sei stato menzionato.',
-  reasonConversation: 'Ricevi questa email perché segui questa conversazione.',
-  reasonObject: 'Ricevi questa email perché segui gli aggiornamenti di «{object}».',
-  reasonAssignment: 'Ricevi questa email perché ti è stato assegnato qualcosa.',
-  reasonCoAuthor: 'Ricevi questa email perché sei stato aggiunto come coautore.',
-  reasonReaction: 'Ricevi questa email perché qualcuno ha reagito al tuo messaggio.',
-  reasonRequest: 'Ricevi questa email perché è richiesta una tua azione.',
-  reasonDefault: 'Ricevi questa email in base alle tue impostazioni di notifica.',
+  reason: 'Ricevi questa email perché sei iscritto a questo tipo di notifiche nello spazio di lavoro {workspace}.',
   notificationSettings: 'Impostazioni di notifica',
   copyright: '© {app} — Tutti i diritti riservati'
 }
@@ -192,14 +160,7 @@ const pt: EmailStrings = {
   actionReply: 'Responder no {app}',
   actionOpen: 'Abrir no {app}',
   readMore: 'Leia a mensagem completa no {app}',
-  reasonMention: 'Está a receber este email porque foi mencionado.',
-  reasonConversation: 'Está a receber este email porque segue esta conversa.',
-  reasonObject: 'Está a receber este email porque segue as atualizações de «{object}».',
-  reasonAssignment: 'Está a receber este email porque algo lhe foi atribuído.',
-  reasonCoAuthor: 'Está a receber este email porque foi adicionado como coautor.',
-  reasonReaction: 'Está a receber este email porque alguém reagiu à sua mensagem.',
-  reasonRequest: 'Está a receber este email porque é necessária uma ação sua.',
-  reasonDefault: 'Está a receber este email de acordo com as suas definições de notificação.',
+  reason: 'Está a receber este email porque subscreveu este tipo de notificações no espaço de trabalho {workspace}.',
   notificationSettings: 'Definições de notificação',
   copyright: '© {app} — Todos os direitos reservados'
 }
@@ -223,14 +184,8 @@ const ptBr: EmailStrings = {
   actionReply: 'Responder no {app}',
   actionOpen: 'Abrir no {app}',
   readMore: 'Leia a mensagem completa no {app}',
-  reasonMention: 'Você está recebendo este e-mail porque foi mencionado.',
-  reasonConversation: 'Você está recebendo este e-mail porque segue esta conversa.',
-  reasonObject: 'Você está recebendo este e-mail porque segue as atualizações de “{object}”.',
-  reasonAssignment: 'Você está recebendo este e-mail porque algo foi atribuído a você.',
-  reasonCoAuthor: 'Você está recebendo este e-mail porque foi adicionado como coautor.',
-  reasonReaction: 'Você está recebendo este e-mail porque alguém reagiu à sua mensagem.',
-  reasonRequest: 'Você está recebendo este e-mail porque uma ação sua é necessária.',
-  reasonDefault: 'Você está recebendo este e-mail de acordo com suas configurações de notificação.',
+  reason:
+    'Você está recebendo este e-mail porque está inscrito neste tipo de notificação no espaço de trabalho {workspace}.',
   notificationSettings: 'Configurações de notificação',
   copyright: '© {app} — Todos os direitos reservados'
 }
@@ -254,14 +209,7 @@ const cs: EmailStrings = {
   actionReply: 'Odpovědět v {app}',
   actionOpen: 'Otevřít v {app}',
   readMore: 'Celou zprávu najdete v {app}',
-  reasonMention: 'Tento e-mail dostáváte, protože jste byli zmíněni.',
-  reasonConversation: 'Tento e-mail dostáváte, protože sledujete tuto konverzaci.',
-  reasonObject: 'Tento e-mail dostáváte, protože sledujete aktualizace „{object}“.',
-  reasonAssignment: 'Tento e-mail dostáváte, protože vám bylo něco přiřazeno.',
-  reasonCoAuthor: 'Tento e-mail dostáváte, protože jste byli přidáni jako spoluautor.',
-  reasonReaction: 'Tento e-mail dostáváte, protože někdo reagoval na vaši zprávu.',
-  reasonRequest: 'Tento e-mail dostáváte, protože je vyžadována vaše akce.',
-  reasonDefault: 'Tento e-mail dostáváte podle svého nastavení oznámení.',
+  reason: 'Tento e-mail dostáváte, protože odebíráte tento typ oznámení v pracovním prostoru {workspace}.',
   notificationSettings: 'Nastavení oznámení',
   copyright: '© {app} — Všechna práva vyhrazena'
 }
@@ -285,14 +233,7 @@ const pl: EmailStrings = {
   actionReply: 'Odpowiedz w {app}',
   actionOpen: 'Otwórz w {app}',
   readMore: 'Pełną wiadomość przeczytasz w {app}',
-  reasonMention: 'Otrzymujesz tę wiadomość, ponieważ o Tobie wspomniano.',
-  reasonConversation: 'Otrzymujesz tę wiadomość, ponieważ obserwujesz tę rozmowę.',
-  reasonObject: 'Otrzymujesz tę wiadomość, ponieważ obserwujesz aktualizacje „{object}”.',
-  reasonAssignment: 'Otrzymujesz tę wiadomość, ponieważ coś zostało Ci przypisane.',
-  reasonCoAuthor: 'Otrzymujesz tę wiadomość, ponieważ dodano Cię jako współautora.',
-  reasonReaction: 'Otrzymujesz tę wiadomość, ponieważ ktoś zareagował na Twoją wiadomość.',
-  reasonRequest: 'Otrzymujesz tę wiadomość, ponieważ wymagane jest Twoje działanie.',
-  reasonDefault: 'Otrzymujesz tę wiadomość zgodnie z ustawieniami powiadomień.',
+  reason: 'Otrzymujesz tę wiadomość, ponieważ subskrybujesz ten typ powiadomień w przestrzeni roboczej {workspace}.',
   notificationSettings: 'Ustawienia powiadomień',
   copyright: '© {app} — Wszystkie prawa zastrzeżone'
 }
@@ -316,14 +257,7 @@ const tr: EmailStrings = {
   actionReply: '{app} içinde yanıtla',
   actionOpen: '{app} içinde aç',
   readMore: 'Mesajın tamamını {app} içinde okuyun',
-  reasonMention: 'Bu e-postayı sizden bahsedildiği için alıyorsunuz.',
-  reasonConversation: 'Bu e-postayı bu konuşmayı takip ettiğiniz için alıyorsunuz.',
-  reasonObject: 'Bu e-postayı “{object}” güncellemelerini takip ettiğiniz için alıyorsunuz.',
-  reasonAssignment: 'Bu e-postayı size bir şey atandığı için alıyorsunuz.',
-  reasonCoAuthor: 'Bu e-postayı ortak yazar olarak eklendiğiniz için alıyorsunuz.',
-  reasonReaction: 'Bu e-postayı biri mesajınıza tepki verdiği için alıyorsunuz.',
-  reasonRequest: 'Bu e-postayı sizden bir işlem beklendiği için alıyorsunuz.',
-  reasonDefault: 'Bu e-postayı bildirim ayarlarınız nedeniyle alıyorsunuz.',
+  reason: '{workspace} çalışma alanında bu tür bildirimlere abone olduğunuz için bu e-postayı alıyorsunuz.',
   notificationSettings: 'Bildirim ayarları',
   copyright: '© {app} — Tüm hakları saklıdır'
 }
@@ -347,14 +281,7 @@ const zh: EmailStrings = {
   actionReply: '在 {app} 中回复',
   actionOpen: '在 {app} 中打开',
   readMore: '在 {app} 中阅读完整消息',
-  reasonMention: '您收到此邮件是因为有人提到了您。',
-  reasonConversation: '您收到此邮件是因为您关注了此对话。',
-  reasonObject: '您收到此邮件是因为您关注了“{object}”的更新。',
-  reasonAssignment: '您收到此邮件是因为有内容分配给了您。',
-  reasonCoAuthor: '您收到此邮件是因为您被添加为合著者。',
-  reasonReaction: '您收到此邮件是因为有人回应了您的消息。',
-  reasonRequest: '您收到此邮件是因为需要您进行操作。',
-  reasonDefault: '您收到此邮件是因为您的通知设置。',
+  reason: '您收到此邮件，是因为您在 {workspace} 工作区订阅了此类通知。',
   notificationSettings: '通知设置',
   copyright: '© {app} — 保留所有权利'
 }
@@ -378,14 +305,7 @@ const ja: EmailStrings = {
   actionReply: '{app} で返信',
   actionOpen: '{app} で開く',
   readMore: 'メッセージの全文は {app} で確認できます',
-  reasonMention: 'メンションされたため、このメールをお送りしています。',
-  reasonConversation: 'この会話をフォローしているため、このメールをお送りしています。',
-  reasonObject: '「{object}」の更新をフォローしているため、このメールをお送りしています。',
-  reasonAssignment: 'あなたに割り当てられたため、このメールをお送りしています。',
-  reasonCoAuthor: '共著者に追加されたため、このメールをお送りしています。',
-  reasonReaction: 'あなたのメッセージにリアクションがあったため、このメールをお送りしています。',
-  reasonRequest: 'あなたの対応が必要なため、このメールをお送りしています。',
-  reasonDefault: '通知設定に基づいてこのメールをお送りしています。',
+  reason: '{workspace} ワークスペースでこの種類の通知を購読しているため、このメールをお送りしています。',
   notificationSettings: '通知設定',
   copyright: '© {app} — 無断転載を禁じます'
 }
@@ -409,14 +329,7 @@ const ko: EmailStrings = {
   actionReply: '{app}에서 답글 달기',
   actionOpen: '{app}에서 열기',
   readMore: '{app}에서 전체 메시지 읽기',
-  reasonMention: '회원님이 언급되어 이 이메일을 보내 드립니다.',
-  reasonConversation: '이 대화를 구독 중이어서 이 이메일을 보내 드립니다.',
-  reasonObject: '“{object}”의 업데이트를 구독 중이어서 이 이메일을 보내 드립니다.',
-  reasonAssignment: '회원님에게 할당된 항목이 있어 이 이메일을 보내 드립니다.',
-  reasonCoAuthor: '공동 작성자로 추가되어 이 이메일을 보내 드립니다.',
-  reasonReaction: '누군가 회원님의 메시지에 반응하여 이 이메일을 보내 드립니다.',
-  reasonRequest: '회원님의 조치가 필요하여 이 이메일을 보내 드립니다.',
-  reasonDefault: '알림 설정에 따라 이 이메일을 보내 드립니다.',
+  reason: '{workspace} 워크스페이스에서 이 유형의 알림을 구독하고 있어 이 이메일을 보내 드립니다.',
   notificationSettings: '알림 설정',
   copyright: '© {app} — 모든 권리 보유'
 }

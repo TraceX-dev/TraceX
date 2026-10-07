@@ -90,7 +90,7 @@ describe('renderEmail', () => {
         title: evil,
         preheader: evil,
         reason: evil,
-        headerNote: evil,
+        context: evil,
         footerLinks: [{ label: evil, href: 'javascript:alert(1)' }],
         actions: [{ label: evil, href: 'javascript:alert(1)', primary: true }],
         blocks: [
@@ -123,18 +123,18 @@ describe('renderEmail', () => {
     expect(html).toContain('Copy &lt;this&gt;')
   })
 
-  it('renders a rich heading and a header note', () => {
+  it('renders a rich heading and a context line', () => {
     const html = renderEmail(
       minimal({
         title: 'Jane mentioned you in Doc',
         heading: join([emphasis('Jane'), text(' mentioned you in '), emphasisLink(`${front}/doc`, 'Doc')]),
-        headerNote: 'Demo workspace'
+        context: 'Demo workspace'
       })
     )
     expect(html).toContain('<title>Jane mentioned you in Doc</title>')
     expect(html).toContain('font-size:18px;line-height:1.45;font-weight:400')
     expect(html).toContain(`<a href="${front}/doc"`)
-    expect(html).toContain('>Demo workspace</td>')
+    expect(html).toContain('>Demo workspace</div><h1')
   })
 
   it('omits empty optional parts', () => {

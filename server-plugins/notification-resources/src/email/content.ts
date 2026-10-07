@@ -55,7 +55,7 @@ export interface EmailNotificationData {
   lang?: string
   frontUrl: string
   appName: string
-  /** Shown in the header. */
+  /** Shown above the heading and in the footer. */
   workspace: string
   settingsUrl: string
   senderName: string
@@ -103,14 +103,8 @@ export interface EmailStrings {
   actionReply: string
   actionOpen: string
   readMore: string
-  reasonMention: string
-  reasonConversation: string
-  reasonObject: string
-  reasonAssignment: string
-  reasonCoAuthor: string
-  reasonReaction: string
-  reasonRequest: string
-  reasonDefault: string
+  /** Footer line; `{workspace}` is the workspace name. */
+  reason: string
   notificationSettings: string
   copyright: string
 }
@@ -137,14 +131,7 @@ export const defaultEmailStrings: EmailStrings = {
   actionReply: 'Reply in {app}',
   actionOpen: 'Open in {app}',
   readMore: 'Read the full message in {app}',
-  reasonMention: "You're receiving this because you were mentioned.",
-  reasonConversation: "You're receiving this because you're subscribed to this conversation.",
-  reasonObject: "You're receiving this because you're subscribed to updates of “{object}”.",
-  reasonAssignment: "You're receiving this because you were assigned.",
-  reasonCoAuthor: "You're receiving this because you were added as a co-author.",
-  reasonReaction: "You're receiving this because someone reacted to your message.",
-  reasonRequest: "You're receiving this because your action is requested.",
-  reasonDefault: "You're receiving this because of your notification settings.",
+  reason: "You're receiving this because you're subscribed to this type of notification in the {workspace} workspace.",
   notificationSettings: 'Notification settings',
   copyright: '© {app} — All rights reserved'
 }
@@ -260,7 +247,8 @@ export function buildEmailLayout (
     sender: data.senderName,
     object: data.object.title,
     app: data.appName,
-    emoji: data.emoji
+    emoji: data.emoji,
+    workspace: data.workspace
   }
   // In the heading the sender and the object stand out, and the object links to itself.
   const htmlParams: Record<string, SafeHtml | undefined> = {
@@ -275,50 +263,41 @@ export function buildEmailLayout (
   // and no tile repeating the object; one button; a one-line footer.
   let template: string | undefined
   let blocks: EmailBlock[]
-  let reason: string
 
   switch (data.kind) {
     case 'mention':
       template = strings.titleMention
       blocks = messageBlocks(data, strings, true)
-      reason = strings.reasonMention
       break
     case 'reply':
       template = data.quote?.own === true ? strings.titleReplyOwn : strings.titleReply
       blocks = [quoteBlock(data, strings), ...messageBlocks(data, strings, false)].filter(
         (it): it is EmailBlock => it !== undefined
       )
-      reason = strings.reasonConversation
       break
     case 'message':
       template = strings.titleMessage
       blocks = messageBlocks(data, strings, false)
-      reason = strings.reasonConversation
       break
     case 'reaction':
       template = strings.titleReaction
       blocks = [quoteBlock(data, strings)].filter((it): it is EmailBlock => it !== undefined)
-      reason = strings.reasonReaction
       break
     case 'update':
       template = data.created === true ? strings.titleCreate : strings.titleUpdate
       blocks = bodyParagraph(data.body)
-      reason = fillString(strings.reasonObject, params)
       break
     case 'assignment':
       template = data.senderName !== '' ? strings.titleAssignment : strings.titleAssignmentNoSender
       blocks = []
-      reason = strings.reasonAssignment
       break
     case 'coAuthor':
       template = data.senderName !== '' ? strings.titleCoAuthor : strings.titleCoAuthorNoSender
       blocks = []
-      reason = strings.reasonCoAuthor
       break
     case 'request':
       template = data.title !== undefined && data.title !== '' ? undefined : strings.titleRequest
       blocks = [...bodyParagraph(data.body), ...messageBlocks(data, strings, false)]
-      reason = strings.reasonRequest
       break
     case 'common': {
       const title = data.title !== undefined && data.title !== '' ? data.title : data.object.title
@@ -328,7 +307,6 @@ export function buildEmailLayout (
         // Name the object only when the title does not.
         ...(title.includes(data.object.title) ? [] : [objectTile(data, data.object)])
       ]
-      reason = strings.reasonDefault
       break
     }
   }
@@ -349,12 +327,13 @@ export function buildEmailLayout (
     appName: data.appName,
     lang: data.lang,
     preheader: preheader(data.messageText ?? data.body ?? data.quote?.text),
-    headerNote: data.workspace,
+    context: data.workspace,
     title,
     heading,
     blocks,
     actions: [action],
-    reason,
+    // Every email is sent because the receiver is subscribed to its notification type, so the reason is one line.
+    reason: fillString(strings.reason, params),
     footerLinks: [{ label: strings.notificationSettings, href: data.settingsUrl }],
     copyright: fillString(strings.copyright, params)
   }
