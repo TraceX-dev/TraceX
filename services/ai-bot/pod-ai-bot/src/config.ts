@@ -1,5 +1,6 @@
 //
 // Copyright © 2024-2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -254,7 +255,8 @@ const configSchema: Schema<YamlConfig> = {
     password: {
       doc: 'AI Bot Password',
       format: 'required-string',
-      default: null
+      default: null,
+      env: 'AI_BOT_PASSWORD'
     },
     avatarPath: {
       doc: 'AI Bot Avatar Path',
@@ -385,6 +387,22 @@ const configSchema: Schema<YamlConfig> = {
 
 function loadConfig (): Config {
   const yamlConfig = loadYamlConfig()
+
+  if (yamlConfig?.llm !== undefined) {
+    yamlConfig.llm = yamlConfig.llm.map((provider) => {
+      if (typeof provider.apiKey !== 'string' || !provider.apiKey.startsWith('env:')) return provider
+      const match = /^env:([A-Za-z_][A-Za-z0-9_]*)$/.exec(provider.apiKey)
+      if (match === null) {
+        throw new Error(`AI provider ${provider.id} has an invalid apiKey environment reference`)
+      }
+
+      const apiKey = process.env[match[1]]
+      if (apiKey === undefined || apiKey.trim() === '') {
+        throw new Error(`AI provider ${provider.id} requires ${match[1]}`)
+      }
+      return { ...provider, apiKey }
+    })
+  }
 
   const config = convict<YamlConfig>(configSchema)
   config.load(yamlConfig ?? {})
