@@ -218,8 +218,9 @@ export function buildTableDiff (oldMarkdown: string, newMarkdown: string): Table
       oldLink === newIdentityLinks[newIndex] &&
       oldLinkCounts.get(oldLink) === 1 &&
       newLinkCounts.get(oldLink) === 1
-    )
-      {return true}
+    ) {
+      return true
+    }
     const oldValue = oldIdentityValues[oldIndex]
     return (
       oldValue !== '' &&
