@@ -137,6 +137,7 @@ export function createModel (builder: Builder): void {
       label: request.string.NewRequest,
       allowedForAuthor: true,
       defaultEnabled: true,
+      emailKind: 'request',
       templates: {
         textTemplate: '{sender} sent you a request for the {doc}',
         htmlTemplate: '<p><b>{sender}</b> sent you a request for the {doc}</p>',

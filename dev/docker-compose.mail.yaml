@@ -1,0 +1,40 @@
+# Dev-overlay to deliver emails (sign-in codes, invites, notifications) to a local Mailpit inbox.
+#
+# Usage from dev/ directory:
+#   docker compose -f docker-compose.yaml -f docker-compose.mail.yaml up -d
+#
+# Inbox: http://localhost:8025
+#
+# With this overlay sign-up and sign-in send real codes by email: read them in Mailpit.
+# Email notifications are sent only to users with a verified email who enabled email
+# delivery in Settings -> Notifications; a user never gets notifications about own actions.
+#
+services:
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - 8025:8025 # web UI
+      - 1025:1025 # SMTP
+    restart: unless-stopped
+  mail:
+    image: tracexapp/mail
+    depends_on:
+      - mailpit
+    ports:
+      - 8091:8091
+    environment:
+      - PORT=8091
+      - SOURCE=noreply@tracex.local
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_TLS_MODE=ignore
+    restart: unless-stopped
+  account:
+    environment:
+      - MAIL_URL=http://mail:8091
+  workspace_pg:
+    environment:
+      - MAIL_URL=http://mail:8091
+  transactor_pg:
+    environment:
+      - MAIL_URL=http://mail:8091

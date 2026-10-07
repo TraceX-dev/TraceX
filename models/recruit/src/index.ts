@@ -1359,6 +1359,7 @@ export function createModel (builder: Builder): void {
       field: 'assignee',
       txClasses: [core.class.TxCreateDoc, core.class.TxUpdateDoc],
       objectClass: recruit.class.Applicant,
+      emailKind: 'assignment',
       templates: {
         textTemplate: '{doc} was assigned to you by {sender}',
         htmlTemplate: '<p>{doc} was assigned to you by {sender}</p>',

@@ -19,7 +19,8 @@
     "_phase:build": "compile transpile src",
     "_phase:test": "jest --passWithNoTests --silent",
     "_phase:format": "format src",
-    "_phase:validate": "compile validate"
+    "_phase:validate": "compile validate",
+    "email-preview": "node scripts/email-preview.js"
   },
   "devDependencies": {
     "@hcengineering/platform-rig": "workspace:^0.7.21",
@@ -50,6 +51,7 @@
     "@hcengineering/text-core": "workspace:^0.7.19",
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/server-view": "workspace:^0.7.0",
-    "@hcengineering/server-contact": "workspace:^0.7.0"
+    "@hcengineering/server-contact": "workspace:^0.7.0",
+    "@hcengineering/email-templates": "workspace:^0.7.0"
   }
 }

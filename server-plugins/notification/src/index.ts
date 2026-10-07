@@ -108,6 +108,8 @@ export default plugin(serverNotificationId, {
     MailUrl: '' as Metadata<string>,
     MailAuthToken: '' as Metadata<string>,
     WebPushUrl: '' as Metadata<string>,
+    // Product name in emails when the branding has no title (PRODUCT_NAME)
+    ProductName: '' as Metadata<string>,
     InboxOnlyNotifications: '' as Metadata<boolean>
   },
   mixin: {
