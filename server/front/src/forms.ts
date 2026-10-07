@@ -141,39 +141,52 @@ function fieldForType (client: Client, name: string, attr: AnyAttribute, type = 
   return field
 }
 
+function isMasterTag (type: Class<Doc> | undefined): type is MasterTag {
+  return type !== undefined && type._class === card.class.MasterTag
+}
+
 async function getConfiguration (
   client: Client,
-  id: string
+  _id: string
 ): Promise<{ configuration: FormConfiguration, type: MasterTag, space: CardSpace }> {
+  const id = _id as Ref<MasterTag>
   const hierarchy = client.getHierarchy()
   const configuration = await client.findOne(forms.class.FormConfiguration, {
-    masterTag: id as Ref<MasterTag>,
+    masterTag: id,
     enabled: true
   })
-  const type = hierarchy.findClass(id as Ref<MasterTag>)
-  if (
-    configuration?.targetSpace === undefined ||
-    type === undefined ||
-    type.removed === true ||
-    hierarchy.isMixin(type._id) ||
-    !hierarchy.isDerived(type._id, card.class.Card) ||
-    (type.baseType === true &&
-      hierarchy
-        .getDescendants(type._id)
-        .some(
-          (descendant) =>
-            descendant !== type._id &&
-            !hierarchy.isMixin(descendant) &&
-            (hierarchy.getClass(descendant) as MasterTag).removed !== true
-        ))
-  ) {
+  const type = hierarchy.findClass(id)
+  if (configuration?.targetSpace === undefined) {
     throw new FormError(404, 'unavailable')
   }
+  if (!isMasterTag(type)) {
+    throw new FormError(404, 'unavailable')
+  }
+
+  const isActiveCardType =
+    type.removed !== true && !hierarchy.isMixin(type._id) && hierarchy.isDerived(type._id, card.class.Card)
+  if (!isActiveCardType) {
+    throw new FormError(404, 'unavailable')
+  }
+
+  if (type.baseType === true) {
+    const hasActiveDescendants = hierarchy.getDescendants(type._id).some((descendant) => {
+      if (descendant === type._id || hierarchy.isMixin(descendant)) return false
+      const descendantType = hierarchy.getClass(descendant) as MasterTag
+      return descendantType.removed !== true
+    })
+    if (hasActiveDescendants) {
+      throw new FormError(404, 'unavailable')
+    }
+  }
+
   const space = await client.findOne(card.class.CardSpace, { _id: configuration.targetSpace, archived: false })
-  if (
-    space === undefined ||
-    (space.types.length > 0 && !space.types.some((parent) => hierarchy.isDerived(type._id, parent)))
-  ) {
+  if (space === undefined) {
+    throw new FormError(404, 'unavailable')
+  }
+  const acceptsCardType =
+    space.types.length === 0 || space.types.some((parent) => hierarchy.isDerived(type._id, parent))
+  if (!acceptsCardType) {
     throw new FormError(404, 'unavailable')
   }
   return { configuration, type, space }
