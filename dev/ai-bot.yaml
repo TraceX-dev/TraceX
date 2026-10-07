@@ -1,5 +1,5 @@
 accountsUrl: http://localhost:3000
-dbUrl: postgresql://root@tracex.local:26257/defaultdb?sslmode=disable
+dbUrl: postgresql://postgres:postgres@tracex.local:5432/postgres
 serverSecret: secret
 serviceId: ai-bot-service
 port: 4010

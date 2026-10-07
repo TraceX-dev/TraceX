@@ -9,7 +9,7 @@
 ## Package Categories
 
 - **Core**: core, server, client, middleware
-- **Database**: mongo, postgres, elastic
+- **Database**: postgres, elastic
 - **Storage**: server-storage, minio, s3, datalake, hulylake
 - **Infrastructure**: kafka, collaboration
 
@@ -28,7 +28,7 @@ cd packages/<pkg> && rushx build  # Build specific package
 **Testing:**
 
 ```bash
-cd tests && ./prepare-tests.sh  # First time: start Docker services (Elasticsearch, MongoDB, CockroachDB, Redpanda)
+cd tests && ./prepare-tests.sh  # First time: start Docker services (Elasticsearch, PostgreSQL, Redpanda)
 rush test                        # Run all tests
 npm run test:coverage            # With coverage
 ```

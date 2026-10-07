@@ -207,7 +207,7 @@ export enum IndexKind {
    */
   FullText,
   /**
-   * For attribute with this annotation should be created an index in mongo database
+   * For attribute with this annotation should be created an index in database
    *
    * Also mean to include into Elastic search.
    */
@@ -980,7 +980,7 @@ export interface WorkspaceConfiguration {
 
 export interface WorkspaceInfo {
   uuid: WorkspaceUuid
-  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Database name in Mongo, bucket in R2, etc.
+  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Legacy storage namespace or bucket.
   name: string
   url: string
   region?: string

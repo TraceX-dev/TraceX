@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -42,9 +43,9 @@ createTaskModel(txes)
 const contextVars: Record<string, any> = {}
 
 describe('postgres operations', () => {
-  const baseDbUri: string = process.env.DB_URL ?? 'postgresql://root@localhost:26258/defaultdb?sslmode=disable'
+  const baseDbUri: string = process.env.DB_URL ?? 'postgresql://postgres:postgres@localhost:5433/postgres'
   let dbUuid = crypto.randomUUID() as WorkspaceUuid
-  let dbUri: string = baseDbUri.replace('defaultdb', dbUuid)
+  let dbUri: string
   const clientRef: PostgresClientReference = getDBClient(baseDbUri)
   let hierarchy: Hierarchy
   let model: ModelDb
@@ -60,7 +61,9 @@ describe('postgres operations', () => {
   beforeEach(async () => {
     try {
       dbUuid = crypto.randomUUID() as WorkspaceUuid
-      dbUri = baseDbUri.replace('defaultdb', dbUuid)
+      const testUrl = new URL(baseDbUri)
+      testUrl.pathname = '/' + dbUuid
+      dbUri = testUrl.toString()
       const client = await clientRef.getClient()
       await client`CREATE DATABASE ${client(dbUuid)}`
     } catch (err) {

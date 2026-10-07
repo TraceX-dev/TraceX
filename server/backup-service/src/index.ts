@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -29,7 +30,7 @@ import { config as _config } from './config'
 
 export function startBackup (
   ctx: MeasureContext,
-  pipelineFactoryFactory: (mongoUrl: string, storage: StorageAdapter) => PipelineFactory,
+  pipelineFactoryFactory: (dbUrl: string, storage: StorageAdapter) => PipelineFactory,
   getConfig: (
     ctx: MeasureContext,
     dbUrl: string,
@@ -81,7 +82,7 @@ export function startBackup (
 export async function backupWorkspace (
   ctx: MeasureContext,
   workspace: WorkspaceInfoWithStatus,
-  pipelineFactoryFactory: (mongoUrl: string, storage: StorageAdapter) => PipelineFactory,
+  pipelineFactoryFactory: (dbUrl: string, storage: StorageAdapter) => PipelineFactory,
   getConfig: (
     ctx: MeasureContext,
     dbUrls: string,

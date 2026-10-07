@@ -1,3 +1,17 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 import attachment, { Attachment } from '@hcengineering/attachment'
 import contact, { Channel, Contact as PContact, getFirstName, getLastName } from '@hcengineering/contact'
 import core, {
@@ -23,7 +37,7 @@ import type { StorageAdapter } from '@hcengineering/server-core'
 import { generateToken } from '@hcengineering/server-token'
 import settingP from '@hcengineering/setting'
 import telegramP, { NewTelegramMessage } from '@hcengineering/telegram'
-import type { Collection } from 'mongodb'
+import type { RecordStorage } from './storage'
 import { Api } from 'telegram'
 import { v4 as uuid } from 'uuid'
 import { platformToTelegram, telegramToPlatform } from './markup'
@@ -51,9 +65,9 @@ export class WorkspaceWorker {
     private readonly client: Client,
     private readonly storageAdapter: StorageAdapter,
     private readonly workspace: WorkspaceDataId,
-    private readonly userStorage: Collection<UserRecord>,
-    private readonly lastMsgStorage: Collection<LastMsgRecord>,
-    private readonly channelsStorage: Collection<WorkspaceChannel>
+    private readonly userStorage: RecordStorage<UserRecord>,
+    private readonly lastMsgStorage: RecordStorage<LastMsgRecord>,
+    private readonly channelsStorage: RecordStorage<WorkspaceChannel>
   ) {
     // eslint-disable-next-line
     this.client.notify = (...tx) => void this.txHandler(...tx)
@@ -62,7 +76,7 @@ export class WorkspaceWorker {
 
   private async init (): Promise<void> {
     await this.initChannels()
-    const recs = await this.userStorage.find({ workspace: this.workspace }).toArray()
+    const recs = await this.userStorage.find({ workspace: this.workspace })
 
     await Promise.all(
       recs.map(async (r) => {
@@ -141,9 +155,9 @@ export class WorkspaceWorker {
     ctx: MeasureContext,
     storageAdapter: StorageAdapter,
     workspace: WorkspaceDataId,
-    userStorage: Collection<UserRecord>,
-    lastMsgStorage: Collection<LastMsgRecord>,
-    channelsStorage: Collection<WorkspaceChannel>
+    userStorage: RecordStorage<UserRecord>,
+    lastMsgStorage: RecordStorage<LastMsgRecord>,
+    channelsStorage: RecordStorage<WorkspaceChannel>
   ): Promise<WorkspaceWorker> {
     const token = generateToken(systemAccountUuid, workspace as any, { service: 'telegram' }) // TODO: FIXME
     const client = await createPlatformClient(token)
@@ -383,16 +397,14 @@ export class WorkspaceWorker {
       })
 
       if (res === null) {
-        const lastMsgId = (
-          await this.lastMsgStorage.insertOne({
-            maxMsgId: 0,
-            minMsgId: 0,
-            participantID: user.id.toString(),
-            phone: record.phone,
-            channelID,
-            workspace: this.workspace
-          })
-        ).insertedId
+        const lastMsgId = await this.lastMsgStorage.insertOne({
+          maxMsgId: 0,
+          minMsgId: 0,
+          participantID: user.id.toString(),
+          phone: record.phone,
+          channelID,
+          workspace: this.workspace
+        })
 
         res = await this.lastMsgStorage.findOne({
           _id: lastMsgId
@@ -431,10 +443,8 @@ export class WorkspaceWorker {
         _id: lastMsg._id
       },
       {
-        $set: {
-          minMsgId: lastMsg.minMsgId,
-          maxMsgId: lastMsg.maxMsgId
-        }
+        minMsgId: lastMsg.minMsgId,
+        maxMsgId: lastMsg.maxMsgId
       }
     )
     return lastMsg.maxMsgId
@@ -500,14 +510,7 @@ export class WorkspaceWorker {
           await this.makePlatformAttachments({ msg, user }, record, tx)
           if (msg.id < userMinID || userMinID === 0) {
             userMinID = msg.id
-            await this.lastMsgStorage.updateOne(
-              {
-                _id: lastMsg._id
-              },
-              {
-                $set: { minMsgId: userMinID }
-              }
-            )
+            await this.lastMsgStorage.updateOne({ _id: lastMsg._id }, { minMsgId: userMinID })
           }
         } catch (e) {
           console.error(e)
@@ -517,14 +520,7 @@ export class WorkspaceWorker {
     } catch (e) {
       console.error(e)
     } finally {
-      await this.lastMsgStorage.updateOne(
-        {
-          _id: lastMsg._id
-        },
-        {
-          $set: { minMsgId: userMinID }
-        }
-      )
+      await this.lastMsgStorage.updateOne({ _id: lastMsg._id }, { minMsgId: userMinID })
     }
   }
 
@@ -592,15 +588,8 @@ export class WorkspaceWorker {
           }
           await this.savePlatformMessage(event.msg, event.user, record, channel, lastMsg)
           await this.lastMsgStorage.updateOne(
-            {
-              _id: lastMsg._id
-            },
-            {
-              $set: {
-                minMsgId: lastMsg.minMsgId,
-                maxMsgId: lastMsg.maxMsgId
-              }
-            }
+            { _id: lastMsg._id },
+            { minMsgId: lastMsg.minMsgId, maxMsgId: lastMsg.maxMsgId }
           )
         }
       } catch (e) {
@@ -703,11 +692,10 @@ export class WorkspaceWorker {
   // #region Channels
 
   private async initChannels (): Promise<void> {
-    const oldChannels = await this.channelsStorage
-      .find({
-        workspace: this.workspace
-      })
-      .toArray()
+    const oldChannels = await this.channelsStorage.find({
+      workspace: this.workspace
+    })
+
     const oldChannelsSet = new Set(oldChannels.map((p) => p.value))
     const channels = await this.getChannels()
     this.channels = new Map<string, Channel[]>()
@@ -798,7 +786,7 @@ export class WorkspaceWorker {
   }
 
   private async newChannel (channel: Channel): Promise<void> {
-    const recs = await this.userStorage.find({ workspace: this.workspace }).toArray()
+    const recs = await this.userStorage.find({ workspace: this.workspace })
     for (const record of recs) {
       const client = this.clients.get(record.phone)
 

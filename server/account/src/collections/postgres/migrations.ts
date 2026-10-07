@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -15,96 +16,63 @@
 //
 
 import { readOnlyGuestAccountUuid } from '@hcengineering/core'
-import { type DBFlavor } from '../../types'
 
-// Type definitions for different database flavors.
-// The keys match the DBFlavor type ('postgres' and 'cockroach').
-// The SQL syntax used (e.g., BIGSERIAL, JSONB, generated columns) is compatible with
-// modern PostgreSQL versions (v13+) and is expected to be forward-compatible with future versions like 18.1.
-const dbTypes = {
-  ['cockroach' as DBFlavor]: {
-    string: 'STRING',
-    bytes: 'BYTES',
-    int2: 'INT2',
-    int4: 'INT4',
-    int8: 'INT8',
-    bool: 'BOOL',
-    // unique_rowid() generates a unique INT8
-    autoIncrementInt8: (ns: string) => 'INT8 NOT NULL DEFAULT unique_rowid()'
-  },
-  ['postgres' as DBFlavor]: {
-    string: 'TEXT',
-    bytes: 'BYTEA',
-    int2: 'SMALLINT',
-    int4: 'INTEGER',
-    int8: 'BIGINT',
-    bool: 'BOOLEAN',
-    // Use special function to generate a cryptographic random bigint
-    autoIncrementInt8: (ns: string) => `BIGINT NOT NULL DEFAULT ${ns}.gen_random_bigint()`
-  }
+const types = {
+  string: 'TEXT',
+  bytes: 'BYTEA',
+  int2: 'SMALLINT',
+  int4: 'INTEGER',
+  int8: 'BIGINT',
+  bool: 'BOOLEAN',
+  // Use special function to generate a cryptographic random bigint
+  autoIncrementInt8: (ns: string) => `BIGINT NOT NULL DEFAULT ${ns}.gen_random_bigint()`
 }
 
-export function getMigrations (ns: string, flavor: DBFlavor): [string, string][] {
-  if (flavor === 'unknown') {
-    throw new Error('Cannot generate migrations for an unknown database flavor.')
-  }
-
-  const types = dbTypes[flavor]
-  if (types === undefined) {
-    // This should not happen if DBFlavor is typed correctly, but it's a good safeguard.
-    throw new Error(`Unsupported database flavor: ${flavor}`)
-  }
-
+export function getMigrations (ns: string): [string, string][] {
   return [
-    getV1Migration(ns, flavor),
-    getV2Migration1(ns, flavor),
-    getV2Migration2(ns, flavor),
-    getV2Migration3(ns, flavor),
-    getV3Migration(ns, flavor),
-    getV4Migration(ns, flavor),
-    getV4Migration1(ns, flavor),
-    getV5Migration(ns, flavor),
-    getV6Migration(ns, flavor),
-    getV7Migration(ns, flavor),
-    getV8Migration(ns, flavor),
-    getV9Migration(ns, flavor),
-    getV10Migration1(ns, flavor),
-    getV10Migration2(ns, flavor),
-    getV11Migration(ns, flavor),
-    getV12Migration(ns, flavor),
-    getV13Migration(ns, flavor),
-    getV14Migration(ns, flavor),
-    getV15Migration(ns, flavor),
-    getV16Migration(ns, flavor),
-    getV17Migration(ns, flavor),
-    getV18Migration(ns, flavor),
-    getV19Migration(ns, flavor),
-    getV20Migration(ns, flavor),
-    getV21Migration(ns, flavor),
-    getV22Migration(ns, flavor),
-    getV23Migration(ns, flavor),
-    getV24Migration(ns, flavor),
-    getV25Migration(ns, flavor),
-    getV26Migration(ns, flavor),
-    getV27Migration(ns, flavor),
-    getV28Migration(ns, flavor),
-    getV29Migration(ns, flavor),
-    getV30Migration(ns, flavor),
-    getV31Migration(ns, flavor),
-    getV32Migration(ns, flavor)
+    getV1Migration(ns),
+    getV2Migration1(ns),
+    getV2Migration2(ns),
+    getV2Migration3(ns),
+    getV3Migration(ns),
+    getV4Migration(ns),
+    getV4Migration1(ns),
+    getV5Migration(ns),
+    getV6Migration(ns),
+    getV7Migration(ns),
+    getV8Migration(ns),
+    getV9Migration(ns),
+    getV10Migration1(ns),
+    getV10Migration2(ns),
+    getV11Migration(ns),
+    getV12Migration(ns),
+    getV13Migration(ns),
+    getV14Migration(ns),
+    getV15Migration(ns),
+    getV16Migration(ns),
+    getV17Migration(ns),
+    getV18Migration(ns),
+    getV19Migration(ns),
+    getV20Migration(ns),
+    getV21Migration(ns),
+    getV22Migration(ns),
+    getV23Migration(ns),
+    getV24Migration(ns),
+    getV25Migration(ns),
+    getV26Migration(ns),
+    getV27Migration(ns),
+    getV28Migration(ns),
+    getV29Migration(ns),
+    getV30Migration(ns),
+    getV31Migration(ns),
+    getV32Migration(ns)
   ]
 }
 
 // NOTE: NEVER MODIFY EXISTING MIGRATIONS. IF YOU NEED TO ADJUST THE SCHEMA, ADD A NEW MIGRATION.
-function getV1Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
-  // Define the generated 'key' column with flavor-specific syntax.
+function getV1Migration (ns: string): [string, string] {
   // For PostgreSQL, we use a custom immutable function to ensure the expression is valid.
-  const keyColumnDefinition =
-    flavor === 'postgres'
-      ? `key ${types.string} GENERATED ALWAYS AS (${ns}.social_id_type_to_text(type) || ':' || value) STORED`
-      : `key ${types.string} AS (CONCAT(type::TEXT, ':', value)) STORED`
+  const keyColumnDefinition = `key ${types.string} GENERATED ALWAYS AS (${ns}.social_id_type_to_text(type) || ':' || value) STORED`
 
   return [
     'account_db_v1_global_init',
@@ -118,8 +86,7 @@ function getV1Migration (ns: string, flavor: DBFlavor): [string, string] {
     /* ======= E X T E N S I O N S ======= */
     -- Enable the pgcrypto extension for cryptographic functions, e.g., gen_random_bytes().
     -- This is required for secure, non-sequential ID generation in PostgreSQL.
-    -- This is a no-op for CockroachDB as it doesn't support extensions this way.
-    ${flavor === 'postgres' ? 'CREATE EXTENSION IF NOT EXISTS pgcrypto;' : '-- pgcrypto not needed for CockroachDB'}
+    ${'CREATE EXTENSION IF NOT EXISTS pgcrypto;'}
 
     /* ======= T Y P E S ======= */
     CREATE TYPE ${ns}.social_id_type AS ENUM ('email', 'github', 'google', 'phone', 'oidc', 'huly', 'telegram');
@@ -133,17 +100,13 @@ function getV1Migration (ns: string, flavor: DBFlavor): [string, string] {
     RETURNS TEXT AS $$         SELECT val::TEXT;
     $$ LANGUAGE SQL IMMUTABLE;
 
-    ${
-      flavor === 'postgres'
-        ? `
+    ${`
     -- Create a function to generate a random, non-sequential, non-negative BIGINT for secure IDs.
     -- This prevents enumeration attacks. We use a standard method of encoding to hex and casting.
     CREATE OR REPLACE FUNCTION ${ns}.gen_random_bigint()
     RETURNS BIGINT AS $$             SELECT ('x' || encode(gen_random_bytes(8), 'hex'))::bit(64)::bigint & 9223372036854775807::bigint;
     $$ LANGUAGE SQL VOLATILE;
-    `
-        : ''
-    }
+    `}
 
     /* ======= P E R S O N ======= */
     CREATE TABLE IF NOT EXISTS ${ns}.person (
@@ -272,8 +235,7 @@ function getV1Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV2Migration1 (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
+function getV2Migration1 (ns: string): [string, string] {
   return [
     'account_db_v2_social_id_id_add',
     `
@@ -284,7 +246,7 @@ function getV2Migration1 (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV2Migration2 (ns: string, flavor: DBFlavor): [string, string] {
+function getV2Migration2 (ns: string): [string, string] {
   return [
     'account_db_v2_social_id_pk_change',
     `
@@ -303,13 +265,8 @@ function getV2Migration2 (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV2Migration3 (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
-  // Generate flavor-specific SQL for adding the constraint.
-  const addConstraintSql =
-    flavor === 'postgres'
-      ? `
+function getV2Migration3 (ns: string): [string, string] {
+  const addConstraintSql = `
     -- Add unique constraint on type, value (PostgreSQL compatible with DO block)
     DO $$     BEGIN
         IF NOT EXISTS (
@@ -322,11 +279,6 @@ function getV2Migration3 (ns: string, flavor: DBFlavor): [string, string] {
             ADD CONSTRAINT social_id_tv_key_unique UNIQUE (type, value);
         END IF;
     END $$;
-    `
-      : `
-    -- Add unique constraint on type, value (CockroachDB compatible)
-    ALTER TABLE ${ns}.social_id
-    ADD CONSTRAINT IF NOT EXISTS social_id_tv_key_unique UNIQUE (type, value);
     `
 
   return [
@@ -350,9 +302,7 @@ function getV2Migration3 (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV3Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV3Migration (ns: string): [string, string] {
   return [
     'account_db_v3_add_invite_auto_join_final',
     `
@@ -366,9 +316,7 @@ function getV3Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV4Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV4Migration (ns: string): [string, string] {
   return [
     'account_db_v4_mailbox',
     `
@@ -389,7 +337,7 @@ function getV4Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV4Migration1 (ns: string, flavor: DBFlavor): [string, string] {
+function getV4Migration1 (ns: string): [string, string] {
   return [
     'account_db_v4_remove_mailbox_account_fk',
     `
@@ -399,9 +347,7 @@ function getV4Migration1 (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV5Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV5Migration (ns: string): [string, string] {
   return [
     'account_db_v5_social_id_is_deleted',
     `
@@ -411,11 +357,8 @@ function getV5Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV6Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV6Migration (ns: string): [string, string] {
   // Generated column syntax: PostgreSQL uses GENERATED ALWAYS AS (...) STORED
-  // CockroachDB supports both syntaxes, so we use PostgreSQL-compatible one
   return [
     'account_db_v6_add_social_id_integrations',
     `
@@ -446,7 +389,7 @@ function getV6Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV7Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV7Migration (ns: string): [string, string] {
   return [
     'account_db_v7_add_display_value',
     `
@@ -456,7 +399,7 @@ function getV7Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV8Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV8Migration (ns: string): [string, string] {
   return [
     'account_db_v8_add_account_max_workspaces',
     `
@@ -466,7 +409,7 @@ function getV8Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV9Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV9Migration (ns: string): [string, string] {
   return [
     'account_db_v9_add_migrated_to_person',
     `
@@ -477,11 +420,9 @@ function getV9Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV10Migration1 (ns: string, flavor: DBFlavor): [string, string] {
+function getV10Migration1 (ns: string): [string, string] {
   // For PostgreSQL, we need to check if the value exists before adding it
-  const addValueSql =
-    flavor === 'postgres'
-      ? `
+  const addValueSql = `
     -- Add READONLYGUEST value to workspace_role enum (PostgreSQL)
     DO $$     BEGIN
         IF NOT EXISTS (
@@ -493,17 +434,11 @@ function getV10Migration1 (ns: string, flavor: DBFlavor): [string, string] {
         END IF;
     END $$;
     `
-      : `
-    -- Add READONLYGUEST value to workspace_role enum (CockroachDB)
-    ALTER TYPE ${ns}.workspace_role ADD VALUE IF NOT EXISTS 'READONLYGUEST';
-    `
 
   return ['account_db_v10_add_readonly_role', addValueSql]
 }
 
-function getV10Migration2 (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV10Migration2 (ns: string): [string, string] {
   return [
     'account_db_v10_add_allow_guests_flag_to_workspace',
     `
@@ -513,9 +448,7 @@ function getV10Migration2 (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV11Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV11Migration (ns: string): [string, string] {
   return [
     'account_db_v11_add_pending_workspace_lock',
     `
@@ -530,7 +463,7 @@ function getV11Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV12Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV12Migration (ns: string): [string, string] {
   return [
     'account_db_v12_update_account_events_fk',
     `
@@ -545,7 +478,7 @@ function getV12Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV13Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV13Migration (ns: string): [string, string] {
   return [
     'account_db_v13_update_workspace_fk_to_person',
     `
@@ -564,9 +497,7 @@ function getV13Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV14Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV14Migration (ns: string): [string, string] {
   return [
     'account_db_v14_add_allow_guest_signup_flag_to_workspace',
     `
@@ -576,9 +507,7 @@ function getV14Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV15Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV15Migration (ns: string): [string, string] {
   return [
     'account_db_v15_add_target_region_to_workspace_status',
     `
@@ -588,11 +517,9 @@ function getV15Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV16Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV16Migration (ns: string): [string, string] {
   // For PostgreSQL, we need to check if the value exists before adding it
-  const addValueSql =
-    flavor === 'postgres'
-      ? `
+  const addValueSql = `
     -- Add huly-assistant value to social_id_type enum (PostgreSQL)
     DO $$     BEGIN
         IF NOT EXISTS (
@@ -604,17 +531,11 @@ function getV16Migration (ns: string, flavor: DBFlavor): [string, string] {
         END IF;
     END $$;
     `
-      : `
-    -- Add huly-assistant value to social_id_type enum (CockroachDB)
-    ALTER TYPE ${ns}.social_id_type ADD VALUE IF NOT EXISTS 'huly-assistant';
-    `
 
   return ['account_db_v16_add_huly_assistant_social_id_type', addValueSql]
 }
 
-function getV17Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV17Migration (ns: string): [string, string] {
   return [
     'account_db_v17_create_user_profile_table',
     `
@@ -642,7 +563,7 @@ function getV17Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV18Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV18Migration (ns: string): [string, string] {
   return [
     'account_db_v18_populate_user_profiles',
     `
@@ -658,9 +579,7 @@ function getV18Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV19Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV19Migration (ns: string): [string, string] {
   return [
     'account_db_v19_subscription_table',
     `
@@ -728,7 +647,7 @@ function getV19Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV20Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV20Migration (ns: string): [string, string] {
   return [
     'account_db_v20_usage_info',
     `
@@ -738,7 +657,7 @@ function getV20Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV21Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV21Migration (ns: string): [string, string] {
   return [
     'account_db_v21_add_failed_login_attempts',
     `
@@ -748,7 +667,7 @@ function getV21Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV22Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV22Migration (ns: string): [string, string] {
   return [
     'account_db_v22_add_password_change_event_index',
     `
@@ -758,7 +677,7 @@ function getV22Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV23Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV23Migration (ns: string): [string, string] {
   return [
     'account_db_v23_add_password_aging_rule_to_workspace',
     `
@@ -768,8 +687,7 @@ function getV23Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV24Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
+function getV24Migration (ns: string): [string, string] {
   return [
     'account_db_v24_add_workspace_permissions_table',
     `
@@ -793,8 +711,7 @@ function getV24Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV25Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
+function getV25Migration (ns: string): [string, string] {
   return [
     'account_db_v25_add_2fa_to_account',
     `
@@ -804,7 +721,7 @@ function getV25Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV26Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV26Migration (ns: string): [string, string] {
   return [
     'account_db_v26_add_workspace_pending_configuration',
     `
@@ -818,11 +735,9 @@ function getV26Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV27Migration (ns: string, flavor: DBFlavor): [string, string] {
+function getV27Migration (ns: string): [string, string] {
   // For PostgreSQL, we need to check if the value exists before adding it
-  const addValueSql =
-    flavor === 'postgres'
-      ? `
+  const addValueSql = `
     -- Add office value to social_id_type enum (PostgreSQL)
     DO $$     BEGIN
         IF NOT EXISTS (
@@ -834,17 +749,11 @@ function getV27Migration (ns: string, flavor: DBFlavor): [string, string] {
         END IF;
     END $$;
     `
-      : `
-    -- Add office value to social_id_type enum (CockroachDB)
-    ALTER TYPE ${ns}.social_id_type ADD VALUE IF NOT EXISTS 'office';
-    `
 
   return ['account_db_v27_add_office_social_id_type', addValueSql]
 }
 
-function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV28Migration (ns: string): [string, string] {
   return [
     'account_db_v28_api_keys',
     `
@@ -867,9 +776,7 @@ function getV28Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV29Migration (ns: string, flavor: DBFlavor): [string, string] {
-  const types = dbTypes[flavor]
-
+function getV29Migration (ns: string): [string, string] {
   return [
     'account_db_v29_add_api_key_suffix',
     `
@@ -879,7 +786,7 @@ function getV29Migration (ns: string, flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
+function getV30Migration (ns: string): [string, string] {
   return [
     'account_db_v30_add_workspace_member_unread',
     `
@@ -894,7 +801,7 @@ function getV30Migration (ns: string, _flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV31Migration (ns: string, _flavor: DBFlavor): [string, string] {
+function getV31Migration (ns: string): [string, string] {
   return [
     'account_db_v31_add_last_visit_to_account',
     `
@@ -904,7 +811,7 @@ function getV31Migration (ns: string, _flavor: DBFlavor): [string, string] {
   ]
 }
 
-function getV32Migration (ns: string, _flavor: DBFlavor): [string, string] {
+function getV32Migration (ns: string): [string, string] {
   return [
     'account_db_v32_anonymous_account_read_only',
     `

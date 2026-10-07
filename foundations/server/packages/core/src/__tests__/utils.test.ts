@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -574,7 +575,7 @@ describe('estimateDocSize', () => {
   })
 
   describe('realistic document scenarios', () => {
-    it('should estimate typical MongoDB-like document', () => {
+    it('should estimate typical JSON document', () => {
       const doc = {
         _id: '507f1f77bcf86cd799439011',
         _class: 'contact.class.Person',

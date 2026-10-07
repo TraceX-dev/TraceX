@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -119,7 +120,7 @@ export interface Workspace {
   allowReadOnlyGuest: boolean
   allowGuestSignUp: boolean
   passwordAgingRule?: number | null // Number of days after which password must be changed
-  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Database name in Mongo, bucket in R2, etc.
+  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Legacy storage namespace or bucket.
   branding?: string
   location?: Location
   region?: string
@@ -320,8 +321,6 @@ export interface WorkspaceWithEndpoint extends Workspace {
 export type WorkspaceStatusData = Omit<WorkspaceStatus, 'workspaceUuid'>
 
 export type WorkspaceInviteData = Omit<WorkspaceInvite, 'id'>
-
-export type DBFlavor = 'postgres' | 'cockroach' | 'unknown'
 
 /* ========= D A T A B A S E  C O L L E C T I O N S ========= */
 export interface AccountDB {

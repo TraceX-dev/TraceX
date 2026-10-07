@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,6 @@
 // limitations under the License.
 //
 
-import { type Attachment } from '@hcengineering/attachment'
 import {
   type Blob,
   type MeasureContext,
@@ -25,7 +25,7 @@ import {
 } from '@hcengineering/core'
 import { type DatalakeClient } from '@hcengineering/datalake'
 import { type UploadObjectParams } from '@hcengineering/datalake/types/client'
-import { DOMAIN_ATTACHMENT } from '@hcengineering/model-attachment'
+
 import { type S3Config, type S3Service } from '@hcengineering/s3'
 import {
   type ListBlobResult,
@@ -33,7 +33,7 @@ import {
   type StorageAdapterEx,
   type UploadedObjectInfo
 } from '@hcengineering/server-core'
-import { type Db } from 'mongodb'
+
 import { PassThrough, type Readable } from 'stream'
 
 export interface MoveFilesParams {
@@ -63,31 +63,6 @@ export async function moveFiles (
     await retryOnFailure(ctx, 5, async () => {
       await processAdapter(ctx, exAdapter, adapter, target, wsIds, params)
     })
-  }
-}
-
-export async function showLostFiles (
-  ctx: MeasureContext,
-  wsIds: WorkspaceIds,
-  db: Db,
-  storageAdapter: StorageAdapter,
-  { showAll }: { showAll: boolean }
-): Promise<void> {
-  const iterator = db.collection<Attachment>(DOMAIN_ATTACHMENT).find({})
-
-  while (true) {
-    const attachment = await iterator.next()
-    if (attachment === null) break
-
-    const { _id, _class, file, name, modifiedOn } = attachment
-    const date = new Date(modifiedOn).toISOString()
-
-    const stat = await storageAdapter.stat(ctx, wsIds, file)
-    if (stat === undefined) {
-      console.warn('-', date, _class, _id, file, name)
-    } else if (showAll) {
-      console.log('+', date, _class, _id, file, name)
-    }
   }
 }
 

@@ -64,7 +64,7 @@ Relations remain subject to access checks and omit inaccessible targets.
 
 This flag does not bypass `ObjectSecurityMiddleware` or enable unsecured nested queries. Object security may
 still hide protected targets and add its internal `accessRoot` field to the projection.
-MongoDB's `SpaceSecurityMiddleware` is unchanged. Dynamic Card fields marked `showInPresenter` and data
+Dynamic Card fields marked `showInPresenter` and data
 loaded through additional queries or `$lookup` are not automatically included in `requiredFields`.
 
 ## Permissions

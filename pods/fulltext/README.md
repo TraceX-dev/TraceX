@@ -7,7 +7,7 @@ Fulltext indexing service for the Platform. Provides full-text search capabiliti
 ### Required
 
 - **`SERVER_SECRET`** - Secret key for server authentication
-- **`DB_URL`** - Database connection URL (PostgreSQL or MongoDB)
+- **`DB_URL`** - Database connection URL (PostgreSQL)
 - **`FULLTEXT_DB_URL`** - Elasticsearch connection URL (e.g., `http://localhost:9200`)
 - **`REKONI_URL`** - Rekoni service URL for content extraction (e.g., `http://localhost:4004`)
 - **`ELASTIC_INDEX_NAME`** - Name of the Elasticsearch index to use

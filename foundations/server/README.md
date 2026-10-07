@@ -8,7 +8,7 @@
 
 Huly Server is a collection of server-side packages extracted from the [Huly Platform](https://github.com/hcengineering/platform). This repository contains backend infrastructure components, storage adapters, and server-side utilities that power the Huly ecosystem.
 
-These packages provide essential server-side functionality including database adapters (MongoDB, PostgreSQL, Elasticsearch), storage providers (MinIO, S3), messaging infrastructure (Kafka), and collaborative editing capabilities. They are designed to be modular, scalable, and production-ready for building robust backend services.
+These packages provide essential server-side functionality including database adapters (PostgreSQL, Elasticsearch), storage providers (MinIO, S3), messaging infrastructure (Kafka), and collaborative editing capabilities. They are designed to be modular, scalable, and production-ready for building robust backend services.
 
 ## Packages
 
@@ -23,7 +23,6 @@ This repository includes the following server packages:
 
 ### Database Adapters
 
-- [@hcengineering/mongo](packages/mongo) - MongoDB adapter for document storage
 - [@hcengineering/postgres](packages/postgres) - PostgreSQL adapter for relational data
 - [@hcengineering/elastic](packages/elastic) - Elasticsearch adapter for full-text search and analytics
 
@@ -190,7 +189,6 @@ docker compose up -d
 
 This will start:
 
-- MongoDB - Document database
 - PostgreSQL - Relational database
 - Elasticsearch - Search engine
 - MinIO - Object storage
@@ -201,7 +199,6 @@ This will start:
 Create a `.env` file in the `tests` directory with the following variables:
 
 ```env
-MONGO_URL=mongodb://localhost:27017
 POSTGRES_URL=postgresql://localhost:5432/huly
 ELASTIC_URL=http://localhost:9200
 MINIO_ENDPOINT=localhost

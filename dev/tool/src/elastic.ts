@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,7 +18,7 @@ import { Client as ElasticClient } from '@elastic/elasticsearch'
 import { type StorageAdapter } from '@hcengineering/server-core'
 
 export async function rebuildElastic (
-  mongoUrl: string,
+  dbUrl: string,
   dataId: string,
   storageAdapter: StorageAdapter,
   elasticUrl: string

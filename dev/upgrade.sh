@@ -1,5 +1,6 @@
  docker run -ti -e SERVER_SECRET=secret \
- -e MONGO_URL=mongodb://127.0.0.1:27017 \
+ -e DB_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
+ -e ACCOUNT_DB_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
  -e MINIO_ENDPOINT=minio \
  -e MINIO_ACCESS_KEY=minioadmin \
  -e MINIO_SECRET_KEY=minioadmin \
