@@ -83,6 +83,7 @@ setMetadata(serverToken.metadata.Service, 'transactor')
 setMetadata(serverNotification.metadata.MailUrl, config.mailUrl ?? '')
 setMetadata(serverNotification.metadata.MailAuthToken, config.mailAuthToken)
 setMetadata(serverNotification.metadata.WebPushUrl, config.webPushUrl)
+setMetadata(serverNotification.metadata.ProductName, process.env.PRODUCT_NAME)
 setMetadata(serverAiBot.metadata.EndpointURL, process.env.AI_BOT_URL)
 setMetadata(serverCalendar.metadata.EndpointURL, process.env.CALENDAR_URL)
 

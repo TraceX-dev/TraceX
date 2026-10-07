@@ -50,6 +50,7 @@ import {
 } from '@hcengineering/server-token'
 
 import { isAdminEmail } from './admin'
+import { renderAccountEmail } from './emails'
 import { accountPlugin } from './plugin'
 import { type AccountServiceMethods, getServiceMethods } from './serviceOperations'
 import {
@@ -1551,7 +1552,7 @@ export async function requestPasswordReset (
   const link = concatLink(front, `/login/recovery?id=${token}`)
   const lang = branding?.language
   const text = await translate(accountPlugin.string.RecoveryText, { link }, lang)
-  const html = await translate(accountPlugin.string.RecoveryHTML, { link }, lang)
+  const html = await renderAccountEmail('recovery', { link }, branding)
   const subject = await translate(accountPlugin.string.RecoverySubject, {}, lang)
 
   const response = await fetch(concatLink(mailURL, '/send'), {
@@ -1621,7 +1622,7 @@ export async function requestPasswordSetup (
   const link = concatLink(front, `/login/recovery?id=${resetToken}`)
   const lang = branding?.language
   const text = await translate(accountPlugin.string.PasswordSetupText, { link }, lang)
-  const html = await translate(accountPlugin.string.PasswordSetupHTML, { link }, lang)
+  const html = await renderAccountEmail('passwordSetup', { link }, branding)
   const subject = await translate(accountPlugin.string.PasswordSetupSubject, {}, lang)
 
   const response = await fetch(concatLink(mailURL, '/send'), {

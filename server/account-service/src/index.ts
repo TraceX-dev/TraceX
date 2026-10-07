@@ -14,8 +14,19 @@ import account, {
   getMethods,
   cleanExpiredOtp
 } from '@hcengineering/account'
+import accountCs from '@hcengineering/account/lang/cs.json'
+import accountDe from '@hcengineering/account/lang/de.json'
 import accountEn from '@hcengineering/account/lang/en.json'
+import accountEs from '@hcengineering/account/lang/es.json'
+import accountFr from '@hcengineering/account/lang/fr.json'
+import accountIt from '@hcengineering/account/lang/it.json'
+import accountKo from '@hcengineering/account/lang/ko.json'
+import accountPl from '@hcengineering/account/lang/pl.json'
+import accountPt from '@hcengineering/account/lang/pt.json'
+import accountPtBr from '@hcengineering/account/lang/pt-br.json'
 import accountRu from '@hcengineering/account/lang/ru.json'
+import accountTr from '@hcengineering/account/lang/tr.json'
+import accountZh from '@hcengineering/account/lang/zh.json'
 import { Analytics } from '@hcengineering/analytics'
 import { registerProviders } from '@hcengineering/auth-providers'
 import { metricsAggregate, type Branding, type BrandingMap, type MeasureContext } from '@hcengineering/core'
@@ -102,16 +113,22 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     process.exit(1)
   }
 
-  addStringsLoader(accountId, async (lang: string) => {
-    switch (lang) {
-      case 'en':
-        return accountEn
-      case 'ru':
-        return accountRu
-      default:
-        return accountEn
-    }
-  })
+  const accountStrings: Record<string, typeof accountEn> = {
+    cs: accountCs,
+    de: accountDe,
+    en: accountEn,
+    es: accountEs,
+    fr: accountFr,
+    it: accountIt,
+    ko: accountKo,
+    pl: accountPl,
+    pt: accountPt,
+    'pt-br': accountPtBr,
+    ru: accountRu,
+    tr: accountTr,
+    zh: accountZh
+  }
+  addStringsLoader(accountId, async (lang: string) => accountStrings[lang.toLowerCase()] ?? accountEn)
 
   const mailUrl = process.env.MAIL_URL
   const mailAuthToken = process.env.MAIL_AUTH_TOKEN
