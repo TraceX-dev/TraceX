@@ -13,13 +13,11 @@
 // limitations under the License.
 //
 
-import { AccountRole, readOnlyGuestAccountUuid, systemAccountUuid, type PersonUuid } from '@hcengineering/core'
+import { AccountRole, docGuestAccountUuid, readOnlyGuestAccountUuid, systemAccountUuid } from '@hcengineering/core'
 import platform, { Severity, Status } from '@hcengineering/platform'
 import { decodeTokenVerbose } from '@hcengineering/server-token'
 
 import type { AccountDB, AccountMethodHandler } from './types'
-
-export const GUEST_ACCOUNT = 'b6996120-416f-49cd-841e-e4a5d2e49c9b' as PersonUuid
 
 type GuestKind = 'doc' | 'readonly' | 'personal'
 
@@ -30,7 +28,7 @@ async function getGuestKind (
   account: ReturnType<typeof decodeTokenVerbose>,
   policy: GuestAccessPolicy
 ): Promise<GuestKind | undefined> {
-  if (account.account === GUEST_ACCOUNT) return 'doc'
+  if (account.account === docGuestAccountUuid) return 'doc'
   if (account.account === readOnlyGuestAccountUuid || account.extra?.readonly === 'true') return 'readonly'
   if (account.account === systemAccountUuid || account.extra?.admin === 'true' || account.extra?.service != null) {
     return undefined

@@ -21,6 +21,7 @@ import {
   type AccountUuid,
   type Branding,
   buildSocialIdString,
+  docGuestAccountUuid,
   generateId,
   concatLink,
   isActiveMode,
@@ -108,7 +109,6 @@ import {
   getWorkspaceInvite,
   getWorkspaceRole,
   getWorkspaceRoles,
-  GUEST_ACCOUNT,
   isEmail,
   isOtpValid,
   normalizeValue,
@@ -838,7 +838,7 @@ export async function createAccessLink (
   }
 
   try {
-    const accessToken = generateToken(GUEST_ACCOUNT, undefined, undefined, undefined, {
+    const accessToken = generateToken(docGuestAccountUuid, undefined, undefined, undefined, {
       grant,
       sub: newUuid,
       exp: expiration,
@@ -2193,7 +2193,7 @@ export async function getLoginInfoByToken (
     }
   }
 
-  const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
+  const isDocGuest = accountUuid === docGuestAccountUuid && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
   const isAdmin = extra?.admin === 'true'
 
@@ -2387,7 +2387,7 @@ export async function getLoginWithWorkspaceInfo (
     }
   }
 
-  const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
+  const isDocGuest = accountUuid === docGuestAccountUuid && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
   let socialIds: SocialId[] = []
 
@@ -2927,7 +2927,7 @@ async function exchangeGuestToken (
       )
     }
 
-    return generateToken(GUEST_ACCOUNT, workspace.uuid, { linkId, guest: 'true' })
+    return generateToken(docGuestAccountUuid, workspace.uuid, { linkId, guest: 'true' })
   }
 
   return token

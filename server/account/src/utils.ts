@@ -19,6 +19,7 @@ import {
   type AccountUuid,
   type Branding,
   concatLink,
+  docGuestAccountUuid,
   generateId,
   groupByArray,
   isActiveMode,
@@ -49,7 +50,7 @@ import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } 
 import { MongoAccountDB } from './collections/mongo'
 import { PostgresAccountDB } from './collections/postgres/postgres'
 import { getEmailAppName, renderAccountEmail } from './emails'
-import { GUEST_ACCOUNT, guardGuestMethod, type GuestAccessPolicy } from './guestAccess'
+import { guardGuestMethod, type GuestAccessPolicy } from './guestAccess'
 import { accountPlugin } from './plugin'
 import {
   type Account,
@@ -75,8 +76,6 @@ import {
 } from './types'
 import { isAdminEmail } from './admin'
 import { type Sql } from 'postgres'
-
-export { GUEST_ACCOUNT } from './guestAccess'
 
 export async function getDbFlavor (pgClient: Sql<any>): Promise<DBFlavor> {
   // Run the version query
@@ -173,7 +172,7 @@ export function isReadOnlyOrGuest (account: AccountUuid, extra: Record<string, a
 }
 
 export function isGuest (account: AccountUuid, extra: Record<string, any> | undefined): boolean {
-  return account === GUEST_ACCOUNT && extra?.guest === 'true'
+  return account === docGuestAccountUuid && extra?.guest === 'true'
 }
 
 /** Guest access defaults to deny; noAuth only skips token verification inside the handler. */

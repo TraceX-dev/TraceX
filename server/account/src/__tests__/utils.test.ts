@@ -16,6 +16,7 @@
 
 import {
   AccountRole,
+  docGuestAccountUuid,
   type AccountUuid,
   type Branding,
   type MeasureContext,
@@ -49,7 +50,6 @@ import {
   getEmailSocialId,
   confirmEmail,
   sendEmailConfirmation,
-  GUEST_ACCOUNT,
   selectWorkspace,
   signUpByEmail,
   getAccount,
@@ -1283,7 +1283,7 @@ describe('account utils', () => {
 
       beforeEach(() => {
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
-          account: GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           workspace: 'workspace-uuid',
           extra: { guest: 'true' }
         })
@@ -1299,7 +1299,7 @@ describe('account utils', () => {
         })
 
         expect(result).toEqual({
-          account: GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           endpoint: expect.any(String),
           token: guestToken,
           workspace: mockWorkspace.uuid,

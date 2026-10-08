@@ -15,6 +15,7 @@
 
 import {
   AccountRole,
+  docGuestAccountUuid,
   readOnlyGuestAccountUuid,
   type AccountUuid,
   type MeasureContext,
@@ -26,7 +27,7 @@ import { decodeTokenVerbose } from '@hcengineering/server-token'
 import { getMethods } from '../operations'
 import { performWorkspaceOperation } from '../serviceOperations'
 import type { AccountDB } from '../types'
-import { GUEST_ACCOUNT, wrap } from '../utils'
+import { wrap } from '../utils'
 
 jest.mock('@hcengineering/server-token', () => ({
   TokenError: jest.requireActual('@hcengineering/server-token').TokenError,
@@ -85,7 +86,7 @@ describe('guest account RPC access', () => {
     for (const [account, role] of [
       [personalGuest, AccountRole.Guest],
       [readOnlyGuestAccountUuid, AccountRole.ReadOnlyGuest],
-      [GUEST_ACCOUNT as AccountUuid, AccountRole.DocGuest]
+      [docGuestAccountUuid, AccountRole.DocGuest]
     ] as const) {
       setToken(account, role)
       const result = await call('createWorkspace')
@@ -133,7 +134,7 @@ describe('guest account RPC access', () => {
   })
 
   test('allows only connection methods for a document guest', async () => {
-    setToken(GUEST_ACCOUNT as AccountUuid, AccountRole.DocGuest, { guest: 'true' })
+    setToken(docGuestAccountUuid, AccountRole.DocGuest, { guest: 'true' })
 
     const allowed = await call('isReadOnlyGuest')
     const denied = await call('getMailboxSecret', { mailbox: 'private@example.com' })

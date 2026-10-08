@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,6 +27,7 @@ import core, {
   type BrandingMap,
   cutObjectArray,
   type Data,
+  docGuestAccountUuid,
   generateId,
   isArchivingMode,
   isMigrationMode,
@@ -92,8 +94,6 @@ import { Workspace } from './workspace'
 
 const ticksPerSecond = 20
 const workspaceSoftShutdownTicks = 15 * ticksPerSecond
-
-const guestAccount = 'b6996120-416f-49cd-841e-e4a5d2e49c9b'
 
 const hangRequestTimeoutSeconds = 30
 const hangSessionTimeoutSeconds = 60
@@ -247,7 +247,7 @@ export class TSessionManager implements SessionManager {
         sys++
       } else {
         user++
-        if (s.session.getUser() === guestAccount || s.session.getUser() === readOnlyGuestAccountUuid) {
+        if (s.session.getUser() === docGuestAccountUuid || s.session.getUser() === readOnlyGuestAccountUuid) {
           anonymous++
         }
       }
@@ -280,7 +280,7 @@ export class TSessionManager implements SessionManager {
           const account = val.session.getUser()
           if (account !== systemAccountUuid) {
             hasUserSession = true
-            if (account !== guestAccount && account !== readOnlyGuestAccountUuid) {
+            if (account !== docGuestAccountUuid && account !== readOnlyGuestAccountUuid) {
               accountsToUpdate.add(account)
             }
           }
@@ -429,7 +429,7 @@ export class TSessionManager implements SessionManager {
         primarySocialId = core.account.System
         role = AccountRole.Owner
         break
-      case guestAccount:
+      case docGuestAccountUuid:
         primarySocialId = '' as PersonId
         role = AccountRole.DocGuest
         break
@@ -825,7 +825,7 @@ export class TSessionManager implements SessionManager {
           workspace.sessions.set(session.sessionId, { session, socket: ws, tickHash })
 
           const accountUuid = account.account
-          if (accountUuid !== systemAccountUuid && accountUuid !== guestAccount) {
+          if (accountUuid !== systemAccountUuid && accountUuid !== docGuestAccountUuid) {
             await this.usersProducer.send(ctx, workspace.wsId.uuid, [
               userEvents.login({
                 user: accountUuid,
@@ -1165,7 +1165,7 @@ export class TSessionManager implements SessionManager {
                   void workspace.with(async (pipeline) => {
                     await pipeline.closeSession(ctx, sessionRef.session.sessionId)
                     // await communicationApi.closeSession(sessionRef.session.sessionId)
-                    if (user !== guestAccount && user !== systemAccountUuid) {
+                    if (user !== docGuestAccountUuid && user !== systemAccountUuid) {
                       await this.trySetStatus(
                         workspace.context.newChild('status', {}),
                         pipeline,
@@ -1698,7 +1698,7 @@ export class TSessionManager implements SessionManager {
         }
         await ws.send(ctx, helloResponse, false, false)
       })
-      if (account.uuid !== guestAccount && account.uuid !== systemAccountUuid) {
+      if (account.uuid !== docGuestAccountUuid && account.uuid !== systemAccountUuid) {
         void workspace.with(async (pipeline) => {
           // We do not need to wait for set-status, just return session to client
           await workspace.context
