@@ -64,19 +64,19 @@ export function guardGuestMethod (
       return { id: request.id, error: new Status(Severity.ERROR, platform.status.Unauthorized, {}) }
     }
 
-    let role: AccountRole | undefined
+    let guestRole: AccountRole | undefined
     try {
-      role = await getGuestRole(db, decodeTokenVerbose(ctx, token), policy)
+      guestRole = await getGuestRole(db, decodeTokenVerbose(ctx, token), policy)
     } catch (error) {
       ctx.error('Failed to determine guest access', { error })
       return { id: request.id, error: new Status(Severity.ERROR, platform.status.Unauthorized, {}) }
     }
 
     const allowed =
-      role === undefined ||
-      (role === AccountRole.DocGuest && policy === 'allGuests') ||
-      (role === AccountRole.ReadOnlyGuest && (policy === 'allGuests' || policy === 'readOnlyAndPersonal')) ||
-      (role === AccountRole.Guest &&
+      guestRole === undefined ||
+      (guestRole === AccountRole.DocGuest && policy === 'allGuests') ||
+      (guestRole === AccountRole.ReadOnlyGuest && (policy === 'allGuests' || policy === 'readOnlyAndPersonal')) ||
+      (guestRole === AccountRole.Guest &&
         (policy === 'allGuests' || policy === 'readOnlyAndPersonal' || policy === 'personalGuest'))
 
     if (!allowed) {
