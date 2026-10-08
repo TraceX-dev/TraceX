@@ -170,15 +170,20 @@ export async function startIndexer (
         'full-text-search',
         {},
         async (ctx) => {
-          const result = await searchFulltext(
-            ctx,
-            decoded.workspace,
-            manager.sysHierarchy,
-            manager.fulltextAdapter,
-            request.query,
-            request.options
-          )
-          req.body = result
+          const searched = await manager.withIndexer(ctx, decoded.workspace, token, true, async (indexer) => {
+            indexer.lastUpdate = Date.now()
+            req.body = await searchFulltext(
+              ctx,
+              decoded.workspace,
+              indexer.fulltext.hierarchy,
+              manager.fulltextAdapter,
+              request.query,
+              request.options
+            )
+          })
+          if (!searched) {
+            throw new Error('Failed to initialize workspace search indexer')
+          }
         },
         {
           workspace: decoded.workspace
