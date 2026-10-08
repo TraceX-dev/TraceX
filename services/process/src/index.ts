@@ -20,12 +20,12 @@ import { newMetrics } from '@hcengineering/core'
 import { getPlatformQueue } from '@hcengineering/kafka'
 import { setMetadata } from '@hcengineering/platform'
 import { initStatisticsContext, QueueTopic } from '@hcengineering/server-core'
-import { ProcessMessage } from '@hcengineering/server-process'
+import { ProcessMessage, TimeMachineMessage } from '@hcengineering/server-process'
 import serverToken from '@hcengineering/server-token'
 import { join } from 'path'
 import config from './config'
 import { prepare } from './init'
-import { messageHandler } from './main'
+import { configureTimerProducer, messageHandler } from './main'
 import { closeClients, configureClients, SERVICE_NAME } from './utils'
 
 async function main (): Promise<void> {
@@ -51,6 +51,8 @@ async function main (): Promise<void> {
   setMetadata(serverToken.metadata.Service, SERVICE_NAME)
 
   const queue = getPlatformQueue(SERVICE_NAME, config.QueueRegion)
+  const timerProducer = queue.getProducer<TimeMachineMessage>(ctx, QueueTopic.TimeMachine)
+  configureTimerProducer(timerProducer)
 
   const consumer = queue.createConsumer<ProcessMessage>(
     ctx,
@@ -67,7 +69,11 @@ async function main (): Promise<void> {
     void consumer
       .close()
       .then(async () => {
-        await closeClients()
+        try {
+          await timerProducer.close()
+        } finally {
+          await closeClients()
+        }
         process.exit()
       })
       .catch((error: unknown) => {

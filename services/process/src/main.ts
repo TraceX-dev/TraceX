@@ -30,7 +30,6 @@ import core, {
   TxUpdateDoc,
   WorkspaceUuid
 } from '@hcengineering/core'
-import { getPlatformQueue } from '@hcengineering/kafka'
 import { getResource } from '@hcengineering/platform'
 import process, {
   ContextId,
@@ -52,6 +51,7 @@ import process, {
   UserResult
 } from '@hcengineering/process'
 import { QueueTopic } from '@hcengineering/server-core'
+import type { PlatformQueueProducer } from '@hcengineering/server-core'
 import serverProcess, {
   ExecuteResult,
   MethodImpl,
@@ -63,13 +63,23 @@ import serverProcess, {
 import { getContextValue } from '@hcengineering/server-process-resources'
 import { createCollaboratorClient } from './collaborator'
 import { isError } from './errors'
-import { getClient, releaseClient, SERVICE_NAME } from './utils'
-import config from './config'
+import { getClient, releaseClient } from './utils'
 import { instrumentClient, type ProcessMeasurements } from './telemetry'
 
 const activeExecutions = new Set<Ref<Execution>>()
 const processedMessages = new Map<string, number>()
 const MAX_PROCESSED_MESSAGES = 1000
+let timerProducer: PlatformQueueProducer<TimeMachineMessage> | undefined
+
+/** Configure the shared timer producer owned by the service lifecycle. */
+export function configureTimerProducer (producer: PlatformQueueProducer<TimeMachineMessage>): void {
+  timerProducer = producer
+}
+
+function getTimerProducer (): PlatformQueueProducer<TimeMachineMessage> {
+  if (timerProducer === undefined) throw new Error('Process timer producer is not configured')
+  return timerProducer
+}
 
 export async function messageHandler (record: ProcessMessage, ws: WorkspaceUuid, ctx: MeasureContext): Promise<void> {
   const measurements: ProcessMeasurements = { client_calls: 0, client_ms: 0, client_errors: 0, outcome: 'handled' }
@@ -103,19 +113,13 @@ async function handleMessage (
     measurements.outcome = 'ignored'
     return
   }
-  if (record._id !== undefined) {
-    if (processedMessages.has(record._id)) {
+  const messageKey = record._id === undefined ? undefined : JSON.stringify([ws, record._id])
+  if (messageKey !== undefined) {
+    if (processedMessages.has(messageKey)) {
       measurements.outcome = 'duplicate'
       ctx.counter('process_duplicate_events', 1)
       ctx.debug('Skipping duplicate message', { _id: record._id, ws })
       return
-    }
-    processedMessages.set(record._id, Date.now())
-    if (processedMessages.size > MAX_PROCESSED_MESSAGES) {
-      const first = processedMessages.keys().next().value
-      if (first !== undefined) {
-        processedMessages.delete(first)
-      }
     }
   }
   try {
@@ -150,6 +154,16 @@ async function handleMessage (
     measurements.outcome = 'error'
     ctx.counter('process_event_errors', 1)
     ctx.error('Error processing event', { error, ws, record })
+    throw error
+  }
+  if (messageKey !== undefined) {
+    processedMessages.set(messageKey, Date.now())
+    if (processedMessages.size > MAX_PROCESSED_MESSAGES) {
+      const first = processedMessages.keys().next().value
+      if (first !== undefined) {
+        processedMessages.delete(first)
+      }
+    }
   }
 }
 
@@ -232,12 +246,19 @@ async function findTransitions (
     return await pickTransition(control, execution, initTransitions, record.context)
   }
   if (record.event.includes(process.trigger.OnExecutionContinue)) {
-    const transition = execution.error?.[0].transition
+    const transition = execution.error?.[0]?.transition
     if (transition === undefined) return
     const res = control.client.getModel().findAllSync(process.class.Transition, {
       _id: transition,
       process: execution.process
     })[0]
+    if (res === undefined) {
+      control.ctx.warn('Cannot continue execution because its transition no longer exists', {
+        execution: execution._id,
+        transition
+      })
+      return
+    }
     if (res.from === execution.currentState || res.from === null) {
       return res
     }
@@ -416,6 +437,7 @@ async function execute (execution: Execution, transition: Transition, control: P
       execution: execution._id,
       transition: transition._id
     })
+    throw err
   } finally {
     activeExecutions.delete(execution._id)
   }
@@ -704,8 +726,7 @@ async function setNextTimers (control: ProcessControl, execution: Execution): Pr
 
 async function cleanTimers (control: ProcessControl, execution: Execution): Promise<void> {
   try {
-    const queue = getPlatformQueue(SERVICE_NAME, config.QueueRegion)
-    const producer = queue.getProducer<TimeMachineMessage>(control.ctx, QueueTopic.TimeMachine)
+    const producer = getTimerProducer()
     await producer.send(control.ctx, control.workspace, [
       {
         type: 'cancel',
@@ -722,8 +743,7 @@ async function setTimer (control: ProcessControl, execution: Execution, transiti
   const targetDate: number = filled.value
   if (targetDate === undefined || typeof targetDate !== 'number' || targetDate === 0 || Number.isNaN(targetDate)) return
   try {
-    const queue = getPlatformQueue(SERVICE_NAME, config.QueueRegion)
-    const producer = queue.getProducer<TimeMachineMessage>(control.ctx, QueueTopic.TimeMachine)
+    const producer = getTimerProducer()
 
     const data: ProcessMessage = {
       _id: `${execution._id}_${transition._id}`,
