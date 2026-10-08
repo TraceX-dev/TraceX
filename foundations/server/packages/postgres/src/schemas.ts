@@ -246,54 +246,6 @@ const eventSchema: Schema = {
   }
 }
 
-const docSyncInfo: Schema = {
-  ...baseSchema,
-  needSync: {
-    type: 'text',
-    notNull: false,
-    index: false
-  },
-  externalVersion: {
-    type: 'text',
-    notNull: false,
-    index: false
-  },
-  repository: {
-    type: 'text',
-    notNull: false,
-    index: false
-  },
-  url: {
-    type: 'text',
-    notNull: false,
-    index: false
-  },
-  parent: {
-    type: 'text',
-    notNull: false,
-    index: false
-  },
-  objectClass: {
-    type: 'text',
-    notNull: false,
-    index: false
-  },
-  deleted: {
-    type: 'bool',
-    notNull: false,
-    index: false
-  }
-}
-
-const githubLogin: Schema = {
-  ...baseSchema,
-  login: {
-    type: 'text',
-    notNull: true,
-    index: true
-  }
-}
-
 export function addSchema (domain: string, schema: Schema): void {
   domainSchemas[translateDomain(domain)] = schema
   domainSchemaFields.set(domain, createSchemaFields(schema))
@@ -313,8 +265,6 @@ export const domainSchemas: Record<string, Schema> = {
   notification: notificationSchema,
   [translateDomain('notification-dnc')]: dncSchema,
   [translateDomain('notification-user')]: userNotificationSchema,
-  [translateDomain('github_sync')]: docSyncInfo,
-  [translateDomain('github_user')]: githubLogin,
   [DOMAIN_RELATION]: relationSchema,
   [DOMAIN_COLLABORATOR]: collaboratorSchema,
   kanban: defaultSchema
