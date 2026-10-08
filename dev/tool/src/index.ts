@@ -110,7 +110,6 @@ import {
   migrateMergedAccounts
 } from './db'
 import { ensureMissingSocialIdentities } from './contact'
-
 import { getToolToken, getWorkspace, getWorkspaceTransactorEndpoint } from './utils'
 import { backfillWorkspaceAvatars } from './workspaceAvatar'
 
@@ -121,7 +120,6 @@ import { mkdir, writeFile } from 'fs/promises'
 import { dirname } from 'path'
 import { restoreMarkupRefs } from './markup'
 import { disableMeetingRoomDefaults } from './meeting-rooms'
-import { restoreGithubIntegrations } from './restoreGithub'
 
 const colorConstants = {
   colorRed: '\u001b[31m',
@@ -1243,15 +1241,6 @@ export function devTool (
       await withStorage(async (adapter) => {
         await restoreMarkupRefs(dbUrl, txes, adapter, region)
       })
-    })
-
-  program
-    .command('restore-github-integrations')
-    .option('-d, --dryrun', 'Dry run', false)
-    .action(async (cmd: { dryrun: boolean }) => {
-      const { dbUrl } = prepareTools()
-
-      await restoreGithubIntegrations(dbUrl, cmd.dryrun)
     })
 
   program

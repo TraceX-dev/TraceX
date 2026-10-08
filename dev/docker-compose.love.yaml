@@ -31,7 +31,7 @@ services:
     environment:
       - PORT=8097
       - SERVICE_ID=love-service
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://huly.local:3000
       - STATS_URL=http://huly.local:4900
       - REGION=pg

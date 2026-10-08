@@ -228,9 +228,6 @@ import { configureAnalyticsProviders } from '@hcengineering/analytics-providers'
 import { Branding, Config } from './types'
 import { ipcMainExposed } from './typesUtils'
 
-import github, { githubId } from '@hcengineering/github'
-import '@hcengineering/github-assets'
-import * as GithubLang from '@hcengineering/github-assets/lang'
 import { preferenceId } from '@hcengineering/preference'
 import { uiId } from '@hcengineering/ui/src/plugin'
 
@@ -281,7 +278,6 @@ function configureI18n (): void {
   addStringsLoader(diffviewId, DiffviewLang.loadLang)
   addStringsLoader(documentId, DocumentLang.loadLang)
   addStringsLoader(timeId, TimeLang.loadLang)
-  addStringsLoader(githubId, GithubLang.loadLang)
   addStringsLoader(documentsId, ControlledDocumentsLang.loadLang)
   addStringsLoader(productsId, ProductsLang.loadLang)
   addStringsLoader(questionsId, QuestionsLang.loadLang)
@@ -363,10 +359,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   setMetadata(presentation.metadata.DisabledFeatures, new Set(disabledFeatures))
 
   setMetadata(textEditor.metadata.Collaborator, config.COLLABORATOR ?? '')
-
-  setMetadata(github.metadata.GithubApplication, config.GITHUB_APP ?? '')
-  setMetadata(github.metadata.GithubClientID, config.GITHUB_CLIENTID ?? '')
-  setMetadata(github.metadata.GithubURL, config.GITHUB_URL ?? '')
 
   if (config.MODEL_VERSION != null) {
     console.log('Minimal Model version requirement', config.MODEL_VERSION)
@@ -474,7 +466,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   addLocation(uploaderId, async () => await import('@hcengineering/uploader-resources'))
   addLocation(recorderId, async () => await import('@hcengineering/recorder-resources'))
   addLocation(presenceId, async () => await import('@hcengineering/presence-resources'))
-  addLocation(githubId, async () => await import(/* webpackChunkName: "github" */ '@hcengineering/github-resources'))
   addLocation(
     githubNextId,
     async () => await import(/* webpackChunkName: "github-next" */ '@hcengineering/github-next-resources')

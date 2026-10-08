@@ -45,9 +45,14 @@
   }
 
   $: if (value !== undefined && value.$lookup?.space === undefined) {
-    productQuery.query(products.class.Product, { _id: value.space }, (result) => {
-      queriedProduct = result[0]
-    })
+    productQuery.query(
+      products.class.Product,
+      { _id: value.space },
+      (result) => {
+        queriedProduct = result[0]
+      },
+      { unsecured: true }
+    )
   } else {
     productQuery.unsubscribe()
     queriedProduct = undefined

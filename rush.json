@@ -2112,46 +2112,6 @@
       "shouldPublish": false
     },
     {
-      "packageName": "@hcengineering/github",
-      "projectFolder": "services/github/github",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/github-assets",
-      "projectFolder": "services/github/github-assets",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/github-resources",
-      "projectFolder": "services/github/github-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/model-github",
-      "projectFolder": "services/github/model-github",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/pod-github",
-      "projectFolder": "services/github/pod-github",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/server-github",
-      "projectFolder": "services/github/server-github",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/server-github-resources",
-      "projectFolder": "services/github/server-github-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/server-github-model",
-      "projectFolder": "services/github/server-github-model",
-      "shouldPublish": false
-    },
-    {
       "packageName": "@hcengineering/desktop-preferences",
       "projectFolder": "plugins/desktop-preferences",
       "shouldPublish": false
@@ -2529,11 +2489,6 @@
     {
       "packageName": "@hcengineering/server-process-resources",
       "projectFolder": "server-plugins/process-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/pod-mail-worker",
-      "projectFolder": "services/mail/pod-mail-worker",
       "shouldPublish": false
     },
     {

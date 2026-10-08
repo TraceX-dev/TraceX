@@ -46,7 +46,11 @@ export class TokenError extends Error {
 }
 
 const getSecret = (): string => {
-  return getMetadata(serverPlugin.metadata.Secret) ?? 'secret'
+  const secret = getMetadata(serverPlugin.metadata.Secret)
+  if (secret === '' || secret === undefined) {
+    throw new Error('Secret not specified')
+  }
+  return secret
 }
 
 /**

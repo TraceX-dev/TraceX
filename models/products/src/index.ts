@@ -195,7 +195,8 @@ function defineProduct (builder: Builder): void {
   })
 
   builder.mixin(products.class.Product, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: products.component.ProductPresenter
+    presenter: products.component.ProductPresenter,
+    requiredFields: ['name', 'icon', 'color']
   })
 
   builder.mixin(products.class.Product, core.class.Class, view.mixin.AttributePresenter, {

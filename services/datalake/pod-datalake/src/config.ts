@@ -37,7 +37,6 @@ export interface Config {
   Buckets: BucketConfig[]
   S3AvailabilityCheckInterval: number
   CleanupInterval: number
-  Secure: boolean
   Readonly: boolean
   Cache: CacheConfig
   /**
@@ -96,7 +95,6 @@ const config: Config = (() => {
     DbUrl: process.env.DB_URL,
     Buckets: parseBucketsConfig(process.env.BUCKETS),
     S3AvailabilityCheckInterval: parseNumber(process.env.S3_AVAILABILITY_CHECK_INTERVAL) ?? 30_000,
-    Secure: process.env.SECURE === 'true',
     Readonly: process.env.READONLY === 'true',
     Cache: {
       enabled: process.env.CACHE_ENABLED !== 'false',
