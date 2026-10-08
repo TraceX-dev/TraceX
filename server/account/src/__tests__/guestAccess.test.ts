@@ -27,7 +27,12 @@ import { decodeTokenVerbose } from '@hcengineering/server-token'
 import { getMethods } from '../operations'
 import { performWorkspaceOperation } from '../serviceOperations'
 import type { AccountDB } from '../types'
-import { wrap } from '../utils'
+import { getRegions, wrap } from '../utils'
+
+jest.mock('../utils', () => ({
+  ...jest.requireActual('../utils'),
+  getRegions: jest.fn()
+}))
 
 jest.mock('@hcengineering/server-token', () => ({
   TokenError: jest.requireActual('@hcengineering/server-token').TokenError,
@@ -95,10 +100,13 @@ describe('guest account RPC access', () => {
   })
 
   test('allows token-less getRegionInfo readiness checks from services', async () => {
+    const regions = [{ region: 'eu', name: 'Europe' }]
+    ;(getRegions as jest.Mock).mockReturnValue(regions)
+
     const result = await methods.getRegionInfo?.(ctx, db, null, { id: 1, params: {} }, undefined)
 
     expect(result?.error).toBeUndefined()
-    expect(Array.isArray(result?.result)).toBe(true)
+    expect(result?.result).toEqual(regions)
   })
 
   test('wrap denies an unmarked handler to a guest', async () => {
