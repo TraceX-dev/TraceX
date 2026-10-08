@@ -11,7 +11,7 @@ services:
     ports:
       - 3040:3040
     environment:
-      - SECRET=secret
+      - SECRET=${SECRET}
       - PORT=3040
       - ACCOUNTS_URL=http://tracex.local:3000
       - FRONT_URL=http://tracex.local:8087

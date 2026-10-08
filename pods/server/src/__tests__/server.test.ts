@@ -14,9 +14,9 @@
 // limitations under the License.
 //
 
-import { UNAUTHORIZED } from '@hcengineering/platform'
+import { UNAUTHORIZED, setMetadata } from '@hcengineering/platform'
 import { RPCHandler, type Response } from '@hcengineering/rpc'
-import { generateToken } from '@hcengineering/server-token'
+import serverToken, { generateToken } from '@hcengineering/server-token'
 import WebSocket from 'ws'
 
 import {
@@ -49,6 +49,7 @@ import { genMinModel } from './minmodel'
 describe('server', () => {
   const port = 10000
   const handler = new RPCHandler()
+
   async function getModelDb (): Promise<{ modelDb: ModelDb, hierarchy: Hierarchy }> {
     const txes = genMinModel()
     const hierarchy = new Hierarchy()
@@ -115,6 +116,10 @@ describe('server', () => {
     )
     return new WebSocket(`ws://localhost:${port}/${token}`)
   }
+
+  beforeAll(async () => {
+    setMetadata(serverToken.metadata.Secret, 'secret')
+  })
 
   afterAll(async () => {
     await sessionMgr.closeWorkspaces(new MeasureMetricsContext('test', {}))

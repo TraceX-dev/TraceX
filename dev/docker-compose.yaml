@@ -6,7 +6,7 @@ services:
     environment:
       - STREAM_ENDPOINT_URL=datalake://tracex.local:4030
       - STREAM_INSECURE=true
-      - STREAM_SERVER_SECRET=secret
+      - STREAM_SERVER_SECRET=${SECRET}
       - STREAM_MAX_PARALLEL_SCALING_COUNT=6
       - STREAM_LOG_LEVEL=debug
       - AWS_ACCESS_KEY_ID=minioadmin
@@ -22,7 +22,7 @@ services:
       - 'tracex.local:host-gateway'
     environment:
       - ACCOUNTS_URL=http://tracex.local:3000
-      - SECRET=secret
+      - SECRET=${SECRET}
       - REGION=pg
       - QUEUE_CONFIG=${QUEUE_CONFIG}
     restart: unless-stopped
@@ -31,7 +31,7 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     environment:
-      - SECRET=secret
+      - SECRET=${SECRET}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - CACHE_PATH=/data/cache
     ports:
@@ -42,7 +42,7 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     environment:
-      - SECRET=secret
+      - SECRET=${SECRET}
       - PORT=4041
     ports:
       - 4041:4041
@@ -175,7 +175,7 @@ services:
     environment:
       - ACCOUNT_PORT=3000
       - QUEUE_CONFIG=${QUEUE_CONFIG}
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - ADMIN_EMAILS=admin,${PLATFORM_ADMIN_EMAILS}
       - STATS_URL=http://tracex.local:4900
       - WORKSPACE_LIMIT_PER_USER=10000
@@ -204,7 +204,7 @@ services:
       - 4900:4900
     environment:
       - PORT=4900
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
 
@@ -224,7 +224,7 @@ services:
     environment:
       - WS_OPERATION=all+backup
       - REGION=pg
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - DB_URL=${DB_URL_PG}
       - STATS_URL=http://tracex.local:4900
@@ -250,7 +250,7 @@ services:
       - 3078:3078
     environment:
       - COLLABORATOR_PORT=3078
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - STATS_URL=http://tracex.local:4900
@@ -268,7 +268,7 @@ services:
       - 4020:4020
     environment:
       - PORT=4020
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
       - COLLABORATOR_URL=ws://tracex.local:3078
       - SERVICE_ID=mcp-service
@@ -286,7 +286,7 @@ services:
       - 8088:8080
     environment:
       - SERVER_PORT=8080
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
       - STATS_URL=http://tracex.local:4900
       - FILES_URL=http://tracex.local:4030/blob/:workspace/:blobId/:filename
@@ -338,7 +338,7 @@ services:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - SERVER_PORT=3332
       - REGION=pg
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - ENABLE_COMPRESSION=true
       - FULLTEXT_URL=http://tracex.local:4702
       - STATS_URL=http://tracex.local:4900
@@ -371,7 +371,7 @@ services:
       - PORT=8080
       - TRANSACTOR_URL=ws://transactor_pg:3332
       - ACCOUNTS_URL=http://tracex.local:3000
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - COLLABORATOR_URL=ws://collaborator:3078
       - LAST_NAME_FIRST=true
     restart: unless-stopped
@@ -402,7 +402,7 @@ services:
     environment:
       - PORT=4702
       - REGION=pg
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - DB_URL=${DB_URL_PG}
       - FULLTEXT_DB_URL=http://tracex.local:9200
@@ -420,7 +420,7 @@ services:
     ports:
       - 4005:4005
     environment:
-      - SECRET=secret
+      - SECRET=${SECRET}
       - REGION=pg
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
@@ -439,7 +439,7 @@ services:
       - ../services/sign/pod-sign/debug/certificate.p12:/var/cfg/certificate.p12
       - ../services/sign/pod-sign/debug/branding.json:/var/cfg/branding.json
     environment:
-      - SECRET=secret
+      - SECRET=${SECRET}
       - MINIO_ENDPOINT=minio
       - REGION=pg
       - QUEUE_CONFIG=${QUEUE_CONFIG}
@@ -458,7 +458,7 @@ services:
   #     - 'tracex.local:host-gateway'
   #   restart: unless-stopped
   #   environment:
-  #     - SERVER_SECRET=secret
+  #     - SERVER_SECRET=${SECRET}
   #     - DB_URL=${DB_URL_PG}
   #     - QUEUE_CONFIG=${QUEUE_CONFIG}
   #     - ACCOUNTS_URL=http://tracex.local:3000
@@ -479,7 +479,7 @@ services:
     ports:
       - 4017:4017
     environment:
-      - SECRET=secret
+      - SECRET=${SECRET}
       - PORT=4017
       - SERVICE_ID=analytics-collector-service
       - ACCOUNTS_URL=http://tracex.local:3000
@@ -499,7 +499,7 @@ services:
       - 4009:4009
     environment:
       - PORT=4009
-      - SECRET=secret
+      - SECRET=${SECRET}
       - SERVICE_ID=export-service
       - DB_URL=${DB_URL_PG}
       - STATS_URL=http://tracex.local:4900
@@ -524,7 +524,7 @@ services:
       - 4030:4030
     environment:
       - PORT=4030
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
       - STATS_URL=http://tracex.local:4900
       - DB_URL=${DB_URL_PG}
@@ -544,7 +544,7 @@ services:
       - 8094:8094
     environment:
       - HULY_DB_CONNECTION=${DB_URL_PG}
-      - HULY_TOKEN_SECRET=secret
+      - HULY_TOKEN_SECRET=${SECRET}
     restart: unless-stopped
   hulygun:
     image: tracexapp/hulygun
@@ -558,7 +558,7 @@ services:
     environment:
       - HULY_LOG=debug
       - HULY_KAFKA_BOOTSTRAP=redpanda:9092
-      - HULY_TOKEN_SECRET=secret
+      - HULY_TOKEN_SECRET=${SECRET}
       - HULY_ACCOUNT_SERVICE=http://tracex.local:3000
     restart: unless-stopped
 
@@ -572,7 +572,7 @@ services:
       account:
         condition: service_started
     environment:
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - QUEUE_REGION=pg
@@ -592,7 +592,7 @@ services:
       - 3510:3510
     environment:
       - SERVICE_ID=github-next-service
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
       - FRONT_URL=http://tracex.local:8087
       - COLLABORATOR_URL=ws://tracex.local:3078
@@ -635,7 +635,7 @@ services:
     environment:
       - SERVICE_ID=events-processor
       - LOG_LEVEL=debug
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://huly.local:3000
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - QUEUE_REGION=pg
@@ -655,7 +655,7 @@ services:
       account:
         condition: service_started
     environment:
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
       - ACCOUNTS_DB_URL=${DB_URL_PG}
       - STATS_URL=http://tracex.local:4900
@@ -684,7 +684,7 @@ services:
       - 4039:4039
     environment:
       - PORT=4039
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
       - STATS_URL=http://tracex.local:4900
       - BUCKET_NAME=backups
@@ -707,7 +707,7 @@ services:
     environment:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - REGION=pg
-      - SERVER_SECRET=secret
+      - SERVER_SECRET=${SECRET}
       - STATS_URL=http://tracex.local:4900
       - DB_URL=${DB_URL_PG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
