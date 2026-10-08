@@ -35,7 +35,7 @@ function optionalNumberEnv (name: string, defaultValue: number): number {
 const config: McpConfig = {
   Port: Number.parseInt(optionalEnv('PORT', '4020'), 10),
   AccountsURL: requiredEnv('ACCOUNTS_URL'),
-  ServerSecret: optionalEnv('SERVER_SECRET', optionalEnv('SECRET', 'secret')),
+  ServerSecret: requiredEnv('SERVER_SECRET'),
   CollaboratorURL: requiredEnv('COLLABORATOR_URL'),
   ServiceID: optionalEnv('SERVICE_ID', 'tracex-mcp-service'),
   WorkspaceClientCacheMs: optionalNumberEnv('WORKSPACE_CLIENT_CACHE_MS', 0)

@@ -230,7 +230,7 @@ Alternatively, you can just execute:
 sh ./scripts/build.sh
 ```
 
-By default, Docker volumes named dev_db, dev_elastic, and dev_files will be created for the MongoDB, Elasticsearch, and MinIO instances.
+By default, Docker volumes named dev_postgres_db, dev_elastic, and dev_files will be created for the PostgreSQL, Elasticsearch, and MinIO instances.
 
 Add the following lines to your hosts file:
 

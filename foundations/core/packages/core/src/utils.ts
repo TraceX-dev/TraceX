@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -157,7 +158,7 @@ export type WorkspaceDataId = string & { __workspaceDataId: true }
 export interface WorkspaceIds {
   uuid: WorkspaceUuid
   url: string
-  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Database name in Mongo, bucket in R2, etc.
+  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Legacy storage namespace or bucket.
 }
 
 /**

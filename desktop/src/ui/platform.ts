@@ -1,6 +1,8 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
 //
+// Copyright © 2026 TraceX SAS.
+//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
@@ -30,6 +32,8 @@ import { bitrixId } from '@hcengineering/bitrix'
 import { boardId } from '@hcengineering/board'
 import calendar, { calendarId } from '@hcengineering/calendar'
 import { cardId } from '@hcengineering/card'
+import { formsId } from '@hcengineering/forms'
+import forms from '@hcengineering/forms-resources/src/plugin'
 import { chunterId } from '@hcengineering/chunter'
 import client, { clientId } from '@hcengineering/client'
 import contactPlugin, { contactId } from '@hcengineering/contact'
@@ -102,6 +106,8 @@ import * as BoardLang from '@hcengineering/board-assets/lang'
 import '@hcengineering/calendar-assets'
 import * as CalendarLang from '@hcengineering/calendar-assets/lang'
 import '@hcengineering/card-assets'
+import '@hcengineering/forms-assets'
+import * as FormsLang from '@hcengineering/forms-assets/lang'
 import * as CardLang from '@hcengineering/card-assets/lang'
 import '@hcengineering/chunter-assets'
 import * as ChunterLang from '@hcengineering/chunter-assets/lang'
@@ -222,9 +228,6 @@ import { configureAnalyticsProviders } from '@hcengineering/analytics-providers'
 import { Branding, Config } from './types'
 import { ipcMainExposed } from './typesUtils'
 
-import github, { githubId } from '@hcengineering/github'
-import '@hcengineering/github-assets'
-import * as GithubLang from '@hcengineering/github-assets/lang'
 import { preferenceId } from '@hcengineering/preference'
 import { uiId } from '@hcengineering/ui/src/plugin'
 
@@ -275,7 +278,6 @@ function configureI18n (): void {
   addStringsLoader(diffviewId, DiffviewLang.loadLang)
   addStringsLoader(documentId, DocumentLang.loadLang)
   addStringsLoader(timeId, TimeLang.loadLang)
-  addStringsLoader(githubId, GithubLang.loadLang)
   addStringsLoader(documentsId, ControlledDocumentsLang.loadLang)
   addStringsLoader(productsId, ProductsLang.loadLang)
   addStringsLoader(questionsId, QuestionsLang.loadLang)
@@ -289,6 +291,7 @@ function configureI18n (): void {
   addStringsLoader(testManagementId, TestManagementLang.loadLang)
   addStringsLoader(surveyId, SurveyLang.loadLang)
   addStringsLoader(cardId, CardLang.loadLang)
+  addStringsLoader(formsId, FormsLang.loadLang)
   addStringsLoader(mailId, MailLang.loadLang)
   addStringsLoader(processId, ProcessLang.loadLang)
   addStringsLoader(achievementId, AchievementLang.loadLang)
@@ -357,10 +360,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
 
   setMetadata(textEditor.metadata.Collaborator, config.COLLABORATOR ?? '')
 
-  setMetadata(github.metadata.GithubApplication, config.GITHUB_APP ?? '')
-  setMetadata(github.metadata.GithubClientID, config.GITHUB_CLIENTID ?? '')
-  setMetadata(github.metadata.GithubURL, config.GITHUB_URL ?? '')
-
   if (config.MODEL_VERSION != null) {
     console.log('Minimal Model version requirement', config.MODEL_VERSION)
     setMetadata(presentation.metadata.ModelVersion, config.MODEL_VERSION)
@@ -409,6 +408,7 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
     uiPlugin.metadata.Routes,
     new Map([
       [workbenchId, workbench.component.WorkbenchApp],
+      [formsId, forms.component.FormsApp],
       [adminId, admin.component.AdminApp],
       [loginId, login.component.LoginApp],
       [onboardId, onboard.component.OnboardApp],
@@ -418,6 +418,7 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
     ])
   )
 
+  addLocation(formsId, () => import(/* webpackChunkName: "forms" */ '@hcengineering/forms-resources'))
   addLocation(coreId, async () => ({ default: async () => ({}) }))
   addLocation(presentationId, async () => ({ default: async () => ({}) }))
 
@@ -465,7 +466,6 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   addLocation(uploaderId, async () => await import('@hcengineering/uploader-resources'))
   addLocation(recorderId, async () => await import('@hcengineering/recorder-resources'))
   addLocation(presenceId, async () => await import('@hcengineering/presence-resources'))
-  addLocation(githubId, async () => await import(/* webpackChunkName: "github" */ '@hcengineering/github-resources'))
   addLocation(
     githubNextId,
     async () => await import(/* webpackChunkName: "github-next" */ '@hcengineering/github-next-resources')

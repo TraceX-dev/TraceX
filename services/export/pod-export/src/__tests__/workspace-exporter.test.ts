@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -259,7 +260,7 @@ function createMockStorageAdapter (): StorageAdapter {
   return adapter as StorageAdapter
 }
 
-// Use realistic hex IDs that look like MongoDB ObjectIds
+// Use realistic hex IDs that look like legacy document IDs
 const SOURCE_SPACE_ID = '69286daacb49b698d3ea2c51' as Ref<Space>
 const SOURCE_DOC_1 = '69286dc0cb49b698d3ea2c95' as Ref<Doc>
 const SOURCE_DOC_2 = '69286dc1cb49b698d3ea2c98' as Ref<Doc>
@@ -991,7 +992,7 @@ describe('CrossWorkspaceExporter', () => {
 
   describe('ID Remapping', () => {
     it('should remap reference fields to new IDs', async () => {
-      // Use realistic hex IDs like MongoDB ObjectIds
+      // Use realistic hex IDs like legacy document IDs
       const sourceSpaceId = '69286daacb49b698d3ea2c51' as Ref<Space>
       const sourceSpace = createMockSpace(sourceSpaceId, 'Test Space')
       const refDoc = createMockDoc('69286dc0cb49b698d3ea2c95', mockDocClass, sourceSpaceId)

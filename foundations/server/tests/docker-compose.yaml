@@ -1,26 +1,18 @@
 services:
-  mongodb:
-    image: 'mongo:7-jammy'
-    command: mongod --port 27018
-    healthcheck:
-      test: echo "try { db.currentOp().ok } catch (err) { }" | mongosh --port 27018 --quiet
-      interval: 5s
-      timeout: 30s
-      start_period: 0s
-      start_interval: 1s
-      retries: 30
+  postgres:
+    image: postgres:16
+    command: ["postgres", "-p", "5433"]
+    ports:
+      - '5433:5433'
     environment:
-      - PUID=1000
-      - PGID=1000
-    ports:
-      - 27018:27018
-    restart: unless-stopped
-  cockroach:
-    image: cockroachdb/cockroach:v24.1.2
-    ports:
-      - '26258:26257'
-      - '18089:8080'
-    command: start-single-node --insecure
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -p 5433"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.3.6

@@ -120,11 +120,8 @@
     "@hcengineering/export": "workspace:^0.7.0",
     "@hcengineering/export-assets": "workspace:^0.7.0",
     "@hcengineering/export-resources": "workspace:^0.7.0",
-    "@hcengineering/github": "workspace:^0.7.0",
-    "@hcengineering/github-assets": "workspace:^0.7.0",
     "@hcengineering/github-next": "workspace:^0.7.0",
     "@hcengineering/github-next-resources": "workspace:^0.7.0",
-    "@hcengineering/github-resources": "workspace:^0.7.0",
     "@hcengineering/gmail": "workspace:^0.7.0",
     "@hcengineering/gmail-assets": "workspace:^0.7.0",
     "@hcengineering/gmail-resources": "workspace:^0.7.0",
@@ -301,6 +298,9 @@
     "@tracex/qalico": "workspace:^0.7.0",
     "@tracex/qalico-assets": "workspace:^0.7.0",
     "readable-stream": "^4.7.0",
-    "svelte": "^4.2.20"
+    "svelte": "^4.2.20",
+    "@hcengineering/forms": "workspace:^0.7.0",
+    "@hcengineering/forms-assets": "workspace:^0.7.0",
+    "@hcengineering/forms-resources": "workspace:^0.7.0"
   }
 }

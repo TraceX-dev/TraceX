@@ -1,3 +1,17 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 import { expect, type Locator, type Page } from '@playwright/test'
 import { DocumentDetails, DocumentRights, DocumentStatus, NewDocument } from '../types'
 import { DocumentCommonPage } from './document-common-page'
@@ -77,6 +91,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   readonly qualityButtonDots: Locator
   readonly editDocumentSpace: Locator
   readonly qualityButtonMembers: Locator
+  readonly documentSpaceOwners: Locator
   readonly userMemberCainVelasquez: Locator
   readonly qualityDocument: Locator
   readonly saveButton: Locator
@@ -187,8 +202,14 @@ export class DocumentContentPage extends DocumentCommonPage {
     this.filterCategory = page.locator('span').filter({ hasText: /^Category$/ })
     this.qualityButtonDots = page.getByRole('button', { name: 'Quality documents' }).getByRole('button')
     this.editDocumentSpace = page.getByRole('button', { name: 'Edit documents space' })
-    this.qualityButtonMembers = page.getByRole('button', { name: 'AJ DK AQ 3 members' }).first()
-    this.userMemberCainVelasquez = page.getByRole('button', { name: 'VC Velasquez Cain' })
+    const spaceSettings = page.locator('[data-id="space-settings-general"] .formRow')
+    this.qualityButtonMembers = spaceSettings
+      .filter({ has: page.locator('.formRow__label', { hasText: /^Members$/ }) })
+      .getByRole('button')
+    this.documentSpaceOwners = spaceSettings
+      .filter({ has: page.locator('.formRow__label', { hasText: /^Owners$/ }) })
+      .getByRole('button')
+    this.userMemberCainVelasquez = page.locator('.selectPopup').getByRole('button', { name: 'VC Velasquez Cain' })
     this.qualityDocument = page.getByRole('button', { name: 'Quality documents' })
     this.saveButton = page.getByRole('button', { name: 'Save', exact: true })
     this.addMember = page.getByText('Add member')
@@ -342,6 +363,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async checkIfMemberDropdownHasMember (member: string, contains: boolean): Promise<void> {
+    await expect(this.addMemberDropdown).toBeVisible()
     if (contains) {
       await expect(this.addMemberDropdown).toContainText(member)
     } else {
@@ -454,7 +476,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async checkIfFolderExists (folderName: string): Promise<void> {
-    await expect(this.page.getByRole('button', { name: folderName })).toBeVisible()
+    await expect(this.page.getByRole('button', { name: folderName, exact: true })).toBeVisible()
   }
 
   async clickAddFolderButton (): Promise<void> {
@@ -502,7 +524,9 @@ export class DocumentContentPage extends DocumentCommonPage {
   async checkIfUserCanCreateDocument (spaceName: string): Promise<void> {
     await this.page.getByRole('button', { name: 'New document', exact: true }).click()
     await this.page.locator('[id="space\\.selector"]').click()
-    await expect(this.page.locator('.selectPopup').getByRole('button', { name: spaceName })).not.toBeVisible()
+    await expect(
+      this.page.locator('.selectPopup').getByRole('button', { name: spaceName, exact: true })
+    ).not.toBeVisible()
   }
 
   async fillDocumentAndSetMemberPrivate (spaceName: string): Promise<void> {
@@ -556,31 +580,35 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async changeTeamspaceMembers (spaceName: string): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName }).hover()
-    await this.page.getByRole('button', { name: spaceName }).getByRole('button').nth(1).click()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').nth(1).click()
     await this.page.getByRole('button', { name: 'Edit teamspace' }).click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).first().click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).nth(2).click()
-    await this.page.getByRole('button', { name: 'AJ Appleseed John' }).click()
+    await this.documentSpaceOwners.click()
+    await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
+    await this.addMemberDropdown.getByRole('button', { name: 'AJ Appleseed John' }).click()
+    await this.page.keyboard.press('Escape')
+    // Owners are added to members after the account editor's delayed update.
+    await expect(this.qualityButtonMembers).toContainText('2 members')
+    await this.qualityButtonMembers.click()
+    await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
     await this.page.keyboard.press('Escape')
     await this.page.waitForTimeout(1000)
-    await this.page.getByRole('button', { name: 'AJ DK 2 members' }).click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).click()
-    await this.page.keyboard.press('Escape')
-    await this.page.waitForTimeout(1000)
-    await this.page.getByRole('button', { name: 'Save' }).click()
+    await this.saveButton.click()
   }
 
   async changeDocumentSpaceMembers (spaceName: string): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName }).hover()
-    await this.page.getByRole('button', { name: spaceName }).getByRole('button').click()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').click()
     await this.editDocumentSpace.click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).first().click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).nth(3).click()
-    await this.page.getByRole('button', { name: 'AJ Appleseed John' }).click()
+    await this.documentSpaceOwners.click()
+    await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
+    await this.addMemberDropdown.getByRole('button', { name: 'AJ Appleseed John' }).click()
     await this.page.keyboard.press('Escape')
-    await this.page.getByRole('button', { name: 'AJ DK 2 members' }).click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).nth(1).click()
+    await expect(this.documentSpaceOwners).toContainText('Appleseed John')
+    // The owner label changes before the new owner is added to members.
+    await expect(this.qualityButtonMembers).toContainText('2 members')
+    await this.qualityButtonMembers.click()
+    await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
     await this.page.keyboard.press('Escape')
     await this.page.waitForTimeout(1000)
     await this.saveButton.click()
@@ -588,20 +616,20 @@ export class DocumentContentPage extends DocumentCommonPage {
 
   async createDocumentSpaceMembersToJustMember (spaceName: string): Promise<void> {
     await this.inputSpaceName.fill(spaceName)
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).first().click()
-    await this.page.getByRole('button', { name: 'AJ Appleseed John' }).click()
-    await this.page.getByRole('button', { name: 'DK Dirak Kainin' }).nth(1).click()
+    await this.documentSpaceOwners.click()
+    await this.addMemberDropdown.getByRole('button', { name: 'AJ Appleseed John' }).click()
+    await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
     await this.page.keyboard.press('Escape')
     await this.page.waitForTimeout(1000)
     await this.createButton.click()
   }
 
   async addThirdUserToMembers (spaceName: string): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName }).hover()
-    await this.page.getByRole('button', { name: spaceName }).getByRole('button').click()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').click()
     await this.editDocumentSpace.click()
-    await this.page.getByRole('button', { name: 'AJ DK 2 members' }).click()
-    await this.page.getByRole('button', { name: 'VC Velasquez Cain' }).click()
+    await this.qualityButtonMembers.click()
+    await this.userMemberCainVelasquez.click()
     await this.page.keyboard.press('Escape')
     await this.page.waitForTimeout(1000)
     await this.saveButton.click()
@@ -609,15 +637,15 @@ export class DocumentContentPage extends DocumentCommonPage {
 
   async checkIfTheSpaceIsVisible (spaceName: string, visible: boolean): Promise<void> {
     if (visible) {
-      await expect(this.page.getByRole('button', { name: spaceName })).toBeVisible()
+      await expect(this.page.getByRole('button', { name: spaceName, exact: true })).toBeVisible()
     } else {
-      await expect(this.page.getByRole('button', { name: spaceName })).not.toBeVisible()
+      await expect(this.page.getByRole('button', { name: spaceName, exact: true })).not.toBeVisible()
     }
   }
 
   async checkIfEditSpaceButtonExists (spaceName: string, visible: boolean): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName }).hover()
-    await this.page.getByRole('button', { name: spaceName }).getByRole('button').click()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
+    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').click()
     if (visible) {
       await expect(this.editDocumentSpace).toBeVisible()
       await expect(this.qualityButtonMembers).toBeVisible()
@@ -631,18 +659,18 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async checkSpaceFormIsCreated (spaceName: string): Promise<void> {
-    await expect(this.page.getByRole('button', { name: spaceName })).toBeVisible()
+    await expect(this.page.getByRole('button', { name: spaceName, exact: true })).toBeVisible()
   }
 
   async createNewDocumentInsideFolder (folderName: string): Promise<void> {
-    await this.page.getByRole('button', { name: folderName }).hover()
-    await this.page.getByRole('button', { name: folderName }).getByRole('button').click()
+    await this.page.getByRole('button', { name: folderName, exact: true }).hover()
+    await this.page.getByRole('button', { name: folderName, exact: true }).getByRole('button').click()
     await this.createNewDocument.click()
   }
 
   async clickLeaveFolder (folderName: string): Promise<void> {
-    await this.page.getByRole('button', { name: folderName }).hover()
-    await this.page.getByRole('button', { name: folderName }).getByRole('button').click()
+    await this.page.getByRole('button', { name: folderName, exact: true }).hover()
+    await this.page.getByRole('button', { name: folderName, exact: true }).getByRole('button').click()
     await this.leaveFolder.click()
   }
 

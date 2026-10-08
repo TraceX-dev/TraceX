@@ -157,10 +157,6 @@ test.describe('integrations in accounts tests', () => {
     expect(workspaceIntegrations).toHaveLength(2)
     expect(workspaceIntegrations).toEqual(expect.arrayContaining([integration2, integration3]))
 
-    const githubIntegrations = await accountClient.listIntegrations({ kind: 'github' as IntegrationKind })
-    expect(githubIntegrations).toHaveLength(1)
-    expect(githubIntegrations[0]).toEqual(integration1)
-
     const telegramIntegrations = await accountClient.listIntegrations({ kind: 'telegram-bot' as IntegrationKind })
     expect(telegramIntegrations).toHaveLength(1)
     expect(telegramIntegrations[0]).toEqual(integration2)

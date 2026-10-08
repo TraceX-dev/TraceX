@@ -1,3 +1,17 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 interface Config {
   Host: string | undefined
   Port: number
@@ -6,8 +20,7 @@ interface Config {
   TelegramApiHash: string
   TelegramAuthTTL: number
 
-  MongoURI: string
-  MongoDB: string
+  DbUrl: string
 
   AccountsURL: string
   ServiceID: string
@@ -22,8 +35,7 @@ const envMap: { [key in keyof Config]: string } = {
   TelegramApiHash: 'TELEGRAM_API_HASH',
   TelegramAuthTTL: 'TELEGRAM_AUTH_TTL',
 
-  MongoURI: 'MONGO_URI',
-  MongoDB: 'MONGO_DB',
+  DbUrl: 'DB_URL',
 
   AccountsURL: 'ACCOUNTS_URL',
   ServiceID: 'SERVICE_ID',
@@ -38,8 +50,7 @@ const defaults: Partial<Config> = {
   TelegramApiHash: undefined,
   TelegramAuthTTL: 600 * 1000,
 
-  MongoURI: undefined,
-  MongoDB: 'telegram-service',
+  DbUrl: undefined,
 
   AccountsURL: undefined,
   ServiceID: 'telegram-service',
@@ -47,7 +58,7 @@ const defaults: Partial<Config> = {
   Secret: undefined
 }
 
-const required: Array<keyof Config> = ['TelegramApiID', 'TelegramApiHash', 'MongoURI', 'AccountsURL', 'Secret']
+const required: Array<keyof Config> = ['TelegramApiID', 'TelegramApiHash', 'DbUrl', 'AccountsURL', 'Secret']
 
 const mergeConfigs = <T>(defaults: Partial<T>, params: Partial<T>): T => {
   const result = { ...defaults }
@@ -69,8 +80,7 @@ const config = (() => {
     TelegramApiID: parseNumber(process.env[envMap.TelegramApiID]),
     TelegramApiHash: process.env[envMap.TelegramApiHash],
     TelegramAuthTTL: ttl === undefined ? ttl : ttl * 1000,
-    MongoDB: process.env[envMap.MongoDB],
-    MongoURI: process.env[envMap.MongoURI],
+    DbUrl: process.env[envMap.DbUrl],
     AccountsURL: process.env[envMap.AccountsURL],
     ServiceID: process.env[envMap.ServiceID],
     Secret: process.env[envMap.Secret]

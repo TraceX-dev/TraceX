@@ -72,7 +72,7 @@ The Huly platform consists of **30+ microservices** working together in a distri
 
 | Service | Port(s) | Description |
 |---------|---------|-------------|
-| **cockroach** | 26257, 8089 | **CockroachDB - Primary Application Database**. Stores ALL business data: users, workspaces, documents, transactions, metadata, permissions. Distributed SQL with ACID guarantees. |
+| **postgres** | 5432 | **PostgreSQL - Primary Application Database**. Stores ALL business data: users, workspaces, documents, transactions, metadata, permissions. Relational database with ACID guarantees. |
 | **elastic** | 9200 | Elasticsearch search engine. Stores full-text search indexes managed by fulltext service. |
 | **minio** | 9000, 9001 | S3-compatible object storage. Stores binary files, attachments, images, and blobs in buckets (blobs, eu, backups). |
 | **redpanda** | 9092, 19092 | Kafka-compatible event streaming. Provides reliable async messaging between services. |
@@ -88,7 +88,7 @@ The Huly platform consists of **30+ microservices** working together in a distri
 
 - **Synchronous (HTTP/WebSocket)**: Client ↔ Front ↔ Backend Services
 - **Asynchronous (Events)**: Producers (Transactor, Workspace) → Redpanda → Consumers (Fulltext, Media, Process)
-- **Primary Database**: All services → CockroachDB (main application data)
+- **Primary Database**: All services → PostgreSQL (main application data)
 - **Search Index**: Fulltext → Elasticsearch
 - **Object Storage**: Services → MinIO (S3 API)
 - **Real-time Updates**: Client ↔ Transactor (WebSocket), Client ↔ Collaborator (WebSocket)
@@ -153,7 +153,7 @@ graph TB
     end
     
     subgraph "Primary Database"
-        CockroachDB[(CockroachDB<br/>:26257<br/>Main Application DB)]
+        PostgreSQL[(PostgreSQL<br/>:5432<br/>Main Application DB)]
     end
     
     subgraph "Supporting Infrastructure"
@@ -170,20 +170,20 @@ graph TB
     Front --> Collaborator
     Front --> Datalake
     
-    Account --> CockroachDB
-    Workspace --> CockroachDB
-    Transactor --> CockroachDB
+    Account --> PostgreSQL
+    Workspace --> PostgreSQL
+    Transactor --> PostgreSQL
     Transactor --> Redpanda
     Transactor --> Fulltext
     
-    Datalake --> CockroachDB
+    Datalake --> PostgreSQL
     Datalake --> Minio
-    Hulylake --> CockroachDB
+    Hulylake --> PostgreSQL
     Hulylake --> Minio
-    HulyKVS --> CockroachDB
+    HulyKVS --> PostgreSQL
     
     Fulltext --> Elasticsearch
-    Fulltext --> CockroachDB
+    Fulltext --> PostgreSQL
     Fulltext --> Rekoni
     Fulltext --> Redpanda
     
@@ -196,7 +196,7 @@ graph TB
     style Front fill:#4A90E2
     style Account fill:#E24A4A
     style Transactor fill:#E24A4A
-    style CockroachDB fill:#7ED321
+    style PostgreSQL fill:#7ED321
     style Redpanda fill:#F5A623
 ```
 
@@ -227,7 +227,7 @@ graph LR
     end
     
     subgraph "Queue Configuration"
-        QC["QUEUE_CONFIG<br/>cockroach / redpanda:9092<br/>Region-based routing"]
+        QC["QUEUE_CONFIG<br/>pg / redpanda:9092<br/>Region-based routing"]
     end
     
     Transactor -->|Document Events| Redpanda
@@ -268,7 +268,7 @@ graph TB
     end
     
     subgraph "Primary Database"
-        CockroachDB[(CockroachDB<br/>File Metadata<br/>Permissions<br/>References)]
+        PostgreSQL[(PostgreSQL<br/>File Metadata<br/>Permissions<br/>References)]
     end
     
     subgraph "Object Storage"
@@ -287,10 +287,10 @@ graph TB
     Client -->|Stream Video| Stream
     Client -->|Get Preview| Preview
     
-    Datalake -->|Metadata| CockroachDB
+    Datalake -->|Metadata| PostgreSQL
     Datalake -->|Store Blobs| Minio
     
-    Hulylake -->|Metadata| CockroachDB
+    Hulylake -->|Metadata| PostgreSQL
     Hulylake -->|Access Blobs| Minio
     
     Minio --> Buckets
@@ -305,7 +305,7 @@ graph TB
     
     style Datalake fill:#4A90E2
     style Minio fill:#C92A2A
-    style CockroachDB fill:#7ED321
+    style PostgreSQL fill:#7ED321
 ```
 
 ---
@@ -319,12 +319,12 @@ sequenceDiagram
     participant Account
     participant Transactor
     participant Workspace
-    participant CockroachDB
+    participant PostgreSQL
     
     Client->>Front: Login Request
     Front->>Account: Authenticate
-    Account->>CockroachDB: Verify Credentials
-    CockroachDB-->>Account: User Record
+    Account->>PostgreSQL: Verify Credentials
+    PostgreSQL-->>Account: User Record
     Account->>Account: Generate JWT Token<br/>(SERVER_SECRET=secret)
     Account-->>Front: JWT Token
     Front-->>Client: Token + Workspace List
@@ -334,17 +334,17 @@ sequenceDiagram
     Account-->>Front: Token Valid + User Info
     
     Front->>Workspace: Get Workspace Info
-    Workspace->>CockroachDB: Query Workspace
-    CockroachDB-->>Workspace: Workspace Data
+    Workspace->>PostgreSQL: Query Workspace
+    PostgreSQL-->>Workspace: Workspace Data
     Workspace-->>Front: Workspace Config
     
     Client->>Transactor: WebSocket Connect<br/>with Token
     Transactor->>Account: Verify Token
     Account-->>Transactor: User Authorized
-    Transactor->>CockroachDB: Load User Permissions
+    Transactor->>PostgreSQL: Load User Permissions
     Transactor-->>Client: Connected
     
-    Note over Client,CockroachDB: All services share SERVER_SECRET=secret<br/>for internal authentication
+    Note over Client,PostgreSQL: All services share SERVER_SECRET=secret<br/>for internal authentication
 ```
 
 ---
@@ -356,16 +356,16 @@ sequenceDiagram
 | **Frontend** | | | | |
 | front | tracexapp/front | 8087/8088 | Web application server | account, transactor, collaborator, datalake |
 | **Core** | | | | |
-| account | tracexapp/account | 3000 | Authentication & user management | cockroach, redpanda, stats |
-| transactor | tracexapp/transactor | 3332 | Transaction processing (WebSocket) | cockroach, redpanda, fulltext, account |
-| workspace | tracexapp/workspace | - | Workspace management | cockroach, redpanda, minio, account |
+| account | tracexapp/account | 3000 | Authentication & user management | postgres, redpanda, stats |
+| transactor | tracexapp/transactor | 3332 | Transaction processing (WebSocket) | postgres, redpanda, fulltext, account |
+| workspace | tracexapp/workspace | - | Workspace management | postgres, redpanda, minio, account |
 | stats | tracexapp/stats | 4900 | Metrics collection | - |
 | **Storage** | | | | |
-| datalake | tracexapp/datalake | 4030 | Blob storage & metadata | cockroach, minio, account |
-| hulylake | tracexapp/hulylake | 8096 | Storage adapter API | cockroach, minio |
-| hulykvs | tracexapp/hulykvs | 8094 | Key-value store | cockroach |
+| datalake | tracexapp/datalake | 4030 | Blob storage & metadata | postgres, minio, account |
+| hulylake | tracexapp/hulylake | 8096 | Storage adapter API | postgres, minio |
+| hulykvs | tracexapp/hulykvs | 8094 | Key-value store | postgres |
 | **Search** | | | | |
-| fulltext | tracexapp/fulltext | 4702 | Full-text search indexing | elasticsearch, cockroach, rekoni, redpanda |
+| fulltext | tracexapp/fulltext | 4702 | Full-text search indexing | elasticsearch, postgres, rekoni, redpanda |
 | rekoni | tracexapp/rekoni-service | 4004 | Document intelligence | stats |
 | **Real-time** | | | | |
 | collaborator | tracexapp/collaborator | 3078 | Real-time document collaboration | account, datalake, transactor |
@@ -375,18 +375,18 @@ sequenceDiagram
 | media | tracexapp/media | - | Media processing | redpanda, account |
 | preview | tracexapp/preview | 4040 | Thumbnail generation | datalake |
 | **Features** | | | | |
-| print | tracexapp/print | 4005 | PDF generation | cockroach, minio, account |
-| sign | tracexapp/sign | 4006 | Digital signatures | cockroach, minio, account |
+| print | tracexapp/print | 4005 | PDF generation | postgres, minio, account |
+| sign | tracexapp/sign | 4006 | Digital signatures | postgres, minio, account |
 | payment | tracexapp/payment | 3040 | Payment processing | account |
-| export | tracexapp/export | 4009 | Data export | cockroach, minio, account |
+| export | tracexapp/export | 4009 | Data export | postgres, minio, account |
 | analytics | tracexapp/analytics-collector | 4017 | Analytics collection | account, stats |
 | process | tracexapp/process | - | Workflow automation | redpanda, account |
-| rating | tracexapp/rating | - | Content rating | cockroach, redpanda, account |
+| rating | tracexapp/rating | - | Content rating | postgres, redpanda, account |
 | **Backup** | | | | |
-| backup | tracexapp/backup | - | Automated backup | cockroach, minio, account |
+| backup | tracexapp/backup | - | Automated backup | postgres, minio, account |
 | backup-api | tracexapp/backup-api | 4039 | Backup REST API | minio, account |
 | **Primary Database** | | | | |
-| cockroach | cockroachdb/cockroach:latest-v24.3 | 26257, 8089 | **Main application database** - stores users, workspaces, documents, transactions, metadata, permissions | - |
+| postgres | postgres:16 | 5432 | **Main application database** - stores users, workspaces, documents, transactions, metadata, permissions | - |
 | **Supporting Infrastructure** | | | | |
 | elastic | elasticsearch:7.14.2 | 9200 | Search engine for full-text indexes | - |
 | minio | minio/minio | 9000, 9001 | Object storage (S3) for files and blobs | - |
@@ -401,7 +401,7 @@ sequenceDiagram
 
 ### Common Configuration (Shared by Most Services)
 - `SERVER_SECRET` / `SECRET`: `secret` - Shared authentication secret
-- `REGION`: `cockroach` - Deployment region identifier
+- `REGION`: `pg` - Deployment region identifier
 - `ACCOUNTS_URL`: `http://tracex.local:3000` - Account service URL
 - `STATS_URL`: `http://tracex.local:4900` - Metrics collection URL
 - `OTEL_EXPORTER_OTLP_ENDPOINT`: `http://jaeger:4318/v1/traces` - Tracing endpoint
@@ -409,9 +409,9 @@ sequenceDiagram
 - `QUEUE_CONFIG`: `${QUEUE_CONFIG}` - Redpanda/Kafka configuration
 
 ### Database Configuration
-- `DB_URL` / `DB_CR_URL`: CockroachDB connection string
+- `DB_URL` / `DB_URL_PG`: PostgreSQL connection string
 - `FULLTEXT_DB_URL`: `http://tracex.local:9200` - Elasticsearch URL
-- `HULY_DB_CONNECTION`: CockroachDB connection for Huly* services
+- `HULY_DB_CONNECTION`: PostgreSQL connection for Huly* services
 
 ### Storage Configuration
 - `STORAGE_CONFIG`: MinIO configuration (format: `minio|minio?accessKey=minioadmin&secretKey=minioadmin`)
@@ -421,7 +421,7 @@ sequenceDiagram
 - `BUCKETS`: `blobs,eu|http://minio:9000?accessKey=minioadmin&secretKey=minioadmin` - Datalake bucket configuration
 
 ### Queue Configuration
-- `QUEUE_CONFIG`: `cockroach|http://redpanda:9092` - Region-based event routing
+- `QUEUE_CONFIG`: `redpanda:9092` - Region-based event routing
 - `HULY_KAFKA_BOOTSTRAP`: `redpanda:9092` - Kafka bootstrap servers
 
 ### Service URLs (Internal)
@@ -462,7 +462,7 @@ sequenceDiagram
 ### Workspace Configuration
 - `WS_OPERATION`: `all+backup` - Operation mode
 - `WORKSPACE_LIMIT_PER_USER`: `10000`
-- `REGION_INFO`: `cockroach|CockroachDB` - Available regions
+- `REGION_INFO`: `pg|PostgreSQL` - Available regions
 
 ### Backup Configuration
 - `BUCKET_NAME`: `backups`

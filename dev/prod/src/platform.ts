@@ -1,6 +1,8 @@
 //
 // Copyright © 2022, 2023, 2025 Hardcore Engineering Inc.
 //
+// Copyright © 2026 TraceX SAS.
+//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
@@ -13,7 +15,7 @@
 // limitations under the License.
 //
 
-import platform, { type Plugin, addLocation, addStringsLoader, platformId } from '@hcengineering/platform'
+import platform, { addLocation, addStringsLoader, platformId } from '@hcengineering/platform'
 import * as PlatformLang from '@hcengineering/platform/lang'
 
 import { activityId } from '@hcengineering/activity'
@@ -24,6 +26,8 @@ import admin, { adminId } from '@hcengineering/admin'
 import { boardId } from '@hcengineering/board'
 import calendar, { calendarId } from '@hcengineering/calendar'
 import { cardId } from '@hcengineering/card'
+import { formsId } from '@hcengineering/forms'
+import forms from '@hcengineering/forms-resources/src/plugin'
 import { chunterId } from '@hcengineering/chunter'
 import client, { clientId } from '@hcengineering/client'
 import contactPlugin, { contactId } from '@hcengineering/contact'
@@ -74,7 +78,6 @@ import recorder, { recorderId } from '@hcengineering/recorder'
 import { viewId } from '@hcengineering/view'
 import workbench, { workbenchId } from '@hcengineering/workbench'
 import { mailId } from '@hcengineering/mail'
-import github, { githubId } from '@hcengineering/github'
 import githubNext, { githubNextId } from '@hcengineering/github-next'
 import { bitrixId } from '@hcengineering/bitrix'
 import { integrationId } from '@hcengineering/integration'
@@ -101,6 +104,8 @@ import * as BoardLang from '@hcengineering/board-assets/lang'
 import '@hcengineering/calendar-assets'
 import * as CalendarLang from '@hcengineering/calendar-assets/lang'
 import '@hcengineering/card-assets'
+import '@hcengineering/forms-assets'
+import * as FormsLang from '@hcengineering/forms-assets/lang'
 import * as CardLang from '@hcengineering/card-assets/lang'
 import '@hcengineering/chunter-assets'
 import * as ChunterLang from '@hcengineering/chunter-assets/lang'
@@ -188,8 +193,6 @@ import '@hcengineering/workbench-assets'
 import * as WorkbenchLang from '@hcengineering/workbench-assets/lang'
 import '@hcengineering/mail-assets'
 import * as MailLang from '@hcengineering/mail-assets/lang'
-import '@hcengineering/github-assets'
-import * as GithubLang from '@hcengineering/github-assets/lang'
 import '@hcengineering/achievement-assets'
 import * as AchievementLang from '@hcengineering/achievement-assets/lang'
 import '@hcengineering/emoji-assets'
@@ -382,7 +385,6 @@ function configureI18n(): void {
   addStringsLoader(diffviewId, DiffviewLang.loadLang)
   addStringsLoader(documentId, DocumentLang.loadLang)
   addStringsLoader(timeId, TimeLang.loadLang)
-  addStringsLoader(githubId, GithubLang.loadLang)
   addStringsLoader(documentsId, ControlledDocumentsLang.loadLang)
   addStringsLoader(productsId, ProductsLang.loadLang)
   addStringsLoader(questionsId, QuestionsLang.loadLang)
@@ -396,6 +398,7 @@ function configureI18n(): void {
   addStringsLoader(testManagementId, TestManagementLang.loadLang)
   addStringsLoader(surveyId, SurveyLang.loadLang)
   addStringsLoader(cardId, CardLang.loadLang)
+  addStringsLoader(formsId, FormsLang.loadLang)
   addStringsLoader(mailId, MailLang.loadLang)
   addStringsLoader(processId, ProcessLang.loadLang)
   addStringsLoader(achievementId, AchievementLang.loadLang)
@@ -407,7 +410,7 @@ function configureI18n(): void {
   addStringsLoader(qalicoId, QalicoLang.loadLang)
 }
 
-export async function configurePlatform() {
+export async function configurePlatform(): Promise<void> {
   setMetadata(platform.metadata.LoadHelper, async (loader) => {
     for (let i = 0; i < 5; i++) {
       try {
@@ -508,9 +511,6 @@ export async function configurePlatform() {
   setMetadata(analyticsCollector.metadata.EndpointURL, config.ANALYTICS_COLLECTOR_URL)
   setMetadata(aiBot.metadata.EndpointURL, config.AI_URL)
 
-  setMetadata(github.metadata.GithubApplication, config.GITHUB_APP ?? '')
-  setMetadata(github.metadata.GithubClientID, config.GITHUB_CLIENTID ?? '')
-  setMetadata(github.metadata.GithubURL, config.GITHUB_URL)
   setMetadata(githubNext.metadata.GithubClientID, config.GITHUB_NEXT_CLIENTID ?? '')
   setMetadata(githubNext.metadata.GithubNextURL, config.GITHUB_NEXT_URL ?? 'http://tracex.local:3510')
 
@@ -545,10 +545,10 @@ export async function configurePlatform() {
     uiPlugin.metadata.Routes,
     new Map([
       [workbenchId, workbench.component.WorkbenchApp],
+      [formsId, forms.component.FormsApp],
       [adminId, admin.component.AdminApp],
       [loginId, login.component.LoginApp],
       [onboardId, onboard.component.OnboardApp],
-      [githubId, github.component.ConnectApp],
       [calendarId, calendar.component.ConnectApp],
       [guestId, guest.component.GuestApp],
       [globalProfileRoute, globalProfile.component.GlobalProfileApp],
@@ -556,6 +556,7 @@ export async function configurePlatform() {
     ])
   )
 
+  addLocation(formsId, () => import(/* webpackChunkName: "forms" */ '@hcengineering/forms-resources'))
   addLocation(coreId, async () => ({ default: async () => ({}) }))
   addLocation(presentationId, async () => ({ default: async () => ({}) }))
 
@@ -634,7 +635,6 @@ export async function configurePlatform() {
     documentId,
     async () => await import(/* webpackChunkName: "document" */ '@hcengineering/document-resources')
   )
-  addLocation(githubId, async () => await import(/* webpackChunkName: "github" */ '@hcengineering/github-resources'))
   addLocation(
     githubNextId,
     async () => await import(/* webpackChunkName: "github-next" */ '@hcengineering/github-next-resources')

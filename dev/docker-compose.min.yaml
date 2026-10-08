@@ -1,9 +1,9 @@
 # Min override: excludes optional services from min deployment.
 # Use with: docker compose -f docker-compose.yaml -f docker-compose.min.yaml up
 # (rush docker:up:min)
-# Excluded: preview, link-preview, elastic, redis, stats, payment, billing, fulltext_cockroach,
-#           print, sign, hulykvs, hulygun, process-service, backup-pg, backup-cockroach,
-#           backup-api, rating_cockroach
+# Excluded: preview, link-preview, elastic, redis, stats, payment, billing, fulltext_pg,
+#           print, sign, hulykvs, hulygun, process-service, backup-pg,
+#           backup-api, rating_pg
 # Overrides below remove dependencies on excluded services so the min project validates.
 
 services:
@@ -34,8 +34,6 @@ services:
   process-service:
     profiles: ["full"]
   backup-pg:
-    profiles: ["full"]
-  backup-cockroach:
     profiles: ["full"]
   backup-api:
     profiles: ["full"]

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the 'License');
 // you may not use this file except in compliance with the License. You may
@@ -37,25 +38,6 @@ const messagesTable = 'telegram_bot.messages'
 const channelsTable = 'telegram_bot.channels'
 const repliesTable = 'telegram_bot.replies'
 
-type DBFlavor = 'cockroach' | 'postgres' | 'unknown'
-
-async function getDbFlavor (client: postgres.Sql): Promise<DBFlavor> {
-  const [{ version }] = await client`SELECT version()`
-
-  // CockroachDB's string contains "Cockroach" (case-insensitive)
-  if (/cockroach/i.test(version)) {
-    return 'cockroach'
-  }
-
-  // Anything else that looks like a PostgreSQL version string
-  if (/postgresql/i.test(version)) {
-    return 'postgres'
-  }
-
-  // Fallback
-  return 'unknown'
-}
-
 export class PostgresDB {
   constructor (private readonly client: postgres.Sql) {}
 
@@ -65,15 +47,9 @@ export class PostgresDB {
   }
 
   static async init (client: postgres.Sql): Promise<void> {
-    const flavor = await getDbFlavor(client)
-
-    // Use appropriate syntax for rowid based on database flavor
-    const rowidDefinition =
-      flavor === 'postgres' ? 'rowid BIGINT GENERATED ALWAYS AS IDENTITY' : 'rowid INT8 NOT NULL DEFAULT unique_rowid()'
-
     const sql = `
         CREATE SCHEMA IF NOT EXISTS telegram_bot;
-        
+
         CREATE TABLE IF NOT EXISTS ${otpTable} (
           telegram_id INT8 NOT NULL,
           telegram_username TEXT NOT NULL,
@@ -82,7 +58,7 @@ export class PostgresDB {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (code)
         );
-        
+
         CREATE TABLE IF NOT EXISTS ${messagesTable} (
           message_id VARCHAR(255) NOT NULL,
           workspace UUID NOT NULL,
@@ -92,7 +68,7 @@ export class PostgresDB {
         );
 
         CREATE TABLE IF NOT EXISTS ${channelsTable} (
-          ${rowidDefinition},
+          rowid BIGINT GENERATED ALWAYS AS IDENTITY,
           workspace UUID NOT NULL,
           _id VARCHAR(255) NOT NULL,
           _class VARCHAR(255) NOT NULL,

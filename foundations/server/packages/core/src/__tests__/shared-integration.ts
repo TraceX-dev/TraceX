@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 //
 
 /**
- * Shared integration test suite for database adapters (MongoDB and PostgreSQL)
+ * Shared integration test suite for database adapters (PostgreSQL)
  * These tests verify that both adapters work correctly against real database instances
  *
  * Usage in your adapter test file:
@@ -46,7 +47,7 @@ export interface TestContext {
 
 /**
  * Run shared integration tests for a database adapter
- * @param adapterName - Name of the adapter being tested (e.g., 'PostgreSQL', 'MongoDB')
+ * @param adapterName - Name of the adapter being tested (e.g., 'PostgreSQL')
  * @param getContext - Function that returns the current test context
  */
 export function runSharedIntegrationTests (adapterName: string, getContext: () => TestContext): void {

@@ -206,7 +206,6 @@ export async function performWorkspaceOperation (
         }
 
         update.mode = 'migration-pending-backup'
-        // NOTE: will only work for Mongo accounts
         update.targetRegion = params[0]
         update.processingAttempts = 0
         update.processingProgress = 0

@@ -402,7 +402,7 @@ export function filterProjection<T extends Doc> (data: any, projection: Projecti
   const hasExclusion = projectionValues.some((v) => v === 0)
   const hasInclusion = projectionValues.some((v) => v === 1 || typeof v === 'object')
 
-  // Can't mix inclusion and exclusion (MongoDB behavior)
+  // Can't mix inclusion and exclusion
   // If mixed, treat as inclusion
   const isExclusionMode = hasExclusion && !hasInclusion
 

@@ -523,11 +523,6 @@
       "shouldPublish": true
     },
     {
-      "packageName": "@hcengineering/mongo",
-      "projectFolder": "foundations/server/packages/mongo",
-      "shouldPublish": true
-    },
-    {
       "packageName": "@hcengineering/postgres",
       "projectFolder": "foundations/server/packages/postgres",
       "shouldPublish": true
@@ -2117,46 +2112,6 @@
       "shouldPublish": false
     },
     {
-      "packageName": "@hcengineering/github",
-      "projectFolder": "services/github/github",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/github-assets",
-      "projectFolder": "services/github/github-assets",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/github-resources",
-      "projectFolder": "services/github/github-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/model-github",
-      "projectFolder": "services/github/model-github",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/pod-github",
-      "projectFolder": "services/github/pod-github",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/server-github",
-      "projectFolder": "services/github/server-github",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/server-github-resources",
-      "projectFolder": "services/github/server-github-resources",
-      "shouldPublish": false
-    },
-    {
-      "packageName": "@hcengineering/server-github-model",
-      "projectFolder": "services/github/server-github-model",
-      "shouldPublish": false
-    },
-    {
       "packageName": "@hcengineering/desktop-preferences",
       "projectFolder": "plugins/desktop-preferences",
       "shouldPublish": false
@@ -2424,6 +2379,26 @@
     {
       "packageName": "@hcengineering/survey-resources",
       "projectFolder": "plugins/survey-resources",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/forms",
+      "projectFolder": "plugins/forms",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/forms-resources",
+      "projectFolder": "plugins/forms-resources",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/forms-assets",
+      "projectFolder": "plugins/forms-assets",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/model-forms",
+      "projectFolder": "models/forms",
       "shouldPublish": false
     },
     {

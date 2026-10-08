@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,6 +24,7 @@ import bitrix, { bitrixId, createModel as bitrixModel } from '@hcengineering/mod
 import board, { boardId, createModel as boardModel } from '@hcengineering/model-board'
 import calendar, { calendarId, createModel as calendarModel } from '@hcengineering/model-calendar'
 import card, { cardId, createModel as cardModel } from '@hcengineering/model-card'
+import { formsId, createModel as formsModel } from '@hcengineering/model-forms'
 import chunter, { chunterId, createModel as chunterModel } from '@hcengineering/model-chunter'
 import contact, { contactId, createModel as contactModel } from '@hcengineering/model-contact'
 import { createModel as coreModel } from '@hcengineering/model-core'
@@ -87,10 +89,6 @@ import { converterId, createModel as converterModel } from '@hcengineering/model
 
 import document, { documentId, createModel as documentModel } from '@hcengineering/model-document'
 import { serverDocumentId, createModel as serverDocumentModel } from '@hcengineering/model-server-document'
-
-import github, { githubId, createModel as githubModel } from '@hcengineering/model-github'
-import { githubNextId, createModel as githubNextModel } from '@hcengineering/model-github-next'
-import { serverGithubId, createModel as serverGithubModel } from '@hcengineering/server-github-model'
 
 import { analyticsCollectorId, createModel as analyticsCollectorModel } from '@hcengineering/model-analytics-collector'
 import { exportId, createModel as exportModel } from '@hcengineering/model-export'
@@ -177,7 +175,6 @@ export default function buildModel (): Builder {
     [viewModel, viewId],
     [workbenchModel, workbenchId],
     [integrationModel, integrationId],
-    [githubNextModel, githubNextId],
     [
       cardModel,
       cardId,
@@ -190,6 +187,7 @@ export default function buildModel (): Builder {
         classFilter: defaultFilter
       }
     ],
+    [formsModel, formsId],
     [
       contactModel,
       contactId,
@@ -378,18 +376,6 @@ export default function buildModel (): Builder {
     [desktopDownloadsModel, desktopDownloadsId],
 
     [
-      githubModel,
-      githubId,
-      {
-        label: github.string.ConfigLabel,
-        description: github.string.ConfigDescription,
-        enabled: true,
-        beta: false,
-        icon: github.icon.Github,
-        classFilter: defaultFilter
-      }
-    ],
-    [
       loveModel,
       loveId,
       {
@@ -556,7 +542,6 @@ export default function buildModel (): Builder {
     [serverViewModel, serverViewId],
     [serverActivityModel, serverActivityId],
     [serverDocumentModel, serverDocumentId],
-    [serverGithubModel, serverGithubId],
     [serverLoveModel, serverLoveId],
     [serverTimeModel, serverTimeId],
     [serverGuestModel, serverGuestId],

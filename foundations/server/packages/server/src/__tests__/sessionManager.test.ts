@@ -24,7 +24,8 @@ import {
   type MeasureContext,
   type WorkspaceUuid
 } from '@hcengineering/core'
-import type { Token } from '@hcengineering/server-token'
+import serverToken, { type Token } from '@hcengineering/server-token'
+import { setMetadata } from '@hcengineering/platform'
 
 // Import the module under test after mocks are set up
 import { TSessionManager, type Timeouts } from '../sessionManager'
@@ -114,6 +115,10 @@ describe('TSessionManager', () => {
     pingTimeout: 10000,
     reconnectTimeout: 3
   }
+
+  beforeAll(async () => {
+    setMetadata(serverToken.metadata.Secret, 'secret')
+  })
 
   beforeEach(() => {
     jest.clearAllMocks()

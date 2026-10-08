@@ -29,7 +29,6 @@ import { documentsOperation } from '@hcengineering/model-controlled-documents'
 import { coreOperation } from '@hcengineering/model-core'
 import { documentOperation } from '@hcengineering/model-document'
 import { driveOperation } from '@hcengineering/model-drive'
-import { githubOperation, githubOperationPreTime } from '@hcengineering/model-github'
 import { gmailOperation } from '@hcengineering/model-gmail'
 import { guestOperation } from '@hcengineering/model-guest'
 import { hrOperation } from '@hcengineering/model-hr'
@@ -93,8 +92,6 @@ export const migrateOperations: [string, MigrateOperation][] = [
   ['drive', driveOperation],
   ['bitrix', bitrixOperation],
   ['inventiry', inventoryOperation],
-  ['github', githubOperation],
-  ['pre-time', githubOperationPreTime],
   ['time', timeOperation],
   [loveId, loveOperation],
   ['activityServer', activityServerOperation],

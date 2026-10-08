@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,8 +15,8 @@
 //
 
 /**
- * Integration tests for PostgreSQL adapter against real CockroachDB
- * These tests require a running CockroachDB instance (via docker-compose)
+ * Integration tests for PostgreSQL adapter against real PostgreSQL
+ * These tests require a running PostgreSQL instance (via docker-compose)
  * Run: cd tests && ./prepare-tests.sh
  */
 
@@ -49,11 +50,11 @@ createTaskModel(txes)
 const contextVars: Record<string, any> = {}
 
 describe('PostgreSQL Integration Tests (Real Database)', () => {
-  // Use environment variable or default to localhost CockroachDB
-  const baseDbUri: string = process.env.DB_URL ?? 'postgresql://root@localhost:26258/defaultdb?sslmode=disable'
+  // Use environment variable or default to localhost PostgreSQL
+  const baseDbUri: string = process.env.DB_URL ?? 'postgresql://postgres:postgres@localhost:5433/postgres'
 
   // Administrative client for creating/dropping test databases
-  // This connects to 'defaultdb' and is used ONLY for DB admin operations
+  // This connects to 'postgres' and is used ONLY for DB admin operations
   let adminClientRef: PostgresClientReference
 
   // Test-specific variables - unique for each test
@@ -67,7 +68,7 @@ describe('PostgreSQL Integration Tests (Real Database)', () => {
 
   beforeAll(() => {
     // Get admin client for database creation/deletion
-    // This client stays connected to 'defaultdb' for admin operations only
+    // This client stays connected to 'postgres' for admin operations only
     adminClientRef = getDBClient(baseDbUri)
   })
 
@@ -79,7 +80,9 @@ describe('PostgreSQL Integration Tests (Real Database)', () => {
   beforeEach(async () => {
     // Create a unique database for each test to ensure isolation
     dbUuid = crypto.randomUUID() as WorkspaceUuid
-    dbUri = baseDbUri.replace('defaultdb', dbUuid)
+    const testUrl = new URL(baseDbUri)
+    testUrl.pathname = '/' + dbUuid
+    dbUri = testUrl.toString()
 
     try {
       // Use admin client to create the test database
@@ -104,7 +107,7 @@ describe('PostgreSQL Integration Tests (Real Database)', () => {
 
       // Use admin client to drop the test database
       const adminClient = await adminClientRef.getClient()
-      await adminClient`DROP DATABASE IF EXISTS ${adminClient(dbUuid)} CASCADE`
+      await adminClient`DROP DATABASE IF EXISTS ${adminClient(dbUuid)} WITH (FORCE)`
     } catch (err) {
       console.error('Cleanup error:', err)
     }

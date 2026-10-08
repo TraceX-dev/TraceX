@@ -31,7 +31,7 @@ services:
       - 3040:3040
     environment:
       - PORT=3040
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://huly.local:3000
       - FRONT_URL=http://huly.local:8087
       - USE_SANDBOX=${PAYMENT_USE_SANDBOX:-true}
@@ -53,7 +53,7 @@ services:
     extra_hosts:
       - 'huly.local:host-gateway'
     depends_on:
-      cockroach:
+      postgres:
         condition: service_started
       minio:
         condition: service_healthy
@@ -63,9 +63,9 @@ services:
       - 4042:4042
     environment:
       - PORT=4042
-      - SECRET=secret
+      - SECRET=${SECRET}
       - ACCOUNTS_URL=http://huly.local:3000
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       # Recheck workspace usage every 10 minutes in dev (default is 1 hour).
       - USAGE_UPDATE_INTERVAL=600

@@ -1,4 +1,18 @@
 //
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+//
 // Copyright © 2023 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX SAS.
 //
@@ -48,11 +62,7 @@ import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
 import Router from 'koa-router'
 import os from 'os'
-import { migrateFromOldAccounts } from './migration/migration'
 import { startWorkspaceMemberUnreadConsumer } from './unread'
-
-export * from './migration/utils'
-export type * from './migration/types'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
 const DEFAULT_ACCOUNT_METRICS_INTERVAL_MS = 5 * 60 * 1000
@@ -74,32 +84,6 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     console.log('Please provide DB_URL')
     process.exit(1)
   }
-
-  if (dbUrl.startsWith('mongodb://')) {
-    if (process.env.PROCEED_V7_MONGO !== 'true') {
-      console.error(`
-        ⚠️ IMPORTANT: MongoDB Deprecation Notice
-
-        MongoDB support is deprecated in v7 and will be removed in future versions. Important details:
-
-        1. New features may not be available with MongoDB
-        2. Testing coverage for MongoDB will be limited
-        3. Upgrading to v7 with MongoDB will PERMANENTLY LOCK your deployment to MongoDB-specific types
-        4. Migration to CockroachDB will NOT be possible after upgrading
-
-        ➡️ Recommended Action:
-        Migrate to CockroachDB before upgrading to v7. See migration instructions at:
-        https://github.com/hcengineering/huly-selfhost
-
-        To proceed with MongoDB (despite these limitations):
-        Set environment variable PROCEED_V7_MONGO=true.
-      `)
-      process.exit(1)
-    }
-  }
-
-  const oldAccsUrl = process.env.OLD_ACCOUNTS_URL ?? (dbUrl.startsWith('mongodb://') ? dbUrl : undefined)
-  const oldAccsNs = process.env.OLD_ACCOUNTS_NS
 
   const transactorUri = process.env.TRANSACTOR_URL
   if (transactorUri === undefined) {
@@ -170,12 +154,6 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
 
   const dbNs = process.env.DB_NS
   const accountsDb = getAccountDB(dbUrl, dbNs)
-  const migrations = accountsDb.then(async ([db]) => {
-    if (oldAccsUrl !== undefined) {
-      await migrateFromOldAccounts(oldAccsUrl, db, oldAccsNs)
-      console.log('Migrations verified/done')
-    }
-  })
 
   let accountMetricsTimer: NodeJS.Timeout | undefined
   let isClosing = false
@@ -204,7 +182,6 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       }
     }
 
-    await migrations
     if (!isClosing) {
       await collectAccountMetrics()
     }
@@ -475,7 +452,6 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     }
 
     const [db] = await accountsDb
-    await migrations
 
     const branding = getBranding(ctx)
 

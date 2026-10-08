@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering, Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -114,10 +115,10 @@ export async function handleProviderAuth (
     } else {
       const origin = concatLink(branding?.front ?? frontUrl, '/login/auth')
       const queryObj: any = { token: loginInfo.token }
+      if (state.navigateUrl != null) queryObj.navigateUrl = state.navigateUrl
       if (state.autoJoin === true) {
         queryObj.autoJoin = state.autoJoin
         queryObj.inviteId = state.inviteId
-        queryObj.navigateUrl = state.navigateUrl
       }
 
       const query = encodeURIComponent(qs.stringify(queryObj))
