@@ -2492,11 +2492,6 @@
       "shouldPublish": false
     },
     {
-      "packageName": "@hcengineering/pod-mail-worker",
-      "projectFolder": "services/mail/pod-mail-worker",
-      "shouldPublish": false
-    },
-    {
       "packageName": "@hcengineering/achievement",
       "projectFolder": "plugins/achievement",
       "shouldPublish": false
