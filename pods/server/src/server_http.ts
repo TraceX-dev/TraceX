@@ -179,7 +179,7 @@ export function startHttpServer (
       const admin = payload.extra?.admin === 'true'
       const jsonData = {
         ...getStatistics(ctx, sessions, admin),
-        users: getUsers(),
+        ...(admin ? { users: getUsers() } : {}),
         admin,
         profiling
       }
@@ -436,9 +436,20 @@ export function startHttpServer (
   app.put('/api/v1/broadcast', (req, res) => {
     try {
       const token = (req.query.token as string) ?? (req.headers.authorization ?? '').split(' ')[1]
-      decodeToken(token)
+      const decoded = decodeToken(token)
 
       const ws = req.query.workspace as WorkspaceUuid
+      if (ws !== decoded.workspace) {
+        ctx.warn('Attempt to broadcast to wrong workspace', { workspace: ws, account: decoded.account })
+        res.status(403).send({})
+        return
+      }
+
+      if (decodeToken(token).account !== systemAccountUuid) {
+        ctx.warn('Attempt to broadcast from non system account', { workspace: ws, account: decoded.account })
+        res.status(403).send({})
+        return
+      }
 
       // push the data to body
       void retrieveJson(req)
