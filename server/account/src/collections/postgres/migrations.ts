@@ -65,7 +65,8 @@ export function getMigrations (ns: string): [string, string][] {
     getV29Migration(ns),
     getV30Migration(ns),
     getV31Migration(ns),
-    getV32Migration(ns)
+    getV32Migration(ns),
+    getV33Migration(ns)
   ]
 }
 
@@ -820,6 +821,16 @@ function getV32Migration (ns: string): [string, string] {
     UPDATE ${ns}.workspace_members
     SET role = 'READONLYGUEST'
     WHERE account_uuid = '${readOnlyGuestAccountUuid}' AND role <> 'READONLYGUEST';
+    `
+  ]
+}
+
+function getV33Migration (ns: string): [string, string] {
+  return [
+    'account_db_v33_add_otp_attempts',
+    `
+    ALTER TABLE ${ns}.otp
+    ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;
     `
   ]
 }
