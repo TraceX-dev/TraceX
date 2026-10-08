@@ -23,8 +23,7 @@ export type GuestAccessPolicy = 'bypass' | 'allGuests' | 'readOnlyAndPersonal' |
 
 async function getGuestRole (
   db: AccountDB,
-  account: ReturnType<typeof decodeTokenVerbose>,
-  policy: GuestAccessPolicy
+  account: ReturnType<typeof decodeTokenVerbose>
 ): Promise<AccountRole | undefined> {
   if (account.account === docGuestAccountUuid) return AccountRole.DocGuest
   if (account.account === readOnlyGuestAccountUuid || account.extra?.readonly === 'true') {
@@ -39,16 +38,12 @@ async function getGuestRole (
     if (role === AccountRole.Guest || role === AccountRole.ReadOnlyGuest || role === AccountRole.DocGuest) {
       return role
     }
-    return undefined
+    return role == null ? AccountRole.ReadOnlyGuest : undefined
   }
 
-  // A personal guest may use these account methods even with a workspace-free login token.
-  if (policy === 'personalGuest') return undefined
-
   const roles = await db.getWorkspaceRoles(account.account)
-  return roles.size > 0 && Array.from(roles.values()).every((role) => role === AccountRole.Guest)
-    ? AccountRole.Guest
-    : undefined
+  if (roles.size === 0) return AccountRole.ReadOnlyGuest
+  return Array.from(roles.values()).every((role) => role === AccountRole.Guest) ? AccountRole.Guest : undefined
 }
 
 /** Reject account RPCs that are not explicitly available to the caller's guest role. */
@@ -66,7 +61,7 @@ export function guardGuestMethod (
 
     let guestRole: AccountRole | undefined
     try {
-      guestRole = await getGuestRole(db, decodeTokenVerbose(ctx, token), policy)
+      guestRole = await getGuestRole(db, decodeTokenVerbose(ctx, token))
     } catch (error) {
       ctx.error('Failed to determine guest access', { error })
       return { id: request.id, error: new Status(Severity.ERROR, platform.status.Unauthorized, {}) }

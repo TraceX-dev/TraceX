@@ -105,6 +105,28 @@ describe('guest account RPC access', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
+  test('treats a revoked workspace role as read-only guest access', async () => {
+    setToken(personalGuest, AccountRole.Guest)
+    ;(db.getWorkspaceRole as jest.Mock).mockResolvedValue(null)
+
+    for (const method of ['changeUsername', 'createApiKey'] as const) {
+      const result = await call(method)
+      expect((result.error as { code: string }).code).toBe(platform.status.Forbidden)
+    }
+    expect(db.person.update).not.toHaveBeenCalled()
+    expect(db.apiKey.insertOne).not.toHaveBeenCalled()
+  })
+
+  test('treats a workspace-free account without roles as read-only guest access', async () => {
+    ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: personalGuest, extra: {} })
+    ;(db.getWorkspaceRoles as jest.Mock).mockResolvedValue(new Map())
+
+    const result = await call('changeUsername', { first: 'New' })
+
+    expect((result.error as { code: string }).code).toBe(platform.status.Forbidden)
+    expect(db.person.update).not.toHaveBeenCalled()
+  })
+
   test('logs failures to determine guest access', async () => {
     setToken(personalGuest, AccountRole.Guest)
     const error = new Error('Role lookup failed')
