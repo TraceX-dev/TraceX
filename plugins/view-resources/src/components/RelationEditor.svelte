@@ -57,12 +57,12 @@
   function getCreate (): ObjectCreate | undefined {
     const factory = client.getHierarchy().classHierarchyMixin(_class, view.mixin.ObjectFactory)
     if (factory !== undefined) {
-      const usePopup = isBaseCardTypeWithSubtypes()
+      const usePopup = client.getHierarchy().isDerived(_class, card.class.Card)
       return {
         component: usePopup ? factory.component : undefined,
         func: factory.create,
         label,
-        props: { _class, type: _class, space: object.space, changeType: usePopup }
+        props: { _class, type: _class, space: object.space, changeType: isBaseCardTypeWithSubtypes() }
       }
     }
   }

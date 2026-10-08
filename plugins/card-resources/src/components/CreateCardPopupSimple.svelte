@@ -1,4 +1,5 @@
 <!-- Copyright © 2025 Hardcore Engineering Inc. -->
+<!-- Copyright © 2026 TraceX SAS. -->
 <!-- -->
 <!-- Licensed under the Eclipse Public License, Version 2.0 (the "License"); -->
 <!-- you may not use this file except in compliance with the License. You may -->
@@ -26,6 +27,7 @@
   import { TypeSelector } from '../index'
   import { canCreateObject } from '@hcengineering/view-resources'
   import card from '../plugin'
+  import CreateCardFields from './CreateCardFields.svelte'
 
   export let title: string = ''
   export let type: Ref<MasterTag> | null = card.types.Document
@@ -48,7 +50,7 @@
 
   $: extension = getCreateCardExtension(type)
 
-  const data: Partial<Data<TypeCard>> = { title }
+  let data: Partial<Data<TypeCard>> = { title }
   let _space: Ref<CardSpace> | undefined = space
   let selectedSpace: CardSpace | undefined
 
@@ -160,6 +162,9 @@
     autoFocus
   />
   <svelte:fragment slot="pool">
+    {#if type != null}
+      <CreateCardFields {type} bind:data />
+    {/if}
     <div slot="afterContent" class="p-4 flex-row-reverse">
       {#if !allowed}
         {#if missingSelection}
@@ -171,3 +176,9 @@
     </div>
   </svelte:fragment>
 </Card>
+
+<style lang="scss">
+  .card-fields {
+    width: 100%;
+  }
+</style>
