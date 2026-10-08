@@ -48,7 +48,6 @@ else
     --to @hcengineering/pod-love \
     --to @hcengineering/pod-mail \
     --to @hcengineering/pod-datalake \
-    --to @hcengineering/pod-mail-worker \
     --to @hcengineering/pod-export \
     --to @hcengineering/pod-media \
     --to @hcengineering/pod-preview \
