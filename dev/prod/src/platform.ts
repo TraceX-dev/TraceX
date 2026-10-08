@@ -15,7 +15,7 @@
 // limitations under the License.
 //
 
-import platform, { type Plugin, addLocation, addStringsLoader, platformId } from '@hcengineering/platform'
+import platform, { addLocation, addStringsLoader, platformId } from '@hcengineering/platform'
 import * as PlatformLang from '@hcengineering/platform/lang'
 
 import { activityId } from '@hcengineering/activity'
@@ -78,7 +78,6 @@ import recorder, { recorderId } from '@hcengineering/recorder'
 import { viewId } from '@hcengineering/view'
 import workbench, { workbenchId } from '@hcengineering/workbench'
 import { mailId } from '@hcengineering/mail'
-import github, { githubId } from '@hcengineering/github'
 import githubNext, { githubNextId } from '@hcengineering/github-next'
 import { bitrixId } from '@hcengineering/bitrix'
 import { integrationId } from '@hcengineering/integration'
@@ -194,8 +193,6 @@ import '@hcengineering/workbench-assets'
 import * as WorkbenchLang from '@hcengineering/workbench-assets/lang'
 import '@hcengineering/mail-assets'
 import * as MailLang from '@hcengineering/mail-assets/lang'
-import '@hcengineering/github-assets'
-import * as GithubLang from '@hcengineering/github-assets/lang'
 import '@hcengineering/achievement-assets'
 import * as AchievementLang from '@hcengineering/achievement-assets/lang'
 import '@hcengineering/emoji-assets'
@@ -388,7 +385,6 @@ function configureI18n(): void {
   addStringsLoader(diffviewId, DiffviewLang.loadLang)
   addStringsLoader(documentId, DocumentLang.loadLang)
   addStringsLoader(timeId, TimeLang.loadLang)
-  addStringsLoader(githubId, GithubLang.loadLang)
   addStringsLoader(documentsId, ControlledDocumentsLang.loadLang)
   addStringsLoader(productsId, ProductsLang.loadLang)
   addStringsLoader(questionsId, QuestionsLang.loadLang)
@@ -414,7 +410,7 @@ function configureI18n(): void {
   addStringsLoader(qalicoId, QalicoLang.loadLang)
 }
 
-export async function configurePlatform() {
+export async function configurePlatform(): Promise<void> {
   setMetadata(platform.metadata.LoadHelper, async (loader) => {
     for (let i = 0; i < 5; i++) {
       try {
@@ -515,9 +511,6 @@ export async function configurePlatform() {
   setMetadata(analyticsCollector.metadata.EndpointURL, config.ANALYTICS_COLLECTOR_URL)
   setMetadata(aiBot.metadata.EndpointURL, config.AI_URL)
 
-  setMetadata(github.metadata.GithubApplication, config.GITHUB_APP ?? '')
-  setMetadata(github.metadata.GithubClientID, config.GITHUB_CLIENTID ?? '')
-  setMetadata(github.metadata.GithubURL, config.GITHUB_URL)
   setMetadata(githubNext.metadata.GithubClientID, config.GITHUB_NEXT_CLIENTID ?? '')
   setMetadata(githubNext.metadata.GithubNextURL, config.GITHUB_NEXT_URL ?? 'http://tracex.local:3510')
 
@@ -556,7 +549,6 @@ export async function configurePlatform() {
       [adminId, admin.component.AdminApp],
       [loginId, login.component.LoginApp],
       [onboardId, onboard.component.OnboardApp],
-      [githubId, github.component.ConnectApp],
       [calendarId, calendar.component.ConnectApp],
       [guestId, guest.component.GuestApp],
       [globalProfileRoute, globalProfile.component.GlobalProfileApp],
@@ -643,7 +635,6 @@ export async function configurePlatform() {
     documentId,
     async () => await import(/* webpackChunkName: "document" */ '@hcengineering/document-resources')
   )
-  addLocation(githubId, async () => await import(/* webpackChunkName: "github" */ '@hcengineering/github-resources'))
   addLocation(
     githubNextId,
     async () => await import(/* webpackChunkName: "github-next" */ '@hcengineering/github-next-resources')
