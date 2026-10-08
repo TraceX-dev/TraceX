@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -29,12 +30,6 @@ import {
 import { join } from 'path'
 
 import {
-  createMongoAdapter,
-  createMongoDestroyAdapter,
-  createMongoTxAdapter,
-  shutdownMongo
-} from '@hcengineering/mongo'
-import {
   createPostgreeDestroyAdapter,
   createPostgresAdapter,
   createPostgresTxAdapter,
@@ -47,9 +42,6 @@ const model = JSON.parse(readFileSync(process.env.MODEL_JSON ?? 'model.json').to
 // Register close on process exit.
 process.on('exit', () => {
   shutdownPostgres().catch((err) => {
-    console.error(err)
-  })
-  shutdownMongo().catch((err) => {
     console.error(err)
   })
 })
@@ -76,10 +68,6 @@ const usePrepare = (process.env.DB_PREPARE ?? 'true') === 'true'
 setDBExtraOptions({
   prepare: usePrepare // We override defaults
 })
-
-registerTxAdapterFactory('mongodb', createMongoTxAdapter)
-registerAdapterFactory('mongodb', createMongoAdapter)
-registerDestroyFactory('mongodb', createMongoDestroyAdapter)
 
 registerTxAdapterFactory('postgresql', createPostgresTxAdapter, true)
 registerAdapterFactory('postgresql', createPostgresAdapter, true)

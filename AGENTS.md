@@ -152,6 +152,7 @@ Apply these filters when updating `changelog.md` or generating release notes so 
 
 ## Patterns
 
+- Platform `DocumentQuery` does not support `$or`. Do not use it in `findAll`, `findOne`, live queries, or selector filters.
 - Always handle errors (proper Error subclasses, catch promises)
 - Use async/await, Promise.all() for parallel ops
 - Svelte stores for shared state, separate business logic

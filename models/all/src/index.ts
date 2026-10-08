@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,6 +24,7 @@ import bitrix, { bitrixId, createModel as bitrixModel } from '@hcengineering/mod
 import board, { boardId, createModel as boardModel } from '@hcengineering/model-board'
 import calendar, { calendarId, createModel as calendarModel } from '@hcengineering/model-calendar'
 import card, { cardId, createModel as cardModel } from '@hcengineering/model-card'
+import { formsId, createModel as formsModel } from '@hcengineering/model-forms'
 import chunter, { chunterId, createModel as chunterModel } from '@hcengineering/model-chunter'
 import contact, { contactId, createModel as contactModel } from '@hcengineering/model-contact'
 import { createModel as coreModel } from '@hcengineering/model-core'
@@ -190,6 +192,7 @@ export default function buildModel (): Builder {
         classFilter: defaultFilter
       }
     ],
+    [formsModel, formsId],
     [
       contactModel,
       contactId,

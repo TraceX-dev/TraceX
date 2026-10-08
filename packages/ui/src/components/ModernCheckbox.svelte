@@ -1,6 +1,7 @@
 <script lang="ts">
   //
   // © 2023 Hardcore Engineering, Inc. All Rights Reserved.
+  // Copyright © 2026 TraceX SAS.
   // Licensed under the Eclipse Public License v2.0 (SPDX: EPL-2.0).
   //
   import type { IntlString } from '@hcengineering/platform'
@@ -23,7 +24,7 @@
   <div class="checkbox-element" class:disabled class:error />
   {#if label !== undefined || labelIntl !== undefined || $$slots.default !== undefined}
     <div class="checkbox-label">
-      {#if labelIntl}<Label label={labelIntl} params={labelParams} />{:else}{label}{/if}
+      {#if labelIntl}<Label label={labelIntl} params={labelParams} />{:else if label !== undefined}{label}{/if}
       <slot />
     </div>
   {/if}

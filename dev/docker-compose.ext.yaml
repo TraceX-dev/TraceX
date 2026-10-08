@@ -53,7 +53,7 @@ services:
     extra_hosts:
       - 'huly.local:host-gateway'
     depends_on:
-      cockroach:
+      postgres:
         condition: service_started
       minio:
         condition: service_healthy
@@ -65,7 +65,7 @@ services:
       - PORT=4042
       - SECRET=secret
       - ACCOUNTS_URL=http://huly.local:3000
-      - DB_URL=${DB_CR_URL}
+      - DB_URL=${DB_URL_PG}
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       # Recheck workspace usage every 10 minutes in dev (default is 1 hour).
       - USAGE_UPDATE_INTERVAL=600

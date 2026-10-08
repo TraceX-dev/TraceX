@@ -236,7 +236,6 @@
     // "@hcengineering/kafka": "file:../../../huly.server/packages/kafka",
     // "@hcengineering/middleware": "file:../../../huly.server/packages/middleware",
     // "@hcengineering/minio": "file:../../../huly.server/packages/minio",
-    // "@hcengineering/mongo": "file:../../../huly.server/packages/mongo",
     // "@hcengineering/postgres": "file:../../../huly.server/packages/postgres",
     // "@hcengineering/s3": "file:../../../huly.server/packages/s3",
     // "@hcengineering/server": "file:../../../huly.server/packages/server",
