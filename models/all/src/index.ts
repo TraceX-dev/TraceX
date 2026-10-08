@@ -90,10 +90,6 @@ import { converterId, createModel as converterModel } from '@hcengineering/model
 import document, { documentId, createModel as documentModel } from '@hcengineering/model-document'
 import { serverDocumentId, createModel as serverDocumentModel } from '@hcengineering/model-server-document'
 
-import github, { githubId, createModel as githubModel } from '@hcengineering/model-github'
-import { githubNextId, createModel as githubNextModel } from '@hcengineering/model-github-next'
-import { serverGithubId, createModel as serverGithubModel } from '@hcengineering/server-github-model'
-
 import { analyticsCollectorId, createModel as analyticsCollectorModel } from '@hcengineering/model-analytics-collector'
 import { exportId, createModel as exportModel } from '@hcengineering/model-export'
 import love, { loveId, createModel as loveModel } from '@hcengineering/model-love'
@@ -179,7 +175,6 @@ export default function buildModel (): Builder {
     [viewModel, viewId],
     [workbenchModel, workbenchId],
     [integrationModel, integrationId],
-    [githubNextModel, githubNextId],
     [
       cardModel,
       cardId,
@@ -381,18 +376,6 @@ export default function buildModel (): Builder {
     [desktopDownloadsModel, desktopDownloadsId],
 
     [
-      githubModel,
-      githubId,
-      {
-        label: github.string.ConfigLabel,
-        description: github.string.ConfigDescription,
-        enabled: true,
-        beta: false,
-        icon: github.icon.Github,
-        classFilter: defaultFilter
-      }
-    ],
-    [
       loveModel,
       loveId,
       {
@@ -559,7 +542,6 @@ export default function buildModel (): Builder {
     [serverViewModel, serverViewId],
     [serverActivityModel, serverActivityId],
     [serverDocumentModel, serverDocumentId],
-    [serverGithubModel, serverGithubId],
     [serverLoveModel, serverLoveId],
     [serverTimeModel, serverTimeId],
     [serverGuestModel, serverGuestId],
