@@ -3763,7 +3763,8 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     getWorkspaceUsersWithPermission: wrap(getWorkspaceUsersWithPermission),
 
     /* READ OPERATIONS */
-    getRegionInfo: wrap(getRegionInfo),
+    // Called without a token by services (e.g. datalake) as an account readiness check
+    getRegionInfo: wrap(getRegionInfo, { guest: 'bypass' }),
     getUserWorkspaces: wrap(getUserWorkspaces, { guest: 'readOnlyAndPersonal' }),
     getWorkspaceInfo: wrap(getWorkspaceInfo, { allowApiKey: true, guest: 'allGuests' }),
     getWorkspacesInfo: wrap(getWorkspacesInfo),

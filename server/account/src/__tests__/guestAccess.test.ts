@@ -94,6 +94,13 @@ describe('guest account RPC access', () => {
     }
   })
 
+  test('allows token-less getRegionInfo readiness checks from services', async () => {
+    const result = await methods.getRegionInfo?.(ctx, db, null, { id: 1, params: {} }, undefined)
+
+    expect(result?.error).toBeUndefined()
+    expect(Array.isArray(result?.result)).toBe(true)
+  })
+
   test('wrap denies an unmarked handler to a guest', async () => {
     setToken(personalGuest, AccountRole.Guest)
     const handler = jest.fn().mockResolvedValue({ id: 1, result: true })
