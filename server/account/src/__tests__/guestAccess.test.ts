@@ -105,6 +105,17 @@ describe('guest account RPC access', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
+  test('logs failures to determine guest access', async () => {
+    setToken(personalGuest, AccountRole.Guest)
+    const error = new Error('Role lookup failed')
+    ;(db.getWorkspaceRole as jest.Mock).mockRejectedValueOnce(error)
+
+    const result = await call('getMailboxSecret', { mailbox: 'private@example.com' })
+
+    expect(ctx.error).toHaveBeenCalledWith('Failed to determine guest access', { error })
+    expect((result.error as { code: string }).code).toBe(platform.status.Unauthorized)
+  })
+
   test('keeps personal account updates available to a guest', async () => {
     setToken(personalGuest, AccountRole.Guest)
     ;(db.person.update as jest.Mock).mockResolvedValue(undefined)

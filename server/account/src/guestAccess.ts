@@ -67,7 +67,8 @@ export function guardGuestMethod (
     let role: AccountRole | undefined
     try {
       role = await getGuestRole(db, decodeTokenVerbose(ctx, token), policy)
-    } catch {
+    } catch (error) {
+      ctx.error('Failed to determine guest access', { error })
       return { id: request.id, error: new Status(Severity.ERROR, platform.status.Unauthorized, {}) }
     }
 
