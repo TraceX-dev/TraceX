@@ -1,0 +1,179 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+import {
+  AccountRole,
+  readOnlyGuestAccountUuid,
+  type AccountUuid,
+  type MeasureContext,
+  type WorkspaceUuid
+} from '@hcengineering/core'
+import platform from '@hcengineering/platform'
+import { decodeTokenVerbose } from '@hcengineering/server-token'
+
+import { getMethods } from '../operations'
+import { performWorkspaceOperation } from '../serviceOperations'
+import type { AccountDB } from '../types'
+import { GUEST_ACCOUNT, wrap } from '../utils'
+
+jest.mock('@hcengineering/server-token', () => ({
+  TokenError: jest.requireActual('@hcengineering/server-token').TokenError,
+  decodeTokenVerbose: jest.fn(),
+  decodeToken: jest.fn(),
+  generateToken: jest.fn()
+}))
+
+const ctx = { error: jest.fn(), info: jest.fn(), warn: jest.fn() } as unknown as MeasureContext
+const workspace = 'test-workspace' as WorkspaceUuid
+const personalGuest = 'personal-guest' as AccountUuid
+const methods = getMethods()
+
+const db = {
+  getWorkspaceRole: jest.fn(),
+  getWorkspaceRoles: jest.fn(),
+  person: { findOne: jest.fn(), update: jest.fn() },
+  mailboxSecret: { findOne: jest.fn() },
+  apiKey: { insertOne: jest.fn() },
+  unassignWorkspace: jest.fn(),
+  getAccountWorkspaces: jest.fn(),
+  workspace: { find: jest.fn() },
+  workspaceStatus: { find: jest.fn(), update: jest.fn() }
+} as unknown as AccountDB
+
+function setToken (account: AccountUuid, role: AccountRole, extra: Record<string, string> = {}): void {
+  ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account, workspace, extra })
+  ;(db.getWorkspaceRole as jest.Mock).mockResolvedValue(role)
+}
+
+async function call (
+  method: keyof typeof methods,
+  params: Record<string, unknown> = {}
+): Promise<Record<string, unknown>> {
+  const handler = methods[method]
+  if (handler === undefined) throw new Error(`Missing account method: ${method}`)
+  return await handler(ctx, db, null, { id: 1, params }, 'test-token')
+}
+
+describe('guest account RPC access', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('denies privileged operations to a personal guest', async () => {
+    setToken(personalGuest, AccountRole.Guest)
+
+    for (const method of ['getMailboxSecret', 'performWorkspaceOperation'] as const) {
+      const result = await call(method)
+      expect((result.error as { code: string }).code).toBe(platform.status.Forbidden)
+    }
+    expect(db.mailboxSecret.findOne).not.toHaveBeenCalled()
+  })
+
+  test('leaves workspace creation unchanged for all guest roles', async () => {
+    for (const [account, role] of [
+      [personalGuest, AccountRole.Guest],
+      [readOnlyGuestAccountUuid, AccountRole.ReadOnlyGuest],
+      [GUEST_ACCOUNT as AccountUuid, AccountRole.DocGuest]
+    ] as const) {
+      setToken(account, role)
+      const result = await call('createWorkspace')
+      expect((result.error as { code: string }).code).toBe(platform.status.BadRequest)
+    }
+  })
+
+  test('wrap denies an unmarked handler to a guest', async () => {
+    setToken(personalGuest, AccountRole.Guest)
+    const handler = jest.fn().mockResolvedValue({ id: 1, result: true })
+    const guarded = wrap(handler)
+
+    const result = await guarded(ctx, db, null, { id: 1, params: {} }, 'test-token')
+
+    expect((result.error as { code: string }).code).toBe(platform.status.Forbidden)
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  test('keeps personal account updates available to a guest', async () => {
+    setToken(personalGuest, AccountRole.Guest)
+    ;(db.person.update as jest.Mock).mockResolvedValue(undefined)
+
+    const result = await call('changeUsername', { first: 'New' })
+
+    expect(result.error).toBeUndefined()
+    expect(db.person.update).toHaveBeenCalledWith({ uuid: personalGuest }, { firstName: 'New', lastName: '' })
+  })
+
+  test('denies mutations to the shared anonymous guest and lists only anonymous workspaces', async () => {
+    setToken(readOnlyGuestAccountUuid, AccountRole.ReadOnlyGuest, { readonly: 'true' })
+
+    for (const method of ['leaveWorkspace', 'changeUsername', 'createApiKey'] as const) {
+      const result = await call(method)
+      expect((result.error as { code: string }).code).toBe(platform.status.Forbidden)
+    }
+    ;(db.getAccountWorkspaces as jest.Mock).mockResolvedValue([
+      { uuid: workspace, allowReadOnlyGuest: true, status: { mode: 'active', isDisabled: false } },
+      { uuid: 'closed-workspace', allowReadOnlyGuest: false, status: { mode: 'active', isDisabled: false } }
+    ])
+    const visible = await call('getUserWorkspaces')
+    expect(visible.result).toEqual([expect.objectContaining({ uuid: workspace })])
+    expect(db.unassignWorkspace).not.toHaveBeenCalled()
+    expect(db.person.update).not.toHaveBeenCalled()
+    expect(db.apiKey.insertOne).not.toHaveBeenCalled()
+  })
+
+  test('allows only connection methods for a document guest', async () => {
+    setToken(GUEST_ACCOUNT as AccountUuid, AccountRole.DocGuest, { guest: 'true' })
+
+    const allowed = await call('isReadOnlyGuest')
+    const denied = await call('getMailboxSecret', { mailbox: 'private@example.com' })
+
+    expect(allowed.result).toBe(false)
+    expect((denied.error as { code: string }).code).toBe(platform.status.Forbidden)
+    expect(db.mailboxSecret.findOne).not.toHaveBeenCalled()
+  })
+
+  test('requires the mail service token for mailbox secrets even for a regular user', async () => {
+    setToken('regular-user' as AccountUuid, AccountRole.User)
+
+    const denied = await call('getMailboxSecret', { mailbox: 'private@example.com' })
+    expect((denied.error as { code: string }).code).toBe(platform.status.Forbidden)
+
+    ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+      account: 'mail-service',
+      workspace,
+      extra: { service: 'huly-mail' }
+    })
+    ;(db.mailboxSecret.findOne as jest.Mock).mockResolvedValue({ secret: 'test-secret' })
+
+    const allowed = await call('getMailboxSecret', { mailbox: 'private@example.com' })
+    expect(allowed.result).toEqual({ secret: 'test-secret' })
+  })
+
+  test('allows only an owner to restore an archived workspace', async () => {
+    setToken(personalGuest, AccountRole.Guest)
+    const params = { workspaceId: workspace, event: 'unarchive' as const, params: [] }
+
+    await expect(performWorkspaceOperation(ctx, db, null, 'test-token', params)).rejects.toMatchObject({
+      status: { code: platform.status.Forbidden }
+    })
+    expect(db.workspaceStatus.update).not.toHaveBeenCalled()
+
+    setToken('owner' as AccountUuid, AccountRole.Owner)
+    ;(db.workspace.find as jest.Mock).mockResolvedValue([{ uuid: workspace }])
+    ;(db.workspaceStatus.find as jest.Mock).mockResolvedValue([{ workspaceUuid: workspace, mode: 'archived' }])
+
+    await expect(performWorkspaceOperation(ctx, db, null, 'test-token', params)).resolves.toBe(true)
+    expect(db.workspaceStatus.update).toHaveBeenCalled()
+  })
+})

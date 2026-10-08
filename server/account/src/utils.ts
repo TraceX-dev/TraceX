@@ -1,6 +1,7 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -48,6 +49,7 @@ import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } 
 import { MongoAccountDB } from './collections/mongo'
 import { PostgresAccountDB } from './collections/postgres/postgres'
 import { getEmailAppName, renderAccountEmail } from './emails'
+import { GUEST_ACCOUNT, guardGuestMethod, type GuestAccessPolicy } from './guestAccess'
 import { accountPlugin } from './plugin'
 import {
   type Account,
@@ -74,7 +76,7 @@ import {
 import { isAdminEmail } from './admin'
 import { type Sql } from 'postgres'
 
-export const GUEST_ACCOUNT = 'b6996120-416f-49cd-841e-e4a5d2e49c9b' as PersonUuid
+export { GUEST_ACCOUNT } from './guestAccess'
 
 export async function getDbFlavor (pgClient: Sql<any>): Promise<DBFlavor> {
   // Run the version query
@@ -174,12 +176,19 @@ export function isGuest (account: AccountUuid, extra: Record<string, any> | unde
   return account === GUEST_ACCOUNT && extra?.guest === 'true'
 }
 
+/** Guest access defaults to deny; noAuth only skips token verification inside the handler. */
+export interface WrapOptions {
+  allowApiKey?: boolean
+  noAuth?: boolean
+  guest?: GuestAccessPolicy
+}
+
 export function wrap (
   accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>,
-  allowApiKey: boolean = false,
-  noAuth: boolean = false
+  options: WrapOptions = {}
 ): AccountMethodHandler {
-  return async function (
+  const { allowApiKey = false, noAuth = false, guest = 'deny' } = options
+  const handler: AccountMethodHandler = async function (
     ctx: MeasureContext,
     db: AccountDB,
     branding: Branding | null,
@@ -232,6 +241,8 @@ export function wrap (
         }
       })
   }
+
+  return guardGuestMethod(handler, guest)
 }
 
 /**
@@ -838,7 +849,7 @@ export async function selectWorkspace (
 
   if (isGuest(accountUuid, extra)) {
     const workspace = await getWorkspaceByUrl(db, workspaceUrl)
-    if (workspace == null) {
+    if (workspace == null || tokenWorkspace == null || workspace.uuid !== tokenWorkspace) {
       ctx.error('Workspace not found in selectWorkspace', { workspaceUrl, kind, accountUuid, extra })
       throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
     }

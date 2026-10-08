@@ -1631,7 +1631,7 @@ describe('account operations', () => {
         const call = wrapSpy.mock.calls.find((args) => (args[0] as { name: string }).name === methodName)
 
         expect(call).toBeDefined()
-        expect(call?.[2]).toBe(true) // noAuth
+        expect(call?.[1]).toMatchObject({ noAuth: true, guest: 'bypass' })
 
         wrapSpy.mockRestore()
       })
