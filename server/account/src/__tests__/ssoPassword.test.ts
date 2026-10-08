@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 
-import { SocialIdType, type MeasureContext, type PersonUuid } from '@hcengineering/core'
+import { AccountRole, SocialIdType, type MeasureContext, type PersonUuid } from '@hcengineering/core'
 import platform, { getMetadata } from '@hcengineering/platform'
 import { decodeTokenVerbose, generateToken } from '@hcengineering/server-token'
 
@@ -51,7 +52,8 @@ const accountUuid = 'account-uuid' as PersonUuid
 
 describe('checkHasPassword', () => {
   const mockDb = {
-    account: { findOne: jest.fn() }
+    account: { findOne: jest.fn() },
+    getWorkspaceRoles: jest.fn().mockResolvedValue(new Map([['workspace', AccountRole.User]]))
   } as unknown as AccountDB
 
   const methods = getMethods()
@@ -122,7 +124,8 @@ describe('changePassword', () => {
   const mockDb = {
     account: { findOne: jest.fn() },
     accountEvent: { insertOne: jest.fn() },
-    setPassword: jest.fn()
+    setPassword: jest.fn(),
+    getWorkspaceRoles: jest.fn().mockResolvedValue(new Map([['workspace', AccountRole.User]]))
   } as unknown as AccountDB
 
   const methods = getMethods()
@@ -201,7 +204,8 @@ describe('changePassword', () => {
 describe('requestPasswordSetup', () => {
   const mockDb = {
     account: { findOne: jest.fn() },
-    socialId: { findOne: jest.fn() }
+    socialId: { findOne: jest.fn() },
+    getWorkspaceRoles: jest.fn().mockResolvedValue(new Map([['workspace', AccountRole.User]]))
   } as unknown as AccountDB
 
   const methods = getMethods()
