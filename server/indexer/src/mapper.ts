@@ -165,7 +165,8 @@ export function mapSearchResultDoc (hierarchy: Hierarchy, raw: IndexedDoc): Sear
 
   if (
     raw.version !== undefined &&
-    hierarchy.classHierarchyMixin(doc.doc._class, core.mixin.VersionableClass)?.enabled === true
+    (!hierarchy.hasClass(doc.doc._class) ||
+      hierarchy.classHierarchyMixin(doc.doc._class, core.mixin.VersionableClass)?.enabled === true)
   ) {
     doc.description = `v${raw.version}`
   }
