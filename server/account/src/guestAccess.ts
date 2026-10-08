@@ -19,26 +19,26 @@ import { decodeTokenVerbose } from '@hcengineering/server-token'
 
 import type { AccountDB, AccountMethodHandler } from './types'
 
-type GuestKind = 'doc' | 'readonly' | 'personal'
-
 export type GuestAccessPolicy = 'bypass' | 'allGuests' | 'readOnlyAndPersonal' | 'personalGuest' | 'deny'
 
-async function getGuestKind (
+async function getGuestRole (
   db: AccountDB,
   account: ReturnType<typeof decodeTokenVerbose>,
   policy: GuestAccessPolicy
-): Promise<GuestKind | undefined> {
-  if (account.account === docGuestAccountUuid) return 'doc'
-  if (account.account === readOnlyGuestAccountUuid || account.extra?.readonly === 'true') return 'readonly'
+): Promise<AccountRole | undefined> {
+  if (account.account === docGuestAccountUuid) return AccountRole.DocGuest
+  if (account.account === readOnlyGuestAccountUuid || account.extra?.readonly === 'true') {
+    return AccountRole.ReadOnlyGuest
+  }
   if (account.account === systemAccountUuid || account.extra?.admin === 'true' || account.extra?.service != null) {
     return undefined
   }
 
   if (account.workspace != null) {
     const role = await db.getWorkspaceRole(account.account, account.workspace)
-    if (role === AccountRole.Guest) return 'personal'
-    if (role === AccountRole.ReadOnlyGuest) return 'readonly'
-    if (role === AccountRole.DocGuest) return 'doc'
+    if (role === AccountRole.Guest || role === AccountRole.ReadOnlyGuest || role === AccountRole.DocGuest) {
+      return role
+    }
     return undefined
   }
 
@@ -47,7 +47,7 @@ async function getGuestKind (
 
   const roles = await db.getWorkspaceRoles(account.account)
   return roles.size > 0 && Array.from(roles.values()).every((role) => role === AccountRole.Guest)
-    ? 'personal'
+    ? AccountRole.Guest
     : undefined
 }
 
@@ -64,18 +64,18 @@ export function guardGuestMethod (
       return { id: request.id, error: new Status(Severity.ERROR, platform.status.Unauthorized, {}) }
     }
 
-    let kind: GuestKind | undefined
+    let role: AccountRole | undefined
     try {
-      kind = await getGuestKind(db, decodeTokenVerbose(ctx, token), policy)
+      role = await getGuestRole(db, decodeTokenVerbose(ctx, token), policy)
     } catch {
       return { id: request.id, error: new Status(Severity.ERROR, platform.status.Unauthorized, {}) }
     }
 
     const allowed =
-      kind === undefined ||
-      (kind === 'doc' && policy === 'allGuests') ||
-      (kind === 'readonly' && (policy === 'allGuests' || policy === 'readOnlyAndPersonal')) ||
-      (kind === 'personal' &&
+      role === undefined ||
+      (role === AccountRole.DocGuest && policy === 'allGuests') ||
+      (role === AccountRole.ReadOnlyGuest && (policy === 'allGuests' || policy === 'readOnlyAndPersonal')) ||
+      (role === AccountRole.Guest &&
         (policy === 'allGuests' || policy === 'readOnlyAndPersonal' || policy === 'personalGuest'))
 
     if (!allowed) {
