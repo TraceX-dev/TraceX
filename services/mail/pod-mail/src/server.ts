@@ -19,6 +19,7 @@ import { Server } from 'http'
 
 import { Endpoint, RequestHandler } from './types'
 import { ApiError } from './error'
+import { requireAuth } from './auth'
 
 const catchError = (fn: RequestHandler) => (req: Request, res: Response, next: NextFunction) => {
   void (async () => {
@@ -30,12 +31,17 @@ const catchError = (fn: RequestHandler) => (req: Request, res: Response, next: N
   })()
 }
 
-export function createServer (endpoints: Endpoint[]): Express {
+export interface ServerOptions {
+  authToken: string | undefined
+}
+
+export function createServer (endpoints: Endpoint[], options: ServerOptions): Express {
   const app = express()
   app.disable('x-powered-by')
 
   app.use(cors())
-  app.use(express.json())
+  app.use(express.json({ limit: '25mb' }))
+  app.use(requireAuth(options.authToken))
 
   endpoints.forEach((endpoint) => {
     if (endpoint.type === 'get') {

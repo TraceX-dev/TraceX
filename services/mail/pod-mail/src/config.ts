@@ -18,6 +18,7 @@ dotenvConfig()
 
 export interface Config {
   port: number
+  authToken?: string
   source?: string
   replyTo?: string
   sesConfig?: SesConfig
@@ -69,6 +70,8 @@ export function getTlsSettings (config: SmtpConfig): TlsSettings {
 
 const envMap = {
   Port: 'PORT',
+  AuthToken: 'MAIL_AUTH_TOKEN',
+  LegacyApiKey: 'API_KEY', // deprecated, use MAIL_AUTH_TOKEN
   Source: 'SOURCE',
   ReplyTo: 'REPLY_TO',
   DefaultProtocol: 'DEFAULT_PROTOCOL',
@@ -156,8 +159,10 @@ const config: Config = (() => {
   if (!isSmtpConfig && !isSesConfig) {
     throw Error('Please specify SES or SMTP configuration')
   }
+  const authToken = [process.env[envMap.AuthToken], process.env[envMap.LegacyApiKey]].find((v) => !isEmpty(v))
   const params: Config = {
     port,
+    authToken: authToken?.trim(),
     source: process.env[envMap.Source],
     replyTo: process.env[envMap.ReplyTo],
     sesConfig: isSesConfig ? buildSesConfig() : undefined,
