@@ -136,6 +136,7 @@ export interface OTP {
   code: string
   expiresOn: Timestamp
   createdOn: Timestamp
+  attempts?: number
 }
 
 export interface WorkspaceInvite {

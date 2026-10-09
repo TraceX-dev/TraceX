@@ -85,6 +85,13 @@ const RESERVED_FIELDS = new Set([
   'prototype'
 ])
 
+function containsIdentifier (hierarchy: Hierarchy, type: Type<PropertyType>): boolean {
+  if (hierarchy.isDerived(type._class, core.class.ArrOf)) {
+    return containsIdentifier(hierarchy, (type as ArrOf<PropertyType>).of)
+  }
+  return hierarchy.isDerived(type._class, core.class.TypeIdentifier)
+}
+
 function visibleAttributes (hierarchy: Hierarchy, type: Ref<MasterTag>): [string, AnyAttribute][] {
   return [...hierarchy.getAllAttributes(type, core.class.Doc)]
     .filter(
@@ -94,6 +101,7 @@ function visibleAttributes (hierarchy: Hierarchy, type: Ref<MasterTag>): [string
         attr.hidden !== true &&
         attr.readonly !== true &&
         attr.automationOnly !== true &&
+        !containsIdentifier(hierarchy, attr.type) &&
         !hierarchy.isDerived(attr.type._class, core.class.Collection)
     )
     .sort((a, b) => {

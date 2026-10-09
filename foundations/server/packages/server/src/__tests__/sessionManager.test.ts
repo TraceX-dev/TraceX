@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 
 import {
   AccountRole,
+  docGuestAccountUuid,
   generateId,
   MeasureMetricsContext,
   systemAccountUuid,
@@ -262,10 +264,9 @@ describe('TSessionManager', () => {
     })
 
     it('should count anonymous users correctly', () => {
-      const guestAccount = 'b6996120-416f-49cd-841e-e4a5d2e49c9b' as AccountUuid
       const mockSession = {
         session: {
-          getUser: jest.fn().mockReturnValue(guestAccount)
+          getUser: jest.fn().mockReturnValue(docGuestAccountUuid)
         }
       }
 
@@ -290,7 +291,7 @@ describe('TSessionManager', () => {
         },
         {
           session: {
-            getUser: jest.fn().mockReturnValue('b6996120-416f-49cd-841e-e4a5d2e49c9b')
+            getUser: jest.fn().mockReturnValue(docGuestAccountUuid)
           }
         },
         {
@@ -1093,7 +1094,7 @@ describe('TSessionManager', () => {
         },
         {
           session: {
-            getUser: jest.fn().mockReturnValue('b6996120-416f-49cd-841e-e4a5d2e49c9b')
+            getUser: jest.fn().mockReturnValue(docGuestAccountUuid)
           }
         },
         {

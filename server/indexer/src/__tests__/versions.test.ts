@@ -17,7 +17,7 @@ import core, {
   type Class,
   type Doc,
   type Domain,
-  type Hierarchy,
+  Hierarchy,
   MeasureMetricsContext,
   type ModelDb,
   type Ref,
@@ -64,6 +64,7 @@ describe('version indexing', () => {
       tx: jest.fn(),
       findDomain: () => 'test' as Domain,
       getClassifierProp: () => true,
+      hasClass: () => true,
       classHierarchyMixin: (_class: Ref<Class<Doc>>, mixin: Ref<Class<Doc>>) =>
         mixin === core.mixin.VersionableClass ? { enabled: true } : undefined
     } as unknown as Hierarchy
@@ -139,8 +140,30 @@ describe('version indexing', () => {
   })
 
   it('does not display a version when versioning is disabled', () => {
-    const hierarchy = { classHierarchyMixin: () => undefined } as unknown as Hierarchy
+    const hierarchy = { hasClass: () => true, classHierarchyMixin: () => undefined } as unknown as Hierarchy
     const indexed = createIndexedDoc(latest, [], latest.space)
     expect(mapSearchResultDoc(hierarchy, indexed).description).toBeUndefined()
+  })
+
+  it('returns search results with version numbers when their class is missing from the hierarchy', async () => {
+    const docs = [old, latest].map((doc) => ({ ...createIndexedDoc(doc, [], doc.space), searchTitle: 'Same title' }))
+    const adapter = { searchString: jest.fn().mockResolvedValue({ docs, total: 2 }) } as unknown as FullTextAdapter
+
+    const result = await searchFulltext(
+      ctx,
+      pipeline.workspace.uuid,
+      new Hierarchy(),
+      adapter,
+      {
+        query: 'Same title'
+      },
+      {}
+    )
+
+    expect(result.total).toBe(2)
+    expect(result.docs.map((doc) => ({ id: doc.id, title: doc.title, description: doc.description }))).toEqual([
+      { id: old._id, title: 'Same title', description: 'v1' },
+      { id: latest._id, title: 'Same title', description: 'v2' }
+    ])
   })
 })

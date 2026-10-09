@@ -62,6 +62,7 @@ import type {
 import { RateLimiter, SessionDataImpl } from '@hcengineering/server-core'
 import { jsonToText, markupToJSON, markupToText } from '@hcengineering/text'
 import { findSearchPresenter, updateDocWithPresenter } from '../mapper'
+import { extractValues } from './extract-values'
 import { type FullTextPipeline } from './types'
 import { createIndexedDoc, getContent } from './utils'
 
@@ -87,25 +88,6 @@ export const globalIndexer = {
 }
 
 let indexCounter = 0
-
-function extractValues (obj: any): string {
-  let res = ''
-
-  const o = [obj]
-  while (o.length > 0) {
-    const oo = o.shift()
-    if (typeof oo === 'object') {
-      o.push(Object.values(oo))
-      continue
-    }
-    if (Array.isArray(oo)) {
-      o.push(...oo)
-      continue
-    }
-    res += `${oo} `
-  }
-  return res
-}
 
 class ElasticPushQueue {
   pushQueue = new RateLimiter(5)

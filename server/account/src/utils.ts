@@ -19,6 +19,7 @@ import {
   type AccountUuid,
   type Branding,
   concatLink,
+  docGuestAccountUuid,
   generateId,
   groupByArray,
   isActiveMode,
@@ -47,6 +48,7 @@ import { Analytics } from '@hcengineering/analytics'
 import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } from '@hcengineering/server-token'
 import { PostgresAccountDB } from './collections/postgres/postgres'
 import { getEmailAppName, renderAccountEmail } from './emails'
+import { guardGuestMethod, type GuestAccessPolicy } from './guestAccess'
 import { accountPlugin } from './plugin'
 import {
   type Account,
@@ -59,6 +61,7 @@ import {
   type LoginInfoRequestData,
   type Meta,
   type Operations,
+  type OTP,
   type OtpInfo,
   type RegionInfo,
   type SocialId,
@@ -70,8 +73,6 @@ import {
   type WorkspaceStatus
 } from './types'
 import { isAdminEmail } from './admin'
-
-export const GUEST_ACCOUNT = 'b6996120-416f-49cd-841e-e4a5d2e49c9b' as PersonUuid
 
 export async function getAccountDB (
   uri: string,
@@ -122,15 +123,22 @@ export function isReadOnlyOrGuest (account: AccountUuid, extra: Record<string, a
 }
 
 export function isGuest (account: AccountUuid, extra: Record<string, any> | undefined): boolean {
-  return account === GUEST_ACCOUNT && extra?.guest === 'true'
+  return account === docGuestAccountUuid && extra?.guest === 'true'
+}
+
+/** Guest access defaults to deny; noAuth only skips token verification inside the handler. */
+export interface WrapOptions {
+  allowApiKey?: boolean
+  noAuth?: boolean
+  guest?: GuestAccessPolicy
 }
 
 export function wrap (
   accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>,
-  allowApiKey: boolean = false,
-  noAuth: boolean = false
+  options: WrapOptions = {}
 ): AccountMethodHandler {
-  return async function (
+  const { allowApiKey = false, noAuth = false, guest = 'deny' } = options
+  const handler: AccountMethodHandler = async function (
     ctx: MeasureContext,
     db: AccountDB,
     branding: Branding | null,
@@ -183,6 +191,8 @@ export function wrap (
         }
       })
   }
+
+  return guardGuestMethod(handler, guest)
 }
 
 /**
@@ -507,6 +517,11 @@ export async function sendOtp (
   socialId: SocialId
 ): Promise<OtpInfo> {
   const ts = Date.now()
+
+  if (await isOtpLocked(db, socialId._id, ts)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.OtpLocked, {}))
+  }
+
   const otpData = (await db.otp.find({ socialId: socialId._id }, { createdOn: 'descending' }, 1))[0]
   const retryDelay = getMetadata(accountPlugin.metadata.OtpRetryDelaySec) ?? 30
 
@@ -574,10 +589,63 @@ export async function sendOtpEmail (
   }
 }
 
-export async function isOtpValid (db: AccountDB, socialId: PersonId, code: string): Promise<boolean> {
-  const otpData = await db.otp.findOne({ socialId, code })
+function parseIntEnv (name: string, defaultValue: number): number {
+  const value = process.env[name] != null ? parseInt(process.env[name]) : NaN
+  return Number.isNaN(value) ? defaultValue : value
+}
 
-  return (otpData?.expiresOn ?? 0) > Date.now()
+// 0 or negative value means no limit
+const otpMaxAttempts = parseIntEnv('OTP_MAX_ATTEMPTS', 5)
+// Per social id; also blocks issuing new codes. 0 or negative value means no limit
+const otpMaxFailedAttemptsPerWindow = parseIntEnv('OTP_MAX_FAILED_ATTEMPTS_PER_WINDOW', 15)
+const otpLockWindowMs = Math.max(parseIntEnv('OTP_LOCK_WINDOW_SEC', 3600), 0) * 1000
+
+function sumOtpAttempts (otps: OTP[], now: number): number {
+  return otps.filter((it) => it.createdOn > now - otpLockWindowMs).reduce((sum, it) => sum + (it.attempts ?? 0), 0)
+}
+
+export async function isOtpLocked (db: AccountDB, socialId: PersonId, now: number = Date.now()): Promise<boolean> {
+  if (otpMaxFailedAttemptsPerWindow <= 0) {
+    return false
+  }
+
+  const otps = await db.otp.find({ socialId })
+
+  return sumOtpAttempts(otps, now) >= otpMaxFailedAttemptsPerWindow
+}
+
+export type OtpVerificationResult = 'valid' | 'invalid' | 'locked'
+
+export async function verifyOtpAttempt (
+  db: AccountDB,
+  socialId: PersonId,
+  code: string
+): Promise<OtpVerificationResult> {
+  const now = Date.now()
+
+  // Count the attempt before checking the code, so concurrent requests cannot exceed the limit
+  await db.otp.update({ socialId, expiresOn: { $gt: now } }, { $inc: { attempts: 1 } })
+
+  const otps = await db.otp.find({ socialId })
+  const otpData = otps.find((it) => it.code === code)
+
+  const isExhausted = (it: OTP): boolean => otpMaxAttempts > 0 && (it.attempts ?? 0) > otpMaxAttempts
+
+  if (otpMaxFailedAttemptsPerWindow > 0 && sumOtpAttempts(otps, now) > otpMaxFailedAttemptsPerWindow) {
+    return 'locked'
+  }
+
+  if (otpData != null && otpData.expiresOn > now) {
+    return isExhausted(otpData) ? 'locked' : 'valid'
+  }
+
+  // Tell the user to request a new code if every active one is exhausted
+  const activeOtps = otps.filter((it) => it.expiresOn > now)
+  if (activeOtps.length > 0 && activeOtps.every(isExhausted)) {
+    return 'locked'
+  }
+
+  return 'invalid'
 }
 
 /**
@@ -789,7 +857,7 @@ export async function selectWorkspace (
 
   if (isGuest(accountUuid, extra)) {
     const workspace = await getWorkspaceByUrl(db, workspaceUrl)
-    if (workspace == null) {
+    if (workspace == null || tokenWorkspace == null || workspace.uuid !== tokenWorkspace) {
       ctx.error('Workspace not found in selectWorkspace', { workspaceUrl, kind, accountUuid, extra })
       throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
     }
@@ -1723,7 +1791,9 @@ export function flattenStatus (ws: WorkspaceInfoWithStatus): WorkspaceInfoWithSt
 }
 
 export async function cleanExpiredOtp (db: AccountDB): Promise<void> {
-  await db.otp.deleteMany({ expiresOn: { $lte: Date.now() } })
+  const now = Date.now()
+  // Keep expired codes for the lock window: their attempt counters drive the lockout
+  await db.otp.deleteMany({ expiresOn: { $lte: now }, createdOn: { $lte: now - otpLockWindowMs } })
 }
 
 export async function getWorkspaces (
