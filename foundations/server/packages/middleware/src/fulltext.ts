@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -132,7 +133,7 @@ export class FullTextMiddleware extends BaseMiddleware implements Middleware {
 
     // We need to filter all non indexed fields from query to make it work properly
     const findQuery: DocumentQuery<Doc> = {
-      $search: query.$search
+      $search: $search === '' || /[\s*]$/.test($search) ? $search : `${$search}*`
     }
 
     const childClasses = new Set<Ref<Class<Doc>>>()
