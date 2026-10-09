@@ -19,6 +19,7 @@
   import ui, {
     DatePresenter,
     Dropdown,
+    DropdownLabels,
     EditBox,
     Label,
     NumberInput,
@@ -44,23 +45,29 @@
         ? String(initial)
         : ''
   let checked = initial === true
+  let selectedValues: string[] = Array.isArray(initial)
+    ? initial.filter((item): item is string => typeof item === 'string')
+    : []
   let numeric: number | undefined = typeof initial === 'number' ? initial : undefined
   let date: number | null | undefined = typeof initial === 'number' ? initial : undefined
   let invalid = false
   $: items = (field.values ?? []).map((item) => ({ _id: item, label: item }))
   $: selected = items.find((item) => item._id === text)
+  $: enumItems = (field.item?.values ?? []).map((item) => ({ id: item, label: item }))
 
   function update (
     text: string | number | undefined,
     checked: boolean,
     date: number | null | undefined,
-    numeric: number | undefined
+    numeric: number | undefined,
+    selectedValues: string[]
   ): void {
     let result: unknown = text
     invalid = false
     if (field.kind === 'boolean') result = checked
     else if (field.kind === 'date') result = date ?? undefined
     else if (field.kind === 'number') result = numeric
+    else if (field.kind === 'array' && field.item?.kind === 'enum') result = selectedValues
     else if (text === '' || text === undefined) result = undefined
     else if (field.kind === 'json' || field.kind === 'array') {
       try {
@@ -81,7 +88,10 @@
   function select (event: CustomEvent<ListItem>): void {
     text = event.detail._id
   }
-  $: update(text, checked, date, numeric)
+  function selectMultiple (event: CustomEvent<string[]>): void {
+    selectedValues = event.detail
+  }
+  $: update(text, checked, date, numeric, selectedValues)
 </script>
 
 <fieldset class="field" aria-labelledby={`label-${field.name}`} {disabled}>
@@ -110,6 +120,20 @@
       justify="left"
       width="100%"
       on:selected={select}
+    />
+  {:else if field.kind === 'array' && field.item?.kind === 'enum'}
+    <DropdownLabels
+      items={enumItems}
+      selected={selectedValues}
+      multiselect
+      autoSelect={false}
+      showDropdownIcon
+      {disabled}
+      kind="regular"
+      size="large"
+      justify="left"
+      width="100%"
+      on:selected={selectMultiple}
     />
   {:else if field.kind === 'date'}
     <DatePresenter

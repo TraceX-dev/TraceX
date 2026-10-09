@@ -104,4 +104,13 @@ describe('public Forms submission validation', () => {
     expect(validateFields([arrayField], { numbers: [0, 1] })).toEqual({ numbers: [0, 1] })
     expect(() => validateFields([arrayField], { numbers: [0, '1'] })).toThrow(FormError)
   })
+
+  it('accepts multiple enum selections and rejects unknown choices', () => {
+    const arrayField: FormField = { ...fields[3], name: 'states', kind: 'array', item: fields[3] }
+    expect(isFormInputField(arrayField)).toBe(true)
+    expect(validateFields([arrayField], { states: ['new', 'done'] })).toEqual({ states: ['new', 'done'] })
+    expect(validateFields([arrayField], { states: [] })).toEqual({ states: [] })
+    expect(() => validateFields([arrayField], { states: ['new', 'removed'] })).toThrow(FormError)
+    expect(() => validateFields([arrayField], { states: '["new"]' })).toThrow(FormError)
+  })
 })
