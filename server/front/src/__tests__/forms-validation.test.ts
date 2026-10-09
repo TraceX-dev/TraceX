@@ -35,13 +35,7 @@ describe('public Forms submission validation', () => {
       item: reference
     }
     const nested: FormField = { ...references, name: 'nested', item: references }
-    const excluded = [
-      reference,
-      references,
-      nested,
-      { ...fields[0], name: 'id' },
-      { ...fields[0], name: '_id' }
-    ]
+    const excluded = [reference, references, nested, { ...fields[0], name: 'id' }, { ...fields[0], name: '_id' }]
     expect(excluded.filter(isFormInputField)).toEqual([])
     for (const field of excluded) {
       expect(() => validateFields(excluded.filter(isFormInputField), { [field.name]: 'injected' })).toThrow(FormError)
