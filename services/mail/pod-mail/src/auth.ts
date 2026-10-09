@@ -33,11 +33,6 @@ export function extractToken (req: Request): string | undefined {
       if (token !== '') return token
     }
   }
-  // Legacy: token passed in JSON body as `apiKey`
-  const bodyKey = (req.body as Record<string, unknown> | undefined)?.apiKey
-  if (typeof bodyKey === 'string' && bodyKey !== '') {
-    return bodyKey
-  }
   return undefined
 }
 

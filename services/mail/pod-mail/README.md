@@ -11,7 +11,6 @@ Environment variables should be set to configure the Mail Service:
 
 - `PORT`: The port on which the mail service listens for incoming HTTP requests.
 - `MAIL_AUTH_TOKEN`: Required. Shared secret clients must send as `Authorization: Bearer <token>`. If it is not set, the service rejects all requests (fail-closed). Other services (account, transactor, gmail) must use the same `MAIL_AUTH_TOKEN`.
-- `API_KEY`: Deprecated alias for `MAIL_AUTH_TOKEN`.
 - `SOURCE`: The sender source (fallback for when emails emit from the system).
 - `REPLY_TO`: (optional) Email to use for replies (useful for uni-directional STMP setups where emails are only emitted, but not received).
 
@@ -70,7 +69,6 @@ Send an email message.
 - `html`: Optional. String containing HTML message body.
 - `from`: Optional. Sender's email address.
 - `headers`: Optional. An object or array of additional header fields.
-- `apiKey`: Deprecated, use the `Authorization: Bearer` header instead.
 - `attachments`: Optional. Array of objects, each object can have the following fields:
   - `filename`: Filename to be reported as the name of the attached file. Use of unicode is allowed.
   - `contentType`: Optional. Content type for the attachment, if not set will be derived from the filename property.

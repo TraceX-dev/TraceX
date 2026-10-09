@@ -44,14 +44,13 @@ describe('requireAuth', () => {
 
   it('rejects wrong token', () => {
     expect(run('secret', { headers: { authorization: 'Bearer nope' } })).toEqual({ status: 401, next: false })
-    expect(run('secret', { body: { apiKey: 'nope' } })).toEqual({ status: 401, next: false })
   })
 
   it('accepts Bearer token', () => {
     expect(run('secret', { headers: { authorization: 'Bearer secret' } }).next).toBe(true)
   })
 
-  it('accepts legacy apiKey in body', () => {
-    expect(run('secret', { body: { apiKey: 'secret' } }).next).toBe(true)
+  it('ignores apiKey in body', () => {
+    expect(run('secret', { body: { apiKey: 'secret' } })).toEqual({ status: 401, next: false })
   })
 })
