@@ -16,6 +16,7 @@
 
 import {
   AccountRole,
+  docGuestAccountUuid,
   type AccountUuid,
   type Branding,
   type MeasureContext,
@@ -50,7 +51,6 @@ import {
   getEmailSocialId,
   confirmEmail,
   sendEmailConfirmation,
-  GUEST_ACCOUNT,
   selectWorkspace,
   signUpByEmail,
   getAccount,
@@ -645,7 +645,7 @@ describe('account utils', () => {
     test('should handle successful execution', async () => {
       const mockResult = { data: 'test' }
       const mockMethod = jest.fn().mockResolvedValue(mockResult)
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: { param1: 'value1', param2: 'value2' } }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -667,7 +667,7 @@ describe('account utils', () => {
     test('should handle token parameter', async () => {
       const mockResult = { data: 'test' }
       const mockMethod = jest.fn().mockResolvedValue(mockResult)
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: { param1: 'value1' } }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -680,7 +680,7 @@ describe('account utils', () => {
       const errorStatus = new Status(Severity.ERROR, 'test-error' as any, {})
       const mockMethod = jest.fn().mockRejectedValue(new PlatformError(errorStatus))
       Object.defineProperty(mockMethod, 'name', { value: 'mockAccMethod' })
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: [] }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -694,7 +694,7 @@ describe('account utils', () => {
 
     test('should handle TokenError', async () => {
       const mockMethod = jest.fn().mockRejectedValue(new TokenError('test error'))
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: [] }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -708,7 +708,7 @@ describe('account utils', () => {
       const error = new Error('unexpected error')
       const mockMethod = jest.fn().mockRejectedValue(error)
       Object.defineProperty(mockMethod, 'name', { value: 'mockAccMethod' })
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: [] }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -724,7 +724,7 @@ describe('account utils', () => {
     test('should not report non-internal errors to analytics', async () => {
       const errorStatus = new Status(Severity.ERROR, 'known-error' as any, {})
       const mockMethod = jest.fn().mockRejectedValue(new PlatformError(errorStatus))
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: [] }
 
       await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -733,7 +733,7 @@ describe('account utils', () => {
     test('should handle timezone parameter', async () => {
       const mockResult = { data: 'test' }
       const mockMethod = jest.fn().mockResolvedValue(mockResult)
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const mockTimezone = 'America/New_York'
       const request = { id: 'req1', params: { param1: 'value1' } }
 
@@ -754,7 +754,7 @@ describe('account utils', () => {
       test('should not verify the token at all when noAuth is true', async () => {
         const mockResult = { data: 'test' }
         const mockMethod = jest.fn().mockResolvedValue(mockResult)
-        const wrappedMethod = wrap(mockMethod, false, true)
+        const wrappedMethod = wrap(mockMethod, { noAuth: true, guest: 'bypass' })
         const request = { id: 'req1', params: { email: 'test@example.com' } }
 
         const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'some-token')
@@ -783,7 +783,7 @@ describe('account utils', () => {
 
         const mockResult = { sent: true }
         const mockMethod = jest.fn().mockResolvedValue(mockResult)
-        const wrappedMethod = wrap(mockMethod, false, true)
+        const wrappedMethod = wrap(mockMethod, { noAuth: true, guest: 'bypass' })
         const request = { id: 'req1', params: { email: 'test@example.com' } }
 
         const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'stale-invalid-token')
@@ -797,7 +797,7 @@ describe('account utils', () => {
         })
 
         const mockMethod = jest.fn().mockResolvedValue({ data: 'test' })
-        const wrappedMethod = wrap(mockMethod)
+        const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
         const request = { id: 'req1', params: {} }
 
         const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'stale-invalid-token')
@@ -1378,7 +1378,7 @@ describe('account utils', () => {
 
       beforeEach(() => {
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
-          account: GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           workspace: 'workspace-uuid',
           extra: { guest: 'true' }
         })
@@ -1394,7 +1394,7 @@ describe('account utils', () => {
         })
 
         expect(result).toEqual({
-          account: GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           endpoint: expect.any(String),
           token: guestToken,
           workspace: mockWorkspace.uuid,
@@ -1414,6 +1414,19 @@ describe('account utils', () => {
         )
 
         expect(mockCtx.error).toHaveBeenCalledWith('Workspace not found in selectWorkspace', expect.any(Object))
+      })
+
+      test('should reject a public link token for a different workspace', async () => {
+        ;(mockDb.workspace.findOne as jest.Mock).mockResolvedValue({
+          ...mockWorkspace,
+          uuid: 'other-workspace' as WorkspaceUuid
+        })
+
+        await expect(
+          selectWorkspace(mockCtx, mockDb, mockBranding, guestToken, { workspaceUrl, kind: 'external' })
+        ).rejects.toThrow(
+          new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
+        )
       })
     })
 

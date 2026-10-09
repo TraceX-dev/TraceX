@@ -1,6 +1,7 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -20,6 +21,7 @@ import {
   type AccountUuid,
   type Branding,
   buildSocialIdString,
+  docGuestAccountUuid,
   generateId,
   concatLink,
   isActiveMode,
@@ -107,7 +109,6 @@ import {
   getWorkspaceInvite,
   getWorkspaceRole,
   getWorkspaceRoles,
-  GUEST_ACCOUNT,
   isEmail,
   verifyOtpAttempt,
   normalizeValue,
@@ -843,7 +844,7 @@ export async function createAccessLink (
   }
 
   try {
-    const accessToken = generateToken(GUEST_ACCOUNT, undefined, undefined, undefined, {
+    const accessToken = generateToken(docGuestAccountUuid, undefined, undefined, undefined, {
       grant,
       sub: newUuid,
       exp: expiration,
@@ -1972,7 +1973,9 @@ export async function getUserWorkspaces (
   const { account } = decodeTokenVerbose(ctx, token)
 
   return (await db.getAccountWorkspaces(account)).filter(
-    (ws) => isWorkspaceCreating(ws.status.mode) || !(isDeletingMode(ws.status.mode) || ws.status.isDisabled)
+    (ws) =>
+      (account !== readOnlyGuestAccountUuid || ws.allowReadOnlyGuest) &&
+      (isWorkspaceCreating(ws.status.mode) || !(isDeletingMode(ws.status.mode) || ws.status.isDisabled))
   )
 }
 
@@ -2196,7 +2199,7 @@ export async function getLoginInfoByToken (
     }
   }
 
-  const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
+  const isDocGuest = accountUuid === docGuestAccountUuid && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
   const isAdmin = extra?.admin === 'true'
 
@@ -2390,7 +2393,7 @@ export async function getLoginWithWorkspaceInfo (
     }
   }
 
-  const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
+  const isDocGuest = accountUuid === docGuestAccountUuid && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
   let socialIds: SocialId[] = []
 
@@ -2873,7 +2876,7 @@ async function getMailboxSecret (
   }
 ): Promise<MailboxSecret | null> {
   const { extra } = decodeTokenVerbose(ctx, token)
-  verifyAllowedServices(['huly-mail'], extra, false)
+  verifyAllowedServices(['huly-mail'], extra)
   return await db.mailboxSecret.findOne({ mailbox: params.mailbox })
 }
 
@@ -2930,7 +2933,7 @@ async function exchangeGuestToken (
       )
     }
 
-    return generateToken(GUEST_ACCOUNT, workspace.uuid, { linkId, guest: 'true' })
+    return generateToken(docGuestAccountUuid, workspace.uuid, { linkId, guest: 'true' })
   }
 
   return token
@@ -3700,45 +3703,46 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     // These are public/unauthenticated entry points - they must succeed even if the caller's
     // browser attaches a stale/invalid token (e.g. via a leftover cookie), since none of them
     // require a valid token to run. See wrap()'s `noAuth` param.
-    login: wrap(login, false, true),
-    loginOtp: wrap(loginOtp, false, true),
-    loginAsGuest: wrap(loginAsGuest, false, true),
-    ...(hasSignUp ? { signUp: wrap(signUp, false, true) } : {}),
-    ...(hasSignUp ? { signUpOtp: wrap(signUpOtp, false, true) } : {}),
-    validateOtp: wrap(validateOtp, false, true),
-    createWorkspace: wrap(createWorkspace),
+    login: wrap(login, { noAuth: true, guest: 'bypass' }),
+    loginOtp: wrap(loginOtp, { noAuth: true, guest: 'bypass' }),
+    loginAsGuest: wrap(loginAsGuest, { noAuth: true, guest: 'bypass' }),
+    ...(hasSignUp ? { signUp: wrap(signUp, { noAuth: true, guest: 'bypass' }) } : {}),
+    ...(hasSignUp ? { signUpOtp: wrap(signUpOtp, { noAuth: true, guest: 'bypass' }) } : {}),
+    validateOtp: wrap(validateOtp, { noAuth: true, guest: 'bypass' }),
+    // Workspace creation keeps its existing behavior until the separate access-policy change.
+    createWorkspace: wrap(createWorkspace, { guest: 'bypass' }),
     createInvite: wrap(createInvite),
     createInviteLink: wrap(createInviteLink),
     createAccessLink: wrap(createAccessLink),
     sendInvite: wrap(sendInvite),
     resendInvite: wrap(resendInvite),
-    selectWorkspace: wrap(selectWorkspace, true),
-    join: wrap(join),
-    joinByToken: wrap(joinByToken),
-    checkJoin: wrap(checkJoin),
-    checkAutoJoin: wrap(checkAutoJoin),
-    getInviteInfo: wrap(getInviteInfo),
-    signUpJoin: wrap(signUpJoin),
-    confirm: wrap(confirm),
-    checkHasPassword: wrap(checkHasPassword),
-    changePassword: wrap(changePassword),
-    requestPasswordReset: wrap(requestPasswordReset),
-    requestPasswordSetup: wrap(requestPasswordSetup),
-    restorePassword: wrap(restorePassword),
-    leaveWorkspace: wrap(leaveWorkspace),
-    changeUsername: wrap(changeUsername),
+    selectWorkspace: wrap(selectWorkspace, { allowApiKey: true, guest: 'allGuests' }),
+    join: wrap(join, { guest: 'bypass' }),
+    joinByToken: wrap(joinByToken, { guest: 'personalGuest' }),
+    checkJoin: wrap(checkJoin, { guest: 'personalGuest' }),
+    checkAutoJoin: wrap(checkAutoJoin, { guest: 'bypass' }),
+    getInviteInfo: wrap(getInviteInfo, { guest: 'bypass' }),
+    signUpJoin: wrap(signUpJoin, { guest: 'bypass' }),
+    confirm: wrap(confirm, { guest: 'bypass' }),
+    checkHasPassword: wrap(checkHasPassword, { guest: 'personalGuest' }),
+    changePassword: wrap(changePassword, { guest: 'personalGuest' }),
+    requestPasswordReset: wrap(requestPasswordReset, { guest: 'bypass' }),
+    requestPasswordSetup: wrap(requestPasswordSetup, { guest: 'personalGuest' }),
+    restorePassword: wrap(restorePassword, { guest: 'bypass' }),
+    leaveWorkspace: wrap(leaveWorkspace, { guest: 'personalGuest' }),
+    changeUsername: wrap(changeUsername, { guest: 'personalGuest' }),
     updateWorkspaceName: wrap(updateWorkspaceName),
     deleteWorkspace: wrap(deleteWorkspace),
-    generate2faSecret: wrap(generate2faSecret),
-    enable2fa: wrap(enable2fa),
-    disable2fa: wrap(disable2fa),
-    verify2fa: wrap(verify2fa),
+    generate2faSecret: wrap(generate2faSecret, { guest: 'personalGuest' }),
+    enable2fa: wrap(enable2fa, { guest: 'personalGuest' }),
+    disable2fa: wrap(disable2fa, { guest: 'personalGuest' }),
+    verify2fa: wrap(verify2fa, { guest: 'bypass' }),
     updateWorkspaceRole: wrap(updateWorkspaceRole),
-    setWorkspaceMemberUnread: wrap(setWorkspaceMemberUnread),
+    setWorkspaceMemberUnread: wrap(setWorkspaceMemberUnread, { guest: 'personalGuest' }),
     updateAllowReadOnlyGuests: wrap(updateAllowReadOnlyGuests),
     updateAllowGuestSignUp: wrap(updateAllowGuestSignUp),
     updatePasswordAgingRule: wrap(updatePasswordAgingRule),
-    checkPasswordAging: wrap(checkPasswordAging),
+    checkPasswordAging: wrap(checkPasswordAging, { guest: 'allGuests' }),
     createMailbox: wrap(createMailbox),
     createApiKey: wrap(createApiKey),
     getApiKeys: wrap(getApiKeys),
@@ -3746,42 +3750,43 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     getMailboxes: wrap(getMailboxes),
     deleteMailbox: wrap(deleteMailbox),
     ensurePerson: wrap(ensurePerson),
-    exchangeGuestToken: wrap(exchangeGuestToken),
-    addEmailSocialId: wrap(addEmailSocialId),
+    exchangeGuestToken: wrap(exchangeGuestToken, { guest: 'bypass' }),
+    addEmailSocialId: wrap(addEmailSocialId, { guest: 'personalGuest' }),
     addHulyAssistantSocialId: wrap(addHulyAssistantSocialId),
     refreshHulyAssistantToken: wrap(refreshHulyAssistantToken),
-    releaseSocialId: wrap(releaseSocialId),
+    releaseSocialId: wrap(releaseSocialId, { guest: 'personalGuest' }),
     deleteAccount: wrap(deleteAccount),
     canMergeSpecifiedPersons: wrap(canMergeSpecifiedPersons),
     mergeSpecifiedPersons: wrap(mergeSpecifiedPersons),
-    setMyProfile: wrap(setMyProfile),
-    getUserProfile: wrap(getUserProfile),
+    setMyProfile: wrap(setMyProfile, { guest: 'personalGuest' }),
+    getUserProfile: wrap(getUserProfile, { guest: 'bypass' }),
     getSubscriptions: wrap(getSubscriptions),
     getSubscriptionById: wrap(getSubscriptionById),
     batchAssignWorkspacePermission: wrap(batchAssignWorkspacePermission),
     batchRevokeWorkspacePermission: wrap(batchRevokeWorkspacePermission),
     hasWorkspacePermission: wrap(hasWorkspacePermission),
-    getWorkspacePermissions: wrap(getWorkspacePermissions),
+    getWorkspacePermissions: wrap(getWorkspacePermissions, { guest: 'personalGuest' }),
     getWorkspaceUsersWithPermission: wrap(getWorkspaceUsersWithPermission),
 
     /* READ OPERATIONS */
-    getRegionInfo: wrap(getRegionInfo),
-    getUserWorkspaces: wrap(getUserWorkspaces),
-    getWorkspaceInfo: wrap(getWorkspaceInfo, true),
+    // Called without a token by services (e.g. datalake) as an account readiness check
+    getRegionInfo: wrap(getRegionInfo, { guest: 'bypass' }),
+    getUserWorkspaces: wrap(getUserWorkspaces, { guest: 'readOnlyAndPersonal' }),
+    getWorkspaceInfo: wrap(getWorkspaceInfo, { allowApiKey: true, guest: 'allGuests' }),
     getWorkspacesInfo: wrap(getWorkspacesInfo),
     updateLastVisit: wrap(updateLastVisit),
     updateAccountsLastVisit: wrap(updateAccountsLastVisit),
-    getLoginInfoByToken: wrap(getLoginInfoByToken, true),
-    getLoginWithWorkspaceInfo: wrap(getLoginWithWorkspaceInfo, true),
-    getSocialIds: wrap(getSocialIds),
-    getPerson: wrap(getPerson),
+    getLoginInfoByToken: wrap(getLoginInfoByToken, { allowApiKey: true, guest: 'allGuests' }),
+    getLoginWithWorkspaceInfo: wrap(getLoginWithWorkspaceInfo, { allowApiKey: true, guest: 'allGuests' }),
+    getSocialIds: wrap(getSocialIds, { guest: 'allGuests' }),
+    getPerson: wrap(getPerson, { guest: 'readOnlyAndPersonal' }),
     findPersonBySocialId: wrap(findPersonBySocialId),
     findSocialIdBySocialKey: wrap(findSocialIdBySocialKey),
     getWorkspaceMembers: wrap(getWorkspaceMembers),
     getMailboxOptions: wrap(getMailboxOptions),
     getMailboxSecret: wrap(getMailboxSecret),
-    getAccountInfo: wrap(getAccountInfo),
-    isReadOnlyGuest: wrap(isReadOnlyGuest),
+    getAccountInfo: wrap(getAccountInfo, { guest: 'personalGuest' }),
+    isReadOnlyGuest: wrap(isReadOnlyGuest, { guest: 'allGuests' }),
 
     /* SERVICE METHODS */
     ...getServiceMethods()

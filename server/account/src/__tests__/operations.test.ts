@@ -15,6 +15,7 @@
 //
 
 import {
+  docGuestAccountUuid,
   readOnlyGuestAccountUuid,
   AccountRole,
   type PersonId,
@@ -898,7 +899,7 @@ describe('account operations', () => {
         }
 
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
-          account: utils.GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           extra: {},
           grant
         })
@@ -937,7 +938,7 @@ describe('account operations', () => {
         }
 
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
-          account: utils.GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           extra: {},
           grant,
           sub: existingUuid
@@ -968,7 +969,7 @@ describe('account operations', () => {
 
       test('should throw error for grant with system account', async () => {
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
-          account: utils.GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           extra: {},
           grant: { workspace: grantWorkspace.uuid, role: grantRole },
           sub: systemAccountUuid
@@ -1181,7 +1182,7 @@ describe('account operations', () => {
 
       expect(mockDb.generatePersonUuid).toHaveBeenCalled()
       expect(result).toBe(
-        `${frontUrl}/login/auth?token=mocked-token-b6996120-416f-49cd-841e-e4a5d2e49c9b-${JSON.stringify({
+        `${frontUrl}/login/auth?token=mocked-token-${docGuestAccountUuid}-${JSON.stringify({
           grant: {
             workspace: 'workspace-uuid',
             role: 'USER',
@@ -1205,7 +1206,7 @@ describe('account operations', () => {
 
       expect(mockDb.generatePersonUuid).toHaveBeenCalled()
       expect(result).toBe(
-        `${frontUrl}/login/auth?token=mocked-token-b6996120-416f-49cd-841e-e4a5d2e49c9b-${JSON.stringify({
+        `${frontUrl}/login/auth?token=mocked-token-${docGuestAccountUuid}-${JSON.stringify({
           grant: {
             workspace: mockWorkspace.uuid,
             role: AccountRole.User,
@@ -1231,7 +1232,7 @@ describe('account operations', () => {
 
       expect(mockDb.generatePersonUuid).toHaveBeenCalled()
       expect(result).toBe(
-        `${frontUrl}/login/auth?token=mocked-token-b6996120-416f-49cd-841e-e4a5d2e49c9b-${JSON.stringify({
+        `${frontUrl}/login/auth?token=mocked-token-${docGuestAccountUuid}-${JSON.stringify({
           grant: {
             workspace: mockWorkspace.uuid,
             role: AccountRole.User,
@@ -1256,7 +1257,7 @@ describe('account operations', () => {
 
       expect(mockDb.generatePersonUuid).toHaveBeenCalled()
       expect(result).toBe(
-        `${frontUrl}/login/auth?token=mocked-token-b6996120-416f-49cd-841e-e4a5d2e49c9b-${JSON.stringify({
+        `${frontUrl}/login/auth?token=mocked-token-${docGuestAccountUuid}-${JSON.stringify({
           grant: {
             workspace: 'workspace-uuid',
             role: 'USER',
@@ -1311,7 +1312,7 @@ describe('account operations', () => {
       })
 
       expect(result).toBe(
-        `${frontUrl}/login/auth?token=mocked-token-b6996120-416f-49cd-841e-e4a5d2e49c9b-${JSON.stringify({
+        `${frontUrl}/login/auth?token=mocked-token-${docGuestAccountUuid}-${JSON.stringify({
           grant: {
             workspace: mockWorkspace.uuid,
             role: AccountRole.User,
@@ -1631,7 +1632,7 @@ describe('account operations', () => {
         const call = wrapSpy.mock.calls.find((args) => (args[0] as { name: string }).name === methodName)
 
         expect(call).toBeDefined()
-        expect(call?.[2]).toBe(true) // noAuth
+        expect(call?.[1]).toMatchObject({ noAuth: true, guest: 'bypass' })
 
         wrapSpy.mockRestore()
       })
