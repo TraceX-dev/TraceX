@@ -28,9 +28,11 @@ import core, {
   type MarkupBlobRef,
   type MeasureContext,
   type PersonId,
+  type Person,
   type PropertyType,
   type Ref,
   type RefTo,
+  type SocialId,
   type Type,
   type WorkspaceUuid,
   DOMAIN_MODEL,
@@ -56,6 +58,7 @@ import type { Express, Request, Response } from 'express'
 import { createHash } from 'node:crypto'
 import { validate as isUuid } from 'uuid'
 import { FormError, isRecord, validateFields } from './forms-validation'
+import { ensureFormAuthor } from './forms-author'
 
 interface FormsConfig {
   accountsUrl: string
@@ -64,6 +67,8 @@ interface FormsConfig {
 
 interface Identity {
   socialId: PersonId
+  social: SocialId
+  person: Person
   name: string
   token: string
 }
@@ -258,11 +263,18 @@ async function getIdentity (req: Request, accountsUrl: string): Promise<Identity
   }
   const socialIds = await accountClient.getSocialIds()
   const socialId =
-    socialIds.find((social) => social.type === SocialIdType.EMAIL && social.verifiedOn !== undefined) ??
-    socialIds.find((social) => social.verifiedOn !== undefined)
+    socialIds.find(
+      (social) => social.type === SocialIdType.EMAIL && social.verifiedOn !== undefined && social.isDeleted !== true
+    ) ?? socialIds.find((social) => social.verifiedOn !== undefined && social.isDeleted !== true)
   if (socialId === undefined) throw new FormError(401, 'unauthorized')
   const person = await accountClient.getPerson()
-  return { socialId: socialId._id, name: `${person.firstName} ${person.lastName ?? ''}`.trim(), token }
+  return {
+    socialId: socialId._id,
+    social: socialId,
+    person,
+    name: `${person.firstName} ${person.lastName ?? ''}`.trim(),
+    token
+  }
 }
 
 function plainMarkup (text: string): Markup {
@@ -336,6 +348,7 @@ async function submit (
       if (parent === undefined) throw new FormError(400, 'invalid_field')
       data.parentInfo = [...(parent.parentInfo ?? []), { _id: parent._id, _class: parent._class, title: parent.title }]
     }
+    await ensureFormAuthor(client, identity.person, identity.social)
     const ops = new TxOperations(client, identity.socialId).apply(id)
     ops.notMatch(type._id, { _id: id })
     ops.match(forms.class.FormConfiguration, {
