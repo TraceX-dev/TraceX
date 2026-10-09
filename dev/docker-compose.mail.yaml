@@ -28,17 +28,17 @@ services:
       - SMTP_HOST=mailpit
       - SMTP_PORT=1025
       - SMTP_TLS_MODE=ignore
-      - MAIL_AUTH_TOKEN=${MAIL_AUTH_TOKEN:-dev-mail-token}
+      - MAIL_AUTH_TOKEN=${MAIL_AUTH_TOKEN}
     restart: unless-stopped
   account:
     environment:
       - MAIL_URL=http://mail:8091
-      - MAIL_AUTH_TOKEN=${MAIL_AUTH_TOKEN:-dev-mail-token}
+      - MAIL_AUTH_TOKEN=${MAIL_AUTH_TOKEN}
   workspace_pg:
     environment:
       - MAIL_URL=http://mail:8091
-      - MAIL_AUTH_TOKEN=${MAIL_AUTH_TOKEN:-dev-mail-token}
+      - MAIL_AUTH_TOKEN=${MAIL_AUTH_TOKEN}
   transactor_pg:
     environment:
       - MAIL_URL=http://mail:8091
-      - MAIL_AUTH_TOKEN=${MAIL_AUTH_TOKEN:-dev-mail-token}
+      - MAIL_AUTH_TOKEN=${MAIL_AUTH_TOKEN}
