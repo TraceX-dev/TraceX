@@ -2,6 +2,7 @@
 // Copyright © 2020 Anticrm Platform Contributors.
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
 //
 
 import {
+  AccountRole,
   type AccountUuid,
   type AnyAttribute,
   type Class,
@@ -208,6 +210,7 @@ export class TSpacePresenter extends TClass implements SpacePresenter {
 @Mixin(view.mixin.ObjectPresenter, core.class.Class)
 export class TObjectPresenter extends TClass implements ObjectPresenter {
   presenter!: AnyComponent
+  requiredFields?: string[]
 }
 
 @Mixin(view.mixin.ListItemPresenter, core.class.Class)
@@ -994,7 +997,8 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(core.class.Space, core.class.Class, view.mixin.AttributePresenter, {
-    presenter: view.component.SpaceRefPresenter
+    presenter: view.component.SpaceRefPresenter,
+    arrayPresenter: view.component.SpaceRefPresenter
   })
 
   // Selection stuff
@@ -1403,6 +1407,11 @@ export function createModel (builder: Builder): void {
   builder.mixin(core.class.Space, core.class.Class, view.mixin.IgnoreActions, {
     actions: [view.action.Open, view.action.OpenInNewTab, view.action.Delete]
   })
+  // Personal preference: guests may create their own; update/remove are covered by the own-document rule.
+  builder.mixin(view.class.ViewletPreference, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.Guest
+  })
+
   builder.mixin(view.class.FilteredView, core.class.Class, core.mixin.IndexConfiguration, {
     indexes: [],
     searchDisabled: true

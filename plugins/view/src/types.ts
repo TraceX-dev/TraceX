@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -214,6 +215,7 @@ export interface SpacePresenter extends Class<Doc> {
  */
 export interface ObjectPresenter extends Class<Doc> {
   presenter: AnyComponent
+  requiredFields?: string[]
 }
 
 /**
@@ -350,12 +352,12 @@ export interface ListHeaderExtra extends Class<Doc> {
  * @public
  */
 export type SortFunc = Resource<
-(
-  client: TxOperations,
-  values: PrimitiveType[],
-  space: Ref<Space> | undefined,
-  viewletDescriptorId?: Ref<ViewletDescriptor>
-) => Promise<any[]>
+  (
+    client: TxOperations,
+    values: PrimitiveType[],
+    space: Ref<Space> | undefined,
+    viewletDescriptorId?: Ref<ViewletDescriptor>
+  ) => Promise<any[]>
 >
 
 /**
@@ -369,12 +371,12 @@ export interface ClassSortFuncs extends Class<Doc> {
  * @public
  */
 export type GetAllValuesFunc = Resource<
-(
-  query: DocumentQuery<Doc> | undefined,
-  onUpdate: () => void,
-  queryId: Ref<Doc>,
-  attr: AnyAttribute
-) => Promise<any[] | undefined>
+  (
+    query: DocumentQuery<Doc> | undefined,
+    onUpdate: () => void,
+    queryId: Ref<Doc>,
+    attr: AnyAttribute
+  ) => Promise<any[] | undefined>
 >
 
 /**
@@ -431,13 +433,13 @@ export type AggregationManagerResource = Resource<IAggregationManager<any>>
  * @public
  */
 export type CreateAggregationManagerFunc = Resource<
-(
-  client: Client,
-  lqCallback: () => void,
-  setStore: (manager: DocManager<any>) => void,
-  categorizingFunc: (doc: any, target: any) => boolean,
-  _class: Ref<Class<any>>
-) => IAggregationManager<any>
+  (
+    client: Client,
+    lqCallback: () => void,
+    setStore: (manager: DocManager<any>) => void,
+    categorizingFunc: (doc: any, target: any) => boolean,
+    _class: Ref<Class<any>>
+  ) => IAggregationManager<any>
 >
 
 /**
@@ -765,7 +767,7 @@ export interface ViewOption {
  * @public
  */
 export type ViewOptionsAction<T extends Doc = Doc> = Resource<
-(value: any, query: FindOptions<T> | undefined) => FindOptions<T>
+  (value: any, query: FindOptions<T> | undefined) => FindOptions<T>
 >
 
 /**
@@ -805,7 +807,7 @@ export interface CategoryOption extends ViewOption {
  * @public
  */
 export type ViewQueryAction = Resource<
-(value: any, query: DocumentQuery<Doc>) => DocumentQuery<Doc> | Promise<DocumentQuery<Doc>>
+  (value: any, query: DocumentQuery<Doc>) => DocumentQuery<Doc> | Promise<DocumentQuery<Doc>>
 >
 
 /**
@@ -948,6 +950,28 @@ export interface BuildMarkdownTableMetadata {
  * Complete table metadata including persistence fields
  * Extends BuildMarkdownTableMetadata with additional fields for storage and versioning
  */
+/**
+ * Token of the HTML comment that carries table metadata alongside copied markdown.
+ *
+ * The copier writes it and the editor's paste handler looks for it, so both sides must use this
+ * constant. When they drifted apart, a copied table pasted back as plain text with no error shown.
+ * @public
+ */
+// eslint-disable-next-line secure-coding/no-hardcoded-credentials
+export const TABLE_METADATA_TOKEN = 'huly-table-metadata:'
+
+/**
+ * Opening marker of the metadata comment.
+ * @public
+ */
+export const TABLE_METADATA_MARKER = `<!-- ${TABLE_METADATA_TOKEN}`
+
+/**
+ * Clipboard MIME type used where the browser allows a custom flavour.
+ * @public
+ */
+export const TABLE_METADATA_MIME_TYPE = 'application/x-huly-table-metadata'
+
 export interface TableMetadata extends BuildMarkdownTableMetadata {
   version: string // For future compatibility
   documentIds: Array<string | Ref<Doc>> // Document IDs used in the table

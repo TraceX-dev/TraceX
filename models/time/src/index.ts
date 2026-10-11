@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -212,7 +213,7 @@ export function createModel (builder: Builder): void {
   )
 
   // Module permissions for guests/anonymous guests.
-  // Planner is allowed for guests, but disabled for anonymous guests, and placed after modules enabled by default.
+  // Planner is allowed for guests, but disabled for anonymous guests.
   builder.createDoc(
     core.class.ModulePermissionGroup,
     core.space.Model,
@@ -221,8 +222,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: tracker.class.Project,
-      enabled: true,
-      order: 55
+      enabled: true
     },
     time.ids.ModulePermissionGroup
   )
@@ -235,8 +235,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: tracker.class.Project,
-      enabled: false,
-      order: 55
+      enabled: false
     },
     time.ids.ModulePermissionGroupReadOnlyGuest
   )

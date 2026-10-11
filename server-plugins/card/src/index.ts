@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -37,12 +38,11 @@ export default plugin(serverCardId, {
   trigger: {
     OnAttribute: '' as Resource<TriggerFunc>,
     OnAttributeRemove: '' as Resource<TriggerFunc>,
+    OnViewletUpdate: '' as Resource<TriggerFunc>,
     OnMasterTagCreate: '' as Resource<TriggerFunc>,
     OnTagRemove: '' as Resource<TriggerFunc>,
     OnMasterTagRemove: '' as Resource<TriggerFunc>,
     OnCardCreate: '' as Resource<TriggerFunc>,
-    OnDirectCreate: '' as Resource<TriggerFunc>,
-    OnThreadCreate: '' as Resource<TriggerFunc>,
     OnCardUpdate: '' as Resource<TriggerFunc>,
     OnCardTag: '' as Resource<TriggerFunc>,
     OnCardRemove: '' as Resource<TriggerFunc>

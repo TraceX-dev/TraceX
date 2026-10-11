@@ -1,5 +1,7 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,6 +21,8 @@ import {
   type AccountUuid,
   type Branding,
   buildSocialIdString,
+  docGuestAccountUuid,
+  generateId,
   concatLink,
   isActiveMode,
   isDeletingMode,
@@ -29,6 +33,8 @@ import {
   type PersonId,
   type PersonUuid,
   SocialIdType,
+  systemAccount,
+  systemAccountEmail,
   systemAccountUuid,
   readOnlyGuestAccountUuid,
   type WorkspaceConfiguration,
@@ -37,9 +43,16 @@ import {
   type IntegrationKind
 } from '@hcengineering/core'
 import platform, { getMetadata, PlatformError, Severity, Status, translate } from '@hcengineering/platform'
-import { decodeToken, decodeTokenVerbose, generateToken, type PermissionsGrant } from '@hcengineering/server-token'
+import {
+  decodeToken,
+  decodeTokenVerbose,
+  generateToken,
+  type PermissionsGrant,
+  type Token
+} from '@hcengineering/server-token'
 
 import { isAdminEmail } from './admin'
+import { renderAccountEmail } from './emails'
 import { accountPlugin } from './plugin'
 import { type AccountServiceMethods, getServiceMethods } from './serviceOperations'
 import {
@@ -62,6 +75,7 @@ import {
   type LoginInfoRequest,
   type LoginInfoRequestData,
   type Account,
+  type ApiKey,
   type PersonWithProfile,
   type Subscription,
   SubscriptionStatus,
@@ -95,9 +109,8 @@ import {
   getWorkspaceInvite,
   getWorkspaceRole,
   getWorkspaceRoles,
-  GUEST_ACCOUNT,
   isEmail,
-  isOtpValid,
+  verifyOtpAttempt,
   normalizeValue,
   doReleaseSocialId,
   selectWorkspace,
@@ -108,6 +121,7 @@ import {
   setTimezone,
   signUpByEmail,
   updateWorkspaceRole,
+  setWorkspaceMemberUnread,
   verifyAllowedRole,
   verifyAllowedServices,
   verifyPassword,
@@ -139,6 +153,17 @@ const NIL_UUID = '00000000-0000-0000-0000-000000000000' as AccountUuid
 const workspaceLimitPerUser =
   process.env.WORKSPACE_LIMIT_PER_USER != null ? parseInt(process.env.WORKSPACE_LIMIT_PER_USER) : 10
 
+function getSystemSocialId (): SocialId {
+  return {
+    _id: systemAccount.primarySocialId,
+    type: SocialIdType.HULY,
+    value: systemAccountEmail,
+    key: buildSocialIdString({ type: SocialIdType.HULY, value: systemAccountEmail }),
+    personUuid: systemAccountUuid,
+    verifiedOn: 1
+  }
+}
+
 /* =================================== */
 /* ============OPERATIONS============= */
 /* =================================== */
@@ -152,7 +177,7 @@ export async function loginAsGuest (
   branding: Branding | null,
   token: string
 ): Promise<LoginInfo> {
-  const guestPerson = await db.person.findOne({ uuid: readOnlyGuestAccountUuid as PersonUuid })
+  const guestPerson = await db.person.findOne({ uuid: readOnlyGuestAccountUuid })
   if (guestPerson == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
   }
@@ -237,10 +262,10 @@ export async function login (
       account: existingAccount.uuid,
       token: isConfirmed
         ? generateToken(
-          existingAccount.tfaSecret != null ? NIL_UUID : existingAccount.uuid,
-          undefined,
-          existingAccount.tfaSecret != null ? { ...extraToken, tfaAccount: existingAccount.uuid } : extraToken
-        )
+            existingAccount.tfaSecret != null ? NIL_UUID : existingAccount.uuid,
+            undefined,
+            existingAccount.tfaSecret != null ? { ...extraToken, tfaAccount: existingAccount.uuid } : extraToken
+          )
         : undefined,
       name: getPersonName(person),
       socialId: emailSocialId._id,
@@ -412,9 +437,15 @@ export async function validateOtp (
       throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: email }))
     }
 
-    const isValid = await isOtpValid(db, emailSocialId._id, code)
+    const otpResult = await verifyOtpAttempt(db, emailSocialId._id, code)
 
-    if (!isValid) {
+    if (otpResult === 'locked') {
+      ctx.warn('OTP validation locked due to too many failed attempts', { email: normalizedEmail })
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.OtpLocked, {}))
+    }
+
+    if (otpResult !== 'valid') {
+      ctx.warn('Invalid OTP attempt', { email: normalizedEmail })
       throw new PlatformError(new Status(Severity.ERROR, platform.status.InvalidOtp, {}))
     }
 
@@ -529,10 +560,10 @@ export async function validateOtp (
 
     const _token = isConfirmed
       ? generateToken(
-        targetAccount?.tfaSecret != null ? NIL_UUID : emailSocialId.personUuid,
-        undefined,
-        targetAccount?.tfaSecret != null ? { ...extraToken, tfaAccount: emailSocialId.personUuid } : extraToken
-      )
+          targetAccount?.tfaSecret != null ? NIL_UUID : emailSocialId.personUuid,
+          undefined,
+          targetAccount?.tfaSecret != null ? { ...extraToken, tfaAccount: emailSocialId.personUuid } : extraToken
+        )
       : undefined
 
     return {
@@ -686,11 +717,11 @@ export async function createInvite (
 
 // TODO: Temporary solution to prevent spam using sendInvite
 const invitesSend = new Map<
-string,
-{
-  lastSend: number
-  totalSend: number
-}
+  string,
+  {
+    lastSend: number
+    totalSend: number
+  }
 >()
 
 export async function sendInvite (
@@ -813,7 +844,7 @@ export async function createAccessLink (
   }
 
   try {
-    const accessToken = generateToken(GUEST_ACCOUNT, undefined, undefined, undefined, {
+    const accessToken = generateToken(docGuestAccountUuid, undefined, undefined, undefined, {
       grant,
       sub: newUuid,
       exp: expiration,
@@ -1090,6 +1121,10 @@ export async function checkJoin (
   }
 
   const { account: accountUuid } = decodeTokenVerbose(ctx, token)
+  if (accountUuid === readOnlyGuestAccountUuid) {
+    // The shared anonymous account can't join by invite: the visitor has to sign in with an own account
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
   const emailSocialId = await db.socialId.findOne({
     type: SocialIdType.EMAIL,
     personUuid: accountUuid,
@@ -1524,7 +1559,7 @@ export async function requestPasswordReset (
   const link = concatLink(front, `/login/recovery?id=${token}`)
   const lang = branding?.language
   const text = await translate(accountPlugin.string.RecoveryText, { link }, lang)
-  const html = await translate(accountPlugin.string.RecoveryHTML, { link }, lang)
+  const html = await renderAccountEmail('recovery', { link }, branding)
   const subject = await translate(accountPlugin.string.RecoverySubject, {}, lang)
 
   const response = await fetch(concatLink(mailURL, '/send'), {
@@ -1594,7 +1629,7 @@ export async function requestPasswordSetup (
   const link = concatLink(front, `/login/recovery?id=${resetToken}`)
   const lang = branding?.language
   const text = await translate(accountPlugin.string.PasswordSetupText, { link }, lang)
-  const html = await translate(accountPlugin.string.PasswordSetupHTML, { link }, lang)
+  const html = await renderAccountEmail('passwordSetup', { link }, branding)
   const subject = await translate(accountPlugin.string.PasswordSetupSubject, {}, lang)
 
   const response = await fetch(concatLink(mailURL, '/send'), {
@@ -1938,7 +1973,9 @@ export async function getUserWorkspaces (
   const { account } = decodeTokenVerbose(ctx, token)
 
   return (await db.getAccountWorkspaces(account)).filter(
-    (ws) => isWorkspaceCreating(ws.status.mode) || !(isDeletingMode(ws.status.mode) || ws.status.isDisabled)
+    (ws) =>
+      (account !== readOnlyGuestAccountUuid || ws.allowReadOnlyGuest) &&
+      (isWorkspaceCreating(ws.status.mode) || !(isDeletingMode(ws.status.mode) || ws.status.isDisabled))
   )
 }
 
@@ -1997,6 +2034,33 @@ export async function updateLastVisit (
   await db.workspaceStatus.update({ workspaceUuid: { $in: ids } }, { lastVisit: Date.now() })
 }
 
+/**
+ * Updates the last activity timestamp for accounts with active UI sessions.
+ * This endpoint is reserved for the system account and is called by transactors.
+ */
+export async function updateAccountsLastVisit (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { ids: AccountUuid[] }
+): Promise<void> {
+  const { ids } = params
+
+  if (ids == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const { account } = decodeTokenVerbose(ctx, token)
+
+  if (account !== systemAccountUuid) {
+    ctx.error('updateAccountsLastVisit with wrong user', { account, token })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  await db.account.update({ uuid: { $in: ids } }, { lastVisit: Date.now() })
+}
+
 export async function getWorkspaceInfo (
   ctx: MeasureContext,
   db: AccountDB,
@@ -2007,6 +2071,22 @@ export async function getWorkspaceInfo (
   const { updateLastVisit = false } = params
 
   const { account, workspace: workspaceUuid, extra } = decodeTokenVerbose(ctx, token)
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (typeof apiKeyId !== 'string' || workspaceUuid == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid: account,
+      workspaceUuid,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+  }
   const isGuest = extra?.guest === 'true'
   const isAdmin = extra?.admin === 'true'
   const skipAssignmentCheck = isGuest || account === systemAccountUuid
@@ -2037,7 +2117,11 @@ export async function getWorkspaceInfo (
   }
 
   if (!isGuest && updateLastVisit && !isAdmin) {
-    await db.workspaceStatus.update({ workspaceUuid }, { lastVisit: Date.now() })
+    const lastVisit = Date.now()
+    await Promise.all([
+      db.workspaceStatus.update({ workspaceUuid }, { lastVisit }),
+      db.account.update({ uuid: account }, { lastVisit })
+    ])
   }
 
   return workspace
@@ -2091,7 +2175,31 @@ export async function getLoginInfoByToken (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
   }
 
-  const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (
+      typeof apiKeyId !== 'string' ||
+      account == null ||
+      workspaceUuid == null ||
+      account !== accountUuid ||
+      grant != null ||
+      sub != null
+    ) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid,
+      workspaceUuid,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+  }
+
+  const isDocGuest = accountUuid === docGuestAccountUuid && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
   const isAdmin = extra?.admin === 'true'
 
@@ -2154,7 +2262,9 @@ export async function getLoginInfoByToken (
 
   let socialId: SocialId | null = null
 
-  if (!isDocGuest && !isSystem) {
+  if (isSystem) {
+    socialId = getSystemSocialId()
+  } else if (!isDocGuest) {
     // Any confirmed social ID will do
     socialId = (await getSocialIds(ctx, db, branding, token, { confirmed: true, includeDeleted: false }))[0]
     if (socialId == null) {
@@ -2266,11 +2376,30 @@ export async function getLoginWithWorkspaceInfo (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
   }
 
-  const isDocGuest = accountUuid === GUEST_ACCOUNT && extra?.guest === 'true'
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (typeof apiKeyId !== 'string' || workspace == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid,
+      workspaceUuid: workspace,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+  }
+
+  const isDocGuest = accountUuid === docGuestAccountUuid && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
   let socialIds: SocialId[] = []
 
-  if (!isDocGuest && !isSystem) {
+  if (isSystem) {
+    socialIds = [getSystemSocialId()]
+  } else if (!isDocGuest) {
     // Any confirmed social ID will do
     socialIds = await db.socialId.find({ personUuid: accountUuid, verifiedOn: { $gt: 0 } })
     if (socialIds.length === 0) {
@@ -2303,7 +2432,9 @@ export async function getLoginWithWorkspaceInfo (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
 
-  const userWorkspaces = (await db.getAccountWorkspaces(accountUuid)).filter((it) => isActiveMode(it.status.mode))
+  const userWorkspaces = (await db.getAccountWorkspaces(accountUuid)).filter(
+    (it) => isActiveMode(it.status.mode) && (apiKeyId == null || it.uuid === workspace)
+  )
   const roles: Map<WorkspaceUuid, AccountRole | null> = await getWorkspaceRoles(db, accountUuid)
 
   const info = getEndpointInfo()
@@ -2316,23 +2447,23 @@ export async function getLoginWithWorkspaceInfo (
       isSystem || isDocGuest
         ? []
         : userWorkspaces.map((it, idx) => [
-          it.uuid,
-          {
-            url: it.url,
-            dataId: it.dataId,
-            mode: it.status.mode,
-            endpoint: getWorkspaceEndpoint(info, it.uuid, it.region),
-            role: roles.get(it.uuid) ?? null,
-            version: {
-              versionMajor: it.status.versionMajor,
-              versionMinor: it.status.versionMinor,
-              versionPatch: it.status.versionPatch
-            },
-            progress: it.status.processingProgress,
-            branding: it.branding,
-            passwordAgingRule: it.passwordAgingRule
-          }
-        ])
+            it.uuid,
+            {
+              url: it.url,
+              dataId: it.dataId,
+              mode: it.status.mode,
+              endpoint: getWorkspaceEndpoint(info, it.uuid, it.region),
+              role: roles.get(it.uuid) ?? null,
+              version: {
+                versionMajor: it.status.versionMajor,
+                versionMinor: it.status.versionMinor,
+                versionPatch: it.status.versionPatch
+              },
+              progress: it.status.processingProgress,
+              branding: it.branding,
+              passwordAgingRule: it.passwordAgingRule
+            }
+          ])
     ),
     socialIds
   }
@@ -2361,6 +2492,10 @@ export async function getSocialIds (
   // do not expose not-confirmed social ids for now
   if (!confirmed) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  if (account === systemAccountUuid) {
+    return [getSystemSocialId()]
   }
 
   const socialIds = await db.socialId.find({ personUuid: account, verifiedOn: { $gt: 0 } })
@@ -2569,6 +2704,111 @@ async function getMailboxOptions (
   }
 }
 
+async function getApiKeyOwner (
+  ctx: MeasureContext,
+  db: AccountDB,
+  token: string
+): Promise<{ account: AccountUuid, workspace: WorkspaceUuid }> {
+  const { account, workspace, extra } = decodeTokenVerbose(ctx, token)
+
+  if (workspace == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, {}))
+  }
+  if (extra?.apiKey != null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  const role = await db.getWorkspaceRole(account, workspace)
+  if (role == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  return { account, workspace }
+}
+
+async function createApiKey (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { name?: string }
+): Promise<{ apiKey: Omit<ApiKey, 'accountUuid' | 'revokedOn'>, key: string }> {
+  const { account, workspace } = await getApiKeyOwner(ctx, db, token)
+  const name = params.name?.trim() ?? 'API key'
+  if (name.length === 0 || name.length > 128) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const id = generateId()
+  const key = generateToken(account, workspace, { apiKey: id })
+  const apiKey: ApiKey = {
+    id,
+    name,
+    keySuffix: key.slice(-6),
+    accountUuid: account,
+    workspaceUuid: workspace,
+    createdOn: Date.now()
+  }
+  await db.apiKey.insertOne(apiKey)
+
+  return {
+    apiKey: {
+      id: apiKey.id,
+      name: apiKey.name,
+      keySuffix: apiKey.keySuffix,
+      workspaceUuid: apiKey.workspaceUuid,
+      createdOn: apiKey.createdOn
+    },
+    key
+  }
+}
+
+async function getApiKeys (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string
+): Promise<Array<Omit<ApiKey, 'accountUuid' | 'revokedOn'>>> {
+  const { account, workspace } = await getApiKeyOwner(ctx, db, token)
+  const apiKeys = await db.apiKey.find(
+    { accountUuid: account, workspaceUuid: workspace, revokedOn: null },
+    { createdOn: 'descending' }
+  )
+
+  return apiKeys.map(({ id, name, keySuffix, workspaceUuid, createdOn }) => ({
+    id,
+    name,
+    keySuffix,
+    workspaceUuid,
+    createdOn
+  }))
+}
+
+async function revokeApiKey (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { id: string }
+): Promise<void> {
+  if (params.id == null || params.id === '') {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const { account, workspace } = await getApiKeyOwner(ctx, db, token)
+  const apiKey = await db.apiKey.findOne({
+    id: params.id,
+    accountUuid: account,
+    workspaceUuid: workspace,
+    revokedOn: null
+  })
+  if (apiKey == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+
+  await db.apiKey.update({ id: apiKey.id, revokedOn: null }, { revokedOn: Date.now() })
+}
+
 async function createMailbox (
   ctx: MeasureContext,
   db: AccountDB,
@@ -2636,7 +2876,7 @@ async function getMailboxSecret (
   }
 ): Promise<MailboxSecret | null> {
   const { extra } = decodeTokenVerbose(ctx, token)
-  verifyAllowedServices(['huly-mail'], extra, false)
+  verifyAllowedServices(['huly-mail'], extra)
   return await db.mailboxSecret.findOne({ mailbox: params.mailbox })
 }
 
@@ -2693,7 +2933,7 @@ async function exchangeGuestToken (
       )
     }
 
-    return generateToken(GUEST_ACCOUNT, workspace.uuid, { linkId, guest: 'true' })
+    return generateToken(docGuestAccountUuid, workspace.uuid, { linkId, guest: 'true' })
   }
 
   return token
@@ -2877,6 +3117,79 @@ export async function deleteAccount (
   })
 }
 
+// Social ids that resolve to an account on their own, and therefore hand over the ability to
+// authenticate as its owner once they are re-pointed. Password recovery and OTP login look an
+// account up by social id value alone (see requestPasswordReset, loginOtp).
+const loginCapableSocialTypes = [SocialIdType.EMAIL, SocialIdType.HULY]
+
+/**
+ * Merging re-points the secondary person's social ids onto the primary person, so an unrestricted
+ * caller could both absorb the identifiers of a person they do not own and inject their own
+ * identifiers into somebody else's person. Restrict it to callers with authority over both persons.
+ */
+async function verifyMergePersonsAuthority (
+  db: AccountDB,
+  { account, workspace, extra }: Token,
+  primaryPerson: PersonUuid,
+  secondaryPerson: PersonUuid,
+  shouldThrow = true
+): Promise<boolean> {
+  // Global admins and the tool/workspace services act on behalf of the whole installation,
+  // the same way the account level merge (mergeSpecifiedAccounts) allows them to.
+  // Note this must precede the workspace check below: such tokens carry no workspace.
+  if (extra?.admin === 'true' || verifyAllowedServices(['tool', 'workspace'], extra, false)) {
+    return true
+  }
+
+  const forbidden = (): boolean => {
+    if (shouldThrow) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+    }
+
+    return false
+  }
+
+  // Everybody else acts within a single workspace they maintain.
+  if (workspace == null) {
+    return forbidden()
+  }
+
+  if (!verifyAllowedRole(await db.getWorkspaceRole(account, workspace), AccountRole.Maintainer, extra, false)) {
+    return forbidden()
+  }
+
+  // The platform wide accounts are not anybody's to merge.
+  for (const person of [primaryPerson, secondaryPerson]) {
+    if (person === systemAccountUuid || person === readOnlyGuestAccountUuid) {
+      return forbidden()
+    }
+
+    if ((await db.getWorkspaceRole(person as AccountUuid, workspace)) != null) {
+      // A member of the caller's workspace.
+      continue
+    }
+
+    if ((await db.account.findOne({ uuid: person as AccountUuid })) != null) {
+      // An account outside of the caller's workspace: no workspace maintainer may take it over.
+      return forbidden()
+    }
+  }
+
+  // Both persons are in reach of the caller by now, but the primary keeps receiving the secondary's
+  // social ids. When the primary is somebody else's account, a login capable social id would grant
+  // whoever controls it access to that account, so leave those merges to the verification flows.
+  // Note doMergePersons only refuses *verified* secondary social ids, which does not cover this.
+  if (primaryPerson !== account && (await db.account.findOne({ uuid: primaryPerson as AccountUuid })) != null) {
+    const secondarySocialIds = await db.socialId.find({ personUuid: secondaryPerson })
+
+    if (secondarySocialIds.some((si) => loginCapableSocialTypes.includes(si.type))) {
+      return forbidden()
+    }
+  }
+
+  return true
+}
+
 export async function canMergeSpecifiedPersons (
   ctx: MeasureContext,
   db: AccountDB,
@@ -2887,7 +3200,7 @@ export async function canMergeSpecifiedPersons (
     secondaryPerson: PersonUuid
   }
 ): Promise<boolean> {
-  decodeTokenVerbose(ctx, token)
+  const decodedToken = decodeTokenVerbose(ctx, token)
 
   const { primaryPerson, secondaryPerson } = params
   if (primaryPerson == null || primaryPerson === '' || secondaryPerson == null || secondaryPerson === '') {
@@ -2896,6 +3209,12 @@ export async function canMergeSpecifiedPersons (
 
   if (primaryPerson === secondaryPerson) {
     // Nothing to do
+    return false
+  }
+
+  // This is a predicate the merge dialog polls, so an unauthorized caller is answered
+  // rather than thrown at. mergeSpecifiedPersons below enforces the same rules.
+  if (!(await verifyMergePersonsAuthority(db, decodedToken, primaryPerson, secondaryPerson, false))) {
     return false
   }
 
@@ -2928,12 +3247,14 @@ export async function mergeSpecifiedPersons (
     secondaryPerson: PersonUuid
   }
 ): Promise<void> {
-  decodeTokenVerbose(ctx, token)
+  const decodedToken = decodeTokenVerbose(ctx, token)
 
   const { primaryPerson, secondaryPerson } = params
   if (primaryPerson == null || primaryPerson === '' || secondaryPerson == null || secondaryPerson === '') {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
   }
+
+  await verifyMergePersonsAuthority(db, decodedToken, primaryPerson, secondaryPerson)
 
   await doMergePersons(db, primaryPerson, secondaryPerson)
 }
@@ -3330,12 +3651,14 @@ export type AccountMethods =
   | 'getWorkspaceInfo'
   | 'getWorkspacesInfo'
   | 'updateLastVisit'
+  | 'updateAccountsLastVisit'
   | 'getLoginInfoByToken'
   | 'getLoginWithWorkspaceInfo'
   | 'getSocialIds'
   | 'getPerson'
   | 'getWorkspaceMembers'
   | 'updateWorkspaceRole'
+  | 'setWorkspaceMemberUnread'
   | 'updateAllowReadOnlyGuests'
   | 'updateAllowGuestSignUp'
   | 'findPersonBySocialId'
@@ -3346,6 +3669,9 @@ export type AccountMethods =
   | 'createMailbox'
   | 'getMailboxes'
   | 'getMailboxSecret'
+  | 'createApiKey'
+  | 'getApiKeys'
+  | 'revokeApiKey'
   | 'deleteMailbox'
   | 'getAccountInfo'
   | 'isReadOnlyGuest'
@@ -3374,83 +3700,93 @@ export type AccountMethods =
 export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMethods, AccountMethodHandler>> {
   return {
     /* OPERATIONS */
-    login: wrap(login),
-    loginOtp: wrap(loginOtp),
-    loginAsGuest: wrap(loginAsGuest),
-    ...(hasSignUp ? { signUp: wrap(signUp) } : {}),
-    ...(hasSignUp ? { signUpOtp: wrap(signUpOtp) } : {}),
-    validateOtp: wrap(validateOtp),
-    createWorkspace: wrap(createWorkspace),
+    // These are public/unauthenticated entry points - they must succeed even if the caller's
+    // browser attaches a stale/invalid token (e.g. via a leftover cookie), since none of them
+    // require a valid token to run. See wrap()'s `noAuth` param.
+    login: wrap(login, { noAuth: true, guest: 'bypass' }),
+    loginOtp: wrap(loginOtp, { noAuth: true, guest: 'bypass' }),
+    loginAsGuest: wrap(loginAsGuest, { noAuth: true, guest: 'bypass' }),
+    ...(hasSignUp ? { signUp: wrap(signUp, { noAuth: true, guest: 'bypass' }) } : {}),
+    ...(hasSignUp ? { signUpOtp: wrap(signUpOtp, { noAuth: true, guest: 'bypass' }) } : {}),
+    validateOtp: wrap(validateOtp, { noAuth: true, guest: 'bypass' }),
+    // Workspace creation keeps its existing behavior until the separate access-policy change.
+    createWorkspace: wrap(createWorkspace, { guest: 'bypass' }),
     createInvite: wrap(createInvite),
     createInviteLink: wrap(createInviteLink),
     createAccessLink: wrap(createAccessLink),
     sendInvite: wrap(sendInvite),
     resendInvite: wrap(resendInvite),
-    selectWorkspace: wrap(selectWorkspace),
-    join: wrap(join),
-    joinByToken: wrap(joinByToken),
-    checkJoin: wrap(checkJoin),
-    checkAutoJoin: wrap(checkAutoJoin),
-    getInviteInfo: wrap(getInviteInfo),
-    signUpJoin: wrap(signUpJoin),
-    confirm: wrap(confirm),
-    checkHasPassword: wrap(checkHasPassword),
-    changePassword: wrap(changePassword),
-    requestPasswordReset: wrap(requestPasswordReset),
-    requestPasswordSetup: wrap(requestPasswordSetup),
-    restorePassword: wrap(restorePassword),
-    leaveWorkspace: wrap(leaveWorkspace),
-    changeUsername: wrap(changeUsername),
+    selectWorkspace: wrap(selectWorkspace, { allowApiKey: true, guest: 'allGuests' }),
+    join: wrap(join, { guest: 'bypass' }),
+    joinByToken: wrap(joinByToken, { guest: 'personalGuest' }),
+    checkJoin: wrap(checkJoin, { guest: 'personalGuest' }),
+    checkAutoJoin: wrap(checkAutoJoin, { guest: 'bypass' }),
+    getInviteInfo: wrap(getInviteInfo, { guest: 'bypass' }),
+    signUpJoin: wrap(signUpJoin, { guest: 'bypass' }),
+    confirm: wrap(confirm, { guest: 'bypass' }),
+    checkHasPassword: wrap(checkHasPassword, { guest: 'personalGuest' }),
+    changePassword: wrap(changePassword, { guest: 'personalGuest' }),
+    requestPasswordReset: wrap(requestPasswordReset, { guest: 'bypass' }),
+    requestPasswordSetup: wrap(requestPasswordSetup, { guest: 'personalGuest' }),
+    restorePassword: wrap(restorePassword, { guest: 'bypass' }),
+    leaveWorkspace: wrap(leaveWorkspace, { guest: 'personalGuest' }),
+    changeUsername: wrap(changeUsername, { guest: 'personalGuest' }),
     updateWorkspaceName: wrap(updateWorkspaceName),
     deleteWorkspace: wrap(deleteWorkspace),
-    generate2faSecret: wrap(generate2faSecret),
-    enable2fa: wrap(enable2fa),
-    disable2fa: wrap(disable2fa),
-    verify2fa: wrap(verify2fa),
+    generate2faSecret: wrap(generate2faSecret, { guest: 'personalGuest' }),
+    enable2fa: wrap(enable2fa, { guest: 'personalGuest' }),
+    disable2fa: wrap(disable2fa, { guest: 'personalGuest' }),
+    verify2fa: wrap(verify2fa, { guest: 'bypass' }),
     updateWorkspaceRole: wrap(updateWorkspaceRole),
+    setWorkspaceMemberUnread: wrap(setWorkspaceMemberUnread, { guest: 'personalGuest' }),
     updateAllowReadOnlyGuests: wrap(updateAllowReadOnlyGuests),
     updateAllowGuestSignUp: wrap(updateAllowGuestSignUp),
     updatePasswordAgingRule: wrap(updatePasswordAgingRule),
-    checkPasswordAging: wrap(checkPasswordAging),
+    checkPasswordAging: wrap(checkPasswordAging, { guest: 'allGuests' }),
     createMailbox: wrap(createMailbox),
+    createApiKey: wrap(createApiKey),
+    getApiKeys: wrap(getApiKeys),
+    revokeApiKey: wrap(revokeApiKey),
     getMailboxes: wrap(getMailboxes),
     deleteMailbox: wrap(deleteMailbox),
     ensurePerson: wrap(ensurePerson),
-    exchangeGuestToken: wrap(exchangeGuestToken),
-    addEmailSocialId: wrap(addEmailSocialId),
+    exchangeGuestToken: wrap(exchangeGuestToken, { guest: 'bypass' }),
+    addEmailSocialId: wrap(addEmailSocialId, { guest: 'personalGuest' }),
     addHulyAssistantSocialId: wrap(addHulyAssistantSocialId),
     refreshHulyAssistantToken: wrap(refreshHulyAssistantToken),
-    releaseSocialId: wrap(releaseSocialId),
+    releaseSocialId: wrap(releaseSocialId, { guest: 'personalGuest' }),
     deleteAccount: wrap(deleteAccount),
     canMergeSpecifiedPersons: wrap(canMergeSpecifiedPersons),
     mergeSpecifiedPersons: wrap(mergeSpecifiedPersons),
-    setMyProfile: wrap(setMyProfile),
-    getUserProfile: wrap(getUserProfile),
+    setMyProfile: wrap(setMyProfile, { guest: 'personalGuest' }),
+    getUserProfile: wrap(getUserProfile, { guest: 'bypass' }),
     getSubscriptions: wrap(getSubscriptions),
     getSubscriptionById: wrap(getSubscriptionById),
     batchAssignWorkspacePermission: wrap(batchAssignWorkspacePermission),
     batchRevokeWorkspacePermission: wrap(batchRevokeWorkspacePermission),
     hasWorkspacePermission: wrap(hasWorkspacePermission),
-    getWorkspacePermissions: wrap(getWorkspacePermissions),
+    getWorkspacePermissions: wrap(getWorkspacePermissions, { guest: 'personalGuest' }),
     getWorkspaceUsersWithPermission: wrap(getWorkspaceUsersWithPermission),
 
     /* READ OPERATIONS */
-    getRegionInfo: wrap(getRegionInfo),
-    getUserWorkspaces: wrap(getUserWorkspaces),
-    getWorkspaceInfo: wrap(getWorkspaceInfo),
+    // Called without a token by services (e.g. datalake) as an account readiness check
+    getRegionInfo: wrap(getRegionInfo, { guest: 'bypass' }),
+    getUserWorkspaces: wrap(getUserWorkspaces, { guest: 'readOnlyAndPersonal' }),
+    getWorkspaceInfo: wrap(getWorkspaceInfo, { allowApiKey: true, guest: 'allGuests' }),
     getWorkspacesInfo: wrap(getWorkspacesInfo),
     updateLastVisit: wrap(updateLastVisit),
-    getLoginInfoByToken: wrap(getLoginInfoByToken),
-    getLoginWithWorkspaceInfo: wrap(getLoginWithWorkspaceInfo),
-    getSocialIds: wrap(getSocialIds),
-    getPerson: wrap(getPerson),
+    updateAccountsLastVisit: wrap(updateAccountsLastVisit),
+    getLoginInfoByToken: wrap(getLoginInfoByToken, { allowApiKey: true, guest: 'allGuests' }),
+    getLoginWithWorkspaceInfo: wrap(getLoginWithWorkspaceInfo, { allowApiKey: true, guest: 'allGuests' }),
+    getSocialIds: wrap(getSocialIds, { guest: 'allGuests' }),
+    getPerson: wrap(getPerson, { guest: 'readOnlyAndPersonal' }),
     findPersonBySocialId: wrap(findPersonBySocialId),
     findSocialIdBySocialKey: wrap(findSocialIdBySocialKey),
     getWorkspaceMembers: wrap(getWorkspaceMembers),
     getMailboxOptions: wrap(getMailboxOptions),
     getMailboxSecret: wrap(getMailboxSecret),
-    getAccountInfo: wrap(getAccountInfo),
-    isReadOnlyGuest: wrap(isReadOnlyGuest),
+    getAccountInfo: wrap(getAccountInfo, { guest: 'personalGuest' }),
+    isReadOnlyGuest: wrap(isReadOnlyGuest, { guest: 'allGuests' }),
 
     /* SERVICE METHODS */
     ...getServiceMethods()

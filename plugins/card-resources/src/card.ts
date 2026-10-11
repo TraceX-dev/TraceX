@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,15 +17,22 @@ import cardPlugin, { type Card, type CardSection } from '@hcengineering/card'
 import { getResource } from '@hcengineering/platform'
 import { type Heading } from '@hcengineering/text-editor'
 
-export async function getCardSections (card: Card): Promise<CardSection[]> {
+interface CompactModeCardSection extends CardSection {
+  hideInCompactMode?: boolean
+}
+
+export async function getCardSections (card: Card, compactMode = false): Promise<CardSection[]> {
   const client = getClient()
-  const sections: CardSection[] = client
+  const sections: CompactModeCardSection[] = client
     .getModel()
     .findAllSync(cardPlugin.class.CardSection, {})
     .sort((a, b) => a.order - b.order)
 
   const res: CardSection[] = []
   for (const section of sections) {
+    if (compactMode && section.hideInCompactMode === true) {
+      continue
+    }
     if (section.checkVisibility !== undefined) {
       const isVisibleFn = await getResource(section.checkVisibility)
       const isVisible = await isVisibleFn(card)

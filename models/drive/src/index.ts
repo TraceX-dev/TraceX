@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -166,7 +167,7 @@ export class TFileVersion extends TAttachedDoc implements FileVersion {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'versions' = 'versions'
+    override collection: 'versions' = 'versions'
 
   @Prop(TypeString(), drive.string.Name)
   @Index(IndexKind.FullText)
@@ -440,7 +441,8 @@ function defineFolder (builder: Builder): void {
   builder.createModel(TFolder)
 
   builder.mixin(drive.class.Folder, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: drive.component.FolderPresenter
+    presenter: drive.component.FolderPresenter,
+    requiredFields: ['title']
   })
 
   builder.mixin(drive.class.Folder, core.class.Class, view.mixin.ObjectEditor, {
@@ -628,7 +630,8 @@ function defineFile (builder: Builder): void {
   builder.createModel(TFile)
 
   builder.mixin(drive.class.File, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: drive.component.FilePresenter
+    presenter: drive.component.FilePresenter,
+    requiredFields: ['title', 'version']
   })
 
   builder.mixin(drive.class.File, core.class.Class, view.mixin.ObjectEditor, {
@@ -850,8 +853,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: drive.class.Drive,
-      enabled: false,
-      order: 60
+      enabled: false
     },
     drive.ids.ModulePermissionGroup
   )
@@ -864,8 +866,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: drive.class.Drive,
-      enabled: false,
-      order: 60
+      enabled: false
     },
     drive.ids.ModulePermissionGroupReadOnlyGuest
   )

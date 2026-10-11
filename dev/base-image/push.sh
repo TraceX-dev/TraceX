@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Default version if not set
 VERSION=${VERSION:-"latest"}

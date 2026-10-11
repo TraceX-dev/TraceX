@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,26 +16,22 @@
 
 <script lang="ts">
   import card, { Card, CardSection, CardViewDefaults } from '@hcengineering/card'
-  import communication from '@hcengineering/communication'
-  import { NotificationContext } from '@hcengineering/communication-types'
   import { Ref } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { Heading } from '@hcengineering/text-editor'
   import { TableOfContents } from '@hcengineering/text-editor-resources'
-  import { Component, Loading, ModernButton, Scroller } from '@hcengineering/ui'
-  import { SvelteComponent, tick } from 'svelte'
+  import { Component, Loading, Scroller } from '@hcengineering/ui'
+  import { createEventDispatcher, SvelteComponent, tick } from 'svelte'
 
-  import { getMetadata } from '@hcengineering/platform'
   import { getCardSections, getCardToc } from '../card'
-  import { CardSectionAction } from '../types'
+  import { CardAsideAction, CardSectionAction } from '../types'
 
   export let doc: Card
-  export let context: NotificationContext | undefined = undefined
-  export let isContextLoaded: boolean = false
   export let readonly: boolean = false
+  export let compactMode: boolean = false
   export let scrollDiv: HTMLDivElement | undefined | null = undefined
 
-  const messagesId = communication.ids.CardMessagesSection
+  const messagesId = card.section.OldMessages
   const client = getClient()
 
   let selectedToc: Heading | undefined = undefined
@@ -56,7 +53,7 @@
   let bottomOffset: number = 0
 
   let sections: CardSection[] = []
-  $: void getCardSections(doc).then((res) => {
+  $: void getCardSections(doc, compactMode).then((res) => {
     sections = res
   })
 
@@ -65,7 +62,7 @@
     .classHierarchyMixin(doc._class, card.mixin.CardViewDefaults)
   $: defaults = client.getHierarchy().classHierarchyMixin(doc._class, card.mixin.CardViewDefaults)
 
-  let renderTopSections = defaults?.defaultSection !== communication.ids.CardMessagesSection
+  let renderTopSections = defaults?.defaultSection !== card.section.OldMessages
 
   export function scrollDown (): void {
     if (scrollDiv == null) return
@@ -148,6 +145,8 @@
     selectedToc = toc.find((it) => it.group === section && it.id === id)
   }
 
+  const dispatch = createEventDispatcher<{ aside: CardAsideAction }>()
+
   function handleAction (section: Ref<CardSection>, action: CardSectionAction): void {
     if (action.id === 'toc') {
       subTocBySection[section] = action.toc
@@ -161,6 +160,10 @@
 
     if (action.id === 'hideScrollBar') {
       hideScrollBar()
+    }
+
+    if (action.id === 'aside') {
+      dispatch('aside', action)
     }
   }
 
@@ -222,8 +225,6 @@
   const onRenderTopChange = (active: boolean): void => {
     renderTopSections = active
   }
-
-  const bottomPadding = getMetadata(communication.metadata.Enabled) === true ? 'var(--spacing-3)' : undefined
 </script>
 
 <div class="hulyComponent-content__container columns relative">
@@ -248,7 +249,6 @@
     <Scroller
       padding="0"
       {hideBar}
-      {bottomPadding}
       disablePointerEventsOnScroll
       disableOverscroll
       bind:divScroll={scrollDiv}
@@ -264,14 +264,13 @@
               props={{
                 doc,
                 readonly,
+                compactMode,
                 scrollDiv,
                 contentDiv: sectionElement[section._id],
                 navigation: selectedToc?.id,
                 hidden: !renderTopSections,
                 isDefault: defaults?.defaultSection === section._id,
                 active: selectedToc?.group === section._id,
-                context,
-                isContextLoaded,
                 onRenderTopChange
               }}
               on:loaded={() => {
@@ -288,17 +287,6 @@
         {/each}
       </div>
     </Scroller>
-    {#if toc.length > 0 && (bottomOffset > 400 || canScrollDown()) && selectedToc?.group === messagesId}
-      <div class="down-button">
-        <ModernButton
-          label={communication.string.ArrowDownMessages}
-          shape="round"
-          size="small"
-          kind="primary"
-          on:click={handleScrollDown}
-        />
-      </div>
-    {/if}
   </div>
 </div>
 
@@ -340,6 +328,16 @@
     flex-direction: column;
     align-items: flex-start;
     align-self: stretch;
+  }
+
+  @media print {
+    .hulyComponent-content__container,
+    .hulyComponent-content__column,
+    .hulyComponent-content,
+    .section {
+      display: block;
+      height: auto !important;
+    }
   }
 
   .down-button {

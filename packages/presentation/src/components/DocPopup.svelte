@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,16 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { getObjectValue, VersionableDoc, type Class, type Doc, type Ref } from '@hcengineering/core'
+  import core, {
+    getObjectValue,
+    mergeQueries,
+    SortingOrder,
+    type VersionableDoc,
+    type DocumentQuery,
+    type Class,
+    type Doc,
+    type Ref
+  } from '@hcengineering/core'
   import { getResource, type IntlString } from '@hcengineering/platform'
   import {
     AnySvelteComponent,
@@ -33,13 +43,14 @@
     showPopup,
     tooltip
   } from '@hcengineering/ui'
-  import view from '@hcengineering/view'
+  import view, { type ReferenceVersion, type ReferenceVersionsProvider } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import presentation, { DocPopup } from '..'
   import { ObjectCreate } from '../types'
   import { getClient } from '../utils'
   import { Analytics } from '@hcengineering/analytics'
   import ObjectPopup from './ObjectPopup.svelte'
+  import ReferenceVersionsPopup from './ReferenceVersionsPopup.svelte'
 
   export let _class: Ref<Class<Doc>>
   export let objects: Doc[] = []
@@ -66,12 +77,15 @@
   export let loading: boolean = false
   export let type: 'text' | 'object' | 'presenter' = 'text'
   export let showVersions: boolean = false
+  export let versionsQuery: DocumentQuery<Doc> = {}
+  export let selectedVersionBaseIds: Ref<Doc>[] = []
 
   export let onSelect: ((doc: Doc) => void) | undefined = undefined
 
   let search: string = ''
 
   $: selectedElements = new Set(selectedObjects)
+  $: selectedVersionBases = new Set(selectedVersionBaseIds)
 
   const dispatch = createEventDispatcher()
 
@@ -81,7 +95,8 @@
   $: showCategories =
     created.length > 0 ||
     objects.map((it) => getObjectValue(groupBy, it)).filter((it, index, arr) => arr.indexOf(it) === index).length > 1 ||
-    selectedObjects.length > 0
+    selectedObjects.length > 0 ||
+    (showVersions && selectedVersionBaseIds.length > 0)
 
   let presenter: AnySvelteComponent | undefined = undefined
   $: if (type === 'presenter') {
@@ -101,6 +116,30 @@
   }
 
   $: isVersionable = (h.classHierarchyMixin(_class, core.mixin.VersionableClass)?.enabled ?? false) && showVersions
+
+  function getReferenceVersionsProvider (doc: Doc): ReferenceVersionsProvider | undefined {
+    return h.classHierarchyMixin(doc._class, view.mixin.ReferenceVersionsProvider)
+  }
+
+  async function getReferenceVersions (doc: Doc): Promise<ReferenceVersion[]> {
+    const provider = getReferenceVersionsProvider(doc)
+    if (provider === undefined) return []
+
+    const providerFn = await getResource(provider.provider)
+    const versions = await providerFn(client, doc._id)
+
+    return versions
+  }
+
+  async function selectReferenceVersion (value: Doc | ReferenceVersion): Promise<void> {
+    if ('_id' in value) {
+      select(value)
+      return
+    }
+
+    const doc = await client.findOne(value.objectclass, { _id: value.id })
+    if (doc !== undefined) select(doc)
+  }
 
   let selection = 0
   let list: ListView
@@ -182,10 +221,16 @@
     if (created.find((it) => it._id === doc._id) !== undefined) {
       return '_created'
     }
-    if ((selectedObjects ?? []).find((it) => it === doc._id) !== undefined) {
+    if (isSelectedDoc(doc)) {
       return '_selected'
     }
     return getObjectValue(groupBy, toAny(doc))
+  }
+
+  function isSelectedDoc (doc: Doc): boolean {
+    if (doc._id === selected || selectedElements.has(doc._id)) return true
+    if (!showVersions || h.classHierarchyMixin(doc._class, core.mixin.VersionableClass)?.enabled !== true) return false
+    return selectedVersionBases.has((doc as VersionableDoc).baseId ?? doc._id)
   }
 
   function findObjectPresenter (_class: Ref<Class<Doc>>): void {
@@ -207,6 +252,10 @@
     if (vDoc.baseId === undefined) return
     if (vDoc.isLatest === true && vDoc.baseId === vDoc._id) return
     return vDoc
+  }
+
+  function compareVersions (a: Doc, b: Doc): number {
+    return ((b as VersionableDoc).version ?? 1) - ((a as VersionableDoc).version ?? 1)
   }
 
   const onVersionSelect = (doc: Doc) => {
@@ -269,7 +318,7 @@
               <!--Category for first item-->
               {#if item > 0}<div class="menu-separator" />{/if}
               <div class="category-box">
-                <slot name="category" item={obj} />
+                <slot name="category" item={obj} isSelected={isSelectedDoc(obj)} />
               </div>
             {/if}
           {/if}
@@ -278,7 +327,49 @@
           {@const obj = objects[item]}
           {@const isDeselectDisabled = selectedElements.has(obj._id) && forbiddenDeselectItemIds.has(obj._id)}
           {@const versionedDoc = isHasVersions(isVersionable, obj)}
-          {#if versionedDoc}
+          {@const referenceVersionsProvider = getReferenceVersionsProvider(obj)}
+          {#if referenceVersionsProvider !== undefined}
+            <Submenu
+              withoutMargin
+              props={{
+                latest: obj,
+                latestLabel: String(getObjectValue('name', obj) ?? getObjectValue('title', obj) ?? ''),
+                versions: getReferenceVersions(obj),
+                selected,
+                selectedObjects,
+                multiSelect,
+                onSelect: selectReferenceVersion
+              }}
+              options={{ component: ReferenceVersionsPopup }}
+            >
+              <svelte:fragment slot="item">
+                {#if type === 'text'}
+                  <span class="label" class:disabled={readonly || isDeselectDisabled || loading}>
+                    <slot name="item" item={obj} />
+                  </span>
+                {:else if type === 'presenter'}
+                  {#if presenter !== undefined}
+                    <svelte:component this={presenter} value={obj} disabled noUnderline type={'text'} />
+                  {/if}
+                {:else}
+                  <slot name="item" item={obj} />
+                {/if}
+                {#if (allowDeselect && selected) || multiSelect || selected}
+                  <div class="check mr-2" class:disabled={readonly}>
+                    {#if isSelectedDoc(obj)}
+                      {#if loading}
+                        <Spinner size={'small'} />
+                      {:else}
+                        <div use:tooltip={{ label: titleDeselect ?? presentation.string.Deselect }}>
+                          <Icon icon={IconCheck} size={'small'} />
+                        </div>
+                      {/if}
+                    {/if}
+                  </div>
+                {/if}
+              </svelte:fragment>
+            </Submenu>
+          {:else if versionedDoc}
             <Submenu
               withoutMargin
               props={{
@@ -296,8 +387,13 @@
                 loading,
                 type: 'presenter',
                 forceShowSelected: false,
+                sort: compareVersions,
+                options: { sort: { version: SortingOrder.Descending } },
                 searchMode: 'disabled',
-                docQuery: { baseId: versionedDoc.baseId },
+                docQuery: mergeQueries(
+                  { isLatest: { $in: [true, false] }, ...versionsQuery },
+                  { baseId: versionedDoc.baseId }
+                ),
                 onSelect: onVersionSelect
               }}
               options={{ component: ObjectPopup }}
@@ -309,14 +405,14 @@
                   </span>
                 {:else if type === 'presenter'}
                   {#if presenter !== undefined}
-                    <svelte:component this={presenter} value={obj} />
+                    <svelte:component this={presenter} value={obj} disabled noUnderline type={'text'} />
                   {/if}
                 {:else}
                   <slot name="item" item={obj} />
                 {/if}
                 {#if (allowDeselect && selected) || multiSelect || selected}
                   <div class="check mr-2" class:disabled={readonly}>
-                    {#if obj._id === selected || selectedElements.has(obj._id)}
+                    {#if isSelectedDoc(obj)}
                       {#if loading}
                         <Spinner size={'small'} />
                       {:else}
@@ -343,14 +439,14 @@
                 </span>
               {:else if type === 'presenter'}
                 {#if presenter !== undefined}
-                  <svelte:component this={presenter} value={obj} />
+                  <svelte:component this={presenter} value={obj} disabled noUnderline type={'text'} />
                 {/if}
               {:else}
                 <slot name="item" item={obj} />
               {/if}
               {#if (allowDeselect && selected) || multiSelect || selected}
                 <div class="check" class:disabled={readonly}>
-                  {#if obj._id === selected || selectedElements.has(obj._id)}
+                  {#if isSelectedDoc(obj)}
                     {#if loading}
                       <Spinner size={'small'} />
                     {:else}

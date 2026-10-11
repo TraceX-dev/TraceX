@@ -11,7 +11,7 @@ export class NewProjectPage extends CommonTrackerPage {
   inputTitle = (): Locator => this.page.locator('div[id="project-title"] input')
   inputIdentifier = (): Locator => this.page.locator('div[id="project-identifier"] input')
   inputDescription = (): Locator => this.page.locator('div[id="project-description"] input')
-  buttonChooseIcon = (): Locator => this.page.locator('div.antiGrid-row button.only-icon')
+  buttonChooseIcon = (): Locator => this.page.locator('div.formRow button.only-icon')
   buttonMakePrivate = (): Locator => this.page.locator('[id="project-private"]')
   buttonCreateProject = (): Locator => this.page.locator('form[id="tracker:string:NewProject"] button[type="submit"]')
   projectTypeButton = (): Locator =>
@@ -22,6 +22,14 @@ export class NewProjectPage extends CommonTrackerPage {
       .locator('div[class*="header"]', { hasText: 'Default assignee for issues' })
       .locator('xpath=..')
       .locator('button')
+
+  buttonMembers = (): Locator =>
+    this.page
+      .locator('form[id="tracker:string:NewProject"] .formRow', {
+        has: this.page.locator('.formRow__label', { hasText: /^Members$/ })
+      })
+      .locator('.formRow__value button')
+      .first()
 
   defaultIssueStatusButton = (): Locator =>
     this.page.locator('div[class*="header"]', { hasText: 'Default issue status' }).locator('xpath=..').locator('button')
@@ -48,6 +56,17 @@ export class NewProjectPage extends CommonTrackerPage {
     }
     if (data.private) {
       await this.buttonMakePrivate().click()
+    }
+    if (data.members != null && data.members.length > 0) {
+      await this.buttonMembers().click()
+      for (const member of data.members) {
+        await this.selectPopupInput().fill(member.split(' ')[0])
+        await this.selectPopupListItem(member).click()
+        await expect(this.selectPopupListItem(member).locator('.check svg')).toBeVisible()
+      }
+      await this.page.keyboard.press('Escape')
+      // AccountArrayEditor applies member changes with a 500ms debounce; submitting earlier drops them.
+      await this.page.waitForTimeout(600)
     }
     if (data.defaultAssigneeForIssues != null) {
       await this.defaultAssigneeButton().click()

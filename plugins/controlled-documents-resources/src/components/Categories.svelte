@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,8 +14,8 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import documents, { DocumentCategory } from '@hcengineering/controlled-documents'
-  import { Class, DocumentQuery, Ref, TypedSpace } from '@hcengineering/core'
+  import documents, { type DocumentCategory, type DocumentSpace } from '@hcengineering/controlled-documents'
+  import { Class, DocumentQuery, Ref } from '@hcengineering/core'
   import { ActionContext } from '@hcengineering/presentation'
   import { Button, IconAdd, Loading, showPopup } from '@hcengineering/ui'
   import view, { Viewlet, ViewletPreference, ViewOptions } from '@hcengineering/view'
@@ -22,11 +23,10 @@
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
 
   import document from '../plugin'
+  import { canGuestCreateDocumentsStore } from '../stores/permissions'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   export let query: DocumentQuery<DocumentCategory> = {}
-  export let space: Ref<TypedSpace> = documents.space.QualityDocuments
-
   let resultQuery: DocumentQuery<DocumentCategory> = { ...query }
 
   let viewlet: Viewlet | undefined
@@ -34,7 +34,11 @@
   let preference: ViewletPreference | undefined = undefined
   let loading = true
 
-  $: canCreate = checkMyPermission(documents.permission.CreateDocumentCategory, space, $permissionsStore)
+  $: canCreate =
+    $canGuestCreateDocumentsStore &&
+    Object.keys($permissionsStore.ps).some((space) =>
+      checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
+    )
 
   const _class: Ref<Class<DocumentCategory>> = document.class.DocumentCategory
 

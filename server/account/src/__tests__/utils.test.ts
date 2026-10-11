@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 
 import {
   AccountRole,
+  docGuestAccountUuid,
   type AccountUuid,
   type Branding,
   type MeasureContext,
@@ -23,9 +25,11 @@ import {
   type PersonUuid,
   SocialIdType,
   systemAccountUuid,
-  type WorkspaceUuid
+  type WorkspaceUuid,
+  readOnlyGuestAccountUuid
 } from '@hcengineering/core'
 import {
+  doJoinByInvite,
   generateWorkspaceUrl,
   cleanEmail,
   isEmail,
@@ -39,14 +43,14 @@ import {
   verifyPassword,
   getAllTransactors,
   wrap,
-  isOtpValid,
+  verifyOtpAttempt,
+  isOtpLocked,
   sendOtpEmail,
   sendOtp,
   generateUniqueOtp,
   getEmailSocialId,
   confirmEmail,
   sendEmailConfirmation,
-  GUEST_ACCOUNT,
   selectWorkspace,
   signUpByEmail,
   getAccount,
@@ -67,9 +71,9 @@ import {
   addSocialIdBase,
   doReleaseSocialId,
   getLastPasswordChangeEvent,
-  isPasswordChangedSince
+  isPasswordChangedSince,
+  setWorkspaceMemberUnread
 } from '../utils'
-// eslint-disable-next-line import/no-named-default
 import platform, { getMetadata, PlatformError, Severity, Status } from '@hcengineering/platform'
 import { decodeTokenVerbose, generateToken, TokenError } from '@hcengineering/server-token'
 import { randomBytes } from 'crypto'
@@ -632,12 +636,16 @@ describe('account utils', () => {
 
     beforeEach(() => {
       jest.clearAllMocks()
+      // `wrap` decodes the token to reject api keys before calling the method. Without a return
+      // value the destructuring of the result throws, and every case below lands on
+      // InternalServerError instead of exercising what it means to test.
+      ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ extra: {} })
     })
 
     test('should handle successful execution', async () => {
       const mockResult = { data: 'test' }
       const mockMethod = jest.fn().mockResolvedValue(mockResult)
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: { param1: 'value1', param2: 'value2' } }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -659,7 +667,7 @@ describe('account utils', () => {
     test('should handle token parameter', async () => {
       const mockResult = { data: 'test' }
       const mockMethod = jest.fn().mockResolvedValue(mockResult)
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: { param1: 'value1' } }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -672,7 +680,7 @@ describe('account utils', () => {
       const errorStatus = new Status(Severity.ERROR, 'test-error' as any, {})
       const mockMethod = jest.fn().mockRejectedValue(new PlatformError(errorStatus))
       Object.defineProperty(mockMethod, 'name', { value: 'mockAccMethod' })
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: [] }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -686,7 +694,7 @@ describe('account utils', () => {
 
     test('should handle TokenError', async () => {
       const mockMethod = jest.fn().mockRejectedValue(new TokenError('test error'))
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: [] }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -700,7 +708,7 @@ describe('account utils', () => {
       const error = new Error('unexpected error')
       const mockMethod = jest.fn().mockRejectedValue(error)
       Object.defineProperty(mockMethod, 'name', { value: 'mockAccMethod' })
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: [] }
 
       const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -716,7 +724,7 @@ describe('account utils', () => {
     test('should not report non-internal errors to analytics', async () => {
       const errorStatus = new Status(Severity.ERROR, 'known-error' as any, {})
       const mockMethod = jest.fn().mockRejectedValue(new PlatformError(errorStatus))
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const request = { id: 'req1', params: [] }
 
       await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'token')
@@ -725,7 +733,7 @@ describe('account utils', () => {
     test('should handle timezone parameter', async () => {
       const mockResult = { data: 'test' }
       const mockMethod = jest.fn().mockResolvedValue(mockResult)
-      const wrappedMethod = wrap(mockMethod)
+      const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
       const mockTimezone = 'America/New_York'
       const request = { id: 'req1', params: { param1: 'value1' } }
 
@@ -740,6 +748,65 @@ describe('account utils', () => {
         { param1: 'value1' },
         { timezone: mockTimezone }
       )
+    })
+
+    describe('noAuth methods (public endpoints, e.g. login/loginOtp/signUp/validateOtp)', () => {
+      test('should not verify the token at all when noAuth is true', async () => {
+        const mockResult = { data: 'test' }
+        const mockMethod = jest.fn().mockResolvedValue(mockResult)
+        const wrappedMethod = wrap(mockMethod, { noAuth: true, guest: 'bypass' })
+        const request = { id: 'req1', params: { email: 'test@example.com' } }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'some-token')
+
+        expect(result).toEqual({ id: 'req1', result: mockResult })
+        expect(decodeTokenVerbose).not.toHaveBeenCalled()
+        // the (unverified) token must still be forwarded to the handler, since e.g. validateOtp's
+        // 'verify' action needs to decode it itself
+        expect(mockMethod).toHaveBeenCalledWith(
+          mockCtx,
+          mockDb,
+          mockBranding,
+          'some-token',
+          { email: 'test@example.com' },
+          undefined
+        )
+      })
+
+      test('should still succeed when a stale/invalid token is attached and noAuth is true', async () => {
+        // Regression test: a stale cookie token used to make wrap() throw Unauthorized for public
+        // methods like loginOtp/login/signUp/validateOtp even though those methods never read the
+        // token themselves. With noAuth: true, wrap() must skip verification entirely.
+        ;(decodeTokenVerbose as jest.Mock).mockImplementation(() => {
+          throw new TokenError('Signature verification failed')
+        })
+
+        const mockResult = { sent: true }
+        const mockMethod = jest.fn().mockResolvedValue(mockResult)
+        const wrappedMethod = wrap(mockMethod, { noAuth: true, guest: 'bypass' })
+        const request = { id: 'req1', params: { email: 'test@example.com' } }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'stale-invalid-token')
+
+        expect(result).toEqual({ id: 'req1', result: mockResult })
+      })
+
+      test('should still reject with Unauthorized on a bad token when noAuth is false (default)', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockImplementation(() => {
+          throw new TokenError('Signature verification failed')
+        })
+
+        const mockMethod = jest.fn().mockResolvedValue({ data: 'test' })
+        const wrappedMethod = wrap(mockMethod, { guest: 'bypass' })
+        const request = { id: 'req1', params: {} }
+
+        const result = await wrappedMethod(mockCtx, mockDb, mockBranding, request, 'stale-invalid-token')
+
+        expect(result).toEqual({
+          error: new Status(Severity.ERROR, platform.status.Unauthorized, {})
+        })
+        expect(mockMethod).not.toHaveBeenCalled()
+      })
     })
   })
 
@@ -769,7 +836,8 @@ describe('account utils', () => {
         otp: {
           findOne: jest.fn(),
           find: jest.fn(),
-          insertOne: jest.fn()
+          insertOne: jest.fn(),
+          update: jest.fn()
         }
       } as unknown as AccountDB
 
@@ -873,6 +941,20 @@ describe('account utils', () => {
           })
         })
 
+        test('should refuse to send a new OTP when locked by failed attempts', async () => {
+          const now = Date.now()
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValueOnce([
+            { code: '111111', attempts: 6, expiresOn: now - 1000, createdOn: now - 120000 },
+            { code: '222222', attempts: 6, expiresOn: now - 1000, createdOn: now - 60000 },
+            { code: '333333', attempts: 6, expiresOn: now - 1000, createdOn: now - 30000 }
+          ])
+
+          await expect(sendOtp(mockCtx, mockDb, mockBranding, mockSocialId)).rejects.toThrow(
+            new PlatformError(new Status(Severity.ERROR, platform.status.OtpLocked, {}))
+          )
+          expect(mockDb.otp.insertOne).not.toHaveBeenCalled()
+        })
+
         test('should throw error for unsupported social id type', async () => {
           const invalidSocialId = {
             _id: '999888777' as PersonId,
@@ -918,32 +1000,111 @@ describe('account utils', () => {
         })
       })
 
-      describe('isOtpValid', () => {
-        test('should return true for valid non-expired OTP', async () => {
-          const mockOtpData = {
-            expiresOn: Date.now() + 60000
-          }
-          ;(mockDb.otp.findOne as jest.Mock).mockResolvedValue(mockOtpData)
-
-          const result = await isOtpValid(mockDb, socialIdId, '123456')
-          expect(result).toBe(true)
+      describe('verifyOtpAttempt', () => {
+        const now = Date.now()
+        const otp = (code: string, attempts: number, expiresOn = now + 60000, createdOn = now - 1000): any => ({
+          socialId: socialIdId,
+          code,
+          attempts,
+          expiresOn,
+          createdOn
         })
 
-        test('should return false for expired OTP', async () => {
-          const mockOtpData = {
-            expiresOn: Date.now() - 1000
-          }
-          ;(mockDb.otp.findOne as jest.Mock).mockResolvedValue(mockOtpData)
+        test('should increment attempts on active OTPs before checking the code', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([otp('123456', 1)])
 
-          const result = await isOtpValid(mockDb, socialIdId, '123456')
-          expect(result).toBe(false)
+          const result = await verifyOtpAttempt(mockDb, socialIdId, '123456')
+
+          expect(result).toBe('valid')
+          expect(mockDb.otp.update).toHaveBeenCalledWith(
+            { socialId: socialIdId, expiresOn: { $gt: expect.any(Number) } },
+            { $inc: { attempts: 1 } }
+          )
+          expect((mockDb.otp.update as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+            (mockDb.otp.find as jest.Mock).mock.invocationCallOrder[0]
+          )
         })
 
-        test('should return false for non-existent OTP', async () => {
-          ;(mockDb.otp.findOne as jest.Mock).mockResolvedValue(null)
+        test('should return invalid for wrong code', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([otp('123456', 1)])
 
-          const result = await isOtpValid(mockDb, socialIdId, '123456')
-          expect(result).toBe(false)
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '000000')).toBe('invalid')
+        })
+
+        test('should return invalid for expired OTP', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([otp('123456', 1, now - 1000)])
+
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '123456')).toBe('invalid')
+        })
+
+        test('should return invalid for non-existent OTP', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([])
+
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '123456')).toBe('invalid')
+        })
+
+        test('should reject correct code after too many attempts on it', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([otp('123456', 6)])
+
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '123456')).toBe('locked')
+        })
+
+        test('should accept correct code on the last allowed attempt', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([otp('123456', 5)])
+
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '123456')).toBe('valid')
+        })
+
+        test('should report lock for wrong code when all active codes are exhausted', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([otp('123456', 6)])
+
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '000000')).toBe('locked')
+        })
+
+        test('should not let an exhausted old code block a fresh one', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([otp('111111', 6), otp('123456', 1)])
+
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '123456')).toBe('valid')
+        })
+
+        test('should lock when failed attempts across codes exceed the window limit', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([
+            otp('111111', 5, now - 1000, now - 120000),
+            otp('222222', 5, now - 1000, now - 60000),
+            otp('123456', 6)
+          ])
+
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '123456')).toBe('locked')
+        })
+
+        test('should ignore attempts outside the lock window', async () => {
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([
+            otp('111111', 50, now - 7200000, now - 7260000),
+            otp('123456', 1)
+          ])
+
+          expect(await verifyOtpAttempt(mockDb, socialIdId, '123456')).toBe('valid')
+        })
+      })
+
+      describe('isOtpLocked', () => {
+        test('should be locked when failed attempts in window reach the limit', async () => {
+          const now = Date.now()
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([
+            { socialId: socialIdId, code: '1', attempts: 10, expiresOn: now - 1000, createdOn: now - 60000 },
+            { socialId: socialIdId, code: '2', attempts: 5, expiresOn: now - 1000, createdOn: now - 30000 }
+          ])
+
+          expect(await isOtpLocked(mockDb, socialIdId, now)).toBe(true)
+        })
+
+        test('should not be locked below the limit', async () => {
+          const now = Date.now()
+          ;(mockDb.otp.find as jest.Mock).mockResolvedValue([
+            { socialId: socialIdId, code: '1', attempts: 3, expiresOn: now + 1000, createdOn: now - 1000 }
+          ])
+
+          expect(await isOtpLocked(mockDb, socialIdId, now)).toBe(false)
         })
       })
     })
@@ -1217,7 +1378,7 @@ describe('account utils', () => {
 
       beforeEach(() => {
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
-          account: GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           workspace: 'workspace-uuid',
           extra: { guest: 'true' }
         })
@@ -1233,7 +1394,7 @@ describe('account utils', () => {
         })
 
         expect(result).toEqual({
-          account: GUEST_ACCOUNT,
+          account: docGuestAccountUuid,
           endpoint: expect.any(String),
           token: guestToken,
           workspace: mockWorkspace.uuid,
@@ -1253,6 +1414,19 @@ describe('account utils', () => {
         )
 
         expect(mockCtx.error).toHaveBeenCalledWith('Workspace not found in selectWorkspace', expect.any(Object))
+      })
+
+      test('should reject a public link token for a different workspace', async () => {
+        ;(mockDb.workspace.findOne as jest.Mock).mockResolvedValue({
+          ...mockWorkspace,
+          uuid: 'other-workspace' as WorkspaceUuid
+        })
+
+        await expect(
+          selectWorkspace(mockCtx, mockDb, mockBranding, guestToken, { workspaceUrl, kind: 'external' })
+        ).rejects.toThrow(
+          new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
+        )
       })
     })
 
@@ -1711,7 +1885,8 @@ describe('account utils', () => {
       await cleanExpiredOtp(mockDb)
 
       expect(mockDb.otp.deleteMany).toHaveBeenCalledWith({
-        expiresOn: { $lte: expect.any(Number) }
+        expiresOn: { $lte: expect.any(Number) },
+        createdOn: { $lte: expect.any(Number) }
       })
     })
   })
@@ -1958,7 +2133,7 @@ describe('account utils', () => {
       const mockSocialId = { key: 'email:test@example.com' as PersonId }
       ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue(mockSocialId)
 
-      const result = await getSocialIdByKey(mockDb, 'email:test@example.com' as PersonId)
+      const result = await getSocialIdByKey(mockDb, 'email:test@example.com')
       expect(result).toEqual(mockSocialId)
       expect(mockDb.socialId.findOne).toHaveBeenCalledWith({ key: 'email:test@example.com' })
     })
@@ -1966,7 +2141,7 @@ describe('account utils', () => {
     test('should return null when social id not found', async () => {
       ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue(null)
 
-      const result = await getSocialIdByKey(mockDb, 'nonexistent' as PersonId)
+      const result = await getSocialIdByKey(mockDb, 'nonexistent')
       expect(result).toBeNull()
     })
   })
@@ -2057,6 +2232,16 @@ describe('account utils', () => {
         subject: expect.any(String),
         to: 'test@example.com'
       })
+    })
+
+    test('should render the html in the shared email layout', async () => {
+      const result = await getInviteEmail(mockBranding, 'test@example.com', 'invite-id', mockWorkspace, 24)
+
+      expect(result.html).toContain('<!DOCTYPE html>')
+      expect(result.html).toContain('src="https://app.example.com/tracex/email-logo.png"')
+      expect(result.html).toContain('account:string:InviteEmailTitle')
+      // Not an http(s) link, so the button does not point anywhere.
+      expect(result.html).not.toContain('href="invite-id"')
     })
   })
 
@@ -2433,5 +2618,131 @@ describe('account utils', () => {
         expect(mockDb.accountEvent.insertOne).not.toHaveBeenCalled()
       })
     })
+
+    describe('setWorkspaceMemberUnread', () => {
+      const mockCtx = {
+        error: jest.fn(),
+        info: jest.fn()
+      } as unknown as MeasureContext
+      const mockBranding = null
+      const workspace = 'ws-uuid' as WorkspaceUuid
+      const caller = 'caller-uuid' as AccountUuid
+      const other = 'other-uuid' as AccountUuid
+      const forbidden = new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+
+      const mockDb = {
+        setWorkspaceMemberUnread: jest.fn() as jest.MockedFunction<AccountDB['setWorkspaceMemberUnread']>
+      } as unknown as AccountDB
+
+      beforeEach(() => {
+        jest.clearAllMocks()
+      })
+
+      test('service token may raise another members flag to true', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: systemAccountUuid,
+          workspace,
+          extra: { service: 'notification' }
+        })
+
+        await setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'svc-token', {
+          targetAccount: other,
+          hasUnread: true
+        })
+
+        expect(mockDb.setWorkspaceMemberUnread).toHaveBeenCalledWith(other, workspace, true)
+      })
+
+      test('non-service token cannot raise another members flag to true', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller, workspace, extra: {} })
+
+        await expect(
+          setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'user-token', {
+            targetAccount: other,
+            hasUnread: true
+          })
+        ).rejects.toThrow(forbidden)
+
+        expect(mockDb.setWorkspaceMemberUnread).not.toHaveBeenCalled()
+      })
+
+      test('non-service token cannot raise even its own flag to true (only the trigger raises flags)', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller, workspace, extra: {} })
+
+        await expect(
+          setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'user-token', {
+            targetAccount: caller,
+            hasUnread: true
+          })
+        ).rejects.toThrow(forbidden)
+
+        expect(mockDb.setWorkspaceMemberUnread).not.toHaveBeenCalled()
+      })
+
+      test('member may self-clear their own flag without a service token', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller, workspace, extra: {} })
+
+        await setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'user-token', {
+          targetAccount: caller,
+          hasUnread: false
+        })
+
+        expect(mockDb.setWorkspaceMemberUnread).toHaveBeenCalledWith(caller, workspace, false)
+      })
+
+      test('non-service token cannot clear another members flag', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller, workspace, extra: {} })
+
+        await expect(
+          setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'user-token', {
+            targetAccount: other,
+            hasUnread: false
+          })
+        ).rejects.toThrow(forbidden)
+
+        expect(mockDb.setWorkspaceMemberUnread).not.toHaveBeenCalled()
+      })
+
+      test('writes to the token workspace (caller cannot target a different workspace)', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: systemAccountUuid,
+          workspace,
+          extra: { service: 'notification' }
+        })
+
+        await setWorkspaceMemberUnread(mockCtx, mockDb, mockBranding, 'svc-token', {
+          targetAccount: other,
+          hasUnread: true
+        })
+
+        // workspace comes from the decoded token, never from caller-supplied params
+        expect(mockDb.setWorkspaceMemberUnread).toHaveBeenCalledWith(other, workspace, true)
+      })
+    })
+  })
+})
+
+describe('doJoinByInvite with the anonymous account', () => {
+  const ctx = { warn: jest.fn(), info: jest.fn(), error: jest.fn() } as unknown as MeasureContext
+  const workspace = { uuid: 'ws-uuid' as WorkspaceUuid, url: 'ws', allowReadOnlyGuest: true, allowGuestSignUp: true }
+  const db = {
+    getWorkspaceRole: jest.fn(async () => AccountRole.ReadOnlyGuest),
+    assignWorkspace: jest.fn(),
+    updateWorkspaceRole: jest.fn(),
+    invite: { updateOne: jest.fn() }
+  } as unknown as AccountDB
+
+  test.each([
+    [
+      'an invite',
+      { id: 'invite', workspaceUuid: workspace.uuid, role: AccountRole.User, expiresOn: 0, remainingUses: -1 }
+    ],
+    ['guest sign up', null]
+  ])('never changes the anonymous role (%s)', async (_name, invite) => {
+    await expect(
+      doJoinByInvite(ctx, db, null, 'token', readOnlyGuestAccountUuid, workspace as any, invite as any)
+    ).rejects.toThrow(new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {})))
+    expect(db.assignWorkspace).not.toHaveBeenCalled()
+    expect(db.updateWorkspaceRole).not.toHaveBeenCalled()
   })
 })

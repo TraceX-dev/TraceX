@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,13 @@
 
 import card, { type Card, cardId } from '@hcengineering/card'
 import { type Client, type Permission, type Doc, type Ref } from '@hcengineering/core'
+import type {
+  CanCreateIntegrationTarget,
+  CreateIntegrationTarget,
+  GetIntegrationTargetAllowedSpaceClasses,
+  GetIntegrationTargetCommentBackend,
+  UpdateIntegrationTarget
+} from '@hcengineering/integration'
 import { type IntlString, mergeIds, type Resource } from '@hcengineering/platform'
 import { type ObjectSearchCategory, type ObjectSearchFactory } from '@hcengineering/presentation'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
@@ -39,11 +47,13 @@ export default mergeIds(cardId, card, {
     TagsSection: '' as AnyComponent,
     ChildsSection: '' as AnyComponent,
     RelationsSection: '' as AnyComponent,
+    ChangeTagParentPopup: '' as AnyComponent,
     SetParentActionPopup: '' as AnyComponent,
     RelationSetting: '' as AnyComponent,
     ViewsSection: '' as AnyComponent,
     EditView: '' as AnyComponent,
     CardEditor: '' as AnyComponent,
+    CardSpaceEditor: '' as AnyComponent,
     CardRefPresenter: '' as AnyComponent,
     ChangeType: '' as AnyComponent,
     CreateCardButton: '' as AnyComponent,
@@ -66,7 +76,12 @@ export default mergeIds(cardId, card, {
       <T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<Doc | undefined>
     >,
     FormatCardMarkdownValue: '' as Resource<ValueFormatter>,
-    CheckChildrenSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>
+    CheckChildrenSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
+    CreateIntegrationTarget: '' as Resource<CreateIntegrationTarget>,
+    UpdateIntegrationTarget: '' as Resource<UpdateIntegrationTarget>,
+    CanCreateIntegrationTarget: '' as Resource<CanCreateIntegrationTarget>,
+    GetIntegrationTargetAllowedSpaceClasses: '' as Resource<GetIntegrationTargetAllowedSpaceClasses>,
+    GetIntegrationTargetCommentBackend: '' as Resource<GetIntegrationTargetCommentBackend>
   },
   permission: {
     CreateCard: '' as Ref<Permission>,
@@ -88,7 +103,6 @@ export default mergeIds(cardId, card, {
     ContentSection: '' as AnyComponent,
     PropertiesSection: '' as AnyComponent,
     RelationsSection: '' as AnyComponent,
-    CommunicationMessagesSection: '' as AnyComponent,
     OldMessagesSection: '' as AnyComponent
   },
   completion: {
@@ -110,6 +124,8 @@ export default mergeIds(cardId, card, {
     CreateTag: '' as IntlString,
     Content: '' as IntlString,
     Parent: '' as IntlString,
+    ChangeTagParent: '' as IntlString,
+    ChangeTagParentBlocked: '' as IntlString,
     CardLibrary: '' as IntlString,
     ConfigDescription: '' as IntlString,
     SearchCard: '' as IntlString,
@@ -133,6 +149,7 @@ export default mergeIds(cardId, card, {
     ChangeTypeWarning: '' as IntlString,
     MasterDetailViews: '' as IntlString,
     SelectType: '' as IntlString,
+    SelectTypeAndSpace: '' as IntlString,
     CreateSpace: '' as IntlString,
     NumberTypes: '' as IntlString,
     Properties: '' as IntlString,
@@ -147,7 +164,10 @@ export default mergeIds(cardId, card, {
     Export: '' as IntlString,
     Import: '' as IntlString,
     NewVersion: '' as IntlString,
+    VersionCreationUnavailable: '' as IntlString,
     Versioning: '' as IntlString,
+    VersionCreationManagedByProcess: '' as IntlString,
+    VersionEffectiveManagedByProcess: '' as IntlString,
     EnableVersioning: '' as IntlString,
     EnableVersioningConfirm: '' as IntlString,
     NewVersionConfirmation: '' as IntlString,
@@ -176,6 +196,7 @@ export default mergeIds(cardId, card, {
     CardCreated: '' as IntlString,
     MyCards: '' as IntlString,
     GotoMyCards: '' as IntlString,
+    Description: '' as IntlString,
     SingleColumn: '' as IntlString,
     BaseType: '' as IntlString,
     BaseTypeDescription: '' as IntlString,

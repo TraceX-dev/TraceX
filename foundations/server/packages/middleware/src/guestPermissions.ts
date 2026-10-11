@@ -1,5 +1,23 @@
-import {
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+import serverCore, {
   BaseMiddleware,
+  type GuestTxDecision,
+  type GuestTxValidator,
+  type GuestTxValidatorFunc,
   type Middleware,
   type PipelineContext,
   type TxMiddlewareResult
@@ -7,11 +25,15 @@ import {
 import core, {
   type Account,
   AccountRole,
+  type AttachedDoc,
   type Class,
+  type CustomSequence,
   type Doc,
-  type ClassPermission,
-  type Permission,
+  type DocumentQuery,
+  type FindOptions,
+  getGuestReadCollaboratorTargets,
   hasAccountRole,
+  isSpaceReadableByGuest,
   type MeasureContext,
   type PersonId,
   type Ref,
@@ -19,21 +41,39 @@ import core, {
   type Space,
   type Tx,
   type TxApplyIf,
+  type TxCreateDoc,
   type TxCUD,
+  type TxMixin,
   TxProcessor,
+  type TxAccessLevel,
   type TxUpdateDoc
 } from '@hcengineering/core'
-import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
+import platform, { getResource, PlatformError, Severity, Status } from '@hcengineering/platform'
 import contact, { type Person } from '@hcengineering/contact'
+import {
+  createGuestTxScope,
+  emptyGuestPermissionsCache,
+  getNestedTxes,
+  getUpdatedAttributes,
+  type GuestClassPermissionPolicy,
+  type GuestPermissionsCache,
+  type GuestTxScope,
+  loadGuestPermissionsCache,
+  sequenceGuardKey
+} from './guest-permission-policies'
 
-/** Cached state loaded from GuestPermissionsSettings configuration document. */
-interface GuestPermissionsCache {
-  roleAllowedClasses: Map<AccountRole, Set<Ref<Class<Doc>>>>
+const MAX_SEQUENCE_INCREMENT = 100_000
+
+interface LoadedGuestTxValidator {
+  application: Ref<Doc>
+  classes: Array<Ref<Class<Doc>>>
+  validate: GuestTxValidatorFunc
 }
 
 export class GuestPermissionsMiddleware extends BaseMiddleware implements Middleware {
   private permissionsCache: GuestPermissionsCache | undefined = undefined
   private initPromise: Promise<void> | undefined = undefined
+  private validators: Promise<LoadedGuestTxValidator[]> | undefined = undefined
 
   static async create (
     ctx: MeasureContext,
@@ -50,68 +90,30 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
     await this.initPromise
     this.initPromise = undefined
-    return this.permissionsCache ?? { roleAllowedClasses: new Map() }
+    return this.permissionsCache ?? emptyGuestPermissionsCache()
+  }
+
+  private async getPolicies (ctx: MeasureContext, account: Account): Promise<GuestClassPermissionPolicy[]> {
+    return (await this.getPermissionsCache(ctx)).rolePolicies.get(account.role) ?? []
   }
 
   private async loadPermissionsCache (ctx: MeasureContext): Promise<void> {
     try {
-      const docs = await this.findAll(ctx, core.class.ModulePermissionGroup, {}, {})
-      if (docs.length > 0) {
-        const rolePermissions = new Map<AccountRole, Set<Ref<Permission>>>()
-        const allPermissionIds = new Set<Ref<Permission>>()
-        for (const group of docs as any[]) {
-          if (group.enabled === false) continue
-          const role = ((group.role as AccountRole | undefined) ??
-            (Array.isArray(group.roles) && group.roles.length > 0 ? (group.roles[0] as AccountRole) : undefined) ??
-            AccountRole.Guest) as AccountRole
-          const permissions = (group.permissions ?? []) as Ref<Permission>[]
-          const disabled = new Set<Ref<Permission>>((group.disabledPermissions ?? []) as Ref<Permission>[])
-          const current = rolePermissions.get(role) ?? new Set<Ref<Permission>>()
-          for (const permissionId of permissions) {
-            if (disabled.has(permissionId)) continue
-            current.add(permissionId)
-            allPermissionIds.add(permissionId)
-          }
-          rolePermissions.set(role, current)
-        }
-        const classPermissions =
-          allPermissionIds.size > 0
-            ? await this.findAll(
-              ctx,
-              core.class.ClassPermission as Ref<Class<Doc>>,
-              { _id: { $in: Array.from(allPermissionIds) } } as any
-            )
-            : []
-        const permissionToClass = new Map<Ref<Permission>, Ref<Class<Doc>>>(
-          classPermissions
-            .map(
-              (permission) => [permission._id as Ref<Permission>, (permission as ClassPermission).targetClass] as const
-            )
-            .filter((entry): entry is readonly [Ref<Permission>, Ref<Class<Doc>>] => entry[1] !== undefined)
-        )
-        const roleAllowedClasses = new Map<AccountRole, Set<Ref<Class<Doc>>>>()
-        for (const [role, permissions] of rolePermissions.entries()) {
-          const allowedClasses = new Set<Ref<Class<Doc>>>()
-          for (const permissionId of permissions) {
-            const targetClass = permissionToClass.get(permissionId)
-            if (targetClass !== undefined) allowedClasses.add(targetClass)
-          }
-          roleAllowedClasses.set(role, allowedClasses)
-        }
-        this.permissionsCache = { roleAllowedClasses }
-      } else {
-        this.permissionsCache = { roleAllowedClasses: new Map() }
-      }
-    } catch {
-      this.permissionsCache = { roleAllowedClasses: new Map() }
+      this.permissionsCache = await loadGuestPermissionsCache(ctx, this)
+    } catch (err: unknown) {
+      ctx.error('Failed to load guest permissions', { err })
+      this.permissionsCache = emptyGuestPermissionsCache()
     }
   }
 
   private invalidateCacheIfNeeded (txes: Tx[]): void {
-    for (const tx of txes) {
+    for (const tx of txes.flatMap(getNestedTxes)) {
       if (TxProcessor.isExtendsCUD(tx._class)) {
         const cudTx = tx as TxCUD<Doc>
-        if (cudTx.objectClass === core.class.ModulePermissionGroup) {
+        if (
+          cudTx.objectClass === core.class.ModulePermissionGroup ||
+          this.context.hierarchy.isDerived(cudTx.objectClass, core.class.Permission)
+        ) {
           this.permissionsCache = undefined
           return
         }
@@ -127,22 +129,27 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
 
     if (account.role === AccountRole.DocGuest || account.role === AccountRole.ReadOnlyGuest) {
+      for (const tx of txes) {
+        this.logForbiddenTx(ctx, account, tx, 'role-forbids-transactions')
+      }
       throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
     }
 
+    const scope = createGuestTxScope()
     for (const tx of txes) {
-      await this.processTx(ctx, tx)
+      await this.processTx(ctx, tx, scope)
     }
 
     return await this.provideTx(ctx, txes)
   }
 
-  private async processTx (ctx: MeasureContext<SessionData>, tx: Tx): Promise<void> {
+  private async processTx (ctx: MeasureContext<SessionData>, tx: Tx, scope: GuestTxScope): Promise<void> {
     const h = this.context.hierarchy
     if (tx._class === core.class.TxApplyIf) {
       const applyTx = tx as TxApplyIf
+      const applyScope = await this.getApplyScope(ctx, applyTx, scope)
       for (const t of applyTx.txes) {
-        await this.processTx(ctx, t)
+        await this.processTx(ctx, t, applyScope)
       }
       return
     }
@@ -152,18 +159,72 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       const isSpace = h.isDerived(cudTx.objectClass, core.class.Space)
       if (isSpace) {
         if (await this.isForbiddenSpaceTx(ctx, cudTx as TxCUD<Space>, account)) {
+          this.logForbiddenTx(ctx, account, tx, 'space-access-not-granted')
           throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
         }
-      } else if (cudTx.space !== core.space.DerivedTx && (await this.isForbiddenTx(ctx, cudTx, account))) {
+      } else if (cudTx.space !== core.space.DerivedTx && (await this.isForbiddenTx(ctx, cudTx, account, scope))) {
+        this.logForbiddenTx(ctx, account, tx, 'document-access-not-granted')
         throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
       }
     }
   }
 
-  /**
-   * Returns the covered-class ancestor of the objectClass if one exists in the new permissions model,
-   * or undefined if the class is not covered.
-   */
+  private async getApplyScope (
+    ctx: MeasureContext<SessionData>,
+    applyTx: TxApplyIf,
+    parent: GuestTxScope
+  ): Promise<GuestTxScope> {
+    const scope: GuestTxScope = {
+      relatedCreates: new Map(
+        Array.from(parent.relatedCreates.entries()).map(([space, classes]) => [space, new Set(classes)])
+      ),
+      createdTargets: new Map(parent.createdTargets),
+      sequenceGuards: new Set(parent.sequenceGuards),
+      spaceClasses: parent.spaceClasses,
+      applyTxes: applyTx.txes
+    }
+
+    for (const condition of applyTx.notMatch ?? []) {
+      if (condition._class !== core.class.CustomSequence) continue
+      const query = condition.query as Record<string, unknown>
+      if (
+        Object.keys(query).length === 3 &&
+        typeof query.namespace === 'string' &&
+        typeof query.scope === 'string' &&
+        typeof query.prefix === 'string'
+      ) {
+        scope.sequenceGuards.add(sequenceGuardKey(query.namespace, query.scope, query.prefix))
+      }
+    }
+
+    const policies = await this.getPolicies(ctx, ctx.contextData.account)
+    if (policies.length === 0) return scope
+
+    const createTxes = applyTx.txes.filter((tx): tx is TxCreateDoc<Doc> => tx._class === core.class.TxCreateDoc)
+    for (const tx of createTxes) {
+      const permitted = await this.getCreatePolicies(ctx, tx, policies, scope)
+      if (permitted.length === 0) continue
+      scope.createdTargets.set(tx.objectId, { space: tx.objectSpace, policies: permitted })
+      const classes = scope.relatedCreates.get(tx.objectSpace) ?? new Set<Ref<Class<Doc>>>()
+      for (const policy of permitted) {
+        for (const relatedClass of policy.relatedCreateClasses) classes.add(relatedClass)
+      }
+      scope.relatedCreates.set(tx.objectSpace, classes)
+    }
+    return scope
+  }
+
+  private logForbiddenTx (ctx: MeasureContext, account: Account, tx: Tx, reason: string): void {
+    const isCud = TxProcessor.isExtendsCUD(tx._class)
+    ctx.warn('Guest transaction rejected', {
+      reason,
+      accountRole: account.role,
+      txClass: tx._class,
+      objectClass: isCud ? (tx as TxCUD<Doc>).objectClass : tx._class,
+      objectSpace: isCud ? (tx as TxCUD<Doc>).objectSpace : undefined
+    })
+  }
+
   private getCoveredClass (
     objectClass: Ref<Class<Doc>>,
     allowedClasses: Set<Ref<Class<Doc>>>
@@ -185,26 +246,321 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return account.socialIds.includes(creator)
   }
 
+  private async findDoc (ctx: MeasureContext, _class: Ref<Class<Doc>>, _id: Ref<Doc>): Promise<Doc | undefined> {
+    return (await this.findAll(ctx, _class, { _id }, { limit: 1 }))[0]
+  }
+
+  private async isPolicySpace (
+    ctx: MeasureContext,
+    policy: GuestClassPermissionPolicy,
+    spaceId: Ref<Space>,
+    scope: GuestTxScope
+  ): Promise<boolean> {
+    if (policy.spaceClass === undefined) return true
+    let spaceClass = scope.spaceClasses.get(spaceId)
+    if (!scope.spaceClasses.has(spaceId)) {
+      spaceClass = (await this.findDoc(ctx, core.class.Space, spaceId))?._class
+      scope.spaceClasses.set(spaceId, spaceClass)
+    }
+    return spaceClass !== undefined && this.context.hierarchy.isDerived(spaceClass, policy.spaceClass)
+  }
+
+  private async getCreatePolicies (
+    ctx: MeasureContext,
+    tx: TxCreateDoc<Doc>,
+    policies: GuestClassPermissionPolicy[],
+    scope: GuestTxScope
+  ): Promise<GuestClassPermissionPolicy[]> {
+    const result: GuestClassPermissionPolicy[] = []
+    for (const policy of policies) {
+      if (!this.context.hierarchy.isDerived(tx.objectClass, policy.targetClass)) continue
+      if (await this.isPolicySpace(ctx, policy, tx.objectSpace, scope)) result.push(policy)
+    }
+    return result
+  }
+
+  private async getRestrictingPolicies (
+    ctx: MeasureContext,
+    tx: TxCUD<Doc>,
+    policies: GuestClassPermissionPolicy[],
+    isRestricting: (policy: GuestClassPermissionPolicy) => boolean
+  ): Promise<{ doc: Doc | undefined, policies: GuestClassPermissionPolicy[] }> {
+    const h = this.context.hierarchy
+    const candidates = policies.filter(
+      (policy) =>
+        isRestricting(policy) &&
+        (h.isDerived(tx.objectClass, policy.targetClass) || h.isDerived(policy.targetClass, tx.objectClass))
+    )
+    if (candidates.length === 0) return { doc: undefined, policies: [] }
+    const doc = await this.findDoc(ctx, tx.objectClass, tx.objectId)
+    if (doc === undefined) return { doc, policies: [] }
+    return { doc, policies: candidates.filter((policy) => h.isDerived(doc._class, policy.targetClass)) }
+  }
+
+  private async isGuestRelatedCreateOnOwnDoc (
+    ctx: MeasureContext,
+    tx: TxCreateDoc<Doc>,
+    account: Account,
+    policies: GuestClassPermissionPolicy[],
+    scope: GuestTxScope
+  ): Promise<boolean> {
+    const matchingPolicies = policies.filter(
+      (policy) => this.getCoveredClass(tx.objectClass, policy.relatedCreateClasses) !== undefined
+    )
+    if (matchingPolicies.length === 0) return false
+
+    const attributes = tx.attributes as { attachedTo?: Ref<Doc>, attachedToClass?: Ref<Class<Doc>> }
+    const attachedTo = tx.attachedTo ?? attributes.attachedTo
+    const attachedToClass = tx.attachedToClass ?? attributes.attachedToClass
+    if (attachedTo === undefined || attachedToClass === undefined) return false
+
+    const parent = await this.findDoc(ctx, attachedToClass, attachedTo)
+    if (parent === undefined || parent.space !== tx.objectSpace || !this.isCreatedByAccount(parent, account)) {
+      return false
+    }
+
+    const h = this.context.hierarchy
+    for (const policy of matchingPolicies) {
+      if (!(await this.isPolicySpace(ctx, policy, parent.space, scope))) continue
+      if (
+        h.isDerived(parent._class, policy.targetClass) ||
+        this.getCoveredClass(parent._class, policy.relatedCreateClasses) !== undefined
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
+  private isCreationMixinAllowed (tx: TxMixin<Doc, Doc>, scope: GuestTxScope): boolean {
+    const created = scope.createdTargets.get(tx.objectId)
+    if (created === undefined || created.space !== tx.objectSpace) return false
+    const attributes = getUpdatedAttributes(tx.attributes as Record<string, unknown>)
+    if (attributes === undefined) return false
+    return created.policies.some((policy) => {
+      const allowed = policy.guestCreateMixinAttributes.get(tx.mixin)
+      return allowed !== undefined && Array.from(attributes).every((attribute) => allowed.has(attribute))
+    })
+  }
+
+  private isWhitelistedOwnUpdate (
+    tx: TxCUD<Doc>,
+    doc: Doc,
+    account: Account,
+    allowed: Array<Set<string> | undefined>
+  ): boolean {
+    if (doc.space !== tx.objectSpace || !this.isCreatedByAccount(doc, account)) return false
+    const updated = getUpdatedAttributes(
+      tx._class === core.class.TxMixin
+        ? ((tx as TxMixin<Doc, Doc>).attributes as Record<string, unknown>)
+        : ((tx as TxUpdateDoc<Doc>).operations as Record<string, unknown>)
+    )
+    if (updated === undefined) return false
+    return allowed.some(
+      (attributes) => attributes !== undefined && Array.from(updated).every((attribute) => attributes.has(attribute))
+    )
+  }
+
   private async isGuestMutationOnOwnDoc (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
     if (tx._class !== core.class.TxUpdateDoc && tx._class !== core.class.TxRemoveDoc) return false
-    const docs = await this.findAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 })
-    const doc = docs[0] as Doc | undefined
+    const doc = await this.findDoc(ctx, tx.objectClass, tx.objectId)
     if (doc === undefined) return false
     return this.isCreatedByAccount(doc, account)
   }
 
-  private async isForbiddenTx (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
-    if (tx._class === core.class.TxMixin) return false
+  /**
+   * An update of a document assigned to the guest, e.g. completing its process task. Allowed when a policy
+   * of the document class has a `guestAssignee` rule and every condition of the rule holds.
+   */
+  private async isAssigneeUpdate (
+    ctx: MeasureContext,
+    tx: TxUpdateDoc<Doc>,
+    account: Account,
+    policies: GuestClassPermissionPolicy[]
+  ): Promise<boolean> {
+    const h = this.context.hierarchy
+    const candidates = policies.filter(
+      (policy) => policy.guestAssignee !== undefined && h.isDerived(tx.objectClass, policy.targetClass)
+    )
+    if (candidates.length === 0) return false
+    const updated = getUpdatedAttributes(tx.operations as Record<string, unknown>)
+    if (updated === undefined) return false
+    const doc = await this.findDoc(ctx, tx.objectClass, tx.objectId)
+    if (doc === undefined || doc.space !== tx.objectSpace) return false
 
-    // For TxCreateDoc, check the new permission model first for covered types.
+    for (const policy of candidates) {
+      const rule = policy.guestAssignee
+      if (rule === undefined || !h.isDerived(doc._class, policy.targetClass)) continue
+      // An exact whitelist: model declarations can not be used here, e.g. `ToDo.doneOn` is not a declared attribute.
+      if (!Array.from(updated).every((attribute) => rule.attributes.includes(attribute))) continue
+      if (rule.openField !== undefined && (doc as any)[rule.openField] != null) continue
+      if (!(await this.isAssignedTo(ctx, (doc as any)[rule.field], account))) continue
+      if (rule.requireAttachedToAccess === true && !(await this.canReadAttachedTo(ctx, doc, account))) continue
+      return true
+    }
+    return false
+  }
+
+  private async isAssignedTo (ctx: MeasureContext, assignee: unknown, account: Account): Promise<boolean> {
+    if (typeof assignee !== 'string') return false
+    const person = (await this.findDoc(ctx, contact.class.Person, assignee as Ref<Doc>)) as Person | undefined
+    return person?.personUuid === account.uuid
+  }
+
+  private async canReadAttachedTo (ctx: MeasureContext, doc: Doc, account: Account): Promise<boolean> {
+    const { attachedTo, attachedToClass } = doc as Partial<AttachedDoc>
+    if (attachedTo == null || attachedToClass == null) return false
+    const target = await this.findDoc(ctx, attachedToClass, attachedTo)
+    return target !== undefined && (await this.canGuestRead(ctx, target, account))
+  }
+
+  /**
+   * Mirrors the read security the storage applies to guests. This middleware runs after the find security,
+   * so its own finds are not filtered and it has to check the access itself.
+   */
+  private async canGuestRead (ctx: MeasureContext, doc: Doc, account: Account): Promise<boolean> {
+    const space = (await this.findDoc(ctx, core.class.Space, doc.space)) as Space | undefined
+    if (isSpaceReadableByGuest(space, account.uuid)) return true
+    const targets = getGuestReadCollaboratorTargets(this.context.modelDb, this.context.hierarchy, doc)
+    if (targets.length === 0) return false
+    const collaborators = await this.findAll(
+      ctx,
+      core.class.Collaborator,
+      { attachedTo: { $in: targets }, collaborator: account.uuid },
+      { limit: 1 }
+    )
+    return collaborators.length > 0
+  }
+
+  private async getValidators (): Promise<LoadedGuestTxValidator[]> {
+    if (this.validators === undefined) {
+      const docs = this.context.modelDb.findAllSync<GuestTxValidator>(serverCore.class.GuestTxValidator, {})
+      this.validators = Promise.all(
+        docs.map(async (it) => ({
+          application: it.application,
+          classes: it.classes,
+          validate: await getResource(it.validator)
+        }))
+      )
+    }
+    return await this.validators
+  }
+
+  /**
+   * Module validators decide on transactions of their classes while the guest has an active policy of the module.
+   */
+  private async validateByModule (
+    ctx: MeasureContext,
+    tx: TxCUD<Doc>,
+    account: Account,
+    policies: GuestClassPermissionPolicy[],
+    scope: GuestTxScope
+  ): Promise<GuestTxDecision> {
+    const applications = new Set(policies.map((it) => it.application).filter((it) => it !== undefined))
+    if (applications.size === 0) return undefined
+    const h = this.context.hierarchy
+    const validators = (await this.getValidators()).filter(
+      (it) => applications.has(it.application) && it.classes.some((_class) => h.isDerived(tx.objectClass, _class))
+    )
+    if (validators.length === 0) return undefined
+
+    const person = (await this.findAll(ctx, contact.class.Person, { personUuid: account.uuid }, { limit: 1 }))[0]
+    const control = {
+      ctx,
+      account,
+      hierarchy: h,
+      findAll: async <T extends Doc>(_class: Ref<Class<T>>, query: DocumentQuery<T>, options?: FindOptions<T>) =>
+        await this.findAll(ctx, _class, query, options),
+      person: person?._id,
+      canRead: async (doc: Doc) => await this.canGuestRead(ctx, doc, account),
+      applyTxes: scope.applyTxes
+    }
+    let result: GuestTxDecision
+    for (const validator of validators) {
+      const decision = await validator.validate(tx, control)
+      if (decision === 'deny') return 'deny'
+      if (decision === 'allow') result = 'allow'
+    }
+    return result
+  }
+
+  private async isForbiddenTx (
+    ctx: MeasureContext,
+    tx: TxCUD<Doc>,
+    account: Account,
+    scope: GuestTxScope
+  ): Promise<boolean> {
+    const policies = await this.getPolicies(ctx, account)
+
+    if (tx.objectClass === core.class.CustomSequence) {
+      // Sequences never use the generic own-document rule.
+      return !(await this.isAllowedSequenceTx(ctx, tx, policies, scope))
+    }
+
+    const decision = await this.validateByModule(ctx, tx, account, policies, scope)
+    if (decision === 'allow') return false
+    if (decision === 'deny') return true
+
+    if (tx._class === core.class.TxMixin) {
+      const mixinTx = tx as TxMixin<Doc, Doc>
+      if (this.isCreationMixinAllowed(mixinTx, scope)) return false
+      // Creation mixins must be explicitly allowed.
+      if (scope.createdTargets.has(tx.objectId)) return true
+      const restricting = await this.getRestrictingPolicies(
+        ctx,
+        tx,
+        policies,
+        (policy) => policy.guestUpdateMixinAttributes !== undefined
+      )
+      if (restricting.doc === undefined || restricting.policies.length === 0) return false
+      return !this.isWhitelistedOwnUpdate(
+        tx,
+        restricting.doc,
+        account,
+        restricting.policies.map((policy) => policy.guestUpdateMixinAttributes?.get(mixinTx.mixin))
+      )
+    }
+
     if (tx._class === core.class.TxCreateDoc) {
-      const cache = await this.getPermissionsCache(ctx)
-      const roleAllowedClasses = cache.roleAllowedClasses.get(account.role) ?? new Set<Ref<Class<Doc>>>()
-      const coveredClass = this.getCoveredClass(tx.objectClass, roleAllowedClasses)
-      if (coveredClass !== undefined) {
+      const createTx = tx as TxCreateDoc<Doc>
+      if ((await this.getCreatePolicies(ctx, createTx, policies, scope)).length > 0) return false
+      const spaceRelatedClasses = scope.relatedCreates.get(tx.objectSpace)
+      if (
+        spaceRelatedClasses !== undefined &&
+        this.getCoveredClass(tx.objectClass, spaceRelatedClasses) !== undefined
+      ) {
         return false
       }
-      // Uncovered class: fall through to TxAccessLevel check.
+      if (await this.isGuestRelatedCreateOnOwnDoc(ctx, createTx, account, policies, scope)) return false
+    }
+
+    if (
+      tx._class === core.class.TxUpdateDoc &&
+      (await this.isAssigneeUpdate(ctx, tx as TxUpdateDoc<Doc>, account, policies))
+    ) {
+      return false
+    }
+
+    if (tx._class === core.class.TxUpdateDoc) {
+      const restricting = await this.getRestrictingPolicies(
+        ctx,
+        tx,
+        policies,
+        (policy) => policy.guestUpdateAttributes !== undefined
+      )
+      if (restricting.doc !== undefined && restricting.policies.length > 0) {
+        if (
+          this.isWhitelistedOwnUpdate(
+            tx,
+            restricting.doc,
+            account,
+            restricting.policies.map((it) => it.guestUpdateAttributes)
+          )
+        ) {
+          return false
+        }
+        return !(await this.hasMixinAccessLevel(ctx, tx, account))
+      }
     }
 
     if (await this.hasMixinAccessLevel(ctx, tx, account)) {
@@ -218,6 +574,57 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     }
 
     return true
+  }
+
+  private async isAllowedSequenceTx (
+    ctx: MeasureContext,
+    tx: TxCUD<Doc>,
+    policies: GuestClassPermissionPolicy[],
+    scope: GuestTxScope
+  ): Promise<boolean> {
+    const namespaces = new Set(policies.flatMap((policy) => Array.from(policy.sequenceNamespaces)))
+    if (namespaces.size === 0 || tx.objectSpace !== core.space.Workspace) return false
+
+    if (tx._class === core.class.TxCreateDoc) {
+      const attributes = (tx as TxCreateDoc<CustomSequence>).attributes
+      const keys = Object.keys(attributes)
+      return (
+        keys.length === 5 &&
+        keys.every((key) => ['attachedTo', 'namespace', 'scope', 'prefix', 'sequence'].includes(key)) &&
+        attributes.attachedTo === core.class.CustomSequence &&
+        attributes.namespace !== undefined &&
+        namespaces.has(attributes.namespace) &&
+        typeof attributes.prefix === 'string' &&
+        typeof attributes.scope === 'string' &&
+        attributes.sequence === 0 &&
+        scope.sequenceGuards.has(sequenceGuardKey(attributes.namespace, attributes.scope, attributes.prefix))
+      )
+    }
+    if (tx._class !== core.class.TxUpdateDoc) return false
+
+    const operations = (tx as TxUpdateDoc<CustomSequence>).operations as Record<string, unknown>
+    if (Object.keys(operations).length !== 1) return false
+    const increment = operations.$inc as Record<string, unknown> | undefined
+    const step = increment?.sequence
+    // Allocation may catch a lagging sequence up in one increment.
+    if (
+      increment === undefined ||
+      Object.keys(increment).length !== 1 ||
+      typeof step !== 'number' ||
+      !Number.isSafeInteger(step) ||
+      step <= 0 ||
+      step > MAX_SEQUENCE_INCREMENT
+    ) {
+      return false
+    }
+
+    const sequence = (await this.findDoc(ctx, core.class.CustomSequence, tx.objectId)) as CustomSequence | undefined
+    return (
+      sequence?.namespace !== undefined &&
+      namespaces.has(sequence.namespace) &&
+      Number.isSafeInteger(sequence.sequence) &&
+      Number.isSafeInteger(sequence.sequence + step)
+    )
   }
 
   private async isForbiddenSpaceTx (ctx: MeasureContext, tx: TxCUD<Space>, account: Account): Promise<boolean> {
@@ -239,15 +646,42 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     return false
   }
 
+  private async isOwnerAccessTx (
+    ctx: MeasureContext,
+    tx: TxCUD<Doc>,
+    account: Account,
+    accessLevel: TxAccessLevel
+  ): Promise<boolean> {
+    const ownerAttribute = accessLevel.ownerAttribute
+    if (ownerAttribute === undefined) return false
+    if (tx._class === core.class.TxUpdateDoc) {
+      const allowed = accessLevel.ownerUpdateAttributes ?? []
+      const updated = getUpdatedAttributes((tx as TxUpdateDoc<Doc>).operations as Record<string, unknown>)
+      if (updated === undefined || !Array.from(updated).every((attribute) => allowed.includes(attribute))) {
+        return false
+      }
+    } else if (tx._class !== core.class.TxRemoveDoc || accessLevel.ownerRemove !== true) {
+      return false
+    }
+    const doc = await this.findDoc(ctx, tx.objectClass, tx.objectId)
+    if (doc === undefined || doc.space !== tx.objectSpace) return false
+    return (doc as unknown as Record<string, unknown>)[ownerAttribute] === account.uuid
+  }
+
   private async hasMixinAccessLevel (ctx: MeasureContext, tx: TxCUD<Doc>, account: Account): Promise<boolean> {
     const h = this.context.hierarchy
     const accessLevelMixin = h.classHierarchyMixin(tx.objectClass, core.mixin.TxAccessLevel)
     if (accessLevelMixin === undefined) return false
+    if (await this.isOwnerAccessTx(ctx, tx, account, accessLevelMixin)) return true
     if (tx._class === core.class.TxCreateDoc) {
-      return accessLevelMixin.createAccessLevel === AccountRole.Guest
+      return (
+        accessLevelMixin.createAccessLevel !== undefined && hasAccountRole(account, accessLevelMixin.createAccessLevel)
+      )
     }
     if (tx._class === core.class.TxRemoveDoc) {
-      return accessLevelMixin.removeAccessLevel === AccountRole.Guest
+      return (
+        accessLevelMixin.removeAccessLevel !== undefined && hasAccountRole(account, accessLevelMixin.removeAccessLevel)
+      )
     }
     if (tx._class === core.class.TxUpdateDoc) {
       if (accessLevelMixin.isIdentity === true && account.socialIds.includes(tx.objectId as unknown as PersonId)) {
@@ -255,11 +689,12 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
       }
       if (accessLevelMixin.isIdentity === true && h.isDerived(tx.objectClass, contact.class.Person)) {
         const person = (await this.findAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0] as
-          | Person
-          | undefined
+          Person | undefined
         return person?.personUuid === account.uuid
       }
-      return accessLevelMixin.updateAccessLevel === AccountRole.Guest
+      return (
+        accessLevelMixin.updateAccessLevel !== undefined && hasAccountRole(account, accessLevelMixin.updateAccessLevel)
+      )
     }
     return false
   }

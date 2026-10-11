@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,7 @@ import { TMethod, TProcessFunction, TTrigger } from '@hcengineering/model-proces
 import type { Resource } from '@hcengineering/platform'
 import process, { ExecutionStatus } from '@hcengineering/process'
 import serverCore from '@hcengineering/server-core'
+import integration from '@hcengineering/integration'
 import serverProcess, {
   type RollbackFunc,
   type ExecuteFunc,
@@ -49,6 +51,29 @@ export class TTriggerImpl extends TTrigger implements TriggerImpl {
 
 export function createModel (builder: Builder): void {
   builder.createModel(TMethodImpl, TFuncImpl, TTriggerImpl)
+
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: process.class.ProcessToDo,
+    find: serverProcess.workspaceApi.FindProcessToDos,
+    get: serverProcess.workspaceApi.GetProcessToDo,
+    patch: serverProcess.workspaceApi.PatchProcessToDo
+  })
+
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: process.class.Execution,
+    commands: {
+      'emit-event': serverProcess.workspaceApi.EmitProcessEvent
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverProcess.trigger.OnRelationChange,
+    isAsync: true,
+    txMatch: {
+      _class: { $in: [core.class.TxCreateDoc, core.class.TxUpdateDoc, core.class.TxRemoveDoc] },
+      objectClass: core.class.Relation
+    }
+  })
 
   builder.mixin(process.trigger.OnToDoClose, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
     serverCheckFunc: serverProcess.func.CheckToDoDone,
@@ -89,9 +114,26 @@ export function createModel (builder: Builder): void {
     preventRollback: true
   })
 
-  // builder.mixin(process.trigger.OnEvent, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
-  //   serverCheckFunc: serverProcess.func.EventCheck
-  // })
+  builder.mixin(process.trigger.OnNewVersion, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true
+  })
+
+  builder.mixin(process.trigger.OnVersionEffective, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true
+  })
+
+  builder.mixin(process.trigger.OnVersionIneffective, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true
+  })
+
+  builder.mixin(process.trigger.OnEvent, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    serverCheckFunc: serverProcess.func.EventCheck
+  })
+
+  builder.mixin(process.trigger.WhenRelationChanges, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
+    preventRollback: true,
+    serverCheckFunc: serverProcess.func.RelationChangedCheck
+  })
 
   builder.mixin(process.trigger.OnTime, process.class.Trigger, serverProcess.mixin.TriggerImpl, {
     preventRollback: true,
@@ -120,8 +162,44 @@ export function createModel (builder: Builder): void {
     func: serverProcess.func.CreateToDo
   })
 
+  builder.mixin(process.method.RequestAttachments, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.RequestAttachments
+  })
+
+  builder.mixin(process.method.CreateAction, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.CreateAction
+  })
+
+  builder.mixin(process.method.UpdateContext, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.UpdateContext
+  })
+
+  builder.mixin(process.method.RemoveRelation, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.RemoveRelation
+  })
+
+  builder.mixin(process.method.SetContext, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.SetContext
+  })
+
   builder.mixin(process.method.UpdateCard, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.UpdateCard
+  })
+
+  builder.mixin(process.method.MakeVersionEffective, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.MakeVersionEffective
+  })
+
+  builder.mixin(process.method.CreateNewVersion, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.CreateNewVersion
+  })
+
+  builder.mixin(process.method.DisableVersionCreation, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.DisableVersionCreation
+  })
+
+  builder.mixin(process.method.EnableVersionCreation, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.EnableVersionCreation
   })
 
   builder.mixin(process.method.CreateCard, process.class.Method, serverProcess.mixin.MethodImpl, {
@@ -130,6 +208,10 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(process.method.AddRelation, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.AddRelation
+  })
+
+  builder.mixin(process.method.RemoveTag, process.class.Method, serverProcess.mixin.MethodImpl, {
+    func: serverProcess.func.RemoveTag
   })
 
   builder.mixin(process.method.AddTag, process.class.Method, serverProcess.mixin.MethodImpl, {
@@ -166,6 +248,14 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(process.method.UnlockField, process.class.Method, serverProcess.mixin.MethodImpl, {
     func: serverProcess.func.UnlockField
+  })
+
+  builder.mixin(process.function.ArrayLength, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.ArrayLength
+  })
+
+  builder.mixin(process.function.RelationCount, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.RelationCount
   })
 
   builder.mixin(process.function.FirstValue, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
@@ -268,6 +358,14 @@ export function createModel (builder: Builder): void {
     func: serverProcess.transform.Append
   })
 
+  builder.mixin(process.function.PrependMarkup, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.PrependMarkup
+  })
+
+  builder.mixin(process.function.AppendMarkup, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.AppendMarkup
+  })
+
   builder.mixin(process.function.Replace, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.Replace
   })
@@ -348,6 +446,10 @@ export function createModel (builder: Builder): void {
     func: serverProcess.transform.RoleContext
   })
 
+  builder.mixin(process.function.TableFromRelation, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.TableFromRelation
+  })
+
   builder.mixin(process.function.CurrentDate, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.CurrentDate
   })
@@ -386,6 +488,10 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(process.function.FirstMatchValue, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.FirstMatchValue
+  })
+
+  builder.mixin(process.function.AllMatchValue, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.AllMatchValue
   })
 
   builder.mixin(process.function.Filter, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {

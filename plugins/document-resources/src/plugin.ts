@@ -15,6 +15,12 @@
 
 import { type Client, type Doc, type Ref } from '@hcengineering/core'
 import document, { documentId, type Document } from '@hcengineering/document'
+import type {
+  CanCreateIntegrationTarget,
+  CreateIntegrationTarget,
+  GetIntegrationTargetAllowedSpaceClasses,
+  UpdateIntegrationTarget
+} from '@hcengineering/integration'
 import { mergeIds, type IntlString, type Resource } from '@hcengineering/platform'
 import { type AnyComponent, type Location } from '@hcengineering/ui/src/types'
 
@@ -30,7 +36,11 @@ export default mergeIds(documentId, document, {
     DocumentTitleProvider: '' as Resource<<T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<string>>,
     GetObjectLinkFragment: '' as Resource<(doc: Doc, props: Record<string, any>) => Promise<Location>>,
     GetDocumentLinkId: '' as Resource<(doc: Doc) => Promise<string>>,
-    ParseDocumentId: '' as Resource<(id: string) => Promise<Ref<Document> | undefined>>
+    ParseDocumentId: '' as Resource<(id: string) => Promise<Ref<Document> | undefined>>,
+    CreateIntegrationTarget: '' as Resource<CreateIntegrationTarget>,
+    UpdateIntegrationTarget: '' as Resource<UpdateIntegrationTarget>,
+    CanCreateIntegrationTarget: '' as Resource<CanCreateIntegrationTarget>,
+    GetIntegrationTargetAllowedSpaceClasses: '' as Resource<GetIntegrationTargetAllowedSpaceClasses>
   },
   string: {
     DocumentNamePlaceholder: '' as IntlString,

@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 
 import type { Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
+import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import { ObjectDDParticipantFunc, TriggerFunc } from '@hcengineering/server-core'
 import { NotificationContentProvider, Presenter, TypeMatchFunc } from '@hcengineering/server-notification'
 
@@ -31,7 +33,10 @@ export default plugin(serverChunterId, {
     ChunterTrigger: '' as Resource<TriggerFunc>,
     OnChatMessageRemoved: '' as Resource<TriggerFunc>,
     ChatNotificationsHandler: '' as Resource<TriggerFunc>,
-    OnUserStatus: '' as Resource<TriggerFunc>
+    OnUserStatus: '' as Resource<TriggerFunc>,
+    OnDefaultDiscussionUpdated: '' as Resource<TriggerFunc>,
+    OnDefaultDiscussionRenamed: '' as Resource<TriggerFunc>,
+    OnDiscussionOwnerClassChanged: '' as Resource<TriggerFunc>
   },
   function: {
     CommentRemove: '' as Resource<ObjectDDParticipantFunc>,
@@ -40,6 +45,15 @@ export default plugin(serverChunterId, {
     ChunterNotificationContentProvider: '' as Resource<NotificationContentProvider>,
     ChatMessageTextPresenter: '' as Resource<Presenter>,
     ChatMessageHtmlPresenter: '' as Resource<Presenter>,
+    DiscussionTextPresenter: '' as Resource<Presenter>,
     JoinChannelTypeMatch: '' as TypeMatchFunc
+  },
+  workspaceApi: {
+    GetLegacyComments: '' as Resource<WorkspaceApiOperation>,
+    CreateLegacyComment: '' as Resource<WorkspaceApiOperation>,
+    GetChannelMessages: '' as Resource<WorkspaceApiOperation>,
+    CreateChannelMessage: '' as Resource<WorkspaceApiOperation>,
+    GetChannelMessagesByName: '' as Resource<WorkspaceApiOperation>,
+    CreateChannelMessageByName: '' as Resource<WorkspaceApiOperation>
   }
 })

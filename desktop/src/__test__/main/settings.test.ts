@@ -101,7 +101,7 @@ describe('Settings', () => {
 
       const result = systemUnderTest.readServerUrl()
 
-      expect(result).toBe('https://huly.app')
+      expect(result).toBe('https://app.tracex.co')
     })
 
     test('all (store, packed config, environment) options are available', () => {

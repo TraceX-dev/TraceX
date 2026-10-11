@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,40 +16,16 @@
 
 import activity from '@hcengineering/activity'
 import card, { Card, cardId, MasterTag, Tag } from '@hcengineering/card'
-import communication, { Direct } from '@hcengineering/communication'
-import {
-  AddCollaboratorsEvent,
-  CardEventType,
-  CreatePeerEvent,
-  MessageEventType,
-  NotificationEventType,
-  PeerEventType,
-  RemoveCardEvent,
-  ThreadPatchEvent,
-  UpdateCardTypeEvent
-} from '@hcengineering/communication-sdk-types'
-import { CardPeer } from '@hcengineering/communication-types'
-import contact, { Employee, formatName, Person } from '@hcengineering/contact'
 import core, {
-  AccountUuid,
   AnyAttribute,
-  ArrOf,
   Class,
   concatLink,
   Data,
   Doc,
-  DocumentUpdate,
   fillDefaults,
-  generateId,
   getDiffUpdate,
   Mixin,
-  MixinUpdate,
-  notEmpty,
-  OperationDomain,
-  PersonId,
   Ref,
-  RefTo,
-  Space,
   splitMixinUpdate,
   Tx,
   TxCreateDoc,
@@ -58,11 +35,87 @@ import core, {
   TxUpdateDoc
 } from '@hcengineering/core'
 import { getMetadata, translate } from '@hcengineering/platform'
-import { getEmployee, getPersonSpaces } from '@hcengineering/server-contact'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import setting from '@hcengineering/setting'
-import view from '@hcengineering/view'
+import view, { type BuildModelKey, type Viewlet } from '@hcengineering/view'
 import { workbenchId } from '@hcengineering/workbench'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getCommentBackend,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
+
+type ViewletConfigItem = BuildModelKey | string
+interface IndexedViewletConfigItem {
+  item: ViewletConfigItem
+  index: number
+}
+
+function getViewletConfigKey (item: ViewletConfigItem): string {
+  return typeof item === 'string' ? item : item.key
+}
+
+function getAttributeKey (key: string): string {
+  if (key.startsWith('$lookup.')) {
+    return key.slice('$lookup.'.length)
+  }
+  const dotIndex = key.lastIndexOf('.')
+  return dotIndex === -1 ? key : key.slice(dotIndex + 1)
+}
+
+function isSourceAttribute (control: TriggerControl, sourceClass: Ref<Class<Doc>>, key: string): boolean {
+  return control.hierarchy.getAllAttributes(sourceClass).has(getAttributeKey(key))
+}
+
+function syncViewletConfigOrder (
+  control: TriggerControl,
+  sourceClass: Ref<Class<Doc>>,
+  previousSourceConfig: ViewletConfigItem[],
+  sourceConfig: ViewletConfigItem[],
+  targetConfig: ViewletConfigItem[]
+): ViewletConfigItem[] {
+  const sourceKeys = new Set(sourceConfig.map(getViewletConfigKey))
+  const previousSourceKeys = new Set(previousSourceConfig.map(getViewletConfigKey))
+  const targetByKey = new Map<string, IndexedViewletConfigItem[]>()
+  for (const [index, item] of targetConfig.entries()) {
+    const key = getViewletConfigKey(item)
+    const items = targetByKey.get(key) ?? []
+    items.push({ item, index })
+    targetByKey.set(key, items)
+  }
+
+  const sourceItems: ViewletConfigItem[] = []
+  const usedIndexes = new Set<number>()
+  for (const sourceItem of sourceConfig) {
+    const key = getViewletConfigKey(sourceItem)
+    const targetItem = targetByKey.get(key)?.shift()
+    const item = targetItem?.item ?? sourceItem
+    sourceItems.push(item)
+    if (targetItem !== undefined) {
+      usedIndexes.add(targetItem.index)
+    }
+  }
+
+  const synced = [...sourceItems]
+  for (const [index, targetItem] of targetConfig.entries()) {
+    if (usedIndexes.has(index)) continue
+
+    const key = getViewletConfigKey(targetItem)
+    if (!sourceKeys.has(key) && (previousSourceKeys.has(key) || isSourceAttribute(control, sourceClass, key))) {
+      continue
+    }
+
+    synced.splice(Math.min(index, synced.length), 0, targetItem)
+  }
+
+  return synced
+}
+
+function isConfigOrderChanged (current: ViewletConfigItem[], next: ViewletConfigItem[]): boolean {
+  return current.length !== next.length || current.some((item, index) => item !== next[index])
+}
 
 async function OnAttribute (ctx: TxCreateDoc<AnyAttribute>[], control: TriggerControl): Promise<Tx[]> {
   const attr = TxProcessor.createDoc2Doc(ctx[0])
@@ -157,6 +210,47 @@ async function OnAttributeRemove (ctx: TxRemoveDoc<AnyAttribute>[], control: Tri
     return res
   }
   return []
+}
+
+async function OnViewletUpdate (ctx: TxUpdateDoc<Viewlet>[], control: TriggerControl): Promise<Tx[]> {
+  const updateTx = ctx[0]
+  if (updateTx.space === core.space.DerivedTx) return []
+  if (!Array.isArray(updateTx.operations.config)) return []
+
+  const sourceViewlet = (await control.findAll<Viewlet>(control.ctx, view.class.Viewlet, { _id: updateTx.objectId }))[0]
+  if (sourceViewlet === undefined) return []
+  if (!control.hierarchy.isDerived(sourceViewlet.attachTo, card.class.Card)) return []
+
+  const descendants = control.hierarchy
+    .getDescendants(sourceViewlet.attachTo)
+    .filter((it) => it !== sourceViewlet.attachTo)
+  if (descendants.length === 0) return []
+
+  const childViewlets = await control.findAll<Viewlet>(control.ctx, view.class.Viewlet, {
+    attachTo: { $in: descendants },
+    descriptor: sourceViewlet.descriptor,
+    variant: sourceViewlet.variant ?? { $exists: false }
+  })
+
+  const res: Tx[] = []
+  for (const childViewlet of childViewlets) {
+    const config = syncViewletConfigOrder(
+      control,
+      sourceViewlet.attachTo,
+      sourceViewlet.config,
+      updateTx.operations.config,
+      childViewlet.config
+    )
+    if (!isConfigOrderChanged(childViewlet.config, config)) continue
+
+    res.push(
+      control.txFactory.createTxUpdateDoc(childViewlet._class, childViewlet.space, childViewlet._id, {
+        config
+      })
+    )
+  }
+
+  return res
 }
 
 async function OnMasterTagRemove (ctx: TxUpdateDoc<MasterTag>[], control: TriggerControl): Promise<Tx[]> {
@@ -335,29 +429,6 @@ async function OnCardRemove (ctx: TxRemoveDoc<Card>[], control: TriggerControl):
     res.push(control.txFactory.createTxRemoveDoc(favorite._class, favorite.space, favorite._id))
   }
 
-  const event: RemoveCardEvent = {
-    type: CardEventType.RemoveCard,
-    cardId: removedCard._id,
-    date: new Date(removeTx.createdOn ?? removeTx.modifiedOn),
-    socialId: removedCard.modifiedBy
-  }
-
-  await control.domainRequest(control.ctx, 'communication' as OperationDomain, {
-    event
-  })
-
-  return res
-}
-
-function unwrapPush (push: Record<string, any>): Record<string, any> {
-  const res: Record<string, any> = {}
-  for (const [key, value] of Object.entries(push)) {
-    if (value.$each !== undefined) {
-      res[key] = value.$each
-    } else {
-      res[key] = value
-    }
-  }
   return res
 }
 
@@ -418,22 +489,6 @@ async function OnCardUpdate (ctx: TxUpdateDoc<Card>[], control: TriggerControl):
   if (updateTx.operations.title !== undefined) {
     res.push(...(await updateParentInfoName(control, doc._id, updateTx.operations.title, doc._id)))
   }
-  if ((updateTx.operations as any)._class !== undefined) {
-    const event: UpdateCardTypeEvent = {
-      type: CardEventType.UpdateCardType,
-      cardId: doc._id,
-      cardType: (updateTx.operations as any)._class,
-      socialId: updateTx.createdBy ?? updateTx.modifiedBy,
-      date: new Date(updateTx.createdOn ?? updateTx.modifiedOn)
-    }
-    await control.domainRequest(control.ctx, 'communication' as OperationDomain, {
-      event
-    })
-  }
-
-  res.push(...(await updatePeers(control, doc, updateTx)))
-
-  await updateCollaborators(control, updateTx.operations, doc._class, doc, updateTx.modifiedBy)
 
   const push = (updateTx.operations as any).$push?.readonlySections as Ref<Class<Doc>> | undefined
   const pull = (updateTx.operations as any).$pull?.readonlySections as Ref<Class<Doc>> | undefined
@@ -452,114 +507,6 @@ async function OnCardUpdate (ctx: TxUpdateDoc<Card>[], control: TriggerControl):
       })
     )
   }
-  return res
-}
-
-function getUpdateEmployees (
-  control: TriggerControl,
-  field: string,
-  value: any,
-  _class: Ref<Class<Doc>>
-): Ref<Employee>[] | undefined {
-  const res: Ref<Employee>[] = []
-  const attr = control.hierarchy.findAttribute(_class, field)
-  if (attr === undefined) return
-  const parentType = attr.type._class === core.class.ArrOf ? (attr.type as ArrOf<Doc>).of : attr.type
-  if (parentType._class !== core.class.RefTo) return
-  const to = (parentType as RefTo<Doc>).to
-  if (control.hierarchy.isDerived(to, contact.mixin.Employee)) {
-    if (value != null) {
-      if (Array.isArray(value)) {
-        for (const val of value) {
-          res.push(val)
-        }
-      } else {
-        res.push(value)
-      }
-    }
-  }
-  return res
-}
-
-async function addCollaborators (
-  collaboratorRefs: Set<Ref<Employee>>,
-  control: TriggerControl,
-  doc: Card,
-  modifiedBy: PersonId
-): Promise<void> {
-  if (collaboratorRefs.size > 0) {
-    const employees = await control.findAll(control.ctx, contact.mixin.Employee, {
-      _id: { $in: [...collaboratorRefs] }
-    })
-    const collaborators = employees.map((p) => p.personUuid).filter((p) => p != null)
-    const event: AddCollaboratorsEvent = {
-      type: NotificationEventType.AddCollaborators,
-      cardId: doc._id,
-      cardType: doc._class,
-      collaborators,
-      socialId: modifiedBy
-    }
-    await control.domainRequest(control.ctx, 'communication' as OperationDomain, {
-      event
-    })
-  }
-}
-
-async function updateCollaborators (
-  control: TriggerControl,
-  ops: MixinUpdate<Card, Card> | DocumentUpdate<Card>,
-  _class: Ref<Class<Doc>>,
-  doc: Card,
-  modifiedBy: PersonId
-): Promise<void> {
-  const collaboratorRefs = new Set<Ref<Employee>>()
-
-  for (const [field, value] of Object.entries(ops)) {
-    if (field === '$push') {
-      const unwrap = unwrapPush(value)
-      for (const [field, value] of Object.entries(unwrap)) {
-        const col = getUpdateEmployees(control, field, value, _class)
-        if (col !== undefined) {
-          col.map((p) => collaboratorRefs.add(p))
-        }
-      }
-    }
-    if (field.startsWith('$')) continue
-    const col = getUpdateEmployees(control, field, value, _class)
-    if (col !== undefined) {
-      col.map((p) => collaboratorRefs.add(p))
-    }
-  }
-  await addCollaborators(collaboratorRefs, control, doc, modifiedBy)
-}
-
-async function updatePeers (control: TriggerControl, doc: Card, updateTx: TxUpdateDoc<Card>): Promise<Tx[]> {
-  if (updateTx.space === core.space.DerivedTx) return []
-  const isDirect = control.hierarchy.isDerived(doc._class, communication.type.Direct)
-  const isThreadFromDirect = (doc.parentInfo ?? []).some((it) =>
-    control.hierarchy.isDerived(it._class, communication.type.Direct)
-  )
-
-  if (!isDirect && !isThreadFromDirect) return []
-
-  delete updateTx.operations.title
-  delete updateTx.operations.parentInfo
-  delete updateTx.operations.parent
-  delete updateTx.operations.$inc
-
-  const peers = (
-    (
-      await control.domainRequest(control.ctx, 'communication' as OperationDomain, {
-        findPeers: { params: { kind: 'card', cardId: doc._id } }
-      })
-    ).value as CardPeer[]
-  ).flatMap((it) => it.members)
-
-  const res: Tx[] = []
-  for (const peer of peers) {
-    res.push(control.txFactory.createTxUpdateDoc(doc._class, peer.extra.space, peer.cardId, updateTx.operations))
-  }
-
   return res
 }
 
@@ -586,223 +533,6 @@ async function updateParentInfoName (
     )
     res.push(...(await updateParentInfoName(control, child._id, title, originParent)))
   }
-  return res
-}
-
-async function OnThreadCreate (ctx: TxCreateDoc<Card>[], control: TriggerControl): Promise<Tx[]> {
-  const res: Tx[] = []
-  for (const tx of ctx) {
-    const doc = TxProcessor.createDoc2Doc(tx)
-    if (doc.peerId != null) continue
-    const parent = doc.parentInfo?.[0]
-    if (parent == null) continue
-    if (!control.hierarchy.isDerived(parent._class, communication.type.Direct)) continue
-    const direct = (await control.findAll(control.ctx, parent._class, { _id: parent._id }, { limit: 1 }))[0] as Direct
-    if (direct == null) continue
-
-    const peerId = generateId()
-
-    res.push(control.txFactory.createTxUpdateDoc(doc._class, doc.space, doc._id, { peerId }))
-    res.push(...(await createThreadCardPeers(direct, doc, control, peerId)))
-  }
-
-  return res
-}
-
-async function createThreadCardPeers (
-  direct: Direct,
-  doc: Card,
-  control: TriggerControl,
-  peerId: string
-): Promise<Tx[]> {
-  const res: Tx[] = []
-  const cardIds = new Map<Ref<Card>, Ref<Space>>([[doc._id, doc.space]])
-  const members = direct.members ?? []
-  if (members.length === 0) return []
-
-  const thread = (
-    await control.domainRequest(control.ctx, 'communication' as OperationDomain, {
-      findThreads: { params: { threadId: doc._id } }
-    })
-  ).value[0]
-  if (thread === undefined) return []
-
-  const messageId = thread.messageId
-  const directPeer = (
-    (
-      await control.domainRequest(control.ctx, 'communication' as OperationDomain, {
-        findPeers: { params: { kind: 'card', cardId: direct._id } }
-      })
-    ).value as CardPeer[]
-  )[0]
-
-  const personSpaces = (await getPersonSpaces(control)).filter(
-    (it) => it._id !== doc.space && members.includes(it.person)
-  )
-  if (personSpaces.length === 0) return []
-  const accounts = (
-    await control.findAll(control.ctx, contact.mixin.Employee, {
-      _id: { $in: personSpaces.map((it) => it.person) as Ref<Employee>[] }
-    })
-  )
-    .map((it) => it.personUuid)
-    .filter(notEmpty)
-  if (accounts.length === 0) return []
-
-  // TODO: create directs in person_workspace
-  for (const personSpace of personSpaces) {
-    const _id = generateId<Card>()
-    const _class = doc._class
-    cardIds.set(_id, personSpace._id)
-    res.push(
-      control.txFactory.createTxCreateDoc(
-        _class,
-        personSpace._id,
-        {
-          ...doc,
-          peerId
-        },
-        _id
-      )
-    )
-
-    const parentDirect = directPeer?.members?.find((m) => m.extra?.space === personSpace._id)
-
-    if (parentDirect !== undefined) {
-      const threadPatchEvent: ThreadPatchEvent = {
-        type: MessageEventType.ThreadPatch,
-        cardId: parentDirect.cardId,
-        messageId,
-        operation: {
-          opcode: 'attach',
-          threadId: _id,
-          threadType: _class
-        },
-        socialId: doc.modifiedBy
-      }
-      await control.domainRequest(control.ctx, 'communication' as OperationDomain, {
-        event: threadPatchEvent
-      })
-    }
-  }
-
-  if (cardIds.size > 1) {
-    let newValue = true
-    for (const [cardId, spaceId] of cardIds.entries()) {
-      const event: CreatePeerEvent = {
-        type: PeerEventType.CreatePeer,
-        workspaceId: control.workspace.uuid, // TODO: person_workspace
-        cardId,
-        kind: 'card',
-        value: peerId,
-        extra: { space: spaceId },
-        date: new Date(doc.modifiedOn),
-        options: { newValue }
-      }
-      await control.domainRequest(control.ctx, 'communication' as OperationDomain, { event })
-      newValue = false
-    }
-  }
-
-  return res
-}
-
-function getDirectTitle (employees: Employee[], me: Ref<Person>): string {
-  if (employees.length === 1) {
-    return employees.map((e) => formatName(e.name)).join(', ')
-  } else {
-    return employees
-      .filter((it) => it._id !== me)
-      .map((e) => formatName(e.name))
-      .join(', ')
-  }
-}
-
-async function createDirectCardPeers (
-  doc: Card,
-  members: Ref<Person>[],
-  control: TriggerControl,
-  peerId: string
-): Promise<Tx[]> {
-  const res: Tx[] = []
-  const cardIds = new Map<Ref<Card>, Ref<Space>>([[doc._id, doc.space]])
-  if (members.length === 0) return []
-
-  const personSpaces = (await getPersonSpaces(control)).filter((it) => members.includes(it.person))
-  if (personSpaces.length <= 1) return []
-  const employees = await control.findAll(control.ctx, contact.mixin.Employee, {
-    _id: { $in: personSpaces.map((it) => it.person) as Ref<Employee>[] }
-  })
-  const accounts = employees.map((it) => it.personUuid).filter(notEmpty)
-  if (accounts.length === 0) return []
-
-  // TODO: create directs in person_workspace
-  for (const personSpace of personSpaces) {
-    if (personSpace._id === doc.space) continue
-    const _id = generateId<Card>()
-    const _class = doc._class
-    cardIds.set(_id, personSpace._id)
-    const title = getDirectTitle(employees, personSpace.person)
-
-    res.push(
-      control.txFactory.createTxCreateDoc(
-        _class,
-        personSpace._id,
-        {
-          ...doc,
-          peerId,
-          title
-        },
-        _id
-      )
-    )
-
-    const event: AddCollaboratorsEvent = {
-      type: NotificationEventType.AddCollaborators,
-      cardId: _id,
-      cardType: _class,
-      collaborators: accounts,
-      socialId: doc.modifiedBy,
-      date: new Date(doc.modifiedOn + 1)
-    }
-
-    await control.domainRequest(control.ctx, 'communication' as OperationDomain, { event })
-  }
-
-  if (cardIds.size > 1) {
-    let newValue = true
-    for (const [cardId, spaceId] of cardIds.entries()) {
-      const event: CreatePeerEvent = {
-        type: PeerEventType.CreatePeer,
-        workspaceId: control.workspace.uuid, // TODO: person_workspace
-        cardId,
-        kind: 'card',
-        value: peerId,
-        extra: { space: spaceId },
-        date: new Date(doc.modifiedOn),
-        options: { newValue }
-      }
-      await control.domainRequest(control.ctx, 'communication' as OperationDomain, { event })
-      newValue = false
-    }
-  }
-
-  return res
-}
-
-async function OnDirectCreate (ctx: TxCreateDoc<Direct>[], control: TriggerControl): Promise<Tx[]> {
-  const res: Tx[] = []
-
-  for (const tx of ctx) {
-    const doc = TxProcessor.createDoc2Doc(tx)
-    if (doc.peerId != null) continue
-    const members = doc.members ?? []
-    const peerId = generateId()
-
-    res.push(control.txFactory.createTxUpdateDoc(doc._class, doc.space, doc._id, { peerId }))
-    res.push(...(await createDirectCardPeers(doc, members, control, peerId)))
-  }
-
   return res
 }
 
@@ -838,42 +568,7 @@ async function OnCardCreate (ctx: TxCreateDoc<Card>[], control: TriggerControl):
     }
   }
 
-  await createCollaborators(control, ctx)
-
   return res
-}
-
-async function createCollaborators (control: TriggerControl, ctx: TxCreateDoc<Card>[]): Promise<void> {
-  for (const tx of ctx) {
-    const modifier = await getEmployee(control, tx.modifiedBy)
-    const collaborators: AccountUuid[] = []
-    if (modifier?.personUuid != null && modifier.active) {
-      collaborators.push(modifier.personUuid)
-    }
-
-    const personSpaces = await getPersonSpaces(control)
-    const personSpace = personSpaces.find((it) => it._id === tx.objectSpace)
-
-    if (personSpace != null && personSpace.person !== modifier?._id) {
-      const spacePerson = (await control.findAll(control.ctx, contact.class.Person, { _id: personSpace.person }))[0]
-      if (spacePerson?.personUuid != null) {
-        collaborators.push(spacePerson.personUuid as AccountUuid)
-      }
-    }
-
-    if (collaborators.length === 0) continue
-    const event: AddCollaboratorsEvent = {
-      type: NotificationEventType.AddCollaborators,
-      cardId: tx.objectId,
-      cardType: tx.objectClass,
-      collaborators,
-      socialId: tx.createdBy ?? tx.modifiedBy,
-      date: new Date((tx.createdOn ?? tx.modifiedOn) + 1)
-    }
-    await control.domainRequest(control.ctx, 'communication' as OperationDomain, {
-      event
-    })
-  }
 }
 
 export async function OnCardTag (ctx: TxMixin<Card, Card>[], control: TriggerControl): Promise<Tx[]> {
@@ -906,7 +601,6 @@ export async function OnCardTag (ctx: TxMixin<Card, Card>[], control: TriggerCon
         res.push(control.txFactory.createTxUpdateDoc(it[0], doc.space, doc._id, it[1]))
       }
     }
-    await updateCollaborators(control, tx.attributes, tx.mixin, doc, tx.modifiedBy)
   }
   return res
 }
@@ -932,19 +626,23 @@ export async function CardHTMLPresenter (doc: Doc, control: TriggerControl): Pro
 export default async () => ({
   function: {
     CardTextPresenter,
-    CardHTMLPresenter
+    CardHTMLPresenter,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses,
+    GetIntegrationTargetCommentBackend: getCommentBackend
   },
   trigger: {
     OnAttribute,
     OnAttributeRemove,
+    OnViewletUpdate,
     OnMasterTagCreate,
     OnMasterTagRemove,
     OnTagRemove,
     OnCardRemove,
     OnCardCreate,
     OnCardUpdate,
-    OnCardTag,
-    OnDirectCreate,
-    OnThreadCreate
+    OnCardTag
   }
 })

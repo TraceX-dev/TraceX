@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,12 +16,13 @@
 
 import type { AnyAttribute, Class, Doc, Obj, Ref } from '../classes'
 import { ClassifierKind, DOMAIN_MODEL } from '../classes'
-import type { TxCreateDoc } from '../tx'
+import type { MixinUpdate, TxCreateDoc } from '../tx'
 import { TxFactory } from '../tx'
 import core from '../component'
 import { Hierarchy } from '../hierarchy'
 import * as Proxy from '../proxy'
 import { genMinModel, test } from './minmodel'
+import { getEmbeddedLabel } from '@hcengineering/platform'
 
 const txes = genMinModel()
 
@@ -62,7 +64,7 @@ describe('hierarchy', () => {
     const data = hierarchy.getClass(core.class.TxCreateDoc)
     expect(data).toMatchObject((txes.find((p) => p.objectId === core.class.TxCreateDoc) as TxCreateDoc<Doc>).attributes)
     const notExistClass = 'class:test.MyClass' as Ref<Class<Obj>>
-    expect(() => hierarchy.getClass(notExistClass)).toThrowError('class not found: ' + notExistClass)
+    expect(() => hierarchy.getClass(notExistClass)).toThrow(`class not found: ${notExistClass}`)
   })
 
   it('getDomain', async () => {
@@ -78,10 +80,10 @@ describe('hierarchy', () => {
     const hierarchy = prepare()
 
     hierarchy.as(txes[0], test.mixin.TestMixin)
-    expect(spyProxy).toBeCalledTimes(1)
+    expect(spyProxy).toHaveBeenCalledTimes(1)
 
     hierarchy.as(txes[0], test.mixin.TestMixin)
-    expect(spyProxy).toBeCalledTimes(1)
+    expect(spyProxy).toHaveBeenCalledTimes(1)
 
     spyProxy.mockReset()
     spyProxy.mockRestore()
@@ -90,20 +92,20 @@ describe('hierarchy', () => {
   it('should call static methods', async () => {
     const spyToDoc = jest.spyOn(Proxy, '_toDoc')
     Hierarchy.toDoc(txes[0])
-    expect(spyToDoc).toBeCalledTimes(1)
+    expect(spyToDoc).toHaveBeenCalledTimes(1)
     spyToDoc.mockReset()
     spyToDoc.mockRestore()
 
     const spyMixinClass = jest.spyOn(Proxy, '_mixinClass')
     Hierarchy.mixinClass(txes[0])
-    expect(spyMixinClass).toBeCalledTimes(1)
+    expect(spyMixinClass).toHaveBeenCalledTimes(1)
 
     spyMixinClass.mockImplementationOnce(() => undefined).mockImplementationOnce(() => test.mixin.TestMixin)
     let result = Hierarchy.mixinOrClass(txes[0])
     expect(result).toStrictEqual(txes[0]._class)
     result = Hierarchy.mixinOrClass(txes[0])
     expect(result).toStrictEqual(test.mixin.TestMixin)
-    expect(spyMixinClass).toBeCalledTimes(3)
+    expect(spyMixinClass).toHaveBeenCalledTimes(3)
 
     spyMixinClass.mockReset()
     spyMixinClass.mockRestore()
@@ -364,7 +366,7 @@ describe('hierarchy', () => {
     expect(withStateInterface._id).toBe(test.interface.WithState)
 
     // Should throw for non-existent
-    expect(() => hierarchy.getClassOrInterface('class:NonExistent' as Ref<Class<Obj>>)).toThrowError(
+    expect(() => hierarchy.getClassOrInterface('class:NonExistent' as Ref<Class<Obj>>)).toThrow(
       'class not found: class:NonExistent'
     )
   })
@@ -377,12 +379,12 @@ describe('hierarchy', () => {
     expect(withStateInterface._id).toBe(test.interface.WithState)
 
     // Should throw for non-existent interface
-    expect(() => hierarchy.getInterface('interface:NonExistent' as any)).toThrowError(
+    expect(() => hierarchy.getInterface('interface:NonExistent' as any)).toThrow(
       'interface not found: interface:NonExistent'
     )
 
     // Should throw for class (not interface)
-    expect(() => hierarchy.getInterface(core.class.Space as any)).toThrowError()
+    expect(() => hierarchy.getInterface(core.class.Space as any)).toThrow()
   })
 
   it('should handle isMixin correctly', async () => {
@@ -525,7 +527,7 @@ describe('hierarchy', () => {
     const hierarchy = prepare()
 
     // Should throw for non-existent attribute
-    expect(() => hierarchy.getAttribute(core.class.Space, 'nonExistentAttr')).toThrowError(
+    expect(() => hierarchy.getAttribute(core.class.Space, 'nonExistentAttr')).toThrow(
       'attribute not found: nonExistentAttr'
     )
   })
@@ -607,16 +609,14 @@ describe('hierarchy', () => {
     const hierarchy = prepare()
 
     // Should throw for non-existent class
-    expect(() => hierarchy.getAncestors('class:NonExistent' as any)).toThrowError(
-      'ancestors not found: class:NonExistent'
-    )
+    expect(() => hierarchy.getAncestors('class:NonExistent' as any)).toThrow('ancestors not found: class:NonExistent')
   })
 
   it('should handle getDescendants error case', async () => {
     const hierarchy = prepare()
 
     // Should throw for non-existent class
-    expect(() => hierarchy.getDescendants('class:NonExistent' as any)).toThrowError(
+    expect(() => hierarchy.getDescendants('class:NonExistent' as any)).toThrow(
       'descendants not found: class:NonExistent'
     )
   })
@@ -625,7 +625,7 @@ describe('hierarchy', () => {
     const hierarchy = prepare()
 
     // Should throw for class without domain
-    expect(() => hierarchy.getDomain('class:NonExistent' as any)).toThrowError('domain not found: class:NonExistent')
+    expect(() => hierarchy.getDomain('class:NonExistent' as any)).toThrow('domain not found: class:NonExistent')
   })
 
   it('should handle static hasMixin correctly', async () => {
@@ -816,11 +816,11 @@ describe('hierarchy', () => {
     // Create a TxMixin transaction
     const txFactory = new TxFactory(core.account.System)
     const mixinTx = txFactory.createTxMixin(
-      core.class.Space as any,
-      core.class.Class as any,
+      core.class.Space,
+      core.class.Class,
       core.space.Model,
       test.mixin.TestMixin,
-      { arr: ['test'] }
+      { arr: ['test'] } as unknown as MixinUpdate<Class<Obj>, Class<Obj>>
     )
 
     // Apply the mixin transaction
@@ -925,6 +925,42 @@ describe('hierarchy', () => {
     expect(spaceClass.label).toBe('Updated Space' as any)
   })
 
+  it('should update the hierarchy when a classifier parent changes', async () => {
+    const hierarchy = prepare()
+    const txFactory = new TxFactory(core.account.System)
+    const parentA = 'class:test.ParentA' as Ref<Class<Obj>>
+    const parentB = 'class:test.ParentB' as Ref<Class<Obj>>
+    const child = 'class:test.Child' as Ref<Class<Obj>>
+    const grandchild = 'class:test.Grandchild' as Ref<Class<Obj>>
+
+    for (const [id, parent] of [
+      [parentA, core.class.Doc],
+      [parentB, core.class.Doc],
+      [child, parentA],
+      [grandchild, child]
+    ] as Array<[Ref<Class<Obj>>, Ref<Class<Obj>>]>) {
+      hierarchy.tx(
+        txFactory.createTxCreateDoc(
+          core.class.Class,
+          core.space.Model,
+          { label: getEmbeddedLabel(id), extends: parent, kind: ClassifierKind.CLASS },
+          id
+        )
+      )
+    }
+
+    hierarchy.tx(txFactory.createTxUpdateDoc(core.class.Class, core.space.Model, child, { extends: parentB }))
+
+    expect(hierarchy.getAncestors(child)).toContain(parentB)
+    expect(hierarchy.getAncestors(child)).not.toContain(parentA)
+    expect(hierarchy.getAncestors(grandchild)).toContain(parentB)
+    expect(hierarchy.getAncestors(grandchild)).not.toContain(parentA)
+    expect(hierarchy.getDescendants(parentA)).not.toContain(child)
+    expect(hierarchy.getDescendants(parentA)).not.toContain(grandchild)
+    expect(hierarchy.getDescendants(parentB)).toContain(child)
+    expect(hierarchy.getDescendants(parentB)).toContain(grandchild)
+  })
+
   it('should handle txRemoveDoc with Classifier', async () => {
     const hierarchy = new Hierarchy()
     // Build basic hierarchy
@@ -992,7 +1028,7 @@ describe('hierarchy', () => {
       }
     }
 
-    const result = hierarchy.updateLookupMixin(test.class.Task, doc as any, options as any)
+    const result = hierarchy.updateLookupMixin(test.class.Task, doc as any, options)
     expect(result).toBeDefined()
     expect(result.$lookup).toBeDefined()
   })
@@ -1029,7 +1065,7 @@ describe('hierarchy', () => {
       }
     }
 
-    const result = hierarchy.updateLookupMixin(test.class.Task, doc as any, options as any)
+    const result = hierarchy.updateLookupMixin(test.class.Task, doc as any, options)
     expect(result).toBeDefined()
   })
 
@@ -1091,7 +1127,7 @@ describe('hierarchy', () => {
       }
     }
 
-    const result = hierarchy.updateLookupMixin(test.class.Task, doc as any, options as any)
+    const result = hierarchy.updateLookupMixin(test.class.Task, doc as any, options)
     expect(result).toBeDefined()
     expect(result.$lookup?.space).toBeNull()
   })

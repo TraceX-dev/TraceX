@@ -1,5 +1,7 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,6 +19,7 @@ import {
   type AccountUuid,
   type Branding,
   concatLink,
+  docGuestAccountUuid,
   generateId,
   groupByArray,
   isActiveMode,
@@ -35,7 +38,6 @@ import {
   type WorkspaceMode,
   type WorkspaceUuid
 } from '@hcengineering/core'
-import { getMongoClient } from '@hcengineering/mongo' // TODO: get rid of this import later
 import platform, { getMetadata, PlatformError, Severity, Status, translate } from '@hcengineering/platform'
 import { getDBClient, setDBExtraOptions } from '@hcengineering/postgres'
 import { pbkdf2Sync, randomBytes } from 'crypto'
@@ -44,8 +46,9 @@ import { authenticator } from 'otplib'
 
 import { Analytics } from '@hcengineering/analytics'
 import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } from '@hcengineering/server-token'
-import { MongoAccountDB } from './collections/mongo'
 import { PostgresAccountDB } from './collections/postgres/postgres'
+import { getEmailAppName, renderAccountEmail } from './emails'
+import { guardGuestMethod, type GuestAccessPolicy } from './guestAccess'
 import { accountPlugin } from './plugin'
 import {
   type Account,
@@ -58,6 +61,7 @@ import {
   type LoginInfoRequestData,
   type Meta,
   type Operations,
+  type OTP,
   type OtpInfo,
   type RegionInfo,
   type SocialId,
@@ -66,96 +70,46 @@ import {
   type WorkspaceInvite,
   type WorkspaceJoinInfo,
   type WorkspaceLoginInfo,
-  type WorkspaceStatus,
-  type DBFlavor
+  type WorkspaceStatus
 } from './types'
 import { isAdminEmail } from './admin'
-import { type Sql } from 'postgres'
 
-export const GUEST_ACCOUNT = 'b6996120-416f-49cd-841e-e4a5d2e49c9b' as PersonUuid
-
-export async function getDbFlavor (pgClient: Sql<any>): Promise<DBFlavor> {
-  // Run the version query
-  const [{ version }] = await pgClient`SELECT version()`
-
-  // CockroachDB’s string contains “Cockroach” (case‑insensitive)
-  if (/cockroach/i.test(version)) {
-    return 'cockroach'
-  }
-
-  // Anything else that looks like a PostgreSQL version string
-  if (/postgresql/i.test(version)) {
-    return 'postgres'
-  }
-
-  // Fallback – could be a custom build or something unexpected
-  return 'unknown'
-}
 export async function getAccountDB (
   uri: string,
   dbNs?: string,
   appName: string = 'account'
 ): Promise<[AccountDB, () => void]> {
-  const isMongo = uri.startsWith('mongodb://')
-
-  if (isMongo) {
-    const client = getMongoClient(uri)
-    const db = (await client.getClient()).db(dbNs ?? 'global-account')
-    const mongoAccount = new MongoAccountDB(db)
-
-    await mongoAccount.init()
-
-    return [
-      mongoAccount,
-      () => {
-        client.close()
-      }
-    ]
-  } else {
-    setDBExtraOptions({
-      connection: {
-        application_name: appName
-      }
-    })
-    const client = getDBClient(uri)
-    const pgClient = await client.getClient()
-
-    let flavor: DBFlavor = 'unknown'
-
-    let error = false
-
-    do {
-      try {
-        flavor = await getDbFlavor(pgClient)
-        error = false
-      } catch (err: any) {
-        error = true
-        console.error('Error while initializing postgres account db', err.message)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      }
-    } while (error)
-    error = false
-
-    const pgAccount = new PostgresAccountDB(pgClient, dbNs ?? 'global_account', flavor)
-
-    do {
-      try {
-        await pgAccount.init()
-        error = false
-      } catch (e) {
-        console.error('Error while initializing postgres account db', e)
-        error = true
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      }
-    } while (error)
-
-    return [
-      pgAccount,
-      () => {
-        client.close()
-      }
-    ]
+  if (!/^postgres(?:ql)?:\/\//.test(uri)) {
+    throw new Error('Account DB_URL must use PostgreSQL')
   }
+  setDBExtraOptions({
+    connection: {
+      application_name: appName
+    }
+  })
+  const client = getDBClient(uri)
+  const pgClient = await client.getClient()
+
+  let error = false
+  const pgAccount = new PostgresAccountDB(pgClient, dbNs ?? 'global_account')
+
+  do {
+    try {
+      await pgAccount.init()
+      error = false
+    } catch (e) {
+      console.error('Error while initializing postgres account db', e)
+      error = true
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+  } while (error)
+
+  return [
+    pgAccount,
+    () => {
+      client.close()
+    }
+  ]
 }
 
 export const assignableRoles = [AccountRole.Guest, AccountRole.User, AccountRole.Maintainer, AccountRole.Owner]
@@ -169,13 +123,22 @@ export function isReadOnlyOrGuest (account: AccountUuid, extra: Record<string, a
 }
 
 export function isGuest (account: AccountUuid, extra: Record<string, any> | undefined): boolean {
-  return account === GUEST_ACCOUNT && extra?.guest === 'true'
+  return account === docGuestAccountUuid && extra?.guest === 'true'
+}
+
+/** Guest access defaults to deny; noAuth only skips token verification inside the handler. */
+export interface WrapOptions {
+  allowApiKey?: boolean
+  noAuth?: boolean
+  guest?: GuestAccessPolicy
 }
 
 export function wrap (
-  accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>
+  accountMethod: (ctx: MeasureContext, db: AccountDB, branding: Branding | null, ...args: any[]) => Promise<any>,
+  options: WrapOptions = {}
 ): AccountMethodHandler {
-  return async function (
+  const { allowApiKey = false, noAuth = false, guest = 'deny' } = options
+  const handler: AccountMethodHandler = async function (
     ctx: MeasureContext,
     db: AccountDB,
     branding: Branding | null,
@@ -183,7 +146,21 @@ export function wrap (
     token?: string,
     meta?: Meta
   ): Promise<any> {
-    return await accountMethod(ctx, db, branding, token, { ...request.params }, meta)
+    const invoke = async (): Promise<any> => {
+      // Public/unauthenticated methods (login, signup, otp, etc.) must not fail because a stale
+      // or invalid token happened to be attached to the request (e.g. via a leftover cookie) -
+      // these methods don't require a token at all, so skip verification for them here.
+      if (token !== undefined && !allowApiKey && !noAuth) {
+        const { extra } = decodeTokenVerbose(ctx, token)
+        if (extra?.apiKey != null) {
+          throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+        }
+      }
+
+      return await accountMethod(ctx, db, branding, token, { ...request.params }, meta)
+    }
+
+    return await invoke()
       .then((result) => ({ id: request.id, result }))
       .catch((err: Error) => {
         const status =
@@ -214,6 +191,8 @@ export function wrap (
         }
       })
   }
+
+  return guardGuestMethod(handler, guest)
 }
 
 /**
@@ -367,7 +346,7 @@ export function getAllTransactors (kind: EndpointKind): string[] {
 
 export function hashWithSalt (password: string, salt: Buffer): Buffer {
   // remove "as any" when types in node will be fixed
-  return pbkdf2Sync(password, salt as any, 1000, 32, 'sha256')
+  return pbkdf2Sync(password, salt, 1000, 32, 'sha256')
 }
 
 export function verifyPassword (password: string, hash?: Buffer | null, salt?: Buffer | null): boolean {
@@ -376,7 +355,7 @@ export function verifyPassword (password: string, hash?: Buffer | null, salt?: B
   }
 
   // remove "as any" when types in node will be fixed
-  return Buffer.compare(hash as any, hashWithSalt(password, salt) as any) === 0
+  return Buffer.compare(hash, hashWithSalt(password, salt)) === 0
 }
 
 // 0 or negative value means no limit
@@ -538,6 +517,11 @@ export async function sendOtp (
   socialId: SocialId
 ): Promise<OtpInfo> {
   const ts = Date.now()
+
+  if (await isOtpLocked(db, socialId._id, ts)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.OtpLocked, {}))
+  }
+
   const otpData = (await db.otp.find({ socialId: socialId._id }, { createdOn: 'descending' }, 1))[0]
   const retryDelay = getMetadata(accountPlugin.metadata.OtpRetryDelaySec) ?? 30
 
@@ -580,10 +564,10 @@ export async function sendOtpEmail (
   const mailAuth = getMetadata(accountPlugin.metadata.MAIL_AUTH_TOKEN)
 
   const lang = branding?.language
-  const app = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName)
+  const app = getEmailAppName(branding)
 
   const text = await translate(accountPlugin.string.OtpText, { code: otp, app }, lang)
-  const html = await translate(accountPlugin.string.OtpHTML, { code: otp, app }, lang)
+  const html = await renderAccountEmail('otp', { code: otp }, branding)
   const subject = await translate(accountPlugin.string.OtpSubject, { code: otp, app }, lang)
 
   const to = email
@@ -605,10 +589,63 @@ export async function sendOtpEmail (
   }
 }
 
-export async function isOtpValid (db: AccountDB, socialId: PersonId, code: string): Promise<boolean> {
-  const otpData = await db.otp.findOne({ socialId, code })
+function parseIntEnv (name: string, defaultValue: number): number {
+  const value = process.env[name] != null ? parseInt(process.env[name]) : NaN
+  return Number.isNaN(value) ? defaultValue : value
+}
 
-  return (otpData?.expiresOn ?? 0) > Date.now()
+// 0 or negative value means no limit
+const otpMaxAttempts = parseIntEnv('OTP_MAX_ATTEMPTS', 5)
+// Per social id; also blocks issuing new codes. 0 or negative value means no limit
+const otpMaxFailedAttemptsPerWindow = parseIntEnv('OTP_MAX_FAILED_ATTEMPTS_PER_WINDOW', 15)
+const otpLockWindowMs = Math.max(parseIntEnv('OTP_LOCK_WINDOW_SEC', 3600), 0) * 1000
+
+function sumOtpAttempts (otps: OTP[], now: number): number {
+  return otps.filter((it) => it.createdOn > now - otpLockWindowMs).reduce((sum, it) => sum + (it.attempts ?? 0), 0)
+}
+
+export async function isOtpLocked (db: AccountDB, socialId: PersonId, now: number = Date.now()): Promise<boolean> {
+  if (otpMaxFailedAttemptsPerWindow <= 0) {
+    return false
+  }
+
+  const otps = await db.otp.find({ socialId })
+
+  return sumOtpAttempts(otps, now) >= otpMaxFailedAttemptsPerWindow
+}
+
+export type OtpVerificationResult = 'valid' | 'invalid' | 'locked'
+
+export async function verifyOtpAttempt (
+  db: AccountDB,
+  socialId: PersonId,
+  code: string
+): Promise<OtpVerificationResult> {
+  const now = Date.now()
+
+  // Count the attempt before checking the code, so concurrent requests cannot exceed the limit
+  await db.otp.update({ socialId, expiresOn: { $gt: now } }, { $inc: { attempts: 1 } })
+
+  const otps = await db.otp.find({ socialId })
+  const otpData = otps.find((it) => it.code === code)
+
+  const isExhausted = (it: OTP): boolean => otpMaxAttempts > 0 && (it.attempts ?? 0) > otpMaxAttempts
+
+  if (otpMaxFailedAttemptsPerWindow > 0 && sumOtpAttempts(otps, now) > otpMaxFailedAttemptsPerWindow) {
+    return 'locked'
+  }
+
+  if (otpData != null && otpData.expiresOn > now) {
+    return isExhausted(otpData) ? 'locked' : 'valid'
+  }
+
+  // Tell the user to request a new code if every active one is exhausted
+  const activeOtps = otps.filter((it) => it.expiresOn > now)
+  if (activeOtps.length > 0 && activeOtps.every(isExhausted)) {
+    return 'locked'
+  }
+
+  return 'invalid'
 }
 
 /**
@@ -756,9 +793,11 @@ export async function selectWorkspace (
   let sub: AccountUuid | undefined
   let exp: number | undefined
   let nbf: number | undefined
+  let tokenWorkspace: WorkspaceUuid | undefined
   try {
     const decodedToken = decodeTokenVerbose(ctx, token ?? '')
     accountUuid = decodedToken.account
+    tokenWorkspace = decodedToken.workspace
     if (workspace == null) {
       workspace = await getWorkspaceById(db, decodedToken.workspace)
     }
@@ -780,6 +819,29 @@ export async function selectWorkspace (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
   }
 
+  const apiKeyId = extra?.apiKey
+  if (apiKeyId != null) {
+    if (
+      typeof apiKeyId !== 'string' ||
+      tokenWorkspace == null ||
+      tokenWorkspace !== workspace.uuid ||
+      grant != null ||
+      sub != null
+    ) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+
+    const apiKey = await db.apiKey.findOne({
+      id: apiKeyId,
+      accountUuid,
+      workspaceUuid: tokenWorkspace,
+      revokedOn: null
+    })
+    if (apiKey == null) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+    }
+  }
+
   const getKind = (region: string | undefined): EndpointKind => {
     switch (kind) {
       case 'external':
@@ -795,7 +857,7 @@ export async function selectWorkspace (
 
   if (isGuest(accountUuid, extra)) {
     const workspace = await getWorkspaceByUrl(db, workspaceUrl)
-    if (workspace == null) {
+    if (workspace == null || tokenWorkspace == null || workspace.uuid !== tokenWorkspace) {
       ctx.error('Workspace not found in selectWorkspace', { workspaceUrl, kind, accountUuid, extra })
       throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
     }
@@ -919,15 +981,15 @@ export async function updateAllowReadOnlyGuests (
     return undefined
   }
 
-  let guestPerson = await db.person.findOne({ uuid: readOnlyGuestAccountUuid as PersonUuid })
+  let guestPerson = await db.person.findOne({ uuid: readOnlyGuestAccountUuid })
   if (guestPerson == null) {
     await db.person.insertOne({
-      uuid: readOnlyGuestAccountUuid as PersonUuid,
+      uuid: readOnlyGuestAccountUuid,
       firstName: 'Anonymous',
       lastName: 'Guest'
     })
-    await createAccount(db, readOnlyGuestAccountUuid as PersonUuid, true)
-    guestPerson = await db.person.findOne({ uuid: readOnlyGuestAccountUuid as PersonUuid })
+    await createAccount(db, readOnlyGuestAccountUuid, true)
+    guestPerson = await db.person.findOne({ uuid: readOnlyGuestAccountUuid })
   }
   const roleInWorkspace = await db.getWorkspaceRole(readOnlyGuestAccountUuid, workspace)
   if (roleInWorkspace == null) {
@@ -939,7 +1001,7 @@ export async function updateAllowReadOnlyGuests (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
   const guestSocialIds = await db.socialId.find({
-    personUuid: readOnlyGuestAccountUuid as PersonUuid,
+    personUuid: readOnlyGuestAccountUuid,
     verifiedOn: { $gt: 0 }
   })
 
@@ -1072,6 +1134,42 @@ export async function updateWorkspaceRole (
 }
 
 /**
+ * Sets or clears the "has unread notifications in this workspace" flag for a member,
+ * used to render a cross-workspace unread indicator in the workspace switcher.
+ *
+ * Raising the flag (hasUnread=true) for another account requires a service token —
+ * it is meant to be called by the workspace's own notification trigger, running with
+ * a token scoped to that workspace (`generateToken(systemAccountUuid, workspace, { service: 'notification' })`).
+ * Clearing your own flag (hasUnread=false, targetAccount === caller) is self-service and
+ * needs no special privileges; clearing someone else's flag still requires the service token.
+ *
+ * Note: the raise path (hasUnread=true) now goes through the WorkspaceMemberUnread
+ * queue consumed by account-service (bulk `setWorkspaceMembersUnread`), so in normal
+ * operation this RPC is only reached for the self-clear. The service-token branch is
+ * kept as a guarded fallback so the endpoint stays safe if called to raise a flag.
+ */
+export async function setWorkspaceMemberUnread (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: {
+    targetAccount: AccountUuid
+    hasUnread: boolean
+  }
+): Promise<void> {
+  const { targetAccount, hasUnread } = params
+  const { account, workspace, extra } = decodeTokenVerbose(ctx, token)
+
+  const isSelfClear = !hasUnread && account === targetAccount
+  if (!isSelfClear) {
+    verifyAllowedServices(['notification'], extra)
+  }
+
+  await db.setWorkspaceMemberUnread(targetAccount, workspace, hasUnread)
+}
+
+/**
  * Convert workspace name to a URL-friendly string following these rules:
  *
  * 1. Converts all characters to lowercase
@@ -1100,12 +1198,8 @@ export function generateWorkspaceUrl (name: string): string {
   return result.replace(/-+$/, '')
 }
 
-// TODO: rework later to map exact codes for specific DBs
 const DB_ERROR_CODES = {
-  UNIQUE_VIOLATION: [
-    '23505', // Postgres, CockroachDB
-    11000 // Mongo
-  ]
+  UNIQUE_VIOLATION: ['23505']
 }
 
 interface CreateWorkspaceRecordResult {
@@ -1259,10 +1353,10 @@ export async function sendEmailConfirmation (
 
   const link = concatLink(front, `/login/confirm?id=${token}`)
 
-  const name = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName)
+  const name = getEmailAppName(branding)
   const lang = branding?.language
   const text = await translate(accountPlugin.string.ConfirmationText, { name, link }, lang)
-  const html = await translate(accountPlugin.string.ConfirmationHTML, { name, link }, lang)
+  const html = await renderAccountEmail('confirmation', { name, link }, branding)
   const subject = await translate(accountPlugin.string.ConfirmationSubject, { name }, lang)
 
   const response = await fetch(concatLink(mailURL, '/send'), {
@@ -1493,6 +1587,11 @@ export async function doJoinByInvite (
   workspace: Workspace,
   invite: WorkspaceInvite | null | undefined
 ): Promise<WorkspaceLoginInfo> {
+  if (account === readOnlyGuestAccountUuid) {
+    // The shared anonymous account is used by every anonymous visitor: its role must stay ReadOnlyGuest
+    ctx.warn('Join by invite with the anonymous account is not allowed', { workspace: workspace.uuid })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
   const role = await db.getWorkspaceRole(account, workspace.uuid)
 
   if (invite !== undefined && invite != null) {
@@ -1692,7 +1791,9 @@ export function flattenStatus (ws: WorkspaceInfoWithStatus): WorkspaceInfoWithSt
 }
 
 export async function cleanExpiredOtp (db: AccountDB): Promise<void> {
-  await db.otp.deleteMany({ expiresOn: { $lte: Date.now() } })
+  const now = Date.now()
+  // Keep expired codes for the lock window: their attempt counters drive the lockout
+  await db.otp.deleteMany({ expiresOn: { $lte: now }, createdOn: { $lte: now - otpLockWindowMs } })
 }
 
 export async function getWorkspaces (
@@ -1813,11 +1914,7 @@ export async function getInviteEmail (
       { link, ws, expHours },
       lang
     ),
-    html: await translate(
-      resend ? accountPlugin.string.ResendInviteHTML : accountPlugin.string.InviteHTML,
-      { link, ws, expHours },
-      lang
-    ),
+    html: await renderAccountEmail(resend ? 'resendInvite' : 'invite', { link, ws, expHours }, branding),
     subject: await translate(
       resend ? accountPlugin.string.ResendInviteSubject : accountPlugin.string.InviteSubject,
       { ws },
@@ -1997,6 +2094,7 @@ export async function setTimezone (
 // Move to config?
 export const integrationServices = [
   'github',
+  'github-next',
   'telegram-bot',
   'hulygram',
   'mailbox',

@@ -57,7 +57,10 @@
   const selection = listProvider.selection
 
   const contextId = generateId()
-  async function onSort (event: CustomEvent<{ key: string, order: SortingOrder }>) {
+  // Rows the table currently shows; mirrored into the viewlet context so the export dialog can
+  // offer "current page" without re-running the query.
+  let renderedObjects: Doc[] = []
+  async function onSort (event: CustomEvent<{ key: string, order: SortingOrder }>): Promise<void> {
     const { key, order } = event.detail
     if (viewlet && viewOptions) {
       viewOptions.orderBy = [key, order]
@@ -76,7 +79,8 @@
         config,
         query,
         viewOptions,
-        _class
+        _class,
+        objects: renderedObjects
       }
       if (pos === -1) {
         return new ViewletContextStore([...contexts, newContext])
@@ -136,6 +140,7 @@
     }}
     on:content={(evt) => {
       listProvider.update(evt.detail)
+      renderedObjects = evt.detail
     }}
     on:sort={onSort}
     on:check={(evt) => {

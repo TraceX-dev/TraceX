@@ -1,5 +1,9 @@
 {
   "string": {
+    "Export": "Dışa aktar",
+    "Import": "İçe aktar",
+    "ExportToWord": "Word'e aktar",
+    "ImportFromWord": "Word'den içe aktar",
     "ID": "ID",
     "Code": "Kod",
     "Number": "Numara",
@@ -34,7 +38,6 @@
     "Document": "Doküman",
     "NewDocumentDialogClose": "Bu diyalogu kapatmak istiyor musunuz?",
     "NewDocumentCloseNote": "Tüm değişiklikler kaybolacak",
-    "Cancel": "İptal",
     "EditorPlaceholder": "düzenlemeye başlamak için yazın...",
     "Version": "Sürüm",
     "TemplateVersion": "Şablon sürümü",
@@ -65,6 +68,8 @@
     "ComparisonMode": "Karşılaştırma",
     "Compare": "Karşılaştır:",
     "Against": "İle:",
+    "RemovedAttachments": "Kaldırılan ekler",
+    "Restore": "Geri yükle",
     "ComparisonModeNotSupported": "Karşılaştırma modu desteklenmiyor.",
     "CreateDraft": "Taslak Oluştur",
     "SendForApproval": "Onaya gönder",

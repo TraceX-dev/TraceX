@@ -14,7 +14,12 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact from '@hcengineering/contact'
+  import contact, {
+    type Employee,
+    type GuestPeopleScope,
+    getGuestScopedEmployees,
+    getName
+  } from '@hcengineering/contact'
   import core, { Class, Doc, Ref, SearchResultDoc, SortingOrder, type VersionableDoc } from '@hcengineering/core'
   import { getResource, translate } from '@hcengineering/platform'
   import presentation, {
@@ -34,6 +39,7 @@
   export let query: string = ''
   export let multipleMentions: boolean = false
   export let docClass: Ref<Class<Doc>> | undefined = undefined
+  export let peopleScope: GuestPeopleScope | undefined = undefined
 
   let items: SearchItem[] = []
 
@@ -210,8 +216,65 @@
     return false
   }
 
+  const GUEST_EMPLOYEES_LIMIT = 10
+
+  // For guests people are narrowed to the context of the edited object (space members and collaborators).
+  // Loaded once per scope, undefined means no narrowing (not a guest or no context).
+  let scopedEmployeesKey: string | undefined
+  let scopedEmployees: Promise<Employee[] | undefined> = Promise.resolve(undefined)
+
+  $: loadScopedEmployees(peopleScope)
+
+  function loadScopedEmployees (scope: GuestPeopleScope | undefined): void {
+    const key = `${scope?.space ?? ''}:${scope?.objectId ?? ''}`
+    if (key === scopedEmployeesKey) return
+    scopedEmployeesKey = key
+    scopedEmployees = getGuestScopedEmployees(client, scope).catch((err) => {
+      console.error('Failed to load people for mention scope', err)
+      return undefined
+    })
+  }
+
+  // Employees are searched locally among the scoped ones: filtering full text results
+  // would leave only a few of them, as full text returns the first matches across all visible people.
+  async function getScopedEmployeeItems (localQuery: string): Promise<SearchItem[] | undefined> {
+    const employees = await scopedEmployees
+    if (employees === undefined) return undefined
+    const category = employeeSearchCategory
+    if (category === undefined) return []
+
+    const hierarchy = client.getHierarchy()
+    const search = localQuery.trim().toLowerCase()
+    return employees
+      .map((employee) => ({ employee, title: getName(hierarchy, employee) }))
+      .filter(
+        ({ employee, title }) =>
+          search === '' || title.toLowerCase().includes(search) || employee.name.toLowerCase().includes(search)
+      )
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .slice(0, GUEST_EMPLOYEES_LIMIT)
+      .map(({ employee, title }, num) => ({
+        num,
+        category,
+        item: {
+          id: employee._id,
+          title,
+          iconComponent: { component: contact.component.AvatarRef, props: { _id: employee._id } },
+          titleComponent: { component: contact.component.ContactNamePresenter, props: { name: employee.name } },
+          doc: { _id: employee._id, _class: employee._class, createdOn: employee.createdOn }
+        }
+      }))
+  }
+
   const updateItems = reduceCalls(async function (localQuery: string): Promise<void> {
     const r = await searchFor('mention', localQuery)
+    const scopedEmployeeItems = await getScopedEmployeeItems(localQuery)
+    if (scopedEmployeeItems !== undefined) {
+      r.items = [
+        ...scopedEmployeeItems,
+        ...r.items.filter((it) => it.category.classToSearch !== contact.mixin.Employee)
+      ]
+    }
     if (r.query === query) {
       const latestIndex = r.items.findLastIndex((it) => it.category.classToSearch === contact.mixin.Employee)
       const multipleEmployeeSearchItems = await getMultipleEmployeeSearchItems(localQuery, latestIndex)

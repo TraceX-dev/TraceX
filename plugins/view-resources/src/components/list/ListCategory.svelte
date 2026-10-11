@@ -129,9 +129,9 @@
   $: finalResultQuery =
     itemProj.length < 20 && resultQuery.$search !== null
       ? noSearch({
-        ...resultQuery,
-        _id: { $in: itemProj.map((it) => it._id) }
-      })
+          ...resultQuery,
+          _id: { $in: itemProj.map((it) => it._id) }
+        })
       : resultQuery
 
   $: if (lastLevel) {

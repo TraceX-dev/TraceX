@@ -33,6 +33,17 @@ import type { ValueFormatter } from '../types'
 import { getFormattersForClass } from './registry'
 import { DocumentAttributeKey, extractObjectTitleOrName, formatArrayValue, formatSingleValue } from './utils'
 
+/**
+ * Renders a referenced document inside a cell.
+ *
+ * @public
+ */
+export type ElementFormatter = (doc: Doc, title: string) => Promise<string>
+
+function markdownElementFormatter (hierarchy: Hierarchy): ElementFormatter {
+  return async (d, title) => await createMarkdownLink(hierarchy, d, title)
+}
+
 /** Resolved context for formatting: which object we display and its value */
 export interface DisplayContext {
   value: any
@@ -223,8 +234,10 @@ export async function formatCustomAttributeValue (
   attribute: AnyAttribute | undefined,
   card: Doc,
   hierarchy: Hierarchy,
-  language: string | undefined
+  language: string | undefined,
+  elementFormatter?: ElementFormatter
 ): Promise<string> {
+  const element = elementFormatter ?? markdownElementFormatter(hierarchy)
   if (value === null || value === undefined) {
     return ''
   }
@@ -241,18 +254,11 @@ export async function formatCustomAttributeValue (
       hierarchy,
       language,
       undefined,
-      async (d, title) => await createMarkdownLink(hierarchy, d, title)
+      element
     )
   }
 
-  return await formatSingleValue(
-    value,
-    attrType,
-    hierarchy,
-    language,
-    undefined,
-    async (d, title) => await createMarkdownLink(hierarchy, d, title)
-  )
+  return await formatSingleValue(value, attrType, hierarchy, language, undefined, element)
 }
 
 /**
@@ -265,8 +271,10 @@ async function formatValueFallback (
   card: Doc,
   hierarchy: Hierarchy,
   language: string | undefined,
-  userCache?: Map<PersonId, string>
+  userCache?: Map<PersonId, string>,
+  elementFormatter?: ElementFormatter
 ): Promise<string> {
+  const element = elementFormatter ?? markdownElementFormatter(hierarchy)
   if (value === null || value === undefined) {
     return ''
   }
@@ -275,7 +283,7 @@ async function formatValueFallback (
     (ctx.attribute as any)?.isCustom === true ||
     (attr.key === '' && typeof attr.label === 'string' && attr.label.startsWith('custom'))
   if (isCustomAttribute) {
-    return await formatCustomAttributeValue(value, ctx.attribute, card, hierarchy, language)
+    return await formatCustomAttributeValue(value, ctx.attribute, card, hierarchy, language, element)
   }
 
   const attribute = ctx.attribute
@@ -291,7 +299,7 @@ async function formatValueFallback (
       hierarchy,
       language,
       userCache,
-      async (d, title) => await createMarkdownLink(hierarchy, d, title)
+      element
     )
   }
 
@@ -305,18 +313,11 @@ async function formatValueFallback (
     if (lookupData !== undefined && lookupData !== null && typeof lookupData === 'object') {
       const title = await extractObjectTitleOrName(lookupData as Doc, language)
       const text = title !== '' ? title : value
-      return await createMarkdownLink(hierarchy, lookupData as Doc, text)
+      return await element(lookupData as Doc, text)
     }
   }
 
-  return await formatSingleValue(
-    value,
-    attrType,
-    hierarchy,
-    language,
-    userCache,
-    async (d, title) => await createMarkdownLink(hierarchy, d, title)
-  )
+  return await formatSingleValue(value, attrType, hierarchy, language, userCache, element)
 }
 
 /**
@@ -330,7 +331,8 @@ export async function formatValue (
   language: string | undefined,
   isFirstColumn: boolean = false,
   userCache?: Map<PersonId, string>,
-  customFormatter?: ValueFormatter
+  customFormatter?: ValueFormatter,
+  elementFormatter?: ElementFormatter
 ): Promise<string> {
   const ctx = resolveDisplayContext(attr, card, hierarchy, _class, isFirstColumn)
   if (ctx === null) {
@@ -363,5 +365,5 @@ export async function formatValue (
     }
   }
 
-  return await formatValueFallback(value, attr, ctx, card, hierarchy, language, userCache)
+  return await formatValueFallback(value, attr, ctx, card, hierarchy, language, userCache, elementFormatter)
 }

@@ -19,7 +19,6 @@
   import type { AnyComponent, AnySvelteComponent } from '../types'
   import ErrorPresenter from './ErrorPresenter.svelte'
   import Loading from './Loading.svelte'
-  import AppLoading from './AppLoading.svelte'
   import ErrorBoundary from './internal/ErrorBoundary'
   import { clone } from '@hcengineering/core'
 
@@ -31,7 +30,6 @@
   export let showLoading = true
   export let inline: boolean = false
   export let disabled: boolean = false
-  export let appLoading: boolean = false
 
   let _is: AnyComponent | AnySvelteComponent = is
 
@@ -42,10 +40,10 @@
   const filterDefaultUndefined = (pnew: any, pold: any): any =>
     pnew != null
       ? Object.fromEntries(
-        Object.entries(clone(pnew, undefined, undefined, 10)).filter(
-          ([k, v]) => v !== undefined || pold?.[k] !== undefined
+          Object.entries(clone(pnew, undefined, undefined, 10)).filter(
+            ([k, v]) => v !== undefined || pold?.[k] !== undefined
+          )
         )
-      )
       : pnew
 
   let _props: any = filterDefaultUndefined(props, props)
@@ -107,11 +105,7 @@
 {#if _is != null}
   {#if loading}
     {#if showLoading}
-      {#if appLoading}
-        <AppLoading {shrink} />
-      {:else}
-        <Loading {shrink} />
-      {/if}
+      <Loading {shrink} />
     {/if}
   {:else if Ctor != null}
     <ErrorBoundary bind:error>

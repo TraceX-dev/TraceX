@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -169,7 +170,7 @@ export class AggregationManager<T extends Doc> implements IAggregationManager<T>
         (res) => {
           const first = this.docs === undefined
           this.docs = res
-          this.mgr = new DocManager<T>(res as T[])
+          this.mgr = new DocManager<T>(res)
           this.setStore(this.mgr)
           if (!first) {
             this.lqCallback()
@@ -665,11 +666,21 @@ async function getRelationPresenter (client: Client, key: BuildModelKey): Promis
   const subFieldParts = parts.slice(lastAssocIndex + 2)
   if (subFieldParts.length > 0) {
     // Sub-field key: resolve attribute presenter for the specific field
-    const attrName = subFieldParts.join('.')
+    let attributeClass = _class
+    let attrName = subFieldParts.join('.')
+    const mixinClass = subFieldParts[0] as Ref<Class<Doc>>
+    if (
+      subFieldParts.length === 2 &&
+      hierarchy.isMixin(mixinClass) &&
+      hierarchy.isDerived(_class, hierarchy.getBaseClass(mixinClass))
+    ) {
+      attributeClass = mixinClass
+      attrName = subFieldParts[1]
+    }
     try {
-      const attribute = hierarchy.getAttribute(_class, attrName)
+      const attribute = hierarchy.getAttribute(attributeClass, attrName)
       const { attrClass, category } = getAttributePresenterClass(hierarchy, attribute.type)
-      const presenterRef = findAttributePresenter(client, _class, attrName)
+      const presenterRef = findAttributePresenter(client, attributeClass, attrName)
       if (presenterRef !== undefined) {
         const presenter = await getResource(presenterRef)
         return {
@@ -789,7 +800,7 @@ export async function deleteObjects (client: TxOperations, objects: Doc[], skipC
 }
 
 export function getMixinStyle (id: Ref<Class<Doc>>, selected: boolean, black: boolean): string {
-  const color = getPlatformColorForText(id as string, black)
+  const color = getPlatformColorForText(id, black)
   return `
     color: ${selected ? '#fff' : 'var(--caption-color)'};
     background: ${color + (selected ? 'ff' : '33')};
@@ -912,9 +923,9 @@ export function categorizeFields (
   useAsCollection: string[],
   useAsAttribute: string[]
 ): {
-    attributes: CategoryKey[]
-    collections: CategoryKey[]
-  } {
+  attributes: CategoryKey[]
+  collections: CategoryKey[]
+} {
   const result = {
     attributes: [] as CategoryKey[],
     collections: [] as CategoryKey[]
@@ -1143,9 +1154,9 @@ export function getCategorySpaces (categories: CategoryType[]): Array<Ref<Space>
     categories
       .filter((it) => typeof it === 'object')
       .reduce<Set<Ref<Space>>>((arr, val) => {
-      val.values.forEach((it) => arr.add(it.space))
-      return arr
-    }, new Set())
+        val.values.forEach((it) => arr.add(it.space))
+        return arr
+      }, new Set())
   )
 }
 
@@ -1640,7 +1651,7 @@ export function getCategoryQueryProjection (
   const res: Record<string, number> = {}
   for (const f of fields) {
     /*
-      Mongo projection doesn't support properties fields which
+      Document projection doesn't support properties fields which
       start from $. Such field here is $search. The least we could do
       is to filter all properties which start from $.
     */
@@ -1781,10 +1792,10 @@ export async function getDocAttrsInfo (
   allowedCollections: string[] = [],
   collectionArrays: string[] = []
 ): Promise<{
-    keys: KeyedAttribute[]
-    inplaceAttributes: string[]
-    editors: Array<{ key: KeyedAttribute, editor: AnyComponent, category: AttributeCategory }>
-  }> {
+  keys: KeyedAttribute[]
+  inplaceAttributes: string[]
+  editors: Array<{ key: KeyedAttribute, editor: AnyComponent, category: AttributeCategory }>
+}> {
   const client = getClient()
   const hierarchy = client.getHierarchy()
 

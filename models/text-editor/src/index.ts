@@ -440,6 +440,42 @@ export function createModel (builder: Builder): void {
     index: 5
   })
 
+  // Applies to every cell of the current selection - a single cell or a rectangular
+  // multi-cell CellSelection (see CellAlign.setCellTextAlign in @hcengineering/text).
+  builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['table', 'tableCell'],
+    action: textEditor.function.OpenCellTextAlignOptions,
+    icon: textEditor.icon.AlignCenter,
+    visibilityTester: textEditor.function.IsTableToolbarContext,
+    label: textEditor.string.CellTextAlign,
+    category: 65,
+    index: 10
+  })
+
+  builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['table', 'tableCell'],
+    action: textEditor.function.OpenCellVerticalAlignOptions,
+    icon: textEditor.icon.AlignMiddle,
+    visibilityTester: textEditor.function.IsTableToolbarContext,
+    label: textEditor.string.CellVerticalAlign,
+    category: 65,
+    index: 15
+  })
+
+  // A single toolbar entry that opens a popup with every text-formatting action (headings,
+  // bold/italic/strike/underline/highlight, text color) - each of those commands is ranges-aware
+  // (see openCellTextFormattingOptions in text-editor-resources) so they apply to every cell of a
+  // multi-cell CellSelection, not just one.
+  builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
+    tags: ['table', 'tableCell'],
+    action: textEditor.function.OpenCellTextFormattingOptions,
+    icon: textEditor.icon.TextStyle,
+    visibilityTester: textEditor.function.IsTableToolbarContext,
+    label: textEditor.string.CellTextFormatting,
+    category: 65,
+    index: 20
+  })
+
   // Table category
   builder.createDoc(textEditor.class.TextEditorAction, core.space.Model, {
     tags: ['table'],

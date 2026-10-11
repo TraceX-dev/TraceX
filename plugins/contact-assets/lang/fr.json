@@ -151,6 +151,13 @@
     "WorkspaceStatusIn4Hours": "Dans 4 heures",
     "WorkspaceStatusEndOfDay": "Fin de journée",
     "WorkspaceStatusPickDate": "Choisir une date",
-    "HideInactive": "Masquer les inactifs"
+    "HideInactive": "Masquer les inactifs",
+    "SpaceAccessGroup": "Accès",
+    "AnonymousGuestAccess": "Accès invité anonyme",
+    "AnonymousGuestAccessDescr": "Tout le monde peut lire cet espace sans se connecter",
+    "AnonymousGuestAccessWorkspaceOffNote": "L'accès invité anonyme est désactivé pour cet espace de travail",
+    "AnonymousGuestAccessOwnerOnlyNote": "Seuls les propriétaires peuvent modifier ce paramètre",
+    "PublicBadge": "Public",
+    "SpaceMembershipGroup": "Adhésion"
   }
 }

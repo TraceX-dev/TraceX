@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,7 +16,7 @@
 <script lang="ts">
   import core, { AnyAttribute, Association, Ref, Relation } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
-  import { Process, Step } from '@hcengineering/process'
+  import { createContext, parseContext, Process, Step } from '@hcengineering/process'
   import { Label, tooltip } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { getContext, getMockAttribute } from '../../utils'
@@ -30,7 +31,12 @@
   const params = step.params
   let association = params.association as Ref<Association> | undefined
   let direction = params.direction as 'A' | 'B' | undefined
-  const _id = params._id
+  const request = parseContext(params._id)
+  const legacyVersions = params.versions === 'latest' || params.versions === 'effective' ? params.versions : 'all'
+  const _id =
+    request?.type === 'userRequest' && request.versions === undefined && params.versions !== undefined
+      ? createContext({ ...request, versions: legacyVersions })
+      : params._id
 
   const client = getClient()
 

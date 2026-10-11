@@ -5,6 +5,7 @@
 
   import ArrayEditorPopup from './ArrayEditorPopup.svelte'
   import { getClient } from '@hcengineering/presentation'
+  import ObjectsTooltipWrapper from './ObjectsTooltipWrapper.svelte'
 
   export let object: Doc
   export let label: IntlString
@@ -14,7 +15,7 @@
   $: _clazz = (type.of as RefTo<Doc>).to
   const client = getClient()
   const hierarchy = client.getHierarchy()
-  function openPopup (event: MouseEvent) {
+  function openPopup (event: MouseEvent): void {
     showPopup(
       ArrayEditorPopup,
       {
@@ -34,19 +35,21 @@
   $: icon = hierarchy.getClass(_clazz).icon
 </script>
 
-<Button kind={'link'} size={'medium'} justify={'left'} width={'100%'} on:click={openPopup}>
-  <svelte:fragment slot="content">
-    {#if icon !== undefined}
-      <div class="btn-icon"><Icon {icon} size={'small'} /></div>
-    {/if}
-    {#if value?.length > 0}
-      <div class="flex-row-center flex-nowrap pointer-events-none">
-        <span class="label nowrap">
-          {value.length + ' items'}
-        </span>
-      </div>
-    {:else}
-      <Label {label} />
-    {/if}
-  </svelte:fragment>
-</Button>
+<ObjectsTooltipWrapper selectedCount={value.length} objectIds={value} _class={_clazz} {label} width={'100%'}>
+  <Button kind={'link'} size={'medium'} justify={'left'} width={'100%'} on:click={openPopup}>
+    <svelte:fragment slot="content">
+      {#if icon !== undefined}
+        <div class="btn-icon"><Icon {icon} size={'small'} /></div>
+      {/if}
+      {#if value?.length > 0}
+        <div class="flex-row-center flex-nowrap pointer-events-none">
+          <span class="label nowrap">
+            {value.length + ' items'}
+          </span>
+        </div>
+      {:else}
+        <Label {label} />
+      {/if}
+    </svelte:fragment>
+  </Button>
+</ObjectsTooltipWrapper>

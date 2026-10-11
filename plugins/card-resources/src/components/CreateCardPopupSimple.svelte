@@ -1,4 +1,5 @@
 <!-- Copyright © 2025 Hardcore Engineering Inc. -->
+<!-- Copyright © 2026 TraceX SAS. -->
 <!-- -->
 <!-- Licensed under the Eclipse Public License, Version 2.0 (the "License"); -->
 <!-- you may not use this file except in compliance with the License. You may -->
@@ -12,22 +13,24 @@
 <!-- limitations under the License. -->
 
 <script lang="ts">
-  import card, { Card as TypeCard, CardSpace, MasterTag } from '@hcengineering/card'
-  import presentation, { Card, getClient, SpaceSelector } from '@hcengineering/presentation'
+  import { Card as TypeCard, CardSpace, type CreateCardExtension, MasterTag } from '@hcengineering/card'
+  import presentation, { Card, createQuery, getClient, SpaceSelector } from '@hcengineering/presentation'
   import { createEventDispatcher } from 'svelte'
   import core, { Data, generateId, Ref, Markup, getCurrentAccount } from '@hcengineering/core'
   import { getResource, translate, getEmbeddedLabel } from '@hcengineering/platform'
-  import { Label, Modal, ModernEditbox, languageStore } from '@hcengineering/ui'
+  import { Notice, ModernEditbox, languageStore } from '@hcengineering/ui'
   import { EmptyMarkup } from '@hcengineering/text'
   import { permissionsStore } from '@hcengineering/contact-resources'
   import view from '@hcengineering/view'
 
-  import { createCard, isBaseTypeWithSubtypes } from '../utils'
+  import { createCard, getRootType, isBaseTypeWithSubtypes } from '../utils'
   import { TypeSelector } from '../index'
   import { canCreateObject } from '@hcengineering/view-resources'
+  import card from '../plugin'
+  import CreateCardFields from './CreateCardFields.svelte'
 
   export let title: string = ''
-  export let type: Ref<MasterTag> = card.types.Document
+  export let type: Ref<MasterTag> | null = card.types.Document
   export let space: Ref<CardSpace> | undefined = undefined
   export let description: Markup = EmptyMarkup
 
@@ -36,16 +39,33 @@
   const hierarchy = client.getHierarchy()
   const _id = generateId<TypeCard>()
 
-  $: extension =
-    type != null
-      ? client
-        .getModel()
-        .findAllSync(card.mixin.CreateCardExtension, {})
-        .find((it) => hierarchy.isDerived(type, it._id))
-      : undefined
+  function getCreateCardExtension (_type: Ref<MasterTag> | null): CreateCardExtension | undefined {
+    if (_type == null) return undefined
 
-  const data: Partial<Data<TypeCard>> = { title }
+    return client
+      .getModel()
+      .findAllSync(card.mixin.CreateCardExtension, {})
+      .find((it) => hierarchy.isDerived(_type, it._id))
+  }
+
+  $: extension = getCreateCardExtension(type)
+
+  let data: Partial<Data<TypeCard>> = { title }
   let _space: Ref<CardSpace> | undefined = space
+  let selectedSpace: CardSpace | undefined
+
+  const spaceQuery = createQuery()
+  $: if (_space != null) {
+    if (selectedSpace?._id !== _space) {
+      selectedSpace = undefined
+    }
+    spaceQuery.query(card.class.CardSpace, { _id: _space }, (result) => {
+      selectedSpace = result[0]
+    })
+  } else {
+    spaceQuery.unsubscribe()
+    selectedSpace = undefined
+  }
 
   let creating = false
 
@@ -83,15 +103,27 @@
 
   $: void updateLabel($languageStore, type)
 
-  async function updateLabel (lang: string, _type: Ref<MasterTag>): Promise<void> {
+  async function updateLabel (lang: string, _type: Ref<MasterTag> | null): Promise<void> {
+    const createString = await translate(presentation.string.Create, {}, lang)
+    if (_type == null) {
+      label = createString
+      return
+    }
+
     const _clazz = hierarchy.getClass(_type)
     const typeString = await translate(_clazz.label, {}, lang)
-    const createString = await translate(presentation.string.Create, {}, lang)
     label = `${createString} ${typeString}`
   }
 
+  $: typeAllowedBySpace =
+    type != null && selectedSpace != null && selectedSpace.types.includes(getRootType(hierarchy, type))
+  $: missingSelection = _space == null || type == null
   $: allowed =
-    _space != null && canCreateObject(type, _space, $permissionsStore) && !isBaseTypeWithSubtypes(hierarchy, type)
+    _space != null &&
+    type != null &&
+    typeAllowedBySpace &&
+    canCreateObject(type, _space, $permissionsStore) &&
+    !isBaseTypeWithSubtypes(hierarchy, type)
 </script>
 
 <Card
@@ -117,22 +149,36 @@
       focus={false}
       clearInvalidValue={true}
       kind={'regular'}
-      size={'large'}
+      size={'medium'}
     />
-    <TypeSelector bind:value={type} excludeBaseTypes />
+    <TypeSelector bind:value={type} allowedRootTypes={selectedSpace?.types} excludeBaseTypes size={'medium'} />
   </svelte:fragment>
-  <ModernEditbox bind:value={data.title} label={view.string.Title} size="medium" kind="ghost" autoFocus />
+  <ModernEditbox
+    bind:value={data.title}
+    label={view.string.Title}
+    size="large"
+    kind="ghost"
+    style="font-size: 1.125rem;"
+    autoFocus
+  />
   <svelte:fragment slot="pool">
-    <div slot="afterContent" class="error p-4 flex-row-reverse">
+    {#if type != null}
+      <CreateCardFields {type} bind:data />
+    {/if}
+    <div slot="afterContent" class="p-4 flex-row-reverse">
       {#if !allowed}
-        <Label label={view.string.NoCreatePermissionTitle} />
+        {#if missingSelection}
+          <Notice kind="warning" label={card.string.SelectTypeAndSpace} />
+        {:else}
+          <Notice kind="error" label={view.string.NoCreatePermissionTitle} />
+        {/if}
       {/if}
     </div>
   </svelte:fragment>
 </Card>
 
 <style lang="scss">
-  .error {
-    color: var(--theme-error-color);
+  .card-fields {
+    width: 100%;
   }
 </style>

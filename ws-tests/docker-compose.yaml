@@ -11,32 +11,20 @@ services:
     ports:
       - 1081:1080
     restart: unless-stopped
-  mongodb:
-    image: 'mongo:7-jammy'
-    command: mongod --port 27018
-    extra_hosts:
-      - 'tracex.local:host-gateway'
-    healthcheck:
-      test: echo "try { db.currentOp().ok } catch (err) { }" | mongosh --port 27018 --quiet
-      interval: 5s
-      timeout: 30s
-      start_period: 0s
-      start_interval: 1s
-      retries: 30
+  postgres:
+    image: postgres:16
+    command: ["postgres", "-p", "5433"]
+    ports:
+      - '5433:5433'
     environment:
-      - PUID=1000
-      - PGID=1000
-    ports:
-      - 27018:27018
-    restart: unless-stopped
-  cockroach:
-    image: cockroachdb/cockroach:v24.1.2
-    extra_hosts:
-      - 'tracex.local:host-gateway'
-    ports:
-      - '26258:26257'
-      - '18089:8080'
-    command: start-single-node --insecure
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -p 5433"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
@@ -88,7 +76,7 @@ services:
     depends_on:
       - redpanda
   minio:
-    image: 'minio/minio'
+    image: 'pgsty/silo'
     command: server /data --address ":9000" --console-address ":9001"
     extra_hosts:
       - 'tracex.local:host-gateway'
@@ -107,7 +95,7 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-      cockroach:
+      postgres:
         condition: service_started
       stats:
         condition: service_started
@@ -148,12 +136,11 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
-      cockroach:
+      postgres:
         condition: service_started
     links:
-      - mongodb
+      - postgres
       - minio
-      - cockroach
     ports:
       - 3003:3003
     volumes:
@@ -192,7 +179,7 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - mongodb
+      - postgres
       - minio
       - stats
     volumes:
@@ -217,7 +204,7 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - cockroach
+      - postgres
       - minio
       - stats
     volumes:
@@ -242,7 +229,7 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - mongodb
+      - postgres
       - minio
       - transactor
       - stats
@@ -261,7 +248,7 @@ services:
       - 'tracex.local:host-gateway'
     links:
       - account
-      - mongodb
+      - postgres
       - minio
       - elastic
       - collaborator
@@ -297,7 +284,7 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - mongodb
+      - postgres
       - minio
       - account
       - stats
@@ -330,7 +317,7 @@ services:
       - 'tracex.local:host-gateway'
     pull_policy: never
     links:
-      - cockroach
+      - postgres
       - minio
       - account
       - stats
@@ -374,7 +361,7 @@ services:
     restart: unless-stopped
     links:
       - elastic
-      - mongodb
+      - postgres
       - rekoni
     ports:
       - 4710:4710
@@ -395,7 +382,7 @@ services:
       - 'tracex.local:host-gateway'
     links:
       - elastic
-      - cockroach
+      - postgres
       - rekoni
     ports:
       - 4711:4711
@@ -421,7 +408,6 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_SECRET=secret
-      - MONGO_URL=${MONGO_URL}
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - ACCOUNTS_URL=http://tracex.local:3000
       - STORAGE_CONFIG=${STORAGE_CONFIG}

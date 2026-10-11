@@ -1,9 +1,8 @@
 <script lang="ts">
   import core, { getCurrentAccount, groupByArray, Ref } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { Breadcrumb, Grid, Header, Label, Scroller, Toggle } from '@hcengineering/ui'
+  import { Breadcrumb, Header, Label, Scroller, SettingsCard, SettingsCardsLayout, Toggle } from '@hcengineering/ui'
   import calendar from '../plugin'
-  import setting from '@hcengineering/setting'
   import { Calendar, ExternalCalendar, getPrimaryCalendar, PrimaryCalendar, Visibility } from '@hcengineering/calendar'
   import VisibilityEditor from './VisibilityEditor.svelte'
   import CalendarSelector from './CalendarSelector.svelte'
@@ -81,51 +80,47 @@
 
 <div class="hulyComponent">
   <Header adaptive={'disabled'}>
-    <Breadcrumb icon={calendar.icon.Calendar} label={setting.string.Settings} size={'large'} isCurrent />
+    <Breadcrumb icon={calendar.icon.Calendar} label={calendar.string.Calendar} size={'large'} isCurrent />
   </Header>
   <div class="hulyComponent-content__column content">
     <Scroller align={'center'} padding={'var(--spacing-3)'} bottomPadding={'var(--spacing-3)'}>
-      <div class="hulyComponent-content">
-        <div class="flex-col-center">
-          <div class="flex-row-center flex-gap-2 mb-8 fs-title">
-            <Label label={calendar.string.PrimaryCalendar} />
-            <CalendarSelector value={primaryCalendar} on:change={changePrimary} withIcon={false} />
-          </div>
-        </div>
-        <div class="flex-col=">
-          <Grid column={3} columnGap={3} rowGap={1}>
-            <div>
-              <Label label={calendar.string.Calendar} />
+      <div class="hulyComponent-content w-full">
+        <SettingsCardsLayout columns={1}>
+          <SettingsCard label={calendar.string.PrimaryCalendar}>
+            <div class="flex-between flex-gap-4">
+              <Label label={calendar.string.PrimaryCalendar} />
+              <CalendarSelector value={primaryCalendar} on:change={changePrimary} withIcon={false} kind={'regular'} />
             </div>
-            <div>
-              <Label label={calendar.string.Visibility} />
-            </div>
-            <div>
-              <Label label={calendar.string.Hidden} />
-            </div>
-            {#each categories as cat}
-              <div></div>
-              <div class="fs-title flex-col-center">
-                {cat[0]}
-              </div>
-              <div></div>
+          </SettingsCard>
+
+          {#each categories as cat}
+            <div class="flex-col flex-gap-4">
               {#each cat[1] as _calendar}
-                <div>{_calendar.name}</div>
-                <VisibilityEditor
-                  value={_calendar.visibility}
-                  kind={'inline'}
-                  size={'small'}
-                  on:change={(res) => changeVisibility(_calendar, res.detail)}
-                />
-                <Toggle
-                  on={_calendar.hidden}
-                  disabled={_calendar._class === calendar.class.Calendar}
-                  on:change={(res) => changeHidden(_calendar, res.detail)}
-                />
+                <SettingsCard label={calendar.string.Calendar} labelText={cat[0]}>
+                  <div class="flex-col flex-gap-4">
+                    <div class="flex-between flex-gap-4">
+                      <div class="flex-grow"><Label label={calendar.string.Visibility} /></div>
+                      <VisibilityEditor
+                        value={_calendar.visibility}
+                        kind={'regular'}
+                        size={'medium'}
+                        on:change={(res) => changeVisibility(_calendar, res.detail)}
+                      />
+                    </div>
+                    <div class="flex-between flex-gap-4">
+                      <Label label={calendar.string.Hidden} />
+                      <Toggle
+                        on={_calendar.hidden}
+                        disabled={_calendar._class === calendar.class.Calendar}
+                        on:change={(res) => changeHidden(_calendar, res.detail)}
+                      />
+                    </div>
+                  </div>
+                </SettingsCard>
               {/each}
-            {/each}
-          </Grid>
-        </div>
+            </div>
+          {/each}
+        </SettingsCardsLayout>
       </div>
     </Scroller>
   </div>

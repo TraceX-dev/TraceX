@@ -545,6 +545,58 @@ const tests: Array<{ name: string, markup: object, html: string }> = [
       ]
     },
     html: '<p><a target="_blank" rel="noopener noreferrer" class="cursor-pointer" href="https://example.com">https://example.com</a></p>'
+  },
+  {
+    name: 'table cell background color',
+    markup: {
+      type: 'doc',
+      content: [
+        {
+          type: 'table',
+          content: [
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableHeader',
+                  attrs: {
+                    backgroundColor: '#eeeeee'
+                  },
+                  content: [
+                    {
+                      type: 'paragraph',
+                      content: [{ type: 'text', text: 'Header' }]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableCell',
+                  attrs: {
+                    backgroundColor: '#ff0000'
+                  },
+                  content: [
+                    {
+                      type: 'paragraph',
+                      content: [{ type: 'text', text: 'Red cell' }]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    html:
+      '<table><tbody>' +
+      '<tr><th style="background-color: #eeeeee" data-background-color="#eeeeee"><p>Header</p></th></tr>' +
+      '<tr><td style="background-color: #ff0000" data-background-color="#ff0000"><p>Red cell</p></td></tr>' +
+      '</tbody></table>'
   }
 ]
 

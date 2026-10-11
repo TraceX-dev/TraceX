@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,11 +22,15 @@
   import { onMount } from 'svelte'
 
   import EditCardNew from './EditCardNew.svelte'
+  import { type CardAsideAction } from '../types'
 
   export let _id: Ref<Card>
   export let readonly: boolean = false
   export let embedded: boolean = false
   export let allowClose: boolean = true
+  export let compactMode: boolean = false
+  // Opened in the aside right away, e.g. when a card is opened for one of its discussions.
+  export let initialAside: CardAsideAction | undefined = undefined
 
   export function canClose (): boolean {
     return false
@@ -36,4 +41,4 @@
   })
 </script>
 
-<EditCardNew {_id} {readonly} {embedded} {allowClose} on:close on:open />
+<EditCardNew {_id} {readonly} {embedded} {allowClose} {compactMode} {initialAside} on:close on:open />

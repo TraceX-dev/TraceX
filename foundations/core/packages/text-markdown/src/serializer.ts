@@ -172,8 +172,14 @@ export const storeNodes: Record<string, NodeProcessor> = {
     state.write('</sub>')
   },
 
+  /*
+   * URL components are encoded with encodeURIComponent and HTML attributes use htmlEsc below.
+   * The rule cannot follow these context-specific sanitizers through Markdown string assembly.
+   */
+  /* eslint-disable secure-coding/no-improper-sanitization */
   image: (state, node) => {
     const attrs = nodeAttrs(node)
+    const fileId = attrs['file-id'] == null ? '' : encodeURIComponent(String(attrs['file-id']))
     if (attrs.token != null && attrs['file-id'] != null) {
       // Convert image to token format
       state.write(
@@ -181,24 +187,27 @@ export const storeNodes: Record<string, NodeProcessor> = {
           state.esc(`${attrs.alt ?? ''}`) +
           '](' +
           (state.imageUrl +
-            `${attrs['file-id']}` +
-            `?file=${attrs['file-id']}` +
-            (attrs.width != null ? '&width=' + state.esc(`${attrs.width}`) : '') +
-            (attrs.height != null ? '&height=' + state.esc(`${attrs.height}`) : '') +
-            (attrs.token != null ? '&token=' + state.esc(`${attrs.token}`) : '')) +
+            fileId +
+            '?file=' +
+            fileId +
+            (attrs.width != null ? '&width=' + encodeURIComponent(String(attrs.width)) : '') +
+            (attrs.height != null ? '&height=' + encodeURIComponent(String(attrs.height)) : '') +
+            (attrs.token != null ? '&token=' + encodeURIComponent(String(attrs.token)) : '')) +
           (attrs.title != null ? ' ' + state.quote(`${attrs.title}`) : '') +
           ')'
       )
     } else if (attrs['file-id'] != null) {
-      // Convert image to fileid format
+      // Convert image to fileid format.
       state.write(
         '![' +
           state.esc(`${attrs.alt ?? ''}`) +
           '](' +
           (state.imageUrl +
-            `${attrs['file-id']}` +
-            (attrs.width != null ? '&width=' + state.esc(`${attrs.width}`) : '') +
-            (attrs.height != null ? '&height=' + state.esc(`${attrs.height}`) : '')) +
+            fileId +
+            '?file=' +
+            fileId +
+            (attrs.width != null ? '&width=' + encodeURIComponent(String(attrs.width)) : '') +
+            (attrs.height != null ? '&height=' + encodeURIComponent(String(attrs.height)) : '')) +
           (attrs.title != null ? ' ' + state.quote(`${attrs.title}`) : '') +
           ')'
       )
@@ -206,24 +215,28 @@ export const storeNodes: Record<string, NodeProcessor> = {
       if (attrs.width != null || attrs.height != null) {
         state.write(
           '<img' +
-            (attrs.width != null ? ` width="${state.esc(`${attrs.width}`)}"` : '') +
-            (attrs.height != null ? ` height="${state.esc(`${attrs.height}`)}"` : '') +
-            ` src="${state.esc(`${attrs.src}`)}"` +
-            (attrs.alt != null ? ` alt="${state.esc(`${attrs.alt}`)}"` : '') +
-            (attrs.title != null ? '>' + state.quote(`${attrs.title}`) + '</img>' : '>')
+            (attrs.width != null ? ' width="' + state.htmlEsc(String(attrs.width)) + '"' : '') +
+            (attrs.height != null ? ' height="' + state.htmlEsc(String(attrs.height)) + '"' : '') +
+            ' src="' +
+            state.htmlEsc(String(attrs.src ?? '')) +
+            '"' +
+            (attrs.alt != null ? ' alt="' + state.htmlEsc(String(attrs.alt)) + '"' : '') +
+            (attrs.title != null ? ' title="' + state.htmlEsc(String(attrs.title)) + '"' : '') +
+            '>'
         )
       } else {
         state.write(
           '![' +
             state.esc(`${attrs.alt ?? ''}`) +
             '](' +
-            state.esc(`${attrs.src}`) +
+            encodeURI(String(attrs.src ?? '')) +
             (attrs.title != null ? ' ' + state.quote(`${attrs.title}`) : '') +
             ')'
         )
       }
     }
   },
+  /* eslint-enable secure-coding/no-improper-sanitization */
   reference: (state, node) => {
     const attrs = nodeAttrs(node)
     let url = state.refUrl
@@ -281,6 +294,25 @@ export const storeNodes: Record<string, NodeProcessor> = {
     // Slashes are escaped to prevent autolink creation
     state.write(state.htmlEsc(embedUrl).replace(/\//g, '&#x2F;'))
     state.write('</a>')
+  },
+  file: (state, node) => {
+    // Inline file attachment (FileNode, `file-id` style). Render as a download link,
+    // reusing the same file-id -> URL scheme as the `image` node.
+    const attrs = nodeAttrs(node)
+    const fileId = attrs['file-id']
+    const name = (attrs['data-file-name'] as string) ?? (attrs['data-file-href'] as string) ?? 'file'
+    if (fileId != null) {
+      state.write('[' + state.esc(`${name}`) + '](' + state.imageUrl + `${fileId}` + `?file=${fileId}` + ')')
+    } else if (attrs['data-file-href'] != null) {
+      state.write('[' + state.esc(`${name}`) + '](' + state.esc(`${attrs['data-file-href']}`) + ')')
+    } else {
+      state.write(state.esc(`${name}`))
+    }
+  },
+  drawingBoard: (state, node) => {
+    // Freehand drawing board has no meaningful text representation in Markdown.
+    state.write('*[drawing]*')
+    state.closeBlock(node)
   }
 }
 
@@ -369,12 +401,8 @@ export const storeMarks: Record<string, MarkProcessor> = {
     escape: true
   },
   code: {
-    open: (state, mark, parent, index) => {
-      return backticksFor(false)
-    },
-    close: (state, mark, parent, index) => {
-      return backticksFor(true)
-    },
+    open: (state, mark, parent, index) => backticksFor(false),
+    close: (state, mark, parent, index) => backticksFor(true),
     mixable: false,
     expelEnclosingWhitespace: false,
     escape: false
@@ -404,7 +432,7 @@ export const storeMarks: Record<string, MarkProcessor> = {
       }
       const styleAttrs = Object.entries(attrs)
         .map(([key, value]) => {
-          const kebabKey = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+          const kebabKey = key.replace(/[A-Z]/gv, (letter) => `-${letter.toLowerCase()}`)
           return `${kebabKey}: ${value}`
         })
         .join('; ')
@@ -435,6 +463,40 @@ export const storeMarks: Record<string, MarkProcessor> = {
     mixable: true,
     expelEnclosingWhitespace: false,
     escape: true
+  },
+  highlight: {
+    open: '<mark>',
+    close: '</mark>',
+    mixable: true,
+    expelEnclosingWhitespace: true,
+    escape: true
+  },
+  // QMS/review-only marks below carry no visual formatting of their own (they attach
+  // review metadata - a comment thread id, a note - to a run of text). Passing them
+  // through as no-ops keeps the underlying text intact instead of aborting the export.
+  note: {
+    open: '',
+    close: (state, mark) => {
+      const title = mark.attrs?.title
+      return title !== undefined && title !== null && title !== '' ? ` _(note: ${state.esc(`${title}`)})_` : ''
+    },
+    mixable: false,
+    expelEnclosingWhitespace: false,
+    escape: false
+  },
+  'node-uuid': {
+    open: '',
+    close: '',
+    mixable: true,
+    expelEnclosingWhitespace: false,
+    escape: false
+  },
+  'inline-comment': {
+    open: '',
+    close: '',
+    mixable: true,
+    expelEnclosingWhitespace: false,
+    escape: false
   }
 }
 
@@ -553,10 +615,18 @@ export class MarkdownState implements IState {
   // :: (Node)
   // Render the given node as a block.
   render (node: MarkupNode, parent: MarkupNode, index: number): void {
-    if (this.nodes[node.type] === undefined) {
-      throw new Error('Token type `' + node.type + '` not supported by Markdown renderer')
+    const processor = this.nodes[node.type]
+    if (processor === undefined) {
+      // Unknown node type (e.g. an editor-only node not recognized by this serializer).
+      // Rather than aborting the whole export, drop the wrapper and render its children,
+      // if any, so the surrounding document still converts.
+      console.warn(`[text-markdown] Unsupported node type "${node.type}", rendering its content only`)
+      if (nodeContent(node).length > 0) {
+        this.renderContent(node)
+      }
+      return
     }
-    this.nodes[node.type](this, node, parent, index)
+    processor(this, node, parent, index)
   }
 
   // :: (Node)
@@ -570,7 +640,7 @@ export class MarkdownState implements IState {
   reorderMixableMark (state: InlineState, mark: MarkupMark, i: number, len: number): void {
     for (let j = 0; j < state.active.length; j++) {
       const other = state.active[j]
-      if (!this.marks[other.type].mixable || this.checkSwitchMarks(i, j, state, mark, other, len)) {
+      if (!(this.marks[other.type]?.mixable ?? false) || this.checkSwitchMarks(i, j, state, mark, other, len)) {
         break
       }
     }
@@ -715,9 +785,13 @@ export class MarkdownState implements IState {
     // leading and trailing accordingly.
     const node = state?.node
     if (this.isText(node) && this.isMarksHasExpelEnclosingWhitespace(state)) {
-      const match = /^(\s*)(.*?)(\s*)$/m.exec(node?.text ?? '')
-      if (match !== null) {
-        const [leadMatch, innerMatch, trailMatch] = [match[1], match[2], match[3]]
+      const text = node?.text ?? ''
+      const leadMatch = text.match(/^\s*/)?.[0] ?? ''
+      const textWithoutLeading = text.slice(leadMatch.length)
+      const trailMatch = textWithoutLeading.match(/\s*$/)?.[0] ?? ''
+      const innerMatch = textWithoutLeading.slice(0, textWithoutLeading.length - trailMatch.length)
+
+      if (leadMatch !== '' || trailMatch !== '') {
         leading += leadMatch
         state.trailing = trailMatch
         this.adjustLeadingTextNode(leadMatch, trailMatch, state, innerMatch, node as MarkupNode)
@@ -872,7 +946,10 @@ export class MarkdownState implements IState {
     if (value === undefined) {
       const info = this.marks[mark.type]
       if (info == null) {
-        throw new Error(`No info for mark ${mark.type}`)
+        // Unknown mark type - drop the formatting rather than aborting the export;
+        // the underlying text still comes through untouched.
+        console.warn(`[text-markdown] Unsupported mark type "${mark.type}", ignoring`)
+        return ''
       }
       value = open ? info.open : info.close
     }

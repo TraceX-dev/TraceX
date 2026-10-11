@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,7 +27,8 @@ export async function exportToWorkspace (
   targetWorkspace: string | undefined,
   relations?: RelationDefinition[] | undefined,
   skipDeletedObsolete?: boolean,
-  exportOnlyEffective?: boolean
+  exportOnlyEffective?: boolean,
+  includeChildren?: boolean
 ): Promise<void> {
   const lang = getCurrentLanguage()
 
@@ -52,10 +54,15 @@ export async function exportToWorkspace (
         state: 'draft',
         major: 1,
         minor: 0,
+        // Team members are Employee refs of the source workspace and do not exist in the target one.
+        // Keeping them creates "phantom" members that block review/approval of the exported document.
         reviewers: [],
+        approvers: [],
+        externalApprovers: [],
+        coAuthors: [],
         controlledState: '',
         seqNumber: '$generateSeqNumber',
-        code: '$generateCode'
+        code: '$preserveUniqueCode'
       },
       'documents:class:DocumentMeta': {
         author: '$currentUser',
@@ -73,7 +80,8 @@ export async function exportToWorkspace (
       _class,
       fieldMappers,
       skipDeletedObsolete,
-      exportOnlyEffective
+      exportOnlyEffective,
+      includeChildren
     }
     if (relations != null) {
       body.relations = relations

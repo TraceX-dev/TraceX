@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,8 +20,8 @@ import core from '@hcengineering/core'
 import serverCore from '@hcengineering/server-core'
 import serverCard from '@hcengineering/server-card'
 import card from '@hcengineering/card'
-import communication from '@hcengineering/communication'
 import serverNotification from '@hcengineering/server-notification'
+import view from '@hcengineering/view'
 
 export { serverCardId } from '@hcengineering/server-card'
 
@@ -40,6 +41,16 @@ export function createModel (builder: Builder): void {
     txMatch: {
       _class: core.class.TxRemoveDoc,
       objectClass: core.class.Attribute
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverCard.trigger.OnViewletUpdate,
+    isAsync: true,
+    txMatch: {
+      _class: core.class.TxUpdateDoc,
+      objectClass: view.class.Viewlet,
+      'operations.config': { $exists: true }
     }
   })
 
@@ -81,24 +92,6 @@ export function createModel (builder: Builder): void {
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverCard.trigger.OnCardCreate,
     isAsync: true,
-    txMatch: {
-      _class: core.class.TxCreateDoc,
-      objectClass: card.class.Card
-    }
-  })
-
-  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
-    trigger: serverCard.trigger.OnDirectCreate,
-    isAsync: false,
-    txMatch: {
-      _class: core.class.TxCreateDoc,
-      objectClass: communication.type.Direct
-    }
-  })
-
-  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
-    trigger: serverCard.trigger.OnThreadCreate,
-    isAsync: false,
     txMatch: {
       _class: core.class.TxCreateDoc,
       objectClass: card.class.Card

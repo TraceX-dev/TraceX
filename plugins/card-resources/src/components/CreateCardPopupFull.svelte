@@ -1,4 +1,5 @@
 <!-- Copyright © 2025 Hardcore Engineering Inc. -->
+<!-- Copyright © 2026 TraceX SAS. -->
 <!-- -->
 <!-- Licensed under the Eclipse Public License, Version 2.0 (the "License"); -->
 <!-- you may not use this file except in compliance with the License. You may -->
@@ -12,25 +13,27 @@
 <!-- limitations under the License. -->
 
 <script lang="ts">
-  import card, { Card, CardSpace, MasterTag } from '@hcengineering/card'
-  import presentation, { getClient, getCommunicationClient, SpaceSelector } from '@hcengineering/presentation'
+  import { Card, CardSpace, type CreateCardExtension, MasterTag } from '@hcengineering/card'
+  import presentation, { createQuery, getClient, SpaceSelector } from '@hcengineering/presentation'
   import { createEventDispatcher } from 'svelte'
-  import core, { Data, generateId, Ref, Markup, notEmpty, getCurrentAccount } from '@hcengineering/core'
+  import core, { Data, generateId, Ref, Markup, getCurrentAccount } from '@hcengineering/core'
   import { getResource, translate, getEmbeddedLabel } from '@hcengineering/platform'
-  import { Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
+  import { Notice, Label, Modal, ModernEditbox, languageStore, showPopup, Component } from '@hcengineering/ui'
   import { AttachmentStyledBox } from '@hcengineering/attachment-resources'
   import { EmptyMarkup } from '@hcengineering/text'
-  import { Employee, getCurrentEmployee } from '@hcengineering/contact'
-  import { SelectUsersPopup, employeeByIdStore, permissionsStore } from '@hcengineering/contact-resources'
+  import { Employee, getCurrentEmployee, getGuestScopedEmployees } from '@hcengineering/contact'
+  import { SelectUsersPopup, permissionsStore } from '@hcengineering/contact-resources'
   import view from '@hcengineering/view'
 
-  import { createCard, isBaseTypeWithSubtypes } from '../utils'
+  import { createCard, getRootType, isBaseTypeWithSubtypes } from '../utils'
   import CardCollaborators from './CardCollaborators.svelte'
   import { TypeSelector } from '../index'
   import { canCreateObject } from '@hcengineering/view-resources'
+  import card from '../plugin'
+  import CreateCardFields from './CreateCardFields.svelte'
 
   export let title: string = ''
-  export let type: Ref<MasterTag> = card.types.Document
+  export let type: Ref<MasterTag> | null = card.types.Document
   export let space: Ref<CardSpace> | undefined = undefined
   export let changeType: boolean = false
   export let allowChangeSpace: boolean = true
@@ -39,35 +42,55 @@
   const dispatch = createEventDispatcher()
   const client = getClient()
   const hierarchy = client.getHierarchy()
-  const communicationClient = getCommunicationClient()
   const me = getCurrentEmployee()
   const _id = generateId<Card>()
 
-  $: extension =
-    type != null
-      ? client
-        .getModel()
-        .findAllSync(card.mixin.CreateCardExtension, {})
-        .find((it) => hierarchy.isDerived(type, it._id))
-      : undefined
+  function getCreateCardExtension (_type: Ref<MasterTag> | null): CreateCardExtension | undefined {
+    if (_type == null) return undefined
+
+    return client
+      .getModel()
+      .findAllSync(card.mixin.CreateCardExtension, {})
+      .find((it) => hierarchy.isDerived(_type, it._id))
+  }
+
+  $: extension = getCreateCardExtension(type)
 
   let data: Partial<Data<Card>> = { title }
   let _space: Ref<CardSpace> | undefined = space
+  let selectedSpace: CardSpace | undefined
   let collaborators: Ref<Employee>[] = [me]
 
-  let creating = false
+  // Guests pick collaborators among the people of the selected space.
+  // Undefined means no narrowing: not a guest or no space selected.
+  let scopedEmployees: Ref<Employee>[] | undefined = undefined
 
-  async function addCollaborators (): Promise<void> {
-    if (type == null) return
-    const accounts = collaborators
-      .filter((it) => it !== me)
-      .map((it) => $employeeByIdStore.get(it)?.personUuid)
-      .filter(notEmpty)
+  $: void updateScopedEmployees(_space)
 
-    if (accounts.length > 0) {
-      await communicationClient.addCollaborators(_id, type, accounts)
+  async function updateScopedEmployees (space: Ref<CardSpace> | undefined): Promise<void> {
+    const employees = await getGuestScopedEmployees(client, space !== undefined ? { space } : undefined)
+    if (space !== _space) return
+    scopedEmployees = employees?.map((it) => it._id)
+    if (scopedEmployees !== undefined) {
+      const allowed = new Set(scopedEmployees)
+      collaborators = collaborators.filter((it) => it === me || allowed.has(it))
     }
   }
+
+  const spaceQuery = createQuery()
+  $: if (_space != null) {
+    if (selectedSpace?._id !== _space) {
+      selectedSpace = undefined
+    }
+    spaceQuery.query(card.class.CardSpace, { _id: _space }, (result) => {
+      selectedSpace = result[0]
+    })
+  } else {
+    spaceQuery.unsubscribe()
+    selectedSpace = undefined
+  }
+
+  let creating = false
 
   async function okAction (): Promise<void> {
     if (_space === undefined || type == null) return
@@ -88,7 +111,6 @@
       }
 
       await createCard(type, _space, data, description, _id)
-      await addCollaborators()
 
       dispatch('close', _id)
     } finally {
@@ -102,12 +124,17 @@
 
   let label: string = ''
 
-  $: void updateLabel($languageStore)
+  $: void updateLabel($languageStore, type)
 
-  async function updateLabel (lang: string): Promise<void> {
-    const _clazz = hierarchy.getClass(type)
-    const typeString = await translate(_clazz.label, {}, lang)
+  async function updateLabel (lang: string, _type: Ref<MasterTag> | null): Promise<void> {
     const createString = await translate(presentation.string.Create, {}, lang)
+    if (_type == null) {
+      label = createString
+      return
+    }
+
+    const _clazz = hierarchy.getClass(_type)
+    const typeString = await translate(_clazz.label, {}, lang)
     label = `${createString} ${typeString}`
   }
 
@@ -120,6 +147,7 @@
         skipCurrentAccount: false,
         skipInactive: true,
         selected: collaborators,
+        includeItems: scopedEmployees,
         showStatus: true
       },
       'top',
@@ -142,8 +170,15 @@
     }
   }
 
+  $: typeAllowedBySpace =
+    type != null && selectedSpace != null && selectedSpace.types.includes(getRootType(hierarchy, type))
+  $: missingSelection = _space == null || type == null
   $: allowed =
-    _space != null && canCreateObject(type, _space, $permissionsStore) && !isBaseTypeWithSubtypes(hierarchy, type)
+    _space != null &&
+    type != null &&
+    typeAllowedBySpace &&
+    canCreateObject(type, _space, $permissionsStore) &&
+    !isBaseTypeWithSubtypes(hierarchy, type)
 </script>
 
 <Modal
@@ -162,32 +197,35 @@
     <ModernEditbox
       bind:value={data.title}
       label={view.string.Title}
-      size="medium"
+      size="large"
       kind="ghost"
+      style="font-size: 1.125rem;"
       disabled={extension?.disableTitle ?? false}
       autoFocus={!(extension?.disableTitle ?? false)}
     />
 
-    <AttachmentStyledBox
-      objectId={_id}
-      _class={type}
-      space={_space}
-      alwaysEdit
-      showButtons={false}
-      bind:content={description}
-      placeholder={core.string.Description}
-      kind="indented"
-      isScrollable={true}
-      kitOptions={{ reference: true }}
-      enableAttachments={false}
-    />
+    {#if type != null}
+      <AttachmentStyledBox
+        objectId={_id}
+        _class={type}
+        space={_space}
+        alwaysEdit
+        showButtons={false}
+        bind:content={description}
+        placeholder={core.string.Description}
+        kind="indented"
+        isScrollable={true}
+        kitOptions={{ reference: true }}
+        enableAttachments={false}
+      />
+    {/if}
   </div>
 
   <div class="hulyModal-content__settingsSet">
     {#if changeType}
       <div class="hulyModal-content__settingsSet-line">
         <span class="label"><Label label={card.string.MasterTag} /></span>
-        <TypeSelector bind:value={type} excludeBaseTypes />
+        <TypeSelector bind:value={type} allowedRootTypes={selectedSpace?.types} excludeBaseTypes size={'medium'} />
       </div>
     {/if}
     {#if (space == null || allowChangeSpace) && !(extension?.hideSpace ?? false)}
@@ -204,7 +242,7 @@
           focus={false}
           clearInvalidValue={true}
           kind={'regular'}
-          size={'large'}
+          size={'medium'}
         />
       </div>
     {/if}
@@ -221,17 +259,18 @@
     {#if extension?.component}
       <Component is={extension.component} props={{ collaborators, data, space: _space }} on:change={handleChange} />
     {/if}
+    {#if type != null}
+      <CreateCardFields {type} bind:data />
+    {/if}
   </div>
 
-  <div slot="afterContent" class="error p-4 flex-row-reverse">
+  <div slot="afterContent" class="p-4 flex-row-reverse">
     {#if !allowed}
-      <Label label={view.string.NoCreatePermissionTitle} />
+      {#if missingSelection}
+        <Notice kind="warning" label={card.string.SelectTypeAndSpace} />
+      {:else}
+        <Notice kind="error" label={view.string.NoCreatePermissionTitle} />
+      {/if}
     {/if}
   </div>
 </Modal>
-
-<style lang="scss">
-  .error {
-    color: var(--theme-error-color);
-  }
-</style>

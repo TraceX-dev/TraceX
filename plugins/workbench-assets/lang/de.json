@@ -35,6 +35,8 @@
     "ConfigureWidgets": "Widgets konfigurieren",
     "Tab": "Tab",
     "WorkspaceIsArchived": "Workspace wurde wegen Inaktivität archiviert. Bitte kontaktieren Sie uns zur Wiederherstellung...",
-    "WorkspaceIsMigrating": "Workspace wird aktualisiert. Bitte warten..."
+    "WorkspaceIsMigrating": "Workspace wird aktualisiert. Bitte warten...",
+    "FailedToLoadWorkspaces": "Workspaces konnten nicht geladen werden",
+    "NoWorkspacesFound": "Keine Workspaces gefunden"
   }
 }

@@ -48,7 +48,10 @@ import core, {
   TxProcessor,
   TxRemoveDoc,
   TxUpdateDoc,
-  getClassCollaborators
+  getClassCollaborators,
+  getAccessRoot,
+  getObjectAccessReaders,
+  type AccessFindFn
 } from '@hcengineering/core'
 import notification, {
   ActivityInboxNotification,
@@ -56,7 +59,8 @@ import notification, {
   DocNotifyContext,
   InboxNotification,
   MentionInboxNotification,
-  NotificationType
+  NotificationType,
+  type OnDemandNotification
 } from '@hcengineering/notification'
 import { getResource, translate } from '@hcengineering/platform'
 import { getAccountBySocialId, getEmployeesBySocialIds } from '@hcengineering/server-contact'
@@ -64,7 +68,8 @@ import { type TriggerControl } from '@hcengineering/server-core'
 import { NOTIFICATION_BODY_SIZE, ReceiverInfo, SenderInfo } from '@hcengineering/server-notification'
 import { markupToText, stripTags } from '@hcengineering/text-core'
 
-import { PushNotificationsHandler } from './push'
+import { buildEmailLayout, collectEmailData, getEmailStrings, getNotificationAppName, renderEmail } from './email'
+import { OnInboxNotificationCreate, PushNotificationsHandler } from './push'
 import {
   AvailableProvidersCache,
   AvailableProvidersCacheKey,
@@ -75,6 +80,7 @@ import {
   NotifyResult
 } from './types'
 import {
+  getAllowedProviders,
   getHTMLPresenter,
   getNotificationContent,
   getNotificationLink,
@@ -93,6 +99,50 @@ import {
   updateNotifyContextsSpace
 } from './utils'
 
+export interface TranslatedNotificationContent {
+  title: string
+  body: string
+  params: Record<string, string>
+}
+
+interface EmailTemplateParams extends Record<string, string> {
+  title: string
+  body: string
+  message: string
+  link: string
+}
+
+function toTemplateParams (params?: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, String(value)]))
+}
+
+function getAccessFind (ctx: MeasureContext, control: TriggerControl): AccessFindFn {
+  return async (_class, query, options) => await control.findAll(ctx, _class, query, options)
+}
+
+// Object access: readers allowed for all the documents (undefined: not restricted), cached per request.
+async function getAccessReadersOf (
+  ctx: MeasureContext,
+  control: TriggerControl,
+  docs: Doc[]
+): Promise<Set<AccountUuid> | undefined> {
+  let result: Set<AccountUuid> | undefined
+  for (const doc of docs) {
+    const root = getAccessRoot(doc)
+    if (root === undefined) continue
+    const key = `objectAccessReaders:${root}`
+    let readers: Set<AccountUuid> | undefined = control.contextCache.get(key)
+    if (!control.contextCache.has(key)) {
+      readers = await getObjectAccessReaders(control.hierarchy, getAccessFind(ctx, control), doc)
+      control.contextCache.set(key, readers)
+    }
+    if (readers === undefined) continue
+    const current: Set<AccountUuid> = readers
+    result = result === undefined ? new Set(current) : new Set(Array.from(result).filter((it) => current.has(it)))
+  }
+  return result
+}
+
 export async function getCommonNotificationTxes (
   ctx: MeasureContext,
   control: TriggerControl,
@@ -109,6 +159,11 @@ export async function getCommonNotificationTxes (
   tx?: TxCUD<Doc>
 ): Promise<Tx[]> {
   if (notifyResult.size === 0 || !notifyResult.has(notification.providers.InboxNotificationProvider)) {
+    return []
+  }
+
+  const readers = await getAccessReadersOf(ctx, control, [doc])
+  if (readers !== undefined && !readers.has(receiver.account)) {
     return []
   }
 
@@ -155,7 +210,7 @@ function fillTemplate (
   sender: string,
   doc: string,
   data: string,
-  params: Record<string, string> = {}
+  params: EmailTemplateParams
 ): string {
   let res = replaceAll(template, '{sender}', sender)
   res = replaceAll(res, '{doc}', doc)
@@ -183,10 +238,10 @@ export async function getContentByTemplate (
   const notificationType = control.modelDb.getObject(type)
   if (notificationType.templates === undefined) return
 
-  const params: Record<string, string> =
+  const notificationContent: TranslatedNotificationContent =
     notificationData !== undefined
       ? await getTranslatedNotificationContent(notificationData, notificationData._class, control)
-      : {}
+      : { title: '', body: '', params: {} }
 
   let textPart = await getTextPart(doc, control)
   if (textPart === undefined) {
@@ -194,10 +249,12 @@ export async function getContentByTemplate (
       notificationData !== undefined &&
       control.hierarchy.isDerived(notificationData._class, notification.class.CommonInboxNotification)
     ) {
-      textPart = params.title ?? params.body ?? ''
+      textPart = notificationContent.title || notificationContent.body
     }
     if (textPart === undefined || textPart === '') return
   }
+
+  let messageText = notificationContent.params.message ?? notificationContent.body
 
   if (
     notificationData !== undefined &&
@@ -205,29 +262,64 @@ export async function getContentByTemplate (
   ) {
     const messageContent = (notificationData as MentionInboxNotification).messageHtml
     const text = messageContent !== undefined ? markupToText(messageContent) : undefined
-    params.body = text ?? params.body
-    params.message = text ?? params.message
+    messageText = text ?? messageText
   }
 
   if (message !== undefined) {
     const markup = await messageToMarkup(control, message)
-    params.message = markup !== undefined ? markupToText(markup) : (params.message ?? '')
-  } else if (params.message === undefined) {
-    params.message = params.body ?? ''
+    messageText = markup !== undefined ? markupToText(markup) : messageText
   }
 
   const link = await getNotificationLink(control, doc, message?._id)
-  const app = control.branding?.title ?? 'Huly'
+  const app = getNotificationAppName(control)
   const linkText = await translate(notification.string.ViewIn, { app })
 
-  params.link = `<a href='${link}'>${linkText}</a>`
+  const params: EmailTemplateParams = {
+    ...notificationContent.params,
+    title: textPart,
+    body: notificationContent.body,
+    message: messageText,
+    link: `<a href='${link}'>${linkText}</a>`
+  }
 
-  const text = fillTemplate(notificationType.templates.textTemplate, sender, textPart, data, params)
-  const htmlPart = await getHtmlPart(doc, control)
-  const html = fillTemplate(notificationType.templates.htmlTemplate, sender, htmlPart ?? textPart, data, params)
-  const subject = fillTemplate(notificationType.templates.subjectTemplate, sender, textPart, data, params)
+  // Plain text gets the bare url: `{link}` holds an <a> tag for the legacy HTML template only.
+  const textParams: EmailTemplateParams = { ...params, link }
+  const text = fillTemplate(notificationType.templates.textTemplate, sender, textPart, data, textParams)
+  const subject = fillTemplate(notificationType.templates.subjectTemplate, sender, textPart, data, textParams)
 
   if (subject === '') return
+
+  let html: string
+  try {
+    const emailData = await collectEmailData(control, {
+      doc,
+      type: notificationType,
+      senderName: sender,
+      objectTitle: textPart,
+      content: {
+        title: notificationContent.title,
+        // Without an inbox notification (e.g. HR emails) the filled text template is the only body we have.
+        body:
+          notificationContent.body !== ''
+            ? notificationContent.body
+            : notificationData === undefined && text !== textPart
+              ? text
+              : ''
+      },
+      objectLink: message !== undefined ? await getNotificationLink(control, doc) : link,
+      messageLink: message !== undefined ? link : undefined,
+      notification: notificationData,
+      message
+    })
+    html = renderEmail(buildEmailLayout(emailData, getEmailStrings(emailData.lang)))
+  } catch (err: any) {
+    control.ctx.error('Failed to render notification email, falling back to the plain template', {
+      err: err?.message,
+      type
+    })
+    const htmlPart = await getHtmlPart(doc, control)
+    html = fillTemplate(notificationType.templates.htmlTemplate, sender, htmlPart ?? textPart, data, params)
+  }
 
   return {
     text,
@@ -404,11 +496,11 @@ export async function pushInboxNotifications (
 
 async function activityInboxNotificationToText (
   doc: Data<ActivityInboxNotification>
-): Promise<{ title: string, body: string, [key: string]: string }> {
+): Promise<TranslatedNotificationContent> {
   let title: string = ''
   let body: string = ''
 
-  const params = doc.intlParams ?? {}
+  const params = toTemplateParams(doc.intlParams)
   if (doc.intlParamsNotLocalized != null && Object.keys(doc.intlParamsNotLocalized).length > 0) {
     for (const key in doc.intlParamsNotLocalized) {
       const val = doc.intlParamsNotLocalized[key]
@@ -422,18 +514,18 @@ async function activityInboxNotificationToText (
     body = await translate(doc.body, params)
   }
 
-  return { ...params, title, body }
+  return { title, body, params }
 }
 
 async function commonInboxNotificationToText (
   doc: Data<CommonInboxNotification>
-): Promise<{ title: string, body: string, [key: string]: string }> {
+): Promise<TranslatedNotificationContent> {
   let title: string = ''
   let body: string = ''
 
-  let params = doc.intlParams ?? {}
+  let params = toTemplateParams(doc.intlParams)
   if (doc.props != null) {
-    params = { ...params, ...doc.props }
+    params = { ...params, ...toTemplateParams(doc.props) }
   }
   if (doc.intlParamsNotLocalized != null && Object.keys(doc.intlParamsNotLocalized).length > 0) {
     for (const key in doc.intlParamsNotLocalized) {
@@ -450,13 +542,13 @@ async function commonInboxNotificationToText (
   if (doc.message != null) {
     body = await translate(doc.message, params)
   }
-  return { ...params, title, body }
+  return { title, body, params }
 }
 
 async function mentionInboxNotificationToText (
   doc: Data<MentionInboxNotification>,
   control: TriggerControl
-): Promise<{ title: string, body: string, [key: string]: string }> {
+): Promise<TranslatedNotificationContent> {
   let obj = (await control.findAll(control.ctx, doc.mentionedInClass, { _id: doc.mentionedIn }, { limit: 1 }))[0]
   if (obj !== undefined) {
     if (control.hierarchy.isDerived(obj._class, chunter.class.ChatMessage)) {
@@ -488,16 +580,16 @@ export async function getTranslatedNotificationContent (
   data: Data<InboxNotification>,
   _class: Ref<Class<InboxNotification>>,
   control: TriggerControl
-): Promise<{ title: string, body: string, [key: string]: string }> {
+): Promise<TranslatedNotificationContent> {
   if (control.hierarchy.isDerived(_class, notification.class.ActivityInboxNotification)) {
     return await activityInboxNotificationToText(data as Data<ActivityInboxNotification>)
   } else if (control.hierarchy.isDerived(_class, notification.class.MentionInboxNotification)) {
     return await mentionInboxNotificationToText(data as Data<MentionInboxNotification>, control)
   } else if (control.hierarchy.isDerived(_class, notification.class.CommonInboxNotification)) {
-    return await commonInboxNotificationToText(data as Data<CommonInboxNotification>)
+    return await commonInboxNotificationToText(data)
   }
 
-  return { title: '', body: '' }
+  return { title: '', body: '', params: {} }
 }
 
 /**
@@ -779,8 +871,8 @@ export async function createCollabDocInfo (
   const filteredCollaborators = !space.private
     ? collaborators
     : collaborators.filter(
-      (it) =>
-        space.members.includes(it) ||
+        (it) =>
+          space.members.includes(it) ||
           currentRes.some((tx) => {
             if (tx._class === core.class.TxUpdateDoc) {
               const updateTx = tx as TxUpdateDoc<Space>
@@ -791,7 +883,7 @@ export async function createCollabDocInfo (
             }
             return false
           })
-    )
+      )
   const targets = new Set(filteredCollaborators)
 
   // user is not collaborator of himself, but we should notify user of changes related to users account (mentions, comments etc)
@@ -800,6 +892,14 @@ export async function createCollabDocInfo (
 
     if (account != null) {
       targets.add(account)
+    }
+  }
+
+  // Object access: the messages count too, e.g. card activity about a restricted discussion.
+  const readers = await getAccessReadersOf(ctx, control, [object, ...docMessages])
+  if (readers !== undefined) {
+    for (const it of Array.from(targets)) {
+      if (!readers.has(it)) targets.delete(it)
     }
   }
 
@@ -860,10 +960,10 @@ async function getTxCollabs (
   cache: Map<Ref<Doc>, Collaborator[]>,
   doc: Doc
 ): Promise<{
-    added: AccountUuid[]
-    removed: AccountUuid[]
-    result: AccountUuid[]
-  }> {
+  added: AccountUuid[]
+  removed: AccountUuid[]
+  result: AccountUuid[]
+}> {
   const { hierarchy } = control
   const mixin = getClassCollaborators(control.modelDb, hierarchy, doc._class)
   if (mixin === undefined) return { added: [], removed: [], result: [] }
@@ -1659,6 +1759,68 @@ async function OnDocRemove (txes: TxCUD<Doc>[], control: TriggerControl): Promis
 export * from './push'
 export * from './types'
 export * from './utils'
+export * from './email'
+
+/**
+ * Generic on-demand delivery: fans an {@link OnDemandNotification} command doc out into each target's
+ * private space (system trust), reusing {@link getCommonNotificationTxes}. Domain-agnostic — any module
+ * can create the command doc to "notify these users now" about any object.
+ */
+export async function OnDemandNotificationSend (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (!control.hierarchy.isDerived(tx._class, core.class.TxCreateDoc)) continue
+    const createTx = tx as TxCreateDoc<OnDemandNotification>
+    if (!control.hierarchy.isDerived(createTx.objectClass, notification.class.OnDemandNotification)) continue
+
+    const req = TxProcessor.createDoc2Doc(createTx)
+    if (req.targets.length === 0) continue
+
+    const type = control.modelDb.findAllSync(notification.class.NotificationType, { _id: req.notificationType })[0]
+    if (type === undefined) continue
+
+    const targetDoc = (await control.findAll(control.ctx, req.objectClass, { _id: req.objectId }, { limit: 1 }))[0]
+    if (targetDoc === undefined) continue
+
+    const sender: SenderInfo = await getSenderInfo(control.ctx, createTx.modifiedBy, control)
+    const receivers = await getReceiversInfo(control.ctx, req.targets, control)
+    if (receivers.length === 0) continue
+    const notificationControl = await getNotificationProviderControl(control.ctx, control)
+
+    for (const receiver of receivers) {
+      const data: Partial<Data<CommonInboxNotification>> = {
+        header: req.header,
+        message: req.message,
+        messageHtml: req.messageHtml,
+        icon: req.icon,
+        objectId: req.objectId,
+        objectClass: req.objectClass,
+        user: receiver.account,
+        isViewed: false,
+        archived: false
+      }
+      const allowedProviders = getAllowedProviders(control, receiver.socialIds, type, notificationControl)
+      const notifyResult: NotifyResult = new Map(allowedProviders.map((it) => [it, [type]]))
+      if (notifyResult.has(notification.providers.InboxNotificationProvider)) {
+        const notifyTxes = await getCommonNotificationTxes(
+          control.ctx,
+          control,
+          targetDoc,
+          data,
+          receiver,
+          sender,
+          req.objectId,
+          req.objectClass,
+          req.objectSpace,
+          createTx.modifiedOn,
+          notifyResult
+        )
+        res.push(...notifyTxes)
+      }
+    }
+  }
+  return res
+}
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export default async () => ({
@@ -1666,8 +1828,10 @@ export default async () => ({
     OnAttributeCreate,
     OnAttributeUpdate,
     OnDocRemove,
+    OnDemandNotificationSend,
     OnEmployeeDeactivate,
-    PushNotificationsHandler
+    PushNotificationsHandler,
+    OnInboxNotificationCreate
   },
   function: {
     IsUserEmployeeInFieldValueTypeMatch: isUserEmployeeInFieldValueTypeMatch,

@@ -13,60 +13,37 @@
 // limitations under the License.
 //
 
+import { AccountUuid, Class, Doc, Ref, Space, type WorkspaceIds } from '@hcengineering/core'
 import {
-  AccountUuid,
-  Class,
-  Doc,
-  MeasureContext,
-  Ref,
-  Space,
-  TxOperations,
-  WorkspaceUuid,
-  type WorkspaceIds
-} from '@hcengineering/core'
-import { StorageAdapter } from '@hcengineering/server-core'
+  type PlatformContext,
+  type Tool,
+  type ToolInputSchema,
+  type ToolMetadata as CoreToolMetadata,
+  type ToolOutputSchema
+} from '@hcengineering/ai-core'
 import { ContextMode, type TokenUsage } from '../providers/types'
 import { MemoryStorage } from '../storage'
-import { CollaboratorClient } from '@hcengineering/collaborator-client'
 
-export interface ToolDefinition {
-  name: string
-  description: string
-  parameters: Record<string, any>
+export type AIBotTool = Tool<ToolInputSchema, ToolOutputSchema, AIBotToolContext, CoreToolMetadata>
+
+export interface AIBotToolMetadata {
+  contextMode: ContextMode | 'any'
 }
 
-export type ToolExecutorResult =
-  | {
-    text: string
-    usage?: TokenUsage
-  }
-  | {
-    error: string
-    usage?: TokenUsage
-  }
+export type ToolMetadata = AIBotToolMetadata
 
-export type ToolExecutor = (args: any) => Promise<ToolExecutorResult>
-
-export interface WorkspaceOps {
-  storage: StorageAdapter
-  ctx: MeasureContext
-  wsIds: WorkspaceIds
-  getClient: () => Promise<TxOperations>
+export interface ToolTokenUsageCollector {
+  addTokenUsage: (usage: TokenUsage, details: { tool: string }) => void
 }
 
-export interface ToolContext {
+export interface AIBotToolContext extends PlatformContext {
   memoryStorage: MemoryStorage
-  collaborator: CollaboratorClient
-  user: AccountUuid | undefined
-  workspace: WorkspaceUuid
-  workspaceOps: WorkspaceOps
+  user: AccountUuid
+  wsIds: WorkspaceIds
   objectId?: Ref<Doc>
   objectClass?: Ref<Class<Doc>>
   objectSpace?: Ref<Space>
+  tokenUsage?: ToolTokenUsageCollector
 }
 
-export interface RegisteredTool {
-  definition: ToolDefinition
-  createExecutor: (toolCtx: ToolContext) => ToolExecutor
-  contextMode: ContextMode | 'any'
-}
+export type ToolContext = AIBotToolContext

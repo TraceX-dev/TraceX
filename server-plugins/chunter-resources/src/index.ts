@@ -1,5 +1,6 @@
 //
 // Copyright © 2022, 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,16 @@
 //
 
 import activity, { ActivityMessage, ActivityReference } from '@hcengineering/activity'
-import chunter, { Channel, ChatMessage, chunterId, ChunterSpace, ThreadMessage } from '@hcengineering/chunter'
+import chunter, {
+  Channel,
+  ChatMessage,
+  chunterId,
+  ChunterSpace,
+  type DefaultDiscussion,
+  type Discussion,
+  getDiscussionTitle,
+  ThreadMessage
+} from '@hcengineering/chunter'
 import contact, { Employee, Person } from '@hcengineering/contact'
 import core, {
   AccountUuid,
@@ -23,6 +33,7 @@ import core, {
   concatLink,
   Doc,
   DocumentQuery,
+  type DocumentUpdate,
   FindOptions,
   FindResult,
   Hierarchy,
@@ -44,6 +55,15 @@ import { getMetadata, IntlString, translate } from '@hcengineering/platform'
 import { getAccountBySocialId, getPerson } from '@hcengineering/server-contact'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import {
+  CreateChannelMessage,
+  CreateChannelMessageByName,
+  CreateLegacyComment,
+  GetChannelMessages,
+  GetChannelMessagesByName,
+  GetLegacyComments
+} from './workspaceApi'
+
+import {
   createCollaboratorNotifications,
   getAddCollaboratTxes,
   getDocCollaborators
@@ -54,6 +74,15 @@ import { workbenchId } from '@hcengineering/workbench'
 
 import { NOTIFICATION_BODY_SIZE } from '@hcengineering/server-notification'
 import { encodeObjectURI } from '@hcengineering/view'
+
+export {
+  CreateChannelMessage,
+  CreateChannelMessageByName,
+  CreateLegacyComment,
+  GetChannelMessages,
+  GetChannelMessagesByName,
+  GetLegacyComments
+}
 
 const updateChatInfoDelay = 12 * 60 * 60 * 1000 // 12 hours
 const hideChannelDelay = 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -81,6 +110,11 @@ export async function channelTextPresenter (doc: Doc): Promise<string> {
   }
 
   return `#${channel.name}`
+}
+
+// Used as the notification title for messages posted in a discussion.
+export async function DiscussionTextPresenter (doc: Doc): Promise<string> {
+  return getDiscussionTitle(doc as Discussion) ?? (await translate(chunter.string.UntitledDiscussion, {}))
 }
 
 export async function ChatMessageTextPresenter (doc: ChatMessage): Promise<string> {
@@ -394,6 +428,111 @@ async function OnChatMessageRemoved (txes: TxCUD<ChatMessage>[], control: Trigge
   return res
 }
 
+// The default discussion configured for the owner class it was created for, if it is still configured.
+function getConfiguredDefaultDiscussion (
+  control: TriggerControl,
+  discussion: Discussion
+): DefaultDiscussion | undefined {
+  if (discussion.defaultDiscussion === undefined) return undefined
+  const config = control.modelDb.findAllSync(chunter.class.DefaultDiscussion, { _id: discussion.defaultDiscussion })[0]
+  return config?.ofClass === discussion.attachedToClass ? config : undefined
+}
+
+/**
+ * The default discussion name is defined by the owner type only, so created discussions are renamed with it.
+ * Trigger transactions are derived, so they produce no activity.
+ * @public
+ */
+export async function OnDefaultDiscussionUpdated (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxUpdateDoc) continue
+    const updateTx = tx as TxUpdateDoc<DefaultDiscussion>
+    const name = updateTx.operations.name?.trim()
+    if (name === undefined || name === '') continue
+
+    // Only the fields required for the update are loaded.
+    const discussions = await control.findAll(
+      control.ctx,
+      chunter.class.Discussion,
+      { defaultDiscussion: updateTx.objectId, name: { $ne: name } },
+      { projection: { _id: 1, _class: 1, space: 1 } }
+    )
+    for (const discussion of discussions) {
+      res.push(control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, { name }))
+    }
+  }
+  return res
+}
+
+/**
+ * Restores the name of a default discussion renamed directly (e.g. through the API): the interface does not
+ * allow it, and a trigger cannot reject the transaction.
+ * @public
+ */
+export async function OnDefaultDiscussionRenamed (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxUpdateDoc) continue
+    const updateTx = tx as TxUpdateDoc<Discussion>
+    if (updateTx.operations.name === undefined) continue
+    const discussion = (
+      await control.findAll(control.ctx, chunter.class.Discussion, { _id: updateTx.objectId }, { limit: 1 })
+    )[0]
+    if (discussion === undefined) continue
+    const config = getConfiguredDefaultDiscussion(control, discussion)
+    if (config === undefined || discussion.name === config.name) continue
+    res.push(
+      control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, { name: config.name })
+    )
+  }
+  return res
+}
+
+/**
+ * Keeps discussions consistent when the owner object changes its class (e.g. the card type is changed).
+ * Default discussions are not inherited: one of the old type is linked to the entry of the new type with
+ * the same name, if any, and becomes a regular discussion otherwise.
+ * @public
+ */
+export async function OnDiscussionOwnerClassChanged (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxUpdateDoc) continue
+    const updateTx = tx as TxUpdateDoc<Doc>
+    const newClass = (updateTx.operations as { _class?: Ref<Class<Doc>> })._class
+    if (newClass === undefined) continue
+
+    const discussions = await control.findAll(control.ctx, chunter.class.Discussion, { attachedTo: updateTx.objectId })
+    if (discussions.length === 0) continue
+    const newConfigs = control.modelDb.findAllSync(chunter.class.DefaultDiscussion, { ofClass: newClass })
+    // Entries of the new type already used by a discussion of the object.
+    const linked = new Set(
+      discussions.map((it) => it.defaultDiscussion).filter((it) => newConfigs.some((config) => config._id === it))
+    )
+
+    for (const discussion of discussions) {
+      const operations: DocumentUpdate<Discussion> = {}
+      if (discussion.attachedToClass !== newClass) operations.attachedToClass = newClass
+      const current = discussion.defaultDiscussion
+      if (current !== undefined && !newConfigs.some((config) => config._id === current)) {
+        const name = discussion.name?.trim()
+        const match = newConfigs.find((config) => !linked.has(config._id) && config.name.trim() === name)
+        if (match !== undefined) {
+          linked.add(match._id)
+          operations.defaultDiscussion = match._id
+          if (discussion.name !== match.name) operations.name = match.name
+        } else {
+          operations.$unset = { defaultDiscussion: true }
+        }
+      }
+      if (Object.keys(operations).length === 0) continue
+      res.push(control.txFactory.createTxUpdateDoc(discussion._class, discussion.space, discussion._id, operations))
+    }
+  }
+  return res
+}
+
 function getDirectsToHide (directs: DocNotifyContext[], date: Timestamp): DocNotifyContext[] {
   const minVisibleDirects = 10
 
@@ -534,7 +673,10 @@ export default async () => ({
     ChunterTrigger,
     OnChatMessageRemoved,
     ChatNotificationsHandler,
-    OnUserStatus
+    OnUserStatus,
+    OnDefaultDiscussionUpdated,
+    OnDefaultDiscussionRenamed,
+    OnDiscussionOwnerClassChanged
   },
   function: {
     CommentRemove,
@@ -542,7 +684,16 @@ export default async () => ({
     ChannelTextPresenter: channelTextPresenter,
     ChunterNotificationContentProvider: getChunterNotificationContent,
     ChatMessageTextPresenter,
+    DiscussionTextPresenter,
     ChatMessageHtmlPresenter,
     JoinChannelTypeMatch
+  },
+  workspaceApi: {
+    GetLegacyComments,
+    CreateLegacyComment,
+    GetChannelMessages,
+    CreateChannelMessage,
+    GetChannelMessagesByName,
+    CreateChannelMessageByName
   }
 })

@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,7 +22,7 @@ import activity from '@hcengineering/activity'
 import { type Attachment } from '@hcengineering/attachment'
 import contact from '@hcengineering/contact'
 import chunter from '@hcengineering/chunter'
-import { getRoleAttributeProps } from '@hcengineering/setting'
+import setting, { getRoleAttributeProps } from '@hcengineering/setting'
 import type {
   Type,
   Ref,
@@ -31,7 +32,8 @@ import type {
   Permission,
   Role,
   Class,
-  Doc
+  Doc,
+  Association
 } from '@hcengineering/core'
 import { AccountRole, IndexKind, AccountUuid } from '@hcengineering/core'
 import {
@@ -73,6 +75,9 @@ const productPermissions: Ref<Permission>[] = [
   documents.permission.CoAuthorDocument,
   documents.permission.ArchiveDocument,
   documents.permission.UpdateDocumentOwner,
+  documents.permission.CreateDocumentCategory,
+  documents.permission.UpdateDocumentCategory,
+  documents.permission.DeleteDocumentCategory,
   core.permission.UpdateSpace,
   core.permission.ArchiveSpace
 ]
@@ -108,6 +113,10 @@ export class TProduct extends TExternalSpace implements Product {
 
   @Prop(Collection(attachment.class.Attachment), attachment.string.Attachments, { shortLabel: attachment.string.Files })
     attachments?: CollectionSize<Attachment>
+
+  @Prop(TypeRef(core.class.Association), products.string.ChangeControl)
+  @Hidden()
+    changeControlRelation?: Ref<Association>
 }
 
 @Model(products.class.ProductVersion, documents.class.Project)
@@ -186,7 +195,21 @@ function defineProduct (builder: Builder): void {
   })
 
   builder.mixin(products.class.Product, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: products.component.ProductPresenter
+    presenter: products.component.ProductPresenter,
+    requiredFields: ['name', 'icon', 'color']
+  })
+
+  builder.mixin(products.class.Product, core.class.Class, view.mixin.AttributePresenter, {
+    presenter: products.component.ProductArrayEditor,
+    arrayPresenter: products.component.ProductArrayEditor
+  })
+
+  builder.mixin(products.class.Product, core.class.Class, view.mixin.AttributeEditor, {
+    inlineEditor: products.component.ProductInlineEditor
+  })
+
+  builder.mixin(products.class.Product, core.class.Class, view.mixin.ArrayEditor, {
+    inlineEditor: products.component.ProductArrayEditor
   })
 
   builder.mixin(products.class.Product, core.class.Class, view.mixin.SpacePresenter, {
@@ -341,7 +364,8 @@ function defineProductVersion (builder: Builder): void {
   })
 
   builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: products.component.ProductVersionPresenter
+    presenter: products.component.ProductVersionPresenter,
+    requiredFields: ['major', 'minor', 'patch', 'codename', 'space']
   })
 
   builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.CollectionPresenter, {
@@ -354,6 +378,10 @@ function defineProductVersion (builder: Builder): void {
 
   builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.AttributeEditor, {
     inlineEditor: products.component.ProductVersionInlineEditor
+  })
+
+  builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.ArrayEditor, {
+    inlineEditor: products.component.ProductVersionArrayEditor
   })
 
   // builder.createDoc(
@@ -408,6 +436,14 @@ function defineProductVersion (builder: Builder): void {
 
   builder.mixin(products.class.ProductVersion, core.class.Class, view.mixin.IgnoreActions, {
     actions: [tracker.action.NewRelatedIssue, documents.action.CreateDocument as Ref<Action>]
+  })
+
+  builder.mixin(products.class.ProductVersion, core.class.Class, setting.mixin.Editable, {
+    value: true
+  })
+
+  builder.mixin(products.class.Product, core.class.Class, setting.mixin.Editable, {
+    value: true
   })
 
   createAction(
@@ -524,8 +560,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: products.class.Product,
-      enabled: false,
-      order: 45
+      enabled: false
     },
     products.ids.ModulePermissionGroup
   )
@@ -538,8 +573,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: products.class.Product,
-      enabled: false,
-      order: 45
+      enabled: false
     },
     products.ids.ModulePermissionGroupReadOnlyGuest
   )

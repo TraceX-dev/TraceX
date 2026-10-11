@@ -1,3 +1,17 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 /* eslint-disable @typescript-eslint/unbound-method */
 import {
   Hierarchy,
@@ -104,7 +118,7 @@ export async function preparePipeline (
 }
 
 export const fullTextDbURL = 'http://localhost:9201'
-export const dbUrl = 'postgresql://root@localhost:26258/defaultdb?sslmode=disable'
+export const dbUrl = 'postgresql://postgres:postgres@localhost:5433/postgres'
 export const elasticIndexName = 'testing'
 
 export function prepare (): void {

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,7 +22,29 @@ import { ProcessControl } from '@hcengineering/server-process'
 export function ToDoCloseRollback (context: Record<string, any>, control: ProcessControl): Tx | undefined {
   const todo = context.todo as ProcessToDo
   if (todo === undefined) return
-  return control.client.txFactory.createTxUpdateDoc(todo._class, todo.space, todo._id, { doneOn: null })
+  const reopen = control.client.txFactory.createTxUpdateDoc(todo._class, todo.space, todo._id, { doneOn: null })
+  const cancelledToDos = context.cancelledToDos as ProcessToDo[] | undefined
+  if (cancelledToDos === undefined || cancelledToDos.length === 0) return reopen
+  return control.client.txFactory.createTxApplyIf(
+    todo.space,
+    todo.group,
+    [],
+    [],
+    [
+      reopen,
+      ...cancelledToDos.map((cancelled) =>
+        control.client.txFactory.createTxCreateDoc(
+          cancelled._class,
+          cancelled.space,
+          { ...cancelled },
+          cancelled._id,
+          cancelled.modifiedOn,
+          cancelled.modifiedBy
+        )
+      )
+    ],
+    undefined
+  )
 }
 
 export function ToDoCancellRollback (context: Record<string, any>, control: ProcessControl): Tx | undefined {

@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -57,6 +58,8 @@ export const workbenchPlugin = plugin(workbenchId, {
     SpecialView: '' as AnyComponent
   },
   string: {
+    Application: '' as IntlString,
+    HiddenApplication: '' as IntlString,
     Archive: '' as IntlString,
     View: '' as IntlString,
     ServerUnderMaintenance: '' as IntlString,

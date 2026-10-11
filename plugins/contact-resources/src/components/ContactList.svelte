@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,7 @@
   import type { IntlString } from '@hcengineering/platform'
   import { createQuery } from '@hcengineering/presentation'
   import { Button, ButtonKind, ButtonSize, Label, showPopup, TooltipAlignment } from '@hcengineering/ui'
+  import { ObjectsTooltipWrapper } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
   import { ContactPresenter } from '..'
   import contact from '../plugin'
@@ -72,29 +74,38 @@
   }
 </script>
 
-<Button
-  icon={contacts.length === 0 ? IconMembers : undefined}
-  label={contacts.length === 0 ? emptyLabel : undefined}
-  notSelected={contacts.length === 0}
+<ObjectsTooltipWrapper
+  selectedCount={items?.length ?? 0}
+  objects={contacts}
+  objectIds={items ?? []}
+  {label}
+  direction={labelDirection}
+  {readonly}
   width={width ?? 'min-content'}
-  {kind}
-  {size}
-  {justify}
-  showTooltip={{ label, direction: labelDirection }}
-  on:click={addPerson}
 >
-  <svelte:fragment slot="content">
-    {#if contacts.length > 0}
-      <div class="flex-row-center flex-nowrap pointer-events-none">
-        {#if contacts.length === 1}
-          <ContactPresenter value={contacts[0]} disabled />
-        {:else}
-          <CombineAvatars {_class} bind:items size={'inline'} hideLimit />
-          <span class="overflow-label ml-1-5">
-            <Label label={contact.string.NumberMembers} params={{ count: contacts.length }} />
-          </span>
-        {/if}
-      </div>
-    {/if}
-  </svelte:fragment>
-</Button>
+  <Button
+    icon={contacts.length === 0 ? IconMembers : undefined}
+    label={contacts.length === 0 ? emptyLabel : undefined}
+    notSelected={contacts.length === 0}
+    width={'100%'}
+    {kind}
+    {size}
+    {justify}
+    on:click={addPerson}
+  >
+    <svelte:fragment slot="content">
+      {#if contacts.length > 0}
+        <div class="flex-row-center flex-nowrap pointer-events-none">
+          {#if contacts.length === 1}
+            <ContactPresenter value={contacts[0]} disabled />
+          {:else}
+            <CombineAvatars {_class} bind:items size={'inline'} hideLimit />
+            <span class="overflow-label ml-1-5">
+              <Label label={contact.string.NumberMembers} params={{ count: contacts.length }} />
+            </span>
+          {/if}
+        </div>
+      {/if}
+    </svelte:fragment>
+  </Button>
+</ObjectsTooltipWrapper>

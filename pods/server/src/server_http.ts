@@ -126,6 +126,7 @@ export function startHttpServer (
   }
 
   const app = express()
+  app.disable('x-powered-by')
   app.use(cors())
 
   const childLogger = ctx.logger.childLogger?.('requests', {
@@ -178,7 +179,7 @@ export function startHttpServer (
       const admin = payload.extra?.admin === 'true'
       const jsonData = {
         ...getStatistics(ctx, sessions, admin),
-        users: getUsers(),
+        ...(admin ? { users: getUsers() } : {}),
         admin,
         profiling
       }
@@ -435,9 +436,20 @@ export function startHttpServer (
   app.put('/api/v1/broadcast', (req, res) => {
     try {
       const token = (req.query.token as string) ?? (req.headers.authorization ?? '').split(' ')[1]
-      decodeToken(token)
+      const decoded = decodeToken(token)
 
       const ws = req.query.workspace as WorkspaceUuid
+      if (ws !== decoded.workspace) {
+        ctx.warn('Attempt to broadcast to wrong workspace', { workspace: ws, account: decoded.account })
+        res.status(403).send({})
+        return
+      }
+
+      if (decodeToken(token).account !== systemAccountUuid) {
+        ctx.warn('Attempt to broadcast from non system account', { workspace: ws, account: decoded.account })
+        res.status(403).send({})
+        return
+      }
 
       // push the data to body
       void retrieveJson(req)
@@ -445,7 +457,7 @@ export function startHttpServer (
           if (Array.isArray(data)) {
             sessions.broadcastAll(ctx, ws, data as Tx[])
           } else {
-            sessions.broadcastAll(ctx, ws, [data as unknown as Tx])
+            sessions.broadcastAll(ctx, ws, [data])
           }
           res.end()
         })
@@ -534,14 +546,14 @@ export function startHttpServer (
         if (msg instanceof Buffer) {
           buff = msg
         } else if (Array.isArray(msg)) {
-          buff = Buffer.concat(msg as any)
+          buff = Buffer.concat(msg)
         }
         if (buff !== undefined) {
           doSessionOp(
             ctx,
             webSocketData,
             (s, buff) => {
-              s.context.measure('receive-data', buff?.length ?? 0)
+              s.context.counter('receive-data', buff?.length ?? 0)
               processRequest(s.session, cs, s.context, s.workspaceId, buff, sessions)
             },
             buff
@@ -713,7 +725,7 @@ function createWebsocketClientSocket (
       const st = platformNow()
       await new Promise<void>((resolve) => {
         const handleErr = (err?: Error): void => {
-          ctx.measure('msg-send-delta', platformNow() - st)
+          ctx.counter('msg-send-delta', platformNow() - st)
           if (err != null) {
             if (!`${err.message}`.includes('WebSocket is not open')) {
               ctx.error('send error', { err })

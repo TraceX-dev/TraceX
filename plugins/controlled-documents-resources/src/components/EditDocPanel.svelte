@@ -66,6 +66,7 @@
     $editorMode as editorMode,
     editorModeUpdated,
     $isDocumentOwner as isDocumentOwner,
+    $isDocumentOwnerOrCoAuthor as isDocumentOwnerOrCoAuthor,
     $isProjectEditable as isProjectEditable,
     rightPanelTabChanged
   } from '../stores/editors/document'
@@ -324,7 +325,7 @@
     allowClose={withClose && !embedded}
     {embedded}
     printHeader={false}
-    adaptive={'autoExtra'}
+    adaptive="autoExtra"
     overflowExtra
     hideSearch
     on:close
@@ -336,9 +337,9 @@
           <ProjectSelector
             value={project}
             space={$controlledDocument.space}
-            kind={'ghost'}
-            size={'medium'}
-            justify={'left'}
+            kind="ghost"
+            size="medium"
+            justify="left"
             disabled
             on:change={(e) => {
               project = e.detail
@@ -364,7 +365,7 @@
     <svelte:fragment slot="extra">
       <div class="flex flex-gap-1 no-print">
         {#if $isProjectEditable}
-          {#if $isDocumentOwner && !$documentReviewIsActive && !$documentApprovalIsActive}
+          {#if $isDocumentOwnerOrCoAuthor && !$documentReviewIsActive && !$documentApprovalIsActive}
             {#if $canSendForReview}
               <Button
                 label={documentRes.string.SendForReview}
@@ -460,7 +461,7 @@
       {#if $editorMode === 'comparing'}
         <DocumentDiffViewer />
       {:else}
-        <Tabs model={tabs} bind:selected={selectedTab} size={'large'} padding="0 1.5rem" noMargin />
+        <Tabs model={tabs} bind:selected={selectedTab} size="large" padding="0 1.5rem" noMargin />
       {/if}
     </Collaboration>
     <svelte:fragment slot="custom-attributes">

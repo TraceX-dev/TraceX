@@ -69,7 +69,7 @@
   {@const title = getTitle(attributeModel)}
   {#if title}
     <span class="text-sm lower"><Label label={title} /></span>
-    <span class="text-sm lower"> <Label label={attributeModel.label} /></span>
+    <span class="text-sm lower fs-bold"> <Label label={attributeModel.label} /></span>
   {/if}
 {/if}
 
@@ -85,7 +85,6 @@
 <style lang="scss">
   span {
     margin-left: 0.25rem;
-    font-weight: 400;
     line-height: 1.25rem;
   }
 </style>

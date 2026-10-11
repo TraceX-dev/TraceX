@@ -3,8 +3,6 @@ import activity, {
   type DocAttributeUpdates,
   type DocUpdateAction
 } from '@hcengineering/activity'
-import cardPlugin, { type Card, type Tag } from '@hcengineering/card'
-import { type ActivityUpdate, ActivityUpdateType } from '@hcengineering/communication-types'
 import core, {
   type ArrOf,
   type AttachedDoc,
@@ -26,7 +24,6 @@ import core, {
 } from '@hcengineering/core'
 import { translate } from '@hcengineering/platform'
 import { type ActivityControl, type DocObjectCache, getAllObjectTransactions } from '@hcengineering/server-activity'
-import { type TriggerControl } from '@hcengineering/server-core'
 
 // Use 100 KB limit for attribute updates
 const valueSizeLimit = 100 * 1024 // 100 KB
@@ -388,97 +385,4 @@ export function getCollectionAttribute (
   }
 
   return undefined
-}
-
-function getAttrClass (
-  hierarchy: Hierarchy,
-  objectClass: Ref<Class<Doc>>,
-  attrKey: string
-): Ref<Class<Doc>> | undefined {
-  const clazz = hierarchy.findAttribute(objectClass, attrKey)
-
-  if (clazz === undefined) return undefined
-
-  if (hierarchy.isDerived(clazz.type._class, core.class.RefTo)) {
-    return (clazz.type as RefTo<Doc>).to
-  } else if (hierarchy.isDerived(clazz.type._class, core.class.ArrOf)) {
-    const of = (clazz.type as ArrOf<AttachedDoc>).of
-    return of._class === core.class.RefTo ? (of as RefTo<Doc>).to : of._class
-  }
-
-  return clazz.type._class
-}
-
-export async function getNewActivityUpdates (
-  control: TriggerControl,
-  originTx: TxCUD<Card>,
-  card: Card
-): Promise<ActivityUpdate[]> {
-  if (![core.class.TxMixin, core.class.TxUpdateDoc].includes(originTx._class)) {
-    return []
-  }
-
-  const tx = originTx as TxUpdateDoc<Card> | TxMixin<Card, Card>
-  const { hierarchy } = control
-
-  const keys = getAvailableAttributesKeys(tx, hierarchy)
-  const result: ActivityUpdate[] = []
-  const mixin = hierarchy.isDerived(tx._class, core.class.TxMixin) ? (tx as TxMixin<Card, Card>).mixin : undefined
-
-  if (mixin != null && Object.keys((tx as TxMixin<Card, Card>).attributes).length === 0) {
-    const clazz = hierarchy.getClass(mixin)
-    if (hierarchy.isDerived(clazz._class, cardPlugin.class.Tag)) {
-      result.push({
-        type: ActivityUpdateType.Tag,
-        tag: mixin,
-        action: 'add'
-      })
-    }
-  }
-
-  if (keys.length === 0) return result
-  const modifiedAttributes = getModifiedAttributes(tx, hierarchy)
-
-  for (const key of keys) {
-    const attrValue = modifiedAttributes[key]
-
-    const added = combineAttributes([modifiedAttributes], key, '$push', '$each')
-    const removed = combineAttributes([modifiedAttributes], key, '$pull', '$in')
-    const isUnset = combineAttributes([modifiedAttributes], key, '$unset')[0] === true
-
-    if (isUnset && hierarchy.isMixin(key as any)) {
-      const tag = key as Ref<Tag>
-      const clazz = hierarchy.getClass(tag)
-
-      if (hierarchy.isDerived(clazz._class, cardPlugin.class.Tag)) {
-        result.push({
-          type: ActivityUpdateType.Tag,
-          tag,
-          action: 'remove'
-        })
-      }
-    }
-
-    const attrClass: Ref<Class<Doc>> | undefined = getAttrClass(hierarchy, mixin ?? card._class, key)
-
-    if (attrClass === undefined) continue
-    if (
-      hierarchy.isDerived(attrClass, core.class.TypeMarkup) ||
-      hierarchy.isDerived(attrClass, core.class.TypeCollaborativeDoc)
-    ) {
-      continue
-    }
-
-    result.push({
-      type: ActivityUpdateType.Attribute,
-      attrKey: key,
-      attrClass,
-      set: attrValue,
-      added,
-      removed,
-      mixin
-    })
-  }
-
-  return result
 }

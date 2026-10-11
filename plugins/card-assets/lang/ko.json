@@ -11,6 +11,8 @@
         "MasterTag": "유형",
         "MasterTags": "유형",
         "Parent": "상위 카드",
+        "ChangeTagParent": "상위 태그 변경",
+        "ChangeTagParentBlocked": "카드에 할당되었거나 하위 태그가 카드에 할당된 태그는 이동할 수 없습니다.",
         "Tags": "태그",
         "Tag": "태그",
         "AddTag": "태그 추가",
@@ -36,6 +38,7 @@
         "ChangeTypeWarning": "경고: 카드의 타입을 변경하면 대상 타입에 없는 속성의 모든 데이터가 삭제됩니다. 이전 타입으로 되돌리면 속성 데이터를 복원할 수 있습니다. 카드 내용은 영향을 받지 않습니다.",
         "MasterDetailViews": "마스터 디테일 뷰",
         "SelectType": "유형 선택",
+        "SelectTypeAndSpace": "계속하려면 카드 유형과 스페이스를 선택하세요.",
         "CreateSpace": "스페이스 만들기",
         "NumberTypes": "{count, plural, one {유형 #개} other {유형 #개}}",
         "Labels": "라벨",
@@ -63,9 +66,14 @@
         "ForbidRemoveTag": "태그 제거 금지",
         "Duplicate": "복제",
         "Version": "버전",
+        "Effective": "유효",
+        "MakeEffective": "유효하게 설정",
         "Versions": "버전",
         "NewVersion": "새 버전",
+        "VersionCreationUnavailable": "현재 새 버전을 만들 수 없습니다",
         "Versioning": "버전 관리",
+        "VersionCreationManagedByProcess": "프로세스를 통해 버전 생성 관리",
+        "VersionEffectiveManagedByProcess": "프로세스를 통해 버전 유효화 관리",
         "EnableVersioning": "버전 관리 사용",
         "EnableVersioningConfirm": "버전 관리를 사용하시겠습니까?",
         "NewVersionConfirmation": "새 버전을 만드시겠습니까?",
@@ -87,6 +95,8 @@
         "TwoColumns": "2열",
         "Grid": "그리드",
         "RichtextProperties": "리치 텍스트 속성",
-        "ShowAllVersions": "모든 버전 보기"
+        "ShowAllVersions": "모든 버전 보기",
+        "ShowOnlyEffectiveVersions": "유효한 버전만 보기",
+        "ShowOnlyCardsWithoutRelations": "관계가 없는 카드만 표시"
     }
 }

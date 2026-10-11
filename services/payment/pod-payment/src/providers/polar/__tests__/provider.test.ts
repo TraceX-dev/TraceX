@@ -40,7 +40,7 @@ describe('PolarProvider', () => {
   })
 
   test('createSubscription removes trailing slash from frontUrl to avoid double slashes in URLs', async () => {
-    const frontUrlWithTrailingSlash = 'https://huly.app/'
+    const frontUrlWithTrailingSlash = 'https://app.tracex.co/'
     const provider = new PolarProvider(
       accessToken,
       webhookSecret,
@@ -73,15 +73,15 @@ describe('PolarProvider', () => {
     const returnUrl = mockCreateCheckout.mock.calls[0][1].returnUrl
 
     expect(successUrl).toBe(
-      'https://huly.app/workbench/tup/setting/setting/billing/subscriptions?payment=success&checkout_id={CHECKOUT_ID}'
+      'https://app.tracex.co/workbench/tup/setting/setting/billing/subscriptions?payment=success&checkout_id={CHECKOUT_ID}'
     )
-    expect(returnUrl).toBe('https://huly.app/workbench/tup/setting/setting/billing/subscriptions?payment=canceled')
+    expect(returnUrl).toBe('https://app.tracex.co/workbench/tup/setting/setting/billing/subscriptions?payment=canceled')
     expect(successUrl).not.toContain('//workbench')
     expect(returnUrl).not.toContain('//workbench')
   })
 
   test('createSubscription strips multiple trailing slashes from frontUrl', async () => {
-    const frontUrlWithMultipleSlashes = 'https://huly.app///'
+    const frontUrlWithMultipleSlashes = 'https://app.tracex.co///'
     const provider = new PolarProvider(
       accessToken,
       webhookSecret,
@@ -112,7 +112,7 @@ describe('PolarProvider', () => {
 
     const successUrl = mockCreateCheckout.mock.calls[0][1].successUrl
     expect(successUrl).toBe(
-      'https://huly.app/workbench/ws1/setting/setting/billing/subscriptions?payment=success&checkout_id={CHECKOUT_ID}'
+      'https://app.tracex.co/workbench/ws1/setting/setting/billing/subscriptions?payment=success&checkout_id={CHECKOUT_ID}'
     )
   })
 })

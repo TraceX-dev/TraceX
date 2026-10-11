@@ -43,6 +43,8 @@ export interface MarkdownValueFormatter extends Class<Doc> {
   formatter: Resource<ValueFormatter>
 }
 
+export type { TableData } from '@hcengineering/converter'
+
 /**
  * Props for CopyAsMarkdownTable function
  */

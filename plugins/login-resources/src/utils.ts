@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -415,7 +416,8 @@ export async function getRegionInfo (doNavigate: boolean = true): Promise<Region
 
 export async function selectWorkspace (
   workspaceUrl: string,
-  token?: string | null | undefined
+  token?: string | null | undefined,
+  doNavigate: boolean | undefined = true
 ): Promise<[Status, WorkspaceLoginInfo | null, boolean]> {
   const actualToken = token ?? getMetadata(presentation.metadata.Token) ?? undefined
 
@@ -425,11 +427,13 @@ export async function selectWorkspace (
     return [OK, loginInfo, true]
   } catch (err: any) {
     if (err instanceof PlatformError && err.status.code === platform.status.Unauthorized) {
-      const loc = getCurrentLocation()
-      loc.path[0] = 'login'
-      loc.path[1] = 'login'
-      loc.path.length = 2
-      navigate(loc)
+      if (doNavigate ?? true) {
+        const loc = getCurrentLocation()
+        loc.path[0] = 'login'
+        loc.path[1] = 'login'
+        loc.path.length = 2
+        navigate(loc)
+      }
       return [unknownStatus('Please login'), null, true]
     } else if (err instanceof PlatformError) {
       Analytics.handleEvent(LoginEvents.SelectWorkspace, { name: workspaceUrl, ok: false })
@@ -857,7 +861,8 @@ async function handleStatusError (message: string, err: Status): Promise<void> {
   if (
     err.code === platform.status.InvalidPassword ||
     err.code === platform.status.AccountNotFound ||
-    err.code === platform.status.InvalidOtp
+    err.code === platform.status.InvalidOtp ||
+    err.code === platform.status.OtpLocked
   ) {
     // No need to send to analytics
     return
@@ -888,7 +893,28 @@ export function getHref (path: Pages): string {
   return host + url
 }
 
+/** Returns authenticated users to a public form without joining its workspace. */
+export function navigateToPublicForm (navigateUrl?: string | null, replace = false): boolean {
+  if (navigateUrl == null) return false
+  try {
+    const loc = JSON.parse(decodeURIComponent(navigateUrl)) as Location
+    if (
+      Array.isArray(loc.path) &&
+      loc.path[0] === 'forms' &&
+      loc.path.length >= 2 &&
+      loc.path.every((segment) => typeof segment === 'string')
+    ) {
+      navigate({ path: loc.path }, replace)
+      return true
+    }
+  } catch {
+    // Invalid return locations are ignored by the login flow.
+  }
+  return false
+}
+
 export async function afterConfirm (clearQuery = false): Promise<void> {
+  if (navigateToPublicForm(getCurrentLocation().query?.navigateUrl, clearQuery)) return
   const joinedWS = await getWorkspaces()
   if (joinedWS.length === 0) {
     goTo('createWorkspace', clearQuery)
@@ -1080,6 +1106,8 @@ export async function doLoginNavigate (
     if (result.token != null) {
       await logIn(result)
     }
+
+    if (result.token != null && navigateToPublicForm(navigateUrl)) return
 
     if (navigateUrl !== undefined) {
       try {

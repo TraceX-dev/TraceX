@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,12 +14,15 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Header, Breadcrumb } from '@hcengineering/ui'
+  import { Analytics } from '@hcengineering/analytics'
   import core, { AccountUuid, Ref, Role, RolesAssignment, SpaceType, TypedSpace, WithLookup } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
+  import { Breadcrumb, Header, Label, Scroller } from '@hcengineering/ui'
 
   import setting from '../plugin'
+
+  export let embedded = false
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -74,34 +78,54 @@
       [roleId]: newMembers
     })
   }
+
+  function handleRoleAssignmentError (error: unknown): void {
+    Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+  }
 </script>
 
 <div class="hulyComponent">
-  <Header adaptive={'disabled'}>
-    <Breadcrumb icon={setting.icon.Views} label={setting.string.Spaces} size="large" isCurrent />
-  </Header>
+  {#if !embedded}
+    <Header adaptive={'disabled'}>
+      <Breadcrumb icon={setting.icon.Privacy} label={setting.string.SpaceRoles} size="large" isCurrent />
+    </Header>
+  {/if}
   <div class="hulyComponent-content__column content">
-    {#each roles as role}
-      <div class="antiGrid-row">
-        <div class="antiGrid-row__header">
-          {role.name}
-        </div>
-        <AccountArrayEditor
-          value={rolesAssignment?.[role._id] ?? []}
-          label={core.string.Members}
-          onChange={(refs) => {
-            void handleRoleAssignmentChanged(role._id, refs)
-          }}
-          kind="regular"
-          size="large"
-        />
+    <Scroller align={'center'} padding={'var(--spacing-4)'}>
+      <div class="rolesContent">
+        <h2><Label label={setting.string.SpaceRoles} /></h2>
+        {#each roles as role}
+          <div class="antiGrid-row">
+            <div class="antiGrid-row__header">
+              {role.name}
+            </div>
+            <AccountArrayEditor
+              value={rolesAssignment?.[role._id] ?? []}
+              label={core.string.Members}
+              onChange={(refs) => {
+                handleRoleAssignmentChanged(role._id, refs).catch(handleRoleAssignmentError)
+              }}
+              kind="regular"
+              size="large"
+            />
+          </div>
+        {/each}
       </div>
-    {/each}
+    </Scroller>
   </div>
 </div>
 
 <style lang="scss">
   .content {
-    margin: 2rem 3.25rem;
+    min-height: 0;
+  }
+  .rolesContent {
+    width: min(100%, 48rem);
+  }
+  h2 {
+    margin: 0 0 var(--spacing-4);
+  }
+  .antiGrid-row + .antiGrid-row {
+    margin-top: var(--spacing-3);
   }
 </style>

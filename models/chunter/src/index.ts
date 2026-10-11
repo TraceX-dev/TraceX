@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -35,6 +36,8 @@ import {
   TChunterSpace,
   TDirectMessage,
   TObjectChatPanel,
+  TDefaultDiscussion,
+  TDiscussion,
   TThreadMessage
 } from './types'
 import { AccountRole } from '@hcengineering/core'
@@ -47,6 +50,8 @@ export function createModel (builder: Builder): void {
   builder.createModel(
     TChunterSpace,
     TChannel,
+    TDiscussion,
+    TDefaultDiscussion,
     TDirectMessage,
     TChatMessage,
     TThreadMessage,
@@ -64,7 +69,9 @@ export function createModel (builder: Builder): void {
       icon: chunter.icon.Chunter,
       alias: chunterId,
       hidden: false,
-      component: chunter.component.Chat
+      spaceClasses: [chunter.class.Channel],
+      component: chunter.component.Chat,
+      notificationProvider: chunter.function.GetChunterNotificationStore
     },
     chunter.app.Chunter
   )
@@ -77,8 +84,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: chunter.class.Channel,
-      enabled: true,
-      order: 30
+      enabled: true
     },
     chunter.ids.ModulePermissionGroup
   )
@@ -91,8 +97,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: chunter.class.Channel,
-      enabled: true,
-      order: 15
+      enabled: true
     },
     chunter.ids.ModulePermissionGroupReadOnlyGuest
   )
@@ -127,6 +132,25 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(chunter.class.ThreadMessage, core.class.Class, core.mixin.TxAccessLevel, {
     createAccessLevel: AccountRole.Guest
+  })
+
+  builder.mixin(chunter.class.Discussion, core.class.Class, activity.mixin.ActivityDoc, {})
+
+  // Object access (foundations/server/docs/object-access-control.md).
+  builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.ClassAccessPolicy, {
+    membersField: 'members',
+    parent: { field: 'attachedTo', classField: 'attachedToClass' }
+  })
+
+  // A reply points to the object of the thread directly, so the parent message is never looked up.
+  builder.mixin(chunter.class.ThreadMessage, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'objectId', classField: 'objectClass' }]
+  })
+
+  builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.User,
+    updateAccessLevel: AccountRole.User,
+    removeAccessLevel: AccountRole.User
   })
 
   const spaceClasses = [chunter.class.Channel, chunter.class.DirectMessage]
@@ -182,6 +206,15 @@ export function createModel (builder: Builder): void {
 
   builder.mixin(chunter.class.DirectMessage, core.class.Class, view.mixin.ObjectIdentifier, {
     provider: chunter.function.DmIdentifierProvider
+  })
+
+  // Inbox shows the owner object as the context label and the discussion name as its title.
+  builder.mixin(chunter.class.Discussion, core.class.Class, view.mixin.ObjectTitle, {
+    titleProvider: chunter.function.DiscussionTitleProvider
+  })
+
+  builder.mixin(chunter.class.Discussion, core.class.Class, view.mixin.ObjectIdentifier, {
+    provider: chunter.function.DiscussionIdentifierProvider
   })
 
   builder.mixin(chunter.class.ChatMessage, core.class.Class, view.mixin.CollectionPresenter, {
@@ -334,6 +367,16 @@ export function createModel (builder: Builder): void {
 
   builder.createDoc(activity.class.ActivityExtension, core.space.Model, {
     ofClass: chunter.class.DirectMessage,
+    components: { input: { component: chunter.component.ChatMessageInput } }
+  })
+
+  // Discussions open inside their owner panel (inbox, links) instead of the generic EditDoc.
+  builder.mixin(chunter.class.Discussion, core.class.Class, view.mixin.ObjectPanel, {
+    component: chunter.component.DiscussionPanel
+  })
+
+  builder.createDoc(activity.class.ActivityExtension, core.space.Model, {
+    ofClass: chunter.class.Discussion,
     components: { input: { component: chunter.component.ChatMessageInput } }
   })
 

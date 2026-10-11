@@ -181,7 +181,7 @@
         {#if selected && showNavigate}
           <div class="min-w-2" />
           <ActionIcon
-            icon={view.icon.Open}
+            icon={view.icon.ArrowRight}
             size={'small'}
             action={() => {
               if (selected) {

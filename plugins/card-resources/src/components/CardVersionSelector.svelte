@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,9 +17,10 @@
 -->
 <script lang="ts">
   import { Card, cardId } from '@hcengineering/card'
-  import core, { Ref } from '@hcengineering/core'
+  import core, { Ref, SortingOrder } from '@hcengineering/core'
+  import { setPlatformStatus, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { Button, DropdownLabels, DropdownTextItem, getCurrentLocation, navigate, showPopup } from '@hcengineering/ui'
+  import { Button, DropdownLabels, DropdownTextItem, getCurrentLocation, navigate } from '@hcengineering/ui'
   import card from '../plugin'
   import { createNewVersion } from '../utils'
 
@@ -27,7 +29,10 @@
   const client = getClient()
   const h = client.getHierarchy()
 
-  $: enabled = h.classHierarchyMixin(value._class, core.mixin.VersionableClass)?.enabled
+  $: versioning = h.classHierarchyMixin(value._class, core.mixin.VersionableClass)
+  $: enabled = versioning?.enabled
+  $: creationManagedByProcess = versioning?.creationManagedByProcess ?? false
+  $: effectiveManagedByProcess = versioning?.effectiveManagedByProcess ?? false
 
   let versions: Card[] = []
 
@@ -40,6 +45,9 @@
       },
       (res) => {
         versions = res
+      },
+      {
+        sort: { version: SortingOrder.Descending }
       }
     )
   } else {
@@ -48,6 +56,13 @@
   }
 
   let items: DropdownTextItem[] = []
+  let makingEffective = false
+
+  $: latestEffectiveVersion = versions.reduce((latest, current) => {
+    return current.isEffective === true ? Math.max(latest, current.version ?? 1) : latest
+  }, 0)
+  $: canMakeEffective =
+    !effectiveManagedByProcess && value.isEffective !== true && (value.version ?? 1) > latestEffectiveVersion
 
   $: items = versions.map((p) => {
     return {
@@ -71,17 +86,44 @@
   }
 
   async function newVersion (): Promise<void> {
-    const _id = await createNewVersion(value)
-    const loc = getCurrentLocation()
-    loc.path[2] = cardId
-    loc.path[3] = _id
-    navigate(loc)
+    if (creationManagedByProcess || value.versionCreationDisabled === true) return
+    try {
+      const _id = await createNewVersion(value)
+      const loc = getCurrentLocation()
+      loc.path[2] = cardId
+      loc.path[3] = _id
+      navigate(loc)
+    } catch (err) {
+      await setPlatformStatus(unknownError(err))
+    }
+  }
+
+  async function makeEffective (): Promise<void> {
+    if (!canMakeEffective || makingEffective) return
+    makingEffective = true
+    try {
+      await client.update(value, { isEffective: true })
+    } catch (err) {
+      await setPlatformStatus(unknownError(err))
+    } finally {
+      makingEffective = false
+    }
   }
 </script>
 
 {#if enabled}
   <DropdownLabels kind={'link'} {items} on:selected={selectHandler} selected={value._id} />
-  {#if value.isLatest}
-    <Button label={card.string.NewVersion} on:click={newVersion} />
+  {#if value.isLatest && !creationManagedByProcess}
+    <Button
+      label={card.string.NewVersion}
+      disabled={value.versionCreationDisabled === true}
+      showTooltip={value.versionCreationDisabled === true
+        ? { label: card.string.VersionCreationUnavailable }
+        : undefined}
+      on:click={newVersion}
+    />
+  {/if}
+  {#if canMakeEffective}
+    <Button label={card.string.MakeEffective} loading={makingEffective} on:click={makeEffective} />
   {/if}
 {/if}

@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,11 +14,10 @@
 // limitations under the License.
 //
 
-import core, {
+import {
   type AnyAttribute,
   type Class,
   type Doc,
-  docKey,
   type FullTextSearchContext,
   getFullTextContext,
   type Hierarchy,
@@ -27,8 +27,6 @@ import core, {
 } from '@hcengineering/core'
 import { type IndexedDoc } from '@hcengineering/server-core'
 import { type FullTextPipeline } from './types'
-import { type Message } from '@hcengineering/communication-types'
-import cardPlugin, { type Card } from '@hcengineering/card'
 
 export { docKey, isFullTextAttribute } from '@hcengineering/core'
 
@@ -108,33 +106,8 @@ export function createIndexedDoc (doc: Doc, mixins: Ref<Class<Doc>>[] | undefine
   if ((doc as VersionableDoc).baseId !== undefined) {
     indexedDoc.baseId = (doc as VersionableDoc).baseId
   }
-  return indexedDoc
-}
-
-export const messagePseudoClass = `${cardPlugin.class.Card}%message` as Ref<Class<Doc>>
-export const blobPseudoClass = `${cardPlugin.class.Card}%blob` as Ref<Class<Doc>>
-
-/**
- * @public
- */
-export function createIndexedDocFromMessage (
-  cardId: Ref<Card>,
-  cardSpace: Ref<Space>,
-  cardClass: Ref<Class<Card>>,
-  message: Pick<Message, 'id' | 'modified' | 'created' | 'creator'>
-): IndexedDoc {
-  const modifiedDate = message.modified ?? message.created
-  const modifiedOn = modifiedDate.getTime()
-  const indexedDoc = {
-    id: `${message.id}@${cardId}` as any,
-    _class: [messagePseudoClass],
-    space: cardSpace,
-    [docKey('createdOn', core.class.Doc)]: message.created.getTime(),
-    [docKey('createdBy', core.class.Doc)]: message.creator,
-    modifiedBy: message.creator,
-    modifiedOn,
-    attachedTo: cardId,
-    attachedToClass: cardClass
+  if ((doc as VersionableDoc).version !== undefined) {
+    indexedDoc.version = (doc as VersionableDoc).version
   }
   return indexedDoc
 }

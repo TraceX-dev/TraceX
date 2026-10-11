@@ -18,6 +18,7 @@ import { MarkdownParser } from './parser'
 import { MarkdownState, storeMarks, storeNodes } from './serializer'
 
 export * from './compare'
+export * from './inline'
 export * from './parser'
 export * from './serializer'
 
@@ -38,7 +39,7 @@ export function markupToMarkdown (markup: MarkupNode, options?: MarkdownOptions)
 }
 
 /** @public */
-export function markdownToMarkup (markdown: string, options?: MarkdownOptions): MarkupNode {
+export function markdownToMarkup (markdown: string | undefined, options?: MarkdownOptions): MarkupNode {
   const refUrl = options?.refUrl ?? 'ref://'
   const imageUrl = options?.imageUrl ?? 'image://'
 

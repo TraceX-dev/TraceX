@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -56,6 +57,7 @@
     if (model.isPinned !== isPinned) return false
     if (model._class !== undefined && model._class !== objectClass) return false
     if (model.skipClasses !== undefined && model.skipClasses.includes(objectClass)) return false
+    if (!hierarchy.hasClass(objectClass)) return false
     if (hierarchy.classHierarchyMixin(objectClass, activity.mixin.ActivityDoc) === undefined) return false
     return true
   })
@@ -84,7 +86,10 @@
 
     for (const [_class, ctx] of contextsByClass.entries()) {
       const isSpace = hierarchy.isDerived(_class, core.class.Space)
-      const ids = ctx.map(({ objectId }) => objectId)
+      // Newest first, so the limited slice contains the most recently updated objects.
+      const ids = [...ctx]
+        .sort((a, b) => (b.lastUpdateTimestamp ?? 0) - (a.lastUpdateTimestamp ?? 0))
+        .map(({ objectId }) => objectId)
       const { query, limit } = objectsQueryByClass.get(_class) ?? {
         query: createQuery(),
         limit: isSpace ? -1 : (model.maxSectionItems ?? 5)
@@ -92,14 +97,18 @@
 
       objectsQueryByClass.set(_class, { query, limit: limit ?? model.maxSectionItems ?? 5 })
 
+      const requestedIds = limit !== -1 ? ids.slice(0, limit) : ids
+
       query.query(
         _class,
         {
-          _id: { $in: limit !== -1 ? ids.slice(0, limit) : ids },
+          _id: { $in: requestedIds },
           ...(isSpace ? { space: core.space.Space, archived: false } : {})
         },
         (res) => {
-          objectsByClass = objectsByClass.set(_class, { docs: res, total: res.total })
+          // Contexts of removed/inaccessible objects are not counted, so "Show more" does not stick forever.
+          const missing = requestedIds.length - res.length
+          objectsByClass = objectsByClass.set(_class, { docs: res, total: isSpace ? res.total : ctx.length - missing })
         },
         { total: true }
       )
@@ -122,6 +131,10 @@
 
     if (hierarchy.isDerived(object._class, chunter.class.DirectMessage)) {
       return 'direct'
+    }
+
+    if (hierarchy.isDerived(object._class, chunter.class.Discussion)) {
+      return 'discussions'
     }
 
     return 'activity'
@@ -207,6 +220,16 @@
       return model.getActionsFn(contexts.filter(({ objectClass }) => objectClass === _class))
     }
   }
+
+  function showMore (section: Section): void {
+    if (section._class === undefined) return
+
+    const query = objectsQueryByClass.get(section._class)
+    if (query !== undefined) {
+      query.limit += 50
+      loadObjects(contexts)
+    }
+  }
 </script>
 
 {#each sections as section (section.id)}
@@ -219,14 +242,9 @@
     actions={getSectionActions(section, contexts)}
     sortFn={model.sortFn}
     itemsCount={section.count}
+    showUnreadWhenCollapsed={model.showUnreadWhenCollapsed ?? false}
     on:show-more={() => {
-      if (section._class !== undefined) {
-        const query = objectsQueryByClass.get(section._class)
-        if (query !== undefined) {
-          query.limit += 50
-          loadObjects(contexts)
-        }
-      }
+      showMore(section)
     }}
     on:select
   />

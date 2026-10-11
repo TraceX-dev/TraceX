@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,7 +18,7 @@
 import type { Asset, IntlString, Plugin } from '@hcengineering/platform'
 import { Tx } from '.'
 import type { DocumentQuery } from './storage'
-import { type WorkspaceDataId, type WorkspaceUuid } from './utils'
+import type { WorkspaceDataId, WorkspaceUuid } from './utils'
 
 /**
  * @public
@@ -139,7 +140,17 @@ export interface Association extends Doc {
   nameA: string
   nameB: string
   type: '1:1' | '1:N' | 'N:N'
+  description?: IntlString
   automationOnly?: boolean
+
+  /**
+   * Optional eligibility filters narrowing which documents may be linked, beyond `classA`/`classB`.
+   *
+   * Serialized `@hcengineering/view` filters (same format as `FilteredView.filters`). `filterA`
+   * applies when picking documents of `classA`, `filterB` when picking documents of `classB`.
+   */
+  filterA?: string
+  filterB?: string
 }
 
 /**
@@ -196,7 +207,7 @@ export enum IndexKind {
    */
   FullText,
   /**
-   * For attribute with this annotation should be created an index in mongo database
+   * For attribute with this annotation should be created an index in database
    *
    * Also mean to include into Elastic search.
    */
@@ -270,6 +281,11 @@ export type OperationDomain = string & { __domain: true }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface Interface<T extends Doc> extends Classifier {
   extends?: Ref<Interface<Doc>>[]
+}
+
+// Mixin to control TTL for transient objects.
+export interface TransientTTL extends Class<Doc> {
+  ttl: number // TTL in seconds
 }
 
 /**
@@ -576,6 +592,8 @@ export interface Permission extends Doc {
   txMatch?: DocumentQuery<Tx>
   description?: IntlString
   icon?: Asset
+  /** Enables the module's guest creation policies. */
+  guestCreate?: boolean
 }
 
 export interface AttributePermission extends Permission {
@@ -584,6 +602,36 @@ export interface AttributePermission extends Permission {
 
 export interface ClassPermission extends Permission {
   targetClass: Ref<Class<Doc>>
+  /** Module that owns this guest creation policy. */
+  application?: Ref<Doc>
+  /** Attributes guests may update on their own target documents. */
+  guestUpdateAttributes?: string[]
+  /** Mixin attributes guests may update on their own target documents. */
+  guestUpdateMixinAttributes?: Record<string, string[]>
+  /** Mixin attributes allowed while creating a target document. */
+  guestCreateMixinAttributes?: Record<string, string[]>
+  /** Related classes allowed for guest-created target documents. */
+  relatedCreateClasses?: Array<Ref<Class<Doc>>>
+  /** Custom sequence namespaces allowed by the policy. */
+  sequenceNamespaces?: string[]
+  /** Lets guests update target documents assigned to them. */
+  guestAssignee?: GuestAssigneePolicy
+}
+
+/**
+ * Update access for documents assigned to a guest, e.g. a task the guest has to complete.
+ *
+ * @public
+ */
+export interface GuestAssigneePolicy {
+  /** Attribute holding the assigned `Person`. */
+  field: string
+  /** Exact list of attributes the assignee may change. */
+  attributes: string[]
+  /** Update is allowed only while this attribute is empty, e.g. `doneOn` of an open task. */
+  openField?: string
+  /** The assignee must be able to read the document it is attached to, e.g. the card of a process task. */
+  requireAttachedToAccess?: boolean
 }
 
 /**
@@ -596,7 +644,6 @@ export interface ModulePermissionGroup extends Doc {
   disabledPermissions?: Ref<Permission>[]
   spaceClass?: Ref<Class<Space>>
   enabled: boolean
-  order?: number
 }
 
 /**
@@ -630,6 +677,14 @@ export interface TxAccessLevel extends Class<Doc> {
   removeAccessLevel?: AccountRole
   updateAccessLevel?: AccountRole
   isIdentity?: boolean
+  /**
+   * Attribute holding the owner's AccountUuid (e.g. `user` of an inbox notification).
+   * The owner may update `ownerUpdateAttributes` and, with `ownerRemove`, remove the document,
+   * even when the role-based access levels above do not allow it.
+   */
+  ownerAttribute?: string
+  ownerUpdateAttributes?: string[]
+  ownerRemove?: boolean
 }
 
 /**
@@ -689,6 +744,10 @@ export interface Sequence extends Doc {
 
 export interface CustomSequence extends Sequence {
   prefix: string
+  /** Feature the sequence belongs to, e.g. `documents` or `documents.sequence`. */
+  namespace?: string
+  /** What the numbering is counted per within the namespace, e.g. a template id. */
+  scope?: string
 }
 
 /**
@@ -921,7 +980,7 @@ export interface WorkspaceConfiguration {
 
 export interface WorkspaceInfo {
   uuid: WorkspaceUuid
-  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Database name in Mongo, bucket in R2, etc.
+  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Legacy storage namespace or bucket.
   name: string
   url: string
   region?: string
@@ -965,6 +1024,9 @@ export interface WorkspaceInfoWithStatus extends WorkspaceInfo {
   backupInfo?: BackupStatus
   usageInfo?: UsageStatus
   processingAttemps: number
+  // Whether the current account has unread notifications in this workspace.
+  // Only populated by getAccountWorkspaces(); absent/undefined elsewhere.
+  hasUnread?: boolean
 }
 
 export interface WorkspaceMemberInfo {
@@ -980,7 +1042,8 @@ export enum SocialIdType {
   OIDC = 'oidc',
   HULY = 'huly',
   TELEGRAM = 'telegram',
-  HULY_ASSISTANT = 'huly-assistant'
+  HULY_ASSISTANT = 'huly-assistant',
+  LOVE = 'office'
 }
 
 export interface SocialId {

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,14 +14,19 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { Type } from '@hcengineering/core'
+  import card from '@hcengineering/card'
+  import core, { ArrOf, Doc, Ref, Type } from '@hcengineering/core'
   import { translate } from '@hcengineering/platform'
-  import { getClient } from '@hcengineering/presentation'
-  import { Process, UserResult } from '@hcengineering/process'
-  import { Button, EditBox, IconClose, Label } from '@hcengineering/ui'
+  import { getAttributePresenterClass, getClient } from '@hcengineering/presentation'
+  import { Process, SelectionRelation, UserResult } from '@hcengineering/process'
+  import { Button, EditBox, IconClose, Label, Toggle } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { generateContextId } from '../../utils'
   import ResultTypeSelector from './ResultTypeSelector.svelte'
+  import RelationVersionsEditor from './RelationVersionsEditor.svelte'
+  import AssociationSelector from './AssociationSelector.svelte'
+  import plugin from '../../plugin'
+  import SelectionSpaceEditor from './SelectionSpaceEditor.svelte'
 
   export let result: UserResult | null
   export let process: Process
@@ -28,24 +34,40 @@
   let type: Type<any> | undefined | null = result?.type
   let name: string = result?.name ?? ''
   let key: string | undefined = result?.key
+  let selectionSpace = result?.selectionSpace
+  let excludeRelation = result?.excludeRelation
 
   const dispatch = createEventDispatcher()
 
   const client = getClient()
+  const hierarchy = client.getHierarchy()
+
+  $: presenterClass = type != null ? getAttributePresenterClass(hierarchy, type) : undefined
+  $: canLimitSelection =
+    presenterClass !== undefined &&
+    ['object', 'array'].includes(presenterClass.category) &&
+    hierarchy.isDerived(presenterClass.attrClass, card.class.Card)
 
   async function update (): Promise<void> {
     if (type == null) {
       result = null
     } else {
+      const target = getAttributePresenterClass(hierarchy, type)
+      if (!['object', 'array'].includes(target.category) || !hierarchy.isDerived(target.attrClass, card.class.Card)) {
+        selectionSpace = undefined
+        excludeRelation = undefined
+      }
       result = {
-        _id: generateContextId(),
+        _id: result?._id ?? generateContextId(),
         name,
         key,
-        type
+        type,
+        selectionSpace,
+        excludeRelation
       }
       if (key !== undefined) {
-        const attr = client.getHierarchy().findAttribute(process.masterTag, key)
-        if (attr?.label !== undefined) {
+        const attr = client.getModel().findAllSync(core.class.Attribute, { name: key })[0]
+        if (attr?.label !== undefined && result != null) {
           name = await translate(attr.label, {})
           result.name = name
         }
@@ -57,6 +79,37 @@
   function handleNameChange (): void {
     if (result != null) {
       result.name = name
+      dispatch('change', result)
+    }
+  }
+
+  function changeRelation (event: CustomEvent<Partial<SelectionRelation>>): void {
+    const { association, direction } = event.detail
+    excludeRelation =
+      association !== undefined && direction !== undefined
+        ? { association, direction, versions: excludeRelation?.versions }
+        : undefined
+    if (result != null) {
+      result.excludeRelation = excludeRelation
+      dispatch('change', result)
+    }
+  }
+
+  function changeMultiple (event: CustomEvent<boolean>): void {
+    if (type == null) return
+    if (event.detail) {
+      const arrayType: ArrOf<Ref<Doc>> = { _class: core.class.ArrOf, label: core.string.Array, of: type }
+      type = arrayType
+    } else {
+      type = (type as ArrOf<Ref<Doc>>).of
+    }
+    void update()
+  }
+
+  function changeSelectionSpace (event: CustomEvent<string | undefined>): void {
+    selectionSpace = event.detail
+    if (result != null) {
+      result.selectionSpace = selectionSpace
       dispatch('change', result)
     }
   }
@@ -77,4 +130,30 @@
     />
   </div>
   <ResultTypeSelector {process} bind:key bind:type on:change={update} />
+  {#if canLimitSelection}
+    <SelectionSpaceEditor {process} value={selectionSpace} on:change={changeSelectionSpace} />
+    {#if key === undefined}
+      <Label label={plugin.string.MultipleSelection} />
+      <Toggle on={type?._class === core.class.ArrOf} on:change={changeMultiple} />
+    {/if}
+    {#if excludeRelation !== undefined && presenterClass !== undefined && hierarchy.classHierarchyMixin(presenterClass.attrClass, core.mixin.VersionableClass) !== undefined}
+      <RelationVersionsEditor
+        value={excludeRelation.versions ?? 'all'}
+        on:change={(event) => {
+          if (excludeRelation !== undefined && result != null) {
+            excludeRelation = { ...excludeRelation, versions: event.detail }
+            result.excludeRelation = excludeRelation
+            dispatch('change', result)
+          }
+        }}
+      />
+    {/if}
+    <Label label={plugin.string.ExcludeRelatedObjects} />
+    <AssociationSelector
+      {process}
+      association={excludeRelation?.association}
+      direction={excludeRelation?.direction}
+      on:change={changeRelation}
+    />
+  {/if}
 </div>

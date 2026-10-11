@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -79,11 +80,14 @@ import {
   type NotificationProvider,
   type NotificationProviderDefaults,
   type NotificationProviderSetting,
+  type NotificationEmailKind,
   type NotificationTemplate,
   type NotificationType,
   type NotificationTypeSetting,
+  type OnDemandNotification,
   type PushSubscription,
   type PushSubscriptionKeys,
+  type PushSubscriptionSetting,
   type ReactionInboxNotification
 } from '@hcengineering/notification'
 import { type Asset, type IntlString, type Resource } from '@hcengineering/platform'
@@ -111,11 +115,32 @@ export class TBrowserNotification extends TDoc implements BrowserNotification {
   soundAlert!: boolean
 }
 
+// Transient (never persisted): created by a client, consumed by the OnDemandNotification trigger.
+@Model(notification.class.OnDemandNotification, core.class.Doc, DOMAIN_TRANSIENT)
+export class TOnDemandNotification extends TDoc implements OnDemandNotification {
+  targets!: AccountUuid[]
+  objectId!: Ref<Doc>
+  objectClass!: Ref<Class<Doc>>
+  objectSpace!: Ref<Space>
+  notificationType!: Ref<NotificationType>
+  header?: IntlString
+  message?: IntlString
+  messageHtml?: Markup
+  icon?: Asset
+}
+
 @Model(notification.class.PushSubscription, core.class.Doc, DOMAIN_USER_NOTIFY)
 export class TPushSubscription extends TDoc implements PushSubscription {
   user!: AccountUuid
   endpoint!: string
   keys!: PushSubscriptionKeys
+  name?: string
+}
+
+@Model(notification.class.PushSubscriptionSetting, preference.class.Preference)
+export class TPushSubscriptionSetting extends TPreference implements PushSubscriptionSetting {
+  declare attachedTo: Ref<PushSubscription>
+  enabled!: boolean
 }
 
 @Model(notification.class.NotificationType, core.class.Doc, DOMAIN_MODEL)
@@ -129,6 +154,7 @@ export class TNotificationType extends TDoc implements NotificationType {
   txClasses!: Ref<Class<Tx>>[]
   objectClass!: Ref<Class<Doc>>
   onlyOwn?: boolean
+  emailKind?: NotificationEmailKind
 }
 
 @Model(notification.class.NotificationGroup, core.class.Doc, DOMAIN_MODEL)
@@ -367,11 +393,13 @@ export function createModel (builder: Builder): void {
     TNotificationType,
     TMentionInboxNotification,
     TPushSubscription,
+    TPushSubscriptionSetting,
     TNotificationProvider,
     TNotificationProviderSetting,
     TNotificationTypeSetting,
     TNotificationProviderDefaults,
-    TReactionInboxNotification
+    TReactionInboxNotification,
+    TOnDemandNotification
   )
 
   builder.mixin(notification.class.BrowserNotification, core.class.Class, core.mixin.TransientConfiguration, {
@@ -404,6 +432,7 @@ export function createModel (builder: Builder): void {
       hidden: true,
       locationResolver: notification.resolver.Location,
       component: notification.component.Inbox,
+      notificationProvider: notification.function.GetInboxNotificationStore,
       order: 50
     },
     notification.app.Inbox
@@ -583,6 +612,35 @@ export function createModel (builder: Builder): void {
     createAccessLevel: AccountRole.Guest,
     updateAccessLevel: AccountRole.Guest,
     removeAccessLevel: AccountRole.Guest
+  })
+
+  builder.mixin(notification.class.InboxNotification, core.class.Class, core.mixin.TxAccessLevel, {
+    ownerAttribute: 'user',
+    ownerUpdateAttributes: ['isViewed', 'archived'],
+    ownerRemove: true
+  })
+
+  // Object access: notifications belong to the object they are about.
+  builder.mixin(notification.class.DocNotifyContext, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'objectId', classField: 'objectClass' }]
+  })
+
+  builder.mixin(notification.class.InboxNotification, core.class.Class, core.mixin.AccessParent, {
+    parents: [{ field: 'objectId', classField: 'objectClass' }]
+  })
+
+  builder.mixin(notification.class.ActivityInboxNotification, core.class.Class, core.mixin.AccessParent, {
+    parents: [
+      { field: 'attachedTo', classField: 'attachedToClass' },
+      { field: 'objectId', classField: 'objectClass' }
+    ]
+  })
+
+  builder.mixin(notification.class.MentionInboxNotification, core.class.Class, core.mixin.AccessParent, {
+    parents: [
+      { field: 'objectId', classField: 'objectClass' },
+      { field: 'mentionedIn', classField: 'mentionedInClass' }
+    ]
   })
 
   builder.mixin(notification.class.DocNotifyContext, core.class.Class, core.mixin.TxAccessLevel, {
@@ -787,7 +845,8 @@ export function createModel (builder: Builder): void {
       depends: notification.providers.InboxNotificationProvider,
       defaultEnabled: true,
       canDisable: true,
-      order: 200
+      order: 200,
+      presenter: notification.component.WebpushesPreferencesPresenter
     },
     notification.providers.PushNotificationProvider
   )

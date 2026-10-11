@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,10 @@
 //
 
 import {
+  type AccessAudience,
+  type AccessControlled,
+  type AccessParent,
+  type AccessRefField,
   type AccountUuid,
   type AnyAttribute,
   type ArrOf,
@@ -21,6 +26,7 @@ import {
   type AttachedDoc,
   type Blob,
   type Class,
+  type ClassAccessPolicy,
   type ClassCollaborators,
   type ClassifierKind,
   type Collaborator,
@@ -61,7 +67,8 @@ import {
   type Type,
   type TypeAny,
   type Version,
-  type VersionableClass
+  type VersionableClass,
+  type TransientTTL
 } from '@hcengineering/core'
 import {
   Hidden,
@@ -151,7 +158,14 @@ export class TAssociation extends TDoc implements Association {
 
   type!: '1:1' | '1:N' | 'N:N'
 
+  @Prop(TypeIntlString(), core.string.Description)
+    description?: IntlString
+
   automationOnly?: boolean
+
+  filterA?: string
+
+  filterB?: string
 }
 
 @Model(core.class.Relation, core.class.Doc, DOMAIN_RELATION)
@@ -429,6 +443,8 @@ export class TSequence extends TDoc implements Sequence {
 @Model(core.class.CustomSequence, core.class.Sequence)
 export class TCustomSequence extends TSequence implements CustomSequence {
   prefix!: string
+  namespace?: string
+  scope?: string
 }
 
 @Model(core.class.ClassCollaborators, core.class.Doc, DOMAIN_MODEL)
@@ -448,7 +464,32 @@ export class TCollaborator extends TAttachedDoc implements Collaborator {
 @MMixin(core.mixin.VersionableClass, core.class.Class)
 export class TVersionableClass extends TClass implements VersionableClass {
   enabled!: boolean
+  creationManagedByProcess?: boolean
+  effectiveManagedByProcess?: boolean
   excludedProperties?: string[]
   excludedRelations?: string[] // ${associationId}_${a|b}
   excludeMixins?: Ref<Mixin<Doc>>[]
+}
+
+@MMixin(core.mixin.TransientTTL, core.class.Class)
+export class TTTransientTTL extends TClass implements TransientTTL {
+  ttl!: number
+}
+
+// Object access control (see foundations/server/docs/object-access-control.md).
+@MMixin(core.mixin.AccessControlled, core.class.Doc)
+export class TAccessControlled extends TDoc implements AccessControlled {
+  read!: AccessAudience
+  owners?: AccountUuid[]
+}
+
+@MMixin(core.mixin.ClassAccessPolicy, core.class.Class)
+export class TClassAccessPolicy extends TClass implements ClassAccessPolicy {
+  membersField!: string
+  parent?: AccessRefField
+}
+
+@MMixin(core.mixin.AccessParent, core.class.Class)
+export class TAccessParent extends TClass implements AccessParent {
+  parents!: AccessRefField[]
 }

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,7 @@
   import { getClient } from '@hcengineering/presentation'
 
   import MasterDetailBrowser from './MasterDetailBrowser.svelte'
+  import ObjectPanelResolver from './ObjectPanelResolver.svelte'
   import view from '../../plugin'
 
   export let space: Ref<Space> | undefined = undefined
@@ -25,6 +27,9 @@
   export let parentQuery: DocumentQuery<Doc> = {}
   export let options: FindOptions<Doc> | undefined = undefined
   export let viewlet: WithLookup<Viewlet>
+  export let compactMode: boolean = false
+  export let readonly: boolean = false
+  export let reorderable: boolean = false
 
   // Per _class configuration, if supported.
   export let viewOptions: ViewOptions
@@ -37,9 +42,9 @@
 
   const client = getClient()
 
-  $: void getViewlets(viewlet?._id)
+  $: void getViewlets()
 
-  async function getViewlets (viewletId: Ref<Viewlet>): Promise<void> {
+  async function getViewlets (): Promise<void> {
     if (viewlet === undefined) return
     const views: MasterDetailConfig[] = viewlet?.masterDetailOptions?.views ?? []
     const results = await client.findAll(view.class.ViewletDescriptor, { _id: { $in: [views[0].view, views[1].view] } })
@@ -76,7 +81,9 @@
   $: remainingViews = viewlet?.masterDetailOptions?.views?.slice(1) ?? []
   $: isSimpleView = (viewlet?.masterDetailOptions?.views?.length ?? 0) <= 2
   $: detailViewComponent = isSimpleView
-    ? (detailView?.component ?? view.component.EditDoc)
+    ? detailView?._id === view.viewlet.Document
+      ? ObjectPanelResolver
+      : (detailView?.component ?? view.component.EditDoc)
     : (viewlet?.$lookup?.descriptor?.component ?? view.component.MasterDetailBrowser)
   $: nestedViewlet = isSimpleView
     ? undefined
@@ -99,6 +106,7 @@
         totalQuery: _query,
         ...viewlet.props,
         embedded: true,
+        compactMode,
         _id
       }
     : {
@@ -113,13 +121,16 @@
 {#if viewlet !== undefined && parentView !== undefined && detailView !== undefined && viewlet.masterDetailOptions !== undefined}
   <MasterDetailBrowser
     query={_query}
+    masterQuery={query}
     {space}
     detailComponent={detailViewComponent}
     detailComponentProps={detailProps}
     masterComponent={parentView.component}
     masterComponentProps={{
       _class: viewlet?.masterDetailOptions?.views[0].class,
-      plainList: true
+      plainList: true,
+      readonly,
+      reorderable
     }}
     createMasterComponent={viewlet?.masterDetailOptions?.views[1]?.createComponent}
     createMasterComponentProps={{ _class: viewlet?.masterDetailOptions?.views[0].class }}

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -31,6 +32,7 @@
     Component,
     DropdownIntlItem,
     DropdownLabelsIntl,
+    EditBox,
     IconDelete,
     Label,
     Modal,
@@ -51,6 +53,7 @@
   export let isCard: boolean = false
 
   let name: string
+  let description: string = ''
   let type: Type<PropertyType> | undefined = attribute.type
   let index: IndexKind | undefined = attribute.index
   let defaultValue: any | undefined = attribute.defaultValue
@@ -66,6 +69,9 @@
   translateCB(attribute.label, {}, $themeStore.language, (p) => {
     name = p
   })
+  translateCB(attribute.description ?? getEmbeddedLabel(''), {}, $themeStore.language, (p) => {
+    description = p
+  })
 
   async function save (): Promise<void> {
     if (disabled) {
@@ -76,6 +82,10 @@
     const newLabel = getEmbeddedLabel(name)
     if (newLabel !== attribute.label) {
       update.label = newLabel
+    }
+    const newDescription = description.trim().length > 0 ? getEmbeddedLabel(description.trim()) : undefined
+    if (newDescription !== attribute.description) {
+      update.description = newDescription
     }
     if (defaultValue !== attribute.defaultValue) {
       update.defaultValue = defaultValue
@@ -239,7 +249,7 @@
 
 <Modal
   label={setting.string.EditAttribute}
-  type={'type-aside'}
+  type="type-aside"
   okLabel={presentation.string.Save}
   okAction={save}
   canSave={!(name === undefined || name.trim().length === 0) && !disabled}
@@ -249,14 +259,15 @@
   <svelte:fragment slot="actions">
     {#if !disabled}
       <ButtonIcon
-        icon={attribute.hidden ? view.icon.Eye : view.icon.EyeCrossed}
-        size={'small'}
-        kind={'tertiary'}
+        icon={attribute.hidden ? view.icon.EyeCrossed : view.icon.Eye}
+        tooltip={{ label: attribute.hidden ? view.string.Show : view.string.Hide }}
+        size="small"
+        kind="tertiary"
         {disabled}
         on:click={hide}
       />
       {#if attribute.isCustom}
-        <ButtonIcon icon={IconDelete} size={'small'} kind={'tertiary'} {disabled} on:click={remove} />
+        <ButtonIcon icon={IconDelete} size="small" kind="tertiary" {disabled} on:click={remove} />
       {/if}
     {/if}
   </svelte:fragment>
@@ -264,14 +275,15 @@
     <div class="flex items-center">
       <ButtonIcon
         icon={icon ?? setting.icon.Enums}
-        size={'medium'}
-        iconSize={'large'}
-        kind={'tertiary'}
+        size="medium"
+        iconSize="large"
+        kind="tertiary"
         {disabled}
         on:click={setIcon}
       />
-      <ModernEditbox bind:value={name} label={core.string.Name} size={'large'} kind={'ghost'} {disabled} />
+      <ModernEditbox bind:value={name} label={core.string.Name} size="large" kind="ghost" width="100%" {disabled} />
     </div>
+    <EditBox bind:value={description} placeholder={core.string.Description} kind="ghost" {disabled} />
   </div>
   <div class="grid">
     <span class="label">
@@ -283,8 +295,8 @@
       <DropdownLabelsIntl
         label={setting.string.Type}
         {items}
-        size={'large'}
-        width={'100%'}
+        size="large"
+        width="100%"
         bind:selected={selectedType}
         on:selected={handleSelect}
         {disabled}

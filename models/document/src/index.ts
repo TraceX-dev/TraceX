@@ -1,5 +1,6 @@
 //
 // Copyright © 2022, 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,7 @@
 //
 
 import activity from '@hcengineering/activity'
+import integration from '@hcengineering/integration'
 import type {
   ClassCollaborators,
   CollectionSize,
@@ -289,7 +291,8 @@ function defineDocument (builder: Builder): void {
   })
 
   builder.mixin(document.class.Document, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: document.component.DocumentPresenter
+    presenter: document.component.DocumentPresenter,
+    requiredFields: ['title', 'icon', 'color']
   })
 
   builder.mixin(document.class.Document, core.class.Class, view.mixin.LinkProvider, {
@@ -533,6 +536,19 @@ function defineApplication (builder: Builder): void {
     },
     document.app.Documents
   )
+
+  builder.createDoc(
+    integration.class.IntegrationTargetFactory,
+    core.space.Model,
+    {
+      targetClass: document.class.Document,
+      create: document.function.CreateIntegrationTarget,
+      update: document.function.UpdateIntegrationTarget,
+      canCreate: document.function.CanCreateIntegrationTarget,
+      getAllowedSpaceClasses: document.function.GetIntegrationTargetAllowedSpaceClasses
+    },
+    document.integration.TargetFactory
+  )
 }
 
 export function createModel (builder: Builder): void {
@@ -548,8 +564,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [],
       spaceClass: document.class.Teamspace,
-      enabled: true,
-      order: 40
+      enabled: true
     },
     document.ids.ModulePermissionGroup
   )
@@ -562,8 +577,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: document.class.Teamspace,
-      enabled: false,
-      order: 40
+      enabled: false
     },
     document.ids.ModulePermissionGroupReadOnlyGuest
   )

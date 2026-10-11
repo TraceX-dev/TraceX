@@ -11,6 +11,8 @@
     "MasterTag": "Тип",
     "MasterTags": "Типы",
     "Parent": "Родитель",
+    "ChangeTagParent": "Изменить родителя тега",
+    "ChangeTagParentBlocked": "Нельзя переместить тег, назначенный картам, или тег, чьи потомки назначены картам.",
     "Tags": "Теги",
     "Tag": "Тег",
     "AddTag": "Добавить тег",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Внимание: Изменение типа удалит все данные для любых атрибутов, которые не существуют в целевом типе. Предыдущие данные атрибутов могут быть восстановлены, изменением на предыдущий тип. Содержимое не будет затронуто.",
     "MasterDetailViews": "Представления мастер-деталь",
     "SelectType": "Выбрать тип",
+    "SelectTypeAndSpace": "Выберите тип карточки и пространство, чтобы продолжить.",
     "CreateSpace": "Создать пространство",
     "NumberTypes": "{count, plural, one {# тип} few {# типа} other {# типов}}",
     "Labels": "Метки",
@@ -63,9 +66,14 @@
     "ForbidRemoveTag": "Запретить удаление тега",
     "Duplicate": "Дублировать",
     "Version": "Версия",
+    "Effective": "Эффективная",
+    "MakeEffective": "Сделать эффективной",
     "Versions": "Версии",
     "NewVersion": "Новая версия",
+    "VersionCreationUnavailable": "Создание новой версии сейчас недоступно",
     "Versioning": "Управление версиями",
+    "VersionCreationManagedByProcess": "Управлять созданием версий через процесс",
+    "VersionEffectiveManagedByProcess": "Управлять эффективностью версий через процесс",
     "EnableVersioning": "Включить управление версиями",
     "EnableVersioningConfirm": "Вы хотите включить управление версиями?",
     "NewVersionConfirmation": "Вы хотите создать новую версию?",
@@ -87,6 +95,8 @@
     "TwoColumns": "Два столбца",
     "Grid": "Сетка",
     "RichtextProperties": "Текстовые поля",
-    "ShowAllVersions": "Показывать все версии"
+    "ShowAllVersions": "Показывать все версии",
+    "ShowOnlyEffectiveVersions": "Показывать только эффективные версии",
+    "ShowOnlyCardsWithoutRelations": "Показывать только карточки без связей"
   }
 }

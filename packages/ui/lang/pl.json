@@ -1,6 +1,8 @@
 {
   "string": {
     "EditBoxPlaceholder": "Wpisz tekst...",
+    "ConnectingToWorkspace": "Łączenie z Twoją przestrzenią roboczą…",
+    "LoadingWorkspace": "Wczytywanie Twojej przestrzeni roboczej…",
     "Ok": "Zatwierdź",
     "Cancel": "Anuluj",
     "Save": "Zapisz",

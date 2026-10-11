@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -137,4 +138,15 @@
   on:click={() => {
     dispatch('select', { object: item.object })
   }}
-/>
+>
+  {#if item.secondaryTitle !== undefined}
+    <span class="secondary-title"> · {item.secondaryTitle}</span>
+  {/if}
+</NavItem>
+
+<style lang="scss">
+  .secondary-title {
+    color: var(--global-secondary-TextColor);
+    font-weight: 400;
+  }
+</style>

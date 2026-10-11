@@ -99,8 +99,8 @@ export class AIControl {
             name: toolConfig.name,
             description: toolConfig.description,
             systemPrompt: toolConfig.systemPrompt,
-            provider,
-            ctx: this.ctx
+            outputSchema: toolConfig.outputSchema,
+            provider
           })
         )
         registerLlmTools(tools)

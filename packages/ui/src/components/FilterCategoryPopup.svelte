@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,11 +19,13 @@
   import IconChevronLeft from './icons/ChevronLeft.svelte'
   import IconCheck from './icons/Check.svelte'
   import Label from './Label.svelte'
+  import ui from '../plugin'
 
   export let categories: FilterCategory[]
   export let activeFilters: ActiveFilter[]
   export let onFilterChange: (filter: ActiveFilter) => void
   export let onFilterRemove: (categoryId: string) => void
+  export let onFiltersClear: () => void
 
   const dispatch = createEventDispatcher()
 
@@ -47,15 +50,24 @@
       categoryId: selectedCategory.id,
       optionId: option.id,
       categoryLabel: selectedCategory.label,
-      optionLabel: option.label
+      optionLabel: option.label,
+      optionText: option.text
     }
+    activeFilters = [...activeFilters.filter((candidate) => candidate.categoryId !== selectedCategory?.id), filter]
     onFilterChange(filter)
-    dispatch('close')
+    goBackToCategories()
   }
 
   function clearCategoryFilter (): void {
     if (selectedCategory === null) return
+    activeFilters = activeFilters.filter((filter) => filter.categoryId !== selectedCategory?.id)
     onFilterRemove(selectedCategory.id)
+    goBackToCategories()
+  }
+
+  function clearFilters (): void {
+    activeFilters = []
+    onFiltersClear()
     dispatch('close')
   }
 
@@ -68,9 +80,8 @@
     return activeFilters.some((f) => f.categoryId === selectedCategory?.id && f.optionId === optionId)
   }
 
-  function getActiveOption (categoryId: string): string {
-    const filter = activeFilters.find((f) => f.categoryId === categoryId)
-    return filter !== undefined ? filter.optionLabel : ''
+  function getActiveOption (categoryId: string): ActiveFilter | undefined {
+    return activeFilters.find((filter) => filter.categoryId === categoryId)
   }
 
   $: currentActiveFilter = (() => {
@@ -83,7 +94,7 @@
   {#if view === 'categories'}
     <!-- Categories View -->
     <div class="popup-header">
-      <span class="popup-title">Filter by</span>
+      <span class="popup-title"><Label label={ui.string.Filter} /></span>
     </div>
     <div class="category-list">
       {#each categories as category (category.id)}
@@ -96,10 +107,25 @@
         >
           <span class="category-label"><Label label={category.label} /></span>
           {#if isActive(category.id)}
-            <span class="active-value">{getActiveOption(category.id)}</span>
+            {@const activeFilter = getActiveOption(category.id)}
+            {#if activeFilter !== undefined}
+              <span class="active-value">
+                {#if activeFilter.optionText !== undefined}
+                  {activeFilter.optionText}
+                {:else}
+                  <Label label={activeFilter.optionLabel} />
+                {/if}
+              </span>
+            {/if}
           {/if}
         </button>
       {/each}
+      {#if activeFilters.length > 0}
+        <div class="divider"></div>
+        <button class="category-item clear-option" on:click={clearFilters}>
+          <span class="category-label"><Label label={ui.string.Clear} /></span>
+        </button>
+      {/if}
     </div>
   {:else if view === 'options' && selectedCategory !== null}
     <!-- Options View -->
@@ -118,7 +144,13 @@
             selectOption(option)
           }}
         >
-          <span class="option-label"><Label label={option.label} /></span>
+          <span class="option-label">
+            {#if option.text !== undefined}
+              {option.text}
+            {:else}
+              <Label label={option.label} />
+            {/if}
+          </span>
           {#if isOptionSelected(option.id)}
             <IconCheck size={'small'} />
           {/if}
@@ -127,7 +159,7 @@
       {#if currentActiveFilter !== null}
         <div class="divider"></div>
         <button class="option-item clear-option" on:click={clearCategoryFilter}>
-          <span class="option-label">Clear filter</span>
+          <span class="option-label"><Label label={ui.string.Clear} /></span>
         </button>
       {/if}
     </div>
@@ -210,6 +242,7 @@
     }
   }
 
+  .category-item.clear-option,
   .option-item.clear-option {
     color: var(--theme-warning-color);
 

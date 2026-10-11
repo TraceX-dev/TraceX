@@ -42,6 +42,7 @@
   export let createDetailComponentProps: Record<string, any> = {}
   export let createDetailComponent: AnyComponent | undefined = undefined
   export let query: DocumentQuery<Doc> = {}
+  export let masterQuery: DocumentQuery<Doc> = {}
   export let syncWithLocationQuery: boolean = true
   export let detailComponent: AnyComponent | AnySvelteComponent
   export let detailComponentProps = {}
@@ -136,7 +137,7 @@
           is={masterComponent}
           props={{
             ...masterComponentProps,
-            query: spaceQuery
+            query: mergeQueries(masterQuery, spaceQuery) ?? {}
           }}
           on:select={onSelected}
         />

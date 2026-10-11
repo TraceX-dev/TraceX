@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,7 +27,7 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
-  class="list-item{addClass ? ` ${addClass}` : ''} {kind}"
+  class="list-item{addClass !== undefined && addClass !== '' ? ` ${addClass}` : ''} {kind}"
   class:selection={selected}
   class:lumia={colorsSchema === 'lumia'}
   class:default={colorsSchema === 'default'}
@@ -36,6 +37,7 @@
   on:focus={() => {}}
   bind:this={element}
   on:click
+  on:contextmenu
 >
   <slot name="item" item={row} />
 </div>

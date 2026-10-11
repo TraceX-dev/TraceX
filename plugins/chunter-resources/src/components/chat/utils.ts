@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -146,13 +147,23 @@ export const chatNavGroupModels: ChatNavGroupModel[] = [
     _class: chunter.class.DirectMessage
   },
   {
+    id: 'discussions',
+    label: chunter.string.Discussions,
+    sortFn: sortActivityChannels,
+    wrap: true,
+    getActionsFn: getActivityActions,
+    showUnreadWhenCollapsed: true,
+    isPinned: false,
+    _class: chunter.class.Discussion
+  },
+  {
     id: 'activity',
     sortFn: sortActivityChannels,
     wrap: true,
     getActionsFn: getActivityActions,
     maxSectionItems: 5,
     isPinned: false,
-    skipClasses: [chunter.class.DirectMessage, chunter.class.Channel, contact.class.Channel]
+    skipClasses: [chunter.class.DirectMessage, chunter.class.Channel, chunter.class.Discussion, contact.class.Channel]
   }
 ]
 

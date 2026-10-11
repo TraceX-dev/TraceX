@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,7 +20,7 @@
   import core, { Doc, Mixin, Ref } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import setting from '@hcengineering/setting'
-  import { DropdownLabelsIntl, Label, Toggle } from '@hcengineering/ui'
+  import { DropdownLabelsIntl, Label, Toggle, ToggleWithLabel } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import card from '../../plugin'
 
@@ -41,6 +42,8 @@
   let excludedRelations = new Set<string>(current?.excludedRelations ?? [])
   let excludedProperties = new Set<string>(current?.excludedProperties ?? [])
   let excludeMixins = new Set<Ref<Mixin<Doc>>>(current?.excludeMixins ?? [])
+  let creationManagedByProcess = current?.creationManagedByProcess ?? false
+  let effectiveManagedByProcess = current?.effectiveManagedByProcess ?? false
 
   $: selectedMixins = mixins.filter((it) => !excludeMixins.has(it))
 
@@ -56,6 +59,8 @@
     'title',
     'space',
     'version',
+    'isEffective',
+    'versionCreationDisabled',
     'icon',
     'color',
     'todos',
@@ -86,6 +91,8 @@
         excludedRelations: [...excludedRelations],
         excludedProperties: [...excludedProperties],
         excludeMixins: [...excludeMixins],
+        creationManagedByProcess,
+        effectiveManagedByProcess,
         enabled: true
       })
     } else {
@@ -93,6 +100,8 @@
         excludedRelations: [...excludedRelations],
         excludedProperties: [...excludedProperties],
         excludeMixins: [...excludeMixins],
+        creationManagedByProcess,
+        effectiveManagedByProcess,
         enabled: true
       })
     }
@@ -133,6 +142,8 @@
   on:close
 >
   <div class="flex-col flex-gap-2">
+    <ToggleWithLabel label={card.string.VersionCreationManagedByProcess} bind:on={creationManagedByProcess} />
+    <ToggleWithLabel label={card.string.VersionEffectiveManagedByProcess} bind:on={effectiveManagedByProcess} />
     {#if allProperties.length > 0}
       <div class="flex-between">
         <Label label={setting.string.Properties} />

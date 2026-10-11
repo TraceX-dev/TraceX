@@ -16,6 +16,7 @@ export interface SuccessExecutionResult {
   txes: Tx[]
   rollback: Tx[] | undefined
   context: SuccessExecutionContext[] | null
+  results?: SuccessExecutionContext[]
 }
 
 export interface SuccessExecutionContext {

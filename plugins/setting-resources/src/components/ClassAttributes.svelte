@@ -49,12 +49,12 @@
   export let isCard: boolean = false
   export let showAll: boolean = false
   export let attributeMapper:
-  | {
-    component: AnySvelteComponent
-    label: IntlString
-    props: Record<string, any>
-  }
-  | undefined = undefined
+    | {
+        component: AnySvelteComponent
+        label: IntlString
+        props: Record<string, any>
+      }
+    | undefined = undefined
 
   const client = getClient()
   const hierarchy = client.getHierarchy()

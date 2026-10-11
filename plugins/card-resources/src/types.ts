@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,8 +14,8 @@
 
 import type { Ref } from '@hcengineering/core'
 import type { MasterTag } from '@hcengineering/card'
-import type { LabelID } from '@hcengineering/communication-types'
 import { type Heading } from '@hcengineering/text-editor'
+import type { AnyComponent } from '@hcengineering/ui'
 
 interface BaseNavigatorConfig {
   types: Array<Ref<MasterTag>>
@@ -36,7 +37,6 @@ export interface CardsNavigatorConfig extends BaseNavigatorConfig {
   limit: number
   lookback?: string // e.g. 1m, 1h, 1d, 1w
   hideEmpty?: boolean
-  labelFilter?: LabelID[]
   fixedTypes?: Array<Ref<MasterTag>>
   defaultSorting?: Sorting
   specialSorting?: Record<Ref<MasterTag>, Sorting>
@@ -61,4 +61,10 @@ export interface CardHideScrollBarAction {
   id: 'hideScrollBar'
 }
 
-export type CardSectionAction = CardTocAction | CardOverlayAction | CardHideScrollBarAction
+export interface CardAsideAction {
+  id: 'aside'
+  component?: AnyComponent
+  props?: Record<string, any>
+}
+
+export type CardSectionAction = CardTocAction | CardOverlayAction | CardHideScrollBarAction | CardAsideAction

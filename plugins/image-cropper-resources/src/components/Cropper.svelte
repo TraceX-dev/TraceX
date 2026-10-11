@@ -23,7 +23,7 @@
   let imgRef: HTMLImageElement
   let cropper: Cropper | undefined
 
-  async function init (image: Blob) {
+  async function init (image: Blob): Promise<void> {
     const bitmap = await createImageBitmap(image)
     const canvas = document.createElement('canvas')
     canvas.height = bitmap.height

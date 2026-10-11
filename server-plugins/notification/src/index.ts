@@ -49,15 +49,15 @@ export interface TextPresenter<T extends Doc = any> extends Class<T> {
  * @public
  */
 export type TypeMatchFunc = Resource<
-(
-  tx: Tx,
-  doc: Doc,
-  person: Ref<Person>,
-  socialIds: PersonId[],
-  type: NotificationType,
-  control: TriggerControl,
-  account: AccountUuid
-) => boolean | Promise<boolean>
+  (
+    tx: Tx,
+    doc: Doc,
+    person: Ref<Person>,
+    socialIds: PersonId[],
+    type: NotificationType,
+    control: TriggerControl,
+    account: AccountUuid
+  ) => boolean | Promise<boolean>
 >
 
 /**
@@ -108,6 +108,8 @@ export default plugin(serverNotificationId, {
     MailUrl: '' as Metadata<string>,
     MailAuthToken: '' as Metadata<string>,
     WebPushUrl: '' as Metadata<string>,
+    // Product name in emails when the branding has no title (PRODUCT_NAME)
+    ProductName: '' as Metadata<string>,
     InboxOnlyNotifications: '' as Metadata<boolean>
   },
   mixin: {
@@ -121,8 +123,10 @@ export default plugin(serverNotificationId, {
     OnAttributeUpdate: '' as Resource<TriggerFunc>,
     OnReactionChanged: '' as Resource<TriggerFunc>,
     OnDocRemove: '' as Resource<TriggerFunc>,
+    OnDemandNotificationSend: '' as Resource<TriggerFunc>,
     OnEmployeeDeactivate: '' as Resource<TriggerFunc>,
-    PushNotificationsHandler: '' as Resource<TriggerFunc>
+    PushNotificationsHandler: '' as Resource<TriggerFunc>,
+    OnInboxNotificationCreate: '' as Resource<TriggerFunc>
   },
   function: {
     IsUserEmployeeInFieldValueTypeMatch: '' as TypeMatchFunc,

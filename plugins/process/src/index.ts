@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,7 +13,19 @@
 // limitations under the License.
 
 import { Card, ExportFunc, MasterTag, Tag } from '@hcengineering/card'
-import { Association, Class, Client, Doc, DocumentUpdate, ObjQueryType, Rank, Ref, Tx, Type } from '@hcengineering/core'
+import {
+  Association,
+  Class,
+  Client,
+  Doc,
+  DocumentUpdate,
+  Markup,
+  ObjQueryType,
+  Rank,
+  Ref,
+  Tx,
+  Type
+} from '@hcengineering/core'
 import { Asset, IntlString, Plugin, plugin, Resource } from '@hcengineering/platform'
 import { ToDo } from '@hcengineering/time'
 import { AnyComponent } from '@hcengineering/ui'
@@ -40,9 +53,11 @@ export interface AttributeSlotModel extends SlotModel {
 // Process model dscription
 export interface Process extends Doc {
   masterTag: Ref<MasterTag | Tag>
+  rank: Rank
   name: string
   description: string
   parallelExecutionForbidden?: boolean
+  showInHeader?: boolean
   autoStart?: boolean
   automationOnly?: boolean
   context: Record<ContextId, ProcessContext>
@@ -141,6 +156,8 @@ export interface ProcessToDo extends ToDo {
   results?: UserResult[]
   field?: string
   askRequired?: boolean
+  group?: string
+  completionMode?: 'any' | 'all'
 }
 
 export interface ApproveRequest extends ProcessToDo {
@@ -158,7 +175,7 @@ export interface ApproveRequest extends ProcessToDo {
 export type MethodParams<T extends Doc> = {
   [P in keyof T]?: ObjQueryType<T[P]> | string
 } & DocumentUpdate<T> &
-Record<string, any>
+  Record<string, any>
 
 export interface State extends Doc {
   process: Ref<Process>
@@ -181,11 +198,19 @@ export interface StepContext {
   _class?: Ref<Class<Doc>> // class of the context
 }
 
+export interface SelectionRelation {
+  association: Ref<Association>
+  direction: 'A' | 'B'
+  versions?: 'all' | 'latest' | 'effective'
+}
+
 export interface UserResult {
   _id: ContextId // context id
   name: string
   key?: string
   type: Type<any>
+  selectionSpace?: string // Space reference or serialized process context
+  excludeRelation?: SelectionRelation
 }
 
 export interface ProcessCustomEvent extends Doc {
@@ -195,8 +220,11 @@ export interface ProcessCustomEvent extends Doc {
 }
 
 export interface EventButton extends Doc {
+  requireAttachments?: boolean
   title: string
+  description?: Markup
   eventType: string
+  user?: ToDo['user']
   execution: Ref<Execution>
   card: Ref<Card>
 }
@@ -222,6 +250,7 @@ export interface ProcessFunction extends Doc {
   of: Ref<Class<Doc>>
   to?: Ref<Class<Doc>>
   editor?: AnyComponent
+  editorProps?: Record<string, unknown>
   presenter?: AnyComponent
   category: AttributeCategory | undefined
   allowMany?: boolean
@@ -237,7 +266,7 @@ export interface UpdateCriteriaComponent extends Doc {
 
 export * from './dslContext'
 export * from './errors'
-export * from './types'
+export type * from './types'
 export * from './utils'
 
 export default plugin(processId, {
@@ -260,13 +289,18 @@ export default plugin(processId, {
     RunSubProcess: '' as Ref<Method<Process>>,
     CancelSubProcess: '' as Ref<Method<Process>>,
     CreateAction: '' as Ref<Method<EventButton>>,
+    RequestAttachments: '' as Ref<Method<EventButton>>,
+    SetContext: '' as Ref<Method<Doc>>,
+    UpdateContext: '' as Ref<Method<Doc>>,
     CancellAction: '' as Ref<Method<EventButton>>,
     CreateToDo: '' as Ref<Method<ProcessToDo>>,
     CloseToDo: '' as Ref<Method<ProcessToDo>>,
     UpdateCard: '' as Ref<Method<Card>>,
     CreateCard: '' as Ref<Method<Card>>,
     AddRelation: '' as Ref<Method<Association>>,
+    RemoveRelation: '' as Ref<Method<Association>>,
     AddTag: '' as Ref<Method<Tag>>,
+    RemoveTag: '' as Ref<Method<Tag>>,
     RequestApproval: '' as Ref<Method<ApproveRequest>>,
     CancelToDo: '' as Ref<Method<ProcessToDo>>,
     LockCard: '' as Ref<Method<Card>>,
@@ -274,7 +308,11 @@ export default plugin(processId, {
     UnlockCard: '' as Ref<Method<Card>>,
     UnlockSection: '' as Ref<Method<Card>>,
     LockField: '' as Ref<Method<Card>>,
-    UnlockField: '' as Ref<Method<Card>>
+    UnlockField: '' as Ref<Method<Card>>,
+    MakeVersionEffective: '' as Ref<Method<Card>>,
+    CreateNewVersion: '' as Ref<Method<Card>>,
+    DisableVersionCreation: '' as Ref<Method<Card>>,
+    EnableVersionCreation: '' as Ref<Method<Card>>
   },
   trigger: {
     OnCardUpdate: '' as Ref<Trigger>, // in fact WhenCardMatches, should migrate in future
@@ -285,9 +323,13 @@ export default plugin(processId, {
     OnToDoClose: '' as Ref<Trigger>,
     OnToDoRemove: '' as Ref<Trigger>,
     OnExecutionStart: '' as Ref<Trigger>,
+    OnNewVersion: '' as Ref<Trigger>,
+    OnVersionEffective: '' as Ref<Trigger>,
+    OnVersionIneffective: '' as Ref<Trigger>,
     OnExecutionContinue: '' as Ref<Trigger>,
     OnTime: '' as Ref<Trigger>,
     OnEvent: '' as Ref<Trigger>,
+    WhenRelationChanges: '' as Ref<Trigger>,
     OnApproveRequestApproved: '' as Ref<Trigger>,
     OnApproveRequestRejected: '' as Ref<Trigger>
   },
@@ -300,6 +342,7 @@ export default plugin(processId, {
     SubProcessMatchCheck: '' as Resource<CheckFunc>,
     Time: '' as Resource<CheckFunc>,
     OnEventCheck: '' as Resource<CheckFunc>,
+    RelationChangedCheck: '' as Resource<CheckFunc>,
     ApproveRequestApproved: '' as Resource<CheckFunc>,
     ApproveRequestRejected: '' as Resource<CheckFunc>
   },
@@ -323,6 +366,7 @@ export default plugin(processId, {
     Review: '' as IntlString
   },
   error: {
+    TagHasSubtags: '' as IntlString,
     MethodNotFound: '' as IntlString,
     InternalServerError: '' as IntlString,
     EmptyRelatedObjectValue: '' as IntlString,
@@ -337,7 +381,8 @@ export default plugin(processId, {
     ContextValueNotProvided: '' as IntlString,
     RequiredParamsNotProvided: '' as IntlString,
     TooDeepTransitionRecursion: '' as IntlString,
-    ToDoAlreadyCompleted: '' as IntlString
+    ToDoAlreadyCompleted: '' as IntlString,
+    GuestWithoutCardAccess: '' as IntlString
   },
   icon: {
     Process: '' as Asset,
@@ -353,8 +398,11 @@ export default plugin(processId, {
     OnEvent: '' as Asset
   },
   function: {
+    AllMatchValue: '' as Ref<ProcessFunction>,
     FirstMatchValue: '' as Ref<ProcessFunction>,
     Filter: '' as Ref<ProcessFunction>,
+    ArrayLength: '' as Ref<ProcessFunction>,
+    RelationCount: '' as Ref<ProcessFunction>,
     FirstValue: '' as Ref<ProcessFunction>,
     LastValue: '' as Ref<ProcessFunction>,
     Random: '' as Ref<ProcessFunction>,
@@ -363,6 +411,8 @@ export default plugin(processId, {
     Trim: '' as Ref<ProcessFunction>,
     Prepend: '' as Ref<ProcessFunction>,
     Append: '' as Ref<ProcessFunction>,
+    PrependMarkup: '' as Ref<ProcessFunction>,
+    AppendMarkup: '' as Ref<ProcessFunction>,
     Replace: '' as Ref<ProcessFunction>,
     ReplaceAll: '' as Ref<ProcessFunction>,
     Split: '' as Ref<ProcessFunction>,
@@ -412,6 +462,7 @@ export default plugin(processId, {
     StringFromEnum: '' as Ref<ProcessFunction>,
     EnumFromString: '' as Ref<ProcessFunction>,
     DateDifference: '' as Ref<ProcessFunction>,
+    TableFromRelation: '' as Ref<ProcessFunction>,
     ExportProcess: '' as Resource<ExportFunc>,
     CheckProcessSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>
   }

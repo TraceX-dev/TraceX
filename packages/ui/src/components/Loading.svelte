@@ -34,7 +34,7 @@
   })
 </script>
 
-<div class="spinner-container" class:fullSize={!shrink}>
+<div class="spinner-container" class:fullSize={!shrink} aria-busy="true">
   <div data-label={label} class="inner flex-row-center" class:labeled={label !== ''}>
     <Spinner {size} />
     <slot />

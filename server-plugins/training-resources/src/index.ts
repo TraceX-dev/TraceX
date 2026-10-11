@@ -16,6 +16,7 @@
 import { TrainingRequestHTMLPresenter } from './functions/TrainingRequestHTMLPresenter'
 import { TrainingRequestNotificationTypeMatch } from './functions/TrainingRequestNotificationTypeMatch'
 import { TrainingRequestTextPresenter } from './functions/TrainingRequestTextPresenter'
+import { OnTrainingAttempt, OnTrainingReminderSettings, OnTrainingRequest } from './triggers'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export default async () => ({
@@ -23,5 +24,10 @@ export default async () => ({
     TrainingRequestHTMLPresenter,
     TrainingRequestNotificationTypeMatch,
     TrainingRequestTextPresenter
+  },
+  trigger: {
+    OnTrainingRequest,
+    OnTrainingAttempt,
+    OnTrainingReminderSettings
   }
 })

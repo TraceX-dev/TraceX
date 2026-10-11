@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 //
 
 import { type Doc, type Ref, type Space } from '@hcengineering/core'
-import { type IntlString, type Resource, mergeIds } from '@hcengineering/platform'
+import { type Resource, mergeIds } from '@hcengineering/platform'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 import { workbenchId } from '@hcengineering/workbench'
 import workbench from '@hcengineering/workbench-resources/src/plugin'
@@ -24,10 +25,6 @@ export default mergeIds(workbenchId, workbench, {
   component: {
     ApplicationPresenter: '' as AnyComponent,
     ServerManager: '' as AnyComponent
-  },
-  string: {
-    Application: '' as IntlString,
-    HiddenApplication: '' as IntlString
   },
   function: {
     HasArchiveSpaces: '' as Resource<(spaces: Space[]) => Promise<boolean>>,

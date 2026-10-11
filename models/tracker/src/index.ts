@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
 import activity from '@hcengineering/activity'
 import chunter from '@hcengineering/chunter'
 import { AccountRole, type ClassCollaborators, type Ref, type Status } from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import { type Builder } from '@hcengineering/model'
 import core from '@hcengineering/model-core'
 import { generateClassNotificationTypes } from '@hcengineering/model-notification'
@@ -39,6 +41,7 @@ import {
   TClassicProjectTypeData,
   TComponent,
   TIssue,
+  TIssueRelation,
   TIssueStatus,
   TIssueTemplate,
   TIssueTypeData,
@@ -150,6 +153,7 @@ function defineNotifications (builder: Builder): void {
       txClasses: [core.class.TxCreateDoc, core.class.TxUpdateDoc],
       objectClass: tracker.class.Issue,
       onlyOwn: true,
+      emailKind: 'assignment',
       templates: {
         textTemplate: '{doc} was assigned to you by {sender}',
         htmlTemplate: '<p>{doc} was assigned to you by {sender}</p>',
@@ -441,6 +445,7 @@ export function createModel (builder: Builder): void {
     TProject,
     TComponent,
     TIssue,
+    TIssueRelation,
     TIssueTemplate,
     TIssueStatus,
     TTypeIssuePriority,
@@ -658,6 +663,19 @@ export function createModel (builder: Builder): void {
   })
 
   builder.createDoc(
+    integration.class.IntegrationTargetFactory,
+    core.space.Model,
+    {
+      targetClass: tracker.class.Issue,
+      create: tracker.function.CreateIntegrationTarget,
+      update: tracker.function.UpdateIntegrationTarget,
+      canCreate: tracker.function.CanCreateIntegrationTarget,
+      getAllowedSpaceClasses: tracker.function.GetIntegrationTargetAllowedSpaceClasses
+    },
+    tracker.integration.TargetFactory
+  )
+
+  builder.createDoc(
     core.class.ClassPermission,
     core.space.Model,
     {
@@ -676,8 +694,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [tracker.ids.GuestIssueClassPermission],
       spaceClass: tracker.class.Project,
-      enabled: true,
-      order: 10
+      enabled: true
     },
     tracker.ids.ModulePermissionGroup
   )
@@ -690,8 +707,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: tracker.class.Project,
-      enabled: true,
-      order: 10
+      enabled: true
     },
     tracker.ids.ModulePermissionGroupReadOnlyGuest
   )

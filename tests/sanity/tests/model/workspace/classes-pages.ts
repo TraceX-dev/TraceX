@@ -28,7 +28,7 @@ export class ClassesPage {
   lead = (): Locator => this.page.getByRole('button', { name: 'Lead' })
   issue = (): Locator => this.page.getByRole('button', { name: 'Issue' })
   card = (): Locator => this.page.getByRole('button', { name: 'Card' })
-  product = (): Locator => this.page.getByRole('button', { name: 'Product' })
+  product = (index: number = 0): Locator => this.page.getByRole('button', { name: 'Product', exact: true }).nth(index)
 
   async checkIfClassesExists (): Promise<void> {
     await expect(this.member()).toBeVisible()
@@ -53,6 +53,7 @@ export class ClassesPage {
     await expect(this.lead().nth(1)).toBeVisible()
     await expect(this.issue().nth(0)).toBeVisible()
     await expect(this.issue().nth(1)).toBeVisible()
-    await expect(this.product()).toBeVisible()
+    await expect(this.product(0)).toBeVisible()
+    await expect(this.product(1)).toBeVisible()
   }
 }

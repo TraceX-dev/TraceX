@@ -1,4 +1,5 @@
 <!--
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
@@ -55,6 +56,8 @@
   import { Readable } from 'svelte/store'
   import { getResource } from '@hcengineering/platform'
   import { canChangeAttribute } from '../permissions'
+
+  import { isObjectAttributeReadonly } from '../readonly'
 
   export let _class: Ref<Class<Doc>>
   export let query: DocumentQuery<Doc>
@@ -132,13 +135,14 @@
   function getSort (sortKey: string | string[]) {
     return Array.isArray(sortKey)
       ? sortKey.reduce((acc: Record<string, SortingOrder>, val) => {
-        acc[val] = sortOrder
-        return acc
-      }, {})
+          acc[val] = sortOrder
+          return acc
+        }, {})
       : { ...(options?.sort ?? {}), [sortKey]: sortOrder }
   }
 
   let resultOptions = options
+  let resultQuery: DocumentQuery<Doc> = query
 
   const update = reduceCalls(async function (
     _class: Ref<Class<Doc>>,
@@ -148,10 +152,12 @@
     lookup: Lookup<Doc>,
     associations: AssociationQuery[] | undefined,
     limit: number,
-    options: FindOptions<Doc> | undefined
+    options: FindOptions<Doc> | undefined,
+    viewOptionsConfig: ViewOptionModel[] | undefined,
+    viewOptions: ViewOptions | undefined
   ) {
     const p = await getResultQuery(hierarchy, query, viewOptionsConfig, viewOptions)
-    const resultQuery = mergeQueries(p, query)
+    resultQuery = mergeQueries(p, query)
     loading += q.query(
       _class,
       resultQuery,
@@ -170,7 +176,18 @@
       ? 1
       : 0
   })
-  $: void update(_class, query, _sortKey, sortOrder, lookup, associations, limit, resultOptions)
+  $: void update(
+    _class,
+    query,
+    _sortKey,
+    sortOrder,
+    lookup,
+    associations,
+    limit,
+    resultOptions,
+    viewOptionsConfig,
+    viewOptions
+  )
 
   $: void getResultOptions(options, viewOptionsConfig, viewOptions).then((p) => {
     resultOptions = p
@@ -181,7 +198,7 @@
   const qSlow = createQuery()
   $: qSlow.query(
     _class,
-    query,
+    resultQuery,
     (result) => {
       total = result.total
       if (totalQuery === undefined) {
@@ -278,11 +295,14 @@
 
   const joinProps = (attribute: AttributeModel, object: Doc, readonly: boolean, editable: boolean) => {
     const readonlyParams =
-      readonly || (attribute?.attribute?.readonly ?? false)
+      readonly ||
+      isObjectAttributeReadonly(object, attribute, client.getHierarchy()) ||
+      (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             editable: false,
-            disabled: true
+            disabled: true,
+            onChange: undefined
           }
         : {
             readonly: !editable,
@@ -306,19 +326,36 @@
     return getObjectValue(attribute.key, object)
   }
 
-  function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute): void {
+  function onChange (
+    value: any,
+    doc: Doc,
+    key: string,
+    attribute: AnyAttribute,
+    castRequest: AttributeModel['castRequest']
+  ): void {
+    if (
+      readonly ||
+      $restrictionStore.readonly ||
+      isObjectAttributeReadonly(doc, { key, attribute, castRequest }, client.getHierarchy()) ||
+      attribute.readonly === true
+    ) {
+      return
+    }
     updateAttribute(client, doc, _class, { key, attr: attribute }, value)
   }
 
   function getOnChange (doc: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, attribute, client.getHierarchy())) {
+      return
+    }
     if (attr === undefined) return
     if (attribute.collectionAttr) return
     if (attribute.isLookup) return
     if (attribute.attribute?.readonly === true) return
     const key = attribute.castRequest ? attribute.key.substring(attribute.castRequest.length + 1) : attribute.key
     return (value: any) => {
-      onChange(value, doc, key, attr)
+      onChange(value, doc, key, attr, attribute.castRequest)
     }
   }
 

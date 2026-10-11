@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -62,6 +63,7 @@ import type {
   SystemSpace,
   Timestamp,
   TransientConfiguration,
+  TransientTTL,
   Type,
   TypeAny,
   TypedSpace,
@@ -69,7 +71,8 @@ import type {
   Version
 } from './classes'
 import { AccountRole, TxAccessLevel } from './classes'
-import { type Status, type StatusCategory } from './status'
+import type { AccessControlled, AccessParent, ClassAccessPolicy } from './objectAccess'
+import type { Status, StatusCategory } from './status'
 import type {
   Tx,
   TxApplyIf,
@@ -106,6 +109,7 @@ export const systemAccount: Account = {
 export const configUserAccountUuid = '0d94731c-0787-4bcd-aefe-304efc3706b1' as AccountUuid
 
 export const readOnlyGuestAccountUuid = '83bbed9a-0867-4851-be32-31d49d1d42ce' as AccountUuid
+export const docGuestAccountUuid = 'b6996120-416f-49cd-841e-e4a5d2e49c9b' as AccountUuid
 
 export default plugin(coreId, {
   class: {
@@ -205,7 +209,11 @@ export default plugin(coreId, {
     SpacesTypeData: '' as Ref<Mixin<Space>>,
     TransientConfiguration: '' as Ref<Mixin<TransientConfiguration>>,
     TxAccessLevel: '' as Ref<Mixin<TxAccessLevel>>,
-    VersionableClass: '' as Ref<Mixin<VersionableClass>>
+    VersionableClass: '' as Ref<Mixin<VersionableClass>>,
+    TransientTTL: '' as Ref<Class<TransientTTL>>,
+    AccessControlled: '' as Ref<Mixin<AccessControlled>>,
+    ClassAccessPolicy: '' as Ref<Mixin<ClassAccessPolicy>>,
+    AccessParent: '' as Ref<Mixin<AccessParent>>
   },
   space: {
     Tx: '' as Ref<Space>,

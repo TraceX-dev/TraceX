@@ -16,15 +16,12 @@
 <script lang="ts">
   import { type IntlString, Severity, Status } from '@hcengineering/platform'
   import { signupStore } from '@hcengineering/analytics-providers'
-  import { deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
+  import { Label } from '@hcengineering/ui'
   import { onMount } from 'svelte'
-
-  import { loginFormPaddingInline } from '../loginFormLayout'
 
   import { type BottomAction, doLoginAsGuest, doLoginNavigate, LoginMethods } from '../index'
   import LoginPasswordForm from './LoginPasswordForm.svelte'
   import LoginOtpForm from './LoginOtpForm.svelte'
-  import BottomActionComponent from './BottomAction.svelte'
   import login from '../plugin'
   import { LoginInfo } from '@hcengineering/account-client'
 
@@ -84,6 +81,8 @@
       void guestLogin()
     }
   }
+
+  $: methodToggleAction = method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction
 </script>
 
 {#if method === LoginMethods.Otp}
@@ -91,15 +90,46 @@
 {:else}
   <LoginPasswordForm {navigateUrl} {signUpDisabled} {email} {caption} {subtitle} {onLogin} on:change={changeMethod} />
 {/if}
-<div class="actions" style:margin-inline-start={loginFormPaddingInline($deviceInfo.docWidth, $deviceInfo.docHeight)}>
-  <BottomActionComponent action={method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction} />
-  <div class="login-as-guest">
-    <BottomActionComponent action={loginAsGuest} />
-  </div>
+
+<div class="login-extra-actions">
+  <a class="method-toggle" href="." on:click|preventDefault={methodToggleAction.func}>
+    <Label label={methodToggleAction.i18n} />
+  </a>
+  <span class="divider-dot">•</span>
+  <a class="guest-link" href="." on:click|preventDefault={loginAsGuest.func}>
+    <Label label={loginAsGuest.i18n} />
+  </a>
 </div>
 
 <style lang="scss">
-  .login-as-guest {
+  .login-extra-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     margin-top: 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .divider-dot {
+    color: var(--theme-dark-color);
+  }
+
+  .method-toggle,
+  .guest-link {
+    font-weight: 500;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .method-toggle {
+    color: var(--theme-link-color);
+  }
+
+  .guest-link {
+    color: var(--theme-content-color);
   }
 </style>

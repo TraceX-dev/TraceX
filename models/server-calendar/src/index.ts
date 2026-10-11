@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,6 +18,7 @@ import { type Builder } from '@hcengineering/model'
 
 import calendar from '@hcengineering/calendar'
 import core, { type Class, type Doc } from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import serverNotification from '@hcengineering/server-notification'
 import serverCalendar from '@hcengineering/server-calendar'
 import serverCore, { type ObjectDDParticipant } from '@hcengineering/server-core'
@@ -25,6 +27,14 @@ import contact from '@hcengineering/contact'
 export { serverCalendarId } from '@hcengineering/server-calendar'
 
 export function createModel (builder: Builder): void {
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: calendar.class.Event,
+    find: serverCalendar.workspaceApi.FindEvents,
+    get: serverCalendar.workspaceApi.GetEvent,
+    create: serverCalendar.workspaceApi.CreateEvent,
+    patch: serverCalendar.workspaceApi.PatchEvent
+  })
+
   builder.mixin(calendar.class.Event, core.class.Class, serverNotification.mixin.HTMLPresenter, {
     presenter: serverCalendar.function.ReminderHTMLPresenter
   })

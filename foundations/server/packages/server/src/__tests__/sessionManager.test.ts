@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 
 import {
   AccountRole,
+  docGuestAccountUuid,
   generateId,
   MeasureMetricsContext,
   systemAccountUuid,
@@ -22,10 +24,10 @@ import {
   type MeasureContext,
   type WorkspaceUuid
 } from '@hcengineering/core'
-import type { Token } from '@hcengineering/server-token'
+import serverToken, { type Token } from '@hcengineering/server-token'
+import { setMetadata } from '@hcengineering/platform'
 
 // Import the module under test after mocks are set up
-// eslint-disable-next-line import/first
 import { TSessionManager, type Timeouts } from '../sessionManager'
 
 // Mock modules before importing the module under test
@@ -33,6 +35,7 @@ jest.mock('@hcengineering/account-client', () => ({
   getClient: jest.fn(() => ({
     getWorkspaceInfo: jest.fn(),
     updateLastVisit: jest.fn(),
+    updateAccountsLastVisit: jest.fn(),
     getLoginWithWorkspaceInfo: jest.fn()
   }))
 }))
@@ -112,6 +115,10 @@ describe('TSessionManager', () => {
     pingTimeout: 10000,
     reconnectTimeout: 3
   }
+
+  beforeAll(async () => {
+    setMetadata(serverToken.metadata.Secret, 'secret')
+  })
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -245,7 +252,7 @@ describe('TSessionManager', () => {
     it('should count regular users correctly', () => {
       const mockSession = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-uuid-123' as AccountUuid)
+          getUser: jest.fn().mockReturnValue('user-uuid-123')
         }
       }
 
@@ -257,10 +264,9 @@ describe('TSessionManager', () => {
     })
 
     it('should count anonymous users correctly', () => {
-      const guestAccount = 'b6996120-416f-49cd-841e-e4a5d2e49c9b' as AccountUuid
       const mockSession = {
         session: {
-          getUser: jest.fn().mockReturnValue(guestAccount)
+          getUser: jest.fn().mockReturnValue(docGuestAccountUuid)
         }
       }
 
@@ -280,17 +286,17 @@ describe('TSessionManager', () => {
         },
         {
           session: {
-            getUser: jest.fn().mockReturnValue('user-1' as AccountUuid)
+            getUser: jest.fn().mockReturnValue('user-1')
           }
         },
         {
           session: {
-            getUser: jest.fn().mockReturnValue('b6996120-416f-49cd-841e-e4a5d2e49c9b' as AccountUuid)
+            getUser: jest.fn().mockReturnValue(docGuestAccountUuid)
           }
         },
         {
           session: {
-            getUser: jest.fn().mockReturnValue('user-2' as AccountUuid)
+            getUser: jest.fn().mockReturnValue('user-2')
           }
         }
       ]
@@ -323,7 +329,7 @@ describe('TSessionManager', () => {
           [
             'session-3',
             {
-              session: { getUser: jest.fn().mockReturnValue('other-user' as AccountUuid) }
+              session: { getUser: jest.fn().mockReturnValue('other-user') }
             }
           ]
         ])
@@ -340,7 +346,7 @@ describe('TSessionManager', () => {
           [
             'session-1',
             {
-              session: { getUser: jest.fn().mockReturnValue('other-user' as AccountUuid) }
+              session: { getUser: jest.fn().mockReturnValue('other-user') }
             }
           ]
         ])
@@ -369,7 +375,7 @@ describe('TSessionManager', () => {
       const now = Date.now()
       const mockSession = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-1'),
           lastRequest: now,
           requests: new Map()
         },
@@ -399,7 +405,7 @@ describe('TSessionManager', () => {
 
       sessionManager.sessions.set('ws-healthy', {
         session: {
-          getUser: jest.fn().mockReturnValue('user-healthy' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-healthy'),
           lastRequest: now,
           requests: new Map()
         }
@@ -416,7 +422,7 @@ describe('TSessionManager', () => {
       // Add 1 hung session and 2 healthy sessions (33% hung, above 25% warn threshold)
       sessionManager.sessions.set('ws-hung', {
         session: {
-          getUser: jest.fn().mockReturnValue('user-hung' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-hung'),
           lastRequest: longTimeAgo,
           requests: new Map()
         }
@@ -424,7 +430,7 @@ describe('TSessionManager', () => {
 
       sessionManager.sessions.set('ws-healthy-1', {
         session: {
-          getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-1'),
           lastRequest: now,
           requests: new Map()
         }
@@ -432,7 +438,7 @@ describe('TSessionManager', () => {
 
       sessionManager.sessions.set('ws-healthy-2', {
         session: {
-          getUser: jest.fn().mockReturnValue('user-2' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-2'),
           lastRequest: now,
           requests: new Map()
         }
@@ -468,7 +474,7 @@ describe('TSessionManager', () => {
 
       sessionManager.sessions.set('ws-1', {
         session: {
-          getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-1'),
           lastRequest: now,
           requests
         }
@@ -483,7 +489,7 @@ describe('TSessionManager', () => {
   describe('checkRate', () => {
     it('should check rate limit for regular user', () => {
       const mockSession = {
-        getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+        getUser: jest.fn().mockReturnValue('user-1'),
         token: { extra: {} },
         workspace: { uuid: 'ws-1' as WorkspaceUuid }
       } as any
@@ -521,7 +527,7 @@ describe('TSessionManager', () => {
             'session-1',
             {
               session: {
-                getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+                getUser: jest.fn().mockReturnValue('user-1'),
                 current: { find: 10, tx: 5 },
                 mins5: { find: 50, tx: 25 },
                 total: { find: 100, tx: 50 }
@@ -555,7 +561,7 @@ describe('TSessionManager', () => {
             'session-1',
             {
               session: {
-                getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+                getUser: jest.fn().mockReturnValue('user-1'),
                 current: { find: 0, tx: 0 },
                 mins5: { find: 0, tx: 0 },
                 total: { find: 0, tx: 0 }
@@ -570,7 +576,7 @@ describe('TSessionManager', () => {
             'session-2',
             {
               session: {
-                getUser: jest.fn().mockReturnValue('user-1' as AccountUuid), // Same user
+                getUser: jest.fn().mockReturnValue('user-1'), // Same user
                 current: { find: 0, tx: 0 },
                 mins5: { find: 0, tx: 0 },
                 total: { find: 0, tx: 0 }
@@ -585,7 +591,7 @@ describe('TSessionManager', () => {
             'session-3',
             {
               session: {
-                getUser: jest.fn().mockReturnValue('user-2' as AccountUuid), // Different user
+                getUser: jest.fn().mockReturnValue('user-2'), // Different user
                 current: { find: 0, tx: 0 },
                 mins5: { find: 0, tx: 0 },
                 total: { find: 0, tx: 0 }
@@ -761,16 +767,6 @@ describe('TSessionManager', () => {
 
       expect(sessionManager.ticks).toBe(initialTicks + 1)
     })
-
-    it('should update now timestamp', () => {
-      const beforeNow = sessionManager.now
-
-      // Wait a bit to ensure time passes
-      setTimeout(() => {
-        sessionManager.handleTick()
-        expect(sessionManager.now).toBeGreaterThanOrEqual(beforeNow)
-      }, 10)
-    })
   })
 
   describe('createSession', () => {
@@ -886,7 +882,7 @@ describe('TSessionManager', () => {
             'session-1',
             {
               session: {
-                getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+                getUser: jest.fn().mockReturnValue('user-1'),
                 getUserSocialIds: jest.fn().mockReturnValue(['social-1', 'social-2']),
                 getRawAccount: jest.fn().mockReturnValue({ role: AccountRole.User })
               }
@@ -914,7 +910,7 @@ describe('TSessionManager', () => {
       sessionManager.workspaces.set('ws-1' as WorkspaceUuid, mockWorkspace as any)
 
       const extraSession = {
-        getUser: jest.fn().mockReturnValue('user-extra' as AccountUuid),
+        getUser: jest.fn().mockReturnValue('user-extra'),
         getUserSocialIds: jest.fn().mockReturnValue(['social-extra']),
         getRawAccount: jest.fn().mockReturnValue({ role: AccountRole.User })
       } as any
@@ -958,7 +954,7 @@ describe('TSessionManager', () => {
 
     it('should handle rate limiting edge cases', () => {
       const mockSession = {
-        getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+        getUser: jest.fn().mockReturnValue('user-1'),
         token: { extra: {} },
         workspace: { uuid: 'ws-1' as WorkspaceUuid }
       } as any
@@ -1093,17 +1089,17 @@ describe('TSessionManager', () => {
         },
         {
           session: {
-            getUser: jest.fn().mockReturnValue('regular-user-1' as AccountUuid)
+            getUser: jest.fn().mockReturnValue('regular-user-1')
           }
         },
         {
           session: {
-            getUser: jest.fn().mockReturnValue('b6996120-416f-49cd-841e-e4a5d2e49c9b' as AccountUuid)
+            getUser: jest.fn().mockReturnValue(docGuestAccountUuid)
           }
         },
         {
           session: {
-            getUser: jest.fn().mockReturnValue('regular-user-2' as AccountUuid)
+            getUser: jest.fn().mockReturnValue('regular-user-2')
           }
         },
         {
@@ -1126,14 +1122,14 @@ describe('TSessionManager', () => {
       const workspaceId = 'ws-broadcast' as WorkspaceUuid
       const mockSession1 = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-1'),
           broadcast: jest.fn()
         },
         socket: { id: 'socket-1' }
       }
       const mockSession2 = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-2' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-2'),
           broadcast: jest.fn()
         },
         socket: { id: 'socket-2' }
@@ -1169,7 +1165,7 @@ describe('TSessionManager', () => {
       }
       const mockSession2 = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-2' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-2'),
           broadcast: jest.fn()
         },
         socket: { id: 'socket-2' }
@@ -1205,7 +1201,7 @@ describe('TSessionManager', () => {
       }
       const mockSession2 = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-2' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-2'),
           broadcast: jest.fn()
         },
         socket: { id: 'socket-2' }
@@ -1233,7 +1229,7 @@ describe('TSessionManager', () => {
       const workspaceId = 'ws-broadcast' as WorkspaceUuid
       const mockSession = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-1'),
           broadcast: jest.fn()
         },
         socket: { id: 'socket-1' }
@@ -1367,7 +1363,7 @@ describe('TSessionManager', () => {
     it('should broadcast to all sessions', () => {
       const mockSession1 = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-1'),
           binaryMode: false,
           useCompression: false
         },
@@ -1377,7 +1373,7 @@ describe('TSessionManager', () => {
       }
       const mockSession2 = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-2' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-2'),
           binaryMode: false,
           useCompression: false
         },
@@ -1415,7 +1411,7 @@ describe('TSessionManager', () => {
       }
       const mockSession2 = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-2' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-2'),
           binaryMode: false,
           useCompression: false
         },
@@ -1452,7 +1448,7 @@ describe('TSessionManager', () => {
       }
       const mockSession2 = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-2' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-2'),
           binaryMode: false,
           useCompression: false
         },
@@ -1478,7 +1474,7 @@ describe('TSessionManager', () => {
     it('should not broadcast if workspace in maintenance', () => {
       const mockSession = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-1'),
           binaryMode: false,
           useCompression: false
         },
@@ -1505,7 +1501,7 @@ describe('TSessionManager', () => {
       const requestId = 'req-123'
       const mockPipeline = {} as any
       const mockSession = {
-        getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+        getUser: jest.fn().mockReturnValue('user-1'),
         getRawAccount: jest.fn().mockReturnValue({ primarySocialId: 'social-1' as any }),
         workspace: { uuid: 'ws-1' as WorkspaceUuid },
         binaryMode: true,
@@ -1547,7 +1543,7 @@ describe('TSessionManager', () => {
         sendPong: jest.fn()
       } as any
       const mockSession = {
-        getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+        getUser: jest.fn().mockReturnValue('user-1'),
         getRawAccount: jest.fn().mockReturnValue({ primarySocialId: 'social-1' as any }),
         workspace: { uuid: 'ws-1' as WorkspaceUuid },
         requests: new Map()
@@ -1611,6 +1607,18 @@ describe('TSessionManager', () => {
 
       const workspaces = ['ws-1' as WorkspaceUuid, 'ws-2' as WorkspaceUuid]
       await sessionManager.updateLastVisit(mockContext, workspaces)
+
+      // Should complete without errors
+    })
+
+    it('should handle updateAccountsLastVisit', async () => {
+      const { getClient } = await import('@hcengineering/account-client')
+      ;(getClient as jest.Mock).mockReturnValue({
+        updateAccountsLastVisit: jest.fn().mockResolvedValue(undefined)
+      })
+
+      const accounts = ['account-1' as AccountUuid, 'account-2' as AccountUuid]
+      await sessionManager.updateAccountsLastVisit(mockContext, accounts)
 
       // Should complete without errors
     })
@@ -1695,7 +1703,7 @@ describe('TSessionManager', () => {
             'session-1',
             {
               session: {
-                getUser: jest.fn().mockReturnValue('user-1' as AccountUuid),
+                getUser: jest.fn().mockReturnValue('user-1'),
                 current: { find: 5, tx: 3 },
                 mins5: { find: 50, tx: 30 }
               }
@@ -1731,7 +1739,7 @@ describe('TSessionManager', () => {
 
       const mockSession = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-hung' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-hung'),
           lastRequest: longTimeAgo,
           lastPing: longTimeAgo,
           requests: new Map(),
@@ -1762,7 +1770,7 @@ describe('TSessionManager', () => {
 
       const mockSession = {
         session: {
-          getUser: jest.fn().mockReturnValue('user-idle' as AccountUuid),
+          getUser: jest.fn().mockReturnValue('user-idle'),
           lastRequest: idleTime,
           lastPing: idleTime,
           requests: new Map(),

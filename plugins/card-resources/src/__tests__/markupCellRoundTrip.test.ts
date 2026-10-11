@@ -27,15 +27,11 @@ jest.mock('@hcengineering/converter-resources', () => ({
   isIntlString: (value: unknown) => typeof value === 'string' && /^[a-z][a-z0-9-]*:[a-zA-Z][a-zA-Z0-9_]*:.+/.test(value)
 }))
 
-// Mirror of escapeMarkdownTableCellContent / escapeMarkdownLinkText from
-// @hcengineering/converter-resources so we don't pull svelte into Jest.
+// Mirror of escapeMarkdownTableCellContent from @hcengineering/converter-resources
+// so we don't pull svelte into Jest. Brackets are intentionally NOT escaped any more:
+// escaping them turned inline images and links into literal text.
 function escapeMarkdownTableCellContent (value: string): string {
-  return value
-    .replace(/\\/g, '\\\\')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]')
-    .replace(/\|/g, '\\|')
-    .replace(/\r?\n/g, ' ')
+  return value.replace(/\\?\|/g, '\\|').replace(/\r?\n/g, '<br>')
 }
 
 // Walk a markup tree and assert no node violates ProseMirror's table schema:
@@ -153,7 +149,7 @@ describe('markup-in-cell round-trip', () => {
     const cellValue = formatMarkupForCell(inner)
 
     // Critical invariants on the cell value:
-    expect(cellValue).not.toMatch(/<[^>]+>/) // no HTML tags
+    expect(cellValue).not.toMatch(/<(?!br|img)[^>]+>/) // no HTML tags except <br>/<img>
     expect(cellValue).not.toContain('\n') // no embedded newlines
     expect(cellValue).toContain('test') // header text preserved
     // The inner link should still carry its URL.

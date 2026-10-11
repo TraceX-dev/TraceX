@@ -26,6 +26,7 @@
   export let description: IntlString
   export let emptyLabel: IntlString | undefined = undefined
   export let allowGuests: boolean = false
+  export let showTitle: boolean = true
 
   const accountClient = getAccountClient()
   let users: AccountUuid[] = []
@@ -83,9 +84,11 @@
   }
 </script>
 
-<div class="flex-col flex-gap-4 mt-6">
-  <div class="title"><Label {label} /></div>
-  <div class="flex-row-center flex-gap-4">
+<div class="permission-editor" class:with-title={showTitle}>
+  {#if showTitle}
+    <div class="title"><Label {label} /></div>
+  {/if}
+  <div class="editor-row">
     <div class="description"><Label label={description} /></div>
     {#if loading}
       <Loading />
@@ -108,7 +111,34 @@
     font-weight: 500;
     font-size: 1rem;
   }
+
+  .permission-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+
+    &.with-title {
+      margin-top: 1.5rem;
+    }
+  }
+
+  .editor-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+  }
+
   .description {
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  @media (max-width: 40rem) {
+    .editor-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
   }
 </style>

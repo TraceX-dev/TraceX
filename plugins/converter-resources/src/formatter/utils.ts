@@ -25,7 +25,7 @@ import core, {
 } from '@hcengineering/core'
 import { translate, type IntlString } from '@hcengineering/platform'
 import { markupToJSON } from '@hcengineering/text'
-import { markupToMarkdown } from '@hcengineering/text-markdown'
+import { markdownToInlineCell, markupToMarkdown } from '@hcengineering/text-markdown'
 import { loadPersonNameByRef } from '../data/personLoader'
 
 export enum DocumentAttributeKey {
@@ -105,7 +105,7 @@ export async function formatSingleValue (
 
   if (isMarkup) {
     try {
-      return markupToMarkdown(markupToJSON(value))
+      return markdownToInlineCell(markupToMarkdown(markupToJSON(value)))
     } catch (e) {
       // fallback
     }
@@ -141,7 +141,7 @@ export async function formatSingleValue (
     const isRef = attrType?._class === core.class.RefTo
     if (isRef) {
       if (attrType.to !== undefined && hierarchy.isDerived(attrType.to, contact.mixin.Employee)) {
-        const name = await loadPersonNameByRef(value as any, hierarchy, userCache as any)
+        const name = await loadPersonNameByRef(value, hierarchy, userCache)
         return name
       }
     }

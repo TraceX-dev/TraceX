@@ -41,8 +41,10 @@ export class ApplyTxMiddleware extends BaseMiddleware implements Middleware {
     for (const tx of txes) {
       if (this.context.hierarchy.isDerived(tx._class, core.class.TxApplyIf)) {
         if (part.length > 0) {
+          // Plain txes that precede an apply must be passed on, not dropped.
+          const plain = part
           part = []
-          result.push(await this.provideTx(ctx, part))
+          result.push(await this.provideTx(ctx, plain))
         }
         const applyIf = tx as TxApplyIf
         // Wait for scope promise if found
@@ -98,52 +100,61 @@ export class ApplyTxMiddleware extends BaseMiddleware implements Middleware {
     ctx: MeasureContext,
     applyIf: TxApplyIf
   ): Promise<{
-      onEnd: () => void
-      passed: boolean
-      reason?: string
-    }> {
+    onEnd: () => void
+    passed: boolean
+    reason?: string
+  }> {
     if (applyIf.scope == null) {
       return { passed: true, onEnd: () => {} }
     }
-    // Wait for synchronized.
-    const scopePromise = this.scopes.get(applyIf.scope)
-
-    if (scopePromise != null) {
+    const scope = applyIf.scope
+    // Wait until no other apply holds the scope: several waiters may wake up on the same promise,
+    // so the scope is checked again after every wait.
+    let scopePromise = this.scopes.get(scope)
+    while (scopePromise != null) {
       await scopePromise
+      scopePromise = this.scopes.get(scope)
     }
 
-    let onEnd = (): void => {}
-    // Put sync code
-    this.scopes.set(
-      applyIf.scope,
-      new Promise((resolve) => {
-        onEnd = () => {
-          this.scopes.delete(applyIf.scope as unknown as string)
-          resolve(null)
-        }
-      })
-    )
+    let release: () => void = () => {}
+    const lock = new Promise<null>((resolve) => {
+      release = () => {
+        resolve(null)
+      }
+    })
+    this.scopes.set(scope, lock)
+    const onEnd = (): void => {
+      if (this.scopes.get(scope) === lock) this.scopes.delete(scope)
+      release()
+    }
+
     let passed = true
     let reason: string | undefined
-    if (applyIf.match != null) {
-      for (const { _class, query } of applyIf.match) {
-        const res = await this.provideFindAll(ctx, _class, query, { limit: 1 })
-        if (res.length === 0) {
-          passed = false
-          reason = `match query failed: class=${_class}, query=${JSON.stringify(query)}`
-          break
+    try {
+      if (applyIf.match != null) {
+        for (const { _class, query } of applyIf.match) {
+          const res = await this.provideFindAll(ctx, _class, query, { limit: 1 })
+          if (res.length === 0) {
+            passed = false
+            reason = `match query failed: class=${_class}, query=${JSON.stringify(query)}`
+            break
+          }
         }
       }
-    }
-    if (passed && applyIf.notMatch != null) {
-      for (const { _class, query } of applyIf.notMatch) {
-        const res = await this.provideFindAll(ctx, _class, query, { limit: 1 })
-        if (res.length > 0) {
-          passed = false
-          reason = `notMatch query failed: class=${_class}, query=${JSON.stringify(query)} (found ${res.length} matching document(s))`
-          break
+      if (passed && applyIf.notMatch != null) {
+        for (const { _class, query } of applyIf.notMatch) {
+          const res = await this.provideFindAll(ctx, _class, query, { limit: 1 })
+          if (res.length > 0) {
+            passed = false
+            reason = `notMatch query failed: class=${_class}, query=${JSON.stringify(query)} (found ${res.length} matching document(s))`
+            break
+          }
         }
       }
+    } catch (err: unknown) {
+      // A failed check must release the scope, otherwise every later apply in the scope hangs.
+      onEnd()
+      throw err
     }
     return { passed, onEnd, reason }
   }

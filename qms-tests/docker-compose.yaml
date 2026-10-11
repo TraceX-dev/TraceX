@@ -1,13 +1,19 @@
 version: '3'
 services:
-  cockroach:
-    image: cockroachdb/cockroach:v24.1.2
-    extra_hosts:
-      - 'tracex.local:host-gateway'
+  postgres:
+    image: postgres:16
+    command: ["postgres", "-p", "5433"]
     ports:
-      - '26258:26257'
-      - '18089:8080'
-    command: start-single-node --insecure
+      - '5433:5433'
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -p 5433"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
@@ -59,7 +65,7 @@ services:
     depends_on:
       - redpanda
   minio:
-    image: 'minio/minio'
+    image: 'pgsty/silo'
     command: server /data --address ":9000"
     expose:
       - 9000
@@ -91,7 +97,7 @@ services:
       - 'tracex.local:host-gateway'
     pull_policy: never
     links:
-      - cockroach
+      - postgres
       - minio
     ports:
       - 3003:3003
@@ -111,7 +117,7 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - cockroach
+      - postgres
       - minio
     volumes:
       - ./branding-test.json:/var/cfg/branding.json
@@ -132,7 +138,7 @@ services:
     pull_policy: never
     links:
       - account
-      - cockroach
+      - postgres
       - minio
       - elastic
       - collaborator
@@ -161,7 +167,7 @@ services:
       - 'tracex.local:host-gateway'
     pull_policy: never
     links:
-      - cockroach
+      - postgres
       - minio
       - rekoni
       - account
@@ -191,7 +197,7 @@ services:
     extra_hosts:
       - 'tracex.local:host-gateway'
     links:
-      - cockroach
+      - postgres
       - minio
       - transactor
     ports:
@@ -253,11 +259,11 @@ services:
     depends_on:
       redpanda:
         condition: service_started
-      cockroach:
+      postgres:
         condition: service_started
     links:
       - elastic
-      - cockroach
+      - postgres
       - rekoni
       - redpanda
     ports:

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 -->
 <script lang="ts">
   import { MasterTag } from '@hcengineering/card'
-  import core, { generateId, Ref } from '@hcengineering/core'
+  import core, { Doc, generateId, Ref, SortingOrder } from '@hcengineering/core'
   import { translate } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Process, State } from '@hcengineering/process'
@@ -29,6 +30,7 @@
     navigate,
     showPopup
   } from '@hcengineering/ui'
+  import { SortableDocList } from '@hcengineering/view-resources'
   import { getRequiredSlots, importProcess } from '../exporter'
   import process from '../plugin'
   import ImportSlotsPopup from './settings/ImportSlotsPopup.svelte'
@@ -39,9 +41,11 @@
 
   async function add (): Promise<void> {
     const initState = generateId<State>()
+    const rank = makeRank(processes[processes.length - 1]?.rank, undefined)
     const id = await client.createDoc(process.class.Process, core.space.Model, {
       name: await translate(process.string.NewProcess, {}),
       masterTag: masterTag._id,
+      rank,
       context: {},
       description: ''
     })
@@ -78,7 +82,8 @@
     },
     (res) => {
       processes = res
-    }
+    },
+    { sort: { rank: SortingOrder.Ascending } }
   )
 
   function handleSelect (id: Ref<Process>): void {
@@ -86,6 +91,10 @@
     loc.path[5] = process.component.ProcessEditor
     loc.path[6] = id
     navigate(loc, true)
+  }
+
+  function toProcess (doc: Doc): Process {
+    return doc as Process
   }
 
   function handleImport (): void {
@@ -133,17 +142,20 @@
 </div>
 {#if processes.length}
   <div class="hulyTableAttr-content task">
-    {#each processes as val}
-      <button
-        class="hulyTableAttr-content__row justify-start"
-        on:click|stopPropagation={() => {
-          handleSelect(val._id)
-        }}
-      >
-        <div class="hulyTableAttr-content__row-label px-2 font-medium-14 cursor-pointer">
-          {val.name}
-        </div>
-      </button>
-    {/each}
+    <SortableDocList _class={process.class.Process} query={{ masterTag: masterTag._id }}>
+      <svelte:fragment slot="object" let:value>
+        {@const processValue = toProcess(value)}
+        <button
+          class="hulyTableAttr-content__row justify-start"
+          on:click|stopPropagation={() => {
+            handleSelect(processValue._id)
+          }}
+        >
+          <div class="hulyTableAttr-content__row-label px-2 font-medium-14 cursor-pointer">
+            {processValue.name}
+          </div>
+        </button>
+      </svelte:fragment>
+    </SortableDocList>
   </div>
 {/if}

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -587,6 +588,7 @@
   class:sticked={stickedScrollBars}
   class:thin={thinScrollBars}
   class:shrink
+  style:-webkit-user-select={isScrolling ? 'none' : 'inherit'}
   style:user-select={isScrolling ? 'none' : 'inherit'}
   style:--scroller-header-height={`${(fade.multipler?.top ?? 0) * fz + 2}px`}
   style:--scroller-footer-height={`${(fade.multipler?.bottom ?? 0) * fz + (stickedScrollBars ? 0 : 2)}px`}
@@ -770,6 +772,7 @@
     outline: none;
     box-shadow: 0 0 0.375rem rgba($color: #000000, $alpha: 0.1);
     user-select: none;
+    -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
     tap-highlight-color: transparent;
 
@@ -1011,6 +1014,27 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+  }
+
+  @media print {
+    .scroller-container.vertical,
+    .scroller-container.vertical > .horizontalBox,
+    .scroller-container.vertical > .horizontalBox > .scroll,
+    .scroller-container.vertical > .horizontalBox > .scroll > .box {
+      display: block;
+      height: auto !important;
+      max-height: none !important;
+    }
+
+    .bar,
+    .bar-horizontal,
+    .track,
+    .track-horizontal,
+    .scrollButton,
+    .updown-container,
+    .scrollArrow {
+      display: none !important;
+    }
   }
 
   .bar,

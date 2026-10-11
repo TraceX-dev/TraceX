@@ -11,6 +11,8 @@
     "MasterTag": "Type",
     "MasterTags": "Types",
     "Parent": "Parent",
+    "ChangeTagParent": "Change tag parent",
+    "ChangeTagParentBlocked": "A tag that is assigned to cards, or has descendants assigned to cards, cannot be moved.",
     "Tags": "Tags",
     "Tag": "Tag",
     "AddTag": "Add Tag",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Warning: Changing the Type of a Card will remove all data for any attributes that do not exist on the target Type. Previous attribute data can be restored by changing the Card back to a previous Type. Card content will not be affected.",
     "MasterDetailViews": "Master Detail Views",
     "SelectType": "Select Type",
+    "SelectTypeAndSpace": "Please select a Card Type and a Space to continue.",
     "CreateSpace": "Create space",
     "NumberTypes": "{count, plural, one {# type} other {# types}}",
     "Labels": "Labels",
@@ -63,9 +66,14 @@
     "ForbidRemoveTag": "Forbid Remove Tag",
     "Duplicate": "Duplicate",
     "Version": "Version",
+    "Effective": "Effective",
+    "MakeEffective": "Make effective",
     "Versions": "Versions",
     "NewVersion": "New version",
+    "VersionCreationUnavailable": "Creating a new version is currently unavailable",
     "Versioning": "Versioning",
+    "VersionCreationManagedByProcess": "Manage version creation through a process",
+    "VersionEffectiveManagedByProcess": "Manage version effectiveness through a process",
     "EnableVersioning": "Enable versioning",
     "EnableVersioningConfirm": "Do you want to enable versioning?",
     "NewVersionConfirmation": "Do you want to create a new version?",
@@ -87,6 +95,8 @@
     "TwoColumns": "Two columns",
     "Grid": "Grid",
     "RichtextProperties": "Richtext Properties",
-    "ShowAllVersions": "Show all versions"
+    "ShowAllVersions": "Show all versions",
+    "ShowOnlyEffectiveVersions": "Show only effective versions",
+    "ShowOnlyCardsWithoutRelations": "Show only cards without relations"
   }
 }

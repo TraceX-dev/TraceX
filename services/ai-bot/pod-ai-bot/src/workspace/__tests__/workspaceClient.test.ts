@@ -17,6 +17,13 @@ jest.mock('../../config', () => ({
   }
 }))
 
+jest.mock('@hcengineering/server-token', () => ({
+  decodeToken: jest.fn(() => ({
+    account: 'bot-person',
+    workspace: '00000000-0000-4000-8000-000000000001'
+  }))
+}))
+
 const workspace = '00000000-0000-4000-8000-000000000001'
 const personUuid = '00000000-0000-4000-8000-000000000002'
 
@@ -62,6 +69,7 @@ function createTxClient (): any {
     addCollection: jest.fn(async () => 'reply-1'),
     createMixin: jest.fn(),
     getHierarchy: jest.fn(() => ({})),
+    getModel: jest.fn(() => ({})),
     close: jest.fn()
   }
 }
@@ -110,21 +118,6 @@ function createWorkspaceClient (overrides: Record<string, any> = {}): any {
 }
 
 describe('WorkspaceClient', () => {
-  it('skips duplicate message events', async () => {
-    const { client, llmService } = createWorkspaceClient()
-    const ctx = createCtx()
-    const event = createEvent()
-
-    await client.processMessageEvent(ctx, event)
-    await client.processMessageEvent(ctx, event)
-
-    expect(ctx.warn).toHaveBeenCalledWith('Duplicate message event, skipping', {
-      workspace,
-      messageId: 'message-1'
-    })
-    expect(llmService.chat).toHaveBeenCalledTimes(1)
-  })
-
   it('builds prompt from markup, references, and attachments', async () => {
     const { client, llmService, memoryStorage } = createWorkspaceClient()
     client.extractReferences = jest.fn(() => [

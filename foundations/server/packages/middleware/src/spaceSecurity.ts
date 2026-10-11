@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -45,10 +46,10 @@ import core, {
   type TxCreateDoc,
   type TxCUD,
   TxProcessor,
-  type TxRemoveDoc,
   type TxUpdateDoc,
   type TxWorkspaceEvent,
-  WorkspaceEvent
+  WorkspaceEvent,
+  type WithLookup
 } from '@hcengineering/core'
 import {
   BaseMiddleware,
@@ -360,7 +361,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
   }
 
   private handleRemove (tx: TxCUD<Space>): void {
-    const removeTx = tx as TxRemoveDoc<Space>
+    const removeTx = tx
     if (!this.context.hierarchy.isDerived(removeTx.objectClass, core.class.Space)) return
     if (removeTx._class !== core.class.TxRemoveDoc) return
     this.removeSpace(tx.objectId)
@@ -688,16 +689,58 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         findResult.lookupMap
       )
     }
-    if (account.role !== AccountRole.DocGuest) {
-      if (options?.lookup !== undefined) {
-        for (const object of findResult) {
-          if (object.$lookup !== undefined) {
-            this.filterLookup(ctx, object.$lookup, showArchived)
-          }
-        }
+    if (account.role !== AccountRole.DocGuest && !isSystem(account, ctx)) {
+      if (options?.lookup !== undefined || options?.associations !== undefined) {
+        const allowedSpaces = new Set(this.getAllAllowedSpaces(account, true, showArchived))
+        findResult = toFindResult(
+          findResult.map((doc) => this.filterNestedDocuments(ctx, doc, showArchived, allowedSpaces)),
+          findResult.total,
+          findResult.lookupMap
+        )
       }
     }
     return findResult
+  }
+
+  // Copy nested results because concurrent queries may share documents.
+  private filterNestedDocuments<T extends Doc>(
+    ctx: MeasureContext<SessionData>,
+    doc: WithLookup<T>,
+    showArchived: boolean,
+    allowedSpaces: Set<Ref<Space>>
+  ): WithLookup<T> {
+    if (doc.$associations === undefined && doc.$lookup === undefined) return doc
+    const result = { ...doc }
+    if (doc.$associations !== undefined) {
+      result.$associations = {}
+      for (const [key, targets] of Object.entries(doc.$associations)) {
+        result.$associations[key] = targets
+          .filter((target) => {
+            // Adapter security includes collaborator access outside the user's spaces.
+            if (this.skipFindCheck) return true
+            const isSpace = this.context.hierarchy.isDerived(target._class, core.class.Space)
+            return (
+              (isSpace && isOwner(ctx.contextData.account, ctx)) ||
+              allowedSpaces.has(isSpace ? (target._id as Ref<Space>) : target.space)
+            )
+          })
+          .map((target) => this.filterNestedDocuments(ctx, target, showArchived, allowedSpaces))
+      }
+    }
+    if (doc.$lookup !== undefined) {
+      const lookup = { ...doc.$lookup }
+      this.filterLookup(ctx, lookup, showArchived)
+      const values = lookup as Record<string, WithLookup<Doc> | WithLookup<Doc>[] | undefined>
+      for (const [key, value] of Object.entries(values)) {
+        if (Array.isArray(value)) {
+          values[key] = value.map((target) => this.filterNestedDocuments(ctx, target, showArchived, allowedSpaces))
+        } else if (value !== undefined) {
+          values[key] = this.filterNestedDocuments(ctx, value, showArchived, allowedSpaces)
+        }
+      }
+      result.$lookup = lookup
+    }
+    return result
   }
 
   override async searchFulltext (

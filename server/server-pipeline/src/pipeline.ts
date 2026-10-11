@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 /* eslint-disable @typescript-eslint/unbound-method */
 import card from '@hcengineering/card'
 import {
@@ -29,6 +44,7 @@ import {
   FindSecurityMiddleware,
   FullTextMiddleware,
   GuestPermissionsMiddleware,
+  GuestPersonMiddleware,
   IdentityMiddleware,
   LiveQueryMiddleware,
   LookupMiddleware,
@@ -38,6 +54,9 @@ import {
   ModifiedMiddleware,
   IdentifierMiddleware,
   NormalizeTxMiddleware,
+  ObjectAccessMarkerMiddleware,
+  ObjectProjectionMiddleware,
+  ObjectSecurityMiddleware,
   PluginConfigurationMiddleware,
   PrivateMiddleware,
   QueryJoinMiddleware,
@@ -49,7 +68,8 @@ import {
   TriggersMiddleware,
   TxMiddleware,
   TxOrderingMiddleware,
-  UserStatusMiddleware
+  UserStatusMiddleware,
+  TransientMiddleware
 } from '@hcengineering/middleware'
 import {
   createBenchmarkAdapter,
@@ -70,7 +90,6 @@ import {
 } from '@hcengineering/server-core'
 import { generateToken } from '@hcengineering/server-token'
 import { createStorageDataAdapter } from './blobStorage'
-import { CommunicationMiddleware, type CommunicationApiFactory } from './communication'
 
 import { RatingMiddleware } from '@hcengineering/server-rating'
 
@@ -130,7 +149,6 @@ export function createServerPipeline (
 
     extraLogging?: boolean // If passed, will log every request/etc.
     pipelineContextVars?: Record<string, any>
-    communicationApiFactory?: CommunicationApiFactory
   },
   extensions?: Partial<DbConfiguration>
 ): PipelineFactory {
@@ -146,23 +164,25 @@ export function createServerPipeline (
       ModifiedMiddleware.create,
       RankMiddleware.create,
       FindSecurityMiddleware.create,
+      ObjectProjectionMiddleware.create,
       PluginConfigurationMiddleware.create,
       PrivateMiddleware.create,
       (ctx: MeasureContext, context: PipelineContext, next?: Middleware) =>
         SpaceSecurityMiddleware.create(opt.adapterSecurity ?? false, ctx, context, next),
+      ObjectSecurityMiddleware.create, // Object-level access policies for user requests
       SpacePermissionsMiddleware.create,
       GuestPermissionsMiddleware.create,
+      GuestPersonMiddleware.create, // Limit person listing for guests
       ConfigurationMiddleware.create,
       ContextNameMiddleware.create,
       MarkDerivedEntryMiddleware.create,
-      ...(opt.communicationApiFactory !== undefined
-        ? [CommunicationMiddleware.create(opt.communicationApiFactory)]
-        : []),
       UserStatusMiddleware.create,
       ApplyTxMiddleware.create, // Extract apply
+      ObjectAccessMarkerMiddleware.create, // Mark documents of restricted objects, sees derived txes too
       VersioningMiddleware.create,
       IdentifierMiddleware.create, // After ApplyTx to ensure that it pass
       RatingMiddleware.create, // Rating editing restrictions
+      TransientMiddleware.create,
       TxMiddleware.create, // Store tx into transaction domain
       ...(opt.disableTriggers === true ? [] : [TriggersMiddleware.create]),
       ...(opt.fulltextUrl !== undefined
@@ -266,7 +286,6 @@ export async function getServerPipeline (
   opt?: {
     queue?: PlatformQueue
     disableTriggers?: boolean
-    communicationApiFactory?: CommunicationApiFactory
   }
 ): Promise<Pipeline> {
   const pipelineFactory = createServerPipeline(ctx, dbUrl, model, {
@@ -274,8 +293,7 @@ export async function getServerPipeline (
     usePassedCtx: true,
     disableTriggers: opt?.disableTriggers ?? false,
     adapterSecurity: isAdapterSecurity(dbUrl),
-    queue: opt?.queue,
-    communicationApiFactory: opt?.communicationApiFactory
+    queue: opt?.queue
   })
 
   return await pipelineFactory(ctx, wsUrl, createEmptyBroadcastOps(), null)

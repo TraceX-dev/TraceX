@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,20 +19,27 @@
   import { tooltip } from '../tooltips'
 
   export let id: string | undefined = undefined
+  export let inputId: string | undefined = undefined
+  export let ariaLabelledBy: string | undefined = undefined
+  export let ariaDescribedBy: string | undefined = undefined
   export let on: boolean = false
   export let disabled: boolean = false
+  export let size: 'small' | 'medium' = 'medium'
   export let showTooltip: LabelAndProps | undefined = undefined
 
   const dispatch = createEventDispatcher()
 </script>
 
-<label {id} class="toggle" use:tooltip={showTooltip} class:disabled {...$$restProps}>
+<label {id} class="toggle" use:tooltip={showTooltip} class:disabled class:small={size === 'small'} {...$$restProps}>
   <input
+    id={inputId}
     class="chBox"
     type="checkbox"
     {disabled}
+    aria-labelledby={ariaLabelledBy}
+    aria-describedby={ariaDescribedBy}
     bind:checked={on}
-    on:change={(e) => {
+    on:change={() => {
       dispatch('change', on)
     }}
   />
@@ -47,11 +55,32 @@
     // line-height: 1.75rem;
     vertical-align: middle;
     font-size: inherit;
+    -webkit-user-select: none;
     user-select: none;
     cursor: pointer;
 
     &.disabled {
       cursor: default;
+    }
+
+    &.small {
+      width: 1.75rem;
+      min-width: 1.75rem;
+      height: 1rem;
+
+      .chBox:checked + .toggle-switch::before {
+        left: 0.875rem;
+      }
+
+      .toggle-switch {
+        width: 1.75rem;
+        height: 1rem;
+
+        &::before {
+          width: 0.75rem;
+          height: 0.75rem;
+        }
+      }
     }
 
     .chBox {

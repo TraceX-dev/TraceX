@@ -43,6 +43,7 @@
   import ProcesssSetting from './ProcesssSetting.svelte'
   import StatesInlineEditor from './StatesInlineEditor.svelte'
   import TransitionsInlineEditor from './TransitionsInlineEditor.svelte'
+  import ProcessDiagram from './ProcessDiagram.svelte'
 
   export let _id: Ref<Process>
   export let visibleSecondNav: boolean = true
@@ -145,6 +146,12 @@
     showPopup(BindingsEditor, { process: value })
   }
 
+  function handleDiagram (): void {
+    if (value !== undefined) {
+      showPopup(ProcessDiagram, { process: value, fullSize: true }, 'centered')
+    }
+  }
+
   const EXPORT_WITH_SLOTS = 'with-slots'
   const EXPORT_WITHOUT_SLOTS = 'without-slots'
 
@@ -227,6 +234,13 @@
                 size="small"
                 kind="secondary"
                 on:click={handleContext}
+              />
+              <ButtonIcon
+                icon={process.icon.States}
+                tooltip={{ label: process.string.ProcessDiagram, direction: 'bottom' }}
+                size="small"
+                kind="secondary"
+                on:click={handleDiagram}
               />
               <ButtonIcon
                 icon={IconDelete}

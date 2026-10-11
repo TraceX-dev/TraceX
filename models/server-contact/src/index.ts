@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,7 @@ import { type Builder } from '@hcengineering/model'
 
 import contact from '@hcengineering/contact'
 import core from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import serverContact from '@hcengineering/server-contact'
 import serverCore from '@hcengineering/server-core'
 import serverNotification from '@hcengineering/server-notification'
@@ -26,6 +28,26 @@ import templates from '@hcengineering/templates'
 export { serverContactId } from '@hcengineering/server-contact'
 
 export function createModel (builder: Builder): void {
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: contact.class.Person,
+    find: serverContact.workspaceApi.FindPersons,
+    get: serverContact.workspaceApi.GetPerson,
+    create: serverContact.workspaceApi.CreatePerson,
+    patch: serverContact.workspaceApi.PatchPerson
+  })
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: contact.class.Organization,
+    find: serverContact.workspaceApi.FindOrganizations,
+    get: serverContact.workspaceApi.GetOrganization,
+    create: serverContact.workspaceApi.CreateOrganization,
+    patch: serverContact.workspaceApi.PatchOrganization
+  })
+  builder.createDoc(integration.class.WorkspaceApiCapability, core.space.Model, {
+    targetClass: contact.mixin.Employee,
+    find: serverContact.workspaceApi.FindEmployees,
+    get: serverContact.workspaceApi.GetEmployee
+  })
+
   builder.mixin(contact.class.Person, core.class.Class, serverNotification.mixin.HTMLPresenter, {
     presenter: serverContact.function.PersonHTMLPresenter
   })

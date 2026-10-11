@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,28 +14,61 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Doc, getObjectValue } from '@hcengineering/core'
-  import presentation, { Card, getAttrEditor, getClient } from '@hcengineering/presentation'
+  import { Analytics } from '@hcengineering/analytics'
+  import card from '@hcengineering/card'
+  import { type Class, type Doc, getObjectValue, type Markup, type Ref } from '@hcengineering/core'
+  import presentation, {
+    Card,
+    getAttrEditor,
+    getAttributePresenterClass,
+    getClient,
+    MessageViewer
+  } from '@hcengineering/presentation'
   import { ContextId, ExecutionContext, UserResult } from '@hcengineering/process'
-  import { Component, tooltip } from '@hcengineering/ui'
+  import { type AnyComponent, Component, tooltip } from '@hcengineering/ui'
+  import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
+  import { isRequiredValueFilled } from '../../required-value'
+  import type { ResolvedUserResult } from '../../selection-space'
 
-  export let results: UserResult[]
+  export let results: ResolvedUserResult[]
   export let context: ExecutionContext
   export let doc: Doc
+  export let description: Markup | undefined = undefined
 
   const dispatch = createEventDispatcher()
   const client = getClient()
   const h = client.getHierarchy()
 
   let values: Record<ContextId, any> = {}
+  let loading = true
 
-  function fillValues (): void {
-    results.forEach((r) => {
-      values[r._id] = getVal(r)
-    })
+  async function fillValues (): Promise<void> {
+    await Promise.all(
+      results.map(async (result) => {
+        try {
+          const value = getVal(result)
+          if (result.docQuery !== undefined && Object.keys(result.docQuery).length > 0 && value != null) {
+            const ids = Array.isArray(value) ? value : [value]
+            const excluded = result.docQuery._id
+            const allowedIds =
+              typeof excluded === 'object' && excluded.$nin !== undefined
+                ? ids.filter((id) => !excluded.$nin?.includes(id))
+                : ids
+            const objects = await client.findAll(card.class.Card, { ...result.docQuery, _id: { $in: allowedIds } })
+            values[result._id] = ids.every((id) => objects.some((object) => object._id === id)) ? value : undefined
+          } else {
+            values[result._id] = value
+          }
+        } catch (error) {
+          values[result._id] = undefined
+          Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+        }
+      })
+    )
     values = values
+    loading = false
   }
 
   function getVal (res: UserResult): any {
@@ -44,13 +78,30 @@
     return context[res._id]
   }
 
-  fillValues()
+  void fillValues()
 
   export function canClose (): boolean {
     return false
   }
 
+  function getEditor (result: ResolvedUserResult): AnyComponent | undefined {
+    const target = getAttributePresenterClass(h, result.type)
+    if (
+      result.docQuery !== undefined &&
+      Object.keys(result.docQuery).length > 0 &&
+      ['object', 'array'].includes(target.category) &&
+      h.isDerived(target.attrClass, card.class.Card)
+    ) {
+      return h.classHierarchyMixin(
+        card.class.Card as Ref<Class<Doc>>,
+        target.category === 'array' ? view.mixin.ArrayEditor : view.mixin.AttributeEditor
+      )?.inlineEditor
+    }
+    return getAttrEditor(result.type, h)
+  }
+
   function save (): void {
+    if (!canSaveValue) return
     dispatch('close', values)
   }
 
@@ -60,20 +111,27 @@
       values = values
     }
   }
+
+  $: canSaveValue = !loading && results.every((result) => isRequiredValueFilled(values[result._id], result.type))
 </script>
 
 <Card
   width={'small'}
   on:close
   label={plugin.string.Result}
-  canSave={Object.values(values).filter((v) => v != null).length === results.length}
+  canSave={canSaveValue}
   okAction={save}
   hideClose
   okLabel={presentation.string.Save}
 >
+  {#if description !== undefined && description.trim() !== ''}
+    <div class="description">
+      <MessageViewer message={description} />
+    </div>
+  {/if}
   <div class="grid">
     {#each results as result, i}
-      {@const editor = getAttrEditor(result.type, h)}
+      {@const editor = getEditor(result)}
       <span
         class="labelOnPanel"
         use:tooltip={{
@@ -82,7 +140,7 @@
       >
         {result.name}
       </span>
-      {#if editor}
+      {#if editor && !loading}
         <div class="w-full">
           <Component
             is={editor}
@@ -94,6 +152,7 @@
               width: '100%',
               justify: 'left',
               type: result.type,
+              docQuery: result.docQuery,
               value: values[result._id],
               onChange: getOnChange(result._id),
               focus
@@ -117,5 +176,9 @@
     margin: 0.25rem 2rem 0;
     width: calc(100% - 4rem);
     height: min-content;
+  }
+
+  .description {
+    margin: 0 0 1rem;
   }
 </style>

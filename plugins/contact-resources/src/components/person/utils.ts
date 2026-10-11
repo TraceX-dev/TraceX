@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,7 @@ import type { Class, Ref } from '@hcengineering/core'
 import type { Person } from '@hcengineering/contact'
 import { getClient } from '@hcengineering/presentation'
 import type { LabelAndProps } from '@hcengineering/ui'
+import { getPermissions } from '@hcengineering/view-resources'
 
 import contact from '../../plugin'
 import EmployeePreviewPopup from './EmployeePreviewPopup.svelte'
@@ -25,7 +27,14 @@ export function getPreviewPopup (
   person: Person | { _id?: Ref<Person>, _class?: Ref<Class<Person>> } | undefined,
   showPopup: boolean
 ): LabelAndProps | undefined {
-  if (person?._id === undefined || person?._class === undefined || !showPopup) return
+  if (
+    person?._id === undefined ||
+    person?._class === undefined ||
+    !showPopup ||
+    !getPermissions().canOpenEmployeePreview
+  ) {
+    return
+  }
   const isPerson = person != null && h.isDerived(person._class, contact.class.Person)
   const employee = isPerson ? h.as(person as Person, contact.mixin.Employee) : undefined
   return {

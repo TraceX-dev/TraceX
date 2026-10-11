@@ -2,7 +2,7 @@
   import { AccessLevel, Calendar, getPrimaryCalendar, PrimaryCalendar } from '@hcengineering/calendar'
   import { getCurrentAccount, Ref } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
-  import { Dropdown, Icon } from '@hcengineering/ui'
+  import { ButtonKind, Dropdown, Icon } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import calendar from '../plugin'
 
@@ -10,6 +10,7 @@
   export let disabled: boolean = false
   export let focusIndex = -1
   export let withIcon: boolean = true
+  export let kind: ButtonKind = 'ghost'
 
   const dispatch = createEventDispatcher()
 
@@ -68,7 +69,7 @@
       <Icon icon={calendar.icon.Calendar} size={'small'} />
     {/if}
     <Dropdown
-      kind={'ghost'}
+      {kind}
       size={'medium'}
       placeholder={calendar.string.Calendar}
       {items}

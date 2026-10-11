@@ -211,6 +211,12 @@ const styleRules: HtmlStyleRule[] = [
     getAttrs: (value: string) => {
       return { textAlign: value ?? null }
     }
+  },
+  {
+    style: 'background-color',
+    getAttrs: (value: string) => {
+      return { backgroundColor: value ?? null }
+    }
   }
 ]
 
@@ -345,7 +351,10 @@ const nodeRules: Record<string, HtmlNodeRule> = {
       return {
         colspan: attributes.colspan !== undefined ? parseInt(attributes.colspan) : undefined,
         rowspan: attributes.rowspan !== undefined ? parseInt(attributes.rowspan) : undefined,
-        colwidth: attributes.colwidth !== undefined ? parseInt(attributes.colwidth) : undefined
+        colwidth: attributes.colwidth !== undefined ? parseInt(attributes.colwidth) : undefined,
+        // `data-background-color` matches our own serializer; `background-color` covers external
+        // HTML sources with just an inline style.
+        backgroundColor: attributes['data-background-color'] ?? attributes.backgroundColor ?? undefined
       }
     },
     wrapContent: true
@@ -356,7 +365,8 @@ const nodeRules: Record<string, HtmlNodeRule> = {
       return {
         colspan: attributes.colspan !== undefined ? parseInt(attributes.colspan) : undefined,
         rowspan: attributes.rowspan !== undefined ? parseInt(attributes.rowspan) : undefined,
-        colwidth: attributes.colwidth !== undefined ? parseInt(attributes.colwidth) : undefined
+        colwidth: attributes.colwidth !== undefined ? parseInt(attributes.colwidth) : undefined,
+        backgroundColor: attributes['data-background-color'] ?? attributes.backgroundColor ?? undefined
       }
     },
     wrapContent: true

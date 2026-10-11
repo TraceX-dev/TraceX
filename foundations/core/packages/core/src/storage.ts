@@ -1,6 +1,8 @@
 //
 // Copyright © 2021 Anticrm Platform Contributors.
 //
+// Copyright © 2026 TraceX SAS.
+//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
@@ -22,17 +24,17 @@ import { VersionableDoc } from './versioning'
 
 export type ArraySizeSelector =
   | {
-    $gt: number
-  }
+      $gt: number
+    }
   | {
-    $lt: number
-  }
+      $lt: number
+    }
   | {
-    $gte: number
-  }
+      $gte: number
+    }
   | {
-    $lte: number
-  }
+      $lte: number
+    }
 
 /**
  * @public
@@ -146,6 +148,9 @@ export type FindOptions<T extends Doc> = {
   total?: boolean
 
   showArchived?: boolean
+
+  /** Request the fields required to present a reference without read access to its target. */
+  unsecured?: boolean
 }
 
 /**
@@ -231,7 +236,7 @@ export interface DomainResult<T = any> {
 /**
  * @public
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+
 export interface TxResult {}
 
 /**
@@ -271,8 +276,8 @@ export interface SearchResultDoc {
   emojiIcon?: string
   score?: number
   doc: Pick<Doc, '_id' | '_class' | 'createdOn'> &
-  Partial<Pick<AttachedDoc, 'attachedTo' | 'attachedToClass'>> &
-  Partial<Pick<VersionableDoc, 'baseId'>>
+    Partial<Pick<AttachedDoc, 'attachedTo' | 'attachedToClass'>> &
+    Partial<Pick<VersionableDoc, 'baseId'>>
 }
 
 /**

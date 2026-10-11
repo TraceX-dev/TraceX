@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 //
 
 /**
- * Shared integration test suite for database adapters (MongoDB and PostgreSQL)
+ * Shared integration test suite for database adapters (PostgreSQL)
  * These tests verify that both adapters work correctly against real database instances
  *
  * Usage in your adapter test file:
@@ -46,7 +47,7 @@ export interface TestContext {
 
 /**
  * Run shared integration tests for a database adapter
- * @param adapterName - Name of the adapter being tested (e.g., 'PostgreSQL', 'MongoDB')
+ * @param adapterName - Name of the adapter being tested (e.g., 'PostgreSQL')
  * @param getContext - Function that returns the current test context
  */
 export function runSharedIntegrationTests (adapterName: string, getContext: () => TestContext): void {
@@ -135,14 +136,14 @@ export function runSharedIntegrationTests (adapterName: string, getContext: () =
 
         await operations.updateDoc(taskPlugin.class.Task, '' as Ref<Space>, taskId, {
           $push: { arr: 10 }
-        } as any)
+        })
 
         let task: any = await client.findOne(taskPlugin.class.Task, { _id: taskId })
         expect(task?.arr).toEqual([10])
 
         await operations.updateDoc(taskPlugin.class.Task, '' as Ref<Space>, taskId, {
           $push: { arr: 20 }
-        } as any)
+        })
 
         task = await client.findOne(taskPlugin.class.Task, { _id: taskId })
         expect(task?.arr).toEqual([10, 20])
@@ -160,7 +161,7 @@ export function runSharedIntegrationTests (adapterName: string, getContext: () =
 
         await operations.updateDoc(taskPlugin.class.Task, '' as Ref<Space>, taskId, {
           $pull: { arr: 3 }
-        } as any)
+        })
 
         const task: any = await client.findOne(taskPlugin.class.Task, { _id: taskId })
         expect(task?.arr).toEqual([1, 2, 4, 5])

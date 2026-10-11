@@ -56,6 +56,14 @@ export default mergeIds(exportId, exportPlugin, {
     ExportFilterMode: '' as IntlString,
     ExportFilterEffectiveOnly: '' as IntlString,
     ExportFilterSkipArchivedObsolete: '' as IntlString,
-    ExportFilterAll: '' as IntlString
+    ExportFilterAll: '' as IntlString,
+    ExportChildDocuments: '' as IntlString,
+    ExportChildDocumentsDescription: '' as IntlString,
+
+    // Table export dialog
+    ExportMarkdown: '' as IntlString,
+    ExportScopeSelected: '' as IntlString<{ count: number }>,
+    ExportScopeLoaded: '' as IntlString<{ count: number }>,
+    ExportFileName: '' as IntlString
   }
 })

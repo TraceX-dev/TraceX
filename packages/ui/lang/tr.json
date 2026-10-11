@@ -1,6 +1,8 @@
 {
     "string": {
         "EditBoxPlaceholder": "Metin yazın...",
+        "ConnectingToWorkspace": "Çalışma alanınıza bağlanılıyor…",
+        "LoadingWorkspace": "Çalışma alanınız yükleniyor…",
         "Ok": "Tamam",
         "Cancel": "İptal",
         "Save": "Kaydet",

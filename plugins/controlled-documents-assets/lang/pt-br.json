@@ -1,5 +1,9 @@
 {
   "string": {
+    "Export": "Exportar",
+    "Import": "Importar",
+    "ExportToWord": "Exportar para Word",
+    "ImportFromWord": "Importar do Word",
     "ID": "ID",
     "Code": "Código",
     "Number": "Número",
@@ -34,7 +38,6 @@
     "Document": "Documento",
     "NewDocumentDialogClose": "Deseja fechar este diálogo?",
     "NewDocumentCloseNote": "Todas as alterações serão perdidas",
-    "Cancel": "Cancelar",
     "EditorPlaceholder": "Digite para começar a editar...",
     "Version": "Versão",
     "TemplateVersion": "Versão do modelo",
@@ -66,6 +69,8 @@
     "ComparisonMode": "Comparar",
     "Compare": "Comparar:",
     "Against": "Contra:",
+    "RemovedAttachments": "Anexos removidos",
+    "Restore": "Restaurar",
     "ComparisonModeNotSupported": "Modo de comparação não suportado.",
     "CreateDraft": "Criar rascunho",
     "SendForApproval": "Enviar para aprovação",

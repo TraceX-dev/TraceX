@@ -34,7 +34,7 @@
 
   let shown: boolean = false
 
-  function _onchange (ev: Event) {
+  function _onchange (ev: Event): void {
     onChange((ev.target as HTMLInputElement).value)
   }
 </script>
@@ -45,6 +45,7 @@
     {size}
     {justify}
     {width}
+    disabled={readonly}
     showTooltip={{ label }}
     on:click={(ev) => {
       if (!shown && !readonly) {

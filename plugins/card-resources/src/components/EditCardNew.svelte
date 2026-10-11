@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,15 +17,9 @@
 -->
 <script lang="ts">
   import { Card } from '@hcengineering/card'
-  import { NotificationContext } from '@hcengineering/communication-types'
   import { Ref, WithLookup } from '@hcengineering/core'
   import presence from '@hcengineering/presence'
-  import {
-    ComponentExtensions,
-    createNotificationContextsQuery,
-    createQuery,
-    getClient
-  } from '@hcengineering/presentation'
+  import { ComponentExtensions, createQuery, getClient } from '@hcengineering/presentation'
   import {
     Button,
     Component,
@@ -48,40 +43,69 @@
   import { canChangeDoc, showMenu } from '@hcengineering/view-resources'
 
   import { permissionsStore } from '@hcengineering/contact-resources'
-  import { afterUpdate } from 'svelte'
+  import { afterUpdate, tick } from 'svelte'
   import card from '../plugin'
   import { openCardInSidebar, setViewMode, viewStore } from '../utils'
   import CardIcon from './CardIcon.svelte'
   import CardVersionSelector from './CardVersionSelector.svelte'
   import EditCardNewContent from './EditCardNewContent.svelte'
   import ParentNamesPresenter from './ParentNamesPresenter.svelte'
+  import { type CardAsideAction } from '../types'
   import TagsEditor from './TagsEditor.svelte'
 
   export let _id: Ref<Card>
   export let readonly: boolean = false
   export let embedded: boolean = false
   export let allowClose: boolean = true
+  export let compactMode: boolean = false
+  export let initialAside: CardAsideAction | undefined = undefined
 
   const DROPDOWN_POINT = 1024
   const NO_PARENTS_POINT = 800
 
   const manager = createFocusManager()
   const query = createQuery()
-  const contextsQuery = createNotificationContextsQuery()
 
   let doc: WithLookup<Card> | undefined
-  let context: NotificationContext | undefined = undefined
-  let isContextLoaded = false
 
   let title: string = ''
   let isTitleEditing = false
   let prevId: Ref<Card> = _id
 
+  let panel: Panel | undefined
+  let aside: CardAsideAction | undefined
+  let asidePending = false
+
   $: if (prevId !== _id) {
     prevId = _id
-    context = undefined
-    isContextLoaded = false
     isTitleEditing = false
+    aside = undefined
+  }
+
+  $: if (initialAside !== undefined) void handleAside(initialAside)
+
+  async function handleAside (action: CardAsideAction): Promise<void> {
+    if (action.component === undefined) {
+      aside = undefined
+      return
+    }
+    aside = action
+    if (panel === undefined) {
+      // The panel is not rendered yet (the card is still loading): open the aside once it is mounted.
+      asidePending = true
+      return
+    }
+    await tick()
+    panel.setAside(true)
+  }
+
+  // A narrow panel hides its aside on the first layout pass, so reopen it right after that.
+  function handlePanelOpen (): void {
+    if (!asidePending) return
+    asidePending = false
+    setTimeout(() => {
+      if (aside !== undefined) panel?.setAside(true)
+    })
   }
 
   $: query.query(card.class.Card, { _id }, async (result) => {
@@ -95,11 +119,6 @@
       loc.path.length = 3
       navigate(loc)
     }
-  })
-
-  $: contextsQuery.query({ cardId: _id, limit: 1 }, (res) => {
-    context = res.getResult()[0]
-    isContextLoaded = true
   })
 
   async function saveTitle (ev: Event): Promise<void> {
@@ -194,8 +213,9 @@
 <FocusHandler {manager} />
 {#if doc !== undefined}
   <Panel
+    bind:this={panel}
     bind:element
-    isAside={false}
+    isAside={aside?.component !== undefined}
     isHeader={false}
     {embedded}
     {allowClose}
@@ -203,11 +223,30 @@
     overflowExtra
     on:resize={updateTitleGroup}
     on:open
+    on:open={handlePanelOpen}
     on:close
   >
     <div class="main-content clear-mins">
-      <EditCardNewContent {_id} {doc} readonly={_readonly} {context} {isContextLoaded} />
+      <EditCardNewContent
+        {_id}
+        {doc}
+        readonly={_readonly}
+        {compactMode}
+        on:aside={(event) => handleAside(event.detail)}
+      />
     </div>
+
+    <svelte:fragment slot="aside">
+      {#if aside?.component !== undefined}
+        <Component
+          is={aside.component}
+          props={aside.props}
+          on:close={() => {
+            aside = undefined
+          }}
+        />
+      {/if}
+    </svelte:fragment>
 
     <svelte:fragment slot="beforeTitle">
       <CardIcon value={doc} />

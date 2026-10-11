@@ -10,7 +10,6 @@ import { documentsId } from '@hcengineering/controlled-documents'
 import { documentId } from '@hcengineering/document'
 import { exportId } from '@hcengineering/export'
 import { driveId } from '@hcengineering/drive'
-import { githubId } from '@hcengineering/github'
 import { gmailId } from '@hcengineering/gmail'
 import { hrId } from '@hcengineering/hr'
 import { inventoryId } from '@hcengineering/inventory'
@@ -35,10 +34,8 @@ import { viewId } from '@hcengineering/view'
 import { workbenchId } from '@hcengineering/workbench'
 import { timeId } from '@hcengineering/time'
 import { surveyId } from '@hcengineering/survey'
-import { chatId } from '@hcengineering/chat'
 import { cardId } from '@hcengineering/card'
 import { mailId } from '@hcengineering/mail'
-import { communicationId } from '@hcengineering/communication'
 import { qalicoId } from '@tracex/qalico'
 
 import coreEng from '@hcengineering/core/lang/en.json'
@@ -54,7 +51,6 @@ import documentsEn from '@hcengineering/controlled-documents-assets/lang/en.json
 import documentEn from '@hcengineering/document-assets/lang/en.json'
 import exportEn from '@hcengineering/export-assets/lang/en.json'
 import driveEn from '@hcengineering/drive-assets/lang/en.json'
-import githubEn from '@hcengineering/github-assets/lang/en.json'
 import gmailEn from '@hcengineering/gmail-assets/lang/en.json'
 import hrEn from '@hcengineering/hr-assets/lang/en.json'
 import inventoryEn from '@hcengineering/inventory-assets/lang/en.json'
@@ -78,10 +74,8 @@ import viewEn from '@hcengineering/view-assets/lang/en.json'
 import workbenchEn from '@hcengineering/workbench-assets/lang/en.json'
 import timeEn from '@hcengineering/time-assets/lang/en.json'
 import surveyEn from '@hcengineering/survey-assets/lang/en.json'
-import chatEn from '@hcengineering/chat-assets/lang/en.json'
 import cardEn from '@hcengineering/card-assets/lang/en.json'
 import mailEn from '@hcengineering/mail-assets/lang/en.json'
-import communicationEn from '@hcengineering/communication-assets/lang/en.json'
 import qalicoEn from '@tracex/qalico-assets/lang/en.json'
 
 export function registerStringLoaders (): void {
@@ -120,12 +114,9 @@ export function registerStringLoaders (): void {
   addStringsLoader(documentsId, async (lang: string) => documentsEn)
   addStringsLoader(productsId, async (lang: string) => productsEn)
   addStringsLoader(trainingId, async (lang: string) => trainingEn)
-  addStringsLoader(githubId, async (lang: string) => githubEn)
   addStringsLoader(timeId, async (lang: string) => timeEn)
   addStringsLoader(surveyId, async (lang: string) => surveyEn)
-  addStringsLoader(chatId, async (lang: string) => chatEn)
   addStringsLoader(cardId, async (lang: string) => cardEn)
   addStringsLoader(mailId, async (lang: string) => mailEn)
-  addStringsLoader(communicationId, async (lang: string) => communicationEn)
   addStringsLoader(qalicoId, async (lang: string) => qalicoEn)
 }

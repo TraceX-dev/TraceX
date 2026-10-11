@@ -125,7 +125,7 @@
   on:close
   width="32rem"
   shadow={true}
-  className={'signature-dialog'}
+  className="signature-dialog"
 >
   <div class="flex-col flex-gap-2">
     <StylishEdit

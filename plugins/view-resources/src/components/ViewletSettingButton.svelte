@@ -32,7 +32,7 @@
   let btn: HTMLButtonElement
   let pressed: boolean = false
 
-  function clickHandler () {
+  function clickHandler (): void {
     pressed = true
     closeTooltip()
     showPopup(ViewletSetting, { viewlet, defaultConfig }, btn, () => {

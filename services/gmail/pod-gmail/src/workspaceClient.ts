@@ -39,7 +39,6 @@ import { GmailClient } from './gmail'
 import { type Channel, type ProjectCredentials, type User } from './types'
 import { getAccountSocialIds } from './accounts'
 import { cleanIntegrations } from './integrations'
-import { CreateMessageEvent } from '@hcengineering/communication-sdk-types'
 
 export class WorkspaceClient {
   private messageSubscribed: boolean = false
@@ -130,11 +129,11 @@ export class WorkspaceClient {
     return this.clients.size
   }
 
-  async handleNewMessage (message: CreateMessageEvent): Promise<void> {
-    for (const client of this.clients.values()) {
-      await client.handleNewMessage(message)
-    }
-  }
+  // async handleNewMessage (message: CreateMessageEvent): Promise<void> {
+  //   for (const client of this.clients.values()) {
+  //     await client.handleNewMessage(message)
+  //   }
+  // }
 
   getGmailClient (userId: PersonId): GmailClient | undefined {
     return this.clients.get(userId)

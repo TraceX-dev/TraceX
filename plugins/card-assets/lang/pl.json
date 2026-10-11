@@ -11,6 +11,8 @@
     "MasterTag": "Typ",
     "MasterTags": "Typy",
     "Parent": "Karta nadrzędna",
+    "ChangeTagParent": "Zmień tag nadrzędny",
+    "ChangeTagParentBlocked": "Nie można przenieść tagu przypisanego do kart ani tagu, którego potomkowie są przypisani do kart.",
     "Tags": "Etykiety",
     "Tag": "Etykieta",
     "AddTag": "Dodaj etykietę",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Ostrzeżenie: Zmiana typu karty usunie wszystkie dane dla atrybutów, które nie istnieją w typie docelowym. Poprzednie dane atrybutów można przywrócić, zmieniając kartę z powrotem na poprzedni typ. Zawartość karty zostanie bez zmian.",
     "MasterDetailViews": "Widoki list ze szczegółami",
     "SelectType": "Wybierz typ",
+    "SelectTypeAndSpace": "Aby kontynuować, wybierz Typ karty i Przestrzeń.",
     "CreateSpace": "Utwórz przestrzeń",
     "NumberTypes": "{count, plural, one {# typ} few {# typy} other {# typów}}",
     "Labels": "Etykiety",
@@ -63,9 +66,14 @@
     "ForbidRemoveTag": "Zabroń usuwania etykiet",
     "Duplicate": "Duplikuj",
     "Version": "Wersja",
+    "Effective": "Obowiązująca",
+    "MakeEffective": "Ustaw jako obowiązującą",
     "Versions": "Wersje",
     "NewVersion": "Nowa wersja",
+    "VersionCreationUnavailable": "Tworzenie nowej wersji jest obecnie niedostępne",
     "Versioning": "Wersjonowanie",
+    "VersionCreationManagedByProcess": "Zarządzaj tworzeniem wersji za pomocą procesu",
+    "VersionEffectiveManagedByProcess": "Zarządzaj obowiązywaniem wersji za pomocą procesu",
     "EnableVersioning": "Włącz wersjonowanie",
     "EnableVersioningConfirm": "Czy chcesz włączyć wersjonowanie?",
     "NewVersionConfirmation": "Czy chcesz utworzyć nową wersję?",
@@ -87,6 +95,8 @@
     "TwoColumns": "Dwie kolumny",
     "Grid": "Siatka",
     "RichtextProperties": "Właściwości tekstu formatowanego",
-    "ShowAllVersions": "Pokaż wszystkie wersje"
+    "ShowAllVersions": "Pokaż wszystkie wersje",
+    "ShowOnlyEffectiveVersions": "Pokaż tylko obowiązujące wersje",
+    "ShowOnlyCardsWithoutRelations": "Pokaż tylko karty bez relacji"
   }
 }

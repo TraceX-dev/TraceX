@@ -25,6 +25,7 @@ describe('detectSlots refined', () => {
       process.class.Process,
       {
         masterTag,
+        rank: '0',
         name: 'Main process',
         description: 'La-la-la',
         context: {}

@@ -1,5 +1,7 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
+// Copyright © 2026 TraceX
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -67,6 +69,7 @@ export interface Account {
   maxWorkspaces?: number
   failedLoginAttempts?: number // Number of consecutive failed login attempts
   tfaSecret?: string
+  lastVisit?: Timestamp
 }
 
 // TODO: type data with generic type
@@ -117,7 +120,7 @@ export interface Workspace {
   allowReadOnlyGuest: boolean
   allowGuestSignUp: boolean
   passwordAgingRule?: number | null // Number of days after which password must be changed
-  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Database name in Mongo, bucket in R2, etc.
+  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Legacy storage namespace or bucket.
   branding?: string
   location?: Location
   region?: string
@@ -133,6 +136,7 @@ export interface OTP {
   code: string
   expiresOn: Timestamp
   createdOn: Timestamp
+  attempts?: number
 }
 
 export interface WorkspaceInvite {
@@ -219,6 +223,17 @@ export interface UserProfile {
   website?: string // Personal website URL
   socialLinks?: Record<string, string> // Flexible storage, keys follow KnownSocialLinks convention
   isPublic: boolean // Public visibility toggle (default: false)
+}
+
+export interface ApiKey {
+  id: string
+  name: string
+  /** Last characters of the key, retained solely to identify it in the settings list. */
+  keySuffix?: string
+  accountUuid: AccountUuid
+  workspaceUuid: WorkspaceUuid
+  createdOn: Timestamp
+  revokedOn?: Timestamp
 }
 
 export type PersonWithProfile = Person & Omit<UserProfile, 'personUuid'>
@@ -308,8 +323,6 @@ export type WorkspaceStatusData = Omit<WorkspaceStatus, 'workspaceUuid'>
 
 export type WorkspaceInviteData = Omit<WorkspaceInvite, 'id'>
 
-export type DBFlavor = 'postgres' | 'cockroach' | 'unknown'
-
 /* ========= D A T A B A S E  C O L L E C T I O N S ========= */
 export interface AccountDB {
   person: DbCollection<Person>
@@ -325,6 +338,7 @@ export interface AccountDB {
   integration: DbCollection<Integration>
   integrationSecret: DbCollection<IntegrationSecret>
   userProfile: DbCollection<UserProfile>
+  apiKey: DbCollection<ApiKey>
   subscription: DbCollection<Subscription>
   workspacePermission: DbCollection<WorkspacePermission>
 
@@ -336,6 +350,18 @@ export interface AccountDB {
   assignWorkspace: (accountId: AccountUuid, workspaceId: WorkspaceUuid, role: AccountRole) => Promise<void>
   batchAssignWorkspace: (data: [AccountUuid, WorkspaceUuid, AccountRole][]) => Promise<void>
   updateWorkspaceRole: (accountId: AccountUuid, workspaceId: WorkspaceUuid, role: AccountRole) => Promise<void>
+  // Marks/clears the "has unread notifications in this workspace" flag for a member.
+  // Set with a service token by the workspace's own notification trigger; cleared
+  // by the member themselves (self-service token) once their unread count hits zero.
+  setWorkspaceMemberUnread: (accountId: AccountUuid, workspaceId: WorkspaceUuid, hasUnread: boolean) => Promise<void>
+  // Bulk variant of setWorkspaceMemberUnread for a single workspace. Used by the
+  // account-service consumer of the cross-workspace unread queue to raise the flag
+  // for a whole batch of members in one statement instead of one call per member.
+  setWorkspaceMembersUnread: (
+    accountIds: AccountUuid[],
+    workspaceId: WorkspaceUuid,
+    hasUnread: boolean
+  ) => Promise<void>
   unassignWorkspace: (accountId: AccountUuid, workspaceId: WorkspaceUuid) => Promise<void>
   getWorkspaceRole: (accountId: AccountUuid, workspaceId: WorkspaceUuid) => Promise<AccountRole | null>
   getWorkspaceRoles: (accountId: AccountUuid) => Promise<Map<WorkspaceUuid, AccountRole>>
@@ -370,6 +396,7 @@ export interface AccountDB {
 
 export interface DbCollection<T> {
   exists: (query: Query<T>) => Promise<boolean>
+  count: (query: Query<T>) => Promise<number>
   find: (query: Query<T>, sort?: Sort<T>, limit?: number) => Promise<T[]>
   findOne: (query: Query<T>) => Promise<T | null>
   insertOne: (data: Partial<T>) => Promise<any>

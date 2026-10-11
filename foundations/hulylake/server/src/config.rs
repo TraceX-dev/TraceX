@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -63,7 +64,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
 
         token_secret = "secret"
 
-        db_connection = "postgresql://root@tracex.local:26257/defaultdb?sslmode=disable"
+        db_connection = "postgresql://postgres:postgres@tracex.local:5432/postgres"
         db_scheme = "hulylake"
 
         s3_bucket = "hulylake"

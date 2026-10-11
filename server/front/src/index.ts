@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,6 +31,7 @@ import { cwd } from 'process'
 import sharp, { type Sharp } from 'sharp'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { preConditions } from './utils'
+import { registerFormsRoutes } from './forms'
 
 import fs, { createReadStream, mkdtempSync } from 'fs'
 import { rm, writeFile } from 'fs/promises'
@@ -275,14 +277,16 @@ export function start (
     mailUrl?: string
     billingUrl?: string
     paymentUrl?: string
-    pulseUrl?: string
     hulylakeUrl?: string
     datalakeUrl?: string
+    githubNextClientID?: string
+    githubNextUrl?: string
   },
   port: number,
   extraConfig?: Record<string, string | undefined>
 ): () => void {
   const app = express()
+  app.disable('x-powered-by')
 
   const tempFileDir = mkdtempSync(join(tmpdir(), 'front-'))
   let temoFileIndex = 0
@@ -314,6 +318,10 @@ export function start (
   )
   app.use(bp.json())
   app.use(bp.urlencoded({ extended: true }))
+  registerFormsRoutes(app, ctx, {
+    accountsUrl: config.accountsUrlInternal ?? config.accountsUrl,
+    collaboratorUrl: config.collaboratorUrl
+  })
 
   const childLogger = ctx.logger.childLogger?.('requests', {
     enableConsole: 'true'
@@ -329,6 +337,14 @@ export function start (
   const myStream = new MyStream()
 
   app.use(morgan('short', { stream: myStream }))
+
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN')
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+    res.setHeader('Permissions-Policy', 'accelerometer=(), geolocation=(), gyroscope=(), payment=(), usb=()')
+    next()
+  })
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.get('/config.json', async (req, res) => {
@@ -354,9 +370,10 @@ export function start (
       MAIL_URL: config.mailUrl,
       BILLING_URL: config.billingUrl,
       PAYMENT_URL: config.paymentUrl,
-      PULSE_URL: config.pulseUrl,
       HULYLAKE_URL: config.hulylakeUrl,
       DATALAKE_URL: config.datalakeUrl,
+      GITHUB_NEXT_CLIENTID: config.githubNextClientID,
+      GITHUB_NEXT_URL: config.githubNextUrl,
       ...(extraConfig ?? {})
     }
     res.status(200)

@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,6 +26,8 @@ import type { KeyFilter, ReferenceVersion, SortFunc, ViewActionAvailabilityFunct
 
 export default mergeIds(documentsId, documents, {
   component: {
+    ControlledDocumentArrayEditor: '' as AnyComponent,
+    ControlledDocumentInlineEditor: '' as AnyComponent,
     MyDocuments: '' as AnyComponent,
     NewDocumentHeader: '' as AnyComponent,
     DocumentSpacePresenter: '' as AnyComponent,
@@ -50,7 +53,6 @@ export default mergeIds(documentsId, documents, {
   string: {
     ID: '' as IntlString,
     ValidationWorkflow: '' as IntlString,
-    Cancel: '' as IntlString,
     NewDocumentDialogClose: '' as IntlString,
     NewDocumentCloseNote: '' as IntlString,
     CreateDocumentCategory: '' as IntlString,
@@ -70,6 +72,8 @@ export default mergeIds(documentsId, documents, {
     ComparisonMode: '' as IntlString,
     Compare: '' as IntlString,
     Against: '' as IntlString,
+    RemovedAttachments: '' as IntlString,
+    Restore: '' as IntlString,
     ComparisonModeNotSupported: '' as IntlString,
     CreateDraft: '' as IntlString,
     SendForApproval: '' as IntlString,
@@ -259,7 +263,7 @@ export default mergeIds(documentsId, documents, {
     ControlledDocumentTitleProvider: '' as Resource<(client: Client, ref: Ref<Doc>, doc?: Doc) => Promise<string>>,
     DocumentMetaTitleProvider: '' as Resource<(client: Client, ref: Ref<Doc>, doc?: Doc) => Promise<string>>,
     DocumentMetaReferenceVersionsProvider: '' as Resource<
-    (client: Client, ref: Ref<Doc>, doc?: Doc) => Promise<ReferenceVersion[]>
+      (client: Client, ref: Ref<Doc>, doc?: Doc) => Promise<ReferenceVersion[]>
     >
   }
 })

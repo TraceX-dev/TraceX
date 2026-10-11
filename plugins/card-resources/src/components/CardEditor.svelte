@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 <script lang="ts">
   import { Card } from '@hcengineering/card'
   import { AnyAttribute, Ref, RefTo, Type } from '@hcengineering/core'
+  import type { DocumentQuery } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
@@ -24,16 +26,18 @@
 
   export let value: Ref<Card> | undefined
   export let readonly: boolean = false
+  export let showNavigate: boolean = true
   export let label: IntlString = card.string.Card
   export let onChange: (value: any) => void
   export let attribute: AnyAttribute | undefined = undefined
   export let type: Type<any> | undefined = undefined
+  export let docQuery: DocumentQuery<Card> = {}
 
   export let focusIndex: number | undefined = undefined
   export let kind: ButtonKind = 'no-border'
   export let size: ButtonSize = 'small'
   export let justify: 'left' | 'center' = 'left'
-  export let width: string | undefined = 'min-content'
+  export let width: string | undefined = '100%'
 
   const dispatch = createEventDispatcher()
 
@@ -51,8 +55,10 @@
   <CardSelector
     {value}
     {readonly}
+    {showNavigate}
     {label}
     {_class}
+    {docQuery}
     {focusIndex}
     {kind}
     {size}

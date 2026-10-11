@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 
-import cardPlugin, { cardId, DOMAIN_CARD, type Card, type Role } from '@hcengineering/card'
+import cardPlugin, { cardId, DOMAIN_CARD, type Card, type MasterTag, type Role } from '@hcengineering/card'
 import core, {
   DOMAIN_MODEL,
   SortingOrder,
@@ -30,6 +31,7 @@ import {
   createOrUpdate,
   tryMigrate,
   tryUpgrade,
+  TypeBoolean,
   TypeNumber,
   type MigrateOperation,
   type MigrationClient,
@@ -66,6 +68,11 @@ export const cardOperation: MigrateOperation = {
         state: 'fill-versioning',
         mode: 'upgrade',
         func: fillVersioning
+      },
+      {
+        state: 'fill-effective-versioning',
+        mode: 'upgrade',
+        func: fillEffectiveVersioning
       }
     ])
   },
@@ -139,6 +146,16 @@ export const cardOperation: MigrateOperation = {
         state: 'add-show-all-versions-view-option',
         mode: 'upgrade',
         func: addShowAllVersionsViewOption
+      },
+      {
+        state: 'add-effective-versioning',
+        mode: 'upgrade',
+        func: addEffectiveVersioning
+      },
+      {
+        state: 'add-relationship-table-no-relations-view-option',
+        mode: 'upgrade',
+        func: addRelationshipTableNoRelationsViewOption
       }
     ])
   }
@@ -674,6 +691,39 @@ async function fillVersioning (client: MigrationClient): Promise<void> {
   }
 }
 
+async function fillEffectiveVersioning (client: MigrationClient): Promise<void> {
+  const versionedClasses = client.hierarchy
+    .getDescendants(card.class.Card)
+    .filter((_class) => {
+      return client.hierarchy.classHierarchyMixin(_class, core.mixin.VersionableClass)?.enabled === true
+    })
+    .map((_class) => _class as Ref<MasterTag>)
+  if (versionedClasses.length === 0) return
+
+  const iterator = await client.traverse<Card>(DOMAIN_CARD, {
+    _class: { $in: versionedClasses },
+    isEffective: { $exists: false }
+  })
+
+  try {
+    while (true) {
+      const cards = await iterator.next(500)
+      if (cards == null || cards.length === 0) break
+      for (const doc of cards) {
+        await client.update(
+          DOMAIN_CARD,
+          { _id: doc._id },
+          {
+            isEffective: false
+          }
+        )
+      }
+    }
+  } finally {
+    await iterator.close()
+  }
+}
+
 async function addShowAllVersionsViewOption (client: MigrationUpgradeClient): Promise<void> {
   const txOp = new TxOperations(client, core.account.System)
   const masterTags = await client.findAll(card.class.MasterTag, {})
@@ -707,5 +757,76 @@ async function addShowAllVersionsViewOption (client: MigrationUpgradeClient): Pr
         }
       })
     }
+  }
+}
+
+async function addEffectiveVersioning (client: MigrationUpgradeClient): Promise<void> {
+  const txOp = new TxOperations(client, core.account.System)
+  const masterTags = await client.findAll(card.class.MasterTag, {})
+  const cardDescendants = client.getHierarchy().getDescendants(card.class.Card)
+  const allViewletTargets = [...masterTags.map((p) => p._id), ...cardDescendants, card.class.Card]
+  const viewlets = await client.findAll(view.class.Viewlet, { attachTo: { $in: allViewletTargets } })
+  const option: ViewOptionModel = {
+    key: 'showOnlyEffectiveVersions',
+    type: 'toggle',
+    defaultValue: false,
+    actionTarget: 'query',
+    action: card.function.ShowOnlyEffectiveVersions,
+    label: card.string.ShowOnlyEffectiveVersions
+  }
+
+  for (const viewlet of viewlets) {
+    if (viewlet.attachTo === card.class.CardSpace) continue
+    const viewOptions = viewlet.viewOptions ?? { groupBy: [], orderBy: [], other: [] }
+    const other = viewOptions.other ?? []
+    if (other.some((item) => item.key === option.key)) continue
+    await txOp.update(viewlet, { viewOptions: { ...viewOptions, other: [...other, option] } })
+  }
+
+  for (const masterTag of masterTags) {
+    if (client.getHierarchy().classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled !== true) {
+      continue
+    }
+    if (client.getHierarchy().findAttribute(masterTag._id, 'isEffective') !== undefined) continue
+    await txOp.createDoc(core.class.Attribute, core.space.Model, {
+      attributeOf: masterTag._id,
+      _class: core.class.Attribute,
+      isCustrom: false,
+      label: card.string.Effective,
+      name: 'isEffective',
+      readonly: true,
+      type: TypeBoolean()
+    })
+  }
+}
+
+async function addRelationshipTableNoRelationsViewOption (client: MigrationUpgradeClient): Promise<void> {
+  const txOp = new TxOperations(client, core.account.System)
+  const masterTags = await client.findAll(card.class.MasterTag, {})
+  const cardDescendants = client.getHierarchy().getDescendants(card.class.Card)
+  const allViewletTargets = [...masterTags.map((p) => p._id), ...cardDescendants, card.class.Card]
+  const viewlets = await client.findAll(view.class.Viewlet, {
+    attachTo: { $in: allViewletTargets },
+    descriptor: view.viewlet.RelationshipTable
+  })
+
+  const noRelationsOption: ViewOptionModel = {
+    key: 'showOnlyCardsWithoutRelations',
+    type: 'toggle',
+    defaultValue: false,
+    actionTarget: 'display',
+    label: card.string.ShowOnlyCardsWithoutRelations
+  }
+
+  for (const viewlet of viewlets) {
+    const viewOptions = viewlet.viewOptions ?? { groupBy: [], orderBy: [], other: [] }
+    const other = viewOptions.other ?? []
+    if (other.find((option) => option.key === noRelationsOption.key) !== undefined) continue
+    await txOp.update(viewlet, {
+      viewOptions: {
+        ...viewOptions,
+        other: [...other, noRelationsOption]
+      }
+    })
   }
 }

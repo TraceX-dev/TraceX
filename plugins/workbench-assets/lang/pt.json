@@ -35,6 +35,8 @@
     "ConfigureWidgets": "Configurar widgets",
     "Tab": "Aba",
     "WorkspaceIsArchived": "O espaço de trabalho está arquivado por estar inativo, por favor, entre em contato conosco para restaurá-lo...",
-    "WorkspaceIsMigrating": "O espaço de trabalho está sendo atualizado. Por favor, aguarde..."
+    "WorkspaceIsMigrating": "O espaço de trabalho está sendo atualizado. Por favor, aguarde...",
+    "FailedToLoadWorkspaces": "Falha ao carregar os espaços de trabalho",
+    "NoWorkspacesFound": "Nenhum espaço de trabalho encontrado"
   }
 }

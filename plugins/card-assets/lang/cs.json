@@ -11,6 +11,8 @@
     "MasterTag": "Typ",
     "MasterTags": "Typy",
     "Parent": "Nadřazený",
+    "ChangeTagParent": "Změnit nadřazený štítek",
+    "ChangeTagParentBlocked": "Štítek přiřazený ke kartám nebo štítek, jehož potomci jsou přiřazeni ke kartám, nelze přesunout.",
     "Tags": "Štítky",
     "Tag": "Štítek",
     "AddTag": "Přidat štítek",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "Varování: Změna typu karty odstraní všechna data pro jakýkoliv atribut, který v cílovém typu neexistuje. Předchozí data atributu mohou být obnoveny změnou karty zpět na předchozí typ. Obsah karty nebude ovlivněn.",
     "MasterDetailViews": "Zobrazení master-detail",
     "SelectType": "Vybrat typ",
+    "SelectTypeAndSpace": "Pro pokračování vyberte typ karty a prostor.",
     "CreateSpace": "Vytvořit prostor",
     "NumberTypes": "{count, plural, one {# typ} few {# typy} other {# typů}}",
     "Labels": "Štítky",
@@ -63,9 +66,14 @@
     "ForbidRemoveTag": "Zakázat odebírání štítků",
     "Duplicate": "Duplikovat",
     "Version": "Verze",
+    "Effective": "Účinná",
+    "MakeEffective": "Nastavit jako účinnou",
     "Versions": "Verze",
     "NewVersion": "Nová verze",
+    "VersionCreationUnavailable": "Vytváření nové verze je nyní zakázáno",
     "Versioning": "Verzování",
+    "VersionCreationManagedByProcess": "Spravovat vytváření verzí prostřednictvím procesu",
+    "VersionEffectiveManagedByProcess": "Spravovat účinnost verzí prostřednictvím procesu",
     "EnableVersioning": "Povolit verzování",
     "EnableVersioningConfirm": "Chcete povolit verzování?",
     "NewVersionConfirmation": "Chcete vytvořit novou verzi?",
@@ -87,6 +95,8 @@
     "TwoColumns": "Dva sloupce",
     "Grid": "Mřížka",
     "RichtextProperties": "Textová pole",
-    "ShowAllVersions": "Ukázat všechny verze"
+    "ShowAllVersions": "Ukázat všechny verze",
+    "ShowOnlyEffectiveVersions": "Zobrazit pouze účinné verze",
+    "ShowOnlyCardsWithoutRelations": "Zobrazit pouze karty bez vztahů"
   }
 }

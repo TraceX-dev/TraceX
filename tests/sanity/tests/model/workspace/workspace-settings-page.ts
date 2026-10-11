@@ -3,7 +3,7 @@ import { type Locator, type Page } from '@playwright/test'
 export enum ButtonType {
   General,
   Members,
-  Spaces,
+  SpaceRoles,
   TextTemplate,
   RelatedIssues,
   Classes,
@@ -19,13 +19,21 @@ export class WorkspaceSettingsPage {
   }
 
   general = (): Locator => this.page.getByRole('button', { name: 'General' })
-  members = (): Locator => this.page.getByRole('button', { name: 'Members' })
-  spaces = (): Locator => this.page.getByRole('button', { name: 'Spaces', exact: true })
+  accessManagement = (): Locator => this.page.getByRole('button', { name: 'Access management', exact: true })
+
+  accessManagementTab = (name: 'Members' | 'Spaces' | 'Space roles'): Locator =>
+    this.page.getByRole('button', { name, exact: true })
+
   textTemplate = (): Locator => this.page.getByRole('button', { name: 'Text Templates' })
   relatedIssues = (): Locator => this.page.getByRole('button', { name: 'Related issues' })
   classes = (): Locator => this.page.locator('#navGroup-setting').getByRole('button', { name: 'Classes' })
   enums = (): Locator => this.page.getByRole('button', { name: 'Enums' })
   inviteSettings = (): Locator => this.page.getByRole('button', { name: 'Invite settings' })
+
+  async selectAccessManagementTab (name: 'Members' | 'Spaces' | 'Space roles'): Promise<void> {
+    await this.accessManagement().click()
+    await this.accessManagementTab(name).click()
+  }
 
   async selectWorkspaceSettingsTab (button: ButtonType): Promise<void> {
     switch (button) {
@@ -33,10 +41,10 @@ export class WorkspaceSettingsPage {
         await this.general().click()
         break
       case ButtonType.Members:
-        await this.members().click()
+        await this.selectAccessManagementTab('Members')
         break
-      case ButtonType.Spaces:
-        await this.spaces().click()
+      case ButtonType.SpaceRoles:
+        await this.selectAccessManagementTab('Space roles')
         break
       case ButtonType.TextTemplate:
         await this.textTemplate().click()

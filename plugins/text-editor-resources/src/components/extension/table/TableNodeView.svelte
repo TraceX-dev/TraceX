@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,9 +20,9 @@
   import { onDestroy, onMount } from 'svelte'
   import { NodeViewContent, NodeViewProps, NodeViewWrapper } from '../../node-view'
   import { findTable, insertColumn, insertRow } from './utils'
+  import { TablePrintController } from './print-table'
   import { TableMap, updateColumnsOnResize } from '@tiptap/pm/tables'
   import { getToolbarCursor, setToolbarMeta } from '../toolbar/toolbar'
-  import { getTableCursor } from './table'
 
   export let node: NodeViewProps['node']
   export let getPos: NodeViewProps['getPos']
@@ -77,12 +78,16 @@
 
   let tableElement: HTMLTableElement
   let colgroupElement: HTMLTableColElement
+  let printTableContainer: HTMLDivElement
+  let tablePrintController: TablePrintController | undefined
 
   onMount(() => {
     updateColumns()
+    tablePrintController = new TablePrintController(tableElement, printTableContainer)
   })
 
   onDestroy(() => {
+    tablePrintController?.destroy()
     editor.off('selectionUpdate', handleSelectionUpdate)
   })
 
@@ -136,6 +141,7 @@
         </div>
       {/if}
     </div>
+    <div class="table-print" contenteditable="false" bind:this={printTableContainer}></div>
   </div>
 </NodeViewWrapper>
 
@@ -211,6 +217,43 @@
         .table-button {
           height: 1.25rem;
         }
+      }
+    }
+
+    .table-print {
+      display: none;
+    }
+  }
+
+  @media print {
+    .table-wrapper {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+
+      .table-scroller {
+        display: none;
+      }
+
+      .table-print {
+        display: block;
+
+        :global(table) {
+          width: 100%;
+          border-collapse: collapse !important;
+          border-spacing: 0 !important;
+        }
+
+        :global(tr),
+        :global(td),
+        :global(th) {
+          border-right: 0.5px solid var(--text-editor-table-border-color) !important;
+          border-bottom: 0.5px solid var(--text-editor-table-border-color) !important;
+        }
+      }
+
+      .table-toolbar-components {
+        display: none;
       }
     }
   }

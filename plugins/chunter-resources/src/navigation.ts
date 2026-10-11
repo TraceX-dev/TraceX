@@ -1,3 +1,7 @@
+//
+// Copyright © 2026 Intabia Fusion.
+// Copyright © 2026 TraceX SAS.
+//
 import {
   closePanel,
   getCurrentLocation,
@@ -18,7 +22,7 @@ import {
 } from '@hcengineering/chunter'
 import { type DocNotifyContext, notificationId } from '@hcengineering/notification'
 import workbench, { type Widget, workbenchId, type LocationData } from '@hcengineering/workbench'
-import { classIcon, getObjectLinkId, parseLinkId } from '@hcengineering/view-resources'
+import { classIcon, getDocTitle, getObjectLinkId, parseLinkId } from '@hcengineering/view-resources'
 import presentation, { getClient } from '@hcengineering/presentation'
 import view, { encodeObjectURI, decodeObjectURI } from '@hcengineering/view'
 import { createWidgetTab, isElementFromSidebar, sidebarStore } from '@hcengineering/workbench-resources'
@@ -198,9 +202,10 @@ export async function replyToThread (message: ActivityMessage, e: Event): Promis
     return
   }
 
-  const newLoc = await buildThreadLink(loc, message.attachedTo, message.attachedToClass, message._id)
-
-  navigate(newLoc)
+  if (loc.path[2] === chunterId || loc.path[2] === notificationId) {
+    const newLoc = await buildThreadLink(loc, message.attachedTo, message.attachedToClass, message._id)
+    navigate(newLoc)
+  }
 }
 
 export async function getMessageLocation (doc: ActivityMessage): Promise<Location> {
@@ -372,11 +377,23 @@ export async function openThreadInSidebar (
   const tabName = await translate(chunter.string.ThreadIn, { name })
   const loc = getCurrentLocation()
 
-  if (loc.path[2] === chunterId || loc.path[2] === notificationId) {
-    loc.path[4] = message._id
+  const appComponent = loc.path[2]
+  let allowedPath: string
+  if (appComponent === chunterId || appComponent === notificationId) {
+    const providers = client.getModel().findAllSync(view.mixin.LinkIdProvider, {})
+    const targetDocLinkId = await getObjectLinkId(providers, message.attachedTo, message.attachedToClass, object)
+    const targetDocUri = encodeObjectURI(targetDocLinkId, message.attachedToClass)
+    const pathCopy = [...loc.path]
+    pathCopy[3] = targetDocUri
+    pathCopy[4] = message._id
+    pathCopy.length = 5
+    allowedPath = pathCopy.join('/')
+  } else {
+    if (loc.path[2] === chunterId || loc.path[2] === notificationId) {
+      loc.path[4] = message._id
+    }
+    allowedPath = loc.path.join('/')
   }
-
-  const allowedPath = loc.path.join('/')
 
   const tabsToClose = currentTabs.filter((t) => t.isPinned !== true && t.allowedPath === allowedPath).map((t) => t.id)
 
@@ -437,11 +454,11 @@ export async function locationDataResolver (loc: Location): Promise<LocationData
   }
 
   const specialsData: Record<
-  string,
-  {
-    label: IntlString
-    icon: Asset
-  }
+    string,
+    {
+      label: IntlString
+      icon: Asset
+    }
   > = {
     threads: {
       label: chunter.string.Threads,
@@ -485,13 +502,16 @@ export async function locationDataResolver (loc: Location): Promise<LocationData
   const iconMixin = hierarchy.classHierarchyMixin(_class, view.mixin.ObjectIcon)
   const isDirect = hierarchy.isDerived(_class, chunter.class.DirectMessage)
   const isChunterSpace = hierarchy.isDerived(_class, chunter.class.ChunterSpace)
-  const name = (await getChannelName(_id, _class, object)) ?? (await translate(titleIntl, {}))
+  const isDiscussion = hierarchy.isDerived(_class, chunter.class.Discussion)
+  const name =
+    (isDiscussion ? await getDocTitle(client, _id, _class, object) : await getChannelName(_id, _class, object)) ??
+    (await translate(titleIntl, {}))
 
   return {
     objectId: object._id,
     objectClass: object._class,
     name,
-    icon: chunter.icon.Chunter,
+    icon: isDiscussion ? chunter.icon.Thread : chunter.icon.Chunter,
     iconComponent: isChunterSpace ? iconMixin?.component : undefined,
     iconProps: {
       _id: object._id,

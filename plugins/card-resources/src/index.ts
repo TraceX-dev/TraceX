@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -32,15 +33,22 @@ import {
   openCardInSidebar,
   checkRelationsSectionVisibility,
   checkOldMessagesSectionVisibility,
-  checkCommunicationMessagesSectionVisibility,
   getSpaceAccessPublicLink,
   canGetSpaceAccessPublicLink,
   cardFactory,
   checkChildrenSectionVisibility,
   createChildAction,
-  showAllVersions
+  showAllVersions,
+  showOnlyEffectiveVersions
 } from './utils'
 import { formatCardValue } from './cardTableFormatter'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getCommentBackend,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
 import CardGridView from './components/CardGridView.svelte'
 import ManageMasterTagsContent from './components/settings/ManageMasterTagsContent.svelte'
 import ManageMasterTagsTools from './components/settings/ManageMasterTagsTools.svelte'
@@ -50,11 +58,13 @@ import ProperitiesSection from './components/settings/ProperitiesSection.svelte'
 import TagsSection from './components/settings/TagsSection.svelte'
 import RelationsSection from './components/settings/RelationsSection.svelte'
 import ChildsSection from './components/settings/ChildsSection.svelte'
+import ChangeTagParentPopup from './components/settings/ChangeTagParentPopup.svelte'
 import SetParentActionPopup from './components/SetParentActionPopup.svelte'
 import RelationSetting from './components/settings/RelationSetting.svelte'
 import ViewsSection from './components/settings/view/ViewsSection.svelte'
 import EditView from './components/settings/view/EditView.svelte'
 import CardEditor from './components/CardEditor.svelte'
+import CardSpaceEditor from './components/CardSpaceEditor.svelte'
 import CardRefPresenter from './components/CardRefPresenter.svelte'
 import ChangeType from './components/ChangeType.svelte'
 import CreateCardButton from './components/CreateCardButton.svelte'
@@ -62,7 +72,6 @@ import CreateCardPopup from './components/CreateCardPopup.svelte'
 import CardArrayEditor from './components/CardArrayEditor.svelte'
 import SpacePresenter from './components/navigator/SpacePresenter.svelte'
 import TypesNavigator from './components/navigator/TypesNavigator.svelte'
-import LabelsPresenter from './components/LabelsPresenter.svelte'
 import RolesSection from './components/settings/RolesSection.svelte'
 import EditRole from './components/settings/EditRole.svelte'
 import CreateRolePopup from './components/settings/CreateRolePopup.svelte'
@@ -78,7 +87,6 @@ import ChildrenCardSection from './components/sections/ChildrenSection.svelte'
 import ContentCardSection from './components/sections/ContentSection.svelte'
 import PropertiesCardSection from './components/sections/PropertiesSection.svelte'
 import RelationsCardSection from './components/sections/RelationsSection.svelte'
-import CardCommunicatiomMessages from './components/sections/CardCommunicatiomMessages.svelte'
 import OldMessagesCardSection from './components/sections/OldMessagesCardSection.svelte'
 
 import FavoriteCardPresenter from './components/FavoriteCardPresenter.svelte'
@@ -99,7 +107,7 @@ export { default as CardTagsColored } from './components/CardTagsColored.svelte'
 export { default as CardPathPresenter } from './components/CardPathPresenter.svelte'
 export { default as CardTimestamp } from './components/CardTimestamp.svelte'
 
-export * from './types'
+export type * from './types'
 export { getCardIconInfo, openCardInSidebar } from './utils'
 
 export default async (): Promise<Resources> => ({
@@ -117,11 +125,13 @@ export default async (): Promise<Resources> => ({
     TagsSection,
     RelationsSection,
     ChildsSection,
+    ChangeTagParentPopup,
     SetParentActionPopup,
     RelationSetting,
     ViewsSection,
     EditView,
     CardEditor,
+    CardSpaceEditor,
     CardRefPresenter,
     CardsPresenter,
     ChangeType,
@@ -130,7 +140,6 @@ export default async (): Promise<Resources> => ({
     CardArrayEditor,
     SpacePresenter,
     TypesNavigator,
-    LabelsPresenter,
     RolesSection,
     EditRole,
     CardWidget,
@@ -153,8 +162,7 @@ export default async (): Promise<Resources> => ({
     ContentSection: ContentCardSection,
     PropertiesSection: PropertiesCardSection,
     RelationsSection: RelationsCardSection,
-    OldMessagesSection: OldMessagesCardSection,
-    CommunicationMessagesSection: CardCommunicatiomMessages
+    OldMessagesSection: OldMessagesCardSection
   },
   completion: {
     CardQuery: queryCard
@@ -177,12 +185,17 @@ export default async (): Promise<Resources> => ({
     OpenCardInSidebar: openCardInSidebar,
     CheckRelationsSectionVisibility: checkRelationsSectionVisibility,
     CheckOldMessagesSectionVisibility: checkOldMessagesSectionVisibility,
-    CheckCommunicationMessagesSectionVisibility: checkCommunicationMessagesSectionVisibility,
     CheckChildrenSectionVisibility: checkChildrenSectionVisibility,
     GetSpaceAccessPublicLink: getSpaceAccessPublicLink,
     CanGetSpaceAccessPublicLink: canGetSpaceAccessPublicLink,
     CardFactory: cardFactory,
     FormatCardMarkdownValue: formatCardValue,
-    ShowAllVersions: showAllVersions
+    ShowAllVersions: showAllVersions,
+    ShowOnlyEffectiveVersions: showOnlyEffectiveVersions,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses,
+    GetIntegrationTargetCommentBackend: getCommentBackend
   }
 })

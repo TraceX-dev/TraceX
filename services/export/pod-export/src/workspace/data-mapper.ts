@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,13 +14,27 @@
 // limitations under the License.
 //
 
-import { type Class, type Doc, type MeasureContext, type Ref, type Space, type TxOperations } from '@hcengineering/core'
+import contact, { type Person } from '@hcengineering/contact'
+import core, {
+  parseIdentifier,
+  type ArrOf,
+  type Class,
+  type Doc,
+  type MeasureContext,
+  type Ref,
+  type RefTo,
+  type Space,
+  type TxOperations
+} from '@hcengineering/core'
 import { type ExportState } from './types'
 
 /**
  * Handles data preparation, remapping, and field mapping for document export
  */
 export class DataMapper {
+  // Cache of person refs already checked in the target workspace: ref -> exists
+  private readonly personExistence = new Map<Ref<Person>, boolean>()
+
   constructor (
     private readonly context: MeasureContext,
     private readonly targetClient: TxOperations,
@@ -94,7 +109,65 @@ export class DataMapper {
     // Apply field mappers for specific document classes
     await this.applyFieldMappers(doc._class, data)
 
+    // Person refs are workspace-local, drop the ones that do not exist in the target workspace
+    await this.dropUnknownPersonRefs(doc._class, data)
+
     return data
+  }
+
+  /**
+   * Removes references to persons that do not exist in the target workspace from
+   * array attributes typed as ArrOf(RefTo(Person | Employee)), e.g. approvers/reviewers.
+   * Such dangling refs are invisible in the UI but still counted, which leads to
+   * "phantom" members (e.g. an approval request that can never be completed).
+   */
+  private async dropUnknownPersonRefs (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
+    const hierarchy = this.targetClient.getHierarchy()
+    const personFields: string[] = []
+
+    for (const [key, attr] of hierarchy.getAllAttributes(docClass)) {
+      const value = data[key]
+      if (!Array.isArray(value) || value.length === 0) continue
+      if (attr.type._class !== core.class.ArrOf) continue
+
+      const itemType = (attr.type as ArrOf<Doc>).of
+      if (itemType._class !== core.class.RefTo) continue
+
+      const to = (itemType as RefTo<Doc>).to
+      if (!hierarchy.isDerived(to, contact.class.Person)) continue
+
+      personFields.push(key)
+    }
+
+    if (personFields.length === 0) return
+
+    const unchecked = new Set<Ref<Person>>()
+    for (const field of personFields) {
+      for (const ref of data[field] as Array<Ref<Person>>) {
+        if (typeof ref === 'string' && !this.personExistence.has(ref)) {
+          unchecked.add(ref)
+        }
+      }
+    }
+
+    if (unchecked.size > 0) {
+      const found = await this.targetClient.findAll(contact.class.Person, { _id: { $in: Array.from(unchecked) } })
+      const foundIds = new Set<Ref<Person>>(found.map((p) => p._id))
+      for (const ref of unchecked) {
+        this.personExistence.set(ref, foundIds.has(ref))
+      }
+    }
+
+    for (const field of personFields) {
+      const refs = data[field] as Array<Ref<Person>>
+      const filtered = refs.filter((ref) => this.personExistence.get(ref) === true)
+      if (filtered.length !== refs.length) {
+        this.context.warn(
+          `Dropped ${refs.length - filtered.length} unknown person ref(s) from ${field} of ${docClass} in target workspace`
+        )
+        data[field] = filtered
+      }
+    }
   }
 
   /**
@@ -103,40 +176,11 @@ export class DataMapper {
    * Special values:
    * - '$currentUser' is replaced with current account's employee ID
    * - '$generateSeqNumber' generates seqNumber based on minimum available value
-   * - '$generateCode' generates code from prefix and seqNumber
+   * - '$preserveUniqueCode' marks the code as allocated on document creation, which
+   *   preserves it when free and renumbers it on conflict
    */
   private async applyFieldMappers (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
-    const hierarchy = this.targetClient.getHierarchy()
-
-    // Find field mapper for this class or any of its base classes
-    let fieldMapper: Record<string, any> | undefined
-
-    // First check exact class match
-    if (this.fieldMappers[docClass] !== undefined) {
-      fieldMapper = this.fieldMappers[docClass]
-      this.context.info(`Found exact field mapper match for class ${docClass}`)
-    } else {
-      // Check all base classes - find the most specific (closest) mapper
-      let bestMapper: Record<string, any> | undefined
-      let bestMapperClass: string | undefined
-
-      for (const [className, mapper] of Object.entries(this.fieldMappers)) {
-        const mapperClass = className as Ref<Class<Doc>>
-        if (hierarchy.isDerived(docClass, mapperClass)) {
-          if (bestMapper === undefined) {
-            bestMapper = mapper
-            bestMapperClass = className
-          } else if (hierarchy.isDerived(mapperClass, bestMapperClass as Ref<Class<Doc>>)) {
-            bestMapper = mapper
-            bestMapperClass = className
-          }
-        }
-      }
-
-      if (bestMapper !== undefined) {
-        fieldMapper = bestMapper
-      }
-    }
+    const fieldMapper = this.findFieldMapper(docClass)
 
     if (fieldMapper === undefined) {
       return
@@ -155,9 +199,8 @@ export class DataMapper {
       } else if (fieldValue === '$generateSeqNumber') {
         // Generate seqNumber based on minimum available value
         await this.generateSeqNumber(docClass, data)
-      } else if (fieldValue === '$generateCode') {
-        // Generate code from prefix and seqNumber
-        await this.generateCode(docClass, data)
+      } else if (fieldValue === '$preserveUniqueCode') {
+        await this.preserveUniqueCode(docClass, data)
       } else if (fieldValue === '') {
         // Empty string means clear the field
         data[fieldName] = undefined
@@ -245,43 +288,48 @@ export class DataMapper {
   }
 
   /**
-   * Generate code from prefix and seqNumber using the pattern prefix-seqNumber.
-   * Requires both prefix and seqNumber to be set in data.
+   * Validates the code and leaves it as is: the value is allocated by the document exporter,
+   * which can retry the creation when the code turns out to be taken.
    */
-  private async generateCode (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
-    const prefix = data.prefix
-    const seqNumber = data.seqNumber
-
-    if (prefix === undefined || typeof prefix !== 'string' || prefix === '') {
-      this.context.warn('generateCode: prefix is required but not found, skipping code generation')
+  private async preserveUniqueCode (docClass: Ref<Class<Doc>>, data: Record<string, any>): Promise<void> {
+    if (typeof data.code !== 'string' || data.code === '') {
+      this.context.warn('preserveUniqueCode: code is required but not found, skipping code preservation')
       return
     }
 
-    if (seqNumber === undefined || seqNumber === null || typeof seqNumber !== 'number') {
-      this.context.warn('generateCode: seqNumber is required but not found, skipping code generation')
+    const parsedCode = parseIdentifier(data.code)
+    if (parsedCode === null) {
+      this.context.warn(`preserveUniqueCode: code ${data.code} has no numeric suffix, skipping conflict resolution`)
       return
     }
-
-    // Generate code using pattern: prefix-seqNumber
-    const generatedCode = `${prefix}-${seqNumber}`
-
-    // Check if this code already exists (shouldn't happen if seqNumber was generated correctly, but check anyway)
-    const query: any = { code: generatedCode }
-    const projection = { code: 1 } as any
-    const existing = await this.targetClient.findOne(docClass, query, { projection })
-
-    if (existing !== undefined) {
-      this.context.warn(
-        `generateCode: Generated code ${generatedCode} already exists, this should not happen if seqNumber was generated correctly`
-      )
-    }
-
-    // Update data with generated code
-    data.code = generatedCode
 
     this.context.info(
-      `generateCode: Generated code ${generatedCode} from prefix "${prefix}" and seqNumber ${seqNumber} (class: ${docClass})`
+      `preserveUniqueCode: Deferred allocation of code ${data.code} for class ${docClass} to document creation`
     )
+  }
+
+  shouldAllocateIdentifier (docClass: Ref<Class<Doc>>): boolean {
+    return this.findFieldMapper(docClass)?.code === '$preserveUniqueCode'
+  }
+
+  private findFieldMapper (docClass: Ref<Class<Doc>>): Record<string, any> | undefined {
+    const exact = this.fieldMappers[docClass]
+    if (exact !== undefined) return exact
+
+    const hierarchy = this.targetClient.getHierarchy()
+    let bestMapper: Record<string, any> | undefined
+    let bestMapperClass: Ref<Class<Doc>> | undefined
+    for (const [className, mapper] of Object.entries(this.fieldMappers)) {
+      const mapperClass = className as Ref<Class<Doc>>
+      if (
+        hierarchy.isDerived(docClass, mapperClass) &&
+        (bestMapperClass === undefined || hierarchy.isDerived(mapperClass, bestMapperClass))
+      ) {
+        bestMapper = mapper
+        bestMapperClass = mapperClass
+      }
+    }
+    return bestMapper
   }
 
   /**

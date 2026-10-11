@@ -1,4 +1,18 @@
-import type { Collection } from 'mongodb'
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+import type { RecordStorage } from './storage'
 import { getDB } from './storage'
 import { LastMsgRecord, TgUser, User, UserRecord, WorkspaceChannel } from './types'
 import { WorkspaceWorker } from './workspace'
@@ -10,7 +24,7 @@ export class PlatformWorker {
     private readonly ctx: MeasureContext,
     private readonly storageAdapter: StorageAdapter,
     private readonly clientMap: Map<string, WorkspaceWorker>,
-    private readonly storage: Collection<UserRecord>
+    private readonly storage: RecordStorage<UserRecord>
   ) {}
 
   async close (): Promise<void> {
@@ -72,28 +86,15 @@ export class PlatformWorker {
   }
 
   static async createStorages (): Promise<
-  [Collection<UserRecord>, Collection<LastMsgRecord>, Collection<WorkspaceChannel>]
+    [RecordStorage<UserRecord>, RecordStorage<LastMsgRecord>, RecordStorage<WorkspaceChannel>]
   > {
-    const db = await getDB()
-    const userStorage = db.collection<UserRecord>('integrations')
-    const lastMsgStorage = db.collection<LastMsgRecord>('last-msgs')
-    const channelStorage = db.collection<WorkspaceChannel>('channels')
-
-    await userStorage.createIndex({ phone: 1, workspace: 1 }, { unique: true })
-    await userStorage.createIndex({ email: 1, workspace: 1 }, { unique: true })
-
-    try {
-      await lastMsgStorage.dropIndex('phone_1_participantID_1_workspace_1')
-    } catch {}
-
-    await lastMsgStorage.createIndex({ phone: 1, participantID: 1, channelID: 1, workspace: 1 }, { unique: true })
-
-    return [userStorage, lastMsgStorage, channelStorage]
+    const { users, messages, channels } = await getDB()
+    return [users, messages, channels]
   }
 
   static async create (ctx: MeasureContext, storageAdapter: StorageAdapter): Promise<PlatformWorker> {
     const [userStorage, lastMsgStorage, channelStorage] = await PlatformWorker.createStorages()
-    const workspaces = new Set((await userStorage.find().toArray()).map((p) => p.workspace))
+    const workspaces = new Set((await userStorage.find()).map((p) => p.workspace))
     const clients: Array<[string, WorkspaceWorker]> = []
     for (const workspace of workspaces) {
       try {

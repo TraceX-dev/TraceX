@@ -11,6 +11,8 @@
     "MasterTag": "タイプ",
     "MasterTags": "タイプ",
     "Parent": "親",
+    "ChangeTagParent": "親タグを変更",
+    "ChangeTagParentBlocked": "カードに割り当てられているタグ、またはその子孫がカードに割り当てられているタグは移動できません。",
     "Tags": "タグ",
     "Tag": "タグ",
     "AddTag": "タグを追加",
@@ -36,6 +38,7 @@
     "ChangeTypeWarning": "警告：カードのタイプを変更すると、ターゲットのタイプに存在しない属性のすべてのデータが削除されます。以前の属性データは、カードを以前のタイプに戻すことで復元できます。カードの内容には影響しません。",
     "MasterDetailViews": "マスター詳細ビュー",
     "SelectType": "タイプを選択",
+    "SelectTypeAndSpace": "続行するには、カードタイプとスペースを選択してください。",
     "CreateSpace": "スペースを作成",
     "NumberTypes": "{count, plural, one {# タイプ} other {# タイプ}}",
     "Labels": "ラベル",
@@ -63,9 +66,14 @@
     "ForbidRemoveTag": "タグ削除を禁止",
     "Duplicate": "複製",
     "Version": "バージョン",
+    "Effective": "有効",
+    "MakeEffective": "有効にする",
     "Versions": "バージョン",
     "NewVersion": "新しいバージョン",
+    "VersionCreationUnavailable": "現在、新しいバージョンは作成できません",
     "Versioning": "バージョン管理",
+    "VersionCreationManagedByProcess": "プロセスでバージョンの作成を管理する",
+    "VersionEffectiveManagedByProcess": "プロセスでバージョンの有効化を管理する",
     "EnableVersioning": "バージョン管理を有効にする",
     "EnableVersioningConfirm": "バージョン管理を有効にしますか？",
     "NewVersionConfirmation": "新しいバージョンを作成しますか？",
@@ -87,6 +95,8 @@
     "TwoColumns": "2列",
     "Grid": "グリッド",
     "RichtextProperties": "リッチテキストフィールド",
-    "ShowAllVersions": "すべてのバージョンを表示"
+    "ShowAllVersions": "すべてのバージョンを表示",
+    "ShowOnlyEffectiveVersions": "有効なバージョンのみ表示",
+    "ShowOnlyCardsWithoutRelations": "関連のないカードのみを表示"
   }
 }

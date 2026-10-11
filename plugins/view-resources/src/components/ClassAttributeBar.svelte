@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { Class, Doc, Rank, Ref, toRank } from '@hcengineering/core'
+  import core, { Class, Doc, Ref, toRank } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { AttributesBar, KeyedAttribute, createQuery, getAttribute, getClient } from '@hcengineering/presentation'
   import setting, { settingId } from '@hcengineering/setting'

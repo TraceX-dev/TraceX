@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,8 @@
 -->
 <script lang="ts">
   import { CardEvents, MasterTag, Tag } from '@hcengineering/card'
-  import core, { Class, ClassifierKind, Data, Ref } from '@hcengineering/core'
+  import core, { Class, ClassifierKind, Data, Ref, toRank } from '@hcengineering/core'
+  import { makeRank } from '@hcengineering/rank'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import { Card, getClient } from '@hcengineering/presentation'
   import { EditBox, getColorNumberByText, Icon, Label } from '@hcengineering/ui'
@@ -25,19 +27,36 @@
   export let parent: MasterTag | Tag | undefined = undefined
   export let _class: Ref<Class<MasterTag>> | Ref<Class<Tag>>
   let name: string
+  let description: string = ''
 
   const client = getClient()
   const dispatch = createEventDispatcher()
 
   $: isMasterTag = _class === card.class.MasterTag
 
+  function getLastSiblingRank (): string | undefined {
+    if (parent === undefined) return
+
+    const hierarchy = client.getHierarchy()
+    const siblings: Tag[] = hierarchy
+      .getDescendants(parent._id)
+      .map((id) => hierarchy.getClass(id) as Tag)
+      .filter((item) => item.extends === parent._id && item._class === card.class.Tag)
+      .sort((a, b) => (a.rank ?? toRank(a._id) ?? '').localeCompare(b.rank ?? toRank(b._id) ?? ''))
+
+    const lastSibling = siblings.at(-1)
+    return lastSibling?.rank ?? toRank(lastSibling?._id)
+  }
+
   async function save (): Promise<void> {
-    const data: Data<MasterTag> = {
+    const data: Data<MasterTag> & Partial<Pick<Tag, 'rank'>> = {
       extends: parent?._id ?? card.class.Card,
       label: getEmbeddedLabel(name),
+      description: description.trim().length > 0 ? description.trim() : undefined,
       kind: isMasterTag ? ClassifierKind.CLASS : ClassifierKind.MIXIN,
       icon: isMasterTag ? card.icon.MasterTag : card.icon.Tag,
-      background: getColorNumberByText(name)
+      background: getColorNumberByText(name),
+      ...(isMasterTag ? {} : { rank: makeRank(getLastSiblingRank(), undefined) })
     }
 
     const id = await client.createDoc(_class, core.space.Model, data)
@@ -66,4 +85,7 @@
   </svelte:fragment>
 
   <div class="mb-2"><EditBox autoFocus bind:value={name} placeholder={core.string.Name} /></div>
+  <div class="mb-2">
+    <EditBox bind:value={description} placeholder={core.string.Description} format={'text-multiline'} />
+  </div>
 </Card>

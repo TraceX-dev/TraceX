@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,6 +13,7 @@
 // limitations under the License.
 
 import card, { type Card, type MasterTag, type Tag } from '@hcengineering/card'
+import contact from '@hcengineering/contact'
 import core, {
   AccountRole,
   type Class,
@@ -34,6 +36,7 @@ import {
   TypeAny,
   TypeBoolean,
   TypeIntlString,
+  TypeMarkup,
   TypeRank,
   TypeRecord,
   TypeRef,
@@ -91,6 +94,10 @@ export class TProcess extends TDoc implements Process {
   @Prop(TypeString(), core.string.Name)
     name!: string
 
+  @Prop(TypeRank(), core.string.Rank)
+  @Hidden()
+    rank!: Rank
+
   @Prop(TypeString(), core.string.Description)
     description!: string
 
@@ -102,6 +109,9 @@ export class TProcess extends TDoc implements Process {
 
   @Prop(TypeBoolean(), process.string.ParallelExecutionForbidden)
     parallelExecutionForbidden?: boolean
+
+  @Prop(TypeBoolean(), process.string.ShowInHeader)
+    showInHeader?: boolean
 
   @Prop(TypeBoolean(), process.string.StartAutomatically)
     autoStart: boolean | undefined
@@ -219,6 +229,9 @@ export class TProcessToDo extends TToDo implements ProcessToDo {
 
   @Prop(TypeBoolean(), process.string.AskRequired)
     askRequired?: boolean
+
+  group?: string
+  completionMode?: 'any' | 'all'
 }
 
 @Model(process.class.ApproveRequest, process.class.ProcessToDo)
@@ -230,7 +243,7 @@ export class TApproveRequest extends TProcessToDo implements ApproveRequest {
   @Prop(TypeString(), process.string.RejectionReason)
     reason?: string
 
-  group!: string
+  declare group: string
 
   card!: Ref<Card>
 
@@ -284,9 +297,19 @@ export class TProcessCustomEvent extends TDoc implements ProcessCustomEvent {
 
 @Model(process.class.EventButton, core.class.Doc, DOMAIN_PROCESS)
 export class TEventButton extends TDoc implements EventButton {
-  title!: string
+  requireAttachments?: boolean
 
-  eventType!: string
+  @Prop(TypeString(), core.string.Name)
+    title!: string
+
+  @Prop(TypeMarkup(), core.string.Description)
+    description?: string
+
+  @Prop(TypeString(), process.string.OnEvent)
+    eventType!: string
+
+  @Prop(TypeRef(contact.mixin.Employee), contact.string.Employee)
+    user?: EventButton['user']
 
   @Prop(TypeRef(process.class.Execution), process.string.Execution)
     execution!: Ref<Execution>
@@ -310,6 +333,7 @@ export class TProcessFunction extends TDoc implements ProcessFunction {
     label!: IntlString
 
   editor?: AnyComponent
+  editorProps?: Record<string, unknown>
   presenter?: AnyComponent
 
   @Prop(TypeBoolean(), getEmbeddedLabel('AllowMany'))
@@ -365,6 +389,7 @@ export function createModel (builder: Builder): void {
       objectClass: process.class.ProcessToDo,
       onlyOwn: true,
       defaultEnabled: true,
+      emailKind: 'request',
       templates: {
         textTemplate: '{body}',
         htmlTemplate: '<p>{body}</p>',
@@ -387,6 +412,7 @@ export function createModel (builder: Builder): void {
       objectClass: process.class.ApproveRequest,
       onlyOwn: true,
       defaultEnabled: true,
+      emailKind: 'request',
       templates: {
         textTemplate: '{body}',
         htmlTemplate: '<p>{body}</p>',
@@ -786,6 +812,7 @@ export function createModel (builder: Builder): void {
       objectClass: process.class.ProcessToDo
     },
     defaultEnabled: true,
+    emailKind: 'request',
     templates: {
       textTemplate: '{body}',
       htmlTemplate: '<p>{body}</p>',
@@ -803,7 +830,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeString,
     props: {
-      modes: ['Equal', 'StringContains', 'Exists']
+      modes: ['Equal', 'StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -812,7 +839,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeMarkup,
     props: {
-      modes: ['StringContains', 'Exists']
+      modes: ['StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -821,7 +848,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeMarkup,
     props: {
-      modes: ['StringContains', 'Exists']
+      modes: ['StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -830,7 +857,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeHyperlink,
     props: {
-      modes: ['Equal', 'StringContains', 'Exists']
+      modes: ['Equal', 'StringContains', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -839,7 +866,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeNumber,
     props: {
-      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists']
+      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -848,7 +875,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeDate,
     props: {
-      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists']
+      modes: ['Equal', 'GT', 'LT', 'Between', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -857,7 +884,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.TypeBoolean,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -884,7 +911,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.EnumOf,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 
@@ -893,7 +920,7 @@ export function createModel (builder: Builder): void {
     editor: process.criteriaEditor.BaseCriteria,
     of: core.class.RefTo,
     props: {
-      modes: ['Equal', 'NotEqual', 'Exists']
+      modes: ['Equal', 'NotEqual', 'Exists', 'ValueIsNotSet']
     }
   })
 

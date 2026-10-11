@@ -20,6 +20,7 @@ import {
   Doc,
   DocumentQuery,
   DocumentUpdate,
+  parseIdentifier,
   Rank,
   Ref,
   SortingOrder,
@@ -56,7 +57,7 @@ import {
  * @public
  */
 export const genRanks = (count: number): Generator<string, void, unknown> =>
-  (function * () {
+  (function* () {
     const sys = new LexoNumeralSystem36()
     const base = 36
     const max = base ** 6
@@ -99,17 +100,12 @@ export function getDocumentId (document: Pick<Document, 'prefix' | 'seqNumber'>)
 }
 
 /** @public */
-const documentIdRegExp = /^(?<prefix>\w+)-(?<seqNumber>\d+)$/
-
-/** @public */
 export function matchDocumentId (str: string): Pick<Document, 'prefix' | 'seqNumber'> | null {
-  const match = str.match(documentIdRegExp)
-  if (match?.groups?.prefix === undefined || match.groups.seqNumber === undefined) {
-    return null
-  }
+  const match = parseIdentifier(str)
+  if (match === null) return null
   return {
-    prefix: match.groups.prefix,
-    seqNumber: parseFloat(match.groups.seqNumber)
+    prefix: match.prefix,
+    seqNumber: match.sequence
   }
 }
 
@@ -592,8 +588,6 @@ async function _transferDocuments (
 ): Promise<boolean> {
   if (cx.bundles.length < 1) return false
 
-  const hierarchy = client.getHierarchy()
-
   const canArchiveInSourceSpace = await checkPermission(
     client,
     documents.permission.ArchiveDocument,
@@ -611,10 +605,6 @@ async function _transferDocuments (
     if (bundle.DocumentMeta.length !== 1) return false
     if (bundle.ProjectMeta.length !== 1) return false
     if (bundle.DocumentMeta[0].space !== cx.request.sourceSpaceId) return false
-
-    const anydoc = bundle.ControlledDocument[0]
-    const isTemplate = anydoc !== undefined && hierarchy.hasMixin(anydoc, documents.mixin.DocumentTemplate)
-    if (isTemplate && hierarchy.isDerived(cx.targetSpace._class, documents.class.ExternalSpace)) return false
   }
 
   const roots = new Set(cx.request.sourceDocumentIds)

@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -56,6 +57,10 @@ import WorkbenchTabExtension from './components/WorkbenchTabExtension.svelte'
 import DirectMessageButton from './components/DirectMessageButton.svelte'
 import EmployeePresenter from './components/ChunterEmployeePresenter.svelte'
 import InlineCommentThread from './components/inline-comment/InlineCommentThread.svelte'
+import DiscussionsSection from './components/discussions/DiscussionsSection.svelte'
+import DiscussionAside from './components/discussions/DiscussionAside.svelte'
+import DiscussionPanel from './components/discussions/DiscussionPanel.svelte'
+import DefaultDiscussionsSetting from './components/discussions/DefaultDiscussionsSetting.svelte'
 
 import {
   chunterSpaceLinkFragmentProvider,
@@ -77,8 +82,11 @@ import {
   canReplyToThread,
   dmIdentifierProvider,
   getDmName,
+  getChunterNotificationStore,
   getTitle,
   getUnreadThreadsCount,
+  discussionIdentifierProvider,
+  discussionTitleProvider,
   leaveChannelAction,
   removeChannelAction,
   translateMessage,
@@ -190,13 +198,18 @@ export default async (): Promise<Resources> => ({
     WorkbenchTabExtension,
     DirectMessageButton,
     EmployeePresenter,
-    InlineCommentThread
+    InlineCommentThread,
+    DiscussionsSection,
+    DiscussionAside,
+    DiscussionPanel,
+    DefaultDiscussionsSetting
   },
   activity: {
     ChannelCreatedMessage,
     MembersChangedMessage
   },
   function: {
+    GetChunterNotificationStore: getChunterNotificationStore,
     GetDmName: getDmName,
     ChunterBrowserVisible: chunterBrowserVisible,
     GetFragment: getTitle,
@@ -204,6 +217,8 @@ export default async (): Promise<Resources> => ({
     DirectTitleProvider,
     ChannelTitleProvider,
     DmIdentifierProvider: dmIdentifierProvider,
+    DiscussionTitleProvider: discussionTitleProvider,
+    DiscussionIdentifierProvider: discussionIdentifierProvider,
     CanDeleteMessage: canDeleteMessage,
     CanCopyMessageLink: canCopyMessageLink,
     GetChunterSpaceLinkFragment: chunterSpaceLinkFragmentProvider,

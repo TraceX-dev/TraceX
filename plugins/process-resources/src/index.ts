@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -19,7 +20,9 @@ import NestedContextSelector from './components/attributeEditors/NestedContextSe
 import RelatedContextSelector from './components/attributeEditors/RelatedContextSelector.svelte'
 import RequestUserInput from './components/contextEditors/RequestUserInput.svelte'
 import ResultInput from './components/contextEditors/ResultInput.svelte'
+import SelectionSpaceEditor from './components/settings/SelectionSpaceEditor.svelte'
 import RoleEditor from './components/contextEditors/RoleEditor.svelte'
+import RelationTableEditor from './components/contextEditors/RelationTableEditor.svelte'
 import ErrorPresenter from './components/ErrorPresenter.svelte'
 import ExecutionMyToDos from './components/ExecutionMyToDos.svelte'
 import ExecutonPresenter from './components/ExecutonPresenter.svelte'
@@ -39,6 +42,9 @@ import RunProcessPopup from './components/RunProcessPopup.svelte'
 import ActionsPresenter from './components/settings/ActionsPresenter.svelte'
 import CancelSubProcessEditor from './components/settings/CancelSubProcessEditor.svelte'
 import CancelToDoEditor from './components/settings/CancelToDoEditor.svelte'
+import CreateActionEditor from './components/settings/CreateActionEditor.svelte'
+import SetContextEditor from './components/settings/SetContextEditor.svelte'
+import UpdateContextEditor from './components/settings/UpdateContextEditor.svelte'
 import FunctionSubmenu from './components/settings/FunctionSubmenu.svelte'
 import ProcessEditor from './components/settings/ProcessEditor.svelte'
 import StatePresenter from './components/settings/StatePresenter.svelte'
@@ -52,6 +58,7 @@ import UpdateCardEditor from './components/settings/UpdateCardEditor.svelte'
 import ArrayElementEditor from './components/transformEditors/ArrayElementEditor.svelte'
 import DateOffsetEditor from './components/transformEditors/DateOffsetEditor.svelte'
 import FilterEditor from './components/transformEditors/FilterEditor.svelte'
+import SortEditor from './components/transformEditors/SortEditor.svelte'
 import MultiArrayElementEditor from './components/transformEditors/MultiArrayElementEditor.svelte'
 import NumberEditor from './components/transformEditors/NumberEditor.svelte'
 
@@ -66,6 +73,7 @@ import CreateCardPresenter from './components/presenters/CreateCardPresenter.sve
 import ProcessesHeaderExtension from './components/ProcessesHeaderExtension.svelte'
 import AddRelationEditor from './components/settings/AddRelationEditor.svelte'
 import AddTagEditor from './components/settings/AddTagEditor.svelte'
+import RemoveTagEditor from './components/settings/RemoveTagEditor.svelte'
 import ApproveRequestEditor from './components/settings/ApproveRequestEditor.svelte'
 import ApproveRequestTriggerEditor from './components/settings/ApproveRequestTriggerEditor.svelte'
 import ApproveRequestTriggerPresenter from './components/settings/ApproveRequestTriggerPresenter.svelte'
@@ -75,6 +83,10 @@ import CreateCardEditor from './components/settings/CreateCardEditor.svelte'
 import FieldChangesEditor from './components/settings/FieldChangesEditor.svelte'
 import LockSectionEditor from './components/settings/LockSectionEditor.svelte'
 import LockSectionPresenter from './components/settings/LockSectionPresenter.svelte'
+import OnEventEditor from './components/settings/OnEventEditor.svelte'
+import OnEventPresenter from './components/settings/OnEventPresenter.svelte'
+import RelationChangeEditor from './components/settings/RelationChangeEditor.svelte'
+import RelationChangePresenter from './components/settings/RelationChangePresenter.svelte'
 import SubProcessMatchEditor from './components/settings/SubProcessMatchEditor.svelte'
 import SubProcessMatchPresenter from './components/settings/SubProcessMatchPresenter.svelte'
 import TimeEditor from './components/settings/TimeEditor.svelte'
@@ -84,11 +96,13 @@ import ToDoValuePresenter from './components/settings/ToDoValuePresenter.svelte'
 import TransitionRefPresenter from './components/settings/TransitionRefPresenter.svelte'
 import UnLockSectionPresenter from './components/settings/UnLockSectionPresenter.svelte'
 import AppendEditor from './components/transformEditors/AppendEditor.svelte'
+import MarkupAppendEditor from './components/transformEditors/MarkupAppendEditor.svelte'
 import CutEditor from './components/transformEditors/CutEditor.svelte'
 import ReplaceEditor from './components/transformEditors/ReplaceEditor.svelte'
 import SplitEditor from './components/transformEditors/SplitEditor.svelte'
 import NumberPresenter from './components/transformPresenters/NumberPresenter.svelte'
 import RolePresenter from './components/transformPresenters/RolePresenter.svelte'
+import RelationTablePresenter from './components/transformPresenters/RelationTablePresenter.svelte'
 import ExecutionRefPresenter from './components/ExecutionRefPresenter.svelte'
 import ActionTypePresenter from './components/ActionTypePresenter.svelte'
 import LockFieldEditor from './components/settings/LockFieldEditor.svelte'
@@ -106,6 +120,7 @@ import {
   eventCheck,
   fieldChangesCheck,
   matchCardCheck,
+  relationChangedCheck,
   requiredFieldsFilledCheck,
   showDoneQuery,
   subProcessesDoneCheck,
@@ -145,7 +160,9 @@ export default async (): Promise<Resources> => ({
     ErrorPresenter,
     RequestUserInput,
     ResultInput,
+    SelectionSpaceEditor,
     RoleEditor,
+    RelationTableEditor,
     ActionsPresenter,
     StatePresenter,
     TriggerPresenter,
@@ -166,9 +183,14 @@ export default async (): Promise<Resources> => ({
     TimeEditor,
     TimePresenter,
     AddTagEditor,
+    RemoveTagEditor,
     AddTagPresenter,
     ExecutionMyToDos,
     FieldChangesEditor,
+    OnEventEditor,
+    OnEventPresenter,
+    RelationChangeEditor,
+    RelationChangePresenter,
     FunctionSubmenu,
     SubProcessMatchEditor,
     SubProcessMatchPresenter,
@@ -181,6 +203,9 @@ export default async (): Promise<Resources> => ({
     LockSectionEditor,
     UnLockSectionPresenter,
     CancelToDoEditor,
+    CreateActionEditor,
+    SetContextEditor,
+    UpdateContextEditor,
     CancelSubProcessEditor,
     ToDoValuePresenter,
     ExecutionRefPresenter,
@@ -197,7 +222,8 @@ export default async (): Promise<Resources> => ({
   },
   transformPresenter: {
     NumberPresenter,
-    RolePresenter
+    RolePresenter,
+    RelationTablePresenter
   },
   transformEditor: {
     ArrayElementEditor,
@@ -205,10 +231,12 @@ export default async (): Promise<Resources> => ({
     DateOffsetEditor,
     NumberEditor,
     AppendEditor,
+    MarkupAppendEditor,
     ReplaceEditor,
     SplitEditor,
     CutEditor,
-    FilterEditor
+    FilterEditor,
+    SortEditor
   },
   triggerCheck: {
     MatchCheck: matchCardCheck,
@@ -219,6 +247,7 @@ export default async (): Promise<Resources> => ({
     ToDo: todoTranstionCheck,
     Time: timeTransitionCheck,
     OnEventCheck: eventCheck,
+    RelationChangedCheck: relationChangedCheck,
     ApproveRequestApproved: approveRequestApproved,
     ApproveRequestRejected: approveRequestRejected
   },

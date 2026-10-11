@@ -62,7 +62,7 @@ test.describe('Workspace tests', () => {
     await selectWorkspacePage.createWorkspace(newWorkspaceName)
     await userProfilePage.openProfileMenu()
     await userProfilePage.clickSettings()
-    await workspaceSettingsPage.selectWorkspaceSettingsTab(ButtonType.Spaces)
+    await workspaceSettingsPage.selectWorkspaceSettingsTab(ButtonType.SpaceRoles)
     await ownersPage.addMember(newUser.firstName)
   })
 

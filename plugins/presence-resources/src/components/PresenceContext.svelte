@@ -14,11 +14,11 @@
 -->
 
 <script lang="ts">
-  import { type Doc } from '@hcengineering/core'
+  import { type Doc, reduceCalls } from '@hcengineering/core'
   import { getCurrentEmployee } from '@hcengineering/contact'
   import { onMount } from 'svelte'
 
-  import { updatePresence, deletePresence } from '../presence'
+  import { canSendPulse, updatePresence, deletePresence } from '../presence'
 
   export let object: Doc
   export let presenceId: string | undefined = undefined
@@ -27,17 +27,29 @@
 
   const personId = getCurrentEmployee()
 
-  async function doUpdatePresence (): Promise<void> {
-    const presence = { personId, objectId: presenceId ?? object._id, objectClass: object._class }
-    await updatePresence(presence, presenceTtlSeconds)
-  }
+  const doUpdatePresence = reduceCalls(async (): Promise<void> => {
+    const presence = {
+      personId,
+      objectId: presenceId ?? object._id,
+      objectClass: object._class,
+      space: object.space
+    }
+    await updatePresence(presence)
+  })
 
-  async function doDeletePresence (object: Doc, presenceId?: string): Promise<void> {
-    const presence = { personId, objectId: presenceId ?? object._id, objectClass: object._class }
+  const doDeletePresence = reduceCalls(async (object: Doc, presenceId?: string): Promise<void> => {
+    const presence = {
+      personId,
+      objectId: presenceId ?? object._id,
+      objectClass: object._class,
+      space: object.space
+    }
     await deletePresence(presence)
-  }
+  })
 
   onMount(() => {
+    // Anonymous and read-only guests do not send presence transactions
+    if (!canSendPulse()) return
     void doUpdatePresence()
     const interval = setInterval(doUpdatePresence, presenceUpdateSeconds * 1000)
     return () => {
@@ -53,7 +65,7 @@
     object !== undefined &&
     (object._id !== previousObject._id || object._class !== previousObject._class || presenceId !== prevPresenceId)
   ) {
-    void doDeletePresence(previousObject)
+    void doDeletePresence(previousObject, prevPresenceId)
     previousObject = object
     prevPresenceId = presenceId
     void doUpdatePresence()

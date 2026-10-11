@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022, 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -59,6 +60,32 @@ import { makeRank } from '@hcengineering/rank'
 import { getAccountBySocialId, getCurrentPerson } from '@hcengineering/server-contact'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import { workbenchId } from '@hcengineering/workbench'
+
+import {
+  CreateOrganization,
+  CreatePerson,
+  FindEmployees,
+  FindOrganizations,
+  FindPersons,
+  GetEmployee,
+  GetOrganization,
+  GetPerson,
+  PatchOrganization,
+  PatchPerson
+} from './workspaceApi'
+
+export {
+  CreateOrganization,
+  CreatePerson,
+  FindEmployees,
+  FindOrganizations,
+  FindPersons,
+  GetEmployee,
+  GetOrganization,
+  GetPerson,
+  PatchOrganization,
+  PatchPerson
+}
 
 export async function OnSpaceTypeMembers (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const result: Tx[] = []
@@ -145,24 +172,17 @@ export async function OnEmployeeCreate (_txes: Tx[], control: TriggerControl): P
     const txes = await createPersonSpace(account, mixinTx.objectId, control)
     result.push(...txes)
 
+    // Anonymous (read-only) guest access is granted through space membership of this account only;
+    // it must never be auto-joined anywhere, otherwise spaces would silently become public.
+    if (account === readOnlyGuestAccountUuid) continue
+
     const emp = control.hierarchy.as(person, contact.mixin.Employee)
     if (emp.role === 'GUEST') {
-      let readOnlyGuestSpaces: Space[] = []
-      const readonlyEmployees = await control.findAll(control.ctx, contact.mixin.Employee, {
-        personUuid: readOnlyGuestAccountUuid
-      })
-      if (readonlyEmployees.length !== 0) {
-        const readonlyEmployee = readonlyEmployees[0]
-        if (readonlyEmployee.active) {
-          readOnlyGuestSpaces = await control.findAll(control.ctx, core.class.Space, {
-            members: readOnlyGuestAccountUuid
-          })
-        }
-      }
-
+      // Guests join only spaces granted by the invite and spaces with auto-join enabled for guests.
+      // Spaces open for anonymous access are NOT joined: anonymous access is for the anonymous user only.
       const grantSpaces = await getGrantSpaces(control, control.ctx.contextData.grant)
 
-      for (const space of [...readOnlyGuestSpaces, ...grantSpaces]) {
+      for (const space of grantSpaces) {
         if (space._class === contact.class.PersonSpace || space.members.includes(account)) continue
 
         systemTxes.push(
@@ -188,20 +208,6 @@ export async function OnEmployeeCreate (_txes: Tx[], control: TriggerControl): P
             }
           })
         )
-      }
-
-      const collabs = await control.findAll(control.ctx, core.class.Collaborator, {
-        collaborator: readOnlyGuestAccountUuid
-      })
-
-      for (const collab of collabs) {
-        const pushTx = systemTxFactory.createTxCreateDoc(core.class.Collaborator, collab.space, {
-          attachedTo: collab.attachedTo,
-          collaborator: account,
-          attachedToClass: collab.attachedToClass,
-          collection: 'collaborators'
-        })
-        systemTxes.push(pushTx)
       }
 
       continue
@@ -523,5 +529,17 @@ export default async () => ({
     GetCurrentEmployeePosition: getCurrentEmployeePosition,
     GetContactFirstName: getContactFirstName,
     GetContactLastName: getContactLastName
+  },
+  workspaceApi: {
+    FindPersons,
+    GetPerson,
+    CreatePerson,
+    PatchPerson,
+    FindOrganizations,
+    GetOrganization,
+    CreateOrganization,
+    PatchOrganization,
+    FindEmployees,
+    GetEmployee
   }
 })

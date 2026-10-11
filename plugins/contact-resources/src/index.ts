@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -41,6 +42,7 @@ import {
   getPlatformAvatarColorByName,
   getPlatformAvatarColorForTextDef,
   getPlatformColorDef,
+  getPlatformColors,
   hexColorToNumber,
   parseURL,
   showPopup,
@@ -159,8 +161,9 @@ import {
 export * from './utils'
 export * from './workspaceMemberStatus'
 export { employeeByIdStore } from './utils'
-export * from './assignee'
+export type * from './assignee'
 export * from './translation'
+export { default as SpaceSettingsForm } from './components/space/SpaceSettingsForm.svelte'
 export {
   PersonIdArrayEditor,
   AccountArrayEditor,
@@ -312,7 +315,7 @@ async function kickEmployee (doc: Person): Promise<void> {
 
       if (doc.personUuid != null) {
         const leaveWorkspace = await getResource(login.function.LeaveWorkspace)
-        await leaveWorkspace(doc.personUuid as AccountUuid)
+        await leaveWorkspace(doc.personUuid)
       }
     }
   })
@@ -338,6 +341,12 @@ function getPersonColor (person: Data<WithLookup<AvatarInfo>>, name: string): Co
 
   if (person.avatarProps?.color !== undefined) {
     if (person.avatarProps?.color?.startsWith('#')) {
+      if (person.avatarProps.colorPalette === 'platform') {
+        const exact = getPlatformColors(dark).find((it) => it.color === person.avatarProps?.color)
+        if (exact !== undefined) {
+          return exact
+        }
+      }
       return getPlatformColorDef(hexColorToNumber(person.avatarProps?.color), dark)
     }
     return getPlatformAvatarColorByName(person.avatarProps?.color, dark)

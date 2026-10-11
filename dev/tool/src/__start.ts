@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -82,19 +83,10 @@ function prepareTools (): {
   return { ...prepareToolsRaw(builder().getTxes()), version: getModelVersion(), migrateOperations }
 }
 
-export function getMongoDBUrl (): string {
-  const url = process.env.MONGO_URL
-  if (url === undefined) {
-    console.error('please provide mongo DB URL')
-    process.exit(1)
-  }
-  return url
-}
-
 export function getAccountDBUrl (): string {
   const url = process.env.ACCOUNT_DB_URL
   if (url === undefined) {
-    console.error('please provide mongo ACCOUNT_DB_URL')
+    console.error('please provide PostgreSQL ACCOUNT_DB_URL')
     process.exit(1)
   }
   return url

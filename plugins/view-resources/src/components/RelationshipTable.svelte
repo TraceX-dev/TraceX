@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -54,6 +55,8 @@
   import { getResultOptions, getResultQuery } from '../viewOptions'
   import IconUpDown from './icons/UpDown.svelte'
   import RelationsSelectorPopup from './RelationsSelectorPopup.svelte'
+
+  import { isObjectAttributeReadonly } from '../readonly'
 
   export let _class: Ref<Class<Doc>>
   export let query: DocumentQuery<Doc>
@@ -121,13 +124,14 @@
   function getSort (sortKey: string | string[]) {
     return Array.isArray(sortKey)
       ? sortKey.reduce((acc: Record<string, SortingOrder>, val) => {
-        acc[val] = sortOrder
-        return acc
-      }, {})
+          acc[val] = sortOrder
+          return acc
+        }, {})
       : { ...(options?.sort ?? {}), [sortKey]: sortOrder }
   }
 
   let resultOptions = options
+  let resultQuery: DocumentQuery<Doc> = query
 
   const update = reduceCalls(async function (
     _class: Ref<Class<Doc>>,
@@ -137,10 +141,12 @@
     lookup: Lookup<Doc>,
     associations: AssociationQuery[] | undefined,
     limit: number,
-    options: FindOptions<Doc> | undefined
+    options: FindOptions<Doc> | undefined,
+    viewOptionsConfig: ViewOptionModel[] | undefined,
+    viewOptions: ViewOptions | undefined
   ) {
     const p = await getResultQuery(hierarchy, query, viewOptionsConfig, viewOptions)
-    const resultQuery = mergeQueries(p, query)
+    resultQuery = mergeQueries(p, query)
     loading += q.query(
       _class,
       resultQuery,
@@ -159,7 +165,18 @@
       ? 1
       : 0
   })
-  $: void update(_class, query, _sortKey, sortOrder, lookup, associations, limit, resultOptions)
+  $: void update(
+    _class,
+    query,
+    _sortKey,
+    sortOrder,
+    lookup,
+    associations,
+    limit,
+    resultOptions,
+    viewOptionsConfig,
+    viewOptions
+  )
 
   $: void getResultOptions(options, viewOptionsConfig, viewOptions).then((p) => {
     resultOptions = p
@@ -170,7 +187,7 @@
   const qSlow = createQuery()
   $: qSlow.query(
     _class,
-    query,
+    resultQuery,
     (result) => {
       total = result.total
       if (totalQuery === undefined) {
@@ -215,11 +232,14 @@
 
   const joinProps = (attribute: AttributeModel, object: Doc, readonly: boolean) => {
     const readonlyParams =
-      readonly || (attribute?.attribute?.readonly ?? false)
+      readonly ||
+      isObjectAttributeReadonly(object, attribute, client.getHierarchy()) ||
+      (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             editable: false,
-            disabled: true
+            disabled: true,
+            onChange: undefined
           }
         : {
             readonly: false,
@@ -243,19 +263,36 @@
     showMenu(ev, { object })
   }
 
-  function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute): void {
+  function onChange (
+    value: any,
+    doc: Doc,
+    key: string,
+    attribute: AnyAttribute,
+    castRequest: AttributeModel['castRequest']
+  ): void {
+    if (
+      readonly ||
+      $restrictionStore.readonly ||
+      isObjectAttributeReadonly(doc, { key, attribute, castRequest }, client.getHierarchy()) ||
+      attribute.readonly === true
+    ) {
+      return
+    }
     updateAttribute(client, doc, _class, { key, attr: attribute }, value)
   }
 
   function getOnChange (doc: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
+    if (readonly || $restrictionStore.readonly || isObjectAttributeReadonly(doc, attribute, client.getHierarchy())) {
+      return
+    }
     if (attr === undefined) return
     if (attribute.collectionAttr) return
     if (attribute.isLookup) return
     if (attribute?.attribute?.readonly === true) return
     const key = attribute.castRequest ? attribute.key.substring(attribute.castRequest.length + 1) : attribute.key
     return (value: any) => {
-      onChange(value, doc, key, attr)
+      onChange(value, doc, key, attr, attribute.castRequest)
     }
   }
 
@@ -332,7 +369,29 @@
     return res
   }
 
-  $: viewModel = getView(objects, model)
+  function hasMissingRelations (doc: Doc, model: AttributeModel[], associationId?: string): boolean {
+    const associations = getAssociations(model, associationId)
+    for (const relationKey of associations) {
+      const key = associationId ? relationKey.substring(associationId.length + 1) : relationKey
+      const relationDocs = getObjectValue(key, doc)
+      if (!Array.isArray(relationDocs) || relationDocs.length === 0) return true
+      if (relationDocs.some((relationDoc) => hasMissingRelations(relationDoc as Doc, model, relationKey))) {
+        return true
+      }
+    }
+    return false
+  }
+
+  function filterObjectsWithMissingRelations (objects: Doc[], model: AttributeModel[] | undefined): Doc[] {
+    if (model === undefined) return objects
+    return objects.filter((object) => hasMissingRelations(object, model))
+  }
+
+  $: onlyCardsWithoutRelations = viewOptions?.showOnlyCardsWithoutRelations === true
+  $: displayedObjects = onlyCardsWithoutRelations ? filterObjectsWithMissingRelations(objects, model) : objects
+  $: shouldShowDisplayedCount =
+    displayedObjects.length > 0 && (total !== gtotal || objects.length < total || onlyCardsWithoutRelations)
+  $: viewModel = getView(displayedObjects, model)
 
   function getOwnAttributes (model: AttributeModel[], associationId?: string): AttributeModel[] {
     return model.filter((attr) => {
@@ -711,13 +770,13 @@
         <Label label={view.string.Total} params={{ total: gtotal }} />
       </span>
 
-      {#if objects.length > 0 && (total !== gtotal || objects.length < total)}
+      {#if shouldShowDisplayedCount}
         <span class="select-text ml-2">
           <Label
             label={view.string.Shown}
             params={{
-              total: objects.length === total || total === gtotal ? -1 : total,
-              len: objects.length
+              total: onlyCardsWithoutRelations || objects.length === total || total === gtotal ? -1 : total,
+              len: displayedObjects.length
             }}
           />
         </span>

@@ -62,15 +62,15 @@ export interface Config {
   CALDAV_SERVER_URL?: string
   EXPORT_URL?: string
   MAIL_URL?: string
-  COMMUNICATION_API_ENABLED?: string
   BILLING_URL?: string
   PAYMENT_URL?: string
-  PULSE_URL?: string
   PASSWORD_STRICTNESS?: 'very_strict' | 'strict' | 'normal' | 'none'
   EXCLUDED_APPLICATIONS_FOR_ANONYMOUS?: string
   HULYLAKE_URL?: string
   DISABLED_FEATURES?: string
   SIGNUP_URL?: string
+  GITHUB_NEXT_CLIENTID?: string
+  GITHUB_NEXT_URL?: string
 }
 
 export interface Branding {

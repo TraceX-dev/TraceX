@@ -18,12 +18,12 @@
   export let attribute: string
   export let searchField: string
   export let values:
-  | Array<{
-    icon?: Asset
-    label: IntlString
-    id: string | number
-  }>
-  | undefined = undefined
+    | Array<{
+        icon?: Asset
+        label: IntlString
+        id: string | number
+      }>
+    | undefined = undefined
 
   export let fillQuery: Record<string, string> | undefined
   export let docMatches: string[] | undefined
@@ -48,7 +48,7 @@
     progress = true
     const docs = [...(Array.isArray(value) ? value : [value])]
 
-    const changed = (d: Doc) => (d as any)[attribute] !== newStatus
+    const changed = (d: Doc): boolean => (d as any)[attribute] !== newStatus
     const ops = client.apply('value-selector:' + generateId())
 
     // We need to sort docs by modified date, to have same modified order impacted.

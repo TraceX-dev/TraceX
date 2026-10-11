@@ -14,7 +14,7 @@
 //
 
 import { formatName, getPersonByPersonId } from '@hcengineering/contact'
-import { Ref, SortingOrder, TxOperations } from '@hcengineering/core'
+import { Ref, TxOperations } from '@hcengineering/core'
 import notification, {
   notificationId,
   ActivityInboxNotification,
@@ -22,15 +22,14 @@ import notification, {
   DocNotifyContext,
   InboxNotification
 } from '@hcengineering/notification'
-import { addEventListener, getMetadata, IntlString, translate } from '@hcengineering/platform'
-import { createNotificationsQuery, getClient } from '@hcengineering/presentation'
+import { addEventListener, IntlString, translate } from '@hcengineering/platform'
+import { getClient } from '@hcengineering/presentation'
 import { location } from '@hcengineering/ui'
 import workbench, { workbenchId } from '@hcengineering/workbench'
 import desktopPreferences, { defaultNotificationPreference } from '@hcengineering/desktop-preferences'
 import { activePreferences } from '@hcengineering/desktop-preferences-resources'
 import { getDisplayInboxData, InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
-import { inboxId } from '@hcengineering/inbox'
-import communication from '@hcengineering/communication'
+import { hasCrossWorkspaceUnread } from '@hcengineering/workbench-resources'
 import { ipcMainExposed } from './typesUtils'
 
 let client: TxOperations
@@ -136,66 +135,28 @@ export function configureNotifications (): void {
   // because we generate them on a client
   let initTimestamp = 0
   const notificationHistory = new Map<string, number>()
-  let newUnreadNotifications = 0
+
+  // Cross-workspace unread contributes one extra to the badge so the app icon
+  // lights up when another workspace has unread even if the current one is fully
+  // read. Mirrors how in-workspace and communication unread are summed below.
+  let hasOtherWorkspaceUnread = false
+  const computeBadge = (): number => prevUnViewdNotificationsCount + (hasOtherWorkspaceUnread ? 1 : 0)
+  hasCrossWorkspaceUnread.subscribe((value) => {
+    if (value === hasOtherWorkspaceUnread) return
+    hasOtherWorkspaceUnread = value
+    if (preferences.showUnreadCounter) {
+      ipcMainExposed().setBadge(computeBadge())
+    }
+  })
 
   addEventListener(workbench.event.NotifyConnection, async () => {
     client = getClient()
     const electronAPI = ipcMainExposed()
 
     const inboxClient = InboxNotificationsClientImpl.getClient()
-    const notificationsQuery = createNotificationsQuery(true)
-    const notificationsCountQuery = createNotificationsQuery(true)
-
-    const isCommunicationEnabled = getMetadata(communication.metadata.Enabled) ?? false
-
-    if (isCommunicationEnabled) {
-      notificationsCountQuery.query({ read: false, limit: 1, strict: true, total: true }, res => {
-        newUnreadNotifications = res.getTotal()
-
-        if (preferences.showUnreadCounter) {
-          electronAPI.setBadge(prevUnViewdNotificationsCount + newUnreadNotifications)
-        }
-
-        if (preferences.bounceAppIcon) {
-          electronAPI.dockBounce()
-        }
-      })
-    }
-
-    function startNotificationQuery (): void {
-      if (!isCommunicationEnabled) return
-      notificationsQuery.query({
-        read: false,
-        limit: 1,
-        strict: true,
-        order: SortingOrder.Descending,
-        created: {
-          greaterOrEqual: new Date()
-        }
-      }, (res) => {
-        if (!preferences.showNotifications) return
-        const notification = res.getResult()[0]
-        if (notification !== undefined && !notificationHistory.has(notification.id)) {
-          notificationHistory.set(notification.id, notification.created.getTime())
-          electronAPI.sendNotification({
-            silent: !preferences.playSound,
-            application: inboxId,
-            title: notification.content.title,
-            body: `${notification.content.senderName}: ${notification.content.shortText}`,
-            cardId: notification.cardId,
-            objectId: notification.content.objectId,
-            objectClass: notification.content.objectClass
-          })
-        }
-      })
-    }
-
-    if (preferences.showNotifications) {
-      startNotificationQuery()
-    }
 
     async function handleNotifications (notificationsByContext: Map<Ref<DocNotifyContext>, InboxNotification[]>): Promise<void> {
-      const inboxData = await getDisplayInboxData(notificationsByContext)
+      const inboxData = getDisplayInboxData(notificationsByContext)
 
       if (notificationHistory.size === 0) {
         for (const [, notifications] of inboxData) {
@@ -210,13 +171,13 @@ export function configureNotifications (): void {
       // We need to get the most recent notifications
 
       if (prevUnViewdNotificationsCount !== unViewedNotifications.length) {
+        prevUnViewdNotificationsCount = unViewedNotifications.length
         if (preferences.showUnreadCounter) {
-          electronAPI.setBadge(unViewedNotifications.length + newUnreadNotifications)
+          electronAPI.setBadge(computeBadge())
         }
         if (preferences.bounceAppIcon) {
           electronAPI.dockBounce()
         }
-        prevUnViewdNotificationsCount = unViewedNotifications.length
       }
 
       const notification = getLasUnViewedNotification(unViewedNotifications, notificationHistory)
@@ -255,12 +216,9 @@ export function configureNotifications (): void {
         electronAPI.setBadge(0)
       }
       if (!preferences.showUnreadCounter && newPreferences.showUnreadCounter) {
-        electronAPI.setBadge(prevUnViewdNotificationsCount + newUnreadNotifications)
+        electronAPI.setBadge(computeBadge())
       }
 
-      if (newPreferences.showNotifications && !preferences.showNotifications) {
-        startNotificationQuery()
-      }
       preferences = newPreferences
     })
   })

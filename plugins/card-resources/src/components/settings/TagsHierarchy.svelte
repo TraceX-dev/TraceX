@@ -13,25 +13,43 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import cardPlugin, { MasterTag } from '@hcengineering/card'
-  import core, { Class, ClassifierKind, Doc, Ref } from '@hcengineering/core'
+  import cardPlugin, { MasterTag, Tag } from '@hcengineering/card'
+  import core, { Class, ClassifierKind, Doc, Ref, toRank } from '@hcengineering/core'
   import { IconWithEmoji, createQuery, getClient } from '@hcengineering/presentation'
   import { Icon, Label } from '@hcengineering/ui'
+  import { makeRank } from '@hcengineering/rank'
+  import { SortableList } from '@hcengineering/view-resources'
   import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
 
-  export let classes: Ref<Class<Doc>>[] = []
+  interface TagItem {
+    _id: Ref<Tag>
+    tag: Tag
+  }
+
+  export let classes: Array<TagItem | Ref<Tag>> = []
   export let _class: Ref<Class<Doc>> | undefined
   export let kind: ClassifierKind = ClassifierKind.CLASS
   export let level: number = 0
 
   const client = getClient()
   const dispatch = createEventDispatcher()
-  let descendants = new Map<Ref<Class<Doc>>, Ref<Class<Doc>>[]>()
+  let descendants = new Map<Ref<Tag>, TagItem[]>()
+  let normalizedClasses: TagItem[] = []
 
-  function getDescendants (_class: Ref<Class<Doc>>): Ref<Class<Doc>>[] {
+  function normalizeTagItems (items: Array<TagItem | Ref<Tag>>): TagItem[] {
     const hierarchy = client.getHierarchy()
-    const result: Ref<Class<Doc>>[] = []
+    return items.map((item) => {
+      if (typeof item === 'string') {
+        return { _id: item, tag: hierarchy.getClass(item) as Tag }
+      }
+      return item
+    })
+  }
+
+  function getDescendants (_class: Ref<Tag>): TagItem[] {
+    const hierarchy = client.getHierarchy()
+    const result: TagItem[] = []
     const desc = hierarchy.getDescendants(_class)
     for (const clazz of desc) {
       const cls = hierarchy.getClass(clazz)
@@ -42,52 +60,59 @@
         cls.label !== undefined &&
         (cls as MasterTag).removed !== true
       ) {
-        result.push(clazz)
+        result.push({ _id: clazz as Ref<Tag>, tag: cls as Tag })
       }
     }
-    return result
+    return result.sort((a, b) => {
+      return (a.tag.rank ?? toRank(a._id) ?? '').localeCompare(b.tag.rank ?? toRank(b._id) ?? '')
+    })
   }
 
-  function fillDescendants (classes: Ref<Class<Doc>>[]): void {
+  function fillDescendants (classes: TagItem[]): void {
     for (const cl of classes) {
-      descendants.set(cl, getDescendants(cl))
+      descendants.set(cl._id, getDescendants(cl._id))
     }
     descendants = descendants
   }
 
   const query = createQuery()
   query.query(core.class.Class, {}, () => {
-    fillDescendants(classes)
+    fillDescendants(normalizedClasses)
   })
 
-  $: fillDescendants(classes)
+  $: normalizedClasses = normalizeTagItems(classes)
+  $: fillDescendants(normalizedClasses)
 
-  function getMasterTag (cl: Ref<Class<Doc>>): MasterTag {
-    return client.getHierarchy().getClass(cl) as MasterTag
+  async function moveHandler (event: CustomEvent<{ item: TagItem, prev?: TagItem, next?: TagItem }>): Promise<void> {
+    const { item, prev, next } = event.detail
+    await client.update(item.tag, {
+      rank: makeRank(prev?.tag.rank ?? toRank(prev?._id), next?.tag.rank ?? toRank(next?._id))
+    })
   }
 </script>
 
-{#each classes as cl}
-  {@const clazz = getMasterTag(cl)}
-  <button
-    class="hulyTableAttr-content__row justify-start cursor-pointer"
-    on:click={() => {
-      dispatch('select', cl)
-    }}
-  >
-    <div
-      class="hulyTableAttr-content__row-label font-medium-14 flex flex-gap-2"
-      style:margin-left={`${level * 1.25}rem`}
+<SortableList items={normalizedClasses} on:move={moveHandler}>
+  <svelte:fragment slot="object" let:value={cl}>
+    <button
+      class="hulyTableAttr-content__row justify-start cursor-pointer"
+      on:click={() => {
+        dispatch('select', cl._id)
+      }}
     >
-      <Icon
-        icon={clazz.icon === view.ids.IconWithEmoji ? IconWithEmoji : (clazz.icon ?? cardPlugin.icon.Tag)}
-        iconProps={clazz.icon === view.ids.IconWithEmoji ? { icon: clazz.color, size: 'small' } : {}}
-        size="small"
-      />
-      <Label label={clazz.label} />
-    </div>
-  </button>
-  {#if (descendants.get(cl)?.length ?? 0) > 0}
-    <svelte:self classes={descendants.get(cl) ?? []} {_class} {kind} level={level + 1} on:select />
-  {/if}
-{/each}
+      <div
+        class="hulyTableAttr-content__row-label font-medium-14 flex flex-gap-2"
+        style:margin-left={`${level * 1.25}rem`}
+      >
+        <Icon
+          icon={cl.tag.icon === view.ids.IconWithEmoji ? IconWithEmoji : (cl.tag.icon ?? cardPlugin.icon.Tag)}
+          iconProps={cl.tag.icon === view.ids.IconWithEmoji ? { icon: cl.tag.color, size: 'small' } : {}}
+          size="small"
+        />
+        <Label label={cl.tag.label} />
+      </div>
+    </button>
+    {#if (descendants.get(cl._id)?.length ?? 0) > 0}
+      <svelte:self classes={descendants.get(cl._id) ?? []} {_class} {kind} level={level + 1} on:select />
+    {/if}
+  </svelte:fragment>
+</SortableList>

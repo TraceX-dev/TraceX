@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -79,14 +80,14 @@ function makePipelineContext (findAll?: FindAllFn): PipelineContext {
     workspace: { uuid: 'test-workspace' as any, url: 'test', dataId: 'test' as any },
     hierarchy,
     modelDb: model,
-    branding: null as any,
+    branding: null,
     adapterManager: {} as any,
     storageAdapter: {} as any,
     contextVars: {},
     lastTx: '',
     lastHash: '',
     broadcastEvent: async () => {}
-  } as any
+  }
 }
 
 function makeMiddleware (
@@ -246,7 +247,7 @@ describe('GuestPermissionsMiddleware', () => {
       await expect(mw.tx(ctx, [tx])).rejects.toThrow()
     })
 
-    it('allows create when TxAccessLevel.createAccessLevel === Guest (uncovered type)', async () => {
+    it('allows Guest create when TxAccessLevel.createAccessLevel is ReadOnlyGuest (uncovered type)', async () => {
       // Settings exist but UNCOVERED_CLASS is NOT in allowedPermissions-derived classes
       const settingsDoc = makeGuestSettingsDoc([COVERED_CLASS_PERMISSION])
       let nextCalled = false
@@ -268,7 +269,7 @@ describe('GuestPermissionsMiddleware', () => {
       // Simulate TxAccessLevel mixin via hierarchy mock on the middleware context
       ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => {
         if (_class === UNCOVERED_CLASS) {
-          return { createAccessLevel: AccountRole.Guest }
+          return { createAccessLevel: AccountRole.ReadOnlyGuest }
         }
         return undefined
       }
@@ -281,6 +282,60 @@ describe('GuestPermissionsMiddleware', () => {
       const ctx = makeCtx(makeAccount(AccountRole.Guest))
       await mw.tx(ctx, [tx])
       expect(nextCalled).toBe(true)
+    })
+
+    it('allows Guest update and remove when the required access level is ReadOnlyGuest', async () => {
+      let nextCallCount = 0
+      const mw = makeMiddleware(
+        async () => [],
+        async () => {
+          nextCallCount++
+          return {}
+        }
+      )
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => {
+        if (_class === UNCOVERED_CLASS) {
+          return {
+            updateAccessLevel: AccountRole.ReadOnlyGuest,
+            removeAccessLevel: AccountRole.ReadOnlyGuest
+          }
+        }
+        return undefined
+      }
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
+        if (b === core.class.Space) return false
+        return a === b
+      }
+
+      const factory = new TxFactory('test:account:System' as PersonId)
+      const objectId = generateId()
+      const updateTx = factory.createTxUpdateDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId, {})
+      const removeTx = factory.createTxRemoveDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId)
+      const ctx = makeCtx(makeAccount(AccountRole.Guest))
+
+      await mw.tx(ctx, [updateTx])
+      await mw.tx(ctx, [removeTx])
+
+      expect(nextCallCount).toBe(2)
+    })
+
+    it('forbids Guest create when TxAccessLevel requires User', async () => {
+      const mw = makeMiddleware(async () => [])
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any, _mixin: any) => {
+        if (_class === UNCOVERED_CLASS) {
+          return { createAccessLevel: AccountRole.User }
+        }
+        return undefined
+      }
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
+        if (b === core.class.Space) return false
+        return a === b
+      }
+
+      const tx = makeCreateTx(UNCOVERED_CLASS, ALLOWED_SPACE)
+      const ctx = makeCtx(makeAccount(AccountRole.Guest))
+
+      await expect(mw.tx(ctx, [tx])).rejects.toThrow()
     })
   })
 
@@ -378,7 +433,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: GUEST_SOCIAL,
               createdBy: GUEST_SOCIAL
-            } as any
+            }
           ]
         }
         return []
@@ -407,7 +462,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: GUEST_SOCIAL,
               createdBy: GUEST_SOCIAL
-            } as any
+            }
           ]
         }
         return []
@@ -437,7 +492,7 @@ describe('GuestPermissionsMiddleware', () => {
               modifiedOn: Date.now(),
               modifiedBy: otherSocial,
               createdBy: otherSocial
-            } as any
+            }
           ]
         }
         return []
@@ -447,6 +502,101 @@ describe('GuestPermissionsMiddleware', () => {
       const factory = new TxFactory(GUEST_SOCIAL)
       const tx = factory.createTxUpdateDoc(UNCOVERED_CLASS, ALLOWED_SPACE, objectId, { name: 'x' } as any)
       await expect(mw.tx(makeCtx(makeGuestAccountWithSocial()), [tx])).rejects.toThrow()
+    })
+  })
+
+  // ─── Owner access via TxAccessLevel.ownerAttribute ──────────────────────────
+  describe('owner access (TxAccessLevel.ownerAttribute)', () => {
+    const OWNED_CLASS = 'test:class:OwnedClass' as Ref<Class<Doc>>
+    const SYSTEM_SOCIAL = 'test:account:System' as PersonId
+
+    function setup (
+      owner: string,
+      docSpace: Ref<Space> = ALLOWED_SPACE
+    ): {
+      mw: GuestPermissionsMiddleware
+      objectId: Ref<Doc>
+      nextCalls: () => number
+    } {
+      const objectId = generateId<Doc>()
+      let calls = 0
+      const findAll: FindAllFn = async (_ctx, _class, query: any) => {
+        if (_class === OWNED_CLASS && query?._id === objectId) {
+          return [
+            {
+              _id: objectId,
+              _class: OWNED_CLASS,
+              space: docSpace,
+              modifiedOn: Date.now(),
+              modifiedBy: SYSTEM_SOCIAL,
+              createdBy: SYSTEM_SOCIAL,
+              user: owner
+            } as any
+          ]
+        }
+        return []
+      }
+      const mw = makeMiddleware(findAll, async () => {
+        calls++
+        return {}
+      })
+      ;(mw as any).context.hierarchy.classHierarchyMixin = (_class: any) =>
+        _class === OWNED_CLASS
+          ? { ownerAttribute: 'user', ownerUpdateAttributes: ['isViewed', 'archived'], ownerRemove: true }
+          : undefined
+      ;(mw as any).context.hierarchy.isDerived = (a: any, b: any) => {
+        if (b === core.class.Space) return false
+        return a === b
+      }
+      return { mw, objectId, nextCalls: () => calls }
+    }
+
+    it('allows the owner to mark a system-created document as viewed and archived', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId, nextCalls } = setup(account.uuid)
+      const factory = new TxFactory(account.primarySocialId)
+      await mw.tx(makeCtx(account), [
+        factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, { isViewed: true } as any)
+      ])
+      await mw.tx(makeCtx(account), [
+        factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, { archived: true, isViewed: true } as any)
+      ])
+      expect(nextCalls()).toBe(2)
+    })
+
+    it('allows the owner to remove the document', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId, nextCalls } = setup(account.uuid)
+      const factory = new TxFactory(account.primarySocialId)
+      await mw.tx(makeCtx(account), [factory.createTxRemoveDoc(OWNED_CLASS, ALLOWED_SPACE, objectId)])
+      expect(nextCalls()).toBe(1)
+    })
+
+    it('forbids updating attributes outside ownerUpdateAttributes', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId } = setup(account.uuid)
+      const factory = new TxFactory(account.primarySocialId)
+      const tx = factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, {
+        isViewed: true,
+        user: 'someone-else'
+      } as any)
+      await expect(mw.tx(makeCtx(account), [tx])).rejects.toThrow()
+    })
+
+    it('forbids updating a document owned by another account', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId } = setup('other-account')
+      const factory = new TxFactory(account.primarySocialId)
+      const tx = factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, { isViewed: true } as any)
+      await expect(mw.tx(makeCtx(account), [tx])).rejects.toThrow()
+    })
+
+    it('forbids the tx when its space does not match the document space', async () => {
+      const account = makeAccount(AccountRole.Guest)
+      const { mw, objectId } = setup(account.uuid, FORBIDDEN_SPACE)
+      const factory = new TxFactory(account.primarySocialId)
+      const tx = factory.createTxUpdateDoc(OWNED_CLASS, ALLOWED_SPACE, objectId, { isViewed: true } as any)
+      await expect(mw.tx(makeCtx(account), [tx])).rejects.toThrow()
     })
   })
 

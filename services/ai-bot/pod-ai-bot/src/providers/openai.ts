@@ -124,7 +124,7 @@ function toFunctionTool (tool: LLMToolDefinition): FunctionTool {
     type: 'function',
     name: tool.name,
     description: tool.description,
-    parameters: tool.parameters,
+    parameters: tool.inputSchema as unknown as Record<string, unknown>,
     strict: null
   }
 }
@@ -177,7 +177,7 @@ function toResponseInputItems (message: ChatMessage): ResponseInputItem[] {
   return [
     {
       type: 'message',
-      role: role as 'user' | 'assistant' | 'system',
+      role,
       content: [{ type: 'input_text', text: content }, ...inputFiles]
     } satisfies EasyInputMessage
   ]

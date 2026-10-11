@@ -381,7 +381,7 @@
           width: 20,
           height: 20,
           marginX: 8,
-          className: 'tiptap-left-menu',
+          className: 'tiptap-left-menu no-print',
           icon: view.icon.Add,
           iconProps: {
             className: 'svg-tiny',
@@ -498,7 +498,7 @@
   style="display: none"
   on:change={fileSelected}
 />
-<div class="editorPopupContainer" bind:this={editorPopupContainer}></div>
+<div class="editorPopupContainer no-print" bind:this={editorPopupContainer}></div>
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div

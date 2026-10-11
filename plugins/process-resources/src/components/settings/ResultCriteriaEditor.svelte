@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,7 +16,13 @@
 
 <script lang="ts">
   import presentation, { getClient } from '@hcengineering/presentation'
-  import { ContextId, parseContext, Process, SelectedExecutionContext, UserResult } from '@hcengineering/process'
+  import processPlugin, {
+    ContextId,
+    parseContext,
+    Process,
+    SelectedExecutionContext,
+    UserResult
+  } from '@hcengineering/process'
   import { Button, eventToHTMLElement, SelectPopup, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import ContextCriteria from '../criterias/ContextCriteria.svelte'
@@ -29,11 +36,13 @@
   const dispatch = createEventDispatcher()
 
   let results: UserResult[] = []
+  let completeAll = false
 
   let keys = Object.keys(result) as ContextId[]
 
   function getResults (_id: string | undefined): void {
     results = []
+    completeAll = false
     if (_id == null) return
     const ctx = parseContext(_id)
     if (ctx?.type !== 'context') return
@@ -41,7 +50,9 @@
     if (context === undefined) return
     const transition = client.getModel().findObject(context.producer)
     if (transition == null) return
-    results = transition.actions.find((a) => a._id === context.action)?.results ?? []
+    const action = transition.actions.find((a) => a._id === context.action)
+    completeAll = action?.methodId === processPlugin.method.CreateToDo && action.params.completionMode === 'all'
+    results = completeAll ? [] : (action?.results ?? [])
   }
 
   $: getResults(value)
@@ -84,7 +95,7 @@
   }
 </script>
 
-{#each keys as key}
+{#each completeAll ? [] : keys as key}
   <ContextCriteria
     {process}
     value={result[key]}

@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,6 +13,7 @@
 // limitations under the License.
 
 import cardPlugin, { type Card } from '@hcengineering/card'
+import { permissionsStore } from '@hcengineering/contact-resources'
 import core, {
   generateId,
   getCurrentAccount,
@@ -20,6 +22,8 @@ import core, {
   TxProcessor,
   type Client,
   type Doc,
+  type Ref,
+  type Space,
   type Tx,
   type TxApplyIf,
   type TxCreateDoc,
@@ -28,9 +32,11 @@ import core, {
   type TxResult,
   type TxUpdateDoc
 } from '@hcengineering/core'
-import { translate } from '@hcengineering/platform'
+import { getMetadata, translate } from '@hcengineering/platform'
 import { BasePresentationMiddleware, type PresentationMiddleware } from '@hcengineering/presentation'
-import { ExecutionStatus, isUpdateTx, type ApproveRequest, type ProcessToDo } from '@hcengineering/process'
+import { ExecutionStatus, type ApproveRequest, type ProcessCustomEvent, type ProcessToDo } from '@hcengineering/process'
+import { getPermissions } from '@hcengineering/view-resources'
+import { get } from 'svelte/store'
 import process from './plugin'
 import { createExecution, getNextStateUserInput, pickTransition, requestResult } from './utils'
 
@@ -55,6 +61,12 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
   }
 
   private readonly txFactory = new TxOperations(this.client, getCurrentAccount().primarySocialId).txFactory
+
+  private canCreateExecution (space: Ref<Space>): boolean {
+    if (!getPermissions().canCreate(process.class.Execution, space)) return false
+    const arePermissionsDisabled = getMetadata(core.metadata.DisablePermissions) ?? false
+    return arePermissionsDisabled || !get(permissionsStore).ps[space]?.has(process.permission.ForbidRunProcess)
+  }
 
   async tx (tx: Tx): Promise<TxResult> {
     const preTx: Array<TxCUD<Doc>> = []
@@ -89,8 +101,55 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
       await this.handleCardCreate(postTx, etx)
       await this.handleCardUpdate(preTx, etx)
       await this.handleTagAdd(postTx, etx)
+      await this.handleCustomEvent(preTx, etx)
       await this.handleToDoDone(preTx, etx)
       await this.handleApproveRequest(preTx, etx)
+    }
+  }
+
+  private async handleCustomEvent (preTx: Array<TxCUD<Doc>>, etx: Tx): Promise<void> {
+    if (etx._class !== core.class.TxCreateDoc) return
+    const createTx = etx as TxCreateDoc<ProcessCustomEvent>
+    if (createTx.objectClass !== process.class.ProcessCustomEvent) return
+
+    const event = TxProcessor.createDoc2Doc(createTx)
+    const execution = await this.client.findOne(process.class.Execution, {
+      _id: event.execution,
+      status: ExecutionStatus.Active
+    })
+    if (execution === undefined) return
+
+    const transitions = this.client.getModel().findAllSync(
+      process.class.Transition,
+      {
+        process: execution.process,
+        from: execution.currentState,
+        trigger: process.trigger.OnEvent
+      },
+      { sort: { rank: SortingOrder.Ascending } }
+    )
+    if (transitions.length === 0) return
+
+    const userInput = await this.client.findOne(process.class.EventButton, {
+      execution: execution._id,
+      card: event.card,
+      eventType: event.eventType
+    })
+    const inputContext: Record<string, unknown> = {
+      ...execution.context,
+      eventType: event.eventType,
+      userInput
+    }
+    const transition = await pickTransition(this.client, execution, transitions, inputContext)
+    if (transition === undefined) return
+
+    const result = await getNextStateUserInput(execution, transition, execution.context, inputContext)
+    if (result?.changed === true) {
+      preTx.push(
+        this.txFactory.createTxUpdateDoc(execution._class, execution.space, execution._id, {
+          context: result.context
+        })
+      )
     }
   }
 
@@ -108,9 +167,17 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
         _id: updateTx.objectId
       })
       if (card === undefined) return
-      const updated = isUpdateTx(updateTx)
-        ? TxProcessor.updateDoc2Doc<Card>(hierarchy.clone(card), updateTx)
-        : TxProcessor.updateMixin4Doc<Card, Card>(hierarchy.clone(card), updateTx)
+      let updated: Card
+      let operations: TxUpdateDoc<Card>['operations'] | TxMixin<Card, Card>['attributes']
+      if (etx._class === core.class.TxUpdateDoc) {
+        const documentUpdateTx = etx as TxUpdateDoc<Card>
+        updated = TxProcessor.updateDoc2Doc<Card>(hierarchy.clone(card), documentUpdateTx)
+        operations = documentUpdateTx.operations
+      } else {
+        const mixinUpdateTx = etx as TxMixin<Card, Card>
+        updated = TxProcessor.updateMixin4Doc<Card, Card>(hierarchy.clone(card), mixinUpdateTx)
+        operations = mixinUpdateTx.attributes
+      }
       for (const execution of executions) {
         const transitions = this.client.getModel().findAllSync(
           process.class.Transition,
@@ -125,7 +192,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
         const inputContext = {
           ...execution.context,
           card: updated,
-          operations: isUpdateTx(updateTx) ? updateTx.operations : updateTx.attributes
+          operations
         }
         const transition = await pickTransition(this.client, execution, transitions, inputContext)
         if (transition === undefined) continue
@@ -148,8 +215,9 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
       const hierarchy = this.client.getHierarchy()
       if (!hierarchy.isDerived(createTx.objectClass, cardPlugin.class.Card)) return
 
-      // We don't need to start new processes for new version
+      // New-version processes are created by the server trigger to avoid duplicate executions.
       if (doc.baseId !== undefined && doc.baseId !== doc._id) return
+      if (!this.canCreateExecution(createTx.objectSpace)) return
 
       const ancestors = hierarchy
         .getAncestors(createTx.objectClass)
@@ -160,6 +228,12 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
         autoStart: true
       })
       for (const proc of processes) {
+        const initTransition = this.client.getModel().findAllSync(process.class.Transition, {
+          process: proc._id,
+          from: null,
+          trigger: process.trigger.OnExecutionStart
+        })[0]
+        if (initTransition === undefined) continue
         const res = await createExecution(createTx.objectId, proc._id, createTx.objectSpace, this.txFactory)
         if (res !== undefined) postTx.push(res)
       }
@@ -172,11 +246,18 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
     const hierarchy = this.client.getHierarchy()
     if (!hierarchy.isDerived(mixinTx.objectClass, cardPlugin.class.Card)) return
     if (Object.keys(mixinTx.attributes).length !== 0) return
+    if (!this.canCreateExecution(mixinTx.objectSpace)) return
 
     const processes = this.client
       .getModel()
       .findAllSync(process.class.Process, { masterTag: mixinTx.mixin, autoStart: true })
     for (const proc of processes) {
+      const initTransition = this.client.getModel().findAllSync(process.class.Transition, {
+        process: proc._id,
+        from: null,
+        trigger: process.trigger.OnExecutionStart
+      })[0]
+      if (initTransition === undefined) continue
       const res = await createExecution(mixinTx.objectId, proc._id, mixinTx.objectSpace, this.txFactory)
       if (res !== undefined) postTx.push(res)
     }
@@ -238,15 +319,14 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
       })
       if (execution === undefined) return
 
-      let results = todo.results ?? []
+      let results = todo.completionMode === 'all' ? [] : (todo.results ?? [])
       if (results.length > 0) {
         results = await Promise.all(
           results.map(async (r) => {
             if (r.key !== undefined) {
-              const h = this.client.getHierarchy()
               const _process = this.client.getModel().findObject(execution.process)
               if (_process !== undefined) {
-                const attr = h.findAttribute(_process.masterTag, r.key)
+                const attr = this.client.getModel().findAllSync(core.class.Attribute, { name: r.key })[0]
                 if (attr?.label !== undefined) {
                   const name = await translate(attr.label, {})
                   return { ...r, name }
@@ -258,7 +338,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
         )
       }
 
-      const context = await requestResult(execution, results, execution.context)
+      const context = await requestResult(execution, results, execution.context, todo.description)
 
       const transitions = this.client.getModel().findAllSync(process.class.Transition, {
         process: execution.process,

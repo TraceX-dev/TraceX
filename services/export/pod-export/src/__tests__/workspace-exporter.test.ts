@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -202,7 +203,7 @@ function createMockTxOperations (
     createDoc: jest.fn(
       async <T extends Doc>(classRef: Ref<Class<T>>, space: Ref<Space>, data: any, id?: Ref<T>): Promise<Ref<T>> => {
         const docId = id ?? generateId<T>()
-        createdDocs.push({ _id: docId, _class: classRef, space, ...data } as unknown as Doc)
+        createdDocs.push({ _id: docId, _class: classRef, space, ...data })
         return docId
       }
     ),
@@ -225,7 +226,7 @@ function createMockTxOperations (
           attachedToClass,
           collection,
           ...data
-        } as unknown as Doc)
+        })
         return docId
       }
     ),
@@ -259,7 +260,7 @@ function createMockStorageAdapter (): StorageAdapter {
   return adapter as StorageAdapter
 }
 
-// Use realistic hex IDs that look like MongoDB ObjectIds
+// Use realistic hex IDs that look like legacy document IDs
 const SOURCE_SPACE_ID = '69286daacb49b698d3ea2c51' as Ref<Space>
 const SOURCE_DOC_1 = '69286dc0cb49b698d3ea2c95' as Ref<Doc>
 const SOURCE_DOC_2 = '69286dc1cb49b698d3ea2c98' as Ref<Doc>
@@ -541,6 +542,149 @@ describe('CrossWorkspaceExporter', () => {
         expect(attachedToArg).not.toBe(SOURCE_DOC_1)
       }
     })
+
+    it('should NOT export child collection documents when includeChildren is false', async () => {
+      const sourceSpace = createMockSpace(SOURCE_SPACE_ID, 'Test Space')
+      const parentDoc = createMockDoc(SOURCE_DOC_1, mockDocClass, SOURCE_SPACE_ID)
+      const attachedDoc = createMockAttachedDoc(
+        SOURCE_ATTACHED_1,
+        mockAttachedDocClass,
+        SOURCE_SPACE_ID,
+        SOURCE_DOC_1,
+        mockDocClass,
+        'children',
+        { title: 'Attached Doc' }
+      )
+
+      const hierarchy = createMockHierarchy({
+        domains: new Map([
+          [mockDocClass, 'test_domain'],
+          [mockAttachedDocClass, 'test_domain'],
+          [core.class.Space, 'space_domain']
+        ]),
+        isDerived: new Map([[mockAttachedDocClass, true]]),
+        attributes: new Map([
+          [
+            mockDocClass,
+            new Map([['children', { type: { _class: core.class.Collection, of: mockAttachedDocClass } }]])
+          ],
+          [
+            mockAttachedDocClass,
+            new Map([
+              ['attachedTo', { type: { _class: core.class.RefTo } }],
+              ['attachedToClass', { type: { _class: 'core:class:TypeString' as Ref<Class<Doc>> } }],
+              ['collection', { type: { _class: 'core:class:TypeString' as Ref<Class<Doc>> } }]
+            ])
+          ]
+        ])
+      })
+
+      const lowLevelStorage = createMockLowLevelStorage(
+        new Map([
+          ['test_domain', [parentDoc, attachedDoc]],
+          ['space_domain', [sourceSpace]]
+        ])
+      )
+
+      const targetClient = createMockTxOperations([], [], hierarchy)
+      const pipelineFactory = createMockPipelineFactory(hierarchy, lowLevelStorage)
+
+      const exporter = new CrossWorkspaceExporter(
+        mockContext,
+        pipelineFactory,
+        targetClient,
+        mockStorage,
+        undefined,
+        createWorkspaceIds('source-ws'),
+        createWorkspaceIds('target-ws')
+      )
+
+      // Query the parent class only — and explicitly opt OUT of child export.
+      const result = await exporter.export({
+        sourceWorkspace: createWorkspaceIds('source-ws'),
+        targetWorkspace: createWorkspaceIds('target-ws'),
+        sourceQuery: { _id: SOURCE_DOC_1 },
+        _class: mockDocClass,
+        includeChildren: false
+      })
+
+      expect(result.success).toBe(true)
+      // The parent doc must be created via createDoc, but the attached collection
+      // item must NOT go through addCollection because includeChildren is false.
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect((targetClient.addCollection as jest.Mock).mock.calls.length).toBe(0)
+    })
+
+    it('should export child collection documents when includeChildren is true', async () => {
+      const sourceSpace = createMockSpace(SOURCE_SPACE_ID, 'Test Space')
+      const parentDoc = createMockDoc(SOURCE_DOC_1, mockDocClass, SOURCE_SPACE_ID)
+      const attachedDoc = createMockAttachedDoc(
+        SOURCE_ATTACHED_1,
+        mockAttachedDocClass,
+        SOURCE_SPACE_ID,
+        SOURCE_DOC_1,
+        mockDocClass,
+        'children',
+        { title: 'Attached Doc' }
+      )
+
+      const hierarchy = createMockHierarchy({
+        domains: new Map([
+          [mockDocClass, 'test_domain'],
+          [mockAttachedDocClass, 'test_domain'],
+          [core.class.Space, 'space_domain']
+        ]),
+        isDerived: new Map([[mockAttachedDocClass, true]]),
+        attributes: new Map([
+          [
+            mockDocClass,
+            new Map([['children', { type: { _class: core.class.Collection, of: mockAttachedDocClass } }]])
+          ],
+          [
+            mockAttachedDocClass,
+            new Map([
+              ['attachedTo', { type: { _class: core.class.RefTo } }],
+              ['attachedToClass', { type: { _class: 'core:class:TypeString' as Ref<Class<Doc>> } }],
+              ['collection', { type: { _class: 'core:class:TypeString' as Ref<Class<Doc>> } }]
+            ])
+          ]
+        ])
+      })
+
+      const lowLevelStorage = createMockLowLevelStorage(
+        new Map([
+          ['test_domain', [parentDoc, attachedDoc]],
+          ['space_domain', [sourceSpace]]
+        ])
+      )
+
+      const targetClient = createMockTxOperations([], [], hierarchy)
+      const pipelineFactory = createMockPipelineFactory(hierarchy, lowLevelStorage)
+
+      const exporter = new CrossWorkspaceExporter(
+        mockContext,
+        pipelineFactory,
+        targetClient,
+        mockStorage,
+        undefined,
+        createWorkspaceIds('source-ws'),
+        createWorkspaceIds('target-ws')
+      )
+
+      // Query the parent class only — and opt IN to recursive child export.
+      const result = await exporter.export({
+        sourceWorkspace: createWorkspaceIds('source-ws'),
+        targetWorkspace: createWorkspaceIds('target-ws'),
+        sourceQuery: { _id: SOURCE_DOC_1 },
+        _class: mockDocClass,
+        includeChildren: true
+      })
+
+      expect(result.success).toBe(true)
+      // With the flag on, the attached collection item must be created via addCollection.
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect((targetClient.addCollection as jest.Mock).mock.calls.length).toBeGreaterThan(0)
+    })
   })
 
   describe('Forward Relations', () => {
@@ -595,7 +739,7 @@ describe('CrossWorkspaceExporter', () => {
       const result = await exporter.export({
         sourceWorkspace: createWorkspaceIds('source-ws'),
         targetWorkspace: createWorkspaceIds('target-ws'),
-        sourceQuery: { _id: SOURCE_DOC_2 as any },
+        sourceQuery: { _id: SOURCE_DOC_2 },
         _class: mockDocClass,
         relations
       })
@@ -848,7 +992,7 @@ describe('CrossWorkspaceExporter', () => {
 
   describe('ID Remapping', () => {
     it('should remap reference fields to new IDs', async () => {
-      // Use realistic hex IDs like MongoDB ObjectIds
+      // Use realistic hex IDs like legacy document IDs
       const sourceSpaceId = '69286daacb49b698d3ea2c51' as Ref<Space>
       const sourceSpace = createMockSpace(sourceSpaceId, 'Test Space')
       const refDoc = createMockDoc('69286dc0cb49b698d3ea2c95', mockDocClass, sourceSpaceId)

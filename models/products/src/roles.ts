@@ -37,7 +37,10 @@ export const roles = [
       documents.permission.CreateDocument,
       documents.permission.ReviewDocument,
       documents.permission.ApproveDocument,
-      documents.permission.CoAuthorDocument
+      documents.permission.CoAuthorDocument,
+      documents.permission.CreateDocumentCategory,
+      documents.permission.UpdateDocumentCategory,
+      documents.permission.DeleteDocumentCategory
     ]
   },
   {
@@ -50,6 +53,9 @@ export const roles = [
       documents.permission.ReviewDocument,
       documents.permission.ApproveDocument,
       documents.permission.CoAuthorDocument,
+      documents.permission.CreateDocumentCategory,
+      documents.permission.UpdateDocumentCategory,
+      documents.permission.DeleteDocumentCategory,
       documents.permission.ArchiveDocument,
       documents.permission.UpdateDocumentOwner
     ]

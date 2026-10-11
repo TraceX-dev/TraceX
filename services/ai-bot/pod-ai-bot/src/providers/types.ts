@@ -15,6 +15,7 @@
 //
 
 import { type Class, type Doc, type Ref, type Space, type MeasureContext } from '@hcengineering/core'
+import { type ToolInputSchema, type ToolOutputSchema } from '@hcengineering/ai-core'
 
 export type ContextMode = 'direct' | 'thread'
 
@@ -70,10 +71,11 @@ export interface ChatCompletionOptions {
   maxTokens?: number
 }
 
-export interface LLMToolDefinition {
+export interface LLMToolDefinition<TOutputSchema extends ToolOutputSchema | undefined = ToolOutputSchema | undefined> {
   name: string
   description: string
-  parameters: Record<string, any>
+  inputSchema: ToolInputSchema
+  outputSchema?: TOutputSchema
 }
 
 export interface LLMProvider {

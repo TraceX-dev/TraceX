@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -36,6 +37,7 @@
   export let emptyLabel: IntlString | undefined = undefined
   export let allowGuests: boolean = false
   export let attributeKey: string | undefined = undefined
+  export let dataId: string | undefined = undefined
 
   $: accounts = typeof value === 'string' ? [value] : (value ?? [])
 
@@ -155,5 +157,6 @@
   justify={'left'}
   width={width ?? 'min-content'}
   {kind}
+  {dataId}
   create={allowGuests ? { component: contact.component.CreateGuest, label: contact.string.AddGuest } : undefined}
 />

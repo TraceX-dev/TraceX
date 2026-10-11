@@ -5,7 +5,6 @@ Front service is suited to deliver application bundles and resource assets, it a
 ## Configuration
 
 * SERVER_PORT: Specifies the port number on which the server will listen.
-* MONGO_URL: Specifies the URL of the MongoDB database.
 * ACCOUNTS_URL: Specifies the URL of the accounts service.
 * UPLOAD_URL: Specifies the URL for uploading files.
 * GMAIL_URL: Specifies the URL of the Gmail service.

@@ -1,0 +1,136 @@
+name: Create production release
+
+# Manually triggered workflow: promotes staging-new into main, tags the
+# result as the next vX.Y.Z production version, and feeds the existing
+# release pipeline in main.yml. It does not deploy anything by itself.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Which part of v<major>.<minor>.<patch> to increment'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      update_changelog:
+        description: 'Generate changelog.md with git-cliff before tagging'
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Compute the next tag and merge locally, but do not push anything'
+        type: boolean
+        default: false
+
+permissions:
+  # Push happens over the SSH deploy key, not GITHUB_TOKEN — read is enough.
+  contents: read
+
+# Only one production release may run at a time, and never cancel one mid-push.
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          filter: tree:0
+          # A GITHUB_TOKEN push cannot trigger main.yml. The deploy key makes
+          # the branch/tag push an ordinary external push instead.
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch staging-new
+        run: git fetch origin staging-new --tags
+
+      - name: Merge staging-new into main
+        run: |
+          set -euo pipefail
+          if ! git merge --no-edit origin/staging-new; then
+            echo "::error::Merge conflict while merging origin/staging-new into main. Resolve it manually and re-run."
+            git merge --abort
+            exit 1
+          fi
+
+      - name: Compute next production tag
+        id: version
+        run: |
+          set -euo pipefail
+
+          # Only consider well-formed vMAJOR.MINOR.PATCH tags.
+          LATEST=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
+
+          if [ -z "$LATEST" ]; then
+            MAJOR=0; MINOR=0; PATCH=0
+          else
+            VERSION=${LATEST#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          fi
+
+          case "${{ inputs.bump }}" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            *)     PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEXT="v${MAJOR}.${MINOR}.${PATCH}"
+          if git rev-parse -q --verify "refs/tags/$NEXT" >/dev/null; then
+            echo "::error::Tag $NEXT already exists."
+            exit 1
+          fi
+
+          echo "Previous tag: ${LATEST:-none}"
+          echo "Next tag:     $NEXT"
+          echo "tag=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "previous=${LATEST:-none}" >> "$GITHUB_OUTPUT"
+
+      - name: Install git-cliff
+        if: ${{ inputs.update_changelog == true }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Update changelog
+        if: ${{ inputs.update_changelog == true }}
+        run: |
+          set -euo pipefail
+          git-cliff --tag "${{ steps.version.outputs.tag }}" -o ./changelog.md
+          git add changelog.md
+          if git diff --cached --quiet; then
+            echo "Changelog is already up to date."
+          else
+            git commit -m "chore(release): update changelog"
+          fi
+
+      - name: Create production tag
+        run: git tag -a "${{ steps.version.outputs.tag }}" -m "Production release ${{ steps.version.outputs.tag }}"
+
+      - name: Push main and production tag
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          set -euo pipefail
+          git push origin main
+          git push origin "refs/tags/${{ steps.version.outputs.tag }}"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Production release"
+            echo "- Previous tag: \`${{ steps.version.outputs.previous }}\`"
+            echo "- New tag: \`${{ steps.version.outputs.tag }}\`"
+            echo "- Changelog updated: \`${{ inputs.update_changelog }}\`"
+            echo "- Dry run: \`${{ inputs.dry_run }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Api as CommunicationApi } from '@hcengineering/communication-server'
 import contact, { type Person, type SocialIdentity } from '@hcengineering/contact'
 import core, {
   type AccountUuid,
@@ -77,8 +76,6 @@ export class RatingCalculator {
 
   operations: number = 0
   closing: boolean = false
-
-  communicationApi: CommunicationApi | undefined
 
   modifiedPersons = new Map<AccountUuid, PersonRating>()
 
@@ -174,13 +171,6 @@ export class RatingCalculator {
     if (defaultAdapter === undefined) {
       throw new PlatformError(unknownError('Default adapter should be set'))
     }
-    if (process.env.COMMUNICATION_API_ENABLED === 'true') {
-      result.communicationApi = await CommunicationApi.create(ctx, workspace.uuid, dbURL, {
-        broadcast: () => {},
-        enqueue: () => {},
-        registerAsyncRequest: () => {}
-      })
-    }
 
     // Initialize a workspace socialId -> accountUuid map
     if (result.pipeline.context.lowLevelStorage === undefined) {
@@ -237,7 +227,7 @@ export class RatingCalculator {
       const newState: MigrationState = {
         _id: generateId(),
         _class: core.class.MigrationState,
-        plugin: ratingId as string,
+        plugin: ratingId,
         state: 'v1',
         modifiedOn: Date.now(),
         modifiedBy: systemAccount.primarySocialId,
@@ -595,7 +585,7 @@ export class RatingCalculator {
           }
         )
         for (const p of parents) {
-          parentCache.set(p._id as Ref<Doc>, p)
+          parentCache.set(p._id, p)
           if (p.createdBy != null) {
             personIds.add(p.createdBy)
           }
@@ -623,7 +613,7 @@ export class RatingCalculator {
         }
         case core.class.TxRemoveDoc: {
           this.updatePersonStats(sysRating, tx.createdOn ?? tx.modifiedOn, 'delete', tx.objectClass)
-          await this.handleRatingDelete(ctx, tx as TxRemoveDoc<Doc>, txAuthors)
+          await this.handleRatingDelete(ctx, tx, txAuthors)
           break
         }
       }
@@ -675,12 +665,12 @@ export class RatingCalculator {
   }
 
   notifications = new Map<
-  AccountUuid,
-  {
-    oldRating: number
-    newRating: number
-    person: PersonRating
-  }
+    AccountUuid,
+    {
+      oldRating: number
+      newRating: number
+      person: PersonRating
+    }
   >()
 
   private async flushUpdates (
@@ -835,7 +825,6 @@ export class RatingCalculator {
     if (this.operations === 0) {
       try {
         await this.pipeline.close()
-        await this.communicationApi?.close()
       } catch (err: any) {
         console.error('error during closing', { err })
       }

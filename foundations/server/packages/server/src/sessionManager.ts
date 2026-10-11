@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,6 +27,7 @@ import core, {
   type BrandingMap,
   cutObjectArray,
   type Data,
+  docGuestAccountUuid,
   generateId,
   isArchivingMode,
   isMigrationMode,
@@ -93,8 +95,6 @@ import { Workspace } from './workspace'
 const ticksPerSecond = 20
 const workspaceSoftShutdownTicks = 15 * ticksPerSecond
 
-const guestAccount = 'b6996120-416f-49cd-841e-e4a5d2e49c9b'
-
 const hangRequestTimeoutSeconds = 30
 const hangSessionTimeoutSeconds = 60
 
@@ -126,8 +126,6 @@ export class TSessionManager implements SessionManager {
   usersProducer: PlatformQueueProducer<QueueUserMessage>
   workspaceConsumer: ConsumerHandle
 
-  now: number = Date.now()
-
   ticksContext: MeasureContext
 
   hungSessionsWarnPercent = parseInt(process.env.HUNG_SESSIONS_WARN_PERCENT ?? '25')
@@ -140,11 +138,11 @@ export class TSessionManager implements SessionManager {
     readonly timeouts: Timeouts,
     readonly brandingMap: BrandingMap,
     readonly profiling:
-    | {
-      start: () => void
-      stop: () => Promise<string | undefined>
-    }
-    | undefined,
+      | {
+          start: () => void
+          stop: () => Promise<string | undefined>
+        }
+      | undefined,
     readonly accountsUrl: string,
     readonly enableCompression: boolean,
     readonly doHandleTick: boolean = true,
@@ -249,7 +247,7 @@ export class TSessionManager implements SessionManager {
         sys++
       } else {
         user++
-        if (s.session.getUser() === guestAccount || s.session.getUser() === readOnlyGuestAccountUuid) {
+        if (s.session.getUser() === docGuestAccountUuid || s.session.getUser() === readOnlyGuestAccountUuid) {
           anonymous++
         }
       }
@@ -258,7 +256,7 @@ export class TSessionManager implements SessionManager {
   }
 
   private handleWorkspaceTick (): void {
-    this.ctx.measure('sessions', this.sessions.size, true)
+    this.ctx.gauge('sessions', this.sessions.size)
 
     if (this.ticks % ticksPerSecond === 0) {
       // Let's update workspace statistics every 10 seconds
@@ -266,25 +264,38 @@ export class TSessionManager implements SessionManager {
 
       // Send extra counters and clear them to collect again
       for (const [c, v] of [...this.counters.entries()]) {
-        this.ctx.measure('_' + c, v, true)
+        this.ctx.gauge('_' + c, v)
       }
       this.counters.check()
     }
 
     if (this.ticks % (60 * ticksPerSecond) === 0) {
       const workspacesToUpdate: WorkspaceUuid[] = []
+      const accountsToUpdate = new Set<AccountUuid>()
 
       for (const [wsId, workspace] of this.workspaces.entries()) {
-        // update account lastVisit every minute per every workspace.
+        // Update workspace and account last visit every minute for active UI sessions.
+        let hasUserSession = false
         for (const val of workspace.sessions.values()) {
-          if (val.session.getUser() !== systemAccountUuid) {
-            workspacesToUpdate.push(wsId)
-            break
+          const account = val.session.getUser()
+          if (account !== systemAccountUuid) {
+            hasUserSession = true
+            if (account !== docGuestAccountUuid && account !== readOnlyGuestAccountUuid) {
+              accountsToUpdate.add(account)
+            }
           }
+        }
+        if (hasUserSession) {
+          workspacesToUpdate.push(wsId)
         }
       }
       if (workspacesToUpdate.length > 0) {
         void this.updateLastVisit(this.ctx, workspacesToUpdate).catch(() => {
+          // Ignore
+        })
+      }
+      if (accountsToUpdate.size > 0) {
+        void this.updateAccountsLastVisit(this.ctx, [...accountsToUpdate]).catch(() => {
           // Ignore
         })
       }
@@ -350,13 +361,13 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.measure('sessions-user', user, true)
-    this.ctx.measure('sessions-system', sys, true)
-    this.ctx.measure('sessions-anonymous', anonymous, true)
+    this.ctx.gauge('sessions-user', user)
+    this.ctx.gauge('sessions-system', sys)
+    this.ctx.gauge('sessions-anonymous', anonymous)
 
-    this.ctx.measure('workspaces', this.workspaces.size, true)
-    this.ctx.measure('workspaces-user', userWorkspaces, true)
-    this.ctx.measure('workspaces-systemonly', sysOnlyWorkspaces, true)
+    this.ctx.gauge('workspaces', this.workspaces.size)
+    this.ctx.gauge('workspaces-user', userWorkspaces)
+    this.ctx.gauge('workspaces-systemonly', sysOnlyWorkspaces)
   }
 
   private handleSessionTick (now: number): void {
@@ -418,7 +429,7 @@ export class TSessionManager implements SessionManager {
         primarySocialId = core.account.System
         role = AccountRole.Owner
         break
-      case guestAccount:
+      case docGuestAccountUuid:
         primarySocialId = '' as PersonId
         role = AccountRole.DocGuest
         break
@@ -463,6 +474,19 @@ export class TSessionManager implements SessionManager {
     try {
       const sysToken = generateToken(systemAccountUuid, undefined, { service: 'transactor' })
       await getAccountClient(this.accountsUrl, sysToken).updateLastVisit(workspaces)
+    } catch (err: any) {
+      if (err?.cause?.code === 'ECONNRESET' || err?.cause?.code === 'ECONNREFUSED') {
+        return undefined
+      }
+      throw err
+    }
+  }
+
+  @withContext('🧭 update-accounts-last-visit')
+  async updateAccountsLastVisit (ctx: MeasureContext, accounts: AccountUuid[]): Promise<void> {
+    try {
+      const sysToken = generateToken(systemAccountUuid, undefined, { service: 'transactor' })
+      await getAccountClient(this.accountsUrl, sysToken).updateAccountsLastVisit(accounts)
     } catch (err: any) {
       if (err?.cause?.code === 'ECONNRESET' || err?.cause?.code === 'ECONNREFUSED') {
         return undefined
@@ -535,7 +559,7 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.measure('sessions-hung', hungSessions, true)
+    this.ctx.gauge('sessions-hung', hungSessions)
 
     const hungSessionsPercent = totalSessions > 0 ? (100 * hungSessions) / totalSessions : 0
 
@@ -801,7 +825,7 @@ export class TSessionManager implements SessionManager {
           workspace.sessions.set(session.sessionId, { session, socket: ws, tickHash })
 
           const accountUuid = account.account
-          if (accountUuid !== systemAccountUuid && accountUuid !== guestAccount) {
+          if (accountUuid !== systemAccountUuid && accountUuid !== docGuestAccountUuid) {
             await this.usersProducer.send(ctx, workspace.wsId.uuid, [
               userEvents.login({
                 user: accountUuid,
@@ -1111,7 +1135,7 @@ export class TSessionManager implements SessionManager {
         user: sessionRef.session.getSocialIds().find((it) => it.type !== SocialIdType.HULY)?.value,
         binary: sessionRef.session.binaryMode,
         compression: sessionRef.session.useCompression,
-        totalTime: this.now - sessionRef.session.createTime,
+        totalTime: Date.now() - sessionRef.session.createTime,
         workspaceUsers: workspace?.sessions?.size,
         totalUsers: this.sessions.size
       })
@@ -1141,7 +1165,7 @@ export class TSessionManager implements SessionManager {
                   void workspace.with(async (pipeline) => {
                     await pipeline.closeSession(ctx, sessionRef.session.sessionId)
                     // await communicationApi.closeSession(sessionRef.session.sessionId)
-                    if (user !== guestAccount && user !== systemAccountUuid) {
+                    if (user !== docGuestAccountUuid && user !== systemAccountUuid) {
                       await this.trySetStatus(
                         workspace.context.newChild('status', {}),
                         pipeline,
@@ -1318,7 +1342,6 @@ export class TSessionManager implements SessionManager {
           id: reqId,
           result: msg,
           time: platformNowDiff(st),
-          bfst: this.now,
           queue: service.requests.size,
           rateLimit
         }),
@@ -1333,7 +1356,6 @@ export class TSessionManager implements SessionManager {
           error,
           time: platformNowDiff(st),
           rateLimit,
-          bfst: this.now,
           queue: service.requests.size
         })
     }
@@ -1349,17 +1371,17 @@ export class TSessionManager implements SessionManager {
       accontUuid: AccountUuid
       role: AccountRole
     }
-    > {
+  > {
     const ws = this.workspaces.get(workspace)
     if (ws === undefined) {
       return new Map()
     }
     const res = new Map<
-    PersonId,
-    {
-      accontUuid: AccountUuid
-      role: AccountRole
-    }
+      PersonId,
+      {
+        accontUuid: AccountUuid
+        role: AccountRole
+      }
     >()
     for (const s of [...Array.from(ws.sessions.values()).map((it) => it.session), ...extra]) {
       const sessionAccount = s.getUser()
@@ -1411,7 +1433,7 @@ export class TSessionManager implements SessionManager {
     try {
       if (request.time != null) {
         const delta = Date.now() - request.time
-        requestCtx.measure('msg-receive-delta', delta)
+        requestCtx.counter('msg-receive-delta', delta)
       }
       const workspace = this.workspaces.get(workspaceId)
       if (workspace === undefined || workspace.closing !== undefined) {
@@ -1676,7 +1698,7 @@ export class TSessionManager implements SessionManager {
         }
         await ws.send(ctx, helloResponse, false, false)
       })
-      if (account.uuid !== guestAccount && account.uuid !== systemAccountUuid) {
+      if (account.uuid !== docGuestAccountUuid && account.uuid !== systemAccountUuid) {
         void workspace.with(async (pipeline) => {
           // We do not need to wait for set-status, just return session to client
           await workspace.context
@@ -1695,11 +1717,11 @@ export function createSessionManager (
   brandingMap: BrandingMap,
   timeouts: Timeouts,
   profiling:
-  | {
-    start: () => void
-    stop: () => Promise<string | undefined>
-  }
-  | undefined,
+    | {
+        start: () => void
+        stop: () => Promise<string | undefined>
+      }
+    | undefined,
   accountsUrl: string,
   enableCompression: boolean,
   doHandleTick: boolean = true,

@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering, Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { type IntlString, type Plugin } from '@hcengineering/platform'
+import type { IntlString, Plugin } from '@hcengineering/platform'
 import { ClientConnectEvent, type DocChunk } from '..'
 import type { Class, Data, Doc, Domain, PluginConfiguration, Ref, Space, Timestamp } from '../classes'
 import { ClassifierKind, DOMAIN_MODEL } from '../classes'
@@ -47,6 +48,35 @@ function filterPlugin (plugin: Plugin): (txes: Tx[]) => Tx[] {
 }
 
 describe('client', () => {
+  it('closes an established connection when initial model loading fails', async () => {
+    const error = new Error('model unavailable')
+    const close = jest.fn().mockResolvedValue(undefined)
+    const connection = {
+      loadModel: jest.fn().mockRejectedValue(error),
+      close
+    } as unknown as ClientConnection
+    await expect(createClient(async () => connection)).rejects.toBe(error)
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes an established connection when model reconstruction fails', async () => {
+    const error = new Error('invalid model')
+    const close = jest.fn().mockResolvedValue(undefined)
+    const connection = {
+      loadModel: jest.fn().mockResolvedValue({ full: true, hash: 'hash', transactions: [] }),
+      close
+    } as unknown as ClientConnection
+    await expect(
+      createClient(
+        async () => connection,
+        () => {
+          throw error
+        }
+      )
+    ).rejects.toBe(error)
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
   it('should create client and spaces', async () => {
     const klass = core.class.Space
     const client = new TxOperations(await createClient(connect), core.account.System)
@@ -122,8 +152,7 @@ describe('client', () => {
         }
 
         get onConnect ():
-        | ((event: ClientConnectEvent, lastTx: string | undefined, data: any) => Promise<void>)
-        | undefined {
+          ((event: ClientConnectEvent, lastTx: string | undefined, data: any) => Promise<void>) | undefined {
           return this.handler
         }
 
@@ -135,9 +164,7 @@ describe('client', () => {
           return Promise.resolve({ domain: 'test' as Domain, value: null })
         }
 
-        searchFulltext = async (query: SearchQuery, options: SearchOptions): Promise<SearchResult> => {
-          return { docs: [] }
-        }
+        searchFulltext = async (query: SearchQuery, options: SearchOptions): Promise<SearchResult> => ({ docs: [] })
 
         tx = async (tx: Tx): Promise<TxResult> => {
           if (tx.objectSpace === core.space.Model) {
@@ -243,7 +270,7 @@ describe('client', () => {
     expect(result3[0]._id).toStrictEqual(txCreateDoc2.objectId)
     expect(spyCreate).toHaveBeenLastCalledWith(txCreateDoc2, false)
     expect(spyUpdate.mock.calls[1][1]).toStrictEqual(txUpdateDoc)
-    expect(spyUpdate).toBeCalledTimes(2)
+    expect(spyUpdate).toHaveBeenCalledTimes(2)
     await client3.close()
 
     spyCreate.mockReset()

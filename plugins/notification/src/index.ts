@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -44,11 +45,18 @@ import { PersonSpace } from '@hcengineering/contact'
 
 import { Readable, Writable } from './types'
 
-export * from './types'
+export type * from './types'
 
 export const DOMAIN_NOTIFICATION = 'notification' as Domain
 export const DOMAIN_DOC_NOTIFY = 'notification-dnc' as Domain
 export const DOMAIN_USER_NOTIFY = 'notification-user' as Domain
+
+/** @public */
+export interface InboxNotificationState {
+  notify: boolean
+  count?: number
+  isLoaded?: boolean
+}
 
 /**
  * @public
@@ -85,6 +93,12 @@ export interface PushSubscription extends Doc {
   user: AccountUuid
   endpoint: string
   keys: PushSubscriptionKeys
+  name?: string
+}
+
+export interface PushSubscriptionSetting extends Preference {
+  attachedTo: Ref<PushSubscription>
+  enabled: boolean
 }
 
 /**
@@ -154,7 +168,15 @@ export interface NotificationType extends Doc {
   spaceSubscribe?: boolean
   // when true notification will be created for user which trigger it (default - false)
   allowedForAuthor?: boolean
+  // how the email of this notification is laid out; derived from the notification data when omitted
+  emailKind?: NotificationEmailKind
 }
+
+/**
+ * Email layouts that can't be derived from the notification data and are set on the type.
+ * @public
+ */
+export type NotificationEmailKind = 'assignment' | 'coAuthor' | 'request'
 
 export interface NotificationProvider extends Doc {
   label: IntlString
@@ -304,6 +326,30 @@ export interface DocNotifyContext extends Doc<PersonSpace> {
 }
 
 /**
+ * A generic, domain-agnostic request to deliver an inbox notification to a set of users on demand.
+ *
+ * Created by any client (in a space the caller can write to); a server trigger fans it out into each
+ * target's private space with system trust, then the doc is discarded (it lives in `DOMAIN_TRANSIENT`,
+ * so it is never persisted). Reusable by any module that needs a "notify these users now" button.
+ *
+ * @public
+ */
+export interface OnDemandNotification extends Doc {
+  /** Recipients, as account uuids (e.g. `Employee.personUuid`). */
+  targets: AccountUuid[]
+  /** The doc the notification points at (its click target). */
+  objectId: Ref<Doc>
+  objectClass: Ref<Class<Doc>>
+  objectSpace: Ref<Space>
+  /** The NotificationType to file under (drives per-channel settings). */
+  notificationType: Ref<NotificationType>
+  header?: IntlString
+  message?: IntlString
+  messageHtml?: Markup
+  icon?: Asset
+}
+
+/**
  * @public
  */
 export interface InboxNotificationsClient {
@@ -314,6 +360,9 @@ export interface InboxNotificationsClient {
   inboxNotifications: Readable<InboxNotification[]>
   activityInboxNotifications: Writable<ActivityInboxNotification[]>
   inboxNotificationsByContext: Readable<Map<Ref<DocNotifyContext>, InboxNotification[]>>
+  // True once the initial contexts/notifications queries have delivered their first
+  // result, so consumers can tell "no unread yet" apart from "not loaded yet".
+  isLoaded: Readable<boolean>
 
   readDoc: (_id: Ref<Doc>) => Promise<void>
   forceReadDoc: (doc: Doc) => Promise<void>
@@ -357,6 +406,7 @@ const notification = plugin(notificationId, {
   class: {
     BrowserNotification: '' as Ref<Class<BrowserNotification>>,
     PushSubscription: '' as Ref<Class<PushSubscription>>,
+    PushSubscriptionSetting: '' as Ref<Class<PushSubscriptionSetting>>,
     NotificationType: '' as Ref<Class<NotificationType>>,
     NotificationGroup: '' as Ref<Class<NotificationGroup>>,
     NotificationPreferencesGroup: '' as Ref<Class<NotificationPreferencesGroup>>,
@@ -370,7 +420,8 @@ const notification = plugin(notificationId, {
     NotificationTypeSetting: '' as Ref<Class<NotificationTypeSetting>>,
     NotificationProviderSetting: '' as Ref<Class<NotificationProviderSetting>>,
     NotificationProviderDefaults: '' as Ref<Mixin<NotificationProviderDefaults>>,
-    ReactionInboxNotification: '' as Ref<Class<ReactionInboxNotification>>
+    ReactionInboxNotification: '' as Ref<Class<ReactionInboxNotification>>,
+    OnDemandNotification: '' as Ref<Class<OnDemandNotification>>
   },
   ids: {
     NotificationSettings: '' as Ref<Doc>,
@@ -396,7 +447,8 @@ const notification = plugin(notificationId, {
     DocNotifyContextPresenter: '' as AnyComponent,
     NotificationCollaboratorsChanged: '' as AnyComponent,
     GeneralPreferencesGroup: '' as AnyComponent,
-    CollaboratorEditor: '' as AnyComponent
+    CollaboratorEditor: '' as AnyComponent,
+    WebpushesPreferencesPresenter: '' as AnyComponent
   },
   action: {
     PinDocNotifyContext: '' as Ref<Action>,
@@ -446,15 +498,28 @@ const notification = plugin(notificationId, {
     Sound: '' as IntlString,
     NoAccessToObject: '' as IntlString,
     ViewIn: '' as IntlString,
-    Collaborators: '' as IntlString
+    Collaborators: '' as IntlString,
+    Value: '' as IntlString,
+    Subscribe: '' as IntlString,
+    UnknownDevice: '' as IntlString,
+    Current: '' as IntlString,
+    RemoveWebpush: '' as IntlString,
+    WebpushRemoveConfirm: '' as IntlString,
+    PushSubscribeError: '' as IntlString,
+    PushSubscribeErrorPermissionDenied: '' as IntlString,
+    PushSubscribeErrorNetwork: '' as IntlString,
+    PushSubscribeErrorNotSupported: '' as IntlString,
+    PushOnDesktop: '' as IntlString,
+    AlreadySubscribed: '' as IntlString,
+    PushNotConfigured: '' as IntlString,
+    PushNotSupported: '' as IntlString,
+    PushDenied: '' as IntlString
   },
   function: {
     Notify: '' as Resource<NotifyFunc>,
     CheckPushPermission: '' as Resource<(value: boolean) => Promise<boolean>>,
     GetInboxNotificationsClient: '' as Resource<InboxNotificationsClientFactory>,
-    HasInboxNotifications: '' as Resource<
-    (notificationsByContext: Map<Ref<DocNotifyContext>, InboxNotification[]>) => Promise<boolean>
-    >,
+    GetInboxNotificationStore: '' as Resource<() => Readable<InboxNotificationState>>,
     IsNotificationAllowed: '' as Resource<(type: NotificationType, providerId: Ref<NotificationProvider>) => boolean>
   },
   resolver: {

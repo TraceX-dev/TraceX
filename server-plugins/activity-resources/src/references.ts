@@ -33,10 +33,10 @@ import core, {
   type TxCUD,
   TxFactory,
   TxProcessor,
-  type TxRemoveDoc,
   type TxUpdateDoc,
   type Type,
-  getClassCollaborators
+  getClassCollaborators,
+  getObjectAccessReaders
 } from '@hcengineering/core'
 import notification, { type MentionInboxNotification, type NotificationType } from '@hcengineering/notification'
 import { getPerson } from '@hcengineering/server-contact'
@@ -60,6 +60,26 @@ export function isDocMentioned (doc: Ref<Doc>, content: string): boolean {
   }
 
   return false
+}
+
+// Object access: somebody who cannot read the source is neither subscribed nor notified.
+async function canReadSource (
+  ctx: MeasureContext,
+  control: TriggerControl,
+  doc: Doc,
+  account: AccountUuid
+): Promise<boolean> {
+  const key = `objectAccessReaders:${doc._id}`
+  let readers: Set<AccountUuid> | undefined = control.contextCache.get(key)
+  if (!control.contextCache.has(key)) {
+    readers = await getObjectAccessReaders(
+      control.hierarchy,
+      async (_class, query, options) => await control.findAll(ctx, _class, query, options),
+      doc
+    )
+    control.contextCache.set(key, readers)
+  }
+  return readers === undefined || readers.has(account)
 }
 
 export async function getPersonNotificationTxes (
@@ -109,7 +129,11 @@ export async function getPersonNotificationTxes (
     const employee = (
       await control.findAll(ctx, contact.mixin.Employee, { _id: reference.attachedTo as Ref<Employee> })
     )[0]
-    if (employee?.personUuid != null && employee.personUuid !== senderAccount) {
+    if (
+      employee?.personUuid != null &&
+      employee.personUuid !== senderAccount &&
+      (await canReadSource(ctx, control, doc, employee.personUuid))
+    ) {
       collaborators = [employee.personUuid]
 
       const collaboratorsTx = getCollaboratorsTxes(control, employee.personUuid, doc)
@@ -285,7 +309,7 @@ async function getCreateReferencesTxes (
       if (blobId != null && blobId !== '') {
         try {
           const buffer = await storage.read(ctx, control.workspace, blobId)
-          const markup = Buffer.concat(buffer as any).toString()
+          const markup = Buffer.concat(buffer).toString()
           const attrReferences = getReferencesData(srcDocId, srcDocClass, attachedDocId, attachedDocClass, markup)
           refs.push(...attrReferences)
         } catch {
@@ -332,7 +356,7 @@ async function getUpdateReferencesTxes (
         const blobId = (updatedDoc as any)[attr.name] as Ref<Blob>
         if (blobId != null) {
           const buffer = await storage.read(ctx, control.workspace, blobId)
-          const markup = Buffer.concat(buffer as any).toString()
+          const markup = Buffer.concat(buffer).toString()
           const attrReferences = getReferencesData(srcDocId, srcDocClass, attachedDocId, attachedDocClass, markup)
           references.push(...attrReferences)
         }
@@ -559,9 +583,9 @@ function guessReferenceObj (
   hierarchy: Hierarchy,
   tx: TxCUD<Doc>
 ): {
-    objectId: Ref<Doc>
-    objectClass: Ref<Class<Doc>>
-  } {
+  objectId: Ref<Doc>
+  objectClass: Ref<Class<Doc>>
+} {
   // Try to guess reference target Tx for TxCollectionCUD txes based on collaborators availability
   if (tx.attachedToClass !== undefined && tx.attachedTo !== undefined) {
     if (hierarchy.isDerived(tx.objectClass, activity.class.ActivityMessage)) {
@@ -668,7 +692,7 @@ async function ActivityReferenceUpdate (tx: TxCUD<Doc>, control: TriggerControl)
 }
 
 async function ActivityReferenceRemove (tx: TxCUD<Doc>, control: TriggerControl): Promise<Tx[]> {
-  const ctx = tx as TxRemoveDoc<Doc>
+  const ctx = tx
   const attributes = control.hierarchy.getAllAttributes(ctx.objectClass)
 
   let hasMarkdown = false

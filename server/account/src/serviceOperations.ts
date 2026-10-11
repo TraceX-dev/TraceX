@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 import {
-  type AccountRole,
+  AccountRole,
   type Data,
   isActiveMode,
   type MeasureContext,
@@ -131,10 +132,13 @@ export async function performWorkspaceOperation (
   }
 ): Promise<boolean> {
   const { workspaceId, event, params } = parameters
-  const { extra, workspace } = decodeTokenVerbose(ctx, token)
+  const { account, extra, workspace } = decodeTokenVerbose(ctx, token)
 
   if (extra?.admin !== 'true') {
-    if (event !== 'unarchive' || workspaceId !== workspace) {
+    if (event !== 'unarchive' || workspace == null || workspaceId !== workspace) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+    }
+    if (account === readOnlyGuestAccountUuid || (await db.getWorkspaceRole(account, workspace)) !== AccountRole.Owner) {
       throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
     }
   }
@@ -202,7 +206,6 @@ export async function performWorkspaceOperation (
         }
 
         update.mode = 'migration-pending-backup'
-        // NOTE: will only work for Mongo accounts
         update.targetRegion = params[0]
         update.processingAttempts = 0
         update.processingProgress = 0
@@ -240,7 +243,7 @@ export async function updateWorkspaceRoleBySocialKey (
   const { extra } = decodeTokenVerbose(ctx, token)
   verifyAllowedServices(['workspace', 'tool'], extra)
 
-  const socialId = await getSocialIdByKey(db, socialKey.toLowerCase() as PersonId)
+  const socialId = await getSocialIdByKey(db, socialKey.toLowerCase())
   if (socialId == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
   }

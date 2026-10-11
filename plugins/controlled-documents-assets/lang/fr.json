@@ -1,5 +1,9 @@
 {
   "string": {
+    "Export": "Exporter",
+    "Import": "Importer",
+    "ExportToWord": "Exporter vers Word",
+    "ImportFromWord": "Importer depuis Word",
     "ID": "ID",
     "Code": "Code",
     "Number": "Numéro",
@@ -34,7 +38,6 @@
     "Document": "Document",
     "NewDocumentDialogClose": "Voulez-vous fermer cette fenêtre ?",
     "NewDocumentCloseNote": "Tous les changements seront perdus",
-    "Cancel": "Annuler",
     "EditorPlaceholder": "tapez pour commencer à éditer...",
     "Version": "Version",
     "TemplateVersion": "Version du modèle",
@@ -66,6 +69,8 @@
     "ComparisonMode": "Comparaison",
     "Compare": "Comparer :",
     "Against": "Contre :",
+    "RemovedAttachments": "Pièces jointes supprimées",
+    "Restore": "Restaurer",
     "ComparisonModeNotSupported": "Le mode de comparaison n'est pas pris en charge.",
     "CreateDraft": "Créer un brouillon",
     "SendForApproval": "Envoyer pour approbation",
@@ -259,26 +264,20 @@
     "DeleteDocumentCategoryDescription": "Accorde aux utilisateurs la capacité de supprimer une catégorie de document",
     "ConfigLabel": "Documents contrôlés",
     "ConfigDescription": "Extension pour gérer les documents contrôlés",
-
     "Transfer": "Transfert",
     "TransferWarning": "Certains membres de l'équipe peuvent perdre la possibilité de visualiser ou de modifier ce document après cette action.",
     "TransferDocuments": "Transférer des documents contrôlés",
     "TransferDocumentsHint": "Documents à transférer dans l'espace sélectionné:",
-
     "CreateFolder": "Créer un nouveau dossier",
     "RenameFolder": "Renommer le dossier",
     "CreateChildFolder": "Créer un sous-dossier",
-
     "Obsolete": "Obsolète",
     "MakeDocumentObsolete": "Marquer comme obsolète",
     "MakeDocumentObsoleteDialog": "Marquer {count, plural, one {le document comme obsolète} other {les documents comme obsolètes}}",
     "MakeDocumentObsoleteConfirm": "Voulez-vous vraiment marquer les documents suivants comme obsolètes : {titles} ?",
-
     "LatestVersionHint": "dernier",
-
     "CannotDeleteFolder": "Le dossier ne peut pas être supprimé",
     "CannotDeleteFolderHint": "Veuillez déplacer tous les documents enfants vers un autre emplacement avant de supprimer le dossier.",
-
     "AllDocumentSpaces": "Tous les espaces de documents"
   },
   "controlledDocStates": {

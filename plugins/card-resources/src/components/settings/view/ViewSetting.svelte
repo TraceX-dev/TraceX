@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -20,7 +21,6 @@
     Association,
     AssociationQuery,
     Class,
-    Client,
     Doc,
     Ref,
     TxOperations,
@@ -36,6 +36,7 @@
     getKeyLabel,
     ViewletClassSettings
   } from '@hcengineering/view-resources'
+  import { updateViewletConfig } from './utils'
 
   export let viewlet: Viewlet
 
@@ -339,8 +340,14 @@
       associationKey: string,
       associationLabel: string
     ): Promise<void> {
-      const allAttributes = hierarchy.getAllAttributes(targetClass)
-      for (const [, attribute] of allAttributes) {
+      const attributes: Array<[string, AnyAttribute]> = Array.from(hierarchy.getAllAttributes(targetClass))
+      for (const mixin of hierarchy.getAllPossibleMixins(targetClass)) {
+        hierarchy.getOwnAttributes(mixin).forEach((attribute) => {
+          attributes.push([`${mixin}.${attribute.name}`, attribute])
+        })
+      }
+
+      for (const [attributeKey, attribute] of attributes) {
         if (attribute.hidden || attribute.label === undefined) continue
         if (hierarchy.isDerived(attribute.type._class, core.class.Collection)) continue
         const { attrClass, category } = getAttributePresenterClass(hierarchy, attribute.type)
@@ -357,7 +364,7 @@
         )?.presenter
         if (presenter === undefined) continue
 
-        const fieldKey = `${associationKey}.${attribute.name}`
+        const fieldKey = `${associationKey}.${attributeKey}`
         const fieldLabel = getAssociationLabel(client, fieldKey)
         const translatedLabel = await translate(fieldLabel, {})
         const clazz = hierarchy.getClass(targetClass)
@@ -394,7 +401,7 @@
               // TODO UBERF-9639: restore defaults
             }}
             on:save={(event) => {
-              viewlet.config = event.detail
+              updateViewletConfig(viewlet, event.detail)
               viewlet = viewlet
               dispatch('update', event.detail)
             }}

@@ -1,9 +1,9 @@
 # Min override: excludes optional services from min deployment.
 # Use with: docker compose -f docker-compose.yaml -f docker-compose.min.yaml up
 # (rush docker:up:min)
-# Excluded: preview, link-preview, elastic, redis, stats, payment, billing, fulltext_cockroach,
-#           print, sign, hulykvs, hulygun, hulypulse, process-service, backup-cockroach,
-#           backup-api, rating_cockroach
+# Excluded: preview, link-preview, elastic, redis, stats, payment, billing, fulltext_pg,
+#           print, sign, hulykvs, hulygun, process-service, backup-pg,
+#           backup-api, rating_pg
 # Overrides below remove dependencies on excluded services so the min project validates.
 
 services:
@@ -21,7 +21,7 @@ services:
     profiles: ["full"]
   billing:
     profiles: ["full"]
-  fulltext_cockroach:
+  fulltext_pg:
     profiles: ["full"]
   print:
     profiles: ["full"]
@@ -31,31 +31,29 @@ services:
     profiles: ["full"]
   hulygun:
     profiles: ["full"]
-  hulypulse:
-    profiles: ["full"]
   process-service:
     profiles: ["full"]
-  backup-cockroach:
+  backup-pg:
     profiles: ["full"]
   backup-api:
     profiles: ["full"]
-  rating_cockroach:
+  rating_pg:
     profiles: ["full"]
   account:
     links: !override []
-  workspace_cockroach:
+  workspace_pg:
     links: !override
-      - cockroach
+      - postgres
       - minio
   collaborator:
     links: !override
       - minio
-      - transactor_cockroach
+      - transactor_pg
   front:
     links: !override []
-  transactor_cockroach:
+  transactor_pg:
     links: !override
-      - cockroach
+      - postgres
       - minio
       - account
   export:
@@ -65,7 +63,7 @@ services:
     depends_on: !override
       minio:
         condition: service_healthy
-      cockroach:
+      postgres:
         condition: service_started
       account:
         condition: service_started

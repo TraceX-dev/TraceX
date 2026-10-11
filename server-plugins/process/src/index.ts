@@ -1,11 +1,27 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import { Doc, Mixin, Ref } from '@hcengineering/core'
+import type { WorkspaceApiOperation } from '@hcengineering/integration'
 import type { Plugin, Resource } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import { Execution, Method, ProcessFunction, Trigger } from '@hcengineering/process'
 import { TriggerFunc } from '@hcengineering/server-core'
 import { ExecuteFunc, ProcessControl, RollbackFunc, TransformFunc } from './types'
 
-export * from './types'
+export type * from './types'
 
 /**
  * @public
@@ -48,14 +64,24 @@ export default plugin(serverProcessId, {
     FieldChangedRollback: '' as Resource<RollbackFunc>
   },
   func: {
+    CreateAction: '' as Resource<ExecuteFunc>,
+    RequestAttachments: '' as Resource<ExecuteFunc>,
+    SetContext: '' as Resource<ExecuteFunc>,
+    UpdateContext: '' as Resource<ExecuteFunc>,
     RunSubProcess: '' as Resource<ExecuteFunc>,
     CancelSubProcess: '' as Resource<ExecuteFunc>,
     CreateToDo: '' as Resource<ExecuteFunc>,
     UpdateCard: '' as Resource<ExecuteFunc>,
+    MakeVersionEffective: '' as Resource<ExecuteFunc>,
+    CreateNewVersion: '' as Resource<ExecuteFunc>,
+    DisableVersionCreation: '' as Resource<ExecuteFunc>,
+    EnableVersionCreation: '' as Resource<ExecuteFunc>,
     CreateCard: '' as Resource<ExecuteFunc>,
     AddRelation: '' as Resource<ExecuteFunc>,
+    RemoveRelation: '' as Resource<ExecuteFunc>,
     WaitSubProcess: '' as Resource<ExecuteFunc>,
     AddTag: '' as Resource<ExecuteFunc>,
+    RemoveTag: '' as Resource<ExecuteFunc>,
     RequestApproval: '' as Resource<ExecuteFunc>,
     LockCard: '' as Resource<ExecuteFunc>,
     LockSection: '' as Resource<ExecuteFunc>,
@@ -72,11 +98,20 @@ export default plugin(serverProcessId, {
     CheckSubProcessMatch: '' as Resource<CheckFunc>,
     CheckTime: '' as Resource<CheckFunc>,
     EventCheck: '' as Resource<CheckFunc>,
+    RelationChangedCheck: '' as Resource<CheckFunc>,
     ApproveRequestApproved: '' as Resource<CheckFunc>,
     ApproveRequestRejected: '' as Resource<CheckFunc>,
     CancelToDo: '' as Resource<ExecuteFunc>
   },
+  workspaceApi: {
+    FindProcessToDos: '' as Resource<WorkspaceApiOperation>,
+    GetProcessToDo: '' as Resource<WorkspaceApiOperation>,
+    PatchProcessToDo: '' as Resource<WorkspaceApiOperation>,
+    EmitProcessEvent: '' as Resource<WorkspaceApiOperation>
+  },
   transform: {
+    ArrayLength: '' as Resource<TransformFunc>,
+    RelationCount: '' as Resource<TransformFunc>,
     FirstValue: '' as Resource<TransformFunc>,
     LastValue: '' as Resource<TransformFunc>,
     Random: '' as Resource<TransformFunc>,
@@ -86,6 +121,8 @@ export default plugin(serverProcessId, {
     Trim: '' as Resource<TransformFunc>,
     Prepend: '' as Resource<TransformFunc>,
     Append: '' as Resource<TransformFunc>,
+    PrependMarkup: '' as Resource<TransformFunc>,
+    AppendMarkup: '' as Resource<TransformFunc>,
     Replace: '' as Resource<TransformFunc>,
     ReplaceAll: '' as Resource<TransformFunc>,
     Split: '' as Resource<TransformFunc>,
@@ -115,6 +152,7 @@ export default plugin(serverProcessId, {
     EmptyValue: '' as Resource<TransformFunc>,
     EmptyArray: '' as Resource<TransformFunc>,
     Filter: '' as Resource<TransformFunc>,
+    AllMatchValue: '' as Resource<TransformFunc>,
     FirstMatchValue: '' as Resource<TransformFunc>,
     ExecutionInitiator: '' as Resource<TransformFunc>,
     ExecutionStarted: '' as Resource<TransformFunc>,
@@ -133,7 +171,8 @@ export default plugin(serverProcessId, {
     DayFromDate: '' as Resource<TransformFunc>,
     DateDifference: '' as Resource<TransformFunc>,
     StringFromEnum: '' as Resource<TransformFunc>,
-    EnumFromString: '' as Resource<TransformFunc>
+    EnumFromString: '' as Resource<TransformFunc>,
+    TableFromRelation: '' as Resource<TransformFunc>
   },
   trigger: {
     OnTransition: '' as Resource<TriggerFunc>,
@@ -147,6 +186,7 @@ export default plugin(serverProcessId, {
     OnProcessToDoRemove: '' as Resource<TriggerFunc>,
     OnExecutionContinue: '' as Resource<TriggerFunc>,
     OnCustomEvent: '' as Resource<TriggerFunc>,
+    OnRelationChange: '' as Resource<TriggerFunc>,
     OnExecutionDone: '' as Resource<TriggerFunc>,
     OnExecutionRemove: '' as Resource<TriggerFunc>
   }

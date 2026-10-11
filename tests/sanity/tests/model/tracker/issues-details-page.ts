@@ -29,7 +29,11 @@ export class IssuesDetailsPage extends CommonTrackerPage {
   readonly textEstimation = (): Locator =>
     this.page.locator('//span[text()="Estimation"]/following-sibling::div[1]/button/span')
 
-  readonly buttonEstimation = (): Locator => this.page.locator('(//span[text()="Estimation"]/../div/button)[3]')
+  // ControlPanel now renders Start Date + Due Date rows unconditionally
+  // (Gantt schema PR — Issue.startDate). Both editors emit a `<div><button>`
+  // pair that sits between Assignee (div/button #2) and Estimation, pushing
+  // Estimation from the 3rd to the 5th `div/button` under the side-panel grid.
+  readonly buttonEstimation = (): Locator => this.page.locator('(//span[text()="Estimation"]/../div/button)[5]')
   readonly buttonCreatedBy = (): Locator =>
     this.page.locator('//span[text()="Created by"]/following-sibling::div[1]/button')
 
@@ -39,8 +43,7 @@ export class IssuesDetailsPage extends CommonTrackerPage {
   readonly textRelated = (): Locator =>
     this.page.locator('//span[text()="Related"]/following-sibling::div[1]/div//span')
 
-  readonly buttonCollaborators = (): Locator =>
-    this.page.locator('//span[text()="Collaborators"]/following-sibling::div[1]/button')
+  readonly buttonCollaborators = (): Locator => this.page.getByTestId('btnCollaborators')
 
   readonly buttonIssueOnSearchForIssueModal = (): Locator =>
     this.page.locator('div.popup div.tabs > div.tab:last-child')

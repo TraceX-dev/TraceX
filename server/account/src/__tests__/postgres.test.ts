@@ -68,6 +68,19 @@ describe('PostgresDbCollection', () => {
     })
   })
 
+  describe('count', () => {
+    it('should count matching rows without selecting them', async () => {
+      mockClient.unsafe.mockResolvedValue([{ count: '2' }])
+
+      await expect(collection.count({ mode: 'active' as const })).resolves.toBe(2)
+
+      expect(mockClient.unsafe).toHaveBeenCalledWith(
+        'SELECT COUNT(*) FROM global_account.workspace WHERE "mode" = $1',
+        ['active']
+      )
+    })
+  })
+
   describe('find', () => {
     it('should generate simple query', async () => {
       await collection.find({ mode: 'active' as const })
@@ -320,6 +333,7 @@ describe('AccountPostgresDbCollection', () => {
           uuid: 'acc1' as AccountUuid,
           timezone: 'UTC',
           locale: 'en',
+          lastVisit: null,
           hash: null,
           salt: null
         }
@@ -338,6 +352,7 @@ describe('AccountPostgresDbCollection', () => {
         a.max_workspaces,
         a.failed_login_attempts,
         a.tfa_secret,
+        a.last_visit,
         p.hash,
         p.salt
       FROM global_account.account as a

@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -20,6 +21,7 @@ import {
   type PrimaryCalendar,
   type Calendar,
   type CalendarEventPresenter,
+  type ReminderNotificationPresenter,
   type Event,
   type ExternalCalendar,
   type ReccuringEvent,
@@ -53,6 +55,7 @@ import {
   TypeBoolean,
   TypeDate,
   TypeMarkup,
+  TypePersonId,
   TypeRef,
   TypeString,
   TypeTimestamp,
@@ -63,7 +66,8 @@ import attachment from '@hcengineering/model-attachment'
 import contact from '@hcengineering/model-contact'
 import core, { TAttachedDoc, TClass, TDoc } from '@hcengineering/model-core'
 import view, { createAction } from '@hcengineering/model-view'
-import notification from '@hcengineering/notification'
+import notification, { type NotificationType } from '@hcengineering/notification'
+import { type Asset, type IntlString } from '@hcengineering/platform'
 import setting from '@hcengineering/setting'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 import workbench from '@hcengineering/model-workbench'
@@ -83,10 +87,16 @@ export const DOMAIN_EVENT = 'event' as Domain
 @Model(calendar.class.Calendar, core.class.Doc, DOMAIN_CALENDAR)
 @UX(calendar.string.Calendar, calendar.icon.Calendar)
 export class TCalendar extends TDoc implements Calendar {
-  name!: string
-  hidden!: boolean
+  @Prop(TypeString(), core.string.Name)
+    name!: string
+
+  @Prop(TypeBoolean(), calendar.string.Hidden)
+    hidden!: boolean
+
+  @Prop(TypePersonId(), contact.string.Contact)
+    user!: PersonId
+
   visibility!: Visibility
-  user!: PersonId
   access!: AccessLevel
 }
 
@@ -196,6 +206,15 @@ export class TCalendarEventPresenter extends TClass implements CalendarEventPres
   presenter!: AnyComponent
 }
 
+@Mixin(calendar.mixin.ReminderNotificationPresenter, core.class.Class)
+export class TReminderNotificationPresenter extends TClass implements ReminderNotificationPresenter {
+  redirectToAttached?: boolean
+  notificationType?: Ref<NotificationType>
+  headerIcon?: Asset
+  header?: IntlString
+  message?: IntlString
+}
+
 export function createModel (builder: Builder): void {
   builder.createModel(
     TCalendar,
@@ -205,6 +224,7 @@ export function createModel (builder: Builder): void {
     TEvent,
     TSchedule,
     TCalendarEventPresenter,
+    TReminderNotificationPresenter,
     TPrimaryCalendar
   )
 
@@ -279,23 +299,32 @@ export function createModel (builder: Builder): void {
     {
       hidden: false,
       generated: false,
+      allowedForAuthor: true,
       label: calendar.string.Reminder,
       group: calendar.ids.CalendarNotificationGroup,
-      txClasses: [],
+      // Scheduled reminders are created by the events-processor worker, but provider/type settings still expect a
+      // tx class list. The notification doc itself is materialized via a direct createDoc, not by a tx trigger.
+      txClasses: [core.class.TxCreateDoc],
       objectClass: calendar.class.Event,
-      allowedForAuthor: true,
+      onlyOwn: true,
+      defaultEnabled: true,
       templates: {
-        textTemplate: 'Reminder: {doc}',
-        htmlTemplate: 'Reminder: {doc}',
-        subjectTemplate: 'Reminder: {doc}'
-      },
-      defaultEnabled: false
+        textTemplate: '{body}',
+        htmlTemplate: '<p>{body}</p><p>{link}</p>',
+        subjectTemplate: '{title}'
+      }
     },
     calendar.ids.ReminderNotification
   )
 
   builder.createDoc(notification.class.NotificationProviderDefaults, core.space.Model, {
     provider: notification.providers.InboxNotificationProvider,
+    ignoredTypes: [],
+    enabledTypes: [calendar.ids.ReminderNotification]
+  })
+
+  builder.createDoc(notification.class.NotificationProviderDefaults, core.space.Model, {
+    provider: notification.providers.PushNotificationProvider,
     ignoredTypes: [],
     enabledTypes: [calendar.ids.ReminderNotification]
   })

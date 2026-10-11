@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,11 +15,12 @@
 -->
 <script lang="ts">
   import contact, { Employee } from '@hcengineering/contact'
-  import { Doc, Ref } from '@hcengineering/core'
+  import { AnyAttribute, Doc, Ref } from '@hcengineering/core'
   import { IntlString, translateCB } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import type { ButtonKind, ButtonSize } from '@hcengineering/ui'
   import { Button, eventToHTMLElement, showPopup, themeStore } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
   import UsersPopup from './UsersPopup.svelte'
 
   export let value: Doc
@@ -29,6 +31,7 @@
   export let intlTitle: IntlString
   export let intlSearchPh: IntlString
   export let retrieveMembers: (doc: Doc) => Ref<Employee>[]
+  export let attribute: AnyAttribute | undefined = undefined
   export let shouldShowLabel: boolean = true
 
   const client = getClient()
@@ -36,12 +39,13 @@
   let buttonTitle = ''
 
   $: members = retrieveMembers(value)
+  $: canEditMembers = $permissions.canEditMembers(value, attribute)
   $: translateCB(intlTitle, {}, $themeStore.language, (res) => {
     buttonTitle = res
   })
 
   const handleMembersChanged = async (result: Ref<Employee>[] | undefined) => {
-    if (result === undefined) {
+    if (result === undefined || !canEditMembers) {
       return
     }
 
@@ -58,6 +62,8 @@
   }
 
   const handleMembersEditorOpened = async (event: MouseEvent) => {
+    if (!canEditMembers) return
+
     showPopup(
       UsersPopup,
       {
@@ -86,5 +92,6 @@
   labelParams={shouldShowLabel ? { count: members.length } : {}}
   title={buttonTitle}
   icon={contact.icon.ComponentMembers}
+  disabled={!canEditMembers}
   on:click={handleMembersEditorOpened}
 />

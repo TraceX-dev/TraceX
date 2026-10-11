@@ -70,9 +70,12 @@ export const PropertyFieldType: BaseFieldType = {
   isValid: (value: unknown, args?: Record<string, unknown>) => {
     if (value === undefined || value === null || typeof value !== 'object') return false
 
-    const { label, type, enumOf, refTo, isArray, ...rest } = value as any
+    const { label, type, enumOf, refTo, isArray, description, ...rest } = value as any
 
     if (label === undefined || label == null || label === '') {
+      return false
+    }
+    if (description !== undefined && typeof description !== 'string') {
       return false
     }
     if (enumOf !== undefined) {
@@ -116,7 +119,7 @@ export const AssociationSchema: FormatSchema = {
     ['nameB', { type: StringFieldType, isArray: false }],
     ['type', { type: new OneOfFieldType(['1:1', '1:N', 'N:N']), isArray: false }]
   ]),
-  optionalFields: new Map()
+  optionalFields: new Map([['description', { type: StringFieldType, isArray: false }]])
 }
 
 export const EnumSchema: FormatSchema = {
@@ -133,7 +136,10 @@ export const MasterTagSchema: FormatSchema = {
     ['class', { type: new ConstantFieldType(card.class.MasterTag), isArray: false }],
     ['title', { type: StringFieldType, isArray: false }]
   ]),
-  optionalFields: new Map([['properties', { type: PropertyFieldType, isArray: true }]])
+  optionalFields: new Map([
+    ['description', { type: StringFieldType, isArray: false }],
+    ['properties', { type: PropertyFieldType, isArray: true }]
+  ])
 }
 
 export const TagSchema: FormatSchema = {
@@ -141,5 +147,8 @@ export const TagSchema: FormatSchema = {
     ['class', { type: new ConstantFieldType(card.class.Tag), isArray: false }],
     ['title', { type: StringFieldType, isArray: false }]
   ]),
-  optionalFields: new Map([['properties', { type: PropertyFieldType, isArray: true }]])
+  optionalFields: new Map([
+    ['description', { type: StringFieldType, isArray: false }],
+    ['properties', { type: PropertyFieldType, isArray: true }]
+  ])
 }

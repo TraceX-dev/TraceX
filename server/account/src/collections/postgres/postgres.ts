@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { type Sql, type TransactionSql } from 'postgres'
+import { ISql, type Sql } from 'postgres'
 import {
   type Data,
   type Version,
@@ -33,6 +34,7 @@ import type {
   WorkspaceOperation,
   AccountDB,
   Account,
+  ApiKey,
   OTP,
   WorkspaceInvite,
   AccountEvent,
@@ -49,8 +51,7 @@ import type {
   AccountAggregatedInfo,
   UserProfile,
   Subscription,
-  WorkspacePermission,
-  DBFlavor
+  WorkspacePermission
 } from '../../types'
 
 function toSnakeCase (str: string): string {
@@ -110,14 +111,16 @@ export interface PostgresDbCollectionOptions<T extends Record<string, any>, K ex
   ns?: string
   fieldTypes?: Record<string, string>
   timestampFields?: Array<keyof T>
-  withRetryClient?: <R>(callback: (client: Sql) => Promise<R>) => Promise<R>
+  withRetryClient?: <R>(callback: (client: ISql) => Promise<R>) => Promise<R>
 }
 
-export class PostgresDbCollection<T extends Record<string, any>, K extends keyof T | undefined = undefined>
-implements DbCollection<T> {
+export class PostgresDbCollection<
+  T extends Record<string, any>,
+  K extends keyof T | undefined = undefined
+> implements DbCollection<T> {
   constructor (
     readonly name: string,
-    readonly client: Sql,
+    readonly client: ISql,
     readonly options: PostgresDbCollectionOptions<T, K> = {},
     readonly filterFields: string[] = []
   ) {}
@@ -267,7 +270,7 @@ implements DbCollection<T> {
     return res as T
   }
 
-  async unsafe (sql: string, values: any[], client?: Sql): Promise<any[]> {
+  async unsafe (sql: string, values: any[], client?: ISql): Promise<any[]> {
     if (client !== undefined) {
       return await client.unsafe(sql, values)
     } else if (this.options.withRetryClient !== undefined) {
@@ -277,7 +280,7 @@ implements DbCollection<T> {
     }
   }
 
-  async exists (query: Query<T>, client?: Sql): Promise<boolean> {
+  async exists (query: Query<T>, client?: ISql): Promise<boolean> {
     const [whereClause, whereValues] = this.buildWhereClause(query)
     const sql = `SELECT EXISTS (SELECT 1 FROM ${this.getTableName()} ${whereClause})`
 
@@ -286,7 +289,14 @@ implements DbCollection<T> {
     return result[0]?.exists === true
   }
 
-  async find (query: Query<T>, sort?: Sort<T>, limit?: number, client?: Sql): Promise<T[]> {
+  async count (query: Query<T>, client?: ISql): Promise<number> {
+    const [whereClause, whereValues] = this.buildWhereClause(query)
+    const result = await this.unsafe(`SELECT COUNT(*) FROM ${this.getTableName()} ${whereClause}`, whereValues, client)
+
+    return Number(result[0]?.count ?? 0)
+  }
+
+  async find (query: Query<T>, sort?: Sort<T>, limit?: number, client?: ISql): Promise<T[]> {
     const sqlChunks: string[] = [this.buildSelectClause()]
     const [whereClause, whereValues] = this.buildWhereClause(query)
 
@@ -308,11 +318,11 @@ implements DbCollection<T> {
     return result.map((row) => this.convertToObj(row))
   }
 
-  async findOne (query: Query<T>, client?: Sql): Promise<T | null> {
+  async findOne (query: Query<T>, client?: ISql): Promise<T | null> {
     return (await this.find(query, undefined, 1, client))[0] ?? null
   }
 
-  async insertOne (data: Partial<T>, client?: Sql): Promise<K extends keyof T ? T[K] : undefined> {
+  async insertOne (data: Partial<T>, client?: ISql): Promise<K extends keyof T ? T[K] : undefined> {
     const snakeData = convertKeysToSnakeCase(data)
     const keys: string[] = Object.keys(snakeData)
     const values = Object.values(snakeData) as any
@@ -329,7 +339,7 @@ implements DbCollection<T> {
     return res[0][idKey]
   }
 
-  async insertMany (data: Array<Partial<T>>, client?: Sql): Promise<K extends keyof T ? Array<T[K]> : undefined> {
+  async insertMany (data: Array<Partial<T>>, client?: ISql): Promise<K extends keyof T ? Array<T[K]> : undefined> {
     const snakeData = convertKeysToSnakeCase(data)
     const columns = new Set<string>()
     for (const record of snakeData) {
@@ -395,7 +405,7 @@ implements DbCollection<T> {
     return [`SET ${updateChunks.join(', ')}`, values]
   }
 
-  async update (query: Query<T>, ops: Operations<T>, client?: Sql): Promise<void> {
+  async update (query: Query<T>, ops: Operations<T>, client?: ISql): Promise<void> {
     const sqlChunks: string[] = [`UPDATE ${this.getTableName()}`]
     const [updateClause, updateValues] = this.buildUpdateClause(ops)
     const [whereClause, whereValues] = this.buildWhereClause(query, updateValues.length)
@@ -409,7 +419,7 @@ implements DbCollection<T> {
     await this.unsafe(finalSql, [...updateValues, ...whereValues], client)
   }
 
-  async deleteMany (query: Query<T>, client?: Sql): Promise<void> {
+  async deleteMany (query: Query<T>, client?: ISql): Promise<void> {
     const sqlChunks: string[] = [`DELETE FROM ${this.getTableName()}`]
     const [whereClause, whereValues] = this.buildWhereClause(query)
 
@@ -424,15 +434,16 @@ implements DbCollection<T> {
 
 export class AccountPostgresDbCollection
   extends PostgresDbCollection<Account, 'uuid'>
-  implements DbCollection<Account> {
+  implements DbCollection<Account>
+{
   private readonly passwordKeys = ['hash', 'salt']
 
   constructor (
-    client: Sql,
+    client: ISql,
     ns?: string,
     withRetryClient?: PostgresDbCollectionOptions<Account, 'uuid'>['withRetryClient']
   ) {
-    super('account', client, { idKey: 'uuid', ns, withRetryClient })
+    super('account', client, { idKey: 'uuid', ns, timestampFields: ['lastVisit'], withRetryClient })
   }
 
   getPasswordsTableName (): string {
@@ -454,6 +465,7 @@ export class AccountPostgresDbCollection
         a.max_workspaces,
         a.failed_login_attempts,
         a.tfa_secret,
+        a.last_visit,
         p.hash,
         p.salt
       FROM ${this.getTableName()} as a
@@ -461,7 +473,7 @@ export class AccountPostgresDbCollection
     )`
   }
 
-  async find (query: Query<Account>, sort?: Sort<Account>, limit?: number, client?: Sql): Promise<Account[]> {
+  async find (query: Query<Account>, sort?: Sort<Account>, limit?: number, client?: ISql): Promise<Account[]> {
     if (Object.keys(query).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in find query conditions')
     }
@@ -480,7 +492,7 @@ export class AccountPostgresDbCollection
     return result
   }
 
-  async insertOne (data: Partial<Account>, client?: Sql): Promise<Account['uuid']> {
+  async insertOne (data: Partial<Account>, client?: ISql): Promise<Account['uuid']> {
     if (Object.keys(data).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in insert query')
     }
@@ -488,7 +500,7 @@ export class AccountPostgresDbCollection
     return await super.insertOne(data, client)
   }
 
-  async update (query: Query<Account>, ops: Operations<Account>, client?: Sql): Promise<void> {
+  async update (query: Query<Account>, ops: Operations<Account>, client?: ISql): Promise<void> {
     if (Object.keys({ ...ops, ...query }).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in update query')
     }
@@ -496,7 +508,7 @@ export class AccountPostgresDbCollection
     await super.update(query, ops, client)
   }
 
-  async deleteMany (query: Query<Account>, client?: Sql): Promise<void> {
+  async deleteMany (query: Query<Account>, client?: ISql): Promise<void> {
     if (Object.keys(query).some((k) => this.passwordKeys.includes(k))) {
       throw new Error('Passwords are not allowed in delete query')
     }
@@ -538,13 +550,13 @@ export class PostgresAccountDB implements AccountDB {
   integration: PostgresDbCollection<Integration>
   integrationSecret: PostgresDbCollection<IntegrationSecret>
   userProfile: PostgresDbCollection<UserProfile, 'personUuid'>
+  apiKey: PostgresDbCollection<ApiKey, 'id'>
   subscription: PostgresDbCollection<Subscription, 'id'>
   workspacePermission: PostgresDbCollection<WorkspacePermission>
 
   constructor (
     readonly client: Sql,
-    readonly ns: string = 'global_account',
-    readonly dbFlavor: DBFlavor = 'cockroach'
+    readonly ns: string = 'global_account'
   ) {
     const withRetryClient = this.withRetry
     this.person = new PostgresDbCollection<Person, 'uuid'>('person', client, { ns, idKey: 'uuid', withRetryClient })
@@ -598,6 +610,12 @@ export class PostgresAccountDB implements AccountDB {
       idKey: 'personUuid',
       withRetryClient
     })
+    this.apiKey = new PostgresDbCollection<ApiKey, 'id'>('api_key', client, {
+      ns,
+      idKey: 'id',
+      timestampFields: ['createdOn', 'revokedOn'],
+      withRetryClient
+    })
     this.subscription = new PostgresDbCollection<Subscription, 'id'>('subscription', client, {
       ns,
       idKey: 'id',
@@ -635,15 +653,15 @@ export class PostgresAccountDB implements AccountDB {
     let updateInterval: NodeJS.Timeout | null = null
     let executed = false
 
-    const executeMigration = async (client: Sql): Promise<void> => {
+    const executeMigration = async (client: ISql): Promise<void> => {
       updateInterval = setInterval(() => {
         this.client`
           UPDATE ${this.client(this.ns)}._account_applied_migrations
           SET last_processed_at = NOW()
           WHERE identifier = ${name} AND applied_at IS NULL
         `.catch((err) => {
-            console.error(`Failed to update last_processed_at for migration ${name}:`, err)
-          })
+          console.error(`Failed to update last_processed_at for migration ${name}:`, err)
+        })
       }, 5000)
 
       await client.unsafe(ddl)
@@ -770,13 +788,13 @@ export class PostgresAccountDB implements AccountDB {
     }
   }
 
-  withRetry = async <T>(callback: (client: TransactionSql) => Promise<T>): Promise<T> => {
+  withRetry = async <T>(operation: (client: ISql) => Promise<T>): Promise<T> => {
     let attempt = 0
     let delay = this.retryOptions.initialDelayMs
 
     while (true) {
       try {
-        return (await this.client.begin(callback)) as T
+        return (await this.client.begin(async (client) => await operation(client as unknown as ISql))) as T
       } catch (err: any) {
         attempt++
 
@@ -784,7 +802,11 @@ export class PostgresAccountDB implements AccountDB {
           throw err
         }
 
-        await new Promise((resolve) => setTimeout(resolve, delay))
+        await new Promise<void>((resolve) =>
+          setTimeout(() => {
+            resolve()
+          }, delay)
+        )
 
         delay = Math.min(delay * 2, this.retryOptions.maxDelayMs)
       }
@@ -861,6 +883,32 @@ export class PostgresAccountDB implements AccountDB {
     )
   }
 
+  async setWorkspaceMemberUnread (
+    accountUuid: AccountUuid,
+    workspaceUuid: WorkspaceUuid,
+    hasUnread: boolean
+  ): Promise<void> {
+    await this.withRetry(
+      async (rTx) =>
+        await rTx`UPDATE ${this.client(this.getWsMembersTableName())} SET has_unread = ${hasUnread} WHERE workspace_uuid = ${workspaceUuid} AND account_uuid = ${accountUuid} AND has_unread <> ${hasUnread}`
+    )
+  }
+
+  async setWorkspaceMembersUnread (
+    accountUuids: AccountUuid[],
+    workspaceUuid: WorkspaceUuid,
+    hasUnread: boolean
+  ): Promise<void> {
+    if (accountUuids.length === 0) return
+
+    // `has_unread <> ${hasUnread}` skips rows already in the target state, so a
+    // repeated broadcast into an already-flagged workspace writes nothing.
+    await this.withRetry(
+      async (rTx) =>
+        await rTx`UPDATE ${this.client(this.getWsMembersTableName())} SET has_unread = ${hasUnread} WHERE workspace_uuid = ${workspaceUuid} AND account_uuid = ANY(${accountUuids}) AND has_unread <> ${hasUnread}`
+    )
+  }
+
   async getWorkspaceRole (accountUuid: AccountUuid, workspaceUuid: WorkspaceUuid): Promise<AccountRole | null> {
     return await this.withRetry(async (rTx) => {
       const res =
@@ -903,6 +951,7 @@ export class PostgresAccountDB implements AccountDB {
           w.created_on,
           w.billing_account,
           w.password_aging_rule,
+          m.has_unread,
           json_build_object(
             'mode', s.mode,
             'processing_progress', s.processing_progress,
@@ -1101,6 +1150,7 @@ export class PostgresAccountDB implements AccountDB {
           a.locale,
           a.automatic,
           a.max_workspaces,
+          a.last_visit,
           p.first_name,
           p.last_name,
           up.country,
@@ -1194,6 +1244,7 @@ export class PostgresAccountDB implements AccountDB {
         const converted = convertKeysToCamelCase(row)
 
         // Convert timestamp fields
+        converted.lastVisit = convertTimestamp(converted.lastVisit)
         if (converted.workspaces != null) {
           for (const ws of converted.workspaces) {
             ws.createdOn = convertTimestamp(ws.createdOn)
@@ -1219,7 +1270,7 @@ export class PostgresAccountDB implements AccountDB {
   }
 
   protected getMigrations (): [string, string][] {
-    return getMigrations(this.ns, this.dbFlavor)
+    return getMigrations(this.ns)
   }
 
   async batchAssignWorkspacePermission (

@@ -43,6 +43,12 @@ import tracker, {
   type Project
 } from '@hcengineering/tracker'
 import { workbenchId } from '@hcengineering/workbench'
+import {
+  canCreateIntegrationTarget,
+  createIntegrationTarget,
+  getAllowedSpaceClasses,
+  updateIntegrationTarget
+} from './integrationTargetFactory'
 
 async function updateSubIssues (
   updateTx: TxUpdateDoc<Issue>,
@@ -388,7 +394,7 @@ async function doIssueUpdate (updateTx: TxUpdateDoc<Issue>, control: TriggerCont
     const [newParent] = await control.findAll(
       control.ctx,
       tracker.class.Issue,
-      { _id: updateTx.operations.attachedTo as Ref<Issue> },
+      { _id: updateTx.operations.attachedTo },
       { limit: 1 }
     )
 
@@ -510,7 +516,11 @@ export default async () => ({
     IssueHTMLPresenter: issueHTMLPresenter,
     IssueTextPresenter: issueTextPresenter,
     IssueNotificationContentProvider: getIssueNotificationContent,
-    IssueLinkIdProvider: issueLinkIdProvider
+    IssueLinkIdProvider: issueLinkIdProvider,
+    CreateIntegrationTarget: createIntegrationTarget,
+    UpdateIntegrationTarget: updateIntegrationTarget,
+    CanCreateIntegrationTarget: canCreateIntegrationTarget,
+    GetIntegrationTargetAllowedSpaceClasses: getAllowedSpaceClasses
   },
   trigger: {
     OnIssueUpdate,

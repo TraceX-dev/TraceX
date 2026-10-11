@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -34,7 +35,6 @@ import {
   type Tag
 } from '@hcengineering/card'
 import chunter from '@hcengineering/chunter'
-import communication from '@hcengineering/communication'
 import converter from '@hcengineering/converter'
 import core, {
   AccountRole,
@@ -54,6 +54,7 @@ import core, {
   type Ref,
   SortingOrder
 } from '@hcengineering/core'
+import integration from '@hcengineering/integration'
 import {
   ArrOf,
   type Builder,
@@ -98,6 +99,9 @@ export class TMasterTag extends TClass implements MasterTag {
   background?: number
   removed?: boolean
 
+  @Prop(TypeString(), card.string.Description)
+    description?: string
+
   @Prop(TypeBoolean(), card.string.SingleColumn)
     singleColumn?: boolean
 
@@ -109,6 +113,10 @@ export class TMasterTag extends TClass implements MasterTag {
 export class TTag extends TMixin implements Tag {
   color?: number
   background?: number
+
+  @Prop(TypeRank(), core.string.Rank)
+  @Hidden()
+    rank?: Rank
 }
 
 @Model(card.class.Card, core.class.Doc, DOMAIN_CARD)
@@ -134,15 +142,21 @@ export class TCard extends TDoc implements Card {
   @Prop(TypeRef(card.class.Card), card.string.Parent)
     parent?: Ref<Card> | null
 
+  @Hidden()
   @Prop(Collection(attachment.class.Attachment), attachment.string.Attachments, { shortLabel: attachment.string.Files })
     attachments?: number
 
   @Prop(TypeRank(), core.string.Rank)
-  @Hidden()
     rank!: Rank
 
+  @Hidden()
   @Prop(Collection(time.class.ToDo), getEmbeddedLabel('Action Items'))
     todos?: CollectionSize<ToDo>
+
+  // Declared so the generic collection logic moves and removes discussions together with the card.
+  @Hidden()
+  @Prop(Collection(chunter.class.Discussion), chunter.string.Discussions)
+    discussions?: number
 
   @Prop(TypeString(), view.string.Icon)
   @Hidden()
@@ -163,6 +177,7 @@ export class TCard extends TDoc implements Card {
   @ReadOnly()
     peerId?: string
 
+  @Hidden()
   @Prop(Collection(chunter.class.ChatMessage), chunter.string.Comments)
     comments?: number
 }
@@ -188,6 +203,7 @@ export class TCardSection extends TDoc implements CardSection {
   order!: number
   navigation!: CardNavigation[]
   checkVisibility?: Resource<(doc: Card) => Promise<boolean>>
+  hideInCompactMode?: boolean
 }
 
 @Mixin(card.mixin.CardViewDefaults, card.class.MasterTag)
@@ -246,6 +262,23 @@ const showAllVersionsOption: ViewOptionModel = {
   label: card.string.ShowAllVersions
 }
 
+const showOnlyEffectiveVersionsOption: ViewOptionModel = {
+  key: 'showOnlyEffectiveVersions',
+  type: 'toggle',
+  defaultValue: false,
+  actionTarget: 'query',
+  action: card.function.ShowOnlyEffectiveVersions,
+  label: card.string.ShowOnlyEffectiveVersions
+}
+
+const showOnlyCardsWithoutRelationsOption: ViewOptionModel = {
+  key: 'showOnlyCardsWithoutRelations',
+  type: 'toggle',
+  defaultValue: false,
+  actionTarget: 'display',
+  label: card.string.ShowOnlyCardsWithoutRelations
+}
+
 const listConfig: (BuildModelKey | string)[] = [
   { key: '' },
   { key: '_class' },
@@ -258,12 +291,6 @@ const listConfig: (BuildModelKey | string)[] = [
       showType: false
     },
     displayProps: { optional: true }
-  },
-  {
-    key: '',
-    presenter: card.component.LabelsPresenter,
-    label: card.string.Labels,
-    props: { fullSize: true }
   },
   {
     key: 'modifiedOn',
@@ -312,12 +339,6 @@ const favoritesViewletConfig: (BuildModelKey | string)[] = [
       showType: false
     },
     presenter: card.component.CardTagsColored
-  },
-  {
-    key: '$lookup.attachedTo',
-    presenter: card.component.LabelsPresenter,
-    label: card.string.Labels,
-    props: { fullSize: true, key: 'labels' }
   },
   {
     key: '$lookup.attachedTo.parent'
@@ -374,7 +395,7 @@ export function createSystemType (
     viewOptions: {
       groupBy: [],
       orderBy: [],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -390,12 +411,6 @@ export function createSystemType (
           showType: false
         }
       },
-      {
-        key: '',
-        presenter: card.component.LabelsPresenter,
-        label: card.string.Labels,
-        props: { fullSize: true }
-      },
       'modifiedOn'
     ]
   })
@@ -409,7 +424,7 @@ export function createSystemType (
         ['modifiedOn', SortingOrder.Descending],
         ['rank', SortingOrder.Ascending]
       ],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -426,7 +441,7 @@ export function createSystemType (
     viewOptions: {
       groupBy: [],
       orderBy: [],
-      other: [showAllVersionsOption]
+      other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
     },
     baseQuery: {
       isLatest: true
@@ -603,6 +618,20 @@ export function createModel (builder: Builder): void {
   })
 
   builder.createDoc(
+    integration.class.IntegrationTargetFactory,
+    core.space.Model,
+    {
+      targetClass: card.class.Card,
+      create: card.function.CreateIntegrationTarget,
+      update: card.function.UpdateIntegrationTarget,
+      canCreate: card.function.CanCreateIntegrationTarget,
+      getAllowedSpaceClasses: card.function.GetIntegrationTargetAllowedSpaceClasses,
+      getCommentBackend: card.function.GetIntegrationTargetCommentBackend
+    },
+    card.integration.TargetFactory
+  )
+
+  builder.createDoc(
     workbench.class.Application,
     core.space.Model,
     {
@@ -699,6 +728,10 @@ export function createModel (builder: Builder): void {
     inlineEditor: card.component.CardEditor
   })
 
+  builder.mixin(card.class.CardSpace, core.class.Class, view.mixin.AttributeEditor, {
+    inlineEditor: card.component.CardSpaceEditor
+  })
+
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ArrayEditor, {
     inlineEditor: card.component.CardArrayEditor
   })
@@ -716,7 +749,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       baseQuery: {
         isLatest: true
@@ -750,7 +783,7 @@ export function createModel (builder: Builder): void {
           ['modifiedOn', SortingOrder.Descending],
           ['rank', SortingOrder.Ascending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       configOptions: {
         hiddenKeys: ['content', 'title']
@@ -776,7 +809,7 @@ export function createModel (builder: Builder): void {
           ['modifiedOn', SortingOrder.Descending],
           ['rank', SortingOrder.Ascending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       },
       configOptions: {
         strict: true,
@@ -822,7 +855,7 @@ export function createModel (builder: Builder): void {
       viewOptions: {
         groupBy: [],
         orderBy: [],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption, showOnlyCardsWithoutRelationsOption]
       },
       baseQuery: {
         isLatest: true
@@ -863,7 +896,7 @@ export function createModel (builder: Builder): void {
           ['rank', SortingOrder.Ascending],
           ['title', SortingOrder.Descending]
         ],
-        other: [showAllVersionsOption]
+        other: [showAllVersionsOption, showOnlyEffectiveVersionsOption]
       }
     },
     card.viewlet.CardGrid
@@ -924,7 +957,8 @@ export function createModel (builder: Builder): void {
   )
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: card.component.CardPresenter
+    presenter: card.component.CardPresenter,
+    requiredFields: ['title', 'version', 'icon', 'color', 'parentInfo']
   })
 
   builder.mixin(card.class.Card, core.class.Class, view.mixin.CollectionPresenter, {
@@ -1033,8 +1067,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Guest,
       permissions: [card.ids.GuestCardClassPermission],
       spaceClass: card.class.CardSpace,
-      enabled: true,
-      order: 20
+      enabled: true
     },
     card.ids.ModulePermissionGroup
   )
@@ -1047,8 +1080,7 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: card.class.CardSpace,
-      enabled: false,
-      order: 20
+      enabled: false
     },
     card.ids.ModulePermissionGroupReadOnlyGuest
   )
@@ -1126,6 +1158,14 @@ export function createModel (builder: Builder): void {
     id: 'views',
     label: card.string.Views,
     component: card.component.ViewsSection
+  })
+
+  // Below the type structure sections. Tags are mixins without own discussions, so master tags only.
+  builder.createDoc(card.class.MasterTagEditorSection, core.space.Model, {
+    id: 'discussions',
+    label: chunter.string.DefaultDiscussions,
+    masterOnly: true,
+    component: chunter.component.DefaultDiscussionsSetting
   })
 
   builder.createDoc(
@@ -1212,6 +1252,19 @@ function defineTabs (builder: Builder): void {
     card.class.CardSection,
     core.space.Model,
     {
+      label: chunter.string.Discussions,
+      component: chunter.component.DiscussionsSection,
+      order: 350,
+      navigation: [],
+      hideInCompactMode: true
+    },
+    card.section.Discussions
+  )
+
+  builder.createDoc(
+    card.class.CardSection,
+    core.space.Model,
+    {
       label: core.string.Relations,
       component: card.sectionComponent.RelationsSection,
       order: 500,
@@ -1229,22 +1282,10 @@ function defineTabs (builder: Builder): void {
       component: card.sectionComponent.OldMessagesSection,
       order: 1000,
       navigation: [],
+      hideInCompactMode: true,
       checkVisibility: card.function.CheckOldMessagesSectionVisibility
     },
     card.section.OldMessages
-  )
-
-  builder.createDoc(
-    card.class.CardSection,
-    core.space.Model,
-    {
-      label: activity.string.Messages,
-      component: card.sectionComponent.CommunicationMessagesSection,
-      order: 1000,
-      navigation: [],
-      checkVisibility: card.function.CheckCommunicationMessagesSectionVisibility
-    },
-    communication.ids.CardMessagesSection
   )
 
   builder.createDoc<Viewlet>(view.class.Viewlet, core.space.Model, {

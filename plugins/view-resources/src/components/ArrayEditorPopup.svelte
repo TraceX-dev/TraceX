@@ -14,7 +14,7 @@
 
   const dispatch = createEventDispatcher()
 
-  async function onUpdate ({ detail }: CustomEvent<Ref<Doc>[] | null | undefined>) {
+  async function onUpdate ({ detail }: CustomEvent<Ref<Doc>[] | null | undefined>): Promise<void> {
     dispatch('update', detail)
   }
 </script>

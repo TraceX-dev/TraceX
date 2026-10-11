@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,20 +15,11 @@
 -->
 <script lang="ts">
   import contact, { Employee, Person } from '@hcengineering/contact'
-  import {
-    AccountRole,
-    DocumentQuery,
-    Ref,
-    SortingOrder,
-    Space,
-    getCurrentAccount,
-    hasAccountRole,
-    notEmpty,
-    AccountUuid
-  } from '@hcengineering/core'
+  import { DocumentQuery, Ref, SortingOrder, Space, notEmpty, AccountUuid } from '@hcengineering/core'
   import { translateCB } from '@hcengineering/platform'
   import presentation, { getClient } from '@hcengineering/presentation'
   import { ActionIcon, IconAdd, IconClose, Label, SearchEdit, showPopup, themeStore } from '@hcengineering/ui'
+  import { permissions } from '@hcengineering/view-resources'
   import AddMembersPopup from './AddMembersPopup.svelte'
   import UserInfo from './UserInfo.svelte'
   import { employeeByIdStore, employeeRefByAccountUuidStore } from '../utils'
@@ -63,6 +55,8 @@
   }
 
   async function add (person: Ref<Employee>): Promise<void> {
+    if (!canAddMembers) return
+
     const pid = initialMembers[person] ?? $employeeByIdStore.get(person)?.personUuid
     if (pid === undefined) return
 
@@ -74,6 +68,8 @@
   }
 
   async function removeMember (person: Ref<Employee>): Promise<void> {
+    if (!canRemoveMembers) return
+
     const pid = initialMembers[person] ?? $employeeByIdStore.get(person)?.personUuid
     if (pid === undefined) return
 
@@ -81,8 +77,10 @@
   }
 
   function openAddMembersPopup (): void {
+    if (!canAddMembers) return
+
     showPopup(AddMembersPopup, { value: space }, undefined, async (accounts: AccountUuid[]) => {
-      if (accounts != null) {
+      if (accounts != null && canAddMembers) {
         for (const account of accounts) {
           if (space.members.includes(account)) continue
 
@@ -92,10 +90,8 @@
     })
   }
 
-  const account = getCurrentAccount()
-  $: canRemove =
-    hasAccountRole(account, AccountRole.Maintainer) ||
-    (space.createdBy !== undefined && account.socialIds.includes(space.createdBy))
+  $: canAddMembers = $permissions.canAddMembers(space)
+  $: canRemoveMembers = $permissions.canRemoveMembers(space)
 </script>
 
 <div class="flex-row-reverse mb-3 mt-3"><SearchEdit bind:value={search} /></div>
@@ -115,7 +111,7 @@
         </div>
       {/if}
     {/if}
-    {#if !isSearch && withAddButton}
+    {#if !isSearch && withAddButton && canAddMembers}
       <div class="item fs-title">
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -130,7 +126,7 @@
     {#each current as person}
       <div class="flex-between">
         <div class="item fs-title"><UserInfo size={'medium'} value={person} /></div>
-        {#if canRemove}
+        {#if canRemoveMembers}
           <ActionIcon
             icon={IconClose}
             size={'small'}
@@ -141,7 +137,7 @@
         {/if}
       </div>
     {/each}
-    {#if foreign.length}
+    {#if foreign.length > 0 && canAddMembers}
       <div class="mt-4 notIn h-full">
         <div class="divider w-full mb-4" />
         <div class="pr-8 pl-8"><Label label={presentation.string.NotInThis} params={{ space: spaceClass }} /></div>

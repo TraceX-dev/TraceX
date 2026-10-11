@@ -7,7 +7,14 @@ import { pushTokensData } from '../../billing'
 let mockTools: any[] = []
 
 jest.mock('../../tools', () => ({
-  getTools: jest.fn(() => mockTools)
+  getTools: jest.fn(() => mockTools),
+  toolFail: jest.fn((message: string, code: string = 'tool_error') => ({
+    ok: false,
+    error: {
+      code,
+      message
+    }
+  }))
 }))
 
 jest.mock('../../billing', () => ({
@@ -170,19 +177,21 @@ describe('DefaultLLMService', () => {
   })
 
   it('chat handles tool-call rounds and accumulates provider and tool usage', async () => {
-    const executor = jest.fn(async (args: any) => ({
-      text: `value:${args.q}`,
-      usage: { inputTokens: 4, outputTokens: 5 }
-    }))
+    const executor = jest.fn(async (args: any, toolCtx: any) => {
+      toolCtx.tokenUsage.addTokenUsage({ inputTokens: 4, outputTokens: 5 }, { tool: 'lookup' })
+      return {
+        ok: true,
+        output: { value: args.q }
+      }
+    })
     mockTools = [
       {
-        contextMode: 'any',
-        definition: {
-          name: 'lookup',
-          description: 'Lookup data',
-          parameters: { type: 'object', properties: { q: { type: 'string' } } }
-        },
-        createExecutor: () => executor
+        name: 'lookup',
+        description: 'Lookup data',
+        inputSchema: { type: 'object', properties: { q: { type: 'string' } } },
+        outputSchema: { type: 'object', properties: { value: { type: 'string' } } },
+        metadata: { contextMode: 'any' },
+        execute: executor
       }
     ]
 
@@ -211,7 +220,12 @@ describe('DefaultLLMService', () => {
       createToolCtx()
     )
 
-    expect(executor).toHaveBeenCalledWith({ q: 'x' })
+    expect(executor).toHaveBeenCalledWith(
+      { q: 'x' },
+      expect.objectContaining({
+        tokenUsage: expect.objectContaining({ addTokenUsage: expect.any(Function) })
+      })
+    )
     expect(provider.chatCompletionWithTools).toHaveBeenNthCalledWith(
       2,
       expect.anything(),
@@ -223,7 +237,7 @@ describe('DefaultLLMService', () => {
         },
         {
           role: 'tool',
-          content: 'value:x',
+          content: JSON.stringify({ value: 'x' }, null, 2),
           toolCallId: 'call-1'
         }
       ]),
@@ -269,7 +283,16 @@ describe('DefaultLLMService', () => {
       expect.arrayContaining([
         {
           role: 'tool',
-          content: 'Error: Unknown tool: missing',
+          content: JSON.stringify(
+            {
+              error: {
+                code: 'unknown_tool',
+                message: 'Unknown tool: missing'
+              }
+            },
+            null,
+            2
+          ),
           toolCallId: 'call-1'
         }
       ]),
@@ -284,13 +307,11 @@ describe('DefaultLLMService', () => {
     const executor = jest.fn()
     mockTools = [
       {
-        contextMode: 'any',
-        definition: {
-          name: 'lookup',
-          description: 'Lookup data',
-          parameters: { type: 'object' }
-        },
-        createExecutor: () => executor
+        name: 'lookup',
+        description: 'Lookup data',
+        inputSchema: { type: 'object' },
+        metadata: { contextMode: 'any' },
+        execute: executor
       }
     ]
     const provider = createProvider()
@@ -327,7 +348,7 @@ describe('DefaultLLMService', () => {
       expect.arrayContaining([
         expect.objectContaining({
           role: 'tool',
-          content: expect.stringContaining('Error: Error executing tool:')
+          content: expect.stringContaining('"code": "tool_execution_failed"')
         })
       ]),
       expect.any(Array),
@@ -339,13 +360,11 @@ describe('DefaultLLMService', () => {
   it('chat performs final non-tool completion after max tool rounds', async () => {
     mockTools = [
       {
-        contextMode: 'any',
-        definition: {
-          name: 'lookup',
-          description: 'Lookup data',
-          parameters: { type: 'object' }
-        },
-        createExecutor: () => async () => ({ text: 'tool result' })
+        name: 'lookup',
+        description: 'Lookup data',
+        inputSchema: { type: 'object' },
+        metadata: { contextMode: 'any' },
+        execute: async () => ({ ok: true, output: 'tool result' })
       }
     ]
     const provider = createProvider()

@@ -29,6 +29,13 @@ import {
 export default mergeIds(contactId, contact, {
   string: {
     HideInactive: '' as IntlString,
+    SpaceAccessGroup: '' as IntlString,
+    SpaceMembershipGroup: '' as IntlString,
+    AnonymousGuestAccess: '' as IntlString,
+    AnonymousGuestAccessDescr: '' as IntlString,
+    AnonymousGuestAccessWorkspaceOffNote: '' as IntlString,
+    AnonymousGuestAccessOwnerOnlyNote: '' as IntlString,
+    PublicBadge: '' as IntlString,
     Apply: '' as IntlString,
     CreatePerson: '' as IntlString,
     OrganizationNamePlaceholder: '' as IntlString,
@@ -48,7 +55,6 @@ export default mergeIds(contactId, contact, {
     SetStatus: '' as IntlString,
     ClearStatus: '' as IntlString,
     SaveStatus: '' as IntlString,
-    Location: '' as IntlString,
     Cancel: '' as IntlString,
     StatusDueDate: '' as IntlString,
     StatusName: '' as IntlString,

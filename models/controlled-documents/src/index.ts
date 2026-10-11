@@ -1,5 +1,7 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -47,6 +49,7 @@ import textEditor from '@hcengineering/text-editor'
 import { AccountRole, type ClassCollaborators, type Class, type Doc, type Lookup, type Ref } from '@hcengineering/core'
 import { type Action } from '@hcengineering/view'
 import { definePermissions } from './permissions'
+import { defineGuestCreatePolicies } from './guestPolicies'
 import documents from './plugin'
 import { defineSpaceType } from './spaceType'
 import {
@@ -66,6 +69,7 @@ import {
   TDocumentSpaceTypeDescriptor,
   TDocumentTemplate,
   TDocumentTraining,
+  TDocumentAttachment,
   TExternalSpace,
   THierarchyDocument,
   TOrgSpace,
@@ -128,6 +132,7 @@ export function createModel (builder: Builder): void {
     THierarchyDocument,
     TDocumentTemplate,
     TDocumentTraining,
+    TDocumentAttachment,
     TDocumentCategory,
     TControlledDocument,
     TChangeControl,
@@ -180,6 +185,8 @@ export function createModel (builder: Builder): void {
       locationResolver: documents.resolver.Location,
       alias: documentsId,
       hidden: false,
+      spaceClasses: [documents.class.DocumentSpace],
+      spaceIds: [documents.space.Documents],
       navigatorModel: {
         specials: [
           {
@@ -234,10 +241,7 @@ export function createModel (builder: Builder): void {
             position: 'top',
             label: documents.string.Categories,
             icon: documents.icon.Library,
-            component: documents.component.Categories,
-            componentProps: {
-              space: documents.space.QualityDocuments
-            }
+            component: documents.component.Categories
           },
           {
             id: 'space-browser',
@@ -459,6 +463,14 @@ export function createModel (builder: Builder): void {
     component: documents.component.EditProjectDoc
   })
 
+  builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.AttributeEditor, {
+    inlineEditor: documents.component.ControlledDocumentInlineEditor
+  })
+
+  builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.ArrayEditor, {
+    inlineEditor: documents.component.ControlledDocumentArrayEditor
+  })
+
   builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.IgnoreActions, {
     actions: [tracker.action.NewRelatedIssue]
   })
@@ -480,7 +492,8 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(documents.class.Document, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: documents.component.DocumentPresenter
+    presenter: documents.component.DocumentPresenter,
+    requiredFields: ['code', 'title']
   })
 
   builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.LinkProvider, {
@@ -510,6 +523,50 @@ export function createModel (builder: Builder): void {
       context: { mode: ['context'], group: 'edit' }
     },
     documentsPlugin.action.ChangeDocumentOwner
+  )
+
+  createAction(
+    builder,
+    {
+      action: view.actionImpl.ShowPopup,
+      actionPopup: exportPlugin.component.DocumentExportFormatPopup,
+      actionProps: {
+        component: exportPlugin.component.DocumentExportFormatPopup,
+        element: 'top',
+        fillProps: { _object: 'value' }
+      },
+      label: documentsPlugin.string.Export,
+      icon: documents.icon.Document,
+      category: view.category.General,
+      input: 'focus',
+      target: documents.class.ControlledDocument,
+      context: { mode: ['context'], group: 'tools' }
+    },
+    documentsPlugin.action.Export
+  )
+
+  createAction(
+    builder,
+    {
+      action: view.actionImpl.ShowPopup,
+      actionPopup: exportPlugin.component.DocumentImportFormatPopup,
+      actionProps: {
+        component: exportPlugin.component.DocumentImportFormatPopup,
+        element: 'top',
+        fillProps: { _object: 'value' }
+      },
+      label: documentsPlugin.string.Import,
+      icon: documents.icon.Document,
+      category: view.category.General,
+      input: 'focus',
+      visibilityTester: documents.function.CanImportDocument,
+      query: {
+        state: DocumentState.Draft
+      },
+      target: documents.class.ControlledDocument,
+      context: { mode: ['context'], group: 'tools' }
+    },
+    documentsPlugin.action.Import
   )
 
   createAction<Document>(
@@ -613,7 +670,7 @@ export function createModel (builder: Builder): void {
       icon: documents.icon.NewDocument,
       category: view.category.General,
       input: 'none',
-      target: documents.class.OrgSpace,
+      target: documents.class.DocumentSpace,
       visibilityTester: documents.function.CanCreateTemplate,
       context: { mode: ['context'], group: 'create' }
     },
@@ -985,6 +1042,26 @@ export function createModel (builder: Builder): void {
   createAction(
     builder,
     {
+      action: exportPlugin.actionImpl.ExportTable,
+      actionProps: {
+        cardClass: documents.class.Document
+      },
+      label: exportPlugin.string.Export,
+      icon: exportPlugin.icon.Export,
+      input: 'selection',
+      category: view.category.General,
+      target: documents.class.Document,
+      context: {
+        mode: ['context', 'browser'],
+        group: 'copy'
+      }
+    },
+    documents.action.ExportTable
+  )
+
+  createAction(
+    builder,
+    {
       action: view.actionImpl.CopyDocumentMarkdown,
       actionProps: {
         contentClass: documents.class.Document,
@@ -1150,10 +1227,11 @@ export function createModel (builder: Builder): void {
     {
       application: documents.app.Documents,
       role: AccountRole.Guest,
-      permissions: [],
+      // Guest creation is off until enabled in the guest settings.
+      permissions: [core.permission.CreateObject],
+      disabledPermissions: [core.permission.CreateObject],
       spaceClass: documents.class.OrgSpace,
-      enabled: true,
-      order: 42
+      enabled: true
     },
     documents.ids.ModulePermissionGroup
   )
@@ -1166,12 +1244,12 @@ export function createModel (builder: Builder): void {
       role: AccountRole.ReadOnlyGuest,
       permissions: [],
       spaceClass: documents.class.OrgSpace,
-      enabled: false,
-      order: 42
+      enabled: false
     },
     documents.ids.ModulePermissionGroupReadOnlyGuest
   )
   definePermissions(builder)
+  defineGuestCreatePolicies(builder)
   defineNotifications(builder)
   defineSearch(builder)
   defineTextActions(builder)
@@ -1313,6 +1391,7 @@ export function defineNotifications (builder: Builder): void {
       txClasses: [core.class.TxCreateDoc, core.class.TxUpdateDoc],
       objectClass: documents.class.ControlledDocument,
       defaultEnabled: true,
+      emailKind: 'coAuthor',
       templates: {
         textTemplate: '{sender} assigned you as a co-author of {doc}',
         htmlTemplate: '<p>{sender} assigned you as a co-author of {doc}</p>',

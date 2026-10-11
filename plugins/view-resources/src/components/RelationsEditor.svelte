@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,6 +23,7 @@
 
   export let object: Doc
   export let readonly: boolean = false
+  export let compactMode: boolean = false
   export let emptyKind: 'create' | 'placeholder' = 'create'
 
   const client = getClient()
@@ -82,6 +84,7 @@
     {readonly}
     label={getEmbeddedLabel(association.nameB)}
     direction="B"
+    {compactMode}
     {emptyKind}
   />
 {/each}
@@ -93,6 +96,7 @@
     {readonly}
     label={getEmbeddedLabel(association.nameA)}
     direction="A"
+    {compactMode}
     {emptyKind}
   />
 {/each}

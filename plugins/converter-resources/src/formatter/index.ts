@@ -14,7 +14,7 @@
 //
 
 export { registerValueFormatterForClass, registerValueFormatter, getFormattersForClass } from './registry'
-export { formatValue, formatCustomAttributeValue } from './valueFormatter'
+export { formatValue, formatCustomAttributeValue, type ElementFormatter } from './valueFormatter'
 export {
   isIntlString,
   formatArrayValue,

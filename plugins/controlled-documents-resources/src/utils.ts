@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,7 +25,6 @@ import documents, {
   type DocumentRequest,
   type DocumentSpace,
   type DocumentTemplate,
-  type OrgSpace,
   type Project,
   type ProjectDocument,
   type ProjectMeta,
@@ -40,6 +40,8 @@ import documents, {
   transferDocuments
 } from '@hcengineering/controlled-documents'
 import core, {
+  type Account,
+  AccountRole,
   type Class,
   type Client,
   type Doc,
@@ -57,6 +59,9 @@ import core, {
   SortingOrder,
   checkPermission,
   getCurrentAccount,
+  hasAccountRole,
+  isModulePermissionGranted,
+  type ModulePermissionGroup,
   notEmpty
 } from '@hcengineering/core'
 import { type IntlString, translate } from '@hcengineering/platform'
@@ -71,6 +76,21 @@ import { getProjectDocumentLink } from './navigation'
 import documentsResources from './plugin'
 import { wizardOpened } from './stores/wizards/create-document'
 import { getPersonRefByPersonId, getPersonRefsByPersonIds } from '@hcengineering/contact-resources'
+
+/** Checks whether the account may create objects in the documents module. */
+export function isGuestModuleCreateGranted (account: Account, groups: ModulePermissionGroup[]): boolean {
+  if (hasAccountRole(account, AccountRole.User)) return true
+  if (account.role !== AccountRole.Guest) return false
+  const documentGroups = groups.filter((group) => group.application === documentsResources.app.Documents)
+  return isModulePermissionGranted(documentGroups, AccountRole.Guest, core.permission.CreateObject)
+}
+
+export async function canGuestCreateDocuments (client: Client = getClient()): Promise<boolean> {
+  const account = getCurrentAccount()
+  if (account.role !== AccountRole.Guest) return isGuestModuleCreateGranted(account, [])
+  const groups = await client.findAll(core.class.ModulePermissionGroup, {})
+  return isGuestModuleCreateGranted(account, groups)
+}
 
 export type TranslatedDocumentStates = Readonly<Record<DocumentState, string>>
 
@@ -227,11 +247,8 @@ export async function sendReviewRequest (
     controlledState: ControlledDocumentState.Reviewed
   })
 
-  await client.update(controlledDoc, {
-    reviewers,
-    controlledState: ControlledDocumentState.InReview
-  })
-
+  // The state change and the request are applied together: the server accepts the state change of a guest only
+  // together with the matching request, and a failed request must not leave the document in review.
   await createRequest(
     client,
     controlledDoc._id,
@@ -241,7 +258,13 @@ export async function sendReviewRequest (
     reviewers,
     approveTx,
     undefined,
-    true
+    true,
+    async (ops) => {
+      await ops.update(controlledDoc, {
+        reviewers,
+        controlledState: ControlledDocumentState.InReview
+      })
+    }
   )
 }
 
@@ -275,18 +298,6 @@ export async function sendApprovalRequest (
     }
   }
 
-  const ops = client.apply(controlledDoc._id)
-
-  await ops.update(controlledDoc, {
-    approvers,
-    externalApprovers,
-    controlledState: ControlledDocumentState.InApproval
-  })
-
-  await updateExternalApproversAccess(ops, controlledDoc, Array.from(added), Array.from(removed))
-
-  await ops.commit()
-
   await createRequest(
     client,
     controlledDoc._id,
@@ -296,7 +307,16 @@ export async function sendApprovalRequest (
     [...approvers, ...externalApprovers],
     approveTx,
     rejectTx,
-    true
+    true,
+    async (ops) => {
+      await ops.update(controlledDoc, {
+        approvers,
+        externalApprovers,
+        controlledState: ControlledDocumentState.InApproval
+      })
+
+      await updateExternalApproversAccess(ops, controlledDoc, Array.from(added), Array.from(removed))
+    }
   )
 }
 
@@ -353,11 +373,11 @@ export async function updateExternalApproversAccess (
       removedPersons.length === 0
         ? []
         : await client.findAll(core.class.Collaborator, {
-          attachedTo: controlledDoc._id,
-          attachedToClass: controlledDoc._class,
-          collection: 'collaborators',
-          collaborator: { $in: removedPersonUuids }
-        })
+            attachedTo: controlledDoc._id,
+            attachedToClass: controlledDoc._class,
+            collection: 'collaborators',
+            collaborator: { $in: removedPersonUuids }
+          })
     const projectDocs = await client.findAll(documents.class.ProjectDocument, {
       document: controlledDoc._id
     })
@@ -390,7 +410,8 @@ async function createRequest<T extends Doc> (
   users: Array<Ref<Person>>,
   approveTx: Tx,
   rejectedTx?: Tx,
-  areAllApprovesRequired = true
+  areAllApprovesRequired = true,
+  prepare?: (ops: TxOperations) => Promise<void>
 ): Promise<Ref<Request> | undefined> {
   const sequentialRequestClassGroup = [documents.class.DocumentReviewRequest, documents.class.DocumentApprovalRequest]
 
@@ -405,6 +426,8 @@ async function createRequest<T extends Doc> (
       })
     }
   }
+
+  await prepare?.(ops)
 
   const ref = await ops.addCollection(reqClass, space, attachedTo, attachedToClass, 'requests', {
     requested: users,
@@ -501,9 +524,7 @@ export async function rejectRequest (
   })
 }
 
-export type ControlledStatesTags = {
-  [K in ControlledDocumentState]: DocumentStateTagType
-}
+export type ControlledStatesTags = Record<ControlledDocumentState, DocumentStateTagType>
 
 export const controlledStatesTags: ControlledStatesTags = {
   [ControlledDocumentState.InReview]: 'inProgress',
@@ -514,9 +535,7 @@ export const controlledStatesTags: ControlledStatesTags = {
   [ControlledDocumentState.ToReview]: 'effective'
 }
 
-export type StatesTags = {
-  [K in DocumentState]: DocumentStateTagType
-}
+export type StatesTags = Record<DocumentState, DocumentStateTagType>
 
 export const statesTags: StatesTags = {
   [DocumentState.Draft]: 'draft',
@@ -569,6 +588,22 @@ export function isDocOwner (ownableDocument: { owner?: Ref<Employee> }): boolean
   return ownableDocument.owner === currentPerson
 }
 
+export async function canImportDocument (doc?: Document | Document[]): Promise<boolean> {
+  if (doc === null || doc === undefined || Array.isArray(doc)) {
+    return false
+  }
+  // Import overwrites the document body, so restrict it to the same conditions under
+  // which content is editable in the editor: a Draft owned/co-authored by the user.
+  if (doc.state !== DocumentState.Draft) {
+    return false
+  }
+  const me = getCurrentEmployee()
+  const controlled = doc as ControlledDocument
+  const isOwner = doc.owner === me
+  const isCoAuthor = controlled.coAuthors?.includes(me) ?? false
+  return isOwner || isCoAuthor
+}
+
 export async function canChangeDocumentOwner (doc?: Document | Document[]): Promise<boolean> {
   if (doc === null || doc === undefined) {
     return false
@@ -597,10 +632,12 @@ export async function canCreateChildTemplate (
   }
 
   const client = getClient()
-  const spaceId: Ref<DocumentSpace> = isSpace(client.getHierarchy(), doc) ? doc._id : doc.space
-  const orgSpace = await client.findOne(documents.class.OrgSpace, { _id: spaceId })
+  if (!(await canGuestCreateDocuments(client))) return false
+  const hierarchy = client.getHierarchy()
+  const spaceId: Ref<DocumentSpace> = isSpace(hierarchy, doc) ? doc._id : doc.space
+  const space = isSpace(hierarchy, doc) ? doc : await client.findOne(documents.class.DocumentSpace, { _id: spaceId })
 
-  return orgSpace !== undefined && (await checkPermission(client, documents.permission.CreateDocument, spaceId))
+  return space !== undefined && (await checkPermission(client, documents.permission.CreateDocument, spaceId))
 }
 
 export async function canCreateChildDocument (
@@ -615,6 +652,7 @@ export async function canCreateChildDocument (
   }
 
   const client = getClient()
+  if (!(await canGuestCreateDocuments(client))) return false
   const hierarchy = client.getHierarchy()
   const spaceId: Ref<DocumentSpace> = isSpace(hierarchy, doc) ? doc._id : doc.space
 
@@ -1032,7 +1070,7 @@ export async function createDocument (space: DocumentSpace): Promise<void> {
   showPopup(documents.component.QmsDocumentWizard, {})
 }
 
-export async function createTemplate (space: OrgSpace): Promise<void> {
+export async function createTemplate (space: DocumentSpace): Promise<void> {
   const project = await getLatestProjectId(space._id)
   wizardOpened({ $$currentStep: 'info', location: { space: space._id, project: project ?? documents.ids.NoProject } })
   showPopup(documents.component.QmsTemplateWizard, {})

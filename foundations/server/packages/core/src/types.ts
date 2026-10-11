@@ -1,5 +1,6 @@
 //
 // Copyright © 2022, 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -43,6 +44,7 @@ import {
   type Space,
   type Timestamp,
   type Tx,
+  type TxCUD,
   type TxFactory,
   type TxResult,
   type UserStatus,
@@ -320,6 +322,50 @@ export interface Trigger extends Doc {
 }
 
 /**
+ * Decision of a guest transaction validator: `allow` accepts the transaction, `deny` rejects it,
+ * `undefined` leaves it to the generic guest rules.
+ * @public
+ */
+export type GuestTxDecision = 'allow' | 'deny' | undefined
+
+/**
+ * @public
+ */
+export interface GuestTxValidatorControl {
+  ctx: MeasureContext
+  account: Account
+  hierarchy: Hierarchy
+  findAll: <T extends Doc>(
+    _class: Ref<Class<T>>,
+    query: DocumentQuery<T>,
+    options?: FindOptions<T>
+  ) => Promise<FindResult<T>>
+  /** `Person` of the guest account, if it has one. */
+  person: Ref<Doc> | undefined
+  /** Whether the guest can read the document, mirroring the storage read security for guests. */
+  canRead: (doc: Doc) => Promise<boolean>
+  /** Transactions of the enclosing apply, including the validated one. Empty outside of an apply. */
+  applyTxes: Tx[]
+}
+
+/**
+ * @public
+ */
+export type GuestTxValidatorFunc = (tx: TxCUD<Doc>, control: GuestTxValidatorControl) => Promise<GuestTxDecision>
+
+/**
+ * Module specific validation of guest transactions. A validator is active for a guest only while the guest has an
+ * active policy of `application`, i.e. the module guest permission is enabled.
+ * @public
+ */
+export interface GuestTxValidator extends Doc {
+  validator: Resource<GuestTxValidatorFunc>
+  application: Ref<Doc>
+  /** Classes whose transactions are validated, including derived classes. */
+  classes: Array<Ref<Class<Doc>>>
+}
+
+/**
  * @public
  */
 export interface EmbeddingSearchOption {
@@ -350,6 +396,7 @@ export interface IndexedDoc {
   searchIcon_fields?: any[]
   fulltextSummary?: string
   baseId?: Ref<Doc>
+  version?: number
   [key: string]: any
 }
 
@@ -559,11 +606,11 @@ export interface ClientSessionCtx {
 
   pipeline: Pipeline
   socialStringsToUsers: Map<
-  PersonId,
-  {
-    accontUuid: AccountUuid
-    role: AccountRole
-  }
+    PersonId,
+    {
+      accontUuid: AccountUuid
+      role: AccountRole
+    }
   >
   requestId: ReqId | undefined
   sendResponse: (id: ReqId | undefined, msg: any) => Promise<void>
@@ -707,8 +754,7 @@ export interface AddSessionActive {
 }
 
 export type GetWorkspaceResponse =
-  | { upgrade: true, progress?: number }
-  | { error: any, terminate?: boolean, specialError?: 'archived' | 'migration' }
+  { upgrade: true, progress?: number } | { error: any, terminate?: boolean, specialError?: 'archived' | 'migration' }
 
 export type AddSessionResponse = AddSessionActive | GetWorkspaceResponse
 

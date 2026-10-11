@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,12 +22,30 @@ import activity, {
 } from '@hcengineering/activity'
 import aiBot from '@hcengineering/ai-bot'
 import { summarizeMessages as aiSummarizeMessages, translate as aiTranslate } from '@hcengineering/ai-bot-resources'
-import { type Channel, type ChatMessage, type DirectMessage, type ThreadMessage } from '@hcengineering/chunter'
+import {
+  type Channel,
+  type ChatMessage,
+  type DefaultDiscussion,
+  defaultDiscussionVisibilityLevels,
+  type DirectMessage,
+  type Discussion,
+  ensureObjectCollaborator,
+  getDiscussionTitle,
+  getOrCreateDefaultDiscussion as getOrCreateObjectDefaultDiscussion,
+  type ThreadMessage
+} from '@hcengineering/chunter'
 import contact, { type Employee, getCurrentEmployee, getName, type Person } from '@hcengineering/contact'
 import { employeeByAccountStore, employeeByIdStore, PersonIcon } from '@hcengineering/contact-resources'
 import core, {
+  type AccessControlled,
   AccountRole,
   type AccountUuid,
+  audienceToVisibility,
+  getAccessAudience,
+  getAccessOwners,
+  getAccessRoot,
+  type ObjectVisibility,
+  visibilityToAudience,
   type Class,
   type Client,
   type Doc,
@@ -35,20 +54,23 @@ import core, {
   notEmpty,
   type Ref,
   type Space,
-  type Timestamp
+  type Timestamp,
+  type TxOperations
 } from '@hcengineering/core'
 import notification, { type DocNotifyContext, type InboxNotification } from '@hcengineering/notification'
 import {
   InboxNotificationsClientImpl,
+  getDisplayInboxNotifications,
   isActivityNotification,
   isMentionNotification,
   isReactionNotification
 } from '@hcengineering/notification-resources'
 import { type Asset, getMetadata, translate } from '@hcengineering/platform'
-import { getClient } from '@hcengineering/presentation'
-import { type AnySvelteComponent, languageStore } from '@hcengineering/ui'
+import { MessageBox, getClient } from '@hcengineering/presentation'
+import { type AnySvelteComponent, languageStore, showPopup } from '@hcengineering/ui'
 import { classIcon, getDocLinkTitle, getDocTitle } from '@hcengineering/view-resources'
-import { get, type Unsubscriber, writable } from 'svelte/store'
+import type { ApplicationNotificationState } from '@hcengineering/workbench'
+import { derived, get, type Readable, type Unsubscriber, writable } from 'svelte/store'
 
 import ChannelIcon from './components/ChannelIcon.svelte'
 import DirectIcon from './components/DirectIcon.svelte'
@@ -129,6 +151,150 @@ export async function canDeleteMessage (doc?: ChatMessage): Promise<boolean> {
   return doc.createdBy !== undefined && me.socialIds.includes(doc.createdBy)
 }
 
+export function isDiscussionParticipant (discussion: Discussion): boolean {
+  return discussion.members.includes(getCurrentAccount().uuid)
+}
+
+// Mirrors the TxAccessLevel of Discussion: guests can only post messages, not create or change discussions.
+export function canCreateDiscussion (): boolean {
+  return hasAccountRole(getCurrentAccount(), AccountRole.User)
+}
+
+// Every discussion is a security root on the server; only discussions created before that are not.
+function isAccessRoot (discussion: Discussion): boolean {
+  return getAccessRoot(discussion) === discussion._id
+}
+
+export function isDiscussionOwner (discussion: Discussion): boolean {
+  return getAccessOwners(getClient().getHierarchy(), discussion).includes(getCurrentAccount().uuid)
+}
+
+export function canManageDiscussion (discussion: Discussion): boolean {
+  const me = getCurrentAccount()
+  if (!hasAccountRole(me, AccountRole.User)) return false
+  if (hasAccountRole(me, AccountRole.Maintainer) || isDiscussionOwner(discussion)) return true
+  return getDiscussionVisibility(discussion) === 'private' && isDiscussionParticipant(discussion)
+}
+
+export function getDiscussionVisibility (discussion: Discussion): ObjectVisibility {
+  return audienceToVisibility(getAccessAudience(getClient().getHierarchy(), discussion))
+}
+
+// Mirrors ObjectSecurityMiddleware.canManage: owners, maintainers (who can read it, as the client does)
+// and workspace owners.
+export function canChangeDiscussionVisibility (discussion: Discussion): boolean {
+  const me = getCurrentAccount()
+  if (!hasAccountRole(me, AccountRole.User) || !isAccessRoot(discussion)) return false
+  if (hasAccountRole(me, AccountRole.Maintainer)) return true
+  // A default discussion belongs to the owner type, so whoever created it first must not hide it from others.
+  return isDiscussionOwner(discussion) && !isConfiguredDefaultDiscussion(discussion)
+}
+
+// The visibility levels a discussion may get; a private default discussion could not be opened by others.
+export function getDiscussionVisibilityLevels (discussion: Discussion): ObjectVisibility[] {
+  return isConfiguredDefaultDiscussion(discussion)
+    ? defaultDiscussionVisibilityLevels
+    : ['public', 'participants', 'private']
+}
+
+// Members of a private discussion may invite others and leave; managers may also remove others.
+export function canEditDiscussionMembers (discussion: Discussion): boolean {
+  if (getDiscussionVisibility(discussion) !== 'private') return false
+  return canChangeDiscussionVisibility(discussion) || isDiscussionParticipant(discussion)
+}
+
+/**
+ * Applies the server rules to a members change: non-managers only add people or leave,
+ * a private discussion keeps at least one member. Returns undefined when nothing is left to store.
+ */
+export function normalizeDiscussionMembers (discussion: Discussion, next: AccountUuid[]): AccountUuid[] | undefined {
+  const me = getCurrentAccount().uuid
+  let result = Array.from(new Set(next))
+  if (!canChangeDiscussionVisibility(discussion)) {
+    const kept = discussion.members.filter((it) => it !== me && !result.includes(it))
+    result = [...result, ...kept]
+  }
+  return result.length > 0 ? result : undefined
+}
+
+export async function ensureCollaborator (
+  client: TxOperations,
+  object: Pick<Doc, '_id' | '_class' | 'space'>
+): Promise<void> {
+  await ensureObjectCollaborator(client, object, getCurrentAccount().uuid)
+}
+
+// The checks are done upfront: the steps are separate requests, a rejected one must not leave others behind.
+export async function setDiscussionVisibility (discussion: Discussion, visibility: ObjectVisibility): Promise<void> {
+  const current = getDiscussionVisibility(discussion)
+  if (current === visibility || !canChangeDiscussionVisibility(discussion)) return
+  if (!getDiscussionVisibilityLevels(discussion).includes(visibility)) return
+  const client = getClient()
+  const me = getCurrentAccount().uuid
+  if (visibility === 'private' && !discussion.members.includes(me)) {
+    // Stored first: the server checks the stored members, and whoever restricts it keeps access.
+    await client.update(discussion, { members: [...discussion.members, me] })
+  }
+  if (visibility === 'participants') {
+    const parent = { _id: discussion.attachedTo, _class: discussion.attachedToClass, space: discussion.space }
+    await ensureCollaborator(client, parent)
+  }
+  await client.updateMixin<Doc, AccessControlled>(
+    discussion._id,
+    discussion._class,
+    discussion.space,
+    core.mixin.AccessControlled,
+    { read: visibilityToAudience(visibility) }
+  )
+  if (current === 'private' && discussion.members.length > 0) {
+    // Members exist only for a private discussion.
+    await client.update(discussion, { members: [] })
+  }
+}
+
+export async function setDiscussionResolved (discussion: Discussion, resolved: boolean): Promise<void> {
+  if (discussion.resolved === resolved) return
+  await getClient().update(discussion, { resolved })
+}
+
+// The discussion is created from a default discussion still configured for its owner class.
+export function isConfiguredDefaultDiscussion (discussion: Discussion): boolean {
+  if (discussion.defaultDiscussion === undefined) return false
+  const config = getClient()
+    .getModel()
+    .findAllSync(chunter.class.DefaultDiscussion, { _id: discussion.defaultDiscussion })[0]
+  return config !== undefined && config.ofClass === discussion.attachedToClass
+}
+
+// A configured default discussion is part of the owner type: its name comes from the type and it cannot be deleted.
+export function canDeleteDiscussion (discussion: Discussion): boolean {
+  return !isConfiguredDefaultDiscussion(discussion)
+}
+
+export function canRenameDiscussion (discussion: Discussion): boolean {
+  return canManageDiscussion(discussion) && !isConfiguredDefaultDiscussion(discussion)
+}
+
+// Creates the default discussion on first access, see getOrCreateDefaultDiscussion in @hcengineering/chunter.
+export async function getOrCreateDefaultDiscussion (
+  object: Doc,
+  config: DefaultDiscussion
+): Promise<Ref<Discussion> | undefined> {
+  return await getOrCreateObjectDefaultDiscussion(getClient(), object, config, getCurrentAccount().uuid)
+}
+
+export async function deleteDiscussion (discussion: Discussion): Promise<void> {
+  if (!canDeleteDiscussion(discussion)) return
+  showPopup(MessageBox, {
+    label: chunter.string.DeleteDiscussion,
+    message: chunter.string.DeleteDiscussionConfirm,
+    action: async () => {
+      const client = getClient()
+      await client.remove(discussion)
+    }
+  })
+}
+
 export function canReplyToThread (doc?: ActivityMessage): boolean {
   if (doc === undefined) {
     return false
@@ -184,6 +350,27 @@ export async function DirectTitleProvider (
   }
 
   return await getDmName(client, direct)
+}
+
+export async function discussionTitleProvider (client: Client, id: Ref<Discussion>, doc?: Discussion): Promise<string> {
+  const discussion = doc ?? (await client.findOne(chunter.class.Discussion, { _id: id }))
+  if (discussion === undefined) return ''
+  return await getDiscussionDisplayTitle(discussion)
+}
+
+async function getDiscussionDisplayTitle (discussion: Discussion): Promise<string> {
+  return getDiscussionTitle(discussion) ?? (await translate(chunter.string.UntitledDiscussion, {}, get(languageStore)))
+}
+
+// The owner object title, so a discussion can be told apart outside its owner (e.g. in the inbox).
+export async function discussionIdentifierProvider (
+  client: Client,
+  id: Ref<Discussion>,
+  doc?: Discussion
+): Promise<string> {
+  const discussion = doc ?? (await client.findOne(chunter.class.Discussion, { _id: id }))
+  if (discussion === undefined || !client.getHierarchy().hasClass(discussion.attachedToClass)) return ''
+  return (await getDocTitle(client, discussion.attachedTo, discussion.attachedToClass)) ?? ''
 }
 
 export async function ChannelTitleProvider (client: Client, id: Ref<Channel>, doc?: Channel): Promise<string> {
@@ -256,6 +443,44 @@ export function getUnreadThreadsCount (): number {
     .filter((_id) => _id !== undefined)
 
   return new Set(threadIds).size
+}
+
+export function getChunterNotificationStore (): Readable<ApplicationNotificationState> {
+  const notificationClient = InboxNotificationsClientImpl.getClient()
+  const hierarchy = getClient().getHierarchy()
+
+  return derived(
+    [notificationClient.contexts, notificationClient.inboxNotificationsByContext],
+    ([contexts, notificationsByContext]) => {
+      let count = 0
+
+      for (const context of contexts) {
+        if ((context.lastUpdateTimestamp ?? 0) <= (context.lastViewedTimestamp ?? 0)) continue
+        if (
+          !hierarchy.isDerived(context.objectClass, chunter.class.ChunterSpace) &&
+          !hierarchy.isDerived(context.objectClass, chunter.class.Discussion)
+        ) {
+          continue
+        }
+
+        const notifications = notificationsByContext.get(context._id) ?? []
+        const relevantNotifications = notifications.filter((notification) => {
+          if (isActivityNotification(notification)) {
+            return hierarchy.isDerived(notification.attachedToClass, chunter.class.ChatMessage)
+          }
+
+          return (
+            isMentionNotification(notification) &&
+            hierarchy.isDerived(notification.mentionedInClass, chunter.class.ChatMessage)
+          )
+        })
+
+        count += getDisplayInboxNotifications(relevantNotifications, 'unread').length
+      }
+
+      return { notify: count > 0, count }
+    }
+  )
 }
 
 export function getClosestDate (selectedDate: Timestamp, dates: Timestamp[]): Timestamp | undefined {

@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -92,6 +93,14 @@ export interface Action {
 
   group?: string
 }
+
+export interface InteractiveListActionContext {
+  key: string
+  index: number
+  selectedKeys: string[]
+}
+
+export type InteractiveListActionsProvider = (context: InteractiveListActionContext) => Action[] | Promise<Action[]>
 
 export interface IPopupItem {
   _id?: number
@@ -186,6 +195,7 @@ export type ButtonShape =
 export type EditStyle =
   | 'editbox'
   | 'large-style'
+  | 'medium-style'
   | 'small-style'
   | 'search-style'
   | 'underline'
@@ -240,7 +250,7 @@ export const posAlignment = [
 export type PopupPosAlignment = (typeof posAlignment)[number]
 
 export function isPopupPosAlignment (x: any): x is PopupPosAlignment {
-  return typeof x === 'string' && (posAlignment as typeof posAlignment).includes(x as PopupPosAlignment)
+  return typeof x === 'string' && posAlignment.includes(x as PopupPosAlignment)
 }
 
 export type PopupAlignment = PopupPosAlignment | PopupPositionElement | null
@@ -586,6 +596,7 @@ export interface IPanelState extends IHeaderState {
 export interface FilterOption {
   id: string
   label: IntlString
+  text?: string
 }
 
 export interface FilterCategory {
@@ -599,4 +610,5 @@ export interface ActiveFilter {
   optionId: string
   categoryLabel: IntlString
   optionLabel: IntlString
+  optionText?: string
 }

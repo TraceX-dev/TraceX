@@ -88,6 +88,7 @@
     <div>
       <MarkupEditor
         value={val}
+        isScrollable={false}
         onChange={(value) => {
           onChange(value, key)
         }}

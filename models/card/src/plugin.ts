@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,7 @@ import { type Card, cardId } from '@hcengineering/card'
 import card from '@hcengineering/card-resources/src/plugin'
 import type { Client, Doc, DocumentQuery, Ref } from '@hcengineering/core'
 import {} from '@hcengineering/core'
+import type { IntegrationTargetFactory } from '@hcengineering/integration'
 import { mergeIds, type Resource } from '@hcengineering/platform'
 import { type TagCategory } from '@hcengineering/tags'
 import { type Location, type ResolvedLocation } from '@hcengineering/ui/src/types'
@@ -39,7 +41,10 @@ export default mergeIds(cardId, card, {
     UnsetParent: '' as Ref<Action<Doc, any>>,
     PublicLink: '' as Ref<Action<Doc, any>>,
     Duplicate: '' as Ref<Action<Doc, any>>,
-    CreateChild: '' as Ref<Action>
+    CreateChild: '' as Ref<Action>,
+    ExportTable: '' as Ref<Action<Doc, any>>,
+    ExportDocumentContent: '' as Ref<Action<Doc, any>>,
+    ImportDocumentContent: '' as Ref<Action<Doc, any>>
   },
   category: {
     Card: '' as Ref<ActionCategory>,
@@ -60,6 +65,9 @@ export default mergeIds(cardId, card, {
     CardNotification: '' as Ref<NotificationType>,
     CardMessageNotification: '' as Ref<NotificationType>
   },
+  integration: {
+    TargetFactory: '' as Ref<IntegrationTargetFactory>
+  },
   resolver: {
     Location: '' as Resource<(loc: Location) => Promise<ResolvedLocation | undefined>>,
     LocationData: '' as Resource<(loc: Location) => Promise<LocationData>>
@@ -72,6 +80,7 @@ export default mergeIds(cardId, card, {
     CheckRelationsSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
     CheckOldMessagesSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
     CheckCommunicationMessagesSectionVisibility: '' as Resource<(doc: Card) => Promise<boolean>>,
-    ShowAllVersions: '' as Resource<(value: any, query: DocumentQuery<Doc>) => DocumentQuery<Doc>>
+    ShowAllVersions: '' as Resource<(value: boolean, query: DocumentQuery<Doc>) => DocumentQuery<Doc>>,
+    ShowOnlyEffectiveVersions: '' as Resource<(value: boolean, query: DocumentQuery<Doc>) => DocumentQuery<Doc>>
   }
 })

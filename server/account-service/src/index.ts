@@ -1,5 +1,20 @@
 //
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+//
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 
 import account, {
@@ -13,11 +28,24 @@ import account, {
   getMethods,
   cleanExpiredOtp
 } from '@hcengineering/account'
+import accountCs from '@hcengineering/account/lang/cs.json'
+import accountDe from '@hcengineering/account/lang/de.json'
 import accountEn from '@hcengineering/account/lang/en.json'
+import accountEs from '@hcengineering/account/lang/es.json'
+import accountFr from '@hcengineering/account/lang/fr.json'
+import accountIt from '@hcengineering/account/lang/it.json'
+import accountKo from '@hcengineering/account/lang/ko.json'
+import accountPl from '@hcengineering/account/lang/pl.json'
+import accountPt from '@hcengineering/account/lang/pt.json'
+import accountPtBr from '@hcengineering/account/lang/pt-br.json'
 import accountRu from '@hcengineering/account/lang/ru.json'
+import accountTr from '@hcengineering/account/lang/tr.json'
+import accountZh from '@hcengineering/account/lang/zh.json'
 import { Analytics } from '@hcengineering/analytics'
 import { registerProviders } from '@hcengineering/auth-providers'
 import { metricsAggregate, type Branding, type BrandingMap, type MeasureContext } from '@hcengineering/core'
+import { getPlatformQueue } from '@hcengineering/kafka'
+import { type ConsumerHandle, type PlatformQueue } from '@hcengineering/server-core'
 import platform, {
   Severity,
   Status,
@@ -34,12 +62,10 @@ import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
 import Router from 'koa-router'
 import os from 'os'
-import { migrateFromOldAccounts } from './migration/migration'
-
-export * from './migration/utils'
-export * from './migration/types'
+import { startWorkspaceMemberUnreadConsumer } from './unread'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
+const DEFAULT_ACCOUNT_METRICS_INTERVAL_MS = 5 * 60 * 1000
 
 const KEEP_ALIVE_HEADERS = {
   'Content-Type': 'application/json',
@@ -59,32 +85,6 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     process.exit(1)
   }
 
-  if (dbUrl.startsWith('mongodb://')) {
-    if (process.env.PROCEED_V7_MONGO !== 'true') {
-      console.error(`
-        ⚠️ IMPORTANT: MongoDB Deprecation Notice
-
-        MongoDB support is deprecated in v7 and will be removed in future versions. Important details:
-
-        1. New features may not be available with MongoDB
-        2. Testing coverage for MongoDB will be limited
-        3. Upgrading to v7 with MongoDB will PERMANENTLY LOCK your deployment to MongoDB-specific types
-        4. Migration to CockroachDB will NOT be possible after upgrading
-
-        ➡️ Recommended Action:
-        Migrate to CockroachDB before upgrading to v7. See migration instructions at:
-        https://github.com/hcengineering/huly-selfhost
-
-        To proceed with MongoDB (despite these limitations):
-        Set environment variable PROCEED_V7_MONGO=true.
-      `)
-      process.exit(1)
-    }
-  }
-
-  const oldAccsUrl = process.env.OLD_ACCOUNTS_URL ?? (dbUrl.startsWith('mongodb://') ? dbUrl : undefined)
-  const oldAccsNs = process.env.OLD_ACCOUNTS_NS
-
   const transactorUri = process.env.TRANSACTOR_URL
   if (transactorUri === undefined) {
     console.log('Please provide transactor url')
@@ -97,16 +97,22 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     process.exit(1)
   }
 
-  addStringsLoader(accountId, async (lang: string) => {
-    switch (lang) {
-      case 'en':
-        return accountEn
-      case 'ru':
-        return accountRu
-      default:
-        return accountEn
-    }
-  })
+  const accountStrings: Record<string, typeof accountEn> = {
+    cs: accountCs,
+    de: accountDe,
+    en: accountEn,
+    es: accountEs,
+    fr: accountFr,
+    it: accountIt,
+    ko: accountKo,
+    pl: accountPl,
+    pt: accountPt,
+    'pt-br': accountPtBr,
+    ru: accountRu,
+    tr: accountTr,
+    zh: accountZh
+  }
+  addStringsLoader(accountId, async (lang: string) => accountStrings[lang.toLowerCase()] ?? accountEn)
 
   const mailUrl = process.env.MAIL_URL
   const mailAuthToken = process.env.MAIL_AUTH_TOKEN
@@ -148,11 +154,41 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
 
   const dbNs = process.env.DB_NS
   const accountsDb = getAccountDB(dbUrl, dbNs)
-  const migrations = accountsDb.then(async ([db]) => {
-    if (oldAccsUrl !== undefined) {
-      await migrateFromOldAccounts(oldAccsUrl, db, oldAccsNs)
-      console.log('Migrations verified/done')
+
+  let accountMetricsTimer: NodeJS.Timeout | undefined
+  let isClosing = false
+  const parsedAccountMetricsInterval = Number(process.env.ACCOUNT_METRICS_INTERVAL_MS)
+  const accountMetricsInterval =
+    Number.isSafeInteger(parsedAccountMetricsInterval) && parsedAccountMetricsInterval > 0
+      ? parsedAccountMetricsInterval
+      : DEFAULT_ACCOUNT_METRICS_INTERVAL_MS
+
+  const startAccountMetrics = async (): Promise<void> => {
+    const [db] = await accountsDb
+    const collectAccountMetrics = async (): Promise<void> => {
+      try {
+        const [accounts, workspaces] = await Promise.all([db.account.count({}), db.workspace.count({})])
+        measureCtx.gauge('accounts', accounts)
+        measureCtx.gauge('workspaces', workspaces)
+        measureCtx.info('account metrics', { accounts, workspaces })
+      } catch (error) {
+        measureCtx.error('Failed to collect account metrics', { error })
+      }
+
+      if (!isClosing) {
+        accountMetricsTimer = setTimeout(() => {
+          void collectAccountMetrics()
+        }, accountMetricsInterval)
+      }
     }
+
+    if (!isClosing) {
+      await collectAccountMetrics()
+    }
+  }
+
+  void startAccountMetrics().catch((error) => {
+    measureCtx.error('Failed to start account metrics collection', { error })
   })
 
   const app = new Koa()
@@ -190,6 +226,21 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       3 * 60 * 1000
     )
   })
+
+  // Cross-workspace unread indicator: consume the queue the notification trigger
+  // publishes to and raise workspace_members.has_unread in bulk. Only when a
+  // queue is configured — deployments without one simply don't light the dot.
+  let unreadQueue: PlatformQueue | undefined
+  let unreadConsumer: ConsumerHandle | undefined
+  if (process.env.QUEUE_CONFIG !== undefined) {
+    unreadQueue = getPlatformQueue('account')
+    void accountsDb.then((res) => {
+      const [db] = res
+      unreadConsumer = startWorkspaceMemberUnreadConsumer(measureCtx, unreadQueue as PlatformQueue, db)
+    })
+  } else {
+    measureCtx.warn('QUEUE_CONFIG is not set, cross-workspace unread indicator will not be updated')
+  }
 
   const extractCookieToken = (headers: IncomingHttpHeaders): string | undefined => {
     if (headers.cookie != null) {
@@ -401,7 +452,6 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
     }
 
     const [db] = await accountsDb
-    await migrations
 
     const branding = getBranding(ctx)
 
@@ -458,7 +508,12 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   })
 
   const close = (): void => {
+    isClosing = true
+    clearTimeout(accountMetricsTimer)
+    accountMetricsTimer = undefined
     onClose?.()
+    void unreadConsumer?.close()
+    void unreadQueue?.shutdown()
     void accountsDb.then(([, closeAccountsDb]) => {
       closeAccountsDb()
     })

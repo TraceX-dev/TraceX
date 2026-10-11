@@ -24,7 +24,10 @@ import {
   type Class,
   type MixinData,
   makeCollabId,
-  makeDocCollabId
+  makeDocCollabId,
+  AccountRole,
+  getCurrentAccount,
+  hasAccountRole
 } from '@hcengineering/core'
 import { setPlatformStatus, translate, unknownError } from '@hcengineering/platform'
 import { copyMarkup } from '@hcengineering/presentation'
@@ -35,14 +38,17 @@ import documents, {
   type DocumentSpace,
   type DocumentTemplate,
   type DocumentTraining,
+  type DocumentAttachment,
   type ControlledDocumentSnapshot,
   type ChangeControl,
   type ProjectDocument,
   type Project,
   DocumentState,
   createChangeControl,
-  createControlledDocFromTemplate as controlledDocFromTemplate
+  createControlledDocFromTemplate as controlledDocFromTemplate,
+  type ControlledDocCreationOptions
 } from '@hcengineering/controlled-documents'
+import attachment, { type Attachment } from '@hcengineering/attachment'
 import { getCurrentEmployee } from '@hcengineering/contact'
 import documentsRes from './plugin'
 import { getDocumentVersionString } from './utils'
@@ -55,9 +61,23 @@ export async function createControlledDocFromTemplate (
   space: Ref<DocumentSpace>,
   project: Ref<Project> | undefined,
   parent: Ref<ProjectDocument> | undefined,
-  docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument
+  docClass: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument,
+  changeControl?: { id: Ref<ChangeControl>, data: Data<ChangeControl> },
+  options: ControlledDocCreationOptions = {}
 ): Promise<{ seqNumber: number, success: boolean }> {
-  const result = await controlledDocFromTemplate(client, templateId, documentId, spec, space, project, parent, docClass)
+  const result = await controlledDocFromTemplate(
+    client,
+    templateId,
+    documentId,
+    spec,
+    space,
+    project,
+    parent,
+    docClass,
+    changeControl,
+    // Guests may not update templates they did not create, so they leave the sequence hint alone.
+    { updateTemplateSequenceHint: hasAccountRole(getCurrentAccount(), AccountRole.User), ...options }
+  )
 
   if (result.success && templateId !== undefined) {
     const source = makeCollabId(documents.mixin.DocumentTemplate, templateId, 'content')
@@ -68,9 +88,52 @@ export async function createControlledDocFromTemplate (
       await setPlatformStatus(unknownError(err))
       return { ...result, success: false }
     }
+
+    await copyDocumentAttachments(client, templateId, documentId, docClass, space)
   }
 
   return result
+}
+
+async function copyDocumentAttachments (
+  client: TxOperations,
+  sourceId: Ref<Document>,
+  targetId: Ref<Document>,
+  targetClass: Ref<Class<Document>>,
+  space: Ref<DocumentSpace>
+): Promise<void> {
+  const hierarchy = client.getHierarchy()
+  const attachments = await client.findAll(attachment.class.Attachment, { attachedTo: sourceId })
+
+  for (const att of attachments) {
+    if (hierarchy.hasMixin(att, documents.mixin.DocumentAttachment)) {
+      const docAtt = hierarchy.as<Attachment, DocumentAttachment>(att, documents.mixin.DocumentAttachment)
+      if (docAtt.deletedIn != null) {
+        continue
+      }
+    }
+
+    const newAttId = generateId<Attachment>()
+    await client.addCollection(
+      att._class,
+      space,
+      targetId,
+      targetClass,
+      'attachments',
+      {
+        file: att.file,
+        name: att.name,
+        type: att.type,
+        size: att.size,
+        lastModified: att.lastModified,
+        metadata: att.metadata
+      },
+      newAttId
+    )
+    await client.updateMixin(newAttId, att._class, space, documents.mixin.DocumentAttachment, {
+      state: 'referenced'
+    })
+  }
 }
 
 export async function createNewDraftForControlledDoc (
@@ -183,6 +246,38 @@ export async function createNewDraftForControlledDoc (
     }
   }
 
+  // Copy attachments to the new version, skipping those marked as deleted
+  const attachments = await client.findAll(attachment.class.Attachment, { attachedTo: document._id })
+  for (const att of attachments) {
+    if (hierarchy.hasMixin(att, documents.mixin.DocumentAttachment)) {
+      const docAtt = hierarchy.as<Attachment, DocumentAttachment>(att, documents.mixin.DocumentAttachment)
+      if (docAtt.deletedIn != null) {
+        continue
+      }
+    }
+
+    const newAttId = generateId<Attachment>()
+    await ops.addCollection(
+      att._class,
+      space,
+      newDraftDocId,
+      document._class,
+      'attachments',
+      {
+        file: att.file,
+        name: att.name,
+        type: att.type,
+        size: att.size,
+        lastModified: att.lastModified,
+        metadata: att.metadata
+      },
+      newAttId
+    )
+    await ops.updateMixin(newAttId, att._class, space, documents.mixin.DocumentAttachment, {
+      state: 'referenced'
+    })
+  }
+
   const res = await ops.commit()
 
   return { success: res.result, id: newDraftDocId }
@@ -211,9 +306,10 @@ export async function createDocumentSnapshotAndEdit (client: TxOperations, docum
     newSnapshotId
   )
 
-  await op.commit()
+  // Reset together with the snapshot: the server accepts the reset of a guest only with the snapshot.
+  await op.update(document, { $unset: { controlledState: true } })
 
-  await client.update(document, { $unset: { controlledState: true } })
+  await op.commit()
 
   const source = makeDocCollabId(document, 'content')
   const target = makeCollabId(documents.class.ControlledDocumentSnapshot, newSnapshotId, 'content')

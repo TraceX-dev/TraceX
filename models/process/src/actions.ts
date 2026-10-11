@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,6 +18,20 @@ import { type Builder } from '@hcengineering/model'
 import process from './plugin'
 
 export function defineMethods (builder: Builder): void {
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.RequestAttachments,
+      editor: process.component.CreateActionEditor,
+      presenter: process.component.ToDoPresenter,
+      objectClass: process.class.EventButton,
+      createdContext: { _class: process.class.EventButton, nameField: 'title' },
+      requiredParams: ['title', 'eventType', 'user']
+    },
+    process.method.RequestAttachments
+  )
+
   builder.createDoc(
     process.class.Method,
     core.space.Model,
@@ -58,10 +73,65 @@ export function defineMethods (builder: Builder): void {
       createdContext: { _class: process.class.ProcessToDo, nameField: 'title' },
       requiredParams: ['title', 'user'],
       defaultParams: {
-        withRollback: true
+        withRollback: true,
+        completionMode: 'all'
       }
     },
     process.method.CreateToDo
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.RequestFromUser,
+      editor: process.component.CreateActionEditor,
+      presenter: process.component.ToDoPresenter,
+      objectClass: process.class.EventButton,
+      createdContext: { _class: process.class.EventButton, nameField: 'title' },
+      requiredParams: ['title', 'eventType']
+    },
+    process.method.CreateAction
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.SetContext,
+      editor: process.component.SetContextEditor,
+      objectClass: core.class.Doc,
+      createdContext: null,
+      requiredParams: ['value']
+    },
+    process.method.SetContext
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.UpdateContext,
+      editor: process.component.UpdateContextEditor,
+      objectClass: core.class.Doc,
+      createdContext: null,
+      requiredParams: ['contextId', 'value']
+    },
+    process.method.UpdateContext
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.RemoveRelation,
+      objectClass: core.class.Relation,
+      editor: process.component.AddRelationEditor,
+      presenter: process.component.AddRelationPresenter,
+      createdContext: null,
+      requiredParams: ['association', 'direction', '_id']
+    },
+    process.method.RemoveRelation
   )
 
   builder.createDoc(
@@ -118,6 +188,20 @@ export function defineMethods (builder: Builder): void {
       requiredParams: ['_id']
     },
     process.method.AddTag
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.RemoveTag,
+      objectClass: card.class.Tag,
+      editor: process.component.RemoveTagEditor,
+      presenter: process.component.AddTagPresenter,
+      createdContext: null,
+      requiredParams: ['_id']
+    },
+    process.method.RemoveTag
   )
 
   builder.createDoc(
@@ -226,5 +310,53 @@ export function defineMethods (builder: Builder): void {
       createdContext: null
     },
     process.method.UnlockField
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.MakeVersionEffective,
+      objectClass: card.class.Card,
+      requiredParams: [],
+      createdContext: null
+    },
+    process.method.MakeVersionEffective
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.CreateNewVersion,
+      objectClass: card.class.Card,
+      requiredParams: [],
+      createdContext: { _class: card.class.Card }
+    },
+    process.method.CreateNewVersion
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.DisableVersionCreation,
+      objectClass: card.class.Card,
+      requiredParams: [],
+      createdContext: null
+    },
+    process.method.DisableVersionCreation
+  )
+
+  builder.createDoc(
+    process.class.Method,
+    core.space.Model,
+    {
+      label: process.string.EnableVersionCreation,
+      objectClass: card.class.Card,
+      requiredParams: [],
+      createdContext: null
+    },
+    process.method.EnableVersionCreation
   )
 }

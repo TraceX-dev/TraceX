@@ -9,7 +9,7 @@ import {
   SelectWorkspacePage,
   TrackerNavigationMenuPage
 } from '@hcengineering/tests-sanity'
-import { test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { AdminPage } from '../model/admin.page'
 
 test.describe('Workspace Archive tests', () => {
@@ -26,9 +26,11 @@ test.describe('Workspace Archive tests', () => {
   })
 
   test('New workspace with date, archive, unarchive', async ({ page, browser, request }) => {
+    // Archive and restore both go through the workspace service asynchronously and may take a while
+    test.setTimeout(180000)
     const api: ApiEndpoint = new ApiEndpoint(request)
     const wsId = generateId(5)
-    const workspaceInfo = await api.createWorkspaceWithLogin(wsId, 'user1', '1234')
+    await api.createWorkspaceWithLogin(wsId, 'user1', '1234')
 
     const newIssue: NewIssue = {
       title: `Issue with all parameters and attachments-${wsId}`,
@@ -76,28 +78,28 @@ test.describe('Workspace Archive tests', () => {
       const adminPage = new AdminPage(page2)
       await adminPage.gotoAdmin()
 
-      await page2.getByText('Hour -').click()
-      await page2.locator('div:nth-child(3) > .checkbox-container > .checkSVG').click()
-      await page2.locator('div:nth-child(4) > .checkbox-container > .checkSVG').click()
-
-      await page2.getByRole('button', { name: 'America', exact: true }).first().click()
-      await page2.getByRole('button', { name: 'europe' }).first().click()
-      await page2.locator('[data-testid="workspace-search-container"] input').click()
-      await page2.locator('[data-testid="workspace-search-container"] input').fill(workspaceInfo.workspace)
-      await page2.locator(`[id="${workspaceInfo.workspace}"]`).getByRole('button', { name: 'Archive' }).click()
+      await page2.locator('[data-testid="workspace-search-container"] input').fill(wsId)
+      const workspaceRow = page2.getByRole('row').filter({ hasText: wsId })
+      await workspaceRow.getByTitle('Archive').click()
 
       await page2.getByRole('button', { name: 'Ok' }).click()
-      await page2.locator(`[id="${workspaceInfo.workspace}"]`).getByText('archived').waitFor()
+      await page2.locator('[data-id="tab-inactive"]').click()
+      // Archiving is processed asynchronously by the workspace service (backup -> clean -> archived)
+      await expect(workspaceRow).toContainText('archived', { timeout: 60000 })
     })
     await test.step('Check workspace is archived', async () => {
       await page.reload() // Will redirect to select workspace page
-      await page.getByText('archived').waitFor()
+      // Scope to this workspace: user1 may own other archived workspaces (e.g. from retries)
+      await expect(page.getByText(`${wsId} - (archived)`)).toBeVisible()
     })
     await test.step('Restore workspace', async () => {
-      await page2.locator(`[id="${workspaceInfo.workspace}"]`).getByRole('button', { name: 'Unarchive' }).click()
+      const workspaceRow = page2.getByRole('row').filter({ hasText: wsId })
+      await workspaceRow.getByTitle('Unarchive').click()
 
       await page2.getByRole('button', { name: 'Ok' }).click()
-      await page2.locator(`[id="${workspaceInfo.workspace}"]`).getByText('active').waitFor()
+      await page2.locator('[data-id="tab-active"]').click()
+      // Restore is processed asynchronously by the workspace service (pending-restore -> restoring -> active)
+      await expect(workspaceRow).toContainText('active', { timeout: 60000 })
     })
     await test.step('Check workspace is active again', async () => {
       await page.reload()

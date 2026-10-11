@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,78 +15,176 @@
 //
 
 import { getClient as getAccountClient } from '@hcengineering/account-client'
-import { createRestTxOperations } from '@hcengineering/api-client'
-import { systemAccountUuid, TxOperations, WorkspaceUuid } from '@hcengineering/core'
+import { NodeWebSocketFactory } from '@hcengineering/api-client'
+import clientPlugin from '@hcengineering/client'
+import clientResources from '@hcengineering/client-resources'
+import core, { ClientConnectEvent, systemAccountUuid, TxOperations } from '@hcengineering/core'
+import type { MeasureContext, WorkspaceUuid } from '@hcengineering/core'
+import { setMetadata } from '@hcengineering/platform'
 import { generateToken } from '@hcengineering/server-token'
 import config from './config'
 
 export const SERVICE_NAME = 'process-service'
 
-const clients = new Map<string, TxOperations | Promise<TxOperations>>()
-const clientUsage = new Map<string, number>()
-
-export async function getClient (workspaceUuid: WorkspaceUuid): Promise<TxOperations> {
-  const key = workspaceUuid
-  let usage = clientUsage.get(key) ?? 0
-  usage++
-  clientUsage.set(key, usage)
-  const current = clients.get(key)
-  if (current !== undefined) {
-    if (current instanceof Promise) {
-      return await current
-    }
-    return current
-  }
-
-  const client = createClient(workspaceUuid)
-  clients.set(key, client)
-  const cl = await client
-  clients.set(key, cl)
-  return cl
+interface CachedClient {
+  client: Promise<TxOperations>
+  users: number
+  invalidated: boolean
+  idleTimer?: ReturnType<typeof setTimeout>
 }
 
-export async function releaseClient (workspaceUuid: WorkspaceUuid): Promise<void> {
-  const key = workspaceUuid
-  let usage = clientUsage.get(key)
-  if (usage === undefined) {
-    console.warn(`Client for ${key} not found`)
+const clients = new Map<WorkspaceUuid, CachedClient>()
+let lifecycleContext: MeasureContext | undefined
+
+/** Use the service context for connection lifetime telemetry, never an event context. */
+export function configureClients (ctx: MeasureContext): void {
+  lifecycleContext = ctx
+}
+
+function reportSize (): void {
+  lifecycleContext?.gauge('process_cached_clients', clients.size)
+}
+
+function touch (workspace: WorkspaceUuid, entry: CachedClient): void {
+  clients.delete(workspace)
+  clients.set(workspace, entry)
+}
+
+function closeInBackground (workspace: WorkspaceUuid, entry: CachedClient): void {
+  void close(workspace, entry).catch((error: unknown) => {
+    if (lifecycleContext !== undefined) {
+      lifecycleContext.error('Failed to close process client', { workspace, error })
+    } else {
+      console.error(`Failed to close client for ${workspace}`, error)
+    }
+  })
+}
+
+function trimClients (): void {
+  for (const [workspace, entry] of clients) {
+    if (clients.size <= config.ClientCacheMaxSize) break
+    if (entry.users === 0) closeInBackground(workspace, entry)
+  }
+}
+
+export async function getClient (workspace: WorkspaceUuid, ctx?: MeasureContext): Promise<TxOperations> {
+  let entry = clients.get(workspace)
+  if (entry?.invalidated === true) {
+    if (entry.users > 0) throw new Error('Process client model upgrade is still in progress')
+    closeInBackground(workspace, entry)
+    entry = undefined
+  }
+  if (entry === undefined) {
+    ctx?.counter('process_client_cache_misses', 1)
+    const created: CachedClient = {
+      client: Promise.resolve().then(async () => await createClient(workspace, created, ctx)),
+      users: 0,
+      invalidated: false
+    }
+    entry = created
+    clients.set(workspace, entry)
+    reportSize()
+  } else {
+    ctx?.counter('process_client_cache_hits', 1)
+  }
+  if (entry.idleTimer !== undefined) {
+    clearTimeout(entry.idleTimer)
+    entry.idleTimer = undefined
+  }
+  entry.users++
+  touch(workspace, entry)
+  trimClients()
+  try {
+    return await entry.client
+  } catch (error) {
+    entry.users--
+    if (clients.get(workspace) === entry) {
+      clients.delete(workspace)
+      reportSize()
+    }
+    throw error
+  }
+}
+
+export async function releaseClient (workspace: WorkspaceUuid): Promise<void> {
+  const entry = clients.get(workspace)
+  if (entry === undefined || entry.users === 0) {
+    console.warn(`Client for ${workspace} not in use`)
     return
   }
-  usage--
-  clientUsage.set(key, usage)
-  if (usage <= 0) {
-    setTimeout(() => {
-      close(key).catch((err) => {
-        console.error(`Failed to close client for ${key}`, err)
-      })
-    }, 60000)
-  }
-}
-
-async function close (key: string): Promise<void> {
-  const usage = clientUsage.get(key) ?? 0
-  if (usage > 0) return
-  const current = clients.get(key)
-  if (current !== undefined) {
-    clients.delete(key)
-    if (current instanceof Promise) {
-      const resolvedClient = await current
-      await resolvedClient.close()
+  entry.users--
+  if (entry.users === 0) {
+    touch(workspace, entry)
+    if (entry.invalidated) {
+      closeInBackground(workspace, entry)
     } else {
-      await current.close()
+      entry.idleTimer = setTimeout(() => {
+        closeInBackground(workspace, entry)
+      }, config.ClientIdleTimeoutMs)
+      trimClients()
     }
   }
 }
 
-async function createClient (workspaceUuid: WorkspaceUuid): Promise<TxOperations> {
-  const token = generateToken(systemAccountUuid, workspaceUuid, { service: SERVICE_NAME })
-  const accountClient = getAccountClient(config.AccountsUrl, token)
+async function close (workspace: WorkspaceUuid, entry: CachedClient, force: boolean = false): Promise<void> {
+  if ((!force && entry.users > 0) || clients.get(workspace) !== entry) return
+  if (entry.idleTimer !== undefined) clearTimeout(entry.idleTimer)
+  clients.delete(workspace)
+  reportSize()
+  const client = await entry.client
+  await client.close()
+  lifecycleContext?.counter('process_clients_closed', 1)
+}
 
-  const wsInfo = await accountClient.getLoginInfoByToken()
-  if (wsInfo == null || !('endpoint' in wsInfo)) {
-    throw new Error('Invalid login info')
+/** Close connections after the consumer has finished processing its messages. */
+export async function closeClients (): Promise<void> {
+  const results = await Promise.allSettled(
+    Array.from(clients, async ([workspace, entry]) => {
+      await close(workspace, entry, true)
+    })
+  )
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      lifecycleContext?.error('Failed to close process client during shutdown', { error: result.reason })
+    }
   }
-  const transactorUrl = wsInfo.endpoint.replace('ws://', 'http://').replace('wss://', 'https://')
-  const client = await createRestTxOperations(transactorUrl, wsInfo.workspace, wsInfo.token, true)
-  return client
+}
+
+async function createClient (
+  workspace: WorkspaceUuid,
+  entry: CachedClient,
+  ctx?: MeasureContext
+): Promise<TxOperations> {
+  const token = generateToken(systemAccountUuid, workspace, { service: SERVICE_NAME })
+  const accountClient = getAccountClient(config.AccountsUrl, token)
+  const login = async (): ReturnType<typeof accountClient.getLoginInfoByToken> =>
+    await accountClient.getLoginInfoByToken()
+  const wsInfo = ctx === undefined ? await login() : await ctx.with('process.account-login', {}, login)
+  if (wsInfo == null || !('endpoint' in wsInfo)) throw new Error('Invalid login info')
+
+  // Process method and trigger implementations require the unfiltered server model.
+  setMetadata(clientPlugin.metadata.FilterModel, 'none')
+  const factory = (await clientResources()).function.GetClient
+  const create = async (): Promise<TxOperations> => {
+    const connection = await factory(wsInfo.token, wsInfo.endpoint, {
+      ctx: lifecycleContext,
+      socketFactory: NodeWebSocketFactory,
+      useBinaryProtocol: true,
+      useProtocolCompression: true,
+      connectionTimeout: config.ClientConnectionTimeoutMs,
+      onConnect: async (event) => {
+        if (event !== ClientConnectEvent.Connected && event !== ClientConnectEvent.Maintenance) {
+          lifecycleContext?.counter('process_client_reconnects', 1)
+        }
+      },
+      onUpgrade: () => {
+        entry.invalidated = true
+        lifecycleContext?.counter('process_client_model_upgrades', 1)
+        if (entry.users === 0) closeInBackground(workspace, entry)
+      }
+    })
+    lifecycleContext?.counter('process_clients_opened', 1)
+    return new TxOperations(connection, core.account.System)
+  }
+  return ctx === undefined ? await create() : await ctx.with('process.load-client-model', {}, create)
 }

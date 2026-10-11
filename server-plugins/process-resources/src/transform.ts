@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,16 +16,71 @@
 
 import cardPlugin from '@hcengineering/card'
 import contact, { Employee, Person } from '@hcengineering/contact'
-import core, { Doc, matchQuery, Ref, Timestamp } from '@hcengineering/core'
-import { Execution, parseContext } from '@hcengineering/process'
+import core, {
+  type Association,
+  type Class,
+  type Doc,
+  type Ref,
+  type SortingQuery,
+  type Timestamp,
+  matchQuery,
+  resultSort
+} from '@hcengineering/core'
+import process, { Execution, parseContext, processError } from '@hcengineering/process'
 import { ProcessControl } from '@hcengineering/server-process'
-import { markupToText } from '@hcengineering/text-core'
-import { getContextValue } from './utils'
+import { isEmptyMarkup, jsonToMarkup, markupToJSON, markupToText, nodeDoc } from '@hcengineering/text-core'
+import { buildMarkdownTableForRelation } from './table'
+import { getContextValue, resolveAttributeId } from './utils'
+
+/** Returns the number of elements, including empty values and duplicates. */
+export function ArrayLength (value: unknown): number {
+  return Array.isArray(value) ? value.length : 0
+}
+
+/** Counts links on the selected side of the current card's association. */
+export async function RelationCount (
+  value: unknown,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<number> {
+  if (typeof props.association !== 'string' || !['A', 'B'].includes(String(props.direction))) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'association, direction' })
+  }
+  const definition = control.client.getModel().findObject(execution.process)
+  if (definition === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.process })
+  const association = resolveAttributeId(definition, props.association as Ref<Association>)
+  if (control.client.getModel().findObject(association) === undefined) {
+    throw processError(process.error.RelationNotExists, {})
+  }
+  const query = props.direction === 'A' ? { docB: execution.card } : { docA: execution.card }
+  const relations = await control.client.findAll(core.class.Relation, { association, ...query })
+  return relations.length
+}
 
 // #region ArrayReduce
 
-export function FirstValue (value: Doc[]): Doc | undefined {
+export async function FirstValue (
+  value: any[],
+  props: Record<string, any>,
+  control: ProcessControl
+): Promise<any | undefined> {
   if (!Array.isArray(value)) return value
+  const { _class, $sort } = props
+  if ($sort == null || value.length === 0) return value[0]
+
+  if (typeof value[0] === 'string') {
+    if (_class == null) return value[0]
+    const docs = await control.client.findAll(_class, { _id: { $in: value } }, { sort: $sort, limit: 1 })
+    return docs[0]?._id
+  }
+
+  if (typeof value[0] === 'object' && value[0] !== null) {
+    const docs = [...value]
+    sortDocs(docs, $sort, _class ?? docs[0]._class ?? core.class.Doc, control)
+    return docs[0]
+  }
+
   return value[0]
 }
 
@@ -52,14 +108,42 @@ export async function FirstMatchValue (
     return
   }
   if (!Array.isArray(value)) return value
+  const { _class, $sort, ...otherProps } = props
+  if (value.length === 0) return
+  if (typeof value[0] === 'string') {
+    if (_class == null) return
+    const docs = await control.client.findAll(_class, { _id: { $in: value } })
+    const matched = matchQuery(docs, otherProps, core.class.Doc, control.client.getHierarchy(), true)
+    if ($sort != null) sortDocs(matched, $sort, _class, control)
+    return matched[0]?._id
+  } else if (typeof value[0] === 'object') {
+    const matched = matchQuery(value, otherProps, core.class.Doc, control.client.getHierarchy(), true)
+    if ($sort != null) sortDocs(matched, $sort, _class ?? matched[0]?._class ?? core.class.Doc, control)
+    return matched[0]
+  }
+}
+
+function sortDocs (docs: Doc[], sort: SortingQuery<Doc>, _class: Ref<Class<Doc>>, control: ProcessControl): void {
+  resultSort(docs, sort, _class, control.client.getHierarchy(), control.client.getModel())
+}
+
+export async function AllMatchValue (
+  value: any[],
+  props: Record<string, any>,
+  control: ProcessControl
+): Promise<any[] | undefined> {
+  if (value == null) {
+    return
+  }
+  if (!Array.isArray(value)) return value
   const { _class, ...otherProps } = props
   if (_class == null) return
   if (value.length === 0) return
   if (typeof value[0] === 'string') {
     const docs = await control.client.findAll(_class, { _id: { $in: value } })
-    return matchQuery(docs, otherProps, core.class.Doc, control.client.getHierarchy(), true)[0]?._id
+    return matchQuery(docs, otherProps, core.class.Doc, control.client.getHierarchy(), true).map((p) => p._id)
   } else if (typeof value[0] === 'object') {
-    return matchQuery(value, otherProps, core.class.Doc, control.client.getHierarchy(), true)[0]
+    return matchQuery(value, otherProps, core.class.Doc, control.client.getHierarchy(), true)
   }
 }
 
@@ -194,6 +278,45 @@ export async function Append (
   return value
 }
 
+async function resolveMarkupValue (
+  value: unknown,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string | undefined> {
+  if (typeof value !== 'string') return
+  const context = parseContext(value)
+  if (context === undefined) return value
+  const resolved = await getContextValue(value, control, execution)
+  return typeof resolved === 'string' ? resolved : undefined
+}
+
+function joinMarkup (...values: Array<string | undefined>): string {
+  const content = values
+    .filter((value): value is string => value !== undefined && !isEmptyMarkup(value))
+    .flatMap((value) => markupToJSON(value).content ?? [])
+  return jsonToMarkup(nodeDoc(...content))
+}
+
+export async function PrependMarkup (
+  value: string,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string> {
+  const prefix = await resolveMarkupValue(props.value, control, execution)
+  return joinMarkup(prefix, value)
+}
+
+export async function AppendMarkup (
+  value: string,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string> {
+  const suffix = await resolveMarkupValue(props.value, control, execution)
+  return joinMarkup(value, suffix)
+}
+
 export function Replace (value: string, props: Record<string, string>): string {
   if (typeof value !== 'string') return value
   return value.replace(props.search, props.replacement)
@@ -232,10 +355,18 @@ export function FirstWorkingDayAfter (val: Timestamp): Timestamp {
   return val
 }
 
-export function Offset (val: Timestamp, props: Record<string, any>): Timestamp {
+/** Shifts a date by a literal or context-provided number of calendar units. */
+export async function Offset (
+  val: Timestamp,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<Timestamp> {
   if (typeof val !== 'number') return val
   const value = new Date(val)
-  const offset = props.offset * (props.direction === 'after' ? 1 : -1)
+  const resolvedOffset = await getContextValue(props.offset, control, execution)
+  if (typeof resolvedOffset !== 'number' || !Number.isFinite(resolvedOffset)) return val
+  const offset = resolvedOffset * (props.direction === 'after' ? 1 : -1)
   switch (props.offsetType) {
     case 'days':
       return value.setDate(value.getDate() + offset)
@@ -485,6 +616,15 @@ export async function RoleContext (
   return users.map((it) => it._id)
 }
 
+export async function TableFromRelation (
+  value: null,
+  props: Record<string, any>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<string> {
+  return await buildMarkdownTableForRelation(control, execution, props)
+}
+
 export async function CurrentUser (
   value: null,
   props: Record<string, any>,
@@ -550,8 +690,9 @@ export function NumberFromDate (value: Timestamp): number {
   return value
 }
 
-export function DateFromNumber (value: number): Date {
-  return new Date(value)
+/** Interprets milliseconds since the Unix epoch as a process date. */
+export function DateFromNumber (value: number): Timestamp {
+  return value
 }
 
 export function NumberFromString (value: string): number {

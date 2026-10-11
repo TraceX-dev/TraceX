@@ -186,6 +186,7 @@
       priority: priority ?? IssuePriority.NoPriority,
       space: _space as Ref<Project>,
       component: component ?? $activeComponent ?? null,
+      startDate: null,
       dueDate: null,
       attachments: 0,
       estimation: 0,
@@ -312,15 +313,16 @@
         _id: generateId(),
         space: _space as Ref<Project>,
         subIssues: [],
+        startDate: null,
         dueDate: null,
         labels:
           p.labels !== undefined
             ? p.labels
-              .map((p) => {
-                const val = tagElements.get(p)
-                return val !== undefined ? tagAsRef(val) : undefined
-              })
-              .filter((p) => p !== undefined)
+                .map((p) => {
+                  const val = tagElements.get(p)
+                  return val !== undefined ? tagAsRef(val) : undefined
+                })
+                .filter((p) => p !== undefined)
             : [],
         status: currentProject?.defaultIssueStatus
       }
@@ -338,11 +340,11 @@
     object.labels =
       labels !== undefined
         ? labels
-          .map((p) => {
-            const val = tagElements.get(p)
-            return val !== undefined ? tagAsRef(val) : undefined
-          })
-          .filter((p) => p !== undefined)
+            .map((p) => {
+              const val = tagElements.get(p)
+              return val !== undefined ? tagAsRef(val) : undefined
+            })
+            .filter((p) => p !== undefined)
         : []
 
     if (object.kind !== undefined) {
@@ -488,6 +490,7 @@
         rank: '',
         comments: 0,
         subIssues: 0,
+        startDate: object.startDate,
         dueDate: object.dueDate,
         parents:
           parentIssue != null

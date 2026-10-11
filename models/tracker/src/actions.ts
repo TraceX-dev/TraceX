@@ -18,6 +18,7 @@ import { type Builder } from '@hcengineering/model'
 import core from '@hcengineering/model-core'
 import task from '@hcengineering/model-task'
 import view, { actionTemplates, createAction } from '@hcengineering/model-view'
+import exportPlugin from '@hcengineering/export'
 import workbench, { createNavigateAction } from '@hcengineering/model-workbench'
 import { type IntlString } from '@hcengineering/platform'
 import { TrackerEvents, trackerId } from '@hcengineering/tracker'
@@ -740,6 +741,26 @@ export function createActions (builder: Builder, issuesId: string, componentsId:
       }
     },
     tracker.action.CopyAsMarkdownTable
+  )
+
+  createAction(
+    builder,
+    {
+      action: exportPlugin.actionImpl.ExportTable,
+      actionProps: {
+        cardClass: tracker.class.Issue
+      },
+      label: exportPlugin.string.Export,
+      icon: exportPlugin.icon.Export,
+      input: 'any',
+      category: view.category.General,
+      target: tracker.class.Issue,
+      context: {
+        mode: ['context', 'browser'],
+        group: 'copy'
+      }
+    },
+    tracker.action.ExportTable
   )
 
   createAction(

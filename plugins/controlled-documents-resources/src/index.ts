@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -40,6 +41,8 @@ import DeleteCategoryPopup from './components/category/popups/DeleteCategoryPopu
 import QmsDocumentWizard from './components/create-doc/QmsDocumentWizard.svelte'
 import QmsTemplateWizard from './components/create-doc/QmsTemplateWizard.svelte'
 import DocumentStatusTag from './components/document/common/DocumentStatusTag.svelte'
+import ControlledDocumentArrayEditor from './components/document/ControlledDocumentArrayEditor.svelte'
+import ControlledDocumentInlineEditor from './components/document/ControlledDocumentInlineEditor.svelte'
 import AddCommentPopup from './components/document/popups/AddCommentPopup.svelte'
 import ChangeOwnerPopup from './components/document/popups/ChangeOwnerPopup.svelte'
 import DocumentCommentsPopup from './components/document/popups/DocumentCommentsPopup.svelte'
@@ -90,6 +93,7 @@ import './styles/_colors.scss'
 import { comment, isCommentVisible } from './text'
 import {
   canChangeDocumentOwner,
+  canImportDocument,
   canCreateChildDocument,
   canCreateChildFolder,
   canCreateChildTemplate,
@@ -389,6 +393,8 @@ export default async (): Promise<Resources> => ({
     DocumentTemplates,
     CategoryPresenter,
     Categories,
+    ControlledDocumentArrayEditor,
+    ControlledDocumentInlineEditor,
     EditDocumentCategory,
     EditDocContent,
     DocumentReviewRequest,
@@ -420,6 +426,7 @@ export default async (): Promise<Resources> => ({
     // CheckAreDomainsDisabled: getDisablingChecker(document.functionalityItem.Domains),
     // CheckIsLibraryDisabled: getDisablingChecker(document.functionalityItem.EffectiveLibrary)
     CanChangeDocumentOwner: canChangeDocumentOwner,
+    CanImportDocument: canImportDocument,
     CanCreateTemplate: canCreateChildTemplate,
     CanCreateDocument: canCreateChildDocument,
     CanCreateFolder: canCreateChildFolder,

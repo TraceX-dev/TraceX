@@ -12,9 +12,11 @@
 // limitations under the License.
 //
 
-export const TABLE_METADATA_TOKEN = 'huly-table-metadata:'
-export const TABLE_METADATA_MARKER = `<!-- ${TABLE_METADATA_TOKEN}`
-export const TABLE_METADATA_MIME_TYPE = 'application/x-huly-table-metadata'
+import { TABLE_METADATA_MARKER } from '@hcengineering/view'
+
+// Re-exported from the plugin package: the copier writes these and this module reads them, and a
+// second copy of the literals is exactly how the two drifted apart before.
+export { TABLE_METADATA_MARKER, TABLE_METADATA_MIME_TYPE, TABLE_METADATA_TOKEN } from '@hcengineering/view'
 
 export function hasTableMetadataMarker (text: string): boolean {
   if (text == null || text.length === 0) {

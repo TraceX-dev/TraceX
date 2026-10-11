@@ -218,10 +218,10 @@ export async function restore (
       opt.recheck === true // If recheck we check all documents.
         ? Array.from(changeset.entries())
         : Array.from(changeset.entries()).filter(
-          ([it]) =>
-            !serverChangeset.has(it) ||
+            ([it]) =>
+              !serverChangeset.has(it) ||
               (serverChangeset.has(it) && doTrimHash(serverChangeset.get(it)) !== doTrimHash(changeset.get(it)))
-        )
+          )
     )
     const docsToRemove = Array.from(serverChangeset.keys()).filter((it) => !changeset.has(it))
 
@@ -367,10 +367,12 @@ export async function restore (
                 if (requiredDocs.has(name as Ref<Doc>)) {
                   const chunks: Buffer[] = []
                   stream.on('data', (chunk) => {
-                    chunks.push(chunk)
+                    if (Buffer.isBuffer(chunk)) {
+                      chunks.push(chunk)
+                    }
                   })
                   stream.on('end', () => {
-                    const bf = Buffer.concat(chunks as any)
+                    const bf = Buffer.concat(chunks)
                     const d = blobs.get(name)
                     if (d === undefined) {
                       blobs.set(name, { doc: undefined, buffer: bf })
@@ -392,10 +394,12 @@ export async function restore (
                   const chunks: Buffer[] = []
                   const bname = name.substring(0, name.length - 5)
                   stream.on('data', (chunk) => {
-                    chunks.push(chunk)
+                    if (Buffer.isBuffer(chunk)) {
+                      chunks.push(chunk)
+                    }
                   })
                   stream.on('end', () => {
-                    const bf = Buffer.concat(chunks as any)
+                    const bf = Buffer.concat(chunks)
                     let doc: Doc
                     try {
                       doc = JSON.parse(bf.toString()) as Doc
@@ -527,11 +531,13 @@ export async function restore (
               if (changeset.has(objKey) && !processed.has(objKey)) {
                 const chunks: Buffer[] = []
                 stream.on('data', (chunk) => {
-                  chunks.push(chunk)
+                  if (Buffer.isBuffer(chunk)) {
+                    chunks.push(chunk)
+                  }
                 })
                 stream.on('end', () => {
                   try {
-                    const obj = JSON.parse(Buffer.concat(chunks as any).toString())
+                    const obj = JSON.parse(Buffer.concat(chunks).toString())
                     processed.add(objKey)
                     collectedObjects.push(obj)
                   } catch (err) {
@@ -578,40 +584,60 @@ export async function restore (
 
   const limiter = new RateLimiter(opt.parallel ?? 1)
 
+  const isSkipped = (c: Domain): boolean =>
+    (opt.include !== undefined && !opt.include.has(c)) || opt.skip?.has(c) === true
+
+  async function processDomainWithRetry (c: Domain): Promise<void> {
+    ctx.info('processing domain', { domain: c, workspaceId })
+    let retry = 5
+    let delay = 1
+    while (retry > 0) {
+      retry--
+      try {
+        const doProcessDomain = isAccountDomain(c) ? processAccountDomain : processDomain
+        await doProcessDomain(c)
+        if (delay > 1) {
+          ctx.warn('retry-success', { retry, delay, workspaceId })
+        }
+        break
+      } catch (err: any) {
+        ctx.error('failed to process domain', { err, domain: c, workspaceId })
+        if (retry !== 0) {
+          ctx.warn('cool-down to retry', { delay, domain: c, workspaceId })
+          await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+          delay++
+        }
+      }
+    }
+  }
+
   try {
     let i = 0
-    for (const c of domains) {
+    // Account domains are restored sequentially and in a fixed order:
+    // persons first, then social ids, since social_id.person_uuid references person.
+    const orderedAccountDomains = [toAccountDomain('person'), toAccountDomain('socialId')]
+    const accountDomainsToProcess = [
+      ...orderedAccountDomains.filter((c) => domains.has(c)),
+      ...Array.from(domains).filter((c) => isAccountDomain(c) && !orderedAccountDomains.includes(c))
+    ].filter((c) => !isSkipped(c))
+    for (const c of accountDomainsToProcess) {
       if (opt.progress !== undefined) {
         await opt.progress?.(domainProgress)
       }
-      if (opt.include !== undefined && !opt.include.has(c)) {
+      await processDomainWithRetry(c)
+      domainProgress = Math.round(i / domains.size) * 100
+      i++
+    }
+
+    for (const c of domains) {
+      if (isAccountDomain(c) || isSkipped(c)) {
         continue
       }
-      if (opt.skip?.has(c) === true) {
-        continue
+      if (opt.progress !== undefined) {
+        await opt.progress?.(domainProgress)
       }
       await limiter.add(async () => {
-        ctx.info('processing domain', { domain: c, workspaceId })
-        let retry = 5
-        let delay = 1
-        while (retry > 0) {
-          retry--
-          try {
-            const doProcessDomain = isAccountDomain(c) ? processAccountDomain : processDomain
-            await doProcessDomain(c)
-            if (delay > 1) {
-              ctx.warn('retry-success', { retry, delay, workspaceId })
-            }
-            break
-          } catch (err: any) {
-            ctx.error('failed to process domain', { err, domain: c, workspaceId })
-            if (retry !== 0) {
-              ctx.warn('cool-down to retry', { delay, domain: c, workspaceId })
-              await new Promise((resolve) => setTimeout(resolve, delay * 1000))
-              delay++
-            }
-          }
-        }
+        await processDomainWithRetry(c)
         domainProgress = Math.round(i / domains.size) * 100
         i++
       })
@@ -686,7 +712,11 @@ async function restorePersons (
   }
 }
 
-async function restoreSocialIds (ctx: MeasureContext, accountDb: AccountDB, socialIds: SocialId[]): Promise<void> {
+export async function restoreSocialIds (
+  ctx: MeasureContext,
+  accountDb: AccountDB,
+  socialIds: SocialId[]
+): Promise<void> {
   const chunks = chunkArray(socialIds, accountBatchSize)
   for (const chunk of chunks) {
     const ids = chunk.map((s) => s.key)
@@ -695,9 +725,31 @@ async function restoreSocialIds (ctx: MeasureContext, accountDb: AccountDB, soci
     const existingSocialIds = await accountDb.socialId.find({ key: { $in: ids } })
     const existingIds = new Set(existingSocialIds.map((s) => s.key))
 
+    const missing = chunk.filter((s) => !existingIds.has(s.key))
+    if (missing.length === 0) {
+      continue
+    }
+
+    // social_id.person_uuid references person (social_id_person_fk).
+    // A backup may contain social ids whose person is not present in it
+    // (e.g. the workspace had a SocialIdentity without a matching contact
+    // Person with personUuid). Inserting such records would fail the whole
+    // batch, so filter them out and restore the rest.
+    const personUuids = Array.from(new Set(missing.map((s) => s.personUuid)))
+    const existingPersons = await accountDb.person.find({ uuid: { $in: personUuids } })
+    const existingPersonUuids = new Set(existingPersons.map((p) => p.uuid))
+
+    const orphaned = missing.filter((s) => !existingPersonUuids.has(s.personUuid))
+    if (orphaned.length > 0) {
+      ctx.warn('skipping social ids with missing persons', {
+        count: orphaned.length,
+        socialIds: orphaned.map((s) => ({ _id: s._id, key: s.key, personUuid: s.personUuid }))
+      })
+    }
+
     // Insert missing socialIds
-    const socialIdsToInsert: SocialId[] = chunk
-      .filter((s) => !existingIds.has(s.key))
+    const socialIdsToInsert: SocialId[] = missing
+      .filter((s) => existingPersonUuids.has(s.personUuid))
       .map((it) => {
         const { '%hash%': _1, key: _2, ...data } = it as any
         return data

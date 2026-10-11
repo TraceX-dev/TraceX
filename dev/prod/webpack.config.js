@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -28,20 +29,9 @@ const prod = mode === 'production'
 const clientType = process.env.CLIENT_TYPE ?? ''
 const devServer = clientType === 'dev-server'
 const devServerTest = clientType === 'dev-server-test'
-const devServerWorker = clientType === 'dev-worker'
-const devServerWorkerLocal = clientType === 'dev-worker-local'
 const devProduction = clientType === 'dev-production'
-const devProductionHuly = clientType === 'dev-huly'
-const devProductionBold = clientType === 'dev-bold'
-const dev =
-  (process.env.CLIENT_TYPE ?? '') === 'dev' ||
-  devServer ||
-  devProduction ||
-  devProductionHuly ||
-  devProductionBold ||
-  devServerWorker ||
-  devServerWorkerLocal ||
-  devServerTest
+const devStaging = clientType === 'dev-staging'
+const dev = (process.env.CLIENT_TYPE ?? '') === 'dev' || devServer || devServerTest || devProduction || devStaging
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin')
 
 const doValidate = !prod || process.env.DO_VALIDATE === 'true'
@@ -63,6 +53,11 @@ const devProxy = {
     logLevel: 'debug'
   },
   '/api/v1': {
+    target: 'http://tracex.local:8087',
+    changeOrigin: true,
+    logLevel: 'debug'
+  },
+  '/api/forms': {
     target: 'http://tracex.local:8087',
     changeOrigin: true,
     logLevel: 'debug'
@@ -92,6 +87,11 @@ const devProxyTest = {
     changeOrigin: true,
     logLevel: 'debug'
   },
+  '/api/forms': {
+    target: 'http://tracex.local:8083',
+    changeOrigin: true,
+    logLevel: 'debug'
+  },
   '/rekoni/recognize': {
     target: 'http://tracex.local:4004',
     changeOrigin: true,
@@ -100,73 +100,58 @@ const devProxyTest = {
   }
 }
 
-const devHulyProxy = {
+const devProductionProxy = {
   '/account': {
-    target: 'https://account.huly.app/',
-    changeOrigin: true,
-    pathRewrite: { '^/account': '' },
-    logLevel: 'debug'
-  },
-  '/api/v1': {
-    target: 'http://huly.app',
+    target: 'https://app.tracex.co/accounts',
     changeOrigin: true,
     logLevel: 'debug'
   },
   '/files': {
-    target: 'https://huly.app/files',
+    target: 'https://app.tracex.co/files',
     changeOrigin: true,
-    pathRewrite: { '^/files': '' },
+    logLevel: 'debug'
+  },
+  '/api/v1': {
+    target: 'https://app.tracex.co',
+    changeOrigin: true,
+    logLevel: 'debug'
+  },
+  '/api/forms': {
+    target: 'https://app.tracex.co',
+    changeOrigin: true,
     logLevel: 'debug'
   },
   '/rekoni/recognize': {
-    target: 'https://rekoni.huly.app',
+    target: 'https://app.tracex.co/rekoni',
     changeOrigin: true,
     pathRewrite: { '^/rekoni/recognize': '/recognize' },
     logLevel: 'debug'
   }
 }
 
-const devBoldProxy = {
+const devStagingProxy = {
   '/account': {
-    target: 'https://account.bold.ru/',
+    target: 'https://stg.tracex.co/accounts',
     changeOrigin: true,
-    pathRewrite: { '^/account': '' },
     logLevel: 'debug'
   },
   '/files': {
-    target: 'https://app.bold.ru/files',
+    target: 'https://stg.tracex.co/files',
     changeOrigin: true,
-    pathRewrite: { '^/files': '' },
     logLevel: 'debug'
   },
   '/api/v1': {
-    target: 'http://app.bold.ru',
+    target: 'https://stg.tracex.co',
+    changeOrigin: true,
+    logLevel: 'debug'
+  },
+  '/api/forms': {
+    target: 'https://stg.tracex.co',
     changeOrigin: true,
     logLevel: 'debug'
   },
   '/rekoni/recognize': {
-    target: 'https://rekoni.bold.ru',
-    changeOrigin: true,
-    pathRewrite: { '^/rekoni/recognize': '/recognize' },
-    logLevel: 'debug'
-  }
-}
-
-const devFrontProxy = {
-  '/account': {
-    target: 'https://account.hc.engineering/',
-    changeOrigin: true,
-    pathRewrite: { '^/account': '' },
-    logLevel: 'debug'
-  },
-  '/files': {
-    target: 'https://front.hc.engineering/files',
-    changeOrigin: true,
-    pathRewrite: { '^/files': '' },
-    logLevel: 'debug'
-  },
-  '/rekoni/recognize': {
-    target: 'https://rekoni.hc.enigneering',
+    target: 'https://stg.tracex.co/rekoni',
     changeOrigin: true,
     pathRewrite: { '^/rekoni/recognize': '/recognize' },
     logLevel: 'debug'
@@ -174,14 +159,16 @@ const devFrontProxy = {
 }
 
 const proxy = {
-  'dev-worker': devProxy,
-  'dev-worker-local': devProxy,
   'dev-server': devProxy,
   'dev-server-test': devProxyTest,
-  'dev-production': devFrontProxy,
-  'dev-bold': devBoldProxy,
-  'dev-huly': devHulyProxy
+  'dev-production': devProductionProxy,
+  'dev-staging': devStagingProxy
 }
+
+const devServerProxy = Object.entries(proxy[clientType] ?? {}).map(([context, options]) => ({
+  context,
+  ...options
+}))
 
 /**
  * @type {Configuration}
@@ -502,7 +489,7 @@ module.exports = [
         },
         progress: false
       },
-      proxy: proxy[clientType]
+      proxy: devServerProxy
     }
   }
 ]

@@ -37,6 +37,8 @@ import {
   type ProjectDocument,
   type ProjectMeta,
   type DocumentTraining,
+  type DocumentAttachment,
+  type DocumentAttachmentState,
   type DocumentSnapshot,
   type ControlledDocumentSnapshot
 } from '@hcengineering/controlled-documents'
@@ -70,6 +72,7 @@ import {
   TypeBoolean,
   TypeDate,
   TypeNumber,
+  TypeRecord,
   TypeRef,
   TypeString,
   UX,
@@ -78,7 +81,7 @@ import {
   ReadOnly,
   TypeRank
 } from '@hcengineering/model'
-import attachment from '@hcengineering/model-attachment'
+import attachment, { TAttachment } from '@hcengineering/model-attachment'
 import chunter, { TChatMessage } from '@hcengineering/model-chunter'
 import core, {
   TAttachedDoc,
@@ -117,6 +120,7 @@ export class TDocumentSpaceType extends TSpaceType implements DocumentSpaceType 
 }
 
 @Model(documents.class.DocumentSpaceTypeDescriptor, core.class.SpaceTypeDescriptor)
+@UX(documents.string.ControlledDocument)
 export class TDocumentSpaceTypeDescriptor extends TSpaceTypeDescriptor implements DocumentSpaceTypeDescriptor {
   projectClass?: Ref<Class<Project>>
   withProjects?: boolean
@@ -203,7 +207,7 @@ export class TProjectDocument extends TAttachedDoc implements ProjectDocument {
 
   @Prop(TypeString(), core.string.Collection)
   @Hidden()
-  override collection: 'documents' = 'documents'
+    override collection: 'documents' = 'documents'
 
   @Prop(TypeRef(documents.class.Project), documents.string.Project)
   @Index(IndexKind.Indexed)
@@ -338,6 +342,17 @@ export class TDocumentTraining extends TDocument implements DocumentTraining {
 
   @Prop(TypeNumber(), documents.string.DocumentTrainingDueDays, { defaultValue: null })
     dueDays: number | null = null
+}
+
+@Mixin(documents.mixin.DocumentAttachment, attachment.class.Attachment)
+export class TDocumentAttachment extends TAttachment implements DocumentAttachment {
+  @Prop(TypeString(), getEmbeddedLabel('State'))
+  @Hidden()
+    state?: DocumentAttachmentState
+
+  @Prop(TypeRecord(), getEmbeddedLabel('DeletedIn'))
+  @Hidden()
+    deletedIn?: { major: number, minor: number }
 }
 
 @Model(documents.class.DocumentCategory, core.class.Doc, DOMAIN_DOCUMENTS)

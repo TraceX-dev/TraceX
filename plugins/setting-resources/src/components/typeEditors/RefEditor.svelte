@@ -21,7 +21,6 @@
   import card from '@hcengineering/card'
   import { createEventDispatcher } from 'svelte'
   import type { ButtonKind, ButtonSize, DropdownIntlItem } from '@hcengineering/ui'
-  import contactPlugin from '@hcengineering/contact'
 
   export let type: RefTo<Doc> | undefined
   export let attribute: AnyAttribute | undefined
@@ -32,27 +31,20 @@
   export let isCard: boolean = false
   export let width: string | undefined = undefined
 
-  const _classes = isCard ? [card.class.Card, contactPlugin.class.Contact] : [core.class.Doc]
-  const exclude = !isCard ? [card.class.Card] : []
+  const _classes = [core.class.Doc]
 
   const dispatch = createEventDispatcher()
   const client = getClient()
   const hierarchy = client.getHierarchy()
 
-  const classes = fillClasses(_classes, exclude)
+  const classes = fillClasses(_classes)
 
-  function fillClasses (classes: Ref<Class<Doc>>[], exclude: Ref<Class<Doc>>[]): DropdownIntlItem[] {
+  function fillClasses (classes: Ref<Class<Doc>>[]): DropdownIntlItem[] {
     const res: DropdownIntlItem[] = []
     const descendants = new Set(classes.map((p) => hierarchy.getDescendants(p)).reduce((a, b) => a.concat(b)))
     // exclude removed card types
     const removedTypes = client.getModel().findAllSync(card.class.MasterTag, { removed: true })
     const excluded = new Set(removedTypes.map((p) => p._id))
-    for (const _class of exclude) {
-      const desc = hierarchy.getDescendants(_class)
-      for (const _id of desc) {
-        excluded.add(_id)
-      }
-    }
     for (const desc of descendants) {
       if (excluded.has(desc)) continue
       const domain = hierarchy.findDomain(desc)

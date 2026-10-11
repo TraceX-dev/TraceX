@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -36,8 +37,7 @@ import {
   withAuthorization,
   withBlob,
   withWorkspace,
-  withReadonly,
-  withOptionalAuth
+  withReadonly
 } from './middleware'
 import {
   handleBlobDelete,
@@ -119,8 +119,8 @@ export async function createServer (
   await ensureAccountReady(ctx, config)
 
   const buckets: Array<{ location: Location, bucket: S3Bucket }> = []
-  for (const bucket of config.Buckets) {
-    const location = bucket.location as Location
+  for (const cbucket of config.Buckets) {
+    const location = cbucket.location as Location
     if (
       location === 'eu' ||
       location === 'weur' ||
@@ -129,9 +129,11 @@ export async function createServer (
       location === 'enam' ||
       location === 'apac'
     ) {
-      buckets.push({ location, bucket: await createBucket(ctx, createClient(bucket), bucket.bucket) })
+      const client = createClient(cbucket)
+      const bucket = await createBucket(ctx, client, cbucket.bucket, config.S3AvailabilityCheckInterval)
+      buckets.push({ location, bucket })
     } else {
-      ctx.warn('invalid bucket location', { location, bucket })
+      ctx.warn('invalid bucket location', { location, cbucket })
     }
   }
 
@@ -142,6 +144,7 @@ export async function createServer (
   const tempDir = new TemporaryDir(ctx, 'datalake-', config.CleanupInterval)
 
   const app = express()
+  app.disable('x-powered-by')
   app.use(cors())
   app.use(express.json({ limit: '50mb' }))
   app.use(
@@ -169,10 +172,10 @@ export async function createServer (
 
   const wrapRequest =
     (ctx: MeasureContext, name: string, fn: AsyncRequestHandler) =>
-      (req: RequestWithAuth, res: Response, next: NextFunction) => {
+    (req: RequestWithAuth, res: Response, next: NextFunction) => {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        handleRequest(ctx, name, datalake, tempDir, fn, req, res, next)
-      }
+      handleRequest(ctx, name, datalake, tempDir, fn, req, res, next)
+    }
 
   app.use(morgan('short', { stream: new LogStream() }))
 
@@ -189,33 +192,18 @@ export async function createServer (
 
   app.get('/blob/:workspace', withAdminAuthorization, withWorkspace, wrapRequest(ctx, 'listBlobs', handleBlobList))
 
+  app.head('/blob/:workspace/:name', withAuthorization, withBlob, wrapRequest(ctx, 'headBlob', handleBlobHead))
+
   app.head(
-    '/blob/:workspace/:name',
-    withOptionalAuth(config.Secure),
+    '/blob/:workspace/:name/:filename',
+    withAuthorization,
     withBlob,
     wrapRequest(ctx, 'headBlob', handleBlobHead)
   )
 
-  app.head(
-    '/blob/:workspace/:name/:filename',
-    withOptionalAuth(config.Secure),
-    withBlob,
-    wrapRequest(ctx, 'headBlob', handleBlobHead)
-  )
+  app.get('/blob/:workspace/:name', withAuthorization, withBlob, wrapRequest(ctx, 'getBlob', handleBlobGet))
 
-  app.get(
-    '/blob/:workspace/:name',
-    withOptionalAuth(config.Secure),
-    withBlob,
-    wrapRequest(ctx, 'getBlob', handleBlobGet)
-  )
-
-  app.get(
-    '/blob/:workspace/:name/:filename',
-    withOptionalAuth(config.Secure),
-    withBlob,
-    wrapRequest(ctx, 'getBlob', handleBlobGet)
-  )
+  app.get('/blob/:workspace/:name/:filename', withAuthorization, withBlob, wrapRequest(ctx, 'getBlob', handleBlobGet))
 
   app.delete('/blob/:workspace/:name', withAuthorization, withBlob, wrapRequest(ctx, 'deleteBlob', handleBlobDelete))
 
@@ -239,12 +227,7 @@ export async function createServer (
 
   // Blob meta
 
-  app.get(
-    '/meta/:workspace/:name',
-    withOptionalAuth(config.Secure),
-    withBlob,
-    wrapRequest(ctx, 'getMeta', handleMetaGet)
-  )
+  app.get('/meta/:workspace/:name', withAuthorization, withBlob, wrapRequest(ctx, 'getMeta', handleMetaGet))
 
   app.put('/meta/:workspace/:name', withAuthorization, withBlob, wrapRequest(ctx, 'putMeta', handleMetaPut))
 
@@ -368,6 +351,9 @@ export async function createServer (
   return {
     app,
     close: () => {
+      for (const { bucket } of buckets) {
+        bucket.close()
+      }
       void tempDir.close()
     }
   }

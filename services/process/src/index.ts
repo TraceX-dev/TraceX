@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,7 +26,7 @@ import { join } from 'path'
 import config from './config'
 import { prepare } from './init'
 import { messageHandler } from './main'
-import { SERVICE_NAME } from './utils'
+import { closeClients, configureClients, SERVICE_NAME } from './utils'
 
 async function main (): Promise<void> {
   prepare()
@@ -45,6 +46,7 @@ async function main (): Promise<void> {
   })
 
   Analytics.setTag('application', SERVICE_NAME)
+  configureClients(ctx)
   setMetadata(serverToken.metadata.Secret, config.Secret)
   setMetadata(serverToken.metadata.Service, SERVICE_NAME)
 
@@ -57,14 +59,21 @@ async function main (): Promise<void> {
     async (ct, message) => {
       const ws = message.workspace
       const record = message.value
-      await messageHandler(record, ws, ctx)
+      await messageHandler(record, ws, ct)
     }
   )
 
   const shutdown = (): void => {
-    void Promise.all([consumer.close()]).then(() => {
-      process.exit()
-    })
+    void consumer
+      .close()
+      .then(async () => {
+        await closeClients()
+        process.exit()
+      })
+      .catch((error: unknown) => {
+        ctx.error('Failed to stop process service', { error })
+        process.exit(1)
+      })
   }
 
   process.once('SIGINT', shutdown)

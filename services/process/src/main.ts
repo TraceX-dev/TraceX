@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,14 +15,11 @@
 //
 
 import cardPlugin, { Card } from '@hcengineering/card'
-import { CreateMessageEvent, MessageEventType } from '@hcengineering/communication-sdk-types'
-import { ActivityProcess, ActivityUpdateType, MessageType } from '@hcengineering/communication-types'
 import core, {
   Doc,
   generateId,
   getDiffUpdate,
   MeasureContext,
-  OperationDomain,
   Ref,
   SortingOrder,
   Tx,
@@ -35,6 +33,7 @@ import core, {
 import { getPlatformQueue } from '@hcengineering/kafka'
 import { getResource } from '@hcengineering/platform'
 import process, {
+  ContextId,
   Execution,
   ExecutionError,
   ExecutionLogAction,
@@ -66,16 +65,49 @@ import { createCollaboratorClient } from './collaborator'
 import { isError } from './errors'
 import { getClient, releaseClient, SERVICE_NAME } from './utils'
 import config from './config'
+import { instrumentClient, type ProcessMeasurements } from './telemetry'
 
 const activeExecutions = new Set<Ref<Execution>>()
 const processedMessages = new Map<string, number>()
 const MAX_PROCESSED_MESSAGES = 1000
 
 export async function messageHandler (record: ProcessMessage, ws: WorkspaceUuid, ctx: MeasureContext): Promise<void> {
-  if (record.account === core.account.ConfigUser) return
+  const measurements: ProcessMeasurements = { client_calls: 0, client_ms: 0, client_errors: 0, outcome: 'handled' }
+  const eventAge = Number.isFinite(record.createdOn) ? Date.now() - record.createdOn : undefined
+  const route = record.execution !== undefined ? 'execution' : record.card !== undefined ? 'card' : 'broadcast'
+  await ctx.with(
+    'process.event',
+    { route },
+    async (eventCtx) => {
+      await handleMessage(record, ws, eventCtx, measurements)
+    },
+    () => ({
+      ...measurements,
+      event_age_ms: eventAge,
+      events: record.event.join(','),
+      workspace: ws,
+      execution: record.execution,
+      card: record.card,
+      message_id: record._id
+    })
+  )
+}
+
+async function handleMessage (
+  record: ProcessMessage,
+  ws: WorkspaceUuid,
+  ctx: MeasureContext,
+  measurements: ProcessMeasurements
+): Promise<void> {
+  if (record.account === core.account.ConfigUser) {
+    measurements.outcome = 'ignored'
+    return
+  }
   if (record._id !== undefined) {
     if (processedMessages.has(record._id)) {
-      ctx.info('Skipping duplicate message', { _id: record._id, ws, record })
+      measurements.outcome = 'duplicate'
+      ctx.counter('process_duplicate_events', 1)
+      ctx.debug('Skipping duplicate message', { _id: record._id, ws })
       return
     }
     processedMessages.set(record._id, Date.now())
@@ -87,7 +119,8 @@ export async function messageHandler (record: ProcessMessage, ws: WorkspaceUuid,
     }
   }
   try {
-    const client = new TxOperations(await getClient(ws), record.account)
+    const cachedClient = await ctx.with('process.get-client', {}, async (clientCtx) => await getClient(ws, clientCtx))
+    const client = new TxOperations(instrumentClient(cachedClient, ctx, measurements), record.account)
     try {
       const control: ProcessControl = {
         ctx,
@@ -99,7 +132,7 @@ export async function messageHandler (record: ProcessMessage, ws: WorkspaceUuid,
         modifiedBy: record.account,
         modifiedOn: record.createdOn
       }
-      ctx.info('Processing event', { event: record.event, ws, record })
+      ctx.debug('Processing event', { event: record.event, ws, messageId: record._id })
       if (record.execution !== undefined) {
         const execution = await control.client.findOne(process.class.Execution, { _id: record.execution })
         if (execution !== undefined) {
@@ -114,6 +147,8 @@ export async function messageHandler (record: ProcessMessage, ws: WorkspaceUuid,
       await releaseClient(ws)
     }
   } catch (error) {
+    measurements.outcome = 'error'
+    ctx.counter('process_event_errors', 1)
     ctx.error('Error processing event', { error, ws, record })
   }
 }
@@ -132,7 +167,8 @@ async function processBroadcast (control: ProcessControl, record: ProcessMessage
     if (transition.from == null) continue
     const executions = await control.client.findAll(process.class.Execution, {
       process: transition.process,
-      currentState: transition.from
+      currentState: transition.from,
+      status: ExecutionStatus.Active
     })
     for (const execution of executions) {
       if (isActiveExecution(execution, record.event)) {
@@ -172,7 +208,9 @@ async function processCardExecutions (control: ProcessControl, record: ProcessMe
         p === process.trigger.WhenRequiredFieldsFilled
     )
   ) {
-    await updateTimers(control, record)
+    await control.ctx.with('process.update-timers', {}, async (ctx) => {
+      await updateTimers({ ...control, ctx }, record)
+    })
   }
 }
 
@@ -181,17 +219,17 @@ async function findTransitions (
   record: ProcessMessage,
   execution: Execution
 ): Promise<Transition | undefined> {
-  if (record.event.includes(process.trigger.OnExecutionStart)) {
-    const transitions = control.client.getModel().findAllSync(
-      process.class.Transition,
-      {
-        process: execution.process,
-        from: null,
-        trigger: process.trigger.OnExecutionStart
-      },
-      { sort: { rank: SortingOrder.Ascending } }
-    )
-    return await pickTransition(control, execution, transitions, record.context)
+  const initTransitions = control.client.getModel().findAllSync(
+    process.class.Transition,
+    {
+      process: execution.process,
+      from: null,
+      trigger: { $in: record.event }
+    },
+    { sort: { rank: SortingOrder.Ascending } }
+  )
+  if (initTransitions.length > 0) {
+    return await pickTransition(control, execution, initTransitions, record.context)
   }
   if (record.event.includes(process.trigger.OnExecutionContinue)) {
     const transition = execution.error?.[0].transition
@@ -294,12 +332,16 @@ async function executeResultSet (
 async function processExecution (control: ProcessControl, record: ProcessMessage, execution: Execution): Promise<void> {
   if (isActiveExecution(execution, record.event)) {
     await checkToDoResult(control, record, execution)
-    const transition = await findTransitions(control, record, execution)
+    const transition = await control.ctx.with(
+      'process.find-transition',
+      {},
+      async (ctx) => await findTransitions({ ...control, ctx }, record, execution)
+    )
     if (transition !== undefined) {
       await execute(execution, transition, control)
       return
     } else {
-      control.ctx.info('No transition found for event', {
+      control.ctx.debug('No transition found for event', {
         event: record.event,
         execution: execution._id,
         state: execution.currentState
@@ -379,11 +421,18 @@ async function execute (execution: Execution, transition: Transition, control: P
   }
 }
 
-async function executeTransition (
-  execution: Execution,
-  _transition: Transition,
-  control: ProcessControl
-): Promise<void> {
+async function executeTransition (execution: Execution, transition: Transition, control: ProcessControl): Promise<void> {
+  await control.ctx.with(
+    'process.transition-chain',
+    {},
+    async (ctx) => {
+      await runTransitions(execution, transition, { ...control, ctx })
+    },
+    { execution: execution._id, transition: transition._id }
+  )
+}
+
+async function runTransitions (execution: Execution, _transition: Transition, control: ProcessControl): Promise<void> {
   let nested = false
   let disableRollback = false
   let transition: Transition | undefined = _transition
@@ -440,7 +489,14 @@ async function executeTransition (
       control.cache.set(execution.card, card)
     } else if (transition.trigger === process.trigger.OnExecutionStart) {
       for (let attempt = 1; attempt < 5; attempt++) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+        await control.ctx.with(
+          'process.wait-card',
+          {},
+          async () => {
+            await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+          },
+          { attempt }
+        )
         card = await control.client.findOne(cardPlugin.class.Card, { _id: execution.card })
         if (card !== undefined) {
           control.cache.set(execution.card, card)
@@ -453,9 +509,20 @@ async function executeTransition (
     }
     const context: Record<string, any> = {}
     for (const action of transition.actions) {
-      const actionResult = await executeAction(action, transition._id, execution, control)
+      const actionResult = await control.ctx.with(
+        'process.action',
+        {},
+        async (ctx) => {
+          const result = await executeAction(action, currTransition._id, execution, { ...control, ctx })
+          if (isError(result)) ctx.counter('process_action_errors', 1)
+          return result
+        },
+        { method: action.methodId, transition: transition._id }
+      )
       if (isError(actionResult)) {
         errors.push(actionResult)
+        await client.update(execution, { error: errors })
+        return
       } else {
         if (actionResult.rollback !== undefined && actionResult.rollback.length > 0) {
           rollback.push(...actionResult.rollback)
@@ -482,6 +549,16 @@ async function executeTransition (
             }
           }
         }
+      }
+    }
+    if (transition.trigger === process.trigger.OnEvent && typeof control.messageContext.eventType === 'string') {
+      const buttons = await control.client.findAll(process.class.EventButton, {
+        execution: execution._id,
+        card: execution.card,
+        eventType: control.messageContext.eventType
+      })
+      for (const button of buttons) {
+        res.push(client.txFactory.createTxRemoveDoc(button._class, button.space, button._id))
       }
     }
     if (!disableRollback) {
@@ -511,100 +588,50 @@ async function executeTransition (
         action: transition.from === null ? ExecutionLogAction.Started : ExecutionLogAction.Transition
       })
     )
-    if (errors.length === 0) {
-      try {
-        const apply = client.txFactory.createTxApplyIf(
-          core.space.Tx,
-          `${execution._id}_${transition._id}`,
-          [{ _class: process.class.Execution, query: { _id: execution._id, currentState: execution.currentState } }],
-          [],
-          res as TxCUD<Doc>[],
-          'process',
-          true
-        )
-        const result = (await client.tx(apply)) as any
-        if (result.success === false) {
-          control.ctx.info('Transition apply failed (likely already processed)', {
-            execution: execution._id,
-            transition: transition._id
-          })
-          break
-        }
-        await sendEvent(control, execution, transition, card, isDone)
-        TxProcessor.applyUpdate(execution, executionUpdate)
-        if (execution.parentId !== undefined) {
-          await checkParent(execution, control, isDone)
-        }
-        currTransition = transition
-        transition = await checkNext(control, execution, context)
-        nested = true
-        if (transition === undefined) {
-          await setNextTimers(control, execution)
-        }
-      } catch (err) {
-        const errorId = generateId()
-        control.ctx.error(err instanceof Error ? err.message : String(err), { errorId })
-        const e = parseError(processError(process.error.InternalServerError, { errorId }), currTransition._id)
-        await client.update(execution, { error: [e] })
+    try {
+      const apply = client.txFactory.createTxApplyIf(
+        core.space.Tx,
+        `${execution._id}_${transition._id}`,
+        [{ _class: process.class.Execution, query: { _id: execution._id, currentState: execution.currentState } }],
+        [],
+        res as TxCUD<Doc>[],
+        'process',
+        true
+      )
+      const result = (await control.ctx.with('process.apply-transition', {}, async () => await client.tx(apply))) as any
+      if (result.success === false) {
+        control.ctx.info('Transition apply failed (likely already processed)', {
+          execution: execution._id,
+          transition: transition._id
+        })
         break
       }
-    } else {
-      await client.update(execution, { error: errors })
+      TxProcessor.applyUpdate(execution, executionUpdate)
+      if (execution.parentId !== undefined) {
+        await control.ctx.with('process.check-parent', {}, async (ctx) => {
+          await checkParent(execution, { ...control, ctx }, isDone)
+        })
+      }
+      currTransition = transition
+      transition = await control.ctx.with(
+        'process.check-next',
+        {},
+        async (ctx) => await checkNext({ ...control, ctx }, execution, context)
+      )
+      nested = true
+      if (transition === undefined) {
+        await control.ctx.with('process.set-timers', {}, async (ctx) => {
+          await setNextTimers({ ...control, ctx }, execution)
+        })
+      }
+    } catch (err) {
+      const errorId = generateId()
+      control.ctx.error(err instanceof Error ? err.message : String(err), { errorId })
+      const e = parseError(processError(process.error.InternalServerError, { errorId }), currTransition._id)
+      await client.update(execution, { error: [e] })
       break
     }
   }
-}
-
-async function sendEvent (
-  control: ProcessControl,
-  execution: Execution,
-  transition: Transition,
-  card: Card,
-  isDone: boolean
-): Promise<void> {
-  const eventData: ActivityProcess = {
-    type: ActivityUpdateType.Process,
-    process: execution.process,
-    action: isDone ? 'complete' : transition.from == null ? 'started' : 'transition',
-    transitionTo: transition.to
-  }
-  const event: CreateMessageEvent = {
-    type: MessageEventType.CreateMessage,
-    messageType: MessageType.Activity,
-    cardId: execution.card,
-    cardType: card._class,
-    extra: {
-      action: 'update',
-      update: eventData
-    },
-    content: await getActivityContent(control, eventData),
-    socialId: control.modifiedBy,
-    date: new Date(control.modifiedOn)
-  }
-  await control.client.domainRequest('communication' as OperationDomain, { event })
-}
-
-async function getActivityContent (control: ProcessControl, extra: ActivityProcess): Promise<string> {
-  const process = control.client.getModel().findObject(extra.process)
-  if (process === undefined) return ''
-
-  if (extra.action === 'started') {
-    return `Process ${process.name} started`
-  }
-  if (extra.action === 'complete' && extra.transitionTo != null) {
-    const state = control.client.getModel().findObject(extra.transitionTo)
-    if (state != null) {
-      return `Process ${process.name} completed with state ${state.title}`
-    }
-  }
-  if (extra.action === 'transition' && extra.transitionTo != null) {
-    const state = control.client.getModel().findObject(extra.transitionTo)
-    if (state != null) {
-      return `Process ${process.name} moved to state ${state.title}`
-    }
-  }
-
-  return ''
 }
 
 async function updateTimers (control: ProcessControl, record: ProcessMessage): Promise<void> {
@@ -735,6 +762,11 @@ async function executeAction<T extends Doc> (
     const params = await fillParams(action.params, execution, control)
     const f = await getResource(impl.func)
     const res = await f(params, execution, control, action.results)
+    if (!isError(res) && res.results !== undefined) {
+      for (const result of res.results) {
+        execution.context[result._id as ContextId] = result.value
+      }
+    }
     if (!isError(res) && action.context?._id != null && res.context != null) {
       execution.context[action.context._id] =
         res.context.length === 1 ? res.context[0]._id : res.context.map((it) => it._id)
@@ -779,18 +811,22 @@ async function fillParams<T extends Doc> (
 
 async function checkParent (execution: Execution, control: ProcessControl, isDone: boolean): Promise<void> {
   try {
-    const subProcesses = await control.client.findAll(process.class.Execution, {
-      parentId: execution.parentId,
-      status: ExecutionStatus.Active
-    })
-    const filtered = subProcesses.filter((it) => it._id !== execution._id)
+    const subProcesses = await control.client.findAll(
+      process.class.Execution,
+      {
+        parentId: execution.parentId,
+        status: ExecutionStatus.Active,
+        _id: { $ne: execution._id }
+      },
+      { limit: 1 }
+    )
     const parent = (await control.client.findAll(process.class.Execution, { _id: execution.parentId }))[0]
     if (parent === undefined) return
     const _process = control.client.getModel().findObject(parent.process)
     if (_process === undefined) return
     if (parent.status !== ExecutionStatus.Active) return
     const triggers: Ref<Trigger>[] = [process.trigger.OnSubProcessMatch]
-    if (filtered.length === 0 && isDone) triggers.push(process.trigger.OnSubProcessesDone)
+    if (subProcesses.length === 0 && isDone) triggers.push(process.trigger.OnSubProcessesDone)
     const transitions = control.client.getModel().findAllSync(
       process.class.Transition,
       {

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -30,6 +31,7 @@
   import ProjectSelector from '../../project/ProjectSelector.svelte'
   import documentsRes from '../../../plugin'
   import { getLatestProjectId } from '../../../utils'
+  import { canGuestCreateDocumentsStore } from '../../../stores/permissions'
 
   export let canProceed: boolean
   export let isTemplate: boolean = false
@@ -78,17 +80,16 @@
     projectRef = value
   }
 
-  const externalSpaces = hierarchy.getDescendants(documents.class.ExternalSpace)
-
-  $: canProceed = $locationStep.space !== undefined && $locationStep.project !== undefined
+  $: canProceed =
+    $canGuestCreateDocumentsStore && $locationStep.space !== undefined && $locationStep.project !== undefined
   $: hasParentSelector = $locationStep.space !== documents.space.UnsortedTemplates
   $: restrictedSpaces = Object.keys($permissionsStore.ps).filter(
     (s) => !checkMyPermission(documents.permission.CreateDocument, s as Ref<TypedSpace>, $permissionsStore)
   ) as Ref<TypedSpace>[]
 
-  $: spaceQuery = isTemplate
-    ? { _id: { $nin: restrictedSpaces }, archived: false, _class: { $nin: externalSpaces } }
-    : { _id: { $nin: restrictedSpaces }, archived: false }
+  $: spaceQuery = $canGuestCreateDocumentsStore
+    ? { _id: { $nin: restrictedSpaces }, archived: false }
+    : { _id: { $in: [] as Ref<TypedSpace>[] } }
 </script>
 
 <div class="root">
@@ -110,8 +111,8 @@
         <ProjectSelector
           value={projectRef}
           space={space._id}
-          kind={'no-border'}
-          size={'small'}
+          kind="no-border"
+          size="small"
           justify="left"
           showReadonly={false}
           on:change={(e) => {

@@ -1,0 +1,131 @@
+<!--
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+-->
+
+<script lang="ts">
+  import attachment, { type Attachment } from '@hcengineering/attachment'
+  import type { Card as TypeCard } from '@hcengineering/card'
+  import type { DocumentQuery } from '@hcengineering/core'
+  import { getResource, setPlatformStatus, unknownError } from '@hcengineering/platform'
+  import { Card, createQuery, getClient, MessageViewer } from '@hcengineering/presentation'
+  import type { EventButton } from '@hcengineering/process'
+  import { type AnySvelteComponent, Button, Spinner } from '@hcengineering/ui'
+  import { createEventDispatcher, onMount } from 'svelte'
+  import process from '../plugin'
+
+  export let action: EventButton
+  export let card: TypeCard
+
+  const dispatch = createEventDispatcher()
+  const client = getClient()
+  const attachmentsQuery = createQuery()
+  let editor: AnySvelteComponent | undefined
+  let query: DocumentQuery<Attachment> = {}
+  let attachments = 0
+  let uploading = false
+  let saving = false
+  let disposed = false
+
+  $: busy = uploading || saving
+  $: canSubmit = !busy && editor !== undefined && attachments > 0
+  $: canSkip = !busy && editor !== undefined && action.requireAttachments === false
+
+  onMount(() => {
+    void initialize().catch(async (error: unknown) => {
+      await setPlatformStatus(unknownError(error))
+    })
+    return () => {
+      disposed = true
+    }
+  })
+
+  async function initialize (): Promise<void> {
+    const [component, existing] = await Promise.all([
+      getResource(attachment.component.Attachments),
+      client.findAll(attachment.class.Attachment, { attachedTo: card._id })
+    ])
+    if (disposed) return
+    query = { _id: { $nin: existing.map((item) => item._id) } }
+    attachmentsQuery.query(attachment.class.Attachment, { ...query, attachedTo: card._id }, (result) => {
+      attachments = result.length
+    })
+    editor = component
+  }
+
+  export function canClose (): boolean {
+    return !busy
+  }
+
+  function close (): void {
+    if (!busy) dispatch('close')
+  }
+
+  async function complete (): Promise<void> {
+    saving = true
+    try {
+      await client.createDoc(process.class.ProcessCustomEvent, action.space, {
+        execution: action.execution,
+        eventType: action.eventType,
+        card: card._id
+      })
+      dispatch('close')
+    } catch (error: unknown) {
+      await setPlatformStatus(unknownError(error))
+    } finally {
+      saving = false
+    }
+  }
+
+  async function submit (): Promise<void> {
+    if (!canSubmit) return
+    await complete()
+  }
+
+  async function skip (): Promise<void> {
+    if (!canSkip) return
+    await complete()
+  }
+</script>
+
+<Card label={process.string.RequestAttachments} canSave={canSubmit} okAction={submit} onCancel={close}>
+  <svelte:fragment slot="buttons">
+    {#if action.requireAttachments === false}
+      <Button kind="regular" size="large" label={process.string.Skip} disabled={!canSkip} on:click={skip} />
+    {/if}
+  </svelte:fragment>
+  <div class="flex-col flex-gap-2">
+    <div>{action.title}</div>
+    {#if action.description}
+      <MessageViewer message={action.description} />
+    {/if}
+    {#if editor !== undefined}
+      <svelte:component
+        this={editor}
+        object={card}
+        objectId={card._id}
+        _class={card._class}
+        space={card.space}
+        {query}
+        {attachments}
+        readonly={saving}
+        on:loading={(event) => {
+          uploading = event.detail
+        }}
+      />
+    {:else}
+      <Spinner />
+    {/if}
+  </div>
+</Card>

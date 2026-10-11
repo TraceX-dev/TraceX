@@ -1,6 +1,8 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
 //
+// Copyright © 2026 TraceX SAS.
+//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
@@ -27,7 +29,8 @@ export function definePresenters (builder: Builder): void {
   // Issue
   //
   builder.mixin(tracker.class.Issue, core.class.Class, view.mixin.ObjectPresenter, {
-    presenter: tracker.component.IssuePresenter
+    presenter: tracker.component.IssuePresenter,
+    requiredFields: ['identifier', 'title', 'kind']
   })
 
   builder.mixin(tracker.class.Issue, core.class.Class, notification.mixin.NotificationObjectPresenter, {

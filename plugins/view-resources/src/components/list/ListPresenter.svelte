@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,11 +17,14 @@
   import contact, { PermissionsStore } from '@hcengineering/contact'
   import core, { AnyAttribute, Doc, Ref, TypedSpace } from '@hcengineering/core'
   import { getResource } from '@hcengineering/platform'
+  import { getClient } from '@hcengineering/presentation'
   import { AttributeModel } from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
   import { Readable } from 'svelte/store'
   import { canChangeAttribute, FixedColumn, restrictionStore } from '../..'
   import DividerPresenter from './DividerPresenter.svelte'
+
+  import { isObjectAttributeReadonly } from '../../readonly'
 
   export let docObject: Doc
   export let attributeModel: AttributeModel
@@ -32,17 +36,21 @@
   export let readonly: boolean = false
 
   const dispatch = createEventDispatcher()
+  const client = getClient()
 
   $: dp = attributeModel?.displayProps
 
   function joinProps (attribute: AttributeModel, object: Doc, props: Record<string, any>, readonly: boolean) {
     const readonlyParams =
-      readonly || (attribute?.attribute?.readonly ?? false)
+      readonly ||
+      isObjectAttributeReadonly(object, attribute, client.getHierarchy()) ||
+      (attribute?.attribute?.readonly ?? false)
         ? {
             readonly: true,
             disabled: true,
             editable: false,
-            isEditable: false
+            isEditable: false,
+            onChange: undefined
           }
         : {}
     const clearAttributeProps = attribute.props

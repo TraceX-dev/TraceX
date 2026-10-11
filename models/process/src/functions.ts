@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,6 +18,34 @@ import { type Builder } from '@hcengineering/model'
 import process from './plugin'
 
 export function defineFunctions (builder: Builder): void {
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.ArrOf,
+      to: core.class.TypeNumber,
+      category: 'attribute',
+      label: process.string.ArrayLength,
+      type: 'convert'
+    },
+    process.function.ArrayLength
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.TypeNumber,
+      category: 'attribute',
+      label: process.string.RelationCount,
+      editorProps: { withConfiguration: false },
+      type: 'context',
+      editor: process.component.RelationTableEditor,
+      presenter: process.transformPresenter.RelationTablePresenter
+    },
+    process.function.RelationCount
+  )
+
   builder.createDoc(
     process.class.ProcessFunction,
     core.space.Model,
@@ -85,6 +114,34 @@ export function defineFunctions (builder: Builder): void {
     process.class.ProcessFunction,
     core.space.Model,
     {
+      of: core.class.TypeMarkup,
+      category: 'attribute',
+      label: process.string.Prepend,
+      allowMany: true,
+      type: 'transform',
+      editor: process.transformEditor.MarkupAppendEditor
+    },
+    process.function.PrependMarkup
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.TypeMarkup,
+      category: 'attribute',
+      label: process.string.Append,
+      allowMany: true,
+      type: 'transform',
+      editor: process.transformEditor.MarkupAppendEditor
+    },
+    process.function.AppendMarkup
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
       of: core.class.TypeString,
       category: 'attribute',
       label: process.string.Replace,
@@ -144,7 +201,8 @@ export function defineFunctions (builder: Builder): void {
       of: core.class.ArrOf,
       category: undefined,
       label: process.string.FirstValue,
-      type: 'reduce'
+      type: 'reduce',
+      editor: process.transformEditor.SortEditor
     },
     process.function.FirstValue
   )
@@ -183,6 +241,19 @@ export function defineFunctions (builder: Builder): void {
       type: 'reduce'
     },
     process.function.All
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.ArrOf,
+      category: 'array',
+      label: process.string.AllMatchValue,
+      type: 'reduce',
+      editor: process.transformEditor.FilterEditor
+    },
+    process.function.AllMatchValue
   )
 
   builder.createDoc(
@@ -489,6 +560,20 @@ export function defineFunctions (builder: Builder): void {
       type: 'context'
     },
     process.function.RoleContext
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
+      of: core.class.TypeMarkup,
+      editor: process.component.RelationTableEditor,
+      presenter: process.transformPresenter.RelationTablePresenter,
+      category: 'attribute',
+      label: process.string.TableFromRelation,
+      type: 'context'
+    },
+    process.function.TableFromRelation
   )
 
   builder.createDoc(

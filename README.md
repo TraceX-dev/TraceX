@@ -1,9 +1,36 @@
 # TraceX
 
-![GitHub License](https://img.shields.io/github/license/hcengineering/platform?style=for-the-badge)
+[![License](https://img.shields.io/badge/license-EPL--2.0%20%2B%20PolyForm%20Shield-blue?style=for-the-badge)](#licensing)
 
 Built for compliance and productivity across regulated industries.
 ![TraceX screenshot](./docs/assets/tracex.png)
+
+> [!IMPORTANT]
+> **Hosted Huly is shutting down — please migrate your data.**
+>
+> The hosted Huly service is being discontinued because its hosting is no longer being funded. If you keep important data on the hosted platform, export and back it up, and migrate as soon as possible — we can help you move to either a [self-hosted setup](https://github.com/hcengineering/huly-selfhost) or a hosted option.
+>
+> The nearest event is around **July 3**, when the Cloudflare bill may go unpaid and the service could be disrupted. This date is approximate and not a guarantee, so it's best to play it safe and migrate ahead of it rather than wait until the last day.
+>
+> Have questions or want updates? Join the [Huly community](https://link.huly.io/slack) to discuss migration and stay informed, or email us at [huly.migration@gmail.com](mailto:huly.migration@gmail.com) for migration questions. This affects only the hosted **Huly** service — self-hosted deployments are not affected.
+
+> [!IMPORTANT]
+> **Hosted Huly is shutting down — please migrate your data.**
+>
+> The hosted Huly service is being discontinued because its hosting is no longer being funded. If you keep important data on the hosted platform, export and back it up, and migrate as soon as possible — we can help you move to either a [self-hosted setup](https://github.com/hcengineering/huly-selfhost) or a hosted option.
+>
+> The nearest event is around **July 3**, when the Cloudflare bill may go unpaid and the service could be disrupted. This date is approximate and not a guarantee, so it's best to play it safe and migrate ahead of it rather than wait until the last day.
+>
+> Have questions or want updates? Join the [Huly community](https://link.huly.io/slack) to discuss migration and stay informed, or email us at [huly.migration@gmail.com](mailto:huly.migration@gmail.com) for migration questions. This affects only the hosted **Huly** service — self-hosted deployments are not affected.
+
+> [!IMPORTANT]
+> **Hosted Huly is shutting down — please migrate your data.**
+>
+> The hosted Huly service is being discontinued because its hosting is no longer being funded. If you keep important data on the hosted platform, export and back it up, and migrate as soon as possible — we can help you move to either a [self-hosted setup](https://github.com/hcengineering/huly-selfhost) or a hosted option.
+>
+> The nearest event is around **July 3**, when the Cloudflare bill may go unpaid and the service could be disrupted. This date is approximate and not a guarantee, so it's best to play it safe and migrate ahead of it rather than wait until the last day.
+>
+> Have questions or want updates? Join the [Huly community](https://link.huly.io/slack) to discuss migration and stay informed, or email us at [huly.migration@gmail.com](mailto:huly.migration@gmail.com) for migration questions. This affects only the hosted **Huly** service — self-hosted deployments are not affected.
 
 ## About
 
@@ -40,14 +67,6 @@ Track and manage your product lifecycle from concept to market release and post-
 
 Teams collaborate on design control, requirement specifications, development, and verification and validation while maintaining compliance at every stage.
 
-
-
-## Activity
-
-![Alt](https://repobeats.axiom.co/api/embed/c42c99e21691fa60ea61b5cdf11c2e0647621534.svg 'Repobeats analytics image')
-
-
-
 ## Changelog
 
 For detailed information about changes, improvements, and bug fixes in each version, see our [Changelog](./changelog.md).
@@ -72,20 +91,32 @@ The TraceX platform uses two types of version tags to distinguish between produc
 
 For detailed information about the platform architecture, services, and their interactions, see our [Architecture Overview](./ARCHITECTURE_OVERVIEW.md).
 
+## Licensing
+
+TraceX is built on the open-source [Huly Platform](https://github.com/hcengineering/platform). Code inherited or modified from Huly, as well as new source files by default, is licensed under the [Eclipse Public License 2.0](./LICENSE).
+
+Some separately designated TraceX-original packages are licensed under the [PolyForm Shield License 1.0.0](./LICENSE-POLYFORM-SHIELD), which permits use and modification but restricts building competing products with them.
+
+Source file headers and package metadata identify the applicable license. Mixed packages use the SPDX `AND` form, such as `(EPL-2.0 AND LicenseRef-PolyForm-Shield-1.0.0)`.
+
 ## Table of Contents
 
-- [TraceX Platform](#tracex-platform)
+- [TraceX](#tracex)
   - [About](#about)
-  - [Activity](#activity)
-  - [API Client](#api-client)
+  - [What is TraceX?](#what-is-tracex)
+  - [Core Pillars](#core-pillars)
+    - [Electronic Quality Management System (eQMS)](#electronic-quality-management-system-eqms)
+    - [Product Lifecycle Management (PLM)](#product-lifecycle-management-plm)
   - [Changelog](#changelog)
   - [Versions](#versions)
   - [Architecture](#architecture)
+  - [Licensing](#licensing)
   - [Table of Contents](#table-of-contents)
   - [Pre-requisites](#pre-requisites)
   - [Verification](#verification)
   - [Branches \& Contributing](#branches--contributing)
   - [Setup dev environment](#setup-dev-environment)
+    - [Authentication](#authentication)
   - [Fast start](#fast-start)
   - [Installation](#installation)
   - [Build and run](#build-and-run)
@@ -99,6 +130,15 @@ For detailed information about the platform architecture, services, and their in
   - [Package publishing](#package-publishing)
   - [Additional testing](#additional-testing)
   - [WSL build guide](#wsl-build-guide)
+    - [Prerequisites](#prerequisites)
+      - [Disk Space Requirements](#disk-space-requirements)
+      - [Docker WSL Integration](#docker-wsl-integration)
+    - [Common Issues and Solutions](#common-issues-and-solutions)
+      - [Git Line Endings on Windows](#git-line-endings-on-windows)
+      - [Elevated Privileges in WSL](#elevated-privileges-in-wsl)
+      - [WSL Configuration](#wsl-configuration)
+    - [Running the Application](#running-the-application)
+      - [Port Conflicts](#port-conflicts)
 
 ## Pre-requisites
 
@@ -106,6 +146,12 @@ For detailed information about the platform architecture, services, and their in
   - [Node.js](https://nodejs.org/en/download/) (v22 is required)
   - [Docker](https://docs.docker.com/get-docker/)
   - [Docker Compose](https://docs.docker.com/compose/install/)
+
+If you use `nvm`, run this after entering the repo to align your shell with the repository Node version:
+
+```bash
+nvm use
+```
 
 ## Verification
 
@@ -132,18 +178,6 @@ We periodically merge `develop` into `staging` to perform testing builds. Once w
 
 ## Setup dev environment
 
-### To initialise the communication submodule
-
-```bash
-git submodule init
-git submodule update
-```
-
-### To update the communication submodule
-
-```bash
-git submodule update
-```
 
 ### Authentication
 
@@ -215,7 +249,7 @@ rush docker:up # Will set up all the containers
 
 Be aware `rush docker:build` will automatically execute all required phases like build, bundle, package.
 
-> **Note:** For resource-constrained machines, you can use the minified variants `rush docker:min` and `rush docker:up:min` to build and run only the required services (excludes hulypulse, redis, process, backup, rating, preview, link-preview, elastic, fulltext, payment, stats, print, sign, hulygun, hulykvs).
+> **Note:** For resource-constrained machines, you can use the minified variants `rush docker:min` and `rush docker:up:min` to build and run only the required services (excludes process, backup, rating, preview, link-preview, elastic, fulltext, payment, stats, print, sign, hulygun, hulykvs).
 
 Alternatively, you can just execute:
 
@@ -223,7 +257,7 @@ Alternatively, you can just execute:
 sh ./scripts/build.sh
 ```
 
-By default, Docker volumes named dev_db, dev_elastic, and dev_files will be created for the MongoDB, Elasticsearch, and MinIO instances.
+By default, Docker volumes named dev_postgres_db, dev_elastic, and dev_files will be created for the PostgreSQL, Elasticsearch, and MinIO instances.
 
 Add the following lines to your hosts file:
 

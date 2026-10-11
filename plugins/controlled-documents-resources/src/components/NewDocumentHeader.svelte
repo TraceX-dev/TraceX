@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,21 +16,26 @@
 <script lang="ts">
   import { Button, ButtonWithDropdown, IconAdd, IconDropdown, SelectPopupValueType, showPopup } from '@hcengineering/ui'
   import { checkMyPermission, permissionsStore } from '@hcengineering/contact-resources'
+  import { type Ref } from '@hcengineering/core'
+  import { type DocumentSpace } from '@hcengineering/controlled-documents'
 
   import documents from '../plugin'
+  import { canGuestCreateDocumentsStore } from '../stores/permissions'
   import CreateDocumentCategory from './CreateDocumentCategory.svelte'
 
   let dropdownItems: SelectPopupValueType[] = []
-  $: canCreateTemplate = checkMyPermission(
-    documents.permission.CreateDocument,
-    documents.space.QualityDocuments,
-    $permissionsStore
-  )
-  $: canCreateCategory = checkMyPermission(
-    documents.permission.CreateDocumentCategory,
-    documents.space.QualityDocuments,
-    $permissionsStore
-  )
+  // Guests without the module permission cannot create documents or templates at all.
+  $: canCreateDocument = $canGuestCreateDocumentsStore
+  $: canCreateTemplate =
+    canCreateDocument &&
+    Object.keys($permissionsStore.ps).some((space) =>
+      checkMyPermission(documents.permission.CreateDocument, space as Ref<DocumentSpace>, $permissionsStore)
+    )
+  $: canCreateCategory =
+    $canGuestCreateDocumentsStore &&
+    Object.keys($permissionsStore.ps).some((space) =>
+      checkMyPermission(documents.permission.CreateDocumentCategory, space as Ref<DocumentSpace>, $permissionsStore)
+    )
   $: {
     dropdownItems = []
     if (canCreateTemplate) {
@@ -63,7 +69,7 @@
 </script>
 
 <div class="antiNav-subheader">
-  {#if dropdownItems.length > 0}
+  {#if canCreateDocument && dropdownItems.length > 0}
     <ButtonWithDropdown
       icon={IconAdd}
       justify="left"
@@ -76,7 +82,7 @@
         dropdownItemSelected(ev.detail)
       }}
     />
-  {:else}
+  {:else if canCreateDocument}
     <Button
       icon={IconAdd}
       justify="left"

@@ -13,9 +13,9 @@
 // limitations under the License.
 //
 
-import {
+import core, {
   Account,
-  AccountRole,
+  isGuestRole,
   AccountUuid,
   AttachedData,
   buildSocialIdString,
@@ -34,7 +34,9 @@ import {
   SocialId,
   toIdMap,
   TxFactory,
-  DocumentUpdate
+  DocumentUpdate,
+  getCurrentAccount,
+  Space
 } from '@hcengineering/core'
 import platform, { getMetadata, PlatformError } from '@hcengineering/platform'
 import { ColorDefinition } from '@hcengineering/ui'
@@ -247,7 +249,7 @@ export async function findContacts (
  */
 export async function findPerson (client: Client, name: string, channels: AttachedData<Channel>[]): Promise<Person[]> {
   const result = await findContacts(client, contact.class.Person, name, channels)
-  return result.contacts as Person[]
+  return result.contacts
 }
 
 const SEP = ','
@@ -415,6 +417,71 @@ export async function getAllUserAccounts (client: Client): Promise<AccountUuid[]
   return employees.map((it) => it.personUuid).filter(notEmpty)
 }
 
+/**
+ * Context used to narrow the people a guest is offered in pickers and mentions.
+ * @public
+ */
+export interface GuestPeopleScope {
+  // Space of the edited object (or the space itself)
+  space?: Ref<Space>
+  // Edited object, its collaborators are also relevant
+  objectId?: Ref<Doc>
+}
+
+/**
+ * Narrows the people offered to a guest to the ones related to the current context:
+ * the guest itself, members and owners of the space and collaborators of the object.
+ *
+ * This is not a security boundary: the server already limits guests to people sharing any space with them.
+ * It only keeps suggestions relevant, so a guest does not bring people from one space into another.
+ *
+ * Returns undefined when no narrowing applies: the current account is not a guest,
+ * there is no context, or the context cannot be resolved (e.g. a system space or an inaccessible space
+ * without an object). In this case the caller should show the unrestricted (server filtered) list.
+ * @public
+ */
+export async function getGuestScopedAccounts (
+  client: Client,
+  scope: GuestPeopleScope | undefined
+): Promise<Set<AccountUuid> | undefined> {
+  const account = getCurrentAccount()
+  if (account === undefined || !isGuestRole(account.role)) return undefined
+  if (scope === undefined || (scope.space === undefined && scope.objectId === undefined)) return undefined
+
+  const [spaceDoc, collaborators] = await Promise.all([
+    scope.space !== undefined ? client.findOne(core.class.Space, { _id: scope.space }) : undefined,
+    scope.objectId !== undefined
+      ? client.findAll(core.class.Collaborator, { attachedTo: scope.objectId }, { projection: { collaborator: 1 } })
+      : []
+  ])
+
+  const hierarchy = client.getHierarchy()
+  const useSpace = spaceDoc !== undefined && !hierarchy.isDerived(spaceDoc._class, core.class.SystemSpace)
+  // Nothing to narrow by: fall back to the server filtered list
+  if (!useSpace && collaborators.length === 0) return undefined
+
+  const accounts = new Set<AccountUuid>([account.uuid])
+  if (useSpace) {
+    for (const member of spaceDoc.members ?? []) accounts.add(member)
+    for (const owner of spaceDoc.owners ?? []) accounts.add(owner)
+  }
+  for (const it of collaborators) accounts.add(it.collaborator)
+  return accounts
+}
+
+/**
+ * Active employees for {@link getGuestScopedAccounts}. Returns undefined when no narrowing applies.
+ * @public
+ */
+export async function getGuestScopedEmployees (
+  client: Client,
+  scope: GuestPeopleScope | undefined
+): Promise<Employee[] | undefined> {
+  const accounts = await getGuestScopedAccounts(client, scope)
+  if (accounts === undefined) return undefined
+  return await client.findAll(contact.mixin.Employee, { personUuid: { $in: Array.from(accounts) }, active: true })
+}
+
 export async function ensureEmployee (
   ctx: MeasureContext,
   me: Account,
@@ -569,8 +636,7 @@ export async function ensureEmployeeForPerson (
 
     // NOTE: it is important to create Employee after Person and SocialIdentities are ensured so all the triggers applied
     // on Employee creation will be able to properly map things
-    const employeeRole =
-      person.role === AccountRole.Guest || person.role === AccountRole.ReadOnlyGuest ? 'GUEST' : 'USER'
+    const employeeRole = isGuestRole(person.role) ? 'GUEST' : 'USER'
     const employee = await client.findOne(contact.mixin.Employee, { _id: personRef as Ref<Employee> })
 
     if (

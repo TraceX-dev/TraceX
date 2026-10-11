@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,14 +15,25 @@
 //
 
 import { ActivityMessage, ActivityMessageViewlet } from '@hcengineering/activity'
-import type { Class, Doc, Markup, Mixin, Ref, Space, Timestamp } from '@hcengineering/core'
+import type {
+  AccountUuid,
+  AttachedDoc,
+  Class,
+  Doc,
+  Markup,
+  Mixin,
+  ObjectVisibility,
+  Ref,
+  Space,
+  Timestamp
+} from '@hcengineering/core'
 import { NotificationType } from '@hcengineering/notification'
 import type { Asset, Plugin, Resource } from '@hcengineering/platform'
 import { IntlString, plugin } from '@hcengineering/platform'
 import { AnyComponent } from '@hcengineering/ui'
 import { Action } from '@hcengineering/view'
 import { Person, ChannelProvider as SocialChannelProvider } from '@hcengineering/contact'
-import { Widget, WidgetTab } from '@hcengineering/workbench'
+import { type ApplicationNotificationProvider, Widget, WidgetTab } from '@hcengineering/workbench'
 
 /**
  * @public
@@ -41,6 +53,38 @@ export interface ChunterSpace extends Space {
  */
 export interface Channel extends ChunterSpace {
   topic?: string
+}
+
+/**
+ * A discussion thread attached to an arbitrary platform object
+ * (e.g. a Card). Unlike a Channel, this is not a Space.
+ *
+ * @public
+ */
+export interface Discussion extends AttachedDoc {
+  name?: string
+  // A resolve flag rather than a status: customizable statuses/tags are out of scope for discussions.
+  resolved: boolean
+  members: AccountUuid[]
+  // An optional document of the owner (e.g. an attachment) the discussion is about.
+  linkedTo?: Ref<Doc>
+  linkedToClass?: Ref<Class<Doc>>
+  comments?: number
+  // The owner class configuration this discussion was created from.
+  defaultDiscussion?: Ref<DefaultDiscussion>
+}
+
+/**
+ * A discussion that every object of the class has by default (e.g. "General" for a card type).
+ * The discussion itself is created lazily, when a user opens it for the first time.
+ *
+ * @public
+ */
+export interface DefaultDiscussion extends Doc {
+  ofClass: Ref<Class<Doc>>
+  name: string
+  // The visibility the discussion is created with.
+  visibility: ObjectVisibility
 }
 
 /**
@@ -132,7 +176,11 @@ export default plugin(chunterId, {
     ChatMessagePreview: '' as AnyComponent,
     ThreadMessagePreview: '' as AnyComponent,
     DirectIcon: '' as AnyComponent,
-    InlineCommentThread: '' as AnyComponent
+    InlineCommentThread: '' as AnyComponent,
+    DiscussionsSection: '' as AnyComponent,
+    DiscussionAside: '' as AnyComponent,
+    DiscussionPanel: '' as AnyComponent,
+    DefaultDiscussionsSetting: '' as AnyComponent
   },
   activity: {
     MembersChangedMessage: '' as AnyComponent
@@ -141,6 +189,8 @@ export default plugin(chunterId, {
     ThreadMessage: '' as Ref<Class<ThreadMessage>>,
     ChunterSpace: '' as Ref<Class<ChunterSpace>>,
     Channel: '' as Ref<Class<Channel>>,
+    Discussion: '' as Ref<Class<Discussion>>,
+    DefaultDiscussion: '' as Ref<Class<DefaultDiscussion>>,
     DirectMessage: '' as Ref<Class<DirectMessage>>,
     ChatMessage: '' as Ref<Class<ChatMessage>>,
     ChatMessageViewlet: '' as Ref<Class<ChatMessageViewlet>>,
@@ -161,6 +211,19 @@ export default plugin(chunterId, {
     Message: '' as IntlString,
     MessageOn: '' as IntlString,
     UnarchiveConfirm: '' as IntlString,
+    DeleteDiscussion: '' as IntlString,
+    DeleteDiscussionConfirm: '' as IntlString,
+    NewDiscussion: '' as IntlString,
+    CreateDiscussion: '' as IntlString,
+    FirstMessage: '' as IntlString,
+    FirstMessagePlaceholder: '' as IntlString,
+    AttachTo: '' as IntlString,
+    AttachToDescription: '' as IntlString,
+    AttachedTo: '' as IntlString,
+    NotAttached: '' as IntlString,
+    MarkAsResolved: '' as IntlString,
+    ReopenDiscussion: '' as IntlString,
+    ParticipantsCount: '' as IntlString,
     ConvertToPrivate: '' as IntlString,
     DirectNotificationTitle: '' as IntlString,
     DirectNotificationBody: '' as IntlString,
@@ -170,6 +233,16 @@ export default plugin(chunterId, {
     Docs: '' as IntlString,
     Chat: '' as IntlString,
     Thread: '' as IntlString,
+    Discussion: '' as IntlString,
+    Discussions: '' as IntlString,
+    NoDiscussionsYet: '' as IntlString,
+    Resolved: '' as IntlString,
+    ViewAllDiscussions: '' as IntlString,
+    DefaultDiscussion: '' as IntlString,
+    DefaultDiscussions: '' as IntlString,
+    DefaultDiscussionsDescription: '' as IntlString,
+    DefaultDiscussionUnavailable: '' as IntlString,
+    AddDefaultDiscussion: '' as IntlString,
     ThreadMessage: '' as IntlString,
     ReplyToThread: '' as IntlString,
     Channels: '' as IntlString,
@@ -182,6 +255,17 @@ export default plugin(chunterId, {
     Visibility: '' as IntlString,
     Public: '' as IntlString,
     Private: '' as IntlString,
+    DiscussionTitleOptional: '' as IntlString,
+    UntitledDiscussion: '' as IntlString,
+    VisibilitySpace: '' as IntlString,
+    VisibilitySpaceDescription: '' as IntlString,
+    VisibilityParticipants: '' as IntlString,
+    VisibilityParticipantsDescription: '' as IntlString,
+    VisibilityMembers: '' as IntlString,
+    VisibilityMembersDescription: '' as IntlString,
+    LeaveDiscussion: '' as IntlString,
+    LeaveDiscussionConfirm: '' as IntlString,
+    AddAllCollaborators: '' as IntlString,
     NewDirectChat: '' as IntlString,
     AddMembers: '' as IntlString,
     CloseConversation: '' as IntlString,
@@ -233,27 +317,28 @@ export default plugin(chunterId, {
     CloseConversation: '' as Ref<Action>
   },
   function: {
+    GetChunterNotificationStore: '' as Resource<ApplicationNotificationProvider>,
     CanTranslateMessage: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     CanSummarizeMessages: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     OpenThreadInSidebar: '' as Resource<
-    (
-      _id: Ref<ActivityMessage>,
-      msg?: ActivityMessage,
-      doc?: Doc,
-      selectedId?: Ref<ActivityMessage>,
-      props?: Record<string, any>,
-      force?: boolean
-    ) => Promise<void>
+      (
+        _id: Ref<ActivityMessage>,
+        msg?: ActivityMessage,
+        doc?: Doc,
+        selectedId?: Ref<ActivityMessage>,
+        props?: Record<string, any>,
+        force?: boolean
+      ) => Promise<void>
     >,
     OpenChannelInSidebar: '' as Resource<
-    (
-      _id: Ref<Doc>,
-      _class: Ref<Class<Doc>>,
-      doc?: Doc,
-      thread?: Ref<ActivityMessage>,
-      newTab?: boolean,
-      selectedMessageId?: Ref<ActivityMessage>
-    ) => Promise<void>
+      (
+        _id: Ref<Doc>,
+        _class: Ref<Class<Doc>>,
+        doc?: Doc,
+        thread?: Ref<ActivityMessage>,
+        newTab?: boolean,
+        selectedMessageId?: Ref<ActivityMessage>
+      ) => Promise<void>
     >
   }
 })

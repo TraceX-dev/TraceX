@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,12 +15,9 @@
 import { type AccountClient, getClient as getAccountClientRaw } from '@hcengineering/account-client'
 import { Analytics } from '@hcengineering/analytics'
 import { type Card, CardEvents, cardId, type CardSpace, type MasterTag, type Tag } from '@hcengineering/card'
-import { chatId } from '@hcengineering/chat'
-import communication from '@hcengineering/communication'
 import { type PermissionsStore } from '@hcengineering/contact'
 import core, {
   AccountRole,
-  type Class,
   type ClassPermission,
   type Client,
   type Data,
@@ -65,7 +63,7 @@ import {
   showPopup
 } from '@hcengineering/ui'
 import view, { canCopyLink, encodeObjectURI } from '@hcengineering/view'
-import { accessDeniedStore } from '@hcengineering/view-resources'
+import { accessDeniedStore, getPermissions } from '@hcengineering/view-resources'
 import workbench, { type LocationData, type Widget, type WidgetTab } from '@hcengineering/workbench'
 import { createWidgetTab } from '@hcengineering/workbench-resources'
 
@@ -421,7 +419,7 @@ async function generateLocation (loc: Location, id: string): Promise<ResolvedLoc
   const workspace = loc.path[1] ?? ''
   const special = doc._class
 
-  const objectPanel = client.getHierarchy().classHierarchyMixin(doc._class as Ref<Class<Doc>>, view.mixin.ObjectPanel)
+  const objectPanel = client.getHierarchy().classHierarchyMixin(doc._class, view.mixin.ObjectPanel)
   const component = objectPanel?.component ?? view.component.EditDoc
 
   return {
@@ -503,7 +501,7 @@ export async function cardReferenceObjectProvider<T extends Doc> (
   const baseId = object.baseId ?? object._id
   if (object.isLatest === true) return object
 
-  return (await client.findOne(object._class, { baseId, isLatest: true } as any)) ?? object
+  return (await client.findOne(object._class, { baseId, isLatest: true })) ?? object
 }
 
 export async function getCardLink (doc: Card): Promise<Location> {
@@ -565,7 +563,9 @@ export async function createNewVersion (card: Card): Promise<Ref<Card>> {
     card,
     {
       baseId: card.baseId,
-      docCreatedBy: card.docCreatedBy ?? card.createdBy ?? card.modifiedBy
+      docCreatedBy: card.docCreatedBy ?? card.createdBy ?? card.modifiedBy,
+      isEffective: false,
+      versionCreationDisabled: false
     },
     mixin,
     true
@@ -610,15 +610,20 @@ export async function createCard (
   return _id
 }
 
-export function isBaseTypeWithSubtypes (hierarchy: Hierarchy, type: Ref<MasterTag>): boolean {
-  const clazz = hierarchy.getClass(type) as MasterTag | undefined
-  if (clazz?.baseType !== true) return false
+export function isBaseTypeWithSubtypes (hierarchy: Hierarchy, type: Ref<MasterTag> | undefined): boolean {
+  if (type === undefined) return false
+  try {
+    const clazz = hierarchy.findClass(type) as MasterTag
+    if (clazz?.baseType !== true) return false
 
-  return hierarchy.getDescendants(type).some((descendant) => {
-    if (descendant === type || hierarchy.isMixin(descendant)) return false
-    const descendantClass = hierarchy.getClass(descendant) as MasterTag | undefined
-    return descendantClass?._class === card.class.MasterTag && descendantClass.removed !== true
-  })
+    return hierarchy.getDescendants(type).some((descendant) => {
+      if (descendant === type || hierarchy.isMixin(descendant)) return false
+      const descendantClass = hierarchy.getClass(descendant) as MasterTag | undefined
+      return descendantClass?._class === card.class.MasterTag && descendantClass.removed !== true
+    })
+  } catch {
+    return false
+  }
 }
 
 export function getFirstCreatableSubtype (hierarchy: Hierarchy, type: Ref<MasterTag>): Ref<MasterTag> | undefined {
@@ -628,9 +633,9 @@ export function getFirstCreatableSubtype (hierarchy: Hierarchy, type: Ref<Master
     return (
       descendantClass?._class === card.class.MasterTag &&
       descendantClass.removed !== true &&
-      !isBaseTypeWithSubtypes(hierarchy, descendant as Ref<MasterTag>)
+      !isBaseTypeWithSubtypes(hierarchy, descendant)
     )
-  }) as Ref<MasterTag> | undefined
+  })
 }
 
 export async function createChildCard (object: Card): Promise<void> {
@@ -661,12 +666,8 @@ export async function createChildCard (object: Card): Promise<void> {
   Analytics.handleEvent(CardEvents.CardCreated)
 
   const loc = getCurrentLocation()
-  if (loc.path[2] === chatId) {
-    loc.path[3] = encodeObjectURI(_id, card.class.Card)
-  } else {
-    loc.path[2] = cardId
-    loc.path[3] = _id
-  }
+  loc.path[2] = cardId
+  loc.path[3] = _id
   loc.path.length = 4
   navigate(loc)
 }
@@ -722,7 +723,7 @@ export function cardCustomLinkMatch (doc: Card): boolean {
     alias
   })[0]
 
-  return app.type === 'cards'
+  return app?.type === 'cards'
 }
 
 export function cardCustomLinkEncode (doc: Card): Location {
@@ -732,19 +733,7 @@ export function cardCustomLinkEncode (doc: Card): Location {
 }
 
 export async function checkOldMessagesSectionVisibility (doc: Card): Promise<boolean> {
-  if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) {
-    return false
-  }
-
-  return getMetadata(communication.metadata.Enabled) !== true
-}
-
-export async function checkCommunicationMessagesSectionVisibility (doc: Card): Promise<boolean> {
-  if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) {
-    return false
-  }
-
-  return getMetadata(communication.metadata.Enabled) === true
+  return getPermissions().canViewActivity(doc)
 }
 
 export async function checkChildrenSectionVisibility (doc: Card): Promise<boolean> {
@@ -853,9 +842,16 @@ export function canUnlockSection (space: Ref<Space>, store: PermissionsStore): b
   return !store.restrictedSpaces.has(space)
 }
 
-export function showAllVersions (value: any, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
-  if (value === true) {
+export function showAllVersions (value: boolean, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
+  if (value) {
     return { ...query, isLatest: { $in: [true, false] } }
+  }
+  return query
+}
+
+export function showOnlyEffectiveVersions (value: boolean, query: DocumentQuery<Doc>): DocumentQuery<Doc> {
+  if (value) {
+    return { ...query, isLatest: { $in: [true, false] }, isEffective: true }
   }
   return query
 }

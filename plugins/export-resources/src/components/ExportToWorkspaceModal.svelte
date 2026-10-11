@@ -25,7 +25,7 @@
     type Class
   } from '@hcengineering/core'
   import { Card, getClient, getCurrentWorkspaceUuid } from '@hcengineering/presentation'
-  import { DropdownLabels, DropdownLabelsIntl, Label } from '@hcengineering/ui'
+  import { DropdownLabels, DropdownLabelsIntl, Label, ToggleWithLabel } from '@hcengineering/ui'
   import { getResource } from '@hcengineering/platform'
   import login from '@hcengineering/login'
   import { shouldSkipDocument, isEffectiveDocument } from '@hcengineering/export'
@@ -51,6 +51,11 @@
 
   type ExportFilterMode = 'effectiveOnly' | 'skipArchivedObsolete' | 'all'
   let exportFilterMode: ExportFilterMode = 'effectiveOnly'
+
+  // Whether to recursively export child (collection) documents of the selected docs.
+  // Hidden and forced to true when exporting an entire space — the space already
+  // enumerates every document inside it.
+  let includeChildren: boolean = false
 
   const exportFilterItems = [
     { id: 'effectiveOnly' as const, label: plugin.string.ExportFilterEffectiveOnly },
@@ -108,12 +113,10 @@
 
   $: workspaceItems = workspaces
     .filter((ws) => ws.uuid !== getCurrentWorkspaceUuid())
-    .map(
-      (ws): WorkspaceItem => ({
-        id: ws.uuid,
-        label: ws.name
-      })
-    )
+    .map((ws): WorkspaceItem => ({
+      id: ws.uuid,
+      label: ws.name
+    }))
 
   $: canSave =
     targetWorkspace !== undefined && _class != null && (spaceExport === true || filteredSelectedDocs.length > 0)
@@ -142,6 +145,10 @@
 
     const effectiveDocs = projectDocExport === true ? await getExportDocuments() : filteredSelectedDocs
 
+    // When exporting an entire space, child documents are picked up by the
+    // space-wide traversal — force the flag on regardless of UI state.
+    const effectiveIncludeChildren = spaceExport === true ? true : includeChildren
+
     void exportToWorkspace(
       _class,
       exportQuery,
@@ -149,7 +156,8 @@
       targetWorkspace,
       undefined,
       exportFilterMode === 'skipArchivedObsolete',
-      exportFilterMode === 'effectiveOnly'
+      exportFilterMode === 'effectiveOnly',
+      effectiveIncludeChildren
     )
     loading = false
     dispatch('close', true)
@@ -191,5 +199,14 @@
       <Label label={plugin.string.ExportFilterMode} />
     </span>
     <DropdownLabelsIntl items={exportFilterItems} bind:selected={exportFilterMode} kind="regular" size="large" />
+    {#if spaceExport !== true}
+      <div class="pl-2 py-4">
+        <ToggleWithLabel
+          label={plugin.string.ExportChildDocuments}
+          description={plugin.string.ExportChildDocumentsDescription}
+          bind:on={includeChildren}
+        />
+      </div>
+    {/if}
   </div>
 </Card>

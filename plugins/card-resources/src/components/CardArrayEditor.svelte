@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,10 +16,12 @@
 <script lang="ts">
   import { Card, MasterTag } from '@hcengineering/card'
   import { AnyAttribute, ArrOf, Class, Ref, RefTo, Type } from '@hcengineering/core'
+  import type { DocumentQuery } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { IconWithEmoji, createQuery, getClient } from '@hcengineering/presentation'
   import { Button, ButtonKind, ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
   import view from '@hcengineering/view'
+  import { ObjectsTooltipWrapper } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
   import card from '../plugin'
   import CardsPopup from './CardsPopup.svelte'
@@ -30,6 +33,7 @@
   export let onChange: ((value: any) => void) | undefined
   export let attribute: AnyAttribute | undefined = undefined
   export let type: Type<any> | undefined = undefined
+  export let docQuery: DocumentQuery<Card> = {}
 
   export let focusIndex: number | undefined = undefined
   export let kind: ButtonKind = 'ghost'
@@ -60,7 +64,7 @@
 
     showPopup(
       CardsPopup,
-      { selectedObjects: toArray(value), _class, multiSelect: true },
+      { selectedObjects: toArray(value), _class, multiSelect: true, docQuery },
       eventToHTMLElement(event),
       undefined,
       change
@@ -85,9 +89,14 @@
   let docs: Card[] = []
 
   const query = createQuery()
-  $: query.query(card.class.Card, { _id: { $in: toArray(value) } }, (res) => {
-    docs = res
-  })
+  $: query.query(
+    card.class.Card,
+    { _id: { $in: toArray(value) } },
+    (res) => {
+      docs = res
+    },
+    { unsecured: true }
+  )
 
   $: clazz = hierarchy.findClass(_class) as MasterTag
 
@@ -97,28 +106,36 @@
   $: emptyLabel = label ?? clazz?.label ?? card.string.Card
 </script>
 
-<Button
-  showTooltip={!readonly ? { label } : undefined}
-  {justify}
-  {focusIndex}
+<ObjectsTooltipWrapper
+  selectedCount={toArray(value).length}
+  objects={docs}
+  objectIds={toArray(value)}
+  label={emptyLabel}
+  {readonly}
   {width}
-  {size}
-  {icon}
-  {iconProps}
-  {kind}
-  disabled={readonly}
-  on:click={handleOpen}
 >
-  <div slot="content" class="overflow-label">
-    {#if docs.length === 1}
-      {docs[0].title}
-    {:else if docs.length > 1}
-      <div class="lower">
-        {docs.length}
-        <Label label={card.string.Cards} />
-      </div>
-    {:else}
-      <Label label={emptyLabel} />
-    {/if}
-  </div>
-</Button>
+  <Button
+    {justify}
+    {focusIndex}
+    width={'100%'}
+    {size}
+    {icon}
+    {iconProps}
+    {kind}
+    disabled={readonly}
+    on:click={handleOpen}
+  >
+    <div slot="content" class="overflow-label">
+      {#if docs.length === 1}
+        {docs[0].title}
+      {:else if docs.length > 1}
+        <div class="lower">
+          {docs.length}
+          <Label label={card.string.Cards} />
+        </div>
+      {:else}
+        <Label label={emptyLabel} />
+      {/if}
+    </div>
+  </Button>
+</ObjectsTooltipWrapper>

@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,6 +22,8 @@ import { type ObjectSearchResult } from '@hcengineering/presentation'
 import CreateProduct from './components/product/CreateProduct.svelte'
 import EditProduct from './components/product/EditProduct.svelte'
 import NewProductHeader from './components/product/NewProductHeader.svelte'
+import ProductArrayEditor from './components/product/ProductArrayEditor.svelte'
+import ProductInlineEditor from './components/product/ProductInlineEditor.svelte'
 import ProductPresenter from './components/product/ProductPresenter.svelte'
 import ProductSearchIcon from './components/product/ProductSearchIcon.svelte'
 import ProductSearchItem from './components/product/ProductSearchItem.svelte'
@@ -29,6 +32,7 @@ import CreateProductVersion from './components/product-version/CreateProductVers
 import EditProductVersion from './components/product-version/EditProductVersion.svelte'
 import ProductVersionPresenter from './components/product-version/ProductVersionPresenter.svelte'
 import ProductVersionInlineEditor from './components/product-version/ProductVersionInlineEditor.svelte'
+import ProductVersionArrayEditor from './components/product-version/ProductVersionArrayEditor.svelte'
 import ProductVersionsEditor from './components/product-version/ProductVersionsEditor.svelte'
 import ProductVersionsPresenter from './components/product-version/ProductVersionsPresenter.svelte'
 import ProductVersionStateEditor from './components/product-version/ProductVersionStateEditor.svelte'
@@ -75,10 +79,13 @@ export default async (): Promise<Resources> => ({
     EditProduct,
     EditProductVersion,
     NewProductHeader,
+    ProductArrayEditor,
+    ProductInlineEditor,
     ProductPresenter,
     ProductSearchIcon,
     ProductVersionPresenter,
     ProductVersionInlineEditor,
+    ProductVersionArrayEditor,
     ProductVersionsEditor,
     ProductVersionsPresenter,
     ProductVersionStateEditor,

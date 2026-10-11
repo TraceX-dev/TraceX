@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import {
   Hierarchy,
   matchQuery,
@@ -24,11 +39,22 @@ export class Refs {
 
   constructor (readonly getHierarchy: () => Hierarchy) {}
 
+  private getParameters<T extends Doc>(options?: FindOptions<T>): string {
+    return (
+      ':' +
+      (options?.unsecured === true) +
+      ':' +
+      JSON.stringify(options?.lookup ?? {}) +
+      ':' +
+      JSON.stringify(options?.associations ?? {})
+    )
+  }
+
   public updateDocuments (q: Query, docs: Doc[], clean: boolean = false): void {
     if (q.options?.projection !== undefined) {
       return
     }
-    const params = ':' + JSON.stringify(q.options?.lookup ?? {}) + ':' + JSON.stringify(q.options?.associations ?? {})
+    const params = this.getParameters(q.options)
     for (const d of docs) {
       const classKey = Hierarchy.mixinOrClass(d) + params
 
@@ -60,11 +86,11 @@ export class Refs {
     query: DocumentQuery<Doc>,
     options?: FindOptions<T>
   ): FindResult<T> | null {
+    const params = this.getParameters(options)
     if (typeof query._id === 'string') {
       const desc = this.getHierarchy().getDescendants(_class)
       for (const des of desc) {
-        const classKey =
-          des + ':' + JSON.stringify(options?.lookup ?? {}) + ':' + JSON.stringify(options?.associations ?? {})
+        const classKey = des + params
         // One document query
         const doc = this.documentRefs.get(classKey)?.get(query._id)?.doc
         if (doc !== undefined) {
@@ -81,8 +107,7 @@ export class Refs {
       options?.sort === undefined &&
       options?.projection === undefined
     ) {
-      const classKey =
-        _class + ':' + JSON.stringify(options?.lookup ?? {}) + ':' + JSON.stringify(options?.associations ?? {})
+      const classKey = _class + params
       const docs = this.documentRefs.get(classKey)
       if (docs !== undefined) {
         const _docs = Array.from(docs.values()).map((it) => it.doc)
@@ -95,7 +120,7 @@ export class Refs {
       if (options.lookup === undefined && options.associations === undefined) {
         const keys = Array.from(this.documentRefs.keys())
         for (const key of keys) {
-          if (key.startsWith(_class + ':')) {
+          if (key.startsWith(_class + ':' + (options.unsecured === true) + ':')) {
             const docs = this.documentRefs.get(key)
             if (docs !== undefined) {
               const _docs = Array.from(docs.values()).map((it) => it.doc)

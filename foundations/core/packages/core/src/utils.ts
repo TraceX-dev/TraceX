@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -48,11 +49,11 @@ import {
   type WorkspaceMode
 } from './classes'
 import core from './component'
-import { type Hierarchy } from './hierarchy'
-import { type TxOperations } from './operations'
+import type { Hierarchy } from './hierarchy'
+import type { TxOperations } from './operations'
 import { isPredicate } from './predicate'
-import { type Branding, type BrandingMap } from './server'
-import { type DocumentQuery, type FindResult } from './storage'
+import type { Branding, BrandingMap } from './server'
+import type { DocumentQuery, FindResult } from './storage'
 import { DOMAIN_TX, type Tx, type TxCreateDoc, type TxCUD, TxProcessor, type TxUpdateDoc } from './tx'
 
 function toHex (value: number, chars: number): string {
@@ -80,7 +81,7 @@ function count (): string {
  * @public
  * @returns
  */
-export function generateId<T extends Doc> (join: string = ''): Ref<T> {
+export function generateId<T extends Doc> (join = ''): Ref<T> {
   return (timestamp() + join + random + join + count()) as Ref<T>
 }
 
@@ -95,6 +96,7 @@ export function isId (value: any): value is Ref<any> {
 }
 
 let currentAccount: Account
+const currentAccountListeners = new Set<(account: Account) => void>()
 
 /**
  * @public
@@ -110,6 +112,28 @@ export function getCurrentAccount (): Account {
  */
 export function setCurrentAccount (account: Account): void {
   currentAccount = account
+  for (const listener of currentAccountListeners) {
+    try {
+      listener(account)
+    } catch (err: any) {
+      console.error(err)
+    }
+  }
+}
+
+/**
+ * Subscribe to current account changes. The listener is called immediately with the current
+ * account if it is already set. Returns an unsubscribe function.
+ * @public
+ */
+export function onCurrentAccountChanged (listener: (account: Account) => void): () => void {
+  currentAccountListeners.add(listener)
+  if (currentAccount !== undefined) {
+    listener(currentAccount)
+  }
+  return () => {
+    currentAccountListeners.delete(listener)
+  }
 }
 /**
  * @public
@@ -134,7 +158,7 @@ export type WorkspaceDataId = string & { __workspaceDataId: true }
 export interface WorkspaceIds {
   uuid: WorkspaceUuid
   url: string
-  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Database name in Mongo, bucket in R2, etc.
+  dataId?: WorkspaceDataId // Old workspace identifier. E.g. Legacy storage namespace or bucket.
 }
 
 /**
@@ -292,9 +316,9 @@ export class DocManager<T extends Doc> implements IDocManager<T> {
  */
 
 export class RateLimiter {
-  idCounter: number = 0
+  idCounter = 0
   processingQueue = new Map<number, Promise<void>>()
-  last: number = 0
+  last = 0
   rate: number
 
   queue: (() => Promise<void>)[] = []
@@ -557,9 +581,8 @@ export function includesAny (arr1: string[] | null | undefined, arr2: string[] |
 
 export const isEnum =
   <T>(e: T) =>
-    (token: any): token is T[keyof T] => {
-      return typeof token === 'string' && Object.values(e as Record<string, any>).includes(token)
-    }
+  (token: any): token is T[keyof T] =>
+    typeof token === 'string' && Object.values(e as Record<string, any>).includes(token)
 
 export async function checkPermission (
   client: TxOperations,
@@ -591,7 +614,7 @@ async function hasPermission (
   _space: Ref<TypedSpace>,
   space?: TypedSpace
 ): Promise<boolean> {
-  space = space ?? (await client.findOne(core.class.TypedSpace, { _id: _space }))
+  space ??= await client.findOne(core.class.TypedSpace, { _id: _space })
   const type = await client
     .getModel()
     .findOne(core.class.SpaceType, { _id: space?.type }, { lookup: { _id: { roles: core.class.Role } } })
@@ -626,7 +649,7 @@ export function getRoleAttributeLabel (roleName: string): IntlString {
 export function getFullTextIndexableAttributes (
   hierarchy: Hierarchy,
   clazz: Ref<Class<Obj>>,
-  skipDocs: boolean = false
+  skipDocs = false
 ): AnyAttribute[] {
   const allAttributes = hierarchy.getAllAttributes(clazz)
   const result: AnyAttribute[] = []
@@ -802,6 +825,24 @@ export function hasAccountRole (acc: Account, targerRole: AccountRole): boolean 
   return roleOrder[acc.role] >= roleOrder[targerRole]
 }
 
+/**
+ * Any kind of guest account. Intended to be used by permission resolution code only,
+ * UI should ask a permission store what the user can do instead of checking roles.
+ * @public
+ */
+export function isGuestRole (role: AccountRole): boolean {
+  return role === AccountRole.Guest || role === AccountRole.DocGuest || role === AccountRole.ReadOnlyGuest
+}
+
+/**
+ * Accounts which are not allowed to modify anything at all. Note that DocGuest is not one of
+ * them, a public link guest is restricted by the link itself, not by the role.
+ * @public
+ */
+export function isReadOnlyRole (role: AccountRole): boolean {
+  return role === AccountRole.ReadOnlyGuest
+}
+
 export function getBranding (brandings: BrandingMap, key: string | undefined): Branding | null {
   if (key === undefined) return null
 
@@ -873,9 +914,9 @@ export function pluginFilterTx (
  * @public
  */
 export class TimeRateLimiter {
-  idCounter: number = 0
-  active: number = 0
-  last: number = 0
+  idCounter = 0
+  active = 0
+  last = 0
   rate: number
   period: number
   executions: { time: number, running: boolean }[] = []
@@ -883,7 +924,7 @@ export class TimeRateLimiter {
   queue: (() => Promise<void>)[] = []
   notify: (() => void)[] = []
 
-  constructor (rate: number, period: number = 1000) {
+  constructor (rate: number, period = 1000) {
     this.rate = rate
     this.period = period
   }
@@ -1006,5 +1047,5 @@ export function toRank (str: string | undefined): Rank | undefined {
   if (str.startsWith('0|')) {
     return str
   }
-  return '0|' + str.replaceAll(/[-:_]/g, '').toLowerCase()
+  return `0|${str.replaceAll(/[-:_]/g, '').toLowerCase()}`
 }
