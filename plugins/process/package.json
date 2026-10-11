@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@hcengineering/platform-rig": "workspace:^0.7.21",
+    "@types/js-yaml": "^4.0.9",
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "eslint-plugin-promise": "^7.3.0",
     "eslint-plugin-n": "^18.3.0",
@@ -41,7 +42,9 @@
     "@hcengineering/ui": "workspace:^0.7.0",
     "@hcengineering/card": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
+    "@hcengineering/rank": "workspace:^0.7.18",
     "@hcengineering/time": "workspace:^0.7.0",
-    "@hcengineering/view": "workspace:^0.7.0"
+    "@hcengineering/view": "workspace:^0.7.0",
+    "js-yaml": "^4.3.2"
   }
 }

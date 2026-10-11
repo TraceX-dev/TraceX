@@ -1,5 +1,9 @@
 {
   "string": {
+    "ExportJsonWithSlots": "JSON with slots",
+    "ExportJsonWithoutSlots": "JSON without slots",
+    "ExportYaml": "YAML DSL",
+    "YamlEditor": "YAML editor",
     "Skip": "Пропустить",
     "SelectionVersions": "Версии для выбора",
     "OnlyEffectiveVersions": "Только эффективные",

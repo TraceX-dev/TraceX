@@ -15,8 +15,9 @@
 -->
 <script lang="ts">
   import { MasterTag } from '@hcengineering/card'
+  import { DefinitionYamlEditor, newDefinitionYaml } from '@hcengineering/card-resources'
   import core, { Doc, generateId, Ref, SortingOrder } from '@hcengineering/core'
-  import { translate } from '@hcengineering/platform'
+  import { setPlatformStatus, translate, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Process, State } from '@hcengineering/process'
   import { makeRank } from '@hcengineering/rank'
@@ -26,14 +27,14 @@
     Icon,
     IconAdd,
     IconFile,
+    IconEdit,
     Label,
     navigate,
     showPopup
   } from '@hcengineering/ui'
   import { SortableDocList } from '@hcengineering/view-resources'
-  import { getRequiredSlots, importProcess } from '../exporter'
+  import { applyProcessDefinition } from '../authoring-ui'
   import process from '../plugin'
-  import ImportSlotsPopup from './settings/ImportSlotsPopup.svelte'
 
   export let masterTag: MasterTag
 
@@ -100,29 +101,29 @@
   function handleImport (): void {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.json'
+    input.accept = '.json,.yaml,.yml'
     input.onchange = async (evt) => {
       const file = (evt.target as HTMLInputElement).files?.[0]
-      if (file != null) {
-        const text = await file.text()
-        const slots = getRequiredSlots(text)
-        if (slots && Object.keys(slots).length > 0) {
-          showPopup(
-            ImportSlotsPopup,
-            { requiredSlots: slots, masterTag: masterTag._id },
-            undefined,
-            async (bindings) => {
-              if (bindings) {
-                await importProcess(masterTag._id, text, bindings)
-              }
-            }
-          )
-        } else {
-          await importProcess(masterTag._id, text)
-        }
+      if (file == null) return
+      try {
+        await applyProcessDefinition(masterTag._id, await file.text())
+      } catch (error) {
+        await setPlatformStatus(unknownError(error))
       }
     }
     input.click()
+  }
+
+  function handleYaml (): void {
+    showPopup(
+      DefinitionYamlEditor,
+      {
+        kind: 'process',
+        source: newDefinitionYaml('process'),
+        onApply: async (source: string) => await applyProcessDefinition(masterTag._id, source)
+      },
+      'centered'
+    )
   }
 </script>
 
@@ -138,6 +139,13 @@
       on:click={handleImport}
     />
     <ButtonIcon kind="primary" icon={IconAdd} size="small" dataId={'btnAdd'} on:click={add} />
+    <ButtonIcon
+      kind="primary"
+      icon={IconEdit}
+      size="small"
+      tooltip={{ label: process.string.YamlEditor, direction: 'bottom' }}
+      on:click={handleYaml}
+    />
   </div>
 </div>
 {#if processes.length}

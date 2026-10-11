@@ -1,0 +1,41 @@
+# Copyright © 2026 TraceX SAS.
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: 1
+kind: card
+card:
+  key: risk
+  label: Risk management
+  description: Assess risk from probability and severity.
+  fields:
+    probability:
+      label: Probability
+      choice: [1, 2, 3, 4, 5]
+      default: 1
+      required: true
+    severity:
+      label: Severity
+      choice: [1, 2, 3, 4, 5]
+      default: 1
+      required: true
+    score:
+      label: Risk score
+      type: number
+      calculate: number(probability) * number(severity)
+    level:
+      label: Risk level
+      choice: [Insignificant, Moderate, Critical]
+      calculate:
+        cases:
+          - when: score > 16
+            value: Critical
+          - when: score < 9
+            value: Insignificant
+        otherwise: Moderate

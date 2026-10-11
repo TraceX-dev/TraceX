@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,8 @@
 -->
 <script lang="ts">
   import { Ref, SortingOrder } from '@hcengineering/core'
+  import { DefinitionYamlEditor, downloadDefinition } from '@hcengineering/card-resources'
+  import { setPlatformStatus, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient, MessageBox, IconDownload } from '@hcengineering/presentation'
   import { Process, State, Transition } from '@hcengineering/process'
   import { clearSettingsStore, settingsStore } from '@hcengineering/setting-resources'
@@ -26,6 +29,7 @@
     getCurrentLocation,
     IconDelete,
     IconDetails,
+    IconEdit,
     IconSettings,
     navigate,
     Scroller,
@@ -33,7 +37,8 @@
     showPopup,
     IconLink
   } from '@hcengineering/ui'
-  import { exportProcess } from '../../exporter'
+  import { exportProcessDraft, exportProcessSource } from '../../exporter'
+  import { applyProcessDefinition } from '../../authoring-ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import process from '../../plugin'
@@ -154,43 +159,63 @@
 
   const EXPORT_WITH_SLOTS = 'with-slots'
   const EXPORT_WITHOUT_SLOTS = 'without-slots'
+  const EXPORT_YAML = 'yaml'
 
   let exportItems: DropdownIntlItem[]
   $: exportItems = [
     {
       id: EXPORT_WITH_SLOTS,
-      label: process.string.ExportWithSlots
+      label: process.string.ExportJsonWithSlots
     },
     {
       id: EXPORT_WITHOUT_SLOTS,
-      label: process.string.ExportWithoutSlots
+      label: process.string.ExportJsonWithoutSlots
+    },
+    {
+      id: EXPORT_YAML,
+      label: process.string.ExportYaml
     }
   ]
 
   function onExportSelected (event: CustomEvent<string | number>): void {
     if (event.detail === EXPORT_WITH_SLOTS) {
-      handleExport(true)
+      void handleExport('json', true)
     } else if (event.detail === EXPORT_WITHOUT_SLOTS) {
-      handleExport(false)
+      void handleExport('json', false)
+    } else if (event.detail === EXPORT_YAML) {
+      void handleExport('yaml')
     }
   }
 
-  function handleExport (withSlots: boolean): void {
+  async function handleExport (format: 'json' | 'yaml', withSlots = true): Promise<void> {
     if (value === undefined) return
-    const str = JSON.stringify(
-      exportProcess(value, withSlots).docs.map((doc) => {
-        const { modifiedBy, modifiedOn, createdBy, createdOn, ...rest } = doc
-        return rest
-      })
-    )
-    const blob = new Blob([str], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${value.name}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+      downloadDefinition(exportProcessSource(value, format, withSlots), value.name, format)
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
+  }
+
+  async function handleYaml (): Promise<void> {
+    if (value === undefined) return
+    const current = value
+    try {
+      const draft = exportProcessDraft(current)
+      showPopup(
+        DefinitionYamlEditor,
+        {
+          kind: 'process',
+          name: current.name,
+          source: draft.source,
+          onApply: async (source: string) => await applyProcessDefinition(current.masterTag, source, draft.bindings),
+          onSave: async (source: string) =>
+            await applyProcessDefinition(current.masterTag, source, draft.bindings, current)
+        },
+        'centered'
+      )
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
   }
 </script>
 
@@ -227,6 +252,13 @@
                 items={exportItems}
                 noSelection
                 on:selected={onExportSelected}
+              />
+              <ButtonIcon
+                icon={IconEdit}
+                tooltip={{ label: process.string.YamlEditor, direction: 'bottom' }}
+                size="small"
+                kind="secondary"
+                on:click={handleYaml}
               />
               <ButtonIcon
                 icon={IconDetails}
