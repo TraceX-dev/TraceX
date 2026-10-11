@@ -10,7 +10,7 @@ It supports sending emails with multiple recipients, along with optional CC, BCC
 Environment variables should be set to configure the Mail Service:
 
 - `PORT`: The port on which the mail service listens for incoming HTTP requests.
-- `API_KEY`: An API key that clients must pass. The parameter is optional, should be provided when external access to the service is allowed.
+- `MAIL_AUTH_TOKEN`: Required. Shared secret clients must send as `Authorization: Bearer <token>`. If it is not set, the service rejects all requests (fail-closed). Other services (account, transactor, gmail) must use the same `MAIL_AUTH_TOKEN`.
 - `SOURCE`: The sender source (fallback for when emails emit from the system).
 - `REPLY_TO`: (optional) Email to use for replies (useful for uni-directional STMP setups where emails are only emitted, but not received).
 
@@ -69,16 +69,13 @@ Send an email message.
 - `html`: Optional. String containing HTML message body.
 - `from`: Optional. Sender's email address.
 - `headers`: Optional. An object or array of additional header fields.
-- `apiKey`: Required if the service started with `API_KEY`.
 - `attachments`: Optional. Array of objects, each object can have the following fields:
   - `filename`: Filename to be reported as the name of the attached file. Use of unicode is allowed.
   - `contentType`: Optional. Content type for the attachment, if not set will be derived from the filename property.
-  - `content`: String, Buffer, or a Stream contents for the attachment.
-  - `href`: Optional. An URL to the file (data URIs are allowed as well).
+  - `content`: Required. String contents of the attachment (use `encoding: "base64"` for binary data). `path`, `href` and `raw` are not supported: the service never reads local files or fetches URLs.
   - `contentDisposition`: Optional. Content disposition type for the attachment, defaults to ‘attachment’.
   - `cid`: Optional. Content id for using inline images in HTML message source.
   - `encoding`: Optional. If set and content is a string, then encodes the content to a Buffer using the specified encoding. Example values: ‘base64’, ‘hex’, ‘binary’ etc. Useful if you want to use binary attachments in a JSON formatted email object.
-  - `raw`: An optional special value that overrides the entire contents of the current MIME node, including MIME headers. Useful if you want to prepare node contents yourself.
 
 Request body example:
 

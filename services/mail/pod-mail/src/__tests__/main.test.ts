@@ -159,4 +159,31 @@ describe('handleSendMail', () => {
       'test-password'
     )
   })
+
+  it('never forwards file paths or URLs from attachments to nodemailer', async () => {
+    req.body.attachments = [
+      { path: '/etc/passwd', filename: 'passwd.txt' },
+      { href: 'http://169.254.169.254/', filename: 'meta.txt' },
+      { content: { path: '/etc/passwd' }, filename: 'obj.txt' },
+      { content: 'hello', filename: 'ok.txt', raw: { path: '/etc/passwd' } }
+    ]
+    await handleSendMail(mailClient, req, res, mockCtx)
+
+    const message = sendMailMock.mock.calls[0][0]
+    expect(message.disableFileAccess).toBe(true)
+    expect(message.disableUrlAccess).toBe(true)
+    expect(message.attachments).toHaveLength(1)
+    expect(message.attachments[0]).toEqual(expect.objectContaining({ content: 'hello', filename: 'ok.txt' }))
+    expect(message.attachments[0].path).toBeUndefined()
+    expect(message.attachments[0].raw).toBeUndefined()
+  })
+
+  it('rejects non-string html/text (nodemailer would read { path } from disk)', async () => {
+    req.body.html = { path: '/etc/passwd' }
+    await handleSendMail(mailClient, req, res, mockCtx)
+
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(sendMailMock).not.toHaveBeenCalled()
+  })
 })
