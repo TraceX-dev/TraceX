@@ -48,6 +48,7 @@ export interface SlotModel {
 export interface AttributeSlotModel extends SlotModel {
   slotKind: 'attribute'
   type: Type<any>
+  enumValues?: string[]
 }
 
 // Process model dscription
@@ -268,6 +269,17 @@ export * from './dslContext'
 export * from './errors'
 export type * from './types'
 export * from './utils'
+export { compileProcessYaml, parseProcessImport, validateProcessYaml, ProcessAuthoringError } from './authoring'
+export type { AuthoringNativeDocument, ProcessAuthoringResult } from './authoring'
+export type { AuthoringDiagnostic, AuthoringValidation } from './authoring-validation'
+export { exportProcessYaml, exportProcessYamlDraft } from './authoring-export'
+export {
+  exportAuthoringModel,
+  getAuthoringCatalog,
+  getAuthoringProcessIdentities,
+  remapAuthoringReferences,
+  validateAuthoringModelOperations
+} from './authoring-model'
 
 export default plugin(processId, {
   class: {

@@ -28,9 +28,28 @@ import core, {
   type Type
 } from '@hcengineering/core'
 import { getClient } from '@hcengineering/presentation'
-import { type AttributeSlotModel, type Process, type SlotModel, type Transition } from '@hcengineering/process'
+import {
+  compileProcessYaml,
+  exportAuthoringModel,
+  exportProcessYamlDraft,
+  getAuthoringCatalog,
+  parseProcessImport,
+  validateAuthoringModelOperations,
+  type AttributeSlotModel,
+  type AuthoringNativeDocument,
+  type Process,
+  type SlotModel,
+  type Transition
+} from '@hcengineering/process'
 import { deepEqual } from 'fast-equals'
 import processPlugin from './plugin'
+import { bindYamlProcessDocuments } from './yaml-bindings'
+import {
+  bindYamlModelProcess,
+  createYamlModelTemplate,
+  matchesModelSlot,
+  resolveModelSlotReference
+} from './yaml-model-bindings'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -294,16 +313,130 @@ export function exportProcess (proc: Process, withSlots: boolean = true): Export
 
 // ─── Import API ──────────────────────────────────────────────────────────────
 
+/** Serializes a native JSON export or a portable YAML DSL without changing JSON slot behavior. */
+export function exportProcessSource (proc: Process, format: 'json' | 'yaml', withSlots: boolean = true): string {
+  if (format === 'json') {
+    return JSON.stringify(
+      exportProcess(proc, withSlots).docs.map((doc) => {
+        const { modifiedBy, modifiedOn, createdBy, createdOn, ...rest } = doc
+        return rest
+      })
+    )
+  }
+  return exportProcessDraft(proc).source
+}
+
+/** Exports a YAML draft with resolved bindings for editing or duplicating a process. */
+export function exportProcessDraft (proc: Process): { source: string, bindings: Record<string, string> } {
+  const { docs, required } = exportProcess(proc, false)
+  const client = getClient()
+  const model = client.getModel()
+  const hierarchy = client.getHierarchy()
+  const slots: Record<string, SlotModel> = {}
+  const bindings: Record<string, string> = {}
+  const transitions = docs.filter((doc) => doc._class === processPlugin.class.Transition) as Transition[]
+  detectSlots(proc, transitions, slots, bindings, model, hierarchy, true)
+  for (const slot of Object.values(slots)) {
+    if (slot.slotKind === 'attribute') {
+      const attribute = slot as AttributeSlotModel
+      processType(attribute.type, docs, required, model, hierarchy)
+      let type = attribute.type
+      while (type._class === core.class.ArrOf) type = (type as ArrOf<Doc>).of
+      if (type._class === core.class.EnumOf) attribute.enumValues = model.findObject((type as EnumOf).of)?.enumValues
+    }
+  }
+  const portable = docs.map((doc) => (doc._id === proc._id ? { ...doc, requiredSlots: slots, bindings } : doc))
+  const draft = exportProcessYamlDraft(portable)
+  if (compileProcessYaml(draft.source).version === 2) {
+    const template = createYamlModelTemplate(portable, model, hierarchy)
+    draft.source = exportAuthoringModel(template.docs, 'process', getAuthoringCatalog(model))
+    draft.bindings = template.bindings
+  }
+  return draft
+}
+
+/** Replaces a process graph from YAML, preserving the process id, owner and ordering. */
+export async function updateProcessYaml (
+  proc: Process,
+  source: string,
+  bindings: Record<string, string>
+): Promise<void> {
+  const compiled = compileProcessYaml(source, getClient().getModel())
+  if (compiled.kind !== 'process') throw new Error('kind: Expected a standalone process')
+  const data = compiled.docs as unknown as Doc[]
+  validateYamlBindings(proc.masterTag, data, bindings, compiled.version !== 2)
+  const client = getClient()
+  const model = client.getModel()
+  if (compiled.version === 2) validateAuthoringModelOperations(compiled.docs, model, client.getHierarchy())
+  const docs =
+    compiled.version === 2
+      ? bindYamlModelProcess(data, proc.masterTag, bindings, model, client.getHierarchy(), proc._id)
+      : bindYamlProcessDocuments(data, proc.masterTag, bindings, proc._id)
+  const definition = docs.find((doc) => doc._class === processPlugin.class.Process) as Process | undefined
+  if (definition === undefined) throw new Error('process: Missing process definition')
+  definition.rank = proc.rank
+  definition.bindings = bindings
+  delete definition.requiredSlots
+  if (model.findObject(proc._id) === undefined) throw new Error('process: The process no longer exists')
+  const oldDocs: Doc[] = [
+    ...model.findAllSync(processPlugin.class.Transition, { process: proc._id }),
+    ...model.findAllSync(processPlugin.class.State, { process: proc._id })
+  ]
+  const apply = client.apply('Save process YAML')
+  for (const doc of oldDocs) await apply.removeDoc(doc._class, doc.space, doc._id)
+  const values = stripData(definition)
+  const unset = Object.fromEntries(
+    Object.keys(stripData(proc))
+      .filter((key) => !(key in values))
+      .map((key) => [key, true])
+  )
+  await apply.updateDoc(proc._class, proc.space, proc._id, {
+    ...values,
+    $unset: {
+      ...unset,
+      requiredSlots: true,
+      ...(definition.automationOnly === undefined ? { automationOnly: true } : {})
+    }
+  })
+  for (const doc of docs) {
+    if (doc._id === proc._id) continue
+    const existing = model.findObject(doc._id)
+    if (existing === undefined) await apply.createDoc(doc._class, doc.space, stripData(doc), doc._id)
+    else if (!deepEqual(stripData(doc), stripData(existing)))
+      {await apply.updateDoc(doc._class, existing.space, doc._id, stripData(doc))}
+  }
+  const result = await apply.commit(true)
+  if (!result.result) throw new Error('process: Saving the process failed')
+}
+
 /**
  * Extracts slot requirements from an exported process JSON.
  * Returns the slot definitions if the process has any, for use in binding UI.
  */
 export function getRequiredSlots (json: string): Record<string, SlotModel> | undefined {
   try {
-    const data = JSON.parse(json) as Doc[]
+    const data = parseProcessImport(
+      json,
+      'process',
+      json.trimStart().startsWith('[') ? undefined : getClient().getModel()
+    )
     const proc = data.find((d: any) => d._class === processPlugin.class.Process)
-    return (proc as any)?.requiredSlots
+    const slots = (proc as Process | undefined)?.requiredSlots
+    if (slots === undefined || json.trimStart().startsWith('[')) return slots
+    return Object.fromEntries(
+      Object.entries(slots).map(([key, slot]) => {
+        if (slot.slotKind !== 'attribute') return [key, slot]
+        const attribute = slot as AttributeSlotModel
+        let type = attribute.type
+        while (type._class === core.class.ArrOf) type = (type as ArrOf<Doc>).of
+        const enumeration =
+          type._class === core.class.EnumOf ? data.find((doc) => doc._id === (type as EnumOf).of) : undefined
+        const values = (enumeration as unknown as { enumValues?: string[] } | undefined)?.enumValues
+        return [key, values === undefined ? slot : { ...slot, enumValues: values }]
+      })
+    )
   } catch (e) {
+    if (!json.trimStart().startsWith('[')) throw e
     return undefined
   }
 }
@@ -320,11 +453,24 @@ export async function importProcess (
   bindings?: Record<string, string>
 ): Promise<void> {
   try {
-    const data = JSON.parse(json) as Doc[]
+    const data = parseProcessImport(
+      json,
+      'process',
+      json.trimStart().startsWith('[') ? undefined : getClient().getModel()
+    )
     if (data.length === 0) return
-    const denormalizedData = denormalizeIds(data, masterTag, bindings ?? {})
+    const yaml = !json.trimStart().startsWith('[')
+    const fullModel = yaml && compileProcessYaml(json, getClient().getModel()).version === 2
+    if (yaml) validateYamlBindings(masterTag, data, bindings ?? {}, !fullModel)
     const client = getClient()
     const m = client.getModel()
+    if (fullModel)
+      {validateAuthoringModelOperations(data as unknown as AuthoringNativeDocument[], m, client.getHierarchy())}
+    const denormalizedData = yaml
+      ? fullModel
+        ? bindYamlModelProcess(data, masterTag, bindings ?? {}, m, client.getHierarchy())
+        : bindYamlProcessDocuments(data, masterTag, bindings ?? {})
+      : denormalizeIds(data, masterTag, bindings ?? {})
     const apply = client.apply('Import process')
     for (const elem of denormalizedData) {
       if (elem._class === processPlugin.class.Process) {
@@ -346,10 +492,101 @@ export async function importProcess (
       }
       await apply.createDoc(elem._class, core.space.Model, stripData(elem), elem._id)
     }
-    await apply.commit(true)
+    const result = await apply.commit(true)
+    if (!(result?.result)) throw new Error('Importing the process failed')
   } catch (e) {
     console.error('Failed to import process:', e)
+    throw e
   }
+}
+
+/** Checks every YAML slot kind against the destination model before any write. */
+function validateYamlBindings (
+  masterTag: Ref<MasterTag>,
+  data: Doc[],
+  bindings: Record<string, string>,
+  distinctFields: boolean = true
+): void {
+  const definition = data.find((doc) => doc._class === processPlugin.class.Process) as Process | undefined
+  const used = new Set<string>()
+  for (const [key, requirement] of Object.entries(definition?.requiredSlots ?? {})) {
+    const bound = bindings[key]
+    if (bound === undefined || bound.trim() === '')
+      {throw new Error(
+        `slots.${key}: A ${requirement.slotKind === 'attribute' ? 'field' : requirement.slotKind} binding is required`
+      )}
+    if (!isYamlSlotBindingCompatible(masterTag, requirement, bound, bindings, definition, data))
+      {throw new Error(`slots.${key}: The binding does not match the declared slot type, owner or choices`)}
+    if (requirement.slotKind !== 'attribute' || !distinctFields) continue
+    const owner =
+      requirement.memberOf === undefined
+        ? masterTag
+        : resolveModelSlotReference(requirement.memberOf, bindings, definition)
+    const identity = `${owner}.${bound}`
+    if (used.has(identity)) throw new Error(`slots.${key}: Different slots must bind to different fields`)
+    used.add(identity)
+  }
+}
+
+/** Shared compatibility check for apply validation and editor binding prefills. */
+export function isYamlSlotBindingCompatible (
+  masterTag: Ref<MasterTag>,
+  slot: SlotModel,
+  bound: string,
+  bindings: Record<string, string>,
+  definition?: Process,
+  documents: readonly Doc[] = []
+): boolean {
+  const client = getClient()
+  const hierarchy = client.getHierarchy()
+  const model = client.getModel()
+  if (slot.slotKind !== 'attribute') return matchesModelSlot(masterTag, slot, bound, bindings, model, hierarchy)
+  const owner = (
+    slot.memberOf === undefined ? masterTag : resolveModelSlotReference(slot.memberOf, bindings, definition)
+  ) as Ref<Class<Doc>>
+  if (owner.startsWith('__SLOT_')) return false
+  const attribute = hierarchy.findAttribute(owner, bound)
+  if (attribute === undefined) return false
+  const requirement = slot as AttributeSlotModel
+  const resolveType = (type: Type<unknown>): Type<unknown> => {
+    const result: Type<unknown> & { to?: string, of?: string | Type<unknown> } = { ...type }
+    if (result.to !== undefined) result.to = resolveModelSlotReference(result.to, bindings, definition)
+    if (typeof result.of === 'object') result.of = resolveType(result.of)
+    return result
+  }
+  const expected = resolveType(requirement.type)
+  let enumType = expected
+  while (enumType._class === core.class.ArrOf) enumType = (enumType as ArrOf<Doc>).of
+  const enumeration =
+    enumType._class === core.class.EnumOf
+      ? (documents.find((doc) => doc._id === (enumType as EnumOf).of) ?? model.findObject((enumType as EnumOf).of))
+      : undefined
+  const choices =
+    requirement.enumValues ?? (enumeration as unknown as { enumValues?: string[] } | undefined)?.enumValues
+  return matchesSlotType(expected, attribute.type, choices, model)
+}
+
+/** Matches choice values semantically rather than comparing workspace-specific enum ids. */
+export function matchesSlotType (
+  expected: Type<unknown>,
+  actual: Type<unknown>,
+  choices: string[] | undefined,
+  model: ModelDb
+): boolean {
+  if (expected._class !== actual._class) return false
+  if (expected._class === core.class.ArrOf) {
+    return matchesSlotType((expected as ArrOf<Doc>).of, (actual as ArrOf<Doc>).of, choices, model)
+  }
+  if (expected._class === core.class.RefTo) return (expected as RefTo<Doc>).to === (actual as RefTo<Doc>).to
+  if (expected._class === core.class.EnumOf && choices !== undefined) {
+    const enumeration = model.findObject((actual as EnumOf).of)
+    return (
+      enumeration !== undefined &&
+      enumeration.enumValues.length === choices.length &&
+      choices.every((choice) => enumeration.enumValues.includes(choice))
+    )
+  }
+  return true
 }
 
 // ─── ID Normalization ────────────────────────────────────────────────────────
@@ -605,7 +842,8 @@ export function detectSlots (
   slots: Record<string, SlotModel>,
   bindings: Record<string, string>,
   m: ModelDb,
-  h: Hierarchy
+  h: Hierarchy,
+  includeSystemBindings: boolean = false
 ): void {
   const masterTag = proc.masterTag
   const attrToSlot: Record<string, string> = {}
@@ -641,7 +879,7 @@ export function detectSlots (
       attrToSlot[id] = slotName
 
       const normalizedId = normalizeId(id) ?? ''
-      if (!id.startsWith('__SLOT_') && !isSystemId(normalizedId)) {
+      if (!id.startsWith('__SLOT_') && (!isSystemId(normalizedId) || includeSystemBindings)) {
         bindings[slotName] = id
       }
     }
@@ -746,6 +984,26 @@ export function detectSlots (
 
       const sysParams = getMethodSystemParams(step.methodId)
       scanParams(step.params, activeTag, [...methodRequired, ...sysParams])
+      if (includeSystemBindings) {
+        for (const result of step.results ?? []) {
+          if (result.key !== undefined)
+            {scanParamValue(result.key, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)}
+          if (result.selectionSpace !== undefined)
+            {scanParamValue(result.selectionSpace, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)}
+          if (result.excludeRelation !== undefined) scanParams(result.excludeRelation, masterTag)
+        }
+      }
+    }
+  }
+  if (includeSystemBindings) {
+    for (const context of Object.values(proc.context ?? {})) {
+      scanParams(context.value, masterTag)
+      const scanType = (type: Type<unknown> | undefined): void => {
+        if (type?._class === core.class.RefTo)
+          {scanParamValue((type as RefTo<Doc>).to, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)}
+        else if (type?._class === core.class.ArrOf) scanType((type as ArrOf<Doc>).of)
+      }
+      scanType(context.type)
     }
   }
 }
