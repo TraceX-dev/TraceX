@@ -15,6 +15,8 @@
     "build": "compile",
     "build:watch": "compile",
     "test": "jest --passWithNoTests --silent",
+    "validate:yaml": "node scripts/validate-yaml.js",
+    "test:yaml": "node --test scripts/validate-yaml.test.js",
     "format": "format src",
     "_phase:build": "compile transpile src",
     "_phase:test": "jest --passWithNoTests --silent",
