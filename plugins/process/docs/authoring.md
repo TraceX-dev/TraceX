@@ -33,8 +33,29 @@ This is the first reference for agents creating or explaining card types and pro
 | [`review-task.process.yaml`](./examples/review-task.process.yaml) | Concise standalone slots, task group and completion wait |
 | [`approval.process.yaml`](./examples/approval.process.yaml) | General approval, locks, object outputs and named references |
 | [`estimate-review.process.yaml`](./examples/estimate-review.process.yaml) | Typed task results, calculation pipeline, card writes and branching |
+| [`purchase-approval.process.yaml`](./examples/purchase-approval.process.yaml) | Purchase estimate inputs, amount calculation and approval above a budget limit |
 
 [`authoring-v2.schema.json`](./authoring-v2.schema.json) is the machine-readable v2 syntax contract. The v2 examples reference it with a YAML language-server directive, enabling schema-aware completion and structural diagnostics in an IDE with a YAML language server. UI validation additionally resolves the installed model, references and bindings. The schema alone cannot establish operation availability or runtime context values. The recorded work plan and verification history are in [`authoring-plan.md`](./authoring-plan.md).
+
+### Check YAML from the command line
+
+From the repository root:
+
+```bash
+node plugins/process/scripts/validate-yaml.js plugins/process/docs/examples/purchase-approval.process.yaml
+```
+
+Or from `plugins/process`:
+
+```bash
+rushx validate:yaml docs/examples/purchase-approval.process.yaml
+```
+
+Pass several file paths to check them together. Both YAML versions and both packaging modes are supported; the root `kind` selects the mode. Paths are relative to the current directory. `--help` prints usage. A valid file prints `<file>: valid YAML definition (offline)`. Invalid files report the authored property path and line/column when available. Exit codes are `0` when every file is valid, `1` for invalid or unreadable files, and `2` for command usage or compiler setup errors. Checking continues after an invalid file.
+
+The command calls the existing `validateProcessYaml` compiler API with the file's offline catalog. It checks the DSL and compiler semantics described under [Validation boundaries](#validation-boundaries), including graph references, typed results, function roles and catalog-declared required parameters. It does not connect to a workspace or write definitions. Installed operation availability, destination field bindings and runtime behavior still require UI validation and manual execution.
+
+Prerequisites are installed repository dependencies (`rush install`, or `rush update` after dependency changes) and the existing compiled authoring implementation in `plugins/process/lib` with its workspace dependencies. The command never runs a build. After changing the compiler source, refresh its artifacts through the normal development build before using this command.
 
 ## Authoring format decision: YAML
 
@@ -539,10 +560,59 @@ Use the exact `methodId` shown below. `params` values can be literals or native 
 | --- | --- | --- |
 | `process:method:UpdateCard` | Nonempty object mapping stored attribute names to new values | Writes the current card. `context: null`. Attribute slots resolve to field names. Declare visible business status updates explicitly. |
 | `process:method:CreateToDo` | Required `title`, `user`; explicitly set `completionMode: "all"` or `"any"` and `withRollback`; optional `description`, `dueDate`, `field`, `askRequired` | `user` is an employee reference or an array of them. Empty recipients are an error. Publishes a task group under `Step.context._id`. In `all` mode, user results and `askRequired` are suppressed. |
+| `process:method:RequestApproval` | Required `user`; optional `field`, `description`, `dueDate`, `priority`, `withRollback`, `actionType` | Creates an approval request group. Publish it with `as` and use the approval decision triggers below. See the [complete parameter contract](#requestapproval-parameters-and-decisions). |
 | `process:method:SetContext` | Required `value`; the step must declare exactly one typed entry in `results` | Initializes that result in execution context. Use `context: null`. Read it with `${$context(resultId)}` after this action. |
 | `process:method:UpdateContext` | Required `contextId`: literal result id, and `value` | Updates an already initialized result whose context definition has `isResult: true` and a `type`. It does not create a definition or write a card field. |
 
 Task parameters do not inherit the method catalog's defaults when raw JSON is executed. The catalog suggests `completionMode: "all"` and `withRollback: true`; the raw server fallback is `"any"` and `false`. Set both explicitly.
+
+### RequestApproval parameters and decisions
+
+`RequestApproval` creates one `process.ApproveRequest` per supplied recipient, all sharing one group identity. Its model declares only `user` as required. Values can be literals or supported context expressions resolved before the action runs.
+
+| Parameter | Type / required | Runtime behavior when supplied or omitted |
+| --- | --- | --- |
+| `user` | Employee reference or array of employee references; required | Recipients, e.g. `$card.approvers`. Missing or empty recipients fail the action. Guest recipients must already have read access to the card. |
+| `field` | Stored card attribute name; optional | Enables synchronization of pending requests with the card's recipient field. Use `$slots.approvers` for its identity, not `$card.approvers` for its value. Omit it for a fixed recipient list. |
+| `description` | Markup string; optional | Request description; defaults to an empty string. |
+| `dueDate` | Timestamp in milliseconds since the Unix epoch; optional | Request due date; omitted means no due date. |
+| `priority` | `time.ToDoPriority` numeric value; optional | `0` High, `1` Medium, `2` Low, `3` No priority, `4` Urgent. Defaults to `3` (No priority). |
+| `withRollback` | Boolean; optional | Defaults to `false`. When `true`, removal of a request can trigger the engine's task-removal rollback path. This does not mean that rejection rolls back the process. |
+| `actionType` | `approve` or `review`; optional | Selects the positive button label: Approve or Review. Omitted behaves as Approve. Both variants record the same approval decision and use the same triggers. |
+
+For `field` synchronization, a nonempty edited recipient list adds missing recipients and removes unfinished requests for removed recipients. Completed requests are retained; clearing the field does not cancel the group. `RequestApproval` does not lock the card; use an explicit `LockCard` action if locking is part of the intended process.
+
+The action publishes a **group identity**, not a single request identity or an array of recipient ids. Use `as: approval_request` and pass `$context.approval_request` directly as the decision trigger's `_id`:
+
+```yaml
+request_approval:
+  method: RequestApproval
+  params:
+    user: $card.approvers
+    field: $slots.approvers
+    withRollback: false
+    actionType: approve
+  as: approval_request
+```
+
+`OnApproveRequestApproved: {_id: $context.approval_request}` succeeds when every request in the group has `approved: true`. `OnApproveRequestRejected` with the same `_id` succeeds when any request has `approved: false`. Pending requests have neither decision. Both triggers have `auto: true`; model two outgoing transitions from the waiting state and define each outcome explicitly.
+
+There is no approval `completionMode` parameter: approval always requires every request, and one rejection is sufficient. The runtime uses the fixed title `Approve request`; `title` and `askRequired` do not configure this action. Do not transfer `CreateToDo` parameter behavior or result aggregation assumptions to approval requests.
+
+For offline `as` inference and required-parameter checking, include this verified contract in the root catalog:
+
+```yaml
+catalog:
+  methods:
+    RequestApproval:
+      requiredParams: [user]
+      createdContext: {class: process.ApproveRequest}
+  triggers:
+    OnApproveRequestApproved: {requiredParams: [_id], auto: true}
+    OnApproveRequestRejected: {requiredParams: [_id], auto: true}
+```
+
+See [`approval.process.yaml`](./examples/approval.process.yaml) for the approval graph and [`purchase-approval.process.yaml`](./examples/purchase-approval.process.yaml) for a task, calculation and conditional approval combined.
 
 ### Triggers
 
@@ -554,6 +624,8 @@ Use the exact `trigger` id shown below. `auto` and `init` are properties of the 
 | `process:trigger:WhenFieldChanges` | `init: false`, `auto: false` | One stored field key mapped to a match condition, for example `{"customProbability":{"$exists":true}}`. Fires only when that field is present in the update operations and its condition matches. Only the first parameter key is checked; use separate transitions for separate input fields. |
 | `process:trigger:OnCardUpdate` | `init: false`, `auto: true` | Card match query, for example `{"customScore":{"$gt":16}}`. Checked on card update events and immediately after a transition. Multiple field predicates in the same object are combined with AND. An empty query matches unconditionally. |
 | `process:trigger:OnToDoClose` | `init: false`, `auto: true` | Required `_id`, normally `"${$context(taskContextId)}"`; waits for the task/group produced by the task action. Completion follows the group's explicit `all` / `any` mode. |
+| `process:trigger:OnApproveRequestApproved` | `init: false`, `auto: true` | Required `_id`: the group published by `RequestApproval`. Matches when every request has `approved: true`. |
+| `process:trigger:OnApproveRequestRejected` | `init: false`, `auto: true` | Required `_id`: the same approval group. Matches when any request has `approved: false`. |
 
 Match conditions include direct equality and `$gt`, `$lt`, `$gte`, `$lte`, `$in`, and `$exists`. For a bounded range, use both bounds in one field predicate: `{"customScore":{"$gte":9,"$lte":16}}`. Top-level `$or` is not supported by platform document queries; model alternatives with separate transitions and deliberate priority.
 

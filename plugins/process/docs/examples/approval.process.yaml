@@ -67,4 +67,8 @@ processes:
 catalog:
   methods:
     RequestApproval:
+      requiredParams: [user]
       createdContext: {class: process.ApproveRequest}
+  triggers:
+    OnApproveRequestApproved: {requiredParams: [_id], auto: true}
+    OnApproveRequestRejected: {requiredParams: [_id], auto: true}

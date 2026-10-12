@@ -1,0 +1,167 @@
+# yaml-language-server: $schema=../authoring-v2.schema.json
+#
+# Copyright © 2026 TraceX SAS.
+#
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Import into an existing card type and bind all four attribute slots.
+# Fill Estimator and Approvers before starting the process manually.
+# Amount and Status should be readonly and automation-only destination fields.
+# All prices and the fixed budget limit use the same currency.
+
+version: 2
+kind: process
+processes:
+  purchase_approval:
+    label: Purchase estimate and approval
+    description: Collect a purchase estimate and request approval when the amount exceeds 1000.
+    autoStart: false
+    showInHeader: true
+    parallelExecutionForbidden: true
+    slots:
+      estimator:
+        label: embedded:embedded:Estimator
+        type: {ref: contact.mixin.Employee}
+      approvers:
+        label: embedded:embedded:Approvers
+        type: {array: {ref: contact.mixin.Employee}}
+      amount:
+        label: embedded:embedded:Amount
+        type: number
+      status:
+        label: embedded:embedded:Status
+        type: string
+    start:
+      request_estimate:
+        to: waiting_for_estimate
+        on: OnExecutionStart
+        actions:
+          mark_waiting_for_estimate:
+            method: UpdateCard
+            params: {$slots.status: Awaiting estimate}
+          collect_estimate:
+            method: CreateToDo
+            params:
+              title: Enter the purchase quantity and unit price
+              user: $card.estimator
+              completionMode: any
+              withRollback: true
+              askRequired: true
+            as: estimate_tasks
+            results:
+              quantity:
+                label: Quantity
+                type: number
+              unit_price:
+                label: Unit price
+                type: number
+    states:
+      waiting_for_estimate:
+        label: Wait for the purchase estimate
+        transitions:
+          estimate_received:
+            to: check_budget
+            on:
+              OnToDoClose: {_id: $context.estimate_tasks}
+            actions:
+              calculate_amount:
+                method: SetContext
+                params:
+                  value:
+                    expr:
+                      from: $context.quantity
+                      pipe:
+                        - Multiply: {value: $context.unit_price}
+                results:
+                  purchase_amount:
+                    label: Purchase amount
+                    type: number
+              save_amount:
+                method: UpdateCard
+                params: {$slots.amount: $context.purchase_amount}
+      check_budget:
+        label: Check the budget limit
+        transitions:
+          approval_required:
+            to: waiting_for_approval
+            on:
+              OnCardUpdate:
+                $slots.amount: {$gt: 1000}
+            actions:
+              mark_waiting_for_approval:
+                method: UpdateCard
+                params: {$slots.status: Awaiting approval}
+              request_approval:
+                method: RequestApproval
+                params:
+                  user: $card.approvers
+                  field: $slots.approvers
+                as: approval_request
+          budget_satisfied:
+            to: within_budget
+            on:
+              OnCardUpdate:
+                $slots.amount: {$lte: 1000}
+            actions:
+              mark_within_budget:
+                method: UpdateCard
+                params: {$slots.status: Within budget}
+      waiting_for_approval:
+        label: Wait for the approval decision
+        transitions:
+          approval_accepted:
+            to: approved
+            on:
+              OnApproveRequestApproved: {_id: $context.approval_request}
+            actions:
+              mark_approved:
+                method: UpdateCard
+                params: {$slots.status: Approved}
+          approval_rejected:
+            to: rejected
+            on:
+              OnApproveRequestRejected: {_id: $context.approval_request}
+            actions:
+              mark_rejected:
+                method: UpdateCard
+                params: {$slots.status: Rejected}
+      within_budget:
+        label: Within budget
+      approved:
+        label: Approved
+      rejected:
+        label: Rejected
+
+# Offline contracts from the guide and its worked examples.
+# UI validation uses the installed workspace model instead.
+catalog:
+  methods:
+    CreateToDo:
+      requiredParams: [title, user]
+      createdContext: {class: process.ProcessToDo, nameField: title}
+    SetContext:
+      requiredParams: [value]
+      createdContext: null
+    UpdateCard:
+      requiredParams: []
+      createdContext: null
+    RequestApproval:
+      requiredParams: [user]
+      createdContext: {class: process.ApproveRequest}
+  triggers:
+    OnExecutionStart: {requiredParams: [], init: true}
+    OnToDoClose: {requiredParams: [_id], auto: true}
+    OnCardUpdate: {requiredParams: [], auto: true}
+    OnApproveRequestApproved: {requiredParams: [_id], auto: true}
+    OnApproveRequestRejected: {requiredParams: [_id], auto: true}
+  functions:
+    Multiply: {type: transform, of: core:class:TypeNumber}
