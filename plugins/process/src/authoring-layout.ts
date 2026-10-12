@@ -258,9 +258,26 @@ export function encodeAuthoringLayout (
   environment: AuthoringOutputEnvironment = {}
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {}
+  const fieldOwners = new Map<string, Record<string, unknown>>()
   for (const [section, clazz] of Object.entries(SECTIONS)) {
     const entries = ordered(docs.filter((doc) => doc._class === clazz))
-    if (entries.length > 0) result[section] = Object.fromEntries(entries.map((doc) => [doc._id, encodeDocument(doc)]))
+    const blocks: Record<string, unknown> = {}
+    for (const doc of entries) {
+      if (clazz === SECTIONS.cardTypes || clazz === SECTIONS.tags) {
+        const data = encodeDocument(doc, { fields: 'fields' })
+        fieldOwners.set(doc._id, data)
+        blocks[doc._id] = data
+      } else if (clazz === SECTIONS.fields) {
+        const owner = fieldOwners.get(String(doc.attributeOf))
+        if (owner === undefined) blocks[doc._id] = encodeDocument(doc)
+        else {
+          const { attributeOf, ...properties } = doc
+          owner.fields ??= {}
+          object(owner.fields, 'fields')[doc._id] = encodeDocument(properties)
+        }
+      } else blocks[doc._id] = encodeDocument(doc)
+    }
+    if (Object.keys(blocks).length > 0) result[section] = blocks
   }
   const processes = ordered(docs.filter((doc) => doc._class === PROCESS))
   if (processes.length > 0) {
@@ -350,9 +367,18 @@ export function decodeAuthoringLayout (root: Record<string, unknown>, model?: Mo
   object(root, '$', ['version', 'kind', 'catalog', 'processes', 'documents', ...Object.keys(SECTIONS)])
   const docs: AuthoringNativeDocument[] = []
   const ranks = new Map<string, string>()
-  const add = (id: string, clazz: string, data: Record<string, unknown>, group: string): AuthoringNativeDocument => {
+  const ids = new Set<string>()
+  const add = (
+    id: string,
+    clazz: string,
+    data: Record<string, unknown>,
+    group: string,
+    path = id
+  ): AuthoringNativeDocument => {
+    if (ids.has(id)) fail(path, 'Duplicate document identifier')
+    ids.add(id)
     for (const key of ['_id', '_class', ...(RANKED.has(clazz) ? ['rank'] : [])]) {
-      if (data[key] !== undefined) fail(`${id}.${key}`, 'This property is generated from the block name and order')
+      if (data[key] !== undefined) fail(`${path}.${key}`, 'This property is generated from the block name and order')
     }
     const doc: AuthoringNativeDocument = {
       ...data,
@@ -381,7 +407,22 @@ export function decodeAuthoringLayout (root: Record<string, unknown>, model?: Mo
   }
   for (const [section, clazz] of Object.entries(SECTIONS)) {
     for (const [id, value] of Object.entries(object(root[section] ?? {}, section))) {
-      add(id, clazz, decodeDocument(value, `${section}.${id}`, {}, clazz), '')
+      const path = `${section}.${id}`
+      if (clazz !== SECTIONS.cardTypes && clazz !== SECTIONS.tags) {
+        add(id, clazz, decodeDocument(value, path, {}, clazz), '', path)
+        continue
+      }
+      const { fields, ...properties } = object(value, path)
+      add(id, clazz, decodeDocument(properties, path, {}, clazz), '', path)
+      for (const [key, value] of Object.entries(object(fields === undefined ? {} : fields, `${path}.fields`))) {
+        const fieldPath = `${path}.fields.${key}`
+        const data = decodeDocument(value, fieldPath, {}, SECTIONS.fields)
+        if (data.attributeOf !== undefined) {
+          fail(`${fieldPath}.attributeOf`, 'Ownership is determined by the enclosing card type or tag')
+        }
+        data.attributeOf = id
+        add(key, SECTIONS.fields, data, '', fieldPath)
+      }
     }
   }
   for (const [id, value] of Object.entries(object(root.processes ?? {}, 'processes'))) {

@@ -1,0 +1,535 @@
+# yaml-language-server: $schema=../authoring-v2.schema.json
+#
+# Copyright © 2026 TraceX SAS.
+#
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Import as a card module. All local types, enums and associations are included.
+# Use existing employees and create actual cards after importing the definitions.
+# Start each workflow manually on its owning card.
+# Ref fields and association links are independent; fill both when demonstrating both.
+# Purchase quotes and invoices use USD. No exchange-rate or line-item aggregation is implied.
+# Association type 1:N means one B per A and multiple A per B in the current editor/runtime.
+# See the procurement walkthrough in ../authoring.md for the sample data and checks.
+
+version: 2
+kind: card
+
+# One shared base and six concrete business types.
+cardTypes:
+  pc_record:
+    label: Procurement record
+    description: Common ownership and classification fields for procurement records.
+    extends: card:class:Card
+    kind: 0
+    baseType: true
+    icon: card:icon:MasterTag
+    fields:
+      pc_record_code: {name: code, label: External code, type: string, isCustom: true}
+      pc_record_owner: {name: owner, label: Owner, type: {ref: contact.mixin.Employee}, isCustom: true, required: true}
+      pc_record_notes: {name: notes, label: Notes, type: markup, isCustom: true}
+      pc_record_priority: {name: priority, label: Priority, type: {enum: pc_priority}, isCustom: true, defaultValue: Normal}
+      pc_record_archived: {name: archived, label: Archived, type: boolean, isCustom: true, defaultValue: false}
+  pc_project:
+    label: Procurement project
+    description: A project with a reviewer checklist, budget and supplier panel.
+    extends: pc_record
+    kind: 0
+    icon: card:icon:MasterTag
+    fields:
+      pc_project_status: {name: status, label: Project status, type: {enum: pc_project_stage}, isCustom: true, readonly: true, automationOnly: true, defaultValue: Draft}
+      pc_project_budget: {name: budget, label: Budget (USD), type: number, isCustom: true, required: true, defaultValue: 10000}
+      pc_project_start: {name: start_date, label: Start date, type: date, isCustom: true}
+      pc_project_end: {name: end_date, label: End date, type: date, isCustom: true}
+      pc_project_reviewers: {name: reviewers, label: Project reviewers, type: {array: {ref: contact.mixin.Employee}}, isCustom: true, required: true}
+      pc_project_supplier: {name: preferred_supplier, label: Preferred supplier, type: {ref: pc_supplier}, isCustom: true}
+      pc_project_cost_center: {name: cost_center, label: Cost center, type: string, isCustom: true}
+  pc_supplier:
+    label: Procurement supplier
+    description: A supplier record with contacts and a catalog association.
+    extends: pc_record
+    kind: 0
+    icon: card:icon:MasterTag
+    fields:
+      pc_supplier_legal_name: {name: legal_name, label: Legal name, type: string, isCustom: true, required: true}
+      pc_supplier_tax_id: {name: tax_id, label: Tax identifier, type: string, isCustom: true}
+      pc_supplier_email: {name: email, label: Contact email, type: string, isCustom: true}
+      pc_supplier_website: {name: website, label: Website, type: string, isCustom: true}
+      pc_supplier_tier_field: {name: tier, label: Supplier tier, type: {enum: pc_supplier_tier}, isCustom: true, defaultValue: Regular}
+      pc_supplier_active: {name: active, label: Active supplier, type: boolean, isCustom: true, defaultValue: true}
+      pc_supplier_contacts: {name: contacts, label: Internal contacts, type: {array: {ref: contact.mixin.Employee}}, isCustom: true}
+  pc_product:
+    label: Procurement product
+    description: A catalog item with pricing, preferred supplier and replacement references.
+    extends: pc_record
+    kind: 0
+    icon: card:icon:MasterTag
+    fields:
+      pc_product_sku: {name: sku, label: SKU, type: string, isCustom: true, required: true}
+      pc_product_category_field: {name: category, label: Category, type: {enum: pc_product_category}, isCustom: true, defaultValue: Hardware}
+      pc_product_price: {name: unit_price, label: Catalog unit price, type: number, isCustom: true, required: true}
+      pc_product_currency: {name: currency, label: Catalog currency, type: {enum: pc_currency}, isCustom: true, defaultValue: USD}
+      pc_product_supplier: {name: preferred_supplier, label: Preferred supplier, type: {ref: pc_supplier}, isCustom: true, required: true}
+      pc_product_replacements: {name: replacements, label: Replacement products, type: {array: {ref: pc_product}}, isCustom: true}
+      pc_product_available: {name: available, label: Available, type: boolean, isCustom: true, defaultValue: true}
+      pc_product_specification: {name: specification, label: Specification, type: markup, isCustom: true}
+  pc_request:
+    label: Purchase request
+    description: An aggregate USD quote with conditional approval above 1000.
+    extends: pc_record
+    kind: 0
+    icon: card:icon:MasterTag
+    fields:
+      pc_request_project: {name: project, label: Project, type: {ref: pc_project}, isCustom: true, required: true}
+      pc_request_supplier: {name: supplier, label: Supplier, type: {ref: pc_supplier}, isCustom: true, required: true}
+      pc_request_products: {name: products, label: Requested products, type: {array: {ref: pc_product}}, isCustom: true, required: true}
+      pc_request_approvers: {name: approvers, label: Purchase approvers, type: {array: {ref: contact.mixin.Employee}}, isCustom: true, required: true}
+      pc_request_needed_by: {name: needed_by, label: Needed by, type: date, isCustom: true}
+      pc_request_currency: {name: currency, label: Quote currency, type: {enum: pc_currency}, isCustom: true, readonly: true, automationOnly: true, defaultValue: USD}
+      pc_request_quantity: {name: quantity, label: Quoted quantity, type: number, isCustom: true, readonly: true, automationOnly: true}
+      pc_request_unit_price: {name: unit_price, label: Quoted USD unit price, type: number, isCustom: true, readonly: true, automationOnly: true}
+      pc_request_amount: {name: amount, label: Quote amount (USD), type: number, isCustom: true, readonly: true, automationOnly: true}
+      pc_request_product_count: {name: product_count, label: Referenced product count, type: number, isCustom: true, readonly: true, automationOnly: true}
+      pc_request_approval_required: {name: approval_required, label: Approval required, type: boolean, isCustom: true, readonly: true, automationOnly: true, defaultValue: false}
+      pc_request_status: {name: status, label: Purchase status, type: {enum: pc_request_stage}, isCustom: true, readonly: true, automationOnly: true, defaultValue: Draft}
+  pc_delivery:
+    label: Procurement delivery
+    description: A delivery with collected inspection results and shipping details.
+    extends: pc_record
+    kind: 0
+    icon: card:icon:MasterTag
+    fields:
+      pc_delivery_request: {name: purchase_request, label: Purchase request, type: {ref: pc_request}, isCustom: true, required: true}
+      pc_delivery_inspector: {name: inspector, label: Inspector, type: {ref: contact.mixin.Employee}, isCustom: true, required: true}
+      pc_delivery_received: {name: received_on, label: Received on, type: date, isCustom: true}
+      pc_delivery_warehouse: {name: warehouse, label: Warehouse, type: string, isCustom: true}
+      pc_delivery_quantity: {name: accepted_quantity, label: Inspected quantity, type: number, isCustom: true, readonly: true, automationOnly: true}
+      pc_delivery_passed: {name: inspection_passed, label: Inspection passed, type: boolean, isCustom: true, readonly: true, automationOnly: true}
+      pc_delivery_status: {name: status, label: Delivery status, type: {enum: pc_delivery_stage}, isCustom: true, readonly: true, automationOnly: true, defaultValue: Draft}
+  pc_invoice:
+    label: Procurement invoice
+    description: An invoice whose approval requires an approved purchase request at process start.
+    extends: pc_record
+    kind: 0
+    icon: card:icon:MasterTag
+    fields:
+      pc_invoice_request: {name: purchase_request, label: Purchase request, type: {ref: pc_request}, isCustom: true, required: true}
+      pc_invoice_number: {name: invoice_number, label: Invoice number, type: string, isCustom: true, required: true}
+      pc_invoice_amount: {name: amount, label: Invoice amount (USD), type: number, isCustom: true, required: true}
+      pc_invoice_currency: {name: currency, label: Invoice currency, type: {enum: pc_currency}, isCustom: true, readonly: true, automationOnly: true, defaultValue: USD}
+      pc_invoice_due_date: {name: due_date, label: Due date, type: date, isCustom: true}
+      pc_invoice_approvers: {name: approvers, label: Finance approvers, type: {array: {ref: contact.mixin.Employee}}, isCustom: true, required: true}
+      pc_invoice_supplier: {name: supplier, label: Supplier at start, type: {ref: pc_supplier}, isCustom: true, readonly: true, automationOnly: true}
+      pc_invoice_request_title: {name: request_title, label: Request title at start, type: string, isCustom: true, readonly: true, automationOnly: true}
+      pc_invoice_request_status: {name: request_status, label: Request status at start, type: string, isCustom: true, readonly: true, automationOnly: true}
+      pc_invoice_status: {name: status, label: Invoice status, type: {enum: pc_invoice_stage}, isCustom: true, readonly: true, automationOnly: true, defaultValue: Draft}
+
+# Optional sections applied manually; the workflows do not add these tags.
+tags:
+  pc_audit:
+    label: Audit details
+    description: Optional review metadata for any procurement record.
+    extends: pc_record
+    kind: 2
+    icon: card:icon:Tag
+    fields:
+      pc_audit_reviewer: {name: reviewed_by, label: Reviewed by, type: {ref: contact.mixin.Employee}, isCustom: true}
+      pc_audit_date: {name: reviewed_on, label: Reviewed on, type: date, isCustom: true}
+      pc_audit_note: {name: audit_note, label: Audit note, type: markup, isCustom: true}
+  pc_shipping:
+    label: Shipping details
+    description: Optional carrier and insurance metadata for deliveries.
+    extends: pc_delivery
+    kind: 2
+    icon: card:icon:Tag
+    fields:
+      pc_shipping_carrier: {name: carrier, label: Carrier, type: string, isCustom: true}
+      pc_shipping_tracking: {name: tracking_number, label: Tracking number, type: string, isCustom: true}
+      pc_shipping_insured: {name: insured, label: Insured, type: boolean, isCustom: true, defaultValue: false}
+      pc_shipping_value: {name: insured_value, label: Insured value (USD), type: number, isCustom: true}
+
+enums:
+  pc_priority:
+    name: Procurement priority
+    enumValues: [Low, Normal, High, Urgent]
+  pc_project_stage:
+    name: Procurement project stage
+    enumValues: [Draft, Under review, Active]
+  pc_supplier_tier:
+    name: Supplier tier
+    enumValues: [Preferred, Regular, Backup]
+  pc_product_category:
+    name: Procurement product category
+    enumValues: [Hardware, Software, Services]
+  pc_currency:
+    name: Procurement currency
+    enumValues: [USD, EUR, KZT]
+  pc_request_stage:
+    name: Purchase request stage
+    enumValues: [Draft, Awaiting estimate, Checking quote, Invalid quote, Checking budget, Awaiting approval, Approved, Rejected]
+  pc_delivery_stage:
+    name: Delivery stage
+    enumValues: [Draft, Awaiting inspection, Accepted, Rejected]
+  pc_invoice_stage:
+    name: Invoice stage
+    enumValues: [Draft, Checking request, Awaiting approval, Approved, Rejected, Blocked]
+
+# Association labels describe the target side: an A card shows nameB and vice versa.
+relations:
+  pc_project_requests:
+    classA: pc_request
+    classB: pc_project
+    nameA: Purchase requests
+    nameB: Project
+    type: 1:N
+  pc_request_deliveries:
+    classA: pc_delivery
+    classB: pc_request
+    nameA: Deliveries
+    nameB: Purchase request
+    type: 1:N
+  pc_supplier_catalog:
+    classA: pc_product
+    classB: pc_supplier
+    nameA: Products
+    nameB: Suppliers
+    type: N:N
+  pc_product_compatibility:
+    classA: pc_product
+    classB: pc_product
+    nameA: Compatible with
+    nameB: Compatible products
+    type: N:N
+  pc_project_supplier_panel:
+    classA: pc_project
+    classB: pc_supplier
+    nameA: Project panels
+    nameB: Supplier panel
+    type: N:N
+  pc_invoice_evidence:
+    classA: pc_invoice
+    classB: pc_delivery
+    nameA: Invoices
+    nameB: Supporting deliveries
+    type: N:N
+  pc_delivery_primary_invoice:
+    classA: pc_delivery
+    classB: pc_invoice
+    nameA: Primary delivery
+    nameB: Primary invoice
+    type: 1:1
+
+# Each workflow starts manually and has independent execution/context identities.
+processes:
+  pc_project_review:
+    label: Review procurement project
+    description: Complete every reviewer task before marking the project active.
+    masterTag: pc_project
+    autoStart: false
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      pc_project_begin_review:
+        to: pc_project_waiting_review
+        on: OnExecutionStart
+        actions:
+          pc_project_mark_review: {method: UpdateCard, params: {status: Under review}}
+          pc_project_create_reviews:
+            method: CreateToDo
+            params:
+              title: Review the procurement project
+              user: $card.reviewers
+              completionMode: all
+              withRollback: true
+            as: pc_project_reviews
+    states:
+      pc_project_waiting_review:
+        label: Wait for every project reviewer
+        transitions:
+          pc_project_reviews_completed:
+            to: pc_project_active
+            on: {OnToDoClose: {_id: $context.pc_project_reviews}}
+            actions:
+              pc_project_mark_active: {method: UpdateCard, params: {status: Active}}
+      pc_project_active:
+        label: Project active
+
+  pc_purchase_review:
+    label: Estimate and approve purchase
+    description: Collect one USD quote, validate it, calculate totals and request approval above 1000.
+    masterTag: pc_request
+    autoStart: false
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      pc_purchase_start:
+        to: pc_purchase_waiting_quote
+        on: OnExecutionStart
+        actions:
+          pc_purchase_mark_waiting: {method: UpdateCard, params: {status: Awaiting estimate, approval_required: false}}
+          pc_purchase_collect_quote:
+            method: CreateToDo
+            params:
+              title: Enter the total quantity and USD unit price
+              user: $card.owner
+              completionMode: any
+              withRollback: true
+              askRequired: true
+            as: pc_quote_tasks
+            results:
+              pc_quote_quantity: {label: Quoted quantity, type: number}
+              pc_quote_unit_price: {label: USD unit price, type: number}
+    states:
+      pc_purchase_waiting_quote:
+        label: Wait for the completed quote
+        transitions:
+          pc_purchase_quote_received:
+            to: pc_purchase_validate_quote
+            on: {OnToDoClose: {_id: $context.pc_quote_tasks}}
+            actions:
+              pc_purchase_save_inputs:
+                method: UpdateCard
+                params:
+                  quantity: $context.pc_quote_quantity
+                  unit_price: $context.pc_quote_unit_price
+                  status: Checking quote
+      pc_purchase_validate_quote:
+        label: Validate the quote inputs
+        transitions:
+          pc_purchase_invalid_quantity:
+            to: pc_purchase_invalid
+            on: {OnCardUpdate: {quantity: {$lte: 0}}}
+            actions:
+              pc_purchase_reject_quantity: {method: UpdateCard, params: {status: Invalid quote}}
+          pc_purchase_invalid_price:
+            to: pc_purchase_invalid
+            on: {OnCardUpdate: {unit_price: {$lt: 0}}}
+            actions:
+              pc_purchase_reject_price: {method: UpdateCard, params: {status: Invalid quote}}
+          pc_purchase_invalid_currency:
+            to: pc_purchase_invalid
+            on: {OnCardUpdate: {currency: {$ne: USD}}}
+            actions:
+              pc_purchase_reject_currency: {method: UpdateCard, params: {status: Invalid quote}}
+          pc_purchase_valid_quote:
+            to: pc_purchase_check_budget
+            on: {OnCardUpdate: {quantity: {$gt: 0}, unit_price: {$gte: 0}, currency: USD}}
+            actions:
+              pc_purchase_calculate_amount:
+                method: SetContext
+                params:
+                  value:
+                    expr:
+                      from: $context.pc_quote_quantity
+                      pipe:
+                        - Multiply: {value: $context.pc_quote_unit_price}
+                results:
+                  pc_quote_amount: {label: Quote amount (USD), type: number}
+              pc_purchase_count_products:
+                method: SetContext
+                params:
+                  value:
+                    expr:
+                      from: $card.products
+                      pipe: [ArrayLength]
+                results:
+                  pc_quote_product_count: {label: Referenced product count, type: number}
+              pc_purchase_save_totals:
+                method: UpdateCard
+                params:
+                  amount: $context.pc_quote_amount
+                  product_count: $context.pc_quote_product_count
+                  status: Checking budget
+      pc_purchase_check_budget:
+        label: Check the 1000 USD approval threshold
+        transitions:
+          pc_purchase_approval_required:
+            to: pc_purchase_waiting_approval
+            on: {OnCardUpdate: {amount: {$gt: 1000}}}
+            actions:
+              pc_purchase_mark_approval: {method: UpdateCard, params: {status: Awaiting approval, approval_required: true}}
+              pc_purchase_request_approval:
+                method: RequestApproval
+                params:
+                  user: $card.approvers
+                  field: approvers
+                  withRollback: false
+                  actionType: approve
+                as: pc_purchase_approval
+          pc_purchase_within_limit:
+            to: pc_purchase_approved
+            on: {OnCardUpdate: {amount: {$lte: 1000}}}
+            actions:
+              pc_purchase_mark_within_limit: {method: UpdateCard, params: {status: Approved, approval_required: false}}
+      pc_purchase_waiting_approval:
+        label: Wait for every purchase approver
+        transitions:
+          pc_purchase_approval_accepted:
+            to: pc_purchase_approved
+            on: {OnApproveRequestApproved: {_id: $context.pc_purchase_approval}}
+            actions:
+              pc_purchase_mark_approved: {method: UpdateCard, params: {status: Approved}}
+          pc_purchase_approval_rejected:
+            to: pc_purchase_rejected
+            on: {OnApproveRequestRejected: {_id: $context.pc_purchase_approval}}
+            actions:
+              pc_purchase_mark_rejected: {method: UpdateCard, params: {status: Rejected}}
+      pc_purchase_invalid:
+        label: Invalid quote
+      pc_purchase_approved:
+        label: Purchase approved
+      pc_purchase_rejected:
+        label: Purchase rejected
+
+  pc_delivery_inspection:
+    label: Inspect delivery
+    description: Collect inspected quantity and a boolean acceptance decision from one inspector.
+    masterTag: pc_delivery
+    autoStart: false
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      pc_delivery_start:
+        to: pc_delivery_waiting_inspection
+        on: OnExecutionStart
+        actions:
+          pc_delivery_mark_waiting: {method: UpdateCard, params: {status: Awaiting inspection}}
+          pc_delivery_create_inspection:
+            method: CreateToDo
+            params:
+              title: Enter inspected quantity and the acceptance decision
+              user: $card.inspector
+              completionMode: any
+              withRollback: true
+              askRequired: true
+            as: pc_inspection_tasks
+            results:
+              pc_inspected_quantity: {label: Inspected quantity, type: number}
+              pc_inspection_passed: {label: Inspection passed, type: boolean}
+    states:
+      pc_delivery_waiting_inspection:
+        label: Wait for the completed inspection
+        transitions:
+          pc_delivery_inspection_received:
+            to: pc_delivery_classify_inspection
+            on: {OnToDoClose: {_id: $context.pc_inspection_tasks}}
+            actions:
+              pc_delivery_save_inspection:
+                method: UpdateCard
+                params:
+                  accepted_quantity: $context.pc_inspected_quantity
+                  inspection_passed: $context.pc_inspection_passed
+      pc_delivery_classify_inspection:
+        label: Classify the inspection decision
+        transitions:
+          pc_delivery_accept_inspection:
+            to: pc_delivery_accepted
+            on: {OnCardUpdate: {inspection_passed: true}}
+            actions:
+              pc_delivery_mark_accepted: {method: UpdateCard, params: {status: Accepted}}
+          pc_delivery_failed:
+            to: pc_delivery_rejected
+            on: {OnCardUpdate: {inspection_passed: false}}
+            actions:
+              pc_delivery_mark_rejected: {method: UpdateCard, params: {status: Rejected}}
+      pc_delivery_accepted:
+        label: Delivery accepted
+      pc_delivery_rejected:
+        label: Delivery rejected
+
+  pc_invoice_approval:
+    label: Approve invoice against purchase
+    description: Snapshot the referenced purchase, block unapproved requests and lock during finance approval.
+    masterTag: pc_invoice
+    autoStart: false
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      pc_invoice_start:
+        to: pc_invoice_check_request
+        on: OnExecutionStart
+        actions:
+          pc_invoice_snapshot_request:
+            method: UpdateCard
+            params:
+              request_title: $card.purchase_request.title
+              request_status: $card.purchase_request.status
+              supplier: $card.purchase_request.supplier
+              status: Checking request
+    states:
+      pc_invoice_check_request:
+        label: Check the purchase status captured at start
+        transitions:
+          pc_invoice_purchase_blocked:
+            to: pc_invoice_blocked
+            on: {OnCardUpdate: {request_status: {$ne: Approved}}}
+            actions:
+              pc_invoice_mark_blocked: {method: UpdateCard, params: {status: Blocked}}
+          pc_invoice_purchase_approved:
+            to: pc_invoice_waiting_approval
+            on: {OnCardUpdate: {request_status: Approved}}
+            actions:
+              pc_invoice_mark_waiting: {method: UpdateCard, params: {status: Awaiting approval}}
+              pc_invoice_request_approval:
+                method: RequestApproval
+                params:
+                  user: $card.approvers
+                  field: approvers
+                  description: $card.request_title
+                  withRollback: false
+                  actionType: approve
+                as: pc_invoice_approval_requests
+              pc_invoice_lock: {method: LockCard}
+      pc_invoice_waiting_approval:
+        label: Wait for every finance approver
+        transitions:
+          pc_invoice_approval_accepted:
+            to: pc_invoice_approved
+            on: {OnApproveRequestApproved: {_id: $context.pc_invoice_approval_requests}}
+            actions:
+              pc_invoice_unlock_approved: {method: UnlockCard}
+              pc_invoice_mark_approved: {method: UpdateCard, params: {status: Approved}}
+          pc_invoice_approval_rejected:
+            to: pc_invoice_rejected
+            on: {OnApproveRequestRejected: {_id: $context.pc_invoice_approval_requests}}
+            actions:
+              pc_invoice_unlock_rejected: {method: UnlockCard}
+              pc_invoice_mark_rejected: {method: UpdateCard, params: {status: Rejected}}
+      pc_invoice_blocked:
+        label: Invoice blocked
+      pc_invoice_approved:
+        label: Invoice approved
+      pc_invoice_rejected:
+        label: Invoice rejected
+
+# Verified offline contracts. UI import validates the actual installed operations.
+catalog:
+  methods:
+    UpdateCard: {requiredParams: [], createdContext: null}
+    CreateToDo:
+      requiredParams: [title, user]
+      createdContext: {class: process.ProcessToDo, nameField: title}
+    SetContext: {requiredParams: [value], createdContext: null}
+    RequestApproval:
+      requiredParams: [user]
+      createdContext: {class: process.ApproveRequest}
+    LockCard: {requiredParams: [], createdContext: null}
+    UnlockCard: {requiredParams: [], createdContext: null}
+  triggers:
+    OnExecutionStart: {requiredParams: [], init: true}
+    OnToDoClose: {requiredParams: [_id], auto: true}
+    OnCardUpdate: {requiredParams: [], auto: true}
+    OnApproveRequestApproved: {requiredParams: [_id], auto: true}
+    OnApproveRequestRejected: {requiredParams: [_id], auto: true}
+  functions:
+    Multiply: {type: transform, of: core:class:TypeNumber}
+    ArrayLength: {type: convert, of: core:class:ArrOf, to: core:class:TypeNumber}

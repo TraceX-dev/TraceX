@@ -262,3 +262,135 @@ describe('typed YAML estimates through native value evaluation', () => {
     expect(card.status).toBe(effort * rate > 100 ? 'Needs approval' : 'Accepted')
   })
 })
+
+describe('procurement module through native value evaluation', () => {
+  const { docs } = compileProcessYaml(
+    fs.readFileSync(
+      path.resolve(__dirname, '../../../../plugins/process/docs/examples/procurement-workspace.card.yaml'),
+      'utf8'
+    )
+  )
+  const model = new Map(docs.map((doc) => [doc._id, doc]))
+  const attributes = docs.filter((doc) => doc._class === core.class.Attribute)
+  const transitions = docs.filter((doc) => doc._class === 'process:class:Transition')
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- This JavaScript harness cannot use TypeScript return annotations.
+  function makeRuntime (processId, values, context = {}, related = []) {
+    const definition = model.get(processId)
+    const card = { _id: 'demo-card', _class: definition.masterTag, space: 'cards', ...values }
+    const execution = { card: card._id, process: processId, currentState: null, context }
+    const control = {
+      cache: new Map([[card._id, card]]),
+      client: {
+        txFactory: new TxFactory(core.account.System),
+        getModel: () => ({ findObject: (id) => model.get(id) ?? { _id: id } }),
+        findAll: jest.fn(async (clazz, query) => related.filter(
+          (doc) => doc._class === clazz && query._id.$in.includes(doc._id)
+        )),
+        getHierarchy: () => ({
+          isMixin: () => false,
+          findAttribute: (clazz, key) => {
+            for (let owner = clazz; owner != null; owner = model.get(owner)?.extends) {
+              const attr = attributes.find((attr) => attr.attributeOf === owner && attr.name === key)
+              if (attr !== undefined) return attr
+            }
+            return undefined
+          },
+          getBaseClass: (clazz) => clazz,
+          isDerived: (clazz, parent) => clazz === parent,
+          hasMixin: () => true,
+          as: (doc) => ({ func: doc._id })
+        })
+      }
+    }
+    return { card, execution, control }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- This JavaScript harness cannot use TypeScript return annotations.
+  async function applyActions (runtime, actions) {
+    const { card, execution, control } = runtime
+    for (const action of actions) {
+      const params = await getContextValue(structuredClone(action.params), control, execution)
+      if (action.methodId === 'process:method:SetContext') {
+        const result = await SetContext(params, execution, control, action.results)
+        for (const output of result.results) execution.context[output._id] = output.value
+      } else if (action.methodId === 'process:method:UpdateCard') {
+        const result = await UpdateCard(params, execution, control)
+        for (const tx of result.txes) Object.assign(card, tx.operations)
+      } else {
+        throw new Error(`Unsupported action in value-evaluation harness: ${action.methodId}`)
+      }
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- This JavaScript harness cannot use TypeScript return annotations.
+  function matchingBranch (runtime, state) {
+    return transitions.find((transition) =>
+      transition.process === runtime.execution.process &&
+      transition.from === state &&
+      MatchCardCheck(runtime.control, runtime.execution, transition.triggerParams, { card: runtime.card })
+    )
+  }
+
+  test.each([
+    [2, 499.5, 'USD', 'Approved', 999],
+    [2, 500, 'USD', 'Approved', 1000],
+    [2, 500.5, 'USD', 'Awaiting approval', 1001],
+    [1, 0, 'USD', 'Approved', 0],
+    [0, 500, 'USD', 'Invalid quote', undefined],
+    [-1, 500, 'USD', 'Invalid quote', undefined],
+    [2, -1, 'USD', 'Invalid quote', undefined],
+    [2, 500, 'EUR', 'Invalid quote', undefined]
+  ])('quote %p × %p %s produces %s', async (quantity, price, currency, status, amount) => {
+    const runtime = makeRuntime(
+      'pc_purchase_review',
+      { currency, products: ['product-a', 'product-b'] },
+      { pc_quote_quantity: quantity, pc_quote_unit_price: price }
+    )
+    await applyActions(runtime, model.get('pc_purchase_quote_received').actions)
+    const validation = matchingBranch(runtime, 'pc_purchase_validate_quote')
+    expect(validation).toBeDefined()
+    await applyActions(runtime, validation.actions)
+    if (validation.to === 'pc_purchase_check_budget') {
+      const budget = matchingBranch(runtime, validation.to)
+      // Creating task/approval documents is exercised manually in the walkthrough.
+      await applyActions(runtime, budget.actions.slice(0, 1))
+      expect(runtime.card.approval_required).toBe(amount > 1000)
+      expect(runtime.card.product_count).toBe(2)
+      expect(runtime.execution.context.pc_quote_amount).toBe(amount)
+    }
+    expect(runtime.card.amount).toBe(amount)
+    expect(runtime.card.status).toBe(status)
+  })
+
+  test.each([true, false])('inspection preserves the boolean %p and takes its own branch', async (passed) => {
+    const runtime = makeRuntime('pc_delivery_inspection', {}, {
+      pc_inspected_quantity: 2, pc_inspection_passed: passed
+    })
+    await applyActions(runtime, model.get('pc_delivery_inspection_received').actions)
+    const decision = matchingBranch(runtime, 'pc_delivery_classify_inspection')
+    await applyActions(runtime, decision.actions)
+    expect(runtime.card.accepted_quantity).toBe(2)
+    expect(runtime.card.inspection_passed).toBe(passed)
+    expect(runtime.card.status).toBe(passed ? 'Accepted' : 'Rejected')
+  })
+
+  test.each(['Approved', 'Draft', 'Rejected', 'Invalid quote'])(
+    'invoice snapshots the referenced %s request before choosing its branch',
+    async (status) => {
+      const request = {
+        _id: 'request-1', _class: 'pc_request', title: 'Laptop purchase', status, supplier: 'supplier-1'
+      }
+      const runtime = makeRuntime('pc_invoice_approval', { purchase_request: request._id }, {}, [request])
+      await applyActions(runtime, model.get('pc_invoice_start').actions)
+      expect(runtime.card).toEqual(expect.objectContaining({
+        request_title: request.title, request_status: status, supplier: request.supplier
+      }))
+      expect(runtime.control.client.findAll).toHaveBeenCalledWith('pc_request', { _id: { $in: [request._id] } })
+      const decision = matchingBranch(runtime, 'pc_invoice_check_request')
+      expect(decision.to).toBe(status === 'Approved' ? 'pc_invoice_waiting_approval' : 'pc_invoice_blocked')
+      await applyActions(runtime, decision.actions.slice(0, 1))
+      expect(runtime.card.status).toBe(status === 'Approved' ? 'Awaiting approval' : 'Blocked')
+    }
+  )
+})

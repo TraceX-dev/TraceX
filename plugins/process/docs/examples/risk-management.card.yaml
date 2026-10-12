@@ -18,6 +18,35 @@ cardTypes:
     extends: card:class:Card
     kind: 0
     icon: card:icon:MasterTag
+    fields:
+      probability:
+        name: probability
+        label: Probability
+        type: {enum: risk_scale}
+        isCustom: true
+        required: true
+        defaultValue: '1'
+      severity:
+        name: severity
+        label: Severity
+        type: {enum: risk_scale}
+        isCustom: true
+        required: true
+        defaultValue: '1'
+      score:
+        name: score
+        label: Risk score
+        type: number
+        isCustom: true
+        readonly: true
+        automationOnly: true
+      level:
+        name: level
+        label: Risk level
+        type: {enum: risk_levels}
+        isCustom: true
+        readonly: true
+        automationOnly: true
 enums:
   risk_scale:
     name: Risk scale 1–5
@@ -25,39 +54,6 @@ enums:
   risk_levels:
     name: Risk level
     enumValues: [Insignificant, Moderate, Critical]
-fields:
-  probability:
-    attributeOf: risk_management
-    name: probability
-    label: Probability
-    type: {enum: risk_scale}
-    isCustom: true
-    required: true
-    defaultValue: '1'
-  severity:
-    attributeOf: risk_management
-    name: severity
-    label: Severity
-    type: {enum: risk_scale}
-    isCustom: true
-    required: true
-    defaultValue: '1'
-  score:
-    attributeOf: risk_management
-    name: score
-    label: Risk score
-    type: number
-    isCustom: true
-    readonly: true
-    automationOnly: true
-  level:
-    attributeOf: risk_management
-    name: level
-    label: Risk level
-    type: {enum: risk_levels}
-    isCustom: true
-    readonly: true
-    automationOnly: true
 processes:
   risk_assessment:
     label: Risk assessment
