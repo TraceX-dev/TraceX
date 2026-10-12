@@ -22,18 +22,23 @@ import { denormalizeIds, exportProcess, exportProcessDraft, exportProcessSource,
 
 jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
 
-const source = `version: 1
+const source = `version: 2
 kind: process
-process:
-  label: Update status
-  slots:
-    status: {kind: attribute, label: Status, type: string}
-  start:
-    to: done
-    actions:
-      - update: {status: Done}
-  states:
-    done: {}
+processes:
+  update_status:
+    label: Update status
+    slots:
+      status: {label: Status, type: string}
+    start:
+      begin:
+        to: done
+        on: OnExecutionStart
+        actions:
+          mark_done:
+            method: UpdateCard
+            params: {$slots.status: Done}
+    states:
+      done: {}
 `
 
 function setup (): {
@@ -48,6 +53,10 @@ function setup (): {
     status: 's'
   })
   const proc = docs.find((doc) => doc._class === 'process:class:Process') as Process
+  const registry = [
+    { _id: 'process:method:UpdateCard', _class: 'process:class:Method', objectClass: 'card:class:Card' },
+    { _id: 'process:trigger:OnExecutionStart', _class: 'process:class:Trigger' }
+  ]
   proc.rank = 'original-rank'
   proc.automationOnly = true
   const createDoc = jest.fn().mockResolvedValue(undefined)
@@ -69,9 +78,9 @@ function setup (): {
       isDerived: () => false
     }),
     getModel: () => ({
-      findObject: (id: string) => docs.find((doc) => doc._id === id),
+      findObject: (id: string) => docs.find((doc) => doc._id === id) ?? registry.find((doc) => doc._id === id),
       findAllSync: (_class: string, query: Record<string, unknown>) =>
-        docs.filter(
+        [...docs, ...registry].filter(
           (doc) =>
             doc._class === _class &&
             Object.entries(query).every(([key, value]) => (doc as unknown as Record<string, unknown>)[key] === value)
@@ -86,10 +95,10 @@ describe('YAML export and saving an existing process', () => {
   it('exports short stored field keys into typed slots and prefills their bindings', () => {
     const { proc } = setup()
     const draft = exportProcessDraft(proc)
-    expect(draft.bindings).toEqual({ status: 's' })
+    expect(draft.bindings).toEqual({ slot_status: 's' })
     const compiled = compileProcessYaml(draft.source)
     expect(compiled.docs.find((doc) => doc.from === null)?.actions).toEqual([
-      expect.objectContaining({ params: { __SLOT_status__: 'Done' } })
+      expect.objectContaining({ params: { __SLOT_slot_status__: 'Done' } })
     ])
     expect(exportProcessSource(proc, 'yaml')).toBe(draft.source)
   })
@@ -131,7 +140,7 @@ describe('YAML export and saving an existing process', () => {
     ['invalid syntax', 'version: [', { status: 's' }],
     ['missing binding', source, {}],
     ['wrong destination field', source, { status: 'missing' }],
-    ['wrong kind', 'version: 1\nkind: card\ncard: {key: empty, label: Empty, fields: {}}', {}]
+    ['wrong kind', 'version: 2\nkind: card\ncardTypes: {empty: {label: Empty, extends: card:class:Card, kind: 0}}', {}]
   ])('rejects %s before any write', async (_, draft, bindings) => {
     const { proc, createDoc, updateDoc, removeDoc, commit } = setup()
     await expect(updateProcessYaml(proc, draft, bindings as Record<string, string>)).rejects.toThrow()

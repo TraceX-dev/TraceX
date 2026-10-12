@@ -14,6 +14,7 @@
 //
 
 import { makeRank } from '@hcengineering/rank'
+import { getEmbeddedLabel } from '@hcengineering/platform'
 import type { ModelDb } from '@hcengineering/core'
 import type { AuthoringNativeDocument } from './authoring'
 import { fail, object, text } from './authoring-validation'
@@ -50,6 +51,36 @@ const STATE = 'process:class:State'
 const TRANSITION = 'process:class:Transition'
 const MODEL_SPACE = 'core:space:Model'
 const RANKED = new Set([PROCESS, STATE, TRANSITION, SECTIONS.fields, SECTIONS.cardTypes, SECTIONS.tags])
+const LOCALIZED_LABEL_CLASSES = new Set([
+  SECTIONS.cardTypes,
+  SECTIONS.tags,
+  SECTIONS.fields,
+  SECTIONS.permissions,
+  SECTIONS.attributePermissions
+])
+const EMBEDDED_LABEL_PREFIX = 'embedded:embedded:'
+
+/** Exposes embedded labels as text while preserving native resource identities and escapes. */
+function localizedLabel (data: Record<string, unknown>, decode: boolean, source?: Record<string, unknown>): void {
+  const label = data.label
+  if (typeof label !== 'string') return
+  const isIdentity = (value: string): boolean => /^[^:\s]+:[^:\s]+:/.test(value)
+  if (decode) {
+    if (
+      source?.label === undefined &&
+      Object.prototype.hasOwnProperty.call(object(source?.native ?? {}, 'native'), 'label')
+    ) return
+    if (!isIdentity(label)) data.label = getEmbeddedLabel(label)
+  } else if (label.startsWith(EMBEDDED_LABEL_PREFIX)) {
+    const plain = label.slice(EMBEDDED_LABEL_PREFIX.length)
+    // Keep an explicit embedded identity when the text itself resembles a resource id.
+    if (!isIdentity(plain)) data.label = plain
+  } else if (!isIdentity(label)) {
+    // An old unqualified native value must round-trip without being normalized as authored text.
+    data.native = { ...object(data.native ?? {}, 'native'), label }
+    delete data.label
+  }
+}
 
 /** Returns the authoring block path for a compiled native document. */
 export function authoringLayoutPath (doc: AuthoringNativeDocument): string {
@@ -112,7 +143,14 @@ function ordered (docs: readonly AuthoringNativeDocument[]): AuthoringNativeDocu
   )
 }
 
-function documentMetadata (data: Record<string, unknown>, decode: boolean, clazz: string, path = clazz): void {
+function documentMetadata (
+  data: Record<string, unknown>,
+  decode: boolean,
+  clazz: string,
+  path = clazz,
+  source?: Record<string, unknown>
+): void {
+  if (LOCALIZED_LABEL_CLASSES.has(clazz)) localizedLabel(data, decode, source)
   const type = (value: unknown, at: string): unknown => {
     const candidate = decode ? value : encodeAuthoringType(value)
     const short =
@@ -131,6 +169,7 @@ function documentMetadata (data: Record<string, unknown>, decode: boolean, clazz
           const original = object(value, key)
           if (original.type !== undefined) entry.type = type(original.type, `${path}.${key}.${name}.type`)
           if (key === (decode ? 'requiredSlots' : 'slots')) {
+            localizedLabel(entry, decode, original)
             if (decode) {
               if (entry.slotKind === undefined && entry.type !== undefined) entry.slotKind = 'attribute'
               if (entry.slotKind === 'attribute') entry._class ??= 'core:class:Attribute'
@@ -335,8 +374,9 @@ export function decodeAuthoringLayout (root: Record<string, unknown>, model?: Mo
     aliases: Record<string, string> = {},
     clazz: string = ''
   ): Record<string, unknown> => {
-    const data = rename(object(value, path), aliases, true)
-    documentMetadata(data, true, clazz, path)
+    const source = object(value, path)
+    const data = rename(source, aliases, true)
+    documentMetadata(data, true, clazz, path, source)
     return data
   }
   for (const [section, clazz] of Object.entries(SECTIONS)) {

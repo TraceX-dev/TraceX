@@ -27,7 +27,7 @@ function run (args) {
   return spawnSync(process.execPath, [CLI, ...args], { cwd: PACKAGE_DIR, encoding: 'utf8' })
 }
 
-test('validates both YAML versions and packaging modes in one invocation', () => {
+test('validates the single YAML format in both packaging modes in one invocation', () => {
   const result = run([
     'docs/examples/risk-management.card.yaml',
     'docs/examples/review-task.process.yaml',

@@ -21,7 +21,7 @@ This is the first reference for agents creating or explaining card types and pro
 ## Start here
 
 1. Define persistent card fields, temporary results, waiting states and data dependencies before writing the graph.
-2. Use v1 for concise card fields, numeric-choice calculations and the small review-task pattern. Use v2 for general actions, typed results, function composition and the complete model. Both forms compile to the same engine; they are not different execution systems.
+2. Use the single named-block YAML format (`version: 2`) for fields, graphs, typed results and expressions. It compiles to the existing native model and execution engine.
 3. For a standalone process, declare existing destination fields/entities as slots. `$slots.field` is its identity; `$card.field` reads its value. For an embedded process, specify `masterTag`, declare local fields, and use their stored names directly. Embedded module import has no standalone slot-binding dialog.
 4. Publish object/group outputs with `as`; declare typed task or computation values in `results`; read either with `$context.name`. Use `expr` for transformations. Split the graph into small named states with deliberate branch/action order.
 5. Check operation parameters in this guide and the workspace's exported catalog. The installed model is authoritative. Do not infer optional parameters, type constraints, task result aggregation or behavior from operation names.
@@ -29,8 +29,8 @@ This is the first reference for agents creating or explaining card types and pro
 
 | Worked definition | Purpose |
 | --- | --- |
-| [`risk-management.card.yaml`](./examples/risk-management.card.yaml) | Concise card fields, five numeric choices, multiplication and three risk levels |
-| [`review-task.process.yaml`](./examples/review-task.process.yaml) | Concise standalone slots, task group and completion wait |
+| [`risk-management.card.yaml`](./examples/risk-management.card.yaml) | Named card fields, five numeric choices, multiplication and three risk levels |
+| [`review-task.process.yaml`](./examples/review-task.process.yaml) | Standalone slots, task group and completion wait |
 | [`approval.process.yaml`](./examples/approval.process.yaml) | General approval, locks, object outputs and named references |
 | [`estimate-review.process.yaml`](./examples/estimate-review.process.yaml) | Typed task results, calculation pipeline, card writes and branching |
 | [`purchase-approval.process.yaml`](./examples/purchase-approval.process.yaml) | Purchase estimate inputs, amount calculation and approval above a budget limit |
@@ -51,7 +51,7 @@ Or from `plugins/process`:
 rushx validate:yaml docs/examples/purchase-approval.process.yaml
 ```
 
-Pass several file paths to check them together. Both YAML versions and both packaging modes are supported; the root `kind` selects the mode. Paths are relative to the current directory. `--help` prints usage. A valid file prints `<file>: valid YAML definition (offline)`. Invalid files report the authored property path and line/column when available. Exit codes are `0` when every file is valid, `1` for invalid or unreadable files, and `2` for command usage or compiler setup errors. Checking continues after an invalid file.
+Pass several file paths to check them together. The single YAML format supports both packaging modes; the root `kind` selects the mode. Paths are relative to the current directory. `--help` prints usage. A valid file prints `<file>: valid YAML definition (offline)`. Invalid files report the authored property path and line/column when available. Exit codes are `0` when every file is valid, `1` for invalid or unreadable files, and `2` for command usage or compiler setup errors. Checking continues after an invalid file.
 
 The command calls the existing `validateProcessYaml` compiler API with the file's offline catalog. It checks the DSL and compiler semantics described under [Validation boundaries](#validation-boundaries), including graph references, typed results, function roles and catalog-declared required parameters. It does not connect to a workspace or write definitions. Installed operation availability, destination field bindings and runtime behavior still require UI validation and manual execution.
 
@@ -61,11 +61,11 @@ Prerequisites are installed repository dependencies (`rush install`, or `rush up
 
 **Decision: use YAML as the authoring DSL for card types and processes.** Use declarative YAML for fields, settings, graph structure, and typed slots, with a limited expression language for calculations and conditions. Compile it to the existing native document model and execution engine. Identifiers, stored field keys, LexoRank values, and context definitions should be generated or resolved by the compiler rather than manually maintained in ordinary authoring files.
 
-Both YAML versions are implemented in `@hcengineering/process`: `compileProcessYaml(source)` generates native documents, and `parseProcessImport(source, kind)` accepts either version or existing native JSON arrays. Both existing UI import flows accept `.yaml`, `.yml`, and `.json`. Export uses concise v1 when it can represent the complete definition; otherwise it uses the full model v2. This choice preserves every operation and property instead of dropping unsupported data or failing on a new feature.
+The single YAML format is implemented in `@hcengineering/process`: `compileProcessYaml(source)` generates native documents, and `parseProcessImport(source, kind)` accepts this format or existing native JSON arrays. Both UI import flows accept `.yaml`, `.yml`, and `.json`. YAML export always uses the same named-block representation and retains every native operation and property. Only `version: 2` is accepted; the removed `version: 1` syntax is rejected with a version diagnostic.
 
-### Complete DSL: version 2
+### YAML contract
 
-Use v1 for the concise field/calculation/task patterns below. Use v2 for the rest of the native model, including approval, locks, subprocesses, relationships, tags, versioning, result collection, all registered functions, arbitrary native queries, field types, permissions, viewlets and dependent types. The native parameter contracts and expression reference in this same guide apply to v2. This is a representation of the existing engine, not an additional execution language.
+Use this format for card fields, calculations, tasks, approval, locks, subprocesses, relationships, tags, versioning, result collection, registered functions, native queries, permissions, viewlets and dependent types. The operation and expression contracts below apply to every YAML definition. This represents the existing engine; declarations cannot add unsupported runtime behavior.
 
 ```yaml
 version: 2
@@ -101,6 +101,8 @@ Use named blocks instead of a list of storage documents. `processes` contains ea
 Built-in method/trigger names expand to `process:method:<name>` and `process:trigger:<name>` without a fixed operation list. Custom operations keep their fully qualified ids. New registered operations and parameters need no new exporter/compiler branches. Model lookup validates referenced methods, triggers and functions before applying; the editor performs that lookup while validating the draft too.
 
 Card modules use the same `processes` grammar plus named `cardTypes`, `tags`, `fields`, `enums`, `views`, `roles`, `relations`, `permissions`, `attributePermissions` and `sequences`. The section implies the document class and each block name is its reference identity. Model space is implicit; a non-model `space` remains explicit. New document classes use `documents: {"plugin:class:NewClass": {named_document: {...}}}`. All additional model properties are retained. If an extension property collides with a DSL name (for example a native process property named `states`), the exporter places it under `native` on that block. This escape is for extension data, not ordinary process authoring. Earlier v2 `model` document lists remain importable but are no longer exported.
+
+Write ordinary localized display labels as text: `label: Estimator`. In v2, slot labels and the labels of card types, tags, fields and permissions are converted to native `embedded:embedded:Estimator` on import and shortened back to text on export. Existing resource ids such as `plugin:string:Label` and explicit embedded ids remain valid. Embedded text that itself resembles a resource id retains its explicit prefix to avoid ambiguity. Native escapes and earlier `model` lists preserve their exact values. Process/state names and action output/result labels are ordinary strings and are not converted.
 
 #### Named outputs and references
 
@@ -249,115 +251,70 @@ Identity behavior is explicit:
 
 | Mode | Owns | Dependencies and native output |
 | --- | --- | --- |
-| Card module | Card type, its fields/enums, and named embedded processes | References resolve against the module's declared fields. Field calculations generate an additional process that starts automatically. Produces a native card module with concrete ids. |
-| Standalone process template | A reusable process graph or calculations and typed attribute slots | The destination card type and fields already exist. Supply all field bindings through the existing import dialog. Produces a portable native process export with `requiredSlots` and placeholders. Class, association, and process slots are outside v1. |
+| Card module | Card types, fields/enums and named embedded processes | Declare model sections and give each process its owning `masterTag`. Field calculations are explicit process actions; field metadata does not generate a process. Produces a complete native module with the declared identities. |
+| Standalone process template | A reusable process graph and typed slots | Destination card types, fields and other model entities already exist. Supply every slot binding through the import dialog. Produces native process documents with `requiredSlots` and slot placeholders. |
 
-Both modes must share one process definition grammar and the same operation and expression semantics. Embedding a process in a card should provide its field bindings, not introduce a separate process language. A standalone template must not secretly create or depend on an undeclared card type or field.
+Both modes use the same named process/state/transition/action grammar and expression semantics. A standalone template does not create destination fields.
 
-Minimal executable card module:
+Minimal card module:
 
 ```yaml
-version: 1
+version: 2
 kind: card
-card:
-  key: risk
-  label: Risk management
-  fields:
-    probability:
-      choice: [1, 2, 3, 4, 5]
-      default: 1
-      required: true
-    score:
-      type: number
-      calculate: number(probability) * 5
+cardTypes:
+  example_card:
+    label: Example card
+    extends: card:class:Card
+    kind: 0
+    icon: card:icon:MasterTag
+fields:
+  summary:
+    attributeOf: example_card
+    name: summary
+    label: Summary
+    type: string
+    isCustom: true
 ```
 
-Minimal executable standalone template:
+Minimal standalone process:
 
 ```yaml
-version: 1
+version: 2
 kind: process
-process:
-  key: mark-reviewed
-  label: Mark reviewed
-  slots:
-    status:
-      kind: attribute
-      type: string
-  start:
-    to: reviewed
-    actions:
-      - update:
-          status: Reviewed
-  states:
-    reviewed: {}
+processes:
+  mark_reviewed:
+    label: Mark reviewed
+    slots:
+      status:
+        label: Status
+        type: string
+    start:
+      begin:
+        to: reviewed
+        on: OnExecutionStart
+        actions:
+          set_status:
+            method: UpdateCard
+            params: {$slots.status: Reviewed}
+    states:
+      reviewed:
+        label: Reviewed
 ```
 
-Symbolic keys identify fields, states, task contexts, and slots within the authoring document. Display labels are separate. Field/slot keys use letters, digits, and underscores and start with a letter; other symbolic keys may also contain hyphens. Attribute bindings resolve to `Attribute.name`, not its document id. The importer checks actual destination field types; choice slots require the same choice set, regardless of enum id or order. Each slot must bind to a different field, so an output cannot unexpectedly overwrite an input through another slot. Missing, incompatible, or duplicate bindings are explicit errors.
+The root contains `version: 2`, `kind: card | process` and the named sections. Block names identify definitions; display labels are separate. YAML tags creating non-JSON objects, multiple documents, cyclic aliases and excessively deep nesting are rejected. Files are limited to 1 MiB. Native extension properties remain supported, so structural validation is not a universal typo checker for native model fields.
 
-The implemented pipeline is independent `js-yaml` parsing, property/value checks, semantic validation, and native document generation. V1 imports create fresh native ids; `card.key` and `process.key` are authoring names, not update identities. Standalone v2 imports also generate fresh graph/action/result ids. V2 card module file imports retain their document identities like JSON; the editor's Create new action clones the module with fresh identities and consistent field references. The process editor also offers Save current process: its selected process id, owner, and rank are preserved while states, transitions, actions, and task contexts are replaced. Native JSON imports retain their existing identity/update behavior.
+Attribute slots bind to actual `Attribute.name` values, not attribute document ids. Entity slots bind to model ids. The importer checks destination types, owners and enum values. Slots may intentionally share a destination field. Missing or incompatible bindings are errors.
 
-### Implemented v1 contract
-
-The root contains `version: 1`, `kind: card | process`, and the matching `card` or `process` object. Unknown properties are errors. YAML tags that create non-JSON objects, multiple documents, cyclic aliases, and excessively deep nesting are rejected. Files are limited to 1 MiB.
-
-For `card`, require `key`, `label`, and a `fields` mapping (which may be empty); optionally supply `description`, `icon`, `color`, `background`, and `processes`, a mapping from process names to definitions. Embedded processes reference the card's fields directly and cannot declare slots.
-
-Field definitions have the following properties:
-
-| Property | Supported values and behavior |
-| --- | --- |
-| `label` | Optional display text; defaults to the symbolic key. |
-| `type` | `string`, `number`, or `employee`. Use `choice` instead of `type` for an enum. |
-| `choice` | Nonempty unique array of strings or finite numbers. Native enum values are strings; numeric defaults and updates are converted accordingly. Raw `${...}` context syntax is rejected in choice values. |
-| `enumKey`, `enumName` | Card choices only: optional shared enum key and display name. Fields sharing a key must declare identical values and names. |
-| `multiple` | Boolean, default `false`; only employee fields may be arrays in v1. |
-| `default` | Card fields only: a string, finite number, or declared choice matching the field type. Employee defaults are unsupported. |
-| `required` | Card fields only: boolean, default `false`. |
-| `readonly` | Card fields only: boolean, default `false` unless calculated. Generates both `readonly` and `automationOnly`. |
-| `calculate` | Card fields only: an expression or conditional cases. Calculated fields must be scalar and readonly, and cannot have defaults. |
-
-A standalone process requires a `slots` mapping; use `slots: {}` when no fields are referenced. Each slot requires `kind: attribute` and uses `label`, `type` or `choice`, and optional `multiple` from the table. Slots describe existing field types; they cannot declare defaults, required/readonly settings, or field calculations. Configure editing restrictions on the destination fields themselves.
-
-Both embedded and standalone v1 processes accept `label` (required), optional `key`, `description`, `autoStart` (default `false`), and `showInHeader` (default `true`). `parallelExecutionForbidden` defaults to `true`; set it explicitly to preserve other execution settings. Optional `automationOnly` is a boolean. Choose exactly one form:
-
-- **Calculations:** `calculations` maps output field/slot keys to expressions or cases. Include all input and output fields in the card or slots. Do not also declare `start` or `states`.
-- **Explicit graph:** `start: {to, actions?}` and nonempty `states`. Each state accepts optional `label` and `transitions`; each transition requires `on`, `to`, and optional `actions`. A state with no outgoing transitions finishes the execution. Actions execute in list order.
-
-In card modules, field-level `calculate` declarations automatically create the `Recalculate fields` process with `autoStart: true`. Explicit named processes are additional processes; they do not replace the generated calculations.
-
-#### Calculations and conditions
-
-Supported expressions are a scalar field reference, a decimal numeric literal, `number(field)`, and multiplication with `*`, for example `number(probability) * number(severity)`. Expressions are compiled to native transforms without evaluating JavaScript. Output and expression types must match. Copying a choice field requires output choices that cover every input choice.
-
-`number()` accepts number fields and choices whose values are finite decimal numeric strings. It does not map descriptive enum labels to scores or parse arbitrary string fields. Addition, division, parentheses, scripts, function calls other than `number()`, and raw `${...}` expressions are unsupported in v1. Native expression operands must remain decimal when serialized by JavaScript; values that turn into exponent notation (for example `0.0000001` or `1000000000000000000000`) are rejected because the native decoder would otherwise change their type. This restriction applies to encoded expression operands, not ordinary numeric field values or literal updates.
-
-Conditional calculations use ordered `cases`, each with `when` and literal `value`, plus required `otherwise`. Conditions compare one number field to a decimal number with `>`, `<`, `>=`, `<=`, or `==`. The first matching case wins. The risk example uses `score > 16`, then `score < 9`, then `otherwise: Moderate`, so both 9 and 16 are Moderate.
-
-Dependencies are sorted before graph generation; unknown fields and dependency cycles are errors. At least one external input is required. The generated process validates inputs, calculates outputs in order, and waits for input changes. Changes to calculated fields do not start another pass. Missing/null inputs or undeclared input choices pause calculation until valid values are present; existing outputs retain their last computed values during that pause.
-
-#### Explicit triggers and actions
-
-| YAML | Native behavior |
-| --- | --- |
-| `on: {changed: probability}` | `WhenFieldChanges` for the declared field/slot. |
-| `on: {matches: "score > 16"}` | Automatic `OnCardUpdate` card predicate. This can execute immediately on entering a state whose predicate already matches. |
-| `on: {matches: {score: {gte: 9, lte: 16}}}` | A conjunction of typed field predicates. Supported operators: `exists` (boolean), `ne`, `in` (array), and numeric `gt`, `gte`, `lt`, `lte`. A scalar value is equality; `null` is allowed. Employee fields support presence/null checks. `matches: {}` is unconditional. |
-| `on: {tasksCompleted: review-tasks}` | `OnToDoClose` waiting for the task group published by the named task action. |
-| `- update: {status: Reviewed}` | `UpdateCard` with nonempty literal updates validated against declared fields. A value can also be `{calculate: "number(probability) * number(severity)"}`; this preserves the original action boundary and update order. |
-| `- task: {key: review-tasks, title: Review card, users: reviewers, completion: all, rollback: true}` | `CreateToDo` publishing a named task group context. `users` references an employee field/slot, scalar or array. `completion` must explicitly be `all` or `any`; `rollback` must explicitly be boolean. |
-
-Task titles are literal text. Optional `contextLabel` preserves a task group context name distinct from the task title. Declare a task producer before its consumers in the file: start actions are compiled first, then states and their transitions in mapping/list order. The producer must execute on every path reaching a task completion transition. Unknown destinations, unreachable states, and cycles consisting only of automatic match transitions are rejected. Do not encode event-driven waiting as an automatic cycle.
-
-Other native operations described later in this guide are not automatically supported by YAML v1. Unknown operations are errors; extending the compiler requires an explicit, verified contract.
+Standalone imports generate fresh graph/action/result/context identities. Card module file imports retain their declared native identities, like JSON. The card editor's Create new action clones the module with fresh identities and consistent references. Save current process retains the selected process id, owner and rank and replaces its graph; active executions are not migrated.
 
 ### Examples and manual import
 
-- [`risk-management.card.yaml`](./examples/risk-management.card.yaml): full risk card, probability/severity choices 1–5, numeric product, and three risk levels. In card type settings, use the existing module import and select this YAML file. Create a card of the imported type; check 5×5 → Critical, 3×3 → Moderate, 1×5 → Insignificant, and change both inputs to verify recalculation.
-- [`review-task.process.yaml`](./examples/review-task.process.yaml): standalone review process. On an existing card type, use the process section's import, select the YAML file, and bind Reviewers to an employee array field and Status to a string field. Supply reviewers on a card, start the process, and complete all review tasks; status changes from Under review to Reviewed.
-- For a standalone risk calculator, move the card's calculation declarations to `process.calculations`, declare all four fields as typed attribute slots, and omit card-only settings. Bind inputs and outputs to existing fields during import. Set `autoStart: true` if this process should start automatically.
+- [`risk-management.card.yaml`](./examples/risk-management.card.yaml): risk card fields, shared scale/level enums and an explicit automatic assessment process. Import the module, create a card, check 5×5 → Critical, 3×3 → Moderate and 1×5 → Insignificant, then change either input to verify recalculation.
+- [`review-task.process.yaml`](./examples/review-task.process.yaml): standalone review. Bind Reviewers to an employee-array field and Status to a string field. Start on a card with reviewers and finish all tasks; status changes from Under review to Reviewed.
+- [`purchase-approval.process.yaml`](./examples/purchase-approval.process.yaml): task inputs, amount calculation and conditional approval. Bind its four slots and check the exact budget boundary and both approval outcomes.
+- For a standalone risk calculator, keep the same graph, declare its four fields as typed slots, and replace field selectors with `$slots.name` and value reads with `$card.name`. Keep enum dependencies and their actual choice sets explicit; use exported field bindings rather than guessing workspace identities.
 
-Keep the native JSON examples below for inspecting generated model shapes and exchanging updates to existing definitions. YAML and Unified Format workspace imports are separate formats.
+Native JSON examples below document generated model shapes and existing import behavior. YAML authoring and Unified Format workspace imports remain separate formats.
 
 ### Export and UI editor usage
 
@@ -365,12 +322,12 @@ Keep the native JSON examples below for inspecting generated model shapes and ex
 - **Processes:** The export menu offers JSON with slots, JSON without slots, and YAML DSL. The process section's YAML editor button starts a new standalone draft. The button in an existing process opens its supported definition with detected field bindings.
 - **Editing:** The dialog uses a monospace text area with two-space Tab insertion. It validates YAML syntax and the complete DSL contract on each change. Parser errors include line/column; semantic errors identify the property path and the location of its nearest authored block. Invalid drafts cannot be applied, but can be downloaded for later editing. Open YAML file replaces the draft.
 - **Applying:** Create new definition routes through the existing card or process import flow. Processes request slot bindings. Save current process is available when opened from a process; it updates that process and replaces its graph in one apply operation. The slot dialog prefills previously detected bindings; changed slots can be rebound. Cancelling it keeps the draft open. Saving does not inspect or migrate active executions.
-- **Coverage:** YAML export uses concise v1 for its documented field types, updates/calculations, tasks and triggers. Other operations, contexts, metadata, permissions, relations, inheritance, dependent types and localized labels are retained in full model v2. Standalone full exports include readable graph identities, typed entity slots and the installed operation catalog. The editor validates either version. Nothing is silently omitted.
+- **Coverage:** Every YAML export uses the same named-block format for operations, contexts, metadata, permissions, relations, inheritance, dependent types and localized labels. Standalone exports include readable graph identities, typed entity slots and the installed operation catalog. The editor validates this single format.
 
 Manual verification:
 
-1. Export a supported risk module and review process in both formats; verify extensions and that old JSON imports still work.
-2. Open the YAML editor, introduce broken indentation or an unknown property/field, and check the visible diagnostic and disabled apply buttons. Fix it, download the draft, reopen it, and import it with field bindings.
+1. Export a risk module and review process as JSON and YAML; verify extensions, the single named-block YAML grammar and existing JSON imports. A removed version 1 YAML file must report an unsupported version.
+2. Open the YAML editor, introduce broken indentation or an unknown slot/output reference, and check the visible diagnostic and disabled apply buttons. Fix it, download the draft, reopen it, and import it with field bindings.
 3. Open an existing review process, change its label and task title, and save the current process. Verify the process id stays the same, the new graph is shown, and obsolete states/transitions are gone. Then create a new definition from the same editor and verify it appears as a separate process.
 4. Run newly saved/imported review and risk processes on cards. For risk, check 5×5 → Critical, 3×3 and 4×4 → Moderate, 1×5 → Insignificant, and recalculation after changing either input.
 5. Export an approval process or a module with permissions/relations as YAML; verify it uses `version: 2`, retains every native operation/property, and includes the catalog. Open the process in the YAML editor, change a task title, save it and verify its id remains unchanged. Bind every dependency when importing a new process. Change a method id to one absent from the installed model and check that the editor reports the missing operation and blocks apply.
@@ -378,7 +335,7 @@ Manual verification:
 
 ### Existing YAML support and reuse
 
-The repository already has a Unified Format YAML importer. V1 reuses `js-yaml` independently; it keeps its own strict contract and does not apply Unified Format variable substitution. These references record the comparison:
+The repository already has a Unified Format YAML importer. Process authoring reuses `js-yaml` independently and does not apply Unified Format variable substitution. These references record the comparison:
 
 | Existing implementation | Confirmed behavior |
 | --- | --- |
@@ -795,7 +752,7 @@ Paths below are relative to the repository root. Keep this guide aligned with ch
 | What is a card type, tag, or card? | `plugins/card/src/index.ts` |
 | How are types and custom fields created? | `plugins/card-resources/src/components/CreateTag.svelte`, `plugins/setting-resources/src/components/CreateAttribute.svelte` |
 | What are the process document types? | `plugins/process/src/index.ts`, `plugins/process/src/types.ts` |
-| What is the supported YAML grammar and how is it compiled? | `plugins/process/src/authoring.ts`, `plugins/process/src/authoring-expressions.ts`, `plugins/process/src/authoring-validation.ts` |
+| What is the supported YAML grammar and how is it compiled? | `plugins/process/src/authoring.ts`, `plugins/process/src/authoring-layout.ts`, `plugins/process/src/authoring-pipelines.ts`, `plugins/process/src/authoring-validation.ts` |
 | How are YAML risk calculations checked against native execution? | `server-plugins/process-resources/src/__tests__/yaml-authoring.test.js` |
 | Which actions exist and which parameters are required? | `models/process/src/actions.ts` |
 | Which triggers exist and which are checked automatically? | `models/process/src/triggers.ts` |

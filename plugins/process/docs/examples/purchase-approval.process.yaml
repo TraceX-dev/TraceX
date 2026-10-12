@@ -29,16 +29,16 @@ processes:
     parallelExecutionForbidden: true
     slots:
       estimator:
-        label: embedded:embedded:Estimator
+        label: Estimator
         type: {ref: contact.mixin.Employee}
       approvers:
-        label: embedded:embedded:Approvers
+        label: Approvers
         type: {array: {ref: contact.mixin.Employee}}
       amount:
-        label: embedded:embedded:Amount
+        label: Amount
         type: number
       status:
-        label: embedded:embedded:Status
+        label: Status
         type: string
     start:
       request_estimate:

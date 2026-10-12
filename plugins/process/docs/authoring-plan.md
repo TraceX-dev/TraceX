@@ -16,6 +16,18 @@
 
 # YAML DSL implementation plan
 
+## Single YAML format consolidation
+
+The supported authoring format is the named-block grammar with `version: 2`. The earlier concise version is removed from compilation, serialization, editor defaults and import binding paths. The plans and verification counts below are historical records, not a promise to maintain two formats.
+
+1. [x] Remove the concise compiler, expression parser and exporter; reject unsupported versions explicitly.
+2. [x] Use the shared named-block model compiler/exporter and generic slot binder for every YAML definition.
+3. [x] Convert risk/review examples and editor starter definitions; update the current authoring reference.
+4. [x] Verify compiler/export round trips, resource imports/saves, starter definitions and native risk execution.
+5. [x] Run affected package validation and report manual UI checks without automatic builds or formatting.
+
+Verification: 150 shared authoring tests, 38 process resource tests, 10 card resource tests, 133 native execution tests and 5 CLI tests passed. Resource and execution tests resolved the shared process package to its current TypeScript source instead of stale build artifacts. Validation passed for all four affected packages; changed source files passed lint, and card resources Svelte checking passed. No builds, formatting or commits were run. Manual verification remains: after the normal development build, open both editor starter definitions, import/export the converted examples, save an edited process, and check that a version 1 YAML file reports the unsupported version.
+
 ## Repository check plan
 
 The user explicitly requested passing `rush validate`, `rush format` and `rush svelte-check` after the DSL changes.

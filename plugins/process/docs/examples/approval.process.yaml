@@ -20,12 +20,12 @@ processes:
     description: Request approval, mark approved cards, and unlock rejected cards.
     slots:
       approvers:
-        label: embedded:embedded:Approvers
+        label: Approvers
         type: {array: {ref: contact.mixin.Employee}}
       approved_tag:
         kind: class
         class: card.Tag
-        label: embedded:embedded:Approved
+        label: Approved
     start:
       start_approval:
         to: waiting_for_approval

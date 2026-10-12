@@ -117,7 +117,7 @@ export function compileAuthoringModel (root: Record<string, unknown>, model?: Mo
       if (action.results !== undefined) list(action.results, `${path}.results`)
     }
   }
-  return { kind: root.kind, docs, fields: {} }
+  return { kind: root.kind, version: 2, docs }
 }
 
 /** Serializes all native data; newly introduced classes, operations and properties are retained. */
