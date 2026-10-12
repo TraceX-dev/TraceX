@@ -49,10 +49,8 @@
     if (!result.valid) return result
     try {
       const compiled = compileProcessYaml(draft, getClient().getModel())
-      if (compiled.version === 2) {
-        const client = getClient()
-        validateAuthoringModelOperations(compiled.docs, client.getModel(), client.getHierarchy())
-      }
+      const client = getClient()
+      validateAuthoringModelOperations(compiled.docs, client.getModel(), client.getHierarchy())
       return result
     } catch (error) {
       return {

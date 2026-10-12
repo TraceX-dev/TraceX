@@ -34,6 +34,6 @@ export function downloadDefinition (source: string, name: string, format: 'json'
 /** Provides a minimal valid starting document for the YAML editor. */
 export function newDefinitionYaml (kind: 'card' | 'process'): string {
   return kind === 'card'
-    ? 'version: 1\nkind: card\ncard:\n  key: new_card\n  label: New card type\n  fields:\n    summary:\n      type: string\n'
-    : 'version: 1\nkind: process\nprocess:\n  key: new_process\n  label: New process\n  slots: {}\n  start:\n    to: done\n  states:\n    done: {}\n'
+    ? 'version: 2\nkind: card\ncardTypes:\n  new_card:\n    label: New card type\n    extends: card:class:Card\n    kind: 0\n    icon: card:icon:MasterTag\nfields:\n  summary:\n    attributeOf: new_card\n    name: summary\n    label: Summary\n    type: string\n    isCustom: true\n'
+    : 'version: 2\nkind: process\nprocesses:\n  new_process:\n    label: New process\n    slots: {}\n    start:\n      begin:\n        to: done\n        on: OnExecutionStart\n    states:\n      done: {}\n'
 }

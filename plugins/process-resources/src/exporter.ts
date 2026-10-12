@@ -31,7 +31,6 @@ import { getClient } from '@hcengineering/presentation'
 import {
   compileProcessYaml,
   exportAuthoringModel,
-  exportProcessYamlDraft,
   getAuthoringCatalog,
   parseProcessImport,
   validateAuthoringModelOperations,
@@ -43,7 +42,6 @@ import {
 } from '@hcengineering/process'
 import { deepEqual } from 'fast-equals'
 import processPlugin from './plugin'
-import { bindYamlProcessDocuments } from './yaml-bindings'
 import {
   bindYamlModelProcess,
   createYamlModelTemplate,
@@ -346,13 +344,11 @@ export function exportProcessDraft (proc: Process): { source: string, bindings: 
     }
   }
   const portable = docs.map((doc) => (doc._id === proc._id ? { ...doc, requiredSlots: slots, bindings } : doc))
-  const draft = exportProcessYamlDraft(portable)
-  if (compileProcessYaml(draft.source).version === 2) {
-    const template = createYamlModelTemplate(portable, model, hierarchy)
-    draft.source = exportAuthoringModel(template.docs, 'process', getAuthoringCatalog(model))
-    draft.bindings = template.bindings
+  const template = createYamlModelTemplate(portable, model, hierarchy)
+  return {
+    source: exportAuthoringModel(template.docs, 'process', getAuthoringCatalog(model)),
+    bindings: template.bindings
   }
-  return draft
 }
 
 /** Replaces a process graph from YAML, preserving the process id, owner and ordering. */
@@ -364,14 +360,11 @@ export async function updateProcessYaml (
   const compiled = compileProcessYaml(source, getClient().getModel())
   if (compiled.kind !== 'process') throw new Error('kind: Expected a standalone process')
   const data = compiled.docs as unknown as Doc[]
-  validateYamlBindings(proc.masterTag, data, bindings, compiled.version !== 2)
+  validateYamlBindings(proc.masterTag, data, bindings)
   const client = getClient()
   const model = client.getModel()
-  if (compiled.version === 2) validateAuthoringModelOperations(compiled.docs, model, client.getHierarchy())
-  const docs =
-    compiled.version === 2
-      ? bindYamlModelProcess(data, proc.masterTag, bindings, model, client.getHierarchy(), proc._id)
-      : bindYamlProcessDocuments(data, proc.masterTag, bindings, proc._id)
+  validateAuthoringModelOperations(compiled.docs, model, client.getHierarchy())
+  const docs = bindYamlModelProcess(data, proc.masterTag, bindings, model, client.getHierarchy(), proc._id)
   const definition = docs.find((doc) => doc._class === processPlugin.class.Process) as Process | undefined
   if (definition === undefined) throw new Error('process: Missing process definition')
   definition.rank = proc.rank
@@ -460,16 +453,14 @@ export async function importProcess (
     )
     if (data.length === 0) return
     const yaml = !json.trimStart().startsWith('[')
-    const fullModel = yaml && compileProcessYaml(json, getClient().getModel()).version === 2
-    if (yaml) validateYamlBindings(masterTag, data, bindings ?? {}, !fullModel)
+    if (yaml) validateYamlBindings(masterTag, data, bindings ?? {})
     const client = getClient()
     const m = client.getModel()
-    if (fullModel)
-      {validateAuthoringModelOperations(data as unknown as AuthoringNativeDocument[], m, client.getHierarchy())}
+    if (yaml) {
+      validateAuthoringModelOperations(data as unknown as AuthoringNativeDocument[], m, client.getHierarchy())
+    }
     const denormalizedData = yaml
-      ? fullModel
-        ? bindYamlModelProcess(data, masterTag, bindings ?? {}, m, client.getHierarchy())
-        : bindYamlProcessDocuments(data, masterTag, bindings ?? {})
+      ? bindYamlModelProcess(data, masterTag, bindings ?? {}, m, client.getHierarchy())
       : denormalizeIds(data, masterTag, bindings ?? {})
     const apply = client.apply('Import process')
     for (const elem of denormalizedData) {
@@ -504,11 +495,9 @@ export async function importProcess (
 function validateYamlBindings (
   masterTag: Ref<MasterTag>,
   data: Doc[],
-  bindings: Record<string, string>,
-  distinctFields: boolean = true
+  bindings: Record<string, string>
 ): void {
   const definition = data.find((doc) => doc._class === processPlugin.class.Process) as Process | undefined
-  const used = new Set<string>()
   for (const [key, requirement] of Object.entries(definition?.requiredSlots ?? {})) {
     const bound = bindings[key]
     if (bound === undefined || bound.trim() === '')
@@ -517,14 +506,6 @@ function validateYamlBindings (
       )}
     if (!isYamlSlotBindingCompatible(masterTag, requirement, bound, bindings, definition, data))
       {throw new Error(`slots.${key}: The binding does not match the declared slot type, owner or choices`)}
-    if (requirement.slotKind !== 'attribute' || !distinctFields) continue
-    const owner =
-      requirement.memberOf === undefined
-        ? masterTag
-        : resolveModelSlotReference(requirement.memberOf, bindings, definition)
-    const identity = `${owner}.${bound}`
-    if (used.has(identity)) throw new Error(`slots.${key}: Different slots must bind to different fields`)
-    used.add(identity)
   }
 }
 

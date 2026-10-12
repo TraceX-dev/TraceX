@@ -308,7 +308,7 @@ describe('full model YAML process editing', () => {
     const source = exportAuthoringModel(fixture(), 'process')
     await importProcess('test-case' as Ref<MasterTag>, source, bindings)
     const created = createDoc.mock.calls.map(([clazz, _space, values, id]) => ({ _id: id, _class: clazz, ...values }))
-    const proc = created.find((doc) => doc._class === process.class.Process)
+    const proc = created.find((doc) => doc._class === process.class.Process) as Process
     const transitions = created.filter((doc) => doc._class === process.class.Transition)
     expect(created).toHaveLength(16)
     expect(proc._id).not.toBe(docs[0]._id)

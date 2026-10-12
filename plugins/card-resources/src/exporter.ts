@@ -29,9 +29,7 @@ import core, {
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
 import {
-  compileProcessYaml,
   exportAuthoringModel,
-  exportProcessYaml,
   getAuthoringCatalog,
   getAuthoringProcessIdentities,
   parseProcessImport,
@@ -50,9 +48,7 @@ export async function importModule (json: string, createNew: boolean = false): P
     const client = getClient()
     const m = client.getModel()
     const h = client.getHierarchy()
-    const fullModel =
-      !json.trimStart().startsWith('[') && compileProcessYaml(json, getClient().getModel()).version === 2
-    if (fullModel) {
+    if (!json.trimStart().startsWith('[')) {
       validateAuthoringModelOperations(data as unknown as AuthoringNativeDocument[], m, h)
       if (createNew) data = cloneModule(data, m, h)
     }
@@ -106,10 +102,7 @@ export async function exportModule (_id: Ref<Class<Doc>>, format: 'json' | 'yaml
   const unique = Array.from(new Map(res.map((d) => [d._id, d])).values())
   const clear = unique.map(strip)
   if (format === 'json') return JSON.stringify(clear)
-  const source = exportProcessYaml(clear, 'card')
-  return compileProcessYaml(source).version === 2
-    ? exportAuthoringModel(clear, 'card', getAuthoringCatalog(getClient().getModel()))
-    : source
+  return exportAuthoringModel(clear, 'card', getAuthoringCatalog(getClient().getModel()))
 }
 
 /** Copies full modules for the editor's Create new action; file imports retain native JSON identity semantics. */

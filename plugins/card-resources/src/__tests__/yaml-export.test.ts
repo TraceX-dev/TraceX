@@ -95,7 +95,9 @@ describe('card module export formats', () => {
     const result = compileProcessYaml(yaml)
     expect(result.kind).toBe('card')
     expect(result.docs).toHaveLength(JSON.parse(json).length)
-    expect(yaml).toContain('number(probability) * number(severity)')
+    expect(result.version).toBe(2)
+    expect(yaml).toContain('cardTypes:')
+    expect(yaml).toContain('Multiply')
   })
 
   it('preserves presentation settings in YAML without mutating the model during JSON export', async () => {

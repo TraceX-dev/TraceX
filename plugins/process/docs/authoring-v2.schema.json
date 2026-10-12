@@ -657,7 +657,8 @@
           "$ref": "#/$defs/type"
         },
         "label": {
-          "type": "string"
+          "type": "string",
+          "description": "Display text is converted to an embedded native label. Explicit resource ids remain unchanged."
         },
         "name": {
           "type": "string"

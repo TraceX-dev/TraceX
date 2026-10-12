@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../authoring-v2.schema.json
 # Copyright © 2026 TraceX SAS.
 # Licensed under the Eclipse Public License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License. You may
@@ -8,34 +9,146 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: 1
+version: 2
 kind: card
-card:
-  key: risk
-  label: Risk management
-  description: Assess risk from probability and severity.
-  fields:
-    probability:
-      label: Probability
-      choice: [1, 2, 3, 4, 5]
-      default: 1
-      required: true
-    severity:
-      label: Severity
-      choice: [1, 2, 3, 4, 5]
-      default: 1
-      required: true
-    score:
-      label: Risk score
-      type: number
-      calculate: number(probability) * number(severity)
-    level:
-      label: Risk level
-      choice: [Insignificant, Moderate, Critical]
-      calculate:
-        cases:
-          - when: score > 16
-            value: Critical
-          - when: score < 9
-            value: Insignificant
-        otherwise: Moderate
+cardTypes:
+  risk_management:
+    label: Risk management
+    description: Assess risk from probability and severity.
+    extends: card:class:Card
+    kind: 0
+    icon: card:icon:MasterTag
+enums:
+  risk_scale:
+    name: Risk scale 1–5
+    enumValues: ['1', '2', '3', '4', '5']
+  risk_levels:
+    name: Risk level
+    enumValues: [Insignificant, Moderate, Critical]
+fields:
+  probability:
+    attributeOf: risk_management
+    name: probability
+    label: Probability
+    type: {enum: risk_scale}
+    isCustom: true
+    required: true
+    defaultValue: '1'
+  severity:
+    attributeOf: risk_management
+    name: severity
+    label: Severity
+    type: {enum: risk_scale}
+    isCustom: true
+    required: true
+    defaultValue: '1'
+  score:
+    attributeOf: risk_management
+    name: score
+    label: Risk score
+    type: number
+    isCustom: true
+    readonly: true
+    automationOnly: true
+  level:
+    attributeOf: risk_management
+    name: level
+    label: Risk level
+    type: {enum: risk_levels}
+    isCustom: true
+    readonly: true
+    automationOnly: true
+processes:
+  risk_assessment:
+    label: Risk assessment
+    description: Recalculate the score and risk level when either scale changes.
+    masterTag: risk_management
+    autoStart: true
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      begin_assessment:
+        to: calculate_score
+        on: OnExecutionStart
+    states:
+      calculate_score:
+        label: Calculate score
+        transitions:
+          valid_inputs:
+            to: classify_score
+            on:
+              OnCardUpdate:
+                probability: {$in: ['1', '2', '3', '4', '5']}
+                severity: {$in: ['1', '2', '3', '4', '5']}
+            actions:
+              save_score:
+                method: UpdateCard
+                params:
+                  score:
+                    expr:
+                      from: $card.probability
+                      pipe:
+                        - StringFromEnum
+                        - NumberFromString
+                        - Multiply:
+                            value:
+                              expr:
+                                from: $card.severity
+                                pipe: [StringFromEnum, NumberFromString]
+      classify_score:
+        label: Classify score
+        transitions:
+          critical_risk:
+            to: wait_for_changes
+            on:
+              OnCardUpdate:
+                score: {$gt: 16}
+            actions:
+              mark_critical:
+                method: UpdateCard
+                params: {level: Critical}
+          insignificant_risk:
+            to: wait_for_changes
+            on:
+              OnCardUpdate:
+                score: {$lt: 9}
+            actions:
+              mark_insignificant:
+                method: UpdateCard
+                params: {level: Insignificant}
+          moderate_risk:
+            to: wait_for_changes
+            on:
+              OnCardUpdate:
+                score: {$gte: 9, $lte: 16}
+            actions:
+              mark_moderate:
+                method: UpdateCard
+                params: {level: Moderate}
+      wait_for_changes:
+        label: Wait for input changes
+        transitions:
+          probability_changed:
+            to: calculate_score
+            on:
+              WhenFieldChanges:
+                probability: {$exists: true}
+          severity_changed:
+            to: calculate_score
+            on:
+              WhenFieldChanges:
+                severity: {$exists: true}
+
+catalog:
+  methods:
+    UpdateCard:
+      requiredParams: []
+      createdContext: null
+  triggers:
+    OnExecutionStart: {requiredParams: [], init: true}
+    OnCardUpdate: {requiredParams: [], auto: true}
+    WhenFieldChanges: {requiredParams: [], auto: false}
+  functions:
+    StringFromEnum: {type: convert, of: core:class:EnumOf, to: core:class:TypeString}
+    NumberFromString: {type: convert, of: core:class:TypeString, to: core:class:TypeNumber}
+    Multiply: {type: transform, of: core:class:TypeNumber}

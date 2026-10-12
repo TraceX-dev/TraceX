@@ -26,9 +26,9 @@ const { readFileSync } = jest.requireActual<{ readFileSync: (path: string, encod
 const example = (name: string): string => readFileSync(`${__dirname}/../../docs/examples/${name}`, 'utf8')
 
 describe('YAML export and editor validation', () => {
-  it('preserves enum conversion on a plain number without reinterpreting it as a concise calculation', () => {
+  it('preserves explicit enum conversion on a plain number', () => {
     const result = compileProcessYaml(
-      'version: 1\nkind: process\nprocess:\n  label: Numeric copy\n  slots: {score: {kind: attribute, type: number}}\n  start: {to: done, actions: [{update: {score: {calculate: score}}}]}\n  states: {done: {}}\n'
+      'version: 2\nkind: process\nprocesses:\n  numeric_copy:\n    label: Numeric copy\n    slots: {score: {type: number}}\n    start:\n      begin:\n        to: done\n        on: OnExecutionStart\n        actions:\n          copy_score:\n            method: UpdateCard\n            params: {$slots.score: $card.score}\n    states: {done: {}}\n'
     )
     const start = result.docs.find((doc) => doc.from === null)
     ;(start?.actions as Array<{ params: Record<string, string> }>)[0].params.__SLOT_score__ =
@@ -44,22 +44,25 @@ describe('YAML export and editor validation', () => {
     const result = compileProcessYaml(source)
     expect(result.kind).toBe(original.kind)
     expect(result.docs).toHaveLength(original.docs.length)
-    expect(source).not.toContain('${')
+    expect(result.version).toBe(2)
+    expect(source).toContain(original.kind === 'card' ? 'cardTypes:' : 'processes:')
+    expectEquivalentModel(result.docs, original.docs)
     expect(validateProcessYaml(source, original.kind)).toEqual({ valid: true })
     expect(result.docs.filter((doc) => doc._class === 'process:class:Transition').map((doc) => doc.trigger)).toEqual(
       original.docs.filter((doc) => doc._class === 'process:class:Transition').map((doc) => doc.trigger)
     )
   })
 
-  it('exports the existing risk JSON with shared enum names and inline numeric expressions', () => {
+  it('exports the existing risk JSON without losing enums, calculations or branch predicates', () => {
     const docs = JSON.parse(example('risk-management.module.json')) as unknown[]
     const source = exportProcessYaml(docs, 'card')
     const result = compileProcessYaml(source)
     expect(result.docs.filter((doc) => doc._class === 'core:class:Enum')).toHaveLength(2)
     expect(source).toContain('Risk scale 1–5')
-    expect(source).toContain('number(probability) * number(severity)')
-    expect(source).toContain('gte: 9')
-    expect(source).toContain('lte: 16')
+    expect(source).toContain('Multiply')
+    expect(source).toContain('$gte: 9')
+    expect(source).toContain('$lte: 16')
+    expectEquivalentModel(result.docs, docs as typeof result.docs)
   })
 
   it('preserves task context labels and explicit execution settings from native JSON', () => {
@@ -104,7 +107,7 @@ describe('YAML export and editor validation', () => {
 
   it('supports definitions without external slots', () => {
     const source =
-      'version: 1\nkind: process\nprocess:\n  label: Empty\n  slots: {}\n  start: {to: done}\n  states: {done: {}}\n'
+      'version: 2\nkind: process\nprocesses:\n  empty:\n    label: Empty\n    slots: {}\n    start: {begin: {to: done, on: OnExecutionStart}}\n    states: {done: {}}\n'
     const result = compileProcessYaml(source)
     expect(compileProcessYaml(exportProcessYaml(result.docs, 'process')).docs).toHaveLength(3)
   })
@@ -117,11 +120,11 @@ describe('YAML export and editor validation', () => {
       })
     )
     expect(
-      validateProcessYaml(example('risk-management.card.yaml').replace('number(probability)', 'number(missing)'))
+      validateProcessYaml(example('risk-management.card.yaml').replace('to: calculate_score', 'to: missing'))
     ).toEqual(
       expect.objectContaining({
         valid: false,
-        diagnostic: expect.objectContaining({ path: 'card.fields.score.calculate' })
+        diagnostic: expect.objectContaining({ path: 'processes.risk_assessment.start.begin_assessment.to' })
       })
     )
     expect(validateProcessYaml(example('risk-management.card.yaml'), 'process').diagnostic?.path).toBe('kind')

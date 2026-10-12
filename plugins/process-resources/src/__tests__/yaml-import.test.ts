@@ -24,33 +24,46 @@ jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
 // eslint-disable-next-line @typescript-eslint/naming-convention -- Standard CommonJS runtime global.
 declare const __dirname: string
 
-const source = `version: 1
+const source = `version: 2
 kind: process
-process:
-  key: simple
-  label: Simple update
-  slots:
-    status:
-      kind: attribute
-      type: string
-  start:
-    to: done
-    actions:
-      - update:
-          status: Done
-  states:
-    done: {}
+processes:
+  simple:
+    label: Simple update
+    slots:
+      status:
+        type: string
+    start:
+      begin:
+        to: done
+        on: OnExecutionStart
+        actions:
+          mark_done:
+            method: UpdateCard
+            params:
+              $slots.status: Done
+    states:
+      done: {}
 `
 
 function setup (): { createDoc: jest.Mock, commit: jest.Mock } {
   const createDoc = jest.fn().mockResolvedValue(undefined)
-  const commit = jest.fn().mockResolvedValue(undefined)
+  const commit = jest.fn().mockResolvedValue({ result: true })
+  const registry = [
+    { _id: 'process:method:UpdateCard', _class: 'process:class:Method', objectClass: 'card:class:Card' },
+    {
+      _id: 'process:method:CreateToDo',
+      _class: 'process:class:Method',
+      createdContext: { _class: 'process:class:ProcessToDo', nameField: 'title' }
+    },
+    { _id: 'process:trigger:OnExecutionStart', _class: 'process:class:Trigger' },
+    { _id: 'process:trigger:OnToDoClose', _class: 'process:class:Trigger' }
+  ]
   ;(getClient as jest.Mock).mockReturnValue({
     getHierarchy: () => ({
       findAttribute: (_class: string, name: string) =>
         name === 'customStatus' ? { type: { _class: core.class.TypeString } } : undefined
     }),
-    getModel: () => ({ findObject: () => undefined }),
+    getModel: () => ({ findObject: (id: string) => registry.find((doc) => doc._id === id) }),
     apply: () => ({ createDoc, commit })
   })
   return { createDoc, commit }
@@ -120,7 +133,7 @@ describe('YAML process import', () => {
     expect(getRequiredSlots(source)).toEqual(
       expect.objectContaining({ status: expect.objectContaining({ slotKind: 'attribute' }) })
     )
-    expect(() => getRequiredSlots(source.replace('type: string', 'type: unsupported'))).toThrow('Supported types')
+    expect(() => getRequiredSlots(source.replace('type: string', 'type: unsupported'))).toThrow('Unknown scalar type')
   })
 
   it('imports native documents with bound stored field keys', async () => {
@@ -158,15 +171,16 @@ describe('YAML process import', () => {
     expect(matchesSlotType(expected, actual, ['6'], model)).toBe(false)
   })
 
-  it('rejects aliased slots before writes can change another slot input', async () => {
+  it('allows explicitly declared slots to share a destination field', async () => {
     const { createDoc } = setup()
     const log = jest.spyOn(console, 'error').mockImplementation(() => {})
-    const aliased = source.replace('  start:', '    duplicate:\n      kind: attribute\n      type: string\n  start:')
+    const aliased = source.replace('    start:', '      duplicate:\n        type: string\n    start:')
     try {
-      await expect(
-        importProcess(card.class.Card, aliased, { status: 'customStatus', duplicate: 'customStatus' })
-      ).rejects.toThrow('Different slots must bind to different fields')
-      expect(createDoc).not.toHaveBeenCalled()
+      await importProcess(card.class.Card, aliased, { status: 'customStatus', duplicate: 'customStatus' })
+      expect(createDoc).toHaveBeenCalledTimes(3)
+      expect(createDoc.mock.calls.find((call) => call[0] === 'process:class:Transition')?.[2].actions[0].params).toEqual({
+        customStatus: 'Done'
+      })
     } finally {
       log.mockRestore()
     }

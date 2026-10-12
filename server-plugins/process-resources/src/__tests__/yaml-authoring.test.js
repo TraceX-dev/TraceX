@@ -30,7 +30,7 @@ const {
 } = require('@hcengineering/process')
 const { getContextValue } = require('../utils')
 const { MatchCardCheck, FieldChangedCheck, SetContext, UpdateCard } = require('../functions')
-const { bindYamlProcessDocuments } = jest.requireActual('../../../../plugins/process-resources/src/yaml-bindings')
+const { bindYamlModelProcess } = jest.requireActual('../../../../plugins/process-resources/src/yaml-model-bindings')
 const original = compileProcessYaml(
   fs.readFileSync(
     path.resolve(__dirname, '../../../../plugins/process/docs/examples/risk-management.card.yaml'),
@@ -64,26 +64,30 @@ const portable = exportProcessYamlDraft(
 )
 const boundProcess = {
   docs: [
-    ...bindYamlProcessDocuments(compileProcessYaml(portable.source).docs, originalProcess.masterTag, portable.bindings),
+    ...bindYamlModelProcess(
+      compileProcessYaml(portable.source).docs,
+      originalProcess.masterTag,
+      portable.bindings,
+      { findObject: (id) => original.docs.find((doc) => doc._id === id) },
+      { findAttribute: (_, key) => originalAttributes.find((attr) => attr.name === key) }
+    ),
     ...originalAttributes
-  ],
-  fields: portable.bindings
+  ]
 }
 
 describe.each([
-  ['original YAML', original, 4],
-  ['YAML export round trip', compileProcessYaml(exportProcessYaml(original.docs, 'card')), 4],
+  ['original YAML', original, 3],
+  ['YAML export round trip', compileProcessYaml(exportProcessYaml(original.docs, 'card')), 3],
   ['legacy JSON to YAML', compileProcessYaml(exportProcessYaml(legacy, 'card')), 3],
-  ['standalone YAML bound to card fields', boundProcess, 4]
+  ['standalone YAML bound to card fields', boundProcess, 3]
 ])('%s native risk execution', (_, compiled, expectedSteps) => {
   const definition = compiled.docs.find((d) => d._class === 'process:class:Process')
   const attrs = compiled.docs.filter((d) => d._class === core.class.Attribute)
   const transitions = compiled.docs.filter((d) => d._class === 'process:class:Transition')
-  const fields = {
-    ...compiled.fields,
-    score: compiled.fields.score ?? compiled.fields.risk_score,
-    level: compiled.fields.level ?? compiled.fields.risk_level
-  }
+  const byLabel = Object.fromEntries(
+    attrs.map((attr) => [attr.label.replace('embedded:embedded:', '').toLowerCase().replaceAll(' ', '_'), attr.name])
+  )
+  const fields = { ...byLabel, score: byLabel.risk_score, level: byLabel.risk_level }
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- This JavaScript harness cannot use TypeScript return annotations.
   function makeExecution (probability, severity) {
