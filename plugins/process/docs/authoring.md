@@ -34,6 +34,7 @@ This is the first reference for agents creating or explaining card types and pro
 | [`approval.process.yaml`](./examples/approval.process.yaml) | General approval, locks, object outputs and named references |
 | [`estimate-review.process.yaml`](./examples/estimate-review.process.yaml) | Typed task results, calculation pipeline, card writes and branching |
 | [`purchase-approval.process.yaml`](./examples/purchase-approval.process.yaml) | Purchase estimate inputs, amount calculation and approval above a budget limit |
+| [`procurement-workspace.card.yaml`](./examples/procurement-workspace.card.yaml) | Six related business card types, inheritance, tags, reference fields and four embedded workflows |
 
 [`authoring-v2.schema.json`](./authoring-v2.schema.json) is the machine-readable v2 syntax contract. The v2 examples reference it with a YAML language-server directive, enabling schema-aware completion and structural diagnostics in an IDE with a YAML language server. UI validation additionally resolves the installed model, references and bindings. The schema alone cannot establish operation availability or runtime context values. The recorded work plan and verification history are in [`authoring-plan.md`](./authoring-plan.md).
 
@@ -100,7 +101,9 @@ Use named blocks instead of a list of storage documents. `processes` contains ea
 
 Built-in method/trigger names expand to `process:method:<name>` and `process:trigger:<name>` without a fixed operation list. Custom operations keep their fully qualified ids. New registered operations and parameters need no new exporter/compiler branches. Model lookup validates referenced methods, triggers and functions before applying; the editor performs that lookup while validating the draft too.
 
-Card modules use the same `processes` grammar plus named `cardTypes`, `tags`, `fields`, `enums`, `views`, `roles`, `relations`, `permissions`, `attributePermissions` and `sequences`. The section implies the document class and each block name is its reference identity. Model space is implicit; a non-model `space` remains explicit. New document classes use `documents: {"plugin:class:NewClass": {named_document: {...}}}`. All additional model properties are retained. If an extension property collides with a DSL name (for example a native process property named `states`), the exporter places it under `native` on that block. This escape is for extension data, not ordinary process authoring. Earlier v2 `model` document lists remain importable but are no longer exported.
+Card modules use the same `processes` grammar plus named `cardTypes`, `tags`, `enums`, `views`, `roles`, `relations`, `permissions`, `attributePermissions` and `sequences`. Declare each type's attributes in its own `fields` map, including fields owned by tags. The enclosing card type or tag supplies `attributeOf`; do not repeat it inside the field. Field block names remain globally unique attribute identities, while `name` is the stored card key used by `$card.name`. Inherited fields stay with their declaring base type. Field order within each owner determines its display order, and full exports keep fields nested under their owners.
+
+The section implies the document class and each block name is its reference identity. Model space is implicit; a non-model `space` remains explicit. A root `fields` section is used when the attribute owner is outside the module; earlier flat declarations remain importable, and local fields are nested on export. New document classes use `documents: {"plugin:class:NewClass": {named_document: {...}}}`. All additional model properties are retained. If an extension property collides with a DSL name (for example a native process property named `states`, or a native card-type property named `fields`), the exporter places it under `native` on that block. This escape is for extension data, not ordinary process authoring. Earlier v2 `model` document lists remain importable but are no longer exported.
 
 Write ordinary localized display labels as text: `label: Estimator`. In v2, slot labels and the labels of card types, tags, fields and permissions are converted to native `embedded:embedded:Estimator` on import and shortened back to text on export. Existing resource ids such as `plugin:string:Label` and explicit embedded ids remain valid. Embedded text that itself resembles a resource id retains its explicit prefix to avoid ambiguity. Native escapes and earlier `model` lists preserve their exact values. Process/state names and action output/result labels are ordinary strings and are not converted.
 
@@ -267,13 +270,12 @@ cardTypes:
     extends: card:class:Card
     kind: 0
     icon: card:icon:MasterTag
-fields:
-  summary:
-    attributeOf: example_card
-    name: summary
-    label: Summary
-    type: string
-    isCustom: true
+    fields:
+      summary:
+        name: summary
+        label: Summary
+        type: string
+        isCustom: true
 ```
 
 Minimal standalone process:
@@ -736,6 +738,57 @@ The calculation guard prevents blank or invalid inputs from being converted to z
 For manual verification, import the module, allow the new type in a card space if that space restricts its types, and create a card of type **Risk management**. Confirm that the default `1 × 1` produces `1` and `Insignificant`. Change the inputs to `3 × 3` and expect `9` / `Moderate`; `4 × 4` should produce `16` / `Moderate`; `5 × 4` should produce `20` / `Critical`. Change a critical card to `1 × 5` and expect `5` / `Insignificant` without manually restarting the process. The process should remain active between edits. For cards created before the process was available, start **Risk assessment** once manually from the card header.
 
 The example uses numeric scale choices deliberately. Descriptive enum labels would require a verified label-to-number conversion. This guide does not establish such a mapping contract; if it is requested, stop and report that gap rather than assuming `NumberFromString` can translate those labels.
+
+## Worked procurement workspace
+
+[`procurement-workspace.card.yaml`](./examples/procurement-workspace.card.yaml) is a complete module with seven card types (one shared base and six concrete types), two optional tags, eight enums, 63 attributes, seven associations and four manually started processes. Import it through the card module importer or open it in the card-type YAML editor. The local type/enum/association references are included; embedded workflows need no slot-binding dialog. Select actual employees and create sample cards in the destination workspace after import.
+
+| Type | Fields and ownership |
+| --- | --- |
+| Procurement record | Shared `code`, required `owner: Employee`, `notes: markup`, priority choice and archived flag. Every concrete type inherits these fields. |
+| Procurement project | Budget, dates, cost center, `reviewers: Employee[]`, `preferred_supplier: Ref<Supplier>` and automation-only status. |
+| Procurement supplier | Legal name, tax id, email, website, tier choice, active flag and `contacts: Employee[]`. |
+| Procurement product | SKU, category, price/currency, `preferred_supplier: Ref<Supplier>`, `replacements: Ref<Product>[]`, availability and markup specification. |
+| Purchase request | Required project/supplier refs, `products: Ref<Product>[]`, approvers and needed-by date. The process stores quote inputs, amount, product count, approval flag and status. |
+| Procurement delivery | Required purchase-request ref and inspector, date and warehouse. The process stores inspected quantity, boolean inspection decision and status. |
+| Procurement invoice | Required request ref, invoice number, amount and finance approvers; due date and USD currency. The process stores request title/status and supplier snapshots plus invoice status. |
+| Audit details / Shipping details | Optional tag fields for reviewer/date/note, or carrier/tracking/insurance. Apply Audit details to procurement records and Shipping details to deliveries manually. |
+
+For the demo's `1:N` associations, class A is the child and class B is the parent: a request selects one project, and a project lists multiple requests. `nameB` is shown on an A card and `nameA` on a B card. `Ref` fields and association links have independent stored values; setting `request.project` or `delivery.purchase_request` does not create an association link. Fill the refs for process context and create the corresponding relations for navigation.
+
+```mermaid
+flowchart LR
+  Project["Project"] -->|"requests: one to many"| Request["Purchase request"]
+  Request -->|"deliveries: one to many"| Delivery["Delivery"]
+  Supplier["Supplier"] <-->|"catalog: many to many"| Product["Product"]
+  Project <-->|"supplier panel: many to many"| Supplier
+  Product <-->|"compatibility: many to many"| Product
+  Invoice["Invoice"] <-->|"evidence: many to many"| Delivery
+  Invoice <-->|"primary document: one to one"| Delivery
+```
+
+| Process / transition | Waiting condition and ordered actions | Destination |
+| --- | --- | --- |
+| Project start / completion | Write Under review, create reviewer tasks in `all` mode; wait for their group, then write Active. | Project active |
+| Purchase start / quote completion | Write Awaiting estimate, create one quote task for the owner in `any` mode; wait for its group, then persist quantity/price. | Validate quote |
+| Purchase validation | Invalid quantity, negative price or non-USD currency writes Invalid quote. Otherwise calculate amount with Multiply, count product references with ArrayLength, then persist both values. | Invalid quote / Check budget |
+| Purchase budget / decisions | Amount ≤ 1000 writes Approved. Amount > 1000 writes Awaiting approval and creates a request group; all approvals write Approved, any rejection writes Rejected. | Approved / Awaiting approval / Rejected |
+| Delivery inspection / classification | Write Awaiting inspection, create an `any` task for the inspector; wait, persist quantity and boolean decision, then write Accepted for true or Rejected for false. | Accepted / Rejected |
+| Invoice start / request check | Read the referenced request's title, status and supplier into snapshots. A non-Approved request writes Blocked; an Approved request writes Awaiting approval, creates finance requests and locks the invoice. | Blocked / Awaiting approval |
+| Invoice decision | Wait for its own approval group. Unlock first, then write Approved or Rejected. | Approved / Rejected |
+
+Project tasks publish `pc_project_reviews`. Purchase tasks publish `pc_quote_tasks` and collect `pc_quote_quantity` / `pc_quote_unit_price`; these values are read only after the task-group completion transition. Two subsequent SetContext actions produce `pc_quote_amount` and `pc_quote_product_count`, which are then persisted. Purchase approval publishes `pc_purchase_approval`. Delivery tasks publish `pc_inspection_tasks` and collect a number and boolean after completion. Invoice approval publishes `pc_invoice_approval_requests`; its initial snapshots read values through `$card.purchase_request.*` independently of associations.
+
+Manual walkthrough:
+
+1. Import the module and allow the six concrete types in a card space if it restricts types. Fill inherited Owner on every sample card. Create supplier **Acme Supply**, products **Laptop A** and **Laptop B**, and project **Office rollout** with two reviewers. Fill product supplier refs, add a replacement-product ref, link supplier/product catalogs and the project supplier panel. Apply the optional tags and inspect their fields.
+2. Start **Review procurement project**. Complete one reviewer task: status remains Under review. Complete the remaining task: status becomes Active.
+3. Create a request **Laptop purchase** referencing the project, supplier and both products; fill approvers and link it to the project through the association. Start **Estimate and approve purchase**. Complete the quote task with quantity `2`, unit price `500`: amount is `1000`, product count is `2`, approval_required is false and status is Approved. Repeat with price `500.5`: amount is `1001`, approval_required is true and status waits for all approvers. Check rejection on another execution. Quantity `0` or price `-1` ends with Invalid quote. Typed number fields alone do not impose these ranges; the graph supplies the guards.
+4. Create a delivery referencing the request, fill its inspector and link the delivery association. Complete **Inspect delivery** with quantity `2` and decision true: Accepted. On another execution use false: Rejected. The decision classifies the delivery; the quantity is stored as the inspection's reported value.
+5. Create an invoice referencing an Approved request and fill invoice number, amount and finance approvers. Start **Approve invoice against purchase**: the referenced title/status/supplier appear in snapshots, status becomes Awaiting approval and the invoice is locked. Approval or rejection unlocks it and writes the outcome. Reference a Draft or Rejected request on another invoice: it ends Blocked before creating finance tasks or locking. The request status is captured at execution start; after changing the request, start a new invoice execution to refresh it.
+6. Add invoice/delivery evidence links and a primary invoice/delivery link; check the `N:N` and `1:1` selectors. Export the full module as YAML and reopen it to inspect inheritance, refs, tags, enums, associations and all workflows. Imported module definitions do not create the sample runtime cards or employee records.
+
+The quote is an aggregate USD quantity × unit-price estimate. Product count counts entries in the reference array. Project budgets, catalog prices, association memberships and invoice amounts remain independently maintained business fields; this example does not infer sums or synchronization from their relationships. A restarted invalid quote retains any earlier computed amount, while the Invalid quote status prevents its invoice approval path.
 
 ## Review before import and manual verification
 

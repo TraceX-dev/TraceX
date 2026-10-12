@@ -30,13 +30,14 @@ function run (args) {
 test('validates the single YAML format in both packaging modes in one invocation', () => {
   const result = run([
     'docs/examples/risk-management.card.yaml',
+    'docs/examples/procurement-workspace.card.yaml',
     'docs/examples/review-task.process.yaml',
     'docs/examples/approval.process.yaml',
     'docs/examples/estimate-review.process.yaml'
   ])
   assert.equal(result.status, 0, result.stderr)
   assert.equal(result.stderr, '')
-  assert.equal(result.stdout.match(/valid YAML definition \(offline\)/g)?.length, 4)
+  assert.equal(result.stdout.match(/valid YAML definition \(offline\)/g)?.length, 5)
 })
 
 test('reports semantic errors with source locations and continues checking subsequent files', (context) => {

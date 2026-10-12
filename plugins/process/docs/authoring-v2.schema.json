@@ -43,13 +43,13 @@
         "cardTypes": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/modelBlock"
+            "$ref": "#/$defs/cardType"
           }
         },
         "tags": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/modelBlock"
+            "$ref": "#/$defs/cardType"
           }
         },
         "enums": {
@@ -764,6 +764,28 @@
     },
     "modelBlock": {
       "type": "object"
+    },
+    "cardType": {
+      "type": "object",
+      "properties": {
+        "fields": {
+          "description": "Fields owned by this card type or tag. Block names are globally unique attribute ids; name is the stored field key.",
+          "type": "object",
+          "additionalProperties": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/field"
+              },
+              {
+                "properties": {
+                  "attributeOf": false
+                }
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": true
     },
     "field": {
       "type": "object",
