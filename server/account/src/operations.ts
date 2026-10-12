@@ -80,7 +80,8 @@ import {
   type Subscription,
   SubscriptionStatus,
   type Query,
-  type InviteInfo
+  type InviteInfo,
+  type WorkspaceInvite
 } from './types'
 import {
   addSocialIdBase,
@@ -713,6 +714,43 @@ export async function createInvite (
     role,
     autoJoin
   })
+}
+
+/** Lists all invitations in the caller's workspace, including expired and exhausted invitations. */
+export async function getWorkspaceInvites (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string
+): Promise<WorkspaceInvite[]> {
+  const { account, workspace, extra } = decodeTokenVerbose(ctx, token)
+  if (workspace == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid: workspace }))
+  }
+  verifyAllowedRole(await getWorkspaceRole(db, account, workspace), AccountRole.Maintainer, extra)
+
+  return await db.invite.find({ workspaceUuid: workspace }, { id: 'descending' })
+}
+
+/** Revokes an invitation without affecting members who have already joined. */
+export async function deleteWorkspaceInvite (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { inviteId: string }
+): Promise<void> {
+  if (typeof params.inviteId !== 'string' || !/^\d+$/.test(params.inviteId)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const { account, workspace, extra } = decodeTokenVerbose(ctx, token)
+  if (workspace == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid: workspace }))
+  }
+  verifyAllowedRole(await getWorkspaceRole(db, account, workspace), AccountRole.Maintainer, extra)
+
+  await db.invite.deleteMany({ id: params.inviteId, workspaceUuid: workspace })
 }
 
 // TODO: Temporary solution to prevent spam using sendInvite
@@ -3621,6 +3659,8 @@ export type AccountMethods =
   | 'validateOtp'
   | 'createWorkspace'
   | 'createInvite'
+  | 'getWorkspaceInvites'
+  | 'deleteWorkspaceInvite'
   | 'createInviteLink'
   | 'createAccessLink'
   | 'sendInvite'
@@ -3712,6 +3752,8 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     // Workspace creation keeps its existing behavior until the separate access-policy change.
     createWorkspace: wrap(createWorkspace, { guest: 'bypass' }),
     createInvite: wrap(createInvite),
+    getWorkspaceInvites: wrap(getWorkspaceInvites),
+    deleteWorkspaceInvite: wrap(deleteWorkspaceInvite),
     createInviteLink: wrap(createInviteLink),
     createAccessLink: wrap(createAccessLink),
     sendInvite: wrap(sendInvite),

@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import { type IntlString } from '@hcengineering/platform'
 import { derived, get } from 'svelte/store'
 import type { AnyComponent, AnySvelteComponent, LabelAndProps, TooltipAlignment } from './types'
@@ -27,6 +42,7 @@ export const tooltipstore = derived(modalStore, (modals) => {
 })
 
 let toHandler: any
+let dismissHandler: ReturnType<typeof setTimeout> | undefined
 export function tooltip (node: HTMLElement, options?: LabelAndProps): any {
   let opt = options
   const show = (): void => {
@@ -139,6 +155,9 @@ export function showTooltip (
   noArrow?: boolean,
   textAlign?: 'left' | 'center' | 'right'
 ): void {
+  clearTimeout(toHandler)
+  clearTimeout(dismissHandler)
+  dismissHandler = undefined
   storedValue = {
     label,
     element,
@@ -171,8 +190,35 @@ export function showTooltip (
   })
 }
 
+/**
+ * Show a tooltip immediately and dismiss it after the given duration in milliseconds.
+ * Returns a cleanup function that closes only this tooltip, without affecting a replacement.
+ * @public
+ */
+export function showTooltipForDuration (
+  label: IntlString,
+  element: HTMLElement,
+  durationMs: number = 2000,
+  direction?: TooltipAlignment
+): () => void {
+  if (!Number.isFinite(durationMs) || durationMs < 0) {
+    throw new RangeError('Tooltip duration must be a finite non-negative number')
+  }
+  showTooltip(label, element, direction)
+  const shownTooltip = storedValue
+  const dismiss = (): void => {
+    if (storedValue === shownTooltip) {
+      closeTooltip()
+    }
+  }
+  dismissHandler = setTimeout(dismiss, durationMs)
+  return dismiss
+}
+
 export function closeTooltip (): void {
   clearTimeout(toHandler)
+  clearTimeout(dismissHandler)
+  dismissHandler = undefined
   storedValue = emptyTooltip
   modalStore.update((old) => {
     old = old.filter((m) => m?.type !== 'tooltip')

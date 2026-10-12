@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -20,8 +21,6 @@ import {
   DEFAULT_INVITE_LINK_GENERATOR_ROLES,
   getDefaultInviterRoles,
   getDefaultInviteRole,
-  INVITE_SETTINGS_DEFAULT_EXPIRATION_HOURS,
-  INVITE_SETTINGS_DEFAULT_LIMIT,
   normalizeInviteRole,
   normalizeInviteRoles,
   resolveInviteSettings
@@ -111,9 +110,9 @@ describe('inviteSettingsUtils', () => {
       mockGetMetadata.mockReturnValue(undefined)
       const r = resolveInviteSettings(undefined)
       expect(r).toEqual({
-        expirationTime: INVITE_SETTINGS_DEFAULT_EXPIRATION_HOURS,
+        expirationTime: 48,
         emailMask: '',
-        limit: INVITE_SETTINGS_DEFAULT_LIMIT,
+        limit: -1,
         defaultInviteRole: AccountRole.User,
         inviteLinkGeneratorRoles: DEFAULT_INVITE_LINK_GENERATOR_ROLES,
         noLimit: true
@@ -137,15 +136,18 @@ describe('inviteSettingsUtils', () => {
       expect(r.noLimit).toBe(false)
     })
 
-    it('sets noLimit true when doc.limit is -1', () => {
+    it('preserves unlimited expiration and uses from workspace settings', () => {
       const doc = inviteDoc({
-        expirationTime: 48,
+        expirationTime: -1,
         emailMask: '',
         limit: -1,
         defaultInviteRole: AccountRole.User,
         inviteLinkGeneratorRoles: [AccountRole.User]
       })
-      expect(resolveInviteSettings(doc).noLimit).toBe(true)
+      const r = resolveInviteSettings(doc)
+      expect(r.expirationTime).toBe(-1)
+      expect(r.limit).toBe(-1)
+      expect(r.noLimit).toBe(true)
     })
 
     it('uses DEFAULT_INVITE_LINK_GENERATOR_ROLES copy when doc list empty', () => {

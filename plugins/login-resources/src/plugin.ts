@@ -1,6 +1,7 @@
 /*!
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -51,6 +52,36 @@ export default mergeIds(loginId, login, {
     PasswordRecovery: '' as IntlString,
     RecoveryLinkSent: '' as IntlString,
     UseWorkspaceInviteSettings: '' as IntlString,
+    NoExpiration: '' as IntlString,
+    InviteLinkCreationFailed: '' as IntlString,
+    CreateInviteLink: '' as IntlString,
+    InviteLinkCreated: '' as IntlString,
+    InviteLinkHint: '' as IntlString,
+    InviteLinkReadyHint: '' as IntlString,
+    InviteSummary: '' as IntlString,
+    InviteLinkLabel: '' as IntlString,
+    InviteLinkRevokeHint: '' as IntlString,
+    ConfigureInvitation: '' as IntlString,
+    InviteRole: '' as IntlString,
+    InviteExpiration: '' as IntlString,
+    InviteUseLimit: '' as IntlString,
+    InvitePositiveNumber: '' as IntlString,
+    CreateAnotherInviteLink: '' as IntlString,
+    CopyInviteLink: '' as IntlString,
+    InviteLinkCopyFailed: '' as IntlString,
+    InviteHours: '' as IntlString<{ hours: number }>,
+    InviteHoursUnit: '' as IntlString,
+    InviteSevenDays: '' as IntlString,
+    InviteUnlimitedUses: '' as IntlString,
+    InviteSingleUse: '' as IntlString,
+    InviteCustom: '' as IntlString,
+    InviteUses: '' as IntlString<{ count: number }>,
+    InviteReadonlyGuest: '' as IntlString,
+    InviteGuest: '' as IntlString,
+    InviteMember: '' as IntlString,
+    InviteMaintainer: '' as IntlString,
+    InviteOwner: '' as IntlString,
+    InviteAdmin: '' as IntlString,
     GetLink: '' as IntlString,
     AlreadyJoined: '' as IntlString,
     ConfirmationSent: '' as IntlString,

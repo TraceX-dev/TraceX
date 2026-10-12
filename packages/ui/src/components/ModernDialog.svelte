@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -38,6 +39,7 @@
   export let isForm: boolean = true
   export let embedded: boolean = false
   export let width: string | undefined = undefined
+  export let isHeaderBorderHidden = false
   export let isFooterBorderHidden = false
   export let loading = false
   export let noContentPadding = false
@@ -77,7 +79,7 @@
   }}
   style:width
 >
-  <div class="header">
+  <div class="header" class:headerWithBorder={!isHeaderBorderHidden}>
     <slot name="headerLeft">
       <div class="headerLeft">
         <div class="flex-row-center flex-gap-2">
@@ -190,7 +192,10 @@
     flex-wrap: nowrap;
     justify-content: space-between;
     padding: 1.25rem 2rem 0.875rem 2.5rem;
-    border-bottom: 1px solid var(--theme-dialog-border-color);
+
+    &.headerWithBorder {
+      border-bottom: 1px solid var(--theme-dialog-border-color);
+    }
   }
 
   .headerLeft {

@@ -35,6 +35,8 @@ import * as utils from '../utils'
 import { type AccountDB, type SocialId } from '../types'
 import {
   createInvite,
+  getWorkspaceInvites,
+  deleteWorkspaceInvite,
   createInviteLink,
   sendInvite,
   resendInvite,
@@ -114,6 +116,8 @@ describe('account operations', () => {
     invite: {
       insertOne: jest.fn(),
       findOne: jest.fn(),
+      find: jest.fn(),
+      deleteMany: jest.fn(),
       update: jest.fn()
     },
     getWorkspaceRole: jest.fn(),
@@ -196,6 +200,79 @@ describe('account operations', () => {
           role: AccountRole.Owner
         })
       ).rejects.toThrow(new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {})))
+    })
+  })
+
+  describe('workspace invitation management', () => {
+    const forbidden = new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+
+    test.each([AccountRole.Maintainer, AccountRole.Owner])('lists all workspace invites for %s', async (role) => {
+      const invitations = [
+        { id: '2', workspaceUuid: mockWorkspace.uuid, expiresOn: 1, remainingUses: 0, role: AccountRole.User },
+        { id: '1', workspaceUuid: mockWorkspace.uuid, expiresOn: -1, remainingUses: -1, role: AccountRole.Guest }
+      ]
+      ;(mockDb.getWorkspaceRole as jest.Mock).mockResolvedValue(role)
+      ;(mockDb.invite.find as jest.Mock).mockResolvedValue(invitations)
+
+      expect(await getWorkspaceInvites(mockCtx, mockDb, mockBranding, mockToken)).toEqual(invitations)
+      expect(mockDb.invite.find).toHaveBeenCalledWith({ workspaceUuid: mockWorkspace.uuid }, { id: 'descending' })
+    })
+
+    test.each([AccountRole.User, AccountRole.Guest, AccountRole.ReadOnlyGuest, null])(
+      'rejects listing and deletion for %s',
+      async (role) => {
+        ;(mockDb.getWorkspaceRole as jest.Mock).mockResolvedValue(role)
+
+        await expect(getWorkspaceInvites(mockCtx, mockDb, mockBranding, mockToken)).rejects.toThrow(forbidden)
+        await expect(
+          deleteWorkspaceInvite(mockCtx, mockDb, mockBranding, mockToken, { inviteId: '123' })
+        ).rejects.toThrow(forbidden)
+        expect(mockDb.invite.find).not.toHaveBeenCalled()
+        expect(mockDb.invite.deleteMany).not.toHaveBeenCalled()
+      }
+    )
+
+    test('scopes deletion to the current workspace even when given an invite from another workspace', async () => {
+      const invitations = [
+        { id: '123', workspaceUuid: 'other-workspace' },
+        { id: '456', workspaceUuid: mockWorkspace.uuid }
+      ]
+      ;(mockDb.getWorkspaceRole as jest.Mock).mockResolvedValue(AccountRole.Maintainer)
+      ;(mockDb.invite.deleteMany as jest.Mock).mockImplementation(
+        async (query: { id: string, workspaceUuid: WorkspaceUuid }) => {
+          const index = invitations.findIndex(
+            (invite) => invite.id === query.id && invite.workspaceUuid === query.workspaceUuid
+          )
+          if (index !== -1) invitations.splice(index, 1)
+        }
+      )
+
+      await deleteWorkspaceInvite(mockCtx, mockDb, mockBranding, mockToken, { inviteId: '123' })
+      expect(invitations).toHaveLength(2)
+
+      await deleteWorkspaceInvite(mockCtx, mockDb, mockBranding, mockToken, { inviteId: '456' })
+      expect(invitations).toEqual([{ id: '123', workspaceUuid: 'other-workspace' }])
+    })
+
+    test('requires a workspace token', async () => {
+      ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: mockAccount.uuid, workspace: null, extra: {} })
+      const missingWorkspace = new PlatformError(
+        new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid: null })
+      )
+
+      await expect(getWorkspaceInvites(mockCtx, mockDb, mockBranding, mockToken)).rejects.toThrow(missingWorkspace)
+      await expect(
+        deleteWorkspaceInvite(mockCtx, mockDb, mockBranding, mockToken, { inviteId: '123' })
+      ).rejects.toThrow(missingWorkspace)
+      expect(mockDb.invite.find).not.toHaveBeenCalled()
+      expect(mockDb.invite.deleteMany).not.toHaveBeenCalled()
+    })
+
+    test.each(['', 'invalid-id'])('rejects malformed invite id %s', async (inviteId) => {
+      await expect(deleteWorkspaceInvite(mockCtx, mockDb, mockBranding, mockToken, { inviteId })).rejects.toThrow(
+        new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+      )
+      expect(mockDb.invite.deleteMany).not.toHaveBeenCalled()
     })
   })
 

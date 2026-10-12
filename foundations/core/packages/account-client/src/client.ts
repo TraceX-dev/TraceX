@@ -1,6 +1,7 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -59,6 +60,7 @@ import type {
   SubscriptionData,
   UserProfile,
   WorkspaceConfiguration,
+  WorkspaceInvite,
   WorkspaceLoginInfo,
   WorkspaceOperation
 } from './types'
@@ -109,6 +111,10 @@ export interface AccountClient {
   ) => Promise<WorkspaceLoginInfo>
   join: (email: string, password: string, inviteId: string, workspaceUrl: string) => Promise<WorkspaceLoginInfo>
   createInvite: (exp: number, emailMask: string, limit: number, role: AccountRole) => Promise<string>
+  /** Lists all invitations in the current workspace. Requires Maintainer or higher. */
+  getWorkspaceInvites: () => Promise<WorkspaceInvite[]>
+  /** Revokes an invitation in the current workspace. Requires Maintainer or higher. */
+  deleteWorkspaceInvite: (inviteId: string) => Promise<void>
   /**
    * @param options.personalized
    * If true, will generate a link with a personalized token for one person access
@@ -608,6 +614,14 @@ class AccountClientImpl implements AccountClient {
     }
 
     return await this.rpc(request)
+  }
+
+  async getWorkspaceInvites (): Promise<WorkspaceInvite[]> {
+    return await this.rpc({ method: 'getWorkspaceInvites' as const, params: {} })
+  }
+
+  async deleteWorkspaceInvite (inviteId: string): Promise<void> {
+    await this.rpc({ method: 'deleteWorkspaceInvite' as const, params: { inviteId } })
   }
 
   async checkJoin (inviteId: string): Promise<WorkspaceLoginInfo> {
