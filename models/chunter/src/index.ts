@@ -248,7 +248,7 @@ export function createModel (builder: Builder): void {
       configOptions: { strict: true },
       config: [
         {
-          key: 'resolved',
+          key: '',
           presenter: chunter.component.DiscussionStatusPresenter,
           label: core.string.Status,
           displayProps: { fixed: 'left', key: 'status' }
@@ -262,18 +262,21 @@ export function createModel (builder: Builder): void {
           label: chunter.string.Members,
           displayProps: { key: 'participants', dividerBefore: true }
         },
-        {
-          key: '',
-          presenter: chunter.component.DiscussionVisibilityPresenter,
-          label: chunter.string.Visibility,
-          displayProps: { fixed: 'right', key: 'visibility' }
-        },
         { key: 'modifiedOn', displayProps: { fixed: 'right', key: 'modifiedOn', dividerBefore: true } }
       ],
       viewOptions: {
         groupBy: [],
         orderBy: [['modifiedOn', SortingOrder.Descending]],
-        other: []
+        other: [
+          {
+            key: 'hideResolved',
+            type: 'toggle',
+            defaultValue: false,
+            actionTarget: 'query',
+            action: chunter.function.HideResolvedDiscussions,
+            label: chunter.string.HideResolvedDiscussions
+          }
+        ]
       }
     },
     chunter.viewlet.DiscussionList
