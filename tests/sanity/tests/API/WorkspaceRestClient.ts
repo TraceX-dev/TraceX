@@ -66,6 +66,29 @@ export class WorkspaceRestClient {
     return await WorkspaceRestClient.connectWithLoginInfo(request, info, 'anonymous guest')
   }
 
+  /**
+   * Connects with a public link, the way the guest page opened from it does.
+   * `link` is the URL shown by the "Public link" popup: `<front>/guest/<workspace>?token=<token>`.
+   */
+  static async connectDocGuest (request: APIRequestContext, link: string): Promise<WorkspaceRestClient> {
+    const url = new URL(link)
+    const token = url.searchParams.get('token')
+    const workspaceUrl = url.pathname.split('/').filter((it) => it !== '')[1]
+    if (token === null || workspaceUrl === undefined) throw new Error(`Not a public link: ${link}`)
+    const info = await new ApiEndpoint(request).getDocGuestWorkspaceLoginInfo(token, workspaceUrl)
+    return await WorkspaceRestClient.connectWithLoginInfo(request, info, 'public link guest')
+  }
+
+  /** Token the client connects with. */
+  get accessToken (): string {
+    return this.token
+  }
+
+  /** Workspace uuid, as used in the paths of the front service. */
+  get workspaceUuid (): string {
+    return this.workspace
+  }
+
   private static async connectWithLoginInfo (
     request: APIRequestContext,
     info: WorkspaceLoginInfo & { token: string },

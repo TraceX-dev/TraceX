@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 import core, {
+  AccountRole,
   type Account,
   type AccountUuid,
   type Class,
@@ -43,7 +44,13 @@ import {
   type ServerFindOptions,
   type TxMiddlewareResult
 } from '@hcengineering/server-core'
-import { isPersonAttachedClass, isPersonClass, restrictField } from './guestPersonUtils'
+import {
+  docGuestPeopleKey,
+  isPersonAttachedClass,
+  isPersonClass,
+  restrictField,
+  type DocGuestPeople
+} from './guestPersonUtils'
 import { GuestVisibilityCache, type VisibleSet } from './guestVisibilityCache'
 
 interface BroadcastPersonSubject {
@@ -104,6 +111,21 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     return await this.provideFindAll(ctx, _class, query, options)
   }
 
+  /**
+   * What the guest may list. A DocGuest also sees the collaborators of its shared document, which
+   * `DocGuestMiddleware` publishes for the request; without that it sees nobody but itself.
+   */
+  private async visibleFor (ctx: MeasureContext<SessionData>, account: Account): Promise<VisibleSet> {
+    const base = await this.cache.getVisible(ctx, account.uuid)
+    if (account.role !== AccountRole.DocGuest) return base
+    const people = ctx.contextData.contextCache?.get(docGuestPeopleKey) as DocGuestPeople | undefined
+    if (people === undefined) return base
+    return {
+      accounts: new Set([...base.accounts, ...people.accounts]),
+      personRefs: new Set([...base.personRefs, ...(people.personRefs as ReadonlySet<Ref<Person>>)])
+    }
+  }
+
   private async findPersons<T extends Doc>(
     ctx: MeasureContext<SessionData>,
     account: Account,
@@ -112,7 +134,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     options?: ServerFindOptions<T>
   ): Promise<FindResult<T>> {
     const q = query as Record<string, unknown>
-    const { accounts } = await this.cache.getVisible(ctx, account.uuid)
+    const { accounts } = await this.visibleFor(ctx, account)
     const newQuery = { ...q, personUuid: restrictField(q.personUuid, accounts) } as unknown as DocumentQuery<T>
     return await this.provideFindAll(ctx, _class, newQuery, options)
   }
@@ -133,7 +155,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     ) {
       return await this.provideFindAll(ctx, _class, query, options)
     }
-    const { personRefs: refs } = await this.cache.getVisible(ctx, account.uuid)
+    const { personRefs: refs } = await this.visibleFor(ctx, account)
     const newQuery = { ...q, attachedTo: restrictField(q.attachedTo, refs) } as unknown as DocumentQuery<T>
     return await this.provideFindAll(ctx, _class, newQuery, options)
   }
@@ -145,7 +167,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
     query: DocumentQuery<T>,
     options?: ServerFindOptions<T>
   ): Promise<FindResult<T>> {
-    const { accounts } = await this.cache.getVisible(ctx, account.uuid)
+    const { accounts } = await this.visibleFor(ctx, account)
     const requestedLimit = options?.limit
     let fetchLimit = requestedLimit
     let result = await this.provideFindAll(ctx, _class, query, options)
@@ -183,7 +205,7 @@ export class GuestPersonMiddleware extends BaseMiddleware implements Middleware 
       return await this.provideSearchFulltext(ctx, query, options)
     }
 
-    const visible = await this.cache.getVisible(ctx, account.uuid)
+    const visible = await this.visibleFor(ctx, account)
     const requestedLimit = options.limit
     let fetchLimit = requestedLimit
     let result = await this.searchWithPersons(ctx, query, options)

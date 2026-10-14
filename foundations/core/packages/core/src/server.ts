@@ -73,6 +73,8 @@ export interface SessionData {
     }
   >
   grant?: PermissionsGrant
+  /** Public link a DocGuest session is bound to (`extra.linkId` of the link token). Unset for other sessions. */
+  guestLinkId?: string
 
   asyncRequests?: ((ctx: MeasureContext, id?: string) => Promise<void>)[]
 }

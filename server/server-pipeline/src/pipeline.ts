@@ -41,6 +41,7 @@ import {
   DBAdapterMiddleware,
   DomainFindMiddleware,
   DomainTxMiddleware,
+  DocGuestMiddleware,
   FindSecurityMiddleware,
   FullTextMiddleware,
   GuestPermissionsMiddleware,
@@ -164,6 +165,7 @@ export function createServerPipeline (
       ModifiedMiddleware.create,
       RankMiddleware.create,
       FindSecurityMiddleware.create,
+      DocGuestMiddleware.create, // Limit DocGuest sessions to the document of their public link
       ObjectProjectionMiddleware.create,
       PluginConfigurationMiddleware.create,
       PrivateMiddleware.create,

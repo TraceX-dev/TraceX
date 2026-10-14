@@ -15,6 +15,7 @@
 
 import type { LoginInfoWithWorkspaces } from '@hcengineering/account-client'
 import {
+  AccountRole,
   generateId,
   TxProcessor,
   type Account,
@@ -163,6 +164,12 @@ export class ClientSession implements Session {
     }
   }
 
+  private getGuestLinkId (): string | undefined {
+    if (this.account.role !== AccountRole.DocGuest) return undefined
+    const linkId = this.token.extra?.linkId
+    return typeof linkId === 'string' ? linkId : undefined
+  }
+
   includeSessionContext (ctx: ClientSessionCtx): void {
     const dataId = this.workspace.dataId ?? (this.workspace.uuid as unknown as WorkspaceDataId)
     const contextData = new SessionDataImpl(
@@ -180,7 +187,8 @@ export class ClientSession implements Session {
       ctx.pipeline.context.modelDb,
       ctx.socialStringsToUsers,
       this.token.extra?.service ?? '🤦‍♂️user',
-      this.getPermissionsGrant()
+      this.getPermissionsGrant(),
+      this.getGuestLinkId()
     )
     ctx.ctx.contextData = contextData
   }

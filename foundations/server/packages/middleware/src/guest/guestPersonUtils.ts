@@ -73,3 +73,16 @@ export function restrictField (existing: unknown, allowed: Iterable<string>): Re
       : list
   }
 }
+
+/**
+ * Key of `SessionData.contextCache` under which `DocGuestMiddleware` publishes the people of the shared document
+ * for the request in progress. `GuestPersonMiddleware` adds them to what a DocGuest may list, and nothing else.
+ */
+export const docGuestPeopleKey = 'docGuestPeople'
+
+export interface DocGuestPeople {
+  /** Accounts of the collaborators of the shared document. */
+  readonly accounts: ReadonlySet<string>
+  /** Persons of those accounts. */
+  readonly personRefs: ReadonlySet<string>
+}

@@ -166,6 +166,27 @@ export class ApiEndpoint {
   }
 
   /**
+   * Selects the workspace with the token of a public link (the `token` query parameter of the link).
+   * The returned token keeps the link id, like the one the guest page connects with.
+   */
+  async getDocGuestWorkspaceLoginInfo (
+    linkToken: string,
+    workspaceUrl: string
+  ): Promise<WorkspaceLoginInfo & { token: string }> {
+    const response = await this.request.post(this.baseUrl, {
+      data: { method: 'selectWorkspace', params: { workspaceUrl } },
+      headers: this.getDefaultHeaders(linkToken)
+    })
+    const body = await response.json()
+    const info: WorkspaceLoginInfo | undefined = body.result
+    const token = info?.token
+    if (info === undefined || token === undefined) {
+      throw new Error(`Public link failed to select workspace ${workspaceUrl}: ${JSON.stringify(body.error ?? body)}`)
+    }
+    return { ...info, token }
+  }
+
+  /**
    * Turns anonymous (read-only) guest access to the workspace on or off. Needs the workspace Owner.
    * Note: turning it on through the API does not create the Employee of the anonymous guest, the settings UI does.
    */

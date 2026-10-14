@@ -174,6 +174,24 @@ describe('GuestPersonMiddleware', () => {
       }
     )
 
+    it('shows a DocGuest only the people published by DocGuestMiddleware', async () => {
+      const { mw, calls } = makeMiddleware()
+      const ctx = makeCtx(makeAccount(GUEST, AccountRole.DocGuest))
+      ctx.contextData.contextCache = new Map([
+        ['docGuestPeople', { accounts: new Set([STRANGER]), personRefs: new Set(['person:stranger']) }]
+      ]) as any
+      await mw.findAll(ctx, EMPLOYEE, {})
+      const accounts = calls.find((it) => it._class === EMPLOYEE)?.query.personUuid.$in as string[]
+      expect(accounts).toContain(STRANGER)
+    })
+
+    it('shows a DocGuest nobody else without published people', async () => {
+      const { mw, calls } = makeMiddleware()
+      await mw.findAll(makeCtx(makeAccount(GUEST, AccountRole.DocGuest)), EMPLOYEE, {})
+      const accounts = calls.find((it) => it._class === EMPLOYEE)?.query.personUuid.$in as string[]
+      expect(accounts).not.toContain(STRANGER)
+    })
+
     it.each([AccountRole.Guest, AccountRole.ReadOnlyGuest, AccountRole.DocGuest])(
       'restricts %s person queries',
       async (role) => {

@@ -16,9 +16,16 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
-import { MeasureContext, Blob as PlatformBlob, WorkspaceIds, metricsAggregate, type Ref } from '@hcengineering/core'
+import {
+  MeasureContext,
+  Blob as PlatformBlob,
+  WorkspaceIds,
+  metricsAggregate,
+  systemAccountUuid,
+  type Ref
+} from '@hcengineering/core'
 import platform, { PlatformError } from '@hcengineering/platform'
-import { TokenError, decodeToken } from '@hcengineering/server-token'
+import { TokenError, decodeToken, generateToken } from '@hcengineering/server-token'
 import { StorageAdapter } from '@hcengineering/storage'
 import bp from 'body-parser'
 import cors from 'cors'
@@ -32,6 +39,8 @@ import sharp, { type Sharp } from 'sharp'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { preConditions } from './utils'
 import { registerFormsRoutes } from './forms'
+import { canTokenWriteFiles, createDocGuestFileChecker, getDocGuestLinkId } from './docGuestFiles'
+import { createClient } from '@hcengineering/server-client'
 
 import fs, { createReadStream, mkdtempSync } from 'fs'
 import { rm, writeFile } from 'fs/promises'
@@ -476,6 +485,21 @@ export function start (
     return wsIds
   }
 
+  // Shared-link (DocGuest) sessions read only files of their document. The transactor decides.
+  const docGuestFiles = createDocGuestFileChecker({
+    resolveEndpoint: async (wsIds) => {
+      const lookupToken = generateToken(systemAccountUuid, wsIds.uuid, { service: 'front' }, undefined, {
+        exp: Math.floor(Date.now() / 1000) + 300
+      })
+      const login = await getAccountClient(
+        config.accountsUrlInternal ?? config.accountsUrl,
+        lookupToken
+      ).selectWorkspace('', 'internal')
+      return login.endpoint
+    },
+    connect: async (endpoint, token) => await createClient(endpoint, token, undefined, 10000)
+  })
+
   const filesHandler = async (req: Request<any>, res: Response<any>): Promise<void> => {
     await ctx.with(
       'handle-file',
@@ -500,6 +524,11 @@ export function start (
           const uuid = req.params.file ?? req.query.file
           if (uuid === undefined) {
             res.status(404).send()
+            return
+          }
+
+          if (getDocGuestLinkId(token) !== undefined && !(await docGuestFiles.canRead(wsIds, token, uuid))) {
+            res.status(403).send()
             return
           }
 
@@ -623,6 +652,10 @@ export function start (
 
         try {
           const token = authHeader.split(' ')[1]
+          if (!canTokenWriteFiles(token)) {
+            res.status(403).send()
+            return
+          }
           const workspaceDataId = await getWorkspaceIds(ctx, token, req.path)
           if (workspaceDataId === null) {
             res.status(403).send()
@@ -665,6 +698,10 @@ export function start (
       }
 
       const token = authHeader.split(' ')[1]
+      if (!canTokenWriteFiles(token)) {
+        res.status(403).send()
+        return
+      }
       const workspaceDataId = await getWorkspaceIds(ctx, token, req.path)
       if (workspaceDataId === null) {
         res.status(403).send()

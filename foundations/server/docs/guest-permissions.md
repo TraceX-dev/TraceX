@@ -196,3 +196,36 @@ For processes, `canParticipateInProcessesStore` shows the task buttons of the as
 - `foundations/server/packages/middleware/src/tests/guestAssigneePolicies.test.ts`
 - `foundations/server/packages/middleware/src/tests/guestTxValidators.test.ts`
 - `server-plugins/controlled-documents-resources/src/guestValidator.ts`
+
+## DocGuest read scope
+
+`DocGuestMiddleware` limits what a shared-link (`DocGuest`) session can read. The session is bound to the public link
+from its token (`SessionData.guestLinkId`, set from `extra.linkId`); a DocGuest without a link reads nothing. Without it the
+role bypassed space security and the link restrictions were enforced by the client only.
+
+A DocGuest can read:
+
+- the `PublicLink` itself, the linked document and objects attached to them (directly or through a chain of `attachedTo`);
+- spaces of those objects, with `members` and `owners` emptied;
+- objects referenced from them (`Ref`, `Ref[]`), reduced to `ObjectPresenter.requiredFields`. Classes without
+  `requiredFields` stay hidden. Referenced `Blob` documents expose only `contentType` and `size`;
+- persons who are collaborators of the linked document, and nobody else. Persons keep name, avatar and account id;
+  their social identities keep the id and the person they belong to. Birthday, city, social id values and channels
+  stay hidden. Authors and persons of `Ref` attributes are not readable unless they collaborate on the document, so
+  `Created by` / `Modified by` stay blank for a non-collaborator. `GuestPersonMiddleware` still restricts DocGuest
+  sessions; `DocGuestMiddleware` adds the collaborators to its visible set through the request context cache;
+- model classes.
+
+Everything else is filtered, including `$lookup` and `$associations`. Fulltext search and `groupBy` return nothing.
+Queries are narrowed before they reach the database; every result is checked again. The scope is cached per link for
+five minutes and dropped when the link is removed or retargeted.
+
+Broadcast: the DocGuest account is shared by all links, so a transaction is delivered to DocGuest sessions when it
+belongs to any active link, and excluded otherwise. A guest of link A can still receive transactions of link B's
+document while both links are open.
+
+Files: the front service serves a file to a DocGuest only if the guest's own session can read its `Blob`, and rejects
+uploads and deletes for guest and read-only tokens.
+
+Known gaps: files referenced only from rich text (inline images in document content) are not referenced by a `Ref`
+attribute and are not served to a DocGuest; `domainRequest` is not restricted.
