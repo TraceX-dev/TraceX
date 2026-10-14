@@ -221,8 +221,13 @@ Queries are narrowed before they reach the database; every result is checked aga
 five minutes and dropped when the link is removed or retargeted.
 
 Broadcast: the DocGuest account is shared by all links, so a transaction is delivered to DocGuest sessions when it
-belongs to any active link, and excluded otherwise. A guest of link A can still receive transactions of link B's
+belongs to any active link (an owned object or something attached to one), and excluded otherwise. Transactions of
+referenced objects are not delivered because they carry every field, not only the presenter ones. A guest of link A can still receive transactions of link B's
 document while both links are open.
+
+Model objects are readable, but `lookup` and `$associations` on them are filtered like any other result, because a
+reverse lookup from a model object can reach any domain. A move of an owned object (`attachedTo` update) adds it to the
+scope or rebuilds the scope.
 
 Files: the front service serves a file to a DocGuest only if the guest's own session can read its `Blob`, and rejects
 uploads and deletes for guest and read-only tokens.

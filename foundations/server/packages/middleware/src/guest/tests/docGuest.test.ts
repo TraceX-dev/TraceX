@@ -131,6 +131,7 @@ const STORE: Array<Record<string, any>> = [
     provider: 's3'
   },
   { _id: 'blob-b', _class: BLOB, space: 'space:b', contentType: 'image/png', size: 7 },
+  { _id: 'class-1', _class: CLASS },
   { _id: 'space:a', _class: core.class.Space, members: ['u1'], owners: ['u2'], name: 'A' },
   { _id: 'space:b', _class: core.class.Space, members: ['u3'], owners: [], name: 'B' },
   { _id: 'space:c', _class: core.class.Space, members: [], owners: [], name: 'C' },
@@ -234,11 +235,23 @@ function makeCtx (account: Account, guestLinkId?: string): MeasureContext<Sessio
 function makeMiddleware (): { mw: DocGuestMiddleware, calls: Call[] } {
   const calls: Call[] = []
   const next = {
-    findAll: async (_ctx: MeasureContext, _class: string, query: Record<string, any>, options?: any) => {
+    findAll: async (ctx: MeasureContext<SessionData>, _class: string, query: Record<string, any>, options?: any) => {
       calls.push({ _class, query })
-      const docs = STORE.filter((it) => hierarchy.isDerived(it._class, _class) && matches(it, query))
-      const limited = options?.limit !== undefined ? docs.slice(0, options.limit) : docs
-      return toFindResult(limited as any[], options?.total === true ? docs.length : -1)
+      let docs = STORE.filter((it) => hierarchy.isDerived(it._class, _class) && matches(it, query))
+      if (hierarchy.isDerived(_class, PERSON)) {
+        // GuestPersonMiddleware: only the accounts published by DocGuestMiddleware are visible.
+        const people = ctx.contextData?.contextCache?.get('docGuestPeople')
+        docs = docs.filter((it) => people?.accounts.has(it.personUuid) === true)
+      }
+      let limited: any[] = options?.limit !== undefined ? docs.slice(0, options.limit) : docs
+      if (options?.lookup !== undefined && _class === CLASS) {
+        // A reverse lookup from a model object reaches every space.
+        limited = limited.map((it) => ({
+          ...it,
+          $lookup: { spaces: STORE.filter((d) => d._class === core.class.Space) }
+        }))
+      }
+      return toFindResult(limited, options?.total === true ? docs.length : -1)
     },
     searchFulltext: async () => ({ docs: [{ id: 'x' }], total: 1 }),
     groupBy: async () => new Map([['x', 1]]),
@@ -440,7 +453,23 @@ describe('DocGuestMiddleware', () => {
   it('passes model classes through', async () => {
     const { mw, calls } = makeMiddleware()
     await mw.findAll(docGuest(), CLASS, {})
-    expect(calls).toEqual([{ _class: CLASS, query: {} }])
+    expect(calls.filter((it) => it._class === CLASS)).toEqual([{ _class: CLASS, query: {} }])
+  })
+
+  it('filters lookups of model objects', async () => {
+    const { mw } = makeMiddleware()
+    const ctx = docGuest()
+    await mw.findAll(ctx, DOC, {})
+    const [klass] = await mw.findAll(ctx, CLASS, {}, { lookup: { _id: { spaces: [core.class.Space, 'type'] } } } as any)
+    const spaces = (klass as any).$lookup.spaces
+    expect(ids(spaces)).toEqual(['space:a'])
+    expect(spaces[0].members).toEqual([])
+  })
+
+  it('drops lookups of model objects when the link is gone', async () => {
+    const { mw } = makeMiddleware()
+    const [klass] = await mw.findAll(docGuest('missing' as any), CLASS, {}, { lookup: { _id: { x: 'y' } } } as any)
+    expect(klass.$lookup).toBeUndefined()
   })
 
   it('closes fulltext search and groupBy, but not for other roles', async () => {
@@ -481,6 +510,31 @@ describe('DocGuestMiddleware', () => {
       const foreign = factory.createTxUpdateDoc(DOC, 'space:b' as any, 'doc-b' as any, { title: 'x' } as any)
       expect(await target(mw, own)).toBeUndefined()
       expect(await target(mw, foreign)).toEqual({ exclude: [docGuestAccountUuid] })
+    })
+
+    it('does not deliver transactions of referenced objects', async () => {
+      const { mw } = makeMiddleware()
+      const factory = new TxFactory('u' as any)
+      await mw.findAll(docGuest(), DOC, {})
+      const tx = factory.createTxUpdateDoc(OTHER, 'space:a' as any, 'other-1' as any, { title: 'x' } as any)
+      expect(await target(mw, tx)).toEqual({ exclude: [docGuestAccountUuid] })
+    })
+
+    it('stops delivering an attachment moved out of the document', async () => {
+      const { mw } = makeMiddleware()
+      const factory = new TxFactory('u' as any)
+      const ctx = docGuest()
+      await mw.findAll(ctx, DOC, {})
+      await mw.findAll(ctx, NOTE, {})
+      const move = factory.createTxUpdateDoc(NOTE, 'space:a' as any, 'note-1' as any, { attachedTo: 'doc-b' } as any)
+      const note = STORE.find((it) => it._id === 'note-1') as Record<string, any>
+      note.attachedTo = 'doc-b'
+      try {
+        await mw.tx(ctx, [move])
+        expect(await mw.findAll(docGuest(), NOTE, { _id: 'note-1' as Ref<Doc> })).toHaveLength(0)
+      } finally {
+        note.attachedTo = ROOT
+      }
     })
 
     it('delivers attachments created under the linked document', async () => {

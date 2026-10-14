@@ -35,6 +35,7 @@ import core, {
   type Space,
   type Tx,
   type TxCUD,
+  type TxUpdateDoc,
   type WithLookup
 } from '@hcengineering/core'
 import {
@@ -152,14 +153,23 @@ export class DocGuestMiddleware extends BaseMiddleware implements Middleware {
       return await this.provideFindAll(ctx, _class, query, options)
     }
     const h = this.context.hierarchy
-    if (h.findDomain(_class) === DOMAIN_MODEL) {
-      return await this.provideFindAll(ctx, _class, query, options)
-    }
     const scope = await this.getScope(ctx, ctx.contextData.guestLinkId)
+    if (h.findDomain(_class) === DOMAIN_MODEL) {
+      const { unsecured, ...rest } = options ?? {}
+      const nested = rest.lookup !== undefined || rest.associations !== undefined
+      if (!nested) return await this.provideFindAll(ctx, _class, query, rest)
+      // Lookups of model objects may reach any domain (reverse lookups), so their results are filtered.
+      if (scope === undefined) {
+        const { lookup, associations, ...plain } = rest
+        return await this.provideFindAll(ctx, _class, query, plain)
+      }
+      const found = await this.provideFindAll(ctx, _class, query, rest)
+      const docs = await Promise.all(found.map(async (it) => (await this.filterNested(ctx, scope, it)) as T))
+      return toFindResult<T>(docs, found.total, found.lookupMap)
+    }
     if (scope === undefined) return toFindResult<T>([], 0)
 
     await this.resolvePersons(ctx, scope)
-    this.publishPeople(ctx, scope)
     const prepared = this.prepareQuery(scope, _class, query)
     if (prepared === undefined) return toFindResult<T>([], 0)
     const fetchOptions = this.prepareOptions(options)
@@ -258,6 +268,8 @@ export class DocGuestMiddleware extends BaseMiddleware implements Middleware {
     doc: T
   ): Promise<T | undefined> {
     const h = this.context.hierarchy
+    // The model is readable as a whole.
+    if (h.findDomain(doc._class) === DOMAIN_MODEL) return doc
     if (isDerivedSafe(h, doc._class, core.class.Space)) {
       return scope.spaces.has(doc._id as unknown as Ref<Space>) ? this.sanitizeSpace(doc) : undefined
     }
@@ -354,6 +366,8 @@ export class DocGuestMiddleware extends BaseMiddleware implements Middleware {
 
   /** Adds persons of the collaborator accounts to the scope. */
   private async resolvePersons (ctx: MeasureContext<SessionData>, scope: DocGuestScope): Promise<void> {
+    // GuestPersonMiddleware restricts the person query below to the accounts published here.
+    this.publishPeople(ctx, scope)
     const accounts = [...scope.accounts].filter((it) => !scope.resolved.has(it))
     if (accounts.length === 0) return
     const persons = await this.provideFindAll(
@@ -364,6 +378,7 @@ export class DocGuestMiddleware extends BaseMiddleware implements Middleware {
     )
     for (const person of persons) scope.persons.add(person._id)
     for (const account of accounts) scope.resolved.add(account)
+    this.publishPeople(ctx, scope)
   }
 
   /** Name and avatar only: no birthday, city, profile or mixin data. */
@@ -421,7 +436,6 @@ export class DocGuestMiddleware extends BaseMiddleware implements Middleware {
     if (doc.$lookup === undefined && doc.$associations === undefined) return doc
     const result: WithLookup<Doc> = { ...doc }
     await this.resolvePersons(ctx, scope)
-    this.publishPeople(ctx, scope)
 
     const filterOne = async (target: WithLookup<Doc>): Promise<WithLookup<Doc> | undefined> => {
       const visible = await this.visibleDoc(ctx, scope, target)
@@ -556,6 +570,16 @@ export class DocGuestMiddleware extends BaseMiddleware implements Middleware {
         if (cud.attachedTo === scope.root || cud._class === core.class.TxRemoveDoc) scope.loadedAt = 0
       }
     }
+    if (cud._class === core.class.TxUpdateDoc) {
+      const parent = ((cud as TxUpdateDoc<Doc>).operations as { attachedTo?: Ref<Doc> }).attachedTo
+      if (parent !== undefined) {
+        for (const [linkId, scope] of this.scopes) {
+          if (scope.owned.has(parent)) scope.owned.add(cud.objectId)
+          // Descendants of a moved object are not tracked, so the scope is rebuilt.
+          else if (scope.owned.has(cud.objectId)) this.scopes.delete(linkId)
+        }
+      }
+    }
     if (cud._class === core.class.TxRemoveDoc) {
       for (const scope of this.scopes.values()) {
         scope.owned.delete(cud.objectId)
@@ -575,7 +599,8 @@ export class DocGuestMiddleware extends BaseMiddleware implements Middleware {
     if (!TxProcessor.isExtendsCUD(tx._class)) return false
     const cud = tx as TxCUD<Doc>
     for (const scope of this.scopes.values()) {
-      if (scope.owned.has(cud.objectId) || scope.refs.has(cud.objectId)) return true
+      // Referenced objects are not delivered: a transaction carries all of their fields, not only the presenter ones.
+      if (scope.owned.has(cud.objectId)) return true
       if (cud.attachedTo !== undefined && scope.owned.has(cud.attachedTo)) return true
     }
     return false

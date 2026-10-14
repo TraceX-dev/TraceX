@@ -228,6 +228,7 @@ test.describe('Public link guest', () => {
           birthday?: unknown
         }>
         const allPersons = await owner.findAll(PERSON, {})
+        if (collaboratorAccounts.size > 0) expect(guestPersons.length).toBeGreaterThan(0)
         expect(guestPersons.length).toBeLessThan(allPersons.length)
         for (const person of guestPersons) {
           expect(collaboratorAccounts.has(person.personUuid ?? '')).toBe(true)
