@@ -942,7 +942,7 @@ export function createModel (builder: Builder): void {
     documents.action.TransferDocument
   )
 
-  // Same action for Document objects (library list, document view) - ProjectDocument is handled above (sidebar tree)
+  // Same action for Document objects (library list, document view); the action above covers ProjectDocument (sidebar tree)
   createAction(
     builder,
     {
@@ -958,7 +958,7 @@ export function createModel (builder: Builder): void {
         group: 'copy'
       }
     },
-    documents.action.TransferDocumentFromDocument
+    documents.action.TransferLibraryDocument
   )
 
   createAction(
