@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 Intabia Fusion.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -50,7 +51,6 @@ import { PlatformError, unknownError } from '@hcengineering/platform'
 import {
   BackupClientOps,
   createBroadcastEvent,
-  estimateDocSize,
   SessionDataImpl,
   type ClientSessionCtx,
   type ConnectionSocket,
@@ -137,9 +137,7 @@ export class ClientSession implements Session {
         ctx.pipeline.loadModel(ctx.ctx, lastModelTx, hash)
       )
 
-      await this.counter.withCounter('clientSendMemory', this.estimateSize(result), () =>
-        ctx.sendResponse(ctx.requestId, result)
-      )
+      await ctx.sendResponse(ctx.requestId, result)
     } catch (err) {
       await ctx.sendError(ctx.requestId, 'Failed to loadModel', unknownError(err))
       ctx.ctx.error('failed to loadModel', { err })
@@ -198,10 +196,6 @@ export class ClientSession implements Session {
     return ctx.pipeline.findAll(ctx.ctx, _class, query, options)
   }
 
-  estimateSize (doc: any): number {
-    return Math.round((estimateDocSize(doc) * 10) / (1024 * 1024)) / 10
-  }
-
   async findAll<T extends Doc>(
     ctx: ClientSessionCtx,
     _class: Ref<Class<T>>,
@@ -223,9 +217,7 @@ export class ClientSession implements Session {
         this.findAllRaw(ctx, _class, query, options)
       )
 
-      await this.counter.withCounter('clientSendMemory', this.estimateSize(result), () =>
-        ctx.sendResponse(ctx.requestId, result)
-      )
+      await ctx.sendResponse(ctx.requestId, result)
     } catch (err) {
       await ctx.sendError(ctx.requestId, 'Failed to findAll', unknownError(err))
       ctx.ctx.error('failed to findAll', { err })
@@ -239,9 +231,7 @@ export class ClientSession implements Session {
       const result = await this.counter.withCounter('fulltext', 1, () =>
         ctx.pipeline.searchFulltext(ctx.ctx, query, options)
       )
-      await this.counter.withCounter('clientSendMemory', this.estimateSize(result), () =>
-        ctx.sendResponse(ctx.requestId, result)
-      )
+      await ctx.sendResponse(ctx.requestId, result)
     } catch (err) {
       await ctx.sendError(ctx.requestId, 'Failed to searchFulltext', unknownError(err))
       ctx.ctx.error('failed to searchFulltext', { err })
@@ -324,7 +314,7 @@ export class ClientSession implements Session {
   }
 
   broadcast (ctx: MeasureContext, socket: ConnectionSocket, tx: Tx[]): void {
-    if (this.tx.length > 10000) {
+    if (tx.length > 10000) {
       const classes = new Set<Ref<Class<Doc>>>()
       for (const dtx of tx) {
         if (TxProcessor.isExtendsCUD(dtx._class)) {
@@ -407,6 +397,7 @@ export class ClientSession implements Session {
   async upload (ctx: ClientSessionCtx, domain: Domain, docs: Doc[]): Promise<void> {
     if (!this.allowUpload) {
       await ctx.sendResponse(ctx.requestId, { error: 'Upload not allowed' })
+      return
     }
     this.lastRequest = Date.now()
     try {
@@ -422,6 +413,7 @@ export class ClientSession implements Session {
   async clean (ctx: ClientSessionCtx, domain: Domain, docs: Ref<Doc>[]): Promise<void> {
     if (!this.allowUpload) {
       await ctx.sendResponse(ctx.requestId, { error: 'Clean not allowed' })
+      return
     }
     this.lastRequest = Date.now()
     try {
@@ -468,9 +460,7 @@ export class ClientSession implements Session {
 
     const result: DomainResult = await ctx.pipeline.domainRequest(ctx.ctx, domain, params)
 
-    await this.counter.withCounter('clientSendMemory', this.estimateSize(result), () =>
-      ctx.sendResponse(ctx.requestId, result)
-    )
+    await ctx.sendResponse(ctx.requestId, result)
     // We need to broadcast all collected transactions
     const broadcastPromise = ctx.pipeline.handleBroadcast(ctx.ctx)
 
