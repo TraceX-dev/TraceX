@@ -942,6 +942,25 @@ export function createModel (builder: Builder): void {
     documents.action.TransferDocument
   )
 
+  // Same action for Document objects (library list, document view) - ProjectDocument is handled above (sidebar tree)
+  createAction(
+    builder,
+    {
+      action: documents.actionImpl.TransferDocument,
+      label: documents.string.Transfer,
+      icon: view.icon.Move,
+      input: 'any',
+      category: view.category.General,
+      target: documents.class.Document,
+      visibilityTester: documents.function.CanTransferDocument,
+      context: {
+        mode: ['context', 'browser'],
+        group: 'copy'
+      }
+    },
+    documents.action.TransferDocumentFromDocument
+  )
+
   createAction(
     builder,
     {

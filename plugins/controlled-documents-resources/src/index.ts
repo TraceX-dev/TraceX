@@ -17,6 +17,7 @@ import {
   type Document,
   type DocumentMeta,
   type DocumentSpace,
+  type HierarchyDocument,
   DocumentState,
   type Project,
   type ProjectDocument
@@ -315,7 +316,9 @@ async function canTransferDocument (obj?: Doc | Doc[]): Promise<boolean> {
   ).then((res) => res.every((r) => r))
 }
 
-async function transferDocuments (selection: Document | Document[]): Promise<void> {
+async function transferDocuments (
+  selection: Document | Document[] | ProjectDocument | ProjectDocument[]
+): Promise<void> {
   const objects = Array.isArray(selection) ? selection : [selection]
 
   const client = getClient()
@@ -326,8 +329,18 @@ async function transferDocuments (selection: Document | Document[]): Promise<voi
   let sourceProjectId: Ref<Project<DocumentSpace>> | undefined
 
   if (objects.length < 1) return
+
+  // Resolve project documents: either given directly (sidebar tree) or looked up from documents (list, document view)
+  let pjDocs: ProjectDocument[] = []
   if (h.isDerived(objects[0]._class, documents.class.ProjectDocument)) {
-    const pjDocs = objects as unknown as ProjectDocument[]
+    pjDocs = objects as unknown as ProjectDocument[]
+  } else if (h.isDerived(objects[0]._class, documents.class.Document)) {
+    pjDocs = await client.findAll(documents.class.ProjectDocument, {
+      document: { $in: (objects as Document[]).map((d) => d._id as unknown as Ref<HierarchyDocument>) }
+    })
+  }
+
+  if (pjDocs.length > 0) {
     const pjMeta = await client.findAll(documents.class.ProjectMeta, { _id: { $in: pjDocs.map((d) => d.attachedTo) } })
     const docMeta = await client.findAll(documents.class.DocumentMeta, { _id: { $in: pjMeta.map((d) => d.meta) } })
     sourceDocumentIds = docMeta.map((d) => d._id)
