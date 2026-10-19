@@ -23,29 +23,23 @@
     Icon,
     IconCheckCircle,
     IconClose,
-    IconDelete,
     IconMoreH,
     Label,
     EditBox,
-    ModernPopup,
-    eventToHTMLElement,
     showPopup,
     tooltip
   } from '@hcengineering/ui'
+  import { showMenu } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
 
   import chunter from '../../plugin'
   import {
     canChangeDiscussionVisibility,
-    canDeleteDiscussion,
     canEditDiscussionMembers,
-    canManageDiscussion,
     canRenameDiscussion,
-    deleteDiscussion,
     getDiscussionVisibility,
     getDiscussionVisibilityLevels,
     normalizeDiscussionMembers,
-    setDiscussionResolved,
     setDiscussionVisibility
   } from '../../utils'
   import DiscussionVisibilityMenu from './DiscussionVisibilityMenu.svelte'
@@ -58,10 +52,8 @@
 
   let title = ''
 
-  $: canManage = canManageDiscussion(discussion)
   // A default discussion gets its name from the owner type and cannot be deleted while configured there.
   $: canRename = canRenameDiscussion(discussion)
-  $: canDelete = canDeleteDiscussion(discussion)
   $: canChangeVisibility = canChangeDiscussionVisibility(discussion)
   $: canEditMembers = canEditDiscussionMembers(discussion)
   $: visibility = getDiscussionVisibility(discussion)
@@ -71,26 +63,9 @@
 
   $: resolved = discussion.resolved
 
+  // Opens the standard action menu, so the panel offers the same actions as the discussion list.
   function openMenu (ev: MouseEvent): void {
-    const items = [
-      resolved
-        ? { id: 'reopen', label: chunter.string.ReopenDiscussion, icon: IconCheckCircle }
-        : { id: 'resolve', label: chunter.string.MarkAsResolved, icon: IconCheckCircle },
-      ...(canDelete ? [{ id: 'delete', label: chunter.string.DeleteDiscussion, icon: IconDelete }] : [])
-    ]
-    showPopup(ModernPopup, { items }, eventToHTMLElement(ev), (result) => {
-      switch (result) {
-        case 'resolve':
-          void setDiscussionResolved(discussion, true)
-          break
-        case 'reopen':
-          void setDiscussionResolved(discussion, false)
-          break
-        case 'delete':
-          void deleteDiscussion(discussion)
-          break
-      }
-    })
+    showMenu(ev, { object: discussion })
   }
 
   // Keeps the draft while the user is typing; synced from the discussion otherwise.
@@ -184,9 +159,7 @@
       />
     </div>
   {/if}
-  {#if canManage}
-    <ButtonIcon icon={IconMoreH} size="small" kind="tertiary" on:click={openMenu} />
-  {/if}
+  <ButtonIcon icon={IconMoreH} size="small" kind="tertiary" on:click={openMenu} />
   {#if allowClose}
     <ButtonIcon icon={IconClose} size="small" kind="tertiary" on:click={() => dispatch('close')} />
   {/if}
