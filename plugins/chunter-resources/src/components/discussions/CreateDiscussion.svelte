@@ -17,6 +17,7 @@
   import { type Discussion, withDiscussionVisibility } from '@hcengineering/chunter'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import core, {
+    AccountRole,
     type AccountUuid,
     type AttachedData,
     type Doc,
@@ -38,12 +39,14 @@
 
   const dispatch = createEventDispatcher()
   const client = getClient()
-  const me = getCurrentAccount().uuid
+  const account = getCurrentAccount()
+  const me = account.uuid
+  const isGuest = account.role === AccountRole.Guest
   const collaboratorsQuery = createQuery()
 
   let name = ''
   let members: AccountUuid[] = [me]
-  let visibility: ObjectVisibility = 'public'
+  let visibility: ObjectVisibility = isGuest ? 'participants' : 'public'
   // StyledTextArea updates its bound content only on blur.
   let draftMessage: Markup = EmptyMarkup
   let collaborators: AccountUuid[] = []
@@ -72,14 +75,15 @@
   async function create (): Promise<void> {
     const operations = client.apply(undefined, 'chunter.createDiscussion')
     const title = name.trim()
+    const discussionVisibility = isGuest ? 'participants' : visibility
     const data: AttachedData<Discussion> = {
       ...(title !== '' ? { name: title } : {}),
       resolved: false,
       // Members exist only for a private discussion.
-      members: visibility !== 'private' ? [] : members.includes(me) ? members : [me, ...members]
+      members: discussionVisibility !== 'private' ? [] : members.includes(me) ? members : [me, ...members]
     }
-    // The creator must be a card collaborator to keep access.
-    if (visibility === 'participants') {
+    // Guests may create discussions only when they are already card collaborators.
+    if (discussionVisibility === 'participants' && !isGuest) {
       await ensureCollaborator(operations, object)
     }
     const discussionId = await operations.addCollection(
@@ -88,7 +92,7 @@
       object._id,
       object._class,
       'discussions',
-      withDiscussionVisibility(data, visibility)
+      withDiscussionVisibility(data, discussionVisibility)
     )
 
     if (!isEmptyMarkup(draftMessage)) {
@@ -129,6 +133,7 @@
         <DiscussionVisibilityMenu
           value={visibility}
           parentClass={object._class}
+          disabled={isGuest}
           on:change={(ev) => {
             visibility = ev.detail
           }}
