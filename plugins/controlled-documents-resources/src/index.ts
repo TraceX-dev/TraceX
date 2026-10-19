@@ -18,7 +18,6 @@ import {
   type DocumentMeta,
   type DocumentSpace,
   DocumentState,
-  type Project,
   type ProjectDocument
 } from '@hcengineering/controlled-documents'
 import {
@@ -119,8 +118,10 @@ import {
   isFolder,
   renameFolder,
   sortDocumentStates,
-  getDocumentMetaTitle
+  getDocumentMetaTitle,
+  getLatestProjectId
 } from './utils'
+import { resolveTransferSource } from './transferSource'
 
 import { formatControlledDocumentValue } from './docTableFormatter'
 
@@ -305,39 +306,34 @@ async function canTransferDocument (obj?: Doc | Doc[]): Promise<boolean> {
     return false
   }
 
-  const objs = (Array.isArray(obj) ? obj : [obj]) as Document[]
+  const objs = (Array.isArray(obj) ? obj : [obj]) as Array<Document | ProjectDocument>
   const spaces = new Set(objs.map((doc) => doc.space))
+  // a transfer works within a single source space
+  if (spaces.size !== 1) return false
 
-  return await Promise.all(
+  const hasPermission = await Promise.all(
     Array.from(spaces).map(
       async (space) => await checkPermission(getClient(), documents.permission.ArchiveDocument, space)
     )
   ).then((res) => res.every((r) => r))
+  if (!hasPermission) return false
+
+  const client = getClient()
+  return (await resolveTransferSource(client, client.getHierarchy(), objs, getLatestProjectId)) !== undefined
 }
 
-async function transferDocuments (selection: Document | Document[]): Promise<void> {
+async function transferDocuments (
+  selection: Document | Document[] | ProjectDocument | ProjectDocument[]
+): Promise<void> {
   const objects = Array.isArray(selection) ? selection : [selection]
 
   const client = getClient()
-  const h = client.getHierarchy()
+  const source = await resolveTransferSource(client, client.getHierarchy(), objects, getLatestProjectId)
 
-  let sourceDocumentIds: Array<Ref<DocumentMeta>> = []
-  let sourceSpaceId: Ref<DocumentSpace> | undefined
-  let sourceProjectId: Ref<Project<DocumentSpace>> | undefined
+  // the action visibility tester (canTransferDocument) already rejects such selections
+  if (source === undefined) return
 
-  if (objects.length < 1) return
-  if (h.isDerived(objects[0]._class, documents.class.ProjectDocument)) {
-    const pjDocs = objects as unknown as ProjectDocument[]
-    const pjMeta = await client.findAll(documents.class.ProjectMeta, { _id: { $in: pjDocs.map((d) => d.attachedTo) } })
-    const docMeta = await client.findAll(documents.class.DocumentMeta, { _id: { $in: pjMeta.map((d) => d.meta) } })
-    sourceDocumentIds = docMeta.map((d) => d._id)
-    sourceSpaceId = pjDocs[0].space
-    sourceProjectId = pjDocs[0].project
-  }
-
-  if (sourceDocumentIds.length < 1) return
-
-  showPopup(TransferDocumentPopup, { sourceDocumentIds, sourceSpaceId, sourceProjectId })
+  showPopup(TransferDocumentPopup, source)
 }
 
 async function isDraftDoc (obj?: Doc | Doc[]): Promise<boolean> {

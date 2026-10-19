@@ -89,6 +89,8 @@ import {
   getGithubIssue,
   getGithubProjectByUrl,
   getGithubUser,
+  hasGithubRepositoryDiscussions,
+  hasGithubRepositoryIssues,
   listGithubDiscussionCategories,
   listGithubDiscussions,
   listGithubIssueComments,
@@ -1320,12 +1322,13 @@ async function ensureRepositoryDocs (
 async function getOutboundRoutes (
   ctx: MeasureContext,
   providerContext: ProviderContext,
-  repositories: Iterable<GithubNextRepository>
+  repositories: Iterable<GithubNextRepository>,
+  isRepositoryAvailable: (repository: GithubNextRepository) => Promise<boolean>
 ): Promise<OutboundRoute[]> {
   const routesByTarget = new Map<string, OutboundRoute[]>()
 
   for (const repository of repositories) {
-    if (!repository.enabled) continue
+    if (!repository.enabled || !(await isRepositoryAvailable(repository))) continue
 
     const target = await resolveIntegrationRoute(
       providerContext.policy,
@@ -1937,6 +1940,8 @@ async function syncInboundIssues (
         const repositoryDoc = repositoryDocs.get(`${repository.owner}/${repository.name}`)
         if (repositoryDoc === undefined || !repositoryDoc.enabled) continue
 
+        if (!(await hasGithubRepositoryIssues(secret.secret, repository, githubContext))) continue
+
         const issues = await listGithubIssues(secret.secret, repository, githubContext)
         result.issuesSeen += issues.length
 
@@ -2009,6 +2014,7 @@ async function syncInboundDiscussions (
   if (accountIntegrations.length === 0) return result
 
   const { client, markup } = await createWorkspaceClient(accountsUrl, workspaceUuid)
+  const githubContext = createGithubRequestContext()
   try {
     const workspaceIntegration = await getWorkspaceIntegration(client)
     if (workspaceIntegration === undefined) return result
@@ -2034,6 +2040,8 @@ async function syncInboundDiscussions (
       for (const repository of repositories) {
         const repositoryDoc = repositoryDocs.get(`${repository.owner}/${repository.name}`)
         if (repositoryDoc === undefined || !repositoryDoc.enabled) continue
+
+        if (!(await hasGithubRepositoryDiscussions(secret.secret, repository, githubContext))) continue
 
         const discussions = await listGithubDiscussions(secret.secret, repository)
         result.discussionsSeen += discussions.length
@@ -2731,7 +2739,16 @@ async function syncOutboundForProvider (
       if (secret == null || secret.secret.trim() === '') continue
 
       const repositoryDocs = await ensureRepositoryDocs(ctx, client, workspaceIntegration, repositories)
-      const routes = await getOutboundRoutes(ctx, providerContext, repositoryDocs.values())
+      const isRepositoryAvailable = async (repository: GithubNextRepository): Promise<boolean> => {
+        if (kind === 'issue') {
+          return await hasGithubRepositoryIssues(secret.secret, repository, githubContext)
+        }
+        if (kind === 'discussion') {
+          return await hasGithubRepositoryDiscussions(secret.secret, repository, githubContext)
+        }
+        return true
+      }
+      const routes = await getOutboundRoutes(ctx, providerContext, repositoryDocs.values(), isRepositoryAvailable)
       result.repositories += routes.length
 
       if (kind !== 'pullRequest') {
@@ -2763,6 +2780,10 @@ async function syncOutboundForProvider (
 
         const repository = await client.findOne(githubNext.class.GithubNextRepository, { _id: state.repository })
         if (repository === undefined || !repository.enabled) continue
+        if (!(await isRepositoryAvailable(repository))) {
+          result.skipped++
+          continue
+        }
 
         const targetDoc = await client.findOne(state.targetClass, { _id: state.targetId })
         if (targetDoc === undefined) {

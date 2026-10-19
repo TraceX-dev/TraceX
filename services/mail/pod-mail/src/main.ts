@@ -58,7 +58,11 @@ export const main = async (): Promise<void> => {
     }
   ]
 
-  const server = listen(createServer(endpoints), config.port)
+  if (config.authToken === undefined) {
+    measureCtx.error('MAIL_AUTH_TOKEN is not set: all requests to the mail service will be rejected')
+  }
+
+  const server = listen(createServer(endpoints, { authToken: config.authToken }), config.port)
 
   const shutdown = (): void => {
     server.close(() => {
@@ -82,13 +86,12 @@ export async function handleSendMail (
   res: Response,
   ctx: MeasureContext
 ): Promise<void> {
-  const { from, to, subject, text, html, attachments, headers, apiKey, password } = req.body
-  if (process.env.API_KEY !== undefined && process.env.API_KEY !== apiKey) {
-    ctx.warn('Unauthorized access attempt to send email', {
-      from,
-      to
-    })
-    res.status(401).send({ err: 'Unauthorized' })
+  // Authentication is enforced by the requireAuth middleware in server.ts
+  const { from, to, subject, text, html, attachments, headers, password } = req.body ?? {}
+  const typeError = validateTypes({ from, to, subject, text, html, password })
+  if (typeError !== undefined) {
+    ctx.warn('Invalid email request', { err: typeError })
+    res.status(400).send({ err: typeError })
     return
   }
   const fromAddress = from ?? config.source
@@ -116,7 +119,10 @@ export async function handleSendMail (
     from: fromAddress,
     to,
     subject,
-    text
+    text,
+    // Never let request data make nodemailer read local files or fetch URLs
+    disableFileAccess: true,
+    disableUrlAccess: true
   }
   // When sending system message, ensure we enable replying to a different domain as needed
   if (config.replyTo !== undefined && fromAddress === config.source) {
@@ -126,7 +132,11 @@ export async function handleSendMail (
     message.html = html
   }
   if (headers !== undefined) {
-    message.headers = headers
+    if (!isPlainObject(headers) || !Object.values(headers).every((v) => typeof v === 'string')) {
+      res.status(400).send({ err: "'headers' must be an object with string values" })
+      return
+    }
+    message.headers = headers as Record<string, string>
   }
   if (attachments !== undefined) {
     message.attachments = getAttachments(attachments)
@@ -140,7 +150,24 @@ export async function handleSendMail (
   res.send()
 }
 
-function getAttachments (attachments: any): Mail.Attachment[] | undefined {
+function isPlainObject (v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+const isOptString = (v: unknown): boolean => v === undefined || typeof v === 'string'
+const isAddress = (v: unknown): boolean =>
+  typeof v === 'string' || (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string'))
+
+function validateTypes (fields: Record<string, unknown>): string | undefined {
+  // nodemailer treats objects like { path } / { href } in text/html as file/URL sources
+  for (const key of ['from', 'subject', 'text', 'html', 'password']) {
+    if (!isOptString(fields[key])) return `'${key}' must be a string`
+  }
+  if (fields.to !== undefined && !isAddress(fields.to)) return "'to' must be a string or array of strings"
+  return undefined
+}
+
+function getAttachments (attachments: unknown): Mail.Attachment[] | undefined {
   if (attachments === undefined || attachments === null) {
     return undefined
   }
@@ -148,18 +175,24 @@ function getAttachments (attachments: any): Mail.Attachment[] | undefined {
     console.error('attachments is not array')
     return undefined
   }
-  return attachments.map((a) => {
-    const attachment: Mail.Attachment = {
-      content: a.content,
-      contentType: a.contentType,
-      path: a.path,
-      filename: a.filename,
-      cid: a.cid,
-      encoding: a.encoding,
-      contentTransferEncoding: a.contentTransferEncoding,
-      headers: a.headers,
-      raw: a.raw
-    }
-    return attachment
-  })
+  // Only inline content is allowed. `path`, `href` and `raw` are intentionally not
+  // forwarded: they make nodemailer read local files or fetch remote URLs.
+  return attachments
+    .filter((a): a is Record<string, unknown> => isPlainObject(a) && typeof a.content === 'string')
+    .map((a) => {
+      const attachment: Mail.Attachment = {
+        content: a.content as string,
+        contentType: typeof a.contentType === 'string' ? a.contentType : undefined,
+        filename: typeof a.filename === 'string' ? a.filename : undefined,
+        cid: typeof a.cid === 'string' ? a.cid : undefined,
+        encoding: typeof a.encoding === 'string' ? a.encoding : undefined,
+        contentTransferEncoding:
+          a.contentTransferEncoding === 'base64' ||
+          a.contentTransferEncoding === 'quoted-printable' ||
+          a.contentTransferEncoding === '7bit'
+            ? a.contentTransferEncoding
+            : undefined
+      }
+      return attachment
+    })
 }

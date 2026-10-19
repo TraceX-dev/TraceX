@@ -85,6 +85,19 @@ For local docker, `PUBLIC_URL` must match the GitHub OAuth callback host:
 http://huly.local:3510
 ```
 
+## Repository sync availability
+
+Issue sync checks the repository's `has_issues` flag before importing issues, creating or updating
+issues, or syncing their comments. Repositories with issues disabled are skipped, including existing
+issue sync states. Discussion sync checks `has_discussions` before importing, creating or updating
+discussions, including existing discussion sync states. The two flags are checked independently;
+pull request sync does not depend on either flag.
+
+The full response from `GET /repos/{owner}/{repo}` is cached as `Promise<GithubRepositoryResponse>` in
+`GithubRequestContext.repositoryCache`, using `owner/name` as the key, like milestones. Repository
+lookups and issue availability checks within the same context share one metadata request. Each new
+sync pass creates a new context and refreshes the metadata. Metadata request failures stop that sync attempt.
+
 ## Frontend config
 
 The frontend needs `GITHUB_NEXT_CLIENTID` and `GITHUB_NEXT_URL` so it can open OAuth and call this service:
