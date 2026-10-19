@@ -18,7 +18,7 @@ import clientPlugin from '@hcengineering/client'
 import type { ClientFactoryOptions } from '@hcengineering/client'
 import core, {
   Client,
-  LoadModelResponse,
+  isFullModelResponse,
   type PersonUuid,
   Tx,
   TxHandler,
@@ -38,7 +38,8 @@ import core, {
   type Ref,
   type TxCUD,
   platformNow,
-  ClientConnectEvent
+  ClientConnectEvent,
+  LoadModelResponse
 } from '@hcengineering/core'
 import platform, { Severity, Status, getMetadata, getPlugins, setPlatformStatus } from '@hcengineering/platform'
 import { connect } from './connection'
@@ -177,7 +178,12 @@ export default async () => {
           return txes
         }
 
-        const client = createClient(handler, modelFilter, createModelPersistence(getWSFromToken(token)), opt?.ctx)
+        const client = createClient(
+          handler,
+          modelFilter,
+          opt?.txPersistence ?? createModelPersistence(getWSFromToken(token)),
+          opt?.ctx
+        )
         return await client
       }
     }
@@ -264,21 +270,18 @@ function createModelPersistence (workspace: string): TxPersistenceStore | undefi
             }
           })
 
-          if (model == null) {
-            return {
-              full: false,
-              transactions: [],
-              hash: ''
-            }
+          const snapshot = model?.model
+          if (snapshot !== undefined && isFullModelResponse(snapshot)) {
+            return snapshot
           }
-          return model.model
         } catch (err: any) {
           // Assume no model is stored.
         }
       }
       return {
-        full: true,
-        transactions: [],
+        kind: 'full',
+        systemTx: [],
+        userTx: [],
         hash: ''
       }
     },
