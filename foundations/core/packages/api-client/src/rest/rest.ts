@@ -30,8 +30,11 @@ import {
   type DomainResult,
   type FindOptions,
   type FindResult,
+  type LoadModelResponse,
   Hierarchy,
   MeasureMetricsContext,
+  mergeModelResponse,
+  getModelTransactions,
   type Mixin,
   type MixinData,
   type MixinUpdate,
@@ -48,11 +51,13 @@ import {
   SocialIdType,
   type Tx,
   type TxResult,
+  type TxPersistenceStore,
   type WithLookup
 } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status, unknownError } from '@hcengineering/platform'
 
-import { AuthOptions } from '../types'
+import type { AuthOptions, ModelOptions } from '../types'
+import { createModelPersistence } from '../model'
 import { getWorkspaceToken } from '../utils'
 import type { EnsurePersonOptions, RestClient, RestClientOptions } from './types'
 import { extractJson, withRetry } from './utils'
@@ -61,12 +66,12 @@ export function createRestClient (
   endpoint: string,
   workspaceId: string,
   token: string,
-  options?: RestClientOptions
+  options?: ModelOptions & RestClientOptions
 ): RestClient {
   return new RestClientImpl(endpoint, workspaceId, token, options)
 }
 
-export async function connectRest (url: string, options: AuthOptions & RestClientOptions): Promise<RestClient> {
+export async function connectRest (url: string, options: AuthOptions & ModelOptions & RestClientOptions): Promise<RestClient> {
   const { endpoint, token, workspaceId } = await getWorkspaceToken(url, options)
   return createRestClient(endpoint, workspaceId, token, options)
 }
@@ -80,6 +85,7 @@ function isRLE (err: any): boolean {
 export class RestClientImpl implements RestClient {
   endpoint: string
   private readonly requestTimeout: number
+  private modelPersistence: Promise<TxPersistenceStore> | undefined
 
   slowDownTimer = 0
   currentRateLimit: { remaining: number, limit: number } = { remaining: 1000, limit: 1000 }
@@ -90,7 +96,7 @@ export class RestClientImpl implements RestClient {
     endpoint: string,
     readonly workspace: string,
     readonly token: string,
-    options: RestClientOptions = {}
+    options: ModelOptions & RestClientOptions = {}
   ) {
     this.endpoint = endpoint.replace('ws', 'http')
     this.requestTimeout = options.requestTimeout ?? 60_000
@@ -260,10 +266,13 @@ export class RestClientImpl implements RestClient {
   }
 
   async getModel (full: boolean = false): Promise<{ hierarchy: Hierarchy, model: ModelDb }> {
+    const persistence = await (this.modelPersistence ??= createModelPersistence(this.options.model))
+    const current = await persistence.load()
     const requestUrl = new URL(concatLink(this.endpoint, `/api/v1/load-model/${this.workspace}`))
-    if (full) {
+    if (full || this.options.model !== undefined || current.systemTx.length > 0) {
       requestUrl.searchParams.append('full', 'true')
     }
+    requestUrl.searchParams.append('lastHash', current.hash)
     await this.checkRate()
     const result = await withRetry<{ hierarchy: Hierarchy, model: ModelDb, error?: Status }>(async () => {
       const response = await fetch(requestUrl, this.requestInit())
@@ -272,13 +281,15 @@ export class RestClientImpl implements RestClient {
       }
       this.updateRateLimit(response)
 
-      const modelResponse: Tx[] = await extractJson<Tx[]>(response)
+      const modelResponse = await extractJson<LoadModelResponse>(response)
+      const snapshot = mergeModelResponse(current, modelResponse)
+      await persistence.store(snapshot)
 
       const hierarchy = new Hierarchy()
       const model = new ModelDb(hierarchy)
 
       const ctx = new MeasureMetricsContext('loadModel', {})
-      buildModel(ctx, modelResponse, undefined, hierarchy, model)
+      buildModel(ctx, getModelTransactions(snapshot), undefined, hierarchy, model)
 
       return { hierarchy, model }
     }, isRLE)
