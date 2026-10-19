@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,12 +14,13 @@
 // limitations under the License.
 //
 
-import { newMetrics, type Tx } from '@hcengineering/core'
+import { newMetrics } from '@hcengineering/core'
 import { setMetadata } from '@hcengineering/platform'
 import serverClient from '@hcengineering/server-client'
 import serverToken from '@hcengineering/server-token'
 import { storageConfigFromEnv } from '@hcengineering/server-storage'
-import builder, { getModelVersion } from '@hcengineering/model-all'
+import { getModelVersion } from '@hcengineering/model-all'
+import { model } from '@hcengineering/model-all/src/model'
 import { initStatisticsContext } from '@hcengineering/server-core'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { join } from 'path'
@@ -68,12 +70,11 @@ export const main = async (): Promise<void> => {
       )
   })
 
-  // Load model from JSON file
-  const model = JSON.parse(JSON.stringify(builder().getTxes())) as Tx[]
+  const modelTx = structuredClone(model)
   metricsContext.info(`Loaded model transactions, version: ${JSON.stringify(getModelVersion())}`)
 
   const storageConfig = storageConfigFromEnv()
-  const { app, close } = createServer(storageConfig, config.DbURL, model, metricsContext)
+  const { app, close } = createServer(storageConfig, config.DbURL, modelTx, metricsContext)
   const server = listen(app, config.Port, metricsContext)
 
   const shutdown = (): void => {

@@ -14,8 +14,9 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
-import { NodeWebSocketFactory } from '@hcengineering/api-client'
+import { createModelPersistence, NodeWebSocketFactory } from '@hcengineering/api-client'
 import clientPlugin from '@hcengineering/client'
 import clientResources from '@hcengineering/client-resources'
 import core, { ClientConnectEvent, systemAccountUuid, TxOperations } from '@hcengineering/core'
@@ -168,6 +169,7 @@ async function createClient (
   const create = async (): Promise<TxOperations> => {
     const connection = await factory(wsInfo.token, wsInfo.endpoint, {
       ctx: lifecycleContext,
+      txPersistence: await createModelPersistence(model),
       socketFactory: NodeWebSocketFactory,
       useBinaryProtocol: true,
       useProtocolCompression: true,

@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "@hcengineering/openauth-client": "workspace:^0.7.0",
+    "@hcengineering/model-all": "workspace:^0.7.0",
     "@hcengineering/analytics-service": "workspace:^0.7.19",
     "@hcengineering/api-client": "workspace:^0.7.25",
     "@hcengineering/card": "workspace:^0.7.0",

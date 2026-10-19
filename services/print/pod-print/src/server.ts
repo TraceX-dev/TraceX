@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
@@ -14,6 +15,7 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { createRestTxOperations } from '@hcengineering/api-client'
 import { type Class, type Doc, generateId, newMetrics, type Ref, type WorkspaceIds } from '@hcengineering/core'
 import { StorageConfiguration, initStatisticsContext } from '@hcengineering/server-core'
@@ -291,7 +293,9 @@ export function createServer (
       const options = parsePrintOptions(req.query)
 
       const transactorUrl = wsLoginInfo.endpoint.replace('ws://', 'http://').replace('wss://', 'https://')
-      const client = await createRestTxOperations(transactorUrl, wsLoginInfo.workspace, wsLoginInfo.token)
+      const client = await createRestTxOperations(transactorUrl, wsLoginInfo.workspace, wsLoginInfo.token, false, {
+        model
+      })
 
       try {
         const doc = await client.findOne(objectClass as Ref<Class<Doc>>, { _id: objectId as Ref<Doc> })

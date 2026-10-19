@@ -53,6 +53,7 @@
     "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
+    "@hcengineering/model-all": "workspace:^0.7.0",
     "@hcengineering/attachment": "workspace:^0.7.0",
     "@hcengineering/calendar": "workspace:^0.7.0",
     "@hcengineering/client": "workspace:^0.7.19",
