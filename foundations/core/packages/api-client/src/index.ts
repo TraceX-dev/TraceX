@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2024 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -22,3 +23,4 @@ export * from './config'
 export * from './utils'
 export * from './storage'
 export * from './markup'
+export { createModelPersistence } from './model'

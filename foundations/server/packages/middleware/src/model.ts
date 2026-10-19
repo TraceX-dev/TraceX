@@ -47,6 +47,10 @@ import crypto from 'node:crypto'
 const isAccountTx = (it: TxCUD<Doc>): boolean =>
   it.objectClass === 'core:class:Account' || it.objectClass === 'contact:class:PersonAccount'
 
+function calculateSystemHash (systemTx: Tx[]): string {
+  return crypto.createHash('sha1').update(JSON.stringify(systemTx)).digest('hex')
+}
+
 /**
  * @public
  */
@@ -58,7 +62,8 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
     context: PipelineContext,
     next: Middleware | undefined,
     readonly systemTx: Tx[],
-    readonly filter?: (h: Hierarchy, model: Tx[]) => Tx[]
+    readonly filter?: (h: Hierarchy, model: Tx[]) => Tx[],
+    private readonly systemHash: string = filter === undefined ? calculateSystemHash(systemTx) : ''
   ) {
     super(context, next)
   }
@@ -69,16 +74,18 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
     context: PipelineContext,
     next: Middleware | undefined,
     systemTx: Tx[],
-    filter?: (h: Hierarchy, model: Tx[]) => Tx[]
+    filter?: (h: Hierarchy, model: Tx[]) => Tx[],
+    systemHash?: string
   ): Promise<Middleware> {
-    const middleware = new ModelMiddleware(context, next, systemTx, filter)
+    const middleware = new ModelMiddleware(context, next, systemTx, filter, systemHash)
     await middleware.init(ctx)
     return middleware
   }
 
   static create (tx: Tx[], filter?: (h: Hierarchy, model: Tx[]) => Tx[]): MiddlewareCreator {
+    const systemHash = filter === undefined ? calculateSystemHash(tx) : ''
     return (ctx, context, next) => {
-      return this.doCreate(ctx, context, next, tx, filter)
+      return this.doCreate(ctx, context, next, tx, filter, systemHash)
     }
   }
 
@@ -216,35 +223,55 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
 
   private setModel (model: Tx[]): void {
     let last = ''
-    model.map((it, index) => {
+    // Keep the same chain as addModelTx so replay and incremental updates produce the same version.
+    for (const tx of model) {
       const h = crypto.createHash('sha1')
       h.update(last)
-      h.update(JSON.stringify(it))
+      h.update(JSON.stringify(tx))
       last = h.digest('hex')
-      return [last, index]
-    })
+    }
     this.setLastHash(last)
   }
 
   async loadModel (ctx: MeasureContext, lastModelTx: Timestamp, hash?: string): Promise<Tx[] | LoadModelResponse> {
     if (hash !== undefined) {
-      if (hash === this.lastHash) {
-        return {
-          full: false,
-          hash,
-          transactions: []
+      // Keeping the system version in the hash makes stale user snapshots reusable.
+      // An exact complete version needs no model fetch or transfer.
+      if (this.filter === undefined) {
+        const systemHash = this.systemHash
+        const currentHash = systemHash + ':' + this.lastHash
+        if (hash === currentHash) {
+          return { kind: 'delta', hash: currentHash, transactions: [] }
         }
+        const matchesSystem = hash === systemHash || hash.startsWith(systemHash + ':')
+        const userModel = await this.getUserModel(ctx)
+        const response = { hash: currentHash, userTx: userModel.slice() }
+        return matchesSystem
+          ? { ...response, kind: 'user' }
+          : { ...response, kind: 'full', systemTx: this.systemTx.slice() }
       }
+      if (hash.split(':')[1] === this.lastHash) {
+        return { kind: 'delta', hash, transactions: [] }
+      }
+      // Filter the complete model before separating its immutable and workspace transactions.
+      const model = await this.getModel(ctx)
+      const systemIds = new Set(this.systemTx.map((tx) => tx._id))
+      const systemTx = model.filter((tx) => systemIds.has(tx._id))
       return {
-        full: true,
-        hash: this.lastHash,
-        transactions: await this.getModel(ctx)
+        kind: 'full',
+        hash: calculateSystemHash(systemTx) + ':' + this.lastHash,
+        systemTx,
+        userTx: model.filter((tx) => !systemIds.has(tx._id))
       }
     }
     return (await this.getModel(ctx)).filter((it) => it.modifiedOn > lastModelTx)
   }
 
   private async getModel (ctx: MeasureContext): Promise<Tx[]> {
+    return this.applyFilter(this.systemTx.concat(await this.getUserModel(ctx)))
+  }
+
+  private async getUserModel (ctx: MeasureContext): Promise<Tx[]> {
     if (this.userModel === undefined) {
       // Single flight - concurrent loadModels must not fetch twice and overwrite each other.
       this.modelFetch = this.modelFetch ?? this.fetchUserModel(ctx)
@@ -255,7 +282,7 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
       throw new PlatformError(unknownError('Failed to load workspace model'))
     }
     cache.at = Date.now()
-    return this.applyFilter(this.systemTx.concat(cache.txs))
+    return cache.txs
   }
 
   private async fetchUserModel (ctx: MeasureContext): Promise<void> {

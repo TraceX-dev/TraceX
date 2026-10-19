@@ -32,6 +32,9 @@ export async function createModelSnapshot (model?: Tx[]): Promise<FullModelRespo
   }
 }
 
+/** Create independent model persistence for a connection, optionally seeded with system transactions.
+ * @public
+ */
 export async function createModelPersistence (model?: Tx[]): Promise<TxPersistenceStore> {
   let current: FullModelResponse = await createModelSnapshot(model)
   return {
