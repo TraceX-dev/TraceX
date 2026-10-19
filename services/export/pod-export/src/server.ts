@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -14,6 +15,7 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { getClient, isWorkspaceLoginInfo } from '@hcengineering/account-client'
 import client from '@hcengineering/client'
 import core, {
@@ -289,7 +291,7 @@ function toSafeFormatFileToken (format: ExportFormat): 'json' | 'csv' {
 export function createServer (
   storageConfig: StorageConfiguration,
   dbUrl: string,
-  model: Tx[],
+  modelTx: Tx[],
   measureCtx: MeasureContext
 ): { app: Express, close: () => void } {
   const storageAdapter = buildStorageFromConfig(storageConfig)
@@ -732,7 +734,7 @@ export function createServer (
               DomainFindMiddleware.create,
               DomainTxMiddleware.create,
               DBAdapterInitMiddleware.create,
-              ModelMiddleware.create(model),
+              ModelMiddleware.create(modelTx),
               DBAdapterMiddleware.create(dbConf)
             ]
 
@@ -840,7 +842,7 @@ async function createPlatformClient (token: string): Promise<Client> {
   })
 
   const endpoint = await getTransactorEndpoint(token)
-  const connection = await createClient(endpoint, token)
+  const connection = await createClient(endpoint, token, model)
 
   return connection
 }

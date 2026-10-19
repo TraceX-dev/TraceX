@@ -1,5 +1,6 @@
 //
 // Copyright © 2022-2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,6 +24,7 @@ import core, {
   DOMAIN_MODEL,
   DOMAIN_TRANSIENT,
   DOMAIN_TX,
+  getModelTransactions,
   groupByArray,
   Hierarchy,
   type MeasureContext,
@@ -270,7 +272,7 @@ export async function upgradeModel (
   }
 
   const newModelRes = await ctx.with('load-model', {}, (ctx) => pipeline.loadModel(ctx, 0))
-  const newModel = Array.isArray(newModelRes) ? newModelRes : newModelRes.transactions
+  const newModel = Array.isArray(newModelRes) ? newModelRes : getModelTransactions(newModelRes)
 
   const { hierarchy, modelDb, model } = await buildModel(ctx, newModel)
   const { migrateClient: preMigrateClient } = await prepareMigrationClient(

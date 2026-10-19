@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,6 +14,7 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { getClient as getAccountClient, type AccountClient } from '@hcengineering/account-client'
 import { createRestTxOperations } from '@hcengineering/api-client'
 import core, { PersonId, systemAccountUuid, type TxOperations, type WorkspaceUuid } from '@hcengineering/core'
@@ -63,7 +65,7 @@ export async function getClient (
       throw new Error('Invalid login info')
     }
     const transactorUrl = wsInfo.endpoint.replace('ws://', 'http://').replace('wss://', 'https://')
-    const client = await createRestTxOperations(transactorUrl, wsInfo.workspace, wsInfo.token)
+    const client = await createRestTxOperations(transactorUrl, wsInfo.workspace, wsInfo.token, false, { model })
     const bundle = { client, accountClient }
     setCachedClient(workspaceUuid, socialId, serviceTag, bundle)
     return bundle

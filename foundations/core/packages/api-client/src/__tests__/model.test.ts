@@ -98,14 +98,12 @@ describe('bundled model', () => {
     const persistence = await createModelPersistence(base)
     const baseHash = (await persistence.load()).hash
     const delta = factory.createTxUpdateDoc(itemClass, core.space.Model, itemId, { $inc: { count: 1 } })
-    const loadModel = jest
-      .fn()
-      .mockResolvedValue({
-        kind,
-        hash: baseHash + ':workspace-hash',
-        ...(kind === 'full' ? { systemTx: base } : {}),
-        userTx: [delta]
-      })
+    const loadModel = jest.fn().mockResolvedValue({
+      kind,
+      hash: baseHash + ':workspace-hash',
+      ...(kind === 'full' ? { systemTx: base } : {}),
+      userTx: [delta]
+    })
     const connection = { loadModel, close: jest.fn() } as unknown as ClientConnection
     const client = await createClient(async () => connection, undefined, persistence)
 
@@ -120,39 +118,36 @@ describe('bundled model', () => {
     await client.close()
   })
 
-  it(
-    'reuses a persisted browser model with a matching version and skips rebuilds on reconnect',
-    async () => {
-      const base = baseModel()
-      const system = await createModelSnapshot(base)
-      const delta = factory.createTxUpdateDoc(itemClass, core.space.Model, itemId, { $inc: { count: 1 } })
-      const persistence = await createModelPersistence()
-      await persistence.store({
-        ...system,
-        hash: system.hash + ':user-hash',
-        userTx: [delta]
-      })
-      const loadModel = jest.fn().mockRejectedValue(new Error('Unchanged models must not be downloaded'))
-      const onConnect = jest.fn()
-      const connection = {
-        loadModel,
-        getLastHash: async () => 'user-hash',
-        onConnect,
-        close: jest.fn()
-      } as unknown as ClientConnection
-      const client = await createClient(async () => connection, undefined, persistence)
-      const model = client.getModel()
-      const hierarchy = client.getHierarchy()
+  it('reuses a persisted browser model with a matching version and skips rebuilds on reconnect', async () => {
+    const base = baseModel()
+    const system = await createModelSnapshot(base)
+    const delta = factory.createTxUpdateDoc(itemClass, core.space.Model, itemId, { $inc: { count: 1 } })
+    const persistence = await createModelPersistence()
+    await persistence.store({
+      ...system,
+      hash: system.hash + ':user-hash',
+      userTx: [delta]
+    })
+    const loadModel = jest.fn().mockRejectedValue(new Error('Unchanged models must not be downloaded'))
+    const onConnect = jest.fn()
+    const connection = {
+      loadModel,
+      getLastHash: async () => 'user-hash',
+      onConnect,
+      close: jest.fn()
+    } as unknown as ClientConnection
+    const client = await createClient(async () => connection, undefined, persistence)
+    const model = client.getModel()
+    const hierarchy = client.getHierarchy()
 
-      expect(await model.findOne(itemClass, { _id: itemId })).toMatchObject({ count: 1 })
-      await connection.onConnect?.(ClientConnectEvent.Reconnected, 'last-tx', {})
-      expect(loadModel).not.toHaveBeenCalled()
-      expect(client.getModel()).toBe(model)
-      expect(client.getHierarchy()).toBe(hierarchy)
-      expect(onConnect.mock.calls.map(([event]) => event)).not.toContain(ClientConnectEvent.Upgraded)
-      await client.close()
-    }
-  )
+    expect(await model.findOne(itemClass, { _id: itemId })).toMatchObject({ count: 1 })
+    await connection.onConnect?.(ClientConnectEvent.Reconnected, 'last-tx', {})
+    expect(loadModel).not.toHaveBeenCalled()
+    expect(client.getModel()).toBe(model)
+    expect(client.getHierarchy()).toBe(hierarchy)
+    expect(onConnect.mock.calls.map(([event]) => event)).not.toContain(ClientConnectEvent.Upgraded)
+    await client.close()
+  })
 
   it('reloads a changed browser model once and skips the next unchanged reconnect', async () => {
     const base = baseModel()

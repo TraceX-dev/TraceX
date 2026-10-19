@@ -421,10 +421,7 @@ describe('ModelMiddleware model cache', () => {
 
     expect(await middleware.loadModel(harness.ctx, 0, hash)).toEqual({
       kind: 'full',
-      hash:
-        createHash('sha1').update(JSON.stringify(middleware.systemTx)).digest('hex') +
-        ':' +
-        middleware.lastHash,
+      hash: createHash('sha1').update(JSON.stringify(middleware.systemTx)).digest('hex') + ':' + middleware.lastHash,
       systemTx: middleware.systemTx,
       userTx
     })
@@ -511,7 +508,9 @@ describe('ModelMiddleware model cache', () => {
     if (Array.isArray(response) || response.kind !== 'full') throw new Error('Expected a full split model')
     expect(response.systemTx.concat(response.userTx)).toEqual(model)
     expect(response.userTx).toEqual([])
-    expect(response.hash).toBe(createHash('sha1').update(JSON.stringify(response.systemTx)).digest('hex') + ':' + before)
+    expect(response.hash).toBe(
+      createHash('sha1').update(JSON.stringify(response.systemTx)).digest('hex') + ':' + before
+    )
     expect(await middleware.loadModel(harness.ctx, 0, response.hash)).toEqual({
       kind: 'delta',
       hash: response.hash,
@@ -541,9 +540,7 @@ describe('ModelMiddleware model cache', () => {
     const response = await middleware.loadModel(harness.ctx, 0, 'stale-hash')
     if (Array.isArray(response) || response.kind !== 'full') throw new Error('Expected a full split model')
     expect(response.hash).toBe(
-      createHash('sha1').update(JSON.stringify(middleware.systemTx)).digest('hex') +
-        ':' +
-        middleware.lastHash
+      createHash('sha1').update(JSON.stringify(middleware.systemTx)).digest('hex') + ':' + middleware.lastHash
     )
     expect(response.systemTx.length).toBeGreaterThan(0)
     expect(response.userTx).toHaveLength(3)

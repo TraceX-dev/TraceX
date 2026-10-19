@@ -13,6 +13,6 @@
 // limitations under the License.
 //
 
-import { systemModel } from '@hcengineering/model-all/src/transactions'
+import { model } from '@hcengineering/model-all/src/model'
 
-console.log(JSON.stringify(systemModel))
+console.log(JSON.stringify(model))

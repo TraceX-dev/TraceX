@@ -84,11 +84,7 @@ describe('REST model response protocol', () => {
       handler(req, res, jest.fn())
     })
     expect(writeHead.mock.calls[0][0]).toBe(200)
-    expect(session.loadModelRaw).toHaveBeenCalledWith(
-      sessionCtx,
-      0,
-      Array.isArray(result) ? undefined : 'base-hash'
-    )
+    expect(session.loadModelRaw).toHaveBeenCalledWith(sessionCtx, 0, Array.isArray(result) ? undefined : 'base-hash')
     return body
   }
 

@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2024 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -12,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+import { model } from '@hcengineering/model-all/src/model'
 import core, { AccountUuid, Client, Ref, TxOperations, WorkspaceUuid } from '@hcengineering/core'
 import contact, { Employee, Person } from '@hcengineering/contact'
 import chunter, { DirectMessage } from '@hcengineering/chunter'
@@ -19,9 +21,9 @@ import { aiBotEmailSocialKey } from '@hcengineering/ai-bot'
 import { createRestClient, RestClientAdapter } from '@hcengineering/api-client'
 
 export async function connectPlatform (token: string, workspaceId: WorkspaceUuid, endpoint: string): Promise<Client> {
-  const client = createRestClient(toHttpUrl(endpoint), workspaceId, token)
-  const { model, hierarchy } = await client.getModel()
-  return new RestClientAdapter(client, hierarchy, model)
+  const client = createRestClient(toHttpUrl(endpoint), workspaceId, token, { model })
+  const { model: modelDb, hierarchy } = await client.getModel()
+  return new RestClientAdapter(client, hierarchy, modelDb)
 }
 
 export async function getAccountBySocialKey (client: TxOperations, socialKey: string): Promise<AccountUuid | null> {
