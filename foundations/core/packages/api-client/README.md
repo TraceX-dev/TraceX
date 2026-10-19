@@ -97,6 +97,66 @@ const client = await connect('https://app.tracex.co', {
 await client.close()
 ```
 
+## Reusing a model
+
+The model contains an immutable system part and a mutable workspace-specific user part.
+Both WebSocket and REST clients accept system transactions from `model.json`:
+
+```ts
+import { connect, connectRest, createRestClient, createRestTxOperations } from '@hcengineering/api-client'
+import type { Tx } from '@hcengineering/core'
+import bundledModel from './model.json'
+
+const model = bundledModel as Tx[]
+const client = await connect(url, { token, workspace, model })
+const restClient = await connectRest(url, { token, workspace, model })
+const directRestClient = createRestClient(endpoint, workspaceId, token, { model })
+const operations = await createRestTxOperations(endpoint, workspaceId, token, true, { model })
+
+await restClient.getModel()
+// The same instance sends its latest model hash on subsequent loads.
+await restClient.getModel()
+```
+
+Each client instance keeps its latest model and hash. There is no shared model cache between
+instances. The supplied system transactions are copied and remain unchanged. Without a local
+system model, the first request downloads the complete model. WebSocket clients compare the
+server's hello hash with the transaction-chain part of the saved version. When it matches,
+they reuse the saved model without a model request, and reconnecting does not rebuild the
+hierarchy or model database. A changed hash triggers a refresh. REST clients refresh the
+model on each `getModel()` call.
+
+The version is `<systemHash>:<modelHash>` and both hashes use SHA-1. The immutable
+system part uses `SHA1(JSON.stringify(systemTx))`, calculated once. The workspace model
+uses a transaction chain starting with an empty string: `next = SHA1(previous + JSON.stringify(tx))`.
+It covers system transactions followed by user transactions, and appending a transaction
+updates the chain without rehashing the preceding transactions. These two hash forms serve
+different purposes and are not interchangeable. A system-only seed uses `<systemHash>`;
+a client without a local model sends an empty hash. Complete versions always contain `:`,
+including responses from pipelines with model filtering.
+
+If the system hash
+matches, the server returns the entire current user part, even when the previous user part
+has changed. The client replaces the previous user part by applying the response to a clean
+system model. Unknown system versions receive the complete model, replacing both parts and
+the stored hash for subsequent requests.
+
+Hash-based model requests return one of three response kinds:
+
+- `{ kind: 'full', hash, systemTx, userTx }` replaces the complete model.
+- `{ kind: 'user', hash, userTx }` replaces the entire user part over the saved system model.
+- `{ kind: 'delta', hash, transactions }` appends transactions to the complete model version
+  sent in the request. WebSocket reconnects apply these additions without rebuilding the
+  hierarchy or model database. An empty delta leaves both intact.
+
+The server returns an empty `delta` for an exact version match, without fetching the model.
+For stale versions with a matching system part it returns `user`; it does not currently
+retain historical version positions to return non-empty transaction deltas.
+The client persists complete `full` snapshots with system and user parts kept separately.
+REST requests with `lastHash` receive responses without hierarchy filtering. Persisted
+snapshots using the old boolean `full` format are discarded and downloaded again.
+Requests without a hash retain the timestamp-based transaction array response.
+
 ## Client API
 
 The client provides a set of methods for interacting with the Huly Platform API. This section describes the main methods available in the client.
