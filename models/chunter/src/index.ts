@@ -148,7 +148,7 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(chunter.class.Discussion, core.class.Class, core.mixin.TxAccessLevel, {
-    createAccessLevel: AccountRole.User,
+    createAccessLevel: AccountRole.Guest,
     updateAccessLevel: AccountRole.User,
     removeAccessLevel: AccountRole.User
   })
