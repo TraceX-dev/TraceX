@@ -100,7 +100,7 @@ await client.close()
 ## Reusing a model
 
 The model contains an immutable system part and a mutable workspace-specific user part.
-Both WebSocket and REST clients accept system transactions from `model.json`:
+In Node.js, both WebSocket and REST clients accept system transactions from `model.json`:
 
 ```ts
 import { connect, connectRest, createRestClient, createRestTxOperations } from '@hcengineering/api-client'
@@ -126,18 +126,19 @@ they reuse the saved model without a model request, and reconnecting does not re
 hierarchy or model database. A changed hash triggers a refresh. REST clients refresh the
 model on each `getModel()` call.
 
-The version is `<systemHash>:<modelHash>` and both hashes use SHA-1. The immutable
-system part uses `SHA1(JSON.stringify(systemTx))`, calculated once. The workspace model
-uses a transaction chain starting with an empty string: `next = SHA1(previous + JSON.stringify(tx))`.
-It covers system transactions followed by user transactions, and appending a transaction
-updates the chain without rehashing the preceding transactions. These two hash forms serve
-different purposes and are not interchangeable. A system-only seed uses `<systemHash>`;
+The version is `<systemHash>:<modelHash>`. Both hashes use the same SHA-1 transaction chain,
+starting with an empty string: `next = SHA1(previous + JSON.stringify(tx))`.
+The system hash covers system transactions; the complete model hash continues that chain
+with user transactions. Appending a transaction updates the chain without rehashing the
+preceding transactions. Node.js clients calculate the system seed with `crypto.createHash('sha1')`.
+The browser client stores the model and hash received from the server and reuses that hash
+without calculating it locally. A system-only seed uses `<systemHash>`;
 a client without a local model sends an empty hash. Complete versions always contain `:`,
 including responses from pipelines with model filtering.
 
-If the system hash
-matches, the server returns the entire current user part, even when the previous user part
-has changed. The client replaces the previous user part by applying the response to a clean
+If the system hash matches, the server finds the requested user version in its hash chain
+and returns only the subsequent transactions. A system-only seed or an unknown user version
+receives the entire current user part, which replaces the previous user part over a clean
 system model. Unknown system versions receive the complete model, replacing both parts and
 the stored hash for subsequent requests.
 
@@ -150,8 +151,9 @@ Hash-based model requests return one of three response kinds:
   hierarchy or model database. An empty delta leaves both intact.
 
 The server returns an empty `delta` for an exact version match, without fetching the model.
-For stale versions with a matching system part it returns `user`; it does not currently
-retain historical version positions to return non-empty transaction deltas.
+The server retains all user-version positions to return non-empty transaction deltas for
+known prefixes, including after a restart. Pipelines with workspace-dependent model filtering
+return a complete model when the requested version is outdated.
 The client persists complete `full` snapshots with system and user parts kept separately.
 REST requests with `lastHash` receive responses without hierarchy filtering. Persisted
 snapshots using the old boolean `full` format are discarded and downloaded again.

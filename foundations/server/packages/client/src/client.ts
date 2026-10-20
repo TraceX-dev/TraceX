@@ -17,7 +17,7 @@
 import client, { clientId } from '@hcengineering/client'
 import { type Client, type FullModelResponse, type Tx } from '@hcengineering/core'
 import { addLocation, getMetadata, getResource, setMetadata } from '@hcengineering/platform'
-import crypto from 'node:crypto'
+import { calculateModelHashSync } from '@hcengineering/server-core'
 import plugin from './plugin'
 
 /**
@@ -49,15 +49,9 @@ export async function createClient (
   })
   addLocation(clientId, () => import('@hcengineering/client-resources'))
 
-  let current: FullModelResponse =
-    model !== undefined
-      ? {
-          hash: crypto.createHash('sha1').update(JSON.stringify(model)).digest('hex'),
-          systemTx: structuredClone(model),
-          userTx: [],
-          kind: 'full'
-        }
-      : { kind: 'full', hash: '', systemTx: [], userTx: [] }
+  const systemTx = structuredClone(model ?? [])
+  const hash = calculateModelHashSync(systemTx)
+  let current: FullModelResponse = { kind: 'full', hash, systemTx, userTx: [] }
   const override = model === undefined ? getMetadata(client.metadata.OverridePersistenceStore) : undefined
   const txPersistence = override ?? {
     load: async () => structuredClone(current),

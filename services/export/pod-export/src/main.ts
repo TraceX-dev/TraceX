@@ -20,7 +20,7 @@ import serverClient from '@hcengineering/server-client'
 import serverToken from '@hcengineering/server-token'
 import { storageConfigFromEnv } from '@hcengineering/server-storage'
 import { getModelVersion } from '@hcengineering/model-all'
-import { model } from '@hcengineering/model-all/src/model'
+import { model, logModelHash } from '@hcengineering/model-all/src/model'
 import { initStatisticsContext } from '@hcengineering/server-core'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { join } from 'path'
@@ -69,6 +69,7 @@ export const main = async (): Promise<void> => {
         })
       )
   })
+  logModelHash(metricsContext)
 
   const modelTx = structuredClone(model)
   metricsContext.info(`Loaded model transactions, version: ${JSON.stringify(getModelVersion())}`)

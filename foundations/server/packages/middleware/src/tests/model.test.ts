@@ -38,6 +38,13 @@ const factory = new TxFactory(core.account.System)
 const acc = 'bench-user' as AccountUuid
 const itemClass = 'test:class:Item' as Ref<Class<Doc>>
 
+function modelHash (model: Tx[]): string {
+  return model.reduce(
+    (previous, tx) => createHash('sha1').update(previous).update(JSON.stringify(tx)).digest('hex'),
+    ''
+  )
+}
+
 function classTx (id: Ref<Class<Doc>>): Tx {
   return factory.createTxCreateDoc(
     core.class.Class,
@@ -327,6 +334,7 @@ describe('ModelMiddleware model cache', () => {
   it('should not push account txs into the cached model', async () => {
     const { harness, middleware, getModelCalls } = await makeMiddleware(makeUserTx(3))
     const before = getModelCalls()
+    const hashBefore = middleware.lastHash
 
     const accountTx = {
       _id: 'test:tx:account',
@@ -345,6 +353,7 @@ describe('ModelMiddleware model cache', () => {
 
     const model = (await middleware.loadModel(harness.ctx, 0)) as Tx[]
     expect(model.some((it) => it._id === 'test:tx:account')).toBe(false)
+    expect(middleware.lastHash).toBe(hashBefore)
     expect(getModelCalls()).toBe(before)
   })
 
@@ -358,13 +367,24 @@ describe('ModelMiddleware model cache', () => {
     await middleware.tx(harness.ctx, [added])
     const updated = await middleware.loadModel(harness.ctx, 0, initial.hash)
     if (Array.isArray(updated)) throw new Error('Expected a versioned response')
-    expect(updated.kind).toBe('user')
+    expect(updated).toMatchObject({ kind: 'delta', transactions: [added] })
     expect(updated.hash).not.toBe(initial.hash)
 
     const restarted = await makeMiddleware(userTx.concat(added), undefined, middleware.systemTx)
     const replayed = await restarted.middleware.loadModel(restarted.harness.ctx, 0, initial.hash)
     expect(replayed).toEqual(updated)
     expect(restarted.middleware.lastHash).toBe(middleware.lastHash)
+  })
+
+  it('uses the same chain for a system seed and the system-only complete model', async () => {
+    const { harness, middleware } = await makeMiddleware([])
+    const hash = modelHash(middleware.systemTx)
+    expect(middleware.lastHash).toBe(hash)
+    expect(await middleware.loadModel(harness.ctx, 0, hash)).toEqual({
+      kind: 'user',
+      hash: hash + ':' + hash,
+      userTx: []
+    })
   })
 
   it('shares the system version through a factory while keeping workspace models separate', async () => {
@@ -374,7 +394,7 @@ describe('ModelMiddleware model cache', () => {
     const secondUser = makeUserTx(2)
     const first = await makeMiddleware(firstUser, undefined, system, creator)
     const second = await makeMiddleware(secondUser, undefined, system, creator)
-    const hash = createHash('sha1').update(JSON.stringify(system)).digest('hex')
+    const hash = modelHash(system)
 
     expect(await first.middleware.loadModel(first.harness.ctx, 0, hash)).toEqual({
       kind: 'user',
@@ -392,7 +412,7 @@ describe('ModelMiddleware model cache', () => {
   it('returns only workspace transactions for a matching base hash, including after cache eviction', async () => {
     const userTx = makeUserTx(3)
     const { harness, middleware } = await makeMiddleware(userTx)
-    const hash = createHash('sha1').update(JSON.stringify(middleware.systemTx)).digest('hex')
+    const hash = modelHash(middleware.systemTx)
 
     for (let i = 0; i < 2; i++) {
       expect(await middleware.loadModel(harness.ctx, 0, hash)).toEqual({
@@ -417,11 +437,11 @@ describe('ModelMiddleware model cache', () => {
     const { harness, middleware } = await makeMiddleware(userTx)
     const changed = structuredClone(middleware.systemTx)
     changed[0].modifiedOn++
-    const hash = createHash('sha1').update(JSON.stringify(changed)).digest('hex')
+    const hash = modelHash(changed)
 
     expect(await middleware.loadModel(harness.ctx, 0, hash)).toEqual({
       kind: 'full',
-      hash: createHash('sha1').update(JSON.stringify(middleware.systemTx)).digest('hex') + ':' + middleware.lastHash,
+      hash: modelHash(middleware.systemTx) + ':' + middleware.lastHash,
       systemTx: middleware.systemTx,
       userTx
     })
@@ -429,13 +449,13 @@ describe('ModelMiddleware model cache', () => {
 
   it('returns a full model for pipelines with workspace-dependent base filtering', async () => {
     const { harness, middleware } = await makeMiddleware(makeUserTx(1), (_hierarchy, model) => model)
-    const hash = createHash('sha1').update(JSON.stringify(middleware.systemTx)).digest('hex')
+    const hash = modelHash(middleware.systemTx)
     const response = await middleware.loadModel(harness.ctx, 0, hash)
     expect(response).toMatchObject({ kind: 'full', systemTx: middleware.systemTx })
     expect(response).not.toHaveProperty('transactions')
   })
 
-  it('returns an empty delta for a current version and replaces the user model for a stale version', async () => {
+  it('returns an empty delta for a current version and only new transactions for an old prefix', async () => {
     const userTx = makeUserTx(2)
     const { harness, middleware, getModelCalls } = await makeMiddleware(userTx)
     const initial = await middleware.loadModel(harness.ctx, 0, '')
@@ -454,10 +474,76 @@ describe('ModelMiddleware model cache', () => {
     await middleware.tx(harness.ctx, [added])
     const refreshed = await middleware.loadModel(harness.ctx, 0, initial.hash)
     expect(refreshed).toMatchObject({
-      kind: 'user',
-      userTx: userTx.concat(added)
+      kind: 'delta',
+      transactions: [added]
     })
     expect(refreshed).not.toMatchObject({ hash: initial.hash })
+  })
+
+  it('returns a delta from any stored prefix after a restart and cache eviction', async () => {
+    const userTx = makeUserTx(5)
+    const { harness, middleware, getModelCalls } = await makeMiddleware(userTx)
+    const systemHash = modelHash(middleware.systemTx)
+    const hash = systemHash + ':' + modelHash(middleware.systemTx.concat(userTx.slice(0, 2)))
+    evictAll()
+
+    expect(await middleware.loadModel(harness.ctx, 0, hash)).toEqual({
+      kind: 'delta',
+      hash: systemHash + ':' + middleware.lastHash,
+      transactions: userTx.slice(2)
+    })
+    expect(getModelCalls()).toBe(2)
+  })
+
+  it('replaces the user part when the system matches but the user prefix is unknown', async () => {
+    const userTx = makeUserTx(3)
+    const { harness, middleware } = await makeMiddleware(userTx)
+    const systemHash = modelHash(middleware.systemTx)
+
+    expect(await middleware.loadModel(harness.ctx, 0, systemHash + ':unknown')).toEqual({
+      kind: 'user',
+      hash: systemHash + ':' + middleware.lastHash,
+      userTx
+    })
+  })
+
+  it('uses the latest chain if a transaction arrives during a delta fetch', async () => {
+    const { harness, middleware, blockNextFetch } = await makeMiddleware(makeUserTx(2))
+    const initial = await middleware.loadModel(harness.ctx, 0, '')
+    if (Array.isArray(initial)) throw new Error('Expected a versioned response')
+    evictAll()
+    const first = classTx('test:class:BeforeFetch' as Ref<Class<Doc>>)
+    await middleware.tx(harness.ctx, [first])
+    const release = blockNextFetch()
+    const pending = middleware.loadModel(harness.ctx, 0, initial.hash)
+    const second = classTx('test:class:DuringFetch' as Ref<Class<Doc>>)
+    await middleware.tx(harness.ctx, [second])
+    release()
+
+    expect(await pending).toEqual({
+      kind: 'delta',
+      hash: modelHash(middleware.systemTx) + ':' + middleware.lastHash,
+      transactions: [first, second]
+    })
+  })
+
+  it('rebuilds the chain after a database refresh changes an earlier transaction', async () => {
+    const userTx = makeUserTx(3)
+    const { harness, middleware, setDbModel } = await makeMiddleware(userTx)
+    const initial = await middleware.loadModel(harness.ctx, 0, '')
+    if (Array.isArray(initial)) throw new Error('Expected a versioned response')
+    const changed = structuredClone(userTx)
+    changed[0].modifiedOn++
+    setDbModel(changed)
+    evictAll()
+
+    expect(await middleware.loadModel(harness.ctx, 0, 'unknown')).toMatchObject({ kind: 'full' })
+    expect(await middleware.loadModel(harness.ctx, 0, initial.hash)).toEqual({
+      kind: 'user',
+      hash: modelHash(middleware.systemTx) + ':' + modelHash(middleware.systemTx.concat(changed)),
+      userTx: changed
+    })
+    expect(harness.pipelineContext.lastHash).toBe(middleware.lastHash)
   })
 
   it('returns a full split model for a bare workspace hash, even when the transaction chain matches', async () => {
@@ -509,7 +595,7 @@ describe('ModelMiddleware model cache', () => {
     expect(response.systemTx.concat(response.userTx)).toEqual(model)
     expect(response.userTx).toEqual([])
     expect(response.hash).toBe(
-      createHash('sha1').update(JSON.stringify(response.systemTx)).digest('hex') + ':' + before
+      modelHash(response.systemTx) + ':' + before
     )
     expect(await middleware.loadModel(harness.ctx, 0, response.hash)).toEqual({
       kind: 'delta',
@@ -540,7 +626,7 @@ describe('ModelMiddleware model cache', () => {
     const response = await middleware.loadModel(harness.ctx, 0, 'stale-hash')
     if (Array.isArray(response) || response.kind !== 'full') throw new Error('Expected a full split model')
     expect(response.hash).toBe(
-      createHash('sha1').update(JSON.stringify(middleware.systemTx)).digest('hex') + ':' + middleware.lastHash
+      modelHash(middleware.systemTx) + ':' + middleware.lastHash
     )
     expect(response.systemTx.length).toBeGreaterThan(0)
     expect(response.userTx).toHaveLength(3)

@@ -13,7 +13,16 @@
 // limitations under the License.
 //
 
-import type { Tx } from '@hcengineering/core'
+import { calculateModelHashSync } from '@hcengineering/server-core'
+import type { MeasureContext, Tx } from '@hcengineering/core'
 
 // Reuse the generated artifact: rebuilding the model changes transaction IDs and timestamps.
 export const model = require('../bundle/model.json') as Tx[]
+
+/** Log the bundled system model version through the service startup context. @public */
+export function logModelHash (ctx: MeasureContext): void {
+  ctx.info('System model loaded', {
+    hash: calculateModelHashSync(model),
+    transactions: model.length
+  })
+}

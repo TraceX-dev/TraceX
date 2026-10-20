@@ -13,6 +13,4 @@
 // limitations under the License.
 //
 
-import { model } from '@hcengineering/model-all/src/model'
-
-console.log(JSON.stringify(model))
+import '@hcengineering/model-all/src/show'

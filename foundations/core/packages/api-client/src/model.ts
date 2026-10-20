@@ -14,22 +14,16 @@
 //
 
 import type { FullModelResponse, Tx, TxPersistenceStore } from '@hcengineering/core'
+import { calculateModelHashSync } from '@hcengineering/core/model-hash-node'
 
 export async function createModelSnapshot (model?: Tx[]): Promise<FullModelResponse> {
   if (model === undefined) {
     return { kind: 'full', hash: '', systemTx: [], userTx: [] }
   }
-  const transactions = model
-  const json = JSON.stringify(transactions)
-  const digest = await globalThis.crypto.subtle.digest('SHA-1', new TextEncoder().encode(json))
-  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
-  return {
-    kind: 'full',
-    hash,
-    // Each connection owns its transactions; model construction must not mutate the caller's bundle.
-    systemTx: JSON.parse(json) as Tx[],
-    userTx: []
-  }
+  // Each connection owns its transactions; model construction must not mutate the caller's bundle.
+  const systemTx = JSON.parse(JSON.stringify(model)) as Tx[]
+  const hash = calculateModelHashSync(systemTx)
+  return { kind: 'full', hash, systemTx, userTx: [] }
 }
 
 /** Create independent model persistence for a connection, optionally seeded with system transactions.

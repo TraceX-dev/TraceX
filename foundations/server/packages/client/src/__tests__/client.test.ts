@@ -70,11 +70,15 @@ it('keeps the latest model scoped to each service client', async () => {
 })
 
 it('keeps an explicitly supplied model scoped to its own connection', async () => {
-  const system = model.systemTx
+  const system = model.systemTx.concat(model.userTx)
   await createClient('ws://explicit-model', 'token-a', system)
   await createClient('ws://another-backend', 'token-b')
 
-  expect(initialModels[0].hash).toBe(createHash('sha1').update(JSON.stringify(system)).digest('hex'))
+  const expected = system.reduce(
+    (previous, tx) => createHash('sha1').update(previous).update(JSON.stringify(tx)).digest('hex'),
+    ''
+  )
+  expect(initialModels[0].hash).toBe(expected)
   expect(initialModels[0]).toMatchObject({ systemTx: system, userTx: [] })
   expect(initialModels[1].hash).toBe('')
   expect(getMetadata(client.metadata.OverridePersistenceStore)).toBeUndefined()
