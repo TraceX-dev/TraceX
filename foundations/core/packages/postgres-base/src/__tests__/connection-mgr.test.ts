@@ -28,9 +28,13 @@ describe('ConnectionMgr shutdown', () => {
     const manager = new ConnectionMgr(pool)
     manager.getConnection('request', 'workspace')
     let finish: () => void = () => {}
-    const pending = new Promise<void>((resolve) => { finish = resolve })
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve
+    })
     let markStarted: () => void = () => {}
-    const started = new Promise<void>((resolve) => { markStarted = resolve })
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve
+    })
     const request = manager.retry('request', 'workspace', async () => {
       markStarted()
       await pending

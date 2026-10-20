@@ -457,13 +457,20 @@ async function reserveWithTimeout (client: DBClient, what: string): Promise<DBCl
 
   let timer: any
   const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => { reject(new Error(`DB reserve timeout (${what})`)) }, reserveTimeoutMs)
+    timer = setTimeout(() => {
+      reject(new Error(`DB reserve timeout (${what})`))
+    }, reserveTimeoutMs)
   })
 
   try {
     return await Promise.race([reserve, timeout])
   } catch (err) {
-    void reserve.then((c) => { c.release() }, () => {})
+    void reserve.then(
+      (c) => {
+        c.release()
+      },
+      () => {}
+    )
     console.error('DB reserve timeout', { what, stack })
     throw err
   } finally {

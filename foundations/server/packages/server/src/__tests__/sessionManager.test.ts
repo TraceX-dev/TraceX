@@ -1772,14 +1772,20 @@ describe('TSessionManager', () => {
         wsId: { uuid: workspaceId },
         sessions: new Map(),
         operations: 1,
-        with: async (op: (pipeline: Pipeline) => Promise<void>) => { await op({} as Pipeline) }
+        with: async (op: (pipeline: Pipeline) => Promise<void>) => {
+          await op({} as unknown as Pipeline)
+        }
       } as unknown as Workspace
       sessionManager.workspaces.set(workspaceId, workspace)
       sessionManager.sessions.set('socket-rpc', { session, socket, tickHash: sessionManager.ticks % 20 })
       let finishOperation: () => void = () => {}
-      const pending = new Promise<void>((resolve) => { finishOperation = resolve })
+      const pending = new Promise<void>((resolve) => {
+        finishOperation = resolve
+      })
       let operationStarted: () => void = () => {}
-      const started = new Promise<void>((resolve) => { operationStarted = resolve })
+      const started = new Promise<void>((resolve) => {
+        operationStarted = resolve
+      })
       const rpc = sessionManager.handleRPC(mockContext, session, 'findAll', socket, async () => {
         operationStarted()
         await pending
@@ -1787,9 +1793,14 @@ describe('TSessionManager', () => {
       await started
 
       ;(sessionManager as unknown as { handleSessionTick: (now: number) => void }).handleSessionTick(now + 35_000)
-      expect(warn).toHaveBeenCalledWith('request hang found', expect.objectContaining({
-        params: { method: 'findAll' }, source: 'love', operations: 1
-      }))
+      expect(warn).toHaveBeenCalledWith(
+        'request hang found',
+        expect.objectContaining({
+          params: { method: 'findAll' },
+          source: 'love',
+          operations: 1
+        })
+      )
       finishOperation()
       await rpc
 
@@ -1826,13 +1837,21 @@ describe('TSessionManager', () => {
       tick(now + 1000)
 
       expect(counter.mock.calls.filter(([name]) => name === 'server-request-hang')).toEqual([
-        ['server-request-hang', 1], ['server-request-hang', 1]
+        ['server-request-hang', 1],
+        ['server-request-hang', 1]
       ])
-      expect(counter.mock.calls.filter(([name]) => name === 'server-session-hang')).toEqual([['server-session-hang', 1]])
+      expect(counter.mock.calls.filter(([name]) => name === 'server-session-hang')).toEqual([
+        ['server-session-hang', 1]
+      ])
       expect(warn).toHaveBeenCalledTimes(2)
-      expect(warn).toHaveBeenCalledWith('request hang found', expect.objectContaining({
-        requestId: 'request-1', source: 'love', wsId: 'ws-1'
-      }))
+      expect(warn).toHaveBeenCalledWith(
+        'request hang found',
+        expect.objectContaining({
+          requestId: 'request-1',
+          source: 'love',
+          wsId: 'ws-1'
+        })
+      )
 
       tick(now + 25_000)
       expect(warn).toHaveBeenCalledTimes(4)
