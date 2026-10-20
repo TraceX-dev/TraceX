@@ -112,6 +112,7 @@ import {
   simpleEscape,
   toWithLookup
 } from './utils'
+
 async function* createCursorGenerator (
   client: postgres.Sql,
   sql: string,
@@ -270,8 +271,11 @@ abstract class PostgresAdapterBase implements DbAdapter {
         return result.value as T[]
       },
       close: async () => {
-        await cursor.return([])
-        client.release()
+        try {
+          await cursor.return([])
+        } finally {
+          client.release()
+        }
       }
     }
   }
@@ -1601,9 +1605,12 @@ abstract class PostgresAdapterBase implements DbAdapter {
         return result
       },
       close: async () => {
-        await bulk.return([]) // We need to close generator, just in case
-        client?.release()
-        ctx.end()
+        try {
+          await bulk?.return([])
+        } finally {
+          client?.release()
+          ctx.end()
+        }
       }
     }
   }
@@ -1649,9 +1656,12 @@ abstract class PostgresAdapterBase implements DbAdapter {
         return result
       },
       close: async () => {
-        await bulk.return([]) // We need to close generator, just in case
-        client?.release()
-        ctx.end()
+        try {
+          await bulk?.return([])
+        } finally {
+          client?.release()
+          ctx.end()
+        }
       }
     }
   }
