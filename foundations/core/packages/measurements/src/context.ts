@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 // Basic performance metrics suite.
 
 import { platformNow, platformNowDiff } from '.'
@@ -59,6 +74,8 @@ export const noParamsLogger = consoleLogger({})
 
 export const nullPromise = Promise.resolve()
 
+const EMPTY_PARAMS: ParamsType = {}
+
 /**
  * @public
  */
@@ -66,7 +83,7 @@ export class MeasureMetricsContext implements MeasureContext {
   private readonly name: string
   private readonly params: ParamsType
 
-  private readonly fullParams: FullParamsType | (() => FullParamsType) = {}
+  private readonly fullParams: FullParamsType | (() => FullParamsType)
   logger: MeasureLogger
   metrics: Metrics
   id?: string
@@ -74,9 +91,9 @@ export class MeasureMetricsContext implements MeasureContext {
   private readonly logLevel: MeasureLogLevel
 
   st = platformNow()
-  contextData: object = {}
+  contextData: object
   private done (value?: number, override?: boolean): void {
-    updateMeasure(this.metrics, this.st, this.params, this.fullParams, (spend) => {}, value, override)
+    updateMeasure(this.metrics, this.st, this.params, this.fullParams, undefined, value, override)
   }
 
   constructor (
@@ -94,8 +111,10 @@ export class MeasureMetricsContext implements MeasureContext {
     this.fullParams = fullParams
     this.metrics = metrics
     this.logLevel = logLevel
+    this.contextData = parent !== undefined ? parent.contextData : {}
     this.metrics.namedParams = this.metrics.namedParams ?? {}
-    for (const [k, v] of Object.entries(params)) {
+    for (const k of Object.keys(params)) {
+      const v = params[k]
       if (this.metrics.namedParams[k] !== v) {
         this.metrics.namedParams[k] = v
       } else {
@@ -107,33 +126,17 @@ export class MeasureMetricsContext implements MeasureContext {
   }
 
   gauge (name: string, value: number): void {
-    const c = new MeasureMetricsContext(
-      '#' + name,
-      {},
-      {},
-      childMetrics(this.metrics, ['#' + name]),
-      this.logger,
-      this,
-      undefined,
-      this.logLevel
-    )
-    c.contextData = this.contextData
-    c.done(value, true)
+    this.recordValue(name, value, true)
   }
 
   counter (name: string, value: number): void {
-    const c = new MeasureMetricsContext(
-      '#' + name,
-      {},
-      {},
-      childMetrics(this.metrics, ['#' + name]),
-      this.logger,
-      this,
-      undefined,
-      this.logLevel
-    )
-    c.contextData = this.contextData
-    c.done(value)
+    this.recordValue(name, value)
+  }
+
+  private recordValue (name: string, value: number, override?: boolean): void {
+    const metrics = childMetrics(this.metrics, '#' + name)
+    metrics.namedParams = metrics.namedParams ?? {}
+    updateMeasure(metrics, platformNow(), EMPTY_PARAMS, {}, undefined, value, override)
   }
 
   newChild (
@@ -150,15 +153,14 @@ export class MeasureMetricsContext implements MeasureContext {
     const result = new MeasureMetricsContext(
       name,
       params,
-      opt?.fullParams ?? {},
-      childMetrics(this.metrics, [name]),
+      opt?.fullParams ?? undefined,
+      childMetrics(this.metrics, name),
       opt?.logger ?? this.logger,
       this,
       this.logParams,
       opt?.logLevel ?? this.logLevel
     )
     result.id = this.id
-    result.contextData = this.contextData
     return result
   }
 
@@ -169,12 +171,24 @@ export class MeasureMetricsContext implements MeasureContext {
     fullParams?: ParamsType | (() => FullParamsType),
     opt?: WithOptions
   ): Promise<T> {
-    const c = this.newChild(name, params, { fullParams, logger: this.logger })
+    const c = this.newChild(name, params, fullParams === undefined ? undefined : { fullParams })
     let needFinally = true
     try {
       const value = op(c)
       if (value instanceof Promise) {
         needFinally = false
+        if (opt?.log !== true) {
+          return value.then(
+            (result) => {
+              c.end()
+              return result
+            },
+            (error: unknown) => {
+              c.end()
+              throw error
+            }
+          )
+        }
         return value.finally(() => {
           c.end()
           if (opt?.log === true) {
@@ -207,7 +221,7 @@ export class MeasureMetricsContext implements MeasureContext {
     op: (ctx: MeasureContext) => T,
     fullParams?: ParamsType | (() => FullParamsType)
   ): T {
-    const c = this.newChild(name, params, { fullParams, logger: this.logger })
+    const c = this.newChild(name, params, fullParams === undefined ? undefined : { fullParams })
     try {
       return op(c)
     } finally {

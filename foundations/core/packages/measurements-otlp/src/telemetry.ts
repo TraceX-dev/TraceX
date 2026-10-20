@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import {
   childMetrics,
   consoleLogger,
@@ -81,19 +96,19 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
   private readonly name: string
   private readonly params: ParamsType
 
-  private readonly fullParams: FullParamsType | (() => FullParamsType) = {}
+  private readonly fullParams: FullParamsType | (() => FullParamsType)
   logger: MeasureLogger
   metrics: Metrics
   id?: string
 
   st = platformNow()
-  contextData: object = {}
+  contextData: object
   isDone = false
 
   private done (value?: number, override?: boolean): void {
     if (!this.isDone) {
       this.isDone = true
-      updateMeasure(this.metrics, this.st, this.params, this.fullParams, (spend) => {}, value, override)
+      updateMeasure(this.metrics, this.st, this.params, this.fullParams, undefined, value, override)
       this.span?.end()
     }
   }
@@ -118,8 +133,10 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
     this.params = params
     this.fullParams = fullParams
     this.metrics = metrics
+    this.contextData = parent !== undefined ? parent.contextData : {}
     this.metrics.namedParams = this.metrics.namedParams ?? {}
-    for (const [k, v] of Object.entries(params)) {
+    for (const k of Object.keys(params)) {
+      const v = params[k]
       if (this.metrics.namedParams[k] !== v) {
         this.metrics.namedParams[k] = v
       } else {
@@ -164,8 +181,8 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
       }
       _span = this.tracer.startSpan(name, undefined, childContext)
 
-      const spanParams = [...Object.entries(params)]
-      for (const [k, v] of spanParams) {
+      for (const k of Object.keys(params)) {
+        const v = params[k]
         _span?.setAttribute(k, v as any)
       }
     }
@@ -182,8 +199,8 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
       childContext,
       _span,
       params,
-      opt?.fullParams ?? {},
-      childMetrics(this.metrics, [name]),
+      opt?.fullParams ?? undefined,
+      childMetrics(this.metrics, name),
       opt?.logger ?? this.logger,
       this,
       this.logParams,
@@ -192,7 +209,6 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
       opt?.logLevel ?? this.logLevel
     )
     result.id = this.id
-    result.contextData = this.contextData
     return result
   }
 
@@ -226,6 +242,18 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
       const value = _context !== undefined ? context.with(_context, () => op(c)) : op(c)
       if (value instanceof Promise) {
         needFinally = false
+        if (span === undefined && opt?.log !== true) {
+          return value.then(
+            (result) => {
+              c.end()
+              return result
+            },
+            (error: unknown) => {
+              c.end()
+              throw error
+            }
+          )
+        }
         if (span !== undefined && opt?.suspendErrors !== true) {
           void value.catch((err) => {
             span?.recordException(err)

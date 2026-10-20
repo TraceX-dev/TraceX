@@ -120,28 +120,29 @@ export function updateMeasure (
 
   const fParams = typeof fullParams === 'function' ? fullParams() : fullParams
   // Update params if required
-  const pparams = Object.entries(params)
-  if (pparams.length > 0) {
-    const [k, v] = pparams[0]
-    let params = metrics.params[k]
-    if (params === undefined) {
-      params = {}
-      metrics.params[k] = params
+  const keys = Object.keys(params)
+  if (keys.length > 0) {
+    const k = keys[0]
+    const v = params[k]
+    let values = metrics.params[k]
+    if (values === undefined) {
+      values = {}
+      metrics.params[k] = values
     }
     const vKey = `${v?.toString() ?? ''}`
-    let param = params[vKey]
+    let param = values[vKey]
     if (param === undefined) {
       param = {
         operations: 0,
         value: 0
       }
-      params[vKey] = param
+      values[vKey] = param
     }
     if (override === true) {
       if (value === 0) {
         // We need to delete value, to preserve sending zero values.
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete params[vKey]
+        delete values[vKey]
       } else {
         param.operations = value ?? ed - st
       }
@@ -150,12 +151,12 @@ export function updateMeasure (
       param.operations++
     }
     // Do not update top results for params.
-    if (pparams.length > 1) {
+    if (keys.length > 1) {
       // We need to update all other params as counters.
       const results = (param.topResult ??= [])
       const index = getParameterIndex(results)
-      for (let i = 1; i < pparams.length; i++) {
-        const key = `${pparams[i][1]}`
+      for (let i = 1; i < keys.length; i++) {
+        const key = `${params[keys[i]]}`
         const r = index.get(key)
         if (r !== undefined) {
           r.value += 1 // Counter of operations
@@ -181,17 +182,24 @@ export function updateMeasure (
 }
 
 /**
+ * Return or create child metrics for a literal name or a path of names.
  * @public
  */
-export function childMetrics (root: Metrics, path: string[]): Metrics {
-  const segments = path
+export function childMetrics (root: Metrics, path: string | string[]): Metrics {
+  if (typeof path === 'string') {
+    return getChildMetric(root, path)
+  }
   let oop = root
-  for (const p of segments) {
-    const v = oop.measurements[p] ?? { operations: 0, value: 0, measurements: {}, params: {} }
-    oop.measurements[p] = v
-    oop = v
+  for (const p of path) {
+    oop = getChildMetric(oop, p)
   }
   return oop
+}
+
+function getChildMetric (root: Metrics, name: string): Metrics {
+  const result = root.measurements[name] ?? { operations: 0, value: 0, measurements: {}, params: {} }
+  root.measurements[name] = result
+  return result
 }
 
 /**
