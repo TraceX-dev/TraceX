@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -43,6 +44,12 @@ import {
   type TxResult,
   type WithLookup
 } from '@hcengineering/core'
+
+/** Options for requests sent to the transactor REST API. */
+export interface RestClientOptions {
+  /** Request timeout in milliseconds, including response body reading. Defaults to 60000; 0 disables it. */
+  requestTimeout?: number
+}
 
 export interface RestClient extends Storage, FulltextStorage {
   getAccount: () => Promise<Account>
