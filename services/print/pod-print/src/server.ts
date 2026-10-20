@@ -15,7 +15,7 @@
 // limitations under the License.
 //
 
-import { model } from '@hcengineering/model-all/src/model'
+import { model, logModelHash } from '@hcengineering/model-all/src/model'
 import { createRestTxOperations } from '@hcengineering/api-client'
 import { type Class, type Doc, generateId, newMetrics, type Ref, type WorkspaceIds } from '@hcengineering/core'
 import { StorageConfiguration, initStatisticsContext } from '@hcengineering/server-core'
@@ -192,6 +192,7 @@ export function createServer (
         })
       )
   })
+  logModelHash(measureCtx)
   const whitelistedHostnames = allowedHostnames.length > 0 ? new Set(allowedHostnames) : null
 
   const app = express()

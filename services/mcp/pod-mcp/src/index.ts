@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -6,6 +7,7 @@
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
 
+import { logModelHash } from '@hcengineering/model-all/src/model'
 import { config as loadEnv } from 'dotenv'
 import { setMetadata } from '@hcengineering/platform'
 import { createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
@@ -44,6 +46,7 @@ const ctx = initStatisticsContext(config.ServiceID, {
       })
     )
 })
+logModelHash(ctx)
 
 ctx.info('MCP Service started', { config })
 

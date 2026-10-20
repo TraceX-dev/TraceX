@@ -92,11 +92,12 @@ export class RestClientImpl implements RestClient {
 
   remaining: number = 1000
   limit: number = 1000
+
   constructor (
     endpoint: string,
     readonly workspace: string,
     readonly token: string,
-    options: ModelOptions & RestClientOptions = {}
+    readonly options: ModelOptions & RestClientOptions = {}
   ) {
     this.endpoint = endpoint.replace('ws', 'http')
     this.requestTimeout = options.requestTimeout ?? 60_000

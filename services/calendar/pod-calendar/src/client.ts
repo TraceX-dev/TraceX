@@ -29,6 +29,6 @@ export async function getClient (
 ): Promise<Client> {
   const endpoint = endpoints.get(workspace) ?? (await getTransactorEndpoint(token, 'external'))
   endpoints.set(workspace, endpoint)
-  setMetadata(client.metadata.FilterModel, 'none')
+  setMetadata(client.metadata.FilterModel, 'client')
   return await createClient(endpoint, token, model)
 }

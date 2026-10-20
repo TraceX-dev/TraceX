@@ -28,14 +28,14 @@
 // limitations under the License.
 //
 
-import { model } from '@hcengineering/model-all/src/model'
+import { model, logModelHash } from '@hcengineering/model-all/src/model'
 import { getClient as getAccountClient, isNetworkError } from '@hcengineering/account-client'
 import card from '@hcengineering/card'
 import calendar from '@hcengineering/calendar'
 import chunter from '@hcengineering/chunter'
 import contact from '@hcengineering/contact'
 import controlledDocuments from '@hcengineering/controlled-documents'
-import { type Class, type Client, type Doc, type PersonId, type Ref } from '@hcengineering/core'
+import { MeasureMetricsContext, type Class, type Client, type Doc, type PersonId, type Ref } from '@hcengineering/core'
 import document from '@hcengineering/document'
 import platform, { errorToStatus, PlatformError, setMetadata } from '@hcengineering/platform'
 import processPlugin from '@hcengineering/process'
@@ -1299,7 +1299,9 @@ app.use((error: unknown, _req: Request, res: Response, next: (error?: unknown) =
 export { app }
 
 if (process.env.NODE_ENV !== 'test') {
+  const ctx = new MeasureMetricsContext('workspace-api', {})
+  logModelHash(ctx)
   app.listen(port, () => {
-    console.log(`Workspace API pod listening on ${port}`)
+    ctx.info('Workspace API pod listening', { port })
   })
 }

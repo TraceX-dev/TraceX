@@ -30,7 +30,7 @@ import core, {
   type Tx
 } from '@hcengineering/core'
 import type { IntlString } from '@hcengineering/platform'
-import { createHash, webcrypto } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { createModelPersistence, createModelSnapshot } from '../model'
 import { createRestClient } from '../rest/rest'
 import { createRestTxOperations } from '../rest/tx'
@@ -61,13 +61,6 @@ function baseModel (): Tx[] {
   return txes.concat(factory.createTxCreateDoc(itemClass, core.space.Model, { count: 0 }, itemId))
 }
 
-// Jest's Node environment does not expose Web Crypto in every supported version.
-beforeAll(() => {
-  if (globalThis.crypto === undefined) {
-    Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true })
-  }
-})
-
 describe('bundled model', () => {
   it('loads a complete WebSocket snapshot when no local model exists', async () => {
     const persistence = await createModelPersistence()
@@ -87,9 +80,17 @@ describe('bundled model', () => {
   it('uses the server base hash and isolates the supplied transactions', async () => {
     const base = baseModel()
     const snapshot = await createModelSnapshot(base)
-    expect(snapshot.hash).toBe(createHash('sha1').update(JSON.stringify(base)).digest('hex'))
+    const expected = base.reduce(
+      (previous, tx) => createHash('sha1').update(previous).update(JSON.stringify(tx)).digest('hex'),
+      ''
+    )
+    expect(snapshot.hash).toBe(expected)
     expect(snapshot.systemTx).toEqual(JSON.parse(JSON.stringify(base)))
     expect(snapshot.systemTx[0]).not.toBe(base[0])
+  })
+
+  it('uses an empty chain hash for an empty system model', async () => {
+    expect(await createModelSnapshot([])).toEqual({ kind: 'full', hash: '', systemTx: [], userTx: [] })
   })
 
   it.each(['user', 'full'])('loads the WebSocket model with kind=%s', async (kind) => {
