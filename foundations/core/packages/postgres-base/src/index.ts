@@ -406,6 +406,8 @@ export class ConnectionMgr {
       if (mgrId !== undefined && conn.mgrId !== mgrId) {
         continue
       }
+      // In-flight reservations must return to the pool instead of being cached after close.
+      conn.released = true
       cnts.delete(k)
       try {
         conn.release()

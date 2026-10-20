@@ -85,6 +85,7 @@ import {
   type Session,
   type SessionHealth,
   type SessionManager,
+  type SessionRequest,
   SessionDataImpl,
   userEvents,
   type UserStatistics,
@@ -122,6 +123,8 @@ export class TSessionManager implements SessionManager {
   private readonly pendingStatus = new Map<WorkspaceUuid, Map<AccountUuid, { session: Session, online: boolean }>>()
   private readonly statusFlushTimers = new Map<WorkspaceUuid, any>()
   private readonly statusFlushing = new Set<WorkspaceUuid>()
+  private readonly reportedRequestHangs = new WeakMap<SessionRequest, number>()
+  private readonly reportedSessionHangs = new WeakSet<Session>()
   private readonly statusFlushDelay = parseInt(process.env.STATUS_FLUSH_MS ?? '1000')
   readonly workspaces = new Map<WorkspaceUuid, Workspace>()
   checkInterval: any
@@ -274,7 +277,7 @@ export class TSessionManager implements SessionManager {
   }
 
   private handleWorkspaceTick (): void {
-    this.ctx.gauge('sessions', this.sessions.size)
+    this.ctx.gauge('server-sessions', this.sessions.size)
 
     if (this.ticks % ticksPerSecond === 0) {
       // Let's update workspace statistics every 10 seconds
@@ -282,7 +285,7 @@ export class TSessionManager implements SessionManager {
 
       // Send extra counters and clear them to collect again
       for (const [c, v] of [...this.counters.entries()]) {
-        this.ctx.gauge('_' + c, v)
+        this.ctx.gauge('server-' + c, v)
       }
       this.counters.check()
     }
@@ -379,13 +382,13 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.gauge('sessions-user', user)
-    this.ctx.gauge('sessions-system', sys)
-    this.ctx.gauge('sessions-anonymous', anonymous)
+    this.ctx.gauge('server-sessions-user', user)
+    this.ctx.gauge('server-sessions-system', sys)
+    this.ctx.gauge('server-sessions-anonymous', anonymous)
 
-    this.ctx.gauge('workspaces', this.workspaces.size)
-    this.ctx.gauge('workspaces-user', userWorkspaces)
-    this.ctx.gauge('workspaces-systemonly', sysOnlyWorkspaces)
+    this.ctx.gauge('server-workspaces', this.workspaces.size)
+    this.ctx.gauge('server-workspaces-user', userWorkspaces)
+    this.ctx.gauge('server-workspaces-systemonly', sysOnlyWorkspaces)
   }
 
   private handleSessionTick (now: number): void {
@@ -394,6 +397,7 @@ export class TSessionManager implements SessionManager {
 
       if (isCurrentUserTick) {
         const wsId = s.session.workspace.uuid
+        const workspace = this.workspaces.get(wsId)
         const lastRequestDiff = now - s.session.lastRequest
 
         let timeout = hangSessionTimeoutSeconds * 1000
@@ -401,9 +405,13 @@ export class TSessionManager implements SessionManager {
           timeout = timeout * 10
         }
         if (lastRequestDiff > timeout) {
+          this.reportSessionHang(s.session)
           this.ctx.warn('session hang, closing...', {
             wsId,
-            user: s.session.getUser()
+            user: s.session.getUser(),
+            source: s.session.token?.extra?.service ?? 'user',
+            total: s.session.requests.size,
+            operations: workspace?.operations
           })
 
           // Force close workspace if only one client and it hang.
@@ -423,19 +431,45 @@ export class TSessionManager implements SessionManager {
             void s.socket.send(this.ticksContext, { result: pingConst }, s.session.binaryMode, s.session.useCompression)
           }
         }
+        let sessionHung = false
         for (const r of s.session.requests.values()) {
-          const sec = Math.round((now - r.start) / 1000)
-          if (sec > 0 && sec % hangRequestTimeoutSeconds === 0) {
-            this.ctx.warn('request hang found', {
-              sec,
-              wsId,
-              total: s.session.requests.size,
-              user: s.session.getUser(),
-              params: cutObjectArray(r.params)
-            })
+          const reportInterval = Math.floor((now - r.start) / (hangRequestTimeoutSeconds * 1000))
+          if (reportInterval < 1) continue
+          sessionHung = true
+          const lastReport = this.reportedRequestHangs.get(r)
+          if (lastReport !== undefined && reportInterval <= lastReport) continue
+          if (lastReport === undefined) {
+            this.ctx.counter('server-request-hang', 1)
           }
+          this.reportedRequestHangs.set(r, reportInterval)
+          this.ctx.warn('request hang found', {
+            sec: Math.round((now - r.start) / 1000),
+            wsId,
+            requestId: r.id,
+            sessionId: s.session.sessionId,
+            total: s.session.requests.size,
+            user: s.session.getUser(),
+            source: s.session.token?.extra?.service ?? 'user',
+            operations: workspace?.operations,
+            pipelinePending: workspace?.pipeline instanceof Promise,
+            statusFlushing: this.statusFlushing.has(wsId),
+            backpressure: s.socket.isBackpressure(),
+            params: cutObjectArray(r.params)
+          })
+        }
+        if (sessionHung) {
+          this.reportSessionHang(s.session)
+        } else {
+          this.reportedSessionHangs.delete(s.session)
         }
       }
+    }
+  }
+
+  private reportSessionHang (session: Session): void {
+    if (!this.reportedSessionHangs.has(session)) {
+      this.reportedSessionHangs.add(session)
+      this.ctx.counter('server-session-hang', 1)
     }
   }
 
@@ -577,7 +611,7 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.gauge('sessions-hung', hungSessions)
+    this.ctx.gauge('server-sessions-hung', hungSessions)
 
     const hungSessionsPercent = totalSessions > 0 ? (100 * hungSessions) / totalSessions : 0
 
@@ -1480,7 +1514,7 @@ export class TSessionManager implements SessionManager {
     try {
       if (request.time != null) {
         const delta = Date.now() - request.time
-        requestCtx.counter('msg-receive-delta', delta)
+        requestCtx.counter('server-msg-receive-delta', delta)
       }
       const workspace = this.workspaces.get(workspaceId)
       if (workspace === undefined || workspace.closing !== undefined) {
@@ -1628,7 +1662,7 @@ export class TSessionManager implements SessionManager {
 
       service.requests.set(reqId, {
         id: reqId,
-        params: {},
+        params: { method },
         start: st
       })
 
