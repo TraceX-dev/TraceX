@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 // Basic performance metrics suite.
 
 import { platformNow, type MetricsData } from '.'
@@ -20,6 +35,28 @@ export function newMetrics (): Metrics {
     params: {},
     namedParams: {}
   }
+}
+
+type ParameterResult = NonNullable<MetricsData['topResult']>[number]
+
+// Keep lookup indexes out of serialized metrics and release them with their arrays.
+const parameterIndexes = new WeakMap<ParameterResult[], Map<string, ParameterResult>>()
+
+function getParameterIndex (results: ParameterResult[]): Map<string, ParameterResult> {
+  let index = parameterIndexes.get(results)
+  if (index === undefined) {
+    index = new Map()
+    // Existing results may come from previously serialized metrics.
+    for (const result of results) {
+      for (const key of Object.keys(result.params)) {
+        if (result.params[key] === true && !index.has(key)) {
+          index.set(key, result)
+        }
+      }
+    }
+    parameterIndexes.set(results, index)
+  }
+  return index
 }
 
 function getUpdatedTopResult (
@@ -115,19 +152,20 @@ export function updateMeasure (
     // Do not update top results for params.
     if (pparams.length > 1) {
       // We need to update all other params as counters.
-      if (param.topResult === undefined) {
-        param.topResult = []
-      }
-      for (const [, v] of pparams.slice(1)) {
-        const r = (param.topResult ?? []).find((it) => it.params[`${v}`] === true)
+      const results = (param.topResult ??= [])
+      const index = getParameterIndex(results)
+      for (let i = 1; i < pparams.length; i++) {
+        const key = `${pparams[i][1]}`
+        const r = index.get(key)
         if (r !== undefined) {
           r.value += 1 // Counter of operations
           r.time = (r.time ?? 0) + (value ?? ed - st)
         } else {
-          param.topResult.push({ params: { [`${v}`]: true }, value: 1, time: value ?? ed - st })
+          const result = { params: { [key]: true }, value: 1, time: value ?? ed - st }
+          results.push(result)
+          index.set(key, result)
         }
       }
-      param.topResult.sort((a, b) => b.value - a.value)
     }
   }
   // Update leaf data
@@ -161,6 +199,13 @@ export function childMetrics (root: Metrics, path: string[]): Metrics {
  */
 export function metricsAggregate (m: Metrics, limit: number = -1, roundMath: boolean = false): Metrics {
   let ms = aggregateMetrics(m.measurements, limit)
+
+  // Rank parameter values only when collecting statistics.
+  for (const group of Object.values(m.params)) {
+    for (const param of Object.values(group)) {
+      param.topResult?.sort((a, b) => b.value - a.value)
+    }
+  }
 
   // Use child overage, if there is no top level value specified.
   const me = Object.entries(ms)
