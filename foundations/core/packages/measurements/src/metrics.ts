@@ -84,8 +84,13 @@ function getUpdatedTopResult (
       return result
     }
 
-    // Shift the middle
-    return [result[0], newValue, ...result.slice(1, 3), result[5]]
+    // Preserve the sampled entries without allocating and copying arrays.
+    result[4] = result[5]
+    result[3] = result[2]
+    result[2] = result[1]
+    result[1] = newValue
+    result.length = 5
+    return result
   } else {
     result.push(newValue)
     return result
@@ -117,6 +122,8 @@ export function updateMeasure (
   override?: boolean
 ): void {
   const ed = platformNow()
+  const duration = ed - st
+  const measuredValue = value ?? duration
 
   const fParams = typeof fullParams === 'function' ? fullParams() : fullParams
   // Update params if required
@@ -144,15 +151,14 @@ export function updateMeasure (
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete values[vKey]
       } else {
-        param.operations = value ?? ed - st
+        param.operations = measuredValue
       }
     } else {
-      param.value += value ?? ed - st
+      param.value += measuredValue
       param.operations++
     }
-    // Do not update top results for params.
     if (keys.length > 1) {
-      // We need to update all other params as counters.
+      // Update secondary parameters as counters using the existing lookup index.
       const results = (param.topResult ??= [])
       const index = getParameterIndex(results)
       for (let i = 1; i < keys.length; i++) {
@@ -160,9 +166,9 @@ export function updateMeasure (
         const r = index.get(key)
         if (r !== undefined) {
           r.value += 1 // Counter of operations
-          r.time = (r.time ?? 0) + (value ?? ed - st)
+          r.time = (r.time ?? 0) + measuredValue
         } else {
-          const result = { params: { [key]: true }, value: 1, time: value ?? ed - st }
+          const result = { params: { [key]: true }, value: 1, time: measuredValue }
           results.push(result)
           index.set(key, result)
         }
@@ -171,14 +177,14 @@ export function updateMeasure (
   }
   // Update leaf data
   if (override === true) {
-    metrics.operations = value ?? ed - st
+    metrics.operations = measuredValue
   } else {
-    metrics.value += value ?? ed - st
+    metrics.value += measuredValue
     metrics.operations++
   }
 
-  metrics.topResult = getUpdatedTopResult(metrics.topResult, ed - st, fParams)
-  endOp?.(ed - st)
+  metrics.topResult = getUpdatedTopResult(metrics.topResult, duration, fParams)
+  endOp?.(duration)
 }
 
 /**
