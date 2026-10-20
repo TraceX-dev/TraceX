@@ -128,42 +128,56 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     if (this.wasInit === true) {
       return
     }
+
     if (this.wasInit === false) {
-      this.wasInit = (async () => {
-        await ctx.with('init-space-security', {}, async (ctx) => {
-          ctx.contextData = undefined
-          const spaces: SpaceWithMembers[] =
-            (await this.next?.findAll(
-              ctx,
-              core.class.Space,
-              {},
-              {
-                projection: {
-                  archived: 1,
-                  private: 1,
-                  _class: 1,
-                  _id: 1,
-                  members: 1
-                }
-              }
-            )) ?? []
-          this.spacesMap.clear()
-          this.publicSpaces.clear()
-          this.systemSpaces.clear()
-          for (const space of spaces) {
-            if (space._class === core.class.SystemSpace) {
-              this.systemSpaces.add(space._id)
-            } else {
-              this.addSpace(space)
-            }
+      const wasInit = watchStall(
+        'space-security.init',
+        () => ({ workspace: this.context.workspace.uuid }),
+        this.loadSpaces(ctx)
+      )
+      this.wasInit = wasInit
+      wasInit.then(
+        () => {
+          if (this.wasInit === wasInit) this.wasInit = true
+        },
+        () => {
+          if (this.wasInit === wasInit) this.wasInit = false
+        }
+      )
+    }
+
+    const current = this.wasInit
+    if (current instanceof Promise) {
+      await current
+    }
+  }
+
+  private async loadSpaces (ctx: MeasureContext): Promise<void> {
+    await ctx.with('init-space-security', {}, async (ctx) => {
+      ctx.contextData = undefined
+      const spaces: SpaceWithMembers[] =
+        (await this.next?.findAll(
+          ctx,
+          core.class.Space,
+          {},
+          {
+            projection: { archived: 1, private: 1, _class: 1, _id: 1, members: 1 }
           }
-        })
-      })()
-    }
-    if (this.wasInit instanceof Promise) {
-      await watchStall('space-security.init', () => ({ workspace: this.context.workspace.uuid }), this.wasInit)
-      this.wasInit = true
-    }
+        )) ?? []
+
+      this.spacesMap.clear()
+      this.publicSpaces.clear()
+      this.privateSpaces.clear()
+      this.systemSpaces.clear()
+      this.allowedSpaces = {}
+      for (const space of spaces) {
+        if (space._class === core.class.SystemSpace) {
+          this.systemSpaces.add(space._id)
+        } else {
+          this.addSpace(space)
+        }
+      }
+    })
   }
 
   private removeMemberSpace (member: AccountUuid, space: Ref<Space>): void {
@@ -395,15 +409,23 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       const key = this.getKey(domain)
       const space = (doc as any)[key]
       if (space === undefined) return
-      ;(await this.getDomainSpaces(sctx, domain)).add(space)
+      await this.addToDomainSpaces(sctx, domain, space)
     } else if (actualTx._class === core.class.TxUpdateDoc) {
       const updTx = actualTx as TxUpdateDoc<Doc>
       const domain = this.context.hierarchy.getDomain(updTx.objectClass)
       const key = this.getKey(domain)
       const space = (updTx.operations as any)[key]
       if (space !== undefined) {
-        ;(await this.getDomainSpaces(sctx, domain)).add(space)
+        await this.addToDomainSpaces(sctx, domain, space)
       }
+    }
+  }
+
+  private async addToDomainSpaces (ctx: MeasureContext, domain: Domain, space: Ref<Space>): Promise<void> {
+    try {
+      ;(await this.getDomainSpaces(ctx, domain)).add(space)
+    } catch (err: any) {
+      ctx.warn('space-security: domain spaces unavailable, skip update', { domain, error: err?.message })
     }
   }
 
@@ -547,26 +569,33 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
   }
 
   async getDomainSpaces (ctx: MeasureContext, domain: Domain): Promise<Set<Ref<Space>>> {
-    let domainSpaces = this._domainSpaces.get(domain)
-    if (domainSpaces === undefined) {
-      const p = (
-        this.next?.groupBy<Ref<Space>, Doc>(ctx, domain, this.getKey(domain)) ?? Promise.resolve(new Map())
-      ).then((r) => new Set<Ref<Space>>(r.keys()))
-      this._domainSpaces.set(domain, p)
-      domainSpaces = await watchStall(
-        'space-security.domainSpaces',
-        () => ({ workspace: this.context.workspace.uuid, domain }),
-        p
-      )
-      this._domainSpaces.set(domain, domainSpaces)
+    const cached = this._domainSpaces.get(domain)
+    if (cached instanceof Set) {
+      return cached
     }
-    return domainSpaces instanceof Promise
-      ? await watchStall(
-          'space-security.domainSpaces.shared',
-          () => ({ workspace: this.context.workspace.uuid, domain }),
-          domainSpaces
-        )
-      : domainSpaces
+    if (cached !== undefined) {
+      return await cached
+    }
+
+    const loadP = this.next?.groupBy<Ref<Space>, Doc>(ctx, domain, this.getKey(domain)) ?? Promise.resolve(new Map())
+    const load = loadP.then((r) => new Set<Ref<Space>>(r.keys()))
+
+    const domainSpaces = watchStall(
+      'space-security.domainSpaces',
+      () => ({ workspace: this.context.workspace.uuid, domain }),
+      load
+    )
+
+    this._domainSpaces.set(domain, domainSpaces)
+    domainSpaces.then(
+      (set) => {
+        if (this._domainSpaces.get(domain) === domainSpaces) this._domainSpaces.set(domain, set)
+      },
+      () => {
+        if (this._domainSpaces.get(domain) === domainSpaces) this._domainSpaces.delete(domain)
+      }
+    )
+    return await domainSpaces
   }
 
   private async filterByDomain (
