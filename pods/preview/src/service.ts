@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -46,7 +47,7 @@ export interface PreviewService {
     workspace: WorkspaceUuid,
     name: string,
     params: ThumbnailParams
-  ) => Promise<PreviewFile>
+  ) => Promise<PreviewFile | undefined>
 }
 
 export function createPreviewService (
@@ -69,7 +70,7 @@ export function createPreviewService (
 
 class PreviewServiceImpl implements PreviewService {
   private readonly limiter: RateLimiter
-  private readonly single: SingleFlight<PreviewFile>
+  private readonly single: SingleFlight<PreviewFile | undefined>
 
   constructor (
     private readonly storage: StorageAdapter,
@@ -78,13 +79,16 @@ class PreviewServiceImpl implements PreviewService {
     private readonly providers: PreviewProvider[],
     concurrency: number = 10
   ) {
-    this.single = new SingleFlight<PreviewFile>()
+    this.single = new SingleFlight<PreviewFile | undefined>()
     this.limiter = new RateLimiter(concurrency)
   }
 
   @withContext('metadata')
   async metadata (ctx: MeasureContext, workspace: WorkspaceUuid, name: string): Promise<PreviewMetadata> {
     const stat = await this.statBlob(ctx, workspace, name)
+    if (stat === undefined) {
+      throw new NotFoundError()
+    }
     const provider = this.findProvider(ctx, stat.contentType)
 
     return await ctx.with(
@@ -102,9 +106,13 @@ class PreviewServiceImpl implements PreviewService {
     workspace: WorkspaceUuid,
     name: string,
     params: ThumbnailParams
-  ): Promise<PreviewFile> {
+  ): Promise<PreviewFile | undefined> {
     // Mutable blobs key their cache by etag; others skip the extra stat.
-    const knownStat = isMutableBlob(name) ? await this.statBlob(ctx, workspace, name) : undefined
+    const mutable = isMutableBlob(name)
+    const knownStat = mutable ? await this.statBlob(ctx, workspace, name) : undefined
+    if (mutable && knownStat === undefined) {
+      return undefined
+    }
     const version = knownStat?.etag
     const imageKey = this.imageKey(workspace, name, version)
     const thumbKey = this.thumbnailKey(workspace, name, params, version)
@@ -112,6 +120,9 @@ class PreviewServiceImpl implements PreviewService {
     return await this.single.execute(thumbKey, () => {
       return withCache(ctx, this.cache, thumbKey, async () => {
         const stat = knownStat ?? (await this.statBlob(ctx, workspace, name))
+        if (stat === undefined) {
+          return undefined
+        }
         const provider = this.findProvider(ctx, stat.contentType)
 
         const image = await withCache(ctx, this.cache, imageKey, () => {
@@ -138,15 +149,10 @@ class PreviewServiceImpl implements PreviewService {
   }
 
   @withContext('stat-blob')
-  async statBlob (ctx: MeasureContext, workspace: WorkspaceUuid, name: string): Promise<Blob> {
+  async statBlob (ctx: MeasureContext, workspace: WorkspaceUuid, name: string): Promise<Blob | undefined> {
     const wsId = { uuid: workspace } as any
 
-    const stat = await this.storage.stat(ctx, wsId, name)
-    if (stat !== undefined) {
-      return stat
-    }
-
-    throw new NotFoundError()
+    return await this.storage.stat(ctx, wsId, name)
   }
 
   findProvider (ctx: MeasureContext, contentType: string): PreviewProvider {
