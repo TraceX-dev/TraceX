@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import { type Discussion } from '@hcengineering/chunter'
-  import { type Doc, type Ref, type WithLookup } from '@hcengineering/core'
+  import core, { AccountRole, type Doc, getCurrentAccount, type Ref, type WithLookup } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
   import { Button, ButtonIcon, IconAdd, Label, Section, showPopup } from '@hcengineering/ui'
   import { type Viewlet, type ViewletPreference, type ViewOptions } from '@hcengineering/view'
@@ -38,7 +38,11 @@
 
   const dispatch = createEventDispatcher()
   const discussionsQuery = createQuery()
+  const collaboratorQuery = createQuery()
+  const account = getCurrentAccount()
+  const isGuest = account.role === AccountRole.Guest
   let discussions: Discussion[] = []
+  let guestIsCollaborator = false
   let viewlet: WithLookup<Viewlet> | undefined
   let preference: ViewletPreference | undefined
   let viewOptions: ViewOptions | undefined
@@ -64,7 +68,14 @@
     }
   )
 
-  $: canCreate = canCreateDiscussion() && $permissions.canComment(doc)
+  $: if (isGuest) {
+    guestIsCollaborator = false
+    collaboratorQuery.query(core.class.Collaborator, { attachedTo: doc._id, collaborator: account.uuid }, (result) => {
+      guestIsCollaborator = result.length > 0
+    })
+  }
+
+  $: canCreate = canCreateDiscussion() && (isGuest ? guestIsCollaborator : $permissions.canComment(doc))
 
   function createDiscussion (): void {
     showPopup(CreateDiscussion, { object: doc }, 'top', (result?: Ref<Discussion>) => {

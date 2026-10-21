@@ -54,16 +54,21 @@ import platform, { PlatformError, Severity, Status, unknownError } from '@hcengi
 
 import { AuthOptions } from '../types'
 import { getWorkspaceToken } from '../utils'
-import type { EnsurePersonOptions, RestClient } from './types'
+import type { EnsurePersonOptions, RestClient, RestClientOptions } from './types'
 import { extractJson, withRetry } from './utils'
 
-export function createRestClient (endpoint: string, workspaceId: string, token: string): RestClient {
-  return new RestClientImpl(endpoint, workspaceId, token)
+export function createRestClient (
+  endpoint: string,
+  workspaceId: string,
+  token: string,
+  options?: RestClientOptions
+): RestClient {
+  return new RestClientImpl(endpoint, workspaceId, token, options)
 }
 
-export async function connectRest (url: string, options: AuthOptions): Promise<RestClient> {
+export async function connectRest (url: string, options: AuthOptions & RestClientOptions): Promise<RestClient> {
   const { endpoint, token, workspaceId } = await getWorkspaceToken(url, options)
-  return createRestClient(endpoint, workspaceId, token)
+  return createRestClient(endpoint, workspaceId, token, options)
 }
 
 const rateLimitError = 'rate-limit'
@@ -74,6 +79,7 @@ function isRLE (err: any): boolean {
 
 export class RestClientImpl implements RestClient {
   endpoint: string
+  private readonly requestTimeout: number
 
   slowDownTimer = 0
   currentRateLimit: { remaining: number, limit: number } = { remaining: 1000, limit: 1000 }
@@ -83,9 +89,14 @@ export class RestClientImpl implements RestClient {
   constructor (
     endpoint: string,
     readonly workspace: string,
-    readonly token: string
+    readonly token: string,
+    options: RestClientOptions = {}
   ) {
     this.endpoint = endpoint.replace('ws', 'http')
+    this.requestTimeout = options.requestTimeout ?? 60_000
+    if (!Number.isInteger(this.requestTimeout) || this.requestTimeout < 0) {
+      throw new RangeError('requestTimeout must be a non-negative integer')
+    }
   }
 
   jsonHeaders (): Record<string, string> {
@@ -100,6 +111,7 @@ export class RestClientImpl implements RestClient {
     return {
       method: 'GET',
       keepalive: true,
+      signal: this.requestTimeout > 0 ? AbortSignal.timeout(this.requestTimeout) : undefined,
       headers: this.jsonHeaders()
     }
   }
@@ -289,9 +301,8 @@ export class RestClientImpl implements RestClient {
     await this.checkRate()
     const result = await withRetry<TxResult & { error?: Status }>(async () => {
       const response = await fetch(requestUrl, {
+        ...this.requestInit(),
         method: 'POST',
-        headers: this.jsonHeaders(),
-        keepalive: true,
         body: JSON.stringify(tx)
       })
       if (!response.ok) {
@@ -320,11 +331,7 @@ export class RestClientImpl implements RestClient {
         params.append('limit', `${options.limit}`)
       }
       const requestUrl = concatLink(this.endpoint, `/api/v1/search-fulltext/${this.workspace}?${params.toString()}`)
-      const response = await fetch(requestUrl, {
-        method: 'GET',
-        headers: this.jsonHeaders(),
-        keepalive: true
-      })
+      const response = await fetch(requestUrl, this.requestInit())
       if (!response.ok) {
         await this.handleResponseError(response)
       }
@@ -347,9 +354,8 @@ export class RestClientImpl implements RestClient {
     await this.checkRate()
     return await withRetry(async () => {
       const response = await fetch(requestUrl, {
+        ...this.requestInit(),
         method: 'POST',
-        headers: this.jsonHeaders(),
-        keepalive: true,
         body: JSON.stringify(params)
       })
       if (!response.ok) {
@@ -372,9 +378,8 @@ export class RestClientImpl implements RestClient {
     await this.checkRate()
     const result = await withRetry(async () => {
       const response = await fetch(requestUrl, {
+        ...this.requestInit(),
         method: 'POST',
-        headers: this.jsonHeaders(),
-        keepalive: true,
         body: JSON.stringify({
           socialType,
           socialValue,
@@ -400,9 +405,8 @@ export class RestClientImpl implements RestClient {
     await this.checkRate()
     const result = await withRetry<{ result?: Ref<T>, error?: Status }>(async () => {
       const response = await fetch(requestUrl, {
+        ...this.requestInit(),
         method: 'POST',
-        headers: this.jsonHeaders(),
-        keepalive: true,
         body: JSON.stringify(data)
       })
       if (!response.ok) {

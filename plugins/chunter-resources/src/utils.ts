@@ -153,9 +153,9 @@ export function isDiscussionParticipant (discussion: Discussion): boolean {
   return discussion.members.includes(getCurrentAccount().uuid)
 }
 
-// Mirrors the TxAccessLevel of Discussion: guests can only post messages, not create or change discussions.
+// Mirrors the TxAccessLevel of Discussion: guests may create discussions but cannot change them.
 export function canCreateDiscussion (): boolean {
-  return hasAccountRole(getCurrentAccount(), AccountRole.User)
+  return hasAccountRole(getCurrentAccount(), AccountRole.Guest)
 }
 
 // Every discussion is a security root on the server; only discussions created before that are not.
