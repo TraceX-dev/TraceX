@@ -25,10 +25,12 @@ import {
   type WorkspaceUuid
 } from '@hcengineering/core'
 import serverToken, { type Token } from '@hcengineering/server-token'
+import type { ConnectionSocket, Pipeline, Session, SessionRequest } from '@hcengineering/server-core'
 import { setMetadata } from '@hcengineering/platform'
 
 // Import the module under test after mocks are set up
 import { TSessionManager, type Timeouts } from '../sessionManager'
+import type { Workspace } from '../workspace'
 
 // Mock modules before importing the module under test
 jest.mock('@hcengineering/account-client', () => ({
@@ -1752,6 +1754,121 @@ describe('TSessionManager', () => {
   })
 
   describe('session tick handling', () => {
+    it('reports the method of an unfinished RPC and removes it when it completes', async () => {
+      const now = Date.now()
+      const workspaceId = 'ws-rpc' as WorkspaceUuid
+      const warn = jest.spyOn(mockContext, 'warn').mockImplementation(() => {})
+      const session = {
+        getUser: () => 'user-rpc',
+        getRawAccount: () => ({ primarySocialId: 'person-rpc' }),
+        token: { extra: { service: 'love' } },
+        lastRequest: now,
+        lastPing: now,
+        workspace: { uuid: workspaceId },
+        requests: new Map<string, SessionRequest>()
+      } as unknown as Session
+      const socket = { isBackpressure: () => false, checkState: () => false } as unknown as ConnectionSocket
+      const workspace = {
+        wsId: { uuid: workspaceId },
+        sessions: new Map(),
+        operations: 1,
+        with: async (op: (pipeline: Pipeline) => Promise<void>) => {
+          await op({} as unknown as Pipeline)
+        }
+      } as unknown as Workspace
+      sessionManager.workspaces.set(workspaceId, workspace)
+      sessionManager.sessions.set('socket-rpc', { session, socket, tickHash: sessionManager.ticks % 20 })
+      let finishOperation: () => void = () => {}
+      const pending = new Promise<void>((resolve) => {
+        finishOperation = resolve
+      })
+      let operationStarted: () => void = () => {}
+      const started = new Promise<void>((resolve) => {
+        operationStarted = resolve
+      })
+      const rpc = sessionManager.handleRPC(mockContext, session, 'findAll', socket, async () => {
+        operationStarted()
+        await pending
+      })
+      await started
+
+      ;(sessionManager as unknown as { handleSessionTick: (now: number) => void }).handleSessionTick(now + 35_000)
+      expect(warn).toHaveBeenCalledWith(
+        'request hang found',
+        expect.objectContaining({
+          params: { method: 'findAll' },
+          source: 'love',
+          operations: 1
+        })
+      )
+      finishOperation()
+      await rpc
+
+      expect(session.requests.size).toBe(0)
+      warn.mockRestore()
+    })
+
+    it('counts each hung request and session episode once, even if the tick misses the threshold', () => {
+      const now = Date.now()
+      const counter = jest.spyOn(mockContext, 'counter')
+      const warn = jest.spyOn(mockContext, 'warn').mockImplementation(() => {})
+      const requests = new Map<string, SessionRequest>([
+        ['request-1', { id: 'request-1', params: { method: 'findAll' }, start: now - 35_000 }],
+        ['request-2', { id: 'request-2', params: { method: 'tx' }, start: now - 35_000 }]
+      ])
+      const session = {
+        getUser: () => 'user-hung',
+        token: { extra: { service: 'love' } },
+        lastRequest: now,
+        lastPing: now,
+        workspace: { uuid: 'ws-1' as WorkspaceUuid },
+        requests
+      } as unknown as Session
+      sessionManager.sessions.set('socket', {
+        session,
+        socket: { isBackpressure: () => false, checkState: () => false } as unknown as ConnectionSocket,
+        tickHash: sessionManager.ticks % 20
+      })
+      const tick = (time: number): void => {
+        ;(sessionManager as unknown as { handleSessionTick: (now: number) => void }).handleSessionTick(time)
+      }
+
+      tick(now)
+      tick(now + 1000)
+
+      expect(counter.mock.calls.filter(([name]) => name === 'server-request-hang')).toEqual([
+        ['server-request-hang', 1],
+        ['server-request-hang', 1]
+      ])
+      expect(counter.mock.calls.filter(([name]) => name === 'server-session-hang')).toEqual([
+        ['server-session-hang', 1]
+      ])
+      expect(warn).toHaveBeenCalledTimes(2)
+      expect(warn).toHaveBeenCalledWith(
+        'request hang found',
+        expect.objectContaining({
+          requestId: 'request-1',
+          source: 'love',
+          wsId: 'ws-1'
+        })
+      )
+
+      tick(now + 25_000)
+      expect(warn).toHaveBeenCalledTimes(4)
+      expect(counter.mock.calls.filter(([name]) => name === 'server-request-hang')).toHaveLength(2)
+      expect(counter.mock.calls.filter(([name]) => name === 'server-session-hang')).toHaveLength(1)
+
+      requests.clear()
+      tick(now + 26_000)
+      requests.set('request-3', { id: 'request-3', params: { method: 'findAll' }, start: now - 35_000 })
+      tick(now + 27_000)
+
+      expect(counter.mock.calls.filter(([name]) => name === 'server-request-hang')).toHaveLength(3)
+      expect(counter.mock.calls.filter(([name]) => name === 'server-session-hang')).toHaveLength(2)
+      counter.mockRestore()
+      warn.mockRestore()
+    })
+
     it('should detect hung sessions and close them', () => {
       const now = Date.now()
       const longTimeAgo = now - 120000 // 120 seconds ago

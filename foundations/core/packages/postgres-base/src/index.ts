@@ -16,6 +16,10 @@
 
 import postgres, { type Options, type ParameterOrJSON } from 'postgres'
 
+const reserveTimeoutMs = parseInt(process.env.POSTGRES_RESERVE_TIMEOUT_MS ?? '30000', 10)
+const statementTimeout = parseInt(process.env.POSTGRES_STATEMENT_TIMEOUT_MS ?? '0', 10)
+const idleTxTimeout = parseInt(process.env.POSTGRES_IDLE_IN_TX_TIMEOUT_MS ?? '0', 10)
+
 const clientRefs = new Map<number, ClientRef>()
 
 let clId = 0
@@ -208,7 +212,9 @@ export function getDBClient (
   if (existing === undefined) {
     const sql = postgres(connectionString, {
       connection: {
-        application_name: serviceName
+        application_name: serviceName,
+        ...(statementTimeout > 0 ? { statement_timeout: statementTimeout } : {}),
+        ...(idleTxTimeout > 0 ? { idle_in_transaction_session_timeout: idleTxTimeout } : {})
       },
       database,
       max: 10,
@@ -256,7 +262,7 @@ class ConnectionInfo {
     // Check if we have at least one available connection and reserve one more if required.
     if (this.available.length === 0) {
       if (this.managed || forced) {
-        reserved = await this.client.reserve()
+        reserved = await reserveWithTimeout(this.client, this.managed ? 'managed' : 'write')
       }
     } else {
       reserved = this.available.shift()
@@ -316,7 +322,11 @@ export class ConnectionMgr {
             await client.execute('COMMIT;')
             return true
           } catch (err: any) {
-            await client.execute('ROLLBACK;')
+            try {
+              await client.execute('ROLLBACK;')
+            } catch (rbErr: any) {
+              console.error('rollback failed', rbErr)
+            }
             console.error({ message: 'failed to process tx', error: err.message, cause: err })
 
             if (!this.isRetryableError(err) || tries === maxTries) {
@@ -406,6 +416,8 @@ export class ConnectionMgr {
       if (mgrId !== undefined && conn.mgrId !== mgrId) {
         continue
       }
+      // In-flight reservations must return to the pool instead of being cached after close.
+      conn.released = true
       cnts.delete(k)
       try {
         conn.release()
@@ -436,5 +448,32 @@ export class ConnectionMgr {
       err.code === 'CONNECTION_DESTROYED' || // This error is thrown for any queries that were pending when the timeout to sql.end({ timeout: X }) was reached. If the DB client is being closed completely retry will result in CONNECTION_ENDED which is not retried so should be fine.
       msg.includes('RETRY_SERIALIZABLE')
     )
+  }
+}
+
+async function reserveWithTimeout (client: DBClient, what: string): Promise<DBClient> {
+  const stack = new Error().stack
+  const reserve = client.reserve()
+
+  let timer: any
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`DB reserve timeout (${what})`))
+    }, reserveTimeoutMs)
+  })
+
+  try {
+    return await Promise.race([reserve, timeout])
+  } catch (err) {
+    void reserve.then(
+      (c) => {
+        c.release()
+      },
+      () => {}
+    )
+    console.error('DB reserve timeout', { what, stack })
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
 }
