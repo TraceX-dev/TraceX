@@ -1,5 +1,6 @@
 //
 // Copyright © 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -982,10 +983,9 @@ describe('query', () => {
   })
 
   jest.setTimeout(25000)
-  it('test clone ops', async () => {
+  it.each([1, 1000])('test clone ops (%i documents)', async (counter) => {
     const { liveQuery, factory } = await getClient()
 
-    const counter = 1000
     const ctx = new MeasureMetricsContext('tool', {})
     let data: Space[] = []
     const pp = new Promise((resolve) => {
@@ -1017,7 +1017,8 @@ describe('query', () => {
         })
       )
     }
-    expect(data.length).toBe(counter)
+    // Creating documents does not await delivery to LiveQuery subscribers.
     await pp
+    expect(data.length).toBe(counter)
   })
 })
