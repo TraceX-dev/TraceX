@@ -15,6 +15,7 @@
 
 import {
   childMetrics,
+  EMPTY_PARAMS,
   consoleLogger,
   MeasureContext,
   MeasureMetricsContext,
@@ -24,6 +25,7 @@ import {
   platformNow,
   platformNowDiff,
   updateMeasure,
+  updateNamedParams,
   type FullParamsType,
   type MeasureLogger,
   type MeasureLogLevel,
@@ -44,7 +46,7 @@ import {
   type Meter,
   type Tracer
 } from '@opentelemetry/api'
-import { Logger, SeverityNumber } from '@opentelemetry/api-logs'
+import { logs, Logger, SeverityNumber, type LoggerProvider } from '@opentelemetry/api-logs'
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node'
 import { suppressTracing } from '@opentelemetry/core'
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http'
@@ -53,14 +55,14 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { AWSXRayIdGenerator } from '@opentelemetry/id-generator-aws-xray'
 import { CompressionAlgorithm } from '@opentelemetry/otlp-exporter-base'
 import { resourceFromAttributes } from '@opentelemetry/resources'
-import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs'
+import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs'
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node'
 
 class MetricsContext {
   private readonly counters = new Map<string, Counter>()
-  private readonly gauges = new Map<string, { gauge: Gauge, value: number }>()
+  private readonly gauges = new Map<string, Gauge>()
 
   constructor (readonly meter?: Meter) {}
 
@@ -76,13 +78,13 @@ class MetricsContext {
     return counter
   }
 
-  getGauge (name: string): { gauge: Gauge, value: number } | undefined {
+  getGauge (name: string): Gauge | undefined {
     if (this.meter === undefined) {
       return undefined
     }
     let gauge = this.gauges.get(name)
     if (gauge === undefined) {
-      gauge = { gauge: this.meter.createGauge(name), value: Number.NaN }
+      gauge = this.meter.createGauge(name)
       this.gauges.set(name, gauge)
     }
     return gauge
@@ -96,7 +98,7 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
   private readonly name: string
   private readonly params: ParamsType
 
-  private readonly fullParams: FullParamsType | (() => FullParamsType)
+  private fullParams: FullParamsType | (() => FullParamsType)
   logger: MeasureLogger
   metrics: Metrics
   id?: string
@@ -119,7 +121,7 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
     readonly context: Context | undefined,
     readonly span: Span | undefined,
     params: ParamsType,
-    fullParams: FullParamsType | (() => FullParamsType) = {},
+    fullParams: FullParamsType | (() => FullParamsType) = EMPTY_PARAMS,
     metrics: Metrics = newMetrics(),
     logger?: MeasureLogger,
     readonly parent?: MeasureContext,
@@ -131,28 +133,23 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
   ) {
     this.name = name
     this.params = params
-    this.fullParams = fullParams
+    this.fullParams =
+      typeof fullParams === 'function'
+        ? () => {
+            const resolved = fullParams()
+            this.fullParams = resolved
+            return resolved
+          }
+        : fullParams
     this.metrics = metrics
     this.contextData = parent !== undefined ? parent.contextData : {}
-    this.metrics.namedParams = this.metrics.namedParams ?? {}
-    for (const k of Object.keys(params)) {
-      const v = params[k]
-      if (this.metrics.namedParams[k] !== v) {
-        this.metrics.namedParams[k] = v
-      } else {
-        this.metrics.namedParams[k] = '*'
-      }
-    }
+    updateNamedParams((this.metrics.namedParams ??= {}), params)
 
     this.logger = logger ?? (this.logParams != null ? consoleLogger(this.logParams ?? {}) : noParamsLogger)
   }
 
   gauge (name: string, value: number): void {
-    const gauge = this.meter?.getGauge(name)
-    if (gauge !== undefined && gauge.value !== value) {
-      gauge.gauge.record(value, this.params)
-      gauge.value = value
-    }
+    this.meter?.getGauge(name)?.record(value, this.params)
   }
 
   counter (name: string, value: number): void {
@@ -163,7 +160,7 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
     name: string,
     params: ParamsType,
     opt?: {
-      fullParams?: FullParamsType
+      fullParams?: FullParamsType | (() => FullParamsType)
       logger?: MeasureLogger
       span?: WithOptions['span'] // By default true
       meta?: Record<string, string | number | boolean>
@@ -224,72 +221,38 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
     name: string,
     params: ParamsType,
     op: (ctx: MeasureContext) => T | Promise<T>,
-    fullParams?: ParamsType | (() => FullParamsType),
+    fullParams?: FullParamsType | (() => FullParamsType),
     opt?: WithOptions
   ): Promise<T> {
     const c = this.newChild(name, opt?.inheritParams === true ? { ...this.params, ...params } : params, {
       fullParams,
-      logger: this.logger,
       span: opt?.span ?? true,
       meta: opt?.meta
-    })
-    let needFinally = true
+    }) as OpenTelemetryMetricsContext
+
+    let result: T | Promise<T>
     try {
-      const _context = (c as OpenTelemetryMetricsContext).context
-
-      const span = (c as OpenTelemetryMetricsContext).span
-
-      const value = _context !== undefined ? context.with(_context, () => op(c)) : op(c)
-      if (value instanceof Promise) {
-        needFinally = false
-        if (span === undefined && opt?.log !== true) {
-          return value.then(
-            (result) => {
-              c.end()
-              return result
-            },
-            (error: unknown) => {
-              c.end()
-              throw error
-            }
-          )
-        }
-        if (span !== undefined && opt?.suspendErrors !== true) {
-          void value.catch((err) => {
-            span?.recordException(err)
-            span?.setStatus({
-              code: SpanStatusCode.ERROR,
-              message: err.message
-            })
-          })
-        }
-        return value.finally(() => {
-          if (span !== undefined) {
-            const fParams = typeof fullParams === 'function' ? fullParams() : fullParams
-            const spanParams = [...Object.entries(params), ...Object.entries(fParams ?? {})]
-            for (const [k, v] of spanParams) {
-              span?.setAttribute(k, typeof v === 'object' ? JSON.stringify(v) : v)
-            }
-          }
-          c.end()
-          if (opt?.log === true) {
-            this.logger.logOperation(name, platformNowDiff((c as OpenTelemetryMetricsContext).st), {
-              ...params,
-              ...fullParams
-            })
-          }
-        })
-      } else {
-        if (value == null) {
-          return nullPromise as Promise<T>
-        }
-        return Promise.resolve(value)
-      }
-    } finally {
-      if (needFinally) {
-        c.end()
-      }
+      result = c.context !== undefined ? context.with(c.context, () => op(c)) : op(c)
+    } catch (err) {
+      c.finish(opt, true, err)
+      throw err
     }
+
+    if (!(result instanceof Promise)) {
+      c.finish(opt, false)
+      return result == null ? (nullPromise as Promise<T>) : Promise.resolve(result)
+    }
+
+    return Promise.resolve(result).then(
+      (value) => {
+        c.finish(opt, false)
+        return value
+      },
+      (err: unknown) => {
+        c.finish(opt, true, err)
+        throw err
+      }
+    )
   }
 
   withSync<T>(
@@ -305,6 +268,36 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
       return _context !== undefined ? context.with(_context, () => op(c)) : op(c)
     } finally {
       c.end()
+    }
+  }
+
+  private finish (opt: WithOptions | undefined, failed: boolean, error?: unknown): void {
+    if (!this.isDone) {
+      const span = this.span
+      if (span !== undefined) {
+        if (failed && opt?.suspendErrors !== true) {
+          span.recordException(error as Error)
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: error instanceof Error ? error.message : String(error)
+          })
+        }
+
+        const fParams = this.getFullParams()
+        for (const [k, v] of Object.entries(fParams ?? {})) {
+          if (v != null) span.setAttribute(k, typeof v === 'object' ? JSON.stringify(v) : v)
+        }
+      }
+
+      this.end()
+    }
+
+    // Explicit end() closes the span, but does not suppress the requested operation log.
+    if (opt?.log === true) {
+      this.logger.logOperation(this.name, platformNowDiff(this.st), {
+        ...this.params,
+        ...this.getFullParams()
+      })
     }
   }
 
@@ -373,8 +366,12 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
     this.logger.debug(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
   }
 
-  end (): void {
-    this.done()
+  end (value?: number): void {
+    this.done(value)
+  }
+
+  private getFullParams (): FullParamsType {
+    return typeof this.fullParams === 'function' ? this.fullParams() : this.fullParams
   }
 
   getParams (): ParamsType {
@@ -440,16 +437,17 @@ export function initOpenTelemetrySDK (serviceName: string, version: string): boo
   if (sdk !== undefined) {
     return true
   }
-  process.env.OTEL_SERVICE_NAME = serviceName
-  process.env.OTEL_SERVICE_VERSION = version
-
-  sdkServiceName = serviceName
-  sdkServiceVersion = version
   const tracesUrl = getTracesUrl()
 
   if (tracesUrl === undefined) {
     return false
   }
+
+  process.env.OTEL_SERVICE_NAME = serviceName
+  process.env.OTEL_SERVICE_VERSION = version
+
+  sdkServiceName = serviceName
+  sdkServiceVersion = version
 
   const traceHeaders = parseTraceExporterHeaders()
 
@@ -508,7 +506,7 @@ export function initOpenTelemetrySDK (serviceName: string, version: string): boo
     traceExporter: exporter,
     resource: resourceFromAttributes({
       'service-name': serviceName,
-      'service-version': version ?? '0.7',
+      'service-version': version,
       'deployment-environment': process.env.OTEL_ENVIRONMENT
     }),
     instrumentations: [getNodeAutoInstrumentations()],
@@ -519,9 +517,8 @@ export function initOpenTelemetrySDK (serviceName: string, version: string): boo
 
   sdk.start()
 
-  loggerProvider = new LoggerProvider({
-    processors: [batchLogProcessor]
-  })
+  // NodeSDK registers this provider and owns its processors and shutdown.
+  loggerProvider = logs.getLoggerProvider()
 
   // Graceful shutdown
   process.on('SIGTERM', () => {
@@ -588,7 +585,7 @@ export function reportOTEL (
 export function createOpenTelemetryMetricsContext (
   name: string,
   params: ParamsType,
-  fullParams: FullParamsType | (() => FullParamsType) = {},
+  fullParams: FullParamsType | (() => FullParamsType) = EMPTY_PARAMS,
   metrics: Metrics = newMetrics(),
   logger?: MeasureLogger,
   version?: string

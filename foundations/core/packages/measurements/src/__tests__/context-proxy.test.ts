@@ -34,7 +34,9 @@ describe('createMeasureContextProxy', () => {
     const request = async (duration: number): Promise<number> => {
       const local = new MeasureMetricsContext('request', {})
       await createMeasureContextProxy(global, local).with('getBlob', {}, async (ctx) => {
-        await ctx.with('db.getBlob', {}, () => { now += duration })
+        await ctx.with('db.getBlob', {}, () => {
+          now += duration
+        })
       })
       return local.metrics.measurements.getBlob.measurements['db.getBlob'].value
     }
@@ -52,13 +54,21 @@ describe('createMeasureContextProxy', () => {
     const second = new MeasureMetricsContext('second', {})
     let finishFirst = (): void => {}
     let finishSecond = (): void => {}
-    const firstGate = new Promise<void>((resolve) => { finishFirst = resolve })
-    const secondGate = new Promise<void>((resolve) => { finishSecond = resolve })
+    const firstGate = new Promise<void>((resolve) => {
+      finishFirst = resolve
+    })
+    const secondGate = new Promise<void>((resolve) => {
+      finishSecond = resolve
+    })
     const firstRequest = createMeasureContextProxy(global, first).with('getBlob', {}, async (ctx) => {
-      await ctx.with('db.getBlob', {}, async () => { await firstGate })
+      await ctx.with('db.getBlob', {}, async () => {
+        await firstGate
+      })
     })
     const secondRequest = createMeasureContextProxy(global, second).with('getBlob', {}, async (ctx) => {
-      await ctx.with('db.getBlob', {}, async () => { await secondGate })
+      await ctx.with('db.getBlob', {}, async () => {
+        await secondGate
+      })
     })
 
     now = 10
@@ -80,7 +90,10 @@ describe('createMeasureContextProxy', () => {
       new MeasureMetricsContext('third', {})
     ]
     const proxy = createMeasureContextProxy(contexts[0], ...contexts.slice(1))
-    const operation = jest.fn(() => { now += 5; return 42 })
+    const operation = jest.fn(() => {
+      now += 5
+      return 42
+    })
     const result = await proxy.with('outer', { source: 'test' }, async (outer) => {
       expect(outer.parent).toBe(proxy)
       return outer.withSync('inner', {}, (inner) => {
@@ -110,7 +123,10 @@ describe('createMeasureContextProxy', () => {
     const first = new MeasureMetricsContext('first', {})
     const second = new MeasureMetricsContext('second', {})
     const error = new Error('operation failed')
-    const operation = jest.fn(async () => { now += 7; throw error })
+    const operation = jest.fn(async () => {
+      now += 7
+      throw error
+    })
 
     await expect(createMeasureContextProxy(first, second).with('failing', {}, operation)).rejects.toBe(error)
 
@@ -125,7 +141,10 @@ describe('createMeasureContextProxy', () => {
     const first = new MeasureMetricsContext('first', {})
     const second = new MeasureMetricsContext('second', {})
     const error = new Error('operation failed')
-    const operation = jest.fn(() => { now += 3; throw error })
+    const operation = jest.fn(() => {
+      now += 3
+      throw error
+    })
 
     expect(() => createMeasureContextProxy(first, second).withSync('failing', {}, operation)).toThrow(error)
 

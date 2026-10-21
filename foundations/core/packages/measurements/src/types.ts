@@ -98,7 +98,7 @@ export interface MeasureContext<Q = any> {
     name: string,
     params: ParamsType,
     opt?: {
-      fullParams?: FullParamsType
+      fullParams?: FullParamsType | (() => FullParamsType)
       logger?: MeasureLogger
       span?: WithOptions['span'] // By default true
       meta?: Record<string, string | number | boolean>

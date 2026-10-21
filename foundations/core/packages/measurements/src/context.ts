@@ -16,7 +16,7 @@
 // Basic performance metrics suite.
 
 import { platformNow, platformNowDiff } from '.'
-import { childMetrics, newMetrics, updateMeasure } from './metrics'
+import { childMetrics, EMPTY_PARAMS, newMetrics, updateMeasure, updateNamedParams } from './metrics'
 import {
   type FullParamsType,
   type MeasureContext,
@@ -56,7 +56,12 @@ export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => 
     )
   },
   warn: (msg, args) => {
-    console.warn(msg, ...Object.entries(args ?? {}).map((it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`))
+    console.warn(
+      msg,
+      ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
+        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
+      )
+    )
   },
   debug: (msg, args) => {
     console.debug(
@@ -74,8 +79,6 @@ export const noParamsLogger = consoleLogger({})
 
 export const nullPromise = Promise.resolve()
 
-const EMPTY_PARAMS: ParamsType = {}
-
 /**
  * @public
  */
@@ -83,7 +86,7 @@ export class MeasureMetricsContext implements MeasureContext {
   private readonly name: string
   private readonly params: ParamsType
 
-  private readonly fullParams: FullParamsType | (() => FullParamsType)
+  private fullParams: FullParamsType | (() => FullParamsType)
   logger: MeasureLogger
   metrics: Metrics
   id?: string
@@ -92,14 +95,19 @@ export class MeasureMetricsContext implements MeasureContext {
 
   st = platformNow()
   contextData: object
+  isDone = false
+
   private done (value?: number, override?: boolean): void {
-    updateMeasure(this.metrics, this.st, this.params, this.fullParams, undefined, value, override)
+    if (!this.isDone) {
+      this.isDone = true
+      updateMeasure(this.metrics, this.st, this.params, this.fullParams, undefined, value, override)
+    }
   }
 
   constructor (
     name: string,
     params: ParamsType,
-    fullParams: FullParamsType | (() => FullParamsType) = {},
+    fullParams: FullParamsType | (() => FullParamsType) = EMPTY_PARAMS,
     metrics: Metrics = newMetrics(),
     logger?: MeasureLogger,
     readonly parent?: MeasureContext,
@@ -108,19 +116,18 @@ export class MeasureMetricsContext implements MeasureContext {
   ) {
     this.name = name
     this.params = params
-    this.fullParams = fullParams
+    this.fullParams =
+      typeof fullParams === 'function'
+        ? () => {
+            const resolved = fullParams()
+            this.fullParams = resolved
+            return resolved
+          }
+        : fullParams
     this.metrics = metrics
     this.logLevel = logLevel
     this.contextData = parent !== undefined ? parent.contextData : {}
-    this.metrics.namedParams = this.metrics.namedParams ?? {}
-    for (const k of Object.keys(params)) {
-      const v = params[k]
-      if (this.metrics.namedParams[k] !== v) {
-        this.metrics.namedParams[k] = v
-      } else {
-        this.metrics.namedParams[k] = '*'
-      }
-    }
+    updateNamedParams((this.metrics.namedParams ??= {}), params)
 
     this.logger = logger ?? (this.logParams != null ? consoleLogger(this.logParams ?? {}) : noParamsLogger)
   }
@@ -136,7 +143,7 @@ export class MeasureMetricsContext implements MeasureContext {
   private recordValue (name: string, value: number, override?: boolean): void {
     const metrics = childMetrics(this.metrics, '#' + name)
     metrics.namedParams = metrics.namedParams ?? {}
-    updateMeasure(metrics, platformNow(), EMPTY_PARAMS, {}, undefined, value, override)
+    updateMeasure(metrics, platformNow(), EMPTY_PARAMS, EMPTY_PARAMS, undefined, value, override)
   }
 
   newChild (
@@ -194,7 +201,7 @@ export class MeasureMetricsContext implements MeasureContext {
           if (opt?.log === true) {
             this.logger.logOperation(name, platformNowDiff((c as MeasureMetricsContext).st), {
               ...params,
-              ...fullParams
+              ...(c as MeasureMetricsContext).getFullParams()
             })
           }
         })
@@ -230,24 +237,28 @@ export class MeasureMetricsContext implements MeasureContext {
   }
 
   error (message: string, args?: Record<string, any>): void {
-    this.logger.error(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
+    this.logger.error(message, { ...this.params, ...(this.logParams ?? {}), ...args })
   }
 
   info (message: string, args?: Record<string, any>): void {
-    this.logger.info(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
+    this.logger.info(message, { ...this.params, ...(this.logParams ?? {}), ...args })
   }
 
   warn (message: string, args?: Record<string, any>): void {
-    this.logger.warn(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
+    this.logger.warn(message, { ...this.params, ...(this.logParams ?? {}), ...args })
   }
 
   debug (message: string, args?: Record<string, any>): void {
     if (this.logLevel !== 'debug') return
-    this.logger.debug(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
+    this.logger.debug(message, { ...this.params, ...(this.logParams ?? {}), ...args })
   }
 
-  end (): void {
-    this.done()
+  end (value?: number): void {
+    this.done(value)
+  }
+
+  private getFullParams (): FullParamsType {
+    return typeof this.fullParams === 'function' ? this.fullParams() : this.fullParams
   }
 
   getParams (): ParamsType {
@@ -447,20 +458,20 @@ export function addOperation<T> (
   if (opLog !== undefined) {
     opEntry = {
       op: name,
-      start: performance.now(),
+      start: platformNow(),
       params: {},
       end: -1
     }
   }
   const result = op(ctx)
   if (opEntry !== undefined && opLog !== undefined) {
-    void result.finally(() => {
-      if (opEntry !== undefined && opLog !== undefined) {
-        opEntry.end = performance.now()
-        opEntry.params = { ...params, ...(typeof fullParams === 'function' ? fullParams() : fullParams) }
-        opLog.ops.push(opEntry)
-      }
-    })
+    const record = (): void => {
+      opEntry.end = platformNow()
+      opEntry.params = { ...params, ...(typeof fullParams === 'function' ? fullParams() : fullParams) }
+      opLog.ops.push(opEntry)
+    }
+
+    void result.then(record, record)
   }
   return result
 }

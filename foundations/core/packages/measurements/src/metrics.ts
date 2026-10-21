@@ -37,7 +37,36 @@ export function newMetrics (): Metrics {
   }
 }
 
+/** Shared immutable defaults for operations without additional parameters. @public */
+export const EMPTY_PARAMS: Readonly<ParamsType> = Object.freeze({})
+
+/** Merge observed parameter values, marking conflicting observations with "*". @public */
+export function updateNamedParams (named: ParamsType, params: ParamsType): void {
+  for (const k of Object.keys(params)) {
+    const v = params[k]
+    // Ignore inherited keys; an own undefined value is an observation too.
+    // The prototype call also supports a parameter named "hasOwnProperty".
+    if (!Object.prototype.hasOwnProperty.call(named, k)) {
+      setOwnValue(named, k, v)
+    } else if (named[k] !== v) {
+      named[k] = '*'
+    }
+  }
+}
+
 type ParameterResult = NonNullable<MetricsData['topResult']>[number]
+
+function ownValue<T> (values: Record<string, T>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : undefined
+}
+
+function setOwnValue<T> (values: Record<string, T>, key: string, value: T): void {
+  if (key === '__proto__') {
+    Object.defineProperty(values, key, { value, enumerable: true, writable: true, configurable: true })
+  } else {
+    values[key] = value
+  }
+}
 
 // Keep lookup indexes out of serialized metrics and release them with their arrays.
 const parameterIndexes = new WeakMap<ParameterResult[], Map<string, ParameterResult>>()
@@ -104,7 +133,7 @@ function getUpdatedTopResult (
 export function measure (
   metrics: Metrics,
   params: ParamsType,
-  fullParams: FullParamsType | (() => FullParamsType) = {},
+  fullParams: FullParamsType | (() => FullParamsType) = EMPTY_PARAMS,
   endOp?: (spend: number) => void
 ): () => void {
   const st = platformNow()
@@ -131,50 +160,48 @@ export function updateMeasure (
   if (keys.length > 0) {
     const k = keys[0]
     const v = params[k]
-    let values = metrics.params[k]
+    let values = ownValue(metrics.params, k)
     if (values === undefined) {
       values = {}
-      metrics.params[k] = values
+      setOwnValue(metrics.params, k, values)
     }
     const vKey = `${v?.toString() ?? ''}`
-    let param = values[vKey]
-    if (param === undefined) {
-      param = {
-        operations: 0,
-        value: 0
-      }
-      values[vKey] = param
-    }
-    if (override === true) {
-      if (value === 0) {
-        // We need to delete value, to preserve sending zero values.
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete values[vKey]
-      } else {
-        param.operations = measuredValue
-      }
+    if (override === true && value === 0) {
+      // Skip secondary results for deleted gauges, but still update leaf data below.
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete values[vKey]
     } else {
-      param.value += measuredValue
-      param.operations++
-    }
-    if (keys.length > 1) {
-      // Update secondary parameters as counters using the existing lookup index.
-      const results = (param.topResult ??= [])
-      const index = getParameterIndex(results)
-      for (let i = 1; i < keys.length; i++) {
-        const key = `${params[keys[i]]}`
-        const r = index.get(key)
-        if (r !== undefined) {
-          r.value += 1 // Counter of operations
-          r.time = (r.time ?? 0) + measuredValue
-        } else {
-          const result = { params: { [key]: true }, value: 1, time: measuredValue }
-          results.push(result)
-          index.set(key, result)
+      let param = ownValue(values, vKey)
+      if (param === undefined) {
+        param = { operations: 0, value: 0 }
+        setOwnValue(values, vKey, param)
+      }
+      if (override === true) {
+        param.operations = measuredValue
+      } else {
+        param.value += measuredValue
+        param.operations++
+      }
+      if (keys.length > 1) {
+        // Update secondary parameters as counters using the existing lookup index.
+        const results = (param.topResult ??= [])
+        const index = getParameterIndex(results)
+        for (let i = 1; i < keys.length; i++) {
+          const key = `${params[keys[i]]}`
+          const r = index.get(key)
+          if (r !== undefined) {
+            r.value += 1 // Counter of operations
+            r.time = (r.time ?? 0) + measuredValue
+          } else {
+            const result = { params: { [key]: true }, value: 1, time: measuredValue }
+            results.push(result)
+            index.set(key, result)
+          }
         }
       }
     }
   }
+
   // Update leaf data
   if (override === true) {
     metrics.operations = measuredValue
@@ -203,8 +230,11 @@ export function childMetrics (root: Metrics, path: string | string[]): Metrics {
 }
 
 function getChildMetric (root: Metrics, name: string): Metrics {
-  const result = root.measurements[name] ?? { operations: 0, value: 0, measurements: {}, params: {} }
-  root.measurements[name] = result
+  let result = ownValue(root.measurements, name)
+  if (result === undefined) {
+    result = newMetrics()
+    setOwnValue(root.measurements, name, result)
+  }
   return result
 }
 
@@ -212,7 +242,7 @@ function getChildMetric (root: Metrics, name: string): Metrics {
  * @public
  */
 export function metricsAggregate (m: Metrics, limit: number = -1, roundMath: boolean = false): Metrics {
-  let ms = aggregateMetrics(m.measurements, limit)
+  const entries = aggregateMetrics(m.measurements, limit)
 
   // Rank parameter values only when collecting statistics.
   for (const group of Object.values(m.params)) {
@@ -222,7 +252,7 @@ export function metricsAggregate (m: Metrics, limit: number = -1, roundMath: boo
   }
 
   // Use child overage, if there is no top level value specified.
-  const me = Object.entries(ms)
+  const me = entries
   const sumVal: number =
     (me.length === 0 ? m.value : 0) +
     me
@@ -232,20 +262,10 @@ export function metricsAggregate (m: Metrics, limit: number = -1, roundMath: boo
         return p + v.value
       }, 0)
 
-  if (limit !== -1) {
-    // We need to keep only top limit items in ms
-    if (Object.keys(ms).length > 0) {
-      const newMs: typeof ms = {}
-      let added = 0
-      for (const [k, v] of Object.entries(ms)) {
-        newMs[k] = v
-        added++
-        if (added >= limit) {
-          break
-        }
-      }
-      ms = newMs
-    }
+  const ms: Record<string, Metrics> = {}
+  // Select entries before converting to an object, which reorders integer keys.
+  for (const [k, v] of limit === -1 ? entries : entries.slice(0, Math.max(0, limit))) {
+    setOwnValue(ms, k, v)
   }
 
   return {
@@ -259,12 +279,14 @@ export function metricsAggregate (m: Metrics, limit: number = -1, roundMath: boo
   }
 }
 
-function aggregateMetrics (m: Record<string, Metrics>, limit: number = -1): Record<string, Metrics> {
-  const result: Record<string, Metrics> = {}
-  for (const [k, v] of Object.entries(m).sort((a, b) => b[1].value - a[1].value)) {
-    result[k] = metricsAggregate(v, limit)
-  }
-  return result
+function aggregateMetrics (m: Record<string, Metrics>, limit: number = -1): [string, Metrics][] {
+  return Object.entries(m)
+    .map(([k, v]): [string, Metrics] => [k, metricsAggregate(v, limit)])
+    .sort((a, b) => b[1].value - a[1].value)
+}
+
+function sortedMeasurements (m: Record<string, Metrics>): [string, Metrics][] {
+  return Object.entries(m).sort((a, b) => b[1].value - a[1].value)
 }
 
 function toLen (val: string, sep: string, len: number): string {
@@ -278,12 +300,20 @@ function printMetricsChildren (params: Record<string, Metrics>, offset: number, 
   let r = ''
   if (Object.keys(params).length > 0) {
     r += '\n' + toLen('', ' ', offset)
-    r += Object.entries(params)
+    r += sortedMeasurements(params)
       .filter((it) => it[1].value > 0.1)
       .map(([k, vv]) => toString(k, vv, offset, length))
       .join('\n' + toLen('', ' ', offset))
   }
   return r
+}
+
+function round2 (value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+function avg2 (value: number, count: number): number {
+  return round2(value / (count > 0 ? count : 1))
 }
 
 function printMetricsParams (
@@ -297,12 +327,12 @@ function printMetricsParams (
       .filter((it) => it[1].value >= 0.1)
       .map(([k, vv]) =>
         `${toLen('', ' ', offset)}${toLen(key + '=' + k, '-', length - offset)}: avg ${
-          Math.round((vv.value / (vv.operations > 0 ? vv.operations : 1)) * 100) / 100
-        } total: ${Math.round(vv.value * 100) / 100} ops: ${vv.operations}`.trim()
+          avg2(vv.value, vv.operations)
+        } total: ${round2(vv.value)} ops: ${vv.operations}`.trim()
       )
   }
-  const joinParams = Object.entries(params).reduce<string[]>((p, c) => [...p, ...joinP(c[0], c[1])], [])
-  if (Object.keys(joinParams).length > 0) {
+  const joinParams = Object.entries(params).flatMap(([key, values]) => joinP(key, values))
+  if (joinParams.length > 0) {
     r += '\n' + toLen('', ' ', offset)
     r += joinParams.join('\n' + toLen('', ' ', offset))
   }
@@ -311,8 +341,8 @@ function printMetricsParams (
 
 function toString (name: string, m: Metrics, offset: number, length: number): string {
   let r = `${toLen('', ' ', offset)}${toLen(name, '-', length - offset)}: avg ${
-    Math.round((m.value / (m.operations > 0 ? m.operations : 1)) * 100) / 100
-  } total: ${Math.round(m.value * 100) / 100} ops: ${m.operations}`.trim()
+    avg2(m.value, m.operations)
+  } total: ${round2(m.value)} ops: ${m.operations}`.trim()
   r += printMetricsParams(m.params, offset + 4, length)
   r += printMetricsChildren(m.measurements, offset + 4, length)
   return r
@@ -324,17 +354,14 @@ function toJson (m: Metrics): any {
     $ops: m.operations
   }
   if (m.operations > 1) {
-    obj.avg = Math.round((m.value / (m.operations > 0 ? m.operations : 1)) * 100) / 100
+    obj.avg = avg2(m.value, m.operations)
   }
   if (Object.keys(m.params).length > 0) {
     obj.params = m.params
   }
-  for (const [k, v] of Object.entries(m.measurements ?? {})) {
-    obj[
-      `${k} ${v.value} ${v.operations} ${
-        v.operations > 1 ? Math.round((v.value / (v.operations > 0 ? m.operations : 1)) * 100) / 100 : ''
-      }`
-    ] = toJson(v)
+  for (const [k, v] of sortedMeasurements(m.measurements ?? {})) {
+    obj[`${k} ${v.value} ${v.operations} ${v.operations > 1 ? avg2(v.value, v.operations) : ''}`] =
+      toJson(v)
   }
 
   return obj
@@ -360,8 +387,8 @@ function printMetricsParamsRows (
     return Object.entries(data).map(([k, vv]) => [
       offset,
       `${key}=${k}`,
-      Math.round((vv.value / (vv.operations > 0 ? vv.operations : 1)) * 100) / 100,
-      Math.round(vv.value * 100) / 100,
+      avg2(vv.value,  vv.operations),
+      round2(vv.value),
       vv.operations
     ])
   }
@@ -374,7 +401,7 @@ function printMetricsParamsRows (
 function printMetricsChildrenRows (params: Record<string, Metrics>, offset: number): (string | number)[][] {
   const r: (string | number)[][] = []
   if (Object.keys(params).length > 0) {
-    Object.entries(params).forEach(([k, vv]) => r.push(...toStringRows(k, vv, offset)))
+    sortedMeasurements(params).forEach(([k, vv]) => r.push(...toStringRows(k, vv, offset)))
   }
   return r
 }
@@ -384,8 +411,8 @@ function toStringRows (name: string, m: Metrics, offset: number): (number | stri
     [
       offset,
       name,
-      Math.round((m.value / (m.operations > 0 ? m.operations : 1)) * 100) / 100,
-      Math.round(m.value * 100) / 100,
+      avg2(m.value,  m.operations),
+      round2(m.value),
       m.operations
     ]
   ]

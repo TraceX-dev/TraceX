@@ -27,7 +27,7 @@ export function createMeasureContextProxy (first: MeasureContext, ...contexts: M
 
 function createProxy (contexts: MeasureContext[], parent?: MeasureContext): MeasureContext {
   const operations: Pick<MeasureContext, 'with' | 'withSync' | 'newChild' | 'end' | 'counter' | 'gauge'> = {
-    with<T> (
+    with<T>(
       name: string,
       params: ParamsType,
       op: (ctx: MeasureContext) => T | Promise<T>,
@@ -48,7 +48,7 @@ function createProxy (contexts: MeasureContext[], parent?: MeasureContext): Meas
         )
       return run(0)
     },
-    withSync<T> (
+    withSync<T>(
       name: string,
       params: ParamsType,
       op: (ctx: MeasureContext) => T,
@@ -70,7 +70,10 @@ function createProxy (contexts: MeasureContext[], parent?: MeasureContext): Meas
       return run(0)
     },
     newChild (name, params, opt) {
-      return createProxy(contexts.map((ctx) => ctx.newChild(name, params, opt)), proxy)
+      return createProxy(
+        contexts.map((ctx) => ctx.newChild(name, params, opt)),
+        proxy
+      )
     },
     end (value) {
       for (const ctx of contexts) {
@@ -92,8 +95,12 @@ function createProxy (contexts: MeasureContext[], parent?: MeasureContext): Meas
   const proxy = new Proxy(contexts[0], {
     get (target, property) {
       if (
-        property === 'with' || property === 'withSync' || property === 'newChild' ||
-        property === 'end' || property === 'counter' || property === 'gauge'
+        property === 'with' ||
+        property === 'withSync' ||
+        property === 'newChild' ||
+        property === 'end' ||
+        property === 'counter' ||
+        property === 'gauge'
       ) {
         return operations[property]
       }
