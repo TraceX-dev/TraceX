@@ -19,7 +19,12 @@ import { type BrandingMap, type MeasureContext, type Ref, type Tx } from '@hceng
 import { buildStorageFromConfig } from '@hcengineering/server-storage'
 
 import { startSessionManager } from '@hcengineering/server'
-import { calculateModelHashSync, type PlatformQueue, type SessionManager, type StorageConfiguration } from '@hcengineering/server-core'
+import {
+  calculateModelHashSync,
+  type PlatformQueue,
+  type SessionManager,
+  type StorageConfiguration
+} from '@hcengineering/server-core'
 
 import {
   createServerPipeline,

@@ -28,8 +28,11 @@ export function compareModelHashes (first: string, second: string): ModelHashMat
   const firstSystem = firstSeparator === -1 ? first : first.slice(0, firstSeparator)
   const secondSystem = secondSeparator === -1 ? second : second.slice(0, secondSeparator)
   if (firstSystem !== secondSystem) return 'none'
-  if (firstSeparator !== -1 && secondSeparator !== -1 &&
-    first.slice(firstSeparator + 1) === second.slice(secondSeparator + 1)) {
+  if (
+    firstSeparator !== -1 &&
+    secondSeparator !== -1 &&
+    first.slice(firstSeparator + 1) === second.slice(secondSeparator + 1)
+  ) {
     return 'user'
   }
   return 'system'
