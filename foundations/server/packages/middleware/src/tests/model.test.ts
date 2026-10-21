@@ -594,9 +594,7 @@ describe('ModelMiddleware model cache', () => {
     if (Array.isArray(response) || response.kind !== 'full') throw new Error('Expected a full split model')
     expect(response.systemTx.concat(response.userTx)).toEqual(model)
     expect(response.userTx).toEqual([])
-    expect(response.hash).toBe(
-      modelHash(response.systemTx) + ':' + before
-    )
+    expect(response.hash).toBe(modelHash(response.systemTx) + ':' + before)
     expect(await middleware.loadModel(harness.ctx, 0, response.hash)).toEqual({
       kind: 'delta',
       hash: response.hash,
@@ -625,9 +623,7 @@ describe('ModelMiddleware model cache', () => {
     const { harness, middleware, getModelCalls } = await makeMiddleware(makeUserTx(3))
     const response = await middleware.loadModel(harness.ctx, 0, 'stale-hash')
     if (Array.isArray(response) || response.kind !== 'full') throw new Error('Expected a full split model')
-    expect(response.hash).toBe(
-      modelHash(middleware.systemTx) + ':' + middleware.lastHash
-    )
+    expect(response.hash).toBe(modelHash(middleware.systemTx) + ':' + middleware.lastHash)
     expect(response.systemTx.length).toBeGreaterThan(0)
     expect(response.userTx).toHaveLength(3)
     expect(getModelCalls()).toBe(1)

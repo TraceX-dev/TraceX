@@ -31,7 +31,13 @@ afterEach(() => {
 })
 
 it('generates the model without loading an existing artifact or logging into JSON output', async () => {
-  jest.doMock('../../bundle/model.json', () => { throw new Error('Model artifact does not exist yet') }, { virtual: true })
+  jest.doMock(
+    '../../bundle/model.json',
+    () => {
+      throw new Error('Model artifact does not exist yet')
+    },
+    { virtual: true }
+  )
   await import('../show')
   expect(console.log).toHaveBeenCalledTimes(1)
   expect(console.log).toHaveBeenCalledWith(JSON.stringify([{ _id: 'generated-model', modifiedOn: 1 }]))
@@ -39,10 +45,14 @@ it('generates the model without loading an existing artifact or logging into JSO
 })
 
 it('logs the system transaction chain hash through the startup context', async () => {
-  jest.doMock('../../bundle/model.json', () => [
-    { _id: 'bundled-model-1', modifiedOn: 1 },
-    { _id: 'bundled-model-2', modifiedOn: 2 }
-  ], { virtual: true })
+  jest.doMock(
+    '../../bundle/model.json',
+    () => [
+      { _id: 'bundled-model-1', modifiedOn: 1 },
+      { _id: 'bundled-model-2', modifiedOn: 2 }
+    ],
+    { virtual: true }
+  )
   const { logModelHash } = await import('../model')
   expect(console.info).not.toHaveBeenCalled()
   const ctx = new MeasureMetricsContext('test-model', {})

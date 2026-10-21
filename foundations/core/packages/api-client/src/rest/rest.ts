@@ -71,7 +71,10 @@ export function createRestClient (
   return new RestClientImpl(endpoint, workspaceId, token, options)
 }
 
-export async function connectRest (url: string, options: AuthOptions & ModelOptions & RestClientOptions): Promise<RestClient> {
+export async function connectRest (
+  url: string,
+  options: AuthOptions & ModelOptions & RestClientOptions
+): Promise<RestClient> {
   const { endpoint, token, workspaceId } = await getWorkspaceToken(url, options)
   return createRestClient(endpoint, workspaceId, token, options)
 }

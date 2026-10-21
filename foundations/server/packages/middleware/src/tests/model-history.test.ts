@@ -21,23 +21,31 @@ const factory = new TxFactory(core.account.System)
 const systemTx = [factory.createTxCreateDoc(core.class.Doc, core.space.Model, {})]
 const userTx = Array.from({ length: 4 }, () => factory.createTxCreateDoc(core.class.Doc, core.space.Model, {}))
 const systemHash = calculateModelHashSync(systemTx)
-const version = (count: number): string =>
-  systemHash + ':' + calculateModelHashSync(userTx.slice(0, count), systemHash)
+const version = (count: number): string => systemHash + ':' + calculateModelHashSync(userTx.slice(0, count), systemHash)
 
 it('selects full, user and delta responses for unknown, system and user versions', () => {
   const history = new ModelHistory(systemTx, userTx)
   expect(history.getResponse('unknown', userTx)).toEqual({
-    kind: 'full', hash: version(4), systemTx, userTx
+    kind: 'full',
+    hash: version(4),
+    systemTx,
+    userTx
   })
   expect(history.getResponse(systemHash, userTx)).toEqual({
-    kind: 'user', hash: version(4), userTx
+    kind: 'user',
+    hash: version(4),
+    userTx
   })
   expect(history.getResponse(systemHash + ':unknown', userTx)).toEqual({
-    kind: 'user', hash: version(4), userTx
+    kind: 'user',
+    hash: version(4),
+    userTx
   })
   for (let count = 0; count <= userTx.length; count++) {
     expect(history.getResponse(version(count), userTx)).toEqual({
-      kind: 'delta', hash: version(4), transactions: userTx.slice(count)
+      kind: 'delta',
+      hash: version(4),
+      transactions: userTx.slice(count)
     })
   }
 })
@@ -48,7 +56,9 @@ it('continues the same chain when transactions are appended incrementally', () =
   history.append(userTx.slice(3))
   expect(history.lastHash).toBe(calculateModelHashSync(systemTx.concat(userTx)))
   expect(history.getResponse(version(1), userTx)).toEqual({
-    kind: 'delta', hash: version(4), transactions: userTx.slice(1)
+    kind: 'delta',
+    hash: version(4),
+    transactions: userTx.slice(1)
   })
 })
 
@@ -58,7 +68,9 @@ it('retains old indexes throughout the complete chain', () => {
   const added = Array.from({ length: 1100 }, () => factory.createTxCreateDoc(core.class.Doc, core.space.Model, {}))
   history.append(added)
   expect(history.getResponse(oldVersion, userTx.concat(added))).toEqual({
-    kind: 'delta', hash: history.hash, transactions: added
+    kind: 'delta',
+    hash: history.hash,
+    transactions: added
   })
 })
 

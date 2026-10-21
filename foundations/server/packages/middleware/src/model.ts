@@ -238,7 +238,10 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
       const model = this.applyFilter(this.systemTx.concat(userTx))
       this.setModel(model)
       const systemIds = new Set(this.systemTx.map((tx) => tx._id))
-      return this.history.getResponse('', model.filter((tx) => !systemIds.has(tx._id)))
+      return this.history.getResponse(
+        '',
+        model.filter((tx) => !systemIds.has(tx._id))
+      )
     }
     return (await this.getModel(ctx)).filter((it) => it.modifiedOn > lastModelTx)
   }
