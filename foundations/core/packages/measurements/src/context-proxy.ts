@@ -30,7 +30,7 @@ function createProxy (contexts: MeasureContext[], parent?: MeasureContext): Meas
     with<T>(
       name: string,
       params: ParamsType,
-      op: (ctx: MeasureContext) => T | Promise<T>,
+      op: (ctx: MeasureContext) => T | PromiseLike<T>,
       fullParams?: ParamsType | (() => FullParamsType),
       opt?: WithOptions
     ): Promise<T> {

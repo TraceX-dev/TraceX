@@ -225,7 +225,6 @@ it('records gauges for every attribute set and repeated collection interval', ()
   ])
 })
 
-
 it.each([
   [false, false, false],
   [false, false, true],
@@ -254,11 +253,11 @@ it.each([
     if (failed) throw failure
     return 42
   }
-  const invoke = (): Promise<number> => root.with(
-    'request', { method: 'GET' },
-    asynchronous ? async (ctx) => operation(ctx) : operation,
-    factory, { span: true, log }
-  )
+  const invoke = (): Promise<number> =>
+    root.with('request', { method: 'GET' }, asynchronous ? async (ctx) => operation(ctx) : operation, factory, {
+      span: true,
+      log
+    })
   try {
     if (failed && !asynchronous) {
       expect(invoke).toThrow(failure)

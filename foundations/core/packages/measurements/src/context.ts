@@ -13,11 +13,12 @@
 // limitations under the License.
 //
 
-// Basic performance metrics suite.
+import { BaseMeasureContext } from './base-measure-context'
+import { consoleLogger, platformNow } from './context-utils'
 
-import { platformNow, platformNowDiff } from '.'
-import { childMetrics, EMPTY_PARAMS, newMetrics, updateMeasure, updateNamedParams } from './metrics'
+import { childMetrics, EMPTY_PARAMS, newMetrics, updateMeasure } from './metrics'
 import {
+  type ChildOptions,
   type FullParamsType,
   type MeasureContext,
   type MeasureLogger,
@@ -29,107 +30,23 @@ import {
   type WithOptions
 } from './types'
 
-const errorPrinter = ({ message, stack, ...rest }: Error): object => ({
-  message,
-  stack,
-  ...rest
-})
-function replacer (value: any): any {
-  return value instanceof Error ? errorPrinter(value) : value
-}
-
-export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => ({
-  info: (msg, args) => {
-    console.info(
-      msg,
-      ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
-      )
-    )
-  },
-  error: (msg, args) => {
-    console.error(
-      msg,
-      ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
-      )
-    )
-  },
-  warn: (msg, args) => {
-    console.warn(
-      msg,
-      ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
-      )
-    )
-  },
-  debug: (msg, args) => {
-    console.debug(
-      msg,
-      ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
-      )
-    )
-  },
-  close: async () => {},
-  logOperation: (operation, time, params) => {}
-})
-
-export const noParamsLogger = consoleLogger({})
-
-export const nullPromise = Promise.resolve()
+export { consoleLogger, noParamsLogger, nullPromise } from './context-utils'
 
 /**
  * @public
  */
-export class MeasureMetricsContext implements MeasureContext {
-  private readonly name: string
-  private readonly params: ParamsType
-
-  private fullParams: FullParamsType | (() => FullParamsType)
-  logger: MeasureLogger
-  metrics: Metrics
-  id?: string
-
-  private readonly logLevel: MeasureLogLevel
-
-  st = platformNow()
-  contextData: object
-  isDone = false
-
-  private done (value?: number, override?: boolean): void {
-    if (!this.isDone) {
-      this.isDone = true
-      updateMeasure(this.metrics, this.st, this.params, this.fullParams, undefined, value, override)
-    }
-  }
-
+export class MeasureMetricsContext extends BaseMeasureContext {
   constructor (
     name: string,
     params: ParamsType,
     fullParams: FullParamsType | (() => FullParamsType) = EMPTY_PARAMS,
     metrics: Metrics = newMetrics(),
     logger?: MeasureLogger,
-    readonly parent?: MeasureContext,
-    readonly logParams?: ParamsType,
+    parent?: MeasureContext,
+    logParams?: ParamsType,
     logLevel: MeasureLogLevel = 'info'
   ) {
-    this.name = name
-    this.params = params
-    this.fullParams =
-      typeof fullParams === 'function'
-        ? () => {
-            const resolved = fullParams()
-            this.fullParams = resolved
-            return resolved
-          }
-        : fullParams
-    this.metrics = metrics
-    this.logLevel = logLevel
-    this.contextData = parent !== undefined ? parent.contextData : {}
-    updateNamedParams((this.metrics.namedParams ??= {}), params)
-
-    this.logger = logger ?? (this.logParams != null ? consoleLogger(this.logParams ?? {}) : noParamsLogger)
+    super(name, params, fullParams, metrics, logger, parent, logParams, logLevel)
   }
 
   gauge (name: string, value: number): void {
@@ -146,123 +63,26 @@ export class MeasureMetricsContext implements MeasureContext {
     updateMeasure(metrics, platformNow(), EMPTY_PARAMS, EMPTY_PARAMS, undefined, value, override)
   }
 
-  newChild (
+  protected createChild (
     name: string,
     params: ParamsType,
-    opt?: {
-      fullParams?: FullParamsType
-      logger?: MeasureLogger
-      span?: WithOptions['span'] // By default true
-      meta?: Record<string, string | number | boolean>
-      logLevel?: MeasureLogLevel
-    }
-  ): MeasureContext {
-    const result = new MeasureMetricsContext(
+    fullParams: FullParamsType | (() => FullParamsType) | undefined,
+    opt?: ChildOptions
+  ): MeasureMetricsContext {
+    return new MeasureMetricsContext(
       name,
       params,
-      opt?.fullParams ?? undefined,
+      fullParams,
       childMetrics(this.metrics, name),
       opt?.logger ?? this.logger,
       this,
       this.logParams,
       opt?.logLevel ?? this.logLevel
     )
-    result.id = this.id
-    return result
-  }
-
-  with<T>(
-    name: string,
-    params: ParamsType,
-    op: (ctx: MeasureContext) => T | Promise<T>,
-    fullParams?: ParamsType | (() => FullParamsType),
-    opt?: WithOptions
-  ): Promise<T> {
-    const c = this.newChild(name, params, fullParams === undefined ? undefined : { fullParams })
-    let needFinally = true
-    try {
-      const value = op(c)
-      if (value instanceof Promise) {
-        needFinally = false
-        if (opt?.log !== true) {
-          return value.then(
-            (result) => {
-              c.end()
-              return result
-            },
-            (error: unknown) => {
-              c.end()
-              throw error
-            }
-          )
-        }
-        return value.finally(() => {
-          c.end()
-          if (opt?.log === true) {
-            this.logger.logOperation(name, platformNowDiff((c as MeasureMetricsContext).st), {
-              ...params,
-              ...(c as MeasureMetricsContext).getFullParams()
-            })
-          }
-        })
-      } else {
-        if (value == null) {
-          return nullPromise as Promise<T>
-        }
-        return Promise.resolve(value)
-      }
-    } finally {
-      if (needFinally) {
-        c.end()
-      }
-    }
   }
 
   extractMeta (): Record<string, string | number | boolean> {
     return {}
-  }
-
-  withSync<T>(
-    name: string,
-    params: ParamsType,
-    op: (ctx: MeasureContext) => T,
-    fullParams?: ParamsType | (() => FullParamsType)
-  ): T {
-    const c = this.newChild(name, params, fullParams === undefined ? undefined : { fullParams })
-    try {
-      return op(c)
-    } finally {
-      c.end()
-    }
-  }
-
-  error (message: string, args?: Record<string, any>): void {
-    this.logger.error(message, { ...this.params, ...(this.logParams ?? {}), ...args })
-  }
-
-  info (message: string, args?: Record<string, any>): void {
-    this.logger.info(message, { ...this.params, ...(this.logParams ?? {}), ...args })
-  }
-
-  warn (message: string, args?: Record<string, any>): void {
-    this.logger.warn(message, { ...this.params, ...(this.logParams ?? {}), ...args })
-  }
-
-  debug (message: string, args?: Record<string, any>): void {
-    if (this.logLevel !== 'debug') return
-    this.logger.debug(message, { ...this.params, ...(this.logParams ?? {}), ...args })
-  }
-
-  end (value?: number): void {
-    this.done(value)
-  }
-
-  private getFullParams (): FullParamsType {
-    return typeof this.fullParams === 'function' ? this.fullParams() : this.fullParams
-  }
-
-  getParams (): ParamsType {
-    return this.params
   }
 }
 
@@ -303,11 +123,11 @@ export class NoMetricsContext implements MeasureContext {
   with<T>(
     name: string,
     params: ParamsType,
-    op: (ctx: MeasureContext) => T | Promise<T>,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
     fullParams?: ParamsType | (() => FullParamsType)
   ): Promise<T> {
     const r = op(this.newChild(name, params, { fullParams, logger: this.logger }))
-    return r instanceof Promise ? r : Promise.resolve(r)
+    return Promise.resolve(r)
   }
 
   extractMeta (): Record<string, string | number | boolean> {
@@ -327,11 +147,11 @@ export class NoMetricsContext implements MeasureContext {
   withLog<T>(
     name: string,
     params: ParamsType,
-    op: (ctx: MeasureContext) => T | Promise<T>,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
     fullParams?: ParamsType
   ): Promise<T> {
     const r = op(this.newChild(name, params, { fullParams, logger: this.logger }))
-    return r instanceof Promise ? r : Promise.resolve(r)
+    return Promise.resolve(r)
   }
 
   error (message: string, args?: Record<string, any>): void {

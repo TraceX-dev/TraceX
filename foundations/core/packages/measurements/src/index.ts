@@ -18,12 +18,5 @@ export * from './context-proxy'
 export * from './metrics'
 export type * from './types'
 
-/**
- * Return a current performance timestamp
- */
-export const platformNow: () => number = () => performance.now()
-
-/**
- * Return a diff with previous performance snapshot with 2 digits after . max.
- */
-export const platformNowDiff = (old: number): number => Math.round((performance.now() - old) * 100) / 100
+export * from './base-measure-context'
+export { platformNow, platformNowDiff, reportTelemetryFailure } from './context-utils'

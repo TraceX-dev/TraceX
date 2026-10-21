@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import * as measurements from '../index'
+import * as clock from '../context-utils'
 import { MeasureMetricsContext, noParamsLogger } from '../context'
 import { createMeasureContextProxy } from '../context-proxy'
 
@@ -22,7 +22,7 @@ describe('createMeasureContextProxy', () => {
 
   beforeEach(() => {
     now = 0
-    jest.spyOn(measurements, 'platformNow').mockImplementation(() => now)
+    jest.spyOn(clock, 'platformNow').mockImplementation(() => now)
   })
 
   afterEach(() => {

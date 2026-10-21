@@ -15,7 +15,8 @@
 
 // Basic performance metrics suite.
 
-import { platformNow, type MetricsData } from '.'
+import { platformNow } from './context-utils'
+import { type MetricsData } from './types'
 import { type FullParamsType, type Metrics, type ParamsType } from './types'
 
 /**
@@ -148,10 +149,10 @@ export function updateMeasure (
   fullParams: FullParamsType | (() => FullParamsType),
   endOp?: (spend: number) => void,
   value?: number,
-  override?: boolean
+  override?: boolean,
+  endedAt: number = platformNow()
 ): void {
-  const ed = platformNow()
-  const duration = ed - st
+  const duration = endedAt - st
   const measuredValue = value ?? duration
 
   const fParams = typeof fullParams === 'function' ? fullParams() : fullParams
@@ -326,9 +327,10 @@ function printMetricsParams (
     return Object.entries(data)
       .filter((it) => it[1].value >= 0.1)
       .map(([k, vv]) =>
-        `${toLen('', ' ', offset)}${toLen(key + '=' + k, '-', length - offset)}: avg ${
-          avg2(vv.value, vv.operations)
-        } total: ${round2(vv.value)} ops: ${vv.operations}`.trim()
+        `${toLen('', ' ', offset)}${toLen(key + '=' + k, '-', length - offset)}: avg ${avg2(
+          vv.value,
+          vv.operations
+        )} total: ${round2(vv.value)} ops: ${vv.operations}`.trim()
       )
   }
   const joinParams = Object.entries(params).flatMap(([key, values]) => joinP(key, values))
@@ -340,9 +342,10 @@ function printMetricsParams (
 }
 
 function toString (name: string, m: Metrics, offset: number, length: number): string {
-  let r = `${toLen('', ' ', offset)}${toLen(name, '-', length - offset)}: avg ${
-    avg2(m.value, m.operations)
-  } total: ${round2(m.value)} ops: ${m.operations}`.trim()
+  let r = `${toLen('', ' ', offset)}${toLen(name, '-', length - offset)}: avg ${avg2(
+    m.value,
+    m.operations
+  )} total: ${round2(m.value)} ops: ${m.operations}`.trim()
   r += printMetricsParams(m.params, offset + 4, length)
   r += printMetricsChildren(m.measurements, offset + 4, length)
   return r
@@ -360,8 +363,7 @@ function toJson (m: Metrics): any {
     obj.params = m.params
   }
   for (const [k, v] of sortedMeasurements(m.measurements ?? {})) {
-    obj[`${k} ${v.value} ${v.operations} ${v.operations > 1 ? avg2(v.value, v.operations) : ''}`] =
-      toJson(v)
+    obj[`${k} ${v.value} ${v.operations} ${v.operations > 1 ? avg2(v.value, v.operations) : ''}`] = toJson(v)
   }
 
   return obj
@@ -387,7 +389,7 @@ function printMetricsParamsRows (
     return Object.entries(data).map(([k, vv]) => [
       offset,
       `${key}=${k}`,
-      avg2(vv.value,  vv.operations),
+      avg2(vv.value, vv.operations),
       round2(vv.value),
       vv.operations
     ])
@@ -407,15 +409,7 @@ function printMetricsChildrenRows (params: Record<string, Metrics>, offset: numb
 }
 
 function toStringRows (name: string, m: Metrics, offset: number): (number | string)[][] {
-  const r: (number | string)[][] = [
-    [
-      offset,
-      name,
-      avg2(m.value,  m.operations),
-      round2(m.value),
-      m.operations
-    ]
-  ]
+  const r: (number | string)[][] = [[offset, name, avg2(m.value, m.operations), round2(m.value), m.operations]]
   r.push(...printMetricsParamsRows(m.params, offset + 1))
   r.push(...printMetricsChildrenRows(m.measurements, offset + 1))
   return r
