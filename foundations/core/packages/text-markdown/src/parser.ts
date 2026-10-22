@@ -642,11 +642,7 @@ const ignoreRule: Record<string, ParsingIgnoreRule> = {
   tbody: {}
 }
 
-/**
- * In markdown an image that shares a paragraph with other content is inline by nature,
- * so mark it as such to keep it in the line with the text instead of moving it to its own line.
- * An image that is alone in its paragraph keeps the default (block) display.
- */
+/** An image sharing a paragraph with other content is inline; a lone image stays a block. */
 function markInlineImages (node: MarkupNode): void {
   const content = node.content
   if (content === undefined) return

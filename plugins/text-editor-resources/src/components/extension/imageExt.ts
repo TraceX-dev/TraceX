@@ -81,7 +81,7 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
         ({ chain, tr, state }) => {
           const cursor = getCursor(state)
           if (cursor === null) return false
-          // alignment only makes sense for a block image, so choosing it returns an inline image to its own line
+          // align applies to block images only, so it also resets display
           return chain()
             .setNodeSelection(cursor.range.from)
             .updateAttributes(this.name, { ...options, display: null })

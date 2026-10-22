@@ -61,7 +61,7 @@ export const ImageUploadExtension = Extension.create<ImageUploadExtensionOptions
       })
 
       if (imagePosition !== undefined) {
-        // the placeholder text itself must not make the paragraph look non-empty
+        // the placeholder must not count as paragraph content
         const display = getDefaultImageDisplay(view.state.doc, imagePosition, placeholder)
         const imageNode = node.type.create({ ...node.attrs, display }, null, node.marks)
         view.dispatch(view.state.tr.replaceWith(imagePosition, imagePosition + placeholder.length, imageNode))

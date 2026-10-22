@@ -26,9 +26,7 @@ export interface ImageAlignmentOptions {
 }
 
 /**
- * How the image is laid out relative to surrounding text:
- * - `block` (default, also `null`): the image occupies its own line, `align` applies;
- * - `inline`: the image flows in the line together with the text, `align` is ignored.
+ * `block` (default, same as `null`): own line, `align` applies. `inline`: flows with the text.
  * @public
  */
 export type ImageDisplay = 'block' | 'inline'
@@ -54,7 +52,7 @@ declare module '@tiptap/core' {
        */
       setImageAlignment: (options: ImageAlignmentOptions) => ReturnType
       /**
-       * Set image display mode (own line / inline with text)
+       * Set image display mode
        */
       setImageDisplay: (options: ImageDisplayOptions) => ReturnType
       /**
@@ -66,11 +64,9 @@ declare module '@tiptap/core' {
 }
 
 /**
- * Inline images are sized through their container, not through the `<img>` itself.
- * A percentage `width` on the `<img>` resolves against the shrink-to-fit container, whose
- * width comes from the natural image size. For a large image the container then stays
- * as wide as the whole line and wraps below the text no matter how small the scale is.
- * Putting the width on the container makes the percentage resolve against the paragraph.
+ * Width of an inline image goes on its container so that a percentage resolves against
+ * the paragraph; on the `<img>` it resolves against a shrink-to-fit container that stays
+ * line-wide for large images and wraps below the text.
  * @public
  */
 export function getInlineImageContainerStyle (attrs: Record<string, any>): string | undefined {
@@ -177,7 +173,7 @@ export const ImageNode = Node.create<ImageOptions>({
       imgAttributes.src = `platform://platform/files/workspace/?file=${fileId}`
     }
 
-    // `div` is not valid inside a paragraph, so inline images use `span`
+    // `div` is invalid inside a paragraph
     return [inline ? 'span' : 'div', containerAttributes, ['img', imgAttributes]]
   }
 })

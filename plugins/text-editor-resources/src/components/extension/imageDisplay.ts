@@ -16,15 +16,9 @@ import { type ImageDisplay } from '@hcengineering/text'
 import { type Node } from '@tiptap/pm/model'
 
 /**
- * Default display mode for a newly inserted image, decided by context at insertion time:
- * - the target paragraph already has content (text, other inlines) -> `inline`;
- * - the paragraph is empty (or the position is not inside a text block) -> `null`, i.e. the
- *   image stays a block on its own line, exactly as before.
- *
- * The result is stored in the document, so rendering is the same everywhere
- * and existing documents are never affected.
- *
- * @param ignoreText text of a temporary placeholder that should not count as content
+ * Default display for a newly inserted image: `inline` if the paragraph already has content,
+ * otherwise `null` (block). Stored in the document, so existing content is unaffected.
+ * @param ignoreText temporary placeholder text that does not count as content
  * @public
  */
 export function getDefaultImageDisplay (doc: Node, pos: number, ignoreText?: string): ImageDisplay | null {
