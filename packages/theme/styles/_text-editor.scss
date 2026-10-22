@@ -280,7 +280,7 @@
 }
 
 @supports (selector(:has(.text-editor-image-container))) {
-  p:has(> .text-editor-image-container) {
+  p:has(> .text-editor-image-container:not([data-display="inline"])) {
     -webkit-user-select: none;
     user-select: none;
   }
@@ -300,6 +300,13 @@
 
   &[data-align="right"] {
     justify-content: right;
+  }
+
+  // Image flows in the line together with the text
+  &[data-display="inline"] {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: middle;
   }
 }
 

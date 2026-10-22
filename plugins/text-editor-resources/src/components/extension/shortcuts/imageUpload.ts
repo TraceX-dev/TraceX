@@ -21,6 +21,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { type EditorView } from '@tiptap/pm/view'
 
 import { type FileAttachFunction } from '../types'
+import { getDefaultImageDisplay } from '../imageDisplay'
 
 /**
  * @public
@@ -60,7 +61,10 @@ export const ImageUploadExtension = Extension.create<ImageUploadExtensionOptions
       })
 
       if (imagePosition !== undefined) {
-        view.dispatch(view.state.tr.replaceWith(imagePosition, imagePosition + placeholder.length, node))
+        // the placeholder text itself must not make the paragraph look non-empty
+        const display = getDefaultImageDisplay(view.state.doc, imagePosition, placeholder)
+        const imageNode = node.type.create({ ...node.attrs, display }, null, node.marks)
+        view.dispatch(view.state.tr.replaceWith(imagePosition, imagePosition + placeholder.length, imageNode))
       }
     }
 
@@ -134,7 +138,8 @@ export const ImageUploadExtension = Extension.create<ImageUploadExtensionOptions
           if (ctype.startsWith('image/')) {
             const node = view.state.schema.nodes.image.create({
               'file-id': _file,
-              src: getFileUrl(_file as Ref<Blob>)
+              src: getFileUrl(_file as Ref<Blob>),
+              display: getDefaultImageDisplay(view.state.doc, pos?.pos ?? 0)
             })
             const transaction = view.state.tr.insert(pos?.pos ?? 0, node)
             view.dispatch(transaction)
@@ -233,7 +238,8 @@ async function handleImageUpload (
       src: url,
       alt: file.name,
       title: file.name,
-      width: imageSizeToRatio(size.width, size.pixelRatio)
+      width: imageSizeToRatio(size.width, size.pixelRatio),
+      display: getDefaultImageDisplay(view.state.doc, pos?.pos ?? 0)
     })
 
     const transaction = view.state.tr.insert(pos?.pos ?? 0, node)

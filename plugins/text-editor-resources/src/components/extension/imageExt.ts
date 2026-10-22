@@ -17,6 +17,7 @@ import { notEmpty } from '@hcengineering/core'
 import { getEmbeddedLabel } from '@hcengineering/platform'
 import { FilePreviewPopup, getBlobRef, getFileUrl } from '@hcengineering/presentation'
 import { ImageNode, type ImageOptions } from '@hcengineering/text'
+import { getDefaultImageDisplay } from './imageDisplay'
 import textEditor from '@hcengineering/text-editor'
 import { getEventPositionElement, SelectPopup, showPopup } from '@hcengineering/ui'
 import { type Editor, mergeAttributes, nodeInputRule } from '@tiptap/core'
@@ -67,10 +68,11 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
     return {
       setImage:
         (options) =>
-        ({ commands }) => {
+        ({ commands, state }) => {
+          const display = options.display ?? getDefaultImageDisplay(state.doc, state.selection.from)
           return commands.insertContent({
             type: this.name,
-            attrs: options
+            attrs: { ...options, display }
           })
         },
 
@@ -79,9 +81,22 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
         ({ chain, tr, state }) => {
           const cursor = getCursor(state)
           if (cursor === null) return false
+          // alignment only makes sense for a block image, so choosing it returns an inline image to its own line
           return chain()
             .setNodeSelection(cursor.range.from)
-            .updateAttributes(this.name, { ...options })
+            .updateAttributes(this.name, { ...options, display: null })
+            .setNodeSelection(cursor.range.from)
+            .run()
+        },
+
+      setImageDisplay:
+        (options) =>
+        ({ chain, state }) => {
+          const cursor = getCursor(state)
+          if (cursor === null) return false
+          return chain()
+            .setNodeSelection(cursor.range.from)
+            .updateAttributes(this.name, { display: options.display ?? null })
             .setNodeSelection(cursor.range.from)
             .run()
         },
@@ -153,7 +168,7 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
     const imageSrcCache = new Map<string, { src: string, srcset: string }>()
 
     return ({ view, node, HTMLAttributes, getPos }) => {
-      const container = document.createElement('div')
+      const container = document.createElement(node.attrs.display === 'inline' ? 'span' : 'div')
       const imgElement = document.createElement('img')
       let destroyed = false
       let setBrokenImg: ReturnType<typeof setTimeout> | undefined
@@ -161,7 +176,8 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
       const divAttributes = {
         class: 'text-editor-image-container',
         'data-type': this.name,
-        'data-align': node.attrs.align
+        'data-align': node.attrs.align,
+        'data-display': node.attrs.display
       }
 
       const setNodeLoadingState = (loading: boolean): void => {
@@ -389,7 +405,19 @@ export async function moreImageActions (editor: Editor, event: MouseEvent): Prom
     }
   })
 
-  const actions = [...widthActions]
+  const displayActions = [
+    { value: null, label: textEditor.string.DisplayBlock },
+    { value: 'inline' as const, label: textEditor.string.DisplayInline }
+  ].map((it) => ({
+    id: `#imageDisplay${it.value ?? 'block'}`,
+    label: it.label,
+    action: () => editor.commands.setImageDisplay({ display: it.value }),
+    category: {
+      label: textEditor.string.Display
+    }
+  }))
+
+  const actions = [...displayActions, ...widthActions]
 
   await new Promise<void>((resolve) => {
     showPopup(

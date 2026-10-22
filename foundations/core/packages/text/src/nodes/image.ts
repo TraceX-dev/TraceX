@@ -25,6 +25,18 @@ export interface ImageAlignmentOptions {
   align?: ImageAlignment
 }
 
+/**
+ * How the image is laid out relative to surrounding text:
+ * - `block` (default, also `null`): the image occupies its own line, `align` applies;
+ * - `inline`: the image flows in the line together with the text, `align` is ignored.
+ * @public
+ */
+export type ImageDisplay = 'block' | 'inline'
+
+export interface ImageDisplayOptions {
+  display?: ImageDisplay | null
+}
+
 export interface ImageSizeOptions {
   height?: number | string
   width?: number | string
@@ -36,11 +48,15 @@ declare module '@tiptap/core' {
       /**
        * Add an image
        */
-      setImage: (options: { src: string, alt?: string, title?: string }) => ReturnType
+      setImage: (options: { src: string, alt?: string, title?: string, display?: ImageDisplay | null }) => ReturnType
       /**
        * Set image alignment
        */
       setImageAlignment: (options: ImageAlignmentOptions) => ReturnType
+      /**
+       * Set image display mode (own line / inline with text)
+       */
+      setImageDisplay: (options: ImageDisplayOptions) => ReturnType
       /**
        * Set image size
        */
@@ -107,6 +123,7 @@ export const ImageNode = Node.create<ImageOptions>({
         default: null
       },
       align: getDataAttribute('align'),
+      display: getDataAttribute('display'),
       'data-file-type': {
         default: null
       }
@@ -125,10 +142,12 @@ export const ImageNode = Node.create<ImageOptions>({
   },
 
   renderHTML ({ node, HTMLAttributes }) {
-    const divAttributes = {
+    const inline = node.attrs.display === 'inline'
+    const containerAttributes = {
       class: 'text-editor-image-container',
       'data-type': this.name,
-      'data-align': node.attrs.align
+      'data-align': node.attrs.align,
+      'data-display': node.attrs.display
     }
     const imgAttributes = mergeAttributes(
       {
@@ -142,6 +161,7 @@ export const ImageNode = Node.create<ImageOptions>({
       imgAttributes.src = `platform://platform/files/workspace/?file=${fileId}`
     }
 
-    return ['div', divAttributes, ['img', imgAttributes]]
+    // `div` is not valid inside a paragraph, so inline images use `span`
+    return [inline ? 'span' : 'div', containerAttributes, ['img', imgAttributes]]
   }
 })
