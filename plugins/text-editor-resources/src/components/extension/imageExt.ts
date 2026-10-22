@@ -16,7 +16,7 @@
 import { notEmpty } from '@hcengineering/core'
 import { getEmbeddedLabel } from '@hcengineering/platform'
 import { FilePreviewPopup, getBlobRef, getFileUrl } from '@hcengineering/presentation'
-import { ImageNode, type ImageOptions } from '@hcengineering/text'
+import { getInlineImageContainerStyle, ImageNode, type ImageOptions } from '@hcengineering/text'
 import { getDefaultImageDisplay } from './imageDisplay'
 import textEditor from '@hcengineering/text-editor'
 import { getEventPositionElement, SelectPopup, showPopup } from '@hcengineering/ui'
@@ -177,7 +177,8 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
         class: 'text-editor-image-container',
         'data-type': this.name,
         'data-align': node.attrs.align,
-        'data-display': node.attrs.display
+        'data-display': node.attrs.display,
+        style: getInlineImageContainerStyle(node.attrs) ?? null
       }
 
       const setNodeLoadingState = (loading: boolean): void => {

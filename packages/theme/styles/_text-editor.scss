@@ -307,6 +307,11 @@
     display: inline-block;
     max-width: 100%;
     vertical-align: middle;
+
+    // the container carries the width (see getInlineImageContainerStyle)
+    > img {
+      width: 100%;
+    }
   }
 }
 

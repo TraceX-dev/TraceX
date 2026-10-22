@@ -15,7 +15,6 @@
 
 import { markdownToMarkup } from '../index'
 
-
 function images (md: string): any[] {
   const doc: any = markdownToMarkup(md)
   const result: any[] = []

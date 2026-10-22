@@ -66,6 +66,21 @@ declare module '@tiptap/core' {
 }
 
 /**
+ * Inline images are sized through their container, not through the `<img>` itself.
+ * A percentage `width` on the `<img>` resolves against the shrink-to-fit container, whose
+ * width comes from the natural image size. For a large image the container then stays
+ * as wide as the whole line and wraps below the text no matter how small the scale is.
+ * Putting the width on the container makes the percentage resolve against the paragraph.
+ * @public
+ */
+export function getInlineImageContainerStyle (attrs: Record<string, any>): string | undefined {
+  if (attrs.display !== 'inline' || attrs.width == null) return undefined
+  const width = String(attrs.width).trim()
+  if (!/^\d+(\.\d+)?(px|%)?$/.test(width)) return undefined
+  return `width: ${/^[\d.]+$/.test(width) ? width + 'px' : width}`
+}
+
+/**
  * @public
  */
 export interface ImageOptions {
@@ -147,7 +162,8 @@ export const ImageNode = Node.create<ImageOptions>({
       class: 'text-editor-image-container',
       'data-type': this.name,
       'data-align': node.attrs.align,
-      'data-display': node.attrs.display
+      'data-display': node.attrs.display,
+      style: getInlineImageContainerStyle(node.attrs)
     }
     const imgAttributes = mergeAttributes(
       {
