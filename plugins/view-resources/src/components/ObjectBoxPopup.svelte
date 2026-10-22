@@ -42,6 +42,7 @@
   export let shadows: boolean = true
   export let create: ObjectCreate | undefined = undefined
   export let searchField: string = 'name'
+  export let searchMode: 'field' | 'fulltext' | 'disabled' | 'spotlight' = 'field'
   export let docProps: Record<string, any> = {}
   export let groupBy = '_class'
 
@@ -53,6 +54,7 @@
   {options}
   {selected}
   {searchField}
+  {searchMode}
   {multiSelect}
   {allowDeselect}
   {titleDeselect}
