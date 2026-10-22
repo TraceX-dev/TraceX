@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import { logModelHash } from '@hcengineering/model-all/src/model'
 import { Analytics } from '@hcengineering/analytics'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { newMetrics } from '@hcengineering/core'
@@ -44,6 +45,7 @@ async function main (): Promise<void> {
         })
       )
   })
+  logModelHash(ctx)
 
   Analytics.setTag('application', SERVICE_NAME)
   configureClients(ctx)

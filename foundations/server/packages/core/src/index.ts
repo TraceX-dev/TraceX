@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
@@ -26,6 +27,7 @@ export { default, serverCoreId } from './plugin'
 export * from './storage'
 export * from './types'
 export * from './utils'
+export * from './model-hash'
 
 export * from './content'
 export * from './dbAdapterManager'

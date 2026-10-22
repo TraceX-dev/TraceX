@@ -41,8 +41,8 @@ import type {
   TxAdapter,
   TxMiddlewareResult
 } from '@hcengineering/server-core'
-import { BaseMiddleware } from '@hcengineering/server-core'
-import crypto from 'node:crypto'
+import { BaseMiddleware, calculateModelHashSync } from '@hcengineering/server-core'
+import { ModelHistory } from './model-history'
 
 const isAccountTx = (it: TxCUD<Doc>): boolean =>
   it.objectClass === 'core:class:Account' || it.objectClass === 'contact:class:PersonAccount'
@@ -52,13 +52,14 @@ const isAccountTx = (it: TxCUD<Doc>): boolean =>
  */
 export class ModelMiddleware extends BaseMiddleware implements Middleware {
   lastHash: string = ''
-  lastHashResponse!: Promise<LoadModelResponse>
+  private history!: ModelHistory
 
   constructor (
     context: PipelineContext,
     next: Middleware | undefined,
     readonly systemTx: Tx[],
-    readonly filter?: (h: Hierarchy, model: Tx[]) => Tx[]
+    readonly filter?: (h: Hierarchy, model: Tx[]) => Tx[],
+    private readonly systemHash: string = filter === undefined ? calculateModelHashSync(systemTx) : ''
   ) {
     super(context, next)
   }
@@ -69,16 +70,18 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
     context: PipelineContext,
     next: Middleware | undefined,
     systemTx: Tx[],
-    filter?: (h: Hierarchy, model: Tx[]) => Tx[]
+    filter?: (h: Hierarchy, model: Tx[]) => Tx[],
+    systemHash?: string
   ): Promise<Middleware> {
-    const middleware = new ModelMiddleware(context, next, systemTx, filter)
+    const middleware = new ModelMiddleware(context, next, systemTx, filter, systemHash)
     await middleware.init(ctx)
     return middleware
   }
 
   static create (tx: Tx[], filter?: (h: Hierarchy, model: Tx[]) => Tx[]): MiddlewareCreator {
+    const systemHash = filter === undefined ? calculateModelHashSync(tx) : ''
     return (ctx, context, next) => {
-      return this.doCreate(ctx, context, next, tx, filter)
+      return this.doCreate(ctx, context, next, tx, filter, systemHash)
     }
   }
 
@@ -101,7 +104,7 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
     return this.provideFindAll(ctx, _class, query, options)
   }
 
-  // Only needed for a full loadModel, which is rare - an idle pipeline drops it instead of
+  // Only needed to serve model transactions - an idle pipeline drops it instead of
   // holding megabytes of txs forever. Overridable for tests.
   static modelCacheTtl = 5 * 60 * 1000
   static readonly evictIntervalMs = 60 * 1000
@@ -187,26 +190,21 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
 
   private addModelTx (tx: Tx): void {
     // A tx the filter drops is never served, so it must not move the hash either.
-    if (this.applyFilter([tx]).length === 0) {
+    if (isAccountTx(tx as TxCUD<Doc>) || this.applyFilter([tx]).length === 0) {
       return
     }
-    if (!isAccountTx(tx as TxCUD<Doc>)) {
-      if (this.userModel !== undefined) {
-        this.userModel.txs.push(tx)
-        this.userModel.at = Date.now()
-      } else {
-        // Bounded: the oldest entries are long committed, only recent ones can outrun the DB.
-        this.recentModelTx.push(tx)
-        if (this.recentModelTx.length > ModelMiddleware.maxRecentModelTx) {
-          this.recentModelTx.shift()
-        }
+    if (this.userModel !== undefined) {
+      this.userModel.txs.push(tx)
+      this.userModel.at = Date.now()
+    } else {
+      // Bounded: the oldest entries are long committed, only recent ones can outrun the DB.
+      this.recentModelTx.push(tx)
+      if (this.recentModelTx.length > ModelMiddleware.maxRecentModelTx) {
+        this.recentModelTx.shift()
       }
     }
-    const h = crypto.createHash('sha1')
-    h.update(this.lastHash)
-    h.update(JSON.stringify(tx))
-    const hash = h.digest('hex')
-    this.setLastHash(hash)
+    this.history.append([tx])
+    this.setLastHash(this.history.lastHash)
   }
 
   private setLastHash (hash: string): void {
@@ -215,36 +213,44 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
   }
 
   private setModel (model: Tx[]): void {
-    let last = ''
-    model.map((it, index) => {
-      const h = crypto.createHash('sha1')
-      h.update(last)
-      h.update(JSON.stringify(it))
-      last = h.digest('hex')
-      return [last, index]
-    })
-    this.setLastHash(last)
+    if (this.filter === undefined) {
+      this.history = new ModelHistory(this.systemTx, model.slice(this.systemTx.length), this.systemHash)
+    } else {
+      const systemIds = new Set(this.systemTx.map((tx) => tx._id))
+      this.history = new ModelHistory(
+        model.filter((tx) => systemIds.has(tx._id)),
+        model.filter((tx) => !systemIds.has(tx._id))
+      )
+    }
+    this.setLastHash(this.history.lastHash)
   }
 
   async loadModel (ctx: MeasureContext, lastModelTx: Timestamp, hash?: string): Promise<Tx[] | LoadModelResponse> {
     if (hash !== undefined) {
-      if (hash === this.lastHash) {
-        return {
-          full: false,
-          hash,
-          transactions: []
-        }
+      if (this.history.isCurrent(hash)) {
+        return this.history.getResponse(hash, [])
       }
-      return {
-        full: true,
-        hash: this.lastHash,
-        transactions: await this.getModel(ctx)
+      const userTx = await this.getUserModel(ctx)
+      if (this.filter === undefined) {
+        return this.history.getResponse(hash, userTx)
       }
+      // Workspace-dependent filtering can change earlier transactions, so replace the model.
+      const model = this.applyFilter(this.systemTx.concat(userTx))
+      this.setModel(model)
+      const systemIds = new Set(this.systemTx.map((tx) => tx._id))
+      return this.history.getResponse(
+        '',
+        model.filter((tx) => !systemIds.has(tx._id))
+      )
     }
     return (await this.getModel(ctx)).filter((it) => it.modifiedOn > lastModelTx)
   }
 
   private async getModel (ctx: MeasureContext): Promise<Tx[]> {
+    return this.applyFilter(this.systemTx.concat(await this.getUserModel(ctx)))
+  }
+
+  private async getUserModel (ctx: MeasureContext): Promise<Tx[]> {
     if (this.userModel === undefined) {
       // Single flight - concurrent loadModels must not fetch twice and overwrite each other.
       this.modelFetch = this.modelFetch ?? this.fetchUserModel(ctx)
@@ -255,7 +261,7 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
       throw new PlatformError(unknownError('Failed to load workspace model'))
     }
     cache.at = Date.now()
-    return this.applyFilter(this.systemTx.concat(cache.txs))
+    return cache.txs
   }
 
   private async fetchUserModel (ctx: MeasureContext): Promise<void> {
@@ -272,6 +278,8 @@ export class ModelMiddleware extends BaseMiddleware implements Middleware {
         this.recentModelTx = []
       }
       this.userModel = { txs, at: Date.now() }
+      // Rebuild indexes if a migration, restore or database ordering changed the prefix.
+      this.setModel(this.applyFilter(this.systemTx.concat(txs)))
     } finally {
       this.modelFetch = undefined
     }

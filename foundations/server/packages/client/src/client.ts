@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,9 +15,9 @@
 //
 
 import client, { clientId } from '@hcengineering/client'
-import { type Client, type LoadModelResponse, type Tx } from '@hcengineering/core'
+import { type Client, type FullModelResponse, type Tx } from '@hcengineering/core'
 import { addLocation, getMetadata, getResource, setMetadata } from '@hcengineering/platform'
-import crypto from 'node:crypto'
+import { calculateModelHashSync } from '@hcengineering/server-core'
 import plugin from './plugin'
 
 /**
@@ -48,25 +49,17 @@ export async function createClient (
   })
   addLocation(clientId, () => import('@hcengineering/client-resources'))
 
-  if (model !== undefined) {
-    let prev = ''
-    const hashes = model.map((it) => {
-      const h = crypto.createHash('sha1')
-      h.update(prev)
-      h.update(JSON.stringify(it))
-      prev = h.digest('hex')
-      return prev
-    })
-    setMetadata(client.metadata.OverridePersistenceStore, {
-      load: async () => ({
-        hash: hashes[hashes.length - 1],
-        transactions: model,
-        full: true
-      }),
-      store: async (model: LoadModelResponse) => {}
-    })
+  const systemTx = structuredClone(model ?? [])
+  const hash = calculateModelHashSync(systemTx)
+  let current: FullModelResponse = { kind: 'full', hash, systemTx, userTx: [] }
+  const override = model === undefined ? getMetadata(client.metadata.OverridePersistenceStore) : undefined
+  const txPersistence = override ?? {
+    load: async () => structuredClone(current),
+    store: async (model: FullModelResponse) => {
+      current = structuredClone(model)
+    }
   }
 
   const clientFactory = await getResource(client.function.GetClient)
-  return await clientFactory(token, transactorUrl)
+  return await clientFactory(token, transactorUrl, { txPersistence })
 }

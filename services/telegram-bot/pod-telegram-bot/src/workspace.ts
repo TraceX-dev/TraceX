@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2024 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -12,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+import { model } from '@hcengineering/model-all/src/model'
 import core, {
   AccountUuid,
   Blob,
@@ -57,10 +59,10 @@ export class WorkspaceClient {
   ): Promise<WorkspaceClient> {
     const token = generateToken(account, workspace, { service: 'telegram-bot' })
     const endpoint = await getTransactorEndpoint(token)
-    const client = createRestClient(endpoint, workspace, token)
-    const model = await client.getModel()
+    const client = createRestClient(endpoint, workspace, token, { model })
+    const { hierarchy } = await client.getModel()
 
-    return new WorkspaceClient(ctx, storage, client, model.hierarchy, workspace)
+    return new WorkspaceClient(ctx, storage, client, hierarchy, workspace)
   }
 
   async createAttachments (

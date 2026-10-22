@@ -63,7 +63,7 @@ describe('client', () => {
     const error = new Error('invalid model')
     const close = jest.fn().mockResolvedValue(undefined)
     const connection = {
-      loadModel: jest.fn().mockResolvedValue({ full: true, hash: 'hash', transactions: [] }),
+      loadModel: jest.fn().mockResolvedValue({ kind: 'full', hash: 'hash', systemTx: [], userTx: [] }),
       close
     } as unknown as ClientConnection
     await expect(

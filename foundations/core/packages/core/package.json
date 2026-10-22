@@ -57,11 +57,21 @@
   "publishConfig": {
     "access": "public"
   },
+  "typesVersions": {
+    "*": {
+      "model-hash-node": ["types/model-hash-node.d.ts"]
+    }
+  },
   "exports": {
     ".": {
       "types": "./types/index.d.ts",
       "require": "./lib/index.js",
       "import": "./lib/index.js"
+    },
+    "./model-hash-node": {
+      "types": "./types/model-hash-node.d.ts",
+      "require": "./lib/model-hash-node.js",
+      "import": "./lib/model-hash-node.js"
     },
     "./lang/*.json": {
       "require": "./lang/*.json",

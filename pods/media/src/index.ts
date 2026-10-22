@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,6 +14,7 @@
 // limitations under the License.
 //
 
+import { logModelHash } from '@hcengineering/model-all/src/model'
 import { Analytics } from '@hcengineering/analytics'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { Doc, newMetrics, TxCUD } from '@hcengineering/core'
@@ -57,6 +59,7 @@ async function main (): Promise<void> {
         })
       )
   })
+  logModelHash(ctx)
 
   const queue = getPlatformQueue(application)
   await queue.createTopic([topicTranscodeRequest, topicTranscodeResult], config.Partitions)
