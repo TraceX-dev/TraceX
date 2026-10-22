@@ -17,12 +17,12 @@ import { notEmpty } from '@hcengineering/core'
 import { getEmbeddedLabel } from '@hcengineering/platform'
 import { FilePreviewPopup, getBlobRef, getFileUrl } from '@hcengineering/presentation'
 import { getInlineImageContainerStyle, ImageNode, type ImageOptions } from '@hcengineering/text'
-import { getDefaultImageDisplay } from './imageDisplay'
 import textEditor from '@hcengineering/text-editor'
 import { getEventPositionElement, SelectPopup, showPopup } from '@hcengineering/ui'
 import { type Editor, mergeAttributes, nodeInputRule } from '@tiptap/core'
 import { type Node, type ResolvedPos } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey } from '@tiptap/pm/state'
+import { getDefaultImageDisplay } from './imageDisplay'
 import {
   CursorSource,
   getToolbarCursor,
@@ -69,7 +69,9 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
       setImage:
         (options) =>
         ({ commands, state }) => {
-          const display = options.display ?? getDefaultImageDisplay(state.doc, state.selection.from)
+          // an explicit `display` (including `null` = block) wins over the context default
+          const display =
+            'display' in options ? options.display : getDefaultImageDisplay(state.doc, state.selection.from)
           return commands.insertContent({
             type: this.name,
             attrs: { ...options, display }
