@@ -551,6 +551,11 @@
       "shouldPublish": true
     },
     {
+      "packageName": "@hcengineering/mermaid",
+      "projectFolder": "packages/mermaid",
+      "shouldPublish": true
+    },
+    {
       "packageName": "@hcengineering/api-tests",
       "projectFolder": "ws-tests/api-tests",
       "shouldPublish": false

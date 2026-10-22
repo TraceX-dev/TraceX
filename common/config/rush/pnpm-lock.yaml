@@ -14063,6 +14063,79 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  ../../packages/mermaid:
+    dependencies:
+      '@hcengineering/theme':
+        specifier: workspace:^0.7.0
+        version: link:../theme
+      mermaid:
+        specifier: ^11.17.2
+        version: 11.17.2
+      svelte:
+        specifier: ^4.2.20
+        version: 4.2.20
+      uuid:
+        specifier: ^11.1.1
+        version: 11.1.1
+    devDependencies:
+      '@hcengineering/platform-rig':
+        specifier: workspace:^0.7.21
+        version: link:../../foundations/utils/packages/platform-rig
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.67.0
+        version: 8.70.1(@typescript-eslint/parser@8.70.1(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.67.0
+        version: 8.70.1(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.7.0)
+      eslint-config-love:
+        specifier: ^157.0.0
+        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-n:
+        specifier: ^18.3.0
+        version: 18.3.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      eslint-plugin-promise:
+        specifier: ^7.3.0
+        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-svelte:
+        specifier: ^3.23.0
+        version: 3.23.0(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@25.9.8)(typescript@5.9.3))
+      jest:
+        specifier: ^30.4.2
+        version: 30.5.2(@types/node@25.9.8)(ts-node@10.9.2(@types/node@25.9.8)(typescript@5.9.3))
+      prettier:
+        specifier: ^3.6.2
+        version: 3.9.8
+      prettier-plugin-svelte:
+        specifier: ^3.4.0
+        version: 3.5.2(prettier@3.9.8)(svelte@4.2.20)
+      sass:
+        specifier: ^1.80.0
+        version: 1.104.1
+      svelte-check:
+        specifier: ^3.6.9
+        version: 3.8.6(@babel/core@7.29.7)(postcss-load-config@4.0.2(postcss@8.5.28)(ts-node@10.9.2(@types/node@25.9.8)(typescript@5.9.3)))(postcss@8.5.28)(sass@1.104.1)(svelte@4.2.20)
+      svelte-eslint-parser:
+        specifier: ^1.8.1
+        version: 1.8.1(svelte@4.2.20)
+      svelte-loader:
+        specifier: ^3.2.0
+        version: 3.2.4(svelte@4.2.20)
+      svelte-preprocess:
+        specifier: ^5.1.4
+        version: 5.1.4(@babel/core@7.29.7)(postcss-load-config@4.0.2(postcss@8.5.28)(ts-node@10.9.2(@types/node@25.9.8)(typescript@5.9.3)))(postcss@8.5.28)(sass@1.104.1)(svelte@4.2.20)(typescript@5.9.3)
+      ts-jest:
+        specifier: ^29.4.12
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.2)(@jest/types@30.5.1)(babel-jest@30.5.2(@babel/core@7.29.7))(jest-util@30.5.1)(jest@30.5.2(@types/node@25.9.8)(ts-node@10.9.2(@types/node@25.9.8)(typescript@5.9.3)))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   ../../packages/panel:
     dependencies:
       '@hcengineering/activity':
@@ -14235,6 +14308,9 @@ importers:
       '@hcengineering/hulylake-client':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/hulylake-client
+      '@hcengineering/mermaid':
+        specifier: workspace:^0.7.0
+        version: link:../mermaid
       '@hcengineering/notification':
         specifier: workspace:^0.7.0
         version: link:../../plugins/notification
@@ -27800,6 +27876,9 @@ importers:
       '@hcengineering/highlight':
         specifier: workspace:^0.7.0
         version: link:../../packages/highlight
+      '@hcengineering/mermaid':
+        specifier: workspace:^0.7.0
+        version: link:../../packages/mermaid
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
@@ -27947,9 +28026,6 @@ importers:
       lowlight:
         specifier: ^3.3.0
         version: 3.3.0
-      mermaid:
-        specifier: ^11.17.2
-        version: 11.17.2
       prosemirror-codemark:
         specifier: ^0.4.2
         version: 0.4.2(prosemirror-inputrules@1.5.1)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.3)
