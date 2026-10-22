@@ -16,7 +16,8 @@
 
 import { Analytics } from '@hcengineering/analytics'
 import { getClient } from '@hcengineering/account-client'
-import { MeasureContext, Tx, metricsAggregate } from '@hcengineering/core'
+import { MeasureMetricsContext, createMeasureContextProxy, metricsAggregate } from '@hcengineering/core'
+import type { MeasureContext, Tx } from '@hcengineering/core'
 import { PlatformQueue, QueueTopic, getCPUInfo, getMemoryInfo } from '@hcengineering/server-core'
 import { decodeToken, TokenError } from '@hcengineering/server-token'
 
@@ -89,9 +90,11 @@ const handleRequest = async (
 ): Promise<void> => {
   try {
     const source = req.token?.extra?.service ?? '🤦‍♂️user'
-    await ctx.with(name, { source }, (ctx) => {
+    const requestContext = new MeasureMetricsContext('request', {})
+    const requestProxy = createMeasureContextProxy(ctx, requestContext)
+    await requestProxy.with(name, { source }, (ctx) => {
       onHeaders(res, () => {
-        const measurements = ctx.metrics?.measurements
+        const measurements = requestContext.metrics.measurements[name]?.measurements
         if (measurements !== undefined) {
           const values = []
           for (const [k, v] of Object.entries(measurements)) {
