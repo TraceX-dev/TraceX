@@ -79,6 +79,7 @@ export interface Client extends Storage, FulltextStorage {
  * @public
  */
 export interface FullModelResponse {
+  version?: number
   kind: 'full'
   hash: string
   systemTx: Tx[]
@@ -104,9 +105,17 @@ export interface ModelDeltaResponse {
 /** @public */
 export type LoadModelResponse = FullModelResponse | UserModelResponse | ModelDeltaResponse
 
+/** Increment when the persisted model format changes. @public */
+export const MODEL_VERSION = 1
+
 /** Identify a complete model response by its kind. @public */
 export function isFullModelResponse (model: LoadModelResponse): model is FullModelResponse {
   return model.kind === 'full'
+}
+
+/** Check whether a persisted model uses the current format. @public */
+export function isModelVersionCompatible (model?: FullModelResponse): boolean {
+  return model?.version === MODEL_VERSION
 }
 
 /** Return transactions in the order required to build a model. @public */
