@@ -90,7 +90,12 @@
 
     showPopup(
       ObjectBoxPopup,
-      { _class: row.candidatesClass, docQuery, docProps: { shouldShowAvatar: true } },
+      {
+        _class: row.candidatesClass,
+        docQuery,
+        searchMode: 'fulltext',
+        docProps: { shouldShowAvatar: true }
+      },
       'top',
       (result: any) => {
         if (result == null) return
