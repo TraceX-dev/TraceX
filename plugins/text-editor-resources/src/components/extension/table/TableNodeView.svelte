@@ -41,6 +41,8 @@
   let focused = false
   function handleSelectionUpdate (): void {
     const from = getPos()
+    if (from === undefined) return
+
     const to = from + node.nodeSize
 
     focused = editor.state.selection.from <= to && editor.state.selection.to >= from && editor.isActive('table')
