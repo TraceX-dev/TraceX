@@ -1,8 +1,24 @@
-// Basic performance metrics suite.
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
-import { platformNow, platformNowDiff } from '.'
-import { childMetrics, newMetrics, updateMeasure } from './metrics'
+import { BaseMeasureContext } from './base-measure-context'
+import { consoleLogger, platformNow } from './context-utils'
+
+import { childMetrics, EMPTY_PARAMS, newMetrics, updateMeasure } from './metrics'
 import {
+  type ChildOptions,
   type FullParamsType,
   type MeasureContext,
   type MeasureLogger,
@@ -14,230 +30,59 @@ import {
   type WithOptions
 } from './types'
 
-const errorPrinter = ({ message, stack, ...rest }: Error): object => ({
-  message,
-  stack,
-  ...rest
-})
-function replacer (value: any): any {
-  return value instanceof Error ? errorPrinter(value) : value
-}
-
-export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => ({
-  info: (msg, args) => {
-    console.info(
-      msg,
-      ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
-      )
-    )
-  },
-  error: (msg, args) => {
-    console.error(
-      msg,
-      ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
-      )
-    )
-  },
-  warn: (msg, args) => {
-    console.warn(msg, ...Object.entries(args ?? {}).map((it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`))
-  },
-  debug: (msg, args) => {
-    console.debug(
-      msg,
-      ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
-      )
-    )
-  },
-  close: async () => {},
-  logOperation: (operation, time, params) => {}
-})
-
-export const noParamsLogger = consoleLogger({})
-
-export const nullPromise = Promise.resolve()
+export { consoleLogger, noParamsLogger, nullPromise } from './context-utils'
 
 /**
  * @public
  */
-export class MeasureMetricsContext implements MeasureContext {
-  private readonly name: string
-  private readonly params: ParamsType
-
-  private readonly fullParams: FullParamsType | (() => FullParamsType) = {}
-  logger: MeasureLogger
-  metrics: Metrics
-  id?: string
-
-  private readonly logLevel: MeasureLogLevel
-
-  st = platformNow()
-  contextData: object = {}
-  private done (value?: number, override?: boolean): void {
-    updateMeasure(this.metrics, this.st, this.params, this.fullParams, (spend) => {}, value, override)
-  }
-
+export class MeasureMetricsContext extends BaseMeasureContext {
   constructor (
     name: string,
     params: ParamsType,
-    fullParams: FullParamsType | (() => FullParamsType) = {},
+    fullParams: FullParamsType | (() => FullParamsType) = EMPTY_PARAMS,
     metrics: Metrics = newMetrics(),
     logger?: MeasureLogger,
-    readonly parent?: MeasureContext,
-    readonly logParams?: ParamsType,
+    parent?: MeasureContext,
+    logParams?: ParamsType,
     logLevel: MeasureLogLevel = 'info'
   ) {
-    this.name = name
-    this.params = params
-    this.fullParams = fullParams
-    this.metrics = metrics
-    this.logLevel = logLevel
-    this.metrics.namedParams = this.metrics.namedParams ?? {}
-    for (const [k, v] of Object.entries(params)) {
-      if (this.metrics.namedParams[k] !== v) {
-        this.metrics.namedParams[k] = v
-      } else {
-        this.metrics.namedParams[k] = '*'
-      }
-    }
-
-    this.logger = logger ?? (this.logParams != null ? consoleLogger(this.logParams ?? {}) : noParamsLogger)
+    super(name, params, fullParams, metrics, logger, parent, logParams, logLevel)
   }
 
   gauge (name: string, value: number): void {
-    const c = new MeasureMetricsContext(
-      '#' + name,
-      {},
-      {},
-      childMetrics(this.metrics, ['#' + name]),
-      this.logger,
-      this,
-      undefined,
-      this.logLevel
-    )
-    c.contextData = this.contextData
-    c.done(value, true)
+    this.recordValue(name, value, true)
   }
 
   counter (name: string, value: number): void {
-    const c = new MeasureMetricsContext(
-      '#' + name,
-      {},
-      {},
-      childMetrics(this.metrics, ['#' + name]),
-      this.logger,
-      this,
-      undefined,
-      this.logLevel
-    )
-    c.contextData = this.contextData
-    c.done(value)
+    this.recordValue(name, value)
   }
 
-  newChild (
+  private recordValue (name: string, value: number, override?: boolean): void {
+    const metrics = childMetrics(this.metrics, '#' + name)
+    metrics.namedParams = metrics.namedParams ?? {}
+    updateMeasure(metrics, platformNow(), EMPTY_PARAMS, EMPTY_PARAMS, undefined, value, override)
+  }
+
+  protected createChild (
     name: string,
     params: ParamsType,
-    opt?: {
-      fullParams?: FullParamsType
-      logger?: MeasureLogger
-      span?: WithOptions['span'] // By default true
-      meta?: Record<string, string | number | boolean>
-      logLevel?: MeasureLogLevel
-    }
-  ): MeasureContext {
-    const result = new MeasureMetricsContext(
+    fullParams: FullParamsType | (() => FullParamsType) | undefined,
+    opt?: ChildOptions
+  ): MeasureMetricsContext {
+    return new MeasureMetricsContext(
       name,
       params,
-      opt?.fullParams ?? {},
-      childMetrics(this.metrics, [name]),
+      fullParams,
+      childMetrics(this.metrics, name),
       opt?.logger ?? this.logger,
       this,
       this.logParams,
       opt?.logLevel ?? this.logLevel
     )
-    result.id = this.id
-    result.contextData = this.contextData
-    return result
-  }
-
-  with<T>(
-    name: string,
-    params: ParamsType,
-    op: (ctx: MeasureContext) => T | Promise<T>,
-    fullParams?: ParamsType | (() => FullParamsType),
-    opt?: WithOptions
-  ): Promise<T> {
-    const c = this.newChild(name, params, { fullParams, logger: this.logger })
-    let needFinally = true
-    try {
-      const value = op(c)
-      if (value instanceof Promise) {
-        needFinally = false
-        return value.finally(() => {
-          c.end()
-          if (opt?.log === true) {
-            this.logger.logOperation(name, platformNowDiff((c as MeasureMetricsContext).st), {
-              ...params,
-              ...fullParams
-            })
-          }
-        })
-      } else {
-        if (value == null) {
-          return nullPromise as Promise<T>
-        }
-        return Promise.resolve(value)
-      }
-    } finally {
-      if (needFinally) {
-        c.end()
-      }
-    }
   }
 
   extractMeta (): Record<string, string | number | boolean> {
     return {}
-  }
-
-  withSync<T>(
-    name: string,
-    params: ParamsType,
-    op: (ctx: MeasureContext) => T,
-    fullParams?: ParamsType | (() => FullParamsType)
-  ): T {
-    const c = this.newChild(name, params, { fullParams, logger: this.logger })
-    try {
-      return op(c)
-    } finally {
-      c.end()
-    }
-  }
-
-  error (message: string, args?: Record<string, any>): void {
-    this.logger.error(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
-  }
-
-  info (message: string, args?: Record<string, any>): void {
-    this.logger.info(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
-  }
-
-  warn (message: string, args?: Record<string, any>): void {
-    this.logger.warn(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
-  }
-
-  debug (message: string, args?: Record<string, any>): void {
-    if (this.logLevel !== 'debug') return
-    this.logger.debug(message, { ...this.params, ...args, ...(this.logParams ?? {}) })
-  }
-
-  end (): void {
-    this.done()
-  }
-
-  getParams (): ParamsType {
-    return this.params
   }
 }
 
@@ -278,11 +123,11 @@ export class NoMetricsContext implements MeasureContext {
   with<T>(
     name: string,
     params: ParamsType,
-    op: (ctx: MeasureContext) => T | Promise<T>,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
     fullParams?: ParamsType | (() => FullParamsType)
   ): Promise<T> {
     const r = op(this.newChild(name, params, { fullParams, logger: this.logger }))
-    return r instanceof Promise ? r : Promise.resolve(r)
+    return Promise.resolve(r)
   }
 
   extractMeta (): Record<string, string | number | boolean> {
@@ -302,11 +147,11 @@ export class NoMetricsContext implements MeasureContext {
   withLog<T>(
     name: string,
     params: ParamsType,
-    op: (ctx: MeasureContext) => T | Promise<T>,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
     fullParams?: ParamsType
   ): Promise<T> {
     const r = op(this.newChild(name, params, { fullParams, logger: this.logger }))
-    return r instanceof Promise ? r : Promise.resolve(r)
+    return Promise.resolve(r)
   }
 
   error (message: string, args?: Record<string, any>): void {
@@ -433,20 +278,20 @@ export function addOperation<T> (
   if (opLog !== undefined) {
     opEntry = {
       op: name,
-      start: performance.now(),
+      start: platformNow(),
       params: {},
       end: -1
     }
   }
   const result = op(ctx)
   if (opEntry !== undefined && opLog !== undefined) {
-    void result.finally(() => {
-      if (opEntry !== undefined && opLog !== undefined) {
-        opEntry.end = performance.now()
-        opEntry.params = { ...params, ...(typeof fullParams === 'function' ? fullParams() : fullParams) }
-        opLog.ops.push(opEntry)
-      }
-    })
+    const record = (): void => {
+      opEntry.end = platformNow()
+      opEntry.params = { ...params, ...(typeof fullParams === 'function' ? fullParams() : fullParams) }
+      opLog.ops.push(opEntry)
+    }
+
+    void result.then(record, record)
   }
   return result
 }

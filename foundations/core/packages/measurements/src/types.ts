@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 /**
  * @public
  */
@@ -85,6 +100,15 @@ export interface WithOptions {
   suspendErrors?: boolean
 }
 
+/** Options for creating a child context. @public */
+export interface ChildOptions {
+  fullParams?: FullParamsType | (() => FullParamsType)
+  logger?: MeasureLogger
+  span?: WithOptions['span']
+  meta?: Record<string, string | number | boolean>
+  logLevel?: MeasureLogLevel
+}
+
 /**
  * @public
  */
@@ -94,24 +118,18 @@ export interface MeasureContext<Q = any> {
   // Context data will be copied referenced for all child contexts.
   contextData: Q
   // Create a child metrics context
-  newChild: (
-    name: string,
-    params: ParamsType,
-    opt?: {
-      fullParams?: FullParamsType
-      logger?: MeasureLogger
-      span?: WithOptions['span'] // By default true
-      meta?: Record<string, string | number | boolean>
-      logLevel?: MeasureLogLevel
-    }
-  ) => MeasureContext
+  newChild: (name: string, params: ParamsType, opt?: ChildOptions) => MeasureContext
 
   metrics?: Metrics
 
+  /**
+   * Measure an operation, awaiting native promises and other thenables.
+   * A synchronous exception from the callback is thrown synchronously.
+   */
   with: <T>(
     name: string,
     params: ParamsType,
-    op: (ctx: MeasureContext<Q>) => T | Promise<T>,
+    op: (ctx: MeasureContext<Q>) => T | PromiseLike<T>,
     fullParams?: FullParamsType | (() => FullParamsType),
     opt?: WithOptions
   ) => Promise<T>
