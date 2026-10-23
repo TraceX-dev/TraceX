@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,37 +15,16 @@
 -->
 
 <script lang="ts">
-  import { getClient } from '@hcengineering/presentation'
+  import { createQuery } from '@hcengineering/presentation'
   import plugin from '../plugin'
-  import { Execution, ExecutionStatus } from '@hcengineering/process'
-  import TransitionPresenter from './settings/TransitionPresenter.svelte'
-  import TriggerPresenter from './settings/TriggerPresenter.svelte'
-  import { Label } from '@hcengineering/ui'
+  import type { Execution } from '@hcengineering/process'
+  import ExecutionWaiting from './ExecutionWaiting.svelte'
 
   export let execution: Execution
 
-  const client = getClient()
-  const model = client.getModel()
-
-  $: transitions = model.findAllSync(plugin.class.Transition, {
-    process: execution.process,
-    from: execution.currentState
-  })
-
-  $: process = model.findObject(execution.process)
+  const query = createQuery()
+  let current: Execution | undefined
+  $: query.query(plugin.class.Execution, { _id: execution._id }, (result) => { current = result[0] })
 </script>
 
-{#if execution.status === ExecutionStatus.Done}
-  <Label label={plugin.string.Done} />
-{:else if execution.status === ExecutionStatus.Cancelled}
-  <Label label={plugin.string.Cancelled} />
-{:else if process !== undefined}
-  <div class="flex-col flex-gap-2">
-    {#each transitions as transition}
-      <div class="flex-row-center flex-gap-2">
-        <TransitionPresenter {transition} direction={'from'} />
-        <TriggerPresenter value={transition.trigger} {process} params={transition.triggerParams} withLabel={true} />
-      </div>
-    {/each}
-  </div>
-{/if}
+{#if current !== undefined}<ExecutionWaiting execution={current} />{/if}

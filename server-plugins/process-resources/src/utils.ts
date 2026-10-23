@@ -31,7 +31,7 @@ import process, {
   SelectedRelation,
   SelectedUserRequest
 } from '@hcengineering/process'
-import serverProcess, { ProcessControl } from '@hcengineering/server-process'
+import serverProcess, { ProcessControl, reportProcessDiagnostic } from '@hcengineering/server-process'
 
 export async function getContextValue (value: any, control: ProcessControl, execution: Execution): Promise<any> {
   const context = parseContext(value)
@@ -57,6 +57,16 @@ export async function getContextValue (value: any, control: ProcessControl, exec
     } catch (err: any) {
       if (err instanceof ProcessError && context.fallbackValue !== undefined) {
         return await fillValue(context.fallbackValue, context, control, execution)
+      }
+      if (err instanceof ProcessError && [
+        process.error.EmptyAttributeContextValue, process.error.EmptyRelatedObjectValue,
+        process.error.RelatedObjectNotFound, process.error.ContextValueNotProvided,
+        process.error.UserRequestedValueNotProvided, process.error.EmptyFunctionResult
+      ].includes(err.message)) {
+        reportProcessDiagnostic(control, {
+          code: 'missing-value', message: process.string.DiagnosticMissingValue,
+          fields: context.type === 'attribute' ? [context.key] : undefined
+        })
       }
       throw err
     }

@@ -31,6 +31,9 @@ import { ToDo } from '@hcengineering/time'
 import { AnyComponent } from '@hcengineering/ui'
 import { AttributeCategory } from '@hcengineering/view'
 import { SelectedExecutionContext } from './types'
+import type { ExecutionDiagnostics, ExecutionSource } from './diagnostics'
+
+export type { DiagnosticDependency, ExecutionReason, TransitionDiagnostic, ExecutionDiagnostics, ExecutionSource } from './diagnostics'
 
 /**
  * @public
@@ -134,9 +137,11 @@ export interface Execution extends Doc {
   card: Ref<Card>
   rollback: Tx[][] // just stack
   error?: ExecutionError[] | null
+  diagnostics?: ExecutionDiagnostics | null
   context: ExecutionContext
   result?: any
   parentId?: Ref<Execution>
+  source?: ExecutionSource
   status: ExecutionStatus
 }
 
@@ -147,6 +152,11 @@ export interface ExecutionError {
   props: Record<string, any>
   intlProps: Record<string, IntlString>
   transition: Ref<Transition> | undefined
+  /** Trigger conditions must be rechecked before retrying the transition. */
+  phase?: 'trigger'
+  step?: StepId
+  method?: Ref<Method<Doc>>
+  parameter?: string
 }
 
 export interface ProcessToDo extends ToDo {
@@ -272,6 +282,19 @@ export * from './utils'
 export { compileProcessYaml, parseProcessImport, validateProcessYaml, ProcessAuthoringError } from './authoring'
 export type { AuthoringNativeDocument, ProcessAuthoringResult } from './authoring'
 export type { AuthoringDiagnostic, AuthoringValidation } from './authoring-validation'
+export {
+  createDefinitionPackageRelease,
+  parseDefinitionPackageRelease,
+  compareDefinitionPackageVersions,
+  DefinitionPackageError
+} from './definition-package'
+export { planDefinitionPackageUpgrade } from './definition-package-plan'
+export type {
+  DefinitionPackageManifest,
+  DefinitionPackageRelease,
+  DefinitionPackageChange,
+  DefinitionPackageUpgradePlan
+} from './definition-package-types'
 export { exportProcessYaml, exportProcessYamlDraft } from './authoring-export'
 export {
   exportAuthoringModel,
@@ -359,6 +382,38 @@ export default plugin(processId, {
     ApproveRequestRejected: '' as Resource<CheckFunc>
   },
   string: {
+    DiagnosticTitle: '' as IntlString,
+    DiagnosticLastChecked: '' as IntlString,
+    DiagnosticNotChecked: '' as IntlString,
+    DiagnosticEvent: '' as IntlString,
+    DiagnosticCondition: '' as IntlString,
+    DiagnosticNoDetails: '' as IntlString,
+    DiagnosticTasks: '' as IntlString,
+    DiagnosticTasksMissing: '' as IntlString,
+    DiagnosticResultMismatch: '' as IntlString,
+    DiagnosticSubprocesses: '' as IntlString,
+    DiagnosticSubprocessesInactive: '' as IntlString,
+    DiagnosticSubprocessesMissing: '' as IntlString,
+    DiagnosticApprovals: '' as IntlString,
+    DiagnosticRejections: '' as IntlString,
+    DiagnosticRequiredFields: '' as IntlString,
+    DiagnosticMissingValue: '' as IntlString,
+    DiagnosticTime: '' as IntlString,
+    DiagnosticAll: '' as IntlString,
+    DiagnosticAny: '' as IntlString,
+    DiagnosticNone: '' as IntlString,
+    DiagnosticUnavailable: '' as IntlString,
+    DiagnosticMore: '' as IntlString,
+    DiagnosticTruncated: '' as IntlString,
+    DiagnosticCycle: '' as IntlString,
+    DiagnosticDepth: '' as IntlString,
+    DiagnosticCurrentState: '' as IntlString,
+    DiagnosticStep: '' as IntlString,
+    DiagnosticParameter: '' as IntlString,
+    DiagnosticRejected: '' as IntlString,
+    DiagnosticPending: '' as IntlString,
+    DiagnosticMatched: '' as IntlString,
+    DiagnosticError: '' as IntlString,
     Method: '' as IntlString,
     Execution: '' as IntlString,
     Process: '' as IntlString,

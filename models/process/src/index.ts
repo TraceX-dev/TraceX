@@ -59,6 +59,8 @@ import {
   type Execution,
   type ExecutionContext,
   type ExecutionError,
+  type ExecutionDiagnostics,
+  type ExecutionSource,
   type ExecutionLog,
   type ExecutionLogAction,
   type ExecutionStatus,
@@ -209,7 +211,11 @@ export class TExecution extends TDoc implements Execution {
   @ReadOnly()
     error?: ExecutionError[] | null
 
+    diagnostics?: ExecutionDiagnostics | null
+
   parentId?: Ref<Execution>
+
+  source?: ExecutionSource
 
   context!: ExecutionContext
 

@@ -38,6 +38,8 @@ This is the first reference for agents creating or explaining card types and pro
 
 [`authoring-v2.schema.json`](./authoring-v2.schema.json) is the machine-readable v2 syntax contract. The v2 examples reference it with a YAML language-server directive, enabling schema-aware completion and structural diagnostics in an IDE with a YAML language server. UI validation additionally resolves the installed model, references and bindings. The schema alone cannot establish operation availability or runtime context values. The recorded work plan and verification history are in [`authoring-plan.md`](./authoring-plan.md).
 
+Package releases and marketplace upgrades are tracked separately in the [package versioning plan](./package-versioning-plan.md). Its first delivery provides offline release artifacts and read-only upgrade analysis. Existing imports do not yet create managed installations, and executions are not pinned to immutable graph revisions. The package CLI cannot apply an update.
+
 ### Check YAML from the command line
 
 From the repository root:
@@ -795,6 +797,28 @@ The quote is an aggregate USD quantity × unit-price estimate. Product count cou
 Check that every state/transition belongs to the process, every destination/source exists, method and trigger ids come from the model catalog, ranks are valid, and all required parameters and bindings are supplied. Verify types and allowed values against the target card attributes, and check each context's producer before its consumers. Review overlapping branches, automatic cycles, terminal states, task completion mode, and rollback behavior.
 
 For the worked example, import it through the destination type's Processes section, fill the reviewers field on a sample card, and start the process manually. The card should show “Under review”, one task should be created per unique reviewer, and completing only one of several tasks should keep the execution active. After all tasks finish, the status should become “Reviewed” and the execution should be done. Repeat with an empty reviewers field and inspect the execution error rather than assuming a task was created.
+
+## Runtime waiting diagnostics
+
+Execution details show the most recent actual transition checks, their timestamps and structured reasons. A false condition, an event that has not arrived, an alternative that was not evaluated, and a failed check are distinct. Checks still run in their existing event and rank order; diagnostics do not execute additional branches or simulate transitions. A successful state change clears the previous state's snapshot. Existing executions acquire diagnostics on their next normal check; viewing details does not advance or recheck a process.
+
+Server operations can call `reportProcessDiagnostic(control, reason)` from `@hcengineering/server-process` during their existing invocation. `ExecutionReason` is exported by `@hcengineering/process`: it contains a stable extension-defined code, a localized message, safe primitive message parameters, optional dependency references, `all` / `any` / `none` mode, counts, field names, expected states, a deadline and nested reasons. An optional registered `presenter` can render a specialized reason. The boolean check contract and YAML format are unchanged. Operations without evidence show an explicit lack of details. Observer or snapshot-write failures must not change the check's decision.
+
+Built-in evidence covers task groups, approval and rejection groups, required fields, card predicates, deadlines and subprocess checks. Action errors identify the exact action, method and failing input parameter when parameter resolution failed. Native context-resolution errors retain their existing localized explanation; no missing value is inferred from `false` or `0`.
+
+Subprocess evidence comes from the same `parentId` and process/status selectors as the check. Each dependency resolves to its execution and card, including children started on cards selected through relationships. `RunSubProcess` records selector provenance for new children when available (the source card, resolved association and direction, or reference field). This describes the launch selection, not a guarantee that the relationship still exists. Changes to links after launch do not retarget an existing parent's child executions.
+
+`OnSubProcessesDone` keeps its native meaning: there are no active children. Cancelled children therefore count as inactive, and the UI names them as cancelled rather than completed. The check also matches an empty child set. `OnSubProcessMatch` excludes cancelled children, requires a nonempty matching-process set, and applies its existing `$all`, `$in` or `$nin` state predicate. Diagnostics do not invent an expected execution for each related card or change these rules.
+
+Snapshots contain bounded references rather than copies of privileged task/card/execution documents. Dependency details are read through the viewing user's client; inaccessible objects use a generic placeholder. Extension authors must keep message parameters free of sensitive values. Lists initially render 20 entries, load another 20 on demand, and explicitly indicate the snapshot limit of 200 references per reason. Nested execution inspection loads on expansion, detects repeated executions and stops at five levels. Reason trees are limited to four nested levels and 20 reasons per check.
+
+Manual verification:
+
+1. Start a parent that launches reviews on several related cards. Complete one child, leave another waiting for a task and fail a third. Verify the listed executions/cards, counters, links and nested explanations.
+2. Exercise each subprocess state mode (`$all`, `$in`, `$nin`), cancellation, no matching children and a relationship edited after launch. Compare the explanation with the actual transition decision.
+3. Check task `all`/`any` groups, approval/rejection, a failed field predicate and a missing required field. Ensure unrelated tasks and untested alternatives are not presented as blockers.
+4. Fail an action input and verify its action position, method, input parameter and localized error. Correct the input and continue normally.
+5. Inspect as a user without access to one dependency card. Verify that no document title or contents appear for that dependency. Exercise a large list and nested/cyclic dependencies, and confirm that expanding details never executes process actions.
 
 ## Source map for maintaining this reference
 
