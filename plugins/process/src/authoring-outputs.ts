@@ -145,11 +145,9 @@ export function compactAuthoringOutput (
   }
   const method = authoringOperationContract(String(action.methodId), 'methods', environment)
   if (method === undefined || method.createdContext === undefined || method.createdContext === null) return undefined
-  const expectedClass =
-    method?.createdContext === undefined ? undefined : outputClass(method.createdContext, 'createdContext')
-  const result: Record<string, unknown> = { key: id }
-  if (expectedClass !== context._class) result.class = context._class
-  if (outputName(action, method) !== published.name) result.label = published.name
+  // Export only this output's type and label so offline imports need no operation catalog.
+  const result: Record<string, unknown> = { key: id, class: context._class }
+  if (published.name !== '') result.label = published.name
   // Preserve exported presentation order without exposing producer/action/value wiring.
   result.order = published.index
   const { name, _class, action: _action, producer: _producer, index, value: _value, ...native } = published

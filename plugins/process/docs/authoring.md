@@ -24,7 +24,7 @@ This is the first reference for agents creating or explaining card types and pro
 2. Use the single named-block YAML format (`version: 2`) for fields, graphs, typed results and expressions. It compiles to the existing native model and execution engine.
 3. For a standalone process, declare existing destination fields/entities as slots. `$slots.field` is its identity; `$card.field` reads its value. For an embedded process, specify `masterTag`, declare local fields, and use their stored names directly. Embedded module import has no standalone slot-binding dialog.
 4. Publish object/group outputs with `as`; declare typed task or computation values in `results`; read either with `$context.name`. Use `expr` for transformations. Split the graph into small named states with deliberate branch/action order.
-5. Check operation parameters in this guide and the workspace's exported catalog. The installed model is authoritative. Do not infer optional parameters, type constraints, task result aggregation or behavior from operation names.
+5. Check operation parameters in this guide and the installed workspace model. The installed model is authoritative. Do not infer optional parameters, type constraints, task result aggregation or behavior from operation names.
 6. Validate, import and exercise a newly created definition before saving into an existing process. Use the manual checks below. If required behavior is missing or unconfirmed, stop generation and identify it precisely.
 
 | Worked definition | Purpose |
@@ -56,7 +56,7 @@ rushx validate:yaml docs/examples/purchase-approval.process.yaml
 
 Pass several file paths to check them together. The single YAML format supports both packaging modes; the root `kind` selects the mode. Paths are relative to the current directory. `--help` prints usage. A valid file prints `<file>: valid YAML definition (offline)`. Invalid files report the authored property path and line/column when available. Exit codes are `0` when every file is valid, `1` for invalid or unreadable files, and `2` for command usage or compiler setup errors. Checking continues after an invalid file.
 
-The command calls the existing `validateProcessYaml` compiler API with the file's offline catalog. It checks the DSL and compiler semantics described under [Validation boundaries](#validation-boundaries), including graph references, typed results, function roles and catalog-declared required parameters. It does not connect to a workspace or write definitions. Installed operation availability, destination field bindings and runtime behavior still require UI validation and manual execution.
+The command calls the existing `validateProcessYaml` compiler API. It checks the DSL and compiler semantics described under [Validation boundaries](#validation-boundaries), including graph references, explicit output types and typed results. Files do not embed an operation catalog; required operation parameters and function roles are checked against the installed model in the UI. It does not connect to a workspace or write definitions. Installed operation availability, destination field bindings and runtime behavior still require UI validation and manual execution.
 
 Prerequisites are installed repository dependencies (`rush install`, or `rush update` after dependency changes) and the existing compiled authoring implementation in `plugins/process/lib` with its workspace dependencies. The command never runs a build. After changing the compiler source, refresh its artifacts through the normal development build before using this command.
 
@@ -111,7 +111,7 @@ Write ordinary localized display labels as text: `label: Estimator`. In v2, slot
 
 #### Named outputs and references
 
-Ordinary actions publish their result with `as: approval_request`. No action context or process context map is needed: the compiler generates the result class, action/producer references, display index and selected-context value. The result class comes from the method model `createdContext` contract. UI validation/import use the installed workspace model; offline `compileProcessYaml(source)` uses the file catalog. `compileProcessYaml(source, model)`, `parseProcessImport(source, kind, model)` and `validateProcessYaml(source, kind, model)` accept a model explicitly. Installed contracts take precedence over catalog entries; a catalog cannot grant support for an absent method.
+Ordinary actions publish their result with `as: approval_request`. No action context or process context map is needed: the compiler generates the result class, action/producer references, display index and selected-context value. The result class comes from the method model `createdContext` contract. UI validation/import use the installed workspace model; offline `compileProcessYaml(source)` requires an explicit output class when no model is supplied. `compileProcessYaml(source, model)`, `parseProcessImport(source, kind, model)` and `validateProcessYaml(source, kind, model)` accept a model explicitly. The installed model remains authoritative for operation availability.
 
 ```yaml
 request_approval:
@@ -134,20 +134,17 @@ Use `$slots` for identities and `$card`/`$context` for values. These meanings do
 
 Keys in params/query objects may use `$slots.field` for stored field selectors. Use `{literal: "$context.literal_text"}` when a string should remain text instead of becoming a reference. The same wrapper preserves arbitrary literal objects/arrays. Native exports escape reference-looking literal values automatically; escaped native parameter keys use `$literal:<original key>`. Native `${...}` expressions remain supported for transforms, reductions, functions, user requests and relations. The exporter uses shorthand only when decoding restores the exact original expression, so modifiers and serialized legacy contexts remain intact.
 
-A minimal offline result contract can be supplied as:
+For a portable file that can also be checked offline, declare only the output type used by the action:
 
 ```yaml
-catalog:
-  methods:
-    RequestApproval:
-      createdContext: {class: process.ApproveRequest}
+as: {key: approval_request, class: process.ApproveRequest}
 ```
 
-Catalog method keys accept short built-in names or full method ids. Result contracts accept `class` shorthand or the original `_class` field, plus the model `nameField` for an inferred display label. Missing output contracts and methods declaring `createdContext: null` produce an explicit error for inferred outputs; the compiler never guesses a type. A known explicit output class can be given when compiling offline without that contract. This does not establish method availability: the destination model still validates the method before apply.
+An explicit `label` preserves the result's display name when it was inferred from a method parameter. YAML exports and repository examples use this form without a root operation catalog. In the UI, a plain `as: approval_request` can still infer its class from the installed method's `createdContext` contract. A missing contract is reported rather than guessed, and the destination model still validates the method before apply.
 
 For exported specialized metadata, use `as: {key: approved_tag, class: $slots.approved_tag, label: Approved tag, order: 2}`. `class`, `label` and `order` are optional overrides; `order` preserves existing display order. Class hints must describe an already supported native result, not invent a method result. Additional native context metadata is retained under `as.native`; producer/action/value wiring is always generated. Unusual native context expressions, action-context extension properties and methods lacking an output contract retain their explicit context definitions. Ordinary task input/result contexts are generated from named `results` below. Unusual contexts and earlier result arrays retain their explicit metadata. The exporter removes only contexts that the shorthand can reproduce completely.
 
-The generated `catalog` contains the actual installed method, trigger and function ids with model-defined labels, descriptions, required parameters, defaults, created context types, input/output types and related metadata. It lets an agent discover available operations in the same file. It is informational: importing a catalog never installs operations. `requiredParams` and defaults are not an exhaustive parameter schema; use the native contracts below and the exported parameters for optional behavior. If the contract for a requested behavior is absent or unconfirmed, stop generation and report exactly what is missing.
+YAML exports omit the installed operation catalog and document audit metadata (`modifiedBy`, `modifiedOn`, `createdBy`, `createdOn`). Business fields or literal action values with these names retain their meaning. Operations, function expressions, explicit output types and other definition properties remain portable; operation availability and parameter contracts come from the installed model. If a requested behavior is absent or unconfirmed, stop generation and report exactly what is missing.
 
 #### Typed results
 
@@ -210,7 +207,7 @@ After that action, `$context.total_cost` reads the initialized result. A subsequ
 | `pipe` | Ordered array of registered value transforms/conversions after field selection |
 | `fallback` | Literal fallback value used by the native evaluator; reference-looking strings here remain literal |
 
-A function is either a short name with no properties, such as `NumberFromString`, or a single-entry mapping, such as `{Multiply: {value: $context.rate}}`. Custom function ids remain fully qualified. There is no per-function compiler: newly registered functions use the same grammar. The model/catalog's `type` enforces `context` for `call`, `reduce` for source reduction, and `transform` or `convert` for `pipe`. Missing installed functions and incompatible roles are errors. Input/output types and property semantics require their actual contract; role checking is not proof of complete type compatibility.
+A function is either a short name with no properties, such as `NumberFromString`, or a single-entry mapping, such as `{Multiply: {value: $context.rate}}`. Custom function ids remain fully qualified. There is no per-function compiler: newly registered functions use the same grammar. The installed model's `type` enforces `context` for `call`, `reduce` for source reduction, and `transform` or `convert` for `pipe`. Missing installed functions and incompatible roles are errors. Input/output types and property semantics require their actual contract; role checking is not proof of complete type compatibility.
 
 Example for numeric enum choices:
 
@@ -233,7 +230,7 @@ Use a literal source for constants: `expr: {from: {literal: 5}, pipe: [{Multiply
 
 The compiler checks YAML structure, graph ownership/destinations, named references, result types, duplicate outputs, function roles and model-declared required parameters. Missing required values report their authored path; `false` and `0` are valid values. Model defaults remain suggestions and are never inserted implicitly. Semantic diagnostics include the nearest authored block's line/column. The UI also checks operation availability and destination slot bindings before writing.
 
-The current model does **not** universally declare optional parameter schemas, conditional requirements, method result cardinality, function-property types, input validation ranges, or when a context becomes available along every graph path. A method's `objectClass` is not its parameter schema. Exported catalogs preserve future contract metadata automatically, but importing metadata does not give it execution semantics. Until those contracts exist, use the verified operation descriptions/examples and explicitly check producer-before-consumer behavior. These are limits of current model information, not reasons to invent YAML functionality.
+The current model does **not** universally declare optional parameter schemas, conditional requirements, method result cardinality, function-property types, input validation ranges, or when a context becomes available along every graph path. A method's `objectClass` is not its parameter schema. Additional definition metadata does not give an operation new execution semantics. Until those contracts exist, use the verified operation descriptions/examples and explicitly check producer-before-consumer behavior. These are limits of current model information, not reasons to invent YAML functionality.
 
 The engine additionally has one active state per execution, ordered first-matching transitions, and a 100-step immediate-chain limit. Small named states are logical authoring blocks; they do not imply parallel branches, joins, arbitrary scripts or automatic input aggregation. A fully verified parallel/aggregation language would require an engine contract first.
 
@@ -324,9 +321,9 @@ Native JSON examples below document generated model shapes and existing import b
 
 - **Card types:** The type settings export menu offers JSON and YAML. The YAML editor button in the type list starts a new module; the button beside a type's export opens its supported definition as a draft for a new type.
 - **Processes:** The export menu offers JSON with slots, JSON without slots, and YAML DSL. The process section's YAML editor button starts a new standalone draft. The button in an existing process opens its supported definition with detected field bindings.
-- **Editing:** The dialog uses a monospace text area with two-space Tab insertion. It validates YAML syntax and the complete DSL contract on each change. Parser errors include line/column; semantic errors identify the property path and the location of its nearest authored block. Invalid drafts cannot be applied, but can be downloaded for later editing. Open YAML file replaces the draft.
+- **Editing:** The dialog adapts to the viewport, wraps footer actions and keeps the text area and diagnostics inside its available height. The monospace editor highlights YAML keys, strings, numbers and comments, and supports two-space Tab insertion. It validates YAML syntax and the complete DSL contract on each change. Parser errors include line/column; semantic errors identify the property path and the location of its nearest authored block. Invalid drafts cannot be applied, but can be downloaded for later editing. Open YAML file replaces the draft.
 - **Applying:** Create new definition routes through the existing card or process import flow. Processes request slot bindings. Save current process is available when opened from a process; it updates that process and replaces its graph in one apply operation. The slot dialog prefills previously detected bindings; changed slots can be rebound. Cancelling it keeps the draft open. Saving does not inspect or migrate active executions.
-- **Coverage:** Every YAML export uses the same named-block format for operations, contexts, metadata, permissions, relations, inheritance, dependent types and localized labels. Standalone exports include readable graph identities, typed entity slots and the installed operation catalog. The editor validates this single format.
+- **Coverage:** Every YAML export uses the same named-block format for operations, contexts, metadata, permissions, relations, inheritance, dependent types and localized labels. Standalone exports include readable graph identities, typed entity slots and explicit output classes, without document audit fields or an operation catalog. The editor validates this single format.
 
 Manual verification:
 
@@ -334,7 +331,7 @@ Manual verification:
 2. Open the YAML editor, introduce broken indentation or an unknown slot/output reference, and check the visible diagnostic and disabled apply buttons. Fix it, download the draft, reopen it, and import it with field bindings.
 3. Open an existing review process, change its label and task title, and save the current process. Verify the process id stays the same, the new graph is shown, and obsolete states/transitions are gone. Then create a new definition from the same editor and verify it appears as a separate process.
 4. Run newly saved/imported review and risk processes on cards. For risk, check 5×5 → Critical, 3×3 and 4×4 → Moderate, 1×5 → Insignificant, and recalculation after changing either input.
-5. Export an approval process or a module with permissions/relations as YAML; verify it uses `version: 2`, retains every native operation/property, and includes the catalog. Open the process in the YAML editor, change a task title, save it and verify its id remains unchanged. Bind every dependency when importing a new process. Change a method id to one absent from the installed model and check that the editor reports the missing operation and blocks apply.
+5. Export an approval process or a module with permissions/relations as YAML; verify it uses `version: 2`, retains definition operations/properties, and omits document audit fields and the operation catalog. Open the process in the YAML editor, change a task title, save it and verify its id remains unchanged. Bind every dependency when importing a new process. Change a method id to one absent from the installed model and check that the editor reports the missing operation and blocks apply.
 6. Open `estimate-review.process.yaml`. Bind `reviewers` to an employee-array field, `cost` to a number field and `status` to a string field. Give the test card at least one reviewer, run the new process and complete one task with effort `10` and rate `10`: expect cost `100`, status `Accepted`. On another execution, use `10` and `10.1`: expect cost `101`, status `Needs approval`. Confirm task inputs and `total_cost` appear as typed outputs in the visual editor. Change `pipe` to a string or remove `SetContext.params.value`: expect a diagnostic and disabled apply. Then save a renamed version into the current process and check its identity is retained.
 
 ### Existing YAML support and reuse
@@ -560,24 +557,13 @@ request_approval:
 
 There is no approval `completionMode` parameter: approval always requires every request, and one rejection is sufficient. The runtime uses the fixed title `Approve request`; `title` and `askRequired` do not configure this action. Do not transfer `CreateToDo` parameter behavior or result aggregation assumptions to approval requests.
 
-For offline `as` inference and required-parameter checking, include this verified contract in the root catalog:
-
-```yaml
-catalog:
-  methods:
-    RequestApproval:
-      requiredParams: [user]
-      createdContext: {class: process.ApproveRequest}
-  triggers:
-    OnApproveRequestApproved: {requiredParams: [_id], auto: true}
-    OnApproveRequestRejected: {requiredParams: [_id], auto: true}
-```
+For offline approval output typing, use `as: {key: approval_request, class: process.ApproveRequest}`. The UI checks required parameters and trigger contracts against the installed model; no operation catalog is embedded in the YAML file.
 
 See [`approval.process.yaml`](./examples/approval.process.yaml) for the approval graph and [`purchase-approval.process.yaml`](./examples/purchase-approval.process.yaml) for a task, calculation and conditional approval combined.
 
 ### Triggers
 
-Use the exact `trigger` id shown below. `auto` and `init` are properties of the catalog trigger, not properties to add to a transition.
+Use the exact `trigger` id shown below. `auto` and `init` are properties of the installed trigger, not properties to add to a transition.
 
 | Trigger id | Init / auto | `triggerParams` and semantics |
 | --- | --- | --- |

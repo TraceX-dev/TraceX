@@ -134,17 +134,3 @@ processes:
             on:
               WhenFieldChanges:
                 severity: {$exists: true}
-
-catalog:
-  methods:
-    UpdateCard:
-      requiredParams: []
-      createdContext: null
-  triggers:
-    OnExecutionStart: {requiredParams: [], init: true}
-    OnCardUpdate: {requiredParams: [], auto: true}
-    WhenFieldChanges: {requiredParams: [], auto: false}
-  functions:
-    StringFromEnum: {type: convert, of: core:class:EnumOf, to: core:class:TypeString}
-    NumberFromString: {type: convert, of: core:class:TypeString, to: core:class:TypeNumber}
-    Multiply: {type: transform, of: core:class:TypeNumber}

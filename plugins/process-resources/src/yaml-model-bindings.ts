@@ -193,8 +193,9 @@ export function createYamlModelTemplate (
   for (const [key, context] of Object.entries(definition.context)) {
     register(key, context.name || String(context._class).split(':').at(-1) || 'result', 'context_')
   }
-  for (const id of getAuthoringProcessIdentities(documents as unknown as AuthoringNativeDocument[]))
-    {register(id, '', 'request_')}
+  for (const id of getAuthoringProcessIdentities(documents as unknown as AuthoringNativeDocument[])) {
+    register(id, '', 'request_')
+  }
   const slotNames = new Map<string, string>()
   const bindings: Record<string, string> = {}
   for (const [key, slot] of Object.entries(definition.requiredSlots ?? {})) {

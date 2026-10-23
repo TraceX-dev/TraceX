@@ -31,13 +31,16 @@ const example = (file: string): string => readFileSync(`${__dirname}/../../docs/
 interface CardFixture {
   version: number
   kind: string
-  cardTypes: Record<string, {
-    label: string
-    extends: string
-    kind: number
-    fields: Record<string, Record<string, unknown>>
-    native?: Record<string, unknown>
-  }>
+  cardTypes: Record<
+    string,
+    {
+      label: string
+      extends: string
+      kind: number
+      fields: Record<string, Record<string, unknown>>
+      native?: Record<string, unknown>
+    }
+  >
   enums?: Record<string, Record<string, unknown>>
   relations?: Record<string, Record<string, unknown>>
 }
@@ -48,7 +51,9 @@ function card (): CardFixture {
     kind: 'card',
     cardTypes: {
       purchase: {
-        label: 'Purchase', extends: 'card:class:Card', kind: 0,
+        label: 'Purchase',
+        extends: 'card:class:Card',
+        kind: 0,
         fields: {
           amount: { name: 'amount', label: 'Amount', type: 'number', isCustom: true },
           notes: { name: 'notes', label: 'Notes', type: 'string', isCustom: true }
@@ -84,29 +89,40 @@ describe('immutable definition package releases', () => {
 
   it('detects source tampering and ignores untrusted derived documents', async () => {
     const original = await release(dump(card()))
-    await expect(createDefinitionPackageRelease({
-      package: original.package, source: original.source + '\n# changed', contentHash: original.contentHash
-    })).rejects.toThrow('SHA-256 digest')
+    await expect(
+      createDefinitionPackageRelease({
+        package: original.package,
+        source: original.source + '\n# changed',
+        contentHash: original.contentHash
+      })
+    ).rejects.toThrow('SHA-256 digest')
     const forged = { ...original, definition: { ...original.definition, docs: [] } }
     expect((await planDefinitionPackageUpgrade(original, forged)).status).toBe('unchanged')
   })
 
   it.each(['1', 'v1.2.3', '01.2.3', '1.2.3-01', '1.2.3+build..x', '1.2.3\n'])(
-    'rejects the invalid release version %p', async (version) => {
+    'rejects the invalid release version %p',
+    async (version) => {
       await expect(release(dump(card()), version)).rejects.toThrow('SemVer')
     }
   )
 
   it.each(['procurement', 'Acme/procurement', 'acme/../procurement', 'acme/procurement\n'])(
-    'rejects the invalid package id %p', async (id) => {
-      await expect(createDefinitionPackageRelease({ package: { id, version: '1.0.0' }, source: dump(card()) })).rejects.toThrow('publisher-qualified')
+    'rejects the invalid package id %p',
+    async (id) => {
+      await expect(
+        createDefinitionPackageRelease({ package: { id, version: '1.0.0' }, source: dump(card()) })
+      ).rejects.toThrow('publisher-qualified')
     }
   )
 
   it('rejects unknown manifest contracts and invalid artifacts instead of accepting implied behavior', async () => {
-    await expect(createDefinitionPackageRelease({
-      package: { id: 'acme/procurement', version: '1.0.0', migrations: [] }, source: dump(card())
-    })).rejects.toThrow('Unsupported property')
+    await expect(
+      createDefinitionPackageRelease({
+        package: { id: 'acme/procurement', version: '1.0.0', migrations: [] },
+        source: dump(card())
+      })
+    ).rejects.toThrow('Unsupported property')
     await expect(parseDefinitionPackageRelease('version: 2')).rejects.toThrow('JSON release envelope')
     await expect(parseDefinitionPackageRelease(' '.repeat(3 * 1024 * 1024 + 1))).rejects.toThrow('3 MiB')
     await expect(release('version: 1')).rejects.toThrow('Only version: 2')
@@ -149,7 +165,8 @@ describe('read-only package upgrade analysis', () => {
   })
 
   it.each(['required', 'type', 'name', 'default', 'remove', 'unknown'])(
-    'requires review for a %s field change', async (problem) => {
+    'requires review for a %s field change',
+    async (problem) => {
       const base = await release(dump(card()))
       const incoming = card()
       const field = incoming.cardTypes.purchase.fields.amount
@@ -162,7 +179,9 @@ describe('read-only package upgrade analysis', () => {
       const plan = await planDefinitionPackageUpgrade(base, await release(dump(incoming), '1.0.1'))
       const change = plan.changes.find((change) => change.key === 'amount')
       expect(plan.status).toBe('review-required')
-      expect(change?.impact).toBe(problem === 'unknown' ? 'unknown' : problem === 'default' ? 'behavioral' : 'destructive')
+      expect(change?.impact).toBe(
+        problem === 'unknown' ? 'unknown' : problem === 'default' ? 'behavioral' : 'destructive'
+      )
     }
   )
 
@@ -178,7 +197,10 @@ describe('read-only package upgrade analysis', () => {
     baseline.cardTypes.purchase.fields.amount.type = { class: 'extension.UnverifiedType' }
     const incoming = structuredClone(baseline)
     incoming.cardTypes.purchase.fields.amount.label = 'New label'
-    const plan = await planDefinitionPackageUpgrade(await release(dump(baseline)), await release(dump(incoming), '1.0.1'))
+    const plan = await planDefinitionPackageUpgrade(
+      await release(dump(baseline)),
+      await release(dump(incoming), '1.0.1')
+    )
     expect(plan.changes.find((change) => change.key === 'amount')?.impact).toBe('unknown')
   })
 
@@ -203,9 +225,15 @@ describe('read-only package upgrade analysis', () => {
     local.cardTypes.purchase.fields.amount.label = 'Total'
     delete local.cardTypes.purchase.fields.notes
     local.cardTypes.purchase.fields.local_field = { name: 'local_field', type: 'string' }
-    const plan = await planDefinitionPackageUpgrade(await release(dump(baseline)), await release(dump(incoming), '1.0.1'), dump(local))
+    const plan = await planDefinitionPackageUpgrade(
+      await release(dump(baseline)),
+      await release(dump(incoming), '1.0.1'),
+      dump(local)
+    )
     expect(plan.changes.map((change) => [change.key, change.resolution])).toEqual([
-      ['amount', 'converged'], ['local_field', 'local'], ['notes', 'local']
+      ['amount', 'converged'],
+      ['local_field', 'local'],
+      ['notes', 'local']
     ])
     expect(plan.reviewReasons).toContain('local-customization')
   })
@@ -217,7 +245,11 @@ describe('read-only package upgrade analysis', () => {
     local.cardTypes.purchase.fields.amount.label = 'Local'
     delete incoming.cardTypes.purchase.fields.notes
     local.cardTypes.purchase.fields.notes.label = 'Local notes'
-    const plan = await planDefinitionPackageUpgrade(await release(dump(card())), await release(dump(incoming), '1.1.0'), dump(local))
+    const plan = await planDefinitionPackageUpgrade(
+      await release(dump(card())),
+      await release(dump(incoming), '1.1.0'),
+      dump(local)
+    )
     expect(plan.status).toBe('conflict')
     expect(plan.changes.every((change) => change.resolution === 'conflict')).toBe(true)
     expect(plan.changes[0].paths).toContain('$.documents.amount.document.label')
@@ -229,7 +261,11 @@ describe('read-only package upgrade analysis', () => {
     const local = source + '\n'
     const localDefinition = load(local) as { processes: Record<string, Record<string, unknown>> }
     Object.values(localDefinition.processes)[0].description = 'Locally modified behavior'
-    const plan = await planDefinitionPackageUpgrade(await release(source), await release(upstream, '1.1.0'), dump(localDefinition))
+    const plan = await planDefinitionPackageUpgrade(
+      await release(source),
+      await release(upstream, '1.1.0'),
+      dump(localDefinition)
+    )
     expect(plan.status).toBe('conflict')
     expect(plan.changes).toHaveLength(1)
     expect(plan.reviewReasons).toContain('process-revisions-required')
@@ -239,8 +275,10 @@ describe('read-only package upgrade analysis', () => {
     const source = example('risk-management.card.yaml')
     const original = compileProcessYaml(source)
     const regenerated = original.docs.map((doc, index) => ({
-      ...doc, ...(doc.rank === undefined ? {} : { rank: `rank-${String(index).padStart(5, '0')}` }),
-      modifiedOn: 1234, modifiedBy: 'account'
+      ...doc,
+      ...(doc.rank === undefined ? {} : { rank: `rank-${String(index).padStart(5, '0')}` }),
+      modifiedOn: 1234,
+      modifiedBy: 'account'
     }))
     const normalized = dump({ version: 2, kind: 'card', model: regenerated })
     const baseline = await release(source)
@@ -259,7 +297,11 @@ describe('read-only package upgrade analysis', () => {
     const first = docs.find((doc) => doc.from === null)
     const actions = first?.actions as Array<Record<string, unknown>>
     actions.reverse()
-    ;(actions[0].params as Record<string, unknown>).literal = { modifiedOn: 42, expression: '${@amount}', values: ['b', 'a'] }
+    ;(actions[0].params as Record<string, unknown>).literal = {
+      modifiedOn: 42,
+      expression: '${@amount}',
+      values: ['b', 'a']
+    }
     const incoming = await release(exportAuthoringModel(docs, 'process'), '1.0.1')
     const plan = await planDefinitionPackageUpgrade(await release(source), incoming)
     expect(plan.changes).toHaveLength(1)
@@ -273,21 +315,35 @@ describe('read-only package upgrade analysis', () => {
     const incoming = structuredClone(baseline)
     if (incoming.enums !== undefined) incoming.enums.decision.enumValues = ['Approved']
     if (incoming.relations !== undefined) incoming.relations.links.type = '1:1'
-    const plan = await planDefinitionPackageUpgrade(await release(dump(baseline)), await release(dump(incoming), '1.1.0'))
+    const plan = await planDefinitionPackageUpgrade(
+      await release(dump(baseline)),
+      await release(dump(incoming), '1.1.0')
+    )
     expect(plan.changes.map((change) => change.impact)).toEqual(['destructive', 'destructive'])
   })
 
   it('requires review for major/prerelease upgrades and rejects downgrade, replacement and identity changes', async () => {
     const source = dump(card())
     const baseline = await release(source)
-    expect((await planDefinitionPackageUpgrade(baseline, await release(source, '2.0.0'))).reviewReasons).toContain('major-release')
-    expect((await planDefinitionPackageUpgrade(baseline, await release(source, '1.1.0-beta.1'))).reviewReasons).toContain('prerelease')
+    expect((await planDefinitionPackageUpgrade(baseline, await release(source, '2.0.0'))).reviewReasons).toContain(
+      'major-release'
+    )
+    expect(
+      (await planDefinitionPackageUpgrade(baseline, await release(source, '1.1.0-beta.1'))).reviewReasons
+    ).toContain('prerelease')
     await expect(planDefinitionPackageUpgrade(baseline, await release(source, '0.9.0'))).rejects.toThrow('Downgrades')
-    await expect(planDefinitionPackageUpgrade(baseline, await release(source + '\n'))).rejects.toThrow('same SemVer precedence')
-    const other = await createDefinitionPackageRelease({ package: { id: 'other/procurement', version: '1.1.0' }, source })
+    await expect(planDefinitionPackageUpgrade(baseline, await release(source + '\n'))).rejects.toThrow(
+      'same SemVer precedence'
+    )
+    const other = await createDefinitionPackageRelease({
+      package: { id: 'other/procurement', version: '1.1.0' },
+      source
+    })
     await expect(planDefinitionPackageUpgrade(baseline, other)).rejects.toThrow('different package')
     const process = await release(example('review-task.process.yaml'), '1.1.0')
     await expect(planDefinitionPackageUpgrade(baseline, process)).rejects.toThrow('definition kind')
-    await expect(planDefinitionPackageUpgrade(baseline, baseline, process.source)).rejects.toThrow('Local definition kind')
+    await expect(planDefinitionPackageUpgrade(baseline, baseline, process.source)).rejects.toThrow(
+      'Local definition kind'
+    )
   })
 })

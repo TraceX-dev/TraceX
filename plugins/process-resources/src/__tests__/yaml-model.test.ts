@@ -119,6 +119,43 @@ function setup (): {
 }
 
 describe('full model YAML process editing', () => {
+  it.each(['new', 'current'])('keeps the exported graph attached to the %s process', async (mode) => {
+    const { proc, createDoc, updateDoc, registry } = setup()
+    Object.assign(registry.find((doc) => doc._id === process.method.RunSubProcess) ?? {}, {
+      createdContext: { _class: process.class.Execution }
+    })
+    Object.assign(registry.find((doc) => doc._id === process.method.CreateToDo) ?? {}, {
+      createdContext: { _class: process.class.ProcessToDo, nameField: 'title' }
+    })
+    const source = readFileSync(`${__dirname}/fixtures/linked-card.process.yaml`, 'utf8')
+    const bindings = { slot_create_step: 'lock-steps', slot_owner: 'owner' }
+    if (mode === 'new') await importProcess(proc.masterTag, source, bindings)
+    else await updateProcessYaml(proc, source, bindings)
+    const created = createDoc.mock.calls.map(([clazz, _space, values, id]) => ({ _class: clazz, _id: id, ...values }))
+    const processId = mode === 'new' ? created.find((doc) => doc._class === process.class.Process)._id : proc._id
+    const states = created.filter((doc) => doc._class === process.class.State)
+    const transitions = created.filter((doc) => doc._class === process.class.Transition)
+    expect(states).toHaveLength(3)
+    expect(transitions).toHaveLength(4)
+    expect([...states, ...transitions].every((doc) => doc.process === processId)).toBe(true)
+    const stateIds = states.map((doc) => doc._id)
+    for (const transition of transitions) {
+      expect(stateIds).toContain(transition.to)
+      if (transition.from !== null) expect(stateIds).toContain(transition.from)
+    }
+    const stop = transitions
+      .flatMap((doc) => doc.actions)
+      .find((action) => action.methodId === process.method.CreateToDo)
+    const definition =
+      mode === 'new' ? created.find((doc) => doc._class === process.class.Process) : updateDoc.mock.calls[0][3]
+    expect(definition.context[stop.context._id]).toEqual(expect.objectContaining({ action: stop._id }))
+    expect(transitions.find((doc) => doc.trigger === process.trigger.OnToDoClose).triggerParams._id).toBe(
+      '${$context(' + stop.context._id + ')}'
+    )
+    expect(stop.params.user).toBe('${@owner}')
+    expect(stop.params.field).toBe('owner')
+  })
+
   it.each(['new', 'current'])('rebinds typed results and pipeline dependencies in the %s process', async (mode) => {
     const { proc, registry, createDoc, updateDoc } = setup()
     Object.assign(registry.find((doc) => doc._id === process.method.CreateToDo) ?? {}, {
@@ -127,14 +164,15 @@ describe('full model YAML process editing', () => {
     for (const [name, clazz] of [
       ['cost', core.class.TypeNumber],
       ['status', core.class.TypeString]
-    ])
-      {registry.push({
+    ]) {
+      registry.push({
         _id: `${name}-attribute`,
         name,
         attributeOf: proc.masterTag,
         _class: core.class.Attribute,
         type: { _class: clazz }
-      })}
+      })
+    }
     const source = readFileSync(`${__dirname}/../../../process/docs/examples/estimate-review.process.yaml`, 'utf8')
     const bindings = { reviewers: 'approvers', cost: 'cost', status: 'status' }
     if (mode === 'new') await importProcess(proc.masterTag, source, bindings)
@@ -205,8 +243,8 @@ describe('full model YAML process editing', () => {
     const draft = exportProcessDraft(proc)
     const compiled = compileProcessYaml(draft.source)
     expect(compiled.version).toBe(2)
-    expect(draft.source).toContain('catalog:')
-    expect(draft.source).toContain('process:method:RequestApproval:')
+    expect(draft.source).not.toContain('catalog:')
+    expect(draft.source).toContain('method: RequestApproval')
     expect(draft.source).toContain('state_waiting:')
     expect(draft.source).toContain('$slots.slot_owner')
     expect(Object.values(draft.bindings).sort()).toEqual(
@@ -228,7 +266,13 @@ describe('full model YAML process editing', () => {
     await importProcess(proc.masterTag, draft.source, draft.bindings)
     const created = createDoc.mock.calls.map(([clazz, _space, values, id]) => ({ _class: clazz, _id: id, ...values }))
     expect(created).toHaveLength(16)
-    expect(created.find((doc) => doc._class === process.class.Process).name).toBe(proc.name)
+    const definition = created.find((doc) => doc._class === process.class.Process)
+    expect(definition.name).toBe(proc.name)
+    expect(
+      created
+        .filter((doc) => doc._class === process.class.State || doc._class === process.class.Transition)
+        .every((doc) => doc.process === definition._id)
+    ).toBe(true)
     expect(JSON.stringify(created)).not.toContain('__SLOT_')
     const methods = created
       .filter((doc) => doc._class === process.class.Transition)
@@ -393,23 +437,26 @@ describe('full model YAML process editing', () => {
     async (problem) => {
       const { bindings, createDoc, commit, registry } = setup()
       const portable = fixture()
-      if (problem === 'missing') delete (bindings)['Lock steps']
+      if (problem === 'missing') delete bindings['Lock steps']
       if (problem === 'wrong class') bindings['embedded:embedded:Approved'] = 'lock-steps'
-      if (problem === 'wrong process owner')
-        {Object.assign(registry.find((doc) => doc._id === 'lock-steps') ?? {}, { masterTag: 'foreign' })}
+      if (problem === 'wrong process owner') {
+        Object.assign(registry.find((doc) => doc._id === 'lock-steps') ?? {}, { masterTag: 'foreign' })
+      }
       if (problem === 'wrong field') bindings.slot4 = 'approvers'
-      if (problem === 'unknown operation')
-        {(
+      if (problem === 'unknown operation') {
+        ;(
           portable.find((doc) => doc._class === process.class.Transition) as unknown as {
             actions: Array<{ methodId: string }>
           }
-        ).actions[0].methodId = 'missing:method:Operation'}
-      if (problem === 'unknown function')
-        {(
+        ).actions[0].methodId = 'missing:method:Operation'
+      }
+      if (problem === 'unknown function') {
+        ;(
           portable.find((doc) => doc._class === process.class.Transition) as unknown as {
             triggerParams: Record<string, string>
           }
-        ).triggerParams._id = '${=>MissingFunction()}'}
+        ).triggerParams._id = '${=>MissingFunction()}'
+      }
       const log = jest.spyOn(console, 'error').mockImplementation(() => {})
       try {
         await expect(

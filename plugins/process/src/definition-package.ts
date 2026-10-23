@@ -16,7 +16,10 @@ import type { DefinitionPackageManifest, DefinitionPackageRelease } from './defi
 
 /** Invalid release metadata, integrity or upgrade identity. */
 export class DefinitionPackageError extends Error {
-  constructor (readonly path: string, message: string) {
+  constructor (
+    readonly path: string,
+    message: string
+  ) {
     super(`${path}: ${message}`)
     this.name = 'DefinitionPackageError'
   }
@@ -35,7 +38,8 @@ function releaseVersion (value: unknown, path: string): ReleaseVersion {
     `^${numeric}\\.${numeric}\\.${numeric}(?:-(${identifier}(?:\\.${identifier})*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$`
   )
   const match = pattern.exec(version)
-  if (match === null || match[0] !== version) throw new DefinitionPackageError(path, 'Expected a SemVer release, for example 1.2.3')
+  if (match === null || match[0] !== version)
+    {throw new DefinitionPackageError(path, 'Expected a SemVer release, for example 1.2.3')}
   return { core: match.slice(1, 4), prerelease: match[4]?.split('.') ?? [] }
 }
 
@@ -70,7 +74,10 @@ export async function createDefinitionPackageRelease (value: unknown): Promise<D
   const metadata = object(artifact.package, 'package', ['id', 'version'])
   const id = text(metadata.id, 'package.id')
   if (id.trim() !== id || !/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*\/[a-z][a-z0-9-]*$/.test(id)) {
-    throw new DefinitionPackageError('package.id', 'Expected a publisher-qualified identity, for example acme/procurement')
+    throw new DefinitionPackageError(
+      'package.id',
+      'Expected a publisher-qualified identity, for example acme/procurement'
+    )
   }
   const version = text(metadata.version, 'package.version')
   releaseVersion(version, 'package.version')
@@ -78,11 +85,15 @@ export async function createDefinitionPackageRelease (value: unknown): Promise<D
   const source = text(artifact.source, 'source')
   const definition = compileProcessYaml(source)
   if (globalThis.crypto?.subtle === undefined) {
-    throw new DefinitionPackageError('contentHash', 'SHA-256 requires Web Crypto in a secure browser or Node.js context')
+    throw new DefinitionPackageError(
+      'contentHash',
+      'SHA-256 requires Web Crypto in a secure browser or Node.js context'
+    )
   }
   const bytes = new TextEncoder().encode(JSON.stringify({ package: manifest, source }))
   const hash = await globalThis.crypto.subtle.digest('SHA-256', bytes)
-  const contentHash = 'sha256:' + Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('')
+  const contentHash =
+    'sha256:' + Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('')
   if (artifact.contentHash !== undefined && artifact.contentHash !== contentHash) {
     throw new DefinitionPackageError('contentHash', 'Release content does not match its SHA-256 digest')
   }

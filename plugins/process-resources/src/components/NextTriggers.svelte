@@ -24,7 +24,9 @@
 
   const query = createQuery()
   let current: Execution | undefined
-  $: query.query(plugin.class.Execution, { _id: execution._id }, (result) => { current = result[0] })
+  $: query.query(plugin.class.Execution, { _id: execution._id }, (result) => {
+    current = result[0]
+  })
 </script>
 
 {#if current !== undefined}<ExecutionWaiting execution={current} />{/if}

@@ -33,7 +33,13 @@ import { AttributeCategory } from '@hcengineering/view'
 import { SelectedExecutionContext } from './types'
 import type { ExecutionDiagnostics, ExecutionSource } from './diagnostics'
 
-export type { DiagnosticDependency, ExecutionReason, TransitionDiagnostic, ExecutionDiagnostics, ExecutionSource } from './diagnostics'
+export type {
+  DiagnosticDependency,
+  ExecutionReason,
+  TransitionDiagnostic,
+  ExecutionDiagnostics,
+  ExecutionSource
+} from './diagnostics'
 
 /**
  * @public

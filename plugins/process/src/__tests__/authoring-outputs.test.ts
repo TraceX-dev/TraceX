@@ -25,7 +25,12 @@ import type { AuthoringNativeDocument } from '../authoring'
 // eslint-disable-next-line @typescript-eslint/naming-convention -- Standard CommonJS runtime global.
 declare const __dirname: string
 const { readFileSync } = jest.requireActual<{ readFileSync: (path: string, encoding: 'utf8') => string }>('fs')
-const example = (): string => readFileSync(`${__dirname}/../../docs/examples/approval.process.yaml`, 'utf8')
+// Exercise inferred outputs using test contracts; portable examples carry their output types explicitly.
+const example = (): string =>
+  readFileSync(`${__dirname}/../../docs/examples/approval.process.yaml`, 'utf8').replace(
+    'as: {key: approval_request, class: process.ApproveRequest}',
+    'as: approval_request'
+  ) + dump({ catalog })
 const catalog = {
   methods: {
     RequestApproval: { createdContext: { _class: 'process:class:ApproveRequest' } },
@@ -135,10 +140,12 @@ describe('named YAML outputs and references', () => {
     expect(JSON.stringify(docs)).toBe(before)
   })
 
-  it('uses simple as outputs when contracts and generated metadata match', () => {
+  it('exports typed outputs without depending on an embedded catalog', () => {
     const docs = compileProcessYaml(example()).docs
     const source = exportAuthoringModel(docs, 'process', catalog)
-    expect(source).toContain('as: approval_request')
+    expect((load(source) as Record<string, unknown>).catalog).toBeUndefined()
+    expect(source).toContain('key: approval_request')
+    expect(source).toContain('class: process.ApproveRequest')
     expect(source).not.toMatch(/^\s*context:/m)
     expectEquivalentModel(compileProcessYaml(source).docs, docs)
   })

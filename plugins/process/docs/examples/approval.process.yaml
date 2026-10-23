@@ -36,7 +36,7 @@ processes:
             params:
               user: $card.approvers
               field: $slots.approvers
-            as: approval_request
+            as: {key: approval_request, class: process.ApproveRequest}
           lock_card:
             method: LockCard
     states:
@@ -62,13 +62,3 @@ processes:
         label: Approved
       rejected:
         label: Rejected
-
-# Optional for UI authoring; this contract makes the example compilable offline.
-catalog:
-  methods:
-    RequestApproval:
-      requiredParams: [user]
-      createdContext: {class: process.ApproveRequest}
-  triggers:
-    OnApproveRequestApproved: {requiredParams: [_id], auto: true}
-    OnApproveRequestRejected: {requiredParams: [_id], auto: true}

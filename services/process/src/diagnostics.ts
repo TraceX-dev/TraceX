@@ -32,7 +32,9 @@ function copyReason (
 ): ExecutionReason {
   budget.remaining--
   const dependencies = reason.dependencies?.slice(0, budget.references).map((dependency) => ({
-    _id: dependency._id, _class: dependency._class, matched: dependency.matched
+    _id: dependency._id,
+    _class: dependency._class,
+    matched: dependency.matched
   }))
   budget.references -= dependencies?.length ?? 0
   const children: ExecutionReason[] = []
@@ -45,11 +47,15 @@ function copyReason (
   return {
     code: reason.code,
     message: reason.message,
-    params: reason.params === undefined ? undefined : Object.fromEntries(
-      Object.entries(reason.params).slice(0, MAX_REASONS).filter(([, value]) =>
-        ['string', 'number', 'boolean'].includes(typeof value)
-      ).map(([key, value]) => [key, typeof value === 'string' ? value.slice(0, 500) : value])
-    ),
+    params:
+      reason.params === undefined
+        ? undefined
+        : Object.fromEntries(
+            Object.entries(reason.params)
+              .slice(0, MAX_REASONS)
+              .filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value))
+              .map(([key, value]) => [key, typeof value === 'string' ? value.slice(0, 500) : value])
+          ),
     mode: reason.mode,
     total: reason.total,
     matched: reason.matched,
@@ -69,13 +75,16 @@ export function createExecutionDiagnostics (
   candidates: Transition[]
 ): ExecutionDiagnostics {
   const outgoing = control.client.getModel().findAllSync(process.class.Transition, {
-    process: execution.process, from: execution.currentState
+    process: execution.process,
+    from: execution.currentState
   })
   const transitions = new Map([...outgoing, ...candidates].map((transition) => [transition._id, transition]))
   const candidateIds = new Set(candidates.map((transition) => transition._id))
-  const previous = new Map(execution.diagnostics?.state === execution.currentState
-    ? execution.diagnostics.checks.map((check) => [check.transition, check])
-    : [])
+  const previous = new Map(
+    execution.diagnostics?.state === execution.currentState
+      ? execution.diagnostics.checks.map((check) => [check.transition, check])
+      : []
+  )
   return {
     state: execution.currentState,
     checkedAt: Date.now(),

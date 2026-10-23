@@ -59,7 +59,12 @@ import process, {
   ContextId
 } from '@hcengineering/process'
 import { makeRank } from '@hcengineering/rank'
-import { ExecuteResult, ProcessControl, SuccessExecutionContext, reportProcessDiagnostic } from '@hcengineering/server-process'
+import {
+  ExecuteResult,
+  ProcessControl,
+  SuccessExecutionContext,
+  reportProcessDiagnostic
+} from '@hcengineering/server-process'
 import { isEmptyMarkup } from '@hcengineering/text-core'
 import time, { ToDoPriority } from '@hcengineering/time'
 import { resolveAttributeId } from './utils'
@@ -202,9 +207,11 @@ export async function CheckToDoDone (
   }
   const finished = todos.filter((todo) => todo.doneOn != null)
   reportProcessDiagnostic(control, {
-    code: 'tasks', message: process.string.DiagnosticTasks,
+    code: 'tasks',
+    message: process.string.DiagnosticTasks,
     mode: todos[0].completionMode === 'any' ? 'any' : 'all',
-    total: todos.length, matched: finished.length,
+    total: todos.length,
+    matched: finished.length,
     params: { total: todos.length, matched: finished.length },
     dependencies: todos.map((todo) => ({ _id: todo._id, _class: todo._class, matched: todo.doneOn != null }))
   })
@@ -242,10 +249,16 @@ export async function CheckSubProcessesDone (control: ProcessControl, execution:
   })
   const matched = children.filter((child) => child.status !== ExecutionStatus.Active).length
   reportProcessDiagnostic(control, {
-    code: 'subprocesses-inactive', message: process.string.DiagnosticSubprocessesInactive, mode: 'all',
-    total: children.length, matched, params: { total: children.length, matched },
+    code: 'subprocesses-inactive',
+    message: process.string.DiagnosticSubprocessesInactive,
+    mode: 'all',
+    total: children.length,
+    matched,
+    params: { total: children.length, matched },
     dependencies: children.map((child) => ({
-      _id: child._id, _class: process.class.Execution, matched: child.status !== ExecutionStatus.Active
+      _id: child._id,
+      _class: process.class.Execution,
+      matched: child.status !== ExecutionStatus.Active
     }))
   })
   return matched === children.length
@@ -268,7 +281,10 @@ export async function CheckSubProcessMatch (
   })
 
   if (subExecutions.length === 0) {
-    reportProcessDiagnostic(control, { code: 'subprocesses-missing', message: process.string.DiagnosticSubprocessesMissing })
+    reportProcessDiagnostic(control, {
+      code: 'subprocesses-missing',
+      message: process.string.DiagnosticSubprocessesMissing
+    })
     return false
   }
 
@@ -283,13 +299,17 @@ export async function CheckSubProcessMatch (
   )
   const matching = new Set(res.map((child) => child._id))
   reportProcessDiagnostic(control, {
-    code: 'subprocess-state', message: process.string.DiagnosticSubprocesses,
+    code: 'subprocess-state',
+    message: process.string.DiagnosticSubprocesses,
     mode: predicate === '$all' ? 'all' : predicate === '$nin' ? 'none' : 'any',
-    total: subExecutions.length, matched: res.length,
+    total: subExecutions.length,
+    matched: res.length,
     params: { total: subExecutions.length, matched: res.length },
     states: Array.isArray(value) ? value : undefined,
     dependencies: subExecutions.map((child) => ({
-      _id: child._id, _class: process.class.Execution, matched: matching.has(child._id)
+      _id: child._id,
+      _class: process.class.Execution,
+      matched: matching.has(child._id)
     }))
   })
   if (predicate === '$all') {
@@ -331,7 +351,9 @@ export function MatchCardCheck (
   for (const key of Object.keys(markup)) {
     if (isEmptyMarkup(card[key])) {
       reportProcessDiagnostic(control, {
-        code: 'card-condition', message: process.string.DiagnosticCondition, fields: [key]
+        code: 'card-condition',
+        message: process.string.DiagnosticCondition,
+        fields: [key]
       })
       return false
     }
@@ -340,9 +362,10 @@ export function MatchCardCheck (
   const res = matchQuery([card], resolvedParams, definition.masterTag, control.client.getHierarchy(), true)
   if (res.length === 0) {
     reportProcessDiagnostic(control, () => ({
-      code: 'card-condition', message: process.string.DiagnosticCondition,
-      fields: Object.keys(resolvedParams).filter((key) =>
-        matchQuery([card], { [key]: resolvedParams[key] }, definition.masterTag, h, true).length === 0
+      code: 'card-condition',
+      message: process.string.DiagnosticCondition,
+      fields: Object.keys(resolvedParams).filter(
+        (key) => matchQuery([card], { [key]: resolvedParams[key] }, definition.masterTag, h, true).length === 0
       )
     }))
   }
@@ -450,7 +473,9 @@ export function RequiredFieldsFilledCheck (
   const missing = attributes.filter(([key, attr]) => !isRequiredValueFilled(getObjectValue(key, card), attr))
   if (missing.length > 0) {
     reportProcessDiagnostic(control, {
-      code: 'required-fields', message: process.string.DiagnosticRequiredFields, fields: missing.map(([key]) => key)
+      code: 'required-fields',
+      message: process.string.DiagnosticRequiredFields,
+      fields: missing.map(([key]) => key)
     })
   }
   return missing.length === 0
@@ -972,14 +997,20 @@ export async function RunSubProcess (
   const rollback: Tx[] = []
   const selector = control.inputSources?.card
   const parentProcess = selector === undefined ? undefined : control.client.getModel().findObject(execution.process)
-  const source: ExecutionSource | undefined = selector === undefined ? undefined : {
-    card: execution.card,
-    association: selector.type === 'relation'
-      ? parentProcess === undefined ? selector.association : resolveAttributeId(parentProcess, selector.association)
-      : undefined,
-    direction: selector.type === 'relation' ? selector.direction : undefined,
-    field: selector.type === 'attribute' ? selector.key : selector.type === 'nested' ? selector.path : undefined
-  }
+  const source: ExecutionSource | undefined =
+    selector === undefined
+      ? undefined
+      : {
+          card: execution.card,
+          association:
+            selector.type === 'relation'
+              ? parentProcess === undefined
+                ? selector.association
+                : resolveAttributeId(parentProcess, selector.association)
+              : undefined,
+          direction: selector.type === 'relation' ? selector.direction : undefined,
+          field: selector.type === 'attribute' ? selector.key : selector.type === 'nested' ? selector.path : undefined
+        }
   for (const _card of Array.isArray(card) ? card : [card]) {
     if (target.parallelExecutionForbidden === true) {
       const currentExecution = await control.client.findAll(process.class.Execution, {
@@ -1166,10 +1197,14 @@ function reportApproval (control: ProcessControl, requests: ApproveRequest[], ap
   reportProcessDiagnostic(control, {
     code: approved ? 'approvals' : 'rejections',
     message: approved ? process.string.DiagnosticApprovals : process.string.DiagnosticRejections,
-    mode: approved ? 'all' : 'any', total: requests.length, matched,
+    mode: approved ? 'all' : 'any',
+    total: requests.length,
+    matched,
     params: { total: requests.length, matched },
     dependencies: requests.map((request) => ({
-      _id: request._id, _class: request._class, matched: request.approved === approved
+      _id: request._id,
+      _class: request._class,
+      matched: request.approved === approved
     }))
   })
 }

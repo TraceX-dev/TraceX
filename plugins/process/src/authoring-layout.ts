@@ -69,7 +69,8 @@ function localizedLabel (data: Record<string, unknown>, decode: boolean, source?
     if (
       source?.label === undefined &&
       Object.prototype.hasOwnProperty.call(object(source?.native ?? {}, 'native'), 'label')
-    ) return
+    )
+      {return}
     if (!isIdentity(label)) data.label = getEmbeddedLabel(label)
   } else if (label.startsWith(EMBEDDED_LABEL_PREFIX)) {
     const plain = label.slice(EMBEDDED_LABEL_PREFIX.length)

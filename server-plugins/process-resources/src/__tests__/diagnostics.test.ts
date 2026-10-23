@@ -19,12 +19,23 @@ import process, { createContext, ExecutionStatus } from '@hcengineering/process'
 import type { Execution, ExecutionReason, MethodParams, SelectedRelation } from '@hcengineering/process'
 import { reportProcessDiagnostic, type ProcessControl } from '@hcengineering/server-process'
 import {
-  ApproveRequestApproved, ApproveRequestRejected, CheckSubProcessesDone, CheckSubProcessMatch,
-  CheckToDoDone, MatchCardCheck, RequiredFieldsFilledCheck, RunSubProcess
+  ApproveRequestApproved,
+  ApproveRequestRejected,
+  CheckSubProcessesDone,
+  CheckSubProcessMatch,
+  CheckToDoDone,
+  MatchCardCheck,
+  RequiredFieldsFilledCheck,
+  RunSubProcess
 } from '../functions'
 import { getContextValue } from '../utils'
 
-const execution = { _id: 'parent', process: 'process', card: 'request', space: core.space.Workspace } as unknown as Execution
+const execution = {
+  _id: 'parent',
+  process: 'process',
+  card: 'request',
+  space: core.space.Workspace
+} as unknown as Execution
 
 function fixture (documents: Array<Record<string, unknown>>): {
   control: ProcessControl
@@ -42,7 +53,9 @@ function fixture (documents: Array<Record<string, unknown>>): {
     matchQuery(documents.filter((doc) => doc._class === clazz) as unknown as Doc[], query, clazz, hierarchy)
   )
   const control = {
-    diagnostics: (reason: ExecutionReason) => { reasons.push(reason) },
+    diagnostics: (reason: ExecutionReason) => {
+      reasons.push(reason)
+    },
     client: { findAll, getHierarchy: () => hierarchy }
   } as unknown as ProcessControl
   return { control, reasons, findAll }
@@ -50,8 +63,13 @@ function fixture (documents: Array<Record<string, unknown>>): {
 
 function child (id: string, card: string, status: ExecutionStatus, state = 'review'): Record<string, unknown> {
   return {
-    _id: id, _class: process.class.Execution, parentId: execution._id, process: 'review-process',
-    card, status, currentState: state
+    _id: id,
+    _class: process.class.Execution,
+    parentId: execution._id,
+    process: 'review-process',
+    card,
+    status,
+    currentState: state
   }
 }
 
@@ -65,14 +83,19 @@ describe('subprocess evidence', () => {
     ])
     expect(await CheckSubProcessesDone(control, execution)).toBe(false)
     expect(findAll).toHaveBeenCalledTimes(1)
-    expect(reasons).toEqual([expect.objectContaining({
-      code: 'subprocesses-inactive', mode: 'all', total: 3, matched: 2,
-      dependencies: [
-        { _id: 'contract-review', _class: process.class.Execution, matched: false },
-        { _id: 'specification-review', _class: process.class.Execution, matched: true },
-        { _id: 'cancelled-review', _class: process.class.Execution, matched: true }
-      ]
-    })])
+    expect(reasons).toEqual([
+      expect.objectContaining({
+        code: 'subprocesses-inactive',
+        mode: 'all',
+        total: 3,
+        matched: 2,
+        dependencies: [
+          { _id: 'contract-review', _class: process.class.Execution, matched: false },
+          { _id: 'specification-review', _class: process.class.Execution, matched: true },
+          { _id: 'cancelled-review', _class: process.class.Execution, matched: true }
+        ]
+      })
+    ])
     expect(JSON.stringify(reasons)).not.toContain('private-contract')
   })
 
@@ -87,20 +110,42 @@ describe('subprocess evidence', () => {
       child('cancelled', 'other-contract', ExecutionStatus.Cancelled, 'approved'),
       { ...child('other-process', 'contract', ExecutionStatus.Active), process: 'other-process' }
     ])
-    expect(await CheckSubProcessMatch(control, execution, {
-      process: 'review-process', currentState: { [predicate]: ['approved'] }
-    }, {})).toBe(result)
+    expect(
+      await CheckSubProcessMatch(
+        control,
+        execution,
+        {
+          process: 'review-process',
+          currentState: { [predicate]: ['approved'] }
+        },
+        {}
+      )
+    ).toBe(result)
     expect(reasons[0]).toMatchObject({
-      code: 'subprocess-state', mode, total: 2, matched: 1,
-      dependencies: [{ _id: 'ready', matched: true }, { _id: 'waiting', matched: false }]
+      code: 'subprocess-state',
+      mode,
+      total: 2,
+      matched: 1,
+      dependencies: [
+        { _id: 'ready', matched: true },
+        { _id: 'waiting', matched: false }
+      ]
     })
   })
 
   it('distinguishes missing matches from an unfinished child', async () => {
     const { control, reasons } = fixture([])
-    expect(await CheckSubProcessMatch(control, execution, {
-      process: 'review-process', currentState: { $all: ['approved'] }
-    }, {})).toBe(false)
+    expect(
+      await CheckSubProcessMatch(
+        control,
+        execution,
+        {
+          process: 'review-process',
+          currentState: { $all: ['approved'] }
+        },
+        {}
+      )
+    ).toBe(false)
     expect(reasons[0].code).toBe('subprocesses-missing')
   })
 
@@ -113,13 +158,30 @@ describe('subprocess evidence', () => {
 
   it('keeps launch provenance and waits for the actual children selected through a bound relation', async () => {
     const documents: Array<Record<string, unknown>> = [
-      { _id: 'link-contract', _class: core.class.Relation, association: 'documents', docA: execution.card, docB: 'contract' },
-      { _id: 'link-specification', _class: core.class.Relation, association: 'documents', docA: execution.card, docB: 'specification' },
-      { _id: 'contract', _class: card.class.Card }, { _id: 'specification', _class: card.class.Card }
+      {
+        _id: 'link-contract',
+        _class: core.class.Relation,
+        association: 'documents',
+        docA: execution.card,
+        docB: 'contract'
+      },
+      {
+        _id: 'link-specification',
+        _class: core.class.Relation,
+        association: 'documents',
+        docA: execution.card,
+        docB: 'specification'
+      },
+      { _id: 'contract', _class: card.class.Card },
+      { _id: 'specification', _class: card.class.Card }
     ]
     const { control, reasons } = fixture(documents)
     const selector = {
-      type: 'relation', association: 'documents-slot', direction: 'B', key: '_id', name: 'Documents'
+      type: 'relation',
+      association: 'documents-slot',
+      direction: 'B',
+      key: '_id',
+      name: 'Documents'
     } as unknown as SelectedRelation
     const definitions: Record<string, object> = {
       process: { masterTag: card.class.Card, bindings: { 'documents-slot': 'documents' } },
@@ -156,8 +218,22 @@ describe('subprocess evidence', () => {
 describe('task and approval evidence', () => {
   it.each(['all', 'any'] as const)('reports only the selected task group in %s mode', async (mode) => {
     const { control, reasons } = fixture([
-      { _id: 'one', _class: process.class.ProcessToDo, execution: execution._id, group: 'group', doneOn: 1, completionMode: mode },
-      { _id: 'two', _class: process.class.ProcessToDo, execution: execution._id, group: 'group', doneOn: null, completionMode: mode },
+      {
+        _id: 'one',
+        _class: process.class.ProcessToDo,
+        execution: execution._id,
+        group: 'group',
+        doneOn: 1,
+        completionMode: mode
+      },
+      {
+        _id: 'two',
+        _class: process.class.ProcessToDo,
+        execution: execution._id,
+        group: 'group',
+        doneOn: null,
+        completionMode: mode
+      },
       { _id: 'unrelated', _class: process.class.ProcessToDo, execution: execution._id, group: 'other', doneOn: null }
     ])
     expect(await CheckToDoDone(control, execution, { _id: 'group' }, {})).toBe(mode === 'any')
@@ -167,22 +243,36 @@ describe('task and approval evidence', () => {
 
   it('reports approval and rejection independently without copying private task contents', async () => {
     const { control, reasons } = fixture([
-      { _id: 'yes', _class: process.class.ApproveRequest, execution: execution._id, group: 'group', approved: true, description: 'private-description' },
+      {
+        _id: 'yes',
+        _class: process.class.ApproveRequest,
+        execution: execution._id,
+        group: 'group',
+        approved: true,
+        description: 'private-description'
+      },
       { _id: 'no', _class: process.class.ApproveRequest, execution: execution._id, group: 'group', approved: false }
     ])
     expect(await ApproveRequestApproved(control, execution, { _id: 'group' }, {})).toBe(false)
     expect(await ApproveRequestRejected(control, execution, { _id: 'group' }, {})).toBe(true)
     expect(reasons.map((reason) => [reason.code, reason.mode, reason.matched])).toEqual([
-      ['approvals', 'all', 1], ['rejections', 'any', 1]
+      ['approvals', 'all', 1],
+      ['rejections', 'any', 1]
     ])
     expect(JSON.stringify(reasons)).not.toContain('private-description')
   })
 
   it('cannot change a decision when the optional observer fails', async () => {
     const { control } = fixture([child('ready', 'contract', ExecutionStatus.Done)])
-    control.diagnostics = () => { throw new Error('Observer unavailable') }
+    control.diagnostics = () => {
+      throw new Error('Observer unavailable')
+    }
     expect(await CheckSubProcessesDone(control, execution)).toBe(true)
-    expect(() => { reportProcessDiagnostic(control, () => { throw new Error('Evidence unavailable') }) }).not.toThrow()
+    expect(() => {
+      reportProcessDiagnostic(control, () => {
+        throw new Error('Evidence unavailable')
+      })
+    }).not.toThrow()
   })
 })
 
@@ -190,19 +280,29 @@ describe('field conditions', () => {
   it('identifies failed bound fields without storing their values', () => {
     const reasons: ExecutionReason[] = []
     const control = {
-      diagnostics: (reason: ExecutionReason) => { reasons.push(reason) },
+      diagnostics: (reason: ExecutionReason) => {
+        reasons.push(reason)
+      },
       client: {
         getModel: () => ({ findObject: () => ({ masterTag: card.class.Card, bindings: { amount: 'cost' } }) }),
         getHierarchy: () => ({
-          isMixin: () => false, findAttribute: () => undefined,
+          isMixin: () => false,
+          findAttribute: () => undefined,
           getBaseClass: (clazz: string) => clazz,
           isDerived: (clazz: string, base: string) => clazz === base
         })
       }
     } as unknown as ProcessControl
-    expect(MatchCardCheck(control, execution, { amount: { $gt: 100 }, count: { $gt: 0 } }, {
-      card: { _class: card.class.Card, cost: 80, count: 2 }
-    })).toBe(false)
+    expect(
+      MatchCardCheck(
+        control,
+        execution,
+        { amount: { $gt: 100 }, count: { $gt: 0 } },
+        {
+          card: { _class: card.class.Card, cost: 80, count: 2 }
+        }
+      )
+    ).toBe(false)
     expect(reasons[0]).toMatchObject({ code: 'card-condition', fields: ['cost'] })
     expect(JSON.stringify(reasons)).not.toContain('80')
   })
@@ -211,7 +311,9 @@ describe('field conditions', () => {
     const reasons: ExecutionReason[] = []
     const attributes = new Map(['amount', 'accepted', 'supplier'].map((key) => [key, { required: true }]))
     const control = {
-      diagnostics: (reason: ExecutionReason) => { reasons.push(reason) },
+      diagnostics: (reason: ExecutionReason) => {
+        reasons.push(reason)
+      },
       client: {
         getModel: () => ({ findObject: () => ({ masterTag: card.class.Card }) }),
         getHierarchy: () => ({ isMixin: () => false, getAllAttributes: () => attributes })

@@ -42,7 +42,10 @@ jest.mock('../config', () => ({ __esModule: true, default: { QueueRegion: '' } }
 const ctx = {
   with: async (_name: string, _params: object, operation: (ctx: MeasureContext) => Promise<unknown>) =>
     await operation(ctx),
-  counter: jest.fn(), debug: jest.fn(), error: jest.fn(), info: jest.fn()
+  counter: jest.fn(),
+  debug: jest.fn(),
+  error: jest.fn(),
+  info: jest.fn()
 } as unknown as MeasureContext
 let sequence = 0
 let record: ProcessMessage
@@ -53,8 +56,12 @@ beforeEach(() => {
   jest.mocked(getClient).mockReset()
   jest.mocked(releaseClient).mockResolvedValue(undefined)
   record = {
-    _id: `event-${sequence++}`, account: core.account.System, createdOn: Date.now(),
-    event: [process.trigger.OnToDoClose], context: {}, execution: 'execution' as Execution['_id']
+    _id: `event-${sequence++}`,
+    account: core.account.System,
+    createdOn: Date.now(),
+    event: [process.trigger.OnToDoClose],
+    context: {},
+    execution: 'execution' as Execution['_id']
   }
   workspace = `workspace-${sequence}` as WorkspaceUuid
 })
@@ -105,16 +112,22 @@ describe('event delivery', () => {
   })
 
   it('shares concurrent delivery failures and allows another attempt', async () => {
-    let fail: (error: Error) => void = () => { throw new Error('Initialization has not started') }
+    let fail: (error: Error) => void = () => {
+      throw new Error('Initialization has not started')
+    }
     useClient({ findOne: jest.fn().mockResolvedValue(undefined) })
-    jest.mocked(getClient).mockImplementationOnce(async () => await new Promise((_resolve, reject) => {
-      fail = reject
-    }))
+    jest.mocked(getClient).mockImplementationOnce(
+      async () =>
+        await new Promise((_resolve, reject) => {
+          fail = reject
+        })
+    )
     const outcomes = Promise.allSettled([handle(), handle()])
     const failure = new Error('Connection lost')
     fail(failure)
     expect(await outcomes).toEqual([
-      { status: 'rejected', reason: failure }, { status: 'rejected', reason: failure }
+      { status: 'rejected', reason: failure },
+      { status: 'rejected', reason: failure }
     ])
     expect(getClient).toHaveBeenCalledTimes(1)
     await handle()
@@ -136,14 +149,25 @@ function transitionFixture (): {
   tx: jest.Mock
 } {
   const execution = {
-    _id: record.execution, _class: process.class.Execution, space: core.space.Workspace,
-    process: 'process', card: 'card', currentState: 'waiting', status: ExecutionStatus.Active,
-    context: {}, rollback: []
+    _id: record.execution,
+    _class: process.class.Execution,
+    space: core.space.Workspace,
+    process: 'process',
+    card: 'card',
+    currentState: 'waiting',
+    status: ExecutionStatus.Active,
+    context: {},
+    rollback: []
   } as unknown as Execution
   const transition = {
-    _id: 'approved-transition', _class: process.class.Transition, process: execution.process,
-    from: execution.currentState, to: 'approved', trigger: process.trigger.OnToDoClose,
-    triggerParams: { _id: 'approval-group' }, actions: []
+    _id: 'approved-transition',
+    _class: process.class.Transition,
+    process: execution.process,
+    from: execution.currentState,
+    to: 'approved',
+    trigger: process.trigger.OnToDoClose,
+    triggerParams: { _id: 'approval-group' },
+    actions: []
   } as unknown as Transition
   const check = jest.fn().mockResolvedValue(true)
   const findObject = jest.fn((id: string) => ({ _id: id }))
@@ -162,9 +186,16 @@ function transitionFixture (): {
     return { success: true }
   })
   useClient({
-    findOne: jest.fn(async (clazz: string) => structuredClone(clazz === process.class.Execution ? execution : {
-      _id: execution.card, _class: card.class.Card
-    })),
+    findOne: jest.fn(async (clazz: string) =>
+      structuredClone(
+        clazz === process.class.Execution
+          ? execution
+          : {
+              _id: execution.card,
+              _class: card.class.Card
+            }
+      )
+    ),
     tx,
     getHierarchy: () => ({ as: () => ({ serverCheckFunc: 'check' }), clone: structuredClone }),
     getModel: () => ({
@@ -189,10 +220,14 @@ describe('approval trigger failures', () => {
     const { execution, transition, check, tx } = transitionFixture()
     check.mockRejectedValue(processError(process.error.ObjectNotFound, { _id: 'approval-group' }))
     await handle()
-    expect(execution.error).toEqual([expect.objectContaining({
-      error: process.error.ObjectNotFound, props: { _id: 'approval-group' },
-      transition: transition._id, phase: 'trigger'
-    })])
+    expect(execution.error).toEqual([
+      expect.objectContaining({
+        error: process.error.ObjectNotFound,
+        props: { _id: 'approval-group' },
+        transition: transition._id,
+        phase: 'trigger'
+      })
+    ])
     expect(execution.currentState).toBe('waiting')
     expect(tx).not.toHaveBeenCalled()
     await handle()
@@ -214,7 +249,8 @@ describe('approval trigger failures', () => {
     const { execution, check, tx } = transitionFixture()
     check.mockImplementation(async (control: ProcessControl) => {
       reportProcessDiagnostic(control, {
-        code: 'custom-wait', message: process.string.DiagnosticSubprocesses,
+        code: 'custom-wait',
+        message: process.string.DiagnosticSubprocesses,
         params: { total: 2, matched: 1 },
         dependencies: [{ _id: 'child' as Execution['_id'], _class: process.class.Execution }]
       })
@@ -224,7 +260,8 @@ describe('approval trigger failures', () => {
     expect(check).toHaveBeenCalledTimes(1)
     expect(tx).not.toHaveBeenCalled()
     expect(execution.diagnostics).toMatchObject({
-      state: 'waiting', checks: [{ status: 'waiting', reasons: [{ code: 'custom-wait' }] }]
+      state: 'waiting',
+      checks: [{ status: 'waiting', reasons: [{ code: 'custom-wait' }] }]
     })
   })
 
@@ -243,20 +280,24 @@ describe('approval trigger failures', () => {
   it('records the exact failing action and input parameter', async () => {
     const { execution, transition, tx } = transitionFixture()
     const action = {
-      _id: 'approval-step', methodId: process.method.RequestApproval,
-      params: { user: 'missing-user' }, context: null
+      _id: 'approval-step',
+      methodId: process.method.RequestApproval,
+      params: { user: 'missing-user' },
+      context: null
     } as unknown as Transition['actions'][number]
     transition.actions = [action]
-    jest.mocked(getContextValue).mockRejectedValueOnce(
-      processError(process.error.EmptyAttributeContextValue, {}, {})
-    )
+    jest.mocked(getContextValue).mockRejectedValueOnce(processError(process.error.EmptyAttributeContextValue, {}, {}))
     // The trigger has no inputs; the first resolved value belongs to this action.
     transition.triggerParams = {}
     await handle()
     expect(tx).not.toHaveBeenCalled()
-    expect(execution.error).toEqual([expect.objectContaining({
-      step: action._id, method: process.method.RequestApproval, parameter: 'user'
-    })])
+    expect(execution.error).toEqual([
+      expect.objectContaining({
+        step: action._id,
+        method: process.method.RequestApproval,
+        parameter: 'user'
+      })
+    ])
     jest.mocked(getContextValue).mockImplementation(async (value: unknown) => value)
   })
 
@@ -275,7 +316,8 @@ describe('approval trigger failures', () => {
   })
 
   it.each(['missing', 'pending', 'approved'] as const)(
-    'rechecks approval on Continue when the group is %s', async (state) => {
+    'rechecks approval on Continue when the group is %s',
+    async (state) => {
       const { execution, check, tx } = transitionFixture()
       check.mockRejectedValue(processError(process.error.ObjectNotFound, { _id: 'approval-group' }))
       await handle()

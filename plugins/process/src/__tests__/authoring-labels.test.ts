@@ -31,10 +31,12 @@ function withSlotLabel (label: string): string {
 describe('readable localized labels in YAML v2', () => {
   it('embeds slot display text on import and removes the prefix on export', () => {
     const compiled = compileProcessYaml(example())
-    expect(compiled.docs[0].requiredSlots).toEqual(expect.objectContaining({
-      approvers: expect.objectContaining({ label: getEmbeddedLabel('Approvers') }),
-      approved_tag: expect.objectContaining({ label: getEmbeddedLabel('Approved') })
-    }))
+    expect(compiled.docs[0].requiredSlots).toEqual(
+      expect.objectContaining({
+        approvers: expect.objectContaining({ label: getEmbeddedLabel('Approvers') }),
+        approved_tag: expect.objectContaining({ label: getEmbeddedLabel('Approved') })
+      })
+    )
     const source = exportAuthoringModel(compiled.docs, 'process')
     expect(source).toContain('label: Approvers')
     expect(source).not.toContain('embedded:embedded:')
@@ -42,23 +44,25 @@ describe('readable localized labels in YAML v2', () => {
   })
 
   it('normalizes the known localized model labels while preserving ordinary graph names', () => {
-    const compiled = compileProcessYaml(dump({
-      version: 2,
-      kind: 'card',
-      cardTypes: { purchase: { label: 'Purchase', extends: 'card:class:Card', kind: 0 } },
-      tags: { details: { label: 'Details', extends: 'purchase', kind: 2 } },
-      fields: { amount: { label: 'Amount', attributeOf: 'purchase', name: 'amount', type: 'number' } },
-      permissions: { read: { label: 'Read purchases', targetClass: 'purchase' } },
-      attributePermissions: { update_amount: { label: 'Update amount', attribute: 'amount' } },
-      processes: {
-        review: {
-          label: 'Review purchase',
-          masterTag: 'purchase',
-          start: { begin: { to: 'done', on: 'OnExecutionStart' } },
-          states: { done: { label: 'Reviewed' } }
+    const compiled = compileProcessYaml(
+      dump({
+        version: 2,
+        kind: 'card',
+        cardTypes: { purchase: { label: 'Purchase', extends: 'card:class:Card', kind: 0 } },
+        tags: { details: { label: 'Details', extends: 'purchase', kind: 2 } },
+        fields: { amount: { label: 'Amount', attributeOf: 'purchase', name: 'amount', type: 'number' } },
+        permissions: { read: { label: 'Read purchases', targetClass: 'purchase' } },
+        attributePermissions: { update_amount: { label: 'Update amount', attribute: 'amount' } },
+        processes: {
+          review: {
+            label: 'Review purchase',
+            masterTag: 'purchase',
+            start: { begin: { to: 'done', on: 'OnExecutionStart' } },
+            states: { done: { label: 'Reviewed' } }
+          }
         }
-      }
-    }))
+      })
+    )
     const expected = new Map([
       ['purchase', 'Purchase'],
       ['details', 'Details'],
@@ -93,7 +97,9 @@ describe('readable localized labels in YAML v2', () => {
 
   it.each(['', 'Price: USD', 'Согласующие'])('embeds literal display text %s', (label) => {
     const compiled = compileProcessYaml(withSlotLabel(label))
-    expect((compiled.docs[0].requiredSlots as Record<string, { label: string }>).approvers.label).toBe(getEmbeddedLabel(label))
+    expect((compiled.docs[0].requiredSlots as Record<string, { label: string }>).approvers.label).toBe(
+      getEmbeddedLabel(label)
+    )
     expectEquivalentModel(compileProcessYaml(exportAuthoringModel(compiled.docs, 'process')).docs, compiled.docs)
   })
 

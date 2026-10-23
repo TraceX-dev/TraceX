@@ -113,7 +113,10 @@ describe('YAML process import', () => {
     const { readFileSync } = jest.requireActual<{ readFileSync: (path: string, encoding: 'utf8') => string }>('fs')
     const review = readFileSync(`${__dirname}/../../../process/docs/examples/review-task.process.yaml`, 'utf8')
     const title = 'Review __PROCESS__ __CONTEXT_0__ __ACTION_0__'
-    await importProcess(card.class.Card, review.replace('title: Review card', `title: ${title}`), {
+    const source = review
+      .replace('title: Review card', `title: ${title}`)
+      .replace('label: "Review card"', `label: "${title}"`)
+    await importProcess(card.class.Card, source, {
       reviewers: 'r',
       status: 'customStatus'
     })
@@ -178,7 +181,9 @@ describe('YAML process import', () => {
     try {
       await importProcess(card.class.Card, aliased, { status: 'customStatus', duplicate: 'customStatus' })
       expect(createDoc).toHaveBeenCalledTimes(3)
-      expect(createDoc.mock.calls.find((call) => call[0] === 'process:class:Transition')?.[2].actions[0].params).toEqual({
+      expect(
+        createDoc.mock.calls.find((call) => call[0] === 'process:class:Transition')?.[2].actions[0].params
+      ).toEqual({
         customStatus: 'Done'
       })
     } finally {

@@ -250,7 +250,7 @@ processes:
               user: $card.reviewers
               completionMode: all
               withRollback: true
-            as: pc_project_reviews
+            as: {key: pc_project_reviews, class: process.ProcessToDo, label: "Review the procurement project"}
     states:
       pc_project_waiting_review:
         label: Wait for every project reviewer
@@ -284,7 +284,7 @@ processes:
               completionMode: any
               withRollback: true
               askRequired: true
-            as: pc_quote_tasks
+            as: {key: pc_quote_tasks, class: process.ProcessToDo, label: "Enter the total quantity and USD unit price"}
             results:
               pc_quote_quantity: {label: Quoted quantity, type: number}
               pc_quote_unit_price: {label: USD unit price, type: number}
@@ -364,7 +364,7 @@ processes:
                   field: approvers
                   withRollback: false
                   actionType: approve
-                as: pc_purchase_approval
+                as: {key: pc_purchase_approval, class: process.ApproveRequest}
           pc_purchase_within_limit:
             to: pc_purchase_approved
             on: {OnCardUpdate: {amount: {$lte: 1000}}}
@@ -411,7 +411,7 @@ processes:
               completionMode: any
               withRollback: true
               askRequired: true
-            as: pc_inspection_tasks
+            as: {key: pc_inspection_tasks, class: process.ProcessToDo, label: "Enter inspected quantity and the acceptance decision"}
             results:
               pc_inspected_quantity: {label: Inspected quantity, type: number}
               pc_inspection_passed: {label: Inspection passed, type: boolean}
@@ -487,7 +487,7 @@ processes:
                   description: $card.request_title
                   withRollback: false
                   actionType: approve
-                as: pc_invoice_approval_requests
+                as: {key: pc_invoice_approval_requests, class: process.ApproveRequest}
               pc_invoice_lock: {method: LockCard}
       pc_invoice_waiting_approval:
         label: Wait for every finance approver
@@ -512,24 +512,3 @@ processes:
         label: Invoice rejected
 
 # Verified offline contracts. UI import validates the actual installed operations.
-catalog:
-  methods:
-    UpdateCard: {requiredParams: [], createdContext: null}
-    CreateToDo:
-      requiredParams: [title, user]
-      createdContext: {class: process.ProcessToDo, nameField: title}
-    SetContext: {requiredParams: [value], createdContext: null}
-    RequestApproval:
-      requiredParams: [user]
-      createdContext: {class: process.ApproveRequest}
-    LockCard: {requiredParams: [], createdContext: null}
-    UnlockCard: {requiredParams: [], createdContext: null}
-  triggers:
-    OnExecutionStart: {requiredParams: [], init: true}
-    OnToDoClose: {requiredParams: [_id], auto: true}
-    OnCardUpdate: {requiredParams: [], auto: true}
-    OnApproveRequestApproved: {requiredParams: [_id], auto: true}
-    OnApproveRequestRejected: {requiredParams: [_id], auto: true}
-  functions:
-    Multiply: {type: transform, of: core:class:TypeNumber}
-    ArrayLength: {type: convert, of: core:class:ArrOf, to: core:class:TypeNumber}

@@ -120,7 +120,7 @@ export function compileAuthoringModel (root: Record<string, unknown>, model?: Mo
   return { kind: root.kind, version: 2, docs }
 }
 
-/** Serializes all native data; newly introduced classes, operations and properties are retained. */
+/** Serializes definition data without storage audit fields or the installed operation catalog. */
 export function exportAuthoringModel (
   documents: readonly unknown[],
   kind: 'card' | 'process',
@@ -128,8 +128,14 @@ export function exportAuthoringModel (
 ): string {
   compileAuthoringModel({ version: 2, kind, model: documents, ...(catalog !== undefined ? { catalog } : {}) })
   const docs = JSON.parse(JSON.stringify(documents)) as AuthoringNativeDocument[]
+  for (const doc of docs) {
+    delete doc.modifiedBy
+    delete doc.modifiedOn
+    delete doc.createdBy
+    delete doc.createdOn
+  }
   return dump(
-    { version: 2, kind, ...encodeAuthoringLayout(docs, { catalog }), ...(catalog !== undefined ? { catalog } : {}) },
+    { version: 2, kind, ...encodeAuthoringLayout(docs, { catalog }) },
     { noRefs: true, noCompatMode: true, lineWidth: 120, sortKeys: false, schema: JSON_SCHEMA }
   )
 }
@@ -214,11 +220,16 @@ export function remapAuthoringReferences (
       ) {
         return remapContext(data as unknown as SelectedContext)
       }
-      const namedKeys =
-        doc._class === 'process:class:Process' && path.length === 1 && (key === 'requiredSlots' || key === 'bindings')
+      // Native record properties are schema keys, even when a graph identity is
+      // named "process", "context" or "to". Parameter/query maps still rebind fields.
+      const parameterMap = path.includes('params') || path[0] === 'triggerParams'
+      const preserveKeys =
+        path.length === 0 ||
+        (!parameterMap && (typeof data._class === 'string' || typeof data._id === 'string')) ||
+        (doc._class === 'process:class:Process' && path.length === 1 && (key === 'requiredSlots' || key === 'bindings'))
       return Object.fromEntries(
         Object.entries(data).map(([key, item]) => [
-          literal || namedKeys ? key : selector(key),
+          literal || preserveKeys || key === '_id' || key === '_class' ? key : selector(key),
           visit(item, doc, [...path, key], literal)
         ])
       )

@@ -28,9 +28,11 @@
   let limit = 20
   $: definition = client.getModel().findObject(execution.process)
   $: fields = (reason.fields ?? []).map((key) => ({
-    key, label: definition === undefined ? undefined : client.getHierarchy().findAttribute(
-      definition.masterTag, definition.bindings?.[key] ?? key
-    )?.label
+    key,
+    label:
+      definition === undefined
+        ? undefined
+        : client.getHierarchy().findAttribute(definition.masterTag, definition.bindings?.[key] ?? key)?.label
   }))
   $: dependencies = reason.dependencies ?? []
   $: states = (reason.states ?? []).map((id) => client.getModel().findObject(id)?.title).filter(Boolean)
@@ -47,13 +49,21 @@
     <div><Label label={reason.message} params={reason.params ?? {}} /></div>
     {#if reason.mode}
       <div class="text-sm">
-        <Label label={reason.mode === 'all' ? plugin.string.DiagnosticAll : reason.mode === 'any' ? plugin.string.DiagnosticAny : plugin.string.DiagnosticNone} />
+        <Label
+          label={reason.mode === 'all'
+            ? plugin.string.DiagnosticAll
+            : reason.mode === 'any'
+              ? plugin.string.DiagnosticAny
+              : plugin.string.DiagnosticNone}
+        />
       </div>
     {/if}
     {#if reason.until !== undefined}<DateTimePresenter value={reason.until} />{/if}
     {#if states.length > 0}<div>{states.join(', ')}</div>{/if}
     {#each fields as field (field.key)}
-      <div>{#if field.label}<Label label={field.label} />{:else}{field.key}{/if}</div>
+      <div>
+        {#if field.label}<Label label={field.label} />{:else}{field.key}{/if}
+      </div>
     {/each}
     {#each dependencies.slice(0, limit) as dependency (dependency._id)}
       <DiagnosticDependency {dependency} {path} />

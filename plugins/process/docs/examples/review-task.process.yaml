@@ -40,7 +40,7 @@ processes:
               user: $card.reviewers
               completionMode: all
               withRollback: true
-            as: review_tasks
+            as: {key: review_tasks, class: process.ProcessToDo, label: "Review card"}
     states:
       under_review:
         label: Under review
@@ -55,15 +55,3 @@ processes:
                 params: {$slots.status: Reviewed}
       reviewed:
         label: Reviewed
-
-catalog:
-  methods:
-    UpdateCard:
-      requiredParams: []
-      createdContext: null
-    CreateToDo:
-      requiredParams: [title, user]
-      createdContext: {class: process.ProcessToDo, nameField: title}
-  triggers:
-    OnExecutionStart: {requiredParams: [], init: true}
-    OnToDoClose: {requiredParams: [_id], auto: true}

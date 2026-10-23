@@ -16,7 +16,10 @@ import type { ExecutionReason } from '@hcengineering/process'
 import type { ProcessControl } from './types'
 
 /** Publish evidence from the same invocation that decides whether a transition matches. */
-export function reportProcessDiagnostic (control: ProcessControl, reason: ExecutionReason | (() => ExecutionReason)): void {
+export function reportProcessDiagnostic (
+  control: ProcessControl,
+  reason: ExecutionReason | (() => ExecutionReason)
+): void {
   try {
     if (control.diagnostics !== undefined) control.diagnostics(typeof reason === 'function' ? reason() : reason)
   } catch {

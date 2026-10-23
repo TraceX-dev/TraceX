@@ -17144,6 +17144,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/highlight':
+        specifier: workspace:^0.7.0
+        version: link:../../packages/highlight
       '@hcengineering/integration':
         specifier: workspace:^0.7.0
         version: link:../integration

@@ -25,10 +25,16 @@ import { OnRelationChange } from '../index'
 
 const factory = new TxFactory(core.account.System)
 const execution = {
-  _id: 'parent', card: 'card', process: 'parent-process', space: 'space'
+  _id: 'parent',
+  card: 'card',
+  process: 'parent-process',
+  space: 'space'
 } as unknown as Execution
 
-function approvalControl (values: Array<boolean | undefined>, owner = execution._id): {
+function approvalControl (
+  values: Array<boolean | undefined>,
+  owner = execution._id
+): {
   control: ProcessControl
   findAll: jest.Mock
 } {
@@ -43,20 +49,30 @@ function approvalControl (values: Array<boolean | undefined>, owner = execution.
 }
 
 describe('approval group checks', () => {
-  it.each([ApproveRequestApproved, ApproveRequestRejected])('throws a process error for an empty group', async (check) => {
-    await expect(check(approvalControl([]).control, execution, { _id: 'approval-group' }, {})).rejects.toBeInstanceOf(ProcessError)
-    await expect(check(approvalControl([]).control, execution, { _id: 'approval-group' }, {})).rejects.toMatchObject({
-      message: process.error.ObjectNotFound, props: { _id: 'approval-group' }
-    })
-  })
+  it.each([ApproveRequestApproved, ApproveRequestRejected])(
+    'throws a process error for an empty group',
+    async (check) => {
+      await expect(check(approvalControl([]).control, execution, { _id: 'approval-group' }, {})).rejects.toBeInstanceOf(
+        ProcessError
+      )
+      await expect(check(approvalControl([]).control, execution, { _id: 'approval-group' }, {})).rejects.toMatchObject({
+        message: process.error.ObjectNotFound,
+        props: { _id: 'approval-group' }
+      })
+    }
+  )
 
-  it.each([ApproveRequestApproved, ApproveRequestRejected])('rejects a group belonging to another execution', async (check) => {
-    const { control, findAll } = approvalControl([true], 'other-execution' as Execution['_id'])
-    await expect(check(control, execution, { _id: 'approval-group' }, {})).rejects.toBeInstanceOf(ProcessError)
-    expect(findAll).toHaveBeenCalledWith(process.class.ApproveRequest, {
-      execution: execution._id, group: 'approval-group'
-    })
-  })
+  it.each([ApproveRequestApproved, ApproveRequestRejected])(
+    'rejects a group belonging to another execution',
+    async (check) => {
+      const { control, findAll } = approvalControl([true], 'other-execution' as Execution['_id'])
+      await expect(check(control, execution, { _id: 'approval-group' }, {})).rejects.toBeInstanceOf(ProcessError)
+      expect(findAll).toHaveBeenCalledWith(process.class.ApproveRequest, {
+        execution: execution._id,
+        group: 'approval-group'
+      })
+    }
+  )
 
   it.each([
     { votes: [true, true], approved: true, rejected: false },
@@ -76,16 +92,25 @@ describe('approval group checks', () => {
   })
 })
 
-function relationControl (classA = 'card-a', classB = 'card-b'): {
+function relationControl (
+  classA = 'card-a',
+  classB = 'card-b'
+): {
   control: TriggerControl
   send: jest.Mock
   relation: Relation
   created: TxCreateDoc<Relation>
 } {
-  const created = factory.createTxCreateDoc<Relation>(core.class.Relation, core.space.Workspace, {
-    association: 'association' as Relation['association'],
-    docA: 'a' as Relation['docA'], docB: 'b' as Relation['docB']
-  }, 'relation' as Relation['_id'])
+  const created = factory.createTxCreateDoc<Relation>(
+    core.class.Relation,
+    core.space.Workspace,
+    {
+      association: 'association' as Relation['association'],
+      docA: 'a' as Relation['docA'],
+      docB: 'b' as Relation['docB']
+    },
+    'relation' as Relation['_id']
+  )
   const relation = TxProcessor.createDoc2Doc(created)
   const send = jest.fn().mockResolvedValue(undefined)
   const control = {
@@ -95,8 +120,8 @@ function relationControl (classA = 'card-a', classB = 'card-b'): {
     queue: { getProducer: () => ({ send }) },
     modelDb: { findObject: () => ({ classA, classB }) },
     hierarchy: {
-      isDerived: (clazz: string, base: string) => clazz === base ||
-        (base === card.class.Card && ['card-a', 'card-b'].includes(clazz))
+      isDerived: (clazz: string, base: string) =>
+        clazz === base || (base === card.class.Card && ['card-a', 'card-b'].includes(clazz))
     },
     removedMap: new Map([[relation._id, relation]]),
     findAll: jest.fn().mockResolvedValue([relation])
@@ -107,9 +132,12 @@ function relationControl (classA = 'card-a', classB = 'card-b'): {
 describe('relation change events', () => {
   it.each(['added', 'removed', 'changed'] as const)('queues %s for both card endpoints', async (change) => {
     const { control, send, relation, created } = relationControl()
-    const tx: Tx = change === 'added' ? created : change === 'removed'
-      ? factory.createTxRemoveDoc(relation._class, relation.space, relation._id)
-      : factory.createTxUpdateDoc(relation._class, relation.space, relation._id, {})
+    const tx: Tx =
+      change === 'added'
+        ? created
+        : change === 'removed'
+          ? factory.createTxRemoveDoc(relation._class, relation.space, relation._id)
+          : factory.createTxUpdateDoc(relation._class, relation.space, relation._id, {})
     await OnRelationChange([tx], control)
     expect(send).toHaveBeenCalledTimes(2)
     const events = send.mock.calls.map((call) => call[2][0])
@@ -141,21 +169,27 @@ describe('relation change events', () => {
 
 describe('parallel subprocess prevention', () => {
   it.each([ExecutionStatus.Active, ExecutionStatus.Done, ExecutionStatus.Cancelled])(
-    'checks status %s using the current execution contract', async (status) => {
+    'checks status %s using the current execution contract',
+    async (status) => {
       const existing = { process: 'subprocess', card: execution.card, status }
       const findAll = jest.fn(async (_class: unknown, query: Record<string, unknown>) =>
-        Object.entries(query).every(([key, value]) => existing[key as keyof typeof existing] === value) ? [existing] : []
+        Object.entries(query).every(([key, value]) => existing[key as keyof typeof existing] === value)
+          ? [existing]
+          : []
       )
       const control = {
         client: {
-          txFactory: factory, findAll,
+          txFactory: factory,
+          findAll,
           getModel: () => ({ findObject: () => ({ _id: 'subprocess', parallelExecutionForbidden: true }) })
         }
       } as unknown as ProcessControl
       const params = { _id: 'subprocess' } as unknown as MethodParams<Execution>
       const result = await RunSubProcess(params, execution, control)
       expect(findAll).toHaveBeenCalledWith(process.class.Execution, {
-        process: 'subprocess', card: execution.card, status: ExecutionStatus.Active
+        process: 'subprocess',
+        card: execution.card,
+        status: ExecutionStatus.Active
       })
       if (!('txes' in result)) throw new Error('Expected subprocess result')
       expect(result.txes).toHaveLength(status === ExecutionStatus.Active ? 0 : 1)

@@ -284,9 +284,9 @@ describe('procurement module through native value evaluation', () => {
       client: {
         txFactory: new TxFactory(core.account.System),
         getModel: () => ({ findObject: (id) => model.get(id) ?? { _id: id } }),
-        findAll: jest.fn(async (clazz, query) => related.filter(
-          (doc) => doc._class === clazz && query._id.$in.includes(doc._id)
-        )),
+        findAll: jest.fn(async (clazz, query) =>
+          related.filter((doc) => doc._class === clazz && query._id.$in.includes(doc._id))
+        ),
         getHierarchy: () => ({
           isMixin: () => false,
           findAttribute: (clazz, key) => {
@@ -325,10 +325,11 @@ describe('procurement module through native value evaluation', () => {
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- This JavaScript harness cannot use TypeScript return annotations.
   function matchingBranch (runtime, state) {
-    return transitions.find((transition) =>
-      transition.process === runtime.execution.process &&
-      transition.from === state &&
-      MatchCardCheck(runtime.control, runtime.execution, transition.triggerParams, { card: runtime.card })
+    return transitions.find(
+      (transition) =>
+        transition.process === runtime.execution.process &&
+        transition.from === state &&
+        MatchCardCheck(runtime.control, runtime.execution, transition.triggerParams, { card: runtime.card })
     )
   }
 
@@ -364,9 +365,14 @@ describe('procurement module through native value evaluation', () => {
   })
 
   test.each([true, false])('inspection preserves the boolean %p and takes its own branch', async (passed) => {
-    const runtime = makeRuntime('pc_delivery_inspection', {}, {
-      pc_inspected_quantity: 2, pc_inspection_passed: passed
-    })
+    const runtime = makeRuntime(
+      'pc_delivery_inspection',
+      {},
+      {
+        pc_inspected_quantity: 2,
+        pc_inspection_passed: passed
+      }
+    )
     await applyActions(runtime, model.get('pc_delivery_inspection_received').actions)
     const decision = matchingBranch(runtime, 'pc_delivery_classify_inspection')
     await applyActions(runtime, decision.actions)
@@ -379,13 +385,21 @@ describe('procurement module through native value evaluation', () => {
     'invoice snapshots the referenced %s request before choosing its branch',
     async (status) => {
       const request = {
-        _id: 'request-1', _class: 'pc_request', title: 'Laptop purchase', status, supplier: 'supplier-1'
+        _id: 'request-1',
+        _class: 'pc_request',
+        title: 'Laptop purchase',
+        status,
+        supplier: 'supplier-1'
       }
       const runtime = makeRuntime('pc_invoice_approval', { purchase_request: request._id }, {}, [request])
       await applyActions(runtime, model.get('pc_invoice_start').actions)
-      expect(runtime.card).toEqual(expect.objectContaining({
-        request_title: request.title, request_status: status, supplier: request.supplier
-      }))
+      expect(runtime.card).toEqual(
+        expect.objectContaining({
+          request_title: request.title,
+          request_status: status,
+          supplier: request.supplier
+        })
+      )
       expect(runtime.control.client.findAll).toHaveBeenCalledWith('pc_request', { _id: { $in: [request._id] } })
       const decision = matchingBranch(runtime, 'pc_invoice_check_request')
       expect(decision.to).toBe(status === 'Approved' ? 'pc_invoice_waiting_approval' : 'pc_invoice_blocked')

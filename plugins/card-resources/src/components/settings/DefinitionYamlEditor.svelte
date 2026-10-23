@@ -23,7 +23,8 @@
     ProcessAuthoringError
   } from '@hcengineering/process'
   import { getClient } from '@hcengineering/presentation'
-  import { Button, Dialog, Label, TextArea } from '@hcengineering/ui'
+  import { highlightText } from '@hcengineering/highlight'
+  import { Button, CodeEditor, Dialog, Label } from '@hcengineering/ui'
   import { createEventDispatcher, tick } from 'svelte'
   import { downloadDefinition } from '../../authoring-utils'
   import card from '../../plugin'
@@ -34,7 +35,7 @@
   export let onApply: (source: string) => Promise<boolean>
   export let onSave: ((source: string) => Promise<boolean>) | undefined = undefined
 
-  const dispatch = createEventDispatcher()
+  const dispatch = createEventDispatcher<{ close: void }>()
   let busy = false
   let applyError = ''
   let validatedSource: string | undefined
@@ -61,6 +62,10 @@
         }
       }
     }
+  }
+
+  function highlightYaml (draft: string): string {
+    return highlightText(draft, { language: 'yaml' })
   }
 
   async function apply (saveCurrent: boolean): Promise<void> {
@@ -110,32 +115,37 @@
 
 <Dialog
   label={card.string.YamlEditor}
+  width="min(64rem, calc(100vw - 2rem))"
+  height="min(48rem, calc(100dvh - 2rem))"
   on:close={() => {
     if (!busy) dispatch('close')
   }}
 >
-  <div class="editor">
-    <div class="flex-between">
+  <div class="flex-col flex-gap-2 w-full h-full">
+    <div class="flex-between flex-wrap flex-gap-2 flex-no-shrink">
       <Button label={card.string.YamlOpenFile} disabled={busy} on:click={openFile} />
       <span role="status" aria-live="polite">
         {#if validation.valid}<Label label={card.string.YamlValid} />{/if}
       </span>
     </div>
-    <div class="source">
-      <TextArea
+    <div class="flex-grow min-h-0">
+      <CodeEditor
         bind:value={source}
         label={card.string.YamlSource}
-        placeholder={card.string.YamlSource}
-        width="100%"
-        height="55vh"
+        dataId="yaml-source"
+        highlight={highlightYaml}
         disabled={busy}
         on:keydown={handleKeydown}
       />
     </div>
-    {#if !validation.valid && validation.diagnostic}
-      <pre role="alert">{validation.diagnostic.message}</pre>
+    {#if (!validation.valid && validation.diagnostic) || applyError}
+      <div class="diagnostics flex-col flex-gap-2 flex-no-shrink overflow-y-auto">
+        {#if !validation.valid && validation.diagnostic}
+          <pre role="alert">{validation.diagnostic.message}</pre>
+        {/if}
+        {#if applyError}<pre role="alert">{applyError}</pre>{/if}
+      </div>
     {/if}
-    {#if applyError}<pre role="alert">{applyError}</pre>{/if}
   </div>
   <svelte:fragment slot="footerRight">
     <Button
@@ -156,22 +166,12 @@
 </Dialog>
 
 <style lang="scss">
-  .editor {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-    width: min(60rem, 80vw);
-  }
-
-  .source {
-    font-family: monospace;
-    font-size: 0.875rem;
+  .diagnostics {
+    max-height: 25%;
   }
 
   pre {
     margin: 0;
-    max-height: 8rem;
-    overflow: auto;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     color: var(--theme-content-color);

@@ -211,7 +211,7 @@ export class TExecution extends TDoc implements Execution {
   @ReadOnly()
     error?: ExecutionError[] | null
 
-    diagnostics?: ExecutionDiagnostics | null
+  diagnostics?: ExecutionDiagnostics | null
 
   parentId?: Ref<Execution>
 

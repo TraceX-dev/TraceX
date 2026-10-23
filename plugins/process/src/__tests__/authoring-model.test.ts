@@ -188,6 +188,23 @@ describe('full model YAML', () => {
     expectEquivalentModel(compileProcessYaml(exportAuthoringModel(named, 'process')).docs, named)
   })
 
+  it.each(['process', 'from', 'to', 'actions', 'context', '_id'])(
+    'preserves document property keys when rebinding the symbolic identity %s',
+    (name) => {
+      const docs = simple()
+      const definition = docs.find((doc) => doc._class === process.class.Process)
+      if (definition === undefined) throw new Error('Missing fixture process')
+      const named = remapAuthoringReferences(docs, new Map([[definition._id, name]]))
+      const rebound = remapAuthoringReferences(named, new Map([[name, 'imported-process']]))
+      expect(
+        rebound
+          .filter((doc) => doc._class === process.class.State || doc._class === process.class.Transition)
+          .every((doc) => doc.process === 'imported-process')
+      ).toBe(true)
+      expectEquivalentModel(compileProcessYaml(exportAuthoringModel(rebound, 'process')).docs, rebound)
+    }
+  )
+
   it('compiles the documented approval blocks and named contexts', () => {
     const result = compileProcessYaml(readFileSync(`${__dirname}/../../docs/examples/approval.process.yaml`, 'utf8'))
     expect(result.version).toBe(2)

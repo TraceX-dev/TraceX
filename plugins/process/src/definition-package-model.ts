@@ -27,7 +27,17 @@ const RUNTIME_METADATA = new Set(['createdOn', 'createdBy', 'modifiedOn', 'modif
 const COSMETIC = new Set(['label', 'description', 'icon', 'color', '$order'])
 const MODEL_PROPERTIES = new Set(['_id', '_class', 'space', 'label', 'description', 'icon', 'color'])
 const KNOWN_PROPERTIES: Record<string, Set<string>> = {
-  [ATTRIBUTE]: new Set([...MODEL_PROPERTIES, 'attributeOf', 'name', 'type', 'isCustom', 'required', 'readonly', 'automationOnly', 'defaultValue']),
+  [ATTRIBUTE]: new Set([
+    ...MODEL_PROPERTIES,
+    'attributeOf',
+    'name',
+    'type',
+    'isCustom',
+    'required',
+    'readonly',
+    'automationOnly',
+    'defaultValue'
+  ]),
   [MASTER_TAG]: new Set([...MODEL_PROPERTIES, 'extends', 'kind', 'baseType']),
   [TAG]: new Set([...MODEL_PROPERTIES, 'extends', 'kind']),
   [ENUM]: new Set([...MODEL_PROPERTIES, 'name', 'enumValues']),
@@ -46,7 +56,9 @@ export interface DefinitionPackageComponent {
 }
 
 /** Removes transaction metadata and regenerable ranks while retaining relative order and literal content. */
-export function definitionPackageComponents (definition: ProcessAuthoringResult): Map<string, DefinitionPackageComponent> {
+export function definitionPackageComponents (
+  definition: ProcessAuthoringResult
+): Map<string, DefinitionPackageComponent> {
   const ranked = new Map<string, AuthoringNativeDocument[]>()
   for (const doc of definition.docs) {
     if (!RANKED.has(doc._class) || typeof doc.rank !== 'string') continue
@@ -58,7 +70,7 @@ export function definitionPackageComponents (definition: ProcessAuthoringResult)
   }
   const orders = new Map<string, number>()
   for (const entries of ranked.values()) {
-    entries.sort((a, b) => String(a.rank) < String(b.rank) ? -1 : String(a.rank) > String(b.rank) ? 1 : 0)
+    entries.sort((a, b) => (String(a.rank) < String(b.rank) ? -1 : String(a.rank) > String(b.rank) ? 1 : 0))
     entries.forEach((doc, index) => orders.set(doc._id, index))
   }
   const components = new Map<string, DefinitionPackageComponent>()
@@ -70,9 +82,9 @@ export function definitionPackageComponents (definition: ProcessAuthoringResult)
       class: graphMember ? PROCESS : doc._class,
       documents: Object.create(null) as Record<string, DefinitionPackageDocument>
     }
-    const document = Object.fromEntries(Object.entries(doc).filter(([key]) =>
-      !RUNTIME_METADATA.has(key) && !(key === 'rank' && orders.has(doc._id))
-    ))
+    const document = Object.fromEntries(
+      Object.entries(doc).filter(([key]) => !RUNTIME_METADATA.has(key) && !(key === 'rank' && orders.has(doc._id)))
+    )
     component.documents[doc._id] = { document, ...(orders.has(doc._id) ? { order: orders.get(doc._id) } : {}) }
     components.set(key, component)
   }
@@ -82,14 +94,21 @@ export function definitionPackageComponents (definition: ProcessAuthoringResult)
 /** Keeps array order significant and reports changed leaf paths without interpreting opaque native values. */
 export function definitionPackageDifferencePaths (left: unknown, right: unknown, path = '$'): string[] {
   if (authoringDataEqual(left, right)) return []
-  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object' || Array.isArray(left) || Array.isArray(right)) {
+  if (
+    left === null ||
+    right === null ||
+    typeof left !== 'object' ||
+    typeof right !== 'object' ||
+    Array.isArray(left) ||
+    Array.isArray(right)
+  ) {
     return [path]
   }
   const a = left as Record<string, unknown>
   const b = right as Record<string, unknown>
-  return [...new Set([...Object.keys(a), ...Object.keys(b)])].sort().flatMap((key) =>
-    definitionPackageDifferencePaths(a[key], b[key], `${path}.${key}`)
-  )
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])]
+    .sort()
+    .flatMap((key) => definitionPackageDifferencePaths(a[key], b[key], `${path}.${key}`))
 }
 
 function supportedType (value: unknown): boolean {
@@ -99,7 +118,13 @@ function supportedType (value: unknown): boolean {
   if (type._class === 'core:class:ArrOf') return supportedType(type.of)
   if (type._class === 'core:class:RefTo') return typeof type.to === 'string'
   if (type._class === 'core:class:EnumOf') return typeof type.of === 'string'
-  return ['core:class:TypeString', 'core:class:TypeNumber', 'core:class:TypeBoolean', 'core:class:TypeDate', 'core:class:TypeMarkup'].includes(String(type._class))
+  return [
+    'core:class:TypeString',
+    'core:class:TypeNumber',
+    'core:class:TypeBoolean',
+    'core:class:TypeDate',
+    'core:class:TypeMarkup'
+  ].includes(String(type._class))
 }
 
 /** Uses a deliberately small allowlist; round-trip support is not a compatibility contract. */
@@ -107,33 +132,50 @@ export function definitionPackageImpact (
   before: DefinitionPackageComponent | undefined,
   after: DefinitionPackageComponent | undefined
 ): Pick<DefinitionPackageChange, 'impact' | 'reason'> {
-  const finding = (impact: DefinitionPackageChange['impact'], reason: string): Pick<DefinitionPackageChange, 'impact' | 'reason'> => ({ impact, reason })
+  const finding = (
+    impact: DefinitionPackageChange['impact'],
+    reason: string
+  ): Pick<DefinitionPackageChange, 'impact' | 'reason'> => ({ impact, reason })
   if (after === undefined) return finding('destructive', 'Removing a component requires data and dependency analysis')
-  if (before?.class !== undefined && before.class !== after.class) return finding('destructive', 'The component class changed')
-  if (after.class === PROCESS) return finding('behavioral', 'Process graphs are one merge unit and require immutable execution revisions')
+  if (before?.class !== undefined && before.class !== after.class)
+    {return finding('destructive', 'The component class changed')}
+  if (after.class === PROCESS)
+    {return finding('behavioral', 'Process graphs are one merge unit and require immutable execution revisions')}
   const doc = after.documents[after.key].document
   const previous = before?.documents[before.key].document
   const known = KNOWN_PROPERTIES[after.class]
-  if (known === undefined || doc.space !== 'core:space:Model' || Object.keys(doc).some((key) => !known.has(key)) ||
-    (previous !== undefined && Object.keys(previous).some((key) => !known.has(key)))) {
+  if (
+    known === undefined ||
+    doc.space !== 'core:space:Model' ||
+    Object.keys(doc).some((key) => !known.has(key)) ||
+    (previous !== undefined && Object.keys(previous).some((key) => !known.has(key)))
+  ) {
     return finding('unknown', 'This component contains native properties without a verified compatibility contract')
   }
   if (previous === undefined) {
     if (after.class === ATTRIBUTE) {
-      if (doc.required === true) return finding('destructive', 'A new required field needs existing-data and write-path checks')
-      if (!supportedType(doc.type)) return finding('unknown', 'The new field type has no verified compatibility contract')
+      if (doc.required === true)
+        {return finding('destructive', 'A new required field needs existing-data and write-path checks')}
+      if (!supportedType(doc.type))
+        {return finding('unknown', 'The new field type has no verified compatibility contract')}
       if (doc.defaultValue !== undefined || doc.readonly === true || doc.automationOnly === true) {
         return finding('behavioral', 'New field defaults or write restrictions need review')
       }
       return finding('additive', 'Optional field; destination ownership, references and consumers still need checking')
     }
-    if ([MASTER_TAG, TAG, ENUM].includes(after.class)) return finding('additive', 'New definition; inheritance and consumers still need destination checks')
+    if ([MASTER_TAG, TAG, ENUM].includes(after.class))
+      {return finding('additive', 'New definition; inheritance and consumers still need destination checks')}
     return finding('behavioral', 'The new component can change relationship or application behavior')
   }
-  const changed = new Set([...Object.keys(previous), ...Object.keys(doc)].filter((key) => !authoringDataEqual(previous[key], doc[key])))
+  const changed = new Set(
+    [...Object.keys(previous), ...Object.keys(doc)].filter((key) => !authoringDataEqual(previous[key], doc[key]))
+  )
   if (before?.documents[before.key].order !== after.documents[after.key].order) changed.add('$order')
   if (after.class === ATTRIBUTE) {
-    if (['name', 'attributeOf', 'type'].some((key) => changed.has(key)) || (changed.has('required') && doc.required === true)) {
+    if (
+      ['name', 'attributeOf', 'type'].some((key) => changed.has(key)) ||
+      (changed.has('required') && doc.required === true)
+    ) {
       return finding('destructive', 'Field identity, type, ownership or requiredness changed')
     }
     if (!supportedType(doc.type)) return finding('unknown', 'The field type has no verified compatibility contract')
@@ -147,10 +189,13 @@ export function definitionPackageImpact (
   if (after.class === ENUM && changed.has('enumValues')) {
     const oldValues = previous.enumValues
     const newValues = doc.enumValues
-    if (!Array.isArray(oldValues) || !Array.isArray(newValues)) return finding('unknown', 'Enum values have an unsupported representation')
-    if (oldValues.some((value) => !newValues.includes(value))) return finding('destructive', 'An existing enum value was removed or renamed')
+    if (!Array.isArray(oldValues) || !Array.isArray(newValues))
+      {return finding('unknown', 'Enum values have an unsupported representation')}
+    if (oldValues.some((value) => !newValues.includes(value)))
+      {return finding('destructive', 'An existing enum value was removed or renamed')}
     return finding('behavioral', 'Enum additions or ordering can affect existing consumers')
   }
-  if ([...changed].every((key) => COSMETIC.has(key))) return finding('cosmetic', 'Only known display metadata or field/type order changed')
+  if ([...changed].every((key) => COSMETIC.has(key)))
+    {return finding('cosmetic', 'Only known display metadata or field/type order changed')}
   return finding('behavioral', 'Definition behavior or constraints changed')
 }

@@ -14,6 +14,7 @@
 //
 
 import { getClient } from '@hcengineering/presentation'
+import process from '@hcengineering/process'
 import { importModule } from '../exporter'
 
 jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
@@ -25,10 +26,15 @@ const source = readFileSync(`${__dirname}/../../../process/docs/examples/risk-ma
 
 function setup (): { createDoc: jest.Mock, commit: jest.Mock } {
   const createDoc = jest.fn().mockResolvedValue(undefined)
-  const commit = jest.fn().mockResolvedValue(undefined)
+  const commit = jest.fn().mockResolvedValue({ result: true })
+  const registry = [
+    ...Object.values(process.method).map((_id) => ({ _id, _class: process.class.Method })),
+    ...Object.values(process.trigger).map((_id) => ({ _id, _class: process.class.Trigger })),
+    ...Object.values(process.function).map((_id) => ({ _id, _class: process.class.ProcessFunction }))
+  ]
   ;(getClient as jest.Mock).mockReturnValue({
     getHierarchy: () => ({ isDerived: () => false }),
-    getModel: () => ({ findObject: () => undefined }),
+    getModel: () => ({ findObject: (id: string) => registry.find((doc) => doc._id === id) }),
     apply: () => ({ createDoc, commit })
   })
   return { createDoc, commit }
@@ -64,8 +70,8 @@ describe('YAML card module import', () => {
     const { createDoc, commit } = setup()
     const log = jest.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      await expect(importModule(source.replace('number(probability)', 'number(missing)'))).rejects.toThrow(
-        'Unknown field'
+      await expect(importModule(source.replace('to: calculate_score', 'to: missing'))).rejects.toThrow(
+        'Expected a state belonging to this process'
       )
       expect(createDoc).not.toHaveBeenCalled()
       expect(commit).not.toHaveBeenCalled()

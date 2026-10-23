@@ -35,7 +35,7 @@ processes:
               completionMode: any
               withRollback: true
               askRequired: true
-            as: review_tasks
+            as: {key: review_tasks, class: process.ProcessToDo, label: "Provide an estimate"}
             results:
               effort:
                 label: Estimated effort
@@ -93,22 +93,3 @@ processes:
         label: Needs approval
       accepted:
         label: Accepted
-
-# Offline contracts; the UI uses the installed model instead.
-catalog:
-  methods:
-    CreateToDo:
-      requiredParams: [title, user]
-      createdContext: {class: process.ProcessToDo, nameField: title}
-    SetContext:
-      requiredParams: [value]
-      createdContext: null
-    UpdateCard:
-      requiredParams: []
-      createdContext: null
-  triggers:
-    OnExecutionStart: {requiredParams: [], init: true}
-    OnToDoClose: {requiredParams: [_id], auto: true}
-    OnCardUpdate: {requiredParams: [], auto: true}
-  functions:
-    Multiply: {type: transform, of: core:class:TypeNumber}

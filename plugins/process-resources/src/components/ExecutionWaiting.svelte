@@ -28,20 +28,30 @@
 
   const model = getClient().getModel()
   $: definition = model.findObject(execution.process)
-  $: transitions = model.findAllSync(plugin.class.Transition, {
-    process: execution.process, from: execution.currentState
-  }, { sort: { rank: SortingOrder.Ascending } })
+  $: transitions = model.findAllSync(
+    plugin.class.Transition,
+    {
+      process: execution.process,
+      from: execution.currentState
+    },
+    { sort: { rank: SortingOrder.Ascending } }
+  )
   $: diagnostics = execution.diagnostics?.state === execution.currentState ? execution.diagnostics : undefined
   $: checks = new Map(diagnostics?.checks.map((check) => [check.transition, check]))
   $: ancestry = path.includes(execution._id) ? path : [...path, execution._id]
 
   function statusLabel (check: TransitionDiagnostic | undefined): IntlString {
     switch (check?.status) {
-      case 'waiting': return plugin.string.DiagnosticCondition
-      case 'event': return plugin.string.DiagnosticEvent
-      case 'matched': return plugin.string.DiagnosticMatched
-      case 'error': return plugin.string.DiagnosticError
-      default: return plugin.string.DiagnosticNotChecked
+      case 'waiting':
+        return plugin.string.DiagnosticCondition
+      case 'event':
+        return plugin.string.DiagnosticEvent
+      case 'matched':
+        return plugin.string.DiagnosticMatched
+      case 'error':
+        return plugin.string.DiagnosticError
+      default:
+        return plugin.string.DiagnosticNotChecked
     }
   }
 </script>
@@ -67,7 +77,12 @@
       <div class="check flex-col flex-gap-2">
         <div class="flex-row-center flex-gap-2">
           <TransitionPresenter {transition} direction="from" />
-          <TriggerPresenter value={transition.trigger} process={definition} params={transition.triggerParams} withLabel />
+          <TriggerPresenter
+            value={transition.trigger}
+            process={definition}
+            params={transition.triggerParams}
+            withLabel
+          />
         </div>
         <div class="text-sm"><Label label={statusLabel(check)} /></div>
         {#if check?.checkedAt !== undefined && check.checkedAt !== diagnostics?.checkedAt}

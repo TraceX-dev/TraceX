@@ -787,7 +787,9 @@ async function executeAction<T extends Doc> (
     if (method === undefined) throw processError(process.error.MethodNotFound, { methodId: action.methodId }, {}, true)
     const impl = control.client.getHierarchy().as(method, serverProcess.mixin.MethodImpl) as MethodImpl<T>
     if (impl === undefined) throw processError(process.error.MethodNotFound, { methodId: action.methodId }, {}, true)
-    const params = await fillParams(action.params, execution, control, (key) => { parameter = key })
+    const params = await fillParams(action.params, execution, control, (key) => {
+      parameter = key
+    })
     parameter = undefined
     const inputSources: NonNullable<ProcessControl['inputSources']> = {}
     for (const [key, value] of Object.entries(action.params)) {
@@ -820,7 +822,9 @@ async function executeAction<T extends Doc> (
       control.ctx.error(err instanceof Error ? err.message : String(err), { errorId })
       return {
         ...parseError(processError(process.error.InternalServerError, { errorId }), transition),
-        step: action._id, method: action.methodId, parameter
+        step: action._id,
+        method: action.methodId,
+        parameter
       }
     }
   }

@@ -10,10 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-  createDefinitionPackageRelease,
-  parseDefinitionPackageRelease
-} from '../definition-package'
+import { createDefinitionPackageRelease, parseDefinitionPackageRelease } from '../definition-package'
 import { planDefinitionPackageUpgrade } from '../definition-package-plan'
 import type { DefinitionPackageRelease, DefinitionPackageUpgradePlan } from '../definition-package-types'
 

@@ -25,13 +25,18 @@ function moduleSource (): Record<string, unknown> {
     kind: 'card',
     cardTypes: {
       record: {
-        label: 'Record', extends: 'card:class:Card', kind: 0, baseType: true,
+        label: 'Record',
+        extends: 'card:class:Card',
+        kind: 0,
+        baseType: true,
         fields: {
           record_owner: { name: 'owner', label: 'Owner', type: { ref: 'contact.mixin.Employee' }, isCustom: true }
         }
       },
       purchase: {
-        label: 'Purchase', extends: 'record', kind: 0,
+        label: 'Purchase',
+        extends: 'record',
+        kind: 0,
         fields: {
           purchase_amount: { name: 'amount', label: 'Amount', type: 'number', isCustom: true, defaultValue: 0 },
           purchase_products: { name: 'products', type: { array: { ref: 'product' } }, isCustom: true }
@@ -41,7 +46,9 @@ function moduleSource (): Record<string, unknown> {
     },
     tags: {
       audit: {
-        label: 'Audit', extends: 'record', kind: 2,
+        label: 'Audit',
+        extends: 'record',
+        kind: 2,
         fields: { audit_passed: { name: 'passed', type: 'boolean', isCustom: true, defaultValue: false } }
       }
     }
@@ -60,9 +67,12 @@ describe('fields nested in their card types and tags', () => {
     ])
     expect(fields.find((doc) => doc._id === 'purchase_amount')?.defaultValue).toBe(0)
     expect(fields.find((doc) => doc._id === 'audit_passed')?.defaultValue).toBe(false)
-    expect(fields.find((doc) => doc._id === 'purchase_products')?.type).toEqual(expect.objectContaining({
-      _class: 'core:class:ArrOf', of: expect.objectContaining({ _class: 'core:class:RefTo', to: 'product' })
-    }))
+    expect(fields.find((doc) => doc._id === 'purchase_products')?.type).toEqual(
+      expect.objectContaining({
+        _class: 'core:class:ArrOf',
+        of: expect.objectContaining({ _class: 'core:class:RefTo', to: 'product' })
+      })
+    )
     for (const doc of docs.filter((doc) => doc._class !== 'core:class:Attribute')) {
       expect(doc.fields).toBeUndefined()
     }
@@ -87,8 +97,12 @@ describe('fields nested in their card types and tags', () => {
   it('keeps externally owned attributes at the root when their class is outside the module', () => {
     const { docs } = compileProcessYaml(dump(moduleSource()))
     docs.push({
-      _id: 'external_field', _class: 'core:class:Attribute', space: 'core:space:Model',
-      attributeOf: 'external:class:Card', name: 'externalKey', type: { _class: 'core:class:TypeString' }
+      _id: 'external_field',
+      _class: 'core:class:Attribute',
+      space: 'core:space:Model',
+      attributeOf: 'external:class:Card',
+      name: 'externalKey',
+      type: { _class: 'core:class:TypeString' }
     })
     const source = exportAuthoringModel(docs, 'card')
     const layout = object(load(source), 'root')
@@ -100,9 +114,12 @@ describe('fields nested in their card types and tags', () => {
     const module = moduleSource()
     const owners = object(module.cardTypes, 'cardTypes')
     const purchase = object(owners.purchase, 'purchase')
-    module.fields = Object.fromEntries(Object.entries(object(purchase.fields, 'fields')).map(([key, value]) => [
-      key, { ...object(value, key), attributeOf: 'purchase' }
-    ]))
+    module.fields = Object.fromEntries(
+      Object.entries(object(purchase.fields, 'fields')).map(([key, value]) => [
+        key,
+        { ...object(value, key), attributeOf: 'purchase' }
+      ])
+    )
     delete purchase.fields
     const { docs } = compileProcessYaml(dump(module))
     const source = exportAuthoringModel(docs, 'card')
@@ -125,12 +142,16 @@ describe('fields nested in their card types and tags', () => {
   it('reports invalid nested types at their authored path with a source location', () => {
     const source = dump(moduleSource()).replace('type: number', 'type: unsupported')
     const result = validateProcessYaml(source)
-    expect(result).toEqual(expect.objectContaining({
-      valid: false,
-      diagnostic: expect.objectContaining({
-        path: 'cardTypes.purchase.fields.purchase_amount.type', line: expect.any(Number), column: expect.any(Number)
+    expect(result).toEqual(
+      expect.objectContaining({
+        valid: false,
+        diagnostic: expect.objectContaining({
+          path: 'cardTypes.purchase.fields.purchase_amount.type',
+          line: expect.any(Number),
+          column: expect.any(Number)
+        })
       })
-    }))
+    )
   })
 
   it.each(['explicit owner', 'escaped owner', 'duplicate identity', 'malformed fields'])(

@@ -41,6 +41,7 @@ The catalog is a discovery guide, not a duplicate API reference. Refer to the li
 | [`SearchInput`](../src/components/SearchInput.svelte) | Search field with search-specific interaction and appearance. |
 | [`SearchPicker`](../src/components/SearchPicker.svelte) | Search input combined with picking a result or option. |
 | [`TextArea`](../src/components/TextArea.svelte) | Standard multiline text input. |
+| [`CodeEditor`](../src/components/CodeEditor.svelte) | Native multiline code input with optional sanitized syntax highlighting and synchronized scrolling. |
 | [`TextAreaEditor`](../src/components/TextAreaEditor.svelte) | Multiline editor wrapper with editing-oriented behavior. |
 | [`PlainTextEditor`](../src/components/PlainTextEditor.svelte) | Editor for plain-text content without rich-text semantics. |
 | [`NumberInput`](../src/components/NumberInput.svelte) | Input specialized for numeric values. |
@@ -133,7 +134,7 @@ The catalog is a discovery guide, not a duplicate API reference. Refer to the li
 
 | Component | Purpose |
 | --- | --- |
-| [`Dialog`](../src/components/Dialog.svelte) | Standard dialog content and layout. |
+| [`Dialog`](../src/components/Dialog.svelte) | Standard dialog content and layout, optional width/height, and wrapping footer actions. |
 | [`ModernDialog`](../src/components/ModernDialog.svelte) | Dialog variant for the modern visual language. |
 | [`Modal`](../src/components/Modal.svelte) | Modal overlay container that blocks interaction with underlying content. |
 | [`Popup`](../src/components/Popup.svelte) | General anchored or contextual popup. |

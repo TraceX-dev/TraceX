@@ -395,8 +395,9 @@ export async function updateProcessYaml (
     if (doc._id === proc._id) continue
     const existing = model.findObject(doc._id)
     if (existing === undefined) await apply.createDoc(doc._class, doc.space, stripData(doc), doc._id)
-    else if (!deepEqual(stripData(doc), stripData(existing)))
-      {await apply.updateDoc(doc._class, existing.space, doc._id, stripData(doc))}
+    else if (!deepEqual(stripData(doc), stripData(existing))) {
+      await apply.updateDoc(doc._class, existing.space, doc._id, stripData(doc))
+    }
   }
   const result = await apply.commit(true)
   if (!result.result) throw new Error('process: Saving the process failed')
@@ -484,7 +485,7 @@ export async function importProcess (
       await apply.createDoc(elem._class, core.space.Model, stripData(elem), elem._id)
     }
     const result = await apply.commit(true)
-    if (!(result?.result)) throw new Error('Importing the process failed')
+    if (!result?.result) throw new Error('Importing the process failed')
   } catch (e) {
     console.error('Failed to import process:', e)
     throw e
@@ -492,20 +493,18 @@ export async function importProcess (
 }
 
 /** Checks every YAML slot kind against the destination model before any write. */
-function validateYamlBindings (
-  masterTag: Ref<MasterTag>,
-  data: Doc[],
-  bindings: Record<string, string>
-): void {
+function validateYamlBindings (masterTag: Ref<MasterTag>, data: Doc[], bindings: Record<string, string>): void {
   const definition = data.find((doc) => doc._class === processPlugin.class.Process) as Process | undefined
   for (const [key, requirement] of Object.entries(definition?.requiredSlots ?? {})) {
     const bound = bindings[key]
-    if (bound === undefined || bound.trim() === '')
-      {throw new Error(
+    if (bound === undefined || bound.trim() === '') {
+      throw new Error(
         `slots.${key}: A ${requirement.slotKind === 'attribute' ? 'field' : requirement.slotKind} binding is required`
-      )}
-    if (!isYamlSlotBindingCompatible(masterTag, requirement, bound, bindings, definition, data))
-      {throw new Error(`slots.${key}: The binding does not match the declared slot type, owner or choices`)}
+      )
+    }
+    if (!isYamlSlotBindingCompatible(masterTag, requirement, bound, bindings, definition, data)) {
+      throw new Error(`slots.${key}: The binding does not match the declared slot type, owner or choices`)
+    }
   }
 }
 
@@ -967,10 +966,12 @@ export function detectSlots (
       scanParams(step.params, activeTag, [...methodRequired, ...sysParams])
       if (includeSystemBindings) {
         for (const result of step.results ?? []) {
-          if (result.key !== undefined)
-            {scanParamValue(result.key, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)}
-          if (result.selectionSpace !== undefined)
-            {scanParamValue(result.selectionSpace, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)}
+          if (result.key !== undefined) {
+            scanParamValue(result.key, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)
+          }
+          if (result.selectionSpace !== undefined) {
+            scanParamValue(result.selectionSpace, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)
+          }
           if (result.excludeRelation !== undefined) scanParams(result.excludeRelation, masterTag)
         }
       }
@@ -980,9 +981,9 @@ export function detectSlots (
     for (const context of Object.values(proc.context ?? {})) {
       scanParams(context.value, masterTag)
       const scanType = (type: Type<unknown> | undefined): void => {
-        if (type?._class === core.class.RefTo)
-          {scanParamValue((type as RefTo<Doc>).to, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)}
-        else if (type?._class === core.class.ArrOf) scanType((type as ArrOf<Doc>).of)
+        if (type?._class === core.class.RefTo) {
+          scanParamValue((type as RefTo<Doc>).to, masterTag, masterTag, undefined, undefined, slots, getOrAddSlot, m, h)
+        } else if (type?._class === core.class.ArrOf) scanType((type as ArrOf<Doc>).of)
       }
       scanType(context.type)
     }

@@ -23,22 +23,26 @@ describe('YAML editor starter definitions', () => {
     expect(compiled.kind).toBe('card')
     expect(compiled.version).toBe(2)
     expect(source).toContain('cardTypes:')
-    expect(compiled.docs.find((doc) => doc._class === 'core:class:Attribute')).toEqual(expect.objectContaining({
-      attributeOf: 'new_card',
-      name: 'summary',
-      label: 'embedded:embedded:Summary',
-      isCustom: true
-    }))
+    expect(compiled.docs.find((doc) => doc._class === 'core:class:Attribute')).toEqual(
+      expect.objectContaining({
+        attributeOf: 'new_card',
+        name: 'summary',
+        label: 'embedded:embedded:Summary',
+        isCustom: true
+      })
+    )
   })
 
   it('creates a named standalone process with a valid starting transition', () => {
     const compiled = compileProcessYaml(newDefinitionYaml('process'))
     expect(compiled.kind).toBe('process')
     expect(compiled.version).toBe(2)
-    expect(compiled.docs.find((doc) => doc.from === null)).toEqual(expect.objectContaining({
-      trigger: 'process:trigger:OnExecutionStart',
-      to: 'done'
-    }))
+    expect(compiled.docs.find((doc) => doc.from === null)).toEqual(
+      expect.objectContaining({
+        trigger: 'process:trigger:OnExecutionStart',
+        to: 'done'
+      })
+    )
     expect(compiled.docs).toHaveLength(3)
   })
 })

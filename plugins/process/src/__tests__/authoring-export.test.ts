@@ -105,6 +105,39 @@ describe('YAML export and editor validation', () => {
     expect(JSON.stringify(result.docs)).toBe(before)
   })
 
+  it.each(['risk-management.card.yaml', 'review-task.process.yaml'])(
+    'omits audit fields and catalogs while preserving literal business values in %s',
+    (file) => {
+      const { docs, kind } = compileProcessYaml(example(file))
+      for (const doc of docs) {
+        Object.assign(doc, {
+          modifiedBy: '1128425320442458819',
+          modifiedOn: 1787657559217,
+          createdBy: '1128425320442458819',
+          createdOn: 1787657558902
+        })
+      }
+      const transition = docs.find((doc) => Array.isArray(doc.actions) && doc.actions.length > 0)
+      const action = (transition?.actions as Array<{ params: Record<string, unknown> }>)[0]
+      action.params.audit_snapshot = { createdOn: 42, modifiedBy: 'business-value' }
+      const before = JSON.stringify(docs)
+      const source = exportProcessYaml(docs, kind)
+      const exported = compileProcessYaml(source)
+      for (const doc of exported.docs) {
+        for (const field of ['modifiedBy', 'modifiedOn', 'createdBy', 'createdOn']) {
+          expect(doc).not.toHaveProperty(field)
+        }
+      }
+      const restored = exported.docs.find((doc) => doc._id === transition?._id)
+      expect((restored?.actions as Array<{ params: Record<string, unknown> }>)[0].params.audit_snapshot).toEqual({
+        createdOn: 42,
+        modifiedBy: 'business-value'
+      })
+      expect((load(source) as Record<string, unknown>).catalog).toBeUndefined()
+      expect(JSON.stringify(docs)).toBe(before)
+    }
+  )
+
   it('supports definitions without external slots', () => {
     const source =
       'version: 2\nkind: process\nprocesses:\n  empty:\n    label: Empty\n    slots: {}\n    start: {begin: {to: done, on: OnExecutionStart}}\n    states: {done: {}}\n'

@@ -19,11 +19,14 @@ import { copyExecutionReason, createExecutionDiagnostics } from '../diagnostics'
 
 it('bounds extension evidence, strips document contents and terminates recursive reasons', () => {
   const reason: ExecutionReason = {
-    code: 'recursive', message: process.string.DiagnosticCondition,
+    code: 'recursive',
+    message: process.string.DiagnosticCondition,
     total: 1000,
     dependencies: Array.from({ length: 1000 }, (_, index) => ({
-      _id: String(index) as Execution['_id'], _class: process.class.Execution,
-      description: 'private', context: { secret: 'private' }
+      _id: String(index) as Execution['_id'],
+      _class: process.class.Execution,
+      description: 'private',
+      context: { secret: 'private' }
     }))
   }
   reason.children = Array.from({ length: 20 }, () => reason)
@@ -46,16 +49,19 @@ it('does not turn untested alternatives into failed conditions or reuse old-stat
     }
   } as unknown as ProcessControl
   const execution = {
-    currentState: 'current', diagnostics: { state: 'old', checks: [{ status: 'waiting' }] }
+    currentState: 'current',
+    diagnostics: { state: 'old', checks: [{ status: 'waiting' }] }
   } as unknown as Execution
   const result = createExecutionDiagnostics(control, execution, [condition])
   expect(result.state).toBe('current')
   expect(result.checks.map((check) => [check.transition, check.status, check.reasons])).toEqual([
-    ['event', 'event', []], ['condition', 'not-evaluated', []]
+    ['event', 'event', []],
+    ['condition', 'not-evaluated', []]
   ])
 
   execution.diagnostics = {
-    state: execution.currentState, checkedAt: 1,
+    state: execution.currentState,
+    checkedAt: 1,
     checks: [{ transition: event._id, checkedAt: 1, status: 'waiting', reasons: [] }]
   }
   const next = createExecutionDiagnostics(control, execution, [condition])

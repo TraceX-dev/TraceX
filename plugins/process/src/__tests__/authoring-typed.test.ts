@@ -25,7 +25,25 @@ import { authoringDataEqual } from '../authoring-validation'
 // eslint-disable-next-line @typescript-eslint/naming-convention -- Standard CommonJS runtime global.
 declare const __dirname: string
 const { readFileSync } = jest.requireActual<{ readFileSync: (path: string, encoding: 'utf8') => string }>('fs')
-const example = (): string => readFileSync(`${__dirname}/../../docs/examples/estimate-review.process.yaml`, 'utf8')
+// Contract-specific tests use an explicit fixture rather than embedding the installed catalog in examples.
+const example = (): string =>
+  readFileSync(`${__dirname}/../../docs/examples/estimate-review.process.yaml`, 'utf8').replace(
+    'as: {key: review_tasks, class: process.ProcessToDo, label: "Provide an estimate"}',
+    'as: review_tasks'
+  ) +
+  dump({
+    catalog: {
+      methods: {
+        CreateToDo: {
+          requiredParams: ['title', 'user'],
+          createdContext: { class: 'process.ProcessToDo', nameField: 'title' }
+        },
+        SetContext: { requiredParams: ['value'], createdContext: null },
+        UpdateCard: { requiredParams: [], createdContext: null }
+      },
+      functions: { Multiply: { type: 'transform', of: 'core:class:TypeNumber' } }
+    }
+  })
 interface Action {
   _id: string
   params: Record<string, unknown>

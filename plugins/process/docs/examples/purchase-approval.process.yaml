@@ -56,7 +56,7 @@ processes:
               completionMode: any
               withRollback: true
               askRequired: true
-            as: estimate_tasks
+            as: {key: estimate_tasks, class: process.ProcessToDo, label: "Enter the purchase quantity and unit price"}
             results:
               quantity:
                 label: Quantity
@@ -105,7 +105,7 @@ processes:
                 params:
                   user: $card.approvers
                   field: $slots.approvers
-                as: approval_request
+                as: {key: approval_request, class: process.ApproveRequest}
           budget_satisfied:
             to: within_budget
             on:
@@ -140,28 +140,3 @@ processes:
         label: Approved
       rejected:
         label: Rejected
-
-# Offline contracts from the guide and its worked examples.
-# UI validation uses the installed workspace model instead.
-catalog:
-  methods:
-    CreateToDo:
-      requiredParams: [title, user]
-      createdContext: {class: process.ProcessToDo, nameField: title}
-    SetContext:
-      requiredParams: [value]
-      createdContext: null
-    UpdateCard:
-      requiredParams: []
-      createdContext: null
-    RequestApproval:
-      requiredParams: [user]
-      createdContext: {class: process.ApproveRequest}
-  triggers:
-    OnExecutionStart: {requiredParams: [], init: true}
-    OnToDoClose: {requiredParams: [_id], auto: true}
-    OnCardUpdate: {requiredParams: [], auto: true}
-    OnApproveRequestApproved: {requiredParams: [_id], auto: true}
-    OnApproveRequestRejected: {requiredParams: [_id], auto: true}
-  functions:
-    Multiply: {type: transform, of: core:class:TypeNumber}

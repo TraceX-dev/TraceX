@@ -103,13 +103,15 @@ describe('YAML authoring', () => {
     const process = result.docs.find((doc) => doc._class === 'process:class:Process')
     expect(process?._id).toBe('review_card')
     expect(process?.masterTag).toBe('__MASTER_TAG__')
-    expect(process?.requiredSlots).toEqual(expect.objectContaining({
-      reviewers: expect.objectContaining({
-        slotKind: 'attribute',
-        type: expect.objectContaining({ _class: 'core:class:ArrOf' })
-      }),
-      status: expect.objectContaining({ type: expect.objectContaining({ _class: 'core:class:TypeString' }) })
-    }))
+    expect(process?.requiredSlots).toEqual(
+      expect.objectContaining({
+        reviewers: expect.objectContaining({
+          slotKind: 'attribute',
+          type: expect.objectContaining({ _class: 'core:class:ArrOf' })
+        }),
+        status: expect.objectContaining({ type: expect.objectContaining({ _class: 'core:class:TypeString' }) })
+      })
+    )
     expect(JSON.stringify(result.docs)).toContain('${@__SLOT_reviewers__}')
     const done = result.docs.find((doc) => doc.trigger === 'process:trigger:OnToDoClose')
     expect(done?.triggerParams).toEqual({ _id: '${$context(review_tasks)}' })
@@ -127,7 +129,11 @@ describe('YAML authoring', () => {
       kind: 'card',
       cardTypes: { review_type: { label: 'Review card', extends: 'card:class:Card', kind: 0 } },
       fields: {
-        reviewers: { attributeOf: 'review_type', name: 'reviewers', type: { array: { ref: 'contact.mixin.Employee' } } },
+        reviewers: {
+          attributeOf: 'review_type',
+          name: 'reviewers',
+          type: { array: { ref: 'contact.mixin.Employee' } }
+        },
         status: { attributeOf: 'review_type', name: 'status', type: 'string', readonly: true, automationOnly: true }
       },
       processes: { review_card: { ...graph, masterTag: 'review_type' } },

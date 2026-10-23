@@ -15,7 +15,6 @@
 
 /* eslint-disable no-template-curly-in-string -- Fixtures intentionally use native process expressions. */
 
-import { load } from 'js-yaml'
 import { compileProcessYaml, validateProcessYaml } from '../authoring'
 import { exportAuthoringModel } from '../authoring-model'
 import { object } from '../authoring-validation'
@@ -71,16 +70,19 @@ describe('procurement workspace card module', () => {
       expect(ids.has(String(relation.classA))).toBe(true)
       expect(ids.has(String(relation.classB))).toBe(true)
     }
-    expect(compiled.docs.find((doc) => doc._id === 'pc_project_requests')).toEqual(expect.objectContaining({
-      classA: 'pc_request', classB: 'pc_project', type: '1:N'
-    }))
+    expect(compiled.docs.find((doc) => doc._id === 'pc_project_requests')).toEqual(
+      expect.objectContaining({
+        classA: 'pc_request',
+        classB: 'pc_project',
+        type: '1:N'
+      })
+    )
     expect(compiled.docs.find((doc) => doc._id === 'pc_delivery_primary_invoice')?.type).toBe('1:1')
   })
 
   it('round-trips every native value and ranked order without modifying the compiled model', () => {
     const before = JSON.stringify(compiled.docs)
-    const root = object(load(source), 'root')
-    const exported = exportAuthoringModel(compiled.docs, 'card', object(root.catalog, 'catalog'))
+    const exported = exportAuthoringModel(compiled.docs, 'card')
     expectEquivalentModel(compileProcessYaml(exported).docs, compiled.docs)
     expect(JSON.stringify(compiled.docs)).toBe(before)
   })
@@ -88,19 +90,29 @@ describe('procurement workspace card module', () => {
   it('keeps task completion modes, typed outputs and their producing transitions explicit', () => {
     const transitions = byClass('process:class:Transition')
     const actions = transitions.flatMap((doc) => doc.actions as Array<Record<string, unknown>>)
-    const task = (id: string): Record<string, unknown> => object(actions.find((action) => action._id === id), id)
+    const task = (id: string): Record<string, unknown> =>
+      object(
+        actions.find((action) => action._id === id),
+        id
+      )
     expect(object(task('pc_project_create_reviews').params, 'params').completionMode).toBe('all')
     for (const id of ['pc_purchase_collect_quote', 'pc_delivery_create_inspection']) {
-      expect(object(task(id).params, 'params')).toEqual(expect.objectContaining({
-        completionMode: 'any', withRollback: true, askRequired: true
-      }))
+      expect(object(task(id).params, 'params')).toEqual(
+        expect.objectContaining({
+          completionMode: 'any',
+          withRollback: true,
+          askRequired: true
+        })
+      )
     }
     for (const process of byClass('process:class:Process')) {
       for (const [key, value] of Object.entries(object(process.context, 'context'))) {
         const context = object(value, 'context')
         const producer = transitions.find((doc) => doc._id === context.producer)
         expect(producer?.process).toBe(process._id)
-        const step = (producer?.actions as Array<Record<string, unknown>>).find((action) => action._id === context.action)
+        const step = (producer?.actions as Array<Record<string, unknown>>).find(
+          (action) => action._id === context.action
+        )
         expect(step).toBeDefined()
         const result = (step?.results as Array<{ _id: string }> | undefined)?.find((result) => result._id === key)
         expect(object(step?.context ?? {}, 'context')._id === key || result !== undefined).toBe(true)
@@ -108,12 +120,15 @@ describe('procurement workspace card module', () => {
     }
     const inspector = task('pc_delivery_create_inspection').results as Array<Record<string, unknown>>
     expect(inspector.map((result) => object(result.type, 'type')._class)).toEqual([
-      'core:class:TypeNumber', 'core:class:TypeBoolean'
+      'core:class:TypeNumber',
+      'core:class:TypeBoolean'
     ])
   })
 
   it('reads invoice snapshots through reference fields and unlocks before writing both approval outcomes', () => {
-    const snapshot = (compiled.docs.find((doc) => doc._id === 'pc_invoice_start')?.actions as Array<Record<string, unknown>>)[0]
+    const snapshot = (
+      compiled.docs.find((doc) => doc._id === 'pc_invoice_start')?.actions as Array<Record<string, unknown>>
+    )[0]
     expect(snapshot.params).toEqual({
       request_title: '${@purchase_request.title}',
       request_status: '${@purchase_request.status}',
@@ -123,7 +138,8 @@ describe('procurement workspace card module', () => {
     for (const id of ['pc_invoice_approval_accepted', 'pc_invoice_approval_rejected']) {
       const actions = compiled.docs.find((doc) => doc._id === id)?.actions as Array<Record<string, unknown>>
       expect(actions.map((action) => action.methodId)).toEqual([
-        'process:method:UnlockCard', 'process:method:UpdateCard'
+        'process:method:UnlockCard',
+        'process:method:UpdateCard'
       ])
     }
   })
