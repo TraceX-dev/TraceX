@@ -32,6 +32,10 @@ interface Config {
 
   RecordingPreset: string
 
+  // Server-wide feature switches. Both are enabled unless explicitly set to 'false'.
+  RecordingEnabled: boolean
+  TranscriptionEnabled: boolean
+
   BillingUrl: string
   BillingPollInterval: number
   UseGlobalLiveKit: boolean
@@ -62,6 +66,8 @@ const envMap: { [key in keyof Config]: string } = {
   ServiceID: 'SERVICE_ID',
 
   RecordingPreset: 'RECORDING_PRESET',
+  RecordingEnabled: 'RECORDING_ENABLED',
+  TranscriptionEnabled: 'TRANSCRIPTION_ENABLED',
 
   BillingUrl: 'BILLING_URL',
   BillingPollInterval: 'BILLING_POLL_INTERVAL',
@@ -71,6 +77,11 @@ const envMap: { [key in keyof Config]: string } = {
   UseEgressWebHook: 'USE_EGRESS_WEBHOOK',
 
   PollingIntervalMs: 'POLLING_INTERVAL_MS'
+}
+
+const parseBoolean = (str: string | undefined, defaultValue: boolean): boolean => {
+  if (str === undefined || str.trim() === '') return defaultValue
+  return !['false', '0', 'no', 'off'].includes(str.trim().toLowerCase())
 }
 
 const parseNumber = (str: string | undefined): number | undefined => (str !== undefined ? Number(str) : undefined)
@@ -90,6 +101,8 @@ const config: Config = (() => {
     Secret: process.env[envMap.Secret],
     ServiceID: process.env[envMap.ServiceID] ?? 'love-service',
     RecordingPreset: process.env[envMap.RecordingPreset] ?? '720p',
+    RecordingEnabled: parseBoolean(process.env[envMap.RecordingEnabled], true),
+    TranscriptionEnabled: parseBoolean(process.env[envMap.TranscriptionEnabled], true),
     BillingUrl: process.env[envMap.BillingUrl] ?? '',
     BillingPollInterval: parseNumber(process.env[envMap.BillingPollInterval]) ?? 15,
     UseGlobalLiveKit: process.env[envMap.UseGlobalLiveKit] === 'true',

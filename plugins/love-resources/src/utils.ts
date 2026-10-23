@@ -80,6 +80,7 @@ export function setCustomCreateScreenTracks (value: () => Promise<Array<LocalTra
 export const isRecording = writable<boolean>(false)
 export const isTranscription = writable<boolean>(false)
 export const isRecordingAvailable = writable<boolean>(false)
+export const isTranscriptionAvailable = writable<boolean>(false)
 export const isFullScreen = writable<boolean>(false)
 export const isShareWithSound = writable<boolean>(false)
 
@@ -358,6 +359,17 @@ export function calculateFloorSize (_rooms: Room[], _preview?: boolean): number 
   return fH
 }
 
+async function checkTranscriptionAvailable (endpoint: string): Promise<void> {
+  try {
+    const res = await fetch(concatLink(endpoint, '/checkTranscriptionAvailable'))
+    // Older love service without the endpoint: keep previous behavior
+    isTranscriptionAvailable.set(res.ok ? (await res.json()) === true : true)
+  } catch (err: any) {
+    isTranscriptionAvailable.set(true)
+    console.error(err)
+  }
+}
+
 async function checkRecordAvailable (): Promise<void> {
   try {
     const endpoint = getMetadata(love.metadata.ServiceEndpoint)
@@ -369,6 +381,7 @@ async function checkRecordAvailable (): Promise<void> {
       const res = await fetch(concatLink(endpoint, '/checkRecordAvailable'))
       const result = await res.json()
       isRecordingAvailable.set(result)
+      await checkTranscriptionAvailable(endpoint)
     } else {
       console.info('office recording is not configured')
     }

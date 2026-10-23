@@ -116,4 +116,16 @@ describe('ai-bot configuration secrets', () => {
 
     expect(loadConfig).toThrow('AI provider primary has an invalid apiKey environment reference')
   })
+
+  it('allows transcription by default', () => {
+    delete process.env.TRANSCRIPTION_ENABLED
+
+    expect(loadConfig().LoveTranscriptionEnabled).toBe(true)
+  })
+
+  it('disables transcription when TRANSCRIPTION_ENABLED=false', () => {
+    process.env.TRANSCRIPTION_ENABLED = 'false'
+
+    expect(loadConfig().LoveTranscriptionEnabled).toBe(false)
+  })
 })

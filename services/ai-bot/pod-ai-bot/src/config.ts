@@ -63,6 +63,7 @@ interface YamlConfig {
   }
   love: {
     endpoint: string
+    transcriptionEnabled: boolean
   }
   datalab: {
     apiKey: string
@@ -103,6 +104,7 @@ export interface Config {
   MaxHistoryRecords: number
   Port: number
   LoveEndpoint: string
+  LoveTranscriptionEnabled: boolean
   DataLabApiKey: string
   BillingUrl: string
   DeepgramPollIntervalMinutes: number
@@ -326,6 +328,12 @@ const configSchema: Schema<YamlConfig> = {
       format: String,
       default: '',
       env: 'LOVE_ENDPOINT'
+    },
+    transcriptionEnabled: {
+      doc: 'Allow meeting transcription. Set to false to disable it server-wide',
+      format: Boolean,
+      default: true,
+      env: 'TRANSCRIPTION_ENABLED'
     }
   },
   datalab: {
@@ -431,6 +439,7 @@ function loadConfig (): Config {
     MaxHistoryRecords: parsed.limits.maxHistoryRecords,
     Port: parsed.port,
     LoveEndpoint: parsed.love.endpoint,
+    LoveTranscriptionEnabled: parsed.love.transcriptionEnabled,
     DataLabApiKey: parsed.datalab.apiKey,
     BillingUrl: parsed.billing.url,
     DeepgramPollIntervalMinutes: parsed.deepgram.pollIntervalMinutes,

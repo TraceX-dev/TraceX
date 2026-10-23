@@ -43,6 +43,9 @@ services:
       - LIVEKIT_API_SECRET=secret
       - LIVEKIT_WEBHOOK_API_KEY=whkey
       - LIVEKIT_WEBHOOK_API_SECRET=whsecret
+      # Server-wide switches (default: enabled). Set to 'false' to disable.
+      # - RECORDING_ENABLED=false
+      # - TRANSCRIPTION_ENABLED=false
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
 
