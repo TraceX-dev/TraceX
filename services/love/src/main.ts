@@ -190,7 +190,7 @@ export const main = async (): Promise<void> => {
       case QueueMeetingEvent.started: {
         const wsClient = await WorkspaceClient.create(msg.workspace, ctx)
         const mm = await wsClient.findMeetingById(queueMsg.meetingId)
-        if (config.RecordingEnabled && mm !== undefined && mm.startWithRecording === true) {
+        if (mm !== undefined && mm.startWithRecording === true) {
           const sysToken = generateToken(systemAccountUuid, msg.workspace, { service: 'love' })
           const wsLoginInfo = await getAccountClient(sysToken).getLoginInfoByToken()
           if (!isWorkspaceLoginInfo(wsLoginInfo)) {

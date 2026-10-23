@@ -362,10 +362,8 @@ export function calculateFloorSize (_rooms: Room[], _preview?: boolean): number 
 async function checkTranscriptionAvailable (endpoint: string): Promise<void> {
   try {
     const res = await fetch(concatLink(endpoint, '/checkTranscriptionAvailable'))
-    // Older love service without the endpoint: keep previous behavior
-    isTranscriptionAvailable.set(res.ok ? (await res.json()) === true : true)
+    isTranscriptionAvailable.set((await res.json()) === true)
   } catch (err: any) {
-    isTranscriptionAvailable.set(true)
     console.error(err)
   }
 }

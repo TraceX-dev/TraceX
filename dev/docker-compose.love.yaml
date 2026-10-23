@@ -43,12 +43,8 @@ services:
       - LIVEKIT_API_SECRET=secret
       - LIVEKIT_WEBHOOK_API_KEY=whkey
       - LIVEKIT_WEBHOOK_API_SECRET=whsecret
-      # Server-wide switches (default: enabled). Accepted values: true/false, 1/0, yes/no, on/off.
+      # Disable recording / transcription server-wide (enabled by default)
       # - RECORDING_ENABLED=false
-      # TRANSCRIPTION_ENABLED must be set to the same value for the ai-bot service as well
-      # (it is read independently by love and ai-bot).
-      # Note: these flags do not change AGENTS: LiveKit agents listed there are still dispatched
-      # into new rooms. Remove an agent from AGENTS if it must not run at all.
       # - TRANSCRIPTION_ENABLED=false
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped

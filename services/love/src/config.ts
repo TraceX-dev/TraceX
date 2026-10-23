@@ -32,7 +32,7 @@ interface Config {
 
   RecordingPreset: string
 
-  // Server-wide feature switches. Both are enabled unless explicitly set to 'false'.
+  // Server-wide switches, enabled unless set to 'false'
   RecordingEnabled: boolean
   TranscriptionEnabled: boolean
 
@@ -79,16 +79,6 @@ const envMap: { [key in keyof Config]: string } = {
   PollingIntervalMs: 'POLLING_INTERVAL_MS'
 }
 
-// Accepted values must stay in sync with the 'flexible-boolean' format in ai-bot config
-const parseBoolean = (name: string, str: string | undefined, defaultValue: boolean): boolean => {
-  if (str === undefined || str.trim() === '') return defaultValue
-  const value = str.trim().toLowerCase()
-  if (['true', '1', 'yes', 'on'].includes(value)) return true
-  if (['false', '0', 'no', 'off'].includes(value)) return false
-  console.warn(`Unrecognized value "${str}" for ${name}, using default: ${String(defaultValue)}`)
-  return defaultValue
-}
-
 const parseNumber = (str: string | undefined): number | undefined => (str !== undefined ? Number(str) : undefined)
 
 const config: Config = (() => {
@@ -106,8 +96,8 @@ const config: Config = (() => {
     Secret: process.env[envMap.Secret],
     ServiceID: process.env[envMap.ServiceID] ?? 'love-service',
     RecordingPreset: process.env[envMap.RecordingPreset] ?? '720p',
-    RecordingEnabled: parseBoolean(envMap.RecordingEnabled, process.env[envMap.RecordingEnabled], true),
-    TranscriptionEnabled: parseBoolean(envMap.TranscriptionEnabled, process.env[envMap.TranscriptionEnabled], true),
+    RecordingEnabled: process.env[envMap.RecordingEnabled] !== 'false',
+    TranscriptionEnabled: process.env[envMap.TranscriptionEnabled] !== 'false',
     BillingUrl: process.env[envMap.BillingUrl] ?? '',
     BillingPollInterval: parseNumber(process.env[envMap.BillingPollInterval]) ?? 15,
     UseGlobalLiveKit: process.env[envMap.UseGlobalLiveKit] === 'true',

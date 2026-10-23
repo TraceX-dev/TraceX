@@ -146,11 +146,7 @@ export class LoveController {
     this.ctx.info('Connecting', { room: room.name, roomId: room._id })
 
     if (request.transcription) {
-      if (config.LoveTranscriptionEnabled) {
-        await this.requestTranscription(room, request.language)
-      } else {
-        this.ctx.warn('Transcription requested but disabled on this server', { room: room.name, roomId: room._id })
-      }
+      await this.requestTranscription(room, request.language)
     }
 
     await this.createAiParticipant(room, request.meetingId)

@@ -47,53 +47,13 @@ describe('love feature switches', () => {
     expect(config.TranscriptionEnabled).toBe(true)
   })
 
-  it.each(['false', 'FALSE', '0', 'no', 'off'])('disables features when set to %s', (value) => {
-    process.env.RECORDING_ENABLED = value
-    process.env.TRANSCRIPTION_ENABLED = value
-
-    const config = loadConfig()
-
-    expect(config.RecordingEnabled).toBe(false)
-    expect(config.TranscriptionEnabled).toBe(false)
-  })
-
-  it('switches features independently', () => {
+  it('disables a feature only when set to false', () => {
     process.env.RECORDING_ENABLED = 'false'
+    process.env.TRANSCRIPTION_ENABLED = 'true'
 
     const config = loadConfig()
 
     expect(config.RecordingEnabled).toBe(false)
     expect(config.TranscriptionEnabled).toBe(true)
-  })
-
-  it('keeps features enabled for true or empty values', () => {
-    process.env.RECORDING_ENABLED = 'true'
-    process.env.TRANSCRIPTION_ENABLED = ''
-
-    const config = loadConfig()
-
-    expect(config.RecordingEnabled).toBe(true)
-    expect(config.TranscriptionEnabled).toBe(true)
-  })
-
-  it.each(['true', 'TRUE', '1', 'yes', 'on'])('keeps features enabled when set to %s', (value) => {
-    process.env.RECORDING_ENABLED = value
-    process.env.TRANSCRIPTION_ENABLED = value
-
-    const config = loadConfig()
-
-    expect(config.RecordingEnabled).toBe(true)
-    expect(config.TranscriptionEnabled).toBe(true)
-  })
-
-  it('falls back to the default and warns on an unrecognized value', () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
-    process.env.RECORDING_ENABLED = 'flase'
-
-    const config = loadConfig()
-
-    expect(config.RecordingEnabled).toBe(true)
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('RECORDING_ENABLED'))
-    warn.mockRestore()
   })
 })

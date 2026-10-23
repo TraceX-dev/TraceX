@@ -116,40 +116,4 @@ describe('ai-bot configuration secrets', () => {
 
     expect(loadConfig).toThrow('AI provider primary has an invalid apiKey environment reference')
   })
-
-  it('allows transcription by default', () => {
-    delete process.env.TRANSCRIPTION_ENABLED
-
-    expect(loadConfig().LoveTranscriptionEnabled).toBe(true)
-  })
-
-  it('disables transcription when TRANSCRIPTION_ENABLED=false', () => {
-    process.env.TRANSCRIPTION_ENABLED = 'false'
-
-    expect(loadConfig().LoveTranscriptionEnabled).toBe(false)
-  })
-
-  it.each(['false', 'FALSE', '0', 'no', 'off'])('disables transcription for %s like the love service', (value) => {
-    process.env.TRANSCRIPTION_ENABLED = value
-
-    expect(loadConfig().LoveTranscriptionEnabled).toBe(false)
-  })
-
-  it.each(['true', '1', 'yes', 'on'])('keeps transcription enabled for %s', (value) => {
-    process.env.TRANSCRIPTION_ENABLED = value
-
-    expect(loadConfig().LoveTranscriptionEnabled).toBe(true)
-  })
-
-  it('treats an empty transcription flag as the default', () => {
-    process.env.TRANSCRIPTION_ENABLED = ''
-
-    expect(loadConfig().LoveTranscriptionEnabled).toBe(true)
-  })
-
-  it('rejects an unrecognized transcription flag value', () => {
-    process.env.TRANSCRIPTION_ENABLED = 'flase'
-
-    expect(loadConfig).toThrow('must be a boolean')
-  })
 })
