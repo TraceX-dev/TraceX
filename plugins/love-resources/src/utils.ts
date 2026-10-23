@@ -80,6 +80,7 @@ export function setCustomCreateScreenTracks (value: () => Promise<Array<LocalTra
 export const isRecording = writable<boolean>(false)
 export const isTranscription = writable<boolean>(false)
 export const isRecordingAvailable = writable<boolean>(false)
+export const isTranscriptionAvailable = writable<boolean>(false)
 export const isFullScreen = writable<boolean>(false)
 export const isShareWithSound = writable<boolean>(false)
 
@@ -358,20 +359,37 @@ export function calculateFloorSize (_rooms: Room[], _preview?: boolean): number 
   return fH
 }
 
-async function checkRecordAvailable (): Promise<void> {
+async function checkTranscriptionAvailable (endpoint: string): Promise<void> {
   try {
-    const endpoint = getMetadata(love.metadata.ServiceEndpoint)
-    if (endpoint === undefined) {
-      setTimeout(() => {
-        void checkRecordAvailable()
-      }, 500)
-    } else if (endpoint !== '') {
-      const res = await fetch(concatLink(endpoint, '/checkRecordAvailable'))
-      const result = await res.json()
-      isRecordingAvailable.set(result)
-    } else {
-      console.info('office recording is not configured')
-    }
+    const res = await fetch(concatLink(endpoint, '/checkTranscriptionAvailable'))
+    isTranscriptionAvailable.set((await res.json()) === true)
+  } catch (err: any) {
+    console.error(err)
+  }
+}
+
+async function checkRecordAvailable (): Promise<void> {
+  const endpoint = getMetadata(love.metadata.ServiceEndpoint)
+  if (endpoint === undefined) {
+    setTimeout(() => {
+      void checkRecordAvailable()
+    }, 500)
+    return
+  }
+  if (endpoint === '') {
+    console.info('office recording is not configured')
+    return
+  }
+
+  // Availability checks are independent: a failure of one must not affect the other
+  await Promise.all([checkRecordingAvailable(endpoint), checkTranscriptionAvailable(endpoint)])
+}
+
+async function checkRecordingAvailable (endpoint: string): Promise<void> {
+  try {
+    const res = await fetch(concatLink(endpoint, '/checkRecordAvailable'))
+    const result = await res.json()
+    isRecordingAvailable.set(result)
   } catch (err: any) {
     Analytics.handleError(err)
     console.error(err)

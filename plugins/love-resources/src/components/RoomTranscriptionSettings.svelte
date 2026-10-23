@@ -16,6 +16,7 @@
   import { Label, ModernToggle } from '@hcengineering/ui'
   import love, { Room } from '@hcengineering/love'
   import { getClient } from '@hcengineering/presentation'
+  import { isRecordingAvailable, isTranscriptionAvailable } from '../utils'
 
   export let room: Room
 
@@ -37,16 +38,20 @@
     </div>
     <RoomLanguageSelector {room} />
   </div> -->
-  <div class="antiGrid-row">
-    <div class="antiGrid-row__header">
-      <Label label={love.string.StartWithTranscription} />
+  {#if $isTranscriptionAvailable}
+    <div class="antiGrid-row">
+      <div class="antiGrid-row__header">
+        <Label label={love.string.StartWithTranscription} />
+      </div>
+      <ModernToggle size="small" checked={room.startWithTranscription} on:change={toggleTranscribing} />
     </div>
-    <ModernToggle size="small" checked={room.startWithTranscription} on:change={toggleTranscribing} />
-  </div>
-  <div class="antiGrid-row">
-    <div class="antiGrid-row__header">
-      <Label label={love.string.StartWithRecording} />
+  {/if}
+  {#if $isRecordingAvailable}
+    <div class="antiGrid-row">
+      <div class="antiGrid-row__header">
+        <Label label={love.string.StartWithRecording} />
+      </div>
+      <ModernToggle size="small" checked={room.startWithRecording} on:change={toggleRecording} />
     </div>
-    <ModernToggle size="small" checked={room.startWithRecording} on:change={toggleRecording} />
-  </div>
+  {/if}
 </div>
