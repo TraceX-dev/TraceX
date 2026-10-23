@@ -468,6 +468,7 @@ services:
   #     - AVATAR_CONTENT_TYPE=.png
   #     - STATS_URL=http://tracex.local:4900
   # #      - LOVE_ENDPOINT=http://tracex.local:8096
+  # #      - TRANSCRIPTION_ENABLED=false # keep in sync with the love service
   # #      - OPENAI_API_KEY=token
   analytics:
     image: tracexapp/analytics-collector

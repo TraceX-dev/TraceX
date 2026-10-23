@@ -371,20 +371,27 @@ async function checkTranscriptionAvailable (endpoint: string): Promise<void> {
 }
 
 async function checkRecordAvailable (): Promise<void> {
+  const endpoint = getMetadata(love.metadata.ServiceEndpoint)
+  if (endpoint === undefined) {
+    setTimeout(() => {
+      void checkRecordAvailable()
+    }, 500)
+    return
+  }
+  if (endpoint === '') {
+    console.info('office recording is not configured')
+    return
+  }
+
+  // Availability checks are independent: a failure of one must not affect the other
+  await Promise.all([checkRecordingAvailable(endpoint), checkTranscriptionAvailable(endpoint)])
+}
+
+async function checkRecordingAvailable (endpoint: string): Promise<void> {
   try {
-    const endpoint = getMetadata(love.metadata.ServiceEndpoint)
-    if (endpoint === undefined) {
-      setTimeout(() => {
-        void checkRecordAvailable()
-      }, 500)
-    } else if (endpoint !== '') {
-      const res = await fetch(concatLink(endpoint, '/checkRecordAvailable'))
-      const result = await res.json()
-      isRecordingAvailable.set(result)
-      await checkTranscriptionAvailable(endpoint)
-    } else {
-      console.info('office recording is not configured')
-    }
+    const res = await fetch(concatLink(endpoint, '/checkRecordAvailable'))
+    const result = await res.json()
+    isRecordingAvailable.set(result)
   } catch (err: any) {
     Analytics.handleError(err)
     console.error(err)

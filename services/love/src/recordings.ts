@@ -119,6 +119,11 @@ export class RecordingProcessor {
     meetingId: Ref<MeetingMinutes>,
     wsLoginInfo: WorkspaceLoginInfo
   ): Promise<void> {
+    if (!config.RecordingEnabled) {
+      this.ctx.warn('Cannot start audio recording: recording is disabled on this server', { roomName })
+      return
+    }
+
     // Check if LiveKit room exists before starting audio recording
     const existingRooms = await this.roomClient.listRooms([roomName])
     if (existingRooms === undefined || existingRooms.length === 0) {

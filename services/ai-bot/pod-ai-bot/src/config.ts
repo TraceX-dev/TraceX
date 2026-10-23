@@ -148,6 +148,24 @@ const llmModelSchema: Schema<LlmModelConfig> = {
   }
 }
 
+// Accepted values must stay in sync with parseBoolean in love service config
+convict.addFormat({
+  name: 'flexible-boolean',
+  coerce: (value: unknown): unknown => {
+    if (typeof value !== 'string') return value
+    const normalized = value.trim().toLowerCase()
+    if (normalized === '') return true // empty means "not set": the default is enabled
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false
+    return value
+  },
+  validate: (value: unknown): void => {
+    if (typeof value !== 'boolean') {
+      throw new Error('must be a boolean (true/false, 1/0, yes/no, on/off)')
+    }
+  }
+})
+
 convict.addFormat({
   name: 'required-string',
   validate: (value: unknown): void => {
@@ -331,7 +349,7 @@ const configSchema: Schema<YamlConfig> = {
     },
     transcriptionEnabled: {
       doc: 'Allow meeting transcription. Set to false to disable it server-wide',
-      format: Boolean,
+      format: 'flexible-boolean',
       default: true,
       env: 'TRANSCRIPTION_ENABLED'
     }
