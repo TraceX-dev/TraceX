@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -203,7 +204,17 @@
             on:click={(ev) => handleInlineActionClicked(ev, action)}
           />
         {/each}
-        {#if menuActions.length > 0}
+        {#if menuActions.length === 1 && menuActions[0].icon}
+          <ButtonIcon
+            id={_id}
+            icon={menuActions[0].icon}
+            kind="tertiary"
+            size="extra-small"
+            tooltip={{ label: menuActions[0].label, direction: 'top' }}
+            noFocus
+            on:click={(ev) => handleInlineActionClicked(ev, menuActions[0])}
+          />
+        {:else if menuActions.length > 0}
           <ButtonIcon
             icon={IconMoreH}
             kind="tertiary"
