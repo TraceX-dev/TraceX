@@ -82,6 +82,21 @@
   {/if}
 </div>
 
+<div class="search">
+  <SearchEdit
+    value={searchValue}
+    width="auto"
+    kind={'secondary'}
+    on:change={(ev) => {
+      userSearch.set(ev.detail)
+
+      if (ev.detail !== '') {
+        navigateToSpecial('search')
+      }
+    }}
+  />
+</div>
+
 {#each chatSpecials as special, row}
   {#if row > 0 && chatSpecials[row].position !== chatSpecials[row - 1].position}
     <TreeSeparator line />
@@ -95,20 +110,8 @@
   {/await}
 {/each}
 
-<div class="search">
-  <SearchEdit
-    value={searchValue}
-    width="auto"
-    kind={'secondary'}
-    on:change={(ev) => {
-      userSearch.set(ev.detail)
+<div class="separator" />
 
-      if (ev.detail !== '') {
-        navigateToSpecial('chunterBrowser')
-      }
-    }}
-  />
-</div>
 <Scroller shrink>
   {#each chatNavGroupModels as model (model.id)}
     <ChatNavGroup {object} {model} on:select />
@@ -119,6 +122,10 @@
 <style lang="scss">
   .search {
     padding: var(--spacing-1_5);
+    padding-top: 0;
+  }
+  .separator {
+    padding-bottom: var(--spacing-1_5);
     border-bottom: 1px solid var(--theme-navpanel-divider);
   }
 </style>

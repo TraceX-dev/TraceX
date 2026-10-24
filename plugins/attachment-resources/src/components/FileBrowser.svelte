@@ -28,6 +28,9 @@
   import FileBrowserSortMenu from './FileBrowserSortMenu.svelte'
 
   export let withHeader: boolean = true
+  export let isListDisplayMode = false
+  export let search: string = ''
+  export let requestedSpaceClasses: Ref<Class<Space>>[] = []
 
   const client = getClient()
   const loc = getLocation()
@@ -38,11 +41,11 @@
     loc.query = undefined
     navigate(loc, true)
   }
-  export let requestedSpaceClasses: Ref<Class<Space>>[] = []
+
   const currentEmployee = getCurrentEmployee()
+
   let selectedParticipants: Ref<Person>[] = [currentEmployee]
   let selectedSpaces: Ref<Space>[] = []
-  export let search: string = ''
   let isLoading = false
 
   let attachments: Attachment[] = []
@@ -50,9 +53,8 @@
   let selectedSort: FileBrowserSortMode = FileBrowserSortMode.NewestFile
   let selectedDateId = 'dateAny'
   let selectedFileTypeId = 'typeAny'
-  let isListDisplayMode = true
 
-  $: fetch(search, selectedSort, selectedFileTypeId, selectedDateId, selectedParticipants, selectedSpaces)
+  $: void fetch(search, selectedSort, selectedFileTypeId, selectedDateId, selectedParticipants, selectedSpaces)
 
   async function fetch (
     searchQuery_: string,
@@ -61,7 +63,7 @@
     selectedDateId_: string,
     selectedParticipants_: Ref<Person>[],
     selectedSpaces_: Ref<Space>[]
-  ) {
+  ): Promise<void> {
     isLoading = true
 
     const nameQuery = searchQuery_ ? { name: { $like: '%' + searchQuery_ + '%' } } : {}
@@ -122,7 +124,8 @@
     </div>
   </div>
 {/if}
-<div class="hulyHeader-container background-comp-header-color">
+
+<div class="hulyHeader-container background-comp-header-color justify-between">
   <FileBrowserFilters
     {requestedSpaceClasses}
     bind:selectedParticipants
@@ -130,13 +133,9 @@
     bind:selectedDateId
     bind:selectedFileTypeId
   />
-</div>
-<div class="hulyHeader-container justify-between">
-  <span class="caption-color ml-4">
-    <Label label={attachment.string.FileBrowserFileCounter} params={{ results: attachments?.length ?? 0 }} />
-  </span>
   <FileBrowserSortMenu bind:selectedSort />
 </div>
+
 <div class="group">
   {#if isLoading}
     <div class="flex-grow">
