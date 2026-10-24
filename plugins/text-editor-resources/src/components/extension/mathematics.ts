@@ -305,6 +305,7 @@ export const MathematicsExtension = Mathematics.extend({
     return [
       createMathPlugin(/\$\$([\s\S]+?)\$\$/g, { displayMode: true, throwOnError: false }, this.editor, shouldRender),
       createMathPlugin(
+        // eslint-disable-next-line secure-coding/no-redos-vulnerable-regex
         /(?<!\$)\$((?:[^$]|\n)+?)\$(?!\$)/g,
         { displayMode: false, throwOnError: false },
         this.editor,
