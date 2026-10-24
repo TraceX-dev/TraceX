@@ -17144,6 +17144,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/highlight':
+        specifier: workspace:^0.7.0
+        version: link:../../packages/highlight
       '@hcengineering/integration':
         specifier: workspace:^0.7.0
         version: link:../integration
@@ -17171,6 +17174,9 @@ importers:
       '@hcengineering/presentation':
         specifier: workspace:^0.7.0
         version: link:../../packages/presentation
+      '@hcengineering/process':
+        specifier: workspace:^0.7.0
+        version: link:../process
       '@hcengineering/rank':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/rank
@@ -23951,6 +23957,9 @@ importers:
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
+      '@hcengineering/rank':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/core/packages/rank
       '@hcengineering/time':
         specifier: workspace:^0.7.0
         version: link:../time
@@ -23960,6 +23969,9 @@ importers:
       '@hcengineering/view':
         specifier: workspace:^0.7.0
         version: link:../view
+      js-yaml:
+        specifier: ^4.3.2
+        version: 4.3.2
     devDependencies:
       '@hcengineering/platform-rig':
         specifier: workspace:^0.7.21
@@ -23967,6 +23979,9 @@ importers:
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.67.0
         version: 8.70.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)

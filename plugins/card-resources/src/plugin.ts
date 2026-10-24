@@ -120,6 +120,13 @@ export default mergeIds(cardId, card, {
     CardRelationshipTable: '' as Ref<Viewlet>
   },
   string: {
+    YamlEditor: '' as IntlString,
+    YamlSource: '' as IntlString,
+    YamlOpenFile: '' as IntlString,
+    YamlDownload: '' as IntlString,
+    YamlValid: '' as IntlString,
+    YamlSaveCurrent: '' as IntlString,
+    YamlCreateNew: '' as IntlString,
     CreateMasterTag: '' as IntlString,
     CreateTag: '' as IntlString,
     Content: '' as IntlString,

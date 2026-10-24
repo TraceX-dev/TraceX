@@ -17,18 +17,20 @@
   import { type Card, MasterTag } from '@hcengineering/card'
   import core, { type Class, type Ref } from '@hcengineering/core'
   import { TypeBoolean, TypeNumber } from '@hcengineering/model'
-  import { getEmbeddedLabel, translateCB } from '@hcengineering/platform'
+  import { getEmbeddedLabel, setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
   import { getClient, IconDownload, IconWithEmoji, MessageBox } from '@hcengineering/presentation'
   import setting from '@hcengineering/setting'
   import {
     Button,
     ButtonIcon,
+    ButtonMenu,
     type ColorDefinition,
     eventToHTMLElement,
     getCurrentLocation,
     getPlatformColorDef,
     IconDelete,
     IconInfo,
+    IconEdit,
     Label,
     ModernEditbox,
     navigate,
@@ -40,7 +42,9 @@
   import view from '@hcengineering/view'
   import { ColorsPopup, IconPicker } from '@hcengineering/view-resources'
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
-  import { exportModule } from '../../exporter'
+  import { exportModule, importModule } from '../../exporter'
+  import { downloadDefinition } from '../../authoring-utils'
+  import DefinitionYamlEditor from './DefinitionYamlEditor.svelte'
   import card from '../../plugin'
   import { deleteMasterTag } from '../../utils'
   import ChangeTagParentPopup from './ChangeTagParentPopup.svelte'
@@ -165,16 +169,32 @@
     )
   }
 
-  async function handleExport (): Promise<void> {
-    const str = await exportModule(masterTag._id)
-    const blob = new Blob([str], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${name}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  async function handleExport (format: 'json' | 'yaml'): Promise<void> {
+    try {
+      downloadDefinition(await exportModule(masterTag._id, format), name, format)
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
+  }
+
+  async function handleYaml (): Promise<void> {
+    try {
+      showPopup(
+        DefinitionYamlEditor,
+        {
+          kind: 'card',
+          name,
+          source: await exportModule(masterTag._id, 'yaml'),
+          onApply: async (source: string) => {
+            await importModule(source, true)
+            return true
+          }
+        },
+        'centered'
+      )
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
   }
 
   function getTagStyle (color: ColorDefinition): string {
@@ -283,12 +303,24 @@
         on:click={showColorPopup}
       />
     </div>
-    <ButtonIcon
+    <ButtonMenu
       icon={IconDownload}
       size={'large'}
       tooltip={{ label: card.string.Export }}
       kind={'tertiary'}
-      on:click={handleExport}
+      items={[
+        { id: 'json', label: getEmbeddedLabel('JSON') },
+        { id: 'yaml', label: getEmbeddedLabel('YAML') }
+      ]}
+      noSelection
+      on:selected={(event) => handleExport(event.detail === 'yaml' ? 'yaml' : 'json')}
+    />
+    <ButtonIcon
+      icon={IconEdit}
+      size="large"
+      tooltip={{ label: card.string.YamlEditor }}
+      kind="tertiary"
+      on:click={handleYaml}
     />
     {#if isEditable}
       <ButtonIcon icon={IconDelete} size={'large'} kind={'tertiary'} on:click={handleDelete} />

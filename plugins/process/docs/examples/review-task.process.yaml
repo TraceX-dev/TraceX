@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=../authoring-v2.schema.json
+# Copyright © 2026 TraceX SAS.
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: 2
+kind: process
+processes:
+  review_card:
+    label: Review card
+    description: Create review tasks and mark the card reviewed when all tasks finish.
+    autoStart: false
+    showInHeader: true
+    parallelExecutionForbidden: true
+    slots:
+      reviewers:
+        label: Reviewers
+        type: {array: {ref: contact.mixin.Employee}}
+      status:
+        label: Status
+        type: string
+    start:
+      request_review:
+        to: under_review
+        on: OnExecutionStart
+        actions:
+          mark_under_review:
+            method: UpdateCard
+            params: {$slots.status: Under review}
+          create_review_tasks:
+            method: CreateToDo
+            params:
+              title: Review card
+              user: $card.reviewers
+              completionMode: all
+              withRollback: true
+            as: {key: review_tasks, class: process.ProcessToDo, label: "Review card"}
+    states:
+      under_review:
+        label: Under review
+        transitions:
+          reviews_completed:
+            to: reviewed
+            on:
+              OnToDoClose: {_id: $context.review_tasks}
+            actions:
+              mark_reviewed:
+                method: UpdateCard
+                params: {$slots.status: Reviewed}
+      reviewed:
+        label: Reviewed
