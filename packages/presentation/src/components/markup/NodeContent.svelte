@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,11 +16,15 @@
 <script lang="ts">
   import { Class, Doc, Ref, Blob } from '@hcengineering/core'
   import { AttrValue, MarkupNode, MarkupNodeType } from '@hcengineering/text'
+  import { MermaidDiagram } from '@hcengineering/mermaid'
+  import { CheckBox, humanReadableFileSize } from '@hcengineering/ui'
 
   import CodeBlockNode from './CodeBlockNode.svelte'
   import ObjectNode from './ObjectNode.svelte'
   import MarkdownNode from './MarkdownNode.svelte'
   import Node from './Node.svelte'
+  import FileTypeIcon from '../FileTypeIcon.svelte'
+  import { getFileUrl } from '../../file'
   import { getBlobRef } from '../../preview'
   import { ParsedTextWithEmojis } from '@hcengineering/emoji'
 
@@ -55,6 +60,15 @@
     }
 
     return value != null ? (typeof value === 'string' ? parseInt(value) : value) : undefined
+  }
+
+  function columnWidth (value: unknown): string | undefined {
+    if (!Array.isArray(value) || value.length === 0) return undefined
+    const widths = value.filter((width: unknown): width is number =>
+      typeof width === 'number' && Number.isFinite(width) && width > 0
+    )
+    if (widths.length !== value.length) return undefined
+    return `${widths.reduce((sum, width) => sum + width, 0)}px`
   }
 
   $: if (node.type === MarkupNodeType.text && parseEmojisFunction) {
@@ -112,7 +126,7 @@
       {/if}
     </span>
   {:else if node.type === MarkupNodeType.paragraph}
-    <p class="p-inline contrast" class:overflow-label={preview}>
+    <p class="p-inline contrast" class:overflow-label={preview} style:text-align={toString(attrs.textAlign)}>
       {#if nodes.length > 0}
         {#each nodes as node}
           <Node {parseEmojisFunction} {node} {preview} singleTextNode={singleTextNode && nodes.length === 1} />
@@ -132,23 +146,46 @@
   {:else if node.type === MarkupNodeType.heading}
     {@const level = toNumber(node.attrs?.level) ?? 1}
     {@const element = `h${level}`}
-    <svelte:element this={element}>
+    <svelte:element this={element} style:text-align={toString(attrs.textAlign)}>
       {#if nodes.length > 0}
         {#each nodes as node}
           <Node {node} {preview} />
         {/each}
       {/if}
     </svelte:element>
+  {:else if node.type === MarkupNodeType.mermaid || (node.type === MarkupNodeType.code_block && attrs.language === 'mermaid')}
+    {@const code = nodes.map((child) => child.text ?? '').join('')}
+    <MermaidDiagram {code} {preview} />
   {:else if node.type === MarkupNodeType.code_block}
     <CodeBlockNode {node} {preview} />
   {:else if node.type === MarkupNodeType.image}
-    {@const src = toString(attrs.src)}
+    {@const fileId = toString(attrs['file-id'])}
+    {@const src = fileId !== undefined ? getFileUrl(fileId) : toString(attrs.src)}
     {@const alt = toString(attrs.alt)}
     {@const width = toString(attrs.width)}
     {@const height = toString(attrs.height)}
     <div class="imgContainer max-h-60 max-w-60">
       <img {src} {alt} {width} {height} />
     </div>
+  {:else if node.type === MarkupNodeType.file}
+    {@const fileId = toString(attrs['file-id'])}
+    {@const fileName = toString(attrs['data-file-name']) ?? ''}
+    {@const fileSize = toNumber(attrs['data-file-size'])}
+    <span class="text-editor-file-container">
+      <span class="file-name-container">
+        <FileTypeIcon name={fileName} />
+        {#if fileId !== undefined}
+          <a class="file-name" href={getFileUrl(fileId, fileName)} download={fileName} target="_blank" rel="noopener noreferrer">
+            {fileName}
+          </a>
+        {:else}
+          <span class="file-name">{fileName}</span>
+        {/if}
+      </span>
+      {#if fileSize !== undefined && Number.isFinite(fileSize)}
+        <span class="file-size">{humanReadableFileSize(fileSize)}</span>
+      {/if}
+    </span>
   {:else if node.type === MarkupNodeType.reference}
     {@const objectId = toString(attrs.id)}
     {@const objectClass = toString(attrs.objectclass)}
@@ -188,10 +225,24 @@
         {/each}
       {/if}
     </li>
-  {:else if node.type === MarkupNodeType.taskList}
-    <!-- TODO not implemented -->
-  {:else if node.type === MarkupNodeType.taskItem}
-    <!-- TODO not implemented -->
+  {:else if node.type === MarkupNodeType.taskList || node.type === MarkupNodeType.todoList}
+    <ul class="todo-list" data-type={node.type} style:margin={preview ? '0' : null}>
+      {#each nodes as child}
+        <Node {parseEmojisFunction} node={child} {preview} />
+      {/each}
+    </ul>
+  {:else if node.type === MarkupNodeType.taskItem || node.type === MarkupNodeType.todoItem}
+    {@const checked = attrs.checked === true || attrs.checked === 'true'}
+    <li class="todo-item" data-type={node.type} data-checked={checked}>
+      <div class="task-row">
+        <div class="task-checkbox"><CheckBox {checked} readonly kind="todo" /></div>
+        <div class="task-content">
+          {#each nodes as child}
+            <Node {parseEmojisFunction} node={child} {preview} />
+          {/each}
+        </div>
+      </div>
+    </li>
   {:else if node.type === MarkupNodeType.subLink}
     <sub>
       {#if nodes.length > 0}
@@ -221,7 +272,14 @@
   {:else if node.type === MarkupNodeType.table_cell}
     {@const colspan = toNumber(attrs.colspan)}
     {@const rowspan = toNumber(attrs.rowspan)}
-    <td {colspan} {rowspan}>
+    <td
+      {colspan}
+      {rowspan}
+      style:width={columnWidth(attrs.colwidth)}
+      style:background-color={toString(attrs.backgroundColor)}
+      style:text-align={toString(attrs.textAlign)}
+      style:vertical-align={toString(attrs.verticalAlign)}
+    >
       {#if nodes.length > 0}
         {#each nodes as node}
           <Node {parseEmojisFunction} {node} {preview} />
@@ -231,7 +289,14 @@
   {:else if node.type === MarkupNodeType.table_header}
     {@const colspan = toNumber(attrs.colspan)}
     {@const rowspan = toNumber(attrs.rowspan)}
-    <th {colspan} {rowspan}>
+    <th
+      {colspan}
+      {rowspan}
+      style:width={columnWidth(attrs.colwidth)}
+      style:background-color={toString(attrs.backgroundColor)}
+      style:text-align={toString(attrs.textAlign)}
+      style:vertical-align={toString(attrs.verticalAlign)}
+    >
       {#if nodes.length > 0}
         {#each nodes as node}
           <Node {parseEmojisFunction} {node} {preview} />
@@ -240,8 +305,6 @@
     </th>
   {:else if node.type === MarkupNodeType.markdown}
     <MarkdownNode {node} {preview} />
-  {:else if node.type === MarkupNodeType.mermaid}
-    <!-- TODO -->
   {:else if node.type === MarkupNodeType.comment}
     <!-- Ignore -->
   {:else}
@@ -255,6 +318,20 @@
 {/if}
 
 <style lang="scss">
+  .task-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .task-checkbox {
+    display: flex;
+    align-items: center;
+    min-height: 1.5rem;
+  }
+  .task-content {
+    flex: 1;
+    min-width: 0;
+  }
   .imgContainer {
     display: inline;
   }

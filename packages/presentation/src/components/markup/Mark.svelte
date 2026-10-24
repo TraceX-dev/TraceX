@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -70,7 +71,13 @@
   {:else if mark.type === MarkupMarkType.underline}
     <u><slot /></u>
   {:else if mark.type === MarkupMarkType.highlight}
-    <mark><slot /></mark>
+    <mark style:background-color={attrs.color}><slot /></mark>
+  {:else if mark.type === MarkupMarkType.textStyle || mark.type === MarkupMarkType.textColor}
+    <span style:color={attrs.color}><slot /></span>
+  {:else if String(mark.type) === 'subscript'}
+    <sub><slot /></sub>
+  {:else if String(mark.type) === 'superscript'}
+    <sup><slot /></sup>
   {:else}
     unknown mark: "{mark.type}"
     <slot />

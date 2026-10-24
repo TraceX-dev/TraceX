@@ -31,6 +31,7 @@
   import { updateEditorContext } from './extension/editorContext'
 
   export let content: Markup = EmptyMarkup
+  export let editable: boolean = true
   export let placeholder: IntlString = textEditor.string.EditorPlaceholder
   export let placeholderParams: Record<string, any> = {}
   export let supportSubmit = true
@@ -44,14 +45,20 @@
 
   let element: HTMLElement
   let editor: Editor
+  let destroyed = false
+
+  $: if (editor !== undefined && editor.isEditable !== editable) {
+    editor.setEditable(editable)
+  }
 
   const dispatch = createEventDispatcher()
 
   export function isEditable (): boolean {
     return editor?.isEditable
   }
-  export function setEditable (editable: boolean): void {
-    if (editor !== undefined) {
+  export function setEditable (value: boolean): void {
+    editable = value
+    if (editor !== undefined && editor.isEditable !== editable) {
       editor.setEditable(editable)
     }
   }
@@ -163,7 +170,10 @@
       kitOptions
     )
 
+    if (destroyed) return
+
     editor = new Editor({
+      editable,
       enableContentCheck: true,
       element,
       editorProps: {
@@ -179,7 +189,7 @@
         }
       },
       content: markupToJSON(content),
-      autofocus,
+      autofocus: editable ? autofocus : false,
       extensions: [kit],
       parseOptions: {
         preserveWhitespace: 'full'
@@ -196,7 +206,8 @@
         focused = true
         dispatch('focus')
       },
-      onUpdate: () => {
+      onUpdate: ({ transaction }) => {
+        if (!editable || !transaction.docChanged) return
         content = getContent()
         dispatch('value', content)
         dispatch('update', content)
@@ -208,6 +219,7 @@
   })
 
   onDestroy(() => {
+    destroyed = true
     editor?.destroy()
   })
 
