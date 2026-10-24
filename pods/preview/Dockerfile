@@ -1,4 +1,4 @@
-FROM tracexapp/preview-base:v20261018
+FROM tracexapp/preview-base:v20261023
 
 WORKDIR /app
 
