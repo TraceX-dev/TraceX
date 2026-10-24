@@ -1,4 +1,4 @@
-FROM tracexapp/rekoni-base:v20261018
+FROM tracexapp/rekoni-base:v20261023
 WORKDIR /usr/src/app
 
 RUN npm install --ignore-scripts=false --verbose pdfjs-dist@v6.2.108 unpdf@~1.8.1 --unsafe-perm

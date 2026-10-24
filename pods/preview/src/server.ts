@@ -132,6 +132,12 @@ async function writeToResponse (
   res: Response,
   headers: { contentType: string, cacheControl: string }
 ): Promise<void> {
+  // The client may disconnect while the thumbnail is being generated.
+  if (res.destroyed || res.closed || res.writableEnded) {
+    stream.destroy()
+    return
+  }
+
   res.setHeader('Content-Type', headers.contentType)
   res.setHeader('Cache-Control', headers.cacheControl)
 
