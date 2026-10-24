@@ -112,14 +112,17 @@ export class TDoc extends TObj implements Doc {
     space!: Ref<Space>
 
   @Prop(TypeTimestamp(), core.string.ModifiedDate)
+  @ReadOnly()
   @Index(IndexKind.Indexed)
     modifiedOn!: Timestamp
 
   @Prop(TypePersonId(), core.string.ModifiedBy)
+  @ReadOnly()
   @Index(IndexKind.Indexed)
     modifiedBy!: PersonId
 
   @Prop(TypePersonId(), core.string.CreatedBy)
+  @ReadOnly()
   @Index(IndexKind.Indexed)
     createdBy!: PersonId
 
@@ -262,6 +265,8 @@ export class TAttribute extends TDoc implements AnyAttribute {
   defaultValue?: any
   automationOnly?: boolean
   required?: boolean
+  showInForm?: boolean
+  showInCreate?: boolean
 }
 
 @Model(core.class.Type, core.class.Obj, DOMAIN_MODEL)

@@ -22,6 +22,8 @@ import chunter, {
   ChunterSpace,
   type DefaultDiscussion,
   type Discussion,
+  getDefaultDiscussionVisibility,
+  getEffectiveDefaultDiscussions,
   getDiscussionTitle,
   ThreadMessage
 } from '@hcengineering/chunter'
@@ -39,6 +41,7 @@ import core, {
   Hierarchy,
   notEmpty,
   PersonId,
+  RateLimiter,
   Ref,
   Timestamp,
   Tx,
@@ -48,6 +51,7 @@ import core, {
   TxUpdateDoc,
   UserStatus,
   getClassCollaborators,
+  visibilityToAudience,
   type MeasureContext
 } from '@hcengineering/core'
 import notification, { DocNotifyContext, NotificationContent } from '@hcengineering/notification'
@@ -86,6 +90,13 @@ export {
 
 const updateChatInfoDelay = 12 * 60 * 60 * 1000 // 12 hours
 const hideChannelDelay = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+// UserStatus is transient: a transactor restart re-creates every user's status, firing N syncChat
+// at once. Bound concurrency and coalesce so it drains behind reconnects (the persisted 24h
+// ChatSyncInfo is the real debounce; this only de-dups redundant runs).
+const syncChatLimiter = new RateLimiter(4)
+const syncChatCoalesceMs = 60 * 1000
+const syncChatRecent = new Map<string, number>() // `${workspace}:${user}` -> last-run ms
 
 /**
  * @public
@@ -428,14 +439,79 @@ async function OnChatMessageRemoved (txes: TxCUD<ChatMessage>[], control: Trigge
   return res
 }
 
-// The default discussion configured for the owner class it was created for, if it is still configured.
+/**
+ * Creates the default discussions configured for the owner class and its ancestors when the owner is created.
+ * Viewing an existing object or adding a default configuration never creates discussions.
+ * @public
+ */
+export async function OnDiscussionOwnerCreated (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  const processed = new Set<Ref<Doc>>()
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxCreateDoc) continue
+    const createTx = tx as TxCreateDoc<Doc>
+    if (processed.has(createTx.objectId)) continue
+    processed.add(createTx.objectId)
+
+    const configs = getDefaultDiscussionConfigs(control, createTx.objectClass)
+    if (configs.length === 0) continue
+
+    // Server queries include discussions hidden from individual users.
+    const existing = await control.findAll(control.ctx, chunter.class.Discussion, {
+      attachedTo: createTx.objectId,
+      defaultDiscussion: { $in: configs.map((config) => config._id) }
+    })
+    const linked = new Set(existing.map((discussion) => discussion.defaultDiscussion))
+    const account = await getAccountBySocialId(control, createTx.createdBy ?? createTx.modifiedBy)
+    for (const config of configs) {
+      if (linked.has(config._id)) continue
+      const discussionTx = control.txFactory.createTxCreateDoc(chunter.class.Discussion, createTx.objectSpace, {
+        name: config.name,
+        resolved: false,
+        members: [],
+        defaultDiscussion: config._id,
+        attachedTo: createTx.objectId,
+        attachedToClass: createTx.objectClass,
+        collection: 'discussions',
+        // Derived transactions bypass client security checks, so ownership is set here.
+        [core.mixin.AccessControlled]: {
+          read: visibilityToAudience(getDefaultDiscussionVisibility(config)),
+          owners: account != null ? [account] : []
+        }
+      })
+      res.push(
+        control.txFactory.createTxCollectionCUD(
+          createTx.objectClass,
+          createTx.objectId,
+          createTx.objectSpace,
+          'discussions',
+          discussionTx
+        )
+      )
+      linked.add(config._id)
+    }
+  }
+  return res
+}
+
+function getDefaultDiscussionConfigs (control: TriggerControl, ownerClass: Ref<Class<Doc>>): DefaultDiscussion[] {
+  const ancestors = control.hierarchy.getAncestors(ownerClass)
+  return getEffectiveDefaultDiscussions(
+    control.modelDb.findAllSync(chunter.class.DefaultDiscussion, { ofClass: { $in: ancestors } }),
+    ancestors
+  )
+}
+
+// The default discussion configured for the owner class or an ancestor, if it is still configured.
 function getConfiguredDefaultDiscussion (
   control: TriggerControl,
   discussion: Discussion
 ): DefaultDiscussion | undefined {
   if (discussion.defaultDiscussion === undefined) return undefined
   const config = control.modelDb.findAllSync(chunter.class.DefaultDiscussion, { _id: discussion.defaultDiscussion })[0]
-  return config?.ofClass === discussion.attachedToClass ? config : undefined
+  return config !== undefined && control.hierarchy.getAncestors(discussion.attachedToClass).includes(config.ofClass)
+    ? config
+    : undefined
 }
 
 /**
@@ -491,8 +567,8 @@ export async function OnDefaultDiscussionRenamed (txes: Tx[], control: TriggerCo
 
 /**
  * Keeps discussions consistent when the owner object changes its class (e.g. the card type is changed).
- * Default discussions are not inherited: one of the old type is linked to the entry of the new type with
- * the same name, if any, and becomes a regular discussion otherwise.
+ * A discussion keeps its source configuration if that configuration is still effective for the new class.
+ * Otherwise it is linked to an effective configuration with the same name, if any, or becomes regular.
  * @public
  */
 export async function OnDiscussionOwnerClassChanged (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
@@ -505,7 +581,7 @@ export async function OnDiscussionOwnerClassChanged (txes: Tx[], control: Trigge
 
     const discussions = await control.findAll(control.ctx, chunter.class.Discussion, { attachedTo: updateTx.objectId })
     if (discussions.length === 0) continue
-    const newConfigs = control.modelDb.findAllSync(chunter.class.DefaultDiscussion, { ofClass: newClass })
+    const newConfigs = getDefaultDiscussionConfigs(control, newClass)
     // Entries of the new type already used by a discussion of the object.
     const linked = new Set(
       discussions.map((it) => it.defaultDiscussion).filter((it) => newConfigs.some((config) => config._id === it))
@@ -632,6 +708,26 @@ export async function syncChat (control: TriggerControl, status: UserStatus, dat
   await control.apply(control.ctx, res, true)
 }
 
+// Skip if the same (workspace, user) ran within the coalesce window. Opportunistic prune.
+function shouldRunSyncChat (workspace: string, user: AccountUuid, now: number): boolean {
+  const key = `${workspace}:${user}`
+  const last = syncChatRecent.get(key) ?? 0
+  if (now - last < syncChatCoalesceMs) return false
+  syncChatRecent.set(key, now)
+  if (syncChatRecent.size > 5000) {
+    for (const [k, t] of syncChatRecent) {
+      if (now - t > syncChatCoalesceMs) syncChatRecent.delete(k)
+    }
+  }
+  return true
+}
+
+async function runSyncChat (control: TriggerControl, status: UserStatus, date: Timestamp): Promise<void> {
+  if (!shouldRunSyncChat(control.workspace.uuid, status.user, Date.now())) return
+  // Bound concurrency so a reconnect storm's N syncChats don't saturate the event loop.
+  await syncChatLimiter.exec(() => control.ctx.with('syncChat', {}, () => syncChat(control, status, date)))
+}
+
 async function OnUserStatus (txes: TxCUD<UserStatus>[], control: TriggerControl): Promise<Tx[]> {
   for (const tx of txes) {
     if (tx.objectClass !== core.class.UserStatus) {
@@ -642,14 +738,14 @@ async function OnUserStatus (txes: TxCUD<UserStatus>[], control: TriggerControl)
       const { online } = createTx.attributes
       if (online) {
         const status = TxProcessor.createDoc2Doc(createTx)
-        await syncChat(control, status, tx.modifiedOn)
+        await runSyncChat(control, status, tx.modifiedOn)
       }
     } else if (tx._class === core.class.TxUpdateDoc) {
       const updateTx = tx as TxUpdateDoc<UserStatus>
       const { online } = updateTx.operations
       if (online === true) {
         const status = (await control.findAll(control.ctx, core.class.UserStatus, { _id: updateTx.objectId }))[0]
-        await syncChat(control, status, tx.modifiedOn)
+        if (status !== undefined) await runSyncChat(control, status, tx.modifiedOn)
       }
     }
   }
@@ -674,6 +770,7 @@ export default async () => ({
     OnChatMessageRemoved,
     ChatNotificationsHandler,
     OnUserStatus,
+    OnDiscussionOwnerCreated,
     OnDefaultDiscussionUpdated,
     OnDefaultDiscussionRenamed,
     OnDiscussionOwnerClassChanged

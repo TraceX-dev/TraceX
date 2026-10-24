@@ -13,7 +13,13 @@
 -->
 <script lang="ts">
   import { AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
-  import { isTranscription, isTranscriptionAllowed, startTranscription, stopTranscription } from '../../../utils'
+  import {
+    isTranscription,
+    isTranscriptionAllowed,
+    isTranscriptionAvailable,
+    startTranscription,
+    stopTranscription
+  } from '../../../utils'
   import { lkSessionConnected } from '../../../liveKitClient'
   import { currentMeetingMinutes } from '../../../stores'
   import love from '../../../plugin'
@@ -24,7 +30,7 @@
   export let kind: 'primary' | 'secondary' | 'tertiary' | 'negative' = 'secondary'
 </script>
 
-{#if hasAccountRole(getCurrentAccount(), AccountRole.User) && isTranscriptionAllowed() && $lkSessionConnected && $currentMeetingMinutes !== undefined}
+{#if hasAccountRole(getCurrentAccount(), AccountRole.User) && isTranscriptionAllowed() && $isTranscriptionAvailable && $lkSessionConnected && $currentMeetingMinutes !== undefined}
   <ModernButton
     icon={view.icon.Feather}
     iconProps={$isTranscription ? { fill: 'var(--button-negative-BackgroundColor)' } : {}}

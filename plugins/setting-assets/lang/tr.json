@@ -1,5 +1,7 @@
 {
   "string": {
+    "ShowInForm": "Herkese açık formda göster",
+    "ShowInCreate": "Kart oluştururken göster",
     "Setting": "Ayar",
     "Spaces": "Alanlar",
     "Integrations": "Entegrasyonlar",
@@ -262,6 +264,7 @@
     "ShowQRCode": "QR kodu göster",
     "EnterVerificationCode": "Doğrulama kodunu gir",
     "OverrideAttribute": "Özniteliği geçersiz kıl",
+    "OverriddenAttribute": "Geçersiz kılınmış öznitelik",
     "Required": "Zorunlu",
     "RelationFilter": "Filtre",
     "AddRelationFilter": "Filtre ekle",
@@ -269,6 +272,9 @@
     "OtherSpaces": "Diğer alanlar",
     "Public": "Herkese açık",
     "Member": "Üye",
-    "CanJoin": "Katılabilir"
+    "CanJoin": "Katılabilir",
+    "InviteDays": "{count, plural, other {# gün}}",
+    "InviteHours": "{count, plural, other {# saat}}",
+    "InviteSettingsSaveFailed": "Davet ayarları kaydedilemedi. Lütfen tekrar deneyin."
   }
 }

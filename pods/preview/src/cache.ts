@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -227,12 +228,24 @@ export function createCache (ctx: MeasureContext, options: CacheConfig): Cache {
   return new NoopCache()
 }
 
-export async function withCache (
+export function withCache (
   ctx: MeasureContext,
   cache: Cache,
   key: string,
   fn: () => Promise<PreviewFile>
-): Promise<PreviewFile> {
+): Promise<PreviewFile>
+export function withCache (
+  ctx: MeasureContext,
+  cache: Cache,
+  key: string,
+  fn: () => Promise<PreviewFile | undefined>
+): Promise<PreviewFile | undefined>
+export async function withCache (
+  ctx: MeasureContext,
+  cache: Cache,
+  key: string,
+  fn: () => Promise<PreviewFile | undefined>
+): Promise<PreviewFile | undefined> {
   const cached = cache.get(key)
   if (cached !== undefined) {
     try {
@@ -245,5 +258,8 @@ export async function withCache (
   }
 
   const value = await fn()
+  if (value === undefined) {
+    return undefined
+  }
   return await cache.put(key, value)
 }

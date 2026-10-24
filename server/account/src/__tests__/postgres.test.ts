@@ -216,6 +216,20 @@ describe('PostgresDbCollection', () => {
     })
   })
 
+  describe('deleteMany count', () => {
+    it('should return deleted rows count reported by the driver', async () => {
+      ;(mockClient.unsafe as jest.Mock).mockResolvedValueOnce(Object.assign([], { count: 3 }))
+
+      expect(await collection.deleteMany({ mode: 'deleted' as const })).toBe(3)
+    })
+
+    it('should return 0 when nothing was deleted', async () => {
+      ;(mockClient.unsafe as jest.Mock).mockResolvedValueOnce(Object.assign([], { count: 0 }))
+
+      expect(await collection.deleteMany({ mode: 'deleted' as const })).toBe(0)
+    })
+  })
+
   describe('timestamp field handling', () => {
     beforeEach(() => {
       // Create collection with timestamp fields specified
@@ -482,6 +496,19 @@ describe('PostgresAccountDB', () => {
 
   afterEach(() => {
     spyValue = []
+  })
+
+  test('consumeInviteUse takes a use only while uses remain', async () => {
+    spyValue = [{ id: '123' }]
+    await expect(accountDb.consumeInviteUse('123')).resolves.toBe(true)
+
+    const sqlCall = spyTag.mock.calls.find(([first]) => Array.isArray(first))
+    const sql = (sqlCall?.[0] as string[]).join(' ')
+    expect(sql).toContain('SET remaining_uses = remaining_uses - 1')
+    expect(sql).toContain('remaining_uses > 0')
+
+    spyValue = []
+    await expect(accountDb.consumeInviteUse('123')).resolves.toBe(false)
   })
 
   describe('init', () => {

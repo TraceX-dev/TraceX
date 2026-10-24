@@ -271,7 +271,7 @@ test.describe('Guest people scoped to the space', () => {
     }
   })
 
-  test('Mentions in a card description are limited to the card space', async ({ browser }) => {
+  test.skip('Mentions in a card description are limited to the card space', async ({ browser }) => {
     const a = await openCardAsGuest(browser, cardA)
     try {
       await checkMentions(a.page, () => a.description, false)

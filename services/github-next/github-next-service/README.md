@@ -69,13 +69,34 @@ SYNC_OUTBOUND       default: true
 HULYLAKE_URL        default: http://huly.local:8096
 QUEUE_CONFIG        default from kafka package: huly.local:9092
 QUEUE_REGION        default: empty
+OTEL_EXPORTER_OTLP_ENDPOINT optional: OpenTelemetry collector URL
+ENABLE_CONSOLE      default: true
+LOG_LEVEL           default: info
+VERSION             default: 0.7.0
 ```
+
+Telemetry uses `SERVICE_ID` as the service name. The local Docker overlay exports traces to
+`http://jaeger:4318/v1/traces`. Service logs are written to `logs/` and to the console when
+`ENABLE_CONSOLE=true`.
 
 For local docker, `PUBLIC_URL` must match the GitHub OAuth callback host:
 
 ```text
 http://huly.local:3510
 ```
+
+## Repository sync availability
+
+Issue sync checks the repository's `has_issues` flag before importing issues, creating or updating
+issues, or syncing their comments. Repositories with issues disabled are skipped, including existing
+issue sync states. Discussion sync checks `has_discussions` before importing, creating or updating
+discussions, including existing discussion sync states. The two flags are checked independently;
+pull request sync does not depend on either flag.
+
+The full response from `GET /repos/{owner}/{repo}` is cached as `Promise<GithubRepositoryResponse>` in
+`GithubRequestContext.repositoryCache`, using `owner/name` as the key, like milestones. Repository
+lookups and issue availability checks within the same context share one metadata request. Each new
+sync pass creates a new context and refreshes the metadata. Metadata request failures stop that sync attempt.
 
 ## Frontend config
 

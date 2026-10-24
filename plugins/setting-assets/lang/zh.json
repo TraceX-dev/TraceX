@@ -1,5 +1,7 @@
 {
   "string": {
+    "ShowInForm": "在公开表单中显示",
+    "ShowInCreate": "创建卡片时显示",
     "Setting": "设置",
     "Spaces": "空间",
     "Integrations": "集成",
@@ -262,6 +264,7 @@
     "ShowQRCode": "显示QR码",
     "EnterVerificationCode": "输入验证码",
     "OverrideAttribute": "覆盖属性",
+    "OverriddenAttribute": "已覆盖的属性",
     "Required": "必须",
     "RelationFilter": "筛选器",
     "AddRelationFilter": "添加筛选器",
@@ -269,6 +272,9 @@
     "OtherSpaces": "其他空间",
     "Public": "公开",
     "Member": "成员",
-    "CanJoin": "可加入"
+    "CanJoin": "可加入",
+    "InviteDays": "{count, plural, other {#天}}",
+    "InviteHours": "{count, plural, other {#小时}}",
+    "InviteSettingsSaveFailed": "无法保存邀请设置，请重试。"
   }
 }

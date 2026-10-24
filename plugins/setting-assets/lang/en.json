@@ -1,5 +1,7 @@
 {
   "string": {
+    "ShowInForm": "Show in public form",
+    "ShowInCreate": "Show when creating a card",
     "Setting": "Setting",
     "Spaces": "Spaces",
     "Integrations": "Integrations",
@@ -265,6 +267,7 @@
     "ShowQRCode": "Show QR code",
     "EnterVerificationCode": "Enter verification code",
     "OverrideAttribute": "Override attribute",
+    "OverriddenAttribute": "Overridden attribute",
     "Required": "Required",
     "RelationFilter": "Filter",
     "AddRelationFilter": "Add filter",
@@ -272,6 +275,9 @@
     "OtherSpaces": "Other spaces",
     "Public": "Public",
     "Member": "Member",
-    "CanJoin": "Can join"
+    "CanJoin": "Can join",
+    "InviteDays": "{count, plural, one {# day} other {# days}}",
+    "InviteHours": "{count, plural, one {# hour} other {# hours}}",
+    "InviteSettingsSaveFailed": "Failed to save invitation settings. Please try again."
   }
 }

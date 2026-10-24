@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -131,6 +132,12 @@ async function writeToResponse (
   res: Response,
   headers: { contentType: string, cacheControl: string }
 ): Promise<void> {
+  // The client may disconnect while the thumbnail is being generated.
+  if (res.destroyed || res.closed || res.writableEnded) {
+    stream.destroy()
+    return
+  }
+
   res.setHeader('Content-Type', headers.contentType)
   res.setHeader('Cache-Control', headers.cacheControl)
 
@@ -203,7 +210,12 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
       const transform = req.params.transform
       const params = getThumbnailParams(accept, transform)
 
-      const { mimeType: contentType, filePath, etag } = await service.thumbnail(ctx, workspace, name, params)
+      const thumbnail = await service.thumbnail(ctx, workspace, name, params)
+      if (thumbnail === undefined) {
+        res.status(404).json({ message: 'Not Found' })
+        return
+      }
+      const { mimeType: contentType, filePath, etag } = thumbnail
       const blobCacheControl = isMutableBlob(name) ? cacheControlMutable : cacheControl
 
       if (etag !== undefined) {

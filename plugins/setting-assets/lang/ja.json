@@ -1,5 +1,7 @@
 {
   "string": {
+    "ShowInForm": "公開フォームに表示",
+    "ShowInCreate": "カード作成時に表示",
     "Setting": "設定",
     "Spaces": "スペース",
     "Integrations": "連携",
@@ -262,6 +264,7 @@
     "ShowQRCode": "QRコードを表示",
     "EnterVerificationCode": "確認コードを入力",
     "OverrideAttribute": "属性を上書き",
+    "OverriddenAttribute": "上書きされた属性",
     "Required": "必須",
     "RelationFilter": "フィルター",
     "AddRelationFilter": "フィルターを追加",
@@ -269,6 +272,9 @@
     "OtherSpaces": "その他のスペース",
     "Public": "公開",
     "Member": "メンバー",
-    "CanJoin": "参加可能"
+    "CanJoin": "参加可能",
+    "InviteDays": "{count, plural, other {#日}}",
+    "InviteHours": "{count, plural, other {#時間}}",
+    "InviteSettingsSaveFailed": "招待設定を保存できませんでした。もう一度お試しください。"
   }
 }

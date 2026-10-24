@@ -1,6 +1,7 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -35,6 +36,9 @@ export default mergeIds(settingId, setting, {
     SpaceAccessSettings: '' as AnyComponent
   },
   string: {
+    InviteDays: '' as IntlString<{ count: number }>,
+    InviteHours: '' as IntlString<{ count: number }>,
+    InviteSettingsSaveFailed: '' as IntlString,
     IntegrationDisabled: '' as IntlString,
     IntegrationDisabledSetting: '' as IntlString,
     IntegrationDisabledDescr: '' as IntlString,
@@ -191,6 +195,9 @@ export default mergeIds(settingId, setting, {
     LastOwnerLeaveTitle: '' as IntlString,
     LastOwnerLeaveMessage: '' as IntlString,
     OverrideAttribute: '' as IntlString,
+    OverriddenAttribute: '' as IntlString,
+    ShowInForm: '' as IntlString,
+    ShowInCreate: '' as IntlString,
     Required: '' as IntlString
   }
 })

@@ -40,7 +40,7 @@
     reduceCalls
   } from '@hcengineering/presentation'
   import setting from '@hcengineering/setting'
-  import support, { supportLink, SupportStatus } from '@hcengineering/support'
+  import support, { SupportStatus } from '@hcengineering/support'
   import {
     AnyComponent,
     areLocationsEqual,
@@ -116,6 +116,7 @@
   import AppItem from './AppItem.svelte'
   import AppSwitcher from './AppSwitcher.svelte'
   import Applications from './Applications.svelte'
+  import HelpAndSupport from './HelpAndSupport.svelte'
   import Logo from './Logo.svelte'
   import NavFooter from './NavFooter.svelte'
   import NavHeader from './NavHeader.svelte'
@@ -953,16 +954,15 @@
           size={appsMini ? 'small' : 'large'}
           on:click={() => showPopup(AppSwitcher, { apps }, popupPosition)}
         />
-        <a href={supportLink} target="_blank" rel="noopener noreferrer">
-          <AppItem
-            icon={support.icon.Support}
-            label={support.string.ContactUs}
-            size={appsMini ? 'small' : 'large'}
-            notify={supportStatus?.hasUnreadMessages}
-            selected={supportStatus?.visible}
-            loading={supportWidgetLoading}
-          />
-        </a>
+        <AppItem
+          icon={support.icon.Support}
+          label={workbench.string.HelpAndSupport}
+          size={appsMini ? 'small' : 'large'}
+          notify={supportStatus?.hasUnreadMessages}
+          selected={supportStatus?.visible}
+          loading={supportWidgetLoading}
+          on:click={() => showPopup(HelpAndSupport, {}, 'help-center')}
+        />
         <!-- {#await supportClient then client}
           {#if client}
             <AppItem

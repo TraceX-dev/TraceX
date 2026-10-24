@@ -112,6 +112,7 @@ import {
   simpleEscape,
   toWithLookup
 } from './utils'
+
 async function* createCursorGenerator (
   client: postgres.Sql,
   sql: string,
@@ -270,8 +271,11 @@ abstract class PostgresAdapterBase implements DbAdapter {
         return result.value as T[]
       },
       close: async () => {
-        await cursor.return([])
-        client.release()
+        try {
+          await cursor.return([])
+        } finally {
+          client.release()
+        }
       }
     }
   }
@@ -1299,6 +1303,10 @@ abstract class PostgresAdapterBase implements DbAdapter {
   }
 
   private translateQueryValue (vars: ValuesVariables, tkey: string, value: any, type: ValueType): string | undefined {
+    if (type === 'common' && Array.isArray(value)) {
+      return this.translateQueryValue(vars, tkey, { $in: value }, type)
+    }
+
     const tkeyData = tkey.includes('data') && (tkey.includes('->') || tkey.includes('#>>'))
     if (tkeyData && (Array.isArray(value) || (typeof value !== 'object' && typeof value !== 'string'))) {
       value = Array.isArray(value)
@@ -1356,7 +1364,7 @@ abstract class PostgresAdapterBase implements DbAdapter {
                   if (val.length > 0) {
                     res.push(`${tlkey} = ANY(${vars.addArray(val, valType)})`)
                   } else {
-                    res.push(`${tlkey} IN ('NULL')`)
+                    res.push('FALSE')
                   }
                 }
                 break
@@ -1597,9 +1605,12 @@ abstract class PostgresAdapterBase implements DbAdapter {
         return result
       },
       close: async () => {
-        await bulk.return([]) // We need to close generator, just in case
-        client?.release()
-        ctx.end()
+        try {
+          await bulk?.return([])
+        } finally {
+          client?.release()
+          ctx.end()
+        }
       }
     }
   }
@@ -1645,9 +1656,12 @@ abstract class PostgresAdapterBase implements DbAdapter {
         return result
       },
       close: async () => {
-        await bulk.return([]) // We need to close generator, just in case
-        client?.release()
-        ctx.end()
+        try {
+          await bulk?.return([])
+        } finally {
+          client?.release()
+          ctx.end()
+        }
       }
     }
   }

@@ -1,0 +1,11 @@
+{
+  "name": "TraceX",
+  "short_name": "TraceX",
+  "display": "standalone",
+  "icons": [
+    { "src": "/tracex/favicon_192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/tracex/favicon.svg", "type": "image/svg+xml", "sizes": "any" }
+  ],
+  "start_url": "/",
+  "scope": "/"
+}

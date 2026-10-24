@@ -1,5 +1,7 @@
 {
   "string": {
+    "ShowInForm": "Afficher dans le formulaire public",
+    "ShowInCreate": "Afficher lors de la création d’une carte",
     "Setting": "Paramètre",
     "Spaces": "Espaces",
     "Integrations": "Intégrations",
@@ -262,6 +264,7 @@
     "ShowQRCode": "Afficher le code QR",
     "EnterVerificationCode": "Entrer le code de vérification",
     "OverrideAttribute": "Surcharger l'attribut",
+    "OverriddenAttribute": "Attribut surchargé",
     "Required": "Requis",
     "RelationFilter": "Filtre",
     "AddRelationFilter": "Ajouter un filtre",
@@ -269,6 +272,9 @@
     "OtherSpaces": "Autres espaces",
     "Public": "Public",
     "Member": "Membre",
-    "CanJoin": "Peut rejoindre"
+    "CanJoin": "Peut rejoindre",
+    "InviteDays": "{count, plural, one {# jour} other {# jours}}",
+    "InviteHours": "{count, plural, one {# heure} other {# heures}}",
+    "InviteSettingsSaveFailed": "Impossible d'enregistrer les paramètres d'invitation. Veuillez réessayer."
   }
 }

@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -553,7 +554,7 @@ export function startHttpServer (
             ctx,
             webSocketData,
             (s, buff) => {
-              s.context.counter('receive-data', buff?.length ?? 0)
+              s.context.counter('server-receive-data', buff?.length ?? 0)
               processRequest(s.session, cs, s.context, s.workspaceId, buff, sessions)
             },
             buff
@@ -725,7 +726,7 @@ function createWebsocketClientSocket (
       const st = platformNow()
       await new Promise<void>((resolve) => {
         const handleErr = (err?: Error): void => {
-          ctx.counter('msg-send-delta', platformNow() - st)
+          ctx.counter('server-msg-send-delta', platformNow() - st)
           if (err != null) {
             if (!`${err.message}`.includes('WebSocket is not open')) {
               ctx.error('send error', { err })

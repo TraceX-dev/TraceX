@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -35,7 +36,7 @@ import serverClient from '@hcengineering/server-client'
 import { getPlatformQueue } from '@hcengineering/kafka'
 import { initStatisticsContext, QueueTopic, StorageConfig, StorageConfiguration } from '@hcengineering/server-core'
 import { storageConfigFromEnv } from '@hcengineering/server-storage'
-import serverToken, { generateToken } from '@hcengineering/server-token'
+import serverToken, { generateToken, readToken } from '@hcengineering/server-token'
 import cors from 'cors'
 import express, { type Request } from 'express'
 import {
@@ -53,7 +54,7 @@ import { RecordingProcessor } from './recordings'
 import { WebhookProcessor } from './webhook'
 import { WorkspaceClient } from './workspaceClient'
 import { GuestManager } from './guests'
-import { createToken, decodeMeetingToken, extractToken, getRoomName, parseMetadata } from './utils'
+import { createToken, decodeMeetingToken, getRoomName, parseMetadata } from './utils'
 /**
  * Recursively converts all BigInt values in an object to strings.
  * This is needed because JSON.stringify cannot handle BigInt values.
@@ -311,11 +312,24 @@ export const main = async (): Promise<void> => {
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.get('/checkRecordAvailable', async (_req, res) => {
+    if (!config.RecordingEnabled) {
+      res.send(false)
+      return
+    }
     res.send(await checkRecordAvailable(ctx, storageConfig, s3storageConfig))
+  })
+
+  app.get('/checkTranscriptionAvailable', (_req, res) => {
+    res.send(config.TranscriptionEnabled)
   })
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.post('/startRecord', async (req, res) => {
+    if (!config.RecordingEnabled) {
+      res.status(403).send({ error: 'Recording is disabled on this server' })
+      return
+    }
+
     const { meetingId, workspaceId } = decodeMeetingToken(req, res)
     if (meetingId == null || workspaceId == null) {
       return
@@ -324,7 +338,7 @@ export const main = async (): Promise<void> => {
     const roomName = getRoomName(workspaceId, meetingId)
 
     try {
-      const token = extractToken(req.headers)
+      const token = readToken(req.headers)
       const wsLoginInfo = await getAccountClient(token).getLoginInfoByToken()
       if (!isWorkspaceLoginInfo(wsLoginInfo)) {
         console.error('No workspace found for the token')
@@ -375,6 +389,12 @@ export const main = async (): Promise<void> => {
 
     const language = req.body.language
     const transcription = req.body.transcription ?? false
+
+    // Stopping is always allowed so that already running sessions can be finished
+    if (!config.TranscriptionEnabled && transcription) {
+      res.status(403).send({ error: 'Transcription is disabled on this server' })
+      return
+    }
 
     if (typeof roomName !== 'string') {
       res.status(400).send()

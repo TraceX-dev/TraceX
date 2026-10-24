@@ -1,5 +1,7 @@
 {
   "string": {
+    "ShowInForm": "Mostrar en el formulario público",
+    "ShowInCreate": "Mostrar al crear una tarjeta",
     "Setting": "Configuración",
     "Spaces": "Espacios",
     "Integrations": "Integraciones",
@@ -253,6 +255,7 @@
     "ShowQRCode": "Mostrar código QR",
     "EnterVerificationCode": "Introducir código de verificación",
     "OverrideAttribute": "Sobreescribir atributo",
+    "OverriddenAttribute": "Atributo sobrescrito",
     "Required": "Requerido",
     "RelationFilter": "Filtro",
     "AddRelationFilter": "Agregar filtro",
@@ -260,6 +263,9 @@
     "OtherSpaces": "Otros espacios",
     "Public": "Público",
     "Member": "Miembro",
-    "CanJoin": "Puede unirse"
+    "CanJoin": "Puede unirse",
+    "InviteDays": "{count, plural, one {# día} other {# días}}",
+    "InviteHours": "{count, plural, one {# hora} other {# horas}}",
+    "InviteSettingsSaveFailed": "No se pudo guardar la configuración de invitaciones. Inténtalo de nuevo."
   }
 }

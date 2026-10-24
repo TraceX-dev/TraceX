@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -73,6 +74,12 @@ export async function handleBlobGet (
   const range = req.headers.range
 
   const blob = await datalake.get(ctx, workspace, name, { range })
+  // The client may disconnect while the blob is being loaded.
+  if (res.destroyed || res.closed || res.writableEnded) {
+    blob?.body.destroy()
+    return
+  }
+
   if (blob == null) {
     res.status(404).send()
     return

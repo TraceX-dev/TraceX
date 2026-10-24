@@ -36,6 +36,8 @@ interface GithubRepositoryResponse {
   id: number
   node_id: string
   name: string
+  has_issues: boolean
+  has_discussions: boolean
   default_branch?: string
   html_url?: string
   owner: {
@@ -119,6 +121,7 @@ export interface GithubRequestContext {
   userCache: Map<string, GithubNextAssignee>
   userSearchCache: Map<string, string | undefined>
   milestoneCache: Map<string, Promise<GithubNextMilestone[]>>
+  repositoryCache: Map<string, Promise<GithubRepositoryResponse>>
 }
 
 export interface GithubNextProjectItem {
@@ -144,7 +147,8 @@ export function createGithubRequestContext (): GithubRequestContext {
   return {
     userCache: new Map(),
     userSearchCache: new Map(),
-    milestoneCache: new Map()
+    milestoneCache: new Map(),
+    repositoryCache: new Map()
   }
 }
 
@@ -422,12 +426,46 @@ export async function listGithubRepositories (token: string): Promise<GithubNext
   return repositories
 }
 
+async function getGithubRepositoryResponse (
+  token: string,
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
+  context?: GithubRequestContext
+): Promise<GithubRepositoryResponse> {
+  const cacheKey = `${repository.owner}/${repository.name}`
+  const cached = context?.repositoryCache.get(cacheKey)
+  if (cached !== undefined) return await cached
+
+  const request = requestGithub<GithubRepositoryResponse>(`/repos/${repository.owner}/${repository.name}`, token)
+
+  context?.repositoryCache.set(cacheKey, request)
+  return await request
+}
+
 export async function getGithubRepository (
   token: string,
-  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
+  context?: GithubRequestContext
 ): Promise<GithubNextRepositorySelection> {
-  const response = await requestGithub<GithubRepositoryResponse>(`/repos/${repository.owner}/${repository.name}`, token)
-  return toRepositorySelection(response)
+  return toRepositorySelection(await getGithubRepositoryResponse(token, repository, context))
+}
+
+export async function hasGithubRepositoryIssues (
+  token: string,
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
+  context?: GithubRequestContext
+): Promise<boolean> {
+  const response = await getGithubRepositoryResponse(token, repository, context)
+  return response.has_issues
+}
+
+/** Checks whether repository discussions are enabled, sharing the cached repository response. */
+export async function hasGithubRepositoryDiscussions (
+  token: string,
+  repository: Pick<GithubNextRepositorySelection, 'owner' | 'name'>,
+  context?: GithubRequestContext
+): Promise<boolean> {
+  const response = await getGithubRepositoryResponse(token, repository, context)
+  return response.has_discussions
 }
 
 export async function listGithubIssues (

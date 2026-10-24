@@ -126,6 +126,7 @@ export const documentsPlugin = plugin(documentsId, {
     MakeDocumentObsolete: '' as Ref<Action>,
     EditDocSpace: '' as Ref<Action>,
     TransferDocument: '' as Ref<Action>,
+    TransferLibraryDocument: '' as Ref<Action>,
     ExportDocuments: '' as Ref<Action<Document, any>>,
     ExportProjectDocuments: '' as Ref<Action<Document, any>>,
     ExportDocumentsFromSpace: '' as Ref<Action<DocumentSpace, any>>,

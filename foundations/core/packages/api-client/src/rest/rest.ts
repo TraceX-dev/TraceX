@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -49,20 +50,25 @@ import {
   type TxResult,
   type WithLookup
 } from '@hcengineering/core'
-import { PlatformError, type Status, unknownError } from '@hcengineering/platform'
+import platform, { PlatformError, Severity, Status, unknownError } from '@hcengineering/platform'
 
 import { AuthOptions } from '../types'
 import { getWorkspaceToken } from '../utils'
-import type { EnsurePersonOptions, RestClient } from './types'
+import type { EnsurePersonOptions, RestClient, RestClientOptions } from './types'
 import { extractJson, withRetry } from './utils'
 
-export function createRestClient (endpoint: string, workspaceId: string, token: string): RestClient {
-  return new RestClientImpl(endpoint, workspaceId, token)
+export function createRestClient (
+  endpoint: string,
+  workspaceId: string,
+  token: string,
+  options?: RestClientOptions
+): RestClient {
+  return new RestClientImpl(endpoint, workspaceId, token, options)
 }
 
-export async function connectRest (url: string, options: AuthOptions): Promise<RestClient> {
+export async function connectRest (url: string, options: AuthOptions & RestClientOptions): Promise<RestClient> {
   const { endpoint, token, workspaceId } = await getWorkspaceToken(url, options)
-  return createRestClient(endpoint, workspaceId, token)
+  return createRestClient(endpoint, workspaceId, token, options)
 }
 
 const rateLimitError = 'rate-limit'
@@ -73,6 +79,7 @@ function isRLE (err: any): boolean {
 
 export class RestClientImpl implements RestClient {
   endpoint: string
+  private readonly requestTimeout: number
 
   slowDownTimer = 0
   currentRateLimit: { remaining: number, limit: number } = { remaining: 1000, limit: 1000 }
@@ -82,9 +89,14 @@ export class RestClientImpl implements RestClient {
   constructor (
     endpoint: string,
     readonly workspace: string,
-    readonly token: string
+    readonly token: string,
+    options: RestClientOptions = {}
   ) {
     this.endpoint = endpoint.replace('ws', 'http')
+    this.requestTimeout = options.requestTimeout ?? 60_000
+    if (!Number.isInteger(this.requestTimeout) || this.requestTimeout < 0) {
+      throw new RangeError('requestTimeout must be a non-negative integer')
+    }
   }
 
   jsonHeaders (): Record<string, string> {
@@ -99,6 +111,7 @@ export class RestClientImpl implements RestClient {
     return {
       method: 'GET',
       keepalive: true,
+      signal: this.requestTimeout > 0 ? AbortSignal.timeout(this.requestTimeout) : undefined,
       headers: this.jsonHeaders()
     }
   }
@@ -120,8 +133,7 @@ export class RestClientImpl implements RestClient {
     const result = await withRetry<FindResult<T> & { error?: Status }>(async () => {
       const response = await fetch(requestUrl, this.requestInit())
       if (!response.ok) {
-        await this.checkRateLimits(response)
-        throw new PlatformError(unknownError(response.statusText))
+        await this.handleResponseError(response)
       }
       this.updateRateLimit(response)
       return await extractJson<FindResult<T>>(response)
@@ -186,7 +198,29 @@ export class RestClientImpl implements RestClient {
     this.currentRateLimit = { remaining, limit: rateLimitLimit }
   }
 
-  private async checkRateLimits (response: Response): Promise<void> {
+  private async handleResponseError (response: Response): Promise<never> {
+    const message = response.statusText
+
+    if (response.status === 400) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, { message }))
+    }
+
+    if (response.status === 401) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, { message }))
+    }
+
+    if (response.status === 403) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, { message }))
+    }
+
+    if (response.status === 404) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.NotFound, { message }))
+    }
+
+    if (response.status === 500) {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, { message }))
+    }
+
     if (response.status === 429) {
       // Extract rate limit information from headers
       const retryAfter = response.headers.get('Retry-After')
@@ -204,6 +238,8 @@ export class RestClientImpl implements RestClient {
       await new Promise((resolve) => setTimeout(resolve, waitTime))
       throw new Error(rateLimitError)
     }
+
+    throw new PlatformError(unknownError(message))
   }
 
   async getAccount (): Promise<Account> {
@@ -212,8 +248,7 @@ export class RestClientImpl implements RestClient {
     const result = await withRetry<Account & { error?: Status }>(async () => {
       const response = await fetch(requestUrl, this.requestInit())
       if (!response.ok) {
-        await this.checkRateLimits(response)
-        throw new PlatformError(unknownError(response.statusText))
+        await this.handleResponseError(response)
       }
       this.updateRateLimit(response)
       return await extractJson<Account>(response)
@@ -233,8 +268,7 @@ export class RestClientImpl implements RestClient {
     const result = await withRetry<{ hierarchy: Hierarchy, model: ModelDb, error?: Status }>(async () => {
       const response = await fetch(requestUrl, this.requestInit())
       if (!response.ok) {
-        await this.checkRateLimits(response)
-        throw new PlatformError(unknownError(response.statusText))
+        await this.handleResponseError(response)
       }
       this.updateRateLimit(response)
 
@@ -267,14 +301,12 @@ export class RestClientImpl implements RestClient {
     await this.checkRate()
     const result = await withRetry<TxResult & { error?: Status }>(async () => {
       const response = await fetch(requestUrl, {
+        ...this.requestInit(),
         method: 'POST',
-        headers: this.jsonHeaders(),
-        keepalive: true,
         body: JSON.stringify(tx)
       })
       if (!response.ok) {
-        await this.checkRateLimits(response)
-        throw new PlatformError(unknownError(response.statusText))
+        await this.handleResponseError(response)
       }
       this.updateRateLimit(response)
       return await extractJson<TxResult>(response)
@@ -299,14 +331,9 @@ export class RestClientImpl implements RestClient {
         params.append('limit', `${options.limit}`)
       }
       const requestUrl = concatLink(this.endpoint, `/api/v1/search-fulltext/${this.workspace}?${params.toString()}`)
-      const response = await fetch(requestUrl, {
-        method: 'GET',
-        headers: this.jsonHeaders(),
-        keepalive: true
-      })
+      const response = await fetch(requestUrl, this.requestInit())
       if (!response.ok) {
-        await this.checkRateLimits(response)
-        throw new PlatformError(unknownError(response.statusText))
+        await this.handleResponseError(response)
       }
       this.updateRateLimit(response)
       return await extractJson<TxResult>(response)
@@ -327,14 +354,12 @@ export class RestClientImpl implements RestClient {
     await this.checkRate()
     return await withRetry(async () => {
       const response = await fetch(requestUrl, {
+        ...this.requestInit(),
         method: 'POST',
-        headers: this.jsonHeaders(),
-        keepalive: true,
         body: JSON.stringify(params)
       })
       if (!response.ok) {
-        await this.checkRateLimits(response)
-        throw new PlatformError(unknownError(response.statusText))
+        await this.handleResponseError(response)
       }
       this.updateRateLimit(response)
       const value = await extractJson<T>(response)
@@ -353,9 +378,8 @@ export class RestClientImpl implements RestClient {
     await this.checkRate()
     const result = await withRetry(async () => {
       const response = await fetch(requestUrl, {
+        ...this.requestInit(),
         method: 'POST',
-        headers: this.jsonHeaders(),
-        keepalive: true,
         body: JSON.stringify({
           socialType,
           socialValue,
@@ -365,8 +389,7 @@ export class RestClientImpl implements RestClient {
         })
       })
       if (!response.ok) {
-        await this.checkRateLimits(response)
-        throw new PlatformError(unknownError(response.statusText))
+        await this.handleResponseError(response)
       }
       this.updateRateLimit(response)
       return await extractJson<{ uuid: PersonUuid, socialId: PersonId, localPerson: string }>(response)
@@ -382,14 +405,12 @@ export class RestClientImpl implements RestClient {
     await this.checkRate()
     const result = await withRetry<{ result?: Ref<T>, error?: Status }>(async () => {
       const response = await fetch(requestUrl, {
+        ...this.requestInit(),
         method: 'POST',
-        headers: this.jsonHeaders(),
-        keepalive: true,
         body: JSON.stringify(data)
       })
       if (!response.ok) {
-        await this.checkRateLimits(response)
-        throw new PlatformError(unknownError(response.statusText))
+        await this.handleResponseError(response)
       }
       this.updateRateLimit(response)
       return await extractJson<TxResult>(response)

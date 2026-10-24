@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,7 +25,7 @@ import { ReferenceNode } from '../nodes/reference'
 import { EmbedNode } from '../nodes/embed'
 
 import { ExtensionFactory, extensionKit } from '../kit'
-import { HardBreak } from '../tiptapExtensions'
+import { HardBreak, Highlight } from '../tiptapExtensions'
 import { CodeSnippetsKit, CommonKitFactory, ListKit, TableKit, TextColorStylingKit } from './common-kit'
 
 export const ServerKitFactory = (e: ExtensionFactory) =>
@@ -42,6 +43,7 @@ export const ServerKitFactory = (e: ExtensionFactory) =>
     textColorStyling: e(TextColorStylingKit),
 
     hardBreak: e(HardBreak),
+    highlight: e(Highlight, { multicolor: false }),
     reference: e(ReferenceNode),
     file: e(FileNode),
     image: e(ImageNode),
