@@ -25,6 +25,7 @@
   import { EditorKitOptions } from '../kits/editor-kit'
   import { addTableHandler } from '../utils'
   import view from '@hcengineering/view'
+  import { getDefaultImageDisplay } from './extension/imageDisplay'
   import { type FileAttachFunction } from './extension/types'
   import { inlineCommandsConfig } from './extensions'
 
@@ -212,13 +213,15 @@
     }
 
     const size = await getImageSize(file)
+    const tiptap = editor.getEditor()
 
     editor.editorHandler.insertContent(
       {
         type: 'image',
         attrs: {
           'file-id': attached.file,
-          width: imageSizeToRatio(size.width, size.pixelRatio)
+          width: imageSizeToRatio(size.width, size.pixelRatio),
+          display: tiptap !== undefined ? getDefaultImageDisplay(tiptap.state.doc, tiptap.state.selection.from) : null
         }
       },
       {

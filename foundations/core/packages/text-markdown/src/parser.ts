@@ -642,6 +642,21 @@ const ignoreRule: Record<string, ParsingIgnoreRule> = {
   tbody: {}
 }
 
+/** An image sharing a paragraph with other content is inline; a lone image stays a block. */
+function markInlineImages (node: MarkupNode): void {
+  const content = node.content
+  if (content === undefined) return
+
+  if (content.length > 1) {
+    for (const child of content) {
+      if (child.type === MarkupNodeType.image) {
+        child.attrs = { ...(child.attrs ?? {}), display: 'inline' }
+      }
+    }
+  }
+  content.forEach(markInlineImages)
+}
+
 export const isInlineToken = (token?: Token): boolean => token?.type === 'inline'
 
 export const isParagraphToken = (token?: Token): boolean => token?.type === 'paragraph_open'
@@ -696,6 +711,7 @@ export class MarkdownParser {
     do {
       doc = state.closeNode()
     } while (state.stack.length > 0)
+    markInlineImages(doc)
     return doc
   }
 
