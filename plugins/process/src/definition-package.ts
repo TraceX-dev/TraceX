@@ -38,8 +38,9 @@ function releaseVersion (value: unknown, path: string): ReleaseVersion {
     `^${numeric}\\.${numeric}\\.${numeric}(?:-(${identifier}(?:\\.${identifier})*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$`
   )
   const match = pattern.exec(version)
-  if (match === null || match[0] !== version)
-    {throw new DefinitionPackageError(path, 'Expected a SemVer release, for example 1.2.3')}
+  if (match === null || match[0] !== version) {
+    throw new DefinitionPackageError(path, 'Expected a SemVer release, for example 1.2.3')
+  }
   return { core: match.slice(1, 4), prerelease: match[4]?.split('.') ?? [] }
 }
 

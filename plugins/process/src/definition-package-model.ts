@@ -137,10 +137,12 @@ export function definitionPackageImpact (
     reason: string
   ): Pick<DefinitionPackageChange, 'impact' | 'reason'> => ({ impact, reason })
   if (after === undefined) return finding('destructive', 'Removing a component requires data and dependency analysis')
-  if (before?.class !== undefined && before.class !== after.class)
-    {return finding('destructive', 'The component class changed')}
-  if (after.class === PROCESS)
-    {return finding('behavioral', 'Process graphs are one merge unit and require immutable execution revisions')}
+  if (before?.class !== undefined && before.class !== after.class) {
+    return finding('destructive', 'The component class changed')
+  }
+  if (after.class === PROCESS) {
+    return finding('behavioral', 'Process graphs are one merge unit and require immutable execution revisions')
+  }
   const doc = after.documents[after.key].document
   const previous = before?.documents[before.key].document
   const known = KNOWN_PROPERTIES[after.class]
@@ -154,17 +156,20 @@ export function definitionPackageImpact (
   }
   if (previous === undefined) {
     if (after.class === ATTRIBUTE) {
-      if (doc.required === true)
-        {return finding('destructive', 'A new required field needs existing-data and write-path checks')}
-      if (!supportedType(doc.type))
-        {return finding('unknown', 'The new field type has no verified compatibility contract')}
+      if (doc.required === true) {
+        return finding('destructive', 'A new required field needs existing-data and write-path checks')
+      }
+      if (!supportedType(doc.type)) {
+        return finding('unknown', 'The new field type has no verified compatibility contract')
+      }
       if (doc.defaultValue !== undefined || doc.readonly === true || doc.automationOnly === true) {
         return finding('behavioral', 'New field defaults or write restrictions need review')
       }
       return finding('additive', 'Optional field; destination ownership, references and consumers still need checking')
     }
-    if ([MASTER_TAG, TAG, ENUM].includes(after.class))
-      {return finding('additive', 'New definition; inheritance and consumers still need destination checks')}
+    if ([MASTER_TAG, TAG, ENUM].includes(after.class)) {
+      return finding('additive', 'New definition; inheritance and consumers still need destination checks')
+    }
     return finding('behavioral', 'The new component can change relationship or application behavior')
   }
   const changed = new Set(
@@ -189,13 +194,16 @@ export function definitionPackageImpact (
   if (after.class === ENUM && changed.has('enumValues')) {
     const oldValues = previous.enumValues
     const newValues = doc.enumValues
-    if (!Array.isArray(oldValues) || !Array.isArray(newValues))
-      {return finding('unknown', 'Enum values have an unsupported representation')}
-    if (oldValues.some((value) => !newValues.includes(value)))
-      {return finding('destructive', 'An existing enum value was removed or renamed')}
+    if (!Array.isArray(oldValues) || !Array.isArray(newValues)) {
+      return finding('unknown', 'Enum values have an unsupported representation')
+    }
+    if (oldValues.some((value) => !newValues.includes(value))) {
+      return finding('destructive', 'An existing enum value was removed or renamed')
+    }
     return finding('behavioral', 'Enum additions or ordering can affect existing consumers')
   }
-  if ([...changed].every((key) => COSMETIC.has(key)))
-    {return finding('cosmetic', 'Only known display metadata or field/type order changed')}
+  if ([...changed].every((key) => COSMETIC.has(key))) {
+    return finding('cosmetic', 'Only known display metadata or field/type order changed')
+  }
   return finding('behavioral', 'Definition behavior or constraints changed')
 }

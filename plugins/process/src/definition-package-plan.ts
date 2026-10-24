@@ -45,18 +45,21 @@ export async function planDefinitionPackageUpgrade (
         })
     )
   )
-  if (base.package.id !== next.package.id)
-    {throw new DefinitionPackageError('package.id', 'Cannot upgrade a different package')}
-  if (base.definition.kind !== next.definition.kind)
-    {throw new DefinitionPackageError('source.kind', 'Cannot change the installed definition kind')}
+  if (base.package.id !== next.package.id) {
+    throw new DefinitionPackageError('package.id', 'Cannot upgrade a different package')
+  }
+  if (base.definition.kind !== next.definition.kind) {
+    throw new DefinitionPackageError('source.kind', 'Cannot change the installed definition kind')
+  }
   const precedence = compareDefinitionPackageVersions(next.package.version, base.package.version)
   if (precedence < 0) throw new DefinitionPackageError('package.version', 'Downgrades require a separate rollback plan')
   if (precedence === 0 && base.contentHash !== next.contentHash) {
     throw new DefinitionPackageError('package.version', 'Cannot replace release content at the same SemVer precedence')
   }
   const local = localSource === undefined ? base.definition : compileProcessYaml(localSource)
-  if (local.kind !== base.definition.kind)
-    {throw new DefinitionPackageError('local.kind', 'Local definition kind differs from the installed package')}
+  if (local.kind !== base.definition.kind) {
+    throw new DefinitionPackageError('local.kind', 'Local definition kind differs from the installed package')
+  }
   const baseline = definitionPackageComponents(base.definition)
   const current = definitionPackageComponents(local)
   const target = definitionPackageComponents(next.definition)
@@ -95,14 +98,16 @@ export async function planDefinitionPackageUpgrade (
   }
   const reasons = new Set<string>()
   if (base.package.version.split('.')[0] !== next.package.version.split('.')[0]) reasons.add('major-release')
-  if ([base.package.version, next.package.version].some((version) => version.split('+')[0].includes('-')))
-    {reasons.add('prerelease')}
+  if ([base.package.version, next.package.version].some((version) => version.split('+')[0].includes('-'))) {
+    reasons.add('prerelease')
+  }
   if (
     changes.some(
       (change) => change.resolution === 'local' || change.resolution === 'conflict' || change.resolution === 'converged'
     )
-  )
-    {reasons.add('local-customization')}
+  ) {
+    reasons.add('local-customization')
+  }
   for (const change of changes) {
     if (change.resolution === 'conflict') reasons.add('conflict')
     if (['behavioral', 'destructive', 'unknown'].includes(change.impact)) reasons.add(`${change.impact}-change`)
