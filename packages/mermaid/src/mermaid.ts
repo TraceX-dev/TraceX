@@ -23,7 +23,7 @@ let renderQueue: Promise<void> = Promise.resolve()
  * Renders SVG without allowing concurrent callers to overwrite the diagram configuration.
  * @public
  */
-export function renderMermaidSvg (
+export async function renderMermaidSvg (
   code: string,
   theme: MermaidConfig['theme'],
   securityLevel: 'strict' | 'antiscript' = 'strict'
@@ -60,5 +60,5 @@ export function renderMermaidSvg (
 
   // A failed diagram must not prevent subsequent diagrams from rendering.
   renderQueue = result.then(() => {}, () => {})
-  return result
+  return await result
 }

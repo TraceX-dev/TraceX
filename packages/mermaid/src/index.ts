@@ -13,6 +13,8 @@
 // limitations under the License.
 //
 
+import '@hcengineering/platform-rig/profiles/ui/svelte'
+
 export { default as MermaidDiagram } from './components/MermaidDiagram.svelte'
 export { renderMermaidSvg } from './mermaid'
 export type { MermaidConfig } from 'mermaid'
