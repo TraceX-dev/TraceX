@@ -43,7 +43,7 @@
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
     "jest": "^30.4.2",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "@types/jest": "^30.0.0",
     "@tsconfig/node16": "^1.0.4",
     "@types/cors": "^2.8.19",
