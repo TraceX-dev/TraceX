@@ -22,6 +22,7 @@ import { TriggerFunc } from '@hcengineering/server-core'
 import { ExecuteFunc, ProcessControl, RollbackFunc, TransformFunc } from './types'
 
 export type * from './types'
+export { reportProcessDiagnostic } from './diagnostics'
 
 /**
  * @public

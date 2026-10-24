@@ -178,6 +178,7 @@ async function putEventToQueue (value: Omit<ProcessMessage, 'account'>, control:
     ])
   } catch (err) {
     control.ctx.error('Could not queue process event', { err, value })
+    throw err
   }
 }
 
@@ -303,7 +304,7 @@ export async function OnRelationChange (txes: Tx[], control: TriggerControl): Pr
 
     const assoc = control.modelDb.findObject(relation.association)
     if (assoc === undefined) continue
-    if (control.hierarchy.isDerived(assoc.classA, core.class.Association)) {
+    if (control.hierarchy.isDerived(assoc.classA, cardPlugin.class.Card)) {
       await putEventToQueue(
         {
           event: [process.trigger.WhenRelationChanges],
@@ -315,7 +316,7 @@ export async function OnRelationChange (txes: Tx[], control: TriggerControl): Pr
         control
       )
     }
-    if (control.hierarchy.isDerived(assoc.classB, core.class.Association)) {
+    if (control.hierarchy.isDerived(assoc.classB, cardPlugin.class.Card)) {
       await putEventToQueue(
         {
           event: [process.trigger.WhenRelationChanges],

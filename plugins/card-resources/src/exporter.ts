@@ -1,3 +1,15 @@
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import core, {
   type AnyAttribute,
   type ArrOf,
@@ -7,6 +19,7 @@ import core, {
   type Data,
   type Doc,
   type EnumOf,
+  generateId,
   type Hierarchy,
   type ModelDb,
   type Ref,
@@ -15,17 +28,30 @@ import core, {
 } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
+import {
+  exportAuthoringModel,
+  getAuthoringCatalog,
+  getAuthoringProcessIdentities,
+  parseProcessImport,
+  remapAuthoringReferences,
+  validateAuthoringModelOperations,
+  type AuthoringNativeDocument
+} from '@hcengineering/process'
 import view from '@hcengineering/view'
 import { deepEqual } from 'fast-equals'
 import card from './plugin'
 
-export async function importModule (json: string): Promise<void> {
+export async function importModule (json: string, createNew: boolean = false): Promise<void> {
   try {
-    const rawData = JSON.parse(json) as Doc[]
-    const data = Array.from(new Map(rawData.map((d) => [d._id, d])).values())
+    const rawData = parseProcessImport(json, 'card', getClient().getModel())
+    let data = Array.from(new Map(rawData.map((d) => [d._id, d])).values())
     const client = getClient()
     const m = client.getModel()
     const h = client.getHierarchy()
+    if (!json.trimStart().startsWith('[')) {
+      validateAuthoringModelOperations(data as unknown as AuthoringNativeDocument[], m, h)
+      if (createNew) data = cloneModule(data, m, h)
+    }
     const apply = client.apply('Import')
     for (const elem of data) {
       const existing = m.findObject(elem._id)
@@ -52,9 +78,11 @@ export async function importModule (json: string): Promise<void> {
         await apply.createDoc(elem._class, elem.space, stripData(elem), elem._id)
       }
     }
-    await apply.commit(true)
+    const result = await apply.commit(true)
+    if (!result?.result) throw new Error('Importing the card module failed')
   } catch (e) {
     console.error('Failed to import process module:', e)
+    throw e
   }
 }
 
@@ -68,13 +96,61 @@ function stripData<T extends Doc> (doc: T): Data<T> {
   return rest as Data<T>
 }
 
-export async function exportModule (_id: Ref<Class<Doc>>): Promise<string> {
+export async function exportModule (_id: Ref<Class<Doc>>, format: 'json' | 'yaml' = 'json'): Promise<string> {
   const processed = new Set<Ref<Doc>>()
-  const res = await exportType(_id, processed)
+  const res = await exportType(_id, processed, false, format === 'yaml')
   const unique = Array.from(new Map(res.map((d) => [d._id, d])).values())
   const clear = unique.map(strip)
-  const str = JSON.stringify(clear)
-  return str
+  if (format === 'json') return JSON.stringify(clear)
+  return exportAuthoringModel(clear, 'card', getAuthoringCatalog(getClient().getModel()))
+}
+
+/** Copies full modules for the editor's Create new action; file imports retain native JSON identity semantics. */
+function cloneModule (documents: Doc[], model: ModelDb, hierarchy: Hierarchy): Doc[] {
+  const mapping = new Map(documents.map((doc) => [String(doc._id), String(generateId())]))
+  for (const id of getAuthoringProcessIdentities(documents as unknown as AuthoringNativeDocument[])) {
+    if (!mapping.has(id)) mapping.set(id, generateId())
+  }
+  const attributes = documents.filter((doc) => doc._class === core.class.Attribute) as AnyAttribute[]
+  const literal = (doc: AuthoringNativeDocument, path: readonly string[]): boolean => {
+    let owner = doc._class
+    let key = path[0]
+    if (doc._class === 'process:class:Transition') {
+      const proc = documents.find((item) => item._id === doc.process) as unknown as { masterTag: string }
+      owner = proc.masterTag
+      if (path[0] === 'actions' && path[2] === 'params') {
+        const action = (doc.actions as Array<{ methodId: string, context?: { _class?: string } }>)[Number(path[1])]
+        const method = model.findObject(action.methodId as Ref<Doc>) as unknown as { objectClass?: string } | undefined
+        owner =
+          action.context?._class ??
+          (action.methodId === 'process:method:UpdateCard' ? owner : (method?.objectClass ?? owner))
+        key = path[3]
+      } else if (path[0] === 'triggerParams') key = path[1]
+      else return false
+    }
+    const visited = new Set<string>()
+    let attribute: AnyAttribute | undefined
+    while (!visited.has(owner)) {
+      visited.add(owner)
+      attribute = attributes.find((attr) => attr.attributeOf === owner && attr.name === key)
+      if (attribute !== undefined) break
+      const local = documents.find((item) => item._id === owner) as unknown as { extends?: string } | undefined
+      if (local?.extends !== undefined) owner = local.extends
+      else {
+        attribute = hierarchy.findAttribute(owner as Ref<Class<Doc>>, key)
+        break
+      }
+    }
+    return (
+      attribute !== undefined &&
+      [core.class.TypeString, core.class.TypeMarkup, core.class.EnumOf].includes(attribute.type._class)
+    )
+  }
+  return remapAuthoringReferences(
+    documents as unknown as AuthoringNativeDocument[],
+    mapping,
+    literal
+  ) as unknown as Doc[]
 }
 
 function strip<T extends Doc> (doc: T): Omit<T, 'modifiedBy' | 'modifiedOn' | 'createdBy' | 'createdOn'> {
@@ -100,8 +176,8 @@ async function exportAttribute (
     const of = (attr.type as TypeIdentifier).of
     const seq = await client.findOne(core.class.Sequence, { _id: of })
     if (seq !== undefined) {
-      seq.sequence = 0
-      docs.push(seq)
+      const exportedSequence = { ...seq, sequence: 0 }
+      docs.push(exportedSequence)
     }
   }
   if (attr.type._class === core.class.EnumOf) {
@@ -134,7 +210,8 @@ async function exportAttribute (
 async function exportType (
   _id: Ref<Class<Doc>>,
   processed: Set<Ref<Doc>>,
-  withoutDesc: boolean = false
+  withoutDesc: boolean = false,
+  preserveIcon: boolean = false
 ): Promise<Doc[]> {
   if (processed.has(_id)) return []
   processed.add(_id)
@@ -149,17 +226,17 @@ async function exportType (
   const parent = h.getClass(_id).extends
   if (parent !== undefined && h.isDerived(parent, card.class.Card) && parent !== card.class.Card) {
     if (!processed.has(parent)) {
-      res.push(...(await exportType(parent, processed, withoutDesc)))
+      res.push(...(await exportType(parent, processed, withoutDesc, preserveIcon)))
     }
-  }
-
-  if (type.icon === view.ids.IconWithEmoji && typeof type.color === 'string') {
-    type.icon = card.icon.Card
   }
 
   res.push(...m.findAllSync(view.class.Viewlet, { attachTo: _id }))
 
-  res.push(type)
+  res.push(
+    !preserveIcon && type.icon === view.ids.IconWithEmoji && typeof type.color === 'string'
+      ? { ...type, icon: card.icon.Card }
+      : type
+  )
 
   res.push(...m.findAllSync(core.class.ClassPermission, { targetClass: _id }))
 
@@ -201,7 +278,7 @@ async function exportType (
   }
 
   for (const req of required) {
-    res.push(...(await exportType(req, processed)))
+    res.push(...(await exportType(req, processed, false, preserveIcon)))
   }
   return res
 }

@@ -1,0 +1,306 @@
+[
+  {
+    "_id": "7269736b2026101000000001",
+    "_class": "card:class:MasterTag",
+    "space": "core:space:Model",
+    "extends": "card:class:Card",
+    "label": "embedded:embedded:Risk management",
+    "description": "Risk score: probability × severity. Above 16: Critical; below 9: Insignificant; 9–16 inclusive: Moderate.",
+    "kind": 0,
+    "icon": "card:icon:MasterTag"
+  },
+  {
+    "_id": "7269736b2026101000000002",
+    "_class": "core:class:Enum",
+    "space": "core:space:Model",
+    "name": "Risk scale 1–5",
+    "enumValues": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  {
+    "_id": "7269736b2026101000000003",
+    "_class": "core:class:Enum",
+    "space": "core:space:Model",
+    "name": "Risk level",
+    "enumValues": [
+      "Insignificant",
+      "Moderate",
+      "Critical"
+    ]
+  },
+  {
+    "_id": "7269736b2026101000000005",
+    "_class": "core:class:Attribute",
+    "space": "core:space:Model",
+    "attributeOf": "7269736b2026101000000001",
+    "name": "custom7269736b2026101000000004",
+    "label": "embedded:embedded:Probability",
+    "type": {
+      "_class": "core:class:EnumOf",
+      "label": "core:string:Enum",
+      "of": "7269736b2026101000000002"
+    },
+    "isCustom": true,
+    "required": true,
+    "readonly": false,
+    "automationOnly": false,
+    "rank": "0|400000:",
+    "defaultValue": "1"
+  },
+  {
+    "_id": "7269736b2026101000000007",
+    "_class": "core:class:Attribute",
+    "space": "core:space:Model",
+    "attributeOf": "7269736b2026101000000001",
+    "name": "custom7269736b2026101000000006",
+    "label": "embedded:embedded:Severity",
+    "type": {
+      "_class": "core:class:EnumOf",
+      "label": "core:string:Enum",
+      "of": "7269736b2026101000000002"
+    },
+    "isCustom": true,
+    "required": true,
+    "readonly": false,
+    "automationOnly": false,
+    "rank": "0|800000:",
+    "defaultValue": "1"
+  },
+  {
+    "_id": "7269736b2026101000000009",
+    "_class": "core:class:Attribute",
+    "space": "core:space:Model",
+    "attributeOf": "7269736b2026101000000001",
+    "name": "custom7269736b2026101000000008",
+    "label": "embedded:embedded:Risk score",
+    "type": {
+      "_class": "core:class:TypeNumber",
+      "label": "core:string:Number"
+    },
+    "isCustom": true,
+    "required": false,
+    "readonly": true,
+    "automationOnly": true,
+    "rank": "0|c00000:"
+  },
+  {
+    "_id": "7269736b202610100000000b",
+    "_class": "core:class:Attribute",
+    "space": "core:space:Model",
+    "attributeOf": "7269736b2026101000000001",
+    "name": "custom7269736b202610100000000a",
+    "label": "embedded:embedded:Risk level",
+    "type": {
+      "_class": "core:class:EnumOf",
+      "label": "core:string:Enum",
+      "of": "7269736b2026101000000003"
+    },
+    "isCustom": true,
+    "required": false,
+    "readonly": true,
+    "automationOnly": true,
+    "rank": "0|g00000:"
+  },
+  {
+    "_id": "7269736b202610100000000c",
+    "_class": "process:class:Process",
+    "space": "core:space:Model",
+    "masterTag": "7269736b2026101000000001",
+    "rank": "0|400000:",
+    "name": "Risk assessment",
+    "description": "Recalculate probability × severity and risk level when a card is created or either scale changes.",
+    "autoStart": true,
+    "showInHeader": true,
+    "parallelExecutionForbidden": true,
+    "context": {}
+  },
+  {
+    "_id": "7269736b202610100000000d",
+    "_class": "process:class:State",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "title": "Wait for input changes",
+    "rank": "0|400000:"
+  },
+  {
+    "_id": "7269736b202610100000000e",
+    "_class": "process:class:State",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "title": "Calculate score",
+    "rank": "0|800000:"
+  },
+  {
+    "_id": "7269736b202610100000000f",
+    "_class": "process:class:State",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "title": "Classify score",
+    "rank": "0|c00000:"
+  },
+  {
+    "_id": "7269736b2026101000000010",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "from": null,
+    "to": "7269736b202610100000000e",
+    "trigger": "process:trigger:OnExecutionStart",
+    "triggerParams": {},
+    "rank": "0|400000:",
+    "actions": []
+  },
+  {
+    "_id": "7269736b2026101000000011",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "from": "7269736b202610100000000d",
+    "to": "7269736b202610100000000e",
+    "trigger": "process:trigger:WhenFieldChanges",
+    "triggerParams": {
+      "custom7269736b2026101000000004": {
+        "$exists": true
+      }
+    },
+    "rank": "0|800000:",
+    "actions": []
+  },
+  {
+    "_id": "7269736b2026101000000012",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "from": "7269736b202610100000000d",
+    "to": "7269736b202610100000000e",
+    "trigger": "process:trigger:WhenFieldChanges",
+    "triggerParams": {
+      "custom7269736b2026101000000006": {
+        "$exists": true
+      }
+    },
+    "rank": "0|c00000:",
+    "actions": []
+  },
+  {
+    "_id": "7269736b2026101000000014",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "from": "7269736b202610100000000e",
+    "to": "7269736b202610100000000f",
+    "trigger": "process:trigger:OnCardUpdate",
+    "triggerParams": {
+      "custom7269736b2026101000000004": {
+        "$in": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "custom7269736b2026101000000006": {
+        "$in": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      }
+    },
+    "rank": "0|g00000:",
+    "actions": [
+      {
+        "_id": "7269736b2026101000000013",
+        "methodId": "process:method:UpdateCard",
+        "context": null,
+        "params": {
+          "custom7269736b2026101000000008": "${@custom7269736b2026101000000004=>StringFromEnum()=>NumberFromString()=>Multiply(value=\"${@custom7269736b2026101000000006=>StringFromEnum()=>NumberFromString()}\")}"
+        }
+      }
+    ]
+  },
+  {
+    "_id": "7269736b2026101000000016",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "from": "7269736b202610100000000f",
+    "to": "7269736b202610100000000d",
+    "trigger": "process:trigger:OnCardUpdate",
+    "triggerParams": {
+      "custom7269736b2026101000000008": {
+        "$gt": 16
+      }
+    },
+    "rank": "0|k00000:",
+    "actions": [
+      {
+        "_id": "7269736b2026101000000015",
+        "methodId": "process:method:UpdateCard",
+        "context": null,
+        "params": {
+          "custom7269736b202610100000000a": "Critical"
+        }
+      }
+    ]
+  },
+  {
+    "_id": "7269736b2026101000000018",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "from": "7269736b202610100000000f",
+    "to": "7269736b202610100000000d",
+    "trigger": "process:trigger:OnCardUpdate",
+    "triggerParams": {
+      "custom7269736b2026101000000008": {
+        "$lt": 9
+      }
+    },
+    "rank": "0|o00000:",
+    "actions": [
+      {
+        "_id": "7269736b2026101000000017",
+        "methodId": "process:method:UpdateCard",
+        "context": null,
+        "params": {
+          "custom7269736b202610100000000a": "Insignificant"
+        }
+      }
+    ]
+  },
+  {
+    "_id": "7269736b202610100000001a",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "7269736b202610100000000c",
+    "from": "7269736b202610100000000f",
+    "to": "7269736b202610100000000d",
+    "trigger": "process:trigger:OnCardUpdate",
+    "triggerParams": {
+      "custom7269736b2026101000000008": {
+        "$gte": 9,
+        "$lte": 16
+      }
+    },
+    "rank": "0|s00000:",
+    "actions": [
+      {
+        "_id": "7269736b2026101000000019",
+        "methodId": "process:method:UpdateCard",
+        "context": null,
+        "params": {
+          "custom7269736b202610100000000a": "Moderate"
+        }
+      }
+    ]
+  }
+]
