@@ -95,8 +95,10 @@ export class LiveKitPollingService {
   private scheduleRetry (workspace: WorkspaceUuid): void {
     const attempts = (this.pendingRetries.get(workspace)?.attempts ?? 0) + 1
     if (attempts >= LiveKitPollingService.MAX_CHECK_ATTEMPTS) {
-      // Give up for now; the next transaction in this workspace starts over
+      // Give up for now and wait a full recheck interval, so a long outage in an active workspace
+      // does not turn back into a failing request on every cycle
       this.pendingRetries.delete(workspace)
+      this.lastCheckTime.set(workspace, Date.now())
       this.ctx.warn('[PollingService] Giving up checking unfinished meetings', { workspace, attempts })
       return
     }
@@ -191,11 +193,12 @@ export class LiveKitPollingService {
     this.isPolling = true
 
     try {
-      if (this.cycleCount++ % LiveKitPollingService.HEARTBEAT_EVERY_CYCLES === 0) {
+      if (this.cycleCount % LiveKitPollingService.HEARTBEAT_EVERY_CYCLES === 0) {
         this.ctx.info('[PollingService] Starting poll cycle', { cycle: this.cycleCount })
       } else {
         this.ctx.debug('[PollingService] Starting poll cycle')
       }
+      this.cycleCount++
 
       const ourRooms = await this.getOurRooms()
 

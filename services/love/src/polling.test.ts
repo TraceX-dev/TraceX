@@ -134,18 +134,25 @@ describe('LiveKitPollingService', () => {
       expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
     })
 
-    it('gives up after too many failed attempts until the next transaction', async () => {
+    it('gives up after too many failed attempts and cools down for the recheck interval', async () => {
       const { svc, poll } = makeService()
       wsClient.checkUnfinishedMeetings.mockResolvedValue(false)
 
       svc.addWorkspaceToCheck('ws1')
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 10; i++) {
         await poll()
         now += 11 * 60_000 // always past the max backoff
       }
       expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(10)
 
-      // a new transaction starts over
+      // transactions during the cool-down do not trigger new attempts
+      now += 30 * 60_000
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(10)
+
+      // after the recheck interval a transaction starts over
+      now += 31 * 60_000
       svc.addWorkspaceToCheck('ws1')
       await poll()
       expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(11)
