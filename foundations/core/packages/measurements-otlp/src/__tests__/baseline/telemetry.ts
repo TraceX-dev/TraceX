@@ -169,7 +169,9 @@ export class OpenTelemetryMetricsContext implements MeasureContext {
 
       for (const k of Object.keys(params)) {
         const v = params[k]
-        _span?.setAttribute(k, v as any)
+        if (v !== undefined) {
+          _span?.setAttribute(k, v)
+        }
       }
     }
     if (opt?.span === 'disable') {

@@ -15,6 +15,7 @@
 //
 
 import { codeBlockOptions } from '@hcengineering/text'
+import { renderMermaidSvg, type MermaidConfig } from '@hcengineering/mermaid'
 import { getCurrentTheme, isThemeDark, themeStore } from '@hcengineering/theme'
 import { showPopup } from '@hcengineering/ui'
 import { mergeAttributes } from '@tiptap/core'
@@ -23,7 +24,6 @@ import { type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection, Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { createLowlight } from 'lowlight'
-import type { MermaidConfig } from 'mermaid'
 import { createRelativePositionFromTypeIndex, type RelativePosition, type Doc as YDoc } from 'yjs'
 
 import { isChangeEditable } from '../hooks/editable'
@@ -460,36 +460,6 @@ interface MermaidRenderResult {
 }
 
 async function renderMermaidDiagram (code: string, theme: MermaidConfig['theme']): Promise<MermaidRenderResult> {
-  // Has no practical effect now, but in case the Webpack
-  // configuration gets changed to split the vendor bundle, it might come in handy
-  const mermaid = (await import(/* webpackMode: "lazy-once" */ 'mermaid')).default
-
-  const useMaxWidth = false
-
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: 'antiscript',
-    logLevel: 5,
-    theme,
-    suppressErrorRendering: true,
-    fontFamily: 'var(--font-family)',
-    fontSize: 16,
-    flowchart: { useMaxWidth },
-    sequence: { useMaxWidth },
-    gantt: { useMaxWidth },
-    journey: { useMaxWidth },
-    timeline: { useMaxWidth },
-    class: { useMaxWidth },
-    state: { useMaxWidth },
-    er: { useMaxWidth },
-    pie: { useMaxWidth },
-    quadrantChart: { useMaxWidth },
-    xyChart: { useMaxWidth },
-    requirement: { useMaxWidth }
-  })
-
-  const id = `mermaid-diagram-${Math.random().toString(36).substring(2, 9)}`
-
   const result: MermaidRenderResult = {
     input: code,
     domFragments: [],
@@ -497,8 +467,7 @@ async function renderMermaidDiagram (code: string, theme: MermaidConfig['theme']
   }
 
   try {
-    const render = await mermaid.render(id, code)
-    result.svg = render.svg
+    result.svg = await renderMermaidSvg(code, theme, 'antiscript')
   } catch (e: any) {
     if (typeof e?.message === 'string') {
       result.error = {

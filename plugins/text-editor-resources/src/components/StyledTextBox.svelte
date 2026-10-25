@@ -1,3 +1,17 @@
+<!--
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+-->
 <script lang="ts">
   import { Markup } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
@@ -47,6 +61,7 @@
   export let isScrollable: boolean = true
   export let boundary: HTMLElement | undefined = undefined
   export let readonly: boolean = false
+  export let renderReadonlyEditor: boolean = false
   export let kitOptions: Partial<EditorKitOptions> = {}
 
   export let attachFile: FileAttachFunction | undefined = undefined
@@ -94,8 +109,6 @@
   $: if (!modified && rawValue !== content) modified = true
   $: dispatch('change', modified)
 
-  $: editor?.setEditable(!readonly)
-
   export function submit (): void {
     editor.submit()
   }
@@ -117,7 +130,7 @@
   }
   let needFocus = false
 
-  $: if (editor !== undefined && needFocus) {
+  $: if (editor !== undefined && needFocus && !readonly) {
     editor.focus()
     needFocus = false
   }
@@ -154,7 +167,7 @@
       dispatch('focus')
     } else {
       dispatch('blur', rawValue)
-      if (alwaysEdit) {
+      if (alwaysEdit && !readonly) {
         dispatch('value', rawValue)
         content = rawValue
       }
@@ -270,14 +283,15 @@
   {#if label}
     <div class="label"><Label {label} /></div>
   {/if}
-  {#if (mode !== Mode.View || alwaysEdit) && !readonly}
+  {#if (mode !== Mode.View || alwaysEdit) && (!readonly || renderReadonlyEditor)}
     <StyledTextEditor
       {placeholder}
-      {showButtons}
+      editable={!readonly}
+      showButtons={showButtons && !readonly}
       {buttonSize}
       {maxHeight}
-      {focusable}
-      {autofocus}
+      focusable={focusable && !readonly}
+      autofocus={autofocus && !readonly}
       {isScrollable}
       {extraActions}
       {boundary}
@@ -324,6 +338,7 @@
       bind:content={rawValue}
       bind:this={editor}
       on:value={(evt) => {
+        if (readonly) return
         rawValue = evt.detail
         if (alwaysEdit) {
           content = evt.detail
@@ -331,8 +346,12 @@
         dispatch('changeContent', evt.detail)
       }}
     >
-      <slot name="actions" slot="actions" />
-      {#if !alwaysEdit && !hideExtraButtons}
+      <svelte:fragment slot="actions">
+        {#if !readonly}
+          <slot name="actions" />
+        {/if}
+      </svelte:fragment>
+      {#if !alwaysEdit && !hideExtraButtons && !readonly}
         <div class="flex flex-reverse flex-grow gap-2 reverse">
           <ActionIcon
             icon={IconCheck}
