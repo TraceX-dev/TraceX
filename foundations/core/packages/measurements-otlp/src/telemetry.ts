@@ -136,8 +136,8 @@ export class OpenTelemetryMetricsContext extends BaseMeasureContext {
       }
       _span = this.tracer.startSpan(name, undefined, childContext)
 
-      for (const k of Object.keys(params)) {
-        const v = params[k]
+      const spanParams = [...Object.entries(params)]
+      for (const [k, v] of spanParams) {
         if (v !== undefined) {
           _span?.setAttribute(k, v)
         }
