@@ -75,27 +75,110 @@ describe('LiveKitPollingService', () => {
     expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(2)
   })
 
-  it('retries the check when it reports failure', async () => {
-    const { svc, poll } = makeService()
-    wsClient.checkUnfinishedMeetings.mockResolvedValueOnce(false)
+  describe('with a controllable clock', () => {
+    let now: number
 
-    svc.addWorkspaceToCheck('ws1')
-    await poll()
-    await poll()
-    expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(2)
+    beforeEach(() => {
+      now = 1_000_000
+      jest.spyOn(Date, 'now').mockImplementation(() => now)
+    })
 
-    await poll()
-    expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(2)
-  })
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
 
-  it('retries the check when the workspace client throws', async () => {
-    const { svc, poll } = makeService()
-    ;(WorkspaceClient.create as jest.Mock).mockRejectedValueOnce(new Error('fetch failed'))
+    it('retries a failed check only after the backoff delay', async () => {
+      const { svc, poll } = makeService()
+      wsClient.checkUnfinishedMeetings.mockResolvedValueOnce(false)
 
-    svc.addWorkspaceToCheck('ws1')
-    await poll()
-    await poll()
-    expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
+
+      // still within the backoff window
+      now += 10_000
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
+
+      now += 25_000
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(2)
+
+      // succeeded, nothing pending anymore
+      now += 60_000
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries when the workspace client throws', async () => {
+      const { svc, poll } = makeService()
+      ;(WorkspaceClient.create as jest.Mock).mockRejectedValueOnce(new Error('fetch failed'))
+
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(0)
+
+      now += 31_000
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not re-queue a workspace that is waiting for a retry', async () => {
+      const { svc, poll } = makeService()
+      wsClient.checkUnfinishedMeetings.mockResolvedValue(false)
+
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      svc.addWorkspaceToCheck('ws1') // transaction while backing off
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
+    })
+
+    it('gives up after too many failed attempts until the next transaction', async () => {
+      const { svc, poll } = makeService()
+      wsClient.checkUnfinishedMeetings.mockResolvedValue(false)
+
+      svc.addWorkspaceToCheck('ws1')
+      for (let i = 0; i < 20; i++) {
+        await poll()
+        now += 11 * 60_000 // always past the max backoff
+      }
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(10)
+
+      // a new transaction starts over
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(11)
+    })
+
+    it('re-checks a workspace after the recheck interval', async () => {
+      const { svc, poll } = makeService()
+
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
+
+      now += 30 * 60_000
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
+
+      now += 31 * 60_000
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not repeat the meetings check when only the cleanup fails', async () => {
+      const { svc, poll } = makeService()
+      wsClient.cleanupOrphanedParticipantInfos.mockRejectedValueOnce(new Error('boom'))
+
+      svc.addWorkspaceToCheck('ws1')
+      await poll()
+      now += 60_000
+      await poll()
+      expect(wsClient.checkUnfinishedMeetings).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('loads ParticipantInfo once per room per cycle', async () => {
@@ -115,6 +198,19 @@ describe('LiveKitPollingService', () => {
 
     await poll()
     expect(wsClient.removeParticipantInfoById).toHaveBeenCalledWith('i1')
+  })
+
+  it('does not skip a join because of a ParticipantInfo that was just removed', async () => {
+    const room = { name: 'ws1_meeting1', metadata: JSON.stringify({ projectKey: 'p' }) }
+    const { poll } = makeService([room], [{ identity: 'new', name: 'Same Name', kind: 0, sid: 's1' }])
+    // stale entry with the same display name as the joining participant
+    wsClient.findParticipantInfosByMeeting.mockResolvedValue([{ _id: 'i1', person: 'old', name: 'Same Name' }])
+    wsClient.findPersonRefById.mockResolvedValue('new')
+    wsClient.upsertParticipantFromLiveKit = jest.fn(async () => undefined)
+
+    await poll()
+    expect(wsClient.removeParticipantInfoById).toHaveBeenCalledWith('i1')
+    expect(wsClient.upsertParticipantFromLiveKit).toHaveBeenCalledTimes(1)
   })
 
   it('does not start a new cycle while the previous one is still running', async () => {

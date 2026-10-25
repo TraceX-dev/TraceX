@@ -61,12 +61,22 @@ export class LiveKitPollingService {
   private readonly roomStates = new Map<string, RoomState>()
 
   private readonly workspacesToCheck = new Set<WorkspaceUuid>()
-  // Workspaces whose unfinished meetings were already verified by this process.
-  // The check only matters once after a (re)start: afterwards finished rooms are handled by cleanupStaleRoomStates.
-  private readonly checkedWorkspaces = new Set<WorkspaceUuid>()
+  // Last successful unfinished-meetings check per workspace. Transactions do not re-trigger the check
+  // until RECHECK_INTERVAL_MS has passed: it is a safety net (after a restart, or for meetings whose room
+  // disappeared before it was ever seen by polling), not something that has to follow every transaction.
+  private readonly lastCheckTime = new Map<WorkspaceUuid, number>()
+  // Failed checks waiting for a retry with exponential backoff
+  private readonly pendingRetries = new Map<WorkspaceUuid, { attempts: number, notBefore: number }>()
   private isPolling = false
+  private cycleCount = 0
   private readonly lastCleanupTime = new Map<WorkspaceUuid, number>()
   private static readonly CLEANUP_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
+  private static readonly RECHECK_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
+  private static readonly RETRY_BASE_MS = 30 * 1000
+  private static readonly RETRY_MAX_MS = 10 * 60 * 1000
+  private static readonly MAX_CHECK_ATTEMPTS = 10
+  // Log a heartbeat at info level every N cycles (the rest is debug)
+  private static readonly HEARTBEAT_EVERY_CYCLES = 20
 
   constructor (ctx: MeasureContext, roomClient: RoomServiceClient, config: PollingConfig) {
     this.ctx = ctx
@@ -75,8 +85,34 @@ export class LiveKitPollingService {
   }
 
   addWorkspaceToCheck (workspace: WorkspaceUuid): void {
-    if (this.checkedWorkspaces.has(workspace)) return
+    // A failed check is already scheduled with its own backoff
+    if (this.pendingRetries.has(workspace)) return
+    const last = this.lastCheckTime.get(workspace)
+    if (last !== undefined && Date.now() - last < LiveKitPollingService.RECHECK_INTERVAL_MS) return
     this.workspacesToCheck.add(workspace)
+  }
+
+  private scheduleRetry (workspace: WorkspaceUuid): void {
+    const attempts = (this.pendingRetries.get(workspace)?.attempts ?? 0) + 1
+    if (attempts >= LiveKitPollingService.MAX_CHECK_ATTEMPTS) {
+      // Give up for now; the next transaction in this workspace starts over
+      this.pendingRetries.delete(workspace)
+      this.ctx.warn('[PollingService] Giving up checking unfinished meetings', { workspace, attempts })
+      return
+    }
+    const delay = Math.min(
+      LiveKitPollingService.RETRY_BASE_MS * 2 ** (attempts - 1),
+      LiveKitPollingService.RETRY_MAX_MS
+    )
+    this.pendingRetries.set(workspace, { attempts, notBefore: Date.now() + delay })
+  }
+
+  private takeDueRetries (now: number): WorkspaceUuid[] {
+    const due: WorkspaceUuid[] = []
+    for (const [workspace, retry] of this.pendingRetries) {
+      if (retry.notBefore <= now) due.push(workspace)
+    }
+    return due
   }
 
   /**
@@ -155,7 +191,11 @@ export class LiveKitPollingService {
     this.isPolling = true
 
     try {
-      this.ctx.debug('[PollingService] Starting poll cycle')
+      if (this.cycleCount++ % LiveKitPollingService.HEARTBEAT_EVERY_CYCLES === 0) {
+        this.ctx.info('[PollingService] Starting poll cycle', { cycle: this.cycleCount })
+      } else {
+        this.ctx.debug('[PollingService] Starting poll cycle')
+      }
 
       const ourRooms = await this.getOurRooms()
 
@@ -172,31 +212,42 @@ export class LiveKitPollingService {
       }
 
       // We need to check workspaces added to check for un finished meetings.
-      const wtc = Array.from(this.workspacesToCheck)
+      const wtc = Array.from(new Set([...this.workspacesToCheck, ...this.takeDueRetries(Date.now())]))
       this.workspacesToCheck.clear()
       for (const workspace of wtc) {
+        let ok = false
+        let wsClient: WorkspaceClient | undefined
         try {
-          const wsClient = await WorkspaceClient.create(workspace, this.ctx)
-          const ok = await wsClient.checkUnfinishedMeetings(
+          wsClient = await WorkspaceClient.create(workspace, this.ctx)
+          ok = await wsClient.checkUnfinishedMeetings(
             ourRooms
               .map((it) => parseRoomName(it.name))
               .filter((it) => it?.workspace === workspace)
               .map((it) => it?.meetingId)
               .filter((it) => it != null)
           )
-          if (ok) {
-            this.checkedWorkspaces.add(workspace)
-          } else {
-            // Retry on the next cycle
-            this.workspacesToCheck.add(workspace)
-          }
-          // Also clean up orphaned ParticipantInfo entries for finished meetings (at most once per hour)
+        } catch (err: any) {
+          this.ctx.error('[PollingService] Error checking unfinished meetings', {
+            workspace,
+            error: err?.message ?? String(err)
+          })
+        }
+
+        if (!ok || wsClient === undefined) {
+          this.scheduleRetry(workspace)
+          continue
+        }
+        this.pendingRetries.delete(workspace)
+        this.lastCheckTime.set(workspace, Date.now())
+
+        // Also clean up orphaned ParticipantInfo entries for finished meetings (at most once per hour).
+        // A cleanup failure does not require repeating the meetings check.
+        try {
           if (this.shouldRunCleanup(workspace)) {
             await wsClient.cleanupOrphanedParticipantInfos()
           }
         } catch (err: any) {
-          this.workspacesToCheck.add(workspace)
-          this.ctx.error('[PollingService] Error checking unfinished meetings', {
+          this.ctx.error('[PollingService] Error cleaning up orphaned ParticipantInfo', {
             workspace,
             error: err?.message ?? String(err)
           })
@@ -276,10 +327,22 @@ export class LiveKitPollingService {
       return
     }
 
-    await this.reconcileParticipantsWithDatabase(workspace, meetingId, allParticipants, dbParticipants)
+    // Pass on only the entries that survived the cleanup, so the join detection below does not see removed ones
+    const remainingParticipants = await this.reconcileParticipantsWithDatabase(
+      workspace,
+      meetingId,
+      allParticipants,
+      dbParticipants
+    )
 
     // Also reconcile in-memory cache for detecting joins (backwards compatibility)
-    await this.reconcileParticipants(workspace, meetingId, previousParticipants, currentParticipants, dbParticipants)
+    await this.reconcileParticipants(
+      workspace,
+      meetingId,
+      previousParticipants,
+      currentParticipants,
+      remainingParticipants
+    )
   }
 
   /**
@@ -295,7 +358,8 @@ export class LiveKitPollingService {
     meetingId: Ref<MeetingMinutes>,
     allParticipants: Map<string, LiveKitParticipant>,
     dbParticipants: ParticipantInfo[]
-  ): Promise<void> {
+  ): Promise<ParticipantInfo[]> {
+    const removed = new Set<string>()
     try {
       const wsClient = await WorkspaceClient.create(workspace, this.ctx)
 
@@ -317,6 +381,7 @@ export class LiveKitPollingService {
               name: dbParticipant.name
             })
             await wsClient.removeParticipantInfoById(dbParticipant._id)
+            removed.add(dbParticipant._id)
           }
         }
       }
@@ -327,6 +392,7 @@ export class LiveKitPollingService {
         error: err?.message ?? String(err)
       })
     }
+    return dbParticipants.filter((it) => !removed.has(it._id))
   }
 
   /**
