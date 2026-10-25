@@ -64,6 +64,7 @@ describe('updateManager', () => {
   let quitApplication: jest.Mock
   let manager: ReturnType<typeof setupUpdateManager>
   let lastToken: any
+  let lastReject: ((e: Error) => void) | undefined
 
   const flush = async (): Promise<void> => {
     await Promise.resolve()
@@ -83,6 +84,7 @@ describe('updateManager', () => {
     }
     quitApplication = jest.fn()
     lastToken = undefined
+    lastReject = undefined
 
     autoUpdater.setFeedURL.mockReset()
     autoUpdater.checkForUpdates.mockReset().mockResolvedValue(undefined)
@@ -92,6 +94,7 @@ describe('updateManager', () => {
       async (token: any) =>
         await new Promise((_resolve, reject) => {
           lastToken = token
+          lastReject = reject
           token.onCancel(() => reject(new Error('cancelled')))
         })
     )
@@ -231,13 +234,50 @@ describe('updateManager', () => {
     expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(3)
   })
 
-  it('shows the dialog again after a failed attempt is retried', () => {
+  it('does not show another dialog when a failed attempt is retried', async () => {
     available()
-    autoUpdater.emit('error', new Error('network'))
+    lastReject?.(new Error('network'))
+    await flush()
+    jest.advanceTimersByTime(10_000)
     available()
 
-    expect(mockDialog.showMessageBox).toHaveBeenCalledTimes(2)
     expect(autoUpdater.downloadUpdate).toHaveBeenCalledTimes(2)
+    expect(mockDialog.showMessageBox).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not touch a running download on an unrelated error', () => {
+    available()
+    mainWindow.setProgressBar.mockClear()
+
+    autoUpdater.emit('error', new Error('update check failed'))
+    expect(mainWindow.setProgressBar).not.toHaveBeenCalledWith(-1)
+
+    jest.advanceTimersByTime(10_000)
+    expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled()
+
+    // the stall watchdog of the running download is still armed
+    jest.advanceTimersByTime(STALL_MS)
+    expect(lastToken.cancelled).toBe(true)
+  })
+
+  it('handles a failing download once: error event followed by rejection', async () => {
+    available()
+    autoUpdater.emit('error', new Error('download failed'))
+    lastReject?.(new Error('download failed'))
+    await flush()
+
+    expect(mainWindow.setProgressBar).toHaveBeenLastCalledWith(-1)
+    jest.advanceTimersByTime(10_000)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not start a second download while one is in flight', () => {
+    available()
+    mainWindow.setProgressBar.mockClear()
+    available()
+
+    expect(autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
+    expect(mainWindow.setProgressBar).not.toHaveBeenCalled()
   })
 
   it('installs the update when download completes and stops the stall watchdog', () => {

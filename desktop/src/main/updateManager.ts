@@ -40,8 +40,8 @@ export interface UpdateManager {
  * Must be called once.
  */
 export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateManagerDeps): UpdateManager {
-  // Note: it is reset when the app is relaunched after update
-  let isUpdating = false
+  // The dialog is shown once per app run: retries must not stack new (non-modal) dialogs
+  let dialogShown = false
   let retryAttempt = 0
   let retryTimer: NodeJS.Timeout | undefined
   let stallTimer: NodeJS.Timeout | undefined
@@ -74,7 +74,6 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
   function resetDownloadState (): void {
     clearStallTimer()
     downloadToken = undefined
-    isUpdating = false
     getMainWindow()?.setProgressBar(-1)
   }
 
@@ -99,8 +98,9 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
     }
   }
 
-  function startDownload (): void {
-    if (downloadToken !== undefined) return
+  /** @returns false if a download is already in flight */
+  function startDownload (): boolean {
+    if (downloadToken !== undefined) return false
     const token = new CancellationToken()
     downloadToken = token
     armStallTimer()
@@ -111,14 +111,16 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
         scheduleRetry()
       }
     })
+    return true
   }
 
   autoUpdater.on('update-available', (info: UpdateInfo) => {
-    startDownload()
+    if (startDownload()) {
+      setDownloadProgress(0)
+    }
 
-    if (isUpdating) return
-    isUpdating = true
-    setDownloadProgress(0)
+    if (dialogShown) return
+    dialogShown = true
 
     void dialog
       .showMessageBox({
@@ -143,6 +145,10 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
   })
 
   autoUpdater.on('error', () => {
+    // An error of a running download is followed by a rejection of downloadUpdate(),
+    // which resets the state and schedules the retry. Other errors (e.g. a failed
+    // update check) must not drop the token of a download that is still in flight.
+    if (downloadToken !== undefined) return
     resetDownloadState()
     scheduleRetry()
   })
