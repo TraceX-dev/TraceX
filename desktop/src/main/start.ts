@@ -15,12 +15,10 @@
 //
 
 import { config as dotenvConfig } from 'dotenv'
-import { globalShortcut, Event, BrowserWindow, CookiesSetDetails, Notification, app, desktopCapturer, dialog, ipcMain, nativeImage, session, shell, systemPreferences, nativeTheme } from 'electron'
+import { globalShortcut, Event, BrowserWindow, CookiesSetDetails, Notification, app, desktopCapturer, ipcMain, nativeImage, session, shell, systemPreferences, nativeTheme } from 'electron'
 import contextMenu from 'electron-context-menu'
 import log from 'electron-log'
 import Store from 'electron-store'
-import { CancellationToken } from 'builder-util-runtime'
-import { ProgressInfo, UpdateInfo } from 'electron-updater'
 import WinBadge from 'electron-windows-badge'
 import * as path from 'path'
 
@@ -31,7 +29,7 @@ import { dispatchMenuBarAction } from './customMenu'
 import { registerFindInPageIpcHandlers } from './findInPage'
 import { setupFindInPageOverlayForWindow } from './findInPageOverlayHost'
 import { addPermissionHandlers } from './permissions'
-import autoUpdater from './updater'
+import { setupUpdateManager } from './updateManager'
 import { generateId } from '@hcengineering/core'
 import { DownloadItem } from '@hcengineering/desktop-downloads'
 import { rebuildJumpList, setupWindowsSpecific } from './windowsSpecificSetup'
@@ -455,12 +453,7 @@ function runTheApp (): void {
     log.info('updates channels', updatesChannels)
     log.info('updates channel', updatesChannelKey, updatesChannel)
 
-    autoUpdater.setFeedURL({
-      provider: 'generic',
-      url: updatesUrl,
-      channel: updatesChannel
-    })
-    void checkForUpdates()
+    updateManager.start({ url: updatesUrl, channel: updatesChannel })
   })
 
   ipcMain.handle(IpcMessage.GetMainConfig, (_event: any, _path: any) => {
@@ -595,122 +588,5 @@ function runTheApp (): void {
     }
   })
 
-  // Note: it is reset when the app is relaunched after update
-  let isUpdating = false
-
-  // Download is started manually (autoDownload = false) so that a stalled download can be cancelled and retried
-  const STALL_TIMEOUT_MS = 60_000
-  const RETRY_DELAYS_MS = [10_000, 30_000, 60_000, 300_000]
-  let retryAttempt = 0
-  let retryTimer: NodeJS.Timeout | undefined
-  let stallTimer: NodeJS.Timeout | undefined
-  let downloadToken: CancellationToken | undefined
-
-  function clearStallTimer (): void {
-    if (stallTimer !== undefined) {
-      clearTimeout(stallTimer)
-      stallTimer = undefined
-    }
-  }
-
-  function armStallTimer (): void {
-    clearStallTimer()
-    stallTimer = setTimeout(() => {
-      log.warn(`Update download made no progress for ${STALL_TIMEOUT_MS}ms, cancelling`)
-      downloadToken?.cancel()
-    }, STALL_TIMEOUT_MS)
-  }
-
-  function resetDownloadState (): void {
-    clearStallTimer()
-    downloadToken = undefined
-    isUpdating = false
-    mainWindow?.setProgressBar(-1)
-  }
-
-  function scheduleRetry (): void {
-    if (retryTimer !== undefined) return
-    const delay = RETRY_DELAYS_MS[Math.min(retryAttempt, RETRY_DELAYS_MS.length - 1)]
-    retryAttempt++
-    log.info(`Retrying update check in ${delay}ms (attempt ${retryAttempt})`)
-    retryTimer = setTimeout(() => {
-      retryTimer = undefined
-      void checkForUpdates()
-    }, delay)
-  }
-
-  async function checkForUpdates (): Promise<void> {
-    try {
-      await autoUpdater.checkForUpdates()
-    } catch (err: any) {
-      // 'error' event is emitted as well and schedules the retry
-      log.error('Update check failed', err)
-      scheduleRetry()
-    }
-  }
-
-  function startDownload (): void {
-    if (downloadToken !== undefined) return
-    const token = new CancellationToken()
-    downloadToken = token
-    armStallTimer()
-    autoUpdater.downloadUpdate(token).catch((err: any) => {
-      log.error('Update download failed', err)
-      if (downloadToken === token) {
-        resetDownloadState()
-        scheduleRetry()
-      }
-    })
-  }
-
-  autoUpdater.on('update-available', (info: UpdateInfo) => {
-    startDownload()
-
-    if (isUpdating) return
-    isUpdating = true
-    setDownloadProgress(0)
-
-    void dialog
-      .showMessageBox({
-        type: 'info',
-        buttons: ['Update & Restart', 'Quit'],
-        defaultId: 0,
-        message: `A new version ${info.version} is available and it is required to continue. It will be downloaded and installed automatically.`
-      })
-      .then(({ response }: any) => {
-        log.info(`Update dialog exit code: ${response}`) // eslint-disable-line no-console
-
-        if (response !== 0) {
-          quitApplication()
-        }
-      })
-  })
-
-  autoUpdater.on('download-progress', (progressObj: ProgressInfo) => {
-    retryAttempt = 0
-    armStallTimer()
-    setDownloadProgress(progressObj.percent)
-  })
-
-  autoUpdater.on('error', () => {
-    resetDownloadState()
-    scheduleRetry()
-  })
-
-  function setDownloadProgress (percent: number): void {
-    if (mainWindow === undefined) {
-      return
-    }
-    mainWindow.setProgressBar(percent / 100)
-    mainWindow.webContents.send(IpcMessage.HandleUpdateDownloadProgress, percent)
-  }
-
-  autoUpdater.on('update-downloaded', (_info: any) => {
-    clearStallTimer()
-    // We have listeners that prevents the app from being exited on mac
-    app.removeAllListeners('window-all-closed')
-    mainWindow?.removeAllListeners('close')
-
-    autoUpdater.quitAndInstall()
-  })
+  const updateManager = setupUpdateManager({ getMainWindow: () => mainWindow, quitApplication })
 }
