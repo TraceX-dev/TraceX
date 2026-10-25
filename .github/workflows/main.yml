@@ -772,7 +772,7 @@ jobs:
           AWS_REGION: ${{ secrets.S3_REGION }}
           AWS_REQUEST_CHECKSUM_CALCULATION: when_required
           AWS_RETRY_MODE: standard
-          AWS_MAX_ATTEMPTS: "10"
+          AWS_MAX_ATTEMPTS: "5"
         run: |
           # Classic transfer client instead of CRT (CRT fails with FIRST_BYTE_TIMEOUT on big uploads)
           aws configure set default.s3.preferred_transfer_client classic
