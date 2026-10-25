@@ -782,15 +782,15 @@ jobs:
           aws configure set default.s3.multipart_threshold 128MB
           aws configure set default.s3.multipart_chunksize 64MB
           # sync is idempotent: already uploaded files are skipped on retry
-          for i in 1 2 3 4 5; do
+          for i in 1 2 3; do
             if aws s3 sync "qms-desktop-package/${{ env.PublishTempFolder }}" "s3://${{ secrets.DIST_S3_BUCKET }}/" \
               --endpoint-url "${{ secrets.S3_ENDPOINT }}"; then
               exit 0
             fi
-            echo "::warning::S3 sync failed (attempt $i/5), retrying in 30s"
+            echo "::warning::S3 sync failed (attempt $i/3), retrying in 30s"
             sleep 30
           done
-          echo "::error::S3 sync failed after 5 attempts"
+          echo "::error::S3 sync failed after 3 attempts"
           exit 1
       - name: Upload MacOS
         uses: actions/upload-artifact@v6
