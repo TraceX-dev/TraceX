@@ -64,8 +64,8 @@
 
   function columnWidth (value: unknown): string | undefined {
     if (!Array.isArray(value) || value.length === 0) return undefined
-    const widths = value.filter((width: unknown): width is number =>
-      typeof width === 'number' && Number.isFinite(width) && width > 0
+    const widths = value.filter(
+      (width: unknown): width is number => typeof width === 'number' && Number.isFinite(width) && width > 0
     )
     if (widths.length !== value.length) return undefined
     return `${widths.reduce((sum, width) => sum + width, 0)}px`
@@ -175,7 +175,13 @@
       <span class="file-name-container">
         <FileTypeIcon name={fileName} />
         {#if fileId !== undefined}
-          <a class="file-name" href={getFileUrl(fileId, fileName)} download={fileName} target="_blank" rel="noopener noreferrer">
+          <a
+            class="file-name"
+            href={getFileUrl(fileId, fileName)}
+            download={fileName}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             {fileName}
           </a>
         {:else}

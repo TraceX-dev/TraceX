@@ -59,6 +59,9 @@ export async function renderMermaidSvg (
   })
 
   // A failed diagram must not prevent subsequent diagrams from rendering.
-  renderQueue = result.then(() => {}, () => {})
+  renderQueue = result.then(
+    () => {},
+    () => {}
+  )
   return await result
 }

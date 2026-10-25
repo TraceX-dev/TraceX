@@ -59,7 +59,11 @@
   })
 </script>
 
-<div class="proseMermaidDiagram folded" data-mermaid-render-state={renderState} style:margin={preview ? '0' : undefined}>
+<div
+  class="proseMermaidDiagram folded"
+  data-mermaid-render-state={renderState}
+  style:margin={preview ? '0' : undefined}
+>
   {#if svg !== undefined}
     <div class="mermaidPreviewContainer">
       <div class="mermaidPreview">

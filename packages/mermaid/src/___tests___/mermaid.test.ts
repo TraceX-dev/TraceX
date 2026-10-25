@@ -36,9 +36,13 @@ describe('Mermaid SVG renderer', () => {
     expect(await renderMermaidSvg('graph TD\nA-->B', 'default')).toBe('<svg>diagram</svg>')
     await renderMermaidSvg('graph TD\nC-->D', 'default')
 
-    expect(initialize).toHaveBeenCalledWith(expect.objectContaining({
-      securityLevel: 'strict', startOnLoad: false, suppressErrorRendering: true
-    }))
+    expect(initialize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        securityLevel: 'strict',
+        startOnLoad: false,
+        suppressErrorRendering: true
+      })
+    )
     expect(render.mock.calls[0][0]).not.toBe(render.mock.calls[1][0])
     expect(render.mock.calls[0][1]).toBe('graph TD\nA-->B')
   })
@@ -49,11 +53,15 @@ describe('Mermaid SVG renderer', () => {
       finishFirst = resolve
     })
     let notifyStarted: () => void = () => {}
-    const started = new Promise<void>((resolve) => { notifyStarted = resolve })
-    render.mockImplementationOnce(async () => {
-      notifyStarted()
-      return await firstRender
-    }).mockResolvedValueOnce({ svg: '<svg>dark</svg>', diagramType: 'flowchart-v2' })
+    const started = new Promise<void>((resolve) => {
+      notifyStarted = resolve
+    })
+    render
+      .mockImplementationOnce(async () => {
+        notifyStarted()
+        return await firstRender
+      })
+      .mockResolvedValueOnce({ svg: '<svg>dark</svg>', diagramType: 'flowchart-v2' })
 
     const first = renderMermaidSvg('graph TD\nA-->B', 'default')
     const second = renderMermaidSvg('graph TD\nC-->D', 'dark', 'antiscript')
@@ -62,15 +70,17 @@ describe('Mermaid SVG renderer', () => {
     expect(initialize).toHaveBeenCalledTimes(1)
     finishFirst({ svg: '<svg>light</svg>', diagramType: 'flowchart-v2' })
     expect(await Promise.all([first, second])).toEqual(['<svg>light</svg>', '<svg>dark</svg>'])
-    expect(initialize).toHaveBeenLastCalledWith(expect.objectContaining({
-      theme: 'dark', securityLevel: 'antiscript'
-    }))
+    expect(initialize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        theme: 'dark',
+        securityLevel: 'antiscript'
+      })
+    )
   })
 
   it('continues rendering other diagrams after invalid input', async () => {
     const error = new Error('Invalid diagram')
-    render.mockRejectedValueOnce(error)
-      .mockResolvedValueOnce({ svg: '<svg>valid</svg>', diagramType: 'flowchart-v2' })
+    render.mockRejectedValueOnce(error).mockResolvedValueOnce({ svg: '<svg>valid</svg>', diagramType: 'flowchart-v2' })
 
     const invalid = renderMermaidSvg('invalid', 'default')
     const valid = renderMermaidSvg('graph TD\nA-->B', 'default')
