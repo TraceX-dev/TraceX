@@ -16,7 +16,7 @@ import { parseParticipantMetadata } from './utils'
 
 import { MeasureContext, Ref, WorkspaceUuid } from '@hcengineering/core'
 import { Person } from '@hcengineering/contact'
-import { MeetingMinutes, parseRoomName } from '@hcengineering/love'
+import { MeetingMinutes, ParticipantInfo, parseRoomName } from '@hcengineering/love'
 import { RoomServiceClient, ParticipantInfo as LiveKitParticipant, Room } from 'livekit-server-sdk'
 import { WorkspaceClient } from './workspaceClient'
 
@@ -61,6 +61,10 @@ export class LiveKitPollingService {
   private readonly roomStates = new Map<string, RoomState>()
 
   private readonly workspacesToCheck = new Set<WorkspaceUuid>()
+  // Workspaces whose unfinished meetings were already verified by this process.
+  // The check only matters once after a (re)start: afterwards finished rooms are handled by cleanupStaleRoomStates.
+  private readonly checkedWorkspaces = new Set<WorkspaceUuid>()
+  private isPolling = false
   private readonly lastCleanupTime = new Map<WorkspaceUuid, number>()
   private static readonly CLEANUP_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
 
@@ -71,6 +75,7 @@ export class LiveKitPollingService {
   }
 
   addWorkspaceToCheck (workspace: WorkspaceUuid): void {
+    if (this.checkedWorkspaces.has(workspace)) return
     this.workspacesToCheck.add(workspace)
   }
 
@@ -146,10 +151,11 @@ export class LiveKitPollingService {
    * Main polling loop - fetches all rooms and reconciles state
    */
   private async poll (): Promise<void> {
-    if (!this.isRunning) return
+    if (!this.isRunning || this.isPolling) return
+    this.isPolling = true
 
     try {
-      this.ctx.info('[PollingService] Starting poll cycle')
+      this.ctx.debug('[PollingService] Starting poll cycle')
 
       const ourRooms = await this.getOurRooms()
 
@@ -171,18 +177,25 @@ export class LiveKitPollingService {
       for (const workspace of wtc) {
         try {
           const wsClient = await WorkspaceClient.create(workspace, this.ctx)
-          await wsClient.checkUnfinishedMeetings(
+          const ok = await wsClient.checkUnfinishedMeetings(
             ourRooms
               .map((it) => parseRoomName(it.name))
               .filter((it) => it?.workspace === workspace)
               .map((it) => it?.meetingId)
               .filter((it) => it != null)
           )
+          if (ok) {
+            this.checkedWorkspaces.add(workspace)
+          } else {
+            // Retry on the next cycle
+            this.workspacesToCheck.add(workspace)
+          }
           // Also clean up orphaned ParticipantInfo entries for finished meetings (at most once per hour)
           if (this.shouldRunCleanup(workspace)) {
             await wsClient.cleanupOrphanedParticipantInfos()
           }
         } catch (err: any) {
+          this.workspacesToCheck.add(workspace)
           this.ctx.error('[PollingService] Error checking unfinished meetings', {
             workspace,
             error: err?.message ?? String(err)
@@ -196,6 +209,8 @@ export class LiveKitPollingService {
       this.ctx.error('[PollingService] Error during poll', {
         error: err?.message ?? String(err)
       })
+    } finally {
+      this.isPolling = false
     }
   }
 
@@ -247,10 +262,24 @@ export class LiveKitPollingService {
 
     // Reconcile with database (compare DB state with LiveKit state, not just in-memory cache)
     // Use allParticipants (including agents) to avoid removing AI bot ParticipantInfo entries
-    await this.reconcileParticipantsWithDatabase(workspace, meetingId, allParticipants)
+    // Fetch ParticipantInfo once and share it between both reconciliation steps
+    let dbParticipants: ParticipantInfo[]
+    try {
+      const wsClient = await WorkspaceClient.create(workspace, this.ctx)
+      dbParticipants = await wsClient.findParticipantInfosByMeeting(meetingId)
+    } catch (err: any) {
+      this.ctx.error('[PollingService] Error loading ParticipantInfo', {
+        workspace,
+        meetingId,
+        error: err?.message ?? String(err)
+      })
+      return
+    }
+
+    await this.reconcileParticipantsWithDatabase(workspace, meetingId, allParticipants, dbParticipants)
 
     // Also reconcile in-memory cache for detecting joins (backwards compatibility)
-    await this.reconcileParticipants(workspace, meetingId, previousParticipants, currentParticipants)
+    await this.reconcileParticipants(workspace, meetingId, previousParticipants, currentParticipants, dbParticipants)
   }
 
   /**
@@ -264,13 +293,11 @@ export class LiveKitPollingService {
   private async reconcileParticipantsWithDatabase (
     workspace: WorkspaceUuid,
     meetingId: Ref<MeetingMinutes>,
-    allParticipants: Map<string, LiveKitParticipant>
+    allParticipants: Map<string, LiveKitParticipant>,
+    dbParticipants: ParticipantInfo[]
   ): Promise<void> {
     try {
       const wsClient = await WorkspaceClient.create(workspace, this.ctx)
-
-      // Get all ParticipantInfo from database for this meeting
-      const dbParticipants = await wsClient.findParticipantInfosByMeeting(meetingId)
 
       // Build set of identities currently in LiveKit (including agents)
       const liveKitIdentities = new Set(allParticipants.keys())
@@ -309,15 +336,15 @@ export class LiveKitPollingService {
     workspace: WorkspaceUuid,
     meetingId: Ref<MeetingMinutes>,
     previousParticipants: Map<string, LiveKitParticipant>,
-    currentParticipants: Map<string, LiveKitParticipant>
+    currentParticipants: Map<string, LiveKitParticipant>,
+    existingParticipantInfos: ParticipantInfo[]
   ): Promise<void> {
     try {
       const wsClient = await WorkspaceClient.create(workspace, this.ctx)
 
-      // Preload existing ParticipantInfo for this meeting to avoid false positives in detection.
+      // Existing ParticipantInfo (preloaded once per room) avoids false positives in detection.
       // We collect both person refs (person field) and stored display names to catch cases
       // where a ParticipantInfo already exists but the in-memory `previousParticipants` cache was stale.
-      const existingParticipantInfos = await wsClient.findParticipantInfosByMeeting(meetingId)
       const existingPersonIds = new Set(existingParticipantInfos.map((it) => String(it.person)))
       const existingNames = new Set(existingParticipantInfos.map((it) => (it.name ?? '').toString()))
 
