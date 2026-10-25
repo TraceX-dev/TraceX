@@ -1,0 +1,265 @@
+//
+// Copyright © 2026 Hardcore Engineering Inc.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+const mockApp = { removeAllListeners: jest.fn() }
+const mockDialog = { showMessageBox: jest.fn() }
+
+jest.mock('electron', () => ({ app: mockApp, dialog: mockDialog }))
+jest.mock('electron-log', () => ({
+  __esModule: true,
+  default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
+}))
+
+// Virtual: the module is resolved lazily so the test does not depend on the install layout
+jest.mock(
+  'builder-util-runtime',
+  () => ({
+    CancellationToken: class {
+      cancelled = false
+      private readonly handlers: Array<() => void> = []
+      cancel (): void {
+        this.cancelled = true
+        this.handlers.forEach((h) => h())
+      }
+
+      onCancel (h: () => void): void {
+        this.handlers.push(h)
+      }
+    }
+  }),
+  { virtual: true }
+)
+
+jest.mock('../../main/updater', () => {
+  const { EventEmitter } = require('events')
+  const emitter: any = new EventEmitter()
+  emitter.setFeedURL = jest.fn()
+  emitter.checkForUpdates = jest.fn()
+  emitter.downloadUpdate = jest.fn()
+  emitter.quitAndInstall = jest.fn()
+  return { __esModule: true, default: emitter }
+})
+
+import autoUpdaterImport from '../../main/updater'
+import { setupUpdateManager } from '../../main/updateManager'
+
+const autoUpdater: any = autoUpdaterImport
+
+const STALL_MS = 60_000
+
+describe('updateManager', () => {
+  let mainWindow: any
+  let quitApplication: jest.Mock
+  let manager: ReturnType<typeof setupUpdateManager>
+  let lastToken: any
+
+  const flush = async (): Promise<void> => {
+    await Promise.resolve()
+    await Promise.resolve()
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+    autoUpdater.removeAllListeners()
+    mockApp.removeAllListeners.mockReset()
+    mockDialog.showMessageBox.mockReset().mockResolvedValue({ response: 0 })
+
+    mainWindow = {
+      setProgressBar: jest.fn(),
+      removeAllListeners: jest.fn(),
+      webContents: { send: jest.fn() }
+    }
+    quitApplication = jest.fn()
+    lastToken = undefined
+
+    autoUpdater.setFeedURL.mockReset()
+    autoUpdater.checkForUpdates.mockReset().mockResolvedValue(undefined)
+    autoUpdater.quitAndInstall.mockReset()
+    // Download never finishes on its own, but rejects when cancelled (like electron-updater does)
+    autoUpdater.downloadUpdate.mockReset().mockImplementation(
+      async (token: any) =>
+        await new Promise((_resolve, reject) => {
+          lastToken = token
+          token.onCancel(() => reject(new Error('cancelled')))
+        })
+    )
+
+    manager = setupUpdateManager({ getMainWindow: () => mainWindow, quitApplication })
+  })
+
+  afterEach(() => {
+    jest.clearAllTimers()
+    jest.useRealTimers()
+  })
+
+  const available = (version = '1.2.3'): void => {
+    autoUpdater.emit('update-available', { version })
+  }
+
+  it('configures the feed and checks for updates on start', () => {
+    manager.start({ url: 'https://dist.example', channel: 'stable' })
+
+    expect(autoUpdater.setFeedURL).toHaveBeenCalledWith({
+      provider: 'generic',
+      url: 'https://dist.example',
+      channel: 'stable'
+    })
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts the download, resets progress to 0 and shows the dialog once', () => {
+    available()
+    available()
+
+    expect(autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
+    expect(mockDialog.showMessageBox).toHaveBeenCalledTimes(1)
+    expect(mainWindow.setProgressBar).toHaveBeenCalledWith(0)
+    expect(mainWindow.webContents.send).toHaveBeenCalledWith('handle-update-download-progress', 0)
+  })
+
+  it('quits the application when the user declines the update', async () => {
+    mockDialog.showMessageBox.mockResolvedValue({ response: 1 })
+    available()
+    await flush()
+
+    expect(quitApplication).toHaveBeenCalledTimes(1)
+  })
+
+  it('forwards download progress to the window', () => {
+    available()
+    autoUpdater.emit('download-progress', { percent: 42 })
+
+    expect(mainWindow.setProgressBar).toHaveBeenLastCalledWith(0.42)
+    expect(mainWindow.webContents.send).toHaveBeenLastCalledWith('handle-update-download-progress', 42)
+  })
+
+  it('cancels a stalled download and retries the update check', async () => {
+    available()
+
+    jest.advanceTimersByTime(STALL_MS)
+    await flush()
+
+    expect(lastToken.cancelled).toBe(true)
+    expect(mainWindow.setProgressBar).toHaveBeenLastCalledWith(-1)
+    expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled()
+
+    jest.advanceTimersByTime(10_000)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not cancel while progress keeps arriving', () => {
+    available()
+
+    for (let i = 0; i < 5; i++) {
+      jest.advanceTimersByTime(STALL_MS - 1000)
+      autoUpdater.emit('download-progress', { percent: i + 1 })
+    }
+
+    expect(lastToken.cancelled).toBe(false)
+  })
+
+  it('resets progress and retries with growing backoff on errors', () => {
+    autoUpdater.emit('error', new Error('network'))
+
+    expect(mainWindow.setProgressBar).toHaveBeenLastCalledWith(-1)
+
+    jest.advanceTimersByTime(9_999)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(0)
+    jest.advanceTimersByTime(1)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+
+    autoUpdater.emit('error', new Error('network'))
+    jest.advanceTimersByTime(29_999)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+    jest.advanceTimersByTime(1)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(2)
+  })
+
+  it('caps the backoff at 5 minutes', () => {
+    const delays = [10_000, 30_000, 60_000, 300_000, 300_000]
+    delays.forEach((delay, i) => {
+      autoUpdater.emit('error', new Error('network'))
+      jest.advanceTimersByTime(delay - 1)
+      expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(i)
+      jest.advanceTimersByTime(1)
+      expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(i + 1)
+    })
+  })
+
+  it('schedules only one retry when error and failed check come together', async () => {
+    autoUpdater.checkForUpdates.mockRejectedValueOnce(new Error('boom'))
+    manager.start({ url: 'u', channel: 'c' })
+    autoUpdater.emit('error', new Error('boom'))
+    await flush()
+
+    jest.advanceTimersByTime(10_000)
+    // initial call from start() + exactly one retry
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries when the update check itself fails', async () => {
+    autoUpdater.checkForUpdates.mockRejectedValueOnce(new Error('offline'))
+    manager.start({ url: 'u', channel: 'c' })
+    await flush()
+
+    jest.advanceTimersByTime(10_000)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(2)
+  })
+
+  it('resets the backoff once progress is received', () => {
+    autoUpdater.emit('error', new Error('network'))
+    jest.advanceTimersByTime(10_000)
+    autoUpdater.emit('error', new Error('network'))
+    jest.advanceTimersByTime(30_000)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(2)
+
+    autoUpdater.emit('download-progress', { percent: 1 })
+    autoUpdater.emit('error', new Error('network'))
+    jest.advanceTimersByTime(10_000)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(3)
+  })
+
+  it('shows the dialog again after a failed attempt is retried', () => {
+    available()
+    autoUpdater.emit('error', new Error('network'))
+    available()
+
+    expect(mockDialog.showMessageBox).toHaveBeenCalledTimes(2)
+    expect(autoUpdater.downloadUpdate).toHaveBeenCalledTimes(2)
+  })
+
+  it('installs the update when download completes and stops the stall watchdog', () => {
+    available()
+    autoUpdater.emit('update-downloaded', {})
+
+    expect(mockApp.removeAllListeners).toHaveBeenCalledWith('window-all-closed')
+    expect(mainWindow.removeAllListeners).toHaveBeenCalledWith('close')
+    expect(autoUpdater.quitAndInstall).toHaveBeenCalledTimes(1)
+
+    jest.advanceTimersByTime(STALL_MS * 2)
+    expect(lastToken.cancelled).toBe(false)
+  })
+
+  it('tolerates a missing main window', () => {
+    mainWindow = undefined
+
+    expect(() => {
+      available()
+      autoUpdater.emit('download-progress', { percent: 10 })
+      autoUpdater.emit('error', new Error('x'))
+      autoUpdater.emit('update-downloaded', {})
+    }).not.toThrow()
+  })
+})
