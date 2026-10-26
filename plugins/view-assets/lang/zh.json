@@ -146,8 +146,6 @@
     "NoRelations": "无关系",
     "ReadOnlyWarningTitle": "✨ 匿名访客",
     "ReadOnlyWarningMessage": "您当前处于只读模式。想试用 TraceX 的全部功能吗？请联系我们，我们会尽快回复您！",
-    "ReadOnlyJoinWorkspace": "加入工作区",
-    "ReadOnlySignUp": "创建工作区",
     "PermissionWarningTitle": "✨ 提升您的访问权限！",
     "PermissionWarningMessage": "您当前角色的权限有限。要解锁此功能和其他高级功能，请让您的工作区管理员升级您的访问权限！",
     "Icon": "图标",

@@ -141,8 +141,6 @@
     "NoRelations": "No hay relaciones",
     "ReadOnlyWarningTitle": "✨ Invitado anónimo",
     "ReadOnlyWarningMessage": "Actualmente estás en modo de solo lectura. ¿Quieres probar todas las funciones de TraceX? Contáctanos y te responderemos en breve.",
-    "ReadOnlyJoinWorkspace": "Unirse al espacio",
-    "ReadOnlySignUp": "Crear espacio",
     "PermissionWarningTitle": "✨ ¡Mejora tu acceso!",
     "PermissionWarningMessage": "Tu rol actual tiene permisos limitados. ¡Para desbloquear esta y otras funciones avanzadas, pídele al administrador de tu espacio de trabajo que actualice tu nivel de acceso!",
     "Icon": "Icono",

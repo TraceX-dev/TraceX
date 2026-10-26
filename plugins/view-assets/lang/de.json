@@ -146,8 +146,6 @@
     "NoRelations": "Keine Beziehungen",
     "ReadOnlyWarningTitle": "✨ Anonymer Gast",
     "ReadOnlyWarningMessage": "Sie befinden sich derzeit im Ansichtsmodus. Möchten Sie alle Funktionen von TraceX testen? Kontaktieren Sie uns, wir melden uns in Kürze bei Ihnen!",
-    "ReadOnlyJoinWorkspace": "Arbeitsbereich beitreten",
-    "ReadOnlySignUp": "Arbeitsbereich erstellen",
     "PermissionWarningTitle": "✨ Erweitern Sie Ihren Zugriff!",
     "PermissionWarningMessage": "Ihre aktuelle Rolle hat eingeschränkte Berechtigungen. Um diese und andere erweiterte Funktionen freizuschalten, bitten Sie Ihren Arbeitsbereich-Administrator, Ihr Zugriffslevel zu erhöhen!",
     "Icon": "Symbol",

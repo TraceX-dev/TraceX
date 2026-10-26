@@ -146,8 +146,6 @@
     "NoRelations": "No relations",
     "ReadOnlyWarningTitle": "✨ Anonymous Guest",
     "ReadOnlyWarningMessage": "You're currently in view-only mode. Want to test all TraceX features? Contact us and we'll get back to you shortly!",
-    "ReadOnlyJoinWorkspace": "Join workspace",
-    "ReadOnlySignUp": "Create workspace",
     "PermissionWarningTitle": "✨ Level up your access!",
     "PermissionWarningMessage": "Your current role has limited permissions. To unlock this and other advanced features, ask your workspace admin to upgrade your access level!",
     "Icon": "Icon",

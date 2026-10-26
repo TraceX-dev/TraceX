@@ -141,8 +141,6 @@
     "NoRelations": "関係なし",
     "ReadOnlyWarningTitle": "✨ 匿名ゲスト",
     "ReadOnlyWarningMessage": "現在は閲覧専用モードです。TraceX のすべての機能を試してみませんか？お問い合わせいただければ、まもなくご連絡します！",
-    "ReadOnlyJoinWorkspace": "ワークスペースに参加",
-    "ReadOnlySignUp": "ワークスペースを作成",
     "PermissionWarningTitle": "✨ アクセスレベルを上げましょう！",
     "PermissionWarningMessage": "現在のロールの権限は制限されています。この機能や他の高度な機能を利用するには、ワークスペース管理者にアクセスレベルのアップグレードを依頼してください！",
     "Icon": "アイコン",
