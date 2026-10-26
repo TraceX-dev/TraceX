@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,7 +16,7 @@
 import type { Emoji } from 'emojibase'
 import type { Blob, Doc, Ref } from '@hcengineering/core'
 
-export { default as Emoji } from 'emojibase'
+export type * as Emoji from 'emojibase'
 export type ExtendedEmoji = Emoji | CustomEmoji
 export type EmojiWithGroup = ExtendedEmoji & { key: string }
 export type TextOrEmoji = string | { emoji: string } | { emoji: string, image: Ref<Blob> }

@@ -1,0 +1,25 @@
+# Match the projects registered in rush.json during the Turbo trial.
+packages:
+  - foundations/utils/packages/*
+  - foundations/core/packages/*
+  - foundations/server/packages/*
+  - packages/*
+  - plugins/*
+  - '!plugins/client'
+  - '!plugins/client-resources'
+  - models/*
+  - server/*
+  - server-plugins/*
+  - pods/*
+  - services/*
+  - services/*/*
+  - '!services/ai-bot/love-agent'
+  - dev/*
+  - '!dev/storybook'
+  - tests/*
+  - ws-tests/*
+  - qms-tests/*
+  - desktop
+  - desktop-package
+  - qms-desktop-package
+  - common/scripts

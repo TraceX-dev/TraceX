@@ -154,8 +154,8 @@
         {#each inlineActions as action}
           <ButtonIcon
             icon={action.icon ?? ActionIcon}
-            size={'extra-small'}
-            kind={'tertiary'}
+            size="extra-small"
+            kind="tertiary"
             tooltip={{ label: action.label, direction: 'bottom' }}
             on:click={(ev) => onInlineClick(ev, action)}
           />
@@ -165,15 +165,15 @@
         <ButtonIcon
           id={_id}
           icon={popupMenuActions[0].icon}
-          size={'extra-small'}
-          kind={'tertiary'}
+          size="extra-small"
+          kind="tertiary"
           tooltip={{ label: popupMenuActions[0].label, direction: 'top' }}
           on:click={async (ev) => {
             void popupMenuActions[0].action(_id, ev)
           }}
         />
       {:else if popupMenuActions.length > 0}
-        <ButtonIcon icon={IconMoreH} size={'extra-small'} kind={'tertiary'} {pressed} on:click={onMenuClick} />
+        <ButtonIcon icon={IconMoreH} size="extra-small" kind="tertiary" {pressed} on:click={onMenuClick} />
       {/if}
     </svelte:fragment>
     <svelte:fragment slot="notify">

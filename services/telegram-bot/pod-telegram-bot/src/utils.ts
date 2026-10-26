@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,10 +15,15 @@
 //
 
 import otpGenerator from 'otp-generator'
-import { Message } from 'telegraf/typings/core/types/typegram'
+import type {
+  Convenience,
+  InputMediaAudio,
+  InputMediaDocument,
+  InputMediaPhoto,
+  InputMediaVideo,
+  Message
+} from 'telegraf/types'
 import { Parser } from 'htmlparser2'
-import { MediaGroup } from 'telegraf/typings/telegram-types'
-import { InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo } from 'telegraf/src/core/types/typegram'
 import { Context, Input } from 'telegraf'
 import { TelegramNotificationQueueMessage } from '@hcengineering/server-telegram'
 import { systemAccountUuid } from '@hcengineering/core'
@@ -228,7 +234,7 @@ export function toTgMediaFile (
   }
 }
 
-export function toMediaGroups (files: PlatformFileInfo[], fullMessage: string, shortMessage: string): MediaGroup[] {
+export function toMediaGroups (files: PlatformFileInfo[], fullMessage: string, shortMessage: string): Convenience.MediaGroup[] {
   const photos: (InputMediaPhoto | InputMediaVideo)[] = []
   const audios: InputMediaAudio[] = []
   const documents: InputMediaDocument[] = []
@@ -252,7 +258,7 @@ export function toMediaGroups (files: PlatformFileInfo[], fullMessage: string, s
 }
 
 export async function toTelegramFileInfo (
-  ctx: Context,
+  ctx: Pick<Context, 'telegram'>,
   message:
     | Message.CommonMessage
     | Message.PhotoMessage

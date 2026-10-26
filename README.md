@@ -202,6 +202,198 @@ Alternatively, you can just execute:
 sh ./scripts/presetup-rush.sh
 ```
 
+### Turborepo trial
+
+The repository also supports pnpm 10.15.1 and Turborepo for the build,
+TypeScript validation, tests, and Svelte checks. Use Node.js >=22.12 and <25.
+Rush remains available for bundling, packaging, Docker, and publishing.
+The root pnpm lockfile preserves the existing Rush dependency resolutions.
+During this trial, keep changes to dependencies and workspace membership in
+sync with the Rush configuration and its separate lockfile.
+
+Run from the repository root using the pinned pnpm version directly.
+This also works when the globally installed pnpm has a different version
+or an older Corepack fails with `Cannot find matching keyid`:
+
+```bash
+npx --yes pnpm@10.15.1 install --frozen-lockfile
+npx --yes pnpm@10.15.1 build
+npx --yes pnpm@10.15.1 validate
+npx --yes pnpm@10.15.1 test
+npx --yes pnpm@10.15.1 svelte-check
+```
+
+The root commands run the existing `_phase:*` scripts. In particular,
+`pnpm build` matches `rush build`; individual package `build` scripts may
+also validate types and therefore do more work. Validation includes the
+required build phases and restores generated declarations from cache.
+Tests and Svelte checks run without caching their results.
+
+To inspect the task graph without executing any tasks, or to build only a
+package and its dependencies:
+
+```bash
+npx --yes pnpm@10.15.1 build --filter=@hcengineering/process-resources... --dry=json
+npx --yes pnpm@10.15.1 build --filter=@hcengineering/process-resources...
+npx --yes pnpm@10.15.1 validate --filter=@hcengineering/process-resources...
+```
+
+Turbo stores its local cache in `.turbo/`. Compare the same package selection
+and concurrency with Rush, timing both the first run and an unchanged second
+run. The Turbo cache starts empty and does not reuse Rush cache entries.
+Installing from the root changes package links. Both task runners can be
+tested in the same working copy, but they have separate lockfiles and caches;
+keep the dependency versions and selected phases identical when comparing.
+The trial does not change Webpack, esbuild, or TypeScript themselves, so
+performance improvements must be measured rather than assumed.
+
+To measure Rush, Turbo, and initial development-server compilation in the
+same working copy, stop any running development servers and run:
+
+```bash
+rush install
+node common/scripts/benchmark-builds.js --check
+node common/scripts/benchmark-builds.js --runs 3 --parallelism 10
+```
+
+Run `rush install` after a root pnpm installation to generate Rush's
+per-project `.rush/temp/shrinkwrap-deps.json` files. Without these files,
+Rush's cache can fail with a misleading Git-repository error. The benchmark
+checks this metadata before starting any builds and reports how to restore
+it. `--check` performs only these preparation checks.
+
+This produces eight rows: Rush and Turbo with cache disabled and on an
+unchanged warm run, plus Webpack and Rsbuild development servers without
+filesystem caching and with a warmed filesystem cache. Use `--frontend webpack`
+or `--frontend rsbuild` for six rows with only the selected frontend. Add
+`--only-frontends` to skip task-runner builds and compare only the frontend
+servers (four rows with `--frontend both`). Every timed
+command runs sequentially. Both task runners use the same parallelism and
+`_phase:build` scripts. Untimed warmup runs prepare caches; the script does
+not remove existing caches or build outputs. Development servers are stopped
+gracefully after initial compilation finishes, allowing the cache to flush.
+Webpack readiness requires both compiler summaries; Rsbuild readiness uses
+its `onAfterDevCompile` hook for all environments.
+Server timing includes process startup and initial compilation and excludes
+shutdown. Cached Rush runs may skip unchanged tasks using incremental state;
+this measures a normal unchanged rebuild, rather than restoration of deleted
+outputs. OS filesystem caches are not cleared.
+The requested parallelism is capped at Node.js's available CPU count for
+both runners, matching Rush's own limit. For example, `--parallelism 10`
+uses eight processes for each runner on a machine with eight available CPUs.
+
+The final table shows wall-clock samples and their median in seconds. Logs
+and raw results are saved under `.build/benchmarks/`. Rush/Turbo transpilation
+and browser bundling are separate workloads: compare the two task runners
+directly, and compare Webpack with Rsbuild within the development-server rows.
+These measurements exclude TypeScript validation and browser page loading.
+Raw results are saved after each measurement, including when a later
+scenario fails; failed commands also print the end of their log.
+
+### Rsbuild frontend
+
+The frontend in `dev/prod` uses Rsbuild 2 with Rspack. The Svelte plugin stays
+on its 1.x line to support the existing Svelte 4 components and their HMR.
+The application and `/serviceWorker.js` are separate build environments.
+The existing proxy routes and `.env` / `.env-prod` variables are preserved;
+Webpack and Rsbuild share the proxy definitions in `dev/prod/dev-proxy.js`.
+Type checking during development continues to use TypeScript 5.9 and runs
+through the Rsbuild type-check plugin.
+
+```bash
+cd dev/prod
+rushx dev-server              # Rsbuild, no filesystem cache
+rushx dev-server-cache        # Rsbuild, filesystem cache enabled
+rushx dev-server:webpack      # Webpack comparison
+rushx dev-server-cache:webpack
+rushx package                 # Rsbuild production output in dist/
+rushx package:webpack         # Webpack production comparison
+```
+
+The server uses port 8080. Stop the other frontend before switching. Existing
+`dev-server-test`, `dev-production`, and `dev-staging` commands select the same
+backend targets as before. `analyze` and `show` still use the Webpack analyzer.
+Remove `.build_rsbuild` only when deliberately testing an empty Rsbuild
+filesystem cache; the benchmark disables cache reads and writes for its
+uncached server scenario without deleting other cached runs.
+
+Svelte 5 supports legacy component syntax, but the current official
+Rsbuild Svelte loader does not support component HMR for Svelte 5. Its class
+component API also differs from this repository's `new Root(...)` usage.
+Svelte 5 is therefore a separate migration rather than part of this bundler
+comparison; no automatic conversion to runes is performed.
+
+To compare just Webpack and Rsbuild startup times without repeating all
+Rush/Turbo package builds, run from the repository root:
+
+```bash
+node common/scripts/benchmark-builds.js --only-frontends --frontend both --runs 3
+```
+
+To try native TypeScript 7.0.2 for the frontend's TypeScript entry points,
+run from the repository root:
+
+```bash
+npx --yes pnpm@10.15.1 typecheck:native
+```
+
+This frontend-only command runs without emitting files. Its separate
+`tsconfig.native.json` retains the existing non-strict checking policy and
+declares its root and ambient types explicitly for TypeScript 7. It is not
+a replacement for `rush svelte-check` and does not type-check Svelte templates.
+
+### Mixed TypeScript validation
+
+`rush validate` selects the compiler using
+`foundations/utils/packages/platform-rig/native-validation.json`. Packages in
+its approved list (468 packages) use native TypeScript 7.0.2; one package retains the
+existing TypeScript 5.9 validator. `compile validate` and the validation portion
+of `compile` use the same selection. Transpilation continues to use esbuild.
+
+Run `rush install` after pulling this change. The native compiler is installed
+under the `typescript-native` alias in `platform-rig`; the `typescript` module
+used by the legacy compiler API, Svelte preprocessing, ESLint, and Jest remains
+on 5.9. Tooling packages declare TypeScript 5.9.3 explicitly where it was
+previously supplied only as a peer, preventing pnpm from selecting the native
+compiler for these tools. Compiler selection uses explicit module paths rather than an unqualified
+`tsc` executable from the shell.
+
+Native validation generates a config under each project's `.validate/`
+directory. It preserves the original source-file selection, explicit root,
+strictness, declaration output paths, generated Svelte declarations, and local
+type roots. For the native compiler only, the removed `node`/`node10` resolution
+mode becomes `bundler`. JavaScript output and runtime tsconfig files are not
+changed. Native incremental state uses `.validate/native.tsbuildinfo`, separate
+from the legacy validator's state. Diagnostics remain in
+`.validate/validate.log` and `.validate/validate-err.log`.
+
+Failures in an approved package fail validation; there is no automatic retry
+using TypeScript 5.9. To deliberately return a package to the legacy compiler,
+remove its name from the approved list. The validation phases explicitly hash the compiler-selection list and adapter
+files through `dependsOnAdditionalFiles`, so changing them invalidates cached
+validation results.
+The `legacyPackages` section records the reasons for remaining exclusions.
+
+The migration was checked by validating and emitting candidate packages into
+an isolated directory, parsing their declarations with TypeScript 5.9, and
+checking consumers against those declarations without replacing working-tree
+outputs. Declaration-only generation is separate from Svelte template checks.
+
+The adapter and compiler-selection regression checks can be run without a
+repository build:
+
+```bash
+cd foundations/utils/packages/platform-rig
+rushx test:native-validation
+```
+
+After installation, manually verify the mixed validation pipeline and compare
+its elapsed time with the previous `rush validate` run:
+
+```bash
+/usr/bin/time -p rush validate
+```
+
 ## Build and run
 
 Development environment setup requires Docker to be installed on system.

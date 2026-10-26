@@ -1,3 +1,4 @@
 stats.json
 dist/
 .build_dev
+.build_rsbuild

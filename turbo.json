@@ -1,0 +1,22 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "globalEnv": ["NODE_ENV", "NODE_OPTIONS"],
+  "tasks": {
+    "_phase:build": {
+      "dependsOn": ["^_phase:build"],
+      "outputs": ["lib/**", ".build/**"]
+    },
+    "_phase:validate": {
+      "dependsOn": ["_phase:build", "^_phase:validate", "^_phase:build"],
+      "outputs": ["lib/**", "types/**", ".build/**", ".validate/**", "tsconfig.tsbuildinfo"]
+    },
+    "_phase:test": {
+      "dependsOn": ["_phase:build", "^_phase:validate"],
+      "cache": false
+    },
+    "_phase:svelte-check": {
+      "dependsOn": ["_phase:build"],
+      "cache": false
+    }
+  }
+}

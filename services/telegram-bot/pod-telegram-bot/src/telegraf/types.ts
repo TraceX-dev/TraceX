@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 
-import { Message, Update } from 'telegraf/typings/core/types/typegram'
+import type { Message, Update } from 'telegraf/types'
 import { Context, Scenes } from 'telegraf'
 
 export type ReplyMessage = Update.New &
