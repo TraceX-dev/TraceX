@@ -31,6 +31,7 @@
   import { ObjectCreate, type ObjectSearchCategory } from '../types'
   import { createQuery, getClient } from '../utils'
   import DocPopup from './DocPopup.svelte'
+  import { buildObjectPopupQuery } from './objectPopupQuery'
 
   export let _class: Ref<Class<Doc>>
   export let options: FindOptions<Doc> | undefined = undefined
@@ -86,43 +87,49 @@
   let selectedDoc: Doc | undefined
   let resObjects: Doc[] = []
 
-  let extraItems: Ref<Doc>[] = []
+  let extraItems: Ref<Doc>[] | undefined = undefined
 
   const query = createQuery()
   const sQuery = createQuery() // Query for selected objects
   const selectedQuery = createQuery()
 
   $: noSearchField = searchMode === 'disabled'
-  $: _idExtra = typeof docQuery?._id === 'object' ? docQuery?._id : {}
-  $: if (searchMode === 'spotlight' && search !== '') {
-    void searchSpotlight(search).then((items) => {
-      extraItems = items.map((it) => it.item.id)
-    })
-  } else {
-    extraItems = []
+  let spotlightRequest = 0
+  let spotlightFailed = false
+
+  function updateSpotlight (mode: string, text: string): void {
+    const request = ++spotlightRequest
+    spotlightFailed = false
+    if (mode !== 'spotlight' || text === '') {
+      extraItems = undefined
+      return
+    }
+    // Previous result is kept until the new one arrives to avoid flickering while typing.
+    searchSpotlight(text)
+      .then((items) => {
+        // ignore outdated responses
+        if (request === spotlightRequest) {
+          extraItems = items.map((it) => it.item.id)
+        }
+      })
+      .catch((err) => {
+        console.error('Spotlight search failed, falling back to field search', err)
+        if (request === spotlightRequest) {
+          spotlightFailed = true
+        }
+      })
   }
 
-  $: fquery = {
-    ...(docQuery ?? {}),
-    ...(() => {
-      switch (searchMode) {
-        case 'disabled':
-          return { _id: { $nin: ignoreObjects, ..._idExtra } }
-        case 'fulltext':
-          return search !== ''
-            ? { $search: search, _id: { $nin: ignoreObjects, ..._idExtra } }
-            : { _id: { $nin: ignoreObjects, ..._idExtra } }
-        case 'spotlight':
-          return extraItems.length > 0
-            ? { _id: { $in: extraItems, $nin: ignoreObjects } }
-            : { _id: { $nin: ignoreObjects, ..._idExtra } }
-        default:
-          return search !== ''
-            ? { [searchField]: { $like: '%' + search + '%' }, _id: { $nin: ignoreObjects, ..._idExtra } }
-            : { _id: { $nin: ignoreObjects, ..._idExtra } }
-      }
-    })()
-  }
+  $: updateSpotlight(searchMode, search)
+
+  $: fquery = buildObjectPopupQuery({
+    searchMode: searchMode === 'spotlight' && spotlightFailed ? 'field' : searchMode,
+    search,
+    searchField,
+    docQuery,
+    ignoreObjects,
+    spotlightIds: extraItems
+  })
 
   $: query.query<Doc>(
     _class,

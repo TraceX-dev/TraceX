@@ -17,6 +17,7 @@ import type { Class, Ref, Doc, SearchResultDoc, TxOperations } from '@hcengineer
 import { type ObjectSearchCategory } from './types'
 import plugin from './plugin'
 import { getClient } from './utils'
+import { isSpotlightSearchableClass } from './spotlightSupport'
 
 interface SearchSection {
   category: ObjectSearchCategory
@@ -132,4 +133,14 @@ export async function searchFor (
 
   const sections = await doFulltextSearch(client, cats, query, limit)
   return { items: packSearchResultsForListView(sections), query }
+}
+
+/**
+ * Returns true if documents of the class can be found with the 'spotlight' search.
+ * @public
+ */
+export function isSpotlightSearchable (_class: Ref<Class<Doc>>): boolean {
+  const client = getClient()
+  const categories = client.getModel().findAllSync(plugin.class.ObjectSearchCategory, {})
+  return isSpotlightSearchableClass(client.getHierarchy(), categories, _class)
 }

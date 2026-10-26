@@ -17,7 +17,7 @@
   import card, { type MasterTag } from '@hcengineering/card'
   import core, { Association, Class, Doc, DocumentQuery, Ref, SortingOrder, WithLookup } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
-  import { getClient, ObjectCreate } from '@hcengineering/presentation'
+  import { getClient, isSpotlightSearchable, ObjectCreate } from '@hcengineering/presentation'
   import { Button, IconAdd, Label, Scroller, Section, Switcher, showPopup } from '@hcengineering/ui'
   import { ViewOptions, Viewlet, ViewletPreference } from '@hcengineering/view'
   import { showMenu } from '../actions'
@@ -91,7 +91,8 @@
       {
         _class,
         docQuery,
-        searchMode: 'fulltext',
+        // spotlight finds cards by their identifier, but only knows classes with a search category
+        searchMode: isSpotlightSearchable(_class) ? 'spotlight' : 'fulltext',
         docProps: {
           shouldShowAvatar: true
         },

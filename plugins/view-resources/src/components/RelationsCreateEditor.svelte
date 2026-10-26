@@ -23,7 +23,7 @@
 <script lang="ts">
   import core, { type Association, type Class, type Doc, type Ref } from '@hcengineering/core'
   import { getEmbeddedLabel } from '@hcengineering/platform'
-  import { getClient } from '@hcengineering/presentation'
+  import { getClient, isSpotlightSearchable } from '@hcengineering/presentation'
   import { Button, IconAdd, IconClose, Label, showPopup } from '@hcengineering/ui'
 
   import { buildRelationCandidatesQuery, getRelationCandidatesClass, type PendingRelation } from '../relations'
@@ -93,7 +93,7 @@
       {
         _class: row.candidatesClass,
         docQuery,
-        searchMode: 'fulltext',
+        searchMode: isSpotlightSearchable(row.candidatesClass) ? 'spotlight' : 'fulltext',
         docProps: { shouldShowAvatar: true }
       },
       'top',
