@@ -43,13 +43,10 @@ process.on('SIGTERM', () => {
 })
 
 /** Verify Rush metadata before starting any timed commands. */
-async function checkPreparation(requireTurbo = true) {
+async function checkPreparation() {
   const options = { cwd: root, maxBuffer: 8 * 1024 * 1024, timeout: 30000 }
   const git = await execFileAsync('git', ['rev-parse', '--is-inside-work-tree'], options)
   if (git.stdout.trim() !== 'true') throw new Error('Run the benchmark in a Git working tree')
-  if (requireTurbo && !existsSync(join(root, 'node_modules/.bin/turbo'))) {
-    throw new Error('Turbo is not installed. Run: npx --yes pnpm@10.15.1 install --frozen-lockfile')
-  }
   const listed = await execFileAsync('rush', ['list', '--json'], options)
   const { projects } = JSON.parse(listed.stdout)
   if (!Array.isArray(projects) || projects.length === 0) throw new Error('rush list returned no projects')
@@ -57,10 +54,10 @@ async function checkPreparation(requireTurbo = true) {
   if (missing.length > 0) {
     throw new Error(
       `Rush dependency metadata is missing for ${missing.length} projects (${missing.slice(0, 3).map((project) => project.path).join(', ')}). ` +
-      'Run rush install after the root pnpm installation, then rerun the benchmark. No builds have been started.'
+      'Run rush install, then rerun the benchmark. No builds have been started.'
     )
   }
-  console.log(`Preparation OK: Git working tree, ${requireTurbo ? 'Turbo installed, ' : ''}Rush metadata present for ${projects.length} projects`)
+  console.log(`Preparation OK: Git working tree, Rush metadata present for ${projects.length} projects`)
 }
 
 /** Measure wall time, stopping development servers after their initial compilation. */
@@ -172,7 +169,7 @@ async function main() {
     console.log('Runs task-runner and frontend benchmarks plus unmeasured cache warmups. Requires macOS or Linux.')
     console.log('Stop other development servers first. Logs and results are saved under .build/benchmarks/.')
     console.log('--check verifies installation metadata without starting any builds.')
-    console.log('--only-frontends skips Rush/Turbo builds and measures only the selected frontend servers.')
+    console.log('--only-frontends skips Rush builds and measures only the selected frontend servers.')
     return
   }
   if (process.platform === 'win32') throw new Error('This benchmark requires POSIX process groups (macOS or Linux)')
@@ -185,20 +182,16 @@ async function main() {
   if (!['webpack', 'rsbuild', 'both'].includes(values.frontend)) {
     throw new Error('--frontend must be webpack, rsbuild, or both')
   }
-  await checkPreparation(!values['only-frontends'])
+  await checkPreparation()
   const parallelism = Math.min(requestedParallelism, availableParallelism())
-  console.log(`Using parallelism ${parallelism} for both runners (requested ${requestedParallelism})`)
+  console.log(`Using parallelism ${parallelism} for Rush (requested ${requestedParallelism})`)
   if (values.check) return
 
   const directory = join(root, '.build/benchmarks', new Date().toISOString().replace(/[:.]/g, '-'))
   mkdirSync(directory, { recursive: true })
-  const turbo = join(root, 'node_modules/.bin/turbo')
-  const turboArgs = ['run', '_phase:build', `--concurrency=${parallelism}`, '--output-logs=errors-only']
   const rushArgs = ['--parallelism', String(parallelism)]
   const frontends = values.frontend === 'both' ? ['webpack', 'rsbuild'] : [values.frontend]
   const results = values['only-frontends'] ? {} : {
-    'Turbo / cache disabled': [],
-    'Turbo / warm unchanged run': [],
     'Rush / cache disabled': [],
     'Rush / warm unchanged run': []
   }
@@ -221,36 +214,22 @@ async function main() {
 
   for (let sample = 1; sample <= runs; sample++) {
     console.log(`\nSample ${sample}/${runs}`)
-    // Alternate runner order to reduce systematic filesystem and thermal bias.
-    const runners = values['only-frontends'] ? [] : sample % 2 === 1 ? ['Turbo', 'Rush'] : ['Rush', 'Turbo']
-    for (const runner of runners) {
-      if (runner === 'Turbo') {
-        results['Turbo / cache disabled'].push(
-          await run('Turbo uncached', turbo, [...turboArgs, '--cache=local:'], sample)
-        )
-        saveResults()
-        await run('Turbo warmup (unmeasured)', turbo, [...turboArgs, '--cache=local:w'], sample)
-        results['Turbo / warm unchanged run'].push(
-          await run('Turbo cached', turbo, [...turboArgs, '--cache=local:rw'], sample)
-        )
-        saveResults()
-      } else {
-        results['Rush / cache disabled'].push(
-          await run('Rush uncached', 'rush', ['rebuild', ...rushArgs], sample, {
-            env: { RUSH_BUILD_CACHE_ENABLED: '0' }
-          })
-        )
-        saveResults()
-        await run('Rush warmup (unmeasured)', 'rush', ['build', ...rushArgs], sample, {
+    if (!values['only-frontends']) {
+      results['Rush / cache disabled'].push(
+        await run('Rush uncached', 'rush', ['rebuild', ...rushArgs], sample, {
+          env: { RUSH_BUILD_CACHE_ENABLED: '0' }
+        })
+      )
+      saveResults()
+      await run('Rush warmup (unmeasured)', 'rush', ['build', ...rushArgs], sample, {
+        env: { RUSH_BUILD_CACHE_ENABLED: '1' }
+      })
+      results['Rush / warm unchanged run'].push(
+        await run('Rush cached', 'rush', ['build', ...rushArgs], sample, {
           env: { RUSH_BUILD_CACHE_ENABLED: '1' }
         })
-        results['Rush / warm unchanged run'].push(
-          await run('Rush cached', 'rush', ['build', ...rushArgs], sample, {
-            env: { RUSH_BUILD_CACHE_ENABLED: '1' }
-          })
-        )
-        saveResults()
-      }
+      )
+      saveResults()
     }
     for (const frontend of sample % 2 === 1 ? frontends : [...frontends].reverse()) {
       const serverOptions = {

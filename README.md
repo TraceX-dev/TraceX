@@ -202,53 +202,10 @@ Alternatively, you can just execute:
 sh ./scripts/presetup-rush.sh
 ```
 
-### Turborepo trial
+### Build benchmarks
 
-The repository also supports pnpm 10.15.1 and Turborepo for the build,
-TypeScript validation, tests, and Svelte checks. Use Node.js >=22.12 and <25.
-Rush remains available for bundling, packaging, Docker, and publishing.
-The root pnpm lockfile preserves the existing Rush dependency resolutions.
-During this trial, keep changes to dependencies and workspace membership in
-sync with the Rush configuration and its separate lockfile.
-
-Run from the repository root using the pinned pnpm version directly.
-This also works when the globally installed pnpm has a different version
-or an older Corepack fails with `Cannot find matching keyid`:
-
-```bash
-npx --yes pnpm@10.15.1 install --frozen-lockfile
-npx --yes pnpm@10.15.1 build
-npx --yes pnpm@10.15.1 validate
-npx --yes pnpm@10.15.1 test
-npx --yes pnpm@10.15.1 svelte-check
-```
-
-The root commands run the existing `_phase:*` scripts. In particular,
-`pnpm build` matches `rush build`; individual package `build` scripts may
-also validate types and therefore do more work. Validation includes the
-required build phases and restores generated declarations from cache.
-Tests and Svelte checks run without caching their results.
-
-To inspect the task graph without executing any tasks, or to build only a
-package and its dependencies:
-
-```bash
-npx --yes pnpm@10.15.1 build --filter=@hcengineering/process-resources... --dry=json
-npx --yes pnpm@10.15.1 build --filter=@hcengineering/process-resources...
-npx --yes pnpm@10.15.1 validate --filter=@hcengineering/process-resources...
-```
-
-Turbo stores its local cache in `.turbo/`. Compare the same package selection
-and concurrency with Rush, timing both the first run and an unchanged second
-run. The Turbo cache starts empty and does not reuse Rush cache entries.
-Installing from the root changes package links. Both task runners can be
-tested in the same working copy, but they have separate lockfiles and caches;
-keep the dependency versions and selected phases identical when comparing.
-The trial does not change Webpack, esbuild, or TypeScript themselves, so
-performance improvements must be measured rather than assumed.
-
-To measure Rush, Turbo, and initial development-server compilation in the
-same working copy, stop any running development servers and run:
+To measure Rush builds and initial development-server compilation in the same
+working copy, stop any running development servers and run:
 
 ```bash
 rush install
@@ -256,39 +213,33 @@ node common/scripts/benchmark-builds.js --check
 node common/scripts/benchmark-builds.js --runs 3 --parallelism 10
 ```
 
-Run `rush install` after a root pnpm installation to generate Rush's
-per-project `.rush/temp/shrinkwrap-deps.json` files. Without these files,
-Rush's cache can fail with a misleading Git-repository error. The benchmark
-checks this metadata before starting any builds and reports how to restore
-it. `--check` performs only these preparation checks.
+`--check` verifies the Git working tree and Rush's per-project dependency
+metadata without starting builds. If metadata is missing, run `rush install`.
 
-This produces eight rows: Rush and Turbo with cache disabled and on an
-unchanged warm run, plus Webpack and Rsbuild development servers without
-filesystem caching and with a warmed filesystem cache. Use `--frontend webpack`
-or `--frontend rsbuild` for six rows with only the selected frontend. Add
-`--only-frontends` to skip task-runner builds and compare only the frontend
-servers (four rows with `--frontend both`). Every timed
-command runs sequentially. Both task runners use the same parallelism and
-`_phase:build` scripts. Untimed warmup runs prepare caches; the script does
-not remove existing caches or build outputs. Development servers are stopped
-gracefully after initial compilation finishes, allowing the cache to flush.
-Webpack readiness requires both compiler summaries; Rsbuild readiness uses
-its `onAfterDevCompile` hook for all environments.
-Server timing includes process startup and initial compilation and excludes
-shutdown. Cached Rush runs may skip unchanged tasks using incremental state;
-this measures a normal unchanged rebuild, rather than restoration of deleted
-outputs. OS filesystem caches are not cleared.
-The requested parallelism is capped at Node.js's available CPU count for
-both runners, matching Rush's own limit. For example, `--parallelism 10`
-uses eight processes for each runner on a machine with eight available CPUs.
+The benchmark produces six rows: Rush with cache disabled and on an unchanged
+warm run, plus Webpack and Rsbuild development servers without filesystem caching
+and with a warmed filesystem cache. Use `--frontend webpack` or
+`--frontend rsbuild` for four rows with only the selected frontend. Add
+`--only-frontends` to skip Rush builds and measure only the selected servers.
 
-The final table shows wall-clock samples and their median in seconds. Logs
-and raw results are saved under `.build/benchmarks/`. Rush/Turbo transpilation
-and browser bundling are separate workloads: compare the two task runners
-directly, and compare Webpack with Rsbuild within the development-server rows.
-These measurements exclude TypeScript validation and browser page loading.
-Raw results are saved after each measurement, including when a later
-scenario fails; failed commands also print the end of their log.
+Every timed command runs sequentially. Untimed warmup runs prepare caches;
+existing caches and build outputs are not deleted. Development servers stop
+gracefully after initial compilation, allowing their caches to flush. Webpack
+readiness requires both compiler summaries; Rsbuild readiness uses its
+`onAfterDevCompile` hook for all environments. Server timing includes startup
+and initial compilation and excludes shutdown.
+
+Warm Rush runs may skip unchanged tasks using incremental state; this measures
+a normal unchanged rebuild rather than restoration of deleted outputs. OS
+filesystem caches are not cleared. Rush parallelism is capped at Node.js's
+available CPU count.
+
+The final table shows wall-clock samples and their median in seconds. Logs and
+raw results are saved under `.build/benchmarks/` after each measurement,
+including when a later scenario fails. Failed commands also print the end of
+their log. Rush transpilation and browser bundling are separate workloads;
+compare Webpack with Rsbuild within the development-server rows. Measurements
+exclude TypeScript validation and browser page loading.
 
 ### Rsbuild frontend
 
@@ -324,7 +275,7 @@ Svelte 5 is therefore a separate migration rather than part of this bundler
 comparison; no automatic conversion to runes is performed.
 
 To compare just Webpack and Rsbuild startup times without repeating all
-Rush/Turbo package builds, run from the repository root:
+Rush package builds, run from the repository root:
 
 ```bash
 node common/scripts/benchmark-builds.js --only-frontends --frontend both --runs 3
@@ -334,7 +285,7 @@ To try native TypeScript 7.0.2 for the frontend's TypeScript entry points,
 run from the repository root:
 
 ```bash
-npx --yes pnpm@10.15.1 typecheck:native
+node foundations/utils/packages/platform-rig/node_modules/typescript-native/bin/tsc --noEmit -p dev/prod/tsconfig.native.json
 ```
 
 This frontend-only command runs without emitting files. Its separate
