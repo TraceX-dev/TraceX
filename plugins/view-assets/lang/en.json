@@ -145,7 +145,7 @@
     "Loading": "Loading...",
     "NoRelations": "No relations",
     "ReadOnlyWarningTitle": "✨ Anonymous Guest",
-    "ReadOnlyWarningMessage": "You're in view-only mode. Choose your path: Join this workspace to collaborate (as guest) or create your own space to fully manage projects — tasks, deadlines, team!",
+    "ReadOnlyWarningMessage": "You're currently in view-only mode. Want to test all TraceX features? Contact us and we'll get back to you shortly!",
     "ReadOnlyJoinWorkspace": "Join workspace",
     "ReadOnlySignUp": "Create workspace",
     "PermissionWarningTitle": "✨ Level up your access!",

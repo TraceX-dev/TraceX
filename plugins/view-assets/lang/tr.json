@@ -140,7 +140,7 @@
     "Loading": "Yükleniyor...",
     "NoRelations": "İlişki yok",
     "ReadOnlyWarningTitle": "✨ Anonim Misafir",
-    "ReadOnlyWarningMessage": "Sadece görüntüleme modundasınız. Yolunuzu seçin: İşbirliği yapmak için bu çalışma alanına katılın (misafir olarak) veya projeleri tam olarak yönetmek için kendi alanınızı oluşturun — görevler, son tarihler, takım!",
+    "ReadOnlyWarningMessage": "Şu anda yalnızca görüntüleme modundasınız. TraceX'in tüm özelliklerini denemek ister misiniz? Bizimle iletişime geçin, kısa süre içinde size dönüş yapacağız!",
     "ReadOnlyJoinWorkspace": "Çalışma alanına katıl",
     "ReadOnlySignUp": "Çalışma alanı oluştur",
     "PermissionWarningTitle": "✨ Erişiminizi yükseltin!",

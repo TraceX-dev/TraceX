@@ -145,7 +145,7 @@
     "Loading": "Načítání...",
     "NoRelations": "Žádné vztahy",
     "ReadOnlyWarningTitle": "✨ Anonymní host",
-    "ReadOnlyWarningMessage": "Jste v režimu prohlížení. Vyberte si cestu: Připojte se k tomuto prostoru pro spolupráci (jako host) nebo si vytvořte vlastní prostor pro plnou správu projektů — úkoly, termíny, tým!",
+    "ReadOnlyWarningMessage": "Aktuálně jste v režimu pouze pro prohlížení. Chcete vyzkoušet všechny funkce TraceX? Kontaktujte nás a brzy se vám ozveme!",
     "ReadOnlyJoinWorkspace": "Připojit se k prostoru",
     "ReadOnlySignUp": "Vytvořit prostor",
     "PermissionWarningTitle": "✨ Zvyšte svůj přístup!",

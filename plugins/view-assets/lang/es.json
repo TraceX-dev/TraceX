@@ -140,7 +140,7 @@
     "Loading": "Cargando...",
     "NoRelations": "No hay relaciones",
     "ReadOnlyWarningTitle": "✨ Invitado anónimo",
-    "ReadOnlyWarningMessage": "Estás en modo de solo lectura. ¡Elige tu camino: Únete a este espacio para colaborar (como invitado) o crea tu propio espacio para gestionar proyectos completamente — tareas, plazos, equipo!",
+    "ReadOnlyWarningMessage": "Actualmente estás en modo de solo lectura. ¿Quieres probar todas las funciones de TraceX? Contáctanos y te responderemos en breve.",
     "ReadOnlyJoinWorkspace": "Unirse al espacio",
     "ReadOnlySignUp": "Crear espacio",
     "PermissionWarningTitle": "✨ ¡Mejora tu acceso!",
