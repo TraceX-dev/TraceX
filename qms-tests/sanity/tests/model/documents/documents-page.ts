@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import { type Locator, type Page } from '@playwright/test'
 import { CalendarPage } from '../calendar-page'
 import { NewDocument } from '../types'
@@ -26,7 +41,7 @@ export class DocumentsPage extends CalendarPage {
     )
     this.buttonPopupNextStep = page.locator('div.popup button[type="submit"]')
     this.buttonSpaceSelector = page.locator('button[id="space.selector"]')
-    this.buttonParentSelector = page.locator('div.parentSelector span[class*="label"]')
+    this.buttonParentSelector = page.locator('div.parentSelector button > span[class*="label"]')
     this.inputNewDocumentTitle = page.locator('div[id="doc-title"] input')
     this.inputNewDocumentDescription = page.locator('div[id="doc-description"] input')
     this.inputNewDocumentCreateDaft = page.locator('div.footer div.footerButtons button[type="button"]')
@@ -49,7 +64,7 @@ export class DocumentsPage extends CalendarPage {
       await this.buttonSpaceSelector.click()
       await this.selectListItemWithSearch(this.page, data.location.space ?? '')
 
-      await this.page.locator('div.parentSelector span[class*="label"]', { hasText: data.location.parent }).click()
+      await this.buttonParentSelector.filter({ hasText: data.location.parent }).click()
     }
 
     // template
