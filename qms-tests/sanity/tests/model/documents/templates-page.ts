@@ -54,7 +54,9 @@ export class TemplatesPage extends CalendarPage {
     }
 
     if (data.location?.parent != null) {
-      await this.page.locator('div.parentSelector button > span[class*="label"]', { hasText: data.location.parent }).click()
+      await this.page
+        .locator('div.parentSelector button > span[class*="label"]', { hasText: data.location.parent })
+        .click()
     }
 
     // title

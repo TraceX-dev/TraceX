@@ -200,7 +200,9 @@ export class DocumentContentPage extends DocumentCommonPage {
     this.newTemplate = page.getByRole('button', { name: 'New template', exact: true })
     this.filter = page.getByRole('button', { name: 'Filter' })
     this.filterCategory = page.locator('span').filter({ hasText: /^Category$/ })
-    this.qualityButtonDots = page.getByRole('button', { name: 'Quality documents' }).getByRole('button')
+    this.qualityButtonDots = this.getSpaceHeader('Quality documents')
+      .locator('.hulyNavGroup-header__actions > button')
+      .last()
     this.editDocumentSpace = page.getByRole('button', { name: 'Edit documents space' })
     const spaceSettings = page.locator('[data-id="space-settings-general"] .formRow')
     this.qualityButtonMembers = spaceSettings
@@ -210,7 +212,7 @@ export class DocumentContentPage extends DocumentCommonPage {
       .filter({ has: page.locator('.formRow__label', { hasText: /^Owners$/ }) })
       .getByRole('button')
     this.userMemberCainVelasquez = page.locator('.selectPopup').getByRole('button', { name: 'VC Velasquez Cain' })
-    this.qualityDocument = page.getByRole('button', { name: 'Quality documents' })
+    this.qualityDocument = page.getByRole('button', { name: 'Quality documents', exact: true })
     this.saveButton = page.getByRole('button', { name: 'Save', exact: true })
     this.addMember = page.getByText('Add member')
     this.addMemberDropdown = page.locator('.selectPopup')
@@ -233,6 +235,18 @@ export class DocumentContentPage extends DocumentCommonPage {
     this.inputTeamspaceName = page.getByPlaceholder('New teamspace')
     this.teamspaceArrow = page.locator('.w-full > button:nth-child(2)')
     this.infoModal = page.locator('#btnGID-info')
+  }
+
+  private getSpaceHeader (spaceName: string): Locator {
+    return this.page
+      .locator('.hulyNavGroup-header')
+      .filter({ has: this.page.getByRole('button', { name: spaceName, exact: true }) })
+  }
+
+  private async openSpaceMenu (spaceName: string): Promise<void> {
+    const header = this.getSpaceHeader(spaceName)
+    await header.hover()
+    await header.locator('.hulyNavGroup-header__actions > button').last().click()
   }
 
   async checkDocumentTitle (title: string): Promise<void> {
@@ -480,6 +494,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async clickAddFolderButton (): Promise<void> {
+    await this.hoverOverGeneralDocumentation()
     await this.addSpaceButton.click()
   }
 
@@ -580,8 +595,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async changeTeamspaceMembers (spaceName: string): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
-    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').nth(1).click()
+    await this.openSpaceMenu(spaceName)
     await this.page.getByRole('button', { name: 'Edit teamspace' }).click()
     await this.documentSpaceOwners.click()
     await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
@@ -597,8 +611,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async changeDocumentSpaceMembers (spaceName: string): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
-    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').click()
+    await this.openSpaceMenu(spaceName)
     await this.editDocumentSpace.click()
     await this.documentSpaceOwners.click()
     await this.addMemberDropdown.getByRole('button', { name: 'DK Dirak Kainin' }).click()
@@ -625,8 +638,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async addThirdUserToMembers (spaceName: string): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
-    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').click()
+    await this.openSpaceMenu(spaceName)
     await this.editDocumentSpace.click()
     await this.qualityButtonMembers.click()
     await this.userMemberCainVelasquez.click()
@@ -644,8 +656,7 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async checkIfEditSpaceButtonExists (spaceName: string, visible: boolean): Promise<void> {
-    await this.page.getByRole('button', { name: spaceName, exact: true }).hover()
-    await this.page.getByRole('button', { name: spaceName, exact: true }).getByRole('button').click()
+    await this.openSpaceMenu(spaceName)
     if (visible) {
       await expect(this.editDocumentSpace).toBeVisible()
       await expect(this.qualityButtonMembers).toBeVisible()
@@ -663,14 +674,12 @@ export class DocumentContentPage extends DocumentCommonPage {
   }
 
   async createNewDocumentInsideFolder (folderName: string): Promise<void> {
-    await this.page.getByRole('button', { name: folderName, exact: true }).hover()
-    await this.page.getByRole('button', { name: folderName, exact: true }).getByRole('button').click()
+    await this.openSpaceMenu(folderName)
     await this.createNewDocument.click()
   }
 
   async clickLeaveFolder (folderName: string): Promise<void> {
-    await this.page.getByRole('button', { name: folderName, exact: true }).hover()
-    await this.page.getByRole('button', { name: folderName, exact: true }).getByRole('button').click()
+    await this.openSpaceMenu(folderName)
     await this.leaveFolder.click()
   }
 
