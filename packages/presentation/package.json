@@ -41,6 +41,7 @@
     "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
+    "@hcengineering/mermaid": "workspace:^0.7.0",
     "@hcengineering/analytics": "workspace:^0.7.19",
     "@hcengineering/client": "workspace:^0.7.19",
     "@hcengineering/contact": "workspace:^0.7.0",

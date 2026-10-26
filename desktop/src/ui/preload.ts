@@ -130,7 +130,7 @@ const expose: IPCMainExposed = {
   branding: async () => {
     const cfg = await expose.config()
     const branding: BrandingMap = await (
-      await fetch(cfg.BRANDING_URL ?? concatLink(cfg.FRONT_URL, 'branding.json'), { keepalive: true })
+      await fetch(cfg.BRANDING_URL ?? concatLink(cfg.FRONT_URL, 'branding.json'), { keepalive: true, cache: 'no-store' })
     ).json()
     const host = await ipcRenderer.invoke(IpcMessage.GetHost)
     return branding[host] ?? {}

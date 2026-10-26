@@ -138,7 +138,9 @@ export class OpenTelemetryMetricsContext extends BaseMeasureContext {
 
       for (const k of Object.keys(params)) {
         const v = params[k]
-        _span?.setAttribute(k, v as any)
+        if (v !== undefined) {
+          _span?.setAttribute(k, v)
+        }
       }
     }
     if (span === 'disable') {
