@@ -1,3 +1,18 @@
+#
+# Copyright © 2026 TraceX SAS.
+#
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 version: '3'
 services:
   postgres:
@@ -71,6 +86,31 @@ services:
       - 9000
     ports:
       - 9002:9000
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      retries: 10
+  datalake:
+    image: tracexapp/datalake
+    depends_on:
+      minio:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      account:
+        condition: service_started
+      redpanda:
+        condition: service_healthy
+    ports:
+      - 4031:4031
+    environment:
+      - PORT=4031
+      - SECRET=secret
+      - ACCOUNTS_URL=http://account:3003
+      - DB_URL=${DB_URL}
+      - BUCKETS=blobs,eu|http://minio:9000?accessKey=minioadmin&secretKey=minioadmin
+      - QUEUE_CONFIG=${QUEUE_CONFIG}
+    restart: unless-stopped
   elastic:
     image: 'elasticsearch:7.14.2'
     command: |
@@ -108,7 +148,7 @@ services:
       - ACCOUNT_PORT=3003
       - SERVER_SECRET=secret
       - WORKSPACE_LIMIT_PER_USER=100
-      - DB_URL=${DB_PG_URL}
+      - DB_URL=${DB_URL}
       - TRANSACTOR_URL=ws://transactor:3334;ws://tracex.local:3334
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - BRANDING_PATH=/var/cfg/branding-test.json
@@ -124,11 +164,11 @@ services:
     environment:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - SERVER_SECRET=secret
-      - DB_URL=${DB_PG_URL}
+      - DB_URL=${DB_URL}
       - TRANSACTOR_URL=ws://transactor:3334;ws://tracex.local:3334
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://account:3003
-      - ACCOUNTS_DB_URL=${DB_PG_URL}
+      - ACCOUNTS_DB_URL=${DB_URL}
       - BRANDING_PATH=/var/cfg/branding.json
     restart: unless-stopped
   front:
@@ -151,7 +191,11 @@ services:
       - SERVER_PORT=8083
       - SERVER_SECRET=secret
       - ACCOUNTS_URL=http://tracex.local:3003
-      - UPLOAD_URL=/files
+      - ACCOUNTS_URL_INTERNAL=http://account:3003
+      - FILES_URL=http://tracex.local:4031/blob/:workspace/:blobId/:filename
+      - UPLOAD_URL=http://tracex.local:4031/upload/form-data/:workspace
+      - DATALAKE_URL=http://tracex.local:4031
+      - PREVIEW_URL=http://tracex.local:4031
       - GMAIL_URL=http://tracex.local:8088
       - CALENDAR_URL=http://tracex.local:8095
       - REKONI_URL=http://rekoni:4007
@@ -180,12 +224,11 @@ services:
       - SERVER_PROVIDER=${SERVER_PROVIDER}
       - SERVER_PORT=3334
       - SERVER_SECRET=secret
-      - DB_URL=${DB_PG_URL}
+      - DB_URL=${DB_URL}
       - METRICS_CONSOLE=false
       - METRICS_FILE=metrics.txt
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - FRONT_URL=http://tracex.local:8083
-      - UPLOAD_URL=http://tracex.local:8083/files
       - ACCOUNTS_URL=http://account:3003
       - LAST_NAME_FIRST=true
       - FULLTEXT_URL=http://fulltext:4710
@@ -242,10 +285,8 @@ services:
       - ../services/sign/pod-sign/debug/branding.json:/var/cfg/branding.json
     environment:
       - SECRET=secret
-      - MINIO_ENDPOINT=minio
-      - MINIO_ACCESS_KEY=minioadmin
+      - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://account:3003
-      - MINIO_SECRET_KEY=minioadmin
       - CERTIFICATE_PATH=/var/cfg/certificate.p12
       - SERVICE_ID=sign-service
       - BRANDING_PATH=/var/cfg/branding.json
@@ -272,7 +313,7 @@ services:
       - QUEUE_CONFIG=${QUEUE_CONFIG}
       - PORT=4710
       - SERVER_SECRET=secret
-      - DB_URL=${DB_PG_URL}
+      - DB_URL=${DB_URL}
       - FULLTEXT_DB_URL=http://elastic:9200
       - ELASTIC_INDEX_NAME=local_storage_index
       - STORAGE_CONFIG=${STORAGE_CONFIG}
