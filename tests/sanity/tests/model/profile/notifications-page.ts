@@ -36,7 +36,13 @@ export class NotificationsPage {
   documents = (): Locator => this.page.getByRole('button', { name: 'Documents' })
   requests = (): Locator => this.page.getByRole('button', { name: 'Requests' })
   todos = (): Locator => this.page.getByRole('button', { name: "Todo's" })
-  chatMessageToggle = (): Locator => this.page.locator('.grid > div:nth-child(7)')
+  // Row 'Channel messages': label cell, then Inbox toggle, then Push toggle.
+  // Located by label so it does not depend on how many provider columns (e.g. Sound) are shown.
+  chatMessageToggle = (): Locator =>
+    this.page
+      .locator('.grid > div')
+      .filter({ hasText: /^Channel messages$/ })
+      .locator('xpath=following-sibling::div[2]')
 
   constructor (page: Page) {
     this.page = page
