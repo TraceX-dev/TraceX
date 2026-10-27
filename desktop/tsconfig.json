@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "rootDir": "./src",
+    "types": ["node", "svelte", "jest"],
+    "typeRoots": ["./node_modules/@types", "./node_modules"],
     "outDir": "dist",
     "noImplicitAny": true,
     "module": "esnext",

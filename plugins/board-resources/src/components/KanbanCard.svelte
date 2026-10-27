@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,10 +17,10 @@
 <script lang="ts">
   import { AttachmentDroppable, AttachmentsPresenter } from '@hcengineering/attachment-resources'
   import type { Card } from '@hcengineering/board'
+  import { ChatMessagesPresenter } from '@hcengineering/chunter-resources'
   import contact, { Employee } from '@hcengineering/contact'
   import type { Ref, WithLookup } from '@hcengineering/core'
   import notification from '@hcengineering/notification'
-  import { ChatMessagesPresenter } from '@hcengineering/notification-resources'
   import { getClient } from '@hcengineering/presentation'
   import tags from '@hcengineering/tags'
   import { Button, Component, EditBox, Icon, IconMoreV, Label, numberToHexColor } from '@hcengineering/ui'

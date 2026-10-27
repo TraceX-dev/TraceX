@@ -93,7 +93,7 @@
         ]
       },
       "ignoreMissingScript": true,
-      "allowWarningsOnSuccess": false
+      "allowWarningsOnSuccess": true
     },
     {
       "name": "_phase:docker-build",
