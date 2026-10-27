@@ -30,6 +30,7 @@ import {
   type MeasureLogLevel,
   type Metrics,
   type ParamsType,
+  type WithCounterOptions,
   type WithOptions
 } from './types'
 
@@ -119,27 +120,67 @@ export abstract class BaseMeasureContext implements MeasureContext {
     fullParams?: FullParamsType | (() => FullParamsType),
     opt?: WithOptions
   ): Promise<T> {
+    return this.withOperation(name, params, op, fullParams, opt)
+  }
+
+  withCounter<T>(
+    name: string,
+    params: ParamsType,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
+    fullParams?: FullParamsType | (() => FullParamsType),
+    opt?: WithCounterOptions
+  ): Promise<T> {
+    return this.withOperation(name, params, op, fullParams, opt, opt?.mode ?? 'lifecycle')
+  }
+
+  private withOperation<T>(
+    name: string,
+    params: ParamsType,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
+    fullParams: FullParamsType | (() => FullParamsType) | undefined,
+    opt: WithOptions | undefined,
+    mode?: WithCounterOptions['mode']
+  ): Promise<T> {
     const child = this.operationChild(name, params, fullParams, opt)
+    const attributes = mode === undefined ? EMPTY_PARAMS : { ...params }
+    const record = (op: () => void): void => {
+      try {
+        op()
+      } catch (error) {
+        reportTelemetryFailure(error)
+      }
+    }
+    if (mode !== undefined) {
+      record(() => this.counter(name, 1, attributes))
+      if (mode === 'lifecycle') record(() => this.recordActive(name + '-active', 1, attributes))
+    }
+    const finish = (failed: boolean, error?: unknown): void => {
+      if (mode === 'lifecycle') {
+        record(() => this.recordActive(name + '-active', -1, attributes))
+        record(() => this.counter(name + (failed ? '-failed' : '-completed'), 1, attributes))
+      }
+      child.onFinish(opt, failed, error)
+    }
     let result: T | PromiseLike<T>
     let asynchronous: boolean
     try {
       result = child.runOperation(op)
       asynchronous = isThenable(result)
     } catch (error) {
-      child.onFinish(opt, true, error)
+      finish(true, error)
       throw error
     }
     if (!asynchronous) {
-      child.onFinish(opt, false)
+      finish(false)
       return result == null ? (nullPromise as Promise<T>) : Promise.resolve(result)
     }
     return Promise.resolve(result).then(
       (value) => {
-        child.onFinish(opt, false)
+        finish(false)
         return value
       },
       (error: unknown) => {
-        child.onFinish(opt, true, error)
+        finish(true, error)
         throw error
       }
     )
@@ -242,6 +283,7 @@ export abstract class BaseMeasureContext implements MeasureContext {
   }
 
   abstract extractMeta (): Record<string, string | number | boolean>
-  abstract gauge (name: string, value: number): void
-  abstract counter (name: string, value: number): void
+  protected abstract recordActive (name: string, delta: number, attributes: Readonly<ParamsType>): void
+  abstract gauge (name: string, value: number, attributes?: Readonly<ParamsType>): void
+  abstract counter (name: string, value: number, attributes?: Readonly<ParamsType>): void
 }

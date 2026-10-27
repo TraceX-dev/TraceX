@@ -49,13 +49,12 @@ jest.mock('@hcengineering/analytics', () => ({
 }))
 
 jest.mock('../client', () => ({
-  ClientSession: jest.fn().mockImplementation((token, workspace, account, info, allowUpload, counter) => ({
+  ClientSession: jest.fn().mockImplementation((token, workspace, account, info, allowUpload) => ({
     token,
     workspace,
     account,
     info,
     allowUpload,
-    counter,
     createTime: Date.now(),
     requests: new Map(),
     binaryMode: false,
@@ -275,7 +274,7 @@ describe('TSessionManager', () => {
       const stats = sessionManager.calcWorkspaceStats([mockSession as any])
 
       expect(stats.sys).toBe(0)
-      expect(stats.user).toBe(1)
+      expect(stats.user).toBe(0)
       expect(stats.anonymous).toBe(1)
     })
 
@@ -306,7 +305,7 @@ describe('TSessionManager', () => {
       const stats = sessionManager.calcWorkspaceStats(sessions as any)
 
       expect(stats.sys).toBe(1)
-      expect(stats.user).toBe(3)
+      expect(stats.user).toBe(2)
       expect(stats.anonymous).toBe(1)
     })
   })
@@ -512,6 +511,86 @@ describe('TSessionManager', () => {
       const rateLimit = sessionManager.checkRate(mockSession)
 
       expect(rateLimit).toBeDefined()
+    })
+  })
+
+  describe('dimensioned session statistics', () => {
+    function session (account: AccountUuid, service?: string): Session {
+      return {
+        token: { account, workspace: 'ws-metrics', extra: service === undefined ? {} : { service } },
+        getUser: () => account,
+        sessionInstanceId: 'safe-instance-id',
+        createTime: 100,
+        current: { find: 0, tx: 0 },
+        mins5: { find: 0, tx: 0 },
+        total: { find: 0, tx: 0 }
+      } as unknown as Session
+    }
+
+    function register (id: string, value: Session): void {
+      sessionManager.sessions.set(id, {
+        session: value,
+        socket: { id, data: () => ({}) } as ConnectionSocket,
+        tickHash: -1
+      })
+    }
+
+    it('partitions sessions by kind and source and clears groups that disappear', () => {
+      const gauge = jest.spyOn(mockContext, 'gauge')
+      register('process-1', session(systemAccountUuid, 'process-service'))
+      register('process-2', session(systemAccountUuid, 'process-service'))
+      register('fulltext', session(systemAccountUuid, 'fulltext'))
+      register('aibot', session('user' as AccountUuid, 'aibot'))
+      register('guest', session(docGuestAccountUuid))
+      sessionManager.ticks = 20
+      sessionManager.handleTick()
+
+      expect(gauge).toHaveBeenCalledWith('server-sessions', 2, { kind: 'system', client_service: 'process-service' })
+      expect(gauge).toHaveBeenCalledWith('server-sessions', 1, { kind: 'system', client_service: 'fulltext' })
+      expect(gauge).toHaveBeenCalledWith('server-sessions', 1, { kind: 'user', client_service: 'aibot' })
+      expect(gauge).toHaveBeenCalledWith('server-sessions', 1, { kind: 'anonymous', client_service: 'unknown' })
+      expect(mockContext.metrics?.measurements['#server-sessions'].operations).toBe(5)
+      expect(gauge.mock.calls.some(([name]) => name.startsWith('server-sessions-'))).toBe(false)
+
+      sessionManager.sessions.delete('process-1')
+      sessionManager.sessions.delete('process-2')
+      sessionManager.ticks = 40
+      sessionManager.handleTick()
+      expect(gauge).toHaveBeenCalledWith('server-sessions', 0, { kind: 'system', client_service: 'process-service' })
+      expect(mockContext.metrics?.measurements['#server-sessions'].operations).toBe(3)
+    })
+
+    it('partitions workspaces into user, system-only and idle including guest-only workspaces', () => {
+      const values = [session(docGuestAccountUuid), session(systemAccountUuid, 'process-service'), undefined]
+      values.forEach((value, index) => {
+        const sessions = value === undefined ? new Map() : new Map([['session', { session: value }]])
+        sessionManager.workspaces.set(('ws-' + index) as WorkspaceUuid, {
+          sessions, tickHandlers: new Map(), tickHash: -1, maintenance: false, workspaceInitCompleted: false
+        } as unknown as Workspace)
+      })
+      const gauge = jest.spyOn(mockContext, 'gauge')
+      sessionManager.ticks = 20
+      sessionManager.handleTick()
+      expect(gauge).toHaveBeenCalledWith('server-workspaces', 1, { kind: 'user' })
+      expect(gauge).toHaveBeenCalledWith('server-workspaces', 1, { kind: 'system_only' })
+      expect(gauge).toHaveBeenCalledWith('server-workspaces', 1, { kind: 'idle' })
+      expect(mockContext.metrics?.measurements['#server-workspaces'].operations).toBe(3)
+    })
+
+    it('exposes safe instance and socket details without returning bearer tokens', () => {
+      const value = session(systemAccountUuid, 'process-service')
+      const socket = {
+        id: 'raw-bearer-token',
+        data: jest.fn(() => ({ remoteAddress: '127.0.0.1', userAgent: 'process', token: 'raw-bearer-token' }))
+      } as unknown as ConnectionSocket
+      const result = sessionManager.entryToUserStats(value, socket)
+      expect(result).toMatchObject({
+        sessionId: 'safe-instance-id', sessionInstanceId: 'safe-instance-id',
+        kind: 'system', clientService: 'process-service', createTime: 100,
+        data: { remoteAddress: '127.0.0.1', userAgent: 'process' }
+      })
+      expect(socket.data).toHaveBeenCalledTimes(1)
+      expect(JSON.stringify(result)).not.toContain('raw-bearer-token')
     })
   })
 
@@ -1139,7 +1218,7 @@ describe('TSessionManager', () => {
       const stats = sessionManager.calcWorkspaceStats(mockSessions as any)
 
       expect(stats.sys).toBe(2)
-      expect(stats.user).toBe(3)
+      expect(stats.user).toBe(2)
       expect(stats.anonymous).toBe(1)
     })
   })
@@ -1982,194 +2061,4 @@ describe('TSessionManager', () => {
     })
   })
 
-  describe('OneSecondCounters integration', () => {
-    beforeEach(() => {
-      ;(jest as any).useFakeTimers('modern')
-    })
-
-    afterEach(() => {
-      ;(jest as any).useRealTimers()
-    })
-    it('should initialize counters on session manager creation', () => {
-      expect(sessionManager.counters).toBeDefined()
-      expect(typeof sessionManager.counters.entries).toBe('function')
-      expect(typeof sessionManager.counters.add).toBe('function')
-      expect(typeof sessionManager.counters.check).toBe('function')
-      expect(typeof sessionManager.counters.withCounter).toBe('function')
-    })
-
-    it('should track addSession counter during session addition', async () => {
-      const result = sessionManager.counters.withCounter('addSession', 1, async () => {
-        // Simulate addSession behavior
-        const counter = [...sessionManager.counters.entries()].find((e) => e[0] === 'addSession')
-        expect(counter).toBeDefined()
-        expect(counter?.[1]).toBe(1)
-        return 'session-id'
-      })
-
-      const value = await result
-      expect(value).toBe('session-id')
-      // After successful operation, counter should be at 0 (or still 1 for up to 1s)
-      const finalCounter = [...sessionManager.counters.entries()].find((e) => e[0] === 'addSession')
-      expect(finalCounter).toBeDefined()
-      let finalValue: number | undefined
-      if (finalCounter !== undefined) {
-        finalValue = finalCounter[1]
-      }
-      expect(finalValue).toBeGreaterThanOrEqual(0)
-      expect(finalValue).toBeLessThanOrEqual(1)
-    })
-
-    it('should track startWorkspace counter during workspace initialization', async () => {
-      const result = sessionManager.counters.withCounter('startWorkspace', 1, async () => {
-        // Verify counter is incremented
-        const counter = [...sessionManager.counters.entries()].find((e) => e[0] === 'startWorkspace')
-        expect(counter).toBeDefined()
-        expect(counter?.[1]).toBe(1)
-        return 'workspace-context'
-      })
-
-      const value = await result
-      expect(value).toBe('workspace-context')
-      // After successful operation, counter should be at 0 (or still 1 for up to 1s)
-      const finalCounter = [...sessionManager.counters.entries()].find((e) => e[0] === 'startWorkspace')
-      expect(finalCounter).toBeDefined()
-      let finalValue: number | undefined
-      if (finalCounter !== undefined) {
-        finalValue = finalCounter[1]
-      }
-      expect(finalValue).toBeGreaterThanOrEqual(0)
-      expect(finalValue).toBeLessThanOrEqual(1)
-    })
-
-    it('should track request counter during request processing', async () => {
-      const result = sessionManager.counters.withCounter('request', 1, async () => {
-        // Verify counter is incremented
-        const counter = [...sessionManager.counters.entries()].find((e) => e[0] === 'request')
-        expect(counter).toBeDefined()
-        expect(counter?.[1]).toBe(1)
-        return 'request-result'
-      })
-
-      const value = await result
-      expect(value).toBe('request-result')
-      // After successful operation, counter should be at 0 (or still 1 for up to 1s)
-      const finalCounter = [...sessionManager.counters.entries()].find((e) => e[0] === 'request')
-      expect(finalCounter).toBeDefined()
-      let finalValue: number | undefined
-      if (finalCounter !== undefined) {
-        finalValue = finalCounter[1]
-      }
-      expect(finalValue).toBeGreaterThanOrEqual(0)
-      expect(finalValue).toBeLessThanOrEqual(1)
-    })
-
-    it('should properly clean up counter on request failure', async () => {
-      const result = sessionManager.counters
-        .withCounter('request', 1, async () => {
-          throw new Error('Request failed')
-        })
-        .catch(() => {
-          // Expected error
-        })
-
-      await result
-      // Counter should be at 0 even on failure (or still 1 for up to 1s)
-      const finalCounter = [...sessionManager.counters.entries()].find((e) => e[0] === 'request')
-      expect(finalCounter).toBeDefined()
-      let finalValue: number | undefined
-      if (finalCounter !== undefined) {
-        finalValue = finalCounter[1]
-      }
-      expect(finalValue).toBeGreaterThanOrEqual(0)
-      expect(finalValue).toBeLessThanOrEqual(1)
-    })
-
-    it('should handle multiple concurrent counters', async () => {
-      const operations = [
-        sessionManager.counters.withCounter('request', 1, async () => 'result1'),
-        sessionManager.counters.withCounter('request', 1, async () => 'result2'),
-        sessionManager.counters.withCounter('addSession', 1, async () => 'session1')
-      ]
-
-      const results = await Promise.all(operations)
-      expect(results).toEqual(['result1', 'result2', 'session1'])
-
-      // All counters should be at 0 (or still 1 for up to 1s)
-      const entries = Array.from(sessionManager.counters.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-      const map = new Map(entries)
-      expect(map.get('addSession')).toBeLessThanOrEqual(1)
-      expect(map.get('request')).toBeLessThanOrEqual(2)
-    })
-
-    it('should expose counter entries for monitoring', () => {
-      sessionManager.counters.add('test-counter', 5)
-      const entries = Array.from(sessionManager.counters.entries())
-      expect(entries).toContainEqual(['test-counter', 5])
-    })
-
-    it('should allow counter check for timeout cleanup', () => {
-      sessionManager.counters.add('test', 1)
-      expect(Array.from(sessionManager.counters.entries())).toHaveLength(1)
-
-      // Call check to process any timeouts
-      sessionManager.counters.check()
-      // Manual counters should remain
-      expect(Array.from(sessionManager.counters.entries())).toHaveLength(1)
-    })
-
-    it('should increment counter before operation in withCounter', async () => {
-      const stateChanges: string[] = []
-      const operation = async (): Promise<void> => {
-        const entries = Array.from(sessionManager.counters.entries())
-        const counter = entries.find((e) => e[0] === 'tracked')
-        if (counter !== undefined) {
-          stateChanges.push(`counter-exists:${counter[1]}`)
-        }
-      }
-
-      await sessionManager.counters.withCounter('tracked', 1, operation)
-      // Verify counter was present during operation
-      expect(stateChanges).toContain('counter-exists:1')
-    })
-
-    it('should decrement counter after successful operation', async () => {
-      const counterBefore = Array.from(sessionManager.counters.entries()).filter((e) => e[1] !== 0).length
-      await sessionManager.counters.withCounter('op', 1, async () => 'done')
-      const counterAfter = Array.from(sessionManager.counters.entries()).filter((e) => e[1] !== 0).length
-      // Allow one operation to still be counted for up to 1s
-      expect(counterAfter).toBeLessThanOrEqual(counterBefore + 1)
-    })
-
-    it('should track multiple operation types separately', async () => {
-      const operations = [
-        sessionManager.counters.withCounter('request', 1, async () => 'req'),
-        sessionManager.counters.withCounter('startWorkspace', 1, async () => 'ws'),
-        sessionManager.counters.withCounter('addSession', 1, async () => 'session')
-      ]
-
-      const results = await Promise.all(operations)
-      expect(results).toEqual(['req', 'ws', 'session'])
-
-      // All should be at 0 (or still 1 for up to 1s)
-      const entries = Array.from(sessionManager.counters.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-      const map = new Map(entries)
-      expect(map.get('addSession')).toBeLessThanOrEqual(1)
-      expect(map.get('request')).toBeLessThanOrEqual(1)
-      expect(map.get('startWorkspace')).toBeLessThanOrEqual(1)
-    })
-
-    it('should properly handle counter increment/decrement on mixed operations', async () => {
-      sessionManager.counters.add('manual', 3)
-      await sessionManager.counters.withCounter('op1', 1, async () => 'result1')
-      await sessionManager.counters.withCounter('op2', 2, async () => 'result2')
-
-      // manual is at 3, op1/op2 may still be counted for up to 1s
-      const entries = Array.from(sessionManager.counters.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-      const map = new Map(entries)
-      expect(map.get('manual')).toEqual(3)
-      expect(map.get('op1')).toBeLessThanOrEqual(1)
-      expect(map.get('op2')).toBeLessThanOrEqual(2)
-    })
-  })
 })

@@ -27,6 +27,10 @@ Respond to user using Russian language, all comments should be in English.
 - `packages/*` - Reusable utilities
 - Projects 2-3 levels deep, each with `package.json`
 
+## Observability
+
+- Before adding or changing traces, metrics, structured logging, context propagation, or observability backends, read [Observability with MeasureContext](./docs/observability.md). Application instrumentation uses `MeasureContext`; OpenTelemetry instruments and SDK calls belong inside `measurements-otlp`. Update the guide when changing the context contract or backend behavior.
+
 ## UI Component Reuse
 
 - Before creating UI, check the [`@hcengineering/ui` component catalog](./packages/ui/docs/components.md), public exports, and existing usages. Prefer importing from `@hcengineering/ui` and extending or composing existing components; do not use deep imports or create near-duplicates.

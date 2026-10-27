@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import type { FullParamsType, MeasureContext, ParamsType, WithOptions } from './types'
+import type { FullParamsType, MeasureContext, ParamsType, WithCounterOptions, WithOptions } from './types'
 
 /**
  * Delegate measurements to every context while executing each operation once.
@@ -26,27 +26,47 @@ export function createMeasureContextProxy (first: MeasureContext, ...contexts: M
 }
 
 function createProxy (contexts: MeasureContext[], parent?: MeasureContext): MeasureContext {
-  const operations: Pick<MeasureContext, 'with' | 'withSync' | 'newChild' | 'end' | 'counter' | 'gauge'> = {
+  function withOperation<T>(
+    method: 'with' | 'withCounter',
+    name: string,
+    params: ParamsType,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
+    fullParams?: FullParamsType | (() => FullParamsType),
+    opt?: WithCounterOptions
+  ): Promise<T> {
+    const children: MeasureContext[] = []
+    const run = (index: number): Promise<T> =>
+      contexts[index][method](
+        name,
+        params,
+        (child) => {
+          children.push(child)
+          return index === contexts.length - 1 ? op(createProxy(children, proxy)) : run(index + 1)
+        },
+        fullParams,
+        index === 0 ? opt : { ...opt, log: false }
+      )
+    return run(0)
+  }
+
+  const operations: Pick<MeasureContext, 'with' | 'withCounter' | 'withSync' | 'newChild' | 'end' | 'counter' | 'gauge'> = {
     with<T>(
       name: string,
       params: ParamsType,
       op: (ctx: MeasureContext) => T | PromiseLike<T>,
-      fullParams?: ParamsType | (() => FullParamsType),
+      fullParams?: FullParamsType | (() => FullParamsType),
       opt?: WithOptions
     ): Promise<T> {
-      const children: MeasureContext[] = []
-      const run = (index: number): Promise<T> =>
-        contexts[index].with(
-          name,
-          params,
-          (child) => {
-            children.push(child)
-            return index === contexts.length - 1 ? op(createProxy(children, proxy)) : run(index + 1)
-          },
-          fullParams,
-          index === 0 ? opt : { ...opt, log: false }
-        )
-      return run(0)
+      return withOperation('with', name, params, op, fullParams, opt)
+    },
+    withCounter<T>(
+      name: string,
+      params: ParamsType,
+      op: (ctx: MeasureContext) => T | PromiseLike<T>,
+      fullParams?: FullParamsType | (() => FullParamsType),
+      opt?: WithCounterOptions
+    ): Promise<T> {
+      return withOperation('withCounter', name, params, op, fullParams, opt)
     },
     withSync<T>(
       name: string,
@@ -80,14 +100,14 @@ function createProxy (contexts: MeasureContext[], parent?: MeasureContext): Meas
         ctx.end(value)
       }
     },
-    counter (name, value) {
+    counter (name, value, attributes) {
       for (const ctx of contexts) {
-        ctx.counter(name, value)
+        ctx.counter(name, value, attributes)
       }
     },
-    gauge (name, value) {
+    gauge (name, value, attributes) {
       for (const ctx of contexts) {
-        ctx.gauge(name, value)
+        ctx.gauge(name, value, attributes)
       }
     }
   }
@@ -96,6 +116,7 @@ function createProxy (contexts: MeasureContext[], parent?: MeasureContext): Meas
     get (target, property) {
       if (
         property === 'with' ||
+        property === 'withCounter' ||
         property === 'withSync' ||
         property === 'newChild' ||
         property === 'end' ||

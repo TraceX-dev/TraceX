@@ -72,7 +72,6 @@ import {
   type ConsumerHandle,
   type GetWorkspaceResponse,
   LOGGING_ENABLED,
-  OneSecondCountersImpl,
   pingConst,
   type Pipeline,
   type PipelineFactory,
@@ -102,6 +101,19 @@ const workspaceSoftShutdownTicks = 15 * ticksPerSecond
 
 const hangRequestTimeoutSeconds = 30
 const hangSessionTimeoutSeconds = 60
+
+function getClientService (token: Token | undefined): string {
+  const service = token?.extra?.service
+  if (typeof service !== 'string') return 'unknown'
+  const value = service.trim()
+  return /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(value) ? value : 'unknown'
+}
+
+function getSessionKind (session: Session): 'system' | 'anonymous' | 'user' {
+  const user = session.getUser()
+  if (user === systemAccountUuid) return 'system'
+  return user === docGuestAccountUuid || user === readOnlyGuestAccountUuid ? 'anonymous' : 'user'
+}
 
 // Clamp to >=1: RateLimiter(0) deadlocks (its `size >= rate` gate never opens), NaN uncaps it.
 const parsedColdBuildConcurrency = parseInt(process.env.COLD_BUILD_CONCURRENCY ?? '8', 10)
@@ -148,7 +160,7 @@ export class TSessionManager implements SessionManager {
   hungSessionsWarnPercent = parseInt(process.env.HUNG_SESSIONS_WARN_PERCENT ?? '25')
   hungSessionsFailPercent = parseInt(process.env.HUNG_SESSIONS_FAIL_PERCENT ?? '75')
   hungRequestsFailPercent = parseInt(process.env.HUNG_REQUESTS_PERCENT ?? '50')
-  counters = new OneSecondCountersImpl()
+  private reportedSessionGroups = new Map<string, { kind: string, client_service: string }>()
 
   // Cap concurrent cold pipeline builds so a reconnect storm after a transactor restart
   // doesn't saturate the event loop at once.
@@ -264,30 +276,22 @@ export class TSessionManager implements SessionManager {
     let sys: number = 0
     let anonymous: number = 0
     for (const s of sessions) {
-      if (s.session.getUser() === systemAccountUuid) {
+      const kind = getSessionKind(s.session)
+      if (kind === 'system') {
         sys++
+      } else if (kind === 'anonymous') {
+        anonymous++
       } else {
         user++
-        if (s.session.getUser() === docGuestAccountUuid || s.session.getUser() === readOnlyGuestAccountUuid) {
-          anonymous++
-        }
       }
     }
     return { sys, user, anonymous }
   }
 
   private handleWorkspaceTick (): void {
-    this.ctx.gauge('server-sessions', this.sessions.size)
-
     if (this.ticks % ticksPerSecond === 0) {
-      // Let's update workspace statistics every 10 seconds
+      // Publish one consistent snapshot every second.
       this.sendUserWorkspaceStats()
-
-      // Send extra counters and clear them to collect again
-      for (const [c, v] of [...this.counters.entries()]) {
-        this.ctx.gauge('server-' + c, v)
-      }
-      this.counters.check()
     }
 
     if (this.ticks % (60 * ticksPerSecond) === 0) {
@@ -366,14 +370,34 @@ export class TSessionManager implements SessionManager {
   }
 
   private sendUserWorkspaceStats (): void {
-    const { sys, user, anonymous } = this.calcWorkspaceStats(Array.from(this.sessions.values()))
+    const groups = new Map<string, { attributes: { kind: string, client_service: string }, count: number }>()
+    for (const { session } of this.sessions.values()) {
+      const attributes = { kind: getSessionKind(session), client_service: getClientService(session.token) }
+      const key = JSON.stringify(attributes)
+      const group = groups.get(key)
+      if (group === undefined) groups.set(key, { attributes, count: 1 })
+      else group.count++
+    }
+    for (const kind of ['user', 'anonymous', 'system']) {
+      if (![...groups.values()].some((group) => group.attributes.kind === kind)) {
+        const attributes = { kind, client_service: 'unknown' }
+        groups.set(JSON.stringify(attributes), { attributes, count: 0 })
+      }
+    }
+    for (const [key, attributes] of this.reportedSessionGroups) {
+      if (!groups.has(key)) this.ctx.gauge('server-sessions', 0, attributes)
+    }
+    for (const { attributes, count } of groups.values()) {
+      this.ctx.gauge('server-sessions', count, attributes)
+    }
+    this.reportedSessionGroups = new Map([...groups].map(([key, group]) => [key, group.attributes]))
 
     let userWorkspaces: number = 0
     let sysOnlyWorkspaces: number = 0
 
     for (const ws of this.workspaces.values()) {
-      const { sys, user } = this.calcWorkspaceStats(Array.from(ws.sessions.values()))
-      if (user > 0) {
+      const { sys, user, anonymous } = this.calcWorkspaceStats(Array.from(ws.sessions.values()))
+      if (user + anonymous > 0) {
         userWorkspaces++
       } else {
         if (sys > 0) {
@@ -382,13 +406,9 @@ export class TSessionManager implements SessionManager {
       }
     }
 
-    this.ctx.gauge('server-sessions-user', user)
-    this.ctx.gauge('server-sessions-system', sys)
-    this.ctx.gauge('server-sessions-anonymous', anonymous)
-
-    this.ctx.gauge('server-workspaces', this.workspaces.size)
-    this.ctx.gauge('server-workspaces-user', userWorkspaces)
-    this.ctx.gauge('server-workspaces-systemonly', sysOnlyWorkspaces)
+    this.ctx.gauge('server-workspaces', userWorkspaces, { kind: 'user' })
+    this.ctx.gauge('server-workspaces', sysOnlyWorkspaces, { kind: 'system_only' })
+    this.ctx.gauge('server-workspaces', this.workspaces.size - userWorkspaces - sysOnlyWorkspaces, { kind: 'idle' })
   }
 
   private handleSessionTick (now: number): void {
@@ -500,8 +520,7 @@ export class TSessionManager implements SessionManager {
         role
       },
       info,
-      token.extra?.mode === 'backup',
-      this.counters
+      token.extra?.mode === 'backup'
     )
   }
 
@@ -775,8 +794,10 @@ export class TSessionManager implements SessionManager {
     rawToken: string,
     sessionId: string | undefined
   ): Promise<AddSessionResponse> {
-    return await this.counters.withCounter('addSession', 1, () =>
-      ctx.with('📲 add-session', { source: token.extra?.service ?? '🤦‍♂️user' }, async (ctx) => {
+    return await ctx.withCounter(
+      'server-lifecycle',
+      { operation: 'add_session', client_service: getClientService(token) },
+      async (ctx) => {
         try {
           let account: LoginInfoWithWorkspaces | undefined
 
@@ -920,7 +941,7 @@ export class TSessionManager implements SessionManager {
           }
           throw err
         }
-      })
+      }
     )
   }
 
@@ -1091,7 +1112,7 @@ export class TSessionManager implements SessionManager {
     const factory = async (): Promise<Pipeline> => {
       // Only the cold build is gated (see coldBuildLimiter); pipeline ops run unthrottled.
       const pipeline = await this.coldBuildLimiter.exec(() =>
-        this.counters.withCounter('startWorkspace', 1, () =>
+        pipelineCtx.withCounter('server-lifecycle', { operation: 'start_workspace' }, () =>
           this.pipelineFactory(
             pipelineCtx,
             workspaceIds,
@@ -1595,24 +1616,25 @@ export class TSessionManager implements SessionManager {
           ws.sendPong()
           return
         }
-        await this.counters.withCounter('request', 1, () =>
-          workspace.with(async (pipeline) => {
-            await requestCtx.with(
-              '🧨' + request.method,
-              { source, mode: 'websocket' },
-              (callTx) =>
-                f.apply(service, [
-                  this.createOpContext(callTx, requestCtx, pipeline, request.id, service, ws, rateLimit),
-                  ...params
-                ]),
-              {
-                user: service.getUser(),
-                socialId: service.getRawAccount().primarySocialId,
-                workspace: workspace.wsId.uuid
-              },
-              { meta: request.meta }
-            )
-          })
+        await requestCtx.withCounter(
+          'server-requests',
+          {
+            method: typeof f === 'function' ? request.method : 'unknown',
+            mode: 'websocket',
+            client_service: getClientService(service.token)
+          },
+          async (callTx) => await workspace.with(async (pipeline) => {
+            await f.apply(service, [
+              this.createOpContext(callTx, requestCtx, pipeline, request.id, service, ws, rateLimit),
+              ...params
+            ])
+          }),
+          {
+            user: service.getUser(),
+            socialId: service.getRawAccount().primarySocialId,
+            workspace: workspace.wsId.uuid
+          },
+          { meta: request.meta }
         )
       } catch (err: any) {
         Analytics.handleError(err)
@@ -1648,8 +1670,6 @@ export class TSessionManager implements SessionManager {
       return await Promise.resolve(rateLimitStatus)
     }
 
-    const source = service.token.extra?.service ?? '🤦‍♂️user'
-
     // Calculate total number of clients
     const reqId = generateId()
 
@@ -1667,23 +1687,20 @@ export class TSessionManager implements SessionManager {
       })
 
       try {
-        await this.counters.withCounter('request', 1, () =>
-          workspace.with(async (pipeline) => {
-            await requestCtx.with(
-              '🧨 ' + method,
-              { source, mode: 'rpc' },
-              (callTx) =>
-                operation(
-                  this.createOpContext(callTx, requestCtx, pipeline, reqId, service, ws, rateLimitStatus),
-                  rateLimitStatus
-                ),
-              {
-                user: service.getUser(),
-                socialId: service.getRawAccount().primarySocialId,
-                workspace: workspace.wsId.uuid
-              }
+        await requestCtx.withCounter(
+          'server-requests',
+          { method, mode: 'rpc', client_service: getClientService(service.token) },
+          async (callTx) => await workspace.with(async (pipeline) => {
+            await operation(
+              this.createOpContext(callTx, requestCtx, pipeline, reqId, service, ws, rateLimitStatus),
+              rateLimitStatus
             )
-          })
+          }),
+          {
+            user: service.getUser(),
+            socialId: service.getRawAccount().primarySocialId,
+            workspace: workspace.wsId.uuid
+          }
         )
       } catch (err: any) {
         Analytics.handleError(err)
@@ -1709,13 +1726,25 @@ export class TSessionManager implements SessionManager {
   }
 
   entryToUserStats = (session: Session, socket: ConnectionSocket): UserStatistics => {
+    const data = socket.data()
     return {
       current: session.current,
       mins5: session.mins5,
       userId: session.getUser(),
-      sessionId: socket.id,
+      sessionId: session.sessionInstanceId ?? '',
+      sessionInstanceId: session.sessionInstanceId,
+      clientService: getClientService(session.token),
+      kind: getSessionKind(session),
+      createTime: session.createTime,
       total: session.total,
-      data: socket.data
+      data: {
+        remoteAddress: data.remoteAddress,
+        userAgent: data.userAgent,
+        language: data.language,
+        account: data.account,
+        mode: data.mode,
+        model: data.model
+      }
     }
   }
 

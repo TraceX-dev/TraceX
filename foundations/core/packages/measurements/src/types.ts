@@ -61,6 +61,9 @@ export interface Metrics extends MetricsData {
   params: Record<string, Record<string, MetricsData>>
   measurements: Record<string, Metrics>
 
+  /** Explicit metric series keyed by the complete, normalized attribute set. */
+  series?: Record<string, MetricsData & { attributes: ParamsType }>
+
   opLog?: Record<string, OperationLog>
 }
 
@@ -100,6 +103,12 @@ export interface WithOptions {
   suspendErrors?: boolean
 }
 
+/** Options for an operation with automatic metric recording. @public */
+export interface WithCounterOptions extends WithOptions {
+  /** Record all lifecycle metrics by default, or only the invocation counter. */
+  mode?: 'calls' | 'lifecycle'
+}
+
 /** Options for creating a child context. @public */
 export interface ChildOptions {
   fullParams?: FullParamsType | (() => FullParamsType)
@@ -134,6 +143,15 @@ export interface MeasureContext<Q = any> {
     opt?: WithOptions
   ) => Promise<T>
 
+  /** Execute exactly as with(), additionally recording invocation and lifecycle counters. */
+  withCounter: <T>(
+    name: string,
+    params: ParamsType,
+    op: (ctx: MeasureContext<Q>) => T | PromiseLike<T>,
+    fullParams?: FullParamsType | (() => FullParamsType),
+    opt?: WithCounterOptions
+  ) => Promise<T>
+
   withSync: <T>(
     name: string,
     params: ParamsType,
@@ -149,8 +167,8 @@ export interface MeasureContext<Q = any> {
   parent?: MeasureContext
   getParams: () => ParamsType
 
-  gauge: (name: string, value: number) => void
-  counter: (name: string, value: number) => void
+  gauge: (name: string, value: number, attributes?: Readonly<ParamsType>) => void
+  counter: (name: string, value: number, attributes?: Readonly<ParamsType>) => void
 
   // Capture error
   error: (message: string, obj?: Record<string, any>) => void
