@@ -36,19 +36,19 @@ runs:
       uses: actions/cache@v6
       with:
         path: common/temp/pnpm-store
-        key: pnpm-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('rush.json', 'common/config/rush/pnpm-lock.yaml', 'common/config/rush/pnpm-config.json', 'common/config/rush/.pnpmfile.cjs') }}
+        key: pnpm-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('rush.json', 'common/config/rush/pnpm-lock.yaml', 'common/config/rush/pnpm-config.json', 'common/config/rush/.pnpmfile.cjs') }}
         restore-keys: |
-          pnpm-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
+          pnpm-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
     - name: Cache Rush outputs
       if: inputs.restore-build-cache == 'true'
       uses: actions/cache@v6
       with:
         path: common/temp/build-cache
-        key: rush-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-${{ steps.revision.outputs.sha }}-${{ inputs.cache-scope }}
+        key: rush-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-${{ steps.revision.outputs.sha }}-${{ inputs.cache-scope }}
         restore-keys: |
-          rush-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-${{ steps.revision.outputs.sha }}-
-          rush-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-
-          rush-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
+          rush-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-${{ steps.revision.outputs.sha }}-
+          rush-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-
+          rush-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
     - name: Install dependencies from lockfile
       shell: bash
       run: node common/scripts/install-run-rush.js install

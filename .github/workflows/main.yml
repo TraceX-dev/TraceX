@@ -17,8 +17,8 @@ name: CI
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.ref || github.ref }}
-  cancel-in-progress: ${{ !startsWith(inputs.ref || github.ref, 'refs/tags/') }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 on:
   push:
     branches:
@@ -34,10 +34,6 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      ref:
-        description: Ref to run as (e.g. refs/tags/v0.7.370 to test release flow)
-        required: false
-        default: refs/heads/develop
       skip_publish:
         description: Skip all publishing (npm, Docker, R2) when testing release flow
         required: false
@@ -48,26 +44,20 @@ env:
   INIT_SCRIPTS_BRANCH: main
 jobs:
   prepare:
-    name: Resolve revision
+    name: Release policy
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      commit: ${{ steps.revision.outputs.commit }}
       target_ref: ${{ steps.revision.outputs.target_ref }}
       version: ${{ steps.revision.outputs.version }}
       release: ${{ steps.revision.outputs.release }}
       production: ${{ steps.revision.outputs.production }}
       publish: ${{ steps.revision.outputs.publish }}
     steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-          fetch-depth: 0
-          filter: tree:0
-      - name: Resolve immutable commit and release policy
+      - name: Classify event ref and publication policy
         id: revision
         env:
-          TARGET_REF: ${{ inputs.ref || github.ref }}
+          TARGET_REF: ${{ github.ref }}
           SKIP_PUBLISH: ${{ inputs.skip_publish || false }}
         run: |
           set -euo pipefail
@@ -82,7 +72,6 @@ jobs:
             if [[ "$SKIP_PUBLISH" != true ]]; then publish=true; fi
           fi
           {
-            echo "commit=$(git rev-parse HEAD)"
             echo "target_ref=$TARGET_REF"
             echo "version=$version"
             echo "release=$release"
@@ -96,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -147,7 +136,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -170,7 +159,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -196,7 +185,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -239,7 +228,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -268,7 +257,7 @@ jobs:
       - name: Build native test images
         run: node common/scripts/install-run-rush.js docker
         env:
-          DOCKER_VERSION: ${{ needs.prepare.outputs.commit }}
+          DOCKER_VERSION: ${{ github.sha }}
           DOCKER_EXTRA: --platform=linux/amd64
           DOCKER_CLI_HINTS: "false"
           DOCKER_BUILDKIT: "1"
@@ -276,7 +265,7 @@ jobs:
       - name: Export test images and Compose aliases
         run: node common/scripts/ci-docker-images.js save "$RUNNER_TEMP/test-images.tar" "$CI_COMMIT_SHA"
         env:
-          CI_COMMIT_SHA: ${{ needs.prepare.outputs.commit }}
+          CI_COMMIT_SHA: ${{ github.sha }}
       - name: Upload shared test images
         uses: actions/upload-artifact@v6
         with:
@@ -292,7 +281,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -395,7 +384,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -494,7 +483,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -616,7 +605,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -711,7 +700,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -839,7 +828,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive

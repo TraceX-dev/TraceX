@@ -434,8 +434,10 @@ It includes build and validate phases in watch mode.
 
 ### Continuous integration
 
-The CI workflow resolves the requested ref once and checks out the same commit
-in every job. Formatting runs independently of compilation. Compilation runs
+The CI workflow checks out the triggering event commit (`github.sha`) in every
+job. Manual runs use the workflow's native branch/tag selection; there is no
+separate input that can check out code from another cache security context.
+Formatting runs independently of compilation. Compilation runs
 before package validation; generated `lib`, `types`, `.build`, and `.validate`
 directories are transferred as a tar artifact whose commit is checked before
 restoring it. Source files and installed dependencies are not transferred.
@@ -452,11 +454,15 @@ for version tags (`vMAJOR.MINOR.PATCH` or `sMAJOR.MINOR.PATCH`). Docker, npm, an
 desktop releases require a successful **Quality gate** covering validation,
 formatting, unit tests, Svelte checks, and every UI suite.
 
-For a manual verification run, select the intended ref in `workflow_dispatch`
-and set `skip_publish` to true. Release refs still exercise release builds,
+For a manual verification run, select the intended workflow branch in the
+GitHub UI, or use `gh workflow run main.yml --ref YOUR_BRANCH -f skip_publish=true`.
+For tags, use `gh workflow run main.yml --ref vX.Y.Z -f skip_publish=true`
+with an existing version tag containing this CI configuration. Release refs
+still exercise release builds,
 while npm, Docker, distribution, and report publication remain disabled.
 The separate manual npm publishing workflow requires a successful CI quality
-gate for the exact commit before publishing.
+gate for the exact commit before publishing. Invoke it with
+`gh workflow run publish-npm.yml --ref vX.Y.Z`; the workflow rejects branch refs.
 
 Infrastructure regression tests use temporary files and fake Docker commands;
 they do not build images, format source files, or publish anything:
