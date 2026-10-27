@@ -1,16 +1,10 @@
 <script lang="ts">
-  import { getMetadata } from '@hcengineering/platform'
-  import { Button, navigate, Notification, NotificationToast } from '@hcengineering/ui'
+  import { Button, Notification, NotificationToast } from '@hcengineering/ui'
+  import support, { contactUsLink } from '@hcengineering/support'
   import view from '@hcengineering/view'
-  import presentation, { getCurrentWorkspaceUrl } from '@hcengineering/presentation'
-  import { allowGuestSignUpStore } from '../utils'
 
   export let onRemove: () => void
   export let notification: Notification
-
-  function joinWorkspace (e: MouseEvent): void {
-    navigate({ path: ['login', 'join'], query: { workspace: getCurrentWorkspaceUrl() } })
-  }
 </script>
 
 <NotificationToast title={notification.title} severity={notification.severity} onClose={onRemove}>
@@ -19,13 +13,8 @@
   </svelte:fragment>
   <svelte:fragment slot="buttons">
     <div style="width: auto" />
-    <div class="flex-between gap-2">
-      {#if $allowGuestSignUpStore}
-        <Button label={view.string.ReadOnlyJoinWorkspace} stopPropagation={false} on:click={joinWorkspace} />
-      {/if}
-      <a href={getMetadata(presentation.metadata.SignupUrl)} target="_blank">
-        <Button label={view.string.ReadOnlySignUp} stopPropagation={false} kind="primary" />
-      </a>
-    </div>
+    <a href={contactUsLink} target="_blank" rel="noreferrer">
+      <Button label={support.string.ContactUs} stopPropagation={false} kind="primary" />
+    </a>
   </svelte:fragment>
 </NotificationToast>
