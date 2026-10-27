@@ -19,9 +19,13 @@ const path = require('node:path')
 /** Export all images built for this commit, including the aliases used by Compose. */
 function saveImages(filename, revision) {
   const output = execFileSync('docker', [
-    'image', 'ls', '--filter', `reference=*:${revision}`, '--format', '{{.Repository}}'
+    'image', 'ls', '--format', '{{.Repository}}\t{{.Tag}}'
   ], { encoding: 'utf8' })
-  const repositories = [...new Set(output.trim().split('\n').filter(Boolean))]
+  // Docker reference globs do not cross '/' in namespaced repository names.
+  const repositories = [...new Set(output.trim().split('\n')
+    .map(line => line.split('\t'))
+    .filter(([repository, tag]) => repository !== '<none>' && tag === revision)
+    .map(([repository]) => repository))]
   if (repositories.length === 0) throw new Error(`No Docker images were built for ${revision}`)
   const tags = []
   for (const repository of repositories) {

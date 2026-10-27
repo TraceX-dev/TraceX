@@ -41,7 +41,12 @@ if (args[0] === 'build' && scenario === 'build-failure') process.exit(37)
 if (args[0] === 'tag' && scenario === 'tag-failure') process.exit(37)
 if (args[0] === 'push' && scenario === 'push-failure') process.exit(37)
 if (args[0] === 'image' && args[1] === 'ls') {
-  if (scenario !== 'empty') console.log('tracexapp/front\\ntracexapp/server\\ntracexapp/front')
+  // Docker reference globs use path.Match: '*' does not cross repository slashes.
+  if (!args.includes('--filter') && scenario !== 'empty') {
+    console.log('tracexapp/front\\tabc123\\ntracexapp/server\\tabc123\\ntracexapp/front\\tabc123')
+    console.log('registry.example:5000/team/service\\tabc123')
+    console.log('tracexapp/old\\told-sha\\ntracexapp/partial\\tabc123-extra\\n<none>\\t<none>')
+  }
 }
 if (args[0] === 'image' && args[1] === 'inspect') {
   const tag = args.at(-1)
@@ -180,7 +185,8 @@ test('test-image export deduplicates repositories and preserves commit and Compo
   const filename = path.join(f.root, 'images.tar')
   withEnvironment(f.env, () => saveImages(filename, 'abc123'))
   assert.deepEqual(JSON.parse(fs.readFileSync(filename, 'utf8')), [
-    'tracexapp/front:abc123', 'tracexapp/front:latest', 'tracexapp/server:abc123', 'tracexapp/server:latest'
+    'tracexapp/front:abc123', 'tracexapp/front:latest', 'tracexapp/server:abc123', 'tracexapp/server:latest',
+    'registry.example:5000/team/service:abc123', 'registry.example:5000/team/service:latest'
   ])
 })
 
@@ -190,6 +196,15 @@ test('missing images or stale aliases fail instead of exporting unrelated images
     assert.throws(() => withEnvironment(f.env, () => saveImages(path.join(f.root, 'images.tar'), 'abc123')))
     assert(!f.calls().some(args => args[1] === 'save'))
   }
+})
+
+test('image export requires an exact commit tag rather than a prefix match', t => {
+  const f = dockerFixture(t)
+  assert.throws(
+    () => withEnvironment(f.env, () => saveImages(path.join(f.root, 'images.tar'), 'abc')),
+    /No Docker images were built for abc/
+  )
+  assert(!f.calls().some(args => args[1] === 'inspect' || args[1] === 'save'))
 })
 
 test('Docker export failures reach the artifact producer', t => {
