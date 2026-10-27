@@ -180,6 +180,40 @@ test('an artifact from another commit is rejected before extraction', t => {
   assert(!fs.existsSync(path.join(root, 'project/types')))
 })
 
+test('the real profiling wrapper can launch the tool after restoring artifacts on a clean runner', t => {
+  const root = fixture(t)
+  const source = path.join(root, 'source')
+  const destination = path.join(root, 'destination')
+  fs.mkdirSync(path.join(source, 'dev/tool/lib'), { recursive: true })
+  fs.mkdirSync(path.join(source, 'dev/tool/bundle'))
+  fs.writeFileSync(path.join(source, 'dev/tool/lib/index.js'), 'exports.compiled = true')
+  fs.writeFileSync(path.join(source, 'dev/tool/bundle/bundle.js'), 'console.log(JSON.stringify(process.argv.slice(2)))')
+  fs.mkdirSync(path.join(destination, 'tests'), { recursive: true })
+  fs.mkdirSync(path.join(destination, 'common/scripts'), { recursive: true })
+  fs.copyFileSync(path.resolve(__dirname, '../../tests/tool.sh'), path.join(destination, 'tests/tool.sh'))
+  fs.chmodSync(path.join(destination, 'tests/tool.sh'), 0o755)
+  fs.writeFileSync(path.join(destination, 'common/scripts/show_version.js'), 'console.log("0.0.0")')
+  const projects = [{ projectFolder: 'dev/tool' }]
+  const archive = path.join(root, 'outputs.tgz')
+  pack(source, projects, 'abc123', archive)
+  restore(destination, projects, 'abc123', archive)
+  const result = spawnSync('bash', [path.resolve(__dirname, '../../tests/profile-start.sh')], {
+    cwd: path.join(destination, 'tests'), env: { ...process.env, TOOL_OPTIONS: '' }, encoding: 'utf8'
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout.trim().split('\n').at(-1)), ['profile', 'http://localhost:3334', 'start'])
+})
+
+test('the artifact producer rejects a missing administration tool before uploading outputs', t => {
+  const root = fixture(t)
+  fs.mkdirSync(path.join(root, 'dev/tool/lib'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'dev/tool/lib/index.js'), 'exports.compiled = true')
+  assert.throws(
+    () => pack(root, [{ projectFolder: 'dev/tool' }], 'abc123', path.join(root, 'outputs.tgz')),
+    /administration tool bundle/
+  )
+})
+
 test('test-image export deduplicates repositories and preserves commit and Compose tags', t => {
   const f = dockerFixture(t)
   const filename = path.join(f.root, 'images.tar')

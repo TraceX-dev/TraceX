@@ -103,6 +103,9 @@ jobs:
         run: node common/scripts/install-run-rush.js build
       - name: Validate packages
         run: node common/scripts/install-run-rush.js validate
+      - name: Bundle test administration tool
+        working-directory: dev/tool
+        run: node ../../common/scripts/install-run-rushx.js bundle
       - name: Archive generated package outputs
         run: node common/scripts/ci-build-artifacts.js pack "$RUNNER_TEMP/package-outputs.tgz"
       - name: Upload generated package outputs

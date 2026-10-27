@@ -18,7 +18,8 @@ const os = require('node:os')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 
-const OUTPUT_FOLDERS = ['lib', 'types', '.build', '.validate']
+const OUTPUT_FOLDERS = ['lib', 'types', 'bundle', '.build', '.validate']
+const TOOL_BUNDLE = 'dev/tool/bundle/bundle.js'
 const MANIFEST = '.ci-build-manifest.json'
 
 class BuildArtifactError extends Error {
@@ -34,6 +35,9 @@ function outputPaths(projects) {
 
 /** Archive only generated package outputs, preserving symlinks and executable modes. */
 function pack(root, projects, revision, filename) {
+  if (projects.some(project => project.projectFolder === 'dev/tool') && !fs.existsSync(path.join(root, TOOL_BUNDLE))) {
+    throw new BuildArtifactError('Missing administration tool bundle; bundle @hcengineering/tool before archiving outputs')
+  }
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'tracex-ci-artifacts-'))
   const manifestPath = path.join(root, MANIFEST)
   let manifestWritten = false

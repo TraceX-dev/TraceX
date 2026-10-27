@@ -438,9 +438,11 @@ The CI workflow checks out the triggering event commit (`github.sha`) in every
 job. Manual runs use the workflow's native branch/tag selection; there is no
 separate input that can check out code from another cache security context.
 Formatting runs independently of compilation. Compilation runs
-before package validation; generated `lib`, `types`, `.build`, and `.validate`
+before package validation; generated `lib`, `types`, `bundle`, `.build`, and `.validate`
 directories are transferred as a tar artifact whose commit is checked before
 restoring it. Source files and installed dependencies are not transferred.
+The build job also bundles `@hcengineering/tool` before archiving outputs, so
+workspace setup and profiling scripts can run it on the UI-test runners.
 
 Dependency downloads (`common/temp/pnpm-store`) and Rush's build cache
 (`common/temp/build-cache`) use separate caches. Every job installs dependencies
