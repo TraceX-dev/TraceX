@@ -98,6 +98,7 @@ Source file headers and package metadata identify the applicable license. Mixed 
   - [Troubleshooting](#troubleshooting)
   - [Build \& Watch](#build--watch)
   - [Tests](#tests)
+    - [Continuous integration](#continuous-integration)
     - [Unit tests](#unit-tests)
     - [UI tests](#ui-tests)
   - [Package publishing](#package-publishing)
@@ -430,6 +431,39 @@ For development purpose `rush build:watch` action could be used.
 It includes build and validate phases in watch mode.
 
 ## Tests
+
+### Continuous integration
+
+The CI workflow resolves the requested ref once and checks out the same commit
+in every job. Formatting runs independently of compilation. Compilation runs
+before package validation; generated `lib`, `types`, `.build`, and `.validate`
+directories are transferred as a tar artifact whose commit is checked before
+restoring it. Source files and installed dependencies are not transferred.
+
+Dependency downloads (`common/temp/pnpm-store`) and Rush's build cache
+(`common/temp/build-cache`) use separate caches. Every job installs dependencies
+from the committed lockfile. Rush cache snapshots use commit and producer keys,
+with prefix restores for unchanged packages across commits.
+
+Test Docker images are built once for Linux amd64, then exported with both their
+commit tags and the `latest` aliases used by Compose. The three UI suites load
+this artifact into independent runners. Multi-platform Docker builds run only
+for version tags (`vMAJOR.MINOR.PATCH` or `sMAJOR.MINOR.PATCH`). Docker, npm, and
+desktop releases require a successful **Quality gate** covering validation,
+formatting, unit tests, Svelte checks, and every UI suite.
+
+For a manual verification run, select the intended ref in `workflow_dispatch`
+and set `skip_publish` to true. Release refs still exercise release builds,
+while npm, Docker, distribution, and report publication remain disabled.
+The separate manual npm publishing workflow requires a successful CI quality
+gate for the exact commit before publishing.
+
+Infrastructure regression tests use temporary files and fake Docker commands;
+they do not build images, format source files, or publish anything:
+
+```bash
+node --test common/scripts/ci.test.js
+```
 
 ### Unit tests
 
