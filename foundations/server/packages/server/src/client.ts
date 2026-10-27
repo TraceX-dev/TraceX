@@ -428,7 +428,11 @@ export class ClientSession implements Session {
   async domainRequest (ctx: ClientSessionCtx, domain: OperationDomain, params: DomainParams): Promise<void> {
     try {
       await ctx.ctx.withCounter('server-operations', { operation: 'domain_request', domain }, async (operationCtx) => {
-        const { asyncsPromise, broadcastPromise } = await this.domainRequestRaw({ ...ctx, ctx: operationCtx }, domain, params)
+        const { asyncsPromise, broadcastPromise } = await this.domainRequestRaw(
+          { ...ctx, ctx: operationCtx },
+          domain,
+          params
+        )
 
         await broadcastPromise
 

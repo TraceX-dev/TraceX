@@ -30,6 +30,7 @@ Respond to user using Russian language, all comments should be in English.
 ## Observability
 
 - Before adding or changing traces, metrics, structured logging, context propagation, or observability backends, read [Observability with MeasureContext](./docs/observability.md). Application instrumentation uses `MeasureContext`; OpenTelemetry instruments and SDK calls belong inside `measurements-otlp`. Update the guide when changing the context contract or backend behavior.
+- Changes to `MeasureContext`, its shared lifecycle, metric recording, proxies, or backend implementations require the [contract and performance checks](./docs/observability.md#validation-for-measurecontext-changes). Report timing and retained-memory results, including failures or checks that could not run; passing functional tests alone is insufficient.
 
 ## UI Component Reuse
 

@@ -14,7 +14,7 @@
 //
 
 import { BaseMeasureContext } from './base-measure-context'
-import { consoleLogger, platformNow } from './context-utils'
+import { consoleLogger, getMetricAttributeKey, platformNow, snapshotMetricAttributes } from './context-utils'
 
 import { childMetrics, EMPTY_PARAMS, newMetrics, updateMeasure, updateNamedParams } from './metrics'
 import {
@@ -27,7 +27,6 @@ import {
   type ParamsType,
   type OperationLog,
   type OperationLogEntry,
-  type WithCounterOptions,
   type WithOptions
 } from './types'
 
@@ -62,18 +61,21 @@ export class MeasureMetricsContext extends BaseMeasureContext {
     this.recordValue(name, delta, attributes)
   }
 
+  protected snapshotCounterAttributes (params: ParamsType): Readonly<ParamsType> {
+    return snapshotMetricAttributes(params)
+  }
+
   private recordValue (name: string, value: number, attributes?: Readonly<ParamsType>, override?: boolean): void {
     const metrics = childMetrics(this.metrics, '#' + name)
     metrics.namedParams = metrics.namedParams ?? {}
-    const keys = Object.keys(attributes ?? {}).filter((key) => attributes?.[key] !== undefined).sort()
-    if (keys.length === 0) {
+    const prepared = attributes === undefined ? undefined : getMetricAttributeKey(attributes)
+    if (prepared?.key === undefined) {
       updateMeasure(metrics, platformNow(), EMPTY_PARAMS, EMPTY_PARAMS, undefined, value, override)
       return
     }
-    const params = Object.fromEntries(keys.map((key) => [key, attributes?.[key]]))
-    const key = JSON.stringify(Object.entries(params))
+    const { params, key } = prepared
     const series = (metrics.series ??= {})
-    const point = (series[key] ??= { attributes: params, operations: 0, value: 0 })
+    const point = (series[key] ??= { attributes: { ...params }, operations: 0, value: 0 })
     updateNamedParams(metrics.namedParams, params)
     if (override === true) {
       metrics.operations += value - point.operations
@@ -159,7 +161,7 @@ export class NoMetricsContext implements MeasureContext {
     params: ParamsType,
     op: (ctx: MeasureContext) => T | PromiseLike<T>,
     fullParams?: FullParamsType | (() => FullParamsType),
-    opt?: WithCounterOptions
+    opt?: WithOptions
   ): Promise<T> {
     return this.with(name, params, op, fullParams, opt)
   }

@@ -528,9 +528,21 @@ describe('TSessionManager', () => {
     }
 
     function register (id: string, value: Session): void {
+      const socket: ConnectionSocket = {
+        id,
+        isClosed: false,
+        close: jest.fn(),
+        send: jest.fn().mockResolvedValue(undefined),
+        sendPong: jest.fn(),
+        data: () => ({}),
+        readRequest: jest.fn(),
+        isBackpressure: () => false,
+        backpressure: jest.fn().mockResolvedValue(undefined),
+        checkState: () => true
+      }
       sessionManager.sessions.set(id, {
         session: value,
-        socket: { id, data: () => ({}) } as ConnectionSocket,
+        socket,
         tickHash: -1
       })
     }
@@ -564,9 +576,16 @@ describe('TSessionManager', () => {
       const values = [session(docGuestAccountUuid), session(systemAccountUuid, 'process-service'), undefined]
       values.forEach((value, index) => {
         const sessions = value === undefined ? new Map() : new Map([['session', { session: value }]])
-        sessionManager.workspaces.set(('ws-' + index) as WorkspaceUuid, {
-          sessions, tickHandlers: new Map(), tickHash: -1, maintenance: false, workspaceInitCompleted: false
-        } as unknown as Workspace)
+        sessionManager.workspaces.set(
+          ('ws-' + index) as WorkspaceUuid,
+          {
+            sessions,
+            tickHandlers: new Map(),
+            tickHash: -1,
+            maintenance: false,
+            workspaceInitCompleted: false
+          } as unknown as Workspace
+        )
       })
       const gauge = jest.spyOn(mockContext, 'gauge')
       sessionManager.ticks = 20
@@ -585,8 +604,11 @@ describe('TSessionManager', () => {
       } as unknown as ConnectionSocket
       const result = sessionManager.entryToUserStats(value, socket)
       expect(result).toMatchObject({
-        sessionId: 'safe-instance-id', sessionInstanceId: 'safe-instance-id',
-        kind: 'system', clientService: 'process-service', createTime: 100,
+        sessionId: 'safe-instance-id',
+        sessionInstanceId: 'safe-instance-id',
+        kind: 'system',
+        clientService: 'process-service',
+        createTime: 100,
         data: { remoteAddress: '127.0.0.1', userAgent: 'process' }
       })
       expect(socket.data).toHaveBeenCalledTimes(1)
@@ -2060,5 +2082,4 @@ describe('TSessionManager', () => {
       expect(sessionManager.hungRequestsFailPercent).toBeGreaterThan(0)
     })
   })
-
 })

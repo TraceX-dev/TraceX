@@ -22,11 +22,17 @@ describe('withCounter', () => {
   it('balances overlapping operations immediately and counts success separately from failure', async () => {
     const ctx = new MeasureMetricsContext('root', {})
     let finish = (): void => {}
-    const gate = new Promise<void>((resolve) => { finish = resolve })
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve
+    })
     const attributes = { domain: 'task' }
-    const first = ctx.withCounter('operation', attributes, async () => await gate)
+    const first = ctx.withCounter('operation', attributes, async () => {
+      await gate
+    })
     const failure = new Error('failed')
-    const second = ctx.withCounter('operation', attributes, async () => { throw failure })
+    const second = ctx.withCounter('operation', attributes, async () => {
+      throw failure
+    })
 
     expect(ctx.metrics.measurements['#operation'].value).toBe(2)
     expect(ctx.metrics.measurements['#operation-active'].value).toBe(2)
@@ -44,10 +50,23 @@ describe('withCounter', () => {
   it('preserves synchronous exceptions and rejected thenables', async () => {
     const ctx = new MeasureMetricsContext('root', {})
     const failure = new Error('sync')
-    expect(() => ctx.withCounter('operation', {}, () => { throw failure })).toThrow(failure)
-    await expect(ctx.withCounter('operation', {}, () => ({
-      then: (_resolve: unknown, reject: (error: Error) => void) => reject(failure)
-    }) as unknown as PromiseLike<void>)).rejects.toBe(failure)
+    expect(() =>
+      ctx.withCounter('operation', {}, () => {
+        throw failure
+      })
+    ).toThrow(failure)
+    await expect(
+      ctx.withCounter(
+        'operation',
+        {},
+        () =>
+          ({
+            then: (_resolve: unknown, reject: (error: Error) => void) => {
+              reject(failure)
+            }
+          }) as unknown as PromiseLike<void>
+      )
+    ).rejects.toBe(failure)
     expect(ctx.metrics.measurements['#operation-active'].value).toBe(0)
     expect(ctx.metrics.measurements['#operation-failed'].value).toBe(2)
   })
@@ -56,31 +75,30 @@ describe('withCounter', () => {
     const ctx = new MeasureMetricsContext('root', {})
     for (const value of [null, undefined, false, 0, 'value', { result: true }]) {
       expect(await ctx.withCounter('counted', {}, () => value)).toBe(await ctx.with('plain', {}, () => value))
-      expect(await ctx.withCounter('counted', {}, async () => value)).toBe(await ctx.with('plain', {}, async () => value))
+      expect(await ctx.withCounter('counted', {}, async () => value)).toBe(
+        await ctx.with('plain', {}, async () => value)
+      )
     }
-  })
-
-  it('supports calls-only recording without lifecycle counters', async () => {
-    const ctx = new MeasureMetricsContext('root', {})
-    const failure = new Error('failure')
-    await expect(ctx.withCounter('operation', {}, async () => { throw failure }, undefined, { mode: 'calls' }))
-      .rejects.toBe(failure)
-    expect(ctx.metrics.measurements['#operation'].value).toBe(1)
-    expect(ctx.metrics.measurements['#operation-active']).toBeUndefined()
-    expect(ctx.metrics.measurements['#operation-completed']).toBeUndefined()
-    expect(ctx.metrics.measurements['#operation-failed']).toBeUndefined()
   })
 
   it('keeps counters active after early end and freezes metric dimensions at entry', async () => {
     const ctx = new MeasureMetricsContext('root', { workspace: 'trace-only' })
     const attributes = { domain: 'original' }
     let finish = (): void => {}
-    const gate = new Promise<void>((resolve) => { finish = resolve })
-    const result = ctx.withCounter('operation', attributes, async (child) => {
-      child.end()
-      attributes.domain = 'changed'
-      await gate
-    }, undefined, { inheritParams: true })
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    const result = ctx.withCounter(
+      'operation',
+      attributes,
+      async (child) => {
+        child.end()
+        attributes.domain = 'changed'
+        await gate
+      },
+      undefined,
+      { inheritParams: true }
+    )
     expect(ctx.metrics.measurements['#operation-active'].value).toBe(1)
     finish()
     await result
@@ -98,28 +116,42 @@ describe('withCounter', () => {
     ctx.id = 'request'
     ctx.contextData = { shared: true }
     const fullParams = jest.fn(() => ({ detail: 'diagnostic' }))
-    const result = await ctx.withCounter('operation', { domain: 'task' }, (child) => {
-      expect(child.parent).toBe(ctx)
-      expect(child.id).toBe('request')
-      expect(child.contextData).toBe(ctx.contextData)
-      expect(child.getParams()).toEqual({ parent: true, domain: 'task' })
-      return 42
-    }, fullParams, { inheritParams: true, log: true })
+    const result = await ctx.withCounter(
+      'operation',
+      { domain: 'task' },
+      (child) => {
+        expect(child.parent).toBe(ctx)
+        expect(child.id).toBe('request')
+        expect(child.contextData).toBe(ctx.contextData)
+        expect(child.getParams()).toEqual({ parent: true, domain: 'task' })
+        return 42
+      },
+      fullParams,
+      { inheritParams: true, log: true }
+    )
     expect(result).toBe(42)
     expect(fullParams).toHaveBeenCalledTimes(1)
     expect(log.logOperation).toHaveBeenCalledWith('operation', expect.any(Number), {
-      parent: true, domain: 'task', detail: 'diagnostic'
+      parent: true,
+      domain: 'task',
+      detail: 'diagnostic'
     })
   })
 
   it('does not replace business results or errors when metric recording fails', async () => {
     const ctx = new MeasureMetricsContext('root', {})
     const diagnostic = jest.spyOn(console, 'error').mockImplementation(() => {})
-    jest.spyOn(ctx, 'counter').mockImplementation(() => { throw new Error('metric failure') })
+    jest.spyOn(ctx, 'counter').mockImplementation(() => {
+      throw new Error('metric failure')
+    })
     try {
       expect(await ctx.withCounter('operation', {}, () => 42)).toBe(42)
       const failure = new Error('business failure')
-      await expect(ctx.withCounter('operation', {}, async () => { throw failure })).rejects.toBe(failure)
+      await expect(
+        ctx.withCounter('operation', {}, async () => {
+          throw failure
+        })
+      ).rejects.toBe(failure)
       expect(ctx.metrics.measurements['#operation-active'].value).toBe(0)
     } finally {
       diagnostic.mockRestore()
@@ -163,5 +195,34 @@ describe('withCounter', () => {
       expect(Object.values(metrics.measurements['#requests'].series ?? {}).map((point) => point.value)).toEqual([1, 2])
       expect(metricsToJson(metrics.measurements['#sessions']).series).toEqual(metrics.measurements['#sessions'].series)
     }
+  })
+
+  it('reads caller-owned dimensions again when their object is reused and changed', () => {
+    const ctx = new MeasureMetricsContext('root', {})
+    const attributes = { domain: 'task' }
+    ctx.counter('requests', 1, attributes)
+    ctx.gauge('sessions', 3, attributes)
+    attributes.domain = 'note'
+    ctx.counter('requests', 2, attributes)
+    ctx.gauge('sessions', 5, attributes)
+    expect(Object.values(ctx.metrics.measurements['#requests'].series ?? {})).toEqual([
+      { attributes: { domain: 'task' }, operations: 1, value: 1 },
+      { attributes: { domain: 'note' }, operations: 1, value: 2 }
+    ])
+    expect(ctx.metrics.measurements['#sessions'].operations).toBe(8)
+  })
+
+  it('keeps stored metric attributes independent of later lifecycle records', async () => {
+    const ctx = new MeasureMetricsContext('root', {})
+    await ctx.withCounter('operation', { domain: 'task', omitted: undefined }, async () => {
+      const recorded = Object.values(ctx.metrics.measurements['#operation'].series ?? {})[0]
+      recorded.attributes.domain = 'edited-diagnostic-data'
+    })
+    for (const name of ['operation-active', 'operation-completed']) {
+      const points = Object.values(ctx.metrics.measurements['#' + name].series ?? {})
+      expect(points).toHaveLength(1)
+      expect(points[0].attributes).toEqual({ domain: 'task' })
+    }
+    expect(ctx.metrics.measurements['#operation-active'].value).toBe(0)
   })
 })

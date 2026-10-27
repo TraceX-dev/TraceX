@@ -1623,12 +1623,14 @@ export class TSessionManager implements SessionManager {
             mode: 'websocket',
             client_service: getClientService(service.token)
           },
-          async (callTx) => await workspace.with(async (pipeline) => {
-            await f.apply(service, [
-              this.createOpContext(callTx, requestCtx, pipeline, request.id, service, ws, rateLimit),
-              ...params
-            ])
-          }),
+          async (callTx) => {
+            await workspace.with(async (pipeline) => {
+              await f.apply(service, [
+                this.createOpContext(callTx, requestCtx, pipeline, request.id, service, ws, rateLimit),
+                ...params
+              ])
+            })
+          },
           {
             user: service.getUser(),
             socialId: service.getRawAccount().primarySocialId,
@@ -1690,12 +1692,14 @@ export class TSessionManager implements SessionManager {
         await requestCtx.withCounter(
           'server-requests',
           { method, mode: 'rpc', client_service: getClientService(service.token) },
-          async (callTx) => await workspace.with(async (pipeline) => {
-            await operation(
-              this.createOpContext(callTx, requestCtx, pipeline, reqId, service, ws, rateLimitStatus),
-              rateLimitStatus
-            )
-          }),
+          async (callTx) => {
+            await workspace.with(async (pipeline) => {
+              await operation(
+                this.createOpContext(callTx, requestCtx, pipeline, reqId, service, ws, rateLimitStatus),
+                rateLimitStatus
+              )
+            })
+          },
           {
             user: service.getUser(),
             socialId: service.getRawAccount().primarySocialId,

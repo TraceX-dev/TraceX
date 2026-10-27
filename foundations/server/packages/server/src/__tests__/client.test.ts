@@ -15,7 +15,13 @@
 // limitations under the License.
 //
 
-import core, { MeasureMetricsContext, type OperationDomain, type Tx, WorkspaceEvent } from '@hcengineering/core'
+import core, {
+  MeasureMetricsContext,
+  type OperationDomain,
+  type Tx,
+  TxFactory,
+  WorkspaceEvent
+} from '@hcengineering/core'
 import { ClientSession } from '../client'
 
 jest.mock('@hcengineering/server-core', () => ({
@@ -121,28 +127,33 @@ describe('ClientSession response path', () => {
     ctx.pipeline.context.hierarchy.findDomain = () => 'new-domain'
     await session.findAll(ctx, core.class.Doc, {})
     expect(Object.keys(ctx.ctx.metrics.measurements).sort()).toEqual(names)
-    const series = Object.values(ctx.ctx.metrics.measurements['#server-operations'].series) as { attributes: object }[]
+    const series = Object.values<{ attributes: object }>(ctx.ctx.metrics.measurements['#server-operations'].series)
     expect(series.map((point) => point.attributes)).toEqual([
-      { domain: 'domain', operation: 'find' }, { domain: 'new-domain', operation: 'find' }
+      { domain: 'domain', operation: 'find' },
+      { domain: 'new-domain', operation: 'find' }
     ])
   })
 
-  it.each(['tx', 'domainRequest'] as const)('counts %s errors before the response handler catches them', async (method) => {
-    const session = makeSession()
-    const { ctx, sendError } = makeCtx({})
-    const failure = new Error('pipeline failure')
-    if (method === 'tx') {
-      jest.spyOn(session, 'txRaw').mockRejectedValue(failure)
-      await session.tx(ctx, { _class: core.class.TxCreateDoc, objectClass: core.class.Doc } as Tx)
-    } else {
-      jest.spyOn(session, 'domainRequestRaw').mockRejectedValue(failure)
-      await session.domainRequest(ctx, 'test' as OperationDomain, {})
+  it.each(['tx', 'domainRequest'] as const)(
+    'counts %s errors before the response handler catches them',
+    async (method) => {
+      const session = makeSession()
+      const { ctx, sendError } = makeCtx({})
+      const failure = new Error('pipeline failure')
+      if (method === 'tx') {
+        jest.spyOn(session, 'txRaw').mockRejectedValue(failure)
+        const tx = new TxFactory(core.account.System).createTxCreateDoc(core.class.Doc, core.space.Space, {})
+        await session.tx(ctx, tx)
+      } else {
+        jest.spyOn(session, 'domainRequestRaw').mockRejectedValue(failure)
+        await session.domainRequest(ctx, 'test' as OperationDomain, {})
+      }
+      expect(sendError).toHaveBeenCalledTimes(1)
+      expect(ctx.ctx.metrics.measurements['#server-operations-failed'].value).toBe(1)
+      expect(ctx.ctx.metrics.measurements['#server-operations-completed']).toBeUndefined()
+      expect(ctx.ctx.metrics.measurements['#server-operations-active'].value).toBe(0)
     }
-    expect(sendError).toHaveBeenCalledTimes(1)
-    expect(ctx.ctx.metrics.measurements['#server-operations-failed'].value).toBe(1)
-    expect(ctx.ctx.metrics.measurements['#server-operations-completed']).toBeUndefined()
-    expect(ctx.ctx.metrics.measurements['#server-operations-active'].value).toBe(0)
-  })
+  )
 })
 
 describe('ClientSession upload and clean access control', () => {

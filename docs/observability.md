@@ -166,7 +166,7 @@ For metric design:
 
 `withCounter` has the same
 argument order and execution semantics as `with`: `name`, `params`, `callback`, optional `fullParams`,
-and optional options. Its options extend `WithOptions` with `mode`; counter recording is the only
+and optional options. Both methods accept `WithOptions`; counter recording is the only
 additional behavior.
 
 It uses the shared `with` execution machinery, preserving child
@@ -184,7 +184,7 @@ await ctx.withCounter(
 )
 ```
 
-For the name `operation`, the default `mode: 'lifecycle'` records:
+For the name `operation`, every call records:
 
 | Metric | Instrument | Update |
 | --- | --- | --- |
@@ -193,10 +193,14 @@ For the name `operation`, the default `mode: 'lifecycle'` records:
 | `operation-completed` | Counter | Increment only after successful completion |
 | `operation-failed` | Counter | Increment only after a synchronous throw or asynchronous rejection |
 
-All four instruments use the same explicit attributes captured at entry. A call contributes to
-exactly one outcome counter: `completed` means success, not every completion. `mode: 'calls'`,
-passed in the fifth options argument, records only the base Counter. Both modes execute the callback
-once and propagate its result or error using the shared operation lifecycle.
+All four instruments use the same snapshot of explicit attributes captured at entry;
+the caller's `params` object is not frozen. The local recorder prepares the series key once for
+that snapshot and reuses it within the call. Caller-owned attributes passed directly to `counter`
+or `gauge` are read again on each recording, so reusing and changing that object remains supported.
+A call contributes to
+exactly one outcome counter: `completed` means success, not every completion. The callback executes
+once and propagates its result or error using the shared operation lifecycle. Use `ctx.counter(...)`
+directly when only an event count is needed.
 
 The shared implementation owns active-count balancing and outcome recording. Application code
 does not pair increments with decrements. A public raw `upDownCounter` method is not required for
@@ -217,7 +221,7 @@ through `MeasureContext` with explicit dimensions. They are not derived from ope
 `MetricObservation`, `observeUpDownCounter`, and public subscription/disposal contracts are outside
 this task's scope. Implement only the capabilities required by these call sites.
 
-The regression tests cover both modes, parity with `with`, concurrent calls, synchronous throws,
+The regression tests cover parity with `with`, concurrent calls, synchronous throws,
 rejected thenables, explicit early `end()`, attribute stability, telemetry failures, and proxy fan-out
 without duplicate callback execution.
 
@@ -302,3 +306,25 @@ Existing contract tests are in
 [measurements tests](../foundations/core/packages/measurements/src/__tests__)
 and [OTLP tests](../foundations/core/packages/measurements-otlp/src/__tests__). In particular,
 `base-context-contract.test.ts` covers lifecycle parity and asynchronous tracing behavior.
+
+## Validation for MeasureContext changes
+
+Apply these checks when changing the interface, shared operation lifecycle, metric recording,
+context proxy, or backend implementations:
+
+1. Run the Jest suites in both `measurements` and `measurements-otlp`, including the shared contract,
+   `withCounter`, proxy, error-isolation, and performance tests. From each package directory, use
+   `rtk proxy ./node_modules/.bin/jest --runInBand --coverage=false`. Ensure dependencies resolve to
+   the modified sources so stale package artifacts do not produce a false pass.
+2. Run the existing [Tinybench driver](../foundations/core/packages/measurements-otlp/src/__tests__/benchmark/run.cjs)
+   for timing and retained-memory checks; follow its setup instructions. Compare before and after
+   using the same supported Node version, architecture, workloads, and options. Run performance
+   checks sequentially, without concurrent tests or other measurement runs.
+3. Ensure the benchmark exercises the changed path. Ordinary `with` measurements do not cover
+   `withCounter`; counter changes need invocation, active, and outcome recording, and OTLP recording needs
+   real in-memory SDK instruments with network export excluded from the timed path. Extend the
+   existing coverage where necessary rather than treating an unmeasured path as validated.
+4. Report commands, functional test results, timing medians per operation or level, retained memory,
+   and failed thresholds. Identify the comparison baseline: a raw-execution multiplier is different
+   from a change relative to `with` or the previous implementation. Report pre-existing failures,
+   new regressions, and checks that could not run separately; preserve the existing thresholds.

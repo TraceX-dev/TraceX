@@ -101,8 +101,12 @@ function run<T> (
   return mode === 'withSync'
     ? root.withSync('request', { method: 'GET' }, op, factory, opt)
     : root[mode.startsWith('withCounter') ? 'withCounter' : 'with'](
-      'request', { method: 'GET' }, mode.endsWith('-async') ? async (ctx) => op(ctx) : op, factory, opt
-    )
+        'request',
+        { method: 'GET' },
+        mode.endsWith('-async') ? async (ctx) => op(ctx) : op,
+        factory,
+        opt
+      )
 }
 
 const modes: Mode[] = ['with-sync', 'with-async', 'withCounter-sync', 'withCounter-async', 'withSync']

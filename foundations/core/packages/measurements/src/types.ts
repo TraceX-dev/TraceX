@@ -103,12 +103,6 @@ export interface WithOptions {
   suspendErrors?: boolean
 }
 
-/** Options for an operation with automatic metric recording. @public */
-export interface WithCounterOptions extends WithOptions {
-  /** Record all lifecycle metrics by default, or only the invocation counter. */
-  mode?: 'calls' | 'lifecycle'
-}
-
 /** Options for creating a child context. @public */
 export interface ChildOptions {
   fullParams?: FullParamsType | (() => FullParamsType)
@@ -149,7 +143,7 @@ export interface MeasureContext<Q = any> {
     params: ParamsType,
     op: (ctx: MeasureContext<Q>) => T | PromiseLike<T>,
     fullParams?: FullParamsType | (() => FullParamsType),
-    opt?: WithCounterOptions
+    opt?: WithOptions
   ) => Promise<T>
 
   withSync: <T>(

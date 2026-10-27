@@ -56,7 +56,14 @@ it('uses shared SDK providers for logs and dimensioned lifecycle metrics', async
     const getLogger = jest.spyOn(provider, 'getLogger')
     reportOTEL('info', 'info message', Date.now())
     reportOTELError(new Error('error message'))
-    const ctx = createOpenTelemetryMetricsContext('logger-test', { traceOnly: 'request' }, undefined, undefined, undefined, '1.0')
+    const ctx = createOpenTelemetryMetricsContext(
+      'logger-test',
+      { traceOnly: 'request' },
+      undefined,
+      undefined,
+      undefined,
+      '1.0'
+    )
     expect(getLogger).toHaveBeenCalledTimes(3)
     expect(getLogger).toHaveBeenCalledWith('logger-test', '1.0')
     const meter = metrics.getMeter('logger-test', '1.0')
@@ -64,9 +71,20 @@ it('uses shared SDK providers for logs and dimensioned lifecycle metrics', async
     const createActiveCounter = jest.spyOn(meter, 'createUpDownCounter')
     expect(await ctx.withCounter('operation', { domain: 'task' }, () => 42, undefined, { span: false })).toBe(42)
     const failure = new Error('operation failure')
-    await expect(ctx.withCounter('operation', { domain: 'note' }, async () => { throw failure }, undefined, {
-      span: false, suspendErrors: true
-    })).rejects.toBe(failure)
+    await expect(
+      ctx.withCounter(
+        'operation',
+        { domain: 'note' },
+        async () => {
+          throw failure
+        },
+        undefined,
+        {
+          span: false,
+          suspendErrors: true
+        }
+      )
+    ).rejects.toBe(failure)
     ctx.gauge('reading', 5, { client_service: 'process' })
     ctx.counter('calls-only', 1, {})
     await (metrics.getMeterProvider() as MeterProvider).forceFlush()
