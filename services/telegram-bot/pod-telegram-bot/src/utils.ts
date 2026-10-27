@@ -234,7 +234,11 @@ export function toTgMediaFile (
   }
 }
 
-export function toMediaGroups (files: PlatformFileInfo[], fullMessage: string, shortMessage: string): Convenience.MediaGroup[] {
+export function toMediaGroups (
+  files: PlatformFileInfo[],
+  fullMessage: string,
+  shortMessage: string
+): Convenience.MediaGroup[] {
   const photos: (InputMediaPhoto | InputMediaVideo)[] = []
   const audios: InputMediaAudio[] = []
   const documents: InputMediaDocument[] = []
