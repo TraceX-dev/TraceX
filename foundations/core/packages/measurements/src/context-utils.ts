@@ -13,7 +13,35 @@
 // limitations under the License.
 //
 
-import { type MeasureLogger } from './types'
+import { type MeasureLogger, type ParamsType } from './types'
+
+interface MetricAttributeKey {
+  readonly params: ParamsType
+  readonly key?: string
+}
+
+// Only context-owned snapshots can be cached; public metric arguments may be mutated by callers.
+const metricAttributeKeys = new WeakMap<Readonly<ParamsType>, MetricAttributeKey | undefined>()
+
+/** Capture stable operation dimensions without preparing local-only series keys for other backends. @internal */
+export function snapshotMetricAttributes (params: ParamsType): Readonly<ParamsType> {
+  const snapshot = Object.freeze({ ...params })
+  metricAttributeKeys.set(snapshot, undefined)
+  return snapshot
+}
+
+/** Normalize a complete attribute set, reusing work only for context-owned snapshots. @internal */
+export function getMetricAttributeKey (attributes: Readonly<ParamsType>): MetricAttributeKey {
+  const cached = metricAttributeKeys.get(attributes)
+  if (cached !== undefined) return cached
+  const keys = Object.keys(attributes)
+    .filter((key) => attributes[key] !== undefined)
+    .sort()
+  const params = Object.fromEntries(keys.map((key) => [key, attributes[key]]))
+  const prepared = { params, key: keys.length === 0 ? undefined : JSON.stringify(Object.entries(params)) }
+  if (metricAttributeKeys.has(attributes)) metricAttributeKeys.set(attributes, prepared)
+  return prepared
+}
 
 const errorPrinter = ({ message, stack, ...rest }: Error): object => ({
   message,

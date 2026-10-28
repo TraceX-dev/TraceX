@@ -90,7 +90,7 @@ const implementations = [
   }
 ]
 
-type Mode = 'with-sync' | 'with-async' | 'withSync'
+type Mode = 'with-sync' | 'with-async' | 'withCounter-sync' | 'withCounter-async' | 'withSync'
 function run<T> (
   root: MeasureContext,
   mode: Mode,
@@ -100,10 +100,16 @@ function run<T> (
 ): T | Promise<T> {
   return mode === 'withSync'
     ? root.withSync('request', { method: 'GET' }, op, factory, opt)
-    : root.with('request', { method: 'GET' }, mode === 'with-async' ? async (ctx) => op(ctx) : op, factory, opt)
+    : root[mode.startsWith('withCounter') ? 'withCounter' : 'with'](
+        'request',
+        { method: 'GET' },
+        mode.endsWith('-async') ? async (ctx) => op(ctx) : op,
+        factory,
+        opt
+      )
 }
 
-const modes: Mode[] = ['with-sync', 'with-async', 'withSync']
+const modes: Mode[] = ['with-sync', 'with-async', 'withCounter-sync', 'withCounter-async', 'withSync']
 
 describe.each(implementations)('$name shared context contract', ({ create }) => {
   it.each(modes)('%s inherits params, memoizes full params, and logs once', async (mode) => {
@@ -169,14 +175,14 @@ describe.each(implementations)('$name shared context contract', ({ create }) => 
         factory,
         { log: true }
       )
-    if (mode === 'with-async') await expect(invoke()).rejects.toBe(failure)
+    if (mode.endsWith('-async')) await expect(invoke()).rejects.toBe(failure)
     else expect(invoke).toThrow(failure)
     expect(root.metrics?.measurements.request).toMatchObject({ operations: 1, value: 7 })
     expect(factory).toHaveBeenCalledTimes(1)
     expect(log.logOperation).toHaveBeenCalledTimes(1)
   })
 
-  it.each(['with-sync', 'withSync'] as const)(
+  it.each(['with-sync', 'withCounter-sync', 'withSync'] as const)(
     '%s propagates throws synchronously and still finishes and logs',
     (mode) => {
       const log = logger()
@@ -265,7 +271,7 @@ it.each(modes.flatMap((mode) => [false, true].map((suspendErrors) => ({ mode, su
         () => ({}),
         { suspendErrors }
       )
-    if (mode === 'with-async') await expect(invoke()).rejects.toBe(failure)
+    if (mode.endsWith('-async')) await expect(invoke()).rejects.toBe(failure)
     else expect(invoke).toThrow(failure)
     const spans = exporter.getFinishedSpans()
     expect(spans).toHaveLength(1)
@@ -349,7 +355,7 @@ describe.each(implementations)('$name telemetry failure isolation', ({ name, cre
         factory,
         { log: true }
       )
-    if (failed && mode !== 'with-async') expect(invoke).toThrow(businessError)
+    if (failed && !mode.endsWith('-async')) expect(invoke).toThrow(businessError)
     else if (failed) await expect(invoke()).rejects.toBe(businessError)
     else expect(await invoke()).toBe(42)
     expect(factory).toHaveBeenCalledTimes(1)

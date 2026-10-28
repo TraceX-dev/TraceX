@@ -14,9 +14,9 @@
 //
 
 import { BaseMeasureContext } from './base-measure-context'
-import { consoleLogger, platformNow } from './context-utils'
+import { consoleLogger, getMetricAttributeKey, platformNow, snapshotMetricAttributes } from './context-utils'
 
-import { childMetrics, EMPTY_PARAMS, newMetrics, updateMeasure } from './metrics'
+import { childMetrics, EMPTY_PARAMS, newMetrics, updateMeasure, updateNamedParams } from './metrics'
 import {
   type ChildOptions,
   type FullParamsType,
@@ -49,18 +49,43 @@ export class MeasureMetricsContext extends BaseMeasureContext {
     super(name, params, fullParams, metrics, logger, parent, logParams, logLevel)
   }
 
-  gauge (name: string, value: number): void {
-    this.recordValue(name, value, true)
+  gauge (name: string, value: number, attributes?: Readonly<ParamsType>): void {
+    this.recordValue(name, value, attributes, true)
   }
 
-  counter (name: string, value: number): void {
-    this.recordValue(name, value)
+  counter (name: string, value: number, attributes?: Readonly<ParamsType>): void {
+    this.recordValue(name, value, attributes)
   }
 
-  private recordValue (name: string, value: number, override?: boolean): void {
+  protected recordActive (name: string, delta: number, attributes: Readonly<ParamsType>): void {
+    this.recordValue(name, delta, attributes)
+  }
+
+  protected snapshotCounterAttributes (params: ParamsType): Readonly<ParamsType> {
+    return snapshotMetricAttributes(params)
+  }
+
+  private recordValue (name: string, value: number, attributes?: Readonly<ParamsType>, override?: boolean): void {
     const metrics = childMetrics(this.metrics, '#' + name)
     metrics.namedParams = metrics.namedParams ?? {}
-    updateMeasure(metrics, platformNow(), EMPTY_PARAMS, EMPTY_PARAMS, undefined, value, override)
+    const prepared = attributes === undefined ? undefined : getMetricAttributeKey(attributes)
+    if (prepared?.key === undefined) {
+      updateMeasure(metrics, platformNow(), EMPTY_PARAMS, EMPTY_PARAMS, undefined, value, override)
+      return
+    }
+    const { params, key } = prepared
+    const series = (metrics.series ??= {})
+    const point = (series[key] ??= { attributes: { ...params }, operations: 0, value: 0 })
+    updateNamedParams(metrics.namedParams, params)
+    if (override === true) {
+      metrics.operations += value - point.operations
+      point.operations = value
+    } else {
+      point.value += value
+      point.operations++
+      metrics.value += value
+      metrics.operations++
+    }
   }
 
   protected createChild (
@@ -99,9 +124,9 @@ export class NoMetricsContext implements MeasureContext {
     this.logLevel = logLevel
   }
 
-  gauge (name: string, value: number): void {}
+  gauge (name: string, value: number, attributes?: Readonly<ParamsType>): void {}
 
-  counter (name: string, value: number): void {}
+  counter (name: string, value: number, attributes?: Readonly<ParamsType>): void {}
 
   newChild (
     name: string,
@@ -124,10 +149,21 @@ export class NoMetricsContext implements MeasureContext {
     name: string,
     params: ParamsType,
     op: (ctx: MeasureContext) => T | PromiseLike<T>,
-    fullParams?: ParamsType | (() => FullParamsType)
+    fullParams?: FullParamsType | (() => FullParamsType),
+    opt?: WithOptions
   ): Promise<T> {
     const r = op(this.newChild(name, params, { fullParams, logger: this.logger }))
     return Promise.resolve(r)
+  }
+
+  withCounter<T>(
+    name: string,
+    params: ParamsType,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
+    fullParams?: FullParamsType | (() => FullParamsType),
+    opt?: WithOptions
+  ): Promise<T> {
+    return this.with(name, params, op, fullParams, opt)
   }
 
   extractMeta (): Record<string, string | number | boolean> {
