@@ -1205,6 +1205,7 @@ describe('account utils', () => {
         test('should confirm unverified email', async () => {
           const mockSocialId = {
             _id: '1000000001' as PersonId,
+            personUuid: account,
             key: 'email:test@example.com',
             type: SocialIdType.EMAIL,
             value: email,
@@ -1233,8 +1234,10 @@ describe('account utils', () => {
           )
         })
 
-        test('should throw error if email already confirmed', async () => {
+        test('should return the social id without updating an already confirmed email', async () => {
           const mockSocialId = {
+            _id: '1000000001' as PersonId,
+            personUuid: account,
             key: 'email:test@example.com',
             type: SocialIdType.EMAIL,
             value: email,
@@ -1242,18 +1245,29 @@ describe('account utils', () => {
           }
           ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue(mockSocialId)
 
-          await expect(confirmEmail(mockCtx, mockDb, account, email)).rejects.toThrow(
-            new PlatformError(
-              new Status(Severity.ERROR, platform.status.SocialIdAlreadyConfirmed, {
-                socialId: email,
-                type: SocialIdType.EMAIL
-              })
-            )
-          )
+          await expect(confirmEmail(mockCtx, mockDb, account, email)).resolves.toBe(mockSocialId._id)
+          expect(mockDb.socialId.update).not.toHaveBeenCalled()
+        })
+
+        test.each([null, 1])('should reject an email owned by another account (verifiedOn: %s)', async (verifiedOn) => {
+          ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue({
+            _id: '1000000001' as PersonId,
+            personUuid: 'another-account',
+            key: 'email:test@example.com',
+            type: SocialIdType.EMAIL,
+            value: email,
+            verifiedOn
+          })
+
+          await expect(confirmEmail(mockCtx, mockDb, account, email)).rejects.toMatchObject({
+            status: { code: platform.status.Forbidden }
+          })
+          expect(mockDb.socialId.update).not.toHaveBeenCalled()
         })
 
         test('should normalize email before confirmation', async () => {
           const mockSocialId = {
+            personUuid: account,
             key: 'email:test@example.com',
             type: SocialIdType.EMAIL,
             value: 'test@example.com',

@@ -1402,16 +1402,13 @@ export async function confirmEmail (
     )
   }
 
-  if (emailSocialId.verifiedOn != null) {
-    throw new PlatformError(
-      new Status(Severity.ERROR, platform.status.SocialIdAlreadyConfirmed, {
-        socialId: normalizedEmail,
-        type: SocialIdType.EMAIL
-      })
-    )
+  if (emailSocialId.personUuid !== account) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
-  await db.socialId.update({ _id: emailSocialId._id }, { verifiedOn: Date.now() })
+  if (emailSocialId.verifiedOn == null) {
+    await db.socialId.update({ _id: emailSocialId._id }, { verifiedOn: Date.now() })
+  }
   return emailSocialId._id
 }
 
