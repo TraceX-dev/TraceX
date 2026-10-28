@@ -40,6 +40,8 @@
   export let objectId: Ref<Doc> | undefined
   export let sortFn: (items: ChatNavItemModel[], options: SortFnOptions) => ChatNavItemModel[]
   export let showUnreadWhenCollapsed = false
+  export let showWhenEmpty: boolean = false
+  export let showInlineActions: boolean = false
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -153,29 +155,39 @@
       id === objectId ||
       (showUnreadWhenCollapsed && isUnread(contexts.find(({ objectId: ctxObjectId }) => ctxObjectId === id)))
   )
+  $: navGroupActions = showInlineActions ? actions.map((action) => ({ ...action, inline: true })) : actions
 </script>
 
-{#if sortedItems.length > 0 && contexts.length > 0}
+{#if showWhenEmpty || (sortedItems.length > 0 && contexts.length > 0)}
   <NavGroup
     _id={id}
     label={header}
     categoryName={id}
-    {actions}
+    actions={navGroupActions}
     highlighted={items.some((it) => it.id === objectId)}
     isFold
     empty={sortedItems.length === 0}
     visible={collapsedItems.length > 0}
     noDivider
   >
-    {#each sortedItems as item (item.id)}
-      {@const context = contexts.find(({ objectId }) => objectId === item.id)}
-      <ChatNavItem {context} isSelected={objectId === item.id} {item} type="type-object" on:select />
-    {/each}
-    {#if canShowMore}
-      <div class="showMore">
-        <ModernButton label={ui.string.ShowMore} kind="tertiary" inheritFont size="extra-small" on:click={onShowMore} />
-      </div>
+    {#if sortedItems.length > 0}
+      {#each sortedItems as item (item.id)}
+        {@const context = contexts.find(({ objectId }) => objectId === item.id)}
+        <ChatNavItem {context} isSelected={objectId === item.id} {item} type="type-object" on:select />
+      {/each}
+      {#if canShowMore}
+        <div class="showMore">
+          <ModernButton
+            label={ui.string.ShowMore}
+            kind="tertiary"
+            inheritFont
+            size="extra-small"
+            on:click={onShowMore}
+          />
+        </div>
+      {/if}
     {/if}
+
     <svelte:fragment slot="visible" let:isOpen>
       {#if !isOpen}
         {#each collapsedItems as item (item.id)}

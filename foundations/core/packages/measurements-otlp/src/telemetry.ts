@@ -40,7 +40,8 @@ import {
   type Counter,
   type Gauge,
   type Meter,
-  type Tracer
+  type Tracer,
+  type UpDownCounter
 } from '@opentelemetry/api'
 import { logs, Logger, SeverityNumber, type LoggerProvider } from '@opentelemetry/api-logs'
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node'
@@ -59,6 +60,7 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node'
 class MetricsContext {
   private readonly counters = new Map<string, Counter>()
   private readonly gauges = new Map<string, Gauge>()
+  private readonly activeCounters = new Map<string, UpDownCounter>()
 
   constructor (readonly meter?: Meter) {}
 
@@ -85,6 +87,16 @@ class MetricsContext {
     }
     return gauge
   }
+
+  getActiveCounter (name: string): UpDownCounter | undefined {
+    if (this.meter === undefined) return undefined
+    let counter = this.activeCounters.get(name)
+    if (counter === undefined) {
+      counter = this.meter.createUpDownCounter(name)
+      this.activeCounters.set(name, counter)
+    }
+    return counter
+  }
 }
 
 /**
@@ -110,12 +122,16 @@ export class OpenTelemetryMetricsContext extends BaseMeasureContext {
     super(name, params, fullParams, metrics, logger, parent, logParams, logLevel)
   }
 
-  gauge (name: string, value: number): void {
-    this.meter?.getGauge(name)?.record(value, this.params)
+  gauge (name: string, value: number, attributes?: Readonly<ParamsType>): void {
+    this.meter?.getGauge(name)?.record(value, attributes ?? this.params)
   }
 
-  counter (name: string, value: number): void {
-    this.meter?.getCounter(name)?.add(value, this.params)
+  counter (name: string, value: number, attributes?: Readonly<ParamsType>): void {
+    this.meter?.getCounter(name)?.add(value, attributes ?? this.params)
+  }
+
+  protected recordActive (name: string, delta: number, attributes: Readonly<ParamsType>): void {
+    this.meter?.getActiveCounter(name)?.add(delta, attributes)
   }
 
   protected createChild (
@@ -136,8 +152,8 @@ export class OpenTelemetryMetricsContext extends BaseMeasureContext {
       }
       _span = this.tracer.startSpan(name, undefined, childContext)
 
-      for (const k of Object.keys(params)) {
-        const v = params[k]
+      const spanParams = [...Object.entries(params)]
+      for (const [k, v] of spanParams) {
         if (v !== undefined) {
           _span?.setAttribute(k, v)
         }

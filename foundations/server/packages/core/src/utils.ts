@@ -1,9 +1,23 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import core, {
   ClientConnectEvent,
   WorkspaceEvent,
   generateId,
   getTypeOf,
-  platformNow,
   systemAccount,
   toFindResult,
   type Account,
@@ -41,7 +55,7 @@ import { createHash, type Hash } from 'crypto'
 import fs from 'fs'
 import type { DbAdapter } from './adapter'
 import { BackupClientOps } from './storage'
-import type { OneSecondCounters, Pipeline } from './types'
+import type { Pipeline } from './types'
 
 /**
  * Return some estimation for object size
@@ -426,52 +440,5 @@ export async function calcHashHash (ctx: MeasureContext, domain: Domain, adapter
     return hash.digest('hex')
   } finally {
     await it.close(ctx)
-  }
-}
-
-type TimerOp = [number, string, number, boolean]
-
-export class OneSecondCountersImpl implements OneSecondCounters {
-  private readonly counters = new Map<string, number>()
-  private readonly counterTimeouts = new Map<number, TimerOp>()
-  ids: number = 0
-
-  add (counter: string, count: number): void {
-    this.counters.set(counter, (this.counters.get(counter) ?? 0) + count)
-  }
-
-  async withCounter<T>(counter: string, count: number, op: () => Promise<T>): Promise<T> {
-    this.add(counter, count)
-    const id = ++this.ids
-    const vv: TimerOp = [platformNow(), counter, count, false]
-    this.counterTimeouts.set(id, vv)
-    try {
-      return await op()
-    } finally {
-      vv[3] = true
-    }
-  }
-
-  entries (): MapIterator<[string, number]> {
-    return this.counters.entries()
-  }
-
-  check (): void {
-    // Check for timeouts
-    const now = platformNow()
-    for (const [k, [timeout, counter, count, completed]] of [...this.counterTimeouts.entries()]) {
-      // Regular 1 second timeout: if operation completed after at least 1s, decrement once
-      if (completed && timeout + 1000 < now) {
-        this.add(counter, -count)
-        this.counterTimeouts.delete(k)
-        continue
-      }
-
-      // Hard timeout for stuck tasks: if not completed but exceeded hard timeout, decrement once
-      if (!completed && timeout + 60 * 1000 < now) {
-        this.add(counter, -count)
-        this.counterTimeouts.delete(k)
-      }
-    }
   }
 }

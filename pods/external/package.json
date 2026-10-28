@@ -11,6 +11,7 @@
     "format": "true"
   },
   "devDependencies": {
+    "typescript": "^5.9.3",
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "eslint-plugin-promise": "^7.3.0",
     "eslint-plugin-n": "^18.3.0",

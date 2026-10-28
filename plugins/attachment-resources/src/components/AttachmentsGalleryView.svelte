@@ -13,28 +13,44 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import attachment, { Attachment } from '@hcengineering/attachment'
-  import { Doc, getCurrentAccount, type WithLookup } from '@hcengineering/core'
-  import { getClient, getFileUrl } from '@hcengineering/presentation'
-  import { Icon, IconMoreV, Menu, showPopup } from '@hcengineering/ui'
+  import attachmentPlugin, { Attachment } from '@hcengineering/attachment'
+  import { getCurrentAccount, type WithLookup } from '@hcengineering/core'
+  import presentation, { getClient, getFileUrl } from '@hcengineering/presentation'
+  import { Button, IconMoreH, Menu, showPopup } from '@hcengineering/ui'
+  import view from '@hcengineering/view'
   import { AttachmentGalleryPresenter } from '..'
   import FileDownload from './icons/FileDownload.svelte'
 
   export let attachments: WithLookup<Attachment>[]
-  let selectedFileNumber: number | undefined
+  let hoveredFileNumber: number | undefined
   const client = getClient()
 
-  const showFileMenu = async (ev: MouseEvent, object: Doc, fileNumber: number): Promise<void> => {
-    selectedFileNumber = fileNumber
+  function downloadFile (attachment: WithLookup<Attachment>): void {
+    const link = document.createElement('a')
+    link.href = getFileUrl(attachment.file, attachment.name)
+    link.download = attachment.name
+    link.click()
+  }
+
+  function showFileMenu (ev: MouseEvent, attachment: WithLookup<Attachment>, fileNumber: number): void {
+    hoveredFileNumber = fileNumber
     showPopup(
       Menu,
       {
         actions: [
-          ...(getCurrentAccount().socialIds.includes(object.modifiedBy)
+          {
+            icon: FileDownload,
+            label: presentation.string.Download,
+            action: async () => {
+              downloadFile(attachment)
+            }
+          },
+          ...(getCurrentAccount().socialIds.includes(attachment.modifiedBy)
             ? [
                 {
-                  label: attachment.string.DeleteFile,
-                  action: async () => await client.removeDoc(object._class, object.space, object._id)
+                  icon: view.icon.Delete,
+                  label: attachmentPlugin.string.DeleteFile,
+                  action: async () => await client.removeDoc(attachment._class, attachment.space, attachment._id)
                 }
               ]
             : [])
@@ -42,7 +58,7 @@
       },
       ev.target as HTMLElement,
       () => {
-        selectedFileNumber = undefined
+        hoveredFileNumber = undefined
       }
     )
   }
@@ -50,19 +66,21 @@
 
 <div class="galleryGrid">
   {#each attachments as attachment, i}
-    <div class="attachmentCell" class:fixed={i === selectedFileNumber}>
+    <div class="attachmentCell" class:hovered={i === hoveredFileNumber}>
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <AttachmentGalleryPresenter value={attachment}>
         <svelte:fragment slot="rowMenu">
-          {@const href = getFileUrl(attachment.file, attachment.name)}
-          <div class="eAttachmentCellActions" class:fixed={i === selectedFileNumber}>
-            <a {href} download={attachment.name}>
-              <Icon icon={FileDownload} size={'small'} />
-            </a>
-            <div class="eAttachmentCellMenu" on:click={(event) => showFileMenu(event, attachment, i)}>
-              <IconMoreV size={'small'} />
-            </div>
+          <div class="tools">
+            <Button
+              icon={IconMoreH}
+              kind="ghost"
+              size="medium"
+              showTooltip={{ label: view.string.MoreActions, direction: 'bottom' }}
+              on:click={(event) => {
+                showFileMenu(event, attachment, i)
+              }}
+            />
           </div>
         </svelte:fragment>
       </AttachmentGalleryPresenter>
@@ -78,40 +96,14 @@
   }
 
   .attachmentCell {
-    .eAttachmentCellActions {
-      display: flex;
-      visibility: hidden;
-      padding: 0.5rem;
-      background-color: var(--theme-comp-header-color);
-      border: 1px solid var(--theme-divider-color);
-      border-radius: 0.25rem;
+    .tools {
+      display: none;
     }
 
-    .eAttachmentCellMenu {
-      visibility: hidden;
-      margin-left: 0.2rem;
-      opacity: 0.6;
-      cursor: pointer;
-
-      &:hover {
-        opacity: 1;
-      }
-    }
-
-    &:hover {
-      .eAttachmentCellActions {
-        visibility: visible;
-      }
-      .eAttachmentCellMenu {
-        visibility: visible;
-      }
-    }
-    &.fixed {
-      .eAttachmentCellActions {
-        visibility: visible;
-      }
-      .eAttachmentCellMenu {
-        visibility: visible;
+    &:hover,
+    &.hovered {
+      .tools {
+        display: block;
       }
     }
   }

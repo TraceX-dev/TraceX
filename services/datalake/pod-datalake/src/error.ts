@@ -26,6 +26,10 @@ const generateMessage = (code: number): string => {
     return 'Bad Request'
   }
 
+  if (code === 503) {
+    return 'Service temporary unavailable'
+  }
+
   return 'Error'
 }
 

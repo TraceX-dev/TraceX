@@ -17,6 +17,8 @@ import log from 'electron-log'
 import { autoUpdater } from 'electron-updater'
 
 autoUpdater.logger = log
+// Download is started manually from start.ts to support stall detection and retries
+autoUpdater.autoDownload = false
 
 autoUpdater.on('update-available', (info) => {
   log.info('Update available. ', info)

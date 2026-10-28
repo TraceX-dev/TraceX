@@ -1,6 +1,7 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
 // Copyright © 2026 Intabia Fusion.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -54,7 +55,6 @@ import {
   SessionDataImpl,
   type ClientSessionCtx,
   type ConnectionSocket,
-  type OneSecondCounters,
   type Pipeline,
   type Session,
   type SessionRequest,
@@ -91,8 +91,7 @@ export class ClientSession implements Session {
     readonly workspace: WorkspaceIds,
     readonly account: Account,
     readonly info: LoginInfoWithWorkspaces,
-    readonly allowUpload: boolean,
-    readonly counter: OneSecondCounters
+    readonly allowUpload: boolean
   ) {
     this.isAdmin = this.token.extra?.admin === 'true'
   }
@@ -133,8 +132,8 @@ export class ClientSession implements Session {
   async loadModel (ctx: ClientSessionCtx, lastModelTx: Timestamp, hash?: string): Promise<void> {
     try {
       this.includeSessionContext(ctx)
-      const result = await this.counter.withCounter('loadModel', 1, () =>
-        ctx.pipeline.loadModel(ctx.ctx, lastModelTx, hash)
+      const result = await ctx.ctx.withCounter('server-operations', { operation: 'load_model' }, (operationCtx) =>
+        ctx.pipeline.loadModel(operationCtx, lastModelTx, hash)
       )
 
       await ctx.sendResponse(ctx.requestId, result)
@@ -213,8 +212,8 @@ export class ClientSession implements Session {
       return
     }
     try {
-      const result = await this.counter.withCounter('find-' + domain, 1, () =>
-        this.findAllRaw(ctx, _class, query, options)
+      const result = await ctx.ctx.withCounter('server-operations', { operation: 'find', domain }, (operationCtx) =>
+        this.findAllRaw({ ...ctx, ctx: operationCtx }, _class, query, options)
       )
 
       await ctx.sendResponse(ctx.requestId, result)
@@ -228,8 +227,8 @@ export class ClientSession implements Session {
     try {
       this.lastRequest = Date.now()
       this.includeSessionContext(ctx)
-      const result = await this.counter.withCounter('fulltext', 1, () =>
-        ctx.pipeline.searchFulltext(ctx.ctx, query, options)
+      const result = await ctx.ctx.withCounter('server-operations', { operation: 'fulltext' }, (operationCtx) =>
+        ctx.pipeline.searchFulltext(operationCtx, query, options)
       )
       await ctx.sendResponse(ctx.requestId, result)
     } catch (err) {
@@ -299,18 +298,18 @@ export class ClientSession implements Session {
       ctx.pipeline.context.hierarchy.findDomain(
         TxProcessor.isExtendsCUD(tx._class) ? (tx as TxCUD<Doc>).objectClass : tx._class
       ) ?? ''
-    await this.counter.withCounter('tx-' + domain, 1, async () => {
-      try {
-        const { broadcastPromise, asyncsPromise } = await this.txRaw(ctx, tx)
+    try {
+      await ctx.ctx.withCounter('server-operations', { operation: 'tx', domain }, async (operationCtx) => {
+        const { broadcastPromise, asyncsPromise } = await this.txRaw({ ...ctx, ctx: operationCtx }, tx)
         await broadcastPromise
         if (asyncsPromise !== undefined) {
           await asyncsPromise
         }
-      } catch (err) {
-        await ctx.sendError(ctx.requestId, 'Failed to tx', unknownError(err))
-        ctx.ctx.error('failed to tx', { err })
-      }
-    })
+      })
+    } catch (err) {
+      await ctx.sendError(ctx.requestId, 'Failed to tx', unknownError(err))
+      ctx.ctx.error('failed to tx', { err })
+    }
   }
 
   broadcast (ctx: MeasureContext, socket: ConnectionSocket, tx: Tx[]): void {
@@ -427,21 +426,24 @@ export class ClientSession implements Session {
   }
 
   async domainRequest (ctx: ClientSessionCtx, domain: OperationDomain, params: DomainParams): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    await this.counter.withCounter('dr-' + domain, 1, async () => {
-      try {
-        const { asyncsPromise, broadcastPromise } = await this.domainRequestRaw(ctx, domain, params)
+    try {
+      await ctx.ctx.withCounter('server-operations', { operation: 'domain_request', domain }, async (operationCtx) => {
+        const { asyncsPromise, broadcastPromise } = await this.domainRequestRaw(
+          { ...ctx, ctx: operationCtx },
+          domain,
+          params
+        )
 
         await broadcastPromise
 
         if (asyncsPromise !== undefined) {
           await asyncsPromise
         }
-      } catch (err) {
-        await ctx.sendError(ctx.requestId, 'Failed to domainRequest', unknownError(err))
-        ctx.ctx.error('failed to domainRequest', { err })
-      }
-    })
+      })
+    } catch (err) {
+      await ctx.sendError(ctx.requestId, 'Failed to domainRequest', unknownError(err))
+      ctx.ctx.error('failed to domainRequest', { err })
+    }
   }
 
   async domainRequestRaw (
