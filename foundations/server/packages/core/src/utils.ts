@@ -264,6 +264,26 @@ export function loadBrandingMap (brandingPath?: string): BrandingMap {
   return brandings
 }
 
+/**
+ * LookupMiddleware strips simple query values (e.g. `_id`, `space`) from found documents to make
+ * the payload compact, and every remote client (WS, REST) puts them back. The in-process client
+ * must do the same, otherwise `findOne(_class, { _id })` returns a document without `_id`.
+ */
+function restoreQueryValues<T extends Doc>(_class: Ref<Class<T>>, query: DocumentQuery<T>, doc: T): T {
+  let result = doc
+  for (const [k, v] of Object.entries(query)) {
+    if ((typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') && (doc as any)[k] == null) {
+      if (result === doc) result = { ...doc }
+      ;(result as any)[k] = v
+    }
+  }
+  if (result._class == null) {
+    if (result === doc) result = { ...doc }
+    result._class = _class
+  }
+  return result
+}
+
 export function wrapPipeline (
   ctx: MeasureContext,
   pipeline: Pipeline,
@@ -294,7 +314,7 @@ export function wrapPipeline (
       const result = await pipeline.findAll(ctx, _class, query, options)
       return toFindResult(
         result.map((v) => {
-          return pipeline.context.hierarchy.updateLookupMixin(_class, v, options)
+          return pipeline.context.hierarchy.updateLookupMixin(_class, restoreQueryValues(_class, query, v), options)
         }),
         result.total
       )
@@ -303,7 +323,7 @@ export function wrapPipeline (
       const result = await pipeline.findAll(ctx, _class, query, { ...options, limit: 1 })
       return toFindResult(
         result.map((v) => {
-          return pipeline.context.hierarchy.updateLookupMixin(_class, v, options)
+          return pipeline.context.hierarchy.updateLookupMixin(_class, restoreQueryValues(_class, query, v), options)
         }),
         result.total
       )[0]
