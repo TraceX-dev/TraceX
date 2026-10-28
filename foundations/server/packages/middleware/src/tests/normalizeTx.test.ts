@@ -13,7 +13,14 @@
 // limitations under the License.
 //
 
-import core, { type Doc, MeasureMetricsContext, type PersonId, type Ref, type Space, TxFactory } from '@hcengineering/core'
+import core, {
+  type Doc,
+  MeasureMetricsContext,
+  type PersonId,
+  type Ref,
+  type Space,
+  TxFactory
+} from '@hcengineering/core'
 import platform from '@hcengineering/platform'
 import type { PipelineContext } from '@hcengineering/server-core'
 import { describeInvalidTx, NormalizeTxMiddleware } from '../normalizeTx'
@@ -42,7 +49,8 @@ describe('NormalizeTxMiddleware', () => {
     const ctx = new MeasureMetricsContext('test', {})
     ;(ctx as any).error = error
 
-    await expect(middleware.tx(ctx as any, [tx])).rejects.toMatchObject({
+    // tx() throws synchronously, so call it inside an async function to get a rejected promise
+    await expect((async () => await middleware.tx(ctx as any, [tx]))()).rejects.toMatchObject({
       status: { code: platform.status.BadRequest }
     })
 
