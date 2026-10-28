@@ -14,7 +14,7 @@
 //
 
 import core, {
-  type Doc,
+  type CustomSequence,
   MeasureMetricsContext,
   type PersonId,
   type Ref,
@@ -42,7 +42,7 @@ describe('NormalizeTxMiddleware', () => {
     const tx = factory.createTxUpdateDoc(
       core.class.CustomSequence,
       undefined as unknown as Ref<Space>,
-      'sequence:id' as Ref<Doc>,
+      'sequence:id' as Ref<CustomSequence>,
       { $inc: { sequence: 1 } },
       true
     )
