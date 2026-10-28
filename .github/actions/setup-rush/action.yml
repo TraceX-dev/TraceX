@@ -1,0 +1,54 @@
+#
+# Copyright © 2026 TraceX SAS.
+#
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+name: Set up Rush
+description: Install pinned dependencies and restore separate pnpm and Rush caches.
+inputs:
+  cache-scope:
+    description: Producer name used when saving Rush build-cache entries.
+    required: true
+  restore-build-cache:
+    description: Restore and save the Rush build cache.
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v6
+      id: node
+      with:
+        node-version-file: .nvmrc
+    - name: Resolve cache revision
+      id: revision
+      shell: bash
+      run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+    - name: Cache pnpm downloads
+      uses: actions/cache@v6
+      with:
+        path: common/temp/pnpm-store
+        key: pnpm-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('rush.json', 'common/config/rush/pnpm-lock.yaml', 'common/config/rush/pnpm-config.json', 'common/config/rush/.pnpmfile.cjs') }}
+        restore-keys: |
+          pnpm-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
+    - name: Cache Rush outputs
+      if: inputs.restore-build-cache == 'true'
+      uses: actions/cache@v6
+      with:
+        path: common/temp/build-cache
+        key: rush-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-${{ steps.revision.outputs.sha }}-${{ inputs.cache-scope }}
+        restore-keys: |
+          rush-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-${{ steps.revision.outputs.sha }}-
+          rush-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('common/config/rush/pnpm-lock.yaml') }}-
+          rush-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
+    - name: Install dependencies from lockfile
+      shell: bash
+      run: node common/scripts/install-run-rush.js install

@@ -98,6 +98,7 @@ Source file headers and package metadata identify the applicable license. Mixed 
   - [Troubleshooting](#troubleshooting)
   - [Build \& Watch](#build--watch)
   - [Tests](#tests)
+    - [Continuous integration](#continuous-integration)
     - [Unit tests](#unit-tests)
     - [UI tests](#ui-tests)
   - [Package publishing](#package-publishing)
@@ -430,6 +431,47 @@ For development purpose `rush build:watch` action could be used.
 It includes build and validate phases in watch mode.
 
 ## Tests
+
+### Continuous integration
+
+The CI workflow checks out the triggering event commit (`github.sha`) in every
+job. Manual runs use the workflow's native branch/tag selection; there is no
+separate input that can check out code from another cache security context.
+Formatting runs independently of compilation. Compilation runs
+before package validation; generated `lib`, `types`, `bundle`, `.build`, and `.validate`
+directories are transferred as a tar artifact whose commit is checked before
+restoring it. Source files and installed dependencies are not transferred.
+The build job also bundles `@hcengineering/tool` before archiving outputs, so
+workspace setup and profiling scripts can run it on the UI-test runners.
+
+Dependency downloads (`common/temp/pnpm-store`) and Rush's build cache
+(`common/temp/build-cache`) use separate caches. Every job installs dependencies
+from the committed lockfile. Rush cache snapshots use commit and producer keys,
+with prefix restores for unchanged packages across commits.
+
+Test Docker images are built once for Linux amd64, then exported with both their
+commit tags and the `latest` aliases used by Compose. The three UI suites load
+this artifact into independent runners. Multi-platform Docker builds run only
+for version tags (`vMAJOR.MINOR.PATCH` or `sMAJOR.MINOR.PATCH`). Docker, npm, and
+desktop releases require a successful **Quality gate** covering validation,
+formatting, unit tests, Svelte checks, and every UI suite.
+
+For a manual verification run, select the intended workflow branch in the
+GitHub UI, or use `gh workflow run main.yml --ref YOUR_BRANCH -f skip_publish=true`.
+For tags, use `gh workflow run main.yml --ref vX.Y.Z -f skip_publish=true`
+with an existing version tag containing this CI configuration. Release refs
+still exercise release builds,
+while npm, Docker, distribution, and report publication remain disabled.
+The separate manual npm publishing workflow requires a successful CI quality
+gate for the exact commit before publishing. Invoke it with
+`gh workflow run publish-npm.yml --ref vX.Y.Z`; the workflow rejects branch refs.
+
+Infrastructure regression tests use temporary files and fake Docker commands;
+they do not build images, format source files, or publish anything:
+
+```bash
+node --test common/scripts/ci.test.js
+```
 
 ### Unit tests
 

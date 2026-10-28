@@ -1,40 +1,64 @@
+#
+# Copyright © 2026 TraceX SAS.
+#
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 name: Publish npm
-
 on:
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Production tag ref to publish (e.g. refs/tags/v0.7.427)'
-        required: true
-
+  workflow_dispatch: {}
 jobs:
   publish-npm:
-    permissions:
-      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Require the workflow to run on a production tag
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: |
+          if [[ ! "$RELEASE_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Run this workflow with --ref vMAJOR.MINOR.PATCH, not with a separate ref input."
+            exit 1
+          fi
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.ref }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
-      - uses: actions/setup-node@v6
+      - name: Require successful CI checks for this commit
+        uses: actions/github-script@v8
         with:
-          node-version-file: '.nvmrc'
-      - name: Cache node modules
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-node-platform
+          script: |
+            const { execFileSync } = require('node:child_process')
+            const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              ...context.repo, workflow_id: 'main.yml', head_sha: revision, event: 'push', per_page: 100
+            })
+            for (const run of runs) {
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                ...context.repo, run_id: run.id, filter: 'latest', per_page: 100
+              })
+              if (jobs.some(job => job.name === 'Quality gate' && job.conclusion === 'success')) {
+                core.info('Required checks passed: ' + run.html_url)
+                return
+              }
+            }
+            core.setFailed('No successful CI quality gate exists for commit ' + revision)
+      - uses: ./.github/actions/setup-rush
         with:
-          path: common/temp
-          key: ${{ runner.os }}-build-cache-node-platform-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-build-cache-node-platform-
-      - name: Installing...
-        run: node common/scripts/install-run-rush.js install
+          cache-scope: manual-publish-npm
       - name: Prepare npm package versions
         run: |
           set -euo pipefail
-          REF="${{ github.event.inputs.ref }}"
+          REF="$RELEASE_REF"
           if [[ ! "$REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::npm packages can only be published from a vMAJOR.MINOR.PATCH production tag."
             exit 1
@@ -42,6 +66,8 @@ jobs:
           VERSION="${REF#refs/tags/v}"
           node common/scripts/bump.js "$VERSION"
           node common/scripts/bump.js --check "$VERSION"
+        env:
+          RELEASE_REF: ${{ github.ref }}
       - name: Building...
         run: node common/scripts/install-run-rush.js build
       - name: Emit TypeScript declarations
@@ -49,10 +75,13 @@ jobs:
       - name: Publish to npm
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/common/config/rush/.npmrc-publish
         run: |
           if [ -z "$NPM_TOKEN" ]; then
             echo "::error::NPM_TOKEN secret is not set. Add it in repository Settings > Secrets and variables > Actions."
             exit 1
           fi
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
           node common/scripts/safe-publish.js
+permissions:
+  contents: read
+  actions: read

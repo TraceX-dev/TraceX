@@ -1,126 +1,124 @@
-# This is a basic workflow to help you get started with Actions
+#
+# Copyright © 2026 TraceX SAS.
+#
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 name: CI
-
 permissions:
   contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-# Controls when the action will run.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [develop]
+    branches:
+      - develop
     tags:
       - v*
       - s*
   pull_request:
-    branches: [develop, staging, staging-new, main]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches:
+      - develop
+      - staging
+      - staging-new
+      - main
   workflow_dispatch:
     inputs:
-      ref:
-        description: 'Ref to run as (e.g. refs/tags/v0.7.370 to test release flow)'
-        required: false
-        default: 'refs/heads/develop'
       skip_publish:
-        description: 'Skip all publishing (npm, Docker, R2) when testing release flow'
+        description: Skip all publishing (npm, Docker, R2) when testing release flow
         required: false
         default: false
         type: boolean
-
 env:
-  CacheFolders: |
-    communication
-    common
-    desktop
-    desktop-package
-    foundations
-    qms-desktop-package
-    dev
-    models
-    packages
-    plugins
-    pods
-    server
-    server-plugins
-    templates
-    services
-    workers
-    tests
-    qms-tests
-    rush.json
-    .prettierrc
-    tools
-    workers
-    ws-tests
   PublishTempFolder: publish_artifacts
-  INIT_SCRIPTS_BRANCH: 'main'
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+  INIT_SCRIPTS_BRANCH: main
 jobs:
-  # This workflow contains a single job called "build"
+  prepare:
+    name: Release policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      target_ref: ${{ steps.revision.outputs.target_ref }}
+      version: ${{ steps.revision.outputs.version }}
+      release: ${{ steps.revision.outputs.release }}
+      production: ${{ steps.revision.outputs.production }}
+      publish: ${{ steps.revision.outputs.publish }}
+    steps:
+      - name: Classify event ref and publication policy
+        id: revision
+        env:
+          TARGET_REF: ${{ github.ref }}
+          SKIP_PUBLISH: ${{ inputs.skip_publish || false }}
+        run: |
+          set -euo pipefail
+          release=false
+          production=false
+          publish=false
+          version=
+          if [[ "$TARGET_REF" =~ ^refs/tags/([vs])[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            release=true
+            version="${TARGET_REF#refs/tags/}"
+            if [[ "$version" == v* ]]; then production=true; fi
+            if [[ "$SKIP_PUBLISH" != true ]]; then publish=true; fi
+          fi
+          {
+            echo "target_ref=$TARGET_REF"
+            echo "version=$version"
+            echo "release=$release"
+            echo "production=$production"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
   build:
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-      - name: Cache node modules
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-node-platform
-        with:
-          path: |
-            common/temp
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Installing...
-        run: |
-          REF="${{ github.event.inputs.ref || github.ref }}"
-          if [[ "$REF" == refs/tags/v* ]]; then
-            node common/scripts/install-run-rush.js update
-          else
-            node common/scripts/install-run-rush.js install
-          fi
-
-      # - name: Checking model version is updated...
-      #   run: node common/scripts/check_model_version.js
-
-      - name: Checking for mis-matching dependencies...
+          cache-scope: build
+          restore-build-cache: "true"
+      - name: Check dependency ranges
         run: node common/scripts/install-run-rush.js check
-
-      - name: Checking for mis-matching transitive dependencies...
+      - name: Check transitive dependencies
         run: node common/scripts/check-versions.js
-
-      - name: Model version from git tags
-        run: node common/scripts/install-run-rush.js model-version
-
-      - name: Building...
+      - name: Test CI infrastructure helpers
+        run: node --test common/scripts/ci.test.js
+      - name: Compile packages
         run: node common/scripts/install-run-rush.js build
-
-      - name: Bundle...
-        run: node common/scripts/install-run-rush.js bundle
-
-      - name: Validate...
+      - name: Validate packages
         run: node common/scripts/install-run-rush.js validate
-
+      - name: Bundle test administration tool
+        working-directory: dev/tool
+        run: node ../../common/scripts/install-run-rushx.js bundle
+      - name: Archive generated package outputs
+        run: node common/scripts/ci-build-artifacts.js pack "$RUNNER_TEMP/package-outputs.tgz"
+      - name: Upload generated package outputs
+        uses: actions/upload-artifact@v6
+        with:
+          name: package-outputs
+          path: ${{ runner.temp }}/package-outputs.tgz
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+          overwrite: true
       - name: Create SBOM directory
         run: mkdir -p sbom
-
       - name: Generate repository SBOM
         uses: anchore/sbom-action@v0
         with:
@@ -128,107 +126,92 @@ jobs:
           output-file: sbom/repository.spdx.json
           upload-artifact: false
           upload-release-assets: false
-
       - name: Upload repository SBOM
         uses: actions/upload-artifact@v6
         with:
           name: sbom-repository
           path: sbom/repository.spdx.json
-
-      - name: Cache build results
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-build-results
-        with:
-          path: ${{ env.CacheFolders}}
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
-  svelte-check:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          filter: tree:0
-          submodules: recursive
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Cache build results
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-build-results
-        with:
-          path: ${{ env.CacheFolders}}
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
-
-      - name: Checking svelte sources...
-        run: node common/scripts/install-run-rush.js svelte-check -v
+          overwrite: true
   formatting:
-    needs: build
+    needs: prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          filter: tree:0
           submodules: recursive
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-      - name: Cache build results
-        uses: actions/cache@v6
+          cache-scope: formatting
+          restore-build-cache: "false"
+      - name: Check formatting in changed projects
         env:
-          cache-name: cache-build-results
-        with:
-          path: ${{ env.CacheFolders}}
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
-
-      - name: Formatting...
-        run: node common/scripts/install-run-rush.js fast-format --branch ${{ github.base_ref || 'develop' }}
-      - name: Check files formatting
-        run: |
-          echo '================================================================'
-          echo 'Checking for diff files'
-          echo '================================================================'
-          git diff '*.js' '*.ts' '*.svelte' '*.json' '*.yaml' | cat
-          [ -z "$(git diff --name-only '*.js' '*.ts' '*.svelte' '*.json' '*.yaml' | cat)" ]
-          echo '================================================================'
-  test:
-    needs: build
+          BASE_BRANCH: ${{ github.base_ref || 'develop' }}
+        run: node common/scripts/install-run-rush.js fast-format --branch "$BASE_BRANCH"
+      - name: Reject formatting changes
+        run: git diff --exit-code -- '*.js' '*.mjs' '*.ts' '*.svelte' '*.json' '*.yaml' '*.yml'
+  svelte-check:
+    needs:
+      - prepare
+      - build
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-      - name: Cache build results
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-build-results
+          cache-scope: svelte-check
+          restore-build-cache: "true"
+      - name: Download package outputs
+        uses: actions/download-artifact@v8
         with:
-          path: ${{ env.CacheFolders}}
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
+          name: package-outputs
+          path: ${{ runner.temp }}/package-outputs
+      - name: Restore package outputs for this commit
+        run: node common/scripts/ci-build-artifacts.js restore "$RUNNER_TEMP/package-outputs/package-outputs.tgz"
+      - name: Check Svelte sources
+        run: node common/scripts/install-run-rush.js svelte-check -v
+  test:
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          filter: tree:0
+          submodules: recursive
+      - uses: ./.github/actions/setup-rush
+        with:
+          cache-scope: test
+          restore-build-cache: "true"
+      - name: Download package outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: package-outputs
+          path: ${{ runner.temp }}/package-outputs
+      - name: Restore package outputs for this commit
+        run: node common/scripts/ci-build-artifacts.js restore "$RUNNER_TEMP/package-outputs/package-outputs.tgz"
       - name: Login to Docker Hub
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        continue-on-error: true
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        if: env.DOCKER_USERNAME != ''
+        continue-on-error: true
       - name: Prepare server
         run: |
           cd ./tests
@@ -236,54 +219,106 @@ jobs:
       - name: Testing...
         run: node common/scripts/install-run-rush.js test --verbose
         env:
-          DB_URL: 'postgresql://postgres:postgres@localhost:5433/postgres'
-          ELASTIC_URL: 'http://localhost:9201'
+          DB_URL: postgresql://postgres:postgres@localhost:5433/postgres
+          ELASTIC_URL: http://localhost:9201
+  test-images:
+    name: Build test images once
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          filter: tree:0
+          submodules: recursive
+      - name: Free space
+        uses: ./.github/actions/free-disk-space
+      - uses: ./.github/actions/setup-rush
+        with:
+          cache-scope: test-images
+          restore-build-cache: "true"
+      - name: Download package outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: package-outputs
+          path: ${{ runner.temp }}/package-outputs
+      - name: Restore package outputs for this commit
+        run: node common/scripts/ci-build-artifacts.js restore "$RUNNER_TEMP/package-outputs/package-outputs.tgz"
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        if: env.DOCKER_USERNAME != ''
+        continue-on-error: true
+      - name: Build native test images
+        run: node common/scripts/install-run-rush.js docker
+        env:
+          DOCKER_VERSION: ${{ github.sha }}
+          DOCKER_EXTRA: --platform=linux/amd64
+          DOCKER_CLI_HINTS: "false"
+          DOCKER_BUILDKIT: "1"
+          DOCKER_BUILD_CLEANUP: "true"
+      - name: Export test images and Compose aliases
+        run: node common/scripts/ci-docker-images.js save "$RUNNER_TEMP/test-images.tar" "$CI_COMMIT_SHA"
+        env:
+          CI_COMMIT_SHA: ${{ github.sha }}
+      - name: Upload shared test images
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-images
+          path: ${{ runner.temp }}/test-images.tar
+          compression-level: 1
+          retention-days: 1
+          if-no-files-found: error
+          overwrite: true
   uitest:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
-      - uses: actions/setup-node@v6
+      - name: Free space
+        uses: ./.github/actions/free-disk-space
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-      - name: Cache node modules
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-node-platform
+          cache-scope: uitest
+          restore-build-cache: "true"
+      - name: Download package outputs
+        uses: actions/download-artifact@v8
         with:
-          path: |
-            common/temp
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Checking for mis-matching dependencies...
-        run: node common/scripts/install-run-rush.js check
-
-      - name: Checking for mis-matching transitive dependencies...
-        run: node common/scripts/check-versions.js
-
-      - name: Installing...
-        run: node common/scripts/install-run-rush.js install
-
+          name: package-outputs
+          path: ${{ runner.temp }}/package-outputs
+      - name: Restore package outputs for this commit
+        run: node common/scripts/ci-build-artifacts.js restore "$RUNNER_TEMP/package-outputs/package-outputs.tgz"
       - name: Login to Docker Hub
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        continue-on-error: true
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      - name: Free space
-        uses: ./.github/actions/free-disk-space
-      - name: Docker Build
-        run: node common/scripts/install-run-rush.js docker
         env:
-          DOCKER_CLI_HINTS: false
-          DOCKER_BUILDKIT: 1
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        if: env.DOCKER_USERNAME != ''
+        continue-on-error: true
+      - name: Download shared test images
+        uses: actions/download-artifact@v8
+        with:
+          name: test-images
+          path: ${{ runner.temp }}/test-images
+      - name: Load shared test images
+        run: |-
+          docker image load --input "$RUNNER_TEMP/test-images/test-images.tar"
+          rm "$RUNNER_TEMP/test-images/test-images.tar"
       - name: Configure /etc/hosts
         run: |
           sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
@@ -316,7 +351,8 @@ jobs:
         with:
           name: profiling
           path: ./tests/profiles
-      - name: 'Store docker logs'
+          overwrite: true
+      - name: Store docker logs
         if: always()
         run: |
           cd ./tests/sanity
@@ -329,47 +365,17 @@ jobs:
         with:
           name: playwright-results
           path: ./tests/sanity/playwright-report/
-      # - name: Get Allure history
-      #   uses: actions/checkout@v7
-      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
-      #   continue-on-error: true
-      #   with:
-      #     ref: gh-pages
-      #     path: gh-pages
-      # - name: Generates Allure Report
-      #   uses: simple-elf/allure-report-action@master
-      #   if: always()
-      #   id: allure-report
-      #   with:
-      #     allure_results: ./tests/sanity/allure-results/
-      #     gh_pages: gh-pages
-      #     allure_report: allure-report
-      #     allure_history: allure-history
-      # - name: Upload allure test results
-      #   if: always()
-      #   uses: actions/upload-artifact@v6
-      #   with:
-      #     name: allure-report
-      #     path: ./allure-report/
-      # - name: Deploy report to Github Pages
-      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
-      #   uses: peaceiris/actions-gh-pages@v4
-      #   with:
-      #     PERSONAL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     PUBLISH_BRANCH: gh-pages
-      #     PUBLISH_DIR: allure-history
+          overwrite: true
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: docker-logs
           path: ./tests/sanity/logs
-      # - name: Upload DB snapshot
-      #   if: always()
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: db-snapshot
-      #     path: ./tests/db_dump
+          overwrite: true
+    needs:
+      - prepare
+      - test-images
   uitest-qms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -381,46 +387,41 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
-      - uses: actions/setup-node@v6
+      - name: Free space
+        uses: ./.github/actions/free-disk-space
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-      - name: Cache node modules
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-node-platform
+          cache-scope: uitest-qms
+          restore-build-cache: "true"
+      - name: Download package outputs
+        uses: actions/download-artifact@v8
         with:
-          path: |
-            common/temp
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Checking for mis-matching dependencies...
-        run: node common/scripts/install-run-rush.js check
-
-      - name: Checking for mis-matching transitive dependencies...
-        run: node common/scripts/check-versions.js
-
-      - name: Installing...
-        run: node common/scripts/install-run-rush.js install
-
+          name: package-outputs
+          path: ${{ runner.temp }}/package-outputs
+      - name: Restore package outputs for this commit
+        run: node common/scripts/ci-build-artifacts.js restore "$RUNNER_TEMP/package-outputs/package-outputs.tgz"
       - name: Login to Docker Hub
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        continue-on-error: true
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      - name: Free space
-        uses: ./.github/actions/free-disk-space
-      - name: Docker Build
-        run: node common/scripts/install-run-rush.js docker
         env:
-          DOCKER_CLI_HINTS: false
-          DOCKER_BUILDKIT: 1
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        if: env.DOCKER_USERNAME != ''
+        continue-on-error: true
+      - name: Download shared test images
+        uses: actions/download-artifact@v8
+        with:
+          name: test-images
+          path: ${{ runner.temp }}/test-images
+      - name: Load shared test images
+        run: |-
+          docker image load --input "$RUNNER_TEMP/test-images/test-images.tar"
+          rm "$RUNNER_TEMP/test-images/test-images.tar"
       - name: Configure /etc/hosts
         run: |
           sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
@@ -437,7 +438,7 @@ jobs:
         run: |
           cd ./qms-tests/sanity
           node ../../common/scripts/install-run-rushx.js uitest
-      - name: 'Store docker logs'
+      - name: Store docker logs
         if: always()
         run: |
           cd ./qms-tests/sanity
@@ -450,23 +451,24 @@ jobs:
         with:
           name: playwright-results-qms
           path: ./qms-tests/sanity/playwright-report/
+          overwrite: true
       - name: Publish QMS report to gh-pages
-        if: ${{ always() && github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && hashFiles('qms-tests/sanity/playwright-report/index.html') != '' }}
+        if: ${{ always() && !cancelled() && github.event_name == 'push' && needs.prepare.outputs.publish == 'true' && hashFiles('qms-tests/sanity/playwright-report/index.html') != '' }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: ./qms-tests/sanity/playwright-report
-          destination_dir: qms/${{ startsWith(github.ref, 'refs/tags/v') && 'v' || 's' }}/${{ github.ref_name }}
+          destination_dir: qms/${{ startsWith(needs.prepare.outputs.target_ref, 'refs/tags/v') && 'v' || 's' }}/${{ needs.prepare.outputs.version }}
           keep_files: true
       - name: Update latest QMS report pointer
-        if: ${{ always() && github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && hashFiles('qms-tests/sanity/playwright-report/index.html') != '' }}
+        if: ${{ always() && !cancelled() && github.event_name == 'push' && needs.prepare.outputs.publish == 'true' && hashFiles('qms-tests/sanity/playwright-report/index.html') != '' }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: ./qms-tests/sanity/playwright-report
-          destination_dir: qms/${{ startsWith(github.ref, 'refs/tags/v') && 'v' || 's' }}/latest
+          destination_dir: qms/${{ startsWith(needs.prepare.outputs.target_ref, 'refs/tags/v') && 'v' || 's' }}/latest
           keep_files: true
       - name: Upload Logs
         if: always()
@@ -474,55 +476,51 @@ jobs:
         with:
           name: docker-logs-qms
           path: ./qms-tests/sanity/logs
+          overwrite: true
+    needs:
+      - prepare
+      - test-images
   uitest-workspaces:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
-      - uses: actions/setup-node@v6
+      - name: Free space
+        uses: ./.github/actions/free-disk-space
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-      - name: Cache node modules
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-node-platform
+          cache-scope: uitest-workspaces
+          restore-build-cache: "true"
+      - name: Download package outputs
+        uses: actions/download-artifact@v8
         with:
-          path: |
-            common/temp
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Checking for mis-matching dependencies...
-        run: node common/scripts/install-run-rush.js check
-
-      - name: Checking for mis-matching transitive dependencies...
-        run: node common/scripts/check-versions.js
-
-      - name: Installing...
-        run: node common/scripts/install-run-rush.js install
-
-      - name: Build sanity-tests suite
-        run: node common/scripts/install-run-rush.js build -t @hcengineering/tests-sanity
-
+          name: package-outputs
+          path: ${{ runner.temp }}/package-outputs
+      - name: Restore package outputs for this commit
+        run: node common/scripts/ci-build-artifacts.js restore "$RUNNER_TEMP/package-outputs/package-outputs.tgz"
       - name: Login to Docker Hub
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        continue-on-error: true
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      - name: Free space
-        uses: ./.github/actions/free-disk-space
-      - name: Docker Build
-        run: node common/scripts/install-run-rush.js docker
         env:
-          DOCKER_CLI_HINTS: false
-          DOCKER_BUILDKIT: 1
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        if: env.DOCKER_USERNAME != ''
+        continue-on-error: true
+      - name: Download shared test images
+        uses: actions/download-artifact@v8
+        with:
+          name: test-images
+          path: ${{ runner.temp }}/test-images
+      - name: Load shared test images
+        run: |-
+          docker image load --input "$RUNNER_TEMP/test-images/test-images.tar"
+          rm "$RUNNER_TEMP/test-images/test-images.tar"
       - name: Configure /etc/hosts
         run: |
           sudo echo "127.0.0.1 tracex.local" | sudo tee -a /etc/hosts
@@ -544,7 +542,7 @@ jobs:
         run: |
           cd ./ws-tests/sanity
           node ../../common/scripts/install-run-rushx.js uitest
-      - name: 'Store docker logs'
+      - name: Store docker logs
         if: always()
         run: |
           cd ./ws-tests/sanity
@@ -557,26 +555,60 @@ jobs:
         with:
           name: playwright-results-api
           path: ./ws-tests/api-tests/playwright-report/
+          overwrite: true
       - name: Upload UI test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: playwright-results-ws
           path: ./ws-tests/sanity/playwright-report/
+          overwrite: true
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: docker-logs-ws
           path: ./ws-tests/sanity/logs
+          overwrite: true
+    needs:
+      - prepare
+      - test-images
+  quality-gate:
+    name: Quality gate
+    if: ${{ always() }}
+    needs:
+      - prepare
+      - build
+      - formatting
+      - svelte-check
+      - test
+      - test-images
+      - uitest
+      - uitest-qms
+      - uitest-workspaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every mandatory check to succeed
+        env:
+          CHECK_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          node <<'NODE'
+          const checks = JSON.parse(process.env.CHECK_RESULTS)
+          const failed = Object.entries(checks).filter(([, check]) => check.result !== 'success')
+          for (const [name, check] of failed) console.error(name + ': ' + check.result)
+          if (failed.length > 0) process.exit(1)
+          NODE
   docker-build:
-    needs: [uitest-workspaces]
+    needs:
+      - prepare
+      - quality-gate
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      # https://github.com/actions/runner-images/issues/2840#issuecomment-790492173
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
@@ -593,54 +625,39 @@ jobs:
                 "containerd-snapshotter": true
               }
             }
-
       - name: Checkout init repository
         run: |
           wget https://github.com/hcengineering/init/archive/refs/heads/${{env.INIT_SCRIPTS_BRANCH}}.zip
           unzip ${{env.INIT_SCRIPTS_BRANCH}}.zip -d pods/workspace
           mv pods/workspace/init-${{env.INIT_SCRIPTS_BRANCH}} pods/workspace/init
           rm -rf ${{env.INIT_SCRIPTS_BRANCH}}.zip
-
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-      - uses: pnpm/action-setup@v5
+          cache-scope: release-docker
+          restore-build-cache: "true"
+      - name: Download package outputs
+        uses: actions/download-artifact@v8
         with:
-          version: 10
-      - name: Cache node modules
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-node-platform
-        with:
-          path: |
-            common/temp
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Installing...
-        run: node common/scripts/install-run-rush.js install
-
-      - name: Model version from git tags
-        run: node common/scripts/install-run-rush.js model-version
-
+          name: package-outputs
+          path: ${{ runner.temp }}/package-outputs
+      - name: Restore package outputs for this commit
+        run: node common/scripts/ci-build-artifacts.js restore "$RUNNER_TEMP/package-outputs/package-outputs.tgz"
       - name: Login to Docker Hub
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        continue-on-error: true
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        if: env.DOCKER_USERNAME != ''
+        continue-on-error: true
       - name: Download Syft
-        if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v') || startsWith(github.event.inputs.ref || github.ref, 'refs/tags/s')
+        if: ${{ needs.prepare.outputs.publish == 'true' }}
         id: syft
         uses: anchore/sbom-action/download-syft@v0
-
       - name: Add Syft to PATH
-        if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v') || startsWith(github.event.inputs.ref || github.ref, 'refs/tags/s')
+        if: ${{ needs.prepare.outputs.publish == 'true' }}
         run: echo "$(dirname '${{ steps.syft.outputs.cmd }}')" >> "$GITHUB_PATH"
-
       - name: Docker build
         run: |
           node common/scripts/install-run-rush.js docker:build -v
@@ -649,79 +666,66 @@ jobs:
           DOCKER_EXTRA: --platform=linux/amd64,linux/arm64
           DOCKER_BUILDKIT: 1
           DOCKER_BUILD_CLEANUP: true
-
-      - name: Clean Docker build cache
-        run: docker builder prune -a -f
-
       - name: Login to Docker Hub
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      # - name: Docker push staging
-      #   if: ${{ github.ref == 'refs/heads/main' }}
-      #   run: node common/scripts/install-run-rush.js docker:staging -v
-      - name: Docker push tag
-        if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
-        run: |
-          echo Pushing release of tag ${{ github.ref }}
-          node common/scripts/install-run-rush.js docker:push -v
-
+        if: ${{ needs.prepare.outputs.publish == 'true' }}
+      - name: Publish release images
+        if: ${{ needs.prepare.outputs.publish == 'true' }}
+        env:
+          DOCKER_VERSION: ${{ needs.prepare.outputs.version }}
+        run: node common/scripts/install-run-rush.js docker:push -v
       - name: Generate Docker image SBOMs
-        if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
+        if: ${{ needs.prepare.outputs.publish == 'true' }}
         continue-on-error: true
         run: |
           node common/scripts/install-run-rush.js docker:sbom -v
         env:
           SBOM_OUTPUT_DIR: ${{ github.workspace }}/sbom/docker
-
+          DOCKER_VERSION: ${{ needs.prepare.outputs.version }}
       - name: Upload Docker image SBOMs
-        if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
+        if: ${{ needs.prepare.outputs.publish == 'true' }}
         uses: actions/upload-artifact@v6
         with:
           name: sbom-docker-images
           path: sbom/docker/*.spdx.json
-
+          overwrite: true
+    if: ${{ needs.prepare.outputs.release == 'true' }}
   qms-dist-build:
-    # if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-    needs: build
+    if: ${{ needs.prepare.outputs.release == 'true' }}
+    needs:
+      - prepare
+      - quality-gate
     runs-on: macos-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           filter: tree:0
           submodules: recursive
-
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-
-      - name: Cache node modules
-        uses: actions/cache@v6
-        env:
-          cache-name: node
-        with:
-          path: |
-            common/temp
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Installing...
-        run: node common/scripts/install-run-rush.js install --purge
+          cache-scope: desktop-release
+          restore-build-cache: "true"
       - name: Model version from git tags
         run: node common/scripts/install-run-rush.js model-version
       - name: Package
         run: node common/scripts/install-run-rush.js package --to qms-desktop -v
-      - name: Bump package JSON version
+      - name: Set desktop distribution version from the requested tag
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          cd qms-desktop-package
-          node ../common/scripts/install-run-rushx.js bump
-          cat ./package.json
+          node <<'NODE'
+          const fs = require('node:fs')
+          const filename = 'qms-desktop-package/package.json'
+          const packageJson = JSON.parse(fs.readFileSync(filename, 'utf8'))
+          packageJson.version = process.env.RELEASE_VERSION.slice(1)
+          fs.writeFileSync(filename, JSON.stringify(packageJson, null, 2) + '\n')
+          NODE
       - name: Install the Apple certificate and provisioning profile
         env:
           DEV_ID_P12_BASE64: ${{ secrets.DEV_ID_P12_BASE64 }}
@@ -749,9 +753,10 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_APP_PASS: ${{ secrets.APPLE_ID_APP_PASS }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           cd qms-desktop-package
-          if [[ "${GITHUB_REF_NAME}" == s* ]]; then
+          if [[ "${RELEASE_VERSION}" == s* ]]; then
             variant=staging
             dist_command=dist-staging
             signed_command=dist-staging-signed
@@ -765,7 +770,7 @@ jobs:
           node ../common/scripts/install-run-rushx.js "$signed_command" --macos --x64 --arm64
           ./scripts/copy-publish-artifacts.sh ${{ env.PublishTempFolder}} "$variant"
       - name: Publish distribution assets and version
-        if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
+        if: ${{ needs.prepare.outputs.publish == 'true' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
@@ -795,51 +800,49 @@ jobs:
       - name: Upload MacOS
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ startsWith(github.ref, 'refs/tags/s') && 'TraceX-Staging-MacOS-x64' || 'TraceX-MacOS-x64' }}
+          name: ${{ startsWith(needs.prepare.outputs.target_ref, 'refs/tags/s') && 'TraceX-Staging-MacOS-x64' || 'TraceX-MacOS-x64' }}
           path: ./qms-desktop-package/deploy/TraceX*-macos-*-x64.dmg
+          overwrite: true
       - name: Upload MacOS arm64
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ startsWith(github.ref, 'refs/tags/s') && 'TraceX-Staging-MacOS-arm64' || 'TraceX-MacOS-arm64' }}
+          name: ${{ startsWith(needs.prepare.outputs.target_ref, 'refs/tags/s') && 'TraceX-Staging-MacOS-arm64' || 'TraceX-MacOS-arm64' }}
           path: ./qms-desktop-package/deploy/TraceX*-macos-*-arm64.dmg
+          overwrite: true
       - name: Upload Windows
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ startsWith(github.ref, 'refs/tags/s') && 'TraceX-Staging-Windows' || 'TraceX-Windows' }}
+          name: ${{ startsWith(needs.prepare.outputs.target_ref, 'refs/tags/s') && 'TraceX-Staging-Windows' || 'TraceX-Windows' }}
           path: ./qms-desktop-package/deploy/TraceX*-windows-*.zip
+          overwrite: true
       - name: Upload Linux
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ startsWith(github.ref, 'refs/tags/s') && 'TraceX-Staging-Linux' || 'TraceX-Linux' }}
+          name: ${{ startsWith(needs.prepare.outputs.target_ref, 'refs/tags/s') && 'TraceX-Staging-Linux' || 'TraceX-Linux' }}
           path: ./qms-desktop-package/deploy/TraceX*-linux-*.zip
-
+          overwrite: true
   publish-npm:
-    if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v') && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true')
-    needs: build
+    if: ${{ needs.prepare.outputs.production == 'true' && needs.prepare.outputs.publish == 'true' }}
+    needs:
+      - prepare
+      - quality-gate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
-      - uses: actions/setup-node@v6
+          filter: tree:0
+          submodules: recursive
+      - uses: ./.github/actions/setup-rush
         with:
-          node-version-file: '.nvmrc'
-      - name: Cache node modules
-        uses: actions/cache@v6
-        env:
-          cache-name: cache-node-platform
-        with:
-          path: common/temp
-          key: ${{ runner.os }}-build-cache-node-platform-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-build-cache-node-platform-
-      - name: Installing...
-        run: node common/scripts/install-run-rush.js install
+          cache-scope: publish-npm
+          restore-build-cache: "true"
       - name: Prepare npm package versions
         run: |
           set -euo pipefail
-          REF="${{ github.event.inputs.ref || github.ref }}"
+          REF="$RELEASE_REF"
           if [[ ! "$REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::npm packages can only be published from a vMAJOR.MINOR.PATCH production tag."
             exit 1
@@ -847,6 +850,8 @@ jobs:
           VERSION="${REF#refs/tags/v}"
           node common/scripts/bump.js "$VERSION"
           node common/scripts/bump.js --check "$VERSION"
+        env:
+          RELEASE_REF: ${{ needs.prepare.outputs.target_ref }}
       - name: Building...
         run: node common/scripts/install-run-rush.js build
       - name: Emit TypeScript declarations
