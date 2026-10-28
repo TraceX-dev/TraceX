@@ -43,7 +43,6 @@
         "FRONT_URL": "http://tracex.local:8087",
         "ACCOUNTS_URL": "http://localhost:3000",
         "MODEL_JSON": "${workspaceFolder}/models/all/bundle/model.json",
-        "SERVER_PROVIDER": "ws",
         "ELASTIC_INDEX_NAME": "local_storage_index",
         "UPLOAD_URL": "/files",
         "AI_BOT_URL": "http://localhost:4010",

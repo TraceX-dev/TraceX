@@ -66,26 +66,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-  redpanda_console:
-    image: docker.redpanda.com/redpandadata/console:v2.8.3
-    entrypoint: /bin/sh
-    command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'
-    environment:
-      CONFIG_FILEPATH: /tmp/config.yml
-      CONSOLE_CONFIG_FILE: |
-        kafka:
-          brokers: ["redpanda:9093"]
-          schemaRegistry:
-            enabled: true
-            urls: ["http://redpanda:8083"]
-        redpanda:
-          adminApi:
-            enabled: true
-            urls: ["http://redpanda:9644"]
-    ports:
-      - 8001:8080
-    depends_on:
-      - redpanda
   minio:
     image: 'pgsty/silo'
     command: server /data --address ":9000" --console-address ":9001"

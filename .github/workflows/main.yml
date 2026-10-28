@@ -35,7 +35,6 @@ on:
 
 env:
   CacheFolders: |
-    communication
     common
     desktop
     desktop-package
@@ -56,7 +55,6 @@ env:
     rush.json
     .prettierrc
     tools
-    workers
     ws-tests
   PublishTempFolder: publish_artifacts
   INIT_SCRIPTS_BRANCH: 'main'
