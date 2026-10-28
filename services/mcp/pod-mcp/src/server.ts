@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -9,9 +10,12 @@
 import { type PlatformContext } from '@hcengineering/ai-core'
 import { tools } from '@hcengineering/ai-tools'
 import { type MeasureContext } from '@hcengineering/core'
-import { decodeToken, readToken, type Token } from '@hcengineering/server-token'
-
-import { createMcpExpressApp } from '@modelcontextprotocol/express'
+import {
+  createMcpExpressApp,
+  getOAuthProtectedResourceMetadataUrl,
+  mcpAuthMetadataRouter,
+  requireBearerAuth
+} from '@modelcontextprotocol/express'
 import { toNodeHandler } from '@modelcontextprotocol/node'
 import {
   createMcpHandler,
@@ -21,16 +25,20 @@ import {
   type CallToolResult
 } from '@modelcontextprotocol/server'
 import cors from 'cors'
-import express, { type Express, type Request } from 'express'
+import express, { type Express } from 'express'
 import { type Server } from 'http'
 
 import { type McpConfig } from './config'
+import { createMcpTokenVerifier, type TraceXAuthInfo } from './auth'
 import { jsonStructuredText, jsonText } from './mcp'
+import { registerMeWorkspacesTool } from './tools/me/workspaces'
 import type { WorkspaceConnection, WorkspaceManager } from './workspace'
 
 const SERVER_NAME = 'tracex-mcp'
 const SERVER_VERSION = '0.1.0'
-const SERVER_INSTRUCTIONS = `TraceX MCP provides tools for working with the TraceX workspace. Every request is scoped to the bearer token used to connect to this MCP server; do not ask the user for tokens and never expose token values.
+const SERVER_INSTRUCTIONS = `TraceX MCP provides tools for the workspaces accessible to the authenticated TraceX account. Never ask the user for tokens or expose token values.
+
+Call my.workspaces to discover accessible workspaces. Every other tool requires the exact workspace ID returned by my.workspaces. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes. Production and staging are separate installations.
 
 Use read-only tools first to discover the available object types, allowed fields, and stable identifiers before making changes. Do not invent workspace ids, object ids, class ids, mixin ids, type ids, or attribute keys; obtain them from tool results or ask the user to clarify.
 
@@ -43,18 +51,9 @@ Prefer narrow queries and practical limits. Request only enough results to answe
 type ToolDefinition = (typeof tools)[number]
 type ToolExecutionResult = Awaited<ReturnType<ToolDefinition['execute']>>
 
-export type TraceXAuthInfo = AuthInfo & {
-  extra: {
-    tracexToken: Token
-  }
-}
-
-type AuthenticatedRequest = Request & {
-  auth?: AuthInfo
-}
-
 export function createServer (config: McpConfig, workspaceManager: WorkspaceManager, ctx: MeasureContext): Express {
-  const app = createMcpExpressApp({ host: '0.0.0.0' })
+  const resourceServerUrl = new URL(config.OAuthResourceURL)
+  const app = createMcpExpressApp({ host: '0.0.0.0', allowedHosts: [resourceServerUrl.hostname] })
 
   app.use(cors())
   app.use(express.json({ limit: '5mb' }))
@@ -68,15 +67,43 @@ export function createServer (config: McpConfig, workspaceManager: WorkspaceMana
     { responseMode: 'json' }
   )
   const nodeHandler = toNodeHandler(handler)
-
-  app.all('/mcp', authenticateRequest(config, ctx), (req, res) => {
-    void nodeHandler(req, res, req.body).catch((err) => {
-      ctx.error('MCP request failed', errorLog(err))
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Internal server error' })
-      }
+  app.use(
+    mcpAuthMetadataRouter({
+      oauthMetadata: {
+        issuer: config.OAuthIssuerURL,
+        authorization_endpoint: `${config.OAuthIssuerURL}/authorize`,
+        token_endpoint: `${config.OAuthIssuerURL}/token`,
+        registration_endpoint: `${config.OAuthIssuerURL}/register`,
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code', 'refresh_token'],
+        code_challenge_methods_supported: ['S256'],
+        token_endpoint_auth_methods_supported: ['none'],
+        scopes_supported: ['tracex']
+      },
+      resourceServerUrl,
+      resourceName: 'TraceX MCP',
+      scopesSupported: ['tracex'],
+      dangerouslyAllowInsecureIssuerUrl: config.OAuthAllowHttp
     })
-  })
+  )
+
+  app.all(
+    resourceServerUrl.pathname,
+    requireBearerAuth({
+      verifier: createMcpTokenVerifier(config),
+      requiredScopes: ['tracex'],
+      expectedResource: resourceServerUrl,
+      resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(resourceServerUrl).toString()
+    }),
+    (req, res) => {
+      void nodeHandler(req, res, req.body).catch((err) => {
+        ctx.error('MCP request failed', errorLog(err))
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Internal server error' })
+        }
+      })
+    }
+  )
 
   return app
 }
@@ -99,22 +126,66 @@ export function createMcpServer (
       version: SERVER_VERSION
     },
     {
-      instructions: SERVER_INSTRUCTIONS
+      instructions: `${SERVER_INSTRUCTIONS}\n\nConnected TraceX installation: ${String(auth.resource)}`
     }
   )
 
+  registerMeWorkspacesTool(server, workspaceManager, auth)
+
   for (const tool of tools) {
+    const inputSchema = {
+      ...tool.inputSchema,
+      properties: {
+        ...tool.inputSchema.properties,
+        workspace: {
+          type: 'string',
+          description:
+            'Exact workspace ID returned by my.workspaces. Required for every call; never infer an implicit current workspace.'
+        }
+      },
+      required: [...(tool.inputSchema.required ?? []), 'workspace']
+    }
     server.registerTool(
       tool.name,
       {
         description: tool.description,
-        inputSchema: fromJsonSchema<Record<string, unknown>>(tool.inputSchema),
+        inputSchema: fromJsonSchema<Record<string, unknown>>(inputSchema),
         ...(tool.outputSchema !== undefined ? { outputSchema: fromJsonSchema(tool.outputSchema) } : {})
       },
       async (args) => {
-        const connection = await workspaceManager.getConnection(auth.extra.tracexToken, auth.token)
-        const result = await tool.execute(args, createToolContext(ctx, connection))
-        return toToolResult(tool, result)
+        const { workspace, ...input } = args
+        if (typeof workspace !== 'string' || workspace === '') {
+          return jsonText(
+            { error: { code: 'workspace_required', message: 'Choose an explicit workspace ID from my.workspaces.' } },
+            true
+          )
+        }
+        try {
+          const connection = await workspaceManager.getConnection(auth.extra.accountToken, workspace)
+          const result = toToolResult(tool, await tool.execute(input, createToolContext(ctx, connection)))
+          return {
+            ...result,
+            content: [
+              {
+                type: 'text' as const,
+                text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl}; ${workspace})\nInstallation: ${String(auth.resource)}`
+              },
+              ...result.content
+            ]
+          }
+        } catch {
+          return jsonText(
+            {
+              error: {
+                code: 'workspace_operation_failed',
+                message:
+                  'The operation failed. Verify the workspace with my.workspaces and reload the object before retrying. If the TraceX session has expired, reconnect.',
+                workspace
+              }
+            },
+            true
+          )
+        }
       }
     )
   }
@@ -144,39 +215,8 @@ export function toToolResult (tool: ToolDefinition, result: ToolExecutionResult)
     : jsonText({ error: result.error }, true)
 }
 
-function authenticateRequest (config: McpConfig, ctx: MeasureContext): express.RequestHandler {
-  return (req: AuthenticatedRequest, res, next) => {
-    const rawToken = readToken(req.headers)
-    if (rawToken === undefined) {
-      res.status(401).json({ error: 'Missing bearer token' })
-      return
-    }
-
-    try {
-      const token = decodeToken(rawToken, true, config.ServerSecret)
-      req.auth = createAuthInfo(rawToken, token)
-      next()
-    } catch (err) {
-      ctx.warn('Invalid MCP token', errorLog(err))
-      res.status(401).json({ error: 'Invalid token' })
-    }
-  }
-}
-
-export function createAuthInfo (rawToken: string, token: Token): TraceXAuthInfo {
-  return {
-    token: rawToken,
-    clientId: String(token.account),
-    scopes: [],
-    extra: {
-      tracexToken: token
-    }
-  }
-}
-
 function getTraceXAuthInfo (authInfo: AuthInfo | undefined): TraceXAuthInfo {
-  const token = authInfo?.extra?.tracexToken
-  if (authInfo === undefined || token === undefined) {
+  if (typeof authInfo?.extra?.accountToken !== 'string' || typeof authInfo.extra.connectionId !== 'string') {
     throw new Error('Missing authenticated TraceX MCP request')
   }
   return authInfo as TraceXAuthInfo

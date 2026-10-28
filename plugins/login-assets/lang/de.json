@@ -116,6 +116,12 @@
     "JoinAs": "Beitreten als",
     "LinkExpires": "Ablauf",
     "LimitUses": "Nutzungslimit",
-    "UsesLimit": "{count, plural, =1 {Bis zu # Nutzung} other {Bis zu # Nutzungen}}"
+    "UsesLimit": "{count, plural, =1 {Bis zu # Nutzung} other {Bis zu # Nutzungen}}",
+    "AuthorizeApplication": "Authorize {application}",
+    "AuthorizeApplicationDescription": "This application can read and change data in all TraceX workspaces you can access, including workspaces you join later. You can revoke this connection in your account authentication settings.",
+    "AuthorizationFailed": "Authorization failed or the request expired. Start the connection again in your MCP client.",
+    "McpConnections": "MCP connections",
+    "NoMcpConnections": "No MCP clients are connected.",
+    "DisconnectApplicationConfirm": "Disconnect {name}? New requests and access renewal will be blocked for this connection."
   }
 }

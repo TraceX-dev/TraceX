@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -7,11 +8,11 @@
 //
 
 import { createRestTxOperations } from '@hcengineering/api-client'
+import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { getClient as getCollaboratorClient, type CollaboratorClient } from '@hcengineering/collaborator-client'
 import { type MeasureContext, type TxOperations, type WorkspaceUuid } from '@hcengineering/core'
-import { getTransactorEndpoint } from '@hcengineering/server-client'
 import { type StorageAdapter } from '@hcengineering/server-core'
-import type { Token } from '@hcengineering/server-token'
+import { decodeToken, type Token } from '@hcengineering/server-token'
 
 import type { McpConfig } from './config'
 
@@ -22,6 +23,8 @@ export interface WorkspaceConnection {
   storage: StorageAdapter
   collaborator: CollaboratorClient
   workspace: WorkspaceUuid
+  workspaceName: string
+  workspaceUrl: string
   close: () => Promise<void>
 }
 
@@ -39,9 +42,33 @@ export class WorkspaceManager {
     private readonly storage: StorageAdapter
   ) {}
 
-  async getConnection (token: Token, rawToken: string): Promise<WorkspaceConnection> {
+  async getWorkspaces (accountToken: string): Promise<Array<{ id: string, name: string, url: string }>> {
+    const workspaces = await getAccountClient(this.config.AccountsURL, accountToken).getUserWorkspaces()
+    return workspaces.map((workspace) => ({ id: workspace.uuid, name: workspace.name, url: workspace.url }))
+  }
+
+  async getConnection (accountToken: string, workspaceId: string): Promise<WorkspaceConnection> {
+    // Check current membership before using cached clients; selectWorkspace also supports guest/admin fallbacks.
+    const workspace = (await this.getWorkspaces(accountToken)).find((entry) => entry.id === workspaceId)
+    if (workspace === undefined) {
+      throw new Error('Workspace is not accessible. Use my.workspaces to choose an available workspace ID.')
+    }
+    const login = await getAccountClient(this.config.AccountsURL, accountToken).selectWorkspace(
+      workspace.url,
+      'byregion',
+      process.env.EXTERNAL_REGIONS?.split(';') ?? []
+    )
+    if (login.token === undefined || login.workspace !== workspaceId) throw new Error('Workspace token exchange failed')
+    const rawToken = login.token
+    const token = decodeToken(rawToken, true, this.config.ServerSecret)
+    if (
+      token.account !== decodeToken(accountToken, true, this.config.ServerSecret).account ||
+      token.workspace !== workspaceId
+    ) {
+      throw new Error('Workspace token exchange returned a different account or workspace')
+    }
     if (this.config.WorkspaceClientCacheMs <= 0) {
-      return await this.createConnection(token, rawToken)
+      return await this.createConnection(token, rawToken, login.endpoint, workspace)
     }
 
     const key = `${token.workspace}:${token.account}:${rawToken}`
@@ -60,7 +87,7 @@ export class WorkspaceManager {
       })
     }
 
-    const connection = this.createConnection(token, rawToken)
+    const connection = this.createConnection(token, rawToken, login.endpoint, workspace)
     this.clients.set(key, {
       connection,
       expiresAt: now + this.config.WorkspaceClientCacheMs
@@ -87,8 +114,12 @@ export class WorkspaceManager {
     }
   }
 
-  private async createConnection (token: Token, rawToken: string): Promise<WorkspaceConnection> {
-    const transactorUrl = await getTransactorEndpoint(rawToken)
+  private async createConnection (
+    token: Token,
+    rawToken: string,
+    transactorUrl: string,
+    workspace: { name: string, url: string }
+  ): Promise<WorkspaceConnection> {
     const client = await createRestTxOperations(transactorUrl, token.workspace, rawToken, true)
     const collaborator = getCollaboratorClient(token.workspace, rawToken, this.config.CollaboratorURL)
 
@@ -99,6 +130,8 @@ export class WorkspaceManager {
       storage: this.storage,
       collaborator,
       workspace: token.workspace,
+      workspaceName: workspace.name,
+      workspaceUrl: workspace.url,
       close: async () => {
         await client.close()
       }

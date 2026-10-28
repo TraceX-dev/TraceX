@@ -11,56 +11,52 @@ MCP:    http://localhost:4020/mcp
 Health: http://localhost:4020/health
 ```
 
-Every MCP request must include a TraceX workspace bearer token:
+MCP uses OAuth authorization code with PKCE. Add the server URL in your client and sign in through TraceX in the browser. No manual API-key creation or copying is required.
 
-```http
-Authorization: Bearer <workspace-token>
-```
+One connection can work with every workspace the authenticated account can currently access. Call `my.workspaces` first, then pass an exact returned workspace ID in the `workspace` argument of every other tool. There is no implicit current workspace. Ask the user when the target is ambiguous. Results identify the target workspace and installation.
 
-One MCP connection is scoped to one workspace token. To work with another workspace, create another MCP server connection with a token for that workspace.
+OAuth access tokens are opaque, short-lived, and bound to this MCP resource. TraceX account tokens stay on the issuer. Workspace tokens are obtained through the existing accounts `selectWorkspace` exchange when a tool runs. Membership is checked even when a workspace client is cached.
 
 ## Local Docker Compose
 
 Build the image before starting the compose service:
 
 ```bash
-rush build --to @hcengineering/pod-mcp
-rush bundle --to @hcengineering/pod-mcp
-rush docker:build --to @hcengineering/pod-mcp
+rush build --to @hcengineering/pod-openauth --to @hcengineering/pod-mcp --to @hcengineering/pod-front
+rush bundle --to @hcengineering/pod-openauth --to @hcengineering/pod-mcp --to @hcengineering/pod-front
+rush docker:build --to @hcengineering/pod-openauth --to @hcengineering/pod-mcp --to @hcengineering/pod-front
 ```
 
 Start the service from the repository root:
 
 ```bash
-docker compose -f dev/docker-compose.yaml up -d mcp
+docker compose -f dev/docker-compose.yaml up -d openauth mcp front
 ```
 
 Check that the service is running:
 
 ```bash
-curl http://localhost:4020/health
+curl http://tracex.local:4020/health
 ```
 
 ## Codex
 
-Register the local Streamable HTTP MCP endpoint with a TraceX workspace token:
+Register the Streamable HTTP endpoint and complete browser authorization:
 
 ```bash
-export TRACEX_MCP_TOKEN='<workspace-token>'
-codex mcp add tracex --url http://localhost:4020/mcp --bearer-token-env-var TRACEX_MCP_TOKEN
-codex mcp list
+codex mcp add tracex --url http://tracex.local:4020/mcp
+codex mcp login tracex
 ```
 
-Restart Codex after changing MCP configuration if the running session does not pick up the new server.
+In Codex desktop, add the same URL and use its authentication action. Restart the client if it does not pick up the new configuration.
+
+The browser asks permission to access all current and future workspaces available to the account. Existing TraceX sessions and login methods are reused, including two-factor authentication and external identity providers.
+
+Manage and revoke individual connections under **Account settings → Authentication → MCP connections**. Revocation blocks new requests and refresh immediately. A request that has already started is not rolled back. Expired TraceX account sessions require browser sign-in again.
 
 ## Other MCP Clients
 
-Configure a Streamable HTTP MCP server with:
-
-```text
-URL: http://localhost:4020/mcp
-Authorization: Bearer <workspace-token>
-```
+Use an OAuth-capable Streamable HTTP client with the same URL. The service advertises resource metadata and an authorization server with dynamic public-client registration, PKCE S256, access-token renewal, and issuer-bound callback responses. ChatGPT compatibility must be checked separately; local stdio transport is not implemented.
 
 The server returns JSON text for all tool results and also fills MCP `structuredContent` when a tool has an output schema.
 
@@ -92,6 +88,7 @@ Use `fulltext.search` to search indexed workspace objects and return compact obj
 {
   "name": "fulltext.search",
   "arguments": {
+    "workspace": "<workspace-id-from-my.workspaces>",
     "query": "risk",
     "classes": ["card:class:Card"],
     "limit": 20
@@ -109,6 +106,7 @@ Use `object.lookup` to list recent objects by class or mixin and return compact 
 {
   "name": "object.lookup",
   "arguments": {
+    "workspace": "<workspace-id-from-my.workspaces>",
     "classId": "contact:mixin:Employee",
     "limit": 50
   }
@@ -129,10 +127,20 @@ COLLABORATOR_URL=ws://tracex.local:3078
 SERVICE_ID=mcp-service
 WORKSPACE_CLIENT_CACHE_MS=0
 STORAGE_CONFIG=${STORAGE_CONFIG}
+OPENAUTH_ISSUER_URL=http://tracex.local:3001
+OPENAUTH_INTERNAL_URL=http://openauth:3001
+OPENAUTH_MCP_RESOURCE_URL=http://tracex.local:4020/mcp
+OPENAUTH_ALLOW_HTTP=true
 ```
 
 `ACCOUNTS_URL` and `COLLABORATOR_URL` are required. `COLLABORATOR_URL` is used for correct card content updates and `TypeCollaborativeDoc` attribute updates.
 
-`SERVER_SECRET` is used to decode workspace bearer tokens and falls back to `SECRET`, then to `secret`.
+`SERVER_SECRET` is required. It verifies internal TraceX tokens and authenticates MCP to the issuer. Legacy API-key authentication is not supported on `/mcp`.
+
+`OPENAUTH_ISSUER_URL` and `OPENAUTH_MCP_RESOURCE_URL` must match externally visible URLs. `OPENAUTH_INTERNAL_URL` is the server-to-server issuer address; it defaults to the public issuer. HTTPS is required outside local development. `OPENAUTH_ALLOW_HTTP=true` is a development-only opt-in.
+
+Path-based routing on one origin is supported. For example, use issuer `https://stage.example.com/oauth`, internal issuer `http://openauth:3001/oauth`, and resource `https://stage.example.com/mcp`. MCP handles requests on the configured resource path, including nested paths such as `/services/mcp`. Preserve those paths through the proxy and route the discovery URLs at the origin root separately. See the [proxy example](../../../pods/openauth/README.md#one-origin-with-path-based-routing).
+
+The front service needs `OPENAUTH_PUBLIC_URL` to expose the trusted issuer URL to the login and connection-management UI. See [OpenAuth deployment](../../../pods/openauth/README.md) for issuer configuration. Production and staging must use separate public issuer/resource URLs and separate issuer databases.
 
 `WORKSPACE_CLIENT_CACHE_MS=0` disables the workspace client cache so runtime card type and space changes are visible to the next tool call. Set a positive value only when schema freshness is less important than reducing model reloads.

@@ -1,12 +1,13 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
 
-import { config as loadEnv } from 'dotenv'
+import 'dotenv/config'
 import { setMetadata } from '@hcengineering/platform'
 import { createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { newMetrics } from '@hcengineering/core'
@@ -20,8 +21,6 @@ import { join } from 'path'
 import config from './config'
 import { createServer, listen } from './server'
 import { WorkspaceManager } from './workspace'
-
-loadEnv()
 
 setMetadata(serverToken.metadata.Secret, config.ServerSecret)
 setMetadata(serverToken.metadata.Service, config.ServiceID)
@@ -45,7 +44,7 @@ const ctx = initStatisticsContext(config.ServiceID, {
     )
 })
 
-ctx.info('MCP Service started', { config })
+ctx.info('MCP Service started', { service: config.ServiceID, port: config.Port, resource: config.OAuthResourceURL })
 
 const storageAdapter = buildStorageFromConfig(storageConfigFromEnv())
 const workspaceManager = new WorkspaceManager(config, ctx, storageAdapter)

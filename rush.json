@@ -996,6 +996,11 @@
       "shouldPublish": false
     },
     {
+      "packageName": "@hcengineering/pod-openauth",
+      "projectFolder": "pods/openauth",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@hcengineering/pod-account",
       "projectFolder": "pods/account",
       "shouldPublish": false
