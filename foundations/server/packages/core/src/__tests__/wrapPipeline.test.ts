@@ -13,7 +13,14 @@
 // limitations under the License.
 //
 
-import core, { MeasureMetricsContext, toFindResult, type Doc, type DocumentQuery } from '@hcengineering/core'
+import core, {
+  MeasureMetricsContext,
+  toFindResult,
+  type CustomSequence,
+  type Doc,
+  type DocumentQuery,
+  type Ref
+} from '@hcengineering/core'
 import type { Pipeline } from '../types'
 import { wrapPipeline } from '../utils'
 
@@ -50,8 +57,9 @@ function createPipeline (stored: Doc[]): Pipeline {
 
 describe('wrapPipeline', () => {
   const ctx = new MeasureMetricsContext('test', {})
+  const id = 'doc1' as Ref<CustomSequence>
   const doc: Doc = {
-    _id: 'doc1' as any,
+    _id: id,
     _class: core.class.CustomSequence,
     space: core.space.Workspace,
     modifiedOn: 1,
@@ -60,19 +68,18 @@ describe('wrapPipeline', () => {
     createdOn: 1
   }
 
-  const client = (): ReturnType<typeof wrapPipeline> =>
-    wrapPipeline(ctx, createPipeline([doc]), { uuid: 'ws' } as any)
+  const client = (): ReturnType<typeof wrapPipeline> => wrapPipeline(ctx, createPipeline([doc]), { uuid: 'ws' } as any)
 
   it('findOne by _id keeps _id of the found document', async () => {
-    const found = await client().findOne(core.class.CustomSequence, { _id: doc._id })
-    expect(found?._id).toBe(doc._id)
+    const found = await client().findOne(core.class.CustomSequence, { _id: id })
+    expect(found?._id).toBe(id)
     expect(found?._class).toBe(core.class.CustomSequence)
   })
 
   it('findAll restores every simple query value', async () => {
-    const found = await client().findAll(core.class.CustomSequence, { _id: doc._id, space: core.space.Workspace })
+    const found = await client().findAll(core.class.CustomSequence, { _id: id, space: core.space.Workspace })
     expect(found).toHaveLength(1)
-    expect(found[0]._id).toBe(doc._id)
+    expect(found[0]._id).toBe(id)
     expect(found[0].space).toBe(core.space.Workspace)
   })
 })

@@ -269,7 +269,7 @@ export function loadBrandingMap (brandingPath?: string): BrandingMap {
  * the payload compact, and every remote client (WS, REST) puts them back. The in-process client
  * must do the same, otherwise `findOne(_class, { _id })` returns a document without `_id`.
  */
-function restoreQueryValues<T extends Doc>(_class: Ref<Class<T>>, query: DocumentQuery<T>, doc: T): T {
+function restoreQueryValues<T extends Doc> (_class: Ref<Class<T>>, query: DocumentQuery<T>, doc: T): T {
   let result = doc
   for (const [k, v] of Object.entries(query)) {
     if ((typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') && (doc as any)[k] == null) {
