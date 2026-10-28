@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,4 +18,7 @@ import { config } from 'dotenv'
 import { main } from './main'
 
 config()
-void main()
+void main().catch((err: unknown) => {
+  console.error('Failed to start datalake:', err)
+  process.exit(1)
+})

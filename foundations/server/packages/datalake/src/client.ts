@@ -137,7 +137,7 @@ export class DatalakeClient {
 
     if (response.body == null) {
       ctx.error('bad datalake response', { objectName })
-      throw new DatalakeError('Missing response body')
+      throw new DatalakeError('Missing response body', 400)
     }
 
     return Readable.fromWeb(response.body as any)
@@ -168,7 +168,7 @@ export class DatalakeClient {
 
     if (response.body == null) {
       ctx.error('bad datalake response', { objectName })
-      throw new DatalakeError('Missing response body')
+      throw new DatalakeError('Missing response body', 400)
     }
 
     return Readable.fromWeb(response.body as any)
@@ -285,13 +285,13 @@ export class DatalakeClient {
 
     const result = (await response.json()) as BlobUploadResult[]
     if (result.length !== 1) {
-      throw new DatalakeError('Bad datalake response: ' + result.toString())
+      throw new DatalakeError('Bad datalake response: ' + result.toString(), 400)
     }
 
     const uploadResult = result[0]
 
     if ('error' in uploadResult) {
-      throw new DatalakeError('Upload failed: ' + uploadResult.error)
+      throw new DatalakeError('Upload failed: ' + uploadResult.error, 400)
     }
 
     return uploadResult.metadata
@@ -320,7 +320,11 @@ export class DatalakeClient {
 
       return await this.multipartUploadComplete(ctx, workspace, objectName, multipart, parts)
     } catch (err: any) {
-      await this.multipartUploadAbort(ctx, workspace, objectName, multipart)
+      try {
+        await this.multipartUploadAbort(ctx, workspace, objectName, multipart)
+      } catch (abortErr: any) {
+        ctx.warn('failed to abort multipart upload', { workspace, objectName, abortErr })
+      }
       throw err
     }
   }
@@ -402,7 +406,7 @@ export class DatalakeClient {
       return (await response.json()) as MultipartUpload
     } catch (err: any) {
       ctx.error('failed to start multipart upload', { workspace, objectName, err })
-      throw new DatalakeError('Failed to start multipart upload')
+      throw new DatalakeError('Failed to start multipart upload', 400)
     }
   }
 
@@ -430,7 +434,7 @@ export class DatalakeClient {
       return (await response.json()) as MultipartUploadPart
     } catch (err: any) {
       ctx.error('failed to upload multipart part', { workspace, objectName, err })
-      throw new DatalakeError('Failed to upload multipart part')
+      throw new DatalakeError('Failed to upload multipart part', 400)
     }
   }
 
@@ -457,7 +461,7 @@ export class DatalakeClient {
       return (await res.json()) as ObjectMetadata
     } catch (err: any) {
       ctx.error('failed to complete multipart upload', { workspace, objectName, err })
-      throw new DatalakeError('Failed to complete multipart upload')
+      throw new DatalakeError('Failed to complete multipart upload', 400)
     }
   }
 
@@ -475,7 +479,7 @@ export class DatalakeClient {
       await fetchSafe(ctx, url, { method: 'POST', headers: { ...this.headers } })
     } catch (err: any) {
       ctx.error('failed to abort multipart upload', { workspace, objectName, err })
-      throw new DatalakeError('Failed to abort multipart upload')
+      throw new DatalakeError('Failed to abort multipart upload', 400)
     }
   }
 }
@@ -537,7 +541,7 @@ async function fetchSafe (ctx: MeasureContext, url: string | URL, init?: Request
     if (response.status === 404) {
       throw new NotFoundError(text)
     } else {
-      throw new DatalakeError(text)
+      throw new DatalakeError(text, response.status)
     }
   }
 
