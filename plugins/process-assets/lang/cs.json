@@ -1,5 +1,6 @@
 {
   "string": {
+    "FindObjects": "Najít objekty",
     "ExportJsonWithSlots": "JSON with slots",
     "ExportJsonWithoutSlots": "JSON without slots",
     "ExportYaml": "YAML DSL",

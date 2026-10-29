@@ -72,11 +72,26 @@
     dispatch('close')
   }
 
-  function onFunc (func: Ref<ProcessFunction>): void {
+  function onFunc (event: MouseEvent, func: ProcessFunction): void {
+    if (func.editor !== undefined) {
+      showPopup(
+        func.editor,
+        {
+          ...func.editorProps,
+          masterTag,
+          process,
+          context: func,
+          target: attribute,
+          onSelect: onClick
+        },
+        eventToHTMLElement(event)
+      )
+      return
+    }
     onSelect({
       type: 'function',
       key: attribute.name,
-      func,
+      func: func._id,
       props: {}
     })
     dispatch('close')
@@ -199,7 +214,7 @@
     {#if context.functions.length > 0}
       {#each context.functions as f, i}
         {@const func = getFunc(f)}
-        {#if func.editor !== undefined}
+        {#if func.editor !== undefined && func._id !== plugin.function.FindObjects}
           <Submenu
             bind:element={elements[functionsOffset + i]}
             on:keydown={(event) => {
@@ -212,6 +227,7 @@
             props={{
               ...func.editorProps,
               masterTag,
+              process,
               context: func,
               target: attribute,
               onSelect: onClick
@@ -229,8 +245,8 @@
             on:mouseover={() => {
               elements[functionsOffset + i]?.focus()
             }}
-            on:click={() => {
-              onFunc(func._id)
+            on:click={(event) => {
+              onFunc(event, func)
             }}
             class="menu-item"
           >
