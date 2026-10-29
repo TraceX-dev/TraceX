@@ -2107,7 +2107,8 @@ describe('account operations', () => {
 
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
           account: mockAccountId,
-          extra: { confirmEmail: mockEmail }
+          extra: { confirmEmail: mockEmail },
+          exp: Math.floor(Date.now() / 1000) + 3600
         })
 
         jest.spyOn(utils, 'confirmEmail').mockResolvedValue(mockSocialId._id)
@@ -2123,8 +2124,44 @@ describe('account operations', () => {
           token: expect.any(String)
         })
 
-        expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail)
+        expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail, true)
         expect(utils.confirmHulyIds).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId)
+      })
+
+      test('should reject an expired confirmation link', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockImplementationOnce(() => {
+          throw new TokenError('Token expired')
+        })
+        jest.spyOn(utils, 'confirmEmail')
+
+        await expect(confirm(mockCtx, mockDb, mockBranding, mockToken)).rejects.toThrow(
+          new PlatformError(new Status(Severity.ERROR, platform.status.TokenExpired, {}))
+        )
+        expect(utils.confirmEmail).not.toHaveBeenCalled()
+      })
+
+      test('should keep legacy confirmation links without expiration single-use', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: mockAccountId,
+          extra: { confirmEmail: mockEmail, inviteId: 'invite-uuid', workspaceUrl: 'test-workspace' }
+        })
+        jest.spyOn(utils, 'confirmEmail').mockImplementation(actualConfirmEmail)
+        ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue({
+          _id: 'social-id' as PersonId,
+          personUuid: mockAccountId,
+          type: SocialIdType.EMAIL,
+          value: mockEmail,
+          key: `email:${mockEmail}`,
+          verifiedOn: 1
+        })
+        jest.spyOn(utils, 'doJoinByInvite')
+
+        await expect(confirm(mockCtx, mockDb, mockBranding, mockToken)).rejects.toMatchObject({
+          status: { code: platform.status.SocialIdAlreadyConfirmed }
+        })
+        expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail, false)
+        expect(mockDb.socialId.update).not.toHaveBeenCalled()
+        expect(utils.doJoinByInvite).not.toHaveBeenCalled()
       })
 
       test('should fail if confirmation email not in token', async () => {
@@ -2197,7 +2234,8 @@ describe('account operations', () => {
 
           ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
             account: mockAccountId,
-            extra: { confirmEmail: mockEmail, inviteId: mockInviteId, workspaceUrl: mockWorkspaceUrl }
+            extra: { confirmEmail: mockEmail, inviteId: mockInviteId, workspaceUrl: mockWorkspaceUrl },
+            exp: Math.floor(Date.now() / 1000) + 3600
           })
 
           jest.spyOn(utils, 'confirmEmail').mockImplementation(actualConfirmEmail)
@@ -2213,7 +2251,12 @@ describe('account operations', () => {
 
           const result = await confirm(mockCtx, mockDb, mockBranding, mockToken)
 
-          expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail)
+          expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail, true)
+          if (verifiedOn == null) {
+            expect(mockDb.socialId.update).toHaveBeenCalledWith({ _id: mockSocialId._id }, { verifiedOn: expect.any(Number) })
+          } else {
+            expect(mockDb.socialId.update).not.toHaveBeenCalled()
+          }
           expect(utils.getWorkspaceJoinInfo).toHaveBeenCalledWith(
             mockCtx,
             mockDb,

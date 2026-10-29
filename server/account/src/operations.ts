@@ -48,7 +48,8 @@ import {
   decodeTokenVerbose,
   generateToken,
   type PermissionsGrant,
-  type Token
+  type Token,
+  TokenError
 } from '@hcengineering/server-token'
 
 import { isAdminEmail } from './admin'
@@ -1491,7 +1492,16 @@ export async function confirm (
   branding: Branding | null,
   token: string
 ): Promise<LoginInfo | WorkspaceLoginInfo> {
-  const { account, extra } = decodeTokenVerbose(ctx, token)
+  let decoded: Token
+  try {
+    decoded = decodeTokenVerbose(ctx, token)
+  } catch (err: any) {
+    if (err instanceof TokenError && err.message === 'Token expired') {
+      throw new PlatformError(new Status(Severity.ERROR, platform.status.TokenExpired, {}))
+    }
+    throw err
+  }
+  const { account, extra, exp } = decoded
 
   const email = extra?.confirmEmail
   if (email === undefined) {
@@ -1499,7 +1509,9 @@ export async function confirm (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
-  const socialId = await confirmEmail(ctx, db, account, email)
+  // Confirmation links issued before they started to expire have no `exp`. Keep them single-use,
+  // otherwise an old confirmation email would work as a permanent login link.
+  const socialId = await confirmEmail(ctx, db, account, email, exp != null)
 
   await confirmHulyIds(ctx, db, account)
 

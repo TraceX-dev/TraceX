@@ -1329,6 +1329,12 @@ export async function checkInvite (ctx: MeasureContext, invite: WorkspaceInvite,
   return invite.workspaceUuid
 }
 
+/**
+ * How long an email confirmation link stays valid. Confirmation is idempotent within this window
+ * (e.g. the email was already verified via OTP), so the link must not work forever.
+ */
+export const EMAIL_CONFIRMATION_TTL_SEC = 72 * 60 * 60
+
 export async function sendEmailConfirmation (
   ctx: MeasureContext,
   branding: Branding | null,
@@ -1350,10 +1356,16 @@ export async function sendEmailConfirmation (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
 
-  const token = generateToken(account, undefined, {
-    confirmEmail: email,
-    ...(extra ?? {})
-  })
+  const token = generateToken(
+    account,
+    undefined,
+    {
+      confirmEmail: email,
+      ...(extra ?? {})
+    },
+    undefined,
+    { exp: Math.floor(Date.now() / 1000) + EMAIL_CONFIRMATION_TTL_SEC }
+  )
 
   const link = concatLink(front, `/login/confirm?id=${token}`)
 
@@ -1385,7 +1397,8 @@ export async function confirmEmail (
   ctx: MeasureContext,
   db: AccountDB,
   account: string,
-  email: string
+  email: string,
+  allowAlreadyConfirmed: boolean = true
 ): Promise<PersonId> {
   const normalizedEmail = cleanEmail(email)
   ctx.info('Confirming email', { account, email, normalizedEmail })
@@ -1403,12 +1416,27 @@ export async function confirmEmail (
   }
 
   if (emailSocialId.personUuid !== account) {
+    ctx.error('Email social id belongs to another account', {
+      account,
+      owner: emailSocialId.personUuid,
+      normalizedEmail
+    })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
-  if (emailSocialId.verifiedOn == null) {
-    await db.socialId.update({ _id: emailSocialId._id }, { verifiedOn: Date.now() })
+  if (emailSocialId.verifiedOn != null) {
+    if (!allowAlreadyConfirmed) {
+      throw new PlatformError(
+        new Status(Severity.ERROR, platform.status.SocialIdAlreadyConfirmed, {
+          socialId: normalizedEmail,
+          type: SocialIdType.EMAIL
+        })
+      )
+    }
+    return emailSocialId._id
   }
+
+  await db.socialId.update({ _id: emailSocialId._id }, { verifiedOn: Date.now() })
   return emailSocialId._id
 }
 
