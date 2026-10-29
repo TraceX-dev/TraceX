@@ -1009,7 +1009,7 @@ async function getTxCollabs (
       (p) => !collabs.includes(p)
     )
     const isSpace = control.hierarchy.isDerived(doc._class, core.class.Space)
-    const removedCollabs = isSpace ? await getRemovedMembers(ops, mixin, (doc as Space)._class, control) : []
+    const removedCollabs = isSpace ? await getRemovedMembers(ctx, ops, mixin, doc as Space, collabs, control) : []
     const result = [...collabs, ...newCollaborators].filter((p) => !removedCollabs.includes(p))
 
     return { added: newCollaborators, removed: removedCollabs, result }
@@ -1311,25 +1311,49 @@ async function getNewCollaborators (
   return Array.from(newCollaborators)
 }
 
-async function getRemovedMembers (
+/**
+ * Collaborators to drop because a member left the space.
+ *
+ * `$pull` removes the pulled members. A full replacement of `members` removes current collaborators absent
+ * from the new list, except those that other collaborator fields of the space (e.g. `createdBy`) still give.
+ * `space` is the stored document after the update.
+ *
+ * @internal
+ */
+export async function getRemovedMembers (
+  ctx: MeasureContext,
   ops: DocumentUpdate<Space> | MixinUpdate<Space, Space>,
   mixin: ClassCollaborators<Doc>,
-  docClass: Ref<Class<Space>>,
+  space: Space,
+  currentCollaborators: AccountUuid[],
   control: TriggerControl
 ): Promise<AccountUuid[]> {
+  const key = 'members'
+  if (!mixin.fields.includes(key as any) && mixin.allFields !== true) return []
+
   const removedCollaborators: AccountUuid[] = []
-  if (ops.$pull !== undefined && 'members' in ops.$pull) {
-    const key = 'members'
-    if (mixin.fields.includes(key as any) || mixin.allFields === true) {
-      let value = (ops.$pull as any)[key]
-      if (typeof value !== 'string') {
-        value = value.$in
-      }
-      const collabs = await getKeyCollaborators(docClass, value, key, control)
-      if (collabs !== undefined) {
-        removedCollaborators.push(...collabs)
-      }
+  if (ops.$pull !== undefined && key in ops.$pull) {
+    let value = (ops.$pull as any)[key]
+    if (typeof value !== 'string') {
+      value = value.$in
     }
+    const collabs = await getKeyCollaborators(space._class, value, key, control)
+    if (collabs !== undefined) {
+      removedCollaborators.push(...collabs)
+    }
+  }
+
+  const replaced = (ops as any)[key]
+  if (Array.isArray(replaced)) {
+    const kept = new Set<AccountUuid>((await getKeyCollaborators(space._class, replaced, key, control)) ?? [])
+    const byOtherFields = await getDocCollaborators(
+      ctx,
+      { ...space, members: undefined } as unknown as Doc,
+      mixin,
+      control
+    )
+    for (const it of byOtherFields) kept.add(it)
+    removedCollaborators.push(...currentCollaborators.filter((it) => !kept.has(it)))
   }
 
   return Array.from(new Set(removedCollaborators))
