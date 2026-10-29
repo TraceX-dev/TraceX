@@ -578,11 +578,6 @@
       }
     }
   }
-  .collaborationUsers-container {
-    position: sticky;
-    top: 0;
-    min-width: 1.5rem;
-  }
 
   .hidden {
     display: none;

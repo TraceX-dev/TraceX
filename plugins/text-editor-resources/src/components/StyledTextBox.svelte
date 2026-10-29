@@ -416,11 +416,6 @@
         background-color: var(--theme-button-hovered);
         color: var(--theme-content-color);
       }
-
-      &.hidden {
-        opacity: 0;
-        pointer-events: none;
-      }
     }
 
     .label {

@@ -148,17 +148,6 @@
     max-width: 46rem;
     max-height: 40rem;
 
-    .room-label {
-      margin-top: var(--spacing-0_5);
-      text-transform: uppercase;
-    }
-    .title {
-      flex-shrink: 0;
-      margin-bottom: var(--spacing-2);
-      font-size: 1.5rem;
-      color: var(--theme-caption-color);
-    }
-
     .room-popup__content {
       display: flex;
       flex-direction: column;
@@ -182,23 +171,6 @@
           color: var(--theme-content-color);
         }
       }
-    }
-
-    .room-btns {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: var(--spacing-1) 0 var(--spacing-0_5);
-      gap: var(--spacing-1);
-      min-width: 0;
-      min-height: 0;
-
-      & + .btns {
-        padding-top: var(--spacing-1_5);
-      }
-    }
-    .btns {
-      padding-top: var(--spacing-2);
     }
   }
 </style>

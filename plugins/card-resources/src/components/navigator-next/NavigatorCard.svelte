@@ -143,28 +143,3 @@
     {/if} -->
   </svelte:fragment>
 </NavItem>
-
-<style lang="scss">
-  .notify {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    min-width: 1rem;
-    height: 1rem;
-  }
-  .notifyMarker {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    border-radius: 0.5rem;
-    font-weight: 700;
-    background-color: var(--global-higlight-Color);
-    color: var(--global-on-accent-TextColor);
-    min-width: 1rem;
-    height: 1rem;
-    font-size: 0.5rem;
-    padding: 0 0.25rem;
-  }
-</style>

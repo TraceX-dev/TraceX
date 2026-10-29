@@ -158,38 +158,3 @@
     {/if}
   </button>
 {/each}
-
-<style lang="scss">
-  .item {
-    padding: 0.5rem 0.5rem 0.5rem 0.125rem;
-    height: 2.25rem;
-    background-color: var(--theme-button-default);
-    border-radius: 0.25rem;
-
-    .circles-mark {
-      position: relative;
-      width: 1rem;
-      height: 1rem;
-      opacity: 0.4;
-      transition: opacity 0.1s;
-      cursor: grab;
-
-      &::before {
-        position: absolute;
-        content: '';
-        inset: -0.5rem;
-      }
-    }
-    &:hover {
-      background-color: var(--theme-button-hovered);
-
-      .circles-mark {
-        cursor: grab;
-        opacity: 1;
-      }
-    }
-    &:active {
-      background-color: var(--theme-button-pressed);
-    }
-  }
-</style>

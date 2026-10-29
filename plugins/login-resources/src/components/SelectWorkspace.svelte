@@ -316,14 +316,6 @@
       span {
         opacity: 0.8;
       }
-      a {
-        text-decoration: none;
-        color: var(--theme-caption-color);
-        opacity: 0.8;
-        &:hover {
-          opacity: 1;
-        }
-      }
     }
   }
 </style>

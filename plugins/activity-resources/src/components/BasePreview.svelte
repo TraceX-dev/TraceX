@@ -215,10 +215,6 @@
       margin-left: var(--spacing-0_5);
     }
 
-    &:hover:not(.readonly) > .actions {
-      visibility: visible;
-    }
-
     &.actionsOpened {
       background-color: var(--global-ui-BackgroundColor);
     }

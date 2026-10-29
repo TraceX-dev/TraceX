@@ -351,10 +351,5 @@
   }
 
   .img {
-    :global(img) {
-      object-fit: contain;
-      height: 100%;
-      width: 100%;
-    }
   }
 </style>
