@@ -80,9 +80,4 @@
       background-color: var(--theme-navpanel-selected);
     }
   }
-
-  .days-of-month {
-    justify-items: stretch;
-    align-items: stretch;
-  }
 </style>

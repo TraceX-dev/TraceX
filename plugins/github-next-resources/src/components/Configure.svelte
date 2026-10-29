@@ -504,21 +504,6 @@
     overflow: auto;
   }
 
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .field input {
-    width: 100%;
-    padding: 0.625rem 0.75rem;
-    border: 1px solid var(--theme-divider-color);
-    border-radius: 0.5rem;
-    background: var(--theme-bg-color);
-    color: var(--theme-text-color);
-  }
-
   .actions,
   .identity,
   .capabilities {

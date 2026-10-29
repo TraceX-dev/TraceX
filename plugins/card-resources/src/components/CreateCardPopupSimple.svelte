@@ -177,9 +177,3 @@
     </div>
   </svelte:fragment>
 </Card>
-
-<style lang="scss">
-  .card-fields {
-    width: 100%;
-  }
-</style>

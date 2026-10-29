@@ -287,14 +287,6 @@
       background-color: var(--global-accent-TextColor);
     }
   }
-  .dots {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    top: 0.1875rem;
-    right: 0.1875rem;
-  }
   .noBorder {
     border-bottom-color: transparent;
   }

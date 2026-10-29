@@ -121,7 +121,6 @@
       border-left: none;
       border-radius: 0 0.25rem 0.25rem 0;
     }
-    .no-line:hover ~ .info-container,
     .info-container:hover {
       background-color: var(--theme-button-hovered);
 

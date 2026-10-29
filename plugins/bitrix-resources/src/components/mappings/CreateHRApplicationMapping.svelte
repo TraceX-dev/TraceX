@@ -216,7 +216,4 @@
       color: var(--caption-color);
     }
   }
-  .scroll {
-    overflow: auto;
-  }
 </style>

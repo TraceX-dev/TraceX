@@ -464,11 +464,6 @@
     max-width: 300px;
   }
 
-  .preview-caption {
-    color: var(--theme-caption-color, #666);
-    font-size: 0.9rem;
-  }
-
   .preview {
     width: 100%;
     max-width: 360px;
@@ -487,13 +482,6 @@
     object-fit: cover;
     display: block;
     background: black;
-  }
-
-  input[type='text'] {
-    padding: 8px;
-    font-size: 1rem;
-    border: 1px solid var(--border-color, #ccc);
-    border-radius: 4px;
   }
 
   .checks {
@@ -525,11 +513,6 @@
     border: none;
     padding: 0;
     cursor: pointer;
-  }
-
-  .input-wrapper {
-    width: 100%;
-    max-width: 520px;
   }
 
   .actions {
@@ -575,17 +558,5 @@
     gap: 8px;
     width: 100%;
     margin-top: 8px;
-  }
-
-  .video-grid video {
-    width: 100%;
-    height: auto;
-    background: black;
-    border-radius: 4px;
-    display: block;
-  }
-
-  .local-preview {
-    outline: 2px solid rgba(0, 0, 0, 0.2);
   }
 </style>

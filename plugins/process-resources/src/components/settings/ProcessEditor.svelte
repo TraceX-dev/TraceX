@@ -366,13 +366,3 @@
     {/if}
   </div>
 </div>
-
-<style lang="scss">
-  .state {
-    font-weight: 500;
-    color: var(--global-tertiary-TextColor);
-    padding: 0 var(--spacing-1_5) 0 var(--spacing-1_25);
-    min-height: 1.75rem;
-    margin: 0 0.75rem;
-  }
-</style>

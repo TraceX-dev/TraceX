@@ -275,9 +275,6 @@
 {/if}
 
 <style lang="scss">
-  iframe {
-    border: none;
-  }
   .centered {
     flex-grow: 1;
     width: 100;
