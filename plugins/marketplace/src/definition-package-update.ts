@@ -102,8 +102,9 @@ export async function prepareDefinitionPackageUpdate (
     if (actual !== undefined) current.set(actual._id, actual)
     if (doc._class === process.class.Process) {
       for (const clazz of [process.class.State, process.class.Transition]) {
-        for (const member of model.findAllSync(clazz, { process: doc._id as Ref<Process> }))
-          {current.set(member._id, member)}
+        for (const member of model.findAllSync(clazz, { process: doc._id as Ref<Process> })) {
+          current.set(member._id, member)
+        }
       }
     }
     if (doc._class === card.class.MasterTag || doc._class === card.class.Tag) {
@@ -223,8 +224,9 @@ export async function prepareDefinitionPackageUpdate (
     if (
       !target.has(rootId) ||
       ((change?.resolution === 'local' || change?.resolution === 'conflict') && resolutions[rootId] !== 'upstream')
-    )
-      {continue}
+    ) {
+      continue
+    }
     const proc = source as unknown as Process
     for (const [key, slot] of Object.entries(proc.requiredSlots ?? {})) {
       const dependency = proc.bindings?.[key]

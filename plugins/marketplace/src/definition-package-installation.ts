@@ -165,8 +165,9 @@ export async function prepareDefinitionPackageInstallation (
   })) as unknown as Doc[]
   for (const root of roots) {
     const target = destinations[root._id]
-    if (target === undefined)
-      {throw new DefinitionPackageError(`processes.${root._id}`, 'Select a destination card type')}
+    if (target === undefined) {
+      throw new DefinitionPackageError(`processes.${root._id}`, 'Select a destination card type')
+    }
     const owner = model.findObject(target.masterTag)
     if (owner === undefined || (owner._class !== card.class.MasterTag && owner._class !== card.class.Tag)) {
       throw new DefinitionPackageError(`processes.${root._id}`, 'The destination card type is unavailable')

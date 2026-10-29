@@ -108,8 +108,9 @@ export async function updateDefinitionPackage (
 ): Promise<void> {
   const client = getClient()
   const current = await client.findOne(marketplace.class.DefinitionPackageInstallation, { _id: installation._id })
-  if (current === undefined || current.release !== installation.release)
-    {throw new Error('The installed package changed; reopen the update')}
+  if (current === undefined || current.release !== installation.release) {
+    throw new Error('The installed package changed; reopen the update')
+  }
   const prepared = await reviewDefinitionPackageUpdate(current, incoming, destinations, resolutions)
   if (prepared.blocked) throw new Error('Resolve package conflicts and unsupported changes before updating')
   if (prepared.fingerprint !== fingerprint) throw new Error('Local definitions changed; review the update again')

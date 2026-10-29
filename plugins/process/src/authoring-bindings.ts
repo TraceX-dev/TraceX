@@ -280,8 +280,9 @@ export function isAuthoringSlotBindingCompatible (
   definition?: Process,
   documents: readonly Doc[] = []
 ): boolean {
-  if (slot.slotKind !== 'attribute')
-    {return matchesModelSlot(masterTag, slot, bound, bindings, model, hierarchy, documents)}
+  if (slot.slotKind !== 'attribute') {
+    return matchesModelSlot(masterTag, slot, bound, bindings, model, hierarchy, documents)
+  }
   const owner = (
     slot.memberOf === undefined ? masterTag : resolveModelSlotReference(slot.memberOf, bindings, definition)
   ) as Ref<Class<Doc>>
