@@ -16,47 +16,25 @@
   import { onMount } from 'svelte'
   import { DateRangeMode } from '@hcengineering/core'
   import login from '@hcengineering/login'
+  import { getClient as getOpenAuthClient, type PublicConnection } from '@hcengineering/openauth-client'
   import { getMetadata, setPlatformStatus, unknownError } from '@hcengineering/platform'
   import presentation, { MessageBox } from '@hcengineering/presentation'
   import { Button, DatePresenter, IconDelete, Label, Loading, SettingsCard, showPopup } from '@hcengineering/ui'
   import setting from '../plugin'
 
-  interface Connection {
-    id: string
-    clientName: string
-    createdOn: number
-  }
-
   const issuerUrl = getMetadata(login.metadata.OAuthURL)?.replace(/\/$/, '')
-  let connections: Connection[] = []
+  const client = issuerUrl === undefined || issuerUrl === '' ? undefined : getOpenAuthClient(issuerUrl)
+  let connections: PublicConnection[] = []
   let loading = true
   let failed = false
 
   async function load (): Promise<void> {
+    if (client === undefined) return
     loading = true
     failed = false
     try {
       const token = getMetadata(presentation.metadata.Token)
-      const response = await fetch(`${issuerUrl}/connections`, { headers: { Authorization: `Bearer ${token}` } })
-      if (!response.ok) throw new Error('Could not load MCP connections')
-      const value: unknown = await response.json()
-      if (
-        !Array.isArray(value) ||
-        !value.every(
-          (connection: unknown) =>
-            typeof connection === 'object' &&
-            connection !== null &&
-            'id' in connection &&
-            typeof connection.id === 'string' &&
-            'clientName' in connection &&
-            typeof connection.clientName === 'string' &&
-            'createdOn' in connection &&
-            typeof connection.createdOn === 'number'
-        )
-      ) {
-        throw new Error('Invalid MCP connection list')
-      }
-      connections = value as Connection[]
+      connections = await client.getConnections(token)
     } catch {
       failed = true
     } finally {
@@ -64,20 +42,17 @@
     }
   }
 
-  function disconnect (connection: Connection): void {
+  function disconnect (connection: PublicConnection): void {
     showPopup(MessageBox, {
       label: setting.string.Disconnect,
       message: login.string.DisconnectApplicationConfirm,
       params: { name: connection.clientName },
       dangerous: true,
       action: async () => {
+        if (client === undefined) return
         try {
           const token = getMetadata(presentation.metadata.Token)
-          const response = await fetch(`${issuerUrl}/connections/${encodeURIComponent(connection.id)}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
-          })
-          if (!response.ok) throw new Error('Could not disconnect MCP client')
+          await client.revokeConnection(connection.id, token)
           await load()
         } catch (error: unknown) {
           await setPlatformStatus(unknownError(error))

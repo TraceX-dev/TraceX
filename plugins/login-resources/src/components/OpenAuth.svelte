@@ -15,6 +15,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { type LoginInfo } from '@hcengineering/account-client'
+  import { getClient as getOpenAuthClient } from '@hcengineering/openauth-client'
   import { getMetadata } from '@hcengineering/platform'
   import presentation from '@hcengineering/presentation'
   import ui, {
@@ -38,6 +39,7 @@
 
   const request = getCurrentLocation().query?.request
   const issuerUrl = getMetadata(login.metadata.OAuthURL)?.replace(/\/$/, '')
+  const client = issuerUrl === undefined || issuerUrl === '' ? undefined : getOpenAuthClient(issuerUrl)
   const useOTP = getMetadata(presentation.metadata.MailUrl) != null && getMetadata(presentation.metadata.MailUrl) !== ''
   const localLoginHidden = getMetadata(login.metadata.HideLocalLogin) ?? false
   let loading = true
@@ -49,28 +51,10 @@
 
   async function load (): Promise<void> {
     try {
-      if (
-        issuerUrl === undefined ||
-        issuerUrl === '' ||
-        typeof request !== 'string' ||
-        !/^[A-Za-z0-9_-]{43}$/.test(request)
-      ) {
+      if (client === undefined || typeof request !== 'string') {
         throw new Error('Invalid OAuth request')
       }
-      const response = await fetch(`${issuerUrl}/requests/${encodeURIComponent(request)}`)
-      if (!response.ok) throw new Error('OAuth request expired')
-      const details: unknown = await response.json()
-      if (
-        typeof details !== 'object' ||
-        details === null ||
-        !('clientName' in details) ||
-        typeof details.clientName !== 'string' ||
-        !('redirectOrigins' in details) ||
-        !Array.isArray(details.redirectOrigins) ||
-        !details.redirectOrigins.every((origin) => typeof origin === 'string')
-      ) {
-        throw new Error('Invalid OAuth request details')
-      }
+      const details = await client.getRequest(request)
       clientName = details.clientName
       redirectOrigins = details.redirectOrigins
       rememberOAuthRequest(request)
@@ -83,17 +67,13 @@
   }
 
   async function authorize (): Promise<void> {
-    if (submitting || identity?.token === undefined || issuerUrl === undefined || typeof request !== 'string') return
+    if (submitting || identity?.token === undefined || client === undefined || typeof request !== 'string') return
     submitting = true
     try {
-      const response = await fetch(`${issuerUrl}/requests/${encodeURIComponent(request)}/complete`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${identity.token}` }
-      })
-      if (!response.ok) throw new Error('OAuth authorization failed')
+      await client.completeRequest(request, identity.token)
       // The destination is built exclusively from trusted installation configuration, never query input.
       clearOAuthRequest()
-      window.location.assign(`${issuerUrl}/tracex/complete?request=${encodeURIComponent(request)}`)
+      window.location.assign(client.getCompletionUrl(request))
     } catch {
       failed = true
       submitting = false
@@ -115,8 +95,8 @@
 
   function cancel (): void {
     clearOAuthRequest()
-    if (issuerUrl !== undefined && typeof request === 'string' && !failed) {
-      window.location.assign(`${issuerUrl}/tracex/cancel?request=${encodeURIComponent(request)}`)
+    if (client !== undefined && typeof request === 'string' && !failed) {
+      window.location.assign(client.getCancelUrl(request))
     } else {
       navigate({ path: [loginId, 'login'] })
     }

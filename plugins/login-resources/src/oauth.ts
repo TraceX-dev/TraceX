@@ -19,8 +19,14 @@ import { navigate } from '@hcengineering/ui'
 
 const PENDING_AUTHORIZATION = 'tracex.pendingOAuthAuthorization'
 
+interface PendingOAuthAuthorization {
+  request: string
+  createdOn: number
+}
+
 export function rememberOAuthRequest (request: string): void {
-  sessionStorage.setItem(PENDING_AUTHORIZATION, JSON.stringify({ request, createdOn: Date.now() }))
+  const pending: PendingOAuthAuthorization = { request, createdOn: Date.now() }
+  sessionStorage.setItem(PENDING_AUTHORIZATION, JSON.stringify(pending))
 }
 
 export function clearOAuthRequest (): void {
@@ -33,17 +39,9 @@ export function resumeOAuthLogin (): boolean {
   const pending = sessionStorage.getItem(PENDING_AUTHORIZATION)
   if (pending === null) return false
   try {
-    const parsed: unknown = JSON.parse(pending)
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      !('request' in parsed) ||
-      typeof parsed.request !== 'string' ||
-      !/^[A-Za-z0-9_-]{43}$/.test(parsed.request) ||
-      !('createdOn' in parsed) ||
-      typeof parsed.createdOn !== 'number' ||
-      Date.now() - parsed.createdOn > 10 * 60_000
-    ) {
+    const parsed: PendingOAuthAuthorization = JSON.parse(pending)
+    const age = Date.now() - parsed.createdOn
+    if (!/^[A-Za-z0-9_-]{43}$/.test(parsed.request) || !Number.isFinite(age) || age > 10 * 60_000) {
       clearOAuthRequest()
       return false
     }
