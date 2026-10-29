@@ -105,7 +105,9 @@ beforeEach(() => {
     if (classId === card.class.Card) return target
   })
   jest.mocked(showPopup).mockImplementation((_component, _props, _position, onClose) => {
-    closeDialog = () => { void onClose?.(undefined) }
+    closeDialog = () => {
+      void onClose?.(undefined)
+    }
     return { id: 'popup', close: closePopup, update: jest.fn() }
   })
   input = new AttachmentInput(client)
@@ -127,9 +129,7 @@ test('opens the actual request on the subprocess card after completion succeeds'
 
   watch.commit()
   await flush()
-  expect(showPopup).toHaveBeenCalledWith(
-    expect.anything(), { action, card: target }, undefined, expect.any(Function)
-  )
+  expect(showPopup).toHaveBeenCalledWith(expect.anything(), { action, card: target }, undefined, expect.any(Function))
   expect(findOne).toHaveBeenCalledWith(card.class.Card, { _id: target._id })
 })
 
@@ -171,10 +171,7 @@ test.each([true, false])('opens required and optional attachment requests: %s', 
 
 test('ignores unrelated executions, ordinary events and requests assigned to someone else', async () => {
   input.watch([parent]).commit()
-  input.notify(
-    createExecution({ ...child, parentId: 'unrelated' as Ref<Execution> }),
-    createRequest()
-  )
+  input.notify(createExecution({ ...child, parentId: 'unrelated' as Ref<Execution> }), createRequest())
   input.notify(createExecution(), createRequest({ ...action, requireAttachments: undefined }))
   input.notify(createRequest({ ...action, user: 'other-employee' as Ref<Employee> }))
   await flush()
@@ -214,9 +211,11 @@ test('cancels requests when the completion transaction fails', async () => {
 test('keeps tracking through automatic transitions and stops at the next waiting state', async () => {
   findAllSync.mockReturnValue([{ trigger: 'automatic' }])
   input.watch([parent]).commit()
-  input.notify(factory.createTxUpdateDoc(parent._class, parent.space, parent._id, {
-    currentState: 'automatic-state' as Ref<State>
-  }))
+  input.notify(
+    factory.createTxUpdateDoc(parent._class, parent.space, parent._id, {
+      currentState: 'automatic-state' as Ref<State>
+    })
+  )
   input.notify(createRequest({ ...action, execution: parent._id }))
   await flush()
   expect(showPopup).toHaveBeenCalledTimes(1)
@@ -224,9 +223,11 @@ test('keeps tracking through automatic transitions and stops at the next waiting
   await flush()
 
   findAllSync.mockReturnValue([{ trigger: process.trigger.OnSubProcessesDone }])
-  input.notify(factory.createTxUpdateDoc(parent._class, parent.space, parent._id, {
-    currentState: 'waiting' as Ref<State>
-  }))
+  input.notify(
+    factory.createTxUpdateDoc(parent._class, parent.space, parent._id, {
+      currentState: 'waiting' as Ref<State>
+    })
+  )
   input.notify(createExecution(), createRequest({ ...action, _id: 'later-request' as Ref<EventButton> }))
   await flush()
   expect(showPopup).toHaveBeenCalledTimes(1)
@@ -241,7 +242,8 @@ test('expires tracking when the server does not finish its transition', async ()
 })
 
 test.each([{ error: [] }, { status: ExecutionStatus.Done }, { status: ExecutionStatus.Cancelled }])(
-  'stops tracking failed or inactive executions: %p', async (operations) => {
+  'stops tracking failed or inactive executions: %p',
+  async (operations) => {
     input.watch([parent]).commit()
     input.notify(factory.createTxUpdateDoc(parent._class, parent.space, parent._id, operations))
     input.notify(createExecution(), createRequest())
@@ -251,7 +253,8 @@ test.each([{ error: [] }, { status: ExecutionStatus.Done }, { status: ExecutionS
 )
 
 test.each([process.class.EventButton, process.class.Execution, card.class.Card])(
-  'does not show a request when its current %s is missing or inaccessible', async (missingClass) => {
+  'does not show a request when its current %s is missing or inaccessible',
+  async (missingClass) => {
     const resolve = findOne.getMockImplementation()
     findOne.mockImplementation(async (classId: string, query: { _id: string }) => {
       return classId === missingClass ? undefined : await resolve?.(classId, query)
@@ -279,7 +282,9 @@ test('reports loading errors without blocking notifications', async () => {
   const error = new Error('Unable to load the target card')
   findOne.mockRejectedValue(error)
   input.watch([parent]).commit()
-  expect(() => { input.notify(createExecution(), createRequest()) }).not.toThrow()
+  expect(() => {
+    input.notify(createExecution(), createRequest())
+  }).not.toThrow()
   await flush()
   expect(setPlatformStatus).toHaveBeenCalledWith(error)
 })

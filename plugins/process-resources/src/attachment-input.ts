@@ -64,7 +64,9 @@ export class AttachmentInput {
     const scope: InputScope = {
       executions: new Set(),
       requests: new Set(),
-      timeout: setTimeout(() => { this.stop(scope) }, INPUT_TIMEOUT),
+      timeout: setTimeout(() => {
+        this.stop(scope)
+      }, INPUT_TIMEOUT),
       committed: false,
       cancelled: false
     }
@@ -116,7 +118,8 @@ export class AttachmentInput {
         action.requireAttachments === undefined ||
         (action.user !== undefined && action.user !== getCurrentEmployee()) ||
         tracked.scope.requests.has(action._id)
-      ) continue
+      )
+        {continue}
       tracked.scope.requests.add(action._id)
       this.pending.push({ scope: tracked.scope, action })
     }
@@ -152,10 +155,13 @@ export class AttachmentInput {
 
   private hasAutoTransitions (processId: Ref<Process>, state: Execution['currentState']): boolean {
     const model = this.client.getModel()
-    return model.findAllSync(process.class.Transition, { process: processId, from: state }).some(
-      (transition) => transition.trigger !== process.trigger.OnSubProcessesDone &&
-        model.findObject(transition.trigger)?.auto === true
-    )
+    return model
+      .findAllSync(process.class.Transition, { process: processId, from: state })
+      .some(
+        (transition) =>
+          transition.trigger !== process.trigger.OnSubProcessesDone &&
+          model.findObject(transition.trigger)?.auto === true
+      )
   }
 
   private untrack (id: Ref<Execution>): void {
@@ -180,7 +186,9 @@ export class AttachmentInput {
     const [input] = this.pending.splice(index, 1)
     this.opening = true
     void this.open(input)
-      .catch(async (error: unknown) => { await setPlatformStatus(unknownError(error)) })
+      .catch(async (error: unknown) => {
+        await setPlatformStatus(unknownError(error))
+      })
       .finally(() => {
         this.opening = false
         this.openNext()
@@ -194,10 +202,16 @@ export class AttachmentInput {
       this.client.findOne(card.class.Card, { _id: input.action.card })
     ])
     if (
-      this.closed || input.scope.cancelled || action === undefined || execution === undefined || target === undefined ||
-      execution.error != null || action.requireAttachments === undefined ||
+      this.closed ||
+      input.scope.cancelled ||
+      action === undefined ||
+      execution === undefined ||
+      target === undefined ||
+      execution.error != null ||
+      action.requireAttachments === undefined ||
       (action.user !== undefined && action.user !== getCurrentEmployee())
-    ) return
+    )
+      {return}
     await new Promise<void>((resolve) => {
       const popup = showPopup(RequestAttachments, { action, card: target }, undefined, () => {
         this.closePopup = undefined
