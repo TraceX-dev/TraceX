@@ -13,73 +13,35 @@
 // limitations under the License.
 //
 
-import core, {
-  MeasureMetricsContext,
-  toFindResult,
-  type CustomSequence,
-  type Doc,
-  type DocumentQuery,
-  type Ref
-} from '@hcengineering/core'
+import core, { MeasureMetricsContext, toFindResult, type MeasureContext, type SessionData } from '@hcengineering/core'
 import type { Pipeline } from '../types'
 import { wrapPipeline } from '../utils'
 
 /**
- * LookupMiddleware removes simple query values from found documents to make the payload compact
- * (remote clients put them back). The in-process client created by wrapPipeline must do the same,
- * otherwise `findOne(_class, { _id })` returns a document without `_id` and any following update
- * is rejected as an invalid tx (this broke workspace initialization with controlled documents).
+ * The in-process client must mark its context, so middlewares (e.g. LookupMiddleware) do not apply
+ * the compaction meant for remote clients: otherwise `findOne(_class, { _id })` returns a document
+ * without `_id` and a following update is rejected as an invalid tx
+ * (this broke workspace initialization with controlled documents).
  */
-function createPipeline (stored: Doc[]): Pipeline {
-  return {
-    context: {
-      hierarchy: { updateLookupMixin: (_class: any, doc: any) => doc },
-      modelDb: {},
-      lowLevelStorage: {}
-    },
-    findAll: async (_ctx: any, _class: any, query: DocumentQuery<Doc>) => {
-      const found = stored.filter((doc) => Object.entries(query).every(([k, v]) => (doc as any)[k] === v))
-      return toFindResult(
-        found.map((doc) => {
-          const copy: any = { ...doc }
-          for (const [k, v] of Object.entries(query)) {
-            if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
-              // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-              delete copy[k]
-            }
-          }
-          return copy
-        })
-      )
-    }
-  } as unknown as Pipeline
-}
-
 describe('wrapPipeline', () => {
-  const ctx = new MeasureMetricsContext('test', {})
-  const id = 'doc1' as Ref<CustomSequence>
-  const doc: Doc = {
-    _id: id,
-    _class: core.class.CustomSequence,
-    space: core.space.Workspace,
-    modifiedOn: 1,
-    modifiedBy: 'u1' as any,
-    createdBy: 'u1' as any,
-    createdOn: 1
-  }
+  it('marks the pipeline context as in-process', async () => {
+    const seen: Array<boolean | undefined> = []
+    const pipeline = {
+      context: {
+        hierarchy: { updateLookupMixin: (_class: any, doc: any) => doc },
+        modelDb: {},
+        lowLevelStorage: {}
+      },
+      findAll: async (ctx: MeasureContext<SessionData>) => {
+        seen.push(ctx.contextData.inProcess)
+        return toFindResult([])
+      }
+    } as unknown as Pipeline
 
-  const client = (): ReturnType<typeof wrapPipeline> => wrapPipeline(ctx, createPipeline([doc]), { uuid: 'ws' } as any)
+    const client = wrapPipeline(new MeasureMetricsContext('test', {}), pipeline, { uuid: 'ws' } as any)
+    await client.findAll(core.class.CustomSequence, {})
+    await client.findOne(core.class.CustomSequence, {})
 
-  it('findOne by _id keeps _id of the found document', async () => {
-    const found = await client().findOne(core.class.CustomSequence, { _id: id })
-    expect(found?._id).toBe(id)
-    expect(found?._class).toBe(core.class.CustomSequence)
-  })
-
-  it('findAll restores every simple query value', async () => {
-    const found = await client().findAll(core.class.CustomSequence, { _id: id, space: core.space.Workspace })
-    expect(found).toHaveLength(1)
-    expect(found[0]._id).toBe(id)
-    expect(found[0].space).toBe(core.space.Workspace)
+    expect(seen).toEqual([true, true])
   })
 })
