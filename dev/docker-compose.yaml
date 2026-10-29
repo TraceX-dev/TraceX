@@ -67,7 +67,7 @@ services:
       - POSTGRES_DB=postgres
     restart: unless-stopped
   redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
+    image: redpandadata/redpanda:v24.3.6
     extra_hosts:
       - 'tracex.local:host-gateway'
     command:
@@ -98,7 +98,7 @@ services:
       retries: 10
     restart: unless-stopped
   redpanda_console:
-    image: docker.redpanda.com/redpandadata/console:v2.8.3
+    image: redpandadata/console:v2.8.3
     extra_hosts:
       - 'tracex.local:host-gateway'
     entrypoint: /bin/sh
