@@ -2253,7 +2253,10 @@ describe('account operations', () => {
 
           expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail, true)
           if (verifiedOn == null) {
-            expect(mockDb.socialId.update).toHaveBeenCalledWith({ _id: mockSocialId._id }, { verifiedOn: expect.any(Number) })
+            expect(mockDb.socialId.update).toHaveBeenCalledWith(
+              { _id: mockSocialId._id },
+              { verifiedOn: expect.any(Number) }
+            )
           } else {
             expect(mockDb.socialId.update).not.toHaveBeenCalled()
           }
