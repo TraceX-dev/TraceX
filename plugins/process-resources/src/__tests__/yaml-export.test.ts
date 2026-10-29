@@ -14,11 +14,24 @@
 //
 
 import type { MasterTag } from '@hcengineering/card'
-import core, { type Doc, type Ref } from '@hcengineering/core'
+import core, { type AccountUuid, type Doc, type Ref } from '@hcengineering/core'
 import { getEmbeddedLabel } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
-import { compileProcessYaml, type Process } from '@hcengineering/process'
-import { denormalizeIds, exportProcess, exportProcessDraft, exportProcessSource, updateProcessYaml } from '../exporter'
+import {
+  compileProcessYaml,
+  getAuthoringProcessIdentities,
+  remapAuthoringReferences,
+  type AuthoringNativeDocument,
+  type Process
+} from '@hcengineering/process'
+import {
+  denormalizeIds,
+  exportProcess,
+  exportProcessDraft,
+  exportProcessPackageSource,
+  exportProcessSource,
+  updateProcessYaml
+} from '../exporter'
 
 jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
 
@@ -92,6 +105,52 @@ function setup (): {
 }
 
 describe('YAML export and saving an existing process', () => {
+  it('exports multiple processes with independent graph identities and stable package member keys', () => {
+    const { proc, docs } = setup()
+    const native = docs as unknown as AuthoringNativeDocument[]
+    const otherDocs = remapAuthoringReferences(
+      native,
+      new Map([...getAuthoringProcessIdentities(native)].map((id) => [id, `other_${id}`]))
+    ) as unknown as Doc[]
+    const other = otherDocs.find((doc) => doc._class === proc._class) as Process
+    docs.push(...otherDocs)
+    const compiled = compileProcessYaml(exportProcessPackageSource([proc, other]))
+    expect(compiled.docs.filter((doc) => doc._class === proc._class).map((doc) => doc._id)).toEqual([
+      proc._id,
+      other._id
+    ])
+    expect(new Set(compiled.docs.map((doc) => doc._id)).size).toBe(compiled.docs.length)
+    for (const member of compiled.docs.filter((doc) => doc._class === proc._class)) {
+      expect(member.masterTag).toBe('__MASTER_TAG__')
+    }
+    const before = proc._id
+    proc.name = 'Renamed process'
+    expect(compileProcessYaml(exportProcessPackageSource([proc, other])).docs.some((doc) => doc._id === before)).toBe(
+      true
+    )
+    expect(() => exportProcessPackageSource([proc, proc])).toThrow('same process twice')
+    expect(() => exportProcessPackageSource([])).toThrow('at least one process')
+  })
+
+  it.each([true, false])(
+    'retains package membership through YAML edits and keeps exports portable with slots=%p',
+    async (withSlots) => {
+      const { proc, updateDoc } = setup()
+      const packageInfo = { id: 'acme/review', version: '1.0.0', author: 'author-account' as AccountUuid }
+      Reflect.set(proc, 'definitionPackage', packageInfo)
+      const installation = { id: 'installation', member: 'published_process' }
+      Reflect.set(proc, 'definitionPackageInstallation', installation)
+      expect(exportProcessSource(proc, 'yaml')).not.toContain('definitionPackage')
+      expect(exportProcessSource(proc, 'json', withSlots)).not.toContain('definitionPackage')
+      await updateProcessYaml(proc, source, { status: 's' })
+      const update = updateDoc.mock.calls.find((call) => call[2] === proc._id)?.[3]
+      expect(update.definitionPackage).toEqual(packageInfo)
+      expect(update.$unset.definitionPackage).toBeUndefined()
+      expect(update.definitionPackageInstallation).toEqual(installation)
+      expect(update.$unset.definitionPackageInstallation).toBeUndefined()
+    }
+  )
+
   it('exports short stored field keys into typed slots and prefills their bindings', () => {
     const { proc } = setup()
     const draft = exportProcessDraft(proc)
@@ -101,6 +160,14 @@ describe('YAML export and saving an existing process', () => {
       expect.objectContaining({ params: { __SLOT_slot_status__: 'Done' } })
     ])
     expect(exportProcessSource(proc, 'yaml')).toBe(draft.source)
+  })
+
+  it('retains published member identities when exporting a new version from an installed process', () => {
+    const { proc } = setup()
+    Reflect.set(proc, 'definitionPackageInstallation', { id: 'installation', member: 'published_process' })
+    const compiled = compileProcessYaml(exportProcessPackageSource([proc]))
+    expect(compiled.docs.find((doc) => doc._class === proc._class)?._id).toBe('published_process')
+    expect(compiled.docs.find((doc) => doc._class === proc._class)?.bindings).toEqual({})
   })
 
   it.each([true, false])('keeps JSON serialization unchanged with slots=%p', (withSlots) => {

@@ -15,7 +15,9 @@
 -->
 <script lang="ts">
   import { type Card, MasterTag } from '@hcengineering/card'
-  import core, { type Class, type Ref } from '@hcengineering/core'
+  import core, { type Class, getCurrentAccount, type Ref } from '@hcengineering/core'
+  import { getDefinitionPackageInfo, type DefinitionPackageOwner } from '@hcengineering/marketplace'
+  import { DefinitionPackageExportPopup, getDefinitionPackageExportItems } from '@hcengineering/marketplace-resources'
   import { TypeBoolean, TypeNumber } from '@hcengineering/model'
   import { getEmbeddedLabel, setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
   import { getClient, IconDownload, IconWithEmoji, MessageBox } from '@hcengineering/presentation'
@@ -42,7 +44,7 @@
   import view from '@hcengineering/view'
   import { ColorsPopup, IconPicker } from '@hcengineering/view-resources'
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
-  import { exportModule, importModule } from '../../exporter'
+  import { exportModule, exportModulePackageSource, importModule } from '../../exporter'
   import { downloadDefinition } from '../../authoring-utils'
   import DefinitionYamlEditor from './DefinitionYamlEditor.svelte'
   import card from '../../plugin'
@@ -174,6 +176,33 @@
       downloadDefinition(await exportModule(masterTag._id, format), name, format)
     } catch (error) {
       await setPlatformStatus(unknownError(error))
+    }
+  }
+
+  async function handlePackageExport (newVersion: boolean): Promise<void> {
+    try {
+      showPopup(
+        DefinitionPackageExportPopup,
+        {
+          source: '',
+          getSource: async (members: DefinitionPackageOwner[]) =>
+            await exportModulePackageSource(members.map((member) => member._id as Ref<Class<Card>>)),
+          definition: masterTag,
+          newVersion,
+          onDownload: downloadDefinition
+        },
+        'centered'
+      )
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
+  }
+
+  function onExportSelected (event: CustomEvent<string | number>): void {
+    if (event.detail === 'make-package' || event.detail === 'new-package-version') {
+      void handlePackageExport(event.detail === 'new-package-version')
+    } else {
+      void handleExport(event.detail === 'yaml' ? 'yaml' : 'json')
     }
   }
 
@@ -310,10 +339,11 @@
       kind={'tertiary'}
       items={[
         { id: 'json', label: getEmbeddedLabel('JSON') },
-        { id: 'yaml', label: getEmbeddedLabel('YAML') }
+        { id: 'yaml', label: getEmbeddedLabel('YAML') },
+        ...getDefinitionPackageExportItems(getDefinitionPackageInfo(masterTag), getCurrentAccount().uuid)
       ]}
       noSelection
-      on:selected={(event) => handleExport(event.detail === 'yaml' ? 'yaml' : 'json')}
+      on:selected={onExportSelected}
     />
     <ButtonIcon
       icon={IconEdit}

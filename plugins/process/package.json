@@ -9,14 +9,13 @@
     "types/**/*",
     "tsconfig.json"
   ],
-  "author": "Copyright © Hardcore Engineering Inc.",
+  "author": "Copyright \u00a9 Hardcore Engineering Inc.",
   "license": "EPL-2.0",
   "scripts": {
     "build": "compile",
     "build:watch": "compile",
     "test": "jest --passWithNoTests --silent",
     "validate:yaml": "node scripts/validate-yaml.js",
-    "package:plan": "node scripts/package-plan.js",
     "test:yaml": "node --test scripts/validate-yaml.test.js",
     "format": "format src",
     "_phase:build": "compile transpile src",

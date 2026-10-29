@@ -79,6 +79,7 @@ export function parseProcessImport (source: string, kind: 'card' | 'process', mo
   if (result.kind !== kind) {
     fail('kind', `Use the ${result.kind === 'card' ? 'card module' : 'process'} importer for this document`)
   }
+  if (kind === 'process') assertSingleProcess(result)
   return result.docs as unknown as Doc[]
 }
 
@@ -87,6 +88,7 @@ export function validateProcessYaml (source: string, kind?: 'card' | 'process', 
   try {
     const result = compileProcessYaml(source, model)
     if (kind !== undefined && result.kind !== kind) fail('kind', `Expected a ${kind} definition in this editor`)
+    if (kind === 'process') assertSingleProcess(result)
     return { valid: true }
   } catch (error) {
     return {
@@ -97,5 +99,11 @@ export function validateProcessYaml (source: string, kind?: 'card' | 'process', 
         ...(error instanceof ProcessAuthoringError ? { line: error.line, column: error.column } : {})
       }
     }
+  }
+}
+
+function assertSingleProcess (definition: ProcessAuthoringResult): void {
+  if (definition.docs.filter((doc) => doc._class === 'process:class:Process').length !== 1) {
+    fail('processes', 'This editor imports one process; install process bundles through Marketplace')
   }
 }

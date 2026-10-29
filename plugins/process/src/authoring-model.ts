@@ -62,8 +62,8 @@ export function compileAuthoringModel (root: Record<string, unknown>, model?: Mo
     return doc as AuthoringNativeDocument
   })
   const processes = docs.filter((doc) => doc._class === 'process:class:Process')
-  if (root.kind === 'process' && processes.length !== 1) {
-    fail('model', 'A standalone definition must contain exactly one process')
+  if (root.kind === 'process' && processes.length === 0) {
+    fail('model', 'A process definition must contain at least one process')
   }
   if (
     root.kind === 'card' &&
