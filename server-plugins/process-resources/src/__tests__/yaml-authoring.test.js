@@ -23,6 +23,7 @@ jest.mock('@hcengineering/platform', () => ({
 }))
 
 const {
+  bindYamlModelProcess,
   compileProcessYaml,
   remapAuthoringReferences,
   exportProcessYaml,
@@ -30,7 +31,6 @@ const {
 } = require('@hcengineering/process')
 const { getContextValue } = require('../utils')
 const { MatchCardCheck, FieldChangedCheck, SetContext, UpdateCard } = require('../functions')
-const { bindYamlModelProcess } = jest.requireActual('../../../../plugins/process-resources/src/yaml-model-bindings')
 const original = compileProcessYaml(
   fs.readFileSync(
     path.resolve(__dirname, '../../../../plugins/process/docs/examples/risk-management.card.yaml'),
