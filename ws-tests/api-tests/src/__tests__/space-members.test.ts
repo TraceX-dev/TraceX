@@ -179,7 +179,25 @@ describe('space-members', () => {
     return seesSpace
   }
 
+  /**
+   * Collaborators of a space follow `members` in an async trigger (ActivityMessagesHandler), and a guest reads
+   * the space messages while being a collaborator. Waits until no collaborator is left outside `members`.
+   */
+  async function waitCollaboratorsSynced (space: Ref<Space>, timeoutMs = 10000): Promise<void> {
+    const deadline = Date.now() + timeoutMs
+    let extra: AccountUuid[] = []
+    while (Date.now() < deadline) {
+      const members = new Set(await storedMembers(space))
+      const collaborators = await owner.rest.findAll(core.class.Collaborator, { attachedTo: space })
+      extra = collaborators.map((it) => it.collaborator).filter((it) => !members.has(it))
+      if (extra.length === 0) return
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+    throw new Error(`Collaborators outside members after ${timeoutMs}ms: ${JSON.stringify(extra)}`)
+  }
+
   async function expectAccess (space: Ref<Space>, access: { member: boolean, guest: boolean }): Promise<void> {
+    await waitCollaboratorsSynced(space)
     expect({ member: await canRead(member, space), guest: await canRead(guest, space) }).toEqual(access)
   }
 
