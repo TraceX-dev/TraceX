@@ -98,6 +98,7 @@ import CardFeedView from './components/CardFeedView.svelte'
 
 export { default as DefinitionYamlEditor } from './components/settings/DefinitionYamlEditor.svelte'
 export { downloadDefinition, newDefinitionYaml } from './authoring-utils'
+export { exportModule, exportModulePackageSource } from './exporter'
 export { default as CardSelector } from './components/CardSelector.svelte'
 export { default as CardIcon } from './components/CardIcon.svelte'
 export { default as Navigator } from './components/navigator-next/Navigator.svelte'

@@ -29,7 +29,16 @@ import core, {
 } from '@hcengineering/core'
 import { getClient } from '@hcengineering/presentation'
 import {
+  getDefinitionPackageInfo,
+  stripDefinitionPackageInfo,
+  type DefinitionPackageOwner
+} from '@hcengineering/marketplace'
+import {
   compileProcessYaml,
+  bindYamlModelProcess,
+  createYamlModelTemplate,
+  isAuthoringSlotBindingCompatible,
+  matchesAuthoringSlotType,
   exportAuthoringModel,
   getAuthoringCatalog,
   parseProcessImport,
@@ -42,12 +51,6 @@ import {
 } from '@hcengineering/process'
 import { deepEqual } from 'fast-equals'
 import processPlugin from './plugin'
-import {
-  bindYamlModelProcess,
-  createYamlModelTemplate,
-  matchesModelSlot,
-  resolveModelSlotReference
-} from './yaml-model-bindings'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -240,7 +243,8 @@ export function exportProcesses (_id: Ref<MasterTag>): ExportResult {
  * Returns normalized docs where all IDs are replaced with placeholders.
  */
 export function exportProcess (proc: Process, withSlots: boolean = true): ExportResult {
-  const docs: Doc[] = [proc]
+  const portable = stripDefinitionPackageInfo(proc)
+  const docs: Doc[] = [portable]
   const required: Array<Ref<Class<Doc>>> = []
   const client = getClient()
   const m = client.getModel()
@@ -285,7 +289,7 @@ export function exportProcess (proc: Process, withSlots: boolean = true): Export
     detectSlots(proc, transitions, requiredSlots, bindings, m, h)
 
     // Attach slots/bindings to the process doc for serialization
-    const clonedProc = { ...proc, requiredSlots, bindings }
+    const clonedProc = { ...portable, requiredSlots, bindings }
     const docIndex = docs.findIndex((d) => d._id === proc._id)
     if (docIndex !== -1) docs[docIndex] = clonedProc
 
@@ -301,7 +305,7 @@ export function exportProcess (proc: Process, withSlots: boolean = true): Export
       }
     }
   } else {
-    const { requiredSlots, bindings, ...restProc } = proc as any
+    const { requiredSlots, bindings, ...restProc } = portable
     const docIndex = docs.findIndex((d) => d._id === proc._id)
     if (docIndex !== -1) docs[docIndex] = restProc
   }
@@ -326,6 +330,47 @@ export function exportProcessSource (proc: Process, format: 'json' | 'yaml', wit
 
 /** Exports a YAML draft with resolved bindings for editing or duplicating a process. */
 export function exportProcessDraft (proc: Process): { source: string, bindings: Record<string, string> } {
+  const template = processYamlTemplate(proc)
+  return {
+    source: exportAuthoringModel(template.docs, 'process', getAuthoringCatalog(getClient().getModel())),
+    bindings: template.bindings
+  }
+}
+
+/** Exports a complete process set, retaining member identities and binding internal process references. */
+export function exportProcessPackageSource (processes: readonly Process[]): string {
+  if (processes.length === 0) throw new Error('Select at least one process')
+  const identities = new Map(
+    processes.map((proc) => [
+      String(proc._id),
+      (proc as DefinitionPackageOwner).definitionPackageInstallation?.member ?? String(proc._id)
+    ])
+  )
+  if (identities.size !== processes.length) throw new Error('A package cannot contain the same process twice')
+  if (new Set(identities.values()).size !== processes.length) throw new Error('Package member identities overlap')
+  const docs = new Map<string, Doc>()
+  for (const proc of processes) {
+    for (const doc of processYamlTemplate(proc, identities).docs) {
+      if (doc._class === processPlugin.class.Process) {
+        const root = doc as Process
+        root.bindings = Object.fromEntries(
+          Object.entries(root.bindings ?? {}).filter(([, value]) => [...identities.values()].includes(value))
+        )
+      }
+      const previous = docs.get(doc._id)
+      if (previous !== undefined && !deepEqual(previous, doc)) {
+        throw new Error(`Conflicting package definition: ${doc._id}`)
+      }
+      docs.set(doc._id, doc)
+    }
+  }
+  return exportAuthoringModel([...docs.values()], 'process', getAuthoringCatalog(getClient().getModel()))
+}
+
+function processYamlTemplate (
+  proc: Process,
+  packageProcesses?: ReadonlyMap<string, string>
+): { docs: Doc[], bindings: Record<string, string> } {
   const { docs, required } = exportProcess(proc, false)
   const client = getClient()
   const model = client.getModel()
@@ -344,11 +389,7 @@ export function exportProcessDraft (proc: Process): { source: string, bindings: 
     }
   }
   const portable = docs.map((doc) => (doc._id === proc._id ? { ...doc, requiredSlots: slots, bindings } : doc))
-  const template = createYamlModelTemplate(portable, model, hierarchy)
-  return {
-    source: exportAuthoringModel(template.docs, 'process', getAuthoringCatalog(model)),
-    bindings: template.bindings
-  }
+  return createYamlModelTemplate(portable, model, hierarchy, packageProcesses)
 }
 
 /** Replaces a process graph from YAML, preserving the process id, owner and ordering. */
@@ -359,6 +400,9 @@ export async function updateProcessYaml (
 ): Promise<void> {
   const compiled = compileProcessYaml(source, getClient().getModel())
   if (compiled.kind !== 'process') throw new Error('kind: Expected a standalone process')
+  if (compiled.docs.filter((doc) => doc._class === processPlugin.class.Process).length !== 1) {
+    throw new Error('Install process bundles through Marketplace')
+  }
   const data = compiled.docs as unknown as Doc[]
   validateYamlBindings(proc.masterTag, data, bindings)
   const client = getClient()
@@ -369,6 +413,10 @@ export async function updateProcessYaml (
   if (definition === undefined) throw new Error('process: Missing process definition')
   definition.rank = proc.rank
   definition.bindings = bindings
+  const packageInfo = getDefinitionPackageInfo(proc)
+  if (packageInfo !== undefined) Reflect.set(definition, 'definitionPackage', packageInfo)
+  const installation = (proc as DefinitionPackageOwner).definitionPackageInstallation
+  if (installation !== undefined) Reflect.set(definition, 'definitionPackageInstallation', installation)
   delete definition.requiredSlots
   if (model.findObject(proc._id) === undefined) throw new Error('process: The process no longer exists')
   const oldDocs: Doc[] = [
@@ -518,32 +566,16 @@ export function isYamlSlotBindingCompatible (
   documents: readonly Doc[] = []
 ): boolean {
   const client = getClient()
-  const hierarchy = client.getHierarchy()
-  const model = client.getModel()
-  if (slot.slotKind !== 'attribute') return matchesModelSlot(masterTag, slot, bound, bindings, model, hierarchy)
-  const owner = (
-    slot.memberOf === undefined ? masterTag : resolveModelSlotReference(slot.memberOf, bindings, definition)
-  ) as Ref<Class<Doc>>
-  if (owner.startsWith('__SLOT_')) return false
-  const attribute = hierarchy.findAttribute(owner, bound)
-  if (attribute === undefined) return false
-  const requirement = slot as AttributeSlotModel
-  const resolveType = (type: Type<unknown>): Type<unknown> => {
-    const result: Type<unknown> & { to?: string, of?: string | Type<unknown> } = { ...type }
-    if (result.to !== undefined) result.to = resolveModelSlotReference(result.to, bindings, definition)
-    if (typeof result.of === 'object') result.of = resolveType(result.of)
-    return result
-  }
-  const expected = resolveType(requirement.type)
-  let enumType = expected
-  while (enumType._class === core.class.ArrOf) enumType = (enumType as ArrOf<Doc>).of
-  const enumeration =
-    enumType._class === core.class.EnumOf
-      ? (documents.find((doc) => doc._id === (enumType as EnumOf).of) ?? model.findObject((enumType as EnumOf).of))
-      : undefined
-  const choices =
-    requirement.enumValues ?? (enumeration as unknown as { enumValues?: string[] } | undefined)?.enumValues
-  return matchesSlotType(expected, attribute.type, choices, model)
+  return isAuthoringSlotBindingCompatible(
+    masterTag,
+    slot,
+    bound,
+    bindings,
+    client.getModel(),
+    client.getHierarchy(),
+    definition,
+    documents
+  )
 }
 
 /** Matches choice values semantically rather than comparing workspace-specific enum ids. */
@@ -553,20 +585,7 @@ export function matchesSlotType (
   choices: string[] | undefined,
   model: ModelDb
 ): boolean {
-  if (expected._class !== actual._class) return false
-  if (expected._class === core.class.ArrOf) {
-    return matchesSlotType((expected as ArrOf<Doc>).of, (actual as ArrOf<Doc>).of, choices, model)
-  }
-  if (expected._class === core.class.RefTo) return (expected as RefTo<Doc>).to === (actual as RefTo<Doc>).to
-  if (expected._class === core.class.EnumOf && choices !== undefined) {
-    const enumeration = model.findObject((actual as EnumOf).of)
-    return (
-      enumeration !== undefined &&
-      enumeration.enumValues.length === choices.length &&
-      choices.every((choice) => enumeration.enumValues.includes(choice))
-    )
-  }
-  return true
+  return matchesAuthoringSlotType(expected, actual, choices, model)
 }
 
 // ─── ID Normalization ────────────────────────────────────────────────────────

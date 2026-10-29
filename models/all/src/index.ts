@@ -116,6 +116,7 @@ import trainings, { trainingId, createModel as trainingModel } from '@hcengineer
 import { achievementId, createModel as achievementModel } from '@hcengineering/model-achievement'
 import { billingId, createModel as billingModel } from '@hcengineering/model-billing'
 import { emojiId, createModel as emojiModel } from '@hcengineering/model-emoji'
+import { marketplaceId, createModel as marketplaceModel } from '@hcengineering/model-marketplace'
 import { presenceId, createModel as presenceModel } from '@hcengineering/model-presence'
 import { pulseId, createModel as pulseModel } from '@hcengineering/model-pulse'
 import processes, { processId, createModel as processModel } from '@hcengineering/model-process'
@@ -176,6 +177,7 @@ export default function buildModel (): Builder {
     [viewModel, viewId],
     [workbenchModel, workbenchId],
     [integrationModel, integrationId],
+    [marketplaceModel, marketplaceId],
     [githubNextModel, githubNextId],
     [
       cardModel,

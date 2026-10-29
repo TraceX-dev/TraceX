@@ -31,7 +31,7 @@ import {
   isYamlSlotBindingCompatible,
   updateProcessYaml
 } from '../exporter'
-import { bindYamlModelProcess } from '../yaml-model-bindings'
+import { bindYamlModelProcess } from '@hcengineering/process'
 
 jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
 // eslint-disable-next-line @typescript-eslint/naming-convention -- Standard CommonJS runtime global.

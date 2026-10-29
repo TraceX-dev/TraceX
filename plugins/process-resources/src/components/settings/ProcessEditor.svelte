@@ -14,9 +14,16 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Ref, SortingOrder } from '@hcengineering/core'
-  import { DefinitionYamlEditor, downloadDefinition } from '@hcengineering/card-resources'
-  import { setPlatformStatus, unknownError } from '@hcengineering/platform'
+  import type { MasterTag } from '@hcengineering/card'
+  import core, { getCurrentAccount, Ref, SortingOrder } from '@hcengineering/core'
+  import { DefinitionYamlEditor, exportModulePackageSource, downloadDefinition } from '@hcengineering/card-resources'
+  import { getDefinitionPackageInfo, type DefinitionPackageOwner } from '@hcengineering/marketplace'
+  import {
+    DefinitionPackageExportPopup,
+    getDefinitionPackageExportItems,
+    getDefinitionPackageOwner
+  } from '@hcengineering/marketplace-resources'
+  import { getEmbeddedLabel, setPlatformStatus, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient, MessageBox, IconDownload } from '@hcengineering/presentation'
   import { Process, State, Transition } from '@hcengineering/process'
   import { clearSettingsStore, settingsStore } from '@hcengineering/setting-resources'
@@ -37,7 +44,7 @@
     showPopup,
     IconLink
   } from '@hcengineering/ui'
-  import { exportProcessDraft, exportProcessSource } from '../../exporter'
+  import { exportProcessDraft, exportProcessPackageSource, exportProcessSource } from '../../exporter'
   import { applyProcessDefinition } from '../../authoring-ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
@@ -59,12 +66,21 @@
   const query = createQuery()
   const statesQuery = createQuery()
   const transitionsQ = createQuery()
+  const packageTypeQuery = createQuery()
 
   const dispatch = createEventDispatcher()
 
   let value: Process | undefined
   let states: State[] = []
   let transitions: Transition[] = []
+  let packageType: MasterTag | undefined
+
+  $: if (value !== undefined) {
+    packageTypeQuery.query(core.class.Class, { _id: value.masterTag }, (res) => {
+      packageType = res[0] as MasterTag | undefined
+    })
+  }
+  $: packageOwner = value === undefined ? undefined : getDefinitionPackageOwner(value, packageType)
 
   $: query.query(process.class.Process, { _id }, (res) => {
     value = res[0]
@@ -174,7 +190,14 @@
     {
       id: EXPORT_YAML,
       label: process.string.ExportYaml
-    }
+    },
+    ...((value !== undefined && getDefinitionPackageInfo(value) !== undefined) ||
+    (value !== undefined && packageType?._id === value.masterTag)
+      ? getDefinitionPackageExportItems(
+          packageOwner === undefined ? undefined : getDefinitionPackageInfo(packageOwner),
+          getCurrentAccount().uuid
+        )
+      : [])
   ]
 
   function onExportSelected (event: CustomEvent<string | number>): void {
@@ -184,6 +207,57 @@
       void handleExport('json', false)
     } else if (event.detail === EXPORT_YAML) {
       void handleExport('yaml')
+    } else if (event.detail === 'make-package' || event.detail === 'new-package-version') {
+      void handlePackageExport(event.detail === 'new-package-version')
+    }
+  }
+
+  async function handlePackageExport (newVersion: boolean): Promise<void> {
+    if (value === undefined) return
+    try {
+      const definition = newVersion ? (packageOwner ?? value) : value
+      if ('masterTag' in definition) {
+        const info = getDefinitionPackageInfo(definition)
+        const candidates = client
+          .getModel()
+          .findAllSync(process.class.Process, {})
+          .filter((candidate) => {
+            if (candidate._id === definition._id) return true
+            const ownPackage = getDefinitionPackageInfo(candidate)
+            if (ownPackage !== undefined)
+              return ownPackage.id === info?.id && JSON.stringify(ownPackage.members) === JSON.stringify(info?.members)
+            const owner = client.getModel().findObject<MasterTag>(candidate.masterTag)
+            return owner === undefined || getDefinitionPackageInfo(owner) === undefined
+          })
+          .map((candidate) => ({ definition: candidate, label: getEmbeddedLabel(candidate.name) }))
+        showPopup(
+          DefinitionPackageExportPopup,
+          {
+            source: '',
+            definition,
+            newVersion,
+            onDownload: downloadDefinition,
+            candidates,
+            getSource: (members: DefinitionPackageOwner[]) => exportProcessPackageSource(members as Process[])
+          },
+          'centered'
+        )
+      } else {
+        showPopup(
+          DefinitionPackageExportPopup,
+          {
+            source: '',
+            definition,
+            newVersion,
+            onDownload: downloadDefinition,
+            getSource: async (members: DefinitionPackageOwner[]) =>
+              await exportModulePackageSource(members.map((member) => member._id as MasterTag['_id']))
+          },
+          'centered'
+        )
+      }
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
     }
   }
 
