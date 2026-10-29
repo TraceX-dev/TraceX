@@ -485,8 +485,6 @@
     border-top: 1px solid var(--theme-navpanel-divider);
   }
 
-  /* Same two columns as toggle rows; editor sits in col 2 and grows left so its right edge matches toggles */
-
   .guestAccessRow-label {
     min-width: 0;
     color: var(--theme-content-color);

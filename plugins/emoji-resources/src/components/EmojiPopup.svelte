@@ -397,7 +397,7 @@
         transition: transform 0.15s ease-in-out;
       }
 
-      &:not(:disabled, .disabled) {
+      &:not(:disabled) {
         &.selected {
           color: var(--theme-caption-color);
 

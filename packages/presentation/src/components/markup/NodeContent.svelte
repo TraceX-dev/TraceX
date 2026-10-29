@@ -349,7 +349,4 @@
       min-height: 2.625rem;
     }
   }
-
-  .img {
-  }
 </style>
