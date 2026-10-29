@@ -21,6 +21,7 @@ import { getEmbeddedLabel } from '@hcengineering/platform'
 import process from '@hcengineering/process'
 import cors from 'cors'
 import express, { type ErrorRequestHandler, type Request, type Response } from 'express'
+import rateLimit from 'express-rate-limit'
 import type { CatalogAccount } from './auth'
 import { CatalogError } from './errors'
 import type { CatalogStore } from './store'
@@ -29,14 +30,29 @@ export interface CatalogServerOptions {
   store: CatalogStore
   authenticate: (token: string) => Promise<CatalogAccount>
   onError: (error: unknown) => void
+  requestLimit?: number
+  publicationLimit?: number
+  trustedProxies?: string[]
 }
 
 /** HTTP boundary for catalog discovery and immutable release publication. */
-export function createCatalogServer ({ store, authenticate, onError }: CatalogServerOptions): express.Express {
+export function createCatalogServer ({
+  store,
+  authenticate,
+  onError,
+  requestLimit = 300,
+  publicationLimit = 20,
+  trustedProxies
+}: CatalogServerOptions): express.Express {
   const app = express()
   app.disable('x-powered-by')
+  app.set('trust proxy', trustedProxies ?? false)
   app.use(
-    cors({ methods: ['GET', 'POST'], allowedHeaders: ['Authorization', 'Content-Type', 'X-Marketplace-Contact-Email'] })
+    cors({
+      methods: ['GET', 'POST'],
+      allowedHeaders: ['Authorization', 'Content-Type', 'X-Marketplace-Contact-Email'],
+      exposedHeaders: ['Retry-After', 'RateLimit', 'RateLimit-Policy']
+    })
   )
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' })
@@ -44,6 +60,20 @@ export function createCatalogServer ({ store, authenticate, onError }: CatalogSe
   app.use((_req, res, next) => {
     res.set('Cache-Control', 'no-store')
     next()
+  })
+  const requestLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: requestLimit,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { message: 'Too many Marketplace requests; please try again later' }
+  })
+  const publicationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: publicationLimit,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { message: 'Too many package publications; please try again later' }
   })
 
   function route (
@@ -65,6 +95,7 @@ export function createCatalogServer ({ store, authenticate, onError }: CatalogSe
 
   app.get(
     '/packages',
+    requestLimiter,
     route(async (req, res, account) => {
       res.json(
         await store.list({
@@ -78,12 +109,14 @@ export function createCatalogServer ({ store, authenticate, onError }: CatalogSe
   )
   app.get(
     '/releases',
+    requestLimiter,
     route(async (req, res) => {
       res.json(await store.releases(identity(req), integer(req.query.offset, 0, 1000000)))
     })
   )
   app.get(
     '/release',
+    requestLimiter,
     route(async (req, res) => {
       const source = await store.download(
         identity(req),
@@ -96,6 +129,8 @@ export function createCatalogServer ({ store, authenticate, onError }: CatalogSe
   // Authenticate before reading/compiling the bounded YAML body.
   app.post(
     '/releases',
+    requestLimiter,
+    publicationLimiter,
     route(async (req, res, account) => {
       await new Promise<void>((resolve, reject) => {
         express.text({ type: ['application/yaml', 'text/yaml'], limit: '3mb' })(req, res, (error?: unknown) => {
@@ -105,8 +140,9 @@ export function createCatalogServer ({ store, authenticate, onError }: CatalogSe
       })
       if (typeof req.body !== 'string') throw new CatalogError(415, 'Send a package as application/yaml')
       const release = await parseDefinitionPackageRelease(req.body)
-      if (release.package.author !== account.uuid)
-        {throw new CatalogError(403, 'Only the package author can publish releases')}
+      if (release.package.author !== account.uuid) {
+        throw new CatalogError(403, 'Only the package author can publish releases')
+      }
       if (
         release.package.id.length > 200 ||
         release.package.version.length > 100 ||
@@ -178,8 +214,9 @@ export function createCatalogServer ({ store, authenticate, onError }: CatalogSe
 
 function text (value: unknown, field: string, optional = false): string {
   if (optional && (value === undefined || value === '')) return ''
-  if (typeof value !== 'string' || value.trim() === '' || value.length > 500)
-    {throw new CatalogError(400, `Invalid ${field}`)}
+  if (typeof value !== 'string' || value.trim() === '' || value.length > 500) {
+    throw new CatalogError(400, `Invalid ${field}`)
+  }
   return value
 }
 

@@ -30985,6 +30985,9 @@ importers:
       express:
         specifier: ^4.21.2
         version: 4.22.3
+      express-rate-limit:
+        specifier: ^7.4.0
+        version: 7.5.1(express@4.22.3)
       postgres:
         specifier: ^3.4.9
         version: 3.4.9

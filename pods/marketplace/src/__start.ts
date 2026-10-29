@@ -31,6 +31,9 @@ async function start (): Promise<void> {
   const app = createCatalogServer({
     store,
     authenticate: createAuthenticator(accountsUrl, secret),
+    trustedProxies: process.env.TRUST_PROXY?.split(',')
+      .map((proxy) => proxy.trim())
+      .filter((proxy) => proxy !== ''),
     onError: (error) => {
       console.error('Marketplace request failed', error)
     }

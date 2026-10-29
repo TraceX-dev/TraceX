@@ -135,8 +135,9 @@ export class PostgresCatalogStore implements CatalogStore {
         SELECT id, author, version, content_hash AS "contentHash", published_on AS "publishedOn"
         FROM marketplace.releases WHERE id = ${id} AND author = ${author} AND version = ${version}`
       if (existing !== undefined) {
-        if (existing.contentHash !== contentHash)
-          {throw new CatalogError(409, 'This version already contains different content')}
+        if (existing.contentHash !== contentHash) {
+          throw new CatalogError(409, 'This version already contains different content')
+        }
         return existing
       }
       if (current.kind !== kind) throw new CatalogError(409, 'Package kind cannot change')
