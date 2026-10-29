@@ -118,8 +118,9 @@ export class AttachmentInput {
         action.requireAttachments === undefined ||
         (action.user !== undefined && action.user !== getCurrentEmployee()) ||
         tracked.scope.requests.has(action._id)
-      )
-        {continue}
+      ) {
+        continue
+      }
       tracked.scope.requests.add(action._id)
       this.pending.push({ scope: tracked.scope, action })
     }
@@ -210,8 +211,9 @@ export class AttachmentInput {
       execution.error != null ||
       action.requireAttachments === undefined ||
       (action.user !== undefined && action.user !== getCurrentEmployee())
-    )
-      {return}
+    ) {
+      return
+    }
     await new Promise<void>((resolve) => {
       const popup = showPopup(RequestAttachments, { action, card: target }, undefined, () => {
         this.closePopup = undefined
