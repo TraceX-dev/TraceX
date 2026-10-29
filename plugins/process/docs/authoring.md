@@ -226,6 +226,36 @@ expr:
 
 Use a literal source for constants: `expr: {from: {literal: 5}, pipe: [{Multiply: {value: 2}}]}`. Ordinary strings are never templates. `{literal: {expr: ...}}` preserves a native object whose keys resemble expression syntax; exporters add escapes automatically. Function property expressions are resolved by that function's existing contract, not automatically by every function. Quotes, newlines and values that the text grammar cannot preserve use the engine's supported JSON context encoding internally. Canonical native expressions export as YAML pipelines; legacy/noncanonical expressions stay unchanged for exact round trips.
 
+#### Finding references in the current card space
+
+The `FindObjects` context function searches the referenced document type using a native `DocumentQuery` and optional `SortingQuery`. In the visual context selector, **Find objects** is available for `Ref` and `Arr<Ref>` fields. Clicking it opens a separate popup that stays open when the pointer leaves it. The target type comes from the field; filters reuse the process criteria editor, and sorting can contain several fields in priority order. The saved context configuration can be reopened to edit the filters and ordering.
+
+Function properties:
+
+- `_class`: required target class or mixin id, including a bound type slot.
+- `query`: optional native filter, default `{}`. Values may read card fields or process context, including inside operators and arrays. The criteria editor's wildcard-wrapped `$like` context values are resolved too. Field keys resolve process bindings and mixin ownership. Storage-supported operators are accepted; top-level `$or` is unsupported.
+- `$sort`: optional native sorting map. Its key order defines priority; `1` means ascending and `-1` descending. Field keys resolve bindings and mixin ownership.
+
+The server always restricts the query to the execution card's current `space`, loaded from the card rather than the execution document. A supplied `query.space` cannot change this scope. The query uses the target class/mixin and its normal storage inheritance behavior.
+
+The function returns an ordered array of document ids. An `Arr<Ref>` field receives that array, including `[]` when nothing matches. A `Ref` field uses the existing `FirstValue` source reduction to take the first id; no matches raise the normal empty-function-result error unless a literal fallback is configured. Without `$sort`, storage order is used.
+
+For a YAML expression, call the registered function and add `reduce: FirstValue` only when one reference is required:
+
+```yaml
+expr:
+  call:
+    FindObjects:
+      _class: card:class:Card
+      query:
+        title: $card.title
+      $sort:
+        modifiedOn: -1
+        createdOn: -1
+  reduce: FirstValue
+  fallback: null
+```
+
 #### Validation boundaries
 
 The compiler checks YAML structure, graph ownership/destinations, named references, result types, duplicate outputs, function roles and model-declared required parameters. Missing required values report their authored path; `false` and `0` are valid values. Model defaults remain suggestions and are never inserted implicitly. Semantic diagnostics include the nearest authored block's line/column. The UI also checks operation availability and destination slot bindings before writing.

@@ -479,6 +479,7 @@ export default plugin(processId, {
     Filter: '' as Ref<ProcessFunction>,
     ArrayLength: '' as Ref<ProcessFunction>,
     RelationCount: '' as Ref<ProcessFunction>,
+    FindObjects: '' as Ref<ProcessFunction>,
     FirstValue: '' as Ref<ProcessFunction>,
     LastValue: '' as Ref<ProcessFunction>,
     Random: '' as Ref<ProcessFunction>,
