@@ -34,7 +34,6 @@
   export let titleDeselect: IntlString | undefined = undefined
   export let placeholder: IntlString = presentation.string.Search
   export let placeholderParam: any | undefined = undefined
-  export let selected: Ref<Space> | undefined
   export let selectedSpaces: Ref<Space>[] = []
   export let iconWithEmoji: AnySvelteComponent | Asset | ComponentType | undefined = undefined
   export let defaultIcon: AnySvelteComponent | Asset | ComponentType | undefined = undefined

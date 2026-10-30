@@ -81,7 +81,6 @@
   let gridStyle = ''
   let columns: number = 0
   let rows: number = 0
-  const guestRoomPlaceholder: any = undefined
 
   function updateStyle (count: number, screenSharing: boolean): void {
     columns = screenSharing ? 1 : Math.min(Math.ceil(Math.sqrt(count)), 8)
@@ -442,7 +441,6 @@
             </div>
             <div class="videoGrid" style={withScreenSharing ? '' : gridStyle} class:scroll-m-0={withScreenSharing}>
               <GuestParticipantsListView
-                room={guestRoomPlaceholder}
                 on:participantsCount={(evt) => {
                   updateStyle(evt.detail, withScreenSharing)
                 }}
@@ -476,7 +474,6 @@
             meetingId={guestInfo.meetingId}
             {guestToken}
             workspaceId={guestInfo.workspace ?? undefined}
-            workspaceName={guestInfo.workspaceUrl ?? undefined}
           />
         </div>
       {/if}

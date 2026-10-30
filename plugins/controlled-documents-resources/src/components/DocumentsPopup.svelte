@@ -15,9 +15,9 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
   import type { Class, Doc, DocumentQuery, FindOptions, Ref } from '@hcengineering/core'
-  import type { Asset, IntlString } from '@hcengineering/platform'
+  import type { IntlString } from '@hcengineering/platform'
   import presentation, { getClient, ObjectCreate, ObjectPopup } from '@hcengineering/presentation'
-  import { AnySvelteComponent, Label } from '@hcengineering/ui'
+  import { Label } from '@hcengineering/ui'
   import { ObjectPresenter } from '@hcengineering/view-resources'
   import documents, { type Document } from '@hcengineering/controlled-documents'
 
@@ -32,7 +32,6 @@
   export let selectedDocuments: Ref<Document>[] = []
   export let ignoreDocuments: Ref<Document>[] = []
   export let shadows: boolean = true
-  export let icon: Asset | AnySvelteComponent | undefined = undefined
   export let create: ObjectCreate | undefined = undefined
   export let readonly = false
 

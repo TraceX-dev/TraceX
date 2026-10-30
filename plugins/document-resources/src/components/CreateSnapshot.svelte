@@ -20,8 +20,6 @@
   import { EditBox } from '@hcengineering/ui'
   import document from '../plugin'
 
-  export let doc: Document
-
   const client = getClient()
 
   let name = ''
