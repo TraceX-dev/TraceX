@@ -31,6 +31,7 @@ export default mergeIds(contactId, contact, {
     HideInactive: '' as IntlString,
     SpaceAccessGroup: '' as IntlString,
     SpaceMembershipGroup: '' as IntlString,
+    MembersThroughGroups: '' as IntlString,
     AnonymousGuestAccess: '' as IntlString,
     AnonymousGuestAccessDescr: '' as IntlString,
     AnonymousGuestAccessWorkspaceOffNote: '' as IntlString,

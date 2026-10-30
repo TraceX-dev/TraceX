@@ -128,6 +128,8 @@
     "Archived": "Arşivlendi",
     "MoreActions": "Daha fazla işlem",
     "Leave": "Ayrıl",
+    "LeaveSpaceGroupsRemain": "{groups} grupları üzerinden {space} üyesi olmaya devam edeceksiniz. Yine de ayrılmak istiyor musunuz?",
+    "LeaveSpaceGroupsOnly": "{groups} grupları üzerinden {space} üyesisiniz. Grupları değiştirmesi için çalışma alanı yöneticisine başvurun.",
     "Join": "Katıl",
     "Copied": "Kopyalandı",
     "Title": "Başlık",

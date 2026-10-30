@@ -122,7 +122,7 @@ export async function exportModulePackageSource (ids: Array<Ref<Class<Doc>>>): P
     [...native.map((doc) => doc._id), ...getAuthoringProcessIdentities(native)].map((id) => [id, id])
   )
   for (const [original, local] of Object.entries(installation.identities)) mapping.set(local, original)
-  const documents = cloneAuthoringModule(native as unknown as Doc[], model, client.getHierarchy(), mapping)
+  const documents = cloneAuthoringModule(native, model, client.getHierarchy(), mapping)
   return exportAuthoringModel(documents, 'card', getAuthoringCatalog(model))
 }
 

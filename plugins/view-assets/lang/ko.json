@@ -128,6 +128,8 @@
         "Archived": "보관됨",
         "MoreActions": "추가 작업",
         "Leave": "나가기",
+        "LeaveSpaceGroupsRemain": "그룹({groups})을 통해 {space}의 멤버로 남습니다. 그래도 나가시겠습니까?",
+        "LeaveSpaceGroupsOnly": "그룹({groups})을 통해 {space}의 멤버입니다. 워크스페이스 관리자에게 그룹 변경을 요청하세요.",
         "Join": "참여",
         "Copied": "복사됨",
         "Title": "제목",

@@ -133,6 +133,8 @@
     "Archived": "Zarchiwizowane",
     "MoreActions": "Więcej akcji",
     "Leave": "Opuść",
+    "LeaveSpaceGroupsRemain": "Pozostaniesz członkiem {space} przez grupy: {groups}. Mimo to opuścić?",
+    "LeaveSpaceGroupsOnly": "Jesteś członkiem {space} przez grupy: {groups}. Poproś administratora obszaru roboczego o zmianę grup.",
     "Join": "Dołącz",
     "Copied": "Skopiowano",
     "Title": "Tytuł",

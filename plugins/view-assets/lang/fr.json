@@ -128,6 +128,8 @@
     "Archived": "Archivé",
     "MoreActions": "Plus d'actions",
     "Leave": "Quitter",
+    "LeaveSpaceGroupsRemain": "Vous resterez membre de {space} via les groupes : {groups}. Quitter quand même ?",
+    "LeaveSpaceGroupsOnly": "Vous êtes membre de {space} via les groupes : {groups}. Demandez à un administrateur de l'espace de travail de modifier les groupes.",
     "Join": "Rejoindre",
     "Copied": "Copié",
     "Title": "Titre",

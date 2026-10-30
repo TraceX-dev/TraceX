@@ -60,6 +60,7 @@ import { makeRank } from '@hcengineering/rank'
 import { getAccountBySocialId, getCurrentPerson } from '@hcengineering/server-contact'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import { workbenchId } from '@hcengineering/workbench'
+import { OnSpaceMembershipChange, OnUserGroupChange } from './spaceMembers'
 
 import {
   CreateOrganization,
@@ -95,10 +96,11 @@ export async function OnSpaceTypeMembers (txes: Tx[], control: TriggerControl): 
     if (newMember !== undefined) {
       const spaces = await control.findAll(control.ctx, core.class.Space, { type: ctx.objectId })
       for (const space of spaces) {
-        if (space.members.includes(newMember)) continue
+        // Default members of the type are direct members: a group membership does not count.
+        if ((space.directMembers ?? space.members).includes(newMember)) continue
         const pushTx = control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, {
           $push: {
-            members: newMember
+            directMembers: newMember
           }
         })
         result.push(pushTx)
@@ -108,10 +110,10 @@ export async function OnSpaceTypeMembers (txes: Tx[], control: TriggerControl): 
     if (ctx.operations.$pull?.members !== undefined) {
       const spaces = await control.findAll(control.ctx, core.class.Space, { type: ctx.objectId })
       for (const space of spaces) {
-        if (!space.members.includes(oldMember)) continue
+        if (!(space.directMembers ?? space.members).includes(oldMember)) continue
         const pullTx = control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, {
           $pull: {
-            members: oldMember
+            directMembers: oldMember
           }
         })
         result.push(pullTx)
@@ -155,6 +157,15 @@ async function getGrantSpaces (control: TriggerControl, grant?: PermissionsGrant
   return allowedGrantedSpaces
 }
 
+/**
+ * Auto-join and grants make the account a direct member: a membership through a group does not count, it would
+ * be lost with the group. Derived txes bypass SpaceMembershipMiddleware, so they write `directMembers` and
+ * `members` is recomputed from it (OnSpaceMembershipChange).
+ */
+function isDirectMember (space: Space, account: AccountUuid): boolean {
+  return (space.directMembers ?? space.members).includes(account)
+}
+
 export async function OnEmployeeCreate (_txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const result: Tx[] = []
 
@@ -183,12 +194,12 @@ export async function OnEmployeeCreate (_txes: Tx[], control: TriggerControl): P
       const grantSpaces = await getGrantSpaces(control, control.ctx.contextData.grant)
 
       for (const space of grantSpaces) {
-        if (space._class === contact.class.PersonSpace || space.members.includes(account)) continue
+        if (space._class === contact.class.PersonSpace || isDirectMember(space, account)) continue
 
         systemTxes.push(
           systemTxFactory.createTxUpdateDoc(space._class, space.space, space._id, {
             $push: {
-              members: account
+              directMembers: account
             }
           })
         )
@@ -198,13 +209,13 @@ export async function OnEmployeeCreate (_txes: Tx[], control: TriggerControl): P
         autoJoinForRoles: AccountRole.Guest
       })
       for (const space of guestAutoJoinSpaces) {
-        if (space._class === contact.class.PersonSpace || space.members.includes(account)) continue
+        if (space._class === contact.class.PersonSpace || isDirectMember(space, account)) continue
         if (control.hierarchy.isDerived(space._class, chunter.class.DirectMessage)) continue
 
         systemTxes.push(
           systemTxFactory.createTxUpdateDoc(space._class, space.space, space._id, {
             $push: {
-              members: account
+              directMembers: account
             }
           })
         )
@@ -217,12 +228,12 @@ export async function OnEmployeeCreate (_txes: Tx[], control: TriggerControl): P
     const grantSpaces = await getGrantSpaces(control, control.ctx.contextData.grant)
 
     for (const space of [...spaces, ...grantSpaces]) {
-      if (space.members.includes(account)) continue
+      if (isDirectMember(space, account)) continue
 
       systemTxes.push(
         systemTxFactory.createTxUpdateDoc(space._class, space.space, space._id, {
           $push: {
-            members: account
+            directMembers: account
           }
         })
       )
@@ -317,7 +328,8 @@ async function createPersonSpace (
       private: true,
       archived: false,
       person,
-      members: [account]
+      members: [account],
+      directMembers: [account]
     })
   ]
 }
@@ -507,6 +519,8 @@ export async function getContactFirstName (
   }
 }
 
+export * from './spaceMembers'
+
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export default async () => ({
   trigger: {
@@ -515,7 +529,9 @@ export default async () => ({
     OnPersonCreate,
     OnContactDelete,
     OnChannelUpdate,
-    OnSpaceTypeMembers
+    OnSpaceTypeMembers,
+    OnSpaceMembershipChange,
+    OnUserGroupChange
   },
   function: {
     PersonHTMLPresenter: personHTMLPresenter,

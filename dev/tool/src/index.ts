@@ -120,6 +120,7 @@ import { mkdir, writeFile } from 'fs/promises'
 import { dirname } from 'path'
 import { restoreMarkupRefs } from './markup'
 import { disableMeetingRoomDefaults } from './meeting-rooms'
+import { recomputeSpaceMembers } from './space-members'
 
 const colorConstants = {
   colorRed: '\u001b[31m',
@@ -1351,6 +1352,37 @@ export function devTool (
             dryRun
               ? `disable-meeting-room-defaults dry-run: rooms that would be updated=${result.wouldUpdate}`
               : `disable-meeting-room-defaults: rooms updated=${result.updated}`
+          )
+        } finally {
+          await connection.close()
+        }
+      })
+    })
+
+  program
+    .command('recompute-space-members <workspace>')
+    .description(
+      'Check that Space.members equals directMembers plus members of bound user groups; ' +
+        'with --apply stray members become direct members and members are recomputed'
+    )
+    .option('--apply', 'Fix the drift; without this option the command only reports it', false)
+    .action(async (workspace: string, cmd: { apply: boolean }) => {
+      const dryRun = !cmd.apply
+      await withAccountDatabase(async (db) => {
+        const info = await getWorkspace(db, workspace)
+        if (info === null) {
+          throw new Error(`Workspace ${workspace} not found`)
+        }
+
+        const endpoint = await getWorkspaceTransactorEndpoint(info.uuid)
+        const connection = await connect(endpoint, info.uuid, undefined, { model: 'upgrade' })
+        const ops = new TxOperations(connection, core.account.System)
+        try {
+          const result = await recomputeSpaceMembers(ops, dryRun)
+          console.log(
+            dryRun
+              ? `recompute-space-members dry-run: spaces with drift=${result.drift.length}`
+              : `recompute-space-members: spaces fixed=${result.fixed}`
           )
         } finally {
           await connection.close()

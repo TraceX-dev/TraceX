@@ -67,6 +67,7 @@ import type {
   Type,
   TypeAny,
   TypedSpace,
+  UserGroup,
   UserStatus,
   Version
 } from './classes'
@@ -186,6 +187,7 @@ export default plugin(coreId, {
     CustomSequence: '' as Ref<Class<CustomSequence>>,
     ClassCollaborators: '' as Ref<Class<ClassCollaborators<Doc>>>,
     Collaborator: '' as Ref<Class<Collaborator>>,
+    UserGroup: '' as Ref<Class<UserGroup>>,
     ModulePermissionGroup: '' as Ref<Class<ModulePermissionGroup>>
   },
   icon: {
@@ -309,6 +311,9 @@ export default plugin(coreId, {
     AutoJoinDescr: '' as IntlString,
     AutoJoinGuests: '' as IntlString,
     AutoJoinGuestsDescr: '' as IntlString,
+    UserGroup: '' as IntlString,
+    UserGroups: '' as IntlString,
+    DirectMembers: '' as IntlString,
     RBAC: '' as IntlString,
     RBACDescr: '' as IntlString,
     Version: '' as IntlString

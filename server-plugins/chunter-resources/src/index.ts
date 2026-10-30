@@ -300,9 +300,10 @@ function joinChannel (control: TriggerControl, channel: Channel, user: AccountUu
     return []
   }
 
+  // Derived txes bypass SpaceMembershipMiddleware: write the source field, members is recomputed from it.
   return [
     control.txFactory.createTxUpdateDoc(channel._class, channel.space, channel._id, {
-      $push: { members: user }
+      $push: { directMembers: user }
     })
   ]
 }

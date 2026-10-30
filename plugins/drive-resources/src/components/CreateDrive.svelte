@@ -175,6 +175,7 @@
   on:changeContent
 >
   <SpaceSettingsForm
+    space={drive}
     bind:owners
     bind:members
     bind:isPrivate

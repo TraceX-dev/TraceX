@@ -158,6 +158,7 @@
     "AnonymousGuestAccessWorkspaceOffNote": "Bu çalışma alanında anonim misafir erişimi kapalı",
     "AnonymousGuestAccessOwnerOnlyNote": "Bu ayarı yalnızca sahipler değiştirebilir",
     "PublicBadge": "Herkese açık",
-    "SpaceMembershipGroup": "Üyelik"
+    "SpaceMembershipGroup": "Üyelik",
+    "MembersThroughGroups": "Gruplar üzerinden üyeler"
   }
 }

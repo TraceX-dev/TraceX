@@ -206,6 +206,7 @@
   on:changeContent
 >
   <SpaceSettingsForm
+    space={docSpace}
     bind:owners
     bind:members
     bind:isPrivate

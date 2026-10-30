@@ -270,6 +270,7 @@
   on:changeContent
 >
   <SpaceSettingsForm
+    space={teamspace}
     bind:owners
     bind:members
     bind:isPrivate

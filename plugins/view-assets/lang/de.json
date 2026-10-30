@@ -133,6 +133,8 @@
     "Archived": "Archiviert",
     "MoreActions": "Weitere Aktionen",
     "Leave": "Verlassen",
+    "LeaveSpaceGroupsRemain": "Sie bleiben über Gruppen Mitglied von {space}: {groups}. Trotzdem verlassen?",
+    "LeaveSpaceGroupsOnly": "Sie sind über Gruppen Mitglied von {space}: {groups}. Bitten Sie einen Workspace-Administrator, die Gruppen zu ändern.",
     "Join": "Beitreten",
     "Copied": "Kopiert",
     "Title": "Titel",

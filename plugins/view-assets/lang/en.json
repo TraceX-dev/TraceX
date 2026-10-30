@@ -133,6 +133,8 @@
     "Archived": "Archived",
     "MoreActions": "More actions",
     "Leave": "Leave",
+    "LeaveSpaceGroupsRemain": "You will stay a member of {space} through groups: {groups}. Leave anyway?",
+    "LeaveSpaceGroupsOnly": "You are a member of {space} through groups: {groups}. Ask a workspace administrator to change the groups.",
     "Join": "Join",
     "Copied": "Copied",
     "Title": "Title",

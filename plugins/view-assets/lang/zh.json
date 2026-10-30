@@ -133,6 +133,8 @@
     "Archived": "已归档",
     "MoreActions": "更多操作",
     "Leave": "离开",
+    "LeaveSpaceGroupsRemain": "你仍会通过用户组（{groups}）保留 {space} 的成员身份。仍要退出吗？",
+    "LeaveSpaceGroupsOnly": "你是通过用户组（{groups}）成为 {space} 的成员。请联系工作区管理员修改用户组。",
     "Join": "加入",
     "Copied": "已复制",
     "Title": "标题",

@@ -349,6 +349,7 @@
   on:changeContent
 >
   <SpaceSettingsForm
+    space={project}
     bind:owners
     bind:members
     bind:isPrivate

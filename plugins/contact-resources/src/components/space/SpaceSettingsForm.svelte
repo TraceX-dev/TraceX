@@ -26,11 +26,14 @@
     type AccountUuid,
     type Ref,
     type Role,
-    type RolesAssignment
+    type Class,
+    type RolesAssignment,
+    type Space,
+    type UserGroup
   } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
-  import presentation from '@hcengineering/presentation'
-  import { FormGroup, FormRow, StateTag, StateType, Toggle } from '@hcengineering/ui'
+  import presentation, { createQuery, getClient } from '@hcengineering/presentation'
+  import { DropdownLabels, FormGroup, FormRow, StateTag, StateType, Toggle } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
 
@@ -54,6 +57,11 @@
   export let restricted: boolean | undefined = undefined
   export let roles: Array<Pick<Role, '_id' | 'name'>> = []
   export let rolesAssignment: RolesAssignment | undefined = undefined
+  /**
+   * The edited space, undefined on create. Enables user groups: members given by groups are shown apart and kept,
+   * the members editor changes direct members only, and maintainers bind groups (saved at once).
+   */
+  export let space: Space | undefined = undefined
 
   export let readonly: boolean = false
   /** Overrides the default rule: a public space without members cannot be made private. */
@@ -95,7 +103,41 @@
 
   $: anonymousRefs = getAnonymousRefs($employeeRefByAccountUuidStore)
   $: ownersExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
-  $: visibleMembers = members.filter((m) => m !== readOnlyGuestAccountUuid)
+  // Same rule as the server (SpaceMembershipMiddleware): typed spaces and channels.
+  const CHANNEL = 'chunter:class:Channel' as Ref<Class<Space>>
+  const client = getClient()
+  const hierarchy = client.getHierarchy()
+  $: canManageGroups = hasAccountRole(currentAccount, AccountRole.Maintainer)
+  $: supportsGroups =
+    space !== undefined &&
+    (hierarchy.isDerived(space._class, core.class.TypedSpace) || hierarchy.isDerived(space._class, CHANNEL))
+
+  // Guests can not read groups: the query is empty for them and members stay a plain list.
+  let allGroups: UserGroup[] = []
+  const groupsQuery = createQuery()
+  $: if (supportsGroups) {
+    groupsQuery.query(core.class.UserGroup, {}, (result) => {
+      allGroups = [...result].sort((left, right) => left.name.localeCompare(right.name))
+    })
+  } else {
+    groupsQuery.unsubscribe()
+    allGroups = []
+  }
+  $: boundGroups = allGroups.filter((group) => space?.groups?.includes(group._id) === true)
+  $: groupItems = allGroups.map((group) => ({ id: group._id, label: group.name }))
+  $: storedDirect = space?.directMembers ?? space?.members ?? []
+  $: byGroups = new Set(boundGroups.flatMap((group) => group.members))
+  // Members only through groups: not editable here, they follow the groups.
+  $: groupOnlyMembers = members.filter((m) => byGroups.has(m) && !storedDirect.includes(m))
+
+  async function setGroups (groups: Array<Ref<UserGroup>>): Promise<void> {
+    if (space === undefined) return
+    await client.update(space, { groups }).catch((err) => {
+      Analytics.handleError(err as Error)
+    })
+  }
+
+  $: visibleMembers = members.filter((m) => m !== readOnlyGuestAccountUuid && !groupOnlyMembers.includes(m))
   $: membersPersons = visibleMembers.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
 
   $: isPrivateDisabled = readonly || (privateDisabled ?? (!isPrivate && members.length === 0))
@@ -137,7 +179,8 @@
   }
 
   function handleMembersChanged (newVisibleMembers: AccountUuid[]): void {
-    setMembers(anonymousAccess ? [...newVisibleMembers, readOnlyGuestAccountUuid] : newVisibleMembers)
+    const kept = [...newVisibleMembers, ...groupOnlyMembers.filter((m) => !newVisibleMembers.includes(m))]
+    setMembers(anonymousAccess ? [...kept, readOnlyGuestAccountUuid] : kept)
   }
 
   function setAnonymousAccess (enabled: boolean): void {
@@ -182,6 +225,36 @@
       size={'large'}
     />
   </FormRow>
+
+  {#if supportsGroups && (canManageGroups || boundGroups.length > 0)}
+    <FormRow label={core.string.UserGroups}>
+      <DropdownLabels
+        items={groupItems}
+        multiselect
+        selected={space?.groups ?? []}
+        label={core.string.UserGroups}
+        kind={'regular'}
+        size={'large'}
+        disabled={readonly || !canManageGroups}
+        dataId={'space-settings-groups'}
+        on:selected={(event) => setGroups(event.detail ?? [])}
+      />
+    </FormRow>
+  {/if}
+
+  {#if groupOnlyMembers.length > 0}
+    <FormRow label={contact.string.MembersThroughGroups}>
+      <AccountArrayEditor
+        value={groupOnlyMembers}
+        label={contact.string.MembersThroughGroups}
+        allowGuests
+        onChange={undefined}
+        readonly
+        kind={'regular'}
+        size={'large'}
+      />
+    </FormRow>
+  {/if}
 </FormGroup>
 
 <FormGroup label={contact.string.SpaceAccessGroup} dataId={'space-settings-access'}>

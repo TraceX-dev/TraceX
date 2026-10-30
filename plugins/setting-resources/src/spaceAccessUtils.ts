@@ -15,7 +15,7 @@
 
 import type { Space } from '@hcengineering/core'
 
-export type SpaceOperation = 'members' | 'autojoin' | 'guest-autojoin'
+export type SpaceOperation = 'members' | 'groups' | 'autojoin' | 'guest-autojoin'
 
 export function getSpaceOperationKey (space: Space, operation: SpaceOperation): string {
   return `${space._id}:${operation}`

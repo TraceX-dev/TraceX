@@ -119,6 +119,23 @@ export function createModel (builder: Builder): void {
     }
   })
 
+  // Space.members = unique(directMembers ∪ members of groups). Synchronous: access changes in the same operation.
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverContact.trigger.OnSpaceMembershipChange,
+    txMatch: {
+      objectClass: core.class.Space,
+      _class: { $in: [core.class.TxCreateDoc, core.class.TxUpdateDoc] }
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverContact.trigger.OnUserGroupChange,
+    txMatch: {
+      objectClass: core.class.UserGroup,
+      _class: { $in: [core.class.TxUpdateDoc, core.class.TxRemoveDoc] }
+    }
+  })
+
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverContact.trigger.OnSpaceTypeMembers,
     txMatch: {

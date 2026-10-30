@@ -53,6 +53,7 @@ import { deleteObjects, getObjectId, getObjectLinkFragment, restrictionStore } f
 import workbenchPlugin from '@hcengineering/workbench'
 import converter from '@hcengineering/converter'
 import { viewletContextStore } from './viewletContextStore'
+import { confirmLeaveSpace } from './spaceLeave'
 
 /**
  * Action to be used for copying text to clipboard.
@@ -219,7 +220,7 @@ async function Leave (object: Space | Space[]): Promise<void> {
   const objs = Array.isArray(object) ? object : [object]
   const myAccount = getCurrentAccount().uuid
   for (const obj of objs) {
-    if (obj.members.includes(myAccount)) {
+    if (obj.members.includes(myAccount) && (await confirmLeaveSpace(obj))) {
       promises.push(client.update(obj, { $pull: { members: myAccount } }))
     }
   }

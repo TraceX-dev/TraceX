@@ -1082,7 +1082,9 @@ async function pushCollaboratorsToPublicSpace (
 
   return collaborators
     .filter((it) => !space.members.includes(it))
-    .map((it) => control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { $push: { members: it } }))
+    .map((it) =>
+      control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { $push: { directMembers: it } })
+    )
 }
 
 async function createCollaboratorDoc (

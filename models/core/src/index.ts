@@ -92,7 +92,8 @@ import {
   TSpaceType,
   TSpaceTypeDescriptor,
   TSystemSpace,
-  TTypedSpace
+  TTypedSpace,
+  TUserGroup
 } from './security'
 import { defineSpaceType } from './spaceType'
 import { TDomainStatusPlaceholder, TStatus, TStatusCategory } from './status'
@@ -137,6 +138,7 @@ export function createModel (builder: Builder): void {
     TSpace,
     TSystemSpace,
     TTypedSpace,
+    TUserGroup,
     TSpaceType,
     TSpaceTypeDescriptor,
     TRole,

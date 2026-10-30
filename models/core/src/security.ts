@@ -17,6 +17,7 @@
 import {
   DOMAIN_MODEL,
   DOMAIN_SPACE,
+  DOMAIN_USER_GROUP,
   IndexKind,
   type ModulePermissionGroup,
   type AccountRole,
@@ -37,7 +38,8 @@ import {
   type SpaceTypeDescriptor,
   type Tx,
   type TxAccessLevel,
-  type TypedSpace
+  type TypedSpace,
+  type UserGroup
 } from '@hcengineering/core'
 import {
   ArrOf,
@@ -89,6 +91,31 @@ export class TSpace extends TDoc implements Space {
 
   @Prop(ArrOf(TypeString()), core.string.AutoJoinGuests)
     autoJoinForRoles?: AccountRole[]
+
+  // Sources of `members`, kept in sync by the server; edited through the members UI, not as plain attributes.
+  @Prop(ArrOf(TypeAccountUuid()), core.string.DirectMembers)
+  @Hidden()
+    directMembers?: AccountUuid[]
+
+  @Prop(ArrOf(TypeRef(core.class.UserGroup)), core.string.UserGroups)
+  @Index(IndexKind.Indexed)
+  @Hidden()
+    groups?: Ref<UserGroup>[]
+}
+
+@Model(core.class.UserGroup, core.class.Doc, DOMAIN_USER_GROUP)
+@UX(core.string.UserGroup, undefined, undefined, 'name')
+export class TUserGroup extends TDoc implements UserGroup {
+  @Prop(TypeString(), core.string.Name)
+  @Index(IndexKind.FullText)
+    name!: string
+
+  @Prop(TypeString(), core.string.Description)
+    description?: string
+
+  @Prop(ArrOf(TypeAccountUuid()), core.string.Members)
+  @Index(IndexKind.Indexed)
+    members!: AccountUuid[]
 }
 
 @Model(core.class.SystemSpace, core.class.Space)

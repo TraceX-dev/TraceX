@@ -186,6 +186,7 @@
   on:changeContent
 >
   <SpaceSettingsForm
+    {space}
     bind:owners
     bind:members
     bind:isPrivate

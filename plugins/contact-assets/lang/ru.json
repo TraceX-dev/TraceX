@@ -158,6 +158,7 @@
     "AnonymousGuestAccessWorkspaceOffNote": "Анонимный гостевой доступ выключен для этого рабочего пространства",
     "AnonymousGuestAccessOwnerOnlyNote": "Изменить эту настройку могут только владельцы",
     "PublicBadge": "Публичное",
-    "SpaceMembershipGroup": "Участие"
+    "SpaceMembershipGroup": "Участие",
+    "MembersThroughGroups": "Участники через группы"
   }
 }

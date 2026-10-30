@@ -981,6 +981,10 @@ export const coreOperation: MigrateOperation = {
         func: async (client) => {
           await client.fullReindex()
         }
+      },
+      {
+        state: 'space-direct-members',
+        func: migrateSpaceDirectMembers
       }
       // ,
       // {
@@ -1014,6 +1018,38 @@ export const coreOperation: MigrateOperation = {
         }
       }
     ])
+  }
+}
+
+/**
+ * Fills `Space.directMembers` from `members` for spaces that have no groups yet, so `members` keeps its value once
+ * the server starts computing it from `directMembers` and groups. Idempotent: migrated spaces are skipped.
+ */
+export async function migrateSpaceDirectMembers (client: MigrationClient): Promise<void> {
+  let processed = 0
+  const iterator = await client.traverse<Space>(
+    DOMAIN_SPACE,
+    { directMembers: { $exists: false } },
+    { projection: { _id: 1, members: 1 } }
+  )
+  try {
+    while (true) {
+      const spaces = await iterator.next(1000)
+      if (spaces === null || spaces.length === 0) break
+      await client.bulk<Space>(
+        DOMAIN_SPACE,
+        spaces.map((space) => ({
+          filter: { _id: space._id },
+          update: { directMembers: space.members ?? [] }
+        }))
+      )
+      processed += spaces.length
+    }
+  } finally {
+    await iterator.close()
+  }
+  if (processed > 0) {
+    console.log('space-direct-members: spaces migrated', processed)
   }
 }
 

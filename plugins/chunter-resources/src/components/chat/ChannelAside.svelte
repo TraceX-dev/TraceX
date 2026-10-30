@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import core, { getCurrentAccount, Ref, notEmpty, AccountUuid } from '@hcengineering/core'
-  import presentation from '@hcengineering/presentation'
+  import presentation, { createQuery } from '@hcengineering/presentation'
   import { Label, showPopup, tooltip } from '@hcengineering/ui'
 
   import { Channel, ChunterSpace, ObjectChatPanel } from '@hcengineering/chunter'
@@ -49,10 +49,30 @@
     })
   }
 
-  $: disabledRemoveFor =
-    object.createdBy !== undefined && !socialStrings.includes(object.createdBy) && creatorPersonRef !== undefined
+  // Members given only by bound user groups can not be removed here: removing them would change nothing.
+  // Guests can not read groups, the list stays empty for them.
+  let groupOnlyPersons: Array<Ref<Person>> = []
+  const groupsQuery = createQuery()
+  $: if ((object.groups ?? []).length > 0) {
+    groupsQuery.query(core.class.UserGroup, { _id: { $in: object.groups ?? [] } }, (groups) => {
+      const direct = object.directMembers ?? object.members
+      const byGroups = new Set(groups.flatMap((group) => group.members))
+      groupOnlyPersons = object.members
+        .filter((account) => byGroups.has(account) && !direct.includes(account))
+        .map((account) => $employeeRefByAccountUuidStore.get(account))
+        .filter(notEmpty)
+    })
+  } else {
+    groupsQuery.unsubscribe()
+    groupOnlyPersons = []
+  }
+
+  $: disabledRemoveFor = [
+    ...(object.createdBy !== undefined && !socialStrings.includes(object.createdBy) && creatorPersonRef !== undefined
       ? [creatorPersonRef]
-      : []
+      : []),
+    ...groupOnlyPersons
+  ]
   $: updateMembers(object)
 
   function updateMembers (object: Channel | undefined): void {

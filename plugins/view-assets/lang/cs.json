@@ -133,6 +133,8 @@
     "Archived": "Archivováno",
     "MoreActions": "Další akce",
     "Leave": "Opustit",
+    "LeaveSpaceGroupsRemain": "Členem {space} zůstanete přes skupiny: {groups}. Přesto odejít?",
+    "LeaveSpaceGroupsOnly": "Jste členem {space} přes skupiny: {groups}. Požádejte správce pracovního prostoru o úpravu skupin.",
     "Join": "Připojit se",
     "Copied": "Zkopírováno",
     "Title": "Název",
