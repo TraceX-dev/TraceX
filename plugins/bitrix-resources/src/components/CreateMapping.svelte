@@ -7,7 +7,6 @@
   import { ObjectBox } from '@hcengineering/view-resources'
   import bitrix from '../plugin'
 
-  export let integration: Integration
   export let mappings: BitrixEntityMapping[]
 
   const client = getClient()

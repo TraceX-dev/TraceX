@@ -18,7 +18,6 @@
   import type { ToDo, WorkSlot } from '@hcengineering/time'
   import type { IntlString } from '@hcengineering/platform'
   import type { Project } from '@hcengineering/tracker'
-  import type { ToDosMode } from '..'
   import { AccordionItem } from '@hcengineering/ui'
   import { getClient } from '@hcengineering/presentation'
   import { makeRank } from '@hcengineering/task'
@@ -28,7 +27,6 @@
   import { dragging } from '../dragging'
   import { calculateEventsDuration } from '../utils'
 
-  export let mode: ToDosMode
   export let title: IntlString
   export let todos: WithLookup<ToDo>[]
   export let showTitle: boolean
@@ -110,7 +108,6 @@
           todos={todos.filter((td) => td.attachedSpace === group._id)}
           project={group}
           groupName={title}
-          {mode}
         />
       {/each}
     {/if}
@@ -119,7 +116,6 @@
         todos={todos.filter((td) => !hasProject(td.attachedSpace))}
         project={false}
         groupName={title}
-        {mode}
       />
     {/if}
   </AccordionItem>
@@ -127,7 +123,7 @@
   <div class="flex-col p-4 w-full">
     {#each todos as todo, index}
       <ToDoDraggable {todo} {index} groupName={title} projectId={false} on:drop={handleDrop}>
-        <ToDoElement {todo} planned={mode !== 'unplanned'} />
+        <ToDoElement {todo} />
       </ToDoDraggable>
     {/each}
   </div>

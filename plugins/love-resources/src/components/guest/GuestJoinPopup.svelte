@@ -33,7 +33,6 @@
   export let meetingId: string | undefined
   export let guestToken: string | undefined
   export let workspaceId: string | undefined
-  export let workspaceName: string | undefined
 
   const identityKey = 'platform.love_uniq_person_identity'
 

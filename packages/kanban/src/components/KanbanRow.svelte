@@ -20,9 +20,7 @@
     DocumentQuery,
     FindOptions,
     IdMap,
-    RateLimiter,
     Ref,
-    Space,
     toIdMap
   } from '@hcengineering/core'
   import ui, { Button, IconMoreH, Lazy, mouseAttractor } from '@hcengineering/ui'
@@ -40,11 +38,9 @@
   export let state: CategoryType
 
   export let _class: Ref<Class<DocWithRank>>
-  export let space: Ref<Space> | undefined = undefined
   export let query: DocumentQuery<DocWithRank> = {}
   export let options: FindOptions<DocWithRank> | undefined = undefined
   export let groupByKey: any
-  export let limiter: RateLimiter
 
   export let cardDragOver: (evt: CardDragEvent, object: Item) => void
   export let cardDrop: (evt: CardDragEvent, object: Item) => void
