@@ -215,7 +215,8 @@ export class SessionDataImpl implements SessionData {
       }
     >,
     readonly service: string,
-    readonly grant?: PermissionsGrant
+    readonly grant?: PermissionsGrant,
+    readonly inProcess?: boolean
   ) {
     this._removedMap = _removedMap
     this._contextCache = _contextCache
@@ -295,7 +296,9 @@ export function wrapPipeline (
     undefined,
     pipeline.context.modelDb,
     new Map(),
-    'transactor'
+    'transactor',
+    undefined,
+    true
   )
   ctx.contextData = contextData
   if (pipeline.context.lowLevelStorage === undefined) {

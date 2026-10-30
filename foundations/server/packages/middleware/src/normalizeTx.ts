@@ -47,6 +47,23 @@ type ExplicitUndefined<T> = { [P in keyof Required<T>]: Exclude<T[P], undefined>
 type WithIdType<T, I> = Omit<T, '_id'> & { _id: I }
 type ExplicitTx<T> = WithIdType<ExplicitUndefined<T>, Ref<Tx>>
 
+export function describeInvalidTx (tx: unknown): Record<string, unknown> {
+  if (tx == null || typeof tx !== 'object') {
+    return { type: tx === null ? 'null' : typeof tx }
+  }
+  const describe = (value: unknown): string => (value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value)
+  const source = tx as Record<string, unknown>
+  const result: Record<string, unknown> = {
+    _class: source._class,
+    objectClass: source.objectClass,
+    fields: Object.fromEntries(Object.entries(source).map(([key, value]) => [key, describe(value)]))
+  }
+  if (Array.isArray(source.txes)) {
+    result.txes = source.txes.map((child) => describeInvalidTx(child))
+  }
+  return result
+}
+
 /**
  * Validates properties in known Tx interfaces and removes unrecognized properties
  * @public
@@ -69,6 +86,7 @@ export class NormalizeTxMiddleware extends BaseMiddleware implements Middleware 
     for (const tx of txes) {
       const parsedTx = this.parseTx(tx)
       if (parsedTx === undefined) {
+        ctx.error('Rejected invalid tx', describeInvalidTx(tx))
         throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
       }
       parsedTxes.push(parsedTx)

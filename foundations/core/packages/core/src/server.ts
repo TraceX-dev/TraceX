@@ -74,6 +74,8 @@ export interface SessionData {
   >
   grant?: PermissionsGrant
 
+  inProcess?: boolean // The request is served in the same process as the pipeline
+
   asyncRequests?: ((ctx: MeasureContext, id?: string) => Promise<void>)[]
 }
 
