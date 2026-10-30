@@ -19,7 +19,6 @@ import core, {
   type Data,
   type Doc,
   type EnumOf,
-  generateId,
   type Hierarchy,
   type ModelDb,
   type Ref,
@@ -28,12 +27,14 @@ import core, {
 } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
+import marketplace, { stripDefinitionPackageInfo, type DefinitionPackageOwner } from '@hcengineering/marketplace'
 import {
   exportAuthoringModel,
-  getAuthoringCatalog,
+  compileProcessYaml,
   getAuthoringProcessIdentities,
+  getAuthoringCatalog,
   parseProcessImport,
-  remapAuthoringReferences,
+  cloneAuthoringModule,
   validateAuthoringModelOperations,
   type AuthoringNativeDocument
 } from '@hcengineering/process'
@@ -50,7 +51,7 @@ export async function importModule (json: string, createNew: boolean = false): P
     const h = client.getHierarchy()
     if (!json.trimStart().startsWith('[')) {
       validateAuthoringModelOperations(data as unknown as AuthoringNativeDocument[], m, h)
-      if (createNew) data = cloneModule(data, m, h)
+      if (createNew) data = cloneAuthoringModule(data, m, h)
     }
     const apply = client.apply('Import')
     for (const elem of data) {
@@ -97,64 +98,49 @@ function stripData<T extends Doc> (doc: T): Data<T> {
 }
 
 export async function exportModule (_id: Ref<Class<Doc>>, format: 'json' | 'yaml' = 'json'): Promise<string> {
+  return await exportModules([_id], format)
+}
+
+/** Exports all recorded card-module package owners, including their shared dependencies once. */
+export async function exportModulePackageSource (ids: Array<Ref<Class<Doc>>>): Promise<string> {
+  const source = await exportModules(ids, 'yaml')
+  const client = getClient()
+  const model = client.getModel()
+  const installations = new Set(
+    ids
+      .map((id) => model.findObject<DefinitionPackageOwner>(id)?.definitionPackageInstallation?.id)
+      .filter((id) => id !== undefined)
+  )
+  if (installations.size === 0) return source
+  if (installations.size !== 1) throw new Error('Package owners belong to different installations')
+  const installation = await client.findOne(marketplace.class.DefinitionPackageInstallation, {
+    _id: [...installations][0]
+  })
+  if (installation === undefined) throw new Error('The package installation is unavailable')
+  const native = compileProcessYaml(source).docs
+  const mapping = new Map(
+    [...native.map((doc) => doc._id), ...getAuthoringProcessIdentities(native)].map((id) => [id, id])
+  )
+  for (const [original, local] of Object.entries(installation.identities)) mapping.set(local, original)
+  const documents = cloneAuthoringModule(native as unknown as Doc[], model, client.getHierarchy(), mapping)
+  return exportAuthoringModel(documents, 'card', getAuthoringCatalog(model))
+}
+
+async function exportModules (ids: Array<Ref<Class<Doc>>>, format: 'json' | 'yaml'): Promise<string> {
   const processed = new Set<Ref<Doc>>()
-  const res = await exportType(_id, processed, false, format === 'yaml')
+  const res: Doc[] = []
+  for (const id of ids) res.push(...(await exportType(id, processed, false, format === 'yaml')))
   const unique = Array.from(new Map(res.map((d) => [d._id, d])).values())
   const clear = unique.map(strip)
   if (format === 'json') return JSON.stringify(clear)
   return exportAuthoringModel(clear, 'card', getAuthoringCatalog(getClient().getModel()))
 }
 
-/** Copies full modules for the editor's Create new action; file imports retain native JSON identity semantics. */
-function cloneModule (documents: Doc[], model: ModelDb, hierarchy: Hierarchy): Doc[] {
-  const mapping = new Map(documents.map((doc) => [String(doc._id), String(generateId())]))
-  for (const id of getAuthoringProcessIdentities(documents as unknown as AuthoringNativeDocument[])) {
-    if (!mapping.has(id)) mapping.set(id, generateId())
-  }
-  const attributes = documents.filter((doc) => doc._class === core.class.Attribute) as AnyAttribute[]
-  const literal = (doc: AuthoringNativeDocument, path: readonly string[]): boolean => {
-    let owner = doc._class
-    let key = path[0]
-    if (doc._class === 'process:class:Transition') {
-      const proc = documents.find((item) => item._id === doc.process) as unknown as { masterTag: string }
-      owner = proc.masterTag
-      if (path[0] === 'actions' && path[2] === 'params') {
-        const action = (doc.actions as Array<{ methodId: string, context?: { _class?: string } }>)[Number(path[1])]
-        const method = model.findObject(action.methodId as Ref<Doc>) as unknown as { objectClass?: string } | undefined
-        owner =
-          action.context?._class ??
-          (action.methodId === 'process:method:UpdateCard' ? owner : (method?.objectClass ?? owner))
-        key = path[3]
-      } else if (path[0] === 'triggerParams') key = path[1]
-      else return false
-    }
-    const visited = new Set<string>()
-    let attribute: AnyAttribute | undefined
-    while (!visited.has(owner)) {
-      visited.add(owner)
-      attribute = attributes.find((attr) => attr.attributeOf === owner && attr.name === key)
-      if (attribute !== undefined) break
-      const local = documents.find((item) => item._id === owner) as unknown as { extends?: string } | undefined
-      if (local?.extends !== undefined) owner = local.extends
-      else {
-        attribute = hierarchy.findAttribute(owner as Ref<Class<Doc>>, key)
-        break
-      }
-    }
-    return (
-      attribute !== undefined &&
-      [core.class.TypeString, core.class.TypeMarkup, core.class.EnumOf].includes(attribute.type._class)
-    )
-  }
-  return remapAuthoringReferences(
-    documents as unknown as AuthoringNativeDocument[],
-    mapping,
-    literal
-  ) as unknown as Doc[]
-}
-
 function strip<T extends Doc> (doc: T): Omit<T, 'modifiedBy' | 'modifiedOn' | 'createdBy' | 'createdOn'> {
-  const { modifiedBy, modifiedOn, createdBy, createdOn, ...rest } = doc
+  const portable = ['card:class:MasterTag', 'card:class:Tag', 'process:class:Process'].includes(doc._class)
+    ? stripDefinitionPackageInfo(doc)
+    : doc
+  const { modifiedBy, modifiedOn, createdBy, createdOn, ...rest } = portable
   return rest
 }
 

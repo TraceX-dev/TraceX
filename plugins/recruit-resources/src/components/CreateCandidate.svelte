@@ -833,10 +833,4 @@
       box-shadow: 0 0 0 2px var(--primary-button-outline);
     }
   }
-  .skills-box {
-    padding: 0.5rem 0.75rem;
-    background: var(--theme-comp-header-color);
-    border: 1px dashed var(--theme-divider-color);
-    border-radius: 0.5rem;
-  }
 </style>

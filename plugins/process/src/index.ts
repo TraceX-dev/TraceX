@@ -289,19 +289,19 @@ export { compileProcessYaml, parseProcessImport, validateProcessYaml, ProcessAut
 export type { AuthoringNativeDocument, ProcessAuthoringResult } from './authoring'
 export type { AuthoringDiagnostic, AuthoringValidation } from './authoring-validation'
 export {
-  createDefinitionPackageRelease,
-  parseDefinitionPackageRelease,
-  compareDefinitionPackageVersions,
-  DefinitionPackageError
-} from './definition-package'
-export { planDefinitionPackageUpgrade } from './definition-package-plan'
-export type {
-  DefinitionPackageManifest,
-  DefinitionPackageRelease,
-  DefinitionPackageChange,
-  DefinitionPackageUpgradePlan
-} from './definition-package-types'
+  assertTree as assertAuthoringTree,
+  object as authoringObject,
+  text as authoringText,
+  authoringDataEqual
+} from './authoring-validation'
 export { exportProcessYaml, exportProcessYamlDraft } from './authoring-export'
+export {
+  bindYamlModelProcess,
+  createYamlModelTemplate,
+  cloneAuthoringModule,
+  isAuthoringSlotBindingCompatible,
+  matchesAuthoringSlotType
+} from './authoring-bindings'
 export {
   exportAuthoringModel,
   getAuthoringCatalog,
@@ -388,6 +388,9 @@ export default plugin(processId, {
     ApproveRequestRejected: '' as Resource<CheckFunc>
   },
   string: {
+    Processes: '' as IntlString,
+    RequiredSlots: '' as IntlString,
+    Import: '' as IntlString,
     DiagnosticTitle: '' as IntlString,
     DiagnosticLastChecked: '' as IntlString,
     DiagnosticNotChecked: '' as IntlString,
@@ -476,6 +479,7 @@ export default plugin(processId, {
     Filter: '' as Ref<ProcessFunction>,
     ArrayLength: '' as Ref<ProcessFunction>,
     RelationCount: '' as Ref<ProcessFunction>,
+    FindObjects: '' as Ref<ProcessFunction>,
     FirstValue: '' as Ref<ProcessFunction>,
     LastValue: '' as Ref<ProcessFunction>,
     Random: '' as Ref<ProcessFunction>,

@@ -87,6 +87,18 @@ function setup (): { id: Ref<Class<Doc>>, docs: Array<Record<string, unknown>> }
 }
 
 describe('card module export formats', () => {
+  it.each(['json', 'yaml'] as const)(
+    'omits workspace package membership from %s without changing the definition',
+    async (format) => {
+      const { id, docs } = setup()
+      const master = docs.find((doc) => doc._id === id)
+      const metadata = { id: 'acme/risk', version: '1.0.0', author: 'author-account' }
+      Object.assign(master ?? {}, { definitionPackage: metadata })
+      expect(await exportModule(id, format)).not.toContain('definitionPackage')
+      expect(master?.definitionPackage).toEqual(metadata)
+    }
+  )
+
   it('keeps JSON as the default and exports a reimportable YAML risk module', async () => {
     const { id } = setup()
     const json = await exportModule(id)

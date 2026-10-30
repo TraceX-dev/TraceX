@@ -72,13 +72,3 @@
   </div>
   <div class="menu-space" />
 </div>
-
-<style lang="scss">
-  .color {
-    flex-shrink: 0;
-    margin-right: 0.75rem;
-    width: 1rem;
-    height: 1rem;
-    border-radius: 0.25rem;
-  }
-</style>

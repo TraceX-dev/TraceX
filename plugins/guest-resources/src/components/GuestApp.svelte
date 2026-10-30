@@ -63,9 +63,6 @@
     align-items: center;
     justify-content: center;
   }
-  .please-update {
-    margin-bottom: 1rem;
-  }
   .version-popup {
     display: flex;
     align-items: center;

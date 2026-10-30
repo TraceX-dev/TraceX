@@ -67,7 +67,7 @@ services:
       - POSTGRES_DB=postgres
     restart: unless-stopped
   redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
+    image: redpandadata/redpanda:v24.3.6
     extra_hosts:
       - 'tracex.local:host-gateway'
     command:
@@ -92,13 +92,13 @@ services:
       - 19092:19092
       - 19644:9644
     healthcheck:
-      test: ['CMD', 'rpk', 'cluster', 'info', '-X', 'user=superuser', '-X', 'pass=secretpassword']
+      test: ['CMD', 'rpk', 'cluster', 'info']
       interval: 10s
       timeout: 5s
       retries: 10
     restart: unless-stopped
   redpanda_console:
-    image: docker.redpanda.com/redpandadata/console:v2.8.3
+    image: redpandadata/console:v2.8.3
     extra_hosts:
       - 'tracex.local:host-gateway'
     entrypoint: /bin/sh
@@ -162,6 +162,23 @@ services:
       resources:
         limits:
           memory: 1024m
+  marketplace:
+    image: tracexapp/marketplace
+    extra_hosts:
+      - 'tracex.local:host-gateway'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      account:
+        condition: service_started
+    ports:
+      - 4008:4008
+    environment:
+      - PORT=4008
+      - SERVER_SECRET=${SECRET}
+      - ACCOUNTS_URL=http://account:3000
+      - DB_URL=${DB_URL_PG}
+    restart: unless-stopped
   account:
     image: tracexapp/account
     extra_hosts:
@@ -300,6 +317,7 @@ services:
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - PRINT_URL=http://tracex.local:4005
       - SIGN_URL=http://tracex.local:4006
+      - MARKETPLACE_URL=http://tracex.local:4008
       #      - ANALYTICS_COLLECTOR_URL=http://tracex.local:4017
       - DESKTOP_UPDATES_URL=https://dist.tracex.co
       - DESKTOP_UPDATES_CHANNEL=dev

@@ -38,7 +38,7 @@ This is the first reference for agents creating or explaining card types and pro
 
 [`authoring-v2.schema.json`](./authoring-v2.schema.json) is the machine-readable v2 syntax contract. The v2 examples reference it with a YAML language-server directive, enabling schema-aware completion and structural diagnostics in an IDE with a YAML language server. UI validation additionally resolves the installed model, references and bindings. The schema alone cannot establish operation availability or runtime context values. The recorded work plan and verification history are in [`authoring-plan.md`](./authoring-plan.md).
 
-Package releases and marketplace upgrades are tracked separately in the [package versioning plan](./package-versioning-plan.md). Its first delivery provides offline release artifacts and read-only upgrade analysis. Existing imports do not yet create managed installations, and executions are not pinned to immutable graph revisions. The package CLI cannot apply an update.
+Package releases and updates belong to the Marketplace plugin and follow its [package versioning plan](../../marketplace/docs/package-versioning-plan.md). The card type and process export menus offer `Make package` and `Create new package version`. Their dialog asks only for an optional package description; ID creation and version increments are automatic. A package is a single `.package.yaml` document containing `version: 2`, `kind`, package metadata and the actual card/process definition sections. Its metadata contains ID, SemVer version, global author account UUID, description and content hash; there is no JSON wrapper with a YAML string. Hashing works on ordinary HTTP origins without Web Crypto. Package ID, version, author and description are also saved on the definition. The new-version action is offered only to its recorded author and reads saved metadata without choosing a previous file. Embedded processes use their card type's package unless they have a standalone package. YAML saves retain package membership; portable definition payloads omit workspace package metadata. These actions update no graph/schema data and use no server preparation API. Marketplace supports packages containing one or more processes, with remembered membership for subsequent releases. Its workspace settings page installs package files, records baselines and bindings, previews local/upstream changes and applies reviewed updates. Card modules receive fresh local identities; process bundles bind to existing card types. Ordinary single-process editors still accept exactly one process. Installation links survive local YAML saves; catalog publishing and discovery remain future work. Processes keep existing in-place editing and execution behavior. A process update needs manual behavioral review and can affect current executions; destructive schema/data changes require a supported migration before application.
 
 ### Check YAML from the command line
 
@@ -225,6 +225,36 @@ expr:
 ```
 
 Use a literal source for constants: `expr: {from: {literal: 5}, pipe: [{Multiply: {value: 2}}]}`. Ordinary strings are never templates. `{literal: {expr: ...}}` preserves a native object whose keys resemble expression syntax; exporters add escapes automatically. Function property expressions are resolved by that function's existing contract, not automatically by every function. Quotes, newlines and values that the text grammar cannot preserve use the engine's supported JSON context encoding internally. Canonical native expressions export as YAML pipelines; legacy/noncanonical expressions stay unchanged for exact round trips.
+
+#### Finding references in the current card space
+
+The `FindObjects` context function searches the referenced document type using a native `DocumentQuery` and optional `SortingQuery`. In the visual context selector, **Find objects** is available for `Ref` and `Arr<Ref>` fields. Clicking it opens a separate popup that stays open when the pointer leaves it. The target type comes from the field; filters reuse the process criteria editor, and sorting can contain several fields in priority order. The saved context configuration can be reopened to edit the filters and ordering.
+
+Function properties:
+
+- `_class`: required target class or mixin id, including a bound type slot.
+- `query`: optional native filter, default `{}`. Values may read card fields or process context, including inside operators and arrays. The criteria editor's wildcard-wrapped `$like` context values are resolved too. Field keys resolve process bindings and mixin ownership. Storage-supported operators are accepted; top-level `$or` is unsupported.
+- `$sort`: optional native sorting map. Its key order defines priority; `1` means ascending and `-1` descending. Field keys resolve bindings and mixin ownership.
+
+The server always restricts the query to the execution card's current `space`, loaded from the card rather than the execution document. A supplied `query.space` cannot change this scope. The query uses the target class/mixin and its normal storage inheritance behavior.
+
+The function returns an ordered array of document ids. An `Arr<Ref>` field receives that array, including `[]` when nothing matches. A `Ref` field uses the existing `FirstValue` source reduction to take the first id; no matches raise the normal empty-function-result error unless a literal fallback is configured. Without `$sort`, storage order is used.
+
+For a YAML expression, call the registered function and add `reduce: FirstValue` only when one reference is required:
+
+```yaml
+expr:
+  call:
+    FindObjects:
+      _class: card:class:Card
+      query:
+        title: $card.title
+      $sort:
+        modifiedOn: -1
+        createdOn: -1
+  reduce: FirstValue
+  fallback: null
+```
 
 #### Validation boundaries
 

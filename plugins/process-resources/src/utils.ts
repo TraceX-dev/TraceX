@@ -367,6 +367,10 @@ function getContextFunctions (
   const hierarchy = client.getHierarchy()
   const funcs = client.getModel().findAllSync(process.class.ProcessFunction, { type: 'context' })
   for (const func of funcs as unknown as ProcessFunction[]) {
+    if (func.of === core.class.RefTo && hierarchy.isDerived(target, core.class.Doc)) {
+      matched.push(func._id)
+      continue
+    }
     switch (category) {
       case 'array': {
         if (func.category === 'array') {

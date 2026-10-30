@@ -18,7 +18,8 @@ import type { Ref } from '@hcengineering/core'
 import type { Process } from '@hcengineering/process'
 import { showPopup } from '@hcengineering/ui'
 import { getRequiredSlots, importProcess, isYamlSlotBindingCompatible, updateProcessYaml } from './exporter'
-import ImportSlotsPopup from './components/settings/ImportSlotsPopup.svelte'
+import { isDefinitionPackageSource } from '@hcengineering/marketplace'
+import { DefinitionPackageInstallPopup, ImportSlotsPopup } from '@hcengineering/marketplace-resources'
 
 /** Resolves field bindings and applies a new definition or replaces the selected process. */
 export async function applyProcessDefinition (
@@ -27,6 +28,14 @@ export async function applyProcessDefinition (
   initialBindings: Record<string, string> = {},
   current?: Process
 ): Promise<boolean> {
+  if (isDefinitionPackageSource(source)) {
+    if (current !== undefined) throw new Error('Install packages through the process list or Marketplace')
+    return await new Promise<boolean>((resolve) => {
+      showPopup(DefinitionPackageInstallPopup, { source, masterTag }, 'centered', (result) => {
+        resolve(result === true)
+      })
+    })
+  }
   const slots = getRequiredSlots(source)
   const save = async (bindings: Record<string, string>): Promise<boolean> => {
     if (current !== undefined) await updateProcessYaml(current, source, bindings)

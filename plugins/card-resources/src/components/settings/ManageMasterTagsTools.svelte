@@ -16,6 +16,8 @@
 <script lang="ts">
   import { clearSettingsStore } from '@hcengineering/setting-resources'
   import { setPlatformStatus, unknownError } from '@hcengineering/platform'
+  import { isDefinitionPackageSource } from '@hcengineering/marketplace'
+  import { DefinitionPackageInstallPopup } from '@hcengineering/marketplace-resources'
   import {
     ButtonIcon,
     getCurrentResolvedLocation,
@@ -80,7 +82,9 @@
         reader.onload = async (event: ProgressEvent<FileReader>) => {
           if (event.target?.result !== undefined && typeof event.target.result === 'string') {
             try {
-              await importModule(event.target.result)
+              if (isDefinitionPackageSource(event.target.result)) {
+                showPopup(DefinitionPackageInstallPopup, { source: event.target.result }, 'centered')
+              } else await importModule(event.target.result)
             } catch (err: unknown) {
               await setPlatformStatus(unknownError(err))
             }

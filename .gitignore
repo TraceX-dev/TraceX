@@ -5,6 +5,7 @@ temp/
 .idea
 pods/workspace/init/
 pods/workspace/init-scripts/
+ws-tests/init-scripts/
 
 # Logs
 *.log

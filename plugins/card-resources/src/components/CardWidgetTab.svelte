@@ -76,16 +76,3 @@
     {/if} -->
   </svelte:fragment>
 </ModernTab>
-
-<style lang="scss">
-  .notifyMarker {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background-color: var(--global-higlight-Color);
-    width: 0.5rem;
-    height: 0.5rem;
-  }
-</style>

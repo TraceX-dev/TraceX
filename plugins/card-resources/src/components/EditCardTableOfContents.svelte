@@ -340,19 +340,6 @@
     }
   }
 
-  .down-button {
-    position: absolute;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    bottom: 0.5rem;
-    animation: 0.5s fadeIn;
-    animation-fill-mode: forwards;
-    visibility: hidden;
-    left: 0;
-    right: 0;
-  }
-
   @keyframes fadeIn {
     99% {
       visibility: hidden;

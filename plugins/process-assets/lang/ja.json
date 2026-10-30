@@ -1,5 +1,6 @@
 {
   "string": {
+    "FindObjects": "オブジェクトを検索",
     "ExportJsonWithSlots": "JSON with slots",
     "ExportJsonWithoutSlots": "JSON without slots",
     "ExportYaml": "YAML DSL",

@@ -313,6 +313,9 @@
     "svelte": "^4.2.20",
     "@hcengineering/forms": "workspace:^0.7.0",
     "@hcengineering/forms-assets": "workspace:^0.7.0",
-    "@hcengineering/forms-resources": "workspace:^0.7.0"
+    "@hcengineering/forms-resources": "workspace:^0.7.0",
+    "@hcengineering/marketplace": "workspace:^0.7.0",
+    "@hcengineering/marketplace-assets": "workspace:^0.7.0",
+    "@hcengineering/marketplace-resources": "workspace:^0.7.0"
   }
 }

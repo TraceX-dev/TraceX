@@ -66,6 +66,8 @@ import {
 } from '../operations'
 import { accountPlugin } from '../plugin'
 
+const actualConfirmEmail = utils.confirmEmail
+
 // Mock platform
 jest.mock('@hcengineering/platform', () => {
   const actual = jest.requireActual('@hcengineering/platform')
@@ -2105,7 +2107,8 @@ describe('account operations', () => {
 
         ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
           account: mockAccountId,
-          extra: { confirmEmail: mockEmail }
+          extra: { confirmEmail: mockEmail },
+          exp: Math.floor(Date.now() / 1000) + 3600
         })
 
         jest.spyOn(utils, 'confirmEmail').mockResolvedValue(mockSocialId._id)
@@ -2121,8 +2124,44 @@ describe('account operations', () => {
           token: expect.any(String)
         })
 
-        expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail)
+        expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail, true)
         expect(utils.confirmHulyIds).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId)
+      })
+
+      test('should reject an expired confirmation link', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockImplementationOnce(() => {
+          throw new TokenError('Token expired')
+        })
+        jest.spyOn(utils, 'confirmEmail')
+
+        await expect(confirm(mockCtx, mockDb, mockBranding, mockToken)).rejects.toThrow(
+          new PlatformError(new Status(Severity.ERROR, platform.status.TokenExpired, {}))
+        )
+        expect(utils.confirmEmail).not.toHaveBeenCalled()
+      })
+
+      test('should keep legacy confirmation links without expiration single-use', async () => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+          account: mockAccountId,
+          extra: { confirmEmail: mockEmail, inviteId: 'invite-uuid', workspaceUrl: 'test-workspace' }
+        })
+        jest.spyOn(utils, 'confirmEmail').mockImplementation(actualConfirmEmail)
+        ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue({
+          _id: 'social-id' as PersonId,
+          personUuid: mockAccountId,
+          type: SocialIdType.EMAIL,
+          value: mockEmail,
+          key: `email:${mockEmail}`,
+          verifiedOn: 1
+        })
+        jest.spyOn(utils, 'doJoinByInvite')
+
+        await expect(confirm(mockCtx, mockDb, mockBranding, mockToken)).rejects.toMatchObject({
+          status: { code: platform.status.SocialIdAlreadyConfirmed }
+        })
+        expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail, false)
+        expect(mockDb.socialId.update).not.toHaveBeenCalled()
+        expect(utils.doJoinByInvite).not.toHaveBeenCalled()
       })
 
       test('should fail if confirmation email not in token', async () => {
@@ -2151,73 +2190,87 @@ describe('account operations', () => {
         )
       })
 
-      test('should auto-join workspace after confirming email when invite info is present in token', async () => {
-        const mockInviteId = 'invite-uuid'
-        const mockWorkspaceUrl = 'test-workspace'
-        const mockWorkspaceUuid = 'ws-uuid' as WorkspaceUuid
-        const mockSocialId = {
-          _id: 'social-id' as PersonId,
-          personUuid: mockAccountId,
-          type: SocialIdType.EMAIL,
-          value: mockEmail,
-          key: `email:${mockEmail}`
-        }
-        const mockPerson = {
-          uuid: mockPersonId,
-          firstName: mockFirstName,
-          lastName: mockLastName
-        }
-        const mockInvite: any = {
-          id: mockInviteId,
-          workspaceUuid: mockWorkspaceUuid,
-          email: mockEmail,
-          remainingUses: 1,
-          expiresOn: Date.now() + 100000,
-          role: AccountRole.User
-        }
-        const mockWorkspace: any = {
-          uuid: mockWorkspaceUuid,
-          url: mockWorkspaceUrl,
-          name: 'Test Workspace',
-          region: 'us'
-        }
-        const joinResult = {
-          account: mockAccountId,
-          workspace: mockWorkspaceUuid,
-          workspaceUrl: mockWorkspaceUrl,
-          endpoint: 'endpoint',
-          role: AccountRole.User,
-          token: 'mocked-token'
-        }
+      test.each([null, 1])(
+        'should finish the invitation after email confirmation (verifiedOn: %s)',
+        async (verifiedOn) => {
+          const mockInviteId = 'invite-uuid'
+          const mockWorkspaceUrl = 'test-workspace'
+          const mockWorkspaceUuid = 'ws-uuid' as WorkspaceUuid
+          const mockSocialId = {
+            _id: 'social-id' as PersonId,
+            personUuid: mockAccountId,
+            type: SocialIdType.EMAIL,
+            value: mockEmail,
+            key: `email:${mockEmail}`,
+            verifiedOn
+          }
+          const mockPerson = {
+            uuid: mockPersonId,
+            firstName: mockFirstName,
+            lastName: mockLastName
+          }
+          const mockInvite: any = {
+            id: mockInviteId,
+            workspaceUuid: mockWorkspaceUuid,
+            email: mockEmail,
+            remainingUses: 1,
+            expiresOn: Date.now() + 100000,
+            role: AccountRole.User
+          }
+          const mockWorkspace: any = {
+            uuid: mockWorkspaceUuid,
+            url: mockWorkspaceUrl,
+            name: 'Test Workspace',
+            region: 'us'
+          }
+          const joinResult = {
+            account: mockAccountId,
+            workspace: mockWorkspaceUuid,
+            workspaceUrl: mockWorkspaceUrl,
+            endpoint: 'endpoint',
+            role: AccountRole.User,
+            token: 'mocked-token'
+          }
 
-        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
-          account: mockAccountId,
-          extra: { confirmEmail: mockEmail, inviteId: mockInviteId, workspaceUrl: mockWorkspaceUrl }
-        })
+          ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
+            account: mockAccountId,
+            extra: { confirmEmail: mockEmail, inviteId: mockInviteId, workspaceUrl: mockWorkspaceUrl },
+            exp: Math.floor(Date.now() / 1000) + 3600
+          })
 
-        jest.spyOn(utils, 'confirmEmail').mockResolvedValue(mockSocialId._id)
-        jest.spyOn(utils, 'confirmHulyIds').mockResolvedValue()
-        jest.spyOn(utils, 'getWorkspaceJoinInfo').mockResolvedValue({
-          email: mockEmail,
-          invite: mockInvite,
-          workspace: mockWorkspace
-        })
-        jest.spyOn(utils, 'doJoinByInvite').mockResolvedValue(joinResult)
-        ;(mockDb.person.findOne as jest.Mock).mockResolvedValue(mockPerson)
+          jest.spyOn(utils, 'confirmEmail').mockImplementation(actualConfirmEmail)
+          ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue(mockSocialId)
+          jest.spyOn(utils, 'confirmHulyIds').mockResolvedValue()
+          jest.spyOn(utils, 'getWorkspaceJoinInfo').mockResolvedValue({
+            email: mockEmail,
+            invite: mockInvite,
+            workspace: mockWorkspace
+          })
+          jest.spyOn(utils, 'doJoinByInvite').mockResolvedValue(joinResult)
+          ;(mockDb.person.findOne as jest.Mock).mockResolvedValue(mockPerson)
 
-        const result = await confirm(mockCtx, mockDb, mockBranding, mockToken)
+          const result = await confirm(mockCtx, mockDb, mockBranding, mockToken)
 
-        expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail)
-        expect(utils.getWorkspaceJoinInfo).toHaveBeenCalledWith(
-          mockCtx,
-          mockDb,
-          mockEmail,
-          mockInviteId,
-          mockWorkspaceUrl
-        )
-        expect(utils.doJoinByInvite).toHaveBeenCalled()
-        expect(result).toEqual(joinResult)
-      })
+          expect(utils.confirmEmail).toHaveBeenCalledWith(mockCtx, mockDb, mockAccountId, mockEmail, true)
+          if (verifiedOn == null) {
+            expect(mockDb.socialId.update).toHaveBeenCalledWith(
+              { _id: mockSocialId._id },
+              { verifiedOn: expect.any(Number) }
+            )
+          } else {
+            expect(mockDb.socialId.update).not.toHaveBeenCalled()
+          }
+          expect(utils.getWorkspaceJoinInfo).toHaveBeenCalledWith(
+            mockCtx,
+            mockDb,
+            mockEmail,
+            mockInviteId,
+            mockWorkspaceUrl
+          )
+          expect(utils.doJoinByInvite).toHaveBeenCalled()
+          expect(result).toEqual(joinResult)
+        }
+      )
     })
 
     describe('signUpOtp', () => {

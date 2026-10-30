@@ -34,9 +34,16 @@ import core, {
 } from '@hcengineering/core'
 import { getMetadata, translate } from '@hcengineering/platform'
 import { BasePresentationMiddleware, type PresentationMiddleware } from '@hcengineering/presentation'
-import { ExecutionStatus, type ApproveRequest, type ProcessCustomEvent, type ProcessToDo } from '@hcengineering/process'
+import {
+  ExecutionStatus,
+  type ApproveRequest,
+  type Execution,
+  type ProcessCustomEvent,
+  type ProcessToDo
+} from '@hcengineering/process'
 import { getPermissions } from '@hcengineering/view-resources'
 import { get } from 'svelte/store'
+import { AttachmentInput } from './attachment-input'
 import process from './plugin'
 import { createExecution, getNextStateUserInput, pickTransition, requestResult } from './utils'
 
@@ -50,9 +57,11 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
 
   async notifyTx (...tx: Tx[]): Promise<void> {
     await this.provideNotifyTx(...tx)
+    this.attachmentInput.notify(...tx)
   }
 
   async close (): Promise<void> {
+    this.attachmentInput.close()
     await this.provideClose()
   }
 
@@ -61,6 +70,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
   }
 
   private readonly txFactory = new TxOperations(this.client, getCurrentAccount().primarySocialId).txFactory
+  private readonly attachmentInput = new AttachmentInput(this.client)
 
   private canCreateExecution (space: Ref<Space>): boolean {
     if (!getPermissions().canCreate(process.class.Execution, space)) return false
@@ -71,11 +81,13 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
   async tx (tx: Tx): Promise<TxResult> {
     const preTx: Array<TxCUD<Doc>> = []
     const postTx: Array<TxCUD<Doc>> = []
-    await this.handleTx(preTx, postTx, tx)
+    const completions: Execution[] = []
+    await this.handleTx(preTx, postTx, completions, tx)
 
+    let outgoing = tx
     if (preTx.length > 0 || postTx.length > 0) {
       if (TxProcessor.isExtendsCUD(tx._class)) {
-        const applyIf = this.txFactory.createTxApplyIf(
+        outgoing = this.txFactory.createTxApplyIf(
           core.space.Tx,
           generateId(),
           [],
@@ -84,25 +96,43 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
           'process',
           true
         )
-        return await this.provideTx(applyIf)
       }
     }
 
-    return await this.provideTx(tx)
+    if (completions.length === 0) return await this.provideTx(outgoing)
+    // Subscribe before sending: process notifications can arrive before the transaction response.
+    const watch = this.attachmentInput.watch(completions)
+    try {
+      const result = await this.provideTx(outgoing)
+      if ('success' in result && result.success === false) {
+        watch.cancel()
+      } else {
+        watch.commit()
+      }
+      return result
+    } catch (error: unknown) {
+      watch.cancel()
+      throw error
+    }
   }
 
-  private async handleTx (preTx: Array<TxCUD<Doc>>, postTx: Array<TxCUD<Doc>>, ...txes: Tx[]): Promise<void> {
+  private async handleTx (
+    preTx: Array<TxCUD<Doc>>,
+    postTx: Array<TxCUD<Doc>>,
+    completions: Execution[],
+    ...txes: Tx[]
+  ): Promise<void> {
     for (const etx of txes) {
       if (etx._class === core.class.TxApplyIf) {
         const applyIf = etx as TxApplyIf
-        await this.handleTx(preTx, postTx, ...applyIf.txes)
+        await this.handleTx(preTx, postTx, completions, ...applyIf.txes)
       }
 
       await this.handleCardCreate(postTx, etx)
       await this.handleCardUpdate(preTx, etx)
       await this.handleTagAdd(postTx, etx)
       await this.handleCustomEvent(preTx, etx)
-      await this.handleToDoDone(preTx, etx)
+      await this.handleToDoDone(preTx, completions, etx)
       await this.handleApproveRequest(preTx, etx)
     }
   }
@@ -305,7 +335,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
     }
   }
 
-  private async handleToDoDone (preTx: Array<TxCUD<Doc>>, etx: Tx): Promise<void> {
+  private async handleToDoDone (preTx: Array<TxCUD<Doc>>, completions: Execution[], etx: Tx): Promise<void> {
     if (etx._class === core.class.TxUpdateDoc) {
       const cud = etx as TxUpdateDoc<ProcessToDo>
       if (cud.objectClass !== process.class.ProcessToDo) return
@@ -361,6 +391,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
         return
       }
       const finalResult = await getNextStateUserInput(execution, transition, context ?? execution.context, inputContext)
+      completions.push(execution)
       if (finalResult?.changed === true) {
         preTx.push(
           this.txFactory.createTxUpdateDoc(execution._class, execution.space, execution._id, {

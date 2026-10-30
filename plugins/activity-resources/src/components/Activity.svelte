@@ -387,10 +387,6 @@
     }
   }
 
-  .invisible {
-    display: none;
-  }
-
   :global(.grid .msgactivity-container.showIcon:last-child::after) {
     content: none;
   }

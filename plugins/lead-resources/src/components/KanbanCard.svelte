@@ -126,11 +126,5 @@
     display: flex;
     flex-wrap: nowrap;
     min-width: 0;
-
-    &.labels {
-      overflow: hidden;
-      flex-shrink: 1;
-      border-radius: 0.5rem;
-    }
   }
 </style>
