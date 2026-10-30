@@ -335,7 +335,6 @@
         title={group[0]}
         showTitle
         showDuration={group[0] !== time.string.Unplanned}
-        {mode}
         {projects}
       />
     {/each}

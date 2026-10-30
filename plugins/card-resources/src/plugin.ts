@@ -200,6 +200,7 @@ export default mergeIds(cardId, card, {
     ForbidAddTagPermission: '' as IntlString,
     ForbidRemoveTag: '' as IntlString,
     CardUpdated: '' as IntlString,
+    AssignedToMe: '' as IntlString,
     CardCreated: '' as IntlString,
     MyCards: '' as IntlString,
     GotoMyCards: '' as IntlString,

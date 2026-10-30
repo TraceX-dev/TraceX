@@ -57,7 +57,6 @@
   export let previewUnlimit: boolean = false
   export let focusable: boolean = false
   export let autofocus = false
-  export let enableInlineCommands: boolean = true
   export let isScrollable: boolean = true
   export let boundary: HTMLElement | undefined = undefined
   export let readonly: boolean = false

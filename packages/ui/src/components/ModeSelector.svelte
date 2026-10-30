@@ -5,8 +5,6 @@
   export let props: IModeSelector
   export let kind: 'nuance' | 'subtle' = 'nuance'
   export let onlyIcons: boolean = false
-  export let expansion: 'stretch' | 'default' = 'default'
-  export let padding: string | undefined = undefined
 
   $: modeList =
     props.config != null

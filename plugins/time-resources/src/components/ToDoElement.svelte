@@ -26,7 +26,6 @@
   import ToDoPriorityPresenter from './ToDoPriorityPresenter.svelte'
 
   export let todo: WithLookup<ToDo>
-  export let planned: boolean = true
   export let isNew: boolean = false
 
   const client = getClient()
