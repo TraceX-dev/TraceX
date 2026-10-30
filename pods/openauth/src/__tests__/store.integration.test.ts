@@ -27,6 +27,7 @@ describeDatabase('persistent OAuth storage', () => {
   const resource = 'https://mcp.example.test/mcp'
   const account = randomUUID()
   const connectionId = randomUUID()
+  const workspaceId = randomUUID()
   const counterKey = ['counter', randomUUID()]
   const rollbackKey = ['rollback', randomUUID()]
 
@@ -51,6 +52,7 @@ describeDatabase('persistent OAuth storage', () => {
       clientName: 'Codex',
       resource,
       accountToken: 'private-account-token',
+      workspaceId,
       createdOn: Date.now()
     })
     await store.set(
@@ -62,6 +64,7 @@ describeDatabase('persistent OAuth storage', () => {
     await store.close()
     store = new OAuthStore(databaseUrl ?? '', 'test-only-storage-secret')
     await store.init()
+    expect((await store.getConnection(connectionId))?.workspaceId).toBe(workspaceId)
     expect((await store.resolveAccessToken('private-access-token'))?.connection.accountToken).toBe(
       'private-account-token'
     )

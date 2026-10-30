@@ -42,12 +42,24 @@ export class WorkspaceManager {
     private readonly storage: StorageAdapter
   ) {}
 
-  async getWorkspaces (accountToken: string): Promise<Array<{ id: string, name: string, url: string }>> {
+  async getWorkspaces (
+    accountToken: string,
+    workspaceId: string | null = null
+  ): Promise<Array<{ id: string, name: string, url: string }>> {
     const workspaces = await getAccountClient(this.config.AccountsURL, accountToken).getUserWorkspaces()
-    return workspaces.map((workspace) => ({ id: workspace.uuid, name: workspace.name, url: workspace.url }))
+    return workspaces
+      .filter((workspace) => workspaceId === null || workspace.uuid === workspaceId)
+      .map((workspace) => ({ id: workspace.uuid, name: workspace.name, url: workspace.url }))
   }
 
-  async getConnection (accountToken: string, workspaceId: string): Promise<WorkspaceConnection> {
+  async getConnection (
+    accountToken: string,
+    workspaceId: string,
+    allowedWorkspaceId: string | null = null
+  ): Promise<WorkspaceConnection> {
+    if (allowedWorkspaceId !== null && workspaceId !== allowedWorkspaceId) {
+      throw new Error('Workspace is not authorized by this MCP connection.')
+    }
     // Check current membership before using cached clients; selectWorkspace also supports guest/admin fallbacks.
     const workspace = (await this.getWorkspaces(accountToken)).find((entry) => entry.id === workspaceId)
     if (workspace === undefined) {

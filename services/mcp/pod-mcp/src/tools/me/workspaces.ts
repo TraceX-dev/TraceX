@@ -41,7 +41,7 @@ export function registerMeWorkspacesTool (
       try {
         return jsonStructuredText({
           installation: String(auth.resource),
-          workspaces: await workspaceManager.getWorkspaces(auth.extra.accountToken)
+          workspaces: await workspaceManager.getWorkspaces(auth.extra.accountToken, auth.extra.workspaceId)
         })
       } catch {
         return jsonText(

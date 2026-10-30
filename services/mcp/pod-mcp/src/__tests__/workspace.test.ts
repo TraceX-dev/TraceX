@@ -59,9 +59,8 @@ describe('MCP workspace exchange', () => {
       workspace: url === 'first' ? FIRST : SECOND,
       endpoint: `http://${url}.test`
     }))
-    jest
-      .mocked(getClient)
-      .mockReturnValue({ getUserWorkspaces: getWorkspaces, selectWorkspace } as unknown as AccountClient)
+    const accountClient: Partial<AccountClient> = { getUserWorkspaces: getWorkspaces, selectWorkspace }
+    jest.mocked(getClient).mockReturnValue(accountClient as AccountClient)
     const operations: Partial<Awaited<ReturnType<typeof createRestTxOperations>>> = { close: async () => {} }
     const collaborator: Partial<ReturnType<typeof getCollaborator>> = {}
     const storage: Partial<StorageAdapter> = {}
@@ -69,7 +68,8 @@ describe('MCP workspace exchange', () => {
       .mocked(createRestTxOperations)
       .mockResolvedValue(operations as Awaited<ReturnType<typeof createRestTxOperations>>)
     jest.mocked(getCollaborator).mockReturnValue(collaborator as ReturnType<typeof getCollaborator>)
-    manager = new WorkspaceManager(config, { error: jest.fn() } as unknown as MeasureContext, storage as StorageAdapter)
+    const context: Partial<MeasureContext> = { error: jest.fn() }
+    manager = new WorkspaceManager(config, context as MeasureContext, storage as StorageAdapter)
   })
   afterEach(async () => {
     await manager.close()
@@ -92,6 +92,19 @@ describe('MCP workspace exchange', () => {
     await expect(manager.getConnection(ACCOUNT_TOKEN, '')).rejects.toThrow('not accessible')
     expect(selectWorkspace).not.toHaveBeenCalled()
     expect(createRestTxOperations).not.toHaveBeenCalled()
+  })
+
+  it('limits discovery to the granted workspace and rejects another workspace before exchange or cache use', async () => {
+    expect(await manager.getWorkspaces(ACCOUNT_TOKEN, FIRST)).toEqual([{ id: FIRST, name: 'Same name', url: 'first' }])
+    await manager.getConnection(ACCOUNT_TOKEN, SECOND)
+    const exchanged = selectWorkspace.mock.calls.length
+    await expect(manager.getConnection(ACCOUNT_TOKEN, SECOND, FIRST)).rejects.toThrow('not authorized')
+    expect(selectWorkspace).toHaveBeenCalledTimes(exchanged)
+    const allowed = await manager.getConnection(ACCOUNT_TOKEN, FIRST, FIRST)
+    expect(allowed.workspace).toBe(FIRST)
+    getWorkspaces.mockResolvedValue([{ uuid: SECOND, name: 'Same name', url: 'second' }])
+    expect(await manager.getWorkspaces(ACCOUNT_TOKEN, FIRST)).toEqual([])
+    await expect(manager.getConnection(ACCOUNT_TOKEN, FIRST, FIRST)).rejects.toThrow('not accessible')
   })
 
   it('checks membership again even when a workspace connection is cached', async () => {

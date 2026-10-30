@@ -56,6 +56,10 @@ async function main (): Promise<void> {
   const store = new OAuthStore(requiredEnv('OPENAUTH_DATABASE_URL'), config.serverSecret)
   await store.init()
   const app = createOAuthApp(config, store, {
+    getWorkspaces: async (token) => {
+      const workspaces = await getClient(accountsUrl, token).getUserWorkspaces()
+      return workspaces.map((workspace) => ({ id: workspace.uuid, name: workspace.name, url: workspace.url }))
+    },
     authenticate: async (token, requireAccountToken) => {
       const decoded = decodeToken(token, true, config.serverSecret)
       if (

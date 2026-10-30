@@ -22,14 +22,35 @@ export interface PublicConnection {
   id: string
   clientName: string
   createdOn: number
+  workspaceId: string | null
+  workspaceName?: string
+  workspaceUrl?: string
 }
 
-/** Public issuer API used by consent and connection-management screens. */
+export interface OAuthWorkspace {
+  id: string
+  name: string
+  url: string
+}
+
+export interface ResolvedAccessToken {
+  connectionId: string
+  account: string
+  accountToken: string
+  clientId: string
+  resource: string
+  expiresAt: number
+  workspaceId: string | null
+}
+
+/** Issuer API for consent, connections, and authenticated server-to-server token resolution. */
 export interface OpenAuthClient {
   getRequest: (request: string) => Promise<OAuthRequestDetails>
-  completeRequest: (request: string, token: string) => Promise<void>
+  completeRequest: (request: string, token: string, workspaceId: string | null) => Promise<void>
+  getWorkspaces: (request: string, token: string) => Promise<OAuthWorkspace[]>
   getConnections: (token: string | undefined) => Promise<PublicConnection[]>
   revokeConnection: (id: string, token: string | undefined) => Promise<void>
   getCompletionUrl: (request: string) => string
   getCancelUrl: (request: string) => string
+  resolveAccessToken: (token: string, resource: string, serviceToken: string) => Promise<ResolvedAccessToken>
 }

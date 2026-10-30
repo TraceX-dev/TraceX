@@ -76,10 +76,10 @@ These `proxy_pass` directives intentionally have no URI or trailing slash, which
 1. A public client registers its exact HTTPS or native-loopback redirect URIs using `/register`.
 2. `/authorize` requires authorization code flow, PKCE S256, and this installation's MCP resource.
 3. A short-lived login request sends the browser to the configured TraceX UI. Password, OTP, MFA, and existing external-provider flows remain owned by TraceX.
-4. The user approves access to all workspaces available to their account, including future memberships. The UI sends the session token only to the configured issuer. No destination URL is accepted from query input.
+4. The user explicitly chooses one workspace or all accessible workspaces, including future memberships. Single-workspace access is selected initially and requires choosing a workspace before approval. The issuer validates current membership at approval and stores the selected stable workspace ID on the connection (`workspace_id = NULL` means all accessible workspaces). The UI sends the session token only to the configured issuer. No destination URL is accepted from query input.
 5. A browser-bound, one-use completion creates a separate connection. The TraceX account token stays encrypted on the server. It is not included in the OAuth JWT, access token, browser callback URL, or connection-management response.
 6. OpenAuth handles codes and refresh rotation. Externally issued access tokens are opaque and expire after five minutes. Refresh credentials expire after thirty days of inactivity. Rotation is serialized across replicas; a ten-second reuse window handles concurrent client refreshes, followed by reuse detection and revocation.
-7. Every MCP request resolves the access token through the authenticated server-to-server `/internal/resolve` endpoint. The issuer checks token expiration, connection revocation, resource binding, and the underlying TraceX session. MCP checks current membership and exchanges the account token for the explicitly selected workspace.
+7. Every MCP request resolves the access token through the authenticated server-to-server `/internal/resolve` endpoint. The issuer checks token expiration, connection revocation, resource binding, and the underlying TraceX session, then returns the persisted workspace restriction. Refresh cannot change this restriction. MCP limits workspace discovery to that grant, rejects other workspace IDs before using cached clients, checks current membership, and exchanges the account token for the explicitly selected workspace.
 8. The user can revoke each connection in **Account settings → Authentication → MCP connections**. New requests and renewal stop immediately. Already-running operations are not rolled back. If the TraceX session expires, the client must sign in again.
 
 The adapter intentionally supports dynamic public-client registration for Codex. CIMD, confidential clients, custom URI callbacks, stdio, and verified ChatGPT integration are outside this first implementation.
@@ -93,6 +93,8 @@ Run `rushx test` for in-process OAuth tests. To exercise PostgreSQL persistence,
 - Connect Codex by URL and browser sign-in without creating an API key.
 - Exercise the normal password, OTP, external-provider, and MFA login paths used by the installation.
 - List workspaces, then read and write explicitly in two different workspaces through one connection. Duplicate names must not select a workspace implicitly.
+- Authorize a connection for one workspace, verify that discovery returns only it, and confirm that another workspace ID is rejected even when the account has access to both. Repeat after refreshing the token.
+- Remove membership between opening consent and approving it; approval for the removed workspace must fail. Remove membership after authorization and verify that subsequent tool calls are denied.
 - Remove membership and verify that the next operation is denied with workspace-client caching enabled.
 - Check refresh after access expiration and issuer restart.
 - Authorize two connections, revoke one in settings, and verify that its old access and refresh tokens fail while the other connection continues working.

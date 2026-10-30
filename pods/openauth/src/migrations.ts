@@ -35,7 +35,9 @@ function getV1Migration (): [string, string] {
     CREATE TABLE IF NOT EXISTS openauth.connection (
       id TEXT PRIMARY KEY, account UUID NOT NULL, client_id TEXT NOT NULL,
       client_name TEXT NOT NULL, resource TEXT NOT NULL, account_token TEXT NOT NULL,
-      created_on BIGINT NOT NULL, revoked_on BIGINT
+      created_on BIGINT NOT NULL, revoked_on BIGINT,
+      -- NULL grants all accessible workspaces; a UUID restricts this connection to that workspace.
+      workspace_id UUID
     );
     CREATE INDEX IF NOT EXISTS openauth_connection_account ON openauth.connection (account);
 

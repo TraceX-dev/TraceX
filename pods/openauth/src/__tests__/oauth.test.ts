@@ -16,10 +16,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { createOAuthApp } from '../app'
 import { OAuthStore } from '../store'
-import type { OAuthConnection, RegisteredClient } from '../types'
+import type { OAuthConfig, OAuthConnection, OAuthWorkspace, RegisteredClient } from '../types'
 
 jest.setTimeout(30_000)
-const config = {
+const config: OAuthConfig = {
   issuerUrl: 'https://auth.example.test',
   resourceUrl: 'https://mcp.example.test/mcp',
   loginUrl: 'https://front.example.test/login/oauth',
@@ -27,6 +27,8 @@ const config = {
 }
 const account = randomUUID()
 const otherAccount = randomUUID()
+const firstWorkspace = randomUUID()
+const secondWorkspace = randomUUID()
 
 function testStore (): OAuthStore {
   const store = new OAuthStore('postgres://unused:unused@127.0.0.1:1/unused', config.serverSecret)
@@ -80,7 +82,7 @@ function testStore (): OAuthStore {
     .mockImplementation(async (accountId) =>
       [...connections.values()]
         .filter((connection) => connection.account === accountId && connection.revokedOn === undefined)
-        .map(({ id, clientName, createdOn }) => ({ id, clientName, createdOn }))
+        .map(({ id, clientName, createdOn, workspaceId }) => ({ id, clientName, createdOn, workspaceId }))
     )
   jest.spyOn(store, 'revokeConnection').mockImplementation(async (id, accountId) => {
     const connection = connections.get(id)
@@ -116,14 +118,20 @@ describe.each([
   let store: OAuthStore
   let app: ReturnType<typeof createOAuthApp>
   let sessionActive: boolean
+  let workspaces: OAuthWorkspace[]
   beforeEach(() => {
     store = testStore()
     sessionActive = true
+    workspaces = [
+      { id: firstWorkspace, name: 'Same name', url: 'first' },
+      { id: secondWorkspace, name: 'Same name', url: 'second' }
+    ]
     app = createOAuthApp(config, store, {
       authenticate: async (token) => {
         if (!sessionActive || !['account-session', 'other-session'].includes(token)) throw new Error('Invalid session')
         return { account: token === 'other-session' ? otherAccount : account, token }
       },
+      getWorkspaces: async (token) => (token === 'other-session' ? [] : workspaces),
       isServiceToken: (token) => token === 'internal-service'
     })
   })
@@ -163,7 +171,8 @@ describe.each([
 
   async function authorize (
     clientId: string,
-    redirectUri = 'http://127.0.0.1:7777/callback'
+    redirectUri = 'http://127.0.0.1:7777/callback',
+    workspaceId: string | null = null
   ): Promise<{ code: string, verifier: string }> {
     const verifier = 'a'.repeat(64)
     const query = new URLSearchParams({
@@ -189,7 +198,12 @@ describe.each([
     expect(await details.json()).toEqual({ clientName: 'Codex', redirectOrigins: [new URL(redirectUri).origin] })
     const consent = await request(`/requests/${id}/complete`, {
       method: 'POST',
-      headers: { Authorization: 'Bearer account-session', Origin: new URL(config.loginUrl).origin }
+      headers: {
+        Authorization: 'Bearer account-session',
+        Origin: new URL(config.loginUrl).origin,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ workspaceId })
     })
     expect(consent.status).toBe(200)
     const { continueUrl } = (await consent.json()) as { continueUrl: string }
@@ -210,8 +224,11 @@ describe.each([
       body: new URLSearchParams({ client_id: clientId, resource: config.resourceUrl, ...parameters }).toString()
     })
   }
-  async function connect (clientId: string): Promise<{ access_token: string, refresh_token: string }> {
-    const { code, verifier } = await authorize(clientId)
+  async function connect (
+    clientId: string,
+    workspaceId: string | null = null
+  ): Promise<{ access_token: string, refresh_token: string }> {
+    const { code, verifier } = await authorize(clientId, 'http://127.0.0.1:7777/callback', workspaceId)
     const response = await token(clientId, {
       grant_type: 'authorization_code',
       code,
@@ -404,19 +421,69 @@ describe.each([
     const start = await request(`/authorize?${query}`, {}, cookies)
     const provider = await request(start.headers.get('location') ?? '', {}, cookies)
     const id = new URL(provider.headers.get('location') ?? '').searchParams.get('request') ?? ''
+    expect((await request(`/requests/${id}/workspaces`)).status).toBe(401)
+    const available = await request(`/requests/${id}/workspaces`, {
+      headers: { Authorization: 'Bearer account-session' }
+    })
+    expect(await available.json()).toEqual(workspaces)
+    const approve = async (workspaceId?: string | null): Promise<Response> =>
+      await request(`/requests/${id}/complete`, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer account-session',
+          Origin: new URL(config.loginUrl).origin,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ workspaceId })
+      })
+    expect((await approve()).status).toBe(400)
+    expect((await approve(randomUUID())).status).toBe(403)
+    workspaces = workspaces.filter((workspace) => workspace.id !== firstWorkspace)
+    expect((await approve(firstWorkspace)).status).toBe(403)
+    workspaces.push({ id: firstWorkspace, name: 'Same name', url: 'first' })
     expect(
       (
         await request(`/requests/${id}/complete`, {
           method: 'POST',
-          headers: { Authorization: 'Bearer account-session', Origin: new URL(config.loginUrl).origin }
+          headers: {
+            Authorization: 'Bearer account-session',
+            Origin: new URL(config.loginUrl).origin,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ workspaceId: firstWorkspace })
         })
       ).status
     ).toBe(200)
+    expect((await approve(null)).status).toBe(400)
     expect((await request(`/tracex/complete?request=${id}`)).status).toBe(400)
     expect(createConnection).not.toHaveBeenCalled()
     expect((await request(`/tracex/complete?request=${id}`, {}, cookies)).status).toBe(302)
     expect((await request(`/tracex/complete?request=${id}`, {}, cookies)).status).toBe(400)
     expect(createConnection).toHaveBeenCalledTimes(1)
+    expect(createConnection).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: firstWorkspace }))
+  })
+
+  it('keeps workspace restrictions during refresh and reports each connection scope', async () => {
+    const clientId = await register()
+    const first = await connect(clientId, firstWorkspace)
+    const second = await connect(clientId, secondWorkspace)
+    expect(await (await resolve(first.access_token)).json()).toMatchObject({ workspaceId: firstWorkspace })
+    expect(await (await resolve(second.access_token)).json()).toMatchObject({ workspaceId: secondWorkspace })
+    const refreshed = await token(clientId, {
+      grant_type: 'refresh_token',
+      refresh_token: first.refresh_token,
+      workspaceId: secondWorkspace
+    })
+    expect(refreshed.status).toBe(200)
+    const renewed = (await refreshed.json()) as { access_token: string }
+    expect(await (await resolve(renewed.access_token)).json()).toMatchObject({ workspaceId: firstWorkspace })
+    const connections = await request('/connections', { headers: { Authorization: 'Bearer account-session' } })
+    expect(await connections.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ workspaceId: firstWorkspace, workspaceName: 'Same name', workspaceUrl: 'first' }),
+        expect.objectContaining({ workspaceId: secondWorkspace, workspaceName: 'Same name', workspaceUrl: 'second' })
+      ])
+    )
   })
 
   it('renews expired access and revokes a connection when an old refresh token is replayed', async () => {

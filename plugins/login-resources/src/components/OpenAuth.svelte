@@ -15,25 +15,26 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { type LoginInfo } from '@hcengineering/account-client'
-  import { getClient as getOpenAuthClient } from '@hcengineering/openauth-client'
+  import { getClient as getOpenAuthClient, type OAuthWorkspace } from '@hcengineering/openauth-client'
   import { getMetadata } from '@hcengineering/platform'
   import presentation from '@hcengineering/presentation'
   import ui, {
     Button,
+    DropdownLabels,
     getCurrentLocation,
     Icon,
-    IconArrowRight,
-    IconCheck,
-    IconLink,
+    IconCheckCircle,
     Label,
     Loading,
+    ModernCheckbox,
+    type DropdownTextItem,
     navigate
   } from '@hcengineering/ui'
   import { loginId } from '@hcengineering/login'
-  import { logIn } from '@hcengineering/workbench'
+  import { logIn, logOut } from '@hcengineering/workbench'
   import login from '../plugin'
-  import { doLoginNavigate, getAccount } from '../utils'
-  import { clearOAuthRequest, rememberOAuthRequest } from '../oauth'
+  import { doLoginNavigate, getAccount, getAccountDisplayName } from '../utils'
+  import { clearOAuthRequest, getPreferredOAuthWorkspace, rememberOAuthRequest } from '../oauth'
   import LoginForm from './LoginForm.svelte'
   import ProvidersOnlyForm from './ProvidersOnlyForm.svelte'
 
@@ -47,7 +48,21 @@
   let failed = false
   let identity: LoginInfo | null = null
   let clientName = ''
-  let redirectOrigins: string[] = []
+  let workspaces: OAuthWorkspace[] = []
+  let workspaceItems: DropdownTextItem[] = []
+  let selectedWorkspace: string | undefined
+  let allWorkspaces = false
+
+  $: workspaceItems = workspaces.map((workspace) => ({
+    id: workspace.id,
+    label: `${workspace.name} (${workspace.url})`
+  }))
+
+  async function loadWorkspaces (token: string): Promise<void> {
+    if (client === undefined || typeof request !== 'string') throw new Error('Invalid OAuth request')
+    workspaces = await client.getWorkspaces(request, token)
+    selectedWorkspace = getPreferredOAuthWorkspace(workspaces)?.id
+  }
 
   async function load (): Promise<void> {
     try {
@@ -56,9 +71,9 @@
       }
       const details = await client.getRequest(request)
       clientName = details.clientName
-      redirectOrigins = details.redirectOrigins
       rememberOAuthRequest(request)
       identity = await getAccount(false)
+      if (identity?.token !== undefined) await loadWorkspaces(identity.token)
     } catch {
       failed = true
     } finally {
@@ -67,10 +82,19 @@
   }
 
   async function authorize (): Promise<void> {
-    if (submitting || identity?.token === undefined || client === undefined || typeof request !== 'string') return
+    if (
+      submitting ||
+      workspaces.length === 0 ||
+      identity?.token === undefined ||
+      client === undefined ||
+      typeof request !== 'string'
+    )
+      return
+    const workspaceId = allWorkspaces ? null : selectedWorkspace
+    if (workspaceId === undefined) return
     submitting = true
     try {
-      await client.completeRequest(request, identity.token)
+      await client.completeRequest(request, identity.token, workspaceId)
       // The destination is built exclusively from trusted installation configuration, never query input.
       clearOAuthRequest()
       window.location.assign(client.getCompletionUrl(request))
@@ -84,12 +108,29 @@
     try {
       if (result?.token !== undefined && result.tfaRequired !== true) {
         await logIn(result)
+        await loadWorkspaces(result.token)
         identity = result
       } else {
         await doLoginNavigate(result, () => {})
       }
     } catch {
       failed = true
+    }
+  }
+
+  async function changeAccount (): Promise<void> {
+    if (submitting) return
+    submitting = true
+    try {
+      await logOut()
+      identity = null
+      workspaces = []
+      selectedWorkspace = undefined
+      allWorkspaces = false
+    } catch {
+      failed = true
+    } finally {
+      submitting = false
     }
   }
 
@@ -120,47 +161,84 @@
   {:else}
     <LoginForm {useOTP} signUpDisabled={true} onLogin={handleLogin} />
   {/if}
-  <Button label={login.string.Close} on:click={cancel} />
 {:else}
   <div class="authorization flex-col" data-id="mcp-authorization">
-    <div class="flex-col flex-gap-4">
-      <div class="authorization-icon flex-center rounded-lg background-bg-accent-color">
-        <Icon icon={IconLink} size="medium" />
-      </div>
-      <h1 class="authorization-title font-semi-bold caption-color">
+    <div class="flex-col flex-gap-2">
+      <div class="fs-title overflow-label" data-id="mcp-account">{getAccountDisplayName(identity)}</div>
+      <h1 class="authorization-title caption-color">
         <Label label={login.string.AuthorizeApplication} params={{ application: clientName }} />
       </h1>
-      <div class="authorization-details flex-col flex-gap-1 text-md">
-        <span><Label label={login.string.SignedInAs} params={{ name: identity.name ?? identity.account }} /></span>
-        <span class="content-dark-color">{issuerUrl === undefined ? '' : new URL(issuerUrl).host}</span>
+    </div>
+
+    {#if workspaces.length === 0}
+      <div class="text-md content-dark-color" data-id="mcp-no-workspaces">
+        <Label label={login.string.NoAvailableWorkspacesDescription} />
       </div>
-    </div>
-    <div
-      class="authorization-permissions flex-row-top flex-gap-3 p-4 rounded-lg border-divider-color background-bg-accent-color"
-    >
-      <div class="flex-no-shrink mt-0-5 caption-color"><Icon icon={IconCheck} size="small" /></div>
-      <div class="min-w-0"><Label label={login.string.AuthorizeApplicationDescription} /></div>
-    </div>
-    <div class="flex-col flex-gap-2 content-dark-color text-sm">
-      {#each redirectOrigins as origin}
-        <div class="flex-row-top flex-gap-2">
-          <div class="flex-no-shrink"><Icon icon={IconArrowRight} size="small" /></div>
-          <span class="authorization-origin">{origin}</span>
+    {:else}
+      <div class="flex-col flex-gap-4" data-id="mcp-workspace-access">
+        <div class="flex-col flex-gap-2">
+          <span class="text-md font-medium caption-color"><Label label={login.string.SelectWorkspace} /></span>
+          <DropdownLabels
+            label={login.string.SelectWorkspace}
+            placeholder={login.string.SelectWorkspace}
+            items={workspaceItems}
+            bind:selected={selectedWorkspace}
+            autoSelect={false}
+            showDropdownIcon
+            disabled={allWorkspaces}
+            enableSearch={workspaceItems.length > 5}
+            kind="regular"
+            size="x-large"
+            width="100%"
+            justify="left"
+            dataId="mcp-workspace-select"
+          />
         </div>
-      {/each}
-    </div>
-    <div class="authorization-actions top-divider pt-4">
-      <Button label={ui.string.Cancel} size="large" shape="round2" dataId="mcp-cancel" on:click={cancel} />
-      <Button
-        label={login.string.Proceed}
-        kind="contrast"
-        size="large"
-        shape="round2"
-        dataId="mcp-authorize"
-        on:click={() => {
-          void authorize()
-        }}
-      />
+        <div data-id="mcp-all-workspaces">
+          <ModernCheckbox bind:checked={allWorkspaces} labelIntl={login.string.AllAvailableWorkspaces} />
+        </div>
+      </div>
+
+      <div class="authorization-permissions flex-row-top flex-gap-3 p-4 rounded-lg border-divider-color text-md">
+        <div class="flex-no-shrink mt-0-5 caption-color"><Icon icon={IconCheckCircle} size="small" /></div>
+        <div class="min-w-0">
+          <Label
+            label={allWorkspaces
+              ? login.string.AuthorizeApplicationDescription
+              : login.string.AuthorizeSelectedWorkspaceDescription}
+          />
+        </div>
+      </div>
+    {/if}
+
+    <div class="flex-col flex-gap-2">
+      {#if workspaces.length === 0}
+        <Button
+          label={login.string.ChangeAccount}
+          kind="contrast"
+          size="x-large"
+          shape="round2"
+          width="100%"
+          dataId="mcp-change-account"
+          on:click={() => {
+            void changeAccount()
+          }}
+        />
+      {:else}
+        <Button
+          label={login.string.Proceed}
+          kind="contrast"
+          size="x-large"
+          shape="round2"
+          width="100%"
+          dataId="mcp-authorize"
+          disabled={!allWorkspaces && selectedWorkspace === undefined}
+          on:click={() => {
+            void authorize()
+          }}
+        />
+      {/if}
+      <Button label={ui.string.Cancel} kind="link" size="large" width="100%" dataId="mcp-cancel" on:click={cancel} />
     </div>
   </div>
 {/if}
@@ -172,37 +250,17 @@
     color: var(--theme-content-color);
   }
 
-  .authorization-icon {
-    width: var(--spacing-6);
-    height: var(--spacing-6);
-    color: var(--theme-caption-color);
-  }
-
   .authorization-title {
     margin: 0;
     font-size: 1.25rem;
+    font-weight: 500;
     line-height: 1.4;
-    overflow-wrap: anywhere;
-  }
-
-  .authorization-details {
-    line-height: 1.5;
     overflow-wrap: anywhere;
   }
 
   .authorization-permissions {
     line-height: 1.6;
-  }
-
-  .authorization-origin {
-    overflow-wrap: anywhere;
-  }
-
-  .authorization-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: var(--spacing-1);
+    background-color: var(--theme-bg-color);
   }
 
   @media (max-width: 480px) {

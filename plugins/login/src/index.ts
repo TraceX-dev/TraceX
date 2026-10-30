@@ -75,7 +75,11 @@ export default plugin(loginId, {
   string: {
     LogIn: '' as IntlString,
     AuthorizeApplication: '' as IntlString<{ application: string }>,
+    NoAvailableWorkspacesDescription: '' as IntlString,
     AuthorizeApplicationDescription: '' as IntlString,
+    AuthorizeSelectedWorkspaceDescription: '' as IntlString,
+    OneWorkspace: '' as IntlString,
+    AllAvailableWorkspaces: '' as IntlString,
     AuthorizationFailed: '' as IntlString,
     McpConnections: '' as IntlString,
     NoMcpConnections: '' as IntlString,

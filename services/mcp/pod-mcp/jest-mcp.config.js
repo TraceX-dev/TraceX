@@ -16,5 +16,8 @@
 module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/src/**/*.test.ts'],
-  transform: { '^.+\\.ts$': ['ts-jest', { tsconfig: { isolatedModules: true } }] }
+  transform: { '^.+\\.ts$': ['ts-jest', { tsconfig: { isolatedModules: true } }] },
+  moduleNameMapper: {
+    '^@hcengineering/openauth-client$': '<rootDir>/../../../packages/openauth-client/src/index.ts'
+  }
 }

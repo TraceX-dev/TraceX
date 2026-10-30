@@ -15,13 +15,33 @@
 
 import { getMetadata } from '@hcengineering/platform'
 import login, { loginId } from '@hcengineering/login'
-import { navigate } from '@hcengineering/ui'
+import type { OAuthWorkspace } from '@hcengineering/openauth-client'
+import presentation from '@hcengineering/presentation'
+import { locationStorageKeyId, navigate, type Location } from '@hcengineering/ui'
+import { workbenchId } from '@hcengineering/workbench'
 
 const PENDING_AUTHORIZATION = 'tracex.pendingOAuthAuthorization'
 
 interface PendingOAuthAuthorization {
   request: string
   createdOn: number
+}
+
+/** Suggests an accessible workspace from the current session or the browser's last workbench location. */
+export function getPreferredOAuthWorkspace (workspaces: OAuthWorkspace[]): OAuthWorkspace | undefined {
+  const currentId = getMetadata(presentation.metadata.WorkspaceUuid)
+  const current = workspaces.find((workspace) => workspace.id === currentId)
+  if (current !== undefined) return current
+  if (workspaces.length === 1) return workspaces[0]
+  try {
+    const last: Location | null = JSON.parse(localStorage.getItem(locationStorageKeyId) ?? 'null')
+    if (last?.path?.[0] === workbenchId) {
+      return workspaces.find((workspace) => workspace.url === last.path[1])
+    }
+  } catch {
+    // Missing or unavailable browser history must not prevent explicit workspace selection.
+  }
+  return undefined
 }
 
 export function rememberOAuthRequest (request: string): void {

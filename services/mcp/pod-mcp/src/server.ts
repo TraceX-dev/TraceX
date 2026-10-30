@@ -38,7 +38,7 @@ const SERVER_NAME = 'tracex-mcp'
 const SERVER_VERSION = '0.1.0'
 const SERVER_INSTRUCTIONS = `TraceX MCP provides tools for the workspaces accessible to the authenticated TraceX account. Never ask the user for tokens or expose token values.
 
-Call my.workspaces to discover accessible workspaces. Every other tool requires the exact workspace ID returned by my.workspaces. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes. Production and staging are separate installations.
+Call my.workspaces to discover workspaces authorized by this connection. A connection may be restricted to one workspace. Every other tool requires the exact workspace ID returned by my.workspaces. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes. Production and staging are separate installations.
 
 Use read-only tools first to discover the available object types, allowed fields, and stable identifiers before making changes. Do not invent workspace ids, object ids, class ids, mixin ids, type ids, or attribute keys; obtain them from tool results or ask the user to clarify.
 
@@ -161,7 +161,11 @@ export function createMcpServer (
           )
         }
         try {
-          const connection = await workspaceManager.getConnection(auth.extra.accountToken, workspace)
+          const connection = await workspaceManager.getConnection(
+            auth.extra.accountToken,
+            workspace,
+            auth.extra.workspaceId
+          )
           const result = toToolResult(tool, await tool.execute(input, createToolContext(ctx, connection)))
           return {
             ...result,
@@ -216,7 +220,11 @@ export function toToolResult (tool: ToolDefinition, result: ToolExecutionResult)
 }
 
 function getTraceXAuthInfo (authInfo: AuthInfo | undefined): TraceXAuthInfo {
-  if (typeof authInfo?.extra?.accountToken !== 'string' || typeof authInfo.extra.connectionId !== 'string') {
+  if (
+    typeof authInfo?.extra?.accountToken !== 'string' ||
+    typeof authInfo.extra.connectionId !== 'string' ||
+    authInfo.extra.workspaceId === undefined
+  ) {
     throw new Error('Missing authenticated TraceX MCP request')
   }
   return authInfo as TraceXAuthInfo

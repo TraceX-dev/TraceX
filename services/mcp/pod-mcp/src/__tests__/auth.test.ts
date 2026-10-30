@@ -14,6 +14,7 @@
 //
 
 import { systemAccountUuid } from '@hcengineering/core'
+import type { ResolvedAccessToken } from '@hcengineering/openauth-client'
 import { decodeToken } from '@hcengineering/server-token'
 import { createMcpTokenVerifier } from '../auth'
 import type { McpConfig } from '../config'
@@ -25,8 +26,8 @@ const config: McpConfig = {
   Port: 4020,
   ServiceID: 'test',
   WorkspaceClientCacheMs: 60_000,
-  OAuthIssuerURL: 'https://auth.test',
-  OAuthInternalURL: 'http://auth-internal.test',
+  OAuthIssuerURL: 'https://auth.test/oauth',
+  OAuthInternalURL: 'http://auth-internal.test/oauth',
   OAuthResourceURL: 'https://mcp.test/mcp',
   OAuthAllowHttp: false
 }
@@ -42,15 +43,17 @@ describe('opaque MCP OAuth tokens', () => {
     global.fetch = originalFetch
   })
 
-  function resolved (resource = config.OAuthResourceURL): Response {
-    return Response.json({
+  function resolved (resource = config.OAuthResourceURL, workspaceId: string | null = null): Response {
+    const value: ResolvedAccessToken = {
       connectionId: 'connection-id',
       account: 'account-id',
       accountToken: 'private-account-token',
       clientId: 'client-id',
       resource,
+      workspaceId,
       expiresAt: Math.floor(Date.now() / 1000) + 300
-    })
+    }
+    return Response.json(value)
   }
 
   it('authenticates the internal exchange with a short-lived service token', async () => {
@@ -77,6 +80,17 @@ describe('opaque MCP OAuth tokens', () => {
     await verifier.verifyAccessToken('same-client-token')
     await expect(verifier.verifyAccessToken('same-client-token')).rejects.toThrow('Invalid or revoked')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('propagates the workspace grant and rejects responses without an explicit grant scope', async () => {
+    const workspaceId = '00000000-0000-4000-8000-000000000001'
+    const verifier = createMcpTokenVerifier(config)
+    fetchMock.mockResolvedValueOnce(resolved(config.OAuthResourceURL, workspaceId))
+    expect((await verifier.verifyAccessToken('scoped-token')).extra?.workspaceId).toBe(workspaceId)
+    const incomplete: Partial<ResolvedAccessToken> = await resolved().json()
+    delete incomplete.workspaceId
+    fetchMock.mockResolvedValueOnce(Response.json(incomplete))
+    await expect(verifier.verifyAccessToken('incomplete-token')).rejects.toThrow('Invalid response')
   })
 
   it('rejects another resource and does not treat issuer outages as expired credentials', async () => {

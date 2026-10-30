@@ -17,6 +17,8 @@ One connection can work with every workspace the authenticated account can curre
 
 OAuth access tokens are opaque, short-lived, and bound to this MCP resource. TraceX account tokens stay on the issuer. Workspace tokens are obtained through the existing accounts `selectWorkspace` exchange when a tool runs. Membership is checked even when a workspace client is cached.
 
+Consent grants access to one explicitly selected workspace or all currently accessible workspaces, including future memberships. `my.workspaces` only lists workspaces allowed by that connection. Calls for a different workspace are rejected before token exchange or cache access. Refresh preserves the original restriction; changing it requires a new authorization.
+
 ## Local Docker Compose
 
 Build the image before starting the compose service:

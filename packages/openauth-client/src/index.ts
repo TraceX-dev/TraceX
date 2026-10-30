@@ -14,4 +14,11 @@
 //
 
 export { getClient } from './client'
-export type { OAuthRequestDetails, OpenAuthClient, PublicConnection } from './types'
+export { OpenAuthError } from './error'
+export type {
+  OAuthRequestDetails,
+  OAuthWorkspace,
+  OpenAuthClient,
+  PublicConnection,
+  ResolvedAccessToken
+} from './types'

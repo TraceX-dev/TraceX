@@ -14,6 +14,7 @@
 //
 
 import { systemAccountUuid } from '@hcengineering/core'
+import { getClient, OpenAuthError, type ResolvedAccessToken } from '@hcengineering/openauth-client'
 import { generateToken } from '@hcengineering/server-token'
 import { OAuthError, OAuthErrorCode, type AuthInfo, type OAuthTokenVerifier } from '@modelcontextprotocol/server'
 import type { McpConfig } from './config'
@@ -23,43 +24,28 @@ export interface TraceXAuthInfo extends AuthInfo {
     account: string
     accountToken: string
     connectionId: string
+    workspaceId: string | null
   }
 }
 
 /** Resolves opaque OAuth access tokens without caching authorization or exposing account tokens to clients. */
 export function createMcpTokenVerifier (config: McpConfig): OAuthTokenVerifier {
+  const client = getClient(config.OAuthInternalURL)
   return {
     async verifyAccessToken (token): Promise<TraceXAuthInfo> {
       const serviceToken = generateToken(systemAccountUuid, undefined, { service: 'mcp-oauth' }, config.ServerSecret, {
         exp: Math.floor(Date.now() / 1000) + 60
       })
-      const response = await fetch(`${config.OAuthInternalURL}/internal/resolve`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${serviceToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, resource: config.OAuthResourceURL }),
-        signal: AbortSignal.timeout(10_000)
-      })
-      if (response.status === 401) {
-        throw new OAuthError(OAuthErrorCode.InvalidToken, 'Invalid or revoked OAuth access token')
+      let resolved: ResolvedAccessToken
+      try {
+        resolved = await client.resolveAccessToken(token, config.OAuthResourceURL, serviceToken)
+      } catch (error: unknown) {
+        if (error instanceof OpenAuthError && error.status === 401) {
+          throw new OAuthError(OAuthErrorCode.InvalidToken, 'Invalid or revoked OAuth access token')
+        }
+        throw new Error('OAuth authorization service is unavailable', { cause: error })
       }
-      if (!response.ok) throw new Error('OAuth authorization service is unavailable')
-      const resolved: unknown = await response.json()
-      if (
-        typeof resolved !== 'object' ||
-        resolved === null ||
-        !('account' in resolved) ||
-        typeof resolved.account !== 'string' ||
-        !('accountToken' in resolved) ||
-        typeof resolved.accountToken !== 'string' ||
-        !('connectionId' in resolved) ||
-        typeof resolved.connectionId !== 'string' ||
-        !('clientId' in resolved) ||
-        typeof resolved.clientId !== 'string' ||
-        !('expiresAt' in resolved) ||
-        typeof resolved.expiresAt !== 'number' ||
-        !('resource' in resolved) ||
-        resolved.resource !== config.OAuthResourceURL
-      ) {
+      if (resolved.resource !== config.OAuthResourceURL || resolved.workspaceId === undefined) {
         throw new Error('Invalid response from OAuth authorization service')
       }
       return {
@@ -68,7 +54,12 @@ export function createMcpTokenVerifier (config: McpConfig): OAuthTokenVerifier {
         scopes: ['tracex'],
         expiresAt: resolved.expiresAt,
         resource: new URL(resolved.resource),
-        extra: { account: resolved.account, accountToken: resolved.accountToken, connectionId: resolved.connectionId }
+        extra: {
+          account: resolved.account,
+          accountToken: resolved.accountToken,
+          connectionId: resolved.connectionId,
+          workspaceId: resolved.workspaceId
+        }
       }
     }
   }

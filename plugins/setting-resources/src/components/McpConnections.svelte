@@ -14,12 +14,12 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { DateRangeMode } from '@hcengineering/core'
   import login from '@hcengineering/login'
   import { getClient as getOpenAuthClient, type PublicConnection } from '@hcengineering/openauth-client'
   import { getMetadata, setPlatformStatus, unknownError } from '@hcengineering/platform'
   import presentation, { MessageBox } from '@hcengineering/presentation'
-  import { Button, DatePresenter, IconDelete, Label, Loading, SettingsCard, showPopup } from '@hcengineering/ui'
+  import { themeStore } from '@hcengineering/theme'
+  import { Button, Icon, IconLink, Label, Loading, SettingsCard, showPopup } from '@hcengineering/ui'
   import setting from '../plugin'
 
   const issuerUrl = getMetadata(login.metadata.OAuthURL)?.replace(/\/$/, '')
@@ -27,6 +27,16 @@
   let connections: PublicConnection[] = []
   let loading = true
   let failed = false
+
+  function formatConnectedDate (value: number, language: string): string {
+    const date = new Date(value)
+    const options: Intl.DateTimeFormatOptions = {
+      day: 'numeric',
+      month: 'short',
+      year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric'
+    }
+    return date.toLocaleDateString(language, options)
+  }
 
   async function load (): Promise<void> {
     if (client === undefined) return
@@ -82,35 +92,47 @@
       {:else if connections.length === 0}
         <Label label={login.string.NoMcpConnections} />
       {:else}
-        <table class="connections-list">
-          <tbody>
-            {#each connections as connection (connection.id)}
-              <tr data-id="mcp-connection">
-                <th scope="row" class="font-semi-bold">{connection.clientName}</th>
-                <td>
-                  <DatePresenter
-                    value={connection.createdOn}
-                    kind="ghost"
-                    mode={DateRangeMode.DATETIME}
-                    showIcon={false}
-                  />
-                </td>
-                <td>
-                  <Button
-                    icon={IconDelete}
-                    kind="icon"
-                    size="small"
-                    showTooltip={{ label: setting.string.Disconnect }}
-                    dataId="mcp-disconnect"
-                    on:click={() => {
-                      disconnect(connection)
-                    }}
-                  />
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+        <ul class="connections-list">
+          {#each connections as connection (connection.id)}
+            <li class="connection-row" data-id="mcp-connection">
+              <div class="connection-icon flex-center"><Icon icon={IconLink} size="small" /></div>
+              <div class="flex-col flex-gap-1">
+                <div class="flex-row-center flex-wrap flex-gap-2">
+                  <span class="font-semi-bold overflow-label">{connection.clientName}</span>
+                  <span class="connection-kind text-sm content-dark-color">MCP</span>
+                </div>
+                <div class="flex-row-center flex-wrap flex-gap-1 text-md content-dark-color">
+                  <span class="connection-scope">
+                    {#if connection.workspaceId === null}
+                      <Label label={login.string.AllAvailableWorkspaces} />
+                    {:else}
+                      {connection.workspaceName ?? connection.workspaceId}
+                      {#if connection.workspaceUrl}
+                        ({connection.workspaceUrl}){/if}
+                    {/if}
+                  </span>
+                  <span>·</span>
+                  <span>
+                    <Label label={setting.string.Connected} />{' '}
+                    <time
+                      class="no-word-wrap"
+                      datetime={new Date(connection.createdOn).toISOString()}
+                      title={new Date(connection.createdOn).toLocaleString($themeStore.language)}
+                      >{formatConnectedDate(connection.createdOn, $themeStore.language)}</time
+                    >
+                  </span>
+                </div>
+              </div>
+              <Button
+                label={setting.string.Disconnect}
+                dataId="mcp-disconnect"
+                on:click={() => {
+                  disconnect(connection)
+                }}
+              />
+            </li>
+          {/each}
+        </ul>
       {/if}
     </div>
   </SettingsCard>
@@ -118,28 +140,48 @@
 
 <style lang="scss">
   .connections-list {
-    width: 100%;
-    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
 
-    th,
-    td {
-      padding: var(--spacing-1_25) 0;
-      vertical-align: middle;
-    }
+  .connection-row {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--spacing-1_5);
+    padding: var(--spacing-1_5) 0;
 
-    tr + tr {
+    & + .connection-row {
       border-top: 1px solid var(--theme-divider-color);
     }
 
-    th {
-      width: 100%;
-      text-align: left;
-      overflow-wrap: anywhere;
+    &:first-child {
+      padding-top: 0;
     }
 
-    td {
-      padding-left: var(--spacing-2);
-      white-space: nowrap;
+    &:last-child {
+      padding-bottom: 0;
     }
+  }
+
+  .connection-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    color: var(--primary-button-color);
+    background-color: var(--primary-button-default);
+  }
+
+  .connection-kind {
+    padding: var(--spacing-0_25) var(--spacing-0_75);
+    border-radius: var(--spacing-0_5);
+    background-color: var(--theme-button-hovered);
+    line-height: 1.25;
+  }
+
+  .connection-scope {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 </style>

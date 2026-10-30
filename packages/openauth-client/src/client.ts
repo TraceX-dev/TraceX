@@ -13,7 +13,14 @@
 // limitations under the License.
 //
 
-import type { OAuthRequestDetails, OpenAuthClient, PublicConnection } from './types'
+import { OpenAuthError } from './error'
+import type {
+  OAuthRequestDetails,
+  OAuthWorkspace,
+  OpenAuthClient,
+  PublicConnection,
+  ResolvedAccessToken
+} from './types'
 
 /** Creates a client for the trusted issuer URL, including its optional path prefix. */
 export function getClient (issuerUrl: string): OpenAuthClient {
@@ -29,10 +36,16 @@ class HttpOpenAuthClient implements OpenAuthClient {
     return (await response.json()) as OAuthRequestDetails
   }
 
-  async completeRequest (request: string, token: string): Promise<void> {
+  async getWorkspaces (request: string, token: string): Promise<OAuthWorkspace[]> {
+    const response = await this.fetch(`/requests/${requestId(request)}/workspaces`, { headers: authorization(token) })
+    return (await response.json()) as OAuthWorkspace[]
+  }
+
+  async completeRequest (request: string, token: string, workspaceId: string | null): Promise<void> {
     await this.fetch(`/requests/${requestId(request)}/complete`, {
       method: 'POST',
-      headers: authorization(token)
+      headers: { ...authorization(token), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId })
     })
   }
 
@@ -56,9 +69,19 @@ class HttpOpenAuthClient implements OpenAuthClient {
     return `${this.endpoint}/tracex/cancel?request=${requestId(request)}`
   }
 
+  async resolveAccessToken (token: string, resource: string, serviceToken: string): Promise<ResolvedAccessToken> {
+    const response = await this.fetch('/internal/resolve', {
+      method: 'POST',
+      headers: { ...authorization(serviceToken), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, resource }),
+      signal: AbortSignal.timeout(10_000)
+    })
+    return (await response.json()) as ResolvedAccessToken
+  }
+
   private async fetch (path: string, init?: RequestInit): Promise<Response> {
     const response = await fetch(`${this.endpoint}${path}`, init)
-    if (!response.ok) throw new Error(`OpenAuth request failed (${response.status})`)
+    if (!response.ok) throw new OpenAuthError(response.status)
     return response
   }
 }

@@ -23,7 +23,7 @@ import { cors } from 'hono/cors'
 import { decodeJwt } from 'jose'
 import { authorizationFingerprint, getTokenKey, isRecord, isRedirectUri, opaqueToken } from './protocol'
 import type { OAuthStore } from './store'
-import type { AuthorizationState, OAuthConfig, PendingLogin, TraceXIdentity } from './types'
+import type { AuthorizationState, OAuthConfig, OAuthWorkspace, PendingLogin, TraceXIdentity } from './types'
 
 interface SubjectProperties {
   account: string
@@ -32,6 +32,7 @@ interface SubjectProperties {
 
 interface AccountAccess {
   authenticate: (token: string, requireAccountToken: boolean) => Promise<TraceXIdentity>
+  getWorkspaces: (token: string) => Promise<OAuthWorkspace[]>
   isServiceToken: (token: string) => boolean
 }
 
@@ -63,7 +64,8 @@ function pendingLogin (value: unknown): PendingLogin | undefined {
     clientId: value.clientId,
     authorization: value.authorization,
     account: typeof value.account === 'string' ? value.account : undefined,
-    accountToken: typeof value.accountToken === 'string' ? value.accountToken : undefined
+    accountToken: typeof value.accountToken === 'string' ? value.accountToken : undefined,
+    workspaceId: value.workspaceId === null || typeof value.workspaceId === 'string' ? value.workspaceId : undefined
   }
 }
 
@@ -170,6 +172,11 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
     if (!originAllowed(c.req.raw)) return c.json({ error: 'access_denied' }, 403)
     const token = bearer(c.req.raw)
     if (token === undefined) return c.json({ error: 'invalid_token' }, 401)
+    const input: unknown = await c.req.json().catch(() => undefined)
+    if (!isRecord(input) || (input.workspaceId !== null && typeof input.workspaceId !== 'string')) {
+      return c.json({ error: 'invalid_request' }, 400)
+    }
+    const workspaceId = input.workspaceId
     return await store.withLock(`login:${c.req.param('id')}`, async () => {
       const key = ['login', c.req.param('id')]
       const pending = pendingLogin(await store.get(key))
@@ -180,9 +187,15 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
       } catch {
         return c.json({ error: 'invalid_token' }, 401)
       }
+      if (
+        workspaceId !== null &&
+        !(await accounts.getWorkspaces(identity.token)).some((workspace) => workspace.id === workspaceId)
+      ) {
+        return c.json({ error: 'access_denied' }, 403)
+      }
       await store.set(
         key,
-        { ...pending, account: identity.account, accountToken: identity.token },
+        { ...pending, account: identity.account, accountToken: identity.token, workspaceId },
         new Date(Date.now() + 60_000)
       )
       return c.json({
@@ -191,12 +204,36 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
     })
   })
 
+  routes.get('/requests/:id/workspaces', async (c) => {
+    if (pendingLogin(await store.get(['login', c.req.param('id')])) === undefined) {
+      return c.json({ error: 'invalid_request' }, 400)
+    }
+    const token = bearer(c.req.raw)
+    if (token === undefined) return c.json({ error: 'invalid_token' }, 401)
+    let identity: TraceXIdentity
+    try {
+      identity = await accounts.authenticate(token, true)
+    } catch {
+      return c.json({ error: 'invalid_token' }, 401)
+    }
+    return c.json(await accounts.getWorkspaces(identity.token))
+  })
+
   routes.get('/connections', async (c) => {
     const token = bearer(c.req.raw)
     if (token === undefined) return c.json({ error: 'invalid_token' }, 401)
     try {
       const identity = await accounts.authenticate(token, false)
-      return c.json(await store.listConnections(identity.account, config.resourceUrl))
+      const connections = await store.listConnections(identity.account, config.resourceUrl)
+      const workspaces = connections.some((connection) => connection.workspaceId !== null)
+        ? await accounts.getWorkspaces(identity.token)
+        : []
+      return c.json(
+        connections.map((connection) => {
+          const workspace = workspaces.find((workspace) => workspace.id === connection.workspaceId)
+          return { ...connection, workspaceName: workspace?.name, workspaceUrl: workspace?.url }
+        })
+      )
     } catch {
       return c.json({ error: 'invalid_token' }, 401)
     }
@@ -237,6 +274,7 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
       account: resolved.connection.account,
       accountToken: resolved.connection.accountToken,
       clientId: resolved.connection.clientId,
+      workspaceId: resolved.connection.workspaceId,
       resource: resolved.connection.resource,
       expiresAt: Math.floor(resolved.expiresOn / 1000)
     })
@@ -272,7 +310,8 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
             authorization === undefined ||
             pending.authorization !== authorizationFingerprint(authorization) ||
             pending.account === undefined ||
-            pending.accountToken === undefined
+            pending.accountToken === undefined ||
+            pending.workspaceId === undefined
           ) {
             return c.text('Authorization request expired or changed. Please reconnect.', 400)
           }
@@ -284,6 +323,7 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
             id: connectionId,
             account: pending.account,
             accountToken: pending.accountToken,
+            workspaceId: pending.workspaceId,
             clientId: client.id,
             clientName: client.name,
             resource: config.resourceUrl,

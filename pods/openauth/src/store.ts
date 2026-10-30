@@ -124,9 +124,9 @@ export class OAuthStore {
 
   async createConnection (connection: OAuthConnection): Promise<void> {
     await this.sql`INSERT INTO openauth.connection
-      (id, account, client_id, client_name, resource, account_token, created_on)
+      (id, account, client_id, client_name, resource, account_token, created_on, workspace_id)
       VALUES (${connection.id}, ${connection.account}, ${connection.clientId}, ${connection.clientName},
-      ${connection.resource}, ${this.encrypt(connection.accountToken)}, ${connection.createdOn})`
+      ${connection.resource}, ${this.encrypt(connection.accountToken)}, ${connection.createdOn}, ${connection.workspaceId})`
   }
 
   async getConnection (id: string): Promise<OAuthConnection | undefined> {
@@ -138,6 +138,7 @@ export class OAuthStore {
         client_name: string
         resource: string
         account_token: string
+        workspace_id: string | null
         created_on: string
         revoked_on: string | null
       }[]
@@ -152,15 +153,21 @@ export class OAuthStore {
           clientName: row.client_name,
           resource: row.resource,
           accountToken: this.decrypt<string>(row.account_token),
+          workspaceId: row.workspace_id,
           createdOn: Number(row.created_on)
         }
   }
 
   async listConnections (account: string, resource: string): Promise<PublicConnection[]> {
-    const rows = await this.sql<{ id: string, client_name: string, created_on: string }[]>`
-      SELECT id, client_name, created_on FROM openauth.connection
+    const rows = await this.sql<{ id: string, client_name: string, created_on: string, workspace_id: string | null }[]>`
+      SELECT id, client_name, created_on, workspace_id FROM openauth.connection
       WHERE account = ${account} AND resource = ${resource} AND revoked_on IS NULL ORDER BY created_on DESC`
-    return rows.map((row) => ({ id: row.id, clientName: row.client_name, createdOn: Number(row.created_on) }))
+    return rows.map((row) => ({
+      id: row.id,
+      clientName: row.client_name,
+      createdOn: Number(row.created_on),
+      workspaceId: row.workspace_id
+    }))
   }
 
   async revokeConnection (id: string, account: string, resource: string): Promise<void> {
