@@ -647,7 +647,9 @@ function markInlineImages (node: MarkupNode): void {
   const content = node.content
   if (content === undefined) return
 
-  if (content.length > 1) {
+  // whitespace-only text does not count as content
+  const meaningful = content.filter((c) => !(c.type === MarkupNodeType.text && (c.text ?? '').trim() === ''))
+  if (meaningful.length > 1) {
     for (const child of content) {
       if (child.type === MarkupNodeType.image) {
         child.attrs = { ...(child.attrs ?? {}), display: 'inline' }

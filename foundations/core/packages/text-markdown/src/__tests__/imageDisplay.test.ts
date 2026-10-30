@@ -32,6 +32,11 @@ describe('markdown image display', () => {
     expect(img.attrs.display).toBe('inline')
   })
 
+  it('ignores whitespace-only text next to an image', () => {
+    const [img] = images('<p> <img src="files/image_1.png" alt="a"/></p>')
+    expect(img.attrs?.display).toBeUndefined()
+  })
+
   it('keeps an image alone in its paragraph as block (no display)', () => {
     const [img] = images('![shot](image://blob1?file=blob1)')
     expect(img.attrs?.display).toBeUndefined()
