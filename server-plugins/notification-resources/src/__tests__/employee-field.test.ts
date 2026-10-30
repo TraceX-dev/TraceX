@@ -24,9 +24,10 @@ import core, {
   type Ref,
   type Space,
   type TxCUD,
-  TxFactory
+  TxFactory,
+  TxProcessor
 } from '@hcengineering/core'
-import type { NotificationType } from '@hcengineering/notification'
+import notification, { type NotificationType } from '@hcengineering/notification'
 import type { TriggerControl } from '@hcengineering/server-core'
 
 import { isUserAddedToEmployeeFieldTypeMatch } from '../employee-field'
@@ -48,7 +49,9 @@ const SPACE = 'test:space:Cards' as Ref<Space>
 const PERSON = 'test:person:Alice' as Ref<Person>
 const OTHER = 'test:person:Bob' as Ref<Person>
 const factory = new TxFactory(core.account.System)
-const doc = { _id: 'test:card', _class: CARD } as TestCard
+const doc: TestCard = TxProcessor.createDoc2Doc(
+  factory.createTxCreateDoc(CARD, SPACE, {}, 'test:card' as Ref<TestCard>)
+)
 
 function attribute (array = false, employee = true): AnyAttribute {
   const type = { _class: core.class.RefTo, to: employee ? contact.mixin.Employee : contact.class.Person }
@@ -57,19 +60,32 @@ function attribute (array = false, employee = true): AnyAttribute {
 
 const control = {
   hierarchy: {
-    getAllAttributes: () => new Map([
-      ['owner', attribute()],
-      ['reviewer', attribute()],
-      ['reviewers', attribute(true)],
-      ['person', attribute(false, false)],
-      ['title', { type: { _class: core.class.TypeString } } as unknown as AnyAttribute]
-    ]),
+    getAllAttributes: () =>
+      new Map([
+        ['owner', attribute()],
+        ['reviewer', attribute()],
+        ['reviewers', attribute(true)],
+        ['person', attribute(false, false)],
+        ['title', { type: { _class: core.class.TypeString } } as unknown as AnyAttribute]
+      ]),
     isDerived: (clazz: Ref<Class<Doc>>, parent: Ref<Class<Doc>>) => clazz === parent
   }
 } as unknown as TriggerControl
 
 function matches (tx: TxCUD<Doc>, field?: string, person = PERSON): boolean {
-  return isUserAddedToEmployeeFieldTypeMatch(tx, doc, person, [], { field } as NotificationType, control)
+  const type: NotificationType = TxProcessor.createDoc2Doc(
+    factory.createTxCreateDoc(notification.class.NotificationType, core.space.Model, {
+      label: contact.string.Employee,
+      generated: false,
+      hidden: false,
+      group: 'test:notification-group' as NotificationType['group'],
+      defaultEnabled: true,
+      txClasses: [core.class.TxCreateDoc, core.class.TxUpdateDoc, core.class.TxMixin],
+      objectClass: CARD,
+      field
+    })
+  )
+  return isUserAddedToEmployeeFieldTypeMatch(tx, doc, person, [], type, control)
 }
 
 function update (operations: DocumentUpdate<TestCard>): TxCUD<TestCard> {
