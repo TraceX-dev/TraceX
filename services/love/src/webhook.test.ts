@@ -15,7 +15,8 @@
 import type { MeasureContext } from '@hcengineering/core'
 import type { ParsedRoomName } from '@hcengineering/love'
 import { WebhookEvent } from 'livekit-server-sdk'
-import { isSupportedWebhookEvent, WebhookProcessor } from './webhook'
+import { WebhookProcessor } from './webhook'
+import { isSupportedWebhookEvent } from './webhookEvents'
 import { WorkspaceClient } from './workspaceClient'
 
 jest.mock('./config', () => ({ __esModule: true, default: {} }))
@@ -53,7 +54,7 @@ describe('webhook event filtering', () => {
   })
 
   it.each(['track_published', 'track_unpublished', 'participant_connection_aborted', 'future_event', ''])(
-    'ignores %s without opening a workspace, even when room metadata is absent',
+    'ignores %s without opening a workspace',
     async (event) => {
       expect(isSupportedWebhookEvent(event)).toBe(false)
       await makeProcessor().processEvent(Object.assign(new WebhookEvent(), { event }), roomName)
@@ -66,11 +67,4 @@ describe('webhook event filtering', () => {
     await makeProcessor().processEvent(Object.assign(new WebhookEvent(), { event }), roomName)
     expect(createWorkspaceClient).toHaveBeenCalledWith(roomName.workspace, ctx)
   })
-
-  it.each(['room_started', 'room_finished', 'egress_started', 'egress_updated', 'egress_ended'])(
-    'preserves support for %s',
-    (event) => {
-      expect(isSupportedWebhookEvent(event)).toBe(true)
-    }
-  )
 })

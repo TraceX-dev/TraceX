@@ -36,21 +36,12 @@ import { saveFile } from './storage'
 import { WorkspaceClient } from './workspaceClient'
 import platform, { PlatformError } from '@hcengineering/platform'
 import { parseParticipantMetadata } from './utils'
+import { isSupportedWebhookEvent, type SupportedWebhookEvent } from './webhookEvents'
 
-export function isSupportedWebhookEvent (event: string): boolean {
-  switch (event) {
-    case 'participant_joined':
-    case 'participant_left':
-    case 'room_started':
-    case 'room_finished':
-    case 'egress_started':
-    case 'egress_updated':
-    case 'egress_ended':
-      return true
-    default:
-      return false
-  }
-}
+type WorkspaceWebhookEvent = Extract<
+  SupportedWebhookEvent,
+  'participant_joined' | 'participant_left' | 'room_started' | 'room_finished'
+>
 
 export class WebhookProcessor {
   constructor (
@@ -63,55 +54,65 @@ export class WebhookProcessor {
   ) {}
 
   async processEvent (event: WebhookEvent, roomName: ParsedRoomName): Promise<void> {
-    if (!isSupportedWebhookEvent(event.event)) {
-      this.ctx.info('Ignoring unhandled webhook event type', { event: event.event })
+    const type = event.event
+    if (!isSupportedWebhookEvent(type)) {
+      this.ctx.info('Ignoring unhandled webhook event type', { event: type })
       return
     }
 
+    switch (type) {
+      // Handle egress_started - log only, PendingRecording is created in /startRecord
+      case 'egress_started':
+        await this.egressStarted(event, roomName)
+        return
+      // Handle egress_updated - update size in PendingRecording if available
+      case 'egress_updated':
+        await this.egressUpdated(event, roomName)
+        return
+      // Handle egress (recording finished) - save file and remove PendingRecording
+      case 'egress_ended':
+        await this.egressEnded(event, roomName)
+        return
+      case 'participant_joined':
+      case 'participant_left':
+      case 'room_started':
+      case 'room_finished':
+        await this.processWorkspaceEvent(type, event, roomName)
+        return
+      default: {
+        const unhandled: never = type
+        this.ctx.error('Supported webhook event has no handler', { event: unhandled })
+      }
+    }
+  }
+
+  private async processWorkspaceEvent (
+    type: WorkspaceWebhookEvent,
+    event: WebhookEvent,
+    roomName: ParsedRoomName
+  ): Promise<void> {
     const { workspace, meetingId } = roomName
-
-    // Handle egress_started - log only, PendingRecording is created in /startRecord
-    if (event.event === 'egress_started') {
-      await this.egressStarted(event, roomName)
-      return
-    }
-
-    // Handle egress_updated - update size in PendingRecording if available
-    if (event.event === 'egress_updated') {
-      await this.egressUpdated(event, roomName)
-      return
-    }
-
-    // Handle egress (recording finished) - save file and remove PendingRecording
-    if (event.event === 'egress_ended') {
-      await this.egressEnded(event, roomName)
-      return
-    }
-
     try {
       const wsClient = await WorkspaceClient.create(workspace, this.ctx)
-      // Participant joined / left -> manage ParticipantInfo and PendingJoin via LiveKit events only
-      if (event.event === 'participant_joined' || event.event === 'participant_left') {
-        await this.handleJoinLeave(event, roomName, wsClient)
-        return
-      }
-
-      // Room finished -> mark meeting finished and add activity
-      if (event.event === 'room_finished') {
-        await this.roomFinished(event, meetingId, wsClient, workspace, roomName)
-        return
-      }
-
-      // Room started -> optionally add an activity entry
-      if (event.event === 'room_started') {
-        // When a room starts, mark the associated MeetingMinutes as Active.
-        await this.roomStarted(meetingId, wsClient, workspace, roomName)
+      switch (type) {
+        // Participant joined / left -> manage ParticipantInfo and PendingJoin via LiveKit events only
+        case 'participant_joined':
+        case 'participant_left':
+          await this.handleJoinLeave(event, roomName, wsClient)
+          return
+        // Room finished -> mark meeting finished and add activity
+        case 'room_finished':
+          await this.roomFinished(event, meetingId, wsClient, workspace, roomName)
+          return
+        // Room started -> mark the associated MeetingMinutes as Active
+        case 'room_started':
+          await this.roomStarted(meetingId, wsClient, workspace, roomName)
       }
     } catch (err: any) {
       const wsNotFound = err instanceof PlatformError && err.status.code === platform.status.WorkspaceNotFound
 
       if (!wsNotFound) {
-        this.ctx.error('Failed to process livekit event', { error: err?.message ?? String(err), event: event.event })
+        this.ctx.error('Failed to process livekit event', { error: err?.message ?? String(err), event: type })
       }
     }
   }
