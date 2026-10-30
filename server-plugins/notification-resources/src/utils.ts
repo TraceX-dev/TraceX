@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -238,7 +239,11 @@ export async function isShouldNotifyTx (
       const mixin = control.hierarchy.as(type, serverNotification.mixin.TypeMatch)
       if (mixin.func !== undefined) {
         const f = await getResource(mixin.func)
-        let res = f(tx, object, receiver.employee, receiver.socialIds, type, control, receiver.account)
+        const matchType =
+          mixin.func === serverNotification.function.IsUserAddedToEmployeeFieldTypeMatch
+            ? { ...type, field: docUpdateMessage?.attributeUpdates?.attrKey }
+            : type
+        let res = f(tx, object, receiver.employee, receiver.socialIds, matchType, control, receiver.account)
         if (res instanceof Promise) {
           res = await res
         }
