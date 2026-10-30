@@ -51,7 +51,7 @@ import { updateLiveKitSessions } from './billing'
 import config from './config'
 import { LiveKitPollingService } from './polling'
 import { RecordingProcessor } from './recordings'
-import { WebhookProcessor } from './webhook'
+import { isSupportedWebhookEvent, WebhookProcessor } from './webhook'
 import { WorkspaceClient } from './workspaceClient'
 import { GuestManager } from './guests'
 import { createToken, decodeMeetingToken, getRoomName, parseMetadata } from './utils'
@@ -213,6 +213,8 @@ export const main = async (): Promise<void> => {
   app.post('/webhook', async (req, res) => {
     try {
       const rawEvent: WebhookEvent = await decodeEvent(req)
+      if (!isSupportedWebhookEvent(rawEvent.event)) return
+
       // Convert all BigInt values to strings to prevent serialization errors throughout the handler
       const event = convertBigIntToString(rawEvent) as typeof rawEvent
 

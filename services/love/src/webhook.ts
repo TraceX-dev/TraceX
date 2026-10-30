@@ -1,3 +1,17 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 import { MeasureContext, Ref, WorkspaceIds, type WorkspaceUuid } from '@hcengineering/core'
 import love, {
   MeetingMinutes,
@@ -23,6 +37,21 @@ import { WorkspaceClient } from './workspaceClient'
 import platform, { PlatformError } from '@hcengineering/platform'
 import { parseParticipantMetadata } from './utils'
 
+export function isSupportedWebhookEvent (event: string): boolean {
+  switch (event) {
+    case 'participant_joined':
+    case 'participant_left':
+    case 'room_started':
+    case 'room_finished':
+    case 'egress_started':
+    case 'egress_updated':
+    case 'egress_ended':
+      return true
+    default:
+      return false
+  }
+}
+
 export class WebhookProcessor {
   constructor (
     readonly ctx: MeasureContext,
@@ -34,6 +63,11 @@ export class WebhookProcessor {
   ) {}
 
   async processEvent (event: WebhookEvent, roomName: ParsedRoomName): Promise<void> {
+    if (!isSupportedWebhookEvent(event.event)) {
+      this.ctx.info('Ignoring unhandled webhook event type', { event: event.event })
+      return
+    }
+
     const { workspace, meetingId } = roomName
 
     // Handle egress_started - log only, PendingRecording is created in /startRecord
@@ -72,7 +106,6 @@ export class WebhookProcessor {
       if (event.event === 'room_started') {
         // When a room starts, mark the associated MeetingMinutes as Active.
         await this.roomStarted(meetingId, wsClient, workspace, roomName)
-        return
       }
     } catch (err: any) {
       const wsNotFound = err instanceof PlatformError && err.status.code === platform.status.WorkspaceNotFound
@@ -80,11 +113,7 @@ export class WebhookProcessor {
       if (!wsNotFound) {
         this.ctx.error('Failed to process livekit event', { error: err?.message ?? String(err), event: event.event })
       }
-      return
     }
-
-    // Unknown event type - acknowledge receipt but don't process
-    this.ctx.info('Ignoring unhandled webhook event type', { event: event.event })
   }
 
   private async handleJoinLeave (
