@@ -302,9 +302,9 @@
     return canChangeAttribute(attr, object.space as Ref<TypedSpace>, permissionsStore, object._class)
   }
 
-  async function canEdit (object: Doc): Promise<boolean> {
+  function canEdit (object: Doc): boolean | Promise<boolean> {
     if (client.getHierarchy().isDerived(object._class, core.class.Space)) {
-      return await canEditSpace(object)
+      return canEditSpace(object)
     }
     return true
   }
@@ -367,7 +367,7 @@
             on:contextmenu={contextHandler(object, row)}
           >
             {#await canEdit(object) then canEditObject}
-              {#each model as attribute, cell}
+              {#each model as attribute, cell (attribute.key)}
                 <td
                   class:align-left={attribute.displayProps?.align === 'left'}
                   class:align-center={attribute.displayProps?.align === 'center'}
