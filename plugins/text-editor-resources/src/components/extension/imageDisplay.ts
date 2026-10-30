@@ -14,6 +14,7 @@
 //
 import { type ImageDisplay } from '@hcengineering/text'
 import { type Node } from '@tiptap/pm/model'
+import { type EditorState, type Transaction } from '@tiptap/pm/state'
 
 /**
  * Default display for a newly inserted image: `inline` if the paragraph already has content,
@@ -30,4 +31,62 @@ export function getDefaultImageDisplay (doc: Node, pos: number, ignoreText?: str
     return null
   }
   return parent.childCount > 0 ? 'inline' : null
+}
+
+/** True if the text block has content other than the image itself (whitespace-only text is ignored). */
+export function hasInlineNeighbors (parent: Node): boolean {
+  let count = 0
+  parent.forEach((child) => {
+    if (!(child.isText && (child.text ?? '').trim() === '')) count++
+  })
+  return count > 1
+}
+
+function getChangedRanges (transactions: readonly Transaction[]): Array<[number, number]> {
+  const ranges: Array<[number, number]> = []
+  transactions.forEach((tr, i) => {
+    tr.mapping.maps.forEach((map, j) => {
+      map.forEach((_oldStart, _oldEnd, newStart, newEnd) => {
+        let from = newStart
+        let to = newEnd
+        const rest = [...tr.mapping.maps.slice(j + 1), ...transactions.slice(i + 1).flatMap((t) => t.mapping.maps)]
+        for (const m of rest) {
+          from = m.map(from, -1)
+          to = m.map(to, 1)
+        }
+        ranges.push([from, to])
+      })
+    })
+  })
+  return ranges
+}
+
+/**
+ * Images that arrive by paste or drag-and-drop (including moving an existing image)
+ * keep a `null` display. If such an image lands among other content, make it inline,
+ * otherwise it breaks the line. An explicit choice is never downgraded.
+ */
+export function normalizeInsertedImages (transactions: readonly Transaction[], state: EditorState): Transaction | null {
+  const uiEvent = transactions.map((tr) => tr.getMeta('uiEvent')).find((it) => it !== undefined)
+  if (uiEvent !== 'paste' && uiEvent !== 'drop') return null
+
+  const size = state.doc.content.size
+  const clamp = (n: number): number => Math.max(0, Math.min(n, size))
+  const positions = new Set<number>()
+  for (const [from, to] of getChangedRanges(transactions)) {
+    state.doc.nodesBetween(clamp(from), clamp(to), (node, pos) => {
+      if (node.type.name === 'image' && node.attrs.display == null) {
+        const parent = state.doc.resolve(pos).parent
+        if (parent.isTextblock && hasInlineNeighbors(parent)) positions.add(pos)
+      }
+    })
+  }
+  if (positions.size === 0) return null
+
+  const tr = state.tr
+  positions.forEach((pos) => {
+    const node = state.doc.nodeAt(pos)
+    if (node !== null) tr.setNodeMarkup(pos, undefined, { ...node.attrs, display: 'inline' })
+  })
+  return tr
 }

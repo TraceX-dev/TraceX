@@ -14,15 +14,16 @@
 //
 
 import { Schema } from '@tiptap/pm/model'
+import { EditorState } from '@tiptap/pm/state'
 
-import { getDefaultImageDisplay } from '../imageDisplay'
+import { getDefaultImageDisplay, normalizeInsertedImages } from '../imageDisplay'
 
 const schema = new Schema({
   nodes: {
     doc: { content: 'block+' },
     paragraph: { group: 'block', content: 'inline*' },
     text: { group: 'inline' },
-    image: { group: 'inline', inline: true, atom: true }
+    image: { group: 'inline', inline: true, atom: true, attrs: { display: { default: null } } }
   }
 })
 
@@ -59,5 +60,56 @@ describe('getDefaultImageDisplay', () => {
   it('clamps an out-of-range position', () => {
     expect(getDefaultImageDisplay(doc, -5)).toBeNull()
     expect(getDefaultImageDisplay(doc, 10000)).toBeNull()
+  })
+})
+
+describe('normalizeInsertedImages', () => {
+  const img = (display: string | null = null): any => schema.node('image', { display })
+  const para = (...kids: any[]): any => schema.node('paragraph', null, kids)
+  const make = (...paragraphs: any[]): EditorState => EditorState.create({ doc: schema.node('doc', null, paragraphs) })
+  const displayAt = (state: EditorState, pos: number): unknown => state.doc.nodeAt(pos)?.attrs.display
+
+  function insert (state: EditorState, pos: number, node: any, uiEvent?: string): { next: EditorState, fix: any } {
+    let tr = state.tr.insert(pos, node)
+    if (uiEvent !== undefined) tr = tr.setMeta('uiEvent', uiEvent)
+    const next = state.apply(tr)
+    return { next, fix: normalizeInsertedImages([tr], next) }
+  }
+
+  it('makes a pasted image inline when it lands among text', () => {
+    const { next, fix } = insert(make(para(schema.text('hello'))), 3, img(), 'paste')
+    expect(fix).not.toBeNull()
+    expect(displayAt(next.apply(fix), 3)).toBe('inline')
+  })
+
+  it('makes a dropped image inline when it lands among text', () => {
+    const { next, fix } = insert(make(para(schema.text('hello'))), 3, img(), 'drop')
+    expect(displayAt(next.apply(fix), 3)).toBe('inline')
+  })
+
+  it('keeps an image alone in an empty paragraph as block', () => {
+    const { fix } = insert(make(para()), 1, img(), 'paste')
+    expect(fix).toBeNull()
+  })
+
+  it('ignores whitespace-only text next to the image', () => {
+    const { fix } = insert(make(para(schema.text(' '))), 1, img(), 'paste')
+    expect(fix).toBeNull()
+  })
+
+  it('does nothing for ordinary typing or programmatic changes', () => {
+    expect(insert(make(para(schema.text('hello'))), 3, img()).fix).toBeNull()
+    expect(insert(make(para(schema.text('hello'))), 3, img(), 'input').fix).toBeNull()
+  })
+
+  it('leaves an explicit display alone', () => {
+    const { fix } = insert(make(para(schema.text('hello'))), 3, img('inline'), 'paste')
+    expect(fix).toBeNull()
+  })
+
+  it('does not touch images that were not part of the change', () => {
+    const state = make(para(schema.text('a'), img(), schema.text('b')), para(schema.text('x')))
+    const tr = state.tr.insertText('Q', 6).setMeta('uiEvent', 'paste')
+    expect(normalizeInsertedImages([tr], state.apply(tr))).toBeNull()
   })
 })
