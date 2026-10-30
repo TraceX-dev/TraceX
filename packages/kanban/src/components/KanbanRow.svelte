@@ -13,16 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import {
-    CategoryType,
-    Class,
-    Doc,
-    DocumentQuery,
-    FindOptions,
-    IdMap,
-    Ref,
-    toIdMap
-  } from '@hcengineering/core'
+  import { CategoryType, Class, Doc, DocumentQuery, FindOptions, IdMap, Ref, toIdMap } from '@hcengineering/core'
   import ui, { Button, IconMoreH, Lazy, mouseAttractor } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { slide } from 'svelte/transition'

@@ -112,11 +112,7 @@
       {/each}
     {/if}
     {#if withoutProject}
-      <ToDoProjectGroup
-        todos={todos.filter((td) => !hasProject(td.attachedSpace))}
-        project={false}
-        groupName={title}
-      />
+      <ToDoProjectGroup todos={todos.filter((td) => !hasProject(td.attachedSpace))} project={false} groupName={title} />
     {/if}
   </AccordionItem>
 {:else}

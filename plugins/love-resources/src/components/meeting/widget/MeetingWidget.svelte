@@ -75,12 +75,7 @@
       {#if meetingMinutes == null}
         <Loading />
       {:else if meetingMinutes}
-        <TranscriptionTab
-          {meetingMinutes}
-          height={contentHeight + 'px'}
-          {width}
-          on:close={handleClose}
-        />
+        <TranscriptionTab {meetingMinutes} height={contentHeight + 'px'} {width} on:close={handleClose} />
       {/if}
     {/if}
   </div>
