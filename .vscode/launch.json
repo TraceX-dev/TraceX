@@ -47,7 +47,6 @@
         "LAST_NAME_FIRST": "true",
         "BRANDING_PATH": "${workspaceFolder}/dev/branding.json",
         "MODEL_JSON": "${workspaceFolder}/models/all/bundle/model.json",
-        "SERVER_PROVIDER": "ws",
         "UPLOAD_URL": "/files",
         "AI_BOT_URL": "http://tracex.local:4010",
         "STATS_URL": "http://tracex.local:4900",

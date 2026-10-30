@@ -139,8 +139,6 @@
     &:not(.disabled, :disabled):hover { background-color: var(--button-tertiary-hover-BackgroundColor); }
     &:not(.disabled, :disabled):active,
     &.pressed:not(.disabled, :disabled) { background-color: var(--button-tertiary-active-BackgroundColor); }
-    &.menu:not(.disabled, :disabled):active,
-    &.pressed:not(.disabled, :disabled) { border-color: var(--button-menu-active-BorderColor); }
     &.loading {
       background-color: var(--button-tertiary-active-BackgroundColor);
 

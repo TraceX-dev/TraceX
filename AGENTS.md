@@ -27,6 +27,11 @@ Respond to user using Russian language, all comments should be in English.
 - `packages/*` - Reusable utilities
 - Projects 2-3 levels deep, each with `package.json`
 
+## Observability
+
+- Before adding or changing traces, metrics, structured logging, context propagation, or observability backends, read [Observability with MeasureContext](./docs/observability.md). Application instrumentation uses `MeasureContext`; OpenTelemetry instruments and SDK calls belong inside `measurements-otlp`. Update the guide when changing the context contract or backend behavior.
+- Changes to `MeasureContext`, its shared lifecycle, metric recording, proxies, or backend implementations require the [contract and performance checks](./docs/observability.md#validation-for-measurecontext-changes). Report timing and retained-memory results, including failures or checks that could not run; passing functional tests alone is insufficient.
+
 ## UI Component Reuse
 
 - Before creating UI, check the [`@hcengineering/ui` component catalog](./packages/ui/docs/components.md), public exports, and existing usages. Prefer importing from `@hcengineering/ui` and extending or composing existing components; do not use deep imports or create near-duplicates.
@@ -156,6 +161,19 @@ git log --pretty=format:'- %h %s' <range> | grep -v -F 'Merge remote-tracking' |
 - Note: `git log --no-merges` removes all merge commits; use it only if you intentionally want to omit all merges.
 
 Apply these filters when updating `changelog.md` or generating release notes so the generated logs exclude noisy merge-tracking commits and signed-off-by lines.
+
+## Card Types and Processes
+
+- When generating process definitions or templates, if required functionality appears to be missing or its support is not confirmed, stop generation and tell the user exactly what is missing and which process behavior depends on it. Do not invent actions, triggers, transforms, ids, parameters, DSL syntax, or implicit engine behavior. Do not silently substitute a workaround or extend the engine; wait for the user's direction. This rule applies only to process generation, not to general development work.
+- Before explaining or designing card types and processes, read [Card types and process authoring](./plugins/process/docs/authoring.md). It is the first reference for document structure, supported operation parameters, execution rules, context expressions, and import formats. Use its documented contracts and examples without searching the codebase for each routine task.
+- YAML is the chosen authoring DSL. Both card modules with embedded processes and standalone process templates use one format (`version: 2`) alongside native JSON. Read its contract in the authoring guide; version 1 is unsupported. Use named processes with nested states/transitions/actions, short built-in operation names and model sections; graph ownership and ranks are generated, and import resolves storage identities. YAML block order defines branch priority. Exports retain every native operation/property and include a catalog generated from installed methods, triggers and functions; standalone exports use readable graph references and support all native slot kinds. Use that catalog and the guide as the first authoring reference. Do not turn ordinary YAML authoring back into native JSON document lists. The UI YAML editor validates drafts, creates new definitions, and can save into a selected existing process; active executions are not migrated or inspected.
+- Reuse the existing YAML format or import infrastructure where it naturally fits the new DSL. Compatibility is optional: do not distort the new format or add adapters solely to force reuse when the existing design does not fit.
+- Prefer small, named logical blocks with one clear responsibility when designing processes. Make each block's inputs, outputs, waiting condition, and outgoing transitions explicit. Use states and cohesive transitions for these blocks; do not imply new runtime block or subprocess behavior.
+- In v2 YAML, publish ordinary method outputs with `as: name` and use `$context.name` for their values; the compiler generates context wiring from the installed method model or an offline catalog. Use `$slots.name` for a binding identity and `$card.name` for a card field value. Never guess this distinction from parameter names or invent missing output contracts. Keep unusual native context/result metadata explicit when it cannot be reproduced by shorthand.
+- Declare ordinary typed values in named action `results` maps and use `expr` with `from`/`call`, `reduce`, `pipe` and literal `fallback` for registered native functions. Short types work in fields, slots and results; an attribute slot only needs its type. Use the [v2 schema](./plugins/process/docs/authoring-v2.schema.json) for structural tooling and the guide for execution semantics. Results do not imply method support, task aggregation or availability before their producer completes. Keep the detailed implementation plan in [authoring-plan.md](./plugins/process/docs/authoring-plan.md).
+- Keep documentation, generated files, example labels, enum values, and descriptions in English.
+- For a workspace-specific process, use its exported process or card module and resolve its field/relationship bindings. Repository source describes the engine and available operations; it does not contain every workspace's configured processes.
+- Present the card fields, state graph, transitions with ordered actions, context dependencies, and required bindings before generating a process template. Follow the existing process or module import format.
 
 ## Patterns
 

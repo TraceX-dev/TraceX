@@ -1,3 +1,15 @@
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import core, {
   type AnyAttribute,
   type ArrOf,
@@ -15,17 +27,32 @@ import core, {
 } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
+import marketplace, { stripDefinitionPackageInfo, type DefinitionPackageOwner } from '@hcengineering/marketplace'
+import {
+  exportAuthoringModel,
+  compileProcessYaml,
+  getAuthoringProcessIdentities,
+  getAuthoringCatalog,
+  parseProcessImport,
+  cloneAuthoringModule,
+  validateAuthoringModelOperations,
+  type AuthoringNativeDocument
+} from '@hcengineering/process'
 import view from '@hcengineering/view'
 import { deepEqual } from 'fast-equals'
 import card from './plugin'
 
-export async function importModule (json: string): Promise<void> {
+export async function importModule (json: string, createNew: boolean = false): Promise<void> {
   try {
-    const rawData = JSON.parse(json) as Doc[]
-    const data = Array.from(new Map(rawData.map((d) => [d._id, d])).values())
+    const rawData = parseProcessImport(json, 'card', getClient().getModel())
+    let data = Array.from(new Map(rawData.map((d) => [d._id, d])).values())
     const client = getClient()
     const m = client.getModel()
     const h = client.getHierarchy()
+    if (!json.trimStart().startsWith('[')) {
+      validateAuthoringModelOperations(data as unknown as AuthoringNativeDocument[], m, h)
+      if (createNew) data = cloneAuthoringModule(data, m, h)
+    }
     const apply = client.apply('Import')
     for (const elem of data) {
       const existing = m.findObject(elem._id)
@@ -52,9 +79,11 @@ export async function importModule (json: string): Promise<void> {
         await apply.createDoc(elem._class, elem.space, stripData(elem), elem._id)
       }
     }
-    await apply.commit(true)
+    const result = await apply.commit(true)
+    if (!result?.result) throw new Error('Importing the card module failed')
   } catch (e) {
     console.error('Failed to import process module:', e)
+    throw e
   }
 }
 
@@ -68,17 +97,50 @@ function stripData<T extends Doc> (doc: T): Data<T> {
   return rest as Data<T>
 }
 
-export async function exportModule (_id: Ref<Class<Doc>>): Promise<string> {
+export async function exportModule (_id: Ref<Class<Doc>>, format: 'json' | 'yaml' = 'json'): Promise<string> {
+  return await exportModules([_id], format)
+}
+
+/** Exports all recorded card-module package owners, including their shared dependencies once. */
+export async function exportModulePackageSource (ids: Array<Ref<Class<Doc>>>): Promise<string> {
+  const source = await exportModules(ids, 'yaml')
+  const client = getClient()
+  const model = client.getModel()
+  const installations = new Set(
+    ids
+      .map((id) => model.findObject<DefinitionPackageOwner>(id)?.definitionPackageInstallation?.id)
+      .filter((id) => id !== undefined)
+  )
+  if (installations.size === 0) return source
+  if (installations.size !== 1) throw new Error('Package owners belong to different installations')
+  const installation = await client.findOne(marketplace.class.DefinitionPackageInstallation, {
+    _id: [...installations][0]
+  })
+  if (installation === undefined) throw new Error('The package installation is unavailable')
+  const native = compileProcessYaml(source).docs
+  const mapping = new Map(
+    [...native.map((doc) => doc._id), ...getAuthoringProcessIdentities(native)].map((id) => [id, id])
+  )
+  for (const [original, local] of Object.entries(installation.identities)) mapping.set(local, original)
+  const documents = cloneAuthoringModule(native as unknown as Doc[], model, client.getHierarchy(), mapping)
+  return exportAuthoringModel(documents, 'card', getAuthoringCatalog(model))
+}
+
+async function exportModules (ids: Array<Ref<Class<Doc>>>, format: 'json' | 'yaml'): Promise<string> {
   const processed = new Set<Ref<Doc>>()
-  const res = await exportType(_id, processed)
+  const res: Doc[] = []
+  for (const id of ids) res.push(...(await exportType(id, processed, false, format === 'yaml')))
   const unique = Array.from(new Map(res.map((d) => [d._id, d])).values())
   const clear = unique.map(strip)
-  const str = JSON.stringify(clear)
-  return str
+  if (format === 'json') return JSON.stringify(clear)
+  return exportAuthoringModel(clear, 'card', getAuthoringCatalog(getClient().getModel()))
 }
 
 function strip<T extends Doc> (doc: T): Omit<T, 'modifiedBy' | 'modifiedOn' | 'createdBy' | 'createdOn'> {
-  const { modifiedBy, modifiedOn, createdBy, createdOn, ...rest } = doc
+  const portable = ['card:class:MasterTag', 'card:class:Tag', 'process:class:Process'].includes(doc._class)
+    ? stripDefinitionPackageInfo(doc)
+    : doc
+  const { modifiedBy, modifiedOn, createdBy, createdOn, ...rest } = portable
   return rest
 }
 
@@ -100,8 +162,8 @@ async function exportAttribute (
     const of = (attr.type as TypeIdentifier).of
     const seq = await client.findOne(core.class.Sequence, { _id: of })
     if (seq !== undefined) {
-      seq.sequence = 0
-      docs.push(seq)
+      const exportedSequence = { ...seq, sequence: 0 }
+      docs.push(exportedSequence)
     }
   }
   if (attr.type._class === core.class.EnumOf) {
@@ -134,7 +196,8 @@ async function exportAttribute (
 async function exportType (
   _id: Ref<Class<Doc>>,
   processed: Set<Ref<Doc>>,
-  withoutDesc: boolean = false
+  withoutDesc: boolean = false,
+  preserveIcon: boolean = false
 ): Promise<Doc[]> {
   if (processed.has(_id)) return []
   processed.add(_id)
@@ -149,17 +212,17 @@ async function exportType (
   const parent = h.getClass(_id).extends
   if (parent !== undefined && h.isDerived(parent, card.class.Card) && parent !== card.class.Card) {
     if (!processed.has(parent)) {
-      res.push(...(await exportType(parent, processed, withoutDesc)))
+      res.push(...(await exportType(parent, processed, withoutDesc, preserveIcon)))
     }
-  }
-
-  if (type.icon === view.ids.IconWithEmoji && typeof type.color === 'string') {
-    type.icon = card.icon.Card
   }
 
   res.push(...m.findAllSync(view.class.Viewlet, { attachTo: _id }))
 
-  res.push(type)
+  res.push(
+    !preserveIcon && type.icon === view.ids.IconWithEmoji && typeof type.color === 'string'
+      ? { ...type, icon: card.icon.Card }
+      : type
+  )
 
   res.push(...m.findAllSync(core.class.ClassPermission, { targetClass: _id }))
 
@@ -201,7 +264,7 @@ async function exportType (
   }
 
   for (const req of required) {
-    res.push(...(await exportType(req, processed)))
+    res.push(...(await exportType(req, processed, false, preserveIcon)))
   }
   return res
 }

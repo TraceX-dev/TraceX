@@ -1,5 +1,16 @@
 //
 // Copyright © 2023, 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //
 
 import { Analytics } from '@hcengineering/analytics'
@@ -35,6 +46,7 @@ startFront(metricsContext, {
   LIVEKIT_WS: process.env.LIVEKIT_WS ?? '',
   LOVE_ENDPOINT: process.env.LOVE_ENDPOINT ?? '',
   SIGN_URL: process.env.SIGN_URL ?? '',
+  MARKETPLACE_URL: process.env.MARKETPLACE_URL,
   PRINT_URL: process.env.PRINT_URL ?? '',
   PRESENCE_URL: process.env.PRESENCE_URL ?? '',
   PUSH_PUBLIC_KEY: process.env.PUSH_PUBLIC_KEY ?? '',

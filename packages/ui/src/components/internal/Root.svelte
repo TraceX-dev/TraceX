@@ -350,11 +350,6 @@
         flex-grow: 1;
         text-align: center;
       }
-      .logo-status {
-        font-weight: 500;
-        font-size: 14px;
-        color: var(--theme-content-color);
-      }
 
       .second-row {
         display: none;

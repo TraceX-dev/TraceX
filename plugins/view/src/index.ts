@@ -258,8 +258,6 @@ const view = plugin(viewId, {
     Loading: '' as IntlString,
     ReadOnlyWarningTitle: '' as IntlString,
     ReadOnlyWarningMessage: '' as IntlString,
-    ReadOnlySignUp: '' as IntlString,
-    ReadOnlyJoinWorkspace: '' as IntlString,
     PermissionWarningTitle: '' as IntlString,
     PermissionWarningMessage: '' as IntlString,
     Icon: '' as IntlString,

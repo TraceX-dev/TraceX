@@ -42,23 +42,3 @@
     <span class="text-sm">{spaceName}</span>
   {/if}
 </div>
-
-<style lang="scss">
-  .icon-place {
-    width: 1.75rem;
-  }
-  .searchResult {
-    display: flex;
-    flex-direction: row;
-
-    .shortTitle {
-      display: flex;
-      padding-right: 0.5rem;
-      color: var(--theme-darker-color);
-    }
-    .name {
-      display: flex;
-      flex: 1;
-    }
-  }
-</style>

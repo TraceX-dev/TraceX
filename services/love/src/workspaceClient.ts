@@ -277,7 +277,7 @@ export class WorkspaceClient {
     }
   }
 
-  async checkUnfinishedMeetings (meetingMinutes: Ref<MeetingMinutes>[]): Promise<void> {
+  async checkUnfinishedMeetings (meetingMinutes: Ref<MeetingMinutes>[]): Promise<boolean> {
     try {
       // Find all active or pending meetings in this workspace
       const meetings = await this.client.findAll(love.class.MeetingMinutes, {
@@ -288,8 +288,10 @@ export class WorkspaceClient {
       for (const meeting of meetings) {
         await this.finishMeeting(meeting._id, Date.now())
       }
+      return true
     } catch (err: any) {
       this.ctx.error('[WorkspaceClient.checkUnfinishedMeetings] Failed', { error: err?.message ?? String(err) })
+      return false
     }
   }
 

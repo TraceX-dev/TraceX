@@ -1,0 +1,100 @@
+# Copyright © 2026 TraceX SAS.
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+version: 2
+kind: process
+processes:
+  process:
+    label: Add linked card 1->N
+    masterTag: 6a413878d701e514ffbd594f
+    description: ''
+    automationOnly: true
+    parallelExecutionForbidden: true
+    slots:
+      slot_create_step:
+        kind: process
+        class: process.Process
+        name: Create step
+      slot_owner:
+        kind: attribute
+        class: core.RefTo
+        type:
+          to: contact:mixin:Employee
+          icon: core:icon:TypeRef
+          label: core:string:Ref
+          class: core.RefTo
+        label: Owner
+    bindings:
+      slot_create_step: 6a692c945885470594e8c526
+      slot_owner: custom6a692b155885470594e8c36c
+    start:
+      transition_start:
+        to: state_waiting
+        on: OnExecutionStart
+        actions:
+          action_runsubprocess:
+            params:
+              _id: $slots.slot_create_step
+            method: RunSubProcess
+            as:
+              key: context_execution
+              class: process.Execution
+    states:
+      state_waiting:
+        label: Waiting
+        transitions:
+          transition_state_waiting_to_state_loop:
+            to: state_loop
+            on: OnSubProcessesDone
+            actions:
+              action_createtodo:
+                params:
+                  user: $card.slot_owner
+                  field: $slots.slot_owner
+                  title: Stop add steps
+                  withRollback: true
+                method: CreateToDo
+                as:
+                  key: context_stop_add_steps
+                  class: process.ProcessToDo
+                  label: Stop add steps
+              action_runsubprocess_2:
+                params:
+                  _id: $slots.slot_create_step
+                method: RunSubProcess
+                as:
+                  key: context_execution_3
+                  class: process.Execution
+      state_loop:
+        label: Loop
+        transitions:
+          transition_state_loop_to_state_loop:
+            to: state_loop
+            on: OnSubProcessesDone
+            actions:
+              action_runsubprocess_3:
+                params:
+                  _id: $slots.slot_create_step
+                method: RunSubProcess
+                as:
+                  key: context_execution_2
+                  class: process.Execution
+          transition_state_loop_to_state_done:
+            to: state_done
+            on:
+              OnToDoClose:
+                _id: $context.context_stop_add_steps
+                result: {}
+            actions:
+              action_cancelsubprocess:
+                params:
+                  _id: $slots.slot_create_step
+                method: CancelSubProcess
+      state_done:
+        label: Done

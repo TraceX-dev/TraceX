@@ -1,5 +1,12 @@
 {
   "string": {
+    "YamlEditor": "YAML editor",
+    "YamlSource": "YAML source",
+    "YamlOpenFile": "Open YAML file",
+    "YamlDownload": "Download YAML",
+    "YamlValid": "Valid YAML definition",
+    "YamlSaveCurrent": "Save current process",
+    "YamlCreateNew": "Create new definition",
     "Card": "Karta",
     "CardApplication": "Karty",
     "Cards": "Karty",

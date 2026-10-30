@@ -23,12 +23,7 @@
   import core, { AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
   import rating, { type PersonRating } from '@hcengineering/rating'
   import login, { loginId } from '@hcengineering/login'
-  import presentation, {
-    createQuery,
-    getCurrentWorkspaceUrl,
-    hasResource,
-    isDisabled
-  } from '@hcengineering/presentation'
+  import { createQuery, hasResource, isDisabled } from '@hcengineering/presentation'
   import setting, { RoleCapability, settingId, SettingsCategory } from '@hcengineering/setting'
   import {
     Action,
@@ -46,8 +41,7 @@
   import { logOut } from '../utils'
   import HelpAndSupport from './HelpAndSupport.svelte'
   import { Analytics } from '@hcengineering/analytics'
-  import { allowGuestSignUpStore } from '@hcengineering/view-resources'
-  import { getMetadata, getResource } from '@hcengineering/platform'
+  import { getResource } from '@hcengineering/platform'
   import { onMount } from 'svelte'
 
   let items: SettingsCategory[] = []
@@ -200,27 +194,6 @@
       },
       group: 'end'
     })
-
-    if (account.role === AccountRole.ReadOnlyGuest) {
-      if ($allowGuestSignUpStore) {
-        actions.push({
-          icon: setting.icon.InviteWorkspace,
-          label: view.string.ReadOnlyJoinWorkspace,
-          action: async () => {
-            navigate({ path: ['login', 'join'], query: { workspace: getCurrentWorkspaceUrl() } })
-          },
-          group: 'end'
-        })
-      }
-      actions.push({
-        icon: setting.icon.InviteWorkspace,
-        label: view.string.ReadOnlySignUp,
-        action: async () => {
-          open(getMetadata(presentation.metadata.SignupUrl))
-        },
-        group: 'end'
-      })
-    }
 
     actions.push({
       icon: setting.icon.Signout,

@@ -91,6 +91,7 @@
       {
         _class,
         docQuery,
+        searchMode: 'fulltext',
         docProps: {
           shouldShowAvatar: true
         },

@@ -20,9 +20,11 @@ import core, {
   type Association,
   type Class,
   type Doc,
+  type DocumentQuery,
   type Ref,
   type SortingQuery,
   type Timestamp,
+  checkMixinKey,
   matchQuery,
   resultSort
 } from '@hcengineering/core'
@@ -56,6 +58,80 @@ export async function RelationCount (
   const query = props.direction === 'A' ? { docB: execution.card } : { docA: execution.card }
   const relations = await control.client.findAll(core.class.Relation, { association, ...query })
   return relations.length
+}
+
+/** Finds references of the requested type in the execution card's current space. */
+export async function FindObjects (
+  value: unknown,
+  props: Record<string, unknown>,
+  control: ProcessControl,
+  execution: Execution
+): Promise<Ref<Doc>[]> {
+  if (typeof props._class !== 'string') {
+    throw processError(process.error.RequiredParamsNotProvided, { params: '_class' })
+  }
+  const definition = control.client.getModel().findObject(execution.process)
+  if (definition === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.process })
+  const targetClass = resolveAttributeId(definition, props._class as Ref<Class<Doc>>)
+  const hierarchy = control.client.getHierarchy()
+  const targetCard =
+    control.cache.get(execution.card) ?? (await control.client.findOne(cardPlugin.class.Card, { _id: execution.card }))
+  if (targetCard === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card })
+
+  const rawQuery = props.query ?? {}
+  if (typeof rawQuery !== 'object' || Array.isArray(rawQuery) || '$or' in rawQuery) {
+    throw processError(process.error.RequiredParamsNotProvided, { params: 'query' })
+  }
+  const query: DocumentQuery<Doc> = {}
+  for (const [key, rawValue] of Object.entries(rawQuery)) {
+    // Space is always owned by the card, including when a saved filter supplies another space.
+    if (key === 'space') continue
+    const field = checkMixinKey(resolveAttributeId(definition, key), targetClass, hierarchy)
+    query[field] = await resolveFindValue(rawValue, control, execution)
+  }
+  query.space = targetCard.space
+
+  let sort: SortingQuery<Doc> | undefined
+  if (props.$sort != null) {
+    sort = Object.fromEntries(
+      Object.entries(props.$sort).map(([key, order]) => [
+        checkMixinKey(resolveAttributeId(definition, key), targetClass, hierarchy),
+        order
+      ])
+    ) as SortingQuery<Doc>
+  }
+  const docs = await control.client.findAll(targetClass, query, { sort })
+  return docs.map((doc) => doc._id)
+}
+
+async function resolveFindValue (
+  value: unknown,
+  control: ProcessControl,
+  execution: Execution,
+  pattern: boolean = false
+): Promise<unknown> {
+  if (Array.isArray(value)) {
+    return await Promise.all(value.map(async (item: unknown) => await resolveFindValue(item, control, execution)))
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = await Promise.all(
+      Object.entries(value).map(async ([key, item]) => [
+        key,
+        await resolveFindValue(item, control, execution, key === '$like')
+      ])
+    )
+    return Object.fromEntries(entries)
+  }
+  if (pattern && typeof value === 'string') {
+    // The criteria editor wraps a "contains" context in SQL wildcard characters.
+    const prefix = value.startsWith('%') ? '%' : ''
+    const suffix = value.endsWith('%') ? '%' : ''
+    const source = value.slice(prefix.length, value.length - suffix.length)
+    if ((prefix !== '' || suffix !== '') && parseContext(source) !== undefined) {
+      return prefix + String(await getContextValue(source, control, execution)) + suffix
+    }
+  }
+  return value == null ? value : await getContextValue(value, control, execution)
 }
 
 // #region ArrayReduce

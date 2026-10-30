@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,7 +22,7 @@
   import { getClient, KeyedAttribute, updateAttribute } from '@hcengineering/presentation'
   import { isEmptyMarkup } from '@hcengineering/text'
   import { Label } from '@hcengineering/ui'
-  import { MarkupEditor } from '@hcengineering/view-resources'
+  import CardMarkupEditor from './CardMarkupEditor.svelte'
   import { createEventDispatcher } from 'svelte'
 
   export let doc: Card
@@ -86,9 +87,8 @@
       {/if}
     </span>
     <div>
-      <MarkupEditor
+      <CardMarkupEditor
         value={val}
-        isScrollable={false}
         onChange={(value) => {
           onChange(value, key)
         }}

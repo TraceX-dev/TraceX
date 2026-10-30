@@ -385,8 +385,7 @@
       transition: color 0.15s ease-in;
       transition: left 0.15s ease-in;
 
-      &:disabled,
-      &.disabled {
+      &:disabled {
         color: var(--theme-darker-color);
       }
       :global(.mobile-theme) & {
@@ -398,7 +397,7 @@
         transition: transform 0.15s ease-in-out;
       }
 
-      &:not(:disabled, .disabled) {
+      &:not(:disabled) {
         &.selected {
           color: var(--theme-caption-color);
 

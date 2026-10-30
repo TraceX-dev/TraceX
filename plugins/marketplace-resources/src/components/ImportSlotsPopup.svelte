@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,23 +16,23 @@
 <script lang="ts">
   import core, { Class, Doc, Ref } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
-  import { Button, eventToHTMLElement, Label, SelectPopup, showPopup } from '@hcengineering/ui'
+  import { Button, EditBox, eventToHTMLElement, Label, SelectPopup, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import type { SlotModel } from '@hcengineering/process'
-  import processPlugin from '../../plugin'
-  import { isTypeEqual } from '../../utils'
+  import processPlugin, { isAuthoringSlotBindingCompatible, matchesAuthoringSlotType } from '@hcengineering/process'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import card from '@hcengineering/card'
 
   export let requiredSlots: Record<string, SlotModel>
   export let masterTag: Ref<Class<any>>
+  export let initialBindings: Record<string, string> = {}
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
   const model = client.getModel()
   const dispatch = createEventDispatcher()
 
-  let bindings: Record<string, string> = {}
+  let bindings: Record<string, string> = { ...initialBindings }
 
   $: allAttrs = hierarchy.getAllAttributes(masterTag, core.class.Doc)
   $: allAssociations = model.findAllSync(core.class.Association, {})
@@ -132,7 +133,13 @@
     } else {
       const attributes = memberOfTag ? hierarchy.getAllAttributes(memberOfTag, core.class.Doc) : []
       possible = Array.from(attributes.values())
-        .filter((attr) => !attr.hidden && isTypeEqual(slot, attr.type, bindings))
+        .filter(
+          (attr) =>
+            !attr.hidden &&
+            (slot.enumValues !== undefined
+              ? matchesAuthoringSlotType(slot.type, attr.type, slot.enumValues, model)
+              : isAuthoringSlotBindingCompatible(masterTag, slot, attr.name, bindings, model, hierarchy))
+        )
         .map((a) => ({
           id: a.name,
           label: a.label,
@@ -150,29 +157,36 @@
       (res) => {
         if (res != null) {
           // Clear dependent bindings when a parent slot changes
-          const nextBindings: Record<string, string | undefined> = { ...bindings, [slotId]: res as string }
-          for (const [depId, depSlot] of Object.entries(requiredSlots)) {
-            if (depSlot.memberOf === `__SLOT_${slotId}__`) {
-              nextBindings[depId] = undefined
-            }
-          }
-          const filteredBindings: Record<string, string> = {}
-          for (const [k, v] of Object.entries(nextBindings)) {
-            if (v !== undefined) {
-              filteredBindings[k] = v
-            }
-          }
-          bindings = filteredBindings
+          updateBinding(slotId, res as string)
         }
       }
     )
+  }
+
+  function updateBinding (slotId: string, value: string): void {
+    const next = { ...bindings }
+    const cleared = new Set([slotId])
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const [key, slot] of Object.entries(requiredSlots)) {
+        const parent = slot.memberOf?.replace(/^__SLOT_(.+)__$/, '$1')
+        if (parent !== undefined && cleared.has(parent) && !cleared.has(key)) {
+          cleared.add(key)
+          changed = true
+        }
+      }
+    }
+    for (const key of cleared) delete next[key]
+    if (value.trim() !== '') next[slotId] = value.trim()
+    bindings = next
   }
 
   function onSave (): void {
     dispatch('close', bindings)
   }
 
-  $: allBound = Object.keys(requiredSlots).every((id) => bindings[id] !== undefined)
+  $: allBound = Object.keys(requiredSlots).every((id) => bindings[id]?.trim() && resolvedSlots[id]?.enabled)
 
   function getBindingLabel (currentBindings: Record<string, string>, id: string): any {
     const value = currentBindings[id]
@@ -231,17 +245,26 @@
         {#if slot.label}
           <Label label={slot.label} />
         {:else}
-          {slot.name}
+          {slot.name ?? id}
         {/if}
-        <Button
-          label={getBindingLabel(bindings, id)}
-          disabled={!resolvedSlots[id]?.enabled}
-          kind="secondary"
-          width="100%"
-          on:click={(e) => {
-            setBinding(id, e)
-          }}
-        />
+        {#if slot.slotKind === 'unknown'}
+          <EditBox
+            value={bindings[id]}
+            label={slot.label ?? getEmbeddedLabel(slot.name ?? id)}
+            disabled={!resolvedSlots[id]?.enabled}
+            on:value={(event) => updateBinding(id, String(event.detail ?? ''))}
+          />
+        {:else}
+          <Button
+            label={getBindingLabel(bindings, id)}
+            disabled={!resolvedSlots[id]?.enabled}
+            kind="secondary"
+            width="100%"
+            on:click={(e) => {
+              setBinding(id, e)
+            }}
+          />
+        {/if}
       </div>
     {/each}
   </div>

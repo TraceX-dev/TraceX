@@ -264,12 +264,6 @@
     border-bottom-right-radius: 0.8rem;
   }
 
-  .edit {
-    position: absolute;
-    top: 1.5rem;
-    right: 1.5rem;
-  }
-
   .actions {
     position: absolute;
     top: 1.5rem;

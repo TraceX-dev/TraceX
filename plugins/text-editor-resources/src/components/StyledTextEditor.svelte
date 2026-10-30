@@ -29,6 +29,7 @@
   const dispatch = createEventDispatcher()
 
   export let content: Markup = EmptyMarkup
+  export let editable: boolean = true
   export let placeholder: IntlString = textEditor.string.EditorPlaceholder
   export let showButtons: boolean = true
   export let buttonSize: ButtonSize = 'medium'
@@ -54,8 +55,9 @@
   export function isEditable (): boolean {
     return editor?.isEditable() ?? false
   }
-  export function setEditable (editable: boolean): void {
-    editor?.setEditable(editable)
+  export function setEditable (value: boolean): void {
+    editable = value
+    editor?.setEditable(value)
   }
   export function getContent (): Markup {
     return content
@@ -131,7 +133,7 @@
   let needFocus = autofocus
   const focused = false
 
-  $: if (editor !== undefined && needFocus) {
+  $: if (editor !== undefined && needFocus && editable) {
     if (!focused) editor.focus()
     needFocus = false
   }
@@ -160,13 +162,19 @@
   class:h-full={full}
   class:focusable
   tabindex="-1"
-  on:click|preventDefault|stopPropagation={() => (needFocus = true)}
+  on:click={(event) => {
+    if (!editable) return
+    event.preventDefault()
+    event.stopPropagation()
+    needFocus = true
+  }}
 >
   <div class="textInput">
     <div class="inputMsg" class:scrollable={isScrollable} style:--texteditor-maxheight={varsStyle}>
       {#if isScrollable}
         <Scroller>
           <TextEditor
+            {editable}
             editorAttributes={mergedEditorAttributes}
             bind:content
             {placeholder}
@@ -186,6 +194,7 @@
         </Scroller>
       {:else}
         <TextEditor
+          {editable}
           editorAttributes={mergedEditorAttributes}
           bind:content
           {placeholder}

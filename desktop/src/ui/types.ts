@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -49,6 +50,7 @@ export interface Config {
   PRESENCE_URL?: string
   PREVIEW_URL?: string
   PRINT_URL?: string
+  MARKETPLACE_URL?: string
   PUSH_PUBLIC_KEY: string
   REKONI_URL: string
   SIGN_URL?: string

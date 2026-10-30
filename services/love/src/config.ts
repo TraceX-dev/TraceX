@@ -32,6 +32,10 @@ interface Config {
 
   RecordingPreset: string
 
+  // Server-wide switches, enabled unless set to 'false'
+  RecordingEnabled: boolean
+  TranscriptionEnabled: boolean
+
   BillingUrl: string
   BillingPollInterval: number
   UseGlobalLiveKit: boolean
@@ -62,6 +66,8 @@ const envMap: { [key in keyof Config]: string } = {
   ServiceID: 'SERVICE_ID',
 
   RecordingPreset: 'RECORDING_PRESET',
+  RecordingEnabled: 'RECORDING_ENABLED',
+  TranscriptionEnabled: 'TRANSCRIPTION_ENABLED',
 
   BillingUrl: 'BILLING_URL',
   BillingPollInterval: 'BILLING_POLL_INTERVAL',
@@ -90,6 +96,8 @@ const config: Config = (() => {
     Secret: process.env[envMap.Secret],
     ServiceID: process.env[envMap.ServiceID] ?? 'love-service',
     RecordingPreset: process.env[envMap.RecordingPreset] ?? '720p',
+    RecordingEnabled: process.env[envMap.RecordingEnabled] !== 'false',
+    TranscriptionEnabled: process.env[envMap.TranscriptionEnabled] !== 'false',
     BillingUrl: process.env[envMap.BillingUrl] ?? '',
     BillingPollInterval: parseNumber(process.env[envMap.BillingPollInterval]) ?? 15,
     UseGlobalLiveKit: process.env[envMap.UseGlobalLiveKit] === 'true',

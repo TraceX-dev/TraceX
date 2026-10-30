@@ -485,31 +485,6 @@
     border-top: 1px solid var(--theme-navpanel-divider);
   }
 
-  .guestAccessRow--editor {
-    align-items: start;
-    min-height: auto;
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
-    overflow: visible;
-  }
-
-  /* Same two columns as toggle rows; editor sits in col 2 and grows left so its right edge matches toggles */
-  .guestAccessRow--editor .guestAccessRow-editorCell {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-    align-self: start;
-    width: max-content;
-    max-width: min(22rem, calc(100vw - 3rem));
-    min-width: 0;
-    overflow: visible;
-  }
-
-  .guestAccessRow-editorInner {
-    min-width: 0;
-    max-width: 100%;
-  }
-
   .guestAccessRow-label {
     min-width: 0;
     color: var(--theme-content-color);

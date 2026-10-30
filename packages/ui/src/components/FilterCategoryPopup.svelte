@@ -234,12 +234,12 @@
     &:hover {
       background: var(--theme-bg-accent-hover);
     }
+  }
 
-    &.active,
-    &.selected {
-      background: var(--theme-primary-bg-color);
-      color: var(--theme-primary-color);
-    }
+  .category-item.active,
+  .option-item.selected {
+    background: var(--theme-primary-bg-color);
+    color: var(--theme-primary-color);
   }
 
   .category-item.clear-option,

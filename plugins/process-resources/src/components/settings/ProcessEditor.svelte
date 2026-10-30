@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,7 +14,16 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Ref, SortingOrder } from '@hcengineering/core'
+  import type { MasterTag } from '@hcengineering/card'
+  import core, { getCurrentAccount, Ref, SortingOrder } from '@hcengineering/core'
+  import { DefinitionYamlEditor, exportModulePackageSource, downloadDefinition } from '@hcengineering/card-resources'
+  import { getDefinitionPackageInfo, type DefinitionPackageOwner } from '@hcengineering/marketplace'
+  import {
+    DefinitionPackageExportPopup,
+    getDefinitionPackageExportItems,
+    getDefinitionPackageOwner
+  } from '@hcengineering/marketplace-resources'
+  import { getEmbeddedLabel, setPlatformStatus, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient, MessageBox, IconDownload } from '@hcengineering/presentation'
   import { Process, State, Transition } from '@hcengineering/process'
   import { clearSettingsStore, settingsStore } from '@hcengineering/setting-resources'
@@ -26,6 +36,7 @@
     getCurrentLocation,
     IconDelete,
     IconDetails,
+    IconEdit,
     IconSettings,
     navigate,
     Scroller,
@@ -33,7 +44,8 @@
     showPopup,
     IconLink
   } from '@hcengineering/ui'
-  import { exportProcess } from '../../exporter'
+  import { exportProcessDraft, exportProcessPackageSource, exportProcessSource } from '../../exporter'
+  import { applyProcessDefinition } from '../../authoring-ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import process from '../../plugin'
@@ -54,12 +66,21 @@
   const query = createQuery()
   const statesQuery = createQuery()
   const transitionsQ = createQuery()
+  const packageTypeQuery = createQuery()
 
   const dispatch = createEventDispatcher()
 
   let value: Process | undefined
   let states: State[] = []
   let transitions: Transition[] = []
+  let packageType: MasterTag | undefined
+
+  $: if (value !== undefined) {
+    packageTypeQuery.query(core.class.Class, { _id: value.masterTag }, (res) => {
+      packageType = res[0] as MasterTag | undefined
+    })
+  }
+  $: packageOwner = value === undefined ? undefined : getDefinitionPackageOwner(value, packageType)
 
   $: query.query(process.class.Process, { _id }, (res) => {
     value = res[0]
@@ -154,43 +175,121 @@
 
   const EXPORT_WITH_SLOTS = 'with-slots'
   const EXPORT_WITHOUT_SLOTS = 'without-slots'
+  const EXPORT_YAML = 'yaml'
 
   let exportItems: DropdownIntlItem[]
   $: exportItems = [
     {
       id: EXPORT_WITH_SLOTS,
-      label: process.string.ExportWithSlots
+      label: process.string.ExportJsonWithSlots
     },
     {
       id: EXPORT_WITHOUT_SLOTS,
-      label: process.string.ExportWithoutSlots
-    }
+      label: process.string.ExportJsonWithoutSlots
+    },
+    {
+      id: EXPORT_YAML,
+      label: process.string.ExportYaml
+    },
+    ...((value !== undefined && getDefinitionPackageInfo(value) !== undefined) ||
+    (value !== undefined && packageType?._id === value.masterTag)
+      ? getDefinitionPackageExportItems(
+          packageOwner === undefined ? undefined : getDefinitionPackageInfo(packageOwner),
+          getCurrentAccount().uuid
+        )
+      : [])
   ]
 
   function onExportSelected (event: CustomEvent<string | number>): void {
     if (event.detail === EXPORT_WITH_SLOTS) {
-      handleExport(true)
+      void handleExport('json', true)
     } else if (event.detail === EXPORT_WITHOUT_SLOTS) {
-      handleExport(false)
+      void handleExport('json', false)
+    } else if (event.detail === EXPORT_YAML) {
+      void handleExport('yaml')
+    } else if (event.detail === 'make-package' || event.detail === 'new-package-version') {
+      void handlePackageExport(event.detail === 'new-package-version')
     }
   }
 
-  function handleExport (withSlots: boolean): void {
+  async function handlePackageExport (newVersion: boolean): Promise<void> {
     if (value === undefined) return
-    const str = JSON.stringify(
-      exportProcess(value, withSlots).docs.map((doc) => {
-        const { modifiedBy, modifiedOn, createdBy, createdOn, ...rest } = doc
-        return rest
-      })
-    )
-    const blob = new Blob([str], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${value.name}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+      const definition = newVersion ? (packageOwner ?? value) : value
+      if ('masterTag' in definition) {
+        const info = getDefinitionPackageInfo(definition)
+        const candidates = client
+          .getModel()
+          .findAllSync(process.class.Process, {})
+          .filter((candidate) => {
+            if (candidate._id === definition._id) return true
+            const ownPackage = getDefinitionPackageInfo(candidate)
+            if (ownPackage !== undefined)
+              return ownPackage.id === info?.id && JSON.stringify(ownPackage.members) === JSON.stringify(info?.members)
+            const owner = client.getModel().findObject<MasterTag>(candidate.masterTag)
+            return owner === undefined || getDefinitionPackageInfo(owner) === undefined
+          })
+          .map((candidate) => ({ definition: candidate, label: getEmbeddedLabel(candidate.name) }))
+        showPopup(
+          DefinitionPackageExportPopup,
+          {
+            source: '',
+            definition,
+            newVersion,
+            onDownload: downloadDefinition,
+            candidates,
+            getSource: (members: DefinitionPackageOwner[]) => exportProcessPackageSource(members as Process[])
+          },
+          'centered'
+        )
+      } else {
+        showPopup(
+          DefinitionPackageExportPopup,
+          {
+            source: '',
+            definition,
+            newVersion,
+            onDownload: downloadDefinition,
+            getSource: async (members: DefinitionPackageOwner[]) =>
+              await exportModulePackageSource(members.map((member) => member._id as MasterTag['_id']))
+          },
+          'centered'
+        )
+      }
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
+  }
+
+  async function handleExport (format: 'json' | 'yaml', withSlots = true): Promise<void> {
+    if (value === undefined) return
+    try {
+      downloadDefinition(exportProcessSource(value, format, withSlots), value.name, format)
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
+  }
+
+  async function handleYaml (): Promise<void> {
+    if (value === undefined) return
+    const current = value
+    try {
+      const draft = exportProcessDraft(current)
+      showPopup(
+        DefinitionYamlEditor,
+        {
+          kind: 'process',
+          name: current.name,
+          source: draft.source,
+          onApply: async (source: string) => await applyProcessDefinition(current.masterTag, source, draft.bindings),
+          onSave: async (source: string) =>
+            await applyProcessDefinition(current.masterTag, source, draft.bindings, current)
+        },
+        'centered'
+      )
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
   }
 </script>
 
@@ -229,6 +328,13 @@
                 on:selected={onExportSelected}
               />
               <ButtonIcon
+                icon={IconEdit}
+                tooltip={{ label: process.string.YamlEditor, direction: 'bottom' }}
+                size="small"
+                kind="secondary"
+                on:click={handleYaml}
+              />
+              <ButtonIcon
                 icon={IconDetails}
                 tooltip={{ label: process.string.Data, direction: 'bottom' }}
                 size="small"
@@ -260,13 +366,3 @@
     {/if}
   </div>
 </div>
-
-<style lang="scss">
-  .state {
-    font-weight: 500;
-    color: var(--global-tertiary-TextColor);
-    padding: 0 var(--spacing-1_5) 0 var(--spacing-1_25);
-    min-height: 1.75rem;
-    margin: 0 0.75rem;
-  }
-</style>

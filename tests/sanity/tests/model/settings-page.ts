@@ -5,7 +5,7 @@ import { SpaceTypes, TaskTypes } from './types'
 export class SettingsPage extends CommonPage {
   profileButton = (): Locator => this.page.locator('#profile-button')
   settingsButton = (): Locator => this.page.locator('button:has-text("Settings")')
-  spaceTypesHeader = (): Locator => this.page.locator('button.hulyNavGroup-header', { hasText: 'Space types' })
+  spaceTypesHeader = (): Locator => this.page.locator('.hulyNavGroup-header__toggle', { hasText: 'Space types' })
   newSpaceTypeButton = (): Locator => this.page.locator('#new-space-type')
   popupSelectSpaceTypeButton = (): Locator =>
     this.page.locator('form#setting\\:string\\:NewSpaceType div#selectSpaceType button')

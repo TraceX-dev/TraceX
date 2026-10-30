@@ -15,8 +15,10 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
+import { S3ServiceException } from '@aws-sdk/client-s3'
 import { getClient } from '@hcengineering/account-client'
-import { MeasureContext, Tx, metricsAggregate } from '@hcengineering/core'
+import { MeasureMetricsContext, createMeasureContextProxy, metricsAggregate } from '@hcengineering/core'
+import type { MeasureContext, Tx } from '@hcengineering/core'
 import { PlatformQueue, QueueTopic, getCPUInfo, getMemoryInfo } from '@hcengineering/server-core'
 import { decodeToken, TokenError } from '@hcengineering/server-token'
 
@@ -61,7 +63,7 @@ import {
 import { Datalake, Location } from './datalake'
 import { DatalakeImpl } from './datalake/datalake'
 import { Config } from './config'
-import { createBucket, createClient, S3Bucket } from './s3'
+import { createBucket, createClient, isStorageUnavailable, S3Bucket } from './s3'
 import { TemporaryDir } from './tempdir'
 
 const KEEP_ALIVE_TIMEOUT = 5 // seconds
@@ -89,9 +91,11 @@ const handleRequest = async (
 ): Promise<void> => {
   try {
     const source = req.token?.extra?.service ?? '🤦‍♂️user'
-    await ctx.with(name, { source }, (ctx) => {
+    const requestContext = new MeasureMetricsContext('request', {})
+    const requestProxy = createMeasureContextProxy(ctx, requestContext)
+    await requestProxy.with(name, { source }, (ctx) => {
       onHeaders(res, () => {
-        const measurements = ctx.metrics?.measurements
+        const measurements = requestContext.metrics.measurements[name]?.measurements
         if (measurements !== undefined) {
           const values = []
           for (const [k, v] of Object.entries(measurements)) {
@@ -130,8 +134,18 @@ export async function createServer (
       location === 'apac'
     ) {
       const client = createClient(cbucket)
-      const bucket = await createBucket(ctx, client, cbucket.bucket, config.S3AvailabilityCheckInterval)
-      buckets.push({ location, bucket })
+      try {
+        const bucket = await createBucket(ctx, client, cbucket.bucket, config.S3AvailabilityCheckInterval)
+        buckets.push({ location, bucket })
+      } catch (err: unknown) {
+        const status = err instanceof S3ServiceException ? err.$metadata.httpStatusCode : undefined
+        const message = err instanceof Error ? err.message : String(err)
+        throw new Error(
+          `Failed to initialize S3 bucket "${cbucket.bucket}" at "${cbucket.endpoint}" ` +
+            `(HTTP status: ${status ?? 'unavailable'}): ${message}`,
+          { cause: err }
+        )
+      }
     } else {
       ctx.warn('invalid bucket location', { location, cbucket })
     }
@@ -294,8 +308,14 @@ export async function createServer (
 
   app.use((err: any, _req: any, res: any, _next: any) => {
     ctx.error(err.message, { code: err.code, message: err.message })
+
     if (err instanceof ApiError) {
       res.status(err.code).send({ code: err.code, message: err.message })
+      return
+    }
+
+    if (isStorageUnavailable(err)) {
+      res.status(503).json({ message: 'Storage temporarily unavailable' })
       return
     }
 

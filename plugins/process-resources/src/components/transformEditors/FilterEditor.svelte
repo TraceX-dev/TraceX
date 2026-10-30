@@ -33,7 +33,8 @@
   const client = getClient()
   const hierarchy = client.getHierarchy()
   const presenterClass = getAttributePresenterClass(hierarchy, attribute.type)
-  const allowSorting = func._id === processPlugin.function.FirstMatchValue
+  export let allowSorting: boolean = func._id === processPlugin.function.FirstMatchValue
+  export let excludedKeys: string[] = []
 
   function getCriteriaProps (value: Record<string, any>): Record<string, any> {
     return Object.fromEntries(Object.entries(value).filter(([key]) => key !== '_class' && key !== '$sort'))
@@ -54,7 +55,7 @@
     const attributes = hierarchy.getAllAttributes(presenterClass.attrClass, core.class.Doc)
     const res: AnyAttribute[] = []
     for (const [key, attr] of attributes) {
-      if (key === '_id' || key === '_class') continue
+      if (key === '_id' || key === '_class' || excludedKeys.includes(key)) continue
       if (attr.hidden === true) continue
       const presenterClass = getAttributePresenterClass(hierarchy, attr.type)
       const updateCriteria = getCriteriaEditor(presenterClass.attrClass, presenterClass.category)

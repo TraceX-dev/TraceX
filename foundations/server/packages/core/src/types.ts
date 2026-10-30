@@ -618,14 +618,6 @@ export interface ClientSessionCtx {
   sendError: (id: ReqId | undefined, msg: any, error: any) => Promise<void>
 }
 
-//
-// Will add some values to global one second counters map
-//
-export interface OneSecondCounters {
-  // Will increment and decrement on any issue or timeout.
-  withCounter: <T>(counter: string, count: number, op: () => Promise<T>) => Promise<T>
-}
-
 /**
  * @public
  */

@@ -34,7 +34,7 @@
     "esbuild": "^0.25.10",
     "jest": "^30.4.2",
     "@types/jest": "^30.0.0",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "eslint-plugin-svelte": "^3.23.0",
     "eslint-config-love": "^157.0.0"
   },
@@ -136,6 +136,7 @@
     "@hcengineering/model-rating": "workspace:^0.7.0",
     "@hcengineering/model-integration": "workspace:^0.7.0",
     "@tracex/model-qalico": "workspace:^0.7.0",
-    "@hcengineering/model-forms": "workspace:^0.7.0"
+    "@hcengineering/model-forms": "workspace:^0.7.0",
+    "@hcengineering/model-marketplace": "workspace:^0.7.0"
   }
 }

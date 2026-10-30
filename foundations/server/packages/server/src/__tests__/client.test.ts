@@ -15,7 +15,13 @@
 // limitations under the License.
 //
 
-import core, { MeasureMetricsContext, type Tx, WorkspaceEvent } from '@hcengineering/core'
+import core, {
+  MeasureMetricsContext,
+  type OperationDomain,
+  type Tx,
+  TxFactory,
+  WorkspaceEvent
+} from '@hcengineering/core'
 import { ClientSession } from '../client'
 
 jest.mock('@hcengineering/server-core', () => ({
@@ -25,23 +31,11 @@ jest.mock('@hcengineering/server-core', () => ({
 
 const modelDbStub = {}
 
-function makeCounter (): { counter: any, names: string[] } {
-  const names: string[] = []
-  const counter = {
-    add: jest.fn((name: string) => names.push(name)),
-    withCounter: jest.fn(async (name: string, _count: number, op: () => Promise<any>) => {
-      names.push(name)
-      return await op()
-    })
-  }
-  return { counter, names }
-}
-
-function makeSession (counter: any): ClientSession {
+function makeSession (): ClientSession {
   const token: any = { account: 'user-1', workspace: 'ws-1', extra: {} }
   const account: any = { uuid: 'user-1', role: 'USER', primarySocialId: 'social-1', socialIds: ['social-1'] }
   const info: any = { socialIds: [], workspaces: {} }
-  return new ClientSession(token, { uuid: 'ws-1', url: 'ws' } as any, account, info, true, counter)
+  return new ClientSession(token, { uuid: 'ws-1', url: 'ws' } as any, account, info, true)
 }
 
 function makeCtx (pipeline: Record<string, any>): { ctx: any, sendResponse: jest.Mock, sendError: jest.Mock } {
@@ -66,67 +60,100 @@ function makeCtx (pipeline: Record<string, any>): { ctx: any, sendResponse: jest
 describe('ClientSession response path', () => {
   // The size estimate walked the whole result just to feed a counter - it must not come back.
   it('sends findAll results as is, without sizing them or counting clientSendMemory', async () => {
-    const { counter, names } = makeCounter()
     const result = [{ _id: 'a' }, { _id: 'b' }]
     const { ctx, sendResponse, sendError } = makeCtx({ findAll: jest.fn().mockResolvedValue(result) })
     const { estimateDocSize } = jest.requireMock('@hcengineering/server-core')
 
-    await makeSession(counter).findAll(ctx, core.class.Doc, {})
+    await makeSession().findAll(ctx, core.class.Doc, {})
 
     expect(sendResponse).toHaveBeenCalledWith('req-1', result)
     expect(sendError).not.toHaveBeenCalled()
     expect(estimateDocSize).not.toHaveBeenCalled()
-    expect(names).not.toContain('clientSendMemory')
+    expect(ctx.ctx.metrics.measurements['#clientSendMemory']).toBeUndefined()
   })
 
   it('sends loadModel results as is, without sizing them or counting clientSendMemory', async () => {
-    const { counter, names } = makeCounter()
     const model = { full: true, hash: 'h', transactions: [] }
     const { ctx, sendResponse, sendError } = makeCtx({ loadModel: jest.fn().mockResolvedValue(model) })
     const { estimateDocSize } = jest.requireMock('@hcengineering/server-core')
 
-    await makeSession(counter).loadModel(ctx, 0, 'old-hash')
+    await makeSession().loadModel(ctx, 0, 'old-hash')
 
-    expect(ctx.pipeline.loadModel).toHaveBeenCalledWith(ctx.ctx, 0, 'old-hash')
+    expect(ctx.pipeline.loadModel).toHaveBeenCalledWith(expect.objectContaining({ parent: ctx.ctx }), 0, 'old-hash')
     expect(sendResponse).toHaveBeenCalledWith('req-1', model)
     expect(sendError).not.toHaveBeenCalled()
     expect(estimateDocSize).not.toHaveBeenCalled()
-    expect(names).toEqual(['loadModel'])
+    expect(ctx.ctx.metrics.measurements['#server-operations'].value).toBe(1)
   })
 
   it('sends searchFulltext results as is', async () => {
-    const { counter, names } = makeCounter()
     const result = { docs: [] }
     const { ctx, sendResponse } = makeCtx({ searchFulltext: jest.fn().mockResolvedValue(result) })
 
-    await makeSession(counter).searchFulltext(ctx, { query: 'x' }, {})
+    await makeSession().searchFulltext(ctx, { query: 'x' }, {})
 
     expect(sendResponse).toHaveBeenCalledWith('req-1', result)
-    expect(names).not.toContain('clientSendMemory')
+    expect(ctx.ctx.metrics.measurements['#clientSendMemory']).toBeUndefined()
   })
 
   it('sends domainRequest results as is and still broadcasts', async () => {
-    const { counter, names } = makeCounter()
     const result = { domain: 'x', value: 1 }
     const { ctx, sendResponse } = makeCtx({ domainRequest: jest.fn().mockResolvedValue(result) })
 
-    const res = await makeSession(counter).domainRequestRaw(ctx, 'x' as any, {})
+    const res = await makeSession().domainRequestRaw(ctx, 'x' as any, {})
     await res.broadcastPromise
 
     expect(sendResponse).toHaveBeenCalledWith('req-1', result)
     expect(ctx.pipeline.handleBroadcast).toHaveBeenCalledTimes(1)
-    expect(names).not.toContain('clientSendMemory')
+    expect(ctx.ctx.metrics.measurements['#clientSendMemory']).toBeUndefined()
   })
 
   it('reports a failed loadModel through sendError instead of sending a response', async () => {
-    const { counter } = makeCounter()
     const { ctx, sendResponse, sendError } = makeCtx({ loadModel: jest.fn().mockRejectedValue(new Error('db down')) })
 
-    await makeSession(counter).loadModel(ctx, 0)
+    await makeSession().loadModel(ctx, 0)
 
     expect(sendResponse).not.toHaveBeenCalled()
     expect(sendError).toHaveBeenCalledWith('req-1', 'Failed to loadModel', expect.anything())
+    expect(ctx.ctx.metrics.measurements['#server-operations-failed'].value).toBe(1)
+    expect(ctx.ctx.metrics.measurements['#server-operations-completed']).toBeUndefined()
   })
+
+  it('keeps metric names fixed when a new domain appears', async () => {
+    const { ctx } = makeCtx({ findAll: jest.fn().mockResolvedValue([]) })
+    const session = makeSession()
+    await session.findAll(ctx, core.class.Doc, {})
+    const names = Object.keys(ctx.ctx.metrics.measurements).sort()
+    ctx.pipeline.context.hierarchy.findDomain = () => 'new-domain'
+    await session.findAll(ctx, core.class.Doc, {})
+    expect(Object.keys(ctx.ctx.metrics.measurements).sort()).toEqual(names)
+    const series = Object.values<{ attributes: object }>(ctx.ctx.metrics.measurements['#server-operations'].series)
+    expect(series.map((point) => point.attributes)).toEqual([
+      { domain: 'domain', operation: 'find' },
+      { domain: 'new-domain', operation: 'find' }
+    ])
+  })
+
+  it.each(['tx', 'domainRequest'] as const)(
+    'counts %s errors before the response handler catches them',
+    async (method) => {
+      const session = makeSession()
+      const { ctx, sendError } = makeCtx({})
+      const failure = new Error('pipeline failure')
+      if (method === 'tx') {
+        jest.spyOn(session, 'txRaw').mockRejectedValue(failure)
+        const tx = new TxFactory(core.account.System).createTxCreateDoc(core.class.Doc, core.space.Space, {})
+        await session.tx(ctx, tx)
+      } else {
+        jest.spyOn(session, 'domainRequestRaw').mockRejectedValue(failure)
+        await session.domainRequest(ctx, 'test' as OperationDomain, {})
+      }
+      expect(sendError).toHaveBeenCalledTimes(1)
+      expect(ctx.ctx.metrics.measurements['#server-operations-failed'].value).toBe(1)
+      expect(ctx.ctx.metrics.measurements['#server-operations-completed']).toBeUndefined()
+      expect(ctx.ctx.metrics.measurements['#server-operations-active'].value).toBe(0)
+    }
+  )
 })
 
 describe('ClientSession upload and clean access control', () => {
@@ -135,14 +162,12 @@ describe('ClientSession upload and clean access control', () => {
     ctx: ReturnType<typeof makeCtx>
     ops: { upload: jest.Mock, clean: jest.Mock }
   } {
-    const { counter } = makeCounter()
     const session = new ClientSession(
       { account: 'user-1', workspace: 'ws-1', extra: {} } as any,
       { uuid: 'ws-1', url: 'ws' } as any,
       {} as any,
       {} as any,
-      false,
-      counter
+      false
     )
     const ops = { upload: jest.fn(), clean: jest.fn() }
     jest.spyOn(session, 'getOps').mockReturnValue(ops as any)
@@ -180,8 +205,7 @@ describe('ClientSession broadcast', () => {
   }
 
   it('collapses more than 10,000 transactions into a bulk update event', () => {
-    const { counter } = makeCounter()
-    const session = makeSession(counter)
+    const session = makeSession()
     const socket = { send: jest.fn() }
 
     session.broadcast(new MeasureMetricsContext('test', {}), socket as any, txes(10001))

@@ -312,11 +312,24 @@ export const main = async (): Promise<void> => {
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.get('/checkRecordAvailable', async (_req, res) => {
+    if (!config.RecordingEnabled) {
+      res.send(false)
+      return
+    }
     res.send(await checkRecordAvailable(ctx, storageConfig, s3storageConfig))
+  })
+
+  app.get('/checkTranscriptionAvailable', (_req, res) => {
+    res.send(config.TranscriptionEnabled)
   })
 
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.post('/startRecord', async (req, res) => {
+    if (!config.RecordingEnabled) {
+      res.status(403).send({ error: 'Recording is disabled on this server' })
+      return
+    }
+
     const { meetingId, workspaceId } = decodeMeetingToken(req, res)
     if (meetingId == null || workspaceId == null) {
       return
@@ -376,6 +389,12 @@ export const main = async (): Promise<void> => {
 
     const language = req.body.language
     const transcription = req.body.transcription ?? false
+
+    // Stopping is always allowed so that already running sessions can be finished
+    if (!config.TranscriptionEnabled && transcription) {
+      res.status(403).send({ error: 'Transcription is disabled on this server' })
+      return
+    }
 
     if (typeof roomName !== 'string') {
       res.status(400).send()
