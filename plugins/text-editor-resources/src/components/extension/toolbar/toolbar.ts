@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -323,6 +324,11 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
 
       let isMouseDown = false
       const mousedown = (event: MouseEvent): void => {
+        // Toolbar actions must not move between pointer down and pointer up.
+        if (event.target instanceof window.Node && container.contains(event.target)) {
+          killPendingMouseEvents()
+          return
+        }
         if (event.target instanceof HTMLElement) {
           const [blockToolbarMouseLock] = scanMarker(event.target, 'blockToolbarMouseLock')
           if (blockToolbarMouseLock) {
@@ -335,6 +341,7 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
       }
 
       const mouseup = (event: MouseEvent): void => {
+        if (!isMouseDown) return
         isMouseDown = false
         updateToolbar()
       }
@@ -383,6 +390,11 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
       }
 
       const tippyNode = tippy(view.dom, getTippyProps())
+      // Actions are rendered asynchronously, after Popper's initial measurement.
+      const resizeObserver = new ResizeObserver(() => {
+        tippyNode.popperInstance?.forceUpdate()
+      })
+      resizeObserver.observe(container)
 
       editor.on('transaction', ({ editor, transaction: tr }) => {
         const meta = tr.getMeta(toolbarPluginKey) as ToolbarControlTxMeta
@@ -422,6 +434,7 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
 
       return {
         destroy () {
+          resizeObserver.disconnect()
           tippyNode.destroy()
           window.removeEventListener('mousemove', mousemove)
           window.removeEventListener('mousedown', mousedown)
