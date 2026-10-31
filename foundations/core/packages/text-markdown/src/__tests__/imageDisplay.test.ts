@@ -1,0 +1,44 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+import { markdownToMarkup } from '../index'
+
+function images (md: string): any[] {
+  const doc: any = markdownToMarkup(md)
+  const result: any[] = []
+  const walk = (n: any): void => {
+    if (n.type === 'image') result.push(n)
+    ;(n.content ?? []).forEach(walk)
+  }
+  walk(doc)
+  return result
+}
+
+describe('markdown image display', () => {
+  it('marks an image that shares a paragraph with text as inline', () => {
+    const [img] = images('before ![shot](image://blob1?file=blob1) after')
+    expect(img.attrs.display).toBe('inline')
+  })
+
+  it('ignores whitespace-only text next to an image', () => {
+    const [img] = images('<p> <img src="files/image_1.png" alt="a"/></p>')
+    expect(img.attrs?.display).toBeUndefined()
+  })
+
+  it('keeps an image alone in its paragraph as block (no display)', () => {
+    const [img] = images('![shot](image://blob1?file=blob1)')
+    expect(img.attrs?.display).toBeUndefined()
+  })
+})

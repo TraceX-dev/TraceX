@@ -25,6 +25,16 @@ export interface ImageAlignmentOptions {
   align?: ImageAlignment
 }
 
+/**
+ * `block` (default, same as `null`): own line, `align` applies. `inline`: flows with the text.
+ * @public
+ */
+export type ImageDisplay = 'block' | 'inline'
+
+export interface ImageDisplayOptions {
+  display?: ImageDisplay | null
+}
+
 export interface ImageSizeOptions {
   height?: number | string
   width?: number | string
@@ -36,17 +46,34 @@ declare module '@tiptap/core' {
       /**
        * Add an image
        */
-      setImage: (options: { src: string, alt?: string, title?: string }) => ReturnType
+      setImage: (options: { src: string, alt?: string, title?: string, display?: ImageDisplay | null }) => ReturnType
       /**
        * Set image alignment
        */
       setImageAlignment: (options: ImageAlignmentOptions) => ReturnType
+      /**
+       * Set image display mode
+       */
+      setImageDisplay: (options: ImageDisplayOptions) => ReturnType
       /**
        * Set image size
        */
       setImageSize: (options: ImageSizeOptions) => ReturnType
     }
   }
+}
+
+/**
+ * Width of an inline image goes on its container so that a percentage resolves against
+ * the paragraph; on the `<img>` it resolves against a shrink-to-fit container that stays
+ * line-wide for large images and wraps below the text.
+ * @public
+ */
+export function getInlineImageContainerStyle (attrs: Record<string, any>): string | undefined {
+  if (attrs.display !== 'inline' || attrs.width == null) return undefined
+  const width = String(attrs.width).trim()
+  if (!/^\d+(\.\d+)?(px|%)?$/.test(width)) return undefined
+  return `width: ${/^[\d.]+$/.test(width) ? width + 'px' : width}`
 }
 
 /**
@@ -107,6 +134,7 @@ export const ImageNode = Node.create<ImageOptions>({
         default: null
       },
       align: getDataAttribute('align'),
+      display: getDataAttribute('display'),
       'data-file-type': {
         default: null
       }
@@ -125,10 +153,13 @@ export const ImageNode = Node.create<ImageOptions>({
   },
 
   renderHTML ({ node, HTMLAttributes }) {
-    const divAttributes = {
+    const inline = node.attrs.display === 'inline'
+    const containerAttributes = {
       class: 'text-editor-image-container',
       'data-type': this.name,
-      'data-align': node.attrs.align
+      'data-align': node.attrs.align,
+      'data-display': node.attrs.display,
+      style: getInlineImageContainerStyle(node.attrs)
     }
     const imgAttributes = mergeAttributes(
       {
@@ -142,6 +173,7 @@ export const ImageNode = Node.create<ImageOptions>({
       imgAttributes.src = `platform://platform/files/workspace/?file=${fileId}`
     }
 
-    return ['div', divAttributes, ['img', imgAttributes]]
+    // `div` is invalid inside a paragraph
+    return [inline ? 'span' : 'div', containerAttributes, ['img', imgAttributes]]
   }
 })

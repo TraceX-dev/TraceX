@@ -24,6 +24,7 @@ import { deepEqual } from 'fast-equals'
 import tippy, { type Placement, type Props as TippyProps } from 'tippy.js'
 import { SvelteRenderer } from '../../node-view'
 import EditorToolbar from './EditorToolbar.svelte'
+import { mapLoadingPos } from './mapLoadingPos'
 import { type ActionContext } from '@hcengineering/text-editor'
 
 export interface ToolbarCursor<T> {
@@ -118,7 +119,7 @@ export function LoadingStatePlugin (): Plugin<LoadingStatePluginState> {
         loadingNodes: new Set<number>()
       }),
 
-      apply (tr, prevState) {
+      apply (tr, prevState, oldState, newState) {
         const meta = tr.getMeta(loadingStatePluginKey) as LoadingStateTxMeta | undefined
         let loadingNodes = prevState.loadingNodes
 
@@ -137,9 +138,8 @@ export function LoadingStatePlugin (): Plugin<LoadingStatePluginState> {
           const mapped = new Set<number>()
           loadingNodes.forEach((pos) => {
             try {
-              const mappedPos = tr.mapping.map(pos, -1)
-              // Verify position is still valid
-              if (mappedPos >= 0 && mappedPos < tr.doc.content.size) {
+              const mappedPos = mapLoadingPos(pos, tr.mapping, oldState.doc, newState.doc)
+              if (mappedPos !== undefined) {
                 mapped.add(mappedPos)
               }
             } catch (e) {
