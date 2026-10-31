@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-import { AccountRole, Person, type WorkspaceUuid, WorkspaceInfoWithStatus } from '@hcengineering/core'
+import { AccountRole, type Person, type WorkspaceUuid, type WorkspaceInfoWithStatus } from '@hcengineering/core'
 import type { Asset, IntlString, Metadata, Plugin, Resource, Status } from '@hcengineering/platform'
 import { plugin } from '@hcengineering/platform'
 import type { AnyComponent } from '@hcengineering/ui'
@@ -39,6 +39,7 @@ export const pages = [
   'confirm',
   'confirmationSend',
   'auth',
+  'oauth',
   'login-password',
   'changePassword',
   'tfa'
@@ -48,6 +49,7 @@ export type Pages = (typeof pages)[number]
 export default plugin(loginId, {
   metadata: {
     AccountsUrl: '' as Asset,
+    OAuthURL: '' as Metadata<string>,
     LastAccount: '' as Metadata<string>,
     LoginEndpoint: '' as Metadata<string>,
     LoginAccount: '' as Metadata<string>,
@@ -72,6 +74,16 @@ export default plugin(loginId, {
   },
   string: {
     LogIn: '' as IntlString,
+    AuthorizeApplication: '' as IntlString<{ application: string }>,
+    NoAvailableWorkspacesDescription: '' as IntlString,
+    AuthorizeApplicationDescription: '' as IntlString,
+    AuthorizeSelectedWorkspaceDescription: '' as IntlString,
+    OneWorkspace: '' as IntlString,
+    AllAvailableWorkspaces: '' as IntlString,
+    AuthorizationFailed: '' as IntlString,
+    McpConnections: '' as IntlString,
+    NoMcpConnections: '' as IntlString,
+    DisconnectApplicationConfirm: '' as IntlString<{ name: string }>,
     EmailMask: '' as IntlString,
     NoExpiration: '' as IntlString,
     UnlimitedInviteWarning: '' as IntlString,

@@ -34,6 +34,7 @@
   } from '../utils'
   import Form from './Form.svelte'
   import login from '../plugin'
+  import { resumeOAuthLogin } from '../oauth'
 
   let request: LoginInfoRequest | undefined
   let fields: Field[]
@@ -82,6 +83,7 @@
       request = result
     } else {
       await logIn(result)
+      if (resumeOAuthLogin()) return
 
       if (navigateToPublicForm(getCurrentLocation().query?.navigateUrl, true)) return
 

@@ -114,6 +114,16 @@
         "JoinAs": "참여 역할",
         "LinkExpires": "만료",
         "LimitUses": "사용 횟수 제한",
-        "UsesLimit": "{count, plural, other {최대 #회}}"
+        "UsesLimit": "{count, plural, other {최대 #회}}",
+        "AuthorizeApplication": "Authorize {application}",
+        "AuthorizeApplicationDescription": "This application can read and change data in all TraceX workspaces you can access, including workspaces you join later. You can revoke this connection in your account authentication settings.",
+        "AuthorizeSelectedWorkspaceDescription": "This application can read and change data only in the selected TraceX workspace. You can revoke this connection in your account authentication settings.",
+        "OneWorkspace": "One workspace",
+    "AllAvailableWorkspaces": "All available workspaces",
+    "NoAvailableWorkspacesDescription": "이 계정에서 사용할 수 있는 워크스페이스가 없습니다. 워크스페이스 초대를 요청하거나 다른 계정으로 로그인하세요.",
+        "AuthorizationFailed": "Authorization failed or the request expired. Start the connection again in your MCP client.",
+        "McpConnections": "MCP connections",
+        "NoMcpConnections": "No MCP clients are connected.",
+        "DisconnectApplicationConfirm": "Disconnect {name}? New requests and access renewal will be blocked for this connection."
     }
 }

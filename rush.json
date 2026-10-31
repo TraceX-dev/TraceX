@@ -666,6 +666,11 @@
       "shouldPublish": true
     },
     {
+      "packageName": "@hcengineering/openauth-client",
+      "projectFolder": "packages/openauth-client",
+      "shouldPublish": true
+    },
+    {
       "packageName": "@hcengineering/prod",
       "projectFolder": "dev/prod",
       "shouldPublish": false
@@ -993,6 +998,11 @@
     {
       "packageName": "@hcengineering/pod-marketplace",
       "projectFolder": "pods/marketplace",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/pod-openauth",
+      "projectFolder": "pods/openauth",
       "shouldPublish": false
     },
     {
