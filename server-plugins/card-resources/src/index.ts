@@ -53,6 +53,11 @@ interface IndexedViewletConfigItem {
   index: number
 }
 
+interface ViewletAttributes {
+  viewlet: Viewlet
+  attributes: string[]
+}
+
 function getViewletConfigKey (item: ViewletConfigItem): string {
   return typeof item === 'string' ? item : item.key
 }
@@ -118,56 +123,80 @@ function isConfigOrderChanged (current: ViewletConfigItem[], next: ViewletConfig
 }
 
 async function OnAttribute (ctx: TxCreateDoc<AnyAttribute>[], control: TriggerControl): Promise<Tx[]> {
-  const attr = TxProcessor.createDoc2Doc(ctx[0])
-  if (control.hierarchy.isDerived(attr.attributeOf, card.class.Card)) {
+  const targets = new Map<Ref<Viewlet>, ViewletAttributes>()
+  for (const tx of ctx) {
+    const attr = TxProcessor.createDoc2Doc(tx)
+    if (!control.hierarchy.isDerived(attr.attributeOf, card.class.Card)) continue
     const desc = control.hierarchy.getDescendants(attr.attributeOf)
-    const res: Tx[] = []
     for (const des of desc) {
       const viewlets = control.modelDb.findAllSync(view.class.Viewlet, { attachTo: des, variant: { $exists: false } })
       for (const viewlet of viewlets) {
-        const updatedConfig = [...viewlet.config]
-        // let push it after grow for the list
         if (viewlet.descriptor === view.viewlet.RelationshipTable) continue
-        if (viewlet.descriptor === view.viewlet.List) {
-          const index = viewlet.config.findIndex((p) => typeof p !== 'string' && p.displayProps?.grow === true)
-          if (index !== -1) {
-            updatedConfig.splice(index + 1, 0, attr.name)
-          } else {
-            updatedConfig.push(attr.name)
-          }
-        } else {
-          updatedConfig.push(attr.name)
-        }
-        res.push(
-          control.txFactory.createTxUpdateDoc(viewlet._class, viewlet.space, viewlet._id, {
-            config: updatedConfig
-          })
-        )
-
-        const prefs = await control.findAll(control.ctx, view.class.ViewletPreference, { attachedTo: viewlet._id })
-        for (const pref of prefs) {
-          const updatedPrefConfig = [...pref.config]
-          if (viewlet.descriptor === view.viewlet.List) {
-            const index = updatedPrefConfig.findIndex((p) => typeof p !== 'string' && p.displayProps?.grow === true)
-            if (index !== -1) {
-              updatedPrefConfig.splice(index + 1, 0, attr.name)
-            } else {
-              updatedPrefConfig.push(attr.name)
-            }
-          } else {
-            updatedPrefConfig.push(attr.name)
-          }
-          res.push(
-            control.txFactory.createTxUpdateDoc(pref._class, pref.space, pref._id, {
-              config: updatedPrefConfig
-            })
-          )
-        }
+        const target: ViewletAttributes = targets.get(viewlet._id) ?? { viewlet, attributes: [] }
+        if (!target.attributes.includes(attr.name)) target.attributes.push(attr.name)
+        targets.set(viewlet._id, target)
       }
     }
-    return res
   }
-  return []
+
+  // Explicit configurations in the batch are authoritative, including omitted fields.
+  const configured = new Set<Ref<Doc>>()
+  for (const tx of control.txes) {
+    if (tx.space === core.space.DerivedTx) continue
+    if (tx._class === core.class.TxCreateDoc) {
+      const create = tx as TxCreateDoc<Viewlet>
+      if (
+        (create.objectClass === view.class.Viewlet || create.objectClass === view.class.ViewletPreference) &&
+        Array.isArray(create.attributes.config)
+      ) {
+        configured.add(create.objectId)
+      }
+    } else if (tx._class === core.class.TxUpdateDoc) {
+      const update = tx as TxUpdateDoc<Viewlet>
+      if (
+        (update.objectClass === view.class.Viewlet || update.objectClass === view.class.ViewletPreference) &&
+        Array.isArray(update.operations.config)
+      ) {
+        configured.add(update.objectId)
+      }
+    }
+  }
+
+  const res: Tx[] = []
+  for (const { viewlet, attributes } of targets.values()) {
+    if (!configured.has(viewlet._id)) {
+      const config = addViewletAttributes(viewlet.config, attributes, viewlet.descriptor)
+      if (config !== undefined) {
+        res.push(control.txFactory.createTxUpdateDoc(viewlet._class, viewlet.space, viewlet._id, { config }))
+      }
+    }
+    const prefs = await control.findAll(control.ctx, view.class.ViewletPreference, { attachedTo: viewlet._id })
+    for (const pref of prefs) {
+      if (configured.has(pref._id)) continue
+      const config = addViewletAttributes(pref.config, attributes, viewlet.descriptor)
+      if (config !== undefined) {
+        res.push(control.txFactory.createTxUpdateDoc(pref._class, pref.space, pref._id, { config }))
+      }
+    }
+  }
+  return res
+}
+
+function addViewletAttributes (
+  config: Viewlet['config'],
+  attributes: string[],
+  descriptor: Viewlet['descriptor']
+): Viewlet['config'] | undefined {
+  const existing = new Set(config.map(getViewletConfigKey))
+  const missing = attributes.filter((name) => !existing.has(name))
+  if (missing.length === 0) return undefined
+  const result = [...config]
+  const index =
+    descriptor === view.viewlet.List
+      ? result.findIndex((item) => typeof item !== 'string' && item.displayProps?.grow === true)
+      : -1
+  result.splice(index === -1 ? result.length : index + 1, 0, ...missing)
+  return result
 }
 
 async function OnAttributeRemove (ctx: TxRemoveDoc<AnyAttribute>[], control: TriggerControl): Promise<Tx[]> {
