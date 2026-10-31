@@ -214,6 +214,8 @@
     "AccessControlSpacesHint": "Gerencie espaços ativos, associações e entrada automática em um só lugar.",
     "UserGroupsHint": "Um grupo dá aos seus membros acesso a todos os espaços aos quais está vinculado. Vincule grupos a espaços na aba Espaços.",
     "NewUserGroup": "Nome do novo grupo",
+    "CreateUserGroupTitle": "Novo grupo de usuários",
+    "CreateUserGroupDescription": "Os membros do grupo terão acesso a todos os espaços aos quais você o vincular.",
     "SearchUserGroups": "Pesquisar grupos",
     "DeleteUserGroup": "Excluir grupo",
     "DeleteUserGroupConfirm": "Excluir {name}? Os membros perderão o acesso a {count} espaços vinculados, a menos que sejam membros diretos ou por outro grupo.",

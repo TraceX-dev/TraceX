@@ -221,6 +221,8 @@
         "AccessControlSpacesHint": "활성 스페이스, 멤버십, 자동 참여를 한 곳에서 관리하세요.",
         "UserGroupsHint": "그룹은 연결된 모든 스페이스에 대한 접근 권한을 멤버에게 부여합니다. 스페이스 탭에서 그룹을 스페이스에 연결하세요.",
         "NewUserGroup": "새 그룹 이름",
+        "CreateUserGroupTitle": "새 사용자 그룹",
+        "CreateUserGroupDescription": "그룹 멤버는 그룹을 연결한 모든 스페이스에 접근할 수 있습니다.",
         "SearchUserGroups": "그룹 검색",
         "DeleteUserGroup": "그룹 삭제",
         "DeleteUserGroupConfirm": "{name}을(를) 삭제할까요? 직접 또는 다른 그룹을 통해 멤버가 아닌 한, 멤버는 연결된 스페이스 {count}개에 대한 접근 권한을 잃습니다.",

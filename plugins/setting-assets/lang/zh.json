@@ -223,6 +223,8 @@
     "AccessControlSpacesHint": "在一处集中管理活跃空间、成员及自动加入设置。",
     "UserGroupsHint": "用户组会让其成员访问它所绑定的所有空间。请在“空间”选项卡中将用户组绑定到空间。",
     "NewUserGroup": "新用户组名称",
+    "CreateUserGroupTitle": "新建用户组",
+    "CreateUserGroupDescription": "用户组成员将可以访问你为其绑定的所有空间。",
     "SearchUserGroups": "搜索用户组",
     "DeleteUserGroup": "删除用户组",
     "DeleteUserGroupConfirm": "删除 {name}？除非成员直接或通过其他用户组属于这些空间，否则将失去对 {count} 个已绑定空间的访问权限。",

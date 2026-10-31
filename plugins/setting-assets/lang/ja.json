@@ -223,6 +223,8 @@
     "AccessControlSpacesHint": "アクティブなスペース、メンバーシップ、自動参加を一か所で管理します。",
     "UserGroupsHint": "グループは、紐付けられたすべてのスペースへのアクセスをメンバーに付与します。グループとスペースの紐付けは「スペース」タブで行います。",
     "NewUserGroup": "新しいグループ名",
+    "CreateUserGroupTitle": "新しいユーザーグループ",
+    "CreateUserGroupDescription": "グループのメンバーは、紐付けたすべてのスペースにアクセスできます。",
     "SearchUserGroups": "グループを検索",
     "DeleteUserGroup": "グループを削除",
     "DeleteUserGroupConfirm": "{name} を削除しますか？直接または別のグループ経由でメンバーでない限り、メンバーは紐付けられた {count} 件のスペースへのアクセスを失います。",

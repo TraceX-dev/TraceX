@@ -120,6 +120,15 @@ describe('OnSpaceMembershipChange', () => {
     expect(applyMembers(stored.members, res)).toEqual([A, B, G1].sort())
   })
 
+  it('persists directMembers of a space that is not migrated before adding group members', async () => {
+    // Without it, the next recompute takes G1 for a direct member and never removes it.
+    const stored = space({ members: [A], groups: ['g1' as Ref<UserGroup>] })
+    const control = createControl([stored], [group('g1', [G1])])
+    const res = await OnSpaceMembershipChange([update({ $push: { groups: 'g1' } })], control)
+    expect((res[0] as TxUpdateDoc<Space>).operations).toEqual({ directMembers: [A] })
+    expect(applyMembers(stored.members, res)).toEqual([A, G1].sort())
+  })
+
   it('removes a direct member without other basis', async () => {
     const stored = space({ members: [A, B], directMembers: [A] })
     const control = createControl([stored], [])

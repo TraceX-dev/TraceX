@@ -144,6 +144,8 @@ export default mergeIds(settingId, setting, {
     AccessControlSpacesHint: '' as IntlString,
     UserGroupsHint: '' as IntlString,
     NewUserGroup: '' as IntlString,
+    CreateUserGroupTitle: '' as IntlString,
+    CreateUserGroupDescription: '' as IntlString,
     SearchUserGroups: '' as IntlString,
     DeleteUserGroup: '' as IntlString,
     DeleteUserGroupConfirm: '' as IntlString,

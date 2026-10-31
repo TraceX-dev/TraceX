@@ -150,6 +150,32 @@ describe('SpaceMembershipMiddleware', () => {
       expect(opsOf(sent[0])).toEqual({ directMembers: [B, C] })
     })
 
+    it('a $push on a space without directMembers writes the whole list from members', async () => {
+      // A blind $push would start directMembers from C only and the recompute would drop A and B.
+      const { middleware, sent } = await setup([storedSpace([A, B])])
+      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $push: { members: C } })])
+      expect(opsOf(sent[0])).toEqual({ directMembers: [A, B, C] })
+    })
+
+    it('a direct $pull of directMembers on a space without them writes the whole list', async () => {
+      const { middleware, sent } = await setup([storedSpace([A, B])])
+      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $pull: { directMembers: B } })])
+      expect(opsOf(sent[0])).toEqual({ directMembers: [A] })
+    })
+
+    it('a $push on a migrated space stays a $push', async () => {
+      const { middleware, sent } = await setup([storedSpace([A, B, G], [A, B])])
+      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $push: { members: C } })])
+      expect(opsOf(sent[0])).toEqual({ $push: { directMembers: C } })
+    })
+
+    it('a whole directMembers list makes a member through a group a direct one', async () => {
+      // The space settings form writes directMembers: G is already a member through a group.
+      const { middleware, sent } = await setup([storedSpace([A, G], [A])])
+      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ directMembers: [A, G, A] })])
+      expect(opsOf(sent[0])).toEqual({ directMembers: [A, G] })
+    })
+
     it('rewrites updates inside apply', async () => {
       const { middleware, sent } = await setup()
       const apply = factory.createTxApplyIf(

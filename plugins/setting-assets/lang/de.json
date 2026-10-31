@@ -223,6 +223,8 @@
     "AccessControlSpacesHint": "Verwalten Sie aktive Bereiche, Mitgliedschaften und den automatischen Beitritt an einem Ort.",
     "UserGroupsHint": "Eine Gruppe gibt ihren Mitgliedern Zugriff auf alle verknüpften Bereiche. Gruppen verknüpfen Sie auf dem Tab Bereiche.",
     "NewUserGroup": "Name der neuen Gruppe",
+    "CreateUserGroupTitle": "Neue Benutzergruppe",
+    "CreateUserGroupDescription": "Mitglieder der Gruppe erhalten Zugriff auf alle Bereiche, mit denen Sie sie verknüpfen.",
     "SearchUserGroups": "Gruppen suchen",
     "DeleteUserGroup": "Gruppe löschen",
     "DeleteUserGroupConfirm": "{name} löschen? Die Mitglieder verlieren den Zugriff auf {count} verknüpfte Bereiche, sofern sie dort nicht direkt oder über eine andere Gruppe Mitglied sind.",

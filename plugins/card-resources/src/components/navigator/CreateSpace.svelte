@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { SpaceSettingsForm } from '@hcengineering/contact-resources'
+  import { SpaceSettingsForm, getSpaceMembersUpdate } from '@hcengineering/contact-resources'
   import core, { AccountRole, AccountUuid, Data, Ref, RolesAssignment, getCurrentAccount } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { EditBox, FormRow } from '@hcengineering/ui'
@@ -49,6 +49,8 @@
   let restricted: boolean = space?.restricted ?? false
   let members: AccountUuid[] =
     space?.members !== undefined ? hierarchy.clone(space.members) : [getCurrentAccount().uuid]
+  /** Set by SpaceSettingsForm when the edited space supports user groups. */
+  let directMembers: AccountUuid[] | undefined = undefined
   let owners: AccountUuid[] = space?.owners !== undefined ? hierarchy.clone(space.owners) : [getCurrentAccount().uuid]
 
   $: isNew = space === undefined
@@ -138,8 +140,8 @@
       return
     }
 
-    const data = getData()
-    await client.diffUpdate(space, data)
+    const { members: _members, ...data } = getData()
+    await client.diffUpdate(space, { ...data, ...getSpaceMembersUpdate(space, _members, directMembers) })
 
     if (rolesAssignment && !deepEqual(rolesAssignment, getCurrentRolesAssignment())) {
       await client.updateMixin(space._id, space._class, core.space.Space, core.mixin.SpacesTypeData, rolesAssignment)
@@ -189,6 +191,7 @@
     {space}
     bind:owners
     bind:members
+    bind:directMembers
     bind:isPrivate
     bind:autoJoin
     bind:autoJoinForRoles

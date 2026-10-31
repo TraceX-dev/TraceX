@@ -16,7 +16,7 @@
 <script lang="ts">
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
-  import { SpaceSettingsForm } from '@hcengineering/contact-resources'
+  import { SpaceSettingsForm, getSpaceMembersUpdate } from '@hcengineering/contact-resources'
   import core, {
     Data,
     RolesAssignment,
@@ -50,6 +50,8 @@
   let restricted: boolean = drive?.restricted ?? false
   let members: AccountUuid[] =
     drive?.members !== undefined ? hierarchy.clone(drive.members) : [getCurrentAccount().uuid]
+  /** Set by SpaceSettingsForm when the edited space supports user groups. */
+  let directMembers: AccountUuid[] | undefined = undefined
   let owners: AccountUuid[] = drive?.owners !== undefined ? hierarchy.clone(drive.owners) : [getCurrentAccount().uuid]
   let rolesAssignment: RolesAssignment = {}
 
@@ -112,8 +114,8 @@
       return
     }
 
-    const update = getDriveData()
-    await client.diffUpdate(drive, update)
+    const { members: _members, ...update } = getDriveData()
+    await client.diffUpdate(drive, { ...update, ...getSpaceMembersUpdate(drive, _members, directMembers) })
 
     if (!deepEqual(rolesAssignment, getRolesAssignment())) {
       await client.updateMixin(
@@ -178,6 +180,7 @@
     space={drive}
     bind:owners
     bind:members
+    bind:directMembers
     bind:isPrivate
     bind:autoJoin
     bind:restricted

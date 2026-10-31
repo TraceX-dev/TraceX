@@ -221,6 +221,8 @@
     "AccessControlSpacesHint": "Spravujte aktivní prostory, členství a automatické připojování na jednom místě.",
     "UserGroupsHint": "Skupina dává svým členům přístup ke všem prostorům, ke kterým je připojena. Skupiny připojíte k prostorům na kartě Prostory.",
     "NewUserGroup": "Název nové skupiny",
+    "CreateUserGroupTitle": "Nová skupina uživatelů",
+    "CreateUserGroupDescription": "Členové skupiny získají přístup ke všem prostorům, ke kterým ji připojíte.",
     "SearchUserGroups": "Hledat skupiny",
     "DeleteUserGroup": "Smazat skupinu",
     "DeleteUserGroupConfirm": "Smazat {name}? Její členové ztratí přístup k připojeným prostorům ({count}), pokud v nich nejsou přímo nebo přes jinou skupinu.",

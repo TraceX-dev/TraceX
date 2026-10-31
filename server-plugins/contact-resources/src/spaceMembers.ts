@@ -64,6 +64,13 @@ export async function recomputeSpaceMembers (control: TriggerControl, space: Spa
   const removed = Array.from(new Set(current)).filter((it) => !target.has(it))
 
   const result: Tx[] = []
+  if (space.directMembers === undefined) {
+    // Not migrated: `members` is still the direct list. Persist it before group members join `members`,
+    // otherwise the next recompute would take them for direct members and never remove them.
+    result.push(
+      control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { directMembers: [...current] })
+    )
+  }
   if (added.length > 0) {
     result.push(
       control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, {

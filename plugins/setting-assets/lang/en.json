@@ -222,6 +222,8 @@
     "AccessControlSpacesHint": "Review active spaces, memberships, and automatic joining in one place.",
     "UserGroupsHint": "Groups give their members access to every space they are bound to. Bind groups to spaces on the Spaces tab.",
     "NewUserGroup": "New group name",
+    "CreateUserGroupTitle": "New user group",
+    "CreateUserGroupDescription": "Members of the group get access to every space you bind it to.",
     "SearchUserGroups": "Search groups",
     "DeleteUserGroup": "Delete group",
     "DeleteUserGroupConfirm": "Delete {name}? Its members lose access to {count} bound spaces unless they are members there directly or through another group.",

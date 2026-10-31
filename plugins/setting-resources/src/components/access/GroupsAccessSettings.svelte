@@ -106,46 +106,48 @@
           label={groups.length === 0 ? setting.string.NoUserGroups : presentation.string.NoResults}
         />
       {:else}
-        <div class="groupRow caption-color text-sm">
-          <span><Label label={core.string.Name} /></span>
-          <span><Label label={core.string.Members} /></span>
-          <span><Label label={setting.string.Spaces} /></span>
+        <div class="groupsTable">
+          <div class="groupRow caption-color text-sm">
+            <span><Label label={core.string.Name} /></span>
+            <span><Label label={core.string.Members} /></span>
+            <span><Label label={setting.string.Spaces} /></span>
+          </div>
+          <ListView
+            items={visibleGroups}
+            count={visibleGroups.length}
+            getKey={(index) => visibleGroups[index]._id}
+            selection={-1}
+            updateOnMouse={false}
+            kind={'full-size'}
+            noScroll
+          >
+            <svelte:fragment slot="item" let:item={index}>
+              {@const group = visibleGroups[index]}
+              {@const bound = boundSpaces(group._id)}
+              <div class="groupRow" data-id={`user-group-${group.name}`}>
+                <EditBox value={group.name} placeholder={core.string.Name} on:change={(event) => rename(group, event)} />
+                <AccountArrayEditor
+                  value={group.members}
+                  label={core.string.Members}
+                  kind={'link'}
+                  size={'small'}
+                  allowGuests
+                  onChange={(refs) => updateMembers(group, refs)}
+                />
+                <span class="caption-color" title={bound.map((space) => space.name).join(', ')}>{bound.length}</span>
+                <ButtonIcon
+                  icon={IconDelete}
+                  size={'small'}
+                  kind={'tertiary'}
+                  tooltip={{ label: setting.string.DeleteUserGroup }}
+                  on:click={() => {
+                    remove(group)
+                  }}
+                />
+              </div>
+            </svelte:fragment>
+          </ListView>
         </div>
-        <ListView
-          items={visibleGroups}
-          count={visibleGroups.length}
-          getKey={(index) => visibleGroups[index]._id}
-          selection={-1}
-          updateOnMouse={false}
-          kind={'full-size'}
-          noScroll
-        >
-          <svelte:fragment slot="item" let:item={index}>
-            {@const group = visibleGroups[index]}
-            {@const bound = boundSpaces(group._id)}
-            <div class="groupRow" data-id={`user-group-${group.name}`}>
-              <EditBox value={group.name} placeholder={core.string.Name} on:change={(event) => rename(group, event)} />
-              <AccountArrayEditor
-                value={group.members}
-                label={core.string.Members}
-                kind={'link'}
-                size={'small'}
-                allowGuests
-                onChange={(refs) => updateMembers(group, refs)}
-              />
-              <span class="caption-color" title={bound.map((space) => space.name).join(', ')}>{bound.length}</span>
-              <ButtonIcon
-                icon={IconDelete}
-                size={'small'}
-                kind={'tertiary'}
-                tooltip={{ label: setting.string.DeleteUserGroup }}
-                on:click={() => {
-                  remove(group)
-                }}
-              />
-            </div>
-          </svelte:fragment>
-        </ListView>
       {/if}
     </SettingsCard>
   </div>
@@ -157,10 +159,19 @@
   }
   .groupRow {
     display: grid;
-    grid-template-columns: minmax(13rem, 1.6fr) minmax(10rem, 1fr) 6rem 3rem;
+    grid-template-columns: minmax(8rem, 1.6fr) minmax(7.5rem, 1fr) 3rem 2rem;
+    min-width: 22.5rem;
     align-items: center;
     gap: var(--spacing-2);
     padding: var(--spacing-1) var(--spacing-2);
     min-height: 2.5rem;
+
+    & > :global(*) {
+      min-width: 0;
+    }
+  }
+  // A card narrower than the row scrolls the table instead of clipping it (the card hides its overflow).
+  .groupsTable {
+    overflow-x: auto;
   }
 </style>

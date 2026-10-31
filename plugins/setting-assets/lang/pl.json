@@ -221,6 +221,8 @@
     "AccessControlSpacesHint": "Zarządzaj aktywnymi przestrzeniami, członkostwem i automatycznym dołączaniem w jednym miejscu.",
     "UserGroupsHint": "Grupa daje swoim członkom dostęp do wszystkich przestrzeni, do których jest przypisana. Grupy przypiszesz do przestrzeni na karcie Przestrzenie.",
     "NewUserGroup": "Nazwa nowej grupy",
+    "CreateUserGroupTitle": "Nowa grupa użytkowników",
+    "CreateUserGroupDescription": "Członkowie grupy uzyskają dostęp do wszystkich przestrzeni, do których ją przypiszesz.",
     "SearchUserGroups": "Szukaj grup",
     "DeleteUserGroup": "Usuń grupę",
     "DeleteUserGroupConfirm": "Usunąć {name}? Jej członkowie stracą dostęp do przypisanych przestrzeni ({count}), chyba że są w nich bezpośrednio lub przez inną grupę.",

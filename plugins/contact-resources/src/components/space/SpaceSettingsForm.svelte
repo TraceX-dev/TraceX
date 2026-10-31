@@ -62,6 +62,11 @@
    * the members editor changes direct members only, and maintainers bind groups (saved at once).
    */
   export let space: Space | undefined = undefined
+  /**
+   * Direct members edited by the form, set when the space supports user groups. Bind it and save it with
+   * `getSpaceMembersUpdate`: `members` alone can not make a member through a group a direct one.
+   */
+  export let directMembers: AccountUuid[] | undefined = undefined
 
   export let readonly: boolean = false
   /** Overrides the default rule: a public space without members cannot be made private. */
@@ -107,7 +112,7 @@
   const CHANNEL = 'chunter:class:Channel' as Ref<Class<Space>>
   const client = getClient()
   const hierarchy = client.getHierarchy()
-  $: canManageGroups = hasAccountRole(currentAccount, AccountRole.Maintainer)
+  const canManageGroups = hasAccountRole(currentAccount, AccountRole.Maintainer)
   $: supportsGroups =
     space !== undefined &&
     (hierarchy.isDerived(space._class, core.class.TypedSpace) || hierarchy.isDerived(space._class, CHANNEL))
@@ -125,10 +130,13 @@
   }
   $: boundGroups = allGroups.filter((group) => space?.groups?.includes(group._id) === true)
   $: groupItems = allGroups.map((group) => ({ id: group._id, label: group.name }))
-  $: storedDirect = space?.directMembers ?? space?.members ?? []
+  $: if (supportsGroups && directMembers === undefined) {
+    directMembers = [...(space?.directMembers ?? space?.members ?? [])]
+  }
   $: byGroups = new Set(boundGroups.flatMap((group) => group.members))
   // Members only through groups: not editable here, they follow the groups.
-  $: groupOnlyMembers = members.filter((m) => byGroups.has(m) && !storedDirect.includes(m))
+  $: groupOnlyMembers =
+    directMembers === undefined ? [] : members.filter((m) => byGroups.has(m) && directMembers?.includes(m) !== true)
 
   async function setGroups (groups: Array<Ref<UserGroup>>): Promise<void> {
     if (space === undefined) return
@@ -137,7 +145,7 @@
     })
   }
 
-  $: visibleMembers = members.filter((m) => m !== readOnlyGuestAccountUuid && !groupOnlyMembers.includes(m))
+  $: visibleMembers = (directMembers ?? members).filter((m) => m !== readOnlyGuestAccountUuid)
   $: membersPersons = visibleMembers.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
 
   $: isPrivateDisabled = readonly || (privateDisabled ?? (!isPrivate && members.length === 0))
@@ -176,16 +184,32 @@
   function handleOwnersChanged (newOwners: AccountUuid[]): void {
     owners = newOwners
     members = Array.from(new Set([...members, ...newOwners]))
+    if (directMembers !== undefined) directMembers = Array.from(new Set([...directMembers, ...newOwners]))
+  }
+
+  /** Sets direct members; members given by groups stay members, also when they stop being direct ones. */
+  function setDirectMembers (newDirect: AccountUuid[]): void {
+    directMembers = newDirect
+    setMembers(Array.from(new Set([...newDirect, ...members.filter((m) => byGroups.has(m))])))
   }
 
   function handleMembersChanged (newVisibleMembers: AccountUuid[]): void {
-    const kept = [...newVisibleMembers, ...groupOnlyMembers.filter((m) => !newVisibleMembers.includes(m))]
-    setMembers(anonymousAccess ? [...kept, readOnlyGuestAccountUuid] : kept)
+    if (directMembers !== undefined) {
+      setDirectMembers(anonymousAccess ? [...newVisibleMembers, readOnlyGuestAccountUuid] : newVisibleMembers)
+      return
+    }
+    setMembers(anonymousAccess ? [...newVisibleMembers, readOnlyGuestAccountUuid] : newVisibleMembers)
   }
 
   function setAnonymousAccess (enabled: boolean): void {
     if (anonymousDisabled || enabled === anonymousAccess) return
-    setMembers(enabled ? [...members, readOnlyGuestAccountUuid] : members.filter((m) => m !== readOnlyGuestAccountUuid))
+    const toggle = (list: AccountUuid[]): AccountUuid[] =>
+      enabled ? [...list, readOnlyGuestAccountUuid] : list.filter((m) => m !== readOnlyGuestAccountUuid)
+    if (directMembers !== undefined) {
+      setDirectMembers(toggle(directMembers))
+      return
+    }
+    setMembers(toggle(members))
   }
 
   function setGuestAutoJoin (enabled: boolean): void {

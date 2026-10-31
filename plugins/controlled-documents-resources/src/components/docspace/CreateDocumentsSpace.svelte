@@ -16,7 +16,7 @@
 <script lang="ts">
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
-  import { SpaceSettingsForm } from '@hcengineering/contact-resources'
+  import { SpaceSettingsForm, getSpaceMembersUpdate } from '@hcengineering/contact-resources'
   import core, {
     Data,
     DocumentUpdate,
@@ -51,6 +51,8 @@
   let isPrivate: boolean = docSpace?.private ?? true
   let members: AccountUuid[] =
     docSpace?.members !== undefined ? hierarchy.clone(docSpace.members) : [getCurrentAccount().uuid]
+  /** Set by SpaceSettingsForm when the edited space supports user groups. */
+  let directMembers: AccountUuid[] | undefined = undefined
   let owners: AccountUuid[] =
     docSpace?.owners !== undefined ? hierarchy.clone(docSpace.owners) : [getCurrentAccount().uuid]
   let rolesAssignment: RolesAssignment = {}
@@ -127,16 +129,7 @@
     if (docSpaceData.private !== docSpace?.private) {
       update.private = docSpaceData.private
     }
-    if (docSpaceData.members.length !== docSpace?.members.length) {
-      update.members = docSpaceData.members
-    } else {
-      for (const member of docSpaceData.members) {
-        if (docSpace.members.findIndex((p) => p === member) === -1) {
-          update.members = docSpaceData.members
-          break
-        }
-      }
-    }
+    Object.assign(update, getSpaceMembersUpdate(docSpace, docSpaceData.members, directMembers))
     if (docSpaceData.owners?.length !== docSpace?.owners?.length) {
       update.owners = docSpaceData.owners
     } else {
@@ -209,6 +202,7 @@
     space={docSpace}
     bind:owners
     bind:members
+    bind:directMembers
     bind:isPrivate
     bind:rolesAssignment
     {roles}

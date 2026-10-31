@@ -136,16 +136,28 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     }
     normalizeMembershipOperations(ops, ['members', 'directMembers', 'groups'])
 
-    const pushed = opValues(ops.$push?.members)
-    const pulled = opValues(ops.$pull?.members)
+    // A write of `members` and a direct write of `directMembers` both change the direct members.
+    const pushed = [...opValues(ops.$push?.members), ...opValues(ops.$push?.directMembers)]
+    const pulled = [...opValues(ops.$pull?.members), ...opValues(ops.$pull?.directMembers)]
     const replaced: AccountUuid[] | undefined = Array.isArray(ops.members) ? ops.members : undefined
-    if (ops.$push?.members === undefined && ops.$pull?.members === undefined && replaced === undefined) return
+    const touchesDirect =
+      ops.$push?.directMembers !== undefined || ops.$pull?.directMembers !== undefined || ops.directMembers !== undefined
+    if (ops.$push?.members === undefined && ops.$pull?.members === undefined && replaced === undefined && !touchesDirect) {
+      return
+    }
 
     removeOp(ops, '$push', 'members')
     removeOp(ops, '$pull', 'members')
+    removeOp(ops, '$push', 'directMembers')
+    removeOp(ops, '$pull', 'directMembers')
     delete ops.members
 
-    if (replaced === undefined && ops.directMembers === undefined) {
+    const space = (await this.provideFindAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0]
+    // A space without `directMembers` (not migrated, or created around the middleware) can not take a $push or
+    // $pull of it: the field would start from the pushed accounts only and the recompute would drop all other
+    // members. It gets the whole list, computed from `members`, as a full replacement does.
+    const migrated = space === undefined || space.directMembers !== undefined
+    if (replaced === undefined && ops.directMembers === undefined && migrated) {
       if (pushed.length > 0) addOp(ops, '$push', 'directMembers', pushed)
       if (pulled.length > 0) addOp(ops, '$pull', 'directMembers', pulled)
       return
@@ -153,7 +165,6 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
 
     // A full replacement (or a mix with a direct `directMembers` write) is resolved against the stored space:
     // what the client removed from `members` leaves `directMembers`, what it added becomes direct.
-    const space = (await this.provideFindAll(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0]
     const members = space?.members ?? []
     let direct: AccountUuid[] = Array.isArray(ops.directMembers)
       ? ops.directMembers
@@ -167,8 +178,6 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     const pulledSet = new Set(pulled)
     direct = [...direct.filter((it) => !pulledSet.has(it)), ...pushed]
     ops.directMembers = Array.from(new Set(direct))
-    removeOp(ops, '$push', 'directMembers')
-    removeOp(ops, '$pull', 'directMembers')
   }
 
   private checkGroupsBinding (ctx: MeasureContext<SessionData>, _class: Ref<Class<Space>>): void {

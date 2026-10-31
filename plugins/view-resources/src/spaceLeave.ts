@@ -35,19 +35,18 @@ export async function confirmLeaveSpace (space: Space): Promise<boolean> {
   if (memberOf.length === 0) return true
 
   const direct = (space.directMembers ?? space.members).includes(me)
+  const params = { space: space.name, groups: memberOf.map((group) => group.name).join(', ') }
+  // MessageBox: the main button always closes with `true`, `canSubmit` only shows Cancel next to it.
   return await new Promise<boolean>((resolve) => {
     showPopup(
       MessageBox,
-      {
-        label: view.string.Leave,
-        message: direct ? plugin.string.LeaveSpaceGroupsRemain : plugin.string.LeaveSpaceGroupsOnly,
-        params: { space: space.name, groups: memberOf.map((group) => group.name).join(', ') },
-        okLabel: view.string.Leave,
-        canSubmit: direct
-      },
+      direct
+        ? { label: view.string.Leave, message: plugin.string.LeaveSpaceGroupsRemain, params, okLabel: view.string.Leave }
+        : // Through groups only: leaving changes nothing, so the dialog only informs and never goes on.
+          { label: view.string.Leave, message: plugin.string.LeaveSpaceGroupsOnly, params, canSubmit: false },
       undefined,
       (result) => {
-        resolve(result === true)
+        resolve(direct && result === true)
       }
     )
   })

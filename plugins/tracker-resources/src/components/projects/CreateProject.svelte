@@ -16,7 +16,7 @@
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
   import { Employee } from '@hcengineering/contact'
-  import { AssigneeBox, SpaceSettingsForm } from '@hcengineering/contact-resources'
+  import { AssigneeBox, SpaceSettingsForm, getSpaceMembersUpdate } from '@hcengineering/contact-resources'
   import core, {
     AccountRole,
     AccountUuid,
@@ -73,6 +73,8 @@
   let defaultAssignee: Ref<Employee> | null | undefined = project?.defaultAssignee ?? null
   let members: AccountUuid[] =
     project?.members !== undefined ? hierarchy.clone(project.members) : [getCurrentAccount().uuid]
+  /** Set by SpaceSettingsForm when the edited space supports user groups. */
+  let directMembers: AccountUuid[] | undefined = undefined
   let owners: AccountUuid[] =
     project?.owners !== undefined ? hierarchy.clone(project.owners) : [getCurrentAccount().uuid]
   let projectsIdentifiers = new Set<string>()
@@ -182,16 +184,7 @@
     if (!autoJoinRolesEqual(projectData.autoJoinForRoles, project?.autoJoinForRoles)) {
       update.autoJoinForRoles = projectData.autoJoinForRoles
     }
-    if (projectData.members.length !== project?.members.length) {
-      update.members = projectData.members
-    } else {
-      for (const member of projectData.members) {
-        if (project.members.findIndex((p) => p === member) === -1) {
-          update.members = projectData.members
-          break
-        }
-      }
-    }
+    Object.assign(update, getSpaceMembersUpdate(project, projectData.members, directMembers))
     if (projectData.owners?.length !== project?.owners?.length) {
       update.owners = projectData.owners
     } else {
@@ -352,6 +345,7 @@
     space={project}
     bind:owners
     bind:members
+    bind:directMembers
     bind:isPrivate
     bind:autoJoin
     bind:autoJoinForRoles
