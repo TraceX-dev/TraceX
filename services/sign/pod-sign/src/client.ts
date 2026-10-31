@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
@@ -14,11 +15,12 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { type Client } from '@hcengineering/core'
 import { getTransactorEndpoint } from '@hcengineering/server-client'
 import { createClient } from '@hcengineering/server-client/src'
 
 export async function getClient (token: string): Promise<Client> {
   const endpoint = await getTransactorEndpoint(token)
-  return await createClient(endpoint, token)
+  return await createClient(endpoint, token, model)
 }

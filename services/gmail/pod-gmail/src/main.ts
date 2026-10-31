@@ -16,6 +16,7 @@
 // limitations under the License.
 //
 
+import { logModelHash } from '@hcengineering/model-all/src/model'
 import { isWorkspaceLoginInfo } from '@hcengineering/account-client'
 import { createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { newMetrics, PersonId } from '@hcengineering/core'
@@ -47,6 +48,7 @@ export const main = async (): Promise<void> => {
         })
       )
   })
+  logModelHash(ctx)
 
   setMetadata(serverClient.metadata.Endpoint, config.AccountsURL)
   setMetadata(serverClient.metadata.UserAgent, config.ServiceID)

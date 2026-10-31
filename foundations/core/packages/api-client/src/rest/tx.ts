@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -38,14 +39,16 @@ import {
   type WithLookup
 } from '@hcengineering/core'
 import { RestClientImpl } from './rest'
+import type { ModelOptions } from '../types'
 
 export async function createRestTxOperations (
   endpoint: string,
   workspaceId: string,
   token: string,
-  fullModel: boolean = false
+  fullModel: boolean = false,
+  options?: ModelOptions
 ): Promise<TxOperations> {
-  const restClient = new RestClientImpl(endpoint, workspaceId, token)
+  const restClient = new RestClientImpl(endpoint, workspaceId, token, options)
 
   const account = await restClient.getAccount()
   const { hierarchy, model } = await restClient.getModel(fullModel)

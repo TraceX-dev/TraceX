@@ -18,7 +18,9 @@ import clientPlugin from '@hcengineering/client'
 import type { ClientFactoryOptions } from '@hcengineering/client'
 import core, {
   Client,
-  LoadModelResponse,
+  type FullModelResponse,
+  MODEL_VERSION,
+  isModelVersionCompatible,
   type PersonUuid,
   Tx,
   TxHandler,
@@ -177,7 +179,12 @@ export default async () => {
           return txes
         }
 
-        const client = createClient(handler, modelFilter, createModelPersistence(getWSFromToken(token)), opt?.ctx)
+        const client = createClient(
+          handler,
+          modelFilter,
+          opt?.txPersistence ?? createModelPersistence(getWSFromToken(token)),
+          opt?.ctx
+        )
         return await client
       }
     }
@@ -254,8 +261,8 @@ function createModelPersistence (workspace: string): TxPersistenceStore | undefi
         try {
           const transaction = db.transaction('model', 'readwrite') // (1)
           const models = transaction.objectStore('model') // (2)
-          const model = await new Promise<{ id: string, model: LoadModelResponse } | undefined>((resolve) => {
-            const storedValue: IDBRequest<{ id: string, model: LoadModelResponse }> = models.get(workspace)
+          const model = await new Promise<{ id: string, model: FullModelResponse } | undefined>((resolve) => {
+            const storedValue: IDBRequest<{ id: string, model: FullModelResponse }> = models.get(workspace)
             storedValue.onsuccess = function () {
               resolve(storedValue.result)
             }
@@ -264,21 +271,21 @@ function createModelPersistence (workspace: string): TxPersistenceStore | undefi
             }
           })
 
-          if (model == null) {
-            return {
-              full: false,
-              transactions: [],
-              hash: ''
-            }
+          const snapshot = model?.model
+          if (snapshot !== undefined && isModelVersionCompatible(snapshot)) {
+            return snapshot
           }
-          return model.model
+          if (model != null) {
+            models.delete(workspace)
+          }
         } catch (err: any) {
           // Assume no model is stored.
         }
       }
       return {
-        full: true,
-        transactions: [],
+        kind: 'full',
+        systemTx: [],
+        userTx: [],
         hash: ''
       }
     },
@@ -287,7 +294,7 @@ function createModelPersistence (workspace: string): TxPersistenceStore | undefi
       if (db !== undefined) {
         const transaction = db.transaction('model', 'readwrite') // (1)
         const models = transaction.objectStore('model') // (2)
-        models.put({ id: workspace, model })
+        models.put({ id: workspace, model: { ...model, version: MODEL_VERSION } })
       }
     }
   }

@@ -5672,6 +5672,9 @@ importers:
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
+      '@hcengineering/server-core':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/server/packages/core
       '@tracex/model-qalico':
         specifier: workspace:^0.7.0
         version: link:../qalico
@@ -30219,6 +30222,9 @@ importers:
       '@hcengineering/integration':
         specifier: workspace:^0.7.0
         version: link:../../plugins/integration
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
@@ -31130,6 +31136,9 @@ importers:
       '@hcengineering/kafka':
         specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
@@ -37813,6 +37822,9 @@ importers:
       '@hcengineering/love':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/love
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/notification':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/notification
@@ -38348,6 +38360,9 @@ importers:
       '@hcengineering/kvs-client':
         specifier: workspace:^0.7.0
         version: link:../../../packages/kvs-client
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
@@ -38484,6 +38499,9 @@ importers:
       '@hcengineering/love':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/love
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/notification':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/notification
@@ -38919,6 +38937,9 @@ importers:
       '@hcengineering/kafka':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
@@ -39043,6 +39064,9 @@ importers:
       '@hcengineering/mail-common':
         specifier: workspace:^0.7.0
         version: link:../../mail/mail-common
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
@@ -39566,6 +39590,9 @@ importers:
       '@hcengineering/openauth-client':
         specifier: workspace:^0.7.0
         version: link:../../../packages/openauth-client
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
@@ -39693,6 +39720,9 @@ importers:
       '@hcengineering/kafka':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/notification':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/notification
@@ -40026,6 +40056,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
@@ -40156,6 +40189,9 @@ importers:
       '@hcengineering/kafka':
         specifier: workspace:^0.7.20
         version: link:../../foundations/server/packages/kafka
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
@@ -40259,6 +40295,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
@@ -40646,6 +40685,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
@@ -40788,6 +40830,9 @@ importers:
       '@hcengineering/kafka':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/server/packages/kafka
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/notification':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/notification
@@ -40930,6 +40975,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
+      '@hcengineering/model-all':
+        specifier: workspace:^0.7.0
+        version: link:../../../models/all
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform

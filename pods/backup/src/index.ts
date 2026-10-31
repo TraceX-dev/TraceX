@@ -18,7 +18,7 @@ import { Analytics } from '@hcengineering/analytics'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { startBackup } from '@hcengineering/backup-service'
 import { newMetrics, type Tx } from '@hcengineering/core'
-import { initStatisticsContext, type PipelineFactory } from '@hcengineering/server-core'
+import { calculateModelHashSync, initStatisticsContext, type PipelineFactory } from '@hcengineering/server-core'
 import {
   createBackupPipeline,
   getConfig,
@@ -58,6 +58,10 @@ const metricsContext = initStatisticsContext('backup', {
         enableConsole: (process.env.ENABLE_CONSOLE ?? 'true') === 'true'
       })
     )
+})
+metricsContext.info('System model loaded', {
+  hash: calculateModelHashSync(model),
+  transactions: model.length
 })
 
 configureAnalytics('backup', process.env.VERSION ?? '0.7.0')
