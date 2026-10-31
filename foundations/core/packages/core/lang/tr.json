@@ -65,6 +65,7 @@
     "AutoJoinGuestsDescr": "Etkinleştirilirse, çalışma alanı misafirleri etkinleştirmede bu alana eklenir",
     "UserGroup": "Kullanıcı grubu",
     "UserGroups": "Kullanıcı grupları",
+    "NumberUserGroups": "{count} grup",
     "DirectMembers": "Doğrudan üyeler",
     "RBAC": "Rol tabanlı erişim kontrolü",
     "RBACDescr": "Bu alanda işlemleri gerçekleştirmek için rol tabanlı erişim gerektir",

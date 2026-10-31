@@ -65,6 +65,7 @@
     "AutoJoinGuestsDescr": "Pokud je zapnuto, hosté pracovního prostoru se při aktivaci přidají do tohoto prostoru",
     "UserGroup": "Skupina uživatelů",
     "UserGroups": "Skupiny uživatelů",
+    "NumberUserGroups": "{count, plural, =0 {žádné skupiny} one {# skupina} few {# skupiny} other {# skupin}}",
     "DirectMembers": "Přímí členové",
     "RBAC": "Řízení přístupu na základě rolí",
     "RBACDescr": "Vyžadovat řízení přístupu na základě rolí pro provádění akcí v tomto prostoru",

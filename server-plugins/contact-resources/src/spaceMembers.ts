@@ -125,9 +125,11 @@ export async function OnSpaceMembershipChange (txes: Tx[], control: TriggerContr
     const cud = tx as TxCUD<Space | UserGroup>
     if (control.hierarchy.isDerived(cud.objectClass, core.class.UserGroup)) {
       if (tx._class === core.class.TxRemoveDoc) {
-        removedGroups.add(cud.objectId as Ref<UserGroup>)
-      } else if (tx._class !== core.class.TxUpdateDoc ||
-        !touchesAttribute((tx as TxUpdateDoc<UserGroup>).operations, 'members')) {
+        removedGroups.add(cud.objectId)
+      } else if (
+        tx._class !== core.class.TxUpdateDoc ||
+        !touchesAttribute((tx as TxUpdateDoc<UserGroup>).operations, 'members')
+      ) {
         continue
       }
       const spaces = await control.findAll(control.ctx, core.class.Space, { groups: cud.objectId as Ref<UserGroup> })
@@ -140,7 +142,9 @@ export async function OnSpaceMembershipChange (txes: Tx[], control: TriggerContr
       const directMembers = attributes.directMembers ?? [...(attributes.members ?? [])]
       if (attributes.directMembers === undefined) {
         result.push(
-          control.txFactory.createTxUpdateDoc(create.objectClass, create.objectSpace, create.objectId, { directMembers })
+          control.txFactory.createTxUpdateDoc(create.objectClass, create.objectSpace, create.objectId, {
+            directMembers
+          })
         )
       }
       const space = await findSpace(control, create.objectClass, create.objectId)
@@ -161,9 +165,8 @@ export async function OnSpaceMembershipChange (txes: Tx[], control: TriggerContr
         control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { $pull: { groups: group } })
       )
     }
-    const current = removedGroups.size === 0
-      ? space
-      : { ...space, groups: groups.filter((group) => !removedGroups.has(group)) }
+    const current =
+      removedGroups.size === 0 ? space : { ...space, groups: groups.filter((group) => !removedGroups.has(group)) }
     result.push(...(await recomputeSpaceMembers(control, current)))
   }
   return result

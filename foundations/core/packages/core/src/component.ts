@@ -313,6 +313,7 @@ export default plugin(coreId, {
     AutoJoinGuestsDescr: '' as IntlString,
     UserGroup: '' as IntlString,
     UserGroups: '' as IntlString,
+    NumberUserGroups: '' as IntlString,
     DirectMembers: '' as IntlString,
     RBAC: '' as IntlString,
     RBACDescr: '' as IntlString,

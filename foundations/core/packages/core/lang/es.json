@@ -58,6 +58,7 @@
     "AutoJoinGuestsDescr": "Si está activado, los invitados del espacio de trabajo se añaden a este espacio al activarse",
     "UserGroup": "Grupo de usuarios",
     "UserGroups": "Grupos de usuarios",
+    "NumberUserGroups": "{count, plural, =0 {ningún grupo} one {# grupo} other {# grupos}}",
     "DirectMembers": "Miembros directos",
     "RBAC": "Control de acceso basado en roles",
     "RBACDescr": "Requerir acceso basado en roles para realizar acciones en este espacio",

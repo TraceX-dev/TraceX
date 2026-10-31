@@ -33,7 +33,7 @@
   } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
   import presentation, { createQuery, getClient } from '@hcengineering/presentation'
-  import { DropdownLabels, FormGroup, FormRow, StateTag, StateType, Toggle } from '@hcengineering/ui'
+  import { DropdownLabels, FormGroup, FormRow, Label, StateTag, StateType, Toggle } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
 
@@ -229,6 +229,8 @@
   {#if supportsGroups && (canManageGroups || boundGroups.length > 0)}
     <FormRow label={core.string.UserGroups}>
       <DropdownLabels
+        icon={contact.icon.ComponentMembers}
+        justify={'left'}
         items={groupItems}
         multiselect
         selected={space?.groups ?? []}
@@ -238,7 +240,12 @@
         disabled={readonly || !canManageGroups}
         dataId={'space-settings-groups'}
         on:selected={(event) => setGroups(event.detail ?? [])}
-      />
+      >
+        <svelte:fragment slot="content" let:selected>
+          {@const count = Array.isArray(selected) ? selected.length : 0}
+          <Label label={count > 0 ? core.string.NumberUserGroups : core.string.UserGroups} params={{ count }} />
+        </svelte:fragment>
+      </DropdownLabels>
     </FormRow>
   {/if}
 

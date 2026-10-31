@@ -65,6 +65,7 @@
     "AutoJoinGuestsDescr": "有効にすると、ワークスペースのゲストは有効化時にこのスペースのメンバーに追加されます",
     "UserGroup": "ユーザーグループ",
     "UserGroups": "ユーザーグループ",
+    "NumberUserGroups": "{count} グループ",
     "DirectMembers": "直接のメンバー",
     "RBAC": "ロールベースアクセス制御",
     "RBACDescr": "このスペースでの操作を実行するためにロールベースのアクセスを要求します",

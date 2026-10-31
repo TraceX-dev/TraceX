@@ -65,6 +65,7 @@
     "AutoJoinGuestsDescr": "When enabled, workspace guests are added to this space on activation",
     "UserGroup": "User group",
     "UserGroups": "User groups",
+    "NumberUserGroups": "{count, plural, =0 {no groups} one {# group} other {# groups}}",
     "DirectMembers": "Direct members",
     "RBAC": "Role-based access control",
     "RBACDescr": "Require role-based access to perform actions in this space",

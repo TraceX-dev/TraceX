@@ -57,8 +57,11 @@ function createControl (spaces: Space[], groups: UserGroup[]): TriggerControl {
     txFactory: factory,
     hierarchy: {
       isDerived: (_class: string, base: string) =>
-        base === core.class.TypedSpace ? _class === PROJECT : base === core.class.UserGroup
-          ? _class === core.class.UserGroup : base === core.class.Space,
+        base === core.class.TypedSpace
+          ? _class === PROJECT
+          : base === core.class.UserGroup
+            ? _class === core.class.UserGroup
+            : base === core.class.Space,
       hasMixin: (doc: any, mixin: string) => doc[mixin] !== undefined,
       as: (doc: any, mixin: string) => ({ ...doc, ...doc[mixin] })
     },
@@ -127,10 +130,7 @@ describe('OnSpaceMembershipChange', () => {
   it('recomputes a space only once for multiple source updates', async () => {
     const stored = space({ members: [A], directMembers: [A, B], groups: ['g1' as Ref<UserGroup>] })
     const control = createControl([stored], [group('g1', [G1])])
-    const res = await OnSpaceMembershipChange([
-      update({ directMembers: [A, B] }),
-      update({ groups: ['g1'] })
-    ], control)
+    const res = await OnSpaceMembershipChange([update({ directMembers: [A, B] }), update({ groups: ['g1'] })], control)
     expect(applyMembers(stored.members, res)).toEqual([A, B, G1].sort())
   })
 
@@ -236,9 +236,9 @@ describe('OnUserGroupChange', () => {
   it('recomputes shared spaces once when two groups change in a batch', async () => {
     const stored = space({ members: [A], directMembers: [A], groups: ['g1', 'g2'] as Array<Ref<UserGroup>> })
     const control = createControl([stored], [group('g1', [G1]), group('g2', [G2])])
-    const txes = ['g1', 'g2'].map((id) => factory.createTxUpdateDoc(
-      core.class.UserGroup, core.space.Workspace, id as Ref<UserGroup>, { members: [G1, G2] }
-    ))
+    const txes = ['g1', 'g2'].map((id) =>
+      factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, id as Ref<UserGroup>, { members: [G1, G2] })
+    )
     const res = await OnUserGroupChange(txes, control)
     expect(applyMembers(stored.members, res)).toEqual([A, G1, G2].sort())
   })

@@ -65,6 +65,7 @@
     "AutoJoinGuestsDescr": "Se abilitato, gli ospiti del workspace vengono aggiunti a questo spazio all’attivazione",
     "UserGroup": "Gruppo di utenti",
     "UserGroups": "Gruppi di utenti",
+    "NumberUserGroups": "{count, plural, =0 {nessun gruppo} one {# gruppo} other {# gruppi}}",
     "DirectMembers": "Membri diretti",
     "RBAC": "Controllo accessi basato sui ruoli",
     "RBACDescr": "Richiedi accesso basato sui ruoli per eseguire azioni in questo spazio",

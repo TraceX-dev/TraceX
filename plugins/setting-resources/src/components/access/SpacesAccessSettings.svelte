@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Employee, formatName } from '@hcengineering/contact'
+  import contact, { type Employee, formatName } from '@hcengineering/contact'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import contactResources from '@hcengineering/contact-resources/src/plugin'
   import core, {
@@ -336,6 +336,8 @@
             <div class="interactiveCell" on:click|stopPropagation role="none">
               {#if supportsGroups(space)}
                 <DropdownLabels
+                  icon={contact.icon.ComponentMembers}
+                  justify={'left'}
                   items={groupItems}
                   multiselect
                   selected={space.groups ?? []}
@@ -347,7 +349,15 @@
                   on:selected={(event) => {
                     updateGroups(space, event.detail ?? []).catch(handleError)
                   }}
-                />
+                >
+                  <svelte:fragment slot="content" let:selected>
+                    {@const count = Array.isArray(selected) ? selected.length : 0}
+                    <Label
+                      label={count > 0 ? core.string.NumberUserGroups : core.string.UserGroups}
+                      params={{ count }}
+                    />
+                  </svelte:fragment>
+                </DropdownLabels>
               {:else}
                 <span class="unsupported" use:tooltip={{ label: setting.string.UserGroupsNotSupported }}>—</span>
               {/if}

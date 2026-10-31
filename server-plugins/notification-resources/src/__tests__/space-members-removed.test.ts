@@ -52,7 +52,12 @@ interface Setup {
   queried: Array<Ref<Class<Doc>>>
 }
 
-function setup (members: AccountUuid[], collaborators: AccountUuid[], _class = CHANNEL, owners: AccountUuid[] = []): Setup {
+function setup (
+  members: AccountUuid[],
+  collaborators: AccountUuid[],
+  _class = CHANNEL,
+  owners: AccountUuid[] = []
+): Setup {
   const applied: Tx[][] = []
   const queried: Array<Ref<Class<Doc>>> = []
   const space = { _id: SPACE, _class, space: core.space.Space, members, owners } as unknown as Space
@@ -91,7 +96,13 @@ function setup (members: AccountUuid[], collaborators: AccountUuid[], _class = C
     modelDb: {
       findAllSync: (_cls: Ref<Class<Doc>>, query: any) =>
         (query.attachedTo.$in as string[]).includes(CHANNEL)
-          ? [{ _class: core.class.ClassCollaborators, attachedTo: CHANNEL, fields: owners.length === 0 ? ['members'] : ['members', 'owners'] }]
+          ? [
+              {
+                _class: core.class.ClassCollaborators,
+                attachedTo: CHANNEL,
+                fields: owners.length === 0 ? ['members'] : ['members', 'owners']
+              }
+            ]
           : []
     },
     findAll: async (_ctx: MeasureContext, cls: Ref<Class<Doc>>) => {
@@ -171,9 +182,10 @@ describe('OnSpaceMembersRemoved', () => {
 
   it('cleans each space once for multiple removals in a batch', async () => {
     const { control, applied } = setup([OWNER], [OWNER, MEMBER, GUEST])
-    const res = await OnSpaceMembersRemoved([
-      update({ $pull: { members: MEMBER } }), update({ $pull: { members: GUEST } })
-    ], control)
+    const res = await OnSpaceMembersRemoved(
+      [update({ $pull: { members: MEMBER } }), update({ $pull: { members: GUEST } })],
+      control
+    )
     expect(removedCollaborators(res)).toEqual(['collab-1', 'collab-2'])
     expect(removedContexts(applied)).toEqual(['context-1', 'context-2'])
   })

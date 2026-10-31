@@ -33,6 +33,7 @@
   } from '@hcengineering/ui'
 
   import setting from '../../plugin'
+  import CreateUserGroup from './CreateUserGroup.svelte'
 
   /** All spaces of the access page: used to show and warn about the spaces a group is bound to. */
   export let spaces: Space[]
@@ -43,25 +44,13 @@
   const client = getClient()
 
   let search = ''
-  let newName = ''
-  let creating = false
 
   function boundSpaces (group: Ref<UserGroup>): Space[] {
     return spaces.filter((space) => space.groups?.includes(group) === true)
   }
 
-  async function createGroup (): Promise<void> {
-    const name = newName.trim()
-    if (name === '' || creating) return
-    creating = true
-    try {
-      await client.createDoc(core.class.UserGroup, core.space.Workspace, { name, members: [] })
-      newName = ''
-    } catch (error) {
-      handleError(error)
-    } finally {
-      creating = false
-    }
+  function createGroup (): void {
+    showPopup(CreateUserGroup, { handleError }, 'top')
   }
 
   async function rename (group: UserGroup, event: Event): Promise<void> {
@@ -101,18 +90,13 @@
       <p class="caption-color mt-0 mb-4"><Label label={setting.string.UserGroupsHint} /></p>
       <div class="flex-between flex-wrap flex-gap-2 mb-4">
         <SearchInput bind:value={search} width={'22rem'} placeholder={setting.string.SearchUserGroups} />
-        <div class="flex-row-center flex-gap-1">
-          <EditBox bind:value={newName} placeholder={setting.string.NewUserGroup} kind={'default'} />
-          <Button
-            icon={IconAdd}
-            label={presentation.string.Create}
-            kind={'primary'}
-            size={'medium'}
-            disabled={newName.trim() === '' || creating}
-            loading={creating}
-            on:click={createGroup}
-          />
-        </div>
+        <Button
+          icon={IconAdd}
+          label={presentation.string.Create}
+          kind={'primary'}
+          size={'medium'}
+          on:click={createGroup}
+        />
       </div>
       {#if groupsLoading}
         <Loading />
@@ -140,7 +124,7 @@
             {@const group = visibleGroups[index]}
             {@const bound = boundSpaces(group._id)}
             <div class="groupRow" data-id={`user-group-${group.name}`}>
-              <EditBox value={group.name} kind={'default'} on:change={(event) => rename(group, event)} />
+              <EditBox value={group.name} placeholder={core.string.Name} on:change={(event) => rename(group, event)} />
               <AccountArrayEditor
                 value={group.members}
                 label={core.string.Members}

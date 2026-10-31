@@ -72,7 +72,7 @@ The catalog is a discovery guide, not a duplicate API reference. Refer to the li
 | --- | --- |
 | [`Dropdown`](../src/components/Dropdown.svelte) | General dropdown selector and trigger. |
 | [`DropdownPopup`](../src/components/DropdownPopup.svelte) | Popup content used by a dropdown selector. |
-| [`DropdownLabels`](../src/components/DropdownLabels.svelte) | Dropdown for selecting label values. |
+| [`DropdownLabels`](../src/components/DropdownLabels.svelte) | Dropdown for selecting label values; custom trigger content receives the current `selected` value. |
 | [`DropdownLabelsPopup`](../src/components/DropdownLabelsPopup.svelte) | Popup used to choose label values. |
 | [`DropdownLabelsIntl`](../src/components/DropdownLabelsIntl.svelte) | Label dropdown whose options use localized strings. |
 | [`DropdownLabelsPopupIntl`](../src/components/DropdownLabelsPopupIntl.svelte) | Localized label-selection popup. |

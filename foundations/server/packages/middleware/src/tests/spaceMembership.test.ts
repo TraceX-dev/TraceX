@@ -210,7 +210,9 @@ describe('SpaceMembershipMiddleware', () => {
 
     it('a user can not unset or write nested group bindings', async () => {
       const { middleware } = await setup()
-      await expect(middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $unset: { groups: true } })])).rejects.toThrow()
+      await expect(
+        middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $unset: { groups: true } })])
+      ).rejects.toThrow()
       await expect(middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ 'groups.0': 'g1' })])).rejects.toThrow()
     })
 
@@ -247,7 +249,12 @@ describe('SpaceMembershipMiddleware', () => {
       const dottedOperations: Record<string, unknown> = {
         'members.0': readOnlyGuestAccountUuid
       }
-      const dotted = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<Doc>, dottedOperations)
+      const dotted = factory.createTxUpdateDoc(
+        core.class.UserGroup,
+        core.space.Workspace,
+        'g1' as Ref<Doc>,
+        dottedOperations
+      )
       await expect(middleware.tx(sessionCtx(AccountRole.Owner), [dotted])).rejects.toThrow()
     })
 

@@ -65,6 +65,7 @@
         "AutoJoinGuestsDescr": "활성화하면 활성화 시점에 워크스페이스 게스트가 이 스페이스에 추가됩니다",
         "UserGroup": "사용자 그룹",
         "UserGroups": "사용자 그룹",
+        "NumberUserGroups": "그룹 {count}개",
         "DirectMembers": "직접 멤버",
         "RBAC": "역할 기반 접근 제어",
         "RBACDescr": "이 스페이스에서 작업을 수행하려면 역할 기반 접근 권한이 필요합니다",

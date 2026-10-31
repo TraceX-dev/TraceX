@@ -1008,14 +1008,17 @@ async function getTxCollabs (
     const collabs = collaborators.map((c) => c.collaborator)
     const ops = isMixinTx(tx) ? tx.attributes : (tx as TxUpdateDoc<Doc>).operations
     const isSpace = control.hierarchy.isDerived(doc._class, core.class.Space)
-    const currentMembers = isSpace && touchesAttribute(ops, 'members')
-      ? new Set(await getDocCollaborators(ctx, doc, mixin, control))
-      : undefined
+    const currentMembers =
+      isSpace && touchesAttribute(ops, 'members')
+        ? new Set(await getDocCollaborators(ctx, doc, mixin, control))
+        : undefined
     const newCollaborators = (await getNewCollaborators(ops, mixin, doc._class, control)).filter(
       (p) => !collabs.includes(p) && (currentMembers === undefined || currentMembers.has(p))
     )
     const removedCollabs = isSpace
-      ? (await getRemovedMembers(ctx, ops, mixin, doc as Space, collabs, control)).filter((p) => !currentMembers?.has(p))
+      ? (await getRemovedMembers(ctx, ops, mixin, doc as Space, collabs, control)).filter(
+          (p) => !currentMembers?.has(p)
+        )
       : []
     const result = [...collabs, ...newCollaborators].filter((p) => !removedCollabs.includes(p))
 
@@ -1379,8 +1382,10 @@ export async function OnSpaceMembersRemoved (txes: Tx[], control: TriggerControl
     if (!Array.isArray(ops.members) && ops.$pull?.members === undefined) continue
     if (processed.has(update.objectId)) continue
     const mixin = getClassCollaborators<Doc>(control.modelDb, control.hierarchy, update.objectClass)
-    if (mixin === undefined ||
-      (!mixin.fields.some((field) => (field as string) === 'members') && mixin.allFields !== true)) {
+    if (
+      mixin === undefined ||
+      (!mixin.fields.some((field) => (field as string) === 'members') && mixin.allFields !== true)
+    ) {
       continue
     }
     const space = (await control.findAll(control.ctx, update.objectClass, { _id: update.objectId }, { limit: 1 }))[0]

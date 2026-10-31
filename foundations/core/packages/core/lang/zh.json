@@ -65,6 +65,7 @@
     "AutoJoinGuestsDescr": "启用后，工作区访客在激活时会加入此空间",
     "UserGroup": "用户组",
     "UserGroups": "用户组",
+    "NumberUserGroups": "{count} 个用户组",
     "DirectMembers": "直接成员",
     "RBAC": "基于角色的访问控制",
     "RBACDescr": "要求基于角色的访问权限以在此空间中执行操作",

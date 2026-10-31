@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -112,7 +113,7 @@
       class:content-color={selectedItem === undefined}
     >
       {#if $$slots.content}
-        <slot name="content" />
+        <slot name="content" {selected} />
       {:else if Array.isArray(selectedItem)}
         {#if selectedItem.length > 0}
           {#each selectedItem as seleceted}
