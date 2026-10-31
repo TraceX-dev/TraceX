@@ -23,9 +23,12 @@
     IconAdd,
     IconDelete,
     Label,
+    ListView,
     Loading,
     Scroller,
     SearchInput,
+    SectionEmpty,
+    SettingsCard,
     showPopup
   } from '@hcengineering/ui'
 
@@ -94,44 +97,50 @@
 
 <Scroller align={'center'} padding={'var(--spacing-4)'}>
   <div class="groupsContent">
-    <h2><Label label={core.string.UserGroups} /></h2>
-    <p class="hint"><Label label={setting.string.UserGroupsHint} /></p>
-    <div class="tableToolbar">
-      <SearchInput bind:value={search} width={'22rem'} placeholder={setting.string.SearchUserGroups} />
-      <div class="createGroup">
-        <EditBox bind:value={newName} placeholder={setting.string.NewUserGroup} kind={'default'} />
-        <Button
-          icon={IconAdd}
-          label={presentation.string.Create}
-          kind={'primary'}
-          size={'medium'}
-          disabled={newName.trim() === '' || creating}
-          loading={creating}
-          on:click={createGroup}
-        />
-      </div>
-    </div>
-    {#if groupsLoading}
-      <Loading />
-    {:else if visibleGroups.length === 0}
-      <div class="emptyState">
-        <Label label={groups.length === 0 ? setting.string.NoUserGroups : presentation.string.NoResults} />
-      </div>
-    {:else}
-      <div class="groupsTable" role="table">
-        <div class="row header" role="row">
-          <span role="columnheader"><Label label={core.string.Name} /></span>
-          <span role="columnheader"><Label label={core.string.Members} /></span>
-          <span role="columnheader"><Label label={setting.string.Spaces} /></span>
-          <span role="columnheader" />
+    <SettingsCard label={core.string.UserGroups}>
+      <p class="caption-color mt-0 mb-4"><Label label={setting.string.UserGroupsHint} /></p>
+      <div class="flex-between flex-wrap flex-gap-2 mb-4">
+        <SearchInput bind:value={search} width={'22rem'} placeholder={setting.string.SearchUserGroups} />
+        <div class="flex-row-center flex-gap-1">
+          <EditBox bind:value={newName} placeholder={setting.string.NewUserGroup} kind={'default'} />
+          <Button
+            icon={IconAdd}
+            label={presentation.string.Create}
+            kind={'primary'}
+            size={'medium'}
+            disabled={newName.trim() === '' || creating}
+            loading={creating}
+            on:click={createGroup}
+          />
         </div>
-        {#each visibleGroups as group (group._id)}
-          {@const bound = boundSpaces(group._id)}
-          <div class="row" role="row" data-id={`user-group-${group.name}`}>
-            <div class="cell" role="cell">
+      </div>
+      {#if groupsLoading}
+        <Loading />
+      {:else if visibleGroups.length === 0}
+        <SectionEmpty
+          icon={setting.icon.Members}
+          label={groups.length === 0 ? setting.string.NoUserGroups : presentation.string.NoResults}
+        />
+      {:else}
+        <div class="groupRow caption-color text-sm">
+          <span><Label label={core.string.Name} /></span>
+          <span><Label label={core.string.Members} /></span>
+          <span><Label label={setting.string.Spaces} /></span>
+        </div>
+        <ListView
+          items={visibleGroups}
+          count={visibleGroups.length}
+          getKey={(index) => visibleGroups[index]._id}
+          selection={-1}
+          updateOnMouse={false}
+          kind={'full-size'}
+          noScroll
+        >
+          <svelte:fragment slot="item" let:item={index}>
+            {@const group = visibleGroups[index]}
+            {@const bound = boundSpaces(group._id)}
+            <div class="groupRow" data-id={`user-group-${group.name}`}>
               <EditBox value={group.name} kind={'default'} on:change={(event) => rename(group, event)} />
-            </div>
-            <div class="cell" role="cell">
               <AccountArrayEditor
                 value={group.members}
                 label={core.string.Members}
@@ -140,11 +149,7 @@
                 allowGuests
                 onChange={(refs) => updateMembers(group, refs)}
               />
-            </div>
-            <div class="cell spacesCell" role="cell" title={bound.map((space) => space.name).join(', ')}>
-              {bound.length}
-            </div>
-            <div class="cell actions" role="cell">
+              <span class="caption-color" title={bound.map((space) => space.name).join(', ')}>{bound.length}</span>
               <ButtonIcon
                 icon={IconDelete}
                 size={'small'}
@@ -155,10 +160,10 @@
                 }}
               />
             </div>
-          </div>
-        {/each}
-      </div>
-    {/if}
+          </svelte:fragment>
+        </ListView>
+      {/if}
+    </SettingsCard>
   </div>
 </Scroller>
 
@@ -166,64 +171,12 @@
   .groupsContent {
     width: min(100%, 76rem);
   }
-  h2 {
-    margin: 0 0 var(--spacing-1);
-  }
-  .hint {
-    margin: 0 0 var(--spacing-4);
-    color: var(--theme-caption-color);
-  }
-  .tableToolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-2);
-    margin-bottom: var(--spacing-4);
-  }
-  .createGroup {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-1);
-  }
-  .emptyState {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 8rem;
-    color: var(--theme-caption-color);
-  }
-  .groupsTable {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--theme-divider-color);
-    border-radius: var(--border-radius-medium);
-  }
-  .row {
+  .groupRow {
     display: grid;
     grid-template-columns: minmax(13rem, 1.6fr) minmax(10rem, 1fr) 6rem 3rem;
     align-items: center;
     gap: var(--spacing-2);
     padding: var(--spacing-1) var(--spacing-2);
     min-height: 2.5rem;
-
-    &:not(:last-child) {
-      border-bottom: 1px solid var(--theme-divider-color);
-    }
-    &.header {
-      color: var(--theme-caption-color);
-      font-size: 0.75rem;
-    }
-  }
-  .cell {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-  }
-  .spacesCell {
-    color: var(--theme-caption-color);
-  }
-  .actions {
-    justify-content: flex-end;
   }
 </style>

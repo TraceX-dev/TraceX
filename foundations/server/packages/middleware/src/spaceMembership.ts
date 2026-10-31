@@ -30,6 +30,7 @@ import core, {
   type Space,
   systemAccountUuid,
   toFindResult,
+  touchesAttribute,
   type Tx,
   type TxApplyIf,
   type TxCreateDoc,
@@ -130,9 +131,10 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
 
   private async processSpaceUpdate (ctx: MeasureContext<SessionData>, tx: TxUpdateDoc<Space>): Promise<void> {
     const ops = tx.operations as Record<string, any>
-    if (ops.groups !== undefined || ops.$push?.groups !== undefined || ops.$pull?.groups !== undefined) {
+    if (touchesAttribute(ops, 'groups')) {
       this.checkGroupsBinding(ctx, tx.objectClass)
     }
+    normalizeMembershipOperations(ops, ['members', 'directMembers', 'groups'])
 
     const pushed = opValues(ops.$push?.members)
     const pulled = opValues(ops.$pull?.members)
@@ -188,6 +190,7 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
       members = (tx as TxCreateDoc<UserGroup>).attributes.members ?? []
     } else if (tx._class === core.class.TxUpdateDoc) {
       const ops = (tx as TxUpdateDoc<UserGroup>).operations as Record<string, any>
+      normalizeMembershipOperations(ops, ['members'])
       members = [...(Array.isArray(ops.members) ? ops.members : []), ...opValues(ops.$push?.members)]
     }
     // Anonymous access is granted per space; a group would spread it to every bound space.
@@ -295,7 +298,40 @@ function canManageGroups (ctx: MeasureContext<SessionData>): boolean {
   )
 }
 
-function removeOp (ops: Record<string, any>, op: '$push' | '$pull', field: string): void {
+/** Normalize clearing an array; reject operators and dotted writes that bypass membership validation. */
+function normalizeMembershipOperations (ops: Record<string, unknown>, fields: string[]): void {
+  for (const field of fields) {
+    if (!touchesAttribute(ops, field)) continue
+    let unset = false
+    let writes = 0
+    for (const [key, value] of Object.entries(ops)) {
+      if (key === field || key.startsWith(`${field}.`)) {
+        if (key !== field || !Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
+          throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+        }
+        writes++
+      } else if (key.startsWith('$') && typeof value === 'object' && value !== null) {
+        for (const attribute of Object.keys(value)) {
+          if (attribute !== field && !attribute.startsWith(`${field}.`)) continue
+          if (attribute !== field || !['$push', '$pull', '$unset'].includes(key)) {
+            throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+          }
+          writes++
+          if (key === '$unset') unset = true
+        }
+      }
+    }
+    if (unset) {
+      if (writes !== 1) {
+        throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+      }
+      removeOp(ops, '$unset', field)
+      ops[field] = []
+    }
+  }
+}
+
+function removeOp (ops: Record<string, any>, op: '$push' | '$pull' | '$unset', field: string): void {
   if (ops[op] === undefined) return
   // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
   delete ops[op][field]

@@ -208,6 +208,49 @@ describe('SpaceMembershipMiddleware', () => {
       await expect(middleware.tx(sessionCtx(AccountRole.User), [bind(PROJECT)])).rejects.toThrow()
     })
 
+    it('a user can not unset or write nested group bindings', async () => {
+      const { middleware } = await setup()
+      await expect(middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $unset: { groups: true } })])).rejects.toThrow()
+      await expect(middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ 'groups.0': 'g1' })])).rejects.toThrow()
+    })
+
+    it('normalizes clearing bindings and membership sources to empty arrays', async () => {
+      const { middleware, sent } = await setup([storedSpace([A, G], [A])])
+      await middleware.tx(sessionCtx(AccountRole.Owner), [
+        spaceUpdate({ $unset: { groups: true } }),
+        spaceUpdate({ $unset: { directMembers: true } }),
+        spaceUpdate({ $unset: { members: true } })
+      ])
+      expect(sent.map(opsOf)).toEqual([{ groups: [] }, { directMembers: [] }, { directMembers: [] }])
+    })
+
+    it('rejects unsupported operators and nested writes of membership arrays', async () => {
+      const { middleware } = await setup()
+      for (const operations of [
+        { 'members.0': A },
+        { $update: { directMembers: { $query: A, $update: B } } },
+        { $push: { 'groups.0': 'g1' } },
+        { $unset: { 'groups.0': true } },
+        { members: [], $unset: { members: true } }
+      ]) {
+        await expect(middleware.tx(sessionCtx(AccountRole.Owner), [spaceUpdate(operations)])).rejects.toThrow()
+      }
+    })
+
+    it('normalizes clearing user group members and rejects dotted anonymous membership', async () => {
+      const { middleware, sent } = await setup()
+      const clear = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<Doc>, {
+        $unset: { members: true }
+      })
+      await middleware.tx(sessionCtx(AccountRole.Owner), [clear])
+      expect(opsOf(sent[0])).toEqual({ members: [] })
+      const dottedOperations: Record<string, unknown> = {
+        'members.0': readOnlyGuestAccountUuid
+      }
+      const dotted = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<Doc>, dottedOperations)
+      await expect(middleware.tx(sessionCtx(AccountRole.Owner), [dotted])).rejects.toThrow()
+    })
+
     it('a maintainer binds groups to typed spaces and channels, not to other spaces', async () => {
       const { middleware, sent } = await setup()
       await middleware.tx(sessionCtx(AccountRole.Maintainer), [bind(PROJECT), bind(CHANNEL)])

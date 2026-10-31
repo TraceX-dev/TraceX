@@ -25,12 +25,13 @@ import core, {
   type Space,
   type Tx,
   TxFactory,
+  type TxUpdateDoc,
   type TxRemoveDoc
 } from '@hcengineering/core'
 import notification, { type DocNotifyContext } from '@hcengineering/notification'
 import { type TriggerControl } from '@hcengineering/server-core'
 
-import { OnSpaceMembersRemoved } from '../index'
+import { createCollaboratorNotifications, OnSpaceMembersRemoved } from '../index'
 
 const CHANNEL = 'test:class:Channel' as Ref<Class<Space>>
 const NO_COLLABORATORS = 'test:class:Plain' as Ref<Class<Space>>
@@ -51,10 +52,10 @@ interface Setup {
   queried: Array<Ref<Class<Doc>>>
 }
 
-function setup (members: AccountUuid[], collaborators: AccountUuid[], _class = CHANNEL): Setup {
+function setup (members: AccountUuid[], collaborators: AccountUuid[], _class = CHANNEL, owners: AccountUuid[] = []): Setup {
   const applied: Tx[][] = []
   const queried: Array<Ref<Class<Doc>>> = []
-  const space = { _id: SPACE, _class, space: core.space.Space, members } as unknown as Space
+  const space = { _id: SPACE, _class, space: core.space.Space, members, owners } as unknown as Space
   const collabDocs = collaborators.map(
     (collaborator, i) =>
       ({
@@ -82,14 +83,15 @@ function setup (members: AccountUuid[], collaborators: AccountUuid[], _class = C
     txFactory: factory,
     hierarchy: {
       isDerived: (cls: Ref<Class<Doc>>, base: Ref<Class<Doc>>) => base === core.class.Space && cls !== core.class.Doc,
+      classHierarchyMixin: () => ({}),
       getAncestors: (cls: Ref<Class<Doc>>) => [cls],
       findAttribute: (_cls: Ref<Class<Doc>>, field: string) =>
-        field === 'members' ? (membersAttr as unknown as AnyAttribute) : undefined
+        ['members', 'owners'].includes(field) ? (membersAttr as unknown as AnyAttribute) : undefined
     },
     modelDb: {
       findAllSync: (_cls: Ref<Class<Doc>>, query: any) =>
         (query.attachedTo.$in as string[]).includes(CHANNEL)
-          ? [{ _class: core.class.ClassCollaborators, attachedTo: CHANNEL, fields: ['members'] }]
+          ? [{ _class: core.class.ClassCollaborators, attachedTo: CHANNEL, fields: owners.length === 0 ? ['members'] : ['members', 'owners'] }]
           : []
     },
     findAll: async (_ctx: MeasureContext, cls: Ref<Class<Doc>>) => {
@@ -106,7 +108,7 @@ function setup (members: AccountUuid[], collaborators: AccountUuid[], _class = C
   return { control, applied, queried }
 }
 
-function update (operations: DocumentUpdate<Space>, _class = CHANNEL): Tx {
+function update (operations: DocumentUpdate<Space>, _class = CHANNEL): TxUpdateDoc<Space> {
   return factory.createTxUpdateDoc(_class, core.space.Space, SPACE, operations)
 }
 
@@ -144,6 +146,54 @@ describe('OnSpaceMembersRemoved', () => {
     const res = await OnSpaceMembersRemoved([update({ members: [OWNER, MEMBER] })], control)
     expect(removedCollaborators(res)).toEqual(['collab-2'])
     expect(removedContexts(applied)).toEqual(['context-2'])
+  })
+
+  it('revokes collaborators for server-derived membership updates', async () => {
+    const { control, applied } = setup([OWNER], [OWNER, GUEST])
+    const tx = update({ $pull: { members: GUEST } })
+    tx.space = core.space.DerivedTx
+    const res = await OnSpaceMembersRemoved([tx], control)
+    expect(removedCollaborators(res)).toEqual(['collab-1'])
+    expect(removedContexts(applied)).toEqual(['context-1'])
+  })
+
+  it('preserves access granted by another collaborator field', async () => {
+    const { control, applied } = setup([OWNER], [OWNER, GUEST], CHANNEL, [GUEST])
+    expect(await OnSpaceMembersRemoved([update({ $pull: { members: GUEST } })], control)).toEqual([])
+    expect(applied).toEqual([])
+  })
+
+  it('preserves an account still present in the final stored membership', async () => {
+    const { control, applied } = setup([OWNER, GUEST], [OWNER, GUEST])
+    expect(await OnSpaceMembersRemoved([update({ members: [OWNER] })], control)).toEqual([])
+    expect(applied).toEqual([])
+  })
+
+  it('cleans each space once for multiple removals in a batch', async () => {
+    const { control, applied } = setup([OWNER], [OWNER, MEMBER, GUEST])
+    const res = await OnSpaceMembersRemoved([
+      update({ $pull: { members: MEMBER } }), update({ $pull: { members: GUEST } })
+    ], control)
+    expect(removedCollaborators(res)).toEqual(['collab-1', 'collab-2'])
+    expect(removedContexts(applied)).toEqual(['context-1', 'context-2'])
+  })
+
+  it('does not restore a removed collaborator from a delayed addition event', async () => {
+    const { control, applied } = setup([OWNER], [OWNER])
+    const tx = update({ $push: { members: GUEST } })
+    tx.space = core.space.DerivedTx
+    const res = await createCollaboratorNotifications(control.ctx, tx, control, [])
+    expect(res).toEqual([])
+    expect(applied).toEqual([])
+  })
+
+  it('does not revoke a re-added collaborator from a delayed removal event', async () => {
+    const { control, applied } = setup([OWNER, GUEST], [OWNER, GUEST])
+    const tx = update({ $pull: { members: GUEST } })
+    tx.space = core.space.DerivedTx
+    const res = await createCollaboratorNotifications(control.ctx, tx, control, [])
+    expect(res).toEqual([])
+    expect(applied).toEqual([])
   })
 
   it('ignores a pulled account that is not a collaborator', async () => {

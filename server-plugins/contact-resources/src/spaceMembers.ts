@@ -19,6 +19,8 @@ import core, {
   type Ref,
   type Space,
   type SpaceType,
+  touchesAttribute,
+  type TxCUD,
   type Tx,
   type TxCreateDoc,
   type TxUpdateDoc,
@@ -28,10 +30,6 @@ import core, {
 import { type TriggerControl } from '@hcengineering/server-core'
 
 const SOURCE_FIELDS = ['directMembers', 'groups']
-
-function touches (ops: Record<string, any>, field: string): boolean {
-  return ops[field] !== undefined || ops.$push?.[field] !== undefined || ops.$pull?.[field] !== undefined
-}
 
 /**
  * Accounts that the groups make members of a space. The single place that resolves groups: nested groups, when
@@ -95,13 +93,15 @@ function removeFromRoles (control: TriggerControl, space: Space, removed: Accoun
   const assignment = hierarchy.as(space, mixin) as unknown as Record<string, unknown>
   const roles = control.modelDb.findAllSync(core.class.Role, { attachedTo: typeId })
   const update: Record<string, AccountUuid[]> = {}
+  let changed = false
   for (const role of roles) {
     const assigned = assignment[role._id]
     if (!Array.isArray(assigned)) continue
     const kept = (assigned as AccountUuid[]).filter((it) => !removed.includes(it))
-    if (kept.length !== assigned.length) update[role._id] = kept
+    update[role._id] = kept
+    if (kept.length !== assigned.length) changed = true
   }
-  if (Object.keys(update).length === 0) return []
+  if (!changed) return []
   return [control.txFactory.createTxMixin(space._id, space._class, space.space, mixin, update)]
 }
 
@@ -114,67 +114,62 @@ async function findSpace (
 }
 
 /**
- * Keeps `Space.members` computed from `directMembers` and `groups`.
- *
- * - Space created without `directMembers` (by a server trigger or an old client): `directMembers = members`.
- * - `directMembers` or `groups` changed: `members` is recomputed.
- * Changes of `members` itself (including the ones emitted here) do not trigger a recompute.
+ * Recomputes each affected space once per batch, including changes to bound groups.
+ * Legacy creates initialize directMembers before the membership delta is applied.
  */
 export async function OnSpaceMembershipChange (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const result: Tx[] = []
+  const affected = new Map<Ref<Space>, Space>()
+  const removedGroups = new Set<Ref<UserGroup>>()
   for (const tx of txes) {
+    const cud = tx as TxCUD<Space | UserGroup>
+    if (control.hierarchy.isDerived(cud.objectClass, core.class.UserGroup)) {
+      if (tx._class === core.class.TxRemoveDoc) {
+        removedGroups.add(cud.objectId as Ref<UserGroup>)
+      } else if (tx._class !== core.class.TxUpdateDoc ||
+        !touchesAttribute((tx as TxUpdateDoc<UserGroup>).operations, 'members')) {
+        continue
+      }
+      const spaces = await control.findAll(control.ctx, core.class.Space, { groups: cud.objectId as Ref<UserGroup> })
+      for (const space of spaces) affected.set(space._id, space)
+      continue
+    }
     if (tx._class === core.class.TxCreateDoc) {
       const create = tx as TxCreateDoc<Space>
       const attributes = create.attributes as Partial<Space>
+      const directMembers = attributes.directMembers ?? [...(attributes.members ?? [])]
       if (attributes.directMembers === undefined) {
         result.push(
-          control.txFactory.createTxUpdateDoc(create.objectClass, create.objectSpace, create.objectId, {
-            directMembers: [...(attributes.members ?? [])]
-          })
+          control.txFactory.createTxUpdateDoc(create.objectClass, create.objectSpace, create.objectId, { directMembers })
         )
-        continue
       }
-      if ((attributes.groups ?? []).length === 0) continue
+      const space = await findSpace(control, create.objectClass, create.objectId)
+      if (space !== undefined) affected.set(space._id, { ...space, directMembers })
     } else if (tx._class === core.class.TxUpdateDoc) {
-      const ops = (tx as TxUpdateDoc<Space>).operations as Record<string, any>
-      if (!SOURCE_FIELDS.some((field) => touches(ops, field))) continue
-    } else {
-      continue
+      const update = tx as TxUpdateDoc<Space>
+      if (!SOURCE_FIELDS.some((field) => touchesAttribute(update.operations, field))) continue
+      if (affected.has(update.objectId)) continue
+      const space = await findSpace(control, update.objectClass, update.objectId)
+      if (space !== undefined) affected.set(space._id, space)
     }
-
-    const { objectClass, objectId } = tx as TxCreateDoc<Space>
-    const space = await findSpace(control, objectClass, objectId)
-    if (space === undefined) continue
-    result.push(...(await recomputeSpaceMembers(control, space)))
+  }
+  for (const space of affected.values()) {
+    const groups = space.groups ?? []
+    for (const group of groups) {
+      if (!removedGroups.has(group)) continue
+      result.push(
+        control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { $pull: { groups: group } })
+      )
+    }
+    const current = removedGroups.size === 0
+      ? space
+      : { ...space, groups: groups.filter((group) => !removedGroups.has(group)) }
+    result.push(...(await recomputeSpaceMembers(control, current)))
   }
   return result
 }
 
-/**
- * Follows changes of user groups: a membership change recomputes every bound space, a removed group is unbound
- * from its spaces (which recomputes them).
- */
+/** Follows user group changes using the same batch recomputation as space changes. */
 export async function OnUserGroupChange (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
-  const result: Tx[] = []
-  for (const tx of txes) {
-    const groupId = (tx as TxUpdateDoc<UserGroup>).objectId
-    if (tx._class === core.class.TxRemoveDoc) {
-      const spaces = await control.findAll(control.ctx, core.class.Space, { groups: groupId })
-      for (const space of spaces) {
-        result.push(
-          control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { $pull: { groups: groupId } })
-        )
-      }
-      continue
-    }
-    if (tx._class !== core.class.TxUpdateDoc) continue
-    const ops = (tx as TxUpdateDoc<UserGroup>).operations as Record<string, any>
-    if (!touches(ops, 'members')) continue
-
-    const spaces = await control.findAll(control.ctx, core.class.Space, { groups: groupId })
-    for (const space of spaces) {
-      result.push(...(await recomputeSpaceMembers(control, space)))
-    }
-  }
-  return result
+  return await OnSpaceMembershipChange(txes, control)
 }

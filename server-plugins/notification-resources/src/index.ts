@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -51,6 +52,7 @@ import core, {
   getClassCollaborators,
   getAccessRoot,
   getObjectAccessReaders,
+  touchesAttribute,
   type AccessFindFn
 } from '@hcengineering/core'
 import notification, {
@@ -1005,11 +1007,16 @@ async function getTxCollabs (
     cache.set(doc._id, collaborators)
     const collabs = collaborators.map((c) => c.collaborator)
     const ops = isMixinTx(tx) ? tx.attributes : (tx as TxUpdateDoc<Doc>).operations
-    const newCollaborators = (await getNewCollaborators(ops, mixin, doc._class, control)).filter(
-      (p) => !collabs.includes(p)
-    )
     const isSpace = control.hierarchy.isDerived(doc._class, core.class.Space)
-    const removedCollabs = isSpace ? await getRemovedMembers(ctx, ops, mixin, doc as Space, collabs, control) : []
+    const currentMembers = isSpace && touchesAttribute(ops, 'members')
+      ? new Set(await getDocCollaborators(ctx, doc, mixin, control))
+      : undefined
+    const newCollaborators = (await getNewCollaborators(ops, mixin, doc._class, control)).filter(
+      (p) => !collabs.includes(p) && (currentMembers === undefined || currentMembers.has(p))
+    )
+    const removedCollabs = isSpace
+      ? (await getRemovedMembers(ctx, ops, mixin, doc as Space, collabs, control)).filter((p) => !currentMembers?.has(p))
+      : []
     const result = [...collabs, ...newCollaborators].filter((p) => !removedCollabs.includes(p))
 
     return { added: newCollaborators, removed: removedCollabs, result }
@@ -1359,6 +1366,45 @@ export async function getRemovedMembers (
   }
 
   return Array.from(new Set(removedCollaborators))
+}
+
+/** Revoke collaborators and notification contexts before a space membership update completes. */
+export async function OnSpaceMembersRemoved (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const result: Tx[] = []
+  const processed = new Set<Ref<Space>>()
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxUpdateDoc) continue
+    const update = tx as TxUpdateDoc<Space>
+    const ops = update.operations
+    if (!Array.isArray(ops.members) && ops.$pull?.members === undefined) continue
+    if (processed.has(update.objectId)) continue
+    const mixin = getClassCollaborators<Doc>(control.modelDb, control.hierarchy, update.objectClass)
+    if (mixin === undefined ||
+      (!mixin.fields.some((field) => (field as string) === 'members') && mixin.allFields !== true)) {
+      continue
+    }
+    const space = (await control.findAll(control.ctx, update.objectClass, { _id: update.objectId }, { limit: 1 }))[0]
+    if (space === undefined) continue
+    processed.add(space._id)
+    const collaborators = await control.findAll(control.ctx, core.class.Collaborator, { attachedTo: space._id })
+    // Use the final stored document: a later operation in the batch may have added an account back,
+    // or another configured collaborator field may still grant access.
+    const kept = new Set(await getDocCollaborators(control.ctx, space, mixin, control))
+    const removed = collaborators.filter((collaborator) => !kept.has(collaborator.collaborator))
+    if (removed.length === 0) continue
+    result.push(
+      ...removed.map((collaborator) =>
+        control.txFactory.createTxRemoveDoc(core.class.Collaborator, collaborator.space, collaborator._id)
+      )
+    )
+    const accounts = removed.map((collaborator) => collaborator.collaborator)
+    const contexts = await control.findAll(control.ctx, notification.class.DocNotifyContext, {
+      objectId: space._id,
+      user: { $in: accounts }
+    })
+    await removeContexts(control.ctx, contexts, accounts, control)
+  }
+  return result
 }
 
 async function createSyncCollaboratorsTxes (
@@ -1873,6 +1919,7 @@ export default async () => ({
     OnAttributeCreate,
     OnAttributeUpdate,
     OnDocRemove,
+    OnSpaceMembersRemoved,
     OnDemandNotificationSend,
     OnEmployeeDeactivate,
     PushNotificationsHandler,

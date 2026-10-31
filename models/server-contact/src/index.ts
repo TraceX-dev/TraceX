@@ -123,16 +123,8 @@ export function createModel (builder: Builder): void {
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverContact.trigger.OnSpaceMembershipChange,
     txMatch: {
-      objectClass: core.class.Space,
-      _class: { $in: [core.class.TxCreateDoc, core.class.TxUpdateDoc] }
-    }
-  })
-
-  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
-    trigger: serverContact.trigger.OnUserGroupChange,
-    txMatch: {
-      objectClass: core.class.UserGroup,
-      _class: { $in: [core.class.TxUpdateDoc, core.class.TxRemoveDoc] }
+      objectClass: { $in: [core.class.Space, core.class.UserGroup] },
+      _class: { $in: [core.class.TxCreateDoc, core.class.TxUpdateDoc, core.class.TxRemoveDoc] }
     }
   })
 

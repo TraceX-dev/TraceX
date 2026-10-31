@@ -34,6 +34,7 @@ const PROJECT = 'tracker:class:Project' as Ref<Class<Space>>
 const PROJECT_TYPE = 'project-type'
 const PROJECT_MIXIN = 'tracker:mixin:ProjectTypeData'
 const ROLE = 'role-manager'
+const OTHER_ROLE = 'role-reviewer'
 
 const A = 'acc-a' as AccountUuid
 const B = 'acc-b' as AccountUuid
@@ -56,7 +57,8 @@ function createControl (spaces: Space[], groups: UserGroup[]): TriggerControl {
     txFactory: factory,
     hierarchy: {
       isDerived: (_class: string, base: string) =>
-        base === core.class.TypedSpace ? _class === PROJECT : base === core.class.Space,
+        base === core.class.TypedSpace ? _class === PROJECT : base === core.class.UserGroup
+          ? _class === core.class.UserGroup : base === core.class.Space,
       hasMixin: (doc: any, mixin: string) => doc[mixin] !== undefined,
       as: (doc: any, mixin: string) => ({ ...doc, ...doc[mixin] })
     },
@@ -65,7 +67,7 @@ function createControl (spaces: Space[], groups: UserGroup[]): TriggerControl {
         if (_class === core.class.SpaceType && query._id === PROJECT_TYPE) {
           return [{ _id: PROJECT_TYPE, targetClass: PROJECT_MIXIN }]
         }
-        if (_class === core.class.Role && query.attachedTo === PROJECT_TYPE) return [{ _id: ROLE }]
+        if (_class === core.class.Role && query.attachedTo === PROJECT_TYPE) return [{ _id: ROLE }, { _id: OTHER_ROLE }]
         return []
       }
     },
@@ -122,6 +124,32 @@ describe('OnSpaceMembershipChange', () => {
     expect(applyMembers(stored.members, res)).toEqual([A])
   })
 
+  it('recomputes a space only once for multiple source updates', async () => {
+    const stored = space({ members: [A], directMembers: [A, B], groups: ['g1' as Ref<UserGroup>] })
+    const control = createControl([stored], [group('g1', [G1])])
+    const res = await OnSpaceMembershipChange([
+      update({ directMembers: [A, B] }),
+      update({ groups: ['g1'] })
+    ], control)
+    expect(applyMembers(stored.members, res)).toEqual([A, B, G1].sort())
+  })
+
+  it('recomputes a space once when its sources and a group change together', async () => {
+    const stored = space({ members: [A], directMembers: [A, B], groups: ['g1' as Ref<UserGroup>] })
+    const control = createControl([stored], [group('g1', [G1])])
+    const changedGroup = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>, {
+      members: [G1]
+    })
+    const res = await OnSpaceMembershipChange([update({ directMembers: [A, B] }), changedGroup], control)
+    expect(applyMembers(stored.members, res)).toEqual([A, B, G1].sort())
+  })
+
+  it('recomputes when groups are unset', async () => {
+    const stored = space({ members: [A, G1], directMembers: [A] })
+    const res = await OnSpaceMembershipChange([update({ $unset: { groups: true } })], createControl([stored], []))
+    expect(applyMembers(stored.members, res)).toEqual([A])
+  })
+
   it('does nothing when members already match', async () => {
     const stored = space({ members: [A, G1], directMembers: [A], groups: ['g1' as Ref<UserGroup>] })
     const control = createControl([stored], [group('g1', [G1])])
@@ -160,17 +188,17 @@ describe('OnSpaceMembershipChange', () => {
     const stored = space({
       _class: PROJECT,
       type: PROJECT_TYPE,
-      members: [A, G1],
-      directMembers: [A],
+      members: [A, B, G1],
+      directMembers: [A, B],
       groups: [],
-      [PROJECT_MIXIN]: { [ROLE]: [A, G1] }
+      [PROJECT_MIXIN]: { [ROLE]: [A, G1], [OTHER_ROLE]: [B] }
     })
     const control = createControl([stored], [])
     const res = await OnSpaceMembershipChange([update({ $pull: { groups: 'g1' } }, PROJECT)], control)
-    expect(applyMembers(stored.members, res)).toEqual([A])
+    expect(applyMembers(stored.members, res)).toEqual([A, B].sort())
     const mixin = res.find((it) => it._class === core.class.TxMixin) as TxMixin<Doc, Doc>
     expect(mixin.mixin).toBe(PROJECT_MIXIN)
-    expect(mixin.attributes).toEqual({ [ROLE]: [A] })
+    expect(mixin.attributes).toEqual({ [ROLE]: [A], [OTHER_ROLE]: [B] })
   })
 })
 
@@ -205,6 +233,48 @@ describe('OnUserGroupChange', () => {
     expect(res.some((it) => (it as TxUpdateDoc<Space>).objectId === 's3')).toBe(false)
   })
 
+  it('recomputes shared spaces once when two groups change in a batch', async () => {
+    const stored = space({ members: [A], directMembers: [A], groups: ['g1', 'g2'] as Array<Ref<UserGroup>> })
+    const control = createControl([stored], [group('g1', [G1]), group('g2', [G2])])
+    const txes = ['g1', 'g2'].map((id) => factory.createTxUpdateDoc(
+      core.class.UserGroup, core.space.Workspace, id as Ref<UserGroup>, { members: [G1, G2] }
+    ))
+    const res = await OnUserGroupChange(txes, control)
+    expect(applyMembers(stored.members, res)).toEqual([A, G1, G2].sort())
+  })
+
+  it('combines group deletion and membership changes for a shared space', async () => {
+    const stored = space({ members: [A, G1], directMembers: [A], groups: ['g1', 'g2'] as Array<Ref<UserGroup>> })
+    const control = createControl([stored], [group('g2', [G2])])
+    const txes = [
+      factory.createTxRemoveDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>),
+      factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g2' as Ref<UserGroup>, { members: [G2] })
+    ]
+    const res = await OnUserGroupChange(txes, control)
+    expect(applyMembers(stored.members, res)).toEqual([A, G2].sort())
+    expect((res[0] as TxUpdateDoc<Space>).operations).toEqual({ $pull: { groups: 'g1' } })
+  })
+
+  it('recomputes once when multiple bound groups are deleted', async () => {
+    const stored = space({ members: [A, G1, G2], directMembers: [A], groups: ['g1', 'g2'] as Array<Ref<UserGroup>> })
+    const control = createControl([stored], [])
+    const txes = ['g1', 'g2'].map((id) =>
+      factory.createTxRemoveDoc(core.class.UserGroup, core.space.Workspace, id as Ref<UserGroup>)
+    )
+    const res = await OnUserGroupChange(txes, control)
+    expect(res).toHaveLength(3)
+    expect(applyMembers(stored.members, res)).toEqual([A])
+  })
+
+  it('revokes group membership when the group members are unset', async () => {
+    const stored = space({ members: [A, G1], directMembers: [A], groups: ['g1'] as Array<Ref<UserGroup>> })
+    const tx = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>, {
+      $unset: { members: true }
+    })
+    const res = await OnUserGroupChange([tx], createControl([stored], [group('g1', [])]))
+    expect(applyMembers(stored.members, res)).toEqual([A])
+  })
+
   it('ignores group updates that do not touch members', async () => {
     const s1 = space({ members: [G1], directMembers: [], groups: ['g1' as Ref<UserGroup>] })
     const control = createControl([s1], [group('g1', [])])
@@ -219,7 +289,8 @@ describe('OnUserGroupChange', () => {
     const control = createControl([s1], [])
     const tx = factory.createTxRemoveDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>)
     const res = await OnUserGroupChange([tx], control)
-    expect(res).toHaveLength(1)
+    expect(res).toHaveLength(2)
     expect((res[0] as TxUpdateDoc<Space>).operations).toEqual({ $pull: { groups: 'g1' } })
+    expect(applyMembers(s1.members, res)).toEqual([])
   })
 })
