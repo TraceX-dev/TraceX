@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -19,6 +20,9 @@ import { showPopup } from '@hcengineering/ui'
 import view, { type Viewlet } from '@hcengineering/view'
 import { findTable } from '../utils'
 import { getTableMetadata } from '../tableMetadata'
+import { fetchFreshTableSnapshot } from './tableUtils'
+import { showTableError } from './errors'
+import TableSourceViewer from './TableSourceViewer.svelte'
 import OriginalTableDataViewer from './OriginalTableDataViewer.svelte'
 
 /**
@@ -38,6 +42,11 @@ export async function seeOriginalTableData (editor: Editor): Promise<void> {
   }
 
   try {
+    if (metadata.version === '2.0') {
+      const fresh = await fetchFreshTableSnapshot(metadata)
+      showPopup(TableSourceViewer, { markdown: fresh.markdown, metadata: fresh.metadata }, 'center')
+      return
+    }
     const client = getClient()
     const hierarchy = client.getHierarchy()
 
@@ -102,5 +111,6 @@ export async function seeOriginalTableData (editor: Editor): Promise<void> {
     )
   } catch (error) {
     console.error('Failed to show original table data:', error)
+    showTableError(error)
   }
 }

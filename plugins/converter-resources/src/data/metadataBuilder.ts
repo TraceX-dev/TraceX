@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -14,10 +15,11 @@
 //
 
 import { concatLink, type Client, type Doc, type Ref } from '@hcengineering/core'
+import { getCurrentLanguage } from '@hcengineering/theme'
 import { getMetadata } from '@hcengineering/platform'
 import { getCurrentResolvedLocation, locationToUrl } from '@hcengineering/ui'
 import presentation from '@hcengineering/presentation'
-import type { TableMetadata, Viewlet } from '@hcengineering/view'
+import type { BuildMarkdownTableMetadata, TableMetadata, Viewlet } from '@hcengineering/view'
 import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from '../types'
 import { loadViewletConfig } from '../model/viewletLoader'
 import { modelToConfig } from '../model/tableModel'
@@ -50,13 +52,16 @@ export async function buildTableMetadata (
 
   return {
     version: '1.0',
+    language: props.language ?? getCurrentLanguage(),
     cardClass: props.cardClass,
     viewletId,
     config: props.config,
     query: props.query,
     documentIds: docs.map((d) => d._id),
     timestamp: Date.now(),
-    originalUrl
+    originalUrl,
+    source: props.source,
+    workspace: getMetadata(presentation.metadata.WorkspaceUuid)
   }
 }
 
@@ -64,8 +69,8 @@ export async function buildTableMetadata (
  * Check if a table metadata represents a relationship table
  * Relationship tables have viewletId: undefined
  */
-export function isRelationshipTable (metadata: TableMetadata): boolean {
-  return metadata.viewletId === undefined
+export function isRelationshipTable (metadata: BuildMarkdownTableMetadata): boolean {
+  return metadata.source?.kind === 'relationship' || (metadata.source === undefined && metadata.viewletId === undefined)
 }
 
 /**
@@ -88,12 +93,15 @@ export function buildRelationshipTableMetadata (
 
   return {
     version: '1.0',
+    language: props.language ?? getCurrentLanguage(),
     cardClass: props.cardClass,
-    viewletId: undefined,
+    viewletId: props.viewlet?._id,
     config: modelToConfig(props.model),
     query: props.query,
     documentIds: docs.map((d) => d._id),
     timestamp: Date.now(),
-    originalUrl
+    originalUrl,
+    source: props.source,
+    workspace: getMetadata(presentation.metadata.WorkspaceUuid)
   }
 }

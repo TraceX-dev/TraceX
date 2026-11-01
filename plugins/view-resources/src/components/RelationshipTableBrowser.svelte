@@ -1,4 +1,5 @@
 <!--
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -52,6 +53,7 @@
         viewlet,
         config,
         query,
+        baseOptions: options,
         viewOptions,
         _class
       }

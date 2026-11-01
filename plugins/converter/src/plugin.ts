@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -17,7 +18,13 @@ import type { Client, Doc, Mixin, Ref } from '@hcengineering/core'
 import { type Plugin, type Resource, plugin } from '@hcengineering/platform'
 import type { AnyComponent, ComponentExtensionId } from '@hcengineering/ui'
 import type { ComponentPointExtension } from '@hcengineering/presentation'
-import type { Action, BuildMarkdownTableMetadata, ViewAction } from '@hcengineering/view'
+import type {
+  Action,
+  BuildMarkdownTableMetadata,
+  ResolvedTableSnapshot,
+  TableMetadata,
+  ViewAction
+} from '@hcengineering/view'
 import type {
   CopyAsMarkdownTableFunction,
   CopyRelationshipTableAsMarkdownFunction,
@@ -41,6 +48,7 @@ export const converterPlugin = plugin(converterId, {
     BuildMarkdownTableFromDocs: '' as Resource<
       (docs: Doc[], props: CopyAsMarkdownTableProps, client: Client) => Promise<string>
     >,
+    ResolveTableSnapshot: '' as Resource<(metadata: TableMetadata, client: Client) => Promise<ResolvedTableSnapshot>>,
     BuildTableData: '' as Resource<
       (
         docs: Doc[],
@@ -56,6 +64,7 @@ export const converterPlugin = plugin(converterId, {
     CopyAsMarkdownButton: '' as Ref<ComponentPointExtension>
   },
   component: {
+    CopyTableDialog: '' as AnyComponent,
     CopyAsMarkdownButton: '' as AnyComponent
   },
   action: {
