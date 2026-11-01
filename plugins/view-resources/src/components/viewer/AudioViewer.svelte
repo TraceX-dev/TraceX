@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,11 +15,17 @@
 -->
 <script lang="ts">
   import { type Blob, type Ref } from '@hcengineering/core'
+  import type { FilePreviewSession } from '@hcengineering/presentation'
   import AudioPlayer from './AudioPlayer.svelte'
 
   export let value: Ref<Blob>
   export let name: string
   export let contentType: string
+  export let preview: FilePreviewSession | undefined = undefined
+
+  $: if (preview?.mode === 'static') preview.fail(new Error('Audio has no static preview'))
 </script>
 
-<AudioPlayer {value} {name} {contentType} fullSize={true} />
+{#if preview?.mode !== 'static'}
+  <AudioPlayer {value} {name} {contentType} fullSize={true} />
+{/if}

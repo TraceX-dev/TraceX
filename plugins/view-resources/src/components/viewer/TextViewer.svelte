@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,33 +15,57 @@
 -->
 <script lang="ts">
   import { type Blob, type Ref } from '@hcengineering/core'
-  import { getFileUrl } from '@hcengineering/presentation'
-  import { Loading, Scroller } from '@hcengineering/ui'
+  import presentation, { fetchPreviewFile, FilePreviewSession } from '@hcengineering/presentation'
+  import { Label, Loading, Scroller } from '@hcengineering/ui'
+  import { onDestroy, tick } from 'svelte'
 
   export let value: Ref<Blob>
   export let name: string
   export let fit: boolean = false
-
-  $: void fetchFile(value, name)
+  export let preview: FilePreviewSession | undefined = undefined
 
   let loading = true
-  let text: string | undefined = undefined
+  let failed = false
+  let text = ''
+  let generation = 0
+  let attempt: FilePreviewSession | undefined
+  $: staticView = preview?.mode === 'static'
 
-  async function fetchFile (value: Ref<Blob>, name: string): Promise<void> {
+  async function prepare (value: string, name: string, owner: FilePreviewSession | undefined): Promise<void> {
+    const request = ++generation
+    const session = owner ?? new FilePreviewSession()
+    if (attempt !== session) attempt?.destroy()
+    attempt = session
     loading = true
-
-    const src = getFileUrl(value, name)
-    const res = await fetch(src)
-    text = await res.text()
-
-    loading = false
+    failed = false
+    try {
+      const response = await fetchPreviewFile(value, name, { signal: session.signal })
+      const content = await response.text()
+      if (request !== generation || session.signal.aborted) return
+      text = content
+      loading = false
+      await tick()
+      if (request === generation) session.ready()
+    } catch (error) {
+      if (request !== generation) return
+      failed = true
+      loading = false
+      session.fail(error)
+    }
   }
+  $: void prepare(value, name, preview)
+  onDestroy(() => {
+    generation++
+    attempt?.destroy()
+  })
 </script>
 
-{#if loading}
-  <div class="flex-center w-full h-full clear-mins">
-    <Loading />
-  </div>
+{#if failed}
+  <Label label={presentation.string.FailedToPreview} />
+{:else if loading}
+  <div class="flex-center w-full h-full clear-mins"><Loading /></div>
+{:else if staticView}
+  <pre class="select-text static-text">{text}</pre>
 {:else}
   <div class="container h-full w-full" class:fit>
     <Scroller horizontal padding="0 1rem">
@@ -52,11 +77,9 @@
 <style lang="scss">
   .container {
     max-height: 80vh;
-
     overflow: hidden;
     border: 1px solid var(--theme-button-border);
     border-radius: 0.25rem;
-
     &.fit {
       min-height: 100%;
     }
@@ -65,11 +88,14 @@
       min-height: 20rem;
     }
   }
-
   pre {
     font-family: var(--mono-font);
-    white-space: pre !important;
-    word-wrap: nowrap !important;
+    white-space: pre;
     font-size: 0.8125rem;
+  }
+  .static-text {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 </style>

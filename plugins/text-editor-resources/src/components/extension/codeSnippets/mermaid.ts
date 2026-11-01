@@ -16,6 +16,8 @@
 
 import { codeBlockOptions } from '@hcengineering/text'
 import { renderMermaidSvg, type MermaidConfig } from '@hcengineering/mermaid'
+import { translate } from '@hcengineering/platform'
+import presentation, { type PrintContext } from '@hcengineering/presentation'
 import { getCurrentTheme, isThemeDark, themeStore } from '@hcengineering/theme'
 import { showPopup } from '@hcengineering/ui'
 import { mergeAttributes } from '@tiptap/core'
@@ -33,6 +35,7 @@ import MermaidPopup from './MermaidPopup.svelte'
 export interface MermaidOptions extends CodeBlockLowlightOptions {
   ydoc?: YDoc
   ydocContentField?: string
+  printContext?: PrintContext
 }
 
 export const mermaidOptions: CodeBlockLowlightOptions = {
@@ -164,6 +167,43 @@ export const MermaidExtension = CodeBlockLowlight.extend<MermaidOptions>({
       let pendingSelection = false
       let pendingSelectionPos: number | null = null
       let pendingSelectionTimer: number | null = null
+      const printContext = this.options.printContext
+      let finishPrint: (() => void) | undefined
+      let printTimer: ReturnType<typeof setTimeout> | undefined
+      let printFailed = false
+      let destroyed = false
+
+      const finishPrintResource = (): void => {
+        clearTimeout(printTimer)
+        finishPrint?.()
+        finishPrint = undefined
+      }
+
+      const showPrintError = (error: { message: string }): void => {
+        printFailed = true
+        clearTimeout(printTimer)
+        containerNode.dataset.mermaidRenderState = 'error'
+        containerNode.classList.add('folded')
+        contentNode.style.display = 'none'
+        previewNode.replaceChildren()
+        previewNode.textContent = error.message
+        previewNode.style.display = ''
+        void translate(presentation.string.FailedToPreview, {}).then(
+          (label) => {
+            if (!destroyed) previewNode.textContent = label
+          },
+          () => {}
+        )
+        finishPrintResource()
+      }
+
+      const waitForDiagram = (): void => {
+        if (printContext === undefined || finishPrint !== undefined) return
+        finishPrint = printContext.registerResource()
+        printTimer = setTimeout(() => {
+          showPrintError(new Error('Mermaid rendering timed out'))
+        }, 15000)
+      }
 
       const toggleFoldState = (newState: boolean, event?: MouseEvent): void => {
         event?.preventDefault()
@@ -248,6 +288,7 @@ export const MermaidExtension = CodeBlockLowlight.extend<MermaidOptions>({
       }
 
       const syncState = (decorations: readonly Decoration[]): void => {
+        if (destroyed || printFailed) return
         nodeState = decorations.find((d) => d.spec.type === MermaidExtension.name)?.spec ?? nodeState
 
         const isEmpty = nodeState.textContent.trim().length === 0
@@ -262,6 +303,12 @@ export const MermaidExtension = CodeBlockLowlight.extend<MermaidOptions>({
             : diagram?.svg !== undefined
               ? 'ready'
               : 'pending'
+
+        if (printContext !== undefined && !isEmpty && error !== null) {
+          showPrintError(error)
+          return
+        }
+        if (containerNode.dataset.mermaidRenderState === 'pending') waitForDiagram()
 
         const allowFold = !isEmpty && error === null
 
@@ -322,6 +369,7 @@ export const MermaidExtension = CodeBlockLowlight.extend<MermaidOptions>({
             pendingSelectionTimer = null
           }
         }
+        if (containerNode.dataset.mermaidRenderState !== 'pending') finishPrintResource()
       }
 
       const toggleSelection = (newState: boolean): void => {
@@ -362,6 +410,11 @@ export const MermaidExtension = CodeBlockLowlight.extend<MermaidOptions>({
           if (node.type.name !== MermaidExtension.name) return false
           syncState(decorations)
           return true
+        },
+        destroy: () => {
+          destroyed = true
+          finishPrintResource()
+          if (pendingSelectionTimer !== null) clearTimeout(pendingSelectionTimer)
         }
       }
     }

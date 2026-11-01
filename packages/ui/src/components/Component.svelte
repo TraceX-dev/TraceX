@@ -16,7 +16,8 @@
 <script lang="ts">
   import { getResourceP } from '@hcengineering/platform'
   import { deepEqual } from 'fast-equals'
-  import { SvelteComponent } from 'svelte'
+  import { onDestroy, SvelteComponent, tick } from 'svelte'
+  import { getRenderContext } from '../render-context'
   import type { AnyComponent, AnySvelteComponent } from '../types'
   import ErrorPresenter from './ErrorPresenter.svelte'
   import Loading from './Loading.svelte'
@@ -74,9 +75,30 @@
   let loading = false
   let error: any
   let counter = 0
+  const rendering = getRenderContext()
+  let finish = (): void => {}
+  let reportedError: unknown
+  $: if (error != null && error !== reportedError) {
+    reportedError = error
+    rendering?.fail(error)
+    finish()
+  }
+
+  onDestroy(() => {
+    counter++
+    finish()
+  })
+
+  async function mounted (current: number): Promise<void> {
+    await tick()
+    if (current === counter) finish()
+  }
 
   function updateComponent (_is: AnyComponent | AnySvelteComponent): void {
     const current = ++counter
+    finish()
+    finish = rendering?.registerResource() ?? (() => {})
+    error = undefined
     if (_is == null) {
       Ctor = undefined
       error = new Error('is not defined')
@@ -93,13 +115,18 @@
               Ctor = res
               _props = filterDefaultUndefined(props, props)
               loading = false
+              void mounted(current).catch((error) => {
+                rendering?.fail(error)
+              })
             }
           })
           .catch((err) => {
             if (current === counter) {
               error = err
+              loading = false
             }
           })
+        return
       } else {
         loading = false
         Ctor = component
@@ -109,9 +136,20 @@
       Ctor = _is
       _props = filterDefaultUndefined(props, props)
     }
+    void mounted(current).catch((error) => {
+      rendering?.fail(error)
+    })
   }
 
-  $: updateComponent(_is)
+  function renderComponent (component: AnyComponent | AnySvelteComponent): void {
+    try {
+      updateComponent(component)
+    } catch (cause) {
+      error = cause
+      loading = false
+    }
+  }
+  $: renderComponent(_is)
 </script>
 
 {#if _is != null}

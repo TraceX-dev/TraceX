@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -57,9 +58,12 @@ export async function getFileMetadata (file: FileOrBlob, uuid: Ref<Blob>): Promi
  * @public
  */
 export const previewTypes = writable<FilePreviewExtension[]>([])
+/** Whether the preview registry has returned its first result. @public */
+export const previewTypesLoaded = writable(false)
 const previewTypesQuery = createQuery(true)
 previewTypesQuery.query(plugin.class.FilePreviewExtension, {}, (result) => {
   previewTypes.set(result)
+  previewTypesLoaded.set(true)
 })
 
 let $previewTypes: FilePreviewExtension[] = []

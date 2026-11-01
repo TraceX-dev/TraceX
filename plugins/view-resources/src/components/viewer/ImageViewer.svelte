@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,67 +15,141 @@
 -->
 <script lang="ts">
   import { type Blob, type Ref, type BlobMetadata } from '@hcengineering/core'
-  import { DrawingBoard, getBlobRef, imageSizeToRatio } from '@hcengineering/presentation'
-  import { Loading } from '@hcengineering/ui'
+  import {
+    DrawingBoard,
+    fetchPreviewFile,
+    FilePreviewSession,
+    imageSizeToRatio,
+    type DrawingData
+  } from '@hcengineering/presentation'
+  import presentation from '@hcengineering/presentation'
+  import { Label, Loading } from '@hcengineering/ui'
+  import { onDestroy } from 'svelte'
 
   export let value: Ref<Blob>
   export let name: string
   export let metadata: BlobMetadata | undefined
   export let fit: boolean = false
+  export let source: string | undefined = undefined
+  export let preview: FilePreviewSession | undefined = undefined
 
-  export let drawingAvailable: boolean
-  export let drawingEditable: boolean
-  export let drawings: any
-  export let createDrawing: (data: any) => Promise<any>
-
+  export let drawingAvailable: boolean = false
+  export let drawingEditable: boolean = false
+  export let drawings: DrawingData[] = []
+  export let createDrawing: (data: unknown) => Promise<void> = async () => {}
   export let setLoading: ((loading: boolean) => void) | undefined = undefined
 
-  $: originalWidth = metadata?.originalWidth
-  $: originalHeight = metadata?.originalHeight
-  $: pixelRatio = metadata?.pixelRatio ?? 1
-
-  $: imageWidth = originalWidth != null ? imageSizeToRatio(originalWidth, pixelRatio) : undefined
-  $: imageHeight = originalHeight != null ? imageSizeToRatio(originalHeight, pixelRatio) : undefined
-
+  $: staticView = preview?.mode === 'static'
+  $: imageWidth =
+    metadata?.originalWidth != null ? imageSizeToRatio(metadata.originalWidth, metadata.pixelRatio ?? 1) : undefined
+  $: imageHeight =
+    metadata?.originalHeight != null ? imageSizeToRatio(metadata.originalHeight, metadata.pixelRatio ?? 1) : undefined
   $: width = imageWidth != null ? `min(${imageWidth}px, 100%)` : '100%'
-  $: height = imageHeight != null ? `min(${imageHeight}px, ${fit ? '100%' : '80vh'})` : '100%'
+  $: heightLimit = staticView ? '25cm' : fit ? '100%' : '80vh'
+  $: height = imageHeight != null ? `min(${imageHeight}px, ${heightLimit})` : heightLimit
 
   let loading = true
-  function _setLoading (newState: boolean): void {
-    loading = newState
-    setLoading?.(loading)
+  let failed = false
+  let url: string | undefined
+  let objectUrl: string | undefined
+  let generation = 0
+  let attempt: FilePreviewSession | undefined
+
+  async function prepare (
+    value: string,
+    name: string,
+    source: string | undefined,
+    owner: FilePreviewSession | undefined
+  ): Promise<void> {
+    const request = ++generation
+    const session = owner ?? new FilePreviewSession()
+    if (attempt !== session) attempt?.destroy()
+    attempt = session
+    if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl)
+    objectUrl = undefined
+    url = undefined
+    loading = true
+    failed = false
+    setLoading?.(true)
+    try {
+      if (session.mode === 'interactive' && (source ?? value).includes('://')) {
+        url = source ?? value
+        return
+      }
+      const response = await fetchPreviewFile(source ?? value, name, { signal: session.signal })
+      const blob = await response.blob()
+      if (request !== generation || session.signal.aborted) return
+      objectUrl = URL.createObjectURL(blob)
+      url = objectUrl
+    } catch (error) {
+      if (request !== generation) return
+      failed = true
+      loading = false
+      setLoading?.(false)
+      session.fail(error)
+    }
   }
 
-  $: if (value !== undefined) _setLoading(true)
+  async function loaded (event: Event): Promise<void> {
+    const image = event.currentTarget as HTMLImageElement
+    const session = attempt
+    try {
+      await image.decode()
+      if (session !== attempt || session?.signal.aborted === true) return
+      loading = false
+      setLoading?.(false)
+      session?.ready()
+    } catch (error) {
+      session?.fail(error)
+      failed = true
+      loading = false
+      setLoading?.(false)
+    }
+  }
+
+  function failedImage (): void {
+    failed = true
+    loading = false
+    setLoading?.(false)
+    attempt?.fail(new Error('Image could not be decoded'))
+  }
+
+  $: void prepare(value, name, source, preview)
+
+  onDestroy(() => {
+    generation++
+    attempt?.destroy()
+    if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl)
+  })
 </script>
 
-{#await getBlobRef(value, name) then blobRef}
+{#if failed}
+  <Label label={presentation.string.FailedToPreview} />
+{:else}
   {#if loading}
-    <div class="flex-center w-full h-full clear-mins">
-      <Loading />
-    </div>
+    <div class="flex-center w-full clear-mins"><Loading /></div>
   {/if}
-  <DrawingBoard
-    {imageWidth}
-    {imageHeight}
-    {drawings}
-    {createDrawing}
-    active={drawingAvailable && !loading}
-    readonly={drawingAvailable && !drawingEditable}
-    class="flex-center clear-mins w-full h-full"
-    style={`max-width:${width};max-height:${height}`}
-  >
-    <img
-      on:load={() => {
-        _setLoading(false)
-      }}
-      class="object-contain mx-auto"
-      style:max-width={width}
-      style:max-height={height}
-      src={blobRef.src}
-      srcset={blobRef.srcset}
-      alt={name}
-      style:height={loading ? '0' : ''}
-    />
-  </DrawingBoard>
-{/await}
+  {#if url !== undefined}
+    <DrawingBoard
+      {imageWidth}
+      {imageHeight}
+      {drawings}
+      {createDrawing}
+      active={drawingAvailable && !loading}
+      readonly={staticView || !drawingEditable}
+      class="flex-center clear-mins w-full h-full"
+      style={`max-width:${width};max-height:${height}`}
+    >
+      <img
+        src={url}
+        alt={name}
+        class="object-contain mx-auto"
+        style:max-width={width}
+        style:max-height={height}
+        style:height={loading ? '0' : 'auto'}
+        on:load={loaded}
+        on:error={failedImage}
+      />
+    </DrawingBoard>
+  {/if}
+{/if}

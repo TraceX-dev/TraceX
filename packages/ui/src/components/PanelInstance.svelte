@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,7 +16,8 @@
 -->
 <script lang="ts">
   import { getResourceC } from '@hcengineering/platform'
-  import { afterUpdate, onMount } from 'svelte'
+  import { afterUpdate, onDestroy, onMount, tick } from 'svelte'
+  import { getRenderContext } from '../render-context'
 
   import { deviceOptionsStore as deviceInfo, resizeObserver } from '..'
   import { closePanel, PanelProps, panelstore } from '../panelup'
@@ -51,6 +53,13 @@
   let keepSize: boolean = false
 
   let props: PanelProps | undefined
+  const rendering = getRenderContext()
+  let finish = (): void => {}
+  let generation = 0
+  onDestroy(() => {
+    generation++
+    finish()
+  })
   function _close (): void {
     closePanel()
   }
@@ -59,13 +68,31 @@
     if ($panelstore.panel.component === undefined) {
       props = $panelstore.panel
     } else {
+      const request = ++generation
+      finish()
+      finish = rendering?.registerResource() ?? (() => {})
       getResourceC($panelstore.panel.component, (r) => {
+        if (request !== generation) return
+        if (r === undefined) {
+          rendering?.fail(new Error('Document component could not be loaded'))
+          finish()
+          return
+        }
         component = r
         props = $panelstore.panel
+        void tick()
+          .then(() => {
+            if (request === generation) finish()
+          })
+          .catch((error) => {
+            rendering?.fail(error)
+          })
       })
     }
     $panelstore.panel.refit = fitPopupInstance
   } else {
+    generation++
+    finish()
     props = undefined
   }
 
