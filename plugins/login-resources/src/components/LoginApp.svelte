@@ -28,6 +28,7 @@
   } from '@hcengineering/ui'
   import { onDestroy, onMount } from 'svelte'
   import Auth from './Auth.svelte'
+  import OpenAuth from './OpenAuth.svelte'
   import Confirmation from './Confirmation.svelte'
   import ConfirmationSend from './ConfirmationSend.svelte'
   import CreateWorkspaceForm from './CreateWorkspaceForm.svelte'
@@ -75,6 +76,7 @@
       'confirm',
       'confirmationSend',
       'auth',
+      'oauth',
       'tfa'
     ]
     if (token === undefined ? !allowedUnauthPages.includes(page) : !pages.includes(page)) {
@@ -150,6 +152,8 @@
             <ConfirmationSend />
           {:else if page === 'auth'}
             <Auth />
+          {:else if page === 'oauth'}
+            <OpenAuth />
           {:else if page === 'changePassword'}
             <ChangePassword />
           {:else if page === 'tfa'}

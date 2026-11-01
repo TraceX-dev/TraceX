@@ -13,7 +13,7 @@
   "scripts": {
     "build": "compile",
     "build:watch": "compile",
-    "test": "jest --passWithNoTests --silent",
+    "test": "jest --config jest-mcp.config.js --passWithNoTests --silent",
     "_phase:bundle": "rushx bundle",
     "_phase:docker-build": "rushx docker:build",
     "_phase:docker-staging": "rushx docker:staging",
@@ -25,7 +25,7 @@
     "run-local": "ts-node src/index.ts",
     "format": "format src",
     "_phase:build": "compile transpile src",
-    "_phase:test": "jest --passWithNoTests --silent",
+    "_phase:test": "jest --config jest-mcp.config.js --passWithNoTests --silent",
     "_phase:format": "format src",
     "_phase:validate": "compile validate"
   },
@@ -52,6 +52,7 @@
     "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
+    "@hcengineering/openauth-client": "workspace:^0.7.0",
     "@hcengineering/analytics-service": "workspace:^0.7.19",
     "@hcengineering/api-client": "workspace:^0.7.25",
     "@hcengineering/card": "workspace:^0.7.0",
@@ -71,6 +72,7 @@
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
-    "convict": "^6.2.5"
+    "convict": "^6.2.5",
+    "@hcengineering/account-client": "workspace:^0.7.25"
   }
 }

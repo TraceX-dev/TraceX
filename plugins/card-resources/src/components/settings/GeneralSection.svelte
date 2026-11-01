@@ -234,15 +234,11 @@
   `
   }
 
-  async function enableVersioning (): Promise<void> {
-    if (h.isMixin(masterTag._id)) return
-    showPopup(MessageBox, {
-      label: card.string.EnableVersioning,
-      message: card.string.EnableVersioningConfirm,
-      action: async () => {
-        await client.createMixin(masterTag._id, masterTag._class, masterTag.space, core.mixin.VersionableClass, {
-          enabled: true
-        })
+  async function saveVersioning (enabled: boolean): Promise<void> {
+    versioningUpdating = true
+    const previous = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled ?? false
+    try {
+      if (enabled && h.findAttribute(masterTag._id, 'version') === undefined) {
         await client.createDoc(core.class.Attribute, core.space.Model, {
           attributeOf: masterTag._id,
           _class: core.class.Attribute,
@@ -252,6 +248,8 @@
           readonly: true,
           type: TypeNumber()
         })
+      }
+      if (enabled && h.findAttribute(masterTag._id, 'isEffective') === undefined) {
         await client.createDoc(core.class.Attribute, core.space.Model, {
           attributeOf: masterTag._id,
           _class: core.class.Attribute,
@@ -261,9 +259,39 @@
           readonly: true,
           type: TypeBoolean()
         })
-        versioningEnabled = true
       }
-    })
+      await client.createMixin(masterTag._id, masterTag._class, masterTag.space, core.mixin.VersionableClass, {
+        enabled
+      })
+      versioningEnabled = enabled
+    } catch (error) {
+      versioningEnabled = previous
+      await setPlatformStatus(unknownError(error))
+    } finally {
+      versioningUpdating = false
+    }
+  }
+
+  function changeVersioning (event: CustomEvent<boolean>): void {
+    if (h.isMixin(masterTag._id)) return
+    if (!event.detail) {
+      void saveVersioning(false)
+      return
+    }
+    showPopup(
+      MessageBox,
+      {
+        label: card.string.EnableVersioning,
+        message: card.string.EnableVersioningConfirm,
+        action: async () => {
+          await saveVersioning(true)
+        }
+      },
+      undefined,
+      () => {
+        versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled ?? false
+      }
+    )
   }
 
   function versioningSetting (): void {
@@ -278,8 +306,9 @@
     })
   }
 
-  let versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled
-  $: versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled
+  let versioningUpdating = false
+  let versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled ?? false
+  $: versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled ?? false
   $: hasSubtypes = h
     .getDescendants(masterTag._id)
     .some((it) => it !== masterTag._id && !h.isMixin(it) && h.getClass(it).extends === masterTag._id)
@@ -387,7 +416,7 @@
           {#if versioningEnabled}
             <ButtonIcon icon={setting.icon.Setting} size="extra-small" on:click={versioningSetting} />
           {/if}
-          <Toggle on={versioningEnabled} disabled={versioningEnabled} on:change={enableVersioning} />
+          <Toggle bind:on={versioningEnabled} disabled={versioningUpdating} on:change={changeVersioning} />
         </div>
       </div>
       <div class="settings-row">

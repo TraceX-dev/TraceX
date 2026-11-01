@@ -115,6 +115,16 @@
     "JoinAs": "加入角色",
     "LinkExpires": "有效期",
     "LimitUses": "使用次数上限",
-    "UsesLimit": "{count, plural, other {最多 # 次}}"
+    "UsesLimit": "{count, plural, other {最多 # 次}}",
+    "AuthorizeApplication": "Authorize {application}",
+    "AuthorizeApplicationDescription": "This application can read and change data in all TraceX workspaces you can access, including workspaces you join later. You can revoke this connection in your account authentication settings.",
+    "AuthorizeSelectedWorkspaceDescription": "This application can read and change data only in the selected TraceX workspace. You can revoke this connection in your account authentication settings.",
+    "OneWorkspace": "One workspace",
+    "AllAvailableWorkspaces": "All available workspaces",
+    "NoAvailableWorkspacesDescription": "此账号没有可用的工作区。请申请工作区邀请或使用其他账号登录。",
+    "AuthorizationFailed": "Authorization failed or the request expired. Start the connection again in your MCP client.",
+    "McpConnections": "MCP connections",
+    "NoMcpConnections": "No MCP clients are connected.",
+    "DisconnectApplicationConfirm": "Disconnect {name}? New requests and access renewal will be blocked for this connection."
   }
 }

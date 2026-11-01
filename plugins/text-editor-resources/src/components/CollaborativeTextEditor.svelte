@@ -75,6 +75,7 @@
   import { noSelectionRender, renderCursor } from './editor/collaboration'
   import { defaultEditorAttributes } from './editor/editorProps'
   import { SavedBoard } from './extension/drawingBoard'
+  import { getDefaultImageDisplay } from './extension/imageDisplay'
   import { type FileAttachFunction } from './extension/types'
   import { inlineCommandsConfig } from './extensions'
 
@@ -249,7 +250,8 @@
         type: 'image',
         attrs: {
           'file-id': attached.file,
-          width: imageSizeToRatio(size.width, size.pixelRatio)
+          width: imageSizeToRatio(size.width, size.pixelRatio),
+          display: getDefaultImageDisplay(editor.state.doc, editor.state.selection.from)
         }
       },
       {
