@@ -187,8 +187,13 @@
     if (directMembers !== undefined) directMembers = Array.from(new Set([...directMembers, ...newOwners]))
   }
 
-  /** Sets direct members; members given by groups stay members, also when they stop being direct ones. */
+  /**
+   * Sets direct members; members given by groups stay members, also when they stop being direct ones.
+   * Groups give no roles: an account that is no longer a direct member leaves the roles, as the server does.
+   */
   function setDirectMembers (newDirect: AccountUuid[]): void {
+    const next = new Set(newDirect)
+    removeFromRoles(new Set((directMembers ?? []).filter((m) => !next.has(m))))
     directMembers = newDirect
     setMembers(Array.from(new Set([...newDirect, ...members.filter((m) => byGroups.has(m))])))
   }

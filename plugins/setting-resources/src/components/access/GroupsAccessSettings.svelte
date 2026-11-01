@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { AccountArrayEditor } from '@hcengineering/contact-resources'
+  import { AccountArrayEditor, employeeRefByAccountUuidStore, getAnonymousRefs } from '@hcengineering/contact-resources'
   import core, { type AccountUuid, type Ref, type Space, type UserGroup } from '@hcengineering/core'
   import presentation, { getClient, MessageBox } from '@hcengineering/presentation'
   import {
@@ -42,6 +42,8 @@
   export let handleError: (error: unknown) => void
 
   const client = getClient()
+  // The anonymous guest can not be a group member (the server rejects it).
+  $: anonymousRefs = getAnonymousRefs($employeeRefByAccountUuidStore)
 
   let search = ''
 
@@ -129,6 +131,7 @@
                 <AccountArrayEditor
                   value={group.members}
                   label={core.string.Members}
+                  excludeItems={anonymousRefs}
                   kind={'link'}
                   size={'small'}
                   allowGuests

@@ -211,6 +211,40 @@ describe('OnSpaceMembershipChange', () => {
   })
 })
 
+describe('roles of members through groups', () => {
+  it('an account that stays only through a group leaves the roles', async () => {
+    // A stopped being a direct member but stays through g1; B stays direct and keeps the role.
+    const stored = space({
+      _class: PROJECT,
+      type: PROJECT_TYPE,
+      members: [A, B],
+      directMembers: [B],
+      groups: ['g1' as Ref<UserGroup>],
+      [PROJECT_MIXIN]: { [ROLE]: [A, B] }
+    })
+    const control = createControl([stored], [group('g1', [A])])
+    const res = await OnSpaceMembershipChange([update({ $pull: { directMembers: A } }, PROJECT)], control)
+    expect(applyMembers(stored.members, res)).toEqual([A, B].sort())
+    const mixin = res.find((it) => it._class === core.class.TxMixin) as TxMixin<Doc, Doc>
+    expect(mixin.attributes).toEqual({ [ROLE]: [B] })
+  })
+
+  it('does not touch roles of direct members when a group is bound', async () => {
+    const stored = space({
+      _class: PROJECT,
+      type: PROJECT_TYPE,
+      members: [A],
+      directMembers: [A],
+      groups: ['g1' as Ref<UserGroup>],
+      [PROJECT_MIXIN]: { [ROLE]: [A] }
+    })
+    const control = createControl([stored], [group('g1', [G1])])
+    const res = await OnSpaceMembershipChange([update({ $push: { groups: 'g1' } }, PROJECT)], control)
+    expect(applyMembers(stored.members, res)).toEqual([A, G1].sort())
+    expect(res.some((it) => it._class === core.class.TxMixin)).toBe(false)
+  })
+})
+
 describe('OnUserGroupChange', () => {
   it('recomputes every space bound to a changed group', async () => {
     const s1 = space({

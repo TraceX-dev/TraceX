@@ -53,7 +53,7 @@ export async function resolveGroupMembers (
 /**
  * Brings `members` of the space to `unique(directMembers ∪ members of groups)` with plain `$push` / `$pull`
  * updates, so space security, caches, subscriptions and collaborators follow it as for any member change.
- * Accounts that left `members` completely also leave the roles of the space, as the members editor does.
+ * Accounts that are not direct members leave the roles of the space: groups give no roles yet.
  */
 export async function recomputeSpaceMembers (control: TriggerControl, space: Space): Promise<Tx[]> {
   const direct = space.directMembers ?? space.members ?? []
@@ -84,8 +84,12 @@ export async function recomputeSpaceMembers (control: TriggerControl, space: Spa
         $pull: { members: removed.length === 1 ? removed[0] : { $in: removed } }
       })
     )
-    result.push(...removeFromRoles(control, space, removed))
   }
+  // Groups give no roles: every account that is not a direct member (left the space, or stays only through
+  // groups) leaves the roles of the space.
+  const directSet = new Set(direct)
+  const notDirect = Array.from(new Set([...current, ...added])).filter((it) => !directSet.has(it))
+  result.push(...removeFromRoles(control, space, notDirect))
   return result
 }
 

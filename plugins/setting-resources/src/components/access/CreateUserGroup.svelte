@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { AccountArrayEditor } from '@hcengineering/contact-resources'
+  import { AccountArrayEditor, employeeRefByAccountUuidStore, getAnonymousRefs } from '@hcengineering/contact-resources'
   import core, { type AccountUuid } from '@hcengineering/core'
   import presentation, { getClient } from '@hcengineering/presentation'
   import { Button, EditBox, Icon, Label } from '@hcengineering/ui'
@@ -24,6 +24,8 @@
   export let handleError: (error: unknown) => void
 
   const client = getClient()
+  // The anonymous guest can not be a group member (the server rejects it).
+  $: anonymousRefs = getAnonymousRefs($employeeRefByAccountUuidStore)
   const dispatch = createEventDispatcher<{ close: void }>()
   let name = ''
   let members: AccountUuid[] = []
@@ -80,6 +82,7 @@
         <AccountArrayEditor
           value={members}
           label={core.string.Members}
+          excludeItems={anonymousRefs}
           allowGuests
           readonly={creating}
           kind={'regular'}
