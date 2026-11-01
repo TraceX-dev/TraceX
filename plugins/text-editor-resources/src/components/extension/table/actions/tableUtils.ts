@@ -20,7 +20,9 @@ import { getClient } from '@hcengineering/presentation'
 import { type MarkupNode, MarkupNodeType } from '@hcengineering/text'
 import { markupToMarkdown } from '@hcengineering/text-markdown'
 import type { TableMetadata } from '@hcengineering/view'
-import { buildMarkdownTableFromDocs } from '../refreshTable'
+import converter from '@hcengineering/converter'
+import { getResource } from '@hcengineering/platform'
+import type { ResolvedTableSnapshot } from '@hcengineering/view'
 
 function hasMergedCells (tableNode: Node): boolean {
   let result = false
@@ -101,56 +103,15 @@ export function extractTableMarkdown (tableNode: Node): string {
   }
 }
 
-/**
- * Fetch fresh table data from the database based on table metadata
- * Returns the fresh markdown table string
- */
+/** Resolve a complete source snapshot for all table operations. */
+export async function fetchFreshTableSnapshot (
+  metadata: TableMetadata,
+  client?: Client
+): Promise<ResolvedTableSnapshot> {
+  const resolve = await getResource(converter.function.ResolveTableSnapshot)
+  return await resolve(metadata, client ?? getClient())
+}
+
 export async function fetchFreshTableData (metadata: TableMetadata, client?: Client): Promise<string | null> {
-  const _client = client ?? getClient()
-  const hierarchy = _client.getHierarchy()
-
-  const cardClassRef = metadata.cardClass as any
-  const cardClass = hierarchy.getClass(cardClassRef)
-  if (cardClass == null) {
-    console.warn('Invalid cardClass in table metadata:', metadata.cardClass)
-    return null
-  }
-
-  // Build query: use documentIds as filter if available (preserves selected docs), otherwise use query
-  let query: any
-  let useDocumentIdsOrder = false
-  if (metadata.documentIds !== undefined && metadata.documentIds.length > 0) {
-    query = { ...(metadata?.query ?? {}), _id: { $in: metadata.documentIds } }
-    useDocumentIdsOrder = true
-  } else if (metadata.query !== null && metadata.query !== undefined) {
-    query = metadata.query
-  } else {
-    console.warn('Table metadata has no query or documentIds to execute')
-    return null
-  }
-
-  let docs = await _client.findAll(cardClassRef, query)
-
-  if (useDocumentIdsOrder && metadata.documentIds !== undefined) {
-    const idIndexMap = new Map(metadata.documentIds.map((id, index) => [id, index]))
-    docs = docs.sort((a, b) => {
-      const indexA = idIndexMap.get(a._id) ?? Infinity
-      const indexB = idIndexMap.get(b._id) ?? Infinity
-      return indexA - indexB
-    })
-  }
-
-  if (docs.length === 0) {
-    console.warn('Query returned no documents')
-    return null
-  }
-
-  const freshTableMarkdown = await buildMarkdownTableFromDocs(docs, metadata, _client)
-
-  if (freshTableMarkdown.length === 0) {
-    console.warn('Failed to build markdown table')
-    return null
-  }
-
-  return freshTableMarkdown
+  return (await fetchFreshTableSnapshot(metadata, client)).markdown
 }

@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -16,7 +17,8 @@ import { markdownToMarkup } from '@hcengineering/text-markdown'
 import { Extension } from '@tiptap/core'
 import { Fragment, Node } from '@tiptap/pm/model'
 import { Plugin } from '@tiptap/pm/state'
-import type { TableMetadata } from '@hcengineering/view'
+import { parseTableMetadata, type TableMetadata } from '@hcengineering/view'
+import { attachTableSnapshot } from '../table/snapshot'
 import { TABLE_METADATA_MIME_TYPE, TABLE_METADATA_TOKEN } from './tableMetadata'
 
 export const TableMetadataPasteExtension = Extension.create({
@@ -39,7 +41,8 @@ function extractMetadataFromHtmlComments (text: string): { metadata: TableMetada
   const match = text.match(commentRegex)
   if (match?.[1] !== undefined) {
     try {
-      const metadata = JSON.parse(match[1]) as TableMetadata
+      const metadata = parseTableMetadata(JSON.parse(match[1]))
+      if (metadata === undefined) return { metadata: null, cleanedText: text }
       // Remove the HTML comment from the text
       const cleanedText = text.replace(commentRegex, '').trim()
       return { metadata, cleanedText }
@@ -85,7 +88,7 @@ function TableMetadataPastePlugin (): Plugin {
         if (clipboardData.types.includes(metadataType)) {
           try {
             const metadataJsonStr = clipboardData.getData(metadataType)
-            metadata = JSON.parse(metadataJsonStr) as TableMetadata
+            metadata = parseTableMetadata(JSON.parse(metadataJsonStr)) ?? null
           } catch (e) {
             console.warn('Failed to parse metadata from MIME type:', e)
           }
@@ -150,7 +153,7 @@ function TableMetadataPastePlugin (): Plugin {
             return false
           }
 
-          markdown = normalizeEscapedMarkdownLinks(markdown)
+          if (metadata.version === '1.0') markdown = normalizeEscapedMarkdownLinks(markdown)
 
           // Check if we're in a code block (don't process tables there)
           const { $from } = view.state.selection
@@ -175,8 +178,6 @@ function TableMetadataPastePlugin (): Plugin {
           })
 
           if (hasTable) {
-            const metadataAttr = JSON.stringify(metadata)
-
             // Rebuild content with metadata in table nodes
             const rebuildNode = (node: Node): Node => {
               // Text nodes cannot be recreated, return as-is
@@ -185,9 +186,7 @@ function TableMetadataPastePlugin (): Plugin {
               }
 
               if (node.type.name === 'table') {
-                const newAttrs = { ...node.attrs, tableMetadata: metadataAttr }
-                const newContent = rebuildFragment(node.content)
-                return node.type.create(newAttrs, newContent, node.marks)
+                return attachTableSnapshot(node, metadata)
               }
 
               // For other nodes, rebuild content but keep original attributes and marks

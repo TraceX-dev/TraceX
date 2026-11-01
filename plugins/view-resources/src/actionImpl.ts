@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+import { escapeCommentJson } from './tableSource'
 import contact from '@hcengineering/contact'
 import core, {
   type Blob,
@@ -52,7 +67,6 @@ import {
 import { deleteObjects, getObjectId, getObjectLinkFragment, restrictionStore } from './utils'
 import workbenchPlugin from '@hcengineering/workbench'
 import converter from '@hcengineering/converter'
-import { viewletContextStore } from './viewletContextStore'
 
 /**
  * Action to be used for copying text to clipboard.
@@ -131,7 +145,7 @@ export async function copyMarkdown (markdown: string, metadata?: Record<string, 
   let markdownToCopy = markdown
   if (metadata !== undefined) {
     try {
-      markdownToCopy = markdown + '\n' + `${TABLE_METADATA_MARKER}${JSON.stringify(metadata)} -->`
+      markdownToCopy = markdown + '\n' + `${TABLE_METADATA_MARKER}${escapeCommentJson(JSON.stringify(metadata))} -->`
     } catch (e) {
       console.error('Failed to embed metadata in markdown:', e)
     }
@@ -680,8 +694,8 @@ async function CopyDocumentMarkdown (
 }
 
 /**
- * CopyAsMarkdownTable action implementation
- * Reads viewlet config from store if not provided in props
+ * CopyAsMarkdownTable action implementation.
+ * The converter dialog resolves the viewlet context and the table source in one place.
  * @public
  */
 async function CopyAsMarkdownTableAction (
@@ -695,21 +709,8 @@ async function CopyAsMarkdownTableAction (
     viewOptions?: any
   }
 ): Promise<void> {
-  // Get viewlet context from store if not provided in props
-  const $viewletContextStore = get(viewletContextStore)
-  const viewletContext = $viewletContextStore.getLastContext()
-
-  // Merge store context with props (props take precedence)
-  const mergedProps = {
-    cardClass: viewletContext?._class ?? props.cardClass,
-    viewlet: props.viewlet ?? viewletContext?.viewlet,
-    config: props.config ?? viewletContext?.config,
-    query: props.query ?? viewletContext?.query,
-    viewOptions: props.viewOptions ?? viewletContext?.viewOptions
-  }
-
   const copyFn = await getResource(converter.actionImpl.CopyAsMarkdownTable)
-  await copyFn(doc, evt, mergedProps)
+  await copyFn(doc, evt, props)
 }
 
 /**

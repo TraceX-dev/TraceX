@@ -31,7 +31,11 @@ jest.mock('@hcengineering/platform', () => {
   }
 })
 
-jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
+jest.mock('@hcengineering/presentation', () => ({
+  __esModule: true,
+  default: { metadata: { FrontUrl: 'FrontUrl' } },
+  getClient: jest.fn()
+}))
 jest.mock('@hcengineering/theme', () => ({ getCurrentLanguage: jest.fn(() => 'en') }))
 jest.mock('@hcengineering/view-resources', () => ({
   copyMarkdown: jest.fn(),
@@ -47,8 +51,10 @@ jest.mock('@hcengineering/ui', () => ({
   getCurrentResolvedLocation: jest.fn(() => ({ path: ['workbench', 'w3', 'card', 'doc1'] }))
 }))
 jest.mock('@hcengineering/view', () => ({
+  ...jest.requireActual('../../../view/src/table'),
   __esModule: true,
   default: {
+    component: { EditDoc: 'view:component:EditDoc' },
     string: {},
     class: { Viewlet: 'view:class:Viewlet', ViewletPreference: 'view:class:ViewletPreference' },
     viewlet: { Table: 'view:viewlet:Table' }
@@ -95,9 +101,11 @@ describe('buildTableData', () => {
     mockClient.findAll.mockResolvedValueOnce([]).mockResolvedValueOnce([{ config: ['', 'note'] }])
   }
 
-  it('returns an empty table for no docs', async () => {
+  it('retains headers when the query has no documents', async () => {
     const data = await buildTableData([], { cardClass: CARD_CLASS }, mockClient)
-    expect(data).toEqual({ headers: [], rows: [], docs: [], linkColumns: [] })
+    expect(data.headers).toHaveLength(2)
+    expect(data.rows).toEqual([])
+    expect(data.columnIds).toHaveLength(2)
   })
 
   it('produces one row per document with the configured columns', async () => {
@@ -122,8 +130,8 @@ describe('buildTableData', () => {
   it('defaults to the markdown flavour, so existing callers are unaffected', async () => {
     withConfig()
     const data = await buildTableData([doc], { cardClass: CARD_CLASS }, mockClient)
-    // The default formatter renders the object cell through createMarkdownLink.
-    expect(data.rows[0][0]).not.toBe('Sales | Q3 [draft]')
+    // The renderer adds the object link exactly once.
+    expect(data.rows[0][0]).toBe('Sales | Q3 [draft]')
   })
 
   it('marks the object column so a renderer can link it', async () => {

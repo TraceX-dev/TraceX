@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -22,6 +23,8 @@ import {
   buildTableData as buildTableDataImpl
 } from './markdown'
 import { copyAsMarkdownTableAction } from './actionImpl'
+import { resolveTableSnapshot } from './trackedTable'
+import CopyTableDialog from './components/CopyTableDialog.svelte'
 import CopyAsMarkdownButton from './components/CopyAsMarkdownButton.svelte'
 
 export * from './formatter'
@@ -50,12 +53,14 @@ export default async (): Promise<Resources> => ({
     CopyRelationshipAsMarkdown: copyRelationshipTableAsMarkdown,
     BuildMarkdownTableFromMetadata: buildMarkdownTableFromMetadataImpl,
     BuildMarkdownTableFromDocs: buildMarkdownTableFromDocsImpl,
+    ResolveTableSnapshot: resolveTableSnapshot,
     BuildTableData: buildTableDataImpl
   },
   actionImpl: {
     CopyAsMarkdownTable: copyAsMarkdownTableAction
   },
   component: {
+    CopyTableDialog,
     CopyAsMarkdownButton
   }
 })

@@ -938,10 +938,12 @@ export interface AttrPresenter extends Doc {
  * Metadata for markdown table generation and refresh
  */
 export interface BuildMarkdownTableMetadata {
+  language?: string
   cardClass: string | Ref<Class<Doc>>
   viewletId?: string | Ref<Viewlet>
   config?: Array<string | BuildModelKey>
   query?: Record<string, any> | DocumentQuery<Doc>
+  source?: TableSource
   originalUrl?: string // Original URL of the page/view where the table was created
 }
 
@@ -976,5 +978,62 @@ export interface TableMetadata extends BuildMarkdownTableMetadata {
   version: string // For future compatibility
   documentIds: Array<string | Ref<Doc>> // Document IDs used in the table
   timestamp: number // Timestamp when the table was created/updated
+  snapshot?: TableSnapshot
   workspace?: string // Optional workspace identifier
+}
+
+/**
+ * @public
+ * How a TraceX table resolves its rows and columns on refresh. The mode is derived from what was
+ * copied, never configured by the user:
+ * - `fixed`: selected or loaded rows; the same documents and columns are refreshed, new ones are not added;
+ * - `savedView`: an unmodified saved view; its current filters, columns and sorting are re-read;
+ * - `frozen`: any other view; the query, columns and sorting captured at copy time are repeated.
+ */
+export type TableSourceMode = 'fixed' | 'savedView' | 'frozen'
+
+/**
+ * @public
+ * One run of a canonical cell value: `[text, ...marks]`. Marks are sorted, links are `link:<href>`.
+ */
+export type TableCellRun = string[]
+
+/**
+ * @public
+ * Canonical cell content: text, links and meaningful formatting, independent of Markdown escaping.
+ */
+export type TableCellValue = TableCellRun[]
+
+/**
+ * @public
+ * Values as they were copied, used as the baseline for diffs and conflict detection.
+ * `cells[0]` is the header row; a merged cell repeats across every position it spans.
+ */
+export interface TableSnapshot {
+  rowIds: string[]
+  columnIds: string[]
+  cells: TableCellValue[][]
+}
+
+/** @public */
+export interface TableSource {
+  kind: 'table' | 'relationship'
+  mode: TableSourceMode
+  /** `savedView` only. */
+  filteredViewId?: Ref<FilteredView>
+  /** `savedView` only: the query before the saved view filters were applied. */
+  baseQuery?: DocumentQuery<Doc>
+  viewOptions?: ViewOptions
+  /** Find options (sorting, lookups) the view used; `frozen` repeats them. */
+  options?: FindOptions<Doc>
+  /** `savedView` only: find options before view options were applied. */
+  baseOptions?: FindOptions<Doc>
+}
+
+/** @public */
+export interface ResolvedTableSnapshot {
+  snapshot: TableSnapshot
+  /** Rendered table; not persisted. */
+  markdown: string
+  metadata: TableMetadata
 }

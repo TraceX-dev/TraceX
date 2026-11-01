@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,7 +14,7 @@
 //
 
 import type { Node } from '@tiptap/pm/model'
-import type { TableMetadata } from '@hcengineering/view'
+import { parseTableMetadata, type TableMetadata } from '@hcengineering/view'
 
 /**
  * Extract table metadata from a ProseMirror table node
@@ -31,7 +32,7 @@ export function getTableMetadata (node: Node): TableMetadata | undefined {
   }
 
   try {
-    return JSON.parse(metadataAttr) as TableMetadata
+    return parseTableMetadata(JSON.parse(metadataAttr))
   } catch (e) {
     console.warn('Failed to parse table metadata:', e)
     return undefined

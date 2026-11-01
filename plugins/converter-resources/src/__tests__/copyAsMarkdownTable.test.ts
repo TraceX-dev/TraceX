@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,7 +14,7 @@
 // limitations under the License.
 //
 
-import { buildMarkdownTableFromDocs, copyAsMarkdownTable } from '../markdown'
+import { buildMarkdownTableFromDocs, copyAsMarkdownTable, writeTableToClipboard } from '../markdown'
 import { isIntlString } from '../formatter'
 import type { Doc, Class, Ref } from '@hcengineering/core'
 import type { CopyAsMarkdownTableProps } from '../types'
@@ -38,6 +39,8 @@ jest.mock('@hcengineering/platform', () => {
 })
 
 jest.mock('@hcengineering/presentation', () => ({
+  __esModule: true,
+  default: { metadata: { FrontUrl: 'FrontUrl', WorkspaceUuid: 'WorkspaceUuid' } },
   getClient: jest.fn()
 }))
 
@@ -75,7 +78,11 @@ jest.mock('@hcengineering/view', () => {
     class: { Viewlet: 'view:class:Viewlet', ViewletPreference: 'view:class:ViewletPreference' },
     viewlet: { Table: 'view:viewlet:Table' }
   }
-  return { __esModule: true, default: viewMock }
+  return {
+    ...jest.requireActual('../../../view/src/table'),
+    __esModule: true,
+    default: { ...viewMock, component: { EditDoc: 'view:component:EditDoc' } }
+  }
 })
 
 const mockGetObjectLinkFragment = getObjectLinkFragment as jest.Mock
@@ -128,13 +135,13 @@ describe('converter-resources', () => {
       ])
     })
 
-    it('returns empty string for empty docs', async () => {
+    it('retains headers for empty docs', async () => {
       const result = await buildMarkdownTableFromDocs(
         [],
         { cardClass: 'card:class:Card' as Ref<Class<Doc>> },
         mockClient
       )
-      expect(result).toBe('')
+      expect(result).toContain('---')
     })
 
     it('builds markdown table from docs with viewlet config', async () => {
@@ -203,7 +210,7 @@ describe('converter-resources', () => {
       ])
     })
 
-    it('does nothing when docs is empty', async () => {
+    it('does nothing for an empty selection', async () => {
       const evt: Event = {} as any
       const props: CopyAsMarkdownTableProps = { cardClass: 'card:class:Card' as Ref<Class<Doc>> }
       await copyAsMarkdownTable([], evt, props)
@@ -217,6 +224,24 @@ describe('converter-resources', () => {
       expect(copyMarkdown).toHaveBeenCalled()
       const { addNotification } = await import('@hcengineering/ui')
       expect(addNotification).toHaveBeenCalled()
+    })
+    it('copies a TraceX table with a fixed-source snapshot', async () => {
+      const props: CopyAsMarkdownTableProps = { cardClass: 'card:class:Card' as Ref<Class<Doc>> }
+      await copyAsMarkdownTable([mockDoc], new Event('copy'), props)
+      expect(copyMarkdown).toHaveBeenCalledWith(
+        expect.stringContaining('Test Card'),
+        expect.objectContaining({
+          version: '2.0',
+          source: { kind: 'table', mode: 'fixed' },
+          snapshot: expect.objectContaining({ rowIds: [mockDoc._id] })
+        })
+      )
+    })
+
+    it('copies plain markdown without metadata', async () => {
+      const resolved = { markdown: '| A |\n| --- |\n', snapshot: {} as any, metadata: {} as any }
+      await writeTableToClipboard(resolved, 'markdown')
+      expect(copyMarkdown).toHaveBeenCalledWith(resolved.markdown, undefined)
     })
   })
 })

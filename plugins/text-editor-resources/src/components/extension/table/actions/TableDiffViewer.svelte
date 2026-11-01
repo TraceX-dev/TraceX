@@ -17,15 +17,28 @@
 <script lang="ts">
   import presentation, { Card } from '@hcengineering/presentation'
   import textEditor from '@hcengineering/text-editor'
+  import { DropdownLabelsIntl, Label } from '@hcengineering/ui'
+  import view, { type TableMetadata, type TableSnapshot } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
-  import type { TableMetadata } from '@hcengineering/view'
 
   import StructuredTableDiff from './StructuredTableDiff.svelte'
   import TableSourceInfo from './TableSourceInfo.svelte'
+  import type { TableDiffSide } from './tableDiff'
 
-  export let oldMarkdown: string
-  export let newMarkdown: string
+  /** The table as it is in the document now. */
+  export let current: TableDiffSide
+  /** The table as the source would render it now. */
+  export let fresh: TableDiffSide
+  /** Values as they were copied; enables the "copied values ↔ source" comparison. */
+  export let baseline: TableSnapshot | undefined = undefined
   export let metadata: TableMetadata
+
+  let comparison: 'current' | 'snapshot' = 'current'
+  const comparisonItems = [
+    { id: 'current', label: view.string.CompareCurrentTable },
+    { id: 'snapshot', label: view.string.CompareSnapshot }
+  ]
+  $: compared = comparison === 'snapshot' && baseline !== undefined ? baseline : current
 
   const dispatch = createEventDispatcher()
 
@@ -43,13 +56,25 @@
   onCancel={handleClose}
   on:close={handleClose}
 >
+  {#if baseline !== undefined}
+    <div class="comparison">
+      <Label label={view.string.TableCompare} />
+      <DropdownLabelsIntl items={comparisonItems} bind:selected={comparison} />
+    </div>
+  {/if}
   <div class="table-diff-container">
-    <StructuredTableDiff {oldMarkdown} {newMarkdown} />
+    <StructuredTableDiff oldTable={compared} newTable={fresh} />
   </div>
   <TableSourceInfo {metadata} />
 </Card>
 
 <style>
+  .comparison {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 1rem 0.75rem;
+  }
   .table-diff-container {
     padding: 0rem 1rem;
     overflow: auto;

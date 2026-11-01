@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2023, 2024 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -39,11 +40,18 @@ import {
 import TableNodeView from './TableNodeView.svelte'
 import { TableSelection } from './types'
 import { findTable, isTableSelected, selectTable as selectTableNode } from './utils'
+import { tableIdentities, tableIdentityAttributes } from './identities'
+import { showTableMessage } from './actions/errors'
+import view from '@hcengineering/view'
 import { getTableMetadata } from './tableMetadata'
 import { refreshTable, showTableDiff, seeOriginalTableData } from './actions'
 
 export const Table = TiptapTable.extend({
   draggable: true,
+
+  addGlobalAttributes () {
+    return [...(this.parent?.() ?? []), ...tableIdentityAttributes]
+  },
 
   addAttributes () {
     return {
@@ -88,7 +96,13 @@ export const Table = TiptapTable.extend({
     return SvelteNodeViewRenderer(TableNodeView, {})
   },
   addProseMirrorPlugins () {
-    return [...(this.parent?.() ?? []), tableSelectionHighlight(), cleanupBrokenTables(), TableToolbarPlugin()]
+    return [
+      ...(this.parent?.() ?? []),
+      tableSelectionHighlight(),
+      cleanupBrokenTables(),
+      TableToolbarPlugin(),
+      tableIdentities()
+    ]
   }
 })
 
@@ -244,6 +258,23 @@ export async function openTableOptions (editor: Editor, event: MouseEvent): Prom
   const metadata = table !== undefined ? getTableMetadata(table.node) : null
 
   const ops: TableAction[] = []
+
+  // Metadata written by a newer version: say why the table cannot be refreshed instead of hiding it.
+  const rawMetadata = table?.node.attrs.tableMetadata
+  if ((metadata === null || metadata === undefined) && typeof rawMetadata === 'string' && rawMetadata !== '') {
+    ops.push({
+      id: '#refreshTable',
+      icon: textEditor.icon.Refresh,
+      label: textEditor.string.RefreshTable,
+      action: () => {
+        showTableMessage(view.string.TableUnsupportedVersion)
+        return true
+      },
+      category: {
+        label: textEditor.string.CategoryVersioning
+      }
+    })
+  }
 
   // Add refreshable table actions first if metadata exists
   if (metadata !== null && metadata !== undefined) {

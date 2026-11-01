@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -31,6 +32,8 @@ export async function buildMarkdownTableFromDocs (
     // Extract only the BuildMarkdownTableMetadata fields from TableMetadata
     const buildMetadata: BuildMarkdownTableMetadata = {
       cardClass: metadata.cardClass,
+      source: metadata.source,
+      language: metadata.language,
       viewletId: metadata.viewletId,
       config: metadata.config,
       query: metadata.query,

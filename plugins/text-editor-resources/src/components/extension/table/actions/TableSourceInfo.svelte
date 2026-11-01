@@ -1,5 +1,6 @@
 <!--
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -30,9 +31,19 @@
   $: classLabel = cardClass?.label
   $: classIcon = cardClass?.icon
 
+  // Legacy tables without a source refresh their fixed set of documents.
+  $: mode = metadata.source?.mode ?? (metadata.documentIds.length > 0 ? 'fixed' : 'frozen')
+  $: fixed = mode === 'fixed'
+  $: modeLabel =
+    mode === 'fixed'
+      ? view.string.TableModeFixed
+      : mode === 'savedView'
+        ? view.string.TableModeSavedView
+        : view.string.TableModeFrozen
+
   // Format query information
   $: queryInfo = (() => {
-    if (metadata.documentIds !== undefined && metadata.documentIds.length > 0) {
+    if (fixed && metadata.documentIds !== undefined && metadata.documentIds.length > 0) {
       return undefined
     } else if (metadata.query !== null && metadata.query !== undefined) {
       try {
@@ -62,6 +73,10 @@
 
 <div class="table-source-info">
   <div class="source-content">
+    <div class="source-row">
+      <span class="source-label"><Label label={view.string.TableSource} /></span>
+      <span class="source-value"><Label label={modeLabel} /></span>
+    </div>
     {#if originalUrlDisplay != null && metadata.originalUrl != null}
       <div class="source-row">
         <span class="source-label">
@@ -90,13 +105,13 @@
         </div>
       </div>
     {/if}
-    {#if queryInfo != null || (metadata.documentIds !== undefined && metadata.documentIds.length > 0)}
+    {#if queryInfo != null || (fixed && metadata.documentIds !== undefined && metadata.documentIds.length > 0)}
       <div class="source-row">
         <span class="source-label">
           <Label label={ui.string.Filter} />
         </span>
         <div class="source-value query-value">
-          {#if metadata.documentIds !== undefined && metadata.documentIds.length > 0}
+          {#if fixed && metadata.documentIds !== undefined && metadata.documentIds.length > 0}
             <span class="query-text">
               <Label label={textEditor.string.SelectedDocuments} params={{ count: documentCount }} />
             </span>

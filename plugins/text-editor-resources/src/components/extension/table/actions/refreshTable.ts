@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -16,99 +17,81 @@ import { type Editor } from '@tiptap/core'
 import { Node } from '@tiptap/pm/model'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
 import { showPopup } from '@hcengineering/ui'
-import { findTable } from '../utils'
+import view, { type ResolvedTableSnapshot } from '@hcengineering/view'
+import { attachTableSnapshot, editorTableSnapshot, summarizeTableEdits } from '../snapshot'
 import { getTableMetadata } from '../tableMetadata'
+import { findTable } from '../utils'
+import { showTableError, showTableMessage } from './errors'
 import TableRefreshConfirmation from './TableRefreshConfirmation.svelte'
-import { extractTableMarkdown, fetchFreshTableData } from './tableUtils'
+import { extractTableMarkdown, fetchFreshTableSnapshot } from './tableUtils'
 
 /**
- * Apply the refreshed table to the editor
+ * Replace the previewed table if it is still unchanged. The table is found again by content, not by
+ * the position it had when the preview opened; among identical tables the closest one is used.
  */
-function applyTableRefresh (
+export function applyTableRefresh (
   editor: Editor,
-  table: { node: Node, pos: number },
-  freshTableMarkdown: string,
-  metadata: any
-): void {
-  try {
-    // Convert markdown to ProseMirror nodes
-    const markupNode = markdownToMarkup(freshTableMarkdown)
-    const content = Node.fromJSON(editor.state.schema, markupNode)
-
-    // Find the table node in the parsed content
-    let newTableNode: Node | null = null
-    content.descendants((node: Node) => {
-      if (node.type.name === 'table' && newTableNode === null) {
-        newTableNode = node
-        return false // Stop after first table
-      }
-    })
-
-    if (newTableNode === null) {
-      console.warn('Failed to parse table from markdown')
-      return
+  original: Node,
+  originalPos: number,
+  resolved: ResolvedTableSnapshot
+): boolean {
+  if (editor.isDestroyed) return false
+  let target: number | undefined
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name !== 'table') return true
+    if (node.eq(original) && (target === undefined || Math.abs(pos - originalPos) < Math.abs(target - originalPos))) {
+      target = pos
     }
-
-    // Preserve metadata in the new table node
-    const tableNode: Node = newTableNode
-    const metadataAttr = JSON.stringify(metadata)
-    const newAttrs = { ...tableNode.attrs, tableMetadata: metadataAttr }
-    const tableWithMetadata = tableNode.type.create(newAttrs, tableNode.content, tableNode.marks)
-
-    // Replace the old table with the new one
-    const tr = editor.state.tr
-    tr.replaceWith(table.pos, table.pos + table.node.nodeSize, tableWithMetadata)
-
-    // Dispatch the transaction
-    editor.view.dispatch(tr)
-  } catch (error) {
-    console.error('Failed to apply table refresh:', error)
+    return false
+  })
+  if (target === undefined) {
+    showTableMessage(view.string.TableChangedDuringPreview)
+    return false
   }
+  let replacement: Node | undefined
+  Node.fromJSON(editor.state.schema, markdownToMarkup(resolved.markdown)).forEach((node) => {
+    if (node.type.name === 'table' && replacement === undefined) replacement = node
+  })
+  if (replacement === undefined) throw new Error('Source snapshot contains no table')
+  const next = attachTableSnapshot(replacement, resolved.metadata)
+  editor.view.dispatch(editor.state.tr.replaceWith(target, target + original.nodeSize, next))
+  return true
 }
 
-/**
- * Refresh a table by re-executing its query and rebuilding the table content
- * Shows a confirmation modal with diff before applying changes
- */
+/** Preview the exact replacement, including local edits and conflicts, before applying it. */
 export async function refreshTable (editor: Editor): Promise<void> {
   const table = findTable(editor.state.selection)
-  if (table === undefined) {
-    console.warn('No table found to refresh')
-    return
-  }
-
-  const metadata = getTableMetadata(table.node)
-  if (metadata === null || metadata === undefined) {
-    console.warn('Table has no metadata to refresh')
-    return
-  }
-
+  const metadata = table === undefined ? undefined : getTableMetadata(table.node)
+  if (table === undefined || metadata === undefined) return
   try {
-    const currentTableMarkdown = extractTableMarkdown(table.node)
-
-    const freshTableMarkdown = await fetchFreshTableData(metadata)
-    if (freshTableMarkdown === null) {
-      return
-    }
-
-    await new Promise<void>((resolve) => {
-      showPopup(
-        TableRefreshConfirmation,
-        {
-          oldMarkdown: currentTableMarkdown,
-          newMarkdown: freshTableMarkdown,
-          metadata,
-          onApply: () => {
-            applyTableRefresh(editor, table, freshTableMarkdown, metadata)
+    const fresh = await fetchFreshTableSnapshot(metadata)
+    const tracked = metadata.version === '2.0'
+    const current = tracked ? editorTableSnapshot(table.node) : extractTableMarkdown(table.node)
+    const summary =
+      typeof current === 'string'
+        ? { localChanges: false, conflicts: false }
+        : summarizeTableEdits(current, fresh.snapshot, metadata.snapshot)
+    showPopup(
+      TableRefreshConfirmation,
+      {
+        current,
+        fresh: tracked ? fresh.snapshot : fresh.markdown,
+        metadata: fresh.metadata,
+        ...summary,
+        onApply: () => {
+          try {
+            return applyTableRefresh(editor, table.node, table.pos, fresh)
+          } catch (error) {
+            console.error('Failed to apply table refresh:', error)
+            showTableError(error)
+            return false
           }
-        },
-        'center',
-        () => {
-          resolve()
         }
-      )
-    })
+      },
+      'center'
+    )
   } catch (error) {
     console.error('Failed to refresh table:', error)
+    showTableError(error)
   }
 }
