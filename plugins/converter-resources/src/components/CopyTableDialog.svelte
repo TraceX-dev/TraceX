@@ -41,6 +41,8 @@
   /** Rows the view has loaded, in view order. */
   export let loaded: Doc[] = []
   export let relationship: CopyRelationshipTableAsMarkdownProps | undefined = undefined
+  /** Whether the filters on screen differ from the open saved view (`props.source.filteredViewId`). */
+  export let savedViewModified = false
 
   type Scope = 'selection' | 'loaded' | 'view'
 
@@ -59,9 +61,16 @@
   let format: TableCopyFormat = storedFormat()
   let scope: Scope = selected.length > 0 ? 'selection' : props.query !== undefined ? 'view' : 'loaded'
   let total: number | undefined
+  // With a saved view open it is followed by default; the user can keep what is shown now instead.
+  let viewSource: 'savedView' | 'frozen' = 'savedView'
   let savedViewName = ''
   let copying = false
   let error: { label: IntlString, params: Record<string, string | number> } | undefined
+
+  const viewSourceItems = [
+    { id: 'savedView', label: view.string.TableSourceLiveSavedView },
+    { id: 'frozen', label: view.string.TableSourceAsShown }
+  ]
 
   const formatItems = [
     { id: 'tracex', label: view.string.TraceXTable },
@@ -93,27 +102,35 @@
     ...(showLoaded ? [{ id: 'loaded', label: view.string.LoadedRows, params: { count: loaded.length } }] : []),
     ...(props.query !== undefined
       ? [
-          total === undefined
+          knownTotal === undefined
             ? { id: 'view', label: view.string.EntireView }
-            : { id: 'view', label: view.string.EntireViewCount, params: { count: total } }
+            : { id: 'view', label: view.string.EntireViewCount, params: { count: knownTotal } }
         ]
       : [])
   ]
   $: rows = scope === 'selection' ? selected : loaded
+  $: hasSavedView = props.source?.filteredViewId !== undefined
   $: mode = (
-    scope !== 'view' ? 'fixed' : props.source?.filteredViewId !== undefined ? 'savedView' : 'frozen'
+    scope !== 'view' ? 'fixed' : hasSavedView && viewSource === 'savedView' ? 'savedView' : 'frozen'
   ) as TableSourceMode
-  $: tooLarge = scope === 'view' && total !== undefined && total > MAX_TABLE_ROWS
+  // The count on screen reflects the current filters, not the saved ones it would be copied with.
+  $: knownTotal = mode === 'savedView' && savedViewModified ? undefined : total
+  $: tooLarge = scope === 'view' && knownTotal !== undefined && knownTotal > MAX_TABLE_ROWS
   $: hint =
     format === 'markdown'
       ? { label: view.string.MarkdownTableHint, params: {} }
       : mode === 'fixed'
         ? { label: view.string.TableModeFixedHint, params: { count: rows.length } }
         : mode === 'savedView'
-          ? { label: view.string.TableModeSavedViewHint, params: { name: savedViewName } }
+          ? {
+              label: savedViewModified
+                ? view.string.TableModeSavedViewModifiedHint
+                : view.string.TableModeSavedViewHint,
+              params: { name: savedViewName }
+            }
           : { label: view.string.TableModeFrozenHint, params: {} }
   $: notice = tooLarge
-    ? tableSourceErrorMessage(new TableSourceError('tooLarge', { count: total ?? 0, limit: MAX_TABLE_ROWS }))
+    ? tableSourceErrorMessage(new TableSourceError('tooLarge', { count: knownTotal ?? 0, limit: MAX_TABLE_ROWS }))
     : error
   $: canCopy = !copying && !tooLarge && (scope === 'view' || rows.length > 0)
 
@@ -199,6 +216,21 @@
         />
       </div>
     </div>
+    {#if scope === 'view' && hasSavedView}
+      <div class="flex-between flex-gap-4">
+        <span class="font-medium caption-color"><Label label={view.string.TableSource} /></span>
+        <div class="control">
+          <DropdownLabelsIntl
+            items={viewSourceItems}
+            bind:selected={viewSource}
+            disabled={copying}
+            size="medium"
+            width="100%"
+            justify="left"
+          />
+        </div>
+      </div>
+    {/if}
   </div>
 
   <span class="text-md content-dark-color mt-6"><Label label={hint.label} params={hint.params} /></span>

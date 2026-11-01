@@ -12,7 +12,7 @@
 // limitations under the License.
 //
 
-import { Node, Schema } from '@tiptap/pm/model'
+import { type AttributeSpec, Node, Schema } from '@tiptap/pm/model'
 import { EditorState } from '@tiptap/pm/state'
 import type { Transaction } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/core'
@@ -34,7 +34,7 @@ jest.mock('@hcengineering/view', () => ({
 }))
 jest.mock('@hcengineering/ui', () => ({ showPopup: jest.fn() }))
 
-const cellAttrs = {
+const cellAttrs: Record<string, AttributeSpec> = {
   sourceColumnId: { default: null },
   colspan: { default: 1 },
   rowspan: { default: 1 },

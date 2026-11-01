@@ -13,6 +13,7 @@
 //
 
 import { generateId } from '@hcengineering/core'
+import type { GlobalAttributes } from '@tiptap/core'
 import { isChangeOrigin } from '@tiptap/extension-collaboration'
 import type { Node } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey, type Transaction } from '@tiptap/pm/state'
@@ -20,7 +21,7 @@ import { TableMap } from '@tiptap/pm/tables'
 import { Mapping } from '@tiptap/pm/transform'
 import { getTableMetadata } from './tableMetadata'
 
-export const tableIdentityAttributes = [
+export const tableIdentityAttributes: GlobalAttributes = [
   {
     types: ['tableRow'],
     attributes: {

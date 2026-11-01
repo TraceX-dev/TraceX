@@ -70,22 +70,30 @@ export function savedViewDiffers (
 }
 
 /**
- * Explicit source of a table query. A saved view is reported only while the table shows it
- * unmodified; otherwise the copy repeats the query it saw.
+ * Explicit source of a table query. When a saved view is open, it is reported together with whether
+ * the filters on screen differ from it, so the user can choose between following the saved view and
+ * keeping what is shown now.
  * @public
  */
 export function getTableFilterSource (
   query: DocumentQuery<Doc> | undefined,
   cardClass: Ref<Class<Doc>>
-): { baseQuery: DocumentQuery<Doc>, filteredViewId?: Ref<FilteredView> } | undefined {
+):
+  | {
+      baseQuery: DocumentQuery<Doc>
+      filters: string
+      filteredViewId?: Ref<FilteredView>
+      savedViewModified?: boolean
+    }
+  | undefined {
   const source = getQueryFilterSource(query)
   if (source === undefined || (source.cardClass !== undefined && source.cardClass !== cardClass)) return undefined
   const selected = get(selectedFilterStore)
-  const unchanged =
-    selected !== undefined &&
-    (selected.filterClass === undefined || selected.filterClass === cardClass) &&
-    !savedViewDiffers(selected, source.filters, get(activeViewlet), get(viewOptionStore))
-  return { baseQuery: source.baseQuery, ...(unchanged ? { filteredViewId: selected._id } : {}) }
+  if (selected === undefined || (selected.filterClass !== undefined && selected.filterClass !== cardClass)) {
+    return { baseQuery: source.baseQuery, filters: source.filters }
+  }
+  const savedViewModified = savedViewDiffers(selected, source.filters, get(activeViewlet), get(viewOptionStore))
+  return { baseQuery: source.baseQuery, filters: source.filters, filteredViewId: selected._id, savedViewModified }
 }
 
 /**

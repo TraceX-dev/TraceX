@@ -200,7 +200,8 @@ const view = plugin(viewId, {
     ReadOnlyNotification: '' as AnyComponent,
     ForbiddenNotification: '' as AnyComponent,
     DatePresenter: '' as AnyComponent,
-    DateEditor: '' as AnyComponent
+    DateEditor: '' as AnyComponent,
+    FilterSummary: '' as AnyComponent
   },
   ids: {
     IconWithEmoji: '' as Asset
@@ -279,7 +280,6 @@ const view = plugin(viewId, {
     TableFormat: '' as IntlString,
     TableRows: '' as IntlString,
     TableSource: '' as IntlString,
-    TableCompare: '' as IntlString,
     SelectedRows: '' as IntlString,
     LoadedRows: '' as IntlString,
     EntireView: '' as IntlString,
@@ -289,6 +289,9 @@ const view = plugin(viewId, {
     TableModeFrozen: '' as IntlString,
     TableModeFixedHint: '' as IntlString,
     TableModeSavedViewHint: '' as IntlString,
+    TableSourceLiveSavedView: '' as IntlString,
+    TableSourceAsShown: '' as IntlString,
+    TableModeSavedViewModifiedHint: '' as IntlString,
     TableModeFrozenHint: '' as IntlString,
     MarkdownTableHint: '' as IntlString,
     TableSourceUnavailable: '' as IntlString,
@@ -305,8 +308,7 @@ const view = plugin(viewId, {
     LocalTableChanges: '' as IntlString,
     TableConflicts: '' as IntlString,
     TableReplace: '' as IntlString,
-    CompareCurrentTable: '' as IntlString,
-    CompareSnapshot: '' as IntlString
+    TableDiffCaption: '' as IntlString
   },
   icon: {
     Table: '' as Asset,

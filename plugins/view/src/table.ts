@@ -272,6 +272,7 @@ export function parseTableMetadata (value: unknown): TableMetadata | undefined {
       !['table', 'relationship'].includes(source.kind) ||
       !['fixed', 'savedView', 'frozen'].includes(source.mode) ||
       (source.mode === 'savedView' && (typeof source.filteredViewId !== 'string' || source.baseQuery == null)) ||
+      (source.filters !== undefined && typeof source.filters !== 'string') ||
       !isSnapshot(data.snapshot)
     ) {
       return undefined

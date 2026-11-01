@@ -22,10 +22,7 @@ import { showTableError } from './errors'
 import TableDiffViewer from './TableDiffViewer.svelte'
 import { extractTableMarkdown, fetchFreshTableSnapshot } from './tableUtils'
 
-/**
- * Show what a refresh would change (current table ↔ source) and, for tables with a snapshot,
- * what changed in the data since copying (copied values ↔ source).
- */
+/** Show what a refresh would change: the table in the document against its source. */
 export async function showTableDiff (editor: Editor): Promise<void> {
   const table = findTable(editor.state.selection)
   const metadata = table === undefined ? undefined : getTableMetadata(table.node)
@@ -38,7 +35,6 @@ export async function showTableDiff (editor: Editor): Promise<void> {
       {
         current: tracked ? editorTableSnapshot(table.node) : extractTableMarkdown(table.node),
         fresh: tracked ? fresh.snapshot : fresh.markdown,
-        baseline: tracked ? metadata.snapshot : undefined,
         metadata: fresh.metadata
       },
       'center'

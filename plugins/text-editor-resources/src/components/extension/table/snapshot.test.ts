@@ -12,7 +12,7 @@
 // limitations under the License.
 //
 
-import { Node, Schema } from '@tiptap/pm/model'
+import { type AttributeSpec, Node, Schema } from '@tiptap/pm/model'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
 import { addColumnBefore, addRowBefore } from '@tiptap/pm/tables'
 import { ySyncPluginKey } from 'y-prosemirror'
@@ -29,7 +29,7 @@ jest.mock('@hcengineering/view', () => ({
 }))
 jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
 
-const cellAttrs = {
+const cellAttrs: Record<string, AttributeSpec> = {
   sourceColumnId: { default: null },
   colspan: { default: 1 },
   rowspan: { default: 1 },

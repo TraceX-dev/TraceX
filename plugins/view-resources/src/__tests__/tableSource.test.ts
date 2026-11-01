@@ -61,12 +61,24 @@ describe('table filter source', () => {
     expect(JSON.parse(JSON.stringify(query))).toEqual({ space: 's', state: 'a' })
   })
 
-  it('reports an unmodified saved view only', () => {
+  it('reports the open saved view and whether the filters on screen differ from it', () => {
     selectedFilterStore.set(saved)
     activeViewlet.set({ key: null })
-    expect(getTableFilterSource(tagged(), cardClass)).toEqual({ baseQuery: { space: 's' }, filteredViewId: 'saved' })
+    expect(getTableFilterSource(tagged(), cardClass)).toEqual({
+      baseQuery: { space: 's' },
+      filters,
+      filteredViewId: 'saved',
+      savedViewModified: false
+    })
     selectedFilterStore.set({ ...saved, filters: '[]' })
-    expect(getTableFilterSource(tagged(), cardClass)).toEqual({ baseQuery: { space: 's' } })
+    expect(getTableFilterSource(tagged(), cardClass)).toEqual({
+      baseQuery: { space: 's' },
+      filters,
+      filteredViewId: 'saved',
+      savedViewModified: true
+    })
+    selectedFilterStore.set({ ...saved, filterClass: 'other' } as unknown as FilteredView)
+    expect(getTableFilterSource(tagged(), cardClass)).toEqual({ baseQuery: { space: 's' }, filters })
   })
 
   it('does not attach a source to an unrelated query or class', () => {

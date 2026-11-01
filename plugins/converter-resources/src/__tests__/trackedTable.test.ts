@@ -137,6 +137,14 @@ describe('table source resolution', () => {
     expect(findAll.mock.calls[0][1]).toEqual({ space, state: 'new' })
     expect(result.metadata.config).toEqual(['name', 'state'])
     expect(result.metadata.query).toEqual({ space, state: 'new' })
+    expect(result.metadata.source?.filters).toBe('[]')
+  })
+
+  it('frozen: keeps the filters captured at copy time for display', async () => {
+    const { client } = fixture(['a'])
+    const source = metadata('frozen')
+    source.source = { ...source.source!, filters: '[{"index":1}]' }
+    expect((await resolveTableSnapshot(source, client)).metadata.source?.filters).toBe('[{"index":1}]')
   })
 
   it('returns a header-only snapshot when no rows match', async () => {
@@ -155,16 +163,37 @@ describe('table source resolution', () => {
     expect(findAll.mock.calls[0][2].limit).toBe(5000)
   })
 
-  it('reports deleted saved views, invalid filters and unavailable viewlets separately', async () => {
+  it('reports deleted saved views and invalid filters separately', async () => {
     const { client, findOne } = fixture(['a'])
     findOne.mockResolvedValueOnce(undefined)
     await expect(resolveTableSnapshot(metadata('savedView'), client)).rejects.toMatchObject({ code: 'savedView' })
     findOne.mockResolvedValueOnce({ _id: 'saved', filters: 'not json', filterClass: cardClass })
     await expect(resolveTableSnapshot(metadata('savedView'), client)).rejects.toMatchObject({ code: 'filters' })
-    findOne
-      .mockResolvedValueOnce({ _id: 'saved', filters: '[]', filterClass: cardClass, viewletId })
-      .mockResolvedValueOnce(undefined)
-    await expect(resolveTableSnapshot(metadata('savedView'), client)).rejects.toMatchObject({ code: 'viewlet' })
+  })
+
+  it('falls back to the copied viewlet when the saved view points to a viewlet that no longer exists', async () => {
+    const { client, findOne, findAll } = fixture(['c'])
+    findOne.mockImplementation(async (_class: string, query: { _id: string }) => {
+      if (_class === 'view:class:FilteredView') {
+        return { _id: 'saved', filters: '[]', filterClass: cardClass, viewletId: 'gone' }
+      }
+      return query._id === viewletId ? { _id: viewletId, descriptor: 'view:viewlet:Table' } : undefined
+    })
+    const result = await resolveTableSnapshot(metadata('savedView'), client)
+    expect(findAll.mock.calls[0][1]).toEqual({ space, state: 'new' })
+    expect(result.metadata.viewletId).toBe(viewletId)
+    expect(result.metadata.config).toEqual(['name', 'state'])
+  })
+
+  it('reports an unavailable viewlet only when no viewlet or columns are left to build the table', async () => {
+    const { client, findOne } = fixture(['c'])
+    findOne.mockImplementation(async (_class: string) =>
+      _class === 'view:class:FilteredView'
+        ? { _id: 'saved', filters: '[]', filterClass: cardClass, viewletId: 'gone' }
+        : undefined
+    )
+    const source = { ...metadata('savedView'), config: undefined }
+    await expect(resolveTableSnapshot(source, client)).rejects.toMatchObject({ code: 'viewlet' })
   })
 
   it('rejects tables from another workspace and missing classes', async () => {

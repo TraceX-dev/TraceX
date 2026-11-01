@@ -141,13 +141,16 @@ async function findViewlet (client: Client, viewletId: string | undefined): Prom
 async function savedViewQuery (
   client: Client,
   cardClass: Ref<Class<Doc>>,
-  source: TableSource
+  source: TableSource,
+  fallbackViewletId: string | undefined,
+  fallbackConfig: Array<string | BuildModelKey> | undefined
 ): Promise<{
   query: DocumentQuery<Doc>
   options: FindOptions<Doc>
   viewlet: Viewlet | undefined
   viewOptions: ViewOptions | undefined
   config?: Array<string | BuildModelKey>
+  filters: string
 }> {
   const filtered =
     source.filteredViewId === undefined
@@ -166,12 +169,18 @@ async function savedViewQuery (
     throw new TableSourceError('filters')
   }
   const viewOptions = filtered.viewOptions ?? source.viewOptions
-  const viewlet = await findViewlet(client, filtered.viewletId ?? undefined)
-  if (filtered.viewletId != null && viewlet === undefined) throw new TableSourceError('viewlet')
-  const relationship = viewlet?.descriptor === view.viewlet.RelationshipTable
-  if (viewlet !== undefined && relationship !== (source.kind === 'relationship')) {
-    throw new TableSourceError('viewlet')
+  const fits = (candidate: Viewlet | undefined): candidate is Viewlet =>
+    candidate !== undefined &&
+    (candidate.descriptor === view.viewlet.RelationshipTable) === (source.kind === 'relationship')
+  // The viewlet id stored with a saved view can outlive the viewlet. Like the view itself, fall back
+  // to the viewlet the table was copied with instead of failing.
+  const saved = await findViewlet(client, filtered.viewletId ?? undefined)
+  let viewlet: Viewlet | undefined = fits(saved) ? saved : undefined
+  if (viewlet === undefined && fallbackViewletId !== undefined && fallbackViewletId !== filtered.viewletId) {
+    const fallback = await findViewlet(client, fallbackViewletId)
+    viewlet = fits(fallback) ? fallback : undefined
   }
+  if (viewlet === undefined && fallbackConfig === undefined) throw new TableSourceError('viewlet')
   let options: FindOptions<Doc> = { ...source.baseOptions }
   let config: Array<string | BuildModelKey> | undefined
   if (viewlet !== undefined) {
@@ -179,7 +188,14 @@ async function savedViewQuery (
     options = (await getResultOptions(source.baseOptions ?? {}, viewlet.viewOptions?.other, viewOptions)) ?? options
     config = (await loadViewletConfig(client, client.getHierarchy(), cardClass, viewlet)).config
   }
-  return { query, options: { ...options, sort: sortFrom(viewOptions, options.sort) }, viewlet, viewOptions, config }
+  return {
+    query,
+    options: { ...options, sort: sortFrom(viewOptions, options.sort) },
+    viewlet,
+    viewOptions,
+    config,
+    filters: filtered.filters
+  }
 }
 
 /**
@@ -216,11 +232,13 @@ export async function resolveTableSnapshot (metadata: TableMetadata, client: Cli
   let options: FindOptions<Doc> = {}
   let viewOptions = source.viewOptions
   let viewlet: Viewlet | undefined
+  let filters = source.filters
   if (mode === 'savedView') {
-    const resolved = await savedViewQuery(client, cardClass, source)
+    const resolved = await savedViewQuery(client, cardClass, source, metadata.viewletId, metadata.config)
     ;({ query, options, viewlet, viewOptions } = resolved)
     viewletId = viewlet?._id ?? viewletId
     config = resolved.config ?? config
+    filters = resolved.filters
   } else {
     viewlet = await findViewlet(client, viewletId)
     if (viewlet === undefined && config === undefined && viewletId !== undefined) {
@@ -281,7 +299,7 @@ export async function resolveTableSnapshot (metadata: TableMetadata, client: Cli
       viewletId,
       config: result.metadata.config,
       query: sourceQuery,
-      source: mode === 'savedView' ? { ...source, viewOptions } : source,
+      source: mode === 'savedView' ? { ...source, viewOptions, filters } : source,
       documentIds,
       timestamp: Date.now(),
       snapshot: result.snapshot

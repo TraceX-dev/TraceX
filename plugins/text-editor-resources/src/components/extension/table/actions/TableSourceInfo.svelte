@@ -17,7 +17,7 @@
 <script lang="ts">
   import core from '@hcengineering/core'
   import { IconWithEmoji, getClient } from '@hcengineering/presentation'
-  import ui, { Icon, Label } from '@hcengineering/ui'
+  import ui, { Component, Icon, Label } from '@hcengineering/ui'
   import view, { type TableMetadata } from '@hcengineering/view'
   import textEditor from '@hcengineering/text-editor'
 
@@ -40,6 +40,11 @@
       : mode === 'savedView'
         ? view.string.TableModeSavedView
         : view.string.TableModeFrozen
+
+  // The view filters as people see them in the filter bar; tables copied before filters were
+  // recorded fall back to the query.
+  $: filters = fixed ? undefined : metadata.source?.filters
+  $: hasFilters = filters !== undefined && filters !== '' && filters !== '[]'
 
   // Format query information
   $: queryInfo = (() => {
@@ -105,7 +110,7 @@
         </div>
       </div>
     {/if}
-    {#if queryInfo != null || (fixed && metadata.documentIds !== undefined && metadata.documentIds.length > 0)}
+    {#if hasFilters || (filters === undefined && queryInfo != null) || (fixed && metadata.documentIds !== undefined && metadata.documentIds.length > 0)}
       <div class="source-row">
         <span class="source-label">
           <Label label={ui.string.Filter} />
@@ -115,7 +120,9 @@
             <span class="query-text">
               <Label label={textEditor.string.SelectedDocuments} params={{ count: documentCount }} />
             </span>
-          {:else if queryInfo}
+          {:else if hasFilters}
+            <Component is={view.component.FilterSummary} props={{ filters }} />
+          {:else if filters === undefined && queryInfo}
             <pre class="query-json"><code>{queryInfo}</code></pre>
           {/if}
         </div>

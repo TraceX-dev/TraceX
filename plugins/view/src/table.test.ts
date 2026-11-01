@@ -39,6 +39,8 @@ const metadata = {
 describe('table metadata contract', () => {
   it('validates the clipboard payload and rejects unsupported or malformed versions', () => {
     expect(parseTableMetadata(metadata)).toEqual(metadata)
+    const withFilters = { ...metadata, source: { ...metadata.source, filters: '[]' } }
+    expect(parseTableMetadata(withFilters)).toEqual(withFilters)
     for (const invalid of [
       null,
       {},
@@ -46,6 +48,7 @@ describe('table metadata contract', () => {
       { ...metadata, source: null },
       { ...metadata, source: { kind: 'table', mode: 'dynamic' } },
       { ...metadata, source: { kind: 'table', mode: 'savedView' } },
+      { ...metadata, source: { kind: 'table', mode: 'frozen', filters: [] } },
       { ...metadata, snapshot: null },
       { ...metadata, snapshot: { ...metadata.snapshot, rowIds: ['a', 'a'] } },
       { ...metadata, snapshot: { ...metadata.snapshot, cells: [[[['Name']]]] } },

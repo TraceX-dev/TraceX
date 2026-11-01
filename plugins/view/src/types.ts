@@ -1006,7 +1006,7 @@ export type TableCellValue = TableCellRun[]
 
 /**
  * @public
- * Values as they were copied, used as the baseline for diffs and conflict detection.
+ * Values as they were last copied or refreshed, used to detect manual edits and conflicts.
  * `cells[0]` is the header row; a merged cell repeats across every position it spans.
  */
 export interface TableSnapshot {
@@ -1028,6 +1028,11 @@ export interface TableSource {
   options?: FindOptions<Doc>
   /** `savedView` only: find options before view options were applied. */
   baseOptions?: FindOptions<Doc>
+  /**
+   * The view filters behind the query, serialized like `FilteredView.filters`. Shown to people
+   * instead of the raw query; `savedView` refreshes them from the saved view.
+   */
+  filters?: string
 }
 
 /** @public */

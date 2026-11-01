@@ -58,10 +58,11 @@ export function openCopyTableDialog (request: CopyTableRequest): void {
   const cardClass = context?._class ?? request.cardClass
   const relationship = context?.relationshipTableData
   const visibleQuery = context?.query ?? request.query
+  const { savedViewModified = false, ...filterSource } = getTableFilterSource(visibleQuery, cardClass) ?? {}
   const source: TableSource = {
     kind: relationship === undefined ? 'table' : 'relationship',
     mode: 'frozen',
-    ...(getTableFilterSource(visibleQuery, cardClass) ?? {}),
+    ...filterSource,
     options: queryOptions(context?.options),
     baseOptions: queryOptions(context?.baseOptions),
     viewOptions: context?.viewOptions
@@ -78,5 +79,5 @@ export function openCopyTableDialog (request: CopyTableRequest): void {
   const selected = [...(request.selected ?? [])].sort(
     (a, b) => (order.get(a._id) ?? Infinity) - (order.get(b._id) ?? Infinity)
   )
-  showPopup(CopyTableDialog, { props, selected, loaded, relationship }, 'center')
+  showPopup(CopyTableDialog, { props, selected, loaded, relationship, savedViewModified }, 'center')
 }

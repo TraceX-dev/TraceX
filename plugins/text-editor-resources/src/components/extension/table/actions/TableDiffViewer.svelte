@@ -17,8 +17,8 @@
 <script lang="ts">
   import presentation, { Card } from '@hcengineering/presentation'
   import textEditor from '@hcengineering/text-editor'
-  import { DropdownLabelsIntl, Label } from '@hcengineering/ui'
-  import view, { type TableMetadata, type TableSnapshot } from '@hcengineering/view'
+  import { Label } from '@hcengineering/ui'
+  import view, { type TableMetadata } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
 
   import StructuredTableDiff from './StructuredTableDiff.svelte'
@@ -29,16 +29,7 @@
   export let current: TableDiffSide
   /** The table as the source would render it now. */
   export let fresh: TableDiffSide
-  /** Values as they were copied; enables the "copied values ↔ source" comparison. */
-  export let baseline: TableSnapshot | undefined = undefined
   export let metadata: TableMetadata
-
-  let comparison: 'current' | 'snapshot' = 'current'
-  const comparisonItems = [
-    { id: 'current', label: view.string.CompareCurrentTable },
-    { id: 'snapshot', label: view.string.CompareSnapshot }
-  ]
-  $: compared = comparison === 'snapshot' && baseline !== undefined ? baseline : current
 
   const dispatch = createEventDispatcher()
 
@@ -56,23 +47,15 @@
   onCancel={handleClose}
   on:close={handleClose}
 >
-  {#if baseline !== undefined}
-    <div class="comparison">
-      <Label label={view.string.TableCompare} />
-      <DropdownLabelsIntl items={comparisonItems} bind:selected={comparison} />
-    </div>
-  {/if}
+  <div class="caption text-md content-dark-color"><Label label={view.string.TableDiffCaption} /></div>
   <div class="table-diff-container">
-    <StructuredTableDiff oldTable={compared} newTable={fresh} />
+    <StructuredTableDiff oldTable={current} newTable={fresh} />
   </div>
   <TableSourceInfo {metadata} />
 </Card>
 
 <style>
-  .comparison {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+  .caption {
     padding: 0 1rem 0.75rem;
   }
   .table-diff-container {
