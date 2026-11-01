@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 -->
 <script lang="ts">
   import { getMetadata } from '@hcengineering/platform'
-  import { upgradeDownloadProgress } from '@hcengineering/presentation'
+  import { upgradeDownloadProgress, printSessionStore } from '@hcengineering/presentation'
   import { Button, Component, Label, LoadingScreen, Notifications, location } from '@hcengineering/ui'
   import { connect, disconnect, error, errorActions } from '../connect'
 
@@ -24,6 +25,7 @@
   import { workspaceCreating } from '../utils'
 
   const isNeedUpgrade = window.location.host === ''
+  printSessionStore.set(false)
 
   onDestroy(disconnect)
 </script>

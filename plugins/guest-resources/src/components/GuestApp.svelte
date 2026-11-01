@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,13 +16,20 @@
 <script lang="ts">
   import { getMetadata } from '@hcengineering/platform'
   import { Label, Loading, Notifications, location } from '@hcengineering/ui'
-  import { upgradeDownloadProgress } from '@hcengineering/presentation'
+  import { upgradeDownloadProgress, printSessionStore } from '@hcengineering/presentation'
+  import { disconnectEmbeddedWorkspace } from '@hcengineering/workbench-resources'
+  import { Analytics } from '@hcengineering/analytics'
+  import { onDestroy } from 'svelte'
   import { connect, versionError, invalidError } from '../connect'
 
   import { guestId } from '@hcengineering/guest'
   import workbench from '@hcengineering/workbench'
   import Guest from './Guest.svelte'
   import plugin from '../plugin'
+  printSessionStore.set(false)
+  onDestroy(() => {
+    void disconnectEmbeddedWorkspace().catch(Analytics.handleError)
+  })
 </script>
 
 {#if $location.path[0] === guestId}

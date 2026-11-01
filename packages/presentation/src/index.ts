@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -70,6 +71,7 @@ export * from './rules'
 export * from './search'
 export * from './image'
 export * from './preview'
+export * from './print'
 export * from './sound'
 export type * from './stats'
 export * from './drawing'

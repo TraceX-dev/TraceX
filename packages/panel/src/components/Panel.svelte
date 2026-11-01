@@ -1,5 +1,6 @@
 <!--
     // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
     // Copyright © 2021, 2023 Hardcore Engineering Inc.
     //
     // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -31,6 +32,7 @@
   import type { ButtonItem } from '@hcengineering/ui'
   import { getResource } from '@hcengineering/platform'
   import presence from '@hcengineering/presence'
+  import { printSessionStore } from '@hcengineering/presentation'
 
   export let title: string | undefined = undefined
   export let withoutActivity: boolean = false
@@ -151,7 +153,9 @@
     dispatch('select', result.detail)
   }}
 >
-  <Component is={presence.component.Presence} props={{ object }} />
+  {#if !$printSessionStore}
+    <Component is={presence.component.Presence} props={{ object }} />
+  {/if}
 
   <svelte:fragment slot="beforeTitle">
     <slot name="beforeTitle" />
@@ -168,7 +172,7 @@
   </svelte:fragment>
 
   <svelte:fragment slot="presence">
-    {#if isPresence}
+    {#if isPresence && !$printSessionStore}
       <Component is={presence.component.PresenceAvatars} props={{ object, size: 'x-small', limit: 5 }} />
     {/if}
   </svelte:fragment>

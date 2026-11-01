@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,13 @@
 //
 
 import { getMetadata, translate } from '@hcengineering/platform'
-import { type ActionContext, copyTextToClipboard } from '@hcengineering/presentation'
+import {
+  type ActionContext,
+  copyTextToClipboard,
+  printSessionStore,
+  registerPrintResource
+} from '@hcengineering/presentation'
+import { get } from 'svelte/store'
 import { EmbedNode as BaseEmbedNode } from '@hcengineering/text'
 import textEditor from '@hcengineering/text-editor'
 import { type Editor, type Range } from '@tiptap/core'
@@ -106,7 +113,18 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
 
   addNodeView () {
     return ({ node, HTMLAttributes, editor, getPos }) => {
-      const providerPromise = matchUrl(this.options.providers, node.attrs.src)
+      const printing = get(printSessionStore)
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const resolved = matchUrl(this.options.providers, node.attrs.src)
+      const providerPromise = printing
+        ? Promise.race([
+            resolved,
+            new Promise<undefined>((resolve) => {
+              timer = setTimeout(() => { resolve(undefined); }, 15000)
+            })
+          ])
+        : resolved
+      const finish = printing ? registerPrintResource() : () => {}
 
       const root = document.createElement('div')
       root.setAttribute('data-type', this.name)
@@ -127,7 +145,12 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
             root.classList.add(`embed-${handle.name}`)
           }
         })
+        .catch(() => {
+          handle = StubEmbedNodeView(editor, root, getPos)
+        })
         .finally(() => {
+          clearTimeout(timer)
+          finish()
           const pos = typeof getPos === 'function' ? getPos() : 0
           setLoadingState(editor.view, pos, false)
         })
@@ -135,6 +158,7 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
       return {
         dom: root,
         destroy: () => {
+          finish()
           handle?.destroy?.()
         }
       }

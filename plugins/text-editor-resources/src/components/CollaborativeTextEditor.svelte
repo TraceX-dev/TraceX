@@ -1,6 +1,7 @@
 <!--
 //
 // Copyright © 2022, 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -36,6 +37,7 @@
     getFileUrl,
     getImageSize,
     imageSizeToRatio,
+    printSessionStore,
     KeyedAttribute
   } from '@hcengineering/presentation'
   import { isDocCreatedByAccount } from '@hcengineering/contact'
@@ -114,7 +116,7 @@
   const dispatch = createEventDispatcher()
 
   const account = getCurrentAccount()
-  $: isGuest = account.role === AccountRole.DocGuest || account.role === AccountRole.ReadOnlyGuest
+  $: isGuest = account.role === AccountRole.DocGuest || account.role === AccountRole.ReadOnlyGuest || $printSessionStore
 
   const objectClass = object._class
   const objectId = object._id

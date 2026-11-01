@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,13 +14,17 @@
 // limitations under the License.
 //
 
-import { type Ref } from '@hcengineering/core'
+import { concatLink, type Ref } from '@hcengineering/core'
+import { getMetadata } from '@hcengineering/platform'
+import { getCurrentLocation, locationToUrl, type Location } from '@hcengineering/ui'
+import { get } from 'svelte/store'
 import drive, { type File } from '@hcengineering/drive'
-import {
+import presentation, {
   previewTypes as $previewTypes,
   FilePreview,
   getClient,
   getPreviewType,
+  printSessionStore,
   type FilePreviewExtension
 } from '@hcengineering/presentation'
 import { type Editor } from '@tiptap/core'
@@ -48,16 +53,26 @@ export const DriveEmbedProvider: EmbedNodeProviderConstructor<DriveEmbedOptions>
     const version = await client.findOne(drive.class.FileVersion, { attachedTo: file._id, version: file.version })
     if (version === undefined) return
 
-    const allPreviewTypesPromise = new Promise<FilePreviewExtension[]>((resolve) => {
-      $previewTypes.subscribe((types) => {
-        if (types.length > 0) resolve(types)
+    if (!get(printSessionStore)) {
+      const allPreviewTypesPromise = new Promise<FilePreviewExtension[]>((resolve) => {
+        $previewTypes.subscribe((types) => {
+          if (types.length > 0) resolve(types)
+        })
       })
-    })
 
-    const allPreviewTypes = await allPreviewTypesPromise
-    const previewType = await getPreviewType(version.type, allPreviewTypes)
+      const allPreviewTypes = await allPreviewTypesPromise
+      const previewType = await getPreviewType(version.type, allPreviewTypes)
 
-    if (previewType === undefined) return
+      if (previewType === undefined) return
+    }
+
+    const location: Location = {
+      path: ['workbench', getCurrentLocation().path[1], 'drive', 'file', file._id]
+    }
+    const sourceLink = concatLink(
+      getMetadata(presentation.metadata.FrontUrl) ?? window.location.origin,
+      locationToUrl(location)
+    )
 
     return (editor: Editor, root: HTMLDivElement, getPos: () => number) => {
       const setLoading = (loading: boolean): void => {
@@ -72,6 +87,7 @@ export const DriveEmbedProvider: EmbedNodeProviderConstructor<DriveEmbedOptions>
           name: version.title,
           metadata: version.metadata,
           embedded: true,
+          props: { sourceLink },
           setLoading
         }
       })
