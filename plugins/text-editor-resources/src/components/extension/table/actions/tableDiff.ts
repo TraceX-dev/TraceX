@@ -100,8 +100,9 @@ function parseMarkdown (markdown: string): ParsedTable | undefined {
     rows.push(cells)
   }
   const headers = rows[0]
-  if (headers === undefined || headers.length === 0 || rows.some((row) => row.length !== headers.length))
-    {return undefined}
+  if (headers === undefined || headers.length === 0 || rows.some((row) => row.length !== headers.length)) {
+    return undefined
+  }
   return { headers: headers.map((cell) => cell.value), rows: rows.slice(1) }
 }
 

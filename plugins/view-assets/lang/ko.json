@@ -1,6 +1,6 @@
 {
     "string": {
-    "CopyAsMarkdownTable": "표 복사…",
+    "CopyAsMarkdownTable": "표 복사",
     "TraceXTable": "TraceX 표(새로 고침 가능)",
     "TraceXTableTitle": "TraceX 표",
     "MarkdownTable": "Markdown(일반 텍스트)",

@@ -18,8 +18,8 @@
   import type { Doc } from '@hcengineering/core'
   import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from '@hcengineering/converter'
   import type { IntlString } from '@hcengineering/platform'
-  import { Card, getClient } from '@hcengineering/presentation'
-  import { Button, DropdownLabelsIntl, Label } from '@hcengineering/ui'
+  import presentation, { getClient } from '@hcengineering/presentation'
+  import { Button, DropdownLabelsIntl, IconClose, Label, Notice } from '@hcengineering/ui'
   import view, {
     MAX_TABLE_ROWS,
     TableSourceError,
@@ -154,72 +154,85 @@
   }
 </script>
 
-<!-- The footer button is ours: Card's own OK flow closes the dialog even when copying fails. -->
-<Card
-  label={view.string.CopyAsMarkdownTable}
-  okAction={copy}
-  canSave={false}
-  width="small"
-  on:close={() => dispatch('close')}
-  on:changeContent
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div
+  class="antiPopup popup"
+  on:keydown={(event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void copy()
+  }}
 >
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div
-    class="fields"
-    on:keydown={(event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void copy()
-    }}
-  >
-    <span class="caption"><Label label={view.string.TableFormat} /></span>
-    <DropdownLabelsIntl
-      items={formatItems}
-      bind:selected={format}
-      disabled={copying}
-      kind="regular"
-      size="large"
-      width="100%"
-      justify="left"
-    />
-    <span class="caption"><Label label={view.string.TableRows} /></span>
-    <DropdownLabelsIntl
-      items={scopeItems}
-      bind:selected={scope}
-      disabled={copying}
-      kind="regular"
-      size="large"
-      width="100%"
-      justify="left"
+  <div class="flex-between flex-gap-4 mb-6">
+    <span class="fs-title"><Label label={view.string.CopyAsMarkdownTable} /></span>
+    <Button
+      icon={IconClose}
+      kind="ghost"
+      size="small"
+      showTooltip={{ label: presentation.string.Close }}
+      on:click={() => dispatch('close')}
     />
   </div>
-  <div class="hint secondary-textColor"><Label label={hint.label} params={hint.params} /></div>
-  <svelte:fragment slot="error">
-    {#if notice !== undefined}<Label label={notice.label} params={notice.params} />{/if}
-  </svelte:fragment>
-  <svelte:fragment slot="after-buttons">
+
+  <div class="flex-col flex-gap-4">
+    <div class="flex-between flex-gap-4">
+      <span class="font-medium caption-color"><Label label={view.string.TableFormat} /></span>
+      <div class="control">
+        <DropdownLabelsIntl
+          items={formatItems}
+          bind:selected={format}
+          disabled={copying}
+          size="medium"
+          width="100%"
+          justify="left"
+        />
+      </div>
+    </div>
+    <div class="flex-between flex-gap-4">
+      <span class="font-medium caption-color"><Label label={view.string.TableRows} /></span>
+      <div class="control">
+        <DropdownLabelsIntl
+          items={scopeItems}
+          bind:selected={scope}
+          disabled={copying}
+          size="medium"
+          width="100%"
+          justify="left"
+        />
+      </div>
+    </div>
+  </div>
+
+  <span class="text-md content-dark-color mt-6"><Label label={hint.label} params={hint.params} /></span>
+
+  {#if notice !== undefined}
+    <div class="mt-4"><Notice kind="error" label={notice.label} params={notice.params} /></div>
+  {/if}
+
+  <div class="flex-row-center flex-gap-2 justify-end mt-9">
     <Button
       label={view.string.CopyToClipboard}
+      size="medium"
       kind="primary"
-      size="large"
       loading={copying}
       disabled={!canCopy}
-      on:click={copy}
+      on:click={() => void copy()}
     />
-  </svelte:fragment>
-</Card>
+  </div>
+</div>
 
 <style lang="scss">
-  .fields {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    align-items: center;
-    gap: 0.75rem 1.5rem;
+  .popup {
+    display: flex;
+    flex-direction: column;
+    padding: 1.75rem;
+    width: 30rem;
+    max-width: 40rem;
+    background: var(--popup-bg-color);
+    border-radius: 1.25rem;
+    box-shadow: var(--popup-shadow);
   }
-  .caption {
-    color: var(--theme-caption-color);
-  }
-  .hint {
-    margin-top: 1rem;
-    font-size: 0.8125rem;
-    line-height: 1.4;
+
+  .control {
+    width: 14rem;
+    flex-shrink: 0;
   }
 </style>
