@@ -44,7 +44,7 @@
   )
 
   async function takeSnapshot (): Promise<void> {
-    showPopup(CreateSnapshot, { doc: value }, 'top')
+    showPopup(CreateSnapshot, {}, 'top')
   }
 </script>
 

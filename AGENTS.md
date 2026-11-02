@@ -15,6 +15,7 @@ Respond to user using Russian language, all comments should be in English.
 - Do not add `:global` styles in feature components to override other components' internals. Keep styles scoped to the owning component. Fix shared layout or printing issues in the responsible shared component (for example, Scroller), rather than adding feature-specific overrides.
 
 **TypeScript**: Strict types, interfaces over types, avoid `any`, export types separately
+  - Type object literals through variable annotations (`const value: T = { ... }`), including in tests. For incomplete mocks, use `const mock: Partial<T> = { ... }` or `Pick<T, K>` and apply any necessary `as T` only to the variable at its use site. Do not assert types directly on object literals (`{ ... } as T`), including through `as unknown as T`, or disable `@typescript-eslint/consistent-type-assertions` to bypass this rule.
 **Svelte**: Script/style/markup order, reactive `$:`, stores for state, small focused components
 **Naming**: Files `kebab-case`, Components `PascalCase`, functions `camelCase`, constants `UPPER_SNAKE_CASE`
 

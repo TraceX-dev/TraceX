@@ -65,7 +65,7 @@
 {#if $canParticipateInProcessesStore}
   {#each todos as todo (todo._id)}
     {#if isRequest(todo)}
-      <ApproveRequestButtons {todo} card={value.card} />
+      <ApproveRequestButtons {todo} />
     {:else}
       {@const inputBlocked = isGuestInputRequired(account, todo)}
       <Button

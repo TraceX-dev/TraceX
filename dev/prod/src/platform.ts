@@ -271,6 +271,7 @@ export interface Config {
   MAIL_URL?: string
   BILLING_URL?: string
   PAYMENT_URL?: string
+  OPENAUTH_URL?: string
   EXCLUDED_APPLICATIONS_FOR_ANONYMOUS?: string
   HULYLAKE_URL?: string
   DISABLED_FEATURES?: string
@@ -472,6 +473,7 @@ export async function configurePlatform(): Promise<void> {
   // tryOpenInDesktopApp(config.APP_PROTOCOL ?? 'huly://')
 
   setMetadata(login.metadata.AccountsUrl, config.ACCOUNTS_URL)
+  setMetadata(login.metadata.OAuthURL, config.OPENAUTH_URL)
   setMetadata(login.metadata.DisableSignUp, config.DISABLE_SIGNUP === 'true')
   setMetadata(login.metadata.HideLocalLogin, config.HIDE_LOCAL_LOGIN === 'true')
 

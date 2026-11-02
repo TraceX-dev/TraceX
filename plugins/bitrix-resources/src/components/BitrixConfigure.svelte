@@ -66,7 +66,7 @@
   })
 
   function addMapping (evt: MouseEvent): void {
-    showPopup(CreateMapping, { integration, mappings, bitrixClient }, eventToHTMLElement(evt))
+    showPopup(CreateMapping, { mappings, bitrixClient }, eventToHTMLElement(evt))
   }
   const signature = '@#253heyf@'
   const downloadConfig = async () => {

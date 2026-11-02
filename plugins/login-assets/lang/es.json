@@ -115,6 +115,16 @@
     "JoinAs": "Unirse como",
     "LinkExpires": "Caducidad",
     "LimitUses": "Límite de usos",
-    "UsesLimit": "{count, plural, =1 {Hasta # uso} other {Hasta # usos}}"
+    "UsesLimit": "{count, plural, =1 {Hasta # uso} other {Hasta # usos}}",
+    "AuthorizeApplication": "Authorize {application}",
+    "AuthorizeApplicationDescription": "This application can read and change data in all TraceX workspaces you can access, including workspaces you join later. You can revoke this connection in your account authentication settings.",
+    "AuthorizeSelectedWorkspaceDescription": "This application can read and change data only in the selected TraceX workspace. You can revoke this connection in your account authentication settings.",
+    "OneWorkspace": "One workspace",
+    "AllAvailableWorkspaces": "All available workspaces",
+    "NoAvailableWorkspacesDescription": "Esta cuenta no tiene espacios de trabajo disponibles. Solicita una invitación a un espacio de trabajo o inicia sesión con otra cuenta.",
+    "AuthorizationFailed": "Authorization failed or the request expired. Start the connection again in your MCP client.",
+    "McpConnections": "MCP connections",
+    "NoMcpConnections": "No MCP clients are connected.",
+    "DisconnectApplicationConfirm": "Disconnect {name}? New requests and access renewal will be blocked for this connection."
   }
 }

@@ -14,7 +14,7 @@
 -->
 
 <script lang="ts">
-  import { Card, FavoriteCard, MasterTag } from '@hcengineering/card'
+  import { Card, FavoriteCard } from '@hcengineering/card'
   import core, { Ref } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { createEventDispatcher } from 'svelte'
@@ -28,7 +28,6 @@
   import { getCardIconInfo } from '../../utils'
   import { CardIcon } from '../../index'
 
-  export let type: Ref<MasterTag> | undefined = undefined
   export let card: Card
   export let favorite: FavoriteCard | undefined = undefined
   export let applicationId: string

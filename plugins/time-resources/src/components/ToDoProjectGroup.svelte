@@ -17,7 +17,6 @@
   import type { IntlString } from '@hcengineering/platform'
   import type { Project } from '@hcengineering/tracker'
   import type { ToDo } from '@hcengineering/time'
-  import type { ToDosMode } from '..'
   import { AccordionItem, getPlatformColorDef, getPlatformColorForTextDef, themeStore } from '@hcengineering/ui'
   import { IconWithEmoji, getClient } from '@hcengineering/presentation'
   import { makeRank } from '@hcengineering/task'
@@ -30,7 +29,6 @@
 
   export let todos: ToDo[]
   export let project: Project | false | undefined = undefined
-  export let mode: ToDosMode
   export let groupName: IntlString
 
   const client = getClient()
@@ -78,7 +76,7 @@
 <AccordionItem {id} {icon} {iconProps} {title} {label} size={'medium'} nested hiddenHeader={project === false}>
   {#each todos as todo, index}
     <ToDoDraggable {todo} {index} {groupName} {projectId} on:drop={handleDrop}>
-      <ToDoElement {todo} planned={mode !== 'unplanned'} />
+      <ToDoElement {todo} />
     </ToDoDraggable>
   {/each}
 </AccordionItem>

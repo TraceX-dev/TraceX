@@ -72,6 +72,7 @@ import { markupToText, stripTags } from '@hcengineering/text-core'
 
 import { buildEmailLayout, collectEmailData, getEmailStrings, getNotificationAppName, renderEmail } from './email'
 import { OnInboxNotificationCreate, PushNotificationsHandler } from './push'
+import { isUserAddedToEmployeeFieldTypeMatch } from './employee-field'
 import {
   AvailableProvidersCache,
   AvailableProvidersCacheKey,
@@ -1932,6 +1933,7 @@ export default async () => ({
   },
   function: {
     IsUserEmployeeInFieldValueTypeMatch: isUserEmployeeInFieldValueTypeMatch,
+    IsUserAddedToEmployeeFieldTypeMatch: isUserAddedToEmployeeFieldTypeMatch,
     MentionTypeMatch: mentionTypeMatch
   }
 })

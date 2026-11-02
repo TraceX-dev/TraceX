@@ -38,6 +38,7 @@
     "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
+    "@hcengineering/openauth-client": "workspace:^0.7.0",
     "@hcengineering/platform": "workspace:^0.7.20",
     "svelte": "^4.2.20",
     "@hcengineering/login": "workspace:^0.7.0",

@@ -410,9 +410,9 @@
     return canChangeAttribute(attr, object.space as Ref<TypedSpace>, permissionsStore, object._class)
   }
 
-  async function canEdit (object: Doc): Promise<boolean> {
+  function canEdit (object: Doc): boolean | Promise<boolean> {
     if (client.getHierarchy().isDerived(object._class, core.class.Space)) {
-      return await canEditSpace(object)
+      return canEditSpace(object)
     }
     return true
   }

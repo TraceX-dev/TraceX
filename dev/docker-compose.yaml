@@ -273,12 +273,32 @@ services:
       - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
+  openauth:
+    image: tracexapp/openauth
+    extra_hosts:
+      - 'tracex.local:host-gateway'
+    depends_on:
+      - account
+      - postgres
+    ports:
+      - 3001:3001
+    environment:
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - SERVER_SECRET=${SECRET}
+      - OPENAUTH_DATABASE_URL=${DB_URL_PG}
+      - OPENAUTH_PUBLIC_URL=http://tracex.local:3001
+      - OPENAUTH_MCP_RESOURCE_URL=http://tracex.local:4020/mcp
+      - OPENAUTH_LOGIN_URL=http://tracex.local:8087/login/oauth
+      - OPENAUTH_ALLOW_HTTP=true
+      - PORT=3001
+    restart: unless-stopped
   mcp:
     image: tracexapp/mcp
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
       - account
+      - openauth
       - collaborator
       - transactor_pg
     ports:
@@ -291,6 +311,10 @@ services:
       - SERVICE_ID=mcp-service
       - WORKSPACE_CLIENT_CACHE_MS=0
       - STORAGE_CONFIG=${STORAGE_CONFIG}
+      - OPENAUTH_ISSUER_URL=http://tracex.local:3001
+      - OPENAUTH_INTERNAL_URL=http://openauth:3001
+      - OPENAUTH_MCP_RESOURCE_URL=http://tracex.local:4020/mcp
+      - OPENAUTH_ALLOW_HTTP=true
     restart: unless-stopped
   front:
     image: tracexapp/front
@@ -305,6 +329,7 @@ services:
       - SERVER_PORT=8080
       - SERVER_SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
+      - OPENAUTH_PUBLIC_URL=http://tracex.local:3001
       - STATS_URL=http://tracex.local:4900
       - FILES_URL=http://tracex.local:4030/blob/:workspace/:blobId/:filename
       - UPLOAD_URL=/files

@@ -21,9 +21,7 @@
     DocumentUpdate,
     FindOptions,
     type Rank,
-    RateLimiter,
-    Ref,
-    Space
+    Ref
   } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { makeRank } from '@hcengineering/rank'
@@ -35,7 +33,6 @@
   export let categories: CategoryType[] = []
 
   export let _class: Ref<Class<DocWithRank>>
-  export let space: Ref<Space> | undefined = undefined
   export let query: DocumentQuery<DocWithRank> = {}
   export let options: FindOptions<DocWithRank> | undefined = undefined
   export let objects: DocWithRank[] = []
@@ -57,8 +54,6 @@
   export let getAvailableCategories: ((doc: Doc) => Promise<CategoryType[]>) | undefined = undefined
 
   const dispatch = createEventDispatcher()
-
-  const limiter = new RateLimiter(10)
 
   async function move (state: CategoryType): Promise<void> {
     if (dragCard === undefined) {
@@ -416,7 +411,6 @@
               {selection}
               {checkedSet}
               {state}
-              {limiter}
               cardDragOver={(evt, obj) => {
                 cardDragOver(evt, obj, state)
               }}

@@ -1,14 +1,13 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
 
-  import { Class, Doc, Ref, Space } from '@hcengineering/core'
+  import { Class, Doc, Ref } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { ObjectPopup } from '@hcengineering/presentation'
 
   export let _class: Ref<Class<Doc>>
   export let selectedObjects: Ref<Doc>[] = []
   export let placeholder: IntlString
-  export let space: Ref<Space>
   export let isSingleSelect = false
   export let ignoreObjects: Ref<Doc>[] = []
 

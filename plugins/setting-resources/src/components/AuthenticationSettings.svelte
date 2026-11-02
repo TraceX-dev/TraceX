@@ -29,6 +29,7 @@
   } from '@hcengineering/ui'
   import { onMount } from 'svelte'
 
+  import McpConnections from './McpConnections.svelte'
   import ChangePasswordPopup from './security/ChangePasswordPopup.svelte'
   import TwoFactorSetupPopup from './security/TwoFactorSetupPopup.svelte'
   import { getAccountClient } from '../utils'
@@ -112,6 +113,7 @@
               />
             </SettingsCard>
           </div>
+          <McpConnections />
         </SettingsCardsLayout>
       </div>
     </Scroller>

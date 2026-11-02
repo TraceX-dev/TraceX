@@ -569,6 +569,28 @@ export function createModel (builder: Builder): void {
     {
       hidden: false,
       generated: false,
+      label: card.string.AssignedToMe,
+      group: card.ids.CardNotificationGroup,
+      txClasses: [core.class.TxCreateDoc, core.class.TxUpdateDoc, core.class.TxMixin],
+      objectClass: card.class.Card,
+      onlyOwn: true,
+      defaultEnabled: true,
+      emailKind: 'assignment',
+      templates: {
+        textTemplate: '{doc} was assigned to you by {sender}',
+        htmlTemplate: '<p>{doc} was assigned to you by {sender}</p>',
+        subjectTemplate: '{doc} was assigned to you'
+      }
+    },
+    card.ids.CardAssigneeNotification
+  )
+
+  builder.createDoc(
+    notification.class.NotificationType,
+    core.space.Model,
+    {
+      hidden: false,
+      generated: false,
       label: chunter.string.Comments,
       group: card.ids.CardNotificationGroup,
       txClasses: [core.class.TxCreateDoc],

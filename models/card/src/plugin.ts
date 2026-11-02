@@ -63,6 +63,7 @@ export default mergeIds(cardId, card, {
     CardNotificationGroup: '' as Ref<NotificationGroup>,
     CardCreateNotification: '' as Ref<NotificationType>,
     CardNotification: '' as Ref<NotificationType>,
+    CardAssigneeNotification: '' as Ref<NotificationType>,
     CardMessageNotification: '' as Ref<NotificationType>
   },
   integration: {

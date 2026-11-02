@@ -109,6 +109,7 @@
     <span
       slot="content"
       class="overflow-label disabled"
+      class:flex-grow={justify === 'left' && showDropdownIcon}
       class:mr-2={showDropdownIcon}
       class:content-color={selectedItem === undefined}
     >

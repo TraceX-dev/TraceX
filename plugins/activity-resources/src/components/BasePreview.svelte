@@ -24,7 +24,6 @@
   import { classIcon, DocNavLink } from '@hcengineering/view-resources'
   import { markupToText } from '@hcengineering/text'
 
-  export let message: ActivityMessage | undefined = undefined
   export let text: string | undefined = undefined
   export let intlLabel: IntlString | undefined = undefined
   export let readonly = false

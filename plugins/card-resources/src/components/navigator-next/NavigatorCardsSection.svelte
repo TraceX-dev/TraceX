@@ -111,7 +111,7 @@
     >
       {#each sortedCards as card (card._id)}
         {@const favorite = favorites.find((fav) => fav.attachedTo === card._id)}
-        <NavigatorCard type={type._id} {card} {favorite} {applicationId} {selectedCard} {config} on:selectCard />
+        <NavigatorCard {card} {favorite} {applicationId} {selectedCard} {config} on:selectCard />
       {/each}
 
       <svelte:fragment slot="visible" let:isOpen>

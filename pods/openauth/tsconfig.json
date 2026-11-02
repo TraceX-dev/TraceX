@@ -1,0 +1,17 @@
+{
+  "extends": "./node_modules/@hcengineering/platform-rig/profiles/node/tsconfig.json",
+
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": "./src",
+    "outDir": "./lib",
+    "declarationDir": "./types",
+    "tsBuildInfoFile": ".build/build.tsbuildinfo",
+    "paths": {
+      "@openauthjs/openauth": ["node_modules/@openauthjs/openauth/dist/types/index.d.ts"],
+      "@openauthjs/openauth/*": ["node_modules/@openauthjs/openauth/dist/types/*.d.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "lib", "dist", "types", "bundle"]
+}
