@@ -19,7 +19,7 @@
   import presentation, { decodeTokenPayload, getClient } from '@hcengineering/presentation'
   import { getMetadata } from '@hcengineering/platform'
   import { EmbeddedWorkspace } from '@hcengineering/workbench-resources'
-  import { Label } from '@hcengineering/ui'
+  import GuestLinkRevoked from './GuestLinkRevoked.svelte'
 
   const client = getClient()
   async function load () {
@@ -35,8 +35,8 @@
   {#if link !== undefined}
     <EmbeddedWorkspace target={link.location} restrictions={link.restrictions} beforeOpen={checkAccess} />
   {:else}
-    <Label label={guest.string.LinkWasRevoked} />
+    <GuestLinkRevoked />
   {/if}
 {:catch}
-  <Label label={guest.string.LinkWasRevoked} />
+  <GuestLinkRevoked />
 {/await}

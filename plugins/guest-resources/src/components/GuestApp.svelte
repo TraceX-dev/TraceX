@@ -25,7 +25,7 @@
   import { guestId } from '@hcengineering/guest'
   import workbench from '@hcengineering/workbench'
   import Guest from './Guest.svelte'
-  import plugin from '../plugin'
+  import GuestLinkRevoked from './GuestLinkRevoked.svelte'
   onDestroy(() => {
     void disconnectEmbeddedWorkspace().catch(Analytics.handleError)
   })
@@ -36,10 +36,7 @@
     <Loading />
   {:then client}
     {#if $invalidError}
-      {invalidError}
-      <div class="version-wrapper">
-        <h1><Label label={plugin.string.LinkWasRevoked} /></h1>
-      </div>
+      <GuestLinkRevoked />
     {:else if $versionError}
       <div class="version-wrapper">
         <div class="antiPopup version-popup">
@@ -57,8 +54,8 @@
         <Guest />
       </Notifications>
     {/if}
-  {:catch error}
-    <div>{error} -- {error.stack}</div>
+  {:catch}
+    <GuestLinkRevoked />
   {/await}
 {/if}
 

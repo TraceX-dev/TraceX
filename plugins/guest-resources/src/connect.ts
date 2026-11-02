@@ -14,6 +14,7 @@
 //
 
 import login from '@hcengineering/login'
+import { Analytics } from '@hcengineering/analytics'
 import { getResource } from '@hcengineering/platform'
 import { getCurrentLocation } from '@hcengineering/ui'
 import {
@@ -39,6 +40,7 @@ export async function connect (title: string): Promise<Client | undefined> {
     return await connectEmbeddedWorkspace(title, workspace, await exchange(token))
   } catch (error) {
     embeddedConnectionError.set(true)
-    throw error
+    Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+    return undefined
   }
 }
