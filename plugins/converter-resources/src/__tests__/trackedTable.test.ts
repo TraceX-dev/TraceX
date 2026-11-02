@@ -14,7 +14,7 @@
 
 import type { Client, Doc, Ref, Class, Space } from '@hcengineering/core'
 import type { FilteredView, TableMetadata, Viewlet } from '@hcengineering/view'
-import { resolveTableSnapshot } from '../trackedTable'
+import { loadFullRows, resolveTableSnapshot } from '../trackedTable'
 import { filtersToQuery } from '@hcengineering/view-resources'
 import { loadViewletConfig } from '../model/viewletLoader'
 
@@ -253,5 +253,21 @@ describe('table source resolution', () => {
     expect(result.metadata).not.toHaveProperty('snapshot')
     expect(result.metadata.rowIds).toBeUndefined()
     expect(result.snapshot.rowIds).toEqual(['a'])
+  })
+})
+
+describe('rows chosen in a view', () => {
+  it('are read in full, in the chosen order, without deleted ones', async () => {
+    const { client, findAll } = fixture(['c', 'a'])
+    // A list hands over projected documents: only _id, _class and the grouping fields.
+    const partial = ['a', 'gone', 'c'].map((_id) => ({ _id, _class: cardClass }) as unknown as Doc)
+    const rows = await loadFullRows(client, cardClass, partial)
+    expect(rows.map((doc) => doc._id)).toEqual(['a', 'c'])
+    expect(findAll).toHaveBeenCalledWith(
+      cardClass,
+      { _id: { $in: ['a', 'gone', 'c'] } },
+      { showArchived: true, limit: 3 }
+    )
+    expect(await loadFullRows(client, cardClass, [])).toEqual([])
   })
 })

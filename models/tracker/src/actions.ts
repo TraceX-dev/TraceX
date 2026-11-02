@@ -732,7 +732,7 @@ export function createActions (builder: Builder, issuesId: string, componentsId:
       },
       label: view.string.CopyAsMarkdownTable,
       icon: view.icon.Print,
-      input: 'any',
+      input: 'selection',
       category: view.category.General,
       target: tracker.class.Issue,
       context: {

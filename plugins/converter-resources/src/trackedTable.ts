@@ -68,6 +68,25 @@ function complete (
   return { snapshot, markdown, metadata: { ...metadata, version: '2.0', source, ...rowIdentities } }
 }
 
+/**
+ * Read chosen rows in full, keeping their order. Rows handed over by a view can be partial: lists
+ * load only the fields they group and filter by, which renders as `[object Object]` and broken
+ * links. Deleted rows are dropped; archived ones stay, as in a fixed table refresh.
+ */
+export async function loadFullRows (client: Client, cardClass: Ref<Class<Doc>>, docs: Doc[]): Promise<Doc[]> {
+  if (docs.length === 0) return []
+  const found = await client.findAll(
+    cardClass,
+    { _id: { $in: docs.map((doc) => doc._id) } },
+    { showArchived: true, limit: docs.length }
+  )
+  const byId = new Map(found.map((doc) => [doc._id, doc]))
+  return docs.flatMap((doc): Doc[] => {
+    const full = byId.get(doc._id)
+    return full === undefined ? [] : [full]
+  })
+}
+
 /** Capture a fixed set of documents. */
 export async function captureTableSnapshot (
   docs: Doc[],

@@ -32,7 +32,7 @@
   import { type TableCopyFormat, writeTableToClipboard } from '../markdown/copyActions'
   import { buildRelationshipTablePropsFromMetadata } from '../markdown/tableBuilder'
   import { modelToConfig } from '../model/tableModel'
-  import { captureRelationshipSnapshot, captureTableSnapshot, captureViewSnapshot } from '../trackedTable'
+  import { captureRelationshipSnapshot, captureTableSnapshot, captureViewSnapshot, loadFullRows } from '../trackedTable'
 
   /** Card class, columns, the query the view ran and its source (see openCopyTableDialog). */
   export let props: CopyAsMarkdownTableProps
@@ -154,8 +154,9 @@
     const source = sourceFor(mode)
     const config = relationship === undefined ? props.config : modelToConfig(relationship.model)
     if (scope === 'view') return await captureViewSnapshot({ ...props, config }, source, client)
-    if (relationship === undefined) return await captureTableSnapshot(rows, { ...props, source }, client)
-    const rebuilt = await buildRelationshipTablePropsFromMetadata(rows, { cardClass: props.cardClass, config }, client)
+    const docs = await loadFullRows(client, props.cardClass, rows)
+    if (relationship === undefined) return await captureTableSnapshot(docs, { ...props, source }, client)
+    const rebuilt = await buildRelationshipTablePropsFromMetadata(docs, { cardClass: props.cardClass, config }, client)
     return await captureRelationshipSnapshot({ ...rebuilt, viewlet: props.viewlet, source }, client)
   }
 

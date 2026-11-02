@@ -23,7 +23,7 @@ import { getClient } from '@hcengineering/presentation'
 import { copyMarkdown, SimpleNotification } from '@hcengineering/view-resources'
 
 import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from '../types'
-import { captureTableSnapshot, captureRelationshipSnapshot } from '../trackedTable'
+import { captureTableSnapshot, captureRelationshipSnapshot, loadFullRows } from '../trackedTable'
 
 /** `tracex` keeps the link to the source; `markdown` is a plain table. */
 export type TableCopyFormat = 'tracex' | 'markdown'
@@ -56,7 +56,9 @@ export async function copyAsMarkdownTable (
   const docs = Array.isArray(doc) ? doc : doc !== undefined ? [doc] : []
   if (docs.length === 0) return
   try {
-    await writeTableToClipboard(await captureTableSnapshot(docs, props, getClient()), 'tracex')
+    const client = getClient()
+    const rows = await loadFullRows(client, props.cardClass, docs)
+    await writeTableToClipboard(await captureTableSnapshot(rows, props, client), 'tracex')
   } catch (error) {
     console.error('Error copying markdown table', error)
     await notify(view.string.TableCopyFailed, NotificationSeverity.Error)

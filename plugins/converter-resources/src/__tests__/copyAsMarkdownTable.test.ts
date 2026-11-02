@@ -227,6 +227,10 @@ describe('converter-resources', () => {
     })
     it('copies a TraceX table with its source and without a value snapshot', async () => {
       const props: CopyAsMarkdownTableProps = { cardClass: 'card:class:Card' as Ref<Class<Doc>> }
+      // The rows are read again in full, so the table does not depend on a view's partial documents.
+      mockClient.findAll.mockImplementation(async (_class: string, query: any) =>
+        query?._id?.$in !== undefined ? [mockDoc] : []
+      )
       await copyAsMarkdownTable([mockDoc], new Event('copy'), props)
       expect(copyMarkdown).toHaveBeenCalledWith(
         expect.stringContaining('Test Card'),
