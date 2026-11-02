@@ -14,7 +14,7 @@
 //
 import type { MeasureContext } from '@hcengineering/core'
 import { WebhookEvent } from 'livekit-server-sdk'
-import { isSupportedWebhookEvent, routeWebhookEvent, SUPPORTED_WEBHOOK_EVENTS } from './webhookEvents'
+import { isSupportedWebhookEvent, routeWebhookEvent, SUPPORTED_WEBHOOK_EVENTS } from '../webhookEvents'
 
 describe('webhook event routing', () => {
   const ctx = { debug: jest.fn(), info: jest.fn(), error: jest.fn() }

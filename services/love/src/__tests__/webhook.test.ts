@@ -15,15 +15,15 @@
 import type { MeasureContext } from '@hcengineering/core'
 import type { ParsedRoomName } from '@hcengineering/love'
 import { WebhookEvent } from 'livekit-server-sdk'
-import { WebhookProcessor } from './webhook'
-import { isSupportedWebhookEvent } from './webhookEvents'
-import { WorkspaceClient } from './workspaceClient'
+import { WebhookProcessor } from '../webhook'
+import { isSupportedWebhookEvent } from '../webhookEvents'
+import { WorkspaceClient } from '../workspaceClient'
 
-jest.mock('./config', () => ({ __esModule: true, default: {} }))
-jest.mock('./utils', () => ({ parseParticipantMetadata: jest.fn() }))
-jest.mock('./billing', () => ({ saveLiveKitEgressBilling: jest.fn() }))
-jest.mock('./storage', () => ({ saveFile: jest.fn() }))
-jest.mock('./workspaceClient', () => ({ WorkspaceClient: { create: jest.fn() } }))
+jest.mock('../config', () => ({ __esModule: true, default: {} }))
+jest.mock('../utils', () => ({ parseParticipantMetadata: jest.fn() }))
+jest.mock('../billing', () => ({ saveLiveKitEgressBilling: jest.fn() }))
+jest.mock('../storage', () => ({ saveFile: jest.fn() }))
+jest.mock('../workspaceClient', () => ({ WorkspaceClient: { create: jest.fn() } }))
 
 describe('webhook event filtering', () => {
   const ctx = { info: jest.fn(), error: jest.fn() }
