@@ -56,7 +56,7 @@ function snapshot (markdown: string, rowIds = ['a'], columnIds = COLUMNS): Table
 }
 
 const COLUMNS = tableColumnIds(['name', 'state'])
-const [NAME, STATE] = COLUMNS
+const STATE = COLUMNS[1]
 const markdown = '| Name | State |\n| --- | --- |\n| Alpha | Open |\n'
 const metadata: TableMetadata = {
   version: '2.0',
@@ -95,7 +95,11 @@ describe('table snapshots', () => {
     const stored = JSON.parse(node.attrs.tableMetadata)
     expect(stored).not.toHaveProperty('snapshot')
     expect(editorTableSnapshot(node)).toEqual(snapshot(markdown))
-    expect(editorTableState(node).hashes.flat().every((hash) => typeof hash === 'string')).toBe(true)
+    expect(
+      editorTableState(node)
+        .hashes.flat()
+        .every((hash) => typeof hash === 'string')
+    ).toBe(true)
   })
 
   it('reads the pasted table back without reporting local edits', () => {

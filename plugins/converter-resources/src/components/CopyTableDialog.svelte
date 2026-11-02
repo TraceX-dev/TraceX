@@ -50,7 +50,7 @@
   const client = getClient()
   const formatStorageKey = 'tracex.copyTable.format'
 
-  function storedFormat(): TableCopyFormat {
+  function storedFormat (): TableCopyFormat {
     try {
       return localStorage.getItem(formatStorageKey) === 'markdown' ? 'markdown' : 'tracex'
     } catch {
@@ -65,7 +65,7 @@
   let viewSource: 'savedView' | 'frozen' = 'savedView'
   let savedViewName = ''
   let copying = false
-  let error: { label: IntlString; params: Record<string, string | number> } | undefined
+  let error: { label: IntlString, params: Record<string, string | number> } | undefined
 
   const viewSourceItems = [
     { id: 'savedView', label: view.string.TableSourceLiveSavedView },
@@ -140,7 +140,7 @@
     : error
   $: canCopy = !copying && !tooLarge && (scope === 'view' || rows.length > 0)
 
-  function sourceFor(selectedMode: TableSourceMode): TableSource {
+  function sourceFor (selectedMode: TableSourceMode): TableSource {
     const kind = relationship === undefined ? 'table' : 'relationship'
     if (selectedMode === 'fixed') return { kind, mode: 'fixed' }
     const { filteredViewId, baseQuery, baseOptions, ...rest } = props.source ?? { kind, mode: selectedMode }
@@ -149,7 +149,7 @@
       : { ...rest, kind, mode: selectedMode }
   }
 
-  async function resolve(): Promise<ResolvedTableSnapshot> {
+  async function resolve (): Promise<ResolvedTableSnapshot> {
     const source = sourceFor(mode)
     const config = relationship === undefined ? props.config : modelToConfig(relationship.model)
     if (scope === 'view') return await captureViewSnapshot({ ...props, config }, source, client)
@@ -158,7 +158,7 @@
     return await captureRelationshipSnapshot({ ...rebuilt, viewlet: props.viewlet, source }, client)
   }
 
-  async function copy(): Promise<void> {
+  async function copy (): Promise<void> {
     if (!canCopy) return
     copying = true
     error = undefined

@@ -127,7 +127,7 @@ export function createActions (builder: Builder): void {
     },
     label: view.string.CopyAsMarkdownTable,
     icon: view.icon.Print,
-    input: 'selection',
+    input: 'any',
     category: card.category.Card,
     target: card.class.Card,
     query: {},

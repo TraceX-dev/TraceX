@@ -50,7 +50,7 @@ import { loadViewletConfig } from './model/viewletLoader'
 import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from './types'
 
 /** Rendered markdown, stable identities and canonical values always come from the same build. */
-function complete(
+function complete (
   metadata: TableMetadata,
   markdown: string,
   rowIds: string[],
@@ -69,13 +69,14 @@ function complete(
 }
 
 /** Capture a fixed set of documents. */
-export async function captureTableSnapshot(
+export async function captureTableSnapshot (
   docs: Doc[],
   props: CopyAsMarkdownTableProps,
   client: Client
 ): Promise<ResolvedTableSnapshot> {
-  if (docs.length > MAX_TABLE_ROWS)
+  if (docs.length > MAX_TABLE_ROWS) {
     throw new TableSourceError('tooLarge', { count: docs.length, limit: MAX_TABLE_ROWS })
+  }
   props = { ...props, language: props.language ?? getCurrentLanguage() ?? 'en' }
   const data = await buildTableData(docs, { ...props, strictColumns: true }, client)
   const markdown = await renderMarkdownTable(data, client.getHierarchy())
@@ -90,7 +91,7 @@ export async function captureTableSnapshot(
 }
 
 /** Keep relationship paths distinct even when multiple rows belong to the same root document. */
-export async function captureRelationshipSnapshot(
+export async function captureRelationshipSnapshot (
   props: CopyRelationshipTableAsMarkdownProps,
   client: Client
 ): Promise<ResolvedTableSnapshot> {
@@ -120,7 +121,7 @@ export async function captureRelationshipSnapshot(
 }
 
 /** Capture a whole view through the same resolution used by refresh, diff and source preview. */
-export async function captureViewSnapshot(
+export async function captureViewSnapshot (
   props: CopyAsMarkdownTableProps,
   source: TableSource,
   client: Client
@@ -137,7 +138,7 @@ export async function captureViewSnapshot(
  * Find options that change which rows a query returns or how they are joined; view-only state
  * (limits, projections, totals) is dropped.
  */
-export function repeatableOptions(options: FindOptions<Doc> | undefined): FindOptions<Doc> {
+export function repeatableOptions (options: FindOptions<Doc> | undefined): FindOptions<Doc> {
   if (options === undefined) return {}
   return {
     ...(options.sort !== undefined ? { sort: options.sort } : {}),
@@ -147,19 +148,19 @@ export function repeatableOptions(options: FindOptions<Doc> | undefined): FindOp
   }
 }
 
-function sortFrom(viewOptions: ViewOptions | undefined, fallback?: FindOptions<Doc>['sort']): FindOptions<Doc>['sort'] {
+function sortFrom (viewOptions: ViewOptions | undefined, fallback?: FindOptions<Doc>['sort']): FindOptions<Doc>['sort'] {
   const orderBy = viewOptions?.orderBy
   if (orderBy === undefined) return fallback
   return { [orderBy[0]]: orderBy[1], ...(orderBy[0] === '_id' ? {} : { _id: SortingOrder.Ascending }) }
 }
 
-async function findViewlet(client: Client, viewletId: string | undefined): Promise<Viewlet | undefined> {
+async function findViewlet (client: Client, viewletId: string | undefined): Promise<Viewlet | undefined> {
   return viewletId === undefined
     ? undefined
     : await client.findOne(view.class.Viewlet, { _id: viewletId as Ref<Viewlet> })
 }
 
-async function savedViewQuery(
+async function savedViewQuery (
   client: Client,
   cardClass: Ref<Class<Doc>>,
   source: TableSource,
@@ -227,7 +228,7 @@ async function savedViewQuery(
  * - frozen: the captured query, columns and sorting.
  * An empty result is a valid table. Sources above {@link MAX_TABLE_ROWS} are refused explicitly.
  */
-export async function resolveTableSnapshot(metadata: TableMetadata, client: Client): Promise<ResolvedTableSnapshot> {
+export async function resolveTableSnapshot (metadata: TableMetadata, client: Client): Promise<ResolvedTableSnapshot> {
   const workspace = getMetadata(presentation.metadata.WorkspaceUuid)
   if (metadata.workspace !== undefined && workspace !== undefined && metadata.workspace !== workspace) {
     throw new TableSourceError('workspace')

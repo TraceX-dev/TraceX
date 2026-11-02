@@ -58,7 +58,7 @@ jest.mock('../markdown/tableBuilder', () => ({
     rows: docs.map((doc) => [doc._id]),
     docs
   }),
-  renderMarkdownTable: async (data: { headers: string[]; docs: Doc[] }) =>
+  renderMarkdownTable: async (data: { headers: string[], docs: Doc[] }) =>
     '| ' +
     data.headers.join(' | ') +
     ' |\n| ' +
@@ -71,7 +71,7 @@ const cardClass = 'test:class:Doc' as Ref<Class<Doc>>
 const viewletId = 'viewlet' as Ref<Viewlet>
 const space = 's' as Ref<Space>
 
-function metadata(mode: 'fixed' | 'savedView' | 'frozen'): TableMetadata {
+function metadata (mode: 'fixed' | 'savedView' | 'frozen'): TableMetadata {
   return {
     version: '2.0',
     cardClass,
@@ -89,7 +89,7 @@ function metadata(mode: 'fixed' | 'savedView' | 'frozen'): TableMetadata {
   }
 }
 
-function fixture(ids: string[], total = ids.length): { client: Client; findAll: jest.Mock; findOne: jest.Mock } {
+function fixture (ids: string[], total = ids.length): { client: Client, findAll: jest.Mock, findOne: jest.Mock } {
   const findAll = jest.fn(async () =>
     Object.assign(
       ids.map((_id) => ({ _id, _class: cardClass })),
@@ -221,7 +221,7 @@ describe('table source resolution', () => {
         ? { _id: 'saved', filters: '[]', filterClass: cardClass, viewletId: 'gone' }
         : undefined
     )
-    const source = { ...metadata('savedView'), config: undefined }
+    const source: TableMetadata = { ...metadata('savedView'), config: undefined }
     await expect(resolveTableSnapshot(source, client)).rejects.toMatchObject({ code: 'viewlet' })
   })
 
@@ -233,7 +233,7 @@ describe('table source resolution', () => {
     await expect(resolveTableSnapshot({ ...metadata('fixed'), workspace: 'other' }, client)).rejects.toMatchObject({
       code: 'workspace'
     })
-    const missing = { ...client, getHierarchy: () => ({ findClass: () => undefined }) } as unknown as Client
+    const missing = { ...client, getHierarchy: () => ({ findClass: (): undefined => undefined }) } as unknown as Client
     await expect(resolveTableSnapshot(metadata('fixed'), missing)).rejects.toMatchObject({ code: 'unavailable' })
   })
 

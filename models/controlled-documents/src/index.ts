@@ -1047,7 +1047,7 @@ export function createModel (builder: Builder): void {
       },
       label: view.string.CopyAsMarkdownTable,
       icon: view.icon.Print,
-      input: 'selection',
+      input: 'any',
       category: view.category.General,
       target: documents.class.Document,
       context: {

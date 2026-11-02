@@ -79,9 +79,7 @@ export function savedViewDiffers (
  * keeping what is shown now.
  * @public
  */
-export function getTableFilterSource (
-  cardClass: Ref<Class<Doc>>
-):
+export function getTableFilterSource (cardClass: Ref<Class<Doc>>):
   | {
       baseQuery: DocumentQuery<Doc>
       filters: string

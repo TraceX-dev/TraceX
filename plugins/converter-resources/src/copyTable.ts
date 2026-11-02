@@ -34,7 +34,7 @@ export interface CopyTableRequest {
  * The last viewlet context belongs to this request only when it shows the same class and,
  * for an action, contains the documents the action was invoked on.
  */
-function matchingContext(request: CopyTableRequest): ViewletContext | undefined {
+function matchingContext (request: CopyTableRequest): ViewletContext | undefined {
   const context = get(viewletContextStore).getLastContext()
   if (context === undefined) return undefined
   const objects = context.relationshipTableData?.objects ?? context.objects ?? []
@@ -45,7 +45,7 @@ function matchingContext(request: CopyTableRequest): ViewletContext | undefined 
 }
 
 /** Open the copy dialog for an action (selected rows) or for the whole view. */
-export function openCopyTableDialog(request: CopyTableRequest): void {
+export function openCopyTableDialog (request: CopyTableRequest): void {
   const context = matchingContext(request)
   const cardClass = context?._class ?? request.cardClass
   const relationship = context?.relationshipTableData

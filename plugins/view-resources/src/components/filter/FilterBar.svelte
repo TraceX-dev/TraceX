@@ -14,7 +14,16 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { AccountRole, generateId, Class, Doc, DocumentQuery, Ref, Space, getCurrentAccount } from '@hcengineering/core'
+  import {
+    AccountRole,
+    generateId,
+    Class,
+    Doc,
+    DocumentQuery,
+    Ref,
+    Space,
+    getCurrentAccount
+  } from '@hcengineering/core'
   import { getResource } from '@hcengineering/platform'
   import { getClient, reduceCalls } from '@hcengineering/presentation'
   import { Button, IconAdd, eventToHTMLElement, showPopup } from '@hcengineering/ui'
@@ -151,7 +160,8 @@
         }
       }
     }
-    if (!destroyed) publishFilterSource(sourceId, { cardClass: _class, baseQuery: query, filters: JSON.stringify(filters) })
+    if (!destroyed)
+      publishFilterSource(sourceId, { cardClass: _class, baseQuery: query, filters: JSON.stringify(filters) })
     dispatch('change', newQuery)
   })
 

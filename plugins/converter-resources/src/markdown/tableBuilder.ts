@@ -28,7 +28,7 @@ import { rebuildRelationshipTableViewModel, isRelationshipTable } from '../data'
 import { escapeMarkdownTableCellContent } from './escape'
 import { createMarkdownLink } from './link'
 
-function markdownToTableCellContent(markdown: string): MarkupNode[] {
+function markdownToTableCellContent (markdown: string): MarkupNode[] {
   const content = markdownToMarkup(markdown).content
   if (content !== undefined && content.length > 0) {
     return content
@@ -37,7 +37,7 @@ function markdownToTableCellContent(markdown: string): MarkupNode[] {
   return [{ type: MarkupNodeType.paragraph, content: [] }]
 }
 
-function buildRelationshipTableMarkup(headers: string[], rows: MarkupNode[]): MarkupNode {
+function buildRelationshipTableMarkup (headers: string[], rows: MarkupNode[]): MarkupNode {
   const headerRow: MarkupNode = {
     type: MarkupNodeType.table_row,
     content: headers.map((header) => ({
@@ -62,7 +62,7 @@ function buildRelationshipTableMarkup(headers: string[], rows: MarkupNode[]): Ma
   }
 }
 
-async function preloadRefLookups(
+async function preloadRefLookups (
   docs: Doc[],
   model: AttributeModel[],
   hierarchy: Hierarchy,
@@ -130,7 +130,7 @@ async function preloadRefLookups(
   }
 }
 
-async function preloadAssociations(docs: Doc[], model: AttributeModel[], client: Client): Promise<void> {
+async function preloadAssociations (docs: Doc[], model: AttributeModel[], client: Client): Promise<void> {
   const associationQueries = buildConfigAssociation(model.map((m) => m.key))
   if (associationQueries === undefined || associationQueries.length === 0) return
 
@@ -160,7 +160,7 @@ async function preloadAssociations(docs: Doc[], model: AttributeModel[], client:
   }
 }
 
-function collectRelationshipDocsForRefPreload(
+function collectRelationshipDocsForRefPreload (
   props: CopyRelationshipTableAsMarkdownProps,
   hierarchy: Hierarchy
 ): Doc[] {
@@ -186,7 +186,7 @@ function collectRelationshipDocsForRefPreload(
   return Array.from(byId.values())
 }
 
-export async function buildRelationshipTablePropsFromMetadata(
+export async function buildRelationshipTablePropsFromMetadata (
   docs: Doc[],
   metadata: BuildMarkdownTableMetadata,
   client: Client
@@ -223,7 +223,7 @@ export async function buildRelationshipTablePropsFromMetadata(
   }
 }
 
-async function buildRelationshipTableFromMetadata(
+async function buildRelationshipTableFromMetadata (
   docs: Doc[],
   metadata: BuildMarkdownTableMetadata,
   client: Client
@@ -238,7 +238,7 @@ async function buildRelationshipTableFromMetadata(
  * Wrapper function for building markdown table from BuildMarkdownTableMetadata
  * This is used by text-editor-resources to refresh tables
  */
-export async function buildMarkdownTableFromMetadata(
+export async function buildMarkdownTableFromMetadata (
   docs: Doc[],
   metadata: BuildMarkdownTableMetadata,
   client: Client
@@ -266,7 +266,7 @@ export async function buildMarkdownTableFromMetadata(
 /**
  * Build markdown table string from documents and props
  */
-export async function buildMarkdownTableFromDocs(
+export async function buildMarkdownTableFromDocs (
   docs: Doc[],
   props: CopyAsMarkdownTableProps,
   client: Client
@@ -281,7 +281,7 @@ export async function buildMarkdownTableFromDocs(
  * Escaping and object links live here rather than in the cell loop: other renderers (csv, json)
  * need the plain text, and duplicating the loop is how the two would drift apart.
  */
-export async function renderMarkdownTable(data: TableData, hierarchy: Hierarchy): Promise<string> {
+export async function renderMarkdownTable (data: TableData, hierarchy: Hierarchy): Promise<string> {
   if (data.headers.length === 0) {
     return ''
   }
@@ -309,7 +309,7 @@ export async function renderMarkdownTable(data: TableData, hierarchy: Hierarchy)
   return markdown
 }
 
-export async function buildTableData(
+export async function buildTableData (
   docs: Doc[],
   props: CopyAsMarkdownTableProps,
   client: Client,
@@ -411,7 +411,7 @@ export async function buildTableData(
 /**
  * Build markdown table from relationship table props (viewModel, model, objects)
  */
-export async function buildRelationshipTableMarkdown(
+export async function buildRelationshipTableMarkdown (
   props: CopyRelationshipTableAsMarkdownProps,
   hierarchy: Hierarchy,
   language: string | undefined,

@@ -27,7 +27,7 @@ jest.mock('svelte/store', () => ({
   }),
   get: (store: { value: unknown }) => store.value
 }))
-jest.mock('@hcengineering/ui', () => ({ getCurrentLocation: () => ({ path: [] }) }))
+jest.mock('@hcengineering/ui', () => ({ getCurrentLocation: (): { path: string[] } => ({ path: [] }) }))
 jest.mock('../filter', () => ({ selectedFilterStore: jest.requireMock('svelte/store').writable(undefined) }))
 jest.mock('../utils', () => ({
   activeViewlet: jest.requireMock('svelte/store').writable({}),
@@ -35,7 +35,7 @@ jest.mock('../utils', () => ({
 }))
 jest.mock('../viewOptions', () => ({
   viewOptionStore: jest.requireMock('svelte/store').writable(new Map()),
-  getViewOptions: () => undefined
+  getViewOptions: (): undefined => undefined
 }))
 
 const cardClass = 'test:class:Doc' as Ref<Class<Doc>>

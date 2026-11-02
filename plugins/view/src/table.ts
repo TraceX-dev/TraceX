@@ -256,8 +256,8 @@ export function parseTableMetadata (value: unknown): TableMetadata | undefined {
   if (value.version === '1.0') return parseLegacy(value)
   if (value.version !== '2.0') return undefined
   // Early 2.0 copies carried a full value snapshot; it is no longer kept.
-  const data = { ...value } as TableMetadata & { snapshot?: unknown }
-  delete data.snapshot
+  const { snapshot: _snapshot, ...rest } = value
+  const data: TableMetadata = rest as unknown as TableMetadata
   if (
     typeof data.cardClass !== 'string' ||
     !isStringList(data.documentIds) ||

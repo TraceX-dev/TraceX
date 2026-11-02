@@ -19,7 +19,12 @@ import type { Editor } from '@tiptap/core'
 import { history, undo } from '@tiptap/pm/history'
 import { MarkupNodeType } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
-import { tableColumnIds, tableSnapshotFromMarkup, type ResolvedTableSnapshot, type TableMetadata } from '@hcengineering/view'
+import {
+  tableColumnIds,
+  tableSnapshotFromMarkup,
+  type ResolvedTableSnapshot,
+  type TableMetadata
+} from '@hcengineering/view'
 import { applyTableRefresh, trackTable } from './refreshTable'
 import { attachTableSnapshot } from '../snapshot'
 import { showTableMessage } from './errors'

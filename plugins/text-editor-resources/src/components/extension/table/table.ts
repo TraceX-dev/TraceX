@@ -267,7 +267,9 @@ export async function openTableOptions (editor: Editor, event: MouseEvent): Prom
       icon: textEditor.icon.Refresh,
       label: textEditor.string.RefreshTable,
       action: () => {
-        showTableMessage(problem === 'unsupported' ? view.string.TableUnsupportedVersion : view.string.TableMetadataDamaged)
+        showTableMessage(
+          problem === 'unsupported' ? view.string.TableUnsupportedVersion : view.string.TableMetadataDamaged
+        )
         return true
       },
       category: {
