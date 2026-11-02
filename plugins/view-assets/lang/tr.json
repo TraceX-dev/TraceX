@@ -31,6 +31,7 @@
     "TableNoColumns": "Tabloda kopyalanabilecek sütun yok.",
     "TableNoSource": "Bu tablonun kaynak bilgisi yok. Yeniden kopyalayın.",
     "TableUnsupportedVersion": "Bu tablo daha yeni bir sürümle oluşturuldu ve burada yenilenemez.",
+    "TableMetadataDamaged": "Bu tablonun kaynak bilgileri bozuk. Yenileyebilmek için tabloyu yeniden kopyalayın.",
     "TableChangedDuringPreview": "Önizleme açıkken tablo değişti. Önizlemeyi yeniden açın.",
     "LocalTableChanges": "Tabloda elle yapılmış değişiklikler var. Tabloyu değiştirmek bunları siler.",
     "TableConflicts": "Bazı hücreler hem elle hem de kaynakta değiştirildi. Değiştirme kaynak değerlerini korur.",

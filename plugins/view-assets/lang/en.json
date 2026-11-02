@@ -31,6 +31,7 @@
     "TableNoColumns": "The table has no columns that can be copied.",
     "TableNoSource": "This table has no source information. Copy it again.",
     "TableUnsupportedVersion": "This table was created by a newer version and cannot be refreshed here.",
+    "TableMetadataDamaged": "The source information of this table is damaged. Copy the table again to refresh it.",
     "TableChangedDuringPreview": "The table changed while the preview was open. Open the preview again.",
     "LocalTableChanges": "The table contains manual changes. Replacing it discards them.",
     "TableConflicts": "Some cells were changed both manually and in the source. Replacing the table keeps the source values.",

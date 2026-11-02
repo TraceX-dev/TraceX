@@ -31,6 +31,7 @@
     "TableNoColumns": "A tabela não tem colunas que possam ser copiadas.",
     "TableNoSource": "Esta tabela não tem informação de origem. Copie-a novamente.",
     "TableUnsupportedVersion": "Esta tabela foi criada por uma versão mais recente e não pode ser atualizada aqui.",
+    "TableMetadataDamaged": "A informação de origem desta tabela está danificada. Copie a tabela novamente para a poder atualizar.",
     "TableChangedDuringPreview": "A tabela mudou enquanto a pré-visualização estava aberta. Abra-a novamente.",
     "LocalTableChanges": "A tabela contém alterações manuais. Substituí-la elimina-as.",
     "TableConflicts": "Algumas células foram alteradas manualmente e na origem. A substituição mantém os valores da origem.",

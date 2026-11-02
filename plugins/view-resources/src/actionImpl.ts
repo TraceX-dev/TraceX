@@ -51,7 +51,7 @@ import {
   showPanel,
   showPopup
 } from '@hcengineering/ui'
-import { TABLE_METADATA_MARKER } from '@hcengineering/view'
+import { TABLE_METADATA_MARKER, TABLE_METADATA_MIME_TYPE } from '@hcengineering/view'
 import { get } from 'svelte/store'
 import MoveView from './components/Move.svelte'
 import view from './plugin'
@@ -140,8 +140,9 @@ export async function copyText (text: any, contentType: string = 'text/plain'): 
  * @param metadata - Optional metadata object containing table information (query, config, document IDs, etc.)
  */
 export async function copyMarkdown (markdown: string, metadata?: Record<string, any>): Promise<void> {
-  // Browsers reject text/markdown and custom MIME types in ClipboardItem (NotAllowedError),
-  // so metadata is embedded as an HTML comment and everything is copied as text/plain
+  if (metadata !== undefined && copyWithMetadata(markdown, metadata)) return
+  // Browsers reject custom MIME types in ClipboardItem (NotAllowedError), and a copy event only
+  // works while the user's click still counts. Otherwise the metadata travels as an HTML comment.
   let markdownToCopy = markdown
   if (metadata !== undefined) {
     try {
@@ -151,6 +152,31 @@ export async function copyMarkdown (markdown: string, metadata?: Record<string, 
     }
   }
   await copyText(markdownToCopy, 'text/plain')
+}
+
+/**
+ * Put clean Markdown in text/plain and the metadata in its own clipboard type, so pasting into
+ * other apps does not show a JSON comment. Returns false when the browser refuses the copy.
+ */
+function copyWithMetadata (markdown: string, metadata: Record<string, any>): boolean {
+  if (typeof document === 'undefined' || typeof document.execCommand !== 'function') return false
+  let written = false
+  const listener = (event: ClipboardEvent): void => {
+    if (event.clipboardData === null) return
+    event.clipboardData.setData('text/plain', markdown)
+    event.clipboardData.setData(TABLE_METADATA_MIME_TYPE, JSON.stringify(metadata))
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    written = true
+  }
+  document.addEventListener('copy', listener, true)
+  try {
+    return document.execCommand('copy') && written
+  } catch (e) {
+    return false
+  } finally {
+    document.removeEventListener('copy', listener, true)
+  }
 }
 
 function Delete (

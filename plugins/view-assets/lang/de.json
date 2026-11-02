@@ -31,6 +31,7 @@
     "TableNoColumns": "Die Tabelle hat keine kopierbaren Spalten.",
     "TableNoSource": "Diese Tabelle enthält keine Quellinformationen. Kopieren Sie sie erneut.",
     "TableUnsupportedVersion": "Diese Tabelle wurde mit einer neueren Version erstellt und kann hier nicht aktualisiert werden.",
+    "TableMetadataDamaged": "Die Quellinformationen dieser Tabelle sind beschädigt. Kopieren Sie die Tabelle erneut, um sie aktualisieren zu können.",
     "TableChangedDuringPreview": "Die Tabelle wurde geändert, während die Vorschau geöffnet war. Öffnen Sie die Vorschau erneut.",
     "LocalTableChanges": "Die Tabelle enthält manuelle Änderungen. Beim Ersetzen gehen sie verloren.",
     "TableConflicts": "Einige Zellen wurden sowohl manuell als auch in der Quelle geändert. Beim Ersetzen bleiben die Werte der Quelle erhalten.",

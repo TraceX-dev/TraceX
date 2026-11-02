@@ -50,7 +50,7 @@
   const client = getClient()
   const formatStorageKey = 'tracex.copyTable.format'
 
-  function storedFormat (): TableCopyFormat {
+  function storedFormat(): TableCopyFormat {
     try {
       return localStorage.getItem(formatStorageKey) === 'markdown' ? 'markdown' : 'tracex'
     } catch {
@@ -65,7 +65,7 @@
   let viewSource: 'savedView' | 'frozen' = 'savedView'
   let savedViewName = ''
   let copying = false
-  let error: { label: IntlString, params: Record<string, string | number> } | undefined
+  let error: { label: IntlString; params: Record<string, string | number> } | undefined
 
   const viewSourceItems = [
     { id: 'savedView', label: view.string.TableSourceLiveSavedView },
@@ -87,8 +87,12 @@
       }
     }
     if (props.source?.filteredViewId !== undefined) {
-      const filtered = await client.findOne(view.class.FilteredView, { _id: props.source.filteredViewId })
-      savedViewName = filtered?.name ?? ''
+      try {
+        const filtered = await client.findOne(view.class.FilteredView, { _id: props.source.filteredViewId })
+        savedViewName = filtered?.name ?? ''
+      } catch (err) {
+        console.warn('Failed to load the saved view name', err)
+      }
     }
   })
 
@@ -115,7 +119,9 @@
   ) as TableSourceMode
   // The count on screen reflects the current filters, not the saved ones it would be copied with.
   $: knownTotal = mode === 'savedView' && savedViewModified ? undefined : total
-  $: tooLarge = scope === 'view' && knownTotal !== undefined && knownTotal > MAX_TABLE_ROWS
+  // Copies above the limit could not be refreshed later, so they are refused up front for every scope.
+  $: rowCount = scope === 'view' ? knownTotal : rows.length
+  $: tooLarge = rowCount !== undefined && rowCount > MAX_TABLE_ROWS
   $: hint =
     format === 'markdown'
       ? { label: view.string.MarkdownTableHint, params: {} }
@@ -130,11 +136,11 @@
             }
           : { label: view.string.TableModeFrozenHint, params: {} }
   $: notice = tooLarge
-    ? tableSourceErrorMessage(new TableSourceError('tooLarge', { count: knownTotal ?? 0, limit: MAX_TABLE_ROWS }))
+    ? tableSourceErrorMessage(new TableSourceError('tooLarge', { count: rowCount ?? 0, limit: MAX_TABLE_ROWS }))
     : error
   $: canCopy = !copying && !tooLarge && (scope === 'view' || rows.length > 0)
 
-  function sourceFor (selectedMode: TableSourceMode): TableSource {
+  function sourceFor(selectedMode: TableSourceMode): TableSource {
     const kind = relationship === undefined ? 'table' : 'relationship'
     if (selectedMode === 'fixed') return { kind, mode: 'fixed' }
     const { filteredViewId, baseQuery, baseOptions, ...rest } = props.source ?? { kind, mode: selectedMode }
@@ -143,7 +149,7 @@
       : { ...rest, kind, mode: selectedMode }
   }
 
-  async function resolve (): Promise<ResolvedTableSnapshot> {
+  async function resolve(): Promise<ResolvedTableSnapshot> {
     const source = sourceFor(mode)
     const config = relationship === undefined ? props.config : modelToConfig(relationship.model)
     if (scope === 'view') return await captureViewSnapshot({ ...props, config }, source, client)
@@ -152,7 +158,7 @@
     return await captureRelationshipSnapshot({ ...rebuilt, viewlet: props.viewlet, source }, client)
   }
 
-  async function copy (): Promise<void> {
+  async function copy(): Promise<void> {
     if (!canCopy) return
     copying = true
     error = undefined

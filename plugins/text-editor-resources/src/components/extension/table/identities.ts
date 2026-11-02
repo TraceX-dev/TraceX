@@ -19,6 +19,7 @@ import type { Node } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey, type Transaction } from '@tiptap/pm/state'
 import { TableMap } from '@tiptap/pm/tables'
 import { Mapping } from '@tiptap/pm/transform'
+import { tableColumnCells } from './snapshot'
 import { getTableMetadata } from './tableMetadata'
 
 export const tableIdentityAttributes: GlobalAttributes = [
@@ -41,6 +42,13 @@ export const tableIdentityAttributes: GlobalAttributes = [
         parseHTML: (element: HTMLElement) => element.getAttribute('data-source-column-id'),
         renderHTML: (attrs: Record<string, unknown>) =>
           attrs.sourceColumnId == null ? {} : { 'data-source-column-id': attrs.sourceColumnId }
+      },
+      // Fingerprint of the value the cell had when it was last copied or refreshed.
+      sourceHash: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-source-hash'),
+        renderHTML: (attrs: Record<string, unknown>) =>
+          attrs.sourceHash == null ? {} : { 'data-source-hash': attrs.sourceHash }
       }
     }
   }
@@ -130,10 +138,11 @@ export function tableIdentities (): Plugin {
         const previous = previousPositions(oldState.doc.nodeAt(oldPos), oldPos, mapping)
         const map = TableMap.get(table)
 
-        // Column identities are read per grid column from the header row.
-        const headerPositions = Array.from({ length: map.width }, (_, column) => tablePos + 1 + map.map[column])
-        const columnIds = headerPositions.map((pos) => String(state.doc.nodeAt(pos)?.attrs.sourceColumnId ?? ''))
-        normalize(columnIds, headerPositions, previous)
+        // Column identities come from the first cell spanning exactly that column, so a merged
+        // header cell neither defines nor churns them.
+        const columnPositions = tableColumnCells(table).map((pos) => tablePos + 1 + pos)
+        const columnIds = columnPositions.map((pos) => String(state.doc.nodeAt(pos)?.attrs.sourceColumnId ?? ''))
+        normalize(columnIds, columnPositions, previous)
 
         const rowIds: string[] = []
         const rowPositions: number[] = []
@@ -152,7 +161,9 @@ export function tableIdentities (): Plugin {
           if (rowIndex > 0) set(row, rowPos, 'sourceRowId', rowIds[rowIndex - 1])
           row.forEach((cell, cellOffset) => {
             const column = map.findCell(offset + 1 + cellOffset).left
-            if (columnIds[column] !== undefined) set(cell, rowPos + 1 + cellOffset, 'sourceColumnId', columnIds[column])
+            if (Number(cell.attrs.colspan ?? 1) === 1 && columnIds[column] !== undefined) {
+              set(cell, rowPos + 1 + cellOffset, 'sourceColumnId', columnIds[column])
+            }
           })
         })
       }

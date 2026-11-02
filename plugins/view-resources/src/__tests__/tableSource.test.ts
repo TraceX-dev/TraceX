@@ -14,7 +14,7 @@
 
 import type { Class, Doc, Ref, Space } from '@hcengineering/core'
 import type { FilteredView } from '@hcengineering/view'
-import { attachQueryFilterSource, escapeCommentJson, getQueryFilterSource, getTableFilterSource } from '../tableSource'
+import { escapeCommentJson, getTableFilterSource, publishFilterSource } from '../tableSource'
 import { selectedFilterStore } from '../filter'
 import { activeViewlet } from '../utils'
 
@@ -42,48 +42,57 @@ const cardClass = 'test:class:Doc' as Ref<Class<Doc>>
 const filters = '[{"key":"state"}]'
 const saved = { _id: 'saved', filters, filterClass: cardClass, viewletId: null } as unknown as FilteredView
 
-function tagged (): Record<string, any> {
-  return attachQueryFilterSource(
-    { space: 's' as Ref<Space>, state: 'a' },
-    { cardClass, baseQuery: { space: 's' as Ref<Space> }, filters }
-  )
+function publish (id = 'bar'): void {
+  publishFilterSource(id, { cardClass, baseQuery: { space: 's' as Ref<Space> }, filters })
 }
 
 describe('table filter source', () => {
   afterEach(() => {
     selectedFilterStore.set(undefined)
     activeViewlet.set({})
+    publishFilterSource('bar', undefined)
+    publishFilterSource('other', undefined)
   })
 
-  it('travels with the query through object spreads but not through serialization', () => {
-    const query = { ...tagged() }
-    expect(getQueryFilterSource(query)?.baseQuery).toEqual({ space: 's' })
-    expect(JSON.parse(JSON.stringify(query))).toEqual({ space: 's', state: 'a' })
+  it('is published by a mounted filter bar and withdrawn when it goes away', () => {
+    publish()
+    expect(getTableFilterSource(cardClass)).toEqual({ baseQuery: { space: 's' }, filters })
+    publishFilterSource('bar', undefined)
+    expect(getTableFilterSource(cardClass)).toBeUndefined()
+  })
+
+  it('uses the most recently updated filter bar for the class', () => {
+    publish('bar')
+    publishFilterSource('other', { cardClass, baseQuery: {}, filters: '[]' })
+    expect(getTableFilterSource(cardClass)?.filters).toBe('[]')
+    publish('bar')
+    expect(getTableFilterSource(cardClass)?.filters).toBe(filters)
   })
 
   it('reports the open saved view and whether the filters on screen differ from it', () => {
+    publish()
     selectedFilterStore.set(saved)
     activeViewlet.set({ key: null })
-    expect(getTableFilterSource(tagged(), cardClass)).toEqual({
+    expect(getTableFilterSource(cardClass)).toEqual({
       baseQuery: { space: 's' },
       filters,
       filteredViewId: 'saved',
       savedViewModified: false
     })
     selectedFilterStore.set({ ...saved, filters: '[]' })
-    expect(getTableFilterSource(tagged(), cardClass)).toEqual({
+    expect(getTableFilterSource(cardClass)).toEqual({
       baseQuery: { space: 's' },
       filters,
       filteredViewId: 'saved',
       savedViewModified: true
     })
     selectedFilterStore.set({ ...saved, filterClass: 'other' } as unknown as FilteredView)
-    expect(getTableFilterSource(tagged(), cardClass)).toEqual({ baseQuery: { space: 's' }, filters })
+    expect(getTableFilterSource(cardClass)).toEqual({ baseQuery: { space: 's' }, filters })
   })
 
-  it('does not attach a source to an unrelated query or class', () => {
-    expect(getTableFilterSource({ space: 's' as Ref<Space> }, cardClass)).toBeUndefined()
-    expect(getTableFilterSource(tagged(), 'other' as Ref<Class<Doc>>)).toBeUndefined()
+  it('ignores filter bars of other classes', () => {
+    publish()
+    expect(getTableFilterSource('other' as Ref<Class<Doc>>)).toBeUndefined()
   })
 })
 

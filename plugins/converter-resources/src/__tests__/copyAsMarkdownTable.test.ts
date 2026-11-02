@@ -225,7 +225,7 @@ describe('converter-resources', () => {
       const { addNotification } = await import('@hcengineering/ui')
       expect(addNotification).toHaveBeenCalled()
     })
-    it('copies a TraceX table with a fixed-source snapshot', async () => {
+    it('copies a TraceX table with its source and without a value snapshot', async () => {
       const props: CopyAsMarkdownTableProps = { cardClass: 'card:class:Card' as Ref<Class<Doc>> }
       await copyAsMarkdownTable([mockDoc], new Event('copy'), props)
       expect(copyMarkdown).toHaveBeenCalledWith(
@@ -233,9 +233,10 @@ describe('converter-resources', () => {
         expect.objectContaining({
           version: '2.0',
           source: { kind: 'table', mode: 'fixed' },
-          snapshot: expect.objectContaining({ rowIds: [mockDoc._id] })
+          documentIds: [mockDoc._id]
         })
       )
+      expect((copyMarkdown as jest.Mock).mock.calls[0][1]).not.toHaveProperty('snapshot')
     })
 
     it('copies plain markdown without metadata', async () => {

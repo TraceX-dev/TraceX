@@ -14,6 +14,8 @@
 
 import {
   parseTableMetadata,
+  tableCellHash,
+  tableMetadataProblem,
   tableCellHref,
   tableCellRich,
   tableCellText,
@@ -32,15 +34,15 @@ const metadata = {
   cardClass: 'doc',
   documentIds: ['a'],
   timestamp: 1,
-  source: { kind: 'table', mode: 'frozen' },
-  snapshot: { rowIds: ['a'], columnIds: ['name'], cells: [[[['Name']]], [[['Alpha']]]] }
+  source: { kind: 'table', mode: 'frozen' }
 }
 
 describe('table metadata contract', () => {
-  it('validates the clipboard payload and rejects unsupported or malformed versions', () => {
+  it('validates the clipboard payload and rejects malformed current metadata', () => {
     expect(parseTableMetadata(metadata)).toEqual(metadata)
     const withFilters = { ...metadata, source: { ...metadata.source, filters: '[]' } }
     expect(parseTableMetadata(withFilters)).toEqual(withFilters)
+    expect(parseTableMetadata({ ...metadata, rowIds: ['x', 'y'] })).toEqual({ ...metadata, rowIds: ['x', 'y'] })
     for (const invalid of [
       null,
       {},
@@ -49,18 +51,39 @@ describe('table metadata contract', () => {
       { ...metadata, source: { kind: 'table', mode: 'dynamic' } },
       { ...metadata, source: { kind: 'table', mode: 'savedView' } },
       { ...metadata, source: { kind: 'table', mode: 'frozen', filters: [] } },
-      { ...metadata, snapshot: null },
-      { ...metadata, snapshot: { ...metadata.snapshot, rowIds: ['a', 'a'] } },
-      { ...metadata, snapshot: { ...metadata.snapshot, cells: [[[['Name']]]] } },
-      { ...metadata, snapshot: { ...metadata.snapshot, markdown: '|a|', cells: undefined } }
+      { ...metadata, query: null },
+      { ...metadata, rowIds: ['a', 'a'] }
     ]) {
       expect(parseTableMetadata(invalid)).toBeUndefined()
     }
   })
 
-  it('retains support for legacy metadata', () => {
+  it('drops the value snapshot that early copies carried', () => {
+    expect(parseTableMetadata({ ...metadata, snapshot: { cells: [] } })).toEqual(metadata)
+  })
+
+  it('keeps legacy metadata usable even when parts of it are malformed', () => {
     const legacy = { version: '1.0', cardClass: 'doc', documentIds: ['a'], timestamp: 1 }
     expect(parseTableMetadata(legacy)).toEqual(legacy)
+    expect(parseTableMetadata({ ...legacy, query: null, config: 'bad', viewletId: 5 })).toEqual(legacy)
+    expect(parseTableMetadata({ version: '1.0', cardClass: 'doc' })).toEqual({
+      version: '1.0',
+      cardClass: 'doc',
+      documentIds: [],
+      timestamp: 0
+    })
+  })
+
+  it('tells newer versions from damaged metadata', () => {
+    expect(tableMetadataProblem({ version: '3.0' })).toBe('unsupported')
+    expect(tableMetadataProblem({ version: '2.0' })).toBe('damaged')
+    expect(tableMetadataProblem('not json')).toBe('damaged')
+  })
+
+  it('fingerprints cell values compactly and deterministically', () => {
+    expect(tableCellHash([['Alpha']])).toBe(tableCellHash([['Alpha']]))
+    expect(tableCellHash([['Alpha']])).not.toBe(tableCellHash([['Alpha', 'bold']]))
+    expect(tableCellHash([['Alpha']]).length).toBeLessThanOrEqual(7)
   })
 
   it('keeps column identity stable through renaming, restyling and property changes', () => {

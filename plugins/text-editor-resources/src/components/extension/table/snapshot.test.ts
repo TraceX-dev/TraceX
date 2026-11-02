@@ -18,8 +18,8 @@ import { addColumnBefore, addRowBefore } from '@tiptap/pm/tables'
 import { ySyncPluginKey } from 'y-prosemirror'
 import { MarkupNodeType } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
-import { tableSnapshotFromMarkup, type TableMetadata, type TableSnapshot } from '@hcengineering/view'
-import { attachTableSnapshot, editorTableSnapshot, summarizeTableEdits } from './snapshot'
+import { tableColumnIds, tableSnapshotFromMarkup, type TableMetadata, type TableSnapshot } from '@hcengineering/view'
+import { attachTableSnapshot, editorTableSnapshot, editorTableState, summarizeTableEdits } from './snapshot'
 import { tableIdentities } from './identities'
 import { buildTableDiff } from './actions/tableDiff'
 
@@ -31,6 +31,7 @@ jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
 
 const cellAttrs: Record<string, AttributeSpec> = {
   sourceColumnId: { default: null },
+  sourceHash: { default: null },
   colspan: { default: 1 },
   rowspan: { default: 1 },
   colwidth: { default: null }
@@ -48,40 +49,65 @@ const schema = new Schema({
   marks: { link: { attrs: { href: {}, target: { default: null }, rel: { default: null } } }, bold: {} }
 })
 
-function snapshot (markdown: string, rowIds = ['a'], columnIds = ['name', 'state']): TableSnapshot {
+function snapshot (markdown: string, rowIds = ['a'], columnIds = COLUMNS): TableSnapshot {
   const table = markdownToMarkup(markdown).content?.find((node) => node.type === MarkupNodeType.table)
   if (table === undefined) throw new Error('no table')
   return tableSnapshotFromMarkup(table, rowIds, columnIds)
 }
 
+const COLUMNS = tableColumnIds(['name', 'state'])
+const [NAME, STATE] = COLUMNS
 const markdown = '| Name | State |\n| --- | --- |\n| Alpha | Open |\n'
-const baseline = snapshot(markdown)
 const metadata: TableMetadata = {
   version: '2.0',
   cardClass: 'test:class:Doc',
   documentIds: ['a'],
+  config: ['name', 'state'],
   timestamp: 1,
-  source: { kind: 'table', mode: 'frozen' },
-  snapshot: baseline
+  source: { kind: 'table', mode: 'frozen' }
 }
 function table (source = markdown, meta: TableMetadata = metadata): Node {
   return attachTableSnapshot(Node.fromJSON(schema, markdownToMarkup(source)).firstChild as Node, meta)
+}
+/** The pasted table with one cell's text replaced, keeping every attribute: a manual edit. */
+function edited (node: Node, row: number, column: number, text: string): Node {
+  const rows: Node[] = []
+  node.forEach((current, _offset, rowIndex) => {
+    const cells: Node[] = []
+    current.forEach((cell, _cellOffset, cellIndex) => {
+      cells.push(
+        rowIndex === row && cellIndex === column
+          ? cell.type.create(cell.attrs, schema.node('paragraph', null, schema.text(text)))
+          : cell
+      )
+    })
+    rows.push(current.type.create(current.attrs, cells))
+  })
+  return node.type.create(node.attrs, rows)
 }
 function stateWith (...tables: Node[]): EditorState {
   return EditorState.create({ schema, doc: schema.node('doc', null, tables), plugins: [tableIdentities()] })
 }
 
 describe('table snapshots', () => {
+  it('stores identities and fingerprints on the nodes, not a copy of the values', () => {
+    const node = table()
+    const stored = JSON.parse(node.attrs.tableMetadata)
+    expect(stored).not.toHaveProperty('snapshot')
+    expect(editorTableSnapshot(node)).toEqual(snapshot(markdown))
+    expect(editorTableState(node).hashes.flat().every((hash) => typeof hash === 'string')).toBe(true)
+  })
+
   it('reads the pasted table back without reporting local edits', () => {
-    const current = editorTableSnapshot(table())
-    expect(current).toEqual(baseline)
-    expect(summarizeTableEdits(current, baseline, baseline)).toEqual({ localChanges: false, conflicts: false })
+    const state = editorTableState(table())
+    expect(summarizeTableEdits(state, snapshot(markdown))).toEqual({ localChanges: false, conflicts: false })
   })
 
   it('compares links, escaped pipes and formatting by content, not by Markdown', () => {
     const rich = '| Name | State |\n| --- | --- |\n| [A \\| B](https://example.com/item) | **Open** |\n'
-    const current = editorTableSnapshot(table(rich, { ...metadata, snapshot: snapshot(rich) }))
-    const diff = buildTableDiff(current, snapshot(rich))
+    const current = editorTableState(table(rich))
+    expect(summarizeTableEdits(current, snapshot(rich)).localChanges).toBe(false)
+    const diff = buildTableDiff(current.snapshot, snapshot(rich))
     expect(diff?.rows).toHaveLength(1)
     expect(
       diff?.rows[0].cells.every(
@@ -90,32 +116,50 @@ describe('table snapshots', () => {
     ).toBe(true)
   })
 
-  it('reports local/source conflicts on the same stable cell', () => {
-    const local = snapshot(markdown.replace('Open', 'Local'))
-    const fresh = snapshot(markdown.replace('Open', 'Remote'))
-    expect(summarizeTableEdits(local, fresh, baseline)).toMatchObject({
+  it('tells manual edits, source changes and conflicts apart on the same stable cell', () => {
+    const local = editorTableState(edited(table(), 1, 1, 'Local'))
+    const remote = snapshot(markdown.replace('Open', 'Remote'))
+    expect(summarizeTableEdits(local, remote)).toEqual({
       localChanges: true,
       conflicts: true,
-      conflictCells: [{ rowId: 'a', columnId: 'state' }]
+      conflictCells: [{ rowId: 'a', columnId: STATE }]
     })
-    expect(summarizeTableEdits(local, local, baseline).conflicts).toBe(false)
-    expect(summarizeTableEdits(local, baseline, baseline)).toEqual({ localChanges: true, conflicts: false })
+    // Same change on both sides, or a source that did not change: no conflict.
+    expect(summarizeTableEdits(local, snapshot(markdown.replace('Open', 'Local'))).conflicts).toBe(false)
+    expect(summarizeTableEdits(local, snapshot(markdown))).toEqual({ localChanges: true, conflicts: false })
+    // Source change alone is not a manual edit.
+    expect(summarizeTableEdits(editorTableState(table()), remote)).toEqual({ localChanges: false, conflicts: false })
   })
 
-  it('reports a conflict when a locally removed row changes in the source, not when both removed it', () => {
-    const removed = snapshot('| Name | State |\n| --- | --- |\n', [])
-    const fresh = snapshot(markdown.replace('Open', 'Remote'))
-    expect(summarizeTableEdits(removed, fresh, baseline)).toMatchObject({
-      conflicts: true,
-      conflictCells: [{ rowId: 'a', columnId: 'state' }]
-    })
-    expect(summarizeTableEdits(removed, removed, baseline)).toEqual({ localChanges: true, conflicts: false })
-  })
-
-  it('treats a renamed header edited on both sides as a conflict', () => {
-    const local = snapshot(markdown.replace('State', 'Mine'))
+  it('treats a header renamed on both sides as a conflict', () => {
+    const local = editorTableState(edited(table(), 0, 1, 'Mine'))
     const fresh = snapshot(markdown.replace('State', 'Status'))
-    expect(summarizeTableEdits(local, fresh, baseline).conflictCells).toEqual([{ rowId: '', columnId: 'state' }])
+    expect(summarizeTableEdits(local, fresh).conflictCells).toEqual([{ rowId: '', columnId: STATE }])
+  })
+
+  it('counts rows removed by hand as manual changes', () => {
+    const header = table('| Name | State |\n| --- | --- |\n', { ...metadata, documentIds: [] })
+    const state = editorTableState(header)
+    expect(summarizeTableEdits(state, snapshot(markdown), { rowIds: ['a'], columnIds: COLUMNS }).localChanges).toBe(
+      true
+    )
+    expect(summarizeTableEdits(state, snapshot('| Name | State |\n| --- | --- |\n', [])).localChanges).toBe(false)
+  })
+
+  it('takes a merged header column id from a plain cell below it', () => {
+    const merged = table()
+    const header = merged.child(0)
+    const wide = header.child(0).type.create({ ...header.child(0).attrs, colspan: 2 }, header.child(0).content)
+    const node = merged.type.create(merged.attrs, [header.type.create(header.attrs, [wide]), merged.child(1)])
+    let state = stateWith(node)
+    state = state.applyTransaction(state.tr.insertText('x', 4)).state
+    expect(editorTableSnapshot(state.doc.firstChild as Node).columnIds).toEqual(COLUMNS)
+  })
+
+  it('keeps transit row ids out of the stored metadata', () => {
+    const node = table(markdown, { ...metadata, source: { kind: 'relationship', mode: 'fixed' }, rowIds: ['path-1'] })
+    expect(JSON.parse(node.attrs.tableMetadata)).not.toHaveProperty('rowIds')
+    expect(editorTableSnapshot(node).rowIds).toEqual(['path-1'])
   })
 })
 
@@ -140,7 +184,7 @@ describe('table identities', () => {
       state = state.applyTransaction(tr).state
     })
     const ids = editorTableSnapshot(state.doc.firstChild as Node).columnIds
-    expect(ids.slice(1)).toEqual(['name', 'state'])
+    expect(ids.slice(1)).toEqual(COLUMNS)
     expect(ids[0]).toMatch(/^local:/)
   })
 

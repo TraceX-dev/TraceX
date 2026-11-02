@@ -53,6 +53,11 @@ export interface CopyAsMarkdownTableProps {
   valueFormatter?: ValueFormatter
   query?: DocumentQuery<Doc>
   source?: TableSource
+  /**
+   * Refuse to build when a configured column no longer exists. Refreshable tables need it to keep
+   * their columns stable; exports and plain copies keep the previous lenient behaviour.
+   */
+  strictColumns?: boolean
 }
 
 export interface TableData {

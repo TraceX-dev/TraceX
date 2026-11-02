@@ -304,6 +304,7 @@ const view = plugin(viewId, {
     TableNoColumns: '' as IntlString,
     TableNoSource: '' as IntlString,
     TableUnsupportedVersion: '' as IntlString,
+    TableMetadataDamaged: '' as IntlString,
     TableChangedDuringPreview: '' as IntlString,
     LocalTableChanges: '' as IntlString,
     TableConflicts: '' as IntlString,

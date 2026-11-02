@@ -978,8 +978,13 @@ export interface TableMetadata extends BuildMarkdownTableMetadata {
   version: string // For future compatibility
   documentIds: Array<string | Ref<Doc>> // Document IDs used in the table
   timestamp: number // Timestamp when the table was created/updated
-  snapshot?: TableSnapshot
   workspace?: string // Optional workspace identifier
+  /**
+   * Clipboard only, relationship tables only: row identities in rendered order (a row there is a
+   * path through related documents, not one document). Not kept in the document: once pasted,
+   * identities live on the row nodes.
+   */
+  rowIds?: string[]
 }
 
 /**
@@ -1006,7 +1011,7 @@ export type TableCellValue = TableCellRun[]
 
 /**
  * @public
- * Values as they were last copied or refreshed, used to detect manual edits and conflicts.
+ * A rendered table with its row and column identities. Built in memory for diffs; never persisted.
  * `cells[0]` is the header row; a merged cell repeats across every position it spans.
  */
 export interface TableSnapshot {

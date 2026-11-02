@@ -15,10 +15,11 @@
 
 import { type Editor } from '@tiptap/core'
 import { Node } from '@tiptap/pm/model'
+import type { Transaction } from '@tiptap/pm/state'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
 import { showPopup } from '@hcengineering/ui'
-import view, { type ResolvedTableSnapshot } from '@hcengineering/view'
-import { attachTableSnapshot, editorTableSnapshot, summarizeTableEdits } from '../snapshot'
+import view, { tableMetadataColumnIds, type ResolvedTableSnapshot } from '@hcengineering/view'
+import { attachTableSnapshot, editorTableState, summarizeTableEdits } from '../snapshot'
 import { getTableMetadata } from '../tableMetadata'
 import { findTable } from '../utils'
 import { showTableError, showTableMessage } from './errors'
@@ -26,34 +27,50 @@ import TableRefreshConfirmation from './TableRefreshConfirmation.svelte'
 import { extractTableMarkdown, fetchFreshTableSnapshot } from './tableUtils'
 
 /**
- * Replace the previewed table if it is still unchanged. The table is found again by content, not by
- * the position it had when the preview opened; among identical tables the closest one is used.
+ * Follows a table's position through every later transaction, local or collaborative. The position
+ * is lost when the table is deleted, so a refresh never lands on another, possibly identical, table.
  */
+export interface TableBookmark {
+  position: () => number | undefined
+  dispose: () => void
+}
+
+export function trackTable (editor: Editor, pos: number): TableBookmark {
+  let current: number | undefined = pos
+  const onTransaction = ({ transaction }: { transaction: Transaction }): void => {
+    if (current === undefined || !transaction.docChanged) return
+    const result = transaction.mapping.mapResult(current, 1)
+    current = result.deletedAfter ? undefined : result.pos
+  }
+  editor.on('transaction', onTransaction)
+  return {
+    position: () => current,
+    dispose: () => {
+      editor.off('transaction', onTransaction)
+    }
+  }
+}
+
+/** Replace the previewed table only if it is still in place and unchanged since the preview opened. */
 export function applyTableRefresh (
   editor: Editor,
   original: Node,
-  originalPos: number,
+  bookmark: TableBookmark,
   resolved: ResolvedTableSnapshot
 ): boolean {
   if (editor.isDestroyed) return false
-  let target: number | undefined
-  editor.state.doc.descendants((node, pos) => {
-    if (node.type.name !== 'table') return true
-    if (node.eq(original) && (target === undefined || Math.abs(pos - originalPos) < Math.abs(target - originalPos))) {
-      target = pos
-    }
-    return false
-  })
-  if (target === undefined) {
+  const target = bookmark.position()
+  const node = target === undefined ? null : editor.state.doc.nodeAt(target)
+  if (target === undefined || node === null || !node.eq(original)) {
     showTableMessage(view.string.TableChangedDuringPreview)
     return false
   }
   let replacement: Node | undefined
-  Node.fromJSON(editor.state.schema, markdownToMarkup(resolved.markdown)).forEach((node) => {
-    if (node.type.name === 'table' && replacement === undefined) replacement = node
+  Node.fromJSON(editor.state.schema, markdownToMarkup(resolved.markdown)).forEach((child) => {
+    if (child.type.name === 'table' && replacement === undefined) replacement = child
   })
   if (replacement === undefined) throw new Error('Source snapshot contains no table')
-  const next = attachTableSnapshot(replacement, resolved.metadata)
+  const next = attachTableSnapshot(replacement, resolved.metadata, resolved.snapshot.rowIds)
   editor.view.dispatch(editor.state.tr.replaceWith(target, target + original.nodeSize, next))
   return true
 }
@@ -63,14 +80,22 @@ export async function refreshTable (editor: Editor): Promise<void> {
   const table = findTable(editor.state.selection)
   const metadata = table === undefined ? undefined : getTableMetadata(table.node)
   if (table === undefined || metadata === undefined) return
+  // Edits made while the source loads or the preview is open are followed too.
+  const bookmark = trackTable(editor, table.pos)
   try {
     const fresh = await fetchFreshTableSnapshot(metadata)
     const tracked = metadata.version === '2.0'
-    const current = tracked ? editorTableSnapshot(table.node) : extractTableMarkdown(table.node)
+    const state = tracked ? editorTableState(table.node) : undefined
+    const current = state?.snapshot ?? extractTableMarkdown(table.node)
+    // Rows a relationship table should contain are not stored, so only its columns are checked.
+    const expected = {
+      rowIds: metadata.source?.kind === 'relationship' ? [] : metadata.documentIds.map(String),
+      columnIds: tableMetadataColumnIds(metadata)
+    }
     const summary =
-      typeof current === 'string'
+      state === undefined
         ? { localChanges: false, conflicts: false }
-        : summarizeTableEdits(current, fresh.snapshot, metadata.snapshot)
+        : summarizeTableEdits(state, fresh.snapshot, expected)
     showPopup(
       TableRefreshConfirmation,
       {
@@ -80,7 +105,7 @@ export async function refreshTable (editor: Editor): Promise<void> {
         ...summary,
         onApply: () => {
           try {
-            return applyTableRefresh(editor, table.node, table.pos, fresh)
+            return applyTableRefresh(editor, table.node, bookmark, fresh)
           } catch (error) {
             console.error('Failed to apply table refresh:', error)
             showTableError(error)
@@ -88,9 +113,13 @@ export async function refreshTable (editor: Editor): Promise<void> {
           }
         }
       },
-      'center'
+      'center',
+      () => {
+        bookmark.dispose()
+      }
     )
   } catch (error) {
+    bookmark.dispose()
     console.error('Failed to refresh table:', error)
     showTableError(error)
   }

@@ -31,6 +31,7 @@
     "TableNoColumns": "Tabulka nemá žádné sloupce, které lze kopírovat.",
     "TableNoSource": "Tabulka nemá informace o zdroji. Zkopírujte ji znovu.",
     "TableUnsupportedVersion": "Tabulka byla vytvořena novější verzí a nelze ji zde aktualizovat.",
+    "TableMetadataDamaged": "Informace o zdroji této tabulky jsou poškozené. Zkopírujte tabulku znovu, abyste ji mohli aktualizovat.",
     "TableChangedDuringPreview": "Tabulka se změnila, zatímco byl otevřen náhled. Otevřete náhled znovu.",
     "LocalTableChanges": "Tabulka obsahuje ruční úpravy. Nahrazením se ztratí.",
     "TableConflicts": "Některé buňky byly změněny ručně i ve zdroji. Nahrazení zachová hodnoty ze zdroje.",

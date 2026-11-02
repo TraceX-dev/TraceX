@@ -43,7 +43,7 @@ import { findTable, isTableSelected, selectTable as selectTableNode } from './ut
 import { tableIdentities, tableIdentityAttributes } from './identities'
 import { showTableMessage } from './actions/errors'
 import view from '@hcengineering/view'
-import { getTableMetadata } from './tableMetadata'
+import { getTableMetadata, getTableMetadataProblem } from './tableMetadata'
 import { refreshTable, showTableDiff, seeOriginalTableData } from './actions'
 
 export const Table = TiptapTable.extend({
@@ -259,15 +259,15 @@ export async function openTableOptions (editor: Editor, event: MouseEvent): Prom
 
   const ops: TableAction[] = []
 
-  // Metadata written by a newer version: say why the table cannot be refreshed instead of hiding it.
-  const rawMetadata = table?.node.attrs.tableMetadata
-  if ((metadata === null || metadata === undefined) && typeof rawMetadata === 'string' && rawMetadata !== '') {
+  // Metadata that is present but unusable: say why instead of hiding the table actions.
+  const problem = table === undefined ? undefined : getTableMetadataProblem(table.node)
+  if (problem !== undefined) {
     ops.push({
       id: '#refreshTable',
       icon: textEditor.icon.Refresh,
       label: textEditor.string.RefreshTable,
       action: () => {
-        showTableMessage(view.string.TableUnsupportedVersion)
+        showTableMessage(problem === 'unsupported' ? view.string.TableUnsupportedVersion : view.string.TableMetadataDamaged)
         return true
       },
       category: {

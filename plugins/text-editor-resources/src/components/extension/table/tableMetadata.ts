@@ -14,7 +14,7 @@
 //
 
 import type { Node } from '@tiptap/pm/model'
-import { parseTableMetadata, type TableMetadata } from '@hcengineering/view'
+import { parseTableMetadata, tableMetadataProblem, type TableMetadata } from '@hcengineering/view'
 
 /**
  * Extract table metadata from a ProseMirror table node
@@ -30,12 +30,37 @@ export function getTableMetadata (node: Node): TableMetadata | undefined {
   if (metadataAttr === undefined || typeof metadataAttr !== 'string') {
     return undefined
   }
+  return parseCached(metadataAttr)
+}
 
+/**
+ * Parsed metadata by attribute text. The editor asks for it on every local edit inside a table, and
+ * the attribute only changes on paste or refresh, so parsing once per distinct text is enough.
+ */
+const parsed = new Map<string, TableMetadata | undefined>()
+const CACHE_SIZE = 64
+
+function parseCached (text: string): TableMetadata | undefined {
+  if (parsed.has(text)) return parsed.get(text)
+  let metadata: TableMetadata | undefined
   try {
-    return parseTableMetadata(JSON.parse(metadataAttr))
+    metadata = parseTableMetadata(JSON.parse(text))
   } catch (e) {
     console.warn('Failed to parse table metadata:', e)
-    return undefined
+  }
+  if (parsed.size >= CACHE_SIZE) parsed.delete(parsed.keys().next().value as string)
+  parsed.set(text, metadata)
+  return metadata
+}
+
+/** Why a table that carries metadata cannot use it: newer version, or damaged. */
+export function getTableMetadataProblem (node: Node): 'unsupported' | 'damaged' | undefined {
+  const text = node.type.name === 'table' ? node.attrs?.tableMetadata : undefined
+  if (typeof text !== 'string' || text === '' || getTableMetadata(node) !== undefined) return undefined
+  try {
+    return tableMetadataProblem(JSON.parse(text))
+  } catch {
+    return 'damaged'
   }
 }
 

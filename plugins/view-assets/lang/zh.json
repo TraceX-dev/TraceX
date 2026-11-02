@@ -31,6 +31,7 @@
     "TableNoColumns": "表格没有可复制的列。",
     "TableNoSource": "此表格没有来源信息，请重新复制。",
     "TableUnsupportedVersion": "此表格由更新的版本创建，无法在此刷新。",
+    "TableMetadataDamaged": "此表格的来源信息已损坏。请重新复制表格以便刷新。",
     "TableChangedDuringPreview": "预览打开期间表格已更改，请重新打开预览。",
     "LocalTableChanges": "表格包含手动修改，替换后这些修改将丢失。",
     "TableConflicts": "部分单元格同时在手动和来源中被修改，替换后将保留来源中的值。",

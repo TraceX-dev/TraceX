@@ -31,6 +31,7 @@
     "TableNoColumns": "コピーできる列がありません。",
     "TableNoSource": "この表にはソース情報がありません。もう一度コピーしてください。",
     "TableUnsupportedVersion": "この表は新しいバージョンで作成されたため、ここでは更新できません。",
+    "TableMetadataDamaged": "この表のソース情報が破損しています。更新できるように、表をもう一度コピーしてください。",
     "TableChangedDuringPreview": "プレビューを開いている間に表が変更されました。プレビューを開き直してください。",
     "LocalTableChanges": "表に手動の変更があります。置き換えると失われます。",
     "TableConflicts": "一部のセルは手動とソースの両方で変更されています。置き換えるとソースの値が残ります。",

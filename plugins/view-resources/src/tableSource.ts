@@ -21,8 +21,7 @@ import { activeViewlet, makeViewletKey } from './utils'
 import { getViewOptions, viewOptionStore } from './viewOptions'
 
 /**
- * Where a filtered query came from. The filter bar attaches it to the query it emits, so a table
- * receiving that query knows its source explicitly instead of guessing it from query contents.
+ * What a filter bar applies to its view: the query it starts from and the filters it adds.
  * @public
  */
 export interface QueryFilterSource {
@@ -33,20 +32,25 @@ export interface QueryFilterSource {
   filters: string
 }
 
-/** Enumerable, so object spreads keep it; symbols are never serialized into requests. */
-const filterSourceKey = Symbol('tableFilterSource')
+/**
+ * Filter bars publish their source here while they are mounted, keyed by an instance id. The
+ * latest published source for a class wins. This is an explicit channel: it does not depend on the
+ * query object surviving clones and merges on its way to the table.
+ */
+const filterSources = new Map<string, QueryFilterSource>()
 
-/** @public */
-export function attachQueryFilterSource<T extends DocumentQuery<Doc>> (query: T, source: QueryFilterSource): T {
-  Object.defineProperty(query, filterSourceKey, { value: source, enumerable: true, configurable: true, writable: true })
-  return query
+/** Publish (or, with `undefined`, withdraw) the source of a mounted filter bar. @public */
+export function publishFilterSource (id: string, source: QueryFilterSource | undefined): void {
+  filterSources.delete(id)
+  if (source !== undefined) filterSources.set(id, source)
 }
 
-/** @public */
-export function getQueryFilterSource (query: DocumentQuery<Doc> | undefined): QueryFilterSource | undefined {
-  if (query === undefined) return undefined
-  const source: QueryFilterSource | undefined = Reflect.get(query, filterSourceKey)
-  return source
+/** The source of the most recently updated filter bar for a class. @public */
+export function getFilterSource (cardClass: Ref<Class<Doc>>): QueryFilterSource | undefined {
+  const sources = [...filterSources.values()].filter(
+    (source) => source.cardClass === undefined || source.cardClass === cardClass
+  )
+  return sources[sources.length - 1]
 }
 
 /**
@@ -76,7 +80,6 @@ export function savedViewDiffers (
  * @public
  */
 export function getTableFilterSource (
-  query: DocumentQuery<Doc> | undefined,
   cardClass: Ref<Class<Doc>>
 ):
   | {
@@ -86,8 +89,8 @@ export function getTableFilterSource (
       savedViewModified?: boolean
     }
   | undefined {
-  const source = getQueryFilterSource(query)
-  if (source === undefined || (source.cardClass !== undefined && source.cardClass !== cardClass)) return undefined
+  const source = getFilterSource(cardClass)
+  if (source === undefined) return undefined
   const selected = get(selectedFilterStore)
   if (selected === undefined || (selected.filterClass !== undefined && selected.filterClass !== cardClass)) {
     return { baseQuery: source.baseQuery, filters: source.filters }

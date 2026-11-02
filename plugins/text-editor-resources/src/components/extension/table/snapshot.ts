@@ -15,51 +15,93 @@
 import { TableMap } from '@tiptap/pm/tables'
 import { Fragment, type Node } from '@tiptap/pm/model'
 import {
+  tableCellHash,
   tableCellsEqual,
+  tableCellValue,
+  tableMetadataColumnIds,
+  tableMetadataRowIds,
   tableSnapshotFromMarkup,
   type TableCellValue,
   type TableMetadata,
   type TableSnapshot
 } from '@hcengineering/view'
 
-/** Attach source identities to editor nodes so edits and moves retain their identity. */
-export function attachTableSnapshot (node: Node, metadata: TableMetadata): Node {
-  const snapshot = metadata.snapshot
-  const attrs = { ...node.attrs, tableMetadata: JSON.stringify(metadata) }
-  if (snapshot === undefined || metadata.version !== '2.0') {
+/**
+ * For each grid column, the position (relative to the table) of the cell that carries its identity:
+ * the first cell from the top spanning exactly that column. Merged cells never define a column.
+ */
+export function tableColumnCells (table: Node): number[] {
+  const map = TableMap.get(table)
+  return Array.from({ length: map.width }, (_, column) => {
+    for (let row = 0; row < map.height; row++) {
+      const pos = map.map[row * map.width + column]
+      if (Number(table.nodeAt(pos)?.attrs.colspan ?? 1) === 1) return pos
+    }
+    return map.map[column]
+  })
+}
+
+/**
+ * Attach source identities and value fingerprints to a pasted or refreshed table. The table keeps
+ * its rows and columns identified through edits and moves, and each cell remembers a short hash of
+ * the value it had, so manual edits and source changes can be told apart later without storing a
+ * second copy of the table. Transit row ids from the clipboard are not stored.
+ */
+export function attachTableSnapshot (node: Node, metadata: TableMetadata, rowIds?: string[]): Node {
+  const { rowIds: transitRowIds, ...stored } = metadata
+  const attrs = { ...node.attrs, tableMetadata: JSON.stringify(stored) }
+  const map = TableMap.get(node)
+  const rows = rowIds ?? transitRowIds ?? tableMetadataRowIds(metadata)
+  const columns = tableMetadataColumnIds(metadata)
+  if (metadata.version !== '2.0' || map.height !== rows.length + 1 || map.width !== columns.length) {
     return node.type.create(attrs, node.content, node.marks)
   }
-  const rows: Node[] = []
-  const map = TableMap.get(node)
+  const result: Node[] = []
   node.forEach((row, rowOffset, rowIndex) => {
     const cells: Node[] = []
     row.forEach((cell, cellOffset) => {
       const columnIndex = map.findCell(rowOffset + 1 + cellOffset).left
+      const sourceHash = tableCellHash(tableCellValue(cell.toJSON()))
       cells.push(
         cell.type.create(
-          { ...cell.attrs, sourceColumnId: snapshot.columnIds[columnIndex] ?? null },
+          { ...cell.attrs, sourceColumnId: columns[columnIndex] ?? null, sourceHash },
           cell.content,
           cell.marks
         )
       )
     })
-    const sourceRowId = rowIndex === 0 ? null : (snapshot.rowIds[rowIndex - 1] ?? null)
-    rows.push(row.type.create({ ...row.attrs, sourceRowId }, Fragment.fromArray(cells), row.marks))
+    const sourceRowId = rowIndex === 0 ? null : (rows[rowIndex - 1] ?? null)
+    result.push(row.type.create({ ...row.attrs, sourceRowId }, Fragment.fromArray(cells), row.marks))
   })
-  return node.type.create(attrs, Fragment.fromArray(rows), node.marks)
+  return node.type.create(attrs, Fragment.fromArray(result), node.marks)
 }
 
-/** Canonical values of the table as it is now, read from the editor nodes rather than Markdown. */
-export function editorTableSnapshot (node: Node): TableSnapshot {
+/** The table as it is now, read from the editor nodes, with the fingerprints its cells remember. */
+export interface EditorTableState {
+  snapshot: TableSnapshot
+  /** Grid-aligned with `snapshot.cells`; undefined where a cell carries no fingerprint. */
+  hashes: Array<Array<string | undefined>>
+}
+
+export function editorTableState (node: Node): EditorTableState {
   const map = TableMap.get(node)
-  const columnIds = Array.from({ length: map.width }, (_, column) =>
-    String(node.nodeAt(map.map[column])?.attrs.sourceColumnId ?? '')
-  )
+  const columnIds = tableColumnCells(node).map((pos) => String(node.nodeAt(pos)?.attrs.sourceColumnId ?? ''))
   const rowIds: string[] = []
   node.forEach((row, _offset, index) => {
     if (index > 0) rowIds.push(String(row.attrs.sourceRowId ?? ''))
   })
-  return tableSnapshotFromMarkup(node.toJSON(), rowIds, columnIds)
+  const hashes = Array.from({ length: map.height }, (_, row) =>
+    Array.from({ length: map.width }, (_, column) => {
+      const hash = node.nodeAt(map.map[row * map.width + column])?.attrs.sourceHash
+      return typeof hash === 'string' ? hash : undefined
+    })
+  )
+  return { snapshot: tableSnapshotFromMarkup(node.toJSON(), rowIds, columnIds), hashes }
+}
+
+/** Canonical values of the table as it is now, read from the editor nodes rather than Markdown. */
+export function editorTableSnapshot (node: Node): TableSnapshot {
+  return editorTableState(node).snapshot
 }
 
 export interface TableConflictCell {
@@ -74,61 +116,57 @@ export interface TableEditSummary {
   conflictCells?: TableConflictCell[]
 }
 
-function cellAt (
-  snapshot: TableSnapshot,
-  row: number | undefined,
-  column: number | undefined
-): TableCellValue | undefined {
-  return row === undefined || column === undefined ? undefined : snapshot.cells[row]?.[column]
+function isSourceId (id: string | undefined): id is string {
+  return id !== undefined && id !== '' && !id.startsWith('local:')
 }
 
 /**
- * Three-way comparison against the copied values. Conflicts are reported, never merged silently:
- * replacing the table keeps the source values.
+ * Three-way comparison through the fingerprints cells remember: a cell was edited manually when its
+ * value no longer matches its fingerprint, and changed in the source when the fresh value does not.
+ * Conflicts are reported, never merged: replacing the table keeps the source values. Rows or
+ * columns added or removed by hand count as manual changes.
  */
 export function summarizeTableEdits (
-  current: TableSnapshot,
+  current: EditorTableState,
   fresh: TableSnapshot,
-  baseline?: TableSnapshot
+  expected?: { rowIds: string[], columnIds: string[] }
 ): TableEditSummary {
-  if (baseline === undefined) return { localChanges: false, conflicts: false }
-  const index = (ids: string[]): Map<string, number> => new Map(ids.map((id, i) => [id, i]))
-  const currentRows = index(current.rowIds)
-  const freshRows = index(fresh.rowIds)
-  const currentColumns = index(current.columnIds)
-  const freshColumns = index(fresh.columnIds)
-  let localChanges =
-    JSON.stringify(current.rowIds) !== JSON.stringify(baseline.rowIds) ||
-    JSON.stringify(current.columnIds) !== JSON.stringify(baseline.columnIds)
-  const conflictCells: TableConflictCell[] = []
-  // Row 0 is the header; data rows are addressed by their ids.
-  const rows: Array<[string, number, number | undefined, number | undefined]> = [
-    ['', 0, 0, 0],
-    ...baseline.rowIds.map((id, i): [string, number, number | undefined, number | undefined] => {
-      const currentRow = currentRows.get(id)
-      const freshRow = freshRows.get(id)
-      return [
-        id,
-        i + 1,
-        currentRow === undefined ? undefined : currentRow + 1,
-        freshRow === undefined ? undefined : freshRow + 1
-      ]
-    })
-  ]
-  for (const [rowId, baseRow, currentRow, freshRow] of rows) {
-    baseline.columnIds.forEach((columnId, baseColumn) => {
-      const original = cellAt(baseline, baseRow, baseColumn)
-      const local = cellAt(current, currentRow, currentColumns.get(columnId))
-      if (local !== undefined && tableCellsEqual(local, original)) return
-      localChanges = true
-      const source = cellAt(fresh, freshRow, freshColumns.get(columnId))
-      const sourceChanged = source === undefined ? original !== undefined : !tableCellsEqual(source, original)
-      // Both sides made the same change (including removing the same row): nothing to resolve.
-      const sameChange =
-        local === undefined ? source === undefined : source !== undefined && tableCellsEqual(local, source)
-      if (sourceChanged && !sameChange) conflictCells.push({ rowId, columnId })
-    })
+  const { snapshot, hashes } = current
+  if (!hashes.some((row) => row.some((hash) => hash !== undefined))) return { localChanges: false, conflicts: false }
+  const freshRows = new Map(fresh.rowIds.map((id, index) => [id, index + 1]))
+  const freshColumns = new Map(fresh.columnIds.map((id, index) => [id, index]))
+  const freshCell = (rowId: string, columnId: string): TableCellValue | undefined => {
+    const row = rowId === '' ? 0 : freshRows.get(rowId)
+    const column = freshColumns.get(columnId)
+    return row === undefined || column === undefined ? undefined : fresh.cells[row]?.[column]
   }
+
+  let localChanges =
+    !snapshot.rowIds.every(isSourceId) ||
+    !snapshot.columnIds.every(isSourceId) ||
+    (expected !== undefined &&
+      (expected.rowIds.some((id) => freshRows.has(id) && !snapshot.rowIds.includes(id)) ||
+        expected.columnIds.some((id) => freshColumns.has(id) && !snapshot.columnIds.includes(id))))
+  const conflictCells: TableConflictCell[] = []
+  const seen = new Set<string>()
+  snapshot.cells.forEach((row, rowIndex) => {
+    const rowId = rowIndex === 0 ? '' : snapshot.rowIds[rowIndex - 1]
+    if (rowIndex > 0 && !isSourceId(rowId)) return
+    row.forEach((value, columnIndex) => {
+      const columnId = snapshot.columnIds[columnIndex]
+      const hash = hashes[rowIndex]?.[columnIndex]
+      const key = JSON.stringify([rowId, columnId])
+      if (!isSourceId(columnId) || hash === undefined || seen.has(key)) return
+      seen.add(key)
+      if (tableCellHash(value) === hash) return
+      localChanges = true
+      const source = freshCell(rowId, columnId)
+      const sourceChanged = source === undefined || tableCellHash(source) !== hash
+      if (sourceChanged && (source === undefined || !tableCellsEqual(source, value))) {
+        conflictCells.push({ rowId, columnId })
+      }
+    })
+  })
   return {
     localChanges,
     conflicts: conflictCells.length > 0,

@@ -31,6 +31,7 @@
     "TableNoColumns": "Le tableau ne contient aucune colonne copiable.",
     "TableNoSource": "Ce tableau n’a pas d’informations sur sa source. Copiez-le à nouveau.",
     "TableUnsupportedVersion": "Ce tableau a été créé par une version plus récente et ne peut pas être actualisé ici.",
+    "TableMetadataDamaged": "Les informations de source de ce tableau sont endommagées. Copiez à nouveau le tableau pour pouvoir l’actualiser.",
     "TableChangedDuringPreview": "Le tableau a changé pendant que l’aperçu était ouvert. Rouvrez l’aperçu.",
     "LocalTableChanges": "Le tableau contient des modifications manuelles. Le remplacer les supprimera.",
     "TableConflicts": "Certaines cellules ont été modifiées à la fois manuellement et dans la source. Le remplacement conserve les valeurs de la source.",

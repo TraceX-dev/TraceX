@@ -216,67 +216,103 @@ function isStringList (value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
 }
 
-function isSnapshot (value: unknown): value is TableSnapshot {
-  if (value === null || typeof value !== 'object') return false
-  const { rowIds, columnIds, cells } = value as Partial<TableSnapshot>
-  if (!isStringList(rowIds) || !isStringList(columnIds) || !Array.isArray(cells)) return false
-  if (new Set(rowIds).size !== rowIds.length || new Set(columnIds).size !== columnIds.length) return false
-  if (cells.length !== rowIds.length + 1) return false
-  return cells.every(
-    (row) =>
-      Array.isArray(row) &&
-      row.length === columnIds.length &&
-      row.every((cell) => Array.isArray(cell) && cell.every((run) => isStringList(run) && run.length > 0))
+/** Metadata versions this code understands. @public */
+export const SUPPORTED_TABLE_METADATA_VERSIONS = ['1.0', '2.0']
+
+function isPlainObject (value: unknown): value is Record<string, any> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isConfig (value: unknown): value is Array<string | BuildModelKey> {
+  return (
+    Array.isArray(value) &&
+    value.every((item) => typeof item === 'string' || (isPlainObject(item) && typeof item.key === 'string'))
   )
+}
+
+/**
+ * Legacy (1.0) metadata was written without validation: keep what can still be used and drop the
+ * rest rather than refusing the whole table.
+ */
+function parseLegacy (data: Record<string, any>): TableMetadata | undefined {
+  if (typeof data.cardClass !== 'string') return undefined
+  return {
+    version: '1.0',
+    cardClass: data.cardClass,
+    documentIds: isStringList(data.documentIds) ? data.documentIds : [],
+    timestamp: typeof data.timestamp === 'number' ? data.timestamp : 0,
+    ...(isConfig(data.config) ? { config: data.config } : {}),
+    ...(isPlainObject(data.query) ? { query: data.query } : {}),
+    ...(typeof data.viewletId === 'string' ? { viewletId: data.viewletId } : {}),
+    ...(typeof data.workspace === 'string' ? { workspace: data.workspace } : {}),
+    ...(typeof data.originalUrl === 'string' ? { originalUrl: data.originalUrl } : {}),
+    ...(typeof data.language === 'string' ? { language: data.language } : {})
+  }
 }
 
 /** Validate clipboard/persisted data before enabling source operations. @public */
 export function parseTableMetadata (value: unknown): TableMetadata | undefined {
-  if (typeof value !== 'object' || value === null) return undefined
-  const data = value as Partial<TableMetadata>
+  if (!isPlainObject(value)) return undefined
+  if (value.version === '1.0') return parseLegacy(value)
+  if (value.version !== '2.0') return undefined
+  // Early 2.0 copies carried a full value snapshot; it is no longer kept.
+  const data = { ...value } as TableMetadata & { snapshot?: unknown }
+  delete data.snapshot
   if (
-    !['1.0', '2.0'].includes(data.version ?? '') ||
     typeof data.cardClass !== 'string' ||
     !isStringList(data.documentIds) ||
-    typeof data.timestamp !== 'number'
-  ) {
-    return undefined
-  }
-  if (
-    data.config !== undefined &&
-    (!Array.isArray(data.config) ||
-      !data.config.every(
-        (item) =>
-          typeof item === 'string' || (typeof item === 'object' && item !== null && typeof item.key === 'string')
-      ))
-  ) {
-    return undefined
-  }
-  if (
-    data.query !== undefined &&
-    (data.query === null || typeof data.query !== 'object' || Array.isArray(data.query))
-  ) {
-    return undefined
-  }
-  if (
+    typeof data.timestamp !== 'number' ||
+    (data.config !== undefined && !isConfig(data.config)) ||
+    (data.query !== undefined && !isPlainObject(data.query)) ||
     (data.workspace !== undefined && typeof data.workspace !== 'string') ||
-    (data.viewletId !== undefined && typeof data.viewletId !== 'string')
+    (data.viewletId !== undefined && typeof data.viewletId !== 'string') ||
+    (data.rowIds !== undefined && (!isStringList(data.rowIds) || new Set(data.rowIds).size !== data.rowIds.length))
   ) {
     return undefined
   }
-  if (data.version === '2.0') {
-    const source = data.source
-    if (
-      source == null ||
-      typeof source !== 'object' ||
-      !['table', 'relationship'].includes(source.kind) ||
-      !['fixed', 'savedView', 'frozen'].includes(source.mode) ||
-      (source.mode === 'savedView' && (typeof source.filteredViewId !== 'string' || source.baseQuery == null)) ||
-      (source.filters !== undefined && typeof source.filters !== 'string') ||
-      !isSnapshot(data.snapshot)
-    ) {
-      return undefined
-    }
+  const source = data.source
+  if (
+    !isPlainObject(source) ||
+    !['table', 'relationship'].includes(source.kind) ||
+    !['fixed', 'savedView', 'frozen'].includes(source.mode) ||
+    (source.mode === 'savedView' && (typeof source.filteredViewId !== 'string' || source.baseQuery == null)) ||
+    (source.filters !== undefined && typeof source.filters !== 'string')
+  ) {
+    return undefined
   }
-  return data as TableMetadata
+  return data
+}
+
+/**
+ * Why metadata that is present could not be used: written by a newer version, or damaged.
+ * @public
+ */
+export function tableMetadataProblem (value: unknown): 'unsupported' | 'damaged' {
+  const version = isPlainObject(value) ? value.version : undefined
+  return typeof version === 'string' && !SUPPORTED_TABLE_METADATA_VERSIONS.includes(version) ? 'unsupported' : 'damaged'
+}
+
+/**
+ * Short fingerprint of a canonical cell value (FNV-1a, 32 bit). Stored on each cell to tell
+ * manual edits from source changes without keeping a second copy of the table.
+ * @public
+ */
+export function tableCellHash (value: TableCellValue): string {
+  const text = JSON.stringify(value)
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(36)
+}
+
+/** Column identities of a table copied with the given columns. @public */
+export function tableMetadataColumnIds (metadata: TableMetadata): string[] {
+  return metadata.config === undefined ? [] : tableColumnIds(metadata.config)
+}
+
+/** Row identities carried by metadata: relationship rows travel explicitly, other rows are documents. @public */
+export function tableMetadataRowIds (metadata: TableMetadata): string[] {
+  return metadata.rowIds ?? metadata.documentIds.map(String)
 }

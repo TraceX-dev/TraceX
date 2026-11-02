@@ -50,7 +50,7 @@ import { loadViewletConfig } from './model/viewletLoader'
 import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from './types'
 
 /** Rendered markdown, stable identities and canonical values always come from the same build. */
-function complete (
+function complete(
   metadata: TableMetadata,
   markdown: string,
   rowIds: string[],
@@ -63,17 +63,21 @@ function complete (
   if (snapshot.cells.length !== rowIds.length + 1 || snapshot.cells[0].length !== columnIds.length) {
     throw new Error('Rendered table does not match its row and column identities')
   }
-  return { snapshot, markdown, metadata: { ...metadata, version: '2.0', source, snapshot } }
+  // Relationship rows are paths through related documents, so their identities travel with the copy.
+  const rowIdentities = source.kind === 'relationship' ? { rowIds } : {}
+  return { snapshot, markdown, metadata: { ...metadata, version: '2.0', source, ...rowIdentities } }
 }
 
 /** Capture a fixed set of documents. */
-export async function captureTableSnapshot (
+export async function captureTableSnapshot(
   docs: Doc[],
   props: CopyAsMarkdownTableProps,
   client: Client
 ): Promise<ResolvedTableSnapshot> {
+  if (docs.length > MAX_TABLE_ROWS)
+    throw new TableSourceError('tooLarge', { count: docs.length, limit: MAX_TABLE_ROWS })
   props = { ...props, language: props.language ?? getCurrentLanguage() ?? 'en' }
-  const data = await buildTableData(docs, props, client)
+  const data = await buildTableData(docs, { ...props, strictColumns: true }, client)
   const markdown = await renderMarkdownTable(data, client.getHierarchy())
   const metadata = await buildTableMetadata({ ...props, config: data.config }, docs, client)
   return complete(
@@ -86,10 +90,13 @@ export async function captureTableSnapshot (
 }
 
 /** Keep relationship paths distinct even when multiple rows belong to the same root document. */
-export async function captureRelationshipSnapshot (
+export async function captureRelationshipSnapshot(
   props: CopyRelationshipTableAsMarkdownProps,
   client: Client
 ): Promise<ResolvedTableSnapshot> {
+  if (props.viewModel.length > MAX_TABLE_ROWS) {
+    throw new TableSourceError('tooLarge', { count: props.viewModel.length, limit: MAX_TABLE_ROWS })
+  }
   props = { ...props, language: props.language ?? getCurrentLanguage() ?? 'en' }
   const markdown = await buildRelationshipTableMarkdown(props, client.getHierarchy(), props.language, client)
   const counts = new Map<string, number>()
@@ -113,7 +120,7 @@ export async function captureRelationshipSnapshot (
 }
 
 /** Capture a whole view through the same resolution used by refresh, diff and source preview. */
-export async function captureViewSnapshot (
+export async function captureViewSnapshot(
   props: CopyAsMarkdownTableProps,
   source: TableSource,
   client: Client
@@ -126,19 +133,33 @@ export async function captureViewSnapshot (
   return await resolveTableSnapshot({ ...base, version: '2.0', source }, client)
 }
 
-function sortFrom (viewOptions: ViewOptions | undefined, fallback?: FindOptions<Doc>['sort']): FindOptions<Doc>['sort'] {
+/**
+ * Find options that change which rows a query returns or how they are joined; view-only state
+ * (limits, projections, totals) is dropped.
+ */
+export function repeatableOptions(options: FindOptions<Doc> | undefined): FindOptions<Doc> {
+  if (options === undefined) return {}
+  return {
+    ...(options.sort !== undefined ? { sort: options.sort } : {}),
+    ...(options.lookup !== undefined ? { lookup: options.lookup } : {}),
+    ...(options.associations !== undefined ? { associations: options.associations } : {}),
+    ...(options.showArchived !== undefined ? { showArchived: options.showArchived } : {})
+  }
+}
+
+function sortFrom(viewOptions: ViewOptions | undefined, fallback?: FindOptions<Doc>['sort']): FindOptions<Doc>['sort'] {
   const orderBy = viewOptions?.orderBy
   if (orderBy === undefined) return fallback
   return { [orderBy[0]]: orderBy[1], ...(orderBy[0] === '_id' ? {} : { _id: SortingOrder.Ascending }) }
 }
 
-async function findViewlet (client: Client, viewletId: string | undefined): Promise<Viewlet | undefined> {
+async function findViewlet(client: Client, viewletId: string | undefined): Promise<Viewlet | undefined> {
   return viewletId === undefined
     ? undefined
     : await client.findOne(view.class.Viewlet, { _id: viewletId as Ref<Viewlet> })
 }
 
-async function savedViewQuery (
+async function savedViewQuery(
   client: Client,
   cardClass: Ref<Class<Doc>>,
   source: TableSource,
@@ -206,7 +227,7 @@ async function savedViewQuery (
  * - frozen: the captured query, columns and sorting.
  * An empty result is a valid table. Sources above {@link MAX_TABLE_ROWS} are refused explicitly.
  */
-export async function resolveTableSnapshot (metadata: TableMetadata, client: Client): Promise<ResolvedTableSnapshot> {
+export async function resolveTableSnapshot(metadata: TableMetadata, client: Client): Promise<ResolvedTableSnapshot> {
   const workspace = getMetadata(presentation.metadata.WorkspaceUuid)
   if (metadata.workspace !== undefined && workspace !== undefined && metadata.workspace !== workspace) {
     throw new TableSourceError('workspace')
@@ -246,13 +267,12 @@ export async function resolveTableSnapshot (metadata: TableMetadata, client: Cli
     }
     if (mode === 'fixed') {
       query = { _id: { $in: metadata.documentIds as Array<Ref<Doc>> } }
+      // Explicitly chosen documents stay in the table even after they are archived.
+      options = { showArchived: true }
     } else {
       query = (metadata.query as DocumentQuery<Doc>) ?? {}
       const captured = source.options ?? {}
-      options = {
-        sort: sortFrom(viewOptions, captured.sort),
-        ...(captured.lookup !== undefined ? { lookup: captured.lookup } : {})
-      }
+      options = { ...repeatableOptions(captured), sort: sortFrom(viewOptions, captured.sort) }
     }
   }
 
@@ -280,6 +300,8 @@ export async function resolveTableSnapshot (metadata: TableMetadata, client: Cli
     )
     result = await captureRelationshipSnapshot({ ...props, viewlet, source }, client)
   } else {
+    // Headers and values are rendered in the copier's language (metadata.language), not the
+    // refreshing user's, so a refresh by a colleague does not show every header as changed.
     result = await captureTableSnapshot(
       rows,
       { cardClass, language: metadata.language, viewlet, config, source, query: sourceQuery },
@@ -302,7 +324,8 @@ export async function resolveTableSnapshot (metadata: TableMetadata, client: Cli
       source: mode === 'savedView' ? { ...source, viewOptions, filters } : source,
       documentIds,
       timestamp: Date.now(),
-      snapshot: result.snapshot
+      // Transit identities are replaced by the fresh ones (relationship) or dropped.
+      rowIds: relationship ? result.snapshot.rowIds : undefined
     }
   }
 }

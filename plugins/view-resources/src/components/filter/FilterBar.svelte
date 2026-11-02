@@ -14,13 +14,13 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { AccountRole, Class, Doc, DocumentQuery, Ref, Space, getCurrentAccount } from '@hcengineering/core'
+  import { AccountRole, generateId, Class, Doc, DocumentQuery, Ref, Space, getCurrentAccount } from '@hcengineering/core'
   import { getResource } from '@hcengineering/platform'
   import { getClient, reduceCalls } from '@hcengineering/presentation'
   import { Button, IconAdd, eventToHTMLElement, showPopup } from '@hcengineering/ui'
   import { Filter, FilteredView, ViewOptions, Viewlet } from '@hcengineering/view'
-  import { createEventDispatcher } from 'svelte'
-  import { attachQueryFilterSource, savedViewDiffers } from '../../tableSource'
+  import { createEventDispatcher, onDestroy } from 'svelte'
+  import { publishFilterSource, savedViewDiffers } from '../../tableSource'
   import { filterStore, removeFilter, selectedFilterStore, updateFilter } from '../../filter'
   import view from '../../plugin'
   import { activeViewlet, getActiveViewletId } from '../../utils'
@@ -38,6 +38,14 @@
   const client = getClient()
   const hierarchy = client.getHierarchy()
   const dispatch = createEventDispatcher()
+
+  // Tells "copy table" which filters and saved view stand behind this view's query.
+  const sourceId = generateId()
+  let destroyed = false
+  onDestroy(() => {
+    destroyed = true
+    publishFilterSource(sourceId, undefined)
+  })
 
   const account = getCurrentAccount()
   const canSaveFilteredView = account.role !== AccountRole.ReadOnlyGuest && account.role !== AccountRole.DocGuest
@@ -143,7 +151,7 @@
         }
       }
     }
-    attachQueryFilterSource(newQuery, { cardClass: _class, baseQuery: query, filters: JSON.stringify(filters) })
+    if (!destroyed) publishFilterSource(sourceId, { cardClass: _class, baseQuery: query, filters: JSON.stringify(filters) })
     dispatch('change', newQuery)
   })
 

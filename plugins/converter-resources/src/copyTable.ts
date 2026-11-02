@@ -12,13 +12,14 @@
 // limitations under the License.
 //
 
-import type { Class, Doc, DocumentQuery, FindOptions, Ref } from '@hcengineering/core'
+import type { Class, Doc, DocumentQuery, Ref } from '@hcengineering/core'
 import type { CopyAsMarkdownTableProps } from '@hcengineering/converter'
 import { showPopup } from '@hcengineering/ui'
 import type { BuildModelKey, TableSource, Viewlet } from '@hcengineering/view'
 import { getTableFilterSource, viewletContextStore, type ViewletContext } from '@hcengineering/view-resources'
 import { get } from 'svelte/store'
 import CopyTableDialog from './components/CopyTableDialog.svelte'
+import { repeatableOptions } from './trackedTable'
 
 export interface CopyTableRequest {
   cardClass: Ref<Class<Doc>>
@@ -29,20 +30,11 @@ export interface CopyTableRequest {
   selected?: Doc[]
 }
 
-/** Only sorting and lookups are needed to repeat a query; the rest is view state. */
-function queryOptions (options: FindOptions<Doc> | undefined): FindOptions<Doc> | undefined {
-  if (options === undefined) return undefined
-  return {
-    ...(options.sort !== undefined ? { sort: options.sort } : {}),
-    ...(options.lookup !== undefined ? { lookup: options.lookup } : {})
-  }
-}
-
 /**
  * The last viewlet context belongs to this request only when it shows the same class and,
  * for an action, contains the documents the action was invoked on.
  */
-function matchingContext (request: CopyTableRequest): ViewletContext | undefined {
+function matchingContext(request: CopyTableRequest): ViewletContext | undefined {
   const context = get(viewletContextStore).getLastContext()
   if (context === undefined) return undefined
   const objects = context.relationshipTableData?.objects ?? context.objects ?? []
@@ -53,25 +45,28 @@ function matchingContext (request: CopyTableRequest): ViewletContext | undefined
 }
 
 /** Open the copy dialog for an action (selected rows) or for the whole view. */
-export function openCopyTableDialog (request: CopyTableRequest): void {
+export function openCopyTableDialog(request: CopyTableRequest): void {
   const context = matchingContext(request)
   const cardClass = context?._class ?? request.cardClass
   const relationship = context?.relationshipTableData
-  const visibleQuery = context?.query ?? request.query
-  const { savedViewModified = false, ...filterSource } = getTableFilterSource(visibleQuery, cardClass) ?? {}
+  // An explicit query (the view header button) wins; the context's resolved query is used only when
+  // the context describes that same query.
+  const visibleQuery = request.query ?? context?.query
+  const sameQuery = context?.query !== undefined && JSON.stringify(context.query) === JSON.stringify(visibleQuery)
+  const { savedViewModified = false, ...filterSource } = getTableFilterSource(cardClass) ?? {}
   const source: TableSource = {
     kind: relationship === undefined ? 'table' : 'relationship',
     mode: 'frozen',
     ...filterSource,
-    options: queryOptions(context?.options),
-    baseOptions: queryOptions(context?.baseOptions),
+    options: repeatableOptions(context?.options),
+    baseOptions: repeatableOptions(context?.baseOptions),
     viewOptions: context?.viewOptions
   }
   const props: CopyAsMarkdownTableProps = {
     cardClass,
     viewlet: request.viewlet ?? context?.viewlet,
     config: request.config !== undefined && request.config.length > 0 ? request.config : context?.config,
-    query: context?.sourceQuery ?? visibleQuery,
+    query: (sameQuery ? context?.sourceQuery : undefined) ?? visibleQuery,
     source
   }
   const loaded = relationship?.objects ?? context?.objects ?? []

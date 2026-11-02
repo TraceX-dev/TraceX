@@ -31,6 +31,7 @@
     "TableNoColumns": "Tabela nie ma kolumn, które można skopiować.",
     "TableNoSource": "Ta tabela nie ma informacji o źródle. Skopiuj ją ponownie.",
     "TableUnsupportedVersion": "Tę tabelę utworzono w nowszej wersji i nie można jej tu odświeżyć.",
+    "TableMetadataDamaged": "Informacje o źródle tej tabeli są uszkodzone. Skopiuj tabelę ponownie, aby móc ją odświeżać.",
     "TableChangedDuringPreview": "Tabela zmieniła się, gdy podgląd był otwarty. Otwórz podgląd ponownie.",
     "LocalTableChanges": "Tabela zawiera ręczne zmiany. Zastąpienie tabeli je usunie.",
     "TableConflicts": "Niektóre komórki zmieniono ręcznie i w źródle. Zastąpienie zachowa wartości ze źródła.",

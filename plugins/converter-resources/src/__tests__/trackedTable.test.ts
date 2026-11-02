@@ -58,7 +58,7 @@ jest.mock('../markdown/tableBuilder', () => ({
     rows: docs.map((doc) => [doc._id]),
     docs
   }),
-  renderMarkdownTable: async (data: { headers: string[], docs: Doc[] }) =>
+  renderMarkdownTable: async (data: { headers: string[]; docs: Doc[] }) =>
     '| ' +
     data.headers.join(' | ') +
     ' |\n| ' +
@@ -71,7 +71,7 @@ const cardClass = 'test:class:Doc' as Ref<Class<Doc>>
 const viewletId = 'viewlet' as Ref<Viewlet>
 const space = 's' as Ref<Space>
 
-function metadata (mode: 'fixed' | 'savedView' | 'frozen'): TableMetadata {
+function metadata(mode: 'fixed' | 'savedView' | 'frozen'): TableMetadata {
   return {
     version: '2.0',
     cardClass,
@@ -85,12 +85,11 @@ function metadata (mode: 'fixed' | 'savedView' | 'frozen'): TableMetadata {
       mode,
       options: { sort: { name: 1 } },
       ...(mode === 'savedView' ? { filteredViewId: 'saved' as Ref<FilteredView>, baseQuery: { space } } : {})
-    },
-    snapshot: { rowIds: ['b', 'a'], columnIds: ['name'], cells: [[[['name']]], [[['b']]], [[['a']]]] }
+    }
   }
 }
 
-function fixture (ids: string[], total = ids.length): { client: Client, findAll: jest.Mock, findOne: jest.Mock } {
+function fixture(ids: string[], total = ids.length): { client: Client; findAll: jest.Mock; findOne: jest.Mock } {
   const findAll = jest.fn(async () =>
     Object.assign(
       ids.map((_id) => ({ _id, _class: cardClass })),
@@ -138,6 +137,36 @@ describe('table source resolution', () => {
     expect(result.metadata.config).toEqual(['name', 'state'])
     expect(result.metadata.query).toEqual({ space, state: 'new' })
     expect(result.metadata.source?.filters).toBe('[]')
+  })
+
+  it('frozen: repeats archived visibility, lookups and associations but not view-only options', async () => {
+    const { client, findAll } = fixture(['a'])
+    const source = metadata('frozen')
+    source.source = {
+      ...source.source!,
+      options: {
+        sort: { name: 1 },
+        showArchived: true,
+        lookup: { space: 'core:class:Space' } as any,
+        limit: 50,
+        projection: { name: 1 }
+      } as any
+    }
+    await resolveTableSnapshot(source, client)
+    const options = findAll.mock.calls[0][2]
+    expect(options).toMatchObject({
+      showArchived: true,
+      lookup: { space: 'core:class:Space' },
+      sort: { name: 1 },
+      limit: 5000
+    })
+    expect(options.projection).toBeUndefined()
+  })
+
+  it('fixed: finds explicitly chosen documents even after they are archived', async () => {
+    const { client, findAll } = fixture(['a'])
+    await resolveTableSnapshot(metadata('fixed'), client)
+    expect(findAll.mock.calls[0][2].showArchived).toBe(true)
   })
 
   it('frozen: keeps the filters captured at copy time for display', async () => {
@@ -211,12 +240,18 @@ describe('table source resolution', () => {
   it('keeps legacy tables on their fixed set without upgrading them', async () => {
     const legacy = { ...metadata('fixed'), version: '1.0' }
     delete legacy.source
-    delete legacy.snapshot
     const { client, findAll } = fixture(['a'])
     const result = await resolveTableSnapshot(legacy, client)
     expect(findAll.mock.calls[0][1]).toEqual({ _id: { $in: ['b', 'a'] } })
     expect(result.metadata.version).toBe('1.0')
     expect(result.metadata.source).toBeUndefined()
-    expect(result.metadata.snapshot).toBeUndefined()
+  })
+
+  it('never keeps a value snapshot in the metadata and drops stale transit row ids', async () => {
+    const { client } = fixture(['a'])
+    const result = await resolveTableSnapshot({ ...metadata('fixed'), rowIds: ['old'] }, client)
+    expect(result.metadata).not.toHaveProperty('snapshot')
+    expect(result.metadata.rowIds).toBeUndefined()
+    expect(result.snapshot.rowIds).toEqual(['a'])
   })
 })
