@@ -61,8 +61,9 @@
   let format: TableCopyFormat = storedFormat()
   let scope: Scope = selected.length > 0 ? 'selection' : props.query !== undefined ? 'view' : 'loaded'
   let total: number | undefined
-  // With a saved view open it is followed by default; the user can keep what is shown now instead.
-  let viewSource: 'savedView' | 'frozen' = 'savedView'
+  // An unchanged saved view is followed by default. When the filters on screen differ from it, the
+  // default keeps what is shown, so the copy matches the rows the user sees.
+  let viewSource: 'savedView' | 'frozen' = savedViewModified ? 'frozen' : 'savedView'
   let savedViewName = ''
   let copying = false
   let error: { label: IntlString, params: Record<string, string | number> } | undefined

@@ -19,8 +19,8 @@ import type { Node } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey, type Transaction } from '@tiptap/pm/state'
 import { TableMap } from '@tiptap/pm/tables'
 import { Mapping } from '@tiptap/pm/transform'
-import { tableColumnCells } from './snapshot'
-import { getTableMetadata } from './tableMetadata'
+import { tableCellColumns, tableColumnCells } from './snapshot'
+import { getTableMetadataVersion } from './tableMetadata'
 
 export const tableIdentityAttributes: GlobalAttributes = [
   {
@@ -104,7 +104,9 @@ function previousPositions (
 function normalize (ids: string[], positions: number[], previous: Map<string, Set<number>>): void {
   const groups = new Map<string, number[]>()
   ids.forEach((id, index) => {
-    groups.set(id, [...(groups.get(id) ?? []), index])
+    const group = groups.get(id)
+    if (group === undefined) groups.set(id, [index])
+    else group.push(index)
   })
   for (const [id, indices] of groups) {
     const before = previous.get(id)
@@ -133,10 +135,10 @@ export function tableIdentities (): Plugin {
       const tr = state.tr
       for (const tablePos of touchedTables(transactions, state)) {
         const table = state.doc.nodeAt(tablePos)
-        if (table === null || getTableMetadata(table)?.version !== '2.0') continue
+        if (table === null || getTableMetadataVersion(table) !== '2.0') continue
         const oldPos = inverse.map(tablePos)
         const previous = previousPositions(oldState.doc.nodeAt(oldPos), oldPos, mapping)
-        const map = TableMap.get(table)
+        const cellColumns = tableCellColumns(TableMap.get(table))
 
         // Column identities come from the first cell spanning exactly that column, so a merged
         // header cell neither defines nor churns them.
@@ -160,7 +162,7 @@ export function tableIdentities (): Plugin {
           const rowPos = tablePos + 1 + offset
           if (rowIndex > 0) set(row, rowPos, 'sourceRowId', rowIds[rowIndex - 1])
           row.forEach((cell, cellOffset) => {
-            const column = map.findCell(offset + 1 + cellOffset).left
+            const column = cellColumns.get(offset + 1 + cellOffset) ?? -1
             if (Number(cell.attrs.colspan ?? 1) === 1 && columnIds[column] !== undefined) {
               set(cell, rowPos + 1 + cellOffset, 'sourceColumnId', columnIds[column])
             }

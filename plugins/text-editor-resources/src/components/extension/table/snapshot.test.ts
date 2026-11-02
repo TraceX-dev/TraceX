@@ -14,7 +14,7 @@
 
 import { type AttributeSpec, Node, Schema } from '@tiptap/pm/model'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
-import { addColumnBefore, addRowBefore } from '@tiptap/pm/tables'
+import { addColumnBefore, addRowBefore, TableMap } from '@tiptap/pm/tables'
 import { ySyncPluginKey } from 'y-prosemirror'
 import { MarkupNodeType } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
@@ -210,5 +210,21 @@ describe('table identities', () => {
     const secondTableStart = state.doc.firstChild?.nodeSize ?? 0
     state = state.applyTransaction(state.tr.insertText('x', secondTableStart + 5)).state
     expect(editorTableSnapshot(state.doc.firstChild as Node).rowIds).toEqual(['a', 'a'])
+  })
+
+  it('stays linear in the number of cells for large tables', () => {
+    const rows = Array.from({ length: 2000 }, (_, i) => `| Row ${i} | Open |`).join('\n')
+    const big = `| Name | State |\n| --- | --- |\n${rows}\n`
+    const ids = Array.from({ length: 2000 }, (_, i) => `doc-${i}`)
+    const findCell = jest.spyOn(TableMap.prototype, 'findCell')
+    try {
+      let state = stateWith(table(big, { ...metadata, documentIds: ids }))
+      state = state.applyTransaction(state.tr.insertText('x', 4)).state
+      expect(editorTableSnapshot(state.doc.firstChild as Node).rowIds).toEqual(ids)
+      // findCell scans the whole map; calling it per cell made every keystroke quadratic.
+      expect(findCell).not.toHaveBeenCalled()
+    } finally {
+      findCell.mockRestore()
+    }
   })
 })

@@ -44,16 +44,23 @@ function matchingContext (request: CopyTableRequest): ViewletContext | undefined
   return context._class === undefined || context._class === request.cardClass ? context : undefined
 }
 
+function commonClass (docs: Doc[] | undefined): Ref<Class<Doc>> | undefined {
+  const first = docs?.[0]?._class
+  return first !== undefined && docs?.every((doc) => doc._class === first) === true ? first : undefined
+}
+
 /** Open the copy dialog for an action (selected rows) or for the whole view. */
 export function openCopyTableDialog (request: CopyTableRequest): void {
   const context = matchingContext(request)
-  const cardClass = context?._class ?? request.cardClass
+  // Without a matching view, the rows' own class gives their columns: the action's class can be a
+  // base class (cards of a specific type are all `card:class:Card` to the action).
+  const cardClass = context?._class ?? commonClass(request.selected) ?? request.cardClass
   const relationship = context?.relationshipTableData
   // An explicit query (the view header button) wins; the context's resolved query is used only when
   // the context describes that same query.
   const visibleQuery = request.query ?? context?.query
   const sameQuery = context?.query !== undefined && JSON.stringify(context.query) === JSON.stringify(visibleQuery)
-  const { savedViewModified = false, ...filterSource } = getTableFilterSource(cardClass) ?? {}
+  const { savedViewModified = false, ...filterSource } = getTableFilterSource(cardClass, visibleQuery) ?? {}
   const source: TableSource = {
     kind: relationship === undefined ? 'table' : 'relationship',
     mode: 'frozen',

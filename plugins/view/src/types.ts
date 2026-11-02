@@ -974,6 +974,13 @@ export const TABLE_METADATA_MARKER = `<!-- ${TABLE_METADATA_TOKEN}`
  */
 export const TABLE_METADATA_MIME_TYPE = 'application/x-huly-table-metadata'
 
+/**
+ * Attribute that carries table metadata in the text/html flavour when a custom type cannot be
+ * written. Rich-text apps drop unknown attributes, and plain-text apps only get the Markdown.
+ * @public
+ */
+export const TABLE_METADATA_HTML_ATTRIBUTE = 'data-huly-table-metadata'
+
 export interface TableMetadata extends BuildMarkdownTableMetadata {
   version: string // For future compatibility
   documentIds: Array<string | Ref<Doc>> // Document IDs used in the table

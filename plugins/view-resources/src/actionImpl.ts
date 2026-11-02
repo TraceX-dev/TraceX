@@ -51,7 +51,7 @@ import {
   showPanel,
   showPopup
 } from '@hcengineering/ui'
-import { TABLE_METADATA_MARKER, TABLE_METADATA_MIME_TYPE } from '@hcengineering/view'
+import { TABLE_METADATA_HTML_ATTRIBUTE, TABLE_METADATA_MARKER, TABLE_METADATA_MIME_TYPE } from '@hcengineering/view'
 import { get } from 'svelte/store'
 import MoveView from './components/Move.svelte'
 import view from './plugin'
@@ -141,8 +141,9 @@ export async function copyText (text: any, contentType: string = 'text/plain'): 
  */
 export async function copyMarkdown (markdown: string, metadata?: Record<string, any>): Promise<void> {
   if (metadata !== undefined && copyWithMetadata(markdown, metadata)) return
-  // Browsers reject custom MIME types in ClipboardItem (NotAllowedError), and a copy event only
-  // works while the user's click still counts. Otherwise the metadata travels as an HTML comment.
+  if (metadata !== undefined && (await copyWithHtmlMetadata(markdown, metadata))) return
+  // Last resort for browsers without the async clipboard API: the metadata travels as an HTML
+  // comment in the text itself.
   let markdownToCopy = markdown
   if (metadata !== undefined) {
     try {
@@ -152,6 +153,32 @@ export async function copyMarkdown (markdown: string, metadata?: Record<string, 
     }
   }
   await copyText(markdownToCopy, 'text/plain')
+}
+
+function escapeHtml (text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+/**
+ * When the copy event is refused (the click no longer counts after a slow load, or Safari), write
+ * clean Markdown as text/plain and keep the metadata in an attribute of the text/html flavour, so
+ * it never shows up as text in other apps. Browsers reject custom types in ClipboardItem.
+ */
+async function copyWithHtmlMetadata (markdown: string, metadata: Record<string, any>): Promise<boolean> {
+  if (typeof ClipboardItem === 'undefined' || typeof navigator.clipboard?.write !== 'function') return false
+  try {
+    const html = `<pre ${TABLE_METADATA_HTML_ATTRIBUTE}="${escapeHtml(JSON.stringify(metadata))}">${escapeHtml(markdown)}</pre>`
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/plain': new Blob([markdown], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' })
+      })
+    ])
+    return true
+  } catch (e) {
+    console.warn('Failed to copy the table with metadata in text/html:', e)
+    return false
+  }
 }
 
 /**

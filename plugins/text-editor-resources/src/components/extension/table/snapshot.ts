@@ -27,6 +27,18 @@ import {
 } from '@hcengineering/view'
 
 /**
+ * Left grid column of every cell, keyed by the cell position relative to the table. Built in one
+ * pass over the map: `TableMap.findCell` scans the map, so calling it per cell is quadratic.
+ */
+export function tableCellColumns (map: TableMap): Map<number, number> {
+  const columns = new Map<number, number>()
+  map.map.forEach((pos, index) => {
+    if (!columns.has(pos)) columns.set(pos, index % map.width)
+  })
+  return columns
+}
+
+/**
  * For each grid column, the position (relative to the table) of the cell that carries its identity:
  * the first cell from the top spanning exactly that column. Merged cells never define a column.
  */
@@ -56,11 +68,12 @@ export function attachTableSnapshot (node: Node, metadata: TableMetadata, rowIds
   if (metadata.version !== '2.0' || map.height !== rows.length + 1 || map.width !== columns.length) {
     return node.type.create(attrs, node.content, node.marks)
   }
+  const cellColumns = tableCellColumns(map)
   const result: Node[] = []
   node.forEach((row, rowOffset, rowIndex) => {
     const cells: Node[] = []
     row.forEach((cell, cellOffset) => {
-      const columnIndex = map.findCell(rowOffset + 1 + cellOffset).left
+      const columnIndex = cellColumns.get(rowOffset + 1 + cellOffset) ?? -1
       const sourceHash = tableCellHash(tableCellValue(cell.toJSON()))
       cells.push(
         cell.type.create(

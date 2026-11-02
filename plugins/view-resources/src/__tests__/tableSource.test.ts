@@ -61,12 +61,21 @@ describe('table filter source', () => {
     expect(getTableFilterSource(cardClass)).toBeUndefined()
   })
 
-  it('uses the most recently updated filter bar for the class', () => {
-    publish('bar')
-    publishFilterSource('other', { cardClass, baseQuery: {}, filters: '[]' })
-    expect(getTableFilterSource(cardClass)?.filters).toBe('[]')
-    publish('bar')
-    expect(getTableFilterSource(cardClass)?.filters).toBe(filters)
+  it('picks the filter bar that fed the copied view when several views of the class are open', () => {
+    publishFilterSource('bar', {
+      cardClass,
+      baseQuery: { space: 's' as Ref<Space> },
+      filters,
+      resultQuery: { space: 's' as Ref<Space>, state: 'open' }
+    })
+    publishFilterSource('other', { cardClass, baseQuery: {}, filters: '[]', resultQuery: { component: 'c' } })
+    // Exact query, the same query with keys in another order, and a view that adds its own terms.
+    expect(getTableFilterSource(cardClass, { space: 's', state: 'open' } as any)?.filters).toBe(filters)
+    expect(getTableFilterSource(cardClass, { state: 'open', space: 's' } as any)?.filters).toBe(filters)
+    expect(getTableFilterSource(cardClass, { component: 'c', title: 'x' } as any)?.filters).toBe('[]')
+    // Another view's filters are never attached; without a view query the choice is ambiguous.
+    expect(getTableFilterSource(cardClass, { space: 'elsewhere' } as any)).toBeUndefined()
+    expect(getTableFilterSource(cardClass)).toBeUndefined()
   })
 
   it('reports the open saved view and whether the filters on screen differ from it', () => {

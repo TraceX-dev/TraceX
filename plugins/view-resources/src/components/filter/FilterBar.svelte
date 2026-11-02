@@ -160,8 +160,14 @@
         }
       }
     }
-    if (!destroyed)
-      publishFilterSource(sourceId, { cardClass: _class, baseQuery: query, filters: JSON.stringify(filters) })
+    if (!destroyed) {
+      publishFilterSource(sourceId, {
+        cardClass: _class,
+        baseQuery: query,
+        filters: JSON.stringify(filters),
+        resultQuery: newQuery
+      })
+    }
     dispatch('change', newQuery)
   })
 

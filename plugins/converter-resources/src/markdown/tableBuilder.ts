@@ -332,24 +332,28 @@ export async function buildTableData (
   )
 
   let displayableModel: AttributeModel[]
+  // The config entries the columns were built from, kept as given (with presenters, props, labels)
+  // so a refresh rebuilds exactly the same columns. Undefined when columns come from the viewlet.
+  let sourceKeys: Array<string | BuildModelKey> | undefined
   if (actualConfig !== undefined && actualConfig.length > 0) {
     const lookup =
       viewlet !== undefined
         ? buildConfigLookup(hierarchy, props.cardClass, actualConfig, viewlet.options?.lookup)
         : undefined
     const hiddenKeys = viewlet?.configOptions?.hiddenKeys ?? []
-    const model = await buildModel({
-      client,
-      _class: props.cardClass,
-      keys: actualConfig.filter((key: string | BuildModelKey) => {
-        if (typeof key === 'string') {
-          return !hiddenKeys.includes(key)
-        }
-        return !hiddenKeys.includes(key.key) && key.displayProps?.grow !== true
-      }),
-      lookup
+    const keys = actualConfig.filter((key: string | BuildModelKey) => {
+      if (typeof key === 'string') {
+        return !hiddenKeys.includes(key)
+      }
+      return !hiddenKeys.includes(key.key) && key.displayProps?.grow !== true
     })
-    displayableModel = model.filter((attr) => attr.displayProps?.grow !== true)
+    const model = await buildModel({ client, _class: props.cardClass, keys, lookup })
+    // buildModel returns one column per key, in order (missing ones become error columns).
+    const displayable = model.flatMap((attr, index) =>
+      attr.displayProps?.grow === true ? [] : [{ attr, key: keys[index] }]
+    )
+    displayableModel = displayable.map(({ attr }) => attr)
+    if (model.length === keys.length) sourceKeys = displayable.map(({ key }) => key)
   } else {
     displayableModel = await buildTableModel(client, hierarchy, props.cardClass, viewlet)
   }
@@ -398,13 +402,15 @@ export async function buildTableData (
   // document, other formats keep the plain title.
   const linkColumns = displayableModel.length > 0 && displayableModel[0].key === '' ? [0] : []
 
-  const config = displayableModel.map((attr) => ({
-    key: attr.key === '' && String(attr.label).startsWith('custom') ? String(attr.label) : attr.key,
-    label: attr.label,
-    props: attr.props,
-    displayProps: attr.displayProps,
-    sortingKey: attr.sortingKey
-  }))
+  const config =
+    sourceKeys ??
+    displayableModel.map((attr) => ({
+      key: attr.key === '' && String(attr.label).startsWith('custom') ? String(attr.label) : attr.key,
+      label: attr.label,
+      props: attr.props,
+      displayProps: attr.displayProps,
+      sortingKey: attr.sortingKey
+    }))
   return { headers, rows, docs: [...docs], linkColumns, config, columnIds: tableColumnIds(config) }
 }
 

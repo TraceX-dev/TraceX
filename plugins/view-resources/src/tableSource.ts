@@ -30,12 +30,14 @@ export interface QueryFilterSource {
   baseQuery: DocumentQuery<Doc>
   /** The filters that produced the query, serialized like `FilteredView.filters`. */
   filters: string
+  /** The query the filter bar handed to its view; tells views of the same class apart. */
+  resultQuery?: DocumentQuery<Doc>
 }
 
 /**
- * Filter bars publish their source here while they are mounted, keyed by an instance id. The
- * latest published source for a class wins. This is an explicit channel: it does not depend on the
- * query object surviving clones and merges on its way to the table.
+ * Filter bars publish their source here while they are mounted, keyed by an instance id. This is
+ * an explicit channel: it does not depend on the query object surviving clones and merges on its
+ * way to the table.
  */
 const filterSources = new Map<string, QueryFilterSource>()
 
@@ -45,12 +47,41 @@ export function publishFilterSource (id: string, source: QueryFilterSource | und
   if (source !== undefined) filterSources.set(id, source)
 }
 
-/** The source of the most recently updated filter bar for a class. @public */
-export function getFilterSource (cardClass: Ref<Class<Doc>>): QueryFilterSource | undefined {
+/** JSON with sorted object keys, so equal queries compare equal after clones and merges. */
+function canonical (value: unknown): string {
+  return JSON.stringify(value, (_key, current) =>
+    current !== null && typeof current === 'object' && !Array.isArray(current)
+      ? Object.fromEntries(Object.entries(current).sort(([a], [b]) => a.localeCompare(b)))
+      : current
+  )
+}
+
+/** The view query contains everything the filter bar produced (views may add their own terms). */
+function feeds (source: QueryFilterSource, viewQuery: DocumentQuery<Doc>): boolean {
+  if (source.resultQuery === undefined) return false
+  const view = viewQuery as Record<string, unknown>
+  return Object.entries(source.resultQuery).every(([key, value]) => canonical(view[key]) === canonical(value))
+}
+
+/**
+ * The source of the filter bar that produced `viewQuery`. Several views of one class can be open
+ * at once (a list and a panel, say), so a source is only returned when it is the one that fed the
+ * view, or, without a view query, when it is the only one for the class. Otherwise the copy keeps
+ * just the query it was shown, rather than another view's filters.
+ * @public
+ */
+export function getFilterSource (
+  cardClass: Ref<Class<Doc>>,
+  viewQuery?: DocumentQuery<Doc>
+): QueryFilterSource | undefined {
   const sources = [...filterSources.values()].filter(
     (source) => source.cardClass === undefined || source.cardClass === cardClass
   )
-  return sources[sources.length - 1]
+  if (viewQuery === undefined) return sources.length === 1 ? sources[0] : undefined
+  const exact = sources.filter((source) => canonical(source.resultQuery) === canonical(viewQuery))
+  const matching = exact.length > 0 ? exact : sources.filter((source) => feeds(source, viewQuery))
+  // Equal results describe the same rows; the most recently updated one is as good as any.
+  return matching[matching.length - 1]
 }
 
 /**
@@ -79,7 +110,10 @@ export function savedViewDiffers (
  * keeping what is shown now.
  * @public
  */
-export function getTableFilterSource (cardClass: Ref<Class<Doc>>):
+export function getTableFilterSource (
+  cardClass: Ref<Class<Doc>>,
+  viewQuery?: DocumentQuery<Doc>
+):
   | {
       baseQuery: DocumentQuery<Doc>
       filters: string
@@ -87,7 +121,7 @@ export function getTableFilterSource (cardClass: Ref<Class<Doc>>):
       savedViewModified?: boolean
     }
   | undefined {
-  const source = getFilterSource(cardClass)
+  const source = getFilterSource(cardClass, viewQuery)
   if (source === undefined) return undefined
   const selected = get(selectedFilterStore)
   if (selected === undefined || (selected.filterClass !== undefined && selected.filterClass !== cardClass)) {

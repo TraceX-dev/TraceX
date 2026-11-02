@@ -15,6 +15,7 @@
 
 import core, { type Class, type Doc, type Ref } from '@hcengineering/core'
 import { type IntlString } from '@hcengineering/platform'
+import { type AnyComponent } from '@hcengineering/ui'
 import { getClient } from '@hcengineering/presentation'
 import { getCurrentLanguage } from '@hcengineering/theme'
 import { buildModel, getObjectLinkFragment } from '@hcengineering/view-resources'
@@ -106,6 +107,13 @@ describe('buildTableData', () => {
     expect(data.headers).toHaveLength(2)
     expect(data.rows).toEqual([])
     expect(data.columnIds).toHaveLength(2)
+  })
+
+  it('stores the config entries the columns were built from, presenters included', async () => {
+    const config = [{ key: '', presenter: 'tracker:component:TitlePresenter' as AnyComponent }, 'note']
+    const data = await buildTableData([doc], { cardClass: CARD_CLASS, config }, mockClient)
+    // A refresh rebuilds the columns from this config, so it must not lose what selects the presenter.
+    expect(data.config).toEqual(config)
   })
 
   it('produces one row per document with the configured columns', async () => {

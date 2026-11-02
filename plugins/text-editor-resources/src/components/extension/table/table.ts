@@ -43,7 +43,7 @@ import { findTable, isTableSelected, selectTable as selectTableNode } from './ut
 import { tableIdentities, tableIdentityAttributes } from './identities'
 import { showTableMessage } from './actions/errors'
 import view from '@hcengineering/view'
-import { getTableMetadata, getTableMetadataProblem } from './tableMetadata'
+import { getTableMetadata, getTableMetadataProblem, hasTableMetadata } from './tableMetadata'
 import { refreshTable, showTableDiff, seeOriginalTableData } from './actions'
 
 export const Table = TiptapTable.extend({
@@ -447,8 +447,7 @@ export async function isRefreshableTableActive (editor: Editor, context: ActionC
   if (!editor.isEditable) return false
   const table = findTable(editor.state.selection)
   if (table === undefined) return false
-  const metadata = getTableMetadata(table.node)
-  return metadata !== null && metadata !== undefined
+  return hasTableMetadata(table.node)
 }
 
 export {

@@ -19,7 +19,7 @@ import { Fragment, Node } from '@tiptap/pm/model'
 import { Plugin } from '@tiptap/pm/state'
 import { parseTableMetadata, type TableMetadata } from '@hcengineering/view'
 import { attachTableSnapshot } from '../table/snapshot'
-import { TABLE_METADATA_MIME_TYPE, TABLE_METADATA_TOKEN } from './tableMetadata'
+import { TABLE_METADATA_HTML_ATTRIBUTE, TABLE_METADATA_MIME_TYPE, TABLE_METADATA_TOKEN } from './tableMetadata'
 
 export const TableMetadataPasteExtension = Extension.create({
   name: 'tableMetadataPaste',
@@ -51,6 +51,21 @@ function extractMetadataFromHtmlComments (text: string): { metadata: TableMetada
     }
   }
   return { metadata: null, cleanedText: text }
+}
+
+/** Metadata kept in an attribute of the text/html flavour (when a custom type could not be written). */
+export function extractMetadataFromHtmlAttribute (html: string): TableMetadata | null {
+  if (!html.includes(TABLE_METADATA_HTML_ATTRIBUTE) || typeof DOMParser === 'undefined') return null
+  try {
+    const element = new DOMParser()
+      .parseFromString(html, 'text/html')
+      .querySelector(`[${TABLE_METADATA_HTML_ATTRIBUTE}]`)
+    const value = element?.getAttribute(TABLE_METADATA_HTML_ATTRIBUTE)
+    return value == null ? null : (parseTableMetadata(JSON.parse(value)) ?? null)
+  } catch (e) {
+    console.warn('Failed to parse metadata from the HTML clipboard flavour:', e)
+    return null
+  }
 }
 
 export function normalizeEscapedMarkdownLinks (markdown: string): string {
@@ -94,10 +109,15 @@ function TableMetadataPastePlugin (): Plugin {
           }
         }
 
+        // 2. The text/html flavour, when the custom type could not be written
+        if (metadata === null) {
+          metadata = extractMetadataFromHtmlAttribute(clipboardData.getData('text/html') ?? '')
+        }
+
         // Track cleaned markdown text (with HTML comments removed)
         let cleanedMarkdown: string | null = null
 
-        // 2. Try HTML comments in markdown (fallback, works across browsers)
+        // 3. Try HTML comments in markdown (fallback, works across browsers)
         if (metadata === null) {
           const markdownText = clipboardData.getData('text/markdown')
           if (markdownText?.length > 0) {
@@ -109,7 +129,7 @@ function TableMetadataPastePlugin (): Plugin {
           }
         }
 
-        // 3. Try HTML comments in plain text (for old browsers that only provide text/plain)
+        // 4. Try HTML comments in plain text (for old browsers that only provide text/plain)
         if (metadata === null) {
           const plainText = clipboardData.getData('text/plain')
           if (plainText?.length > 0) {
