@@ -14,7 +14,8 @@
 // limitations under the License.
 //
 
-import { buildMarkdownTableFromDocs, copyAsMarkdownTable, writeTableToClipboard } from '../markdown'
+import { buildMarkdownTableFromDocs, writeTableToClipboard } from '../markdown'
+import { captureTableSnapshot } from '../trackedTable'
 import { isIntlString } from '../formatter'
 import type { Doc, Class, Ref } from '@hcengineering/core'
 import type { CopyAsMarkdownTableProps } from '../types'
@@ -173,7 +174,7 @@ describe('converter-resources', () => {
     })
   })
 
-  describe('copyAsMarkdownTable', () => {
+  describe('copying a table', () => {
     let mockClient: any
     let mockHierarchy: any
     let mockDoc: Doc
@@ -210,28 +211,17 @@ describe('converter-resources', () => {
       ])
     })
 
-    it('does nothing for an empty selection', async () => {
-      const evt: Event = {} as any
+    it('writes the table and notifies', async () => {
       const props: CopyAsMarkdownTableProps = { cardClass: 'card:class:Card' as Ref<Class<Doc>> }
-      await copyAsMarkdownTable([], evt, props)
-      expect(copyMarkdown).not.toHaveBeenCalled()
-    })
-
-    it('calls copyMarkdown and addNotification on success', async () => {
-      const evt: Event = {} as any
-      const props: CopyAsMarkdownTableProps = { cardClass: 'card:class:Card' as Ref<Class<Doc>> }
-      await copyAsMarkdownTable([mockDoc], evt, props)
+      await writeTableToClipboard(await captureTableSnapshot([mockDoc], props, mockClient), 'tracex')
       expect(copyMarkdown).toHaveBeenCalled()
       const { addNotification } = await import('@hcengineering/ui')
       expect(addNotification).toHaveBeenCalled()
     })
+
     it('copies a TraceX table with its source and without a value snapshot', async () => {
       const props: CopyAsMarkdownTableProps = { cardClass: 'card:class:Card' as Ref<Class<Doc>> }
-      // The rows are read again in full, so the table does not depend on a view's partial documents.
-      mockClient.findAll.mockImplementation(async (_class: string, query: any) =>
-        query?._id?.$in !== undefined ? [mockDoc] : []
-      )
-      await copyAsMarkdownTable([mockDoc], new Event('copy'), props)
+      await writeTableToClipboard(await captureTableSnapshot([mockDoc], props, mockClient), 'tracex')
       expect(copyMarkdown).toHaveBeenCalledWith(
         expect.stringContaining('Test Card'),
         expect.objectContaining({

@@ -15,12 +15,11 @@
 
 import { type Editor } from '@tiptap/core'
 import { showPopup } from '@hcengineering/ui'
-import { editorTableSnapshot } from '../snapshot'
 import { getTableMetadata } from '../tableMetadata'
 import { findTable } from '../utils'
 import { showTableError } from './errors'
 import TableDiffViewer from './TableDiffViewer.svelte'
-import { extractTableMarkdown, fetchFreshTableSnapshot } from './tableUtils'
+import { loadTableComparison } from './tableUtils'
 
 /** Show what a refresh would change: the table in the document against its source. */
 export async function showTableDiff (editor: Editor): Promise<void> {
@@ -28,17 +27,8 @@ export async function showTableDiff (editor: Editor): Promise<void> {
   const metadata = table === undefined ? undefined : getTableMetadata(table.node)
   if (table === undefined || metadata === undefined) return
   try {
-    const fresh = await fetchFreshTableSnapshot(metadata)
-    const tracked = metadata.version === '2.0'
-    showPopup(
-      TableDiffViewer,
-      {
-        current: tracked ? editorTableSnapshot(table.node) : extractTableMarkdown(table.node),
-        fresh: tracked ? fresh.snapshot : fresh.markdown,
-        metadata: fresh.metadata
-      },
-      'center'
-    )
+    const { fresh, current, source } = await loadTableComparison(table.node, metadata)
+    showPopup(TableDiffViewer, { current, fresh: source, metadata: fresh.metadata }, 'center')
   } catch (error) {
     console.error('Failed to show table diff:', error)
     showTableError(error)

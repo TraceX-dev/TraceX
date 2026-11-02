@@ -15,7 +15,6 @@
 //
 
 import { concatLink, type Client, type Doc, type Ref } from '@hcengineering/core'
-import { getCurrentLanguage } from '@hcengineering/theme'
 import { getMetadata } from '@hcengineering/platform'
 import { getCurrentResolvedLocation, locationToUrl } from '@hcengineering/ui'
 import presentation from '@hcengineering/presentation'
@@ -23,6 +22,25 @@ import type { BuildMarkdownTableMetadata, TableMetadata, Viewlet } from '@hcengi
 import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from '../types'
 import { loadViewletConfig } from '../model/viewletLoader'
 import { modelToConfig } from '../model/tableModel'
+import { tableLanguage } from './language'
+
+/**
+ * Metadata as the builders describe a table; the version is set in one place, when the table is
+ * captured (see `complete` in trackedTable.ts).
+ */
+export type TableMetadataDraft = Omit<TableMetadata, 'version'>
+
+/** Where the table was copied from, for the source information shown later. */
+function currentPageUrl (): string | undefined {
+  try {
+    const frontUrl =
+      getMetadata(presentation.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
+    return concatLink(frontUrl, locationToUrl(getCurrentResolvedLocation()))
+  } catch (error) {
+    console.warn('Failed to capture original URL for table metadata:', error)
+    return undefined
+  }
+}
 
 /**
  * Build metadata object from props and documents
@@ -32,34 +50,22 @@ export async function buildTableMetadata (
   props: CopyAsMarkdownTableProps,
   docs: Doc[],
   client?: Client
-): Promise<TableMetadata> {
+): Promise<TableMetadataDraft> {
   let viewletId: Ref<Viewlet> | undefined = props.viewlet?._id
   if (viewletId === undefined && client !== undefined) {
     const { viewlet } = await loadViewletConfig(client, client.getHierarchy(), props.cardClass, undefined, props.config)
     viewletId = viewlet?._id
   }
 
-  let originalUrl: string | undefined
-  try {
-    const currentLocation = getCurrentResolvedLocation()
-    const relativeUrl = locationToUrl(currentLocation)
-    const frontUrl =
-      getMetadata(presentation.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
-    originalUrl = concatLink(frontUrl, relativeUrl)
-  } catch (error) {
-    console.warn('Failed to capture original URL for table metadata:', error)
-  }
-
   return {
-    version: '1.0',
-    language: props.language ?? getCurrentLanguage(),
+    language: tableLanguage(props.language),
     cardClass: props.cardClass,
     viewletId,
     config: props.config,
     query: props.query,
     documentIds: docs.map((d) => d._id),
     timestamp: Date.now(),
-    originalUrl,
+    originalUrl: currentPageUrl(),
     source: props.source,
     workspace: getMetadata(presentation.metadata.WorkspaceUuid)
   }
@@ -79,28 +85,16 @@ export function isRelationshipTable (metadata: BuildMarkdownTableMetadata): bool
 export function buildRelationshipTableMetadata (
   props: CopyRelationshipTableAsMarkdownProps,
   docs: Doc[]
-): TableMetadata {
-  let originalUrl: string | undefined
-  try {
-    const currentLocation = getCurrentResolvedLocation()
-    const relativeUrl = locationToUrl(currentLocation)
-    const frontUrl =
-      getMetadata(presentation.metadata.FrontUrl) ?? (typeof window !== 'undefined' ? window.location.origin : '')
-    originalUrl = concatLink(frontUrl, relativeUrl)
-  } catch (error) {
-    console.warn('Failed to capture original URL for relationship table metadata:', error)
-  }
-
+): TableMetadataDraft {
   return {
-    version: '1.0',
-    language: props.language ?? getCurrentLanguage(),
+    language: tableLanguage(props.language),
     cardClass: props.cardClass,
     viewletId: props.viewlet?._id,
     config: modelToConfig(props.model),
     query: props.query,
     documentIds: docs.map((d) => d._id),
     timestamp: Date.now(),
-    originalUrl,
+    originalUrl: currentPageUrl(),
     source: props.source,
     workspace: getMetadata(presentation.metadata.WorkspaceUuid)
   }

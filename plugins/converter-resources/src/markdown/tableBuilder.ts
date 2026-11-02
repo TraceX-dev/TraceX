@@ -17,7 +17,7 @@
 import core, { type Class, type Client, type Doc, type Hierarchy, type Ref, type PersonId } from '@hcengineering/core'
 import { type MarkupNode, MarkupNodeType } from '@hcengineering/text'
 import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
-import { getCurrentLanguage } from '@hcengineering/theme'
+import { tableLanguage } from '../data/language'
 import type { AttributeModel, BuildMarkdownTableMetadata, Viewlet, BuildModelKey } from '@hcengineering/view'
 import viewPlugin, { TableSourceError, tableColumnIds } from '@hcengineering/view'
 import { buildConfigLookup, buildModel, getAttributeValue, buildConfigAssociation } from '@hcengineering/view-resources'
@@ -230,7 +230,7 @@ async function buildRelationshipTableFromMetadata (
 ): Promise<string> {
   const hierarchy = client.getHierarchy()
   const props = await buildRelationshipTablePropsFromMetadata(docs, metadata, client)
-  const language = metadata.language ?? getCurrentLanguage()
+  const language = tableLanguage(metadata.language)
   return await buildRelationshipTableMarkdown(props, hierarchy, language, client)
 }
 
@@ -371,7 +371,7 @@ export async function buildTableData (
   // Preload associations for $associations keys
   await preloadAssociations(docs, displayableModel, client)
 
-  const language = props.language ?? getCurrentLanguage()
+  const language = tableLanguage(props.language)
   const userCache = new Map<PersonId, string>()
   const firstDocClass = docs.length > 0 ? docs[0]._class : props.cardClass
   const headers = await generateHeaders(displayableModel, firstDocClass, hierarchy, language)

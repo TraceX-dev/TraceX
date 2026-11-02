@@ -29,8 +29,8 @@
   export let current: TableDiffSide
   export let fresh: TableDiffSide
   export let metadata: TableMetadata
-  /** Returns false when the table could not be replaced (the reason is shown separately). */
-  export let onApply: () => boolean = () => true
+  /** Replaces the table; when it cannot, the reason is shown separately. */
+  export let onApply: () => void = () => {}
   export let localChanges = false
   export let conflicts = false
   export let conflictCells: TableConflictCell[] = []

@@ -23,6 +23,8 @@ import type { TableMetadata } from '@hcengineering/view'
 import converter from '@hcengineering/converter'
 import { getResource } from '@hcengineering/platform'
 import type { ResolvedTableSnapshot } from '@hcengineering/view'
+import { editorTableState, type EditorTableState } from '../snapshot'
+import type { TableDiffSide } from './tableDiff'
 
 function hasMergedCells (tableNode: Node): boolean {
   let result = false
@@ -112,6 +114,21 @@ export async function fetchFreshTableSnapshot (
   return await resolve(metadata, client ?? getClient())
 }
 
-export async function fetchFreshTableData (metadata: TableMetadata, client?: Client): Promise<string | null> {
-  return (await fetchFreshTableSnapshot(metadata, client)).markdown
+/** The table in the document and its source, in the form both sides can be compared in. */
+export interface TableComparison {
+  fresh: ResolvedTableSnapshot
+  /** The document side: canonical values for 2.0 tables, Markdown for legacy ones. */
+  current: TableDiffSide
+  /** The source side, in the same form as `current`. */
+  source: TableDiffSide
+  /** Values and fingerprints of a 2.0 table, to tell manual edits from source changes. */
+  state?: EditorTableState
+}
+
+/** Load the source of a table and pair it with the table as it is now (diff and refresh). */
+export async function loadTableComparison (table: Node, metadata: TableMetadata): Promise<TableComparison> {
+  const fresh = await fetchFreshTableSnapshot(metadata)
+  if (metadata.version !== '2.0') return { fresh, current: extractTableMarkdown(table), source: fresh.markdown }
+  const state = editorTableState(table)
+  return { fresh, current: state.snapshot, source: fresh.snapshot, state }
 }

@@ -23,9 +23,7 @@ export type {
   TableData,
   RelationshipCellModel,
   RelationshipRowModel,
-  CopyRelationshipTableAsMarkdownProps,
-  CopyAsMarkdownTableFunction,
-  CopyRelationshipTableAsMarkdownFunction
+  CopyRelationshipTableAsMarkdownProps
 } from '@hcengineering/converter'
 
 /**

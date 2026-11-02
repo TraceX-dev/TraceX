@@ -109,7 +109,7 @@ describe('safe table refresh', () => {
     const { editor, original, dispatch } = fixture()
     const bookmark = trackTable(editor, 0)
     dispatch(editor.state.tr.insert(0, paragraph('Before')))
-    expect(applyTableRefresh(editor, original, bookmark, fresh)).toBe(true)
+    applyTableRefresh(editor, original, bookmark, fresh)
     expect(editor.state.doc.firstChild?.textContent).toBe('Before')
     expect(editor.state.doc.lastChild?.textContent).toContain('New')
     expect(undo(editor.state, dispatch)).toBe(true)
@@ -120,7 +120,7 @@ describe('safe table refresh', () => {
     const { editor, original } = fixture(paragraph('gap'), original2())
     const secondPos = (editor.state.doc.firstChild?.nodeSize ?? 0) + editor.state.doc.child(1).nodeSize
     const bookmark = trackTable(editor, secondPos)
-    expect(applyTableRefresh(editor, original, bookmark, fresh)).toBe(true)
+    applyTableRefresh(editor, original, bookmark, fresh)
     expect(editor.state.doc.firstChild?.textContent).toContain('Old')
     expect(editor.state.doc.lastChild?.textContent).toContain('New')
   })
@@ -131,7 +131,7 @@ describe('safe table refresh', () => {
     dispatch(editor.state.tr.delete(0, original.nodeSize))
     const before = editor.state.doc
     expect(editor.state.doc.firstChild?.eq(original)).toBe(true)
-    expect(applyTableRefresh(editor, original, bookmark, fresh)).toBe(false)
+    applyTableRefresh(editor, original, bookmark, fresh)
     expect(editor.state.doc.eq(before)).toBe(true)
     expect(showTableMessage).toHaveBeenCalledWith('view:string:TableChangedDuringPreview')
   })
@@ -141,7 +141,7 @@ describe('safe table refresh', () => {
     const bookmark = trackTable(editor, 0)
     dispatch(editor.state.tr.insertText('Changed', 4))
     const before = editor.state.doc
-    expect(applyTableRefresh(editor, original, bookmark, fresh)).toBe(false)
+    applyTableRefresh(editor, original, bookmark, fresh)
     expect(editor.state.doc.eq(before)).toBe(true)
     expect(showTableMessage).toHaveBeenCalledWith('view:string:TableChangedDuringPreview')
   })
@@ -151,7 +151,7 @@ describe('safe table refresh', () => {
     const bookmark = trackTable(editor, 0)
     bookmark.dispose()
     dispatch(editor.state.tr.insert(0, paragraph('Before')))
-    expect(applyTableRefresh(editor, original, bookmark, fresh)).toBe(false)
+    applyTableRefresh(editor, original, bookmark, fresh)
   })
 })
 

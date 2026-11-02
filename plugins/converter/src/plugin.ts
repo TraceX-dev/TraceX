@@ -25,13 +25,7 @@ import type {
   TableMetadata,
   ViewAction
 } from '@hcengineering/view'
-import type {
-  CopyAsMarkdownTableFunction,
-  CopyRelationshipTableAsMarkdownFunction,
-  MarkdownValueFormatter,
-  CopyAsMarkdownTableProps,
-  TableData
-} from './types'
+import type { MarkdownValueFormatter, CopyAsMarkdownTableProps, TableData } from './types'
 
 export const converterId = 'converter' as Plugin
 
@@ -40,8 +34,6 @@ export const converterPlugin = plugin(converterId, {
     MarkdownValueFormatter: '' as Ref<Mixin<MarkdownValueFormatter>>
   },
   function: {
-    CopyAsMarkdownTable: '' as Resource<CopyAsMarkdownTableFunction>,
-    CopyRelationshipAsMarkdown: '' as Resource<CopyRelationshipTableAsMarkdownFunction>,
     BuildMarkdownTableFromMetadata: '' as Resource<
       (docs: Doc[], metadata: BuildMarkdownTableMetadata, client: Client) => Promise<string>
     >,
@@ -64,7 +56,6 @@ export const converterPlugin = plugin(converterId, {
     CopyAsMarkdownButton: '' as Ref<ComponentPointExtension>
   },
   component: {
-    CopyTableDialog: '' as AnyComponent,
     CopyAsMarkdownButton: '' as AnyComponent
   },
   action: {

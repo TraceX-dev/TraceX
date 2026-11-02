@@ -66,7 +66,7 @@ import {
 } from './selection'
 import { deleteObjects, getObjectId, getObjectLinkFragment, restrictionStore } from './utils'
 import workbenchPlugin from '@hcengineering/workbench'
-import converter from '@hcengineering/converter'
+import converter, { type CopyAsMarkdownTableProps } from '@hcengineering/converter'
 
 /**
  * Action to be used for copying text to clipboard.
@@ -751,17 +751,7 @@ async function CopyDocumentMarkdown (
  * The converter dialog resolves the viewlet context and the table source in one place.
  * @public
  */
-async function CopyAsMarkdownTableAction (
-  doc: Doc | Doc[],
-  evt: Event,
-  props: {
-    cardClass: Ref<Class<Doc>>
-    viewlet?: any
-    config?: Array<string | any>
-    query?: DocumentQuery<Doc>
-    viewOptions?: any
-  }
-): Promise<void> {
+async function CopyAsMarkdownTableAction (doc: Doc | Doc[], evt: Event, props: CopyAsMarkdownTableProps): Promise<void> {
   const copyFn = await getResource(converter.actionImpl.CopyAsMarkdownTable)
   await copyFn(doc, evt, props)
 }

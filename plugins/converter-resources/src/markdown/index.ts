@@ -26,10 +26,4 @@ export {
   buildRelationshipTableMarkdown,
   buildTableData
 } from './tableBuilder'
-export {
-  copyAsMarkdownTable,
-  copyAsMarkdownTableFromResource,
-  copyRelationshipTableAsMarkdown,
-  writeTableToClipboard,
-  type TableCopyFormat
-} from './copyActions'
+export { writeTableToClipboard, type TableCopyFormat } from './copyActions'

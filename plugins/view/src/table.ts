@@ -17,6 +17,9 @@ import type { BuildModelKey, TableCellRun, TableCellValue, TableMetadata, TableS
 /** Larger sources are refused with an explicit message instead of being truncated. @public */
 export const MAX_TABLE_ROWS = 5000
 
+/** Version written into the metadata of every copied or refreshed table. @public */
+export const TABLE_METADATA_VERSION = '2.0'
+
 /** @public */
 export type TableSourceErrorCode =
   'workspace' | 'unavailable' | 'savedView' | 'viewlet' | 'column' | 'filters' | 'tooLarge' | 'noColumns' | 'noSource'
@@ -33,6 +36,15 @@ export class TableSourceError extends Error {
     super(`Table source error: ${code}`)
     this.name = 'TableSourceError'
   }
+}
+
+/**
+ * The error for a table with more rows than {@link MAX_TABLE_ROWS}; undefined when it fits.
+ * The one place that decides the limit, for the copy dialog and for source resolution alike.
+ * @public
+ */
+export function tableRowLimitError (count: number): TableSourceError | undefined {
+  return count > MAX_TABLE_ROWS ? new TableSourceError('tooLarge', { count, limit: MAX_TABLE_ROWS }) : undefined
 }
 
 /**
@@ -217,7 +229,7 @@ function isStringList (value: unknown): value is string[] {
 }
 
 /** Metadata versions this code understands. @public */
-export const SUPPORTED_TABLE_METADATA_VERSIONS = ['1.0', '2.0']
+export const SUPPORTED_TABLE_METADATA_VERSIONS = ['1.0', TABLE_METADATA_VERSION]
 
 function isPlainObject (value: unknown): value is Record<string, any> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

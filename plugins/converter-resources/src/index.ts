@@ -16,29 +16,19 @@
 
 import { type Resources } from '@hcengineering/platform'
 import {
-  copyAsMarkdownTableFromResource,
-  copyRelationshipTableAsMarkdown,
   buildMarkdownTableFromMetadata as buildMarkdownTableFromMetadataImpl,
   buildMarkdownTableFromDocs as buildMarkdownTableFromDocsImpl,
   buildTableData as buildTableDataImpl
 } from './markdown'
 import { copyAsMarkdownTableAction } from './actionImpl'
 import { resolveTableSnapshot } from './trackedTable'
-import CopyTableDialog from './components/CopyTableDialog.svelte'
 import CopyAsMarkdownButton from './components/CopyAsMarkdownButton.svelte'
 
 export * from './formatter'
 export * from './model'
 export * from './data'
 
-export {
-  copyAsMarkdownTable,
-  copyAsMarkdownTableFromResource,
-  copyRelationshipTableAsMarkdown,
-  buildMarkdownTableFromDocs,
-  buildMarkdownTableFromMetadata,
-  buildTableData
-} from './markdown'
+export { buildMarkdownTableFromDocs, buildMarkdownTableFromMetadata, buildTableData } from './markdown'
 
 export { isRelationshipTable, buildRelationshipTableMetadata } from './data'
 
@@ -49,8 +39,6 @@ export { type TableConverter, MarkdownTableConverter } from './types'
 
 export default async (): Promise<Resources> => ({
   function: {
-    CopyAsMarkdownTable: copyAsMarkdownTableFromResource,
-    CopyRelationshipAsMarkdown: copyRelationshipTableAsMarkdown,
     BuildMarkdownTableFromMetadata: buildMarkdownTableFromMetadataImpl,
     BuildMarkdownTableFromDocs: buildMarkdownTableFromDocsImpl,
     ResolveTableSnapshot: resolveTableSnapshot,
@@ -60,7 +48,6 @@ export default async (): Promise<Resources> => ({
     CopyAsMarkdownTable: copyAsMarkdownTableAction
   },
   component: {
-    CopyTableDialog,
     CopyAsMarkdownButton
   }
 })

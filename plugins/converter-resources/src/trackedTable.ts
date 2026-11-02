@@ -25,8 +25,14 @@ import { getMetadata } from '@hcengineering/platform'
 import presentation from '@hcengineering/presentation'
 import { MarkupNodeType } from '@hcengineering/text'
 import { markdownToMarkup } from '@hcengineering/text-markdown'
-import { getCurrentLanguage } from '@hcengineering/theme'
-import view, { MAX_TABLE_ROWS, TableSourceError, tableColumnIds, tableSnapshotFromMarkup } from '@hcengineering/view'
+import view, {
+  MAX_TABLE_ROWS,
+  TABLE_METADATA_VERSION,
+  TableSourceError,
+  tableColumnIds,
+  tableRowLimitError,
+  tableSnapshotFromMarkup
+} from '@hcengineering/view'
 import type {
   BuildModelKey,
   Filter,
@@ -38,7 +44,13 @@ import type {
   ViewOptions
 } from '@hcengineering/view'
 import { filtersToQuery, getResultOptions, getResultQuery } from '@hcengineering/view-resources'
-import { buildTableMetadata, buildRelationshipTableMetadata, isRelationshipTable } from './data/metadataBuilder'
+import {
+  buildTableMetadata,
+  buildRelationshipTableMetadata,
+  isRelationshipTable,
+  type TableMetadataDraft
+} from './data/metadataBuilder'
+import { tableLanguage } from './data/language'
 import {
   buildRelationshipTableMarkdown,
   buildRelationshipTablePropsFromMetadata,
@@ -49,9 +61,14 @@ import { modelToConfig } from './model/tableModel'
 import { loadViewletConfig } from './model/viewletLoader'
 import type { CopyAsMarkdownTableProps, CopyRelationshipTableAsMarkdownProps } from './types'
 
+function assertRowLimit (count: number): void {
+  const error = tableRowLimitError(count)
+  if (error !== undefined) throw error
+}
+
 /** Rendered markdown, stable identities and canonical values always come from the same build. */
 function complete (
-  metadata: TableMetadata,
+  metadata: TableMetadataDraft,
   markdown: string,
   rowIds: string[],
   columnIds: string[],
@@ -65,7 +82,7 @@ function complete (
   }
   // Relationship rows are paths through related documents, so their identities travel with the copy.
   const rowIdentities = source.kind === 'relationship' ? { rowIds } : {}
-  return { snapshot, markdown, metadata: { ...metadata, version: '2.0', source, ...rowIdentities } }
+  return { snapshot, markdown, metadata: { ...metadata, version: TABLE_METADATA_VERSION, source, ...rowIdentities } }
 }
 
 /**
@@ -93,10 +110,8 @@ export async function captureTableSnapshot (
   props: CopyAsMarkdownTableProps,
   client: Client
 ): Promise<ResolvedTableSnapshot> {
-  if (docs.length > MAX_TABLE_ROWS) {
-    throw new TableSourceError('tooLarge', { count: docs.length, limit: MAX_TABLE_ROWS })
-  }
-  props = { ...props, language: props.language ?? getCurrentLanguage() ?? 'en' }
+  // The row limit is checked by the callers: the copy dialog and resolveTableSnapshot.
+  props = { ...props, language: tableLanguage(props.language) }
   const data = await buildTableData(docs, { ...props, strictColumns: true }, client)
   const markdown = await renderMarkdownTable(data, client.getHierarchy())
   const metadata = await buildTableMetadata({ ...props, config: data.config }, docs, client)
@@ -114,10 +129,9 @@ export async function captureRelationshipSnapshot (
   props: CopyRelationshipTableAsMarkdownProps,
   client: Client
 ): Promise<ResolvedTableSnapshot> {
-  if (props.viewModel.length > MAX_TABLE_ROWS) {
-    throw new TableSourceError('tooLarge', { count: props.viewModel.length, limit: MAX_TABLE_ROWS })
-  }
-  props = { ...props, language: props.language ?? getCurrentLanguage() ?? 'en' }
+  // Related documents can multiply the rows, so the paths are counted here, not the documents.
+  assertRowLimit(props.viewModel.length)
+  props = { ...props, language: tableLanguage(props.language) }
   const markdown = await buildRelationshipTableMarkdown(props, client.getHierarchy(), props.language, client)
   const counts = new Map<string, number>()
   const rowIds = props.viewModel.map((row) => {
@@ -145,12 +159,8 @@ export async function captureViewSnapshot (
   source: TableSource,
   client: Client
 ): Promise<ResolvedTableSnapshot> {
-  const base = await buildTableMetadata(
-    { ...props, language: props.language ?? getCurrentLanguage() ?? 'en', source },
-    [],
-    client
-  )
-  return await resolveTableSnapshot({ ...base, version: '2.0', source }, client)
+  const base = await buildTableMetadata({ ...props, language: tableLanguage(props.language), source }, [], client)
+  return await resolveTableSnapshot({ ...base, version: TABLE_METADATA_VERSION, source }, client)
 }
 
 /**
@@ -303,7 +313,7 @@ export async function resolveTableSnapshot (metadata: TableMetadata, client: Cli
     total: true
   })
   const total = docs.total ?? docs.length
-  if (total > docs.length) throw new TableSourceError('tooLarge', { count: total, limit: MAX_TABLE_ROWS })
+  if (total > docs.length) assertRowLimit(total)
   const rows: Doc[] = [...docs]
   if (mode === 'fixed') {
     const indices = new Map(metadata.documentIds.map((id, index) => [id, index]))
@@ -337,7 +347,7 @@ export async function resolveTableSnapshot (metadata: TableMetadata, client: Cli
     ...result,
     metadata: {
       ...metadata,
-      version: '2.0',
+      version: TABLE_METADATA_VERSION,
       viewletId,
       config: result.metadata.config,
       query: sourceQuery,

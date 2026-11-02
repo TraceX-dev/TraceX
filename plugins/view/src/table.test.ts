@@ -13,6 +13,8 @@
 //
 
 import {
+  MAX_TABLE_ROWS,
+  tableRowLimitError,
   parseTableMetadata,
   tableCellHash,
   tableMetadataProblem,
@@ -150,5 +152,15 @@ describe('canonical cell values', () => {
     ])
     const again = tableSnapshotFromMarkup(tableSnapshotToMarkup(snapshot), snapshot.rowIds, snapshot.columnIds)
     expect(again).toEqual(snapshot)
+  })
+})
+
+describe('row limit', () => {
+  it('refuses only tables above the limit, with the count and the limit', () => {
+    expect(tableRowLimitError(MAX_TABLE_ROWS)).toBeUndefined()
+    expect(tableRowLimitError(MAX_TABLE_ROWS + 1)).toMatchObject({
+      code: 'tooLarge',
+      params: { count: MAX_TABLE_ROWS + 1, limit: MAX_TABLE_ROWS }
+    })
   })
 })

@@ -102,16 +102,3 @@ export interface CopyRelationshipTableAsMarkdownProps {
   query?: DocumentQuery<Doc>
   source?: TableSource
 }
-
-/**
- * Function type for CopyAsMarkdownTable (used in action context)
- */
-export type CopyAsMarkdownTableFunction = (evt: Event, props: CopyAsMarkdownTableProps) => Promise<void>
-
-/**
- * Function type for CopyRelationshipTableAsMarkdown
- */
-export type CopyRelationshipTableAsMarkdownFunction = (
-  evt: Event,
-  props: CopyRelationshipTableAsMarkdownProps
-) => Promise<void>

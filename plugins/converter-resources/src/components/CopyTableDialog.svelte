@@ -21,8 +21,7 @@
   import presentation, { getClient } from '@hcengineering/presentation'
   import { Button, DropdownLabelsIntl, IconClose, Label, Notice } from '@hcengineering/ui'
   import view, {
-    MAX_TABLE_ROWS,
-    TableSourceError,
+    tableRowLimitError,
     tableSourceErrorMessage,
     type ResolvedTableSnapshot,
     type TableSource,
@@ -122,7 +121,8 @@
   $: knownTotal = mode === 'savedView' && savedViewModified ? undefined : total
   // Copies above the limit could not be refreshed later, so they are refused up front for every scope.
   $: rowCount = scope === 'view' ? knownTotal : rows.length
-  $: tooLarge = rowCount !== undefined && rowCount > MAX_TABLE_ROWS
+  $: rowLimitError = rowCount === undefined ? undefined : tableRowLimitError(rowCount)
+  $: tooLarge = rowLimitError !== undefined
   $: hint =
     format === 'markdown'
       ? { label: view.string.MarkdownTableHint, params: {} }
@@ -136,9 +136,7 @@
               params: { name: savedViewName }
             }
           : { label: view.string.TableModeFrozenHint, params: {} }
-  $: notice = tooLarge
-    ? tableSourceErrorMessage(new TableSourceError('tooLarge', { count: rowCount ?? 0, limit: MAX_TABLE_ROWS }))
-    : error
+  $: notice = tooLarge ? tableSourceErrorMessage(rowLimitError) : error
   $: canCopy = !copying && !tooLarge && (scope === 'view' || rows.length > 0)
 
   function sourceFor (selectedMode: TableSourceMode): TableSource {
