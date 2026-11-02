@@ -16,8 +16,7 @@
 -->
 <script lang="ts">
   import { getResourceC } from '@hcengineering/platform'
-  import { afterUpdate, onDestroy, onMount, tick } from 'svelte'
-  import { getRenderContext } from '../render-context'
+  import { afterUpdate, onMount } from 'svelte'
 
   import { deviceOptionsStore as deviceInfo, resizeObserver } from '..'
   import { closePanel, PanelProps, panelstore } from '../panelup'
@@ -53,13 +52,6 @@
   let keepSize: boolean = false
 
   let props: PanelProps | undefined
-  const rendering = getRenderContext()
-  let finish = (): void => {}
-  let generation = 0
-  onDestroy(() => {
-    generation++
-    finish()
-  })
   function _close (): void {
     closePanel()
   }
@@ -68,31 +60,13 @@
     if ($panelstore.panel.component === undefined) {
       props = $panelstore.panel
     } else {
-      const request = ++generation
-      finish()
-      finish = rendering?.registerResource() ?? (() => {})
       getResourceC($panelstore.panel.component, (r) => {
-        if (request !== generation) return
-        if (r === undefined) {
-          rendering?.fail(new Error('Document component could not be loaded'))
-          finish()
-          return
-        }
         component = r
         props = $panelstore.panel
-        void tick()
-          .then(() => {
-            if (request === generation) finish()
-          })
-          .catch((error) => {
-            rendering?.fail(error)
-          })
       })
     }
     $panelstore.panel.refit = fitPopupInstance
   } else {
-    generation++
-    finish()
     props = undefined
   }
 

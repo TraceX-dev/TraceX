@@ -38,7 +38,6 @@
   let loading = true
   let generation = 0
   let attempt: FilePreviewSession | undefined
-  let objectUrl: string | undefined
   $: staticView = preview?.mode === 'static'
 
   async function prepare (value: string, name: string, owner: FilePreviewSession | undefined): Promise<void> {
@@ -46,35 +45,26 @@
     const session = owner ?? new FilePreviewSession()
     if (attempt !== session) attempt?.destroy()
     attempt = session
-    if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl)
-    objectUrl = undefined
     src = undefined
     failed = false
     loading = true
     try {
-      if (session.mode === 'interactive' && value.includes('://')) {
+      if (session.mode === 'interactive') {
         src = getFileUrl(value, name)
         loading = false
         return
       }
-      const response = await fetchPreviewFile(value, name, {
-        method: session.mode === 'static' ? 'HEAD' : 'GET',
+      await fetchPreviewFile(value, name, {
+        method: 'HEAD',
         signal: session.signal
       })
-      if (session.mode === 'static') {
-        if ((getMetadata(presentation.metadata.PreviewUrl) ?? '') === '') throw new Error('Preview unavailable')
-        const metadata = await getPreviewMetadata(getCurrentWorkspaceUuid(), value, session.signal)
-        const thumbnail = metadata.thumbnail
-        if (thumbnail === undefined || thumbnail.width <= 0 || thumbnail.height <= 0)
-          throw new Error('Preview unavailable')
-        if (request !== generation || session.signal.aborted) return
-        src = getPreviewThumbnail(value, 1200, Math.round((1200 * thumbnail.height) / thumbnail.width), 1)
-      } else {
-        const blob = await response.blob()
-        if (request !== generation || session.signal.aborted) return
-        objectUrl = URL.createObjectURL(blob)
-        src = objectUrl
-      }
+      if ((getMetadata(presentation.metadata.PreviewUrl) ?? '') === '') throw new Error('Preview unavailable')
+      const metadata = await getPreviewMetadata(getCurrentWorkspaceUuid(), value, session.signal)
+      const thumbnail = metadata.thumbnail
+      if (thumbnail === undefined || thumbnail.width <= 0 || thumbnail.height <= 0)
+        throw new Error('Preview unavailable')
+      if (request !== generation || session.signal.aborted) return
+      src = getPreviewThumbnail(value, 1200, Math.round((1200 * thumbnail.height) / thumbnail.width), 1)
       loading = false
     } catch (error) {
       if (request !== generation) return
@@ -88,7 +78,6 @@
   onDestroy(() => {
     generation++
     attempt?.destroy()
-    if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl)
   })
 </script>
 

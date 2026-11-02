@@ -17,7 +17,7 @@
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
   import type { Class, Doc, Ref } from '@hcengineering/core'
-  import { getMetadata } from '@hcengineering/platform'
+  import { getMetadata, getResource } from '@hcengineering/platform'
   import presentation, { decodeTokenPayload, providePrintContext } from '@hcengineering/presentation'
   import {
     getCurrentLocation,
@@ -67,6 +67,7 @@
     if (doc === undefined) throw new Error('Document is not accessible')
     const component =
       client.getHierarchy().classHierarchyMixin(_class, view.mixin.ObjectPanel)?.component ?? view.component.EditDoc
+    await getResource(component)
     return { path: ['print', workspace], fragment: getPanelURI(component, _id, _class, 'content') }
   }
 

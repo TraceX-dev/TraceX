@@ -28,6 +28,8 @@ The transactor copies this claim into the session context. `ReadOnlyMiddleware` 
 
 These checks cover the services used by this export flow. The claim is not a substitute for checking authorization in every other service that might accept a token.
 
+The guest entry point distinguishes invalid-link/access-denied failures from temporary connection failures. Explicit unauthorized or forbidden responses enter the invalid-link state. Other connection errors are retried with delays of 1, 2, 4, 8, then at most 10 seconds, while retaining a connection-error state. Retries stop when the guest route, workspace, or public-link token changes. Version mismatches are not retried, and their messages take precedence over both error states, including while connection initialization is still pending. These guest retries do not change the bounded lifetime of automated print requests.
+
 ## Opening `/print` in a browser
 
 Open the frontend URL in a browser where the user is already signed in, for example:
@@ -54,7 +56,7 @@ The print application already selects static file previews. PDF generation addit
 
 Each `PrintApp` owns a Svelte `PrintContext`; there is no global print-session store. The context tracks document mount readiness, pending resources, and fatal rendering errors. `registerResource()` returns an idempotent completion callback.
 
-`RenderContext` connects asynchronous component loading and editor initialization to that lifecycle. Editors finish their resource after initialization, collaborative content loading where applicable, and mounting. The common panel marks the document as mounted. Editor initialization or content rendering failures propagate to the root context.
+`RenderContext` connects editor initialization to that lifecycle. Editors finish their resource after initialization, collaborative content loading where applicable, and mounting. The common panel marks the document as mounted. Editor initialization or content rendering failures propagate to the root context. `PrintApp` awaits the selected document panel resource before opening it, and `FilePreview` awaits its viewer resource in print mode. The shared UI `Component` and `PanelInstance` do not contain print lifecycle hooks.
 
 `EmbeddedWorkspace` exposes the capture contract:
 
@@ -67,6 +69,8 @@ Each `PrintApp` owns a Svelte `PrintContext`; there is no global print-session s
 The print service checks the root before preparation and again before capture. It also waits for visible busy content and images. For PDF it switches to print media, waits two animation frames, scrolls through lazy content, and waits for fonts during PDF generation. Screenshots also wait for content readiness. Uncaught renderer errors fail authenticated document export.
 
 Readiness checks have a 60-second root timeout; the whole browser operation has a 120-second deadline. An inaccessible or broken main document must not be returned as a successful PDF of an error page.
+
+These limits have not been established as safe bounds for arbitrarily large documents. Root readiness and PDF capture each have their own 60-second timeout, but all stages share the 120-second browser deadline. Increasing an individual timeout alone does not extend that deadline. Any change to the overall budget must also account for the derivative token's 180-second maximum lifetime and the source token's earlier expiry; tune these together using measurements from representative documents.
 
 ### File previews and Drive embeds
 
@@ -83,7 +87,11 @@ Drive resolves a reference to its file/version and mounts the common `FilePrevie
 
 Successful previews have no filename caption underneath. Failed previews identify the file and use the ordinary protected workspace source link when available; printing does not grant public access to that source. A failed, unsupported, or timed-out attachment produces a placeholder and releases its pending resource, allowing the rest of the document to export.
 
-`fetchPreviewFile` adds the workspace bearer token only for storage identities, uses `credentials: 'omit'`, and rejects HTTP errors. It does not forward the token to external URLs. Viewers complete only after their content has loaded; images also wait for decoding.
+Viewers that fetch content in JavaScript use `fetchPreviewFile`, which adds the workspace bearer token only for storage identities, uses `credentials: 'omit'`, and rejects HTTP errors. It does not forward the token to external URLs. Viewers complete only after their content has loaded; images also wait for decoding.
+
+`ImageViewer` uses the same `getBlobRef` and browser `src`/`srcset` loading path in both interactive and print modes. The lightweight workspace connection calls `setPresentationCookie` with the selected workspace token and the storage-specific cookie path before rendering the document. Browser image requests therefore use the existing cookie authorization; `ImageViewer` does not repeat failed requests with a bearer token or buffer originals into JavaScript blobs. Both modes wait for image decoding before reporting readiness; only print mode imposes the preview deadline. The existing `getBlobRef(value, name)` call does not pass dimensions, so it produces an empty `srcset`; using this path does not by itself add resized previews. Responsive thumbnail sizing is a separate concern.
+
+Interactive `PDFViewer` also passes the ordinary file URL directly to `EmbeddedPDF`, using cookie authorization without fetching the entire PDF into a JavaScript Blob first. Its first-page thumbnail path is used only for print mode.
 
 ### Mermaid diagrams
 
@@ -114,6 +122,7 @@ Focused automated coverage lives in:
 - [Print service tests](../services/print/pod-print/src/print.test.ts): authorization injection, document failures, PDF/screenshot readiness, browser cleanup, and legacy link readiness.
 - [Mermaid tests](../plugins/text-editor-resources/src/components/extension/codeSnippets/mermaid.test.ts): SVG mount, errors, deadlines, node destruction, empty diagrams, and ordinary editor behavior.
 - [Presentation tests](../packages/presentation/src/___tests___): print-context isolation, preview lifecycle, and authorized file loading.
+- [Guest connection tests](../plugins/guest-resources/src/connect.test.ts): access denial, version mismatch, transient recovery, retry delays, and stopping retries after navigation.
 - [Read-only middleware tests](../foundations/server/packages/middleware/src/tests/read-only.test.ts) and [token tests](../foundations/core/packages/token/src/__tests__/readonly.test.ts).
 
 The main implementation entry points are [PrintApp](../plugins/print-resources/src/components/PrintApp.svelte), [the lightweight workspace connection](../plugins/workbench-resources/src/embedded-workspace.ts), [PrintContext](../packages/presentation/src/print.ts), [FilePreview](../packages/presentation/src/components/FilePreview.svelte), [Mermaid node views](../plugins/text-editor-resources/src/components/extension/codeSnippets/mermaid.ts), [the service routes](../services/print/pod-print/src/server.ts), and [browser capture](../services/print/pod-print/src/print.ts).

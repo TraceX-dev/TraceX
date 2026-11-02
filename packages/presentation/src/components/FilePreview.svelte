@@ -25,6 +25,7 @@
     provideRenderContext
   } from '@hcengineering/ui'
   import { onDestroy } from 'svelte'
+  import { getResource } from '@hcengineering/platform'
 
   import presentation from '../plugin'
 
@@ -84,6 +85,10 @@
       if (request !== generation || session.signal.aborted) return
       if (session.mode === 'static' && type === undefined) {
         throw new Error('Static preview is not supported')
+      }
+      if (session.mode === 'static' && type !== undefined) {
+        await getResource(type.component)
+        if (request !== generation || session.signal.aborted) return
       }
       previewType = type
       loading = false

@@ -15,7 +15,7 @@
 
 import login from '@hcengineering/login'
 import { Analytics } from '@hcengineering/analytics'
-import { getResource } from '@hcengineering/platform'
+import platform, { getResource, PlatformError } from '@hcengineering/platform'
 import { getCurrentLocation } from '@hcengineering/ui'
 import {
   connectEmbeddedWorkspace,
@@ -23,24 +23,48 @@ import {
   embeddedVersionError
 } from '@hcengineering/workbench-resources'
 import type { Client } from '@hcengineering/core'
+import { get, writable } from 'svelte/store'
 
-export { embeddedConnectionError as invalidError, embeddedVersionError as versionError }
+export const invalidError = writable(false)
+export { embeddedConnectionError as connectionError, embeddedVersionError as versionError }
 
 /** Resolve public-link authentication before opening the shared lightweight workspace. */
 export async function connect (title: string): Promise<Client | undefined> {
+  invalidError.set(false)
+  embeddedConnectionError.set(false)
+  embeddedVersionError.set(undefined)
   const loc = getCurrentLocation()
   const token = loc.query?.token
   const workspace = loc.path[1]
+  const entryPoint = loc.path[0]
   if (workspace === undefined || token == null) {
-    embeddedConnectionError.set(true)
+    invalidError.set(true)
     return undefined
   }
-  try {
-    const exchange = await getResource(login.function.ExchangeGuestToken)
-    return await connectEmbeddedWorkspace(title, workspace, await exchange(token))
-  } catch (error) {
-    embeddedConnectionError.set(true)
-    Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
-    return undefined
+  let connectAttempt = 0
+  let exchangedToken: string | undefined
+  while (true) {
+    const current = getCurrentLocation()
+    if (current.path[0] !== entryPoint || current.path[1] !== workspace || current.query?.token !== token) {
+      return undefined
+    }
+    try {
+      const exchange = await getResource(login.function.ExchangeGuestToken)
+      exchangedToken ??= await exchange(token)
+      return await connectEmbeddedWorkspace(title, workspace, exchangedToken)
+    } catch (error) {
+      Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+      if (
+        error instanceof PlatformError &&
+        (error.status.code === platform.status.Unauthorized || error.status.code === platform.status.Forbidden)
+      ) {
+        invalidError.set(true)
+        return undefined
+      }
+      if (get(embeddedVersionError) !== undefined) return undefined
+      embeddedConnectionError.set(true)
+      const delay = Math.min(1000 * 2 ** Math.min(connectAttempt++, 4), 10000)
+      await new Promise<void>((resolve) => setTimeout(resolve, delay))
+    }
   }
 }

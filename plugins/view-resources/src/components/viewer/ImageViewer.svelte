@@ -17,8 +17,8 @@
   import { type Blob, type Ref, type BlobMetadata } from '@hcengineering/core'
   import {
     DrawingBoard,
-    fetchPreviewFile,
     FilePreviewSession,
+    getBlobRef,
     imageSizeToRatio,
     type DrawingData
   } from '@hcengineering/presentation'
@@ -51,7 +51,7 @@
   let loading = true
   let failed = false
   let url: string | undefined
-  let objectUrl: string | undefined
+  let srcset: string | undefined
   let generation = 0
   let attempt: FilePreviewSession | undefined
 
@@ -65,22 +65,16 @@
     const session = owner ?? new FilePreviewSession()
     if (attempt !== session) attempt?.destroy()
     attempt = session
-    if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl)
-    objectUrl = undefined
     url = undefined
+    srcset = undefined
     loading = true
     failed = false
     setLoading?.(true)
     try {
-      if (session.mode === 'interactive' && (source ?? value).includes('://')) {
-        url = source ?? value
-        return
-      }
-      const response = await fetchPreviewFile(source ?? value, name, { signal: session.signal })
-      const blob = await response.blob()
+      const blobRef = await getBlobRef((source ?? value) as Ref<Blob>, name)
       if (request !== generation || session.signal.aborted) return
-      objectUrl = URL.createObjectURL(blob)
-      url = objectUrl
+      url = blobRef.src
+      srcset = blobRef.srcset
     } catch (error) {
       if (request !== generation) return
       failed = true
@@ -108,6 +102,7 @@
   }
 
   function failedImage (): void {
+    if (attempt?.signal.aborted === true) return
     failed = true
     loading = false
     setLoading?.(false)
@@ -119,7 +114,6 @@
   onDestroy(() => {
     generation++
     attempt?.destroy()
-    if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl)
   })
 </script>
 
@@ -142,6 +136,7 @@
     >
       <img
         src={url}
+        {srcset}
         alt={name}
         class="object-contain mx-auto"
         style:max-width={width}
