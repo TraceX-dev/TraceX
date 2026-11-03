@@ -39,8 +39,25 @@ s3api () {
   aws s3api "$@" --endpoint-url "$ENDPOINT"
 }
 
+# Prints the size of an object, or nothing if the object does not exist.
+# Any other failure (5xx, auth, network) is an error: treating it as "absent"
+# would let an already published release be overwritten.
 remote_size () {
-  s3api head-object --bucket "$BUCKET" --key "$1" --query ContentLength --output text 2>/dev/null || true
+  local err status=0 size
+  err="$(mktemp)"
+  size="$(s3api head-object --bucket "$BUCKET" --key "$1" --query ContentLength --output text 2>"$err")" || status=$?
+  if (( status == 0 )); then
+    rm -f "$err"
+    echo "$size"
+    return 0
+  fi
+  if grep -qE '\(404\)|Not Found|NoSuchKey' "$err"; then
+    rm -f "$err"
+    return 0
+  fi
+  echo "::error::Cannot check s3://$BUCKET/$1: $(cat "$err")" >&2
+  rm -f "$err"
+  return 1
 }
 
 local_size () {
@@ -52,12 +69,15 @@ upload () {
   key="$(basename "$file")"
   for i in $(seq 1 "$ATTEMPTS"); do
     if aws s3 cp --only-show-errors "$file" "s3://$BUCKET/$key" --endpoint-url "$ENDPOINT" \
-      && [[ "$(remote_size "$key")" == "$(local_size "$file")" ]]; then
+      && uploaded_size="$(remote_size "$key")" \
+      && [[ "$uploaded_size" == "$(local_size "$file")" ]]; then
       echo "Uploaded $key ($(local_size "$file") bytes)"
       return 0
     fi
     echo "::warning::Upload of $key failed or size mismatch (attempt $i/$ATTEMPTS)"
-    sleep 30
+    if (( i < ATTEMPTS )); then
+      sleep 30
+    fi
   done
   echo "::error::Failed to upload $key"
   exit 1
@@ -86,8 +106,10 @@ done
 
 for manifest in "${manifests[@]}"; do
   key="$(basename "$manifest")"
-  if [[ -n "$(remote_size "$key")" ]]; then
-    echo "::error::$key is already published. Versions are immutable: create a new tag instead of rebuilding this one." >&2
+  published_size="$(remote_size "$key")" || exit 1
+  if [[ -n "$published_size" ]]; then
+    echo "::error::$key is already published. Versions are immutable: create a new tag instead of rebuilding this one" \
+      "(this also applies when an earlier upload of this version stopped half-way: publish.sh needs all manifests of a version)." >&2
     exit 1
   fi
 done
