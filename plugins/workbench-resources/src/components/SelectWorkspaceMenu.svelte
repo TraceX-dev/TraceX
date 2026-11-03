@@ -66,14 +66,6 @@
     void getResource(login.function.GetWorkspaces)
       .then(async (f) => {
         $workspacesStore = await f()
-        console.log('[SelectWorkspaceMenu.onMount] Workspace unread indicators', {
-          currentWorkspace: getCurrentLocation().path[1],
-          workspaces: $workspacesStore.map((workspace) => ({
-            url: workspace.url,
-            hasUnread: workspace.hasUnread,
-            isCurrent: workspace.url === getCurrentLocation().path[1]
-          }))
-        })
         loadState = 'loaded'
       })
       .catch((err: any) => {

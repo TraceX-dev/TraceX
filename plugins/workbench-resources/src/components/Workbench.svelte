@@ -307,12 +307,7 @@
   let unsubscribeInboxNotifications: (() => void) | undefined
   let isDestroyed = false
 
-  // Mirrors what the Inbox counts as unread (InboxNotificationsClientImpl +
-  // getDisplayInboxNotifications): common notifications as-is, activity
-  // notifications only when their activity message still exists. Orphaned
-  // activity notifications (message missing — e.g. ones created by the workspace
-  // init script) are never shown in the Inbox, so they must not keep the
-  // cross-workspace flag raised either.
+  // Same criteria as the Inbox: activity notifications count only if their message exists.
   async function findUnreadVisibleInInbox (): Promise<Doc | undefined> {
     const query = { user: account.uuid, isViewed: false, archived: false }
     const common = await client.findOne(notification.class.CommonInboxNotification, query, {
@@ -337,29 +332,16 @@
     return undefined
   }
 
-  // The derived `notify` flag can briefly drop to false while inbox queries
-  // (re)load — e.g. activity notifications without their $lookup yet, or contexts
-  // arriving after notifications. The server-side flag can't be re-raised by the
-  // client, so before clearing it we confirm against the database that nothing
-  // the Inbox would show as unread exists for this account.
+  // `notify` may be briefly false while loading; confirm in the DB before clearing.
   async function clearWorkspaceUnreadIfNoneInDb (): Promise<void> {
     checkingWorkspaceUnread = true
     try {
       const unread = await findUnreadVisibleInInbox()
-      if (isDestroyed) return
-      if (unread !== undefined) {
-        console.log('[Workbench.inboxNotifications] Skip clearing: unread notification exists in DB', {
-          workspaceId,
-          unreadDocId: unread._id,
-          unreadDocClass: unread._class
-        })
-        return
-      }
-      console.log('[Workbench.inboxNotifications] Reporting workspace as read', { workspaceId })
+      if (isDestroyed || unread !== undefined) return
       clearedWorkspaceUnread = true
       await reportWorkspaceRead()
     } catch (err) {
-      console.error('[Workbench.inboxNotifications] Failed to check unread notifications', err)
+      console.error('Failed to check unread inbox notifications', err)
     } finally {
       checkingWorkspaceUnread = false
     }
@@ -370,12 +352,6 @@
       if (isDestroyed) return
 
       unsubscribeInboxNotifications = createInboxNotificationStore().subscribe((state) => {
-        console.log('[Workbench.inboxNotifications] Inbox notification state', {
-          workspaceId,
-          isLoaded: state.isLoaded,
-          notify: state.notify,
-          clearedWorkspaceUnread
-        })
         if (!state.isLoaded) return
         inboxLoaded = true
 
@@ -393,18 +369,10 @@
       console.error('Error subscribing to Inbox notifications:', error)
     })
 
-  // The server raises hasUnread asynchronously (notification trigger -> queue ->
-  // account service), so a raise can land after we already cleared the flag —
-  // e.g. a notification created and read right away while the doc is open. The
-  // local inbox state doesn't change then, so nothing above re-runs. Re-check
-  // whenever the refreshed workspace list (periodic poll / window focus) still
-  // reports the current workspace as unread while the Inbox shows nothing.
-  // An explicit store subscription (not a reactive block) keeps this to one check
-  // per workspace-list update instead of re-running after every check.
+  // The server may raise hasUnread after we cleared it; re-check on workspace list refresh.
   const unsubscribeWorkspacesUnread = workspacesStore.subscribe((wss) => {
     const serverUnread = wss.find((ws) => ws.url === workspaceId)?.hasUnread === true
     if (!serverUnread || !inboxLoaded || hasInboxNotifications || checkingWorkspaceUnread || isDestroyed) return
-    console.log('[Workbench.inboxNotifications] Server flag set while Inbox is empty, re-checking', { workspaceId })
     void clearWorkspaceUnreadIfNoneInDb()
   })
 
