@@ -40,6 +40,17 @@ test.describe('Cross-workspace unread indicator', () => {
     await new SelectWorkspacePage(page).selectWorkspace(workspace)
   }
 
+  // Resolves once the client has cleared the server-side hasUnread flag of the open workspace.
+  async function waitForUnreadCleared (page: Page): Promise<void> {
+    await page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        (response.request().postData() ?? '').includes('"setWorkspaceMemberUnread"') &&
+        response.ok(),
+      { timeout: 60000 }
+    )
+  }
+
   test.beforeEach(async ({ request }) => {
     data = generateTestData()
     assignee = {
@@ -94,7 +105,9 @@ test.describe('Cross-workspace unread indicator', () => {
         await new LeftSideMenuPage(page2).clickNotification()
         const inbox = new InboxPage(page2)
         await inbox.checkIfTaskIsPresentInInbox(newIssue.title)
+        const cleared = waitForUnreadCleared(page2)
         await inbox.clickOnToDo(newIssue.title)
+        await cleared
 
         await switcher.expectUnread(data.workspaceName, false)
         await switcher.switchTo(assigneeWorkspace)
@@ -108,10 +121,11 @@ test.describe('Cross-workspace unread indicator', () => {
   test('clears the indicator of a workspace whose Inbox is empty', async ({ page }) => {
     // The demo-content workspace has an orphaned unread notification, so the
     // server flag is raised although the Inbox is empty.
+    const cleared = waitForUnreadCleared(page)
     await login(page, assignee.email, assignee.password, assigneeWorkspace)
-    const switcher = new WorkspaceSwitcherPage(page)
+    await cleared
 
-    await switcher.expectUnread(assigneeWorkspace, false)
+    const switcher = new WorkspaceSwitcherPage(page)
     await switcher.switchTo(data.workspaceName)
     await switcher.expectUnread(assigneeWorkspace, false)
   })
