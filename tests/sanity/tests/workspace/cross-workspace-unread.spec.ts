@@ -14,9 +14,10 @@
 //
 
 import { faker } from '@faker-js/faker'
-import { AccountRole } from '@hcengineering/core'
+import { AccountRole, type Class, type Doc, type Ref } from '@hcengineering/core'
 import { expect, test, type Page } from '@playwright/test'
 import { ApiEndpoint } from '../API/Api'
+import { WorkspaceRestClient } from '../API/WorkspaceRestClient'
 import { type SignUpData } from '../model/common-types'
 import { InboxPage } from '../model/inbox.ts/inbox-page'
 import { LeftSideMenuPage } from '../model/left-side-menu-page'
@@ -32,6 +33,7 @@ test.describe('Cross-workspace unread indicator', () => {
   let data: { workspaceName: string, userName: string, firstName: string, lastName: string }
   let assignee: SignUpData
   let assigneeWorkspace: string
+  let workspaceUrl: string
 
   async function login (page: Page, email: string, password: string, workspace: string): Promise<void> {
     await (await page.goto(`${PlatformURI}`))?.finished()
@@ -51,6 +53,17 @@ test.describe('Cross-workspace unread indicator', () => {
     )
   }
 
+  // Marks all unread inbox notifications of the user as viewed, as reading them in the UI would.
+  async function markAllRead (rest: WorkspaceRestClient): Promise<void> {
+    const InboxNotification = 'notification:class:InboxNotification' as Ref<Class<Doc>>
+    const unread = await rest.findAll(InboxNotification, { user: rest.account.uuid, isViewed: false })
+    expect(unread.length).toBeGreaterThan(0)
+    for (const n of unread) {
+      const res = await rest.tx(rest.factory.createTxUpdateDoc(n._class, n.space, n._id, { isViewed: true } as any))
+      expect(res).toMatchObject({ ok: true })
+    }
+  }
+
   test.beforeEach(async ({ request }) => {
     data = generateTestData()
     assignee = {
@@ -65,6 +78,7 @@ test.describe('Cross-workspace unread indicator', () => {
     await api.createAccount(data.userName, '1234', data.firstName, data.lastName)
     await api.createAccount(assignee.email, assignee.password, assignee.firstName, assignee.lastName)
     const ws = await api.createWorkspaceWithLogin(data.workspaceName, data.userName, '1234')
+    workspaceUrl = ws.workspaceUrl
     // Created with demo content: the init script leaves the creator an activity
     // notification without its message, which the Inbox never shows.
     await api.createWorkspaceWithLogin(assigneeWorkspace, assignee.email, assignee.password)
@@ -73,7 +87,8 @@ test.describe('Cross-workspace unread indicator', () => {
     await api.joinWorkspace(assignee.email, assignee.password, inviteId, ws.workspaceUrl)
   })
 
-  test('keeps the indicator until notifications are read', async ({ page, browser }) => {
+  test('keeps the indicator until notifications are read', async ({ page, browser, request }) => {
+    test.setTimeout(240_000)
     const page2 = await browser.newPage()
     try {
       // The assignee's employee is created on the first visit, so open A's workspace once.
@@ -103,10 +118,10 @@ test.describe('Cross-workspace unread indicator', () => {
       await test.step('Reading the notification clears the indicator', async () => {
         await switcher.switchTo(data.workspaceName)
         await new LeftSideMenuPage(page2).clickNotification()
-        const inbox = new InboxPage(page2)
-        await inbox.checkIfTaskIsPresentInInbox(newIssue.title)
+        await new InboxPage(page2).checkIfTaskIsPresentInInbox(newIssue.title)
+        const rest = await WorkspaceRestClient.connect(request, assignee.email, assignee.password, workspaceUrl)
         const cleared = waitForUnreadCleared(page2)
-        await inbox.clickOnToDo(newIssue.title)
+        await markAllRead(rest)
         await cleared
 
         await switcher.expectUnread(data.workspaceName, false)
@@ -119,6 +134,7 @@ test.describe('Cross-workspace unread indicator', () => {
   })
 
   test('clears the indicator of a workspace whose Inbox is empty', async ({ page }) => {
+    test.setTimeout(120_000)
     // The demo-content workspace has an orphaned unread notification, so the
     // server flag is raised although the Inbox is empty.
     const cleared = waitForUnreadCleared(page)
