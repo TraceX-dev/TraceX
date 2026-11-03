@@ -172,10 +172,30 @@ services:
       - REKONI_URL=http://rekoni:4007
       - TELEGRAM_URL=http://localhost:8086
       - COLLABORATOR_URL=ws://localhost:3079
+      - PRINT_URL=http://localhost:4005
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - BRANDING_URL=http://localhost:8083/branding-test.json
       - STATS_URL=http://stats:4901
       - STATS_API=http://localhost:4901
+  print:
+    image: tracexapp/print
+    pull_policy: never
+    depends_on:
+      - front
+      - account
+      - datalake
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - 4005:4005
+    environment:
+      - SECRET=secret
+      - ACCOUNTS_URL=http://account:3003
+      - FRONT_URL=http://localhost:8083
+      # Keep browser origins/cookies on localhost while reaching host-published services.
+      - PUPPETEER_ARGS=--host-resolver-rules=MAP localhost host.docker.internal
+      - STORAGE_CONFIG=${STORAGE_CONFIG}
+      - STATS_URL=http://stats:4901
   transactor:
     image: tracexapp/transactor
     pull_policy: never
