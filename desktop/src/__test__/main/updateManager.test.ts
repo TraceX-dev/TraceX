@@ -221,18 +221,53 @@ describe('updateManager', () => {
     expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(2)
   })
 
-  it('resets the backoff once progress is received', () => {
+  it('keeps growing the backoff when a download fails after progress', async () => {
+    // A download that reaches 100% and then fails must not restart every 10s
+    available()
+    autoUpdater.emit('download-progress', { percent: 100 })
+    lastReject?.(new Error('network'))
+    await flush()
+    jest.advanceTimersByTime(10_000)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+
+    available()
+    autoUpdater.emit('download-progress', { percent: 100 })
+    lastReject?.(new Error('network'))
+    await flush()
+    jest.advanceTimersByTime(29_999)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+    jest.advanceTimersByTime(1)
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(2)
+  })
+
+  it('resets the backoff after a successful download', () => {
     autoUpdater.emit('error', new Error('network'))
     jest.advanceTimersByTime(10_000)
     autoUpdater.emit('error', new Error('network'))
     jest.advanceTimersByTime(30_000)
     expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(2)
 
-    autoUpdater.emit('download-progress', { percent: 1 })
+    autoUpdater.emit('update-downloaded', {})
     autoUpdater.emit('error', new Error('network'))
     jest.advanceTimersByTime(10_000)
     expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(3)
   })
+
+  it.each(['ERR_CHECKSUM_MISMATCH', 'ERR_UPDATER_INVALID_SIGNATURE'])(
+    'does not re-download a broken release right away (%s)',
+    async (code) => {
+      available()
+      autoUpdater.emit('download-progress', { percent: 100 })
+      lastReject?.(Object.assign(new Error('broken'), { code }))
+      await flush()
+
+      expect(mainWindow.setProgressBar).toHaveBeenLastCalledWith(-1)
+      jest.advanceTimersByTime(60 * 60_000 - 1)
+      expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled()
+      jest.advanceTimersByTime(1)
+      expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+    }
+  )
 
   it('does not show another dialog when a failed attempt is retried', async () => {
     available()

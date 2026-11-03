@@ -23,6 +23,23 @@ import autoUpdater from './updater'
 
 const STALL_TIMEOUT_MS = 60_000
 const RETRY_DELAYS_MS = [10_000, 30_000, 60_000, 300_000]
+// Errors that a quick retry cannot fix: the published release itself is broken
+// (e.g. the manifest describes a different build than the uploaded file).
+// Re-downloading the whole update every few seconds only burns traffic,
+// so such a release is re-checked rarely, in case it gets re-published.
+const PERMANENT_ERROR_RETRY_DELAY_MS = 60 * 60_000
+const PERMANENT_ERROR_CODES = new Set([
+  'ERR_CHECKSUM_MISMATCH',
+  'ERR_UPDATER_INVALID_SIGNATURE',
+  'ERR_UPDATER_ZIP_FILE_NOT_FOUND',
+  'ERR_UPDATER_NO_CHECKSUM',
+  'ERR_UPDATER_NO_FILES_PROVIDED',
+  'ERR_UPDATER_INVALID_UPDATE_INFO'
+])
+
+function isPermanentError (err: any): boolean {
+  return typeof err?.code === 'string' && PERMANENT_ERROR_CODES.has(err.code)
+}
 
 export interface UpdateManagerDeps {
   getMainWindow: () => BrowserWindow | undefined
@@ -37,6 +54,8 @@ export interface UpdateManager {
 /**
  * Wires up auto-update flow: manual download start (autoDownload is disabled in ./updater),
  * stall detection, retries with backoff and progress reporting to the renderer.
+ * The backoff grows with every failed attempt and is reset only by a successful download,
+ * so a download that keeps failing at the end does not restart every few seconds.
  * Must be called once.
  */
 export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateManagerDeps): UpdateManager {
@@ -77,10 +96,16 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
     getMainWindow()?.setProgressBar(-1)
   }
 
-  function scheduleRetry (): void {
+  function scheduleRetry (err?: any): void {
     if (retryTimer !== undefined) return
-    const delay = RETRY_DELAYS_MS[Math.min(retryAttempt, RETRY_DELAYS_MS.length - 1)]
+    const permanent = isPermanentError(err)
+    const delay = permanent
+      ? PERMANENT_ERROR_RETRY_DELAY_MS
+      : RETRY_DELAYS_MS[Math.min(retryAttempt, RETRY_DELAYS_MS.length - 1)]
     retryAttempt++
+    if (permanent) {
+      log.error(`Published update is broken (${err.code as string}), not retrying it right away`)
+    }
     log.info(`Retrying update check in ${delay}ms (attempt ${retryAttempt})`)
     retryTimer = setTimeout(() => {
       retryTimer = undefined
@@ -94,7 +119,7 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
     } catch (err: any) {
       // 'error' event is emitted as well and schedules the retry
       log.error('Update check failed', err)
-      scheduleRetry()
+      scheduleRetry(err)
     }
   }
 
@@ -108,7 +133,7 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
       log.error('Update download failed', err)
       if (downloadToken === token) {
         resetDownloadState()
-        scheduleRetry()
+        scheduleRetry(err)
       }
     })
     return true
@@ -139,22 +164,22 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
   })
 
   autoUpdater.on('download-progress', (progressObj: ProgressInfo) => {
-    retryAttempt = 0
     armStallTimer()
     setDownloadProgress(progressObj.percent)
   })
 
-  autoUpdater.on('error', () => {
+  autoUpdater.on('error', (err: any) => {
     // An error of a running download is followed by a rejection of downloadUpdate(),
     // which resets the state and schedules the retry. Other errors (e.g. a failed
     // update check) must not drop the token of a download that is still in flight.
     if (downloadToken !== undefined) return
     resetDownloadState()
-    scheduleRetry()
+    scheduleRetry(err)
   })
 
   autoUpdater.on('update-downloaded', (_info: any) => {
     clearStallTimer()
+    retryAttempt = 0
     // We have listeners that prevents the app from being exited on mac
     app.removeAllListeners('window-all-closed')
     getMainWindow()?.removeAllListeners('close')
