@@ -56,7 +56,7 @@
   import type { PersonRating } from '@hcengineering/rating'
   import ratingPlugin from '@hcengineering/rating'
   import workbench from '../plugin'
-  import { workspacesStore } from '../utils'
+  import { currentWorkspaceHasInboxUnread, workspacesStore } from '../utils'
   // import Drag from './icons/Drag.svelte'
 
   type LoadState = 'pending' | 'loaded' | 'error'
@@ -66,6 +66,14 @@
     void getResource(login.function.GetWorkspaces)
       .then(async (f) => {
         $workspacesStore = await f()
+        console.log('[SelectWorkspaceMenu.onMount] Workspace unread indicators', {
+          currentWorkspace: getCurrentLocation().path[1],
+          workspaces: $workspacesStore.map((workspace) => ({
+            url: workspace.url,
+            hasUnread: workspace.hasUnread,
+            isCurrent: workspace.url === getCurrentLocation().path[1]
+          }))
+        })
         loadState = 'loaded'
       })
       .catch((err: any) => {
@@ -317,7 +325,7 @@
                     displayName={wsName}
                     avatarUrl={getAvatarUrl(ws, isCurrentWs, currentWsSetting)}
                     size={'small'}
-                    hasUnread={ws.hasUnread === true && !isCurrentWs}
+                    hasUnread={isCurrentWs ? $currentWorkspaceHasInboxUnread : ws.hasUnread === true}
                     ringColor={'var(--theme-popup-color)'}
                   />
                 </div>

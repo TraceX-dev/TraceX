@@ -176,6 +176,14 @@ export async function showApplication (app: Application): Promise<void> {
 }
 
 export const workspacesStore = writable<WorkspaceInfoWithStatus[]>([])
+
+/**
+ * Live unread state of the Inbox in the currently open workspace (same value
+ * that highlights the Inbox icon). Used for the current workspace's indicator in
+ * the switcher instead of the server-side hasUnread flag, which lags behind and
+ * can't be cleared when the remaining unread notifications aren't shown in Inbox.
+ */
+export const currentWorkspaceHasInboxUnread = writable<boolean>(false)
 export const locationWorkspaceStore = derived(location, (loc: Location) => loc.path[1])
 export const currentWorkspaceStore = derived(
   [workspacesStore, locationWorkspaceStore],
