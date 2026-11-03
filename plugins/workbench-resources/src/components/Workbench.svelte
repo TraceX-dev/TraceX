@@ -24,6 +24,7 @@
     getCurrentAccount,
     hasAccountRole,
     Ref,
+    type RefTo,
     SortingOrder,
     Space
   } from '@hcengineering/core'
@@ -308,36 +309,29 @@
   let isDestroyed = false
 
   // Same criteria as the Inbox: activity notifications count only if their message exists.
-  async function findUnreadVisibleInInbox (): Promise<Doc | undefined> {
+  async function hasUnreadVisibleInInbox (): Promise<boolean> {
     const query = { user: account.uuid, isViewed: false, archived: false }
     const common = await client.findOne(notification.class.CommonInboxNotification, query, {
       projection: { _id: 1 }
     })
-    if (common !== undefined) return common
+    if (common !== undefined) return true
 
-    const activityNotifications = await client.findAll(notification.class.ActivityInboxNotification, query, {
-      projection: { _id: 1, attachedTo: 1, attachedToClass: 1 },
-      sort: { createdOn: SortingOrder.Descending },
-      limit: 1000
-    })
-    const idsByClass = new Map<Ref<Class<Doc>>, Array<Ref<Doc>>>()
-    for (const n of activityNotifications) {
-      if (!client.getHierarchy().hasClass(n.attachedToClass)) continue
-      idsByClass.set(n.attachedToClass, [...(idsByClass.get(n.attachedToClass) ?? []), n.attachedTo])
-    }
-    for (const [_class, ids] of idsByClass) {
-      const message = await client.findOne(_class, { _id: { $in: ids } }, { projection: { _id: 1 } })
-      if (message !== undefined) return message
-    }
-    return undefined
+    const attachedTo = client.getHierarchy().getAttribute(notification.class.ActivityInboxNotification, 'attachedTo')
+    const messageClass = (attachedTo.type as RefTo<Doc>).to
+    const activity = await client.findOne(
+      notification.class.ActivityInboxNotification,
+      { ...query, '$lookup.attachedTo._id': { $exists: true } } as any,
+      { lookup: { attachedTo: messageClass }, projection: { _id: 1 } }
+    )
+    return activity !== undefined
   }
 
   // `notify` may be briefly false while loading; confirm in the DB before clearing.
   async function clearWorkspaceUnreadIfNoneInDb (): Promise<void> {
     checkingWorkspaceUnread = true
     try {
-      const unread = await findUnreadVisibleInInbox()
-      if (isDestroyed || unread !== undefined) return
+      const hasUnread = await hasUnreadVisibleInInbox()
+      if (isDestroyed || hasUnread) return
       clearedWorkspaceUnread = true
       await reportWorkspaceRead()
     } catch (err) {
