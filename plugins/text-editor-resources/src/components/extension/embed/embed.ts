@@ -112,19 +112,8 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
   addNodeView () {
     return ({ node, HTMLAttributes, editor, getPos }) => {
       const printContext = this.options.printContext
-      const printing = printContext !== undefined
-      let timer: ReturnType<typeof setTimeout> | undefined
       const resolved = matchUrl(this.options.providers, node.attrs.src)
-      const providerPromise = printing
-        ? Promise.race([
-            resolved,
-            new Promise<undefined>((resolve) => {
-              timer = setTimeout(() => {
-                resolve(undefined)
-              }, 15000)
-            })
-          ])
-        : resolved
+      const providerPromise = printContext?.waitFor(resolved, 15000) ?? resolved
       const finish = printContext?.registerResource() ?? (() => {})
 
       const root = document.createElement('div')
@@ -155,7 +144,6 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
           await handle?.ready
         })
         .finally(() => {
-          clearTimeout(timer)
           finish()
           const pos = typeof getPos === 'function' ? getPos() : 0
           setLoadingState(editor.view, pos, false)
@@ -165,7 +153,6 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
         dom: root,
         destroy: () => {
           destroyed = true
-          clearTimeout(timer)
           finish()
           handle?.destroy?.()
         }

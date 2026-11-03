@@ -16,72 +16,25 @@
 -->
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
-  import type { Class, Doc, Ref } from '@hcengineering/core'
-  import { getMetadata, getResource } from '@hcengineering/platform'
-  import presentation, { decodeTokenPayload, providePrintContext } from '@hcengineering/presentation'
-  import {
-    getCurrentLocation,
-    getPanelURI,
-    Label,
-    Loading,
-    Notifications,
-    provideRenderContext,
-    type Location
-  } from '@hcengineering/ui'
-  import view from '@hcengineering/view'
+  import { getMetadata } from '@hcengineering/platform'
+  import presentation, { providePrintContext } from '@hcengineering/presentation'
+  import { Label, Loading, Notifications, provideRenderContext } from '@hcengineering/ui'
   import workbench from '@hcengineering/workbench'
   import { onDestroy } from 'svelte'
-  import {
-    connectEmbeddedWorkspace,
-    disconnectEmbeddedWorkspace,
-    EmbeddedWorkspace
-  } from '@hcengineering/workbench-resources'
+  import { connect, disconnect } from '../connect'
+  import Print from './Print.svelte'
 
   provideRenderContext(providePrintContext())
-
-  async function open (): Promise<Location> {
-    const loc = getCurrentLocation()
-    const printToken = sessionStorage.getItem('print-token')
-    sessionStorage.removeItem('print-token')
-    const token = printToken ?? getMetadata(presentation.metadata.Token)
-    const workspace = loc.path[1]
-    const objectId = loc.query?.objectId
-    const objectClass = loc.query?.objectClass
-    if (workspace === undefined || !objectId || !objectClass) {
-      throw new Error('Print session is missing')
-    }
-    if (token !== undefined) {
-      const payload = decodeTokenPayload(token)
-      if (payload.extra?.guest === 'true' || (printToken !== null && payload.extra?.readonly !== 'true')) {
-        throw new Error('Print session requires a user token; injected tokens must be read-only')
-      }
-    }
-    const client = await connectEmbeddedWorkspace(
-      getMetadata(workbench.metadata.PlatformTitle) ?? 'Platform',
-      workspace,
-      token
-    )
-    const _class = objectClass as Ref<Class<Doc>>
-    const _id = objectId as Ref<Doc>
-    const doc = await client.findOne(_class, { _id })
-    if (doc === undefined) throw new Error('Document is not accessible')
-    const component =
-      client.getHierarchy().classHierarchyMixin(_class, view.mixin.ObjectPanel)?.component ?? view.component.EditDoc
-    await getResource(component)
-    return { path: ['print', workspace], fragment: getPanelURI(component, _id, _class, 'content') }
-  }
-
+  const connection = connect(getMetadata(workbench.metadata.PlatformTitle) ?? 'Platform')
   onDestroy(() => {
-    void disconnectEmbeddedWorkspace().catch(Analytics.handleError)
+    void disconnect().catch(Analytics.handleError)
   })
 </script>
 
-{#await open()}
-  <div class="flex-center w-full h-full">
-    <Loading shrink />
-  </div>
+{#await connection}
+  <div class="flex-center w-full h-full"><Loading shrink /></div>
 {:then target}
-  <Notifications><EmbeddedWorkspace {target} documentOnly /></Notifications>
+  <Notifications><Print {target} /></Notifications>
 {:catch}
   <div data-print-root data-print-state="error">
     <Label label={presentation.string.AccessDenied} />

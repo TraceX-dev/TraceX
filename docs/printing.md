@@ -12,11 +12,13 @@ Document export renders the selected document in the frontend `/print` applicati
    /print/{workspaceUrl}?objectClass={encodedClass}&objectId={encodedId}
    ```
 
-4. Before navigation, the service injects the token into `sessionStorage['print-token']` for that exact top-level URL. The token is never included in the frontend URL. `PrintApp` consumes and removes this entry.
-5. `PrintApp` selects the workspace, loads the document's `ObjectPanel` component (or `EditDoc`), and renders it through `EmbeddedWorkspace` with `documentOnly` enabled.
+4. Before navigation, the service injects the token into `sessionStorage['print-token']` for that exact top-level URL. The token is never included in the frontend URL. The print connection module consumes and removes this entry.
+5. `PrintApp` connects through its own `connect.ts`, loads the document's `ObjectPanel` component (or `EditDoc`), and renders the document through `Print.svelte`.
 6. The service waits for document and resource readiness, prepares the print layout, and captures the result. Each request owns a browser that is closed on success, failure, or deadline.
 
-`PrintApp` and `GuestApp` share the lightweight workspace connection and `EmbeddedWorkspace`. Printing uses the existing document panels and editors without loading the full workbench navigation. The shared UI restrictions disable editing, navigation, actions, and comments.
+Printing uses the existing document panels and editors without loading the full workbench navigation. Its connection and reduced page belong to `print-resources`; guest and workbench implementations remain unchanged. The shared UI restrictions disable editing, navigation, actions, and comments.
+
+Print authentication and document-route preparation live in `plugins/print-resources/src/connect.ts`, following the guest application's organization. `PrintApp` awaits `connect(title)`, displays loading/error/content, and calls `disconnect()` on destruction. The module selects and validates the token, initializes workspace metadata and the client, loads the document panel resource, and closes a connection that finishes after the page has been destroyed. Connection state belongs only to printing.
 
 Single-document, bulk, and signed exports use the same document export path. Bulk export processes documents individually; signing runs after PDF generation.
 
@@ -26,9 +28,11 @@ Single-document, bulk, and signed exports use the same document export path. Bul
 
 The transactor copies this claim into the session context. `ReadOnlyMiddleware` rejects transactions and domain requests while preserving normal query authorization. The server client also rejects backup upload and clean operations for read-only tokens. Datalake allows read requests, including GET and HEAD, and rejects mutation requests with these tokens. The collaborative editor uses its non-editing path in a print context.
 
+Presence checks the shared `restrictionStore.readonly` flag before publishing or deleting presence records. Presence avatars also hide themselves in read-only views; the common panel does not need a print-specific condition.
+
 These checks cover the services used by this export flow. The claim is not a substitute for checking authorization in every other service that might accept a token.
 
-The guest entry point distinguishes invalid-link/access-denied failures from temporary connection failures. Explicit unauthorized or forbidden responses enter the invalid-link state. Other connection errors are retried with delays of 1, 2, 4, 8, then at most 10 seconds, while retaining a connection-error state. Retries stop when the guest route, workspace, or public-link token changes. Version mismatches are not retried, and their messages take precedence over both error states, including while connection initialization is still pending. These guest retries do not change the bounded lifetime of automated print requests.
+Guest public-link authentication, retries, and version handling use the existing guest connection implementation independently of printing.
 
 ## Opening `/print` in a browser
 
@@ -54,16 +58,25 @@ The print application already selects static file previews. PDF generation addit
 
 ## Rendering readiness
 
-Each `PrintApp` owns a Svelte `PrintContext`; there is no global print-session store. The context tracks document mount readiness, pending resources, and fatal rendering errors. `registerResource()` returns an idempotent completion callback.
+Each `PrintApp` owns a Svelte `PrintContext`; there is no global print-session store. The context tracks pending waits and fatal rendering errors. `waitFor(promise, timeoutMs?)` registers a promise in that collection and removes it on success, failure, or timeout. Event-driven work can use `registerResource({ timeoutMs, onTimeout })`, which returns an idempotent completion callback. Deadlines are managed by the context; owners retain responsibility for displaying errors.
 
-`RenderContext` connects editor initialization to that lifecycle. Editors finish their resource after initialization, collaborative content loading where applicable, and mounting. The common panel marks the document as mounted. Editor initialization or content rendering failures propagate to the root context. `PrintApp` awaits the selected document panel resource before opening it, and `FilePreview` awaits its viewer resource in print mode. The shared UI `Component` and `PanelInstance` do not contain print lifecycle hooks.
+Svelte components reuse their existing loading flag through a small hook:
 
-`EmbeddedWorkspace` exposes the capture contract:
+```typescript
+const trackLoading = trackRenderResource({ timeoutMs: 15000, onTimeout: failedPreview })
+$: trackLoading(loading)
+```
+
+`trackRenderResource` registers only while the flag is true, releases after the DOM update when loading ends, and releases on component destruction. It does nothing without a rendering context. Native image events update the ordinary loading state; no artificial promise or manual resolve/reject callbacks are needed. Main editors use the same hook without an attachment deadline.
+
+`RenderContext` connects explicit asynchronous work to that lifecycle: editor initialization and content loading, viewer modules, file requests and image decoding. Editor initialization or content rendering failures propagate to the root context. `PrintApp` awaits the selected document panel resource before opening it. `FilePreview` registers only the resolution/loading of its viewer and keeps its normal selection and error UI; it passes no print-session object to viewers. The shared `Panel`, `Component`, and `PanelInstance` do not contain print lifecycle hooks. `LiveQuery` is unchanged and does not register waits.
+
+`Print.svelte` exposes the capture contract:
 
 | DOM marker | Meaning |
 | --- | --- |
 | `[data-print-root][data-print-state="loading"]` | The document or a registered resource is pending. |
-| `[data-print-root][data-print-state="ready"]` | The panel is open, the document has mounted, and no registered resources remain pending. |
+| `[data-print-root][data-print-state="ready"]` | The document route is open and no registered waits remain pending. |
 | `[data-print-root][data-print-state="error"]` | Authentication, document loading, or main rendering failed. Export must fail. |
 
 The print service checks the root before preparation and again before capture. It also waits for visible busy content and images. For PDF it switches to print media, waits two animation frames, scrolls through lazy content, and waits for fonts during PDF generation. Screenshots also wait for content readiness. Uncaught renderer errors fail authenticated document export.
@@ -76,7 +89,7 @@ These limits have not been established as safe bounds for arbitrarily large docu
 
 Drive resolves a reference to its file/version and mounts the common `FilePreview`. The Svelte context is passed through the editor's `SvelteRenderer`, so embeds inherit the print lifecycle. Drive does not select a separate print component or maintain a print-specific MIME registry.
 
-`FilePreview` uses the registered viewers in both interactive and print modes. `FilePreviewSession` supplies loading/ready/error state, cancellation, and a 15-second deadline in print mode only. Preview type resolution and viewer loading participate in this lifecycle. Interactive previews have no such deadline.
+`FilePreview` uses the registered viewers in both interactive and print modes. Each viewer owns its ordinary loading and error state; `trackRenderResource` connects the existing loading flag to the shared collection. File/viewer waits have a 15-second deadline only when the print context is present; interactive previews have no such deadline. Cancellation belongs to the component that starts the request. There is no separate `FilePreviewSession` class or second preview state machine.
 
 | Content | Printed representation |
 | --- | --- |
@@ -89,7 +102,7 @@ Successful previews have no filename caption underneath. Failed previews identif
 
 Viewers that fetch content in JavaScript use `fetchPreviewFile`, which adds the workspace bearer token only for storage identities, uses `credentials: 'omit'`, and rejects HTTP errors. It does not forward the token to external URLs. Viewers complete only after their content has loaded; images also wait for decoding.
 
-`ImageViewer` uses the same `getBlobRef` and browser `src`/`srcset` loading path in both interactive and print modes. The lightweight workspace connection calls `setPresentationCookie` with the selected workspace token and the storage-specific cookie path before rendering the document. Browser image requests therefore use the existing cookie authorization; `ImageViewer` does not repeat failed requests with a bearer token or buffer originals into JavaScript blobs. Both modes wait for image decoding before reporting readiness; only print mode imposes the preview deadline. The existing `getBlobRef(value, name)` call does not pass dimensions, so it produces an empty `srcset`; using this path does not by itself add resized previews. Responsive thumbnail sizing is a separate concern.
+`ImageViewer` uses the same `getBlobRef` and browser `src`/`srcset` loading path in both interactive and print modes. The print connection calls `setPresentationCookie` with the selected workspace token and the storage-specific cookie path before rendering the document. Browser image requests therefore use the existing cookie authorization; `ImageViewer` does not repeat failed requests with a bearer token or buffer originals into JavaScript blobs. Both modes wait for image decoding before reporting readiness; only print mode imposes the preview deadline. The existing `getBlobRef(value, name)` call does not pass dimensions, so it produces an empty `srcset`; using this path does not by itself add resized previews. Responsive thumbnail sizing is a separate concern.
 
 Interactive `PDFViewer` also passes the ordinary file URL directly to `EmbeddedPDF`, using cookie authorization without fetching the entire PDF into a JavaScript Blob first. Its first-page thumbnail path is used only for print mode.
 
@@ -121,8 +134,9 @@ Focused automated coverage lives in:
 
 - [Print service tests](../services/print/pod-print/src/print.test.ts): authorization injection, document failures, PDF/screenshot readiness, browser cleanup, and legacy link readiness.
 - [Mermaid tests](../plugins/text-editor-resources/src/components/extension/codeSnippets/mermaid.test.ts): SVG mount, errors, deadlines, node destruction, empty diagrams, and ordinary editor behavior.
-- [Presentation tests](../packages/presentation/src/___tests___): print-context isolation, preview lifecycle, and authorized file loading.
-- [Guest connection tests](../plugins/guest-resources/src/connect.test.ts): access denial, version mismatch, transient recovery, retry delays, and stopping retries after navigation.
+- [Presentation tests](../packages/presentation/src/___tests___): print-context isolation, pending promises and deadlines, and authorized file loading.
+- [Presence tests](../plugins/presence-resources/src/presence.test.ts): read-only restrictions and account roles prevent presence writes.
+- [Print connection tests](../plugins/print-resources/src/connect.test.ts): token selection and restrictions, document access, and disposal after the print page closes.
 - [Read-only middleware tests](../foundations/server/packages/middleware/src/tests/read-only.test.ts) and [token tests](../foundations/core/packages/token/src/__tests__/readonly.test.ts).
 
-The main implementation entry points are [PrintApp](../plugins/print-resources/src/components/PrintApp.svelte), [the lightweight workspace connection](../plugins/workbench-resources/src/embedded-workspace.ts), [PrintContext](../packages/presentation/src/print.ts), [FilePreview](../packages/presentation/src/components/FilePreview.svelte), [Mermaid node views](../plugins/text-editor-resources/src/components/extension/codeSnippets/mermaid.ts), [the service routes](../services/print/pod-print/src/server.ts), and [browser capture](../services/print/pod-print/src/print.ts).
+The main implementation entry points are [PrintApp](../plugins/print-resources/src/components/PrintApp.svelte), [print connection setup](../plugins/print-resources/src/connect.ts), [the print page](../plugins/print-resources/src/components/Print.svelte), [PrintContext](../packages/presentation/src/print.ts), [FilePreview](../packages/presentation/src/components/FilePreview.svelte), [Mermaid node views](../plugins/text-editor-resources/src/components/extension/codeSnippets/mermaid.ts), [the service routes](../services/print/pod-print/src/server.ts), and [browser capture](../services/print/pod-print/src/print.ts).

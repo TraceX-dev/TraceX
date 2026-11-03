@@ -15,17 +15,20 @@
 -->
 <script lang="ts">
   import { type Blob, type Ref } from '@hcengineering/core'
-  import type { FilePreviewSession } from '@hcengineering/presentation'
+  import presentation, { getPrintContext } from '@hcengineering/presentation'
+  import { Label } from '@hcengineering/ui'
   import AudioPlayer from './AudioPlayer.svelte'
 
   export let value: Ref<Blob>
   export let name: string
   export let contentType: string
-  export let preview: FilePreviewSession | undefined = undefined
-
-  $: if (preview?.mode === 'static') preview.fail(new Error('Audio has no static preview'))
+  export let sourceLink: string | undefined = undefined
+  const printing = getPrintContext() !== undefined
 </script>
 
-{#if preview?.mode !== 'static'}
+{#if printing}
+  <Label label={presentation.string.ContentTypeNotSupported} />:
+  {#if sourceLink !== undefined}<a href={sourceLink}>{name}</a>{:else}{name}{/if}
+{:else}
   <AudioPlayer {value} {name} {contentType} fullSize={true} />
 {/if}

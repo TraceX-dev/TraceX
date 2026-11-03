@@ -18,6 +18,8 @@ import clientPlugin from '@hcengineering/client'
 import contact, { setCurrentEmployee, setCurrentEmployeeSpace, type Employee } from '@hcengineering/contact'
 import core, {
   AccountRole,
+  type Class,
+  type Doc,
   ClientConnectEvent,
   pickPrimarySocialId,
   setCurrentAccount,
@@ -30,24 +32,29 @@ import core, {
 } from '@hcengineering/core'
 import login from '@hcengineering/login'
 import { getMetadata, getResource, setMetadata } from '@hcengineering/platform'
-import presentation, { refreshClient, setClient, setPresentationCookie } from '@hcengineering/presentation'
+import presentation, {
+  decodeTokenPayload,
+  refreshClient,
+  setClient,
+  setPresentationCookie
+} from '@hcengineering/presentation'
+import { getCurrentLocation, getPanelURI, type Location } from '@hcengineering/ui'
+import view from '@hcengineering/view'
 import { writable } from 'svelte/store'
 
-export const embeddedVersionError = writable<string | undefined>(undefined)
-export const embeddedConnectionError = writable(false)
+export const versionError = writable<string | undefined>(undefined)
+export const connectionError = writable(false)
 let activeClient: Client | undefined
 let activeToken: string | undefined
-
-/** Connect a lightweight workspace using a supplied token or the existing account session cookie. */
-export async function connectEmbeddedWorkspace (title: string, workspace: string, token?: string): Promise<Client> {
-  embeddedConnectionError.set(false)
-  embeddedVersionError.set(undefined)
+async function connectWorkspace (title: string, workspace: string, token?: string): Promise<Client> {
+  connectionError.set(false)
+  versionError.set(undefined)
   const accountsUrl = getMetadata(login.metadata.AccountsUrl)
   const accounts = getAccountClient(accountsUrl, token)
   const info = await accounts.selectWorkspace(workspace)
   const selectedToken = info.token
   if (activeClient !== undefined && activeToken === selectedToken) return activeClient
-  await disconnectEmbeddedWorkspace()
+  await closeWorkspace()
 
   setMetadata(presentation.metadata.Token, selectedToken)
   setMetadata(presentation.metadata.WorkspaceUuid, info.workspace)
@@ -80,16 +87,16 @@ export async function connectEmbeddedWorkspace (title: string, workspace: string
         version !== '' &&
         expected !== version
       ) {
-        embeddedVersionError.set('Client and server versions do not match')
+        versionError.set('Client and server versions do not match')
         return false
       }
       return true
     },
     onUpgrade: () => {
-      embeddedVersionError.set('Workspace upgrade interrupted the session')
+      versionError.set('Workspace upgrade interrupted the session')
     },
     onError: () => {
-      embeddedConnectionError.set(true)
+      connectionError.set(true)
     },
     onConnect: async (event: ClientConnectEvent, _lastTx: string | undefined, sessionId: unknown) => {
       if (event === ClientConnectEvent.Connected || event === ClientConnectEvent.Reconnected) {
@@ -99,7 +106,7 @@ export async function connectEmbeddedWorkspace (title: string, workspace: string
       } else if (event === ClientConnectEvent.Refresh) {
         await refreshClient(true)
       } else if (event === ClientConnectEvent.Upgraded) {
-        embeddedVersionError.set('Workspace upgrade interrupted the session')
+        versionError.set('Workspace upgrade interrupted the session')
       }
     }
   })
@@ -110,7 +117,7 @@ export async function connectEmbeddedWorkspace (title: string, workspace: string
     const required = getMetadata(presentation.metadata.ModelVersion)
     const version = await client.findOne<Version>(core.class.Version, {})
     if (required !== undefined && required !== '' && (version === undefined || versionToString(version) !== required)) {
-      embeddedVersionError.set('Workspace model version does not match')
+      versionError.set('Workspace model version does not match')
       throw new Error('Workspace model version does not match')
     }
     if (account.role !== AccountRole.DocGuest) {
@@ -125,16 +132,68 @@ export async function connectEmbeddedWorkspace (title: string, workspace: string
     document.title = [workspace, title].filter((value) => value !== '').join(' - ')
     return client
   } catch (error) {
-    embeddedConnectionError.set(true)
-    await disconnectEmbeddedWorkspace()
+    connectionError.set(true)
+    await closeWorkspace()
     throw error
   }
 }
 
-/** Dispose the connection owned by the lightweight workspace. */
-export async function disconnectEmbeddedWorkspace (): Promise<void> {
+/** Dispose the lightweight workspace, optionally only if it still belongs to the supplied client. */
+async function closeWorkspace (expectedClient?: Client): Promise<void> {
+  if (expectedClient !== undefined && activeClient !== expectedClient) return
   const client = activeClient
   activeClient = undefined
   activeToken = undefined
   if (client !== undefined) await client.close()
+}
+
+let generation = 0
+
+/** Authenticate the print session and prepare the selected document route. */
+export async function connect (title: string): Promise<Location> {
+  const request = ++generation
+  const loc = getCurrentLocation()
+  const printToken = sessionStorage.getItem('print-token')
+  sessionStorage.removeItem('print-token')
+  const token = printToken ?? getMetadata(presentation.metadata.Token)
+  const workspace = loc.path[1]
+  const objectId = loc.query?.objectId
+  const objectClass = loc.query?.objectClass
+  if (
+    workspace == null ||
+    workspace === '' ||
+    objectId == null ||
+    objectId === '' ||
+    objectClass == null ||
+    objectClass === ''
+  ) {
+    throw new Error('Print session is missing')
+  }
+  if (token !== undefined) {
+    const payload = decodeTokenPayload(token)
+    if (payload.extra?.guest === 'true' || (printToken !== null && payload.extra?.readonly !== 'true')) {
+      throw new Error('Print session requires a user token; injected tokens must be read-only')
+    }
+  }
+  const connected = await connectWorkspace(title, workspace, token)
+  if (request !== generation) {
+    await closeWorkspace(connected)
+    throw new Error('Print session was closed')
+  }
+  const _class = objectClass as Ref<Class<Doc>>
+  const _id = objectId as Ref<Doc>
+  const doc = await connected.findOne(_class, { _id })
+  if (doc === undefined) throw new Error('Document is not accessible')
+  const component =
+    connected.getHierarchy().classHierarchyMixin(_class, view.mixin.ObjectPanel)?.component ?? view.component.EditDoc
+  await getResource(component)
+  if (request !== generation) throw new Error('Print session was closed')
+  const target: Location = { path: ['print', workspace], fragment: getPanelURI(component, _id, _class, 'content') }
+  return target
+}
+
+/** Close the print session and dispose a connection that may still be opening. */
+export async function disconnect (): Promise<void> {
+  generation++
+  await closeWorkspace()
 }

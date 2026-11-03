@@ -18,84 +18,79 @@
   import { getMetadata } from '@hcengineering/platform'
   import presentation, {
     fetchPreviewFile,
-    FilePreviewSession,
     getCurrentWorkspaceUuid,
     getFileUrl,
     getPreviewMetadata,
-    getPreviewThumbnail
+    getPreviewThumbnail,
+    getPrintContext
   } from '@hcengineering/presentation'
-  import { EmbeddedPDF, Label, Loading } from '@hcengineering/ui'
+  import { EmbeddedPDF, Label, Loading, trackRenderResource } from '@hcengineering/ui'
   import { onDestroy } from 'svelte'
   import ImageViewer from './ImageViewer.svelte'
 
   export let value: Ref<Blob>
   export let name: string
   export let fit: boolean = false
-  export let preview: FilePreviewSession | undefined = undefined
-
+  export let sourceLink: string | undefined = undefined
+  const staticView = getPrintContext() !== undefined
   let src: string | undefined
   let failed = false
   let loading = true
   let generation = 0
-  let attempt: FilePreviewSession | undefined
-  $: staticView = preview?.mode === 'static'
+  let controller: AbortController | undefined
+  function failedPreview (): void {
+    generation++
+    controller?.abort()
+    failed = true
+    loading = false
+  }
 
-  async function prepare (value: string, name: string, owner: FilePreviewSession | undefined): Promise<void> {
+  const trackLoading = trackRenderResource({ timeoutMs: 15000, onTimeout: failedPreview })
+  $: trackLoading(loading)
+
+  async function prepare (value: string, name: string): Promise<void> {
     const request = ++generation
-    const session = owner ?? new FilePreviewSession()
-    if (attempt !== session) attempt?.destroy()
-    attempt = session
+    controller?.abort()
+    const abort = new AbortController()
+    controller = abort
     src = undefined
     failed = false
     loading = true
     try {
-      if (session.mode === 'interactive') {
+      if (!staticView) {
         src = getFileUrl(value, name)
         loading = false
         return
       }
-      await fetchPreviewFile(value, name, {
-        method: 'HEAD',
-        signal: session.signal
-      })
+      await fetchPreviewFile(value, name, { method: 'HEAD', signal: abort.signal })
       if ((getMetadata(presentation.metadata.PreviewUrl) ?? '') === '') throw new Error('Preview unavailable')
-      const metadata = await getPreviewMetadata(getCurrentWorkspaceUuid(), value, session.signal)
+      const metadata = await getPreviewMetadata(getCurrentWorkspaceUuid(), value, abort.signal)
       const thumbnail = metadata.thumbnail
       if (thumbnail === undefined || thumbnail.width <= 0 || thumbnail.height <= 0)
         throw new Error('Preview unavailable')
-      if (request !== generation || session.signal.aborted) return
+      if (request !== generation) return
       src = getPreviewThumbnail(value, 1200, Math.round((1200 * thumbnail.height) / thumbnail.width), 1)
       loading = false
-    } catch (error) {
-      if (request !== generation) return
-      failed = true
-      loading = false
-      session.fail(error)
+    } catch {
+      if (request === generation) failedPreview()
     }
   }
-
-  $: void prepare(value, name, preview)
+  $: void prepare(value, name)
   onDestroy(() => {
     generation++
-    attempt?.destroy()
+    controller?.abort()
   })
 </script>
 
 {#if failed}
-  <Label label={presentation.string.FailedToPreview} />
+  <Label label={presentation.string.FailedToPreview} />:
+  {#if sourceLink !== undefined}<a href={sourceLink}>{name}</a>{:else}{name}{/if}
 {:else if loading}
   <div class="flex-center w-full clear-mins"><Loading /></div>
 {:else if src !== undefined}
   {#if staticView}
-    <ImageViewer {value} {name} source={src} metadata={undefined} {preview} />
+    <ImageViewer {value} {name} source={src} metadata={undefined} {sourceLink} />
   {:else}
-    <EmbeddedPDF
-      {src}
-      {name}
-      {fit}
-      on:load={() => {
-        attempt?.ready()
-      }}
-    />
+    <EmbeddedPDF {src} {name} {fit} />
   {/if}
 {/if}

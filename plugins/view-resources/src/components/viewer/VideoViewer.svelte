@@ -15,18 +15,17 @@
 -->
 <script lang="ts">
   import { type Blob, type BlobMetadata, type Ref } from '@hcengineering/core'
-  import { getFileUrl, getVideoMeta, type FilePreviewSession } from '@hcengineering/presentation'
+  import presentation, { getFileUrl, getVideoMeta, getPrintContext } from '@hcengineering/presentation'
   import { HlsVideo } from '@hcengineering/hls'
-  import { Video } from '@hcengineering/ui'
+  import { Label, Video } from '@hcengineering/ui'
 
   export let value: Ref<Blob>
   export let name: string
   export let contentType: string
   export let metadata: BlobMetadata | undefined
   export let fit: boolean = false
-  export let preview: FilePreviewSession | undefined = undefined
-
-  $: if (preview?.mode === 'static') preview.fail(new Error('Video has no static preview'))
+  export let sourceLink: string | undefined = undefined
+  const printing = getPrintContext() !== undefined
 
   $: aspectRatio =
     metadata?.originalWidth && metadata?.originalHeight
@@ -36,7 +35,10 @@
   $: maxHeight = metadata?.originalHeight ? `min(${metadata.originalHeight}px, 80vh)` : undefined
 </script>
 
-{#if preview?.mode !== 'static'}
+{#if printing}
+  <Label label={presentation.string.ContentTypeNotSupported} />:
+  {#if sourceLink !== undefined}<a href={sourceLink}>{name}</a>{:else}{name}{/if}
+{:else}
   <div
     class="flex justify-center w-full"
     style:aspect-ratio={aspectRatio}

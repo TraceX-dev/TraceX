@@ -15,53 +15,57 @@
 -->
 <script lang="ts">
   import { type Blob, type Ref } from '@hcengineering/core'
-  import presentation, { fetchPreviewFile, FilePreviewSession } from '@hcengineering/presentation'
-  import { Label, Loading, Scroller } from '@hcengineering/ui'
-  import { onDestroy, tick } from 'svelte'
+  import presentation, { fetchPreviewFile, getPrintContext } from '@hcengineering/presentation'
+  import { Label, Loading, Scroller, trackRenderResource } from '@hcengineering/ui'
+  import { onDestroy } from 'svelte'
 
   export let value: Ref<Blob>
   export let name: string
   export let fit: boolean = false
-  export let preview: FilePreviewSession | undefined = undefined
-
+  export let sourceLink: string | undefined = undefined
+  const staticView = getPrintContext() !== undefined
   let loading = true
   let failed = false
   let text = ''
   let generation = 0
-  let attempt: FilePreviewSession | undefined
-  $: staticView = preview?.mode === 'static'
+  let controller: AbortController | undefined
+  function failedPreview (): void {
+    generation++
+    controller?.abort()
+    failed = true
+    loading = false
+  }
 
-  async function prepare (value: string, name: string, owner: FilePreviewSession | undefined): Promise<void> {
+  const trackLoading = trackRenderResource({ timeoutMs: 15000, onTimeout: failedPreview })
+  $: trackLoading(loading)
+
+  async function prepare (value: string, name: string): Promise<void> {
     const request = ++generation
-    const session = owner ?? new FilePreviewSession()
-    if (attempt !== session) attempt?.destroy()
-    attempt = session
+    controller?.abort()
+    const abort = new AbortController()
+    controller = abort
     loading = true
     failed = false
     try {
-      const response = await fetchPreviewFile(value, name, { signal: session.signal })
+      const response = await fetchPreviewFile(value, name, { signal: abort.signal })
       const content = await response.text()
-      if (request !== generation || session.signal.aborted) return
+      if (request !== generation) return
       text = content
       loading = false
-      await tick()
-      if (request === generation) session.ready()
-    } catch (error) {
-      if (request !== generation) return
-      failed = true
-      loading = false
-      session.fail(error)
+    } catch {
+      if (request === generation) failedPreview()
     }
   }
-  $: void prepare(value, name, preview)
+  $: void prepare(value, name)
   onDestroy(() => {
     generation++
-    attempt?.destroy()
+    controller?.abort()
   })
 </script>
 
 {#if failed}
-  <Label label={presentation.string.FailedToPreview} />
+  <Label label={presentation.string.FailedToPreview} />:
+  {#if sourceLink !== undefined}<a href={sourceLink}>{name}</a>{:else}{name}{/if}
 {:else if loading}
   <div class="flex-center w-full h-full clear-mins"><Loading /></div>
 {:else if staticView}

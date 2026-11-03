@@ -58,12 +58,9 @@ export async function getFileMetadata (file: FileOrBlob, uuid: Ref<Blob>): Promi
  * @public
  */
 export const previewTypes = writable<FilePreviewExtension[]>([])
-/** Whether the preview registry has returned its first result. @public */
-export const previewTypesLoaded = writable(false)
 const previewTypesQuery = createQuery(true)
 previewTypesQuery.query(plugin.class.FilePreviewExtension, {}, (result) => {
   previewTypes.set(result)
-  previewTypesLoaded.set(true)
 })
 
 let $previewTypes: FilePreviewExtension[] = []

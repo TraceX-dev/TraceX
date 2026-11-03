@@ -1,6 +1,5 @@
 <!--
     // Copyright © 2020, 2021 Anticrm Platform Contributors.
-// Copyright © 2026 TraceX SAS.
     // Copyright © 2021, 2023 Hardcore Engineering Inc.
     //
     // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -15,7 +14,7 @@
     // limitations under the License.
 -->
 <script lang="ts">
-  import { afterUpdate, createEventDispatcher, onMount, SvelteComponent, tick } from 'svelte'
+  import { afterUpdate, createEventDispatcher, SvelteComponent } from 'svelte'
   import { Writable, writable } from 'svelte/store'
 
   import activity from '@hcengineering/activity'
@@ -32,19 +31,6 @@
   import type { ButtonItem } from '@hcengineering/ui'
   import { getResource } from '@hcengineering/platform'
   import presence from '@hcengineering/presence'
-  import { getPrintContext } from '@hcengineering/presentation'
-
-  const printContext = getPrintContext()
-  const printing = printContext !== undefined
-  onMount(() => {
-    void tick()
-      .then(() => {
-        printContext?.markDocumentReady()
-      })
-      .catch((error) => {
-        printContext?.fail(error)
-      })
-  })
 
   export let title: string | undefined = undefined
   export let withoutActivity: boolean = false
@@ -165,9 +151,7 @@
     dispatch('select', result.detail)
   }}
 >
-  {#if !printing}
-    <Component is={presence.component.Presence} props={{ object }} />
-  {/if}
+  <Component is={presence.component.Presence} props={{ object }} />
 
   <svelte:fragment slot="beforeTitle">
     <slot name="beforeTitle" />
@@ -184,7 +168,7 @@
   </svelte:fragment>
 
   <svelte:fragment slot="presence">
-    {#if isPresence && !printing}
+    {#if isPresence}
       <Component is={presence.component.PresenceAvatars} props={{ object, size: 'x-small', limit: 5 }} />
     {/if}
   </svelte:fragment>

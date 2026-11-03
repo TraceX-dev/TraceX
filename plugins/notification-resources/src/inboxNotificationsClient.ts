@@ -33,8 +33,8 @@ import notification, {
   type InboxNotification,
   type InboxNotificationsClient
 } from '@hcengineering/notification'
-import presentation, { createQuery, decodeTokenPayload, getClient, onClient } from '@hcengineering/presentation'
-import { getMetadata } from '@hcengineering/platform'
+import { createQuery, getClient, onClient } from '@hcengineering/presentation'
+import { restrictionStore } from '@hcengineering/view-resources'
 import { derived, get, writable } from 'svelte/store'
 
 import { isActivityNotification } from './utils'
@@ -166,8 +166,7 @@ export class InboxNotificationsClientImpl implements InboxNotificationsClient {
   }
 
   async readDoc (_id: Ref<Doc>): Promise<void> {
-    const token = decodeTokenPayload(getMetadata(presentation.metadata.Token) ?? '')
-    if (token.extra?.readonly === 'true') return
+    if (get(restrictionStore).readonly) return
     const docNotifyContext = this._contextByDoc.get(_id)
 
     if (docNotifyContext === undefined || getCurrentAccount().role === AccountRole.ReadOnlyGuest) {

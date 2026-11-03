@@ -124,9 +124,11 @@ describe('Mermaid print readiness', () => {
     view.destroy?.()
   })
 
-  it('times out to a placeholder and ignores a late rendering result', async () => {
+  it('handles the rendering deadline with a placeholder and ignores a late result', async () => {
     const { view, render } = createView(printContext as PrintContext)
-    jest.advanceTimersByTime(15000)
+    const options = jest.mocked(printContext.registerResource!).mock.calls[0][0]
+    expect(options?.timeoutMs).toBe(15000)
+    options?.onTimeout?.()
     await Promise.resolve()
     expect(view.dom?.textContent).toContain('Failed to preview')
     expect(finish).toHaveBeenCalledTimes(1)

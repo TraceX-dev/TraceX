@@ -60,7 +60,6 @@ export type * from './types'
 export * from './utils'
 export * from './file'
 export * from './filetypes'
-export * from './file-preview'
 export * from './preview-file'
 export * from './drafts'
 export { presentationId }

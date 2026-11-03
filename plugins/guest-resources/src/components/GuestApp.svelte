@@ -1,6 +1,5 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,66 +13,46 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import platform, { getMetadata, Severity, Status as PlatformStatus } from '@hcengineering/platform'
-  import { Label, Loading, Notifications, Status, location } from '@hcengineering/ui'
+  import { getMetadata } from '@hcengineering/platform'
+  import { Label, Loading, Notifications, location } from '@hcengineering/ui'
   import { upgradeDownloadProgress } from '@hcengineering/presentation'
-  import { disconnectEmbeddedWorkspace } from '@hcengineering/workbench-resources'
-  import { Analytics } from '@hcengineering/analytics'
-  import { onDestroy } from 'svelte'
-  import { connect, versionError, invalidError, connectionError } from '../connect'
+  import { connect, versionError, invalidError } from '../connect'
 
   import { guestId } from '@hcengineering/guest'
   import workbench from '@hcengineering/workbench'
   import Guest from './Guest.svelte'
-  import GuestLinkRevoked from './GuestLinkRevoked.svelte'
-  const connectionStatus = new PlatformStatus(Severity.ERROR, platform.status.ConnectionClosed, {})
-  $: connection =
-    $location.path[0] === guestId
-      ? connect(getMetadata(workbench.metadata.PlatformTitle) ?? 'Platform')
-      : Promise.resolve(undefined)
-  onDestroy(() => {
-    void disconnectEmbeddedWorkspace().catch(Analytics.handleError)
-  })
+  import plugin from '../plugin'
 </script>
 
 {#if $location.path[0] === guestId}
-  {#if $versionError}
-    <div class="version-wrapper">
-      <div class="antiPopup version-popup">
-        <h1><Label label={workbench.string.ServerUnderMaintenance} /></h1>
-        {$versionError}
-        {#if $upgradeDownloadProgress >= 0}
-          <div class="mt-1">
-            <Label label={workbench.string.UpgradeDownloadProgress} params={{ percent: $upgradeDownloadProgress }} />
-          </div>
-        {/if}
-      </div>
-    </div>
-  {:else if $invalidError}
-    <GuestLinkRevoked />
-  {:else if $connectionError}
-    <div class="version-wrapper">
-      <div class="antiPopup version-popup" data-id="guest-connection-error">
-        <Status status={connectionStatus} />
-      </div>
-    </div>
-  {:else}
-    {#await connection}
-      <Loading />
-    {:then client}
-      {#if client}
-        <Notifications>
-          <Guest />
-        </Notifications>
-      {/if}
-    {:catch}
+  {#await connect(getMetadata(workbench.metadata.PlatformTitle) ?? 'Platform')}
+    <Loading />
+  {:then client}
+    {#if $invalidError}
+      {invalidError}
       <div class="version-wrapper">
-        <div class="antiPopup version-popup" data-id="guest-connection-error">
-          <Status status={connectionStatus} />
+        <h1><Label label={plugin.string.LinkWasRevoked} /></h1>
+      </div>
+    {:else if $versionError}
+      <div class="version-wrapper">
+        <div class="antiPopup version-popup">
+          <h1><Label label={workbench.string.ServerUnderMaintenance} /></h1>
+          {$versionError}
+          {#if $upgradeDownloadProgress >= 0}
+            <div class="mt-1">
+              <Label label={workbench.string.UpgradeDownloadProgress} params={{ percent: $upgradeDownloadProgress }} />
+            </div>
+          {/if}
         </div>
       </div>
-    {/await}
-  {/if}
+    {:else if client}
+      <Notifications>
+        <Guest />
+      </Notifications>
+    {/if}
+  {:catch error}
+    <div>{error} -- {error.stack}</div>
+  {/await}
 {/if}
 
 <style lang="scss">

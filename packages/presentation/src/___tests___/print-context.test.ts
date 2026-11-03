@@ -24,18 +24,92 @@ jest.mock('svelte', () => ({
 }))
 
 describe('print rendering context', () => {
-  it('requires the document to mount and preserves fatal rendering errors', () => {
+  it('releases an expired resource and notifies its owner without failing the document', () => {
+    jest.useFakeTimers()
+    try {
+      const context = providePrintContext()
+      const onTimeout = jest.fn()
+      const finish = context.registerResource({ timeoutMs: 15000, onTimeout })
+      jest.advanceTimersByTime(15000)
+      expect(onTimeout).toHaveBeenCalledTimes(1)
+      expect(get(context.pendingResources)).toBe(0)
+      expect(get(context.error)).toBeUndefined()
+      finish()
+      expect(onTimeout).toHaveBeenCalledTimes(1)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('cancels a deadline when the resource finishes or is destroyed', () => {
+    jest.useFakeTimers()
+    try {
+      const context = providePrintContext()
+      const onTimeout = jest.fn()
+      const finish = context.registerResource({ timeoutMs: 15000, onTimeout })
+      finish()
+      jest.advanceTimersByTime(15000)
+      expect(onTimeout).not.toHaveBeenCalled()
+      expect(jest.getTimerCount()).toBe(0)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('preserves fatal rendering errors independently of pending work', () => {
     const context = providePrintContext()
     const finish = context.registerResource()
-    expect(get(context.documentReady)).toBe(false)
-    context.markDocumentReady()
-    expect(get(context.documentReady)).toBe(true)
     expect(get(context.pendingResources)).toBe(1)
     const error = new Error('Editor initialization failed')
     context.fail(error)
     finish()
     expect(get(context.error)).toBe(error)
     expect(get(context.pendingResources)).toBe(0)
+  })
+
+  it('tracks a promise until its work finishes', async () => {
+    const context = providePrintContext()
+    let complete: ((value: string) => void) | undefined
+    const pending = context.waitFor(
+      new Promise<string>((resolve) => {
+        complete = resolve
+      })
+    )
+    expect(get(context.pendingResources)).toBe(1)
+    complete?.('ready')
+    await expect(pending).resolves.toBe('ready')
+    expect(get(context.pendingResources)).toBe(0)
+  })
+
+  it('releases rejected work without treating an attachment failure as a document failure', async () => {
+    const context = providePrintContext()
+    const error = new Error('File unavailable')
+    await expect(context.waitFor(Promise.reject(error))).rejects.toBe(error)
+    expect(get(context.pendingResources)).toBe(0)
+    expect(get(context.error)).toBeUndefined()
+  })
+
+  it('times out pending work and ignores its late completion', async () => {
+    jest.useFakeTimers()
+    try {
+      const context = providePrintContext()
+      let complete: (() => void) | undefined
+      const pending = context.waitFor(
+        new Promise<void>((resolve) => {
+          complete = resolve
+        }),
+        15000
+      )
+      const failed = expect(pending).rejects.toThrow('Rendering timed out')
+      await jest.advanceTimersByTimeAsync(15000)
+      await failed
+      expect(get(context.pendingResources)).toBe(0)
+      complete?.()
+      await Promise.resolve()
+      expect(get(context.pendingResources)).toBe(0)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('isolates pending resources between print applications', () => {

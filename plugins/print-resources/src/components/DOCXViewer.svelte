@@ -19,24 +19,23 @@
   import { Analytics } from '@hcengineering/analytics'
   import { type Blob, type BlobMetadata, type Ref } from '@hcengineering/core'
   import { getMetadata } from '@hcengineering/platform'
-  import presentation, { getFileUrl, type FilePreviewSession } from '@hcengineering/presentation'
+  import presentation, { getFileUrl, getPrintContext } from '@hcengineering/presentation'
   import { convertToHTML } from '@hcengineering/print'
-  import { EmbeddedHTML, Spinner, themeStore } from '@hcengineering/ui'
+  import { EmbeddedHTML, Label, Spinner, themeStore } from '@hcengineering/ui'
 
   export let value: Ref<Blob>
   export let name: string
   export let contentType: string
   export let metadata: BlobMetadata | undefined
-  export let preview: FilePreviewSession | undefined = undefined
-
-  $: if (preview?.mode === 'static') preview.fail(new Error('DOCX has no static preview'))
+  export let sourceLink: string | undefined = undefined
+  const printing = getPrintContext() !== undefined
 
   let isLoading = true
   let convertedFile: string | undefined
 
   const token = getMetadata(presentation.metadata.Token) ?? ''
 
-  $: if (value !== undefined && preview?.mode !== 'static') {
+  $: if (value !== undefined && !printing) {
     isLoading = true
     convertedFile = undefined
 
@@ -279,7 +278,10 @@
   `
 </script>
 
-{#if src}
+{#if printing}
+  <Label label={presentation.string.ContentTypeNotSupported} />:
+  {#if sourceLink !== undefined}<a href={sourceLink}>{name}</a>{:else}{name}{/if}
+{:else if src}
   {#if isLoading}
     <div class="centered">
       <Spinner size="medium" />

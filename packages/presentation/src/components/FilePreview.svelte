@@ -22,20 +22,19 @@
     resizeObserver,
     deviceOptionsStore as deviceInfo,
     Loading,
-    provideRenderContext
+    trackRenderResource
   } from '@hcengineering/ui'
+
   import { onDestroy } from 'svelte'
   import { getResource } from '@hcengineering/platform'
 
   import presentation from '../plugin'
 
   import { getFileUrl } from '../file'
-  import { getPreviewType, previewTypes, previewTypesLoaded } from '../filetypes'
+  import { getPreviewType, previewTypes } from '../filetypes'
   import { getPreviewThumbnail } from '../preview'
   import { imageSizeToRatio } from '../image'
   import { FilePreviewExtension } from '../types'
-  import { getPrintContext } from '../print'
-  import { FilePreviewSession } from '../file-preview'
 
   export let file: Ref<Blob> | string
   export let name: string
@@ -45,18 +44,6 @@
   export let fit: boolean = false
   export let embedded: boolean = false
   export let setLoading: ((loading: boolean) => void) | undefined = undefined
-  const printContext = getPrintContext()
-  let preview = new FilePreviewSession(printContext)
-  $: previewState = preview.state
-  provideRenderContext({
-    registerResource: (): (() => void) => printContext?.registerResource() ?? (() => {}),
-    fail: (error: unknown): void => {
-      preview.fail(error)
-    }
-  })
-  onDestroy(() => {
-    preview.destroy()
-  })
 
   let download: HTMLAnchorElement
   let parentWidth: number
@@ -65,40 +52,41 @@
 
   let loading = true
   let previewType: FilePreviewExtension | undefined = undefined
+  let failed = false
   let generation = 0
+  onDestroy(() => {
+    generation++
+  })
+
+  function failedPreview (): void {
+    generation++
+    failed = true
+    loading = false
+  }
+
+  const trackLoading = trackRenderResource({ timeoutMs: 15000, onTimeout: failedPreview })
+  $: trackLoading(loading)
+
   async function resolvePreview (
     _file: string,
     _name: string,
     contentType: string,
-    types: FilePreviewExtension[],
-    registryLoaded: boolean
+    types: FilePreviewExtension[]
   ): Promise<void> {
     const request = ++generation
-    preview.destroy()
-    const session = new FilePreviewSession(printContext)
-    preview = session
-    previewType = undefined
     loading = true
-    if (!registryLoaded) return
+    failed = false
     try {
       const type = await getPreviewType(contentType, types)
-      if (request !== generation || session.signal.aborted) return
-      if (session.mode === 'static' && type === undefined) {
-        throw new Error('Static preview is not supported')
-      }
-      if (session.mode === 'static' && type !== undefined) {
-        await getResource(type.component)
-        if (request !== generation || session.signal.aborted) return
-      }
+      if (type !== undefined) await getResource(type.component)
+      if (request !== generation) return
       previewType = type
       loading = false
-      if (type === undefined) session.ready()
-    } catch (error) {
-      session.fail(error)
-      loading = false
+    } catch {
+      if (request === generation) failedPreview()
     }
   }
-  $: void resolvePreview(file, name, contentType, $previewTypes, $previewTypesLoaded)
+  $: void resolvePreview(file, name, contentType, $previewTypes)
 
   // For types we cannot render inline (e.g. pptx) the preview service may still
   // have generated a thumbnail image - show it in higher quality instead of just download.
@@ -151,23 +139,12 @@
   class:content-default={!embedded}
   class:content-embedded={embedded}
   class:flex-center={fit && !audio}
-  class:static-preview={printContext !== undefined}
   on:contextmenu
-  data-print-resource={printContext !== undefined ? true : undefined}
-  data-print-resource-state={$previewState === 'error' ? 'placeholder' : $previewState}
-  style:min-height={fit || printContext !== undefined ? '0' : `${minHeight ?? 0}px`}
+  style:min-height={fit ? '0' : `${minHeight ?? 0}px`}
 >
-  {#if $previewState === 'error'}
-    <div class="flex-col gap-2">
-      <span>
-        <Label label={presentation.string.FailedToPreview} />:
-        {#if printContext !== undefined && typeof props.sourceLink === 'string'}
-          <a href={props.sourceLink}>{name}</a>
-        {:else}
-          {name}
-        {/if}
-      </span>
-    </div>
+  {#if failed}
+    <Label label={presentation.string.FailedToPreview} />:
+    {#if typeof props.sourceLink === 'string'}<a href={props.sourceLink}>{name}</a>{:else}{name}{/if}
   {:else}
     {#await srcRef then src}
       {#if src === ''}
@@ -177,7 +154,7 @@
       {:else if previewType !== undefined}
         <Component
           is={previewType.component}
-          props={{ value: file, name, contentType, metadata, ...props, fit, setLoading, preview }}
+          props={{ value: file, name, contentType, metadata, ...props, fit, setLoading }}
         />
       {:else if loading}
         <Loading />
@@ -205,6 +182,7 @@
           <a class="no-line" href={src} download={name} bind:this={download}>
             <Button
               label={presentation.string.Download}
+              noPrint
               kind="ghost"
               on:click={() => {
                 download.click()
@@ -219,6 +197,7 @@
           <a class="no-line" href={src} download={name} bind:this={download}>
             <Button
               label={presentation.string.Download}
+              noPrint
               kind="primary"
               on:click={() => {
                 download.click()
@@ -246,10 +225,14 @@
     border: none;
   }
 
-  .static-preview {
-    height: auto;
-    overflow: visible;
-    break-inside: avoid;
+  @media print {
+    .content-default,
+    .content-embedded {
+      height: auto;
+      min-height: 0 !important;
+      overflow: visible;
+      break-inside: avoid;
+    }
   }
 
   .thumbnail-wrap {

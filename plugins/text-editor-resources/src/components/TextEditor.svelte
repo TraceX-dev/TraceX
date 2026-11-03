@@ -21,11 +21,11 @@
   import { getPrintContext } from '@hcengineering/presentation'
   import { EmptyMarkup, getMarkup, markupToJSON } from '@hcengineering/text'
   import textEditor from '@hcengineering/text-editor'
-  import { getRenderContext, themeStore } from '@hcengineering/ui'
+  import { getRenderContext, themeStore, trackRenderResource } from '@hcengineering/ui'
   import { Content, Editor, FocusPosition, mergeAttributes } from '@tiptap/core'
   import { ParseOptions } from '@tiptap/pm/model'
   import { EditorView } from '@tiptap/pm/view'
-  import { createEventDispatcher, getAllContexts, onDestroy, onMount, tick } from 'svelte'
+  import { createEventDispatcher, getAllContexts, onDestroy, onMount } from 'svelte'
 
   import { EditorKitOptions, getEditorKit } from '../../src/kits/editor-kit'
   import { deleteAttachment } from '../command/deleteAttachment'
@@ -57,7 +57,9 @@
   const printContext = getPrintContext()
   const svelteContext = getAllContexts()
   const rendering = getRenderContext()
-  const finishContent = rendering?.registerResource() ?? (() => {})
+  let loadingContent = true
+  const trackLoading = trackRenderResource()
+  $: trackLoading(loadingContent)
 
   export function isEditable (): boolean {
     return editor?.isEditable
@@ -200,13 +202,7 @@
       autofocus: editable ? autofocus : false,
       extensions: [kit],
       onCreate: () => {
-        void tick()
-          .then(() => {
-            if (!destroyed) finishContent()
-          })
-          .catch((error) => {
-            rendering?.fail(error)
-          })
+        loadingContent = false
       },
       parseOptions: {
         preserveWhitespace: 'full'
@@ -238,14 +234,13 @@
   onMount(() => {
     void initialize().catch((error) => {
       rendering?.fail(error)
-      finishContent()
+      loadingContent = false
       Analytics.handleError(error)
     })
   })
 
   onDestroy(() => {
     destroyed = true
-    finishContent()
     editor?.destroy()
   })
 

@@ -15,42 +15,65 @@
 
 import { getContext, setContext } from 'svelte'
 import { writable, type Readable } from 'svelte/store'
+import type { RenderContext } from '@hcengineering/ui'
 
 const PRINT_CONTEXT = Symbol('print-context')
 
 /** Rendering state owned by one isolated print application. @public */
-export interface PrintContext {
+export interface PrintContext extends RenderContext {
   readonly pendingResources: Readable<number>
-  readonly registerResource: () => () => void
-  readonly documentReady: Readable<boolean>
+  readonly waitFor: <T>(promise: Promise<T>, timeoutMs?: number) => Promise<T>
   readonly error: Readable<Error | undefined>
-  readonly markDocumentReady: () => void
-  readonly fail: (error: unknown) => void
 }
 
 /** Initialize the print context during PrintApp component initialization. @public */
 export function providePrintContext (): PrintContext {
   const pendingResources = writable(0)
   const resources = new Set<symbol>()
-  const documentReady = writable(false)
   const error = writable<Error | undefined>(undefined)
   const context: PrintContext = {
     pendingResources,
-    documentReady,
     error,
-    markDocumentReady: () => {
-      documentReady.set(true)
-    },
     fail: (cause) => {
       error.set(cause instanceof Error ? cause : new Error(String(cause)))
     },
-    registerResource: () => {
+    registerResource: (options) => {
       const resource = Symbol('print-resource')
+      let timer: ReturnType<typeof setTimeout> | undefined
       resources.add(resource)
       pendingResources.set(resources.size)
-      return () => {
+      const finish = (): void => {
+        clearTimeout(timer)
         resources.delete(resource)
         pendingResources.set(resources.size)
+      }
+      if (options?.timeoutMs !== undefined) {
+        timer = setTimeout(() => {
+          try {
+            if (options.onTimeout !== undefined) options.onTimeout()
+            else context.fail(new Error('Rendering timed out'))
+          } finally {
+            finish()
+          }
+        }, options.timeoutMs)
+      }
+      return finish
+    },
+    waitFor: async <T>(promise: Promise<T>, timeoutMs?: number): Promise<T> => {
+      let rejectTimeout: ((error: Error) => void) | undefined
+      const timeout = new Promise<never>((_resolve, reject) => {
+        rejectTimeout = reject
+      })
+      const finish = context.registerResource({
+        timeoutMs,
+        onTimeout: () => {
+          rejectTimeout?.(new Error('Rendering timed out'))
+        }
+      })
+      try {
+        return await (timeoutMs === undefined ? promise : Promise.race([promise, timeout]))
+      } finally {
+        finish()
       }
     }
   }

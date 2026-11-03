@@ -2,11 +2,6 @@
 // Copyright © 2024 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX SAS.
 //
-import { type Doc } from '@hcengineering/core'
-import { type Resources } from '@hcengineering/platform'
-import { showPopup } from '@hcengineering/ui'
-import { getPrintBaseURL } from '@hcengineering/print'
-//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
@@ -17,6 +12,12 @@ import { getPrintBaseURL } from '@hcengineering/print'
 //
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+
+import { type Doc } from '@hcengineering/core'
+import { type Resources } from '@hcengineering/platform'
+import { showPopup } from '@hcengineering/ui'
+import { getPrintBaseURL } from '@hcengineering/print'
 
 import PrintToPDF from './components/PrintToPDF.svelte'
 import PrintApp from './components/PrintApp.svelte'

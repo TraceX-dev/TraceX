@@ -15,15 +15,14 @@
 -->
 <script lang="ts">
   import { type Blob, type Ref, type BlobMetadata } from '@hcengineering/core'
-  import {
+  import presentation, {
     DrawingBoard,
-    FilePreviewSession,
     getBlobRef,
+    getPrintContext,
     imageSizeToRatio,
     type DrawingData
   } from '@hcengineering/presentation'
-  import presentation from '@hcengineering/presentation'
-  import { Label, Loading } from '@hcengineering/ui'
+  import { Label, Loading, trackRenderResource } from '@hcengineering/ui'
   import { onDestroy } from 'svelte'
 
   export let value: Ref<Blob>
@@ -31,15 +30,14 @@
   export let metadata: BlobMetadata | undefined
   export let fit: boolean = false
   export let source: string | undefined = undefined
-  export let preview: FilePreviewSession | undefined = undefined
-
+  export let sourceLink: string | undefined = undefined
   export let drawingAvailable: boolean = false
   export let drawingEditable: boolean = false
   export let drawings: DrawingData[] = []
   export let createDrawing: (data: unknown) => Promise<void> = async () => {}
   export let setLoading: ((loading: boolean) => void) | undefined = undefined
 
-  $: staticView = preview?.mode === 'static'
+  const staticView = getPrintContext() !== undefined
   $: imageWidth =
     metadata?.originalWidth != null ? imageSizeToRatio(metadata.originalWidth, metadata.pixelRatio ?? 1) : undefined
   $: imageHeight =
@@ -53,72 +51,55 @@
   let url: string | undefined
   let srcset: string | undefined
   let generation = 0
-  let attempt: FilePreviewSession | undefined
 
-  async function prepare (
-    value: string,
-    name: string,
-    source: string | undefined,
-    owner: FilePreviewSession | undefined
-  ): Promise<void> {
+  function failedImage (): void {
+    generation++
+    failed = true
+    loading = false
+    setLoading?.(false)
+  }
+
+  const trackLoading = trackRenderResource({ timeoutMs: 15000, onTimeout: failedImage })
+  $: trackLoading(loading)
+
+  async function prepare (value: string, name: string, source: string | undefined): Promise<void> {
     const request = ++generation
-    const session = owner ?? new FilePreviewSession()
-    if (attempt !== session) attempt?.destroy()
-    attempt = session
-    url = undefined
-    srcset = undefined
     loading = true
     failed = false
+    url = undefined
     setLoading?.(true)
     try {
-      const blobRef = await getBlobRef((source ?? value) as Ref<Blob>, name)
-      if (request !== generation || session.signal.aborted) return
-      url = blobRef.src
-      srcset = blobRef.srcset
-    } catch (error) {
+      const ref = await getBlobRef((source ?? value) as Ref<Blob>, name)
       if (request !== generation) return
-      failed = true
-      loading = false
-      setLoading?.(false)
-      session.fail(error)
+      url = ref.src
+      srcset = ref.srcset
+    } catch {
+      if (request === generation) failedImage()
     }
   }
 
   async function loaded (event: Event): Promise<void> {
+    const request = generation
     const image = event.currentTarget as HTMLImageElement
-    const session = attempt
     try {
       await image.decode()
-      if (session !== attempt || session?.signal.aborted === true) return
+      if (request !== generation) return
       loading = false
       setLoading?.(false)
-      session?.ready()
-    } catch (error) {
-      session?.fail(error)
-      failed = true
-      loading = false
-      setLoading?.(false)
+    } catch {
+      if (request === generation) failedImage()
     }
   }
 
-  function failedImage (): void {
-    if (attempt?.signal.aborted === true) return
-    failed = true
-    loading = false
-    setLoading?.(false)
-    attempt?.fail(new Error('Image could not be decoded'))
-  }
-
-  $: void prepare(value, name, source, preview)
-
+  $: void prepare(value, name, source)
   onDestroy(() => {
     generation++
-    attempt?.destroy()
   })
 </script>
 
 {#if failed}
-  <Label label={presentation.string.FailedToPreview} />
+  <Label label={presentation.string.FailedToPreview} />:
+  {#if sourceLink !== undefined}<a href={sourceLink}>{name}</a>{:else}{name}{/if}
 {:else}
   {#if loading}
     <div class="flex-center w-full clear-mins"><Loading /></div>

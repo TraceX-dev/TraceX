@@ -169,19 +169,16 @@ export const MermaidExtension = CodeBlockLowlight.extend<MermaidOptions>({
       let pendingSelectionTimer: number | null = null
       const printContext = this.options.printContext
       let finishPrint: (() => void) | undefined
-      let printTimer: ReturnType<typeof setTimeout> | undefined
       let printFailed = false
       let destroyed = false
 
       const finishPrintResource = (): void => {
-        clearTimeout(printTimer)
         finishPrint?.()
         finishPrint = undefined
       }
 
       const showPrintError = (error: { message: string }): void => {
         printFailed = true
-        clearTimeout(printTimer)
         containerNode.dataset.mermaidRenderState = 'error'
         containerNode.classList.add('folded')
         contentNode.style.display = 'none'
@@ -199,10 +196,12 @@ export const MermaidExtension = CodeBlockLowlight.extend<MermaidOptions>({
 
       const waitForDiagram = (): void => {
         if (printContext === undefined || finishPrint !== undefined) return
-        finishPrint = printContext.registerResource()
-        printTimer = setTimeout(() => {
-          showPrintError(new Error('Mermaid rendering timed out'))
-        }, 15000)
+        finishPrint = printContext.registerResource({
+          timeoutMs: 15000,
+          onTimeout: () => {
+            showPrintError(new Error('Mermaid rendering timed out'))
+          }
+        })
       }
 
       const toggleFoldState = (newState: boolean, event?: MouseEvent): void => {

@@ -53,7 +53,8 @@
     getRenderContext,
     PopupAlignment,
     themeStore,
-    ThrottledCaller
+    ThrottledCaller,
+    trackRenderResource
   } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { Editor, FocusPosition, mergeAttributes } from '@tiptap/core'
@@ -120,7 +121,7 @@
   const printContext = getPrintContext()
   const svelteContext = getAllContexts()
   const rendering = getRenderContext()
-  const finishContent = rendering?.registerResource() ?? (() => {})
+  const trackLoading = trackRenderResource()
   let destroyed = false
   const isGuest =
     account.role === AccountRole.DocGuest || account.role === AccountRole.ReadOnlyGuest || printContext !== undefined
@@ -143,6 +144,7 @@
   let editorReady = false
 
   $: loading = !synced || !editorReady
+  $: trackLoading(loading && !contentError)
   $: canEditAsGuestCreator = account.role === AccountRole.Guest && isDocCreatedByAccount(object, account)
   $: editable =
     !readonly &&
@@ -155,7 +157,6 @@
     await tick()
     if (destroyed || contentError) return
     dispatch('loaded')
-    finishContent()
   }
 
   let editor: Editor
@@ -494,7 +495,6 @@
         disableCollaboration()
         contentError = true
         rendering?.fail(error)
-        finishContent()
         console.error(error)
         Analytics.handleError(error)
       }
@@ -503,14 +503,13 @@
   onMount(() => {
     void initialize().catch((error) => {
       rendering?.fail(error)
-      finishContent()
+      contentError = true
       Analytics.handleError(error)
     })
   })
 
   onDestroy(() => {
     destroyed = true
-    finishContent()
     if (editor !== undefined) {
       try {
         editor.destroy()
