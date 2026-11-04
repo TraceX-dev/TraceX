@@ -1,6 +1,8 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
 //
+// Copyright © 2026 TraceX SAS.
+//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
@@ -195,14 +197,15 @@ class TestConnection implements ClientConnection {
   async loadModel (last: Timestamp, hash?: string): Promise<Tx[] | LoadModelResponse> {
     const txes = await this.transactions.findAll(core.class.Tx, {
       objectSpace: core.space.Model,
-      modifiedOn: { $gt: last }
+      modifiedOn: { $gt: hash !== undefined ? 0 : last }
     })
 
     if (hash !== undefined) {
       return {
-        transactions: txes,
+        systemTx: txes,
+        userTx: [],
         hash: 'test-hash',
-        full: false
+        kind: 'full'
       }
     }
 

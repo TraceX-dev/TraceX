@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 TraceX.
 // Copyright © 2026 TraceX SAS.
 //
@@ -7,6 +8,7 @@
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { createRestTxOperations } from '@hcengineering/api-client'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { getClient as getCollaboratorClient, type CollaboratorClient } from '@hcengineering/collaborator-client'
@@ -132,7 +134,7 @@ export class WorkspaceManager {
     transactorUrl: string,
     workspace: { name: string, url: string }
   ): Promise<WorkspaceConnection> {
-    const client = await createRestTxOperations(transactorUrl, token.workspace, rawToken, true)
+    const client = await createRestTxOperations(transactorUrl, token.workspace, rawToken, true, { model })
     const collaborator = getCollaboratorClient(token.workspace, rawToken, this.config.CollaboratorURL)
 
     return {

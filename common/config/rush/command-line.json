@@ -57,6 +57,9 @@
       "dependencies": {
         "self": [
           "_phase:build"
+        ],
+        "upstream": [
+          "_phase:bundle"
         ]
       },
       "ignoreMissingScript": true,

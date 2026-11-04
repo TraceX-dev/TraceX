@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,17 +14,18 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { TxOperations, WorkspaceUuid } from '@hcengineering/core'
 import { RestClientAdapter, createRestClient } from '@hcengineering/api-client'
 import { getTransactorEndpoint } from '@hcengineering/server-client'
 
 export async function getClient (workspace: WorkspaceUuid, token: string): Promise<TxOperations> {
   const endpoint = await getTransactorEndpoint(token)
-  const client = createRestClient(toHttpUrl(endpoint), workspace, token)
+  const client = createRestClient(toHttpUrl(endpoint), workspace, token, { model })
   const account = await client.getAccount()
-  const { model, hierarchy } = await client.getModel()
+  const { model: modelDb, hierarchy } = await client.getModel()
 
-  return new TxOperations(new RestClientAdapter(client, hierarchy, model), account.primarySocialId)
+  return new TxOperations(new RestClientAdapter(client, hierarchy, modelDb), account.primarySocialId)
 }
 
 function toHttpUrl (url: string): string {

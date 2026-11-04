@@ -78,13 +78,67 @@ export interface Client extends Storage, FulltextStorage {
 /**
  * @public
  */
-export interface LoadModelResponse {
-  // A diff or a full set of transactions.
-  transactions: Tx[]
-  // A current hash chain
+export interface FullModelResponse {
+  version?: number
+  kind: 'full'
   hash: string
-  // If full model is returned, on hash diff for request
-  full: boolean
+  systemTx: Tx[]
+  userTx: Tx[]
+}
+
+/** @public */
+export interface UserModelResponse {
+  kind: 'user'
+  hash: string
+  // The entire current user part, applied to a clean system model.
+  userTx: Tx[]
+}
+
+/** @public */
+export interface ModelDeltaResponse {
+  kind: 'delta'
+  hash: string
+  // Transactions appended to the complete model version requested by the client.
+  transactions: Tx[]
+}
+
+/** @public */
+export type LoadModelResponse = FullModelResponse | UserModelResponse | ModelDeltaResponse
+
+/** Increment when the persisted model format changes. @public */
+export const MODEL_VERSION = 1
+
+/** Identify a complete model response by its kind. @public */
+export function isFullModelResponse (model: LoadModelResponse): model is FullModelResponse {
+  return model.kind === 'full'
+}
+
+/** Check whether a persisted model uses the current format. @public */
+export function isModelVersionCompatible (model?: FullModelResponse): boolean {
+  return model?.version === MODEL_VERSION
+}
+
+/** Return transactions in the order required to build a model. @public */
+export function getModelTransactions (model: LoadModelResponse): Tx[] {
+  if (model.kind === 'delta') return model.transactions
+  return (model.kind === 'full' ? model.systemTx : []).concat(model.userTx)
+}
+
+/** Merge a full model, user replacement, or transaction delta into a complete snapshot. @public */
+export function mergeModelResponse (
+  current: FullModelResponse | undefined,
+  response: LoadModelResponse
+): FullModelResponse {
+  if (response.kind === 'full') return response
+  if (current === undefined) {
+    throw new Error('A system model is required to apply a partial model response')
+  }
+  return {
+    kind: 'full',
+    hash: response.hash,
+    systemTx: current.systemTx,
+    userTx: response.kind === 'user' ? response.userTx : current.userTx.concat(response.transactions)
+  }
 }
 
 /**
@@ -121,6 +175,7 @@ class ClientImpl implements Client, BackupClient {
   hierarchy!: Hierarchy
   model!: ModelDb
   private readonly appliedModelTransactions = new Set<Ref<Tx>>()
+  private readonly modelTransactionsSinceLoad = new Set<Ref<Tx>>()
   constructor (private readonly conn: ClientConnection) {}
 
   getConnection (): ClientConnection {
@@ -130,6 +185,15 @@ class ClientImpl implements Client, BackupClient {
   setModel (hierarchy: Hierarchy, model: ModelDb): void {
     this.hierarchy = hierarchy
     this.model = model
+    this.modelTransactionsSinceLoad.clear()
+  }
+
+  applyModelDelta (ctx: MeasureContext, transactions: Tx[], modelFilter?: ModelFilter): void {
+    const addition = transactions.filter((tx) => !this.modelTransactionsSinceLoad.has(tx._id))
+    buildModel(ctx, addition, modelFilter, this.hierarchy, this.model)
+    for (const tx of addition) {
+      this.modelTransactionsSinceLoad.add(tx._id)
+    }
   }
 
   getHierarchy (): Hierarchy {
@@ -183,6 +247,7 @@ class ClientImpl implements Client, BackupClient {
       this.hierarchy.tx(tx)
       await this.model.tx(tx)
       this.appliedModelTransactions.add(tx._id)
+      this.modelTransactionsSinceLoad.add(tx._id)
     }
     // We need to handle it on server, before performing local live query updates.
     return await this.conn.tx(tx)
@@ -196,6 +261,7 @@ class ClientImpl implements Client, BackupClient {
           if (!hasTx) {
             this.hierarchy.tx(t)
             await this.model.tx(t)
+            this.modelTransactionsSinceLoad.add(t._id)
           } else {
             this.appliedModelTransactions.delete(t._id)
           }
@@ -245,8 +311,8 @@ class ClientImpl implements Client, BackupClient {
  * @public
  */
 export interface TxPersistenceStore {
-  load: () => Promise<LoadModelResponse>
-  store: (model: LoadModelResponse) => Promise<void>
+  load: () => Promise<FullModelResponse>
+  store: (model: FullModelResponse) => Promise<void>
 }
 
 export type ModelFilter = (tx: Tx[]) => Tx[]
@@ -291,21 +357,10 @@ export async function createClient (
   const conn = await ctx.with('connect', {}, () => connect(txHandler), {}, { suspendErrors: true })
 
   try {
-    let { mode, current, addition } = await ctx.with('load-model', {}, (ctx) => loadModel(ctx, conn, txPersistence))
-    switch (mode) {
-      case 'same':
-      case 'upgrade':
-        ctx.withSync('build-model', {}, (ctx) => {
-          buildModel(ctx, current, modelFilter, hierarchy, model)
-        })
-        break
-      case 'addition':
-        ctx.withSync('build-model', {}, (ctx) => {
-          buildModel(ctx, current.concat(addition), modelFilter, hierarchy, model)
-        })
-    }
-    current = []
-    addition = []
+    const { current } = await ctx.with('load-model', {}, (ctx) => loadModel(ctx, conn, txPersistence))
+    ctx.withSync('build-model', {}, (ctx) => {
+      buildModel(ctx, current, modelFilter, hierarchy, model)
+    })
   } catch (error) {
     txBuffer = undefined
     try {
@@ -333,31 +388,20 @@ export async function createClient (
       await oldOnConnect?.(ClientConnectEvent.Maintenance, _lastTx, data)
       return
     }
-    // Find all new transactions and apply
-    let { mode, current, addition } = await ctx.with('load-model', {}, (ctx) => loadModel(ctx, conn, txPersistence))
-
-    switch (mode) {
-      case 'upgrade':
-        // We have upgrade procedure and need rebuild all stuff.
-        hierarchy = new Hierarchy()
-        model = new ModelDb(hierarchy)
-        client.setModel(hierarchy, model)
-
-        ctx.withSync('build-model', {}, (ctx) => {
-          buildModel(ctx, current, modelFilter, hierarchy, model)
-        })
-        current = []
-        await oldOnConnect?.(ClientConnectEvent.Upgraded, _lastTx, data)
-        // No need to fetch more stuff since upgrade was happened.
-        break
-      case 'addition':
-        ctx.withSync('build-model', {}, (ctx) => {
-          buildModel(ctx, current.concat(addition), modelFilter, hierarchy, model)
-        })
-        break
+    const loaded = await ctx.with('load-model', {}, (ctx) => loadModel(ctx, conn, txPersistence))
+    if (loaded.mode === 'upgrade') {
+      hierarchy = new Hierarchy()
+      model = new ModelDb(hierarchy)
+      client.setModel(hierarchy, model)
+      ctx.withSync('build-model', {}, (ctx) => {
+        buildModel(ctx, loaded.current, modelFilter, hierarchy, model)
+      })
+      await oldOnConnect?.(ClientConnectEvent.Upgraded, _lastTx, data)
+    } else if (loaded.mode === 'addition') {
+      ctx.withSync('build-model', {}, (ctx) => {
+        client.applyModelDelta(ctx, loaded.addition, modelFilter)
+      })
     }
-    current = []
-    addition = []
 
     if (lastTx === undefined) {
       // No need to do anything here since we connected.
@@ -379,57 +423,61 @@ export async function createClient (
   return client
 }
 
+interface LoadedModel {
+  mode: 'same' | 'upgrade' | 'addition'
+  current: Tx[]
+  addition: Tx[]
+}
+
 async function loadModel (
   ctx: MeasureContext,
   conn: ClientConnection,
   persistence?: TxPersistenceStore
-): Promise<{ mode: 'same' | 'addition' | 'upgrade', current: Tx[], addition: Tx[] }> {
+): Promise<LoadedModel> {
   const t = platformNow()
 
-  const current = (await ctx.with('persistence-load', {}, () => persistence?.load())) ?? {
-    full: true,
-    transactions: [],
+  const current: FullModelResponse = (await ctx.with('persistence-load', {}, () => persistence?.load())) ?? {
+    kind: 'full',
+    systemTx: [],
+    userTx: [],
     hash: ''
   }
 
-  if (conn.getLastHash !== undefined && (await conn.getLastHash(ctx)) === current.hash) {
-    // We have same model hash.
-    return { mode: 'same', current: current.transactions, addition: [] }
+  const currentTransactions = getModelTransactions(current)
+  // The hello response contains only the transaction-chain part of the complete model version.
+  // A system-only seed has no chain hash and still needs to load the workspace model.
+  const modelHash = current.hash.split(':')[1]
+  if (modelHash !== undefined && conn.getLastHash !== undefined && (await conn.getLastHash(ctx)) === modelHash) {
+    return { mode: 'same', current: currentTransactions, addition: [] }
   }
-  const lastTxTime = getLastTxTime(current.transactions)
+  const lastTxTime = getLastTxTime(currentTransactions)
   const result = await ctx.with('connection-load-model', { hash: current.hash !== '' }, (ctx) =>
     conn.loadModel(lastTxTime, current.hash)
   )
 
   if (Array.isArray(result)) {
-    // Fallback to old behavior, only for tests
-    return {
-      mode: 'same',
-      current: result,
-      addition: []
-    }
+    return { mode: 'same', current: result, addition: [] }
   }
 
-  // Save concatenated, if have some more of them.
+  const snapshot = mergeModelResponse(current, result)
   void ctx
-    .with('persistence-store', {}, (ctx) =>
-      persistence?.store({
-        ...result,
-        // Store concatinated old + new txes
-        transactions: result.full ? result.transactions : current.transactions.concat(result.transactions)
-      })
-    )
+    .with('persistence-store', {}, () => persistence?.store(snapshot))
     .catch((err) => {
       Analytics.handleError(err)
     })
 
   if (typeof window !== 'undefined') {
-    console.log(`find${result.full ? 'full model' : 'model diff'}`, result.transactions.length, platformNowDiff(t))
+    console.log(`find ${result.kind} model`, getModelTransactions(result).length, platformNowDiff(t))
   }
-  if (result.full) {
-    return { mode: 'upgrade', current: result.transactions, addition: [] }
+  if (result.kind === 'delta') {
+    return {
+      mode: result.transactions.length === 0 ? 'same' : 'addition',
+      current: getModelTransactions(snapshot),
+      addition: result.transactions
+    }
   }
-  return { mode: 'addition', current: current.transactions, addition: result.transactions }
+  // Rebuild so replaced user definitions cannot survive a reconnect.
+  return { mode: 'upgrade', current: getModelTransactions(snapshot), addition: [] }
 }
 
 export function buildModel (

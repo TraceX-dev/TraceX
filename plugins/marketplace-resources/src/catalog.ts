@@ -38,7 +38,8 @@ export function getInstalledPackageVersions (
 }
 
 export function hasMarketplace (): boolean {
-  return Boolean(getMetadata(marketplace.metadata.Url))
+  const url = getMetadata(marketplace.metadata.Url)
+  return Boolean(url)
 }
 
 export function getMarketplaceClient (): MarketplaceClient {

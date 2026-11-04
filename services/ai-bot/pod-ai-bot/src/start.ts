@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2024-2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -12,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+import { logModelHash } from '@hcengineering/model-all/src/model'
 import { setMetadata } from '@hcengineering/platform'
 import serverClient, { withRetry } from '@hcengineering/server-client'
 import { initStatisticsContext } from '@hcengineering/server-core'
@@ -50,6 +52,7 @@ export const start = async (): Promise<void> => {
         })
       )
   })
+  logModelHash(ctx)
 
   ctx.info('AI Bot Service started', { config })
 

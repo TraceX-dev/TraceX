@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2022 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,6 +14,7 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { systemAccountUuid, WorkspaceUuid, type Client } from '@hcengineering/core'
 import { generateToken, type Token } from '@hcengineering/server-token'
 
@@ -51,7 +53,7 @@ export class SignController {
   private async createPlatformClient (workspace: WorkspaceUuid): Promise<Client> {
     const token = generateToken(systemAccountUuid, workspace, { service: 'sign' })
     const endpoint = await getTransactorEndpoint(token)
-    const connection = await createClient(endpoint, token)
+    const connection = await createClient(endpoint, token, model)
 
     console.log(`Platform client has been created (workspace: ${workspace})`)
 

@@ -56,6 +56,7 @@
     "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
+    "@hcengineering/model-all": "workspace:^0.7.0",
     "@hcengineering/attachment": "workspace:^0.7.0",
     "@hcengineering/account-client": "workspace:^0.7.25",
     "@hcengineering/api-client": "workspace:^0.7.25",

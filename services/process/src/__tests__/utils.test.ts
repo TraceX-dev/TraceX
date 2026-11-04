@@ -29,6 +29,8 @@
 // limitations under the License.
 //
 
+import { createModelPersistence } from '@hcengineering/api-client'
+import { model } from '@hcengineering/model-all/src/model'
 import clientPlugin from '@hcengineering/client'
 import clientResources from '@hcengineering/client-resources'
 import type { WorkspaceUuid } from '@hcengineering/core'
@@ -40,7 +42,11 @@ jest.mock('@hcengineering/client', () => ({
   default: { metadata: { FilterModel: 'filter' } }
 }))
 jest.mock('@hcengineering/client-resources', () => ({ __esModule: true, default: jest.fn() }))
-jest.mock('@hcengineering/api-client', () => ({ NodeWebSocketFactory: jest.fn() }))
+jest.mock('@hcengineering/api-client', () => ({
+  NodeWebSocketFactory: jest.fn(),
+  createModelPersistence: jest.fn(async () => ({ load: jest.fn(), store: jest.fn() }))
+}))
+jest.mock('@hcengineering/model-all/src/model', () => ({ model: [{ _id: 'system-tx' }] }), { virtual: true })
 jest.mock('@hcengineering/platform', () => ({ setMetadata: jest.fn() }))
 jest.mock('@hcengineering/account-client', () => ({
   getClient: () => ({
@@ -173,14 +179,16 @@ it('allows active overflow and trims it as soon as a client is released', async 
   expect(closeClient).toHaveBeenCalledTimes(1)
 })
 
-it('requests the full model and a bounded binary WebSocket connection', async () => {
+it('seeds the full model and a bounded binary WebSocket connection', async () => {
   await getClient(workspace)
   expect(setMetadata).toHaveBeenCalledWith(clientPlugin.metadata.FilterModel, 'none')
+  expect(createModelPersistence).toHaveBeenCalledWith(model)
   expect(createWebSocketClient).toHaveBeenCalledWith(
     'token',
     'ws://transactor',
     expect.objectContaining({
       socketFactory: expect.any(Function),
+      txPersistence: expect.objectContaining({ load: expect.any(Function), store: expect.any(Function) }),
       useBinaryProtocol: true,
       useProtocolCompression: true,
       connectionTimeout: 30000

@@ -1,5 +1,6 @@
 //
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,7 +17,7 @@
 import { Analytics } from '@hcengineering/analytics'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { newMetrics, type Tx } from '@hcengineering/core'
-import { initStatisticsContext } from '@hcengineering/server-core'
+import { calculateModelHashSync, initStatisticsContext } from '@hcengineering/server-core'
 import { join } from 'path'
 
 import { getPlatformQueue } from '@hcengineering/kafka'
@@ -52,6 +53,10 @@ export async function start (): Promise<void> {
           enableConsole: (process.env.ENABLE_CONSOLE ?? 'true') === 'true'
         })
       )
+  })
+  metricsContext.info('System model loaded', {
+    hash: calculateModelHashSync(model),
+    transactions: model.length
   })
 
   Analytics.setTag('application', 'rating')

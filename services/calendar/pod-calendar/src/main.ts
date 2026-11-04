@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2023 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,6 +14,7 @@
 // limitations under the License.
 //
 
+import { logModelHash } from '@hcengineering/model-all/src/model'
 import { SplitLogger, createOpenTelemetryMetricsContext } from '@hcengineering/analytics-service'
 import { calendarIntegrationKind } from '@hcengineering/calendar'
 import { newMetrics } from '@hcengineering/core'
@@ -48,6 +50,7 @@ export const main = async (): Promise<void> => {
         })
       )
   })
+  logModelHash(ctx)
 
   setMetadata(serverClient.metadata.Endpoint, config.AccountsURL)
   setMetadata(serverClient.metadata.UserAgent, config.ServiceID)

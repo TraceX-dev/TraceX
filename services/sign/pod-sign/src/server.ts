@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
@@ -14,6 +15,7 @@
 // limitations under the License.
 //
 
+import { logModelHash } from '@hcengineering/model-all/src/model'
 import { AccountClient, getClient as getAccountClientRaw, isWorkspaceLoginInfo } from '@hcengineering/account-client'
 import { generateId, newMetrics, type WorkspaceIds } from '@hcengineering/core'
 import { initStatisticsContext, StorageConfiguration } from '@hcengineering/server-core'
@@ -88,6 +90,7 @@ export function createServer (storageConfig: StorageConfiguration, brandings: Br
         })
       )
   })
+  logModelHash(measureCtx)
 
   const app = express()
   app.disable('x-powered-by')

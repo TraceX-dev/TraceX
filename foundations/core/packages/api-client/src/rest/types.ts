@@ -60,7 +60,8 @@ export interface RestClient extends Storage, FulltextStorage {
     options?: FindOptions<T>
   ) => Promise<WithLookup<T> | undefined>
 
-  getModel: () => Promise<{ hierarchy: Hierarchy, model: ModelDb }>
+  /** Load the latest model, reusing the saved system transactions when available. */
+  getModel: (full?: boolean) => Promise<{ hierarchy: Hierarchy, model: ModelDb }>
 
   domainRequest: <T>(
     domain: OperationDomain,

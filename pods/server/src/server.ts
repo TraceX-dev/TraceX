@@ -19,7 +19,12 @@ import { type BrandingMap, type MeasureContext, type Ref, type Tx } from '@hceng
 import { buildStorageFromConfig } from '@hcengineering/server-storage'
 
 import { startSessionManager } from '@hcengineering/server'
-import { type PlatformQueue, type SessionManager, type StorageConfiguration } from '@hcengineering/server-core'
+import {
+  calculateModelHashSync,
+  type PlatformQueue,
+  type SessionManager,
+  type StorageConfiguration
+} from '@hcengineering/server-core'
 
 import {
   createServerPipeline,
@@ -78,6 +83,11 @@ export function start (
     }
   }
 ): { shutdown: () => Promise<void>, sessionManager: SessionManager } {
+  metrics.info('System model loaded', {
+    hash: calculateModelHashSync(model),
+    transactions: model.length
+  })
+
   registerTxAdapterFactory('postgresql', createPostgresTxAdapter, true)
   registerAdapterFactory('postgresql', createPostgresAdapter, true)
   registerLastTxLoader('postgresql', loadLastTxCache)

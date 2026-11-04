@@ -1,6 +1,8 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
 //
+// Copyright © 2026 TraceX SAS.
+//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
@@ -17,7 +19,7 @@ import clientPlugin from '@hcengineering/client'
 import type { ClientFactoryOptions } from '@hcengineering/client/src'
 import core, {
   Client,
-  LoadModelResponse,
+  isFullModelResponse,
   type PersonUuid,
   Tx,
   TxHandler,
@@ -261,21 +263,18 @@ function createModelPersistence (workspace: string): TxPersistenceStore | undefi
             }
           })
 
-          if (model == null) {
-            return {
-              full: false,
-              transactions: [],
-              hash: ''
-            }
+          const snapshot = model?.model
+          if (snapshot !== undefined && isFullModelResponse(snapshot)) {
+            return snapshot
           }
-          return model.model
         } catch (err: any) {
           // Assume no model is stored.
         }
       }
       return {
-        full: true,
-        transactions: [],
+        kind: 'full',
+        systemTx: [],
+        userTx: [],
         hash: ''
       }
     },

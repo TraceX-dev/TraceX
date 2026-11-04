@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import { getClient as getAccountClient, type Integration, type IntegrationSecret } from '@hcengineering/account-client'
 import {
   createMarkupOperations,
@@ -217,7 +218,7 @@ async function createWorkspaceClient (
   }
 
   const endpoint = loginInfo.endpoint.replace('ws://', 'http://').replace('wss://', 'https://')
-  const restClient = await createRestTxOperations(endpoint, loginInfo.workspace, loginInfo.token, true)
+  const restClient = await createRestTxOperations(endpoint, loginInfo.workspace, loginInfo.token, true, { model })
   const client = new TxOperations(restClient.client, core.account.System)
   const markup = createGithubNextMarkupOperations(config.FrontURL, loginInfo.workspace, loginInfo.token)
 

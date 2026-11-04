@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -33,6 +34,7 @@ import {
   type ModelDb,
   type Ref,
   type Space,
+  type Tx,
   type TxResult,
   type WithLookup
 } from '@hcengineering/core'
@@ -218,7 +220,16 @@ export interface ConnectSocketOptions {
 }
 
 /**
+ * Options for initializing a client with a system model.
+ * @public
+ */
+export interface ModelOptions {
+  /** System transactions (model.json). Each client owns its latest model and hash. */
+  model?: Tx[]
+}
+
+/**
  * API connect options
  * @public
  */
-export type ConnectOptions = ConnectSocketOptions & AuthOptions
+export type ConnectOptions = ConnectSocketOptions & AuthOptions & ModelOptions

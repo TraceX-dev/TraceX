@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2023 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,6 +14,7 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import client from '@hcengineering/client'
 import { WorkspaceUuid, type Client } from '@hcengineering/core'
 import { setMetadata } from '@hcengineering/platform'
@@ -28,5 +30,5 @@ export async function getClient (
   const endpoint = endpoints.get(workspace) ?? (await getTransactorEndpoint(token, 'external'))
   endpoints.set(workspace, endpoint)
   setMetadata(client.metadata.FilterModel, 'client')
-  return await createClient(endpoint, token)
+  return await createClient(endpoint, token, model)
 }

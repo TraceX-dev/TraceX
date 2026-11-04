@@ -121,7 +121,7 @@ export async function prepareDefinitionPackageInstallation (
     if (Object.keys(destinations).length !== 0) {
       throw new DefinitionPackageError('processes', 'Card modules create their own destination types')
     }
-    const cloned = cloneAuthoringModule(definition.docs as unknown as Doc[], model, hierarchy, identities)
+    const cloned = cloneAuthoringModule(definition.docs, model, hierarchy, identities)
     const owners = cloned.filter((doc) => doc._class === card.class.MasterTag || doc._class === card.class.Tag)
     for (const owner of owners) {
       const member: DefinitionPackageOwner = owner
@@ -194,12 +194,12 @@ export async function prepareDefinitionPackageInstallation (
       }
     }
     const rebound = bindYamlModelProcess(
-      native as unknown as Doc[],
+      native,
       target.masterTag,
       bindings,
       model,
       hierarchy,
-      identities.get(root._id) as Ref<Process>,
+      identities.get(root._id),
       identities
     )
     for (const doc of rebound) {

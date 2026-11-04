@@ -601,7 +601,12 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
       const lastModelTx = parseInt((req.query.lastModelTx as string) ?? '0')
       const lastHash = req.query.lastHash as string
       const result = await session.loadModelRaw(ctx, lastModelTx, lastHash)
-      const txes = Array.isArray(result) ? result : result.transactions
+      if (!Array.isArray(result)) {
+        // Versioned responses describe the complete model; filtering would leave gaps
+        // in the client's model while marking its workspace hash as current.
+        await sendJson(req, res, result, rateLimitToHeaders(rateLimit))
+        return
+      }
       const shouldFilter = req.query.full !== 'true'
       if (shouldFilter) {
         // we need to filter only hierarchy related txes.
@@ -616,7 +621,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
           core.class.Tx
         ]
         const h = ctx.pipeline.context.hierarchy
-        const filtered = txes.filter(
+        const filtered = result.filter(
           (it) =>
             TxProcessor.isExtendsCUD(it._class) &&
             allowedClasess.some((cl) => h.isDerived((it as TxCUD<Doc>).objectClass, cl))
@@ -624,7 +629,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
 
         await sendJson(req, res, filtered, rateLimitToHeaders(rateLimit))
       } else {
-        await sendJson(req, res, txes, rateLimitToHeaders(rateLimit))
+        await sendJson(req, res, result, rateLimitToHeaders(rateLimit))
       }
     })
   })

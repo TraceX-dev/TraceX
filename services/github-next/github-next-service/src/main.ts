@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import { logModelHash } from '@hcengineering/model-all/src/model'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { Analytics } from '@hcengineering/analytics'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
@@ -79,6 +80,7 @@ const ctx = initStatisticsContext(config.ServiceID, {
       })
     )
 })
+logModelHash(ctx)
 
 interface GithubNextAuthorizationState {
   token: string

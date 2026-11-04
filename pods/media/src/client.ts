@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,6 +14,7 @@
 // limitations under the License.
 //
 
+import { model } from '@hcengineering/model-all/src/model'
 import attachment, { type Attachment } from '@hcengineering/attachment'
 import drive, { FileVersion } from '@hcengineering/drive'
 import core, {
@@ -49,9 +51,9 @@ import { BlobSourceType, type VideoTranscodeResult } from './types'
 
 async function getClient (workspace: WorkspaceUuid, token: string): Promise<Client> {
   const endpoint = await getTransactorEndpoint(token)
-  const client = createRestClient(toHttpUrl(endpoint), workspace, token)
-  const { model, hierarchy } = await client.getModel()
-  return new RestClientAdapter(client, hierarchy, model)
+  const client = createRestClient(toHttpUrl(endpoint), workspace, token, { model })
+  const { model: modelDb, hierarchy } = await client.getModel()
+  return new RestClientAdapter(client, hierarchy, modelDb)
 }
 
 /**

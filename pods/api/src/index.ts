@@ -1,6 +1,21 @@
 //
 // Copyright © 2026 TraceX SAS.
 //
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+//
+// Copyright © 2026 TraceX SAS.
+//
 // Licensed under the PolyForm Shield License 1.0.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://polyformproject.org/licenses/shield/1.0.0
@@ -13,13 +28,14 @@
 // limitations under the License.
 //
 
+import { model, logModelHash } from '@hcengineering/model-all/src/model'
 import { getClient as getAccountClient, isNetworkError } from '@hcengineering/account-client'
 import card from '@hcengineering/card'
 import calendar from '@hcengineering/calendar'
 import chunter from '@hcengineering/chunter'
 import contact from '@hcengineering/contact'
 import controlledDocuments from '@hcengineering/controlled-documents'
-import { type Class, type Client, type Doc, type PersonId, type Ref } from '@hcengineering/core'
+import { MeasureMetricsContext, type Class, type Client, type Doc, type PersonId, type Ref } from '@hcengineering/core'
 import document from '@hcengineering/document'
 import platform, { errorToStatus, PlatformError, setMetadata } from '@hcengineering/platform'
 import processPlugin from '@hcengineering/process'
@@ -95,7 +111,7 @@ const withWorkspace =
       }
       stage = 'connect_workspace'
       logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
-      const client = await createClient(transactorUrl, token, undefined, workspaceClientConnectTimeoutMs)
+      const client = await createClient(transactorUrl, token, model, workspaceClientConnectTimeoutMs)
       try {
         stage = 'workspace_connected'
         logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
@@ -1283,7 +1299,9 @@ app.use((error: unknown, _req: Request, res: Response, next: (error?: unknown) =
 export { app }
 
 if (process.env.NODE_ENV !== 'test') {
+  const ctx = new MeasureMetricsContext('workspace-api', {})
+  logModelHash(ctx)
   app.listen(port, () => {
-    console.log(`Workspace API pod listening on ${port}`)
+    ctx.info('Workspace API pod listening', { port })
   })
 }

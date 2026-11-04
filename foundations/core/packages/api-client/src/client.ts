@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -50,6 +51,7 @@ import {
   MarkupContent,
   createMarkupOperations
 } from './markup'
+import { createModelPersistence } from './model'
 import { type ConnectOptions, type PlatformClient, WithMarkup } from './types'
 import { getWorkspaceToken } from './utils'
 
@@ -102,9 +104,11 @@ async function createClient (
   const { socketFactory, connectionTimeout } = options
 
   const clientFactory = await getResource(client.function.GetClient)
+  const txPersistence = await createModelPersistence(options.model)
   const connection = await clientFactory(token, endpoint, {
     socketFactory,
-    connectionTimeout
+    connectionTimeout,
+    txPersistence
   })
 
   return new PlatformClientImpl(url, workspaceUuid, token, config, connection, account)
