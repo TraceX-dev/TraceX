@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -346,15 +347,16 @@ export function createServer (
     })
   )
 
-  app.use((err: any, _req: any, res: any, _next: any) => {
-    measureCtx.error('error', { err })
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    measureCtx.error('request failed', { method: req.method, path: req.path, err })
 
     if (err instanceof ApiError) {
       res.status(err.code).send({ code: err.code, message: err.message })
       return
     }
 
-    res.status(500).send(err.message?.length > 0 ? { message: err.message } : err)
+    const message = err instanceof Error ? err.message : undefined
+    res.status(500).send(message !== undefined && message.length > 0 ? { message } : err)
   })
 
   return {

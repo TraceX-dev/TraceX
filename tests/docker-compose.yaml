@@ -184,8 +184,7 @@ services:
       - front
       - account
       - datalake
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      - transactor
     ports:
       - 4005:4005
     environment:
