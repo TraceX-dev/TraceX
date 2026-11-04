@@ -190,7 +190,7 @@ services:
     environment:
       - SECRET=secret
       - ACCOUNTS_URL=http://account:3003
-      - FRONT_URL=http://localhost:8083
+      - FRONT_URL=http://front:8083
       # Keep browser origins/cookies on localhost while reaching host-published services.
       - PUPPETEER_ARGS=--host-resolver-rules=MAP localhost host.docker.internal
       - STORAGE_CONFIG=${STORAGE_CONFIG}

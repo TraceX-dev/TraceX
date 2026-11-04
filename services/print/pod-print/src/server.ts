@@ -129,7 +129,7 @@ const handleRequest = async (
 ): Promise<void> => {
   try {
     const token = extractToken(req.headers, req.query)
-    const wsLoginInfo = await getAccountClient(token).getLoginInfoByToken()
+    const wsLoginInfo = await getAccountClient(token).getLoginInfoByToken({ kind: 'internal' })
     if (!isWorkspaceLoginInfo(wsLoginInfo)) {
       throw new ApiError(401, "Couldn't find workspace with the provided token")
     }
