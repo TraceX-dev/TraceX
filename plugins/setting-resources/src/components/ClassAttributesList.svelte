@@ -77,7 +77,7 @@
 
   function getCustomAttributes (_class: Ref<Class<Doc>>): AnyAttribute[] {
     const cl = hierarchy.getClass(_class)
-    const to = showAll ? ofClass : _class === ofClass && !notUseOfClass ? core.class.Doc : cl.extends
+    const to = _class === ofClass && !notUseOfClass ? core.class.Doc : showAll ? ofClass : cl.extends
     const attributes = Array.from(hierarchy.getAllAttributes(_class, to).values()).sort((a, b) => {
       const rankA = a.rank ?? toRank(a._id) ?? ''
       const rankB = b.rank ?? toRank(b._id) ?? ''
