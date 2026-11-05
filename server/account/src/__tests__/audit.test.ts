@@ -44,11 +44,18 @@ async function invoke (
 }
 
 function events (): Array<Record<string, unknown>> {
-  return [ctx.info, ctx.warn, ctx.error].flatMap((logger) =>
-    (logger as jest.Mock).mock.calls
-      .filter(([message]) => message === 'Account audit event')
-      .map(([, fields]) => fields)
-  )
+  return [ctx.info, ctx.warn, ctx.error]
+    .flatMap((logger) => {
+      const mock = logger as jest.Mock
+      return mock.mock.calls.map(([message, fields], index) => ({
+        message,
+        fields,
+        order: mock.mock.invocationCallOrder[index]
+      }))
+    })
+    .filter(({ message }) => message === 'Account audit event')
+    .sort((a, b) => a.order - b.order)
+    .map(({ fields }) => fields)
 }
 
 beforeEach(() => {
@@ -236,6 +243,164 @@ test('audits privileged secret reads without logging returned seeds, URLs or sec
   await invoke(methods.getMailboxSecret)
   await invoke(methods.getIntegrationSecret)
   await invoke(methods.listIntegrationsSecrets)
-  expect(events()).toHaveLength(8)
+  expect(events()).toHaveLength(6)
   expect(JSON.stringify(events())).not.toMatch(/private-seed|private-url|private-data/)
+})
+
+test.each([
+  ['login', platform.status.AccountNotFound],
+  ['login', platform.status.PasswordLoginLocked],
+  ['validateOtp', platform.status.InvalidOtp],
+  ['validateOtp', platform.status.OtpLocked],
+  ['verify2fa', platform.status.InvalidOtp],
+  ['enable2fa', platform.status.InvalidOtp],
+  ['disable2fa', platform.status.InvalidOtp]
+])('records credential denial for %s / %s at warning level', async (method, code) => {
+  const failure: Record<string, unknown> = { error: new Status(Severity.ERROR, code, {}) }
+  const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(failure)
+  const registered: Parameters<typeof auditAccountMethods>[0] = { [method]: handler }
+  const methods = auditAccountMethods(registered)
+  await invoke(methods[method as keyof typeof methods])
+  expect(events()[1]).toMatchObject({ outcome: 'denied', errorCode: code })
+  expect(ctx.warn).toHaveBeenCalledTimes(1)
+  expect(ctx.error).not.toHaveBeenCalled()
+})
+
+test('keeps missing accounts in administrative operations classified as failures', async () => {
+  const failure: Record<string, unknown> = { error: new Status(Severity.ERROR, platform.status.AccountNotFound, {}) }
+  const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(failure)
+  const methods = auditAccountMethods({ deleteAccount: handler })
+  await invoke(methods.deleteAccount)
+  expect(events()[1].outcome).toBe('failed')
+  expect(ctx.error).toHaveBeenCalledTimes(1)
+})
+
+test('correlates normalized login subjects with a keyed hash, without trusting a stale token', async () => {
+  const previousKey = process.env.ACCOUNT_AUDIT_HMAC_KEY
+  process.env.ACCOUNT_AUDIT_HMAC_KEY = 'audit-test-key'
+  try {
+    const failure: Record<string, unknown> = { error: new Status(Severity.ERROR, platform.status.AccountNotFound, {}) }
+    const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(failure)
+    const methods = auditAccountMethods({ login: handler })
+    await invoke(methods.login, { email: ' User@Example.com ', password: 'private-password' }, 'stale-token')
+    await invoke(methods.login, { email: 'user@example.com' })
+    const firstHash = events()[0].subjectEmailHash
+    expect(firstHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(events()[1].subjectEmailHash).toBe(firstHash)
+    expect(events()[2].subjectEmailHash).toBe(firstHash)
+    process.env.ACCOUNT_AUDIT_HMAC_KEY = 'different-audit-test-key'
+    await invoke(methods.login, { email: 'user@example.com' })
+    expect(events()[4].subjectEmailHash).not.toBe(firstHash)
+    expect(decodeToken).not.toHaveBeenCalled()
+    expect(JSON.stringify(events())).not.toMatch(/example.com|audit-test-key|private-password|stale-token/)
+  } finally {
+    if (previousKey === undefined) delete process.env.ACCOUNT_AUDIT_HMAC_KEY
+    else process.env.ACCOUNT_AUDIT_HMAC_KEY = previousKey
+  }
+})
+
+test('uses the configured server secret as a domain-separated HMAC fallback and never falls back to plaintext', async () => {
+  const previousKey = process.env.ACCOUNT_AUDIT_HMAC_KEY
+  const previousSecret = process.env.SERVER_SECRET
+  delete process.env.ACCOUNT_AUDIT_HMAC_KEY
+  process.env.SERVER_SECRET = 'test-signing-secret'
+  try {
+    const response: Record<string, unknown> = { result: true }
+    const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(response)
+    const methods = auditAccountMethods({ login: handler })
+    await invoke(methods.login, { email: 'user@example.com' })
+    expect(events()[0].subjectEmailHash).toMatch(/^[a-f0-9]{64}$/)
+    delete process.env.SERVER_SECRET
+    await invoke(methods.login, { email: 'user@example.com' })
+    expect(events()[2].subjectEmailHash).toBeUndefined()
+    expect(JSON.stringify(events())).not.toMatch(/user@example.com|test-signing-secret/)
+  } finally {
+    if (previousKey === undefined) delete process.env.ACCOUNT_AUDIT_HMAC_KEY
+    else process.env.ACCOUNT_AUDIT_HMAC_KEY = previousKey
+    if (previousSecret === undefined) delete process.env.SERVER_SECRET
+    else process.env.SERVER_SECRET = previousSecret
+  }
+})
+
+test('records social targets using the actual parameter names without display values', async () => {
+  const response: Record<string, unknown> = { result: true }
+  const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(response)
+  const methods = auditAccountMethods({ addSocialIdToPerson: handler, updateSocialId: handler })
+  await invoke(methods.addSocialIdToPerson, { person: actor, type: 'email', value: 'private@example.com' })
+  await invoke(methods.updateSocialId, { personId: '123456', displayValue: 'private display name' })
+  expect(events()[0].targetPersonUuid).toBe(actor)
+  expect(events()[2].targetSocialId).toBe('123456')
+  expect(JSON.stringify(events())).not.toMatch(/private@example.com|private display name/)
+})
+
+test('distinguishes a revoked invite hash from an API key ID and records social-key targets safely', async () => {
+  const previousKey = process.env.ACCOUNT_AUDIT_HMAC_KEY
+  process.env.ACCOUNT_AUDIT_HMAC_KEY = 'audit-test-key'
+  try {
+    const response: Record<string, unknown> = { result: true }
+    const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(response)
+    const methods = auditAccountMethods({
+      revokeInviteLink: handler,
+      revokeApiKey: handler,
+      updateWorkspaceRoleBySocialKey: handler
+    })
+    await invoke(methods.revokeInviteLink, { id: '123456' })
+    expect(events()[0].inviteIdHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(events()[0].apiKeyId).toBeUndefined()
+    await invoke(methods.revokeApiKey, { id: 'safe-api-id' })
+    expect(events()[2].apiKeyId).toBe('safe-api-id')
+    await invoke(methods.updateWorkspaceRoleBySocialKey, {
+      socialKey: 'email:private@example.com',
+      targetRole: AccountRole.Owner
+    })
+    expect(events()[4].targetSocialKeyHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(JSON.stringify(events())).not.toMatch(/123456|private@example.com/)
+  } finally {
+    if (previousKey === undefined) delete process.env.ACCOUNT_AUDIT_HMAC_KEY
+    else process.env.ACCOUNT_AUDIT_HMAC_KEY = previousKey
+  }
+})
+
+test('uses one outcome event for service secret reads, including denials', async () => {
+  const response: Record<string, unknown> = { result: { secret: 'private-secret' } }
+  const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(response)
+  const methods = auditAccountMethods({ getIntegrationSecret: handler, listIntegrationsSecrets: handler })
+  await invoke(methods.getIntegrationSecret)
+  expect(events()).toHaveLength(1)
+  expect(events()[0].outcome).toBe('succeeded')
+  const denial: Record<string, unknown> = { error: new Status(Severity.ERROR, platform.status.Forbidden, {}) }
+  handler.mockResolvedValue(denial)
+  await invoke(methods.listIntegrationsSecrets)
+  expect(events()).toHaveLength(2)
+  expect(events()[1].outcome).toBe('denied')
+  expect(JSON.stringify(events())).not.toContain('private-secret')
+})
+
+test('does not assign an unknown service to ordinary user tokens', async () => {
+  const userToken: Token = { account: actor, workspace, extra: {} }
+  ;(decodeToken as jest.Mock).mockReturnValue(userToken)
+  const response: Record<string, unknown> = { result: true }
+  const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(response)
+  const methods = auditAccountMethods({ changeUsername: handler })
+  await invoke(methods.changeUsername)
+  expect(events()[0].actorAccountUuid).toBe(actor)
+  expect(events()[0].actorService).toBeUndefined()
+})
+
+test('audits token issue, exchange and assistant refresh without exporting tokens or names', async () => {
+  const response: Record<string, unknown> = { result: { token: 'private-issued-token', workspace } }
+  const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(response)
+  const methods = auditAccountMethods({
+    selectWorkspace: handler,
+    exchangeGuestToken: handler,
+    refreshHulyAssistantToken: handler,
+    changeUsername: handler
+  })
+  await invoke(methods.selectWorkspace, { workspaceUrl: 'test-workspace', kind: 'external' })
+  expect(events()[1].resultWorkspaceUuid).toBe(workspace)
+  await invoke(methods.exchangeGuestToken)
+  await invoke(methods.refreshHulyAssistantToken)
+  await invoke(methods.changeUsername, { first: 'private-name', last: 'private-last-name' })
+  expect(events()).toHaveLength(8)
+  expect(JSON.stringify(events())).not.toMatch(/private-issued-token|private-name|private-last-name/)
 })

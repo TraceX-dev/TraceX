@@ -73,6 +73,7 @@ import {
   type WorkspaceStatus
 } from './types'
 import { isAdminEmail } from './admin'
+import { isAccountAuditDenial } from './audit'
 
 export async function getAccountDB (
   uri: string,
@@ -182,6 +183,8 @@ export function wrap (
             status,
             origErr: err
           })
+        } else if (isAccountAuditDenial(request.method ?? accountMethod.name, status.code)) {
+          ctx.warn('Account method denied', { method: request.method ?? accountMethod.name, errorCode: status.code })
         } else {
           ctx.error('Error while processing account method', { method: accountMethod.name, status })
         }

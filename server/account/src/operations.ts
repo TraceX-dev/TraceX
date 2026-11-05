@@ -53,7 +53,7 @@ import {
 } from '@hcengineering/server-token'
 
 import { isAdminEmail } from './admin'
-import { auditAccountMethods } from './audit'
+import { auditAccountMethods, isAccountAuditDenial } from './audit'
 import { renderAccountEmail } from './emails'
 import { accountPlugin } from './plugin'
 import { type AccountServiceMethods, getServiceMethods } from './serviceOperations'
@@ -275,8 +275,12 @@ export async function login (
       tfaRequired: isConfirmed && existingAccount.tfaSecret != null
     }
   } catch (err: any) {
-    Analytics.handleError(err)
-    ctx.error('Login failed', { email, normalizedEmail, err })
+    if (err instanceof PlatformError && isAccountAuditDenial('login', err.status.code)) {
+      ctx.warn('Login denied', { errorCode: err.status.code })
+    } else {
+      Analytics.handleError(err)
+      ctx.error('Login failed', { email, normalizedEmail, err })
+    }
     throw err
   }
 }
@@ -584,8 +588,12 @@ export async function validateOtp (
       tfaRequired: targetAccount?.tfaSecret != null
     }
   } catch (err: any) {
-    Analytics.handleError(err)
-    ctx.error(action === 'verify' ? 'OTP verification error' : 'OTP login/sign up error', { email, err })
+    if (err instanceof PlatformError && isAccountAuditDenial('validateOtp', err.status.code)) {
+      ctx.warn('OTP validation denied', { errorCode: err.status.code })
+    } else {
+      Analytics.handleError(err)
+      ctx.error(action === 'verify' ? 'OTP verification error' : 'OTP login/sign up error', { email, err })
+    }
     throw err
   }
 }
