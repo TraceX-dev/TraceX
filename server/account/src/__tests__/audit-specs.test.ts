@@ -57,8 +57,9 @@ test.each(Object.entries(ACCOUNT_AUDIT_SPECS))(
       .map((property) => property.name)
     expect(actualKeys.length).toBeGreaterThan(0)
     for (const key of projectedKeys) {
-      if (!actualKeys.includes(key))
-        {throw new Error(`${name}: unknown audit parameter ${key}; actual parameters: ${actualKeys.join(', ')}`)}
+      if (!actualKeys.includes(key)) {
+        throw new Error(`${name}: unknown audit parameter ${key}; actual parameters: ${actualKeys.join(', ')}`)
+      }
     }
   }
 )
