@@ -155,6 +155,62 @@ test('never attributes invalid token claims', async () => {
   expect(events()[1].outcome).toBe('denied')
 })
 
+test.each(['join', 'signUpJoin'] as const)('%s ignores an unrelated browser token', async (method) => {
+  const subject = '1b9fe950-2066-45b7-bd06-1f4b0b540975' as AccountUuid
+  const response: Record<string, unknown> = { result: { account: subject, workspace } }
+  const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(response)
+  const methods = auditAccountMethods({ [method]: handler })
+  expect(await invoke(methods[method], {}, 'unrelated-browser-token')).toBe(response)
+  expect(decodeToken).not.toHaveBeenCalled()
+  expect(handler.mock.calls[0][4]).toBe('unrelated-browser-token')
+  expect(events()).toHaveLength(2)
+  for (const event of events()) {
+    expect(event.actorAccountUuid).toBeUndefined()
+    expect(event.workspaceUuid).toBeUndefined()
+  }
+  expect(events()[1]).toMatchObject({
+    subjectAccountUuid: subject,
+    resultWorkspaceUuid: workspace,
+    outcome: 'succeeded'
+  })
+})
+
+test('identifies assignment recipients by normalized email hash without exporting their emails', async () => {
+  const previousKey = process.env.ACCOUNT_AUDIT_HMAC_KEY
+  process.env.ACCOUNT_AUDIT_HMAC_KEY = 'audit-test-key'
+  try {
+    const response: Record<string, unknown> = { result: undefined }
+    const handler: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue(response)
+    const methods = auditAccountMethods({ assignWorkspace: handler })
+    for (const email of [' User@Example.com ', 'user@example.com', 'other@example.com']) {
+      expect(await invoke(methods.assignWorkspace, { email, workspaceUuid: workspace, role: AccountRole.User })).toBe(
+        response
+      )
+    }
+    expect(events()).toHaveLength(6)
+    const targetEmailHash = events()[0].targetEmailHash
+    expect(targetEmailHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(events()[2].targetEmailHash).toBe(targetEmailHash)
+    expect(events()[4].targetEmailHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(events()[4].targetEmailHash).not.toBe(targetEmailHash)
+    for (let index = 0; index < events().length; index += 2) {
+      expect(events()[index]).toMatchObject({
+        actorAccountUuid: actor,
+        targetWorkspaceUuid: workspace,
+        role: AccountRole.User
+      })
+      expect(events()[index + 1]).toMatchObject({
+        targetEmailHash: events()[index].targetEmailHash,
+        outcome: 'succeeded'
+      })
+    }
+    expect(JSON.stringify(events())).not.toMatch(/example\.com|audit-test-key/)
+  } finally {
+    if (previousKey === undefined) delete process.env.ACCOUNT_AUDIT_HMAC_KEY
+    else process.env.ACCOUNT_AUDIT_HMAC_KEY = previousKey
+  }
+})
+
 test('records only allowed integration identifiers and the API key ID', async () => {
   const integration: jest.MockedFunction<AccountMethodHandler> = jest.fn().mockResolvedValue({ result: undefined })
   const apiKey: jest.MockedFunction<AccountMethodHandler> = jest

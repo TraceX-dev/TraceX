@@ -98,7 +98,8 @@ export const ACCOUNT_AUDIT_SPECS: Partial<Record<AccountMethods, AuditSpec>> = {
   },
   assignWorkspace: {
     action: 'workspace.member.assign',
-    parameters: { workspaceUuid: 'targetWorkspaceUuid', role: 'role' }
+    parameters: { workspaceUuid: 'targetWorkspaceUuid', role: 'role' },
+    hashedParameters: { email: 'targetEmailHash' }
   },
   leaveWorkspace: { action: 'workspace.member.remove', parameters: { account: 'targetAccountUuid' } },
   updateWorkspaceRole: {
@@ -139,10 +140,10 @@ export const ACCOUNT_AUDIT_SPECS: Partial<Record<AccountMethods, AuditSpec>> = {
   createAccessLink: { action: 'workspace.access.link.create' },
   sendInvite: { action: 'workspace.invite.send' },
   resendInvite: { action: 'workspace.invite.resend' },
-  join: { action: 'workspace.member.join' },
+  join: { action: 'workspace.member.join', unauthenticated: true },
   joinByToken: { action: 'workspace.member.join' },
   checkAutoJoin: { action: 'workspace.member.autojoin' },
-  signUpJoin: { action: 'workspace.member.signup.join' },
+  signUpJoin: { action: 'workspace.member.signup.join', unauthenticated: true },
   createApiKey: { action: 'account.api-key.create' },
   revokeApiKey: { action: 'account.api-key.revoke', parameters: { id: 'apiKeyId' } },
   createMailbox: { action: 'account.mailbox.create' },
