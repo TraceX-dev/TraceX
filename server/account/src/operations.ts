@@ -531,6 +531,7 @@ export async function validateOtp (
         throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
       }
 
+      const needsVerification = emailSocialId.verifiedOn == null
       if (targetAccount == null) {
         // only person exists means there's no verified social id associated with it -> merge it to the current account
         // doMergePersons will fail if there's a verified social id
@@ -571,6 +572,16 @@ export async function validateOtp (
             throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountAlreadyExists, {}))
           }
         }
+      }
+
+      if (needsVerification) {
+        auditAccountEvent(ctx, token, {
+          event: 'account.social.add',
+          targetPersonUuid: callerAccountUuid,
+          socialId: emailSocialId._id,
+          type: SocialIdType.EMAIL,
+          targetEmailHash: auditEmailHash(normalizedEmail)
+        })
       }
 
       emailSocialId = await db.socialId.findOne({ _id: emailSocialId._id })
@@ -3208,7 +3219,10 @@ async function addEmailSocialId (
   }
 
   const otpInfo = await sendOtp(ctx, db, branding, targetSocialId)
-  auditAccountEvent(ctx, token, { event: 'account.social.add', targetEmailHash: auditEmailHash(normalizedEmail) })
+  auditAccountEvent(ctx, token, {
+    event: 'account.social.verification.request',
+    targetEmailHash: auditEmailHash(normalizedEmail)
+  })
   return otpInfo
 }
 

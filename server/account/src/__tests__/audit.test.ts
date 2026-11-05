@@ -18,6 +18,8 @@ import {
   type AccountUuid,
   type MeasureContext,
   type Person,
+  type PersonId,
+  SocialIdType,
   type WorkspaceUuid
 } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
@@ -25,10 +27,11 @@ import { decodeToken, decodeTokenVerbose, type Token } from '@hcengineering/serv
 
 import { auditAccountEvent, auditEmailHash } from '../audit'
 import { guardGuestMethod } from '../guestAccess'
-import { deleteWorkspace, login } from '../operations'
+import { deleteWorkspace, getMethods, login, validateOtp } from '../operations'
 import { assignWorkspace, updateWorkspaceInfo } from '../serviceOperations'
-import type { Account, AccountDB, AccountMethodHandler, SocialId, Workspace } from '../types'
+import type { Account, AccountDB, AccountMethodHandler, OtpInfo, SocialId, Workspace } from '../types'
 import { hashWithSalt, wrap } from '../utils'
+import * as utils from '../utils'
 
 jest.mock('@hcengineering/server-token', () => ({
   ...jest.requireActual('@hcengineering/server-token'),
@@ -53,7 +56,11 @@ const accountCollection: Partial<AccountDB['account']> = {
   update: jest.fn()
 }
 const personCollection: Partial<AccountDB['person']> = { findOne: jest.fn().mockResolvedValue(person) }
-const socialCollection: Partial<AccountDB['socialId']> = { findOne: jest.fn().mockResolvedValue(social) }
+const socialCollection: Partial<AccountDB['socialId']> = {
+  findOne: jest.fn().mockResolvedValue(social),
+  update: jest.fn()
+}
+const otpCollection: Partial<AccountDB['otp']> = { deleteMany: jest.fn().mockResolvedValue(1) }
 const workspaceCollection: Partial<AccountDB['workspace']> = {
   findOne: jest.fn().mockResolvedValue(workspaceRecord),
   exists: jest.fn().mockResolvedValue(true),
@@ -64,6 +71,7 @@ const db: Partial<AccountDB> = {
   account: accountCollection as AccountDB['account'],
   person: personCollection as AccountDB['person'],
   socialId: socialCollection as AccountDB['socialId'],
+  otp: otpCollection as AccountDB['otp'],
   workspace: workspaceCollection as AccountDB['workspace'],
   workspaceStatus: statusCollection as AccountDB['workspaceStatus'],
   getWorkspaceRole: jest.fn().mockResolvedValue(null),
@@ -84,7 +92,11 @@ beforeEach(() => {
   ;(db.getWorkspaceRole as jest.Mock).mockResolvedValue(null)
   ;(statusCollection.update as jest.Mock).mockResolvedValue(undefined)
   subjectAccount.tfaSecret = undefined
+  ;(socialCollection.findOne as jest.Mock).mockResolvedValue(social)
+  ;(socialCollection.update as jest.Mock).mockResolvedValue(undefined)
 })
+
+afterEach(() => jest.restoreAllMocks())
 
 test('domain callers explicitly select fields and may use the actual target account', () => {
   auditAccountEvent(ctx, 'verified-token', { event: 'workspace.member.assign', targetAccountUuid: subject })
@@ -175,13 +187,14 @@ test('RPC failures are recorded once without inspecting parameters or status det
   const request: Record<string, unknown> = {
     id: 1,
     method: 'customMutation',
-    params: { password: 'private-password' }
+    params: { password: 'private-password', email: 'private@example.com' }
   }
   const response = await handler(ctx, db as AccountDB, null, request, 'token')
   expect(response.error.code).toBe(platform.status.Forbidden)
   expect(events()).toHaveLength(1)
   expect(events()[0]).toMatchObject({ event: 'account.rpc', method: 'customMutation', outcome: 'denied' })
-  expect(JSON.stringify(events())).not.toMatch(/private-status|private-password/)
+  expect(events()[0].subjectEmailHash).toBeUndefined()
+  expect(JSON.stringify(events())).not.toMatch(/private-status|private-password|private@example.com/)
 })
 
 test('guest-policy denials are recorded without reaching the domain operation', async () => {
@@ -207,4 +220,140 @@ test('normalizes email hashes using the configured audit key', () => {
     if (previous === undefined) delete process.env.AUDIT_HMAC_KEY
     else process.env.AUDIT_HMAC_KEY = previous
   }
+})
+
+describe('authentication subjects and email verification', () => {
+  let previousKey: string | undefined
+
+  beforeEach(() => {
+    previousKey = process.env.AUDIT_HMAC_KEY
+    process.env.AUDIT_HMAC_KEY = 'audit-test-key'
+  })
+
+  afterEach(() => {
+    if (previousKey === undefined) delete process.env.AUDIT_HMAC_KEY
+    else process.env.AUDIT_HMAC_KEY = previousKey
+  })
+
+  test.each([
+    ['login', platform.status.AccountNotFound],
+    ['validateOtp', platform.status.InvalidOtp],
+    ['loginOtp', platform.status.AccountNotFound]
+  ])('%s denials identify the normalized subject without exposing credentials', async (method, code) => {
+    const error = new PlatformError(new Status(Severity.ERROR, code, {}))
+    const operation = jest.fn().mockRejectedValue(error)
+    const handler = wrap(operation, { noAuth: true, guest: 'bypass' })
+    for (const email of [' User@Example.com ', 'user@example.com', 'other@example.com']) {
+      const request: Record<string, unknown> = {
+        id: 1,
+        method,
+        params: { email, password: 'private-password', code: 'private-otp' }
+      }
+      const response = await handler(ctx, db as AccountDB, null, request, 'unrelated-browser-token')
+      expect(response.error.code).toBe(code)
+    }
+    expect(events()).toHaveLength(3)
+    expect(events()[0]).toMatchObject({
+      method,
+      outcome: 'denied',
+      subjectEmailHash: auditEmailHash('user@example.com')
+    })
+    expect(events()[0].subjectEmailHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(events()[1].subjectEmailHash).toBe(events()[0].subjectEmailHash)
+    expect(events()[2].subjectEmailHash).not.toBe(events()[0].subjectEmailHash)
+    expect(decodeToken).not.toHaveBeenCalled()
+    expect(JSON.stringify(events())).not.toMatch(/example.com|private-|unrelated-browser-token/)
+  })
+
+  test.each([undefined, 42])('malformed email %s does not replace the original RPC error', async (email) => {
+    const error = new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+    const handler = wrap(jest.fn().mockRejectedValue(error), { noAuth: true, guest: 'bypass' })
+    const request: Record<string, unknown> = { id: 1, method: 'login', params: { email } }
+    const response = await handler(ctx, db as AccountDB, null, request, undefined)
+    expect(response.error.code).toBe(platform.status.BadRequest)
+    expect(events()).toHaveLength(1)
+    expect(events()[0].subjectEmailHash).toBeUndefined()
+  })
+
+  test('requesting verification of an existing email does not record an addition', async () => {
+    const pendingSocial: SocialId = {
+      _id: 'email-id' as PersonId,
+      personUuid: subject,
+      type: SocialIdType.EMAIL,
+      value: 'private@example.com',
+      key: 'email:private@example.com'
+    }
+    const otpInfo: OtpInfo = { sent: true, retryOn: Date.now() }
+    ;(socialCollection.findOne as jest.Mock).mockResolvedValue(pendingSocial)
+    jest.spyOn(utils, 'sendOtp').mockResolvedValue(otpInfo)
+    const handler = getMethods().addEmailSocialId
+    if (handler === undefined) throw new Error('Missing addEmailSocialId handler')
+    const request: Record<string, unknown> = {
+      id: 1,
+      method: 'addEmailSocialId',
+      params: { email: pendingSocial.value }
+    }
+    const response = await handler(ctx, db as AccountDB, null, request, 'token')
+    expect(response.result).toBe(otpInfo)
+    expect(socialCollection.update).not.toHaveBeenCalled()
+    expect(events()).toHaveLength(1)
+    expect(events()[0]).toMatchObject({
+      event: 'account.social.verification.request',
+      targetEmailHash: auditEmailHash(pendingSocial.value)
+    })
+    expect(JSON.stringify(events())).not.toContain(pendingSocial.value)
+  })
+
+  test.each(['new', 'transfer', 'verified', 'write-failed'])(
+    'OTP verification audits the applied binding (%s)',
+    async (state) => {
+      const caller: Token = { account: subject, workspace, extra: {} }
+      const initial: SocialId = {
+        _id: 'email-id' as PersonId,
+        personUuid: state === 'transfer' ? actor : subject,
+        type: SocialIdType.EMAIL,
+        value: 'private@example.com',
+        key: 'email:private@example.com',
+        verifiedOn: state === 'verified' ? 1 : undefined
+      }
+      const confirmed: SocialId = { ...initial, personUuid: subject, verifiedOn: 1 }
+      ;(decodeToken as jest.Mock).mockReturnValue(caller)
+      ;(decodeTokenVerbose as jest.Mock).mockReturnValue(caller)
+      ;(socialCollection.findOne as jest.Mock).mockResolvedValue(confirmed)
+      jest.spyOn(utils, 'getEmailSocialId').mockResolvedValue(initial)
+      jest.spyOn(utils, 'verifyOtpAttempt').mockResolvedValue('valid')
+      if (state === 'transfer') {
+        const ownerAccount: Partial<Account> = { uuid: actor }
+        ;(accountCollection.findOne as jest.Mock)
+          .mockResolvedValueOnce(subjectAccount)
+          .mockResolvedValueOnce(ownerAccount)
+      }
+      const error = new Error('private database failure')
+      if (state === 'write-failed') (socialCollection.update as jest.Mock).mockRejectedValue(error)
+      const pending = validateOtp(ctx, db as AccountDB, null, 'token', {
+        email: initial.value,
+        code: 'private-otp',
+        action: 'verify'
+      })
+      if (state === 'write-failed') await expect(pending).rejects.toBe(error)
+      else await pending
+      const additions = events().filter((event) => event.event === 'account.social.add')
+      const changed = state === 'new' || state === 'transfer'
+      expect(additions).toHaveLength(changed ? 1 : 0)
+      if (changed) {
+        expect(socialCollection.update).toHaveBeenCalledWith(
+          { _id: initial._id },
+          expect.objectContaining({ verifiedOn: expect.any(Number) })
+        )
+        expect(additions[0]).toMatchObject({
+          actorAccountUuid: subject,
+          targetPersonUuid: subject,
+          socialId: initial._id,
+          type: SocialIdType.EMAIL,
+          targetEmailHash: auditEmailHash(initial.value)
+        })
+      }
+      expect(JSON.stringify(events())).not.toMatch(/private@example.com|private-otp/)
+    }
+  )
 })

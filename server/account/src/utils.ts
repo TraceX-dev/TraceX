@@ -172,11 +172,13 @@ export function wrap (
               : new Status(Severity.ERROR, platform.status.InternalServerError, {})
 
         const method = request.method ?? accountMethod.name
+        const email = noAuth && typeof request.params?.email === 'string' ? request.params.email : undefined
         auditAccountEvent(ctx, noAuth ? undefined : token, {
           event: 'account.rpc',
           method,
           outcome: isAccountAuditDenial(method, status.code) ? 'denied' : 'failed',
-          errorCode: status.code
+          errorCode: status.code,
+          subjectEmailHash: email !== undefined ? auditEmailHash(email) : undefined
         })
 
         if (err instanceof TokenError) return { error: status }
