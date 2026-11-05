@@ -124,6 +124,28 @@ The shared base context isolates failures during completion and logging and repo
 through its diagnostic helper. This is not a blanket guarantee for every observability call: direct
 metric calls, child creation, and alternative implementations have their own behavior.
 
+### Recording audit events
+
+Use `recordAuditEvent` from `@hcengineering/server-core` to record an applied domain change.
+Supply the event name and relevant identifiers explicitly. Keep credentials and private content
+out of event fields.
+
+```ts
+import { recordAuditEvent } from '@hcengineering/server-core'
+
+await repository.publish(documentId)
+recordAuditEvent(ctx, {
+  event: 'document.publish',
+  actorAccountUuid: account,
+  workspaceUuid: workspace,
+  documentId
+})
+```
+
+The default outcome is `succeeded`; use `denied` or `failed` when appropriate.
+For an asynchronous action, `withAuditEvent(ctx, event, action)` records its outcome while preserving
+its result or error. Audit records use the existing logging infrastructure with separate local output.
+
 ## Explicit metrics and dimensions
 
 Explicit metrics accept a third argument containing scalar dimensions, using `Readonly<ParamsType>`.
