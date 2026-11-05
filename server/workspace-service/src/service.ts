@@ -43,7 +43,6 @@ import { randomUUID } from 'crypto'
 import path from 'path'
 
 import { Analytics } from '@hcengineering/analytics'
-import { auditWorkspaceCleanup } from './audit-workspace-cleanup'
 
 import {
   createPostgreeDestroyAdapter,
@@ -54,6 +53,7 @@ import {
 } from '@hcengineering/postgres'
 import { doBackupWorkspace, doRestoreWorkspace } from '@hcengineering/server-backup'
 import {
+  withAuditEvent,
   workspaceEvents,
   type PipelineFactory,
   type PlatformQueueProducer,
@@ -412,9 +412,19 @@ export class WorkspaceWorker {
   async doCleanup (ctx: MeasureContext, workspace: WorkspaceInfoWithStatus, cleanIndexes: boolean): Promise<void> {
     const { dbUrl } = prepareTools([])
     const adapter = getWorkspaceDestroyAdapter(dbUrl)
-    await auditWorkspaceCleanup(ctx, workspace, async () => {
-      await adapter.deleteWorkspace(ctx, workspace.uuid, workspace.dataId)
-    })
+    await withAuditEvent(
+      ctx,
+      {
+        event: 'workspace.data.cleanup',
+        actorAccountUuid: systemAccountUuid,
+        actorService: 'workspace',
+        workspaceUuid: workspace.uuid,
+        mode: workspace.mode
+      },
+      async () => {
+        await adapter.deleteWorkspace(ctx, workspace.uuid, workspace.dataId)
+      }
+    )
 
     await this.workspaceQueue.send(ctx, workspace.uuid, [workspaceEvents.clearIndex()])
   }

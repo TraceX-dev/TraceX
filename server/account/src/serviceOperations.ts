@@ -35,6 +35,7 @@ import platform, { getMetadata, PlatformError, Severity, Status, unknownError } 
 import { decodeTokenVerbose } from '@hcengineering/server-token'
 
 import { accountPlugin } from './plugin'
+import { auditAccountEvent } from './audit'
 import type {
   AccountAggregatedInfo,
   AccountDB,
@@ -218,6 +219,11 @@ export async function performWorkspaceOperation (
 
     if (Object.keys(update).length !== 0) {
       await db.workspaceStatus.update({ workspaceUuid: workspace.uuid }, update)
+      auditAccountEvent(ctx, token, {
+        event: 'workspace.operation.schedule',
+        workspaceUuid: workspace.uuid,
+        workspaceEvent: event
+      })
       ops++
     }
   }
@@ -446,6 +452,9 @@ export async function updateWorkspaceInfo (
   if (Object.keys(wsUpdate).length !== 0) {
     await db.workspace.update({ uuid: workspaceUuid }, wsUpdate)
   }
+  if (event !== 'ping' && event !== 'progress') {
+    auditAccountEvent(ctx, token, { event: 'workspace.lifecycle.update', workspaceUuid, workspaceEvent: event })
+  }
 }
 
 export async function workerHandshake (
@@ -574,8 +583,20 @@ export async function assignWorkspace (
 
   if (currentRole == null) {
     await db.assignWorkspace(account.uuid, workspaceUuid, role)
+    auditAccountEvent(ctx, token, {
+      event: 'workspace.member.assign',
+      workspaceUuid,
+      targetAccountUuid: account.uuid,
+      role
+    })
   } else if (getRolePower(currentRole) < getRolePower(role)) {
     await db.updateWorkspaceRole(account.uuid, workspaceUuid, role)
+    auditAccountEvent(ctx, token, {
+      event: 'workspace.member.role.change',
+      workspaceUuid,
+      targetAccountUuid: account.uuid,
+      role
+    })
   }
 }
 
@@ -630,7 +651,9 @@ export async function addSocialIdToPerson (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
   }
 
-  return await addSocialIdBase(db, person, type, value, confirmed, displayValue)
+  const socialId = await addSocialIdBase(db, person, type, value, confirmed, displayValue)
+  auditAccountEvent(ctx, token, { event: 'person.social.add', targetPersonUuid: person, socialId, type })
+  return socialId
 }
 
 export async function updateSocialId (
@@ -655,6 +678,7 @@ export async function updateSocialId (
   }
 
   await db.socialId.update({ _id: personId }, { displayValue })
+  auditAccountEvent(ctx, token, { event: 'person.social.update', targetSocialId: personId })
 }
 
 export async function createIntegration (
@@ -679,6 +703,7 @@ export async function createIntegration (
   }
 
   await db.integration.insertOne({ socialId, kind, workspaceUuid, data })
+  auditAccountEvent(ctx, token, { event: 'integration.create', workspaceUuid, socialId, kind })
 }
 
 export async function updateIntegration (
@@ -697,6 +722,7 @@ export async function updateIntegration (
 
   const { socialId, kind, workspaceUuid, data } = params
   await db.integration.update({ socialId, kind, workspaceUuid }, { data })
+  auditAccountEvent(ctx, token, { event: 'integration.update', workspaceUuid, socialId, kind })
 }
 
 export async function deleteIntegration (
@@ -716,6 +742,7 @@ export async function deleteIntegration (
   const { socialId, kind, workspaceUuid } = params
   await db.integrationSecret.deleteMany({ socialId, kind, workspaceUuid })
   await db.integration.deleteMany({ socialId, kind, workspaceUuid })
+  auditAccountEvent(ctx, token, { event: 'integration.delete', workspaceUuid, socialId, kind })
 }
 
 export async function listIntegrations (
@@ -817,6 +844,7 @@ export async function addIntegrationSecret (
   }
 
   await db.integrationSecret.insertOne({ ...secretKey, secret })
+  auditAccountEvent(ctx, token, { event: 'integration.secret.add', workspaceUuid, socialId, kind })
 }
 
 export async function updateIntegrationSecret (
@@ -851,6 +879,7 @@ export async function updateIntegrationSecret (
   }
 
   await db.integrationSecret.update(secretKey, { secret })
+  auditAccountEvent(ctx, token, { event: 'integration.secret.update', workspaceUuid, socialId, kind })
 }
 
 export async function deleteIntegrationSecret (
@@ -885,6 +914,7 @@ export async function deleteIntegrationSecret (
   }
 
   await db.integrationSecret.deleteMany(secretKey)
+  auditAccountEvent(ctx, token, { event: 'integration.secret.delete', workspaceUuid, socialId, kind })
 }
 
 export async function getIntegrationSecret (
@@ -910,6 +940,7 @@ export async function getIntegrationSecret (
   }
   const existing = await db.integrationSecret.findOne({ socialId, kind, workspaceUuid, key })
 
+  auditAccountEvent(ctx, token, { event: 'integration.secret.read', workspaceUuid, socialId, kind })
   return existing
 }
 
@@ -924,7 +955,9 @@ export async function listIntegrationsSecrets (
   verifyAllowedServices(integrationServices, extra)
   const { socialId, kind, workspaceUuid, key } = params
 
-  return await db.integrationSecret.find({ socialId, kind, workspaceUuid, key })
+  const secrets = await db.integrationSecret.find({ socialId, kind, workspaceUuid, key })
+  auditAccountEvent(ctx, token, { event: 'integration.secrets.list', workspaceUuid, socialId, kind })
+  return secrets
 }
 
 export async function findFullSocialIdBySocialKey (
@@ -985,6 +1018,7 @@ export async function mergeSpecifiedAccounts (
   }
 
   await doMergeAccounts(db, primaryAccount, secondaryAccount)
+  auditAccountEvent(ctx, token, { event: 'account.merge', primaryAccount, secondaryAccount })
 }
 
 export async function findPersonBySocialKey (

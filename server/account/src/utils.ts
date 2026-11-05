@@ -73,7 +73,7 @@ import {
   type WorkspaceStatus
 } from './types'
 import { isAdminEmail } from './admin'
-import { isAccountAuditDenial } from './audit'
+import { auditAccountEvent, auditEmailHash, isAccountAuditDenial } from './audit'
 
 export async function getAccountDB (
   uri: string,
@@ -167,14 +167,19 @@ export function wrap (
         const status =
           err instanceof PlatformError
             ? err.status
-            : new Status(Severity.ERROR, platform.status.InternalServerError, {})
+            : err instanceof TokenError
+              ? new Status(Severity.ERROR, platform.status.Unauthorized, {})
+              : new Status(Severity.ERROR, platform.status.InternalServerError, {})
 
-        if (err instanceof TokenError) {
-          // Let's send un authorized
-          return {
-            error: new Status(Severity.ERROR, platform.status.Unauthorized, {})
-          }
-        }
+        const method = request.method ?? accountMethod.name
+        auditAccountEvent(ctx, noAuth ? undefined : token, {
+          event: 'account.rpc',
+          method,
+          outcome: isAccountAuditDenial(method, status.code) ? 'denied' : 'failed',
+          errorCode: status.code
+        })
+
+        if (err instanceof TokenError) return { error: status }
 
         if (status.code === platform.status.InternalServerError) {
           Analytics.handleError(err)
@@ -726,6 +731,11 @@ export async function signUpByEmail (
   }
 
   await createAccount(db, account, confirmed, automatic)
+  auditAccountEvent(ctx, undefined, {
+    event: 'account.signup',
+    subjectAccountUuid: account,
+    subjectEmailHash: auditEmailHash(normalizedEmail)
+  })
   if (password != null) {
     await setPassword(ctx, db, branding, account, password)
   }
@@ -767,6 +777,7 @@ export async function signUpByGrant (
   // so we can safely proceed to account creation
 
   const socialId = await createAccount(db, accountUuid, true, true)
+  auditAccountEvent(ctx, undefined, { event: 'account.signup', subjectAccountUuid: accountUuid, signupMethod: 'grant' })
 
   return { account: accountUuid, socialId }
 }
@@ -979,6 +990,7 @@ export async function updateAllowReadOnlyGuests (
   }
 
   await db.updateAllowReadOnlyGuests(workspace, readOnlyGuestsAllowed)
+  auditAccountEvent(ctx, token, { event: 'workspace.guests.readonly.change', readOnlyGuestsAllowed })
   if (!readOnlyGuestsAllowed) {
     await db.unassignWorkspace(readOnlyGuestAccountUuid, workspace)
     return undefined
@@ -1032,6 +1044,7 @@ export async function updatePasswordAgingRule (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
   await db.updatePasswordAgingRule(workspace, days ?? null)
+  auditAccountEvent(ctx, token, { event: 'workspace.password.policy.change', days })
 }
 
 export async function checkPasswordAging (
@@ -1083,6 +1096,7 @@ export async function updateAllowGuestSignUp (
   }
 
   await db.updateAllowGuestSignUp(workspace, guestSignUpAllowed)
+  auditAccountEvent(ctx, token, { event: 'workspace.guests.signup.change', guestSignUpAllowed })
 }
 
 export async function updateWorkspaceRole (
@@ -1134,6 +1148,7 @@ export async function updateWorkspaceRole (
   }
 
   await db.updateWorkspaceRole(targetAccount, workspace, targetRole)
+  auditAccountEvent(ctx, token, { event: 'workspace.member.role.change', targetAccountUuid: targetAccount, targetRole })
 }
 
 /**
@@ -1440,6 +1455,7 @@ export async function confirmEmail (
   }
 
   await db.socialId.update({ _id: emailSocialId._id }, { verifiedOn: Date.now() })
+  auditAccountEvent(ctx, undefined, { event: 'account.email.confirm', subjectAccountUuid: account })
   return emailSocialId._id
 }
 
@@ -1636,12 +1652,30 @@ export async function doJoinByInvite (
     // TODO: should we re-join kicked users? How are they marked as inactive?
     if (role == null) {
       await db.assignWorkspace(account, workspace.uuid, invite.role)
+      auditAccountEvent(ctx, token, {
+        event: 'workspace.member.join',
+        workspaceUuid: workspace.uuid,
+        targetAccountUuid: account,
+        role: invite.role
+      })
     } else if (getRolePower(role) < getRolePower(invite.role)) {
       await db.updateWorkspaceRole(account, workspace.uuid, invite.role)
+      auditAccountEvent(ctx, token, {
+        event: 'workspace.member.role.change',
+        workspaceUuid: workspace.uuid,
+        targetAccountUuid: account,
+        role: invite.role
+      })
     }
   } else if (workspace.allowReadOnlyGuest && workspace.allowGuestSignUp) {
     if (role == null) {
       await db.assignWorkspace(account, workspace.uuid, AccountRole.Guest)
+      auditAccountEvent(ctx, token, {
+        event: 'workspace.member.join',
+        workspaceUuid: workspace.uuid,
+        targetAccountUuid: account,
+        role: AccountRole.Guest
+      })
     }
   } else {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
