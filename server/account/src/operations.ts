@@ -53,6 +53,7 @@ import {
 } from '@hcengineering/server-token'
 
 import { isAdminEmail } from './admin'
+import { auditAccountMethods } from './audit'
 import { renderAccountEmail } from './emails'
 import { accountPlugin } from './plugin'
 import { type AccountServiceMethods, getServiceMethods } from './serviceOperations'
@@ -889,7 +890,7 @@ export async function createAccessLink (
     try {
       extraObj = JSON.parse(params.extra)
     } catch (e) {
-      ctx.error("Invalid extra parameter, couldn't parse JSON", { extra: params.extra })
+      ctx.error("Invalid extra parameter, couldn't parse JSON")
       throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
     }
   }
@@ -1018,7 +1019,7 @@ export async function createInviteLink (
 
   const front = getFrontUrl(branding)
   const link = concatLink(front, path)
-  ctx.info(`Created invite link: ${link}`)
+  ctx.info('Invite link created', { workspaceUuid: workspace.uuid, role })
 
   return link
 }
@@ -2100,7 +2101,7 @@ export async function getWorkspacesInfo (
   const { account } = decodeTokenVerbose(ctx, token)
 
   if (account !== systemAccountUuid) {
-    ctx.error('getWorkspaceInfos with wrong user', { account, token })
+    ctx.error('getWorkspaceInfos with wrong user', { account })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
@@ -2129,7 +2130,7 @@ export async function updateLastVisit (
   const { account } = decodeTokenVerbose(ctx, token)
 
   if (account !== systemAccountUuid) {
-    ctx.error('updateLastVisit with wrong user', { account, token })
+    ctx.error('updateLastVisit with wrong user', { account })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
@@ -2156,7 +2157,7 @@ export async function updateAccountsLastVisit (
   const { account } = decodeTokenVerbose(ctx, token)
 
   if (account !== systemAccountUuid) {
-    ctx.error('updateAccountsLastVisit with wrong user', { account, token })
+    ctx.error('updateAccountsLastVisit with wrong user', { account })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
@@ -2259,7 +2260,7 @@ export async function getLoginInfoByToken (
     if (token !== undefined) {
       // do not spam errors as this is expected when we issue request with no token
       Analytics.handleError(err)
-      ctx.error('Invalid token', { token, errMsg: err.message })
+      ctx.error('Invalid token', { errorType: err.name })
     }
     switch (err.message) {
       case 'Token not yet active': {
@@ -2470,7 +2471,7 @@ export async function getLoginWithWorkspaceInfo (
     ;({ account: accountUuid, extra, workspace } = decodeTokenVerbose(ctx, token))
   } catch (err: any) {
     Analytics.handleError(err)
-    ctx.error('Invalid token', { token })
+    ctx.error('Invalid token')
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
 
@@ -3802,7 +3803,7 @@ export type AccountMethods =
  * @public
  */
 export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMethods, AccountMethodHandler>> {
-  return {
+  const methods: Partial<Record<AccountMethods, AccountMethodHandler>> = {
     /* OPERATIONS */
     // These are public/unauthenticated entry points - they must succeed even if the caller's
     // browser attaches a stale/invalid token (e.g. via a leftover cookie), since none of them
@@ -3897,6 +3898,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     /* SERVICE METHODS */
     ...getServiceMethods()
   }
+  return auditAccountMethods(methods)
 }
 
 export * from './plugin'

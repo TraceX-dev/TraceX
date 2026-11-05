@@ -43,6 +43,7 @@ import { randomUUID } from 'crypto'
 import path from 'path'
 
 import { Analytics } from '@hcengineering/analytics'
+import { auditWorkspaceCleanup } from './audit-workspace-cleanup'
 
 import {
   createPostgreeDestroyAdapter,
@@ -411,7 +412,9 @@ export class WorkspaceWorker {
   async doCleanup (ctx: MeasureContext, workspace: WorkspaceInfoWithStatus, cleanIndexes: boolean): Promise<void> {
     const { dbUrl } = prepareTools([])
     const adapter = getWorkspaceDestroyAdapter(dbUrl)
-    await adapter.deleteWorkspace(ctx, workspace.uuid, workspace.dataId)
+    await auditWorkspaceCleanup(ctx, workspace, async () => {
+      await adapter.deleteWorkspace(ctx, workspace.uuid, workspace.dataId)
+    })
 
     await this.workspaceQueue.send(ctx, workspace.uuid, [workspaceEvents.clearIndex()])
   }
