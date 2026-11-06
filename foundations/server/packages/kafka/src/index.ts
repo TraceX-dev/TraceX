@@ -172,6 +172,7 @@ class PlatformQueueImpl implements PlatformQueue {
       await this.checkCreateTopic(QueueTopic.NotificationQueue, topics, 2)
       await this.checkCreateTopic(QueueTopic.LoveQueue, topics, 1)
       await this.checkCreateTopic(QueueTopic.WorkspaceMemberUnread, topics, 2)
+      await this.checkCreateTopic(QueueTopic.Audit, topics, 3)
     } finally {
       await admin.disconnect()
     }
