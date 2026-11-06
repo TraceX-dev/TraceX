@@ -2417,7 +2417,8 @@ export async function getLoginInfoByToken (
       throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid }))
     }
 
-    const endpointKind = meta?.clientNetworkPosition === 'internal' ? EndpointKind.Internal : EndpointKind.External
+    const endpointKind =
+      (params?.kind ?? meta?.clientNetworkPosition) === 'internal' ? EndpointKind.Internal : EndpointKind.External
     const endpoint = getEndpoint(workspace.uuid, workspace.region, endpointKind)
 
     if (isDocGuest) {
@@ -2693,6 +2694,32 @@ export async function findSocialIdBySocialKey (
   }
 
   return socialIdObj._id
+}
+
+/** Resolves only verified email identities belonging to registered accounts. */
+export async function resolveAccountByEmail (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { email: string }
+): Promise<AccountUuid | undefined> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  if ((await getAccount(db, account)) == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+  if (typeof params.email !== 'string' || params.email.length > 254 || !isEmail(params.email.trim())) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+  const social = await db.socialId.findOne({
+    type: SocialIdType.EMAIL,
+    value: normalizeValue(params.email),
+    verifiedOn: { $gt: 0 },
+    isDeleted: { $ne: true }
+  })
+  if (social == null) return undefined
+  const recipient = await getAccount(db, social.personUuid as AccountUuid)
+  return recipient?.uuid
 }
 
 export async function getWorkspaceMembers (
@@ -3715,6 +3742,7 @@ export async function getWorkspaceUsersWithPermission (
 
 export type AccountMethods =
   | AccountServiceMethods
+  | 'resolveAccountByEmail'
   | 'login'
   | 'loginOtp'
   | 'loginAsGuest'
@@ -3887,6 +3915,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     getSocialIds: wrap(getSocialIds, { guest: 'allGuests' }),
     getPerson: wrap(getPerson, { guest: 'readOnlyAndPersonal' }),
     findPersonBySocialId: wrap(findPersonBySocialId),
+    resolveAccountByEmail: wrap(resolveAccountByEmail),
     findSocialIdBySocialKey: wrap(findSocialIdBySocialKey),
     getWorkspaceMembers: wrap(getWorkspaceMembers),
     getMailboxOptions: wrap(getMailboxOptions),
