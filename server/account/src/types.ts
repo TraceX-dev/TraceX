@@ -483,6 +483,7 @@ export interface LoginInfo {
 export interface LoginInfoRequestData {
   firstName?: string
   lastName?: string
+  kind?: 'internal' | 'external'
 }
 
 export type LoginInfoRequest = {
