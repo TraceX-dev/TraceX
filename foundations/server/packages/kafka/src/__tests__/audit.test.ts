@@ -58,8 +58,12 @@ beforeEach(() => {
 test('audit topic is global, explicitly provisioned, idempotent and acknowledged by replicas', async () => {
   const queue = createPlatformQueue(config)
   const options: QueueProducerOptions = {
-    allowAutoTopicCreation: false, idempotent: true, maxInFlightRequests: 1,
-    retry: { retries: 2, initialRetryTime: 300, maxRetryTime: 1000 }, acks: -1, timeout: 5000
+    allowAutoTopicCreation: false,
+    idempotent: true,
+    maxInFlightRequests: 1,
+    retry: { retries: 2, initialRetryTime: 300, maxRetryTime: 1000 },
+    acks: -1,
+    timeout: 5000
   }
   await queue.getProducer(ctx, QueueTopic.Audit, options).send(ctx, undefined, [{ eventId: 'one' }], 'one')
   expect(mockProducer).toHaveBeenCalledWith(
@@ -83,7 +87,12 @@ test('ordinary topics retain their regional routing and producer configuration',
 test('database failure keeps the message handler pending until successful redelivery', async () => {
   const queue = createPlatformQueue(config)
   const onMessage = jest.fn().mockRejectedValueOnce(new Error('database unavailable')).mockResolvedValue(undefined)
-  queue.createConsumer(ctx, QueueTopic.Audit, 'audit-group', onMessage, { fromBegining: true, retryDelay: 1, allowAutoTopicCreation: false, partitionsConsumedConcurrently: 3 })
+  queue.createConsumer(ctx, QueueTopic.Audit, 'audit-group', onMessage, {
+    fromBegining: true,
+    retryDelay: 1,
+    allowAutoTopicCreation: false,
+    partitionsConsumedConcurrently: 3
+  })
   await new Promise<void>((resolve) => setImmediate(resolve))
   expect(mockSubscribe).toHaveBeenCalledWith({ topic: 'audit-test', fromBeginning: true })
   expect(mockConsumer).toHaveBeenCalledWith(expect.objectContaining({ allowAutoTopicCreation: false }))
@@ -189,19 +198,24 @@ test('invalid metadata stays in the protected retry loop without reaching the do
   expect(await result).toBeInstanceOf(Error)
 })
 
-
 test('delivery options apply to arbitrary topics and conflicting cached options are rejected', async () => {
   const queue = createPlatformQueue(config)
   const options: QueueProducerOptions = {
-    allowAutoTopicCreation: false, idempotent: true, maxInFlightRequests: 1,
-    retry: { retries: 2 }, acks: 1, timeout: 2000
+    allowAutoTopicCreation: false,
+    idempotent: true,
+    maxInFlightRequests: 1,
+    retry: { retries: 2 },
+    acks: 1,
+    timeout: 2000
   }
   const producer = queue.getProducer(ctx, 'custom-topic', options)
   expect(queue.getProducer(ctx, 'custom-topic', options)).toBe(producer)
   expect(() => queue.getProducer(ctx, 'custom-topic')).toThrow('Conflicting producer options')
   await producer.send(ctx, undefined, [{}])
   expect(mockProducer).toHaveBeenCalledWith(expect.objectContaining({ idempotent: true, retry: { retries: 2 } }))
-  expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ topic: 'region-a.custom-topic-test', acks: 1, timeout: 2000 }))
+  expect(mockSend).toHaveBeenCalledWith(
+    expect.objectContaining({ topic: 'region-a.custom-topic-test', acks: 1, timeout: 2000 })
+  )
   expect(mockConnect).toHaveBeenCalledTimes(1)
   await producer.send(ctx, undefined, [{}])
   expect(mockConnect).toHaveBeenCalledTimes(1)

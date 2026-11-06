@@ -18,12 +18,17 @@ import { runWorkspaceHandshake, waitForWorkspaceWorker } from '../lifecycle'
 
 const logs: Partial<MeasureContext> = { error: jest.fn(), warn: jest.fn() }
 const ctx = logs as MeasureContext
-beforeEach(() => { jest.clearAllMocks(); jest.useFakeTimers() })
-afterEach(() => { jest.useRealTimers() })
+beforeEach(() => {
+  jest.clearAllMocks()
+  jest.useFakeTimers()
+})
+afterEach(() => {
+  jest.useRealTimers()
+})
 
 test('cancels a handshake that never settles and does not retry after cancellation', async () => {
   const controller = new AbortController()
-  const handshake = jest.fn(async () => await new Promise<void>(() => {}))
+  const handshake = jest.fn(async () => { await new Promise<void>(() => {}); })
   const started = runWorkspaceHandshake(ctx, handshake, controller.signal)
   controller.abort()
   await expect(started).resolves.toBe(false)

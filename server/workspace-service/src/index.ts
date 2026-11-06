@@ -26,7 +26,12 @@ import {
 import { type MigrateOperation } from '@hcengineering/model'
 import { setMetadata } from '@hcengineering/platform'
 import serverClientPlugin from '@hcengineering/server-client'
-import { startAuditPublisher, QueueTopic, type PlatformQueue, type QueueWorkspaceMessage } from '@hcengineering/server-core'
+import {
+  startAuditPublisher,
+  QueueTopic,
+  type PlatformQueue,
+  type QueueWorkspaceMessage
+} from '@hcengineering/server-core'
 import serverNotification from '@hcengineering/server-notification'
 import { createStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
 import serverToken from '@hcengineering/server-token'
@@ -175,9 +180,13 @@ export function serveWorkspaceAccount (
     shutdownController.abort()
     worker.wakeup()
     void waitForWorkspaceWorker(measureCtx, workerRun)
-      .then(async () => { await closeAuditPublisher() })
-      .then(async () => { await queue.shutdown() })
-      .catch((error) => measureCtx.error('Workspace audit shutdown failed', { error }))
+      .then(async () => {
+        await closeAuditPublisher()
+      })
+      .then(async () => {
+        await queue.shutdown()
+      })
+      .catch((error) => { measureCtx.error('Workspace audit shutdown failed', { error }); })
       .finally(() => onClose?.())
   }
 

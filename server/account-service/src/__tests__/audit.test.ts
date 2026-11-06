@@ -21,20 +21,32 @@ import { createAuditHandler, startAuditConsumer } from '../audit'
 const ctxFields: Partial<MeasureContext> = {}
 const ctx = ctxFields as MeasureContext
 const record: AuditRecord = {
-  schemaVersion: 1, eventId: '03e64d21-5bda-4b9c-b7ee-5411bc911ecb', occurredAt: 1,
-  sourceService: 'account', event: 'account.login', outcome: 'succeeded'
+  schemaVersion: 1,
+  eventId: '03e64d21-5bda-4b9c-b7ee-5411bc911ecb',
+  occurredAt: 1,
+  sourceService: 'account',
+  event: 'account.login',
+  outcome: 'succeeded'
 }
 const message: Partial<ConsumerMessage<unknown>> = { value: record }
 const insert = jest.fn()
 const store: AuditEventStore = { insert }
 
-beforeEach(() => { jest.resetAllMocks() })
+beforeEach(() => {
+  jest.resetAllMocks()
+})
 
 test('does not complete the handler before the database commit resolves', async () => {
   let commit: () => void = () => {}
-  insert.mockImplementation(async () => await new Promise<void>((resolve) => { commit = resolve }))
+  insert.mockImplementation(
+    async () => { await new Promise<void>((resolve) => {
+        commit = resolve
+      }); }
+  )
   let completed = false
-  const delivery = createAuditHandler(store)(ctx, message as ConsumerMessage<unknown>).then(() => { completed = true })
+  const delivery = createAuditHandler(store)(ctx, message as ConsumerMessage<unknown>).then(() => {
+    completed = true
+  })
   await Promise.resolve()
   expect(completed).toBe(false)
   commit()
@@ -52,15 +64,22 @@ test('propagates database errors to the queue and accepts subsequent redelivery'
   expect(insert).toHaveBeenNthCalledWith(2, record)
 })
 
-test.each([null, { ...record, schemaVersion: 2 }, { ...record, outcome: 'unknown' }])('refuses unsupported records without writing them', async (value) => {
-  const invalid: Partial<ConsumerMessage<unknown>> = { value }
-  await expect(createAuditHandler(store)(ctx, invalid as ConsumerMessage<unknown>)).rejects.toThrow(TypeError)
-  expect(insert).not.toHaveBeenCalled()
-})
+test.each([null, { ...record, schemaVersion: 2 }, { ...record, outcome: 'unknown' }])(
+  'refuses unsupported records without writing them',
+  async (value) => {
+    const invalid: Partial<ConsumerMessage<unknown>> = { value }
+    await expect(createAuditHandler(store)(ctx, invalid as ConsumerMessage<unknown>)).rejects.toThrow(TypeError)
+    expect(insert).not.toHaveBeenCalled()
+  }
+)
 
 test('uses a stable shared group and replays retained events on first startup', () => {
   const createConsumer = jest.fn()
   const queue: Partial<PlatformQueue> = { createConsumer }
   startAuditConsumer(ctx, queue as PlatformQueue, store)
-  expect(createConsumer).toHaveBeenCalledWith(ctx, QueueTopic.Audit, 'account-service-audit-v1', expect.any(Function), { fromBegining: true, allowAutoTopicCreation: false, partitionsConsumedConcurrently: 3 })
+  expect(createConsumer).toHaveBeenCalledWith(ctx, QueueTopic.Audit, 'account-service-audit-v1', expect.any(Function), {
+    fromBegining: true,
+    allowAutoTopicCreation: false,
+    partitionsConsumedConcurrently: 3
+  })
 })

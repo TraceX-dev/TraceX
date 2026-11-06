@@ -237,11 +237,13 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   if (process.env.QUEUE_CONFIG !== undefined) {
     unreadQueue = getPlatformQueue('account')
     closeAuditPublisher = startAuditPublisher(measureCtx, unreadQueue, 'account')
-    void accountsDb.then((res) => {
-      const [db] = res
-      startAuditConsumer(measureCtx, unreadQueue as PlatformQueue, db.audit)
-      unreadConsumer = startWorkspaceMemberUnreadConsumer(measureCtx, unreadQueue as PlatformQueue, db)
-    }).catch((error) => measureCtx.error('Failed to initialize account queue consumers', { error }))
+    void accountsDb
+      .then((res) => {
+        const [db] = res
+        startAuditConsumer(measureCtx, unreadQueue as PlatformQueue, db.audit)
+        unreadConsumer = startWorkspaceMemberUnreadConsumer(measureCtx, unreadQueue as PlatformQueue, db)
+      })
+      .catch((error) => { measureCtx.error('Failed to initialize account queue consumers', { error }); })
   } else {
     measureCtx.error('QUEUE_CONFIG is not set; audit delivery is unavailable')
     measureCtx.warn('QUEUE_CONFIG is not set, cross-workspace unread indicator will not be updated')
@@ -528,7 +530,7 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
         } finally {
           onClose?.()
         }
-      })().catch((error) => measureCtx.error('Account shutdown failed', { error }))
+      })().catch((error) => { measureCtx.error('Account shutdown failed', { error }); })
     })
   }
 

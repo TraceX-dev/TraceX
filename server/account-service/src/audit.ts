@@ -24,7 +24,9 @@ import {
 } from '@hcengineering/server-core'
 
 /** Reject invalid records and propagate storage errors so the queue retries without advancing. */
-export function createAuditHandler (store: AuditEventStore): (ctx: MeasureContext, message: ConsumerMessage<unknown>) => Promise<void> {
+export function createAuditHandler (
+  store: AuditEventStore
+): (ctx: MeasureContext, message: ConsumerMessage<unknown>) => Promise<void> {
   return async (_ctx, message) => {
     if (!isAuditRecord(message.value)) throw new TypeError('Unsupported or invalid audit record')
     await store.insert(message.value)

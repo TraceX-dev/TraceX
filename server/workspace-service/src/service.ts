@@ -155,7 +155,9 @@ export class WorkspaceWorker {
     if (isCanceled()) return
     const connected = await runWorkspaceHandshake(
       ctx,
-      async () => { await accountClient.workerHandshake(this.region, this.version, this.operation, signal) },
+      async () => {
+        await accountClient.workerHandshake(this.region, this.version, this.operation, signal)
+      },
       signal
     )
     if (!connected || isCanceled()) return

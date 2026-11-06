@@ -117,7 +117,11 @@ export function isGlobalQueueTopic (topic: QueueTopic | string): boolean {
 }
 
 export interface PlatformQueue {
-  getProducer: <T>(ctx: MeasureContext, topic: QueueTopic | string, options?: QueueProducerOptions) => PlatformQueueProducer<T>
+  getProducer: <T>(
+    ctx: MeasureContext,
+    topic: QueueTopic | string,
+    options?: QueueProducerOptions
+  ) => PlatformQueueProducer<T>
 
   /**
    * Create a consumer for a topic.

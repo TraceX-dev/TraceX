@@ -21,12 +21,10 @@ import {
   startAuditPublisher,
   type AuditRecord,
   type AuditEventWriter,
-  type ConsumerMessage,
   QueueTopic,
   type PlatformQueue
 } from '@hcengineering/server-core'
-import { createPlatformQueue } from '../../../../foundations/server/packages/kafka/src/index'
-import { createAuditHandler } from '../../../account-service/src/audit'
+import { createPlatformQueue } from '@hcengineering/kafka'
 import { PostgresAuditEventStore } from '../collections/postgres/audit-store'
 import { getMigrations } from '../collections/postgres/migrations'
 
@@ -76,11 +74,9 @@ integration('audit PostgreSQL/Redpanda delivery', () => {
       })
       await sql.unsafe(`ALTER TABLE ${ns}.audit_events RENAME TO audit_events_unavailable`)
       consumerQueue = createPlatformQueue({ clientId: 'audit-test-sink', brokers, postfix, region: 'sink-region' })
-      const handler = createAuditHandler(store)
-      const consume: AuditEventWriter = async (operationCtx, record) => {
-        const message: Partial<ConsumerMessage<unknown>> = { value: record }
+      const consume: AuditEventWriter = async (_operationCtx, record) => {
         try {
-          await handler(operationCtx, message as ConsumerMessage<unknown>)
+          await store.insert(record)
           received.push(record)
         } catch (error) {
           failedOnce = true
@@ -121,8 +117,12 @@ integration('audit PostgreSQL/Redpanda delivery', () => {
       // Simulate a delivery repeated after INSERT but before its offset was committed.
       await producerQueue
         .getProducer<AuditRecord>(ctx, QueueTopic.Audit, {
-          allowAutoTopicCreation: false, idempotent: true, maxInFlightRequests: 1,
-          retry: { retries: 2, initialRetryTime: 300, maxRetryTime: 1000 }, acks: -1, timeout: 5000
+          allowAutoTopicCreation: false,
+          idempotent: true,
+          maxInFlightRequests: 1,
+          retry: { retries: 2, initialRetryTime: 300, maxRetryTime: 1000 },
+          acks: -1,
+          timeout: 5000
         })
         .send(ctx, undefined, [original], original.eventId)
       await waitFor(async () => received.length >= 2)

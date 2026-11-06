@@ -61,10 +61,14 @@ function getKafkaTopicId (topic: QueueTopic | string, config: QueueConfig): stri
 
 function producerOptionsKey (options: QueueProducerOptions): string {
   return JSON.stringify([
-    options.allowAutoTopicCreation ?? true, options.idempotent ?? false,
-    options.maxInFlightRequests, options.retry?.retries,
-    options.retry?.initialRetryTime, options.retry?.maxRetryTime,
-    options.acks ?? -1, options.timeout ?? 30000
+    options.allowAutoTopicCreation ?? true,
+    options.idempotent ?? false,
+    options.maxInFlightRequests,
+    options.retry?.retries,
+    options.retry?.initialRetryTime,
+    options.retry?.maxRetryTime,
+    options.acks ?? -1,
+    options.timeout ?? 30000
   ])
 }
 
@@ -97,20 +101,18 @@ class PlatformQueueImpl implements PlatformQueue {
     }
   }
 
-  getProducer<T>(ctx: MeasureContext, topic: QueueTopic | string, options: QueueProducerOptions = {}): PlatformQueueProducer<T> {
+  getProducer<T>(
+    ctx: MeasureContext,
+    topic: QueueTopic | string,
+    options: QueueProducerOptions = {}
+  ): PlatformQueueProducer<T> {
     const producer = this.producers.get(topic)
     if (producer !== undefined && !producer.isClosed()) {
       if (!producer.matchesOptions(options)) throw new TypeError(`Conflicting producer options for topic ${topic}`)
       return producer
     }
 
-    const created = new PlatformQueueProducerImpl(
-      ctx,
-      this.kafka,
-      getKafkaTopicId(topic, this.config),
-      this,
-      options
-    )
+    const created = new PlatformQueueProducerImpl(ctx, this.kafka, getKafkaTopicId(topic, this.config), this, options)
     this.producers.set(topic, created)
 
     return created
@@ -325,7 +327,8 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
 
     await this.cc.run({
       ...(this.options?.partitionsConsumedConcurrently !== undefined
-        ? { partitionsConsumedConcurrently: this.options.partitionsConsumedConcurrently } : {}),
+        ? { partitionsConsumedConcurrently: this.options.partitionsConsumedConcurrently }
+        : {}),
       eachMessage: async (payload) => {
         const { message } = payload
         const msgKey = message.key?.toString() ?? ''
