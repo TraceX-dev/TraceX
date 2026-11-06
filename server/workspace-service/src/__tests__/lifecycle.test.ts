@@ -28,7 +28,9 @@ afterEach(() => {
 
 test('cancels a handshake that never settles and does not retry after cancellation', async () => {
   const controller = new AbortController()
-  const handshake = jest.fn(async () => { await new Promise<void>(() => {}); })
+  const handshake = jest.fn(async () => {
+    await new Promise<void>(() => {})
+  })
   const started = runWorkspaceHandshake(ctx, handshake, controller.signal)
   controller.abort()
   await expect(started).resolves.toBe(false)

@@ -186,7 +186,9 @@ export function serveWorkspaceAccount (
       .then(async () => {
         await queue.shutdown()
       })
-      .catch((error) => { measureCtx.error('Workspace audit shutdown failed', { error }); })
+      .catch((error) => {
+        measureCtx.error('Workspace audit shutdown failed', { error })
+      })
       .finally(() => onClose?.())
   }
 

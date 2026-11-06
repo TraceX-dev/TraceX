@@ -38,11 +38,11 @@ beforeEach(() => {
 
 test('does not complete the handler before the database commit resolves', async () => {
   let commit: () => void = () => {}
-  insert.mockImplementation(
-    async () => { await new Promise<void>((resolve) => {
-        commit = resolve
-      }); }
-  )
+  insert.mockImplementation(async () => {
+    await new Promise<void>((resolve) => {
+      commit = resolve
+    })
+  })
   let completed = false
   const delivery = createAuditHandler(store)(ctx, message as ConsumerMessage<unknown>).then(() => {
     completed = true

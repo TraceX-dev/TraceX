@@ -26,7 +26,9 @@ export async function runWorkspaceHandshake (
     let onAbort: () => void = () => {}
     try {
       const canceled = new Promise<boolean>((resolve) => {
-        onAbort = () => { resolve(false); }
+        onAbort = () => {
+          resolve(false)
+        }
         signal.addEventListener('abort', onAbort, { once: true })
       })
       // The race handles late rejection too; cancellation must not start another attempt.
@@ -58,7 +60,9 @@ export async function waitForWorkspaceWorker (
     const drained = await Promise.race([
       worker.then(() => true),
       new Promise<boolean>((resolve) => {
-        timer = setTimeout(() => { resolve(false); }, timeoutMs)
+        timer = setTimeout(() => {
+          resolve(false)
+        }, timeoutMs)
       })
     ])
     if (!drained) ctx.warn('Workspace worker shutdown timed out; closing queue', { timeoutMs })
