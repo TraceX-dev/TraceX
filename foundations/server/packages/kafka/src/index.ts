@@ -229,8 +229,11 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
       createPartitioner: Partitioners.DefaultPartitioner
     })
     this.connected = this.ctx.with('connect-broker', {}, () => this.txProducer.connect())
-    // Startup may precede the first send; retain the rejection for the caller without an unhandled promise.
-    void this.connected.catch(() => {})
+    const connection = this.connected
+    // A rejected eager connection must not poison the first send after recovery.
+    void connection.catch(() => {
+      if (this.audit && this.connected === connection) this.connected = undefined
+    })
   }
 
   getQueue (): PlatformQueue {
@@ -244,13 +247,14 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
     partitionKey?: string
   ): Promise<void> {
     if (this.audit && this.connected === undefined) this.connected = this.txProducer.connect()
-    if (this.connected !== undefined) {
+    const connection = this.connected
+    if (connection !== undefined) {
       try {
-        await this.connected
+        await connection
       } finally {
-        if (this.audit) this.connected = undefined
+        if (this.audit && this.connected === connection) this.connected = undefined
       }
-      this.connected = undefined
+      if (this.connected === connection) this.connected = undefined
     }
     await this.ctx.with('send', { topic: this.topic }, () =>
       this.txProducer.send({
@@ -326,7 +330,6 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
         const msgKey = message.key?.toString() ?? ''
         const decode = (): unknown => JSON.parse(message.value?.toString() ?? '{}')
         const msgData = this.topic === QueueTopic.Audit ? undefined : decode()
-        const meta = JSON.parse(message.headers?.meta?.toString() ?? '{}')
         const workspace = (message.headers?.workspace?.toString() ?? msgKey) as WorkspaceUuid
 
         const retryDelay = this.options?.retryDelay ?? 1000
@@ -334,6 +337,7 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
         let to = 1
         while (!this.closed) {
           try {
+            const meta = JSON.parse(message.headers?.meta?.toString() ?? '{}')
             await this.ctx.with(
               'handle-msg',
               {},

@@ -31,6 +31,7 @@ import serverNotification from '@hcengineering/server-notification'
 import { createStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
 import serverToken from '@hcengineering/server-token'
 import toolPlugin from '@hcengineering/server-tool'
+import { waitForWorkspaceWorker } from './lifecycle'
 import { WorkspaceWorker, type WorkspaceOperation } from './service'
 
 export * from './ws-operations'
@@ -130,6 +131,7 @@ export function serveWorkspaceAccount (
   }
 
   let canceled = false
+  const shutdownController = new AbortController()
   const closeAuditPublisher = startAuditPublisher(measureCtx, queue, 'workspace')
 
   const wsProducer = queue.getProducer<QueueWorkspaceMessage>(measureCtx, QueueTopic.Workspace)
@@ -160,7 +162,8 @@ export function serveWorkspaceAccount (
         waitTimeout,
         backup
       },
-      () => canceled
+      () => canceled,
+      shutdownController.signal
     )
     .catch((err) => {
       measureCtx.error('failed to start', { err })
@@ -169,8 +172,9 @@ export function serveWorkspaceAccount (
   const close = (): void => {
     if (canceled) return
     canceled = true
+    shutdownController.abort()
     worker.wakeup()
-    void workerRun
+    void waitForWorkspaceWorker(measureCtx, workerRun)
       .then(async () => { await closeAuditPublisher() })
       .then(async () => { await queue.shutdown() })
       .catch((error) => measureCtx.error('Workspace audit shutdown failed', { error }))

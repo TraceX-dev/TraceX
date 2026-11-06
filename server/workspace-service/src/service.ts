@@ -72,6 +72,7 @@ import {
   setAdapterSecurity
 } from '@hcengineering/server-pipeline'
 import { buildStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
+import { runWorkspaceHandshake } from './lifecycle'
 import { createWorkspace, upgradeWorkspace } from './ws-operations'
 
 export interface WorkspaceOptions {
@@ -135,7 +136,12 @@ export class WorkspaceWorker {
   wakeup: () => void = () => {}
   defaultWakeup: () => void = () => {}
 
-  async start (ctx: MeasureContext, opt: WorkspaceOptions, isCanceled: () => boolean): Promise<void> {
+  async start (
+    ctx: MeasureContext,
+    opt: WorkspaceOptions,
+    isCanceled: () => boolean,
+    signal: AbortSignal = new AbortController().signal
+  ): Promise<void> {
     this.defaultWakeup = () => {
       ctx.info("I'm busy", { version: this.version, region: this.region })
     }
@@ -146,18 +152,13 @@ export class WorkspaceWorker {
     ctx.info('Sending a handshake to the account service...')
     const accountClient = getAccountClient(this.accountsUrl, token)
 
-    while (true) {
-      try {
-        await withRetryConnUntilSuccess(accountClient.workerHandshake.bind(accountClient))(
-          this.region,
-          this.version,
-          this.operation
-        )
-        break
-      } catch (err: any) {
-        ctx.error('error during handshake', { err })
-      }
-    }
+    if (isCanceled()) return
+    const connected = await runWorkspaceHandshake(
+      ctx,
+      async () => { await accountClient.workerHandshake(this.region, this.version, this.operation, signal) },
+      signal
+    )
+    if (!connected || isCanceled()) return
 
     ctx.info('Successfully connected to the account service')
 

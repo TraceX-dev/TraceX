@@ -14,7 +14,7 @@
 //
 
 import type { MeasureContext } from '@hcengineering/core'
-import { QueueTopic } from '@hcengineering/server-core'
+import { QueueTopic, type AuditRecord } from '@hcengineering/server-core'
 import type { EachMessagePayload, ConsumerRunConfig, ProducerConfig, ConsumerConfig } from 'kafkajs'
 import { createPlatformQueue, type QueueConfig } from '../index'
 
@@ -136,4 +136,38 @@ test('malformed JSON stays unacknowledged and shutdown interrupts retry without 
     'Audit consumer blocked; message will be retried',
     expect.objectContaining({ errorType: 'SyntaxError' })
   )
+})
+
+
+test('the first send after a failed eager connection reconnects and publishes the same event', async () => {
+  mockConnect.mockRejectedValueOnce(new Error('startup broker unavailable'))
+  const queue = createPlatformQueue(config)
+  const producer = queue.getProducer(ctx, QueueTopic.Audit)
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  const event: Pick<AuditRecord, 'eventId'> = { eventId: 'first-after-recovery' }
+  await producer.send(ctx, undefined, [event], event.eventId)
+  expect(mockConnect).toHaveBeenCalledTimes(2)
+  expect(mockSend).toHaveBeenCalledTimes(1)
+  expect(JSON.parse(mockSend.mock.calls[0][0].messages[0].value.toString())).toEqual(event)
+  await queue.shutdown()
+})
+
+test('invalid metadata stays in the protected retry loop without reaching the domain handler', async () => {
+  const queue = createPlatformQueue(config)
+  const onMessage = jest.fn()
+  queue.createConsumer(ctx, QueueTopic.Audit, 'audit-group', onMessage, { retryDelay: 1 })
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  const run: ConsumerRunConfig = mockRun.mock.calls[0][0]
+  const payload: Partial<EachMessagePayload> = {
+    topic: 'audit-test', partition: 0,
+    message: { key: Buffer.from('id'), value: Buffer.from('{}'), timestamp: '1', attributes: 0, offset: '0', headers: { meta: Buffer.from('{') } },
+    heartbeat: jest.fn().mockResolvedValue(undefined), pause: jest.fn()
+  }
+  const result = run.eachMessage?.(payload as EachMessagePayload).catch((error: unknown) => error)
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  expect(payload.heartbeat).toHaveBeenCalled()
+  expect(onMessage).not.toHaveBeenCalled()
+  expect(logs.error).toHaveBeenCalledWith('Audit consumer blocked; message will be retried', expect.objectContaining({ errorType: 'SyntaxError' }))
+  await queue.shutdown()
+  expect(await result).toBeInstanceOf(Error)
 })
