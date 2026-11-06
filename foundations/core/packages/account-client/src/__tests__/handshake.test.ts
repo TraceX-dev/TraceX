@@ -17,14 +17,16 @@ import type { Data, Version } from '@hcengineering/core'
 import { getClient } from '../client'
 
 const version: Data<Version> = { major: 0, minor: 7, patch: 0 }
-afterEach(() => { jest.restoreAllMocks() })
+afterEach(() => {
+  jest.restoreAllMocks()
+})
 
 test('forwards cancellation to the in-flight handshake HTTP request', async () => {
   const controller = new AbortController()
   const aborted = new Error('aborted')
   const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => {
     return await new Promise<Response>((_resolve, reject) => {
-      options?.signal?.addEventListener('abort', () => reject(aborted), { once: true })
+      options?.signal?.addEventListener('abort', () => { reject(aborted); }, { once: true })
     })
   })
   const client = getClient('http://account.invalid', 'token')

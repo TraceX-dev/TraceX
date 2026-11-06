@@ -18,9 +18,6 @@ import { basename, dirname, join } from 'path'
 import winston from 'winston'
 import DailyRotateFile from 'winston-daily-rotate-file'
 
-const excludeAudit = winston.format((info) => (info.audit === true ? false : info))
-const onlyAudit = winston.format((info) => (info.audit === true ? info : false))
-
 export class SplitLogger implements MeasureLogger {
   logger: winston.Logger
 
@@ -47,7 +44,6 @@ export class SplitLogger implements MeasureLogger {
     this.logger.add(
       new DailyRotateFile({
         format: winston.format.combine(
-          excludeAudit(),
           winston.format.timestamp(),
           opts.pretty === true ? winston.format.prettyPrint() : winston.format.json(jsonOptions)
         ),
@@ -62,22 +58,10 @@ export class SplitLogger implements MeasureLogger {
     )
     this.logger.add(
       new DailyRotateFile({
-        format: winston.format.combine(excludeAudit(), winston.format.timestamp(), winston.format.prettyPrint()),
+        format: winston.format.combine(winston.format.timestamp(), winston.format.prettyPrint()),
         filename: `${name}-error-%DATE%.log`,
         auditFile: join(rootDir, `${basename(name)}-audit.log`),
         level: 'error',
-        dirname: rootDir,
-        datePattern: 'YYYY-MM-DD',
-        zippedArchive: true,
-        maxSize: '20m',
-        maxFiles: '14d'
-      })
-    )
-    this.logger.add(
-      new DailyRotateFile({
-        format: winston.format.combine(onlyAudit(), winston.format.timestamp(), winston.format.json(jsonOptions)),
-        filename: `${name}-audit-%DATE%.log`,
-        auditFile: join(rootDir, `${basename(name)}-audit-rotation.json`),
         dirname: rootDir,
         datePattern: 'YYYY-MM-DD',
         zippedArchive: true,
@@ -90,7 +74,6 @@ export class SplitLogger implements MeasureLogger {
       this.logger.add(
         new winston.transports.Console({
           format: winston.format.combine(
-            excludeAudit(),
             winston.format.timestamp(),
             winston.format.json(jsonOptions),
             winston.format.colorize({ all: true })

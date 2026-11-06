@@ -62,5 +62,5 @@ test('uses a stable shared group and replays retained events on first startup', 
   const createConsumer = jest.fn()
   const queue: Partial<PlatformQueue> = { createConsumer }
   startAuditConsumer(ctx, queue as PlatformQueue, store)
-  expect(createConsumer).toHaveBeenCalledWith(ctx, QueueTopic.Audit, 'account-service-audit-v1', expect.any(Function), { fromBegining: true })
+  expect(createConsumer).toHaveBeenCalledWith(ctx, QueueTopic.Audit, 'account-service-audit-v1', expect.any(Function), { fromBegining: true, allowAutoTopicCreation: false, partitionsConsumedConcurrently: 3 })
 })

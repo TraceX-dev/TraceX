@@ -62,8 +62,9 @@ export function isAuditRecord (value: unknown): value is AuditRecord {
   if (
     typeof fields.eventId !== 'string' ||
     !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(fields.eventId)
-  )
-    {return false}
+  ) {
+    return false
+  }
   if (!Number.isSafeInteger(fields.occurredAt) || Number(fields.occurredAt) < 0) return false
   if (!['succeeded', 'denied', 'failed'].includes(String(fields.outcome))) return false
   for (const key of ['actorAccountUuid', 'actorService', 'workspaceUuid', 'targetType', 'targetId', 'operationId']) {
@@ -131,7 +132,14 @@ export function startAuditPublisher (ctx: MeasureContext, queue: PlatformQueue, 
     ctx.error('Audit delivery unavailable: a real queue is required', { sourceService: source })
     return async () => {}
   }
-  const producer = queue.getProducer<AuditRecord>(ctx, QueueTopic.Audit)
+  const producer = queue.getProducer<AuditRecord>(ctx, QueueTopic.Audit, {
+    allowAutoTopicCreation: false,
+    idempotent: true,
+    maxInFlightRequests: 1,
+    retry: { retries: 2, initialRetryTime: 300, maxRetryTime: 1000 },
+    acks: -1,
+    timeout: 5000
+  })
   setAuditEventWriter(source, async (operationCtx, record) => {
     const workspace = record.workspaceUuid as WorkspaceUuid | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -144,7 +152,9 @@ export function startAuditPublisher (ctx: MeasureContext, queue: PlatformQueue, 
           record.workspaceUuid ?? record.actorAccountUuid ?? record.eventId
         ),
         new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => { reject(new Error('Audit publish timed out')); }, 10000)
+          timer = setTimeout(() => {
+            reject(new Error('Audit publish timed out'))
+          }, 10000)
         })
       ])
     } finally {

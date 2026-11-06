@@ -15,7 +15,7 @@
 //
 
 import type { MeasureContext, WorkspaceUuid } from '@hcengineering/core'
-import { type ConsumerHandle, type PlatformQueue, type PlatformQueueProducer, type QueueTopic } from './types'
+import { type ConsumerHandle, type PlatformQueue, type PlatformQueueProducer, type QueueTopic, type QueueProducerOptions, type QueueConsumerOptions } from './types'
 
 /**
  * A dummy implementation of PlatformQueueProducer for testing and development
@@ -38,7 +38,7 @@ class DummyQueueProducer<T> implements PlatformQueueProducer<T> {
  * A dummy implementation of PlatformQueue for testing and development
  */
 export class DummyQueue implements PlatformQueue {
-  getProducer<T>(ctx: MeasureContext, topic: QueueTopic | string): PlatformQueueProducer<T> {
+  getProducer<T>(ctx: MeasureContext, topic: QueueTopic | string, options?: QueueProducerOptions): PlatformQueueProducer<T> {
     return new DummyQueueProducer<T>()
   }
 
@@ -62,10 +62,7 @@ export class DummyQueue implements PlatformQueue {
         heartbeat: () => Promise<void>
       }
     ) => Promise<void>,
-    options?: {
-      bulkSize?: number
-      fromBegining?: boolean
-    }
+    options?: QueueConsumerOptions
   ): ConsumerHandle {
     return {
       close: async (): Promise<void> => {

@@ -120,8 +120,9 @@ test('rejects malformed versions, nested payloads, oversized batches and non-str
     { workspaceUuid: 42 },
     { body: { password: 'secret' } },
     { accounts: Array(101).fill('account') }
-  ])
-    {expect(isAuditRecord({ ...record, ...patch })).toBe(false)}
+  ]) {
+    expect(isAuditRecord({ ...record, ...patch })).toBe(false)
+  }
 })
 
 function publisherQueue (send: jest.Mock, close: jest.Mock): PlatformQueue {
@@ -135,11 +136,11 @@ function publisherQueue (send: jest.Mock, close: jest.Mock): PlatformQueue {
 
 test('publishes instance events without a fabricated workspace and drains before closing', async () => {
   let finish: () => void = () => {}
-  const send = jest.fn().mockImplementation(
-    async () => { await new Promise<void>((resolve) => {
-        finish = resolve
-      }); }
-  )
+  const send = jest.fn().mockImplementation(async () => {
+    await new Promise<void>((resolve) => {
+      finish = resolve
+    })
+  })
   const close = jest.fn().mockResolvedValue(undefined)
   const stop = startAuditPublisher(ctx, publisherQueue(send, close), 'account')
   const delivery = recordAuditEvent(ctx, { event: 'account.login' })
@@ -159,7 +160,9 @@ test('publishes instance events without a fabricated workspace and drains before
 
 test('bounds broker wait without changing the action result or leaking timer rejections', async () => {
   jest.useFakeTimers()
-  const send = jest.fn().mockImplementation(async () => { await new Promise<void>(() => {}); })
+  const send = jest.fn().mockImplementation(async () => {
+    await new Promise<void>(() => {})
+  })
   const close = jest.fn().mockResolvedValue(undefined)
   const stop = startAuditPublisher(ctx, publisherQueue(send, close), 'account')
   const result = withAuditEvent(ctx, { event: 'custom.operation' }, async () => 42)

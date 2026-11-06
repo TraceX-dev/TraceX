@@ -120,7 +120,10 @@ integration('audit PostgreSQL/Redpanda delivery', () => {
       )
       // Simulate a delivery repeated after INSERT but before its offset was committed.
       await producerQueue
-        .getProducer<AuditRecord>(ctx, QueueTopic.Audit)
+        .getProducer<AuditRecord>(ctx, QueueTopic.Audit, {
+          allowAutoTopicCreation: false, idempotent: true, maxInFlightRequests: 1,
+          retry: { retries: 2, initialRetryTime: 300, maxRetryTime: 1000 }, acks: -1, timeout: 5000
+        })
         .send(ctx, undefined, [original], original.eventId)
       await waitFor(async () => received.length >= 2)
       const rows = await sql.unsafe(`SELECT * FROM ${ns}.audit_events`)

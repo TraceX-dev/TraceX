@@ -34,6 +34,8 @@ export function createAuditHandler (store: AuditEventStore): (ctx: MeasureContex
 /** All account-service replicas share a group; a fresh installation reads retained events. */
 export function startAuditConsumer (ctx: MeasureContext, queue: PlatformQueue, store: AuditEventStore): ConsumerHandle {
   return queue.createConsumer(ctx, QueueTopic.Audit, 'account-service-audit-v1', createAuditHandler(store), {
-    fromBegining: true
+    fromBegining: true,
+    allowAutoTopicCreation: false,
+    partitionsConsumedConcurrently: 3
   })
 }

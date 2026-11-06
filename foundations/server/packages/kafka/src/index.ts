@@ -17,11 +17,14 @@
 import { type MeasureContext, type WorkspaceUuid } from '@hcengineering/core'
 import {
   QueueTopic,
+  isGlobalQueueTopic,
   type ConsumerControl,
   type ConsumerHandle,
   type ConsumerMessage,
   type PlatformQueue,
-  type PlatformQueueProducer
+  type PlatformQueueProducer,
+  type QueueProducerOptions,
+  type QueueConsumerOptions
 } from '@hcengineering/server-core'
 import { Kafka, Partitioners, type Consumer, type Producer, CompressionTypes } from 'kafkajs'
 import type * as tls from 'tls'
@@ -49,22 +52,20 @@ export function parseQueueConfig (config: string, serviceId: string, region: str
   }
 }
 
-// Global (non-region-scoped) topics. Most topics are produced and consumed
-// within a single region, so they are namespaced with the producer's region.
-// These few are produced by region-specific services but consumed by a single
-// global service (e.g. account-service raising the cross-workspace unread flag),
-// so they must resolve to the same name regardless of the producer's region.
-// Referenced by value (not a module-level Set of QueueTopic) so this file has no
-// top-level dependency on server-core's enum being initialized first.
-function isGlobalTopic (topic: QueueTopic | string): boolean {
-  return topic === QueueTopic.WorkspaceMemberUnread || topic === QueueTopic.Audit
-}
-
 function getKafkaTopicId (topic: QueueTopic | string, config: QueueConfig): string {
-  if (config.region !== '' && !isGlobalTopic(topic)) {
+  if (config.region !== '' && !isGlobalQueueTopic(topic)) {
     return `${config.region}.${topic}${config.postfix ?? ''}`
   }
   return `${topic}${config.postfix ?? ''}`
+}
+
+function producerOptionsKey (options: QueueProducerOptions): string {
+  return JSON.stringify([
+    options.allowAutoTopicCreation ?? true, options.idempotent ?? false,
+    options.maxInFlightRequests, options.retry?.retries,
+    options.retry?.initialRetryTime, options.retry?.maxRetryTime,
+    options.acks ?? -1, options.timeout ?? 30000
+  ])
 }
 
 class PlatformQueueImpl implements PlatformQueue {
@@ -96,16 +97,19 @@ class PlatformQueueImpl implements PlatformQueue {
     }
   }
 
-  getProducer<T>(ctx: MeasureContext, topic: QueueTopic | string): PlatformQueueProducer<T> {
+  getProducer<T>(ctx: MeasureContext, topic: QueueTopic | string, options: QueueProducerOptions = {}): PlatformQueueProducer<T> {
     const producer = this.producers.get(topic)
-    if (producer !== undefined && !producer.isClosed()) return producer
+    if (producer !== undefined && !producer.isClosed()) {
+      if (!producer.matchesOptions(options)) throw new TypeError(`Conflicting producer options for topic ${topic}`)
+      return producer
+    }
 
     const created = new PlatformQueueProducerImpl(
       ctx,
       this.kafka,
       getKafkaTopicId(topic, this.config),
       this,
-      topic === QueueTopic.Audit
+      options
     )
     this.producers.set(topic, created)
 
@@ -117,11 +121,7 @@ class PlatformQueueImpl implements PlatformQueue {
     topic: QueueTopic | string,
     groupId: string,
     onMessage: (ctx: MeasureContext, msg: ConsumerMessage<T>, queue: ConsumerControl) => Promise<void>,
-    options?: {
-      fromBegining?: boolean
-      retryDelay?: number // Initial retry delay in milliseconds (default 1000)
-      maxRetryDelay?: number // Maximum retry delay in seconds (default 10)
-    }
+    options?: QueueConsumerOptions
   ): ConsumerHandle {
     const result = new PlatformQueueConsumerImpl(ctx, this.kafka, this.config, topic, groupId, onMessage, options)
     this.consumers.push(result)
@@ -214,27 +214,36 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
   txProducer: Producer
   connected: Promise<void> | undefined
   private closed = false
+  private readonly options: QueueProducerOptions
 
   constructor (
     readonly ctx: MeasureContext,
     kafka: Kafka,
     private readonly topic: string,
     private readonly queue: PlatformQueue,
-    private readonly audit: boolean = false
+    options: QueueProducerOptions = {}
   ) {
+    this.options = { ...options, retry: options.retry !== undefined ? { ...options.retry } : undefined }
+    const { acks: _acks, timeout: _timeout, ...producerOptions } = this.options
     this.txProducer = kafka.producer({
-      allowAutoTopicCreation: !audit,
-      ...(audit
-        ? { idempotent: true, maxInFlightRequests: 1, retry: { retries: 2, initialRetryTime: 300, maxRetryTime: 1000 } }
-        : {}),
+      allowAutoTopicCreation: true,
+      ...producerOptions,
       createPartitioner: Partitioners.DefaultPartitioner
     })
-    this.connected = this.ctx.with('connect-broker', {}, () => this.txProducer.connect())
-    const connection = this.connected
-    // A rejected eager connection must not poison the first send after recovery.
+    this.connected = this.connect()
+  }
+
+  private connect (): Promise<void> {
+    const connection = this.ctx.with('connect-broker', {}, () => this.txProducer.connect())
+    // Reset failed startup connections for every producer, preserving successful connections.
     void connection.catch(() => {
-      if (this.audit && this.connected === connection) this.connected = undefined
+      if (this.connected === connection) this.connected = undefined
     })
+    return connection
+  }
+
+  matchesOptions (options: QueueProducerOptions): boolean {
+    return producerOptionsKey(this.options) === producerOptionsKey(options)
   }
 
   getQueue (): PlatformQueue {
@@ -247,16 +256,9 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
     msgs: any[],
     partitionKey?: string
   ): Promise<void> {
-    if (this.audit && this.connected === undefined) this.connected = this.txProducer.connect()
-    const connection = this.connected
-    if (connection !== undefined) {
-      try {
-        await connection
-      } finally {
-        if (this.audit && this.connected === connection) this.connected = undefined
-      }
-      if (this.connected === connection) this.connected = undefined
-    }
+    if (this.closed) throw new Error('Queue producer is closed')
+    this.connected ??= this.connect()
+    await this.connected
     await this.ctx.with('send', { topic: this.topic }, () =>
       this.txProducer.send({
         topic: this.topic,
@@ -269,7 +271,8 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
           }
         })),
         compression: CompressionTypes.GZIP,
-        ...(this.audit ? { acks: -1, timeout: 5000 } : {})
+        ...(this.options.acks !== undefined ? { acks: this.options.acks } : {}),
+        ...(this.options.timeout !== undefined ? { timeout: this.options.timeout } : {})
       })
     )
   }
@@ -299,17 +302,13 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
       msg: ConsumerMessage<any>,
       queue: ConsumerControl
     ) => Promise<void>,
-    private readonly options?: {
-      fromBegining?: boolean
-      retryDelay?: number // Initial retry delay in milliseconds (default 1000)
-      maxRetryDelay?: number // Maximum retry delay in seconds (default 10)
-    }
+    private readonly options?: QueueConsumerOptions
   ) {
     // Long handlers must call ConsumerControl.heartbeat(); these timeouts still help under broker/load jitter (e.g. Redpanda in Docker).
     const sessionTimeout = parseInt(process.env.KAFKA_CONSUMER_SESSION_TIMEOUT_MS ?? '90000', 10)
     this.cc = this.kafka.consumer({
       groupId: `${getKafkaTopicId(this.topic, this.config)}-${groupId}`,
-      allowAutoTopicCreation: topic !== QueueTopic.Audit,
+      allowAutoTopicCreation: options?.allowAutoTopicCreation ?? true,
       sessionTimeout,
       rebalanceTimeout: Math.min(sessionTimeout * 2, 300000),
       heartbeatInterval: 3000
@@ -325,12 +324,11 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
     await this.doSubscribe()
 
     await this.cc.run({
-      ...(this.topic === QueueTopic.Audit ? { partitionsConsumedConcurrently: 3 } : {}),
+      ...(this.options?.partitionsConsumedConcurrently !== undefined
+        ? { partitionsConsumedConcurrently: this.options.partitionsConsumedConcurrently } : {}),
       eachMessage: async (payload) => {
         const { message } = payload
         const msgKey = message.key?.toString() ?? ''
-        const decode = (): unknown => JSON.parse(message.value?.toString() ?? '{}')
-        const msgData = this.topic === QueueTopic.Audit ? undefined : decode()
         const workspace = (message.headers?.workspace?.toString() ?? msgKey) as WorkspaceUuid
 
         const retryDelay = this.options?.retryDelay ?? 1000
@@ -338,6 +336,7 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
         let to = 1
         while (!this.closed) {
           try {
+            const value: unknown = JSON.parse(message.value?.toString() ?? '{}')
             const meta = JSON.parse(message.headers?.meta?.toString() ?? '{}')
             await this.ctx.with(
               'handle-msg',
@@ -345,7 +344,7 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
               (ctx) =>
                 this.onMessage(
                   ctx,
-                  { workspace, value: this.topic === QueueTopic.Audit ? decode() : msgData },
+                  { workspace, value },
                   { heartbeat: () => payload.heartbeat(), pause: () => payload.pause() }
                 ),
               {},
@@ -356,16 +355,12 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
             return
           } catch (err: any) {
             if (this.closed) throw err
-            if (this.topic === QueueTopic.Audit) {
-              this.ctx.error('Audit consumer blocked; message will be retried', {
-                topic: payload.topic,
-                partition: payload.partition,
-                offset: message.offset,
-                errorType: err instanceof Error ? err.name : 'UnknownError'
-              })
-            } else {
-              this.ctx.error('failed to process message', { err, msgKey, msgData, workspace })
-            }
+            this.ctx.error('Queue message processing failed; message will be retried', {
+              topic: payload.topic,
+              partition: payload.partition,
+              offset: message.offset,
+              errorType: err instanceof Error ? err.name : 'UnknownError'
+            })
             await payload.heartbeat()
             await new Promise((resolve) => setTimeout(resolve, to * retryDelay))
             if (to < maxRetryDelay) {

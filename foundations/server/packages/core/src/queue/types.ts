@@ -88,8 +88,36 @@ export interface ConsumerControl {
   heartbeat: () => Promise<void>
 }
 
+/** Delivery policy selected by the producer's owner, without backend SDK types. */
+export interface QueueProducerOptions {
+  allowAutoTopicCreation?: boolean
+  idempotent?: boolean
+  maxInFlightRequests?: number
+  retry?: {
+    retries: number
+    initialRetryTime?: number // Milliseconds
+    maxRetryTime?: number // Milliseconds
+  }
+  acks?: -1 | 0 | 1
+  timeout?: number // Broker acknowledgement timeout in milliseconds
+}
+
+/** Consumer execution policy; existing callers retain the default configuration. */
+export interface QueueConsumerOptions {
+  fromBegining?: boolean
+  retryDelay?: number // Initial retry delay in milliseconds (default 1000)
+  maxRetryDelay?: number // Maximum retry multiplier (default 10)
+  allowAutoTopicCreation?: boolean
+  partitionsConsumedConcurrently?: number
+}
+
+/** Topic scope is part of the application topology, not a backend delivery policy. */
+export function isGlobalQueueTopic (topic: QueueTopic | string): boolean {
+  return topic === QueueTopic.WorkspaceMemberUnread || topic === QueueTopic.Audit
+}
+
 export interface PlatformQueue {
-  getProducer: <T>(ctx: MeasureContext, topic: QueueTopic | string) => PlatformQueueProducer<T>
+  getProducer: <T>(ctx: MeasureContext, topic: QueueTopic | string, options?: QueueProducerOptions) => PlatformQueueProducer<T>
 
   /**
    * Create a consumer for a topic.
@@ -100,11 +128,7 @@ export interface PlatformQueue {
     topic: QueueTopic | string,
     groupId: string,
     onMessage: (ctx: MeasureContext, msg: ConsumerMessage<T>, queue: ConsumerControl) => Promise<void>,
-    options?: {
-      fromBegining?: boolean
-      retryDelay?: number // Initial retry delay in milliseconds (default 1000)
-      maxRetryDelay?: number // Maximum retry delay in seconds (default 10)
-    }
+    options?: QueueConsumerOptions
   ) => ConsumerHandle
 
   createTopic: (topics: string | string[], partitions: number) => Promise<void>
