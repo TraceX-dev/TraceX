@@ -74,7 +74,7 @@ export function guardGuestMethod (
 
   return async (ctx, db, branding, request, token, params, meta) => {
     if (token == null || token === '') {
-      auditAccountEvent(ctx, undefined, {
+      await auditAccountEvent(ctx, undefined, {
         event: 'account.rpc',
         method: request.method,
         outcome: 'denied',
@@ -89,7 +89,7 @@ export function guardGuestMethod (
       decoded = decodeTokenVerbose(ctx, token)
       guestRole = await getGuestRole(db, decoded)
     } catch (error) {
-      auditAccountEvent(ctx, undefined, {
+      await auditAccountEvent(ctx, undefined, {
         event: 'account.rpc',
         method: request.method,
         outcome: 'denied',
@@ -111,7 +111,7 @@ export function guardGuestMethod (
       (guestRole === AccountRole.ReadOnlyGuest && policy === 'joinWorkspace' && !isSharedAnonymous(decoded))
 
     if (!allowed) {
-      auditAccountEvent(ctx, token, {
+      await auditAccountEvent(ctx, token, {
         event: 'account.rpc',
         method: request.method,
         outcome: 'denied',

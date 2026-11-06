@@ -14,81 +14,162 @@
 //
 
 import type { MeasureContext } from '@hcengineering/core'
-
-import { hashAuditValue, recordAuditEvent, withAuditEvent } from '../audit'
+import {
+  hashAuditValue,
+  isAuditRecord,
+  recordAuditEvent,
+  setAuditEventWriter,
+  startAuditPublisher,
+  withAuditEvent
+} from '../audit'
+import type { AuditRecord } from '../audit'
+import type { PlatformQueue, PlatformQueueProducer } from '../queue/types'
 
 const logs: Pick<MeasureContext, 'info' | 'warn' | 'error'> = { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 const ctx = logs as MeasureContext
+const write = jest.fn<Promise<void>, [MeasureContext, AuditRecord]>()
 
-beforeEach(() => jest.resetAllMocks())
+beforeEach(() => {
+  jest.resetAllMocks()
+  write.mockResolvedValue(undefined)
+  setAuditEventWriter('test', write)
+})
+afterEach(() => {
+  setAuditEventWriter('test', undefined)
+  jest.useRealTimers()
+})
 
-test('records a custom domain event without registration and preserves its identifiers', () => {
-  recordAuditEvent(ctx, { event: 'document.publish', actorAccountUuid: 'actor', documentId: 'document' })
-  recordAuditEvent(ctx, { event: 'document.publish', actorAccountUuid: 'actor', documentId: 'document' })
-  const records = (logs.info as jest.Mock).mock.calls.map(([, fields]) => fields)
+test('publishes versioned custom events with distinct stable identities and explicit fields', async () => {
+  await recordAuditEvent(ctx, { event: 'document.publish', actorAccountUuid: 'actor', documentId: 'document' })
+  await recordAuditEvent(ctx, { event: 'document.publish', actorAccountUuid: 'actor', documentId: 'document' })
+  const records = write.mock.calls.map(([, record]) => record)
   expect(records[0]).toMatchObject({
-    audit: true,
-    event: 'document.publish',
+    schemaVersion: 1,
+    sourceService: 'test',
     outcome: 'succeeded',
-    actorAccountUuid: 'actor',
     documentId: 'document'
   })
-  expect(records[0].eventId).toMatch(/^[a-f0-9-]{36}$/)
   expect(records[0].eventId).not.toBe(records[1].eventId)
-})
-
-test.each(['denied', 'failed'] as const)('routes %s outcomes at the appropriate severity', (outcome) => {
-  recordAuditEvent(ctx, { event: 'document.publish', outcome })
-  expect(outcome === 'denied' ? logs.warn : logs.error).toHaveBeenCalledWith(
-    'Audit event',
-    expect.objectContaining({ outcome })
-  )
+  expect(isAuditRecord(records[0])).toBe(true)
   expect(logs.info).not.toHaveBeenCalled()
 })
 
-test('audits only the settled action and never exports its returned credentials', async () => {
-  const result: Record<string, string> = { token: 'private-token' }
-  let resolveAction: (value: Record<string, string>) => void = () => {}
-  const action = new Promise<Record<string, string>>((resolve) => {
-    resolveAction = resolve
+test.each(['denied', 'failed'] as const)('publishes the %s business outcome', async (outcome) => {
+  await recordAuditEvent(ctx, { event: 'document.publish', outcome })
+  expect(write).toHaveBeenCalledWith(ctx, expect.objectContaining({ outcome }))
+})
+
+test('waits for the action and publication without exposing the returned credentials', async () => {
+  let finish: (value: string) => void = () => {}
+  const action = new Promise<string>((resolve) => {
+    finish = resolve
   })
   const pending = withAuditEvent(ctx, { event: 'custom.operation' }, async () => await action)
-  expect(logs.info).not.toHaveBeenCalled()
-  resolveAction(result)
-  expect(await pending).toBe(result)
-  expect(logs.info).toHaveBeenCalledTimes(1)
-  expect(JSON.stringify((logs.info as jest.Mock).mock.calls)).not.toContain('private-token')
+  expect(write).not.toHaveBeenCalled()
+  finish('private-token')
+  expect(await pending).toBe('private-token')
+  expect(write).toHaveBeenCalledTimes(1)
+  expect(JSON.stringify(write.mock.calls)).not.toContain('private-token')
 })
 
-test('preserves the original action error and exports only its type', async () => {
+test('preserves action errors and exports only their type', async () => {
   const error = new TypeError('private database credentials')
   await expect(
-    withAuditEvent(ctx, { event: 'workspace.data.cleanup' }, async () => {
+    withAuditEvent(ctx, { event: 'cleanup' }, async () => {
       throw error
     })
   ).rejects.toBe(error)
-  expect(logs.info).not.toHaveBeenCalled()
-  expect(logs.error).toHaveBeenCalledWith(
-    'Audit event',
-    expect.objectContaining({ outcome: 'failed', errorType: 'TypeError' })
-  )
-  expect(JSON.stringify((logs.error as jest.Mock).mock.calls)).not.toContain(error.message)
+  expect(write).toHaveBeenCalledWith(ctx, expect.objectContaining({ outcome: 'failed', errorType: 'TypeError' }))
+  expect(JSON.stringify(write.mock.calls)).not.toContain(error.message)
 })
 
-test('isolates logger failures from both action results and errors', async () => {
-  ;(logs.info as jest.Mock).mockImplementation(() => {
-    throw new Error('logger unavailable')
-  })
+test('transport and diagnostic failures neither replace results nor invent failed actions', async () => {
+  write.mockRejectedValue(new Error('private broker details'))
   ;(logs.error as jest.Mock).mockImplementation(() => {
     throw new Error('logger unavailable')
   })
   await expect(withAuditEvent(ctx, { event: 'custom.operation' }, async () => 42)).resolves.toBe(42)
-  const error = new Error('original error')
+  expect(write).toHaveBeenCalledTimes(1)
+  expect(write.mock.calls[0][1].outcome).toBe('succeeded')
+  const error = new Error('original action error')
   await expect(
     withAuditEvent(ctx, { event: 'custom.operation' }, async () => {
       throw error
     })
   ).rejects.toBe(error)
+})
+
+test('reports an unconfigured writer without treating technical logs as saved audit', async () => {
+  setAuditEventWriter('test', undefined)
+  await recordAuditEvent(ctx, { event: 'custom.operation' })
+  expect(logs.error).toHaveBeenCalledWith(
+    'Audit delivery failed',
+    expect.objectContaining({ event: 'custom.operation' })
+  )
+  expect(write).not.toHaveBeenCalled()
+})
+
+test('rejects malformed versions, nested payloads, oversized batches and non-string identifiers', async () => {
+  await recordAuditEvent(ctx, { event: 'valid.event' })
+  const record = write.mock.calls[0][1]
+  for (const patch of [
+    { schemaVersion: 2 },
+    { outcome: 'other' },
+    { occurredAt: -1 },
+    { eventId: 'invalid' },
+    { workspaceUuid: 42 },
+    { body: { password: 'secret' } },
+    { accounts: Array(101).fill('account') }
+  ])
+    {expect(isAuditRecord({ ...record, ...patch })).toBe(false)}
+})
+
+function publisherQueue (send: jest.Mock, close: jest.Mock): PlatformQueue {
+  const producer: Partial<PlatformQueueProducer<AuditRecord>> = { send, close }
+  const queue: Partial<PlatformQueue> = {
+    getClientId: () => 'test',
+    getProducer: jest.fn().mockReturnValue(producer)
+  }
+  return queue as PlatformQueue
+}
+
+test('publishes instance events without a fabricated workspace and drains before closing', async () => {
+  let finish: () => void = () => {}
+  const send = jest.fn().mockImplementation(
+    async () => { await new Promise<void>((resolve) => {
+        finish = resolve
+      }); }
+  )
+  const close = jest.fn().mockResolvedValue(undefined)
+  const stop = startAuditPublisher(ctx, publisherQueue(send, close), 'account')
+  const delivery = recordAuditEvent(ctx, { event: 'account.login' })
+  const shutdown = stop()
+  expect(close).not.toHaveBeenCalled()
+  expect(send).toHaveBeenCalledWith(
+    ctx,
+    undefined,
+    [expect.objectContaining({ sourceService: 'account' })],
+    expect.any(String)
+  )
+  finish()
+  await delivery
+  await shutdown
+  expect(close).toHaveBeenCalledTimes(1)
+})
+
+test('bounds broker wait without changing the action result or leaking timer rejections', async () => {
+  jest.useFakeTimers()
+  const send = jest.fn().mockImplementation(async () => { await new Promise<void>(() => {}); })
+  const close = jest.fn().mockResolvedValue(undefined)
+  const stop = startAuditPublisher(ctx, publisherQueue(send, close), 'account')
+  const result = withAuditEvent(ctx, { event: 'custom.operation' }, async () => 42)
+  await jest.advanceTimersByTimeAsync(10000)
+  await expect(result).resolves.toBe(42)
+  expect(logs.error).toHaveBeenCalledWith(
+    'Audit delivery failed',
+    expect.objectContaining({ eventId: expect.any(String) })
+  )
+  await stop()
 })
 
 test('hashes explicit identifiers with a key and scope, omitting values without a key', () => {

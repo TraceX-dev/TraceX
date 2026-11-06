@@ -13,13 +13,18 @@
 // limitations under the License.
 //
 
+import { randomUUID } from 'crypto'
 import type { MeasureContext } from '@hcengineering/core'
 import platform from '@hcengineering/platform'
 import { hashAuditValue, recordAuditEvent, type AuditEvent } from '@hcengineering/server-core'
 import { decodeToken } from '@hcengineering/server-token'
 
 /** Add only verified caller identity to explicitly selected domain fields. */
-export function auditAccountEvent (ctx: MeasureContext, token: string | undefined, event: AuditEvent): void {
+export async function auditAccountEvent (
+  ctx: MeasureContext,
+  token: string | undefined,
+  event: AuditEvent
+): Promise<void> {
   let actor: AuditEvent = { event: event.event }
   if (token != null && token !== '') {
     try {
@@ -37,7 +42,28 @@ export function auditAccountEvent (ctx: MeasureContext, token: string | undefine
       // Invalid claims cannot identify the actor of a denied request.
     }
   }
-  recordAuditEvent(ctx, { ...actor, ...event })
+  await recordAuditEvent(ctx, { ...actor, ...event })
+}
+
+/** Publish bounded chunks while preserving every recipient of a bulk change. */
+export async function auditAccountBatchEvent (
+  ctx: MeasureContext,
+  token: string,
+  event: AuditEvent,
+  accountIds: readonly string[]
+): Promise<void> {
+  const operationId = randomUUID()
+  const chunkCount = Math.max(1, Math.ceil(accountIds.length / 100))
+  for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+    await auditAccountEvent(ctx, token, {
+      ...event,
+      operationId,
+      accountIds: accountIds.slice(chunkIndex * 100, (chunkIndex + 1) * 100),
+      accountIdsCount: accountIds.length,
+      chunkIndex,
+      chunkCount
+    })
+  }
 }
 
 /** Correlate email subjects without writing their address to audit records. */

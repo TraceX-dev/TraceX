@@ -173,6 +173,7 @@ export class WorkspaceWorker {
 
     while (!isCanceled()) {
       await this.waitForAvailableThread()
+      if (isCanceled()) break
 
       const workspace = await ctx.with('get-pending-workspace', {}, async (ctx) => {
         try {
@@ -181,6 +182,7 @@ export class WorkspaceWorker {
           ctx.error('Error getting pending workspace:', { origErr: err })
         }
       })
+      if (isCanceled()) break
       if (workspace == null) {
         // no workspaces available, sleep before another attempt
         await this.doSleep(ctx, opt)
@@ -198,6 +200,10 @@ export class WorkspaceWorker {
         // sleep for a little bit to avoid bombarding the account service, also add jitter to avoid simultaneous requests from multiple workspace services
         await new Promise((resolve) => setTimeout(resolve, Math.random() * 400 + 200))
       }
+    }
+    // Finish in-flight operations before the service drains its audit publisher.
+    while (this.runningTasks > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 50))
     }
   }
 

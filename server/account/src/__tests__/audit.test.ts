@@ -25,7 +25,8 @@ import {
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import { decodeToken, decodeTokenVerbose, type Token } from '@hcengineering/server-token'
 
-import { auditAccountEvent, auditEmailHash } from '../audit'
+import { setAuditEventWriter, type AuditRecord } from '@hcengineering/server-core'
+import { auditAccountBatchEvent, auditAccountEvent, auditEmailHash } from '../audit'
 import { guardGuestMethod } from '../guestAccess'
 import { deleteWorkspace, getMethods, login, validateOtp } from '../operations'
 import { assignWorkspace, updateWorkspaceInfo } from '../serviceOperations'
@@ -79,14 +80,17 @@ const db: Partial<AccountDB> = {
   updateWorkspaceRole: jest.fn()
 }
 
-function events (): Array<Record<string, unknown>> {
-  return [logs.info, logs.warn, logs.error].flatMap((logger) =>
-    (logger as jest.Mock).mock.calls.filter(([message]) => message === 'Audit event').map(([, fields]) => fields)
-  )
+const auditRecords: AuditRecord[] = []
+function events (): AuditRecord[] {
+  return auditRecords
 }
 
 beforeEach(() => {
   jest.clearAllMocks()
+  auditRecords.length = 0
+  setAuditEventWriter('account', async (_ctx, record) => {
+    auditRecords.push(record)
+  })
   ;(decodeToken as jest.Mock).mockReturnValue(decoded)
   ;(decodeTokenVerbose as jest.Mock).mockReturnValue(decoded)
   ;(db.getWorkspaceRole as jest.Mock).mockResolvedValue(null)
@@ -96,17 +100,20 @@ beforeEach(() => {
   ;(socialCollection.update as jest.Mock).mockResolvedValue(undefined)
 })
 
-afterEach(() => jest.restoreAllMocks())
+afterEach(() => {
+  setAuditEventWriter('account', undefined)
+  jest.restoreAllMocks()
+})
 
-test('domain callers explicitly select fields and may use the actual target account', () => {
-  auditAccountEvent(ctx, 'verified-token', { event: 'workspace.member.assign', targetAccountUuid: subject })
+test('domain callers explicitly select fields and may use the actual target account', async () => {
+  await auditAccountEvent(ctx, 'verified-token', { event: 'workspace.member.assign', targetAccountUuid: subject })
   expect(events()).toHaveLength(1)
   expect(events()[0]).toMatchObject({ actorAccountUuid: actor, targetAccountUuid: subject, workspaceUuid: workspace })
   expect(JSON.stringify(events())).not.toContain('verified-token')
 })
 
-test('public actions do not attribute an unrelated browser token', () => {
-  auditAccountEvent(ctx, undefined, { event: 'account.signup', subjectAccountUuid: subject })
+test('public actions do not attribute an unrelated browser token', async () => {
+  await auditAccountEvent(ctx, undefined, { event: 'account.signup', subjectAccountUuid: subject })
   expect(decodeToken).not.toHaveBeenCalled()
   expect(events()[0].actorAccountUuid).toBeUndefined()
   expect(events()[0].subjectAccountUuid).toBe(subject)
@@ -131,11 +138,11 @@ test.each([false, true])('login uses its actual account and distinguishes an MFA
   expect(JSON.stringify(events())).not.toMatch(/private-|example.com|unrelated-browser-token/)
 })
 
-test('invalid token claims are never attributed', () => {
+test('invalid token claims are never attributed', async () => {
   ;(decodeToken as jest.Mock).mockImplementation(() => {
     throw new Error('invalid token')
   })
-  auditAccountEvent(ctx, 'invalid-token', { event: 'account.rpc', outcome: 'denied' })
+  await auditAccountEvent(ctx, 'invalid-token', { event: 'account.rpc', outcome: 'denied' })
   expect(events()[0].actorAccountUuid).toBeUndefined()
 })
 
@@ -356,4 +363,18 @@ describe('authentication subjects and email verification', () => {
       expect(JSON.stringify(events())).not.toMatch(/private@example.com|private-otp/)
     }
   )
+})
+
+test('bulk events retain every recipient in bounded correlated chunks', async () => {
+  const accounts = Array.from({ length: 205 }, (_, index) => `account-${index}`)
+  await auditAccountBatchEvent(
+    ctx,
+    'token',
+    { event: 'workspace.permission.assign', permission: 'permission' },
+    accounts
+  )
+  expect(events()).toHaveLength(3)
+  expect(events().flatMap((record) => record.accountIds)).toEqual(accounts)
+  expect(new Set(events().map((record) => record.operationId)).size).toBe(1)
+  expect(new Set(events().map((record) => record.eventId)).size).toBe(3)
 })

@@ -13,41 +13,166 @@
 // limitations under the License.
 //
 
-import type { MeasureContext } from '@hcengineering/core'
+import type { MeasureContext, WorkspaceUuid } from '@hcengineering/core'
 import { createHmac, randomUUID } from 'crypto'
+import { QueueTopic, type PlatformQueue } from './queue/types'
 
-/** Explicit audit attributes. Never pass request bodies, tokens, secrets or raw errors. */
+export type AuditAttributeValue = string | number | boolean | readonly string[] | null | undefined
+
+/** Explicit domain attributes. Never pass request bodies, credentials or raw errors. */
 export interface AuditEvent {
   event: string
   outcome?: 'succeeded' | 'denied' | 'failed'
   actorAccountUuid?: string
   actorService?: string
   workspaceUuid?: string | null
-  [field: string]: string | number | boolean | readonly string[] | null | undefined
+  targetType?: string
+  targetId?: string
+  operationId?: string
+  [field: string]: AuditAttributeValue
 }
 
-/** Write one audit record through the existing local and OTLP logging paths. */
-export function recordAuditEvent (ctx: MeasureContext, event: AuditEvent): void {
+/** Versioned wire record. Additional scalar attributes extend events without changing transport. */
+export interface AuditRecord extends AuditEvent {
+  schemaVersion: 1
+  eventId: string
+  occurredAt: number
+  sourceService: string
+  outcome: 'succeeded' | 'denied' | 'failed'
+}
+
+export type AuditEventWriter = (ctx: MeasureContext, event: AuditRecord) => Promise<void>
+
+let auditWriter: AuditEventWriter | undefined
+let sourceService = 'unknown'
+const pending = new Set<Promise<void>>()
+
+/** Configure once at service startup; callers must explicitly select safe event fields. */
+export function setAuditEventWriter (source: string, writer: AuditEventWriter | undefined): void {
+  sourceService = source
+  auditWriter = writer
+}
+
+/** Validate untrusted queue messages before accepting them into the permanent journal. */
+export function isAuditRecord (value: unknown): value is AuditRecord {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+  const fields = value as Record<string, unknown>
+  const text = (v: unknown): boolean => typeof v === 'string' && v.length > 0 && v.length <= 4096
+  if (fields.schemaVersion !== 1 || !text(fields.event) || !text(fields.sourceService)) return false
+  if (
+    typeof fields.eventId !== 'string' ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(fields.eventId)
+  )
+    {return false}
+  if (!Number.isSafeInteger(fields.occurredAt) || Number(fields.occurredAt) < 0) return false
+  if (!['succeeded', 'denied', 'failed'].includes(String(fields.outcome))) return false
+  for (const key of ['actorAccountUuid', 'actorService', 'workspaceUuid', 'targetType', 'targetId', 'operationId']) {
+    if (fields[key] != null && !text(fields[key])) return false
+  }
+  return (
+    Object.keys(fields).length <= 128 &&
+    Object.values(fields).every(
+      (v) =>
+        v == null ||
+        typeof v === 'boolean' ||
+        (typeof v === 'string' && v.length <= 4096) ||
+        (typeof v === 'number' && Number.isFinite(v)) ||
+        (Array.isArray(v) && v.length <= 100 && v.every((item) => typeof item === 'string' && item.length <= 4096))
+    )
+  )
+}
+
+function reportDeliveryFailure (ctx: MeasureContext, event: AuditEvent, error: unknown): void {
   try {
-    const fields: AuditEvent = { ...event, audit: true, eventId: randomUUID(), outcome: event.outcome ?? 'succeeded' }
-    if (fields.outcome === 'denied') ctx.warn('Audit event', fields)
-    else if (fields.outcome === 'failed') ctx.error('Audit event', fields)
-    else ctx.info('Audit event', fields)
+    ctx.error('Audit delivery failed', {
+      event: event.event,
+      eventId: event.eventId,
+      errorType: error instanceof Error ? error.name : 'UnknownError'
+    })
   } catch {
-    // Audit delivery must not change the business result or replace its error.
+    // Neither transport nor diagnostic failures may change the business outcome.
   }
 }
 
-/** Audit one asynchronous action without inspecting or exporting its result or error message. */
-export async function withAuditEvent<T> (ctx: MeasureContext, event: AuditEvent, action: () => Promise<T>): Promise<T> {
+/** Publish after the business action; broker acceptance is not atomic with its transaction. */
+export async function recordAuditEvent (ctx: MeasureContext, event: AuditEvent): Promise<void> {
+  let diagnosticEvent = event
   try {
-    const result = await action()
-    recordAuditEvent(ctx, { ...event, outcome: 'succeeded' })
-    return result
+    const record: AuditRecord = {
+      ...event,
+      schemaVersion: 1,
+      eventId: randomUUID(),
+      occurredAt: Date.now(),
+      sourceService,
+      outcome: event.outcome ?? 'succeeded'
+    }
+    diagnosticEvent = record
+    if (!isAuditRecord(record)) throw new TypeError('Invalid audit record')
+    const writer = auditWriter
+    if (writer === undefined) throw new Error('Audit writer is not configured')
+    const delivery = writer(ctx, record)
+    pending.add(delivery)
+    try {
+      await delivery
+    } catch (error) {
+      reportDeliveryFailure(ctx, record, error)
+    } finally {
+      pending.delete(delivery)
+    }
   } catch (error) {
-    recordAuditEvent(ctx, { ...event, outcome: 'failed', errorType: error instanceof Error ? error.name : undefined })
+    reportDeliveryFailure(ctx, diagnosticEvent, error)
+  }
+}
+
+/** Configure a queue publisher and return a drain/close hook for service shutdown. */
+export function startAuditPublisher (ctx: MeasureContext, queue: PlatformQueue, source: string): () => Promise<void> {
+  if (queue.getClientId() === 'dummy') {
+    setAuditEventWriter(source, undefined)
+    ctx.error('Audit delivery unavailable: a real queue is required', { sourceService: source })
+    return async () => {}
+  }
+  const producer = queue.getProducer<AuditRecord>(ctx, QueueTopic.Audit)
+  setAuditEventWriter(source, async (operationCtx, record) => {
+    const workspace = record.workspaceUuid as WorkspaceUuid | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        producer.send(
+          operationCtx,
+          workspace ?? undefined,
+          [record],
+          record.workspaceUuid ?? record.actorAccountUuid ?? record.eventId
+        ),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => { reject(new Error('Audit publish timed out')); }, 10000)
+        })
+      ])
+    } finally {
+      clearTimeout(timer)
+    }
+  })
+  return async () => {
+    setAuditEventWriter(source, undefined)
+    await Promise.allSettled([...pending])
+    await producer.close()
+  }
+}
+
+/** Preserve the action's result/error even when publishing its settled outcome fails. */
+export async function withAuditEvent<T> (ctx: MeasureContext, event: AuditEvent, action: () => Promise<T>): Promise<T> {
+  let result: T
+  try {
+    result = await action()
+  } catch (error) {
+    await recordAuditEvent(ctx, {
+      ...event,
+      outcome: 'failed',
+      errorType: error instanceof Error ? error.name : undefined
+    })
     throw error
   }
+  await recordAuditEvent(ctx, { ...event, outcome: 'succeeded' })
+  return result
 }
 
 /** Hash an explicitly normalized private identifier; omit it when no key is configured. */

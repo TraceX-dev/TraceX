@@ -163,7 +163,7 @@ export function wrap (
 
     return await invoke()
       .then((result) => ({ id: request.id, result }))
-      .catch((err: Error) => {
+      .catch(async (err: Error) => {
         const status =
           err instanceof PlatformError
             ? err.status
@@ -173,7 +173,7 @@ export function wrap (
 
         const method = request.method ?? accountMethod.name
         const email = noAuth && typeof request.params?.email === 'string' ? request.params.email : undefined
-        auditAccountEvent(ctx, noAuth ? undefined : token, {
+        await auditAccountEvent(ctx, noAuth ? undefined : token, {
           event: 'account.rpc',
           method,
           outcome: isAccountAuditDenial(method, status.code) ? 'denied' : 'failed',
@@ -733,7 +733,7 @@ export async function signUpByEmail (
   }
 
   await createAccount(db, account, confirmed, automatic)
-  auditAccountEvent(ctx, undefined, {
+  await auditAccountEvent(ctx, undefined, {
     event: 'account.signup',
     subjectAccountUuid: account,
     subjectEmailHash: auditEmailHash(normalizedEmail)
@@ -779,7 +779,11 @@ export async function signUpByGrant (
   // so we can safely proceed to account creation
 
   const socialId = await createAccount(db, accountUuid, true, true)
-  auditAccountEvent(ctx, undefined, { event: 'account.signup', subjectAccountUuid: accountUuid, signupMethod: 'grant' })
+  await auditAccountEvent(ctx, undefined, {
+    event: 'account.signup',
+    subjectAccountUuid: accountUuid,
+    signupMethod: 'grant'
+  })
 
   return { account: accountUuid, socialId }
 }
@@ -992,7 +996,7 @@ export async function updateAllowReadOnlyGuests (
   }
 
   await db.updateAllowReadOnlyGuests(workspace, readOnlyGuestsAllowed)
-  auditAccountEvent(ctx, token, { event: 'workspace.guests.readonly.change', readOnlyGuestsAllowed })
+  await auditAccountEvent(ctx, token, { event: 'workspace.guests.readonly.change', readOnlyGuestsAllowed })
   if (!readOnlyGuestsAllowed) {
     await db.unassignWorkspace(readOnlyGuestAccountUuid, workspace)
     return undefined
@@ -1046,7 +1050,7 @@ export async function updatePasswordAgingRule (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
   await db.updatePasswordAgingRule(workspace, days ?? null)
-  auditAccountEvent(ctx, token, { event: 'workspace.password.policy.change', days })
+  await auditAccountEvent(ctx, token, { event: 'workspace.password.policy.change', days })
 }
 
 export async function checkPasswordAging (
@@ -1098,7 +1102,7 @@ export async function updateAllowGuestSignUp (
   }
 
   await db.updateAllowGuestSignUp(workspace, guestSignUpAllowed)
-  auditAccountEvent(ctx, token, { event: 'workspace.guests.signup.change', guestSignUpAllowed })
+  await auditAccountEvent(ctx, token, { event: 'workspace.guests.signup.change', guestSignUpAllowed })
 }
 
 export async function updateWorkspaceRole (
@@ -1150,7 +1154,11 @@ export async function updateWorkspaceRole (
   }
 
   await db.updateWorkspaceRole(targetAccount, workspace, targetRole)
-  auditAccountEvent(ctx, token, { event: 'workspace.member.role.change', targetAccountUuid: targetAccount, targetRole })
+  await auditAccountEvent(ctx, token, {
+    event: 'workspace.member.role.change',
+    targetAccountUuid: targetAccount,
+    targetRole
+  })
 }
 
 /**
@@ -1457,7 +1465,7 @@ export async function confirmEmail (
   }
 
   await db.socialId.update({ _id: emailSocialId._id }, { verifiedOn: Date.now() })
-  auditAccountEvent(ctx, undefined, { event: 'account.email.confirm', subjectAccountUuid: account })
+  await auditAccountEvent(ctx, undefined, { event: 'account.email.confirm', subjectAccountUuid: account })
   return emailSocialId._id
 }
 
@@ -1654,7 +1662,7 @@ export async function doJoinByInvite (
     // TODO: should we re-join kicked users? How are they marked as inactive?
     if (role == null) {
       await db.assignWorkspace(account, workspace.uuid, invite.role)
-      auditAccountEvent(ctx, token, {
+      await auditAccountEvent(ctx, token, {
         event: 'workspace.member.join',
         workspaceUuid: workspace.uuid,
         targetAccountUuid: account,
@@ -1662,7 +1670,7 @@ export async function doJoinByInvite (
       })
     } else if (getRolePower(role) < getRolePower(invite.role)) {
       await db.updateWorkspaceRole(account, workspace.uuid, invite.role)
-      auditAccountEvent(ctx, token, {
+      await auditAccountEvent(ctx, token, {
         event: 'workspace.member.role.change',
         workspaceUuid: workspace.uuid,
         targetAccountUuid: account,
@@ -1672,7 +1680,7 @@ export async function doJoinByInvite (
   } else if (workspace.allowReadOnlyGuest && workspace.allowGuestSignUp) {
     if (role == null) {
       await db.assignWorkspace(account, workspace.uuid, AccountRole.Guest)
-      auditAccountEvent(ctx, token, {
+      await auditAccountEvent(ctx, token, {
         event: 'workspace.member.join',
         workspaceUuid: workspace.uuid,
         targetAccountUuid: account,

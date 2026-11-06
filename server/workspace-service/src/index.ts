@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2024 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -25,7 +26,7 @@ import {
 import { type MigrateOperation } from '@hcengineering/model'
 import { setMetadata } from '@hcengineering/platform'
 import serverClientPlugin from '@hcengineering/server-client'
-import { QueueTopic, type PlatformQueue, type QueueWorkspaceMessage } from '@hcengineering/server-core'
+import { startAuditPublisher, QueueTopic, type PlatformQueue, type QueueWorkspaceMessage } from '@hcengineering/server-core'
 import serverNotification from '@hcengineering/server-notification'
 import { createStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
 import serverToken from '@hcengineering/server-token'
@@ -129,6 +130,7 @@ export function serveWorkspaceAccount (
   }
 
   let canceled = false
+  const closeAuditPublisher = startAuditPublisher(measureCtx, queue, 'workspace')
 
   const wsProducer = queue.getProducer<QueueWorkspaceMessage>(measureCtx, QueueTopic.Workspace)
   const worker = new WorkspaceWorker(
@@ -145,7 +147,7 @@ export function serveWorkspaceAccount (
     accountDbUrl
   )
 
-  void worker
+  const workerRun = worker
     .start(
       measureCtx,
       {
@@ -165,9 +167,14 @@ export function serveWorkspaceAccount (
     })
 
   const close = (): void => {
+    if (canceled) return
     canceled = true
-    void queue.shutdown()
-    onClose?.()
+    worker.wakeup()
+    void workerRun
+      .then(async () => { await closeAuditPublisher() })
+      .then(async () => { await queue.shutdown() })
+      .catch((error) => measureCtx.error('Workspace audit shutdown failed', { error }))
+      .finally(() => onClose?.())
   }
 
   process.on('uncaughtException', (e) => {

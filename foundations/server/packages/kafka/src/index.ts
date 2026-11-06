@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -56,7 +57,7 @@ export function parseQueueConfig (config: string, serviceId: string, region: str
 // Referenced by value (not a module-level Set of QueueTopic) so this file has no
 // top-level dependency on server-core's enum being initialized first.
 function isGlobalTopic (topic: QueueTopic | string): boolean {
-  return topic === QueueTopic.WorkspaceMemberUnread
+  return topic === QueueTopic.WorkspaceMemberUnread || topic === QueueTopic.Audit
 }
 
 function getKafkaTopicId (topic: QueueTopic | string, config: QueueConfig): string {
@@ -99,7 +100,13 @@ class PlatformQueueImpl implements PlatformQueue {
     const producer = this.producers.get(topic)
     if (producer !== undefined && !producer.isClosed()) return producer
 
-    const created = new PlatformQueueProducerImpl(ctx, this.kafka, getKafkaTopicId(topic, this.config), this)
+    const created = new PlatformQueueProducerImpl(
+      ctx,
+      this.kafka,
+      getKafkaTopicId(topic, this.config),
+      this,
+      topic === QueueTopic.Audit
+    )
     this.producers.set(topic, created)
 
     return created
@@ -211,36 +218,53 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
     readonly ctx: MeasureContext,
     kafka: Kafka,
     private readonly topic: string,
-    private readonly queue: PlatformQueue
+    private readonly queue: PlatformQueue,
+    private readonly audit: boolean = false
   ) {
     this.txProducer = kafka.producer({
-      allowAutoTopicCreation: true,
+      allowAutoTopicCreation: !audit,
+      ...(audit
+        ? { idempotent: true, maxInFlightRequests: 1, retry: { retries: 2, initialRetryTime: 300, maxRetryTime: 1000 } }
+        : {}),
       createPartitioner: Partitioners.DefaultPartitioner
     })
     this.connected = this.ctx.with('connect-broker', {}, () => this.txProducer.connect())
+    // Startup may precede the first send; retain the rejection for the caller without an unhandled promise.
+    void this.connected.catch(() => {})
   }
 
   getQueue (): PlatformQueue {
     return this.queue
   }
 
-  async send (ctx: MeasureContext, workspace: WorkspaceUuid, msgs: any[], partitionKey?: string): Promise<void> {
+  async send (
+    ctx: MeasureContext,
+    workspace: WorkspaceUuid | undefined,
+    msgs: any[],
+    partitionKey?: string
+  ): Promise<void> {
+    if (this.audit && this.connected === undefined) this.connected = this.txProducer.connect()
     if (this.connected !== undefined) {
-      await this.connected
+      try {
+        await this.connected
+      } finally {
+        if (this.audit) this.connected = undefined
+      }
       this.connected = undefined
     }
     await this.ctx.with('send', { topic: this.topic }, () =>
       this.txProducer.send({
         topic: this.topic,
         messages: msgs.map((m) => ({
-          key: Buffer.from(`${partitionKey ?? workspace}`),
+          key: Buffer.from(partitionKey ?? workspace ?? ''),
           value: Buffer.from(JSON.stringify(m)),
           headers: {
-            workspace,
+            ...(workspace !== undefined ? { workspace } : {}),
             meta: JSON.stringify(ctx.extractMeta())
           }
         })),
-        compression: CompressionTypes.GZIP
+        compression: CompressionTypes.GZIP,
+        ...(this.audit ? { acks: -1, timeout: 5000 } : {})
       })
     )
   }
@@ -257,6 +281,7 @@ class PlatformQueueProducerImpl implements PlatformQueueProducer<any> {
 
 class PlatformQueueConsumerImpl implements ConsumerHandle {
   connected = false
+  private closed = false
   cc: Consumer
   constructor (
     readonly ctx: MeasureContext,
@@ -279,7 +304,7 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
     const sessionTimeout = parseInt(process.env.KAFKA_CONSUMER_SESSION_TIMEOUT_MS ?? '90000', 10)
     this.cc = this.kafka.consumer({
       groupId: `${getKafkaTopicId(this.topic, this.config)}-${groupId}`,
-      allowAutoTopicCreation: true,
+      allowAutoTopicCreation: topic !== QueueTopic.Audit,
       sessionTimeout,
       rebalanceTimeout: Math.min(sessionTimeout * 2, 300000),
       heartbeatInterval: 3000
@@ -295,17 +320,19 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
     await this.doSubscribe()
 
     await this.cc.run({
+      ...(this.topic === QueueTopic.Audit ? { partitionsConsumedConcurrently: 3 } : {}),
       eachMessage: async (payload) => {
         const { message } = payload
         const msgKey = message.key?.toString() ?? ''
-        const msgData = JSON.parse(message.value?.toString() ?? '{}')
+        const decode = (): unknown => JSON.parse(message.value?.toString() ?? '{}')
+        const msgData = this.topic === QueueTopic.Audit ? undefined : decode()
         const meta = JSON.parse(message.headers?.meta?.toString() ?? '{}')
         const workspace = (message.headers?.workspace?.toString() ?? msgKey) as WorkspaceUuid
 
         const retryDelay = this.options?.retryDelay ?? 1000
         const maxRetryDelay = this.options?.maxRetryDelay ?? 10
         let to = 1
-        while (true) {
+        while (!this.closed) {
           try {
             await this.ctx.with(
               'handle-msg',
@@ -313,7 +340,7 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
               (ctx) =>
                 this.onMessage(
                   ctx,
-                  { workspace, value: msgData },
+                  { workspace, value: this.topic === QueueTopic.Audit ? decode() : msgData },
                   { heartbeat: () => payload.heartbeat(), pause: () => payload.pause() }
                 ),
               {},
@@ -321,9 +348,19 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
                 meta
               }
             )
-            break
+            return
           } catch (err: any) {
-            this.ctx.error('failed to process message', { err, msgKey, msgData, workspace })
+            if (this.closed) throw err
+            if (this.topic === QueueTopic.Audit) {
+              this.ctx.error('Audit consumer blocked; message will be retried', {
+                topic: payload.topic,
+                partition: payload.partition,
+                offset: message.offset,
+                errorType: err instanceof Error ? err.name : 'UnknownError'
+              })
+            } else {
+              this.ctx.error('failed to process message', { err, msgKey, msgData, workspace })
+            }
             await payload.heartbeat()
             await new Promise((resolve) => setTimeout(resolve, to * retryDelay))
             if (to < maxRetryDelay) {
@@ -331,6 +368,8 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
             }
           }
         }
+        // Never resolve an interrupted handler: that would acknowledge an unsaved event.
+        throw new Error('Queue consumer closed before message processing completed')
       }
     })
   }
@@ -359,6 +398,7 @@ class PlatformQueueConsumerImpl implements ConsumerHandle {
   }
 
   close (): Promise<void> {
+    this.closed = true
     return this.cc.disconnect()
   }
 }
