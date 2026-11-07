@@ -74,6 +74,7 @@ export class TSettingsCategory extends TDoc implements SettingsCategory {
   icon!: Asset
   component!: AnyComponent
   role!: AccountRole
+  allowedRoles?: AccountRole[]
   adminOnly?: boolean
 }
 
@@ -84,6 +85,7 @@ export class TWorkspaceSettingCategory extends TDoc implements SettingsCategory 
   icon!: Asset
   component!: AnyComponent
   role!: AccountRole
+  allowedRoles?: AccountRole[]
 }
 
 @Model(setting.class.IntegrationType, core.class.Doc, DOMAIN_MODEL)
@@ -270,6 +272,20 @@ export function createModel (builder: Builder): void {
       role: AccountRole.Owner
     },
     setting.ids.General
+  )
+  builder.createDoc(
+    setting.class.WorkspaceSettingCategory,
+    core.space.Model,
+    {
+      name: 'audit',
+      label: setting.string.AuditLog,
+      icon: setting.icon.Setting,
+      component: setting.component.AuditLog,
+      allowedRoles: [AccountRole.Owner],
+      order: 940,
+      role: AccountRole.Owner
+    },
+    setting.ids.AuditLog
   )
   builder.createDoc(
     setting.class.WorkspaceSettingCategory,

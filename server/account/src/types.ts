@@ -329,9 +329,10 @@ export type WorkspaceStatusData = Omit<WorkspaceStatus, 'workspaceUuid'>
 export type WorkspaceInviteData = Omit<WorkspaceInvite, 'id'>
 
 /* ========= D A T A B A S E  C O L L E C T I O N S ========= */
-/** Append-only audit storage, independent of account/workspace lifecycle. */
+/** Audit journal, independent of account/workspace lifecycle; mutations are append-only. */
 export interface AuditEventStore {
   insert: (record: AuditRecord) => Promise<void>
+  findWorkspace: (workspace: WorkspaceUuid, query: WorkspaceAuditQuery) => Promise<AuditRecord[]>
 }
 
 export interface AccountDB {
@@ -566,4 +567,34 @@ export interface AccountAggregatedInfo extends Omit<Account, 'hash' | 'salt'>, P
   integrations: Omit<Integration, 'data'>[]
   socialIds: SocialId[]
   workspaces: Omit<WorkspaceInfo, 'allowReadOnlyGuest' | 'allowGuestSignUp'>[]
+}
+
+/** Filters for the current workspace journal. Time bounds are inclusive/exclusive. */
+export interface WorkspaceAuditQuery {
+  from: number
+  to: number
+  event?: string
+  outcome?: 'succeeded' | 'denied' | 'failed'
+  cursor?: { occurredAt: number, eventId: string }
+  limit?: number
+}
+
+/** Owner-visible projection; private audit attributes are never returned. */
+export interface WorkspaceAuditEvent {
+  eventId: string
+  occurredAt: number
+  sourceService: string
+  event: string
+  outcome: 'succeeded' | 'denied' | 'failed'
+  actorAccountUuid?: string
+  actorService?: string
+  targetType?: string
+  targetId?: string
+  operationId?: string
+  attributes: Record<string, string | number | boolean | readonly string[] | null>
+}
+
+export interface WorkspaceAuditPage {
+  events: WorkspaceAuditEvent[]
+  nextCursor?: { occurredAt: number, eventId: string }
 }

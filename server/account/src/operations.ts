@@ -53,6 +53,7 @@ import {
 } from '@hcengineering/server-token'
 
 import { isAdminEmail } from './admin'
+import { getWorkspaceAuditEvents } from './audit-operations'
 import {
   auditAccountBatchEvent,
   auditAccountEvent,
@@ -4017,6 +4018,7 @@ export type AccountMethods =
   | 'getLoginWithWorkspaceInfo'
   | 'getSocialIds'
   | 'getPerson'
+  | 'getWorkspaceAuditEvents'
   | 'getWorkspaceMembers'
   | 'updateWorkspaceRole'
   | 'setWorkspaceMemberUnread'
@@ -4146,6 +4148,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     findPersonBySocialId: wrap(findPersonBySocialId),
     resolveAccountByEmail: wrap(resolveAccountByEmail),
     findSocialIdBySocialKey: wrap(findSocialIdBySocialKey),
+    getWorkspaceAuditEvents: wrap(getWorkspaceAuditEvents),
     getWorkspaceMembers: wrap(getWorkspaceMembers),
     getMailboxOptions: wrap(getMailboxOptions),
     getMailboxSecret: wrap(getMailboxSecret),
