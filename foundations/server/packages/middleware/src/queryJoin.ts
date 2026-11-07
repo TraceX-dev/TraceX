@@ -93,6 +93,23 @@ export class QueryJoiner {
 }
 
 /**
+ * Part of a join key that separates requests with different access: the adapter may add the security filter from
+ * the context of the request (adapter security), so one account must never get the joined result of another,
+ * nor of a trigger context, which is not filtered at all.
+ */
+function securityScope (ctx: MeasureContext<SessionData>): string {
+  const data = ctx.contextData as SessionData | undefined
+  if (data === undefined) return 'none'
+  const account = data.account
+  return [
+    account?.uuid ?? '',
+    account?.role ?? '',
+    data.isTriggerCtx === true ? 'trigger' : '',
+    data.admin === true ? 'admin' : ''
+  ].join('|')
+}
+
+/**
  * @public
  */
 export class QueryJoinMiddleware extends BaseMiddleware implements Middleware {
@@ -131,7 +148,7 @@ export class QueryJoinMiddleware extends BaseMiddleware implements Middleware {
     delete opt.ctx
     return this.joiner.query(
       ctx,
-      `findAll-${_class}-${JSON.stringify(query)}-${JSON.stringify(options)}`,
+      `findAll-${securityScope(ctx)}-${_class}-${JSON.stringify(query)}-${JSON.stringify(opt)}`,
       async (ctx) => {
         return await this.provideFindAll(ctx, _class, query, options)
       }
@@ -144,14 +161,22 @@ export class QueryJoinMiddleware extends BaseMiddleware implements Middleware {
     field: string,
     query?: DocumentQuery<P>
   ): Promise<Map<T, number>> {
-    return this.joiner.query(ctx, `groupBy-${domain}-${field}-${JSON.stringify(query ?? {})})`, async (ctx) => {
-      return await this.provideGroupBy(ctx, domain, field, query)
-    })
+    return this.joiner.query(
+      ctx,
+      `groupBy-${securityScope(ctx)}-${domain}-${field}-${JSON.stringify(query ?? {})})`,
+      async (ctx) => {
+        return await this.provideGroupBy(ctx, domain, field, query)
+      }
+    )
   }
 
   searchFulltext (ctx: MeasureContext<SessionData>, query: SearchQuery, options: SearchOptions): Promise<SearchResult> {
-    return this.joiner.query(ctx, `searchFulltext-${JSON.stringify(query)}-${JSON.stringify(options)}`, async (ctx) => {
-      return await this.provideSearchFulltext(ctx, query, options)
-    })
+    return this.joiner.query(
+      ctx,
+      `searchFulltext-${securityScope(ctx)}-${JSON.stringify(query)}-${JSON.stringify(options)}`,
+      async (ctx) => {
+        return await this.provideSearchFulltext(ctx, query, options)
+      }
+    )
   }
 }
