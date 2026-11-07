@@ -53,36 +53,6 @@ export function setAuditEventWriter (source: string, writer: AuditEventWriter | 
   auditWriter = writer
 }
 
-/** Validate untrusted queue messages before accepting them into the permanent journal. */
-export function isAuditRecord (value: unknown): value is AuditRecord {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
-  const fields = value as Record<string, unknown>
-  const text = (v: unknown): boolean => typeof v === 'string' && v.length > 0 && v.length <= 4096
-  if (fields.schemaVersion !== 1 || !text(fields.event) || !text(fields.sourceService)) return false
-  if (
-    typeof fields.eventId !== 'string' ||
-    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(fields.eventId)
-  ) {
-    return false
-  }
-  if (!Number.isSafeInteger(fields.occurredAt) || Number(fields.occurredAt) < 0) return false
-  if (!['succeeded', 'denied', 'failed'].includes(String(fields.outcome))) return false
-  for (const key of ['actorAccountUuid', 'actorService', 'workspaceUuid', 'targetType', 'targetId', 'operationId']) {
-    if (fields[key] != null && !text(fields[key])) return false
-  }
-  return (
-    Object.keys(fields).length <= 128 &&
-    Object.values(fields).every(
-      (v) =>
-        v == null ||
-        typeof v === 'boolean' ||
-        (typeof v === 'string' && v.length <= 4096) ||
-        (typeof v === 'number' && Number.isFinite(v)) ||
-        (Array.isArray(v) && v.length <= 100 && v.every((item) => typeof item === 'string' && item.length <= 4096))
-    )
-  )
-}
-
 function reportDeliveryFailure (ctx: MeasureContext, event: AuditEvent, error: unknown): void {
   try {
     ctx.error('Audit delivery failed', {
@@ -108,7 +78,6 @@ export async function recordAuditEvent (ctx: MeasureContext, event: AuditEvent):
       outcome: event.outcome ?? 'succeeded'
     }
     diagnosticEvent = record
-    if (!isAuditRecord(record)) throw new TypeError('Invalid audit record')
     const writer = auditWriter
     if (writer === undefined) throw new Error('Audit writer is not configured')
     const delivery = writer(ctx, record)

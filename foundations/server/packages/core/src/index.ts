@@ -17,14 +17,7 @@
 
 export type { StorageAdapter } from '@hcengineering/storage'
 export type * from './adapter'
-export {
-  recordAuditEvent,
-  withAuditEvent,
-  hashAuditValue,
-  setAuditEventWriter,
-  startAuditPublisher,
-  isAuditRecord
-} from './audit'
+export { recordAuditEvent, withAuditEvent, hashAuditValue, setAuditEventWriter, startAuditPublisher } from './audit'
 export type { AuditEvent, AuditRecord, AuditEventWriter, AuditAttributeValue } from './audit'
 export * from './base'
 export * from './benchmark'

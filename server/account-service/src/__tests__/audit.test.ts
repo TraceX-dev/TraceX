@@ -28,7 +28,7 @@ const record: AuditRecord = {
   event: 'account.login',
   outcome: 'succeeded'
 }
-const message: Partial<ConsumerMessage<unknown>> = { value: record }
+const message: Partial<ConsumerMessage<AuditRecord>> = { value: record }
 const insert = jest.fn()
 const store: AuditEventStore = { insert }
 
@@ -44,7 +44,7 @@ test('does not complete the handler before the database commit resolves', async 
     })
   })
   let completed = false
-  const delivery = createAuditHandler(store)(ctx, message as ConsumerMessage<unknown>).then(() => {
+  const delivery = createAuditHandler(store)(ctx, message as ConsumerMessage<AuditRecord>).then(() => {
     completed = true
   })
   await Promise.resolve()
@@ -58,20 +58,11 @@ test('propagates database errors to the queue and accepts subsequent redelivery'
   const error = new Error('database unavailable')
   insert.mockRejectedValueOnce(error).mockResolvedValue(undefined)
   const handler = createAuditHandler(store)
-  await expect(handler(ctx, message as ConsumerMessage<unknown>)).rejects.toBe(error)
-  await handler(ctx, message as ConsumerMessage<unknown>)
+  await expect(handler(ctx, message as ConsumerMessage<AuditRecord>)).rejects.toBe(error)
+  await handler(ctx, message as ConsumerMessage<AuditRecord>)
   expect(insert).toHaveBeenNthCalledWith(1, record)
   expect(insert).toHaveBeenNthCalledWith(2, record)
 })
-
-test.each([null, { ...record, schemaVersion: 2 }, { ...record, outcome: 'unknown' }])(
-  'refuses unsupported records without writing them',
-  async (value) => {
-    const invalid: Partial<ConsumerMessage<unknown>> = { value }
-    await expect(createAuditHandler(store)(ctx, invalid as ConsumerMessage<unknown>)).rejects.toThrow(TypeError)
-    expect(insert).not.toHaveBeenCalled()
-  }
-)
 
 test('uses a stable shared group and replays retained events on first startup', () => {
   const createConsumer = jest.fn()

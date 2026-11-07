@@ -14,14 +14,7 @@
 //
 
 import type { MeasureContext } from '@hcengineering/core'
-import {
-  hashAuditValue,
-  isAuditRecord,
-  recordAuditEvent,
-  setAuditEventWriter,
-  startAuditPublisher,
-  withAuditEvent
-} from '../audit'
+import { hashAuditValue, recordAuditEvent, setAuditEventWriter, startAuditPublisher, withAuditEvent } from '../audit'
 import type { AuditRecord } from '../audit'
 import type { PlatformQueue, PlatformQueueProducer } from '../queue/types'
 
@@ -50,7 +43,6 @@ test('publishes versioned custom events with distinct stable identities and expl
     documentId: 'document'
   })
   expect(records[0].eventId).not.toBe(records[1].eventId)
-  expect(isAuditRecord(records[0])).toBe(true)
   expect(logs.info).not.toHaveBeenCalled()
 })
 
@@ -107,22 +99,6 @@ test('reports an unconfigured writer without treating technical logs as saved au
     expect.objectContaining({ event: 'custom.operation' })
   )
   expect(write).not.toHaveBeenCalled()
-})
-
-test('rejects malformed versions, nested payloads, oversized batches and non-string identifiers', async () => {
-  await recordAuditEvent(ctx, { event: 'valid.event' })
-  const record = write.mock.calls[0][1]
-  for (const patch of [
-    { schemaVersion: 2 },
-    { outcome: 'other' },
-    { occurredAt: -1 },
-    { eventId: 'invalid' },
-    { workspaceUuid: 42 },
-    { body: { password: 'secret' } },
-    { accounts: Array(101).fill('account') }
-  ]) {
-    expect(isAuditRecord({ ...record, ...patch })).toBe(false)
-  }
 })
 
 function publisherQueue (send: jest.Mock, close: jest.Mock): PlatformQueue {

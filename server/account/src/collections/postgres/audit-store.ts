@@ -14,7 +14,7 @@
 //
 
 import type { Sql } from 'postgres'
-import { isAuditRecord, type AuditRecord } from '@hcengineering/server-core'
+import type { AuditRecord } from '@hcengineering/server-core'
 import type { AuditEventStore } from '../../types'
 
 /** Append-only PostgreSQL journal. Duplicate deliveries preserve the original record. */
@@ -25,7 +25,6 @@ export class PostgresAuditEventStore implements AuditEventStore {
   ) {}
 
   async insert (record: AuditRecord): Promise<void> {
-    if (!isAuditRecord(record)) throw new TypeError('Unsupported or invalid audit record')
     const {
       eventId,
       schemaVersion,

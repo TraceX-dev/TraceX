@@ -20,11 +20,7 @@ import { hashAuditValue, recordAuditEvent, type AuditEvent } from '@hcengineerin
 import { decodeToken } from '@hcengineering/server-token'
 
 /** Add only verified caller identity to explicitly selected domain fields. */
-export async function auditAccountEvent (
-  ctx: MeasureContext,
-  token: string | undefined,
-  event: AuditEvent
-): Promise<void> {
+export async function auditAccountEvent (ctx: MeasureContext, event: AuditEvent, token?: string): Promise<void> {
   let actor: AuditEvent = { event: event.event }
   if (token != null && token !== '') {
     try {
@@ -55,14 +51,18 @@ export async function auditAccountBatchEvent (
   const operationId = randomUUID()
   const chunkCount = Math.max(1, Math.ceil(accountIds.length / 100))
   for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
-    await auditAccountEvent(ctx, token, {
-      ...event,
-      operationId,
-      accountIds: accountIds.slice(chunkIndex * 100, (chunkIndex + 1) * 100),
-      accountIdsCount: accountIds.length,
-      chunkIndex,
-      chunkCount
-    })
+    await auditAccountEvent(
+      ctx,
+      {
+        ...event,
+        operationId,
+        accountIds: accountIds.slice(chunkIndex * 100, (chunkIndex + 1) * 100),
+        accountIdsCount: accountIds.length,
+        chunkIndex,
+        chunkCount
+      },
+      token
+    )
   }
 }
 

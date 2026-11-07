@@ -219,11 +219,15 @@ export async function performWorkspaceOperation (
 
     if (Object.keys(update).length !== 0) {
       await db.workspaceStatus.update({ workspaceUuid: workspace.uuid }, update)
-      await auditAccountEvent(ctx, token, {
-        event: 'workspace.operation.schedule',
-        workspaceUuid: workspace.uuid,
-        workspaceEvent: event
-      })
+      await auditAccountEvent(
+        ctx,
+        {
+          event: 'workspace.operation.schedule',
+          workspaceUuid: workspace.uuid,
+          workspaceEvent: event
+        },
+        token
+      )
       ops++
     }
   }
@@ -453,7 +457,7 @@ export async function updateWorkspaceInfo (
     await db.workspace.update({ uuid: workspaceUuid }, wsUpdate)
   }
   if (event !== 'ping' && event !== 'progress') {
-    await auditAccountEvent(ctx, token, { event: 'workspace.lifecycle.update', workspaceUuid, workspaceEvent: event })
+    await auditAccountEvent(ctx, { event: 'workspace.lifecycle.update', workspaceUuid, workspaceEvent: event }, token)
   }
 }
 
@@ -583,20 +587,28 @@ export async function assignWorkspace (
 
   if (currentRole == null) {
     await db.assignWorkspace(account.uuid, workspaceUuid, role)
-    await auditAccountEvent(ctx, token, {
-      event: 'workspace.member.assign',
-      workspaceUuid,
-      targetAccountUuid: account.uuid,
-      role
-    })
+    await auditAccountEvent(
+      ctx,
+      {
+        event: 'workspace.member.assign',
+        workspaceUuid,
+        targetAccountUuid: account.uuid,
+        role
+      },
+      token
+    )
   } else if (getRolePower(currentRole) < getRolePower(role)) {
     await db.updateWorkspaceRole(account.uuid, workspaceUuid, role)
-    await auditAccountEvent(ctx, token, {
-      event: 'workspace.member.role.change',
-      workspaceUuid,
-      targetAccountUuid: account.uuid,
-      role
-    })
+    await auditAccountEvent(
+      ctx,
+      {
+        event: 'workspace.member.role.change',
+        workspaceUuid,
+        targetAccountUuid: account.uuid,
+        role
+      },
+      token
+    )
   }
 }
 
@@ -652,7 +664,7 @@ export async function addSocialIdToPerson (
   }
 
   const socialId = await addSocialIdBase(db, person, type, value, confirmed, displayValue)
-  await auditAccountEvent(ctx, token, { event: 'person.social.add', targetPersonUuid: person, socialId, type })
+  await auditAccountEvent(ctx, { event: 'person.social.add', targetPersonUuid: person, socialId, type }, token)
   return socialId
 }
 
@@ -678,7 +690,7 @@ export async function updateSocialId (
   }
 
   await db.socialId.update({ _id: personId }, { displayValue })
-  await auditAccountEvent(ctx, token, { event: 'person.social.update', targetSocialId: personId })
+  await auditAccountEvent(ctx, { event: 'person.social.update', targetSocialId: personId }, token)
 }
 
 export async function createIntegration (
@@ -703,7 +715,7 @@ export async function createIntegration (
   }
 
   await db.integration.insertOne({ socialId, kind, workspaceUuid, data })
-  await auditAccountEvent(ctx, token, { event: 'integration.create', workspaceUuid, socialId, kind })
+  await auditAccountEvent(ctx, { event: 'integration.create', workspaceUuid, socialId, kind }, token)
 }
 
 export async function updateIntegration (
@@ -722,7 +734,7 @@ export async function updateIntegration (
 
   const { socialId, kind, workspaceUuid, data } = params
   await db.integration.update({ socialId, kind, workspaceUuid }, { data })
-  await auditAccountEvent(ctx, token, { event: 'integration.update', workspaceUuid, socialId, kind })
+  await auditAccountEvent(ctx, { event: 'integration.update', workspaceUuid, socialId, kind }, token)
 }
 
 export async function deleteIntegration (
@@ -742,7 +754,7 @@ export async function deleteIntegration (
   const { socialId, kind, workspaceUuid } = params
   await db.integrationSecret.deleteMany({ socialId, kind, workspaceUuid })
   await db.integration.deleteMany({ socialId, kind, workspaceUuid })
-  await auditAccountEvent(ctx, token, { event: 'integration.delete', workspaceUuid, socialId, kind })
+  await auditAccountEvent(ctx, { event: 'integration.delete', workspaceUuid, socialId, kind }, token)
 }
 
 export async function listIntegrations (
@@ -844,7 +856,7 @@ export async function addIntegrationSecret (
   }
 
   await db.integrationSecret.insertOne({ ...secretKey, secret })
-  await auditAccountEvent(ctx, token, { event: 'integration.secret.add', workspaceUuid, socialId, kind })
+  await auditAccountEvent(ctx, { event: 'integration.secret.add', workspaceUuid, socialId, kind }, token)
 }
 
 export async function updateIntegrationSecret (
@@ -879,7 +891,7 @@ export async function updateIntegrationSecret (
   }
 
   await db.integrationSecret.update(secretKey, { secret })
-  await auditAccountEvent(ctx, token, { event: 'integration.secret.update', workspaceUuid, socialId, kind })
+  await auditAccountEvent(ctx, { event: 'integration.secret.update', workspaceUuid, socialId, kind }, token)
 }
 
 export async function deleteIntegrationSecret (
@@ -914,7 +926,7 @@ export async function deleteIntegrationSecret (
   }
 
   await db.integrationSecret.deleteMany(secretKey)
-  await auditAccountEvent(ctx, token, { event: 'integration.secret.delete', workspaceUuid, socialId, kind })
+  await auditAccountEvent(ctx, { event: 'integration.secret.delete', workspaceUuid, socialId, kind }, token)
 }
 
 export async function getIntegrationSecret (
@@ -940,7 +952,7 @@ export async function getIntegrationSecret (
   }
   const existing = await db.integrationSecret.findOne({ socialId, kind, workspaceUuid, key })
 
-  await auditAccountEvent(ctx, token, { event: 'integration.secret.read', workspaceUuid, socialId, kind })
+  await auditAccountEvent(ctx, { event: 'integration.secret.read', workspaceUuid, socialId, kind }, token)
   return existing
 }
 
@@ -956,7 +968,7 @@ export async function listIntegrationsSecrets (
   const { socialId, kind, workspaceUuid, key } = params
 
   const secrets = await db.integrationSecret.find({ socialId, kind, workspaceUuid, key })
-  await auditAccountEvent(ctx, token, { event: 'integration.secrets.list', workspaceUuid, socialId, kind })
+  await auditAccountEvent(ctx, { event: 'integration.secrets.list', workspaceUuid, socialId, kind }, token)
   return secrets
 }
 
@@ -1018,7 +1030,7 @@ export async function mergeSpecifiedAccounts (
   }
 
   await doMergeAccounts(db, primaryAccount, secondaryAccount)
-  await auditAccountEvent(ctx, token, { event: 'account.merge', primaryAccount, secondaryAccount })
+  await auditAccountEvent(ctx, { event: 'account.merge', primaryAccount, secondaryAccount }, token)
 }
 
 export async function findPersonBySocialKey (

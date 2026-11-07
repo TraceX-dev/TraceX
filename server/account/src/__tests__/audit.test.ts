@@ -106,14 +106,14 @@ afterEach(() => {
 })
 
 test('domain callers explicitly select fields and may use the actual target account', async () => {
-  await auditAccountEvent(ctx, 'verified-token', { event: 'workspace.member.assign', targetAccountUuid: subject })
+  await auditAccountEvent(ctx, { event: 'workspace.member.assign', targetAccountUuid: subject }, 'verified-token')
   expect(events()).toHaveLength(1)
   expect(events()[0]).toMatchObject({ actorAccountUuid: actor, targetAccountUuid: subject, workspaceUuid: workspace })
   expect(JSON.stringify(events())).not.toContain('verified-token')
 })
 
 test('public actions do not attribute an unrelated browser token', async () => {
-  await auditAccountEvent(ctx, undefined, { event: 'account.signup', subjectAccountUuid: subject })
+  await auditAccountEvent(ctx, { event: 'account.signup', subjectAccountUuid: subject })
   expect(decodeToken).not.toHaveBeenCalled()
   expect(events()[0].actorAccountUuid).toBeUndefined()
   expect(events()[0].subjectAccountUuid).toBe(subject)
@@ -142,7 +142,7 @@ test('invalid token claims are never attributed', async () => {
   ;(decodeToken as jest.Mock).mockImplementation(() => {
     throw new Error('invalid token')
   })
-  await auditAccountEvent(ctx, 'invalid-token', { event: 'account.rpc', outcome: 'denied' })
+  await auditAccountEvent(ctx, { event: 'account.rpc', outcome: 'denied' }, 'invalid-token')
   expect(events()[0].actorAccountUuid).toBeUndefined()
 })
 

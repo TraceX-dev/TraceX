@@ -16,28 +16,33 @@
 import type { AuditEventStore } from '@hcengineering/account'
 import type { MeasureContext } from '@hcengineering/core'
 import {
-  isAuditRecord,
+  type AuditRecord,
   QueueTopic,
   type ConsumerHandle,
   type ConsumerMessage,
   type PlatformQueue
 } from '@hcengineering/server-core'
 
-/** Reject invalid records and propagate storage errors so the queue retries without advancing. */
+/** Propagate storage errors so the queue retries without advancing. */
 export function createAuditHandler (
   store: AuditEventStore
-): (ctx: MeasureContext, message: ConsumerMessage<unknown>) => Promise<void> {
+): (ctx: MeasureContext, message: ConsumerMessage<AuditRecord>) => Promise<void> {
   return async (_ctx, message) => {
-    if (!isAuditRecord(message.value)) throw new TypeError('Unsupported or invalid audit record')
     await store.insert(message.value)
   }
 }
 
 /** All account-service replicas share a group; a fresh installation reads retained events. */
 export function startAuditConsumer (ctx: MeasureContext, queue: PlatformQueue, store: AuditEventStore): ConsumerHandle {
-  return queue.createConsumer(ctx, QueueTopic.Audit, 'account-service-audit-v1', createAuditHandler(store), {
-    fromBegining: true,
-    allowAutoTopicCreation: false,
-    partitionsConsumedConcurrently: 3
-  })
+  return queue.createConsumer<AuditRecord>(
+    ctx,
+    QueueTopic.Audit,
+    'account-service-audit-v1',
+    createAuditHandler(store),
+    {
+      fromBegining: true,
+      allowAutoTopicCreation: false,
+      partitionsConsumedConcurrently: 3
+    }
+  )
 }
