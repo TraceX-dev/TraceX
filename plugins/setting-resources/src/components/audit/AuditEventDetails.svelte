@@ -32,7 +32,6 @@
   export let event: WorkspaceAuditEvent
   export let noTopIndent: boolean = false
 
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   $: target = getAuditTarget(event)
   $: attributes = Object.entries(event.attributes).filter(([key]) => AUDIT_ATTRIBUTE_LABELS[key] !== undefined)
 </script>
@@ -53,8 +52,6 @@
     <dl class="fields">
       <dt><Label label={setting.string.Time} /></dt>
       <dd><DateTimePresenter value={event.occurredAt} /></dd>
-      <dt><Label label={setting.string.Timezone} /></dt>
-      <dd>{timezone}</dd>
       <dt><Label label={setting.string.Actor} /></dt>
       <dd><AuditIdentity account={event.actorAccountUuid} service={event.actorService} /></dd>
       {#if target}

@@ -584,6 +584,8 @@ export interface FilterCategory {
   id: string
   label: IntlString
   options: FilterOption[]
+  /** Enable localized option search for long categories. */
+  searchable?: boolean
 }
 
 export interface ActiveFilter {

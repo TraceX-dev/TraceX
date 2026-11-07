@@ -277,20 +277,6 @@ export function createModel (builder: Builder): void {
     setting.class.WorkspaceSettingCategory,
     core.space.Model,
     {
-      name: 'audit',
-      label: setting.string.AuditLog,
-      icon: setting.icon.Setting,
-      component: setting.component.AuditLog,
-      allowedRoles: [AccountRole.Owner],
-      order: 940,
-      role: AccountRole.Owner
-    },
-    setting.ids.AuditLog
-  )
-  builder.createDoc(
-    setting.class.WorkspaceSettingCategory,
-    core.space.Model,
-    {
       name: 'backup',
       label: setting.string.Backup,
       icon: setting.icon.Setting,
@@ -313,6 +299,20 @@ export function createModel (builder: Builder): void {
       order: 1050
     },
     setting.ids.SpaceAccessSettings
+  )
+  builder.createDoc(
+    setting.class.WorkspaceSettingCategory,
+    core.space.Model,
+    {
+      name: 'audit',
+      label: setting.string.AuditLog,
+      icon: setting.icon.History,
+      component: setting.component.AuditLog,
+      allowedRoles: [AccountRole.Owner],
+      order: 1100,
+      role: AccountRole.Owner
+    },
+    setting.ids.AuditLog
   )
   builder.createDoc(
     setting.class.WorkspaceSettingCategory,

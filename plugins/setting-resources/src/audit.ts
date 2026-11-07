@@ -25,6 +25,7 @@ export const AUDIT_EVENT_LABELS: Record<string, IntlString> = {
   'workspace.deletion.schedule': setting.string.WorkspaceDeletionScheduled,
   'workspace.invite.create': setting.string.InvitationCreated,
   'workspace.invite.revoke': setting.string.InvitationRevoked,
+  'workspace.invite.limit.exceeded': setting.string.InvitationUsageLimitReached,
   'workspace.invite.send': setting.string.InvitationSent,
   'workspace.invite.resend': setting.string.InvitationResent,
   'workspace.access.link.create': setting.string.AccessLinkCreated,

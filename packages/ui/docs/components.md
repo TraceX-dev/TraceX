@@ -25,7 +25,7 @@ The catalog is a discovery guide, not a duplicate API reference. Refer to the li
 | [`ButtonGroup`](../src/components/ButtonGroup.svelte) | Groups related buttons into a single control. |
 | [`ButtonMenu`](../src/components/ButtonMenu.svelte) | Button that exposes a menu of actions. |
 | [`SplitButton`](../src/components/SplitButton.svelte) | Separates a primary action from its secondary action menu. |
-| [`FilterButton`](../src/components/FilterButton.svelte) | Button specialized for enabling or configuring filters. |
+| [`FilterButton`](../src/components/FilterButton.svelte) | Button for category filters with individual removal, reset, and optional localized option search. |
 | [`StatusBarButton`](../src/components/StatusBarButton.svelte) | Compact action intended for a status bar. |
 
 ## Form controls and text input

@@ -55,6 +55,7 @@
     "WorkspaceDeletionScheduled": "已安排删除工作区",
     "InvitationCreated": "已创建邀请",
     "InvitationRevoked": "已撤销邀请",
+    "InvitationUsageLimitReached": "已达到邀请使用次数上限",
     "InvitationSent": "已发送邀请",
     "InvitationResent": "已重新发送邀请",
     "AccessLinkCreated": "已创建访问链接",

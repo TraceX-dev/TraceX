@@ -55,6 +55,7 @@
     "WorkspaceDeletionScheduled": "Çalışma alanının silinmesi planlandı",
     "InvitationCreated": "Davet oluşturuldu",
     "InvitationRevoked": "Davet iptal edildi",
+    "InvitationUsageLimitReached": "Davet kullanım sınırına ulaşıldı",
     "InvitationSent": "Davet gönderildi",
     "InvitationResent": "Davet yeniden gönderildi",
     "AccessLinkCreated": "Erişim bağlantısı oluşturuldu",

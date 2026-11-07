@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -49,6 +50,9 @@
   let container: HTMLElement
   let opened: boolean = false
 
+  // Preserve the legacy event contract: consumers use branded ids and single/multiple selection.
+  const dispatch = createEventDispatcher<{ selected: any }>()
+
   $: selectedItem = multiselect
     ? (items ?? []).filter((p) => (selected as Array<DropdownIntlItem['id']>)?.includes(p.id))
     : (items ?? []).find((x) => x.id === selected)
@@ -57,9 +61,7 @@
     dispatch('selected', selected)
   }
 
-  const dispatch = createEventDispatcher()
-
-  function openPopup () {
+  function openPopup (): void {
     if (!opened) {
       opened = true
       showPopup(
@@ -67,7 +69,7 @@
         { items, selected, params, withSearch, multiselect },
         container,
         (result) => {
-          if (result) {
+          if (result != null) {
             selected = result
             dispatch('selected', result)
           }
@@ -114,7 +116,7 @@
     <span slot="content" class="overflow-label disabled flex-grow text-left mr-2">
       {#if Array.isArray(selectedItem)}
         {#if selectedItem.length > 0}
-          {#each selectedItem as item}
+          {#each selectedItem as item (item.id)}
             <span class="step-row">
               <Label label={item.label} params={item.params ?? params} />
             </span>
@@ -130,7 +132,7 @@
     </span>
     <svelte:fragment slot="iconRight">
       <DropdownIcon
-        size={'small'}
+        size="small"
         fill={kind === 'primary' && !disabled ? 'var(--primary-button-content-color)' : 'var(--theme-dark-color)'}
       />
     </svelte:fragment>

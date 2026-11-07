@@ -15,7 +15,7 @@
 //
 -->
 <script lang="ts">
-  import { employeeByAccountStore, PersonPresenter } from '@hcengineering/contact-resources'
+  import { employeeByAccountStore, EmployeePresenter } from '@hcengineering/contact-resources'
   import type { AccountUuid } from '@hcengineering/core'
   import { Label } from '@hcengineering/ui'
   import setting from '../../plugin'
@@ -29,7 +29,7 @@
 {#if service}
   <span class="select-text">{service}</span>
 {:else if person !== undefined}
-  <PersonPresenter value={person} shouldShowAvatar={false} colorInherit noUnderline disabled />
+  <EmployeePresenter value={person} avatarSize="x-small" showPopup={false} colorInherit noUnderline disabled />
 {:else if account}
   <span class="identity select-text">{account}</span>
 {:else}

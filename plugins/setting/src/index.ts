@@ -369,6 +369,7 @@ export default plugin(settingId, {
     AddRelationFilter: '' as IntlString
   },
   icon: {
+    History: '' as Asset,
     AccountSettings: '' as Asset,
     Members: '' as Asset,
     Password: '' as Asset,

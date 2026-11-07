@@ -1332,7 +1332,7 @@ export async function checkJoin (
     verifiedOn: { $gt: 0 }
   })
   const email = emailSocialId?.value ?? ''
-  const workspaceUuid = await checkInvite(ctx, invite, email)
+  const workspaceUuid = await checkInvite(ctx, invite, email, token)
   const workspace = await getWorkspaceById(db, workspaceUuid)
 
   if (workspace === null) {
@@ -1387,7 +1387,7 @@ export async function joinByToken (
     verifiedOn: { $gt: 0 }
   })
   const email = emailSocialId?.value ?? ''
-  const workspaceUuid = await checkInvite(ctx, invite, email)
+  const workspaceUuid = await checkInvite(ctx, invite, email, token)
   const workspace = await getWorkspaceById(db, workspaceUuid)
 
   if (workspace === null) {

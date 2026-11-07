@@ -55,6 +55,7 @@
     "WorkspaceDeletionScheduled": "워크스페이스 삭제 예약됨",
     "InvitationCreated": "초대 생성됨",
     "InvitationRevoked": "초대 취소됨",
+    "InvitationUsageLimitReached": "초대 사용 횟수 한도에 도달함",
     "InvitationSent": "초대 전송됨",
     "InvitationResent": "초대 재전송됨",
     "AccessLinkCreated": "접근 링크 생성됨",

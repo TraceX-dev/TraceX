@@ -93,6 +93,7 @@ export default mergeIds(settingId, setting, {
     WorkspaceDeletionScheduled: '' as IntlString,
     InvitationCreated: '' as IntlString,
     InvitationRevoked: '' as IntlString,
+    InvitationUsageLimitReached: '' as IntlString,
     InvitationSent: '' as IntlString,
     InvitationResent: '' as IntlString,
     AccessLinkCreated: '' as IntlString,

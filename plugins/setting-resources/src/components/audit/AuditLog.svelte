@@ -23,10 +23,11 @@
     Button,
     DateTimePresenter,
     DropdownLabelsIntl,
+    FilterButton,
     Header,
     IconHistory,
     Label,
-    ListView,
+    InteractiveListView,
     Loading,
     Notice,
     RangeDatePopup,
@@ -34,6 +35,8 @@
     SectionEmpty,
     StateTag,
     showPopup,
+    type ActiveFilter,
+    type FilterCategory,
     type DropdownIntlItem
   } from '@hcengineering/ui'
   import { onDestroy, onMount } from 'svelte'
@@ -56,18 +59,28 @@
     { id: '30', label: setting.string.Last30Days },
     { id: 'custom', label: setting.string.CustomPeriod }
   ]
-  const outcomeItems: DropdownIntlItem[] = [
-    { id: '', label: setting.string.AllResults },
-    ...Object.entries(AUDIT_OUTCOME_LABELS).map(([id, label]) => ({ id, label }))
+  const filterCategories: FilterCategory[] = [
+    {
+      id: 'event',
+      label: setting.string.Event,
+      searchable: true,
+      options: AUDIT_EVENT_ITEMS.filter((item) => item.id !== '').map((item) => ({
+        id: String(item.id),
+        label: item.label
+      }))
+    },
+    {
+      id: 'outcome',
+      label: setting.string.Result,
+      options: Object.entries(AUDIT_OUTCOME_LABELS).map(([id, label]) => ({ id, label }))
+    }
   ]
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const owner = getCurrentAccount().role === AccountRole.Owner
 
   let events: WorkspaceAuditEvent[] = []
   let nextCursor: WorkspaceAuditPage['nextCursor']
   let period = '7'
-  let eventType = ''
-  let outcome = ''
+  let filters: ActiveFilter[] = []
   let startDate: Date | null = null
   let endDate: Date | null = null
   let loading = true
@@ -85,11 +98,13 @@
     const to = period === 'custom' && startDate !== null ? new Date(endDate ?? startDate) : new Date(now)
     to.setDate(to.getDate() + 1)
     to.setHours(0, 0, 0, 0)
+    const event = filters.find((filter) => filter.categoryId === 'event')?.optionId
+    const outcome = filters.find((filter) => filter.categoryId === 'outcome')?.optionId
     return {
       from: from.getTime(),
       to: to.getTime(),
       limit: 50,
-      event: eventType || undefined,
+      event,
       outcome: outcome === 'succeeded' || outcome === 'denied' || outcome === 'failed' ? outcome : undefined
     }
   }
@@ -163,14 +178,18 @@
     selectPeriod(String(event.detail))
   }
 
-  function handleEventSelected (event: CustomEvent<unknown>): void {
-    eventType = String(event.detail)
+  function handleFiltersChanged (event: CustomEvent<ActiveFilter[]>): void {
+    filters = event.detail
     void load()
   }
 
-  function handleOutcomeSelected (event: CustomEvent<unknown>): void {
-    outcome = String(event.detail)
-    void load()
+  function openEvent (event: WorkspaceAuditEvent): void {
+    settingsStore.set({ id: event.eventId, component: AuditEventDetails, props: { event } })
+  }
+
+  function handleRowClick (event: CustomEvent<number>): void {
+    const record = events[event.detail]
+    if (record !== undefined) openEvent(record)
   }
 
   function refresh (): void {
@@ -188,15 +207,10 @@
 
   function clearFilters (): void {
     period = '7'
-    eventType = ''
-    outcome = ''
+    filters = []
     startDate = null
     endDate = null
     void load()
-  }
-
-  function openEvent (event: WorkspaceAuditEvent): void {
-    settingsStore.set({ id: event.eventId, component: AuditEventDetails, props: { event } })
   }
 
   onMount(() => {
@@ -225,37 +239,31 @@
             dataId="audit-period"
             on:selected={handlePeriodSelected}
           />
-          <DropdownLabelsIntl
-            items={AUDIT_EVENT_ITEMS}
-            selected={eventType}
-            label={setting.string.Event}
-            withSearch
-            dataId="audit-event"
-            on:selected={handleEventSelected}
+          <FilterButton
+            categories={filterCategories}
+            activeFilters={filters}
+            size="small"
+            on:change={handleFiltersChanged}
           />
-          <DropdownLabelsIntl
-            items={outcomeItems}
-            selected={outcome}
-            label={setting.string.Result}
-            dataId="audit-outcome"
-            on:selected={handleOutcomeSelected}
-          />
-          <Button
-            label={setting.string.Refresh}
-            disabled={loading || loadingMore}
-            dataId="audit-refresh"
-            on:click={refresh}
-          />
+          <div class="ml-auto">
+            <Button
+              icon={setting.icon.Reset}
+              label={setting.string.Refresh}
+              size="small"
+              disabled={loading || loadingMore}
+              dataId="audit-refresh"
+              on:click={refresh}
+            />
+          </div>
         </div>
-        <div class="text-sm content-dark-color flex-row-center flex-wrap flex-gap-2">
-          <Label label={setting.string.NewestFirst} /><span>· {timezone}</span>
-          {#if period === 'custom' && startDate !== null}
+        {#if period === 'custom' && startDate !== null}
+          <div class="text-sm content-dark-color flex-row-center flex-wrap flex-gap-2">
             <DateTimePresenter value={startDate.getTime()} />
             {#if endDate !== null}<span>–</span><DateTimePresenter value={endDate.getTime()} />{/if}
-          {/if}
-        </div>
+          </div>
+        {/if}
       </div>
-      <Scroller>
+      <Scroller padding="0 var(--spacing-2)" bottomPadding="var(--spacing-2)">
         {#if loading}
           <Loading />
         {:else}
@@ -266,47 +274,51 @@
             </div>
           {/if}
           {#if events.length > 0}
-            <div class="audit-columns audit-head text-sm content-dark-color px-4 py-2">
-              <Label label={setting.string.Time} /><Label label={setting.string.Event} />
-              <Label label={setting.string.Actor} /><Label label={setting.string.Result} />
-            </div>
-            <ListView
-              count={events.length}
-              noScroll
-              kind="full-size"
-              updateOnMouse={false}
-              selection={-1}
-              getKey={eventKey}
-            >
-              <svelte:fragment slot="item" let:item>
-                {@const event = events[item]}
-                {@const target = getAuditTarget(event)}
-                <div class="audit-columns audit-row px-4 py-3">
-                  <span class="text-sm audit-time"><DateTimePresenter value={event.occurredAt} /></span>
-                  <div class="audit-event flex-col flex-gap-1 min-w-0">
-                    <Button
-                      kind="link"
-                      label={getAuditEventLabel(event.event)}
-                      justify="left"
-                      width="100%"
-                      dataId="audit-event-details"
-                      on:click={openEvent.bind(null, event)}
-                    />
-                    {#if target}<span class="text-sm content-dark-color"><AuditIdentity account={target} /></span>{/if}
+            <div class="audit-list">
+              <InteractiveListView
+                count={events.length}
+                noScroll
+                kind="full-size"
+                updateOnMouse={false}
+                selection={-1}
+                getKey={eventKey}
+                on:click={handleRowClick}
+              >
+                <svelte:fragment slot="header">
+                  <div class="audit-columns audit-head">
+                    <span class="audit-event"><Label label={setting.string.Event} /></span>
+                    <span class="audit-identity"><Label label={setting.string.Actor} /></span>
+                    <span class="audit-time"><Label label={setting.string.Time} /></span>
+                    <span class="audit-result"><Label label={setting.string.Result} /></span>
                   </div>
-                  <span class="audit-identity"
-                    ><AuditIdentity account={event.actorAccountUuid} service={event.actorService} /></span
-                  >
-                  <span class="audit-result"
-                    ><StateTag
-                      type={AUDIT_OUTCOME_TYPES[event.outcome]}
-                      label={AUDIT_OUTCOME_LABELS[event.outcome]}
-                    /></span
-                  >
-                </div>
-              </svelte:fragment>
-            </ListView>
-            <div class="flex-col flex-gap-2 p-4">
+                </svelte:fragment>
+                <svelte:fragment slot="item" let:item>
+                  {@const event = events[item]}
+                  {@const target = getAuditTarget(event)}
+                  <div class="audit-columns audit-row" class:selected={$settingsStore.id === event.eventId}>
+                    <div class="audit-event flex-col flex-gap-1 min-w-0">
+                      <button type="button" class="audit-title overflow-label" data-id="audit-event-details">
+                        <Label label={getAuditEventLabel(event.event)} />
+                      </button>
+                      {#if target}<span class="audit-target text-sm content-dark-color"
+                          ><AuditIdentity account={target} /></span
+                        >{/if}
+                    </div>
+                    <span class="audit-identity"
+                      ><AuditIdentity account={event.actorAccountUuid} service={event.actorService} /></span
+                    >
+                    <span class="text-sm audit-time"><DateTimePresenter value={event.occurredAt} /></span>
+                    <span class="audit-result"
+                      ><StateTag
+                        type={AUDIT_OUTCOME_TYPES[event.outcome]}
+                        label={AUDIT_OUTCOME_LABELS[event.outcome]}
+                      /></span
+                    >
+                  </div>
+                </svelte:fragment>
+              </InteractiveListView>
+            </div>
+            <div class="flex-col flex-gap-2 pt-4">
               {#if loadingMore}<Loading />
               {:else if nextCursor !== undefined}
                 <Button label={setting.string.LoadMore} dataId="audit-load-more" on:click={loadNext} />
@@ -330,41 +342,89 @@
   .audit-log {
     container-type: inline-size;
   }
+  .audit-list {
+    border: 1px solid var(--theme-divider-color);
+    border-radius: var(--medium-BorderRadius);
+    overflow: hidden;
+  }
   .audit-columns {
     display: grid;
-    grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 2fr) minmax(6rem, 1fr) max-content;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 11rem 8rem;
+    grid-template-areas: 'event actor time result';
     align-items: center;
-    gap: var(--spacing-3);
+    gap: var(--spacing-1_5);
+  }
+  .audit-head {
+    padding: var(--spacing-1) var(--spacing-1_5);
+    min-height: 2.5rem;
+    color: var(--theme-caption-color);
+    font-size: 0.6875rem;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    background-color: var(--theme-comp-header-color);
   }
   .audit-row {
+    padding: var(--spacing-1) var(--spacing-1_5);
     border-top: 1px solid var(--theme-divider-color);
-  }
-  .audit-identity {
-    overflow-wrap: anywhere;
-    min-width: 0;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-within {
+      background-color: var(--theme-button-hovered);
+    }
+    &.selected {
+      background-color: var(--theme-popup-hover);
+    }
   }
   .audit-time {
     grid-area: time;
+    min-width: 0;
   }
   .audit-event {
     grid-area: event;
+    min-width: 0;
+  }
+  .audit-title {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-align: left;
+    cursor: inherit;
   }
   .audit-identity {
     grid-area: actor;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
   .audit-result {
     grid-area: result;
   }
-  .audit-row {
-    grid-template-areas: 'time event actor result';
-  }
-  @container (max-width: 44rem) {
-    .audit-head {
+  @container (max-width: 52rem) {
+    .audit-columns {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 11rem;
+      grid-template-areas: 'event actor time';
+    }
+    .audit-result {
       display: none;
     }
-    .audit-row {
-      grid-template-columns: minmax(0, 1fr) max-content;
-      grid-template-areas: 'event result' 'time time' 'actor actor';
+  }
+  @container (max-width: 40rem) {
+    .audit-columns {
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      grid-template-areas: 'event actor';
+    }
+    .audit-time,
+    .audit-target {
+      display: none;
     }
   }
 </style>

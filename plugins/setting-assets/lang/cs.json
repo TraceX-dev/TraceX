@@ -55,6 +55,7 @@
     "WorkspaceDeletionScheduled": "Odstranění pracovního prostoru naplánováno",
     "InvitationCreated": "Pozvánka vytvořena",
     "InvitationRevoked": "Pozvánka odvolána",
+    "InvitationUsageLimitReached": "Limit použití pozvánky vyčerpán",
     "InvitationSent": "Pozvánka odeslána",
     "InvitationResent": "Pozvánka znovu odeslána",
     "AccessLinkCreated": "Přístupový odkaz vytvořen",

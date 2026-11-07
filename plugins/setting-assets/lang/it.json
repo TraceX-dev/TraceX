@@ -55,6 +55,7 @@
     "WorkspaceDeletionScheduled": "Eliminazione dello spazio di lavoro pianificata",
     "InvitationCreated": "Invito creato",
     "InvitationRevoked": "Invito revocato",
+    "InvitationUsageLimitReached": "Limite di utilizzi dell’invito raggiunto",
     "InvitationSent": "Invito inviato",
     "InvitationResent": "Invito inviato di nuovo",
     "AccessLinkCreated": "Link di accesso creato",

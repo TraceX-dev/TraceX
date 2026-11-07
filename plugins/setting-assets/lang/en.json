@@ -55,6 +55,7 @@
     "WorkspaceDeletionScheduled": "Workspace deletion scheduled",
     "InvitationCreated": "Invitation created",
     "InvitationRevoked": "Invitation revoked",
+    "InvitationUsageLimitReached": "Invitation usage limit reached",
     "InvitationSent": "Invitation sent",
     "InvitationResent": "Invitation resent",
     "AccessLinkCreated": "Access link created",

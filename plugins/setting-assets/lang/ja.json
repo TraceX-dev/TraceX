@@ -55,6 +55,7 @@
     "WorkspaceDeletionScheduled": "ワークスペースの削除を予約",
     "InvitationCreated": "招待を作成",
     "InvitationRevoked": "招待を取り消し",
+    "InvitationUsageLimitReached": "招待の利用回数の上限に到達",
     "InvitationSent": "招待を送信",
     "InvitationResent": "招待を再送信",
     "AccessLinkCreated": "アクセスリンクを作成",

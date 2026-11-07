@@ -55,6 +55,7 @@
     "WorkspaceDeletionScheduled": "Удаление воркспейса запланировано",
     "InvitationCreated": "Приглашение создано",
     "InvitationRevoked": "Приглашение отозвано",
+    "InvitationUsageLimitReached": "Лимит использований приглашения исчерпан",
     "InvitationSent": "Приглашение отправлено",
     "InvitationResent": "Приглашение отправлено повторно",
     "AccessLinkCreated": "Ссылка доступа создана",
