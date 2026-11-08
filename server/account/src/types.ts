@@ -332,7 +332,7 @@ export type WorkspaceInviteData = Omit<WorkspaceInvite, 'id'>
 /** Audit journal, independent of account/workspace lifecycle; mutations are append-only. */
 export interface AuditEventStore {
   insert: (record: AuditRecord) => Promise<void>
-  findWorkspace: (workspace: WorkspaceUuid, query: WorkspaceAuditQuery) => Promise<AuditRecord[]>
+  findWorkspace: (workspace: WorkspaceUuid, query: WorkspaceAuditQuery, events?: readonly string[]) => Promise<AuditRecord[]>
 }
 
 export interface AccountDB {

@@ -14,13 +14,13 @@
 //
 
 import contact from '@hcengineering/contact'
-import { AccountRole } from '@hcengineering/core'
+import { AccountRole, OWNER_AUDIT_EVENTS, isOwnerAuditEventName, type OwnerAuditEventName } from '@hcengineering/core'
 import type { WorkspaceAuditEvent } from '@hcengineering/account-client'
 import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
 import { StateType, type DropdownIntlItem } from '@hcengineering/ui'
 import setting from './plugin'
 
-export const AUDIT_EVENT_LABELS: Record<string, IntlString> = {
+export const AUDIT_EVENT_LABELS: Record<OwnerAuditEventName, IntlString> = {
   'workspace.create': setting.string.WorkspaceCreated,
   'workspace.rename': setting.string.WorkspaceRenamed,
   'workspace.deletion.schedule': setting.string.WorkspaceDeletionScheduled,
@@ -39,10 +39,6 @@ export const AUDIT_EVENT_LABELS: Record<string, IntlString> = {
   'workspace.guests.readonly.change': setting.string.ReadOnlyGuestAccessChanged,
   'workspace.guests.signup.change': setting.string.GuestSignUpPolicyChanged,
   'workspace.password.policy.change': setting.string.PasswordPolicyChanged,
-  'workspace.operation.schedule': setting.string.WorkspaceOperationScheduled,
-  'workspace.lifecycle.update': setting.string.WorkspaceLifecycleUpdated,
-  'workspace.data.cleanup': setting.string.WorkspaceDataCleanedUp,
-  'account.rpc': setting.string.AccountRequest,
   'integration.create': setting.string.IntegrationCreated,
   'integration.update': setting.string.IntegrationUpdated,
   'integration.delete': setting.string.IntegrationDeleted,
@@ -50,37 +46,16 @@ export const AUDIT_EVENT_LABELS: Record<string, IntlString> = {
   'integration.secret.update': setting.string.IntegrationSecretUpdated,
   'integration.secret.delete': setting.string.IntegrationSecretDeleted,
   'integration.secret.read': setting.string.IntegrationSecretAccessed,
-  'integration.secrets.list': setting.string.IntegrationSecretsListed,
   'account.api-key.create': setting.string.ApiKeyCreated,
   'account.api-key.revoke': setting.string.ApiKeyRevoked,
-  'account.password.change': setting.string.PasswordChanged,
-  'account.password.setup.request': setting.string.PasswordSetupRequested,
-  'account.password.restore': setting.string.PasswordRestored,
-  'account.2fa.secret.generate': setting.string.TwoFactorSetupStarted,
-  'account.2fa.enable': setting.string.TwoFactorAuthenticationEnabled,
-  'account.2fa.disable': setting.string.TwoFactorAuthenticationDisabled,
-  'account.2fa.verify': setting.string.TwoFactorAuthenticationVerified,
-  'account.social.add': setting.string.SocialIdentityAdded,
-  'account.social.verification.request': setting.string.EmailVerificationRequested,
-  'account.social.release': setting.string.SocialIdentityReleased,
-  'account.profile.name.change': setting.string.ProfileNameChanged,
-  'account.mailbox.create': setting.string.MailboxCreated,
-  'account.mailbox.delete': setting.string.MailboxDeleted,
-  'account.mailbox.secret.read': setting.string.MailboxCredentialsAccessed,
-  'account.guest.token.exchange': setting.string.GuestAccessExchanged,
-  'account.assistant.add': setting.string.AssistantAdded,
-  'account.assistant.token.refresh': setting.string.AssistantTokenRefreshed,
-  'person.social.add': setting.string.PersonSocialIdentityAdded,
-  'person.social.update': setting.string.PersonSocialIdentityUpdated,
-  'account.merge': setting.string.AccountsMerged,
-  'person.merge': setting.string.PersonsMerged,
-  'account.delete': setting.string.AccountDeleted
+  'account.guest.login': setting.string.GuestLoggedIn,
+  'document.publish': setting.string.DocumentPublished
 }
 
-export const AUDIT_EVENT_ITEMS: DropdownIntlItem[] = [
-  { id: '', label: setting.string.AllEvents },
-  ...Object.entries(AUDIT_EVENT_LABELS).map(([id, label]) => ({ id, label }))
-]
+export const AUDIT_EVENT_ITEMS: DropdownIntlItem[] = OWNER_AUDIT_EVENTS.map((id) => ({
+  id,
+  label: AUDIT_EVENT_LABELS[id]
+}))
 
 export const AUDIT_OUTCOME_LABELS: Record<WorkspaceAuditEvent['outcome'], IntlString> = {
   succeeded: setting.string.Succeeded,
@@ -102,28 +77,17 @@ export const AUDIT_ATTRIBUTE_LABELS: Record<string, IntlString> = {
   targetRole: setting.string.NewRole,
   permission: setting.string.Permission,
   accountIds: setting.string.AffectedAccounts,
-  accountIdsCount: setting.string.RecipientCount,
-  chunkIndex: setting.string.ChunkIndex,
-  chunkCount: setting.string.ChunkCount,
   region: setting.string.Region,
   autoJoin: setting.string.AutomaticJoin,
   isShareLink: setting.string.ShareLink,
   readOnlyGuestsAllowed: setting.string.ReadOnlyGuestsAllowed,
   guestSignUpAllowed: setting.string.GuestSignUpAllowed,
   days: setting.string.PasswordAgeDays,
-  workspaceEvent: setting.string.WorkspaceOperation,
-  workspaceMode: setting.string.WorkspaceMode,
-  mode: setting.string.WorkspaceMode,
-  operation: setting.string.WorkspaceOperation,
-  kind: setting.string.IntegrationKind,
-  method: setting.string.Method,
-  errorCode: setting.string.ErrorCode
+  kind: setting.string.IntegrationKind
 }
 
 export function getAuditEventLabel (event: string): IntlString {
-  return Object.prototype.hasOwnProperty.call(AUDIT_EVENT_LABELS, event)
-    ? AUDIT_EVENT_LABELS[event]
-    : getEmbeddedLabel(event)
+  return isOwnerAuditEventName(event) ? AUDIT_EVENT_LABELS[event] : setting.string.UnknownEvent
 }
 
 export function getAuditTarget (event: WorkspaceAuditEvent): string | undefined {

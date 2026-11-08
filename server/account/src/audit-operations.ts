@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { AccountRole, type Branding, type MeasureContext } from '@hcengineering/core'
+import { AccountRole, OWNER_AUDIT_EVENTS, isOwnerAuditEventName, type Branding, type MeasureContext } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import type { AuditRecord } from '@hcengineering/server-core'
 import { decodeTokenVerbose } from '@hcengineering/server-token'
@@ -58,7 +58,7 @@ function validateQuery (query: WorkspaceAuditQuery | null | undefined): asserts 
     query.to <= query.from ||
     (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 100)) ||
     (query.event !== undefined &&
-      (typeof query.event !== 'string' || !/^[a-z][a-z0-9_.-]{0,127}$/.test(query.event))) ||
+      (typeof query.event !== 'string' || !isOwnerAuditEventName(query.event))) ||
     (query.outcome !== undefined && !['succeeded', 'denied', 'failed'].includes(query.outcome))
   ) {
     badRequest()
@@ -117,7 +117,7 @@ export async function getWorkspaceAuditEvents (
   }
   validateQuery(query)
   const limit = query.limit ?? 50
-  const records = await db.audit.findWorkspace(workspace, { ...query, limit })
+  const records = await db.audit.findWorkspace(workspace, { ...query, limit }, OWNER_AUDIT_EVENTS)
   const events = records.slice(0, limit).map(presentEvent)
   const last = events[events.length - 1]
   return {

@@ -34,6 +34,7 @@
 
   $: target = getAuditTarget(event)
   $: attributes = Object.entries(event.attributes).filter(([key]) => AUDIT_ATTRIBUTE_LABELS[key] !== undefined)
+  $: technicalAttributes = Object.entries(event.attributes).filter(([key]) => AUDIT_ATTRIBUTE_LABELS[key] === undefined)
 </script>
 
 <Modal
@@ -46,7 +47,10 @@
 >
   <div class="flex-col flex-gap-4">
     <div class="flex-col flex-gap-2">
-      <span class="font-medium"><Label label={getAuditEventLabel(event.event)} /></span>
+      <span class="font-medium">
+        <Label label={getAuditEventLabel(event.event)} />
+        {#if getAuditEventLabel(event.event) === setting.string.UnknownEvent} ({event.event}){/if}
+      </span>
       <StateTag type={AUDIT_OUTCOME_TYPES[event.outcome]} label={AUDIT_OUTCOME_LABELS[event.outcome]} />
     </div>
     <dl class="fields">
@@ -82,6 +86,10 @@
           <dt><Label label={setting.string.OperationId} /></dt>
           <dd>{event.operationId}</dd>
         {/if}
+        {#each technicalAttributes as [key, value] (key)}
+          <dt>{key}</dt>
+          <dd>{value === null ? '—' : Array.isArray(value) ? value.join(', ') : String(value)}</dd>
+        {/each}
       </dl>
     </Expandable>
   </div>

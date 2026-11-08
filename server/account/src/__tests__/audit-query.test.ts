@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { AccountRole, type AccountUuid, type MeasureContext, type WorkspaceUuid } from '@hcengineering/core'
+import { AccountRole, OWNER_AUDIT_EVENTS, type AccountUuid, type MeasureContext, type WorkspaceUuid } from '@hcengineering/core'
 import platform from '@hcengineering/platform'
 import type { AuditRecord } from '@hcengineering/server-core'
 import { decodeTokenVerbose, type Token } from '@hcengineering/server-token'
@@ -78,7 +78,7 @@ test('uses the token workspace even when the caller supplies another workspace',
   const supplied: WorkspaceAuditQuery & { workspaceUuid: string } = { ...query, workspaceUuid: 'workspace-b' }
   await getWorkspaceAuditEvents(ctx, db as AccountDB, null, 'token', supplied)
   expect(db.getWorkspaceRole).toHaveBeenCalledWith(account, workspace)
-  expect(findWorkspace).toHaveBeenCalledWith(workspace, expect.objectContaining(query))
+  expect(findWorkspace).toHaveBeenCalledWith(workspace, expect.objectContaining(query), OWNER_AUDIT_EVENTS)
 })
 
 test('rechecks the persisted role after ownership is revoked', async () => {
@@ -116,6 +116,10 @@ test.each([
   { limit: 101 },
   { limit: 0 },
   { event: "event' OR TRUE" },
+  { event: 'account.rpc' },
+  { event: 'account.login' },
+  { event: 'integration.secrets.list' },
+  { event: 'future.unknown.event' },
   { outcome: 'other' },
   { cursor: null },
   { cursor: { occurredAt: 1, eventId: 'invalid-uuid' } }
@@ -165,4 +169,23 @@ test('the registered RPC rejects API-key access before querying the journal', as
   const response = await handler(ctx, db as AccountDB, null, request, 'token')
   expect(response.error.code).toBe(platform.status.Forbidden)
   expect(findWorkspace).not.toHaveBeenCalled()
+})
+
+test('forces owner visibility even when the caller supplies its own event list', async () => {
+  const supplied: WorkspaceAuditQuery & { events: string[] } = { ...query, events: ['account.rpc'] }
+  await getWorkspaceAuditEvents(ctx, db as AccountDB, null, 'token', supplied)
+  expect(findWorkspace).toHaveBeenCalledWith(workspace, expect.objectContaining(query), OWNER_AUDIT_EVENTS)
+  expect(OWNER_AUDIT_EVENTS).not.toContain('account.rpc')
+  expect(OWNER_AUDIT_EVENTS).not.toContain('account.login')
+  expect(OWNER_AUDIT_EVENTS).toContain('workspace.member.role.change')
+})
+
+test('keeps allowlisted technical attributes in the projection without exposing arbitrary attributes', async () => {
+  const technical: AuditRecord = { ...record, chunkIndex: 1, chunkCount: 2, accountIdsCount: 20 }
+  findWorkspace.mockResolvedValueOnce([technical])
+  const page = await getWorkspaceAuditEvents(ctx, db as AccountDB, null, 'token', query)
+  expect(page.events[0].attributes).toEqual({
+    targetAccountUuid: 'member', targetRole: 'ADMIN', chunkIndex: 1, chunkCount: 2, accountIdsCount: 20
+  })
+  expect(JSON.stringify(page)).not.toContain('futurePrivateAttribute')
 })

@@ -64,7 +64,7 @@
       id: 'event',
       label: setting.string.Event,
       searchable: true,
-      options: AUDIT_EVENT_ITEMS.filter((item) => item.id !== '').map((item) => ({
+      options: AUDIT_EVENT_ITEMS.map((item) => ({
         id: String(item.id),
         label: item.label
       }))
@@ -300,6 +300,7 @@
                     <div class="audit-event flex-col flex-gap-1 min-w-0">
                       <button type="button" class="audit-title overflow-label" data-id="audit-event-details">
                         <Label label={getAuditEventLabel(event.event)} />
+                        {#if getAuditEventLabel(event.event) === setting.string.UnknownEvent} ({event.event}){/if}
                       </button>
                       {#if target}<span class="audit-target text-sm content-dark-color"
                           ><AuditIdentity account={target} /></span
