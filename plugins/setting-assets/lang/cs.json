@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "Neznámá událost",
-    "GuestLoggedIn": "Host se přihlásil",
-    "DocumentPublished": "Dokument publikován",
     "AuditLog": "Protokol auditu",
     "Succeeded": "Úspěšné",
     "Denied": "Zamítnuto",
@@ -344,6 +341,9 @@
     "CanJoin": "Může se připojit",
     "InviteDays": "{count, plural, one {# den} few {# dny} other {# dní}}",
     "InviteHours": "{count, plural, one {# hodina} few {# hodiny} other {# hodin}}",
-    "InviteSettingsSaveFailed": "Nepodařilo se uložit nastavení pozvánek. Zkuste to prosím znovu."
+    "InviteSettingsSaveFailed": "Nepodařilo se uložit nastavení pozvánek. Zkuste to prosím znovu.",
+    "UnknownEvent": "Neznámá událost",
+    "GuestLoggedIn": "Host se přihlásil",
+    "DocumentPublished": "Dokument publikován"
   }
 }

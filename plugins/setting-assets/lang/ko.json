@@ -1,8 +1,5 @@
 {
     "string": {
-    "UnknownEvent": "알 수 없는 이벤트",
-    "GuestLoggedIn": "게스트 로그인",
-    "DocumentPublished": "문서 게시됨",
     "AuditLog": "감사 로그",
     "Succeeded": "성공",
     "Denied": "거부됨",
@@ -346,6 +343,9 @@
         "CanJoin": "참여 가능",
         "InviteDays": "{count, plural, other {#일}}",
         "InviteHours": "{count, plural, other {#시간}}",
-        "InviteSettingsSaveFailed": "초대 설정을 저장하지 못했습니다. 다시 시도해 주세요."
+        "InviteSettingsSaveFailed": "초대 설정을 저장하지 못했습니다. 다시 시도해 주세요.",
+        "UnknownEvent": "알 수 없는 이벤트",
+        "GuestLoggedIn": "게스트 로그인",
+        "DocumentPublished": "문서 게시됨"
     }
 }

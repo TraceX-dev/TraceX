@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "未知事件",
-    "GuestLoggedIn": "访客已登录",
-    "DocumentPublished": "文档已发布",
     "AuditLog": "审计日志",
     "Succeeded": "成功",
     "Denied": "已拒绝",
@@ -346,6 +343,9 @@
     "CanJoin": "可加入",
     "InviteDays": "{count, plural, other {#天}}",
     "InviteHours": "{count, plural, other {#小时}}",
-    "InviteSettingsSaveFailed": "无法保存邀请设置，请重试。"
+    "InviteSettingsSaveFailed": "无法保存邀请设置，请重试。",
+    "UnknownEvent": "未知事件",
+    "GuestLoggedIn": "访客已登录",
+    "DocumentPublished": "文档已发布"
   }
 }

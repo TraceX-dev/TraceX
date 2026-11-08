@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "Неизвестное событие",
-    "GuestLoggedIn": "Гость вошёл",
-    "DocumentPublished": "Документ опубликован",
     "AuditLog": "Журнал аудита",
     "Succeeded": "Успешно",
     "Denied": "Отказано",
@@ -349,6 +346,9 @@
     "CanJoin": "Может присоединиться",
     "InviteDays": "{count, plural, one {# день} few {# дня} other {# дней}}",
     "InviteHours": "{count, plural, one {# час} few {# часа} other {# часов}}",
-    "InviteSettingsSaveFailed": "Не удалось сохранить настройки приглашений. Попробуйте ещё раз."
+    "InviteSettingsSaveFailed": "Не удалось сохранить настройки приглашений. Попробуйте ещё раз.",
+    "UnknownEvent": "Неизвестное событие",
+    "GuestLoggedIn": "Гость вошёл",
+    "DocumentPublished": "Документ опубликован"
   }
 }

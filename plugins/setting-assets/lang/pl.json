@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "Nieznane zdarzenie",
-    "GuestLoggedIn": "Gość zalogował się",
-    "DocumentPublished": "Dokument opublikowany",
     "AuditLog": "Dziennik audytu",
     "Succeeded": "Powodzenie",
     "Denied": "Odmowa",
@@ -346,6 +343,9 @@
     "CanJoin": "Może dołączyć",
     "InviteDays": "{count, plural, one {# dzień} other {# dni}}",
     "InviteHours": "{count, plural, one {# godzina} few {# godziny} other {# godzin}}",
-    "InviteSettingsSaveFailed": "Nie udało się zapisać ustawień zaproszeń. Spróbuj ponownie."
+    "InviteSettingsSaveFailed": "Nie udało się zapisać ustawień zaproszeń. Spróbuj ponownie.",
+    "UnknownEvent": "Nieznane zdarzenie",
+    "GuestLoggedIn": "Gość zalogował się",
+    "DocumentPublished": "Dokument opublikowany"
   }
 }

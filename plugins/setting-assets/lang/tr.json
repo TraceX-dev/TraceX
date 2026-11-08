@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "Bilinmeyen olay",
-    "GuestLoggedIn": "Misafir oturum açtı",
-    "DocumentPublished": "Belge yayınlandı",
     "AuditLog": "Denetim günlüğü",
     "Succeeded": "Başarılı",
     "Denied": "Reddedildi",
@@ -346,6 +343,9 @@
     "CanJoin": "Katılabilir",
     "InviteDays": "{count, plural, other {# gün}}",
     "InviteHours": "{count, plural, other {# saat}}",
-    "InviteSettingsSaveFailed": "Davet ayarları kaydedilemedi. Lütfen tekrar deneyin."
+    "InviteSettingsSaveFailed": "Davet ayarları kaydedilemedi. Lütfen tekrar deneyin.",
+    "UnknownEvent": "Bilinmeyen olay",
+    "GuestLoggedIn": "Misafir oturum açtı",
+    "DocumentPublished": "Belge yayınlandı"
   }
 }

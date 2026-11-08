@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "Evento sconosciuto",
-    "GuestLoggedIn": "Ospite connesso",
-    "DocumentPublished": "Documento pubblicato",
     "AuditLog": "Registro di audit",
     "Succeeded": "Riuscito",
     "Denied": "Negato",
@@ -346,6 +343,9 @@
     "CanJoin": "Può partecipare",
     "InviteDays": "{count, plural, one {# giorno} other {# giorni}}",
     "InviteHours": "{count, plural, one {# ora} other {# ore}}",
-    "InviteSettingsSaveFailed": "Impossibile salvare le impostazioni degli inviti. Riprova."
+    "InviteSettingsSaveFailed": "Impossibile salvare le impostazioni degli inviti. Riprova.",
+    "UnknownEvent": "Evento sconosciuto",
+    "GuestLoggedIn": "Ospite connesso",
+    "DocumentPublished": "Documento pubblicato"
   }
 }

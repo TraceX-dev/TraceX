@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "Événement inconnu",
-    "GuestLoggedIn": "Invité connecté",
-    "DocumentPublished": "Document publié",
     "AuditLog": "Journal d’audit",
     "Succeeded": "Réussi",
     "Denied": "Refusé",
@@ -346,6 +343,9 @@
     "CanJoin": "Peut rejoindre",
     "InviteDays": "{count, plural, one {# jour} other {# jours}}",
     "InviteHours": "{count, plural, one {# heure} other {# heures}}",
-    "InviteSettingsSaveFailed": "Impossible d'enregistrer les paramètres d'invitation. Veuillez réessayer."
+    "InviteSettingsSaveFailed": "Impossible d'enregistrer les paramètres d'invitation. Veuillez réessayer.",
+    "UnknownEvent": "Événement inconnu",
+    "GuestLoggedIn": "Invité connecté",
+    "DocumentPublished": "Document publié"
   }
 }

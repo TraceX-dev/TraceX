@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "不明なイベント",
-    "GuestLoggedIn": "ゲストがログインしました",
-    "DocumentPublished": "ドキュメントが公開されました",
     "AuditLog": "監査ログ",
     "Succeeded": "成功",
     "Denied": "拒否",
@@ -346,6 +343,9 @@
     "CanJoin": "参加可能",
     "InviteDays": "{count, plural, other {#日}}",
     "InviteHours": "{count, plural, other {#時間}}",
-    "InviteSettingsSaveFailed": "招待設定を保存できませんでした。もう一度お試しください。"
+    "InviteSettingsSaveFailed": "招待設定を保存できませんでした。もう一度お試しください。",
+    "UnknownEvent": "不明なイベント",
+    "GuestLoggedIn": "ゲストがログインしました",
+    "DocumentPublished": "ドキュメントが公開されました"
   }
 }

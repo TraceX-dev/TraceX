@@ -1,8 +1,5 @@
 {
   "string": {
-    "UnknownEvent": "Unknown event",
-    "GuestLoggedIn": "Guest logged in",
-    "DocumentPublished": "Document published",
     "AuditLog": "Audit log",
     "Succeeded": "Succeeded",
     "Denied": "Denied",
@@ -349,6 +346,9 @@
     "CanJoin": "Can join",
     "InviteDays": "{count, plural, one {# day} other {# days}}",
     "InviteHours": "{count, plural, one {# hour} other {# hours}}",
-    "InviteSettingsSaveFailed": "Failed to save invitation settings. Please try again."
+    "InviteSettingsSaveFailed": "Failed to save invitation settings. Please try again.",
+    "UnknownEvent": "Unknown event",
+    "GuestLoggedIn": "Guest logged in",
+    "DocumentPublished": "Document published"
   }
 }
