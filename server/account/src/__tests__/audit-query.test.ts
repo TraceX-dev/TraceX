@@ -13,7 +13,13 @@
 // limitations under the License.
 //
 
-import { AccountRole, OWNER_AUDIT_EVENTS, type AccountUuid, type MeasureContext, type WorkspaceUuid } from '@hcengineering/core'
+import {
+  AccountRole,
+  OWNER_AUDIT_EVENTS,
+  type AccountUuid,
+  type MeasureContext,
+  type WorkspaceUuid
+} from '@hcengineering/core'
 import platform from '@hcengineering/platform'
 import type { AuditRecord } from '@hcengineering/server-core'
 import { decodeTokenVerbose, type Token } from '@hcengineering/server-token'
@@ -185,7 +191,11 @@ test('keeps allowlisted technical attributes in the projection without exposing 
   findWorkspace.mockResolvedValueOnce([technical])
   const page = await getWorkspaceAuditEvents(ctx, db as AccountDB, null, 'token', query)
   expect(page.events[0].attributes).toEqual({
-    targetAccountUuid: 'member', targetRole: 'ADMIN', chunkIndex: 1, chunkCount: 2, accountIdsCount: 20
+    targetAccountUuid: 'member',
+    targetRole: 'ADMIN',
+    chunkIndex: 1,
+    chunkCount: 2,
+    accountIdsCount: 20
   })
   expect(JSON.stringify(page)).not.toContain('futurePrivateAttribute')
 })

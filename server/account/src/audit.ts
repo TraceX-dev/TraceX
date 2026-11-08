@@ -46,7 +46,7 @@ export async function auditAccountEvent (ctx: MeasureContext, event: AuditEvent,
 export async function auditInviteLimitExceeded (
   ctx: MeasureContext,
   invite: Pick<WorkspaceInvite, 'id' | 'workspaceUuid'>,
-  token?: string
+  token: string
 ): Promise<void> {
   await auditAccountEvent(
     ctx,

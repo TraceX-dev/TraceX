@@ -4,14 +4,9 @@
     "Succeeded": "Correcto",
     "Denied": "Denegado",
     "Failed": "Fallido",
-    "Today": "Hoy",
     "Last7Days": "Últimos 7 días",
     "Last30Days": "Últimos 30 días",
     "CustomPeriod": "Periodo personalizado",
-    "Refresh": "Actualizar",
-    "LoadMore": "Cargar más",
-    "Retry": "Reintentar",
-    "ClearFilters": "Borrar filtros",
     "NoAuditEvents": "No se encontraron eventos para este periodo y estos filtros.",
     "AuditLoadFailed": "No se pudieron cargar los eventos de auditoría. Inténtalo de nuevo.",
     "AuditOwnerOnly": "Solo los propietarios del espacio de trabajo pueden ver el registro de auditoría.",
@@ -336,7 +331,6 @@
     "InviteHours": "{count, plural, one {# hora} other {# horas}}",
     "InviteSettingsSaveFailed": "No se pudo guardar la configuración de invitaciones. Inténtalo de nuevo.",
     "UnknownEvent": "Evento desconocido",
-    "GuestLoggedIn": "Invitado ha iniciado sesión",
-    "DocumentPublished": "Documento publicado"
+    "GuestLoggedIn": "Invitado ha iniciado sesión"
   }
 }

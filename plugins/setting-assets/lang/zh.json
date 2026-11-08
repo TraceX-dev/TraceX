@@ -4,14 +4,9 @@
     "Succeeded": "成功",
     "Denied": "已拒绝",
     "Failed": "失败",
-    "Today": "今天",
     "Last7Days": "最近7天",
     "Last30Days": "最近30天",
     "CustomPeriod": "自定义时间段",
-    "Refresh": "刷新",
-    "LoadMore": "加载更多",
-    "Retry": "重试",
-    "ClearFilters": "清除筛选条件",
     "NoAuditEvents": "未找到符合此时间段和筛选条件的事件。",
     "AuditLoadFailed": "无法加载审计事件。请重试。",
     "AuditOwnerOnly": "只有工作区所有者可以查看审计日志。",
@@ -345,7 +340,6 @@
     "InviteHours": "{count, plural, other {#小时}}",
     "InviteSettingsSaveFailed": "无法保存邀请设置，请重试。",
     "UnknownEvent": "未知事件",
-    "GuestLoggedIn": "访客已登录",
-    "DocumentPublished": "文档已发布"
+    "GuestLoggedIn": "访客已登录"
   }
 }

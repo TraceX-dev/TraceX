@@ -4,14 +4,9 @@
     "Succeeded": "Úspěšné",
     "Denied": "Zamítnuto",
     "Failed": "Neúspěšné",
-    "Today": "Dnes",
     "Last7Days": "Posledních 7 dní",
     "Last30Days": "Posledních 30 dní",
     "CustomPeriod": "Vlastní období",
-    "Refresh": "Obnovit",
-    "LoadMore": "Načíst další",
-    "Retry": "Zkusit znovu",
-    "ClearFilters": "Vymazat filtry",
     "NoAuditEvents": "Pro toto období a filtry nebyly nalezeny žádné události.",
     "AuditLoadFailed": "Události auditu se nepodařilo načíst. Zkuste to prosím znovu.",
     "AuditOwnerOnly": "Protokol auditu mohou zobrazit pouze vlastníci pracovního prostoru.",
@@ -343,7 +338,6 @@
     "InviteHours": "{count, plural, one {# hodina} few {# hodiny} other {# hodin}}",
     "InviteSettingsSaveFailed": "Nepodařilo se uložit nastavení pozvánek. Zkuste to prosím znovu.",
     "UnknownEvent": "Neznámá událost",
-    "GuestLoggedIn": "Host se přihlásil",
-    "DocumentPublished": "Dokument publikován"
+    "GuestLoggedIn": "Host se přihlásil"
   }
 }

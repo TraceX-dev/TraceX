@@ -195,9 +195,6 @@
   .ava-text {
     font-weight: 500;
     letter-spacing: -.05em;
-    white-space: nowrap;
-    overflow-wrap: normal;
-    word-break: normal;
 
     &::after {
       content: attr(data-name);

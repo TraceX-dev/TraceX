@@ -4,14 +4,9 @@
     "Succeeded": "成功",
     "Denied": "拒否",
     "Failed": "失敗",
-    "Today": "今日",
     "Last7Days": "過去7日間",
     "Last30Days": "過去30日間",
     "CustomPeriod": "期間を指定",
-    "Refresh": "更新",
-    "LoadMore": "さらに読み込む",
-    "Retry": "再試行",
-    "ClearFilters": "フィルターをクリア",
     "NoAuditEvents": "この期間とフィルターに一致するイベントはありません。",
     "AuditLoadFailed": "監査イベントを読み込めませんでした。もう一度お試しください。",
     "AuditOwnerOnly": "監査ログを表示できるのはワークスペースの所有者のみです。",
@@ -345,7 +340,6 @@
     "InviteHours": "{count, plural, other {#時間}}",
     "InviteSettingsSaveFailed": "招待設定を保存できませんでした。もう一度お試しください。",
     "UnknownEvent": "不明なイベント",
-    "GuestLoggedIn": "ゲストがログインしました",
-    "DocumentPublished": "ドキュメントが公開されました"
+    "GuestLoggedIn": "ゲストがログインしました"
   }
 }

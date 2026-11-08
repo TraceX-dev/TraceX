@@ -4,14 +4,9 @@
     "Succeeded": "Başarılı",
     "Denied": "Reddedildi",
     "Failed": "Başarısız",
-    "Today": "Bugün",
     "Last7Days": "Son 7 gün",
     "Last30Days": "Son 30 gün",
     "CustomPeriod": "Özel dönem",
-    "Refresh": "Yenile",
-    "LoadMore": "Daha fazla yükle",
-    "Retry": "Yeniden dene",
-    "ClearFilters": "Filtreleri temizle",
     "NoAuditEvents": "Bu dönem ve filtreler için olay bulunamadı.",
     "AuditLoadFailed": "Denetim olayları yüklenemedi. Lütfen yeniden deneyin.",
     "AuditOwnerOnly": "Denetim günlüğünü yalnızca çalışma alanı sahipleri görüntüleyebilir.",
@@ -345,7 +340,6 @@
     "InviteHours": "{count, plural, other {# saat}}",
     "InviteSettingsSaveFailed": "Davet ayarları kaydedilemedi. Lütfen tekrar deneyin.",
     "UnknownEvent": "Bilinmeyen olay",
-    "GuestLoggedIn": "Misafir oturum açtı",
-    "DocumentPublished": "Belge yayınlandı"
+    "GuestLoggedIn": "Misafir oturum açtı"
   }
 }

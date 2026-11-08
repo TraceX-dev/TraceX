@@ -4,14 +4,9 @@
     "Succeeded": "Powodzenie",
     "Denied": "Odmowa",
     "Failed": "Niepowodzenie",
-    "Today": "Dzisiaj",
     "Last7Days": "Ostatnie 7 dni",
     "Last30Days": "Ostatnie 30 dni",
     "CustomPeriod": "Niestandardowy okres",
-    "Refresh": "Odśwież",
-    "LoadMore": "Wczytaj więcej",
-    "Retry": "Spróbuj ponownie",
-    "ClearFilters": "Wyczyść filtry",
     "NoAuditEvents": "Nie znaleziono zdarzeń dla tego okresu i tych filtrów.",
     "AuditLoadFailed": "Nie udało się wczytać zdarzeń audytu. Spróbuj ponownie.",
     "AuditOwnerOnly": "Tylko właściciele przestrzeni roboczej mogą przeglądać dziennik audytu.",
@@ -345,7 +340,6 @@
     "InviteHours": "{count, plural, one {# godzina} few {# godziny} other {# godzin}}",
     "InviteSettingsSaveFailed": "Nie udało się zapisać ustawień zaproszeń. Spróbuj ponownie.",
     "UnknownEvent": "Nieznane zdarzenie",
-    "GuestLoggedIn": "Gość zalogował się",
-    "DocumentPublished": "Dokument opublikowany"
+    "GuestLoggedIn": "Gość zalogował się"
   }
 }

@@ -13,7 +13,13 @@
 // limitations under the License.
 //
 
-import { AccountRole, OWNER_AUDIT_EVENTS, isOwnerAuditEventName, type Branding, type MeasureContext } from '@hcengineering/core'
+import {
+  AccountRole,
+  OWNER_AUDIT_EVENTS,
+  isOwnerAuditEventName,
+  type Branding,
+  type MeasureContext
+} from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import type { AuditRecord } from '@hcengineering/server-core'
 import { decodeTokenVerbose } from '@hcengineering/server-token'
@@ -57,8 +63,7 @@ function validateQuery (query: WorkspaceAuditQuery | null | undefined): asserts 
     !Number.isSafeInteger(query.to) ||
     query.to <= query.from ||
     (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 100)) ||
-    (query.event !== undefined &&
-      (typeof query.event !== 'string' || !isOwnerAuditEventName(query.event))) ||
+    (query.event !== undefined && (typeof query.event !== 'string' || !isOwnerAuditEventName(query.event))) ||
     (query.outcome !== undefined && !['succeeded', 'denied', 'failed'].includes(query.outcome))
   ) {
     badRequest()

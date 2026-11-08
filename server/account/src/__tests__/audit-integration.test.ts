@@ -158,15 +158,22 @@ integration('audit PostgreSQL/Redpanda delivery', () => {
       expect(filtered.map((event) => event.eventId)).toEqual([newer.eventId])
       expect(await store.findWorkspace(workspace, { ...query, from: 1001 })).toEqual([])
       const ownerEvent: AuditRecord = {
-        ...older, event: 'workspace.rename', eventId: randomUUID(), occurredAt: 900
+        ...older,
+        event: 'workspace.rename',
+        eventId: randomUUID(),
+        occurredAt: 900
       }
       await store.insert(ownerEvent)
       // Newer technical records must not consume the owner's page or its lookahead row.
       const visible = await store.findWorkspace(workspace, query, OWNER_AUDIT_EVENTS)
       expect(visible.map((event) => event.eventId)).toEqual([ownerEvent.eventId])
-      expect(await store.findWorkspace(workspace, { ...query, event: 'workspace.data.cleanup' }, OWNER_AUDIT_EVENTS)).toEqual([])
+      expect(
+        await store.findWorkspace(workspace, { ...query, event: 'workspace.data.cleanup' }, OWNER_AUDIT_EVENTS)
+      ).toEqual([])
       const all = await store.findWorkspace(workspace, { from: 0, to: Date.now() + 1 })
-      expect(all.map((event) => event.eventId).sort()).toEqual([original.eventId, newer.eventId, older.eventId, ownerEvent.eventId].sort())
+      expect(all.map((event) => event.eventId).sort()).toEqual(
+        [original.eventId, newer.eventId, older.eventId, ownerEvent.eventId].sort()
+      )
     } finally {
       await closePublisher?.()
       await consumerQueue?.shutdown()

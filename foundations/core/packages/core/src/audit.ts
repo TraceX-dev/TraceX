@@ -45,7 +45,7 @@ export const AUDIT_EVENT_CATALOG = {
   'account.social.add': 'technical',
   'account.social.release': 'technical',
   'account.social.verification.request': 'technical',
-  'document.publish': 'owner',
+  'document.publish': 'technical',
   'integration.create': 'owner',
   'integration.delete': 'owner',
   'integration.secret.add': 'owner',
@@ -82,7 +82,7 @@ export const AUDIT_EVENT_CATALOG = {
 
 export type AuditEventName = keyof typeof AUDIT_EVENT_CATALOG
 export type OwnerAuditEventName = {
-  [Name in AuditEventName]: typeof AUDIT_EVENT_CATALOG[Name] extends 'owner' ? Name : never
+  [Name in AuditEventName]: (typeof AUDIT_EVENT_CATALOG)[Name] extends 'owner' ? Name : never
 }[AuditEventName]
 
 /** Unknown names stay hidden until explicitly classified by the server. */
@@ -93,4 +93,35 @@ export function isOwnerAuditEventName (name: string): name is OwnerAuditEventNam
   )
 }
 
-export const OWNER_AUDIT_EVENTS: readonly OwnerAuditEventName[] = Object.keys(AUDIT_EVENT_CATALOG).filter(isOwnerAuditEventName)
+export const OWNER_AUDIT_EVENTS: readonly OwnerAuditEventName[] =
+  Object.keys(AUDIT_EVENT_CATALOG).filter(isOwnerAuditEventName)
+
+/** Filters for the current workspace journal. Time bounds are inclusive/exclusive. */
+export interface WorkspaceAuditQuery {
+  from: number
+  to: number
+  event?: string
+  outcome?: 'succeeded' | 'denied' | 'failed'
+  cursor?: { occurredAt: number, eventId: string }
+  limit?: number
+}
+
+/** Owner-visible projection; private audit attributes are never returned. */
+export interface WorkspaceAuditEvent {
+  eventId: string
+  occurredAt: number
+  sourceService: string
+  event: string
+  outcome: 'succeeded' | 'denied' | 'failed'
+  actorAccountUuid?: string
+  actorService?: string
+  targetType?: string
+  targetId?: string
+  operationId?: string
+  attributes: Record<string, string | number | boolean | readonly string[] | null>
+}
+
+export interface WorkspaceAuditPage {
+  events: WorkspaceAuditEvent[]
+  nextCursor?: { occurredAt: number, eventId: string }
+}

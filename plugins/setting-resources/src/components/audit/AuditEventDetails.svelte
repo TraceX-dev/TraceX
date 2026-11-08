@@ -49,7 +49,8 @@
     <div class="flex-col flex-gap-2">
       <span class="font-medium">
         <Label label={getAuditEventLabel(event.event)} />
-        {#if getAuditEventLabel(event.event) === setting.string.UnknownEvent} ({event.event}){/if}
+        {#if getAuditEventLabel(event.event) === setting.string.UnknownEvent}
+          ({event.event}){/if}
       </span>
       <StateTag type={AUDIT_OUTCOME_TYPES[event.outcome]} label={AUDIT_OUTCOME_LABELS[event.outcome]} />
     </div>
@@ -64,7 +65,7 @@
       {/if}
       {#each attributes as [key, value] (key)}
         <dt><Label label={AUDIT_ATTRIBUTE_LABELS[key]} /></dt>
-        <dd>
+        <dd class="field-value">
           {#if typeof value === 'boolean'}<BooleanIcon {value} />
           {:else if key === 'role' || key === 'targetRole'}<Label label={getAuditRoleLabel(String(value))} />
           {:else}{value === null ? '—' : Array.isArray(value) ? value.join(', ') : String(value)}{/if}
@@ -75,20 +76,28 @@
       <svelte:fragment slot="title"><Label label={setting.string.TechnicalDetails} /></svelte:fragment>
       <dl class="fields select-text mt-2">
         <dt><Label label={setting.string.Event} /></dt>
-        <dd>{event.event}</dd>
+        <dd class="field-value">{event.event}</dd>
         <dt><Label label={setting.string.Time} /></dt>
         <dd>{new Date(event.occurredAt).toISOString()}</dd>
         <dt><Label label={setting.string.EventId} /></dt>
-        <dd>{event.eventId}</dd>
+        <dd class="field-value">{event.eventId}</dd>
         <dt><Label label={setting.string.SourceService} /></dt>
-        <dd>{event.sourceService}</dd>
+        <dd class="field-value">{event.sourceService}</dd>
+        {#if event.targetType}
+          <dt>targetType</dt>
+          <dd class="field-value">{event.targetType}</dd>
+        {/if}
+        {#if event.targetId}
+          <dt>targetId</dt>
+          <dd class="field-value">{event.targetId}</dd>
+        {/if}
         {#if event.operationId}
           <dt><Label label={setting.string.OperationId} /></dt>
-          <dd>{event.operationId}</dd>
+          <dd class="field-value">{event.operationId}</dd>
         {/if}
         {#each technicalAttributes as [key, value] (key)}
           <dt>{key}</dt>
-          <dd>{value === null ? '—' : Array.isArray(value) ? value.join(', ') : String(value)}</dd>
+          <dd class="field-value">{value === null ? '—' : Array.isArray(value) ? value.join(', ') : String(value)}</dd>
         {/each}
       </dl>
     </Expandable>
@@ -96,6 +105,10 @@
 </Modal>
 
 <style lang="scss">
+  .field-value {
+    overflow-wrap: anywhere;
+  }
+
   .fields {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
@@ -106,7 +119,7 @@
     }
     dd {
       margin: 0;
-      overflow-wrap: anywhere;
+      min-width: 0;
     }
   }
 </style>

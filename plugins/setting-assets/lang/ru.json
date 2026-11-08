@@ -4,14 +4,9 @@
     "Succeeded": "Успешно",
     "Denied": "Отказано",
     "Failed": "Ошибка",
-    "Today": "Сегодня",
     "Last7Days": "Последние 7 дней",
     "Last30Days": "Последние 30 дней",
     "CustomPeriod": "Другой период",
-    "Refresh": "Обновить",
-    "LoadMore": "Загрузить ещё",
-    "Retry": "Повторить",
-    "ClearFilters": "Сбросить фильтры",
     "NoAuditEvents": "За выбранный период с такими фильтрами событий нет.",
     "AuditLoadFailed": "Не удалось загрузить события аудита. Попробуйте ещё раз.",
     "AuditOwnerOnly": "Журнал аудита доступен только владельцам воркспейса.",
@@ -348,7 +343,6 @@
     "InviteHours": "{count, plural, one {# час} few {# часа} other {# часов}}",
     "InviteSettingsSaveFailed": "Не удалось сохранить настройки приглашений. Попробуйте ещё раз.",
     "UnknownEvent": "Неизвестное событие",
-    "GuestLoggedIn": "Гость вошёл",
-    "DocumentPublished": "Документ опубликован"
+    "GuestLoggedIn": "Гость вошёл"
   }
 }

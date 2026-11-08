@@ -4,14 +4,9 @@
     "Succeeded": "성공",
     "Denied": "거부됨",
     "Failed": "실패",
-    "Today": "오늘",
     "Last7Days": "최근 7일",
     "Last30Days": "최근 30일",
     "CustomPeriod": "기간 지정",
-    "Refresh": "새로고침",
-    "LoadMore": "더 불러오기",
-    "Retry": "다시 시도",
-    "ClearFilters": "필터 초기화",
     "NoAuditEvents": "이 기간 및 필터에 해당하는 이벤트가 없습니다.",
     "AuditLoadFailed": "감사 이벤트를 불러오지 못했습니다. 다시 시도해 주세요.",
     "AuditOwnerOnly": "워크스페이스 소유자만 감사 로그를 볼 수 있습니다.",
@@ -345,7 +340,6 @@
         "InviteHours": "{count, plural, other {#시간}}",
         "InviteSettingsSaveFailed": "초대 설정을 저장하지 못했습니다. 다시 시도해 주세요.",
         "UnknownEvent": "알 수 없는 이벤트",
-        "GuestLoggedIn": "게스트 로그인",
-        "DocumentPublished": "문서 게시됨"
+        "GuestLoggedIn": "게스트 로그인"
     }
 }

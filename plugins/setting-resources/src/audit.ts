@@ -48,8 +48,7 @@ export const AUDIT_EVENT_LABELS: Record<OwnerAuditEventName, IntlString> = {
   'integration.secret.read': setting.string.IntegrationSecretAccessed,
   'account.api-key.create': setting.string.ApiKeyCreated,
   'account.api-key.revoke': setting.string.ApiKeyRevoked,
-  'account.guest.login': setting.string.GuestLoggedIn,
-  'document.publish': setting.string.DocumentPublished
+  'account.guest.login': setting.string.GuestLoggedIn
 }
 
 export const AUDIT_EVENT_ITEMS: DropdownIntlItem[] = OWNER_AUDIT_EVENTS.map((id) => ({
@@ -92,7 +91,8 @@ export function getAuditEventLabel (event: string): IntlString {
 
 export function getAuditTarget (event: WorkspaceAuditEvent): string | undefined {
   const { targetAccountUuid, targetPersonUuid, subjectAccountUuid } = event.attributes
-  const target = targetAccountUuid ?? targetPersonUuid ?? subjectAccountUuid ?? event.targetId
+  const identity = event.targetType === 'account' || event.targetType === 'person' ? event.targetId : undefined
+  const target = targetAccountUuid ?? targetPersonUuid ?? subjectAccountUuid ?? identity
   return typeof target === 'string' ? target : undefined
 }
 

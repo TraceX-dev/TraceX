@@ -22,6 +22,7 @@
     Breadcrumb,
     Button,
     DateTimePresenter,
+    DatePresenter,
     DropdownLabelsIntl,
     FilterButton,
     Header,
@@ -39,6 +40,8 @@
     type FilterCategory,
     type DropdownIntlItem
   } from '@hcengineering/ui'
+  import ui from '@hcengineering/ui'
+  import view from '@hcengineering/view'
   import { onDestroy, onMount } from 'svelte'
   import {
     AUDIT_EVENT_ITEMS,
@@ -54,7 +57,7 @@
   import AuditIdentity from './AuditIdentity.svelte'
 
   const periodItems: DropdownIntlItem[] = [
-    { id: '1', label: setting.string.Today },
+    { id: '1', label: ui.string.Today },
     { id: '7', label: setting.string.Last7Days },
     { id: '30', label: setting.string.Last30Days },
     { id: 'custom', label: setting.string.CustomPeriod }
@@ -249,7 +252,7 @@
           <div class="ml-auto">
             <Button
               icon={setting.icon.Reset}
-              label={setting.string.Refresh}
+              label={ui.string.Refresh}
               size="small"
               disabled={loading || loadingMore}
               dataId="audit-refresh"
@@ -259,8 +262,8 @@
         </div>
         {#if period === 'custom' && startDate !== null}
           <div class="text-sm content-dark-color flex-row-center flex-wrap flex-gap-2">
-            <DateTimePresenter value={startDate.getTime()} />
-            {#if endDate !== null}<span>–</span><DateTimePresenter value={endDate.getTime()} />{/if}
+            <DatePresenter value={startDate.getTime()} />
+            {#if endDate !== null}<span>–</span><DatePresenter value={endDate.getTime()} />{/if}
           </div>
         {/if}
       </div>
@@ -271,7 +274,7 @@
           {#if failed}
             <div class="flex-col flex-gap-2 p-4">
               <Notice kind="error" label={setting.string.AuditLoadFailed} />
-              <Button label={setting.string.Retry} dataId="audit-retry" on:click={retry} />
+              <Button label={ui.string.Retry} dataId="audit-retry" on:click={retry} />
             </div>
           {/if}
           {#if events.length > 0}
@@ -300,7 +303,8 @@
                     <div class="audit-event flex-col flex-gap-1 min-w-0">
                       <button type="button" class="audit-title overflow-label" data-id="audit-event-details">
                         <Label label={getAuditEventLabel(event.event)} />
-                        {#if getAuditEventLabel(event.event) === setting.string.UnknownEvent} ({event.event}){/if}
+                        {#if getAuditEventLabel(event.event) === setting.string.UnknownEvent}
+                          ({event.event}){/if}
                       </button>
                       {#if target}<span class="audit-target text-sm content-dark-color"
                           ><AuditIdentity account={target} /></span
@@ -323,7 +327,7 @@
             <div class="flex-col flex-gap-2 pt-4">
               {#if loadingMore}<Loading />
               {:else if nextCursor !== undefined}
-                <Button label={setting.string.LoadMore} dataId="audit-load-more" on:click={loadNext} />
+                <Button label={ui.string.LoadMore} dataId="audit-load-more" on:click={loadNext} />
               {/if}
               <span class="text-sm content-dark-color"><Label label={setting.string.AuditEventsMayBeDelayed} /></span>
             </div>
@@ -331,7 +335,7 @@
             <SectionEmpty icon={IconHistory} label={setting.string.NoAuditEvents}>
               {#if canClearFilters}
                 <div class="mt-2">
-                  <Button label={setting.string.ClearFilters} dataId="audit-clear-filters" on:click={clearFilters} />
+                  <Button label={view.string.ClearFilters} dataId="audit-clear-filters" on:click={clearFilters} />
                 </div>
               {/if}
             </SectionEmpty>

@@ -287,32 +287,4 @@ export interface Subscription {
  */
 export type SubscriptionData = Omit<Subscription, 'createdOn' | 'updatedOn'>
 
-/** Filters for the current workspace journal. Time bounds are inclusive/exclusive. */
-export interface WorkspaceAuditQuery {
-  from: number
-  to: number
-  event?: string
-  outcome?: 'succeeded' | 'denied' | 'failed'
-  cursor?: { occurredAt: number, eventId: string }
-  limit?: number
-}
-
-/** Owner-visible projection; private audit attributes are never returned. */
-export interface WorkspaceAuditEvent {
-  eventId: string
-  occurredAt: number
-  sourceService: string
-  event: string
-  outcome: 'succeeded' | 'denied' | 'failed'
-  actorAccountUuid?: string
-  actorService?: string
-  targetType?: string
-  targetId?: string
-  operationId?: string
-  attributes: Record<string, string | number | boolean | readonly string[] | null>
-}
-
-export interface WorkspaceAuditPage {
-  events: WorkspaceAuditEvent[]
-  nextCursor?: { occurredAt: number, eventId: string }
-}
+export type { WorkspaceAuditQuery, WorkspaceAuditEvent, WorkspaceAuditPage } from '@hcengineering/core'

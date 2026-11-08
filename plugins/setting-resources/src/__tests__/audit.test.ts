@@ -14,20 +14,29 @@
 //
 
 import { OWNER_AUDIT_EVENTS } from '@hcengineering/core'
-import { AUDIT_ATTRIBUTE_LABELS, AUDIT_EVENT_ITEMS, AUDIT_EVENT_LABELS, getAuditEventLabel } from '../audit'
+import {
+  AUDIT_ATTRIBUTE_LABELS,
+  AUDIT_EVENT_ITEMS,
+  AUDIT_EVENT_LABELS,
+  getAuditEventLabel,
+  getAuditTarget
+} from '../audit'
 import setting from '../plugin'
+import type { WorkspaceAuditEvent } from '@hcengineering/account-client'
 
 jest.mock('@hcengineering/ui', () => ({
   StateType: { Positive: 'positive', Regular: 'regular', Negative: 'negative' }
 }))
 
 test('every owner event has a translated label and can be selected as a filter', () => {
-  expect(AUDIT_EVENT_ITEMS.map(({ id }) => id).sort((a, b) => a.localeCompare(b))).toEqual([...OWNER_AUDIT_EVENTS].sort((a, b) => a.localeCompare(b)))
+  expect(AUDIT_EVENT_ITEMS.map(({ id }) => id).sort((a, b) => a.localeCompare(b))).toEqual(
+    [...OWNER_AUDIT_EVENTS].sort((a, b) => a.localeCompare(b))
+  )
   for (const event of OWNER_AUDIT_EVENTS) {
     expect(AUDIT_EVENT_LABELS[event]).toBeTruthy()
     expect(getAuditEventLabel(event)).toBe(AUDIT_EVENT_LABELS[event])
   }
-  expect(AUDIT_EVENT_ITEMS.some(({ id }) => id === 'account.rpc')).toBe(false)
+  expect(AUDIT_EVENT_ITEMS.some(({ id }) => id === 'account.rpc' || id === 'document.publish')).toBe(false)
 })
 
 test('uses the localized fallback for newer or technical event names', () => {
@@ -41,4 +50,22 @@ test('only human-readable attributes receive labels', () => {
   for (const key of ['chunkIndex', 'chunkCount', 'accountIdsCount', 'method', 'errorCode']) {
     expect(AUDIT_ATTRIBUTE_LABELS[key]).toBeUndefined()
   }
+})
+
+test('resource targets are not treated as employee identities', () => {
+  const event: WorkspaceAuditEvent = {
+    eventId: 'event-id',
+    occurredAt: 1000,
+    sourceService: 'account',
+    event: 'integration.create',
+    outcome: 'succeeded',
+    targetType: 'integration',
+    targetId: 'integration-id',
+    attributes: {}
+  }
+  expect(getAuditTarget(event)).toBeUndefined()
+  const accountTarget: WorkspaceAuditEvent = { ...event, targetType: 'account', targetId: 'account-id' }
+  expect(getAuditTarget(accountTarget)).toBe('account-id')
+  const personTarget: WorkspaceAuditEvent = { ...event, attributes: { targetPersonUuid: 'person-id' } }
+  expect(getAuditTarget(personTarget)).toBe('person-id')
 })

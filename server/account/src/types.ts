@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+import type { WorkspaceAuditQuery } from '@hcengineering/core'
 import {
   type AccountRole,
   type BackupStatus,
@@ -332,7 +333,11 @@ export type WorkspaceInviteData = Omit<WorkspaceInvite, 'id'>
 /** Audit journal, independent of account/workspace lifecycle; mutations are append-only. */
 export interface AuditEventStore {
   insert: (record: AuditRecord) => Promise<void>
-  findWorkspace: (workspace: WorkspaceUuid, query: WorkspaceAuditQuery, events?: readonly string[]) => Promise<AuditRecord[]>
+  findWorkspace: (
+    workspace: WorkspaceUuid,
+    query: WorkspaceAuditQuery,
+    events?: readonly string[]
+  ) => Promise<AuditRecord[]>
 }
 
 export interface AccountDB {
@@ -569,32 +574,4 @@ export interface AccountAggregatedInfo extends Omit<Account, 'hash' | 'salt'>, P
   workspaces: Omit<WorkspaceInfo, 'allowReadOnlyGuest' | 'allowGuestSignUp'>[]
 }
 
-/** Filters for the current workspace journal. Time bounds are inclusive/exclusive. */
-export interface WorkspaceAuditQuery {
-  from: number
-  to: number
-  event?: string
-  outcome?: 'succeeded' | 'denied' | 'failed'
-  cursor?: { occurredAt: number, eventId: string }
-  limit?: number
-}
-
-/** Owner-visible projection; private audit attributes are never returned. */
-export interface WorkspaceAuditEvent {
-  eventId: string
-  occurredAt: number
-  sourceService: string
-  event: string
-  outcome: 'succeeded' | 'denied' | 'failed'
-  actorAccountUuid?: string
-  actorService?: string
-  targetType?: string
-  targetId?: string
-  operationId?: string
-  attributes: Record<string, string | number | boolean | readonly string[] | null>
-}
-
-export interface WorkspaceAuditPage {
-  events: WorkspaceAuditEvent[]
-  nextCursor?: { occurredAt: number, eventId: string }
-}
+export type { WorkspaceAuditQuery, WorkspaceAuditEvent, WorkspaceAuditPage } from '@hcengineering/core'

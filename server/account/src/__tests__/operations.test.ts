@@ -378,7 +378,7 @@ describe('account operations', () => {
         remainingUses: -1,
         role: AccountRole.User
       }
-      await utils.useInvite(mockCtx, mockDb, invite)
+      await utils.useInvite(mockCtx, mockDb, invite, 'verified-token')
 
       expect(mockDb.consumeInviteUse).not.toHaveBeenCalled()
     })
@@ -393,7 +393,7 @@ describe('account operations', () => {
         remainingUses: 1,
         role: AccountRole.User
       }
-      await expect(utils.useInvite(mockCtx, mockDb, invite)).rejects.toThrow(PlatformError)
+      await expect(utils.useInvite(mockCtx, mockDb, invite, 'verified-token')).rejects.toThrow(PlatformError)
       expect(mockDb.consumeInviteUse).toHaveBeenCalledWith('single')
     })
   })

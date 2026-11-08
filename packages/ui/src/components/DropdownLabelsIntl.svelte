@@ -32,7 +32,9 @@
   export let params: Record<string, any> = {}
   export let items: DropdownIntlItem[]
   export let multiselect: boolean = false
-  export let selected: DropdownIntlItem['id'] | Array<DropdownIntlItem['id']> | undefined = multiselect ? [] : undefined
+  type Selection = $$Generic<DropdownIntlItem['id'] | Array<DropdownIntlItem['id']>>
+  const emptySelection: Array<DropdownIntlItem['id']> = []
+  export let selected: Selection | undefined = multiselect ? (emptySelection as Selection) : undefined
   export let disabled: boolean = false
   export let kind: ButtonKind = 'regular'
   export let size: ButtonSize = 'small'
@@ -50,14 +52,14 @@
   let container: HTMLElement
   let opened: boolean = false
 
-  // Preserve the legacy event contract: consumers use branded ids and single/multiple selection.
-  const dispatch = createEventDispatcher<{ selected: any }>()
+  const dispatch = createEventDispatcher<{ selected: Selection }>()
 
   $: selectedItem = multiselect
     ? (items ?? []).filter((p) => (selected as Array<DropdownIntlItem['id']>)?.includes(p.id))
     : (items ?? []).find((x) => x.id === selected)
   $: if (shouldUpdateUndefined && selected === undefined && items?.[0] !== undefined) {
-    selected = multiselect ? [items[0].id] : items[0].id
+    const initial = multiselect ? [items[0].id] : items[0].id
+    selected = initial as Selection
     dispatch('selected', selected)
   }
 
@@ -70,15 +72,15 @@
         container,
         (result) => {
           if (result != null) {
-            selected = result
-            dispatch('selected', result)
+            selected = result as Selection
+            dispatch('selected', selected)
           }
           opened = false
         },
         (result) => {
           if (result != null) {
-            selected = result
-            dispatch('selected', result)
+            selected = result as Selection
+            dispatch('selected', selected)
           }
         }
       )

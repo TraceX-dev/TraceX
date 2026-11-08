@@ -4,14 +4,9 @@
     "Succeeded": "Réussi",
     "Denied": "Refusé",
     "Failed": "Échec",
-    "Today": "Aujourd’hui",
     "Last7Days": "7 derniers jours",
     "Last30Days": "30 derniers jours",
     "CustomPeriod": "Période personnalisée",
-    "Refresh": "Actualiser",
-    "LoadMore": "Charger plus",
-    "Retry": "Réessayer",
-    "ClearFilters": "Effacer les filtres",
     "NoAuditEvents": "Aucun événement trouvé pour cette période et ces filtres.",
     "AuditLoadFailed": "Impossible de charger les événements d’audit. Veuillez réessayer.",
     "AuditOwnerOnly": "Seuls les propriétaires de l’espace de travail peuvent consulter le journal d’audit.",
@@ -345,7 +340,6 @@
     "InviteHours": "{count, plural, one {# heure} other {# heures}}",
     "InviteSettingsSaveFailed": "Impossible d'enregistrer les paramètres d'invitation. Veuillez réessayer.",
     "UnknownEvent": "Événement inconnu",
-    "GuestLoggedIn": "Invité connecté",
-    "DocumentPublished": "Document publié"
+    "GuestLoggedIn": "Invité connecté"
   }
 }

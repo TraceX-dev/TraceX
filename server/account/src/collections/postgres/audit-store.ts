@@ -41,7 +41,11 @@ export class PostgresAuditEventStore implements AuditEventStore {
     private readonly ns: string
   ) {}
 
-  async findWorkspace (workspace: WorkspaceUuid, query: WorkspaceAuditQuery, events?: readonly string[]): Promise<AuditRecord[]> {
+  async findWorkspace (
+    workspace: WorkspaceUuid,
+    query: WorkspaceAuditQuery,
+    events?: readonly string[]
+  ): Promise<AuditRecord[]> {
     const table = this.ns === '' ? 'audit_events' : `${this.ns}.audit_events`
     const values: (string | number | string[])[] = [workspace, query.from, query.to]
     const conditions = ['workspace_uuid = $1', 'occurred_at >= $2::int8', 'occurred_at < $3::int8']

@@ -4,14 +4,9 @@
     "Succeeded": "Succeeded",
     "Denied": "Denied",
     "Failed": "Failed",
-    "Today": "Today",
     "Last7Days": "Last 7 days",
     "Last30Days": "Last 30 days",
     "CustomPeriod": "Custom period",
-    "Refresh": "Refresh",
-    "LoadMore": "Load more",
-    "Retry": "Retry",
-    "ClearFilters": "Clear filters",
     "NoAuditEvents": "No events found for this period and filters.",
     "AuditLoadFailed": "Couldn’t load audit events. Please try again.",
     "AuditOwnerOnly": "Only workspace owners can view the audit log.",
@@ -348,7 +343,6 @@
     "InviteHours": "{count, plural, one {# hour} other {# hours}}",
     "InviteSettingsSaveFailed": "Failed to save invitation settings. Please try again.",
     "UnknownEvent": "Unknown event",
-    "GuestLoggedIn": "Guest logged in",
-    "DocumentPublished": "Document published"
+    "GuestLoggedIn": "Guest logged in"
   }
 }

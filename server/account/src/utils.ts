@@ -1330,18 +1330,12 @@ export async function createWorkspaceRecord (
   }
 }
 
-export async function checkInvite (
-  ctx: MeasureContext,
-  invite: WorkspaceInvite,
-  email: string,
-  token?: string
-): Promise<WorkspaceUuid> {
+export async function checkInvite (ctx: MeasureContext, invite: WorkspaceInvite, email: string): Promise<WorkspaceUuid> {
   if (invite.revokedOn != null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
   if (invite.remainingUses === 0) {
-    await auditInviteLimitExceeded(ctx, invite, token)
     ctx.warn('Invite limit exceeded', { email, ...invite })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
@@ -1369,6 +1363,27 @@ export async function checkInvite (
   }
 
   return invite.workspaceUuid
+}
+
+/** Audit exhausted links only after the caller has verified an account token. */
+export async function checkInviteForAccount (
+  ctx: MeasureContext,
+  invite: WorkspaceInvite,
+  email: string,
+  token: string
+): Promise<WorkspaceUuid> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  if (account === readOnlyGuestAccountUuid || account === docGuestAccountUuid) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+  try {
+    return await checkInvite(ctx, invite, email)
+  } catch (error) {
+    if (invite.revokedOn == null && invite.remainingUses === 0) {
+      await auditInviteLimitExceeded(ctx, invite, token)
+    }
+    throw error
+  }
 }
 
 /**
@@ -1495,7 +1510,7 @@ export async function useInvite (
   ctx: MeasureContext,
   db: AccountDB,
   invite: WorkspaceInvite,
-  token?: string
+  token: string
 ): Promise<void> {
   if (invite.remainingUses == null || invite.remainingUses < 0) return
   if (!(await db.consumeInviteUse(invite.id))) {
