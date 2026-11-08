@@ -2,7 +2,6 @@
     "string": {
     "AuditLog": "감사 로그",
     "AllEvents": "모든 이벤트",
-    "AllResults": "모든 결과",
     "Succeeded": "성공",
     "Denied": "거부됨",
     "Failed": "실패",
@@ -28,7 +27,6 @@
     "SourceService": "발생 서비스",
     "OperationId": "작업 ID",
     "UnknownActor": "알 수 없는 실행자",
-    "Timezone": "시간대",
     "NewRole": "새 역할",
     "AccountId": "계정 ID",
     "AffectedAccounts": "영향을 받는 계정",
@@ -48,7 +46,6 @@
     "Permission": "권한",
     "IntegrationKind": "연동 유형",
     "Period": "기간",
-    "NewestFirst": "최신순",
     "AuditEventsMayBeDelayed": "새 이벤트가 표시되기까지 몇 초가 걸릴 수 있습니다. 목록을 새로고침하세요.",
     "WorkspaceCreated": "워크스페이스 생성됨",
     "WorkspaceRenamed": "워크스페이스 이름 변경됨",

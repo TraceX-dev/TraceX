@@ -2,7 +2,6 @@
   "string": {
     "AuditLog": "Журнал аудита",
     "AllEvents": "Все события",
-    "AllResults": "Все результаты",
     "Succeeded": "Успешно",
     "Denied": "Отказано",
     "Failed": "Ошибка",
@@ -28,7 +27,6 @@
     "SourceService": "Сервис-источник",
     "OperationId": "ID операции",
     "UnknownActor": "Неизвестный инициатор",
-    "Timezone": "Часовой пояс",
     "NewRole": "Новая роль",
     "AccountId": "ID аккаунта",
     "AffectedAccounts": "Затронутые аккаунты",
@@ -48,7 +46,6 @@
     "Permission": "Разрешение",
     "IntegrationKind": "Тип интеграции",
     "Period": "Период",
-    "NewestFirst": "Сначала новые",
     "AuditEventsMayBeDelayed": "Новые события могут появляться с задержкой в несколько секунд. Обновите список.",
     "WorkspaceCreated": "Воркспейс создан",
     "WorkspaceRenamed": "Воркспейс переименован",

@@ -2,7 +2,6 @@
   "string": {
     "AuditLog": "監査ログ",
     "AllEvents": "すべてのイベント",
-    "AllResults": "すべての結果",
     "Succeeded": "成功",
     "Denied": "拒否",
     "Failed": "失敗",
@@ -28,7 +27,6 @@
     "SourceService": "発生元サービス",
     "OperationId": "操作ID",
     "UnknownActor": "不明な実行者",
-    "Timezone": "タイムゾーン",
     "NewRole": "新しい役割",
     "AccountId": "アカウントID",
     "AffectedAccounts": "対象アカウント",
@@ -48,7 +46,6 @@
     "Permission": "権限",
     "IntegrationKind": "連携の種類",
     "Period": "期間",
-    "NewestFirst": "新しい順",
     "AuditEventsMayBeDelayed": "新しいイベントが表示されるまで数秒かかる場合があります。リストを更新してください。",
     "WorkspaceCreated": "ワークスペースを作成",
     "WorkspaceRenamed": "ワークスペース名を変更",

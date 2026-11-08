@@ -54,8 +54,8 @@
   import AuditIdentity from './AuditIdentity.svelte'
 
   const periodItems: DropdownIntlItem[] = [
-    { id: '7', label: setting.string.Last7Days },
     { id: '1', label: setting.string.Today },
+    { id: '7', label: setting.string.Last7Days },
     { id: '30', label: setting.string.Last30Days },
     { id: 'custom', label: setting.string.CustomPeriod }
   ]
@@ -83,12 +83,14 @@
   let filters: ActiveFilter[] = []
   let startDate: Date | null = null
   let endDate: Date | null = null
-  let loading = true
+  let loading = owner
   let loadingMore = false
   let failed = false
   let denied = !owner
   let generation = 0
   let query: WorkspaceAuditQuery
+
+  $: canClearFilters = period !== '7' || filters.length > 0
 
   function makeQuery (): WorkspaceAuditQuery {
     const now = new Date()
@@ -111,7 +113,6 @@
 
   async function load (more = false): Promise<void> {
     if (!owner || denied || (more && (loading || loadingMore || nextCursor === undefined))) {
-      loading = false
       return
     }
     const request = ++generation
@@ -327,9 +328,11 @@
             </div>
           {:else if !failed}
             <SectionEmpty icon={IconHistory} label={setting.string.NoAuditEvents}>
-              <div class="mt-2">
-                <Button label={setting.string.ClearFilters} dataId="audit-clear-filters" on:click={clearFilters} />
-              </div>
+              {#if canClearFilters}
+                <div class="mt-2">
+                  <Button label={setting.string.ClearFilters} dataId="audit-clear-filters" on:click={clearFilters} />
+                </div>
+              {/if}
             </SectionEmpty>
           {/if}
         {/if}

@@ -2,7 +2,6 @@
   "string": {
     "AuditLog": "审计日志",
     "AllEvents": "所有事件",
-    "AllResults": "所有结果",
     "Succeeded": "成功",
     "Denied": "已拒绝",
     "Failed": "失败",
@@ -28,7 +27,6 @@
     "SourceService": "来源服务",
     "OperationId": "操作 ID",
     "UnknownActor": "未知操作发起者",
-    "Timezone": "时区",
     "NewRole": "新角色",
     "AccountId": "账户 ID",
     "AffectedAccounts": "受影响的账户",
@@ -48,7 +46,6 @@
     "Permission": "权限",
     "IntegrationKind": "集成类型",
     "Period": "时间段",
-    "NewestFirst": "最新优先",
     "AuditEventsMayBeDelayed": "新事件可能需要几秒钟才会显示。请刷新列表。",
     "WorkspaceCreated": "已创建工作区",
     "WorkspaceRenamed": "已重命名工作区",

@@ -2,7 +2,6 @@
   "string": {
     "AuditLog": "Protokol auditu",
     "AllEvents": "Všechny události",
-    "AllResults": "Všechny výsledky",
     "Succeeded": "Úspěšné",
     "Denied": "Zamítnuto",
     "Failed": "Neúspěšné",
@@ -28,7 +27,6 @@
     "SourceService": "Zdrojová služba",
     "OperationId": "ID operace",
     "UnknownActor": "Neznámý původce",
-    "Timezone": "Časové pásmo",
     "NewRole": "Nová role",
     "AccountId": "ID účtu",
     "AffectedAccounts": "Dotčené účty",
@@ -48,7 +46,6 @@
     "Permission": "Oprávnění",
     "IntegrationKind": "Typ integrace",
     "Period": "Období",
-    "NewestFirst": "Od nejnovějších",
     "AuditEventsMayBeDelayed": "Nové události se mohou zobrazit s několikasekundovým zpožděním. Aktualizujte seznam.",
     "WorkspaceCreated": "Pracovní prostor vytvořen",
     "WorkspaceRenamed": "Pracovní prostor přejmenován",

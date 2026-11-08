@@ -2,7 +2,6 @@
   "string": {
     "AuditLog": "Audit log",
     "AllEvents": "All events",
-    "AllResults": "All results",
     "Succeeded": "Succeeded",
     "Denied": "Denied",
     "Failed": "Failed",
@@ -28,7 +27,6 @@
     "SourceService": "Source service",
     "OperationId": "Operation ID",
     "UnknownActor": "Unknown actor",
-    "Timezone": "Timezone",
     "NewRole": "New role",
     "AccountId": "Account ID",
     "AffectedAccounts": "Affected accounts",
@@ -48,7 +46,6 @@
     "Permission": "Permission",
     "IntegrationKind": "Integration kind",
     "Period": "Period",
-    "NewestFirst": "Newest first",
     "AuditEventsMayBeDelayed": "New events may take a few seconds to appear. Refresh to update.",
     "WorkspaceCreated": "Workspace created",
     "WorkspaceRenamed": "Workspace renamed",

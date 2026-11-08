@@ -23,6 +23,8 @@
   export let account: string | undefined = undefined
   export let service: string | undefined = undefined
 
+  // AccountUuid shares PersonUuid when an account exists (core/classes.ts).
+  // A person without a workspace employee is displayed using the stored UUID below.
   $: person = account !== undefined ? $employeeByAccountStore.get(account as AccountUuid) : undefined
 </script>
 

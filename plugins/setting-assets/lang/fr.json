@@ -2,7 +2,6 @@
   "string": {
     "AuditLog": "Journal d’audit",
     "AllEvents": "Tous les événements",
-    "AllResults": "Tous les résultats",
     "Succeeded": "Réussi",
     "Denied": "Refusé",
     "Failed": "Échec",
@@ -28,7 +27,6 @@
     "SourceService": "Service source",
     "OperationId": "ID de l’opération",
     "UnknownActor": "Auteur inconnu",
-    "Timezone": "Fuseau horaire",
     "NewRole": "Nouveau rôle",
     "AccountId": "ID du compte",
     "AffectedAccounts": "Comptes concernés",
@@ -48,7 +46,6 @@
     "Permission": "Autorisation",
     "IntegrationKind": "Type d’intégration",
     "Period": "Période",
-    "NewestFirst": "Plus récents en premier",
     "AuditEventsMayBeDelayed": "Les nouveaux événements peuvent mettre quelques secondes à apparaître. Actualisez la liste.",
     "WorkspaceCreated": "Espace de travail créé",
     "WorkspaceRenamed": "Espace de travail renommé",

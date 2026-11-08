@@ -127,6 +127,25 @@ test.each([
   expect(findWorkspace).not.toHaveBeenCalled()
 })
 
+test.each([undefined, null])('rejects missing query parameters %s as BadRequest', async (params) => {
+  const result =
+    params === undefined
+      ? getWorkspaceAuditEvents(ctx, db as AccountDB, null, 'token')
+      : getWorkspaceAuditEvents(ctx, db as AccountDB, null, 'token', params)
+  await expect(result).rejects.toMatchObject({ status: { code: platform.status.BadRequest } })
+  expect(findWorkspace).not.toHaveBeenCalled()
+})
+
+test.each([undefined, null])('the registered RPC returns BadRequest for missing parameters %s', async (params) => {
+  const handler = getMethods().getWorkspaceAuditEvents
+  if (handler === undefined) throw new Error('Missing audit query handler')
+  const request: Record<string, unknown> = { id: 1, method: 'getWorkspaceAuditEvents' }
+  if (params !== undefined) request.params = params
+  const response = await handler(ctx, db as AccountDB, null, request, 'token')
+  expect(response.error.code).toBe(platform.status.BadRequest)
+  expect(findWorkspace).not.toHaveBeenCalled()
+})
+
 test('requires a workspace token and rejects API keys even for owners', async () => {
   const unscoped: Token = { ...claims, workspace: '' as WorkspaceUuid }
   jest.mocked(decodeTokenVerbose).mockReturnValueOnce(unscoped)

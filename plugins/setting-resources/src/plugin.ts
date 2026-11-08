@@ -40,7 +40,6 @@ export default mergeIds(settingId, setting, {
   string: {
     AuditLog: '' as IntlString,
     AllEvents: '' as IntlString,
-    AllResults: '' as IntlString,
     Succeeded: '' as IntlString,
     Denied: '' as IntlString,
     Failed: '' as IntlString,
@@ -66,7 +65,6 @@ export default mergeIds(settingId, setting, {
     SourceService: '' as IntlString,
     OperationId: '' as IntlString,
     UnknownActor: '' as IntlString,
-    Timezone: '' as IntlString,
     NewRole: '' as IntlString,
     AccountId: '' as IntlString,
     AffectedAccounts: '' as IntlString,
@@ -86,7 +84,6 @@ export default mergeIds(settingId, setting, {
     Permission: '' as IntlString,
     IntegrationKind: '' as IntlString,
     Period: '' as IntlString,
-    NewestFirst: '' as IntlString,
     AuditEventsMayBeDelayed: '' as IntlString,
     WorkspaceCreated: '' as IntlString,
     WorkspaceRenamed: '' as IntlString,

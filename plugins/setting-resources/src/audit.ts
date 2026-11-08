@@ -13,6 +13,7 @@
 // limitations under the License.
 //
 
+import contact from '@hcengineering/contact'
 import { AccountRole } from '@hcengineering/core'
 import type { WorkspaceAuditEvent } from '@hcengineering/account-client'
 import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
@@ -96,7 +97,7 @@ export const AUDIT_OUTCOME_TYPES: Record<WorkspaceAuditEvent['outcome'], StateTy
 export const AUDIT_ATTRIBUTE_LABELS: Record<string, IntlString> = {
   targetAccountUuid: setting.string.AccountId,
   subjectAccountUuid: setting.string.AccountId,
-  targetPersonUuid: setting.string.AccountId,
+  targetPersonUuid: contact.string.Person,
   role: setting.string.Role,
   targetRole: setting.string.NewRole,
   permission: setting.string.Permission,

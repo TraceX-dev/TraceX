@@ -2,7 +2,6 @@
   "string": {
     "AuditLog": "Dziennik audytu",
     "AllEvents": "Wszystkie zdarzenia",
-    "AllResults": "Wszystkie wyniki",
     "Succeeded": "Powodzenie",
     "Denied": "Odmowa",
     "Failed": "Niepowodzenie",
@@ -28,7 +27,6 @@
     "SourceService": "Usługa źródłowa",
     "OperationId": "ID operacji",
     "UnknownActor": "Nieznany wykonawca",
-    "Timezone": "Strefa czasowa",
     "NewRole": "Nowa rola",
     "AccountId": "ID konta",
     "AffectedAccounts": "Konta objęte zmianą",
@@ -48,7 +46,6 @@
     "Permission": "Uprawnienie",
     "IntegrationKind": "Typ integracji",
     "Period": "Okres",
-    "NewestFirst": "Od najnowszych",
     "AuditEventsMayBeDelayed": "Nowe zdarzenia mogą pojawić się z kilkusekundowym opóźnieniem. Odśwież listę.",
     "WorkspaceCreated": "Utworzono przestrzeń roboczą",
     "WorkspaceRenamed": "Zmieniono nazwę przestrzeni roboczej",

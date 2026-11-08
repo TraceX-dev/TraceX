@@ -49,7 +49,8 @@ function badRequest (): never {
   throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
 }
 
-function validateQuery (query: WorkspaceAuditQuery): void {
+function validateQuery (query: WorkspaceAuditQuery | null | undefined): asserts query is WorkspaceAuditQuery {
+  if (query == null || typeof query !== 'object' || Array.isArray(query)) badRequest()
   if (
     !Number.isSafeInteger(query.from) ||
     query.from < 0 ||
@@ -103,7 +104,7 @@ export async function getWorkspaceAuditEvents (
   db: AccountDB,
   _branding: Branding | null,
   token: string,
-  query: WorkspaceAuditQuery
+  query?: WorkspaceAuditQuery | null
 ): Promise<WorkspaceAuditPage> {
   const { account, workspace, extra } = decodeTokenVerbose(ctx, token)
   if (

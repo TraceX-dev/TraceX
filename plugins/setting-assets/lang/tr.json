@@ -2,7 +2,6 @@
   "string": {
     "AuditLog": "Denetim günlüğü",
     "AllEvents": "Tüm olaylar",
-    "AllResults": "Tüm sonuçlar",
     "Succeeded": "Başarılı",
     "Denied": "Reddedildi",
     "Failed": "Başarısız",
@@ -28,7 +27,6 @@
     "SourceService": "Kaynak hizmet",
     "OperationId": "İşlem kimliği",
     "UnknownActor": "Bilinmeyen işlem sahibi",
-    "Timezone": "Saat dilimi",
     "NewRole": "Yeni rol",
     "AccountId": "Hesap kimliği",
     "AffectedAccounts": "Etkilenen hesaplar",
@@ -48,7 +46,6 @@
     "Permission": "İzin",
     "IntegrationKind": "Entegrasyon türü",
     "Period": "Dönem",
-    "NewestFirst": "Önce en yeniler",
     "AuditEventsMayBeDelayed": "Yeni olayların görünmesi birkaç saniye sürebilir. Listeyi yenileyin.",
     "WorkspaceCreated": "Çalışma alanı oluşturuldu",
     "WorkspaceRenamed": "Çalışma alanı yeniden adlandırıldı",
