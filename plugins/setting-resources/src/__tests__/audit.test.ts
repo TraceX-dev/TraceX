@@ -29,7 +29,7 @@ jest.mock('@hcengineering/ui', () => ({
 }))
 
 test('every owner event has a translated label and can be selected as a filter', () => {
-  expect(AUDIT_EVENT_ITEMS.map(({ id }) => id).sort((a, b) => a.localeCompare(b))).toEqual(
+  expect(AUDIT_EVENT_ITEMS.map(({ id }) => String(id)).sort((a, b) => a.localeCompare(b))).toEqual(
     [...OWNER_AUDIT_EVENTS].sort((a, b) => a.localeCompare(b))
   )
   for (const event of OWNER_AUDIT_EVENTS) {
