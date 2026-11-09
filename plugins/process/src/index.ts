@@ -47,7 +47,7 @@ export type {
 export const processId = 'process' as Plugin
 
 export interface SlotModel {
-  slotKind: 'attribute' | 'class' | 'association' | 'process' | 'unknown'
+  slotKind: 'attribute' | 'class' | 'association' | 'process' | 'role' | 'unknown'
   _class: Ref<Class<Doc>>
   label?: IntlString
   name?: string

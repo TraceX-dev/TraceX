@@ -180,6 +180,8 @@ Readable types are `string`, `number`, `boolean`, `date`, `markup`, `{array: num
 
 Generated process result metadata exactly follows native synchronization: `isResult: true`, the declared type, owning action/transition, context selector, and a shared display sequence after ordinary `as` outputs. For a reference type, its context class is the referenced class; for arrays, it follows the engine's element-type rule. Export uses named results only when it can reproduce every native property. Earlier result arrays and unusual explicit context maps remain supported.
 
+Role slots use `kind: role` and `class: card.Role`. Both binding dialogs list roles assigned to the destination card type or its ancestors, display role names and validate that ownership on import. Pass `$slots.approvers` as the `target` property of `RoleContext` to resolve the selected role's employees in the current card space. Export detects role references automatically. Earlier YAML exports with `kind: unknown` are recognized in the binding dialog when their saved binding still resolves to a role in the current workspace; otherwise re-export the source process or explicitly declare the role slot.
+
 #### Declarative expressions
 
 Use `expr` for computations in any parameter value, including nested function properties. It assembles the existing native context expression; it executes no JavaScript.
