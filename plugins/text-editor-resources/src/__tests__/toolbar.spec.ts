@@ -98,8 +98,10 @@ describe('toolbar positioning', () => {
   })
 
   afterEach(() => {
-    editor.view.dom.remove()
-    editor.destroy()
+    if (!editor.isDestroyed) {
+      editor.view.dom.remove()
+      editor.destroy()
+    }
     container.remove()
     jest.clearAllTimers()
     jest.useRealTimers()
