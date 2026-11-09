@@ -110,9 +110,7 @@
         }))
     } else if (slot.slotKind === 'role') {
       possible = allRoles
-        .filter((role) =>
-          isAuthoringSlotBindingCompatible(masterTag, slot, role._id, bindings, model, hierarchy)
-        )
+        .filter((role) => isAuthoringSlotBindingCompatible(masterTag, slot, role._id, bindings, model, hierarchy))
         .map((role) => ({ id: role._id, text: role.name }))
     } else if (slot.slotKind === 'class' || isClassLike({ _class: slot._class } as any)) {
       let descendants: Ref<Class<Doc>>[] = []

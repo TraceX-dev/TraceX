@@ -81,7 +81,12 @@ describe('process role slots', () => {
         context: null,
         methodId: process.method.CreateToDo,
         params: {
-          user: createContext({ type: 'function', key: '', func: process.function.RoleContext, props: { target: roleId } }),
+          user: createContext({
+            type: 'function',
+            key: '',
+            func: process.function.RoleContext,
+            props: { target: roleId }
+          }),
           title: 'Take it'
         }
       }
@@ -150,9 +155,9 @@ describe('process role slots', () => {
     const otherRole: Partial<Role> = { ...role, _id: 'other-role' as Ref<Role>, types: [card.class.Tag] }
     expect(isAuthoringSlotBindingCompatible(card.class.Card, slot, roleId, {}, model, hierarchy)).toBe(true)
     expect(
-      isAuthoringSlotBindingCompatible(
-        card.class.Card, slot, 'other-role', {}, model, hierarchy, undefined, [otherRole as Role]
-      )
+      isAuthoringSlotBindingCompatible(card.class.Card, slot, 'other-role', {}, model, hierarchy, undefined, [
+        otherRole as Role
+      ])
     ).toBe(false)
     expect(isAuthoringSlotBindingCompatible(card.class.Card, slot, card.class.Card, {}, model, hierarchy)).toBe(false)
   })
@@ -176,7 +181,11 @@ describe('process role slots', () => {
       title: 'Done',
       rank: '0'
     }
-    const template = createYamlModelTemplate([native as Process, transition as Transition, state as Doc], model, hierarchy)
+    const template = createYamlModelTemplate(
+      [native as Process, transition as Transition, state as Doc],
+      model,
+      hierarchy
+    )
     const source = exportAuthoringModel(template.docs, 'process')
     expect(source).toContain('kind: role')
     expect(source).toContain('class: card.Role')
@@ -188,7 +197,11 @@ describe('process role slots', () => {
     })
     const compiled = compileProcessYaml(source)
     const rebound = bindYamlModelProcess(
-      compiled.docs as unknown as Doc[], card.class.Card, { slot_approvers: 'destination-role' }, model, hierarchy
+      compiled.docs as unknown as Doc[],
+      card.class.Card,
+      { slot_approvers: 'destination-role' },
+      model,
+      hierarchy
     )
     const boundTransition = rebound.find((doc) => doc._class === process.class.Transition) as Transition
     expect(parseContext(boundTransition.actions[0].params.user)).toEqual(

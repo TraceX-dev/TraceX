@@ -64,9 +64,10 @@
     const requirement = process.requiredSlots?.[slotId]
     if (requirement === undefined) return
     const boundRole = allRoles.find((role) => role._id === process.bindings?.[slotId])
-    const slot: SlotModel = requirement.slotKind === 'unknown' && boundRole !== undefined
-      ? { ...requirement, slotKind: 'role', _class: card.class.Role }
-      : requirement
+    const slot: SlotModel =
+      requirement.slotKind === 'unknown' && boundRole !== undefined
+        ? { ...requirement, slotKind: 'role', _class: card.class.Role }
+        : requirement
 
     const memberOfTag = resolveMemberOf(slot.memberOf)
     if (memberOfTag === undefined) return
@@ -98,9 +99,7 @@
     } else if (slot.slotKind === 'role') {
       possible = allRoles
         .filter((role) =>
-          isAuthoringSlotBindingCompatible(
-            process.masterTag, slot, role._id, process.bindings ?? {}, model, hierarchy
-          )
+          isAuthoringSlotBindingCompatible(process.masterTag, slot, role._id, process.bindings ?? {}, model, hierarchy)
         )
         .map((role) => ({ id: role._id, name: role.name }))
     } else if (slot.slotKind === 'class') {

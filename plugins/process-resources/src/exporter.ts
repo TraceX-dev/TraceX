@@ -479,7 +479,12 @@ export function getRequiredSlots (json: string): Record<string, SlotModel> | und
       Object.entries(slots).map(([key, slot]) => {
         if (slot.slotKind === 'unknown') {
           const bound = definition?.bindings?.[key]
-          const role = bound === undefined ? undefined : getClient().getModel().findObject(bound as Ref<Role>)
+          const role =
+            bound === undefined
+              ? undefined
+              : getClient()
+                  .getModel()
+                  .findObject(bound as Ref<Role>)
           if (role?._class === card.class.Role) return [key, roleToSlot(role, slot.memberOf)]
         }
         if (slot.slotKind !== 'attribute') return [key, slot]
