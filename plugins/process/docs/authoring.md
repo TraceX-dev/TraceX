@@ -548,7 +548,7 @@ Use the exact `methodId` shown below. `params` values can be literals or native 
 | --- | --- | --- |
 | `process:method:UpdateCard` | Nonempty object mapping stored attribute names to new values | Writes the current card. `context: null`. Attribute slots resolve to field names. Declare visible business status updates explicitly. |
 | `process:method:CreateToDo` | Required `title`, `user`; explicitly set `completionMode: "all"` or `"any"` and `withRollback`; optional `description`, `dueDate`, `field`, `askRequired` | `user` is an employee reference or an array of them. Empty recipients are an error. Publishes a task group under `Step.context._id`. In `all` mode, user results and `askRequired` are suppressed. |
-| `process:method:RequestApproval` | Required `user`; optional `field`, `description`, `dueDate`, `priority`, `withRollback`, `actionType` | Creates an approval request group. Publish it with `as` and use the approval decision triggers below. See the [complete parameter contract](#requestapproval-parameters-and-decisions). |
+| `process:method:RequestApproval` | Required `user`; optional `completionMode`, `field`, `description`, `dueDate`, `priority`, `withRollback`, `actionType` | Creates an approval request group. Publish it with `as` and use the approval decision triggers below. See the [complete parameter contract](#requestapproval-parameters-and-decisions). |
 | `process:method:SetContext` | Required `value`; the step must declare exactly one typed entry in `results` | Initializes that result in execution context. Use `context: null`. Read it with `${$context(resultId)}` after this action. |
 | `process:method:UpdateContext` | Required `contextId`: literal result id, and `value` | Updates an already initialized result whose context definition has `isResult: true` and a `type`. It does not create a definition or write a card field. |
 
@@ -561,6 +561,7 @@ Task parameters do not inherit the method catalog's defaults when raw JSON is ex
 | Parameter | Type / required | Runtime behavior when supplied or omitted |
 | --- | --- | --- |
 | `user` | Employee reference or array of employee references; required | Recipients, e.g. `$card.approvers`. Missing or empty recipients fail the action. Guest recipients must already have read access to the card. |
+| `completionMode` | `all` or `any`; optional | Defaults to `all`, including existing definitions without this parameter. `all` requires every recipient's approval; `any` requires one approval and cancels the remaining pending requests. In either mode, any recorded rejection rejects the group. |
 | `field` | Stored card attribute name; optional | Enables synchronization of pending requests with the card's recipient field. Use `$slots.approvers` for its identity, not `$card.approvers` for its value. Omit it for a fixed recipient list. |
 | `description` | Markup string; optional | Request description; defaults to an empty string. |
 | `dueDate` | Timestamp in milliseconds since the Unix epoch; optional | Request due date; omitted means no due date. |
@@ -580,12 +581,13 @@ request_approval:
     field: $slots.approvers
     withRollback: false
     actionType: approve
+    completionMode: all
   as: approval_request
 ```
 
-`OnApproveRequestApproved: {_id: $context.approval_request}` succeeds when every request in the group has `approved: true`. `OnApproveRequestRejected` with the same `_id` succeeds when any request has `approved: false`. Pending requests have neither decision. Both triggers have `auto: true`; model two outgoing transitions from the waiting state and define each outcome explicitly.
+`OnApproveRequestApproved: {_id: $context.approval_request}` succeeds when every request in an `all` group has `approved: true`, or at least one request in an `any` group does and none has rejected. `OnApproveRequestRejected` with the same `_id` succeeds when any request has `approved: false` in either mode. Pending requests have neither decision. Both triggers have `auto: true`; model two outgoing transitions from the waiting state and define each outcome explicitly. The action editor's **Require all approvals** toggle selects the mode; it is on by default. Automatic cancellation of pending requests after an `any` approval does not trigger task-removal rollback.
 
-There is no approval `completionMode` parameter: approval always requires every request, and one rejection is sufficient. The runtime uses the fixed title `Approve request`; `title` and `askRequired` do not configure this action. Do not transfer `CreateToDo` parameter behavior or result aggregation assumptions to approval requests.
+The runtime uses the fixed title `Approve request`; `title` and `askRequired` do not configure this action. Approval modes do not add task result aggregation or change configured approval results.
 
 For offline approval output typing, use `as: {key: approval_request, class: process.ApproveRequest}`. The UI checks required parameters and trigger contracts against the installed model; no operation catalog is embedded in the YAML file.
 
@@ -601,7 +603,7 @@ Use the exact `trigger` id shown below. `auto` and `init` are properties of the 
 | `process:trigger:WhenFieldChanges` | `init: false`, `auto: false` | One stored field key mapped to a match condition, for example `{"customProbability":{"$exists":true}}`. Fires only when that field is present in the update operations and its condition matches. Only the first parameter key is checked; use separate transitions for separate input fields. |
 | `process:trigger:OnCardUpdate` | `init: false`, `auto: true` | Card match query, for example `{"customScore":{"$gt":16}}`. Checked on card update events and immediately after a transition. Multiple field predicates in the same object are combined with AND. An empty query matches unconditionally. |
 | `process:trigger:OnToDoClose` | `init: false`, `auto: true` | Required `_id`, normally `"${$context(taskContextId)}"`; waits for the task/group produced by the task action. Completion follows the group's explicit `all` / `any` mode. |
-| `process:trigger:OnApproveRequestApproved` | `init: false`, `auto: true` | Required `_id`: the group published by `RequestApproval`. Matches when every request has `approved: true`. |
+| `process:trigger:OnApproveRequestApproved` | `init: false`, `auto: true` | Required `_id`: the group published by `RequestApproval`. Matches all approvals in `all` mode (default), or at least one approval with no rejections in `any` mode. |
 | `process:trigger:OnApproveRequestRejected` | `init: false`, `auto: true` | Required `_id`: the same approval group. Matches when any request has `approved: false`. |
 
 Match conditions include direct equality and `$gt`, `$lt`, `$gte`, `$lte`, `$in`, and `$exists`. For a bounded range, use both bounds in one field predicate: `{"customScore":{"$gte":9,"$lte":16}}`. Top-level `$or` is not supported by platform document queries; model alternatives with separate transitions and deliberate priority.
