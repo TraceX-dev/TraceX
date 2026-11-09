@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import card, { type MasterTag } from '@hcengineering/card'
+import card, { type MasterTag, type Role } from '@hcengineering/card'
 import core, {
   type AnyAttribute,
   type ArrOf,
@@ -121,6 +121,15 @@ function processToSlot (proc: Process, memberOf?: string): SlotModel {
     _class: proc._class,
     label: (proc as any).label,
     name: proc.name,
+    memberOf
+  }
+}
+
+function roleToSlot (role: Role, memberOf?: string): SlotModel {
+  return {
+    slotKind: 'role',
+    _class: role._class,
+    name: role.name,
     memberOf
   }
 }
@@ -463,10 +472,16 @@ export function getRequiredSlots (json: string): Record<string, SlotModel> | und
       json.trimStart().startsWith('[') ? undefined : getClient().getModel()
     )
     const proc = data.find((d: any) => d._class === processPlugin.class.Process)
-    const slots = (proc as Process | undefined)?.requiredSlots
+    const definition = proc as Process | undefined
+    const slots = definition?.requiredSlots
     if (slots === undefined || json.trimStart().startsWith('[')) return slots
     return Object.fromEntries(
       Object.entries(slots).map(([key, slot]) => {
+        if (slot.slotKind === 'unknown') {
+          const bound = definition?.bindings?.[key]
+          const role = bound === undefined ? undefined : getClient().getModel().findObject(bound as Ref<Role>)
+          if (role?._class === card.class.Role) return [key, roleToSlot(role, slot.memberOf)]
+        }
         if (slot.slotKind !== 'attribute') return [key, slot]
         const attribute = slot as AttributeSlotModel
         let type = attribute.type
@@ -1035,7 +1050,7 @@ function mergeNonAttributeSlotMeta (meta: SlotModel, model: DetailedSlotModel): 
   if (
     model.name !== undefined &&
     model.name !== '' &&
-    (model.slotKind === 'process' || model.slotKind === 'association')
+    (model.slotKind === 'process' || model.slotKind === 'association' || model.slotKind === 'role')
   ) {
     meta.name = model.name
   }
@@ -1161,6 +1176,8 @@ function classifyAndRegisterSlot (
     const attr = obj as Attribute<any>
     const attrMemberOf = resolveParentSlot(attr.attributeOf, masterTag, memberOfRef, getOrAddSlot, m)
     getOrAddSlot(id, attributeToSlot(attr, attrMemberOf))
+  } else if (classId === normalizeId(card.class.Role)) {
+    getOrAddSlot(id, roleToSlot(obj as Role, memberOfRef))
   } else if (classId === normalizeId(core.class.Class) || h.isDerived(obj._class, core.class.Class)) {
     getOrAddSlot(id, classToSlot(obj as any as Class<any>, memberOfRef))
   } else {

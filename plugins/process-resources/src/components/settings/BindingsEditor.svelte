@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,7 +18,8 @@
   import core, { AnyAttribute, Class, Doc, Ref } from '@hcengineering/core'
   import { getEmbeddedLabel, IntlString } from '@hcengineering/platform'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
-  import { Process } from '@hcengineering/process'
+  import { isAuthoringSlotBindingCompatible, Process } from '@hcengineering/process'
+  import type { SlotModel } from '@hcengineering/process'
   import { Button, eventToHTMLElement, Label, SelectPopup, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import processPlugin from '../../plugin'
@@ -33,6 +35,7 @@
   $: allAttrs = hierarchy.getAllAttributes(process.masterTag as any, core.class.Doc)
   $: allAssociations = model.findAllSync(core.class.Association, {})
   $: allProcesses = model.findAllSync(processPlugin.class.Process, {})
+  $: allRoles = model.findAllSync(card.class.Role, {})
 
   function isClassLike (obj: Doc | undefined): boolean {
     if (!obj || !obj._class) return false
@@ -58,8 +61,12 @@
   }
 
   async function setBinding (slotId: string, e: MouseEvent): Promise<void> {
-    const slot = process.requiredSlots?.[slotId]
-    if (slot === undefined) return
+    const requirement = process.requiredSlots?.[slotId]
+    if (requirement === undefined) return
+    const boundRole = allRoles.find((role) => role._id === process.bindings?.[slotId])
+    const slot: SlotModel = requirement.slotKind === 'unknown' && boundRole !== undefined
+      ? { ...requirement, slotKind: 'role', _class: card.class.Role }
+      : requirement
 
     const memberOfTag = resolveMemberOf(slot.memberOf)
     if (memberOfTag === undefined) return
@@ -88,6 +95,14 @@
       possible = allProcesses
         .filter((proc) => hierarchy.isDerived(memberOfTag, proc.masterTag))
         .map((p) => ({ id: p._id, name: p.name }))
+    } else if (slot.slotKind === 'role') {
+      possible = allRoles
+        .filter((role) =>
+          isAuthoringSlotBindingCompatible(
+            process.masterTag, slot, role._id, process.bindings ?? {}, model, hierarchy
+          )
+        )
+        .map((role) => ({ id: role._id, name: role.name }))
     } else if (slot.slotKind === 'class') {
       let descendants: Ref<Class<Doc>>[] = []
       try {
@@ -155,6 +170,9 @@
 
     const proc = allProcesses.find((p) => p._id === value)
     if (proc !== undefined) return getEmbeddedLabel(proc.name)
+
+    const role = allRoles.find((role) => role._id === value)
+    if (role !== undefined) return getEmbeddedLabel(role.name)
 
     const cls = model.findObject(value as any)
     if (isClassLike(cls)) return (cls as Class<Doc>).label

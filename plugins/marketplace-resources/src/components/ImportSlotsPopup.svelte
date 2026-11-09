@@ -37,6 +37,7 @@
   $: allAttrs = hierarchy.getAllAttributes(masterTag, core.class.Doc)
   $: allAssociations = model.findAllSync(core.class.Association, {})
   $: allProcesses = model.findAllSync(processPlugin.class.Process, {})
+  $: allRoles = model.findAllSync(card.class.Role, {})
 
   function isClassLike (obj: Doc | undefined): boolean {
     if (!obj || !obj._class) return false
@@ -107,6 +108,12 @@
           label: (p as any).label,
           text: p.name ?? p._id
         }))
+    } else if (slot.slotKind === 'role') {
+      possible = allRoles
+        .filter((role) =>
+          isAuthoringSlotBindingCompatible(masterTag, slot, role._id, bindings, model, hierarchy)
+        )
+        .map((role) => ({ id: role._id, text: role.name }))
     } else if (slot.slotKind === 'class' || isClassLike({ _class: slot._class } as any)) {
       let descendants: Ref<Class<Doc>>[] = []
       try {
@@ -223,6 +230,9 @@
 
     const proc = allProcesses.find((p) => p._id === value)
     if (proc !== undefined) return getEmbeddedLabel(proc.name)
+
+    const role = allRoles.find((role) => role._id === value)
+    if (role !== undefined) return getEmbeddedLabel(role.name)
 
     const cls = model.findObject(value as any)
     if (isClassLike(cls)) return (cls as any).label ?? (cls as any).name
